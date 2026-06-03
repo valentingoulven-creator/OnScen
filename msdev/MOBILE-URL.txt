@@ -1,0 +1,9 @@
+MeloSong — URL a ouvrir SUR LE TELEPHONE (navigateur)
+(IP du PC sur le reseau local — pas l'IP du telephone)
+
+http://192.168.1.93:4080
+
+Si ca ne charge pas: npm run msdev:diagnose puis npm run msdev:fix-network (admin)
+Si l'IP du PC a change: mettez a jour msdev/.env (MOBILE_HOST_IP) et ce fichier.
+
+Compte demo: listener@msdev.local / msdev123

@@ -1,0 +1,32 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "msdev: start server",
+      "type": "npm",
+      "script": "dev:msdev",
+      "path": "backend",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "msdev"
+      },
+      "runOptions": {
+        "runOn": "default"
+      }
+    },
+    {
+      "label": "msdev: open web app",
+      "type": "shell",
+      "command": "start http://localhost:4080",
+      "windows": {
+        "command": "start http://localhost:4080"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "never"
+      }
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+/** Note affichée aux spectateurs (flux host non relayé en msdev). */
+export const LIVE_CAMERA_VIEWER_NOTE =
+  'Le host diffuse en caméra. En démo msdev, seul le host voit son flux vidéo local.';
+
+/** Contexte iframe : la caméra est souvent bloquée sans permission `allow="camera"`. */
+export const LIVE_CAMERA_IFRAME_NOTE =
+  'Si MeloSong est intégré dans une autre page (iframe), la caméra peut être bloquée. Ouvrez l’app dans un onglet dédié ou demandez l’attribut allow="camera; microphone".';
+
+/** PWA / écran d’accueil iOS : parfois permissions limitées au premier lancement. */
+export const LIVE_CAMERA_PWA_NOTE =
+  'En application installée (PWA), autorisez caméra et micro dans Réglages → Safari (ou l’app) si la demande n’apparaît pas.';
+
+export const LIVE_CAMERA_HTTPS_REQUIRED =
+  'La caméra nécessite une connexion sécurisée (HTTPS). Sur le PC : https://localhost:4080 ; sur le téléphone : npm run msdev:https puis l’URL https://192.168.x.x:4080.';
+
+export const LIVE_CAMERA_HTTPS_HTTP_LAN =
+  'Caméra bloquée en http:// sur le réseau local (192.168.x). Sur le PC : npm run msdev:https, puis ouvrez https://192.168.x.x:4080 et acceptez le certificat.';
+
+export const LIVE_CAMERA_HTTP_LAN_MSDEV_HINT =
+  'En http:// sur le LAN, Chrome peut bloquer la caméra. Pour le téléphone : npm run msdev:https → https://192.168.x.x:4080 (certificat auto-signé). Sur le PC, http://localhost:4080 fonctionne souvent.';
+
+export const LIVE_CAMERA_PERMISSION_DENIED =
+  'Accès caméra refusé. Autorisez la caméra et le micro dans le navigateur (icône cadenas ou barre d’adresse).';
+
+export const LIVE_CAMERA_PERMISSION_DENIED_WINDOWS =
+  'Accès caméra refusé. Autorisez la caméra dans le navigateur (icône cadenas). Sous Windows : Paramètres → Confidentialité et sécurité → Caméra → activez « Accès à la caméra » et autorisez Chrome ou Edge.';
+
+export const LIVE_CAMERA_UNSUPPORTED_BROWSER =
+  'Votre navigateur ne prend pas en charge l’accès caméra (getUserMedia). Mettez à jour Safari/Chrome ou utilisez « Choisir une vidéo ».';
+
+export const LIVE_CAMERA_IFRAME_BLOCKED =
+  'Caméra indisponible dans cette fenêtre intégrée (iframe). Ouvrez MeloSong dans un onglet complet.';
+
+export const LIVE_CAMERA_INVALID_FILE =
+  'Choisissez un fichier vidéo (MP4, WebM, etc.).';
+
+export const LIVE_CAMERA_FILE_LOAD_ERROR =
+  'Impossible de lire cette vidéo. Essayez un autre format (MP4 recommandé).';

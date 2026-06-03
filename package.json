@@ -1,0 +1,26 @@
+{
+  "name": "melosong",
+  "version": "2.0.0",
+  "private": true,
+  "description": "MeloSong — salons musicaux géolocalisés (Spotify, YouTube, Lives)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/valentingoulven-creator/Melo.git",
+    "directory": "MeloSongv2"
+  },
+  "scripts": {
+    "msdev": "npm run app:build && npm run dev:msdev --prefix backend",
+    "msdev:app": "npm run dev --prefix app",
+    "msdev:server": "npm run dev:msdev --prefix backend",
+    "msdev:open": "powershell -ExecutionPolicy Bypass -File msdev/scripts/open-msdev-foreground.ps1",
+    "msdev:foreground": "npm run app:build && powershell -ExecutionPolicy Bypass -File msdev/scripts/open-msdev-foreground.ps1",
+    "msdev:https": "npm run app:build && npm run dev:msdev:https --prefix backend",
+    "msdev:mobile-url": "powershell -ExecutionPolicy Bypass -File msdev/scripts/show-mobile-url.ps1",
+    "msdev:diagnose": "powershell -ExecutionPolicy Bypass -File msdev/scripts/diagnose-mobile.ps1",
+    "msdev:fix-network": "powershell -Command \"Start-Process powershell -Verb RunAs -ArgumentList '-ExecutionPolicy Bypass -File \"\"$PWD/msdev/scripts/fix-network-access.ps1\"\"'\"",
+    "app:build": "npm run build --prefix app",
+    "app:dev": "npm run dev --prefix app",
+    "build:exe": "npm run app:build && npm run build:exe --prefix backend",
+    "backend:build": "npm run build --prefix backend"
+  }
+}

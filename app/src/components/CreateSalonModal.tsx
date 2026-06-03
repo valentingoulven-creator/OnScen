@@ -1,0 +1,372 @@
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { api } from '../lib/api';
+import { isPlatformConnected } from '../lib/platformConnect';
+import { PlatformConnectCard } from './PlatformConnectCard';
+import type { DmContact, Salon, User } from '../types';
+
+export interface CreateSalonForm {
+  title: string;
+  platform: 'spotify' | 'youtube';
+  accessMode: 'public' | 'invite';
+  allowedUserIds: string[];
+  trackLink: string;
+  trackTitle: string;
+  artist: string;
+  allowQueue: boolean;
+}
+
+interface CreateSalonModalProps {
+  token: string;
+  username: string;
+  connectedPlatforms?: User['connectedPlatforms'];
+  open: boolean;
+  fallbackLatitude: number;
+  fallbackLongitude: number;
+  onClose: () => void;
+  onCreated: (salon: Salon, lat: number, lon: number) => void;
+  onUserUpdated?: (user: User) => void;
+}
+
+export function CreateSalonModal({
+  token,
+  username,
+  connectedPlatforms,
+  open,
+  fallbackLatitude,
+  fallbackLongitude,
+  onClose,
+  onCreated,
+  onUserUpdated,
+}: CreateSalonModalProps) {
+  const [step, setStep] = useState(1);
+  const [contacts, setContacts] = useState<DmContact[]>([]);
+  const [saving, setSaving] = useState(false);
+  const openedAtRef = useRef(0);
+  const [form, setForm] = useState<CreateSalonForm>({
+    title: `Salon de ${username}`,
+    platform: 'spotify',
+    accessMode: 'public',
+    allowedUserIds: [],
+    trackLink: '',
+    trackTitle: 'Ma session MeloSong',
+    artist: username,
+    allowQueue: true,
+  });
+
+  useEffect(() => {
+    if (!open || !token) return;
+    openedAtRef.current = Date.now();
+    setStep(1);
+    setForm({
+      title: `Salon de ${username}`,
+      platform: 'spotify',
+      accessMode: 'public',
+      allowedUserIds: [],
+      trackLink: '',
+      trackTitle: 'Ma session MeloSong',
+      artist: username,
+      allowQueue: true,
+    });
+    api.getDmContacts(token).then((r) => setContacts(r.contacts));
+  }, [open, token, username]);
+
+  if (!open) return null;
+
+  const toggleGuest = (id: string) => {
+    setForm((f) => ({
+      ...f,
+      allowedUserIds: f.allowedUserIds.includes(id)
+        ? f.allowedUserIds.filter((x) => x !== id)
+        : [...f.allowedUserIds, id],
+    }));
+  };
+
+  const resolvePosition = async (): Promise<{ latitude: number; longitude: number }> => {
+    if (!navigator.geolocation) {
+      return { latitude: fallbackLatitude, longitude: fallbackLongitude };
+    }
+    try {
+      const pos = await new Promise<GeolocationPosition>((res, rej) =>
+        navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 12000 })
+      );
+      return { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+    } catch {
+      return { latitude: fallbackLatitude, longitude: fallbackLongitude };
+    }
+  };
+
+  const platformLinked = isPlatformConnected(connectedPlatforms, form.platform);
+
+  const submit = async () => {
+    if (!isPlatformConnected(connectedPlatforms, form.platform)) {
+      alert(
+        form.platform === 'spotify'
+          ? 'Connectez Spotify avant de créer un salon Spotify.'
+          : 'Connectez YouTube avant de créer un salon YouTube.'
+      );
+      return;
+    }
+    setSaving(true);
+    try {
+      const { latitude, longitude } = await resolvePosition();
+      const { salon } = await api.createSalon(token, {
+        title: form.title.trim(),
+        platform: form.platform,
+        latitude,
+        longitude,
+        accessMode: form.accessMode,
+        allowedUserIds: form.accessMode === 'invite' ? form.allowedUserIds : [],
+        trackLink: form.trackLink.trim() || undefined,
+        trackTitle: form.trackTitle.trim(),
+        artist: form.artist.trim(),
+        allowQueue: form.allowQueue,
+      });
+      onCreated(salon, latitude, longitude);
+      onClose();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Impossible de créer le salon');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleBackdropClose = () => {
+    if (Date.now() - openedAtRef.current < 250) return;
+    onClose();
+  };
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/70 p-0 sm:p-4 backdrop-blur-[2px]"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="create-salon-title"
+      onClick={handleBackdropClose}
+    >
+      <div
+        className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-[#12121a] rounded-t-2xl sm:rounded-2xl border border-[#2d2d3d] shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 bg-[#12121a] border-b border-[#1e1e2f] px-4 py-3 flex items-center justify-between">
+          <h2 id="create-salon-title" className="font-bold text-white">
+            Créer un salon
+          </h2>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-white text-xl">
+            ✕
+          </button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          <div className="flex gap-1 text-[10px] text-gray-500">
+            <span className={step >= 1 ? 'text-purple-400' : ''}>1. Musique</span>
+            <span>·</span>
+            <span className={step >= 2 ? 'text-purple-400' : ''}>2. Accès</span>
+            <span>·</span>
+            <span className={step >= 3 ? 'text-purple-400' : ''}>3. Détails</span>
+          </div>
+
+          {step === 1 && (
+            <>
+              <p className="text-sm text-gray-400">Choisissez l&apos;application liée à votre salon</p>
+              <div className="grid grid-cols-2 gap-3">
+                {(['spotify', 'youtube'] as const).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, platform: p }))}
+                    className={`p-4 rounded-2xl border text-left transition ${
+                      form.platform === p
+                        ? p === 'spotify'
+                          ? 'border-green-500 bg-green-500/10'
+                          : 'border-red-500 bg-red-500/10'
+                        : 'border-[#2d2d3d] bg-[#1a1a26]'
+                    }`}
+                  >
+                    <span className="text-2xl block mb-2">{p === 'spotify' ? '🎧' : '▶️'}</span>
+                    <span className="font-bold text-white capitalize">{p}</span>
+                    <p className="text-[10px] text-gray-500 mt-1">
+                      {p === 'spotify' ? 'Jam / écoute partagée' : 'Lecture vidéo YouTube'}
+                    </p>
+                  </button>
+                ))}
+              </div>
+              {!platformLinked && (
+                <div className="space-y-2">
+                  <p className="text-xs text-amber-400/90">
+                    Liez votre compte {form.platform === 'spotify' ? 'Spotify' : 'YouTube'} pour héberger ce salon.
+                  </p>
+                  <PlatformConnectCard
+                    token={token}
+                    platform={form.platform}
+                    connectedPlatforms={connectedPlatforms}
+                    onUserUpdated={onUserUpdated}
+                  />
+                </div>
+              )}
+              {platformLinked && (
+                <p className="text-[10px] text-green-400/80">
+                  ✓ Compte {form.platform} connecté — vous pouvez héberger ce salon.
+                </p>
+              )}
+              <label className="block">
+                <span className="text-xs text-gray-400">Artiste</span>
+                <input
+                  value={form.artist}
+                  onChange={(e) => setForm((f) => ({ ...f, artist: e.target.value }))}
+                  placeholder="Nom de l'artiste"
+                  className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs text-gray-400">Titre du morceau</span>
+                <input
+                  value={form.trackTitle}
+                  onChange={(e) => setForm((f) => ({ ...f, trackTitle: e.target.value }))}
+                  placeholder="Ex. Midnight City"
+                  className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs text-gray-400">
+                  Lien {form.platform === 'spotify' ? 'Spotify' : 'YouTube'} (optionnel)
+                </span>
+                <input
+                  value={form.trackLink}
+                  onChange={(e) => setForm((f) => ({ ...f, trackLink: e.target.value }))}
+                  placeholder={
+                    form.platform === 'spotify'
+                      ? 'https://open.spotify.com/track/...'
+                      : 'https://youtube.com/watch?v=...'
+                  }
+                  className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
+                />
+              </label>
+            </>
+          )}
+
+          {step === 2 && (
+            <>
+              <p className="text-sm text-gray-400">Qui peut rejoindre votre salon ?</p>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, accessMode: 'public' }))}
+                  className={`w-full p-4 rounded-xl border text-left ${
+                    form.accessMode === 'public'
+                      ? 'border-purple-500 bg-purple-500/10'
+                      : 'border-[#2d2d3d] bg-[#1a1a26]'
+                  }`}
+                >
+                  <p className="font-bold text-white">🌍 Public</p>
+                  <p className="text-xs text-gray-500 mt-1">Visible sur la carte, tout le monde peut rejoindre</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, accessMode: 'invite' }))}
+                  className={`w-full p-4 rounded-xl border text-left ${
+                    form.accessMode === 'invite'
+                      ? 'border-purple-500 bg-purple-500/10'
+                      : 'border-[#2d2d3d] bg-[#1a1a26]'
+                  }`}
+                >
+                  <p className="font-bold text-white">🔒 Sur invitation</p>
+                  <p className="text-xs text-gray-500 mt-1">Seules les personnes autorisées peuvent entrer</p>
+                </button>
+              </div>
+
+              {form.accessMode === 'invite' && (
+                <div className="border border-[#2d2d3d] rounded-xl p-3 max-h-40 overflow-y-auto">
+                  <p className="text-xs text-gray-400 mb-2">Autoriser à rejoindre :</p>
+                  {contacts.length === 0 && (
+                    <p className="text-xs text-gray-500">Aucun contact — le salon restera privé (vous seul)</p>
+                  )}
+                  {contacts.map((c) => (
+                    <label key={c.id} className="flex items-center gap-2 py-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={form.allowedUserIds.includes(c.id)}
+                        onChange={() => toggleGuest(c.id)}
+                        className="rounded border-[#2d2d3d]"
+                      />
+                      <span className="text-sm text-white">{c.username}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {step === 3 && (
+            <>
+              <label className="block">
+                <span className="text-xs text-gray-400">Titre du salon</span>
+                <input
+                  value={form.title}
+                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                  className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
+                />
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={form.allowQueue}
+                  onChange={(e) => setForm((f) => ({ ...f, allowQueue: e.target.checked }))}
+                />
+                <span className="text-sm text-gray-300">Autoriser les suggestions de morceaux</span>
+              </label>
+              <div className="bg-[#1a1a26] rounded-xl p-3 text-xs text-gray-500 space-y-1">
+                <p>
+                  <span className="text-purple-400">Morceau :</span> {form.trackTitle} — {form.artist}
+                </p>
+                <p>
+                  <span className="text-purple-400">Plateforme :</span> {form.platform}
+                </p>
+                <p>
+                  <span className="text-purple-400">Accès :</span>{' '}
+                  {form.accessMode === 'public' ? 'Public' : `Invitation (${form.allowedUserIds.length} invité(s))`}
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="sticky bottom-0 bg-[#12121a] border-t border-[#1e1e2f] p-4 flex gap-2">
+          {step > 1 ? (
+            <button
+              type="button"
+              onClick={() => setStep((s) => s - 1)}
+              className="flex-1 py-3 rounded-xl border border-[#2d2d3d] text-gray-300"
+            >
+              Retour
+            </button>
+          ) : (
+            <button type="button" onClick={onClose} className="flex-1 py-3 rounded-xl border border-[#2d2d3d] text-gray-300">
+              Annuler
+            </button>
+          )}
+          {step < 3 ? (
+            <button
+              type="button"
+              onClick={() => setStep((s) => s + 1)}
+              disabled={step === 1 && !platformLinked}
+              className="flex-1 py-3 rounded-xl bg-purple-600 font-bold text-white disabled:opacity-50"
+            >
+              Suivant
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={submit}
+              disabled={saving || !platformLinked}
+              className="flex-1 py-3 rounded-xl bg-purple-600 font-bold text-white disabled:opacity-50"
+            >
+              {saving ? 'Création...' : 'Créer le salon'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}

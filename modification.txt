@@ -1,0 +1,58 @@
+# Journal des modifications demandées — MeloSong Dev
+#
+# Usage : « Applique la modification n°X » ou « Annule / refais la modification 3 »
+# Les numéros sont stables : n’en réutilisez pas pour une nouvelle demande (ajoutez en bas).
+#
+# Dernière mise à jour : 3 juin 2026
+
+1. Revue code, corrections bugs et améliorations
+   - Backend : error handler Express après les routes ; sécurité socket (senderId) ; dédup join_salon/live ;
+     IDs messages/users aléatoires ; lives 200 si existant ; dm/geo/persist optimisés.
+   - Frontend : déconnexion auto sur 401 ; profil en overlay (messages conservés) ; ChatPanel reset
+     seulement au changement de salon ; sync fantôme ↔ paramètres.
+
+2. Lancement environnement de développement
+   - msdev:server (port 4080) + app:dev (Vite) ; compte démo listener@msdev.local / msdev123.
+
+3. Persistance msdev et historique des messages
+   - Sauvegarde store.json (users, DMs, chats, blocs, follows) ; chargement au boot ;
+     schedulePersist sur messages et réglages ; msdev/data/ dans .gitignore.
+
+4. Documents juridiques (app/src/content/legal/)
+   - CGU, confidentialité RGPD, conformité RGPD, API Spotify/YouTube, mentions légales,
+     licences ; menu Légal dans Paramètres.
+
+5. Catalogue reels ~100 vidéos libres de droit (Mixkit)
+   - ~110 reels (11 vedettes + ~99 nouveaux) ; reelsDemoCatalog.ts généré ;
+     script msdev/scripts/generate-reels-catalog.mjs + mixkit-video-ids.json ;
+     alignement app et backend (MUSIC_REELS / DEMO_REELS).
+
+6. Retrait mention « Style TikTok / Instagram »
+   - Suppression du sous-texte sous « Algorithme MeloSong » dans Paramètres → Flux Reels (voir n°11).
+
+7. Retrait « Mes informations » des paramètres
+   - Édition du profil uniquement sur la page Profil ; prop onEditProfile supprimée.
+
+8. Cœur ♥ à côté des matchs dans Messages
+   - Liste conversations + en-tête fil ; champ isMatch côté API DM ; chargement liste des matchs.
+
+9. Messages : retrait bulle sélection + filtre matchs
+   - Suppression bandeau « X sélectionné(s) » et boutons « Tout » / tout sélectionner en tête ;
+     bouton « ♥ Matchs » pour n’afficher que les conversations avec match (préférence mémorisée).
+
+10. Fichier modification.txt (ce journal)
+    - Liste numérotée des demandes pour référence future (ex. « modification n°7 »).
+
+11. Configuration de l’algorithme du flux Reels
+    - Algorithme MeloSong par défaut : tri par likes, commentaires, vues, partages et fraîcheur
+      (pondération intégrée, normalisation log).
+    - Paramètres → Flux Reels : case « Algorithme MeloSong » ; si désactivée, curseurs 0–100 pour
+      chaque critère (likes, commentaires, vues, partages, date de mise en ligne) + réinitialisation.
+    - Préférence enregistrée (localStorage melosong_reels_feed_algo) ; flux Reels rechargé à la modification.
+    - Backend : reelFeedRanking.ts, query feedAlgo sur GET /api/reels ; enregistrement des vues (POST view).
+    - Fichiers clés : app/src/lib/reelFeedAlgorithm.ts, app/src/pages/SettingsPage.tsx (section Flux Reels).
+
+12. Changer de ville dans les réglages « À proximité »
+    - Panneau engrenage : sélection de ville (liste preset), bouton « Ma position ».
+    - Carte et recherche à proximité centrées sur la ville choisie ; persistance partagée avec l’onglet Lives (melosong_lives_geo).
+    - Fichiers : app/src/lib/livesGeo.ts (MAP_GEO_CHANGED_EVENT), NearbyPeoplePanel.tsx, HomePage.tsx.

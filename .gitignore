@@ -1,0 +1,20 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+
+# msdev secrets (keep .env.example)
+msdev/.env
+msdev/data/
+
+# Built Windows executable (regenerate with npm run build:exe)
+msdev/release/
+
+# Auto-signed dev TLS (regenerate with msdev/scripts/generate-dev-cert.ps1)
+msdev/certs/
+
+# IDE
+.idea/
+*.swp
