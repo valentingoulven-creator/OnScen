@@ -208,15 +208,6 @@ export function DmPage() {
     });
   };
 
-  const toggleSelectAllContacts = () => {
-    const pool = view === 'new' ? filteredContacts : contacts;
-    if (pool.length > 0 && pool.every((c) => selectedIds.has(c.id))) {
-      clearSelection();
-    } else {
-      setSelectedIds(new Set(pool.map((c) => c.id)));
-    }
-  };
-
   const toggleSelectAllBlocked = () => {
     if (selectedIds.size === blockedUsers.length) {
       clearSelection();
