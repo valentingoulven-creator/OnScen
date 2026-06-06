@@ -6,7 +6,15 @@ import { getSocket } from '../lib/socket';
 import { useMatchCreated } from '../lib/useMatchCreated';
 import { UserAvatarOnline } from '../components/UserAvatarOnline';
 import { UsernameDisplay } from '../components/UsernameDisplay';
-import type { Conversation, DirectMessage, DmContact, DmRequest, GroupMessage, MessageGroupDetail } from '../types';
+import type {
+  Conversation,
+  DirectMessage,
+  DmContact,
+  DmRequest,
+  GroupMessage,
+  MessageGroupDetail,
+  UserSearchHit,
+} from '../types';
 
 function isGroupConversation(c: Conversation): boolean {
   return c.kind === 'group' && Boolean(c.groupId);
@@ -200,6 +208,13 @@ export function DmPage({
   const [acceptingRequest, setAcceptingRequest] = useState<string | null>(null);
   const [refusingRequest, setRefusingRequest] = useState<string | null>(null);
   const [conversationMenuOpen, setConversationMenuOpen] = useState<string | null>(null);
+  const [groupMenuOpen, setGroupMenuOpen] = useState(false);
+  const [groupManageOpen, setGroupManageOpen] = useState(false);
+  const [addMemberSearch, setAddMemberSearch] = useState('');
+  const [addMemberResults, setAddMemberResults] = useState<UserSearchHit[]>([]);
+  const [addMemberLoading, setAddMemberLoading] = useState(false);
+  const [addingMemberId, setAddingMemberId] = useState<string | null>(null);
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
   const [pendingStatus, setPendingStatus] = useState<'pending_sent' | null>(null);
   const [pendingAttachment, setPendingAttachment] = useState<{
     dataUrl: string;
@@ -618,6 +633,28 @@ export function DmPage({
     const onGroupMessageHidden = ({ messageId }: { messageId: string }) => {
       removeGroupMessageFromUi(messageId);
     };
+    const onGroupMembersChanged = ({
+      groupId,
+      group,
+    }: {
+      groupId: string;
+      group: MessageGroupDetail;
+    }) => {
+      if (activeGroup?.id === groupId) {
+        setActiveGroupState(group);
+      }
+      loadConversations();
+    };
+    const onGroupMemberRemoved = ({ groupId, userId: removedId }: { groupId: string; userId: string }) => {
+      if (removedId === user?.id && activeGroup?.id === groupId) {
+        setGroupManageOpen(false);
+        setGroupMenuOpen(false);
+        setView('list');
+        setActiveGroupState(null);
+        setActiveGroup(null);
+      }
+      loadConversations();
+    };
     const onDmRequest = (req: DmRequest) => {
       setPendingRequests((prev) =>
         prev.some((r) => r.senderId === req.senderId) ? prev : [req, ...prev]
@@ -642,6 +679,9 @@ export function DmPage({
     socket.on('dm_hidden', onDmHidden);
     socket.on('group_message_deleted', onGroupMessageDeleted);
     socket.on('group_message_hidden', onGroupMessageHidden);
+    socket.on('group_members_changed', onGroupMembersChanged);
+    socket.on('group_member_removed', onGroupMemberRemoved);
+    socket.on('group_member_added', onGroupMembersChanged);
     socket.on('dm_request', onDmRequest);
     socket.on('dm_request_accepted', onDmRequestAccepted);
     socket.on('dm_request_refused', onDmRequestRefused);
@@ -654,6 +694,9 @@ export function DmPage({
       socket.off('dm_hidden', onDmHidden);
       socket.off('group_message_deleted', onGroupMessageDeleted);
       socket.off('group_message_hidden', onGroupMessageHidden);
+      socket.off('group_members_changed', onGroupMembersChanged);
+      socket.off('group_member_removed', onGroupMemberRemoved);
+      socket.off('group_member_added', onGroupMembersChanged);
       socket.off('dm_request', onDmRequest);
       socket.off('dm_request_accepted', onDmRequestAccepted);
       socket.off('dm_request_refused', onDmRequestRefused);
@@ -796,6 +839,74 @@ export function DmPage({
       setDraft(text);
     } finally {
       setSending(false);
+    }
+  };
+
+  const memberIdsSet = useMemo(
+    () => new Set(activeGroup?.memberIds ?? []),
+    [activeGroup?.memberIds]
+  );
+
+  const isGroupCreator = activeGroup?.creatorId === user?.id;
+
+  useEffect(() => {
+    const trimmed = addMemberSearch.trim();
+    if (!token || !groupManageOpen || trimmed.length < 2) {
+      setAddMemberResults([]);
+      setAddMemberLoading(false);
+      return;
+    }
+    setAddMemberLoading(true);
+    const timer = window.setTimeout(() => {
+      api
+        .searchUsers(token, trimmed)
+        .then((r) => setAddMemberResults(r.users.filter((u) => !memberIdsSet.has(u.id))))
+        .catch(() => setAddMemberResults([]))
+        .finally(() => setAddMemberLoading(false));
+    }, 280);
+    return () => window.clearTimeout(timer);
+  }, [addMemberSearch, token, groupManageOpen, memberIdsSet]);
+
+  const addMemberToGroup = async (userId: string, username: string) => {
+    if (!token || !activeGroup || addingMemberId) return;
+    setAddingMemberId(userId);
+    try {
+      const { group } = await api.addGroupMember(token, activeGroup.id, userId);
+      setActiveGroupState(group);
+      setAddMemberSearch('');
+      setAddMemberResults([]);
+      loadConversations();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : `Impossible d'ajouter ${username}`);
+    } finally {
+      setAddingMemberId(null);
+    }
+  };
+
+  const removeMemberFromGroup = async (memberId: string, username: string) => {
+    if (!token || !activeGroup || removingMemberId) return;
+    const isSelf = memberId === user?.id;
+    const confirmText = isSelf ? 'Quitter ce groupe ?' : `Retirer ${username} du groupe ?`;
+    if (!window.confirm(confirmText)) return;
+    setRemovingMemberId(memberId);
+    try {
+      await api.removeGroupMember(token, activeGroup.id, memberId);
+      if (isSelf) {
+        setGroupManageOpen(false);
+        setGroupMenuOpen(false);
+        setView('list');
+        setActiveGroupState(null);
+        setActiveGroup(null);
+        loadConversations();
+        return;
+      }
+      const r = await api.getGroupThread(token, activeGroup.id);
+      setActiveGroupState(r.group);
+      loadConversations();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Impossible de retirer ce membre');
+    } finally {
+      setRemovingMemberId(null);
     }
   };
 
@@ -1603,15 +1714,158 @@ export function DmPage({
         { color: m.usernameColor, waveFrom: m.usernameWaveFrom, waveTo: m.usernameWaveTo },
       ])
     );
+    const addableContacts = filteredContacts.filter((c) => !memberIdsSet.has(c.id));
+    const addMemberTrimmed = addMemberSearch.trim();
+    const showAddContacts =
+      groupManageOpen && addMemberTrimmed.length > 0 && addMemberTrimmed.length < 2;
+    const addRows: { id: string; username: string }[] = addMemberTrimmed.length >= 2
+      ? addMemberResults
+      : showAddContacts
+        ? addableContacts
+            .filter((c) => contactMatchesQuery(c, addMemberSearch))
+            .map((c) => ({ id: c.id, username: c.username }))
+        : addableContacts.map((c) => ({ id: c.id, username: c.username }));
+
+    if (groupManageOpen) {
+      return (
+        <div className="flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f] overflow-hidden">
+          <header className="shrink-0 flex items-center gap-3 p-3 border-b border-[#1e1e2f] bg-[#12121a]">
+            <button
+              type="button"
+              onClick={() => {
+                setGroupManageOpen(false);
+                setAddMemberSearch('');
+                setAddMemberResults([]);
+              }}
+              className="text-gray-400 hover:text-white text-xl"
+            >
+              ←
+            </button>
+            <h2 className="font-bold text-white flex-1 truncate">Gérer le groupe</h2>
+          </header>
+
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-6">
+            <section>
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                Membres ({activeGroup.memberCount})
+              </h3>
+              <ul className="space-y-1">
+                {activeGroup.members.map((m) => {
+                  const isMe = m.id === user?.id;
+                  const canRemove = isMe || isGroupCreator;
+                  return (
+                    <li
+                      key={m.id}
+                      className="flex items-center gap-3 p-2.5 rounded-xl bg-[#1a1a26] border border-[#2d2d3d]"
+                    >
+                      <UserAvatarOnline
+                        userId={m.id}
+                        avatarUrl={m.avatarUrl}
+                        size="sm"
+                        isOnline={isOnline(m.id)}
+                        isLive={isLive(m.id)}
+                        liveViewersCount={liveViewersFor(m.id)}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <UsernameDisplay
+                          username={m.username}
+                          usernameColor={m.usernameColor}
+                          usernameWaveFrom={m.usernameWaveFrom}
+                          usernameWaveTo={m.usernameWaveTo}
+                          className="font-semibold text-white truncate block"
+                        />
+                        <p className="text-[10px] text-gray-500">
+                          {m.id === activeGroup.creatorId
+                            ? 'Créateur'
+                            : isMe
+                              ? 'Vous'
+                              : m.isOnline
+                                ? 'En ligne'
+                                : 'Hors ligne'}
+                        </p>
+                      </div>
+                      {canRemove && (
+                        <button
+                          type="button"
+                          onClick={() => void removeMemberFromGroup(m.id, m.username)}
+                          disabled={removingMemberId === m.id}
+                          className="shrink-0 text-xs font-semibold text-red-400 hover:text-red-300 disabled:opacity-50 px-2 py-1"
+                        >
+                          {removingMemberId === m.id ? '...' : isMe ? 'Quitter' : 'Retirer'}
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              {!isGroupCreator && (
+                <p className="text-[10px] text-gray-500 mt-2">
+                  Seul le créateur peut retirer les autres membres.
+                </p>
+              )}
+            </section>
+
+            <section>
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                Ajouter un membre
+              </h3>
+              <div className="flex items-center gap-2 bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 focus-within:border-purple-500/60 mb-2">
+                <span className="text-gray-500 text-sm" aria-hidden>
+                  🔍
+                </span>
+                <input
+                  type="search"
+                  value={addMemberSearch}
+                  onChange={(e) => setAddMemberSearch(e.target.value)}
+                  placeholder="Rechercher un utilisateur..."
+                  autoComplete="off"
+                  className="flex-1 bg-transparent text-sm text-white placeholder:text-gray-500 outline-none"
+                />
+              </div>
+              <div className="rounded-xl border border-[#2d2d3d] bg-[#12121a] max-h-48 overflow-y-auto">
+                {addMemberLoading && (
+                  <p className="text-xs text-gray-500 px-3 py-2">Recherche…</p>
+                )}
+                {!addMemberLoading && addRows.length === 0 && (
+                  <p className="text-xs text-gray-500 px-3 py-2">
+                    {addMemberTrimmed.length >= 2
+                      ? 'Aucun utilisateur trouvé'
+                      : 'Aucun contact à ajouter — recherchez un utilisateur'}
+                  </p>
+                )}
+                {!addMemberLoading &&
+                  addRows.map((row) => (
+                    <div
+                      key={row.id}
+                      className="flex items-center gap-2 px-3 py-2 hover:bg-[#1a1a26]"
+                    >
+                      <span className="flex-1 text-sm text-white truncate">{row.username}</span>
+                      <button
+                        type="button"
+                        onClick={() => void addMemberToGroup(row.id, row.username)}
+                        disabled={addingMemberId === row.id}
+                        className="shrink-0 text-xs font-semibold text-purple-400 hover:text-purple-300 disabled:opacity-50"
+                      >
+                        {addingMemberId === row.id ? '...' : 'Ajouter'}
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            </section>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="relative flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f] overflow-hidden">
-        <header className="shrink-0 flex items-center gap-3 p-3 border-b border-[#1e1e2f] bg-[#12121a]">
+        <header className="shrink-0 flex items-center gap-3 p-3 border-b border-[#1e1e2f] bg-[#12121a] relative">
           <button
             type="button"
             onClick={() => {
               setView('list');
               setActiveGroupState(null);
+              setGroupMenuOpen(false);
               loadConversations();
             }}
             className="text-gray-400 hover:text-white text-xl"
@@ -1625,6 +1879,28 @@ export function DmPage({
               {activeGroup.memberCount} membres · {memberLabel}
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => setGroupMenuOpen((v) => !v)}
+            className="px-2 py-1 text-gray-400 hover:text-white text-lg"
+            aria-label="Options du groupe"
+          >
+            ⋮
+          </button>
+          {groupMenuOpen && (
+            <div className="absolute right-3 top-full mt-1 z-30 bg-[#1a1a26] border border-[#2d2d3d] rounded-xl shadow-xl overflow-hidden min-w-[12rem]">
+              <button
+                type="button"
+                onClick={() => {
+                  setGroupMenuOpen(false);
+                  setGroupManageOpen(true);
+                }}
+                className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#2d2d3d]"
+              >
+                Gérer le groupe
+              </button>
+            </div>
+          )}
         </header>
 
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">

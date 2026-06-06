@@ -15,8 +15,11 @@ import { isGroupMessageVisibleToUser, hideGroupMessageForUser } from '../lib/gro
 import { countDmUnreadForUser } from '../lib/dmRead';
 import { notifyGroupMessageReceived } from '../lib/notifications';
 import { hasMuted } from '../lib/mutes';
+import { canAddGroupMember, canRemoveGroupMember } from '../lib/groupMembers';
 
 export const groupsRouter = Router();
+
+const MAX_GROUP_MEMBERS = 50;
 
 function emitMessagesUnreadToUser(userId: string): void {
   getIo()?.to(`user_${userId}`).emit('dm_unread', {
@@ -101,6 +104,92 @@ groupsRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
   schedulePersist();
 
   res.status(201).json({ group: groupDetailDto(group.id, me) });
+});
+
+function emitGroupMembersChanged(groupId: string): void {
+  const group = db.messageGroups.find((g) => g.id === groupId);
+  if (!group) return;
+  for (const memberId of group.memberIds) {
+    const detail = groupDetailDto(groupId, memberId);
+    if (detail) {
+      getIo()?.to(`user_${memberId}`).emit('group_members_changed', { groupId, group: detail });
+    }
+  }
+}
+
+groupsRouter.post('/:groupId/members', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const { groupId } = req.params;
+  const { userId } = req.body as { userId?: string };
+
+  if (!userId || typeof userId !== 'string') {
+    res.status(400).json({ error: 'Utilisateur requis' });
+    return;
+  }
+
+  const group = db.messageGroups.find((g) => g.id === groupId);
+  if (!group) {
+    res.status(404).json({ error: 'Groupe introuvable' });
+    return;
+  }
+
+  const allowed = canAddGroupMember(group, me, userId);
+  if (!allowed.ok) {
+    res.status(allowed.error === 'Accès refusé' ? 403 : 400).json({ error: allowed.error });
+    return;
+  }
+
+  if (!db.users.has(userId)) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+
+  if (hasBlocked(me, userId)) {
+    res.status(403).json({ error: 'Débloquez cet utilisateur pour l\'ajouter au groupe' });
+    return;
+  }
+
+  if (group.memberIds.length >= MAX_GROUP_MEMBERS) {
+    res.status(400).json({ error: `Limite de ${MAX_GROUP_MEMBERS} membres atteinte` });
+    return;
+  }
+
+  group.memberIds.push(userId);
+  schedulePersist();
+
+  const detail = groupDetailDto(groupId, me);
+  emitGroupMembersChanged(groupId);
+  getIo()?.to(`user_${userId}`).emit('group_member_added', { groupId, group: groupDetailDto(groupId, userId) });
+  emitMessagesUnreadToUser(userId);
+
+  res.status(201).json({ group: detail });
+});
+
+groupsRouter.delete('/:groupId/members/:userId', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const { groupId, userId: targetUserId } = req.params;
+
+  const group = db.messageGroups.find((g) => g.id === groupId);
+  if (!group) {
+    res.status(404).json({ error: 'Groupe introuvable' });
+    return;
+  }
+
+  const allowed = canRemoveGroupMember(group, me, targetUserId);
+  if (!allowed.ok) {
+    res.status(allowed.error === 'Accès refusé' ? 403 : 403).json({ error: allowed.error });
+    return;
+  }
+
+  group.memberIds = group.memberIds.filter((id) => id !== targetUserId);
+  schedulePersist();
+
+  const detail = groupDetailDto(groupId, me);
+  getIo()?.to(`user_${targetUserId}`).emit('group_member_removed', { groupId, userId: targetUserId });
+  emitGroupMembersChanged(groupId);
+  emitMessagesUnreadToUser(targetUserId);
+
+  res.json({ group: detail, removedUserId: targetUserId });
 });
 
 groupsRouter.delete('/messages/:messageId', authenticateJWT, (req: Request, res: Response) => {

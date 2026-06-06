@@ -1113,7 +1113,10 @@ export function LivePage({
                         </span>
                         <button
                           type="button"
-                          onClick={() => setVipModerator(v.id, false)}
+                          onClick={() => {
+                            if (!window.confirm(`Retirer le statut VIP de ${v.name} ?`)) return;
+                            setVipModerator(v.id, false);
+                          }}
                           className="shrink-0 px-2 py-1 rounded-lg text-[10px] font-bold text-red-300 border border-red-500/30 hover:bg-red-500/10"
                         >
                           Retirer VIP

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import {
@@ -16,6 +16,7 @@ import {
   NEARBY_RADIUS_MAX,
   NEARBY_RADIUS_MIN,
 } from '../lib/settings';
+import { FilterIcon } from '../components/FilterIcon';
 import { FollowUserButton } from '../components/FollowUserButton';
 import { UsernameDisplay } from '../components/UsernameDisplay';
 import {
@@ -45,22 +46,86 @@ interface LivesTabPageProps {
   onOpenLive: (liveId: string) => void;
 }
 
-function GearIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
-      />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"
-      />
-    </svg>
-  );
+interface LiveGridCardProps {
+  live: Live;
+  currentUserId?: string;
+  isFollowing: boolean;
+  onOpenLive: (liveId: string) => void;
+  onFollowingChange: (hostId: string, following: boolean) => void;
 }
+
+const LiveGridCard = memo(function LiveGridCard({
+  live,
+  currentUserId,
+  isFollowing,
+  onOpenLive,
+  onFollowingChange,
+}: LiveGridCardProps) {
+  return (
+    <li>
+      <button
+        onClick={() => onOpenLive(live.id)}
+        className="w-full flex flex-col text-left group"
+      >
+        <div className="relative aspect-video w-full bg-[#0b0b0f] overflow-hidden rounded-lg">
+          {live.playbackState.albumArtUrl ? (
+            <img
+              src={live.playbackState.albumArtUrl}
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-[#1a1a26] to-[#0b0b0f]" />
+          )}
+          <span
+            className="absolute top-2 left-2 size-2.5 rounded-full bg-red-500 ring-2 ring-red-500/40 shadow-[0_0_6px_rgba(239,68,68,0.6)] live-indicator-dot"
+            aria-label="En direct"
+          />
+          {live.hostId !== currentUserId && (
+            <div
+              className="absolute top-1.5 right-1.5 opacity-90 group-hover:opacity-100"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+            >
+              <FollowUserButton
+                userId={live.hostId}
+                username={live.hostName}
+                initialFollowing={isFollowing}
+                iconOnly
+                onFollowingChange={(f) => onFollowingChange(live.hostId, f)}
+              />
+            </div>
+          )}
+        </div>
+        <div className="flex items-start gap-2 mt-2 min-w-0">
+          <img
+            src={dicebearAdventurerAvatar(live.hostId)}
+            alt=""
+            className="size-9 shrink-0 rounded-full object-cover bg-[#1a1a26]"
+          />
+          <div className="flex-1 min-w-0 overflow-hidden leading-tight">
+            <p className="text-sm font-semibold text-white truncate">{live.title}</p>
+            <div className="flex items-center gap-1 min-w-0 mt-0.5">
+              <UsernameDisplay
+                username={live.hostName}
+                usernameColor={live.hostUsernameColor}
+                usernameWaveFrom={live.hostUsernameWaveFrom}
+                usernameWaveTo={live.hostUsernameWaveTo}
+                className="text-xs text-gray-400 truncate min-w-0"
+              />
+              <span className="text-xs text-gray-500 shrink-0" aria-hidden>
+                ·
+              </span>
+              <span className="text-xs text-gray-500 shrink-0 tabular-nums">
+                {formatLiveViewersLabel(live.viewersCount)}
+              </span>
+            </div>
+          </div>
+        </div>
+      </button>
+    </li>
+  );
+});
 
 export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
   const { token, user } = useAuth();
@@ -98,9 +163,20 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
     return () => window.removeEventListener(MAP_GEO_CHANGED_EVENT, syncGeo);
   }, []);
 
-  const updatePanelPrefs = (patch: Partial<Pick<NearbyPanelPreferences, 'sortBy'>>) => {
+  const updatePanelPrefs = useCallback((patch: Partial<Pick<NearbyPanelPreferences, 'sortBy'>>) => {
     setPanelPrefs(setNearbyPanelPreferences(patch));
-  };
+  }, []);
+
+  const toggleSettingsOpen = useCallback(() => setSettingsOpen((v) => !v), []);
+
+  const handleFollowingChange = useCallback((hostId: string, following: boolean) => {
+    setFollowingIds((prev) => {
+      const next = new Set(prev);
+      if (following) next.add(hostId);
+      else next.delete(hostId);
+      return next;
+    });
+  }, []);
 
   const distanceFilterActive = isNearbyDistanceFilterActive(panelPrefs);
 
@@ -143,10 +219,17 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
     changeRadius(n);
   };
 
+  const filterChipClass = (active: boolean) =>
+    `min-w-[4.25rem] flex-1 px-1.5 py-1 rounded-lg text-[9px] sm:text-[10px] font-semibold border transition whitespace-nowrap ${
+      active
+        ? 'border-red-500/50 bg-red-500/15 text-red-300'
+        : 'border-[#2d2d3d] text-gray-500 hover:text-gray-300'
+    }`;
+
   const radiusControls = (
     <div>
-      <div className="flex justify-between text-xs mb-1.5">
-        <span className="text-gray-400">Rayon de recherche</span>
+      <div className="flex justify-between text-[10px] mb-1">
+        <span className="text-gray-400">Rayon</span>
         <span className="text-red-400 font-bold">{formatRadiusKm(geo.radiusKm)}</span>
       </div>
       <input
@@ -156,9 +239,9 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
         step={1}
         value={Math.min(geo.radiusKm, NEARBY_RADIUS_MAX)}
         onChange={(e) => changeRadius(Number(e.target.value))}
-        className="w-full accent-red-500"
+        className="w-full accent-red-500 h-1.5"
       />
-      <div className="flex items-center gap-2 mt-2">
+      <div className="flex items-center gap-1.5 mt-1.5">
         <input
           type="number"
           min={NEARBY_RADIUS_MIN}
@@ -167,14 +250,14 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
           placeholder="ex : 1000"
           onChange={(e) => changeRadiusInput(e.target.value)}
           onBlur={(e) => changeRadiusInput(e.target.value)}
-          className="w-20 px-2 py-1 rounded-lg bg-[#0b0b0f] border border-[#2a2a3f] text-xs text-white text-center"
+          className="w-16 px-1.5 py-1 rounded-lg bg-[#0b0b0f] border border-[#2a2a3f] text-[10px] text-white text-center"
           aria-label="Distance en kilomètres"
         />
         <span className="text-[10px] text-gray-500">km</span>
         <button
           type="button"
           onClick={() => changeRadius(NEARBY_RADIUS_HARD_MAX)}
-          className={`text-[10px] px-2 py-0.5 rounded border transition ${
+          className={`text-[9px] px-1.5 py-0.5 rounded border transition ${
             geo.radiusKm >= NEARBY_RADIUS_HARD_MAX
               ? 'border-red-500/50 bg-red-500/15 text-red-300'
               : 'border-[#2d2d3d] text-gray-500 hover:text-gray-300'
@@ -184,7 +267,7 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
           Illimité
         </button>
       </div>
-      <p className="text-[10px] text-gray-600 mt-1">
+      <p className="text-[9px] text-gray-600 mt-1">
         Curseur : 1–500 km · Saisie manuelle : ex. 1 000, 5 000 km
       </p>
     </div>
@@ -217,20 +300,6 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
           </h2>
           <div className="flex items-center gap-1.5">
             <button
-              type="button"
-              onClick={() => setSettingsOpen((v) => !v)}
-              title="Filtres et tri"
-              aria-label="Filtres et tri des lives"
-              aria-expanded={settingsOpen}
-              className={`p-2 rounded-full transition ${
-                settingsOpen
-                  ? 'text-red-300 bg-red-900/40'
-                  : 'text-gray-400 hover:text-white hover:bg-[#1a1a26]'
-              }`}
-            >
-              <GearIcon className="w-4 h-4" />
-            </button>
-            <button
               onClick={startMyLive}
               disabled={starting}
               className="px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded-full text-xs font-bold text-white disabled:opacity-50"
@@ -243,41 +312,44 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
           Sessions en direct avec chat rapide et réactions
         </p>
 
-        <div className="space-y-3 rounded-xl bg-[#12121a] border border-[#1e1e2f] p-3">
-          <MapLocationPicker mapGeo={geo} onPersist={persistGeo} accent="red" />
+        {!settingsOpen && distanceFilterActive && (
+          <div className="rounded-xl bg-[#12121a] border border-[#1e1e2f] p-3">
+            {radiusControls}
+          </div>
+        )}
 
-          {settingsOpen && (
-            <div className="pt-2 border-t border-[#1e1e2f]/80 space-y-3">
-              <div>
-                <p className="text-xs text-gray-400 mb-1.5">Trier par</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {NEARBY_SORT_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() =>
-                        updatePanelPrefs({
-                          sortBy: panelPrefs.sortBy === opt.id ? 'none' : opt.id,
-                        })
-                      }
-                      className={`flex-1 min-w-[4.5rem] px-2 py-1.5 rounded-lg text-[10px] font-semibold border transition ${
-                        panelPrefs.sortBy === opt.id
-                          ? 'border-red-500/50 bg-red-500/15 text-red-300'
-                          : 'border-[#2d2d3d] text-gray-500 hover:text-gray-300'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
+        {settingsOpen && (
+          <div className="rounded-xl bg-[#12121a] border border-[#1e1e2f] p-3 space-y-3 max-h-[min(52vh,18rem)] overflow-y-auto overscroll-contain">
+            <MapLocationPicker
+              mapGeo={geo}
+              onPersist={persistGeo}
+              size="compact"
+              accent="red"
+            />
+
+            <div>
+              <p className="text-[10px] text-gray-400 mb-1.5">Trier par</p>
+              <div className="flex flex-wrap gap-1">
+                {NEARBY_SORT_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() =>
+                      updatePanelPrefs({
+                        sortBy: panelPrefs.sortBy === opt.id ? 'none' : opt.id,
+                      })
+                    }
+                    className={filterChipClass(panelPrefs.sortBy === opt.id)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
               </div>
-
-              {distanceFilterActive && radiusControls}
             </div>
-          )}
 
-          {!settingsOpen && distanceFilterActive && radiusControls}
-        </div>
+            {distanceFilterActive && radiusControls}
+          </div>
+        )}
       </div>
 
       {loading && (
@@ -299,77 +371,31 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
         </div>
       )}
 
-      <ul className="p-3 grid grid-cols-2 gap-x-2 gap-y-4">
+      <div className="px-3 pt-2 flex justify-end">
+        <button
+          type="button"
+          onClick={toggleSettingsOpen}
+          title="Filtres lives"
+          aria-label="Filtres lives"
+          aria-expanded={settingsOpen}
+          className={`p-1 rounded-lg transition ${
+            settingsOpen ? 'ring-2 ring-red-500/50 bg-red-900/20' : 'hover:bg-[#1a1a26]'
+          }`}
+        >
+          <FilterIcon />
+        </button>
+      </div>
+
+      <ul className="px-3 pb-3 pt-1 grid grid-cols-2 gap-x-2 gap-y-4">
         {sortedLives.map((live) => (
-          <li key={live.id}>
-            <button
-              onClick={() => onOpenLive(live.id)}
-              className="w-full flex flex-col text-left group"
-            >
-              <div className="relative aspect-video w-full bg-[#0b0b0f] overflow-hidden rounded-lg">
-                {live.playbackState.albumArtUrl ? (
-                  <img
-                    src={live.playbackState.albumArtUrl}
-                    alt=""
-                    className="absolute inset-0 w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#1a1a26] to-[#0b0b0f]" />
-                )}
-                <span
-                  className="absolute top-2 left-2 size-2.5 rounded-full bg-red-500 ring-2 ring-red-500/40 shadow-[0_0_6px_rgba(239,68,68,0.6)] live-indicator-dot"
-                  aria-label="En direct"
-                />
-                {live.hostId !== user?.id && (
-                  <div
-                    className="absolute top-1.5 right-1.5 opacity-90 group-hover:opacity-100"
-                    onClick={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => e.stopPropagation()}
-                  >
-                    <FollowUserButton
-                      userId={live.hostId}
-                      username={live.hostName}
-                      initialFollowing={followingIds.has(live.hostId)}
-                      iconOnly
-                      onFollowingChange={(f) =>
-                        setFollowingIds((prev) => {
-                          const next = new Set(prev);
-                          if (f) next.add(live.hostId);
-                          else next.delete(live.hostId);
-                          return next;
-                        })
-                      }
-                    />
-                  </div>
-                )}
-              </div>
-              <div className="flex items-start gap-2 mt-2 min-w-0">
-                <img
-                  src={dicebearAdventurerAvatar(live.hostId)}
-                  alt=""
-                  className="size-9 shrink-0 rounded-full object-cover bg-[#1a1a26]"
-                />
-                <div className="flex-1 min-w-0 overflow-hidden leading-tight">
-                  <p className="text-sm font-semibold text-white truncate">{live.title}</p>
-                  <div className="flex items-center gap-1 min-w-0 mt-0.5">
-                    <UsernameDisplay
-                      username={live.hostName}
-                      usernameColor={live.hostUsernameColor}
-                      usernameWaveFrom={live.hostUsernameWaveFrom}
-                      usernameWaveTo={live.hostUsernameWaveTo}
-                      className="text-xs text-gray-400 truncate min-w-0"
-                    />
-                    <span className="text-xs text-gray-500 shrink-0" aria-hidden>
-                      ·
-                    </span>
-                    <span className="text-xs text-gray-500 shrink-0 tabular-nums">
-                      {formatLiveViewersLabel(live.viewersCount)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </button>
-          </li>
+          <LiveGridCard
+            key={live.id}
+            live={live}
+            currentUserId={user?.id}
+            isFollowing={followingIds.has(live.hostId)}
+            onOpenLive={onOpenLive}
+            onFollowingChange={handleFollowingChange}
+          />
         ))}
       </ul>
     </div>

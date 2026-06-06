@@ -520,6 +520,20 @@ export const api = {
       token
     ),
 
+  addGroupMember: (token: string, groupId: string, userId: string) =>
+    request<{ group: import('../types').MessageGroupDetail }>(
+      `/dm/groups/${groupId}/members`,
+      { method: 'POST', body: JSON.stringify({ userId }) },
+      token
+    ),
+
+  removeGroupMember: (token: string, groupId: string, userId: string) =>
+    request<{ group: import('../types').MessageGroupDetail; removedUserId: string }>(
+      `/dm/groups/${groupId}/members/${userId}`,
+      { method: 'DELETE' },
+      token
+    ),
+
   deleteChatMessage: (
     token: string,
     roomType: 'salon' | 'live',

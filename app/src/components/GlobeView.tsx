@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Globe from 'react-globe.gl';
 import type { GlobeMethods } from 'react-globe.gl';
 import { isValidLatLng } from '../lib/mapCoords';
@@ -45,7 +45,7 @@ export interface GlobeViewProps {
   showCapitals?: boolean;
 }
 
-export function GlobeView({
+export const GlobeView = memo(function GlobeView({
   salons,
   lives,
   people = [],
@@ -348,4 +348,4 @@ export function GlobeView({
       )}
     </div>
   );
-}
+});

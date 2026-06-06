@@ -584,6 +584,7 @@ export function ChatMessagesView() {
                       <button
                         type="button"
                         onClick={() => {
+                          if (!window.confirm(`Retirer le statut VIP de ${m.senderName} ?`)) return;
                           onSetVip(m.senderId, false);
                           setUserMenuTarget(null);
                         }}

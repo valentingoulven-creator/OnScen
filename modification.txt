@@ -840,3 +840,333 @@ FICHIERS MODIFIÉS
 ================================================================================
 Fin MODIF 95 — 2026-06-06
 ================================================================================
+
+================================================================================
+MODIF 96 — Gestion des membres d'un groupe Messages
+Date : 2026-06-06
+================================================================================
+
+OBJECTIF / PROBLÈME
+-------------------
+  Dans l'onglet Messages, pour une conversation de groupe, permettre d'ajouter
+  ou retirer des membres depuis l'en-tête du fil de discussion.
+
+CHANGEMENTS / FIX
+-----------------
+  backend/src/routes/groups.ts
+  ────────────────────────────
+  • POST /api/dm/groups/:groupId/members — ajout d'un membre (membre existant).
+  • DELETE /api/dm/groups/:groupId/members/:userId — retrait ou quitte le groupe.
+  • Événements socket group_members_changed, group_member_added, group_member_removed.
+
+  backend/src/lib/groupMembers.ts + groupMembers.test.ts
+  ──────────────────────────────────────────────────────
+  • Règles : tout membre peut ajouter ; seul le créateur retire les autres ;
+    chaque membre peut quitter le groupe.
+
+  app/src/lib/api.ts
+  ──────────────────
+  • addGroupMember, removeGroupMember.
+
+  app/src/pages/DmPage.tsx
+  ───────────────────────
+  • Menu ⋮ en-tête groupe → « Gérer le groupe ».
+  • Panneau : liste membres (Retirer / Quitter) + recherche pour ajouter.
+
+FICHIERS MODIFIÉS
+-----------------
+  backend/src/routes/groups.ts → endpoints membres + socket
+  backend/src/lib/groupMembers.ts → règles d'autorisation
+  backend/src/lib/groupMembers.test.ts → tests unitaires (5)
+  app/src/lib/api.ts → client API
+  app/src/pages/DmPage.tsx → UI gestion groupe
+
+BUILD (si vérifié)
+-----
+  backend/ → npm test groupMembers → ✅
+
+================================================================================
+Fin MODIF 96 — 2026-06-06
+================================================================================
+
+================================================================================
+MODIF 97 — Confirmations « Retirer » (audit app/src)
+Date : 2026-06-06
+================================================================================
+
+OBJECTIF / PROBLÈME
+-------------------
+  Chaque action utilisateur « Retirer » (ou équivalent destructif) doit afficher
+  un window.confirm avant l'appel API ou l'émission socket.
+
+CHANGEMENTS / FIX
+-----------------
+  app/src/pages/DmPage.tsx
+  ───────────────────────
+  • Groupe DM : libellé confirm clarifié — « Retirer [nom] du groupe ? » /
+    « Quitter ce groupe ? » (confirm déjà présent, message ajusté).
+
+  app/src/components/ChatPanel.tsx
+  ────────────────────────────────
+  • Salon / live chat : confirm avant « Retirer VIP »
+    (« Retirer le statut VIP de [nom] ? »).
+
+  app/src/pages/LivePage.tsx
+  ────────────────────────
+  • Panneau VIP hôte : confirm avant « Retirer VIP »
+    (« Retirer le statut VIP de [nom] ? »).
+
+DÉJÀ OK (pas de doublon)
+------------------------
+  • MyFavoritesSheet — Retirer des favoris (utilisateur)
+  • MapSalonListenSheet — Retirer hôte des favoris
+  • ActualiteTabPage — Retirer publication des favoris
+  • SalonPage — Retirer invité autorisé
+
+NON CONCERNÉ (brouillon local, pas d'API)
+-----------------------------------------
+  • Pièce jointe DM / chat (aria-label)
+  • Story : image, musique, tag utilisateur
+  • ActualiteTabPage — Retirer l'image (compose)
+
+FICHIERS MODIFIÉS
+-----------------
+  app/src/pages/DmPage.tsx → libellé confirm groupe
+  app/src/components/ChatPanel.tsx → confirm Retirer VIP
+  app/src/pages/LivePage.tsx → confirm Retirer VIP
+
+================================================================================
+Fin MODIF 97 — 2026-06-06
+================================================================================
+
+================================================================================
+MODIF 97 - Sécurisation accès local uniquement (audit réseau)
+Date : 2026-06-06
+================================================================================
+
+OBJECTIF / PROBLÈME
+-------------------
+  Réduire l'exposition réseau de msdev : arrêt tunnel ngrok, écoute localhost,
+  CORS restreint, contrôle d'accès activé, règle pare-feu LAN désactivée si possible.
+
+CHANGEMENTS / FIX
+-----------------
+  msdev/.env (non versionné)
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~
+  · HOST=127.0.0.1 (au lieu de 0.0.0.0)
+  · CORS_ORIGIN=http://localhost:4080 (au lieu de *)
+  · ACCESS_CONTROL_ENABLED=1
+
+  Environnement / poste
+  ~~~~~~~~~~~~~~~~~~~~~
+  · Processus ngrok arrêté ; API tunnels 127.0.0.1:4040 indisponible.
+  · Tentative Disable-NetFirewallRule « MeloSong msdev (TCP 4080) » : accès refusé
+    (droits administrateur requis) — à exécuter manuellement en admin si besoin.
+  · Redémarrage serveur : npm run msdev:restart.
+
+VÉRIFICATIONS
+-------------
+  · netstat : TCP 127.0.0.1:4080 LISTENING (pas 0.0.0.0:4080).
+  · curl http://localhost:4080 → HTTP 200.
+  · ngrok tunnels API : hors service.
+
+FICHIERS MODIFIÉS
+-----------------
+  msdev/.env (local uniquement, ne pas committer)
+  modification.txt (ce log)
+
+================================================================================
+Fin MODIF 97 - 2026-06-06
+================================================================================
+
+================================================================================
+MODIF 98 — « Trier par » dans le panneau réglages Lives
+Date : 2026-06-06
+================================================================================
+
+OBJECTIF
+--------
+  Aligner l'onglet Lives sur le panneau À proximité : point de référence carte,
+  tri et rayon regroupés dans le panneau engrenage (plus de carte toujours
+  visible dans la barre principale).
+
+AVANT
+-----
+  • Point de référence carte (MapLocationPicker) toujours affiché dans la carte
+    grise sous le titre.
+  • « Trier par » dans une sous-section du panneau engrenage, sous le picker
+    toujours visible.
+
+APRÈS
+-----
+  • Panneau fermé : barre titre + engrenage + « Démarrer mon Live » uniquement ;
+    carte rayon visible seulement si tri = Distance.
+  • Panneau engrenage ouvert : point de référence carte (compact), « Trier par »
+    (chips Distance / spectateurs), rayon si tri Distance — même logique et
+    style que NearbyPeoplePanel (labels FR, chips, accent rouge).
+
+FICHIERS MODIFIÉS
+-----------------
+  app/src/pages/LivesTabPage.tsx
+
+================================================================================
+Fin MODIF 98 — 2026-06-06
+================================================================================
+
+================================================================================
+MODIF 99 — Icône filtre personnalisée onglet Lives
+Date : 2026-06-06
+================================================================================
+
+OBJECTIF
+--------
+  Remplacer l'engrenage SVG du panneau filtres/réglages Lives par l'image
+  fournie par l'utilisateur, positionnée en haut à gauche au-dessus de la
+  grille des lives.
+
+AVANT
+-----
+  • Bouton engrenage (GearIcon SVG) dans la barre titre, à droite à côté de
+    « Démarrer mon Live ».
+
+APRÈS
+-----
+  • Bouton filtre avec image /filter-lives.png (28×28 px), en haut à gauche
+    juste au-dessus de la grille des lives ; ouvre/ferme le panneau réglages.
+  • Engrenage SVG retiré.
+
+FICHIERS MODIFIÉS
+-----------------
+  app/public/filter-lives.png (nouveau)
+  app/src/pages/LivesTabPage.tsx
+
+================================================================================
+Fin MODIF 99 — 2026-06-06
+================================================================================
+
+================================================================================
+MODIF 100 — Mise à jour icône filtre Lives (nouvelle image)
+Date : 2026-06-06
+================================================================================
+
+OBJECTIF
+--------
+  Remplacer l'asset filtre Lives par la nouvelle image fournie par
+  l'utilisateur ; déplacer vers app/public/icons/.
+
+AVANT
+-----
+  • /filter-lives.png à la racine de app/public/ (première version de l'icône).
+  • Bouton filtre : img 28×28 px (w-7 h-7).
+
+APRÈS
+-----
+  • /icons/filter-lives.png (nouvelle image utilisateur).
+  • Bouton filtre : img 32×32 px (w-8 h-8), alt="Filtres", au-dessus de la
+    grille ; ouvre/ferme le panneau réglages (settingsOpen).
+
+FICHIERS MODIFIÉS
+-----------------
+  app/public/icons/filter-lives.png (nouveau, remplace filter-lives.png racine)
+  app/public/filter-lives.png (supprimé)
+  app/src/pages/LivesTabPage.tsx
+
+================================================================================
+Fin MODIF 100 — 2026-06-06
+================================================================================
+
+================================================================================
+MODIF 101 — Icône filtre unifiée (Accueil) sur toute l'app
+Date : 2026-06-06
+================================================================================
+
+OBJECTIF
+--------
+  Utiliser la même icône filtre que l'onglet Accueil (SVG trois barres
+  horizontales des stories) pour tous les boutons filtre de l'app.
+
+SOURCE ACCUEIL
+--------------
+  • SVG inline (pas d'asset PNG) : path M4 6h16M7 12h10M10 18h4
+  • Centralisé dans app/src/components/FilterIcon.tsx
+  • Taille standard : w-7 h-7 (28 px) ; w-5 h-5 dans barres stories compactes
+
+AVANT
+-----
+  • Lives : /icons/filter-lives.png (img 32×32)
+  • Actualités : GearIcon (engrenage)
+  • À proximité : GearIcon local dans NearbyPeoplePanel
+  • Stories carte : SVG inline dupliqué
+
+APRÈS
+-----
+  • Tous les filtres : <FilterIcon /> (stroke currentColor, cohérent avec Accueil)
+  • filter-lives.png supprimé (doublon inutile)
+
+FICHIERS MODIFIÉS
+-----------------
+  app/src/components/FilterIcon.tsx (nouveau)
+  app/src/pages/ActualiteTabPage.tsx
+  app/src/pages/LivesTabPage.tsx
+  app/src/components/MapStoriesAccordion.tsx
+  app/src/components/NearbyPeoplePanel.tsx
+  app/public/icons/filter-lives.png (supprimé)
+
+================================================================================
+Fin MODIF 101 — 2026-06-06
+================================================================================
+
+================================================================================
+MODIF 102 — Filtre Lives droite, perf React, audit légal/YouTube, apptel
+Date : 2026-06-06
+================================================================================
+
+OBJECTIF / PROBLÈME
+-------------------
+  • Bouton filtre Lives aligné à gauche (incohérent avec Accueil).
+  • Re-renders coûteux sur grille lives et globe 3D.
+  • Lot qualité : tests, build, conformité légale/YouTube, variante mobile apptel.
+
+CHANGEMENTS / FIX
+-----------------
+  app/src/pages/LivesTabPage.tsx
+  ──────────────────────────────
+  • Bouton <FilterIcon /> déplacé à droite (flex justify-end) au-dessus de la grille.
+  • LiveGridCard extrait en React.memo ; useCallback pour prefs/filtre/suivi.
+
+  app/src/components/GlobeView.tsx
+  ───────────────────────────────
+  • Export enveloppé en React.memo (points/rings déjà en useMemo).
+
+  apptel (variante mobile PWA iOS/Android)
+  ──────────────────────────────────────────
+  • LivesTabPage + FilterIcon hérités via plugin Vite depuis app/src (pas de doublon).
+  • index.html : viewport-fit=cover, PWA meta Apple/Android déjà en place.
+  • index.css : safe-area, touch targets 40–44px, bottom sheet, compact UI mobile.
+  • Build apptel → backend/public/tel/ (bundle ~1 Mo gzip ~287 Ko).
+
+AUDIT LÉGAL / YOUTUBE (résumé)
+------------------------------
+  ✅ Documents légaux complets (CGU, PP, RGPD, mentions, API plateformes).
+  ✅ SalonYouTubePlayer : IFrame API, strictCompliance prod, OpenOnYoutube, badges.
+  ✅ Cache recherche YouTube 1h (backend salons.ts, conforme règle 24h).
+  ⚠️ msdev/legal-publisher.json non rempli → placeholders [À compléter] en prod.
+  ⚠️ OAuth Spotify/YouTube réels + clés API à configurer (voir acompleter.txt).
+
+TESTS / BUILD
+-------------
+  app vitest : 20 fichiers, 81 tests ✅
+  backend vitest : 4 fichiers, 23 tests ✅
+  npm run app:build ✅
+  npm run apptel:build ✅
+
+FICHIERS MODIFIÉS
+-----------------
+  app/src/pages/LivesTabPage.tsx → filtre droite + memo LiveGridCard
+  app/src/components/GlobeView.tsx → React.memo
+  backend/public/tel/ → build apptel mobile
+  modification.txt
+
+================================================================================
+Fin MODIF 102 — 2026-06-06
+================================================================================

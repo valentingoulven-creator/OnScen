@@ -1,0 +1,1 @@
+import{r as e}from"./rolldown-runtime-QTnfLwEv.js";import{i as t}from"./vendor-react-DRPaF4Xc.js";import{m as n}from"./UsernameDisplay-B7t4A5QR.js";var r=e(t(),1);function i(e,t=!0){(0,r.useEffect)(()=>{if(!t)return;let r=n(),i=t=>e(t);return r.on(`match_created`,i),()=>{r.off(`match_created`,i)}},[e,t])}export{i as t};
