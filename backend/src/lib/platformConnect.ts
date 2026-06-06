@@ -8,6 +8,8 @@ export interface PlatformAccount {
   connectedAt: number;
   /** msdev: jeton simulé ; prod: OAuth access token (serveur uniquement) */
   accessToken?: string;
+  refreshToken?: string;
+  displayName?: string;
 }
 
 export function getPlatformAccounts(user: User): PlatformAccount[] {
@@ -56,11 +58,24 @@ export function disconnectPlatformAccount(user: User, platform: MusicPlatform): 
 }
 
 export function publicPlatformLinks(user: User) {
-  return getPlatformAccounts(user).map(({ platform, externalUserId, connectedAt }) => ({
+  return getPlatformAccounts(user).map(({ platform, externalUserId, connectedAt, displayName }) => ({
     platform,
     externalUserId,
     connectedAt,
+    displayName,
   }));
+}
+
+export function getYoutubeAccessToken(user: User | undefined): string | undefined {
+  if (!user) return undefined;
+  const account = getPlatformAccounts(user).find((a) => a.platform === 'youtube');
+  const token = account?.accessToken;
+  if (!token || token.startsWith('mock_') || token.startsWith('legacy_')) return undefined;
+  return token;
+}
+
+export function isRealYoutubeAccount(user: User | undefined): boolean {
+  return Boolean(getYoutubeAccessToken(user));
 }
 
 /** Seed / legacy users: backfill platformAccounts from connectedPlatforms */

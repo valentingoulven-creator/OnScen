@@ -1,5 +1,4 @@
 import type { LegalDocument } from './types';
-import { LEGAL_CONTACT_EMAIL } from './types';
 
 /** Mentions légales (LCEN / France) — complétez les champs entre crochets avant mise en production. */
 export const mentionsLegales: LegalDocument = {
@@ -8,19 +7,19 @@ export const mentionsLegales: LegalDocument = {
   sections: [
     {
       heading: 'Éditeur du site et de l’application',
-      body: `L’application MeloSong et le site associé sont édités par :\n\n[Nom ou raison sociale de l’éditeur]\n[Forme juridique — ex. entrepreneur individuel, SAS, association]\n[Adresse postale complète]\n[Numéro SIREN / SIRET]\n[Numéro RCS et ville du greffe, le cas échéant]\n[Capital social, le cas échéant]\n\nContact : ${LEGAL_CONTACT_EMAIL}\n\nDirecteur de la publication : [Nom du directeur de publication]`,
+      body: `L’application Soundly et le site associé sont édités par :\n\n{{publisherName}}\n{{legalForm}}\n{{address}}\nSIREN / SIRET : {{siren}}\n{{rcs}}\n{{capital}}\n\nContact : {{contactEmail}}\n\nDirecteur de la publication : {{publicationDirector}}`,
     },
     {
       heading: 'Hébergement',
-      body: `En environnement de démonstration (msdev), l’application peut être exécutée localement sur l’ordinateur de l’utilisateur ou sur un serveur privé ; l’hébergeur est alors l’utilisateur ou son fournisseur d’accès.\n\nEn production, l’hébergement sera assuré par :\n[Nom de l’hébergeur]\n[Adresse de l’hébergeur]\n[Téléphone de l’hébergeur]\n\nLes données techniques (logs, adresses IP de connexion) peuvent transiter par cet hébergeur conformément à sa politique de confidentialité.`,
+      body: `En environnement de démonstration (msdev), l’application peut être exécutée localement ; l’hébergeur est alors l’utilisateur ou son fournisseur d’accès.\n\nEn production, l’hébergement est assuré par :\n{{hostName}}\n{{hostAddress}}\n{{hostPhone}}\nPays : {{hostCountry}}\n\nLes données techniques (logs, adresses IP) peuvent transiter par cet hébergeur.`,
     },
     {
       heading: 'Activité du service',
-      body: `MeloSong est une application sociale autour de la musique : salons d’écoute géolocalisés, lives, messagerie, carte des utilisateurs et contenus musicaux via des liens vers Spotify et YouTube. MeloSong n’est pas un service de rencontre sentimental.\n\nVersion actuelle : environnement msdev (démonstration / développement local). Les fonctionnalités et la disponibilité peuvent évoluer sans préavis.`,
+      body: `Soundly est une application sociale autour de la musique : salons d’écoute géolocalisés, lives, messagerie, carte des utilisateurs et contenus musicaux via des liens vers Spotify et YouTube. Soundly n’est pas un service de rencontre sentimental.\n\nVersion actuelle : environnement msdev (démonstration / développement local). Les fonctionnalités et la disponibilité peuvent évoluer sans préavis.`,
     },
     {
       heading: 'Propriété intellectuelle',
-      body: `L’ensemble des éléments composant MeloSong (textes, interface, logo, charte, code source, sauf composants open source et contenus tiers) est protégé par le droit d’auteur. Toute reproduction ou représentation non autorisée est interdite.\n\nLes marques Spotify, YouTube, Google et autres mentionnées appartiennent à leurs propriétaires respectifs. MeloSong n’est pas affilié, sponsorisé ou approuvé par ces sociétés, sauf accord écrit contraire.`,
+      body: `L’ensemble des éléments composant Soundly (textes, interface, logo, charte, code source, sauf composants open source et contenus tiers) est protégé par le droit d’auteur. Toute reproduction ou représentation non autorisée est interdite.\n\nLes marques Spotify, YouTube, Google et autres mentionnées appartiennent à leurs propriétaires respectifs. Soundly n’est pas affilié, sponsorisé ou approuvé par ces sociétés, sauf accord écrit contraire.`,
     },
     {
       heading: 'Données personnelles et cookies',
@@ -28,7 +27,7 @@ export const mentionsLegales: LegalDocument = {
     },
     {
       heading: 'Signalement de contenu illicite',
-      body: `Conformément à la réglementation applicable, vous pouvez signaler tout contenu illicite ou tout comportement contraire aux Conditions d’utilisation à : ${LEGAL_CONTACT_EMAIL}, en précisant l’URL ou le contexte (salon, live, message), la nature du contenu et vos coordonnées.`,
+      body: `Conformément à la réglementation applicable, vous pouvez signaler tout contenu illicite via le bouton « Signaler » dans l’application ou par e-mail : {{contactEmail}}, en précisant le contexte (salon, live, message, profil), la nature du contenu et vos coordonnées.`,
     },
     {
       heading: 'Médiation et litiges',

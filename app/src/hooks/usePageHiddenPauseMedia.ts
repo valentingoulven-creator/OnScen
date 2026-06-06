@@ -13,15 +13,9 @@ function shouldTreatPageAsHidden(): boolean {
   return document.hidden || document.visibilityState === 'hidden';
 }
 
-function shouldPauseFromBlur(): boolean {
-  if (shouldTreatPageAsHidden()) return true;
-  if (typeof document !== 'undefined' && !document.hasFocus()) return true;
-  return false;
-}
-
 /**
- * Pauses media when the OS locks the screen, the app is backgrounded, or the PWA loses focus
- * (`visibilitychange`, `pagehide`, and `blur` for iOS/Android PWA).
+ * Runs callbacks when the OS locks the screen or the app is backgrounded
+ * (`visibilitychange`, `pagehide`). Pas de `blur` : évite d’arrêter la lecture à tort sur mobile.
  */
 export function usePageHiddenPauseMedia({
   enabled = true,
@@ -45,26 +39,12 @@ export function usePageHiddenPauseMedia({
       if (shouldTreatPageAsHidden()) onHiddenRef.current();
     };
 
-    const handleBlur = () => {
-      window.setTimeout(() => {
-        if (shouldPauseFromBlur()) onHiddenRef.current();
-      }, 0);
-    };
-
-    const handleFocus = () => {
-      if (!shouldTreatPageAsHidden()) onVisibleRef.current?.();
-    };
-
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('pagehide', handlePageHide);
-    window.addEventListener('blur', handleBlur);
-    window.addEventListener('focus', handleFocus);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('pagehide', handlePageHide);
-      window.removeEventListener('blur', handleBlur);
-      window.removeEventListener('focus', handleFocus);
     };
   }, [enabled]);
 }

@@ -1,0 +1,810 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+/* ============================================================
+   APPTEL — Mobile-first, fully responsive
+   Target: iOS/Android via PWA — tout téléphone, toute taille
+   Breakpoints : 320px (SE), 375px (iPhone 8), 390px (14),
+                 412px (Android), 430px (Pro Max) et plus grand
+   Touch targets: 44px minimum, safe-area insets actifs
+   Pas de panneau latéral — NearbyPanel en bottom sheet
+   ============================================================ */
+
+/* ── Layout tokens ──────────────────────────────────────────── */
+:root {
+  --tab-nav-h: 48px;   /* hauteur barre d'onglets (compact : était 56px) */
+  --header-h: 48px;    /* hauteur header (compact : était 56px) */
+  /* hauteur de la carte = tout l'écran moins la barre d'onglets */
+  --map-h: calc(100dvh - var(--tab-nav-h) - env(safe-area-inset-bottom, 0px));
+}
+
+html {
+  font-size: 15px;
+  overflow-x: hidden;
+}
+
+/* Plein écran sur n'importe quel téléphone — aucune limite de largeur.
+   Les safe-area insets sont gérés directement par les composants :
+   - header : pt-[max(0.75rem,env(safe-area-inset-top))]
+   - tab nav : pb-[env(safe-area-inset-bottom)]
+   On ne les ajoute PAS sur body pour éviter le double espacement. */
+body {
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  overflow-x: hidden;
+}
+
+/* Touch targets: 44px minimum (Apple HIG) — boutons seulement, pas les liens inline */
+button,
+[role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Hide desktop-only elements (sidebars, wide-screen panels) */
+.desktop-only {
+  display: none !important;
+}
+
+/* Touch-friendly base padding inside panels */
+.ms-phone-panel {
+  padding: 12px 16px;
+}
+
+/* ── Bottom sheet — NearbyPanel mobile ─────────────────────── */
+.bottom-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  background: var(--ms-surface);
+  border-top: 1px solid var(--ms-border);
+  border-radius: 16px 16px 0 0;
+  max-height: 72dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.45);
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.bottom-sheet[data-state="closed"] {
+  transform: translateY(calc(100% - var(--tab-nav-h, 48px)));
+}
+
+.bottom-sheet[data-state="open"] {
+  transform: translateY(0);
+}
+
+.bottom-sheet__handle {
+  width: 36px;
+  height: 4px;
+  background: var(--ms-border);
+  border-radius: 2px;
+  margin: 10px auto 8px;
+  flex-shrink: 0;
+}
+
+/* ── No sidebar: NearbyPanel takes full width when visible ─── */
+.nearby-sidebar {
+  display: none;
+}
+
+/* Map takes all remaining space on phone */
+.map-main-area {
+  width: 100%;
+  min-width: 0;
+}
+
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --ms-bg: #0b0b0f;
+  --ms-surface: #12121a;
+  --ms-surface-elevated: #1a1a26;
+  --ms-border: #1e1e2f;
+  --ms-text: #f3f4f6;
+  --ms-text-muted: #9ca3af;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background: var(--ms-bg);
+  color: var(--ms-text);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --ms-bg: #f3f4f6;
+  --ms-surface: #ffffff;
+  --ms-surface-elevated: #f9fafb;
+  --ms-border: #e5e7eb;
+  --ms-text: #111827;
+  --ms-text-muted: #6b7280;
+}
+
+body {
+  margin: 0;
+  background: var(--ms-bg);
+  color: var(--ms-text);
+}
+
+/** Dégradé pseudo « wave » (identique au logo Soundly dans le header). */
+.ms-username-wave {
+  background-image: linear-gradient(to right, #c084fc, #f472b6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+#root {
+  min-height: 100dvh;
+  height: 100dvh;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.leaflet-container {
+  background: #0b0b0f !important;
+  font-family: inherit;
+}
+
+/* Crédits carto : mentions légales uniquement (pas d’overlay Leaflet/OSM) */
+.leaflet-container .leaflet-control-attribution,
+.leaflet-control-attribution {
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+}
+
+.leaflet-container .leaflet-bottom.leaflet-right .leaflet-control-attribution {
+  display: none !important;
+}
+
+.map-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.map-marker img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #7c3aed;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
+}
+
+.map-marker.live img {
+  border-color: #ef4444;
+}
+
+.map-marker.person img {
+  border-color: #a855f7;
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.45);
+}
+
+.map-marker.person.live img {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.35), 0 4px 14px rgba(239, 68, 68, 0.55);
+}
+
+.map-marker-person-top {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}
+
+.map-marker .viewer-count {
+  font-size: 11px;
+  font-weight: 800;
+  color: #f87171;
+  line-height: 1;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+.map-marker .person-avatar-stack {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-marker.bot img {
+  border-color: #22d3ee;
+  box-shadow: 0 4px 12px rgba(34, 211, 238, 0.45);
+}
+
+.map-marker .bot-badge {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  background: #0891b2;
+  color: white;
+  font-size: 7px;
+  font-weight: 800;
+  padding: 2px 4px;
+  border-radius: 4px;
+  z-index: 2;
+}
+
+.map-marker span.map-marker-label,
+.map-marker span.map-marker-username {
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.75);
+  padding: 2px 6px;
+  border-radius: 6px;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-marker span.map-marker-label {
+  color: white;
+}
+
+.map-marker span.map-marker-username {
+  color: white;
+}
+
+.map-marker span.map-marker-username.map-marker-username--wave {
+  color: #e879f9;
+}
+
+.map-marker .live-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ef4444;
+  color: white;
+  font-size: 8px;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+/* ── User position marker (bonhomme bleu) ────────────────────────────── */
+@keyframes user-pos-pulse {
+  0%   { transform: scale(0.4); opacity: 0.9; }
+  100% { transform: scale(2.8); opacity: 0;   }
+}
+
+.map-user-position {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  filter: drop-shadow(0 2px 8px rgba(96, 165, 250, 0.75));
+}
+
+.map-user-dot {
+  width: 8px;
+  height: 8px;
+  background: #60a5fa;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.map-user-dot::before,
+.map-user-dot::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid #60a5fa;
+  animation: user-pos-pulse 2s ease-out infinite;
+  opacity: 0;
+}
+
+.map-user-dot::after {
+  animation-delay: 1s;
+}
+
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.reels-track {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  flex: 1 1 0;
+  min-height: 0;
+  height: 100%;
+  align-items: stretch;
+}
+
+.reel-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  align-self: stretch;
+  position: relative;
+  overflow: hidden;
+}
+
+.reels-track::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes reel-heart-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+
+.reel-heart-pop {
+  animation: reel-heart-pop 0.35s ease-out;
+}
+
+/* Messages (DmPage) — cases à cocher plus visibles */
+.melosong-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  cursor: pointer;
+  border-radius: 0.25rem;
+  border: 2px solid #6b7280;
+  background-color: #1a1a26;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.melosong-checkbox:hover {
+  border-color: #ec4899;
+}
+
+.melosong-checkbox:checked {
+  background-color: #ec4899;
+  border-color: #ec4899;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='white'%3E%3Cpath d='M12.207 4.793a1 1 0 0 1 0 1.414l-5 5a1 1 0 0 1-1.414 0l-2.5-2.5a1 1 0 0 1 1.414-1.414L6.5 9.086l4.293-4.293a1 1 0 0 1 1.414 0z'/%3E%3C/svg%3E");
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.melosong-checkbox:focus-visible {
+  outline: 2px solid #ec4899;
+  outline-offset: 2px;
+}
+
+/* Messages privés (DmPage) — ascenseur visible sur desktop et mobile */
+.dm-messages-scroll {
+  overflow-y: scroll;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #4b4b63 #14141c;
+}
+
+.dm-messages-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dm-messages-scroll::-webkit-scrollbar-track {
+  background: #14141c;
+  border-radius: 4px;
+}
+
+.dm-messages-scroll::-webkit-scrollbar-thumb {
+  background: #4b4b63;
+  border-radius: 4px;
+  border: 2px solid #14141c;
+}
+
+.dm-messages-scroll::-webkit-scrollbar-thumb:hover {
+  background: #63637d;
+}
+
+/* ── Salon / Live — chat flottant + languette ───────────────────────── */
+
+.floating-salon-chat .live-chat-messages {
+  max-height: none;
+}
+
+.floating-salon-chat .live-chat-collapsible {
+  --live-chat-body-h: 100%;
+  max-height: none;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  clip-path: none;
+  transition: none;
+}
+
+.floating-salon-chat .live-chat-body {
+  height: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Languette bascule chat — visible desktop */
+.room-theater-toggle {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 60;
+  width: 18px;
+  height: 52px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(18, 18, 28, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: none;
+  border-radius: 6px 0 0 6px;
+  color: #6b7280;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.room-theater-toggle:hover {
+  background: rgba(40, 40, 64, 0.96);
+  color: #e5e7eb;
+}
+
+@media (min-width: 640px) {
+  .room-theater-toggle {
+    display: flex;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .room-theater-toggle {
+    transition-duration: 0.01ms;
+  }
+}
+
+/* Live — saisie collée au bas (au-dessus de la barre d’onglets) */
+.live-chat-panel {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  justify-content: flex-end;
+}
+
+.live-chat-panel form {
+  padding: 0 0.75rem 0;
+}
+
+.live-chat-panel form + [role='alert'] {
+  margin-bottom: 0;
+  padding: 0 0.75rem 0;
+}
+
+/* Live — ouverture bas→haut (max-height), fermeture haut→bas (clip-path) */
+.live-chat-panel .live-chat-collapsible {
+  --live-chat-body-h: min(32dvh, 32vh, 200px);
+  max-height: var(--live-chat-body-h);
+  overflow: hidden;
+  clip-path: inset(0 0 0 0);
+  flex-shrink: 0;
+  transform-origin: bottom center;
+  transition:
+    max-height 0.38s cubic-bezier(0.32, 0.72, 0, 1),
+    clip-path 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.live-chat-panel .live-chat-body {
+  height: var(--live-chat-body-h);
+  min-height: 0;
+}
+
+.live-chat-panel .live-chat-messages {
+  max-height: 7.75rem;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.live-chat-panel--ready[data-collapsed='false'] .live-chat-collapsible {
+  max-height: var(--live-chat-body-h);
+  clip-path: inset(0 0 0 0);
+}
+
+/* Fermeture : rideau du haut vers le bas (hauteur conservée le temps du clip) */
+.live-chat-panel--ready[data-collapsed='true'][data-chat-dir='close'] .live-chat-collapsible {
+  max-height: var(--live-chat-body-h);
+  clip-path: inset(100% 0 0 0);
+  transition:
+    clip-path 0.38s cubic-bezier(0.32, 0.72, 0, 1),
+    max-height 0s linear 0.38s;
+}
+
+/* Replié au repos (après fermeture ou chargement masqué) */
+.live-chat-panel--ready[data-collapsed='true'][data-chat-dir='idle'] .live-chat-collapsible,
+.live-chat-panel:not(.live-chat-panel--ready)[data-collapsed='true'] .live-chat-collapsible {
+  max-height: 0;
+  clip-path: inset(0 0 0 0);
+}
+
+.live-chat-panel:not(.live-chat-panel--ready)[data-collapsed='true'] .live-chat-collapsible {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-chat-panel .live-chat-collapsible {
+    transition-duration: 0.01ms;
+  }
+}
+
+/* Salon / live — lecteur YouTube (iframe API) */
+.salon-youtube-player__mount iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Live — zone vidéo plein écran (YouTube + caméra PiP) */
+.live-video-container:fullscreen,
+.live-video-container:-webkit-full-screen {
+  width: 100%;
+  height: 100%;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+}
+
+.live-video-container:fullscreen .live-video-youtube,
+.live-video-container:-webkit-full-screen .live-video-youtube {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+}
+
+.live-video-container:fullscreen .live-video-camera-pip,
+.live-video-container:-webkit-full-screen .live-video-camera-pip {
+  bottom: 1.5rem;
+  right: 1.5rem;
+}
+
+/* Live — mode cinéma paysage (fallback PWA / iOS sans Fullscreen API) */
+.live-video-container--landscape-theater {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+}
+
+.live-video-container--landscape-theater .live-video-youtube {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+}
+
+.live-video-container--landscape-theater .live-video-camera-pip {
+  bottom: 1.5rem;
+  right: 1.5rem;
+}
+
+/* ── Apptel phone-specific layout fixes ─────────────────────────────── */
+
+/* Header search bar: s'adapte à la largeur du téléphone.
+   - Très petits écrans (≤ 360px, ex. iPhone SE) : réduit à 8rem
+   - Petits écrans (361–420px, ex. iPhone 8/14) : 11rem
+   - Grands écrans (> 420px, ex. Pro Max, Android XL) : 17.5rem (défaut Tailwind)
+   La div centrale a la classe justify-self-center dans la grille du header. */
+@media (max-width: 360px) {
+  header .justify-self-center {
+    width: min(100%, 8rem) !important;
+    min-width: 0 !important;
+  }
+}
+@media (min-width: 361px) and (max-width: 420px) {
+  header .justify-self-center {
+    width: min(100%, 11rem) !important;
+    min-width: 0 !important;
+  }
+}
+
+/* Barre d'onglets : 5 tabs sur ~320 px → police réduite + overflow caché */
+nav[aria-label="Navigation principale"] button {
+  overflow: hidden;
+}
+
+nav[aria-label="Navigation principale"] button > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  display: block;
+}
+
+/* iPhone SE (320px) et petits Android (~360px) */
+@media (max-width: 360px) {
+  nav[aria-label="Navigation principale"] button {
+    font-size: 10px !important;
+    padding-left: 3px !important;
+    padding-right: 3px !important;
+    gap: 0 !important;
+    min-width: 0 !important;
+  }
+}
+
+/* ── Paysage (landscape) : réduit la barre d'onglets pour maximiser la carte */
+@media (orientation: landscape) and (max-height: 500px) {
+  :root {
+    --tab-nav-h: 44px;
+  }
+
+  nav[aria-label="Navigation principale"] button {
+    min-height: 36px !important;
+    font-size: 11px !important;
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+  }
+
+  header {
+    /* Header discret en paysage */
+    padding-top: max(0.25rem, env(safe-area-inset-top)) !important;
+  }
+}
+
+/* ── Très grands téléphones (> 480px, tablettes en mode portrait) */
+@media (min-width: 480px) {
+  header .justify-self-center {
+    width: min(100%, 22rem) !important;
+  }
+}
+
+/* Leaflet map : s'assure que la carte remplit son conteneur flex */
+.leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Scrollbars tactiles : visibles mais fines */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #3b3b52 transparent;
+}
+
+/* Empêche le zoom involontaire sur les inputs iOS */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+textarea,
+select {
+  font-size: max(16px, 1em);
+}
+
+/* MapSalonListenSheet / bottom sheets : safe-area bottom gérée ici */
+.map-salon-sheet-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.5rem);
+}
+
+/* ── Hauteur de carte adaptative (utilise le token CSS --map-h) ────── */
+/* Usage : className="apptel-map-height" sur le conteneur de la carte */
+.apptel-map-height {
+  height: var(--map-h, calc(100dvh - 56px));
+  min-height: 0;
+}
+
+/* ── Tailles de texte fluides avec clamp() ──────────────────────────── */
+/* Les composants peuvent utiliser ces classes utilitaires Tailwind ou
+   les custom props ci-dessous pour s'adapter à toutes les tailles. */
+:root {
+  --fs-xs:   clamp(0.625rem, 1.8vw, 0.75rem);   /* 10–12px */
+  --fs-sm:   clamp(0.75rem,  2.2vw, 0.875rem);  /* 12–14px */
+  --fs-base: clamp(0.875rem, 2.6vw, 1rem);      /* 14–16px */
+  --fs-lg:   clamp(1rem,     3vw,   1.125rem);  /* 16–18px */
+}
+
+/* ── Scrollbar mobile : masquée mais toujours fonctionnelle ─────────── */
+@media (hover: none) and (pointer: coarse) {
+  * {
+    scrollbar-width: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Sauf les scrollbars explicitement visibles (DM) */
+  .dm-messages-scroll {
+    scrollbar-width: thin;
+  }
+  .dm-messages-scroll::-webkit-scrollbar {
+    display: block;
+    width: 4px;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   COMPACT UI — Réduction de la hauteur verticale pour afficher
+   plus de contenu par écran sur mobile (objectif : interface plus dense)
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Header : padding vertical réduit (was pt-3/pb-2, now pt-1.5/pb-1) ── */
+header > div:first-child {
+  padding-top: max(0.375rem, env(safe-area-inset-top)) !important;
+  padding-bottom: 0.25rem !important;
+}
+
+/* ── Barre d'onglets principale (bottom) : hauteur réduite ── */
+nav[aria-label="Navigation principale"] {
+  padding-top: 0.125rem !important;
+  padding-bottom: 0.125rem !important;
+}
+
+nav[aria-label="Navigation principale"] button {
+  min-height: 36px !important;
+  padding-top: 0.25rem !important;
+  padding-bottom: 0.25rem !important;
+}
+
+/* ── Paysage : ajuste aussi la nav compacte ── */
+@media (orientation: landscape) and (max-height: 500px) {
+  :root {
+    --tab-nav-h: 40px;
+  }
+}
+
+/* ── Cible tactile globale : 44px → 40px ── */
+button,
+[role="button"] {
+  min-height: 40px;
+  min-width: 40px;
+}
+
+/* ── Cartes du fil communauté & actualités ── */
+article.rounded-xl {
+  padding: 0.5rem !important;
+}
+
+/* ── Espacement vertical entre les cartes du fil ── */
+[class~="space-y-3"] > * + * {
+  margin-top: 0.5rem !important;
+}
+
+/* ── Padding du conteneur de scroll du fil ── */
+[class~="space-y-3"][class~="p-3"] {
+  padding: 0.5rem !important;
+}
+
+/* ── Tendances (stories bar) : gap réduit entre cartes artistes ── */
+[class~="gap-4"][class~="w-max"] {
+  gap: 0.5rem !important;
+}
+
+/* ── Sous-onglets internes (ex. Communauté / Actualités) ── */
+.shrink-0.flex.border-b > button {
+  padding-top: 0.375rem !important;
+  padding-bottom: 0.375rem !important;
+}
+
+/* ── En-têtes de sections (DmPage, panneaux) ── */
+.shrink-0.border-b.px-4,
+.shrink-0.px-4.border-b {
+  padding-top: 0.375rem !important;
+  padding-bottom: 0.375rem !important;
+}

@@ -26,6 +26,14 @@ export const PLATFORM_LABELS: Record<MusicPlatform, string> = {
   youtube: 'YouTube',
 };
 
+export function parseYoutubePlaylistId(urlOrId: string): string | null {
+  const raw = urlOrId.trim();
+  const fromUrl = raw.match(/[?&]list=([a-zA-Z0-9_-]+)/)?.[1];
+  if (fromUrl) return fromUrl;
+  if (/^PL[a-zA-Z0-9_-]+$/.test(raw)) return raw;
+  return null;
+}
+
 export function buildPlatformTrackUrl(platform: MusicPlatform, trackId: string): string {
   if (platform === 'youtube') {
     return `https://www.youtube.com/watch?v=${trackId}`;

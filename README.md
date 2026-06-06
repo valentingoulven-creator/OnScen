@@ -1,68 +1,145 @@
-# MeloSong
+# Soundly — Architecture source partagée
 
-## Dépôt et emplacement
+## Comment ça marche : une seule source de vérité
 
-- **Dossier de travail (iCloud) :** `C:\Users\valen\iCloudDrive\Application\MeloSong\MeloSongv2`
-- **Dépôt Git (racine monorepo) :** [valentingoulven-creator/Melo](https://github.com/valentingoulven-creator/Melo.git) — ce code est dans le sous-dossier `MeloSongv2/`. Exécutez `git` depuis `C:\Users\valen\iCloudDrive\Application\MeloSong` (pas depuis une copie locale `Projects\melosong` sans remote).
+```
+app/src/          ← SOURCE DE VÉRITÉ  (webapp)
+apptel/src/       ← OVERRIDES ONLY    (téléphone)
+```
 
-Application sociale de **salons d'écoute musicale** géolocalisés, connectée à **Spotify** et **YouTube**, avec **lives**, **chat**, **réactions live** et **messages privés**.
+**`app/src/` est le seul endroit où l'on développe.**
 
-Fonctionne en **local sur PC** et sur **smartphone** (navigateur ou PWA installable).
+Le plugin Vite `apptelSrcFallback` (dans `apptel/vite.config.ts`) fait que :
+- Si un fichier existe dans `apptel/src/` → version spécifique téléphone utilisée
+- Si absent de `apptel/src/` → le fichier de `app/src/` est chargé automatiquement
 
-## Démarrage rapide (msdev)
+**Résultat : toute modification dans `app/src/` est immédiatement visible dans les deux apps, sans aucune action manuelle.**
+
+---
+
+## Règle d'or : où coder quoi ?
+
+| Situation | Où modifier |
+|---|---|
+| Logique métier, composant partagé, hook, lib | `app/src/` uniquement |
+| UI différente sur téléphone (safe-area, taille…) | `apptel/src/<fichier>` (override) |
+| Nouvelle feature pour les deux apps | `app/src/` → automatiquement dans les deux |
+| Feature web seulement | `app/src/` (pas dans apptel/src) |
+
+---
+
+## Commandes
 
 ```bash
-# 1. Installer les dépendances
-cd backend && npm install && cd ../app && npm install && cd ..
+# Développement
+npm run appweb:dev      # webapp sur http://localhost:5173
+npm run apptel:dev      # téléphone sur http://localhost:4082
 
-# 2. Lancer MeloSong (build app + serveur local port 4080)
-npm run msdev
+# Build production
+npm run appweb:build
+npm run apptel:build
+
+# Diagnostic : voir quels fichiers sont partagés vs overrides
+npm run src:status
+
+# Vérifier l'intégrité (aucun doublon parasite)
+npm run src:check
+
+# Nettoyer les éventuels doublons dans apptel/src (si quelqu'un a copié par erreur)
+npm run src:clean       # effectue les suppressions
+npm run src:clean:dry   # aperçu sans écriture
 ```
 
-Ouvrir **http://localhost:4080** sur PC ou **http://&lt;IP-de-votre-PC&gt;:4080** sur téléphone (même Wi‑Fi).
+---
 
-### Compte démo
+## Quand faire quoi
 
-- **Email :** `listener@msdev.local`
-- **Mot de passe :** `msdev123`
+### Modifier un composant existant (ex: SalonPlaybackPanel)
 
-## Développement
+`SalonPlaybackPanel.tsx` est partagé (pas dans `apptel/src/`).
 
-| Commande | Description |
-|----------|-------------|
-| `npm run msdev` | Build l'app + serveur msdev (4080) |
-| `npm run app:dev` | Frontend seul (5173, proxy API) |
-| `npm run msdev:server` | Backend seul |
-| `npm run build:exe` | Génère `msdev/release/msdev.exe` |
-
-## Fonctionnalités (MVP)
-
-- Carte avec hosts/salons (position floutée ~50 m)
-- Création de salon Spotify ou YouTube
-- Chat temps réel dans les salons
-- Mode Live + réactions
-- Messages privés
-- Mode fantôme
-
-## Structure
-
-```
-melosong/
-├── app/          # React + Vite (PC + mobile responsive + PWA)
-├── backend/      # API REST + Socket.io
-└── msdev/        # Config environnement local
+```bash
+# 1. Modifier app/src/components/SalonPlaybackPanel.tsx
+# 2. Les deux apps voient la modif automatiquement
+# 3. Tester les deux :
+npm run appweb:dev
+npm run apptel:dev
 ```
 
-## Smartphone
+### Ajouter un nouveau composant
 
-1. Lancez `npm run msdev` sur le PC (serveur sur **0.0.0.0:4080**).
-2. Sur le téléphone, ouvrez dans le navigateur : **http://192.168.1.93:4080** — c’est l’**IP du PC**, pas du téléphone (voir `msdev/MOBILE-URL.txt`). Si l’IP du PC change, mettez à jour `msdev/.env`.
-3. Si la page ne charge pas : `npm run msdev:diagnose` puis `npm run msdev:fix-network` (pare-feu Windows, admin).
-4. L’app ne liste pas les « téléphones connectés » ; **Personnes proches** = utilisateurs MeloSong géolocalisés.
-5. Option : **Ajouter à l'écran d'accueil** (PWA).
+```bash
+# 1. Créer app/src/components/NouveauComposant.tsx
+# 2. L'importer dans les fichiers qui en ont besoin
+# → disponible immédiatement dans apptel via le plugin Vite
+# → si TypeScript se plaint, lancer : npm run src:sync
+```
 
-## Prochaines étapes
+### Modifier un override téléphone
 
-- OAuth Spotify / YouTube (API officielles)
-- Application native (Capacitor ou React Native)
-- Base de données PostgreSQL / Supabase
+Les overrides sont les fichiers dans `apptel/src/`. Ce sont les 23 fichiers avec UI ou comportement volontairement différent sur téléphone.
+
+```bash
+# Pour voir la liste : npm run src:status
+# Pour modifier : éditer directement apptel/src/<fichier>
+```
+
+### Ajouter un nouvel override téléphone
+
+Si vous avez modifié `app/src/Foo.tsx` et voulez une version téléphone différente :
+
+```bash
+# 1. Copier app/src/Foo.tsx → apptel/src/Foo.tsx
+# 2. Modifier apptel/src/Foo.tsx pour les spécificités mobile
+# 3. Ajouter 'Foo.tsx' à PROTECTED dans scripts/sync-src.js
+```
+
+---
+
+## Fichiers overrides téléphone (`apptel/src/`)
+
+Ces 23 fichiers ont une implémentation volontairement différente :
+
+| Fichier | Raison |
+|---|---|
+| `index.css` | Styles spécifiques téléphone (safe-area, polices…) |
+| `App.tsx` | Onglet par défaut différent, pas de GlobeView |
+| `main.tsx` | Ordre d'initialisation légèrement différent |
+| `types.ts` | Types adaptés au mobile |
+| `components/MapView.tsx` | Version allégée sans Globe 3D ni MarkerCluster |
+| `components/ChatPanel.tsx` | UI chat adaptée au mobile |
+| `components/NearbyPeoplePanel.tsx` | Panneau repensé pour petit écran |
+| `components/NotificationBell.tsx` | Version mobile |
+| `components/MainTabNav.tsx` | Ordre des onglets différent (Carte en premier) |
+| `components/FloatingSalonChat.tsx` | Poignée resize plus petite sur mobile |
+| `components/RoomTheaterLayout.tsx` | Pas de safe-area-inset sur la version tel |
+| `pages/HomePage.tsx` | Page d'accueil allégée |
+| `pages/DmPage.tsx` | Messages directs version mobile |
+| `pages/SalonPage.tsx` | Salon version mobile (safe-area-inset) |
+| `pages/ActualiteTabPage.tsx` | Actualités allégées |
+| `pages/LivePage.tsx` | Lives version mobile |
+| `pages/UserProfilePage.tsx` | Profil version mobile |
+| `lib/api.ts` | API avec endpoints adaptés |
+| `lib/feedUserPrefs.ts` | Préférences feed mobile |
+| + 4 autres | (voir `npm run src:status`) |
+
+---
+
+## Architecture interne
+
+```
+MeloSong Dev/
+├── app/                  ← webapp (source de vérité)
+│   └── src/              ← ~170 fichiers partagés
+├── apptel/               ← téléphone
+│   ├── src/              ← 23 fichiers overrides UNIQUEMENT
+│   ├── vite.config.ts    ← contient le plugin apptelSrcFallback
+│   └── tsconfig.app.json ← rootDirs: ["src", "../app/src"]
+├── scripts/
+│   └── sync-src.js       ← diagnostic + sync manuel
+└── package.json
+```
+
+Le plugin Vite et `rootDirs` TypeScript fonctionnent ensemble :
+- **Build/Dev** : le plugin Vite intercepte les imports et redirige vers `app/src` si le fichier est absent de `apptel/src`
+- **TypeScript** : `rootDirs` fait la même chose pour la vérification de types

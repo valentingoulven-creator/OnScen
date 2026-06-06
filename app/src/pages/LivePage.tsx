@@ -1,20 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLiveCamera } from '../hooks/useLiveCamera';
-import {
-  pauseMediaElements,
-  pauseYoutubeEmbeds,
-  restoreYoutubeEmbeds,
-  usePauseMediaOnPageHidden,
-} from '../hooks/usePauseMediaOnPageHidden';
+import { usePauseMediaOnPageHidden, pauseMediaElements } from '../hooks/usePauseMediaOnPageHidden';
+import { useBackgroundPlayback } from '../hooks/useBackgroundPlayback';
+import { releaseAppMediaFocus, requestAppMediaFocus } from '../lib/appMediaFocus';
 import { api } from '../lib/api';
 import { LIVE_CAMERA_VIEWER_NOTE } from '../lib/liveCameraMessages';
 import { getLiveCameraContextHints } from '../lib/liveCameraSupport';
-import { getSocket } from '../lib/socket';
+import { mergeRemotePlaybackState } from '../lib/salonPlayback';
+import { getSocket, onSocketConnect } from '../lib/socket';
 import { setActiveHostLiveId } from '../lib/liveHostContext';
-import { ChatPanel } from '../components/ChatPanel';
+import { ChatRoomProvider, ChatMessagesView, ChatInputBar, ChatModals } from '../components/ChatPanel';
+import { UsernameDisplay } from '../components/UsernameDisplay';
+import { RoomTheaterLayout } from '../components/RoomTheaterLayout';
 import { LivePrivateSheet } from '../components/LivePrivateSheet';
-import { UserProfileSheet } from '../components/UserProfileSheet';
 import { HostRatingBlock } from '../components/HostRatingBlock';
 import { FollowUserButton } from '../components/FollowUserButton';
 import {
@@ -24,9 +23,28 @@ import {
   donAmountValidationMessage,
   parseDonAmount,
 } from '../lib/liveReactions';
-import type { ChatMessage, DmContact, Live, AppNotification } from '../types';
+import type { ChatMessage, DmContact, Live, AppNotification, PlaybackState } from '../types';
+
+const LIVE_MAX_DURATION_MS = 8 * 60 * 60 * 1000;
+
+function formatRemaining(ms: number): string {
+  if (ms <= 0) return '0 min';
+  const totalMin = Math.ceil(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h > 0 && m > 0) return `${h}h ${m} min`;
+  if (h > 0) return `${h}h`;
+  return `${m} min`;
+}
 
 const LIVE_CHAT_HIDDEN_KEY = 'melosong_live_chat_hidden';
+function readLiveChatHidden(): boolean {
+  try {
+    return localStorage.getItem(LIVE_CHAT_HIDDEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 function getFullscreenElement(): Element | null {
   return (
@@ -97,22 +115,24 @@ function LiveVideoShrinkIcon() {
   );
 }
 
-function readLiveChatHidden(): boolean {
-  try {
-    return localStorage.getItem(LIVE_CHAT_HIDDEN_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-export function LivePage({ liveId, onBack }: { liveId: string; onBack: () => void }) {
+export function LivePage({
+  liveId,
+  onBack,
+  onOpenProfile,
+  initialTheater = false,
+}: {
+  liveId: string;
+  onBack: () => void;
+  onOpenProfile?: (userId: string) => void;
+  /** Ouvre directement en mode plein écran CSS (theater) dès le premier rendu. */
+  initialTheater?: boolean;
+}) {
   const { user, token } = useAuth();
   const [live, setLive] = useState<Live | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [viewers, setViewers] = useState(0);
   const [chatHidden, setChatHidden] = useState(readLiveChatHidden);
-  const [chatAnimReady, setChatAnimReady] = useState(false);
-  const [chatDir, setChatDir] = useState<'idle' | 'open' | 'close'>('idle');
+  const [chatMinimized, setChatMinimized] = useState(false);
   const [privateTarget, setPrivateTarget] = useState<DmContact | null>(null);
   const [giftError, setGiftError] = useState<string | null>(null);
   const [showDonSheet, setShowDonSheet] = useState(false);
@@ -129,7 +149,9 @@ export function LivePage({ liveId, onBack }: { liveId: string; onBack: () => voi
   const [chatBanUntil, setChatBanUntil] = useState<number | null>(null);
   const [liveViewBanned, setLiveViewBanned] = useState(false);
   const [liveViewBanMessage, setLiveViewBanMessage] = useState<string | null>(null);
-  const [profileUserId, setProfileUserId] = useState<string | null>(null);
+  const [liveEnded, setLiveEnded] = useState(false);
+  const [durationWarning, setDurationWarning] = useState(false);
+  const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const {
     videoRef,
     active: cameraLocalActive,
@@ -145,7 +167,7 @@ export function LivePage({ liveId, onBack }: { liveId: string; onBack: () => voi
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const liveCameraHints = useMemo(() => getLiveCameraContextHints(), []);
   const [isVideoFullscreen, setIsVideoFullscreen] = useState(false);
-  const [isLandscapeTheater, setIsLandscapeTheater] = useState(false);
+  const [isLandscapeTheater, setIsLandscapeTheater] = useState(initialTheater);
   const landscapeAutoActiveRef = useRef(false);
   const landscapeAutoDismissedRef = useRef(false);
   const chatHiddenBeforeLandscapeRef = useRef<boolean | null>(null);
@@ -192,17 +214,32 @@ export function LivePage({ liveId, onBack }: { liveId: string; onBack: () => voi
   useEffect(() => {
     if (!user) return;
     const socket = getSocket();
-    socket.emit('join_live', { liveId });
+    const joinLive = () => {
+      socket.emit('join_live', { liveId });
+    };
+    joinLive();
+    const offReconnect = onSocketConnect(joinLive);
     const onUpdate = (l: Live) => {
       if (l.id === liveId) {
         setLive(l);
         setViewers(l.viewersCount);
       }
     };
+    const onPlayback = (state: PlaybackState) => {
+      setLive((prev) => {
+        if (!prev || prev.id !== liveId) return prev;
+        return { ...prev, playbackState: mergeRemotePlaybackState(prev.playbackState, state) };
+      });
+    };
     socket.on('live_updated', onUpdate);
+    socket.on('playback_sync', onPlayback);
+    socket.on('salon_playback', onPlayback);
     return () => {
+      offReconnect();
       socket.emit('leave_live', { liveId });
       socket.off('live_updated', onUpdate);
+      socket.off('playback_sync', onPlayback);
+      socket.off('salon_playback', onPlayback);
     };
   }, [liveId, user?.id]);
 
@@ -212,6 +249,40 @@ export function LivePage({ liveId, onBack }: { liveId: string; onBack: () => voi
     setChatBanUntil(null);
     setLiveViewBanned(false);
     setLiveViewBanMessage(null);
+  }, [liveId]);
+
+  useEffect(() => {
+    if (!live?.startedAt) return;
+    const update = () => {
+      const ms = live.startedAt! + LIVE_MAX_DURATION_MS - Date.now();
+      setRemainingMs(Math.max(0, ms));
+    };
+    update();
+    const id = window.setInterval(update, 60000);
+    return () => window.clearInterval(id);
+  }, [live?.startedAt]);
+
+  useEffect(() => {
+    const socket = getSocket();
+    const onEnded = (payload: { liveId: string; reason: string }) => {
+      if (payload.liveId !== liveId) return;
+      if (payload.reason === 'duration_limit') {
+        setLiveEnded(true);
+        setDurationWarning(false);
+      }
+    };
+    const onWarning = (payload: { type: string; id: string }) => {
+      if (payload.type === 'live' && payload.id === liveId) {
+        setDurationWarning(true);
+        window.setTimeout(() => setDurationWarning(false), 10000);
+      }
+    };
+    socket.on('live_ended', onEnded);
+    socket.on('session_warning', onWarning);
+    return () => {
+      socket.off('live_ended', onEnded);
+      socket.off('session_warning', onWarning);
+    };
   }, [liveId]);
 
   useEffect(() => {
@@ -230,6 +301,12 @@ export function LivePage({ liveId, onBack }: { liveId: string; onBack: () => voi
     }, remaining);
     return () => window.clearTimeout(timer);
   }, [chatBanned, chatBanUntil]);
+
+  useEffect(() => {
+    pauseMediaElements();
+    requestAppMediaFocus('live');
+    return () => releaseAppMediaFocus('live');
+  }, [liveId]);
 
   useEffect(() => {
     const socket = getSocket();
@@ -322,36 +399,25 @@ export function LivePage({ liveId, onBack }: { liveId: string; onBack: () => voi
   cameraLocalActiveRef.current = cameraLocalActive;
   const isHostRef = useRef(isHost);
   isHostRef.current = isHost;
-  const pausedByPageHiddenRef = useRef(false);
-  const savedYoutubeSrcsRef = useRef<string[]>([]);
+  useBackgroundPlayback(
+    live
+      ? {
+          title: live.playbackState.title,
+          artist: live.playbackState.artist,
+          artworkUrl: live.playbackState.albumArtUrl,
+        }
+      : null,
+    Boolean(live),
+    live?.playbackState.isPlaying ?? false
+  );
 
   usePauseMediaOnPageHidden({
     onPageHidden: () => {
-      pausedByPageHiddenRef.current = true;
-      const root = videoContainerRef.current;
-      if (root) {
-        pauseMediaElements(root);
-        savedYoutubeSrcsRef.current = pauseYoutubeEmbeds(root);
-      }
-      pauseMediaElements(document);
-      if (savedYoutubeSrcsRef.current.length === 0) {
-        savedYoutubeSrcsRef.current = pauseYoutubeEmbeds(document);
-      }
       if (isHostRef.current && cameraLocalActiveRef.current) {
         stopCamera();
         emitCameraState(false);
         setLive((prev) => (prev ? { ...prev, cameraActive: false } : prev));
       }
-    },
-    onPageVisible: () => {
-      if (!pausedByPageHiddenRef.current) return;
-      pausedByPageHiddenRef.current = false;
-      const root = videoContainerRef.current;
-      const urls = savedYoutubeSrcsRef.current;
-      if (root && urls.length > 0) {
-        restoreYoutubeEmbeds(root, urls);
-      }
-      savedYoutubeSrcsRef.current = [];
     },
   });
 
@@ -369,8 +435,7 @@ export function LivePage({ liveId, onBack }: { liveId: string; onBack: () => voi
     if (chatHiddenBeforeLandscapeRef.current === null) return;
     const prev = chatHiddenBeforeLandscapeRef.current;
     chatHiddenBeforeLandscapeRef.current = null;
-    setChatHidden(prev);
-    setChatDir(prev ? 'close' : 'open');
+      setChatHidden(prev);
   }, []);
 
   useEffect(() => {
@@ -397,7 +462,6 @@ export function LivePage({ liveId, onBack }: { liveId: string; onBack: () => voi
       landscapeAutoActiveRef.current = true;
       chatHiddenBeforeLandscapeRef.current = chatHiddenRef.current;
       setChatHidden(true);
-      setChatDir('close');
 
       const el = videoContainerRef.current;
       if (el && FULLSCREEN_SUPPORTED) {
@@ -501,15 +565,9 @@ export function LivePage({ liveId, onBack }: { liveId: string; onBack: () => voi
     setPrivateTarget({ id: target.id, username: target.name });
   };
 
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setChatAnimReady(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
-
   const toggleChatHidden = () => {
     setChatHidden((prev) => {
       const next = !prev;
-      setChatDir(next ? 'close' : 'open');
       try {
         localStorage.setItem(LIVE_CHAT_HIDDEN_KEY, next ? '1' : '0');
       } catch {
@@ -517,16 +575,6 @@ export function LivePage({ liveId, onBack }: { liveId: string; onBack: () => voi
       }
       return next;
     });
-  };
-
-  const onChatCollapsibleTransitionEnd = (e: React.TransitionEvent<HTMLDivElement>) => {
-    if (e.target !== e.currentTarget) return;
-    if (e.propertyName === 'clip-path' && chatHidden && chatDir === 'close') {
-      setChatDir('idle');
-    }
-    if (e.propertyName === 'max-height' && !chatHidden && chatDir === 'open') {
-      setChatDir('idle');
-    }
   };
 
   const stopLive = async () => {
@@ -655,6 +703,25 @@ export function LivePage({ liveId, onBack }: { liveId: string; onBack: () => voi
     );
   }
 
+  if (liveEnded) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-4 px-6 text-center bg-[#0b0b0f]">
+        <p className="text-4xl">⏱</p>
+        <p className="text-white font-bold text-lg">Live terminé</p>
+        <p className="text-gray-400 text-sm max-w-sm">
+          La durée maximale de 8 heures a été atteinte. Le live a été automatiquement arrêté.
+        </p>
+        <button
+          type="button"
+          onClick={onBack}
+          className="px-5 py-2.5 rounded-full bg-purple-600 text-white font-bold text-sm hover:bg-purple-500"
+        >
+          Retour
+        </button>
+      </div>
+    );
+  }
+
   if (!live) {
     return (
       <div className="h-full flex items-center justify-center text-gray-400 bg-[#0b0b0f]">
@@ -665,16 +732,19 @@ export function LivePage({ liveId, onBack }: { liveId: string; onBack: () => voi
 
   const showHostCamera = isHost && cameraLocalActive;
   const showViewerCameraBadge = !isHost && !!live.cameraActive;
-  const youtubeEmbed =
-    live.platform === 'youtube' && live.playbackState.trackId
-      ? `https://www.youtube.com/embed/${live.playbackState.trackId}?autoplay=0`
-      : null;
+  /** Live = caméra (ou fichier local hôte). La lecture YouTube reste dans SalonPlaybackPanel. */
 
   return (
-    <div className="relative flex flex-col flex-1 h-full min-h-0 pb-0 mb-0 bg-[#0b0b0f] overflow-hidden">
+    <div className="flex flex-col h-dvh min-h-0 bg-[#0b0b0f] overflow-hidden">
       {hostDonToast && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] max-w-[90vw] px-4 py-2.5 rounded-full bg-amber-950/90 border border-amber-500/40 text-sm text-amber-100 font-bold shadow-lg backdrop-blur text-center">
           💝 {hostDonToast}
+        </div>
+      )}
+
+      {durationWarning && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] max-w-[90vw] px-4 py-2.5 rounded-full bg-amber-950/90 border border-amber-500/40 text-sm text-amber-100 font-bold shadow-lg backdrop-blur text-center">
+          ⚠ Live se terminera dans 15 min
         </div>
       )}
 
@@ -763,24 +833,46 @@ export function LivePage({ liveId, onBack }: { liveId: string; onBack: () => voi
       )}
 
       {privateTarget && (
-        <LivePrivateSheet target={privateTarget} onClose={() => setPrivateTarget(null)} />
+        <LivePrivateSheet
+          target={privateTarget}
+          onClose={() => setPrivateTarget(null)}
+          onOpenProfile={onOpenProfile}
+        />
       )}
 
-      {profileUserId && (
-        <UserProfileSheet userId={profileUserId} onClose={() => setProfileUserId(null)} />
-      )}
-
-      <div className="shrink-0 min-h-0">
-        <header className="flex items-center gap-3 px-3 py-2.5 border-b border-[#1e1e2f] bg-red-950/30">
+      <header className="shrink-0 flex items-center gap-3 px-3 py-2.5 border-b border-[#1e1e2f] bg-red-950/30">
           <button onClick={onBack} className="text-gray-400 hover:text-white text-xl">
             ←
           </button>
           <div className="flex-1 min-w-0">
             <p className="font-bold text-white truncate">{live.title}</p>
-            <p className="text-xs text-red-400 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              LIVE · {live.hostName} · {viewers} spectateurs
+            <p className="text-xs text-red-400 flex items-center gap-1.5 flex-wrap min-w-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />
+              <span className="shrink-0">LIVE ·</span>
+              <UsernameDisplay
+                username={live.hostName}
+                usernameColor={live.hostUsernameColor}
+                usernameWaveFrom={live.hostUsernameWaveFrom}
+                usernameWaveTo={live.hostUsernameWaveTo}
+                className="truncate max-w-[8rem] sm:max-w-none"
+              />
+              {!isHost && (
+                <HostRatingBlock
+                  hostId={live.hostId}
+                  hostName={live.hostName}
+                  liveId={live.id}
+                  inline
+                  hideLabel
+                  compact
+                />
+              )}
+              <span className="shrink-0">· {viewers} spectateurs</span>
             </p>
+            {remainingMs !== null && remainingMs > 0 && (
+              <p className={`text-[10px] mt-0.5 ${remainingMs <= 15 * 60 * 1000 ? 'text-amber-400' : 'text-[#5a5a7a]'}`}>
+                ⏱ {formatRemaining(remainingMs)} restants
+              </p>
+            )}
           </div>
           {!isHost && (
             <div className="shrink-0 flex items-center gap-1.5">
@@ -801,7 +893,7 @@ export function LivePage({ liveId, onBack }: { liveId: string; onBack: () => voi
               <button
                 type="button"
                 onClick={() => openPrivate({ id: live.hostId, name: live.hostName })}
-                className="px-2.5 py-1.5 bg-purple-900/40 border border-purple-600/40 rounded-full text-[10px] font-bold text-purple-300"
+                className="px-2.5 py-1.5 bg-[#131318] border border-[#232330] rounded-full text-[10px] font-medium text-gray-400 hover:text-gray-200 hover:border-white/15 transition"
                 title="Message privé"
                 aria-label={`Message privé à ${live.hostName}`}
               >
@@ -823,10 +915,10 @@ export function LivePage({ liveId, onBack }: { liveId: string; onBack: () => voi
                 type="button"
                 onClick={toggleHostCamera}
                 disabled={cameraToggling}
-                className={`px-2.5 py-1.5 rounded-full text-[10px] font-bold border transition disabled:opacity-50 ${
+                className={`px-2.5 py-1.5 rounded-full text-[10px] font-medium border transition disabled:opacity-50 ${
                   cameraLocalActive && cameraMode === 'camera'
-                    ? 'bg-emerald-950/50 border-emerald-500/50 text-emerald-200'
-                    : 'bg-[#1a1a26] border-[#2d2d3d] text-gray-300 hover:border-purple-500/40'
+                    ? 'bg-[#0f2018] border-[#1e4030] text-[#70aa88]'
+                    : 'bg-[#131318] border-[#232330] text-gray-400 hover:border-white/15'
                 }`}
               >
                 {cameraToggling
@@ -839,10 +931,10 @@ export function LivePage({ liveId, onBack }: { liveId: string; onBack: () => voi
                 type="button"
                 onClick={() => videoFileInputRef.current?.click()}
                 disabled={cameraToggling || videoFileLoading}
-                className={`px-2.5 py-1.5 rounded-full text-[10px] font-bold border transition disabled:opacity-50 ${
+                className={`px-2.5 py-1.5 rounded-full text-[10px] font-medium border transition disabled:opacity-50 ${
                   cameraLocalActive && cameraMode === 'file'
-                    ? 'bg-emerald-950/50 border-emerald-500/50 text-emerald-200'
-                    : 'bg-[#1a1a26] border-[#2d2d3d] text-gray-300 hover:border-purple-500/40'
+                    ? 'bg-[#0f2018] border-[#1e4030] text-[#70aa88]'
+                    : 'bg-[#131318] border-[#232330] text-gray-400 hover:border-white/15'
                 }`}
                 title="Aperçu vidéo sans caméra (fichier local)"
               >
@@ -856,136 +948,38 @@ export function LivePage({ liveId, onBack }: { liveId: string; onBack: () => voi
               </button>
             </div>
           )}
-        </header>
+      </header>
 
-        <div className="px-3 py-2 flex gap-2.5 items-center border-b border-[#1e1e2f] relative z-0">
-          {isHost && (
-            <button
-              type="button"
-              onClick={() => setShowVipPanel((v) => !v)}
-              className={`shrink-0 px-2.5 py-1.5 rounded-full text-[10px] font-bold border transition ${
-                showVipPanel
-                  ? 'bg-amber-950/50 border-amber-500/50 text-amber-200'
-                  : 'bg-[#1a1a26] border-[#2d2d3d] text-gray-300 hover:border-amber-500/40'
-              }`}
-              title="Modérateurs VIP"
-              aria-expanded={showVipPanel}
-            >
-              ⭐ VIP
-            </button>
-          )}
-          <img
-            src={live.playbackState.albumArtUrl}
-            alt=""
-            className="w-12 h-12 rounded-lg object-cover shadow-lg shrink-0"
-          />
-          <div className="flex-1 min-w-0">
-            <h2 className="text-sm font-bold text-white truncate">{live.playbackState.title}</h2>
-            <p className="text-xs text-gray-400 truncate">{live.playbackState.artist}</p>
-          </div>
-        </div>
-
-        {isHost && liveCameraHints.length > 0 && (
-          <div className="px-3 py-1.5 border-b border-[#1e1e2f] bg-[#12121a]/60">
-            {liveCameraHints.map((hint) => (
-              <p key={hint.slice(0, 48)} className="text-[10px] text-gray-500 leading-relaxed">
-                {hint}
-              </p>
-            ))}
-          </div>
-        )}
-
-        {isHost && showVipPanel && (
-          <div className="px-3 py-2 border-b border-[#1e1e2f] bg-amber-950/20 relative z-0">
-            <p className="text-xs font-bold text-amber-300 mb-2">VIP / Modérateurs</p>
-            <p className="text-[10px] text-gray-500 mb-2">
-              Les modérateurs peuvent supprimer les messages du chat public.
-            </p>
-            {vipEntries.length === 0 ? (
-              <p className="text-[11px] text-gray-500 mb-2">Aucun modérateur VIP pour l&apos;instant.</p>
-            ) : (
-              <ul className="space-y-1.5 mb-3">
-                {vipEntries.map((v) => (
-                  <li key={v.id} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="text-gray-200 truncate">
-                      <span className="text-amber-400 font-bold">VIP</span> · {v.name}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setVipModerator(v.id, false)}
-                      className="shrink-0 px-2 py-1 rounded-lg text-[10px] font-bold text-red-300 border border-red-500/30 hover:bg-red-500/10"
-                    >
-                      Retirer VIP
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {chatParticipants.length > 0 ? (
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">
-                  Ajouter depuis le chat
-                </p>
-                <ul className="flex flex-wrap gap-1.5">
-                  {chatParticipants.map((p) => (
-                    <li key={p.id}>
-                      <button
-                        type="button"
-                        onClick={() => setVipModerator(p.id, true)}
-                        className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#1a1a26] border border-amber-500/30 text-amber-100 hover:border-amber-400"
-                      >
-                        + {p.name}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <p className="text-[11px] text-gray-500">
-                Les pseudos du chat apparaîtront ici pour nommer un modérateur.
-              </p>
-            )}
-          </div>
-        )}
-
-        {!isHost && isVipModerator && (
-          <div className="px-3 py-1 border-b border-[#1e1e2f] bg-amber-950/15">
-            <p className="text-[10px] font-bold text-amber-300">
-              Modérateur · supprimer des messages, bannir du chat ou du live
-            </p>
-          </div>
-        )}
-
-        {!isHost && (
-          <div className="px-3 py-1.5 border-b border-[#1e1e2f] bg-[#12121a]/40">
-            <HostRatingBlock hostId={live.hostId} hostName={live.hostName} liveId={live.id} compact />
-          </div>
-        )}
-      </div>
-
-      <div className="flex-1 min-h-0 pb-0 flex flex-col overflow-hidden relative">
-        <div
-          ref={videoContainerRef}
-          className={`live-video-container relative flex-1 min-h-0 flex flex-col bg-[#0b0b0f] overflow-hidden${
-            isLandscapeTheater ? ' live-video-container--landscape-theater' : ''
-          }`}
-        >
-          {youtubeEmbed && (
-            <iframe
-              title="YouTube"
-              src={youtubeEmbed}
-              className={`live-video-youtube w-full border-0 bg-black ${
-                isVideoExpanded
-                  ? 'absolute inset-0 h-full z-0'
-                  : 'relative shrink-0 h-[7.5rem] max-h-[7.5rem] mx-3 mt-2 rounded-lg border border-[#1e1e2f]'
-              }`}
-              allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-            />
-          )}
-
+      <ChatRoomProvider
+        roomId={liveId}
+        roomType="live"
+        userId={user!.id}
+        userName={user!.username}
+        token={token ?? undefined}
+        initialMessages={chatMessages}
+        onPrivateMessage={openPrivate}
+        isHost={isHost}
+        canModerateChat={canModerateChat}
+        hostId={live.hostId}
+        vipModeratorIds={live.vipModeratorIds ?? []}
+        onSetVip={isHost ? setVipModerator : undefined}
+        onBanUser={canModerateChat ? banUser : undefined}
+        onViewProfile={!isHost && onOpenProfile ? onOpenProfile : undefined}
+        chatBanned={chatBanned}
+        chatBanMessage={chatBanMessage ?? undefined}
+        onDeleteMessage={canModerateChat ? handleDeleteMessage : undefined}
+      >
+      <RoomTheaterLayout
+        chatHidden={chatHidden}
+        onToggleChat={toggleChatHidden}
+        chatTitle="Chat public"
+        chatMinimized={chatMinimized}
+        onToggleMinimize={() => setChatMinimized((m) => !m)}
+        stage={
           <div
-            className={`relative flex-1 min-h-0 ${
-              isVideoExpanded ? 'absolute inset-0 z-10 pointer-events-none' : ''
+            ref={videoContainerRef}
+            className={`live-video-container relative w-full h-full min-h-0 flex flex-col bg-black overflow-hidden${
+              isLandscapeTheater ? ' live-video-container--landscape-theater' : ''
             }`}
           >
             {showHostCamera && (
@@ -994,125 +988,171 @@ export function LivePage({ liveId, onBack }: { liveId: string; onBack: () => voi
                 autoPlay
                 muted
                 playsInline
-                className={
-                  youtubeEmbed
-                    ? `pointer-events-auto absolute bottom-3 right-3 z-20 object-cover border-2 border-emerald-500/40 shadow-lg shadow-black/60 bg-black ${
-                        isVideoExpanded
-                          ? 'live-video-camera-pip w-[28%] max-w-[220px] aspect-[3/4] rounded-xl'
-                          : 'w-[38%] max-w-[140px] aspect-[3/4] rounded-xl'
-                      }`
-                    : 'absolute inset-0 w-full h-full object-cover bg-black'
-                }
+                className="absolute inset-0 w-full h-full object-cover bg-black"
                 aria-label="Aperçu caméra"
               />
             )}
             {showViewerCameraBadge && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center pointer-events-none">
-                <div className="rounded-2xl bg-[#12121a]/90 border border-emerald-500/30 px-5 py-4 max-w-sm">
+              <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
+                <div className="rounded-2xl bg-[#12121a]/90 border border-white/10 px-5 py-4 max-w-sm">
                   <p className="text-3xl mb-2">📹</p>
-                  <p className="text-sm font-bold text-emerald-200">Caméra du host active</p>
+                  <p className="text-sm font-semibold text-gray-200">Caméra du host active</p>
                   <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">{LIVE_CAMERA_VIEWER_NOTE}</p>
                 </div>
               </div>
             )}
             {!showHostCamera && !showViewerCameraBadge && (
-              <div className="absolute inset-0 flex items-center justify-center text-gray-600 text-xs px-4 text-center pointer-events-none">
-                {isHost
-                  ? 'Activez la caméra ou choisissez une vidéo pour l’aperçu'
-                  : 'Écoutez et discutez dans le chat'}
+              <div
+                className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center"
+                style={{
+                  backgroundImage: live.playbackState.albumArtUrl
+                    ? `url(${live.playbackState.albumArtUrl})`
+                    : undefined,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }}
+              >
+                <div className="absolute inset-0 bg-black/75" aria-hidden />
+                <img
+                  src={live.playbackState.albumArtUrl}
+                  alt=""
+                  className="relative z-10 w-28 h-28 rounded-xl object-cover shadow-xl"
+                />
+                <div className="relative z-10 max-w-xs">
+                  <p className="text-sm font-bold text-white truncate">{live.playbackState.title}</p>
+                  <p className="text-xs text-gray-300 truncate">{live.playbackState.artist}</p>
+                  <p className="text-[11px] text-gray-500 mt-2">
+                    {isHost
+                      ? 'Activez la caméra ou choisissez une vidéo'
+                      : 'Écoutez et discutez dans le chat'}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="absolute bottom-0 inset-x-0 z-20 pointer-events-none bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-12 pb-3 px-3">
+              <div className="flex items-center gap-2 pointer-events-none">
+                <img
+                  src={live.playbackState.albumArtUrl}
+                  alt=""
+                  className="w-10 h-10 rounded-lg object-cover shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-white truncate">{live.playbackState.title}</p>
+                  <p className="text-[10px] text-gray-400 truncate">{live.playbackState.artist}</p>
+                </div>
+              </div>
+            </div>
+
+            {(FULLSCREEN_SUPPORTED || isLandscapeTheater) && (
+              <div className="absolute top-2 left-2 z-30 pointer-events-auto">
+                {isVideoExpanded ? (
+                  <button
+                    type="button"
+                    onClick={exitVideoFullscreen}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/70 border border-white/20 text-white text-[11px] font-bold backdrop-blur hover:bg-black/85 active:scale-95 transition"
+                    aria-label="Quitter le plein écran"
+                  >
+                    <LiveVideoShrinkIcon />
+                    <span className="hidden sm:inline">Quitter le plein écran</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={enterVideoFullscreen}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/70 border border-white/20 text-white text-[11px] font-bold backdrop-blur hover:bg-black/85 active:scale-95 transition"
+                    aria-label="Plein écran"
+                  >
+                    <LiveVideoExpandIcon />
+                    <span className="hidden sm:inline">Plein écran</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
-
-          {(FULLSCREEN_SUPPORTED || isLandscapeTheater) && (
-            <div className="absolute top-2 right-2 z-30 pointer-events-auto">
-              {isVideoExpanded ? (
+        }
+        stageFooter={
+          <div className="p-3 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {isHost && (
                 <button
                   type="button"
-                  onClick={exitVideoFullscreen}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/70 border border-white/20 text-white text-[11px] font-bold backdrop-blur hover:bg-black/85 active:scale-95 transition"
-                  aria-label="Quitter le plein écran"
-                >
-                  <LiveVideoShrinkIcon />
-                  <span className="hidden sm:inline">Quitter le plein écran</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={enterVideoFullscreen}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/70 border border-white/20 text-white text-[11px] font-bold backdrop-blur hover:bg-black/85 active:scale-95 transition"
-                  aria-label="Plein écran"
-                >
-                  <LiveVideoExpandIcon />
-                  <span className="hidden sm:inline">Plein écran</span>
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div
-          className={`live-chat-panel relative shrink-0 w-full mt-auto flex flex-col border-t border-[#1e1e2f] bg-[#0b0b0f] pb-0 ${
-            chatAnimReady ? 'live-chat-panel--ready' : ''
-          } ${isLandscapeTheater && !chatHidden ? 'fixed bottom-0 left-0 right-0 z-[60] max-h-[32vh] shadow-[0_-8px_32px_rgba(0,0,0,0.6)]' : 'z-10'}`}
-          data-collapsed={chatHidden ? 'true' : 'false'}
-          data-chat-dir={chatDir}
-        >
-            <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-0.5 min-h-0 border-b border-[#1e1e2f] bg-[#12121a]/50">
-              {!chatHidden && (
-                <p className="text-xs font-bold text-red-400 uppercase tracking-wider">Chat public</p>
-              )}
-              <div
-                className={`flex items-center gap-2 shrink-0 ${chatHidden ? 'w-full justify-center' : ''}`}
-              >
-                {!chatHidden && (
-                  <p className="text-[10px] text-gray-500 hidden sm:inline">MP = message privé</p>
-                )}
-                <button
-                  type="button"
-                  onClick={toggleChatHidden}
-                  className={`flex items-center gap-1 rounded-full font-bold bg-[#1a1a26] border border-[#2d2d3d] transition ${
-                    chatHidden
-                      ? 'gap-1.5 px-3 py-1.5 text-[11px] text-purple-300 hover:border-purple-500/40'
-                      : 'px-2.5 py-1 text-[10px] text-gray-400 hover:text-purple-300 hover:border-purple-500/40'
+                  onClick={() => setShowVipPanel((v) => !v)}
+                  className={`shrink-0 px-2.5 py-1.5 rounded-full text-[10px] font-medium border transition ${
+                    showVipPanel
+                      ? 'bg-[#2a2010] border-[#3a3010] text-[#c8a850]'
+                      : 'bg-[#131318] border-[#232330] text-gray-400 hover:border-white/15'
                   }`}
-                  aria-expanded={!chatHidden}
-                  aria-label={chatHidden ? 'Afficher le chat' : 'Masquer le chat'}
+                  title="Modérateurs VIP"
+                  aria-expanded={showVipPanel}
                 >
-                  <span aria-hidden>💬</span>
-                  {chatHidden ? 'Afficher le chat' : 'Masquer le chat'}
+                  ⭐ VIP
                 </button>
-              </div>
+              )}
+              {!isHost && isVipModerator && (
+                <span className="text-[10px] font-bold text-amber-300">Modérateur VIP</span>
+              )}
             </div>
-            <div
-              className="live-chat-collapsible"
-              aria-hidden={chatHidden && chatDir === 'idle'}
-              onTransitionEnd={onChatCollapsibleTransitionEnd}
-            >
-              <div className="live-chat-body min-h-0 overflow-hidden">
-                <ChatPanel
-                  roomId={liveId}
-                  roomType="live"
-                  userId={user!.id}
-                  userName={user!.username}
-                  token={token ?? undefined}
-                  initialMessages={chatMessages}
-                  onPrivateMessage={openPrivate}
-                  isHost={isHost}
-                  canModerateChat={canModerateChat}
-                  hostId={live.hostId}
-                  vipModeratorIds={live.vipModeratorIds ?? []}
-                  onSetVip={isHost ? setVipModerator : undefined}
-                  onBanUser={canModerateChat ? banUser : undefined}
-                  onViewProfile={!isHost ? setProfileUserId : undefined}
-                  chatBanned={chatBanned}
-                  chatBanMessage={chatBanMessage ?? undefined}
-                  onDeleteMessage={canModerateChat ? handleDeleteMessage : undefined}
-                />
+            {isHost && liveCameraHints.length > 0 &&
+              liveCameraHints.map((hint) => (
+                <p key={hint.slice(0, 48)} className="text-[10px] text-gray-500 leading-relaxed">
+                  {hint}
+                </p>
+              ))}
+            {isHost && showVipPanel && (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-3">
+                <p className="text-xs font-bold text-amber-300 mb-2">VIP / Modérateurs</p>
+                {vipEntries.length === 0 ? (
+                  <p className="text-[11px] text-gray-500 mb-2">Aucun modérateur VIP pour l&apos;instant.</p>
+                ) : (
+                  <ul className="space-y-1.5 mb-3">
+                    {vipEntries.map((v) => (
+                      <li key={v.id} className="flex items-center justify-between gap-2 text-sm">
+                        <span className="text-gray-200 truncate">
+                          <span className="text-amber-400 font-bold">VIP</span> · {v.name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setVipModerator(v.id, false)}
+                          className="shrink-0 px-2 py-1 rounded-lg text-[10px] font-bold text-red-300 border border-red-500/30 hover:bg-red-500/10"
+                        >
+                          Retirer VIP
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {chatParticipants.length > 0 ? (
+                  <ul className="flex flex-wrap gap-1.5">
+                    {chatParticipants.map((p) => (
+                      <li key={p.id}>
+                        <button
+                          type="button"
+                          onClick={() => setVipModerator(p.id, true)}
+                          className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#1a1a26] border border-amber-500/30 text-amber-100"
+                        >
+                          + {p.name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-[11px] text-gray-500">Ajoutez un modérateur depuis le chat.</p>
+                )}
               </div>
-            </div>
-        </div>
-      </div>
+            )}
+            <p className="text-[10px] text-gray-600">MP = message privé (touchez un pseudo dans le chat)</p>
+          </div>
+        }
+        chat={
+          <div className="flex flex-col h-full min-h-0">
+            <ChatMessagesView />
+          </div>
+        }
+        chatInput={<ChatInputBar />}
+      />
+        <ChatModals />
+      </ChatRoomProvider>
     </div>
   );
 }

@@ -1,27 +1,45 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '../lib/api';
-import { registerUser } from '../lib/socket';
+import { clearStoredToken, getStoredToken, persistToken } from '../lib/authStorage';
+import { clearSocketUser, registerUser } from '../lib/socket';
 import type { User } from '../types';
 
 interface AuthCtx {
+  authBootError: string | null;
+  clearAuthBootError: () => void;
   user: User | null;
   token: string | null;
-  login: (email: string, password: string) => Promise<void>;
-  register: (username: string, email: string, password: string) => Promise<void>;
+  isNewUser: boolean;
+  clearNewUser: () => void;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
+  register: (
+    username: string,
+    email: string,
+    password: string,
+    acceptTerms: boolean,
+    termsVersion: string,
+    inviteCode?: string
+  ) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   setUserFromProfile: (user: User) => void;
+  setSession: (token: string, user: User, rememberMe?: boolean) => void;
 }
 
 const AuthContext = createContext<AuthCtx | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('melosong_token'));
+  const [token, setToken] = useState<string | null>(() => getStoredToken());
   const [user, setUser] = useState<User | null>(null);
+  const [authBootError, setAuthBootError] = useState<string | null>(null);
+  const clearAuthBootError = () => setAuthBootError(null);
+  const [isNewUser, setIsNewUser] = useState(false);
+  const clearNewUser = () => setIsNewUser(false);
   const logoutRef = useRef<() => void>(null!);
 
   const logout = () => {
-    localStorage.removeItem('melosong_token');
+    clearStoredToken();
+    clearSocketUser();
     setToken(null);
     setUser(null);
   };
@@ -29,32 +47,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!token) return;
-    api.me(token).then((r) => {
-      setUser(r.user);
-      registerUser(r.user.id);
-    }).catch((e: Error) => {
-      if (e.message?.includes('Session expirée') || e.message?.includes('Token invalide')) {
-        logoutRef.current();
-      } else {
-        localStorage.removeItem('melosong_token');
-        setToken(null);
-      }
-    });
+    let cancelled = false;
+    const timeout = window.setTimeout(() => {
+      setAuthBootError(
+        'Impossible de charger votre profil (serveur injoignable ou trop lent). Vérifiez que Soundly tourne sur https://localhost:4080 puis réessayez.'
+      );
+      if (cancelled) return;
+      clearStoredToken();
+      setToken(null);
+      setUser(null);
+    }, 20000);
+
+    api.me(token)
+      .then((r) => {
+        if (cancelled) return;
+        setUser(r.user);
+        registerUser(r.user.id);
+      })
+      .catch((e: Error) => {
+        setAuthBootError(
+          e.message ||
+            'Erreur lors du chargement de la session. Déconnectez-vous ou actualisez la page (Ctrl+Shift+R).'
+        );
+        if (cancelled) return;
+        if (e.message?.includes('Session expirée') || e.message?.includes('Token invalide')) {
+          logoutRef.current();
+        }
+        // Erreur réseau (serveur arrêté, cert, etc.) : on conserve le token.
+        // L'authBootError guide l'utilisateur ; le timeout de 20 s déconnecte si nécessaire.
+      })
+      .finally(() => {
+        window.clearTimeout(timeout);
+      });
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
   }, [token]);
 
-  const login = async (email: string, password: string) => {
-    const r = await api.login(email, password);
-    localStorage.setItem('melosong_token', r.token);
+  const login = async (email: string, password: string, rememberMe = true) => {
+    const r = await api.login(email, password, rememberMe);
+    persistToken(r.token, rememberMe);
     setToken(r.token);
     setUser(r.user);
     registerUser(r.user.id);
   };
 
-  const register = async (username: string, email: string, password: string) => {
-    const r = await api.register(username, email, password);
-    localStorage.setItem('melosong_token', r.token);
+  const register = async (
+    username: string,
+    email: string,
+    password: string,
+    acceptTerms: boolean,
+    termsVersion: string,
+    inviteCode?: string
+  ) => {
+    const r = await api.register(username, email, password, acceptTerms, termsVersion, inviteCode);
+    if (r.pending) {
+      throw new Error(
+        r.message ||
+          'Inscription enregistrée. Un administrateur doit valider votre compte avant la première connexion.'
+      );
+    }
+    if (!r.token || !r.user) {
+      throw new Error('Réponse d’inscription invalide');
+    }
+    persistToken(r.token, true);
     setToken(r.token);
     setUser(r.user);
+    setIsNewUser(true);
     registerUser(r.user.id);
   };
 
@@ -72,14 +133,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const setUserFromProfile = (u: User) =>
-    setUser((prev) => ({
-      ...prev,
-      ...u,
-      isGhostMode: u.isGhostMode ?? prev?.isGhostMode ?? false,
-    }));
+    setUser((prev) => {
+      // API uses null to signal "field cleared" — JSON cannot represent undefined.
+      // Convert null back to undefined to keep state consistent with the User type.
+      const raw = u as unknown as Record<string, unknown>;
+      const next: User = {
+        ...prev,
+        ...u,
+        isGhostMode: u.isGhostMode ?? prev?.isGhostMode ?? false,
+      } as User;
+      if (raw.usernameColor === null) next.usernameColor = undefined;
+      if (raw.usernameWaveFrom === null) next.usernameWaveFrom = undefined;
+      if (raw.usernameWaveTo === null) next.usernameWaveTo = undefined;
+      return next;
+    });
+
+  const setSession = (t: string, u: User, rememberMe = true) => {
+    persistToken(t, rememberMe);
+    setToken(t);
+    setUser(u);
+    registerUser(u.id);
+  };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, refreshUser, setUserFromProfile }}>
+    <AuthContext.Provider
+      value={{ user, token, isNewUser, clearNewUser, login, register, logout, refreshUser, setUserFromProfile, setSession, authBootError, clearAuthBootError }}
+    >
       {children}
     </AuthContext.Provider>
   );

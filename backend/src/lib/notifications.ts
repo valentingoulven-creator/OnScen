@@ -1,6 +1,7 @@
 import { db, AppNotification } from '../models/schema';
 import { getIo } from './ioInstance';
 
+
 /** Heart-sent alerts are intentionally disabled — only match/live/don notifications. */
 export function isDeliverableNotificationType(type: string): boolean {
   return type !== 'heart';
@@ -29,6 +30,9 @@ export function pushNotification(
     message: n.message,
     matchId: n.matchId,
     liveId: n.liveId,
+    salonId: n.salonId,
+    peerUserId: n.peerUserId,
+    groupId: n.groupId,
     read: false,
     createdAt: Date.now(),
   };
@@ -44,8 +48,50 @@ export function pushNotification(
     createdAt: notification.createdAt,
     matchId: notification.matchId,
     liveId: notification.liveId,
+    salonId: notification.salonId,
+    peerUserId: notification.peerUserId,
+    groupId: notification.groupId,
   });
   return notification;
+}
+
+export function notifyDmReceived(params: {
+  recipientId: string;
+  sender: { id: string; username: string; avatarUrl?: string };
+  preview: string;
+}): void {
+  const preview =
+    params.preview.length > 80 ? `${params.preview.slice(0, 77)}…` : params.preview;
+  pushNotification({
+    recipientId: params.recipientId,
+    senderId: params.sender.id,
+    senderName: params.sender.username,
+    senderAvatarUrl: params.sender.avatarUrl,
+    type: 'dm_message',
+    message: `${params.sender.username} : ${preview}`,
+    peerUserId: params.sender.id,
+  });
+}
+
+export function notifyGroupMessageReceived(params: {
+  recipientId: string;
+  groupId: string;
+  groupName: string;
+  sender: { id: string; username: string; avatarUrl?: string };
+  preview: string;
+}): void {
+  const preview =
+    params.preview.length > 80 ? `${params.preview.slice(0, 77)}…` : params.preview;
+  pushNotification({
+    recipientId: params.recipientId,
+    senderId: params.sender.id,
+    senderName: params.sender.username,
+    senderAvatarUrl: params.sender.avatarUrl,
+    type: 'group_message',
+    message: `${params.groupName} — ${params.sender.username} : ${preview}`,
+    groupId: params.groupId,
+    peerUserId: params.sender.id,
+  });
 }
 
 export function notifyHostLiveDon(params: {

@@ -45,7 +45,7 @@ export function ProfileReelRecorder({ token, defaultArtist = '', onSaved }: Prof
   const [error, setError] = useState<string | null>(null);
 
   const stopCamera = useCallback(() => {
-    recorderRef.current?.state === 'recording' && recorderRef.current.stop();
+    if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
     recorderRef.current = null;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
@@ -187,7 +187,7 @@ export function ProfileReelRecorder({ token, defaultArtist = '', onSaved }: Prof
     try {
       let videoDataUrl: string;
       let poster: string | undefined;
-      let dur = durationSec;
+      const dur = durationSec;
 
       if (importedMediaUrl) {
         videoDataUrl = importedMediaUrl;

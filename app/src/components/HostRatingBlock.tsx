@@ -10,6 +10,12 @@ interface HostRatingBlockProps {
   salonId?: string;
   liveId?: string;
   compact?: boolean;
+  /** Étoiles atténuées (fiche carte). */
+  mutedStars?: boolean;
+  /** Nom + étoiles sur une seule ligne (bandeau live / fiche carte). */
+  inline?: boolean;
+  /** Masque « Noter {hostName} » quand le nom est déjà affiché à côté. */
+  hideLabel?: boolean;
 }
 
 function StarButton({
@@ -19,6 +25,8 @@ function StarButton({
   onSelect,
   onHover,
   disabled,
+  muted,
+  sizeClass = 'text-xl',
 }: {
   value: number;
   filled: boolean;
@@ -26,8 +34,17 @@ function StarButton({
   onSelect: (n: number) => void;
   onHover: (n: number) => void;
   disabled: boolean;
+  muted?: boolean;
+  sizeClass?: string;
 }) {
   const active = value <= hover || (hover === 0 && filled);
+  const activeClass = muted
+    ? active
+      ? 'text-[#a5a5c5]'
+      : 'text-[#3a3a4a]'
+    : active
+      ? 'text-amber-400'
+      : 'text-gray-600';
   return (
     <button
       type="button"
@@ -35,7 +52,7 @@ function StarButton({
       onClick={() => onSelect(value)}
       onMouseEnter={() => onHover(value)}
       onMouseLeave={() => onHover(0)}
-      className={`text-xl leading-none transition ${active ? 'text-amber-400' : 'text-gray-600'} disabled:opacity-40`}
+      className={`${sizeClass} leading-none transition ${activeClass} disabled:opacity-40`}
       aria-label={`${value} étoile${value > 1 ? 's' : ''}`}
     >
       ★
@@ -50,6 +67,9 @@ export function HostRatingBlock({
   salonId,
   liveId,
   compact,
+  mutedStars,
+  inline,
+  hideLabel,
 }: HostRatingBlockProps) {
   const { user, token } = useAuth();
   const [summary, setSummary] = useState<HostRatingSummary | null>(null);
@@ -78,7 +98,10 @@ export function HostRatingBlock({
     }
   };
 
+  const starSizeClass = inline || compact ? 'text-sm' : 'text-xl';
+
   if (isBot) {
+    if (inline) return null;
     return (
       <p className="text-[10px] text-gray-500">Compte démo — notation non disponible</p>
     );
@@ -87,6 +110,14 @@ export function HostRatingBlock({
   if (isSelf) {
     const avg = summary?.average ?? user?.hostRating?.average ?? 0;
     const count = summary?.count ?? user?.hostRating?.count ?? 0;
+    if (inline) {
+      return (
+        <span className="text-[10px] text-gray-500 shrink-0">
+          <span className="text-amber-400 font-bold">{avg > 0 ? `${avg} ★` : '—'}</span>
+          {count > 0 && <span className="text-gray-600"> ({count})</span>}
+        </span>
+      );
+    }
     return (
       <p className="text-xs text-gray-400">
         Votre note moyenne :{' '}
@@ -97,6 +128,44 @@ export function HostRatingBlock({
   }
 
   const displayHover = hover || summary?.userRating || 0;
+
+  const stars = (
+    <div className={`flex items-center gap-0.5 shrink-0 ${starSizeClass}`}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <StarButton
+          key={n}
+          value={n}
+          filled={(summary?.userRating ?? 0) >= n}
+          hover={displayHover}
+          onSelect={submit}
+          onHover={setHover}
+          disabled={saving}
+          muted={mutedStars}
+          sizeClass={starSizeClass}
+        />
+      ))}
+    </div>
+  );
+
+  if (inline) {
+    return (
+      <div className="flex items-center gap-1.5 min-w-0 shrink-0">
+        {!hideLabel && (
+          <span className={`font-semibold text-gray-300 truncate ${compact ? 'text-[10px]' : 'text-xs'}`}>
+            Noter {hostName}
+          </span>
+        )}
+        {stars}
+        {summary && summary.count > 0 && (
+          <span className="text-[9px] text-gray-500 shrink-0 tabular-nums">
+            <span className="text-amber-400 font-bold">{summary.average}</span>
+            <span className="text-gray-600"> ({summary.count})</span>
+          </span>
+        )}
+        {error && <span className="text-[9px] text-red-400 shrink-0">{error}</span>}
+      </div>
+    );
+  }
 
   return (
     <div className={compact ? 'space-y-1' : 'space-y-2'}>
@@ -121,6 +190,8 @@ export function HostRatingBlock({
             onSelect={submit}
             onHover={setHover}
             disabled={saving}
+            muted={mutedStars}
+            sizeClass={starSizeClass}
           />
         ))}
         {summary?.userRating && (

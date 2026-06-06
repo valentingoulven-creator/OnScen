@@ -1,0 +1,70 @@
+MeloSong — Générer l'exécutable Windows (msdev.exe)
+==================================================
+
+## Prérequis (une seule fois)
+
+1. Node.js 18+ installé sur le PC de compilation
+2. Dépendances installées à la racine du monorepo :
+
+   cd backend
+   npm install
+   cd ../app
+   npm install
+   cd ..
+
+3. Fichier msdev/.env présent (copiez msdev/.env.example si besoin)
+
+## Compiler
+
+À la racine du projet MeloSong Dev :
+
+   npm run build:exe
+
+Étapes automatiques :
+- Build de l'interface React (app → backend/public)
+- Compilation TypeScript du backend
+- Empaquetage pkg → msdev/release/msdev.exe
+- Métadonnées Windows « MeloSong » (resedit, remplace l'affichage Node.js)
+- Unblock-File sur le dossier release (Windows)
+- Copie de public/, .env, config.json, data/, lanceurs et DEBLOCAGE-WINDOWS.txt
+
+## Utiliser l'exe
+
+1. Ouvrez le dossier msdev/release/
+2. Préférez Lancer-msdev.ps1 ou Lancer-msdev.bat (déblocage SmartScreen)
+3. Si Windows affiche un avertissement : « Informations complémentaires » → Exécuter quand même
+4. Le navigateur s'ouvre sur http://localhost:4080
+
+Ne déplacez pas msdev.exe sans le dossier release/ complet.
+
+## Windows bloque l'application ?
+
+Guide détaillé : msdev/DEBLOCAGE-WINDOWS.txt (copié dans release/)
+
+Résumé :
+- SmartScreen / fichier téléchargé → Lancer-msdev.ps1, Unblock-File, ou Propriétés → Débloquer
+- Smart App Control (« appli dangereuse ») → l'exe non signé peut rester bloqué ;
+  utilisez msdev/Lancer-msdev-node.bat (Node.js signé) ou npm run msdev:server
+- Ne désactivez pas toute la sécurité Windows ; exclusion de dossier optionnelle (voir guide)
+
+## Smartphone depuis l'exe
+
+- Même Wi‑Fi que le PC
+- Sur le PC : http://localhost:4080/msdev-mobile (QR + URL)
+- Mettez MOBILE_HOST_IP dans release/.env si l'IP du PC change
+- Caméra sur téléphone : préférez npm run msdev:https en dev (certificat) ;
+  l'exe par défaut est en HTTP (limites navigateur pour la caméra)
+
+## Limites
+
+- Windows x64 uniquement (pas macOS / Linux / App Store)
+- Exe non signé Authenticode — faux positifs possibles
+- Serveur local sur le PC — pas un hébergement cloud
+- Pas d'application native iOS/Android dans ce build (voir MOBILE-PWA.txt)
+
+## Dépannage build
+
+- « entry-msdev.js introuvable » → npm run backend:build
+- pkg échoue → vérifiez la connexion Internet (télécharge le runtime Node)
+- Port 4080 occupé → fermez les autres npm run msdev
+- resedit ignoré → npm install dans backend/

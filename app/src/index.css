@@ -1,17 +1,109 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
+@import "leaflet.markercluster/dist/MarkerCluster.css";
+@import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 
-:root {
+/* ── Performance mobile iOS ─────────────────────────────────────────── */
+
+/* Supprime le flash bleu/gris au tap sur iOS */
+*, *::before, *::after {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Supprime le délai de 300 ms au tap (double-tap-to-zoom iOS Safari) */
+button, a, [role="button"], input[type="button"], input[type="submit"], label {
+  touch-action: manipulation;
+}
+
+/* Scrolling GPU natif iOS pour tous les conteneurs overflow Tailwind */
+.overflow-y-auto,
+.overflow-y-scroll,
+.overflow-x-auto,
+.overflow-x-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Bandeau anneaux stories — scroll horizontal tactile fluide */
+.stories-rings-carousel {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+}
+
+/* Masquer scrollbars — scroll toujours actif */
+*,
+html,
+body {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge legacy */
+}
+
+*::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, iOS */
+  width: 0;
+  height: 0;
+}
+
+/* Évite les repaints sur les éléments fixed/sticky — layer GPU dédié */
+.fixed, .sticky,
+[class*="fixed"] {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Empêche le pull-to-refresh du navigateur (conflit avec les gestes dans-app) */
+html, body {
+  overscroll-behavior: none;
+}
+
+/* Désactive le smooth scroll natif — peut bloquer ou ralentir les animations JS */
+html {
+  scroll-behavior: auto;
+}
+
+:root,
+[data-theme="dark"] {
   color-scheme: dark;
+  --ms-bg: #0b0b0f;
+  --ms-surface: #12121a;
+  --ms-surface-elevated: #1a1a26;
+  --ms-border: #1e1e2f;
+  --ms-text: #f3f4f6;
+  --ms-text-muted: #9ca3af;
   font-family: "Segoe UI", system-ui, sans-serif;
-  background: #0b0b0f;
-  color: #f3f4f6;
+  background: var(--ms-bg);
+  color: var(--ms-text);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --ms-bg: #f3f4f6;
+  --ms-surface: #ffffff;
+  --ms-surface-elevated: #f9fafb;
+  --ms-border: #e5e7eb;
+  --ms-text: #111827;
+  --ms-text-muted: #6b7280;
 }
 
 body {
   margin: 0;
   min-height: 100dvh;
-  background: #0b0b0f;
+  background: var(--ms-bg);
+  color: var(--ms-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeSpeed;
+}
+
+/** Dégradé pseudo « wave » (identique au logo Soundly dans le header). */
+.ms-username-wave {
+  background-image: linear-gradient(to right, #c084fc, #f472b6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 #root {
@@ -68,6 +160,33 @@ body {
   box-shadow: 0 4px 12px rgba(168, 85, 247, 0.45);
 }
 
+.map-marker.person.live img {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.35), 0 4px 14px rgba(239, 68, 68, 0.55);
+}
+
+.map-marker-person-top {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}
+
+.map-marker .viewer-count {
+  font-size: 11px;
+  font-weight: 800;
+  color: #f87171;
+  line-height: 1;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+.map-marker .person-avatar-stack {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .map-marker.bot img {
   border-color: #22d3ee;
   box-shadow: 0 4px 12px rgba(34, 211, 238, 0.45);
@@ -86,10 +205,10 @@ body {
   z-index: 2;
 }
 
-.map-marker span {
+.map-marker span.map-marker-label,
+.map-marker span.map-marker-username {
   font-size: 10px;
   font-weight: 700;
-  color: white;
   background: rgba(0, 0, 0, 0.75);
   padding: 2px 6px;
   border-radius: 6px;
@@ -97,6 +216,18 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.map-marker span.map-marker-label {
+  color: white;
+}
+
+.map-marker span.map-marker-username {
+  color: white;
+}
+
+.map-marker span.map-marker-username.map-marker-username--wave {
+  color: #e879f9;
 }
 
 .map-marker .live-badge {
@@ -108,6 +239,96 @@ body {
   font-size: 8px;
   padding: 2px 4px;
   border-radius: 4px;
+}
+
+/* ── World capital markers (flat map) ──────────────────────────────────── */
+.map-capital-tooltip {
+  background: rgba(12, 12, 22, 0.88) !important;
+  border: 1px solid rgba(140, 140, 220, 0.35) !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  color: rgba(210, 210, 255, 0.92) !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  padding: 2px 5px !important;
+  pointer-events: none !important;
+}
+
+.map-capital-tooltip::before {
+  display: none !important;
+}
+
+.map-capital-label {
+  white-space: nowrap;
+}
+
+/* ── Live indicator (blinking dot) ─────────────────────────────────── */
+@keyframes live-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.3; }
+}
+
+.live-indicator-dot {
+  animation: live-blink 1.2s ease-in-out infinite;
+}
+
+/* ── User position marker (bonhomme bleu) ────────────────────────────── */
+@keyframes user-pos-pulse {
+  0%   { transform: scale(0.4); opacity: 0.9; }
+  100% { transform: scale(2.8); opacity: 0;   }
+}
+
+.map-user-position {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  filter: drop-shadow(0 2px 8px rgba(96, 165, 250, 0.75));
+}
+
+.map-user-dot {
+  width: 8px;
+  height: 8px;
+  background: #60a5fa;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.map-user-dot::before,
+.map-user-dot::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid #60a5fa;
+  animation: user-pos-pulse 2s ease-out infinite;
+  opacity: 0;
+}
+
+.map-user-dot::after {
+  animation-delay: 1s;
+}
+
+/* ── Marker cluster icon (dark-purple theme) ─────────────────────────── */
+.map-cluster-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  background: radial-gradient(circle at 35% 35%, #7c3aed, #4f46e5);
+  border: 2.5px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.6), 0 0 0 4px rgba(99, 102, 241, 0.18);
+}
+
+/* Override default leaflet.markercluster styles to match app theme */
+.leaflet-cluster-anim .leaflet-marker-icon,
+.leaflet-cluster-anim .leaflet-marker-shadow {
+  transition: transform 0.3s ease-out, opacity 0.3s ease-in;
 }
 
 .safe-area-pb {
@@ -181,31 +402,77 @@ body {
   outline-offset: 2px;
 }
 
-/* Messages privés (DmPage) — ascenseur visible sur desktop et mobile */
+/* Commentaires PostCard — max 7 visibles, scroll sans ascenseur */
+.post-comments-scroll {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Messages privés (DmPage) — scroll sans ascenseur */
 .dm-messages-scroll {
   overflow-y: scroll;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: #4b4b63 #14141c;
 }
 
-.dm-messages-scroll::-webkit-scrollbar {
-  width: 8px;
+/* ── Salon / Live — chat flottant + languette ───────────────────────── */
+
+.floating-salon-chat .live-chat-messages {
+  max-height: none;
 }
 
-.dm-messages-scroll::-webkit-scrollbar-track {
-  background: #14141c;
-  border-radius: 4px;
+.floating-salon-chat .live-chat-collapsible {
+  --live-chat-body-h: 100%;
+  max-height: none;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  clip-path: none;
+  transition: none;
 }
 
-.dm-messages-scroll::-webkit-scrollbar-thumb {
-  background: #4b4b63;
-  border-radius: 4px;
-  border: 2px solid #14141c;
+.floating-salon-chat .live-chat-body {
+  height: auto;
+  flex: 1;
+  min-height: 0;
 }
 
-.dm-messages-scroll::-webkit-scrollbar-thumb:hover {
-  background: #63637d;
+/* Languette bascule chat — visible desktop */
+.room-theater-toggle {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 60;
+  width: 18px;
+  height: 52px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(18, 18, 28, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: none;
+  border-radius: 6px 0 0 6px;
+  color: #6b7280;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.room-theater-toggle:hover {
+  background: rgba(40, 40, 64, 0.96);
+  color: #e5e7eb;
+}
+
+@media (min-width: 640px) {
+  .room-theater-toggle {
+    display: flex;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .room-theater-toggle {
+    transition-duration: 0.01ms;
+  }
 }
 
 /* Live — saisie collée au bas (au-dessus de la barre d’onglets) */
@@ -224,7 +491,8 @@ body {
   padding: 0 0.75rem 0;
 }
 
-/* Live — ouverture bas→haut (max-height), fermeture haut→bas (clip-path) */
+/* Live — ouverture bas→haut (clip-path GPU), fermeture haut→bas (clip-path GPU)
+   L'animation n'utilise plus max-height → zéro layout reflow sur iOS. */
 .live-chat-panel .live-chat-collapsible {
   --live-chat-body-h: min(32dvh, 32vh, 200px);
   max-height: var(--live-chat-body-h);
@@ -232,9 +500,9 @@ body {
   clip-path: inset(0 0 0 0);
   flex-shrink: 0;
   transform-origin: bottom center;
-  transition:
-    max-height 0.38s cubic-bezier(0.32, 0.72, 0, 1),
-    clip-path 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: clip-path;
+  /* Transition clip-path seulement — propriété composite GPU, pas de layout reflow */
+  transition: clip-path 0.28s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .live-chat-panel .live-chat-body {
@@ -253,23 +521,26 @@ body {
   clip-path: inset(0 0 0 0);
 }
 
-/* Fermeture : rideau du haut vers le bas (hauteur conservée le temps du clip) */
+/* Fermeture : rideau du haut vers le bas, puis max-height snappée à 0 */
 .live-chat-panel--ready[data-collapsed='true'][data-chat-dir='close'] .live-chat-collapsible {
   max-height: var(--live-chat-body-h);
   clip-path: inset(100% 0 0 0);
   transition:
-    clip-path 0.38s cubic-bezier(0.32, 0.72, 0, 1),
-    max-height 0s linear 0.38s;
+    clip-path 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    max-height 0s linear 0.28s;
 }
 
-/* Replié au repos (après fermeture ou chargement masqué) */
-.live-chat-panel--ready[data-collapsed='true'][data-chat-dir='idle'] .live-chat-collapsible,
+/* Replié au repos : clip-path inset bas prêt pour l'ouverture bas→haut */
+.live-chat-panel--ready[data-collapsed='true'][data-chat-dir='idle'] .live-chat-collapsible {
+  max-height: 0;
+  clip-path: inset(0 0 100% 0);
+  transition: none;
+}
+
+/* Chargement initial masqué */
 .live-chat-panel:not(.live-chat-panel--ready)[data-collapsed='true'] .live-chat-collapsible {
   max-height: 0;
   clip-path: inset(0 0 0 0);
-}
-
-.live-chat-panel:not(.live-chat-panel--ready)[data-collapsed='true'] .live-chat-collapsible {
   transition: none;
 }
 
@@ -277,6 +548,14 @@ body {
   .live-chat-panel .live-chat-collapsible {
     transition-duration: 0.01ms;
   }
+}
+
+/* Salon / live — lecteur YouTube (iframe API) */
+.salon-youtube-player__mount iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
 /* Live — zone vidéo plein écran (YouTube + caméra PiP) */
@@ -333,4 +612,70 @@ body {
 .live-video-container--landscape-theater .live-video-camera-pip {
   bottom: 1.5rem;
   right: 1.5rem;
+}
+
+/* ── APPWEB — Desktop / large-screen layout ─────────────────────────── */
+
+/* Content container: cap maximum width on ultra-wide screens */
+.appweb-content-container {
+  max-width: 1440px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Sidebar layout: NearbyPanel stays pinned on the left, map fills the rest */
+@media (min-width: 1024px) {
+  .appweb-layout {
+    display: flex;
+    flex-direction: row;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .appweb-sidebar {
+    width: 320px;
+    min-width: 280px;
+    max-width: 400px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    border-right: 1px solid var(--ms-border);
+    background: var(--ms-surface);
+  }
+
+  .appweb-map-area {
+    flex: 1 1 0;
+    min-width: 0;
+    position: relative;
+    overflow: hidden;
+  }
+}
+
+/* Wider NearbyPanel on large desktop screens */
+@media (min-width: 1440px) {
+  .appweb-sidebar {
+    width: 380px;
+    max-width: 480px;
+  }
+
+  .appweb-content-container {
+    max-width: 1920px;
+  }
+}
+
+/* On very wide screens (>1440px), content panels get a comfortable max-width */
+@media (min-width: 1440px) {
+  .appweb-panel {
+    max-width: 560px;
+  }
+}
+
+/* Desktop-only elements: visible in appweb, hidden in apptel */
+.desktop-only {
+  display: block;
+}
+
+@media (max-width: 767px) {
+  .desktop-only {
+    display: none !important;
+  }
 }

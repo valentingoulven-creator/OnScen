@@ -4,19 +4,62 @@ import { api } from '../lib/api';
 import {
   getLivesGeo,
   setLivesGeo,
-  PRESET_CITIES,
+  setLivesGeoRadiusKm,
+  MAP_GEO_CHANGED_EVENT,
   type LivesGeoPrefs,
 } from '../lib/livesGeo';
+import { MapLocationPicker } from '../components/MapLocationPicker';
+import {
+  clampNearbyRadiusKm,
+  formatRadiusKm,
+  NEARBY_RADIUS_HARD_MAX,
+  NEARBY_RADIUS_MAX,
+  NEARBY_RADIUS_MIN,
+} from '../lib/settings';
 import { FollowUserButton } from '../components/FollowUserButton';
+import { UsernameDisplay } from '../components/UsernameDisplay';
+import {
+  getNearbyPanelPreferences,
+  isNearbyDistanceFilterActive,
+  NEARBY_PANEL_CHANGED_EVENT,
+  NEARBY_SORT_OPTIONS,
+  setNearbyPanelPreferences,
+  sortLivesForNearby,
+  type NearbyPanelPreferences,
+} from '../lib/nearbyPanelSettings';
+import { SETTINGS_CHANGED_EVENT } from '../lib/settings';
+import { formatCompactCount } from '../lib/formatCount';
+import { dicebearAdventurerAvatar } from '../lib/avatarUrl';
 import type { Live } from '../types';
+
+function formatLiveViewersLabel(count: number): string {
+  const n = Math.max(0, Math.floor(count));
+  if (n < 1000) {
+    return n === 1 ? '1 spectateur' : `${n} spectateurs`;
+  }
+  const compact = formatCompactCount(n).replace('.', ',').replace('K', ' k').replace('M', ' M');
+  return `${compact} spectateurs`;
+}
 
 interface LivesTabPageProps {
   onOpenLive: (liveId: string) => void;
 }
 
-function formatDistance(km: number): string {
-  if (km < 1) return `${Math.round(km * 1000)} m`;
-  return `${km.toFixed(km < 10 ? 1 : 0)} km`;
+function GearIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"
+      />
+    </svg>
+  );
 }
 
 export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
@@ -25,40 +68,56 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [geo, setGeo] = useState<LivesGeoPrefs>(getLivesGeo);
-  const [citySearch, setCitySearch] = useState('');
-  const [showCityPicker, setShowCityPicker] = useState(false);
-  const [locating, setLocating] = useState(false);
-  const [geoError, setGeoError] = useState<string | null>(null);
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [panelPrefs, setPanelPrefs] = useState<NearbyPanelPreferences>(() => getNearbyPanelPreferences());
+
+  useEffect(() => {
+    const syncPrefs = () => setPanelPrefs(getNearbyPanelPreferences());
+    window.addEventListener(SETTINGS_CHANGED_EVENT, syncPrefs);
+    window.addEventListener(NEARBY_PANEL_CHANGED_EVENT, syncPrefs);
+    return () => {
+      window.removeEventListener(SETTINGS_CHANGED_EVENT, syncPrefs);
+      window.removeEventListener(NEARBY_PANEL_CHANGED_EVENT, syncPrefs);
+    };
+  }, []);
 
   useEffect(() => {
     if (!token) return;
     api.getMyFollowing(token).then((r) => setFollowingIds(new Set(r.followingIds)));
   }, [token]);
 
-  const filteredCities = useMemo(() => {
-    const q = citySearch.trim().toLowerCase();
-    if (!q) return PRESET_CITIES;
-    return PRESET_CITIES.filter((c) => c.label.toLowerCase().includes(q));
-  }, [citySearch]);
-
   const persistGeo = useCallback((next: LivesGeoPrefs) => {
     setGeo(next);
     setLivesGeo(next);
   }, []);
 
+  useEffect(() => {
+    const syncGeo = () => setGeo(getLivesGeo());
+    window.addEventListener(MAP_GEO_CHANGED_EVENT, syncGeo);
+    return () => window.removeEventListener(MAP_GEO_CHANGED_EVENT, syncGeo);
+  }, []);
+
+  const updatePanelPrefs = (patch: Partial<Pick<NearbyPanelPreferences, 'sortBy'>>) => {
+    setPanelPrefs(setNearbyPanelPreferences(patch));
+  };
+
+  const distanceFilterActive = isNearbyDistanceFilterActive(panelPrefs);
+
   const loadLives = useCallback(() => {
     if (!token) return;
     setLoading(true);
+    const prefs = getNearbyPanelPreferences();
     api
       .getLives(token, {
         latitude: geo.latitude,
         longitude: geo.longitude,
         radiusKm: geo.radiusKm,
+        distanceFilter: isNearbyDistanceFilterActive(prefs),
       })
       .then((r) => setLives(r.lives.filter((l) => l.isActive)))
       .finally(() => setLoading(false));
-  }, [token, geo.latitude, geo.longitude, geo.radiusKm]);
+  }, [token, geo.latitude, geo.longitude, geo.radiusKm, panelPrefs.sortBy]);
 
   useEffect(() => {
     loadLives();
@@ -66,49 +125,70 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
     return () => clearInterval(interval);
   }, [loadLives]);
 
-  const selectCity = (city: (typeof PRESET_CITIES)[number]) => {
-    persistGeo({
-      latitude: city.latitude,
-      longitude: city.longitude,
-      radiusKm: geo.radiusKm,
-      label: city.label,
-      source: 'city',
-    });
-    setShowCityPicker(false);
-    setCitySearch('');
-    setGeoError(null);
+  const sortedLives = useMemo(
+    () => sortLivesForNearby(lives, panelPrefs.sortBy),
+    [lives, panelPrefs.sortBy]
+  );
+
+  const changeRadius = (km: number) => {
+    if (!Number.isFinite(km)) return;
+    const radiusKm = clampNearbyRadiusKm(km);
+    setGeo((prev) => ({ ...prev, radiusKm }));
+    setLivesGeoRadiusKm(radiusKm);
   };
 
-  const useMyPosition = () => {
-    if (!navigator.geolocation) {
-      setGeoError('Géolocalisation non disponible');
-      return;
-    }
-    setLocating(true);
-    setGeoError(null);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        persistGeo({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          radiusKm: geo.radiusKm,
-          label: 'Ma position',
-          source: 'my_position',
-        });
-        setLocating(false);
-        setShowCityPicker(false);
-      },
-      () => {
-        setLocating(false);
-        setGeoError('Impossible d\'obtenir votre position');
-      },
-      { enableHighAccuracy: true, timeout: 12000 }
-    );
+  const changeRadiusInput = (raw: string) => {
+    const n = Number(raw);
+    if (!raw.trim() || !Number.isFinite(n)) return;
+    changeRadius(n);
   };
 
-  const changeRadius = (radiusKm: number) => {
-    persistGeo({ ...geo, radiusKm });
-  };
+  const radiusControls = (
+    <div>
+      <div className="flex justify-between text-xs mb-1.5">
+        <span className="text-gray-400">Rayon de recherche</span>
+        <span className="text-red-400 font-bold">{formatRadiusKm(geo.radiusKm)}</span>
+      </div>
+      <input
+        type="range"
+        min={NEARBY_RADIUS_MIN}
+        max={NEARBY_RADIUS_MAX}
+        step={1}
+        value={Math.min(geo.radiusKm, NEARBY_RADIUS_MAX)}
+        onChange={(e) => changeRadius(Number(e.target.value))}
+        className="w-full accent-red-500"
+      />
+      <div className="flex items-center gap-2 mt-2">
+        <input
+          type="number"
+          min={NEARBY_RADIUS_MIN}
+          step={1}
+          value={geo.radiusKm >= NEARBY_RADIUS_HARD_MAX ? '' : geo.radiusKm}
+          placeholder="ex : 1000"
+          onChange={(e) => changeRadiusInput(e.target.value)}
+          onBlur={(e) => changeRadiusInput(e.target.value)}
+          className="w-20 px-2 py-1 rounded-lg bg-[#0b0b0f] border border-[#2a2a3f] text-xs text-white text-center"
+          aria-label="Distance en kilomètres"
+        />
+        <span className="text-[10px] text-gray-500">km</span>
+        <button
+          type="button"
+          onClick={() => changeRadius(NEARBY_RADIUS_HARD_MAX)}
+          className={`text-[10px] px-2 py-0.5 rounded border transition ${
+            geo.radiusKm >= NEARBY_RADIUS_HARD_MAX
+              ? 'border-red-500/50 bg-red-500/15 text-red-300'
+              : 'border-[#2d2d3d] text-gray-500 hover:text-gray-300'
+          }`}
+          title="Rayon illimité (20 000 km)"
+        >
+          Illimité
+        </button>
+      </div>
+      <p className="text-[10px] text-gray-600 mt-1">
+        Curseur : 1–500 km · Saisie manuelle : ex. 1 000, 5 000 km
+      </p>
+    </div>
+  );
 
   const startMyLive = async () => {
     if (!token) return;
@@ -135,82 +215,68 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
             Lives
           </h2>
-          <button
-            onClick={startMyLive}
-            disabled={starting}
-            className="px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded-full text-xs font-bold text-white disabled:opacity-50"
-          >
-            {starting ? '...' : 'Démarrer mon Live'}
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setSettingsOpen((v) => !v)}
+              title="Filtres et tri"
+              aria-label="Filtres et tri des lives"
+              aria-expanded={settingsOpen}
+              className={`p-2 rounded-full transition ${
+                settingsOpen
+                  ? 'text-red-300 bg-red-900/40'
+                  : 'text-gray-400 hover:text-white hover:bg-[#1a1a26]'
+              }`}
+            >
+              <GearIcon className="w-4 h-4" />
+            </button>
+            <button
+              onClick={startMyLive}
+              disabled={starting}
+              className="px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded-full text-xs font-bold text-white disabled:opacity-50"
+            >
+              {starting ? '...' : 'Démarrer mon Live'}
+            </button>
+          </div>
         </div>
         <p className="text-xs text-gray-400 mb-3">
           Sessions en direct avec chat rapide et réactions
         </p>
 
         <div className="space-y-3 rounded-xl bg-[#12121a] border border-[#1e1e2f] p-3">
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={useMyPosition}
-              disabled={locating}
-              className="px-3 py-1.5 rounded-full text-xs font-semibold bg-red-600/20 text-red-300 border border-red-500/40 hover:bg-red-600/30 disabled:opacity-50"
-            >
-              {locating ? 'Localisation…' : 'Ma position'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowCityPicker((v) => !v)}
-              className="flex-1 min-w-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#1a1a26] text-gray-200 border border-[#2a2a3f] hover:border-red-500/40 text-left truncate"
-            >
-              {geo.label}
-            </button>
-          </div>
+          <MapLocationPicker mapGeo={geo} onPersist={persistGeo} accent="red" />
 
-          {geoError && <p className="text-[10px] text-red-400">{geoError}</p>}
-
-          {showCityPicker && (
-            <div className="space-y-2">
-              <input
-                type="search"
-                value={citySearch}
-                onChange={(e) => setCitySearch(e.target.value)}
-                placeholder="Rechercher une ville…"
-                className="w-full px-3 py-2 rounded-lg bg-[#0b0b0f] border border-[#2a2a3f] text-xs text-white placeholder:text-gray-500"
-              />
-              <ul className="max-h-36 overflow-y-auto space-y-1">
-                {filteredCities.map((city) => (
-                  <li key={city.id}>
+          {settingsOpen && (
+            <div className="pt-2 border-t border-[#1e1e2f]/80 space-y-3">
+              <div>
+                <p className="text-xs text-gray-400 mb-1.5">Trier par</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {NEARBY_SORT_OPTIONS.map((opt) => (
                     <button
+                      key={opt.id}
                       type="button"
-                      onClick={() => selectCity(city)}
-                      className="w-full text-left px-3 py-2 rounded-lg text-xs text-gray-200 hover:bg-[#1a1a26]"
+                      onClick={() =>
+                        updatePanelPrefs({
+                          sortBy: panelPrefs.sortBy === opt.id ? 'none' : opt.id,
+                        })
+                      }
+                      className={`flex-1 min-w-[4.5rem] px-2 py-1.5 rounded-lg text-[10px] font-semibold border transition ${
+                        panelPrefs.sortBy === opt.id
+                          ? 'border-red-500/50 bg-red-500/15 text-red-300'
+                          : 'border-[#2d2d3d] text-gray-500 hover:text-gray-300'
+                      }`}
                     >
-                      {city.label}
+                      {opt.label}
                     </button>
-                  </li>
-                ))}
-                {filteredCities.length === 0 && (
-                  <li className="px-3 py-2 text-xs text-gray-500">Aucune ville trouvée</li>
-                )}
-              </ul>
+                  ))}
+                </div>
+              </div>
+
+              {distanceFilterActive && radiusControls}
             </div>
           )}
 
-          <div>
-            <div className="flex justify-between text-xs mb-1.5">
-              <span className="text-gray-400">Rayon de recherche</span>
-              <span className="text-red-400 font-bold">{geo.radiusKm} km</span>
-            </div>
-            <input
-              type="range"
-              min={5}
-              max={50}
-              step={1}
-              value={geo.radiusKm}
-              onChange={(e) => changeRadius(Number(e.target.value))}
-              className="w-full accent-red-500"
-            />
-          </div>
+          {!settingsOpen && distanceFilterActive && radiusControls}
         </div>
       </div>
 
@@ -218,62 +284,89 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
         <p className="p-8 text-center text-gray-500 text-sm">Chargement des lives...</p>
       )}
 
-      {!loading && lives.length === 0 && (
+      {!loading && sortedLives.length === 0 && (
         <div className="p-8 text-center">
-          <p className="text-gray-400 text-sm">Aucun live en cours dans un rayon de {geo.radiusKm} km</p>
+          <p className="text-gray-400 text-sm">
+            {distanceFilterActive
+              ? `Aucun live en cours dans un rayon de ${geo.radiusKm} km`
+              : 'Aucun live en cours pour le moment'}
+          </p>
           <p className="text-gray-500 text-xs mt-2">
-            Élargissez le rayon ou changez de ville pour découvrir d&apos;autres sessions
+            {distanceFilterActive
+              ? 'Élargissez le rayon, changez de ville ou désactivez le tri par distance'
+              : 'Revenez plus tard ou lancez votre propre session'}
           </p>
         </div>
       )}
 
-      <ul className="p-3 space-y-3">
-        {lives.map((live) => (
+      <ul className="p-3 grid grid-cols-2 gap-x-2 gap-y-4">
+        {sortedLives.map((live) => (
           <li key={live.id}>
             <button
               onClick={() => onOpenLive(live.id)}
-              className="w-full flex items-center gap-3 p-3 rounded-2xl bg-[#12121a] border border-[#1e1e2f] hover:border-red-500/50 text-left transition"
+              className="w-full flex flex-col text-left group"
             >
-              <div className="relative shrink-0">
-                <img
-                  src={live.playbackState.albumArtUrl || ''}
-                  alt=""
-                  className="w-14 h-14 rounded-xl object-cover"
-                />
-                <span className="absolute -bottom-1 -right-1 bg-red-600 text-[8px] font-bold px-1.5 py-0.5 rounded text-white">
-                  LIVE
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-white truncate">{live.title}</p>
-                <p className="text-xs text-gray-400 truncate">{live.hostName}</p>
-                <p className="text-xs text-purple-400 truncate mt-0.5">
-                  {live.playbackState.title} — {live.playbackState.artist}
-                </p>
-              </div>
-              <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
-                {live.hostId !== user?.id && (
-                  <FollowUserButton
-                    userId={live.hostId}
-                    username={live.hostName}
-                    initialFollowing={followingIds.has(live.hostId)}
-                    compact
-                    onFollowingChange={(f) =>
-                      setFollowingIds((prev) => {
-                        const next = new Set(prev);
-                        if (f) next.add(live.hostId);
-                        else next.delete(live.hostId);
-                        return next;
-                      })
-                    }
+              <div className="relative aspect-video w-full bg-[#0b0b0f] overflow-hidden rounded-lg">
+                {live.playbackState.albumArtUrl ? (
+                  <img
+                    src={live.playbackState.albumArtUrl}
+                    alt=""
+                    className="absolute inset-0 w-full h-full object-cover"
                   />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#1a1a26] to-[#0b0b0f]" />
                 )}
-                {live.distanceKm !== undefined && (
-                  <p className="text-xs text-red-400 font-semibold">{formatDistance(live.distanceKm)}</p>
+                <span
+                  className="absolute top-2 left-2 size-2.5 rounded-full bg-red-500 ring-2 ring-red-500/40 shadow-[0_0_6px_rgba(239,68,68,0.6)] live-indicator-dot"
+                  aria-label="En direct"
+                />
+                {live.hostId !== user?.id && (
+                  <div
+                    className="absolute top-1.5 right-1.5 opacity-90 group-hover:opacity-100"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  >
+                    <FollowUserButton
+                      userId={live.hostId}
+                      username={live.hostName}
+                      initialFollowing={followingIds.has(live.hostId)}
+                      iconOnly
+                      onFollowingChange={(f) =>
+                        setFollowingIds((prev) => {
+                          const next = new Set(prev);
+                          if (f) next.add(live.hostId);
+                          else next.delete(live.hostId);
+                          return next;
+                        })
+                      }
+                    />
+                  </div>
                 )}
-                <p className="text-xs text-gray-400">{live.viewersCount}</p>
-                <p className="text-[10px] text-gray-500">spectateurs</p>
-                <span className="text-[10px] uppercase text-gray-500">{live.platform}</span>
+              </div>
+              <div className="flex items-start gap-2 mt-2 min-w-0">
+                <img
+                  src={dicebearAdventurerAvatar(live.hostId)}
+                  alt=""
+                  className="size-9 shrink-0 rounded-full object-cover bg-[#1a1a26]"
+                />
+                <div className="flex-1 min-w-0 overflow-hidden leading-tight">
+                  <p className="text-sm font-semibold text-white truncate">{live.title}</p>
+                  <div className="flex items-center gap-1 min-w-0 mt-0.5">
+                    <UsernameDisplay
+                      username={live.hostName}
+                      usernameColor={live.hostUsernameColor}
+                      usernameWaveFrom={live.hostUsernameWaveFrom}
+                      usernameWaveTo={live.hostUsernameWaveTo}
+                      className="text-xs text-gray-400 truncate min-w-0"
+                    />
+                    <span className="text-xs text-gray-500 shrink-0" aria-hidden>
+                      ·
+                    </span>
+                    <span className="text-xs text-gray-500 shrink-0 tabular-nums">
+                      {formatLiveViewersLabel(live.viewersCount)}
+                    </span>
+                  </div>
+                </div>
               </div>
             </button>
           </li>

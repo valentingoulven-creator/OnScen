@@ -25,6 +25,9 @@ function publicNotification(n: (typeof db.notifications)[0]) {
     createdAt: n.createdAt,
     matchId: n.matchId,
     liveId: n.liveId,
+    salonId: n.salonId,
+    peerUserId: n.peerUserId,
+    groupId: n.groupId,
   };
 }
 

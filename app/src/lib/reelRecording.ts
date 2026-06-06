@@ -4,6 +4,9 @@ export const REEL_RECORD_MAX_SEC = 30;
 /** Taille max estimée du corps POST (express.json 2 Mo). */
 export const REEL_UPLOAD_JSON_LIMIT_BYTES = 2 * 1024 * 1024;
 
+/** Fichier brut max avant encodage base64 (~1,1 Mo → ~1,5 Mo data URL). */
+export const REEL_UPLOAD_MAX_FILE_BYTES = 1_100_000;
+
 /** Marge pour métadonnées JSON hors data URLs. */
 export const REEL_UPLOAD_PAYLOAD_MARGIN_BYTES = 120_000;
 
@@ -102,14 +105,25 @@ export function formatPayloadSize(bytes: number): string {
 
 const IMPORT_VIDEO_TYPES = /^video\/(webm|mp4|quicktime|x-m4v)/i;
 
+export function validateReelVideoFile(file: File): string | null {
+  if (!IMPORT_VIDEO_TYPES.test(file.type)) {
+    return 'Format vidéo non pris en charge (MP4, WebM, MOV).';
+  }
+  if (file.size > REEL_UPLOAD_MAX_FILE_BYTES) {
+    return `Fichier trop lourd (max ${formatPayloadSize(REEL_UPLOAD_MAX_FILE_BYTES)}). Réduisez la durée ou la qualité.`;
+  }
+  return null;
+}
+
 /** Importe une vidéo depuis la galerie (fichier local) pour reel privé. */
 export function importVideoFile(file: File): Promise<{
   mediaUrl: string;
   posterUrl: string;
   durationSec: number;
 }> {
-  if (!IMPORT_VIDEO_TYPES.test(file.type)) {
-    return Promise.reject(new Error('Format vidéo non pris en charge (WebM, MP4).'));
+  const validationError = validateReelVideoFile(file);
+  if (validationError) {
+    return Promise.reject(new Error(validationError));
   }
   return new Promise((resolve, reject) => {
     const objectUrl = URL.createObjectURL(file);
@@ -125,10 +139,15 @@ export function importVideoFile(file: File): Promise<{
     };
 
     video.onloadedmetadata = () => {
-      const durationSec = Math.max(
-        1,
-        Math.min(REEL_RECORD_MAX_SEC, Math.round(Number.isFinite(video.duration) ? video.duration : 0))
-      );
+      const rawDuration = Number.isFinite(video.duration) ? video.duration : 0;
+      if (rawDuration > REEL_RECORD_MAX_SEC) {
+        cleanup();
+        reject(
+          new Error(`Vidéo trop longue (max ${REEL_RECORD_MAX_SEC} s). Découpez ou choisissez un clip plus court.`)
+        );
+        return;
+      }
+      const durationSec = Math.max(1, Math.round(rawDuration));
       video.currentTime = Math.min(0.5, durationSec > 1 ? 0.5 : 0);
     };
 

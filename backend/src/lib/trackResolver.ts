@@ -1,4 +1,5 @@
 import type { MusicPlatform } from '../models/schema';
+import { findMockMatch } from './musicCatalog';
 
 export type TrackMatchType = 'exact' | 'mock' | 'search';
 
@@ -10,43 +11,6 @@ export interface ResolvedTrack {
   externalUrl: string;
   searchUrl: string;
   matchType: TrackMatchType;
-}
-
-/** Catalogue msdev : correspondances titre/artiste connues entre plateformes. */
-const MOCK_CATALOG: Array<{
-  title: string;
-  artist: string;
-  spotify?: { trackId: string };
-  youtube?: { trackId: string };
-}> = [
-  {
-    title: 'Midnight City',
-    artist: 'M83',
-    spotify: { trackId: '2P91MQbaiQKBR4c9sEgqsl' },
-    youtube: { trackId: 'dX3kIQ6KlLi' },
-  },
-  {
-    title: 'Never Gonna Give You Up',
-    artist: 'Rick Astley',
-    spotify: { trackId: '4cOdK2wGLETKBW3PvgPWoT' },
-    youtube: { trackId: 'dQw4w9WgXcQ' },
-  },
-  {
-    title: 'Blinding Lights',
-    artist: 'The Weeknd',
-    spotify: { trackId: '0VjIjW4GlUZAMYd2vXMi3b' },
-    youtube: { trackId: '4NRXx6W78buQNiQ3q5wEkP' },
-  },
-];
-
-function normalize(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
 }
 
 export function buildSearchQuery(title: string, artist: string): string {
@@ -66,16 +30,6 @@ export function buildPlatformTrackUrl(platform: MusicPlatform, trackId: string):
     return `https://www.youtube.com/watch?v=${trackId}`;
   }
   return `https://open.spotify.com/track/${trackId}`;
-}
-
-function findMockMatch(title: string, artist: string) {
-  const nt = normalize(title);
-  const na = normalize(artist);
-  return MOCK_CATALOG.find((entry) => {
-    const et = normalize(entry.title);
-    const ea = normalize(entry.artist);
-    return (nt.includes(et) || et.includes(nt)) && (na.includes(ea) || ea.includes(na) || !na);
-  });
 }
 
 export function resolveTrackForPlatform(

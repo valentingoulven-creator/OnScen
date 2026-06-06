@@ -1,12 +1,17 @@
-import { useEffect, useState } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { api } from '../lib/api';
-import { LEGAL, type LegalKey } from '../content/legal';
+import { useState } from 'react';
+import { type LegalKey } from '../content/legal';
+import { LegalDocumentView } from '../components/LegalDocumentView';
 import { SUPPORT } from '../content/support';
 import { SupportMeloSongSection } from '../components/SupportMeloSongSection';
+import { setLivesGeoRadiusKm } from '../lib/livesGeo';
 import {
   getNearbyRadiusKm,
   setNearbyRadiusKm,
+  clampNearbyRadiusKm,
+  formatRadiusKm,
+  NEARBY_RADIUS_HARD_MAX,
+  NEARBY_RADIUS_MAX,
+  NEARBY_RADIUS_MIN,
   getAppLanguage,
   setAppLanguage,
   getPrivacyPreferences,
@@ -23,10 +28,61 @@ import {
   type ReelFeedAlgorithmPreferences,
   type ReelFeedAlgorithmWeights,
 } from '../lib/reelFeedAlgorithm';
+import { useAuth } from '../context/AuthContext';
+import { api } from '../lib/api';
+
+type PasswordStrength = 'vide' | 'faible' | 'moyen' | 'fort';
+
+function getPasswordStrength(pwd: string): PasswordStrength {
+  if (!pwd) return 'vide';
+  let score = 0;
+  if (pwd.length >= 8) score++;
+  if (pwd.length >= 12) score++;
+  if (/[A-Z]/.test(pwd)) score++;
+  if (/[0-9]/.test(pwd)) score++;
+  if (/[^A-Za-z0-9]/.test(pwd)) score++;
+  if (score <= 1) return 'faible';
+  if (score <= 3) return 'moyen';
+  return 'fort';
+}
+
+const STRENGTH_CONFIG: Record<PasswordStrength, { label: string; color: string; bars: number }> = {
+  vide:   { label: '',       color: 'bg-gray-700',   bars: 0 },
+  faible: { label: 'Faible', color: 'bg-red-500',    bars: 1 },
+  moyen:  { label: 'Moyen',  color: 'bg-yellow-400', bars: 2 },
+  fort:   { label: 'Fort',   color: 'bg-green-500',  bars: 3 },
+};
+
+function PasswordStrengthBar({ password }: { password: string }) {
+  const strength = getPasswordStrength(password);
+  const cfg = STRENGTH_CONFIG[strength];
+  if (!password) return null;
+  return (
+    <div className="space-y-1">
+      <div className="flex gap-1">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className={`h-1 flex-1 rounded-full transition-colors ${i < cfg.bars ? cfg.color : 'bg-gray-700'}`}
+          />
+        ))}
+      </div>
+      {cfg.label && (
+        <p className={`text-[11px] font-medium ${
+          strength === 'faible' ? 'text-red-400' : strength === 'moyen' ? 'text-yellow-400' : 'text-green-400'
+        }`}>
+          Sécurité : {cfg.label}
+        </p>
+      )}
+    </div>
+  );
+}
 
 
 interface SettingsPageProps {
   onBack: () => void;
+  onOpenAnalytics?: () => void;
+  onOpenAccessManagement?: () => void;
 }
 
 function GearIcon({ className }: { className?: string }) {
@@ -89,25 +145,77 @@ function SettingsRow({
   );
 }
 
-export function SettingsPage({ onBack }: SettingsPageProps) {
-  const { user, token, refreshUser } = useAuth();
+export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }: SettingsPageProps) {
+  const { token, logout } = useAuth();
   const [radiusKm, setRadiusKm] = useState(getNearbyRadiusKm);
   const [language, setLanguage] = useState<AppLanguage>(getAppLanguage);
   const [privacy, setPrivacy] = useState<PrivacyPreferences>(getPrivacyPreferences);
-  const [ghost, setGhost] = useState(user?.isGhostMode ?? false);
   const [legal, setLegal] = useState<LegalKey | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [feedAlgo, setFeedAlgo] = useState<ReelFeedAlgorithmPreferences>(getFeedAlgorithmPreferences);
 
-  useEffect(() => {
-    if (!user) return;
-    setGhost(user.isGhostMode ?? false);
-    const local = getPrivacyPreferences();
-    setPrivacy({
-      ...local,
-      showOnNearbyList: !user.isGhostMode,
-    });
-  }, [user?.id, user?.isGhostMode]);
+  // Password change state
+  const [pwSection, setPwSection] = useState(false);
+  const [currentPwd, setCurrentPwd] = useState('');
+  const [newPwd, setNewPwd] = useState('');
+  const [confirmPwd, setConfirmPwd] = useState('');
+  const [pwError, setPwError] = useState('');
+  const [pwLoading, setPwLoading] = useState(false);
+
+  // Delete account state
+  const [deleteModal, setDeleteModal] = useState(false);
+  const [deletePwd, setDeletePwd] = useState('');
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwError('');
+    if (newPwd.length < 8) {
+      setPwError('Le nouveau mot de passe doit contenir au moins 8 caractères');
+      return;
+    }
+    if (newPwd !== confirmPwd) {
+      setPwError('Les mots de passe ne correspondent pas');
+      return;
+    }
+    if (getPasswordStrength(newPwd) === 'faible') {
+      setPwError('Mot de passe trop faible. Ajoutez des chiffres, majuscules ou symboles');
+      return;
+    }
+    setPwLoading(true);
+    try {
+      await api.changePassword(token!, currentPwd, newPwd);
+      setCurrentPwd('');
+      setNewPwd('');
+      setConfirmPwd('');
+      setPwSection(false);
+      flash('Mot de passe mis à jour');
+    } catch (err) {
+      setPwError(err instanceof Error ? err.message : 'Erreur');
+    } finally {
+      setPwLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDeleteError('');
+    if (deleteConfirmText !== 'SUPPRIMER') {
+      setDeleteError('Tapez exactement SUPPRIMER pour confirmer');
+      return;
+    }
+    setDeleteLoading(true);
+    try {
+      await api.deleteAccount(token!, deletePwd);
+      logout();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Erreur');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   const flash = (msg: string) => {
     setSaved(msg);
@@ -115,8 +223,11 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
   };
 
   const applyRadius = (v: number) => {
-    setRadiusKm(v);
-    setNearbyRadiusKm(v);
+    if (!Number.isFinite(v)) return;
+    const clamped = clampNearbyRadiusKm(v);
+    setRadiusKm(clamped);
+    setNearbyRadiusKm(clamped);
+    setLivesGeoRadiusKm(clamped);
     flash('Distance mise à jour');
   };
 
@@ -126,22 +237,9 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
     flash(lang === 'fr' ? 'Langue : français' : 'Language: English');
   };
 
-  const applyPrivacy = async (next: PrivacyPreferences) => {
+  const applyPrivacy = (next: PrivacyPreferences) => {
     setPrivacy(next);
     setPrivacyPreferences(next);
-    const wantOnMap = next.showOnNearbyList;
-    const ghostNow = user?.isGhostMode ?? false;
-    if (token && wantOnMap === ghostNow) {
-      try {
-        await api.toggleGhost(token, !wantOnMap);
-        setGhost(!wantOnMap);
-        await refreshUser();
-        flash(wantOnMap ? 'Visible sur la carte' : 'Masqué de la carte');
-        return;
-      } catch (e) {
-        alert(e instanceof Error ? e.message : 'Erreur');
-      }
-    }
     flash('Préférences enregistrées');
   };
 
@@ -151,7 +249,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
     notifyFeedAlgorithmChanged();
     flash(
       next.useBuiltInAlgorithm
-        ? 'Algorithme MeloSong activé'
+        ? 'Algorithme Soundly activé'
         : 'Tri personnalisé des Reels activé'
     );
   };
@@ -163,40 +261,8 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
     });
   };
 
-  const toggleGhost = async () => {
-    if (!token) return;
-    const next = !ghost;
-    await api.toggleGhost(token, next);
-    setGhost(next);
-    await refreshUser();
-    flash(next ? 'Mode fantôme activé' : 'Mode fantôme désactivé');
-  };
-
   if (legal) {
-    const doc = LEGAL[legal];
-    return (
-      <div className="flex flex-col h-full min-h-0 bg-[#0b0b0f]">
-        <header className="shrink-0 flex items-center gap-3 p-4 border-b border-[#1e1e2f]">
-          <button type="button" onClick={() => setLegal(null)} className="text-gray-400 hover:text-white text-xl">
-            ←
-          </button>
-          <h1 className="font-bold text-white text-sm">{doc.title}</h1>
-        </header>
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          <p className="text-xs text-gray-500">Mis à jour : {doc.updated}</p>
-          {doc.sections.map((s) => (
-            <section key={s.heading} className="bg-[#12121a] border border-[#1e1e2f] rounded-xl p-4">
-              <h2 className="text-sm font-bold text-purple-400 mb-2">{s.heading}</h2>
-              <div className="text-sm text-gray-300 leading-relaxed space-y-2">
-                {s.body.split('\n\n').map((paragraph, i) => (
-                  <p key={i}>{paragraph}</p>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
-      </div>
-    );
+    return <LegalDocumentView docKey={legal} onBack={() => setLegal(null)} />;
   }
 
   return (
@@ -218,31 +284,200 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
           <div className="px-4 pb-4">
             <div className="flex justify-between text-sm mb-2">
               <span className="text-white">Distance de recherche</span>
-              <span className="text-purple-400 font-bold">{radiusKm} km</span>
+              <span className="text-purple-400 font-bold">{formatRadiusKm(radiusKm)}</span>
             </div>
             <input
               type="range"
-              min={5}
-              max={50}
+              min={NEARBY_RADIUS_MIN}
+              max={NEARBY_RADIUS_MAX}
               step={1}
-              value={radiusKm}
+              value={Math.min(radiusKm, NEARBY_RADIUS_MAX)}
               onChange={(e) => applyRadius(Number(e.target.value))}
               className="w-full accent-purple-500"
             />
+            <div className="flex items-center gap-2 mt-2">
+              <input
+                type="number"
+                min={NEARBY_RADIUS_MIN}
+                step={1}
+                value={radiusKm >= NEARBY_RADIUS_HARD_MAX ? '' : radiusKm}
+                placeholder="ex : 1000"
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (e.target.value.trim() && Number.isFinite(n)) applyRadius(clampNearbyRadiusKm(n));
+                }}
+                onBlur={(e) => {
+                  const n = Number(e.target.value);
+                  if (e.target.value.trim() && Number.isFinite(n)) applyRadius(clampNearbyRadiusKm(n));
+                }}
+                className="w-20 px-2 py-1.5 rounded-lg bg-[#0b0b0f] border border-[#2a2a3f] text-sm text-white text-center"
+                aria-label="Distance en kilomètres"
+              />
+              <span className="text-xs text-gray-500">km</span>
+              <button
+                type="button"
+                onClick={() => applyRadius(NEARBY_RADIUS_HARD_MAX)}
+                className={`text-xs px-2.5 py-1 rounded-lg border transition ${
+                  radiusKm >= NEARBY_RADIUS_HARD_MAX
+                    ? 'border-purple-500/50 bg-purple-500/15 text-purple-300'
+                    : 'border-[#2d2d3d] text-gray-500 hover:text-gray-300'
+                }`}
+                title="Rayon illimité (20 000 km)"
+              >
+                Illimité
+              </button>
+            </div>
             <p className="text-[10px] text-gray-500 mt-2">
-              Salons, lives et personnes affichés dans ce rayon autour de vous
+              Salons, lives et personnes affichés dans ce rayon. Curseur : 1–500 km. Saisie
+              manuelle au-delà : tapez 1 000, 5 000 km ou cliquez « Illimité ». En msdev,
+              essayez 50–100 km et choisissez une ville (Paris, Tokyo, New York…).
             </p>
           </div>
         </section>
 
         <section className="border-b border-[#1e1e2f]">
           <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Compte</p>
-          <SettingsRow label="Abonnement MeloSong+" hint="Bientôt disponible">
+          <SettingsRow label="Abonnement Soundly+" hint="Bientôt disponible">
             <span className="text-[10px] px-2 py-1 rounded-full bg-amber-500/20 text-amber-400 font-bold">
               Gratuit
             </span>
           </SettingsRow>
         </section>
+
+        {/* ── Sécurité ── */}
+        <section className="border-b border-[#1e1e2f]">
+          <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Sécurité</p>
+
+          <SettingsRow
+            label="Changer le mot de passe"
+            hint="Mot de passe actuel requis"
+            onClick={() => { setPwSection((s) => !s); setPwError(''); }}
+          />
+
+          {pwSection && (
+            <form onSubmit={handleChangePassword} className="px-4 pb-4 space-y-3">
+              <input
+                type="password"
+                placeholder="Mot de passe actuel"
+                value={currentPwd}
+                onChange={(e) => setCurrentPwd(e.target.value)}
+                required
+                autoComplete="current-password"
+                className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white"
+              />
+              <div className="space-y-1.5">
+                <input
+                  type="password"
+                  placeholder="Nouveau mot de passe"
+                  value={newPwd}
+                  onChange={(e) => setNewPwd(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                  className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white"
+                />
+                <PasswordStrengthBar password={newPwd} />
+              </div>
+              <input
+                type="password"
+                placeholder="Confirmer le nouveau mot de passe"
+                value={confirmPwd}
+                onChange={(e) => setConfirmPwd(e.target.value)}
+                required
+                autoComplete="new-password"
+                className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white"
+              />
+              {confirmPwd && newPwd !== confirmPwd && (
+                <p className="text-[11px] text-red-400">Les mots de passe ne correspondent pas</p>
+              )}
+              {pwError && (
+                <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{pwError}</p>
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setPwSection(false); setPwError(''); setCurrentPwd(''); setNewPwd(''); setConfirmPwd(''); }}
+                  className="flex-1 py-2 rounded-xl text-sm text-gray-400 bg-[#1a1a26] hover:bg-[#22222f] transition"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={pwLoading}
+                  className="flex-1 py-2 rounded-xl text-sm font-bold text-white bg-purple-600 hover:bg-purple-500 disabled:opacity-50 transition"
+                >
+                  {pwLoading ? '…' : 'Enregistrer'}
+                </button>
+              </div>
+            </form>
+          )}
+
+          <SettingsRow
+            label="Supprimer mon compte"
+            hint="Action irréversible"
+            onClick={() => { setDeleteModal(true); setDeleteError(''); setDeletePwd(''); setDeleteConfirmText(''); }}
+          >
+            <span className="text-red-400/70 shrink-0">›</span>
+          </SettingsRow>
+        </section>
+
+        {/* ── Modal suppression de compte ── */}
+        {deleteModal && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <form
+              onSubmit={handleDeleteAccount}
+              className="w-full max-w-sm bg-[#12121a] border border-red-500/30 rounded-2xl p-6 space-y-4"
+            >
+              <div className="text-center space-y-1">
+                <p className="text-2xl">⚠️</p>
+                <h2 className="text-lg font-bold text-white">Supprimer mon compte</h2>
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  Cette action est <strong className="text-red-400">irréversible</strong>. Toutes vos données seront définitivement supprimées.
+                </p>
+              </div>
+              <input
+                type="password"
+                placeholder="Votre mot de passe"
+                value={deletePwd}
+                onChange={(e) => setDeletePwd(e.target.value)}
+                required
+                autoComplete="current-password"
+                className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white"
+              />
+              <div className="space-y-1">
+                <p className="text-xs text-gray-400">
+                  Tapez <span className="font-mono font-bold text-red-400">SUPPRIMER</span> pour confirmer
+                </p>
+                <input
+                  type="text"
+                  placeholder="SUPPRIMER"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  required
+                  className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white font-mono"
+                />
+              </div>
+              {deleteError && (
+                <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{deleteError}</p>
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteModal(false)}
+                  className="flex-1 py-2.5 rounded-xl text-sm text-gray-400 bg-[#1a1a26] hover:bg-[#22222f] transition"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={deleteLoading || deleteConfirmText !== 'SUPPRIMER'}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white bg-red-600 hover:bg-red-500 disabled:opacity-50 transition"
+                >
+                  {deleteLoading ? '…' : 'Supprimer'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
 
         <section className="border-b border-[#1e1e2f]">
           <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
@@ -250,7 +485,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
           </p>
           <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
             <div>
-              <p className="text-sm font-semibold text-white">Algorithme MeloSong</p>
+              <p className="text-sm font-semibold text-white">Algorithme Soundly</p>
             </div>
             <input
               type="checkbox"
@@ -337,20 +572,6 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
           </p>
           <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
             <div>
-              <p className="text-sm font-semibold text-white">Apparaître dans « À proximité »</p>
-              <p className="text-xs text-gray-500">Les autres peuvent vous voir sur la carte</p>
-            </div>
-            <input
-              type="checkbox"
-              checked={privacy.showOnNearbyList}
-              onChange={(e) =>
-                applyPrivacy({ ...privacy, showOnNearbyList: e.target.checked })
-              }
-              className="w-5 h-5 accent-purple-500"
-            />
-          </label>
-          <label className="flex items-center justify-between gap-3 p-4 cursor-pointer border-t border-[#1e1e2f]/50">
-            <div>
               <p className="text-sm font-semibold text-white">Messages de nouveaux contacts</p>
               <p className="text-xs text-gray-500">Autoriser les MP sans invitation préalable</p>
             </div>
@@ -363,17 +584,9 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
               className="w-5 h-5 accent-purple-500"
             />
           </label>
-          <SettingsRow label="Mode fantôme" hint="Masquer votre activité sur la carte">
-            <button
-              type="button"
-              onClick={toggleGhost}
-              className={`px-3 py-1 rounded-full text-xs font-bold ${
-                ghost ? 'bg-purple-600 text-white' : 'bg-[#1a1a26] text-gray-400 border border-[#2d2d3d]'
-              }`}
-            >
-              {ghost ? 'ON' : 'OFF'}
-            </button>
-          </SettingsRow>
+          <p className="px-4 pb-3 text-[10px] text-gray-500">
+            Visibilité sur la carte : icône œil barré en haut de l&apos;écran.
+          </p>
         </section>
 
         <section className="border-b border-[#1e1e2f]">
@@ -398,7 +611,29 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
           <SettingsRow label="Licences & crédits" onClick={() => setLegal('licenses')} />
         </section>
 
-        <p className="px-4 pt-6 text-center text-[10px] text-gray-600">MeloSong · msdev · v1.0</p>
+        {(onOpenAnalytics || onOpenAccessManagement) && (
+          <section className="border-t border-[#1e1e2f] mt-4">
+            <p className="px-4 pt-5 pb-1 text-[10px] font-semibold text-gray-600 uppercase tracking-wider">
+              Développeur
+            </p>
+            {onOpenAccessManagement && (
+              <SettingsRow
+                label="Gestion des accès"
+                hint="Approuver, suspendre, codes d’invitation (tunnel ngrok)"
+                onClick={onOpenAccessManagement}
+              />
+            )}
+            {onOpenAnalytics && (
+              <SettingsRow
+                label="Analytics"
+                hint="Statistiques d'utilisation (msdev)"
+                onClick={onOpenAnalytics}
+              />
+            )}
+          </section>
+        )}
+
+        <p className="px-4 pt-6 text-center text-[10px] text-gray-600">Soundly · msdev · v1.0</p>
       </div>
     </div>
   );

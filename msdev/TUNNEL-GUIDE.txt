@@ -1,0 +1,139 @@
+================================================================
+  MeloSong - Guide : Acces Internet depuis l'iPhone
+  (ngrok / tunnel HTTPS)
+================================================================
+
+ACCES-IPHONE.bat demarre automatiquement le serveur ET le tunnel.
+Ce guide explique comment obtenir une URL fixe et permanente.
+
+
+----------------------------------------------------------------
+PARTIE 1 : COMPRENDRE LE FONCTIONNEMENT
+----------------------------------------------------------------
+
+Sans configuration, ngrok genere une URL TEMPORAIRE du type :
+  https://a1b2c3d4.ngrok-free.app
+
+Cette URL CHANGE a chaque redemarrage du tunnel.
+
+Avec un compte gratuit ngrok, vous obtenez 1 DOMAINE STATIQUE :
+  https://votre-nom-choisi.ngrok-free.app
+
+Cette URL est PERMANENTE - elle ne change jamais.
+
+
+----------------------------------------------------------------
+PARTIE 2 : OBTENIR UNE URL FIXE GRATUITE (ngrok)
+----------------------------------------------------------------
+
+Etape 1 - Creer un compte gratuit
+  Allez sur : https://ngrok.com
+  Cliquez "Sign up" (gratuit, pas de CB requise)
+
+Etape 2 - Copier votre authtoken
+  Connectez-vous, puis allez dans :
+  https://dashboard.ngrok.com/get-started/your-authtoken
+  Copiez votre token (commence par "2...")
+
+Etape 3 - Configurer ngrok sur ce PC
+  Ouvrez PowerShell ou CMD et tapez :
+    ngrok config add-authtoken VOTRE_TOKEN_ICI
+
+  Exemple :
+    ngrok config add-authtoken 2xYzABCDEFGH1234567890_abcdefghijklmnop
+
+Etape 4 - Creer votre domaine statique gratuit
+  Dans le dashboard ngrok :
+  https://dashboard.ngrok.com/domains
+  Cliquez "New Domain" - choisissez un nom (ex: melosong-test)
+  Votre domaine sera : melosong-test.ngrok-free.app
+
+Etape 5 - Enregistrer le domaine dans MeloSong
+  Creez le fichier : msdev\ngrok-domain.txt
+  Contenu : votre-domaine.ngrok-free.app
+
+  Exemple du contenu du fichier :
+    melosong-test.ngrok-free.app
+
+  ACCES-IPHONE.bat detectera ce fichier et utilisera
+  automatiquement votre domaine fixe.
+
+Etape 6 - Tester
+  Double-cliquez ACCES-IPHONE.bat
+  Ouvrez https://melosong-test.ngrok-free.app sur votre iPhone
+
+
+----------------------------------------------------------------
+PARTIE 3 : UTILISER DEPUIS L'IPHONE
+----------------------------------------------------------------
+
+1. Double-cliquez ACCES-IPHONE.bat sur votre PC
+2. Attendez que l'URL s'affiche dans la fenetre
+3. Sur votre iPhone, ouvrez Safari
+4. Tapez ou copiez-collez l'URL affichee
+5. Connectez-vous avec le compte administrateur :
+     Identifiant : listener@msdev.local
+     Mot de passe : msdev123
+
+   Securite : les nouvelles inscriptions sont soumises a validation.
+   Gestion : Profil → Parametres → Gestion des acces
+   Guide complet : msdev\NGROK-SECURITE.txt
+
+Note : ngrok affiche un message d'avertissement la premiere fois
+       ("You are about to visit..."). Cliquez "Visit Site".
+       C'est normal pour les tunnels de developpement.
+
+
+----------------------------------------------------------------
+PARTIE 4 : ALTERNATIVE - CLOUDFLARE TUNNEL
+----------------------------------------------------------------
+
+Si ngrok n'est pas disponible, ACCES-IPHONE.bat utilise automatiquement
+cloudflared (Cloudflare Tunnel) s'il est installe.
+
+Installation de cloudflared :
+  winget install Cloudflare.cloudflared
+
+Avantages : URL trycloudflare.com, HTTPS automatique, gratuit
+Inconvenient : URL temporaire (change a chaque demarrage)
+
+
+----------------------------------------------------------------
+PARTIE 5 : LIMITES ET NOTES
+----------------------------------------------------------------
+
+Plan gratuit ngrok (suffisant pour le dev) :
+  - 1 tunnel actif a la fois
+  - 1 domaine statique gratuit
+  - Trafic limite (tres largement suffisant pour tester)
+  - Connexions simultanees : 40
+
+Le serveur MeloSong DOIT rester actif (ACCES-IPHONE.bat s'en charge).
+Fermez la fenetre ACCES-IPHONE.bat pour couper le tunnel.
+
+Le tunnel ngrok ne fonctionne que lorsque le PC est allume
+et connecte a Internet.
+
+
+----------------------------------------------------------------
+PARTIE 6 : DEPANNAGE
+----------------------------------------------------------------
+
+"URL non recuperee" dans ACCES-IPHONE.bat
+  -> Verifiez que le port 4080 est bien en ecoute
+  -> Ouvrez http://localhost:4040 dans votre navigateur
+
+"ERR_NGROK_108" (session expuree sans authtoken)
+  -> Ajoutez votre authtoken (voir Partie 2)
+
+L'iPhone ne charge pas la page
+  -> Verifiez que le tunnel est actif (fenetre ouverte)
+  -> Essayez de recharger la page dans Safari
+
+"Too many connections" sur ngrok gratuit
+  -> Normal pendant le dev, attendez quelques secondes
+
+
+================================================================
+  Derniere mise a jour : juin 2026
+================================================================

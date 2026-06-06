@@ -1,19 +1,23 @@
 {
-  "name": "app",
+  "name": "soundly-appweb",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "pwa:icons": "node scripts/generate-pwa-icons.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
+    "@types/leaflet.markercluster": "^1.5.6",
     "leaflet": "^1.9.4",
+    "leaflet.markercluster": "^1.5.3",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "react-globe.gl": "^2.38.0",
     "react-router-dom": "^7.16.0",
     "socket.io-client": "^4.8.3"
   },
@@ -29,10 +33,12 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4.3.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
     "vite": "^8.0.12",
+    "vite-plugin-pwa": "^1.3.0",
     "vitest": "^3.2.4"
   }
 }

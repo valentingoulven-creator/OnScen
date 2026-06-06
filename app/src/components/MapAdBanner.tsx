@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { MAP_ADS, MAP_AD_DISMISS_KEY, type MapAd } from '../content/ads';
+import { MAP_ADS, type MapAd } from '../content/ads';
 
 const ROTATE_MS = 8000;
-const DISMISS_HOURS = 24;
 
 const accentStyles: Record<MapAd['accent'], string> = {
   purple: 'from-purple-600/90 via-violet-700/80 to-purple-900/90',
@@ -12,24 +11,12 @@ const accentStyles: Record<MapAd['accent'], string> = {
   rose: 'from-rose-600/90 via-pink-700/80 to-purple-900/90',
 };
 
-function isDismissed(): boolean {
-  const raw = localStorage.getItem(MAP_AD_DISMISS_KEY);
-  if (!raw) return false;
-  const until = Number(raw);
-  return Number.isFinite(until) && Date.now() < until;
-}
-
-function dismissForAWhile() {
-  localStorage.setItem(MAP_AD_DISMISS_KEY, String(Date.now() + DISMISS_HOURS * 60 * 60 * 1000));
-}
-
 interface MapAdBannerProps {
   onCtaSalon?: () => void;
   onCtaLive?: () => void;
 }
 
 export function MapAdBanner({ onCtaSalon, onCtaLive }: MapAdBannerProps) {
-  const [visible, setVisible] = useState(() => !isDismissed());
   const [index, setIndex] = useState(0);
   const [fading, setFading] = useState(false);
 
@@ -45,7 +32,6 @@ export function MapAdBanner({ onCtaSalon, onCtaLive }: MapAdBannerProps) {
   }, []);
 
   useEffect(() => {
-    if (!visible) return;
     const t = window.setInterval(() => {
       setIndex((i) => {
         const nextIndex = (i + 1) % MAP_ADS.length;
@@ -55,12 +41,7 @@ export function MapAdBanner({ onCtaSalon, onCtaLive }: MapAdBannerProps) {
       });
     }, ROTATE_MS);
     return () => clearInterval(t);
-  }, [visible]);
-
-  const handleClose = () => {
-    dismissForAWhile();
-    setVisible(false);
-  };
+  }, []);
 
   const handleCta = () => {
     if (ad.id === 'salon' && onCtaSalon) {
@@ -76,11 +57,9 @@ export function MapAdBanner({ onCtaSalon, onCtaLive }: MapAdBannerProps) {
     }
   };
 
-  if (!visible) return null;
-
   return (
     <div
-      className="shrink-0 z-10 px-3 pt-2 pb-1.5 sm:px-4 sm:pt-3 pointer-events-auto"
+      className="shrink-0 z-10 px-0 pt-0 pb-1 pointer-events-auto"
       role="region"
       aria-label="Bandeau publicitaire"
     >
@@ -98,18 +77,9 @@ export function MapAdBanner({ onCtaSalon, onCtaLive }: MapAdBannerProps) {
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={handleClose}
-          className="absolute top-2 right-2 z-10 w-[2.625rem] h-[2.625rem] flex items-center justify-center rounded-full bg-black/25 text-white/80 hover:bg-black/40 hover:text-white text-base"
-          aria-label="Masquer le bandeau 24 h"
-        >
-          ✕
-        </button>
-
         <div
           key={ad.id}
-          className={`flex items-stretch gap-3 p-4 pt-9 pr-[3.75rem] min-h-[5.625rem] sm:min-h-[6rem] transition-opacity duration-200 ${
+          className={`flex items-stretch gap-3 p-4 pt-9 pr-4 min-h-[5.625rem] sm:min-h-[6rem] transition-opacity duration-200 ${
             fading ? 'opacity-0' : 'opacity-100'
           }`}
         >

@@ -21,6 +21,8 @@ export interface MusicReel {
   /** public = flux Reels ; private = profil uniquement */
   visibility?: 'public' | 'private';
   isPrivate?: boolean;
+  /** Vues uniques (API profil / stats) */
+  viewCount?: number;
 }
 
 /** Durées approximatives des clips Mixkit du catalogue (affinées au chargement vidéo). */

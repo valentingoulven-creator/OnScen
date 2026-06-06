@@ -9,6 +9,7 @@ import { setupSockets } from './socket';
 import { setIo, clearIo } from './lib/ioInstance';
 import { seedMsdevData } from './seed-msdev';
 import { seedBotsAtStartup } from './seed-bots';
+import { seedHomeFeed } from './seed-home-feed';
 import { purgeHeartNotifications } from './lib/notifications';
 import {
   loadPersistedStore,
@@ -17,7 +18,12 @@ import {
   stopPersistLoop,
 } from './lib/persist';
 import { ensureMsdevHttpsCredentials, getMsdevHttpsUrls } from './msdevHttps';
+import { ensureMsdevDemoCredentials, ensureMsdevListenerFollowersCount } from './lib/msdevDemoAccounts';
+import { ensureAccessAdmins, isAccessControlEnabled, loadAccessControlFromPersist } from './lib/accessControl';
+import { repairInvalidGeoInDb } from './lib/mapCoords';
+import { migrateAllUsersRelationshipStatus } from './lib/profile';
 import { getMsdevEnvPath } from './paths';
+import { startSessionLimitScheduler, stopSessionLimitScheduler } from './lib/sessionLimits';
 
 function getLocalIpv4Addresses(): string[] {
   const ips: string[] = [];
@@ -50,6 +56,7 @@ function shutdown(): Promise<void> {
   return new Promise((resolve) => {
     const finish = () => {
       stopPersistLoop();
+      stopSessionLimitScheduler();
       httpServer = null;
       ioServer = null;
       clearIo();
@@ -120,11 +127,18 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
       origin: process.env.CORS_ORIGIN || '*',
       methods: ['GET', 'POST'],
     },
+    perMessageDeflate: {
+      threshold: 1024,
+    },
+    httpCompression: {
+      threshold: 1024,
+    },
   });
   ioServer = io;
 
   setIo(io);
   setupSockets(io);
+  startSessionLimitScheduler(io);
   registerShutdownHooks();
 
   if (APP_ENV === 'msdev') {
@@ -133,11 +147,34 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
       console.log('[msdev] Données restaurées (messages, profils, paramètres)');
     } else {
       await seedMsdevData();
+      loadAccessControlFromPersist(undefined, []);
+    }
+    await ensureMsdevDemoCredentials();
+    ensureMsdevListenerFollowersCount();
+    const admins = ensureAccessAdmins();
+    if (admins > 0) {
+      console.log(`[melosong] ${admins} compte(s) administrateur synchronisé(s)`);
+    }
+    if (isAccessControlEnabled()) {
+      console.log(
+        '[melosong] Contrôle d’accès tunnel public actif — inscriptions soumises à validation admin par défaut'
+      );
     }
     startPersistLoop();
   }
 
   seedBotsAtStartup();
+  if (APP_ENV === 'msdev') {
+    seedHomeFeed({ forceRepair: process.env.MSDEV_FORCE_SEED === '1' });
+  }
+  const relationshipMigrated = migrateAllUsersRelationshipStatus();
+  if (relationshipMigrated > 0) {
+    console.log(`[melosong] Statut relationnel migré : ${relationshipMigrated} utilisateur(s)`);
+  }
+  const geoRepaired = repairInvalidGeoInDb();
+  if (geoRepaired > 0) {
+    console.log(`[melosong] Coordonnées carte réparées : ${geoRepaired} entité(s)`);
+  }
   purgeHeartNotifications();
 
   await new Promise<void>((resolve, reject) => {
@@ -145,7 +182,7 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
       if (err.code === 'EADDRINUSE') {
         console.error('');
         console.error(`  ✖ Le port ${PORT} est déjà utilisé.`);
-        console.error('    Fermez les autres terminaux MeloSong (npm run msdev) puis relancez.');
+        console.error('    Fermez les autres terminaux Soundly (npm run msdev) puis relancez.');
         console.error(`    Diagnostic: netstat -ano | findstr :${PORT}`);
         console.error('');
       }
@@ -154,7 +191,7 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
     server.listen(PORT, HOST, () => {
       console.log('');
       console.log('  ╔══════════════════════════════════════╗');
-      console.log(`  ║  MeloSong  [${APP_ENV.padEnd(6)}]  local dev       ║`);
+      console.log(`  ║  Soundly   [${APP_ENV.padEnd(6)}]  local dev       ║`);
       console.log('  ╚══════════════════════════════════════╝');
       console.log(`  → ${scheme}://localhost:${PORT}`);
       console.log(`  → API  ${scheme}://localhost:${PORT}/api`);
@@ -167,7 +204,9 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
           console.log('    Mettez à jour msdev/.env et msdev/MOBILE-URL.txt');
         }
         if (scheme === 'https') {
+          console.log('  ⚠ http://localhost:' + PORT + ' ne répond pas — utilisez https://localhost:' + PORT);
           console.log('  → Caméra LAN : HTTPS actif (acceptez le certificat auto-signé une fois).');
+          console.log('  → Guide certificat : msdev/HTTPS-ACCES.txt');
           const httpsUrls = getMsdevHttpsUrls(PORT);
           const phoneUrl =
             configuredIp != null

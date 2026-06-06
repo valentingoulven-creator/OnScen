@@ -3,15 +3,16 @@ import { db } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
 import { getIo } from '../lib/ioInstance';
 import { canDeleteLiveChatMessage, deleteLiveChatMessage } from '../lib/liveModeration';
+import { enrichChatMessages } from '../lib/usernameColor';
 
 export const chatRouter = Router();
 
 chatRouter.get('/salon/:salonId', authenticateJWT, (req: Request, res: Response) => {
-  res.json({ messages: db.salonChats.get(req.params.salonId) || [] });
+  res.json({ messages: enrichChatMessages(db.salonChats.get(req.params.salonId) || []) });
 });
 
 chatRouter.get('/live/:liveId', authenticateJWT, (req: Request, res: Response) => {
-  res.json({ messages: db.liveChats.get(req.params.liveId) || [] });
+  res.json({ messages: enrichChatMessages(db.liveChats.get(req.params.liveId) || []) });
 });
 
 chatRouter.delete(

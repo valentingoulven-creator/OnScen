@@ -3,11 +3,12 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 
 export function PrivacyVisibilityMenu() {
-  const { user, token, setUserFromProfile } = useAuth();
+  const { user, token, setUserFromProfile, refreshUser } = useAuth();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
+  const isGhostMode = user?.isGhostMode === true;
   const shareDistance = user?.shareDistance !== false;
   const cityOnly = user?.locationPrecision === 'city';
 
@@ -43,7 +44,24 @@ export function PrivacyVisibilityMenu() {
     void patchSettings({ locationPrecision: cityOnly ? 'precise' : 'city' });
   };
 
-  const activePrivacy = !shareDistance || cityOnly;
+  const toggleGhostMode = () => {
+    if (!token) return;
+    setSaving(true);
+    void (async () => {
+      try {
+        const next = !isGhostMode;
+        const r = await api.toggleGhost(token, next);
+        if (user) setUserFromProfile({ ...user, isGhostMode: r.isGhostMode });
+        else await refreshUser();
+      } catch (e) {
+        alert(e instanceof Error ? e.message : 'Impossible d\'enregistrer');
+      } finally {
+        setSaving(false);
+      }
+    })();
+  };
+
+  const activePrivacy = isGhostMode || !shareDistance || cityOnly;
 
   return (
     <div className="relative" ref={panelRef}>
@@ -78,6 +96,19 @@ export function PrivacyVisibilityMenu() {
           <p className="text-[10px] font-bold uppercase tracking-wider text-purple-400/90 mb-2">
             Invisible · confidentialité
           </p>
+
+          <label className="flex items-start gap-2.5 py-2 cursor-pointer group border-b border-[#1e1e2f] pb-3 mb-1">
+            <input
+              type="checkbox"
+              className="mt-0.5 rounded border-[#3d3d50] bg-[#1a1a26] text-purple-600 focus:ring-purple-500/40"
+              checked={isGhostMode}
+              disabled={saving}
+              onChange={toggleGhostMode}
+            />
+            <span className="text-xs text-gray-300 leading-snug group-hover:text-white transition">
+              Masquer ma position sur la carte (invisible pour les autres)
+            </span>
+          </label>
 
           <label className="flex items-start gap-2.5 py-2 cursor-pointer group">
             <input

@@ -1,21 +1,157 @@
+import fs from 'fs';
+import path from 'path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { VitePWA } from 'vite-plugin-pwa';
+
+function msdevBackendUsesHttps(): boolean {
+  if (process.env.MSDEV_HTTPS === '1' || process.env.MSDEV_HTTPS_PROXY === '1') return true;
+  try {
+    const envPath = path.resolve(__dirname, '../msdev/.env');
+    if (!fs.existsSync(envPath)) return false;
+    const text = fs.readFileSync(envPath, 'utf-8');
+    return /^MSDEV_HTTPS\s*=\s*1\s*$/m.test(text) || /^WEB_APP_URL\s*=\s*https:\/\//m.test(text);
+  } catch {
+    return false;
+  }
+}
+
+const msdevProxyTarget = msdevBackendUsesHttps()
+  ? 'https://localhost:4080'
+  : 'http://localhost:4080';
+
+const msdevProxy = { target: msdevProxyTarget, secure: false, changeOrigin: true };
+
+const swPurgeKey = `melosong_sw_purge_${Date.now().toString(36)}`;
 
 export default defineConfig({
   define: {
     'import.meta.env.VITE_APP_ENV': JSON.stringify(process.env.VITE_APP_ENV || 'msdev'),
   },
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    /**
+     * Remplace SW_CLEAR_KEY dans index.html par une clé unique à ce build.
+     * Cela déclenche une purge automatique du cache SW côté client au premier
+     * chargement de chaque nouveau déploiement.
+     */
+    {
+      name: 'inject-sw-purge-key',
+      transformIndexHtml: {
+        order: 'post' as const,
+        handler: (html: string) => html.replace(/melosong_sw_purge_\w+/g, swPurgeKey),
+      },
+    },
+    VitePWA({
+      registerType: 'autoUpdate',
+      injectRegister: false,
+      includeAssets: ['icon.svg', 'favicon.svg', 'pwa-192x192.png', 'pwa-512x512.png'],
+      manifest: {
+        name: 'Soundly',
+        short_name: 'Soundly',
+        description: "Salons d'écoute musicale géolocalisés — Spotify & YouTube",
+        start_url: '/',
+        display: 'standalone' as const,
+        background_color: '#0b0b0f',
+        theme_color: '#7c3aed',
+        orientation: 'any' as const,
+        lang: 'fr',
+        icons: [
+          {
+            src: '/icon.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any',
+          },
+          {
+            src: '/pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: '/pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable',
+          },
+        ],
+      },
+      workbox: {
+        /**
+         * Clé de cache versionnée : changer manuellement si un conflit de cache
+         * majeur survient et que la purge automatique (index.html) ne suffit pas.
+         */
+        cacheId: 'melosong-msdev-v7',
+        skipWaiting: true,
+        clientsClaim: true,
+        /**
+         * Exclure les icônes déjà listées dans includeAssets pour éviter les
+         * doublons dans le manifeste de précache du service worker.
+         */
+        globPatterns: ['**/*.{js,css,html,ico,woff2}'],
+        globIgnores: [
+          '**/icon*.svg',
+          '**/favicon*.svg',
+          '**/pwa-192x192.png',
+          '**/pwa-512x512.png',
+          '**/workbox-*.js',
+          '**/sw.js',
+        ],
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api/, /^\/socket\.io/, /^\/msdev-mobile$/, /^\/clear-pwa/, /^\/phone-preview/, /^\/tel\//],
+        runtimeCaching: [
+          {
+            urlPattern: /\/api\//,
+            handler: 'NetworkOnly',
+          },
+          {
+            urlPattern: /\/socket\.io/,
+            handler: 'NetworkOnly',
+          },
+        ],
+      },
+      devOptions: {
+        enabled: false,
+      },
+    }),
+  ],
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:4080',
-      '/socket.io': { target: 'http://localhost:4080', ws: true },
+      '/api': msdevProxy,
+      '/socket.io': { ...msdevProxy, ws: true },
     },
   },
   build: {
     outDir: '../backend/public',
     emptyOutDir: true,
+    chunkSizeWarningLimit: 1000,
+    modulePreload: { polyfill: true },
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('react-dom') || id.includes('react/')) return 'vendor-react';
+          if (id.includes('socket.io-client')) return 'vendor-socketio';
+          if (id.includes('leaflet') || id.includes('react-leaflet') || id.includes('leaflet.markercluster')) return 'vendor-map';
+          // Globe/Three/D3 sont seulement chargés par le lazy GlobeView →
+          // ne pas les forcer dans vendor-misc, Rollup les gardera avec le chunk lazy
+          if (
+            id.includes('react-globe') ||
+            id.includes('/three/') ||
+            id.includes('/three-') ||
+            id.includes('@react-three') ||
+            id.includes('/d3-') ||
+            id.includes('topojson') ||
+            id.includes('kapsule') ||
+            id.includes('accessor-fn')
+          ) return undefined;
+          return 'vendor-misc';
+        },
+      },
+    },
   },
 });

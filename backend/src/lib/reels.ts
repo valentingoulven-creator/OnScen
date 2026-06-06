@@ -138,6 +138,7 @@ function canonicalPublicReel(reel: ReturnType<typeof publicUserReel>): ReturnTyp
       createdAt: reel.createdAt,
       visibility: 'public' as const,
       isPrivate: false,
+      viewCount: getReelViews(demo.id).size,
     };
   }
   return isAllowedUserReelMedia(reel) ? reel : null;
@@ -188,6 +189,7 @@ export function publicUserReel(r: UserReel) {
     createdAt: r.createdAt,
     visibility,
     isPrivate,
+    viewCount: getReelViews(r.id).size,
   };
 }
 
@@ -251,6 +253,7 @@ export function getAccessibleUserReel(
     authorId: '',
     createdAt: 0,
     visibility: 'public' as ReelVisibility,
+    viewCount: getReelViews(demo.id).size,
     isPrivate: false,
   };
 }
@@ -287,7 +290,8 @@ function isHttpUrl(value: string): boolean {
 }
 
 /** Vidéo enregistrée côté client (data URL) — limite alignée sur express.json 2 Mo. */
-const RECORDED_VIDEO_DATA_RE = /^data:video\/(webm|mp4)(?:;[^;,]+)*;base64,[A-Za-z0-9+/=]+$/;
+const RECORDED_VIDEO_DATA_RE =
+  /^data:video\/(webm|mp4|quicktime|x-m4v)(?:;[^;,]+)*;base64,[A-Za-z0-9+/=]+$/;
 const RECORDED_POSTER_DATA_RE = /^data:image\/(jpeg|png|webp)(?:;[^;,]+)*;base64,[A-Za-z0-9+/=]+$/;
 const MAX_RECORDED_VIDEO_CHARS = 1_650_000;
 const MAX_RECORDED_POSTER_CHARS = 220_000;

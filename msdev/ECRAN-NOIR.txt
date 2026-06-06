@@ -1,0 +1,48 @@
+MeloSong — Écran noir (navigateur ou PWA)
+=========================================
+
+Symptôme : fond noir #0b0b0f, pas de formulaire de connexion, pas de carte.
+
+URL qui fonctionne sur CE PC (msdev/.env MSDEV_HTTPS=1)
+------------------------------------------------------
+https://localhost:4080
+(accepter le certificat auto-signé une fois dans Chrome, Edge ou Opera)
+
+http://localhost:4080 ne répond PAS tant que le serveur est en HTTPS seul.
+
+Bundle JS actuel (après npm run app:build)
+------------------------------------------
+/assets/index-BjkD7Z6K.js  (doit être HTTP 200, pas du HTML)
+
+Causes fréquentes
+-----------------
+1. Ancien service worker PWA qui sert un index.html avec un JS qui n'existe plus.
+2. Mauvaise URL : HTTPS vs HTTP sur le port 4080.
+3. Icône « MeloSong » installée (PWA) avec cache obsolète.
+
+À faire MAINTENANT (dans l'ordre)
+---------------------------------
+1. Fermer complètement la PWA MeloSong (désinstaller l'icône bureau / écran d'accueil).
+2. Lancer le serveur : à la racine du projet, `npm run msdev:https` (ou laisser tourner si le port 4080 est déjà pris).
+3. Ouvrir https://localhost:4080 dans Chrome, Edge ou Opera (pas l'icône PWA).
+   Opera GX : désactiver le bloqueur de pub pour localhost (voir msdev/NAVIGATEURS.txt).
+4. Ctrl+Shift+R (actualisation forcée).
+5. Purge PWA msdev : https://localhost:4080/?clear-pwa=1 puis Ctrl+Shift+R.
+   (purge automatique une fois : clé localStorage melosong_sw_purge_v4)
+6. Compte démo : listener@msdev.local / msdev123
+
+Si « Chargement de la session » bloque
+--------------------------------------
+Message d'erreur rouge après ~20 s si l'API ne répond pas — bouton Réessayer.
+Vérifier F12 → Réseau : /assets/index-*.js en 200.
+
+Alternative sans certificat
+---------------------------
+LANCER-MELOSONG.bat (force HTTP) → http://localhost:4080
+
+Diagnostic F12
+--------------
+Console : erreur MIME text/html sur un .js → cache PWA ou mauvais http/https.
+Réseau : /assets/index-BjkD7Z6K.js doit être 200.
+
+Dernière vérification agent : 2026-06-03 — curl -k https://127.0.0.1:4080/ et bundle JS → 200.

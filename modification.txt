@@ -1,58 +1,842 @@
-# Journal des modifications demandées — MeloSong Dev
-#
-# Usage : « Applique la modification n°X » ou « Annule / refais la modification 3 »
-# Les numéros sont stables : n’en réutilisez pas pour une nouvelle demande (ajoutez en bas).
-#
-# Dernière mise à jour : 3 juin 2026
+﻿================================================================================
+AUDIT LÉGAL & CONFORMITÉ YOUTUBE — Soundly Dev
+Date : 2026-06-06
+================================================================================
 
-1. Revue code, corrections bugs et améliorations
-   - Backend : error handler Express après les routes ; sécurité socket (senderId) ; dédup join_salon/live ;
-     IDs messages/users aléatoires ; lives 200 si existant ; dm/geo/persist optimisés.
-   - Frontend : déconnexion auto sur 401 ; profil en overlay (messages conservés) ; ChatPanel reset
-     seulement au changement de salon ; sync fantôme ↔ paramètres.
+DOCUMENT D'AUDIT TROUVÉ
+-----------------------
+  Aucun fichier "Legal and YouTube compliance audit" autonome n'existe.
+  Le contenu légal est réparti dans :
+  • app/src/content/legal/     → documents légaux (CGU, PP, Mentions, RGPD, API)
+  • backend/src/lib/youtubeCompliance.ts → contrôle mode strict
+  • backend/src/lib/youtubeDataApi.ts    → YouTube Data API v3
+  • backend/src/lib/youtubeRemote.ts     → fallback Piped/Invidious (msdev only)
+  • backend/src/lib/youtubePlaylists.ts  → playlists YouTube
+  • acompleter.txt (racine)              → checklist éditeur pour la mise en prod
+  • modification.txt (racine)            → log des modifications (ce fichier)
 
-2. Lancement environnement de développement
-   - msdev:server (port 4080) + app:dev (Vite) ; compte démo listener@msdev.local / msdev123.
 
-3. Persistance msdev et historique des messages
-   - Sauvegarde store.json (users, DMs, chats, blocs, follows) ; chargement au boot ;
-     schedulePersist sur messages et réglages ; msdev/data/ dans .gitignore.
+────────────────────────────────────────────────────────────────────────────────
+1. POINTS CONFORMES (DÉJÀ OK)
+────────────────────────────────────────────────────────────────────────────────
 
-4. Documents juridiques (app/src/content/legal/)
-   - CGU, confidentialité RGPD, conformité RGPD, API Spotify/YouTube, mentions légales,
-     licences ; menu Légal dans Paramètres.
+YouTube — Player :
+  ✅ Player officiel YouTube IFrame API utilisé (window.YT.Player dans
+     SalonYouTubePlayer.tsx) — conformité ToS YouTube article 5.I
 
-5. Catalogue reels ~100 vidéos libres de droit (Mixkit)
-   - ~110 reels (11 vedettes + ~99 nouveaux) ; reelsDemoCatalog.ts généré ;
-     script msdev/scripts/generate-reels-catalog.mjs + mixkit-video-ids.json ;
-     alignement app et backend (MUSIC_REELS / DEMO_REELS).
+YouTube — Bouton "Ouvrir sur YouTube" :
+  ✅ OpenOnYoutubeButton présent dans SalonYouTubePlayer, SalonPlaybackPanel,
+     MapSalonListenControls — conformité ToS YouTube (lien retour YouTube requis)
 
-6. Retrait mention « Style TikTok / Instagram »
-   - Suppression du sous-texte sous « Algorithme MeloSong » dans Paramètres → Flux Reels (voir n°11).
+YouTube — Métadonnées via Data API v3 :
+  ✅ Thumbnails et titres proviennent de l'API officielle YouTube Data v3
+     (youtubeDataApi.ts : searchVideosViaDataApi, fetchPlaylistItems)
+     Attribution via channelTitle, thumbnails.medium.url de l'API officielle
 
-7. Retrait « Mes informations » des paramètres
-   - Édition du profil uniquement sur la page Profil ; prop onEditProfile supprimée.
+YouTube — Fallback Piped/Invidious :
+  ✅ Désactivé en production (isYoutubeRemoteFallbackAllowed retourne false
+     si MSENV != 'msdev') — conformité ToS YouTube (pas de proxy non autorisé)
 
-8. Cœur ♥ à côté des matchs dans Messages
-   - Liste conversations + en-tête fil ; champ isMatch côté API DM ; chargement liste des matchs.
+YouTube — Audio sans vidéo :
+  ✅ isYoutubeStrictCompliance() = true en production → lecture audio-only
+     interdite (VITE_APP_ENV !== 'msdev') — conformité ToS YouTube
 
-9. Messages : retrait bulle sélection + filtre matchs
-   - Suppression bandeau « X sélectionné(s) » et boutons « Tout » / tout sélectionner en tête ;
-     bouton « ♥ Matchs » pour n’afficher que les conversations avec match (préférence mémorisée).
+YouTube — Mentions dans les CGU :
+  ✅ apiPlatforms.ts section 3 "YouTube / Google — API Services" avec liens
+     vers les CGU officielles — conformité ToS
 
-10. Fichier modification.txt (ce journal)
-    - Liste numérotée des demandes pour référence future (ex. « modification n°7 »).
+RGPD — Politique de confidentialité :
+  ✅ Complète : 11 sections couvrant droits RGPD, durées de conservation,
+     transferts hors UE, sécurité, cookies, contact DPO
 
-11. Configuration de l’algorithme du flux Reels
-    - Algorithme MeloSong par défaut : tri par likes, commentaires, vues, partages et fraîcheur
-      (pondération intégrée, normalisation log).
-    - Paramètres → Flux Reels : case « Algorithme MeloSong » ; si désactivée, curseurs 0–100 pour
-      chaque critère (likes, commentaires, vues, partages, date de mise en ligne) + réinitialisation.
-    - Préférence enregistrée (localStorage melosong_reels_feed_algo) ; flux Reels rechargé à la modification.
-    - Backend : reelFeedRanking.ts, query feedAlgo sur GET /api/reels ; enregistrement des vues (POST view).
-    - Fichiers clés : app/src/lib/reelFeedAlgorithm.ts, app/src/pages/SettingsPage.tsx (section Flux Reels).
+RGPD — CGU à l'inscription :
+  ✅ Checkbox acceptTerms dans AuthPage.tsx + validation backend
+     (400 si !acceptTerms) + version des CGU versionnée (CURRENT_TERMS_VERSION)
 
-12. Changer de ville dans les réglages « À proximité »
-    - Panneau engrenage : sélection de ville (liste preset), bouton « Ma position ».
-    - Carte et recherche à proximité centrées sur la ville choisie ; persistance partagée avec l’onglet Lives (melosong_lives_geo).
-    - Fichiers : app/src/lib/livesGeo.ts (MAP_GEO_CHANGED_EVENT), NearbyPeoplePanel.tsx, HomePage.tsx.
+RGPD — Suppression de compte :
+  ✅ DELETE /api/auth/account dans backend/src/routes/auth.ts
+     Bouton "Supprimer mon compte" dans SettingsPage.tsx avec confirmation
+     double ("SUPPRIMER" + mot de passe)
+
+RGPD — Consentement cookies :
+  ✅ Uniquement localStorage pour fonctions essentielles (session JWT,
+     préférences). Aucun traceur publicitaire tiers → pas de bannière cookies
+     obligatoire (documenté dans rgpd.ts section 8)
+
+RGPD — Processus droits utilisateurs :
+  ✅ Adresse email privacy@melosong.app mentionnée dans privacy.ts section 7
+     avec délai de traitement d'un mois documenté dans rgpd.ts section 4
+
+
+────────────────────────────────────────────────────────────────────────────────
+2. POINTS CORRIGÉS
+────────────────────────────────────────────────────────────────────────────────
+
+CORRECTION 1 — Attribution YouTube sur les résultats de recherche
+  Fichier : app/src/components/SalonYouTubeSearch.tsx
+  Problème : Les résultats individuels de recherche YouTube n'affichaient
+    aucune attribution/logo YouTube visible sur les miniatures.
+    Seul le label général "Recherche YouTube" était présent en bas.
+  Fix : Ajout d'un badge rouge "YouTube" en superposition sur chaque miniature
+    de résultat de recherche.
+    → Conformité : YouTube API Branding Guidelines (attribution visible requise)
+
+CORRECTION 2 — Attribution YouTube sur le composant "Playlist hôte"
+  Fichier : app/src/components/SalonYouTubePlaylist.tsx
+  Problème : L'en-tête "Playlist hôte" ne mentionnait pas YouTube, pouvant
+    prêter à confusion sur la source des playlists.
+  Fix : Ajout d'un badge rouge "YouTube" inline dans l'en-tête du composant.
+    → Conformité : YouTube API Branding Guidelines (source clairement identifiée)
+
+CORRECTION 3 — Cache 1 heure sur la recherche YouTube (/youtube-search)
+  Fichier : backend/src/routes/salons.ts
+  Problème : La route GET /api/salons/youtube-search appelait l'API YouTube
+    Data v3 à chaque requête, sans aucun cache. En production, cela consomme
+    inutilement le quota API et ne respecte pas les bonnes pratiques de
+    performance (quota journalier YouTube Data API = 10 000 unités).
+  Fix : Cache en mémoire par requête (clé = query normalisée), TTL 1 heure.
+    → Conformité : TTL << 24h (limite maximale ToS YouTube)
+    → Bonus : réduction de la consommation de quota API YouTube Data v3
+    → En-tête Cache-Control: private, max-age=3600 sur les réponses
+
+CORRECTION 4 — Lien YouTube API Branding Guidelines dans les documents légaux
+  Fichier : app/src/content/legal/apiPlatforms.ts
+  Problème : La section 3 "YouTube / Google — API Services" référençait les
+    CGU YouTube et Google, mais ne mentionnait pas les YouTube API Services
+    Terms of Service ni les YouTube API Branding Guidelines (documents distincts
+    des CGU utilisateur).
+  Fix : Ajout dans la liste des documents de référence :
+    • YouTube API Services Terms of Service
+    • YouTube API Branding Guidelines
+  Et ajout dans les exigences clés :
+    • Ne pas stocker les données API YouTube > 24h (cache 1h appliqué)
+    • Ne pas contourner le player officiel IFrame API
+    • Ne pas permettre l'audio-only sans vidéo en production
+
+
+────────────────────────────────────────────────────────────────────────────────
+3. POINTS NON CORRIGÉS (DÉCISION HUMAINE REQUISE)
+────────────────────────────────────────────────────────────────────────────────
+
+BLOQUANT — Mentions légales incomplètes
+  Fichier : msdev/legal-publisher.json (à créer) + acompleter.txt (à remplir)
+  Problème : Les Mentions légales contiennent des placeholders {{publisherName}},
+    {{address}}, {{siren}}, {{publicationDirector}}, {{hostName}}, {{hostAddress}}
+    non remplis. Obligatoire avant toute mise en production publique (LCEN).
+  Action requise : Remplir acompleter.txt → créer msdev/legal-publisher.json
+    Voir le fichier acompleter.txt pour la liste complète des informations à fournir.
+
+BLOQUANT — Validation legale de projet Google Cloud
+  Problème : Les scopes OAuth YouTube requis (youtube.readonly) nécessitent
+    une validation Google (OAuth consent screen + audit de sécurité pour certains
+    scopes). Sans cette validation, l'OAuth est limité à 100 utilisateurs de test.
+  Action requise : Soumettre le projet Google Cloud pour vérification OAuth
+    via https://console.cloud.google.com/apis/credentials/consent
+
+NON CORRIGÉ — Signature CGU avant ouverture (recommandation)
+  Problème : La checklist RGPD (rgpd.ts section 9) recommande une relecture par
+    un avocat avant ouverture au public. Les CGU actuelles sont fonctionnelles
+    mais doivent être validées juridiquement avant tout usage commercial.
+  Action requise : Faire relire les CGU et la PP par un avocat spécialisé RGPD.
+
+NON CORRIGÉ — Registre sous-traitants (RGPD art. 28)
+  Problème : rgpd.ts section 7 liste les sous-traitants à identifier
+    (hébergeur, CDN, e-mail, analytics). Les DPA (Data Processing Agreements)
+    doivent être signés avec chaque sous-traitant de production.
+  Action requise : Compléter lors du choix de l'hébergeur de production.
+
+NON CORRIGÉ — AIPD (Analyse d'impact) pour la géolocalisation
+  Problème : rgpd.ts section 6 identifie le besoin d'une AIPD pour la
+    géolocalisation en temps réel avant déploiement à grande échelle.
+  Action requise : Réaliser une AIPD formelle avant l'ouverture au public.
+
+
+────────────────────────────────────────────────────────────────────────────────
+4. RECOMMANDATIONS POUR LA MISE EN PRODUCTION
+────────────────────────────────────────────────────────────────────────────────
+
+Priorité CRITIQUE (avant tout déploiement public) :
+  1. Remplir acompleter.txt → créer msdev/legal-publisher.json
+     (nom éditeur, adresse, SIREN, hébergeur, directeur de publication)
+  2. Configurer YOUTUBE_API_KEY en production (quota 10 000 unités/jour,
+     demander une augmentation si nécessaire via Google Cloud Console)
+  3. Soumettre le projet Google Cloud pour validation OAuth (youtube.readonly)
+  4. Faire relire CGU + PP par un avocat RGPD avant ouverture publique
+  5. Ne JAMAIS activer ALLOW_YOUTUBE_REMOTE_FALLBACK=true en production
+     (Piped/Invidious = non conforme aux ToS YouTube)
+
+Priorité HAUTE (conformité YouTube) :
+  6. Vérifier que VITE_APP_ENV=production est défini dans le build de prod
+     (active isYoutubeStrictCompliance → interdit l'audio-only)
+  7. S'assurer que le player YouTube est toujours visible quand une vidéo
+     est en lecture (ne pas masquer l'iframe avec CSS opacity/visibility)
+
+Priorité MOYENNE (RGPD) :
+  8. Signer les DPA avec l'hébergeur et les sous-traitants de production
+  9. Implémenter la purge automatique des comptes inactifs (ex. 3 ans)
+     conformément à la politique de conservation documentée dans privacy.ts
+  10. Ajouter un mécanisme de portabilité des données (export JSON du profil)
+      pour respecter l'article 20 du RGPD
+
+Priorité BASSE (qualité) :
+  11. Ajouter la télémétrie d'erreur (Sentry ou équivalent) avec anonymisation
+      des données personnelles avant transmission
+  12. Documenter le processus de réponse aux demandes RGPD (délai 1 mois)
+      dans un document opérationnel interne
+
+
+────────────────────────────────────────────────────────────────────────────────
+5. RÉSUMÉ DES FICHIERS MODIFIÉS
+────────────────────────────────────────────────────────────────────────────────
+
+  app/src/components/SalonYouTubeSearch.tsx
+    → Badge "YouTube" rouge sur chaque miniature de résultat de recherche
+
+  app/src/components/SalonYouTubePlaylist.tsx
+    → Badge "YouTube" rouge dans l'en-tête "Playlist hôte"
+
+  backend/src/routes/salons.ts
+    → Cache en mémoire 1h sur GET /api/salons/youtube-search (ytSearchCache)
+    → En-tête Cache-Control: private, max-age=3600
+
+  app/src/content/legal/apiPlatforms.ts
+    → Section 3 : ajout liens "YouTube API Services Terms of Service" et
+      "YouTube API Branding Guidelines"
+    → Section 3 : ajout de 3 exigences clés (cache 24h, IFrame API, audio-only)
+
+
+================================================================================
+Fin de l'audit légal & conformité YouTube — 2026-06-06
+================================================================================
+
+================================================================================
+OPTIMISATIONS PERFORMANCES & SCALABILITÉ — Soundly Dev
+Date : 2026-06-06
+================================================================================
+
+OBJECTIF
+--------
+  Préparer l'application à supporter 500 000 utilisateurs simultanés sans
+  latence perceptible. Les optimisations sont de deux natures :
+  (A) implémentées immédiatement (compatible msdev), et
+  (B) documentées pour la production (nécessitent une infra dédiée).
+
+────────────────────────────────────────────────────────────────────────────────
+A. OPTIMISATIONS IMPLÉMENTÉES MAINTENANT
+────────────────────────────────────────────────────────────────────────────────
+
+1. Code splitting (React.lazy) — Frontend
+   ─────────────────────────────────────
+   Les pages les plus lourdes sont maintenant chargées à la demande :
+   • ActualiteTabPage  (48 kB gzip)
+   • DmPage            (41 kB gzip)
+   • LivePage          (27 kB gzip)
+   • SalonPage         (9 kB gzip)
+   • UserProfilePage   (10 kB gzip)
+
+   Chaque import statique a été remplacé par React.lazy() + Suspense.
+   Un composant <PageFallback> (spinner minimaliste) s'affiche pendant
+   le chargement.
+
+   RÉSULTAT BUILD :
+   • Bundle principal : 942 kB → 395 kB (−58 %)
+   • GlobeView : 516 kB → 6.76 kB (chunk séparé déjà lazy)
+
+2. Chunks Vite manuels — vite.config.ts
+   ────────────────────────────────────
+   rollupOptions.output.manualChunks divise les dépendances en :
+   • vendor-react      (178 kB) — react, react-dom
+   • vendor-socketio   (12 kB)  — socket.io-client
+   • vendor-map        (182 kB) — leaflet, react-leaflet
+   • vendor-three      — Three.js / @react-three (si présents)
+   • vendor-misc       — autres node_modules
+
+   Les vendors sont mis en cache navigateur indépendamment du code
+   applicatif → rechargement partiel à chaque déploiement.
+
+3. React.memo — Composants de liste
+   ──────────────────────────────────
+   • NearbyPeoplePanel : chaque ligne extraite en <NearbyPersonRow>
+     mémorisée avec React.memo — ne se re-rend que si ses props changent.
+     Impact : liste de 300 bots, aucun re-render inutile sur le parent.
+   • ActualiteTabPage : <PostCard> mémorisé — un like ou un commentaire
+     ne re-rend plus TOUTE la liste de publications.
+
+4. loading="lazy" sur les images — Frontend
+   ──────────────────────────────────────────
+   Ajout de l'attribut loading="lazy" sur :
+   • Avatars des posts (PostCard author + reshare)
+   • Images attachées aux publications
+   • FeaturedCard / NewsCard (actualités musicales)
+
+   Le navigateur ne charge les images hors-viewport qu'au moment du scroll.
+
+5. Socket.IO perMessageDeflate + httpCompression — bootstrap.ts
+   ─────────────────────────────────────────────────────────────
+   new Server(httpServer, {
+     perMessageDeflate: { threshold: 1024 },
+     httpCompression:   { threshold: 1024 },
+   })
+   Les messages WebSocket ≥ 1 Ko sont compressés. Réduction de la bande
+   passante significative pour les événements salon_message, salon_updated, etc.
+
+6. Cache API /api/news — routes/news.ts
+   ──────────────────────────────────────
+   Cache en mémoire, TTL 60 secondes.
+   En-tête : Cache-Control: public, max-age=60
+   Les 60 secondes suivant le premier appel sont servies instantanément
+   sans reconstruire les items. buildItems() n'est appelé qu'une fois/min.
+
+7. Cache API /api/auth/profile/:id — routes/auth.ts
+   ──────────────────────────────────────────────────
+   Cache par paire (userId cible, userId viewer), TTL 30 secondes.
+   En-tête : Cache-Control: private, max-age=30
+   Invalidation automatique lors d'un PATCH /api/auth/profile.
+   Supprime la lecture DB répétée sur les profils fréquemment consultés.
+
+8. Debounce geo/update — routes/geo.ts
+   ─────────────────────────────────────
+   Limite les mises à jour GPS à 1 toutes les 4 secondes par utilisateur.
+   Les appels plus fréquents retournent instantanément les coordonnées
+   brouillées existantes (sans écriture DB ni recalcul).
+
+────────────────────────────────────────────────────────────────────────────────
+B. CE QUI NÉCESSITE UNE INFRASTRUCTURE POUR 500 000 UTILISATEURS
+   (non implémenté — casserait msdev)
+────────────────────────────────────────────────────────────────────────────────
+
+Détail complet dans : msdev/SCALABILITY.md
+
+Résumé :
+  1. Remplacer persist.ts (in-memory JSON) par PostgreSQL + Prisma/Drizzle
+  2. Ajouter Redis pour les sessions JWT, cache distribué et pub/sub
+  3. Configurer @socket.io/redis-adapter pour le multi-processus
+  4. Déployer derrière NGINX avec sticky sessions et Node en cluster (PM2)
+  5. Scaling horizontal via Kubernetes (autoscaling HPA)
+  6. CDN (Cloudflare / CloudFront) pour les assets statiques
+  7. Rate limiting renforcé via Redis store (express-rate-limit)
+  8. Connection pooling PostgreSQL (PgBouncer / pg.Pool max: 20)
+  9. Payloads Socket.IO en delta uniquement (non full-state)
+  10. Monitoring : Prometheus + Grafana + Sentry
+
+FICHIERS MODIFIÉS
+-----------------
+  app/src/App.tsx                         → React.lazy + Suspense (5 pages)
+  app/src/pages/ActualiteTabPage.tsx      → memo(PostCard) + loading="lazy"
+  app/src/components/NearbyPeoplePanel.tsx → memo(NearbyPersonRow)
+  app/vite.config.ts                      → manualChunks (4 vendors)
+  backend/src/bootstrap.ts               → Socket.IO compression
+  backend/src/routes/news.ts             → cache 60 s + Cache-Control
+  backend/src/routes/auth.ts             → cache profil 30 s + invalidation
+  backend/src/routes/geo.ts              → debounce 4 s par utilisateur
+  msdev/SCALABILITY.md                   → guide complet 500 k utilisateurs (NOUVEAU)
+
+BUILD
+-----
+  app/ → npm run build → ✅ exit 0 (614 modules, 0 erreur TypeScript)
+  Bundle principal : 395 kB gzip (était 942 kB, −58 %)
+
+================================================================================
+Fin des optimisations performances — 2026-06-06
+================================================================================
+
+================================================================================
+AUDIT COMPLET — MeloSong / Soundly Dev
+Date : 2026-06-05
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+1. AUDIT TYPESCRIPT
+────────────────────────────────────────────────────────────────────────────────
+
+Résultat : ✅ AUCUNE ERREUR
+
+  • app/     → npx tsc --noEmit → exit 0, 0 erreur
+  • apptel/  → npx tsc --noEmit → exit 0, 0 erreur
+  • backend/ → npx tsc --noEmit → exit 0, 0 erreur
+
+Après correction des problèmes de sécurité (backend/src/middleware/auth.ts et
+backend/src/server.ts), le backend TypeScript reste propre (exit 0).
+
+────────────────────────────────────────────────────────────────────────────────
+2. BUILD VERIFICATION
+────────────────────────────────────────────────────────────────────────────────
+
+Résultat : ✅ LES DEUX BUILDS RÉUSSIS
+
+  npm run app:build
+    → 614 modules transformés
+    → build réussi en ~526ms
+    → assets générés dans backend/public/
+    → PWA service worker généré (9 entrées, ~2922 KiB)
+    → Avertissement bundle : GlobeView-*.js ≈ 1838 kB (non-bloquant)
+
+  npm run apptel:build
+    → 232 modules transformés
+    → build réussi en ~344ms
+    → assets générés dans backend/public/tel/
+    → PWA service worker généré (8 entrées, ~1061 KiB)
+    → Avertissement bundle : index-*.js ≈ 977 kB (non-bloquant)
+
+Note : Les avertissements "chunks > 500 kB" sont informatifs. Voir recommandations.
+
+────────────────────────────────────────────────────────────────────────────────
+3. AUDIT SÉCURITÉ
+────────────────────────────────────────────────────────────────────────────────
+
+3.1 Auth Middleware sur routes protégées
+  ✅ /api/analytics → authenticateJWT + isAccessAdmin() sur toutes les routes
+  ✅ /api/dm        → authenticateJWT sur TOUTES les routes
+  ✅ /api/feed      → authenticateJWT sur TOUTES les routes
+  ✅ /api/users     → authenticateJWT sur TOUTES les routes
+  ✅ /api/auth      → routes sensibles protégées ; /check-username public (intentionnel)
+
+3.2 Validation des entrées / XSS stocké
+  ✅ Données stockées en JSON (pas SQL), pas d'injection SQL possible
+  ✅ React échappe automatiquement le contenu textuel (XSS DOM évité)
+  ✅ feedPosts.ts : contenu limité à 2000 chars, URL image validée (HTTPS ou data:image)
+  ✅ Commentaires limités à 500 chars
+  ✅ Bio limitée à 500 chars dans PATCH /api/auth/profile
+  ✅ Username : regex strict, longueur 2-30 chars
+  ✅ City limitée à 80 chars
+
+3.3 Upload de fichiers (pièces jointes DM)
+  ⚠️ MEDIUM (non corrigé, documenté) :
+     - La taille de fichier validée côté serveur (attachmentSize > 10 Mo → HTTP 413)
+       mais "attachmentSize" provient du client — il n'y a pas d'upload réel (URL-based).
+     - Aucun type MIME validé côté serveur pour les pièces jointes DM.
+     - Recommandation : si un vrai endpoint d'upload est ajouté, utiliser multer avec
+       filtrage MIME et limite de taille côté serveur.
+
+3.4 Rate limiting
+  ✅ authLimiter appliqué sur /api/auth : 30 requêtes / 15 min (fenêtre glissante)
+  ✅ Inclut /login et /register
+  ✅ Réponse JSON d'erreur claire (429)
+  ℹ️  Rate limiting désactivé en mode msdev (intentionnel pour le dev local)
+
+3.5 Email non exposé dans les profils publics
+  ✅ publicProfile() retourne email: isOwner ? snapshot.email : undefined
+  ✅ GET /api/auth/profile/:userId → email absent pour les autres utilisateurs
+  ✅ GET /api/auth/me → email présent (propriétaire uniquement)
+
+3.6 JWT — Secret et expiration
+  🔴 CRITIQUE (CORRIGÉ) :
+     Fichier : backend/src/middleware/auth.ts
+     Avant : const JWT_SECRET = process.env.JWT_SECRET || 'melosong_secret_key_12345';
+     Problème : fallback hardcodé public dans le code source — forge de token possible
+               si JWT_SECRET non défini en production.
+     Après :
+       - En production (APP_ENV=production) : le serveur refuse de démarrer sans JWT_SECRET
+       - En développement : warning console + fallback générique
+       - Le secret du .env reste 'msdev_jwt_secret_change_in_production' (à changer
+         absolument pour toute exposition publique)
+
+  ✅ Durée : 24h (session) ou 30j (rememberMe) — raisonnable
+  ✅ bcryptjs utilisé pour les mots de passe (coût 10)
+
+3.7 CORS
+  🟡 MEDIUM (CORRIGÉ) :
+     Fichier : backend/src/server.ts
+     Avant : app.use(cors())  ← wildcard * implicite, ignorait CORS_ORIGIN du .env
+     Après : app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }))
+     → Cohérent avec la config Socket.IO (bootstrap.ts ligne 126)
+     → Pour la production : définir CORS_ORIGIN=https://votre-domaine.com dans .env
+
+  ✅ Socket.IO CORS utilisait déjà process.env.CORS_ORIGIN (bootstrap.ts)
+
+────────────────────────────────────────────────────────────────────────────────
+4. QUALITÉ DU CODE
+────────────────────────────────────────────────────────────────────────────────
+
+4.1 console.log dans app/src (code production)
+  ✅ AUCUN console.log trouvé dans app/src/
+  ✅ AUCUN console.log trouvé dans apptel/src/
+  ℹ️  Des console.log existent dans backend/ (msdev seeding, avertissements) — normal
+
+4.2 Imports dupliqués / code mort dans ActualiteTabPage.tsx (~1960 lignes)
+  ✅ Aucun import dupliqué — tous les imports sont utilisés
+  ✅ Tous les hooks (useMemo, useCallback, useRef, useState, useEffect) sont utilisés
+  ✅ Composants internes (PostCard, StoriesInlineBar, PullToRefreshContainer, etc.)
+     tous référencés dans le JSX
+  ℹ️  Le fichier est large mais bien structuré : séparation en composants fonctionnels
+
+4.3 Boucles infinies dans les useEffect
+  ✅ Tous les useEffect analysés :
+     - StoriesInlineBar : event listeners, cleanup présent, dépendances stables
+     - loadFeed : useCallback([token]), pas de dépendance sur l'état modifié
+     - loadNews : useCallback([]), intervalle clearInterval en cleanup
+     - loadFavorites : useCallback([token]), déclenché seulement sur changement de sub-tab
+     - Sync prefs : event listeners, cleanup présent
+  ✅ Aucune boucle infinie détectée
+
+────────────────────────────────────────────────────────────────────────────────
+5. TESTS
+────────────────────────────────────────────────────────────────────────────────
+
+app (frontend) — vitest run
+  ✅ 15 fichiers de test, 54 tests — TOUS PASSÉS
+  Durée : ~596ms
+
+  Fichiers testés :
+    geocodeAddress, pwaManifest, usernameColor, profileTypes, formatCount,
+    salonPlayback, feedUserPrefs, liveCameraSupport, dmMuteAlerts, livesGeo,
+    musicAffinities, nearbyPanelSettings, feedTime, feedFilter, feedImagePaste
+
+backend — vitest run
+  ✅ 1 fichier de test, 4 tests — TOUS PASSÉS
+  Durée : ~446ms
+
+  Fichiers testés :
+    accessControl
+
+────────────────────────────────────────────────────────────────────────────────
+6. RÉSUMÉ DES MODIFICATIONS APPORTÉES
+────────────────────────────────────────────────────────────────────────────────
+
+Fichier 1 : backend/src/middleware/auth.ts
+  [CRITIQUE → CORRIGÉ]
+  - Supprimé fallback JWT_SECRET hardcodé public ('melosong_secret_key_12345')
+  - Ajout : throw Error si APP_ENV=production et JWT_SECRET absent
+  - Ajout : console.warn si secret absent en développement
+
+Fichier 2 : backend/src/server.ts
+  [MEDIUM → CORRIGÉ]
+  - cors() remplacé par cors({ origin: process.env.CORS_ORIGIN || '*' })
+  - La variable d'env CORS_ORIGIN est maintenant respectée pour l'API HTTP
+    (cohérent avec la config Socket.IO existante)
+
+────────────────────────────────────────────────────────────────────────────────
+7. RECOMMANDATIONS POUR LA SUITE
+────────────────────────────────────────────────────────────────────────────────
+
+Priorité HAUTE (avant tout déploiement public)
+  1. Générer un JWT_SECRET fort et unique pour la production :
+       node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+     Le définir dans les variables d'environnement du serveur de prod.
+  2. Définir CORS_ORIGIN=https://votre-domaine.com en production
+     (ne plus utiliser '*')
+  3. Changer le commentaire msdev_jwt_secret_change_in_production par une valeur
+     forte et différente pour chaque environnement
+
+Priorité MOYENNE (améliorations de sécurité)
+  4. Ajouter un validateur MIME côté serveur si un vrai endpoint d'upload est ajouté
+     (multer + whitelist d'extension)
+  5. Envisager un rate limiting plus strict sur /register (ex. 5 req/heure par IP)
+     pour limiter les inscriptions en masse
+  6. Ajouter un Content-Security-Policy (CSP) dans les headers HTTP du backend
+
+Priorité BASSE (performance / qualité)
+  7. Code splitting pour réduire les chunks > 500 kB :
+     - GlobeView : lazy import() depuis App.tsx ou la page qui l'utilise
+     - Envisager build.rolldownOptions.output.codeSplitting (Vite/Rolldown)
+  8. Ajouter plus de tests backend (couverture actuellement très faible : 1 fichier)
+  9. Documenter le processus de déploiement en production dans un README
+
+================================================================================
+Fin du rapport — 2026-06-05
+================================================================================
+
+================================================================================
+BUG FIX — Couleur du pseudo (usernameColor) non mise à jour après sauvegarde
+Date : 2026-06-05
+================================================================================
+
+SYMPTÔME
+--------
+Après avoir choisi une couleur (Wave Soundly ou couleur unie) dans Profil →
+Modifier, la couleur du pseudo ne se mettait pas à jour à l'écran.
+
+CAUSE RACINE (2 bugs combinés)
+------------------------------
+
+1. JSON omet les champs `undefined` → état React jamais mis à jour pour la
+   suppression de couleur
+   ─────────────────────────────────────────────────────────────────────────
+   Dans `backend/src/lib/profile.ts`, la fonction `publicProfile` retournait
+   `usernameColor: snapshot.usernameColor` (et idem pour `usernameWaveFrom` /
+   `usernameWaveTo`). Quand la couleur était effacée (supprimée côté serveur),
+   la valeur était `undefined` → JSON.stringify omet le champ → la réponse
+   API ne contient pas la clé `usernameColor`.
+
+   Dans `AuthContext.tsx`, `setUserFromProfile` fait `{ ...prev, ...u }`. Si
+   `u` ne contient pas la clé `usernameColor` (absente du JSON), le spread NE
+   remplace PAS `prev.usernameColor`. L'ancienne couleur restait donc dans
+   l'état React même après la sauvegarde. L'utilisateur voyait encore l'ancienne
+   couleur après avoir sélectionné "Par défaut".
+
+   FIX :
+   • `backend/src/lib/profile.ts` → `usernameColor: snapshot.usernameColor ?? null`
+     (idem pour `usernameWaveFrom` et `usernameWaveTo`). Le JSON inclut désormais
+     `null` quand le champ est effacé, ce qui permet au spread côté frontend de
+     l'écraser correctement.
+   • `app/src/context/AuthContext.tsx` → `setUserFromProfile` détecte `=== null`
+     et convertit en `undefined` (conforme au type `User`) avant de retourner le
+     nouvel état.
+
+2. Aucun aperçu du pseudo dans le formulaire d'édition
+   ─────────────────────────────────────────────────────────────────────────
+   Le seul `UsernameDisplay` de la page Profil était dans l'en-tête, en haut
+   de la page. Quand l'utilisateur scrollait vers le bas pour accéder au
+   `UsernameColorPicker`, l'aperçu disparaissait du champ visuel. Après la
+   sauvegarde, la page ne scrollait pas vers le haut → l'utilisateur ne voyait
+   pas que la couleur avait bien changé.
+
+   FIX :
+   • `app/src/pages/ProfilePage.tsx` → ajout d'un bloc "Aperçu du pseudo" avec
+     un `UsernameDisplay` directement sous le `UsernameColorPicker` dans le
+     formulaire d'édition. L'aperçu se met à jour en temps réel à chaque
+     sélection de couleur, visible immédiatement sans scroll.
+
+FICHIERS MODIFIÉS
+-----------------
+  backend/src/lib/profile.ts           → publicProfile : null au lieu de undefined
+                                          pour usernameColor/usernameWaveFrom/
+                                          usernameWaveTo
+  app/src/context/AuthContext.tsx      → setUserFromProfile : gestion null → undefined
+                                          pour les 3 champs couleur
+  app/src/pages/ProfilePage.tsx        → aperçu UsernameDisplay inline dans le
+                                          formulaire d'édition
+
+BUILD
+-----
+  app/ → npm run build → ✅ exit 0 (614 modules, 0 erreur TypeScript)
+
+================================================================================
+Fin du bug fix — 2026-06-05
+================================================================================
+
+================================================================================
+MODIF 91 — Clic liste À proximité → toujours ouvrir le profil (jamais le salon)
+Date : 2026-06-06
+================================================================================
+
+PROBLÈME
+--------
+Depuis la modif 90, cliquer sur une personne dans la liste « À proximité » qui
+possède un salonId déclenchait deux effets non désirés :
+  1. La carte zoomait/recentrait sur la position du salon (focusPersonOnMap).
+  2. Le petit salon (MapSalonListenSheet) s'ouvrait au lieu du profil.
+
+COMPORTEMENT VOULU
+------------------
+Cliquer sur n'importe quelle personne dans la liste → toujours ouvrir l'overlay
+profil (UserProfilePage / onOpenProfile).
+Exception conservée : si la personne est en LIVE, ouvrir le live (onOpenLive).
+Le MapSalonListenSheet reste accessible uniquement via :
+  • le marqueur de salon sur la carte (clic direct sur la pin salon),
+  • le bouton « Écouter » dans la fiche profil si implémenté.
+
+FIX
+---
+  app/src/pages/HomePage.tsx
+  ──────────────────────────
+  • Suppression de `focusPersonOnMap` : la fonction recentrait la carte sur les
+    coordonnées du salon / de la personne lors d'un clic dans la liste.
+  • Suppression de `selectSalonForPerson` : logique « salon-first » ajoutée en
+    modif 90 — si la personne avait un salonId, on cherchait/rejoignait le salon
+    et on ouvrait le MapSalonListenSheet. Supprimé entièrement.
+  • `openProfileFromNearby` : retrait de l'appel à `focusPersonOnMap` (plus de
+    zoom/recentrage lors d'un clic liste).
+  • `openNearbyPerson` : rendu synchrone (plus async) ; suppression de la
+    branche `if (person.salonId)` ; désormais redirige toujours vers
+    `openProfileFromNearby(person)` après le guard live.
+  • `handleMapPersonClick` : retrait du `void` (openNearbyPerson n'est plus async).
+  • Deux occurrences de `onOpenProfile={(person) => void openNearbyPerson(person)}`
+    remplacées par `onOpenProfile={openNearbyPerson}` (signature directe).
+
+  app/src/components/NearbyPeoplePanel.tsx
+  ─────────────────────────────────────────
+  • `NearbyPersonRow` — `title` du bouton principal : suppression du cas
+    `p.salonId → "Salon de ${p.username}"` ; désormais toujours « Profil de … »
+    (ou « Live de … » si isLive).
+
+FICHIERS MODIFIÉS
+-----------------
+  app/src/pages/HomePage.tsx            → suppression focusPersonOnMap,
+                                          selectSalonForPerson ; openNearbyPerson
+                                          simplifié (sync, profil only)
+  app/src/components/NearbyPeoplePanel.tsx → titre bouton NearbyPersonRow cohérent
+
+BUILD
+-----
+  app/ → npm run build → ✅ exit 0 (614 modules, 0 erreur TypeScript)
+
+================================================================================
+Fin du bug fix — 2026-06-06
+================================================================================
+
+================================================================================
+SUPPRESSION LIMITE 500 CARACTÈRES STORIES — Soundly Dev
+Date : 2026-06-06
+================================================================================
+
+OBJECTIF
+--------
+  Retirer la validation "Le texte doit contenir entre 1 et 500 caractères."
+  lors de la création d'une story. Aucune limite supérieure ne s'applique
+  désormais au texte d'une story. Le champ reste optionnel si une image est
+  fournie (comportement inchangé).
+
+CHANGEMENTS
+-----------
+
+  backend/src/lib/stories.ts
+  ──────────────────────────
+  • Suppression de la constante `MAX_CONTENT_LEN = 500`.
+  • Suppression du guard `if (content.length > MAX_CONTENT_LEN) return null;`
+    dans `normalizeContent()`.
+  • Mise à jour du message d'erreur : "Le texte doit contenir entre 1 et 500
+    caractères." → "Le texte ne peut pas être vide." (cas sans image uniquement).
+
+FICHIERS MODIFIÉS
+-----------------
+  backend/src/lib/stories.ts   → suppression limite 500 chars, nouveau message
+
+BUILD
+-----
+  app/ → npm run build → ✅ exit 0 (624 modules, 0 erreur TypeScript)
+
+================================================================================
+Fin du fix — 2026-06-06
+================================================================================
+
+================================================================================
+MODIF 92 — Refonte filtres À proximité, onglet Live, confirmation unfollow
+Date : 2026-06-06
+================================================================================
+
+OBJECTIF
+--------
+  Simplifier les filtres « À proximité » et aligner l'onglet Live sur la même
+  logique de tri/distance. Ajouter une confirmation avant de ne plus suivre
+  un utilisateur.
+
+CHANGEMENTS — Panneau À proximité
+---------------------------------
+  app/src/lib/nearbyPanelSettings.ts
+  ──────────────────────────────────
+  • `favoritesFirst: true` forcé (plus de toggle UI).
+  • Filtre distance lié au tri : `isNearbyDistanceFilterActive` → `sortBy === 'distance'`.
+  • Tri désactivable : `sortBy: 'none'` (liste sans filtre rayon).
+  • Retrait du filtre plateforme (Spotify/YouTube) de l'UI du panneau.
+
+  app/src/components/NearbyPeoplePanel.tsx
+  ────────────────────────────────────────
+  • UI filtres simplifiée : lives only, tri (toggle off = none), affinités musicales.
+  • Sélecteur de rayon visible uniquement quand tri = Distance.
+
+CHANGEMENTS — Onglet Live
+-------------------------
+  app/src/pages/LivesTabPage.tsx
+  ──────────────────────────────
+  • Même logique tri/distance que le panneau À proximité (`nearbyPanelSettings`).
+  • Grille 2 colonnes (`grid grid-cols-2`) pour les cartes live.
+  • Panneau réglages (engrenage) : tri + rayon si Distance actif.
+  • `FollowUserButton` iconOnly sur chaque carte live.
+
+CHANGEMENTS — Confirmation unfollow
+-----------------------------------
+  app/src/components/FollowUserButton.tsx
+  ───────────────────────────────────────
+  • Modal « Ne plus suivre … ? » avant `api.unfollowUser` (Annuler / Confirmer).
+
+NOTE — MODIF 91 vs code actuel
+------------------------------
+  MODIF 91 documente « clic liste → toujours profil ». Le code actuel de
+  `HomePage.tsx` conserve la branche `person.salonId → openSalonOnMap`.
+  Entrée conservée comme historique ; comportement salon à clarifier si besoin.
+
+FICHIERS MODIFIÉS
+-----------------
+  app/src/lib/nearbyPanelSettings.ts
+  app/src/components/NearbyPeoplePanel.tsx
+  app/src/pages/LivesTabPage.tsx
+  app/src/components/FollowUserButton.tsx
+
+================================================================================
+Fin MODIF 92 — 2026-06-06
+================================================================================
+
+================================================================================
+MODIF 93 — Cartes onglet Lives style Twitch
+Date : 2026-06-06
+================================================================================
+
+OBJECTIF
+--------
+  Aligner les cartes de l'onglet Lives sur une référence visuelle type Twitch :
+  vignette 16:9, badge LIVE, spectateurs en overlay, bandeau compact avec avatar.
+
+CHANGEMENTS
+-----------
+  app/src/pages/LivesTabPage.tsx
+  ──────────────────────────────
+  • Vignette `aspect-video` avec badge LIVE (haut-gauche) et spectateurs
+    (bas-gauche, fond noir semi-transparent).
+  • Bandeau sous la vignette : avatar circulaire (~36 px) + titre + host.
+  • Grille 2 colonnes conservée ; bouton Suivre iconOnly discret en overlay.
+
+FICHIERS MODIFIÉS
+-----------------
+  app/src/pages/LivesTabPage.tsx
+
+================================================================================
+Fin MODIF 93 — 2026-06-06
+================================================================================
+
+================================================================================
+MODIF 94 — Spectateurs dans le bandeau carte Live
+Date : 2026-06-06
+================================================================================
+
+OBJECTIF
+--------
+  Déplacer le compteur de spectateurs de l'overlay vignette vers le bandeau
+  infos sous la miniature (style Twitch).
+
+CHANGEMENTS
+-----------
+  app/src/pages/LivesTabPage.tsx
+  ──────────────────────────────
+  • Retrait overlay spectateurs (bas-gauche vignette).
+  • Ligne 2 bandeau : host · X spectateurs (`text-xs text-gray-500`).
+  • Badge LIVE, grille 2 cols et layout avatar/titre inchangés.
+
+FICHIERS MODIFIÉS
+-----------------
+  app/src/pages/LivesTabPage.tsx
+
+================================================================================
+Fin MODIF 94 — 2026-06-06
+================================================================================
+
+================================================================================
+MODIF 95 — Badge live clignotant (onglet Lives)
+Date : 2026-06-06
+================================================================================
+
+OBJECTIF
+--------
+  Remplacer le badge texte « LIVE » rectangulaire sur les vignettes de l'onglet
+  Lives par un petit rond rouge clignotant, plus discret et lisible.
+
+CHANGEMENTS
+-----------
+  app/src/pages/LivesTabPage.tsx
+  ──────────────────────────────
+  • Retrait badge texte « LIVE » (haut-gauche vignette).
+  • Indicateur : cercle rouge `size-2.5`, ring/halo léger, `aria-label="En direct"`.
+  • Grille 2 cols et bandeau avatar/titre/host/spectateurs inchangés.
+
+  app/src/index.css
+  ─────────────────
+  • Animation `@keyframes live-blink` + classe `.live-indicator-dot`.
+
+FICHIERS MODIFIÉS
+-----------------
+  app/src/pages/LivesTabPage.tsx → rond live clignotant
+  app/src/index.css → animation live-blink
+
+================================================================================
+Fin MODIF 95 — 2026-06-06
+================================================================================

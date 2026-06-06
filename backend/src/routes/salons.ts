@@ -5,7 +5,7 @@ import { blurCoordinate } from '../lib/geo';
 import { getPublicMapCoords } from '../lib/locationPrivacy';
 import { isBotHost } from '../seed-bots';
 import { canJoinSalon, isSalonVisibleOnMap, normalizeSalonAccess } from '../lib/salonAccess';
-import { parseMusicLink, buildPlatformTrackUrl } from '../lib/musicLinks';
+import { parseMusicLink, parseYoutubePlaylistId, buildPlatformTrackUrl } from '../lib/musicLinks';
 import { computePlaybackPositionMs } from '../lib/playbackClock';
 import { resolveTrackForPlatform } from '../lib/trackResolver';
 import {
@@ -13,6 +13,7 @@ import {
   HOST_PLATFORM_NOT_LINKED,
   hostPlatformLinkMessage,
   isPlatformConnected,
+  getYoutubeAccessToken,
 } from '../lib/platformConnect';
 import {
   ensureSalonQueue,
@@ -23,11 +24,40 @@ import {
   broadcastSalonPlayback,
   hostSkipNext,
   hostPlayQueueItem,
+  hostChangePlaybackTrack,
+  hostLoadYoutubePlaylist,
   enqueueItem,
   proposalToQueueItem,
 } from '../lib/salonPlaybackOps';
+import { searchYoutube } from '../lib/youtubeSearch';
+import { resolvePlaylistVideos } from '../lib/youtubePlaylists';
+import { notifyFavoritesSalonStarted } from '../lib/favorites';
 
 export const salonsRouter = Router();
+
+/**
+ * YouTube search result cache — TTL 1 hour (well within the YouTube API ToS 24-hour limit).
+ * Keys are the lower-cased query string. Cached results expire after YOUTUBE_SEARCH_TTL_MS.
+ */
+const YOUTUBE_SEARCH_TTL_MS = 60 * 60 * 1000; // 1 hour
+const ytSearchCache = new Map<string, { results: unknown; expiresAt: number }>();
+
+function getYtSearchCached(q: string): unknown | null {
+  const entry = ytSearchCache.get(q);
+  if (entry && Date.now() < entry.expiresAt) return entry.results;
+  if (entry) ytSearchCache.delete(q);
+  return null;
+}
+
+function setYtSearchCached(q: string, results: unknown): void {
+  if (ytSearchCache.size > 500) {
+    const now = Date.now();
+    for (const [key, entry] of ytSearchCache) {
+      if (now >= entry.expiresAt) ytSearchCache.delete(key);
+    }
+  }
+  ytSearchCache.set(q, { results, expiresAt: Date.now() + YOUTUBE_SEARCH_TTL_MS });
+}
 
 function requireHostPlatform(
   user: import('../models/schema').User | undefined,
@@ -58,6 +88,30 @@ salonsRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
   res.json({ salons });
 });
 
+salonsRouter.get('/youtube-search', authenticateJWT, async (req: Request, res: Response) => {
+  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  if (q.length < 2) {
+    res.json({ results: [] });
+    return;
+  }
+  const cacheKey = q.toLowerCase();
+  const cached = getYtSearchCached(cacheKey);
+  if (cached) {
+    // TTL 1 hour — compliant with YouTube API ToS (max 24h)
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.json({ results: cached, fromCache: true });
+    return;
+  }
+  try {
+    const results = await searchYoutube(q);
+    setYtSearchCached(cacheKey, results);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.json({ results });
+  } catch {
+    res.status(502).json({ error: 'Recherche YouTube indisponible' });
+  }
+});
+
 salonsRouter.get('/:id', authenticateJWT, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const salon = db.salons.get(req.params.id);
@@ -66,13 +120,6 @@ salonsRouter.get('/:id', authenticateJWT, (req: Request, res: Response) => {
     return;
   }
   normalizeSalonAccess(salon);
-  if (!canJoinSalon(salon, me)) {
-    res.status(403).json({
-      error: 'Salon sur invitation — demandez au host de vous autoriser',
-      accessMode: salon.accessMode,
-    });
-    return;
-  }
   res.json({ salon: publicSalon(salon, me) });
 });
 
@@ -268,6 +315,100 @@ salonsRouter.post('/:id/playback/play-queue', authenticateJWT, (req: Request, re
   res.json({ playbackState: state, queue: ensureSalonQueue(salon.id) });
 });
 
+salonsRouter.post('/:id/playback/change-track', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const salon = db.salons.get(req.params.id);
+  if (!salon || salon.hostId !== me) {
+    res.status(403).json({ error: 'Non autorisé' });
+    return;
+  }
+  if (salon.platform !== 'youtube') {
+    res.status(400).json({ error: 'Changement de morceau via recherche réservé aux salons YouTube' });
+    return;
+  }
+  const hostUser = db.users.get(me);
+  if (!requireHostPlatform(hostUser, salon.platform, res)) return;
+
+  const { trackId, title, artist, trackLink } = req.body;
+  let resolvedId = typeof trackId === 'string' ? trackId.trim() : '';
+  if (!resolvedId && trackLink && typeof trackLink === 'string') {
+    const parsed = parseMusicLink('youtube', trackLink);
+    if (parsed) resolvedId = parsed.trackId;
+  }
+  if (!resolvedId || resolvedId === 'demo') {
+    res.status(400).json({ error: 'trackId ou lien YouTube requis' });
+    return;
+  }
+
+  const state = hostChangePlaybackTrack(salon, {
+    trackId: resolvedId,
+    title: typeof title === 'string' && title.trim() ? title.trim() : 'Morceau YouTube',
+    artist: typeof artist === 'string' && artist.trim() ? artist.trim() : 'YouTube',
+    externalUrl: buildPlatformTrackUrl('youtube', resolvedId),
+    albumArtUrl: `https://img.youtube.com/vi/${resolvedId}/hqdefault.jpg`,
+  });
+  res.json({ playbackState: state });
+});
+
+salonsRouter.post('/:id/playback/load-playlist', authenticateJWT, async (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const salon = db.salons.get(req.params.id);
+  if (!salon || salon.hostId !== me) {
+    res.status(403).json({ error: 'Non autorisé' });
+    return;
+  }
+  if (salon.platform !== 'youtube') {
+    res.status(400).json({ error: 'Playlists YouTube uniquement dans un salon YouTube' });
+    return;
+  }
+  const hostUser = db.users.get(me);
+  if (!hostUser || !requireHostPlatform(hostUser, salon.platform, res)) return;
+
+  const { playlistId, playlistUrl } = req.body;
+  const resolvedPlaylistId =
+    (typeof playlistId === 'string' ? playlistId.trim() : '') ||
+    (typeof playlistUrl === 'string' ? parseYoutubePlaylistId(playlistUrl) : null) ||
+    '';
+  if (!resolvedPlaylistId) {
+    res.status(400).json({ error: 'playlistId ou lien playlist requis' });
+    return;
+  }
+
+  const accessToken = getYoutubeAccessToken(hostUser);
+  let videos: Awaited<ReturnType<typeof resolvePlaylistVideos>>;
+  try {
+    videos = await resolvePlaylistVideos(resolvedPlaylistId, accessToken);
+  } catch {
+    res.status(502).json({ error: 'Erreur lors du chargement de la playlist YouTube' });
+    return;
+  }
+  if (!videos.length) {
+    res.status(400).json({
+      error:
+        'Playlist introuvable ou vide. Ajoutez YOUTUBE_API_KEY côté serveur ou collez une playlist publique.',
+    });
+    return;
+  }
+
+  const items = videos.map((v) => ({
+    title: v.title,
+    artist: v.artist,
+    trackId: v.videoId,
+    externalUrl: v.externalUrl,
+    albumArtUrl: v.thumbnailUrl,
+    addedById: me,
+    addedByName: hostUser.username,
+    source: 'host' as const,
+  }));
+
+  const state = hostLoadYoutubePlaylist(salon, items, me, hostUser.username);
+  if (!state) {
+    res.status(400).json({ error: 'Impossible de charger la playlist' });
+    return;
+  }
+  res.json({ playbackState: state, queue: ensureSalonQueue(salon.id) });
+});
+
 salonsRouter.post('/:id/join', authenticateJWT, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const salon = db.salons.get(req.params.id);
@@ -293,7 +434,7 @@ salonsRouter.patch('/:id/settings', authenticateJWT, (req: Request, res: Respons
   const hostUser = db.users.get(me);
   if (!requireHostPlatform(hostUser, salon.platform, res)) return;
 
-  const { accessMode, allowedUserIds, isPublic, allowQueue, title, platform, trackLink, trackTitle, artist } =
+  const { accessMode, allowedUserIds, vipModeratorIds, isPublic, allowQueue, title, platform, trackLink, trackTitle, artist } =
     req.body;
 
   if (accessMode === 'public' || accessMode === 'invite') {
@@ -306,6 +447,12 @@ salonsRouter.patch('/:id/settings', authenticateJWT, (req: Request, res: Respons
 
   if (Array.isArray(allowedUserIds)) {
     salon.allowedUserIds = [...new Set([me, ...allowedUserIds.map(String)])];
+  }
+
+  if (Array.isArray(vipModeratorIds)) {
+    salon.vipModeratorIds = vipModeratorIds
+      .map(String)
+      .filter((id) => id !== me && db.users.has(id));
   }
 
   if (title && typeof title === 'string') salon.title = title.trim().slice(0, 80);
@@ -329,7 +476,15 @@ salonsRouter.patch('/:id/settings', authenticateJWT, (req: Request, res: Respons
   }
   if (trackTitle) salon.playbackState.title = String(trackTitle).slice(0, 120);
   if (artist) salon.playbackState.artist = String(artist).slice(0, 80);
-  salon.playbackState.updatedAt = Date.now();
+  const playbackClockTouched =
+    platform === 'spotify' ||
+    platform === 'youtube' ||
+    (trackLink && typeof trackLink === 'string') ||
+    trackTitle ||
+    artist;
+  if (playbackClockTouched) {
+    salon.playbackState.updatedAt = Date.now();
+  }
 
   normalizeSalonAccess(salon);
   db.salons.set(salon.id, salon);
@@ -437,7 +592,7 @@ salonsRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
     playbackState: {
       platform: plat,
       trackId: resolvedTrackId,
-      title: trackTitle || 'MeloSong Session',
+      title: trackTitle || 'Soundly Session',
       artist: artist || user.username,
       albumArtUrl:
         albumArtUrl ||
@@ -449,6 +604,7 @@ salonsRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
       updatedAt: Date.now(),
       startedAt: Date.now(),
       externalUrl,
+      ...(plat === 'youtube' ? { showVideo: true } : {}),
     },
     latitude,
     longitude,
@@ -468,6 +624,10 @@ salonsRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
   db.salonChats.set(salon.id, []);
   ensureSalonQueue(salon.id);
   ensureSalonProposals(salon.id);
+
+  // Notifie les fans de l'hôte qu'il a ouvert un salon.
+  notifyFavoritesSalonStarted(user, salon);
+
   res.status(201).json({ salon: publicSalon(salon, userId) });
 });
 
@@ -487,6 +647,7 @@ salonsRouter.delete('/:id', authenticateJWT, (req: Request, res: Response) => {
 export function publicSalon(s: Salon, viewerId?: string) {
   normalizeSalonAccess(s);
   const isHost = viewerId === s.hostId;
+  const isVip = viewerId != null && !isHost && (s.vipModeratorIds ?? []).includes(viewerId);
   const canJoin = viewerId ? canJoinSalon(s, viewerId) : s.accessMode === 'public';
   const host = db.users.get(s.hostId);
   const mapCoords =
@@ -505,6 +666,9 @@ export function publicSalon(s: Salon, viewerId?: string) {
     id: s.id,
     hostId: s.hostId,
     hostName: s.hostName,
+    hostUsernameColor: host?.usernameColor,
+    hostUsernameWaveFrom: host?.usernameWaveFrom,
+    hostUsernameWaveTo: host?.usernameWaveTo,
     hostAvatarUrl: s.hostAvatarUrl,
     title: s.title,
     platform: s.platform,
@@ -519,9 +683,12 @@ export function publicSalon(s: Salon, viewerId?: string) {
     isPublic: s.isPublic,
     canJoin,
     isHost,
+    isVip: isVip ? true : undefined,
     allowedUserIds: isHost ? s.allowedUserIds : undefined,
     allowedCount: s.accessMode === 'invite' ? s.allowedUserIds.length - 1 : undefined,
+    vipModeratorIds: isHost ? s.vipModeratorIds : undefined,
     queue: ensureSalonQueue(s.id),
     pendingProposalsCount: isHost ? getPendingProposals(s.id).length : undefined,
+    createdAt: s.createdAt,
   };
 }

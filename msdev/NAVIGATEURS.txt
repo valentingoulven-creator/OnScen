@@ -1,0 +1,84 @@
+MeloSong — Navigateurs supportés (dont Opera)
+=============================================
+
+## Opera est-il compatible ?
+
+**Oui.** Opera et Opera GX utilisent le moteur **Chromium** (comme Chrome et Edge).
+MeloSong ne contient pas de blocage spécifique à Opera (pas de test userAgent qui
+exclut « OPR »). Le même code que sur Chrome/Edge s’applique.
+
+Si MeloSong « ne marche pas » sur Opera, c’est en général la **même cause** que sur
+Chrome : certificat HTTPS, cache PWA, bloqueur de pub, ou caméra non autorisée.
+
+---
+
+## Première utilisation sur Opera / Opera GX
+
+1. Lancer le serveur : `npm run msdev:https` (ou `LANCER-MELOSONG.bat` en HTTP).
+2. Ouvrir **https://localhost:4080** (si HTTPS msdev) — pas l’icône PWA au début.
+3. Sur « connexion non privée » / certificat auto-signé :
+   - **Paramètres avancés** → **Continuer vers localhost (non sécurisé)**.
+4. **Ctrl+Shift+R** (actualisation forcée).
+5. Compte démo : listener@msdev.local / msdev123
+
+Voir aussi : msdev/HTTPS-ACCES.txt, msdev/ECRAN-NOIR.txt
+
+---
+
+## Opera GX — bloqueur de publicités (cause fréquente)
+
+Le bloqueur intégré peut bloquer les appels **localhost** ou l’API (`/api/...`).
+
+À faire :
+- Cliquer sur l’icône **bouclier / bloqueur** dans la barre d’adresse sur localhost:4080
+- **Désactiver le bloqueur pour ce site** (ou ajouter une exception)
+- Recharger la page (Ctrl+Shift+R)
+
+Symptômes : écran noir, « Chargement de la session » infini, erreurs réseau en F12.
+
+---
+
+## PWA et écran noir (Opera comme Chrome)
+
+1. Fermer / désinstaller l’icône PWA MeloSong si elle existe.
+2. Ouvrir le site dans un **onglet Opera** (pas l’icône installée).
+3. Purge cache SW : https://localhost:4080/?clear-pwa=1 puis Ctrl+Shift+R.
+
+Détails : msdev/ECRAN-NOIR.txt
+
+---
+
+## Caméra (live, reels)
+
+- Opera supporte `navigator.mediaDevices.getUserMedia` comme Chrome.
+- **HTTPS** obligatoire sur téléphone / LAN : `https://192.168.x.x:4080` + accepter le certificat.
+- Windows : Paramètres → Confidentialité → Caméra → autoriser **Opera** (ou « navigateurs Chromium »).
+- Icône **cadenas** dans la barre d’adresse Opera → Autoriser caméra et micro.
+
+---
+
+## HTTP vs HTTPS (port 4080)
+
+Si `msdev/.env` a `MSDEV_HTTPS=1`, seul **https://localhost:4080** répond.
+**http://localhost:4080** ne fonctionnera pas tant que le serveur est en HTTPS seul.
+
+---
+
+## Navigateurs non Chromium
+
+- **Firefox** : en principe supporté (pas testé systématiquement en msdev).
+- **Safari** (Mac/iOS) : supporté ; caméra / PWA ont des règles Apple (voir MOBILE-PWA.txt).
+
+---
+
+## Résumé
+
+| Navigateur        | Support MeloSong msdev      |
+|-------------------|-----------------------------|
+| Chrome            | Oui (référence)             |
+| Edge              | Oui                         |
+| Opera / Opera GX  | Oui (Chromium)              |
+| Firefox           | Oui (sauf cas limites)      |
+| Safari            | Oui (mobile / Mac)          |
+
+Dernière mise à jour : 2026-06-03

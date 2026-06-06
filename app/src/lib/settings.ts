@@ -1,3 +1,5 @@
+import { isMsdevEnvironment } from './liveCameraSupport';
+
 export type AppLanguage = 'fr' | 'en';
 
 export interface PrivacyPreferences {
@@ -7,13 +9,46 @@ export interface PrivacyPreferences {
 
 const KEYS = {
   nearbyRadiusKm: 'melosong_nearby_radius_km',
+  nearbyDistanceFilter: 'melosong_nearby_distance_filter',
   language: 'melosong_language',
   privacy: 'melosong_privacy_prefs',
 } as const;
 
 export const SETTINGS_CHANGED_EVENT = 'melosong-settings-changed';
 
-const DEFAULT_RADIUS = 15;
+export const NEARBY_RADIUS_MIN = 1;
+/** Slider max (0–500 km). Au-delà, saisir manuellement dans le champ texte. */
+export const NEARBY_RADIUS_MAX = 500;
+/** Limite absolue acceptée en saisie manuelle (≈ moitié du périmètre terrestre). */
+export const NEARBY_RADIUS_HARD_MAX = 20000;
+/** Valeur spéciale "Illimité" – stockée et affichée comme ∞. */
+export const NEARBY_RADIUS_UNLIMITED = NEARBY_RADIUS_HARD_MAX;
+const DEFAULT_RADIUS = isMsdevEnvironment() ? 50 : 15;
+
+/** 0 ou invalide → 1 km minimum. Accepte jusqu'à NEARBY_RADIUS_HARD_MAX (saisie manuelle). */
+export function clampNearbyRadiusKm(km: number): number {
+  if (!Number.isFinite(km) || km <= 0) return NEARBY_RADIUS_MIN;
+  return Math.min(NEARBY_RADIUS_HARD_MAX, Math.max(NEARBY_RADIUS_MIN, Math.round(km)));
+}
+
+/** Formate un rayon pour l'affichage : "20 000 km" → "Illimité". */
+export function formatRadiusKm(km: number): string {
+  if (km >= NEARBY_RADIUS_HARD_MAX) return 'Illimité';
+  return `${km} km`;
+}
+
+/** Filtre par rayon km (désactivé = carte mondiale, ~1000 bots msdev). Défaut msdev : désactivé. */
+export function getNearbyDistanceFilterEnabled(): boolean {
+  const raw = localStorage.getItem(KEYS.nearbyDistanceFilter);
+  if (raw === 'false') return false;
+  if (raw === 'true') return true;
+  return !isMsdevEnvironment();
+}
+
+export function setNearbyDistanceFilterEnabled(enabled: boolean): void {
+  localStorage.setItem(KEYS.nearbyDistanceFilter, enabled ? 'true' : 'false');
+  notifySettingsChanged();
+}
 const DEFAULT_PRIVACY: PrivacyPreferences = {
   showOnNearbyList: true,
   allowDmFromAnyone: true,
@@ -26,11 +61,11 @@ export function notifySettingsChanged(): void {
 export function getNearbyRadiusKm(): number {
   const n = Number(localStorage.getItem(KEYS.nearbyRadiusKm));
   if (!Number.isFinite(n)) return DEFAULT_RADIUS;
-  return Math.min(50, Math.max(5, Math.round(n)));
+  return clampNearbyRadiusKm(n);
 }
 
 export function setNearbyRadiusKm(km: number): void {
-  const v = Math.min(50, Math.max(5, Math.round(km)));
+  const v = clampNearbyRadiusKm(km);
   localStorage.setItem(KEYS.nearbyRadiusKm, String(v));
   notifySettingsChanged();
 }

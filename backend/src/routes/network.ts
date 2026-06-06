@@ -1,35 +1,18 @@
 import { Router } from 'express';
-import os from 'os';
+import { pickPreferredLanIp, getPublicLanIps, testYoutubeReachableFromServer } from '../lib/lanNetwork';
+import { syncMsdevLanConfig } from '../lib/msdevLanConfig';
 
 export const networkRouter = Router();
 
-networkRouter.get('/info', (_req, res) => {
+networkRouter.get('/info', async (_req, res) => {
   const port = Number(process.env.PORT) || 4080;
-  const urls: { ip: string; url: string; internal: boolean }[] = [];
-
-  for (const ifaces of Object.values(os.networkInterfaces())) {
-    if (!ifaces) continue;
-    for (const iface of ifaces) {
-      if (iface.family === 'IPv4') {
-        urls.push({
-          ip: iface.address,
-          url: `http://${iface.address}:${port}`,
-          internal: iface.internal,
-        });
-      }
-    }
-  }
-
-  const lan = urls.filter((u) => !u.internal && !u.ip.startsWith('169.254'));
-  const lanIps = lan.map((u) => u.ip);
+  const lanIps = getPublicLanIps();
   const configuredIp = process.env.MOBILE_HOST_IP;
-  const fixedIp =
-    configuredIp && lanIps.includes(configuredIp)
-      ? configuredIp
-      : lanIps[0] || configuredIp || '192.168.1.93';
+  const fixedIp = pickPreferredLanIp(configuredIp) || lanIps[0] || configuredIp || '192.168.1.93';
   const fixedUrl = process.env.MOBILE_WEB_URL || `http://${fixedIp}:${port}`;
   const configuredStale =
     configuredIp != null && configuredIp !== '' && lanIps.length > 0 && !lanIps.includes(configuredIp);
+  const youtubeReachable = await testYoutubeReachableFromServer();
 
   res.json({
     port,
@@ -37,13 +20,26 @@ networkRouter.get('/info', (_req, res) => {
     localhost: `http://localhost:${port}`,
     smartphonePrimary: fixedUrl,
     smartphoneIp: fixedIp,
-    smartphone: [fixedUrl, ...lan.map((u) => u.url).filter((u) => u !== fixedUrl)],
+    smartphone: [fixedUrl, ...lanIps.map((ip) => `http://${ip}:${port}`).filter((u) => u !== fixedUrl)],
     pcAddresses: lanIps,
     configuredIpStale: configuredStale,
+    youtubeReachable,
     hint: `Sur le telephone, ouvrez dans le navigateur: ${fixedUrl}`,
     notePcIp:
-      "L'adresse 192.168.x.x est celle du PC qui heberge MeloSong. Ce n'est pas l'IP du telephone.",
+      "L'adresse 192.168.x.x est celle du PC qui heberge Soundly. Ce n'est pas l'IP du telephone.",
+    noteYoutube: youtubeReachable
+      ? 'YouTube accessible depuis le PC (lecteur et recherche OK).'
+      : 'YouTube bloque sur ce PC — verifiez Internet / pare-feu avant le salon.',
     noteNoDeviceList:
-      "L'app n'affiche pas les telephones connectes au reseau. « Personnes proches » = comptes MeloSong avec position.",
+      "L'app n'affiche pas les telephones connectes au reseau. « Personnes proches » = comptes Soundly avec position.",
   });
+});
+
+networkRouter.post('/sync-lan', async (_req, res) => {
+  try {
+    const result = await syncMsdevLanConfig();
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Sync LAN impossible' });
+  }
 });

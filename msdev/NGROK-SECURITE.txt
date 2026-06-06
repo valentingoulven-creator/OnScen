@@ -1,0 +1,122 @@
+================================================================
+  MeloSong — Sécurité accès Internet (ngrok / tunnel)
+================================================================
+
+Ce guide complète msdev\TUNNEL-GUIDE.txt pour sécuriser l'exposition
+publique de votre application de développement.
+
+
+----------------------------------------------------------------
+1. CE QUI EST PROTEGE (controle applicatif MeloSong)
+----------------------------------------------------------------
+
+Quand ACCES-IPHONE.bat est utilisé, le serveur démarre avec :
+  MSDEV_PUBLIC_TUNNEL=1
+
+Effets automatiques :
+  - Inscriptions : validation administrateur par défaut
+  - Connexion refusée pour comptes « en attente » ou « suspendus »
+  - Toutes les routes API (sauf login/register/config) exigent un
+    jeton JWT valide ET un compte actif
+  - Connexion automatique par IP msdev désactivée
+
+Comptes administrateurs par défaut :
+  listener@msdev.local
+  dj@msdev.local
+  (mot de passe démo : msdev123 — changez-le en production !)
+
+Variable optionnelle dans msdev\.env :
+  ACCESS_ADMIN_EMAILS=votre@email.com,autre@email.com
+
+
+----------------------------------------------------------------
+2. GERER QUI SE CONNECTE (interface admin)
+----------------------------------------------------------------
+
+1. Lancez ACCES-IPHONE.bat (tunnel actif)
+2. Connectez-vous avec un compte admin (ex. listener@msdev.local)
+3. Profil → Paramètres (engrenage) → Gestion des accès
+
+Depuis cette page vous pouvez :
+  - Changer le mode d'inscription :
+      · Validation administrateur (recommandé tunnel public)
+      · Sur invitation uniquement (codes)
+      · Ouvertes / Fermées
+  - Approuver ou suspendre des utilisateurs
+  - Générer des codes d'invitation (usage limité)
+
+Les nouvelles inscriptions en mode « validation admin » restent
+« en attente » jusqu'à votre approbation.
+
+
+----------------------------------------------------------------
+3. RECOMMANDATIONS ngrok (couche tunnel)
+----------------------------------------------------------------
+
+HTTPS obligatoire
+  ngrok fournit HTTPS automatiquement — ne exposez jamais le port
+  4080 directement sur Internet sans reverse-proxy sécurisé.
+
+Authtoken ngrok
+  Configurez votre token : ngrok config add-authtoken VOTRE_TOKEN
+  Sans token, les sessions ngrok expirent (ERR_NGROK_108).
+
+Domaine statique (plan gratuit = 1 domaine)
+  Fichier msdev\ngrok-domain.txt → URL fixe pour tests iPhone.
+
+OAuth / Basic Auth ngrok (plans payants)
+  Le plan gratuit n'inclut pas OAuth Google sur le tunnel.
+  Alternative gratuite : le contrôle d'accès MeloSong ci-dessus.
+  Plans payants ngrok : OAuth, IP restrictions, Basic Auth avant
+  d'atteindre l'application — voir dashboard.ngrok.com
+
+Ne pas publier l'URL du tunnel
+  Même avec sécurité, limitez qui reçoit l'URL *.ngrok-free.app.
+
+Interface ngrok locale
+  http://localhost:4040 — surveillez les connexions entrantes.
+
+JWT_SECRET
+  Changez JWT_SECRET dans msdev\.env pour un secret long et unique
+  si le tunnel est partagé avec des testeurs.
+
+
+----------------------------------------------------------------
+4. ACTIVER LE CONTROLE SANS ngrok (LAN / tests)
+----------------------------------------------------------------
+
+Dans msdev\.env :
+  ACCESS_CONTROL_ENABLED=1
+
+Utile pour tester la gestion des accès en local avant d'ouvrir
+le tunnel Internet.
+
+
+----------------------------------------------------------------
+5. VERIFICATION RAPIDE
+----------------------------------------------------------------
+
+[ ] ACCES-IPHONE.bat affiche l'URL HTTPS ngrok
+[ ] Nouvelle inscription → message « en attente de validation »
+[ ] Connexion refusée avant approbation admin
+[ ] Admin approuve → connexion OK
+[ ] Utilisateur suspendu → connexion refusée + API 403
+[ ] Paramètres → Gestion des accès visible pour admin uniquement
+
+
+----------------------------------------------------------------
+6. LIMITES CONNUES
+----------------------------------------------------------------
+
+- Plan ngrok gratuit : 1 tunnel, trafic limité, pas d'OAuth tunnel
+- Le mot de passe démo msdev123 est documenté — changez-le pour
+  les comptes admin si l'URL circule
+- La sécurité applicative ne remplace pas un pare-feu : le PC doit
+  rester sous votre contrôle
+- cloudflared (fallback ACCES-IPHONE.bat) : URL temporaire, même
+  logique de contrôle d'accès MeloSong s'applique
+
+
+================================================================
+  Dernière mise à jour : juin 2026
+================================================================

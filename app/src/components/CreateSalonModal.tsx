@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../lib/api';
+import { getLivesGeo, isFixedMapGeoSource } from '../lib/livesGeo';
 import { isPlatformConnected } from '../lib/platformConnect';
 import { PlatformConnectCard } from './PlatformConnectCard';
 import type { DmContact, Salon, User } from '../types';
@@ -45,11 +46,11 @@ export function CreateSalonModal({
   const openedAtRef = useRef(0);
   const [form, setForm] = useState<CreateSalonForm>({
     title: `Salon de ${username}`,
-    platform: 'spotify',
+    platform: 'youtube',
     accessMode: 'public',
     allowedUserIds: [],
     trackLink: '',
-    trackTitle: 'Ma session MeloSong',
+    trackTitle: 'Ma session Soundly',
     artist: username,
     allowQueue: true,
   });
@@ -60,11 +61,11 @@ export function CreateSalonModal({
     setStep(1);
     setForm({
       title: `Salon de ${username}`,
-      platform: 'spotify',
+      platform: 'youtube',
       accessMode: 'public',
       allowedUserIds: [],
       trackLink: '',
-      trackTitle: 'Ma session MeloSong',
+      trackTitle: 'Ma session Soundly',
       artist: username,
       allowQueue: true,
     });
@@ -83,6 +84,12 @@ export function CreateSalonModal({
   };
 
   const resolvePosition = async (): Promise<{ latitude: number; longitude: number }> => {
+    const geo = getLivesGeo();
+    // City or address mode: use the chosen reference point, never GPS
+    if (isFixedMapGeoSource(geo.source)) {
+      return { latitude: fallbackLatitude, longitude: fallbackLongitude };
+    }
+    // GPS mode: try to get real position, fall back to stored coords
     if (!navigator.geolocation) {
       return { latitude: fallbackLatitude, longitude: fallbackLongitude };
     }
@@ -169,6 +176,11 @@ export function CreateSalonModal({
           {step === 1 && (
             <>
               <p className="text-sm text-gray-400">Choisissez l&apos;application liée à votre salon</p>
+              <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-2.5 text-[11px] text-purple-100 leading-snug">
+                <strong className="text-white">YouTube</strong> permet aux participants d&apos;écouter le même
+                morceau <strong className="text-white">en même temps</strong> dans Soundly (lecteur synchronisé).
+                Avec Spotify, ils suivent le chrono partagé dans leur app.
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 {(['spotify', 'youtube'] as const).map((p) => (
                   <button

@@ -7,17 +7,22 @@ const MIN_CHARS = 2;
 interface CityAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
+  /** Appelé au clic sur une proposition (en plus de onChange). */
+  onSelect?: (suggestion: CitySuggestion) => void;
   placeholder?: string;
   className?: string;
   inputClassName?: string;
+  emptyHint?: string;
 }
 
 export function CityAutocomplete({
   value,
   onChange,
+  onSelect,
   placeholder = 'Ex: Paris',
   className = '',
   inputClassName = 'mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-2 text-white text-sm',
+  emptyHint = 'Aucune ville trouvée',
 }: CityAutocompleteProps) {
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -70,6 +75,7 @@ export function CityAutocomplete({
 
   const pick = (suggestion: CitySuggestion) => {
     onChange(suggestion.value);
+    onSelect?.(suggestion);
     setFocused(false);
   };
 
@@ -99,6 +105,8 @@ export function CityAutocomplete({
           </p>
           {loading && suggestions.length === 0 ? (
             <p className="px-3 py-2 text-xs text-gray-500">Recherche…</p>
+          ) : suggestions.length === 0 ? (
+            <p className="px-3 py-2 text-xs text-gray-500">{emptyHint}</p>
           ) : (
             <ul className="max-h-40 overflow-y-auto">
               {suggestions.map((s) => (

@@ -8,25 +8,107 @@ import {
   getBlockedIds,
   shouldDeliverToReceiver,
 } from '../lib/blocks';
+import {
+  muteUser,
+  unmuteUser,
+  hasMuted,
+  getMutedIds,
+} from '../lib/mutes';
 import { isUserOnline, getOnlineUserIds } from '../lib/presence';
+import { getActiveLiveHosts } from '../lib/liveStatus';
 import { getIo } from '../lib/ioInstance';
 import { hideDmForUser, isDmVisibleToUser } from '../lib/dmVisibility';
 import { schedulePersist } from '../lib/persist';
 import { findMatch } from '../lib/matches';
+import {
+  countDmUnreadForUser,
+  countDmUnreadWithPeer,
+  markDmThreadRead,
+} from '../lib/dmRead';
+import { countGroupUnreadForUser, countGroupUnreadInGroup } from '../lib/groupRead';
+import { isGroupMessageVisibleToUser } from '../lib/groupVisibility';
+import { notifyDmReceived } from '../lib/notifications';
+import { trackEvent, trackUserActive } from '../lib/analytics';
 
 export const dmRouter = Router();
 
-function dmContactDto(u: { id: string; username: string; avatarUrl?: string }) {
+// ── Helpers demande de conversation ────────────────────────────────────────
+
+function dmPairKey(senderId: string, receiverId: string): string {
+  return `${senderId}::${receiverId}`;
+}
+
+/**
+ * Retourne le statut de la relation A→B.
+ * - 'accepted' si des messages acceptés existent (rétro-compat) ou explicitement accepté
+ * - 'pending' si une demande est en attente
+ * - 'refused' si refusé
+ * - 'none' si aucune relation
+ */
+function getDmRelationStatus(
+  senderId: string,
+  receiverId: string
+): 'none' | 'pending' | 'accepted' | 'refused' {
+  const explicit = db.dmPendingPairs.get(dmPairKey(senderId, receiverId));
+  if (explicit) return explicit;
+  // rétro-compat : si des messages acceptés existent → accepted
+  const hasAccepted = db.directMessages.some(
+    (m) =>
+      ((m.senderId === senderId && m.receiverId === receiverId) ||
+        (m.senderId === receiverId && m.receiverId === senderId)) &&
+      m.accepted
+  );
+  return hasAccepted ? 'accepted' : 'none';
+}
+
+function emitDmUnreadToUser(userId: string): void {
+  getIo()?.to(`user_${userId}`).emit('dm_unread', {
+    unreadCount: countDmUnreadForUser(userId) + countGroupUnreadForUser(userId),
+  });
+}
+
+function dmContactDto(u: {
+  id: string;
+  username: string;
+  avatarUrl?: string;
+  usernameColor?: string;
+  usernameWaveFrom?: string;
+  usernameWaveTo?: string;
+}) {
   return {
     id: u.id,
     username: u.username,
+    usernameColor: u.usernameColor,
+    usernameWaveFrom: u.usernameWaveFrom,
+    usernameWaveTo: u.usernameWaveTo,
     avatarUrl: u.avatarUrl,
     isOnline: isUserOnline(u.id),
   };
 }
 
+dmRouter.get('/unread-count', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  res.json({ unreadCount: countDmUnreadForUser(me) + countGroupUnreadForUser(me) });
+});
+
+dmRouter.post('/thread/:userId/read', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const other = req.params.userId;
+  const at = typeof req.body?.at === 'number' ? req.body.at : Date.now();
+  markDmThreadRead(me, other, at);
+  schedulePersist();
+  const unreadCount = countDmUnreadForUser(me) + countGroupUnreadForUser(me);
+  res.json({ ok: true, unreadCount });
+  emitDmUnreadToUser(me);
+});
+
 dmRouter.get('/presence', authenticateJWT, (_req: Request, res: Response) => {
-  res.json({ onlineUserIds: getOnlineUserIds() });
+  const liveHosts = getActiveLiveHosts();
+  res.json({
+    onlineUserIds: getOnlineUserIds(),
+    liveUserIds: liveHosts.map((h) => h.userId),
+    liveViewersByUserId: Object.fromEntries(liveHosts.map((h) => [h.userId, h.viewersCount])),
+  });
 });
 
 dmRouter.get('/blocks/list', authenticateJWT, (req: Request, res: Response) => {
@@ -60,6 +142,36 @@ dmRouter.delete('/block/:userId', authenticateJWT, (req: Request, res: Response)
   res.json({ ok: true });
 });
 
+dmRouter.get('/mutes/list', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  res.json({ mutedUserIds: getMutedIds(me) });
+});
+
+dmRouter.post('/mute/:userId', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const target = req.params.userId;
+  if (!db.users.has(target)) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+  if (target === me) {
+    res.status(400).json({ error: 'Action impossible' });
+    return;
+  }
+  muteUser(me, target);
+  schedulePersist();
+  emitDmUnreadToUser(me);
+  res.json({ ok: true, mutedUserId: target });
+});
+
+dmRouter.delete('/mute/:userId', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  unmuteUser(me, req.params.userId);
+  schedulePersist();
+  emitDmUnreadToUser(me);
+  res.json({ ok: true });
+});
+
 /** Liste des conversations avec dernier message */
 dmRouter.get('/conversations/list', authenticateJWT, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
@@ -84,23 +196,64 @@ dmRouter.get('/conversations/list', authenticateJWT, (req: Request, res: Respons
     }
   }
 
-  const conversations = [...byOther.entries()]
+  const dmConversations = [...byOther.entries()]
     .map(([otherId, meta]) => {
       const other = db.users.get(otherId);
+      // Vérifier si c'est une demande reçue en attente
+      const isPendingRequest =
+        db.dmPendingPairs.get(dmPairKey(otherId, me)) === 'pending';
+      // Vérifier si notre propre demande est en attente (envoyée, pas encore acceptée)
+      const isPendingSent =
+        db.dmPendingPairs.get(dmPairKey(me, otherId)) === 'pending';
       return {
+        kind: 'dm' as const,
         userId: otherId,
         username: other?.username ?? 'Utilisateur',
+        usernameColor: other?.usernameColor,
+        usernameWaveFrom: other?.usernameWaveFrom,
+        usernameWaveTo: other?.usernameWaveTo,
         avatarUrl: other?.avatarUrl,
         lastMessage: meta.lastContent,
         lastTimestamp: meta.lastTimestamp,
         isFromMe: meta.lastSenderId === me,
         isOnline: isUserOnline(otherId),
         isMatch: Boolean(findMatch(me, otherId)),
+        isMuted: hasMuted(me, otherId),
+        unreadCount: countDmUnreadWithPeer(me, otherId),
+        isPendingRequest,
+        isPendingSent,
       };
-    })
-    .sort((a, b) => b.lastTimestamp - a.lastTimestamp);
+    });
 
-  res.json({ conversations });
+  const groupConversations = db.messageGroups
+    .filter((g) => g.memberIds.includes(me))
+    .map((g) => {
+      const visibleMessages = db.groupMessages.filter(
+        (m) => m.groupId === g.id && isGroupMessageVisibleToUser(m, me)
+      );
+      const last = visibleMessages.sort((a, b) => b.timestamp - a.timestamp)[0];
+      const lastSender = last ? db.users.get(last.senderId) : undefined;
+      return {
+        kind: 'group' as const,
+        groupId: g.id,
+        username: g.name,
+        memberCount: g.memberIds.length,
+        lastMessage: last?.content ?? '',
+        lastTimestamp: last?.timestamp ?? g.createdAt,
+        isFromMe: last?.senderId === me,
+        lastSenderName: lastSender?.username,
+        unreadCount: countGroupUnreadInGroup(me, g.id),
+      };
+    });
+
+  const conversations = [...dmConversations, ...groupConversations].sort(
+    (a, b) => b.lastTimestamp - a.lastTimestamp
+  );
+
+  res.json({
+    conversations,
+    unreadCount: countDmUnreadForUser(me) + countGroupUnreadForUser(me),
+  });
 });
 
 /** Contacts disponibles pour nouveau message */
@@ -134,12 +287,18 @@ dmRouter.get('/thread/:userId', authenticateJWT, (req: Request, res: Response) =
     )
     .sort((a, b) => a.timestamp - b.timestamp);
 
+  const lastTs = messages.length > 0 ? messages[messages.length - 1].timestamp : Date.now();
+  markDmThreadRead(me, other, lastTs);
+  schedulePersist();
+  emitDmUnreadToUser(me);
+
   res.json({
     messages,
     otherUser: otherUser
       ? {
           ...dmContactDto(otherUser),
           isBlockedByMe: hasBlocked(me, other),
+          isMutedByMe: hasMuted(me, other),
           isMatch: Boolean(findMatch(me, other)),
         }
       : {
@@ -148,18 +307,25 @@ dmRouter.get('/thread/:userId', authenticateJWT, (req: Request, res: Response) =
           avatarUrl: undefined,
           isOnline: false,
           isMatch: Boolean(findMatch(me, other)),
+          isMutedByMe: hasMuted(me, other),
         },
     isBlockedByMe: hasBlocked(me, other),
+    isMutedByMe: hasMuted(me, other),
   });
 });
 
 dmRouter.post('/thread/:userId', authenticateJWT, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const receiverId = req.params.userId;
-  const { content } = req.body;
+  const { content, attachmentUrl, attachmentName, attachmentSize, attachmentMimeType } = req.body;
 
-  if (!content?.trim()) {
+  if (!content?.trim() && !attachmentUrl) {
     res.status(400).json({ error: 'Message vide' });
+    return;
+  }
+
+  if (attachmentSize && attachmentSize > 10 * 1024 * 1024) {
+    res.status(413).json({ error: 'Fichier trop volumineux (max 10 Mo)' });
     return;
   }
   if (!db.users.has(receiverId)) {
@@ -170,24 +336,205 @@ dmRouter.post('/thread/:userId', authenticateJWT, (req: Request, res: Response) 
     res.status(403).json({ error: 'Débloquez cet utilisateur pour lui écrire' });
     return;
   }
+  if (hasBlocked(receiverId, me)) {
+    res.status(403).json({ error: 'Impossible d\'envoyer ce message' });
+    return;
+  }
 
+  const status = getDmRelationStatus(me, receiverId);
+
+  if (status === 'refused') {
+    res.status(403).json({ error: 'Votre demande de conversation a été refusée' });
+    return;
+  }
+  if (status === 'pending') {
+    res.status(429).json({ error: 'Votre demande est déjà en attente d\'acceptation' });
+    return;
+  }
+
+  const isPending = status === 'none';
   const msg = {
     id: `dm_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
     senderId: me,
     receiverId,
-    content: content.trim(),
+    content: content?.trim() || '',
     timestamp: Date.now(),
-    accepted: true,
+    accepted: !isPending,
+    ...(attachmentUrl ? { attachmentUrl, attachmentName, attachmentSize, attachmentMimeType } : {}),
   };
   db.directMessages.push(msg);
 
-  const canDeliver = shouldDeliverToReceiver(me, receiverId);
-  if (canDeliver) {
-    getIo()?.to(`user_${receiverId}`).emit('dm', msg);
+  if (isPending) {
+    db.dmPendingPairs.set(dmPairKey(me, receiverId), 'pending');
+    const sender = db.users.get(me);
+    getIo()?.to(`user_${receiverId}`).emit('dm_request', {
+      senderId: me,
+      senderName: sender?.username,
+      senderAvatarUrl: sender?.avatarUrl,
+      preview: msg.content,
+      messageId: msg.id,
+    });
+    schedulePersist();
+    res.status(201).json({ message: msg, delivered: false, status: 'pending' });
+    return;
   }
 
+  const canDeliver = shouldDeliverToReceiver(me, receiverId);
+  if (canDeliver) {
+    const sender = db.users.get(me);
+    getIo()?.to(`user_${receiverId}`).emit('dm', {
+      ...msg,
+      senderName: sender?.username,
+      senderAvatarUrl: sender?.avatarUrl,
+    });
+    emitDmUnreadToUser(receiverId);
+    if (sender && !hasMuted(receiverId, me)) {
+      notifyDmReceived({
+        recipientId: receiverId,
+        sender: { id: me, username: sender.username, avatarUrl: sender.avatarUrl },
+        preview: msg.content,
+      });
+    }
+  }
+
+  trackEvent('message_sent', me);
+  trackUserActive(me);
   schedulePersist();
-  res.status(201).json({ message: msg, delivered: canDeliver });
+  res.status(201).json({ message: msg, delivered: canDeliver, status: 'accepted' });
+});
+
+// ── Demandes de conversation (requêtes en attente) ─────────────────────────
+
+/** Liste des demandes reçues en attente pour l'utilisateur connecté. */
+dmRouter.get('/requests/list', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const requests: {
+    senderId: string;
+    username: string;
+    avatarUrl?: string;
+    preview: string;
+    timestamp: number;
+  }[] = [];
+
+  for (const [key, status] of db.dmPendingPairs.entries()) {
+    if (status !== 'pending') continue;
+    const [senderId, receiverId] = key.split('::');
+    if (receiverId !== me) continue;
+    const sender = db.users.get(senderId);
+    const lastMsg = db.directMessages
+      .filter((m) => m.senderId === senderId && m.receiverId === me && !m.accepted)
+      .sort((a, b) => b.timestamp - a.timestamp)[0];
+    if (!lastMsg) continue;
+    requests.push({
+      senderId,
+      username: sender?.username ?? 'Utilisateur',
+      avatarUrl: sender?.avatarUrl,
+      preview: lastMsg.content,
+      timestamp: lastMsg.timestamp,
+    });
+  }
+
+  requests.sort((a, b) => b.timestamp - a.timestamp);
+  res.json({ requests });
+});
+
+/** Accepter une demande de conversation. */
+dmRouter.post('/requests/:senderId/accept', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const senderId = req.params.senderId;
+  const key = dmPairKey(senderId, me);
+
+  if (db.dmPendingPairs.get(key) !== 'pending') {
+    res.status(400).json({ error: 'Aucune demande en attente' });
+    return;
+  }
+
+  db.dmPendingPairs.set(key, 'accepted');
+  // Marquer tous les messages en attente comme acceptés
+  for (const m of db.directMessages) {
+    if (m.senderId === senderId && m.receiverId === me && !m.accepted) {
+      m.accepted = true;
+    }
+  }
+
+  const receiver = db.users.get(me);
+  getIo()?.to(`user_${senderId}`).emit('dm_request_accepted', {
+    receiverId: me,
+    receiverName: receiver?.username,
+  });
+  emitDmUnreadToUser(me);
+  schedulePersist();
+  res.json({ ok: true });
+});
+
+/** Refuser une demande de conversation. */
+dmRouter.post('/requests/:senderId/refuse', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const senderId = req.params.senderId;
+  const key = dmPairKey(senderId, me);
+
+  if (db.dmPendingPairs.get(key) !== 'pending') {
+    res.status(400).json({ error: 'Aucune demande en attente' });
+    return;
+  }
+
+  db.dmPendingPairs.set(key, 'refused');
+  // Masquer les messages en attente pour les deux parties
+  for (const m of db.directMessages) {
+    if (m.senderId === senderId && m.receiverId === me && !m.accepted) {
+      if (!m.hiddenFor) m.hiddenFor = [];
+      if (!m.hiddenFor.includes(me)) m.hiddenFor.push(me);
+      if (!m.hiddenFor.includes(senderId)) m.hiddenFor.push(senderId);
+    }
+  }
+
+  const receiver = db.users.get(me);
+  getIo()?.to(`user_${senderId}`).emit('dm_request_refused', {
+    receiverId: me,
+    receiverName: receiver?.username,
+  });
+  schedulePersist();
+  res.json({ ok: true });
+});
+
+dmRouter.post('/messages/:messageId/react', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const { emoji } = req.body;
+
+  if (emoji !== '❤️') {
+    res.status(400).json({ error: 'Emoji non supporté' });
+    return;
+  }
+
+  const msg = db.directMessages.find((m) => m.id === req.params.messageId);
+  if (!msg) {
+    res.status(404).json({ error: 'Message introuvable' });
+    return;
+  }
+  if (msg.senderId !== me && msg.receiverId !== me) {
+    res.status(403).json({ error: 'Accès refusé' });
+    return;
+  }
+
+  if (!msg.reactions) msg.reactions = {};
+  if (!msg.reactions[emoji]) msg.reactions[emoji] = [];
+
+  const idx = msg.reactions[emoji].indexOf(me);
+  const added = idx < 0;
+  if (added) {
+    msg.reactions[emoji].push(me);
+  } else {
+    msg.reactions[emoji].splice(idx, 1);
+  }
+
+  const otherId = msg.senderId === me ? msg.receiverId : msg.senderId;
+  const io = getIo();
+  const payload = { messageId: msg.id, emoji, reactions: msg.reactions };
+  io?.to(`user_${me}`).emit('dm_reaction', payload);
+  io?.to(`user_${otherId}`).emit('dm_reaction', payload);
+
+  schedulePersist();
+  res.json({ ok: true, added, reactions: msg.reactions });
 });
 
 dmRouter.delete('/messages/:messageId', authenticateJWT, (req: Request, res: Response) => {

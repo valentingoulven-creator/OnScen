@@ -10,11 +10,19 @@ import { CityAutocomplete } from '../components/CityAutocomplete';
 import { HostRatingBlock } from '../components/HostRatingBlock';
 import { ProfilePhotoGallery } from '../components/ProfilePhotoGallery';
 import { SettingsPage, SettingsGearButton } from './SettingsPage';
+import { AnalyticsPage } from './AnalyticsPage';
+import { AccessManagementPage } from './AccessManagementPage';
 import { SupportMeloSongTeaser } from '../components/SupportMeloSongSection';
 import { ProfileReelRecorder } from '../components/ProfileReelRecorder';
 import { UserReelsSection } from '../components/UserReelsSection';
 import { PlatformConnectCard } from '../components/PlatformConnectCard';
-import type { ListeningRole, RelationshipStatus, User } from '../types';
+import { UsernameColorPicker } from '../components/UsernameColorPicker';
+import { UsernameDisplay } from '../components/UsernameDisplay';
+import { ProfileCurrentListening } from '../components/ProfileCurrentListening';
+import { MyFavoritesSheet } from '../components/MyFavoritesSheet';
+import { formatCompactCount, formatFavoritesCountLabel } from '../lib/formatCount';
+import { PROFILE_TYPE_OPTIONS, getProfileTypeLabel } from '../lib/profileTypes';
+import type { ListeningRole, ProfileType, RelationshipStatus, User } from '../types';
 
 const ROLE_LABELS: Record<ListeningRole, string> = {
   auditeur: 'Auditeur',
@@ -50,12 +58,18 @@ function profileToForm(user: User | null) {
   const profilePhotos = getProfilePhotos(user);
   return {
     username: user?.username ?? '',
+    usernameColor: user?.usernameColor ?? '',
+    usernameWaveFrom: user?.usernameWaveFrom ?? '',
+    usernameWaveTo: user?.usernameWaveTo ?? '',
     bio: user?.bio ?? '',
     city: user?.city ?? '',
     avatarUrl: profilePhotos[0] ?? '',
     profilePhotos,
     listeningRole: (user?.listeningRole ?? 'auditeur') as ListeningRole,
+    profileType: user?.profileType ?? '',
     relationshipStatus: user?.relationshipStatus ?? '',
+    age: user?.age != null ? String(user.age) : '',
+    showAge: user?.showAge ?? false,
     interests: [...(user?.interests ?? [])],
     favoriteGenres: [...(user?.favoriteGenres ?? [])],
     favoriteArtists: [...(user?.favoriteArtists ?? [])],
@@ -66,19 +80,34 @@ function profileToForm(user: User | null) {
   };
 }
 
-type ProfileTab = 'profil' | 'enregistrer';
+type ProfileTab = 'profil' | 'reels';
 
 interface ProfilePageProps {
   onBack?: () => void;
   onOpenReel?: (reelId: string) => void;
+  onOpenProfile?: (userId: string) => void;
+  /** À l’ouverture : Mes reels + enregistreur (ex. depuis profil carte). */
+  openRecorderOnMount?: boolean;
+  onRecorderMountHandled?: () => void;
 }
 
-export function ProfilePage({ onBack, onOpenReel }: ProfilePageProps) {
+export function ProfilePage({
+  onBack,
+  onOpenReel,
+  onOpenProfile,
+  openRecorderOnMount = false,
+  onRecorderMountHandled,
+}: ProfilePageProps) {
   const { user, token, logout, setUserFromProfile } = useAuth();
   const [profileTab, setProfileTab] = useState<ProfileTab>('profil');
+  const [showReelRecorder, setShowReelRecorder] = useState(false);
   const [reelsRefreshKey, setReelsRefreshKey] = useState(0);
   const [editing, setEditing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showAccessManagement, setShowAccessManagement] = useState(false);
+  const [showFavoritesSheet, setShowFavoritesSheet] = useState(false);
+  const [myFavoritesCount, setMyFavoritesCount] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -88,6 +117,29 @@ export function ProfilePage({ onBack, onOpenReel }: ProfilePageProps) {
   useEffect(() => {
     if (user && !editing) setForm(profileToForm(user));
   }, [user, editing]);
+
+  useEffect(() => {
+    if (!token || editing) return;
+    let cancelled = false;
+    api
+      .getMyFavorites(token)
+      .then((r) => {
+        if (!cancelled) setMyFavoritesCount(r.favorites.length);
+      })
+      .catch(() => {
+        if (!cancelled) setMyFavoritesCount(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, editing]);
+
+  useEffect(() => {
+    if (!openRecorderOnMount) return;
+    setProfileTab('reels');
+    setShowReelRecorder(true);
+    onRecorderMountHandled?.();
+  }, [openRecorderOnMount, onRecorderMountHandled]);
 
   const startEditing = useCallback(() => {
     if (!user) return;
@@ -104,6 +156,14 @@ export function ProfilePage({ onBack, onOpenReel }: ProfilePageProps) {
       setSaveError('Le pseudo doit faire au moins 2 caractères');
       return;
     }
+    const ageTrim = form.age.trim();
+    if (ageTrim) {
+      const ageNum = Number(ageTrim);
+      if (!Number.isInteger(ageNum) || ageNum < 13 || ageNum > 120) {
+        setSaveError("L'âge doit être un nombre entier entre 13 et 120.");
+        return;
+      }
+    }
     setSaving(true);
     setSavedMsg(null);
     setSaveError(null);
@@ -113,10 +173,16 @@ export function ProfilePage({ onBack, onOpenReel }: ProfilePageProps) {
 
       const body: Record<string, unknown> = {
         username: name,
+        usernameColor: form.usernameColor.trim() || null,
+        usernameWaveFrom: form.usernameWaveFrom.trim() || null,
+        usernameWaveTo: form.usernameWaveTo.trim() || null,
         bio: form.bio,
         city: form.city,
         listeningRole: form.listeningRole,
+        profileType: form.profileType || null,
         relationshipStatus: form.relationshipStatus || null,
+        age: ageTrim ? Number(ageTrim) : null,
+        showAge: ageTrim ? form.showAge : false,
         interests: form.interests,
         favoriteGenres: form.favoriteGenres,
         favoriteArtists: form.favoriteArtists,
@@ -150,9 +216,21 @@ export function ProfilePage({ onBack, onOpenReel }: ProfilePageProps) {
 
   if (!user || !token) return null;
 
+  if (showAccessManagement) {
+    return <AccessManagementPage onBack={() => setShowAccessManagement(false)} />;
+  }
+
+  if (showAnalytics) {
+    return <AnalyticsPage onBack={() => setShowAnalytics(false)} />;
+  }
+
   if (showSettings) {
     return (
-      <SettingsPage onBack={() => setShowSettings(false)} />
+      <SettingsPage
+        onBack={() => setShowSettings(false)}
+        onOpenAnalytics={user.isAdmin ? () => { setShowSettings(false); setShowAnalytics(true); } : undefined}
+        onOpenAccessManagement={user.isAdmin ? () => { setShowSettings(false); setShowAccessManagement(true); } : undefined}
+      />
     );
   }
 
@@ -214,37 +292,77 @@ export function ProfilePage({ onBack, onOpenReel }: ProfilePageProps) {
           )}
         </div>
         <div className="absolute -bottom-10 left-4 right-4">
-          <h1 className="text-2xl font-extrabold text-white truncate">
-            {editing ? form.username || user.username : user.username}
-          </h1>
-          <p className="text-sm text-purple-300">
+          <UsernameDisplay
+            as="h1"
+            username={editing ? form.username || user.username : user.username}
+            usernameColor={editing ? form.usernameColor : user.usernameColor}
+            usernameWaveFrom={editing ? form.usernameWaveFrom : user.usernameWaveFrom}
+            usernameWaveTo={editing ? form.usernameWaveTo : user.usernameWaveTo}
+            className="text-2xl font-extrabold truncate block"
+          />
+          {(editing ? form.profileType : user.profileType) && (
+            <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-500/20 text-purple-200 border border-purple-500/30">
+              {getProfileTypeLabel(editing ? form.profileType : user.profileType)}
+            </span>
+          )}
+          <p className="text-sm text-purple-300 mt-0.5">
             {ROLE_LABELS[editing ? form.listeningRole : (user.listeningRole ?? 'auditeur')]}
           </p>
           {(editing ? form.city : user.city) && (
             <p className="text-xs text-gray-400 mt-0.5">📍 {editing ? form.city : user.city}</p>
           )}
+          {(() => {
+            const displayAge = editing
+              ? form.age.trim()
+                ? Number(form.age)
+                : null
+              : user.age ?? null;
+            if (displayAge == null || !Number.isInteger(displayAge)) return null;
+            return (
+              <p className="text-sm text-gray-400 mt-0.5">
+                {displayAge} ans
+                {editing && !form.showAge && (
+                  <span className="text-xs text-gray-500"> (masqué sur le profil public)</span>
+                )}
+              </p>
+            );
+          })()}
           {!editing && user.relationshipStatus && (
             <p className="text-xs text-pink-300/90 mt-0.5">
               {user.relationshipStatus === 'en_couple' ? '💑' : '✨'}{' '}
               {RELATIONSHIP_LABELS[user.relationshipStatus]}
             </p>
           )}
+          {!editing && user.favoritesCount != null && (
+            <p
+              className="text-xs text-amber-300/90 mt-0.5"
+              title="Personnes qui vous ont ajouté en favoris"
+            >
+              ⭐ {formatFavoritesCountLabel(user.favoritesCount)}
+            </p>
+          )}
         </div>
       </div>
 
       <div className="pt-12 px-4 pb-8 space-y-5">
+        {!editing && user.currentListening && (
+          <ProfileCurrentListening listening={user.currentListening} />
+        )}
         {!editing && (
           <div className="flex gap-2 p-1 bg-[#12121a] border border-[#1e1e2f] rounded-xl">
             {(
               [
                 ['profil', 'Profil'],
-                ['enregistrer', 'Enregistrer'],
+                ['reels', 'Mes reels'],
               ] as const
             ).map(([id, label]) => (
               <button
                 key={id}
                 type="button"
-                onClick={() => setProfileTab(id)}
+                onClick={() => {
+                  setProfileTab(id);
+                  if (id !== 'reels') setShowReelRecorder(false);
+                }}
                 className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition ${
                   profileTab === id
                     ? 'bg-purple-600 text-white shadow-md'
@@ -257,14 +375,37 @@ export function ProfilePage({ onBack, onOpenReel }: ProfilePageProps) {
           </div>
         )}
 
-        {profileTab === 'enregistrer' && !editing && token && (
-          <ProfileReelRecorder
-            token={token}
+        {profileTab === 'reels' && !editing && token && showReelRecorder && (
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setShowReelRecorder(false)}
+              className="text-sm font-semibold text-purple-300 hover:text-white"
+            >
+              ← Retour à Mes reels
+            </button>
+            <ProfileReelRecorder
+              token={token}
+              defaultArtist={user.username}
+              onSaved={() => {
+                setReelsRefreshKey((k) => k + 1);
+                setShowReelRecorder(false);
+              }}
+            />
+          </div>
+        )}
+
+        {profileTab === 'reels' && !editing && !showReelRecorder && onOpenReel && user && (
+          <UserReelsSection
+            userId={user.id}
+            isOwner
+            layout="grid"
+            hideSectionTitle
+            defaultOwnerTab="published"
             defaultArtist={user.username}
-            onSaved={() => {
-              setReelsRefreshKey((k) => k + 1);
-              setProfileTab('profil');
-            }}
+            onOpenReel={onOpenReel}
+            refreshKey={reelsRefreshKey}
+            onRecordReel={() => setShowReelRecorder(true)}
           />
         )}
 
@@ -285,19 +426,36 @@ export function ProfilePage({ onBack, onOpenReel }: ProfilePageProps) {
               : undefined
           }
         />
-        <div className="grid grid-cols-2 gap-2">
-          <div className="bg-[#12121a] border border-[#1e1e2f] rounded-xl p-3 text-center">
-            <p className="text-lg font-bold text-white">{user.stats?.salonsHosted ?? 0}</p>
-            <p className="text-[10px] text-gray-500 uppercase">Salons</p>
+
+        {!editing && (
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2 max-w-sm mx-auto">
+            {user.favoritesCount != null && (
+              <div
+                className="flex-1 bg-[#12121a] border border-[#1e1e2f] rounded-xl p-3 text-center"
+                title="Personnes qui vous ont ajouté en favoris"
+              >
+                <p className="text-lg font-bold text-white">
+                  {formatCompactCount(user.favoritesCount)}
+                </p>
+                <p className="text-[10px] text-gray-500 uppercase">Vous suivent</p>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowFavoritesSheet(true)}
+              className="flex-1 bg-[#12121a] border border-[#1e1e2f] rounded-xl p-3 text-center"
+              title="Utilisateurs que vous avez mis en favoris"
+            >
+              <p className="text-lg font-bold text-white">
+                {myFavoritesCount != null ? formatCompactCount(myFavoritesCount) : ''}
+              </p>
+              <p className="text-[10px] text-gray-500 uppercase">Mes Favoris</p>
+            </button>
           </div>
-          <div className="bg-[#12121a] border border-[#1e1e2f] rounded-xl p-3 text-center">
-            <p className="text-lg font-bold text-white">{user.stats?.livesHosted ?? 0}</p>
-            <p className="text-[10px] text-gray-500 uppercase">Lives</p>
-          </div>
-        </div>
+        )}
 
         <p className="text-xs text-gray-500 text-center">
-          Membre depuis {memberDate} · Profil musical MeloSong
+          Membre depuis {memberDate} · Profil musical Soundly
         </p>
 
         {(user.listeningRole === 'host' ||
@@ -329,15 +487,6 @@ export function ProfilePage({ onBack, onOpenReel }: ProfilePageProps) {
                 {user.bio || <span className="text-gray-500 italic">Ajoutez une bio via Modifier</span>}
               </p>
             </section>
-
-            {!editing && onOpenReel && profileTab === 'profil' && (
-              <UserReelsSection
-                userId={user.id}
-                isOwner
-                onOpenReel={onOpenReel}
-                refreshKey={reelsRefreshKey}
-              />
-            )}
 
             <TagSection title="Centres d'intérêt" tags={user.interests ?? []} color="cyan" emptyHint />
             <TagSection title="Genres favoris" tags={user.favoriteGenres ?? []} color="purple" emptyHint />
@@ -389,6 +538,24 @@ export function ProfilePage({ onBack, onOpenReel }: ProfilePageProps) {
                 className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-2 text-white text-sm"
               />
             </label>
+            <UsernameColorPicker
+              value={form.usernameColor}
+              onChange={(usernameColor) => setForm((f) => ({ ...f, usernameColor }))}
+              waveFrom={form.usernameWaveFrom}
+              waveTo={form.usernameWaveTo}
+              onWaveFromChange={(usernameWaveFrom) => setForm((f) => ({ ...f, usernameWaveFrom }))}
+              onWaveToChange={(usernameWaveTo) => setForm((f) => ({ ...f, usernameWaveTo }))}
+            />
+            <div className="rounded-xl border border-[#2d2d3d] bg-[#12121a] px-4 py-3 text-center">
+              <p className="text-[10px] text-gray-500 mb-1">Aperçu du pseudo</p>
+              <UsernameDisplay
+                username={form.username || user.username}
+                usernameColor={form.usernameColor}
+                usernameWaveFrom={form.usernameWaveFrom}
+                usernameWaveTo={form.usernameWaveTo}
+                className="text-lg font-extrabold"
+              />
+            </div>
             <label className="block">
               <span className="text-xs text-gray-400">Bio</span>
               <textarea
@@ -396,7 +563,7 @@ export function ProfilePage({ onBack, onOpenReel }: ProfilePageProps) {
                 onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
                 rows={4}
                 maxLength={500}
-                placeholder="Parlez de votre rapport à la musique, vos sessions, ce que vous cherchez sur MeloSong..."
+                placeholder="Parlez de votre rapport à la musique, vos sessions, ce que vous cherchez sur Soundly..."
                 className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-2 text-white text-sm"
               />
               <span className="text-[10px] text-gray-600">{form.bio.length}/500</span>
@@ -409,7 +576,60 @@ export function ProfilePage({ onBack, onOpenReel }: ProfilePageProps) {
               />
             </label>
             <label className="block">
-              <span className="text-xs text-gray-400">Rôle sur MeloSong</span>
+              <span className="text-xs text-gray-400">Âge (optionnel)</span>
+              <input
+                type="number"
+                min={13}
+                max={120}
+                value={form.age}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setForm((f) => ({
+                    ...f,
+                    age: next,
+                    showAge: next.trim() ? f.showAge : false,
+                  }));
+                }}
+                placeholder="Ex. 28"
+                className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-2 text-white text-sm"
+              />
+              <p className="text-[10px] text-gray-600 mt-1">Minimum 13 ans (conformité app 13+)</p>
+            </label>
+            <label className="flex items-start gap-3 rounded-xl border border-[#2d2d3d] bg-[#12121a] px-4 py-3">
+              <input
+                type="checkbox"
+                checked={form.showAge}
+                disabled={!form.age.trim()}
+                onChange={(e) => setForm((f) => ({ ...f, showAge: e.target.checked }))}
+                className="mt-0.5 accent-purple-500 disabled:opacity-40"
+              />
+              <span className="text-sm text-gray-300">
+                Afficher mon âge sur mon profil
+                <span className="block text-[10px] text-gray-500 mt-0.5">
+                  Visible par les autres uniquement si activé
+                </span>
+              </span>
+            </label>
+            <label className="block">
+              <span className="text-xs text-gray-400">Qui êtes-vous ? (optionnel)</span>
+              <select
+                value={form.profileType}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, profileType: e.target.value as ProfileType | '' }))
+                }
+                className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-2 text-white text-sm"
+              >
+                <option value="">Ne pas afficher</option>
+                {PROFILE_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.emoji} {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="text-xs text-gray-400">Rôle sur Soundly</span>
               <select
                 value={form.listeningRole}
                 onChange={(e) =>
@@ -534,6 +754,18 @@ export function ProfilePage({ onBack, onOpenReel }: ProfilePageProps) {
           </section>
         )}
       </div>
+
+      {showFavoritesSheet && (
+        <MyFavoritesSheet
+          token={token}
+          onClose={() => setShowFavoritesSheet(false)}
+          onOpenProfile={(userId) => {
+            setShowFavoritesSheet(false);
+            onOpenProfile?.(userId);
+          }}
+          onFavoritesChanged={setMyFavoritesCount}
+        />
+      )}
     </div>
   );
 }

@@ -1,0 +1,102 @@
+import { Router, Request, Response } from 'express';
+import { authenticateJWT } from '../middleware/auth';
+import { schedulePersist } from '../lib/persist';
+import {
+  createFeedPost,
+  listFeedPosts,
+  resharePost,
+  toggleFeedPostLike,
+  addFeedPostComment,
+  listFeedPostComments,
+  toggleFeedPostFavorite,
+  listFavoritedFeedPosts,
+} from '../lib/feedPosts';
+
+export const feedRouter = Router();
+
+feedRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const q = req.query;
+  const limit = q.limit != null ? Number(q.limit) : undefined;
+  const before = q.before != null ? Number(q.before) : undefined;
+  res.json({ posts: listFeedPosts(me, { limit, before }) });
+});
+
+feedRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const body = req.body ?? {};
+  const result = createFeedPost(me, {
+    content: String(body.content ?? ''),
+    imageUrl: body.imageUrl != null ? String(body.imageUrl) : undefined,
+  });
+  if (!result.ok) {
+    res.status(400).json({ error: result.error });
+    return;
+  }
+  schedulePersist();
+  res.status(201).json({ post: result.post });
+});
+
+// ── Favoris (bookmarked posts) ────────────────────────────────────────────────
+
+feedRouter.get('/favorites', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  res.json({ posts: listFavoritedFeedPosts(me) });
+});
+
+// ── Per-post interactions ─────────────────────────────────────────────────────
+
+feedRouter.post('/posts/:id/like', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const result = toggleFeedPostLike(me, req.params.id);
+  if (!result.ok) { res.status(404).json({ error: result.error }); return; }
+  if (!result.liked) { res.status(400).json({ error: 'Déjà aimé' }); return; }
+  schedulePersist();
+  res.json({ liked: result.liked, likeCount: result.likeCount });
+});
+
+feedRouter.delete('/posts/:id/like', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const result = toggleFeedPostLike(me, req.params.id);
+  if (!result.ok) { res.status(404).json({ error: result.error }); return; }
+  schedulePersist();
+  res.json({ liked: result.liked, likeCount: result.likeCount });
+});
+
+feedRouter.get('/posts/:id/comments', authenticateJWT, (req: Request, res: Response) => {
+  res.json({ comments: listFeedPostComments(req.params.id) });
+});
+
+feedRouter.post('/posts/:id/comments', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const body = req.body ?? {};
+  const result = addFeedPostComment(me, req.params.id, String(body.content ?? ''));
+  if (!result.ok) { res.status(400).json({ error: result.error }); return; }
+  schedulePersist();
+  res.status(201).json({ comment: result.comment, commentCount: result.commentCount });
+});
+
+feedRouter.post('/posts/:id/reshare', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const result = resharePost(me, req.params.id);
+  if (!result.ok) { res.status(400).json({ error: result.error }); return; }
+  schedulePersist();
+  res.status(201).json({ post: result.post });
+});
+
+feedRouter.post('/posts/:id/favorite', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const result = toggleFeedPostFavorite(me, req.params.id);
+  if (!result.ok) { res.status(404).json({ error: result.error }); return; }
+  if (!result.favorited) { res.status(400).json({ error: 'Déjà en favoris' }); return; }
+  schedulePersist();
+  res.json({ favorited: result.favorited });
+});
+
+feedRouter.delete('/posts/:id/favorite', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const result = toggleFeedPostFavorite(me, req.params.id);
+  if (!result.ok) { res.status(404).json({ error: result.error }); return; }
+  schedulePersist();
+  res.json({ favorited: result.favorited });
+});

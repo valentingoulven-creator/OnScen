@@ -1,0 +1,68 @@
+
+Melosong
+
+Comment je me rémunere:
+-Les pubs 
+-Les sponso 
+-Application abonnement pour avoir un grade evenementiel et avoir un filtre spécialement pour eux 
+-Le paiement des artistes/entreprise pour avoir un reels sponso 
+-Un % des don 
+-Soutenir L'app
+
+
+ToDo dans l'appli
+-solution pour creer une session à travers youtube et spotify
+-possibilité Activer ou désactiver l’algorithme 
+-Si pas d'algo, creer l'algo par user : Mettre une option d'activer l'algorithm ou de creer son algorithm: Theme, nombre de commentaire,nombre de like
+choisir le thème de music que tu veux écouter/regarder ou faire aléatoire
+
+-possibilité de payer pour apparaître en priorité en fonction du nombre de thème 
+-appli de rencontre nbr de cœur / jours sinon tu paye avec un algorithme 
+-faire un battle en live avec des cœurs du public ou un the voice like 
+
+
+Idée pour faire decouvrir lappli :
+-Concours du plus de viewer sur un live et sur  une vidéo
+-Payer pub insta et TikTok 
+-proposer la marque au streamer
+-trouver des sponsors 
+-faire de la pub 
+-chercher des investisseurs
+-Je suis le compte d'une ville et je peux faire un salon avec que des artistes de la ville
+
+
+Les connaissances dans la musique: 
+DJ: 
+-Valentin Cagigos
+-Matis Lacombe
+-Jerome Desjardin
+
+Rap:
+-Baptiste maigre
+
+Rock/Hard : 
+-Romain monnier 
+-Gabriel Segala
+
+Funk/soul/groove: 
+Jean Pierre Berrone (Groove Omatic)
+
+Twitch
+
+Les Opportunités : 
+-Bar dans Montpellier
+-Les festivals (Solar)
+-DJ Baguette
+
+Idée de développement:
+-Avoir un prestataire pour l'inge son et image à proposer
+-Faire un TheVoice
+-Créer un BattleRap
+-Les Evenements musical dans l'hérault
+-
+
+
+Mettre une regle d'accès a un salon youtube que si il est connecté à youtube
+Mettre une regle d'accès à spotify que si il a un compte abonnée à spotify
+
+Nom pour l'application:

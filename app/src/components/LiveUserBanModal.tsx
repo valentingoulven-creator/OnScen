@@ -29,7 +29,7 @@ export function LiveUserBanModal({ username, open, onClose, onConfirm }: LiveUse
       onConfirm({ permanent: true, scope });
       return;
     }
-    let durationMs = PRESET_MS['5m'];
+    let durationMs: number;
     if (preset === 'custom') {
       const mins = parseInt(customMinutes, 10);
       if (!Number.isFinite(mins) || mins < 1) {

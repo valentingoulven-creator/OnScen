@@ -35,17 +35,138 @@ async function request<T>(path: string, opts: RequestInit = {}, token?: string |
 }
 
 export const api = {
-  login: (email: string, password: string) =>
-    request<{ token: string; user: import('../types').User }>('/auth/login', {
+  login: (email: string, password: string, rememberMe = true) =>
+    request<{ token: string; user: import('../types').User; rememberMe?: boolean }>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, rememberMe }),
     }),
 
-  register: (username: string, email: string, password: string) =>
-    request<{ token: string; user: import('../types').User }>('/auth/register', {
+  register: async (
+    username: string,
+    email: string,
+    password: string,
+    acceptTerms: boolean,
+    termsVersion: string,
+    inviteCode?: string
+  ) => {
+    const res = await fetch(`${API}/auth/register`, {
       method: 'POST',
-      body: JSON.stringify({ username, email, password }),
-    }),
+      headers: headers(),
+      body: JSON.stringify({
+        username,
+        email,
+        password,
+        acceptTerms,
+        termsVersion,
+        inviteCode: inviteCode?.trim() || undefined,
+      }),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      token?: string;
+      user?: import('../types').User;
+      pending?: boolean;
+      message?: string;
+      error?: string;
+    };
+    if (!res.ok) {
+      throw new Error(data.error || res.statusText || 'Erreur réseau');
+    }
+    return data;
+  },
+
+  getAccessConfig: () =>
+    request<import('../types').PublicAccessConfig>('/access/config', {}),
+
+  getAccessAdminStatus: (token: string) =>
+    request<{
+      accessControlEnabled: boolean;
+      isAdmin: boolean;
+      accountStatus: string | null;
+    }>('/access/admin/status', {}, token),
+
+  getAccessAdminOverview: (token: string) =>
+    request<{
+      policy: { registrationMode: string; updatedAt: number };
+      config: import('../types').PublicAccessConfig;
+      counts: { total: number; active: number; pending: number; blocked: number };
+      inviteCodes: import('../types').AccessInviteCode[];
+    }>('/access/admin/overview', {}, token),
+
+  getAccessAdminUsers: (token: string, status: 'all' | 'active' | 'pending' | 'blocked') =>
+    request<{
+      users: import('../types').AccessManagedUser[];
+    }>(`/access/admin/users?status=${status}`, {}, token),
+
+  patchAccessPolicy: (token: string, registrationMode: string) =>
+    request<{ policy: { registrationMode: string }; config: import('../types').PublicAccessConfig }>(
+      '/access/admin/policy',
+      { method: 'PATCH', body: JSON.stringify({ registrationMode }) },
+      token
+    ),
+
+  approveAccessUser: (token: string, userId: string) =>
+    request<{ user: import('../types').User }>(
+      `/access/admin/users/${userId}/approve`,
+      { method: 'POST' },
+      token
+    ),
+
+  blockAccessUser: (token: string, userId: string) =>
+    request<{ user: import('../types').User }>(
+      `/access/admin/users/${userId}/block`,
+      { method: 'POST' },
+      token
+    ),
+
+  unblockAccessUser: (token: string, userId: string) =>
+    request<{ user: import('../types').User }>(
+      `/access/admin/users/${userId}/unblock`,
+      { method: 'POST' },
+      token
+    ),
+
+  createAccessInvite: (
+    token: string,
+    body: { code?: string; label?: string; maxUses?: number }
+  ) =>
+    request<{ invite: import('../types').AccessInviteCode }>(
+      '/access/admin/invites',
+      { method: 'POST', body: JSON.stringify(body) },
+      token
+    ),
+
+  setAccessInviteDisabled: (token: string, id: string, disabled: boolean) =>
+    request<{ invite: import('../types').AccessInviteCode }>(
+      `/access/admin/invites/${id}`,
+      { method: 'PATCH', body: JSON.stringify({ disabled }) },
+      token
+    ),
+
+  deleteAccessInvite: (token: string, id: string) =>
+    request<{ ok: boolean }>(`/access/admin/invites/${id}`, { method: 'DELETE' }, token),
+
+  getLegalPublisher: () =>
+    request<{
+      config: import('../types').LegalPublisherConfig;
+      complete: boolean;
+      termsVersion: string;
+    }>('/legal/publisher', {}),
+
+  submitContentReport: (
+    token: string,
+    body: {
+      category: string;
+      details: string;
+      targetUserId?: string;
+      roomType?: string;
+      roomId?: string;
+      messageId?: string;
+    }
+  ) =>
+    request<{ ok: boolean; reportId: string }>('/legal/reports', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }, token),
 
   me: (token: string) => request<{ user: import('../types').User }>('/auth/me', {}, token),
 
@@ -56,12 +177,25 @@ export const api = {
       token
     ),
 
-  nearby: (token: string, lat: number, lon: number, radius = 10) =>
-    request<{
+  nearby: (
+    token: string,
+    lat: number,
+    lon: number,
+    opts?: { radiusKm?: number; distanceFilter?: boolean }
+  ) => {
+    const params = new URLSearchParams({
+      latitude: String(lat),
+      longitude: String(lon),
+    });
+    if (opts?.radiusKm !== undefined) params.set('radius', String(opts.radiusKm));
+    if (opts?.distanceFilter === false) params.set('distanceFilter', 'false');
+    else if (opts?.distanceFilter === true) params.set('distanceFilter', 'true');
+    return request<{
       salons: import('../types').Salon[];
       lives: import('../types').Live[];
       people: import('../types').NearbyPerson[];
-    }>(`/geo/nearby?latitude=${lat}&longitude=${lon}&radius=${radius}`, {}, token),
+    }>(`/geo/nearby?${params}`, {}, token);
+  },
 
   getSalon: (token: string, id: string) =>
     request<{ salon: import('../types').Salon }>(`/salons/${id}`, {}, token),
@@ -72,6 +206,60 @@ export const api = {
       {},
       token
     ),
+
+  searchYoutube: (token: string, query: string) =>
+    request<{ results: import('../types').YoutubeSearchResult[] }>(
+      `/salons/youtube-search?q=${encodeURIComponent(query)}`,
+      {},
+      token
+    ),
+
+  salonChangeTrack: (
+    token: string,
+    salonId: string,
+    body: { trackId: string; title: string; artist: string; trackLink?: string }
+  ) =>
+    request<{ playbackState: import('../types').PlaybackState }>(
+      `/salons/${salonId}/playback/change-track`,
+      { method: 'POST', body: JSON.stringify(body) },
+      token
+    ),
+
+  salonLoadYoutubePlaylist: (
+    token: string,
+    salonId: string,
+    body: { playlistId?: string; playlistUrl?: string }
+  ) =>
+    request<{ playbackState: import('../types').PlaybackState; queue: import('../types').SalonQueueItem[] }>(
+      `/salons/${salonId}/playback/load-playlist`,
+      { method: 'POST', body: JSON.stringify(body) },
+      token
+    ),
+
+  getYoutubePlaylists: (token: string) =>
+    request<{ playlists: import('../types').YoutubePlaylistSummary[]; isRealAccount: boolean }>(
+      '/platforms/youtube/playlists',
+      {},
+      token
+    ),
+
+  getYoutubeOAuthUrl: (token: string) =>
+    request<{ url: string }>('/platforms/youtube/oauth/url', {}, token),
+
+  getMsdevDualIp: () =>
+    request<import('../types').MsdevDualIpConfig>('/msdev/dual-ip', {}),
+
+  msdevLoginByIp: () =>
+    request<{
+      token: string;
+      user: import('../types').User;
+      clientIp: string;
+      matchedSlot: 'A' | 'B' | null;
+      simulatedViaIp: boolean;
+    }>('/msdev/login-by-ip', { method: 'POST', body: JSON.stringify({}) }),
+
+  msdevRebuild: (token: string) =>
+    request<{ ok: boolean; message: string }>('/msdev/rebuild', { method: 'POST' }, token),
 
   createSalon: (token: string, body: object) =>
     request<{ salon: import('../types').Salon }>('/salons', { method: 'POST', body: JSON.stringify(body) }, token),
@@ -147,12 +335,14 @@ export const api = {
 
   getLives: (
     token: string,
-    opts?: { latitude?: number; longitude?: number; radiusKm?: number }
+    opts?: { latitude?: number; longitude?: number; radiusKm?: number; distanceFilter?: boolean }
   ) => {
     const params = new URLSearchParams();
     if (opts?.latitude !== undefined) params.set('latitude', String(opts.latitude));
     if (opts?.longitude !== undefined) params.set('longitude', String(opts.longitude));
     if (opts?.radiusKm !== undefined) params.set('radiusKm', String(opts.radiusKm));
+    if (opts?.distanceFilter === false) params.set('distanceFilter', 'false');
+    else if (opts?.distanceFilter === true) params.set('distanceFilter', 'true');
     const q = params.toString();
     return request<{ lives: import('../types').Live[] }>(`/lives${q ? `?${q}` : ''}`, {}, token);
   },
@@ -208,10 +398,27 @@ export const api = {
     request<{ messages: import('../types').ChatMessage[] }>(`/chat/live/${liveId}`, {}, token),
 
   getDmPresence: (token: string) =>
-    request<{ onlineUserIds: string[] }>('/dm/presence', {}, token),
+    request<{
+      onlineUserIds: string[];
+      liveUserIds: string[];
+      liveViewersByUserId: Record<string, number>;
+    }>('/dm/presence', {}, token),
 
   getConversations: (token: string) =>
-    request<{ conversations: import('../types').Conversation[] }>('/dm/conversations/list', {}, token),
+    request<{ conversations: import('../types').Conversation[]; unreadCount: number }>(
+      '/dm/conversations/list',
+      {},
+      token
+    ),
+
+  getDmUnreadCount: (token: string) =>
+    request<{ unreadCount: number }>('/dm/unread-count', {}, token),
+
+  markDmThreadRead: (token: string, userId: string, at?: number) =>
+    request<{ ok: boolean; unreadCount: number }>(`/dm/thread/${userId}/read`, {
+      method: 'POST',
+      body: JSON.stringify(at != null ? { at } : {}),
+    }, token),
 
   getDmContacts: (token: string) =>
     request<{ contacts: import('../types').DmContact[] }>('/dm/contacts/list', {}, token),
@@ -225,22 +432,90 @@ export const api = {
   getBlockedUsers: (token: string) =>
     request<{ blocked: import('../types').DmContact[] }>('/dm/blocks/list', {}, token),
 
+  getMutedUserIds: (token: string) =>
+    request<{ mutedUserIds: string[] }>('/dm/mutes/list', {}, token),
+
+  muteUser: (token: string, userId: string) =>
+    request<{ ok: boolean }>(`/dm/mute/${userId}`, { method: 'POST' }, token),
+
+  unmuteUser: (token: string, userId: string) =>
+    request<{ ok: boolean }>(`/dm/mute/${userId}`, { method: 'DELETE' }, token),
+
   getDmThread: (token: string, userId: string) =>
     request<{
       messages: import('../types').DirectMessage[];
       otherUser: import('../types').DmContact;
     }>(`/dm/thread/${userId}`, {}, token),
 
-  sendDm: (token: string, userId: string, content: string) =>
-    request<{ message: import('../types').DirectMessage }>(
+  sendDm: (
+    token: string,
+    userId: string,
+    content: string,
+    attachment?: {
+      attachmentUrl?: string;
+      attachmentName?: string;
+      attachmentSize?: number;
+      attachmentMimeType?: string;
+    }
+  ) =>
+    request<{ message: import('../types').DirectMessage; status?: 'accepted' | 'pending'; delivered?: boolean }>(
       `/dm/thread/${userId}`,
-      { method: 'POST', body: JSON.stringify({ content }) },
+      { method: 'POST', body: JSON.stringify({ content, ...attachment }) },
       token
     ),
+
+  reactToDmMessage: (token: string, messageId: string, emoji: string) =>
+    request<{ ok: boolean; added: boolean; reactions: Record<string, string[]> }>(
+      `/dm/messages/${messageId}/react`,
+      { method: 'POST', body: JSON.stringify({ emoji }) },
+      token
+    ),
+
+  getDmRequests: (token: string) =>
+    request<{ requests: import('../types').DmRequest[] }>('/dm/requests/list', {}, token),
+
+  acceptDmRequest: (token: string, senderId: string) =>
+    request<{ ok: boolean }>(`/dm/requests/${senderId}/accept`, { method: 'POST' }, token),
+
+  refuseDmRequest: (token: string, senderId: string) =>
+    request<{ ok: boolean }>(`/dm/requests/${senderId}/refuse`, { method: 'POST' }, token),
 
   deleteDmMessage: (token: string, messageId: string, forAll = false) =>
     request<{ ok: boolean; messageId: string; scope: 'hidden' | 'all' }>(
       `/dm/messages/${messageId}${forAll ? '?forAll=true' : ''}`,
+      { method: 'DELETE' },
+      token
+    ),
+
+  createMessageGroup: (token: string, name: string, memberIds: string[]) =>
+    request<{ group: import('../types').MessageGroupDetail }>(
+      '/dm/groups',
+      { method: 'POST', body: JSON.stringify({ name, memberIds }) },
+      token
+    ),
+
+  getGroupThread: (token: string, groupId: string) =>
+    request<{
+      messages: import('../types').GroupMessage[];
+      group: import('../types').MessageGroupDetail;
+    }>(`/dm/groups/${groupId}/thread`, {}, token),
+
+  sendGroupMessage: (token: string, groupId: string, content: string) =>
+    request<{ message: import('../types').GroupMessage }>(
+      `/dm/groups/${groupId}/messages`,
+      { method: 'POST', body: JSON.stringify({ content }) },
+      token
+    ),
+
+  markGroupThreadRead: (token: string, groupId: string, at?: number) =>
+    request<{ ok: boolean; unreadCount: number }>(`/dm/groups/${groupId}/read`, {
+      method: 'POST',
+      body: JSON.stringify(at != null ? { at } : {}),
+    }, token),
+
+  deleteGroupMessage: (token: string, messageId: string, forAll = false) =>
+    request<{ ok: boolean; messageId: string; scope: 'hidden' | 'all' }>(
+      `/dm/groups/messages/${messageId}${forAll ? '?forAll=true' : ''}`,
       { method: 'DELETE' },
       token
     ),
@@ -287,6 +562,21 @@ export const api = {
 
   toggleGhost: (token: string, isGhostMode: boolean) =>
     request<{ isGhostMode: boolean }>('/auth/ghost-mode', { method: 'PATCH', body: JSON.stringify({ isGhostMode }) }, token),
+
+  checkUsername: (username: string) =>
+    request<{ available: boolean; reason: string | null }>(`/auth/check-username?username=${encodeURIComponent(username)}`),
+
+  changePassword: (token: string, currentPassword: string, newPassword: string) =>
+    request<{ ok: boolean }>('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }, token),
+
+  deleteAccount: (token: string, password: string) =>
+    request<{ ok: boolean }>('/auth/account', {
+      method: 'DELETE',
+      body: JSON.stringify({ password }),
+    }, token),
 
   updateProfile: (token: string, body: object) =>
     request<{ user: import('../types').User }>('/auth/profile', { method: 'PATCH', body: JSON.stringify(body) }, token),
@@ -336,6 +626,13 @@ export const api = {
   getUserProfile: (token: string, userId: string) =>
     request<{ user: import('../types').User }>(`/auth/profile/${userId}`, {}, token),
 
+  searchUsers: (token: string, query: string) =>
+    request<{ users: import('../types').UserSearchHit[] }>(
+      `/users/search?q=${encodeURIComponent(query)}`,
+      {},
+      token
+    ),
+
   sendHeart: (token: string, userId: string) =>
     request<{
       ok: boolean;
@@ -378,6 +675,37 @@ export const api = {
     request<{ following: import('../types').User[]; followingIds: string[] }>(
       '/users/me/following',
       {},
+      token
+    ),
+
+  addFavorite: (token: string, userId: string) =>
+    request<{ ok: boolean; hostId: string; isFavorite: boolean; notificationsEnabled: boolean }>(
+      `/users/${userId}/favorite`,
+      { method: 'POST' },
+      token
+    ),
+
+  removeFavorite: (token: string, userId: string) =>
+    request<{ ok: boolean; hostId: string; isFavorite: boolean }>(
+      `/users/${userId}/favorite`,
+      { method: 'DELETE' },
+      token
+    ),
+
+  getMyFavorites: (token: string) =>
+    request<{ favorites: import('../types').User[] }>('/users/me/favorites', {}, token),
+
+  getFavoriteStatus: (token: string, userId: string) =>
+    request<{ isFavorite: boolean; notificationsEnabled: boolean }>(
+      `/users/${userId}/favorite-status`,
+      {},
+      token
+    ),
+
+  setFavoriteNotifications: (token: string, userId: string, notificationsEnabled: boolean) =>
+    request<{ ok: boolean; hostId: string; notificationsEnabled: boolean }>(
+      `/users/${userId}/favorite/notifications`,
+      { method: 'PATCH', body: JSON.stringify({ notificationsEnabled }) },
       token
     ),
 
@@ -453,4 +781,138 @@ export const api = {
       { method: 'POST' },
       token
     ),
+
+  getFeedPosts: (token: string, opts?: { limit?: number; before?: number }) => {
+    const params = new URLSearchParams();
+    if (opts?.limit != null) params.set('limit', String(opts.limit));
+    if (opts?.before != null) params.set('before', String(opts.before));
+    const qs = params.toString();
+    return request<{ posts: import('../types').FeedPost[] }>(
+      `/feed${qs ? `?${qs}` : ''}`,
+      {},
+      token
+    );
+  },
+
+  createFeedPost: (token: string, body: { content: string; imageUrl?: string }) =>
+    request<{ post: import('../types').FeedPost }>(
+      '/feed',
+      { method: 'POST', body: JSON.stringify(body) },
+      token
+    ),
+
+  likeFeedPost: (token: string, postId: string) =>
+    request<{ liked: boolean; likeCount: number }>(
+      `/feed/posts/${postId}/like`,
+      { method: 'POST' },
+      token
+    ),
+
+  unlikeFeedPost: (token: string, postId: string) =>
+    request<{ liked: boolean; likeCount: number }>(
+      `/feed/posts/${postId}/like`,
+      { method: 'DELETE' },
+      token
+    ),
+
+  getFeedPostComments: (token: string, postId: string) =>
+    request<{ comments: import('../types').FeedPostComment[] }>(
+      `/feed/posts/${postId}/comments`,
+      {},
+      token
+    ),
+
+  postFeedComment: (token: string, postId: string, content: string, textAlign?: import('../types').CommentAlign) =>
+    request<{ comment: import('../types').FeedPostComment; commentCount: number }>(
+      `/feed/posts/${postId}/comments`,
+      { method: 'POST', body: JSON.stringify({ content, ...(textAlign && textAlign !== 'left' ? { textAlign } : {}) }) },
+      token
+    ),
+
+  reshareFeedPost: (token: string, postId: string) =>
+    request<{ post: import('../types').FeedPost }>(
+      `/feed/posts/${postId}/reshare`,
+      { method: 'POST' },
+      token
+    ),
+
+  addFeedPostFavorite: (token: string, postId: string) =>
+    request<{ favorited: boolean }>(
+      `/feed/posts/${postId}/favorite`,
+      { method: 'POST' },
+      token
+    ),
+
+  removeFeedPostFavorite: (token: string, postId: string) =>
+    request<{ favorited: boolean }>(
+      `/feed/posts/${postId}/favorite`,
+      { method: 'DELETE' },
+      token
+    ),
+
+  getFavoritedFeedPosts: (token: string) =>
+    request<{ posts: import('../types').FeedPost[] }>('/feed/favorites', {}, token),
+
+  getStories: (
+    token: string,
+    opts?: { latitude?: number; longitude?: number; radius?: number }
+  ) => {
+    const params = new URLSearchParams();
+    if (opts?.latitude != null) params.set('latitude', String(opts.latitude));
+    if (opts?.longitude != null) params.set('longitude', String(opts.longitude));
+    if (opts?.radius != null) params.set('radius', String(opts.radius));
+    const qs = params.toString();
+    return request<{ stories: import('../types').MapStory[] }>(
+      `/stories${qs ? `?${qs}` : ''}`,
+      {},
+      token
+    );
+  },
+
+  getMyStory: (token: string) =>
+    request<{ story: import('../types').MapStory | null }>('/stories/mine', {}, token),
+
+  createStory: (
+    token: string,
+    body: {
+      content?: string;
+      imageUrl?: string;
+      musicTrack?: import('../types').StoryMusicTrack;
+      taggedUserIds?: string[];
+    }
+  ) =>
+    request<{ story: import('../types').MapStory }>(
+      '/stories',
+      { method: 'POST', body: JSON.stringify(body) },
+      token
+    ),
+
+  getNews: () =>
+    request<{ news: import('../types').MusicNewsItem[] }>('/news', {}),
+
+  getAnalyticsSummary: (token: string) =>
+    request<{
+      snapshot: {
+        totalUsers: number;
+        dau24h: number;
+        dau30d: number;
+        newUsersToday: number;
+        activeSalons: number;
+        activeLives: number;
+        totalMessages: number;
+        totalReels: number;
+        totalMatches: number;
+        totalFeedPosts: number;
+      };
+      series: {
+        labels: string[];
+        logins: number[];
+        messagesSent: number[];
+        salonsCreated: number[];
+        livesStarted: number[];
+        reelsViewed: number[];
+        matchesCreated: number[];
+        favoritesAdded: number[];
+      };
+    }>('/analytics/summary', {}, token),
 };

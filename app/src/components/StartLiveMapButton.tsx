@@ -7,7 +7,8 @@ interface StartLiveMapButtonProps {
   username: string;
   lives: Live[];
   userId: string;
-  mapBottomClass?: string;
+  /** Hauteur du panneau bas (salon sélectionné) pour rester au-dessus. */
+  bottomSheetHeightPx?: number;
   latitude?: number;
   longitude?: number;
   onStarted: (liveId: string) => void;
@@ -18,11 +19,12 @@ export function StartLiveMapButton({
   username,
   lives,
   userId,
-  mapBottomClass = 'bottom-5',
+  bottomSheetHeightPx = 0,
   latitude,
   longitude,
   onStarted,
 }: StartLiveMapButtonProps) {
+  const bottomCss = `calc(${bottomSheetHeightPx}px + 0.75rem)`;
   const [open, setOpen] = useState(false);
   const [starting, setStarting] = useState(false);
 
@@ -61,7 +63,8 @@ export function StartLiveMapButton({
       <button
         type="button"
         onClick={openConfirm}
-        className={`absolute left-1/2 -translate-x-1/2 z-40 flex items-center justify-center gap-2 min-w-[10.75rem] px-5 sm:px-6 py-2.5 sm:py-3 rounded-full font-bold text-white text-xs sm:text-sm shadow-lg shadow-red-900/40 border border-red-400/30 active:scale-95 transition-[transform,background-color,bottom] duration-200 ${mapBottomClass} ${
+        style={{ bottom: bottomCss }}
+        className={`absolute left-1/2 -translate-x-1/2 z-40 grid grid-cols-[auto_1fr_auto] items-center gap-x-2 min-w-[10.75rem] px-5 sm:px-6 py-2.5 sm:py-3 rounded-full font-bold text-white text-xs sm:text-sm shadow-lg shadow-red-900/40 border border-red-400/30 active:scale-95 transition-[transform,background-color] duration-200 ${
           myLive
             ? 'bg-red-600/95 hover:bg-red-500'
             : 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500'
@@ -71,7 +74,8 @@ export function StartLiveMapButton({
         <span
           className={`w-2 h-2 shrink-0 rounded-full bg-white ${myLive ? 'animate-pulse' : ''}`}
         />
-        <span className="truncate">{myLive ? 'Mon LIVE' : 'Démarrer LIVE'}</span>
+        <span className="truncate text-center">{myLive ? 'Mon LIVE' : 'Démarrer LIVE'}</span>
+        <span className="w-2 shrink-0" aria-hidden />
       </button>
 
       {open && (

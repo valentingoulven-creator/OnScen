@@ -3,6 +3,9 @@ import {
   nativeShareLink,
   openEmailShare,
   openMessengerShare,
+  openSmsShare,
+  openTwitterShare,
+  openWhatsAppShare,
 } from '../lib/shareLink';
 
 export interface ShareLinkMenuProps {
@@ -15,14 +18,24 @@ export interface ShareLinkMenuProps {
   onShared?: () => void | Promise<void>;
 }
 
-const MENU_ITEMS = [
+const SHARE_ITEMS = [
+  { id: 'whatsapp', label: 'WhatsApp' },
+  { id: 'messenger', label: 'Messenger' },
+  { id: 'sms', label: 'SMS' },
+  { id: 'email', label: 'E-mail' },
   { id: 'copy', label: 'Copier le lien' },
-  { id: 'share', label: 'Partager' },
-  { id: 'email', label: 'Envoyer par mail' },
-  { id: 'messenger', label: 'Envoyer sur Messenger' },
+  { id: 'twitter', label: 'X' },
 ] as const;
 
-type ShareAction = (typeof MENU_ITEMS)[number]['id'];
+const NATIVE_ITEM = { id: 'native', label: "Plus d'options..." } as const;
+
+type ShareAction =
+  | (typeof SHARE_ITEMS)[number]['id']
+  | (typeof NATIVE_ITEM)['id'];
+
+function canNativeShare(): boolean {
+  return typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+}
 
 export function ShareLinkMenu({
   open,
@@ -34,6 +47,8 @@ export function ShareLinkMenu({
   onShared,
 }: ShareLinkMenuProps) {
   if (!open) return null;
+
+  const menuItems = canNativeShare() ? [...SHARE_ITEMS, NATIVE_ITEM] : SHARE_ITEMS;
 
   const runShared = () => {
     void onShared?.();
@@ -47,15 +62,11 @@ export function ShareLinkMenu({
         if (ok) runShared();
         break;
       }
-      case 'share': {
+      case 'native': {
         const result = await nativeShareLink({ url, title, text });
         if (result === 'shared') {
           onToast('Partagé !');
           runShared();
-        } else if (result === 'unavailable') {
-          const ok = await copyShareLink(url);
-          onToast(ok ? 'Lien copié !' : 'Partage non disponible');
-          if (ok) runShared();
         }
         break;
       }
@@ -67,6 +78,24 @@ export function ShareLinkMenu({
       }
       case 'messenger': {
         openMessengerShare(url);
+        onToast('Partagé !');
+        runShared();
+        break;
+      }
+      case 'whatsapp': {
+        openWhatsAppShare(url, text);
+        onToast('Partagé !');
+        runShared();
+        break;
+      }
+      case 'sms': {
+        openSmsShare(url, text);
+        onToast('Partagé !');
+        runShared();
+        break;
+      }
+      case 'twitter': {
+        openTwitterShare(url, text);
         onToast('Partagé !');
         runShared();
         break;
@@ -93,7 +122,7 @@ export function ShareLinkMenu({
           </button>
         </div>
         <ul className="py-2">
-          {MENU_ITEMS.map((item) => (
+          {menuItems.map((item) => (
             <li key={item.id}>
               <button
                 type="button"

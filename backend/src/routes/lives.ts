@@ -4,8 +4,15 @@ import { authenticateJWT } from '../middleware/auth';
 import { blurCoordinate, getDistanceKm } from '../lib/geo';
 import { getPublicMapCoords, userSharesDistance } from '../lib/locationPrivacy';
 import { notifyFollowersLiveStarted } from '../lib/follows';
+import { notifyFavoritesLiveStarted } from '../lib/favorites';
 import { publicSalon } from './salons';
 import { isLiveViewBanned, liveBanMessage, getLiveBan } from '../lib/liveBans';
+import {
+  LIVES_LIST_MAX,
+  parseDistanceFilterQuery,
+  resolveNearbyRadiusKm,
+} from '../lib/geoLimits';
+import { DEFAULT_MAP_LAT, DEFAULT_MAP_LON, isValidLatLng } from '../lib/mapCoords';
 
 export const livesRouter = Router();
 
@@ -16,8 +23,9 @@ livesRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
   const lat = hasGeoFilter ? parseFloat(latStr!) : NaN;
   const lon = hasGeoFilter ? parseFloat(lonStr!) : NaN;
   const radiusKm = parseFloat((req.query.radiusKm as string) || '50');
+  const distanceFilter = parseDistanceFilterQuery(req.query.distanceFilter as string | undefined);
 
-  if (hasGeoFilter && (Number.isNaN(lat) || Number.isNaN(lon))) {
+  if (hasGeoFilter && !isValidLatLng(lat, lon)) {
     res.status(400).json({ error: 'latitude et longitude invalides' });
     return;
   }
@@ -25,7 +33,8 @@ livesRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
   const active = [...db.lives.values()].filter((l) => l.isActive);
 
   if (hasGeoFilter) {
-    const r = Number.isFinite(radiusKm) && radiusKm > 0 ? radiusKm : 50;
+    const maxRadiusKm = resolveNearbyRadiusKm(radiusKm, distanceFilter);
+    const withinRadius = (d: number) => maxRadiusKm == null || d <= maxRadiusKm;
     const me = (req as Request & { user: { id: string } }).user.id;
     const filtered = active
       .map((l) => {
@@ -40,23 +49,25 @@ livesRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
           distanceKm: getDistanceKm(lat, lon, coords.latitude, coords.longitude),
         };
       })
-      .filter(({ distanceKm }) => distanceKm <= r)
+      .filter(
+        ({ distanceKm, live: l }) =>
+          withinRadius(distanceKm) && isValidLatLng(l.latitude, l.longitude)
+      )
       .sort((a, b) => a.distanceKm - b.distanceKm);
 
     res.json({
-      lives: filtered.map(({ live, host, distanceKm }) =>
-        publicLive(live, host && userSharesDistance(host) ? distanceKm : undefined, me)
-      ),
+      lives: filtered
+        .slice(0, LIVES_LIST_MAX)
+        .map(({ live, host, distanceKm }) =>
+          publicLive(live, host && userSharesDistance(host) ? distanceKm : undefined, me)
+        ),
     });
     return;
   }
 
   const me = (req as Request & { user: { id: string } }).user.id;
-  res.json({ lives: active.map((l) => publicLive(l, undefined, me)) });
+  res.json({ lives: active.slice(0, LIVES_LIST_MAX).map((l) => publicLive(l, undefined, me)) });
 });
-
-const DEFAULT_MAP_LAT = 48.8566;
-const DEFAULT_MAP_LON = 2.3522;
 
 function resolveStartCoordinates(
   user: { latitude?: number; longitude?: number },
@@ -67,8 +78,8 @@ function resolveStartCoordinates(
   if (Number.isFinite(bodyLat) && Number.isFinite(bodyLon)) {
     return { latitude: bodyLat, longitude: bodyLon };
   }
-  if (user.latitude != null && user.longitude != null) {
-    return { latitude: user.latitude, longitude: user.longitude };
+  if (isValidLatLng(user.latitude, user.longitude)) {
+    return { latitude: user.latitude!, longitude: user.longitude! };
   }
   return { latitude: DEFAULT_MAP_LAT, longitude: DEFAULT_MAP_LON };
 }
@@ -77,7 +88,7 @@ function defaultStandalonePlayback(hostName: string, platform: MusicPlatform) {
   return {
     platform,
     trackId: 'demo',
-    title: 'MeloSong Session',
+    title: 'Soundly Session',
     artist: hostName,
     albumArtUrl: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=400',
     isPlaying: true,
@@ -104,6 +115,7 @@ livesRouter.post('/start', authenticateJWT, (req: Request, res: Response) => {
   let live: Live;
 
   if (salon) {
+    /** playbackState reprend le salon (métadonnées morceau) ; la vidéo YouTube reste côté SalonPage, pas LivePage. */
     live = {
       id: salon.id,
       salonId: salon.id,
@@ -146,7 +158,10 @@ livesRouter.post('/start', authenticateJWT, (req: Request, res: Response) => {
   db.liveChats.set(live.id, []);
   db.liveBans.set(live.id, new Map());
   const host = db.users.get(live.hostId);
-  if (host) notifyFollowersLiveStarted(live, host);
+  if (host) {
+    notifyFollowersLiveStarted(live, host);
+    notifyFavoritesLiveStarted(host, live);
+  }
   res.status(201).json({ live: publicLive(live, undefined, userId) });
 });
 
@@ -199,6 +214,9 @@ function publicLive(l: Live, distanceKm?: number, viewerId?: string) {
     salonId: l.salonId,
     hostId: l.hostId,
     hostName: l.hostName,
+    hostUsernameColor: host?.usernameColor,
+    hostUsernameWaveFrom: host?.usernameWaveFrom,
+    hostUsernameWaveTo: host?.usernameWaveTo,
     title: l.title,
     platform: l.platform,
     playbackState: l.playbackState,

@@ -1,5 +1,7 @@
-const MAX_IMAGE_DIMENSION = 800;
-const JPEG_QUALITY = 0.82;
+import { PROFILE_PHOTO_JPEG_QUALITY, PROFILE_PHOTO_MAX_DIMENSION } from './profileImageProcessing';
+
+const MAX_IMAGE_DIMENSION = PROFILE_PHOTO_MAX_DIMENSION;
+const JPEG_QUALITY = PROFILE_PHOTO_JPEG_QUALITY;
 /** Marge sous la limite express.json (2 Mo) pour le corps JSON complet. */
 export const MAX_PROFILE_PAYLOAD_CHARS = 1_900_000;
 

@@ -2,9 +2,12 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { getAppRoot } from './paths';
+import { getAppRoot, isPackaged } from './paths';
 
 function getMsdevCertDir(): string {
+  if (isPackaged) {
+    return path.join(getAppRoot(), 'certs');
+  }
   const packaged = path.join(getAppRoot(), 'certs');
   if (fs.existsSync(packaged)) return packaged;
   return path.resolve(__dirname, '../../msdev/certs');

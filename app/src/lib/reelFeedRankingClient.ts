@@ -7,6 +7,71 @@ import {
 } from './reelFeedAlgorithm';
 
 const LAST_REELS_TAB_START_KEY = 'melosong_reels_last_tab_start_id';
+const REELS_SESSION_SEED_KEY = 'melosong_reels_shuffle_seed';
+
+function fisherYatesShuffle<T>(items: T[], random: () => number): T[] {
+  const arr = items.slice();
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function sessionShuffleSeed(): number {
+  try {
+    const stored = sessionStorage.getItem(REELS_SESSION_SEED_KEY);
+    if (stored) {
+      const n = parseInt(stored, 10);
+      if (Number.isFinite(n)) return n;
+    }
+  } catch {
+    /* ignore */
+  }
+  return Date.now() ^ (Math.random() * 1e9 | 0);
+}
+
+function seededRandom(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (Math.imul(1664525, state) + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+}
+
+export function refreshReelsShuffleSeed(): void {
+  try {
+    sessionStorage.setItem(REELS_SESSION_SEED_KEY, String(Date.now() ^ (Math.random() * 1e9 | 0)));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Algorithme Soundly par défaut ou msdev → ordre aléatoire (Fisher-Yates, graine session). */
+export function shouldShuffleReelsFeed(
+  prefs: ReelFeedAlgorithmPreferences,
+  msdev: boolean
+): boolean {
+  return msdev || prefs.useBuiltInAlgorithm;
+}
+
+export function shuffleReelsFeedIfNeeded(
+  reels: MusicReel[],
+  prefs: ReelFeedAlgorithmPreferences,
+  msdev: boolean,
+  options?: { refreshSeed?: boolean }
+): MusicReel[] {
+  if (reels.length <= 1 || !shouldShuffleReelsFeed(prefs, msdev)) return reels.slice();
+  if (options?.refreshSeed) refreshReelsShuffleSeed();
+  else {
+    try {
+      if (!sessionStorage.getItem(REELS_SESSION_SEED_KEY)) refreshReelsShuffleSeed();
+    } catch {
+      /* ignore */
+    }
+  }
+  return fisherYatesShuffle(reels, seededRandom(sessionShuffleSeed()));
+}
 
 export function readLastTabStartReelId(): string | null {
   try {

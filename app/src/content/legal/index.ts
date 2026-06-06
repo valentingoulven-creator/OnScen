@@ -7,7 +7,7 @@ import { conditionsApiPlateformes } from './apiPlatforms';
 import { licences } from './licenses';
 
 export type { LegalDocument, LegalKey, LegalSection } from './types';
-export { LEGAL_CONTACT_EMAIL, LEGAL_PRIVACY_EMAIL } from './types';
+export { LEGAL_CONTACT_EMAIL, LEGAL_PRIVACY_EMAIL, CURRENT_TERMS_VERSION } from './types';
 
 export const LEGAL: Record<LegalKey, LegalDocument> = {
   mentions: mentionsLegales,

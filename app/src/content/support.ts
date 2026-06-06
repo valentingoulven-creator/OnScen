@@ -1,7 +1,7 @@
 export const SUPPORT = {
-  title: 'Soutenir MeloSong',
+  title: 'Soutenir Soundly',
   intro:
-    'MeloSong est un projet indie autour de l’écoute partagée — salons, lives et carte. Un petit coup de pouce aide à faire vivre l’app et à la faire grandir.',
+    'Soundly est un projet indie autour de l’écoute partagée — salons, lives et carte. Un petit coup de pouce aide à faire vivre l’app et à la faire grandir.',
   demoNote: 'Mode démo (msdev) : montants symboliques, aucun paiement réel.',
   amounts: [3, 5, 10] as const,
   thankYou: (amount: number) => `Merci pour votre soutien symbolique de ${amount} € ! 💜`,
@@ -16,5 +16,3 @@ export const SUPPORT = {
   clickCount: (n: number) =>
     n === 1 ? '1 geste de soutien enregistré (démo)' : `${n} gestes de soutien enregistrés (démo)`,
 } as const;
-
-export const MELOSONG_SHARE_URL = 'https://melosong.app';

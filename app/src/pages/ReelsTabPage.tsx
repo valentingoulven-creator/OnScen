@@ -20,9 +20,28 @@ import {
   pickNextStartIndex,
   readLastTabStartReelId,
   rememberTabStartReelId,
+  shuffleReelsFeedIfNeeded,
+  refreshReelsShuffleSeed,
+  shouldShuffleReelsFeed,
 } from '../lib/reelFeedRankingClient';
 import { SETTINGS_CHANGED_EVENT } from '../lib/settings';
-import { pauseAllReelsMediaInDom } from '../lib/reelsMedia';
+import { AccelerateBadge } from '../components/AccelerateBadge';
+import {
+  applyReelsUserPrefsFilter,
+  DEFAULT_REELS_USER_PREFS,
+  readReelsUserPrefs,
+  REEL_GENRES_LIST,
+  writeReelsUserPrefs,
+  type ReelsUserPrefs,
+} from '../lib/reelsUserPrefs';
+import { useHoldToAccelerate } from '../hooks/useHoldToAccelerate';
+import {
+  getAppMediaOwner,
+  releaseAppMediaFocus,
+  requestAppMediaFocus,
+  subscribeAppMediaFocus,
+} from '../lib/appMediaFocus';
+import { pauseAllReelsMediaInDom, pauseInactiveReelsMediaInDom } from '../lib/reelsMedia';
 import { getSocket } from '../lib/socket';
 import type { ReelComment, ReelStats } from '../types';
 
@@ -40,17 +59,20 @@ function isCenterTap(clientX: number, clientY: number, rect: DOMRect): boolean {
   return relX >= CENTER_TAP_MIN && relX <= CENTER_TAP_MAX && relY >= CENTER_TAP_MIN && relY <= CENTER_TAP_MAX;
 }
 
+/** Préférence persistante (localStorage) : absent = son activé par défaut ; '0' = muet ; '1' = son activé. */
 function readReelsUnmutedPreference(): boolean {
   try {
-    return sessionStorage.getItem(REELS_UNMUTED_KEY) === '1';
+    const stored = localStorage.getItem(REELS_UNMUTED_KEY);
+    if (stored === null) return true;
+    return stored === '1';
   } catch {
-    return false;
+    return true;
   }
 }
 
 function persistReelsUnmutedPreference(unmuted: boolean) {
   try {
-    sessionStorage.setItem(REELS_UNMUTED_KEY, unmuted ? '1' : '0');
+    localStorage.setItem(REELS_UNMUTED_KEY, unmuted ? '1' : '0');
   } catch {
     /* ignore */
   }
@@ -78,6 +100,7 @@ function seekToStart(...elements: (HTMLMediaElement | null | undefined)[]) {
   }
 }
 
+/** Autoplay avec son souvent bloqué : repli muet, puis unmute au tap / swipe / onglet Reels. */
 async function playMediaElement(el: HTMLMediaElement, wantMuted: boolean): Promise<void> {
   el.muted = wantMuted;
   el.volume = wantMuted ? 0 : 1;
@@ -86,6 +109,7 @@ async function playMediaElement(el: HTMLMediaElement, wantMuted: boolean): Promi
   } catch {
     if (!wantMuted) {
       el.muted = true;
+      el.volume = 0;
       try {
         await el.play();
       } catch {
@@ -95,22 +119,36 @@ async function playMediaElement(el: HTMLMediaElement, wantMuted: boolean): Promi
   }
 }
 
-/** One active reel: Mixkit b-roll (muted) + optional MP3 started together at 0. */
+/** One active reel: Mixkit b-roll (muted) + optional MP3. fromStart=false reprend la position courante. */
 async function playActiveReelMedia(
   reel: MusicReel,
   video: HTMLVideoElement,
   audio: HTMLAudioElement | null,
   wantMuted: boolean,
-  isStale: () => boolean
+  isStale: () => boolean,
+  fromStart: boolean
 ) {
   if (isStale()) return;
   const separateAudio = !!reel.audioUrl?.trim();
+  const videoMuted = separateAudio || wantMuted;
+  const alreadyPlaying =
+    !fromStart &&
+    !video.paused &&
+    video.currentTime > 0.05 &&
+    (!separateAudio || (audio != null && !audio.paused));
+
+  if (alreadyPlaying) {
+    applyVideoAudio(video, wantMuted, separateAudio);
+    if (audio) applyReelAudio(audio, wantMuted);
+    return;
+  }
+
   video.pause();
   audio?.pause();
-  seekToStart(video, audio);
+  if (fromStart) seekToStart(video, audio);
   applyVideoAudio(video, wantMuted, separateAudio);
   if (audio) applyReelAudio(audio, wantMuted);
-  await playMediaElement(video, separateAudio || wantMuted);
+  await playMediaElement(video, videoMuted);
   if (isStale()) {
     video.pause();
     audio?.pause();
@@ -166,6 +204,7 @@ export function ReelsTabPage({
   const playGenerationRef = useRef(0);
   const playScheduleRef = useRef<number | null>(null);
   const scrollSettleTimerRef = useRef<number | null>(null);
+  const lastScheduledReelIdRef = useRef<string | null>(null);
   const [scrollSnapDuringTouch, setScrollSnapDuringTouch] = useState(false);
   const reelsRef = useRef(reels);
   reelsRef.current = reels;
@@ -189,6 +228,7 @@ export function ReelsTabPage({
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
   const initialScrollDone = useRef(false);
   const viewedReelsThisSession = useRef(new Set<string>());
+  const [algoSheetOpen, setAlgoSheetOpen] = useState(false);
 
   const activeReel = reels[activeIndex];
 
@@ -257,15 +297,28 @@ export function ReelsTabPage({
   }, []);
 
   const refreshFeedWithStart = useCallback(
-    async (options?: { skipStartIndex?: boolean; silent?: boolean }) => {
+    async (options?: { skipStartIndex?: boolean; silent?: boolean; refreshShuffle?: boolean }) => {
       const prefs = getFeedAlgorithmPreferences();
+      const msdev = isMsdevEnvironment();
       const skipStart = options?.skipStartIndex === true || !!initialReelId;
       const showLoading = !options?.silent || feedReelsRef.current.length === 0;
 
-      if (!token) {
-        const feed = applyClientFeedRanking(buildReelsFeed([]), prefs);
+      const finalizeFeed = (raw: MusicReel[]) => {
+        const userPrefs = readReelsUserPrefs();
+        const filtered = applyReelsUserPrefsFilter(raw, userPrefs);
+        const feed = shuffleReelsFeedIfNeeded(filtered, prefs, msdev, {
+          refreshSeed: options?.refreshShuffle === true,
+        });
         setFeedReels(feed);
         if (!skipStart) applyAlgorithmStartIndex(feed);
+      };
+
+      if (!token) {
+        let feed = buildReelsFeed([]);
+        if (!shouldShuffleReelsFeed(prefs, msdev)) {
+          feed = applyClientFeedRanking(feed, prefs);
+        }
+        finalizeFeed(feed);
         setFeedLoading(false);
         return;
       }
@@ -273,13 +326,13 @@ export function ReelsTabPage({
       if (showLoading) setFeedLoading(true);
       try {
         const r = await api.getReelsFeed(token, prefs);
-        const feed = resolveReelsFeed(r.reels);
-        setFeedReels(feed);
-        if (!skipStart) applyAlgorithmStartIndex(feed);
+        finalizeFeed(resolveReelsFeed(r.reels));
       } catch {
-        const feed = applyClientFeedRanking(buildReelsFeed([]), prefs);
-        setFeedReels(feed);
-        if (!skipStart) applyAlgorithmStartIndex(feed);
+        let feed = buildReelsFeed([]);
+        if (!shouldShuffleReelsFeed(prefs, msdev)) {
+          feed = applyClientFeedRanking(feed, prefs);
+        }
+        finalizeFeed(feed);
       } finally {
         setFeedLoading(false);
       }
@@ -302,12 +355,14 @@ export function ReelsTabPage({
     }
 
     if (entered) {
+      if (isMsdevEnvironment()) refreshReelsShuffleSeed();
       if (!initialReelId && feedReelsRef.current.length > 0) {
         applyAlgorithmStartIndex(feedReelsRef.current);
       }
       void refreshFeedWithStart({
         skipStartIndex: true,
         silent: true,
+        refreshShuffle: isMsdevEnvironment(),
       });
     }
   }, [isActive, initialReelId, refreshFeedWithStart, applyAlgorithmStartIndex]);
@@ -365,7 +420,8 @@ export function ReelsTabPage({
         clearTimeout(playScheduleRef.current);
         playScheduleRef.current = null;
       }
-      pauseAllReelsMediaInDom();
+      const nextReelId = reelsRef.current[clamped]?.id;
+      if (nextReelId) pauseInactiveReelsMediaInDom(nextReelId);
     }
     setActiveIndex(clamped);
     if (scrollSettleTimerRef.current) clearTimeout(scrollSettleTimerRef.current);
@@ -463,6 +519,15 @@ export function ReelsTabPage({
   const isActiveRef = useRef(isActive);
   isActiveRef.current = isActive;
 
+  useEffect(() => {
+    if (!isActive) {
+      releaseAppMediaFocus('reels');
+      return;
+    }
+    requestAppMediaFocus('reels');
+    return () => releaseAppMediaFocus('reels');
+  }, [isActive]);
+
   const reelHasSeparateAudio = useCallback((reel: MusicReel | undefined) => !!reel?.audioUrl?.trim(), []);
 
   const applyMuteStateToAllRefs = useCallback((wantMuted: boolean) => {
@@ -499,6 +564,7 @@ export function ReelsTabPage({
         /* ignore */
       }
       applyVideoAudio(video, true, separateAudio);
+      video.playbackRate = 1;
     });
     audioRefsById.current.forEach((audio) => {
       audio.pause();
@@ -512,6 +578,14 @@ export function ReelsTabPage({
     });
     pauseAllReelsMediaInDom();
   }, [reelHasSeparateAudio, cancelPlayRetry]);
+
+  useEffect(() => {
+    return subscribeAppMediaFocus((owner) => {
+      if ((owner === 'salon' || owner === 'live') && isActiveRef.current) {
+        stopAllReelsMedia();
+      }
+    });
+  }, [stopAllReelsMedia]);
 
   const pauseInactiveReelsMedia = useCallback(
     (activeId: string) => {
@@ -527,6 +601,7 @@ export function ReelsTabPage({
           /* ignore */
         }
         applyVideoAudio(video, true, reelSeparateAudio);
+        video.playbackRate = 1;
       });
       audioRefsById.current.forEach((audio, reelId) => {
         if (reelId === activeId) return;
@@ -544,9 +619,14 @@ export function ReelsTabPage({
   );
 
   const playActiveReel = useCallback(
-    (index: number, wantMuted: boolean) => {
+    (index: number, wantMuted: boolean, fromStart = false) => {
       if (!isActiveRef.current) {
         stopAllReelsMedia();
+        return;
+      }
+
+      const owner = getAppMediaOwner();
+      if (owner != null && owner !== 'reels') {
         return;
       }
 
@@ -579,24 +659,31 @@ export function ReelsTabPage({
         playRetryRef.current = requestAnimationFrame(() => {
           playRetryRef.current = null;
           if (isStale()) return;
-          playActiveReel(index, wantMuted);
+          playActiveReel(index, wantMuted, fromStart);
         });
         return;
       }
 
       cancelPlayRetry();
-      void playActiveReelMedia(active, video, separateAudio ? audio ?? null : null, wantMuted, isStale);
+      void playActiveReelMedia(
+        active,
+        video,
+        separateAudio ? audio ?? null : null,
+        wantMuted,
+        isStale,
+        fromStart
+      );
     },
     [reelHasSeparateAudio, stopAllReelsMedia, cancelPlayRetry, pauseInactiveReelsMedia]
   );
 
   const schedulePlayActiveReel = useCallback(
-    (delayMs = 48) => {
+    (delayMs = 48, fromStart = true) => {
       if (playScheduleRef.current) clearTimeout(playScheduleRef.current);
       playScheduleRef.current = window.setTimeout(() => {
         playScheduleRef.current = null;
         if (!isActiveRef.current) return;
-        playActiveReel(activeIndexRef.current, mutedRef.current);
+        playActiveReel(activeIndexRef.current, mutedRef.current, fromStart);
       }, delayMs);
     },
     [playActiveReel]
@@ -674,8 +761,10 @@ export function ReelsTabPage({
     }
     if (playbackPausedRef.current) return;
     playGenerationRef.current += 1;
-    pauseAllReelsMediaInDom();
-    schedulePlayActiveReel();
+    const reelId = activeReel?.id ?? null;
+    const fromStart = reelId != null && lastScheduledReelIdRef.current !== reelId;
+    lastScheduledReelIdRef.current = reelId;
+    schedulePlayActiveReel(48, fromStart);
     return () => {
       if (playScheduleRef.current) clearTimeout(playScheduleRef.current);
     };
@@ -683,11 +772,16 @@ export function ReelsTabPage({
 
   useEffect(() => {
     if (!isActive) return;
-    if (playbackPausedRef.current) return;
-    playGenerationRef.current += 1;
-    pauseAllReelsMediaInDom();
-    playActiveReel(activeIndexRef.current, mutedRef.current);
-  }, [muted, isActive, playActiveReel]);
+    applyMuteStateToAllRefs(mutedRef.current);
+  }, [muted, isActive, applyMuteStateToAllRefs]);
+
+  const wasReelsTabActiveRef = useRef(isActive);
+  useEffect(() => {
+    const entered = isActive && !wasReelsTabActiveRef.current;
+    wasReelsTabActiveRef.current = isActive;
+    if (!entered || mutedRef.current || playbackPausedRef.current) return;
+    playActiveReel(activeIndexRef.current, false);
+  }, [isActive, playActiveReel]);
 
   useEffect(() => {
     return () => {
@@ -714,13 +808,13 @@ export function ReelsTabPage({
   }, [shareToast]);
 
   const onTouchStart = (e: React.TouchEvent) => {
+    if ((e.target as HTMLElement).closest('video')) return;
     playGenerationRef.current += 1;
     cancelPlayRetry();
     if (playScheduleRef.current) {
       clearTimeout(playScheduleRef.current);
       playScheduleRef.current = null;
     }
-    pauseAllReelsMediaInDom();
     touchActive.current = true;
     setScrollSnapDuringTouch(true);
     touchStartX.current = e.touches[0]?.clientX ?? null;
@@ -729,8 +823,14 @@ export function ReelsTabPage({
 
   const onTouchEnd = (e: React.TouchEvent) => {
     const endX = e.changedTouches[0]?.clientX ?? touchStartX.current ?? 0;
+    const startX = touchStartX.current;
+    const movedPx = startX != null ? Math.abs(startX - endX) : 0;
+    const wasSwipe = movedPx > TAP_MOVE_THRESHOLD_PX;
     finishTouchGesture(endX);
     setScrollSnapDuringTouch(false);
+    if (wasSwipe && !mutedRef.current && isActive && !playbackPausedRef.current) {
+      playActiveReel(activeIndexRef.current, false, false);
+    }
   };
 
   const onTouchCancel = () => {
@@ -856,6 +956,31 @@ export function ReelsTabPage({
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full bg-black/80 border border-white/15 text-sm text-white backdrop-blur">
           {shareToast}
         </div>
+      )}
+
+      {activeReel && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setAlgoSheetOpen(true);
+          }}
+          className="absolute top-4 right-3 z-20 w-9 h-9 rounded-full bg-black/50 border border-white/20 backdrop-blur-sm flex items-center justify-center text-base hover:bg-black/70 transition-colors"
+          aria-label="Personnaliser le feed"
+          title="Personnaliser mon feed"
+        >
+          ⚙️
+        </button>
+      )}
+
+      {algoSheetOpen && (
+        <ReelsAlgoSheet
+          onClose={() => setAlgoSheetOpen(false)}
+          onSaved={() => {
+            clearLastTabStartReelId();
+            void refreshFeedWithStart({ skipStartIndex: false });
+          }}
+        />
       )}
 
       {activeHasSound && (
@@ -1205,8 +1330,29 @@ function ReelSlide({
     setCurrentTimeSec((prev) => (prev === sec ? prev : sec));
   };
 
+  const { accelerating, handlers: holdHandlers, stopAccelerating } = useHoldToAccelerate({
+    enabled: isActive && !showPosterOnly,
+    getMedia: () => ({
+      video: localVideoRef.current,
+      audio: separateAudio ? pairedAudioRef.current : null,
+    }),
+  });
+
+  useEffect(() => {
+    const el = localVideoRef.current;
+    if (!el || !accelerating) return;
+    const preventScroll = (e: TouchEvent) => e.preventDefault();
+    el.addEventListener('touchmove', preventScroll, { passive: false });
+    return () => el.removeEventListener('touchmove', preventScroll);
+  }, [accelerating]);
+
+  useEffect(() => {
+    if (!isActive) stopAccelerating();
+  }, [isActive, stopAccelerating]);
+
   const handleVideoPointerDown = (e: React.PointerEvent<HTMLVideoElement>) => {
     if (!isActive) return;
+    holdHandlers.onPointerDown(e);
     pointerStartRef.current = { x: e.clientX, y: e.clientY };
     const rect = e.currentTarget.getBoundingClientRect();
     centerTouchRef.current = isCenterTap(e.clientX, e.clientY, rect);
@@ -1218,6 +1364,14 @@ function ReelSlide({
   const handleVideoPointerUp = (e: React.PointerEvent<HTMLVideoElement>) => {
     if (!isActive) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+    const wasAccelerating = holdHandlers.onPointerUp();
+    if (wasAccelerating) {
+      pointerStartRef.current = null;
+      centerTouchRef.current = false;
+      e.stopPropagation();
+      return;
+    }
 
     const start = pointerStartRef.current;
     pointerStartRef.current = null;
@@ -1243,6 +1397,7 @@ function ReelSlide({
   return (
     <section
       className="reel-slide relative snap-start snap-always bg-black self-stretch"
+      data-reel-id={reel.id}
       aria-label={`${reel.title} — ${reel.artist}`}
     >
       {showPosterOnly ? (
@@ -1274,6 +1429,8 @@ function ReelSlide({
             preload={isActive ? 'auto' : 'none'}
             onPointerDown={handleVideoPointerDown}
             onPointerUp={handleVideoPointerUp}
+            onPointerLeave={holdHandlers.onPointerLeave}
+            onPointerCancel={holdHandlers.onPointerCancel}
             onTouchStart={(e) => {
               if (!isActive) return;
               const touch = e.touches[0];
@@ -1317,6 +1474,7 @@ function ReelSlide({
           )}
         </>
       )}
+      <AccelerateBadge visible={accelerating && isActive && !showPosterOnly} />
       {showPlaybackPaused && isActive && !showPosterOnly && (
         <div
           className="absolute inset-0 z-[5] pointer-events-none flex items-center justify-center"
@@ -1356,5 +1514,184 @@ function ReelSlide({
         </div>
       </div>
     </section>
+  );
+}
+
+function ReelsAlgoSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const [prefs, setPrefs] = useState<ReelsUserPrefs>(() => readReelsUserPrefs());
+
+  const toggleGenre = (genre: string) => {
+    setPrefs((p) => ({
+      ...p,
+      genres: p.genres.includes(genre) ? p.genres.filter((g) => g !== genre) : [...p.genres, genre],
+    }));
+  };
+
+  const save = () => {
+    writeReelsUserPrefs(prefs);
+    onSaved();
+    onClose();
+  };
+
+  const reset = () => {
+    const fresh = { ...DEFAULT_REELS_USER_PREFS };
+    setPrefs(fresh);
+    writeReelsUserPrefs(fresh);
+    onSaved();
+    onClose();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end bg-black/60 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="reels-algo-title"
+    >
+      <button type="button" className="absolute inset-0" aria-label="Fermer" onClick={onClose} />
+      <div className="relative w-full max-h-[80dvh] bg-[#12121a] border-t border-[#2d2d3d] rounded-t-2xl flex flex-col safe-area-pb">
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full bg-[#3d3d55]" />
+        </div>
+
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#1e1e2f]">
+          <h2 id="reels-algo-title" className="font-bold text-white text-sm flex items-center gap-2">
+            🎛️ Personnaliser mon feed
+          </h2>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-white px-2" aria-label="Fermer">
+            ✕
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+          <section className="rounded-xl bg-gradient-to-br from-pink-600/20 to-[#1a1a28] border border-pink-500/40 px-4 py-3.5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-base font-semibold text-white">Algo Soundly</p>
+                <p className="text-xs text-gray-300 mt-0.5">Personnalise ton feed selon tes goûts</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={prefs.algoEnabled}
+                onClick={() => setPrefs((p) => ({ ...p, algoEnabled: !p.algoEnabled }))}
+                className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors ${
+                  prefs.algoEnabled ? 'bg-pink-600' : 'bg-[#3d3d55]'
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                    prefs.algoEnabled ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          </section>
+
+          <section>
+            <h3 className="text-xs font-semibold text-pink-300 uppercase tracking-widest mb-2">
+              Genres musicaux
+            </h3>
+            <p className="text-xs text-gray-400 mb-3">
+              Sélectionne tes genres préférés (laisse vide pour tout voir).
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {REEL_GENRES_LIST.map((genre) => {
+                const active = prefs.genres.includes(genre);
+                return (
+                  <button
+                    key={genre}
+                    type="button"
+                    onClick={() => toggleGenre(genre)}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                      active
+                        ? 'bg-pink-600 border-pink-500 text-white'
+                        : 'bg-[#1a1a28] border-[#2d2d3d] text-gray-300 hover:border-pink-500/50'
+                    }`}
+                    aria-pressed={active}
+                  >
+                    {genre}
+                  </button>
+                );
+              })}
+            </div>
+            {prefs.genres.length > 0 && (
+              <p className="text-xs text-pink-400/70 mt-2">
+                {prefs.genres.length} genre{prefs.genres.length > 1 ? 's' : ''} sélectionné
+                {prefs.genres.length > 1 ? 's' : ''}
+              </p>
+            )}
+          </section>
+
+          <section>
+            <h3 className="text-xs font-semibold text-pink-300 uppercase tracking-widest mb-3">
+              Langue des reels
+            </h3>
+            <div className="flex gap-2">
+              {(['all', 'fr', 'en'] as const).map((lang) => {
+                const labels: Record<typeof lang, string> = { all: 'Tout', fr: 'Français', en: 'English' };
+                const active = prefs.language === lang;
+                return (
+                  <button
+                    key={lang}
+                    type="button"
+                    onClick={() => setPrefs((p) => ({ ...p, language: lang }))}
+                    className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${
+                      active
+                        ? 'bg-pink-600 border-pink-500 text-white'
+                        : 'bg-[#1a1a28] border-[#2d2d3d] text-gray-300 hover:border-pink-500/50'
+                    }`}
+                    aria-pressed={active}
+                  >
+                    {labels[lang]}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <section>
+            <div className="flex items-center justify-between rounded-xl bg-[#1a1a28] border border-[#2d2d3d] px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-white">Créateurs proches</p>
+                <p className="text-xs text-gray-400 mt-0.5">Afficher uniquement les créateurs près de moi 📍</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={prefs.nearbyOnly}
+                onClick={() => setPrefs((p) => ({ ...p, nearbyOnly: !p.nearbyOnly }))}
+                className={`relative flex-shrink-0 ml-3 w-11 h-6 rounded-full transition-colors ${
+                  prefs.nearbyOnly ? 'bg-pink-600' : 'bg-[#3d3d55]'
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                    prefs.nearbyOnly ? 'translate-x-5' : 'translate-x-0.5'
+                  }`}
+                />
+              </button>
+            </div>
+          </section>
+        </div>
+
+        <div className="flex gap-3 px-4 py-4 border-t border-[#1e1e2f]">
+          <button
+            type="button"
+            onClick={reset}
+            className="flex-1 py-2.5 rounded-xl border border-[#2d2d3d] text-sm text-gray-400 hover:text-white hover:border-pink-500/50 transition-colors"
+          >
+            Réinitialiser
+          </button>
+          <button
+            type="button"
+            onClick={save}
+            className="flex-1 py-2.5 rounded-xl bg-pink-600 text-white text-sm font-semibold hover:bg-pink-500 transition-colors"
+          >
+            Appliquer
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

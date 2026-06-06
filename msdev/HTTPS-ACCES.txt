@@ -1,0 +1,115 @@
+﻿# Accès HTTPS msdev (certificat auto-signé)
+
+MeloSong en mode `msdev:https` utilise un certificat **auto-signé** (développement uniquement).
+L’erreur **`NET::ERR_CERT_AUTHORITY_INVALID`** (ou « connexion non privée ») est **normale** : le navigateur ne connaît pas l’émetteur. Ce n’est **pas** un problème de SAN si vous avez régénéré le cert avec votre IP LAN.
+
+**Important :** gardez **HTTPS** pour la caméra (`getUserMedia` sur téléphone). Ne désactivez pas la sécurité du navigateur globalement. Il faut **accepter ce certificat une fois par navigateur et par appareil** (ou l’importer dans Windows, voir ci-dessous).
+
+Fichiers : `msdev/certs/dev-cert.pem` et `dev-key.pem`  
+Régénérer (si changement d’IP ou SAN manquant) :
+
+    powershell -ExecutionPolicy Bypass -File msdev\scripts\generate-dev-cert.ps1
+
+Puis relancer : `npm run msdev:https`
+
+URL typique LAN : `https://192.168.1.93:4080` (remplacez par l’IP affichée au démarrage du serveur).
+
+---
+
+## PC — Google Chrome, Microsoft Edge ou Opera / Opera GX
+
+Opera est basé sur Chromium : même procédure que Chrome pour le certificat et la caméra.
+
+1. Ouvrez l’URL HTTPS (ex. `https://192.168.1.93:4080` ou `https://localhost:4080`).
+2. Sur l’écran « Votre connexion n’est pas privée » / `ERR_CERT_AUTHORITY_INVALID` :
+   - Cliquez sur **Paramètres avancés** (ou **Advanced**).
+   - Cliquez sur **Continuer vers … (non sécurisé)** / **Proceed to … (unsafe)**.
+3. Rechargez la page si besoin. L’exception reste en général **pour ce site sur ce profil navigateur**.
+4. Si la caméra ne démarre pas : vérifiez que l’URL commence bien par `https://` et que vous avez bien passé l’écran d’avertissement.
+
+**Opera GX — bloqueur de publicités :** sur `localhost:4080`, désactivez le bloqueur pour ce site
+sinon l’API peut être bloquée (écran noir, session qui ne charge pas). Voir `msdev/NAVIGATEURS.txt`.
+
+**Alternative PC (moins de clics ensuite) — faire confiance au certificat dans Windows :**
+
+    powershell -ExecutionPolicy Bypass -File msdev\scripts\import-dev-cert.ps1
+
+(Uniquement sur **votre** machine de dev. Ne pas utiliser en production.)
+
+---
+
+## iPhone / iPad — Safari
+
+1. Connectez l’appareil au **même Wi‑Fi** que le PC qui héberge msdev.
+2. Dans Safari, ouvrez `https://<IP-du-PC>:4080` (ex. `https://192.168.1.93:4080`).
+3. Avertissement de confidentialité → appuyez sur **Afficher les détails** puis **visiter ce site web** / confirmer **Visiter le site web**.
+4. Si Safari redemande à chaque fois : Réglages → Général → Informations → **Certificats de confiance** (rarement nécessaire pour un cert auto-signé non importé ; l’acceptation par visite suffit souvent).
+
+**Chrome sur iOS** utilise le moteur Safari : même procédure sur l’URL HTTPS.
+
+---
+
+## Android — Chrome
+
+1. Même Wi‑Fi que le PC msdev.
+2. Ouvrez `https://<IP-du-PC>:4080`.
+3. Avertissement → **Paramètres avancées** → **Continuer vers …** (libellé selon version).
+4. Autorisez la caméra/micro quand l’app le demande (permissions du site).
+
+---
+
+## Vérifier que le serveur répond (sans juger le certificat)
+
+    curl.exe -k -I https://192.168.1.93:4080/
+
+Réponse attendue : en-têtes HTTP (ex. `HTTP/1.1 200 OK`).
+
+---
+
+## HTTP vs HTTPS (connexion / identifiants)
+
+En mode **`npm run msdev:https`**, le port **4080** ne répond qu’en **HTTPS**.  
+`http://localhost:4080` **ne fonctionne pas** (connexion refusée, login impossible).
+
+| Mode | URL PC | URL téléphone |
+|------|--------|----------------|
+| `npm run msdev` | http://localhost:4080 | http://&lt;IP-PC&gt;:4080 |
+| `npm run msdev:https` | **https://localhost:4080** | **https://&lt;IP-PC&gt;:4080** |
+
+Compte démo : **listener@msdev.local** / **msdev123**
+
+**Vite (5173)** : `npm run app:dev:https` si le backend est en HTTPS.
+
+---
+
+## Revoir l’avertissement certificat (HSTS / cache)
+
+1. Navigation privée → accepter le certificat une fois.
+2. Effacer les données du site pour `localhost` ou l’IP LAN.
+3. Chrome : `chrome://net-internals/#hsts` → Delete domain → `localhost`
+4. Toujours ouvrir **https://**…:4080 en mode msdev:https.
+
+---
+
+## Réinitialiser les données msdev
+
+    npm run msdev:reset-data
+
+Puis relancer `npm run msdev` ou `npm run msdev:https`.
+
+---
+
+## Dépannage
+
+| Symptème | Piste |
+|----------|--------|
+| ERR_CERT_AUTHORITY_INVALID | Normal : accepter le cert une fois ou importer via `import-dev-cert.ps1` (PC). |
+| ERR_CERT_COMMON_NAME_INVALID | SAN/IP incorrect : régénérer le cert avec `generate-dev-cert.ps1` sur le PC qui sert HTTPS. |
+| Caméra bloquée en HTTP | Utiliser **HTTPS** (`npm run msdev:https`), pas seulement HTTP. |
+| http:// ne charge pas, https:// oui | Normal en msdev:https — utilisez **https://** uniquement. |
+| Login invalide avec msdev123 | `npm run msdev:reset-data` ou redémarrage serveur (réalignement auto). |
+| app:dev (5173) ne connecte pas | Backend HTTPS → `npm run app:dev:https` ou https://localhost:4080. |
+| Téléphone n’atteint pas le PC | Pare-feu Windows : autoriser le port **4080** entrant sur le profil **Privé**. |
+| Page noire après le certificat | Recharge forcée (Ctrl+F5) ou vider le cache du site ; relancer `npm run msdev:https` (rebuild + sync LAN). |
+| Port 4080 déjà utilisé | Fermez les autres MeloSong ; `netstat -ano \| findstr :4080` puis arrêtez le PID node.exe. |
+

@@ -1,4 +1,7 @@
+import { useEffect, useRef } from 'react';
 import type { MusicReel } from '../content/reels';
+import { AccelerateBadge } from './AccelerateBadge';
+import { useHoldToAccelerate } from '../hooks/useHoldToAccelerate';
 
 interface ProfileReelPreviewProps {
   reel: MusicReel;
@@ -7,6 +10,20 @@ interface ProfileReelPreviewProps {
 
 export function ProfileReelPreview({ reel, onClose }: ProfileReelPreviewProps) {
   const isVideo = reel.mediaType !== 'image' && !!reel.videoUrl;
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const holdAccelerate = useHoldToAccelerate({
+    enabled: isVideo,
+    getMedia: () => ({ video: videoRef.current }),
+  });
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !holdAccelerate.accelerating) return;
+    const preventScroll = (e: TouchEvent) => e.preventDefault();
+    el.addEventListener('touchmove', preventScroll, { passive: false });
+    return () => el.removeEventListener('touchmove', preventScroll);
+  }, [holdAccelerate.accelerating]);
 
   return (
     <div
@@ -32,6 +49,7 @@ export function ProfileReelPreview({ reel, onClose }: ProfileReelPreviewProps) {
         )}
         {isVideo ? (
           <video
+            ref={videoRef}
             src={reel.videoUrl}
             poster={reel.posterUrl}
             className="absolute inset-0 w-full h-full object-cover"
@@ -39,11 +57,16 @@ export function ProfileReelPreview({ reel, onClose }: ProfileReelPreviewProps) {
             autoPlay
             controls
             loop
+            {...holdAccelerate.handlers}
           />
         ) : (
           <img src={reel.posterUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
         )}
-        <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/95 to-transparent">
+        <AccelerateBadge
+          visible={holdAccelerate.accelerating}
+          className="absolute top-14 right-3 z-10 pointer-events-none rounded-md bg-black/60 px-2 py-0.5 text-[11px] font-bold text-white/90 tabular-nums shadow-sm"
+        />
+        <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/95 to-transparent pointer-events-none">
           <p className="text-[10px] uppercase tracking-wider text-pink-300 font-bold">{reel.genre}</p>
           <p className="text-lg font-extrabold text-white">{reel.title}</p>
           <p className="text-sm text-gray-300">{reel.artist}</p>

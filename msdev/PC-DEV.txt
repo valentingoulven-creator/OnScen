@@ -1,0 +1,56 @@
+MeloSong — Développement PC (msdev)
+====================================
+
+Objectif : travailler sur le PC sans interruption (HTTP simple, pas de PWA, pas de LAN).
+
+DÉMARRER
+--------
+  Double-clic sur : LANCER-MELOSONG.bat  (à la racine du projet MeloSong Dev)
+
+  Alternative terminal : npm run msdev:pc
+
+REDÉMARRER LE SERVEUR
+---------------------
+  Double-clic sur : server.exe  (à la racine — même rôle que server.bat)
+
+  Si server.exe est absent : double-clic sur server.bat, ou une fois :
+    npm run build:server-exe
+  Terminal : npm run msdev:restart
+
+  Comportement : arrête ce qui écoute sur le port 4080, puis relance le serveur
+  en HTTP (http://localhost:4080) et ouvre le navigateur quand le port répond.
+
+  Premier démarrage (serveur arrêté) : LANCER-MELOSONG.bat suffit.
+  Après un bug, un écran noir ou un port bloqué : server.exe.
+
+URL
+---
+  http://localhost:4080
+
+  Ne pas utiliser https://localhost:4080 sauf si vous avez volontairement
+  activé MSDEV_HTTPS=1 dans msdev/.env (phase smartphone plus tard).
+
+COMPTE DÉMO
+-----------
+  Email    : listener@msdev.local
+  Mot de passe : msdev123
+
+CACHE / ÉCRAN NOIR
+------------------
+  1. Ne pas ouvrir l’icône PWA « MeloSong » installée sur le bureau ou l’écran d’accueil.
+  2. Ouvrir Chrome, Edge ou Opera et aller sur http://localhost:4080
+  3. Actualisation forcée : Ctrl+Shift+R
+  4. Si besoin : http://localhost:4080/?clear-pwa=1 puis Ctrl+Shift+R
+
+PWA SUR PC (À ÉVITER EN DEV)
+----------------------------
+  En mode msdev, le service worker et le manifest PWA sont désactivés volontairement.
+  Si une ancienne PWA est installée, désinstallez-la (clic droit → Désinstaller / Retirer).
+
+SMARTPHONE / LAN
+----------------
+  Reporté à une phase ultérieure. Voir msdev/MOBILE-PWA.txt quand vous serez prêt.
+
+ARRÊTER
+-------
+  Fermez la fenêtre noire du lanceur (LANCER-MELOSONG.bat).

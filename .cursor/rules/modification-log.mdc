@@ -1,0 +1,45 @@
+---
+description: Mettre à jour modification.txt après chaque changement de code significatif
+alwaysApply: true
+---
+
+# Journal des modifications (modification.txt)
+
+Après toute modification **significative** du code (feature, bug fix, refonte UI, backend), **ajouter une entrée en fin de** `modification.txt` à la racine du projet.
+
+## Format (respecter le style existant)
+
+```
+================================================================================
+TITRE — Soundly Dev
+Date : YYYY-MM-DD
+================================================================================
+
+OBJECTIF / PROBLÈME
+-------------------
+  …
+
+CHANGEMENTS / FIX
+-----------------
+  chemin/fichier.ts
+  ─────────────────
+  • …
+
+FICHIERS MODIFIÉS
+-----------------
+  chemin → résumé
+
+BUILD (si vérifié)
+-----
+  app/ → npm run build → ✅ ou ❌
+
+================================================================================
+Fin — YYYY-MM-DD
+================================================================================
+```
+
+## Règles
+
+- Numéroter les petites modifs fonctionnelles : `MODIF N — …` (incrémenter le dernier numéro du fichier).
+- Ne pas documenter les changements cosmétiques ou les allers-retours annulés par l'utilisateur.
+- Si le code est **annulé** ou contredit une entrée précédente, ajouter une nouvelle entrée qui le précise (ne pas réécrire l'historique).

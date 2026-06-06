@@ -7,6 +7,7 @@ interface FollowUserButtonProps {
   username?: string;
   initialFollowing?: boolean;
   compact?: boolean;
+  iconOnly?: boolean;
   className?: string;
   onFollowingChange?: (following: boolean) => void;
 }
@@ -16,6 +17,7 @@ export function FollowUserButton({
   username,
   initialFollowing = false,
   compact = false,
+  iconOnly = false,
   className = '',
   onFollowingChange,
 }: FollowUserButtonProps) {
@@ -74,9 +76,13 @@ export function FollowUserButton({
     void follow();
   };
 
-  const base = compact
-    ? 'px-2.5 py-1 rounded-full text-[10px] font-bold border transition disabled:opacity-50'
-    : 'w-full py-2.5 rounded-xl text-sm font-bold border transition disabled:opacity-50';
+  const base = iconOnly
+    ? 'p-1 rounded-full border transition disabled:opacity-50'
+    : compact
+      ? 'px-2.5 py-1 rounded-full text-[10px] font-bold border transition disabled:opacity-50'
+      : 'w-full py-2.5 rounded-xl text-sm font-bold border transition disabled:opacity-50';
+
+  const label = loading ? '…' : following ? 'Ne plus suivre' : 'Suivre';
 
   return (
     <div className={className}>
@@ -84,13 +90,29 @@ export function FollowUserButton({
         type="button"
         onClick={handleClick}
         disabled={loading}
+        title={label}
+        aria-label={label}
         className={`${base} ${
           following
-            ? 'bg-[#1a1a26] border-[#2d2d3d] text-gray-300 hover:border-gray-500'
-            : 'bg-purple-600/30 border-purple-500/50 text-purple-200 hover:bg-purple-600/40'
+            ? 'bg-[#1a1a26]/90 border-[#2d2d3d] text-gray-300 hover:border-gray-500'
+            : 'bg-purple-600/80 border-purple-500/50 text-white hover:bg-purple-600'
         }`}
       >
-        {loading ? '…' : following ? 'Ne plus suivre' : 'Suivre'}
+        {iconOnly ? (
+          loading ? (
+            <span className="block w-3.5 h-3.5 text-[10px] leading-[14px] text-center">…</span>
+          ) : following ? (
+            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
+            </svg>
+          )
+        ) : (
+          label
+        )}
       </button>
       {error && <p className="text-[10px] text-red-400 mt-1 text-center">{error}</p>}
 

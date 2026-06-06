@@ -3,21 +3,34 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import { getActiveHostLiveId } from '../lib/liveHostContext';
+import { showMatchSystemNotification } from '../lib/dmNotifications';
+import { UsernameDisplay } from './UsernameDisplay';
 import type { AppNotification, MusicMatch } from '../types';
 
 function isVisibleNotification(n: AppNotification): boolean {
-  return n.type === 'match' || n.type === 'live_started' || n.type === 'live_don';
+  return (
+    n.type === 'match' ||
+    n.type === 'live_started' ||
+    n.type === 'live_don' ||
+    n.type === 'favorite_online' ||
+    n.type === 'dm_message' ||
+    n.type === 'group_message'
+  );
 }
 
 function shouldShowToast(n: AppNotification): boolean {
-  return n.type === 'match' || n.type === 'live_started' || n.type === 'live_don';
+  return n.type === 'match' || n.type === 'live_started' || n.type === 'live_don' || n.type === 'favorite_online';
 }
 
 interface NotificationBellProps {
   onOpenLive?: (liveId: string) => void;
+  onOpenProfile?: (userId: string) => void;
+  onOpenSalon?: (salonId: string) => void;
+  onOpenDm?: (peerUserId: string) => void;
+  onOpenGroup?: (groupId: string) => void;
 }
 
-export function NotificationBell({ onOpenLive }: NotificationBellProps) {
+export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpenDm, onOpenGroup }: NotificationBellProps) {
   const { token } = useAuth();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<AppNotification[]>([]);
@@ -49,8 +62,11 @@ export function NotificationBell({ onOpenLive }: NotificationBellProps) {
       const skipDonToast = n.type === 'live_don' && n.liveId === getActiveHostLiveId();
       if (shouldShowToast(n) && !skipDonToast) {
         setToast(n);
+        if (n.type === 'match') {
+          showMatchSystemNotification(n.senderName);
+        }
         const toastMs =
-          n.type === 'match' ? 5500 : n.type === 'live_started' ? 6000 : n.type === 'live_don' ? 5000 : 4000;
+          n.type === 'match' ? 5500 : n.type === 'live_started' ? 6000 : n.type === 'live_don' ? 5000 : n.type === 'favorite_online' ? 5500 : 4000;
         window.setTimeout(() => setToast(null), toastMs);
       }
       if (n.type === 'match') load();
@@ -74,11 +90,50 @@ export function NotificationBell({ onOpenLive }: NotificationBellProps) {
   const isMatchToast = toast?.type === 'match';
   const isLiveToast = toast?.type === 'live_started';
   const isDonToast = toast?.type === 'live_don';
+  const isFavToast = toast?.type === 'favorite_online';
+  const isDmToast = toast?.type === 'dm_message';
+  const isGroupToast = toast?.type === 'group_message';
+  const isMessageToast = isDmToast || isGroupToast;
 
-  const openLiveFromNotif = (n: AppNotification) => {
+  const openFromNotif = (n: AppNotification) => {
+    if (n.type === 'group_message' && n.groupId && onOpenGroup) {
+      onOpenGroup(n.groupId);
+      setToast(null);
+      setOpen(false);
+      return;
+    }
+    if (n.type === 'dm_message' && onOpenDm) {
+      const peerId = n.peerUserId ?? n.senderId;
+      onOpenDm(peerId);
+      setToast(null);
+      setOpen(false);
+      return;
+    }
+    if (n.type === 'match' && onOpenProfile) {
+      onOpenProfile(n.senderId);
+      setToast(null);
+      setOpen(false);
+      return;
+    }
     if ((n.type === 'live_started' || n.type === 'live_don') && n.liveId && onOpenLive) {
       onOpenLive(n.liveId);
       setOpen(false);
+      return;
+    }
+    if (n.type === 'favorite_online') {
+      if (n.salonId && onOpenSalon) {
+        onOpenSalon(n.salonId);
+        setToast(null);
+        setOpen(false);
+      } else if (n.liveId && onOpenLive) {
+        onOpenLive(n.liveId);
+        setToast(null);
+        setOpen(false);
+      } else if (onOpenProfile) {
+        onOpenProfile(n.senderId);
+        setToast(null);
+        setOpen(false);
+      }
     }
   };
 
@@ -88,8 +143,16 @@ export function NotificationBell({ onOpenLive }: NotificationBellProps) {
         <div className="fixed top-16 left-4 right-4 z-[60] mx-auto max-w-sm">
           <button
             type="button"
-            onClick={() => openLiveFromNotif(toast)}
-            disabled={(!isLiveToast && !isDonToast) || !toast.liveId || !onOpenLive}
+            onClick={() => openFromNotif(toast)}
+            disabled={
+              isMessageToast
+                ? isGroupToast
+                  ? !onOpenGroup
+                  : !onOpenDm
+                : isMatchToast
+                  ? !onOpenProfile
+                  : (!isLiveToast && !isDonToast) || !toast.liveId || !onOpenLive
+            }
             className={`w-full flex items-center gap-3 p-3 rounded-xl shadow-xl text-left ${
               isMatchToast
                 ? 'bg-gradient-to-r from-pink-950/90 to-purple-950/90 border border-pink-400/50 animate-pulse'
@@ -97,8 +160,20 @@ export function NotificationBell({ onOpenLive }: NotificationBellProps) {
                   ? 'bg-gradient-to-r from-red-950/90 to-purple-950/90 border border-red-400/50'
                   : isDonToast
                     ? 'bg-gradient-to-r from-amber-950/90 to-pink-950/90 border border-amber-400/50'
-                    : 'bg-[#1a1a26] border border-pink-500/40'
-            } ${(isLiveToast || isDonToast) && toast.liveId && onOpenLive ? 'cursor-pointer active:scale-[0.99]' : ''}`}
+                    : isFavToast
+                      ? 'bg-gradient-to-r from-yellow-950/90 to-purple-950/90 border border-yellow-500/50'
+                      : isMessageToast
+                        ? 'bg-gradient-to-r from-purple-950/90 to-indigo-950/90 border border-purple-400/50'
+                        : 'bg-[#1a1a26] border border-pink-500/40'
+            } ${
+              (isDmToast && onOpenDm) ||
+              (isGroupToast && onOpenGroup) ||
+              (isMatchToast && onOpenProfile) ||
+              ((isLiveToast || isDonToast) && toast.liveId && onOpenLive) ||
+              (isFavToast && (toast.salonId || toast.liveId || onOpenProfile))
+                ? 'cursor-pointer active:scale-[0.99]'
+                : ''
+            }`}
           >
             <img
               src={toast.senderAvatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${toast.senderId}`}
@@ -108,14 +183,28 @@ export function NotificationBell({ onOpenLive }: NotificationBellProps) {
             <div className="min-w-0 flex-1">
               <p
                 className={`text-sm font-bold ${
-                  isMatchToast ? 'text-pink-200' : isLiveToast ? 'text-red-200' : isDonToast ? 'text-amber-200' : 'text-pink-300'
+                  isMatchToast ? 'text-pink-200' : isLiveToast ? 'text-red-200' : isDonToast ? 'text-amber-200' : isFavToast ? 'text-yellow-200' : 'text-pink-300'
                 }`}
               >
-                {isMatchToast ? 'Nouveau match !' : isLiveToast ? 'En live !' : isDonToast ? 'Don reçu !' : 'Nouvelle notification'}
+                {isMatchToast
+                  ? 'Nouveau match !'
+                  : isLiveToast
+                    ? 'En live !'
+                    : isDonToast
+                      ? 'Don reçu !'
+                      : isFavToast
+                        ? 'Favori en ligne !'
+                        : isMessageToast
+                          ? isGroupToast
+                            ? 'Message de groupe'
+                            : 'Nouveau message'
+                          : 'Nouvelle notification'}
               </p>
               <p className="text-xs text-gray-300 truncate">{toast.message}</p>
             </div>
-            <span className="text-2xl">{isMatchToast ? '💞' : isLiveToast ? '🔴' : isDonToast ? '💝' : '♥'}</span>
+            <span className="text-2xl">
+              {isMatchToast ? '💞' : isLiveToast ? '🔴' : isDonToast ? '💝' : isFavToast ? '⭐' : isGroupToast ? '👥' : isDmToast ? '💬' : '♥'}
+            </span>
           </button>
         </div>
       )}
@@ -163,9 +252,13 @@ export function NotificationBell({ onOpenLive }: NotificationBellProps) {
                         alt=""
                         className="w-8 h-8 rounded-full object-cover"
                       />
-                      <span className="text-xs text-white font-semibold truncate">
-                        {m.otherUser.username}
-                      </span>
+                      <UsernameDisplay
+                        username={m.otherUser.username}
+                        usernameColor={m.otherUser.usernameColor}
+                        usernameWaveFrom={m.otherUser.usernameWaveFrom}
+                        usernameWaveTo={m.otherUser.usernameWaveTo}
+                        className="text-xs font-semibold truncate"
+                      />
                       <span className="ml-auto text-sm">💞</span>
                     </div>
                   ))}
@@ -182,8 +275,18 @@ export function NotificationBell({ onOpenLive }: NotificationBellProps) {
                 <button
                   type="button"
                   key={n.id}
-                  onClick={() => openLiveFromNotif(n)}
-                  disabled={(n.type !== 'live_started' && n.type !== 'live_don') || !n.liveId || !onOpenLive}
+                  onClick={() => openFromNotif(n)}
+                  disabled={
+                    n.type === 'group_message'
+                      ? !onOpenGroup
+                      : n.type === 'dm_message'
+                        ? !onOpenDm
+                        : n.type === 'match'
+                        ? !onOpenProfile
+                        : n.type === 'favorite_online'
+                          ? !(n.salonId || n.liveId || onOpenProfile)
+                          : (n.type !== 'live_started' && n.type !== 'live_don') || !n.liveId || !onOpenLive
+                  }
                   className={`w-full flex items-center gap-2 px-3 py-2.5 border-b border-[#1e1e2f]/50 text-left ${
                     !n.read
                       ? n.type === 'match'
@@ -192,13 +295,27 @@ export function NotificationBell({ onOpenLive }: NotificationBellProps) {
                           ? 'bg-red-950/25'
                           : n.type === 'live_don'
                             ? 'bg-pink-950/25'
-                            : 'bg-pink-950/20'
+                            : n.type === 'favorite_online'
+                              ? 'bg-yellow-950/20'
+                              : n.type === 'dm_message' || n.type === 'group_message'
+                                ? 'bg-purple-950/25'
+                                : 'bg-pink-950/20'
                       : ''
                   } ${
-                    (n.type === 'live_started' || n.type === 'live_don') && n.liveId && onOpenLive
-                      ? n.type === 'live_don'
-                        ? 'hover:bg-pink-950/20 cursor-pointer'
-                        : 'hover:bg-red-950/20 cursor-pointer'
+                    (n.type === 'dm_message' && onOpenDm) ||
+                    (n.type === 'group_message' && onOpenGroup) ||
+                    (n.type === 'match' && onOpenProfile) ||
+                    ((n.type === 'live_started' || n.type === 'live_don') && n.liveId && onOpenLive) ||
+                    (n.type === 'favorite_online' && (n.salonId || n.liveId || onOpenProfile))
+                      ? n.type === 'match'
+                        ? 'hover:bg-purple-950/30 cursor-pointer'
+                        : n.type === 'live_don'
+                          ? 'hover:bg-pink-950/20 cursor-pointer'
+                          : n.type === 'favorite_online'
+                            ? 'hover:bg-yellow-950/20 cursor-pointer'
+                            : n.type === 'dm_message' || n.type === 'group_message'
+                              ? 'hover:bg-purple-950/25 cursor-pointer'
+                              : 'hover:bg-red-950/20 cursor-pointer'
                       : 'cursor-default'
                   }`}
                 >
@@ -224,10 +341,26 @@ export function NotificationBell({ onOpenLive }: NotificationBellProps) {
                           ? 'text-red-400'
                           : n.type === 'live_don'
                             ? 'text-pink-400'
-                            : 'text-pink-400'
+                            : n.type === 'favorite_online'
+                              ? 'text-yellow-400'
+                              : n.type === 'dm_message' || n.type === 'group_message'
+                                ? 'text-purple-300'
+                                : 'text-pink-400'
                     }
                   >
-                    {n.type === 'match' ? '💞' : n.type === 'live_started' ? '🔴' : n.type === 'live_don' ? '💝' : '♥'}
+                    {n.type === 'match'
+                      ? '💞'
+                      : n.type === 'live_started'
+                        ? '🔴'
+                        : n.type === 'live_don'
+                          ? '💝'
+                          : n.type === 'favorite_online'
+                            ? '⭐'
+                            : n.type === 'group_message'
+                              ? '👥'
+                              : n.type === 'dm_message'
+                                ? '💬'
+                                : '♥'}
                   </span>
                 </button>
               ))}

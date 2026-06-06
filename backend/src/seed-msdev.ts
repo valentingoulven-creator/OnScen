@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { db, Salon, Live, MusicPlatform, User } from './models/schema';
 import { blurCoordinate } from './lib/geo';
 import { refreshUserPublicCoords } from './lib/locationPrivacy';
-import { ensureMapBots } from './seed-bots';
+import { seedWorldMapBots, seedBotPosts } from './seed-bots';
 import { followUser } from './lib/follows';
 import { ensureSalonQueue, ensureSalonProposals, enqueueItem } from './lib/salonPlaybackOps';
 
@@ -18,6 +18,8 @@ export async function seedMsdevData(): Promise<void> {
     username: 'DJ Melody',
     email: 'dj@msdev.local',
     passwordHash: hash,
+    isAdmin: true,
+    accountStatus: 'active',
     avatarUrl: 'https://api.dicebear.com/7.x/adventurer/svg?seed=DJMelody',
     meloCoins: 500,
     isGhostMode: false,
@@ -40,6 +42,8 @@ export async function seedMsdevData(): Promise<void> {
     username: 'Auditeur',
     email: 'listener@msdev.local',
     passwordHash: hash,
+    isAdmin: true,
+    accountStatus: 'active',
     avatarUrl: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Listener',
     profilePhotos: [
       'https://api.dicebear.com/7.x/adventurer/svg?seed=Listener',
@@ -57,10 +61,11 @@ export async function seedMsdevData(): Promise<void> {
     connectedPlatforms: ['spotify', 'youtube'] as MusicPlatform[],
     city: 'Paris',
     listeningRole: 'les_deux' as const,
+    favoritesCountOverride: 243_000,
   };
 
   Object.assign(dj, {
-    bio: 'Host deep house — je mixe en live sur MeloSong pour faire vibrer le quartier.',
+    bio: 'Host deep house — je mixe en live sur Soundly pour faire vibrer le quartier.',
     interests: ['Deep house', 'Live mixing', 'Communauté'],
     favoriteGenres: ['House', 'Techno'],
     favoriteArtists: ['M83', 'Disclosure'],
@@ -252,7 +257,8 @@ export async function seedMsdevData(): Promise<void> {
     }
   );
 
-  ensureMapBots(parisLat, parisLon);
+  seedWorldMapBots();
+  seedBotPosts();
 
   followUser(listener.id, dj.id);
   followUser(listener.id, bass.id);
@@ -261,7 +267,7 @@ export async function seedMsdevData(): Promise<void> {
   const dmSeed = [
     { from: bass.id, to: listener.id, content: 'Hey ! On écoute quoi ce soir ?', ago: 3600000 },
     { from: listener.id, to: bass.id, content: 'Je suis sur la carte, je te rejoins !', ago: 3500000 },
-    { from: dj.id, to: listener.id, content: 'Bienvenue sur MeloSong 🎵', ago: 7200000 },
+    { from: dj.id, to: listener.id, content: 'Bienvenue sur Soundly 🎵', ago: 7200000 },
     { from: listener.id, to: dj.id, content: 'Merci DJ Melody, super live !', ago: 7000000 },
     { from: dj.id, to: listener.id, content: 'Merci d\'être passé, à bientôt sur la carte', ago: 6800000 },
   ];

@@ -77,9 +77,18 @@ msdev/release/msdev.exe
 
 Contenu du dossier `release/` (à garder ensemble) :
 
-- `msdev.exe` — double-clic pour lancer serveur + navigateur
+- `Lancer-msdev.ps1` / `Lancer-msdev.bat` — lancement recommandé (déblocage Windows)
+- `msdev.exe` — serveur + navigateur (voir `DEBLOCAGE-WINDOWS.txt` si blocage)
 - `public/` — interface web
 - `.env` — configuration msdev
 - `config.json` — URLs pour les clients
 
 **Prérequis pour compiler** : Node.js installé (une seule fois). L’exe fonctionne ensuite sans Node.
+
+Guides détaillés :
+
+- [`BUILD-EXE.txt`](BUILD-EXE.txt) — compilation et utilisation de l’exe
+- [`DEBLOCAGE-WINDOWS.txt`](DEBLOCAGE-WINDOWS.txt) — SmartScreen, Smart App Control, alternatives
+- [`Lancer-msdev-node.bat`](Lancer-msdev-node.bat) — lancer sans exe (Node.js, contourne SAC)
+- [`MOBILE-PWA.txt`](MOBILE-PWA.txt) — smartphone, PWA, HTTPS LAN
+- Page QR sur le PC : http://localhost:4080/msdev-mobile

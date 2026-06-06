@@ -4,9 +4,9 @@
   "port": 4080,
   "mobile": {
     "hostIp": "192.168.1.93",
-    "webUrl": "http://192.168.1.93:4080",
-    "apiBaseUrl": "http://192.168.1.93:4080/api",
-    "socketUrl": "http://192.168.1.93:4080"
+    "webUrl": "https://192.168.1.93:4080",
+    "apiBaseUrl": "https://192.168.1.93:4080/api",
+    "socketUrl": "https://192.168.1.93:4080"
   },
   "api": {
     "baseUrl": "http://localhost:4080/api",
@@ -18,5 +18,26 @@
   },
   "web": {
     "url": "http://localhost:4080"
-  }
+  },
+  "dualIpUsers": [
+    {
+      "slot": "A",
+      "ip": "192.168.1.93",
+      "url": "http://192.168.1.93:4080",
+      "email": "dj@msdev.local",
+      "username": "DJ Melody",
+      "label": "Utilisateur A — hôte (salon)",
+      "role": "host"
+    },
+    {
+      "slot": "B",
+      "ip": "192.168.1.93",
+      "url": "http://192.168.1.93:4080",
+      "email": "listener@msdev.local",
+      "username": "Auditeur",
+      "label": "Utilisateur B — participant",
+      "role": "listener"
+    }
+  ],
+  "dualIpEnabled": true
 }

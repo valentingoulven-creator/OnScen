@@ -1,6 +1,11 @@
-import { useState } from 'react';
-import { SUPPORT, MELOSONG_SHARE_URL } from '../content/support';
+import { useEffect, useState } from 'react';
+import { ShareLinkMenu } from './ShareLinkMenu';
+import { SUPPORT } from '../content/support';
+import { getAppShareUrl } from '../lib/shareLink';
 import { getSupportClickCount, incrementSupportClick } from '../lib/support';
+
+const APP_SHARE_TITLE = 'Soundly';
+const APP_SHARE_TEXT = 'Découvre Soundly — salons musicaux, lives et carte autour de toi.';
 
 interface SupportMeloSongSectionProps {
   onToast?: (msg: string) => void;
@@ -8,6 +13,18 @@ interface SupportMeloSongSectionProps {
 
 export function SupportMeloSongSection({ onToast }: SupportMeloSongSectionProps) {
   const [clickCount, setClickCount] = useState(getSupportClickCount);
+  const [shareMenuOpen, setShareMenuOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    void getAppShareUrl().then((url) => {
+      if (!cancelled) setShareUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const toast = (msg: string) => onToast?.(msg);
 
@@ -17,31 +34,7 @@ export function SupportMeloSongSection({ onToast }: SupportMeloSongSectionProps)
     toast(SUPPORT.thankYou(amount));
   };
 
-  const shareApp = async () => {
-    const url = MELOSONG_SHARE_URL || window.location.origin;
-    const text = 'Découvre MeloSong — salons musicaux, lives et carte autour de toi.';
-    let shared = false;
-
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: 'MeloSong', text, url });
-        shared = true;
-      } catch {
-        /* cancelled */
-      }
-    }
-
-    if (!shared) {
-      try {
-        await navigator.clipboard.writeText(url);
-        toast(SUPPORT.shareCopied);
-      } catch {
-        toast(SUPPORT.shareCopied);
-      }
-    } else {
-      toast(SUPPORT.shareShared);
-    }
-
+  const handleShared = () => {
     incrementSupportClick();
     setClickCount(getSupportClickCount());
   };
@@ -81,8 +74,9 @@ export function SupportMeloSongSection({ onToast }: SupportMeloSongSectionProps)
 
         <button
           type="button"
-          onClick={shareApp}
-          className="w-full py-3 rounded-xl bg-[#1a1a26] border border-purple-500/30 hover:border-purple-400/50 text-sm font-semibold text-purple-200 transition"
+          onClick={() => setShareMenuOpen(true)}
+          disabled={!shareUrl}
+          className="w-full py-3 rounded-xl bg-[#1a1a26] border border-purple-500/30 hover:border-purple-400/50 disabled:opacity-50 text-sm font-semibold text-purple-200 transition"
         >
           {SUPPORT.shareLabel}
         </button>
@@ -91,6 +85,18 @@ export function SupportMeloSongSection({ onToast }: SupportMeloSongSectionProps)
           <p className="text-[10px] text-center text-gray-600">{SUPPORT.clickCount(clickCount)}</p>
         )}
       </div>
+
+      {shareMenuOpen && shareUrl && (
+        <ShareLinkMenu
+          open={shareMenuOpen}
+          onClose={() => setShareMenuOpen(false)}
+          url={shareUrl}
+          title={APP_SHARE_TITLE}
+          text={APP_SHARE_TEXT}
+          onToast={toast}
+          onShared={handleShared}
+        />
+      )}
     </div>
   );
 }

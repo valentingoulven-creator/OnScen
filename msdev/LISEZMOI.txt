@@ -1,0 +1,39 @@
+﻿MeloSong — msdev (Windows)
+==========================
+
+LANCEMENT (double-clic) — UN SEUL FICHIER RECOMMANDÉ
+----------------------------------------------------
+  LANCER-MELOSONG.bat  (à la racine du projet MeloSong Dev)
+
+  Ce lanceur démarre le serveur en HTTP sur http://localhost:4080
+  et ouvre le navigateur automatiquement.
+
+  Guide PC : msdev/PC-DEV.txt
+
+  Redémarrer le serveur (port 4080 bloqué / bug) :
+    server.exe  (racine) — ou server.bat si l’exe n’existe pas encore
+    Générer server.exe une fois : npm run build:server-exe
+
+  Alternatives (avancé) :
+    npm run msdev:pc          — même chose, depuis un terminal
+    npm run msdev:restart     — redémarrage depuis un terminal
+    msdev\Lancer-MeloSong.bat — redirige vers LANCER-MELOSONG.bat (racine)
+    Lancer-msdev-node.bat     — Node.js (contourne Smart App Control)
+    release\Lancer-msdev.bat  — msdev.exe seul (sans Node)
+
+  Raccourci Bureau (optionnel) :
+    Clic droit sur LANCER-MELOSONG.bat → Afficher plus d'options →
+    Envoyer vers → Bureau (créer un raccourci).
+    Renommez le raccourci « MeloSong ».
+
+URL et compte
+-------------
+  http://localhost:4080
+  Compte démo : listener@msdev.local / msdev123
+
+  HTTPS / smartphone / LAN : optionnels, phase ultérieure (MOBILE-PWA.txt).
+
+La fenêtre noire doit rester ouverte tant que MeloSong tourne ; lisez le texte
+avant d'appuyer sur une touche en cas d'erreur.
+
+Voir aussi : PC-DEV.txt, DEBLOCAGE-WINDOWS.txt

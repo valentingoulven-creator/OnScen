@@ -5,8 +5,8 @@ export const licences: LegalDocument = {
   updated: '3 juin 2026',
   sections: [
     {
-      heading: 'MeloSong',
-      body: 'Application MeloSong — projet social autour de la musique géolocalisée. Code source et documentation : voir le dépôt du projet (licence à préciser par l’éditeur).',
+      heading: 'Soundly',
+      body: 'Application Soundly — projet social autour de la musique géolocalisée. Code source et documentation : voir le dépôt du projet (licence à préciser par l’éditeur).',
     },
     {
       heading: 'Cartographie',
@@ -26,7 +26,7 @@ export const licences: LegalDocument = {
     },
     {
       heading: 'Icônes et polices',
-      body: 'Interface MeloSong : polices système et ressources intégrées. Vérifier les licences de toute ressource graphique ajoutée ultérieurement.',
+      body: 'Interface Soundly : polices système et ressources intégrées. Vérifier les licences de toute ressource graphique ajoutée ultérieurement.',
     },
   ],
 };

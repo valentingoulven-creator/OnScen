@@ -8,6 +8,7 @@ dist/
 # msdev secrets (keep .env.example)
 msdev/.env
 msdev/data/
+msdev/legal-publisher.json
 
 # Built Windows executable (regenerate with npm run build:exe)
 msdev/release/

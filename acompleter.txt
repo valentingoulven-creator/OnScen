@@ -1,0 +1,119 @@
+MeloSong — Informations à compléter par l’éditeur
+================================================
+
+Copiez ce fichier une fois rempli vers :
+  msdev/legal-publisher.json
+(en vous basant sur msdev/legal-publisher.example.json)
+
+Tant que legal-publisher.json n’est pas rempli, l’application affiche
+« [À compléter] » dans les mentions légales.
+
+
+── 1. ÉDITEUR (obligatoire pour mise en production France) ──
+
+Nom ou raison sociale :
+Ex. MeloSong SAS / Jean Dupont
+
+Forme juridique :
+Ex. SAS, entrepreneur individuel, association loi 1901
+
+Adresse postale complète :
+Ex. 12 rue Example, 75001 Paris, France
+
+Numéro SIREN / SIRET :
+Ex. 123 456 789 00012
+
+RCS (ville du greffe, si société) :
+Ex. RCS Paris 123 456 789
+
+Capital social (si société) :
+Ex. 1 000 €
+
+Directeur de la publication :
+Nom et prénom de la personne responsable
+
+
+── 2. HÉBERGEMENT PRODUCTION (obligatoire LCEN) ──
+
+Nom de l’hébergeur :
+Ex. OVHcloud, Scaleway, AWS EU…
+
+Adresse de l’hébergeur :
+
+Téléphone de l’hébergeur :
+
+Pays d’hébergement des données :
+Ex. France / Union européenne
+
+
+── 3. CONTACTS LÉGAUX ──
+
+E-mail contact général (affiché dans l’app) :
+Défaut actuel : contact@melosong.app
+→ doit être une boîte lue régulièrement
+
+E-mail données personnelles / RGPD :
+Défaut actuel : privacy@melosong.app
+
+Délégué à la protection des données (DPO), si désigné :
+Laisser vide si non applicable
+
+
+── 4. MÉDIATION CONSOMMATION (recommandé B2C France) ──
+
+Nom du médiateur de la consommation :
+
+URL du médiateur :
+
+(ou laisser vide : le lien plateforme européenne ODR reste dans les mentions)
+
+
+── 5. API SPOTIFY (si connexion réelle en production) ──
+
+Client ID Spotify Developer :
+
+Client Secret Spotify :
+→ à mettre dans msdev/.env (ne pas commiter)
+
+Redirect URI enregistrée chez Spotify :
+Ex. https://votredomaine.com/api/platforms/spotify/callback
+
+
+── 6. API YOUTUBE / GOOGLE (si connexion réelle en production) ──
+
+Projet Google Cloud (nom) :
+
+Client ID OAuth :
+
+Client Secret OAuth :
+→ msdev/.env GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
+
+Redirect URI :
+Ex. https://votredomaine.com/api/platforms/youtube/oauth/callback
+
+Clé YouTube Data API (recherche officielle) :
+→ msdev/.env YOUTUBE_API_KEY
+
+IMPORTANT : ne pas activer ALLOW_YOUTUBE_REMOTE_FALLBACK en production
+(Piped/Invidious = secours msdev uniquement, désactivé par défaut).
+
+
+── 7. DOMAINE & MARQUE ──
+
+Nom de domaine de production :
+Ex. https://app.melosong.fr
+
+MeloSong est-il une marque déposée ? oui / non
+
+
+── 8. DÉCLARATIONS ──
+
+☐ Je confirme ne pas être un service de rencontre (positionnement social musical)
+☐ J’ai lu la checklist RGPD dans Paramètres > Conformité RGPD
+☐ J’accepte de faire relire les CGU par un avocat avant ouverture au public
+
+
+Après remplissage :
+1. Sauvegarder msdev/legal-publisher.json
+2. Relancer le serveur (npm run msdev)
+3. Vérifier Paramètres > Mentions légales

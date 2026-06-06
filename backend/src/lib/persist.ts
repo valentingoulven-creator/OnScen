@@ -4,11 +4,28 @@ import {
   db,
   type ChatMessage,
   type DirectMessage,
+  type FeedPostComment,
+  type GroupMessage,
   type LiveBan,
+  type MessageGroup,
   type User,
+  type FeedPost,
+  type Story,
   type UserBlock,
+  type UserMute,
+  type UserFavorite,
 } from '../models/schema';
 import { getMsdevEnvPath } from '../paths';
+import { isValidLatLng } from './mapCoords';
+import { refreshUserPublicCoords } from './locationPrivacy';
+import { migrateUserRelationshipStatus } from './profile';
+import { migrateUserProfileType } from './profileTypes';
+import {
+  loadAccessControlFromPersist,
+  snapshotAccessControl,
+  type AccessInviteCode,
+  type AccessPolicy,
+} from './accessControl';
 
 function getStorePath(): string {
   const envDir = path.dirname(getMsdevEnvPath());
@@ -17,16 +34,33 @@ function getStorePath(): string {
 
 type MapOfSets = Record<string, string[]>;
 
+type DmReadCursorsRecord = Record<string, Record<string, number>>;
+
+type GroupReadCursorsRecord = Record<string, Record<string, number>>;
+
 interface PersistedStore {
   version: 1;
   savedAt: number;
+  accessPolicy?: AccessPolicy;
+  accessInviteCodes?: AccessInviteCode[];
   users: User[];
   directMessages: DirectMessage[];
+  messageGroups?: MessageGroup[];
+  groupMessages?: GroupMessage[];
+  groupReadCursors?: GroupReadCursorsRecord;
+  dmReadCursors?: DmReadCursorsRecord;
   salonChats: Record<string, ChatMessage[]>;
   liveChats: Record<string, ChatMessage[]>;
   liveBans: { liveId: string; userId: string; ban: LiveBan }[];
   userBlocks: UserBlock[];
+  userMutes?: UserMute[];
   userFollows: MapOfSets;
+  userFavorites?: { fanId: string; hostId: string; entry: UserFavorite }[];
+  feedPosts?: FeedPost[];
+  feedPostLikes?: MapOfSets;
+  feedPostComments?: Record<string, FeedPostComment[]>;
+  feedPostFavorites?: MapOfSets;
+  stories?: Story[];
 }
 
 function recordToMap<V>(record: Record<string, V> | undefined): Map<string, V> {
@@ -61,25 +95,87 @@ function snapshot(): PersistedStore {
     for (const [userId, ban] of bans.entries()) liveBans.push({ liveId, userId, ban });
   }
 
+  const access = snapshotAccessControl();
   return {
     version: 1,
     savedAt: Date.now(),
+    accessPolicy: access.accessPolicy,
+    accessInviteCodes: access.accessInviteCodes,
     users: [...db.users.values()],
     directMessages: [...db.directMessages],
+    messageGroups: [...db.messageGroups],
+    groupMessages: [...db.groupMessages],
+    groupReadCursors: (() => {
+      const out: GroupReadCursorsRecord = {};
+      for (const [userId, groups] of db.groupReadCursors.entries()) {
+        out[userId] = Object.fromEntries(groups.entries());
+      }
+      return out;
+    })(),
+    dmReadCursors: (() => {
+      const out: DmReadCursorsRecord = {};
+      for (const [userId, peers] of db.dmReadCursors.entries()) {
+        out[userId] = Object.fromEntries(peers.entries());
+      }
+      return out;
+    })(),
     salonChats,
     liveChats,
     liveBans,
     userBlocks: [...db.userBlocks],
+    userMutes: [...db.userMutes],
     userFollows: setsToRecord(db.userFollows),
+    userFavorites: (() => {
+      const out: PersistedStore['userFavorites'] = [];
+      for (const [fanId, hosts] of db.userFavorites.entries()) {
+        for (const [hostId, entry] of hosts.entries()) {
+          out.push({ fanId, hostId, entry });
+        }
+      }
+      return out;
+    })(),
+    feedPosts: [...db.feedPosts],
+    feedPostLikes: setsToRecord(db.feedPostLikes),
+    feedPostComments: (() => {
+      const out: Record<string, FeedPostComment[]> = {};
+      for (const [k, arr] of db.feedPostComments.entries()) out[k] = arr;
+      return out;
+    })(),
+    feedPostFavorites: setsToRecord(db.feedPostFavorites),
+    stories: [...db.stories],
   };
 }
 
 function restore(data: PersistedStore): void {
+  loadAccessControlFromPersist(data.accessPolicy, data.accessInviteCodes);
   db.users.clear();
-  for (const u of data.users) db.users.set(u.id, u);
+  for (const u of data.users) {
+    if (isValidLatLng(u.latitude, u.longitude)) {
+      refreshUserPublicCoords(u);
+    }
+    migrateUserRelationshipStatus(u);
+    migrateUserProfileType(u);
+    db.users.set(u.id, u);
+  }
 
   db.directMessages.length = 0;
   db.directMessages.push(...data.directMessages);
+
+  db.messageGroups.length = 0;
+  db.messageGroups.push(...(data.messageGroups ?? []));
+
+  db.groupMessages.length = 0;
+  db.groupMessages.push(...(data.groupMessages ?? []));
+
+  db.groupReadCursors.clear();
+  for (const [userId, groups] of Object.entries(data.groupReadCursors ?? {})) {
+    db.groupReadCursors.set(userId, new Map(Object.entries(groups)));
+  }
+
+  db.dmReadCursors.clear();
+  for (const [userId, peers] of Object.entries(data.dmReadCursors ?? {})) {
+    db.dmReadCursors.set(userId, new Map(Object.entries(peers)));
+  }
 
   db.salonChats.clear();
   for (const [id, list] of Object.entries(data.salonChats ?? {})) {
@@ -100,10 +196,40 @@ function restore(data: PersistedStore): void {
   db.userBlocks.length = 0;
   db.userBlocks.push(...(data.userBlocks ?? []));
 
+  db.userMutes.length = 0;
+  db.userMutes.push(...(data.userMutes ?? []));
+
   db.userFollows.clear();
   for (const [k, arr] of Object.entries(data.userFollows ?? {})) {
     db.userFollows.set(k, new Set(arr));
   }
+
+  db.userFavorites.clear();
+  for (const { fanId, hostId, entry } of data.userFavorites ?? []) {
+    if (!db.userFavorites.has(fanId)) db.userFavorites.set(fanId, new Map());
+    db.userFavorites.get(fanId)!.set(hostId, entry);
+  }
+
+  db.feedPosts.length = 0;
+  db.feedPosts.push(...(data.feedPosts ?? []));
+
+  db.feedPostLikes.clear();
+  for (const [k, arr] of Object.entries(data.feedPostLikes ?? {})) {
+    db.feedPostLikes.set(k, new Set(arr));
+  }
+
+  db.feedPostComments.clear();
+  for (const [k, arr] of Object.entries(data.feedPostComments ?? {})) {
+    db.feedPostComments.set(k, arr);
+  }
+
+  db.feedPostFavorites.clear();
+  for (const [k, arr] of Object.entries(data.feedPostFavorites ?? {})) {
+    db.feedPostFavorites.set(k, new Set(arr));
+  }
+
+  db.stories.length = 0;
+  db.stories.push(...(data.stories ?? []));
 }
 
 export function loadPersistedStore(): boolean {

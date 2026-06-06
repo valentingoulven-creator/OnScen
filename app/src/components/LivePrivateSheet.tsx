@@ -2,14 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { getSocket } from '../lib/socket';
+import { UsernameDisplay } from './UsernameDisplay';
 import type { DirectMessage, DmContact } from '../types';
 
 interface LivePrivateSheetProps {
   target: DmContact;
   onClose: () => void;
+  onOpenProfile?: (userId: string) => void;
 }
 
-export function LivePrivateSheet({ target, onClose }: LivePrivateSheetProps) {
+export function LivePrivateSheet({ target, onClose, onOpenProfile }: LivePrivateSheetProps) {
   const { user, token } = useAuth();
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [draft, setDraft] = useState('');
@@ -50,7 +52,6 @@ export function LivePrivateSheet({ target, onClose }: LivePrivateSheetProps) {
     setDraft('');
     try {
       const { message } = await api.sendDm(token, target.id, text);
-      getSocket().emit('dm', message);
       setMessages((m) => [...m, message]);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erreur envoi');
@@ -73,7 +74,24 @@ export function LivePrivateSheet({ target, onClose }: LivePrivateSheetProps) {
             className="w-10 h-10 rounded-full"
           />
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-white truncate">{target.username}</p>
+            {onOpenProfile ? (
+              <button
+                type="button"
+                onClick={() => onOpenProfile(target.id)}
+                className="font-bold text-white truncate text-left max-w-full hover:text-purple-300 transition-colors"
+                title="Voir le profil"
+              >
+                <UsernameDisplay
+                  username={target.username}
+                  usernameColor={target.usernameColor}
+                  usernameWaveFrom={target.usernameWaveFrom}
+                  usernameWaveTo={target.usernameWaveTo}
+                  className="truncate inline"
+                />
+              </button>
+            ) : (
+              <p className="font-bold text-white truncate">{target.username}</p>
+            )}
             <p className="text-xs text-purple-400">Message privé (hors du chat public)</p>
           </div>
           <button type="button" onClick={onClose} className="text-gray-400 hover:text-white text-xl px-2">

@@ -11,7 +11,7 @@ const UNSPLASH_IMAGE_RE = /^https:\/\/images\.unsplash\.com\//i;
 const BLOCKED_MEDIA_RE =
   /picsum\.photos|commondatastorage|sample-videos|w3schools|mdn\.sample|placeholder\.com|loremflickr/i;
 
-const RECORDED_VIDEO_DATA_RE = /^data:video\/(webm|mp4)(?:;[^;,]+)*;base64,/i;
+const RECORDED_VIDEO_DATA_RE = /^data:video\/(webm|mp4|quicktime|x-m4v)(?:;[^;,]+)*;base64,/i;
 const RECORDED_POSTER_DATA_RE = /^data:image\/(jpeg|png|webp)(?:;[^;,]+)*;base64,/i;
 const MAX_RECORDED_VIDEO_CHARS = 1_650_000;
 const MAX_RECORDED_POSTER_CHARS = 220_000;
@@ -206,6 +206,9 @@ export function normalizeProfileReelFromApi(raw: ApiReel): MusicReel | null {
     ...(durationSec != null ? { durationSec } : {}),
     ...(visibility ? { visibility } : {}),
     isPrivate,
+    ...(typeof raw.viewCount === 'number' && raw.viewCount >= 0
+      ? { viewCount: raw.viewCount }
+      : {}),
   };
 }
 

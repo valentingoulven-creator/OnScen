@@ -1,5 +1,6 @@
 import { User } from '../models/schema';
 import { blurCoordinate } from './geo';
+import { isValidLatLng, sanitizeLatLng } from './mapCoords';
 
 export type LocationPrecision = 'precise' | 'city';
 
@@ -65,14 +66,16 @@ export function getPublicMapCoords(
   blurredLon: number,
   viewerId?: string
 ): { latitude: number; longitude: number } {
+  const precise = sanitizeLatLng(preciseLat, preciseLon);
+  const blurred = sanitizeLatLng(blurredLat, blurredLon, precise);
   if (viewerId === user.id) {
-    return { latitude: preciseLat, longitude: preciseLon };
+    return precise;
   }
   if (userCityOnlyLocation(user)) {
     const [lat, lon] = resolveCityCoordinates(user.city || 'Paris');
     return { latitude: lat, longitude: lon };
   }
-  return { latitude: blurredLat, longitude: blurredLon };
+  return blurred;
 }
 
 export function getUserPublicCoords(user: User, viewerId?: string): { lat: number; lon: number } | null {
@@ -80,12 +83,12 @@ export function getUserPublicCoords(user: User, viewerId?: string): { lat: numbe
   if (viewerId === user.id) {
     return { lat: user.latitude, lon: user.longitude };
   }
-  if (user.blurredLatitude == null || user.blurredLongitude == null) return null;
   if (userCityOnlyLocation(user)) {
     const [lat, lon] = resolveCityCoordinates(user.city || 'Paris');
     return { lat, lon };
   }
-  return { lat: user.blurredLatitude, lon: user.blurredLongitude };
+  if (!isValidLatLng(user.blurredLatitude, user.blurredLongitude)) return null;
+  return { lat: user.blurredLatitude!, lon: user.blurredLongitude! };
 }
 
 export function applyPrivacySettings(

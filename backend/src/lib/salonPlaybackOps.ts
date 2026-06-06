@@ -72,6 +72,7 @@ export function buildPlaybackFromQueueItem(salon: Salon, item: SalonQueueItem, n
     updatedAt: now,
     startedAt: now,
     externalUrl,
+    ...(salon.platform === 'youtube' ? { showVideo: true } : {}),
   };
 }
 
@@ -172,6 +173,57 @@ export function proposalToQueueItem(
 export function resumeSalonPlayback(salon: Salon): PlaybackState {
   const patch = playbackStateAtResume(salon.playbackState);
   salon.playbackState = { ...salon.playbackState, ...patch };
+  db.salons.set(salon.id, salon);
+  broadcastSalonPlayback(salon.id, salon.playbackState);
+  return salon.playbackState;
+}
+
+export function hostLoadYoutubePlaylist(
+  salon: Salon,
+  items: Omit<SalonQueueItem, 'id' | 'addedAt'>[],
+  hostId: string,
+  hostName: string
+): PlaybackState | null {
+  if (items.length === 0) return null;
+  const now = Date.now();
+  const built: SalonQueueItem[] = items.map((item, i) => ({
+    ...item,
+    id: `q_${now}_${i}_${Math.random().toString(36).slice(2, 7)}`,
+    addedAt: now + i,
+    addedById: hostId,
+    addedByName: hostName,
+    source: 'host' as const,
+  }));
+  const [first, ...rest] = built;
+  db.salonQueues.set(salon.id, rest);
+  const state = applyQueueItemToSalon(salon, first);
+  broadcastSalonQueue(salon.id);
+  broadcastSalonPlayback(salon.id, state);
+  return state;
+}
+
+export function hostChangePlaybackTrack(
+  salon: Salon,
+  track: { trackId: string; title: string; artist: string; externalUrl?: string; albumArtUrl?: string }
+): PlaybackState {
+  const now = Date.now();
+  const trackId = track.trackId;
+  const externalUrl =
+    track.externalUrl ||
+    (trackId !== 'demo' ? buildPlatformTrackUrl(salon.platform, trackId) : undefined);
+  salon.playbackState = {
+    platform: salon.platform,
+    trackId,
+    title: track.title.slice(0, 120),
+    artist: track.artist.slice(0, 80),
+    albumArtUrl: track.albumArtUrl || albumArtForTrack(salon.platform, trackId),
+    isPlaying: true,
+    progressMs: 0,
+    updatedAt: now,
+    startedAt: now,
+    externalUrl,
+    ...(salon.platform === 'youtube' ? { showVideo: true } : {}),
+  };
   db.salons.set(salon.id, salon);
   broadcastSalonPlayback(salon.id, salon.playbackState);
   return salon.playbackState;
