@@ -27,6 +27,7 @@
     "app:demo": "npm run demo --prefix app",
     "app:demo:public": "node msdev/scripts/start-public-demo.mjs",
     "msdev:public": "node msdev/scripts/start-public-msdev.mjs",
+    "backup:demo:public": "node msdev/scripts/start-backup-demo-public.mjs",
     "build:exe": "npm run app:build && npm run build:exe --prefix backend",
     "backend:build": "npm run build --prefix backend"
   }
