@@ -9,6 +9,7 @@ dist/
 msdev/.env
 msdev/data/
 msdev/PUBLIC-DEMO-URL.txt
+msdev/PUBLIC-APP-URL.txt
 backend/data/
 
 # Built Windows executable (regenerate with npm run build:exe)
