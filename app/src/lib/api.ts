@@ -1,4 +1,6 @@
 import { serializeFeedAlgoForApi, type ReelFeedAlgorithmPreferences } from './reelFeedAlgorithm';
+import { isOfflineDemo } from './offlineDemo';
+import { offlineGetLive, offlineRequest } from './offlineApi';
 
 const API = '/api';
 
@@ -27,6 +29,9 @@ async function parseApiError(res: Response): Promise<string> {
 }
 
 async function request<T>(path: string, opts: RequestInit = {}, token?: string | null): Promise<T> {
+  if (isOfflineDemo()) {
+    return offlineRequest<T>(path, opts);
+  }
   const res = await fetch(`${API}${path}`, { ...opts, headers: { ...headers(token), ...opts.headers } });
   if (!res.ok) {
     throw new Error(await parseApiError(res));
@@ -158,6 +163,9 @@ export const api = {
   },
 
   getLive: async (token: string, id: string) => {
+    if (isOfflineDemo()) {
+      return offlineGetLive(id);
+    }
     const res = await fetch(`${API}/lives/${id}`, { headers: headers(token) });
     const body = (await res.json().catch(() => ({}))) as {
       live?: import('../types').Live;

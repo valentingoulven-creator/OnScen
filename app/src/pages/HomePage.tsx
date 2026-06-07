@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useViewport } from '../hooks/useViewport';
 import { api } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import { MapView } from '../components/MapView';
@@ -11,7 +12,13 @@ import { MapAdBanner } from '../components/MapAdBanner';
 import { StartLiveMapButton } from '../components/StartLiveMapButton';
 import { UserProfileSheet } from '../components/UserProfileSheet';
 import type { NearbyPerson, Salon, Live } from '../types';
-import { getNearbyRadiusKm, SETTINGS_CHANGED_EVENT } from '../lib/settings';
+import {
+  getMapViewMode,
+  getNearbyRadiusKm,
+  setMapViewMode as persistMapViewMode,
+  SETTINGS_CHANGED_EVENT,
+  type MapViewMode,
+} from '../lib/settings';
 import { getLivesGeo, MAP_GEO_CHANGED_EVENT } from '../lib/livesGeo';
 import {
   filterLivesForNearbyPanel,
@@ -24,15 +31,21 @@ import {
 
 const NEARBY_PEOPLE_STORAGE_KEY = 'melosong_show_nearby_people';
 
+const GlobeView = lazy(() =>
+  import('../components/GlobeView').then((m) => ({ default: m.GlobeView }))
+);
+
 interface HomePageProps {
+  isActive?: boolean;
   onOpenSalon: (id: string) => void;
   onOpenLive: (liveId: string) => void;
   onOpenLiveTab?: () => void;
   onOpenReel?: (reelId: string) => void;
 }
 
-export function HomePage({ onOpenSalon, onOpenLive, onOpenLiveTab, onOpenReel }: HomePageProps) {
+export function HomePage({ isActive = true, onOpenSalon, onOpenLive, onOpenLiveTab, onOpenReel }: HomePageProps) {
   const { user, token, setUserFromProfile } = useAuth();
+  const { isMobile } = useViewport();
   const [salons, setSalons] = useState<Salon[]>([]);
   const [lives, setLives] = useState<Live[]>([]);
   const [nearbyPeople, setNearbyPeople] = useState<NearbyPerson[]>([]);
@@ -47,9 +60,13 @@ export function HomePage({ onOpenSalon, onOpenLive, onOpenLiveTab, onOpenReel }:
   );
   const [profilePerson, setProfilePerson] = useState<NearbyPerson | null>(null);
   const [nearbyPanelPrefs, setNearbyPanelPrefs] = useState(getNearbyPanelPreferences);
+  const [mapViewMode, setMapViewMode] = useState<MapViewMode>(getMapViewMode);
 
   useEffect(() => {
-    const syncPrefs = () => setNearbyPanelPrefs(getNearbyPanelPreferences());
+    const syncPrefs = () => {
+      setNearbyPanelPrefs(getNearbyPanelPreferences());
+      setMapViewMode(getMapViewMode());
+    };
     window.addEventListener(SETTINGS_CHANGED_EVENT, syncPrefs);
     window.addEventListener(NEARBY_PANEL_CHANGED_EVENT, syncPrefs);
     window.addEventListener(MAP_GEO_CHANGED_EVENT, syncPrefs);
@@ -102,7 +119,7 @@ export function HomePage({ onOpenSalon, onOpenLive, onOpenLiveTab, onOpenReel }:
   };
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || !isActive) return;
 
     const geo = getLivesGeo();
     if (geo.source === 'city') {
@@ -141,9 +158,10 @@ export function HomePage({ onOpenSalon, onOpenLive, onOpenLiveTab, onOpenReel }:
       );
     }, 20000);
     return () => clearInterval(interval);
-  }, [token]);
+  }, [token, isActive]);
 
   useEffect(() => {
+    if (!isActive) return;
     const onMapGeo = () => {
       const geo = getLivesGeo();
       if (geo.source === 'city') {
@@ -174,9 +192,10 @@ export function HomePage({ onOpenSalon, onOpenLive, onOpenLiveTab, onOpenReel }:
     };
     window.addEventListener(MAP_GEO_CHANGED_EVENT, onMapGeo);
     return () => window.removeEventListener(MAP_GEO_CHANGED_EVENT, onMapGeo);
-  }, [token]);
+  }, [token, isActive]);
 
   useEffect(() => {
+    if (!isActive) return;
     const onSettings = () => {
       const geo = getLivesGeo();
       if (geo.source === 'city') {
@@ -189,7 +208,7 @@ export function HomePage({ onOpenSalon, onOpenLive, onOpenLiveTab, onOpenReel }:
     };
     window.addEventListener(SETTINGS_CHANGED_EVENT, onSettings);
     return () => window.removeEventListener(SETTINGS_CHANGED_EVENT, onSettings);
-  }, [token, userPosition, center]);
+  }, [token, userPosition, center, isActive]);
 
   const recenterOnUser = () => {
     if (!navigator.geolocation) {
@@ -296,8 +315,17 @@ export function HomePage({ onOpenSalon, onOpenLive, onOpenLiveTab, onOpenReel }:
           onOpenReel={onOpenReel}
         />
       )}
+      {showNearbyPeople && isMobile && (
+        <button
+          type="button"
+          className="mobile-sheet-backdrop md:hidden"
+          onClick={() => setNearbyPeopleVisible(false)}
+          aria-label="Fermer la liste des personnes proches"
+        />
+      )}
       {showNearbyPeople ? (
         <NearbyPeoplePanel
+          className={isMobile ? 'mobile-sheet-panel' : undefined}
           people={nearbyPeople}
           loading={loadingNearby}
           selectedSalonId={selected?.id}
@@ -311,12 +339,16 @@ export function HomePage({ onOpenSalon, onOpenLive, onOpenLiveTab, onOpenReel }:
           onClick={() => setNearbyPeopleVisible(true)}
           title="Afficher les personnes à proximité"
           aria-label="Afficher les personnes à proximité"
-          className="shrink-0 z-20 flex flex-col items-center justify-center gap-1 w-10 sm:w-11 bg-[#12121a]/95 border-r border-[#1e1e2f] text-purple-400 hover:text-purple-300 hover:bg-[#1a1a26] transition"
+          className={`shrink-0 z-20 flex flex-col items-center justify-center gap-1 touch-target bg-[#12121a]/95 text-purple-400 hover:text-purple-300 hover:bg-[#1a1a26] transition ${
+            isMobile
+              ? 'absolute bottom-24 left-3 w-12 h-12 rounded-full border border-purple-500/40 shadow-lg'
+              : 'w-11 border-r border-[#1e1e2f]'
+          }`}
         >
           <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" strokeLinecap="round" />
           </svg>
-          <span className="text-[8px] font-bold uppercase hidden sm:block">Liste</span>
+          <span className={`text-[8px] font-bold uppercase ${isMobile ? 'sr-only' : 'hidden sm:block'}`}>Liste</span>
           {!loadingNearby && filteredNearbyPeople.length > 0 && (
             <span className="text-[9px] font-bold bg-purple-600/80 text-white px-1.5 py-0.5 rounded-full min-w-[1.1rem]">
               {filteredNearbyPeople.length}
@@ -332,21 +364,58 @@ export function HomePage({ onOpenSalon, onOpenLive, onOpenLiveTab, onOpenReel }:
         />
 
         <div className="relative flex-1 min-h-0">
-        <MapView
-          salons={mapSalons}
-          lives={mapLives}
-          people={mapPeople}
-          center={center}
-          userPosition={userPosition ?? undefined}
-          onSelectSalon={(s) => trySelectSalon(s)}
-          onSelectLive={(l) => {
-            const salon = salons.find((s) => s.id === l.id);
-            if (salon) trySelectSalon(salon);
-          }}
-          onSelectPerson={setProfilePerson}
-        />
+        {mapViewMode === 'globe' ? (
+          <Suspense
+            fallback={
+              <div className="absolute inset-0 flex items-center justify-center bg-[#020208] text-gray-500 text-sm">
+                Chargement du globe 3D…
+              </div>
+            }
+          >
+            <GlobeView
+              salons={mapSalons}
+              lives={mapLives}
+              people={mapPeople}
+              center={center}
+              userPosition={userPosition ?? undefined}
+              onSelectSalon={(s) => trySelectSalon(s)}
+              onSelectLive={(l) => {
+                const salon = salons.find((s) => s.id === l.id);
+                if (salon) trySelectSalon(salon);
+              }}
+              onSelectPerson={setProfilePerson}
+            />
+          </Suspense>
+        ) : (
+          <MapView
+            salons={mapSalons}
+            lives={mapLives}
+            people={mapPeople}
+            center={center}
+            userPosition={userPosition ?? undefined}
+            onSelectSalon={(s) => trySelectSalon(s)}
+            onSelectLive={(l) => {
+              const salon = salons.find((s) => s.id === l.id);
+              if (salon) trySelectSalon(salon);
+            }}
+            onSelectPerson={setProfilePerson}
+          />
+        )}
 
         <div className="absolute bottom-4 right-3 z-30 flex flex-col items-center gap-2 pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => {
+              const next = mapViewMode === 'globe' ? 'leaflet' : 'globe';
+              persistMapViewMode(next);
+              setMapViewMode(next);
+            }}
+            title={mapViewMode === 'globe' ? 'Passer en carte 2D' : 'Passer en globe 3D'}
+            aria-label={mapViewMode === 'globe' ? 'Passer en carte 2D' : 'Passer en globe 3D'}
+            className="w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center rounded-full bg-[#12121a] border border-purple-500/40 text-purple-300 shadow-lg active:scale-95 transition shrink-0 text-lg"
+          >
+            {mapViewMode === 'globe' ? '🗺️' : '🌐'}
+          </button>
           <button
             type="button"
             onClick={recenterOnUser}

@@ -3,7 +3,7 @@
 # Usage : « Applique la modification n°X » ou « Annule / refais la modification 3 »
 # Les numéros sont stables : n’en réutilisez pas pour une nouvelle demande (ajoutez en bas).
 #
-# Dernière mise à jour : 3 juin 2026
+# Dernière mise à jour : 7 juin 2026
 
 1. Revue code, corrections bugs et améliorations
    - Backend : error handler Express après les routes ; sécurité socket (senderId) ; dédup join_salon/live ;
@@ -56,3 +56,8 @@
     - Panneau engrenage : sélection de ville (liste preset), bouton « Ma position ».
     - Carte et recherche à proximité centrées sur la ville choisie ; persistance partagée avec l’onglet Lives (melosong_lives_geo).
     - Fichiers : app/src/lib/livesGeo.ts (MAP_GEO_CHANGED_EVENT), NearbyPeoplePanel.tsx, HomePage.tsx.
+
+13. Globe 3D sur l’onglet Carte
+    - Vue par défaut : globe interactif (react-globe.gl) avec salons, lives et personnes en points colorés.
+    - Bascule Globe 3D / Carte 2D (bouton 🌐/🗺️ sur la carte + Paramètres → Carte).
+    - Fichiers : app/src/components/GlobeView.tsx, app/src/lib/settings.ts (mapViewMode), HomePage.tsx.

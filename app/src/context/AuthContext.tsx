@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '../lib/api';
+import { isOfflineDemo, OFFLINE_DEMO_TOKEN, OFFLINE_DEMO_USER } from '../lib/offlineDemo';
 import { registerUser } from '../lib/socket';
 import type { User } from '../types';
 
@@ -16,11 +17,18 @@ interface AuthCtx {
 const AuthContext = createContext<AuthCtx | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('melosong_token'));
-  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(() =>
+    isOfflineDemo() ? OFFLINE_DEMO_TOKEN : localStorage.getItem('melosong_token')
+  );
+  const [user, setUser] = useState<User | null>(() => (isOfflineDemo() ? OFFLINE_DEMO_USER : null));
   const logoutRef = useRef<() => void>(null!);
 
   const logout = () => {
+    if (isOfflineDemo()) {
+      setToken(OFFLINE_DEMO_TOKEN);
+      setUser(OFFLINE_DEMO_USER);
+      return;
+    }
     localStorage.removeItem('melosong_token');
     setToken(null);
     setUser(null);
@@ -28,6 +36,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   logoutRef.current = logout;
 
   useEffect(() => {
+    if (isOfflineDemo()) {
+      localStorage.setItem('melosong_token', OFFLINE_DEMO_TOKEN);
+      setToken(OFFLINE_DEMO_TOKEN);
+      setUser(OFFLINE_DEMO_USER);
+      return;
+    }
     if (!token) return;
     api.me(token).then((r) => {
       setUser(r.user);

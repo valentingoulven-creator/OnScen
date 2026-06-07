@@ -1,4 +1,5 @@
 export type AppLanguage = 'fr' | 'en';
+export type MapViewMode = 'globe' | 'leaflet';
 
 export interface PrivacyPreferences {
   showOnNearbyList: boolean;
@@ -9,6 +10,7 @@ const KEYS = {
   nearbyRadiusKm: 'melosong_nearby_radius_km',
   language: 'melosong_language',
   privacy: 'melosong_privacy_prefs',
+  mapViewMode: 'melosong_map_view_mode',
 } as const;
 
 export const SETTINGS_CHANGED_EVENT = 'melosong-settings-changed';
@@ -57,5 +59,15 @@ export function getPrivacyPreferences(): PrivacyPreferences {
 
 export function setPrivacyPreferences(prefs: PrivacyPreferences): void {
   localStorage.setItem(KEYS.privacy, JSON.stringify(prefs));
+  notifySettingsChanged();
+}
+
+export function getMapViewMode(): MapViewMode {
+  const mode = localStorage.getItem(KEYS.mapViewMode);
+  return mode === 'leaflet' ? 'leaflet' : 'globe';
+}
+
+export function setMapViewMode(mode: MapViewMode): void {
+  localStorage.setItem(KEYS.mapViewMode, mode);
   notifySettingsChanged();
 }

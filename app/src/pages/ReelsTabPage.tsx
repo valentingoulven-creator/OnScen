@@ -795,29 +795,41 @@ export function ReelsTabPage({
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchCancel}
       >
-        {reels.map((reel, index) => (
-          <ReelSlide
-            key={reel.id}
-            reel={reel}
-            isActive={index === activeIndex}
-            muted={index === activeIndex ? muted : true}
-            videoRef={(el) => {
-              if (el) videoRefsById.current.set(reel.id, el);
-              else videoRefsById.current.delete(reel.id);
-            }}
-            audioRef={(el) => {
-              if (el) audioRefsById.current.set(reel.id, el);
-              else audioRefsById.current.delete(reel.id);
-            }}
-            onTapForSound={index === activeIndex ? tapVideoForSound : undefined}
-            onTapCenter={index === activeIndex ? togglePlaybackPause : undefined}
-            showPlaybackPaused={index === activeIndex && playbackPaused}
-            resolveMuted={resolveMuted}
-            devCatalogVideoCount={
-              isMsdevEnvironment() && index === activeIndex ? REELS_DEMO_VIDEO_COUNT : undefined
-            }
-          />
-        ))}
+        {reels.map((reel, index) => {
+          const inWindow = Math.abs(index - activeIndex) <= 2;
+          if (!inWindow) {
+            return (
+              <div
+                key={reel.id}
+                className="reel-slide relative snap-start snap-always bg-black"
+                aria-hidden
+              />
+            );
+          }
+          return (
+            <ReelSlide
+              key={reel.id}
+              reel={reel}
+              isActive={index === activeIndex}
+              muted={index === activeIndex ? muted : true}
+              videoRef={(el) => {
+                if (el) videoRefsById.current.set(reel.id, el);
+                else videoRefsById.current.delete(reel.id);
+              }}
+              audioRef={(el) => {
+                if (el) audioRefsById.current.set(reel.id, el);
+                else audioRefsById.current.delete(reel.id);
+              }}
+              onTapForSound={index === activeIndex ? tapVideoForSound : undefined}
+              onTapCenter={index === activeIndex ? togglePlaybackPause : undefined}
+              showPlaybackPaused={index === activeIndex && playbackPaused}
+              resolveMuted={resolveMuted}
+              devCatalogVideoCount={
+                isMsdevEnvironment() && index === activeIndex ? REELS_DEMO_VIDEO_COUNT : undefined
+              }
+            />
+          );
+        })}
       </div>
 
       {activeReel && (
@@ -1266,7 +1278,7 @@ function ReelSlide({
             src={reel.videoUrl}
             poster={posterSrc || undefined}
             className="absolute inset-0 w-full h-full object-cover cursor-pointer"
-            style={{ willChange: 'transform' }}
+            style={isActive ? { willChange: 'transform' } : undefined}
             playsInline
             autoPlay={false}
             muted={separateAudio || muted}

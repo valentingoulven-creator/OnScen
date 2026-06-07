@@ -11,6 +11,7 @@ import { FollowUserButton } from '../components/FollowUserButton';
 import type { Live } from '../types';
 
 interface LivesTabPageProps {
+  isActive?: boolean;
   onOpenLive: (liveId: string) => void;
 }
 
@@ -19,7 +20,7 @@ function formatDistance(km: number): string {
   return `${km.toFixed(km < 10 ? 1 : 0)} km`;
 }
 
-export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
+export function LivesTabPage({ isActive = true, onOpenLive }: LivesTabPageProps) {
   const { token, user } = useAuth();
   const [lives, setLives] = useState<Live[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,10 +62,11 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
   }, [token, geo.latitude, geo.longitude, geo.radiusKm]);
 
   useEffect(() => {
+    if (!isActive) return;
     loadLives();
     const interval = setInterval(loadLives, 8000);
     return () => clearInterval(interval);
-  }, [loadLives]);
+  }, [loadLives, isActive]);
 
   const selectCity = (city: (typeof PRESET_CITIES)[number]) => {
     persistGeo({
