@@ -29,9 +29,13 @@ Ou depuis ce dossier :
 
 **URL à taper dans le navigateur du téléphone** (c’est l’**IP du PC**, pas celle du téléphone) :
 
-**http://192.168.1.93:4080**
+Voir **`msdev/MOBILE-URL.txt`** (mis à jour automatiquement au démarrage).
 
-Configurée dans `msdev/.env` (`MOBILE_HOST_IP`) et `msdev/MOBILE-URL.txt`.
+```bash
+npm run msdev:sync-ip   # resynchroniser l’IP du PC si le Wi‑Fi a changé
+```
+
+Configurée dans `msdev/.env` (`MOBILE_HOST_IP`), `msdev/config.json` et `msdev/MOBILE-URL.txt`.
 
 - **PC** : `http://localhost:4080`
 - **Android Emulator** : `http://10.0.2.2:4080`
@@ -48,7 +52,7 @@ Le serveur écoute sur **0.0.0.0:4080** (`HOST` dans `.env`) pour accepter les c
 | Problème | Action |
 |----------|--------|
 | Page inaccessible sur le téléphone | `npm run msdev:diagnose` puis `npm run msdev:fix-network` (pare-feu + réseau Privé, admin) |
-| IP du PC a changé | Mettre à jour `MOBILE_HOST_IP` dans `msdev/.env`, `config.json`, `MOBILE-URL.txt` ; ou `npm run msdev:mobile-url` |
+| IP du PC a changé | `npm run msdev:sync-ip` (met à jour `.env`, `config.json`, `MOBILE-URL.txt`) |
 | Téléphone en Wi‑Fi, PC en Ethernet | Certains routeurs **isolent** Wi‑Fi et Ethernet : désactiver « isolation AP » ou mettre le PC en Wi‑Fi |
 | Vous utilisez `npm run app:dev` (port 5173) | Le téléphone doit utiliser **`npm run msdev`** (port **4080**) |
 
