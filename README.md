@@ -56,7 +56,7 @@ melosong/
 ## Smartphone
 
 1. Lancez `npm run msdev` sur le PC (serveur sur **0.0.0.0:4080**).
-2. Sur le téléphone, ouvrez dans le navigateur : **http://192.168.1.93:4080** — c’est l’**IP du PC**, pas du téléphone (voir `msdev/MOBILE-URL.txt`). Si l’IP du PC change, mettez à jour `msdev/.env`.
+2. Sur le téléphone, ouvrez l’URL indiquée dans **`msdev/MOBILE-URL.txt`** (IP du **PC**, pas du téléphone). L’IP est synchronisée au lancement de `npm run msdev` ; si le Wi‑Fi change : `npm run msdev:sync-ip`.
 3. Si la page ne charge pas : `npm run msdev:diagnose` puis `npm run msdev:fix-network` (pare-feu Windows, admin).
 4. L’app ne liste pas les « téléphones connectés » ; **Personnes proches** = utilisateurs MeloSong géolocalisés.
 5. Option : **Ajouter à l'écran d'accueil** (PWA).
