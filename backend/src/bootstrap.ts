@@ -1,6 +1,5 @@
 import http from 'http';
 import https from 'https';
-import os from 'os';
 import { exec } from 'child_process';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
@@ -18,22 +17,10 @@ import {
 } from './lib/persist';
 import { ensureMsdevHttpsCredentials, getMsdevHttpsUrls } from './msdevHttps';
 import { getMsdevEnvPath } from './paths';
-
-function getLocalIpv4Addresses(): string[] {
-  const ips: string[] = [];
-  for (const interfaces of Object.values(os.networkInterfaces())) {
-    if (!interfaces) continue;
-    for (const iface of interfaces) {
-      if (iface.family === 'IPv4' && !iface.internal && !iface.address.startsWith('169.254')) {
-        ips.push(iface.address);
-      }
-    }
-  }
-  return ips;
-}
+import { getLanIpv4Addresses, resolveMobileHostIp } from './lib/lanIp';
 
 function getLanUrls(port: number): string[] {
-  return getLocalIpv4Addresses().map((ip) => `http://${ip}:${port}`);
+  return getLanIpv4Addresses().map((ip) => `http://${ip}:${port}`);
 }
 
 export interface StartOptions {
@@ -160,11 +147,12 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
       console.log(`  → API  ${scheme}://localhost:${PORT}/api`);
       if (APP_ENV === 'msdev') {
         console.log('  → Demo: listener@msdev.local / msdev123');
-        const localIps = getLocalIpv4Addresses();
+        const localIps = getLanIpv4Addresses();
         const configuredIp = process.env.MOBILE_HOST_IP;
+        const mobileIp = resolveMobileHostIp(configuredIp);
         if (configuredIp && localIps.length && !localIps.includes(configuredIp)) {
           console.log(`  ⚠ MOBILE_HOST_IP=${configuredIp} ne correspond pas au PC (${localIps.join(', ')})`);
-          console.log('    Mettez à jour msdev/.env et msdev/MOBILE-URL.txt');
+          console.log('    Lancez: npm run msdev:sync-ip');
         }
         if (scheme === 'https') {
           console.log('  → Caméra LAN : HTTPS actif (acceptez le certificat auto-signé une fois).');
@@ -179,8 +167,10 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
           }
         } else {
           const mobileUrl =
-            process.env.MOBILE_WEB_URL ||
-            (configuredIp ? `http://${configuredIp}:${PORT}` : null);
+            (configuredIp && localIps.includes(configuredIp)
+              ? process.env.MOBILE_WEB_URL || `http://${configuredIp}:${PORT}`
+              : null) ||
+            (mobileIp ? `http://${mobileIp}:${PORT}` : null);
           if (mobileUrl) {
             console.log('  → Smartphone (même réseau local — sans caméra garantie en HTTP):');
             console.log(`     ${mobileUrl}`);
