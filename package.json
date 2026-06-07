@@ -25,6 +25,7 @@
     "app:build": "npm run build --prefix app",
     "app:dev": "npm run dev --prefix app",
     "app:demo": "npm run demo --prefix app",
+    "app:demo:public": "node msdev/scripts/start-public-demo.mjs",
     "build:exe": "npm run app:build && npm run build:exe --prefix backend",
     "backend:build": "npm run build --prefix backend"
   }

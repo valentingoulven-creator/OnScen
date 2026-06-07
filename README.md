@@ -33,6 +33,7 @@ Ouvrir **http://localhost:4080** sur PC ou **http://&lt;IP-de-votre-PC&gt;:4080*
 | `npm run msdev` | Build l'app + serveur msdev (4080) |
 | `npm run app:dev` | Frontend seul (5173, proxy API) |
 | `npm run app:demo` | **Démo hors-ligne** (5173, sans serveur backend) |
+| `npm run app:demo:public` | Démo accessible depuis le téléphone **sans même Wi‑Fi** (tunnel public) |
 | `npm run msdev:server` | Backend seul |
 | `npm run build:exe` | Génère `msdev/release/msdev.exe` |
 
