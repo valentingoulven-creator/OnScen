@@ -12,6 +12,14 @@ body {
   margin: 0;
   min-height: 100dvh;
   background: #0b0b0f;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+button,
+a,
+[role='button'] {
+  touch-action: manipulation;
 }
 
 #root {
@@ -111,7 +119,51 @@ body {
 }
 
 .safe-area-pb {
-  padding-bottom: env(safe-area-inset-bottom, 0);
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px);
+}
+
+.safe-area-pt {
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+.touch-target {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+}
+
+.mobile-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 44;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.mobile-sheet-panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 45;
+  width: 100% !important;
+  max-height: min(70dvh, 32rem);
+  border-radius: 1rem 1rem 0 0;
+  border-right: none !important;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
+}
+
+@media (min-width: 641px) {
+  .mobile-sheet-panel {
+    position: relative;
+    max-height: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reel-heart-pop {
+    animation: none;
+  }
 }
 
 .reels-track {

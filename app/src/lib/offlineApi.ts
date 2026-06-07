@@ -373,7 +373,7 @@ export async function offlineRequest<T>(path: string, opts: RequestInit = {}): P
   }
 
   if (method === 'GET' && (clean === '/reels' || clean.startsWith('/reels?'))) {
-    return { reels: MUSIC_REELS.slice(0, 30) as MusicReel[] } as T;
+    return { reels: MUSIC_REELS.slice(0, 20) as MusicReel[] } as T;
   }
   if (method === 'GET' && clean === '/reels/private/me') {
     return { reels: [] } as T;

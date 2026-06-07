@@ -1,17 +1,19 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useAuth } from './context/AuthContext';
 import { isOfflineDemo } from './lib/offlineDemo';
 import { pauseAllReelsMediaInDom } from './lib/reelsMedia';
 import { AuthPage } from './pages/AuthPage';
-import { HomePage } from './pages/HomePage';
-import { SalonPage } from './pages/SalonPage';
-import { DmPage } from './pages/DmPage';
-import { ProfilePage } from './pages/ProfilePage';
-import { LivesTabPage } from './pages/LivesTabPage';
-import { ReelsTabPage } from './pages/ReelsTabPage';
-import { LivePage } from './pages/LivePage';
 import { NotificationBell } from './components/NotificationBell';
 import { PrivacyVisibilityMenu } from './components/PrivacyVisibilityMenu';
+import { TabLoading } from './components/TabLoading';
+
+const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
+const SalonPage = lazy(() => import('./pages/SalonPage').then((m) => ({ default: m.SalonPage })));
+const DmPage = lazy(() => import('./pages/DmPage').then((m) => ({ default: m.DmPage })));
+const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
+const LivesTabPage = lazy(() => import('./pages/LivesTabPage').then((m) => ({ default: m.LivesTabPage })));
+const ReelsTabPage = lazy(() => import('./pages/ReelsTabPage').then((m) => ({ default: m.ReelsTabPage })));
+const LivePage = lazy(() => import('./pages/LivePage').then((m) => ({ default: m.LivePage })));
 
 type Tab = 'map' | 'live' | 'dm' | 'reels';
 type View =
@@ -39,7 +41,11 @@ export default function App() {
   if (!user || !token) return <AuthPage />;
 
   if (view.type === 'salon') {
-    return <SalonPage salonId={view.id} onBack={() => setView({ type: 'home' })} />;
+    return (
+      <Suspense fallback={<TabLoading />}>
+        <SalonPage salonId={view.id} onBack={() => setView({ type: 'home' })} />
+      </Suspense>
+    );
   }
 
   const reelsActive = tab === 'reels' && !profileOpen && view.type === 'home';
@@ -69,16 +75,16 @@ export default function App() {
 
   return (
     <div className="flex flex-col min-h-dvh max-h-dvh overflow-hidden">
-      <header className="flex items-center justify-between px-4 py-3 border-b border-[#1e1e2f] bg-[#12121a] z-40 shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="text-lg font-extrabold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+      <header className="flex items-center justify-between px-4 py-2.5 sm:py-3 border-b border-[#1e1e2f] bg-[#12121a] z-40 shrink-0 safe-area-pt">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-base sm:text-lg font-extrabold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent truncate">
             MeloSong
           </span>
-          <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full font-bold">
+          <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full font-bold shrink-0">
             {isOfflineDemo() ? 'DEMO' : 'msdev'}
           </span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5 sm:gap-1">
           <PrivacyVisibilityMenu />
           <NotificationBell onOpenLive={openLive} />
           <button
@@ -87,64 +93,61 @@ export default function App() {
               if (tab === 'reels') stopReelsMedia();
               setProfileOpen(true);
             }}
-            className="rounded-full ring-2 ring-purple-500/40 hover:ring-purple-400 active:scale-95 transition"
+            className="touch-target rounded-full ring-2 ring-purple-500/40 hover:ring-purple-400 active:scale-95 transition flex items-center justify-center p-1"
             title="Mon profil"
             aria-label="Ouvrir mon profil"
           >
-            <img src={user.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
+            <img src={user.avatarUrl} alt="" className="w-9 h-9 sm:w-8 sm:h-8 rounded-full object-cover" />
           </button>
         </div>
       </header>
 
       <main className="flex-1 min-h-0 overflow-hidden flex flex-col relative">
         {view.type === 'live' && !profileOpen ? (
-          <LivePage liveId={view.id} onBack={closeLive} />
+          <Suspense fallback={<TabLoading />}>
+            <LivePage liveId={view.id} onBack={closeLive} />
+          </Suspense>
         ) : (
           <>
-            <div
-              className={tab === 'map' ? 'flex flex-col flex-1 min-h-0 overflow-hidden' : 'hidden'}
-              aria-hidden={tab !== 'map'}
-            >
-              <HomePage
-                onOpenSalon={(id: string) => setView({ type: 'salon', id })}
-                onOpenLive={openLive}
-                onOpenLiveTab={() => selectTab('live')}
-                onOpenReel={openReelInTab}
-              />
-            </div>
-            <div
-              className={tab === 'live' ? 'flex flex-col flex-1 min-h-0 overflow-hidden' : 'hidden'}
-              aria-hidden={tab !== 'live'}
-            >
-              <LivesTabPage onOpenLive={openLive} />
-            </div>
-            <div
-              className={tab === 'dm' ? 'flex flex-col flex-1 min-h-0 overflow-hidden' : 'hidden'}
-              aria-hidden={tab !== 'dm'}
-            >
-              <DmPage />
-            </div>
-            <div
-              className={
-                tab === 'reels' && view.type === 'home'
-                  ? 'flex flex-col flex-1 min-h-0 w-full overflow-hidden'
-                  : 'hidden'
-              }
-              aria-hidden={tab !== 'reels' || view.type !== 'home'}
-            >
-              <ReelsTabPage
-                onOpenLive={openLive}
-                initialReelId={reelsInitialId}
-                onIntentHandled={clearReelsIntent}
-                isActive={reelsActive}
-              />
-            </div>
+            {tab === 'map' && (
+              <Suspense fallback={<TabLoading />}>
+                <HomePage
+                  isActive
+                  onOpenSalon={(id: string) => setView({ type: 'salon', id })}
+                  onOpenLive={openLive}
+                  onOpenLiveTab={() => selectTab('live')}
+                  onOpenReel={openReelInTab}
+                />
+              </Suspense>
+            )}
+            {tab === 'live' && (
+              <Suspense fallback={<TabLoading />}>
+                <LivesTabPage isActive onOpenLive={openLive} />
+              </Suspense>
+            )}
+            {tab === 'dm' && (
+              <Suspense fallback={<TabLoading />}>
+                <DmPage />
+              </Suspense>
+            )}
+            {tab === 'reels' && view.type === 'home' && (
+              <Suspense fallback={<TabLoading />}>
+                <ReelsTabPage
+                  onOpenLive={openLive}
+                  initialReelId={reelsInitialId}
+                  onIntentHandled={clearReelsIntent}
+                  isActive={reelsActive}
+                />
+              </Suspense>
+            )}
           </>
         )}
 
         {profileOpen && (
           <div className="absolute inset-0 z-30 flex flex-col min-h-0 bg-[#0b0b0f]">
-            <ProfilePage onBack={() => setProfileOpen(false)} onOpenReel={openReelInTab} />
+            <Suspense fallback={<TabLoading />}>
+              <ProfilePage onBack={() => setProfileOpen(false)} onOpenReel={openReelInTab} />
+            </Suspense>
           </div>
         )}
       </main>
@@ -163,7 +166,7 @@ export default function App() {
               key={id}
               type="button"
               onClick={() => selectTab(id)}
-              className={`flex-1 py-3 text-sm font-semibold relative ${
+              className={`flex-1 min-h-[3rem] py-2.5 text-xs sm:text-sm font-semibold relative touch-target ${
                 tab === id || (id === 'live' && view.type === 'live')
                   ? id === 'live'
                     ? 'text-red-400'
@@ -174,7 +177,7 @@ export default function App() {
               }`}
             >
               {id === 'live' && (tab === 'live' || view.type === 'live') && (
-                <span className="absolute top-2 right-1/4 w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                <span className="absolute top-1.5 right-1/4 w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
               )}
               {label}
             </button>

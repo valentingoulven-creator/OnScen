@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useViewport } from '../hooks/useViewport';
 import { api } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import { MapView } from '../components/MapView';
@@ -25,14 +26,16 @@ import {
 const NEARBY_PEOPLE_STORAGE_KEY = 'melosong_show_nearby_people';
 
 interface HomePageProps {
+  isActive?: boolean;
   onOpenSalon: (id: string) => void;
   onOpenLive: (liveId: string) => void;
   onOpenLiveTab?: () => void;
   onOpenReel?: (reelId: string) => void;
 }
 
-export function HomePage({ onOpenSalon, onOpenLive, onOpenLiveTab, onOpenReel }: HomePageProps) {
+export function HomePage({ isActive = true, onOpenSalon, onOpenLive, onOpenLiveTab, onOpenReel }: HomePageProps) {
   const { user, token, setUserFromProfile } = useAuth();
+  const { isMobile } = useViewport();
   const [salons, setSalons] = useState<Salon[]>([]);
   const [lives, setLives] = useState<Live[]>([]);
   const [nearbyPeople, setNearbyPeople] = useState<NearbyPerson[]>([]);
@@ -102,7 +105,7 @@ export function HomePage({ onOpenSalon, onOpenLive, onOpenLiveTab, onOpenReel }:
   };
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || !isActive) return;
 
     const geo = getLivesGeo();
     if (geo.source === 'city') {
@@ -141,9 +144,10 @@ export function HomePage({ onOpenSalon, onOpenLive, onOpenLiveTab, onOpenReel }:
       );
     }, 20000);
     return () => clearInterval(interval);
-  }, [token]);
+  }, [token, isActive]);
 
   useEffect(() => {
+    if (!isActive) return;
     const onMapGeo = () => {
       const geo = getLivesGeo();
       if (geo.source === 'city') {
@@ -174,9 +178,10 @@ export function HomePage({ onOpenSalon, onOpenLive, onOpenLiveTab, onOpenReel }:
     };
     window.addEventListener(MAP_GEO_CHANGED_EVENT, onMapGeo);
     return () => window.removeEventListener(MAP_GEO_CHANGED_EVENT, onMapGeo);
-  }, [token]);
+  }, [token, isActive]);
 
   useEffect(() => {
+    if (!isActive) return;
     const onSettings = () => {
       const geo = getLivesGeo();
       if (geo.source === 'city') {
@@ -189,7 +194,7 @@ export function HomePage({ onOpenSalon, onOpenLive, onOpenLiveTab, onOpenReel }:
     };
     window.addEventListener(SETTINGS_CHANGED_EVENT, onSettings);
     return () => window.removeEventListener(SETTINGS_CHANGED_EVENT, onSettings);
-  }, [token, userPosition, center]);
+  }, [token, userPosition, center, isActive]);
 
   const recenterOnUser = () => {
     if (!navigator.geolocation) {
@@ -296,8 +301,17 @@ export function HomePage({ onOpenSalon, onOpenLive, onOpenLiveTab, onOpenReel }:
           onOpenReel={onOpenReel}
         />
       )}
+      {showNearbyPeople && isMobile && (
+        <button
+          type="button"
+          className="mobile-sheet-backdrop md:hidden"
+          onClick={() => setNearbyPeopleVisible(false)}
+          aria-label="Fermer la liste des personnes proches"
+        />
+      )}
       {showNearbyPeople ? (
         <NearbyPeoplePanel
+          className={isMobile ? 'mobile-sheet-panel' : undefined}
           people={nearbyPeople}
           loading={loadingNearby}
           selectedSalonId={selected?.id}
@@ -311,12 +325,16 @@ export function HomePage({ onOpenSalon, onOpenLive, onOpenLiveTab, onOpenReel }:
           onClick={() => setNearbyPeopleVisible(true)}
           title="Afficher les personnes à proximité"
           aria-label="Afficher les personnes à proximité"
-          className="shrink-0 z-20 flex flex-col items-center justify-center gap-1 w-10 sm:w-11 bg-[#12121a]/95 border-r border-[#1e1e2f] text-purple-400 hover:text-purple-300 hover:bg-[#1a1a26] transition"
+          className={`shrink-0 z-20 flex flex-col items-center justify-center gap-1 touch-target bg-[#12121a]/95 text-purple-400 hover:text-purple-300 hover:bg-[#1a1a26] transition ${
+            isMobile
+              ? 'absolute bottom-24 left-3 w-12 h-12 rounded-full border border-purple-500/40 shadow-lg'
+              : 'w-11 border-r border-[#1e1e2f]'
+          }`}
         >
           <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" strokeLinecap="round" />
           </svg>
-          <span className="text-[8px] font-bold uppercase hidden sm:block">Liste</span>
+          <span className={`text-[8px] font-bold uppercase ${isMobile ? 'sr-only' : 'hidden sm:block'}`}>Liste</span>
           {!loadingNearby && filteredNearbyPeople.length > 0 && (
             <span className="text-[9px] font-bold bg-purple-600/80 text-white px-1.5 py-0.5 rounded-full min-w-[1.1rem]">
               {filteredNearbyPeople.length}
