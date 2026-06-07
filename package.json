@@ -9,17 +9,24 @@
     "directory": "MeloSongv2"
   },
   "scripts": {
-    "msdev": "npm run app:build && npm run dev:msdev --prefix backend",
+    "msdev": "node msdev/scripts/sync-mobile-ip.mjs && npm run app:build && npm run dev:msdev --prefix backend",
+    "msdev:sync-ip": "node msdev/scripts/sync-mobile-ip.mjs",
     "msdev:app": "npm run dev --prefix app",
     "msdev:server": "npm run dev:msdev --prefix backend",
-    "msdev:open": "powershell -ExecutionPolicy Bypass -File msdev/scripts/open-msdev-foreground.ps1",
+    "msdev:open": "node msdev/scripts/open.js",
+    "msdev:open-safari": "MELOSONG_BROWSER=safari node msdev/scripts/open.js",
+    "msdev:verify-mobile": "node msdev/scripts/verify-mobile-connectivity.mjs",
+    "msdev:open-foreground": "powershell -ExecutionPolicy Bypass -File msdev/scripts/open-msdev-foreground.ps1",
     "msdev:foreground": "npm run app:build && powershell -ExecutionPolicy Bypass -File msdev/scripts/open-msdev-foreground.ps1",
     "msdev:https": "npm run app:build && npm run dev:msdev:https --prefix backend",
-    "msdev:mobile-url": "powershell -ExecutionPolicy Bypass -File msdev/scripts/show-mobile-url.ps1",
+    "msdev:mobile-url": "node msdev/scripts/sync-mobile-ip.mjs",
     "msdev:diagnose": "powershell -ExecutionPolicy Bypass -File msdev/scripts/diagnose-mobile.ps1",
     "msdev:fix-network": "powershell -Command \"Start-Process powershell -Verb RunAs -ArgumentList '-ExecutionPolicy Bypass -File \"\"$PWD/msdev/scripts/fix-network-access.ps1\"\"'\"",
     "app:build": "npm run build --prefix app",
     "app:dev": "npm run dev --prefix app",
+    "app:demo": "npm run demo --prefix app",
+    "app:demo:public": "node msdev/scripts/start-public-demo.mjs",
+    "msdev:public": "node msdev/scripts/start-public-msdev.mjs",
     "build:exe": "npm run app:build && npm run build:exe --prefix backend",
     "backend:build": "npm run build --prefix backend"
   }

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import os from 'os';
+import { resolveMobileHostIp } from '../lib/lanIp';
 
 export const networkRouter = Router();
 
@@ -23,11 +24,11 @@ networkRouter.get('/info', (_req, res) => {
   const lan = urls.filter((u) => !u.internal && !u.ip.startsWith('169.254'));
   const lanIps = lan.map((u) => u.ip);
   const configuredIp = process.env.MOBILE_HOST_IP;
-  const fixedIp =
+  const fixedIp = resolveMobileHostIp(configuredIp) || '192.168.1.93';
+  const fixedUrl =
     configuredIp && lanIps.includes(configuredIp)
-      ? configuredIp
-      : lanIps[0] || configuredIp || '192.168.1.93';
-  const fixedUrl = process.env.MOBILE_WEB_URL || `http://${fixedIp}:${port}`;
+      ? process.env.MOBILE_WEB_URL || `http://${fixedIp}:${port}`
+      : `http://${fixedIp}:${port}`;
   const configuredStale =
     configuredIp != null && configuredIp !== '' && lanIps.length > 0 && !lanIps.includes(configuredIp);
 
