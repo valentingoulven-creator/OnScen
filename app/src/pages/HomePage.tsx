@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useViewport } from '../hooks/useViewport';
 import { api } from '../lib/api';
@@ -12,7 +12,13 @@ import { MapAdBanner } from '../components/MapAdBanner';
 import { StartLiveMapButton } from '../components/StartLiveMapButton';
 import { UserProfileSheet } from '../components/UserProfileSheet';
 import type { NearbyPerson, Salon, Live } from '../types';
-import { getNearbyRadiusKm, SETTINGS_CHANGED_EVENT } from '../lib/settings';
+import {
+  getMapViewMode,
+  getNearbyRadiusKm,
+  setMapViewMode as persistMapViewMode,
+  SETTINGS_CHANGED_EVENT,
+  type MapViewMode,
+} from '../lib/settings';
 import { getLivesGeo, MAP_GEO_CHANGED_EVENT } from '../lib/livesGeo';
 import {
   filterLivesForNearbyPanel,
@@ -24,6 +30,10 @@ import {
 } from '../lib/nearbyPanelSettings';
 
 const NEARBY_PEOPLE_STORAGE_KEY = 'melosong_show_nearby_people';
+
+const GlobeView = lazy(() =>
+  import('../components/GlobeView').then((m) => ({ default: m.GlobeView }))
+);
 
 interface HomePageProps {
   isActive?: boolean;
@@ -50,9 +60,13 @@ export function HomePage({ isActive = true, onOpenSalon, onOpenLive, onOpenLiveT
   );
   const [profilePerson, setProfilePerson] = useState<NearbyPerson | null>(null);
   const [nearbyPanelPrefs, setNearbyPanelPrefs] = useState(getNearbyPanelPreferences);
+  const [mapViewMode, setMapViewMode] = useState<MapViewMode>(getMapViewMode);
 
   useEffect(() => {
-    const syncPrefs = () => setNearbyPanelPrefs(getNearbyPanelPreferences());
+    const syncPrefs = () => {
+      setNearbyPanelPrefs(getNearbyPanelPreferences());
+      setMapViewMode(getMapViewMode());
+    };
     window.addEventListener(SETTINGS_CHANGED_EVENT, syncPrefs);
     window.addEventListener(NEARBY_PANEL_CHANGED_EVENT, syncPrefs);
     window.addEventListener(MAP_GEO_CHANGED_EVENT, syncPrefs);
@@ -350,21 +364,58 @@ export function HomePage({ isActive = true, onOpenSalon, onOpenLive, onOpenLiveT
         />
 
         <div className="relative flex-1 min-h-0">
-        <MapView
-          salons={mapSalons}
-          lives={mapLives}
-          people={mapPeople}
-          center={center}
-          userPosition={userPosition ?? undefined}
-          onSelectSalon={(s) => trySelectSalon(s)}
-          onSelectLive={(l) => {
-            const salon = salons.find((s) => s.id === l.id);
-            if (salon) trySelectSalon(salon);
-          }}
-          onSelectPerson={setProfilePerson}
-        />
+        {mapViewMode === 'globe' ? (
+          <Suspense
+            fallback={
+              <div className="absolute inset-0 flex items-center justify-center bg-[#020208] text-gray-500 text-sm">
+                Chargement du globe 3D…
+              </div>
+            }
+          >
+            <GlobeView
+              salons={mapSalons}
+              lives={mapLives}
+              people={mapPeople}
+              center={center}
+              userPosition={userPosition ?? undefined}
+              onSelectSalon={(s) => trySelectSalon(s)}
+              onSelectLive={(l) => {
+                const salon = salons.find((s) => s.id === l.id);
+                if (salon) trySelectSalon(salon);
+              }}
+              onSelectPerson={setProfilePerson}
+            />
+          </Suspense>
+        ) : (
+          <MapView
+            salons={mapSalons}
+            lives={mapLives}
+            people={mapPeople}
+            center={center}
+            userPosition={userPosition ?? undefined}
+            onSelectSalon={(s) => trySelectSalon(s)}
+            onSelectLive={(l) => {
+              const salon = salons.find((s) => s.id === l.id);
+              if (salon) trySelectSalon(salon);
+            }}
+            onSelectPerson={setProfilePerson}
+          />
+        )}
 
         <div className="absolute bottom-4 right-3 z-30 flex flex-col items-center gap-2 pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => {
+              const next = mapViewMode === 'globe' ? 'leaflet' : 'globe';
+              persistMapViewMode(next);
+              setMapViewMode(next);
+            }}
+            title={mapViewMode === 'globe' ? 'Passer en carte 2D' : 'Passer en globe 3D'}
+            aria-label={mapViewMode === 'globe' ? 'Passer en carte 2D' : 'Passer en globe 3D'}
+            className="w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center rounded-full bg-[#12121a] border border-purple-500/40 text-purple-300 shadow-lg active:scale-95 transition shrink-0 text-lg"
+          >
+            {mapViewMode === 'globe' ? '🗺️' : '🌐'}
+          </button>
           <button
             type="button"
             onClick={recenterOnUser}

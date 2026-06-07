@@ -5,13 +5,16 @@ import { LEGAL, type LegalKey } from '../content/legal';
 import { SUPPORT } from '../content/support';
 import { SupportMeloSongSection } from '../components/SupportMeloSongSection';
 import {
+  getMapViewMode,
   getNearbyRadiusKm,
   setNearbyRadiusKm,
   getAppLanguage,
   setAppLanguage,
   getPrivacyPreferences,
   setPrivacyPreferences,
+  setMapViewMode,
   type AppLanguage,
+  type MapViewMode,
   type PrivacyPreferences,
 } from '../lib/settings';
 import {
@@ -98,6 +101,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
   const [legal, setLegal] = useState<LegalKey | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [feedAlgo, setFeedAlgo] = useState<ReelFeedAlgorithmPreferences>(getFeedAlgorithmPreferences);
+  const [mapViewMode, setMapViewModeState] = useState<MapViewMode>(getMapViewMode);
 
   useEffect(() => {
     if (!user) return;
@@ -118,6 +122,12 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
     setRadiusKm(v);
     setNearbyRadiusKm(v);
     flash('Distance mise à jour');
+  };
+
+  const applyMapViewMode = (mode: MapViewMode) => {
+    setMapViewModeState(mode);
+    setMapViewMode(mode);
+    flash(mode === 'globe' ? 'Vue globe 3D' : 'Carte 2D');
   };
 
   const applyLanguage = (lang: AppLanguage) => {
@@ -233,6 +243,32 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
               Salons, lives et personnes affichés dans ce rayon autour de vous
             </p>
           </div>
+          <SettingsRow label="Vue carte" hint="Globe 3D interactif ou carte classique">
+            <div className="flex gap-1">
+              {(
+                [
+                  ['globe', 'Globe 3D'],
+                  ['leaflet', 'Carte 2D'],
+                ] as const
+              ).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    applyMapViewMode(mode);
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition ${
+                    mapViewMode === mode
+                      ? 'bg-purple-600/30 border-purple-500 text-purple-200'
+                      : 'border-[#2d2d3d] text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </SettingsRow>
         </section>
 
         <section className="border-b border-[#1e1e2f]">
