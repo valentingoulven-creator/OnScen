@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   define: {
     'import.meta.env.VITE_APP_ENV': JSON.stringify(process.env.VITE_APP_ENV || 'msdev'),
+    'import.meta.env.VITE_OFFLINE_DEMO': JSON.stringify(process.env.VITE_OFFLINE_DEMO || ''),
   },
   plugins: [react(), tailwindcss()],
   server: {
