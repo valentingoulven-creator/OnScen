@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from './context/AuthContext';
+import { isOfflineDemo } from './lib/offlineDemo';
 import { pauseAllReelsMediaInDom } from './lib/reelsMedia';
 import { AuthPage } from './pages/AuthPage';
 import { HomePage } from './pages/HomePage';
@@ -74,7 +75,7 @@ export default function App() {
             MeloSong
           </span>
           <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full font-bold">
-            msdev
+            {isOfflineDemo() ? 'DEMO' : 'msdev'}
           </span>
         </div>
         <div className="flex items-center gap-1">

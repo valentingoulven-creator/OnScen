@@ -24,6 +24,7 @@
     "msdev:fix-network": "powershell -Command \"Start-Process powershell -Verb RunAs -ArgumentList '-ExecutionPolicy Bypass -File \"\"$PWD/msdev/scripts/fix-network-access.ps1\"\"'\"",
     "app:build": "npm run build --prefix app",
     "app:dev": "npm run dev --prefix app",
+    "app:demo": "npm run demo --prefix app",
     "build:exe": "npm run app:build && npm run build:exe --prefix backend",
     "backend:build": "npm run build --prefix backend"
   }
