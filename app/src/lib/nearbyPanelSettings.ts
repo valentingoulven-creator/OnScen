@@ -50,7 +50,9 @@ export interface NearbySortOptions {
 export type { ProfileTastes };
 export { countMusicalAffinityMatches, hasMusicalAffinity, viewerHasTasteProfile };
 
-const STORAGE_KEY = 'melosong_nearby_panel_prefs';
+/** Préférences filtres/tri du panneau À proximité (hors rayon et lieu — voir settings / livesGeo). */
+export const NEARBY_PANEL_PREFS_STORAGE_KEY = 'melosong_nearby_panel_prefs';
+const STORAGE_KEY = NEARBY_PANEL_PREFS_STORAGE_KEY;
 
 export const NEARBY_PANEL_CHANGED_EVENT = 'melosong-nearby-panel-changed';
 

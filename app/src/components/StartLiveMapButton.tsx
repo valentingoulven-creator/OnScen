@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../lib/api';
 import type { Live } from '../types';
+import { StartLiveMediaSetupModal } from './StartLiveMediaSetupModal';
 
 interface StartLiveMapButtonProps {
   token: string;
@@ -26,6 +27,7 @@ export function StartLiveMapButton({
 }: StartLiveMapButtonProps) {
   const bottomCss = `calc(${bottomSheetHeightPx}px + 0.75rem)`;
   const [open, setOpen] = useState(false);
+  const [mediaSetupOpen, setMediaSetupOpen] = useState(false);
   const [starting, setStarting] = useState(false);
 
   const myLive = lives.find((l) => l.hostId === userId && l.isActive);
@@ -42,14 +44,19 @@ export function StartLiveMapButton({
     setOpen(true);
   };
 
-  const launchLive = async () => {
+  const launchLive = () => {
+    close();
+    setMediaSetupOpen(true);
+  };
+
+  const launchLiveAfterSetup = async () => {
     setStarting(true);
     try {
       const { live } = await api.startLive(token, `Live — ${username}`, {
         latitude,
         longitude,
       });
-      close();
+      setMediaSetupOpen(false);
       onStarted(live.id);
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Impossible de démarrer le live');
@@ -123,6 +130,13 @@ export function StartLiveMapButton({
           </div>
         </div>
       )}
+
+      <StartLiveMediaSetupModal
+        open={mediaSetupOpen}
+        onClose={() => setMediaSetupOpen(false)}
+        onReady={() => void launchLiveAfterSetup()}
+        confirmLabel={starting ? 'Lancement…' : 'Lancer le live'}
+      />
     </>
   );
 }

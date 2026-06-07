@@ -440,7 +440,7 @@ export function SalonPage({ salonId, onBack }: { salonId: string; onBack: () => 
   };
 
   return (
-    <div className="flex flex-col h-dvh min-h-0 bg-[#0b0b0f] overflow-hidden">
+    <div className="flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f] overflow-hidden">
       {durationWarning && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] max-w-[90vw] px-4 py-2.5 rounded-full bg-amber-950/90 border border-amber-500/40 text-sm text-amber-100 font-bold shadow-lg backdrop-blur text-center">
           ⚠ Session se terminera dans 15 min

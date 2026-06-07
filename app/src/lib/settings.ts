@@ -23,7 +23,9 @@ export const NEARBY_RADIUS_MAX = 500;
 export const NEARBY_RADIUS_HARD_MAX = 20000;
 /** Valeur spéciale "Illimité" – stockée et affichée comme ∞. */
 export const NEARBY_RADIUS_UNLIMITED = NEARBY_RADIUS_HARD_MAX;
-const DEFAULT_RADIUS = isMsdevEnvironment() ? 50 : 15;
+/** Rayon par défaut du panneau « À proximité » (km). */
+export const NEARBY_DEFAULT_RADIUS_KM = 20;
+const DEFAULT_RADIUS = NEARBY_DEFAULT_RADIUS_KM;
 
 /** 0 ou invalide → 1 km minimum. Accepte jusqu'à NEARBY_RADIUS_HARD_MAX (saisie manuelle). */
 export function clampNearbyRadiusKm(km: number): number {
@@ -59,8 +61,10 @@ export function notifySettingsChanged(): void {
 }
 
 export function getNearbyRadiusKm(): number {
-  const n = Number(localStorage.getItem(KEYS.nearbyRadiusKm));
-  if (!Number.isFinite(n)) return DEFAULT_RADIUS;
+  const raw = localStorage.getItem(KEYS.nearbyRadiusKm);
+  if (raw == null || raw === '') return DEFAULT_RADIUS;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return DEFAULT_RADIUS;
   return clampNearbyRadiusKm(n);
 }
 

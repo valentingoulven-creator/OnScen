@@ -70,7 +70,7 @@ export function UserProfilePage({
 
   const panelClass = mapOverlay
     ? 'absolute inset-x-0 bottom-0 top-[10%] flex flex-col min-h-0 max-h-none overflow-hidden bg-[#0b0b0f] rounded-t-2xl border-t border-[#1e1e2f] shadow-[0_-8px_40px_rgba(0,0,0,0.55)] pointer-events-auto'
-    : 'flex flex-col min-h-dvh max-h-dvh overflow-hidden bg-[#0b0b0f]';
+    : 'flex flex-col flex-1 min-h-0 h-full overflow-hidden bg-[#0b0b0f]';
 
   const headerClass = mapOverlay
     ? 'shrink-0 flex items-center gap-3 px-3 sm:px-4 py-3 border-b border-[#1e1e2f] bg-[#12121a]'

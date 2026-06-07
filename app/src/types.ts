@@ -310,6 +310,8 @@ export interface Salon {
   pendingProposalsCount?: number;
   /** Horodatage de création du salon (ms). Utilisé pour la limite de durée (2 h). */
   createdAt?: number;
+  /** Lien Jam Spotify (open.spotify.com/socialsession/…) si l'hôte l'a partagé. */
+  spotifyJamUrl?: string;
 }
 
 export interface SalonBan {

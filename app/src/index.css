@@ -73,6 +73,25 @@ html {
   --ms-border: #1e1e2f;
   --ms-text: #f3f4f6;
   --ms-text-muted: #9ca3af;
+  /* Tokens mobile Instagram (fallback desktop — apptel les surcharge) */
+  --phone-max-w: 430px;
+  --tab-nav-btn-size: 50px;
+  --tab-nav-float-gap: 0.625rem;
+  --tab-nav-h: var(--tab-nav-btn-size);
+  --header-h: 44px;
+  --tab-nav-total-h: calc(
+    var(--tab-nav-float-gap) + var(--tab-nav-btn-size) + env(safe-area-inset-bottom, 0px)
+  );
+  /* Hauteur totale du header fixe Soundly (safe-area + ligne + padding bas + onglets optionnels) */
+  --app-header-row-h: 2rem;
+  --app-header-pad-b: 0.5rem;
+  --app-header-tabs-h: 0px;
+  --app-header-total-h: calc(
+    max(0.75rem, env(safe-area-inset-top, 0px))
+    + var(--app-header-row-h)
+    + var(--app-header-pad-b)
+    + var(--app-header-tabs-h)
+  );
   font-family: "Segoe UI", system-ui, sans-serif;
   background: var(--ms-bg);
   color: var(--ms-text);
@@ -109,6 +128,80 @@ body {
 #root {
   min-height: 100dvh;
   height: 100dvh;
+}
+
+/* ── Header Soundly fixe (toujours visible au scroll) ─────────────── */
+header.ms-app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: var(--ms-bg);
+  border-bottom: 1px solid var(--ms-border);
+}
+
+.ms-phone-shell > header.ms-app-header {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--phone-max-w);
+}
+
+.ms-app-header--with-tabs {
+  --app-header-tabs-h: 3.25rem;
+}
+
+main.ms-app-main {
+  padding-top: var(--app-header-total-h);
+}
+
+/* Shell classique : réserve la hauteur de la barre d'onglets fixe en bas */
+.ms-app-shell--bottom-tabs main.ms-app-main {
+  padding-bottom: var(--tab-nav-total-h);
+}
+
+main.ms-app-main.ms-app-main--no-header {
+  padding-top: 0;
+}
+
+/* Onglets bas — conteneur invisible ; seules les icônes flottent (fixed, centrées) */
+nav.ms-tab-bar-bottom {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--tab-nav-float-gap));
+  min-height: 0;
+  pointer-events: none;
+}
+
+nav.ms-tab-bar-bottom > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+  pointer-events: auto;
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  :root {
+    --tab-nav-btn-size: 45px;
+    --tab-nav-float-gap: 0.5rem;
+  }
 }
 
 .leaflet-container {
@@ -471,6 +564,41 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .room-theater-toggle {
+    transition-duration: 0.01ms;
+  }
+}
+
+/* Grand salon — flèche ↓ vers petit salon (fiche carte) */
+.room-theater-minimize {
+  position: absolute;
+  top: max(0.5rem, env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 28;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  background: rgba(26, 26, 38, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #9ca3af;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  pointer-events: auto;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.room-theater-minimize:hover {
+  background: rgba(26, 26, 38, 0.95);
+  color: #f3f4f6;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .room-theater-minimize {
     transition-duration: 0.01ms;
   }
 }

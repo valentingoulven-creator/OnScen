@@ -2,37 +2,151 @@
 @import "leaflet/dist/leaflet.css";
 
 /* ============================================================
-   APPTEL — Mobile-first, fully responsive
-   Target: iOS/Android via PWA — tout téléphone, toute taille
-   Breakpoints : 320px (SE), 375px (iPhone 8), 390px (14),
-                 412px (Android), 430px (Pro Max) et plus grand
-   Touch targets: 44px minimum, safe-area insets actifs
-   Pas de panneau latéral — NearbyPanel en bottom sheet
+   APPTEL — Layout type Instagram (PWA iPhone / Android)
+   Viewport plein écran (100dvh, viewport-fit=cover), safe-areas iOS,
+   barre d'onglets fixe ~49px + home indicator, feed full-bleed,
+   stories viewer 9:16, cibles tactiles 44px min.
+   Breakpoints : 320px (SE) → 430px (Pro Max) et au-delà (centré).
    ============================================================ */
 
-/* ── Layout tokens ──────────────────────────────────────────── */
+/* ── Layout tokens (Instagram-like) ─────────────────────────── */
 :root {
-  --tab-nav-h: 48px;   /* hauteur barre d'onglets (compact : était 56px) */
-  --header-h: 48px;    /* hauteur header (compact : était 56px) */
-  /* hauteur de la carte = tout l'écran moins la barre d'onglets */
-  --map-h: calc(100dvh - var(--tab-nav-h) - env(safe-area-inset-bottom, 0px));
+  --phone-max-w: 430px;
+  --tab-nav-btn-size: 50px;
+  --tab-nav-float-gap: 0.625rem;
+  --tab-nav-h: var(--tab-nav-btn-size);
+  --header-h: 44px;
+  --tab-nav-total-h: calc(
+    var(--tab-nav-float-gap) + var(--tab-nav-btn-size) + env(safe-area-inset-bottom, 0px)
+  );
+  --app-header-row-h: 2rem;
+  --app-header-pad-b: 0.25rem;
+  --app-header-tabs-h: 0px;
+  --app-header-total-h: calc(
+    max(0.375rem, env(safe-area-inset-top, 0px))
+    + var(--app-header-row-h)
+    + var(--app-header-pad-b)
+    + var(--app-header-tabs-h)
+  );
+  --map-h: calc(100dvh - var(--app-header-total-h) - var(--tab-nav-total-h));
 }
 
 html {
-  font-size: 15px;
+  font-size: 16px;
   overflow-x: hidden;
+  height: 100%;
+  -webkit-text-size-adjust: 100%;
 }
 
-/* Plein écran sur n'importe quel téléphone — aucune limite de largeur.
-   Les safe-area insets sont gérés directement par les composants :
-   - header : pt-[max(0.75rem,env(safe-area-inset-top))]
-   - tab nav : pb-[env(safe-area-inset-bottom)]
-   On ne les ajoute PAS sur body pour éviter le double espacement. */
 body {
   width: 100%;
+  min-height: 100dvh;
   height: 100dvh;
   overflow: hidden;
   overflow-x: hidden;
+  overscroll-behavior: none;
+}
+
+/* Coque téléphone : full-bleed ≤430px, centrée sur grands écrans (iPad, desktop) */
+.ms-phone-shell {
+  width: 100%;
+  max-width: var(--phone-max-w);
+  min-height: 100dvh;
+  height: 100dvh;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  background: var(--ms-bg);
+}
+
+/* Header Soundly fixe (toujours visible au scroll) */
+header.ms-app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: var(--ms-bg);
+  border-bottom: 1px solid var(--ms-border);
+}
+
+.ms-phone-shell > header.ms-app-header {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--phone-max-w);
+}
+
+main.ms-app-main {
+  padding-top: var(--app-header-total-h);
+}
+
+main.ms-app-main.ms-app-main--no-header {
+  padding-top: 0;
+}
+
+/* Contenu principal : réserve la hauteur de la barre d'onglets fixe */
+.ms-phone-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-bottom: var(--tab-nav-total-h);
+}
+
+/* Onglets bas — conteneur invisible ; icônes flottantes centrées, safe-area iOS */
+nav.ms-tab-bar-instagram {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--tab-nav-float-gap));
+  min-height: 0;
+  pointer-events: none;
+}
+
+nav.ms-tab-bar-instagram > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+  pointer-events: auto;
+}
+
+/* Stories plein écran : ratio 9:16 */
+.ms-story-viewport,
+.ms-story-aspect {
+  aspect-ratio: 9 / 16;
+  width: 100%;
+  max-height: 100dvh;
+  margin-inline: auto;
+  overflow: hidden;
+}
+
+/* Feed / cartes : pleine largeur, pas de marge latérale type desktop */
+.ms-feed-fullbleed {
+  width: 100%;
+  max-width: 100%;
+  margin-inline: 0;
+}
+
+.ms-feed-fullbleed article.rounded-xl {
+  border-radius: 0 !important;
+  border-left: none !important;
+  border-right: none !important;
 }
 
 /* Touch targets: 44px minimum (Apple HIG) — boutons seulement, pas les liens inline */
@@ -750,45 +864,49 @@ header > div:first-child {
   padding-bottom: 0.25rem !important;
 }
 
-/* ── Barre d'onglets principale (bottom) : hauteur réduite ── */
-nav[aria-label="Navigation principale"] {
-  padding-top: 0.125rem !important;
-  padding-bottom: 0.125rem !important;
+/* ── Onglets flottants : boutons ronds, pas de bandeau ── */
+nav.ms-tab-bar-instagram button {
+  min-height: 44px !important;
+  min-width: 44px !important;
+  width: 2.75rem !important;
+  height: 2.75rem !important;
+  border-radius: 9999px !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
 
-nav[aria-label="Navigation principale"] button {
-  min-height: 36px !important;
-  padding-top: 0.25rem !important;
-  padding-bottom: 0.25rem !important;
+nav.ms-tab-bar-instagram button[class*="ring-"] {
+  --tw-ring-shadow: 0 0 #0000 !important;
+  box-shadow: none !important;
 }
 
-/* ── Paysage : ajuste aussi la nav compacte ── */
+/* ── Paysage : icônes légèrement plus compactes ── */
 @media (orientation: landscape) and (max-height: 500px) {
   :root {
-    --tab-nav-h: 40px;
+    --tab-nav-btn-size: 45px;
+    --tab-nav-float-gap: 0.5rem;
   }
 }
 
-/* ── Cible tactile globale : 44px → 40px ── */
+/* ── Cibles tactiles Apple HIG : 44px minimum ── */
 button,
 [role="button"] {
-  min-height: 40px;
-  min-width: 40px;
+  min-height: 44px;
+  min-width: 44px;
 }
 
-/* ── Cartes du fil communauté & actualités ── */
-article.rounded-xl {
-  padding: 0.5rem !important;
+/* ── Feed Instagram : cartes bord à bord, séparateur fin ── */
+.ms-feed-fullbleed article.rounded-xl {
+  padding: 0.75rem 1rem !important;
+  border-bottom: 1px solid var(--ms-border);
 }
 
-/* ── Espacement vertical entre les cartes du fil ── */
-[class~="space-y-3"] > * + * {
-  margin-top: 0.5rem !important;
+.ms-feed-fullbleed [class~="space-y-3"] > * + * {
+  margin-top: 0 !important;
 }
 
-/* ── Padding du conteneur de scroll du fil ── */
-[class~="space-y-3"][class~="p-3"] {
-  padding: 0.5rem !important;
+.ms-feed-fullbleed [class~="space-y-3"][class~="p-3"] {
+  padding: 0 !important;
 }
 
 /* ── Tendances (stories bar) : gap réduit entre cartes artistes ── */
@@ -807,4 +925,13 @@ article.rounded-xl {
 .shrink-0.px-4.border-b {
   padding-top: 0.375rem !important;
   padding-bottom: 0.375rem !important;
+}
+
+/* ── Perf mobile : backdrop-blur coûteux sur GPU téléphone ── */
+.backdrop-blur,
+.backdrop-blur-sm,
+.backdrop-blur-md,
+.backdrop-blur-lg {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }

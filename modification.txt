@@ -1170,3 +1170,1043 @@ FICHIERS MODIFIÉS
 ================================================================================
 Fin MODIF 102 — 2026-06-06
 ================================================================================
+
+================================================================================
+MODIF 103 — Dossier MeloSong-Mobile (PWA telephone LAN)
+Date : 2026-06-06
+================================================================================
+
+OBJECTIF
+--------
+  Dossier pret a utiliser sur telephone : build apptel optimise, export
+  MeloSong-Mobile/www/, scripts LAN sans ngrok, instructions PWA FR.
+
+CHANGEMENTS
+-----------
+  apptel/vite.config.ts
+  ─────────────────────
+  • manualChunks (vendor-react, vendor-socketio, vendor-map, vendor-misc)
+  • minify esbuild, cssMinify, modulePreload
+  • vite-plugin-compression gzip + brotli (.gz / .br a cote des assets)
+  • Service worker PWA inchange (cacheId melosong-msdev-v7)
+
+  apptel/src/App.tsx
+  ──────────────────
+  • React.lazy + Suspense : DmPage, ActualiteTabPage, LivePage, SalonPage,
+    UserProfilePage (PageFallback spinner)
+
+  apptel/src/index.css
+  ────────────────────
+  • Desactivation backdrop-blur sur mobile (perf GPU telephone)
+
+  scripts/sync-mobile-export.js (nouveau)
+  ───────────────────────────────────────
+  • Copie backend/public/tel → MeloSong-Mobile/www/
+
+  OUVRIR-SUR-TEL.bat + MeloSong-Mobile/LANCER-POUR-TEL.bat (nouveaux)
+  ───────────────────────────────────────────────────────────────────
+  • sync-lan + mobile:build + serve-mobile-tel.ps1 (HOST=0.0.0.0 session)
+
+  msdev/scripts/serve-mobile-tel.ps1 (nouveau)
+  ────────────────────────────────────────────
+  • Affiche URL http://IP:4080/tel/ + ouvre msdev-mobile?app=tel
+
+  backend/src/server.ts
+  ─────────────────────
+  • /msdev-mobile?app=tel → QR vers /tel/ + lien variante mobile
+
+  package.json
+  ────────────
+  • mobile:export, mobile:build, msdev:mobile
+
+  MeloSong-Mobile/LISEZMOI.txt (nouveau)
+  ──────────────────────────────────────
+  • Mode d'emploi PWA, compte demo, camera HTTPS
+
+FICHIERS MODIFIES / CREES
+-------------------------
+  apptel/vite.config.ts, apptel/src/App.tsx, apptel/src/index.css
+  apptel/package.json (vite-plugin-compression)
+  scripts/sync-mobile-export.js
+  OUVRIR-SUR-TEL.bat, MeloSong-Mobile/LANCER-POUR-TEL.bat, MeloSong-Mobile/LISEZMOI.txt
+  msdev/scripts/serve-mobile-tel.ps1
+  backend/src/server.ts, package.json, modification.txt
+
+================================================================================
+Fin MODIF 103 — 2026-06-06
+================================================================================
+
+================================================================================
+MODIF 104 — Layout Instagram + dossier Smartphone (iPhone PWA)
+Date : 2026-06-06
+================================================================================
+
+OBJECTIF
+--------
+  Adapter apptel aux dimensions type Instagram (plein écran, safe-areas iOS,
+  barre d'onglets fixe ~49px, feed bord à bord, stories 9:16).
+  Créer le dossier MeloSong/Smartphone/ pour installation iPhone via PWA Safari.
+
+
+LAYOUT INSTAGRAM (apptel)
+-------------------------
+  apptel/src/index.css
+  • Tokens : --phone-max-w 430px, --tab-nav-h 49px, --tab-nav-total-h + safe-area
+  • .ms-phone-shell : full-bleed téléphone, centré >430px
+  • .ms-phone-main : padding-bottom pour barre fixe
+  • nav.ms-tab-bar-instagram : fixed bottom, bordure haute, home indicator
+  • .ms-feed-fullbleed : cartes feed pleine largeur
+  • .ms-story-aspect : ratio 9:16
+  • Cibles tactiles 44px min (Apple HIG)
+
+  apptel/index.html
+  • viewport-fit=cover + maximum-scale=1
+
+  apptel/src/components/MainTabNav.tsx
+  • Barre basse style Instagram (icônes texte, sans pills)
+
+  apptel/src/App.tsx
+  • ms-phone-shell + ms-phone-main
+
+  apptel/src/pages/ActualiteTabPage.tsx
+  • Feed communauté en ms-feed-fullbleed
+
+  app/src/index.css
+  • Variables --phone-max-w, --tab-nav-h en fallback desktop
+
+
+DOSSIER SMARTPHONE (hors git MeloSong Dev)
+------------------------------------------
+  C:\Users\valen\iCloudDrive\Application\MeloSong\Smartphone\
+    www\                    ← build PWA (copie backend/public/tel)
+    LISEZMOI-iPhone.txt     ← mode d'emploi PWA Safari
+    INSTALLER-SUR-IPHONE.bat ← FICHIER PRINCIPAL À LANCER SUR PC
+
+  scripts/sync-smartphone-export.js (nouveau)
+  • Copie backend/public/tel → ../Smartphone/www/
+
+  package.json
+  • smartphone:export, smartphone:build (apptel + Smartphone + MeloSong-Mobile)
+
+  msdev/scripts/serve-mobile-tel.ps1
+  • Instructions iPhone PWA + chemin INSTALLER-SUR-IPHONE.bat
+
+
+FICHIERS MODIFIES / CREES
+-------------------------
+  apptel/src/index.css, apptel/index.html, apptel/src/App.tsx
+  apptel/src/components/MainTabNav.tsx, apptel/src/pages/ActualiteTabPage.tsx
+  app/src/index.css, scripts/sync-smartphone-export.js, package.json
+  msdev/scripts/serve-mobile-tel.ps1, modification.txt
+  Smartphone/INSTALLER-SUR-IPHONE.bat, Smartphone/LISEZMOI-iPhone.txt (parent MeloSong)
+
+================================================================================
+Fin MODIF 104 — 2026-06-06
+================================================================================
+
+================================================================================
+MODIF 105 — Capacitor app native (Android APK + iOS Xcode)
+Date : 2026-06-06
+================================================================================
+
+OBJECTIF
+--------
+  Remplacer la PWA Safari comme solution « app » principale par Capacitor
+  (vraie APK Android, projet Xcode iOS). Layout Instagram apptel conservé.
+  Dossier Smartphone/ : scripts, docs honnêtes iPhone (Mac obligatoire).
+
+CHANGEMENTS — apptel / Capacitor
+--------------------------------
+  apptel/package.json
+  • @capacitor/core, @capacitor/android, @capacitor/ios ^8.4.0
+  • @capacitor/cli ^8.4.0 (devDependency)
+  • Scripts : build:capacitor, cap:sync, cap:open:*, android:apk
+
+  apptel/capacitor.config.json (nouveau)
+  • appId com.melosong.app, appName MeloSong, webDir dist
+  • cleartext true (HTTP LAN msdev)
+
+  apptel/vite.config.ts
+  • CAPACITOR_BUILD=1 → base ./, outDir dist/, sans PWA ni compression
+  • VITE_API_URL / VITE_SOCKET_URL injectés au build
+
+  apptel/scripts/capacitor-build.mjs, read-msdev-mobile-env.mjs (nouveaux)
+  • Lit MOBILE_API_URL / MOBILE_SOCKET_URL depuis msdev/.env
+
+  apptel/src/lib/nativeServer.ts (nouveau)
+  apptel/src/lib/api.ts → API_BASE depuis nativeServer
+  apptel/src/lib/socket.ts (nouveau) → SOCKET_ORIGIN pour Capacitor
+  apptel/src/main.tsx → pas de service worker en build natif
+
+  apptel/android/, apptel/ios/ — générés par npx cap add (gitignored)
+
+CHANGEMENTS — racine
+--------------------
+  package.json
+  • capacitor:build, capacitor:sync, capacitor:android:apk
+
+DOSSIER Smartphone/ (parent MeloSong)
+-------------------------------------
+  LISEZMOI.txt              — index fichiers + commandes + paquets
+  INSTALLER-ANDROID.bat     — sync-lan + build APK + copie MeloSong.apk
+  INSTALLER-SUR-IPHONE.bat  — Mac/Xcode ou cloud ; PWA = secours seulement
+  LISEZMOI-iPhone-NATIF.txt — vérité .ipa / Xcode / TestFlight
+  ios-build/CHEMIN-PROJET.txt — chemin apptel/ios/App/App.xcworkspace
+
+BUILD ANDROID (poste actuel)
+----------------------------
+  Gradle non exécuté : JAVA_HOME absent (installer Android Studio).
+  Config Capacitor + projets android/ios générés ; APK via INSTALLER-ANDROID.bat
+  après installation JDK/SDK.
+
+COMMANDES
+---------
+  npm run capacitor:build
+  npm run capacitor:sync
+  npm run capacitor:android:apk
+  cd apptel && npm run build:capacitor && npx cap sync android
+  cd apptel/android && gradlew.bat assembleDebug
+
+================================================================================
+Fin MODIF 105 — 2026-06-06
+================================================================================
+
+================================================================================
+MODIF 106 — 2026-06-06 — Mobile Windows tout-en-un (APK + PWA iPhone sans Mac)
+================================================================================
+
+CONTEXTE
+--------
+  Utilisateur sans Mac : automatiser au maximum Android APK + PWA iOS standalone
+  depuis Windows. App Store iOS natif = action future (Mac ou compte Apple 99 €/an).
+
+CHANGEMENTS — apptel (PWA iOS standalone)
+-----------------------------------------
+  vite.config.ts
+  • manifest : display standalone, orientation portrait, nom MeloSong
+  • icône apple-touch-icon.png 180×180 dans includeAssets
+
+  index.html
+  • apple-touch-icon 180×180, apple-mobile-web-app-title MeloSong
+  • apple-touch-startup-image (splash iOS basique)
+  • format-detection telephone=no
+
+  scripts/generate-pwa-icons.mjs
+  • génère apple-touch-icon.png 180×180
+
+DOSSIER Smartphone/ (parent MeloSong)
+---------------------------------------
+  TOUT-INSTALLER.bat              — sync-lan + PWA + APK (one-click PC)
+  INSTALLER-IPHONE-SANS-MAC.bat   — PWA standalone + serveur LAN + QR
+  iOS-SANS-MAC-OPTIONS.txt        — GitHub Actions, Codemagic, secrets Apple
+  _helpers/ensure-java.bat        — winget OpenJDK 17 + détection JAVA_HOME
+  _helpers/ensure-android-sdk.bat — ANDROID_HOME Android Studio
+  LISEZMOI.txt                    — honnêteté : PWA iPhone OU APK Android
+  INSTALLER-ANDROID.bat           — utilise _helpers Java/SDK
+
+CI / CLOUD iOS (squelette)
+--------------------------
+  .github/workflows/ios-capacitor.yml
+  • macos-latest, capacitor:build, cap sync ios
+  • secrets Apple documentés en commentaires (certificat, provisioning)
+  • xcodebuild archive commenté jusqu'à configuration secrets
+
+AUTRES
+------
+  msdev/scripts/serve-mobile-tel.ps1 — instructions PWA standalone iPhone
+  OUVRIR-SUR-TEL.bat — renvoie vers TOUT-INSTALLER / PWA iPhone
+
+BUILD POSTE ACTUEL
+------------------
+  Java + Android SDK absents → APK non généré ; PWA export Smartphone/www/ OK.
+  Relancer TOUT-INSTALLER.bat après Android Studio.
+
+COMMANDES
+---------
+  Smartphone\TOUT-INSTALLER.bat
+  Smartphone\INSTALLER-IPHONE-SANS-MAC.bat
+  npm run smartphone:build
+  npm run capacitor:android:apk
+
+================================================================================
+Fin MODIF 106 — 2026-06-06
+================================================================================
+
+================================================================================
+MODIF 107 — 2026-06-07 — Autorisation caméra/micro avant démarrage live
+================================================================================
+
+CONTEXTE
+--------
+  Au clic « Démarrer mon Live » / « Démarrer LIVE », demander l’accès caméra + micro
+  puis proposer la configuration (choix caméra/micro) avant l’appel API startLive.
+
+CHANGEMENTS — app/src
+---------------------
+  components/StartLiveMediaSetupModal.tsx (nouveau)
+  • À l’ouverture : getUserMedia({ video: true, audio: true }) → prompt navigateur
+  • Refus / erreur : message français (mapLiveCameraError) + hints HTTPS msdev si besoin
+  • Accord : modal configuration — aperçu vidéo, listes enumerateDevices (caméra/micro)
+  • Confirmation : enregistre deviceId en sessionStorage, callback onReady
+
+  lib/liveMediaPrefs.ts (nouveau)
+  • getLiveMediaPrefs / setLiveMediaPrefs (sessionStorage)
+
+  lib/liveCameraSupport.ts
+  • buildLiveCameraConstraintAttempts(prefs) — contraintes avec deviceId ideal
+  • acquireLiveCameraStream accepte prefs optionnelles
+
+  hooks/useLiveCamera.ts
+  • start() lit getLiveMediaPrefs() pour réutiliser caméra/micro choisis sur LivePage
+
+  pages/LivesTabPage.tsx
+  • « Démarrer mon Live » → StartLiveMediaSetupModal → api.startLive
+
+  components/StartLiveMapButton.tsx
+  • Après confirmation « Lancer le live » → StartLiveMediaSetupModal → api.startLive
+  • « Mon LIVE » (live actif) : ouverture directe inchangée
+
+FLUX UTILISATEUR
+----------------
+  1. Clic démarrer live
+  2. Prompt navigateur caméra + micro
+  3. Si refus : modal erreur (Fermer) — pas de live créé
+  4. Si accord : modal config + aperçu, sélecteurs si plusieurs périphériques
+  5. « Démarrer le live » / « Lancer le live » → création live + navigation LivePage
+  6. Sur LivePage, « Activer la caméra » utilise les deviceId mémorisés
+
+HÉRITAGE apptel
+---------------
+  apptel importe app/src — pas d’override requis.
+
+================================================================================
+Fin MODIF 107 — 2026-06-07
+================================================================================
+
+================================================================================
+MODIF 108 — Lien Spotify Jam à la création salon (fallback manuel)
+Date : 2026-06-07
+================================================================================
+
+OBJECTIF
+--------
+Récupérer / partager le lien Jam Spotify lors de la création d’un salon Spotify
+(utilisateur connecté). Conformité Spotify Developer Terms — pas de scraping.
+
+LIMITE SPOTIFY API (documentée)
+-------------------------------
+- La Web API Spotify n’expose AUCUN endpoint public pour Jam / Social Listening
+  (démarrer, lister, rejoindre, obtenir le lien socialsession).
+- Demandes communautaires ouvertes (Live Ideas / Spotify for Developers).
+- OAuth Spotify réel non implémenté dans ce dépôt (msdev : connect mock via
+  POST /platforms/spotify/connect ; YouTube seul a un vrai OAuth).
+- Récupération automatique du lien Jam : **non faisable** sans API officielle.
+
+CE QUI A ÉTÉ IMPLÉMENTÉ (fallback honnête)
+------------------------------------------
+1. Champ salon `spotifyJamUrl` (URL canonique open.spotify.com/socialsession/…)
+2. Validation parse/normalize (backend + frontend)
+3. Création salon : section Jam dans CreateSalonModal (Spotify + compte lié)
+   - Message explicite sur l’absence d’API
+   - Instructions « Démarrer un Jam » dans l’app Spotify
+   - Saisie + bouton « Coller depuis le presse-papiers »
+   - Lien morceau (track) reste optionnel et distinct
+4. Salon ouvert : SalonPlaybackPanel
+   - Hôte : enregistrer / modifier / copier / ouvrir le Jam
+   - Participants : carte « Rejoindre le Jam » ou message si absent
+5. PATCH /salons/:id/settings accepte spotifyJamUrl + broadcast socket salon_updated
+6. Tests vitest backend/src/lib/spotifyJam.test.ts (5 tests OK)
+
+FICHIERS
+--------
+  backend/src/lib/spotifyJam.ts
+  backend/src/lib/spotifyJam.test.ts
+  backend/src/models/schema.ts (Salon.spotifyJamUrl)
+  backend/src/routes/salons.ts
+  app/src/lib/spotifyJam.ts
+  app/src/components/SpotifyJamLinkField.tsx
+  app/src/components/CreateSalonModal.tsx
+  app/src/components/SalonPlaybackPanel.tsx
+  app/src/types.ts, apptel/src/types.ts
+
+================================================================================
+Fin MODIF 108 — 2026-06-07
+================================================================================
+
+MODIF 108 — CreateSalonModal : « Titre du morceau » → « Titre du salon »
+Date : 2026-06-07
+Fichier : app/src/components/CreateSalonModal.tsx (étape 2 du formulaire Créer un salon)
+apptel : import app/src, pas d’override.
+
+================================================================================
+MODIF 109 — Création salon : YouTube, invitation, grand salon, « Live »
+Date : 2026-06-07
+================================================================================
+
+1. YouTube sans lien manuel
+   - CreateSalonModal : champ URL YouTube retiré ; CreateSalonYouTubePicker (recherche API).
+   - Spotify conserve le champ lien morceau optionnel.
+
+2. Mode invitation (étape Accès)
+   - SalonInviteLinkCopy : bouton copier lien (actif après création ; copie auto à la création).
+   - SalonInviteUserSearch : recherche utilisateurs + cases à cocher.
+   - allowedUserIds envoyé à createSalon (inchangé côté API).
+
+3. Après création → grand salon
+   - HomePage.onSalonCreated : onOpenSalon(salon.id) au lieu de fiche carte repliée.
+
+4. « Go Live » → « Live »
+   - SalonPage.tsx bouton hôte.
+
+FICHIERS
+  app/src/components/CreateSalonModal.tsx
+  app/src/components/CreateSalonYouTubePicker.tsx (nouveau)
+  app/src/components/SalonInviteLinkCopy.tsx (nouveau)
+  app/src/pages/HomePage.tsx
+  app/src/pages/SalonPage.tsx
+  apptel : hérite via app/src.
+
+================================================================================
+Fin MODIF 109 — 2026-06-07
+================================================================================
+
+MODIF 110 — Création salon : YouTube par défaut, ordre plateformes, playlists compte
+Date : 2026-06-07
+================================================================================
+
+1. Ordre plateformes + défaut YouTube
+   - CreateSalonModal : boutons YouTube puis Spotify (grille).
+   - platform par défaut : youtube (useState + reset à l’ouverture).
+
+2. Sélection playlist compte (YouTube)
+   - CreateSalonPlaylistPicker (nouveau) : liste déroulante via getYoutubePlaylists + lien playlist.
+   - Onglets Morceau / Playlist à l’étape 1 si YouTube connecté.
+   - À la création : createSalon puis salonLoadYoutubePlaylist si playlist choisie (file initiale).
+   - Spotify : message « playlists non disponibles » ; pas d’API playlists mock.
+
+FICHIERS
+  app/src/components/CreateSalonModal.tsx
+  app/src/components/CreateSalonPlaylistPicker.tsx (nouveau)
+  apptel : hérite via app/src.
+
+================================================================================
+Fin MODIF 110 — 2026-06-07
+================================================================================
+
+MODIF 111 — Salon privé : copier le lien d'invitation (hôte)
+Date : 2026-06-07
+================================================================================
+
+1. SalonPage — panneau hôte (stageFooter)
+   - Si hôte + accessMode invite : section « Lien d'invitation » avec SalonInviteLinkCopy.
+   - Réutilise getSalonShareUrl / copyShareLink (salonDeepLink + shareLink).
+   - Visible hôte uniquement (isHost) ; pas de co-hôte dans le schéma actuel.
+
+FICHIERS
+  app/src/pages/SalonPage.tsx
+
+================================================================================
+Fin MODIF 111 — 2026-06-07
+================================================================================
+
+MODIF 112 — Header Soundly fixe (sticky top, toujours visible)
+Date : 2026-06-07
+================================================================================
+
+OBJECTIF
+--------
+La barre « Soundly » (logo, recherche, notifications) reste fixe en haut de
+l'écran pendant le scroll ; fond opaque, safe-area iOS, contenu compensé.
+
+IMPLÉMENTATION
+--------------
+1. CSS partagé (app/src/index.css)
+   - Tokens : --app-header-row-h, --app-header-pad-b, --app-header-tabs-h,
+     --app-header-total-h (inclut env(safe-area-inset-top)).
+   - header.ms-app-header : position fixed, z-index 50, fond var(--ms-bg),
+     bordure basse.
+   - .ms-phone-shell > header.ms-app-header : centré max-width 430px (apptel).
+   - .ms-app-header--with-tabs : +3.25rem si MainTabNav dans le header (appa2).
+   - main.ms-app-main : padding-top: var(--app-header-total-h).
+
+2. App.tsx (desktop / PWA)
+   - header → ms-app-header (+ ms-app-header--with-tabs si appa2).
+   - main → ms-app-main.
+
+3. apptel (mobile)
+   - Même classes header / main.
+   - apptel/index.css : --app-header-total-h compact (padding 0.375rem),
+     --map-h recalculé sans double safe-area.
+
+HAUTEUR COMPENSÉE (desktop)
+---------------------------
+  max(0.75rem, safe-area-top) + 2rem (ligne) + 0.5rem (pb) [+ 3.25rem onglets appa2]
+
+HAUTEUR COMPENSÉE (apptel compact)
+----------------------------------
+  max(0.375rem, safe-area-top) + 2rem + 0.25rem
+
+FICHIERS
+  app/src/index.css
+  app/src/App.tsx
+  apptel/src/App.tsx
+  apptel/src/index.css
+
+================================================================================
+Fin MODIF 112 — 2026-06-07
+================================================================================
+
+MODIF 113 — Flèche ↓ grand salon → petit salon (fiche carte)
+Date : 2026-06-07
+================================================================================
+
+OBJECTIF
+--------
+En haut au centre du mode théâtre (grand salon), bouton discret chevron ↓ :
+au clic, quitter SalonPage et rouvrir la fiche carte (MapSalonListenSheet).
+
+COMPORTEMENT CLIC
+-----------------
+1. clearSalonUrlFromBar + retour onglet Carte (App.tsx minimizeSalonToMap).
+2. HomePage reçoit restoreSalonId, sélectionne le salon (API si absent de la liste),
+   centre la carte, ouvre le bottom sheet replié (petit salon).
+
+FICHIERS
+  app/src/components/RoomTheaterLayout.tsx — prop onMinimize + bouton
+  app/src/pages/SalonPage.tsx — prop onMinimizeToMap
+  app/src/App.tsx — état restoreSalonOnMapId, minimizeSalonToMap
+  app/src/pages/HomePage.tsx — restoreSalonOnMap + effet restoreSalonId
+  app/src/index.css — .room-theater-minimize
+
+================================================================================
+Fin MODIF 113 — 2026-06-07
+================================================================================
+
+MODIF 114 — Barre d'onglets fixe toujours visible (Accueil → Reels)
+Date : 2026-06-07
+================================================================================
+
+OBJECTIF
+--------
+La navigation principale (Accueil / Carte / Live / Messages / Reels) reste
+fixée en bas de l'écran sur tous les écrans connectés, avec fond opaque,
+safe-area iOS et padding contenu pour ne pas masquer le bas des pages.
+
+ÉCRANS OÙ LA BARRE DISPARAISSAIT (corrigé)
+-------------------------------------------
+1. SalonPage (grand salon) — retour anticipé App.tsx sans MainTabNav
+2. LivePage (spectateur) — idem (app desktop) ; apptel avait déjà la barre
+3. UserProfilePage (fiche utilisateur) — retour anticipé sans barre
+4. Overlay ProfilePage (mon profil) — barre masquée si profileOpen
+5. Layout classique app — barre en flux flex (non fixed), pas de padding-bottom
+
+IMPLÉMENTATION
+--------------
+1. CSS app/src/index.css
+   - nav.ms-tab-bar-bottom : position fixed, bottom 0, z-index 50, fond
+     var(--ms-bg), bordure haute, env(safe-area-inset-bottom).
+   - .ms-app-shell--bottom-tabs main.ms-app-main : padding-bottom
+     var(--tab-nav-total-h).
+   - main.ms-app-main--no-header : sans padding-top (salon / live / profil).
+   - Paysage compact : --tab-nav-h 44px.
+
+2. MainTabNav.tsx (app) — placement bottom → classe ms-tab-bar-bottom
+   (safe-area sur le nav, plus sur le conteneur interne).
+
+3. App.tsx (app)
+   - Suppression des retours anticipés salon / profil / live.
+   - Shell unique : header masqué en vue immersive, main + barre fixe.
+   - MainTabNav toujours affiché si layout classique (!appa2), y compris
+     profileOpen (z-50 au-dessus de l'overlay profil z-30).
+   - Panneaux onglets home : visibles seulement si view.type === 'home'.
+
+4. Pages plein écran — h-dvh → flex-1 min-h-0 h-full
+   SalonPage, LivePage, UserProfilePage (app + apptel).
+
+5. apptel — cohérence
+   - header.ms-app-header + main.ms-app-main (padding-top header).
+   - Salon / profil intégrés au shell (plus de retour anticipé).
+   - MainTabNav toujours visible (ms-tab-bar-instagram déjà fixed).
+   - Panneaux home regroupés sous view.type === 'home'.
+
+EXCEPTIONS (barre non visible — normal)
+---------------------------------------
+- AuthPage, OnboardingPage, chargement session (hors shell connecté).
+- Layout appa2 : onglets dans le header (pas en bas), toujours visibles.
+- Plein écran natif live (requestFullscreen) : masqué par le navigateur.
+- Modales plein écran temporaires (z-index > 50) : recouvrent la barre
+  le temps de l'interaction (don live, éditeur photo, etc.).
+
+FICHIERS
+  app/src/index.css
+  app/src/components/MainTabNav.tsx
+  app/src/App.tsx
+  app/src/pages/SalonPage.tsx
+  app/src/pages/LivePage.tsx
+  app/src/pages/UserProfilePage.tsx
+  apptel/src/index.css
+  apptel/src/App.tsx
+  apptel/src/pages/SalonPage.tsx
+  apptel/src/pages/UserProfilePage.tsx
+
+================================================================================
+Fin MODIF 114 — 2026-06-07
+================================================================================
+
+================================================================================
+MODIF 115 — Barre d'onglets : textes remplacés par icônes SVG
+Date : 2026-06-07
+================================================================================
+
+OBJECTIF
+--------
+Remplacer les libellés Accueil / Carte / Live / Messages / Reels par des
+icônes SVG inline libres de droit, avec aria-label français et texte sr-only.
+
+ICÔNES (TabNavIcons.tsx — 24×24, stroke currentColor)
+------------------------------------------------------
+  actualite → Maison (toit + façade)
+  map       → Épingle carte (pin + point central)
+  live      → Cercle broadcast (anneau + point central plein)
+  dm        → Bulle de message
+  reels     → Rectangle arrondi + triangle play
+
+ACCESSIBILITÉ
+-------------
+  aria-label sur chaque bouton + span.sr-only avec le libellé français.
+  aria-hidden sur les SVG décoratifs.
+
+COMPORTEMENT CONSERVÉ
+---------------------
+  Barre fixe ms-tab-bar-bottom (app) / ms-tab-bar-instagram (apptel).
+  Couleurs actives par onglet (ambre, violet, rouge, rose).
+  Badge DM non-lus en position absolue coin supérieur droit de l'icône.
+  Indicateur pulse rouge sur Live actif.
+
+FICHIERS
+  app/src/components/TabNavIcons.tsx (nouveau)
+  app/src/components/MainTabNav.tsx
+  apptel/src/components/MainTabNav.tsx
+
+================================================================================
+Fin MODIF 115 — 2026-06-07
+================================================================================
+
+================================================================================
+MODIF 116 — 2026-06-07 — Onglet Direct (icône barre tabs)
+================================================================================
+
+OBJECTIF
+--------
+Remplacer l'icône « Live » (cercle broadcast) par un badge « Direct » style TV
+à l'antenne ; aria-label « Direct ». Tab id `live` inchangé en interne.
+
+ICÔNE (TabNavIcons — case live)
+--------------------------------
+  Pilule arrondie + point plein à gauche (on-air) + lettres DIR en traits (~24px,
+  currentColor). Pulse rouge actif conservé (MainTabNav).
+
+FICHIERS
+  app/src/components/TabNavIcons.tsx
+  app/src/components/MainTabNav.tsx
+  apptel/src/components/MainTabNav.tsx (aria-label Direct)
+
+================================================================================
+Fin MODIF 116 — 2026-06-07
+================================================================================
+
+================================================================================
+MODIF 117 — 2026-06-07 — Icône Direct broadcast (barre tabs)
+================================================================================
+
+OBJECTIF
+  Remplacer le badge DIR par une icône broadcast SVG (( • )) : point central +
+  deux arcs concentriques de chaque côté (stroke round, currentColor).
+
+FICHIERS
+  app/src/components/TabNavIcons.tsx (case live)
+
+================================================================================
+Fin MODIF 117 — 2026-06-07
+================================================================================
+
+================================================================================
+MODIF 118 — 2026-06-07 — Icône Direct raffinée (barre tabs)
+================================================================================
+
+OBJECTIF
+  Remplacer les arcs broadcast (( • )) jugés peu esthétiques par une version
+  plus équilibrée et moderne (signal live simplifié).
+
+DESIGN
+  Point central plein (r=1.5) + 2 arcs concentriques de chaque côté (r=3.2 /
+  r=5.2, ratio ~φ), ouverture 120° centrée sur l’axe horizontal, stroke 1.75,
+  strokeLinecap round. Symétrie parfaite gauche/droite.
+
+FICHIERS
+  app/src/components/TabNavIcons.tsx (case live)
+
+================================================================================
+Fin MODIF 118 — 2026-06-07
+================================================================================
+
+================================================================================
+MODIF 119 — 2026-06-07 — Icône Direct → caméra (barre tabs)
+================================================================================
+
+OBJECTIF
+  Remplacer l’icône broadcast (( • )) de l’onglet Direct (live) par une caméra
+  minimaliste : corps, objectif circulaire, point d’enregistrement.
+
+FICHIERS
+  app/src/components/TabNavIcons.tsx (case live)
+
+================================================================================
+Fin MODIF 119 — 2026-06-07
+================================================================================
+
+================================================================================
+MODIF 120 — 2026-06-07 — Icône Direct → logo LIVE (gemini-svg)
+================================================================================
+
+OBJECTIF
+  Remplacer l’icône caméra de l’onglet Direct par le logo LIVE fourni (badge +
+  arcs broadcast). Asset copié ; rendu inline avec currentColor pour l’état actif.
+
+FICHIERS
+  app/public/icons/direct-tab.svg (source gemini-svg.svg)
+  app/src/components/TabNavIcons.tsx (case live, SVG inline viewBox 0 0 200 200)
+
+================================================================================
+Fin MODIF 120 — 2026-06-07
+================================================================================
+
+================================================================================
+MODIF 121 — 2026-06-07 — Logo LIVE onglet Direct (PNG fourni)
+================================================================================
+
+OBJECTIF
+  Remplacer le SVG inline (gemini) par le PNG fourni par l'utilisateur pour
+  l'onglet Direct ; couleurs fixes (orange + LIVE blanc), ring rouge actif inchangé.
+
+FICHIERS
+  app/public/icons/direct-tab.png (nouveau)
+  app/src/components/TabNavIcons.tsx (case live → <img>)
+
+================================================================================
+Fin MODIF 121 — 2026-06-07
+================================================================================
+
+================================================================================
+MODIF 122 — 2026-06-07 — Icône Direct LIVE (gemini-svg 2)
+================================================================================
+
+OBJECTIF
+  Remplacer le PNG onglet Direct par le nouveau SVG fourni (ondes broadcast +
+  LIVE) ; rendu inline currentColor, asset dans public/icons.
+
+FICHIERS
+  app/public/icons/direct-tab.svg (écrasé, source gemini-svg (2).svg)
+  app/src/components/TabNavIcons.tsx (case live → SVG inline, retrait direct-tab.png)
+
+================================================================================
+Fin MODIF 122 — 2026-06-07
+================================================================================
+
+================================================================================
+MODIF 123 — 2026-06-07 — Onglet Explorer (icône boussole)
+================================================================================
+
+OBJECTIF
+  Remplacer l’icône Reels (lecteur vidéo) par une boussole « Explorer » ;
+  aria-label « Explorer » ; id interne reels et état actif rose inchangés.
+
+FICHIERS
+  app/src/components/TabNavIcons.tsx (case reels → SVG boussole)
+  app/src/components/MainTabNav.tsx (label Explorer)
+
+================================================================================
+Fin MODIF 123 — 2026-06-07
+================================================================================
+
+================================================================================
+MODIF 124 — 2026-06-07 — Annulation MODIF 123 : icône Reels restaurée
+================================================================================
+
+OBJECTIF
+  Annuler MODIF 123 — remettre l’icône Reels (rectangle arrondi + triangle play)
+  et aria-label « Reels » (au lieu de boussole Explorer).
+
+FICHIERS
+  app/src/components/TabNavIcons.tsx (case reels → SVG lecteur vidéo)
+  app/src/components/MainTabNav.tsx (label Reels)
+
+================================================================================
+Fin MODIF 124 — 2026-06-07
+================================================================================
+
+================================================================================
+MODIF 125 — 2026-06-07 — Barre d'onglets bas plus étroite
+================================================================================
+
+OBJECTIF
+  Réduire la largeur visible de la barre Accueil → Reels (icônes), sans casser
+  safe-area iOS ni le badge DM.
+
+CHANGEMENTS
+  app/src/index.css
+  • --tab-nav-max-w: 21rem (~336px)
+  • nav.ms-tab-bar-bottom : centré (left 50% + translateX), width calc(100% - 1.5rem),
+    max-width var(--tab-nav-max-w) — au lieu de pleine largeur écran
+  • safe-area padding-bottom inchangé
+
+  app/src/components/MainTabNav.tsx
+  • Nav : px-1 sm:px-1.5, pt-1 (était px-2 sm:px-3, pt-1.5)
+  • Inner : gap-0.5 sm:gap-1 (était gap-1 sm:gap-1.5)
+  • Boutons : px-1 sm:px-1.5 py-2 sm:py-2.5 (était px-2 sm:px-3 py-2.5 sm:py-3)
+  • min-h-[44px] et badge DM conservés
+
+================================================================================
+Fin MODIF 125 — 2026-06-07
+================================================================================
+
+================================================================================
+MODIF 126 — 2026-06-07 — Barre d'onglets bas sans fond noir
+================================================================================
+
+OBJECTIF
+  Retirer le fond noir derrière la barre Accueil → Reels (transparent, safe-area conservée).
+
+CHANGEMENTS
+  app/src/index.css — nav.ms-tab-bar-bottom : background transparent, border-top none
+  apptel/src/index.css — nav.ms-tab-bar-instagram : idem
+  app/src/components/MainTabNav.tsx — placement bottom : boutons transparents (style Instagram, pas de bg-[#16161f])
+
+================================================================================
+Fin MODIF 126 — 2026-06-07
+================================================================================
+
+================================================================================
+MODIF 127 — 2026-06-07 — Onglets : icônes flottantes sans bandeau
+================================================================================
+
+OBJECTIF
+  Supprimer toute apparence de barre en bas ; seules les icônes restent visibles,
+  centrées, flottantes (fixed) avec safe-area iOS.
+
+CHANGEMENTS
+  app/src/index.css, apptel/src/index.css
+  • nav.ms-tab-bar-bottom / ms-tab-bar-instagram : conteneur invisible (flex center),
+    pointer-events none sauf boutons ; pas de fond/bordure/shadow/min-height barre.
+  • --tab-nav-total-h = float-gap + btn-size + safe-area (padding main ajusté).
+
+  app/src/components/MainTabNav.tsx, apptel/src/components/MainTabNav.tsx
+  • Boutons w-11 h-11 rounded-full, gap centré ; fond léger uniquement si actif.
+
+================================================================================
+Fin MODIF 127 — 2026-06-07
+================================================================================
+
+================================================================================
+MODIF 128 — 2026-06-07 — Onglets flottants : boutons plus grands
+================================================================================
+
+OBJECTIF
+  Agrandir légèrement les boutons de la barre d'onglets flottante (Accueil → Reels).
+
+CHANGEMENTS
+  app/src/index.css, apptel/src/index.css
+  • --tab-nav-btn-size : 44px → 50px (paysage compact : 45px).
+  • --tab-nav-total-h inchangé en formule (float-gap + btn-size + safe-area).
+
+  app/src/components/MainTabNav.tsx, apptel/src/components/MainTabNav.tsx
+  • Boutons bottom : w/h liés à var(--tab-nav-btn-size) au lieu de w-11 h-11.
+
+  app/src/components/TabNavIcons.tsx
+  • Icônes par défaut w-7 h-7 (28px) au lieu de w-6 h-6.
+
+================================================================================
+Fin MODIF 128 — 2026-06-07
+================================================================================
+
+================================================================================
+MODIF 129 — 2026-06-07 — Defaults panneau À proximité
+================================================================================
+
+OBJECTIF
+  Premier chargement sans prefs sauvegardées : géolocalisation utilisateur
+  (Ma position GPS) + rayon 20 km. Les changements utilisateur restent
+  persistés en localStorage.
+
+CHANGEMENTS
+  app/src/lib/livesGeo.ts
+  • DEFAULT_PREFS.source : city → my_position, label « Ma position ».
+  • Export LIVES_GEO_STORAGE_KEY (melosong_lives_geo).
+
+  app/src/lib/settings.ts
+  • NEARBY_DEFAULT_RADIUS_KM = 20 (remplace 15 prod / 50 msdev).
+  • getNearbyRadiusKm : absence de clé → défaut 20 (fix Number(null)→0→1 km).
+  • Clé rayon : melosong_nearby_radius_km (inchangée).
+
+  app/src/lib/nearbyPanelSettings.ts
+  • Export NEARBY_PANEL_PREFS_STORAGE_KEY (melosong_nearby_panel_prefs).
+  • Persistance filtres inchangée (setNearbyPanelPreferences / setNearbyPanelRadiusKm).
+
+  Tests : livesGeo.test.ts, nearbyPanelSettings.test.ts (defaults + respect prefs).
+
+================================================================================
+Fin MODIF 129 — 2026-06-07
+================================================================================
+
+================================================================================
+MODIF 130 — 2026-06-07 — Capitales toujours visibles (retrait toggle)
+================================================================================
+
+OBJECTIF
+  Retirer le bouton « Masquer les capitales » ; les capitales restent
+  toujours affichées sur la carte plate et le globe.
+
+CHANGEMENTS
+  app/src/pages/HomePage.tsx
+  • Suppression bouton 🏛️, state showCapitals, toggleCapitals, clé localStorage
+    soundly_globe_show_capitals.
+
+  app/src/components/MapView.tsx
+  • Retrait prop showCapitals ; marqueurs capitales toujours rendus (carte plate).
+
+  app/src/components/GlobeView.tsx
+  • Retrait prop showCapitals ; labelsData = GLOBE_CAPITAL_LABELS en permanence.
+
+================================================================================
+Fin MODIF 130 — 2026-06-07
+================================================================================
+
+================================================================================
+MODIF 131 — 2026-06-07 — Clic personne carte / À proximité → petit salon
+================================================================================
+
+OBJECTIF
+  Clic sur un profil (marqueur carte ou ligne liste « À proximité ») : ouvrir le
+  MapSalonListenSheet replié si la personne a un salon actif — pas UserProfilePage.
+  Annule la logique MODIF 91 (profil systématique).
+
+COMPORTEMENT
+  • isLive + liveId → openLiveOnMap (salon lié au live si dispo, sinon MapLiveListenSheet)
+  • salonId → openSalonOnMap → MapSalonListenSheet collapsed (trySelectSalon)
+  • sinon → openProfileFromNearby → UserProfilePage
+  • Salon introuvable en cache → fetch API (resolveSalonById) avant abandon / profil
+
+HANDLERS TRACÉS
+  • MapView / GlobeView marqueur personne → onSelectPerson → handleMapPersonClick
+  • NearbyPeoplePanel ligne → onOpenProfile → openNearbyPerson (plus de branche onOpenSalon locale)
+
+FICHIERS MODIFIÉS
+  app/src/pages/HomePage.tsx
+    → resolveSalonById, openSalonOnMap async + fallback, openLiveOnMap fetch salonId,
+      openNearbyPerson unifié live / salon / profil
+  app/src/components/NearbyPeoplePanel.tsx
+    → clic délégué au parent ; titres avatar cohérents (Salon / Live / Profil)
+
+================================================================================
+Fin MODIF 131 — 2026-06-07
+================================================================================
+
+================================================================================
+MODIF 132 — 2026-06-07 — Clic personne : jamais UserProfilePage
+================================================================================
+
+OBJECTIF
+  Clic marqueur carte ou ligne « À proximité » : ne plus ouvrir le profil.
+
+COMPORTEMENT
+  • isLive + liveId → MapLiveListenSheet ou salon lié au live
+  • salonId → MapSalonListenSheet replié (openSalonOnMap)
+  • sinon → flyMapTo uniquement (ferme overlay profil carte si ouvert)
+  • Profil host conservé via bouton dédié dans MapSalonListenSheet / MapLiveListenSheet
+
+FICHIERS
+  app/src/pages/HomePage.tsx — retrait openProfileFromNearby, fallback zoom
+  app/src/components/NearbyPeoplePanel.tsx — prop onPersonClick, titres sans « Profil »
+
+================================================================================
+Fin MODIF 132 — 2026-06-07
+================================================================================
+
+================================================================================
+MODIF 133 — 2026-06-07 — Clic personne : résolution salon/live renforcée
+================================================================================
+
+BUGS CORRIGÉS
+  • Fallback onOpenLive (navigation plein écran) supprimé — toujours sheet carte
+  • salonId manquant : cache hostId puis GET /auth/profile/:id (user.salonId)
+  • live absent du cache : synthèse nearby puis api.getLive
+  • Fallback zoom : ferme salon/live sheets + overlay profil
+
+FICHIER
+  app/src/pages/HomePage.tsx — resolveSalonIdForPerson, resolveLiveForPerson,
+    openNearbyPerson
+
+================================================================================
+Fin MODIF 133 — 2026-06-07
+================================================================================
+
+================================================================================
+MODIF 134 — 2026-06-07 — Clic icône personne → petit salon (scope minimal)
+================================================================================
+
+OBJECTIF
+  Clic marqueur/avatar personne (carte ou liste « À proximité ») → MapSalonListenSheet
+  replié si salon résolvable. Jamais UserProfilePage. Pas de toast ni zoom de repli.
+
+COMPORTEMENT
+  • Live + liveId → openLiveOnMap (salon lié au live si dispo, sinon sheet live)
+  • salonId API ou salon hôte en cache → openSalonOnMap (sheet replié)
+  • Sinon → rien (pas profil, pas toast, pas flyMapTo)
+
+ANNULÉ (MODIF 133)
+  • GET /auth/profile/:id dans resolveSalonIdForPerson
+  • Toast « Salon indisponible pour le moment »
+  • Fallback zoom + fermeture sheets quand pas de salon
+
+FICHIER
+  app/src/pages/HomePage.tsx — resolveSalonIdForPerson, openNearbyPerson
+
+BACKEND
+  nearbyPeople.ts renvoie déjà salonId pour les hôtes salon (seed bots OK) — pas de fix.
+
+================================================================================
+Fin MODIF 134 — 2026-06-07
+================================================================================
+
+================================================================================
+MODIF 135 — 2026-06-07 — Diagnostic + rebuild : clic personne → petit salon
+================================================================================
+
+CAUSE RACINE DU BUG (double)
+
+  1. NearbyPeoplePanel (app) avait les mauvais props : onOpenProfile + onOpenSalon
+     au lieu d'un onPersonClick unifié.
+     handleClick n'appelait onOpenProfile QUE si p.salonId ET onOpenSalon présents
+     → personnes sans salon = clic silencieux.
+     Ces props sont corrigés en MODIF 131–134 (onPersonClick unifié).
+
+  2. Build lag : la correction source (11h34) n'était pas dans le build de production
+     (11h11). L'utilisateur testait donc l'ancienne version du code.
+
+DONNÉES BACKEND OK
+  • GET /api/geo/nearby retourne salonId pour les hôtes de salon (6 bots près Paris
+    avec radius=50 + distanceFilter=true ; 784 en mode monde).
+  • Tous les salonId des personnes sont présents dans la liste salons retournée.
+  • canJoin=true pour les salons bot publics.
+
+FIX APPLIQUÉ
+  • Rebuild : npm run app:build → backend/public/assets/index-BLSK3Bl9.js 11h57
+    (inclut MODIF 131–134 : onPersonClick unifié + resolveSalonById avec fallback API)
+  • Aucune modification de code source (la logique était déjà correcte post-MODIF 134)
+
+FICHIERS MODIFIÉS
+  backend/public/* (rebuild — pas de modification source)
+
+================================================================================
+Fin MODIF 135 — 2026-06-07
+================================================================================

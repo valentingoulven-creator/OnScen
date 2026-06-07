@@ -4,6 +4,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import viteCompression from 'vite-plugin-compression';
 
 /**
  * Plugin Vite : "overlay" de apptel/src sur app/src.
@@ -86,11 +87,14 @@ const msdevProxyTarget = msdevBackendUsesHttps()
 const msdevProxy = { target: msdevProxyTarget, secure: false, changeOrigin: true };
 
 const swPurgeKey = `melosong_sw_purge_${Date.now().toString(36)}`;
+const isCapacitorBuild = process.env.CAPACITOR_BUILD === '1';
 
 export default defineConfig({
-  base: '/tel/',
+  base: isCapacitorBuild ? './' : '/tel/',
   define: {
     'import.meta.env.VITE_APP_ENV': JSON.stringify(process.env.VITE_APP_ENV || 'msdev'),
+    'import.meta.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL || ''),
+    'import.meta.env.VITE_SOCKET_URL': JSON.stringify(process.env.VITE_SOCKET_URL || ''),
   },
   plugins: [
     apptelSrcFallback(),
@@ -108,25 +112,31 @@ export default defineConfig({
         handler: (html: string) => html.replace(/melosong_sw_purge_\w+/g, swPurgeKey),
       },
     },
-    VitePWA({
+    ...(isCapacitorBuild ? [] : [VitePWA({
       registerType: 'autoUpdate',
       injectRegister: false,
-      includeAssets: ['icon.svg', 'favicon.svg', 'pwa-192x192.png', 'pwa-512x512.png'],
+      includeAssets: ['icon.svg', 'favicon.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
-        name: 'Soundly Tel',
-        short_name: 'Soundly',
+        name: 'MeloSong',
+        short_name: 'MeloSong',
         description: "Salons d'écoute musicale géolocalisés — optimisé téléphone",
         start_url: '/tel/',
         display: 'standalone' as const,
         background_color: '#0b0b0f',
         theme_color: '#7c3aed',
-        orientation: 'any' as const,
+        orientation: 'portrait' as const,
         lang: 'fr',
         icons: [
           {
             src: '/icon.svg',
             sizes: 'any',
             type: 'image/svg+xml',
+            purpose: 'any',
+          },
+          {
+            src: '/apple-touch-icon.png',
+            sizes: '180x180',
+            type: 'image/png',
             purpose: 'any',
           },
           {
@@ -180,7 +190,21 @@ export default defineConfig({
       devOptions: {
         enabled: false,
       },
-    }),
+    })]),
+    ...(isCapacitorBuild ? [] : [
+      viteCompression({
+        algorithm: 'gzip',
+        ext: '.gz',
+        threshold: 1024,
+        deleteOriginFile: false,
+      }),
+      viteCompression({
+        algorithm: 'brotliCompress',
+        ext: '.br',
+        threshold: 1024,
+        deleteOriginFile: false,
+      }),
+    ]),
   ],
   server: {
     port: 4082,
@@ -190,7 +214,23 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: '../backend/public/tel',
+    outDir: isCapacitorBuild ? 'dist' : '../backend/public/tel',
     emptyOutDir: true,
+    minify: 'esbuild',
+    cssMinify: true,
+    sourcemap: false,
+    chunkSizeWarningLimit: 600,
+    modulePreload: { polyfill: true },
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('react-dom') || id.includes('react/')) return 'vendor-react';
+          if (id.includes('socket.io-client')) return 'vendor-socketio';
+          if (id.includes('leaflet') || id.includes('react-leaflet')) return 'vendor-map';
+          return 'vendor-misc';
+        },
+      },
+    },
   },
 });

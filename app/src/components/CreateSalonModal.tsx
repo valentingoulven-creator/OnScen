@@ -3,7 +3,17 @@ import { createPortal } from 'react-dom';
 import { api } from '../lib/api';
 import { getLivesGeo, isFixedMapGeoSource } from '../lib/livesGeo';
 import { isPlatformConnected } from '../lib/platformConnect';
+import { copyShareLink, getSalonShareUrl } from '../lib/shareLink';
 import { PlatformConnectCard } from './PlatformConnectCard';
+import { SpotifyJamLinkField } from './SpotifyJamLinkField';
+import { CreateSalonYouTubePicker } from './CreateSalonYouTubePicker';
+import {
+  CreateSalonPlaylistPicker,
+  type CreateSalonPlaylistSelection,
+} from './CreateSalonPlaylistPicker';
+import { SalonInviteLinkCopy } from './SalonInviteLinkCopy';
+import { SalonInviteUserSearch } from './SalonInviteUserSearch';
+import { normalizeSpotifyJamUrl } from '../lib/spotifyJam';
 import type { DmContact, Salon, User } from '../types';
 
 export interface CreateSalonForm {
@@ -11,10 +21,13 @@ export interface CreateSalonForm {
   platform: 'spotify' | 'youtube';
   accessMode: 'public' | 'invite';
   allowedUserIds: string[];
+  musicSource: 'track' | 'playlist';
   trackLink: string;
   trackTitle: string;
   artist: string;
+  youtubePlaylist: CreateSalonPlaylistSelection | null;
   allowQueue: boolean;
+  spotifyJamUrl: string;
 }
 
 interface CreateSalonModalProps {
@@ -43,43 +56,55 @@ export function CreateSalonModal({
   const [step, setStep] = useState(1);
   const [contacts, setContacts] = useState<DmContact[]>([]);
   const [saving, setSaving] = useState(false);
+  const [createdInviteSalonId, setCreatedInviteSalonId] = useState<string | null>(null);
   const openedAtRef = useRef(0);
   const [form, setForm] = useState<CreateSalonForm>({
     title: `Salon de ${username}`,
     platform: 'youtube',
     accessMode: 'public',
     allowedUserIds: [],
+    musicSource: 'track',
     trackLink: '',
     trackTitle: 'Ma session Soundly',
     artist: username,
+    youtubePlaylist: null,
     allowQueue: true,
+    spotifyJamUrl: '',
   });
 
   useEffect(() => {
     if (!open || !token) return;
     openedAtRef.current = Date.now();
     setStep(1);
+    setCreatedInviteSalonId(null);
     setForm({
       title: `Salon de ${username}`,
       platform: 'youtube',
       accessMode: 'public',
       allowedUserIds: [],
+      musicSource: 'track',
       trackLink: '',
       trackTitle: 'Ma session Soundly',
       artist: username,
+      youtubePlaylist: null,
       allowQueue: true,
+      spotifyJamUrl: '',
     });
     api.getDmContacts(token).then((r) => setContacts(r.contacts));
   }, [open, token, username]);
 
   if (!open) return null;
 
-  const toggleGuest = (id: string) => {
+  const allowedUserIdsSet = new Set(form.allowedUserIds);
+
+  const toggleGuest = (userId: string, add: boolean) => {
     setForm((f) => ({
       ...f,
-      allowedUserIds: f.allowedUserIds.includes(id)
-        ? f.allowedUserIds.filter((x) => x !== id)
-        : [...f.allowedUserIds, id],
+      allowedUserIds: add
+        ? f.allowedUserIds.includes(userId)
+          ? f.allowedUserIds
+          : [...f.allowedUserIds, userId]
+        : f.allowedUserIds.filter((x) => x !== userId),
     }));
   };
 
@@ -114,9 +139,21 @@ export function CreateSalonModal({
       );
       return;
     }
+    if (form.platform === 'spotify' && form.spotifyJamUrl.trim()) {
+      if (!normalizeSpotifyJamUrl(form.spotifyJamUrl)) {
+        alert('Le lien Jam Spotify n’est pas valide. Utilisez un lien open.spotify.com/socialsession/…');
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const { latitude, longitude } = await resolvePosition();
+      const jamNormalized =
+        form.platform === 'spotify' && form.spotifyJamUrl.trim()
+          ? normalizeSpotifyJamUrl(form.spotifyJamUrl.trim())
+          : undefined;
+      const usePlaylist = form.platform === 'youtube' && form.musicSource === 'playlist' && form.youtubePlaylist;
       const { salon } = await api.createSalon(token, {
         title: form.title.trim(),
         platform: form.platform,
@@ -124,11 +161,27 @@ export function CreateSalonModal({
         longitude,
         accessMode: form.accessMode,
         allowedUserIds: form.accessMode === 'invite' ? form.allowedUserIds : [],
-        trackLink: form.trackLink.trim() || undefined,
-        trackTitle: form.trackTitle.trim(),
+        trackLink: usePlaylist ? undefined : form.trackLink.trim() || undefined,
+        trackTitle: usePlaylist ? form.youtubePlaylist!.title : form.trackTitle.trim(),
         artist: form.artist.trim(),
         allowQueue: form.allowQueue,
+        ...(jamNormalized ? { spotifyJamUrl: jamNormalized } : {}),
       });
+      if (usePlaylist && form.youtubePlaylist) {
+        const body = form.youtubePlaylist.playlistUrl
+          ? { playlistUrl: form.youtubePlaylist.playlistUrl }
+          : form.youtubePlaylist.playlistId
+            ? { playlistId: form.youtubePlaylist.playlistId }
+            : null;
+        if (body) {
+          await api.salonLoadYoutubePlaylist(token, salon.id, body);
+        }
+      }
+      if (form.accessMode === 'invite') {
+        setCreatedInviteSalonId(salon.id);
+        const shareUrl = await getSalonShareUrl(salon.id);
+        await copyShareLink(shareUrl);
+      }
       onCreated(salon, latitude, longitude);
       onClose();
     } catch (e) {
@@ -182,11 +235,17 @@ export function CreateSalonModal({
                 Avec Spotify, ils suivent le chrono partagé dans leur app.
               </div>
               <div className="grid grid-cols-2 gap-3">
-                {(['spotify', 'youtube'] as const).map((p) => (
+                {(['youtube', 'spotify'] as const).map((p) => (
                   <button
                     key={p}
                     type="button"
-                    onClick={() => setForm((f) => ({ ...f, platform: p }))}
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        platform: p,
+                        ...(p === 'spotify' ? { musicSource: 'track' as const, youtubePlaylist: null } : {}),
+                      }))
+                    }
                     className={`p-4 rounded-2xl border text-left transition ${
                       form.platform === p
                         ? p === 'spotify'
@@ -231,7 +290,7 @@ export function CreateSalonModal({
                 />
               </label>
               <label className="block">
-                <span className="text-xs text-gray-400">Titre du morceau</span>
+                <span className="text-xs text-gray-400">Titre du salon</span>
                 <input
                   value={form.trackTitle}
                   onChange={(e) => setForm((f) => ({ ...f, trackTitle: e.target.value }))}
@@ -239,21 +298,93 @@ export function CreateSalonModal({
                   className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
                 />
               </label>
-              <label className="block">
-                <span className="text-xs text-gray-400">
-                  Lien {form.platform === 'spotify' ? 'Spotify' : 'YouTube'} (optionnel)
-                </span>
-                <input
-                  value={form.trackLink}
-                  onChange={(e) => setForm((f) => ({ ...f, trackLink: e.target.value }))}
-                  placeholder={
-                    form.platform === 'spotify'
-                      ? 'https://open.spotify.com/track/...'
-                      : 'https://youtube.com/watch?v=...'
-                  }
-                  className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
+              {form.platform === 'spotify' ? (
+                <label className="block">
+                  <span className="text-xs text-gray-400">Lien morceau Spotify (optionnel)</span>
+                  <input
+                    value={form.trackLink}
+                    onChange={(e) => setForm((f) => ({ ...f, trackLink: e.target.value }))}
+                    placeholder="https://open.spotify.com/track/..."
+                    className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
+                  />
+                </label>
+              ) : (
+                platformLinked && (
+                  <div className="space-y-3">
+                    <div className="flex gap-1 rounded-xl bg-[#1a1a26] p-1 border border-[#2d2d3d]">
+                      {(
+                        [
+                          { id: 'track' as const, label: 'Morceau' },
+                          { id: 'playlist' as const, label: 'Playlist' },
+                        ] as const
+                      ).map(({ id, label }) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() =>
+                            setForm((f) => ({
+                              ...f,
+                              musicSource: id,
+                              ...(id === 'track' ? { youtubePlaylist: null } : { trackLink: '' }),
+                            }))
+                          }
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition ${
+                            form.musicSource === id
+                              ? 'bg-purple-600 text-white'
+                              : 'text-gray-400 hover:text-white'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    {form.musicSource === 'track' ? (
+                      <CreateSalonYouTubePicker
+                        token={token}
+                        value={
+                          form.trackLink.trim()
+                            ? {
+                                trackLink: form.trackLink,
+                                trackTitle: form.trackTitle,
+                                artist: form.artist,
+                              }
+                            : null
+                        }
+                        onChange={(selection) => {
+                          if (!selection) {
+                            setForm((f) => ({ ...f, trackLink: '' }));
+                            return;
+                          }
+                          setForm((f) => ({
+                            ...f,
+                            trackLink: selection.trackLink,
+                            trackTitle: selection.trackTitle,
+                            artist: selection.artist,
+                          }));
+                        }}
+                      />
+                    ) : (
+                      <CreateSalonPlaylistPicker
+                        token={token}
+                        value={form.youtubePlaylist}
+                        onChange={(youtubePlaylist) => setForm((f) => ({ ...f, youtubePlaylist }))}
+                      />
+                    )}
+                  </div>
+                )
+              )}
+              {form.platform === 'spotify' && platformLinked && (
+                <p className="text-[10px] text-gray-500 leading-snug">
+                  Les playlists Spotify ne sont pas encore disponibles — choisissez YouTube ou un lien morceau.
+                </p>
+              )}
+              {form.platform === 'spotify' && platformLinked && (
+                <SpotifyJamLinkField
+                  value={form.spotifyJamUrl}
+                  onChange={(spotifyJamUrl) => setForm((f) => ({ ...f, spotifyJamUrl }))}
+                  variant="create"
                 />
-              </label>
+              )}
             </>
           )}
 
@@ -288,22 +419,17 @@ export function CreateSalonModal({
               </div>
 
               {form.accessMode === 'invite' && (
-                <div className="border border-[#2d2d3d] rounded-xl p-3 max-h-40 overflow-y-auto">
-                  <p className="text-xs text-gray-400 mb-2">Autoriser à rejoindre :</p>
-                  {contacts.length === 0 && (
-                    <p className="text-xs text-gray-500">Aucun contact — le salon restera privé (vous seul)</p>
-                  )}
-                  {contacts.map((c) => (
-                    <label key={c.id} className="flex items-center gap-2 py-1.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={form.allowedUserIds.includes(c.id)}
-                        onChange={() => toggleGuest(c.id)}
-                        className="rounded border-[#2d2d3d]"
-                      />
-                      <span className="text-sm text-white">{c.username}</span>
-                    </label>
-                  ))}
+                <div className="space-y-3 border border-[#2d2d3d] rounded-xl p-3">
+                  <SalonInviteLinkCopy salonId={createdInviteSalonId ?? undefined} />
+                  <div>
+                    <p className="text-xs text-gray-400 mb-2">Inviter des utilisateurs :</p>
+                    <SalonInviteUserSearch
+                      token={token}
+                      contacts={contacts}
+                      allowedUserIds={allowedUserIdsSet}
+                      onToggle={toggleGuest}
+                    />
+                  </div>
                 </div>
               )}
             </>
@@ -329,11 +455,22 @@ export function CreateSalonModal({
               </label>
               <div className="bg-[#1a1a26] rounded-xl p-3 text-xs text-gray-500 space-y-1">
                 <p>
-                  <span className="text-purple-400">Morceau :</span> {form.trackTitle} — {form.artist}
+                  <span className="text-purple-400">
+                    {form.platform === 'youtube' && form.musicSource === 'playlist' ? 'Playlist' : 'Morceau'} :
+                  </span>{' '}
+                  {form.platform === 'youtube' && form.musicSource === 'playlist' && form.youtubePlaylist
+                    ? form.youtubePlaylist.title
+                    : `${form.trackTitle} — ${form.artist}`}
                 </p>
                 <p>
                   <span className="text-purple-400">Plateforme :</span> {form.platform}
                 </p>
+                {form.platform === 'spotify' && form.spotifyJamUrl.trim() && (
+                  <p>
+                    <span className="text-purple-400">Jam :</span>{' '}
+                    {normalizeSpotifyJamUrl(form.spotifyJamUrl) ? 'lien fourni' : 'lien invalide'}
+                  </p>
+                )}
                 <p>
                   <span className="text-purple-400">Accès :</span>{' '}
                   {form.accessMode === 'public' ? 'Public' : `Invitation (${form.allowedUserIds.length} invité(s))`}

@@ -19,6 +19,7 @@ import { SalonYouTubePlaylist } from '../components/SalonYouTubePlaylist';
 import { SalonYouTubeSearch } from '../components/SalonYouTubeSearch';
 import { SalonQueueSection } from '../components/SalonQueueSection';
 import { SalonProposalsSection } from '../components/SalonProposalsSection';
+import { SalonInviteLinkCopy } from '../components/SalonInviteLinkCopy';
 import { useSalonQueueSync } from '../hooks/useSalonQueueSync';
 
 import type { DmContact, PlaybackState, Salon } from '../types';
@@ -37,7 +38,16 @@ function formatRemaining(ms: number): string {
 
 
 
-export function SalonPage({ salonId, onBack }: { salonId: string; onBack: () => void }) {
+export function SalonPage({
+  salonId,
+  onBack,
+  onMinimizeToMap,
+}: {
+  salonId: string;
+  onBack: () => void;
+  /** Quitte le grand salon et rouvre la fiche carte (petit salon). */
+  onMinimizeToMap?: () => void;
+}) {
 
   const { user, token, setUserFromProfile } = useAuth();
 
@@ -390,6 +400,13 @@ export function SalonPage({ salonId, onBack }: { salonId: string; onBack: () => 
         />
       </section>
 
+      {isHost && salon.accessMode === 'invite' && (
+        <section className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4">
+          <h3 className="text-xs font-medium text-[#7878a0] uppercase tracking-wider mb-3">Lien d&apos;invitation</h3>
+          <SalonInviteLinkCopy salonId={salon.id} />
+        </section>
+      )}
+
       {hostCanControl && (
         <section className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4">
           <h3 className="text-xs font-medium text-[#7878a0] uppercase tracking-wider mb-3">Gérer l&apos;accès</h3>
@@ -445,7 +462,7 @@ export function SalonPage({ salonId, onBack }: { salonId: string; onBack: () => 
   };
 
   return (
-    <div className="flex flex-col h-dvh min-h-0 bg-[#0b0b0f] overflow-hidden">
+    <div className="flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f] overflow-hidden">
       {durationWarning && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] max-w-[90vw] px-4 py-2.5 rounded-full bg-amber-950/90 border border-amber-500/40 text-sm text-amber-100 font-bold shadow-lg backdrop-blur text-center">
           ⚠ Session se terminera dans 15 min
@@ -506,7 +523,7 @@ export function SalonPage({ salonId, onBack }: { salonId: string; onBack: () => 
             disabled={startingLive}
             className="shrink-0 px-3 py-1.5 bg-red-600 rounded-full text-xs font-bold text-white"
           >
-            Go Live
+            Live
           </button>
         )}
       </header>
@@ -518,6 +535,7 @@ export function SalonPage({ salonId, onBack }: { salonId: string; onBack: () => 
           chatTitle="Chat du salon"
           chatMinimized={chatMinimized}
           onToggleMinimize={() => setChatMinimized((m) => !m)}
+          onMinimize={onMinimizeToMap}
           stage={
             <SalonPlaybackPanel
               salon={salon}

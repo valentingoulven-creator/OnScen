@@ -18,6 +18,8 @@ import { getSalonShowYoutubeVideo, setSalonShowYoutubeVideo } from '../lib/salon
 import { isYoutubeStrictCompliance } from '../lib/youtubeCompliance';
 import { useBackgroundPlayback } from '../hooks/useBackgroundPlayback';
 import { PlatformConnectCard } from './PlatformConnectCard';
+import { SpotifyJamJoinCard, SpotifyJamLinkField } from './SpotifyJamLinkField';
+import { normalizeSpotifyJamUrl } from '../lib/spotifyJam';
 import type { User } from '../types';
 import type { PlaybackState, ResolvedSalonTrack, Salon, SalonQueueItem, SalonTrackProposal } from '../types';
 
@@ -147,6 +149,43 @@ export function SalonPlaybackPanel({
   const prevPlayingRef = useRef(playbackState.isPlaying);
   const prevTrackIdRef = useRef(playbackState.trackId);
   const [spotifyNotif, setSpotifyNotif] = useState<string | null>(null);
+  const [hostJamDraft, setHostJamDraft] = useState(salon.spotifyJamUrl ?? '');
+  const [editingHostJam, setEditingHostJam] = useState(false);
+  const [savingJam, setSavingJam] = useState(false);
+  const [jamToast, setJamToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    setHostJamDraft(salon.spotifyJamUrl ?? '');
+    if (salon.spotifyJamUrl) setEditingHostJam(false);
+  }, [salon.spotifyJamUrl]);
+
+  useEffect(() => {
+    if (!jamToast) return;
+    const t = window.setTimeout(() => setJamToast(null), 2500);
+    return () => window.clearTimeout(t);
+  }, [jamToast]);
+
+  const saveHostJamLink = async () => {
+    if (!token || !isHost) return;
+    const trimmed = hostJamDraft.trim();
+    if (trimmed && !normalizeSpotifyJamUrl(trimmed)) {
+      setJamToast('Lien Jam invalide');
+      return;
+    }
+    setSavingJam(true);
+    try {
+      const { salon: updated } = await api.updateSalonSettings(token, salon.id, {
+        spotifyJamUrl: trimmed ? normalizeSpotifyJamUrl(trimmed) : '',
+      });
+      setHostJamDraft(updated.spotifyJamUrl ?? '');
+      setEditingHostJam(false);
+      setJamToast(trimmed ? 'Lien Jam enregistré' : 'Lien Jam retiré');
+    } catch (e) {
+      setJamToast(e instanceof Error ? e.message : 'Enregistrement impossible');
+    } finally {
+      setSavingJam(false);
+    }
+  };
   useEffect(() => {
     if (isHost || salon.platform !== 'spotify') return;
     if (playbackState.isPlaying !== prevPlayingRef.current) {
@@ -506,6 +545,9 @@ export function SalonPlaybackPanel({
                 {spotifyNotif}
               </div>
             )}
+            {salon.platform === 'spotify' && salon.spotifyJamUrl && (
+              <SpotifyJamJoinCard jamUrl={salon.spotifyJamUrl} onCopy={setJamToast} />
+            )}
             {!(canUseYoutubeEmbed && participantPlatform === 'youtube') && (
               <div className="grid grid-cols-2 gap-2">
                 {(['spotify', 'youtube'] as const).map((p) => (
@@ -636,6 +678,57 @@ export function SalonPlaybackPanel({
             aria-label="Position de lecture"
           />
         )}
+
+        {salon.platform === 'spotify' && isHost && hostLinked && (
+          <div className="space-y-2 pt-1">
+            {salon.spotifyJamUrl && !editingHostJam ? (
+              <>
+                <SpotifyJamJoinCard jamUrl={salon.spotifyJamUrl} isHost onCopy={setJamToast} />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHostJamDraft(salon.spotifyJamUrl ?? '');
+                    setEditingHostJam(true);
+                  }}
+                  className="text-[11px] text-gray-500 hover:text-gray-300"
+                >
+                  Modifier le lien Jam
+                </button>
+              </>
+            ) : (
+              <>
+                <SpotifyJamLinkField
+                  value={hostJamDraft}
+                  onChange={setHostJamDraft}
+                  variant="inline"
+                  disabled={savingJam}
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void saveHostJamLink()}
+                    disabled={savingJam || !hostJamDraft.trim()}
+                    className="flex-1 py-2 rounded-xl bg-green-600/80 hover:bg-green-600 text-xs font-bold text-white disabled:opacity-50"
+                  >
+                    {savingJam ? 'Enregistrement…' : 'Enregistrer le lien Jam'}
+                  </button>
+                  {salon.spotifyJamUrl && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHostJamDraft(salon.spotifyJamUrl ?? '');
+                        setEditingHostJam(false);
+                      }}
+                      className="px-3 py-2 rounded-xl border border-[#2a2a3a] text-xs text-gray-400"
+                    >
+                      Annuler
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {isHost && !hostLinked && token && (
@@ -757,6 +850,14 @@ export function SalonPlaybackPanel({
               <div className="rounded-xl bg-green-500/10 border border-green-500/25 px-3 py-2 text-sm text-green-300 text-center">
                 {spotifyNotif}
               </div>
+            )}
+            {salon.platform === 'spotify' && salon.spotifyJamUrl && (
+              <SpotifyJamJoinCard jamUrl={salon.spotifyJamUrl} onCopy={setJamToast} />
+            )}
+            {salon.platform === 'spotify' && !salon.spotifyJamUrl && (
+              <p className="text-[11px] text-center text-amber-400/90">
+                L&apos;hôte n&apos;a pas encore partagé de lien Jam — suivez le chrono ci-dessous dans Spotify.
+              </p>
             )}
 
             {!(canUseYoutubeEmbed && participantPlatform === 'youtube') && (
@@ -881,6 +982,14 @@ export function SalonPlaybackPanel({
         </>
       )}
     </section>
+    {jamToast && (
+      <div
+        className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-[#1a1a28] border border-green-500/40 text-sm text-white shadow-lg"
+        role="status"
+      >
+        {jamToast}
+      </div>
+    )}
     </>
   );
 }

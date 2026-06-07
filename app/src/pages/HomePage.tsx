@@ -44,7 +44,6 @@ import type { PlaybackState } from '../types';
 
 const NEARBY_PEOPLE_STORAGE_KEY = 'melosong_show_nearby_people';
 const MAP_STYLE_KEY = 'soundly_map_style';
-const GLOBE_CAPITALS_KEY = 'soundly_globe_show_capitals';
 const MAP_LIVE_ZOOM = 15;
 
 function findSalonForLive(live: Live, salons: Salon[]): Salon | undefined {
@@ -103,6 +102,9 @@ interface HomePageProps {
   onCloseMapProfile?: () => void;
   /** Onglet Carte visible : autorise l'audio du bottom sheet salon. */
   mapPlaybackActive?: boolean;
+  /** Réouvre la fiche salon carte après réduction du grand salon. */
+  restoreSalonId?: string | null;
+  onSalonMapRestored?: () => void;
 }
 
 export function HomePage({
@@ -115,6 +117,8 @@ export function HomePage({
   hideStartLiveMapButton = false,
   onCloseMapProfile,
   mapPlaybackActive = true,
+  restoreSalonId,
+  onSalonMapRestored,
 }: HomePageProps) {
   const appa2 = isAppa2Layout(appLayout);
   const nearbyLayout = appa2 ? ('bottom' as const) : ('side' as const);
@@ -141,9 +145,6 @@ export function HomePage({
   );
   const [mapStyle, setMapStyle] = useState<MapStyle>(
     () => (localStorage.getItem(MAP_STYLE_KEY) as MapStyle | null) ?? 'flat'
-  );
-  const [showCapitals, setShowCapitals] = useState(
-    () => localStorage.getItem(GLOBE_CAPITALS_KEY) !== 'false'
   );
   const [nearbyPanelPrefs, setNearbyPanelPrefs] = useState(getNearbyPanelPreferences);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
@@ -281,12 +282,6 @@ export function HomePage({
     setMapStyle(next);
     localStorage.setItem(MAP_STYLE_KEY, next);
   }, [mapStyle]);
-
-  const toggleCapitals = useCallback(() => {
-    const next = !showCapitals;
-    setShowCapitals(next);
-    localStorage.setItem(GLOBE_CAPITALS_KEY, next ? 'true' : 'false');
-  }, [showCapitals]);
 
   const handleGlobeZoomToFlat = useCallback(
     (lat: number, lng: number, doSelect: () => void, zoom?: number) => {
@@ -536,54 +531,109 @@ export function HomePage({
     setSalonSheetExpanded(false);
   }, [user?.id, token, onCloseMapProfile]);
 
-  const openProfileFromNearby = useCallback((person: NearbyPerson) => {
-    dismissSalonSheetOnly();
-    onOpenProfile(person);
-  }, [dismissSalonSheetOnly, onOpenProfile]);
+  const resolveSalonById = useCallback(async (salonId: string): Promise<Salon | null> => {
+    const local = salons.find((s) => s.id === salonId);
+    if (local) return local;
+    if (!token) return null;
+    try {
+      const { salon: fetched } = await api.getSalon(token, salonId);
+      setSalons((prev) => (prev.some((s) => s.id === fetched.id) ? prev : [...prev, fetched]));
+      return fetched;
+    } catch {
+      return null;
+    }
+  }, [salons, token]);
+
+  /** salonId sur la personne, sinon salon hôte déjà en cache carte. */
+  const resolveSalonIdForPerson = useCallback((person: NearbyPerson): string | null => {
+    if (person.salonId) return person.salonId;
+    return salons.find((s) => s.hostId === person.id)?.id ?? null;
+  }, [salons]);
+
+  const resolveLiveForPerson = useCallback(async (person: NearbyPerson): Promise<Live | null> => {
+    if (!person.isLive || !person.liveId) return null;
+    const cached = lives.find((l) => l.id === person.liveId);
+    if (cached) return cached;
+    const synthetic = liveFromNearbyPerson(person, person.liveId);
+    if (synthetic) return synthetic;
+    if (!token) return null;
+    try {
+      const { live } = await api.getLive(token, person.liveId);
+      setLives((prev) => (prev.some((l) => l.id === live.id) ? prev : [...prev, live]));
+      return live;
+    } catch {
+      return null;
+    }
+  }, [lives, token]);
 
   /** Sélectionne un salon par id dans la bottom sheet carte (ne navigue PAS vers SalonPage). */
-  const openSalonOnMap = useCallback((salonId: string) => {
-    const salon = salons.find((s) => s.id === salonId);
-    if (salon) {
-      flyMapTo(salon.latitude, salon.longitude);
-      dismissLiveSheetOnly();
-      void trySelectSalon(salon, { closeMapProfile: true });
-    }
-  }, [salons, trySelectSalon, flyMapTo, dismissLiveSheetOnly]);
+  const openSalonOnMap = useCallback(async (salonId: string): Promise<boolean> => {
+    const salon = await resolveSalonById(salonId);
+    if (!salon) return false;
+    flyMapTo(salon.latitude, salon.longitude);
+    dismissLiveSheetOnly();
+    await trySelectSalon(salon, { closeMapProfile: true });
+    return true;
+  }, [resolveSalonById, trySelectSalon, flyMapTo, dismissLiveSheetOnly]);
+
+  const restoreSalonOnMap = useCallback(async (salonId: string) => {
+    const salon = await resolveSalonById(salonId);
+    if (!salon) return;
+    flyMapTo(salon.latitude, salon.longitude);
+    dismissLiveSheetOnly();
+    await trySelectSalon(salon, { closeMapProfile: true });
+  }, [resolveSalonById, flyMapTo, dismissLiveSheetOnly, trySelectSalon]);
+
+  useEffect(() => {
+    if (!restoreSalonId) return;
+    void restoreSalonOnMap(restoreSalonId).finally(() => onSalonMapRestored?.());
+  }, [restoreSalonId, restoreSalonOnMap, onSalonMapRestored]);
 
   const openLiveOnMap = useCallback((live: Live) => {
-    flyMapTo(live.latitude, live.longitude);
-    onCloseMapProfile?.();
+    void (async () => {
+      flyMapTo(live.latitude, live.longitude);
+      onCloseMapProfile?.();
 
-    const salon = findSalonForLive(live, salons);
-    if (salon) {
-      dismissLiveSheetOnly();
-      void trySelectSalon(salon, { closeMapProfile: true });
-      return;
-    }
-
-    dismissSalonSheetOnly();
-    setSelectedLive(live);
-  }, [salons, trySelectSalon, flyMapTo, onCloseMapProfile, dismissSalonSheetOnly, dismissLiveSheetOnly]);
-
-  const openNearbyPerson = useCallback((person: NearbyPerson) => {
-    if (person.isLive && person.liveId) {
-      const live =
-        lives.find((l) => l.id === person.liveId) ??
-        liveFromNearbyPerson(person, person.liveId);
-      if (live) {
-        openLiveOnMap(live);
+      let salon = findSalonForLive(live, salons);
+      if (!salon && live.salonId) {
+        salon = (await resolveSalonById(live.salonId)) ?? undefined;
+      }
+      if (salon) {
+        dismissLiveSheetOnly();
+        await trySelectSalon(salon, { closeMapProfile: true });
         return;
       }
-      onOpenLive(person.liveId);
-      return;
-    }
-    if (person.salonId) {
-      openSalonOnMap(person.salonId);
-      return;
-    }
-    openProfileFromNearby(person);
-  }, [lives, openLiveOnMap, openSalonOnMap, onOpenLive, openProfileFromNearby]);
+
+      dismissSalonSheetOnly();
+      setSelectedLive(live);
+    })();
+  }, [
+    salons,
+    resolveSalonById,
+    trySelectSalon,
+    flyMapTo,
+    onCloseMapProfile,
+    dismissSalonSheetOnly,
+    dismissLiveSheetOnly,
+  ]);
+
+  /** Clic personne (carte ou liste) : live → salon lié → petit salon replié (jamais profil). */
+  const openNearbyPerson = useCallback((person: NearbyPerson) => {
+    void (async () => {
+      if (person.isLive && person.liveId) {
+        const live = await resolveLiveForPerson(person);
+        if (live) {
+          openLiveOnMap(live);
+          return;
+        }
+      }
+
+      const salonId = resolveSalonIdForPerson(person);
+      if (salonId) {
+        await openSalonOnMap(salonId);
+      }
+    })();
+  }, [resolveLiveForPerson, resolveSalonIdForPerson, openLiveOnMap, openSalonOnMap]);
 
   const handleMapPersonClick = useCallback((person: NearbyPerson) => {
     openNearbyPerson(person);
@@ -621,11 +671,12 @@ export function HomePage({
   const onSalonCreated = useCallback((salon: Salon, lat: number, lon: number) => {
     setShowCreateSalon(false);
     setSalons((s) => [...s, salon]);
-    setSelected(salon);
-    setSalonSheetExpanded(true);
+    setSelected(null);
+    setSalonSheetExpanded(false);
     setSafeCenter([lat, lon]);
     loadNearby(lat, lon);
-  }, [loadNearby, setSafeCenter]);
+    onOpenSalon?.(salon.id);
+  }, [loadNearby, onOpenSalon, setSafeCenter]);
 
   useEffect(() => {
     if (!selected || !token || !user) return;
@@ -766,8 +817,7 @@ export function HomePage({
           mapMarkerCount={mapMarkerCount}
           loading={loadingNearby}
           selectedSalonId={selected?.id}
-          onOpenProfile={openNearbyPerson}
-          onOpenSalon={openSalonOnMap}
+          onPersonClick={openNearbyPerson}
           onHide={() => setNearbyPeopleVisible(false)}
           favoriteIds={favoriteIds}
         />
@@ -818,7 +868,6 @@ export function HomePage({
           mapStyle={mapStyle}
           onGlobeZoomToFlat={handleGlobeZoomToFlat}
           onAutoSwitchToGlobe={handleAutoSwitchToGlobe}
-          showCapitals={showCapitals}
         />
         {mapStyle === 'globe' && (
           <div
@@ -864,15 +913,6 @@ export function HomePage({
             className={`w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center rounded-full bg-[#12121a] border shadow-lg active:scale-95 transition shrink-0 text-lg ${mapStyle === 'globe' ? 'border-indigo-500 text-indigo-300' : 'border-[#2d2d3d] hover:border-indigo-500/60 text-white/70 hover:text-white'}`}
           >
             {mapStyle === 'globe' ? '🗺️' : '🌐'}
-          </button>
-          <button
-            type="button"
-            onClick={toggleCapitals}
-            title={showCapitals ? 'Masquer les capitales' : 'Afficher les capitales'}
-            aria-label={showCapitals ? 'Masquer les capitales' : 'Afficher les capitales'}
-            className={`w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center rounded-full bg-[#12121a] border shadow-lg active:scale-95 transition shrink-0 text-base ${showCapitals ? 'border-indigo-500/70 text-indigo-300' : 'border-[#2d2d3d] text-white/35 hover:border-indigo-500/40 hover:text-white/60'}`}
-          >
-            🏛️
           </button>
           <button
             type="button"
@@ -976,8 +1016,7 @@ export function HomePage({
               mapMarkerCount={mapMarkerCount}
               loading={loadingNearby}
               selectedSalonId={selected?.id}
-              onOpenProfile={openNearbyPerson}
-              onOpenSalon={openSalonOnMap}
+              onPersonClick={openNearbyPerson}
               onHide={() => setNearbyPeopleVisible(false)}
               favoriteIds={favoriteIds}
             />

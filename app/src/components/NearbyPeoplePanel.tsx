@@ -52,9 +52,8 @@ interface NearbyPeoplePanelProps {
   selectedSalonId?: string | null;
   /** Panneau latéral (legacy) ou bandeau en bas de la carte. */
   layout?: 'side' | 'bottom';
-  onOpenProfile: (person: NearbyPerson) => void;
-  /** Si fourni, un clic sur un utilisateur avec salonId ouvre directement le salon. */
-  onOpenSalon?: (salonId: string) => void;
+  /** Clic personne : le parent gère live / salon carte / zoom (jamais profil). */
+  onPersonClick: (person: NearbyPerson) => void;
   onHide?: () => void;
   favoriteIds?: Set<string>;
 }
@@ -63,30 +62,22 @@ interface NearbyPersonRowProps {
   p: NearbyPerson;
   active: boolean;
   affinityMatches: number;
-  onOpenProfile: (person: NearbyPerson) => void;
-  onOpenSalon?: (salonId: string) => void;
+  onPersonClick: (person: NearbyPerson) => void;
 }
 
 const NearbyPersonRow = memo(function NearbyPersonRow({
   p,
   active,
   affinityMatches,
-  onOpenProfile,
-  onOpenSalon,
+  onPersonClick,
 }: NearbyPersonRowProps) {
   const viewerCount = p.isLive ? p.liveViewersCount : p.listenersCount;
-  const handleClick = () => {
-    if (p.salonId && onOpenSalon) {
-      onOpenSalon(p.salonId);
-    } else {
-      onOpenProfile(p);
-    }
-  };
+  const handleClick = () => onPersonClick(p);
   const clickTitle = p.isLive && p.liveId
     ? `Live de ${p.username}`
     : p.salonId
       ? `Salon de ${p.username}`
-      : `Profil de ${p.username}`;
+      : `Localiser ${p.username} sur la carte`;
   return (
     <li>
       <div
@@ -100,8 +91,8 @@ const NearbyPersonRow = memo(function NearbyPersonRow({
           type="button"
           onClick={handleClick}
           className="relative shrink-0 hover:opacity-90 transition"
-          title={`Profil de ${p.username}`}
-          aria-label={`Voir le profil de ${p.username}`}
+          title={clickTitle}
+          aria-label={clickTitle}
         >
           <UserAvatarOnline
             userId={p.id}
@@ -191,8 +182,7 @@ export function NearbyPeoplePanel({
   loading,
   selectedSalonId,
   layout = 'bottom',
-  onOpenProfile,
-  onOpenSalon,
+  onPersonClick,
   onHide,
   favoriteIds,
 }: NearbyPeoplePanelProps) {
@@ -487,8 +477,7 @@ export function NearbyPeoplePanel({
             p={p}
             active={!!(p.salonId && p.salonId === selectedSalonId)}
             affinityMatches={countMusicalAffinityMatches(viewerTastes, p)}
-            onOpenProfile={onOpenProfile}
-            onOpenSalon={onOpenSalon}
+            onPersonClick={onPersonClick}
           />
         ))}
 

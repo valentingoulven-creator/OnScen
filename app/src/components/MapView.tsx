@@ -63,8 +63,6 @@ interface MapViewProps {
    * d'un zoom manuel sous le seuil d'altitude. `zoom` est le niveau Leaflet cible.
    */
   onGlobeZoomToFlat?: (lat: number, lng: number, doSelect: () => void, zoom?: number) => void;
-  /** Affiche les noms des capitales mondiales sur le globe. */
-  showCapitals?: boolean;
   /** Appelé quand le zoom descend à ≤ 2 sur la carte plate → bascule automatiquement vers le globe. */
   onAutoSwitchToGlobe?: () => void;
 }
@@ -96,7 +94,6 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   onMapBackgroundClick,
   mapStyle = 'flat',
   onGlobeZoomToFlat,
-  showCapitals = true,
   onAutoSwitchToGlobe,
 }: MapViewProps, ref) {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -357,7 +354,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     if (!layer) return;
 
     layer.clearLayers();
-    if (!showCapitals || mapStyle !== 'flat' || !leafletReady) return;
+    if (mapStyle !== 'flat' || !leafletReady) return;
 
     const showLabels = flatMapZoom >= CAPITAL_LABEL_MIN_ZOOM;
     for (const cap of WORLD_CAPITALS) {
@@ -385,7 +382,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
         console.error('[MapView] capital marker error:', err);
       }
     }
-  }, [showCapitals, mapStyle, leafletReady, flatMapZoom]);
+  }, [mapStyle, leafletReady, flatMapZoom]);
 
   // ── Marker update (salons, lives, people) ────────────────────────────────
   // IMPORTANT: callbacks (onSelectSalon, onSelectLive, onSelectPerson) are
@@ -539,7 +536,6 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
             onSelectLive={onSelectLive}
             onSelectPerson={onSelectPerson}
             onZoomToFlat={onGlobeZoomToFlat}
-            showCapitals={showCapitals}
           />
         </Suspense>
       )}

@@ -41,8 +41,6 @@ export interface GlobeViewProps {
    * `zoom` est le niveau Leaflet cible (optionnel, défaut 14).
    */
   onZoomToFlat?: (lat: number, lng: number, doSelect: () => void, zoom?: number) => void;
-  /** Affiche les noms des capitales mondiales sur le globe. */
-  showCapitals?: boolean;
 }
 
 export const GlobeView = memo(function GlobeView({
@@ -55,7 +53,6 @@ export const GlobeView = memo(function GlobeView({
   onSelectLive,
   onSelectPerson,
   onZoomToFlat,
-  showCapitals = true,
 }: GlobeViewProps) {
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -335,7 +332,7 @@ export const GlobeView = memo(function GlobeView({
           ringPropagationSpeed={2}
           ringRepeatPeriod={800}
           // Capital city labels (all sovereign capitals at exact coords)
-          labelsData={showCapitals ? GLOBE_CAPITAL_LABELS : []}
+          labelsData={GLOBE_CAPITAL_LABELS}
           labelLat={(d) => (d as GlobeCapitalLabel).lat}
           labelLng={(d) => (d as GlobeCapitalLabel).lng}
           labelText={(d) => (d as GlobeCapitalLabel).text}

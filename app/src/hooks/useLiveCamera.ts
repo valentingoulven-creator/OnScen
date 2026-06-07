@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { LIVE_CAMERA_FILE_LOAD_ERROR } from '../lib/liveCameraMessages';
+import { getLiveMediaPrefs } from '../lib/liveMediaPrefs';
 import {
   acquireLiveCameraStream,
   configureLiveVideoElement,
@@ -87,7 +88,11 @@ export function useLiveCamera() {
 
     try {
       stop();
-      const stream = await acquireLiveCameraStream((c) => mediaDevices.getUserMedia(c));
+      const prefs = getLiveMediaPrefs();
+      const stream = await acquireLiveCameraStream(
+        (c) => mediaDevices.getUserMedia(c),
+        prefs
+      );
       streamRef.current = stream;
       setMode('camera');
       setActive(true);

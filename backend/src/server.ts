@@ -354,9 +354,12 @@ app.get('/msdev-mobile', (req, res) => {
   const scheme =
     process.env.MSDEV_HTTPS === '1' || req.secure ? 'https' : 'http';
   const hostIp = process.env.MOBILE_HOST_IP?.trim();
-  const mobileUrl =
+  const baseUrl =
     process.env.MOBILE_WEB_URL?.trim() ||
     (hostIp ? `${scheme}://${hostIp}:${port}` : `${scheme}://localhost:${port}`);
+  const telFirst = req.query.app === 'tel' || req.query.app === 'apptel';
+  const mobileUrl = telFirst ? `${baseUrl.replace(/\/$/, '')}/tel/` : baseUrl;
+  const telUrl = `${baseUrl.replace(/\/$/, '')}/tel/`;
   const qrApi = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(mobileUrl)}`;
   res.type('html').send(`<!DOCTYPE html>
 <html lang="fr">
@@ -378,6 +381,7 @@ app.get('/msdev-mobile', (req, res) => {
   <p>Ouvrez cette URL <strong>sur le téléphone</strong> (même Wi‑Fi que le PC) :</p>
   <p><a href="${mobileUrl}">${mobileUrl}</a></p>
   <img src="${qrApi}" width="220" height="220" alt="QR code" />
+  <p>Variante mobile (PWA) : <a href="${telUrl}">${telUrl}</a></p>
   <p>Compte démo : <code>listener@msdev.local</code> / <code>msdev123</code></p>
   <p>Caméra : lancez <code>npm run msdev:https</code> sur le PC puis acceptez le certificat auto-signé une fois.</p>
   <p>PWA : dans le navigateur → <em>Ajouter à l'écran d'accueil</em>.</p>

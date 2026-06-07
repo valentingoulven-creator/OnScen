@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useAuth } from './context/AuthContext';
 import {
   consumePendingProfileView,
@@ -19,20 +19,33 @@ import { pauseMediaElements } from './hooks/usePauseMediaOnPageHidden';
 import { AuthPage } from './pages/AuthPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { HomePage } from './pages/HomePage';
-import { DmPage } from './pages/DmPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { LivesTabPage } from './pages/LivesTabPage';
 import { ReelsTabPage } from './pages/ReelsTabPage';
-import { ActualiteTabPage } from './pages/ActualiteTabPage';
-import { LivePage } from './pages/LivePage';
-import { SalonPage } from './pages/SalonPage';
 import { NotificationBell } from './components/NotificationBell';
 import { PrivacyVisibilityMenu } from './components/PrivacyVisibilityMenu';
 import { useDmUnread } from './context/DmUnreadContext';
 import { ProfileSearchBar } from './components/ProfileSearchBar';
 import { MainTabNav } from './components/MainTabNav';
-import { UserProfilePage } from './pages/UserProfilePage';
 import type { NearbyPerson } from './types';
+
+const DmPage = lazy(() => import('./pages/DmPage').then((m) => ({ default: m.DmPage })));
+const ActualiteTabPage = lazy(() =>
+  import('./pages/ActualiteTabPage').then((m) => ({ default: m.ActualiteTabPage }))
+);
+const LivePage = lazy(() => import('./pages/LivePage').then((m) => ({ default: m.LivePage })));
+const SalonPage = lazy(() => import('./pages/SalonPage').then((m) => ({ default: m.SalonPage })));
+const UserProfilePage = lazy(() =>
+  import('./pages/UserProfilePage').then((m) => ({ default: m.UserProfilePage }))
+);
+
+function PageFallback() {
+  return (
+    <div className="flex flex-col flex-1 min-h-0 items-center justify-center gap-3 bg-[#0b0b0f] text-gray-400">
+      <span className="w-7 h-7 border-2 border-purple-500/30 border-t-purple-400 rounded-full animate-spin" />
+    </div>
+  );
+}
 
 /** Apptel : toujours en mode appa2 → NearbyPanel en bandeau bas, pas de sidebar. */
 const APPTEL_LAYOUT = 'appa2' as const;
@@ -188,51 +201,10 @@ export default function App() {
 
   if (isNewUser) return <OnboardingPage onDone={clearNewUser} />;
 
-  if (view.type === 'salon') {
-    return (
-      <SalonPage
-        salonId={view.id}
-        onBack={() => {
-          clearSalonUrlFromBar();
-          setView({ type: 'home' });
-          setTab('map');
-        }}
-      />
-    );
-  }
-
-  if (view.type === 'profile') {
-    return (
-      <UserProfilePage
-        userId={view.id}
-        preview={profilePreview ?? undefined}
-        onBack={closeProfile}
-        onOpenReel={(reelId) => {
-          closeProfile();
-          openReelInTab(reelId);
-        }}
-        onRecordReel={
-          view.id === user.id
-            ? () => {
-                closeProfile();
-                openOwnProfileRecorder();
-              }
-            : undefined
-        }
-        onSelectSalon={(salonId) => openSalonPage(salonId)}
-        onOpenLive={(liveId) => {
-          clearProfileUrlFromBar();
-          setProfilePreview(null);
-          setTab('live');
-          setView({ type: 'live', id: liveId });
-        }}
-      />
-    );
-  }
-
   const reelsActive = tab === 'reels' && !profileOpen && view.type === 'home';
   const mapPlaybackActive = tab === 'map' && view.type === 'home' && !profileOpen;
   const liveViewActive = tab === 'live' || view.type === 'live';
+  const immersiveView = view.type === 'salon' || view.type === 'profile';
 
   const hideStartLiveOnMap = profileOpen;
 
@@ -286,7 +258,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col min-h-dvh max-h-dvh overflow-hidden">
+    <div className="ms-phone-shell flex flex-col min-h-dvh max-h-dvh overflow-hidden">
       {incomingToast && (
         <button
           type="button"
@@ -326,7 +298,8 @@ export default function App() {
         </button>
       )}
 
-      <header className="shrink-0 z-40">
+      {!immersiveView && (
+      <header className="ms-app-header">
         <div className="px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
           <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-1.5 min-w-0">
             <div className="flex items-center gap-1.5 justify-self-start min-w-0 overflow-hidden">
@@ -370,28 +343,76 @@ export default function App() {
           </div>
         </div>
       </header>
+      )}
 
-      <main className="flex-1 min-h-0 overflow-hidden flex flex-col relative">
-        {view.type === 'live' && !profileOpen ? (
-          <LivePage
-            liveId={view.id}
-            onBack={closeLive}
-            onOpenProfile={(id) => openProfile(id)}
-          />
-        ) : (
+      <main
+        className={`ms-app-main ms-phone-main flex-1 min-h-0 overflow-hidden flex flex-col relative${immersiveView ? ' ms-app-main--no-header' : ''}`}
+      >
+        {view.type === 'salon' && (
+          <Suspense fallback={<PageFallback />}>
+            <SalonPage
+              salonId={view.id}
+              onBack={() => {
+                clearSalonUrlFromBar();
+                setView({ type: 'home' });
+                setTab('map');
+              }}
+            />
+          </Suspense>
+        )}
+        {view.type === 'profile' && (
+          <Suspense fallback={<PageFallback />}>
+            <UserProfilePage
+              userId={view.id}
+              preview={profilePreview ?? undefined}
+              onBack={closeProfile}
+              onOpenReel={(reelId) => {
+                closeProfile();
+                openReelInTab(reelId);
+              }}
+              onRecordReel={
+                view.id === user.id
+                  ? () => {
+                      closeProfile();
+                      openOwnProfileRecorder();
+                    }
+                  : undefined
+              }
+              onSelectSalon={(salonId) => openSalonPage(salonId)}
+              onOpenLive={(liveId) => {
+                clearProfileUrlFromBar();
+                setProfilePreview(null);
+                setTab('live');
+                setView({ type: 'live', id: liveId });
+              }}
+            />
+          </Suspense>
+        )}
+        {view.type === 'live' && !profileOpen && (
+          <Suspense fallback={<PageFallback />}>
+            <LivePage
+              liveId={view.id}
+              onBack={closeLive}
+              onOpenProfile={(id) => openProfile(id)}
+            />
+          </Suspense>
+        )}
+        {view.type === 'home' && (
           <>
             <div
               className={
-                tab === 'actualite' && view.type === 'home'
+                tab === 'actualite'
                   ? 'flex flex-col flex-1 min-h-0 overflow-hidden'
                   : 'hidden'
               }
-              aria-hidden={tab !== 'actualite' || view.type !== 'home'}
+              aria-hidden={tab !== 'actualite'}
             >
-              <ActualiteTabPage
-                onOpenProfile={(id) => openProfile(id)}
-                isActive={tab === 'actualite' && !profileOpen && view.type === 'home'}
-              />
+              <Suspense fallback={<PageFallback />}>
+                <ActualiteTabPage
+                  onOpenProfile={(id) => openProfile(id)}
+                  isActive={tab === 'actualite' && !profileOpen}
+                />
+              </Suspense>
             </div>
             <div
               className={tab === 'map' ? 'flex flex-col flex-1 min-h-0 overflow-hidden' : 'hidden'}
@@ -418,25 +439,27 @@ export default function App() {
               className={tab === 'dm' ? 'flex flex-col flex-1 min-h-0 overflow-hidden' : 'hidden'}
               aria-hidden={tab !== 'dm'}
             >
-              <DmPage
-                openPeerId={dmPeerToOpen}
-                openGroupId={dmGroupToOpen}
-                onOpenPeerConsumed={() => setDmPeerToOpen(null)}
-                onOpenGroupConsumed={() => setDmGroupToOpen(null)}
-                onOpenProfile={(id) => {
-                  setDmPeerToOpen(id);
-                  setTab('dm');
-                  openProfile(id);
-                }}
-              />
+              <Suspense fallback={<PageFallback />}>
+                <DmPage
+                  openPeerId={dmPeerToOpen}
+                  openGroupId={dmGroupToOpen}
+                  onOpenPeerConsumed={() => setDmPeerToOpen(null)}
+                  onOpenGroupConsumed={() => setDmGroupToOpen(null)}
+                  onOpenProfile={(id) => {
+                    setDmPeerToOpen(id);
+                    setTab('dm');
+                    openProfile(id);
+                  }}
+                />
+              </Suspense>
             </div>
             <div
               className={
-                tab === 'reels' && view.type === 'home'
+                tab === 'reels'
                   ? 'flex flex-col flex-1 min-h-0 w-full overflow-hidden'
                   : 'hidden'
               }
-              aria-hidden={tab !== 'reels' || view.type !== 'home'}
+              aria-hidden={tab !== 'reels'}
             >
               <ReelsTabPage
                 onOpenLive={openLive}
@@ -461,16 +484,13 @@ export default function App() {
 
       </main>
 
-      {!profileOpen && (
-        <MainTabNav
-          tab={tab}
-          liveViewActive={liveViewActive}
-          dmUnread={dmUnread}
-          onSelectTab={selectTab}
-          placement="bottom"
-          className="relative z-20"
-        />
-      )}
+      <MainTabNav
+        tab={tab}
+        liveViewActive={liveViewActive}
+        dmUnread={dmUnread}
+        onSelectTab={selectTab}
+        placement="bottom"
+      />
     </div>
   );
 }

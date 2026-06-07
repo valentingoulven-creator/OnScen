@@ -1,6 +1,7 @@
 import { serializeFeedAlgoForApi, type ReelFeedAlgorithmPreferences } from './reelFeedAlgorithm';
+import { API_BASE } from './nativeServer';
 
-const API = '/api';
+const API = API_BASE;
 
 function headers(token?: string | null): HeadersInit {
   const h: HeadersInit = { 'Content-Type': 'application/json' };

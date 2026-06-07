@@ -32,6 +32,7 @@ import { SETTINGS_CHANGED_EVENT } from '../lib/settings';
 import { formatCompactCount } from '../lib/formatCount';
 import { dicebearAdventurerAvatar } from '../lib/avatarUrl';
 import type { Live } from '../types';
+import { StartLiveMediaSetupModal } from '../components/StartLiveMediaSetupModal';
 
 function formatLiveViewersLabel(count: number): string {
   const n = Math.max(0, Math.floor(count));
@@ -132,6 +133,7 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
   const [lives, setLives] = useState<Live[]>([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
+  const [mediaSetupOpen, setMediaSetupOpen] = useState(false);
   const [geo, setGeo] = useState<LivesGeoPrefs>(getLivesGeo);
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -273,7 +275,7 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
     </div>
   );
 
-  const startMyLive = async () => {
+  const launchLiveAfterSetup = async () => {
     if (!token) return;
     setStarting(true);
     try {
@@ -290,6 +292,11 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
     }
   };
 
+  const startMyLive = () => {
+    if (!token || starting) return;
+    setMediaSetupOpen(true);
+  };
+
   return (
     <div className="flex flex-col h-full overflow-y-auto bg-[#0b0b0f]">
       <div className="p-4 border-b border-[#1e1e2f] bg-gradient-to-b from-red-950/30 to-transparent">
@@ -301,7 +308,7 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
           <div className="flex items-center gap-1.5">
             <button
               onClick={startMyLive}
-              disabled={starting}
+              disabled={starting || mediaSetupOpen}
               className="px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded-full text-xs font-bold text-white disabled:opacity-50"
             >
               {starting ? '...' : 'Démarrer mon Live'}
@@ -398,6 +405,15 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
           />
         ))}
       </ul>
+
+      <StartLiveMediaSetupModal
+        open={mediaSetupOpen}
+        onClose={() => setMediaSetupOpen(false)}
+        onReady={() => {
+          setMediaSetupOpen(false);
+          void launchLiveAfterSetup();
+        }}
+      />
     </div>
   );
 }

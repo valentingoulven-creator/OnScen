@@ -819,7 +819,7 @@ export function ActualiteTabPage({ onOpenProfile, isActive }: ActualiteTabPagePr
               {error && <p className="text-xs text-red-400">{error}</p>}
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
+            <div className="ms-feed-fullbleed flex-1 min-h-0 overflow-y-auto space-y-3">
               {loading && posts.length === 0 && (
                 <p className="text-sm text-gray-500 text-center py-8">Chargement…</p>
               )}

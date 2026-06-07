@@ -32,8 +32,14 @@ import {
 import { searchYoutube } from '../lib/youtubeSearch';
 import { resolvePlaylistVideos } from '../lib/youtubePlaylists';
 import { notifyFavoritesSalonStarted } from '../lib/favorites';
+import { normalizeSpotifyJamUrl } from '../lib/spotifyJam';
+import { getIo } from '../lib/ioInstance';
 
 export const salonsRouter = Router();
+
+function broadcastSalonUpdated(salon: Salon): void {
+  getIo()?.to(`salon_${salon.id}`).emit('salon_updated', salon);
+}
 
 /**
  * YouTube search result cache — TTL 1 hour (well within the YouTube API ToS 24-hour limit).
@@ -434,8 +440,19 @@ salonsRouter.patch('/:id/settings', authenticateJWT, (req: Request, res: Respons
   const hostUser = db.users.get(me);
   if (!requireHostPlatform(hostUser, salon.platform, res)) return;
 
-  const { accessMode, allowedUserIds, vipModeratorIds, isPublic, allowQueue, title, platform, trackLink, trackTitle, artist } =
-    req.body;
+  const {
+    accessMode,
+    allowedUserIds,
+    vipModeratorIds,
+    isPublic,
+    allowQueue,
+    title,
+    platform,
+    trackLink,
+    trackTitle,
+    artist,
+    spotifyJamUrl,
+  } = req.body;
 
   if (accessMode === 'public' || accessMode === 'invite') {
     salon.accessMode = accessMode;
@@ -476,6 +493,20 @@ salonsRouter.patch('/:id/settings', authenticateJWT, (req: Request, res: Respons
   }
   if (trackTitle) salon.playbackState.title = String(trackTitle).slice(0, 120);
   if (artist) salon.playbackState.artist = String(artist).slice(0, 80);
+
+  if (spotifyJamUrl !== undefined && salon.platform === 'spotify') {
+    if (spotifyJamUrl === null || spotifyJamUrl === '') {
+      salon.spotifyJamUrl = undefined;
+    } else if (typeof spotifyJamUrl === 'string') {
+      const normalized = normalizeSpotifyJamUrl(spotifyJamUrl);
+      if (!normalized) {
+        res.status(400).json({ error: 'Lien Jam Spotify invalide (socialsession attendu)' });
+        return;
+      }
+      salon.spotifyJamUrl = normalized;
+    }
+  }
+
   const playbackClockTouched =
     platform === 'spotify' ||
     platform === 'youtube' ||
@@ -488,6 +519,9 @@ salonsRouter.patch('/:id/settings', authenticateJWT, (req: Request, res: Respons
 
   normalizeSalonAccess(salon);
   db.salons.set(salon.id, salon);
+  if (spotifyJamUrl !== undefined && salon.platform === 'spotify') {
+    broadcastSalonUpdated(salon);
+  }
   res.json({ salon: publicSalon(salon, me) });
 });
 
@@ -551,6 +585,7 @@ salonsRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
     accessMode,
     allowedUserIds,
     isPublic,
+    spotifyJamUrl,
   } = req.body;
 
   if (latitude === undefined || longitude === undefined) {
@@ -581,6 +616,16 @@ salonsRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
   const guestIds = Array.isArray(allowedUserIds)
     ? allowedUserIds.map(String).filter((id: string) => id !== userId && db.users.has(id))
     : [];
+
+  let normalizedJamUrl: string | undefined;
+  if (plat === 'spotify' && spotifyJamUrl && typeof spotifyJamUrl === 'string') {
+    const normalized = normalizeSpotifyJamUrl(spotifyJamUrl);
+    if (!normalized) {
+      res.status(400).json({ error: 'Lien Jam Spotify invalide (socialsession attendu)' });
+      return;
+    }
+    normalizedJamUrl = normalized;
+  }
 
   const salon: Salon = {
     id: `salon_${Date.now()}`,
@@ -617,6 +662,7 @@ salonsRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
     allowedUserIds: [userId, ...guestIds],
     allowQueue: allowQueue ?? true,
     createdAt: Date.now(),
+    ...(normalizedJamUrl ? { spotifyJamUrl: normalizedJamUrl } : {}),
   };
 
   normalizeSalonAccess(salon);
@@ -625,7 +671,6 @@ salonsRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
   ensureSalonQueue(salon.id);
   ensureSalonProposals(salon.id);
 
-  // Notifie les fans de l'hôte qu'il a ouvert un salon.
   notifyFavoritesSalonStarted(user, salon);
 
   res.status(201).json({ salon: publicSalon(salon, userId) });
@@ -690,5 +735,6 @@ export function publicSalon(s: Salon, viewerId?: string) {
     queue: ensureSalonQueue(s.id),
     pendingProposalsCount: isHost ? getPendingProposals(s.id).length : undefined,
     createdAt: s.createdAt,
+    spotifyJamUrl: s.platform === 'spotify' ? s.spotifyJamUrl : undefined,
   };
 }

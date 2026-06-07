@@ -38,13 +38,33 @@ describe('livesGeo', () => {
     expect(isFixedMapGeoSource('my_position')).toBe(false);
   });
 
-  describe('persistance localStorage', () => {
+  describe('defaults et persistance localStorage', () => {
     beforeEach(() => {
       mockLocalStorage();
     });
 
     afterEach(() => {
       vi.unstubAllGlobals();
+    });
+
+    it('sans prefs sauvegardées, source par défaut = my_position', () => {
+      const geo = getLivesGeo();
+      expect(geo.source).toBe('my_position');
+      expect(geo.label).toBe('Ma position');
+    });
+
+    it('respecte les prefs existantes en localStorage', () => {
+      const stored: LivesGeoPrefs = {
+        latitude: 48.8566,
+        longitude: 2.3522,
+        radiusKm: 30,
+        label: 'Paris, France',
+        source: 'city',
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+      const loaded = getLivesGeo();
+      expect(loaded.source).toBe('city');
+      expect(loaded.label).toBe('Paris, France');
     });
 
     it('persiste source address et addressLine', () => {

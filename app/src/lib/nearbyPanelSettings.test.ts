@@ -49,6 +49,24 @@ describe('nearbyPanelSettings favorites', () => {
     expect(getNearbyPanelPreferences().favoritesFirst).toBe(true);
   });
 
+  it('defaults sans localStorage : tri distance, rayon 20 km', () => {
+    const prefs = getNearbyPanelPreferences();
+    expect(prefs.sortBy).toBe('distance');
+    expect(prefs.radiusKm).toBe(20);
+  });
+
+  it('respecte les prefs existantes en localStorage', () => {
+    localStorage.setItem(
+      'melosong_nearby_panel_prefs',
+      JSON.stringify({ sortBy: 'audience', musicalAffinitiesOnly: true })
+    );
+    localStorage.setItem('melosong_nearby_radius_km', '45');
+    const prefs = getNearbyPanelPreferences();
+    expect(prefs.sortBy).toBe('audience');
+    expect(prefs.musicalAffinitiesOnly).toBe(true);
+    expect(prefs.radiusKm).toBe(45);
+  });
+
   it('isNearbyDistanceFilterActive suit sortBy', () => {
     setNearbyPanelPreferences({ sortBy: 'distance' });
     expect(isNearbyDistanceFilterActive(getNearbyPanelPreferences())).toBe(true);

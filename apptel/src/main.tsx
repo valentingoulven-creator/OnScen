@@ -1,8 +1,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { registerSW } from 'virtual:pwa-register';
 import './index.css';
 import { initAppTheme } from './lib/appTheme';
+import { IS_NATIVE_BUILD } from './lib/nativeServer';
 import App from './App.tsx';
 
 initAppTheme();
@@ -12,9 +12,9 @@ import { DmUnreadProvider } from './context/DmUnreadContext.tsx';
 
 const isMsdevBuild = import.meta.env.VITE_APP_ENV === 'msdev';
 
-/** msdev : pas de SW actif (évite écran noir après app:build). Production : mise à jour PWA. */
-if (import.meta.env.PROD && !isMsdevBuild) {
-  registerSW({ immediate: true });
+/** PWA uniquement navigateur — pas de service worker en build Capacitor natif. */
+if (import.meta.env.PROD && !isMsdevBuild && !IS_NATIVE_BUILD) {
+  void import('virtual:pwa-register').then(({ registerSW }) => registerSW({ immediate: true }));
 }
 
 const rootEl = document.getElementById('root')!;

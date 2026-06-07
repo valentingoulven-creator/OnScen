@@ -14,6 +14,8 @@ export interface RoomTheaterLayoutProps {
   /** Chat réduit au bandeau d'en-tête uniquement (contenu masqué). */
   chatMinimized?: boolean;
   onToggleMinimize?: () => void;
+  /** Réduit le grand salon vers la fiche carte (petit salon). */
+  onMinimize?: () => void;
 }
 
 export function RoomTheaterLayout({
@@ -26,12 +28,32 @@ export function RoomTheaterLayout({
   chatTitle = 'Chat',
   chatMinimized = false,
   onToggleMinimize,
+  onMinimize,
 }: RoomTheaterLayoutProps) {
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
       <div className="flex-1 min-w-0 flex flex-col min-h-0">
         <div className="relative flex-1 min-h-0 overflow-hidden bg-black">
           {stage}
+
+          {onMinimize && (
+            <button
+              type="button"
+              onClick={onMinimize}
+              className="room-theater-minimize"
+              aria-label="Réduire le salon"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <polyline
+                  points="6,9 12,15 18,9"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          )}
 
           {!chatHidden && (
             <FloatingSalonChat

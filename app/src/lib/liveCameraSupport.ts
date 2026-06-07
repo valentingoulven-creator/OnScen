@@ -228,14 +228,46 @@ export async function playLiveVideo(el: HTMLVideoElement): Promise<void> {
   }
 }
 
-export async function acquireLiveCameraStream(
-  getUserMedia: (c: MediaStreamConstraints) => Promise<MediaStream>
-): Promise<MediaStream> {
-  const attempts = [
-    LIVE_CAMERA_CONSTRAINTS_IDEAL,
-    LIVE_CAMERA_CONSTRAINTS_RELAXED,
-    LIVE_CAMERA_CONSTRAINTS_MINIMAL,
+export interface LiveCameraDevicePrefs {
+  videoDeviceId?: string;
+  audioDeviceId?: string;
+}
+
+export function buildLiveCameraConstraintAttempts(
+  prefs?: LiveCameraDevicePrefs | null
+): MediaStreamConstraints[] {
+  if (!prefs?.videoDeviceId && !prefs?.audioDeviceId) {
+    return [
+      LIVE_CAMERA_CONSTRAINTS_IDEAL,
+      LIVE_CAMERA_CONSTRAINTS_RELAXED,
+      LIVE_CAMERA_CONSTRAINTS_MINIMAL,
+    ];
+  }
+
+  const audio = prefs.audioDeviceId ? { deviceId: { ideal: prefs.audioDeviceId } } : true;
+  const videoIdeal = prefs.videoDeviceId
+    ? {
+        deviceId: { ideal: prefs.videoDeviceId },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      }
+    : { facingMode: 'user' as const, width: { ideal: 1280 }, height: { ideal: 720 } };
+  const videoRelaxed = prefs.videoDeviceId
+    ? { deviceId: { ideal: prefs.videoDeviceId } }
+    : { facingMode: 'user' as const };
+
+  return [
+    { video: videoIdeal, audio },
+    { video: videoRelaxed, audio },
+    { video: prefs.videoDeviceId ? { deviceId: { ideal: prefs.videoDeviceId } } : true, audio },
   ];
+}
+
+export async function acquireLiveCameraStream(
+  getUserMedia: (c: MediaStreamConstraints) => Promise<MediaStream>,
+  prefs?: LiveCameraDevicePrefs | null
+): Promise<MediaStream> {
+  const attempts = buildLiveCameraConstraintAttempts(prefs);
   let lastErr: unknown;
   for (const constraints of attempts) {
     try {

@@ -24,7 +24,9 @@ export function isFixedMapGeoSource(source: LivesGeoSource): boolean {
 
 import { clampNearbyRadiusKm, getNearbyRadiusKm, setNearbyRadiusKm } from './settings';
 
-const STORAGE_KEY = 'melosong_lives_geo';
+/** Point de référence carte / requêtes nearby (source GPS, ville ou adresse). */
+export const LIVES_GEO_STORAGE_KEY = 'melosong_lives_geo';
+const STORAGE_KEY = LIVES_GEO_STORAGE_KEY;
 
 export const MAP_GEO_CHANGED_EVENT = 'melosong-map-geo-changed';
 
@@ -59,11 +61,12 @@ export const DEFAULT_CENTER: [number, number] = [
   PRESET_CITIES[0].longitude,
 ];
 
+/** Point de référence par défaut : géolocalisation utilisateur (repli Paris si GPS indisponible). */
 const DEFAULT_PREFS: Omit<LivesGeoPrefs, 'radiusKm'> = {
   latitude: DEFAULT_CENTER[0],
   longitude: DEFAULT_CENTER[1],
-  label: PRESET_CITIES[0].label,
-  source: 'city',
+  label: 'Ma position',
+  source: 'my_position',
 };
 
 function coordsFinite(lat: number, lon: number): boolean {

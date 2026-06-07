@@ -1,7 +1,7 @@
-MeloSong — URL a ouvrir SUR LE TELEPHONE (navigateur)
+Soundly — URL a ouvrir SUR LE TELEPHONE (navigateur)
 (IP du PC sur le reseau local — pas l'IP du telephone)
 
-https://192.168.1.93:4080
+http://192.168.1.93:4080
 
 YouTube: accessible depuis ce PC (recherche / lecteur OK).
 

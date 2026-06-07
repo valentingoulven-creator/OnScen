@@ -13,9 +13,10 @@ const svgPath = path.join(publicDir, 'icon.svg');
 async function main() {
   const { default: sharp } = await import('sharp');
   const svg = fs.readFileSync(svgPath);
+  await sharp(svg).resize(180, 180).png().toFile(path.join(publicDir, 'apple-touch-icon.png'));
   await sharp(svg).resize(192, 192).png().toFile(path.join(publicDir, 'pwa-192x192.png'));
   await sharp(svg).resize(512, 512).png().toFile(path.join(publicDir, 'pwa-512x512.png'));
-  console.log('PWA icons written: pwa-192x192.png, pwa-512x512.png');
+  console.log('PWA icons written: apple-touch-icon.png, pwa-192x192.png, pwa-512x512.png');
 }
 
 main().catch((err) => {

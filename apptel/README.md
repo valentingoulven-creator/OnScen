@@ -41,12 +41,24 @@ npm run build
 Construire avec `npm run apptel:build`, servir `backend/public/tel/` via
 l'Express backend à `/tel/*`. Les utilisateurs peuvent installer depuis le navigateur.
 
-### Capacitor (iOS / Android natif)
-1. `npm install @capacitor/core @capacitor/cli`
-2. `npx cap init`
-3. `npx cap add ios` et/ou `npx cap add android`
-4. `npm run build && npx cap sync`
-5. Ouvrir dans Xcode / Android Studio
+### Capacitor (iOS / Android natif) — configuré
+Paquets : `@capacitor/core`, `@capacitor/cli`, `@capacitor/android`, `@capacitor/ios` (^8.4).
+
+```bash
+# Depuis la racine MeloSong Dev
+npm run msdev:sync-lan          # MOBILE_API_URL dans msdev/.env
+npm run capacitor:build         # apptel/dist + API LAN injectée
+npm run capacitor:sync          # copie vers android/ et ios/
+
+# APK debug (Windows + Android Studio / JDK)
+npm run capacitor:android:apk
+# ou double-clic Smartphone/INSTALLER-ANDROID.bat
+```
+
+- `capacitor.config.json` : `appId` `com.melosong.app`, `appName` `MeloSong`, `webDir` `dist`
+- Build PWA web classique : `npm run build` → `backend/public/tel/` (inchangé)
+- Build natif : `npm run build:capacitor` → `dist/` (base relative, pas de service worker)
+- iPhone : compilation uniquement sur Mac + Xcode (voir `Smartphone/LISEZMOI-iPhone-NATIF.txt`)
 
 ## CSS mobile-first (APPTEL)
 

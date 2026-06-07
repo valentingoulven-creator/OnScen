@@ -79,6 +79,8 @@ export default function App() {
   const [dmGroupToOpen, setDmGroupToOpen] = useState<string | null>(null);
   const [msdevRebuilding, setMsdevRebuilding] = useState(false);
   const [msdevRebuildError, setMsdevRebuildError] = useState<string | null>(null);
+  /** Après réduction du grand salon : rouvrir la fiche carte sur l'onglet Carte. */
+  const [restoreSalonOnMapId, setRestoreSalonOnMapId] = useState<string | null>(null);
 
   const handleMsdevRebuild = useCallback(async () => {
     if (!token || msdevRebuilding) return;
@@ -195,6 +197,7 @@ export default function App() {
   }, []);
 
   const openSalonPage = useCallback((salonId: string) => {
+    setRestoreSalonOnMapId(null);
     setProfileOpen(false);
     setProfilePreview(null);
     if (viewRef.current.type === 'profile' && parseProfileIdFromLocation()) {
@@ -202,6 +205,15 @@ export default function App() {
     }
     setView({ type: 'salon', id: salonId });
     syncSalonUrlInBar(salonId);
+  }, []);
+
+  const minimizeSalonToMap = useCallback((salonId: string) => {
+    clearSalonUrlFromBar();
+    setRestoreSalonOnMapId(salonId);
+    setProfileOpen(false);
+    setProfilePreview(null);
+    setView({ type: 'home' });
+    setTab('map');
   }, []);
 
   const openProfileFromPerson = useCallback((person: NearbyPerson) => {
@@ -304,73 +316,19 @@ export default function App() {
 
   if (isNewUser) return <OnboardingPage onDone={clearNewUser} />;
 
-  if (view.type === 'salon') {
-    return (
-      <Suspense fallback={<PageFallback />}>
-        <SalonPage
-          salonId={view.id}
-          onBack={() => {
-            clearSalonUrlFromBar();
-            setView({ type: 'home' });
-            setTab('map');
-          }}
-        />
-      </Suspense>
-    );
-  }
-
-  if (view.type === 'profile') {
-    return (
-      <Suspense fallback={<PageFallback />}>
-        <UserProfilePage
-          userId={view.id}
-          preview={profilePreview ?? undefined}
-          onBack={closeProfile}
-          onOpenReel={(reelId) => {
-            closeProfile();
-            openReelInTab(reelId);
-          }}
-          onRecordReel={
-            view.id === user.id
-              ? () => {
-                  closeProfile();
-                  openOwnProfileRecorder();
-                }
-              : undefined
-          }
-          onSelectSalon={(salonId) => openSalonPage(salonId)}
-          onOpenLive={(liveId) => {
-            clearProfileUrlFromBar();
-            setProfilePreview(null);
-            setTab('live');
-            setView({ type: 'live', id: liveId });
-          }}
-        />
-      </Suspense>
-    );
-  }
-
   const reelsActive = tab === 'reels' && !profileOpen && view.type === 'home';
   const mapPlaybackActive = tab === 'map' && view.type === 'home' && !profileOpen;
   const appa2 = isAppa2Layout(appLayout);
   const liveViewActive = tab === 'live' || view.type === 'live';
+  const immersiveView =
+    view.type === 'salon' || view.type === 'profile' || view.type === 'live';
 
   const hideStartLiveOnMap = profileOpen;
 
-  if (view.type === 'live') {
-    return (
-      <Suspense fallback={<PageFallback />}>
-        <LivePage
-          liveId={view.id}
-          onBack={closeLive}
-          onOpenProfile={(id) => openProfile(id)}
-        />
-      </Suspense>
-    );
-  }
-
   return (
-    <div className="flex flex-col min-h-dvh max-h-dvh overflow-hidden">
+    <div
+      className={`flex flex-col min-h-dvh max-h-dvh overflow-hidden${!appa2 ? ' ms-app-shell--bottom-tabs' : ''}`}
+    >
       {incomingToast && (
         <button
           type="button"
@@ -403,7 +361,10 @@ export default function App() {
         </button>
       )}
 
-      <header className="shrink-0 z-40">
+      {!immersiveView && (
+      <header
+        className={`ms-app-header${appa2 && !profileOpen ? ' ms-app-header--with-tabs' : ''}`}
+      >
           <div className="px-3 sm:px-4 pb-2" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
           <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-1.5 sm:gap-x-2 min-w-0">
             <div className="flex items-center gap-1.5 sm:gap-2 justify-self-start min-w-0 overflow-hidden">
@@ -485,8 +446,61 @@ export default function App() {
           />
         )}
       </header>
+      )}
 
-      <main className="flex-1 min-h-0 overflow-hidden flex flex-col relative">
+      <main
+        className={`ms-app-main flex-1 min-h-0 overflow-hidden flex flex-col relative${immersiveView ? ' ms-app-main--no-header' : ''}`}
+      >
+            {view.type === 'salon' && (
+              <Suspense fallback={<PageFallback />}>
+                <SalonPage
+                  salonId={view.id}
+                  onBack={() => {
+                    clearSalonUrlFromBar();
+                    setView({ type: 'home' });
+                    setTab('map');
+                  }}
+                  onMinimizeToMap={() => minimizeSalonToMap(view.id)}
+                />
+              </Suspense>
+            )}
+            {view.type === 'profile' && (
+              <Suspense fallback={<PageFallback />}>
+                <UserProfilePage
+                  userId={view.id}
+                  preview={profilePreview ?? undefined}
+                  onBack={closeProfile}
+                  onOpenReel={(reelId) => {
+                    closeProfile();
+                    openReelInTab(reelId);
+                  }}
+                  onRecordReel={
+                    view.id === user.id
+                      ? () => {
+                          closeProfile();
+                          openOwnProfileRecorder();
+                        }
+                      : undefined
+                  }
+                  onSelectSalon={(salonId) => openSalonPage(salonId)}
+                  onOpenLive={(liveId) => {
+                    clearProfileUrlFromBar();
+                    setProfilePreview(null);
+                    setTab('live');
+                    setView({ type: 'live', id: liveId });
+                  }}
+                />
+              </Suspense>
+            )}
+            {view.type === 'live' && (
+              <Suspense fallback={<PageFallback />}>
+                <LivePage
+                  liveId={view.id}
+                  onBack={closeLive}
+                  onOpenProfile={(id) => openProfile(id)}
+                />
+              </Suspense>
+            )}
             <div
               className={
                 tab === 'actualite' && view.type === 'home'
@@ -505,8 +519,12 @@ export default function App() {
               </Suspense>
             </div>
             <div
-              className={tab === 'map' ? 'flex flex-col flex-1 min-h-0 overflow-hidden' : 'hidden'}
-              aria-hidden={tab !== 'map'}
+              className={
+                tab === 'map' && view.type === 'home'
+                  ? 'flex flex-col flex-1 min-h-0 overflow-hidden'
+                  : 'hidden'
+              }
+              aria-hidden={tab !== 'map' || view.type !== 'home'}
             >
               <HomePage
                 appLayout={appLayout}
@@ -517,17 +535,27 @@ export default function App() {
                 hideStartLiveMapButton={hideStartLiveOnMap}
                 onCloseMapProfile={closeProfile}
                 mapPlaybackActive={mapPlaybackActive}
+                restoreSalonId={restoreSalonOnMapId}
+                onSalonMapRestored={() => setRestoreSalonOnMapId(null)}
               />
             </div>
             <div
-              className={tab === 'live' ? 'flex flex-col flex-1 min-h-0 overflow-hidden' : 'hidden'}
-              aria-hidden={tab !== 'live'}
+              className={
+                tab === 'live' && view.type === 'home'
+                  ? 'flex flex-col flex-1 min-h-0 overflow-hidden'
+                  : 'hidden'
+              }
+              aria-hidden={tab !== 'live' || view.type !== 'home'}
             >
               <LivesTabPage onOpenLive={openLive} />
             </div>
             <div
-              className={tab === 'dm' ? 'flex flex-col flex-1 min-h-0 overflow-hidden' : 'hidden'}
-              aria-hidden={tab !== 'dm'}
+              className={
+                tab === 'dm' && view.type === 'home'
+                  ? 'flex flex-col flex-1 min-h-0 overflow-hidden'
+                  : 'hidden'
+              }
+              aria-hidden={tab !== 'dm' || view.type !== 'home'}
             >
               <Suspense fallback={<PageFallback />}>
                 <DmPage
@@ -569,14 +597,13 @@ export default function App() {
 
       </main>
 
-      {!profileOpen && !appa2 && (
+      {!appa2 && (
         <MainTabNav
           tab={tab}
           liveViewActive={liveViewActive}
           dmUnread={dmUnread}
           onSelectTab={selectTab}
           placement="bottom"
-          className="relative z-20"
         />
       )}
     </div>

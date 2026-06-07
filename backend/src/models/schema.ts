@@ -147,6 +147,8 @@ export interface Salon {
   allowedUserIds: string[];
   allowQueue: boolean;
   createdAt: number;
+  /** Lien d'invitation Spotify Jam (socialsession) — saisi manuellement, pas d'API publique. */
+  spotifyJamUrl?: string;
   /** Utilisateurs VIP pouvant modérer le chat du salon. */
   vipModeratorIds?: string[];
 }
