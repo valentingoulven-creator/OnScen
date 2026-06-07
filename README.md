@@ -35,6 +35,7 @@ Ouvrir **http://localhost:4080** sur PC ou **http://&lt;IP-de-votre-PC&gt;:4080*
 | `npm run app:demo` | **Démo hors-ligne** (5173, sans serveur backend) |
 | `npm run msdev:public` | **App complète** sur téléphone (4G/5G, tunnel public — dernière version) |
 | `npm run app:demo:public` | Démo hors-ligne allégée (badge DEMO, sans serveur) |
+| `npm run backup:demo:public` | Démo **dossier backup iCloud** sur téléphone (4G, sans backend) |
 | `npm run msdev:server` | Backend seul |
 | `npm run build:exe` | Génère `msdev/release/msdev.exe` |
 
