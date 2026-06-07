@@ -49,6 +49,7 @@ interface NearbyPeoplePanelProps {
   onSelectPerson: (person: NearbyPerson) => void;
   onOpenProfile: (person: NearbyPerson) => void;
   onHide?: () => void;
+  className?: string;
 }
 
 const PLATFORM_OPTIONS: { id: NearbyPlatformFilter; label: string }[] = [
@@ -64,6 +65,7 @@ export function NearbyPeoplePanel({
   onSelectPerson,
   onOpenProfile,
   onHide,
+  className,
 }: NearbyPeoplePanelProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [prefs, setPrefs] = useState<NearbyPanelPreferences>(() => getNearbyPanelPreferences());
@@ -162,7 +164,9 @@ export function NearbyPeoplePanel({
   };
 
   return (
-    <aside className="shrink-0 w-[9.5rem] sm:w-56 flex flex-col min-h-0 bg-[#12121a]/95 border-r border-[#1e1e2f] z-20 backdrop-blur-md">
+    <aside
+      className={`shrink-0 w-[9.5rem] sm:w-56 flex flex-col min-h-0 bg-[#12121a] sm:bg-[#12121a]/95 border-r border-[#1e1e2f] z-20 sm:backdrop-blur-md ${className ?? ''}`}
+    >
       <div className="shrink-0 px-2.5 sm:px-3 py-2.5 border-b border-[#1e1e2f]">
         <div className="flex items-start justify-between gap-1">
           <div className="min-w-0 flex-1">
