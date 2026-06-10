@@ -1,9 +1,9 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import i18n from '../i18n';
 import { api } from '../lib/api';
 import { clearStoredToken, getStoredToken, persistToken } from '../lib/authStorage';
 import { clearPersistedSalonSession } from '../lib/activeSalonSession';
-import { clearSocketUser, registerUser } from '../lib/socket';
+import { clearSocketUser, registerUser, setSocketAuthToken } from '../lib/socket';
 import type { User } from '../types';
 
 interface AuthCtx {
@@ -47,6 +47,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
   logoutRef.current = logout;
+
+  /** Keep socket JWT in sync with React token before child effects call getSocket(). */
+  useLayoutEffect(() => {
+    setSocketAuthToken(token);
+  }, [token]);
 
   useEffect(() => {
     if (!token) return;

@@ -6558,3 +6558,207 @@ Date : 2026-06-10
 ================================================================================
 Fin MODIF 417 - 2026-06-10
 ================================================================================
+
+================================================================================
+MODIF 418 — Socket auth : plus de crash AppErrorBoundary « Socket requires authentication token »
+================================================================================
+Date : 2026-06-10
+
+## Problème
+- Écran « Soundy — erreur de chargement » avec message « Socket requires authentication token ».
+- Race : effets React (DmUnread, NotificationBell, useSalonSocketMembership, SalonPage, etc.) appelaient getSocket() avant que registerUser() n’ait posé le JWT dans le module socket.
+- ensureSocket() lançait une exception → AppErrorBoundary.
+- En prod (getsoundy.com), l’écran affichait quand même les consignes localhost:4080 (msdev).
+
+## Cause racine
+1. app/src/lib/socket.ts : throw new Error('Socket requires authentication token') dans ensureSocket().
+2. onSocketConnect() appelait aussi ensureSocket() et pouvait throw.
+3. AuthContext ne synchronisait le JWT vers le module socket qu’après api.me() → registerUser(), alors que token React était déjà disponible (localStorage / PWA reload).
+4. Plusieurs hooks n’avaient pas de garde si socket indisponible.
+
+## Correctif architecture
+- setSocketAuthToken(token) : sync JWT depuis AuthContext via useLayoutEffect([token]) AVANT les effets enfants.
+- autoConnect: false ; connexion réelle uniquement dans registerUser(userId, token).
+- getSocket() → Socket | null (ne throw plus).
+- onSocketConnect : file d’attente pendingConnectHandlers si pas encore de token ; flush à la connexion.
+- emitOnSocket() pour les emit fire-and-forget sans crash.
+- connect_error loggé en warn (pas d’exception).
+- AppErrorBoundary : hints localhost:4080 uniquement si isMsdevEnvironment() ; recovery auto sur erreurs socket auth.
+- backend socket middleware : erreurs auth_required / auth_invalid / auth_forbidden (au lieu de unauthorized générique).
+
+## Fichiers modifiés
+- app/src/lib/socket.ts
+- app/src/context/AuthContext.tsx
+- app/src/components/AppErrorBoundary.tsx
+- app/src/hooks/useSalonSocketMembership.ts
+- app/src/context/DmUnreadContext.tsx
+- app/src/components/NotificationBell.tsx
+- app/src/pages/SalonPage.tsx, HomePage.tsx, DmPage.tsx, LivePage.tsx, ReelsTabPage.tsx
+- app/src/components/ChatPanel.tsx, MapSalonListenSheet.tsx, LivePrivateSheet.tsx, LiveGiftOverlay.tsx
+- app/src/hooks/useSalonQueueSync.ts, useSalonPlaybackSync.ts, useLiveVideoRelay.ts
+- app/src/lib/useMatchCreated.ts
+- apptel/src/lib/socket.ts, apptel/src/components/AppErrorBoundary.tsx
+- backend/src/socket.ts
+
+## Test
+  cd app && npx tsc -p tsconfig.app.json --noEmit
+  cd backend && npx tsc --noEmit
+
+## Vérification manuelle
+- msdev localhost:4080 : reload PWA / Ctrl+Shift+R → pas d’écran rouge ; session charge puis socket connecte.
+- prod https://getsoundy.com : reload connecté → pas d’instructions localhost ; pas de crash si token en cours de chargement.
+- Déconnexion → pas de throw ; reconnexion → socket reconnecte via registerUser.
+
+================================================================================
+Fin MODIF 418 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 418 — Socket auth : plus de crash AppErrorBoundary sans JWT
+================================================================================
+Date : 2026-06-10
+
+## Symptôme
+Écran « Soundy — erreur de chargement » avec message « Socket requires
+authentication token » (race boot : effets enfants avant registerUser / token).
+
+## Cause
+`ensureSocket()` lançait une exception si `authToken` absent ; `onSocketConnect`
+appelait `ensureSocket()` immédiatement ; DmUnread / salon membership pouvaient
+toucher le socket avant sync JWT depuis AuthContext.
+
+## Correctif
+- `app/src/lib/socket.ts` :
+  - `getSocket()` → `Socket | null` (ne jette plus)
+  - `setSocketAuthToken(token)` + `autoConnect: false` ; connect via `registerUser`
+  - `pendingConnectHandlers` si token pas encore prêt
+  - `emitOnSocket` pour émissions sans throw
+- `app/src/context/AuthContext.tsx` : `useLayoutEffect` → `setSocketAuthToken(token)`
+  avant les effets enfants
+- `app/src/components/AppErrorBoundary.tsx` :
+  - récupération auto erreur socket auth (reload)
+  - instructions localhost:4080 uniquement en msdev
+- `app/src/hooks/useSalonSocketMembership.ts` : guard `if (!socket) return` ;
+  `emitLeaveSalon` via `emitOnSocket`
+- Backend inchangé (middleware JWT socket déjà en place)
+
+## Fichiers
+- app/src/lib/socket.ts
+- app/src/context/AuthContext.tsx
+- app/src/components/AppErrorBoundary.tsx
+- app/src/hooks/useSalonSocketMembership.ts
+- modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+  cd backend && npx tsc --noEmit
+  1. Reload PWA / msdev localhost:4080 avec token stocké → pas d'écran erreur socket
+  2. Prod getsoundy.com → erreur générique sans mention localhost:4080
+  3. Salon actif → join_salon après registerUser, pas avant
+
+================================================================================
+Fin MODIF 418 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 419 — Barre « Revenir au salon » toujours visible (session active)
+================================================================================
+Date : 2026-06-10
+
+## Demande
+Afficher la barre retour salon en permanence tant qu'une session est active
+(création → fermeture explicite), sur tous les onglets et overlays.
+
+## Cause masquage incorrect
+`showSalonReturnBar` cachait la barre sur l'onglet Carte quand la fiche petit
+salon était ouverte : `mapSalonActiveId === activeSalonSession.id` (MODIF 399).
+
+## Correctif
+Visibilité simplifiée :
+- **Afficher** : `activeSalonSession && view.type !== 'salon'`
+- **Masquer** : pas de session, ou vue plein écran SalonPage (redondant)
+
+Suppression de la condition `mapSalonActiveId` pour la barre (état conservé pour
+sync session carte).
+
+## Fichiers
+- app/src/App.tsx — `showSalonReturnBar`
+- modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+  1. Créer/rejoindre salon → barre visible
+  2. Réduire salon → barre visible sur Carte (fiche ouverte ou repliée)
+  3. Changer onglet (Actualité, DM, Reels, Live) → barre visible
+  4. Overlay Mon profil → barre visible
+  5. Clic barre → SalonPage plein écran → barre masquée
+  6. Quitter salon → barre disparaît
+
+================================================================================
+Fin MODIF 419 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 420 — Fix grand salon disparaît (onglet / erreur API / reload)
+================================================================================
+Date : 2026-06-10
+
+## Symptôme
+Le grand salon (SalonPage plein écran) se ferme tout seul : retour carte /
+autre onglet sans action utilisateur ; barre retour parfois seule trace.
+
+## Causes racines
+1. **`selectTab` depuis SalonPage** : `setView({ type: 'home' })` à chaque
+   changement d'onglet → minimisation involontaire du plein écran.
+2. **`SalonPage.loadSalon` catch** : erreur réseau transitoire → `onBack()`
+   après 1,5 s (réduction) ; `onBack` inline instable → re-fetch en boucle.
+3. **Pas de persistance `viewMode`** : reload PWA ne rouvrait que la fiche
+   carte (`restoreSalonOnMapId`), pas le plein écran.
+4. **Désync `view.type` / `viewMode`** (cause principale persistante) : plein
+   écran lié à `view.type === 'salon'` alors que DM, live, profil, toast, etc.
+   appellent `setView({ type: 'home' })` sans toucher `viewMode: 'full'` →
+   session active + barre retour mais SalonPage démonté.
+
+## UX cible
+- Plein écran jusqu'à ← Réduire, Quitter, ou kick/ban/ended.
+- Changement d'onglet : grand salon **reste visible** (overlay z-50).
+- Erreur `getSalon` : toast + Réessayer, pas de navigation auto.
+- Barre retour → `openSalonPage` (déjà MODIF 419).
+- Reload : `viewMode: 'full'` → overlay SalonPage ; `minimized` → fiche carte.
+
+## Correctifs
+- `activeSalonSession.ts` : `viewMode: 'full' | 'minimized'` en sessionStorage.
+- `App.tsx` (architecture overlay) :
+  - Source de vérité plein écran : `activeSalonSession.viewMode === 'full'`.
+  - `SalonPage` en overlay `ms-salon-fullscreen-overlay` au-dessus des onglets.
+  - Onglets montés sous l'overlay (`tabContentBase = home || salonFullScreen`).
+  - `openSalonPage` / `minimizeSalonToMap` posent `viewMode` ; plus de
+    `setView({ type: 'salon' })`.
+  - Boot : `full` → sync URL seulement ; `minimized` → `restoreSalonOnMapId`.
+  - `selectTab` : si `viewMode === 'full'`, onglet seul (pas de `setView home`).
+  - `showSalonReturnBar` si session et `!salonFullScreen`.
+  - `handleMapSalonActive` : ne jamais rétrograder `full` → `minimized`.
+  - Handlers stables `handleSalonPageBack` / `handleSalonMinimizeToMap`.
+- `SalonPage.tsx` : erreur API → écran Réessayer / Réduire manuel ; plus de
+  `setTimeout(onBack)`.
+- `index.css` : classe `.ms-salon-fullscreen-overlay`.
+
+## Fichiers
+- app/src/lib/activeSalonSession.ts
+- app/src/App.tsx
+- app/src/pages/SalonPage.tsx
+- app/src/index.css
+- modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+  1. Salon Spotify plein écran → changer onglet (Actualité, DM, Reels) → salon
+     reste plein écran ; audio/session inchangés.
+  2. Clic ← Réduire → fiche carte + barre retour ; clic barre → plein écran.
+  3. Erreur réseau getSalon → message + Réessayer, pas de fermeture auto.
+  4. Reload PWA en plein écran → SalonPage rouvre ; minimisé → fiche carte.
+  5. Quitter / kick / ban / salon_ended → session effacée (inchangé MODIF 413).
+
+================================================================================
+Fin MODIF 420 - 2026-06-10
+================================================================================

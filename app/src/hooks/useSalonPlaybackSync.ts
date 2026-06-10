@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getSocket } from '../lib/socket';
+import { emitOnSocket, getSocket } from '../lib/socket';
 import {
   computePlaybackPositionMs,
   mergeRemotePlaybackState,
@@ -53,6 +53,7 @@ export function useSalonPlaybackSync({
 
   useEffect(() => {
     const socket = getSocket();
+    if (!socket) return;
     const onSync = (state: PlaybackState) => {
       const merged = mergeRemotePlaybackState(stateRef.current, state);
       if (isHost) {
@@ -88,7 +89,7 @@ export function useSalonPlaybackSync({
       setPlaybackState(next);
       setDisplayPositionMs(computePlaybackPositionMs(next));
       onStateChangeRef.current?.(next);
-      getSocket().emit('sync_playback', { salonId, playbackState: patch });
+      emitOnSocket('sync_playback', { salonId, playbackState: patch });
     },
     [isHost, salonId]
   );
@@ -104,7 +105,7 @@ export function useSalonPlaybackSync({
       setPlaybackState(next);
       setDisplayPositionMs(computePlaybackPositionMs(next));
       onStateChangeRef.current?.(next);
-      getSocket().emit('sync_playback', { salonId, playbackState: patch });
+      emitOnSocket('sync_playback', { salonId, playbackState: patch });
     },
     [isHost, salonId]
   );
@@ -143,7 +144,7 @@ export function useSalonPlaybackSync({
       setPlaybackState(next);
       setDisplayPositionMs(computePlaybackPositionMs(next));
       onStateChangeRef.current?.(next);
-      getSocket().emit('sync_playback', { salonId, playbackState: patch });
+      emitOnSocket('sync_playback', { salonId, playbackState: patch });
     },
     [isHost, salonId]
   );

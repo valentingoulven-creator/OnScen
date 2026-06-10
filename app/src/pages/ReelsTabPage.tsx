@@ -577,6 +577,7 @@ export function ReelsTabPage({
   useEffect(() => {
     if (!activeReel || !token) return;
     const socket = getSocket();
+    if (!socket) return;
     socket.emit('join_reel', { reelId: activeReel.id });
     const onComment = (comment: ReelComment) => {
       if (comment.reelId !== activeReel.id) return;
@@ -1263,7 +1264,9 @@ function ReelCommentsSheet({
   }, [token, reelId]);
 
   useEffect(() => {
+    if (!token) return;
     const socket = getSocket();
+    if (!socket) return;
     const onComment = (comment: ReelComment) => {
       if (comment.reelId !== reelId) return;
       setComments((list) => (list.some((c) => c.id === comment.id) ? list : [...list, comment]));
@@ -1272,7 +1275,7 @@ function ReelCommentsSheet({
     return () => {
       socket.off('reel_comment', onComment);
     };
-  }, [reelId]);
+  }, [reelId, token]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });

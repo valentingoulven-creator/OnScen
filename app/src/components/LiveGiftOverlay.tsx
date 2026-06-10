@@ -33,6 +33,7 @@ export function LiveGiftOverlay({
       return;
     }
     const socket = getSocket();
+    if (!socket) return;
     const onGiftAnimation = (gift: {
       liveId: string;
       id?: string;

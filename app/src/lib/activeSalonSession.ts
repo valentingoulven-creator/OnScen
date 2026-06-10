@@ -1,8 +1,12 @@
 /** Client-side salon session — survives tab switches and brief remounts (sessionStorage). */
 
+export type SalonViewMode = 'full' | 'minimized';
+
 export type ActiveSalonSession = {
   id: string;
   title?: string;
+  /** Grand salon plein écran vs fiche carte / autre onglet. */
+  viewMode?: SalonViewMode;
 };
 
 const STORAGE_KEY = 'soundy.activeSalonSession';
@@ -13,7 +17,9 @@ export function readPersistedSalonSession(): ActiveSalonSession | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as ActiveSalonSession;
     if (!parsed?.id || typeof parsed.id !== 'string') return null;
-    return { id: parsed.id, title: parsed.title };
+    const viewMode =
+      parsed.viewMode === 'full' || parsed.viewMode === 'minimized' ? parsed.viewMode : undefined;
+    return { id: parsed.id, title: parsed.title, viewMode };
   } catch {
     return null;
   }

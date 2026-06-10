@@ -26,6 +26,7 @@ export function LivePrivateSheet({ target, onClose, onOpenProfile }: LivePrivate
   useEffect(() => {
     if (!token || !user) return;
     const socket = getSocket();
+    if (!socket) return;
     const onDm = (msg: DirectMessage) => {
       if (
         (msg.senderId === user.id && msg.receiverId === target.id) ||

@@ -16,6 +16,7 @@ export function useMatchCreated(
   useEffect(() => {
     if (!enabled) return;
     const socket = getSocket();
+    if (!socket) return;
     const handler = (payload: MatchCreatedPayload) => onMatch(payload);
     socket.on('match_created', handler);
     return () => {

@@ -107,7 +107,7 @@ export default function App() {
   );
   const activeSalonSessionRef = useRef<ActiveSalonSession | null>(activeSalonSession);
   activeSalonSessionRef.current = activeSalonSession;
-  /** Salon actif sur la fiche carte (petit salon) — masque la barre retour sur l'onglet Carte. */
+  /** Salon actif sur la fiche carte (petit salon) — sync session, pas masquage barre retour. */
   const [mapSalonActiveId, setMapSalonActiveId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -126,9 +126,16 @@ export default function App() {
   useEffect(() => {
     if (!user || !token || !activeSalonSession || salonRestoredOnBootRef.current) return;
     salonRestoredOnBootRef.current = true;
-    if (viewRef.current.type === 'home') {
-      setRestoreSalonOnMapId(activeSalonSession.id);
+    if (activeSalonSession.viewMode === 'full') {
+      syncSalonUrlInBar(activeSalonSession.id);
+      if (viewRef.current.type === 'salon') {
+        setView({ type: 'home' });
+      }
+      return;
     }
+    if (viewRef.current.type !== 'home') return;
+    setTab('map');
+    setRestoreSalonOnMapId(activeSalonSession.id);
   }, [user, token, activeSalonSession]);
 
   const handleMsdevRebuild = useCallback(async () => {
@@ -167,8 +174,8 @@ export default function App() {
     setTab('map');
     setProfileOpen(false);
     setProfilePreview(null);
-    setActiveSalonSession({ id: salonId });
-    setView({ type: 'salon', id: salonId });
+    setActiveSalonSession({ id: salonId, viewMode: 'full' });
+    setView({ type: 'home' });
     syncSalonUrlInBar(salonId);
   }, [user, token]);
 
@@ -250,7 +257,11 @@ export default function App() {
 
   useEffect(() => {
     const dmTabActive =
-      Boolean(user && token) && tab === 'dm' && !profileOpen && view.type === 'home';
+      Boolean(user && token) &&
+      tab === 'dm' &&
+      !profileOpen &&
+      view.type === 'home' &&
+      activeSalonSessionRef.current?.viewMode !== 'full';
     setDmTabActive(dmTabActive);
   }, [user, token, tab, profileOpen, view.type, setDmTabActive]);
 
@@ -339,8 +350,11 @@ export default function App() {
     setActiveSalonSession((prev) => ({
       id: salonId,
       title: salonTitle ?? (prev?.id === salonId ? prev.title : undefined),
+      viewMode: 'full',
     }));
-    setView({ type: 'salon', id: salonId });
+    if (viewRef.current.type === 'salon') {
+      setView({ type: 'home' });
+    }
     syncSalonUrlInBar(salonId);
   }, []);
 
@@ -350,6 +364,7 @@ export default function App() {
     setActiveSalonSession((prev) => ({
       id: salonId,
       title: salonTitle ?? (prev?.id === salonId ? prev.title : undefined),
+      viewMode: 'minimized',
     }));
     setProfileOpen(false);
     setProfilePreview(null);
@@ -357,13 +372,29 @@ export default function App() {
     setTab('map');
   }, []);
 
+  const handleSalonPageBack = useCallback(() => {
+    const session = activeSalonSessionRef.current;
+    if (!session || session.viewMode !== 'full') return;
+    minimizeSalonToMap(session.id, session.title);
+  }, [minimizeSalonToMap]);
+
+  const handleSalonMinimizeToMap = useCallback((title?: string) => {
+    const session = activeSalonSessionRef.current;
+    if (!session || session.viewMode !== 'full') return;
+    minimizeSalonToMap(session.id, title ?? session.title);
+  }, [minimizeSalonToMap]);
+
   const handleMapSalonActive = useCallback((session: ActiveSalonSession | null) => {
     setMapSalonActiveId(session?.id ?? null);
     if (session) {
       setActiveSalonSession((prev) =>
         prev?.id === session.id
-          ? { id: session.id, title: session.title ?? prev.title }
-          : { id: session.id, title: session.title }
+          ? {
+              id: session.id,
+              title: session.title ?? prev.title,
+              viewMode: prev?.viewMode === 'full' ? 'full' : (prev?.viewMode ?? 'minimized'),
+            }
+          : { id: session.id, title: session.title, viewMode: 'minimized' }
       );
     }
   }, []);
@@ -439,19 +470,14 @@ export default function App() {
     if (tabRef.current === 'reels' && id !== 'reels') pauseAllReelsMediaInDom({ resetPosition: true });
     if (id !== 'reels') pauseMediaElements();
     setProfileOpen(false);
-    const persistedSalonId = activeSalonSessionRef.current?.id;
-    if (viewRef.current.type === 'salon') {
-      const salonId = viewRef.current.id;
+    const session = activeSalonSessionRef.current;
+    const persistedSalonId = session?.id;
+    const salonFullScreen = session?.viewMode === 'full';
+    if (!salonFullScreen) {
       setView({ type: 'home' });
-      if (id === 'map') {
-        setRestoreSalonOnMapId(salonId);
+      if (id === 'map' && persistedSalonId) {
+        setRestoreSalonOnMapId(persistedSalonId);
       }
-      setTab(id);
-      return;
-    }
-    setView({ type: 'home' });
-    if (id === 'map' && persistedSalonId) {
-      setRestoreSalonOnMapId(persistedSalonId);
     }
     setTab(id);
   }, []);
@@ -487,28 +513,26 @@ export default function App() {
 
   if (isNewUser) return <OnboardingPage onDone={clearNewUser} />;
 
-  const reelsActive = tab === 'reels' && !profileOpen && view.type === 'home';
+  const salonFullScreen = activeSalonSession?.viewMode === 'full';
+  /** Onglets montés sous le grand salon (overlay) ou en navigation normale. */
+  const tabContentBase = view.type === 'home' || salonFullScreen;
+  const reelsActive = tab === 'reels' && !profileOpen && tabContentBase;
   /** Carte visible : lecture petit salon même si overlay « Mon profil » ouvert. */
-  const mapPlaybackActive = tab === 'map' && view.type === 'home';
+  const mapPlaybackActive = tab === 'map' && view.type === 'home' && !salonFullScreen;
   /** Montage conditionnel : un seul onglet à la fois (perf). Carte reste montée sous overlay profil (audio salon). */
-  const actualiteTabMounted = tab === 'actualite' && view.type === 'home' && !profileOpen;
+  const actualiteTabMounted = tab === 'actualite' && tabContentBase && !profileOpen;
   /** Carte aussi montée (masquée) sous SalonPage, profil carte, ou autre onglet si session active. */
   const mapTabMounted =
-    (tab === 'map' && (view.type === 'home' || view.type === 'salon' || view.type === 'profile')) ||
-    Boolean(activeSalonSession);
-  const mapTabHiddenUnderSalon = tab === 'map' && view.type === 'salon';
+    (tab === 'map' && (tabContentBase || view.type === 'profile')) || Boolean(activeSalonSession);
+  const mapTabHiddenUnderSalon = tab === 'map' && salonFullScreen;
   const mapTabHiddenUnderProfile = tab === 'map' && view.type === 'profile';
   const mapTabHiddenOffTab = Boolean(activeSalonSession) && tab !== 'map';
-  const liveTabMounted = tab === 'live' && view.type === 'home';
-  const dmTabMounted = tab === 'dm' && view.type === 'home' && !profileOpen;
-  const reelsTabMounted = tab === 'reels' && view.type === 'home' && !profileOpen;
+  const liveTabMounted = tab === 'live' && tabContentBase;
+  const dmTabMounted = tab === 'dm' && tabContentBase && !profileOpen;
+  const reelsTabMounted = tab === 'reels' && tabContentBase && !profileOpen;
   const appa2 = isAppa2Layout(appLayout);
   const liveViewActive = tab === 'live' || view.type === 'live';
-  const showSalonReturnBar = Boolean(
-    activeSalonSession &&
-      view.type !== 'salon' &&
-      !(tab === 'map' && view.type === 'home' && mapSalonActiveId === activeSalonSession.id)
-  );
+  const showSalonReturnBar = Boolean(activeSalonSession && !salonFullScreen);
 
   return (
     <div
@@ -629,7 +653,7 @@ export default function App() {
       <main
         className="ms-app-main flex-1 min-h-0 overflow-hidden flex flex-col relative"
       >
-            {user && token && !isNewUser && view.type === 'home' && !profileOpen && (
+            {user && token && !isNewUser && view.type === 'home' && !profileOpen && !salonFullScreen && (
               <PlatformConnectPrompt
                 token={token}
                 user={user}
@@ -637,20 +661,24 @@ export default function App() {
                 onOpenProfile={() => setProfileOpen(true)}
               />
             )}
-            {view.type === 'salon' && (
-              <Suspense fallback={<PageFallback />}>
-                <SalonPage
-                  salonId={view.id}
-                  onBack={() => minimizeSalonToMap(view.id, activeSalonSession?.title)}
-                  onLeaveSalon={leaveActiveSalonSession}
-                  onMinimizeToMap={(title) => minimizeSalonToMap(view.id, title)}
-                  onSalonLoaded={(title) =>
-                    setActiveSalonSession((prev) =>
-                      prev?.id === view.id ? { ...prev, title: title ?? prev.title } : prev
-                    )
-                  }
-                />
-              </Suspense>
+            {salonFullScreen && activeSalonSession && (
+              <div className="ms-salon-fullscreen-overlay absolute inset-0 z-50 flex flex-col min-h-0 bg-[#0b0b0f]">
+                <Suspense fallback={<PageFallback />}>
+                  <SalonPage
+                    salonId={activeSalonSession.id}
+                    onBack={handleSalonPageBack}
+                    onLeaveSalon={leaveActiveSalonSession}
+                    onMinimizeToMap={handleSalonMinimizeToMap}
+                    onSalonLoaded={(title) =>
+                      setActiveSalonSession((prev) =>
+                        prev?.id === activeSalonSession.id
+                          ? { ...prev, title: title ?? prev.title, viewMode: 'full' }
+                          : prev
+                      )
+                    }
+                  />
+                </Suspense>
+              </div>
             )}
             {view.type === 'profile' && (
               <Suspense fallback={<PageFallback />}>

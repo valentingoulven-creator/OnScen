@@ -78,15 +78,24 @@ export function SalonPage({
   const [durationWarning, setDurationWarning] = useState(false);
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const warningTimerRef = useRef<number | null>(null);
 
   const loadSalon = useCallback(() => {
     if (!token) return;
-    api.getSalon(token, salonId).then((r) => setSalon(r.salon)).catch((e) => {
-      setToastMsg(e instanceof Error ? e.message : t('salon.inaccessible'));
-      window.setTimeout(() => onBack(), 1500);
-    });
-  }, [token, salonId, onBack, t]);
+    setLoadError(null);
+    api
+      .getSalon(token, salonId)
+      .then((r) => {
+        setSalon(r.salon);
+        setLoadError(null);
+      })
+      .catch((e) => {
+        const msg = e instanceof Error ? e.message : t('salon.inaccessible');
+        setLoadError(msg);
+        setToastMsg(msg);
+      });
+  }, [token, salonId, t]);
 
 
 
@@ -120,6 +129,7 @@ export function SalonPage({
 
   useEffect(() => {
     const socket = getSocket();
+    if (!socket) return;
     const onEnded = (payload: { salonId: string; reason: string }) => {
       if (payload.salonId !== salonId) return;
       if (payload.reason === 'duration_limit') {
@@ -156,6 +166,7 @@ export function SalonPage({
     if (!salon || !user || salon.canJoin === false) return;
 
     const socket = getSocket();
+    if (!socket) return;
 
     const onUpdated = (updated: Salon) => {
       if (updated.id !== salon.id) return;
@@ -285,7 +296,35 @@ export function SalonPage({
     );
   }, []);
 
-  if (!salon) return <div className="p-8 text-center text-gray-400">Chargement...</div>;
+  if (!salon) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-4 px-6 text-center bg-[#0b0b0f]">
+        {loadError ? (
+          <>
+            <p className="text-red-300 text-sm max-w-sm">{loadError}</p>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={loadSalon}
+                className="px-4 py-2 rounded-full bg-purple-600 text-white text-sm font-semibold hover:bg-purple-500"
+              >
+                {t('common.retry', { defaultValue: 'Réessayer' })}
+              </button>
+              <button
+                type="button"
+                onClick={onBack}
+                className="px-4 py-2 rounded-full border border-gray-600 text-gray-300 text-sm hover:border-gray-400"
+              >
+                {t('salon.minimize', { defaultValue: 'Réduire' })}
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="text-gray-400">{t('common.loading', { defaultValue: 'Chargement…' })}</p>
+        )}
+      </div>
+    );
+  }
 
   if (sessionEnded) {
     return (

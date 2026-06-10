@@ -97,6 +97,7 @@ export function DmUnreadProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!token || !user) return;
     const socket = getSocket();
+    if (!socket) return;
 
     const onDm = (msg: DirectMessage) => {
       if (msg.receiverId !== user.id) return;

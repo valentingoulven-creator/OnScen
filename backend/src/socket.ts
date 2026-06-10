@@ -55,17 +55,17 @@ export function setupSockets(io: Server): void {
   io.use((socket, next) => {
     const token = extractSocketAuthToken(socket.handshake);
     if (!token) {
-      next(new Error('unauthorized'));
+      next(new Error('auth_required'));
       return;
     }
     const payload = verifyAuthToken(token);
     if (!payload?.id) {
-      next(new Error('unauthorized'));
+      next(new Error('auth_invalid'));
       return;
     }
     const user = db.users.get(payload.id);
     if (!user || !canUserUseApp(user)) {
-      next(new Error('unauthorized'));
+      next(new Error('auth_forbidden'));
       return;
     }
     (socket.data as { userId?: string }).userId = payload.id;

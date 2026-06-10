@@ -1,15 +1,11 @@
 import { useEffect, useRef } from 'react';
-import { getSocket, onSocketConnect } from '../lib/socket';
+import { emitOnSocket, getSocket, onSocketConnect } from '../lib/socket';
 
 export type SalonForcedEndReason = 'denied' | 'kicked' | 'banned' | 'ended';
 
 /** Explicit socket leave — only for voluntary quit or forced session end. */
 export function emitLeaveSalon(salonId: string): void {
-  try {
-    getSocket().emit('leave_salon', { salonId });
-  } catch {
-    /* socket not ready */
-  }
+  emitOnSocket('leave_salon', { salonId });
 }
 
 /**
@@ -29,6 +25,7 @@ export function useSalonSocketMembership(
     if (!salonId || !user) return;
 
     const socket = getSocket();
+    if (!socket) return;
     const joinSalon = () => {
       socket.emit('join_salon', {
         salonId,

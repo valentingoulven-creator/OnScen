@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { DEFAULT_CENTER } from '../lib/livesGeo';
+import { isMsdevEnvironment } from '../lib/liveCameraSupport';
 
 interface Props {
   children: ReactNode;
@@ -28,6 +29,17 @@ function isYouTubePlayerError(err: unknown): boolean {
     msg.toLowerCase().includes('youtube') ||
     msg.toLowerCase().includes('ytplayer') ||
     msg.toLowerCase().includes('yt.player')
+  );
+}
+
+function isSocketAuthError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err ?? '');
+  return (
+    msg.includes('Socket requires authentication token') ||
+    msg.toLowerCase().includes('unauthorized') ||
+    msg.includes('auth_required') ||
+    msg.includes('auth_invalid') ||
+    msg.includes('auth_forbidden')
   );
 }
 
@@ -68,20 +80,27 @@ export class AppErrorBoundary extends Component<Props, State> {
   state: State = { error: null, recovering: false };
 
   static getDerivedStateFromError(error: unknown): State {
+    if (isSocketAuthError(error)) {
+      return { error: null, recovering: true };
+    }
     return { error: toError(error), recovering: false };
   }
 
   componentDidCatch(error: unknown, info: ErrorInfo): void {
     console.error('[MeloSong]', error, info.componentStack);
 
-    if (isLatLngError(error)) {
+    if (isSocketAuthError(error)) {
+      this.setState({ recovering: true });
+      this.autoResetTimer = setTimeout(() => {
+        window.location.reload();
+      }, 800);
+    } else if (isLatLngError(error)) {
       resetMapCenter();
       this.setState({ recovering: true });
       this.autoResetTimer = setTimeout(() => {
         this.setState({ error: null, recovering: false });
       }, 1200);
     } else if (isYouTubePlayerError(error)) {
-      // YouTube player errors should not crash the whole app — recover silently.
       this.autoResetTimer = setTimeout(() => {
         this.setState({ error: null, recovering: false });
       }, 100);
@@ -94,12 +113,13 @@ export class AppErrorBoundary extends Component<Props, State> {
 
   render() {
     const { error, recovering } = this.state;
+    const showMsdevHint = isMsdevEnvironment();
 
     if (recovering) {
       return (
         <div className="min-h-dvh flex flex-col items-center justify-center gap-3 p-6 bg-[#0b0b0f] text-gray-400 text-center">
           <span className="w-6 h-6 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin" />
-          <p className="text-sm">Réinitialisation de la carte…</p>
+          <p className="text-sm">Réinitialisation…</p>
         </div>
       );
     }
@@ -109,12 +129,20 @@ export class AppErrorBoundary extends Component<Props, State> {
         <div className="min-h-dvh flex flex-col items-center justify-center gap-4 p-6 bg-[#0b0b0f] text-gray-300 text-center">
           <p className="text-lg font-semibold text-red-400">Soundy — erreur de chargement</p>
           <p className="text-sm text-gray-500 max-w-md">{error.message}</p>
-          <p className="text-xs text-gray-500 max-w-md">
-            Écran noir ou page bloquée : fermez l'icône PWA, ouvrez{' '}
-            <strong className="text-purple-300">https://localhost:4080</strong> ou{' '}
-            <strong className="text-purple-300">http://localhost:4080</strong> dans Chrome, Edge ou Opera,
-            puis <kbd className="px-1 rounded bg-[#1a1a26]">Ctrl+Shift+R</kbd>.
-          </p>
+          {showMsdevHint && (
+            <p className="text-xs text-gray-500 max-w-md">
+              Écran noir ou page bloquée : fermez l'icône PWA, ouvrez{' '}
+              <strong className="text-purple-300">https://localhost:4080</strong> ou{' '}
+              <strong className="text-purple-300">http://localhost:4080</strong> dans Chrome, Edge ou Opera,
+              puis <kbd className="px-1 rounded bg-[#1a1a26]">Ctrl+Shift+R</kbd>.
+            </p>
+          )}
+          {!showMsdevHint && (
+            <p className="text-xs text-gray-500 max-w-md">
+              Réessayez de vous reconnecter ou actualisez la page. Si le problème persiste, déconnectez-vous puis
+              reconnectez-vous.
+            </p>
+          )}
           <div className="flex gap-3">
             <button
               type="button"

@@ -1393,6 +1393,7 @@ export function HomePage({
     if (selected.canJoin === false && selected.hostId !== user.id) return;
     const salonId = selected.id;
     const socket = getSocket();
+    if (!socket) return;
     const onSalonUpdated = (updated: Salon) => {
       if (updated.id !== salonId) return;
       setSelected((prev) => {

@@ -10,12 +10,26 @@ interface State {
   recovering: boolean;
 }
 
+function isMsdevEnvironment(): boolean {
+  return import.meta.env.VITE_APP_ENV === 'msdev';
+}
+
 function isLatLngError(err: Error): boolean {
   return (
     err.message.includes('Invalid LatLng') ||
     err.message.includes('LatLng') ||
     err.message.includes('NaN') ||
     err.message.toLowerCase().includes('leaflet')
+  );
+}
+
+function isSocketAuthError(err: Error): boolean {
+  return (
+    err.message.includes('Socket requires authentication token') ||
+    err.message.toLowerCase().includes('unauthorized') ||
+    err.message.includes('auth_required') ||
+    err.message.includes('auth_invalid') ||
+    err.message.includes('auth_forbidden')
   );
 }
 
@@ -51,13 +65,21 @@ export class AppErrorBoundary extends Component<Props, State> {
   state: State = { error: null, recovering: false };
 
   static getDerivedStateFromError(error: Error): State {
+    if (isSocketAuthError(error)) {
+      return { error: null, recovering: true };
+    }
     return { error, recovering: false };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error('[Soundly]', error, info.componentStack);
 
-    if (isLatLngError(error)) {
+    if (isSocketAuthError(error)) {
+      this.setState({ recovering: true });
+      this.autoResetTimer = setTimeout(() => {
+        window.location.reload();
+      }, 800);
+    } else if (isLatLngError(error)) {
       resetMapCenter();
       this.setState({ recovering: true });
       this.autoResetTimer = setTimeout(() => {
@@ -72,12 +94,13 @@ export class AppErrorBoundary extends Component<Props, State> {
 
   render() {
     const { error, recovering } = this.state;
+    const showMsdevHint = isMsdevEnvironment();
 
     if (recovering) {
       return (
         <div className="min-h-dvh flex flex-col items-center justify-center gap-3 p-6 bg-[#0b0b0f] text-gray-400 text-center">
           <span className="w-6 h-6 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin" />
-          <p className="text-sm">Réinitialisation de la carte…</p>
+          <p className="text-sm">Réinitialisation…</p>
         </div>
       );
     }
@@ -87,12 +110,20 @@ export class AppErrorBoundary extends Component<Props, State> {
         <div className="min-h-dvh flex flex-col items-center justify-center gap-4 p-6 bg-[#0b0b0f] text-gray-300 text-center">
           <p className="text-lg font-semibold text-red-400">Soundy — erreur de chargement</p>
           <p className="text-sm text-gray-500 max-w-md">{error.message}</p>
-          <p className="text-xs text-gray-500 max-w-md">
-            Écran noir ou page bloquée : fermez l'icône PWA, ouvrez{' '}
-            <strong className="text-purple-300">https://localhost:4080</strong> ou{' '}
-            <strong className="text-purple-300">http://localhost:4080</strong> dans Chrome, Edge ou Opera,
-            puis <kbd className="px-1 rounded bg-[#1a1a26]">Ctrl+Shift+R</kbd>.
-          </p>
+          {showMsdevHint && (
+            <p className="text-xs text-gray-500 max-w-md">
+              Écran noir ou page bloquée : fermez l'icône PWA, ouvrez{' '}
+              <strong className="text-purple-300">https://localhost:4080</strong> ou{' '}
+              <strong className="text-purple-300">http://localhost:4080</strong> dans Chrome, Edge ou Opera,
+              puis <kbd className="px-1 rounded bg-[#1a1a26]">Ctrl+Shift+R</kbd>.
+            </p>
+          )}
+          {!showMsdevHint && (
+            <p className="text-xs text-gray-500 max-w-md">
+              Réessayez de vous reconnecter ou actualisez la page. Si le problème persiste, déconnectez-vous puis
+              reconnectez-vous.
+            </p>
+          )}
           <div className="flex gap-3">
             <button
               type="button"

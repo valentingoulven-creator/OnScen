@@ -175,6 +175,7 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
   useEffect(() => {
     if (!token) return;
     const socket = getSocket();
+    if (!socket) return;
     const onNotif = (n: AppNotification) => {
       if (!isVisibleNotification(n)) return;
       markedReadRef.current = false;

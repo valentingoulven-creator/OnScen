@@ -112,14 +112,15 @@ export function MapSalonListenSheet({
   };
 
   useEffect(() => {
-    if (!isHost) return;
+    if (!isHost || !token) return;
     const socket = getSocket();
+    if (!socket) return;
     const onDenied = ({ salonId: deniedId }: { salonId: string }) => {
       if (deniedId === salon.id) setHostPlaybackDenied(true);
     };
     socket.on('host_playback_denied', onDenied);
     return () => { socket.off('host_playback_denied', onDenied); };
-  }, [isHost, salon.id]);
+  }, [isHost, salon.id, token]);
 
   const hostCanControl = Boolean(
     isHost && isPlatformConnected(user?.connectedPlatforms, salon.platform)

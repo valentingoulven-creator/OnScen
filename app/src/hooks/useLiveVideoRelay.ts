@@ -8,7 +8,7 @@ import {
   LIVE_WEBRTC_MESH_VIEWER_LIMIT,
   type LiveWebrtcSignalPayload,
 } from '../lib/liveVideoRelay';
-import { getSocket, onSocketConnect } from '../lib/socket';
+import { emitOnSocket, getSocket, onSocketConnect } from '../lib/socket';
 
 type UseLiveVideoRelayOptions = {
   liveId: string;
@@ -61,7 +61,7 @@ export function useLiveVideoRelay({
 
   const emitSignal = useCallback(
     (payload: Omit<LiveWebrtcSignalPayload, 'liveId'>) => {
-      getSocket().emit('live_webrtc_signal', { liveId, ...payload });
+      emitOnSocket('live_webrtc_signal', { liveId, ...payload });
     },
     [liveId]
   );
@@ -197,13 +197,14 @@ export function useLiveVideoRelay({
 
   const signalViewerReady = useCallback(() => {
     if (isHost || !cameraRelayActive) return;
-    getSocket().emit('live_webrtc_viewer_ready', { liveId });
+    emitOnSocket('live_webrtc_viewer_ready', { liveId });
   }, [cameraRelayActive, isHost, liveId]);
 
   // Host: écoute les spectateurs prêts et les signaux WebRTC entrants
   useEffect(() => {
     if (!isHost || !userId) return;
     const socket = getSocket();
+    if (!socket) return;
 
     const onViewerJoined = (payload: { liveId: string; viewerId: string }) => {
       if (payload.liveId !== liveId || !cameraRelayActive) return;
@@ -248,6 +249,7 @@ export function useLiveVideoRelay({
   useEffect(() => {
     if (isHost || !userId) return;
     const socket = getSocket();
+    if (!socket) return;
 
     const onSignal = (payload: LiveWebrtcSignalPayload & { fromUserId: string }) => {
       if (payload.liveId !== liveId || payload.toUserId !== userId) return;

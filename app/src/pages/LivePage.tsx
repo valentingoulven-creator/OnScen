@@ -9,7 +9,7 @@ import { LIVE_CAMERA_VIEWER_FILE_NOTE, LIVE_CAMERA_VIEWER_NOTE } from '../lib/li
 import { useLiveVideoRelay } from '../hooks/useLiveVideoRelay';
 import { getLiveCameraContextHints } from '../lib/liveCameraSupport';
 import { mergeRemotePlaybackState } from '../lib/salonPlayback';
-import { getSocket, onSocketConnect } from '../lib/socket';
+import { emitOnSocket, getSocket, onSocketConnect } from '../lib/socket';
 import { setActiveHostLiveId } from '../lib/liveHostContext';
 import { ChatRoomProvider, ChatMessagesView, ChatInputBar, ChatModals } from '../components/ChatPanel';
 import { UsernameDisplay } from '../components/UsernameDisplay';
@@ -173,7 +173,7 @@ export function LivePage({
 
   const emitCameraState = useCallback(
     (active: boolean, mode?: 'camera' | 'file') => {
-      getSocket().emit('live_camera_toggle', { liveId, active, mode: active ? mode : undefined });
+      emitOnSocket('live_camera_toggle', { liveId, active, mode: active ? mode : undefined });
     },
     [liveId]
   );
@@ -209,6 +209,7 @@ export function LivePage({
   useEffect(() => {
     if (!user) return;
     const socket = getSocket();
+    if (!socket) return;
     const joinLive = () => {
       socket.emit('join_live', { liveId });
     };
@@ -263,6 +264,7 @@ export function LivePage({
 
   useEffect(() => {
     const socket = getSocket();
+    if (!socket) return;
     const onEnded = (payload: { liveId: string; reason: string }) => {
       if (payload.liveId !== liveId) return;
       if (payload.reason === 'duration_limit') {
@@ -309,6 +311,7 @@ export function LivePage({
 
   useEffect(() => {
     const socket = getSocket();
+    if (!socket) return;
     const onMsg = (msg: ChatMessage) => {
       if (msg.roomId !== liveId) return;
       setChatMessages((m) => (m.some((x) => x.id === msg.id) ? m : [...m, msg]));
@@ -329,7 +332,7 @@ export function LivePage({
       if (scope === 'live') {
         setLiveViewBanned(true);
         setLiveViewBanMessage(payload.message);
-        getSocket().emit('leave_live', { liveId });
+        emitOnSocket('leave_live', { liveId });
         return;
       }
       setChatBanned(true);
@@ -380,6 +383,7 @@ export function LivePage({
   useEffect(() => {
     if (!user || !isHost) return;
     const socket = getSocket();
+    if (!socket) return;
     const onNotif = (n: AppNotification) => {
       if (n.type !== 'live_don' || n.liveId !== liveId) return;
       setHostDonToast(n.message);
@@ -401,7 +405,7 @@ export function LivePage({
   useEffect(() => {
     return () => {
       if (hostCameraBroadcastRef.current) {
-        getSocket().emit('live_camera_toggle', { liveId, active: false });
+        emitOnSocket('live_camera_toggle', { liveId, active: false });
       }
       stopCamera();
     };
@@ -656,7 +660,7 @@ export function LivePage({
 
   const setVipModerator = useCallback(
     (targetUserId: string, add: boolean) => {
-      getSocket().emit('live_set_vip', { liveId, userId: targetUserId, add });
+      emitOnSocket('live_set_vip', { liveId, userId: targetUserId, add });
     },
     [liveId]
   );
@@ -666,7 +670,7 @@ export function LivePage({
       targetUserId: string,
       opts: { permanent: boolean; durationMs?: number; scope: 'chat' | 'live' }
     ) => {
-      getSocket().emit('live_ban', {
+      emitOnSocket('live_ban', {
         liveId,
         userId: targetUserId,
         permanent: opts.permanent,
@@ -681,6 +685,7 @@ export function LivePage({
     async (messageId: string) => {
       if (!token) return;
       const socket = getSocket();
+      if (!socket) return;
       socket.emit('live_chat_delete', { liveId, messageId });
       try {
         await api.deleteChatMessage(token, 'live', liveId, messageId);

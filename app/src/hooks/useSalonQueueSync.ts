@@ -36,7 +36,9 @@ export function useSalonQueueSync(
   }, [token, salonId, isHost]);
 
   useEffect(() => {
+    if (!token) return;
     const socket = getSocket();
+    if (!socket) return;
     const onQueue = (payload: { salonId: string; queue: SalonQueueItem[] }) => {
       if (payload.salonId === salonId) setQueue(payload.queue);
     };
@@ -49,7 +51,7 @@ export function useSalonQueueSync(
       socket.off('salon_queue_updated', onQueue);
       socket.off('salon_proposals_updated', onProposals);
     };
-  }, [salonId, isHost]);
+  }, [salonId, isHost, token]);
 
   const skipNext = useCallback(async () => {
     if (!token) return null;
