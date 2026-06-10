@@ -15,8 +15,9 @@ powershell -ExecutionPolicy Bypass -File deploy_zero_downtime.ps1
 |--------|--------|
 | `-SkipBuild` | Réutilise `backend/dist/` local (pas de `tsc`) |
 | `-SkipFrontend` | Ignore build Vite + swap `public/` |
+| `-VerifyProd` | Lance `verify-prod.sh` sur le VPS après le health check public |
 
-Étapes : build backend + frontend → sync `dist/` + `package.json` → swap atomique `public.new` → `npm install --omit=dev` si besoin → migrations → `pm2 reload melosong-backend --update-env` → Caddy → `curl https://getsoundy.com/health`.
+Étapes : build backend + frontend → sync `dist/` + `package.json` → swap atomique `public.new` → `npm install --omit=dev` si besoin → migrations → `pm2 reload melosong-backend --update-env` → Caddy → `curl https://getsoundy.com/health` → (optionnel) `verify-prod.sh`.
 
 Déploiement initial / setup DB Scaleway : `backend/deploy-scaleway.ps1`.
 

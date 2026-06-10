@@ -1,0 +1,37 @@
+# CI légère — typecheck + build backend (pas de déploiement, pas de secrets)
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            app/package-lock.json
+
+      - name: Backend — install & build
+        working-directory: backend
+        run: |
+          npm ci
+          npm run build
+
+      - name: App — install & typecheck
+        working-directory: app
+        run: |
+          npm ci
+          npx tsc -b --noEmit

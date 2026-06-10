@@ -26,9 +26,9 @@ if ! gzip -t "$FILE" 2>/dev/null; then
 fi
 echo "  ✓ gzip OK"
 
-# Contenu SQL minimal attendu
-HEAD="$(gunzip -c "$FILE" | head -50)"
-if ! echo "$HEAD" | grep -qE 'PostgreSQL|CREATE TABLE|SET '; then
+# Contenu SQL minimal attendu (process substitution évite SIGPIPE avec set -o pipefail)
+HEAD="$(head -50 < <(gunzip -c "$FILE" 2>/dev/null) || true)"
+if [[ -z "$HEAD" ]] || ! echo "$HEAD" | grep -qE 'PostgreSQL|CREATE TABLE|SET '; then
   echo "ERREUR — contenu SQL suspect (pas de signature PostgreSQL / CREATE TABLE)" >&2
   exit 1
 fi

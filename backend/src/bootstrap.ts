@@ -1,6 +1,8 @@
+import fs from 'fs';
 import http from 'http';
 import https from 'https';
 import os from 'os';
+import path from 'path';
 import { exec } from 'child_process';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
@@ -48,6 +50,30 @@ function getLocalIpv4Addresses(): string[] {
 
 function getLanUrls(port: number): string[] {
   return getLocalIpv4Addresses().map((ip) => `http://${ip}:${port}`);
+}
+
+function logProductionStartup(port: number): void {
+  let version = process.env.APP_VERSION?.trim() || '';
+  if (!version) {
+    try {
+      const pkgPath = path.join(__dirname, '..', 'package.json');
+      version = String(JSON.parse(fs.readFileSync(pkgPath, 'utf8')).version || '');
+    } catch {
+      version = 'unknown';
+    }
+  }
+  const commit = process.env.DEPLOY_COMMIT?.trim().slice(0, 12) || undefined;
+  console.log(
+    JSON.stringify({
+      event: 'startup',
+      service: 'soundly',
+      env: 'production',
+      version,
+      ...(commit ? { commit } : {}),
+      port,
+      ts: new Date().toISOString(),
+    })
+  );
 }
 
 export interface StartOptions {
@@ -244,6 +270,9 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
       reject(err);
     });
     server.listen(PORT, HOST, () => {
+      if (APP_ENV === 'production') {
+        logProductionStartup(PORT);
+      }
       console.log('');
       console.log('  ╔══════════════════════════════════════╗');
       console.log(`  ║  Soundy   [${APP_ENV.padEnd(6)}]  local dev       ║`);

@@ -28,7 +28,10 @@ chmod +x /opt/soundly/deploy/healthcheck.sh 2>/dev/null || true
 chmod +x /opt/soundly/deploy/backup-db.sh 2>/dev/null || true
 chmod +x /opt/soundly/deploy/verify-backup.sh 2>/dev/null || true
 chmod +x /opt/soundly/deploy/verify-prod.sh 2>/dev/null || true
-mkdir -p /opt/soundly/backups
+chmod +x /opt/soundly/deploy/install-backup-cron.sh 2>/dev/null || true
+chmod +x /opt/soundly/deploy/install-health-cron.sh 2>/dev/null || true
+chmod +x /opt/soundly/deploy/setup-legal-publisher.sh 2>/dev/null || true
+mkdir -p /opt/soundly/backups /opt/soundly/logs
 
 cp /opt/soundly/deploy/caddy-watchdog.sh "$WATCHDOG_DST"
 chmod +x "$WATCHDOG_DST"

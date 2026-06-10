@@ -70,14 +70,17 @@ pm2 logs melosong-backend --lines 30
 
 ### Création sur le VPS
 
-1. Remplir `acompleter.txt` (dépôt local, ne pas committer si infos sensibles).
-2. Copier le modèle et éditer :
-
 ```bash
-cp /opt/soundly/msdev/legal-publisher.example.json /opt/soundly/legal-publisher.json
+bash /opt/soundly/deploy/setup-legal-publisher.sh
 nano /opt/soundly/legal-publisher.json
+bash /opt/soundly/deploy/setup-legal-publisher.sh   # revérifie champs obligatoires
+pm2 reload melosong-backend --update-env
 ```
 
+Étapes détaillées :
+
+1. Remplir `acompleter.txt` (dépôt local, ne pas committer si infos sensibles).
+2. Le script copie `msdev/legal-publisher.example.json` → `/opt/soundly/legal-publisher.json` si absent.
 3. Vérifier qu'**aucun** champ ne contient `[À compléter]`.
 4. Redémarrer : `pm2 reload melosong-backend --update-env`
 
@@ -105,11 +108,15 @@ bash /opt/soundly/deploy/backup-db.sh
 - Rétention locale : **14 jours** (`RETENTION_DAYS=30` pour override)
 - Log : `/opt/soundly/backups/backup.log`
 
-### Cron quotidien (exemple 03:15)
+### Cron quotidien (03:15)
 
 ```bash
-crontab -e
-# Ajouter :
+sudo bash /opt/soundly/deploy/install-backup-cron.sh
+```
+
+Équivalent manuel (`crontab -e`) :
+
+```bash
 15 3 * * * set -a && . /opt/soundly/.env && set +a && /bin/bash /opt/soundly/deploy/backup-db.sh >> /opt/soundly/backups/cron.log 2>&1
 ```
 
@@ -153,6 +160,42 @@ bash /opt/soundly/deploy/verify-prod.sh
 
 Contrôles : `/health`, `.env` + `DATABASE_URL` (hôte masqué), `legal-publisher.json`, PM2 `melosong-backend`, espace disque et inventaire backups.
 
+### Cron hebdomadaire (optionnel)
+
+```bash
+sudo bash /opt/soundly/deploy/install-health-cron.sh
+```
+
+Log : `/opt/soundly/logs/verify-prod.log` (dimanche 06:00).
+
+Depuis le PC, après deploy : `deploy_zero_downtime.ps1 -VerifyProd` exécute la même checklist via SSH.
+
+---
+
+## PM2 (`ecosystem.config.cjs`)
+
+Fichier : `deploy/ecosystem.config.cjs` — `autorestart`, `max_memory_restart: 512M`, logs dans `/opt/soundly/logs/`.
+
+Première installation ou recréation du process :
+
+```bash
+mkdir -p /opt/soundly/logs
+cd /opt/soundly
+pm2 start deploy/ecosystem.config.cjs
+pm2 save
+pm2 startup   # suivre les instructions affichées
+```
+
+Mises à jour courantes (zero-downtime) : `pm2 reload melosong-backend --update-env` (via `deploy_zero_downtime.ps1`).
+
+Au démarrage prod, le backend logue une ligne JSON structurée (`event: startup`, version, `DEPLOY_COMMIT` si défini).
+
+---
+
+## Workflow développement
+
+Voir [`docs/DEV-WORKFLOW.md`](../docs/DEV-WORKFLOW.md) — clone hors iCloud (`C:\Dev\MeloSongv2`), push régulier, CI GitHub Actions.
+
 ---
 
 ## Scripts deploy (référence)
@@ -162,6 +205,10 @@ Contrôles : `/health`, `.env` + `DATABASE_URL` (hôte masqué), `legal-publishe
 | `deploy/backup-db.sh` | Dump PostgreSQL → `/opt/soundly/backups/` |
 | `deploy/verify-backup.sh` | Intégrité d'un dump `.sql.gz` |
 | `deploy/verify-prod.sh` | Checklist ops VPS |
+| `deploy/install-backup-cron.sh` | Cron quotidien 03:15 (backup-db) |
+| `deploy/install-health-cron.sh` | Cron hebdo verify-prod (optionnel) |
+| `deploy/setup-legal-publisher.sh` | Crée / valide `legal-publisher.json` |
+| `deploy/ecosystem.config.cjs` | Config PM2 (logs, mémoire, autorestart) |
 | `deploy/healthcheck.sh` | Cron — redémarre PM2 si `/health` KO |
 | `deploy/sync-caddy.sh` | Sync Caddyfile canonique |
 | `deploy/migrate-remote.sh` | Migrations SQL manuelles |

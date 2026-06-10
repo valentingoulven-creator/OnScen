@@ -5,10 +5,12 @@
 # Options :
 #   -SkipBuild      Ignore le build backend (dist/ existant)
 #   -SkipFrontend   Ignore le build + deploiement frontend
+#   -VerifyProd      Lance verify-prod.sh sur le VPS apres deploy
 # ============================================================
 param(
     [switch]$SkipBuild,
-    [switch]$SkipFrontend
+    [switch]$SkipFrontend,
+    [switch]$VerifyProd
 )
 
 $ErrorActionPreference = "Stop"
@@ -59,6 +61,7 @@ Write-Host "  Remote : $REMOTE"
 Write-Host ("  PM2    : " + $PM2_APP + " (reload, pas stop/start)")
 if ($SkipBuild)    { Write-Host "  [!] Build backend ignore (-SkipBuild)" -ForegroundColor Yellow }
 if ($SkipFrontend) { Write-Host "  [!] Frontend ignore (-SkipFrontend)" -ForegroundColor Yellow }
+if ($VerifyProd)   { Write-Host "  [+] Verify-prod actif (-VerifyProd)" -ForegroundColor Cyan }
 Write-Host ""
 
 
@@ -185,7 +188,11 @@ if ($pkgChanged) {
 # -- 7. Migrations DB ---------------------------------------------------------
 Write-Host "`n[7/9] Migrations PostgreSQL..." -ForegroundColor Yellow
 
-$deployFiles = @("Caddyfile", "sync-caddy.sh", "caddy-watchdog.sh", "install-caddy-guard.sh", "healthcheck.sh", "postgres-setup.sh", "migrate-remote.sh")
+$deployFiles = @(
+    "Caddyfile", "sync-caddy.sh", "caddy-watchdog.sh", "install-caddy-guard.sh", "healthcheck.sh",
+    "postgres-setup.sh", "migrate-remote.sh", "backup-db.sh", "verify-backup.sh", "verify-prod.sh",
+    "install-backup-cron.sh", "install-health-cron.sh", "setup-legal-publisher.sh", "ecosystem.config.cjs"
+)
 foreach ($f in $deployFiles) {
     $local = Join-Path $DeployDir $f
     if (Test-Path $local) {
@@ -208,7 +215,16 @@ if ("$migrateOut" -match "MIGRATE_OK") {
 # -- 8. PM2 reload + Caddy ----------------------------------------------------
 Write-Host "`n[8/9] PM2 reload + Caddy..." -ForegroundColor Yellow
 
-$reloadCmd = 'cd ' + $REMOTE + '; pm2 reload ' + $PM2_APP + ' --update-env 2>&1; echo PM2_RELOAD_OK'
+$gitCommit = ""
+try {
+    $gitCommit = (& git -C $PSScriptRoot rev-parse --short HEAD 2>$null).Trim()
+} catch { }
+$deployCommitEnv = ""
+if ($gitCommit) {
+    $deployCommitEnv = "DEPLOY_COMMIT=$gitCommit "
+}
+
+$reloadCmd = 'cd ' + $REMOTE + '; ' + $deployCommitEnv + 'pm2 reload ' + $PM2_APP + ' --update-env 2>&1; echo PM2_RELOAD_OK'
 $reloadOut = Invoke-Remote $reloadCmd
 Write-Host $reloadOut
 if ("$reloadOut" -notmatch "PM2_RELOAD_OK") {
@@ -248,6 +264,19 @@ Write-Host "  [OK] $HEALTH -> HTTP $($healthLocal.StatusCode)" -ForegroundColor 
 $contentPreview = $healthLocal.Content.Substring(0, [Math]::Min(120, $healthLocal.Content.Length))
 Write-Host "  -> Corps : $contentPreview"
 
+if ($VerifyProd) {
+    Write-Host "`n  -> verify-prod.sh sur le VPS..." -ForegroundColor Cyan
+    $verifyCmd = 'sed -i ''s/\r$//'' ' + $REMOTE + '/deploy/verify-prod.sh 2>/dev/null; chmod +x ' + $REMOTE + '/deploy/verify-prod.sh 2>/dev/null; bash ' + $REMOTE + '/deploy/verify-prod.sh 2>&1; echo VERIFY_PROD_EXIT=$?'
+    $verifyOut = Invoke-Remote $verifyCmd
+    Write-Host $verifyOut
+    if ("$verifyOut" -notmatch "VERIFY_PROD_EXIT=0") {
+        Write-Host "  [!] verify-prod a signale des problemes (voir ci-dessus)" -ForegroundColor Yellow
+        Write-Host "      Corriger : deploy/RUNBOOK-PROD.md, setup-legal-publisher.sh" -ForegroundColor Yellow
+    } else {
+        Write-Host "  [OK] verify-prod OK" -ForegroundColor Green
+    }
+}
+
 
 # -- Resume -------------------------------------------------------------------
 Write-Host ""
@@ -260,4 +289,5 @@ Write-Host "  PM2    : pm2 reload $PM2_APP (sans coupure)"
 Write-Host ""
 Write-Host "  Diagnostic :"
 Write-Host "  ssh $VPS pm2 logs $PM2_APP --lines 50"
+Write-Host "  ssh $VPS bash $REMOTE/deploy/verify-prod.sh   # ou -VerifyProd au prochain deploy"
 Write-Host "==============================================" -ForegroundColor Green

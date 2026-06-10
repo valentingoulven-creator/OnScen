@@ -3327,3 +3327,72 @@ l’inscription, de la navigation ou des tests : le limiteur `authLimiter` s’a
 ================================================================================
 Fin MODIF 323 - 2026-06-10
 ================================================================================
+
+================================================================================
+MODIF 324 — Infra ops phase 2 (cron, CI, PM2, legal-publisher)
+Date : 2026-06-10
+Tâche : automatisation VPS, CI légère, workflow dev, bootstrap startup log
+================================================================================
+
+## Objectif
+
+Compléter MODIF 320 : scripts cron installables, helper legal-publisher,
+config PM2 versionnée, CI GitHub sans secrets, doc workflow dev hors iCloud,
+correctif verify-backup (SIGPIPE), log JSON au démarrage prod.
+
+## deploy/
+
+1. **install-backup-cron.sh** — cron quotidien 03:15 → backup-db.sh
+2. **install-health-cron.sh** — cron hebdo dimanche 06:00 → verify-prod.sh → logs/
+3. **setup-legal-publisher.sh** — copie example si absent, valide champs obligatoires
+4. **ecosystem.config.cjs** — PM2 : autorestart, max_memory_restart 512M, logs /opt/soundly/logs/
+5. **verify-backup.sh** — fix SIGPIPE gunzip|head (process substitution)
+
+## CI / doc
+
+- **.github/workflows/ci.yml** — push master : npm ci + build backend, tsc -b app
+- **docs/DEV-WORKFLOW.md** — clone C:\Dev\MeloSongv2, push, deploy, setup VPS
+
+## Backend
+
+- **bootstrap.ts** — log JSON structuré au startup prod (version, DEPLOY_COMMIT)
+
+## Deploy PC
+
+- **deploy_zero_downtime.ps1** — sync nouveaux scripts deploy/, -VerifyProd, DEPLOY_COMMIT au reload PM2
+
+## install-caddy-guard.sh
+
+- chmod +x nouveaux scripts ; mkdir backups + logs
+
+## Fichiers
+
+  deploy/install-backup-cron.sh
+  deploy/install-health-cron.sh
+  deploy/setup-legal-publisher.sh
+  deploy/ecosystem.config.cjs
+  deploy/verify-backup.sh
+  deploy/install-caddy-guard.sh
+  deploy/RUNBOOK-PROD.md
+  deploy/README.md
+  .github/workflows/ci.yml
+  docs/DEV-WORKFLOW.md
+  deploy_zero_downtime.ps1
+  backend/src/bootstrap.ts
+  modification.txt
+
+## À exécuter une fois sur le VPS
+
+  sudo bash /opt/soundly/deploy/install-backup-cron.sh
+  sudo bash /opt/soundly/deploy/install-health-cron.sh
+  bash /opt/soundly/deploy/setup-legal-publisher.sh && nano /opt/soundly/legal-publisher.json
+  mkdir -p /opt/soundly/logs && cd /opt/soundly && pm2 start deploy/ecosystem.config.cjs && pm2 save
+
+## Reste manuel
+
+- Console Scaleway : backups automatiques Managed DB, restore test, whitelist IP
+- Contenu legal-publisher.json (SIREN, adresse, etc.)
+
+================================================================================
+Fin MODIF 324 - 2026-06-10
+================================================================================
