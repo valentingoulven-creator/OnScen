@@ -6252,3 +6252,53 @@ Date : 2026-06-10
 ================================================================================
 Fin MODIF 410 - 2026-06-10
 ================================================================================
+
+================================================================================
+MODIF 411 — Fix rechargement périodique prod (PWA autoUpdate)
+================================================================================
+Date : 2026-06-10
+
+## Symptôme
+Page getsoundy.com qui se recharge « de temps en temps » sans action utilisateur,
+surtout après déploiements récents (assets/SW).
+
+## Cause racine (prod)
+PWA `registerType: 'autoUpdate'` + `registerSW({ immediate: true })` :
+à chaque nouvelle version du service worker (déploiement ou revalidation
+navigateur de `/sw.js`), l’événement Workbox `activated` déclenchait
+`window.location.reload()` silencieusement.
+
+Preuve bundle prod (`backend/public/assets/index-D6yQWv7P.js`) :
+  addEventListener("activated", e => (e.isUpdate || e.isExternal) && window.location.reload())
+
+Amplificateur post-déploiement : clé `melosong_sw_purge_*` unique par build
+(`vite.config.ts` inject-sw-purge-key) → purge caches + unregister SW au 1er
+chargement, puis ré-enregistrement → cycle SW supplémentaire.
+
+## Non-causes vérifiées
+- WebSocket reconnect (`socket.ts`) : pas de reload page.
+- Auth/session (`AuthContext.tsx`) : logout vers AuthPage, pas reload.
+- `AppErrorBoundary` : récupération soft carte/YouTube, reload manuel seulement.
+- MODIF 397 montage conditionnel onglets : remount React (pas reload document).
+- Chunk preload (`vite:preloadError`) : throw, pas reload auto.
+- msdev rebuild (`App.tsx:106`) : msdev uniquement.
+
+## Correctif
+- `vite.config.ts` : `registerType: 'prompt'`, `skipWaiting: false` (SW attend
+  l’action utilisateur avant de prendre le contrôle).
+- `main.tsx` : bannière « Mettre à jour / Plus tard » via `onNeedRefresh` ;
+  reload uniquement après clic utilisateur (`updateSW(true)`).
+
+## Fichiers
+- app/vite.config.ts
+- app/src/main.tsx
+- modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+  Déployer → onglet ouvert : plus de reload silencieux ; bannière si nouvelle version.
+  Clic « Mettre à jour » → reload une fois. « Plus tard » → session inchangée.
+
+================================================================================
+Fin MODIF 411 - 2026-06-10
+================================================================================

@@ -54,7 +54,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       injectRegister: false,
       includeAssets: ['icon.svg', 'favicon.svg', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
@@ -95,7 +95,7 @@ export default defineConfig(({ mode }) => {
          */
         cacheId: 'melosong-soundy-v8',
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
-        skipWaiting: true,
+        skipWaiting: false,
         clientsClaim: true,
         /**
          * Exclure les icônes déjà listées dans includeAssets pour éviter les
