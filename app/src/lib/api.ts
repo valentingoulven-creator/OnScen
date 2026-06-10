@@ -445,6 +445,17 @@ export const api = {
       token
     ),
 
+  spotifySalonPlaybackControl: (
+    token: string,
+    salonId: string,
+    action: 'pause' | 'play' | 'stop'
+  ) =>
+    request<{ ok: boolean; action: string }>(
+      `/salons/${salonId}/playback/spotify-control`,
+      { method: 'POST', body: JSON.stringify({ action }) },
+      token
+    ),
+
   getLives: (
     token: string,
     opts?: { latitude?: number; longitude?: number; radiusKm?: number; distanceFilter?: boolean }

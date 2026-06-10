@@ -115,7 +115,7 @@ export function setupSockets(io: Server): void {
       const roomName = `salon_${salonId}`;
       const alreadyIn = socket.rooms.has(roomName);
       socket.join(roomName);
-      if (!alreadyIn) {
+      if (!alreadyIn && userId !== salon.hostId) {
         salon.listenersCount += 1;
         db.salons.set(salonId, salon);
         io.to(roomName).emit('salon_updated', salon);
@@ -133,8 +133,9 @@ export function setupSockets(io: Server): void {
 
     socket.on('leave_salon', ({ salonId }: { salonId: string }) => {
       socket.leave(`salon_${salonId}`);
+      const actorId = (socket.data as { userId?: string }).userId;
       const salon = db.salons.get(salonId);
-      if (salon && salon.listenersCount > 0) {
+      if (salon && actorId && actorId !== salon.hostId && salon.listenersCount > 0) {
         salon.listenersCount -= 1;
         db.salons.set(salonId, salon);
         io.to(`salon_${salonId}`).emit('salon_updated', salon);

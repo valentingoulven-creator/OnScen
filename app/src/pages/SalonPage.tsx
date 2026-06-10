@@ -22,9 +22,10 @@ import { SalonSpotifySearch } from '../components/SalonSpotifySearch';
 import { SalonSpotifyPlaylist } from '../components/SalonSpotifyPlaylist';
 import { SalonQueueSection } from '../components/SalonQueueSection';
 import { SalonProposalsSection } from '../components/SalonProposalsSection';
-import { SalonInviteLinkCopy } from '../components/SalonInviteLinkCopy';
+import { SalonSpotifyJamButton } from '../components/SalonSpotifyJamButton';
 import { useSalonQueueSync } from '../hooks/useSalonQueueSync';
 
+import { formatSalonAudienceLabel } from '../lib/salonAudience';
 import type { DmContact, PlaybackState, Salon } from '../types';
 
 const SALON_MAX_DURATION_MS = 2 * 60 * 60 * 1000;
@@ -363,11 +364,13 @@ export function SalonPage({
 
   const stageFooter = (
     <div className="p-3 space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs px-3 py-1 rounded-full bg-[#131318] border border-[#232330] text-gray-400 capitalize">
-          {salon.platform}
-        </span>
-      </div>
+      {salon.platform !== 'spotify' && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs px-3 py-1 rounded-full bg-[#131318] border border-[#232330] text-gray-400 capitalize">
+            {salon.platform}
+          </span>
+        </div>
+      )}
 
       {isHost && hostCanControl && salon.platform === 'youtube' && token && (
         <div className="space-y-3">
@@ -394,6 +397,7 @@ export function SalonPage({
             currentTitle={playback.title}
             currentArtist={playback.artist}
             onTrackChanged={applyPlayback}
+            showCurrentTrack={false}
           />
           <SalonSpotifyPlaylist
             salonId={salon.id}
@@ -517,29 +521,56 @@ export function SalonPage({
           onError={(e) => { e.currentTarget.style.display = 'none'; }}
         />
         <div className="flex-1 min-w-0">
-          <h1 className="font-bold text-white truncate text-sm">{salon.title}</h1>
-          <p className="text-[11px] text-gray-400 truncate flex items-center gap-2 min-w-0">
-            <span className="truncate inline-flex items-center gap-1 min-w-0">
-              <UsernameDisplay
-                username={salon.hostName}
-                usernameColor={salon.hostUsernameColor}
-                usernameWaveFrom={salon.hostUsernameWaveFrom}
-                usernameWaveTo={salon.hostUsernameWaveTo}
-                className="truncate"
-              />
-              <span className="shrink-0 text-[#6b6b8a]">
-                · {salon.platform === 'spotify' ? '🎧 Spotify' : '▶️ YouTube'}
+          {salon.platform === 'spotify' ? (
+            <p className="text-[11px] text-gray-400 truncate flex items-center gap-2 min-w-0">
+              <span className="truncate inline-flex items-center gap-1 min-w-0">
+                <UsernameDisplay
+                  username={salon.hostName}
+                  usernameColor={salon.hostUsernameColor}
+                  usernameWaveFrom={salon.hostUsernameWaveFrom}
+                  usernameWaveTo={salon.hostUsernameWaveTo}
+                  className="truncate"
+                />
+                <span className="shrink-0 text-[#6b6b8a]">· 🎧 Spotify</span>
               </span>
-            </span>
-            <HostRatingBlock
-              hostId={salon.hostId}
-              hostName={salon.hostName}
-              isBot={salon.isBot}
-              salonId={salon.id}
-              inline
-              hideLabel
-              compact
-            />
+              <HostRatingBlock
+                hostId={salon.hostId}
+                hostName={salon.hostName}
+                isBot={salon.isBot}
+                salonId={salon.id}
+                inline
+                hideLabel
+                compact
+              />
+            </p>
+          ) : (
+            <>
+              <h1 className="font-bold text-white truncate text-sm">{salon.title}</h1>
+              <p className="text-[11px] text-gray-400 truncate flex items-center gap-2 min-w-0">
+                <span className="truncate inline-flex items-center gap-1 min-w-0">
+                  <UsernameDisplay
+                    username={salon.hostName}
+                    usernameColor={salon.hostUsernameColor}
+                    usernameWaveFrom={salon.hostUsernameWaveFrom}
+                    usernameWaveTo={salon.hostUsernameWaveTo}
+                    className="truncate"
+                  />
+                  <span className="shrink-0 text-[#6b6b8a]">· ▶️ YouTube</span>
+                </span>
+                <HostRatingBlock
+                  hostId={salon.hostId}
+                  hostName={salon.hostName}
+                  isBot={salon.isBot}
+                  salonId={salon.id}
+                  inline
+                  hideLabel
+                  compact
+                />
+              </p>
+            </>
+          )}
+          <p className="text-[10px] mt-0.5 text-[#6b6b8a] tabular-nums">
+            {formatSalonAudienceLabel(salon.listenersCount, t)}
           </p>
           {remainingMs !== null && remainingMs > 0 && (
             <p className={`text-[10px] mt-0.5 ${remainingMs <= 15 * 60 * 1000 ? 'text-amber-400' : 'text-[#5a5a7a]'}`}>
@@ -557,25 +588,55 @@ export function SalonPage({
             Live
           </button>
         )}
-        {onLeaveSalon && (
-          <button
-            type="button"
-            onClick={onLeaveSalon}
-            className="shrink-0 px-2.5 py-1.5 rounded-full text-[10px] font-semibold text-gray-400 border border-[#2a2a3a] hover:text-white hover:border-gray-500 transition"
-          >
-            {t('salon.leaveSalon')}
-          </button>
-        )}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {salon.platform === 'spotify' && (
+            <SalonSpotifyJamButton
+              salon={salon}
+              token={token}
+              isHost={isHost}
+              onSalonUpdated={setSalon}
+              onToast={setToastMsg}
+            />
+          )}
+          {onMinimizeToMap && (
+            <button
+              type="button"
+              onClick={() => onMinimizeToMap(salon.title)}
+              className="salon-header-icon-btn"
+              aria-label="Réduire le salon"
+              title="Réduire le salon"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <polyline
+                  points="6,9 12,15 18,9"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          )}
+          {onLeaveSalon && (
+            <button
+              type="button"
+              onClick={onLeaveSalon}
+              className="shrink-0 px-2.5 py-1.5 rounded-full text-[10px] font-semibold text-gray-400 border border-[#2a2a3a] hover:text-white hover:border-gray-500 transition"
+            >
+              {t('salon.leaveSalon')}
+            </button>
+          )}
+        </div>
       </header>
 
       <ChatRoomProvider {...chatProps}>
         <RoomTheaterLayout
+          variant={salon.platform === 'spotify' ? 'queue-chat' : 'theater'}
           chatHidden={chatHidden}
           onToggleChat={() => setChatHidden((h) => !h)}
           chatTitle="Chat du salon"
           chatMinimized={chatMinimized}
           onToggleMinimize={() => setChatMinimized((m) => !m)}
-          onMinimize={onMinimizeToMap ? () => onMinimizeToMap(salon.title) : undefined}
           stage={
             <SalonPlaybackPanel
               salon={salon}
@@ -584,7 +645,8 @@ export function SalonPage({
               userPlatforms={user?.connectedPlatforms}
               onUserUpdated={setUserFromProfile}
               onPlaybackStateChange={applyPlayback}
-              theaterMode
+              theaterMode={salon.platform !== 'spotify'}
+              salonQueueLayout={salon.platform === 'spotify'}
             />
           }
           stageFooter={stageFooter}

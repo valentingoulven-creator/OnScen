@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type RefObject } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { getSocket } from '../lib/socket';
@@ -10,6 +11,7 @@ import { MapSalonListenControls, MAP_SALON_OUTLINE_BUTTON_CLASS } from './MapSal
 import { UserAvatarOnline } from './UserAvatarOnline';
 import { UsernameDisplay } from './UsernameDisplay';
 import { useSalonQueueSync } from '../hooks/useSalonQueueSync';
+import { formatSalonAudienceLabel } from '../lib/salonAudience';
 import type { PlaybackState, Salon } from '../types';
 
 const PLATFORM_BADGE: Record<
@@ -145,7 +147,8 @@ export function MapSalonListenSheet({
   const playback = salon.playbackState;
   const trackPlatform = playback.platform ?? salon.platform;
   const platformBadge = PLATFORM_BADGE[trackPlatform];
-  const listenersLabel = `${salon.listenersCount} auditeur${salon.listenersCount !== 1 ? 's' : ''}`;
+  const { t } = useTranslation();
+  const listenersLabel = formatSalonAudienceLabel(salon.listenersCount, t).replace(/^👥\s*/, '');
   const showSalonTitle =
     salon.title.trim().length > 0 &&
     salon.title.trim().toLowerCase() !== playback.title.trim().toLowerCase();

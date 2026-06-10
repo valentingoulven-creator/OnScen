@@ -6041,3 +6041,214 @@ pas de Web Playback SDK).
 ================================================================================
 Fin MODIF 405 - 2026-06-10
 ================================================================================
+
+================================================================================
+MODIF 406 — Salon Spotify : file à gauche, chat à droite (sans scène théâtre)
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+Supprimer la grande zone noire « théâtre » dans les salons Spotify ouverts en
+plein écran : colonne gauche = contrôles compacts + file d'attente / panneau
+host ; colonne droite = chat ancré. Les salons YouTube et les Lives conservent
+le layout théâtre existant.
+
+## Frontend
+- `RoomTheaterLayout.tsx` — prop `variant: 'theater' | 'queue-chat'`.
+- `SalonPlaybackPanel.tsx` — prop `salonQueueLayout` (barre lecture compacte).
+- `SalonPage.tsx` — Spotify → `variant="queue-chat"` + `salonQueueLayout`.
+- `index.css` — styles `.room-theater-chat-dock`.
+
+## Fichiers
+- app/src/components/RoomTheaterLayout.tsx
+- app/src/components/SalonPlaybackPanel.tsx
+- app/src/pages/SalonPage.tsx
+- app/src/index.css
+- modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+  Ouvrir un salon Spotify → pas de scène noire ; file à gauche, chat à droite.
+  Ouvrir un salon YouTube → scène vidéo + chat flottant inchangés.
+
+================================================================================
+Fin MODIF 406 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 407 — Salon Spotify : masquer Jam, titre en haut
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+Dans le layout queue-chat Spotify (MODIF 406) :
+- Masquer le bloc Jam (lien / édition) dans la barre de lecture compacte
+- Titre du salon en haut (header SalonPage), morceau en tête de la barre compacte
+
+## Frontend
+- `SalonPlaybackPanel.tsx` — `salonQueueLayout` : pas de Jam ; pas de doublon titre salon
+  (titre session dans le header SalonPage, piste en premier dans la barre).
+- `SalonPage.tsx` — header conserve `salon.title`.
+
+## Fichiers
+- app/src/components/SalonPlaybackPanel.tsx
+- app/src/pages/SalonPage.tsx
+- modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+  Salon Spotify plein écran → pas de Jam dans la barre ; titre salon dans le header.
+
+================================================================================
+Fin MODIF 407 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 408 — Compteur auditeurs salon (badge playback)
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+Corriger le badge « 👥 X auditeur(s) » signalé comme bug dans SalonPlaybackPanel
+(layout queue-chat) : l'hôte était compté comme auditeur (1 seul → « 1 auditeur »),
+doublon avec l'absence d'info cohérente dans le header.
+
+## Cause
+- Socket `join_salon` incrémentait `listenersCount` pour tous, y compris l'hôte.
+- Badge affiché dans la barre compacte Spotify alors que le header n'affichait rien.
+
+## Correctifs
+- `backend/src/socket.ts` — incrément / décrément auditeurs uniquement si
+  `userId !== salon.hostId`.
+- `SalonPage.tsx` — compteur auditeurs dans le header (source unique plein écran).
+- `SalonPlaybackPanel.tsx` — retirer le badge en `salonQueueLayout` ; i18n sur overlay
+  théâtre YouTube.
+- `app/src/lib/salonAudience.ts` — helper + clés `salon.audience_one` / `audience_other`.
+- `MapSalonListenSheet.tsx` — même helper.
+
+## Fichiers
+- backend/src/socket.ts
+- app/src/lib/salonAudience.ts (nouveau)
+- app/src/components/SalonPlaybackPanel.tsx
+- app/src/pages/SalonPage.tsx
+- app/src/components/MapSalonListenSheet.tsx
+- app/src/locales/fr.json, en.json
+- modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+  Hôte seul → « 👥 0 auditeur » dans le header ; pas de badge dans la barre Spotify.
+  +1 auditeur connecté → « 👥 1 auditeur » mis à jour via salon_updated.
+
+================================================================================
+Fin MODIF 408 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 407 — Salon Spotify : masquer Jam, titre en tête de colonne
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+Dans le layout queue-chat (MODIF 406), retirer toute l'UI Jam visible et placer
+le titre du salon en haut de la colonne gauche (morceau en cours juste en dessous).
+
+## Frontend
+- `SalonPlaybackPanel.tsx` — `salonQueueLayout` : titre salon en `<h2>` en tête ;
+  pochette + morceau + chrono ; sections Jam hôte/participant masquées (backend inchangé).
+- `SalonPage.tsx` — header Spotify allégé (hôte + chrono) ; titre déplacé dans la colonne ;
+  badge plateforme retiré du pied de colonne ; recherche Spotify sans doublon de titre.
+- `SalonSpotifySearch.tsx` — prop `showCurrentTrack` (false dans le salon Spotify).
+
+## Fichiers
+- app/src/components/SalonPlaybackPanel.tsx
+- app/src/pages/SalonPage.tsx
+- app/src/components/SalonSpotifySearch.tsx
+- modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+  Salon Spotify plein écran → titre en haut à gauche, pas de carte/lien Jam.
+
+================================================================================
+Fin MODIF 407 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 409 — Stop Spotify : pause API + chrono salon
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+Le bouton ⏹ (Stop) dans SalonPlaybackPanel ne faisait que remettre le chrono
+Soundy à 0:00 en pause, sans couper la lecture Spotify de l'hôte.
+
+## Cause
+- Stop appelait uniquement `pause()` + `seek(0)` via `useSalonPlaybackSync`
+  (socket `sync_playback`) — horloge partagée uniquement, pas d'appel Spotify Web API.
+- OAuth Spotify sans scope `user-modify-playback-state`.
+
+## Correctifs
+- `backend/src/lib/spotifyPlayback.ts` (nouveau) — pause / play / stop (pause + seek 0)
+  via PUT `/v1/me/player/pause`, `/play`, `/seek`.
+- `backend/src/lib/spotifyOAuth.ts` — scope `user-modify-playback-state`.
+- `POST /api/salons/:id/playback/spotify-control` — action `pause` | `play` | `stop`.
+- `SalonPlaybackPanel.tsx` — play/pause/stop hôte Spotify appellent l'API puis le chrono ;
+  toast si appareil Spotify inactif ou scope manquant (reconnexion OAuth).
+- i18n — hint hôte Spotify mis à jour.
+
+## Fichiers
+- backend/src/lib/spotifyPlayback.ts (nouveau)
+- backend/src/lib/spotifyOAuth.ts
+- backend/src/routes/salons.ts
+- app/src/lib/api.ts
+- app/src/components/SalonPlaybackPanel.tsx
+- app/src/locales/fr.json, en.json
+- modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+  Salon Spotify, hôte avec Spotify ouvert → ⏹ met en pause Spotify et chrono à 0.
+  Spotify fermé → toast « Aucun appareil Spotify actif » ; chrono quand même à 0.
+  Reconnecter Spotify si compte lié avant l'ajout du scope playback.
+
+================================================================================
+Fin MODIF 409 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 410 — Header salon : réduire en haut + icône Jam compacte
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+- Déplacer le bouton « Réduire le salon » (chevron ↓) dans le header SalonPage,
+  à côté de « Quitter le salon », au lieu du overlay centré dans RoomTheaterLayout.
+- Ajouter une icône Jam compacte (popover) pour activer/partager le Jam Spotify
+  sans réafficher toute la carte Jam dans la barre queue-chat (MODIF 407).
+
+## Frontend
+- `SalonPage.tsx` — header : `SalonSpotifyJamButton` (Spotify) + bouton réduire
+  (`salon-header-icon-btn`) avant « Quitter le salon ».
+- `SalonSpotifyJamButton.tsx` (nouveau) — icône haut-parleur ; popover minimal :
+  hôte → coller/enregistrer lien Jam, ouvrir/modifier/retirer ; participant →
+  rejoindre si `spotifyJamUrl` présent (sinon masqué). PATCH settings inchangé.
+- `RoomTheaterLayout.tsx` — retrait du bouton `room-theater-minimize` overlay.
+- `index.css` — styles `.salon-header-icon-btn` (+ variante `--active-green`).
+
+## Fichiers
+- app/src/components/SalonSpotifyJamButton.tsx (nouveau)
+- app/src/pages/SalonPage.tsx
+- app/src/components/RoomTheaterLayout.tsx
+- app/src/index.css
+- modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+  Salon Spotify plein écran → ↓ et icône Jam en haut à droite du header.
+  Clic Jam hôte → popover lien ; enregistrer → icône verte, participants voient l’icône.
+  Salon YouTube → ↓ en header, pas d’icône Jam.
+
+================================================================================
+Fin MODIF 410 - 2026-06-10
+================================================================================
