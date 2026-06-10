@@ -31,6 +31,14 @@ import {
 import { SETTINGS_CHANGED_EVENT } from '../lib/settings';
 import { formatCompactCount } from '../lib/formatCount';
 import { dicebearAdventurerAvatar } from '../lib/avatarUrl';
+import {
+  collectLiveCountryOptions,
+  filterLivesByCountry,
+  getLivesCountryFilter,
+  hasLivesOutsideFrance,
+  LIVES_COUNTRY_FILTER_ALL,
+  setLivesCountryFilter,
+} from '../lib/liveCountry';
 import type { Live } from '../types';
 import { StartLiveMediaSetupModal } from '../components/StartLiveMediaSetupModal';
 
@@ -138,6 +146,7 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [panelPrefs, setPanelPrefs] = useState<NearbyPanelPreferences>(() => getNearbyPanelPreferences());
+  const [countryFilter, setCountryFilter] = useState(() => getLivesCountryFilter());
 
   useEffect(() => {
     const syncPrefs = () => setPanelPrefs(getNearbyPanelPreferences());
@@ -203,10 +212,30 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
     return () => clearInterval(interval);
   }, [loadLives]);
 
-  const sortedLives = useMemo(
-    () => sortLivesForNearby(lives, panelPrefs.sortBy),
-    [lives, panelPrefs.sortBy]
+  const showCountryFilter = useMemo(() => hasLivesOutsideFrance(lives), [lives]);
+
+  const countryOptions = useMemo(() => collectLiveCountryOptions(lives), [lives]);
+
+  useEffect(() => {
+    if (!showCountryFilter && countryFilter !== LIVES_COUNTRY_FILTER_ALL) {
+      const reset = setLivesCountryFilter(LIVES_COUNTRY_FILTER_ALL);
+      setCountryFilter(reset);
+    }
+  }, [showCountryFilter, countryFilter]);
+
+  const filteredLives = useMemo(
+    () => (showCountryFilter ? filterLivesByCountry(lives, countryFilter) : lives),
+    [lives, countryFilter, showCountryFilter]
   );
+
+  const sortedLives = useMemo(
+    () => sortLivesForNearby(filteredLives, panelPrefs.sortBy),
+    [filteredLives, panelPrefs.sortBy]
+  );
+
+  const updateCountryFilter = useCallback((code: string) => {
+    setCountryFilter(setLivesCountryFilter(code));
+  }, []);
 
   const changeRadius = (km: number) => {
     if (!Number.isFinite(km)) return;
@@ -307,11 +336,22 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
           </h2>
           <div className="flex items-center gap-1.5">
             <button
+              type="button"
               onClick={startMyLive}
               disabled={starting || mediaSetupOpen}
-              className="px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded-full text-xs font-bold text-white disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded-full text-xs font-bold text-white disabled:opacity-50"
             >
-              {starting ? '...' : 'Démarrer mon Live'}
+              {starting ? (
+                '...'
+              ) : (
+                <>
+                  <span
+                    className="w-1.5 h-1.5 shrink-0 rounded-full bg-white animate-pulse"
+                    aria-hidden="true"
+                  />
+                  <span className="leading-none">Démarrer mon Live</span>
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -333,6 +373,31 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
               size="compact"
               accent="red"
             />
+
+            {showCountryFilter && (
+              <div>
+                <p className="text-[10px] text-gray-400 mb-1.5">Pays</p>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    type="button"
+                    onClick={() => updateCountryFilter(LIVES_COUNTRY_FILTER_ALL)}
+                    className={filterChipClass(countryFilter === LIVES_COUNTRY_FILTER_ALL)}
+                  >
+                    Tous
+                  </button>
+                  {countryOptions.map((opt) => (
+                    <button
+                      key={opt.code}
+                      type="button"
+                      onClick={() => updateCountryFilter(opt.code)}
+                      className={filterChipClass(countryFilter === opt.code)}
+                    >
+                      {opt.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div>
               <p className="text-[10px] text-gray-400 mb-1.5">Trier par</p>
@@ -366,14 +431,18 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
       {!loading && sortedLives.length === 0 && (
         <div className="p-8 text-center">
           <p className="text-gray-400 text-sm">
-            {distanceFilterActive
-              ? `Aucun live en cours dans un rayon de ${geo.radiusKm} km`
-              : 'Aucun live en cours pour le moment'}
+            {showCountryFilter && countryFilter !== LIVES_COUNTRY_FILTER_ALL
+              ? 'Aucun live en cours dans ce pays'
+              : distanceFilterActive
+                ? `Aucun live en cours dans un rayon de ${geo.radiusKm} km`
+                : 'Aucun live en cours pour le moment'}
           </p>
           <p className="text-gray-500 text-xs mt-2">
-            {distanceFilterActive
-              ? 'Élargissez le rayon, changez de ville ou désactivez le tri par distance'
-              : 'Revenez plus tard ou lancez votre propre session'}
+            {showCountryFilter && countryFilter !== LIVES_COUNTRY_FILTER_ALL
+              ? 'Choisissez un autre pays ou affichez tous les lives'
+              : distanceFilterActive
+                ? 'Élargissez le rayon, changez de ville ou désactivez le tri par distance'
+                : 'Revenez plus tard ou lancez votre propre session'}
           </p>
         </div>
       )}
@@ -417,3 +486,5 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
     </div>
   );
 }
+
+

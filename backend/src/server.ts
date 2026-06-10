@@ -1,10 +1,12 @@
 import express from 'express';
 import compression from 'compression';
 import cors from 'cors';
+import helmet from 'helmet';
 import fs from 'fs';
 import path from 'path';
 import rateLimit from 'express-rate-limit';
 import { authRouter } from './routes/auth';
+import { oauthRouter } from './routes/oauth';
 import { geoRouter } from './routes/geo';
 import { salonsRouter } from './routes/salons';
 import { livesRouter } from './routes/lives';
@@ -12,6 +14,8 @@ import { chatRouter } from './routes/chat';
 import { dmRouter } from './routes/dm';
 import { groupsRouter } from './routes/groups';
 import { giftsRouter } from './routes/gifts';
+import { donationsRouter, handleStripeDonationWebhook } from './routes/donations';
+import { subscriptionsRouter, handleStripeSubscriptionWebhook } from './routes/subscriptions';
 import { networkRouter } from './routes/network';
 import { ratingsRouter } from './routes/ratings';
 import { notificationsRouter } from './routes/notifications';
@@ -25,6 +29,7 @@ import { legalRouter } from './routes/legal';
 import { analyticsRouter } from './routes/analytics';
 import { accessRouter } from './routes/access';
 import { newsRouter } from './routes/news';
+import { trendingRouter } from './routes/trending';
 import { getPublicDir, getMsdevConfigPath } from './paths';
 
 export const app = express();
@@ -34,7 +39,7 @@ const PHONE_PREVIEW_HTML = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>📱 Soundly — Phone Preview</title>
+  <title>📱 Soundy — Phone Preview</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -155,7 +160,7 @@ const PHONE_PREVIEW_HTML = `<!DOCTYPE html>
 </head>
 <body>
   <div class="header">
-    <h1>📱 Soundly — Aperçu Téléphone</h1>
+    <h1>📱 Soundy — Aperçu Téléphone</h1>
     <p>apptel &rarr; <a href="/tel/" target="_blank">localhost:4080/tel</a></p>
   </div>
   <div class="size-bar">
@@ -189,7 +194,7 @@ const PHONE_PREVIEW_HTML = `<!DOCTYPE html>
           </div>
         </div>
         <div class="island"></div>
-        <iframe class="app-frame" id="iframe" src="/tel/" title="Soundly Tel" allow="autoplay; camera; microphone; geolocation"></iframe>
+        <iframe class="app-frame" id="iframe" src="/tel/" title="Soundy Tel" allow="autoplay; camera; microphone; geolocation"></iframe>
         <div class="home"></div>
         <button class="reload-btn" onclick="reloadApp()" title="Recharger l'app">↻ reload</button>
       </div>
@@ -242,9 +247,69 @@ const PHONE_PREVIEW_HTML = `<!DOCTYPE html>
 </html>`;
 
 
-app.set('trust proxy', true);
+function isMsdevRuntime(): boolean {
+  return process.env.APP_ENV === 'msdev' || process.env.MSENV === 'msdev';
+}
+
+function resolveCorsOrigin(): cors.CorsOptions['origin'] {
+  const configured = process.env.CORS_ORIGIN?.trim();
+  if (isMsdevRuntime() || !configured) return '*';
+  const origins = configured.split(',').map((o) => o.trim()).filter(Boolean);
+  if (origins.length === 0) return '*';
+  if (origins.length === 1) return origins[0];
+  return origins;
+}
+
+app.set('trust proxy', 1);
 app.use(compression());
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        // Ne pas forcer upgrade-insecure-requests : casse http://IP (scripts → cert auto-signé)
+        // et double charge avec Caddy sur getsoundy.com.
+        'upgrade-insecure-requests': null,
+        'default-src': ["'self'"],
+        'script-src': ["'self'", "'unsafe-inline'", 'https://www.youtube.com', 'https://s.ytimg.com', 'https://js.stripe.com'],
+        'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        'img-src': ["'self'", 'data:', 'blob:', 'https:', 'http:'],
+        'font-src': ["'self'", 'data:', 'https://fonts.gstatic.com'],
+        'connect-src': ["'self'", 'wss:', 'ws:', 'https:', 'http:'],
+        'media-src': ["'self'", 'blob:', 'https:'],
+        'frame-src': [
+          "'self'",
+          'https://www.youtube.com',
+          'https://www.youtube-nocookie.com',
+          'https://open.spotify.com',
+          'https://js.stripe.com',
+          'https://hooks.stripe.com',
+        ],
+        'worker-src': ["'self'", 'blob:'],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+    // HSTS via helmet casse http://IP (navigateur force https + cert auto-signé → JS bloqué).
+    // Caddy gère TLS sur getsoundy.com ; pas de HSTS sur l'accès IP transition.
+    strictTransportSecurity: false,
+  })
+);
+app.use(
+  cors({
+    origin: resolveCorsOrigin(),
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Auth-Token'],
+  })
+);
+app.post(
+  '/api/donations/webhook',
+  express.raw({ type: 'application/json' }),
+  (req, res) => void handleStripeDonationWebhook(req, res)
+);
+app.post(
+  '/api/subscriptions/webhook',
+  express.raw({ type: 'application/json' }),
+  (req, res) => void handleStripeSubscriptionWebhook(req, res)
+);
 app.use(express.json({ limit: '15mb' }));
 
 const publicDir = getPublicDir();
@@ -297,10 +362,40 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de tentatives. Réessayez dans 15 minutes.' },
-  skip: (req) => process.env.APP_ENV === 'msdev' || process.env.MSENV === 'msdev' || req.path === '/check-username',
+  skip: (req) => isMsdevRuntime(),
+});
+
+const reportsLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de signalements. Réessayez plus tard.' },
+  skip: () => isMsdevRuntime(),
+});
+
+const donationsLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives de don. Réessayez plus tard.' },
+  skip: () => isMsdevRuntime(),
+});
+
+const subscriptionsLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives d’abonnement. Réessayez plus tard.' },
+  skip: () => isMsdevRuntime(),
 });
 
 app.use('/api/auth', authLimiter, authRouter);
+// OAuth routes are mounted separately: the auth code exchange is naturally
+// rate-limited by Google/Facebook, and callback URLs must not be blocked.
+app.use('/api/auth', oauthRouter);
 app.use('/api/access', accessRouter);
 app.use('/api/geo', geoRouter);
 app.use('/api/salons', salonsRouter);
@@ -309,6 +404,8 @@ app.use('/api/chat', chatRouter);
 app.use('/api/dm', dmRouter);
 app.use('/api/dm/groups', groupsRouter);
 app.use('/api/gifts', giftsRouter);
+app.use('/api/donations', donationsLimiter, donationsRouter);
+app.use('/api/subscriptions', subscriptionsLimiter, subscriptionsRouter);
 app.use('/api/network', networkRouter);
 app.use('/api/ratings', ratingsRouter);
 app.use('/api/notifications', notificationsRouter);
@@ -318,9 +415,11 @@ app.use('/api/stories', storiesRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/platforms', platformsRouter);
 app.use('/api/msdev', msdevRouter);
+app.use('/api/legal/reports', reportsLimiter);
 app.use('/api/legal', legalRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/news', newsRouter);
+app.use('/api/trending', trendingRouter);
 
 app.get('/api/config', (_req, res) => {
   const configPath = getMsdevConfigPath();
@@ -338,7 +437,7 @@ app.get('/api/config', (_req, res) => {
 app.get('/health', (_req, res) => {
   res.json({
     status: 'OK',
-    app: 'Soundly',
+    app: 'Soundy',
     env: process.env.APP_ENV || 'development',
     timestamp: new Date(),
   });
@@ -366,7 +465,7 @@ app.get('/msdev-mobile', (req, res) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Soundly — Smartphone</title>
+  <title>Soundy — Smartphone</title>
   <style>
     body { font-family: system-ui, sans-serif; background: #0b0b0f; color: #e5e7eb; margin: 0; padding: 1.5rem; text-align: center; }
     h1 { font-size: 1.25rem; color: #c4b5fd; }
@@ -377,7 +476,7 @@ app.get('/msdev-mobile', (req, res) => {
   </style>
 </head>
 <body>
-  <h1>Soundly sur smartphone</h1>
+  <h1>Soundy sur smartphone</h1>
   <p>Ouvrez cette URL <strong>sur le téléphone</strong> (même Wi‑Fi que le PC) :</p>
   <p><a href="${mobileUrl}">${mobileUrl}</a></p>
   <img src="${qrApi}" width="220" height="220" alt="QR code" />
@@ -397,7 +496,7 @@ app.get('/clear-pwa', (_req, res) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Soundly \u2014 Nettoyage cache PWA</title>
+  <title>Soundy \u2014 Nettoyage cache PWA</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, sans-serif; background: #0b0b0f; color: #e5e7eb; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 1.5rem; text-align: center; gap: 1rem; }
@@ -471,7 +570,7 @@ app.get('*', (req, res, next) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.sendFile(indexPath);
   } else {
-    res.status(404).send('Soundly app not built. Run: npm run app:build');
+    res.status(404).send('Soundy app not built. Run: npm run app:build');
   }
 });
 

@@ -2,17 +2,11 @@ import { Router, Request, Response } from 'express';
 import { db } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
 import { getIo } from '../lib/ioInstance';
-import { notifyHostLiveDon } from '../lib/notifications';
+import { isDonationSimulationMode } from '../lib/donations';
 
 export const giftsRouter = Router();
 
 const GIFT_TYPES = new Set(['note', 'heart', 'star', 'crown', 'don']);
-const DON_AMOUNT_MIN = 1;
-const DON_AMOUNT_MAX = 500;
-
-function isValidDonAmount(amount: number): boolean {
-  return Number.isInteger(amount) && amount >= DON_AMOUNT_MIN && amount <= DON_AMOUNT_MAX;
-}
 
 function emitGiftAnimation(
   liveId: string,
@@ -64,15 +58,14 @@ giftsRouter.post('/send', authenticateJWT, (req: Request, res: Response) => {
     return;
   }
 
-  let amount = 0;
   if (giftType === 'don') {
-    amount = Math.trunc(Number(rawAmount));
-    if (!isValidDonAmount(amount)) {
-      res.status(400).json({
-        error: `Montant de don invalide (${DON_AMOUNT_MIN} à ${DON_AMOUNT_MAX} €)`,
-      });
-      return;
-    }
+    res.status(403).json({
+      error: isDonationSimulationMode()
+        ? 'Utilisez le flux de don sécurisé (/api/donations/simulate)'
+        : 'Utilisez le paiement sécurisé via Stripe (/api/donations/create-intent)',
+      code: 'DONATION_PAYMENT_REQUIRED',
+    });
+    return;
   }
 
   const live = db.lives.get(liveId);
@@ -87,7 +80,7 @@ giftsRouter.post('/send', authenticateJWT, (req: Request, res: Response) => {
     senderId: userId,
     senderName: user.username,
     giftType,
-    amount,
+    amount: 0,
     timestamp: Date.now(),
   };
   db.gifts.push(gift);
@@ -97,20 +90,9 @@ giftsRouter.post('/send', authenticateJWT, (req: Request, res: Response) => {
     senderId: userId,
     giftType,
     senderName: user.username,
-    amount,
+    amount: 0,
     timestamp: gift.timestamp,
   });
-
-  if (giftType === 'don') {
-    notifyHostLiveDon({
-      hostId: live.hostId,
-      senderId: userId,
-      senderName: user.username,
-      senderAvatarUrl: user.avatarUrl,
-      amount,
-      liveId,
-    });
-  }
 
   res.status(201).json({ gift });
 });

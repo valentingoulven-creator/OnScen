@@ -1,7 +1,8 @@
-import { db, User, type MusicPlatform, type PlaybackState, type RelationshipStatus } from '../models/schema';
+import { db, User, type MusicPlatform, type PlaybackState } from '../models/schema';
 import { ensurePlatformAccountsFromLegacy, publicPlatformLinks } from './platformConnect';
 import { getHostRatingSummary } from './ratings';
 import { migrateUserProfileType } from './profileTypes';
+import { VALID_RELATIONSHIP_STATUSES } from './relationshipStatus';
 import { isFollowing } from './follows';
 import { getFavoriteCount } from './favorites';
 import {
@@ -10,6 +11,16 @@ import {
   isUserHostingLive,
 } from './liveStatus';
 import { getAccountStatus, isAccessAdmin } from './accessControl';
+import { getCreatorSubscriberCount, getActiveSubscription } from './subscriptions';
+import {
+  creatorMeetsMonetizationAge,
+  MAX_PROFILE_AGE,
+  MIN_PROFILE_AGE,
+} from './ageGates';
+import { isAccountValidated, userMeetsHeartAge } from './canSendHeart';
+
+export { MIN_PROFILE_AGE, MAX_PROFILE_AGE, MIN_LIVE_AGE, CREATOR_MONETIZATION_MIN_AGE } from './ageGates';
+export { userMeetsLiveAge, creatorMeetsMonetizationAge } from './ageGates';
 
 export const DEFAULT_INTERESTS = [
   'Découvertes live',
@@ -19,12 +30,59 @@ export const DEFAULT_INTERESTS = [
 
 export const DEFAULT_GENRES = ['Électro', 'Indie', 'Hip-hop'];
 
-export const MAX_PROFILE_PHOTOS = 6;
+export const MAX_PROFILE_PHOTOS = 5;
 
-export const MIN_PROFILE_AGE = 13;
-export const MAX_PROFILE_AGE = 120;
+export { applyRelationshipSettings } from './relationshipStatus';
 
-const VALID_RELATIONSHIP_STATUSES: RelationshipStatus[] = ['celibataire', 'en_couple'];
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export function computeAgeFromBirthDate(birthDate: string, refDate = new Date()): number {
+  const [y, m, d] = birthDate.split('-').map(Number);
+  const birth = new Date(y, m - 1, d);
+  if (birth.getFullYear() !== y || birth.getMonth() !== m - 1 || birth.getDate() !== d) {
+    throw new Error('invalid date');
+  }
+  let age = refDate.getFullYear() - birth.getFullYear();
+  const monthDiff = refDate.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && refDate.getDate() < birth.getDate())) {
+    age -= 1;
+  }
+  return age;
+}
+
+export function parseBirthDateInput(
+  raw: unknown
+): { ok: true; value: string | null } | { ok: false; error: string } {
+  if (raw === null || raw === '') {
+    return { ok: true, value: null };
+  }
+  if (typeof raw !== 'string' || !ISO_DATE_RE.test(raw)) {
+    return { ok: false, error: 'Date de naissance invalide (format AAAA-MM-JJ attendu).' };
+  }
+  const [y, m, d] = raw.split('-').map(Number);
+  const birth = new Date(y, m - 1, d);
+  if (birth.getFullYear() !== y || birth.getMonth() !== m - 1 || birth.getDate() !== d) {
+    return { ok: false, error: 'Date de naissance invalide.' };
+  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (birth > today) {
+    return { ok: false, error: 'La date de naissance ne peut pas être dans le futur.' };
+  }
+  let age: number;
+  try {
+    age = computeAgeFromBirthDate(raw);
+  } catch {
+    return { ok: false, error: 'Date de naissance invalide.' };
+  }
+  if (age < MIN_PROFILE_AGE || age > MAX_PROFILE_AGE) {
+    return {
+      ok: false,
+      error: `L'âge doit être entre ${MIN_PROFILE_AGE} et ${MAX_PROFILE_AGE} ans.`,
+    };
+  }
+  return { ok: true, value: raw };
+}
 
 export function parseAgeInput(
   raw: unknown
@@ -34,7 +92,7 @@ export function parseAgeInput(
   }
   const n = typeof raw === 'number' ? raw : Number(raw);
   if (!Number.isFinite(n) || !Number.isInteger(n)) {
-    return { ok: false, error: "L'âge doit être un nombre entier entre 13 et 120." };
+    return { ok: false, error: `L'âge doit être un nombre entier entre ${MIN_PROFILE_AGE} et 120.` };
   }
   if (n < MIN_PROFILE_AGE || n > MAX_PROFILE_AGE) {
     return {
@@ -45,42 +103,100 @@ export function parseAgeInput(
   return { ok: true, value: n };
 }
 
+/** Défaut : masquée. Rétrocompat showAge (true ⇒ visible). */
+export function isBirthDateHiddenOnProfile(user: User): boolean {
+  if (user.hideBirthDateOnProfile !== undefined) return user.hideBirthDateOnProfile;
+  if (user.showAge === true) return false;
+  return true;
+}
+
 export function applyAgeSettings(
   user: User,
-  body: { age?: unknown; showAge?: unknown }
+  body: {
+    age?: unknown;
+    showAge?: unknown;
+    birthDate?: unknown;
+    hideBirthDateOnProfile?: unknown;
+  }
 ): { ok: true } | { ok: false; error: string } {
-  if (body.age !== undefined) {
+  if (body.birthDate !== undefined) {
+    const parsed = parseBirthDateInput(body.birthDate);
+    if (!parsed.ok) return parsed;
+    if (parsed.value === null) {
+      delete user.birthDate;
+      delete user.age;
+    } else {
+      user.birthDate = parsed.value;
+      user.age = computeAgeFromBirthDate(parsed.value);
+    }
+  } else if (body.age !== undefined) {
     const parsed = parseAgeInput(body.age);
     if (!parsed.ok) return parsed;
     if (parsed.value === null) {
       delete user.age;
+      delete user.birthDate;
     } else {
       user.age = parsed.value;
     }
   }
-  if (body.showAge !== undefined) {
+  if (body.hideBirthDateOnProfile !== undefined) {
+    if (typeof body.hideBirthDateOnProfile !== 'boolean') {
+      return { ok: false, error: 'hideBirthDateOnProfile doit être un booléen.' };
+    }
+    user.hideBirthDateOnProfile = body.hideBirthDateOnProfile;
+    user.showAge = !body.hideBirthDateOnProfile;
+  } else if (body.showAge !== undefined) {
     if (typeof body.showAge !== 'boolean') {
       return { ok: false, error: 'showAge doit être un booléen.' };
     }
     user.showAge = body.showAge;
+    user.hideBirthDateOnProfile = !body.showAge;
   }
   return { ok: true };
 }
 
+function publicBirthDateField(u: User, isOwner: boolean): string | undefined {
+  if (!u.birthDate || !isOwner) return undefined;
+  return u.birthDate;
+}
+
 function publicAgeField(u: User, isOwner: boolean): number | undefined {
-  if (u.age == null) return undefined;
-  if (isOwner || u.showAge === true) return u.age;
+  const derivedAge = u.birthDate ? computeAgeFromBirthDate(u.birthDate) : u.age;
+  if (derivedAge == null) return undefined;
+  if (isOwner || !isBirthDateHiddenOnProfile(u)) return derivedAge;
   return undefined;
 }
 
 /** Rétrocompat : utilisateurs sans champ ou valeur invalide → non affiché (undefined). */
 export function migrateUserRelationshipStatus(user: User): boolean {
-  if (user.relationshipStatus === undefined) return false;
+  let changed = false;
+  if (user.relationshipStatus === undefined) {
+    if (user.relationshipStatusCustom) {
+      delete user.relationshipStatusCustom;
+      return true;
+    }
+    return false;
+  }
   if (!VALID_RELATIONSHIP_STATUSES.includes(user.relationshipStatus)) {
     delete user.relationshipStatus;
+    delete user.relationshipStatusCustom;
     return true;
   }
-  return false;
+  if (user.relationshipStatus === 'autre') {
+    const custom = user.relationshipStatusCustom?.trim();
+    if (!custom) {
+      delete user.relationshipStatus;
+      delete user.relationshipStatusCustom;
+      changed = true;
+    } else if (custom !== user.relationshipStatusCustom) {
+      user.relationshipStatusCustom = custom.slice(0, 80);
+      changed = true;
+    }
+  } else if (user.relationshipStatusCustom) {
+    delete user.relationshipStatusCustom;
+    changed = true;
+  }
+  return changed;
 }
 
 export function migrateAllUsersRelationshipStatus(): number {
@@ -99,20 +215,46 @@ export function migrateAllUsersProfileType(): number {
   return changed;
 }
 
+function isDicebearAvatarUrl(url: string): boolean {
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  try {
+    return new URL(trimmed).hostname.includes('api.dicebear.com');
+  } catch {
+    return trimmed.includes('api.dicebear.com');
+  }
+}
+
 export function normalizeProfilePhotos(user: User): string[] {
-  const fromList = (user.profilePhotos ?? []).map((u) => u.trim()).filter(Boolean);
+  const fromList = (user.profilePhotos ?? [])
+    .map((u) => u.trim())
+    .filter(Boolean)
+    .filter((u) => !isDicebearAvatarUrl(u));
   if (fromList.length > 0) return fromList.slice(0, MAX_PROFILE_PHOTOS);
-  if (user.avatarUrl?.trim()) return [user.avatarUrl.trim()];
+  const avatar = user.avatarUrl?.trim();
+  if (avatar && !isDicebearAvatarUrl(avatar)) return [avatar];
   return [];
 }
 
 export function syncProfilePhotos(user: User, photos: string[]): void {
-  const cleaned = photos.map((u) => u.trim()).filter(Boolean).slice(0, MAX_PROFILE_PHOTOS);
+  const cleaned = photos
+    .map((u) => u.trim())
+    .filter(Boolean)
+    .filter((u) => !isDicebearAvatarUrl(u))
+    .slice(0, MAX_PROFILE_PHOTOS);
   user.profilePhotos = cleaned;
   user.avatarUrl = cleaned[0] || user.avatarUrl;
 }
 
 export function applyProfileDefaults(user: User): User {
+  if (user.hideBirthDateOnProfile === undefined && user.showAge === undefined) {
+    user.hideBirthDateOnProfile = true;
+    user.showAge = false;
+  } else if (user.hideBirthDateOnProfile === undefined) {
+    user.hideBirthDateOnProfile = user.showAge !== true;
+  } else if (user.showAge === undefined) {
+    user.showAge = !user.hideBirthDateOnProfile;
+  }
   if (!user.bio) {
     user.bio = 'Passionné·e de musique — je partage mes sessions et découvre des sons autour de moi.';
   }
@@ -198,8 +340,16 @@ export function publicProfile(u: User, isOwner = false, viewerId?: string) {
   const hostRating = isHostProfile ? getHostRatingSummary(snapshot.id, viewerId) : undefined;
   const following =
     viewerId && viewerId !== snapshot.id && !isOwner ? isFollowing(viewerId, snapshot.id) : undefined;
+  const followingMe =
+    viewerId && viewerId !== snapshot.id && !isOwner ? isFollowing(snapshot.id, viewerId) : undefined;
   const activeSalon = getActiveSalonForHost(snapshot.id);
   const isLive = isUserHostingLive(snapshot.id);
+  const activeSub =
+    viewerId && viewerId !== snapshot.id
+      ? getActiveSubscription(viewerId, snapshot.id)
+      : null;
+  const subscriberCount =
+    isHostProfile || stats.salonsHosted > 0 ? getCreatorSubscriberCount(snapshot.id) : undefined;
   return {
     id: snapshot.id,
     username: snapshot.username,
@@ -218,6 +368,9 @@ export function publicProfile(u: User, isOwner = false, viewerId?: string) {
     listeningRole: snapshot.listeningRole,
     profileType: snapshot.profileType,
     relationshipStatus: snapshot.relationshipStatus,
+    relationshipStatusCustom: snapshot.relationshipStatusCustom,
+    birthDate: publicBirthDateField(snapshot, isOwner),
+    hideBirthDateOnProfile: isOwner ? isBirthDateHiddenOnProfile(snapshot) : undefined,
     age: publicAgeField(snapshot, isOwner),
     showAge: isOwner ? snapshot.showAge === true : undefined,
     memberSince: snapshot.memberSince,
@@ -231,11 +384,21 @@ export function publicProfile(u: User, isOwner = false, viewerId?: string) {
     favoritesCount: snapshot.favoritesCountOverride ?? getFavoriteCount(snapshot.id),
     hostRating,
     isFollowing: following,
+    isFollowingMe: followingMe,
+    isSupporter: activeSub != null,
+    supporterTier: activeSub?.tierLabel,
+    monetizationEligible: creatorMeetsMonetizationAge(snapshot.age),
+    accountValidated: isAccountValidated(snapshot),
+    meetsHeartAge: userMeetsHeartAge(snapshot),
+    subscriberCount,
     isLive,
     liveId: isLive ? getActiveLiveIdForHost(snapshot.id) : undefined,
     liveViewersCount: isLive ? getLiveViewersCountForHost(snapshot.id) : undefined,
     salonId: activeSalon?.id,
     salonTitle: activeSalon?.title || activeSalon?.playbackState?.title || undefined,
     currentListening: getCurrentListeningForUser(snapshot.id),
+    instagramHandle: snapshot.instagramHandle,
+    youtubeChannel: snapshot.youtubeChannel,
+    spotifyUrl: snapshot.spotifyUrl,
   };
 }

@@ -1,10 +1,14 @@
-/** Note affichée aux spectateurs (flux host non relayé en msdev). */
+/** Note affichée aux spectateurs quand la caméra est active mais le flux WebRTC n’est pas encore reçu. */
 export const LIVE_CAMERA_VIEWER_NOTE =
-  'Le host diffuse en caméra. En démo msdev, seul le host voit son flux vidéo local.';
+  'Le host diffuse en caméra. Connexion au flux vidéo en cours…';
+
+/** Fichier vidéo local hôte — non relayé via WebRTC. */
+export const LIVE_CAMERA_VIEWER_FILE_NOTE =
+  'Le host diffuse une vidéo locale (aperçu non relayé aux spectateurs).';
 
 /** Contexte iframe : la caméra est souvent bloquée sans permission `allow="camera"`. */
 export const LIVE_CAMERA_IFRAME_NOTE =
-  'Si Soundly est intégré dans une autre page (iframe), la caméra peut être bloquée. Ouvrez l’app dans un onglet dédié ou demandez l’attribut allow="camera; microphone".';
+  'Si Soundy est intégré dans une autre page (iframe), la caméra peut être bloquée. Ouvrez l’app dans un onglet dédié ou demandez l’attribut allow="camera; microphone".';
 
 /** PWA / écran d’accueil iOS : parfois permissions limitées au premier lancement. */
 export const LIVE_CAMERA_PWA_NOTE =
@@ -29,7 +33,7 @@ export const LIVE_CAMERA_UNSUPPORTED_BROWSER =
   'Votre navigateur ne prend pas en charge l’accès caméra (getUserMedia). Mettez à jour Chrome, Edge, Opera ou Safari, ou utilisez « Choisir une vidéo ».';
 
 export const LIVE_CAMERA_IFRAME_BLOCKED =
-  'Caméra indisponible dans cette fenêtre intégrée (iframe). Ouvrez Soundly dans un onglet complet.';
+  'Caméra indisponible dans cette fenêtre intégrée (iframe). Ouvrez Soundy dans un onglet complet.';
 
 export const LIVE_CAMERA_INVALID_FILE =
   'Choisissez un fichier vidéo (MP4, WebM, etc.).';

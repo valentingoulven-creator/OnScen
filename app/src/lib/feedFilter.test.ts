@@ -47,26 +47,32 @@ describe('applyFeedPreferences', () => {
     const prefs: FeedUserPrefs = { ...DEFAULT_FEED_USER_PREFS, audienceScope: 'favorites_only' };
     const fav = new Set(['b']);
     const ids = applyFeedPreferences(posts, prefs, { viewerId, favoriteIds: fav }).map((p) => p.id);
-    expect(ids).toEqual(['2', '4']);
+    expect(ids).toEqual(['4', '2']);
   });
 
   it('filtre par type de profil dj', () => {
     const prefs: FeedUserPrefs = { ...DEFAULT_FEED_USER_PREFS, profileTypes: ['dj'] };
     const ids = applyFeedPreferences(posts, prefs, { viewerId }).map((p) => p.id);
-    expect(ids).toEqual(['1', '4']);
+    expect(ids).toEqual(['4', '1']);
   });
 
   it('filtre par affinités musicales', () => {
     const prefs: FeedUserPrefs = { ...DEFAULT_FEED_USER_PREFS, musicalAffinitiesOnly: true };
     const viewerTastes = { favoriteGenres: ['Jazz'] };
     const ids = applyFeedPreferences(posts, prefs, { viewerId, viewerTastes }).map((p) => p.id);
-    expect(ids).toEqual(['3', '4']);
+    expect(ids).toEqual(['4', '3']);
   });
 
-  it('place les favoris en premier', () => {
+  it('place les favoris en premier, triés par createdAt dans chaque groupe', () => {
     const prefs: FeedUserPrefs = { ...DEFAULT_FEED_USER_PREFS, favoritesFirst: true };
     const fav = new Set(['c']);
     const result = applyFeedPreferences(posts, prefs, { viewerId, favoriteIds: fav });
-    expect(result.map((p) => p.id)).toEqual(['3', '1', '2', '4']);
+    expect(result.map((p) => p.id)).toEqual(['3', '4', '2', '1']);
+  });
+
+  it('trie par date de publication (createdAt décroissant)', () => {
+    const prefs: FeedUserPrefs = { ...DEFAULT_FEED_USER_PREFS, favoritesFirst: false };
+    const result = applyFeedPreferences(posts, prefs, { viewerId });
+    expect(result.map((p) => p.id)).toEqual(['4', '3', '2', '1']);
   });
 });

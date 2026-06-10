@@ -39,6 +39,8 @@ export interface ChatPanelProps {
   chatBanned?: boolean;
   chatBanMessage?: string;
   onDeleteMessage?: (messageId: string) => void | Promise<void>;
+  /** Ouvre le flux de pourboire sécurisé (live uniquement) */
+  onOpenDonation?: (amount?: number) => void;
 }
 
 type FeedItem =
@@ -85,6 +87,7 @@ interface ChatRoomContextValue {
   sendError: string | null;
   reactionError: string | null;
   setReactionError: (error: string | null) => void;
+  onOpenDonation?: (amount?: number) => void;
   banModalTarget: { id: string; name: string } | null;
   reportContext: ReportContentContext | null;
   confirmBan: (opts: { permanent: boolean; durationMs?: number; scope: LiveBanScope }) => void;
@@ -116,6 +119,7 @@ function useChatRoom({
   chatBanned = false,
   chatBanMessage,
   onDeleteMessage,
+  onOpenDonation,
 }: ChatPanelProps): ChatRoomContextValue {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [reactions, setReactions] = useState<LiveChatReaction[]>([]);
@@ -328,6 +332,7 @@ function useChatRoom({
     sendError,
     reactionError,
     setReactionError,
+    onOpenDonation,
     banModalTarget,
     reportContext,
     confirmBan,
@@ -625,6 +630,7 @@ export function ChatInputBar({ className }: { className?: string }) {
     setReactionError,
     sendError,
     reactionError,
+    onOpenDonation,
   } = useChatRoomContext();
 
   return (
@@ -665,14 +671,17 @@ export function ChatInputBar({ className }: { className?: string }) {
                   ))}
                 </div>
                 <div className="border-t border-[#2d2d3d] px-2 py-2">
-                  <p className="text-[10px] font-bold text-pink-300/90 mb-1.5 px-1">Don</p>
+                  <p className="text-[10px] font-bold text-pink-300/90 mb-1.5 px-1">Pourboire</p>
                   <div className="grid grid-cols-3 gap-1 mb-2">
                     {LIVE_DON_TIERS.map((tier) => (
                       <button
                         key={tier}
                         type="button"
-                        disabled={reactionSending}
-                        onClick={() => sendReaction('don', tier)}
+                        disabled={!onOpenDonation}
+                        onClick={() => {
+                          setReactionMenuOpen(false);
+                          onOpenDonation?.(tier);
+                        }}
                         className="py-1.5 rounded-lg text-[10px] font-bold text-pink-200 bg-pink-950/40 border border-pink-500/30 hover:border-pink-400 disabled:opacity-50"
                       >
                         {tier} €
@@ -690,19 +699,20 @@ export function ChatInputBar({ className }: { className?: string }) {
                       value={donCustomAmount}
                       onChange={(e) => setDonCustomAmount(e.target.value)}
                       placeholder="€"
-                      disabled={reactionSending}
+                      disabled={!onOpenDonation}
                       className="flex-1 min-w-0 rounded-lg bg-[#1a1a26] border border-[#2d2d3d] px-2 py-1.5 text-[11px] text-white placeholder:text-gray-500 disabled:opacity-50"
                     />
                     <button
                       type="button"
-                      disabled={reactionSending}
+                      disabled={!onOpenDonation}
                       onClick={() => {
                         const amount = parseDonAmount(donCustomAmount);
                         if (amount == null) {
                           setReactionError(donAmountValidationMessage());
                           return;
                         }
-                        void sendReaction('don', amount);
+                        setReactionMenuOpen(false);
+                        onOpenDonation?.(amount);
                       }}
                       className="shrink-0 px-2 py-1.5 rounded-lg text-[10px] font-bold text-white bg-pink-600 hover:bg-pink-500 disabled:opacity-50"
                     >

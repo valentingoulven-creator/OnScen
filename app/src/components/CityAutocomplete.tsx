@@ -86,6 +86,7 @@ export function CityAutocomplete({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => setFocused(true)}
+        onKeyDown={(e) => { if (e.key === 'Escape') { setFocused(false); e.preventDefault(); } }}
         placeholder={placeholder}
         maxLength={80}
         autoComplete="off"
@@ -98,7 +99,7 @@ export function CityAutocomplete({
         <div
           id={listId}
           role="listbox"
-          className="absolute z-20 left-0 right-0 mt-1 rounded-xl border border-[#2d2d3d] bg-[#12121a] shadow-lg overflow-hidden"
+          className="absolute z-50 left-0 right-0 mt-1 rounded-xl border border-[#2d2d3d] bg-[#12121a] shadow-lg overflow-hidden"
         >
           <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500 border-b border-[#1e1e2f]">
             Suggestions
@@ -116,9 +117,10 @@ export function CityAutocomplete({
                     role="option"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => pick(s)}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-[#1a1a26] active:bg-[#252535]"
+                    className="w-full text-left px-4 py-2 hover:bg-[#1e1e2f] active:bg-[#252535] cursor-pointer"
                   >
-                    {s.label}
+                    <span className="block text-sm text-white">{s.label}</span>
+                    {s.subtitle && <span className="block text-xs text-gray-500">{s.subtitle}</span>}
                   </button>
                 </li>
               ))}

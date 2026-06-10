@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
-import { isDeliverableNotificationType } from '../lib/notifications';
+import { isDeliverableNotificationType, notifyHeartReceived } from '../lib/notifications';
 import {
   recordHeart,
   hasHeart,
@@ -10,6 +10,7 @@ import {
   notifyMatch,
   publicMatchDto,
 } from '../lib/matches';
+import { heartSendDeniedReason } from '../lib/canSendHeart';
 
 export const notificationsRouter = Router();
 
@@ -28,6 +29,8 @@ function publicNotification(n: (typeof db.notifications)[0]) {
     salonId: n.salonId,
     peerUserId: n.peerUserId,
     groupId: n.groupId,
+    postId: n.postId,
+    reelId: n.reelId,
   };
 }
 
@@ -91,6 +94,12 @@ notificationsRouter.post('/heart/:userId', authenticateJWT, (req: Request, res: 
     return;
   }
 
+  const heartDenied = heartSendDeniedReason(sender, recipient);
+  if (heartDenied) {
+    res.status(403).json({ error: heartDenied });
+    return;
+  }
+
   const existingMatch = findMatch(me, recipientId);
   if (existingMatch) {
     res.status(400).json({ error: 'Vous êtes déjà en match avec cette personne' });
@@ -109,6 +118,11 @@ notificationsRouter.post('/heart/:userId', authenticateJWT, (req: Request, res: 
   if (mutual) {
     notifyMatch(mutual, sender, recipient);
     matchDto = publicMatchDto(mutual, me);
+  } else {
+    notifyHeartReceived({
+      recipientId,
+      sender: { id: me, username: sender.username, avatarUrl: sender.avatarUrl },
+    });
   }
 
   res.status(201).json({

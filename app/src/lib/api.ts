@@ -1,10 +1,14 @@
+import i18n from '../i18n';
 import { serializeFeedAlgoForApi, type ReelFeedAlgorithmPreferences } from './reelFeedAlgorithm';
 
 const API = '/api';
 
+/** JWT hors Authorization pour ne pas écraser le Basic Auth Caddy (reverse proxy). */
+const AUTH_TOKEN_HEADER = 'X-Auth-Token';
+
 function headers(token?: string | null): HeadersInit {
   const h: HeadersInit = { 'Content-Type': 'application/json' };
-  if (token) h['Authorization'] = `Bearer ${token}`;
+  if (token) h[AUTH_TOKEN_HEADER] = token;
   return h;
 }
 
@@ -13,21 +17,30 @@ async function parseApiError(res: Response): Promise<string> {
   if (text) {
     try {
       const json = JSON.parse(text) as { error?: string };
-      if (json.error) return json.error;
+      if (json.error) {
+        if (json.error === 'Token manquant' || json.error === 'Token invalide') {
+          return i18n.t('errors.sessionExpired');
+        }
+        return json.error;
+      }
     } catch {
       if (text.length < 200) return text;
     }
   }
-  if (res.status === 413) {
-    return 'Profil trop volumineux (photos). Retirez une photo ou utilisez des images plus légères.';
-  }
-  if (res.status === 401) return 'Session expirée — reconnectez-vous';
-  if (res.status === 403) return 'Accès refusé';
-  return res.statusText || 'Erreur réseau';
+  if (res.status === 413) return i18n.t('errors.profileTooLarge');
+  if (res.status === 401) return i18n.t('errors.sessionExpired');
+  if (res.status === 403) return i18n.t('errors.forbidden');
+  if (res.status === 404) return i18n.t('errors.notFound');
+  if (res.status === 429) return i18n.t('errors.tooManyAttempts');
+  return res.statusText || i18n.t('errors.network');
 }
 
 async function request<T>(path: string, opts: RequestInit = {}, token?: string | null): Promise<T> {
-  const res = await fetch(`${API}${path}`, { ...opts, headers: { ...headers(token), ...opts.headers } });
+  const res = await fetch(`${API}${path}`, {
+    credentials: 'same-origin',
+    ...opts,
+    headers: { ...headers(token), ...opts.headers },
+  });
   if (!res.ok) {
     throw new Error(await parseApiError(res));
   }
@@ -51,6 +64,7 @@ export const api = {
   ) => {
     const res = await fetch(`${API}/auth/register`, {
       method: 'POST',
+      credentials: 'same-origin',
       headers: headers(),
       body: JSON.stringify({
         username,
@@ -73,6 +87,29 @@ export const api = {
     }
     return data;
   },
+
+  getOAuthProviders: () =>
+    request<{ google: boolean; facebook: boolean; youtube: boolean }>('/auth/providers', {}),
+
+  exchangeOAuthCode: (
+    code: string,
+    opts?: { acceptTerms?: boolean; termsVersion?: string }
+  ) =>
+    request<{
+      token?: string;
+      user?: import('../types').User;
+      isNew?: boolean;
+      pending?: boolean;
+      message?: string;
+      needsTermsAcceptance?: boolean;
+    }>('/auth/oauth/exchange', {
+      method: 'POST',
+      body: JSON.stringify({
+        code,
+        acceptTerms: opts?.acceptTerms,
+        termsVersion: opts?.termsVersion,
+      }),
+    }),
 
   getAccessConfig: () =>
     request<import('../types').PublicAccessConfig>('/access/config', {}),
@@ -163,7 +200,7 @@ export const api = {
       messageId?: string;
     }
   ) =>
-    request<{ ok: boolean; reportId: string }>('/legal/reports', {
+    request<{ ok: boolean; reportId: string; blocked?: boolean }>('/legal/reports', {
       method: 'POST',
       body: JSON.stringify(body),
     }, token),
@@ -245,6 +282,33 @@ export const api = {
 
   getYoutubeOAuthUrl: (token: string) =>
     request<{ url: string }>('/platforms/youtube/oauth/url', {}, token),
+
+  getSpotifyOAuthUrl: (token: string) =>
+    request<{ url: string }>('/platforms/spotify/oauth/url', {}, token),
+
+  getInstagramOAuthUrl: (token: string) =>
+    request<{ url: string }>('/platforms/instagram/oauth/url', {}, token),
+
+  getPlatformStatus: (token: string) =>
+    request<{
+      links: Array<{
+        platform: 'spotify' | 'youtube' | 'instagram';
+        externalUserId: string;
+        connectedAt: number;
+        displayName?: string;
+        avatarUrl?: string;
+        email?: string;
+        topArtists?: string[];
+        isRealOAuth?: boolean;
+      }>;
+      connectedPlatforms: ('spotify' | 'youtube')[];
+      youtubeOAuthAvailable: boolean;
+      spotifyOAuthAvailable: boolean;
+      instagramOAuthAvailable: boolean;
+      oauthConfigured?: boolean;
+      platformConnectionRequired?: boolean;
+      hasRealPlatformConnection?: boolean;
+    }>('/platforms/status', {}, token),
 
   getMsdevDualIp: () =>
     request<import('../types').MsdevDualIpConfig>('/msdev/dual-ip', {}),
@@ -574,6 +638,87 @@ export const api = {
       token
     ),
 
+  getDonationsConfig: (token?: string | null) =>
+    request<import('./donations').DonationsConfig>('/donations/config', {}, token),
+
+  simulateDonation: (token: string, liveId: string, amount: number, ageConfirmed: boolean) =>
+    request<{ gift: object; simulation: boolean; message: string }>(
+      '/donations/simulate',
+      {
+        method: 'POST',
+        body: JSON.stringify({ liveId, amount, ageConfirmed }),
+      },
+      token
+    ),
+
+  createDonationIntent: (token: string, liveId: string, amount: number, ageConfirmed: boolean) =>
+    request<{ clientSecret: string; paymentIntentId: string; amount: number; currency: string }>(
+      '/donations/create-intent',
+      {
+        method: 'POST',
+        body: JSON.stringify({ liveId, amount, ageConfirmed }),
+      },
+      token
+    ),
+
+  getSubscriptionsConfig: (token?: string | null) =>
+    request<import('./subscriptions').SubscriptionsConfig>('/subscriptions/config', {}, token),
+
+  getSubscriptionStatus: (
+    token: string,
+    params: { creatorId?: string; targetType?: 'creator' | 'platform' }
+  ) => {
+    const q = new URLSearchParams();
+    if (params.creatorId) q.set('creatorId', params.creatorId);
+    if (params.targetType) q.set('targetType', params.targetType);
+    const qs = q.toString();
+    return request<import('./subscriptions').SubscriptionStatus>(
+      `/subscriptions/status${qs ? `?${qs}` : ''}`,
+      {},
+      token
+    );
+  },
+
+  simulateSubscription: (
+    token: string,
+    body: {
+      creatorId?: string;
+      tierId: string;
+      targetType?: 'creator' | 'platform';
+      ageConfirmed: boolean;
+    }
+  ) =>
+    request<{ subscription: object; simulation: boolean; message: string }>(
+      '/subscriptions/simulate',
+      { method: 'POST', body: JSON.stringify(body) },
+      token
+    ),
+
+  createSubscriptionCheckout: (
+    token: string,
+    body: {
+      creatorId?: string;
+      tierId: string;
+      targetType?: 'creator' | 'platform';
+      ageConfirmed: boolean;
+    }
+  ) =>
+    request<{ checkoutUrl: string | null; sessionId: string }>(
+      '/subscriptions/create-checkout',
+      { method: 'POST', body: JSON.stringify(body) },
+      token
+    ),
+
+  createSubscriptionPortal: (
+    token: string,
+    body: { creatorId?: string; targetType?: 'creator' | 'platform' }
+  ) =>
+    request<{ portalUrl: string }>(
+      '/subscriptions/create-portal',
+      { method: 'POST', body: JSON.stringify(body) },
+      token
+    ),
+
   toggleGhost: (token: string, isGhostMode: boolean) =>
     request<{ isGhostMode: boolean }>('/auth/ghost-mode', { method: 'PATCH', body: JSON.stringify({ isGhostMode }) }, token),
 
@@ -592,17 +737,23 @@ export const api = {
       body: JSON.stringify({ password }),
     }, token),
 
+  exportUserData: async (token: string): Promise<object> => {
+    const res = await fetch(`${API}/auth/me/export`, { headers: headers(token) });
+    if (!res.ok) throw new Error(await parseApiError(res));
+    return res.json();
+  },
+
   updateProfile: (token: string, body: object) =>
     request<{ user: import('../types').User }>('/auth/profile', { method: 'PATCH', body: JSON.stringify(body) }, token),
 
-  connectPlatform: (token: string, platform: 'spotify' | 'youtube') =>
+  connectPlatform: (token: string, platform: 'spotify' | 'youtube' | 'instagram') =>
     request<{ ok: boolean; user: import('../types').User }>(
       `/platforms/${platform}/connect`,
       { method: 'POST' },
       token
     ),
 
-  disconnectPlatform: (token: string, platform: 'spotify' | 'youtube') =>
+  disconnectPlatform: (token: string, platform: 'spotify' | 'youtube' | 'instagram') =>
     request<{ ok: boolean; user: import('../types').User }>(
       `/platforms/${platform}/disconnect`,
       { method: 'DELETE' },
@@ -796,10 +947,29 @@ export const api = {
       token
     ),
 
-  getFeedPosts: (token: string, opts?: { limit?: number; before?: number }) => {
+  getFeedPosts: (
+    token: string,
+    opts?: {
+      limit?: number;
+      before?: number;
+      eventsOnly?: boolean;
+      userEventsOnly?: boolean;
+      eventDate?: string;
+      eventLocationSearch?: string;
+      eventCountry?: string;
+      /** When true, the server ranks posts with Algo Soundy instead of chronological order. */
+      algo?: boolean;
+    }
+  ) => {
     const params = new URLSearchParams();
     if (opts?.limit != null) params.set('limit', String(opts.limit));
     if (opts?.before != null) params.set('before', String(opts.before));
+    if (opts?.eventsOnly) params.set('eventsOnly', 'true');
+    if (opts?.userEventsOnly) params.set('userEventsOnly', 'true');
+    if (opts?.eventDate) params.set('eventDate', opts.eventDate);
+    if (opts?.eventLocationSearch) params.set('eventLocationSearch', opts.eventLocationSearch);
+    if (opts?.eventCountry) params.set('eventCountry', opts.eventCountry);
+    if (opts?.algo) params.set('algo', 'true');
     const qs = params.toString();
     return request<{ posts: import('../types').FeedPost[] }>(
       `/feed${qs ? `?${qs}` : ''}`,
@@ -808,7 +978,18 @@ export const api = {
     );
   },
 
-  createFeedPost: (token: string, body: { content: string; imageUrl?: string }) =>
+  createFeedPost: (
+    token: string,
+    body: {
+      content: string;
+      imageUrl?: string;
+      videoUrl?: string;
+      isEvent?: boolean;
+      eventDate?: string;
+      eventLocation?: string;
+      eventType?: 'dance' | 'chant' | 'autre';
+    }
+  ) =>
     request<{ post: import('../types').FeedPost }>(
       '/feed',
       { method: 'POST', body: JSON.stringify(body) },
@@ -893,6 +1074,7 @@ export const api = {
       imageUrl?: string;
       musicTrack?: import('../types').StoryMusicTrack;
       taggedUserIds?: string[];
+      visibility?: 'public' | 'followers';
     }
   ) =>
     request<{ story: import('../types').MapStory }>(
@@ -903,6 +1085,17 @@ export const api = {
 
   getNews: () =>
     request<{ news: import('../types').MusicNewsItem[] }>('/news', {}),
+
+  getTrendingUsers: (token: string, country?: string) => {
+    const params = new URLSearchParams();
+    if (country) params.set('country', country);
+    const qs = params.toString();
+    return request<{ users: import('../types').TrendingUser[] }>(
+      `/trending/users${qs ? `?${qs}` : ''}`,
+      {},
+      token
+    );
+  },
 
   getAnalyticsSummary: (token: string) =>
     request<{

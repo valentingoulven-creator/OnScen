@@ -4,6 +4,7 @@ import { getLegalDocument, listLegalDocumentKeys } from '../lib/legalDocuments';
 import { loadLegalPublisherConfig, isPublisherConfigComplete } from '../lib/legalPublisher';
 import { CURRENT_TERMS_VERSION } from '../lib/legalConstants';
 import { appendContentReport } from '../lib/contentReports';
+import { blockUser } from '../lib/blocks';
 import { db } from '../models/schema';
 
 export const legalRouter = Router();
@@ -60,5 +61,11 @@ legalRouter.post('/reports', authenticateJWT, (req: Request, res: Response) => {
     messageId: messageId?.trim() || undefined,
   });
 
-  res.status(201).json({ ok: true, reportId: report.id });
+  let blocked = false;
+  if (targetUserId && targetUserId !== me.id) {
+    blockUser(me.id, targetUserId);
+    blocked = true;
+  }
+
+  res.status(201).json({ ok: true, reportId: report.id, blocked });
 });

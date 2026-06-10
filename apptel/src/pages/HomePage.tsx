@@ -8,7 +8,6 @@ import { NearbyPeoplePanel } from '../components/NearbyPeoplePanel';
 import { MapSalonListenSheet } from '../components/MapSalonListenSheet';
 import { CreateSalonModal } from '../components/CreateSalonModal';
 import { MapAdBanner } from '../components/MapAdBanner';
-import { StartLiveMapButton } from '../components/StartLiveMapButton';
 import { MAP_OPEN_CREATE_SALON_EVENT } from '../lib/mapUiEvents';
 import { isAppa2Layout, type AppLayoutId } from '../lib/appLayout';
 import type { NearbyPerson, Salon, Live } from '../types';
@@ -51,8 +50,6 @@ interface HomePageProps {
   onOpenProfile: (person: NearbyPerson) => void;
   onOpenReel?: (reelId: string) => void;
   mapProfileOpen?: boolean;
-  /** Masquer Démarrer LIVE (mon profil, paramètres, overlay profil carte = moi). */
-  hideStartLiveMapButton?: boolean;
   /** Fermer le profil overlay (clic fond de carte, etc.). */
   onCloseMapProfile?: () => void;
   /** Onglet Carte visible : autorise l'audio du bottom sheet salon. */
@@ -67,7 +64,6 @@ export function HomePage({
   onOpenProfile,
   onOpenReel,
   mapProfileOpen = false,
-  hideStartLiveMapButton = false,
   onCloseMapProfile,
   mapPlaybackActive = true,
 }: HomePageProps) {
@@ -97,7 +93,6 @@ export function HomePage({
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
   const [mapGeo, setMapGeo] = useState<LivesGeoPrefs>(() => getLivesGeo());
   const salonSheetRef = useRef<HTMLDivElement>(null);
-  const [salonSheetHeightPx, setSalonSheetHeightPx] = useState(0);
   const [salonSheetExpanded, setSalonSheetExpanded] = useState(false);
 
   useEffect(() => {
@@ -584,19 +579,6 @@ export function HomePage({
     );
   }, [selected, nearbyPeople, onOpenProfile]);
 
-  useEffect(() => {
-    const el = salonSheetRef.current;
-    if (!selected || !el) {
-      setSalonSheetHeightPx(0);
-      return;
-    }
-    const measure = () => setSalonSheetHeightPx(el.offsetHeight);
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [selected]);
-
   return (
     <div className={`relative flex-1 flex min-h-0 ${appa2 ? 'flex-col' : 'flex-row'}`}>
       {token && user && (
@@ -709,22 +691,6 @@ export function HomePage({
             <span className={USERNAME_WAVE_CLASS}>+ Salon</span>
           </button>
         </div>
-
-        {token && user && !hideStartLiveMapButton && (
-          <StartLiveMapButton
-            token={token}
-            username={user.username}
-            userId={user.id}
-            lives={lives}
-            latitude={nearbyQueryCenter[0]}
-            longitude={nearbyQueryCenter[1]}
-            bottomSheetHeightPx={salonSheetHeightPx}
-            onStarted={(liveId) => {
-              loadNearbyFromState(userPosition, center);
-              onOpenLive(liveId);
-            }}
-          />
-        )}
 
         {selected && (
           <MapSalonListenSheet

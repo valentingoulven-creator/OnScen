@@ -7,7 +7,6 @@ import {
 } from './musicAffinities';
 import { isValidLatLng } from './mapCoords';
 import {
-  getNearbyDistanceFilterEnabled,
   getNearbyRadiusKm,
   setNearbyDistanceFilterEnabled,
   setNearbyRadiusKm,
@@ -85,8 +84,8 @@ export function getNearbyPanelPreferences(): NearbyPanelPreferences {
   let platformFilter: NearbyPlatformFilter = DEFAULT_PREFS.platformFilter;
   let livesOnly = DEFAULT_PREFS.livesOnly;
   let sortBy: NearbySortBy = DEFAULT_PREFS.sortBy;
-  /** Conservé pour les filtres stories (Accueil) — non lié au panneau À proximité. */
-  let storiesFilterByDistance = getNearbyDistanceFilterEnabled();
+  /** OFF par défaut : on montre favoris + suivis. Activé = filtre par rayon. */
+  let storiesFilterByDistance = false;
   let musicalAffinitiesOnly = DEFAULT_PREFS.musicalAffinitiesOnly;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -237,6 +236,20 @@ export function peopleMarkersOnMap(people: NearbyPerson[]): NearbyPerson[] {
 export function setNearbyPanelRadiusKm(km: number): number {
   setNearbyRadiusKm(km);
   return getNearbyRadiusKm();
+}
+
+/** Entrée liste « à proximité » représentant un salon (hôte, pas en live). */
+export function isNearbySalonEntry(person: NearbyPerson): boolean {
+  return Boolean(person.salonId) && !person.isLive;
+}
+
+/** Retire les salons de la liste latérale quand le filtre carte Salon est OFF. */
+export function filterNearbySalonEntries(
+  people: NearbyPerson[],
+  showSalonEntries: boolean
+): NearbyPerson[] {
+  if (showSalonEntries) return people;
+  return people.filter((p) => !isNearbySalonEntry(p));
 }
 
 export function filterNearbyPeople(

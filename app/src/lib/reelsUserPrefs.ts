@@ -1,8 +1,12 @@
 const REELS_PREFS_KEY = 'melosong_reels_prefs';
 
 export const REEL_GENRES_LIST = [
-  'Pop', 'Rap', 'Électro', 'Jazz', 'Rock', 'R&B',
-  'Classique', 'Lo-fi', 'Soul', 'Hip-Hop', 'Indie', 'Metal',
+  // Visible by default (12) — ordered by global streaming popularity 2024-2025
+  'Pop', 'Hip-Hop', 'Rap', 'R&B', 'Électro', 'Rock', 'Indie', 'Soul', 'Jazz', 'Lo-fi', 'Classique', 'Metal',
+  // Extended list — shown when "···" is expanded
+  'House', 'Techno', 'Afrobeats', 'Reggaeton', 'Latino', 'Funk', 'Gospel', 'Blues', 'Folk', 'Country',
+  'Punk', 'Emo', 'Grunge', 'Alternative', 'Dance', 'Drum & Bass', 'Ambiante', 'K-Pop', 'J-Pop',
+  'Trap', 'Drill', 'Grime', 'World Music', 'Salsa', 'Bossa Nova', 'Reggae', 'Ska',
 ] as const;
 
 export interface ReelsUserPrefs {
@@ -11,6 +15,8 @@ export interface ReelsUserPrefs {
   genres: string[];
   language: 'fr' | 'en' | 'all';
   nearbyOnly: boolean;
+  /** Maximum distance in km for the nearby-creators filter. Default 30. */
+  nearbyDistance: number;
 }
 
 export const DEFAULT_REELS_USER_PREFS: ReelsUserPrefs = {
@@ -18,6 +24,7 @@ export const DEFAULT_REELS_USER_PREFS: ReelsUserPrefs = {
   genres: [],
   language: 'all',
   nearbyOnly: false,
+  nearbyDistance: 30,
 };
 
 export function readReelsUserPrefs(): ReelsUserPrefs {
@@ -33,6 +40,7 @@ export function readReelsUserPrefs(): ReelsUserPrefs {
         ? (p.language as ReelsUserPrefs['language'])
         : 'all',
       nearbyOnly: !!p.nearbyOnly,
+      nearbyDistance: typeof p.nearbyDistance === 'number' && p.nearbyDistance > 0 ? p.nearbyDistance : 30,
     };
   } catch {
     return { ...DEFAULT_REELS_USER_PREFS };

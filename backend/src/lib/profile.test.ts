@@ -2,11 +2,15 @@ import { describe, it, expect } from 'vitest';
 import type { User } from '../models/schema';
 import {
   applyAgeSettings,
+  computeAgeFromBirthDate,
+  isBirthDateHiddenOnProfile,
   parseAgeInput,
+  parseBirthDateInput,
   publicProfile,
   MIN_PROFILE_AGE,
   MAX_PROFILE_AGE,
 } from './profile';
+import { userMeetsLiveAge } from './ageGates';
 
 function makeUser(overrides: Partial<User> = {}): User {
   return {
@@ -42,6 +46,44 @@ describe('parseAgeInput', () => {
   });
 });
 
+describe('parseBirthDateInput', () => {
+  it('accepte une date ISO valide dans la plage d’âge', () => {
+    const birthDate = '2000-06-15';
+    expect(parseBirthDateInput(birthDate)).toEqual({ ok: true, value: birthDate });
+    expect(computeAgeFromBirthDate(birthDate)).toBeGreaterThanOrEqual(MIN_PROFILE_AGE);
+  });
+
+  it('efface avec null ou chaîne vide', () => {
+    expect(parseBirthDateInput(null)).toEqual({ ok: true, value: null });
+    expect(parseBirthDateInput('')).toEqual({ ok: true, value: null });
+  });
+
+  it('refuse une date future ou invalide', () => {
+    expect(parseBirthDateInput('2099-01-01').ok).toBe(false);
+    expect(parseBirthDateInput('2020-13-01').ok).toBe(false);
+    expect(parseBirthDateInput('abc').ok).toBe(false);
+  });
+});
+
+describe('applyAgeSettings birthDate', () => {
+  it('dérive age depuis birthDate', () => {
+    const user = makeUser();
+    const birthDate = '1995-03-20';
+    const result = applyAgeSettings(user, { birthDate });
+    expect(result).toEqual({ ok: true });
+    expect(user.birthDate).toBe(birthDate);
+    expect(user.age).toBe(computeAgeFromBirthDate(birthDate));
+  });
+
+  it('efface birthDate et age avec null', () => {
+    const user = makeUser({ birthDate: '1995-03-20', age: 30 });
+    const result = applyAgeSettings(user, { birthDate: null });
+    expect(result).toEqual({ ok: true });
+    expect(user.birthDate).toBeUndefined();
+    expect(user.age).toBeUndefined();
+  });
+});
+
 describe('applyAgeSettings', () => {
   it('met à jour age et showAge', () => {
     const user = makeUser();
@@ -66,7 +108,43 @@ describe('applyAgeSettings', () => {
 });
 
 describe('publicProfile age privacy', () => {
-  it('expose age au propriétaire même si showAge false', () => {
+  it('expose birthDate au propriétaire toujours', () => {
+    const user = makeUser({ birthDate: '1990-01-01', age: 35, hideBirthDateOnProfile: true });
+    expect(publicProfile(user, true, user.id).birthDate).toBe('1990-01-01');
+    expect(publicProfile(user, true, user.id).hideBirthDateOnProfile).toBe(true);
+  });
+
+  it('masque birthDate et age aux visiteurs si hideBirthDateOnProfile', () => {
+    const user = makeUser({ birthDate: '1990-01-01', age: 35, hideBirthDateOnProfile: true });
+    const view = publicProfile(user, false, 'other');
+    expect(view.birthDate).toBeUndefined();
+    expect(view.age).toBeUndefined();
+  });
+
+  it('expose age (pas birthDate) aux visiteurs si non masqué', () => {
+    const user = makeUser({ birthDate: '1990-01-01', age: 35, hideBirthDateOnProfile: false });
+    const view = publicProfile(user, false, 'other');
+    expect(view.birthDate).toBeUndefined();
+    expect(view.age).toBe(computeAgeFromBirthDate('1990-01-01'));
+  });
+
+  it('rétrocompat showAge true ⇒ age visible (pas birthDate)', () => {
+    const user = makeUser({ birthDate: '1990-01-01', age: 35, showAge: true });
+    expect(isBirthDateHiddenOnProfile(user)).toBe(false);
+    const view = publicProfile(user, false, 'other');
+    expect(view.birthDate).toBeUndefined();
+    expect(view.age).toBe(computeAgeFromBirthDate('1990-01-01'));
+  });
+
+  it('sync hideBirthDateOnProfile depuis showAge', () => {
+    const user = makeUser();
+    applyAgeSettings(user, { showAge: true });
+    expect(user.hideBirthDateOnProfile).toBe(false);
+    applyAgeSettings(user, { hideBirthDateOnProfile: true });
+    expect(user.showAge).toBe(false);
+  });
+
+  it('expose age au propriétaire même si showAge false (legacy sans birthDate)', () => {
     const user = makeUser({ age: 28, showAge: false });
     const view = publicProfile(user, true, user.id);
     expect(view.age).toBe(28);
@@ -85,5 +163,21 @@ describe('publicProfile age privacy', () => {
     const view = publicProfile(user, false, 'other');
     expect(view.age).toBe(28);
     expect(view.showAge).toBeUndefined();
+  });
+
+  it('expose monetizationEligible sans révéler l’âge', () => {
+    const minor = makeUser({ age: 16, showAge: false });
+    const adult = makeUser({ age: 20, showAge: false });
+    expect(publicProfile(minor, false, 'other').monetizationEligible).toBe(false);
+    expect(publicProfile(minor, false, 'other').age).toBeUndefined();
+    expect(publicProfile(adult, false, 'other').monetizationEligible).toBe(true);
+    expect(publicProfile(adult, false, 'other').age).toBeUndefined();
+  });
+});
+
+describe('userMeetsLiveAge', () => {
+  it('autorise 16 ans et plus', () => {
+    expect(userMeetsLiveAge(15)).toBe(false);
+    expect(userMeetsLiveAge(16)).toBe(true);
   });
 });

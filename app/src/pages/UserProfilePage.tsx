@@ -18,6 +18,8 @@ interface UserProfilePageProps {
   onRecordReel?: () => void;
   /** Profil en panneau sur la carte : bande carte visible en haut (~10 %), clic fond → onBack. */
   mapOverlay?: boolean;
+  /** Ouvre la conversation DM avec cet utilisateur. */
+  onOpenDm?: (userId: string) => void;
 }
 
 export function UserProfilePage({
@@ -29,6 +31,7 @@ export function UserProfilePage({
   onOpenLive,
   onRecordReel,
   mapOverlay = false,
+  onOpenDm,
 }: UserProfilePageProps) {
   const { user: me } = useAuth();
   const isSelf = me?.id === userId;
@@ -95,7 +98,7 @@ export function UserProfilePage({
           usernameColor={preview?.usernameColor}
           usernameWaveFrom={preview?.usernameWaveFrom}
           usernameWaveTo={preview?.usernameWaveTo}
-          className="flex-1 min-w-0 font-bold text-white truncate"
+          className="flex-1 min-w-0 font-bold truncate"
         />
         <div className="flex items-center gap-1 shrink-0">
           {!isSelf && (
@@ -151,6 +154,7 @@ export function UserProfilePage({
             preview={preview}
             onOpenLive={onOpenLive}
             onSalonInfo={setSalonFromApi}
+            onOpenDm={onOpenDm}
           />
         ) : (
           onOpenReel && (

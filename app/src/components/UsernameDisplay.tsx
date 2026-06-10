@@ -1,9 +1,5 @@
 import type { ComponentPropsWithoutRef, ElementType } from 'react';
-import {
-  usernameDisplayClassName,
-  usernameDisplayStyle,
-  type UsernameWaveTint,
-} from '../lib/usernameColor';
+import { usernameDisplayStyle, type UsernameWaveTint } from '../lib/usernameColor';
 
 type UsernameDisplayProps<T extends ElementType = 'span'> = {
   username: string;
@@ -36,11 +32,9 @@ export function UsernameDisplay<T extends ElementType = 'span'>({
   const Tag = (as ?? 'span') as ElementType;
   const tint = waveTint(usernameWaveFrom, usernameWaveTo);
   const style = usernameDisplayStyle(usernameColor, tint);
-  const waveClass = usernameDisplayClassName(usernameColor, tint);
-  const merged = [className, waveClass].filter(Boolean).join(' ');
 
   return (
-    <Tag className={merged || undefined} style={style} title={title ?? username} {...rest}>
+    <Tag className={className || undefined} style={style} title={title ?? username} {...rest}>
       {username}
     </Tag>
   );

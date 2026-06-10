@@ -31,3 +31,21 @@ export function appendContentReport(report: Omit<ContentReport, 'id' | 'createdA
   fs.appendFileSync(reportsPath(), `${JSON.stringify(full)}\n`, 'utf8');
   return full;
 }
+
+/** Supprime les signalements liés à un utilisateur (auteur ou cible). */
+export function purgeReportsForUser(userId: string): void {
+  const file = reportsPath();
+  if (!fs.existsSync(file)) return;
+  const lines = fs.readFileSync(file, 'utf8').split('\n').filter(Boolean);
+  const kept: string[] = [];
+  for (const line of lines) {
+    try {
+      const report = JSON.parse(line) as ContentReport;
+      if (report.reporterId === userId || report.targetUserId === userId) continue;
+      kept.push(line);
+    } catch {
+      kept.push(line);
+    }
+  }
+  fs.writeFileSync(file, kept.length ? `${kept.join('\n')}\n` : '', 'utf8');
+}

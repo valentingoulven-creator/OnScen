@@ -1,5 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { db, ChatMessage, SalonBan } from './models/schema';
+import { extractSocketAuthToken, verifyAuthToken } from './middleware/auth';
 import { markSocketOnline, markSocketOffline } from './lib/presence';
 import { shouldDeliverToReceiver } from './lib/blocks';
 import { canJoinSalon } from './lib/salonAccess';
@@ -23,27 +24,74 @@ import {
 import type { LiveBanScope } from './models/schema';
 import { isPlatformConnected } from './lib/platformConnect';
 import { schedulePersist } from './lib/persist';
+import {
+  validateLiveWebrtcSignal,
+  validateLiveWebrtcViewerReady,
+} from './lib/liveVideoRelay';
+import { serializePublicLive } from './lib/livePublic';
+import { canUserUseApp } from './lib/accessControl';
+
+// Debounce presence broadcasts per user: prevents rapid-fire storms when a user
+// reconnects multiple times in quick succession (e.g., mobile network hiccup).
+const _presenceDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function broadcastPresence(io: Server, userId: string, online: boolean): void {
+  const existing = _presenceDebounceTimers.get(userId);
+  if (existing) clearTimeout(existing);
+  const timer = setTimeout(() => {
+    _presenceDebounceTimers.delete(userId);
+    io.emit('presence', { userId, online });
+  }, 150);
+  _presenceDebounceTimers.set(userId, timer);
+}
+
+function attachAuthenticatedUser(socket: Socket, userId: string): void {
+  socket.join(`user_${userId}`);
+  (socket.data as { userId?: string }).userId = userId;
+  markSocketOnline(socket.id, userId);
+}
 
 export function setupSockets(io: Server): void {
+  io.use((socket, next) => {
+    const token = extractSocketAuthToken(socket.handshake);
+    if (!token) {
+      next(new Error('unauthorized'));
+      return;
+    }
+    const payload = verifyAuthToken(token);
+    if (!payload?.id) {
+      next(new Error('unauthorized'));
+      return;
+    }
+    const user = db.users.get(payload.id);
+    if (!user || !canUserUseApp(user)) {
+      next(new Error('unauthorized'));
+      return;
+    }
+    (socket.data as { userId?: string }).userId = payload.id;
+    next();
+  });
+
   io.on('connection', (socket: Socket) => {
+    const authUserId = (socket.data as { userId?: string }).userId;
+    if (authUserId) {
+      attachAuthenticatedUser(socket, authUserId);
+      broadcastPresence(io, authUserId, true);
+    }
+
     socket.on('register', (userId: string) => {
       if (!userId || typeof userId !== 'string') return;
-      // Prevent a socket that is already registered from joining a different user's room,
-      // which would allow intercepting another user's real-time events (DMs, notifications).
       const existing = (socket.data as { userId?: string }).userId;
-      if (existing && existing !== userId) return;
-      // Only allow registration for users that exist in the database.
+      if (!existing || existing !== userId) return;
       if (!db.users.has(userId)) return;
-      socket.join(`user_${userId}`);
-      (socket.data as { userId?: string }).userId = userId;
-      markSocketOnline(socket.id, userId);
-      io.emit('presence', { userId, online: true });
+      attachAuthenticatedUser(socket, userId);
+      broadcastPresence(io, userId, true);
     });
 
     socket.on('disconnect', () => {
       const wentOffline = markSocketOffline(socket.id);
       if (wentOffline) {
-        io.emit('presence', { userId: wentOffline, online: false });
+        broadcastPresence(io, wentOffline, false);
       }
     });
 
@@ -241,29 +289,89 @@ export function setupSockets(io: Server): void {
       if (live && !alreadyIn) {
         live.viewersCount += 1;
         db.lives.set(liveId, live);
-        io.to(roomName).emit('live_updated', live);
+        io.to(roomName).emit('live_updated', serializePublicLive(live));
       }
     });
 
     socket.on('leave_live', ({ liveId }: { liveId: string }) => {
-      socket.leave(`live_${liveId}`);
+      const userId = (socket.data as { userId?: string }).userId;
+      const roomName = `live_${liveId}`;
+      socket.leave(roomName);
       const live = db.lives.get(liveId);
       if (live && live.viewersCount > 0) {
         live.viewersCount -= 1;
         db.lives.set(liveId, live);
-        io.to(`live_${liveId}`).emit('live_updated', live);
+        io.to(roomName).emit('live_updated', serializePublicLive(live));
+      }
+      if (live && userId && userId !== live.hostId) {
+        io.to(`user_${live.hostId}`).emit('live_webrtc_viewer_left', { liveId, viewerId: userId });
       }
     });
 
-    socket.on('live_camera_toggle', ({ liveId, active }: { liveId: string; active: boolean }) => {
-      const userId = (socket.data as { userId?: string }).userId;
-      if (!userId || !liveId) return;
+    socket.on('live_webrtc_viewer_ready', ({ liveId }: { liveId: string }) => {
+      const viewerId = (socket.data as { userId?: string }).userId;
+      if (!viewerId || !liveId) return;
+      const roomName = `live_${liveId}`;
+      if (!socket.rooms.has(roomName)) return;
       const live = db.lives.get(liveId);
-      if (!live || live.hostId !== userId || !live.isActive) return;
-      live.cameraActive = !!active;
-      db.lives.set(liveId, live);
-      io.to(`live_${liveId}`).emit('live_updated', live);
+      if (!validateLiveWebrtcViewerReady(live, viewerId, true)) return;
+      io.to(`user_${live!.hostId}`).emit('live_webrtc_viewer_joined', { liveId, viewerId });
     });
+
+    socket.on(
+      'live_webrtc_signal',
+      ({
+        liveId,
+        toUserId,
+        type,
+        data,
+      }: {
+        liveId: string;
+        toUserId: string;
+        type: 'offer' | 'answer' | 'ice';
+        data: Record<string, unknown>;
+      }) => {
+        const senderId = (socket.data as { userId?: string }).userId;
+        if (!senderId || !liveId || !toUserId || !type || !data) return;
+        const roomName = `live_${liveId}`;
+        if (!socket.rooms.has(roomName)) return;
+        const live = db.lives.get(liveId);
+        if (!validateLiveWebrtcSignal(live, senderId, toUserId, type, true)) return;
+        io.to(`user_${toUserId}`).emit('live_webrtc_signal', {
+          liveId,
+          fromUserId: senderId,
+          toUserId,
+          type,
+          data,
+        });
+      }
+    );
+
+    socket.on(
+      'live_camera_toggle',
+      ({
+        liveId,
+        active,
+        mode,
+      }: {
+        liveId: string;
+        active: boolean;
+        mode?: 'camera' | 'file';
+      }) => {
+        const userId = (socket.data as { userId?: string }).userId;
+        if (!userId || !liveId) return;
+        const live = db.lives.get(liveId);
+        if (!live || live.hostId !== userId || !live.isActive) return;
+        live.cameraActive = !!active;
+        if (active && (mode === 'camera' || mode === 'file')) {
+          live.cameraMode = mode;
+        } else if (!active) {
+          live.cameraMode = undefined;
+        }
+        db.lives.set(liveId, live);
+        io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live));
+      }
+    );
 
     socket.on(
       'live_set_vip',
@@ -280,12 +388,12 @@ export function setupSockets(io: Server): void {
         } else {
           live.vipModeratorIds = ids.filter((id) => id !== targetUserId);
           db.lives.set(liveId, live);
-          io.to(`live_${liveId}`).emit('live_updated', live);
+          io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live));
           return;
         }
         live.vipModeratorIds = ids;
         db.lives.set(liveId, live);
-        io.to(`live_${liveId}`).emit('live_updated', live);
+        io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live));
       }
     );
 
@@ -325,7 +433,7 @@ export function setupSockets(io: Server): void {
           if (ids.includes(targetUserId)) {
             live.vipModeratorIds = ids.filter((id) => id !== targetUserId);
             db.lives.set(liveId, live);
-            io.to(`live_${liveId}`).emit('live_updated', live);
+            io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live));
           }
         }
 
@@ -537,6 +645,12 @@ export function setupSockets(io: Server): void {
         if (!merged.isPlaying) {
           merged.startedAt = undefined;
         }
+      }
+
+      const isMsdev =
+        process.env.APP_ENV === 'msdev' || process.env.MSENV === 'msdev';
+      if (!isMsdev && salon.platform === 'youtube') {
+        merged.showVideo = true;
       }
 
       salon.playbackState = merged;

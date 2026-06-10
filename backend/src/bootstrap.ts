@@ -8,19 +8,27 @@ import { app } from './server';
 import { setupSockets } from './socket';
 import { setIo, clearIo } from './lib/ioInstance';
 import { seedMsdevData } from './seed-msdev';
+import { seedProductionAdmin } from './seed-production';
 import { seedBotsAtStartup } from './seed-bots';
 import { seedHomeFeed } from './seed-home-feed';
-import { purgeHeartNotifications } from './lib/notifications';
 import {
   loadPersistedStore,
+  loadPersistedStoreAsync,
   schedulePersist,
   startPersistLoop,
   stopPersistLoop,
+  usesPostgresPersistence,
 } from './lib/persist';
+import { closePool } from './db/pool';
 import { ensureMsdevHttpsCredentials, getMsdevHttpsUrls } from './msdevHttps';
-import { ensureMsdevDemoCredentials, ensureMsdevListenerFollowersCount } from './lib/msdevDemoAccounts';
+import {
+  ensureMsdevDemoCredentials,
+  ensureMsdevDemoMonetizationAges,
+  ensureMsdevListenerFollowersCount,
+} from './lib/msdevDemoAccounts';
 import { ensureAccessAdmins, isAccessControlEnabled, loadAccessControlFromPersist } from './lib/accessControl';
 import { repairInvalidGeoInDb } from './lib/mapCoords';
+import { loadSalonsLivesFromPostgres } from './lib/pgSalonsLives';
 import { migrateAllUsersRelationshipStatus } from './lib/profile';
 import { getMsdevEnvPath } from './paths';
 import { startSessionLimitScheduler, stopSessionLimitScheduler } from './lib/sessionLimits';
@@ -55,12 +63,15 @@ let shutdownHooksRegistered = false;
 function shutdown(): Promise<void> {
   return new Promise((resolve) => {
     const finish = () => {
-      stopPersistLoop();
-      stopSessionLimitScheduler();
-      httpServer = null;
-      ioServer = null;
-      clearIo();
-      resolve();
+      void stopPersistLoop()
+        .then(() => closePool())
+        .finally(() => {
+          stopSessionLimitScheduler();
+          httpServer = null;
+          ioServer = null;
+          clearIo();
+          resolve();
+        });
     };
     if (!httpServer) {
       finish();
@@ -122,10 +133,18 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
   }
   httpServer = server;
   const scheme = server instanceof https.Server ? 'https' : 'http';
+  const corsConfigured = process.env.CORS_ORIGIN?.trim();
+  const corsOrigin =
+    APP_ENV === 'msdev' || !corsConfigured
+      ? '*'
+      : corsConfigured.includes(',')
+        ? corsConfigured.split(',').map((o) => o.trim()).filter(Boolean)
+        : corsConfigured;
   const io = new Server(server, {
     cors: {
-      origin: process.env.CORS_ORIGIN || '*',
+      origin: corsOrigin,
       methods: ['GET', 'POST'],
+      allowedHeaders: ['X-Auth-Token', 'Content-Type'],
     },
     perMessageDeflate: {
       threshold: 1024,
@@ -150,6 +169,7 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
       loadAccessControlFromPersist(undefined, []);
     }
     await ensureMsdevDemoCredentials();
+    ensureMsdevDemoMonetizationAges();
     ensureMsdevListenerFollowersCount();
     const admins = ensureAccessAdmins();
     if (admins > 0) {
@@ -159,6 +179,42 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
       console.log(
         '[melosong] Contrôle d’accès tunnel public actif — inscriptions soumises à validation admin par défaut'
       );
+    }
+    startPersistLoop();
+  } else if (APP_ENV === 'production') {
+    if (usesPostgresPersistence()) {
+      console.log('[soundly] Persistance PostgreSQL (DATABASE_URL)');
+    } else {
+      console.warn(
+        '[soundly] DATABASE_URL absent — repli sur store.json local (non recommandé en production)'
+      );
+    }
+    const restored = await loadPersistedStoreAsync();
+    if (restored) {
+      console.log(
+        usesPostgresPersistence()
+          ? '[soundly] Données restaurées depuis PostgreSQL'
+          : '[soundly] Données restaurées depuis le stockage local'
+      );
+    } else {
+      await seedProductionAdmin();
+    }
+    if (usesPostgresPersistence()) {
+      try {
+        const { salons, lives } = await loadSalonsLivesFromPostgres();
+        if (salons > 0 || lives > 0) {
+          console.log(`[soundly] Salons/lives restaurés depuis PostgreSQL (${salons} salon(s), ${lives} live(s))`);
+        }
+      } catch (e) {
+        console.warn('[soundly] Échec chargement salons/lives PostgreSQL:', e);
+      }
+    }
+    const admins = ensureAccessAdmins();
+    if (admins > 0) {
+      console.log(`[soundly] ${admins} compte(s) administrateur synchronisé(s)`);
+    }
+    if (isAccessControlEnabled()) {
+      console.log('[soundly] Contrôle d’accès actif — validation admin pour les nouveaux comptes');
     }
     startPersistLoop();
   }
@@ -175,14 +231,12 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
   if (geoRepaired > 0) {
     console.log(`[melosong] Coordonnées carte réparées : ${geoRepaired} entité(s)`);
   }
-  purgeHeartNotifications();
-
   await new Promise<void>((resolve, reject) => {
     server.once('error', (err: NodeJS.ErrnoException) => {
       if (err.code === 'EADDRINUSE') {
         console.error('');
         console.error(`  ✖ Le port ${PORT} est déjà utilisé.`);
-        console.error('    Fermez les autres terminaux Soundly (npm run msdev) puis relancez.');
+        console.error('    Fermez les autres terminaux Soundy (npm run msdev) puis relancez.');
         console.error(`    Diagnostic: netstat -ano | findstr :${PORT}`);
         console.error('');
       }
@@ -191,7 +245,7 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
     server.listen(PORT, HOST, () => {
       console.log('');
       console.log('  ╔══════════════════════════════════════╗');
-      console.log(`  ║  Soundly   [${APP_ENV.padEnd(6)}]  local dev       ║`);
+      console.log(`  ║  Soundy   [${APP_ENV.padEnd(6)}]  local dev       ║`);
       console.log('  ╚══════════════════════════════════════╝');
       console.log(`  → ${scheme}://localhost:${PORT}`);
       console.log(`  → API  ${scheme}://localhost:${PORT}/api`);

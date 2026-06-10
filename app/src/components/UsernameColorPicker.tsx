@@ -58,7 +58,10 @@ export function UsernameColorPicker({
                 <input
                   type="color"
                   value={resolved.from}
-                  onChange={(e) => onWaveFromChange(e.target.value)}
+                  onChange={(e) => {
+                    if (!waveActive) onChange(USERNAME_COLOR_WAVE);
+                    onWaveFromChange(e.target.value);
+                  }}
                   className="w-10 h-10 rounded-lg border border-[#2d2d3d] bg-[#1a1a26] cursor-pointer"
                   aria-label="Couleur de départ du dégradé wave"
                 />
@@ -67,7 +70,10 @@ export function UsernameColorPicker({
                   value={waveFrom || resolved.from}
                   onChange={(e) => {
                     const v = e.target.value.trim();
-                    if (/^#[0-9a-fA-F]{3,8}$/.test(v)) onWaveFromChange(v);
+                    if (/^#[0-9a-fA-F]{3,8}$/.test(v)) {
+                      if (!waveActive) onChange(USERNAME_COLOR_WAVE);
+                      onWaveFromChange(v);
+                    }
                   }}
                   placeholder={DEFAULT_USERNAME_WAVE_FROM}
                   className="flex-1 bg-[#12121a] border border-[#2d2d3d] rounded-lg px-2 py-1.5 text-white text-[10px] font-mono"
@@ -80,7 +86,10 @@ export function UsernameColorPicker({
                 <input
                   type="color"
                   value={resolved.to}
-                  onChange={(e) => onWaveToChange(e.target.value)}
+                  onChange={(e) => {
+                    if (!waveActive) onChange(USERNAME_COLOR_WAVE);
+                    onWaveToChange(e.target.value);
+                  }}
                   className="w-10 h-10 rounded-lg border border-[#2d2d3d] bg-[#1a1a26] cursor-pointer"
                   aria-label="Couleur de fin du dégradé wave"
                 />
@@ -89,7 +98,10 @@ export function UsernameColorPicker({
                   value={waveTo || resolved.to}
                   onChange={(e) => {
                     const v = e.target.value.trim();
-                    if (/^#[0-9a-fA-F]{3,8}$/.test(v)) onWaveToChange(v);
+                    if (/^#[0-9a-fA-F]{3,8}$/.test(v)) {
+                      if (!waveActive) onChange(USERNAME_COLOR_WAVE);
+                      onWaveToChange(v);
+                    }
                   }}
                   placeholder={DEFAULT_USERNAME_WAVE_TO}
                   className="flex-1 bg-[#12121a] border border-[#2d2d3d] rounded-lg px-2 py-1.5 text-white text-[10px] font-mono"
@@ -100,6 +112,7 @@ export function UsernameColorPicker({
           <button
             type="button"
             onClick={() => {
+              if (!waveActive) onChange(USERNAME_COLOR_WAVE);
               onWaveFromChange(DEFAULT_USERNAME_WAVE_FROM);
               onWaveToChange(DEFAULT_USERNAME_WAVE_TO);
             }}

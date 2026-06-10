@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import { authenticateJWT } from '../middleware/auth';
 import { schedulePersist } from '../lib/persist';
 import { createStory, getMyActiveStory, listStoriesForViewer } from '../lib/stories';
+import { notifyMentions } from '../lib/mentions';
+import { db } from '../models/schema';
 
 export const storiesRouter = Router();
 
@@ -33,11 +35,16 @@ storiesRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
     imageUrl: body.imageUrl != null ? String(body.imageUrl) : undefined,
     musicTrack: body.musicTrack,
     taggedUserIds: body.taggedUserIds,
+    visibility: body.visibility,
   });
   if (!result.ok) {
     res.status(400).json({ error: result.error });
     return;
   }
   schedulePersist();
+  const storyAuthor = db.users.get(me);
+  if (storyAuthor && result.story.content) {
+    notifyMentions(result.story.content, me, storyAuthor.username, 'story', result.story.id, storyAuthor.avatarUrl);
+  }
   res.status(201).json({ story: result.story });
 });

@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { api } from '../lib/api';
+import { ACCEPTED_IMAGE_FORMATS, validateImageFile, resizeImageInstagram } from '../lib/imageUtils';
 import {
   DON_AMOUNT_MAX,
   DON_AMOUNT_MIN,
@@ -39,6 +40,8 @@ export interface ChatPanelProps {
   chatBanned?: boolean;
   chatBanMessage?: string;
   onDeleteMessage?: (messageId: string) => void | Promise<void>;
+  /** Ouvre le flux de pourboire sécurisé (live uniquement) */
+  onOpenDonation?: (amount?: number) => void;
 }
 
 type FeedItem =
@@ -89,8 +92,10 @@ interface ChatRoomContextValue {
   sendError: string | null;
   reactionError: string | null;
   setReactionError: (error: string | null) => void;
+  onOpenDonation?: (amount?: number) => void;
   banModalTarget: { id: string; name: string } | null;
   reportContext: ReportContentContext | null;
+  onUserBlocked: (userId: string) => void;
   confirmBan: (opts: { permanent: boolean; durationMs?: number; scope: LiveBanScope }) => void;
 }
 
@@ -120,6 +125,7 @@ function useChatRoom({
   chatBanned = false,
   chatBanMessage,
   onDeleteMessage,
+  onOpenDonation,
 }: ChatPanelProps): ChatRoomContextValue {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [reactions, setReactions] = useState<LiveChatReaction[]>([]);
@@ -129,6 +135,8 @@ function useChatRoom({
   const [userMenuTarget, setUserMenuTarget] = useState<{ id: string; name: string } | null>(null);
   const [banModalTarget, setBanModalTarget] = useState<{ id: string; name: string } | null>(null);
   const [reportContext, setReportContext] = useState<ReportContentContext | null>(null);
+  const [blockedPeerIds, setBlockedPeerIds] = useState<Set<string>>(() => new Set());
+  const blockedPeerIdsRef = useRef<Set<string>>(new Set());
   const [reactionMenuOpen, setReactionMenuOpen] = useState(false);
   const [donCustomAmount, setDonCustomAmount] = useState('');
   const [reactionSending, setReactionSending] = useState(false);
@@ -142,6 +150,21 @@ function useChatRoom({
   const boundRoomIdRef = useRef<string | null>(null);
 
   const handleFileSelect = useCallback((file: File) => {
+    if (file.type.startsWith('image/')) {
+      const imgError = validateImageFile(file);
+      if (imgError) {
+        alert(imgError);
+        return;
+      }
+      resizeImageInstagram(file)
+        .then((dataUrl) => {
+          setPendingAttachment({ dataUrl, name: file.name, mimeType: 'image/jpeg', size: file.size });
+        })
+        .catch((err: unknown) => {
+          alert(err instanceof Error ? err.message : "Impossible de traiter l'image");
+        });
+      return;
+    }
     const MAX = 10 * 1024 * 1024;
     if (file.size > MAX) {
       alert('Fichier trop volumineux (max 10 Mo)');
@@ -156,12 +179,36 @@ function useChatRoom({
   }, []);
 
   useEffect(() => {
+    if (!token) {
+      blockedPeerIdsRef.current = new Set();
+      setBlockedPeerIds(new Set());
+      return;
+    }
+    let cancelled = false;
+    api.getBlockedUsers(token).then((r) => {
+      if (cancelled) return;
+      const next = new Set(r.blocked.map((b) => b.id));
+      blockedPeerIdsRef.current = next;
+      setBlockedPeerIds(next);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  useEffect(() => {
     if (boundRoomIdRef.current === roomId) return;
     boundRoomIdRef.current = roomId;
     setMessages(initialMessages);
     setReactions([]);
     setOpenMsgMenuId(null);
   }, [roomId, initialMessages]);
+
+  useEffect(() => {
+    if (blockedPeerIds.size === 0) return;
+    setMessages((m) => m.filter((msg) => !blockedPeerIds.has(msg.senderId)));
+    setReactions((r) => r.filter((rx) => !rx.senderId || !blockedPeerIds.has(rx.senderId)));
+  }, [blockedPeerIds]);
 
   useEffect(() => {
     if (!liveReactionsEnabled || !token) return;
@@ -181,6 +228,7 @@ function useChatRoom({
 
     const handler = (msg: ChatMessage) => {
       if (msg.roomId !== roomId) return;
+      if (blockedPeerIdsRef.current.has(msg.senderId)) return;
       setMessages((m) => (m.some((x) => x.id === msg.id) ? m : [...m, msg]));
     };
 
@@ -200,6 +248,7 @@ function useChatRoom({
       timestamp: number;
     }) => {
       if (gift.liveId !== roomId) return;
+      if (gift.senderId && blockedPeerIdsRef.current.has(gift.senderId)) return;
       setReactions((prev) => appendLiveReaction(prev, giftToReaction(gift)));
     };
 
@@ -234,16 +283,21 @@ function useChatRoom({
   }, [reactionMenuOpen, userMenuTarget]);
 
   const feed = useMemo((): FeedItem[] => {
-    const items: FeedItem[] = messages.map((m) => ({ kind: 'message', data: m }));
+    const items: FeedItem[] = messages
+      .filter((m) => !blockedPeerIds.has(m.senderId))
+      .map((m) => ({ kind: 'message', data: m }));
     if (liveReactionsEnabled) {
-      for (const r of reactions) items.push({ kind: 'reaction', data: r });
+      for (const r of reactions) {
+        if (r.senderId && blockedPeerIds.has(r.senderId)) continue;
+        items.push({ kind: 'reaction', data: r });
+      }
     }
     return items.sort((a, b) => {
       const ta = a.kind === 'message' ? a.data.timestamp : a.data.timestamp;
       const tb = b.kind === 'message' ? b.data.timestamp : b.data.timestamp;
       return ta - tb;
     });
-  }, [messages, reactions, liveReactionsEnabled]);
+  }, [messages, reactions, liveReactionsEnabled, blockedPeerIds]);
 
   const deleteMessage = async (messageId: string, asModerator = false) => {
     if (!token) return;
@@ -323,6 +377,16 @@ function useChatRoom({
     setUserMenuTarget(null);
   };
 
+  const onUserBlocked = useCallback((userId: string) => {
+    setBlockedPeerIds((prev) => {
+      if (prev.has(userId)) return prev;
+      const next = new Set(prev);
+      next.add(userId);
+      blockedPeerIdsRef.current = next;
+      return next;
+    });
+  }, []);
+
   return {
     roomType,
     roomId,
@@ -367,8 +431,10 @@ function useChatRoom({
     sendError,
     reactionError,
     setReactionError,
+    onOpenDonation,
     banModalTarget,
     reportContext,
+    onUserBlocked,
     confirmBan,
   };
 }
@@ -689,6 +755,7 @@ export function ChatInputBar({ className }: { className?: string }) {
     donCustomAmount,
     setDonCustomAmount,
     setReactionError,
+    onOpenDonation,
     sendError,
     reactionError,
   } = useChatRoomContext();
@@ -714,7 +781,7 @@ export function ChatInputBar({ className }: { className?: string }) {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*,.pdf,.mp3,.mp4,.zip,.doc,.docx,.xls,.xlsx,.txt,.csv"
+        accept={`${ACCEPTED_IMAGE_FORMATS},.pdf,.mp3,.mp4,.zip,.doc,.docx,.xls,.xlsx,.txt,.csv`}
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
@@ -758,14 +825,17 @@ export function ChatInputBar({ className }: { className?: string }) {
                   ))}
                 </div>
                 <div className="border-t border-[#2d2d3d] px-2 py-2">
-                  <p className="text-[10px] font-bold text-pink-300/90 mb-1.5 px-1">Don</p>
+                  <p className="text-[10px] font-bold text-pink-300/90 mb-1.5 px-1">Pourboire</p>
                   <div className="grid grid-cols-3 gap-1 mb-2">
                     {LIVE_DON_TIERS.map((tier) => (
                       <button
                         key={tier}
                         type="button"
-                        disabled={reactionSending}
-                        onClick={() => sendReaction('don', tier)}
+                        disabled={!onOpenDonation}
+                        onClick={() => {
+                          setReactionMenuOpen(false);
+                          onOpenDonation?.(tier);
+                        }}
                         className="py-1.5 rounded-lg text-[10px] font-bold text-pink-200 bg-pink-950/40 border border-pink-500/30 hover:border-pink-400 disabled:opacity-50"
                       >
                         {tier} €
@@ -783,19 +853,20 @@ export function ChatInputBar({ className }: { className?: string }) {
                       value={donCustomAmount}
                       onChange={(e) => setDonCustomAmount(e.target.value)}
                       placeholder="€"
-                      disabled={reactionSending}
+                      disabled={!onOpenDonation}
                       className="flex-1 min-w-0 rounded-lg bg-[#1a1a26] border border-[#2d2d3d] px-2 py-1.5 text-[11px] text-white placeholder:text-gray-500 disabled:opacity-50"
                     />
                     <button
                       type="button"
-                      disabled={reactionSending}
+                      disabled={!onOpenDonation}
                       onClick={() => {
                         const amount = parseDonAmount(donCustomAmount);
                         if (amount == null) {
                           setReactionError(donAmountValidationMessage());
                           return;
                         }
-                        void sendReaction('don', amount);
+                        setReactionMenuOpen(false);
+                        onOpenDonation?.(amount);
                       }}
                       className="shrink-0 px-2 py-1.5 rounded-lg text-[10px] font-bold text-white bg-pink-600 hover:bg-pink-500 disabled:opacity-50"
                     >
@@ -842,8 +913,15 @@ export function ChatInputBar({ className }: { className?: string }) {
 }
 
 export function ChatModals() {
-  const { banModalTarget, onBanUser, confirmBan, reportContext, setBanModalTarget, setReportContext } =
-    useChatRoomContext();
+  const {
+    banModalTarget,
+    onBanUser,
+    confirmBan,
+    reportContext,
+    onUserBlocked,
+    setBanModalTarget,
+    setReportContext,
+  } = useChatRoomContext();
 
   return (
     <>
@@ -856,7 +934,11 @@ export function ChatModals() {
         />
       )}
       {reportContext && (
-        <ReportContentModal context={reportContext} onClose={() => setReportContext(null)} />
+        <ReportContentModal
+          context={reportContext}
+          onClose={() => setReportContext(null)}
+          onUserBlocked={onUserBlocked}
+        />
       )}
     </>
   );

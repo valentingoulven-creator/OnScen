@@ -13,6 +13,18 @@ import {
   needsCommunityFeedRepair,
   seedCommunityPosts,
 } from './seed-community-posts';
+import {
+  countFeedEventPosts,
+  EVENT_SEED_TARGET,
+  needsFeedEventsRepair,
+  seedFeedEvents,
+} from './seed-feed-events';
+import {
+  countUserEventPosts,
+  needsUserEventsRepair,
+  seedUserEvents,
+  USER_EVENT_SEED_TARGET,
+} from './seed-user-events';
 
 export interface SeedHomeFeedResult {
   favoritesAdded: number;
@@ -20,12 +32,21 @@ export interface SeedHomeFeedResult {
   favoritePostsTotal: number;
   communityPostsCreated: number;
   communityPostsTotal: number;
+  feedEventsCreated: number;
+  feedEventsTotal: number;
+  userEventsCreated: number;
+  userEventsTotal: number;
   listenerFavoriteCount: number;
 }
 
 /** Vérifie si le store persisté est incomplet pour l'onglet Accueil. */
 export function needsHomeFeedRepair(): boolean {
-  return needsFavoriteFeedRepair() || needsCommunityFeedRepair();
+  return (
+    needsFavoriteFeedRepair() ||
+    needsCommunityFeedRepair() ||
+    needsFeedEventsRepair() ||
+    needsUserEventsRepair()
+  );
 }
 
 /**
@@ -48,11 +69,15 @@ export function seedHomeFeed(options?: {
   const community = seedCommunityPosts({
     force: force || (repair && needsCommunityFeedRepair()),
   });
+  const events = seedFeedEvents({
+    force: force || (repair && needsFeedEventsRepair()),
+  });
+  const userEvents = seedUserEvents();
 
   if (repair) {
     const stats = getHomeFeedSeedStats();
     console.log(
-      `[msdev] Accueil réparé : ${stats.listenerFavoriteCount} favoris, ${stats.favoritePostsTotal}/${FAVORITE_POST_TARGET} posts favoris, ${stats.nonFavoritePostsTotal}/${COMMUNITY_POST_TARGET} posts hors favoris`
+      `[msdev] Accueil réparé : ${stats.listenerFavoriteCount} favoris, ${stats.favoritePostsTotal}/${FAVORITE_POST_TARGET} posts favoris, ${stats.nonFavoritePostsTotal}/${COMMUNITY_POST_TARGET} posts hors favoris, ${stats.feedEventsTotal}/${EVENT_SEED_TARGET} événements pays, ${stats.userEventsTotal}/${USER_EVENT_SEED_TARGET} événements utilisateurs`
     );
   }
 
@@ -62,6 +87,10 @@ export function seedHomeFeed(options?: {
     favoritePostsTotal: postsTotal,
     communityPostsCreated: community.created,
     communityPostsTotal: community.total,
+    feedEventsCreated: events.created,
+    feedEventsTotal: events.total,
+    userEventsCreated: userEvents.created,
+    userEventsTotal: userEvents.total,
     listenerFavoriteCount: getFavoriteHostIds(MSDEV_LISTENER_ID).filter((id) => db.users.has(id))
       .length,
   };
@@ -71,15 +100,23 @@ export function getHomeFeedSeedStats(): {
   listenerFavoriteCount: number;
   favoritePostsTotal: number;
   nonFavoritePostsTotal: number;
+  feedEventsTotal: number;
+  userEventsTotal: number;
   favoritePostTarget: number;
   communityPostTarget: number;
+  feedEventTarget: number;
+  userEventTarget: number;
 } {
   return {
     listenerFavoriteCount: getFavoriteHostIds(MSDEV_LISTENER_ID).filter((id) => db.users.has(id))
       .length,
     favoritePostsTotal: countFavoriteFeedPosts(),
     nonFavoritePostsTotal: countNonFavoriteCommunityPosts(),
+    feedEventsTotal: countFeedEventPosts(),
+    userEventsTotal: countUserEventPosts(),
     favoritePostTarget: FAVORITE_POST_TARGET,
     communityPostTarget: COMMUNITY_POST_TARGET,
+    feedEventTarget: EVENT_SEED_TARGET,
+    userEventTarget: USER_EVENT_SEED_TARGET,
   };
 }

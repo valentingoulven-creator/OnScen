@@ -26,6 +26,7 @@ export function FollowUserButton({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmUnfollow, setConfirmUnfollow] = useState(false);
+  const [followToast, setFollowToast] = useState<string | null>(null);
 
   useEffect(() => {
     setFollowing(initialFollowing);
@@ -43,6 +44,8 @@ export function FollowUserButton({
       await api.followUser(token, userId);
       setFollowing(true);
       onFollowingChange?.(true);
+      setFollowToast(`Vous suivez maintenant ${displayName}`);
+      window.setTimeout(() => setFollowToast(null), 3000);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur');
     } finally {
@@ -115,6 +118,9 @@ export function FollowUserButton({
         )}
       </button>
       {error && <p className="text-[10px] text-red-400 mt-1 text-center">{error}</p>}
+      {followToast && (
+        <p className="text-[10px] text-purple-300 mt-1 text-center">{followToast}</p>
+      )}
 
       {confirmUnfollow && (
         <div

@@ -37,13 +37,13 @@ vi.setProductVersion(major, minor, patch, 0, lang);
 vi.setStringValues(
   { lang, codepage },
   {
-    FileDescription: 'MeloSong — serveur local msdev (Windows)',
-    ProductName: 'MeloSong msdev',
-    CompanyName: 'MeloSong',
+    FileDescription: 'Soundy — serveur local msdev (Windows)',
+    ProductName: 'Soundy msdev',
+    CompanyName: 'Soundy',
     ProductVersion: version,
     FileVersion: version,
     OriginalFilename: path.basename(exePath),
-    LegalCopyright: `Copyright ${new Date().getFullYear()} MeloSong`,
+    LegalCopyright: `Copyright ${new Date().getFullYear()} Soundy`,
     InternalName: 'msdev',
   }
 );

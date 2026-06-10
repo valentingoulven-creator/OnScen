@@ -15,6 +15,7 @@ export interface MapStoryEntry {
   storyId?: string;
   storyImageUrl?: string;
   hasActiveStory?: boolean;
+  storyVisibility?: 'public' | 'followers';
 }
 
 const MAX_STORIES = 24;
@@ -46,6 +47,7 @@ function applyStoryToEntry(entry: MapStoryEntry, story?: MapStory): MapStoryEntr
     storyImageUrl: story.imageUrl,
     hasActiveStory: true,
     posterUrl: entry.posterUrl ?? story.imageUrl,
+    storyVisibility: story.visibility,
   };
 }
 
@@ -112,6 +114,7 @@ function storyOnlyEntry(
     hasActiveStory: true,
     posterUrl: story.imageUrl,
     isFavorite: favoriteIds.has(story.userId),
+    storyVisibility: story.visibility,
   };
 }
 

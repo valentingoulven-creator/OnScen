@@ -1,3 +1,10 @@
+import type { FeedEventType } from './lib/eventType';
+
+export type { FeedEventType };
+
+export type MusicPlatform = 'spotify' | 'youtube';
+export type ConnectPlatform = MusicPlatform | 'instagram';
+
 export type AccountStatus = 'active' | 'pending' | 'blocked';
 
 export type AccessRegistrationMode = 'open' | 'invite_only' | 'admin_approval' | 'closed';
@@ -33,7 +40,7 @@ export interface AccessManagedUser {
 
 export type ListeningRole = 'auditeur' | 'host' | 'les_deux';
 
-export type RelationshipStatus = 'celibataire' | 'en_couple';
+export type RelationshipStatus = 'celibataire' | 'en_couple' | 'autre';
 
 export type ProfileType =
   | 'bar'
@@ -46,6 +53,7 @@ export type ProfileType =
   | 'compositeur'
   | 'rapper'
   | 'musicien'
+  | 'melomane'
   | 'chanteur'
   | 'producteur'
   | 'label'
@@ -93,18 +101,28 @@ export interface User {
   favoriteArtists?: string[];
   connectedPlatforms?: ('spotify' | 'youtube')[];
   platformLinks?: {
-    platform: 'spotify' | 'youtube';
+    platform: ConnectPlatform;
     externalUserId: string;
     connectedAt: number;
     displayName?: string;
+    avatarUrl?: string;
+    email?: string;
+    topArtists?: string[];
+    isRealOAuth?: boolean;
   }[];
   city?: string;
   listeningRole?: ListeningRole;
   profileType?: ProfileType;
   relationshipStatus?: RelationshipStatus;
-  /** Âge renseigné (13–120) ; visible publiquement seulement si showAge. */
+  /** Texte libre si relationshipStatus === autre. */
+  relationshipStatusCustom?: string;
+  /** Date de naissance ISO (YYYY-MM-DD). */
+  birthDate?: string;
+  /** Masquer la date aux autres (défaut true). Propriétaire uniquement en API. */
+  hideBirthDateOnProfile?: boolean;
+  /** Âge dérivé (13–120) ; fallback legacy sans birthDate. */
   age?: number;
-  /** Propriétaire du profil uniquement — consentement d'affichage public. */
+  /** @deprecated Préférer hideBirthDateOnProfile. */
   showAge?: boolean;
   memberSince?: number;
   stats?: UserProfileStats;
@@ -112,6 +130,19 @@ export interface User {
   favoritesCount?: number;
   hostRating?: HostRatingSummary;
   isFollowing?: boolean;
+  /** Le profil visité suit le visiteur (follow inverse) */
+  isFollowingMe?: boolean;
+  /** Le visiteur est abonné supporter de ce créateur */
+  isSupporter?: boolean;
+  supporterTier?: string;
+  /** Nombre d'abonnés actifs (profil créateur) */
+  subscriberCount?: number;
+  /** Le créateur peut recevoir dons / abonnements (18+). */
+  monetizationEligible?: boolean;
+  /** Compte validé (actif) — éligibilité cœur / interactions. */
+  accountValidated?: boolean;
+  /** Au moins 18 ans (champ serveur, indépendant de showAge). */
+  meetsHeartAge?: boolean;
   /** Anime un live actif */
   isLive?: boolean;
   /** Room live à rejoindre (souvent = salonId si live lié au salon) */
@@ -125,6 +156,10 @@ export interface User {
   /** Propriétaire du profil uniquement */
   shareDistance?: boolean;
   locationPrecision?: 'precise' | 'city';
+  /** Réseaux sociaux publics (optionnels) */
+  instagramHandle?: string;
+  youtubeChannel?: string;
+  spotifyUrl?: string;
 }
 
 export interface PlaybackState {
@@ -189,7 +224,18 @@ export interface MsdevDualIpConfig {
 
 export interface AppNotification {
   id: string;
-  type: 'match' | 'live_started' | 'live_don' | 'favorite_online' | 'dm_message' | 'group_message';
+  type:
+    | 'match'
+    | 'live_started'
+    | 'live_don'
+    | 'favorite_online'
+    | 'dm_message'
+    | 'group_message'
+    | 'heart'
+    | 'content_heart'
+    | 'follow'
+    | 'event_created'
+    | 'mention';
   senderId: string;
   senderName: string;
   senderAvatarUrl?: string;
@@ -201,6 +247,8 @@ export interface AppNotification {
   salonId?: string;
   peerUserId?: string;
   groupId?: string;
+  postId?: string;
+  reelId?: string;
 }
 
 export interface MusicMatch {
@@ -339,7 +387,14 @@ export interface Live {
   startedAt?: number;
   distanceKm?: number;
   cameraActive?: boolean;
+  cameraMode?: 'camera' | 'file';
   vipModeratorIds?: string[];
+  /** L'hôte du live peut recevoir des dons (18+). */
+  hostMonetizationEligible?: boolean;
+  /** Code ISO pays du live (dérivé coords / ville hôte). */
+  countryCode?: string;
+  /** Libellé pays en français. */
+  countryName?: string;
 }
 
 export interface ChatMessage {
@@ -497,6 +552,7 @@ export interface UserSearchHit {
 export interface DmContact {
   id: string;
   username: string;
+  displayName?: string;
   usernameColor?: string;
   usernameWaveFrom?: string;
   usernameWaveTo?: string;
@@ -558,15 +614,52 @@ export interface FeedPost {
   userId: string;
   content: string;
   imageUrl?: string;
+  videoUrl?: string;
   createdAt: number;
   author: FeedPostAuthor;
   likeCount: number;
   likedByMe: boolean;
+  resharedByMe?: boolean;
   commentCount: number;
   favoriteByMe: boolean;
   recentComments: FeedPostComment[];
   resharedFromId?: string;
   resharedFrom?: FeedPost;
+  authorHasActiveStory?: boolean;
+  authorActiveStoryId?: string;
+  /** Champs événement */
+  isEvent?: boolean;
+  eventDate?: string;
+  eventLocation?: string;
+  /** Type d'événement : danse, chant ou autre (défaut autre). */
+  eventType?: FeedEventType;
+}
+
+/** Marqueur événement sur la carte (publication fil + coords résolues). */
+export interface MapEventMarker {
+  id: string;
+  latitude: number;
+  longitude: number;
+  title: string;
+  eventDate?: string;
+  eventLocation?: string;
+  eventType?: FeedEventType;
+  authorId?: string;
+  authorUsername?: string;
+  authorAvatarUrl?: string;
+  authorUsernameColor?: string;
+  authorUsernameWaveFrom?: string;
+  authorUsernameWaveTo?: string;
+}
+
+/** Regroupement carte : un pin par ville, liste d'événements dans le panneau latéral. */
+export interface MapEventCityCluster {
+  cityKey: string;
+  cityLabel: string;
+  latitude: number;
+  longitude: number;
+  events: MapEventMarker[];
+  count: number;
 }
 
 export interface StoryMusicTrack {
@@ -595,6 +688,8 @@ export interface MapStory {
   taggedUsers?: StoryTaggedUser[];
   createdAt: number;
   expiresAt: number;
+  /** 'public' = tout le monde, 'followers' = abonnés mutuels uniquement. Défaut : 'followers'. */
+  visibility?: 'public' | 'followers';
   author: {
     id: string;
     username: string;
@@ -621,4 +716,14 @@ export interface MusicNewsItem {
   trending?: boolean;
   trendingRank?: number;
   genres?: string[];
+}
+
+export interface TrendingUser {
+  userId: string;
+  username: string;
+  avatarUrl?: string;
+  totalParticipants: number;
+  rank: number;
+  liveCount: number;
+  salonCount: number;
 }

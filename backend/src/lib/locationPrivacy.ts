@@ -33,6 +33,11 @@ export function userCityOnlyLocation(user: User): boolean {
   return user.locationPrecision === 'city';
 }
 
+/** Position GPS live (POST /geo/update), pas un backfill ville seul. */
+export function userHasLiveGeo(user: User): boolean {
+  return typeof user.geoUpdatedAt === 'number' && user.geoUpdatedAt > 0;
+}
+
 export function resolveCityCoordinates(city: string): [number, number] {
   const normalized = city.trim().toLowerCase();
   for (const entry of CITY_LOOKUP) {
@@ -48,7 +53,7 @@ export function resolveCityCoordinates(city: string): [number, number] {
 /** Met à jour blurredLatitude/blurredLongitude selon les préférences de confidentialité. */
 export function refreshUserPublicCoords(user: User): void {
   if (user.latitude == null || user.longitude == null) return;
-  if (userCityOnlyLocation(user)) {
+  if (userCityOnlyLocation(user) && !userHasLiveGeo(user)) {
     const [lat, lon] = resolveCityCoordinates(user.city || 'Paris');
     user.blurredLatitude = lat;
     user.blurredLongitude = lon;
@@ -71,7 +76,7 @@ export function getPublicMapCoords(
   if (viewerId === user.id) {
     return precise;
   }
-  if (userCityOnlyLocation(user)) {
+  if (userCityOnlyLocation(user) && !userHasLiveGeo(user)) {
     const [lat, lon] = resolveCityCoordinates(user.city || 'Paris');
     return { latitude: lat, longitude: lon };
   }
@@ -80,15 +85,22 @@ export function getPublicMapCoords(
 
 export function getUserPublicCoords(user: User, viewerId?: string): { lat: number; lon: number } | null {
   if (user.latitude == null || user.longitude == null) return null;
+  if (!isValidLatLng(user.latitude, user.longitude)) return null;
   if (viewerId === user.id) {
     return { lat: user.latitude, lon: user.longitude };
   }
-  if (userCityOnlyLocation(user)) {
+  // Ville profil uniquement si pas de GPS live (confidentialité « ville seule »).
+  if (userCityOnlyLocation(user) && !userHasLiveGeo(user)) {
     const [lat, lon] = resolveCityCoordinates(user.city || 'Paris');
     return { lat, lon };
   }
-  if (!isValidLatLng(user.blurredLatitude, user.blurredLongitude)) return null;
-  return { lat: user.blurredLatitude!, lon: user.blurredLongitude! };
+  if (!isValidLatLng(user.blurredLatitude, user.blurredLongitude)) {
+    refreshUserPublicCoords(user);
+  }
+  if (isValidLatLng(user.blurredLatitude, user.blurredLongitude)) {
+    return { lat: user.blurredLatitude!, lon: user.blurredLongitude! };
+  }
+  return null;
 }
 
 export function applyPrivacySettings(

@@ -1,8 +1,8 @@
 import { db, FeedPost, FeedPostComment, User } from '../models/schema';
-import { COMMUNITY_POST_ID_PREFIX } from '../seed-community-posts';
-import { FAVORITE_POST_ID_PREFIX } from '../seed-favorite-feed';
+import { EVENT_POST_ID_PREFIX } from '../seed-feed-events';
 import { hasBlocked } from './blocks';
-import { getFavoriteHostIds } from './favorites';
+import { getUserActiveStory } from './stories';
+import { getAlgoFeed } from './algoFeed';
 
 const MAX_CONTENT_LEN = 2000;
 const MIN_CONTENT_LEN = 1;
@@ -13,14 +13,26 @@ const HTTPS_IMAGE_RE = /^https:\/\//i;
 const BLOCKED_MEDIA_RE =
   /picsum\.photos|commondatastorage|sample-videos|w3schools|mdn\.sample|placeholder\.com|loremflickr/i;
 
-/** Image collée / importée (data URL) — marge sous express.json 2 Mo. */
+/** Image collée / importée (data URL) — marge sous express.json 15 Mo. */
 const FEED_IMAGE_DATA_RE = /^data:image\/(jpeg|png|webp|gif)(?:;[^;,]+)*;base64,[A-Za-z0-9+/=]+$/i;
-export const MAX_FEED_IMAGE_DATA_CHARS = 400_000;
+/** ~900 Ko JPEG 1080 px après compression client (aligné feedImagePaste). */
+export const MAX_FEED_IMAGE_DATA_CHARS = 1_200_000;
+
+/** Vidéo importée (data URL) — aligné sur express.json 15 Mo (msdev). */
+const FEED_VIDEO_DATA_RE =
+  /^data:video\/(webm|mp4|quicktime|x-m4v)(?:;[^;,]+)*;base64,[A-Za-z0-9+/=]+$/i;
+export const MAX_FEED_VIDEO_DATA_CHARS = 12_000_000;
 
 export function isFeedImageDataUrl(url: string): boolean {
   const trimmed = url.trim();
   if (!FEED_IMAGE_DATA_RE.test(trimmed)) return false;
   return trimmed.length <= MAX_FEED_IMAGE_DATA_CHARS;
+}
+
+export function isFeedVideoDataUrl(url: string): boolean {
+  const trimmed = url.trim();
+  if (!FEED_VIDEO_DATA_RE.test(trimmed)) return false;
+  return trimmed.length <= MAX_FEED_VIDEO_DATA_CHARS;
 }
 
 export interface PublicFeedPostComment {
@@ -38,14 +50,23 @@ export interface PublicFeedPost {
   userId: string;
   content: string;
   imageUrl?: string;
+  videoUrl?: string;
   createdAt: number;
   resharedFromId?: string;
   resharedFrom?: PublicFeedPost;
   likeCount: number;
   likedByMe: boolean;
+  resharedByMe: boolean;
   commentCount: number;
   favoriteByMe: boolean;
   recentComments: PublicFeedPostComment[];
+  authorHasActiveStory: boolean;
+  authorActiveStoryId?: string;
+  /** Champs événement (présents si isEvent === true). */
+  isEvent?: boolean;
+  eventDate?: string;
+  eventLocation?: string;
+  eventType?: 'dance' | 'chant' | 'autre';
   author: {
     id: string;
     username: string;
@@ -86,11 +107,19 @@ function normalizeImageUrl(raw: unknown): string | undefined {
   if (typeof raw !== 'string') return undefined;
   const url = raw.trim();
   if (!url) return undefined;
-  if (url.length > 2048) return undefined;
   if (isFeedImageDataUrl(url)) return url;
+  if (url.length > 2048) return undefined;
   if (!HTTPS_IMAGE_RE.test(url)) return undefined;
   if (BLOCKED_MEDIA_RE.test(url)) return undefined;
   return url;
+}
+
+function normalizeVideoUrl(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const url = raw.trim();
+  if (!url) return undefined;
+  if (isFeedVideoDataUrl(url)) return url;
+  return undefined;
 }
 
 function normalizeContent(raw: unknown, opts?: { allowEmpty?: boolean }): string | null {
@@ -103,27 +132,97 @@ function normalizeContent(raw: unknown, opts?: { allowEmpty?: boolean }): string
   return content;
 }
 
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?Z?)?$/;
+
+function normalizeEventDate(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const v = raw.trim();
+  if (!v) return null;
+  if (!ISO_DATE_RE.test(v)) return null;
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+function normalizeEventLocation(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const v = raw.trim();
+  if (!v || v.length > 300) return null;
+  return v;
+}
+
+const VALID_EVENT_TYPES = new Set(['dance', 'chant', 'autre'] as const);
+
+function normalizeEventType(raw: unknown): 'dance' | 'chant' | 'autre' {
+  if (typeof raw === 'string' && VALID_EVENT_TYPES.has(raw as 'dance' | 'chant' | 'autre')) {
+    return raw as 'dance' | 'chant' | 'autre';
+  }
+  return 'autre';
+}
+
 export function createFeedPost(
   userId: string,
-  input: { content: string; imageUrl?: string }
+  input: {
+    content: string;
+    imageUrl?: string;
+    videoUrl?: string;
+    isEvent?: boolean;
+    eventDate?: string;
+    eventLocation?: string;
+    eventType?: string;
+  }
 ): { ok: true; post: PublicFeedPost } | { ok: false; error: string } {
   const user = db.users.get(userId);
   if (!user) return { ok: false, error: 'Utilisateur introuvable' };
 
   const imageUrl = normalizeImageUrl(input.imageUrl);
-  const content = normalizeContent(input.content, { allowEmpty: Boolean(imageUrl) });
-  if (content == null) {
-    return { ok: false, error: 'Le texte doit contenir entre 1 et 2000 caractères.' };
-  }
-  if (!content && !imageUrl) {
-    return { ok: false, error: 'Ajoutez du texte ou une image.' };
+  const videoUrl = normalizeVideoUrl(input.videoUrl);
+  if (imageUrl && videoUrl) {
+    return { ok: false, error: 'Une publication ne peut pas contenir une image et une vidéo.' };
   }
 
-  if (input.imageUrl != null && String(input.imageUrl).trim() && !imageUrl) {
+  const hasImageInput = input.imageUrl != null && String(input.imageUrl).trim().length > 0;
+  const hasVideoInput = input.videoUrl != null && String(input.videoUrl).trim().length > 0;
+  if (hasImageInput && !imageUrl) {
     return {
       ok: false,
       error: 'Image invalide (URL https ou image collée, max ~400 Ko encodée).',
     };
+  }
+  if (hasVideoInput && !videoUrl) {
+    return {
+      ok: false,
+      error: 'Vidéo invalide (MP4, WebM ou MOV, max ~12 Mo encodée).',
+    };
+  }
+
+  const hasMedia = Boolean(imageUrl || videoUrl);
+  const content = normalizeContent(input.content ?? '', {
+    allowEmpty: hasMedia || hasImageInput || hasVideoInput,
+  });
+  if (content == null) {
+    return { ok: false, error: 'Le texte doit contenir entre 1 et 2000 caractères.' };
+  }
+  if (!content && !hasMedia) {
+    return { ok: false, error: 'Ajoutez du texte, une image ou une vidéo.' };
+  }
+
+  // Validation événement
+  let eventDate: string | undefined;
+  let eventLocation: string | undefined;
+  let eventType: 'dance' | 'chant' | 'autre' | undefined;
+  if (input.isEvent) {
+    const date = normalizeEventDate(input.eventDate);
+    if (!date) {
+      return { ok: false, error: "Date de l'événement invalide ou manquante." };
+    }
+    const loc = normalizeEventLocation(input.eventLocation);
+    if (!loc) {
+      return { ok: false, error: "Lieu de l'événement requis (max 300 caractères)." };
+    }
+    eventDate = date;
+    eventLocation = loc;
+    eventType = normalizeEventType(input.eventType);
   }
 
   const post: FeedPost = {
@@ -131,6 +230,8 @@ export function createFeedPost(
     userId,
     content,
     ...(imageUrl ? { imageUrl } : {}),
+    ...(videoUrl ? { videoUrl } : {}),
+    ...(input.isEvent ? { isEvent: true, eventDate, eventLocation, eventType } : {}),
     createdAt: Date.now(),
   };
   db.feedPosts.push(post);
@@ -239,18 +340,41 @@ export function toggleFeedPostFavorite(
 export function listFavoritedFeedPosts(userId: string): PublicFeedPost[] {
   const favs = db.feedPostFavorites.get(userId);
   if (!favs || favs.size === 0) return [];
+
+  // Single pass over db.feedPosts: build id→post index + reshares Set.
+  // Avoids O(n) db.feedPosts.find() per favorited post.
+  const postById = new Map<string, FeedPost>();
+  const myReshares = new Set<string>();
+  for (const p of db.feedPosts) {
+    postById.set(p.id, p);
+    if (p.userId === userId && p.resharedFromId) {
+      myReshares.add(p.resharedFromId);
+    }
+  }
+
   const out: PublicFeedPost[] = [];
   for (const postId of favs) {
-    const post = db.feedPosts.find((p) => p.id === postId);
+    const post = postById.get(postId);
     if (!post) continue;
     const author = db.users.get(post.userId);
     if (!author) continue;
-    out.push(toPublicPost(post, author, userId));
+    out.push(toPublicPost(post, author, userId, 0, myReshares));
   }
   return out.sort((a, b) => b.createdAt - a.createdAt);
 }
 
-function toPublicPost(post: FeedPost, author: User, viewerId: string, depth = 0): PublicFeedPost {
+/**
+ * @param reshareCtx  Optionally pre-built Set of original post IDs that viewerId has already
+ *   reshared.  When provided, avoids an O(n) full-scan of db.feedPosts per post (hot path in
+ *   list functions).  Single-post callers (createFeedPost, resharePost) can omit this.
+ */
+function toPublicPost(
+  post: FeedPost,
+  author: User,
+  viewerId: string,
+  depth = 0,
+  reshareCtx?: ReadonlySet<string>,
+): PublicFeedPost {
   const likes = db.feedPostLikes.get(post.id);
   const comments = db.feedPostComments.get(post.id) ?? [];
   const favs = db.feedPostFavorites.get(viewerId);
@@ -273,24 +397,40 @@ function toPublicPost(post: FeedPost, author: User, viewerId: string, depth = 0)
     if (orig) {
       const origAuthor = db.users.get(orig.userId);
       if (origAuthor) {
-        resharedFrom = toPublicPost(orig, origAuthor, viewerId, 1);
+        resharedFrom = toPublicPost(orig, origAuthor, viewerId, 1, reshareCtx);
       }
     }
   }
+
+  const activeStory = getUserActiveStory(author.id);
 
   return {
     id: post.id,
     userId: post.userId,
     content: post.content,
     imageUrl: post.imageUrl,
+    videoUrl: post.videoUrl,
     createdAt: post.createdAt,
     resharedFromId: post.resharedFromId,
     resharedFrom,
     likeCount: likes ? likes.size : 0,
     likedByMe: likes ? likes.has(viewerId) : false,
+    resharedByMe: reshareCtx
+      ? reshareCtx.has(post.id)
+      : db.feedPosts.some((p) => p.userId === viewerId && p.resharedFromId === post.id),
     commentCount: comments.length,
     favoriteByMe: favs ? favs.has(post.id) : false,
     recentComments,
+    authorHasActiveStory: !!activeStory,
+    authorActiveStoryId: activeStory?.id,
+    ...(post.isEvent
+      ? {
+          isEvent: true,
+          eventDate: post.eventDate,
+          eventLocation: post.eventLocation,
+          eventType: post.eventType ?? 'autre',
+        }
+      : {}),
     author: authorDto(author),
   };
 }
@@ -299,69 +439,139 @@ function isMsdevFeed(): boolean {
   return process.env.APP_ENV === 'msdev' || process.env.MSENV === 'msdev';
 }
 
-/** En msdev, les posts seed Accueil restent en tête (favoris puis hors favoris). */
+// ─── Event filter helpers ─────────────────────────────────────────────────────
+
+export interface EventFilterOpts {
+  eventsOnly?: boolean;
+  /** Exclut les événements seed feed-event-* (section « Événements autour »). */
+  userEventsOnly?: boolean;
+  eventDate?: string;
+  eventLocationSearch?: string;
+  eventCountry?: string;
+}
+
+const COUNTRY_NAMES: Record<string, string> = {
+  FR: 'france', BE: 'belgique', CH: 'suisse', CA: 'canada', LU: 'luxembourg',
+  DE: 'allemagne', IT: 'italie', ES: 'espagne', GB: 'royaume-uni',
+  US: 'états-unis', MA: 'maroc', SN: 'sénégal', CI: "côte d'ivoire",
+};
+
+function matchesEventFilters(post: FeedPost, f: EventFilterOpts): boolean {
+  if (!f.eventsOnly) return true;
+  if (!post.isEvent) return false;
+  if (f.userEventsOnly && post.id.startsWith(EVENT_POST_ID_PREFIX)) return false;
+
+  if (f.eventDate) {
+    if (!post.eventDate?.startsWith(f.eventDate)) return false;
+  } else if (post.eventDate) {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const postDateStr = post.eventDate.split('T')[0];
+    if (postDateStr < todayStr) return false;
+  }
+
+  if (f.eventLocationSearch) {
+    const needle = f.eventLocationSearch.toLowerCase();
+    if (!post.eventLocation?.toLowerCase().includes(needle)) return false;
+  }
+
+  if (f.eventCountry) {
+    const needle = COUNTRY_NAMES[f.eventCountry.toUpperCase()] ?? f.eventCountry.toLowerCase();
+    if (!post.eventLocation?.toLowerCase().includes(needle)) return false;
+  }
+
+  return true;
+}
+
+/** En msdev, même ordre que prod : createdAt décroissant (date de publication). */
 function listFeedPostsMsdev(
   viewerId: string,
   limit: number,
-  before?: number
+  before: number | undefined,
+  eventFilters: EventFilterOpts,
 ): PublicFeedPost[] {
+  return listFeedPostsChronological(viewerId, limit, before, eventFilters);
+}
+
+function listFeedPostsChronological(
+  viewerId: string,
+  limit: number,
+  before: number | undefined,
+  eventFilters: EventFilterOpts,
+): PublicFeedPost[] {
+  // Pre-build a Set of post IDs that viewerId has reshared in O(n) rather than checking
+  // db.feedPosts.some() inside toPublicPost which would be O(n) × limit = O(n²).
+  const myReshares = new Set<string>();
+  for (const p of db.feedPosts) {
+    if (p.userId === viewerId && p.resharedFromId) {
+      myReshares.add(p.resharedFromId);
+    }
+  }
+
   const sorted = [...db.feedPosts].sort((a, b) => b.createdAt - a.createdAt);
-  const favoriteAuthorIds = new Set(getFavoriteHostIds(viewerId));
-  const seedFavorite: FeedPost[] = [];
-  const seedCommunity: FeedPost[] = [];
-  const others: FeedPost[] = [];
+  const out: PublicFeedPost[] = [];
 
   for (const post of sorted) {
     if (before != null && post.createdAt >= before) continue;
     if (!isVisibleToViewer(viewerId, post.userId)) continue;
-    if (!db.users.get(post.userId)) continue;
-
-    if (post.id.startsWith(FAVORITE_POST_ID_PREFIX)) seedFavorite.push(post);
-    else if (post.id.startsWith(COMMUNITY_POST_ID_PREFIX)) seedCommunity.push(post);
-    else others.push(post);
-  }
-
-  seedFavorite.sort((a, b) => {
-    const aFav = favoriteAuthorIds.has(a.userId) ? 1 : 0;
-    const bFav = favoriteAuthorIds.has(b.userId) ? 1 : 0;
-    if (aFav !== bFav) return bFav - aFav;
-    return b.createdAt - a.createdAt;
-  });
-
-  const merged = [...seedFavorite, ...seedCommunity, ...others];
-  const out: PublicFeedPost[] = [];
-  for (const post of merged) {
-    const author = db.users.get(post.userId)!;
-    out.push(toPublicPost(post, author, viewerId));
+    if (!matchesEventFilters(post, eventFilters)) continue;
+    const author = db.users.get(post.userId);
+    if (!author) continue;
+    out.push(toPublicPost(post, author, viewerId, 0, myReshares));
     if (out.length >= limit) break;
   }
+
   return out;
 }
 
 export function listFeedPosts(
   viewerId: string,
-  opts?: { limit?: number; before?: number }
+  opts?: {
+    limit?: number;
+    before?: number;
+    eventsOnly?: boolean;
+    userEventsOnly?: boolean;
+    eventDate?: string;
+    eventLocationSearch?: string;
+    eventCountry?: string;
+    /** When true, rank posts via the Algo Soundy scoring engine instead of chronological order. */
+    useAlgo?: boolean;
+  }
 ): PublicFeedPost[] {
   let limit = typeof opts?.limit === 'number' && Number.isFinite(opts.limit) ? opts.limit : DEFAULT_LIMIT;
   limit = Math.min(Math.max(1, Math.floor(limit)), MAX_LIMIT);
   const before =
     typeof opts?.before === 'number' && Number.isFinite(opts.before) ? opts.before : undefined;
+  const eventFilters: EventFilterOpts = {
+    eventsOnly: opts?.eventsOnly,
+    userEventsOnly: opts?.userEventsOnly,
+    eventDate: opts?.eventDate,
+    eventLocationSearch: opts?.eventLocationSearch,
+    eventCountry: opts?.eventCountry,
+  };
+
+  // Algo Soundy: only applies to the main feed (not events-only queries or msdev).
+  if (opts?.useAlgo && !eventFilters.eventsOnly && !isMsdevFeed()) {
+    const algoPosts = getAlgoFeed(viewerId, limit);
+    // Fall back to chronological when not enough posts to rank meaningfully.
+    if (algoPosts.length >= 5) {
+      const myReshares = new Set<string>();
+      for (const p of db.feedPosts) {
+        if (p.userId === viewerId && p.resharedFromId) myReshares.add(p.resharedFromId);
+      }
+      const result: PublicFeedPost[] = [];
+      for (const post of algoPosts) {
+        if (!isVisibleToViewer(viewerId, post.userId)) continue;
+        const author = db.users.get(post.userId);
+        if (!author) continue;
+        result.push(toPublicPost(post, author, viewerId, 0, myReshares));
+      }
+      return result;
+    }
+  }
 
   if (isMsdevFeed()) {
-    return listFeedPostsMsdev(viewerId, limit, before);
+    return listFeedPostsMsdev(viewerId, limit, before, eventFilters);
   }
 
-  const sorted = [...db.feedPosts].sort((a, b) => b.createdAt - a.createdAt);
-  const out: PublicFeedPost[] = [];
-
-  for (const post of sorted) {
-    if (before != null && post.createdAt >= before) continue;
-    if (!isVisibleToViewer(viewerId, post.userId)) continue;
-    const author = db.users.get(post.userId);
-    if (!author) continue;
-    out.push(toPublicPost(post, author, viewerId));
-    if (out.length >= limit) break;
-  }
-
-  return out;
+  return listFeedPostsChronological(viewerId, limit, before, eventFilters);
 }

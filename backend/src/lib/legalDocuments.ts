@@ -29,7 +29,7 @@ const mentionsLegales: LegalDocument = {
   sections: [
     {
       heading: 'Éditeur du site et de l’application',
-      body: `L’application Soundly et le site associé sont édités par :\n\n{{publisherName}}\n{{legalForm}}\n{{address}}\nSIREN / SIRET : {{siren}}\n{{rcs}}\n{{capital}}\n\nContact : {{contactEmail}}\n\nDirecteur de la publication : {{publicationDirector}}`,
+      body: `L’application Soundy et le site associé sont édités par :\n\n{{publisherName}}\n{{legalForm}}\n{{address}}\nSIREN / SIRET : {{siren}}\n{{rcs}}\n{{capital}}\n\nContact : {{contactEmail}}\n\nDirecteur de la publication : {{publicationDirector}}`,
     },
     {
       heading: 'Hébergement',
@@ -37,11 +37,11 @@ const mentionsLegales: LegalDocument = {
     },
     {
       heading: 'Activité du service',
-      body: `Soundly est une application sociale autour de la musique : salons d’écoute géolocalisés, lives, messagerie, carte des utilisateurs et contenus musicaux via des liens vers Spotify et YouTube. Soundly n’est pas un service de rencontre sentimental.\n\nDomaine de production : {{productionDomain}}`,
+      body: `Soundy est une application sociale autour de la musique : salons d’écoute géolocalisés, lives, messagerie, carte des utilisateurs et contenus musicaux via des liens vers Spotify et YouTube. Soundy n’est pas un service de rencontre sentimental.\n\nDomaine de production : {{productionDomain}}`,
     },
     {
       heading: 'Propriété intellectuelle',
-      body: `L’ensemble des éléments composant Soundly (textes, interface, logo, charte, code source, sauf composants open source) est protégé par le droit d’auteur.\n\nLes marques Spotify, YouTube, Google appartiennent à leurs propriétaires. Soundly n’est pas affilié, sponsorisé ou approuvé par ces sociétés, sauf accord écrit contraire.`,
+      body: `L’ensemble des éléments composant Soundy (textes, interface, logo, charte, code source, sauf composants open source) est protégé par le droit d’auteur.\n\nLes marques Spotify, YouTube, Google appartiennent à leurs propriétaires. Soundy n’est pas affilié, sponsorisé ou approuvé par ces sociétés, sauf accord écrit contraire.`,
     },
     {
       heading: 'Données personnelles et cookies',

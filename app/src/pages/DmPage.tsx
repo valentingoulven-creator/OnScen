@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useDmUnread } from '../context/DmUnreadContext';
 import { api } from '../lib/api';
+import { ACCEPTED_IMAGE_FORMATS, validateImageFile, resizeImageInstagram } from '../lib/imageUtils';
 import { getSocket } from '../lib/socket';
 import { useMatchCreated } from '../lib/useMatchCreated';
 import { UserAvatarOnline } from '../components/UserAvatarOnline';
@@ -85,7 +87,9 @@ const DM_MAX_FILE_SIZE = 10 * 1024 * 1024;
 function contactMatchesQuery(contact: DmContact, query: string): boolean {
   const q = normalizeForSearch(query);
   if (!q) return true;
-  return normalizeForSearch(contact.username).includes(q);
+  if (normalizeForSearch(contact.username).includes(q)) return true;
+  if (contact.displayName && normalizeForSearch(contact.displayName).includes(q)) return true;
+  return false;
 }
 
 function HighlightedUsername({ username, query }: { username: string; query: string }) {
@@ -177,6 +181,7 @@ export function DmPage({
   onOpenProfile?: (userId: string) => void;
 } = {}) {
   const { user, token } = useAuth();
+  const { t } = useTranslation();
   const { refreshUnread, refreshMuted, setActivePeer, setActiveGroup } = useDmUnread();
   const [view, setView] = useState<View>('list');
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -200,6 +205,7 @@ export function DmPage({
   const [unblocking, setUnblocking] = useState(false);
   const [muting, setMuting] = useState(false);
   const [contactSearch, setContactSearch] = useState('');
+  const [blockedSearch, setBlockedSearch] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [openMsgMenuId, setOpenMsgMenuId] = useState<string | null>(null);
   const [matchedUserIds, setMatchedUserIds] = useState<Set<string>>(new Set());
@@ -222,16 +228,26 @@ export function DmPage({
     mimeType: string;
     size: number;
   } | null>(null);
+  const [showNewDmSheet, setShowNewDmSheet] = useState(false);
+  const [newDmQuery, setNewDmQuery] = useState('');
+  const [newDmResults, setNewDmResults] = useState<UserSearchHit[]>([]);
+  const [newDmSearching, setNewDmSearching] = useState(false);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
   const prevMessageCountRef = useRef(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastTapByMsgRef = useRef<Map<string, number>>(new Map());
+  const newDmInputRef = useRef<HTMLInputElement>(null);
 
   const filteredContacts = useMemo(
     () => contacts.filter((c) => contactMatchesQuery(c, contactSearch)),
     [contacts, contactSearch]
+  );
+
+  const filteredBlockedUsers = useMemo(
+    () => blockedUsers.filter((b) => contactMatchesQuery(b, blockedSearch)),
+    [blockedUsers, blockedSearch]
   );
 
   const searchSuggestions = useMemo(() => {
@@ -283,6 +299,21 @@ export function DmPage({
   );
 
   const handleFileSelect = useCallback((file: File) => {
+    if (isImageMime(file.type)) {
+      const imgError = validateImageFile(file);
+      if (imgError) {
+        alert(imgError);
+        return;
+      }
+      resizeImageInstagram(file)
+        .then((dataUrl) => {
+          setPendingAttachment({ dataUrl, name: file.name, mimeType: 'image/jpeg', size: file.size });
+        })
+        .catch((err: unknown) => {
+          alert(err instanceof Error ? err.message : "Impossible de traiter l'image");
+        });
+      return;
+    }
     if (file.size > DM_MAX_FILE_SIZE) {
       alert('Fichier trop volumineux (max 10 Mo)');
       return;
@@ -348,10 +379,12 @@ export function DmPage({
   };
 
   const toggleSelectAllBlocked = () => {
-    if (selectedIds.size === blockedUsers.length) {
+    const visible = blockedSearch.trim() ? filteredBlockedUsers : blockedUsers;
+    const allSelected = visible.length > 0 && visible.every((b) => selectedIds.has(b.id));
+    if (allSelected) {
       clearSelection();
     } else {
-      setSelectedIds(new Set(blockedUsers.map((b) => b.id)));
+      setSelectedIds(new Set(visible.map((b) => b.id)));
     }
   };
 
@@ -867,6 +900,34 @@ export function DmPage({
     return () => window.clearTimeout(timer);
   }, [addMemberSearch, token, groupManageOpen, memberIdsSet]);
 
+  useEffect(() => {
+    const q = newDmQuery.trim();
+    if (!token || !showNewDmSheet || q.length < 1) {
+      setNewDmResults([]);
+      setNewDmSearching(false);
+      return;
+    }
+    setNewDmSearching(true);
+    const timer = window.setTimeout(() => {
+      api
+        .searchUsers(token, q)
+        .then((r) => setNewDmResults(r.users.slice(0, 8)))
+        .catch(() => setNewDmResults([]))
+        .finally(() => setNewDmSearching(false));
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [newDmQuery, token, showNewDmSheet]);
+
+  useEffect(() => {
+    if (showNewDmSheet) {
+      window.setTimeout(() => newDmInputRef.current?.focus(), 100);
+    } else {
+      setNewDmQuery('');
+      setNewDmResults([]);
+      setNewDmSearching(false);
+    }
+  }, [showNewDmSheet]);
+
   const addMemberToGroup = async (userId: string, username: string) => {
     if (!token || !activeGroup || addingMemberId) return;
     setAddingMemberId(userId);
@@ -1001,35 +1062,78 @@ export function DmPage({
   };
 
   if (view === 'blocked') {
+    const visibleBlocked = filteredBlockedUsers;
+    const allVisibleSelected =
+      visibleBlocked.length > 0 && visibleBlocked.every((b) => selectedIds.has(b.id));
+
     return (
       <div className="flex flex-col h-full min-h-0 bg-[#0b0b0f]">
         <header className="shrink-0 flex items-center gap-3 p-4 border-b border-[#1e1e2f]">
-          <button type="button" onClick={() => setView('list')} className="text-gray-400 hover:text-white text-xl">
+          <button
+            type="button"
+            onClick={() => {
+              setBlockedSearch('');
+              setView('list');
+            }}
+            className="text-gray-400 hover:text-white text-xl"
+          >
             ←
           </button>
-          <h2 className="font-bold text-white flex-1">Utilisateurs bloqués</h2>
-          {blockedUsers.length > 0 && (
+          <h2 className="font-bold text-white flex-1">{t('dm.blocked')}</h2>
+          {visibleBlocked.length > 0 && (
             <button
               type="button"
               onClick={toggleSelectAllBlocked}
               className="text-xs text-green-400 font-semibold"
             >
-              {selectedIds.size === blockedUsers.length ? 'Tout désélect.' : 'Tout'}
+              {allVisibleSelected ? 'Tout désélect.' : 'Tout'}
             </button>
           )}
         </header>
 
         {blockedUsers.length > 0 && (
-          <p className="shrink-0 px-4 py-2 text-[10px] text-gray-500 border-b border-[#1e1e2f]/50">
-            Cochez puis « Débloquer » en bas, ou utilisez le bouton sur chaque ligne
-          </p>
+          <div className="shrink-0 px-4 py-3 border-b border-[#1e1e2f]/50">
+            <div className="relative flex items-center h-9 rounded-full bg-[#1a1a26]/90 border border-[#2d2d3d]/90 shadow-sm shadow-black/20 transition-[border-color,box-shadow] focus-within:border-purple-500/50 focus-within:ring-2 focus-within:ring-purple-500/25 focus-within:shadow-purple-500/10">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" aria-hidden>
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m20 20-3.5-3.5" />
+                </svg>
+              </span>
+              <input
+                type="search"
+                value={blockedSearch}
+                onChange={(e) => setBlockedSearch(e.target.value)}
+                placeholder={t('dm.blockedSearchPlaceholder')}
+                autoComplete="off"
+                aria-label={t('dm.blockedSearchPlaceholder')}
+                className="w-full h-full pl-9 pr-8 text-xs rounded-full bg-transparent text-white placeholder:text-gray-500/90 outline-none [&::-webkit-search-cancel-button]:hidden"
+              />
+              {blockedSearch && (
+                <button
+                  type="button"
+                  onClick={() => setBlockedSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full text-gray-500 hover:text-white hover:bg-white/10 text-sm leading-none transition-colors"
+                  aria-label={t('dm.clearSearch')}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            <p className="mt-2 text-[10px] text-gray-500">
+              Cochez puis « Débloquer » en bas, ou utilisez le bouton sur chaque ligne
+            </p>
+          </div>
         )}
 
         <ul className="flex-1 min-h-0 overflow-y-auto p-2">
           {blockedUsers.length === 0 && (
-            <p className="text-center text-gray-500 text-sm py-8">Aucun utilisateur bloqué</p>
+            <p className="text-center text-gray-500 text-sm py-8">{t('dm.blockedEmpty')}</p>
           )}
-          {blockedUsers.map((b) => {
+          {blockedUsers.length > 0 && visibleBlocked.length === 0 && (
+            <p className="text-center text-gray-500 text-sm py-8">{t('dm.blockedNoResults')}</p>
+          )}
+          {visibleBlocked.map((b) => {
             const selected = selectedIds.has(b.id);
             return (
               <li
@@ -1665,7 +1769,7 @@ export function DmPage({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,.pdf,.mp3,.mp4,.zip,.doc,.docx,.xls,.xlsx,.txt,.csv"
+            accept={`${ACCEPTED_IMAGE_FORMATS},.pdf,.mp3,.mp4,.zip,.doc,.docx,.xls,.xlsx,.txt,.csv`}
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -1697,7 +1801,7 @@ export function DmPage({
               disabled={(!draft.trim() && !pendingAttachment) || sending}
               className="shrink-0 px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 rounded-full font-bold text-white text-sm"
             >
-              Envoyer
+              {t('dm.send')}
             </button>
           </form>
         </div>
@@ -1995,7 +2099,7 @@ export function DmPage({
               disabled={!draft.trim() || sending}
               className="shrink-0 px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 rounded-full font-bold text-white text-sm"
             >
-              Envoyer
+              {t('dm.send')}
             </button>
           </form>
         </div>
@@ -2006,7 +2110,7 @@ export function DmPage({
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f]">
       <div className="shrink-0 flex items-center justify-between p-4 border-b border-[#1e1e2f]">
-        <h2 className="text-lg font-bold text-white">Messages</h2>
+        <h2 className="text-lg font-bold text-white">{t('dm.title')}</h2>
         <div className="flex gap-2 flex-wrap justify-end">
           <button
             type="button"
@@ -2024,6 +2128,7 @@ export function DmPage({
             type="button"
             onClick={() => {
               loadBlocked();
+              setBlockedSearch('');
               setView('blocked');
             }}
             className="px-3 py-2 text-xs text-gray-400 border border-[#2d2d3d] rounded-full hover:text-white"
@@ -2115,10 +2220,7 @@ export function DmPage({
           <p className="text-gray-400 text-sm mb-4">Aucune conversation pour le moment</p>
           <button
             type="button"
-            onClick={() => {
-              loadContacts();
-              setView('new');
-            }}
+            onClick={() => setShowNewDmSheet(true)}
             className="px-5 py-2.5 bg-purple-600 rounded-full font-bold text-white text-sm"
           >
             Envoyer un message privé
@@ -2298,6 +2400,114 @@ export function DmPage({
       </ul>
 
       <SelectionBar />
+
+      {showNewDmSheet && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowNewDmSheet(false); }}
+        >
+          <div className="bg-[#12121a] rounded-t-2xl border-t border-[#2d2d3d] max-h-[85vh] flex flex-col shadow-2xl">
+            <div className="shrink-0 flex items-center justify-between p-4 border-b border-[#1e1e2f]">
+              <h2 className="font-bold text-white text-base">Nouvelle conversation</h2>
+              <button
+                type="button"
+                onClick={() => setShowNewDmSheet(false)}
+                className="text-sm text-gray-400 hover:text-white px-2 py-1 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                Annuler
+              </button>
+            </div>
+            <div className="shrink-0 px-4 py-3 border-b border-[#1e1e2f]/50">
+              <div className="flex items-center gap-2 bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 focus-within:border-purple-500/60">
+                <svg
+                  className="w-4 h-4 text-gray-500 shrink-0"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m20 20-3.5-3.5" />
+                </svg>
+                <input
+                  ref={newDmInputRef}
+                  type="search"
+                  value={newDmQuery}
+                  onChange={(e) => setNewDmQuery(e.target.value)}
+                  placeholder="Rechercher un utilisateur…"
+                  autoComplete="off"
+                  className="flex-1 bg-transparent text-sm text-white placeholder:text-gray-500 outline-none [&::-webkit-search-cancel-button]:hidden"
+                />
+                {newDmQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setNewDmQuery('')}
+                    className="shrink-0 w-5 h-5 flex items-center justify-center rounded-full text-gray-500 hover:text-white hover:bg-white/10 text-xs"
+                    aria-label="Effacer"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            </div>
+            <ul className="flex-1 min-h-0 overflow-y-auto p-2">
+              {newDmSearching && (
+                <li className="text-center text-gray-500 text-sm py-6">Recherche…</li>
+              )}
+              {!newDmSearching && newDmQuery.trim().length === 0 && (
+                <li className="text-center text-gray-500 text-sm py-6">Tapez un nom pour rechercher</li>
+              )}
+              {!newDmSearching && newDmQuery.trim().length > 0 && newDmResults.length === 0 && (
+                <li className="text-center text-gray-500 text-sm py-6">
+                  Aucun utilisateur trouvé pour « {newDmQuery.trim()} »
+                </li>
+              )}
+              {!newDmSearching &&
+                newDmResults.map((hit) => (
+                  <li key={hit.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowNewDmSheet(false);
+                        void openThread({
+                          id: hit.id,
+                          username: hit.username,
+                          usernameColor: hit.usernameColor,
+                          usernameWaveFrom: hit.usernameWaveFrom,
+                          usernameWaveTo: hit.usernameWaveTo,
+                          avatarUrl: hit.avatarUrl,
+                          isOnline: false,
+                        });
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#1a1a26] text-left transition-colors"
+                    >
+                      <UserAvatarOnline
+                        userId={hit.id}
+                        avatarUrl={hit.avatarUrl}
+                        size="md"
+                        isOnline={false}
+                        isLive={hit.isLive ?? false}
+                        liveViewersCount={hit.liveViewersCount}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-white text-sm truncate">{hit.username}</p>
+                        {hit.city && (
+                          <p className="text-xs text-gray-400 truncate">{hit.city}</p>
+                        )}
+                      </div>
+                      {hit.isLive && (
+                        <span className="shrink-0 text-[10px] text-red-400 font-bold">En live</span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

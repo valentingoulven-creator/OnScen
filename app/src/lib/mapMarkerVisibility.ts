@@ -1,0 +1,387 @@
+import { isValidLatLng } from './mapCoords';
+import type { MapEventCityCluster } from '../types';
+
+/**
+ * Progressive disclosure of map markers by zoom / globe altitude.
+ *
+ * Flat map (Leaflet zoom):
+ *   overview  z < 8   — capitals, event city clusters (no viewport clip),
+ *     simplified dots for lives/salons when their filter is ON
+ *   city      8 ≤ z < 12 — capitals, events, live salons/lives/people
+ *   street    z ≥ 12  — all passed markers
+ *
+ * Globe (pointOfView altitude — lower = closer):
+ *   overview  alt ≥ 0.6
+ *   city      0.15 ≤ alt < 0.6
+ *   street    alt < 0.15
+ */
+
+export type MapDetailTier = 'overview' | 'city' | 'street';
+
+export type MapStyleKind = 'flat' | 'globe';
+
+/** Bounding box of the visible flat map (degrees). */
+export interface MapBounds {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+}
+
+/** Zoom / altitude state reported by MapView for sidebar filtering. */
+export interface MapViewDetailState {
+  tier: MapDetailTier;
+  flatZoom: number;
+  /** Set when globe is active; null on flat map. */
+  globeAltitude: number | null;
+  bounds: MapBounds | null;
+  mapStyle: MapStyleKind;
+}
+
+const BOUNDS_EPSILON = 0.0005;
+
+/** Compare visible map bounds (degrees) within a small tolerance. */
+export function mapBoundsEqual(
+  a: MapBounds | null | undefined,
+  b: MapBounds | null | undefined,
+  epsilon = BOUNDS_EPSILON
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    Math.abs(a.north - b.north) < epsilon &&
+    Math.abs(a.south - b.south) < epsilon &&
+    Math.abs(a.east - b.east) < epsilon &&
+    Math.abs(a.west - b.west) < epsilon
+  );
+}
+
+/**
+ * True when sidebar filtering would yield the same result (tier + visible bounds).
+ * Ignores raw zoom/altitude within the same tier.
+ */
+export function mapSidebarDetailEqual(
+  a: MapViewDetailState,
+  b: MapViewDetailState
+): boolean {
+  return a.tier === b.tier && a.mapStyle === b.mapStyle && mapBoundsEqual(a.bounds, b.bounds);
+}
+
+/** Centre géographique d'une bounding box carte plate. */
+export function getMapBoundsCenter(bounds: MapBounds): [number, number] {
+  return [(bounds.north + bounds.south) / 2, (bounds.west + bounds.east) / 2];
+}
+
+/** Distance approximative en km (haversine). */
+export function getDistanceKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * Bounds stables pour un clip viewport : la zone visible contient le point
+ * utilisé pour charger les données nearby (évite blackout pendant flyTo).
+ */
+export function areBoundsStableForViewportClip(
+  bounds: MapBounds | null | undefined,
+  anchorLat: number,
+  anchorLng: number
+): boolean {
+  if (!bounds) return false;
+  return isInMapBounds(anchorLat, anchorLng, bounds);
+}
+
+/** True quand marqueurs lives/personnes peuvent être filtrés par bounds (carte plate). */
+export function shouldClipMapMarkersToViewport(
+  detail: Pick<MapViewDetailState, 'mapStyle' | 'bounds'>,
+  nearbyFetchCenter: [number, number]
+): boolean {
+  if (detail.mapStyle !== 'flat' || !detail.bounds) return false;
+  return areBoundsStableForViewportClip(
+    detail.bounds,
+    nearbyFetchCenter[0],
+    nearbyFetchCenter[1]
+  );
+}
+
+export function isInMapBounds(
+  latitude: number,
+  longitude: number,
+  bounds: MapBounds | null | undefined
+): boolean {
+  if (!bounds) return true;
+  if (latitude < bounds.south || latitude > bounds.north) return false;
+  if (bounds.west <= bounds.east) {
+    return longitude >= bounds.west && longitude <= bounds.east;
+  }
+  // Antimeridian wrap
+  return longitude >= bounds.west || longitude <= bounds.east;
+}
+
+/** Salon ouvert à tous (accessMode / isPublic, aligné backend normalizeSalonAccess). */
+export function isPublicSalon(salon: {
+  accessMode?: 'public' | 'invite';
+  isPublic?: boolean;
+}): boolean {
+  if (salon.accessMode === 'invite') return false;
+  if (salon.accessMode === 'public') return true;
+  return salon.isPublic === true;
+}
+
+/**
+ * Event clusters clipped to the visible flat-map viewport.
+ * Overview: cluster pin at city centroid.
+ * City / street: individual venue coords (MODIF 207) — keep cluster when any event is in view.
+ */
+export function filterEventClustersInViewport(
+  clusters: MapEventCityCluster[],
+  bounds: MapBounds | null | undefined,
+  tier: MapDetailTier
+): MapEventCityCluster[] {
+  if (!bounds) return clusters;
+  // Overview: city-level pins — skip viewport clip so clusters stay visible when dezoomed.
+  if (tier === 'overview') {
+    return clusters;
+  }
+  const result: MapEventCityCluster[] = [];
+  for (const cluster of clusters) {
+    const eventsInView = filterMarkersInViewport(cluster.events, bounds);
+    if (eventsInView.length === 0) continue;
+    result.push({
+      ...cluster,
+      events: eventsInView,
+      count: eventsInView.length,
+    });
+  }
+  return result;
+}
+
+/** Marqueurs lat/lng dans la zone visible (carte plate ; globe = pas de bounds). */
+export function filterMarkersInViewport<T extends { latitude: number; longitude: number }>(
+  items: T[],
+  bounds: MapBounds | null | undefined
+): T[] {
+  if (!bounds) return items;
+  return items.filter(
+    (item) =>
+      isValidLatLng(item.latitude, item.longitude) &&
+      isInMapBounds(item.latitude, item.longitude, bounds)
+  );
+}
+
+/** Salons dont les coordonnées tombent dans la zone visible (carte plate). */
+export function filterSalonsInViewport<T extends { latitude: number; longitude: number }>(
+  salons: T[],
+  bounds: MapBounds | null | undefined
+): T[] {
+  return filterMarkersInViewport(salons, bounds);
+}
+
+/** Lives dont les coordonnées tombent dans la zone visible (carte plate). */
+export function filterLivesInViewport<T extends { latitude: number; longitude: number }>(
+  lives: T[],
+  bounds: MapBounds | null | undefined
+): T[] {
+  return filterMarkersInViewport(lives, bounds);
+}
+
+/**
+ * Clip lives pour la carte : évite un blackout quand le clip viewport vide la liste
+ * alors que des lives existent encore (bounds / fetch anchor transitoires).
+ */
+export function clipLivesForMapView<T extends { latitude: number; longitude: number }>(
+  lives: T[],
+  detail: Pick<MapViewDetailState, 'mapStyle' | 'bounds'>,
+  nearbyFetchCenter: [number, number]
+): T[] {
+  if (!shouldClipMapMarkersToViewport(detail, nearbyFetchCenter)) return lives;
+  const clipped = filterLivesInViewport(lives, detail.bounds);
+  if (clipped.length === 0 && lives.length > 0) return lives;
+  return clipped;
+}
+
+/** Même garde-fou que clipLivesForMapView pour les salons carte. */
+export function clipSalonsForMapView<T extends { latitude: number; longitude: number }>(
+  salons: T[],
+  detail: Pick<MapViewDetailState, 'mapStyle' | 'bounds'>,
+  nearbyFetchCenter: [number, number]
+): T[] {
+  if (!shouldClipMapMarkersToViewport(detail, nearbyFetchCenter)) return salons;
+  const clipped = filterSalonsInViewport(salons, detail.bounds);
+  if (clipped.length === 0 && salons.length > 0) return salons;
+  return clipped;
+}
+
+/** Même garde-fou que clipLivesForMapView pour les personnes carte. */
+export function clipPeopleForMapView<T extends { latitude?: number | null; longitude?: number | null }>(
+  people: T[],
+  detail: Pick<MapViewDetailState, 'mapStyle' | 'bounds'>,
+  nearbyFetchCenter: [number, number]
+): T[] {
+  if (!shouldClipMapMarkersToViewport(detail, nearbyFetchCenter)) return people;
+  const clipped = filterPeopleInViewport(people, detail.bounds);
+  if (clipped.length === 0 && people.length > 0) return people;
+  return clipped;
+}
+
+/** Personnes carte (lat/lng optionnels) dans la zone visible. */
+export function filterPeopleInViewport<T extends { latitude?: number | null; longitude?: number | null }>(
+  people: T[],
+  bounds: MapBounds | null | undefined
+): T[] {
+  if (!bounds) return people;
+  return people.filter((p) => {
+    if (p.latitude == null || p.longitude == null) return false;
+    return (
+      isValidLatLng(p.latitude, p.longitude) &&
+      isInMapBounds(p.latitude, p.longitude, bounds)
+    );
+  });
+}
+
+/** Filtre filtre Salon : publics uniquement, puis zone visible si bounds connus. */
+export function filterSalonsForSalonMapFilter<T extends {
+  latitude: number;
+  longitude: number;
+  accessMode?: 'public' | 'invite';
+  isPublic?: boolean;
+}>(salons: T[], bounds: MapBounds | null | undefined): T[] {
+  return filterSalonsInViewport(salons.filter(isPublicSalon), bounds);
+}
+
+/** Leaflet zoom strictly below this → overview tier. */
+export const FLAT_ZOOM_CITY_MIN = 8;
+/** Leaflet zoom at or above this → street tier. */
+export const FLAT_ZOOM_STREET_MIN = 12;
+
+/** Globe altitude at or above this → overview tier. */
+export const GLOBE_ALTITUDE_CITY_MAX = 0.6;
+/** Globe altitude below this → street tier. */
+export const GLOBE_ALTITUDE_STREET_MAX = 0.15;
+
+export function getFlatMapDetailTier(zoom: number): MapDetailTier {
+  if (zoom < FLAT_ZOOM_CITY_MIN) return 'overview';
+  if (zoom < FLAT_ZOOM_STREET_MIN) return 'city';
+  return 'street';
+}
+
+export function getGlobeDetailTier(altitude: number): MapDetailTier {
+  if (altitude >= GLOBE_ALTITUDE_CITY_MAX) return 'overview';
+  if (altitude >= GLOBE_ALTITUDE_STREET_MAX) return 'city';
+  return 'street';
+}
+
+export type MapMarkerDensity = 'full' | 'overview';
+
+export interface MapMarkerVisibility {
+  capitals: boolean;
+  eventClusters: boolean;
+  salons: boolean;
+  lives: boolean;
+  people: boolean;
+  /** overview = simplified dots ; full = album-art markers. */
+  density: MapMarkerDensity;
+}
+
+export interface MapMarkerVisibilityOptions {
+  tier: MapDetailTier;
+  /** Masque capitales (filtre Évènement seul). */
+  eventsOnly: boolean;
+  hasEventClusters: boolean;
+  /**
+   * Au zoom ville, afficher tous les salons passés (filtre Salon actif)
+   * plutôt que les salons live uniquement.
+   */
+  showAllSalonsAtCityZoom?: boolean;
+  livesFilterOn?: boolean;
+  salonFilterOn?: boolean;
+  eventsFilterOn?: boolean;
+}
+
+/** Salon filter ON → tous les salons dès le zoom ville (même si Lives est aussi actif). */
+export function shouldShowAllSalonsAtCityZoom(salonFilterOn: boolean): boolean {
+  return salonFilterOn;
+}
+
+export function getMapMarkerVisibility(opts: MapMarkerVisibilityOptions): MapMarkerVisibility {
+  const {
+    tier,
+    eventsOnly,
+    hasEventClusters,
+    livesFilterOn = false,
+    salonFilterOn = false,
+    eventsFilterOn = false,
+  } = opts;
+
+  const capitals = !eventsOnly;
+  const eventClusters = eventsFilterOn || hasEventClusters;
+
+  switch (tier) {
+    case 'overview':
+      return {
+        capitals,
+        eventClusters,
+        salons: salonFilterOn === true,
+        lives: livesFilterOn === true,
+        people: livesFilterOn === true,
+        density: 'overview',
+      };
+    case 'city':
+      return {
+        capitals,
+        eventClusters,
+        salons: true,
+        lives: true,
+        people: true,
+        density: 'full',
+      };
+    case 'street':
+      return {
+        capitals,
+        eventClusters,
+        salons: true,
+        lives: true,
+        people: true,
+        density: 'full',
+      };
+  }
+}
+
+/** Filtre salons : au zoom ville, ne garder que les salons live sauf mode « tous ». */
+export function filterSalonsForZoom<T extends { isLive?: boolean }>(
+  salons: T[],
+  visibility: MapMarkerVisibility,
+  showAllSalonsAtCityZoom: boolean,
+  tier: MapDetailTier
+): T[] {
+  if (!visibility.salons) return [];
+  if (tier === 'overview') {
+    if (showAllSalonsAtCityZoom) return salons;
+    return salons.filter((s) => s.isLive);
+  }
+  if (tier === 'street' || showAllSalonsAtCityZoom) return salons;
+  if (tier === 'city') return salons.filter((s) => s.isLive);
+  return [];
+}
+
+/** Filtre personnes : au zoom ville, live uniquement ; rue = toutes. */
+export function filterPeopleForZoom<T extends { isLive?: boolean }>(
+  people: T[],
+  visibility: MapMarkerVisibility,
+  tier: MapDetailTier
+): T[] {
+  if (!visibility.people) return [];
+  if (tier === 'street') return people;
+  return people.filter((p) => p.isLive);
+}

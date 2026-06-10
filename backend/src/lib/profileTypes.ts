@@ -1,6 +1,7 @@
 import type { User } from '../models/schema';
 
 export const PROFILE_TYPE_OPTIONS = [
+  { value: 'melomane', label: 'Mélomane', emoji: '🎵' },
   { value: 'bar', label: 'Bar', emoji: '🍸' },
   { value: 'restaurant', label: 'Restaurant', emoji: '🍽️' },
   { value: 'cafe', label: 'Café / Bar à musique', emoji: '☕' },

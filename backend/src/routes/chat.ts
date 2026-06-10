@@ -4,15 +4,22 @@ import { authenticateJWT } from '../middleware/auth';
 import { getIo } from '../lib/ioInstance';
 import { canDeleteLiveChatMessage, deleteLiveChatMessage } from '../lib/liveModeration';
 import { enrichChatMessages } from '../lib/usernameColor';
+import { hasBlocked } from '../lib/blocks';
 
 export const chatRouter = Router();
 
 chatRouter.get('/salon/:salonId', authenticateJWT, (req: Request, res: Response) => {
-  res.json({ messages: enrichChatMessages(db.salonChats.get(req.params.salonId) || []) });
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const raw = db.salonChats.get(req.params.salonId) || [];
+  const messages = raw.filter((m) => !hasBlocked(me, m.senderId));
+  res.json({ messages: enrichChatMessages(messages) });
 });
 
 chatRouter.get('/live/:liveId', authenticateJWT, (req: Request, res: Response) => {
-  res.json({ messages: enrichChatMessages(db.liveChats.get(req.params.liveId) || []) });
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const raw = db.liveChats.get(req.params.liveId) || [];
+  const messages = raw.filter((m) => !hasBlocked(me, m.senderId));
+  res.json({ messages: enrichChatMessages(messages) });
 });
 
 chatRouter.delete(

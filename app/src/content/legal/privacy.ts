@@ -8,7 +8,7 @@ export const politiqueConfidentialite: LegalDocument = {
   sections: [
     {
       heading: '1. Responsable du traitement',
-      body: `Le responsable du traitement des données personnelles est l’éditeur de Soundly, identifié dans les Mentions légales.\n\nContact données personnelles : {{privacyEmail}}\nContact général : {{contactEmail}}\n\nDélégué à la protection des données (DPO) : {{dpoEmail}}`,
+      body: `Le responsable du traitement des données personnelles est l’éditeur de Soundy, identifié dans les Mentions légales.\n\nContact données personnelles : {{privacyEmail}}\nContact général : {{contactEmail}}\n\nDélégué à la protection des données (DPO) : {{dpoEmail}}`,
     },
     {
       heading: '2. Données traitées',
@@ -20,7 +20,7 @@ export const politiqueConfidentialite: LegalDocument = {
     },
     {
       heading: '4. Destinataires et sous-traitants',
-      body: `Les données peuvent être accessibles :\n• aux autres utilisateurs, selon vos paramètres (profil public, carte, messages) ;\n• à l’éditeur et aux personnes habilitées pour l’exploitation et la maintenance ;\n• à des prestataires techniques (hébergement, lors du passage en production) ;\n• aux plateformes Spotify et YouTube lorsque vous connectez votre compte ou ouvrez un lien de lecture (politiques propres à ces services).\n\nCartographie : tuiles CARTO / OpenStreetMap (pas de transmission de votre compte Soundly à OSM par défaut, mais requêtes cartographiques depuis votre appareil).\n\nAvatars de démonstration : service DiceBear (URLs d’images).`,
+      body: `Les données peuvent être accessibles :\n• aux autres utilisateurs, selon vos paramètres (profil public, carte, messages) ;\n• à l’éditeur et aux personnes habilitées pour l’exploitation et la maintenance ;\n• à des prestataires techniques (hébergement, lors du passage en production) ;\n• aux plateformes Spotify et YouTube lorsque vous connectez votre compte ou ouvrez un lien de lecture (politiques propres à ces services).\n\nCartographie : tuiles CARTO / OpenStreetMap (pas de transmission de votre compte Soundy à OSM par défaut, mais requêtes cartographiques depuis votre appareil).\n\nAvatars de démonstration : service DiceBear (URLs d’images).`,
     },
     {
       heading: '5. Durées de conservation',
@@ -40,7 +40,7 @@ export const politiqueConfidentialite: LegalDocument = {
     },
     {
       heading: '9. Mineurs',
-      body: `Le Service s’adresse aux personnes de 16 ans et plus. Nous ne collectons pas sciemment de données concernant des enfants de moins de 16 ans. Si vous êtes parent et pensez qu’un mineur nous a transmis des données, contactez-nous pour demander la suppression.`,
+      body: `Le Service s’adresse aux personnes de 13 ans et plus. Nous ne collectons pas sciemment de données concernant des enfants de moins de 13 ans. Si vous êtes parent et pensez qu’un mineur nous a transmis des données, contactez-nous pour demander la suppression.`,
     },
     {
       heading: '10. Cookies et stockage local',

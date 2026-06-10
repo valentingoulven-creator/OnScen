@@ -14,6 +14,10 @@ import { SalonYouTubePlaylist } from './SalonYouTubePlaylist';
 import { SalonQueueSection } from './SalonQueueSection';
 import { SalonProposalsSection } from './SalonProposalsSection';
 import { isPlatformConnected } from '../lib/platformConnect';
+import {
+  MAP_INLINE_LISTEN_MAX_MS,
+  startMapInlineListenSession,
+} from '../lib/mapListenSession';
 import { getSalonShowYoutubeVideo, setSalonShowYoutubeVideo } from '../lib/salonYoutubeDisplay';
 import { isYoutubeStrictCompliance } from '../lib/youtubeCompliance';
 import { useBackgroundPlayback } from '../hooks/useBackgroundPlayback';
@@ -52,6 +56,7 @@ interface SalonPlaybackPanelProps {
   theaterMode?: boolean;
   /** false = coupe le lecteur (onglet carte masqué, autre audio actif). */
   playbackActive?: boolean;
+  onMapInlineListenCapReached?: () => void;
 }
 
 const PLATFORM_META: Record<MusicPlatform, { label: string; emoji: string; accent: string }> = {
@@ -84,6 +89,7 @@ export function SalonPlaybackPanel({
   mapInline = false,
   theaterMode = false,
   playbackActive = true,
+  onMapInlineListenCapReached,
 }: SalonPlaybackPanelProps) {
   const hostLinked = isHost && isPlatformConnected(userPlatforms, salon.platform);
 
@@ -209,6 +215,10 @@ export function SalonPlaybackPanel({
   useEffect(() => {
     setParticipantPlatform(preferredParticipantPlatform(userPlatforms, salon.platform));
   }, [salon.platform, userPlatforms]);
+
+  useEffect(() => {
+    if (mapInline && !isHost) startMapInlineListenSession(salon.id);
+  }, [mapInline, isHost, salon.id]);
 
   useEffect(() => {
     if (!token || isHost) return;
@@ -812,6 +822,11 @@ export function SalonPlaybackPanel({
                 isHost={isHost}
                 onHostProgressReport={hostLinked ? reportHostProgress : undefined}
                 onVideoEnd={handleVideoEnd}
+                mapInlineListenCapMs={
+                  mapInline && !isHost ? MAP_INLINE_LISTEN_MAX_MS : undefined
+                }
+                mapInlineListenSessionKey={mapInline && !isHost ? salon.id : undefined}
+                onMapInlineListenCapReached={onMapInlineListenCapReached}
               />
             </div>
 

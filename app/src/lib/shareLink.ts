@@ -47,7 +47,7 @@ export async function getProfileShareUrl(userId: string): Promise<string> {
   return `${base}${getProfilePath(userId)}`;
 }
 
-/** Public URL for sharing the Soundly app (origin from config / LAN on msdev). */
+/** Public URL for sharing the Soundy app (origin from config / LAN on msdev). */
 export async function getAppShareUrl(): Promise<string> {
   return resolveShareOrigin();
 }
@@ -103,6 +103,44 @@ export function openTwitterShare(url: string, text?: string): void {
   if (text) params.set('text', text);
   params.set('url', url);
   window.open(`https://twitter.com/intent/tweet?${params.toString()}`, '_blank', 'noopener,noreferrer');
+}
+
+export function openFacebookShare(url: string): void {
+  window.open(
+    `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+    '_blank',
+    'noopener,noreferrer'
+  );
+}
+
+export function openLinkedInShare(url: string, text?: string): void {
+  const params = new URLSearchParams({ url });
+  if (text) params.set('text', text);
+  window.open(`https://www.linkedin.com/sharing/share-offsite/?${params.toString()}`, '_blank', 'noopener,noreferrer');
+}
+
+/** Instagram n'a pas d'URL web de publication — ouvre l'app/site pour coller le lien manuellement. */
+export function openInstagramShare(): void {
+  window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer');
+}
+
+/** TikTok n'a pas d'URL web de publication directe — ouvre le site pour coller le lien manuellement. */
+export function openTikTokShare(): void {
+  window.open('https://www.tiktok.com/upload', '_blank', 'noopener,noreferrer');
+}
+
+/** Texte court pour partager un reel (titre, artiste, genre). */
+export function buildReelShareText(reel: {
+  title: string;
+  artist: string;
+  genre?: string;
+  authorUsername?: string;
+}): string {
+  const by = reel.authorUsername?.trim() || reel.artist.trim();
+  const parts = [reel.title, by].filter(Boolean);
+  const genre = reel.genre?.trim();
+  if (genre) parts.push(genre);
+  return parts.join(' · ');
 }
 
 const FB_APP_ID = import.meta.env.VITE_FACEBOOK_APP_ID as string | undefined;

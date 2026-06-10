@@ -40,7 +40,7 @@ const FAVORITE_POST_SAMPLES = [
   'Qui écoute la même chose que moi en ce moment ?',
   'Session chill ce soir — salon ouvert 🎵',
   'Petit rappel : mon live hebdo c\'est le vendredi !',
-  'Découverte grâce à un ami sur MeloSong — trop bien 💜',
+  'Découverte grâce à un ami sur Soundy — trop bien 💜',
   'En train de préparer ma prochaine setlist 🎛️',
   'Bonne vibe ce weekend, partagez vos sons 👇',
   'Le salon est ouvert, venez nombreux !',

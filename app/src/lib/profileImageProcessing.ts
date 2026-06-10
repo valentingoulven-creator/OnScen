@@ -1,7 +1,7 @@
 import { INSTAGRAM_IMAGE_LIMITS, validateImageFile } from './imageConstraints';
 
-/** Dimension de sortie cible pour les photos de profil (Instagram : 400 × 400 px) */
-export const PROFILE_PHOTO_MAX_DIMENSION = 400;
+/** Dimension de sortie cible pour les photos de profil (Instagram : 1080 × 1080 px max) */
+export const PROFILE_PHOTO_MAX_DIMENSION = 1080;
 /** Qualité JPEG de sortie conforme aux specs Instagram (0.85) */
 export const PROFILE_PHOTO_JPEG_QUALITY = 0.85;
 

@@ -1,7 +1,7 @@
 import { PROFILE_TYPE_OPTIONS } from './profileTypes';
 import type { ProfileType } from '../types';
 
-/** Préférences fil d'Accueil (publications) — filtres utilisateur désactivés, favoris en tête. */
+/** Préférences fil d'Accueil (publications) — filtres utilisateur désactivés, ordre chronologique. */
 const STORAGE_KEY = 'melosong_feed_prefs';
 /** Préférences panneau Actualités (catégories news + affinités). */
 const NEWS_STORAGE_KEY = 'melosong_news_prefs';
@@ -46,7 +46,7 @@ export const HOME_FEED_DISPLAY_PREFS: FeedUserPrefs = {
   audienceScope: 'all',
   profileTypes: [],
   musicalAffinitiesOnly: false,
-  favoritesFirst: true,
+  favoritesFirst: false,
 };
 
 export const DEFAULT_NEWS_USER_PREFS: NewsUserPrefs = {

@@ -1,11 +1,12 @@
 import { Router, Request, Response } from 'express';
-import { db, MusicPlatform } from '../models/schema';
+import { db, ConnectPlatform, MusicPlatform } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
 import { publicProfile } from '../lib/profile';
 import {
   connectPlatformAccount,
   disconnectPlatformAccount,
   ensurePlatformAccountsFromLegacy,
+  hasRealPlatformConnection,
   isPlatformConnected,
   isRealYoutubeAccount,
   publicPlatformLinks,
@@ -16,12 +17,19 @@ import {
   createYoutubeOAuthUrl,
   isYoutubeOAuthConfigured,
 } from '../lib/youtubeOAuth';
+import { isSpotifyOAuthConfigured, createSpotifyOAuthUrl } from '../lib/spotifyOAuth';
+import {
+  applyInstagramOAuthToUser,
+  completeInstagramOAuth,
+  createInstagramOAuthUrl,
+  isInstagramOAuthConfigured,
+} from '../lib/instagramOAuth';
 import { listHostYoutubePlaylists } from '../lib/youtubePlaylists';
 
 export const platformsRouter = Router();
 
-function parsePlatform(param: string): MusicPlatform | null {
-  return param === 'spotify' || param === 'youtube' ? param : null;
+function parsePlatform(param: string): ConnectPlatform | null {
+  return param === 'spotify' || param === 'youtube' || param === 'instagram' ? param : null;
 }
 
 platformsRouter.get('/status', authenticateJWT, (req: Request, res: Response) => {
@@ -33,23 +41,58 @@ platformsRouter.get('/status', authenticateJWT, (req: Request, res: Response) =>
   }
   ensurePlatformAccountsFromLegacy(user);
   db.users.set(userId, user);
+  const spotifyOAuthAvailable = isSpotifyOAuthConfigured();
+  const youtubeOAuthAvailable = isYoutubeOAuthConfigured();
+  const instagramOAuthAvailable = isInstagramOAuthConfigured();
+  const oauthConfigured = spotifyOAuthAvailable || youtubeOAuthAvailable || instagramOAuthAvailable;
   res.json({
     links: publicPlatformLinks(user),
     connectedPlatforms: user.connectedPlatforms ?? [],
-    youtubeOAuthAvailable: isYoutubeOAuthConfigured(),
+    youtubeOAuthAvailable,
+    spotifyOAuthAvailable,
+    instagramOAuthAvailable,
+    oauthConfigured,
+    platformConnectionRequired: oauthConfigured,
+    hasRealPlatformConnection: hasRealPlatformConnection(user),
   });
 });
 
 platformsRouter.get('/youtube/oauth/url', authenticateJWT, (req: Request, res: Response) => {
   if (!isYoutubeOAuthConfigured()) {
     res.status(404).json({
-      error: 'OAuth Google/YouTube non configuré (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI)',
+      error:
+        'OAuth Google/YouTube non configuré (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, YOUTUBE_CALLBACK_URL)',
       code: 'OAUTH_NOT_CONFIGURED',
     });
     return;
   }
   const userId = (req as Request & { user: { id: string } }).user.id;
   res.json({ url: createYoutubeOAuthUrl(userId) });
+});
+
+platformsRouter.get('/spotify/oauth/url', authenticateJWT, (req: Request, res: Response) => {
+  if (!isSpotifyOAuthConfigured()) {
+    res.status(404).json({
+      error: 'OAuth Spotify non configuré (SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_CALLBACK_URL)',
+      code: 'OAUTH_NOT_CONFIGURED',
+    });
+    return;
+  }
+  const userId = (req as Request & { user: { id: string } }).user.id;
+  res.json({ url: createSpotifyOAuthUrl(userId) });
+});
+
+platformsRouter.get('/instagram/oauth/url', authenticateJWT, (req: Request, res: Response) => {
+  if (!isInstagramOAuthConfigured()) {
+    res.status(404).json({
+      error:
+        'OAuth Instagram non configuré (FACEBOOK_APP_ID, FACEBOOK_APP_SECRET, INSTAGRAM_CALLBACK_URL)',
+      code: 'OAUTH_NOT_CONFIGURED',
+    });
+    return;
+  }
+  const userId = (req as Request & { user: { id: string } }).user.id;
+  res.json({ url: createInstagramOAuthUrl(userId) });
 });
 
 platformsRouter.get('/youtube/oauth/callback', async (req: Request, res: Response) => {
@@ -106,8 +149,36 @@ platformsRouter.post('/:platform/connect', authenticateJWT, (req: Request, res: 
     return;
   }
 
-  if (platform === 'youtube' && isYoutubeOAuthConfigured() && req.body?.preferOAuth === true) {
+  const isProduction = process.env.APP_ENV === 'production';
+
+  if (platform === 'youtube' && isYoutubeOAuthConfigured()) {
     res.json({ ok: false, oauthUrl: createYoutubeOAuthUrl(userId), code: 'USE_OAUTH_URL' });
+    return;
+  }
+
+  if (platform === 'spotify' && isSpotifyOAuthConfigured()) {
+    res.json({ ok: false, oauthUrl: createSpotifyOAuthUrl(userId), code: 'USE_OAUTH_URL' });
+    return;
+  }
+
+  if (platform === 'instagram') {
+    if (isInstagramOAuthConfigured()) {
+      res.json({ ok: false, oauthUrl: createInstagramOAuthUrl(userId), code: 'USE_OAUTH_URL' });
+      return;
+    }
+    res.status(404).json({
+      error:
+        'OAuth Instagram non configuré (FACEBOOK_APP_ID, FACEBOOK_APP_SECRET, INSTAGRAM_CALLBACK_URL)',
+      code: 'OAUTH_NOT_CONFIGURED',
+    });
+    return;
+  }
+
+  if (isProduction) {
+    res.status(403).json({
+      error: 'Connexion plateforme simulée désactivée en production. Configurez OAuth.',
+      code: 'MOCK_CONNECT_DISABLED',
+    });
     return;
   }
 

@@ -2,6 +2,7 @@ import { db } from '../models/schema';
 
 export type AnalyticsEventType =
   | 'user_login'
+  | 'user_login_oauth'
   | 'message_sent'
   | 'salon_created'
   | 'live_started'

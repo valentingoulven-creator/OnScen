@@ -204,9 +204,6 @@ export default function App() {
   const reelsActive = tab === 'reels' && !profileOpen && view.type === 'home';
   const mapPlaybackActive = tab === 'map' && view.type === 'home' && !profileOpen;
   const liveViewActive = tab === 'live' || view.type === 'live';
-  const immersiveView = view.type === 'salon' || view.type === 'profile';
-
-  const hideStartLiveOnMap = profileOpen;
 
   const stopReelsMedia = () => {
     pauseAllReelsMediaInDom({ resetPosition: true });
@@ -298,7 +295,6 @@ export default function App() {
         </button>
       )}
 
-      {!immersiveView && (
       <header className="ms-app-header">
         <div className="px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
           <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-1.5 min-w-0">
@@ -343,10 +339,9 @@ export default function App() {
           </div>
         </div>
       </header>
-      )}
 
       <main
-        className={`ms-app-main ms-phone-main flex-1 min-h-0 overflow-hidden flex flex-col relative${immersiveView ? ' ms-app-main--no-header' : ''}`}
+        className="ms-app-main ms-phone-main flex-1 min-h-0 overflow-hidden flex flex-col relative"
       >
         {view.type === 'salon' && (
           <Suspense fallback={<PageFallback />}>
@@ -424,7 +419,6 @@ export default function App() {
                 onOpenLive={openLive}
                 onOpenProfile={(person) => openProfile(person.id, person)}
                 onOpenReel={openReelInTab}
-                hideStartLiveMapButton={hideStartLiveOnMap}
                 onCloseMapProfile={closeProfile}
                 mapPlaybackActive={mapPlaybackActive}
               />
@@ -472,7 +466,7 @@ export default function App() {
         )}
 
         {profileOpen && (
-          <div className="absolute inset-0 z-30 flex flex-col min-h-0 bg-[#0b0b0f]">
+          <div className="ms-app-profile-overlay flex flex-col min-h-0 bg-[#0b0b0f]">
             <ProfilePage
               onBack={() => setProfileOpen(false)}
               onOpenReel={openReelInTab}

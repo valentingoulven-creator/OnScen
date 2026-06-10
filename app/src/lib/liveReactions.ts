@@ -3,9 +3,10 @@ import type { LiveChatReaction } from '../types';
 export const LIVE_REACTION_TYPES = ['note', 'heart', 'star', 'crown'] as const;
 export type LiveReactionType = (typeof LIVE_REACTION_TYPES)[number];
 
-export const LIVE_DON_TIERS = [5, 10, 25] as const;
+/** Valeurs par défaut — les paliers réels viennent de /api/donations/config */
+export const LIVE_DON_TIERS = [1, 2, 5] as const;
 export const DON_AMOUNT_MIN = 1;
-export const DON_AMOUNT_MAX = 500;
+export const DON_AMOUNT_MAX = 100;
 
 export function parseDonAmount(raw: string): number | null {
   const trimmed = raw.trim();
@@ -33,8 +34,19 @@ export const GIFT_LABELS_FR: Record<string, string> = {
   heart: 'Cœur',
   star: 'Étoile',
   crown: 'Couronne',
-  don: 'Don',
+  don: 'Pourboire',
 };
+
+/** Icônes visuelles par palier de pourboire (style cadeaux live). */
+export const DON_TIER_EMOJI: Record<number, string> = {
+  1: '🎵',
+  2: '💖',
+  5: '👑',
+};
+
+export function donTierEmoji(amount: number): string {
+  return DON_TIER_EMOJI[amount] ?? GIFT_EMOJI.don;
+}
 
 export interface GiftPayload {
   id: string;

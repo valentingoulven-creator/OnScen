@@ -63,6 +63,7 @@ geoRouter.post('/update', authenticateJWT, (req: Request, res: Response) => {
   }
   user.latitude = lat;
   user.longitude = lon;
+  user.geoUpdatedAt = now;
   refreshUserPublicCoords(user);
   user.lastSeenAt = now;
   db.users.set(userId, user);

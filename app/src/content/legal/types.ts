@@ -15,7 +15,9 @@ export type LegalKey =
   | 'privacy'
   | 'rgpd'
   | 'apiPlatforms'
-  | 'licenses';
+  | 'licenses'
+  | 'donations'
+  | 'creatorMonetization';
 
 export const LEGAL_CONTACT_EMAIL = 'contact@melosong.app';
 export const LEGAL_PRIVACY_EMAIL = 'privacy@melosong.app';

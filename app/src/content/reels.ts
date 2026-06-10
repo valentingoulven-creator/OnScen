@@ -18,6 +18,11 @@ export interface MusicReel {
   hasAudio?: boolean;
   /** Propriétaire pour les reels ajoutés par l'utilisateur */
   authorId?: string;
+  authorUsername?: string;
+  authorAvatarUrl?: string;
+  authorUsernameColor?: string;
+  authorUsernameWaveFrom?: string;
+  authorUsernameWaveTo?: string;
   /** public = flux Reels ; private = profil uniquement */
   visibility?: 'public' | 'private';
   isPrivate?: boolean;

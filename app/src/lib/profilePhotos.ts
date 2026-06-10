@@ -1,9 +1,10 @@
+import { isDicebearAvatarUrl } from './avatarUrl';
 import { PROFILE_PHOTO_JPEG_QUALITY, PROFILE_PHOTO_MAX_DIMENSION } from './profileImageProcessing';
 
 const MAX_IMAGE_DIMENSION = PROFILE_PHOTO_MAX_DIMENSION;
 const JPEG_QUALITY = PROFILE_PHOTO_JPEG_QUALITY;
-/** Marge sous la limite express.json (2 Mo) pour le corps JSON complet. */
-export const MAX_PROFILE_PAYLOAD_CHARS = 1_900_000;
+/** Marge sous la limite express.json (15 Mo) pour le corps JSON complet (12 Mo). */
+export const MAX_PROFILE_PAYLOAD_CHARS = 12_000_000;
 
 export async function compressProfilePhotoDataUrl(dataUrl: string): Promise<string> {
   const trimmed = dataUrl.trim();
@@ -44,10 +45,24 @@ export async function prepareProfilePhotosForSave(photos: string[]): Promise<str
       prepared.push(url);
     }
   }
-  return prepared.slice(0, 6);
+  return prepared.slice(0, 5);
 }
 
 export function profilePhotosChanged(current: string[], next: string[]): boolean {
   if (current.length !== next.length) return true;
   return next.some((p, i) => p !== current[i]);
+}
+
+/** Real uploaded profile photos — excludes DiceBear placeholders. */
+export function getUserProfilePhotos(
+  user: { profilePhotos?: string[]; avatarUrl?: string } | null | undefined
+): string[] {
+  const fromList = (user?.profilePhotos ?? [])
+    .map((u) => u.trim())
+    .filter(Boolean)
+    .filter((u) => !isDicebearAvatarUrl(u));
+  if (fromList.length > 0) return fromList;
+  const avatar = user?.avatarUrl?.trim();
+  if (avatar && !isDicebearAvatarUrl(avatar)) return [avatar];
+  return [];
 }

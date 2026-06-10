@@ -12,6 +12,7 @@ import {
   subscribeAppMediaFocus,
 } from '../lib/appMediaFocus';
 import { getMapListenVolume, setMapListenVolume } from '../lib/mapListenVolume';
+import { getMapInlineListenElapsedMs } from '../lib/mapListenSession';
 import { computePlaybackPositionMs } from '../lib/salonPlayback';
 import { isYoutubeStrictCompliance } from '../lib/youtubeCompliance';
 import type { PlaybackState } from '../types';
@@ -82,6 +83,12 @@ interface SalonYouTubePlayerProps {
   onVideoEnd?: () => void;
   /** Appelé quand l'embed YouTube est interdit (erreur 101 ou 150). */
   onEmbedError?: () => void;
+  /** Petit salon carte : durée max d'écoute (ms) avant pause automatique. */
+  mapInlineListenCapMs?: number;
+  /** Clé de session (salonId) pour le chrono carte. */
+  mapInlineListenSessionKey?: string;
+  /** Appelé une fois quand la durée max carte est atteinte. */
+  onMapInlineListenCapReached?: () => void;
 }
 
 function applySync(
@@ -156,6 +163,9 @@ export function SalonYouTubePlayer({
   isHost = false,
   onVideoEnd,
   onEmbedError,
+  mapInlineListenCapMs,
+  mapInlineListenSessionKey,
+  onMapInlineListenCapReached,
 }: SalonYouTubePlayerProps) {
   const apiReady = useYouTubeIframeApi();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -193,6 +203,13 @@ export function SalonYouTubePlayer({
   onVideoEndRef.current = onVideoEnd;
   const onEmbedErrorRef = useRef(onEmbedError);
   onEmbedErrorRef.current = onEmbedError;
+  const onMapInlineListenCapReachedRef = useRef(onMapInlineListenCapReached);
+  onMapInlineListenCapReachedRef.current = onMapInlineListenCapReached;
+  const mapInlineListenCapReachedRef = useRef(false);
+  const mapInlineListenCapMsRef = useRef(mapInlineListenCapMs);
+  mapInlineListenCapMsRef.current = mapInlineListenCapMs;
+  const mapInlineListenSessionKeyRef = useRef(mapInlineListenSessionKey);
+  mapInlineListenSessionKeyRef.current = mapInlineListenSessionKey;
   const playbackClockKeyRef = useRef(
     `${playbackState.trackId}|${playbackState.updatedAt}|${playbackState.isPlaying}`
   );
@@ -224,9 +241,14 @@ export function SalonYouTubePlayer({
 
   const mayDrivePlayback = useCallback(() => {
     if (!playbackActiveRef.current) return false;
+    if (mapInlineListenCapReachedRef.current) return false;
     const owner = getAppMediaOwner();
     return owner === null || owner === 'salon';
   }, []);
+
+  useEffect(() => {
+    mapInlineListenCapReachedRef.current = false;
+  }, [mapInlineListenSessionKey]);
 
   const mayAutoplay = useCallback(() => {
     return mayDrivePlayback() && autoplayAllowedRef.current && videoPlaybackAllowed;
@@ -517,6 +539,21 @@ export function SalonYouTubePlayer({
     if (!player) return;
 
     const tick = () => {
+      const capMs = mapInlineListenCapMsRef.current;
+      const sessionKey = mapInlineListenSessionKeyRef.current;
+      if (
+        capMs != null &&
+        capMs > 0 &&
+        sessionKey &&
+        !mapInlineListenCapReachedRef.current
+      ) {
+        if (getMapInlineListenElapsedMs(sessionKey) >= capMs) {
+          mapInlineListenCapReachedRef.current = true;
+          pauseAndMutePlayer(player);
+          onMapInlineListenCapReachedRef.current?.();
+          return;
+        }
+      }
       if (!playbackActiveRef.current || !mayDrivePlayback()) {
         pauseAndMutePlayer(player);
         return;

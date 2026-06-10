@@ -1,68 +1,63 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
-import { applyFeedPreferences } from '../lib/feedFilter';
-import {
-  HOME_FEED_DISPLAY_PREFS,
-  NEWS_PREFS_CHANGED_EVENT,
-  newsPrefsFiltersActive,
-  readNewsUserPrefs,
-  writeNewsUserPrefs,
-  type NewsUserPrefs,
-} from '../lib/feedUserPrefs';
-import { applyNewsPreferences } from '../lib/newsFilter';
+import { applyFeedPreferences, sortFeedPostsByPublicationDate } from '../lib/feedFilter';
+import { HOME_FEED_DISPLAY_PREFS } from '../lib/feedUserPrefs';
 import { UsernameDisplay } from '../components/UsernameDisplay';
-import { FilterIcon } from '../components/FilterIcon';
-import { NewsFiltersPanel } from '../components/NewsFiltersPanel';
 import { PhotoImageEditor } from '../components/PhotoImageEditor';
 import {
   clipboardItemsToImageFile,
   dataUrlToFeedImageDataUrl,
 } from '../lib/feedImagePaste';
-import { ACCEPTED_IMAGE_FORMATS, validateImageFile } from '../lib/imageConstraints';
-import { buildMapStoryEntries, buildViewableStories, type MapStoryEntry } from '../lib/mapStoriesFeed';
+import { ACCEPTED_FEED_VIDEO_FORMATS, ACCEPTED_IMAGE_FORMATS, validateImageFile } from '../lib/imageConstraints';
 import {
-  getNearbyPanelPreferences,
-  NEARBY_PANEL_CHANGED_EVENT,
-  setNearbyPanelPreferences,
-  setNearbyPanelRadiusKm,
-  type NearbyPanelPreferences,
-} from '../lib/nearbyPanelSettings';
+  fileToFeedVideoDataUrl,
+  validateFeedVideoFile,
+} from '../lib/feedVideo';
+import { geocodeCountryFromQuery } from '../lib/geocodeAddress';
+import { resolveEventCoords } from '../lib/mapEventCoords';
+import { dispatchMapEventsRefresh } from '../lib/mapUiEvents';
+import type { CommentAlign, FeedPost, FeedPostComment, MapStory, MusicNewsItem, TrendingUser } from '../types';
+import { StoryAvatarRing } from '../components/MapStoryRings';
+import { StoriesInlineBar, type StorySheetState } from '../components/StoriesInlineBar';
+import { StoryViewer } from '../components/StoryViewer';
 import {
-  clampNearbyRadiusKm,
-  getNearbyRadiusKm,
-  NEARBY_RADIUS_MAX,
-  NEARBY_RADIUS_MIN,
-  SETTINGS_CHANGED_EVENT,
-} from '../lib/settings';
-import {
-  getLivesGeo,
-  MAP_GEO_CHANGED_EVENT,
-  setLivesGeoRadiusKm,
-  type LivesGeoPrefs,
-} from '../lib/livesGeo';
-import {
-  isMapStoriesCollapsed,
-  isMapStoriesHidden,
-  setMapStoriesCollapsed,
-  setMapStoriesHidden,
-} from '../lib/mapStoriesPrefs';
-import { normalizeProfileReelFromApi } from '../content/reelsFeed';
-import type { MusicReel } from '../content/reels';
-import { USERNAME_WAVE_CLASS } from '../lib/usernameColor';
-import type { CommentAlign, FeedPost, FeedPostComment, MapStory, MusicNewsItem, NearbyPerson } from '../types';
-import { MapStorySheet } from '../components/MapStorySheet';
-import { MapStoryRing, MyMapStoryRing } from '../components/MapStoryRings';
+  findStackForStory,
+  resolveNextStory,
+  resolvePrevStory,
+  stackIndexForStory,
+  type StoryUserStack,
+} from '../lib/storyViewerNav';
 import { ShareLinkMenu } from '../components/ShareLinkMenu';
+import { buildFeedPostSharePayload, getFeedPostShareUrl } from '../lib/feedPostShare';
+import { markFeedPostLinkShared, readFeedPostLinkSharedIds } from '../lib/feedPostShareState';
+import { EventsCarousel } from '../components/EventsCarousel';
+import { NewsArticleCard } from '../components/NewsArticleCard';
+import { getUpcomingUserEvents, isUpcomingEvent } from '../lib/feedEvents';
+import { EventLocationInput } from '../components/EventLocationInput';
+import { getFeedAlgorithmPreferences } from '../lib/reelFeedAlgorithm';
 
 interface ActualiteTabPageProps {
   onOpenProfile: (userId: string) => void;
   onOpenReel?: (reelId: string) => void;
   onOpenLive?: (liveId: string) => void;
   isActive: boolean;
+  /** Scroll vers une publication (ex. depuis la carte). */
+  focusPostId?: string | null;
+  onFocusPostConsumed?: () => void;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/** Pays affiché / filtré quand la géoloc est refusée ou indisponible (MODIF 167). */
+const EVENTS_COUNTRY_FALLBACK = { code: 'FR', name: 'France' } as const;
+
+function countryCodeToFlag(code: string): string {
+  const cc = code.toUpperCase();
+  if (cc.length !== 2) return '🌍';
+  return String.fromCodePoint(...[...cc].map((c) => 0x1f1e6 - 65 + c.charCodeAt(0)));
+}
 
 function formatWhen(ts: number): string {
   const sec = Math.floor((Date.now() - ts) / 1000);
@@ -76,42 +71,27 @@ function formatWhen(ts: number): string {
   return new Date(ts).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }
 
-function badgeStyle(badge?: string): string {
-  if (!badge) return 'bg-gray-800/80 text-gray-400 border-gray-700/60';
-  const b = badge.toLowerCase();
-  if (b.includes('une')) return 'bg-amber-500/20 text-amber-300 border-amber-500/30';
-  if (b.includes('festival')) return 'bg-purple-500/20 text-purple-300 border-purple-500/30';
-  if (b.includes('concert')) return 'bg-rose-500/20 text-rose-300 border-rose-500/30';
-  if (b.includes('album') || b.includes('nouveau')) return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
-  if (b.includes('promo')) return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
-  return 'bg-amber-500/20 text-amber-300 border-amber-500/30';
-}
-
-function promoBorderColor(badge?: string): string {
-  if (!badge) return 'border-l-[#2d2d3d]';
-  const b = badge.toLowerCase();
-  if (b.includes('festival')) return 'border-l-purple-500/60';
-  if (b.includes('concert')) return 'border-l-rose-500/60';
-  if (b.includes('album') || b.includes('nouveau')) return 'border-l-emerald-500/60';
-  if (b.includes('promo')) return 'border-l-blue-500/60';
-  return 'border-l-amber-500/60';
-}
-
-function genreGradient(genres?: string[]): string {
-  const g = (genres?.[0] ?? '').toLowerCase();
-  if (g.includes('r&b') || g.includes('pop')) return 'from-purple-900 to-pink-900';
-  if (g.includes('rock') || g.includes('indie')) return 'from-rose-900 to-orange-900';
-  if (g.includes('hip-hop') || g.includes('rap')) return 'from-amber-900 to-yellow-900';
-  if (g.includes('electro') || g.includes('electronic')) return 'from-cyan-900 to-blue-900';
-  if (g.includes('festival') || g.includes('concert') || g.includes('streaming')) return 'from-emerald-900 to-teal-900';
-  return 'from-violet-900 to-purple-900';
-}
-
 function rankMedal(rank: number): string {
   if (rank === 1) return '🥇';
   if (rank === 2) return '🥈';
   if (rank === 3) return '🥉';
   return `#${rank}`;
+}
+
+function formatEventDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return iso;
+  }
 }
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -126,6 +106,33 @@ function PhotoIcon({ className }: { className?: string }) {
   );
 }
 
+function VideoIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="2" y="5" width="15" height="14" rx="2" ry="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="m22 8-5 3.5v5L22 20V8z" />
+    </svg>
+  );
+}
+
+
+function CalendarIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="4" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16 2v4M8 2v4M3 10h18" />
+    </svg>
+  );
+}
+
+function MapPinIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
 
 // ─── Post interaction icons ───────────────────────────────────────────────────
 
@@ -181,54 +188,7 @@ function BookmarkIcon({ filled, className }: { filled?: boolean; className?: str
   );
 }
 
-// ─── Comment alignment helpers ────────────────────────────────────────────────
-
-function AlignLeftIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
-      <line x1="3" y1="6" x2="21" y2="6" strokeLinecap="round" />
-      <line x1="3" y1="12" x2="15" y2="12" strokeLinecap="round" />
-      <line x1="3" y1="18" x2="18" y2="18" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function AlignCenterIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
-      <line x1="3" y1="6" x2="21" y2="6" strokeLinecap="round" />
-      <line x1="6" y1="12" x2="18" y2="12" strokeLinecap="round" />
-      <line x1="4" y1="18" x2="20" y2="18" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function AlignRightIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
-      <line x1="3" y1="6" x2="21" y2="6" strokeLinecap="round" />
-      <line x1="9" y1="12" x2="21" y2="12" strokeLinecap="round" />
-      <line x1="6" y1="18" x2="21" y2="18" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function AlignJustifyIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
-      <line x1="3" y1="6" x2="21" y2="6" strokeLinecap="round" />
-      <line x1="3" y1="12" x2="21" y2="12" strokeLinecap="round" />
-      <line x1="3" y1="18" x2="21" y2="18" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-const ALIGN_OPTIONS: { value: CommentAlign; label: string; Icon: React.FC<{ className?: string }> }[] = [
-  { value: 'left',   label: 'Aligner à gauche', Icon: AlignLeftIcon    },
-  { value: 'center', label: 'Centrer',           Icon: AlignCenterIcon  },
-  { value: 'right',  label: 'Aligner à droite',  Icon: AlignRightIcon   },
-  { value: 'full',   label: 'Pleine largeur',    Icon: AlignJustifyIcon },
-];
+// ─── Comment alignment display (existing comments) ────────────────────────────
 
 function commentRowClass(align?: CommentAlign): string {
   if (align === 'right')  return 'flex-row-reverse';
@@ -243,568 +203,68 @@ function commentBubbleClass(align?: CommentAlign): string {
   return 'text-left';
 }
 
-// ─── News card components ──────────────────────────────────────────────────────
-
-function FeaturedCard({ item }: { item: MusicNewsItem }) {
-  const [imgOk, setImgOk] = useState(true);
-  return (
-    <article className="rounded-xl overflow-hidden border border-[#2a2a3d] bg-[#12121a] shadow-lg">
-      <div className={`relative w-full h-44 bg-gradient-to-br ${genreGradient(item.genres)}`}>
-        {item.imageUrl && imgOk && (
-          <img
-            src={item.imageUrl}
-            alt=""
-            loading="lazy"
-            onError={() => setImgOk(false)}
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 p-3">
-          {item.badge && (
-            <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full border mb-1.5 ${badgeStyle(item.badge)}`}>
-              {item.badge}
-            </span>
-          )}
-          <h2 className="text-sm font-bold text-white leading-snug line-clamp-2">{item.title}</h2>
-        </div>
-      </div>
-      <div className="p-3 space-y-2">
-        <p className="text-[11px] text-gray-400 line-clamp-2 leading-relaxed">{item.excerpt}</p>
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 min-w-0">
-            {item.source && (
-              <span className="text-[10px] text-gray-500 truncate">{item.source}</span>
-            )}
-            <span className="text-[10px] text-gray-600">·</span>
-            <span className="text-[10px] text-gray-600 shrink-0">{formatWhen(item.publishedAt)}</span>
-          </div>
-          <a
-            href={item.url ?? '#'}
-            className="shrink-0 text-[10px] font-semibold text-purple-400 hover:text-purple-300 transition"
-          >
-            Lire plus →
-          </a>
-        </div>
-      </div>
-    </article>
-  );
+function newsItemBadge(item: MusicNewsItem): string | undefined {
+  if (item.badge) return item.badge;
+  if (item.category === 'musique') return 'Musique';
+  if (item.category === 'promo') return item.badge ?? 'Promo';
+  return undefined;
 }
 
-function NewsCard({ item }: { item: MusicNewsItem }) {
+function TrendingUserCard({ user, onOpenProfile }: { user: TrendingUser; onOpenProfile: (userId: string) => void }) {
   const [imgOk, setImgOk] = useState(true);
   return (
-    <article className="flex gap-3 rounded-xl border border-[#1e1e2f] bg-[#12121a] p-3">
-      <div className={`shrink-0 w-[88px] h-[88px] rounded-lg overflow-hidden bg-gradient-to-br ${genreGradient(item.genres)}`}>
-        {item.imageUrl && imgOk && (
+    <button
+      type="button"
+      onClick={() => onOpenProfile(user.userId)}
+      className="flex flex-col items-center gap-1.5 w-20 shrink-0"
+      aria-label={`Voir le profil de ${user.username}`}
+    >
+      <div className="relative w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br from-violet-900 to-purple-900 border-2 border-[#2a2a3d]">
+        {user.avatarUrl && imgOk ? (
           <img
-            src={item.imageUrl}
-            alt=""
-            loading="lazy"
-            onError={() => setImgOk(false)}
-            className="w-full h-full object-cover"
-          />
-        )}
-      </div>
-      <div className="min-w-0 flex-1 flex flex-col justify-between gap-1">
-        <div className="space-y-0.5">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {item.source && (
-              <span className="text-[9px] font-semibold text-purple-400 uppercase tracking-wide">{item.source}</span>
-            )}
-            <span className="text-[9px] text-gray-600">{formatWhen(item.publishedAt)}</span>
-          </div>
-          <p className="text-[12px] font-semibold text-white leading-snug line-clamp-2">{item.title}</p>
-          <p className="text-[10px] text-gray-400 line-clamp-2 leading-relaxed">{item.excerpt}</p>
-        </div>
-        <a
-          href={item.url ?? '#'}
-          className="text-[10px] font-semibold text-purple-400 hover:text-purple-300 transition w-fit"
-        >
-          Lire plus →
-        </a>
-      </div>
-    </article>
-  );
-}
-
-function PromoCard({ item }: { item: MusicNewsItem }) {
-  const [imgOk, setImgOk] = useState(true);
-  return (
-    <article className={`rounded-xl border border-[#1e1e2f] border-l-4 ${promoBorderColor(item.badge)} bg-[#12121a] p-3`}>
-      <div className="flex gap-3">
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {item.badge && (
-              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${badgeStyle(item.badge)}`}>
-                {item.badge}
-              </span>
-            )}
-            {item.source && (
-              <span className="text-[9px] text-gray-600">{item.source}</span>
-            )}
-            <span className="text-[9px] text-gray-600">{formatWhen(item.publishedAt)}</span>
-          </div>
-          <p className="text-[12px] font-bold text-white leading-snug">{item.title}</p>
-          <p className="text-[10px] text-gray-400 line-clamp-2 leading-relaxed">{item.excerpt}</p>
-          <a
-            href={item.url ?? '#'}
-            className="inline-block text-[10px] font-semibold text-purple-400 hover:text-purple-300 transition"
-          >
-            Voir l'annonce →
-          </a>
-        </div>
-        {item.imageUrl && imgOk && (
-          <div className={`shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-gradient-to-br ${genreGradient(item.genres)}`}>
-            <img
-              src={item.imageUrl}
-              alt=""
-              onError={() => setImgOk(false)}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        )}
-      </div>
-    </article>
-  );
-}
-
-function TrendingArtistCard({ item }: { item: MusicNewsItem }) {
-  const [imgOk, setImgOk] = useState(true);
-  return (
-    <div className="flex flex-col items-center gap-1.5 w-20 shrink-0">
-      <div className={`relative w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br ${genreGradient(item.genres)} border-2 border-[#2a2a3d]`}>
-        {item.imageUrl && imgOk && (
-          <img
-            src={item.imageUrl}
+            src={user.avatarUrl}
             alt=""
             onError={() => setImgOk(false)}
             className="w-full h-full object-cover"
           />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-xl font-bold text-purple-300 uppercase">
+            {user.username.charAt(0)}
+          </div>
         )}
         <div className="absolute top-0 left-0 bg-black/50 rounded-br-lg px-1 py-0.5 text-[10px] font-bold text-white leading-none">
-          {item.trendingRank && item.trendingRank <= 3 ? rankMedal(item.trendingRank) : `#${item.trendingRank ?? ''}`}
+          {user.rank <= 3 ? rankMedal(user.rank) : `#${user.rank}`}
         </div>
+        {(user.liveCount > 0) && (
+          <div className="absolute bottom-0 right-0 w-4 h-4 bg-red-500 rounded-full border border-[#0b0b0f] flex items-center justify-center">
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+          </div>
+        )}
       </div>
-      <p className="text-[10px] font-semibold text-white text-center leading-tight line-clamp-1 w-full">{item.artist ?? item.title}</p>
-      <p className="text-[9px] text-gray-500 text-center leading-tight">{item.excerpt}</p>
-    </div>
+      <p className="text-[10px] font-semibold text-white text-center leading-tight line-clamp-1 w-full">{user.username}</p>
+    </button>
   );
 }
 
-function SectionHeader({ label, emoji }: { label: string; emoji: string }) {
+function SectionHeader({
+  label,
+  emoji,
+  subtitle,
+}: {
+  label: string;
+  emoji: string;
+  subtitle?: string;
+}) {
   return (
     <div className="flex items-center gap-2 px-1">
       <span className="text-base leading-none">{emoji}</span>
       <h3 className="text-xs font-bold text-gray-300 uppercase tracking-wide">{label}</h3>
+      {subtitle ? (
+        <span className="text-[10px] text-gray-500 font-normal normal-case tracking-normal">
+          {subtitle}
+        </span>
+      ) : null}
     </div>
-  );
-}
-
-// ─── Stories inline bar ───────────────────────────────────────────────────────
-
-type StorySheetState =
-  | { kind: 'closed' }
-  | { kind: 'create' }
-  | { kind: 'view'; story: MapStory; isOwn: boolean };
-
-function StoriesInlineBar({
-  onOpenProfile,
-  onOpenReel,
-  onOpenLive,
-  isActive,
-}: {
-  onOpenProfile: (userId: string) => void;
-  onOpenReel?: (reelId: string) => void;
-  onOpenLive?: (liveId: string) => void;
-  isActive: boolean;
-}) {
-  const { token, user } = useAuth();
-  const [entries, setEntries] = useState<MapStoryEntry[]>([]);
-  const [myStory, setMyStory] = useState<MapStory | null>(null);
-  const [storiesByUser, setStoriesByUser] = useState<Map<string, MapStory>>(new Map());
-  const [sheet, setSheet] = useState<StorySheetState>({ kind: 'closed' });
-  const [loading, setLoading] = useState(false);
-  const [hidden, setHidden] = useState(isMapStoriesHidden);
-  const [collapsed, setCollapsed] = useState(isMapStoriesCollapsed);
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [prefs, setPrefs] = useState<NearbyPanelPreferences>(() => getNearbyPanelPreferences());
-  const [mapGeo, setMapGeo] = useState<LivesGeoPrefs>(() => getLivesGeo());
-  const [radiusKm, setRadiusKm] = useState(() => getNearbyRadiusKm());
-
-  const updatePrefs = useCallback(
-    (patch: Partial<Pick<NearbyPanelPreferences, 'favoritesFirst' | 'filterByDistance'>>) => {
-      setPrefs(setNearbyPanelPreferences(patch));
-    },
-    []
-  );
-
-  const applyRadius = (km: number) => {
-    const clamped = clampNearbyRadiusKm(km);
-    const v = setNearbyPanelRadiusKm(clamped);
-    setRadiusKm(v);
-    setLivesGeoRadiusKm(v);
-  };
-
-  useEffect(() => {
-    const syncPrefs = () => setPrefs(getNearbyPanelPreferences());
-    const syncGeo = () => setMapGeo(getLivesGeo());
-    const syncRadius = () => setRadiusKm(getNearbyRadiusKm());
-    window.addEventListener(NEARBY_PANEL_CHANGED_EVENT, syncPrefs);
-    window.addEventListener(NEARBY_PANEL_CHANGED_EVENT, syncRadius);
-    window.addEventListener(MAP_GEO_CHANGED_EVENT, syncGeo);
-    window.addEventListener(SETTINGS_CHANGED_EVENT, syncRadius);
-    return () => {
-      window.removeEventListener(NEARBY_PANEL_CHANGED_EVENT, syncPrefs);
-      window.removeEventListener(NEARBY_PANEL_CHANGED_EVENT, syncRadius);
-      window.removeEventListener(MAP_GEO_CHANGED_EVENT, syncGeo);
-      window.removeEventListener(SETTINGS_CHANGED_EVENT, syncRadius);
-    };
-  }, []);
-
-  const filterActive = prefs.favoritesFirst || prefs.filterByDistance;
-
-  const countLabel = useMemo(() => {
-    if (loading) return '…';
-    return String(entries.length + (user && token ? 1 : 0));
-  }, [entries.length, loading, token, user]);
-
-  const loadStories = useCallback(async () => {
-    if (!token) {
-      setEntries([]);
-      setMyStory(null);
-      setStoriesByUser(new Map());
-      return;
-    }
-    setLoading(true);
-    try {
-      const storyRadius = prefs.filterByDistance ? radiusKm : undefined;
-      // Fetch favorites, reels, lives and ephemeral stories in parallel.
-      const [favRes, feedRes, livesOrNull, storiesRes, mineRes] = await Promise.all([
-        api.getMyFavorites(token),
-        api.getReelsFeed(token),
-        api.getLives(token, { distanceFilter: false }).catch(() => null),
-        api.getStories(token, {
-          latitude: mapGeo.latitude,
-          longitude: mapGeo.longitude,
-          radius: storyRadius,
-        }),
-        api.getMyStory(token),
-      ]);
-      const favoriteIds = new Set(favRes.favorites.map((f) => f.id));
-
-      // Build a username+avatar lookup: start with favorites (have full User objects).
-      const userInfoById = new Map<string, { username: string; avatarUrl?: string }>(
-        favRes.favorites.map((f) => [f.id, { username: f.username, avatarUrl: f.avatarUrl }])
-      );
-
-      // Raw reel objects from the API may carry authorUsername/authorAvatarUrl as extra
-      // server fields even though the MusicReel TS type doesn't declare them.
-      type RawReel = MusicReel & { authorUsername?: string; authorAvatarUrl?: string };
-      const rawReels = feedRes.reels as RawReel[];
-      for (const raw of rawReels) {
-        const aid = raw.authorId?.trim();
-        if (aid && !userInfoById.has(aid) && raw.authorUsername) {
-          userInfoById.set(aid, { username: raw.authorUsername, avatarUrl: raw.authorAvatarUrl });
-        }
-      }
-
-      const reels = rawReels
-        .map((r) => normalizeProfileReelFromApi(r as Parameters<typeof normalizeProfileReelFromApi>[0]))
-        .filter((r): r is MusicReel => r != null);
-
-      // Synthetic NearbyPerson list: live hosts first, then reel authors whose display
-      // info we know. This lets buildMapStoryEntries populate stories without requiring
-      // the user to be on the Map tab (which is the only place that calls api.nearby()).
-      const syntheticIds = new Set<string>();
-      const syntheticPeople: NearbyPerson[] = [];
-
-      for (const live of livesOrNull?.lives ?? []) {
-        if (!live.isActive) continue;
-        syntheticIds.add(live.hostId);
-        syntheticPeople.push({
-          id: live.hostId,
-          username: live.hostName,
-          isLive: true,
-          liveId: live.id,
-          liveViewersCount: live.viewersCount,
-        });
-      }
-
-      for (const reel of reels) {
-        const aid = reel.authorId?.trim();
-        if (!aid || syntheticIds.has(aid)) continue;
-        const info = userInfoById.get(aid);
-        if (!info) continue;
-        syntheticIds.add(aid);
-        syntheticPeople.push({ id: aid, username: info.username, avatarUrl: info.avatarUrl });
-      }
-
-      const ephemeral = storiesRes.stories ?? [];
-      const byUser = new Map<string, MapStory>();
-      for (const s of ephemeral) {
-        const prev = byUser.get(s.userId);
-        if (!prev || s.createdAt > prev.createdAt) byUser.set(s.userId, s);
-      }
-      setStoriesByUser(byUser);
-      setMyStory(mineRes.story);
-
-      const filteredPeople = syntheticPeople.filter((p) => p.id !== user?.id);
-      setEntries(
-        buildMapStoryEntries(filteredPeople, favRes.favorites, reels, {
-          favoritesFirst: prefs.favoritesFirst,
-          favoriteIds,
-          ephemeralStories: ephemeral,
-        }).filter((e) => e.userId !== user?.id)
-      );
-    } catch {
-      setEntries([]);
-      setMyStory(null);
-      setStoriesByUser(new Map());
-    } finally {
-      setLoading(false);
-    }
-  }, [token, prefs.favoritesFirst, prefs.filterByDistance, radiusKm, mapGeo.latitude, mapGeo.longitude, user?.id]);
-
-  useEffect(() => {
-    if (!isActive) return;
-    void loadStories();
-  }, [isActive, loadStories]);
-
-  const openEntry = (entry: MapStoryEntry) => {
-    if (entry.hasActiveStory && entry.storyId) {
-      const story = storiesByUser.get(entry.userId);
-      if (story) {
-        setSheet({ kind: 'view', story, isOwn: entry.userId === user?.id });
-        return;
-      }
-    }
-    if (entry.isLive && entry.liveId && onOpenLive) {
-      onOpenLive(entry.liveId);
-      return;
-    }
-    if (entry.reelId && onOpenReel) {
-      onOpenReel(entry.reelId);
-      return;
-    }
-    onOpenProfile(entry.userId);
-  };
-
-  const openMyStory = () => {
-    if (myStory) {
-      setSheet({ kind: 'view', story: myStory, isOwn: true });
-    } else {
-      setSheet({ kind: 'create' });
-    }
-  };
-
-  const handlePublished = (story: MapStory) => {
-    setMyStory(story);
-    setStoriesByUser((prev) => new Map(prev).set(story.userId, story));
-    void loadStories();
-  };
-
-  const showEmpty = !loading && entries.length === 0 && !user;
-
-  const viewableStories = useMemo(
-    () => buildViewableStories(entries, storiesByUser, myStory),
-    [entries, storiesByUser, myStory]
-  );
-
-  const navigateStory = useCallback(
-    (delta: 1 | -1) => {
-      if (sheet.kind !== 'view') return;
-      const idx = viewableStories.findIndex((s) => s.id === sheet.story.id);
-      if (idx < 0) return;
-      const next = viewableStories[idx + delta];
-      if (!next) return;
-      setSheet({ kind: 'view', story: next, isOwn: next.userId === user?.id });
-    },
-    [sheet, viewableStories, user?.id]
-  );
-
-  const currentStoryIndex =
-    sheet.kind === 'view' ? viewableStories.findIndex((s) => s.id === sheet.story.id) : -1;
-
-  return (
-    <>
-    <div className="rounded-xl border border-[#1e1e2f] bg-[#12121a] overflow-hidden">
-      {hidden ? (
-        <div className="flex justify-center px-3 py-2">
-          <button
-            type="button"
-            onClick={() => {
-              setHidden(false);
-              setMapStoriesHidden(false);
-            }}
-            className="px-3 py-1 rounded-full bg-[#12121a]/95 border border-[#2d2d3d] text-[10px] font-semibold text-purple-300 hover:border-purple-500/50 shadow-lg"
-          >
-            Afficher les stories
-          </button>
-        </div>
-      ) : (
-        <div className="w-full overflow-hidden">
-            <div className="flex items-center gap-1 px-2 py-1.5 border-b border-[#2d2d3d]/80">
-              <button
-                type="button"
-                onClick={() => {
-                  const next = !collapsed;
-                  setCollapsed(next);
-                  setMapStoriesCollapsed(next);
-                }}
-                className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
-                aria-expanded={!collapsed}
-              >
-                <span className={`text-[10px] font-extrabold uppercase tracking-wider ${USERNAME_WAVE_CLASS}`}>
-                  Stories
-                </span>
-                <span className="text-[9px] text-gray-500">({countLabel})</span>
-                <svg
-                  viewBox="0 0 24 24"
-                  className={`w-3.5 h-3.5 text-gray-400 shrink-0 transition ${collapsed ? '' : 'rotate-180'}`}
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterOpen((v) => !v)}
-                title="Filtrer les stories (favoris et distance)"
-                aria-label="Filtrer les stories par favoris et distance"
-                aria-expanded={filterOpen}
-                className={`p-1 rounded-lg shrink-0 transition ${
-                  filterOpen || filterActive
-                    ? 'text-purple-300 bg-purple-900/30 hover:bg-purple-900/40'
-                    : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a26]'
-                }`}
-              >
-                <FilterIcon className="w-5 h-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setHidden(true);
-                  setMapStoriesHidden(true);
-                }}
-                title="Masquer les stories"
-                aria-label="Masquer les stories"
-                className="p-1 rounded-lg text-gray-500 hover:text-gray-200 hover:bg-[#1a1a26]"
-              >
-                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M3 3l18 18M10.5 10.7a3 3 0 0 0 4.2 4.2" strokeLinecap="round" />
-                </svg>
-              </button>
-            </div>
-
-            {filterOpen && (
-              <div className="px-2.5 pb-2.5 pt-0 border-b border-[#2d2d3d]/80 space-y-2 max-h-[min(52vh,20rem)] overflow-y-auto overscroll-contain">
-                <label className="flex items-center justify-between gap-2 cursor-pointer">
-                  <span className="text-[10px] text-gray-300">Favoris en premier</span>
-                  <input
-                    type="checkbox"
-                    checked={prefs.favoritesFirst}
-                    onChange={(e) => updatePrefs({ favoritesFirst: e.target.checked })}
-                    className="melosong-checkbox scale-90"
-                    aria-label="Afficher les favoris en premier dans les stories"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between gap-2 cursor-pointer">
-                  <span className="text-[10px] text-gray-300">Filtrer par distance</span>
-                  <input
-                    type="checkbox"
-                    checked={prefs.filterByDistance}
-                    onChange={(e) => updatePrefs({ filterByDistance: e.target.checked })}
-                    className="melosong-checkbox scale-90"
-                    aria-label="Filtrer les stories par distance"
-                  />
-                </label>
-
-                {prefs.filterByDistance && (
-                  <div>
-                    <div className="flex justify-between text-[10px] mb-1">
-                      <span className="text-gray-400">Rayon</span>
-                      <span className="text-purple-400 font-bold">{radiusKm} km</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={NEARBY_RADIUS_MIN}
-                      max={NEARBY_RADIUS_MAX}
-                      step={1}
-                      value={radiusKm}
-                      onChange={(e) => applyRadius(Number(e.target.value))}
-                      className="w-full accent-purple-500 h-1.5"
-                      aria-label="Rayon en kilomètres pour les stories"
-                    />
-                    <p className="text-[9px] text-gray-600 mt-1">
-                      Stories des personnes dans ~{radiusKm} km autour de {mapGeo.label}.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {!collapsed && (
-              <div className="px-2 py-2">
-                {loading && entries.length === 0 && !user ? (
-                  <p className="text-[10px] text-gray-500 text-center py-2">Chargement des stories…</p>
-                ) : showEmpty ? (
-                  <p className="text-[10px] text-gray-500 text-center py-2 leading-snug">
-                    Aucune story pour le moment.
-                  </p>
-                ) : (
-                  <div className="stories-rings-carousel flex gap-2 pb-0.5 snap-x snap-mandatory -mx-0.5 px-0.5">
-                    {user && token ? (
-                      <MyMapStoryRing
-                        userId={user.id}
-                        username={user.username}
-                        avatarUrl={user.avatarUrl}
-                        hasActiveStory={!!myStory}
-                        storyImageUrl={myStory?.imageUrl}
-                        onClick={openMyStory}
-                      />
-                    ) : null}
-                    {entries.map((entry) => (
-                      <MapStoryRing key={entry.userId} entry={entry} onClick={() => openEntry(entry)} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-    </div>
-
-    {token && sheet.kind === 'create' ? (
-      <MapStorySheet
-        token={token}
-        mode="create"
-        onClose={() => setSheet({ kind: 'closed' })}
-        onPublished={handlePublished}
-      />
-    ) : null}
-
-    {token && sheet.kind === 'view' ? (
-      <MapStorySheet
-        token={token}
-        mode="view"
-        story={sheet.story}
-        isOwn={sheet.isOwn}
-        onClose={() => setSheet({ kind: 'closed' })}
-        onPublished={handlePublished}
-        onRequestCreate={sheet.isOwn ? () => setSheet({ kind: 'create' }) : undefined}
-        onSwipeNext={
-          currentStoryIndex >= 0 && currentStoryIndex < viewableStories.length - 1
-            ? () => navigateStory(1)
-            : undefined
-        }
-        onSwipePrev={currentStoryIndex > 0 ? () => navigateStory(-1) : undefined}
-      />
-    ) : null}
-    </>
   );
 }
 
@@ -881,7 +341,7 @@ function PullToRefreshContainer({
   const progress = Math.min(pullY / THRESHOLD, 1);
 
   return (
-    <div ref={containerRef} className={className}>
+    <div ref={containerRef} className={`feed-scroll ${className ?? ''}`.trim()}>
       {refreshing ? (
         <div className="flex items-center justify-center h-11 pointer-events-none" aria-hidden>
           <div className="w-5 h-5 rounded-full border-2 border-purple-500 border-t-transparent animate-spin" />
@@ -914,25 +374,50 @@ function ActualitesContent({
   newsError,
   onRefresh,
   refreshing,
-  filtersActive = false,
-  totalCount = 0,
-  storiesBar,
+  onBack,
+  communityEvents = [],
+  communityEventsLoading = false,
+  trendingUsers = [],
+  trendingLoading = false,
+  onOpenProfile,
+  onOpenAuthor,
+  onShareEvent,
+  countryCode = null,
+  countryName = null,
+  countryEventPosts = [],
+  countryEventsLoading = false,
 }: {
   newsItems: MusicNewsItem[];
   newsLoading: boolean;
   newsError: string | null;
   onRefresh: () => void;
   refreshing: boolean;
-  filtersActive?: boolean;
-  totalCount?: number;
-  storiesBar?: ReactNode;
+  onBack?: () => void;
+  communityEvents?: FeedPost[];
+  communityEventsLoading?: boolean;
+  trendingUsers?: TrendingUser[];
+  trendingLoading?: boolean;
+  onOpenProfile: (userId: string) => void;
+  onOpenAuthor: (post: FeedPost) => void;
+  onShareEvent?: (post: FeedPost) => void;
+  countryCode?: string | null;
+  countryName?: string | null;
+  countryEventPosts?: FeedPost[];
+  countryEventsLoading?: boolean;
 }) {
+  const { t } = useTranslation();
   const featured = newsItems.filter((n) => n.category === 'une');
-  const musicNews = newsItems.filter((n) => n.category === 'musique');
-  const promos = newsItems.filter((n) => n.category === 'promo');
-  const trending = newsItems
-    .filter((n) => n.category === 'tendance')
-    .sort((a, b) => (a.trendingRank ?? 99) - (b.trendingRank ?? 99));
+  const userCreatedEvents = communityEvents;
+  // MODIF 159 – country events (replaces static promo news items)
+  const countryUpcoming = countryEventPosts
+    .filter((p) => p.isEvent && isUpcomingEvent(p.eventDate))
+    .sort((a, b) => new Date(a.eventDate!).getTime() - new Date(b.eventDate!).getTime());
+  // MODIF 159/167 – remplace Promotions ; titre = pays (géoloc, profil ou France)
+  const displayCountryCode = countryCode ?? EVENTS_COUNTRY_FALLBACK.code;
+  const displayCountryName = countryName ?? EVENTS_COUNTRY_FALLBACK.name;
+  const countrySectionLabel = `ÉVÉNEMENTS EN ${displayCountryName.toUpperCase()}`;
+  const countrySectionEmoji = countryCodeToFlag(displayCountryCode);
+  const trendsCountrySubtitle = `${countryCodeToFlag(displayCountryCode)} · ${displayCountryName}`;
 
   if (newsLoading && newsItems.length === 0) {
     return (
@@ -961,66 +446,122 @@ function ActualitesContent({
     <PullToRefreshContainer
       onRefresh={onRefresh}
       refreshing={refreshing}
-      className="flex-1 min-h-0 overflow-y-auto px-3 pb-6 space-y-5"
+      className="flex-1 min-h-0 min-w-0 h-full px-3 pb-6"
     >
-      {storiesBar}
+      <div className="space-y-3 min-w-0">
+        {/* MODIF 214/215 – Tendances par pays en tête (remplace Stories dans Actualités) */}
+        <div className="mt-4 space-y-2.5">
+          <SectionHeader
+            label="TENDANCES DE LA SEMAINE"
+            emoji="🔥"
+            subtitle={trendsCountrySubtitle}
+          />
+          {trendingLoading && trendingUsers.length === 0 ? (
+            <div className="overflow-x-auto -mx-3 px-3">
+              <div className="flex gap-4 w-max pb-1">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1.5 w-20 shrink-0">
+                    <div className="w-16 h-16 rounded-full bg-[#1e1e2f] animate-pulse" />
+                    <div className="w-14 h-2 rounded bg-[#1e1e2f] animate-pulse" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : trendingUsers.length === 0 ? (
+            <p className="text-xs text-gray-500 text-center py-4">Aucun live ou session pour le moment</p>
+          ) : (
+            <div className="overflow-x-auto -mx-3 px-3">
+              <div className="flex gap-4 w-max pb-1">
+                {trendingUsers.map((user) => (
+                  <TrendingUserCard key={user.userId} user={user} onOpenProfile={onOpenProfile} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
-      {/* Header actualités */}
-      <div className="flex items-center pt-3 pb-1">
-        <p className="text-[10px] text-gray-600 uppercase tracking-wide font-medium">Actualités musicales</p>
+        {onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-full px-3 py-2 rounded-xl text-sm font-semibold text-amber-300 bg-amber-500/15 ring-1 ring-inset ring-amber-500/30 hover:bg-amber-500/25 transition"
+            aria-label="Retour à l'accueil"
+          >
+            ← Accueil
+          </button>
+        ) : null}
       </div>
 
+      <div className="mt-4 space-y-4 min-w-0">
       {/* À la une */}
       {featured.length > 0 && (
         <div className="space-y-2.5">
           <SectionHeader label="À la une" emoji="🌟" />
           {featured.map((item) => (
-            <FeaturedCard key={item.id} item={item} />
+            <NewsArticleCard
+              key={item.id}
+              imageUrl={item.imageUrl}
+              title={item.title}
+              excerpt={item.excerpt}
+              source={item.source}
+              timeAgo={formatWhen(item.publishedAt)}
+              href={item.url}
+              badge={newsItemBadge(item)}
+              genres={item.genres}
+            />
           ))}
         </div>
       )}
 
-      {/* Musique */}
-      {musicNews.length > 0 && (
-        <div className="space-y-2.5">
-          <SectionHeader label="Musique" emoji="🎵" />
-          {musicNews.map((item) => (
-            <NewsCard key={item.id} item={item} />
-          ))}
-        </div>
-      )}
-
-      {/* Promotions */}
-      {promos.length > 0 && (
-        <div className="space-y-2.5">
-          <SectionHeader label="Promotions & Annonces" emoji="🎪" />
-          {promos.map((item) => (
-            <PromoCard key={item.id} item={item} />
-          ))}
-        </div>
-      )}
-
-      {/* Tendances */}
-      {trending.length > 0 && (
-        <div className="space-y-2.5">
-          <SectionHeader label="Tendances" emoji="🔥" />
-          <div className="overflow-x-auto -mx-3 px-3">
-            <div className="flex gap-4 w-max pb-1">
-              {trending.map((item) => (
-                <TrendingArtistCard key={item.id} item={item} />
-              ))}
-            </div>
+      {/* Événements autour — publications événement créées par les utilisateurs */}
+      <div className="space-y-2.5 min-w-0">
+        <SectionHeader
+          label={t('feed.eventsAround')}
+          emoji="📍"
+          subtitle={t('feed.eventsAroundRadius')}
+        />
+        {communityEventsLoading && userCreatedEvents.length === 0 ? (
+          <p className="text-[11px] text-gray-500 px-0.5">Chargement des événements de la communauté…</p>
+        ) : userCreatedEvents.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-5 text-center">
+            <CalendarIcon className="w-7 h-7 text-gray-600" />
+            <p className="text-xs text-gray-500">Aucun événement publié par la communauté pour le moment</p>
           </div>
-        </div>
-      )}
+        ) : (
+          <EventsCarousel posts={userCreatedEvents} onOpen={onOpenAuthor} onShare={onShareEvent} />
+        )}
+      </div>
+
+      {/* MODIF 159 – Événements dans le pays de l'utilisateur (remplace Promotions éditoriales) */}
+      <div className="space-y-2.5 min-w-0">
+        <SectionHeader label={countrySectionLabel} emoji={countrySectionEmoji} />
+        {countryEventsLoading ? (
+          <p className="text-[11px] text-gray-500 px-0.5">Chargement des événements de votre pays…</p>
+        ) : countryUpcoming.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-5 text-center">
+            <CalendarIcon className="w-7 h-7 text-gray-600" />
+            <p className="text-xs text-gray-500">Aucun événement musical dans votre pays pour le moment</p>
+          </div>
+        ) : (
+          <EventsCarousel
+            posts={countryUpcoming}
+            onOpen={onOpenAuthor}
+            onShare={onShareEvent}
+            getExtraBadges={() => (
+              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                {countryCodeToFlag(displayCountryCode)} · {displayCountryName}
+              </span>
+            )}
+          />
+        )}
+      </div>
 
       {newsItems.length === 0 && !newsLoading && (
         <p className="text-sm text-gray-500 text-center py-8">
-          {totalCount > 0 && filtersActive
-            ? 'Aucune actualité ne correspond à vos filtres.'
-            : 'Aucune actualité pour le moment.'}
+          Aucune actualité pour le moment.
         </p>
       )}
+      </div>
     </PullToRefreshContainer>
   );
 }
@@ -1029,12 +570,11 @@ function ActualitesContent({
 
 interface PostCardProps {
   post: FeedPost;
-  onOpenProfile: (id: string) => void;
+  onOpenAuthor: (post: FeedPost) => void;
+  storiesByUser: Map<string, MapStory>;
   commentOpenPostId: string | null;
   commentDraft: string;
   onCommentDraftChange: (v: string) => void;
-  commentAlign: CommentAlign;
-  onCommentAlignChange: (v: CommentAlign) => void;
   fullComments: FeedPostComment[] | undefined;
   commentsLoading: boolean;
   commentPosting: boolean;
@@ -1048,12 +588,11 @@ interface PostCardProps {
 
 const PostCard = memo(function PostCard({
   post,
-  onOpenProfile,
+  onOpenAuthor,
+  storiesByUser,
   commentOpenPostId,
   commentDraft,
   onCommentDraftChange,
-  commentAlign,
-  onCommentAlignChange,
   fullComments,
   commentsLoading,
   commentPosting,
@@ -1066,35 +605,85 @@ const PostCard = memo(function PostCard({
 }: PostCardProps) {
   const commentsOpen = commentOpenPostId === post.id;
   const displayedComments = fullComments ?? post.recentComments ?? [];
+  const authorStory = storiesByUser.get(post.author.id);
+  const authorHasStory = !!post.authorHasActiveStory;
+
+  const upcoming = isUpcomingEvent(post.eventDate);
 
   return (
-    <article className="rounded-xl border border-[#1e1e2f] bg-[#12121a] p-3 space-y-2">
+    <article
+      id={`feed-post-${post.id}`}
+      className="rounded-xl border border-[#1e1e2f] bg-[#12121a] p-3 space-y-2 scroll-mt-4"
+    >
+      {/* Event badge */}
+      {post.isEvent && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border bg-purple-500/20 text-purple-200 border-purple-500/40">
+            <CalendarIcon className="w-3 h-3" />
+            Événement
+          </span>
+          {upcoming && (
+            <span className="text-[10px] font-semibold text-emerald-300 bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/30">
+              À venir
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Author row */}
       <button
         type="button"
-        onClick={() => onOpenProfile(post.author.id)}
+        onClick={() => onOpenAuthor(post)}
         className="flex items-center gap-2 text-left w-full"
+        aria-label={
+          authorHasStory ? `Story de ${post.author.username}` : `Profil de ${post.author.username}`
+        }
       >
-        <img
-          src={post.author.avatarUrl || '/icon.svg'}
-          alt=""
-          loading="lazy"
-          className="w-9 h-9 rounded-full object-cover bg-[#1e1e2f]"
+        <StoryAvatarRing
+          hasActiveStory={authorHasStory}
+          storyImageUrl={authorStory?.imageUrl}
+          avatarUrl={post.author.avatarUrl}
+          size="md"
         />
         <div className="min-w-0 flex-1">
-          <UsernameDisplay
-            username={post.author.username}
-            usernameColor={post.author.usernameColor}
-            usernameWaveFrom={post.author.usernameWaveFrom}
-            usernameWaveTo={post.author.usernameWaveTo}
-            className="text-sm font-semibold truncate block"
-          />
+          <div className="flex items-center gap-1.5 min-w-0">
+            <UsernameDisplay
+              username={post.author.username}
+              usernameColor={post.author.usernameColor}
+              usernameWaveFrom={post.author.usernameWaveFrom}
+              usernameWaveTo={post.author.usernameWaveTo}
+              className="text-sm font-semibold truncate block"
+            />
+            {authorHasStory ? (
+              <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide text-purple-300 bg-purple-500/15 px-1.5 py-0.5 rounded">
+                Story
+              </span>
+            ) : null}
+          </div>
           <p className="text-[11px] text-gray-500">
             {post.resharedFromId && <span className="text-green-500/80 mr-1">🔁 Repartagé ·</span>}
             {formatWhen(post.createdAt)}
           </p>
         </div>
       </button>
+
+      {/* Event date & location block */}
+      {post.isEvent && (post.eventDate || post.eventLocation) && (
+        <div className="rounded-lg bg-purple-950/40 border border-purple-500/20 px-3 py-2 space-y-1.5">
+          {post.eventDate && (
+            <div className="flex items-start gap-2">
+              <CalendarIcon className="w-3.5 h-3.5 text-purple-400 shrink-0 mt-0.5" />
+              <span className="text-xs text-purple-100 capitalize">{formatEventDate(post.eventDate)}</span>
+            </div>
+          )}
+          {post.eventLocation && (
+            <div className="flex items-start gap-2">
+              <MapPinIcon className="w-3.5 h-3.5 text-pink-400 shrink-0 mt-0.5" />
+              <span className="text-xs text-gray-200">{post.eventLocation}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Content */}
       {post.content.trim() ? (
@@ -1108,20 +697,29 @@ const PostCard = memo(function PostCard({
           className="w-full rounded-lg max-h-64 object-cover bg-[#1e1e2f]"
         />
       )}
+      {post.videoUrl && (
+        <video
+          src={post.videoUrl}
+          controls
+          playsInline
+          preload="metadata"
+          className="w-full rounded-lg max-h-80 bg-[#1e1e2f]"
+        />
+      )}
 
       {/* Reshared original post embed */}
       {post.resharedFrom && (
         <div className="rounded-lg border border-[#2a2a3d] bg-[#0e0e18] p-2.5 space-y-1.5">
           <button
             type="button"
-            onClick={() => onOpenProfile(post.resharedFrom!.author.id)}
+            onClick={() => onOpenAuthor(post.resharedFrom!)}
             className="flex items-center gap-2 text-left w-full"
           >
-            <img
-              src={post.resharedFrom.author.avatarUrl || '/icon.svg'}
-              alt=""
-              loading="lazy"
-              className="w-6 h-6 rounded-full object-cover bg-[#1e1e2f] shrink-0"
+            <StoryAvatarRing
+              hasActiveStory={!!post.resharedFrom.authorHasActiveStory}
+              storyImageUrl={storiesByUser.get(post.resharedFrom.author.id)?.imageUrl}
+              avatarUrl={post.resharedFrom.author.avatarUrl}
+              size="sm"
             />
             <UsernameDisplay
               username={post.resharedFrom.author.username}
@@ -1142,6 +740,15 @@ const PostCard = memo(function PostCard({
               src={post.resharedFrom.imageUrl}
               alt=""
               className="w-full rounded-md max-h-40 object-cover bg-[#1e1e2f]"
+            />
+          )}
+          {post.resharedFrom.videoUrl && (
+            <video
+              src={post.resharedFrom.videoUrl}
+              controls
+              playsInline
+              preload="metadata"
+              className="w-full rounded-md max-h-48 bg-[#1e1e2f]"
             />
           )}
         </div>
@@ -1179,8 +786,12 @@ const PostCard = memo(function PostCard({
         <button
           type="button"
           onClick={onReshare}
-          className="flex items-center gap-1 px-2 py-1 rounded-lg transition text-xs font-medium text-gray-500 hover:text-green-300 hover:bg-green-900/10"
-          title="Repartager"
+          className={`flex items-center gap-1 px-2 py-1 rounded-lg transition text-xs font-medium ${
+            post.resharedByMe
+              ? 'text-green-300 bg-green-900/10'
+              : 'text-gray-500 hover:text-green-300 hover:bg-green-900/10'
+          }`}
+          title={post.resharedByMe ? 'Déjà repartagé' : 'Repartager'}
         >
           <ReshareIcon className="w-3.5 h-3.5 shrink-0" />
         </button>
@@ -1237,28 +848,7 @@ const PostCard = memo(function PostCard({
             ))}
           </div>
           {/* Comment input */}
-          <div className="pt-1 space-y-1.5">
-            {/* Alignment toolbar */}
-            <div className="flex items-center gap-0.5">
-              <span className="text-[9px] text-gray-600 mr-1 shrink-0">Alignement :</span>
-              {ALIGN_OPTIONS.map(({ value, label, Icon }) => (
-                <button
-                  key={value}
-                  type="button"
-                  title={label}
-                  aria-label={label}
-                  onClick={() => onCommentAlignChange(value)}
-                  className={`p-1 rounded transition ${
-                    commentAlign === value
-                      ? 'text-purple-300 bg-purple-900/30'
-                      : 'text-gray-600 hover:text-gray-400 hover:bg-[#1a1a26]'
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                </button>
-              ))}
-            </div>
-            {/* Input row */}
+          <div className="pt-1">
             <div className="flex gap-2">
               <textarea
                 value={commentDraft}
@@ -1269,7 +859,6 @@ const PostCard = memo(function PostCard({
                 placeholder="Ajouter un commentaire…"
                 rows={1}
                 maxLength={500}
-                style={{ textAlign: commentAlign === 'right' ? 'right' : commentAlign === 'center' ? 'center' : 'left' }}
                 className="flex-1 rounded-xl bg-[#0b0b0f] border border-[#2a2a3d] px-3 py-2 text-xs text-white placeholder:text-gray-600 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500/50"
               />
               <button
@@ -1290,8 +879,16 @@ const PostCard = memo(function PostCard({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActive }: ActualiteTabPageProps) {
+export function ActualiteTabPage({
+  onOpenProfile,
+  onOpenReel,
+  onOpenLive,
+  isActive,
+  focusPostId,
+  onFocusPostConsumed,
+}: ActualiteTabPageProps) {
   const { token, user } = useAuth();
+  const { t, i18n } = useTranslation();
 
   // ── Fil state ──
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -1299,14 +896,22 @@ export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActi
   const [publishing, setPublishing] = useState(false);
   const [draft, setDraft] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
   const [imageAttaching, setImageAttaching] = useState(false);
+  const [videoAttaching, setVideoAttaching] = useState(false);
   const [editorSource, setEditorSource] = useState<File | string | null>(null);
   const [editorPreviewUrl, setEditorPreviewUrl] = useState<string | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
+  const videoFileInputRef = useRef<HTMLInputElement>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [newsPrefs, setNewsPrefs] = useState<NewsUserPrefs>(() => readNewsUserPrefs());
-  const [newsFiltersOpen, setNewsFiltersOpen] = useState(false);
+  // ── Événement ──
+  const [isEvent, setIsEvent] = useState(false);
+  const [eventDate, setEventDate] = useState('');
+  const [eventDateDraft, setEventDateDraft] = useState('');
+  const eventDateInputRef = useRef<HTMLInputElement>(null);
+  const [eventLocation, setEventLocation] = useState('');
+  const [eventType, setEventType] = useState<'dance' | 'chant' | 'autre'>('autre');
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
 
   // ── News panel (toggle depuis Accueil) ──
@@ -1316,24 +921,65 @@ export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActi
   const [newsRefreshing, setNewsRefreshing] = useState(false);
   const [newsError, setNewsError] = useState<string | null>(null);
 
+  // ── Tendances réelles (MODIF 160) ──
+  const [trendingUsers, setTrendingUsers] = useState<TrendingUser[]>([]);
+  const [trendingLoading, setTrendingLoading] = useState(false);
+
+  // ── MODIF 159 – Événements par pays (Nominatim reverse geocoding) ──
+  const [countryCode, setCountryCode] = useState<string | null>(null);
+  const [countryName, setCountryName] = useState<string | null>(null);
+  const [countryEventPosts, setCountryEventPosts] = useState<FeedPost[]>([]);
+  const [countryEventsLoading, setCountryEventsLoading] = useState(false);
+  const [communityEventPosts, setCommunityEventPosts] = useState<FeedPost[]>([]);
+  const [communityEventsLoading, setCommunityEventsLoading] = useState(false);
+
   // ── Post interactions ──
   const [commentOpenPostId, setCommentOpenPostId] = useState<string | null>(null);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
-  const [commentAligns, setCommentAligns] = useState<Record<string, CommentAlign>>({});
   const [fullComments, setFullComments] = useState<Record<string, FeedPostComment[]>>({});
   const [commentsLoading, setCommentsLoading] = useState<Record<string, boolean>>({});
   const [commentPosting, setCommentPosting] = useState<Record<string, boolean>>({});
 
   // ── Share & Toast ──
   const [sharePost, setSharePost] = useState<FeedPost | null>(null);
+  const [shareUrl, setShareUrl] = useState('');
+  const [linkSharedPostIds, setLinkSharedPostIds] = useState<Set<string>>(() => readFeedPostLinkSharedIds());
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Stories pour anneaux / ouverture depuis les publications ──
+  const [feedStoriesByUser, setFeedStoriesByUser] = useState<Map<string, MapStory>>(new Map());
+  const [feedStorySheet, setFeedStorySheet] = useState<StorySheetState>({ kind: 'closed' });
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 2500);
   }, []);
+
+  const sharePayload = useMemo(() => {
+    if (!sharePost) return null;
+    return buildFeedPostSharePayload(sharePost, i18n.language, {
+      feedPostTitle: t('share.feedPostTitle'),
+      eventTitle: t('share.eventTitle'),
+      eventDate: t('share.eventDate'),
+      eventLocation: t('share.eventLocation'),
+    });
+  }, [sharePost, i18n.language, t]);
+
+  useEffect(() => {
+    if (!sharePost) {
+      setShareUrl('');
+      return;
+    }
+    let cancelled = false;
+    void getFeedPostShareUrl(sharePost.id).then((url) => {
+      if (!cancelled) setShareUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [sharePost]);
 
   // ── Feed prefs ──
   const viewerTastes = useMemo(
@@ -1345,10 +991,8 @@ export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActi
     [user?.interests, user?.favoriteGenres, user?.favoriteArtists]
   );
 
-  const newsFiltersActive = newsPrefsFiltersActive(newsPrefs);
-
   const visiblePosts = useMemo(() => {
-    if (!user?.id) return posts;
+    if (!user?.id) return sortFeedPostsByPublicationDate(posts);
     return applyFeedPreferences(posts, HOME_FEED_DISPLAY_PREFS, {
       viewerId: user.id,
       favoriteIds,
@@ -1356,25 +1000,53 @@ export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActi
     });
   }, [posts, user?.id, favoriteIds, viewerTastes]);
 
-  const visibleNewsItems = useMemo(
-    () => applyNewsPreferences(newsItems, newsPrefs, viewerTastes),
-    [newsItems, newsPrefs, viewerTastes]
+  const communityEvents = useMemo(
+    () => getUpcomingUserEvents(communityEventPosts, { favoriteAuthorIds: favoriteIds }),
+    [communityEventPosts, favoriteIds]
   );
-
-  const handleNewsPrefsChange = useCallback((next: NewsUserPrefs) => {
-    writeNewsUserPrefs(next);
-    setNewsPrefs(next);
-  }, []);
-
-  useEffect(() => {
-    const onChanged = () => setNewsPrefs(readNewsUserPrefs());
-    window.addEventListener(NEWS_PREFS_CHANGED_EVENT, onChanged);
-    return () => window.removeEventListener(NEWS_PREFS_CHANGED_EVENT, onChanged);
-  }, []);
 
   useEffect(() => {
     if (!isActive) setShowNews(false);
   }, [isActive]);
+
+  useEffect(() => {
+    if (!focusPostId || !isActive || loading) return;
+    const timer = window.setTimeout(() => {
+      const el = document.getElementById(`feed-post-${focusPostId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2', 'ring-purple-400/80', 'ring-offset-2', 'ring-offset-[#0b0b0f]');
+        window.setTimeout(
+          () => el.classList.remove('ring-2', 'ring-purple-400/80', 'ring-offset-2', 'ring-offset-[#0b0b0f]'),
+          2200
+        );
+      }
+      onFocusPostConsumed?.();
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [focusPostId, isActive, loading, visiblePosts.length, onFocusPostConsumed]);
+
+  const loadFeedStories = useCallback(async () => {
+    if (!token) {
+      setFeedStoriesByUser(new Map());
+      return;
+    }
+    try {
+      const [storiesRes, mineRes] = await Promise.all([
+        api.getStories(token),
+        api.getMyStory(token),
+      ]);
+      const byUser = new Map<string, MapStory>();
+      for (const s of storiesRes.stories ?? []) {
+        const prev = byUser.get(s.userId);
+        if (!prev || s.createdAt > prev.createdAt) byUser.set(s.userId, s);
+      }
+      if (mineRes.story) byUser.set(mineRes.story.userId, mineRes.story);
+      setFeedStoriesByUser(byUser);
+    } catch {
+      setFeedStoriesByUser(new Map());
+    }
+  }, [token]);
 
   // ── Load feed posts (GET /api/feed) ──
   const loadFeed = useCallback(
@@ -1384,8 +1056,14 @@ export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActi
       else setLoading(true);
       setError(null);
       try {
-        const r = await api.getFeedPosts(token, { limit: 100 });
-        setPosts(r.posts);
+        const [feedRes] = await Promise.all([
+          api.getFeedPosts(token, {
+            limit: 100,
+            algo: getFeedAlgorithmPreferences().useBuiltInAlgorithm,
+          }),
+          loadFeedStories(),
+        ]);
+        setPosts(feedRes.posts);
       } catch {
         setError('Impossible de charger le fil.');
       } finally {
@@ -1393,7 +1071,7 @@ export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActi
         setRefreshing(false);
       }
     },
-    [token]
+    [token, loadFeedStories]
   );
 
   useEffect(() => {
@@ -1408,6 +1086,55 @@ export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActi
       .then((r) => setFavoriteIds(new Set(r.favorites.map((f) => f.id))))
       .catch(() => setFavoriteIds(new Set()));
   }, [isActive, token]);
+
+  const feedStoryStacks = useMemo((): StoryUserStack[] => {
+    const stories = [...feedStoriesByUser.values()].sort((a, b) => b.createdAt - a.createdAt);
+    return stories.map((s) => ({ userId: s.userId, stories: [s] }));
+  }, [feedStoriesByUser]);
+
+  const feedViewerStack =
+    feedStorySheet.kind === 'view'
+      ? findStackForStory(feedStoryStacks, feedStorySheet.story)
+      : undefined;
+  const feedViewerStackIndex =
+    feedStorySheet.kind === 'view' && feedViewerStack
+      ? stackIndexForStory(feedViewerStack, feedStorySheet.story)
+      : 0;
+
+  const goNextFeedStory = useCallback(() => {
+    if (feedStorySheet.kind !== 'view') return;
+    const next = resolveNextStory(feedStoryStacks, feedStorySheet.story, user?.id);
+    if (!next) return;
+    setFeedStorySheet({ kind: 'view', story: next.story, isOwn: next.isOwn });
+  }, [feedStorySheet, feedStoryStacks, user?.id]);
+
+  const goPrevFeedStory = useCallback(() => {
+    if (feedStorySheet.kind !== 'view') return;
+    const prev = resolvePrevStory(feedStoryStacks, feedStorySheet.story, user?.id);
+    if (!prev) return;
+    setFeedStorySheet({ kind: 'view', story: prev.story, isOwn: prev.isOwn });
+  }, [feedStorySheet, feedStoryStacks, user?.id]);
+
+  const canNextFeedStory =
+    feedStorySheet.kind === 'view' &&
+    resolveNextStory(feedStoryStacks, feedStorySheet.story, user?.id) != null;
+  const canPrevFeedStory =
+    feedStorySheet.kind === 'view' &&
+    resolvePrevStory(feedStoryStacks, feedStorySheet.story, user?.id) != null;
+
+  const handlePostAuthorClick = useCallback(
+    (post: FeedPost) => {
+      if (post.authorHasActiveStory) {
+        const story = feedStoriesByUser.get(post.author.id);
+        if (story) {
+          setFeedStorySheet({ kind: 'view', story, isOwn: post.author.id === user?.id });
+          return;
+        }
+      }
+      onOpenProfile(post.author.id);
+    },
+    [feedStoriesByUser, onOpenProfile, user?.id]
+  );
 
   // ── Load news ──
   const loadNews = useCallback(async (silent = false) => {
@@ -1432,6 +1159,144 @@ export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActi
     const timer = setInterval(() => void loadNews(true), 5 * 60 * 1000);
     return () => clearInterval(timer);
   }, [isActive, showNews, loadNews]);
+
+  // ── MODIF 160/215 – Tendances filtrées par pays (comme événements) ──
+  const loadTrendingUsers = useCallback(async () => {
+    if (!token) return;
+    setTrendingLoading(true);
+    try {
+      const code = countryCode ?? EVENTS_COUNTRY_FALLBACK.code;
+      const r = await api.getTrendingUsers(token, code);
+      setTrendingUsers(r.users);
+    } catch {
+      // silently ignore – section shows empty state
+    } finally {
+      setTrendingLoading(false);
+    }
+  }, [token, countryCode]);
+
+  useEffect(() => {
+    if (!isActive || !token || !showNews) return;
+    void loadTrendingUsers();
+    const timer = setInterval(() => void loadTrendingUsers(), 5 * 60 * 1000);
+    return () => clearInterval(timer);
+  }, [isActive, token, showNews, loadTrendingUsers]);
+
+  // ── MODIF 179 – Événements autour : tous les événements utilisateurs (API eventsOnly) ──
+  const loadCommunityEvents = useCallback(async () => {
+    if (!token) return;
+    setCommunityEventsLoading(true);
+    try {
+      const res = await api.getFeedPosts(token, {
+        eventsOnly: true,
+        userEventsOnly: true,
+        limit: 50,
+      });
+      setCommunityEventPosts(res.posts);
+    } catch {
+      // silently ignore – section shows empty state
+    } finally {
+      setCommunityEventsLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (!isActive || !token || !showNews) return;
+    void loadCommunityEvents();
+  }, [isActive, token, showNews, loadCommunityEvents]);
+
+  // ── MODIF 159 – Load events filtered by user's country ──
+  const loadCountryEvents = useCallback(async () => {
+    if (!token) return;
+    setCountryEventsLoading(true);
+    try {
+      const code = countryCode ?? EVENTS_COUNTRY_FALLBACK.code;
+      const res = await api.getFeedPosts(token, {
+        eventsOnly: true,
+        eventCountry: code,
+        limit: 50,
+      });
+      setCountryEventPosts(res.posts);
+    } catch {
+      // silently ignore – section shows empty state
+    } finally {
+      setCountryEventsLoading(false);
+    }
+  }, [token, countryCode]);
+
+  useEffect(() => {
+    if (!isActive || !showNews) return;
+    void loadCountryEvents();
+  }, [isActive, showNews, loadCountryEvents]);
+
+  // Request geolocation when news panel opens (soft permission request)
+  // MODIF 159 – Nominatim reverse geocoding → countryCode + countryName
+  // MODIF 167 – si geo refusée : ville du profil puis France (plus de titre générique)
+  useEffect(() => {
+    if (!showNews) return;
+
+    let cancelled = false;
+
+    const applyCountryFallback = async () => {
+      const profileCity = user?.city?.trim();
+      if (profileCity) {
+        try {
+          const fromCity = await geocodeCountryFromQuery(profileCity);
+          if (!cancelled && fromCity) {
+            setCountryCode(fromCity.code);
+            setCountryName(fromCity.name);
+            return;
+          }
+        } catch {
+          /* profil ville non résolu → France */
+        }
+      }
+      if (!cancelled) {
+        setCountryCode(EVENTS_COUNTRY_FALLBACK.code);
+        setCountryName(EVENTS_COUNTRY_FALLBACK.name);
+      }
+    };
+
+    if (!navigator.geolocation) {
+      void applyCountryFallback();
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+          { headers: { 'Accept-Language': 'fr', 'User-Agent': 'MeloSong/1.0' } }
+        )
+          .then((res) => res.json())
+          .then((data: { address?: { country_code?: string; country?: string } }) => {
+            if (cancelled) return;
+            const code = (data.address?.country_code ?? '').toUpperCase();
+            const name = data.address?.country ?? '';
+            if (code) {
+              setCountryCode(code);
+              if (name) setCountryName(name);
+            } else {
+              void applyCountryFallback();
+            }
+          })
+          .catch(() => {
+            void applyCountryFallback();
+          });
+      },
+      () => {
+        void applyCountryFallback();
+      },
+      { timeout: 8000 }
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showNews, user?.city]);
 
   useEffect(() => {
     if (!editorSource) {
@@ -1459,7 +1324,27 @@ export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActi
       setError(validation.error ?? 'Fichier non valide.');
       return;
     }
+    setVideoUrl('');
     openFeedImageEditor(file);
+  };
+
+  const attachVideoFromFile = async (file: File) => {
+    setError(null);
+    const validation = await validateFeedVideoFile(file);
+    if (!validation.valid) {
+      setError(validation.error ?? 'Fichier non valide.');
+      return;
+    }
+    setImageUrl('');
+    setEditorSource(null);
+    setVideoAttaching(true);
+    try {
+      setVideoUrl(await fileToFeedVideoDataUrl(file));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible d'ajouter la vidéo.");
+    } finally {
+      setVideoAttaching(false);
+    }
   };
 
   const onFeedEditorConfirm = async (composedUrl: string) => {
@@ -1488,21 +1373,52 @@ export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActi
     openFeedImageEditor(file);
   };
 
-  const canPublish = Boolean(draft.trim() || imageUrl.trim());
+  const isEventDateConfirmed =
+    Boolean(eventDate.trim()) && eventDate === eventDateDraft;
+  const showEventDateValidate = Boolean(eventDateDraft.trim()) && !isEventDateConfirmed;
+  const eventFieldsValid =
+    !isEvent || (isEventDateConfirmed && Boolean(eventLocation.trim()));
+
+  const confirmEventDate = () => {
+    const value = eventDateDraft.trim();
+    if (!value) return;
+    setEventDate(value);
+    eventDateInputRef.current?.blur();
+  };
+  const canPublish = Boolean(draft.trim() || imageUrl.trim() || videoUrl.trim()) && eventFieldsValid;
   const editorOpen = Boolean(editorSource && editorPreviewUrl);
+  const mediaAttaching = imageAttaching || videoAttaching;
 
   const publish = async () => {
-    if (!token || !canPublish || publishing || imageAttaching || editorOpen) return;
+    if (!token || !canPublish || publishing || mediaAttaching || editorOpen) return;
     setPublishing(true);
     setError(null);
     try {
-      const body: { content: string; imageUrl?: string } = { content: draft.trim() };
+      const body: Parameters<typeof api.createFeedPost>[1] = { content: draft.trim() };
       const img = imageUrl.trim();
+      const vid = videoUrl.trim();
       if (img) body.imageUrl = img;
+      if (vid) body.videoUrl = vid;
+      if (isEvent) {
+        body.isEvent = true;
+        body.eventDate = new Date(eventDate).toISOString();
+        body.eventLocation = eventLocation.trim();
+        body.eventType = eventType;
+      }
       const r = await api.createFeedPost(token, body);
+      if (isEvent && body.eventLocation) {
+        await resolveEventCoords(body.eventLocation);
+      }
       setPosts((prev) => [r.post, ...prev]);
+      dispatchMapEventsRefresh();
       setDraft('');
       setImageUrl('');
+      setVideoUrl('');
+      setIsEvent(false);
+      setEventDate('');
+      setEventDateDraft('');
+      setEventLocation('');
+      setEventType('autre');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Publication impossible.');
     } finally {
@@ -1558,11 +1474,24 @@ export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActi
     try {
       const r = await api.reshareFeedPost(token, post.id);
       setPosts((prev) => [r.post, ...prev]);
+      updatePostInList(post.id, { resharedByMe: true });
       showToast('Publication repartagée 🔁');
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Impossible de repartager');
     }
-  }, [token, showToast]);
+  }, [token, showToast, updatePostInList]);
+
+  const handleFeedPostLinkShared = useCallback(() => {
+    const id = sharePost?.id;
+    if (!id) return;
+    markFeedPostLinkShared(id);
+    setLinkSharedPostIds((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }, [sharePost?.id]);
 
   const handleToggleComments = useCallback(async (post: FeedPost) => {
     if (!token) return;
@@ -1583,67 +1512,38 @@ export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActi
     if (!token || commentPosting[postId]) return;
     const content = (commentDrafts[postId] ?? '').trim();
     if (!content) return;
-    const textAlign = commentAligns[postId] ?? 'left';
     setCommentPosting((prev) => ({ ...prev, [postId]: true }));
     try {
-      const r = await api.postFeedComment(token, postId, content, textAlign);
-      const commentWithAlign: FeedPostComment = { ...r.comment, textAlign };
+      const r = await api.postFeedComment(token, postId, content);
       setFullComments((prev) => ({
         ...prev,
-        [postId]: [...(prev[postId] ?? []), commentWithAlign],
+        [postId]: [...(prev[postId] ?? []), r.comment],
       }));
       setCommentDrafts((prev) => ({ ...prev, [postId]: '' }));
-      setCommentAligns((prev) => ({ ...prev, [postId]: 'left' }));
       updatePostInList(postId, { commentCount: r.commentCount });
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Impossible de commenter');
     } finally {
       setCommentPosting((prev) => ({ ...prev, [postId]: false }));
     }
-  }, [token, commentDrafts, commentAligns, commentPosting, updatePostInList, showToast]);
+  }, [token, commentDrafts, commentPosting, updatePostInList, showToast]);
+
+  const storiesSection = useMemo(
+    () => (
+      <StoriesInlineBar
+        onOpenProfile={onOpenProfile}
+        onOpenReel={onOpenReel}
+        onOpenLive={onOpenLive}
+        isActive={isActive}
+      />
+    ),
+    [onOpenProfile, onOpenReel, onOpenLive, isActive]
+  );
 
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-[#0b0b0f]">
       <div className="flex flex-col flex-1 min-h-0 w-full max-w-2xl mx-auto">
 
-        {/* ── Header actualités (fil d'accueil sans titre ni compteur) ── */}
-        {showNews && (
-          <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 border-b border-[#1e1e2f]">
-            <div className="min-w-0">
-              <h1 className="text-base font-bold text-white">Actualités</h1>
-              {!newsLoading && newsItems.length > 0 && (
-                <p className="text-[10px] text-gray-500 truncate">
-                  {visibleNewsItems.length} actualité{visibleNewsItems.length !== 1 ? 's' : ''}
-                  {newsFiltersActive && visibleNewsItems.length !== newsItems.length ? ' (filtré)' : ''}
-                </p>
-              )}
-            </div>
-            <div className="flex shrink-0 items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setNewsFiltersOpen((v) => !v)}
-                title="Filtrer les actualités"
-                aria-label="Filtrer les actualités"
-                aria-expanded={newsFiltersOpen}
-                className={`p-1.5 rounded-lg transition ${
-                  newsFiltersOpen || newsFiltersActive
-                    ? 'text-purple-300 bg-purple-900/40'
-                    : 'text-gray-500 hover:text-gray-300 hover:bg-[#1e1e2f]'
-                }`}
-              >
-                <FilterIcon />
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowNews(false)}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-purple-300 bg-purple-900/30 hover:bg-purple-900/50 transition"
-                aria-label="Retour aux publications"
-              >
-                ← Accueil
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* ══ FIL D'ACCUEIL ═════════════════════════════════════════════════ */}
         {!showNews && (
@@ -1651,14 +1551,9 @@ export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActi
             <PullToRefreshContainer
               onRefresh={() => void loadFeed(true)}
               refreshing={refreshing}
-              className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3"
+              className="flex-1 min-h-0 h-full p-3 space-y-3"
             >
-              <StoriesInlineBar
-                onOpenProfile={onOpenProfile}
-                onOpenReel={onOpenReel}
-                onOpenLive={onOpenLive}
-                isActive={isActive}
-              />
+              <div className="mt-4">{storiesSection}</div>
 
               <button
                 type="button"
@@ -1670,7 +1565,7 @@ export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActi
               </button>
 
               <div className="rounded-xl border border-[#1e1e2f] bg-[#12121a] p-3 space-y-2">
-                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Publier</p>
+                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">{t('feed.publish')}</p>
                     <input
                       ref={imageFileInputRef}
                       type="file"
@@ -1682,16 +1577,141 @@ export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActi
                         if (file) void attachImageFromFile(file);
                       }}
                     />
+                    <input
+                      ref={videoFileInputRef}
+                      type="file"
+                      accept={ACCEPTED_FEED_VIDEO_FORMATS}
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = '';
+                        if (file) void attachVideoFromFile(file);
+                      }}
+                    />
                     <textarea
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
                       onPaste={handleComposePaste}
-                      placeholder="Quoi de neuf ?"
+                      placeholder={t('feed.placeholder')}
                       title="Coller une image (Ctrl+V)"
                       rows={3}
                       maxLength={2000}
                       className="w-full rounded-xl bg-[#0b0b0f] border border-[#2a2a3d] px-3 py-2 text-sm text-white placeholder:text-gray-600 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500/50"
                     />
+
+                    {/* ── Créer un événement ── */}
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={isEvent}
+                        onChange={(e) => {
+                          setIsEvent(e.target.checked);
+                          if (!e.target.checked) {
+                            setEventDate('');
+                            setEventDateDraft('');
+                            setEventLocation('');
+                            setEventType('autre');
+                          }
+                        }}
+                        className="melosong-checkbox"
+                        aria-label={t('feed.createEvent')}
+                      />
+                      <span className="text-xs font-semibold text-purple-300 flex items-center gap-1.5">
+                        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="3" y="4" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+                          <path strokeLinecap="round" d="M16 2v4M8 2v4M3 10h18" />
+                        </svg>
+                        {t('feed.createEvent')}
+                      </span>
+                    </label>
+
+                    {isEvent && (
+                      <div className="space-y-2 p-3 rounded-xl bg-purple-950/30 border border-purple-500/25">
+                        <p className="text-[10px] font-bold text-purple-300 uppercase tracking-wide">{t('feed.eventDetails')}</p>
+                        <div>
+                          <p className="block text-[10px] text-gray-400 mb-1.5">{t('feed.eventType')}</p>
+                          <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={t('feed.eventType')}>
+                            {(
+                              [
+                                ['dance', t('feed.eventTypeDance')],
+                                ['chant', t('feed.eventTypeChant')],
+                                ['autre', t('feed.eventTypeAutre')],
+                              ] as const
+                            ).map(([value, label]) => (
+                              <label
+                                key={value}
+                                className={`cursor-pointer select-none rounded-full px-3 py-1 text-[11px] font-semibold border transition ${
+                                  eventType === value
+                                    ? 'bg-purple-600/40 border-purple-400/60 text-purple-100'
+                                    : 'bg-[#0b0b0f] border-[#2a2a3d] text-gray-400 hover:border-purple-500/40'
+                                }`}
+                              >
+                                <input
+                                  type="radio"
+                                  name="eventType"
+                                  value={value}
+                                  checked={eventType === value}
+                                  onChange={() => setEventType(value)}
+                                  className="sr-only"
+                                />
+                                {label}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-400 mb-1">{t('feed.eventDate')} *</label>
+                          <div className="flex gap-2 items-stretch">
+                            <div className="relative flex-1 min-w-0">
+                              <input
+                                ref={eventDateInputRef}
+                                type="datetime-local"
+                                value={eventDateDraft}
+                                min={new Date().toISOString().slice(0, 16)}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  setEventDateDraft(value);
+                                  if (!value.trim()) setEventDate('');
+                                }}
+                                className={`w-full rounded-lg bg-[#0b0b0f] border px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 [color-scheme:dark] ${
+                                  isEventDateConfirmed
+                                    ? 'border-green-500/60 focus:ring-green-500/40 pr-9'
+                                    : 'border-[#2a2a3d] focus:ring-purple-500/50'
+                                }`}
+                              />
+                              {isEventDateConfirmed && (
+                                <span
+                                  className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-green-400"
+                                  aria-hidden
+                                >
+                                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                  </svg>
+                                </span>
+                              )}
+                            </div>
+                            {showEventDateValidate && (
+                              <button
+                                type="button"
+                                onClick={confirmEventDate}
+                                className="shrink-0 rounded-lg px-3 py-2 text-xs font-semibold bg-purple-600/45 border border-purple-400/50 text-purple-100 hover:bg-purple-600/65 transition"
+                              >
+                                {t('feed.eventDateValidate')}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-400 mb-1">{t('feed.eventLocation')} *</label>
+                          <EventLocationInput
+                            value={eventLocation}
+                            onChange={setEventLocation}
+                            profileCity={user?.city}
+                          />
+                        </div>
+                      </div>
+                    )}
+
                     {(imageUrl.trim() || imageAttaching) && (
                       <div className="flex items-start gap-2">
                         {imageUrl.trim() ? (
@@ -1705,7 +1725,7 @@ export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActi
                         )}
                         <div className="min-w-0 flex-1 pt-0.5">
                           <p className="text-[10px] text-gray-400">
-                            {imageAttaching ? "Préparation de l'image…" : 'Image jointe'}
+                            {imageAttaching ? t('feed.preparingImage') : t('feed.imageAttached')}
                           </p>
                           {imageUrl.trim() && !imageAttaching && (
                             <button
@@ -1713,7 +1733,36 @@ export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActi
                               onClick={() => setImageUrl('')}
                               className="mt-1 text-[10px] font-semibold text-gray-500 hover:text-white"
                             >
-                              Retirer l'image
+                              {t('feed.removeImage')}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {(videoUrl.trim() || videoAttaching) && (
+                      <div className="flex items-start gap-2">
+                        {videoUrl.trim() ? (
+                          <video
+                            src={videoUrl}
+                            controls
+                            playsInline
+                            preload="metadata"
+                            className="h-24 w-36 rounded-lg object-cover bg-[#1e1e2f] border border-[#2a2a3d] shrink-0"
+                          />
+                        ) : (
+                          <div className="h-24 w-36 rounded-lg bg-[#1e1e2f] border border-[#2a2a3d] animate-pulse shrink-0" />
+                        )}
+                        <div className="min-w-0 flex-1 pt-0.5">
+                          <p className="text-[10px] text-gray-400">
+                            {videoAttaching ? t('feed.preparingVideo') : t('feed.videoAttached')}
+                          </p>
+                          {videoUrl.trim() && !videoAttaching && (
+                            <button
+                              type="button"
+                              onClick={() => setVideoUrl('')}
+                              className="mt-1 text-[10px] font-semibold text-gray-500 hover:text-white"
+                            >
+                              {t('feed.removeVideo')}
                             </button>
                           )}
                         </div>
@@ -1724,10 +1773,10 @@ export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActi
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
-                          disabled={imageAttaching || editorOpen}
+                          disabled={mediaAttaching || editorOpen || Boolean(videoUrl.trim())}
                           onClick={() => imageFileInputRef.current?.click()}
-                          title="Choisir une image"
-                          aria-label="Choisir une image"
+                          title={t('feed.attachImage')}
+                          aria-label={t('feed.attachImage')}
                           className={`p-1.5 rounded-lg transition disabled:opacity-40 ${
                             imageUrl.trim()
                               ? 'text-purple-300 bg-purple-900/40'
@@ -1738,11 +1787,25 @@ export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActi
                         </button>
                         <button
                           type="button"
-                          disabled={!canPublish || publishing || imageAttaching || editorOpen}
+                          disabled={mediaAttaching || editorOpen || Boolean(imageUrl.trim())}
+                          onClick={() => videoFileInputRef.current?.click()}
+                          title={t('feed.attachVideo')}
+                          aria-label={t('feed.attachVideo')}
+                          className={`p-1.5 rounded-lg transition disabled:opacity-40 ${
+                            videoUrl.trim()
+                              ? 'text-purple-300 bg-purple-900/40'
+                              : 'text-gray-500 hover:text-gray-300 hover:bg-[#1e1e2f]'
+                          }`}
+                        >
+                          <VideoIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!canPublish || publishing || mediaAttaching || editorOpen}
                           onClick={() => void publish()}
                           className="rounded-lg bg-purple-600 hover:bg-purple-500 px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
                         >
-                          {publishing ? 'Envoi…' : 'Publier'}
+                          {publishing ? t('feed.publishing') : t('feed.publish')}
                         </button>
                       </div>
                     </div>
@@ -1762,13 +1825,15 @@ export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActi
               {visiblePosts.map((post) => (
                 <PostCard
                   key={post.id}
-                  post={post}
-                  onOpenProfile={onOpenProfile}
+                  post={{
+                    ...post,
+                    resharedByMe: !!post.resharedByMe || linkSharedPostIds.has(post.id),
+                  }}
+                  onOpenAuthor={handlePostAuthorClick}
+                  storiesByUser={feedStoriesByUser}
                   commentOpenPostId={commentOpenPostId}
                   commentDraft={commentDrafts[post.id] ?? ''}
                   onCommentDraftChange={(v: string) => setCommentDrafts((p) => ({ ...p, [post.id]: v }))}
-                  commentAlign={commentAligns[post.id] ?? 'left'}
-                  onCommentAlignChange={(v) => setCommentAligns((p) => ({ ...p, [post.id]: v }))}
                   fullComments={fullComments[post.id]}
                   commentsLoading={commentsLoading[post.id] ?? false}
                   commentPosting={commentPosting[post.id] ?? false}
@@ -1786,32 +1851,31 @@ export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActi
 
         {/* ══ ACTUALITÉS (news) ══════════════════════════════════════════════ */}
         {showNews && (
-          <>
-            {newsFiltersOpen ? (
-              <NewsFiltersPanel
-                prefs={newsPrefs}
-                onPrefsChange={handleNewsPrefsChange}
-                viewerTastes={viewerTastes}
-              />
-            ) : null}
-            <ActualitesContent
-              newsItems={visibleNewsItems}
-              newsLoading={newsLoading}
-              newsError={newsError}
-              onRefresh={() => void loadNews(true)}
-              refreshing={newsRefreshing}
-              filtersActive={newsFiltersActive}
-              totalCount={newsItems.length}
-              storiesBar={
-                <StoriesInlineBar
-                  onOpenProfile={onOpenProfile}
-                  onOpenReel={onOpenReel}
-                  onOpenLive={onOpenLive}
-                  isActive={isActive}
-                />
-              }
-            />
-          </>
+          <ActualitesContent
+            newsItems={newsItems}
+            newsLoading={newsLoading}
+            newsError={newsError}
+            onRefresh={() => {
+              void loadNews(true);
+              void loadFeed(true);
+              void loadCommunityEvents();
+              void loadCountryEvents();
+              void loadTrendingUsers();
+            }}
+            refreshing={newsRefreshing}
+            onBack={() => setShowNews(false)}
+            onOpenProfile={onOpenProfile}
+            onOpenAuthor={handlePostAuthorClick}
+            onShareEvent={setSharePost}
+            communityEvents={communityEvents}
+            communityEventsLoading={communityEventsLoading}
+            trendingUsers={trendingUsers}
+            trendingLoading={trendingLoading}
+            countryCode={countryCode}
+            countryName={countryName}
+            countryEventPosts={countryEventPosts}
+            countryEventsLoading={countryEventsLoading}
+          />
         )}
 
       </div>
@@ -1827,14 +1891,15 @@ export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActi
       ) : null}
 
       {/* ── Share sheet ── */}
-      {sharePost && (
+      {sharePost && shareUrl && (
         <ShareLinkMenu
           open
           onClose={() => setSharePost(null)}
-          url={`${window.location.origin}/#/post/${sharePost.id}`}
-          title={sharePost.content ? sharePost.content.slice(0, 80) : 'Publication MeloSong'}
-          text={sharePost.content ? sharePost.content.slice(0, 120) : undefined}
+          url={shareUrl}
+          title={sharePayload?.title}
+          text={sharePayload?.text}
           onToast={showToast}
+          onShared={handleFeedPostLinkShared}
         />
       )}
 
@@ -1846,6 +1911,19 @@ export function ActualiteTabPage({ onOpenProfile, onOpenReel, onOpenLive, isActi
           </div>
         </div>
       )}
+
+      {feedStorySheet.kind === 'view' && feedViewerStack ? (
+        <StoryViewer
+          story={feedStorySheet.story}
+          stack={feedViewerStack.stories}
+          stackIndex={feedViewerStackIndex}
+          onClose={() => setFeedStorySheet({ kind: 'closed' })}
+          onNext={goNextFeedStory}
+          onPrev={goPrevFeedStory}
+          canNext={canNextFeedStory}
+          canPrev={canPrevFeedStory}
+        />
+      ) : null}
     </div>
   );
 }

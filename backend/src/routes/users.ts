@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { db } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
 import { followUser, unfollowUser, getFollowingIds, isFollowing } from '../lib/follows';
+import { notifyFollowReceived } from '../lib/notifications';
 import {
   addFavorite,
   removeFavorite,
@@ -57,6 +58,7 @@ usersRouter.get('/search', authenticateJWT, (req: Request, res: Response) => {
     .slice(0, 20)
     .map((u) => {
       const salon = getActiveSalonForHost(u.id);
+      const live = isUserHostingLive(u.id);
       return {
         id: u.id,
         username: u.username,
@@ -66,9 +68,9 @@ usersRouter.get('/search', authenticateJWT, (req: Request, res: Response) => {
         avatarUrl: u.avatarUrl,
         city: u.city || undefined,
         listeningRole: u.listeningRole,
-        isLive: isUserHostingLive(u.id),
-        liveId: isUserHostingLive(u.id) ? getActiveLiveIdForHost(u.id) : undefined,
-        liveViewersCount: isUserHostingLive(u.id) ? getLiveViewersCountForHost(u.id) : undefined,
+        isLive: live,
+        liveId: live ? getActiveLiveIdForHost(u.id) : undefined,
+        liveViewersCount: live ? getLiveViewersCountForHost(u.id) : undefined,
         salonId: salon?.id,
         salonTitle: salon?.title || salon?.playbackState?.title || undefined,
       };
@@ -112,6 +114,15 @@ usersRouter.post('/:id/follow', authenticateJWT, (req: Request, res: Response) =
   }
 
   followUser(me, targetId);
+
+  const sender = db.users.get(me);
+  if (sender) {
+    notifyFollowReceived({
+      recipientId: targetId,
+      sender: { id: me, username: sender.username, avatarUrl: sender.avatarUrl },
+    });
+  }
+
   res.status(201).json({ ok: true, followingId: targetId, isFollowing: true });
 });
 

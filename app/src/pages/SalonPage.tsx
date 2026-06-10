@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '../context/AuthContext';
 import { isPlatformConnected } from '../lib/platformConnect';
@@ -50,6 +51,7 @@ export function SalonPage({
 }) {
 
   const { user, token, setUserFromProfile } = useAuth();
+  const { t } = useTranslation();
 
   const [salon, setSalon] = useState<Salon | null>(null);
 
@@ -71,10 +73,10 @@ export function SalonPage({
   const loadSalon = useCallback(() => {
     if (!token) return;
     api.getSalon(token, salonId).then((r) => setSalon(r.salon)).catch((e) => {
-      setToastMsg(e instanceof Error ? e.message : 'Salon inaccessible');
+      setToastMsg(e instanceof Error ? e.message : t('salon.inaccessible'));
       window.setTimeout(onBack, 1500);
     });
-  }, [token, salonId, onBack]);
+  }, [token, salonId, onBack, t]);
 
 
 

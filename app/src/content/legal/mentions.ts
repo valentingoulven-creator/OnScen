@@ -7,7 +7,7 @@ export const mentionsLegales: LegalDocument = {
   sections: [
     {
       heading: 'Éditeur du site et de l’application',
-      body: `L’application Soundly et le site associé sont édités par :\n\n{{publisherName}}\n{{legalForm}}\n{{address}}\nSIREN / SIRET : {{siren}}\n{{rcs}}\n{{capital}}\n\nContact : {{contactEmail}}\n\nDirecteur de la publication : {{publicationDirector}}`,
+      body: `L’application Soundy et le site associé sont édités par :\n\n{{publisherName}}\n{{legalForm}}\n{{address}}\nSIREN / SIRET : {{siren}}\n{{rcs}}\n{{capital}}\n\nContact : {{contactEmail}}\n\nDirecteur de la publication : {{publicationDirector}}`,
     },
     {
       heading: 'Hébergement',
@@ -15,11 +15,11 @@ export const mentionsLegales: LegalDocument = {
     },
     {
       heading: 'Activité du service',
-      body: `Soundly est une application sociale autour de la musique : salons d’écoute géolocalisés, lives, messagerie, carte des utilisateurs et contenus musicaux via des liens vers Spotify et YouTube. Soundly n’est pas un service de rencontre sentimental.\n\nVersion actuelle : environnement msdev (démonstration / développement local). Les fonctionnalités et la disponibilité peuvent évoluer sans préavis.`,
+      body: `Soundy est une application sociale autour de la musique : salons d’écoute géolocalisés, lives, messagerie, carte des utilisateurs et contenus musicaux via des liens vers Spotify et YouTube. Soundy n’est pas un service de rencontre sentimental.\n\nVersion actuelle : environnement msdev (démonstration / développement local). Les fonctionnalités et la disponibilité peuvent évoluer sans préavis.`,
     },
     {
       heading: 'Propriété intellectuelle',
-      body: `L’ensemble des éléments composant Soundly (textes, interface, logo, charte, code source, sauf composants open source et contenus tiers) est protégé par le droit d’auteur. Toute reproduction ou représentation non autorisée est interdite.\n\nLes marques Spotify, YouTube, Google et autres mentionnées appartiennent à leurs propriétaires respectifs. Soundly n’est pas affilié, sponsorisé ou approuvé par ces sociétés, sauf accord écrit contraire.`,
+      body: `L’ensemble des éléments composant Soundy (textes, interface, logo, charte, code source, sauf composants open source et contenus tiers) est protégé par le droit d’auteur. Toute reproduction ou représentation non autorisée est interdite.\n\nLes marques Spotify, YouTube, Google et autres mentionnées appartiennent à leurs propriétaires respectifs. Soundy n’est pas affilié, sponsorisé ou approuvé par ces sociétés, sauf accord écrit contraire.`,
     },
     {
       heading: 'Données personnelles et cookies',

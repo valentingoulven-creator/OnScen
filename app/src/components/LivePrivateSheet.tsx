@@ -64,7 +64,7 @@ export function LivePrivateSheet({ target, onClose, onOpenProfile }: LivePrivate
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60" onClick={onClose}>
       <div
-        className="flex flex-col max-h-[70dvh] bg-[#12121a] rounded-t-2xl border-t border-[#2d2d3d] shadow-2xl"
+        className="flex flex-col max-h-[70dvh] bg-[#12121a] rounded-t-2xl border-t border-[#2d2d3d] shadow-2xl mb-[var(--tab-nav-total-h)]"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="shrink-0 flex items-center gap-3 p-4 border-b border-[#1e1e2f]">

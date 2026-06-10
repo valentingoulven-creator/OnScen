@@ -5,7 +5,8 @@ import { usePauseMediaOnPageHidden, pauseMediaElements } from '../hooks/usePause
 import { useBackgroundPlayback } from '../hooks/useBackgroundPlayback';
 import { releaseAppMediaFocus, requestAppMediaFocus } from '../lib/appMediaFocus';
 import { api } from '../lib/api';
-import { LIVE_CAMERA_VIEWER_NOTE } from '../lib/liveCameraMessages';
+import { LIVE_CAMERA_VIEWER_FILE_NOTE, LIVE_CAMERA_VIEWER_NOTE } from '../lib/liveCameraMessages';
+import { useLiveVideoRelay } from '../hooks/useLiveVideoRelay';
 import { getLiveCameraContextHints } from '../lib/liveCameraSupport';
 import { mergeRemotePlaybackState } from '../lib/salonPlayback';
 import { getSocket, onSocketConnect } from '../lib/socket';
@@ -16,13 +17,8 @@ import { RoomTheaterLayout } from '../components/RoomTheaterLayout';
 import { LivePrivateSheet } from '../components/LivePrivateSheet';
 import { HostRatingBlock } from '../components/HostRatingBlock';
 import { FollowUserButton } from '../components/FollowUserButton';
-import {
-  DON_AMOUNT_MAX,
-  DON_AMOUNT_MIN,
-  LIVE_DON_TIERS,
-  donAmountValidationMessage,
-  parseDonAmount,
-} from '../lib/liveReactions';
+import { LiveDonationSheet } from '../components/LiveDonationSheet';
+import { LiveGiftOverlay } from '../components/LiveGiftOverlay';
 import type { ChatMessage, DmContact, Live, AppNotification, PlaybackState } from '../types';
 
 const LIVE_MAX_DURATION_MS = 8 * 60 * 60 * 1000;
@@ -134,10 +130,8 @@ export function LivePage({
   const [chatHidden, setChatHidden] = useState(readLiveChatHidden);
   const [chatMinimized, setChatMinimized] = useState(false);
   const [privateTarget, setPrivateTarget] = useState<DmContact | null>(null);
-  const [giftError, setGiftError] = useState<string | null>(null);
   const [showDonSheet, setShowDonSheet] = useState(false);
-  const [donSending, setDonSending] = useState(false);
-  const [donCustomAmount, setDonCustomAmount] = useState('');
+  const [donInitialAmount, setDonInitialAmount] = useState<number | undefined>();
   const [donToast, setDonToast] = useState<string | null>(null);
   const [hostDonToast, setHostDonToast] = useState<string | null>(null);
   const [cameraToast, setCameraToast] = useState<string | null>(null);
@@ -161,6 +155,7 @@ export function LivePage({
     start: startCamera,
     startFromFile: startCameraFromFile,
     stop: stopCamera,
+    getStream: getCameraStream,
   } = useLiveCamera();
   const videoFileInputRef = useRef<HTMLInputElement>(null);
   const [videoFileLoading, setVideoFileLoading] = useState(false);
@@ -177,8 +172,8 @@ export function LivePage({
   const isVideoExpanded = isVideoFullscreen || isLandscapeTheater;
 
   const emitCameraState = useCallback(
-    (active: boolean) => {
-      getSocket().emit('live_camera_toggle', { liveId, active });
+    (active: boolean, mode?: 'camera' | 'file') => {
+      getSocket().emit('live_camera_toggle', { liveId, active, mode: active ? mode : undefined });
     },
     [liveId]
   );
@@ -221,7 +216,11 @@ export function LivePage({
     const offReconnect = onSocketConnect(joinLive);
     const onUpdate = (l: Live) => {
       if (l.id === liveId) {
-        setLive(l);
+        setLive((prev) => ({
+          ...l,
+          hostMonetizationEligible:
+            l.hostMonetizationEligible ?? prev?.hostMonetizationEligible,
+        }));
         setViewers(l.viewersCount);
       }
     };
@@ -355,6 +354,19 @@ export function LivePage({
   }, [liveId]);
 
   const isHost = live?.hostId === user?.id;
+  const hostCameraRelayActive = !!(isHost && cameraLocalActive && cameraMode === 'camera');
+  const viewerCameraRelayActive =
+    !isHost && !!live?.cameraActive && live.cameraMode !== 'file';
+
+  const { viewerVideoRef, viewerStreamActive, viewerRelayError } = useLiveVideoRelay({
+    liveId,
+    userId: user?.id,
+    hostId: live?.hostId,
+    broadcastStream: hostCameraRelayActive ? getCameraStream() : null,
+    cameraRelayActive: isHost ? hostCameraRelayActive : viewerCameraRelayActive,
+  });
+
+  const hostCanReceiveDonations = live?.hostMonetizationEligible !== false;
 
   useEffect(() => {
     if (isHost) {
@@ -416,7 +428,9 @@ export function LivePage({
       if (isHostRef.current && cameraLocalActiveRef.current) {
         stopCamera();
         emitCameraState(false);
-        setLive((prev) => (prev ? { ...prev, cameraActive: false } : prev));
+        setLive((prev) =>
+          prev ? { ...prev, cameraActive: false, cameraMode: undefined } : prev
+        );
       }
     },
   });
@@ -543,21 +557,9 @@ export function LivePage({
     void exitDocumentFullscreen();
   }, [isLandscapeTheater, restoreChatAfterLandscape]);
 
-  const sendDonation = async (amount: number) => {
-    if (!token || donSending) return;
-    setGiftError(null);
-    setDonSending(true);
-    try {
-      await api.sendGift(token, liveId, 'don', amount);
-      setDonCustomAmount('');
-      setShowDonSheet(false);
-      setDonToast('Merci pour votre don !');
-      window.setTimeout(() => setDonToast(null), 2500);
-    } catch (e) {
-      setGiftError(e instanceof Error ? e.message : 'Erreur');
-    } finally {
-      setDonSending(false);
-    }
+  const openDonSheet = (amount?: number) => {
+    setDonInitialAmount(amount);
+    setShowDonSheet(true);
   };
 
   const openPrivate = (target: { id: string; name: string }) => {
@@ -594,13 +596,15 @@ export function LivePage({
       if (cameraLocalActive) {
         stopCamera();
         emitCameraState(false);
-        setLive((prev) => (prev ? { ...prev, cameraActive: false } : prev));
+        setLive((prev) =>
+          prev ? { ...prev, cameraActive: false, cameraMode: undefined } : prev
+        );
         return;
       }
       const ok = await startCamera();
       if (ok) {
-        emitCameraState(true);
-        setLive((prev) => (prev ? { ...prev, cameraActive: true } : prev));
+        emitCameraState(true, 'camera');
+        setLive((prev) => (prev ? { ...prev, cameraActive: true, cameraMode: 'camera' } : prev));
       }
     } finally {
       setCameraToggling(false);
@@ -620,8 +624,8 @@ export function LivePage({
       }
       const ok = await startCameraFromFile(file);
       if (ok) {
-        emitCameraState(true);
-        setLive((prev) => (prev ? { ...prev, cameraActive: true } : prev));
+        emitCameraState(true, 'file');
+        setLive((prev) => (prev ? { ...prev, cameraActive: true, cameraMode: 'file' } : prev));
       }
     } finally {
       setVideoFileLoading(false);
@@ -731,7 +735,11 @@ export function LivePage({
   }
 
   const showHostCamera = isHost && cameraLocalActive;
-  const showViewerCameraBadge = !isHost && !!live.cameraActive;
+  const showViewerVideo = !isHost && viewerStreamActive;
+  const showViewerCameraBadge =
+    !isHost && !!live.cameraActive && !viewerStreamActive;
+  const viewerCameraBadgeNote =
+    live.cameraMode === 'file' ? LIVE_CAMERA_VIEWER_FILE_NOTE : LIVE_CAMERA_VIEWER_NOTE;
   /** Live = caméra (ou fichier local hôte). La lecture YouTube reste dans SalonPlaybackPanel. */
 
   return (
@@ -760,76 +768,20 @@ export function LivePage({
         </div>
       )}
 
-      {showDonSheet && !isHost && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60" onClick={() => setShowDonSheet(false)}>
-          <div
-            className="bg-[#12121a] rounded-t-2xl border-t border-[#2d2d3d] shadow-2xl p-4 pb-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <p className="font-bold text-white">Faire un don</p>
-              <button type="button" onClick={() => setShowDonSheet(false)} className="text-gray-400 hover:text-white text-xl px-2">
-                ✕
-              </button>
-            </div>
-            <p className="text-xs text-gray-400 mb-4">
-              Soutenez {live.hostName} — don symbolique, sans MeloCoins.
-            </p>
-            {giftError && <p className="text-xs text-red-400 text-center mb-3">{giftError}</p>}
-            <div className="grid grid-cols-3 gap-2 mb-4">
-              {LIVE_DON_TIERS.map((tier) => (
-                <button
-                  key={tier}
-                  type="button"
-                  disabled={donSending}
-                  onClick={() => sendDonation(tier)}
-                  className="flex flex-col items-center py-4 rounded-xl bg-pink-950/40 border border-pink-500/40 hover:border-pink-400 active:scale-95 transition disabled:opacity-50"
-                >
-                  <span className="text-2xl">💝</span>
-                  <span className="text-sm font-bold text-pink-200 mt-1">{tier} €</span>
-                </button>
-              ))}
-            </div>
-            <div className="rounded-xl border border-pink-500/30 bg-pink-950/20 p-3">
-              <p className="text-xs font-bold text-pink-200 mb-2">Montant libre</p>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <input
-                    type="number"
-                    min={DON_AMOUNT_MIN}
-                    max={DON_AMOUNT_MAX}
-                    step={1}
-                    inputMode="numeric"
-                    value={donCustomAmount}
-                    onChange={(e) => setDonCustomAmount(e.target.value)}
-                    placeholder={`${DON_AMOUNT_MIN}–${DON_AMOUNT_MAX}`}
-                    disabled={donSending}
-                    className="w-full rounded-lg bg-[#1a1a26] border border-[#2d2d3d] px-3 py-2.5 pr-8 text-sm text-white placeholder:text-gray-500 disabled:opacity-50"
-                  />
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
-                    €
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  disabled={donSending}
-                  onClick={() => {
-                    const amount = parseDonAmount(donCustomAmount);
-                    if (amount == null) {
-                      setGiftError(donAmountValidationMessage());
-                      return;
-                    }
-                    void sendDonation(amount);
-                  }}
-                  className="shrink-0 px-4 py-2.5 rounded-lg bg-pink-600 text-white text-sm font-bold hover:bg-pink-500 active:scale-95 transition disabled:opacity-50"
-                >
-                  Donner
-                </button>
-              </div>
-              <p className="text-[10px] text-gray-500 mt-1.5">{donAmountValidationMessage()}</p>
-            </div>
-          </div>
-        </div>
+      {showDonSheet && !isHost && hostCanReceiveDonations && token && (
+        <LiveDonationSheet
+          open={showDonSheet}
+          onClose={() => setShowDonSheet(false)}
+          liveId={liveId}
+          hostName={live.hostName}
+          token={token}
+          userAge={user?.age}
+          initialAmount={donInitialAmount}
+          onSuccess={(message) => {
+            setDonToast(message);
+            window.setTimeout(() => setDonToast(null), 2500);
+          }}
+        />
       )}
 
       {privateTarget && (
@@ -883,13 +835,16 @@ export function LivePage({
                 compact
                 onFollowingChange={setHostFollowing}
               />
-              <button
-                type="button"
-                onClick={() => setShowDonSheet(true)}
-                className="px-2.5 py-1.5 bg-pink-950/50 border border-pink-500/50 rounded-full text-[10px] font-bold text-pink-200"
-              >
-                💝 Don
-              </button>
+              {hostCanReceiveDonations && (
+                <button
+                  type="button"
+                  onClick={() => openDonSheet()}
+                  className="hidden sm:inline-flex px-2.5 py-1.5 bg-pink-950/50 border border-pink-500/50 rounded-full text-[10px] font-bold text-pink-200"
+                  aria-label="Envoyer un pourboire"
+                >
+                  💝 Pourboire
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => openPrivate({ id: live.hostId, name: live.hostName })}
@@ -968,6 +923,7 @@ export function LivePage({
         chatBanned={chatBanned}
         chatBanMessage={chatBanMessage ?? undefined}
         onDeleteMessage={canModerateChat ? handleDeleteMessage : undefined}
+        onOpenDonation={!isHost && hostCanReceiveDonations ? openDonSheet : undefined}
       >
       <RoomTheaterLayout
         chatHidden={chatHidden}
@@ -992,16 +948,27 @@ export function LivePage({
                 aria-label="Aperçu caméra"
               />
             )}
+            {showViewerVideo && (
+              <video
+                ref={viewerVideoRef}
+                autoPlay
+                playsInline
+                className="absolute inset-0 w-full h-full object-cover bg-black"
+                aria-label="Flux vidéo du host"
+              />
+            )}
             {showViewerCameraBadge && (
               <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
                 <div className="rounded-2xl bg-[#12121a]/90 border border-white/10 px-5 py-4 max-w-sm">
                   <p className="text-3xl mb-2">📹</p>
                   <p className="text-sm font-semibold text-gray-200">Caméra du host active</p>
-                  <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">{LIVE_CAMERA_VIEWER_NOTE}</p>
+                  <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">
+                    {viewerRelayError ?? viewerCameraBadgeNote}
+                  </p>
                 </div>
               </div>
             )}
-            {!showHostCamera && !showViewerCameraBadge && (
+            {!showHostCamera && !showViewerVideo && !showViewerCameraBadge && (
               <div
                 className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center"
                 style={{
@@ -1043,6 +1010,10 @@ export function LivePage({
                 </div>
               </div>
             </div>
+
+            {!isHost && hostCanReceiveDonations && (
+              <LiveGiftOverlay liveId={liveId} visible onOpenGiftSheet={openDonSheet} />
+            )}
 
             {(FULLSCREEN_SUPPORTED || isLandscapeTheater) && (
               <div className="absolute top-2 left-2 z-30 pointer-events-auto">

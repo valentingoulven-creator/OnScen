@@ -3,9 +3,12 @@ import { API_BASE } from './nativeServer';
 
 const API = API_BASE;
 
+/** JWT hors Authorization pour ne pas écraser le Basic Auth Caddy (reverse proxy). */
+const AUTH_TOKEN_HEADER = 'X-Auth-Token';
+
 function headers(token?: string | null): HeadersInit {
   const h: HeadersInit = { 'Content-Type': 'application/json' };
-  if (token) h['Authorization'] = `Bearer ${token}`;
+  if (token) h[AUTH_TOKEN_HEADER] = token;
   return h;
 }
 
@@ -14,7 +17,12 @@ async function parseApiError(res: Response): Promise<string> {
   if (text) {
     try {
       const json = JSON.parse(text) as { error?: string };
-      if (json.error) return json.error;
+      if (json.error) {
+        if (json.error === 'Token manquant' || json.error === 'Token invalide') {
+          return 'Session expirée — reconnectez-vous';
+        }
+        return json.error;
+      }
     } catch {
       if (text.length < 200) return text;
     }
@@ -28,7 +36,11 @@ async function parseApiError(res: Response): Promise<string> {
 }
 
 async function request<T>(path: string, opts: RequestInit = {}, token?: string | null): Promise<T> {
-  const res = await fetch(`${API}${path}`, { ...opts, headers: { ...headers(token), ...opts.headers } });
+  const res = await fetch(`${API}${path}`, {
+    credentials: 'same-origin',
+    ...opts,
+    headers: { ...headers(token), ...opts.headers },
+  });
   if (!res.ok) {
     throw new Error(await parseApiError(res));
   }
@@ -52,6 +64,7 @@ export const api = {
   ) => {
     const res = await fetch(`${API}/auth/register`, {
       method: 'POST',
+      credentials: 'same-origin',
       headers: headers(),
       body: JSON.stringify({
         username,
@@ -537,6 +550,29 @@ export const api = {
           giftType,
           ...(amount != null ? { amount } : {}),
         }),
+      },
+      token
+    ),
+
+  getDonationsConfig: (token?: string | null) =>
+    request<import('./donations').DonationsConfig>('/donations/config', {}, token),
+
+  simulateDonation: (token: string, liveId: string, amount: number, ageConfirmed: boolean) =>
+    request<{ gift: object; simulation: boolean; message: string }>(
+      '/donations/simulate',
+      {
+        method: 'POST',
+        body: JSON.stringify({ liveId, amount, ageConfirmed }),
+      },
+      token
+    ),
+
+  createDonationIntent: (token: string, liveId: string, amount: number, ageConfirmed: boolean) =>
+    request<{ clientSecret: string; paymentIntentId: string; amount: number; currency: string }>(
+      '/donations/create-intent',
+      {
+        method: 'POST',
+        body: JSON.stringify({ liveId, amount, ageConfirmed }),
       },
       token
     ),

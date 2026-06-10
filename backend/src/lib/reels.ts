@@ -5,6 +5,7 @@ import {
   type ReelFeedAlgorithmPreferences,
 } from './reelFeedRanking';
 import { REEL_CATALOG_ENTRIES } from './reelsDemoCatalog';
+import { getFollowingIds } from './follows';
 
 /** Durées approximatives Mixkit — alignées sur app/src/content/reels.ts */
 const MIXKIT_DURATION_SEC: Record<number, number> = {
@@ -164,6 +165,29 @@ export function isPrivateReel(r: UserReel): boolean {
   return reelVisibility(r) === 'private';
 }
 
+function enrichReelWithAuthor<T extends { authorId?: string }>(
+  reel: T
+): T & {
+  authorUsername?: string;
+  authorAvatarUrl?: string;
+  authorUsernameColor?: string;
+  authorUsernameWaveFrom?: string;
+  authorUsernameWaveTo?: string;
+} {
+  const authorId = reel.authorId?.trim();
+  if (!authorId) return reel;
+  const user = db.users.get(authorId);
+  if (!user) return reel;
+  return {
+    ...reel,
+    authorUsername: user.username,
+    authorAvatarUrl: user.avatarUrl,
+    authorUsernameColor: user.usernameColor,
+    authorUsernameWaveFrom: user.usernameWaveFrom,
+    authorUsernameWaveTo: user.usernameWaveTo,
+  };
+}
+
 export function publicUserReel(r: UserReel) {
   const legacyMediaUrl = (r as UserReel & { mediaUrl?: string }).mediaUrl;
   const videoUrl = r.videoUrl ?? (r.mediaType === 'video' ? legacyMediaUrl : undefined);
@@ -175,7 +199,7 @@ export function publicUserReel(r: UserReel) {
   const visibility = reelVisibility(r);
   const isPrivate = visibility === 'private';
   const recorded = isRecordedReelMedia({ mediaType: r.mediaType, videoUrl, posterUrl });
-  return {
+  return enrichReelWithAuthor({
     id: r.id,
     title: r.title,
     artist: r.artist,
@@ -190,7 +214,7 @@ export function publicUserReel(r: UserReel) {
     visibility,
     isPrivate,
     viewCount: getReelViews(r.id).size,
-  };
+  });
 }
 
 function sortAuthorReels(reels: UserReel[]): UserReel[] {
@@ -260,7 +284,7 @@ export function getAccessibleUserReel(
 
 /** Flux public : reels utilisateur publiés + démos, triés selon l’algorithme choisi. */
 export function buildReelsFeed(
-  _viewerId?: string,
+  viewerId?: string,
   algoPrefs?: ReelFeedAlgorithmPreferences | null
 ): PublicReel[] {
   const userReels = db.userReels
@@ -274,10 +298,23 @@ export function buildReelsFeed(
   const demos = DEMO_REELS.filter((r) => !ids.has(r.id) && isPublicFeedReel(r));
   let feed: PublicReel[] = [...userReels, ...demos];
   if (feed.length === 0) feed = DEMO_REELS.filter(isPublicFeedReel);
-  return applyFeedRanking(
-    feed,
-    algoPrefs ?? { useBuiltInAlgorithm: true, weights: BUILTIN_ALGORITHM_WEIGHTS }
-  );
+
+  const algo = algoPrefs ?? { useBuiltInAlgorithm: true, weights: BUILTIN_ALGORITHM_WEIGHTS };
+
+  if (viewerId) {
+    const followedIds = new Set(getFollowingIds(viewerId));
+    if (followedIds.size > 0) {
+      const authorIdOf = (r: PublicReel): string => {
+        const rec = r as Record<string, unknown>;
+        return typeof rec['authorId'] === 'string' ? rec['authorId'] : '';
+      };
+      const followed = feed.filter((r) => followedIds.has(authorIdOf(r)));
+      const rest = feed.filter((r) => !followedIds.has(authorIdOf(r)));
+      return [...applyFeedRanking(followed, algo), ...applyFeedRanking(rest, algo)];
+    }
+  }
+
+  return applyFeedRanking(feed, algo);
 }
 
 function isHttpUrl(value: string): boolean {

@@ -1,11 +1,34 @@
 import type { FeedPost, ProfileType } from '../types';
-import { applyFavoritesFirst } from './nearbyPanelSettings';
 import {
   hasMusicalAffinity,
   type ProfileTastes,
   viewerHasTasteProfile,
 } from './musicAffinities';
 import type { FeedUserPrefs } from './feedUserPrefs';
+
+/** Tri fil d'actualité par date de publication (createdAt), plus récent en premier. */
+export function compareFeedPostsByCreatedAt(a: FeedPost, b: FeedPost): number {
+  return b.createdAt - a.createdAt;
+}
+
+export function sortFeedPostsByPublicationDate(posts: FeedPost[]): FeedPost[] {
+  return [...posts].sort(compareFeedPostsByCreatedAt);
+}
+
+/** Favoris en tête, chaque groupe trié par createdAt décroissant. */
+export function sortFeedPostsByPublicationDateWithFavoritesFirst(
+  posts: FeedPost[],
+  favoriteIds: Set<string> | undefined
+): FeedPost[] {
+  if (!favoriteIds?.size) return sortFeedPostsByPublicationDate(posts);
+  const favorites = sortFeedPostsByPublicationDate(
+    posts.filter((p) => favoriteIds.has(p.author.id))
+  );
+  const rest = sortFeedPostsByPublicationDate(
+    posts.filter((p) => !favoriteIds.has(p.author.id))
+  );
+  return [...favorites, ...rest];
+}
 
 export interface FeedFilterContext {
   viewerId: string;
@@ -57,13 +80,8 @@ export function applyFeedPreferences(
   });
 
   if (prefs.audienceScope === 'all' && prefs.favoritesFirst) {
-    filtered = applyFavoritesFirst(
-      filtered,
-      (p) => p.author.id,
-      favoriteIds,
-      true
-    );
+    return sortFeedPostsByPublicationDateWithFavoritesFirst(filtered, favoriteIds);
   }
 
-  return filtered;
+  return sortFeedPostsByPublicationDate(filtered);
 }

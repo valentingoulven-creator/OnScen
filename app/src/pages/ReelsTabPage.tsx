@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePauseMediaOnPageHidden } from '../hooks/usePauseMediaOnPageHidden';
 import { REELS_DEMO_VIDEO_COUNT, type MusicReel } from '../content/reels';
 import { isMsdevEnvironment } from '../lib/liveCameraSupport';
@@ -12,7 +13,10 @@ import {
 } from '../content/reelsFeed';
 import { useAuth } from '../context/AuthContext';
 import { ShareLinkMenu } from '../components/ShareLinkMenu';
+import { UserAvatarOnline } from '../components/UserAvatarOnline';
+import { UsernameDisplay } from '../components/UsernameDisplay';
 import { api } from '../lib/api';
+import { buildReelShareText } from '../lib/shareLink';
 import { getFeedAlgorithmPreferences } from '../lib/reelFeedAlgorithm';
 import {
   applyClientFeedRanking,
@@ -52,6 +56,9 @@ const REELS_UNMUTED_KEY = 'melosong_reels_unmuted';
 const CENTER_TAP_MIN = 0.3;
 const CENTER_TAP_MAX = 0.7;
 const TAP_MOVE_THRESHOLD_PX = 14;
+/** Fenêtre double-tap (like IG/TikTok) — le simple tap est différé jusqu'à expiration. */
+const DOUBLE_TAP_MS = 300;
+const DOUBLE_TAP_DISTANCE_PX = 28;
 
 function isCenterTap(clientX: number, clientY: number, rect: DOMRect): boolean {
   const relX = (clientX - rect.left) / rect.width;
@@ -59,14 +66,14 @@ function isCenterTap(clientX: number, clientY: number, rect: DOMRect): boolean {
   return relX >= CENTER_TAP_MIN && relX <= CENTER_TAP_MAX && relY >= CENTER_TAP_MIN && relY <= CENTER_TAP_MAX;
 }
 
-/** Préférence persistante (localStorage) : absent = son activé par défaut ; '0' = muet ; '1' = son activé. */
+/** Préférence persistante (localStorage) : absent = muet par défaut (autoplay safe) ; '0' = muet ; '1' = son activé. */
 function readReelsUnmutedPreference(): boolean {
   try {
     const stored = localStorage.getItem(REELS_UNMUTED_KEY);
-    if (stored === null) return true;
+    if (stored === null) return false;
     return stored === '1';
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -100,12 +107,14 @@ function seekToStart(...elements: (HTMLMediaElement | null | undefined)[]) {
   }
 }
 
-/** Autoplay avec son souvent bloqué : repli muet, puis unmute au tap / swipe / onglet Reels. */
-async function playMediaElement(el: HTMLMediaElement, wantMuted: boolean): Promise<void> {
+/** Autoplay avec son souvent bloqué : repli muet, puis unmute au tap / swipe / onglet Reels.
+ *  Retourne true si le navigateur a forcé le mode muet (autoplay policy). */
+async function playMediaElement(el: HTMLMediaElement, wantMuted: boolean): Promise<boolean> {
   el.muted = wantMuted;
   el.volume = wantMuted ? 0 : 1;
   try {
     await el.play();
+    return false;
   } catch {
     if (!wantMuted) {
       el.muted = true;
@@ -115,11 +124,38 @@ async function playMediaElement(el: HTMLMediaElement, wantMuted: boolean): Promi
       } catch {
         /* ignore */
       }
+      return true;
+    }
+    return false;
+  }
+}
+
+/** Unmute + play synchronously in the user-gesture stack (autoplay policy). */
+function unmuteActiveReelMediaFromGesture(
+  video: HTMLVideoElement,
+  audio: HTMLAudioElement | null,
+  separateAudio: boolean
+): void {
+  applyVideoAudio(video, false, separateAudio);
+  if (separateAudio && audio) {
+    applyReelAudio(audio, false);
+    try {
+      void audio.play();
+    } catch {
+      /* ignore */
+    }
+  }
+  if (video.paused) {
+    try {
+      void video.play();
+    } catch {
+      /* ignore */
     }
   }
 }
 
-/** One active reel: Mixkit b-roll (muted) + optional MP3. fromStart=false reprend la position courante. */
+/** One active reel: Mixkit b-roll (muted) + optional MP3. fromStart=false reprend la position courante.
+ *  Retourne true si le navigateur a forcé le mode muet (autoplay policy bloqué). */
 async function playActiveReelMedia(
   reel: MusicReel,
   video: HTMLVideoElement,
@@ -127,20 +163,25 @@ async function playActiveReelMedia(
   wantMuted: boolean,
   isStale: () => boolean,
   fromStart: boolean
-) {
-  if (isStale()) return;
+): Promise<boolean> {
+  if (isStale()) return false;
   const separateAudio = !!reel.audioUrl?.trim();
   const videoMuted = separateAudio || wantMuted;
-  const alreadyPlaying =
-    !fromStart &&
-    !video.paused &&
-    video.currentTime > 0.05 &&
-    (!separateAudio || (audio != null && !audio.paused));
+  const videoAlreadyPlaying = !fromStart && !video.paused && video.currentTime > 0.05;
 
-  if (alreadyPlaying) {
+  if (videoAlreadyPlaying) {
     applyVideoAudio(video, wantMuted, separateAudio);
-    if (audio) applyReelAudio(audio, wantMuted);
-    return;
+    if (audio) {
+      applyReelAudio(audio, wantMuted);
+      if (separateAudio && !wantMuted && audio.paused) {
+        try {
+          void audio.play();
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    return false;
   }
 
   video.pause();
@@ -148,19 +189,24 @@ async function playActiveReelMedia(
   if (fromStart) seekToStart(video, audio);
   applyVideoAudio(video, wantMuted, separateAudio);
   if (audio) applyReelAudio(audio, wantMuted);
-  await playMediaElement(video, videoMuted);
+  const videoForcedMuted = await playMediaElement(video, videoMuted);
   if (isStale()) {
     video.pause();
     audio?.pause();
-    return;
+    return false;
   }
   if (separateAudio && audio) {
-    await playMediaElement(audio, wantMuted);
+    const audioForcedMuted = await playMediaElement(audio, wantMuted);
     if (isStale()) {
       video.pause();
       audio.pause();
+      return false;
     }
+    // Pour les reels avec piste audio séparée, le son passe par l'audio element
+    return audioForcedMuted;
   }
+  // Pour les reels sans piste séparée, le son passe par la vidéo
+  return videoForcedMuted;
 }
 
 const FALLBACK_REELS = buildReelsFeed([]);
@@ -181,6 +227,7 @@ const DEFAULT_STATS: ReelStats = {
 
 interface ReelsTabPageProps {
   onOpenLive?: (liveId: string) => void;
+  onOpenProfile?: (userId: string) => void;
   initialReelId?: string;
   onIntentHandled?: () => void;
   /** False when leaving the Reels tab or opening profile — stops all media. */
@@ -189,10 +236,12 @@ interface ReelsTabPageProps {
 
 export function ReelsTabPage({
   onOpenLive: _onOpenLive,
+  onOpenProfile,
   initialReelId,
   onIntentHandled,
   isActive = true,
 }: ReelsTabPageProps) {
+  const { t } = useTranslation();
   const { token } = useAuth();
   const [feedReels, setFeedReels] = useState<MusicReel[]>(FALLBACK_REELS);
   const [feedLoading, setFeedLoading] = useState(false);
@@ -212,7 +261,7 @@ export function ReelsTabPage({
   feedReelsRef.current = feedReels;
   const wasTabActiveRef = useRef(isActive);
   const hasLoadedFeedRef = useRef(false);
-  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
   const touchStartTime = useRef(0);
   const touchActive = useRef(false);
   const activeIndexRef = useRef(0);
@@ -223,6 +272,8 @@ export function ReelsTabPage({
   const [playbackPaused, setPlaybackPaused] = useState(false);
   const playbackPausedRef = useRef(false);
   const [stats, setStats] = useState<ReelStats>(DEFAULT_STATS);
+  const statsRef = useRef(stats);
+  statsRef.current = stats;
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [shareToast, setShareToast] = useState<string | null>(null);
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
@@ -270,8 +321,8 @@ export function ReelsTabPage({
     initialScrollDone.current = true;
     setActiveIndex(index);
     const el = scrollRef.current;
-    if (el && el.clientWidth > 0) {
-      el.scrollTo({ left: index * el.clientWidth, behavior: 'auto' });
+    if (el && el.clientHeight > 0) {
+      el.scrollTo({ top: index * el.clientHeight, behavior: 'auto' });
     }
     onIntentHandled?.();
   }, [initialReelId, reels, onIntentHandled, token]);
@@ -289,8 +340,8 @@ export function ReelsTabPage({
     initialScrollDone.current = true;
     requestAnimationFrame(() => {
       const el = scrollRef.current;
-      if (el && el.clientWidth > 0) {
-        el.scrollTo({ left: start * el.clientWidth, behavior: 'auto' });
+      if (el && el.clientHeight > 0) {
+        el.scrollTo({ top: start * el.clientHeight, behavior: 'auto' });
       }
     });
     rememberTabStartReelId(feed[start]!.id);
@@ -389,19 +440,19 @@ export function ReelsTabPage({
     const clamped = Math.max(0, Math.min(reels.length - 1, index));
     const el = scrollRef.current;
     if (!el) return;
-    const w = el.clientWidth;
-    el.scrollTo({ left: clamped * w, behavior: scrollBehavior });
+    const h = el.clientHeight;
+    el.scrollTo({ top: clamped * h, behavior: scrollBehavior });
     setActiveIndex(clamped);
   }, [reels.length]);
 
   const settleScrollPosition = useCallback(() => {
     const el = scrollRef.current;
-    if (!el || touchActive.current || el.clientWidth === 0) return;
-    const index = Math.round(el.scrollLeft / el.clientWidth);
+    if (!el || touchActive.current || el.clientHeight === 0) return;
+    const index = Math.round(el.scrollTop / el.clientHeight);
     const clamped = Math.max(0, Math.min(reelsRef.current.length - 1, index));
-    const targetLeft = clamped * el.clientWidth;
-    if (Math.abs(el.scrollLeft - targetLeft) > 2) {
-      el.scrollTo({ left: targetLeft, behavior: 'auto' });
+    const targetTop = clamped * el.clientHeight;
+    if (Math.abs(el.scrollTop - targetTop) > 2) {
+      el.scrollTo({ top: targetTop, behavior: 'auto' });
     }
     if (clamped !== activeIndexRef.current) {
       setActiveIndex(clamped);
@@ -411,8 +462,8 @@ export function ReelsTabPage({
   const syncIndexFromScroll = useCallback(() => {
     if (touchActive.current) return;
     const el = scrollRef.current;
-    if (!el || el.clientWidth === 0) return;
-    const index = Math.round(el.scrollLeft / el.clientWidth);
+    if (!el || el.clientHeight === 0) return;
+    const index = Math.round(el.scrollTop / el.clientHeight);
     const clamped = Math.max(0, Math.min(reels.length - 1, index));
     if (clamped !== activeIndexRef.current) {
       playGenerationRef.current += 1;
@@ -433,23 +484,23 @@ export function ReelsTabPage({
 
   const snapIndexFromScroll = useCallback((): number => {
     const el = scrollRef.current;
-    if (!el || el.clientWidth === 0) return activeIndexRef.current;
-    const index = Math.round(el.scrollLeft / el.clientWidth);
+    if (!el || el.clientHeight === 0) return activeIndexRef.current;
+    const index = Math.round(el.scrollTop / el.clientHeight);
     return Math.max(0, Math.min(reels.length - 1, index));
   }, [reels.length]);
 
   const finishTouchGesture = useCallback(
-    (endX: number) => {
+    (endY: number) => {
       touchActive.current = false;
-      const start = touchStartX.current;
-      touchStartX.current = null;
+      const start = touchStartY.current;
+      touchStartY.current = null;
 
       const resumeAfterSwipe = (targetIndex: number) => {
         goToIndex(targetIndex, 'auto');
       };
 
       const el = scrollRef.current;
-      if (!el || el.clientWidth === 0) {
+      if (!el || el.clientHeight === 0) {
         return;
       }
 
@@ -461,12 +512,12 @@ export function ReelsTabPage({
         return;
       }
 
-      const delta = start - endX;
+      const delta = start - endY;
       const dt = Math.max(1, Date.now() - touchStartTime.current);
       const velocity = delta / dt;
 
-      // Reels UX (Instagram/TikTok): swipe LEFT (finger ←) reveals the next reel;
-      // swipe RIGHT (finger →) goes back to the previous reel.
+      // Reels UX (Instagram/TikTok): swipe UP (finger ↑) reveals the next reel;
+      // swipe DOWN (finger ↓) goes back to the previous reel.
       const wantNext = delta > SWIPE_THRESHOLD_PX || velocity > SWIPE_VELOCITY_PX_MS;
       const wantPrev = delta < -SWIPE_THRESHOLD_PX || velocity < -SWIPE_VELOCITY_PX_MS;
 
@@ -672,9 +723,16 @@ export function ReelsTabPage({
         wantMuted,
         isStale,
         fromStart
-      );
+      ).then((forcedMuted) => {
+        // Si le navigateur a bloqué l'autoplay avec son, on synchronise l'état React
+        // pour que l'icône 🔇 Muet s'affiche correctement (évite l'état fantôme "Son activé mais silencieux")
+        if (forcedMuted && !wantMuted && !isStale()) {
+          mutedRef.current = true;
+          setMuted(true);
+        }
+      });
     },
-    [reelHasSeparateAudio, stopAllReelsMedia, cancelPlayRetry, pauseInactiveReelsMedia]
+    [reelHasSeparateAudio, stopAllReelsMedia, cancelPlayRetry, pauseInactiveReelsMedia, setMuted]
   );
 
   const schedulePlayActiveReel = useCallback(
@@ -707,16 +765,28 @@ export function ReelsTabPage({
     mutedRef.current = false;
     setMuted(false);
     applyMuteStateToAllRefs(false);
-    playActiveReel(activeIndexRef.current, false);
-  }, [applyMuteStateToAllRefs, playActiveReel]);
+
+    if (playbackPausedRef.current) return;
+
+    const active = reelsRef.current[activeIndexRef.current];
+    if (!active) return;
+    const separateAudio = reelHasSeparateAudio(active);
+    const video = videoRefsById.current.get(active.id);
+    const audio = audioRefsById.current.get(active.id) ?? null;
+    if (!video || (separateAudio && !audio)) {
+      playActiveReel(activeIndexRef.current, false);
+      return;
+    }
+    // Sync play in click/tap stack — async playActiveReel loses the user gesture.
+    unmuteActiveReelMediaFromGesture(video, audio, separateAudio);
+  }, [applyMuteStateToAllRefs, playActiveReel, reelHasSeparateAudio]);
 
   const disableSound = useCallback(() => {
     persistReelsUnmutedPreference(false);
     mutedRef.current = true;
     setMuted(true);
     applyMuteStateToAllRefs(true);
-    playActiveReel(activeIndexRef.current, true);
-  }, [applyMuteStateToAllRefs, playActiveReel]);
+  }, [applyMuteStateToAllRefs]);
 
   const tapVideoForSound = useCallback(() => {
     if (muted) enableSound();
@@ -808,7 +878,6 @@ export function ReelsTabPage({
   }, [shareToast]);
 
   const onTouchStart = (e: React.TouchEvent) => {
-    if ((e.target as HTMLElement).closest('video')) return;
     playGenerationRef.current += 1;
     cancelPlayRetry();
     if (playScheduleRef.current) {
@@ -817,16 +886,16 @@ export function ReelsTabPage({
     }
     touchActive.current = true;
     setScrollSnapDuringTouch(true);
-    touchStartX.current = e.touches[0]?.clientX ?? null;
+    touchStartY.current = e.touches[0]?.clientY ?? null;
     touchStartTime.current = Date.now();
   };
 
   const onTouchEnd = (e: React.TouchEvent) => {
-    const endX = e.changedTouches[0]?.clientX ?? touchStartX.current ?? 0;
-    const startX = touchStartX.current;
-    const movedPx = startX != null ? Math.abs(startX - endX) : 0;
+    const endY = e.changedTouches[0]?.clientY ?? touchStartY.current ?? 0;
+    const startY = touchStartY.current;
+    const movedPx = startY != null ? Math.abs(startY - endY) : 0;
     const wasSwipe = movedPx > TAP_MOVE_THRESHOLD_PX;
-    finishTouchGesture(endX);
+    finishTouchGesture(endY);
     setScrollSnapDuringTouch(false);
     if (wasSwipe && !mutedRef.current && isActive && !playbackPausedRef.current) {
       playActiveReel(activeIndexRef.current, false, false);
@@ -834,13 +903,13 @@ export function ReelsTabPage({
   };
 
   const onTouchCancel = () => {
-    finishTouchGesture(touchStartX.current ?? 0);
+    finishTouchGesture(touchStartY.current ?? 0);
     setScrollSnapDuringTouch(false);
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowRight') goToIndex(activeIndex + 1);
-    if (e.key === 'ArrowLeft') goToIndex(activeIndex - 1);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') goToIndex(activeIndex + 1);
+    if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') goToIndex(activeIndex - 1);
   };
 
   const toggleHeart = async () => {
@@ -853,9 +922,25 @@ export function ReelsTabPage({
     }
   };
 
+  /** Double-tap : like uniquement (pas de unlike si déjà aimé — comportement Instagram). */
+  const likeReelOnDoubleTap = useCallback(async () => {
+    if (!token || !activeReel) return;
+    if (statsRef.current.likedByMe) return;
+    try {
+      const r = await api.toggleReelHeart(token, activeReel.id);
+      setStats((s) => ({ ...s, likedByMe: r.liked, heartCount: r.heartCount }));
+    } catch {
+      /* ignore */
+    }
+  }, [token, activeReel?.id]);
+
   const reelShareUrl = activeReel
     ? `${window.location.origin}${window.location.pathname}?reel=${activeReel.id}`
     : '';
+  const reelShareText = activeReel ? buildReelShareText(activeReel) : undefined;
+  const reelShareTitle = activeReel
+    ? t('share.reelTitle', { title: activeReel.title })
+    : undefined;
 
   const recordReelShare = async () => {
     if (!token || !activeReel || stats.sharedByMe) return;
@@ -885,58 +970,110 @@ export function ReelsTabPage({
           Chargement…
         </div>
       )}
-      <div
-        ref={scrollRef}
-        className={`reels-track flex-1 min-h-0 w-full flex items-stretch overflow-x-auto overflow-y-hidden self-stretch touch-pan-x ${
-          scrollSnapDuringTouch ? 'snap-none' : 'snap-x snap-mandatory'
-        }`}
-        onScroll={syncIndexFromScroll}
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-        onTouchCancel={onTouchCancel}
-      >
-        {reels.map((reel, index) => (
-          <ReelSlide
-            key={reel.id}
-            reel={reel}
-            isActive={index === activeIndex}
-            muted={index === activeIndex ? muted : true}
-            videoRef={(el) => {
-              if (el) videoRefsById.current.set(reel.id, el);
-              else videoRefsById.current.delete(reel.id);
-            }}
-            audioRef={(el) => {
-              if (el) audioRefsById.current.set(reel.id, el);
-              else audioRefsById.current.delete(reel.id);
-            }}
-            onTapForSound={index === activeIndex ? tapVideoForSound : undefined}
-            onTapCenter={index === activeIndex ? togglePlaybackPause : undefined}
-            showPlaybackPaused={index === activeIndex && playbackPaused}
-            resolveMuted={resolveMuted}
-            devCatalogVideoCount={
-              isMsdevEnvironment() && index === activeIndex ? REELS_DEMO_VIDEO_COUNT : undefined
-            }
-          />
-        ))}
-      </div>
+      <div className="reels-viewport flex flex-1 min-h-0 w-full justify-center">
+        <div className="relative flex flex-1 min-h-0 w-full max-w-lg">
+          <div
+            ref={scrollRef}
+            className={`reels-track flex-1 min-h-0 w-full flex flex-col items-stretch overflow-y-auto overflow-x-hidden self-stretch touch-pan-y ${
+              scrollSnapDuringTouch ? 'snap-none' : 'snap-y snap-mandatory'
+            }`}
+            onScroll={syncIndexFromScroll}
+            onTouchStart={onTouchStart}
+            onTouchEnd={onTouchEnd}
+            onTouchCancel={onTouchCancel}
+          >
+            {reels.map((reel, index) => (
+              <ReelSlide
+                key={reel.id}
+                reel={reel}
+                isActive={index === activeIndex}
+                muted={index === activeIndex ? muted : true}
+                videoRef={(el) => {
+                  if (el) videoRefsById.current.set(reel.id, el);
+                  else videoRefsById.current.delete(reel.id);
+                }}
+                audioRef={(el) => {
+                  if (el) audioRefsById.current.set(reel.id, el);
+                  else audioRefsById.current.delete(reel.id);
+                }}
+                onTapForSound={index === activeIndex ? tapVideoForSound : undefined}
+                onTapCenter={index === activeIndex ? togglePlaybackPause : undefined}
+                onDoubleTapLike={index === activeIndex ? likeReelOnDoubleTap : undefined}
+                showPlaybackPaused={index === activeIndex && playbackPaused}
+                resolveMuted={resolveMuted}
+                devCatalogVideoCount={
+                  isMsdevEnvironment() && index === activeIndex ? REELS_DEMO_VIDEO_COUNT : undefined
+                }
+                onOpenAuthor={onOpenProfile}
+              />
+            ))}
+          </div>
 
-      {activeReel && (
-        <ReelActions
-          stats={stats}
-          disabled={!token}
-          onHeart={toggleHeart}
-          onComment={() => setCommentsOpen(true)}
-          onShare={() => setShareMenuOpen(true)}
-        />
-      )}
+          {activeReel && (
+            <ReelActions
+              stats={stats}
+              disabled={!token}
+              onHeart={toggleHeart}
+              onComment={() => setCommentsOpen(true)}
+              onShare={() => setShareMenuOpen(true)}
+            />
+          )}
+
+          {activeReel && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setAlgoSheetOpen(true);
+              }}
+              className="absolute top-4 right-3 z-20 w-9 h-9 rounded-full bg-black/50 border border-white/20 backdrop-blur-sm flex items-center justify-center text-base hover:bg-black/70 transition-colors"
+              aria-label="Personnaliser le feed"
+              title="Personnaliser mon feed"
+            >
+              ⚙️
+            </button>
+          )}
+
+          {activeHasSound && (
+            <div className="absolute bottom-4 right-4 z-30 pointer-events-auto flex flex-col items-center gap-1">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleMute();
+                }}
+                className={`w-11 h-11 rounded-full text-white text-sm backdrop-blur shadow-lg transition-colors ${
+                  muted
+                    ? 'bg-pink-600/90 border-2 border-pink-400 text-base'
+                    : 'bg-emerald-900/70 border-2 border-emerald-400/80'
+                }`}
+                aria-label={muted ? 'Activer le son' : 'Couper le son'}
+                aria-pressed={!muted}
+                title={muted ? 'Son coupé' : 'Son activé'}
+              >
+                {muted ? '🔇' : '🔊'}
+              </button>
+              <span className="text-[10px] font-semibold text-white/90 drop-shadow pointer-events-none">
+                {muted ? 'Muet' : 'Son'}
+              </span>
+            </div>
+          )}
+
+          {shareToast && (
+            <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full bg-black/80 border border-white/15 text-sm text-white backdrop-blur">
+              {shareToast}
+            </div>
+          )}
+        </div>
+      </div>
 
       {shareMenuOpen && activeReel && (
         <ShareLinkMenu
           open
           onClose={() => setShareMenuOpen(false)}
           url={reelShareUrl}
-          title={`${activeReel.title} — ${activeReel.artist}`}
-          text={activeReel.genre}
+          title={reelShareTitle}
+          text={reelShareText}
           onToast={setShareToast}
           onShared={recordReelShare}
         />
@@ -952,27 +1089,6 @@ export function ReelsTabPage({
         />
       )}
 
-      {shareToast && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full bg-black/80 border border-white/15 text-sm text-white backdrop-blur">
-          {shareToast}
-        </div>
-      )}
-
-      {activeReel && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setAlgoSheetOpen(true);
-          }}
-          className="absolute top-4 right-3 z-20 w-9 h-9 rounded-full bg-black/50 border border-white/20 backdrop-blur-sm flex items-center justify-center text-base hover:bg-black/70 transition-colors"
-          aria-label="Personnaliser le feed"
-          title="Personnaliser mon feed"
-        >
-          ⚙️
-        </button>
-      )}
-
       {algoSheetOpen && (
         <ReelsAlgoSheet
           onClose={() => setAlgoSheetOpen(false)}
@@ -981,31 +1097,6 @@ export function ReelsTabPage({
             void refreshFeedWithStart({ skipStartIndex: false });
           }}
         />
-      )}
-
-      {activeHasSound && (
-        <div className="absolute bottom-4 right-4 z-30 pointer-events-auto flex flex-col items-center gap-1">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleMute();
-            }}
-            className={`w-11 h-11 rounded-full text-white text-sm backdrop-blur shadow-lg transition-colors ${
-              muted
-                ? 'bg-pink-600/90 border-2 border-pink-400 text-base'
-                : 'bg-emerald-900/70 border-2 border-emerald-400/80'
-            }`}
-            aria-label={muted ? 'Activer le son' : 'Couper le son'}
-            aria-pressed={!muted}
-            title={muted ? 'Son coupé' : 'Son activé'}
-          >
-            {muted ? '🔇' : '🔊'}
-          </button>
-          <span className="text-[10px] font-semibold text-white/90 drop-shadow pointer-events-none">
-            {muted ? 'Muet' : 'Son'}
-          </span>
-        </div>
       )}
     </div>
   );
@@ -1024,6 +1115,7 @@ function ReelActions({
   onComment: () => void;
   onShare: () => void;
 }) {
+  const { t } = useTranslation();
   const [heartAnim, setHeartAnim] = useState(false);
 
   const handleHeart = () => {
@@ -1036,7 +1128,7 @@ function ReelActions({
   return (
     <div className="absolute right-3 bottom-28 z-30 flex flex-col items-center gap-5">
       <ActionButton
-        label={stats.likedByMe ? 'Retirer le like' : 'Aimer'}
+        label={stats.likedByMe ? t('reels.like') : t('reels.like')}
         count={stats.heartCount}
         disabled={disabled}
         onClick={handleHeart}
@@ -1046,7 +1138,7 @@ function ReelActions({
         </span>
       </ActionButton>
       <ActionButton
-        label="Commentaires"
+        label={t('reels.comments')}
         count={stats.commentCount}
         disabled={disabled}
         onClick={onComment}
@@ -1055,7 +1147,7 @@ function ReelActions({
         <span className={`text-xl leading-none ${stats.commentedByMe ? 'text-green-400' : 'text-white'}`}>💬</span>
       </ActionButton>
       <ActionButton
-        label={stats.sharedByMe ? 'Déjà partagé' : 'Partager'}
+        label={stats.sharedByMe ? t('reels.alreadyShared') : t('reels.share')}
         count={stats.shareCount}
         onClick={onShare}
       >
@@ -1175,7 +1267,7 @@ function ReelCommentsSheet({
       aria-labelledby="reel-comments-title"
     >
       <button type="button" className="absolute inset-0" aria-label="Fermer" onClick={onClose} />
-      <div className="relative w-full max-h-[70dvh] bg-[#12121a] border-t border-[#2d2d3d] rounded-t-2xl flex flex-col safe-area-pb">
+      <div className="relative w-full max-h-[70dvh] bg-[#12121a] border-t border-[#2d2d3d] rounded-t-2xl flex flex-col mb-[var(--tab-nav-total-h)]">
         <div className="flex items-center justify-between px-4 py-3 border-b border-[#1e1e2f]">
           <h2 id="reel-comments-title" className="font-bold text-white text-sm">
             Commentaires · {reelTitle}
@@ -1230,6 +1322,61 @@ function ReelCommentsSheet({
   );
 }
 
+function ReelAuthorRow({
+  reel,
+  onOpenAuthor,
+}: {
+  reel: MusicReel;
+  onOpenAuthor?: (userId: string) => void;
+}) {
+  const { t } = useTranslation();
+  const authorId = reel.authorId?.trim();
+  const displayName = reel.authorUsername?.trim() || reel.artist.trim() || 'Soundly';
+  const avatarUserId = authorId || reel.id;
+  const canOpenProfile = !!authorId && !!onOpenAuthor;
+
+  const row = (
+    <>
+      <UserAvatarOnline
+        userId={avatarUserId}
+        avatarUrl={reel.authorAvatarUrl}
+        username={displayName}
+        size="sm"
+        className="ring-2 ring-white/25 shadow-md"
+      />
+      <UsernameDisplay
+        username={displayName}
+        usernameColor={reel.authorUsernameColor}
+        usernameWaveFrom={reel.authorUsernameWaveFrom}
+        usernameWaveTo={reel.authorUsernameWaveTo}
+        className="text-sm font-bold drop-shadow-md truncate max-w-[10rem]"
+      />
+    </>
+  );
+
+  if (!canOpenProfile) {
+    return (
+      <div className="flex items-center gap-2.5 mb-2.5 pointer-events-none" aria-label={displayName}>
+        {row}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpenAuthor!(authorId);
+      }}
+      className="flex items-center gap-2.5 mb-2.5 pointer-events-auto rounded-full pr-3 py-0.5 -ml-0.5 hover:bg-white/10 active:bg-white/15 transition-colors text-left"
+      aria-label={t('reels.openAuthorProfile', { username: displayName })}
+    >
+      {row}
+    </button>
+  );
+}
+
 function ReelSlide({
   reel,
   isActive,
@@ -1238,9 +1385,11 @@ function ReelSlide({
   audioRef,
   onTapForSound,
   onTapCenter,
+  onDoubleTapLike,
   showPlaybackPaused,
   resolveMuted,
   devCatalogVideoCount,
+  onOpenAuthor,
 }: {
   reel: MusicReel;
   isActive: boolean;
@@ -1249,11 +1398,14 @@ function ReelSlide({
   audioRef: (el: HTMLAudioElement | null) => void;
   onTapForSound?: () => void;
   onTapCenter?: () => void;
+  onDoubleTapLike?: () => void;
   showPlaybackPaused?: boolean;
   resolveMuted?: () => boolean;
   /** msdev : total de vidéos du catalogue, affiché en haut à gauche */
   devCatalogVideoCount?: number;
+  onOpenAuthor?: (userId: string) => void;
 }) {
+  const { t } = useTranslation();
   const separateAudio = !!reel.audioUrl?.trim();
   const wantMuted = () => resolveMuted?.() ?? muted;
   const isImageOnly = reel.mediaType === 'image' || !reel.videoUrl;
@@ -1261,6 +1413,9 @@ function ReelSlide({
   const pairedAudioRef = useRef<HTMLAudioElement | null>(null);
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const centerTouchRef = useRef(false);
+  const lastTapRef = useRef<{ time: number; x: number; y: number } | null>(null);
+  const singleTapTimerRef = useRef<number | null>(null);
+  const [doubleTapHeart, setDoubleTapHeart] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
   const [posterSrc, setPosterSrc] = useState(reel.posterUrl);
   const [durationSec, setDurationSec] = useState<number | undefined>(reel.durationSec);
@@ -1350,6 +1505,75 @@ function ReelSlide({
     if (!isActive) stopAccelerating();
   }, [isActive, stopAccelerating]);
 
+  useEffect(() => {
+    return () => {
+      if (singleTapTimerRef.current != null) {
+        clearTimeout(singleTapTimerRef.current);
+        singleTapTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (singleTapTimerRef.current != null) {
+      clearTimeout(singleTapTimerRef.current);
+      singleTapTimerRef.current = null;
+    }
+    lastTapRef.current = null;
+    setDoubleTapHeart(false);
+  }, [reel.id, isActive]);
+
+  const clearSingleTapTimer = () => {
+    if (singleTapTimerRef.current != null) {
+      clearTimeout(singleTapTimerRef.current);
+      singleTapTimerRef.current = null;
+    }
+  };
+
+  const showDoubleTapHeart = () => {
+    setDoubleTapHeart(true);
+    window.setTimeout(() => setDoubleTapHeart(false), 900);
+  };
+
+  const handleTapEnd = (
+    clientX: number,
+    clientY: number,
+    rect: DOMRect,
+    stopPropagation?: () => void
+  ) => {
+    const now = Date.now();
+    const last = lastTapRef.current;
+
+    if (
+      last &&
+      now - last.time <= DOUBLE_TAP_MS &&
+      Math.abs(clientX - last.x) <= DOUBLE_TAP_DISTANCE_PX &&
+      Math.abs(clientY - last.y) <= DOUBLE_TAP_DISTANCE_PX
+    ) {
+      clearSingleTapTimer();
+      lastTapRef.current = null;
+      stopPropagation?.();
+      showDoubleTapHeart();
+      void onDoubleTapLike?.();
+      return;
+    }
+
+    lastTapRef.current = { time: now, x: clientX, y: clientY };
+    clearSingleTapTimer();
+
+    const inCenter = isCenterTap(clientX, clientY, rect);
+    singleTapTimerRef.current = window.setTimeout(() => {
+      singleTapTimerRef.current = null;
+      lastTapRef.current = null;
+      if (inCenter && onTapCenter) {
+        stopPropagation?.();
+        onTapCenter();
+        return;
+      }
+      if (onTapForSound) onTapForSound();
+    }, DOUBLE_TAP_MS);
+  };
+
   const handleVideoPointerDown = (e: React.PointerEvent<HTMLVideoElement>) => {
     if (!isActive) return;
     holdHandlers.onPointerDown(e);
@@ -1376,7 +1600,6 @@ function ReelSlide({
     const start = pointerStartRef.current;
     pointerStartRef.current = null;
     const rect = e.currentTarget.getBoundingClientRect();
-    const inCenter = centerTouchRef.current || isCenterTap(e.clientX, e.clientY, rect);
     centerTouchRef.current = false;
 
     if (start) {
@@ -1385,13 +1608,35 @@ function ReelSlide({
       if (dx > TAP_MOVE_THRESHOLD_PX || dy > TAP_MOVE_THRESHOLD_PX) return;
     }
 
-    if (inCenter && onTapCenter) {
+    handleTapEnd(e.clientX, e.clientY, rect, () => e.stopPropagation());
+  };
+
+  const handlePosterPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!isActive) return;
+    pointerStartRef.current = { x: e.clientX, y: e.clientY };
+    const rect = e.currentTarget.getBoundingClientRect();
+    centerTouchRef.current = isCenterTap(e.clientX, e.clientY, rect);
+    if (centerTouchRef.current) {
       e.stopPropagation();
-      onTapCenter();
-      return;
+    }
+  };
+
+  const handlePosterPointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!isActive) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+    const start = pointerStartRef.current;
+    pointerStartRef.current = null;
+    const rect = e.currentTarget.getBoundingClientRect();
+    centerTouchRef.current = false;
+
+    if (start) {
+      const dx = Math.abs(e.clientX - start.x);
+      const dy = Math.abs(e.clientY - start.y);
+      if (dx > TAP_MOVE_THRESHOLD_PX || dy > TAP_MOVE_THRESHOLD_PX) return;
     }
 
-    if (onTapForSound) onTapForSound();
+    handleTapEnd(e.clientX, e.clientY, rect, () => e.stopPropagation());
   };
 
   return (
@@ -1401,14 +1646,34 @@ function ReelSlide({
       aria-label={`${reel.title} — ${reel.artist}`}
     >
       {showPosterOnly ? (
-        <img
-          src={posterSrc}
-          alt={`${reel.title}, ${reel.artist}`}
-          className="absolute inset-0 w-full h-full object-cover"
-          loading={isActive ? 'eager' : 'lazy'}
-          decoding="async"
-          onError={onPosterError}
-        />
+        <>
+          <img
+            src={posterSrc}
+            alt={`${reel.title}, ${reel.artist}`}
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+            loading={isActive ? 'eager' : 'lazy'}
+            decoding="async"
+            onError={onPosterError}
+          />
+          {isActive && (
+            <button
+              type="button"
+              className="absolute inset-0 z-[4] cursor-pointer bg-transparent border-0 p-0"
+              aria-label={t('reels.doubleTapLike')}
+              onPointerDown={handlePosterPointerDown}
+              onPointerUp={handlePosterPointerUp}
+              onTouchStart={(e) => {
+                const touch = e.touches[0];
+                if (!touch) return;
+                const rect = e.currentTarget.getBoundingClientRect();
+                if (isCenterTap(touch.clientX, touch.clientY, rect)) {
+                  centerTouchRef.current = true;
+                  e.stopPropagation();
+                }
+              }}
+            />
+          )}
+        </>
       ) : (
         <>
           <video
@@ -1485,6 +1750,16 @@ function ReelSlide({
           </span>
         </div>
       )}
+      {doubleTapHeart && isActive && (
+        <div
+          className="absolute inset-0 z-[6] pointer-events-none flex items-center justify-center"
+          aria-hidden
+        >
+          <span className="text-7xl text-pink-500 drop-shadow-[0_2px_12px_rgba(0,0,0,0.45)] reel-double-tap-heart">
+            ♥
+          </span>
+        </div>
+      )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/40 pointer-events-none" />
       {devCatalogVideoCount != null && !showPosterOnly && (
         <span
@@ -1506,8 +1781,9 @@ function ReelSlide({
           {durationBadgeText}
         </span>
       )}
-      <div className="absolute bottom-20 left-4 right-24 z-10 pointer-events-none">
-        <div className="max-w-[85%] rounded-2xl bg-black/60 backdrop-blur-md border border-white/15 px-4 py-3 shadow-xl">
+      <div className="absolute bottom-20 left-4 right-24 z-10">
+        <ReelAuthorRow reel={reel} onOpenAuthor={onOpenAuthor} />
+        <div className="max-w-[85%] rounded-2xl bg-black/60 backdrop-blur-md border border-white/15 px-4 py-3 shadow-xl pointer-events-none">
           <p className="text-[11px] uppercase tracking-[0.18em] text-pink-300 font-bold">{reel.genre}</p>
           <p className="mt-1 text-2xl font-extrabold text-white leading-tight drop-shadow-md">{reel.title}</p>
           <p className="mt-0.5 text-base font-medium text-white/90">{reel.artist}</p>
@@ -1519,6 +1795,7 @@ function ReelSlide({
 
 function ReelsAlgoSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const [prefs, setPrefs] = useState<ReelsUserPrefs>(() => readReelsUserPrefs());
+  const [showAllGenres, setShowAllGenres] = useState(false);
 
   const toggleGenre = (genre: string) => {
     setPrefs((p) => ({
@@ -1549,7 +1826,7 @@ function ReelsAlgoSheet({ onClose, onSaved }: { onClose: () => void; onSaved: ()
       aria-labelledby="reels-algo-title"
     >
       <button type="button" className="absolute inset-0" aria-label="Fermer" onClick={onClose} />
-      <div className="relative w-full max-h-[80dvh] bg-[#12121a] border-t border-[#2d2d3d] rounded-t-2xl flex flex-col safe-area-pb">
+      <div className="relative w-full max-h-[80dvh] bg-[#12121a] border-t border-[#2d2d3d] rounded-t-2xl flex flex-col mb-[var(--tab-nav-total-h)]">
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 rounded-full bg-[#3d3d55]" />
         </div>
@@ -1588,91 +1865,138 @@ function ReelsAlgoSheet({ onClose, onSaved }: { onClose: () => void; onSaved: ()
             </div>
           </section>
 
-          <section>
-            <h3 className="text-xs font-semibold text-pink-300 uppercase tracking-widest mb-2">
-              Genres musicaux
-            </h3>
-            <p className="text-xs text-gray-400 mb-3">
-              Sélectionne tes genres préférés (laisse vide pour tout voir).
+          {prefs.algoEnabled && (
+            <p className="text-sm text-gray-400 text-center py-2">
+              L&apos;algorithme gère automatiquement ton feed 🎵
             </p>
-            <div className="flex flex-wrap gap-2">
-              {REEL_GENRES_LIST.map((genre) => {
-                const active = prefs.genres.includes(genre);
-                return (
-                  <button
-                    key={genre}
-                    type="button"
-                    onClick={() => toggleGenre(genre)}
-                    className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-                      active
-                        ? 'bg-pink-600 border-pink-500 text-white'
-                        : 'bg-[#1a1a28] border-[#2d2d3d] text-gray-300 hover:border-pink-500/50'
-                    }`}
-                    aria-pressed={active}
-                  >
-                    {genre}
-                  </button>
-                );
-              })}
-            </div>
-            {prefs.genres.length > 0 && (
-              <p className="text-xs text-pink-400/70 mt-2">
-                {prefs.genres.length} genre{prefs.genres.length > 1 ? 's' : ''} sélectionné
-                {prefs.genres.length > 1 ? 's' : ''}
+          )}
+
+          <div
+            className={`transition-all duration-300 overflow-hidden flex flex-col gap-4 ${
+              prefs.algoEnabled ? 'max-h-0 opacity-0 pointer-events-none' : 'max-h-[500px] opacity-100'
+            }`}
+          >
+            <section>
+              <h3 className="text-xs font-semibold text-pink-300 uppercase tracking-widest mb-2">
+                Genres musicaux
+              </h3>
+              <p className="text-xs text-gray-400 mb-3">
+                Sélectionne tes genres préférés (laisse vide pour tout voir).
               </p>
-            )}
-          </section>
-
-          <section>
-            <h3 className="text-xs font-semibold text-pink-300 uppercase tracking-widest mb-3">
-              Langue des reels
-            </h3>
-            <div className="flex gap-2">
-              {(['all', 'fr', 'en'] as const).map((lang) => {
-                const labels: Record<typeof lang, string> = { all: 'Tout', fr: 'Français', en: 'English' };
-                const active = prefs.language === lang;
-                return (
-                  <button
-                    key={lang}
-                    type="button"
-                    onClick={() => setPrefs((p) => ({ ...p, language: lang }))}
-                    className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${
-                      active
-                        ? 'bg-pink-600 border-pink-500 text-white'
-                        : 'bg-[#1a1a28] border-[#2d2d3d] text-gray-300 hover:border-pink-500/50'
-                    }`}
-                    aria-pressed={active}
-                  >
-                    {labels[lang]}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <section>
-            <div className="flex items-center justify-between rounded-xl bg-[#1a1a28] border border-[#2d2d3d] px-4 py-3">
-              <div>
-                <p className="text-sm font-medium text-white">Créateurs proches</p>
-                <p className="text-xs text-gray-400 mt-0.5">Afficher uniquement les créateurs près de moi 📍</p>
+              <div className="flex flex-wrap gap-2">
+                {(showAllGenres ? REEL_GENRES_LIST : REEL_GENRES_LIST.slice(0, 12)).map((genre) => {
+                  const active = prefs.genres.includes(genre);
+                  return (
+                    <button
+                      key={genre}
+                      type="button"
+                      onClick={() => toggleGenre(genre)}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                        active
+                          ? 'bg-pink-600 border-pink-500 text-white'
+                          : 'bg-[#1a1a28] border-[#2d2d3d] text-gray-300 hover:border-pink-500/50'
+                      }`}
+                      aria-pressed={active}
+                    >
+                      {genre}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => setShowAllGenres((v) => !v)}
+                  className="px-3 py-1.5 rounded-full text-sm font-medium border border-[#2d2d3d] bg-[#2d2d3d] text-gray-300 hover:border-pink-500/50 transition-colors"
+                >
+                  {showAllGenres ? 'Voir moins' : '···'}
+                </button>
               </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={prefs.nearbyOnly}
-                onClick={() => setPrefs((p) => ({ ...p, nearbyOnly: !p.nearbyOnly }))}
-                className={`relative flex-shrink-0 ml-3 w-11 h-6 rounded-full transition-colors ${
-                  prefs.nearbyOnly ? 'bg-pink-600' : 'bg-[#3d3d55]'
+              {prefs.genres.length > 0 && (
+                <p className="text-xs text-pink-400/70 mt-2">
+                  {prefs.genres.length} genre{prefs.genres.length > 1 ? 's' : ''} sélectionné
+                  {prefs.genres.length > 1 ? 's' : ''}
+                </p>
+              )}
+            </section>
+
+            <section>
+              <h3 className="text-xs font-semibold text-pink-300 uppercase tracking-widest mb-3">
+                Langue des reels
+              </h3>
+              <div className="flex gap-2">
+                {(['all', 'fr', 'en'] as const).map((lang) => {
+                  const labels: Record<typeof lang, string> = { all: 'Tout', fr: 'Français', en: 'English' };
+                  const active = prefs.language === lang;
+                  return (
+                    <button
+                      key={lang}
+                      type="button"
+                      onClick={() => setPrefs((p) => ({ ...p, language: lang }))}
+                      className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${
+                        active
+                          ? 'bg-pink-600 border-pink-500 text-white'
+                          : 'bg-[#1a1a28] border-[#2d2d3d] text-gray-300 hover:border-pink-500/50'
+                      }`}
+                      aria-pressed={active}
+                    >
+                      {labels[lang]}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+          <section>
+            <div className="rounded-xl bg-[#1a1a28] border border-[#2d2d3d] overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-white truncate">Créateurs proches</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Afficher uniquement les créateurs près de moi 📍</p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={prefs.nearbyOnly}
+                  onClick={() => setPrefs((p) => ({ ...p, nearbyOnly: !p.nearbyOnly }))}
+                  className={`relative flex-shrink-0 ml-3 w-11 h-6 rounded-full transition-colors ${
+                    prefs.nearbyOnly ? 'bg-pink-600' : 'bg-[#3d3d55]'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                      prefs.nearbyOnly ? 'translate-x-5' : 'translate-x-0.5'
+                    }`}
+                  />
+                </button>
+              </div>
+              <div
+                className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                  prefs.nearbyOnly ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'
                 }`}
               >
-                <span
-                  className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                    prefs.nearbyOnly ? 'translate-x-5' : 'translate-x-0.5'
-                  }`}
-                />
-              </button>
+                <div className="px-4 pb-4 border-t border-[#2d2d3d]">
+                  <p className="text-xs text-gray-400 mt-3 mb-2">Distance maximale</p>
+                  <div className="flex flex-wrap gap-2">
+                    {([10, 30, 50, 100, 200] as const).map((km) => (
+                      <button
+                        key={km}
+                        type="button"
+                        onClick={() => setPrefs((p) => ({ ...p, nearbyDistance: km }))}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                          prefs.nearbyDistance === km
+                            ? 'bg-purple-600 text-white border-purple-500'
+                            : 'bg-[#12121e] text-gray-300 border-[#2d2d3d] hover:border-purple-500/50'
+                        }`}
+                        aria-pressed={prefs.nearbyDistance === km}
+                      >
+                        {km} km
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
+          </div>
         </div>
 
         <div className="flex gap-3 px-4 py-4 border-t border-[#1e1e2f]">

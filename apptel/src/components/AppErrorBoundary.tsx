@@ -85,7 +85,7 @@ export class AppErrorBoundary extends Component<Props, State> {
     if (error) {
       return (
         <div className="min-h-dvh flex flex-col items-center justify-center gap-4 p-6 bg-[#0b0b0f] text-gray-300 text-center">
-          <p className="text-lg font-semibold text-red-400">Soundly — erreur de chargement</p>
+          <p className="text-lg font-semibold text-red-400">Soundy — erreur de chargement</p>
           <p className="text-sm text-gray-500 max-w-md">{error.message}</p>
           <p className="text-xs text-gray-500 max-w-md">
             Écran noir ou page bloquée : fermez l'icône PWA, ouvrez{' '}

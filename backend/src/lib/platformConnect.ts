@@ -1,15 +1,30 @@
-import { MusicPlatform, User } from '../models/schema';
+import { ConnectPlatform, MusicPlatform, User } from '../models/schema';
+
+const MUSIC_PLATFORMS = new Set<MusicPlatform>(['spotify', 'youtube']);
+
+function isMusicPlatform(platform: ConnectPlatform): platform is MusicPlatform {
+  return MUSIC_PLATFORMS.has(platform as MusicPlatform);
+}
+import {
+  decryptPlatformTokens,
+  encryptPlatformTokens,
+  decryptToken,
+  encryptToken,
+} from './tokenEncryption';
 
 export const HOST_PLATFORM_NOT_LINKED = 'HOST_PLATFORM_NOT_LINKED';
 
 export interface PlatformAccount {
-  platform: MusicPlatform;
+  platform: ConnectPlatform;
   externalUserId: string;
   connectedAt: number;
   /** msdev: jeton simulé ; prod: OAuth access token (serveur uniquement) */
   accessToken?: string;
   refreshToken?: string;
   displayName?: string;
+  avatarUrl?: string;
+  email?: string;
+  topArtists?: string[];
 }
 
 export function getPlatformAccounts(user: User): PlatformAccount[] {
@@ -17,16 +32,19 @@ export function getPlatformAccounts(user: User): PlatformAccount[] {
 }
 
 export function syncConnectedPlatforms(user: User): void {
-  const platforms = getPlatformAccounts(user).map((a) => a.platform);
+  const platforms = getPlatformAccounts(user)
+    .map((a) => a.platform)
+    .filter(isMusicPlatform);
   user.connectedPlatforms = platforms.length ? platforms : undefined;
 }
 
-export function isPlatformConnected(user: User | undefined, platform: MusicPlatform): boolean {
+export function isPlatformConnected(user: User | undefined, platform: ConnectPlatform): boolean {
   if (!user) return false;
   const accounts = user.platformAccounts;
   if (accounts?.length) {
     return accounts.some((a) => a.platform === platform);
   }
+  if (!isMusicPlatform(platform)) return false;
   return (user.connectedPlatforms ?? []).includes(platform);
 }
 
@@ -36,14 +54,14 @@ export function hostPlatformLinkMessage(platform: MusicPlatform): string {
     : 'Connectez votre compte YouTube pour héberger ce salon';
 }
 
-export function connectPlatformAccount(user: User, platform: MusicPlatform): PlatformAccount {
-  const accounts = getPlatformAccounts(user);
-  const entry: PlatformAccount = {
+export function connectPlatformAccount(user: User, platform: ConnectPlatform): PlatformAccount {
+  const accounts = getPlatformAccounts(user).map((a) => decryptPlatformTokens(a));
+  const entry: PlatformAccount = encryptPlatformTokens({
     platform,
     externalUserId: `msdev_${platform}_${user.id}`,
     connectedAt: Date.now(),
     accessToken: `mock_${platform}_${Date.now()}`,
-  };
+  });
   const idx = accounts.findIndex((a) => a.platform === platform);
   if (idx >= 0) accounts[idx] = entry;
   else accounts.push(entry);
@@ -52,24 +70,43 @@ export function connectPlatformAccount(user: User, platform: MusicPlatform): Pla
   return entry;
 }
 
-export function disconnectPlatformAccount(user: User, platform: MusicPlatform): void {
+export function disconnectPlatformAccount(user: User, platform: ConnectPlatform): void {
   user.platformAccounts = getPlatformAccounts(user).filter((a) => a.platform !== platform);
   syncConnectedPlatforms(user);
+  if (platform === 'instagram') {
+    delete user.instagramHandle;
+  }
+}
+
+export function isRealPlatformAccount(account: PlatformAccount): boolean {
+  const token = decryptToken(account.accessToken);
+  return Boolean(token && !token.startsWith('mock_') && !token.startsWith('legacy_'));
+}
+
+export function hasRealPlatformConnection(user: User | undefined): boolean {
+  if (!user) return false;
+  return getPlatformAccounts(user).some((a) => isRealPlatformAccount(a));
 }
 
 export function publicPlatformLinks(user: User) {
-  return getPlatformAccounts(user).map(({ platform, externalUserId, connectedAt, displayName }) => ({
-    platform,
-    externalUserId,
-    connectedAt,
-    displayName,
-  }));
+  return getPlatformAccounts(user).map(
+    ({ platform, externalUserId, connectedAt, displayName, avatarUrl, email, topArtists, accessToken }) => ({
+      platform,
+      externalUserId,
+      connectedAt,
+      displayName,
+      avatarUrl,
+      email,
+      topArtists,
+      isRealOAuth: isRealPlatformAccount({ platform, externalUserId, connectedAt, accessToken }),
+    })
+  );
 }
 
 export function getYoutubeAccessToken(user: User | undefined): string | undefined {
   if (!user) return undefined;
   const account = getPlatformAccounts(user).find((a) => a.platform === 'youtube');
-  const token = account?.accessToken;
+  const token = decryptToken(account?.accessToken);
   if (!token || token.startsWith('mock_') || token.startsWith('legacy_')) return undefined;
   return token;
 }
@@ -83,10 +120,29 @@ export function ensurePlatformAccountsFromLegacy(user: User): void {
   if (user.platformAccounts?.length) return;
   const legacy = user.connectedPlatforms ?? [];
   if (!legacy.length) return;
-  user.platformAccounts = legacy.map((platform) => ({
-    platform,
-    externalUserId: `legacy_${platform}_${user.id}`,
-    connectedAt: user.memberSince ?? Date.now(),
-    accessToken: `legacy_${platform}`,
-  }));
+  user.platformAccounts = legacy.map((platform) =>
+    encryptPlatformTokens({
+      platform,
+      externalUserId: `legacy_${platform}_${user.id}`,
+      connectedAt: user.memberSince ?? Date.now(),
+      accessToken: `legacy_${platform}`,
+    })
+  );
+}
+
+/** Chiffre les jetons OAuth en clair (migration à la connexion). */
+export function migratePlaintextPlatformTokens(user: User): void {
+  if (!user.platformAccounts?.length) return;
+  let changed = false;
+  user.platformAccounts = user.platformAccounts.map((a) => {
+    const plain = decryptPlatformTokens(a);
+    const enc = encryptPlatformTokens(plain);
+    if (enc.accessToken !== a.accessToken || enc.refreshToken !== a.refreshToken) {
+      changed = true;
+    }
+    return enc;
+  });
+  if (changed) {
+    // tokens migrés silencieusement
+  }
 }

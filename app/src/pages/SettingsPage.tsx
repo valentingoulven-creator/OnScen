@@ -1,17 +1,8 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type LegalKey } from '../content/legal';
 import { LegalDocumentView } from '../components/LegalDocumentView';
-import { SUPPORT } from '../content/support';
-import { SupportMeloSongSection } from '../components/SupportMeloSongSection';
-import { setLivesGeoRadiusKm } from '../lib/livesGeo';
 import {
-  getNearbyRadiusKm,
-  setNearbyRadiusKm,
-  clampNearbyRadiusKm,
-  formatRadiusKm,
-  NEARBY_RADIUS_HARD_MAX,
-  NEARBY_RADIUS_MAX,
-  NEARBY_RADIUS_MIN,
   getAppLanguage,
   setAppLanguage,
   getPrivacyPreferences,
@@ -146,8 +137,8 @@ function SettingsRow({
 }
 
 export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }: SettingsPageProps) {
+  const { t } = useTranslation();
   const { token, logout } = useAuth();
-  const [radiusKm, setRadiusKm] = useState(getNearbyRadiusKm);
   const [language, setLanguage] = useState<AppLanguage>(getAppLanguage);
   const [privacy, setPrivacy] = useState<PrivacyPreferences>(getPrivacyPreferences);
   const [legal, setLegal] = useState<LegalKey | null>(null);
@@ -168,6 +159,7 @@ export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleteError, setDeleteError] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -222,19 +214,30 @@ export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }
     setTimeout(() => setSaved(null), 2000);
   };
 
-  const applyRadius = (v: number) => {
-    if (!Number.isFinite(v)) return;
-    const clamped = clampNearbyRadiusKm(v);
-    setRadiusKm(clamped);
-    setNearbyRadiusKm(clamped);
-    setLivesGeoRadiusKm(clamped);
-    flash('Distance mise à jour');
-  };
-
   const applyLanguage = (lang: AppLanguage) => {
     setLanguage(lang);
     setAppLanguage(lang);
-    flash(lang === 'fr' ? 'Langue : français' : 'Language: English');
+    flash(lang === 'fr' ? t('settings.languageSavedFr') : t('settings.languageSavedEn'));
+  };
+
+  const handleExportData = async () => {
+    if (!token || exportLoading) return;
+    setExportLoading(true);
+    try {
+      const data = await api.exportUserData(token);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `soundy-export-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      flash(t('settings.exportDone'));
+    } catch (err) {
+      flash(err instanceof Error ? err.message : t('settings.exportError'));
+    } finally {
+      setExportLoading(false);
+    }
   };
 
   const applyPrivacy = (next: PrivacyPreferences) => {
@@ -249,7 +252,7 @@ export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }
     notifyFeedAlgorithmChanged();
     flash(
       next.useBuiltInAlgorithm
-        ? 'Algorithme Soundly activé'
+        ? t('settings.algoEnabled')
         : 'Tri personnalisé des Reels activé'
     );
   };
@@ -267,77 +270,27 @@ export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }
 
   return (
     <div className="flex flex-col h-full min-h-0 bg-[#0b0b0f]">
-      <header className="shrink-0 flex items-center gap-3 p-4 border-b border-[#1e1e2f] bg-[#12121a]">
-        <button type="button" onClick={onBack} className="text-gray-400 hover:text-white text-xl">
+      <header className="shrink-0 relative h-12 flex items-center px-4 border-b border-[#1e1e2f]">
+        <button
+          type="button"
+          onClick={onBack}
+          className="p-2 text-gray-400 hover:text-white transition"
+          aria-label="Retour"
+        >
           ←
         </button>
-        <GearIcon className="w-6 h-6 text-gray-400" />
-        <h1 className="text-lg font-bold text-white flex-1">Paramètres</h1>
+        <h1 className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white pointer-events-none">
+          {t('settings.title')}
+        </h1>
         {saved && (
-          <span className="text-[10px] text-green-400 bg-green-500/10 px-2 py-1 rounded-full">{saved}</span>
+          <span className="relative z-10 ml-auto text-[10px] text-green-400 bg-green-500/10 px-2 py-1 rounded-full">{saved}</span>
         )}
       </header>
 
       <div className="flex-1 overflow-y-auto pb-8">
         <section className="border-b border-[#1e1e2f]">
-          <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Carte</p>
-          <div className="px-4 pb-4">
-            <div className="flex justify-between text-sm mb-2">
-              <span className="text-white">Distance de recherche</span>
-              <span className="text-purple-400 font-bold">{formatRadiusKm(radiusKm)}</span>
-            </div>
-            <input
-              type="range"
-              min={NEARBY_RADIUS_MIN}
-              max={NEARBY_RADIUS_MAX}
-              step={1}
-              value={Math.min(radiusKm, NEARBY_RADIUS_MAX)}
-              onChange={(e) => applyRadius(Number(e.target.value))}
-              className="w-full accent-purple-500"
-            />
-            <div className="flex items-center gap-2 mt-2">
-              <input
-                type="number"
-                min={NEARBY_RADIUS_MIN}
-                step={1}
-                value={radiusKm >= NEARBY_RADIUS_HARD_MAX ? '' : radiusKm}
-                placeholder="ex : 1000"
-                onChange={(e) => {
-                  const n = Number(e.target.value);
-                  if (e.target.value.trim() && Number.isFinite(n)) applyRadius(clampNearbyRadiusKm(n));
-                }}
-                onBlur={(e) => {
-                  const n = Number(e.target.value);
-                  if (e.target.value.trim() && Number.isFinite(n)) applyRadius(clampNearbyRadiusKm(n));
-                }}
-                className="w-20 px-2 py-1.5 rounded-lg bg-[#0b0b0f] border border-[#2a2a3f] text-sm text-white text-center"
-                aria-label="Distance en kilomètres"
-              />
-              <span className="text-xs text-gray-500">km</span>
-              <button
-                type="button"
-                onClick={() => applyRadius(NEARBY_RADIUS_HARD_MAX)}
-                className={`text-xs px-2.5 py-1 rounded-lg border transition ${
-                  radiusKm >= NEARBY_RADIUS_HARD_MAX
-                    ? 'border-purple-500/50 bg-purple-500/15 text-purple-300'
-                    : 'border-[#2d2d3d] text-gray-500 hover:text-gray-300'
-                }`}
-                title="Rayon illimité (20 000 km)"
-              >
-                Illimité
-              </button>
-            </div>
-            <p className="text-[10px] text-gray-500 mt-2">
-              Salons, lives et personnes affichés dans ce rayon. Curseur : 1–500 km. Saisie
-              manuelle au-delà : tapez 1 000, 5 000 km ou cliquez « Illimité ». En msdev,
-              essayez 50–100 km et choisissez une ville (Paris, Tokyo, New York…).
-            </p>
-          </div>
-        </section>
-
-        <section className="border-b border-[#1e1e2f]">
-          <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Compte</p>
-          <SettingsRow label="Abonnement Soundly+" hint="Bientôt disponible">
+          <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('settings.account')}</p>
+          <SettingsRow label={t('settings.premium')} hint={t('settings.premiumSoon')}>
             <span className="text-[10px] px-2 py-1 rounded-full bg-amber-500/20 text-amber-400 font-bold">
               Gratuit
             </span>
@@ -346,10 +299,18 @@ export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }
 
         {/* ── Sécurité ── */}
         <section className="border-b border-[#1e1e2f]">
-          <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Sécurité</p>
+          <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('settings.security')}</p>
 
           <SettingsRow
-            label="Changer le mot de passe"
+            label={t('settings.exportData')}
+            hint={t('settings.exportDataHint')}
+            onClick={() => void handleExportData()}
+          >
+            <span className="text-purple-400 shrink-0 text-xs">{exportLoading ? '…' : '↓'}</span>
+          </SettingsRow>
+
+          <SettingsRow
+            label={t('settings.changePassword')}
             hint="Mot de passe actuel requis"
             onClick={() => { setPwSection((s) => !s); setPwError(''); }}
           />
@@ -412,8 +373,8 @@ export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }
           )}
 
           <SettingsRow
-            label="Supprimer mon compte"
-            hint="Action irréversible"
+            label={t('settings.deleteAccount')}
+            hint={t('settings.deleteAccountHint')}
             onClick={() => { setDeleteModal(true); setDeleteError(''); setDeletePwd(''); setDeleteConfirmText(''); }}
           >
             <span className="text-red-400/70 shrink-0">›</span>
@@ -485,7 +446,7 @@ export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }
           </p>
           <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
             <div>
-              <p className="text-sm font-semibold text-white">Algorithme Soundly</p>
+              <p className="text-sm font-semibold text-white">{t('settings.algoSoundly')}</p>
             </div>
             <input
               type="checkbox"
@@ -553,7 +514,7 @@ export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }
           <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
             Application
           </p>
-          <SettingsRow label="Langue">
+          <SettingsRow label={t('settings.language')}>
             <select
               value={language}
               onChange={(e) => applyLanguage(e.target.value as AppLanguage)}
@@ -570,6 +531,20 @@ export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }
           <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
             Confidentialité
           </p>
+          <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
+            <div>
+              <p className="text-sm font-semibold text-white">Partager ma position</p>
+              <p className="text-xs text-gray-500">Afficher les salons, lives et personnes près de toi</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={privacy.locationSharing}
+              onChange={(e) =>
+                applyPrivacy({ ...privacy, locationSharing: e.target.checked })
+              }
+              className="w-5 h-5 accent-purple-500"
+            />
+          </label>
           <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
             <div>
               <p className="text-sm font-semibold text-white">Messages de nouveaux contacts</p>
@@ -589,13 +564,6 @@ export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }
           </p>
         </section>
 
-        <section className="border-b border-[#1e1e2f]">
-          <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-            {SUPPORT.title}
-          </p>
-          <SupportMeloSongSection onToast={flash} />
-        </section>
-
         <section>
           <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Légal</p>
           <SettingsRow label="Mentions légales" onClick={() => setLegal('mentions')} />
@@ -608,6 +576,10 @@ export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }
             onClick={() => setLegal('apiPlatforms')}
           />
           <SettingsRow label="Préférences de confidentialité" hint="Réglages dans l’app ci-dessus" />
+          <SettingsRow
+            label="Pourboires, abonnements et monétisation"
+            onClick={() => setLegal('creatorMonetization')}
+          />
           <SettingsRow label="Licences & crédits" onClick={() => setLegal('licenses')} />
         </section>
 
@@ -633,8 +605,10 @@ export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }
           </section>
         )}
 
-        <p className="px-4 pt-6 text-center text-[10px] text-gray-600">Soundly · msdev · v1.0</p>
+        <p className="px-4 pt-6 text-center text-[10px] text-gray-600">{t('app.versionFooter')}</p>
       </div>
+
+
     </div>
   );
 }

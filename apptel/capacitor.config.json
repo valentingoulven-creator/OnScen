@@ -1,6 +1,6 @@
 {
   "appId": "com.melosong.app",
-  "appName": "MeloSong",
+  "appName": "Soundy",
   "webDir": "dist",
   "android": {
     "allowMixedContent": true

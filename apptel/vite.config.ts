@@ -117,8 +117,8 @@ export default defineConfig({
       injectRegister: false,
       includeAssets: ['icon.svg', 'favicon.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
-        name: 'MeloSong',
-        short_name: 'MeloSong',
+        name: 'Soundy',
+        short_name: 'Soundy',
         description: "Salons d'écoute musicale géolocalisés — optimisé téléphone",
         start_url: '/tel/',
         display: 'standalone' as const,

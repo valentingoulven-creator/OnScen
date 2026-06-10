@@ -2210,3 +2210,971 @@ FICHIERS MODIFIÉS
 ================================================================================
 Fin MODIF 135 — 2026-06-07
 ================================================================================
+
+================================================================================
+MODIF 136 — Suppression avatar aléatoire (profil)
+Date : 2026-06-09
+================================================================================
+
+## Changement
+- Retrait du bouton « + Générer un avatar aléatoire » dans l’édition des photos
+  de profil (ProfilePhotoGallery).
+- Conservation : upload galerie, collage URL, avatar DiceBear par défaut (seed
+  utilisateur) lorsqu’aucune photo n’est définie.
+
+## Fichiers modifiés
+  app/src/components/ProfilePhotoGallery.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 136 — 2026-06-09
+================================================================================
+
+================================================================================
+MODIF 301 — Spotify OAuth production (getsoundy.com)
+Date : 2026-06-09
+================================================================================
+
+## Changement
+- Redirections OAuth (Spotify, YouTube, Google, Facebook) : `appOrigin()` préfère
+  `WEB_APP_URL` avant `CORS_ORIGIN` pour cohérence avec la prod HTTPS.
+- `.env.production.example` : URLs mises à jour vers https://getsoundy.com
+  (WEB_APP_URL, CORS_ORIGIN, SPOTIFY_CALLBACK_URL).
+- VPS `/opt/soundly/.env` : WEB_APP_URL, CORS_ORIGIN et SPOTIFY_CALLBACK_URL
+  configurés pour https://getsoundy.com (credentials Spotify à ajouter par l'utilisateur).
+
+## Variables requises Spotify
+- SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_CALLBACK_URL
+- Redirect URI Dashboard : https://getsoundy.com/api/auth/spotify/callback
+- Scopes : user-read-email user-read-private user-library-read user-top-read playlist-read-private
+
+## Fichiers modifiés
+  backend/src/routes/oauth.ts
+  backend/.env.production.example
+  modification.txt
+
+================================================================================
+Fin MODIF 301 - 2026-06-09
+================================================================================
+
+================================================================================
+MODIF 302 — YouTube OAuth « Connecter YouTube » (getsoundy.com)
+Date : 2026-06-09
+================================================================================
+
+## Problème
+- Le bouton « Connecter YouTube » lançait la connexion démo (mock) au lieu d'OAuth
+  Google lorsque `youtubeOAuthAvailable` était false.
+- `isYoutubeOAuthConfigured()` exigeait `GOOGLE_REDIRECT_URI` alors que la prod
+  utilise `YOUTUBE_CALLBACK_URL` → OAuth détecté comme non configuré.
+- Le frontend appelait `/platforms/youtube/oauth/url` (JSON) au lieu du flux redirect
+  `/api/auth/youtube?token=…` (comme Spotify).
+
+## Correction
+- `PlatformConnectCard` : même pattern que Spotify — redirect same-window vers
+  `/api/auth/youtube?token=JWT` ; statut via `/platforms/status`.
+- `youtubeOAuth.ts` : accepte `YOUTUBE_CALLBACK_URL` ou `GOOGLE_REDIRECT_URI`.
+- `oauth.ts` : réutilise les helpers partagés ; erreur `reason=not_configured`.
+- Templates `.env` : `YOUTUBE_CALLBACK_URL=https://getsoundy.com/api/auth/youtube/callback`.
+
+## Variables requises YouTube
+- GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET (Google Cloud Console)
+- YOUTUBE_CALLBACK_URL=https://getsoundy.com/api/auth/youtube/callback
+- YouTube Data API v3 activée ; URI autorisée identique dans la console Google.
+
+## Test
+1. Profil ou création salon → « Connecter YouTube » → consentement Google.
+2. Retour `/?youtube_oauth=ok` et compte lié.
+3. Sans credentials : bouton grisé + message .env + option démo.
+
+## Fichiers modifiés
+  app/src/components/PlatformConnectCard.tsx
+  app/src/App.tsx
+  backend/src/lib/youtubeOAuth.ts
+  backend/src/routes/oauth.ts
+  backend/src/routes/platforms.ts
+  backend/.env.production.example
+  deploy/.env.production.example
+  modification.txt
+
+================================================================================
+Fin MODIF 302 - 2026-06-09
+================================================================================
+
+================================================================================
+MODIF 303 — Photos profil plus compactes en édition
+Date : 2026-06-09
+================================================================================
+
+## Changement
+- Galerie « Modifier le profil » : grille 4 colonnes (5 sur sm+), espacement
+  gap-1.5, largeur max ~280–320 px centrée (au lieu de 3 colonnes pleine largeur).
+- Vignettes min 56×56 px (zones tactiles ≥ 22 px pour boutons suppr./principale).
+- Padding carte réduit (p-3), coins arrondis légèrement plus serrés (rounded-lg).
+- Affichage lecture seule et onboarding inchangés.
+
+## Fichiers modifiés
+  app/src/components/ProfilePhotoGallery.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 303 - 2026-06-09
+================================================================================
+
+================================================================================
+MODIF 303 — Suggestions artistes favoris (autocomplete profil)
+Date : 2026-06-09
+================================================================================
+
+## Changement
+- Champ « Artistes favoris » (édition profil) : autocomplete avec liste
+  locale d'artistes populaires (jazz, hip-hop, électro, indie, soul, funk…),
+  sur le modèle de CityAutocomplete (dropdown sombre, accents violets).
+- Dès 2 caractères : filtrage par nom ou genre ; sélection ajoute le tag ;
+  saisie libre + Entrée ou « + » pour un artiste hors liste.
+- Pas d'API externe (Spotify/MusicBrainz) — liste curatée ~80 artistes.
+
+## Fichiers modifiés / ajoutés
+  app/src/lib/popularArtists.ts
+  app/src/lib/artistSearch.ts
+  app/src/components/ArtistAutocomplete.tsx
+  app/src/pages/ProfilePage.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 303 - 2026-06-09
+================================================================================
+
+================================================================================
+MODIF 304 — Petit salon carte : 10 min d'aperçu + bouton Salon
+Date : 2026-06-09
+================================================================================
+
+## Problèmes signalés
+1. Vidéo du petit salon (MapSalonListenSheet) qui s'arrête avant 10 minutes.
+2. Clic sur « Salon » sans navigation vers SalonPage.
+
+## Causes racines
+- `mapPlaybackActive` passait à false quand l'overlay « Mon profil » était ouvert
+  (`!profileOpen` dans App.tsx) → pause/mute du lecteur YouTube en fiche carte.
+- Bouton « Salon » dans la barre de contrôles repliée non relié (`onOpenSalon` absent
+  sur MapSalonListenControls) ; z-index fiche carte (z-30) au même niveau que les
+  FAB carte.
+- Pas de chrono d'aperçu carte explicite : besoin d'une limite claire à 10 min (pause
+  + message) sans coupure anticipée.
+
+## Corrections
+- `mapListenSession.ts` : chrono 10 min (`MAP_INLINE_LISTEN_MAX_MS`) par salonId.
+- `SalonYouTubePlayer` : pause uniquement quand le chrono atteint la limite (auditeurs).
+- `MapSalonListenControls` / `SalonPlaybackPanel` (mapInline) : session + cap pour non-hôtes.
+- `MapSalonListenSheet` : z-40, `onOpenSalon` sur contrôles repliés, stopPropagation
+  sur le bouton Salon de l'en-tête.
+- `HomePage` : `openSalonFullFromSheet` → `onOpenSalon(salonId)` ; toast à 10 min.
+- `App.tsx` : `mapPlaybackActive` sans `!profileOpen` ; NotificationBell `onOpenSalon`.
+
+## Clic « Salon » (comportement)
+- En-tête fiche ou bouton violet « Salon » sous la vidéo → `openSalonPage(salonId)`
+  → navigation SalonPage plein écran (chat, file, contrôles hôte).
+- Live lié : bouton « Live » → LivePage.
+
+## Fichiers modifiés
+  app/src/lib/mapListenSession.ts (nouveau)
+  app/src/components/SalonYouTubePlayer.tsx
+  app/src/components/MapSalonListenControls.tsx
+  app/src/components/MapSalonListenSheet.tsx
+  app/src/components/SalonPlaybackPanel.tsx
+  app/src/pages/HomePage.tsx
+  app/src/App.tsx
+  modification.txt
+
+## Build
+  npm run build (app) — OK
+
+================================================================================
+Fin MODIF 304 - 2026-06-09
+================================================================================
+
+================================================================================
+MODIF 305 — Fix définitif Caddy HTTPS (getsoundy.com + watchdog)
+Date : 2026-06-09
+================================================================================
+
+## Problème récurrent
+« Failed to fetch » sur https://getsoundy.com : Caddyfile écrasé par un bloc
+HTTP-only `:80 { ... }` → port 443 coupé, navigateur en HTTPS sans réponse.
+
+## Cause racine identifiée
+1. Sessions de bootstrap Cursor ont écrit un Caddyfile minimal `:80` sur le VPS.
+2. L'ancien watchdog (`/root/caddy-watchdog.sh`) comparait à
+   `/root/Caddyfile.production` qui contenait CE bloc `:80` cassé et
+   « restaurait » activement la mauvaise config toutes les 5 min.
+3. Pas de `deploy/Caddyfile` sur le VPS (`/opt/soundly/deploy/` absent).
+
+## Mesures permanentes installées
+- `deploy/Caddyfile` : source de vérité (getsoundy.com + IP + basic_auth + API bypass).
+- `deploy/sync-caddy.sh` : copie canonique → /etc/caddy/Caddyfile (refuse :80 seul).
+- `deploy/caddy-watchdog.sh` : cron */5 — vérifie 443 + getsoundy.com, restaure depuis
+  /opt/soundly/deploy/Caddyfile ou /root/Caddyfile.production.backup.
+- `deploy/install-caddy-guard.sh` : backup immuable (chattr +i), cron, retire l'ancien piège.
+- `deploy/healthcheck.sh` : grace 30s avant restart PM2 (évite boucles).
+- `backend/deploy-scaleway.ps1` : déploie deploy/ + install-caddy-guard à chaque deploy.
+- `deploy/README.md` : section Caddy + interdictions manuelles.
+
+## PM2 (76 restarts)
+Historique : SyntaxError dans dist/routes/oauth.js (deploy corrompu), pas trust proxy.
+`trust proxy` déjà à 1 dans server.ts. Healthcheck avec min uptime 30s ajouté.
+
+## Fichiers modifiés / créés
+  deploy/Caddyfile (en-tête canonique)
+  deploy/sync-caddy.sh (nouveau)
+  deploy/caddy-watchdog.sh (nouveau)
+  deploy/install-caddy-guard.sh (nouveau)
+  deploy/healthcheck.sh (nouveau)
+  deploy/README.md
+  backend/deploy-scaleway.ps1
+  modification.txt
+
+## VPS (51.159.164.100)
+  install-caddy-guard.sh exécuté — Caddyfile HTTPS restauré, cron mis à jour.
+
+================================================================================
+Fin MODIF 305 - 2026-06-09
+================================================================================
+
+================================================================================
+MODIF 306 — Script déploiement zero-downtime production
+Date : 2026-06-09
+================================================================================
+
+## Objectif
+Déployer Soundy sur le VPS (51.159.164.100) sans coupure : swap atomique
+du frontend, pm2 reload (pas stop/start), migrations optionnelles, sync Caddy.
+
+## Fichiers créés / modifiés
+  deploy/migrate-remote.sh (nouveau)
+  deploy_zero_downtime.ps1 (nouveau — racine MeloSongv2)
+  deploy/README.md (section zero-downtime)
+  modification.txt
+
+## Script deploy_zero_downtime.ps1
+- Build backend : npm run backend:build (tsc + migrations SQL copiées)
+- Build frontend : npm run app:build → backend/public
+- Sync dist/, package.json (+ lock) via scp (même SSH que deploy-scaleway.ps1)
+- Swap atomique : public.new → mv public public.old; mv public.new public
+- npm install --omit=dev uniquement si package.json modifié (hash SHA256)
+- Migrations : deploy/migrate-remote.sh (si present sur VPS)
+- pm2 reload melosong-backend --update-env (graceful, zero-downtime)
+- Caddy : install-caddy-guard.sh ou sync-caddy.sh
+- Vérification : https://getsoundy.com/health
+- Paramètres : -SkipBuild, -SkipFrontend
+- Messages d'erreur en français
+
+## Commande
+  cd MeloSongv2
+  powershell -ExecutionPolicy Bypass -File deploy_zero_downtime.ps1
+
+================================================================================
+Fin MODIF 306 - 2026-06-09
+================================================================================
+
+================================================================================
+MODIF 307 — Connexion obligatoire Spotify/YouTube + profils OAuth enrichis
+Date : 2026-06-09
+================================================================================
+
+## Objectif
+- Récupérer et afficher l'identité plateforme après OAuth (nom, avatar, e-mail Spotify, top artistes, chaîne YouTube).
+- Exiger au moins Spotify OU YouTube quand OAuth est configuré (onboarding + bannière profil).
+- Ne pas bloquer si les credentials admin manquent sur le serveur.
+
+## Données récupérées
+- Spotify : display_name, email, avatar (images), top 5 artistes (medium_term), tokens chiffrés.
+- YouTube : channel id, titre chaîne, miniature snippet, tokens chiffrés.
+
+## API
+- GET /api/platforms/status : links enrichis (avatarUrl, email, topArtists, isRealOAuth),
+  oauthConfigured, platformConnectionRequired, hasRealPlatformConnection.
+- GET /api/auth/me : platformLinks (propriétaire) inclut les mêmes champs.
+
+## Frontend
+- Onboarding : étape « Plateformes » (Spotify/YouTube) bloquante si OAuth configuré.
+- PlatformConnectCard : avatar + nom connecté ; refresh après ?spotify_oauth=ok / ?youtube_oauth=ok.
+- PlatformConnectPrompt : rappel sur l'accueil si OAuth configuré sans liaison réelle.
+
+## Admin .env (VPS /opt/soundly/.env)
+- WEB_APP_URL, SPOTIFY_CALLBACK_URL, YOUTUBE_CALLBACK_URL déjà présents (getsoundy.com).
+- GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET : à coller depuis les consoles.
+
+## Fichiers modifiés / ajoutés
+  backend/src/models/schema.ts
+  backend/src/lib/platformConnect.ts
+  backend/src/lib/spotifyOAuth.ts
+  backend/src/lib/youtubeOAuth.ts
+  backend/src/routes/oauth.ts
+  backend/src/routes/platforms.ts
+  backend/.env.production.example
+  deploy/.env.production.example
+  app/src/types.ts
+  app/src/lib/api.ts
+  app/src/lib/platformStatusEvents.ts
+  app/src/components/PlatformConnectCard.tsx
+  app/src/components/PlatformConnectPrompt.tsx
+  app/src/pages/OnboardingPage.tsx
+  app/src/App.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 307 - 2026-06-09
+================================================================================
+
+================================================================================
+MODIF 308 — Caddy : bypass Basic Auth par IP autorisée
+Date : 2026-06-10
+================================================================================
+
+## Objectif
+Permettre à l'admin (PC utilisateur) d'accéder à l'UI Soundy sans Basic Auth,
+tout en conservant l'authentification Caddy pour toutes les autres IP.
+
+## IP whitelistée
+  195.36.171.84/32 (IP publique France, détectée via api.ipify.org — 2026-06-10)
+
+## Comportement
+- Routes sans auth pour tout le monde : /api/*, /health, /socket.io/*, assets statiques
+- Routes UI (index.html, SPA) :
+  - IP 195.36.171.84 → reverse_proxy direct (pas de Basic Auth)
+  - Toute autre IP → Basic Auth requis (testeur1-5, dev)
+- Appliqué via snippet `soundy_handlers` sur getsoundy.com, http://51.159.164.100,
+  https://51.159.164.100
+
+## Déploiement VPS
+  scp deploy/Caddyfile → /opt/soundly/deploy/Caddyfile
+  bash /opt/soundly/deploy/sync-caddy.sh
+  Backup immuable /root/Caddyfile.production.backup mis à jour
+
+## Tests (2026-06-10)
+  Depuis PC 195.36.171.84 : GET https://getsoundy.com/ → 200 sans auth
+  Depuis VPS (51.159.164.100) : GET https://getsoundy.com/ → 401 sans auth
+  GET /health depuis les deux → 200 sans auth
+
+## Fichiers modifiés
+  deploy/Caddyfile
+  modification.txt
+
+## Note
+Si l'IP publique change (box, 4G), mettre à jour @allowed_ips dans deploy/Caddyfile
+puis relancer sync-caddy.sh sur le VPS.
+
+================================================================================
+Fin MODIF 308 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 309 — Galerie photos profil : mise en page + formats Instagram/HEIC
+Date : 2026-06-10
+================================================================================
+
+## Changements mise en page (édition profil)
+- Avatar principal séparé : cercle large centré (112–128 px), bordure violette,
+  ombre purple-900, badge « Avatar » lisible.
+- Galerie en dessous : grille 4 colonnes pleine largeur, vignettes carrées
+  min 72–80 px (au lieu de grille 4/5 colonnes max 280–320 px).
+- Boutons d'action plus grands (min 28 px), libellés 9–11 px.
+- Thème violet foncé conservé (#12121a, accents purple-400/500/600).
+- Mode lecture : avatar rond mis en avant + mini-grille galerie en dessous.
+
+## Formats image (alignés Instagram)
+- MIME : image/jpeg, image/png, image/webp, image/heic, image/heif
+- Extensions accept : .jpg, .jpeg, .png, .webp, .heic, .heif
+- Validation par MIME ou extension (HEIC iPhone souvent sans type fiable).
+- Conversion client HEIC/HEIF → JPEG via heic2any avant éditeur ;
+  message d'erreur explicite si le navigateur ne supporte pas la conversion.
+- Texte d'aide : « JPEG, JPG, PNG, WebP, HEIC/HEIF · compression auto… »
+
+## Fichiers modifiés / ajoutés
+  app/package.json (heic2any)
+  app/package-lock.json
+  app/src/lib/imageConstraints.ts
+  app/src/lib/imageUtils.ts
+  app/src/components/ProfilePhotoGallery.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 309 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 309 — Connexion sociale Google / Facebook (page auth)
+Date : 2026-06-10
+================================================================================
+
+## Objectif
+Activer « Continuer avec Google » sur la page de connexion (getsoundy.com).
+Les boutons étaient grisés (« Bientôt disponible ») car GOOGLE_CALLBACK_URL
+manquait dans /opt/soundly/.env alors que GOOGLE_CLIENT_ID/SECRET étaient
+déjà présents (YouTube).
+
+## État après déploiement
+- Google login : ACTIF (providers.google = true)
+- Facebook login : inactif (FACEBOOK_APP_ID / SECRET / CALLBACK absents)
+- YouTube liaison profil : actif (inchangé)
+- Spotify liaison profil : actif (inchangé)
+
+## Code (déjà en place — aucune modification source)
+- AuthPage.tsx : boutons OAuth activés dynamiquement via GET /api/auth/providers
+- oauth.ts : routes /api/auth/google, /google/callback, /facebook, /facebook/callback
+- Callback login : redirection vers /?token=JWT&newUser=1 → AuthPage → OnboardingPage si nouveau compte
+- App.tsx : callbacks ?youtube_oauth=ok et ?spotify_oauth=ok (liaison plateforme, pas login)
+
+## VPS /opt/soundly/.env — ajout
+  GOOGLE_CALLBACK_URL=https://getsoundy.com/api/auth/google/callback
+
+## Google Cloud Console (action manuelle si redirect_uri_mismatch)
+Dans le client OAuth Web existant (même que YouTube), ajouter l’URI autorisée :
+  https://getsoundy.com/api/auth/google/callback
+(YouTube utilise déjà : https://getsoundy.com/api/auth/youtube/callback)
+
+## Facebook — configuration future
+1. developers.facebook.com → créer une app → Facebook Login
+2. Valid OAuth Redirect URIs :
+     https://getsoundy.com/api/auth/facebook/callback
+3. Ajouter dans /opt/soundly/.env :
+     FACEBOOK_APP_ID=...
+     FACEBOOK_APP_SECRET=...
+     FACEBOOK_CALLBACK_URL=https://getsoundy.com/api/auth/facebook/callback
+4. pm2 reload melosong-backend --update-env
+   (aucun redéploiement frontend requis)
+
+## Tests
+1. GET https://getsoundy.com/api/auth/providers → google:true
+2. Page connexion : bouton Google cliquable (plus « Bientôt disponible »)
+3. Clic → Google OAuth → retour getsoundy.com connecté
+4. Nouveau compte → écran onboarding (isNewUser)
+5. Facebook : reste « Bientôt disponible » jusqu’à credentials
+
+## Déploiement
+  deploy_zero_downtime.ps1 (2026-06-10) — health OK
+
+================================================================================
+Fin MODIF 309 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 309 — Confirmation avant déconnexion (profil)
+Date : 2026-06-10
+================================================================================
+
+## Objectif
+Éviter une déconnexion accidentelle : demander confirmation avant logout
+lors du clic sur le bouton « Déconnexion » dans la section profil.
+
+## Comportement
+- Clic sur « Déconnexion » → modale in-app (thème sombre violet, même pattern
+  que FollowUserButton) avec le message « Êtes-vous sûr de vouloir vous déconnecter ? »
+- Boutons : Annuler (ferme la modale) / Déconnexion (appelle logout())
+- Pas de window.confirm navigateur
+
+## i18n
+- profile.logout, profile.logoutConfirmTitle (fr + en)
+- common.cancel réutilisé pour Annuler
+
+## Fichiers modifiés
+  app/src/pages/ProfilePage.tsx
+  app/src/locales/fr.json
+  app/src/locales/en.json
+  modification.txt
+
+================================================================================
+Fin MODIF 309 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 310 — Masquer mon âge (profil public)
+Date : 2026-06-10
+================================================================================
+
+## Objectif
+Renommer l’option « Masquer ma date de naissance sur mon profil » en
+« Masquer mon âge ». Par défaut, l’âge n’est pas visible sur le profil public ;
+seul l’âge (pas la date complète) est affiché aux visiteurs si l’utilisateur
+décoche l’option.
+
+## Comportement
+- Case cochée (défaut) → âge masqué sur le profil public
+- Case décochée → âge visible (ex. « 35 ans »), jamais la date de naissance complète
+- Propriétaire du profil : voit toujours sa date de naissance dans l’en-tête
+- Nouveaux comptes : hideBirthDateOnProfile=true via applyProfileDefaults
+- Onboarding : case cochée par défaut lors de la saisie de la date de naissance
+
+## i18n
+- profile.hideAge, hideAgeHint, hideAgeNeedsDate, ageHiddenHint (fr + en)
+- Remplacement des clés hideBirthDate*, birthDateHiddenHint
+
+## Backend
+- publicBirthDateField : birthDate réservé au propriétaire
+- publicAgeField : âge dérivé de birthDate ou legacy age, visible si non masqué
+- applyProfileDefaults : hideBirthDateOnProfile=true, showAge=false par défaut
+
+## Fichiers modifiés
+  app/src/pages/ProfilePage.tsx
+  app/src/pages/OnboardingPage.tsx
+  app/src/components/ProfileHeaderSection.tsx
+  app/src/locales/fr.json
+  app/src/locales/en.json
+  backend/src/lib/profile.ts
+  backend/src/lib/profile.test.ts
+  modification.txt
+
+================================================================================
+Fin MODIF 310 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 311 — Suppression collage URL photos profil
+Date : 2026-06-10
+================================================================================
+
+## Objectif
+Retirer l'option de collage d'URL dans l'édition des photos de profil ;
+seul l'ajout via galerie/fichier reste disponible.
+
+## Changements
+- Suppression du champ « Ou coller une URL (https://...) » et du bouton « Ajouter »
+- Suppression de l'état newUrl et du handler addPhoto (logique URL orpheline)
+- Conservation du bouton « Ajouter une photo (galerie) » et des emplacements galerie
+
+## Fichiers modifiés
+  app/src/components/ProfilePhotoGallery.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 311 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 312 — Mélomane en tête du type de profil
+Date : 2026-06-10
+================================================================================
+
+## Objectif
+Afficher « Mélomane » en premier dans la liste « Qui êtes-vous ? » (profil et onboarding).
+
+## Changements
+- Réordonnancement de PROFILE_TYPE_OPTIONS : melomane en première position
+- Onboarding et filtres actualité héritent automatiquement de l'ordre (même source)
+
+## Fichiers modifiés
+  app/src/lib/profileTypes.ts
+  backend/src/lib/profileTypes.ts
+  modification.txt
+
+================================================================================
+Fin MODIF 312 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 313 — Dégradé wave sur le pseudo (profil public)
+Date : 2026-06-10
+================================================================================
+
+## Objectif
+L’option « Wave Soundly » et les couleurs du dégradé wave doivent colorer le
+pseudo sur le profil (propre et public), visible par tous les utilisateurs.
+
+## Champs profil
+- usernameColor : `"wave"` (dégradé) ou hex `#rrggbb` (couleur unie)
+- usernameWaveFrom : hex couleur de départ (ex. `#c084fc`)
+- usernameWaveTo : hex couleur de fin (ex. `#f472b6`)
+- Réinitialiser → dégradé Soundly par défaut (#c084fc → #f472b6)
+
+## Où le dégradé s’affiche
+- ProfilePage : en-tête + aperçu sous le sélecteur (UsernameColorPicker)
+- UserProfileView / UserProfilePage : profil public (GET /api/users/:id)
+- Carte : marqueurs personnes, salons, lives (usernameMapLabelHtml)
+- Actualité, reels, DM, salons, lives, stories, favoris, recherche profil
+
+## Composants clés
+- UsernameColorPicker (composant Ee) : édition couleurs wave
+- UsernameDisplay : texte en dégradé CSS (bg-clip-text inline)
+- ProfileHeaderSection : pseudo en h1 avec UsernameDisplay
+- app/src/lib/usernameColor.ts : logique dégradé + marqueurs carte
+
+## Persistance
+- PATCH /api/auth/profile : usernameColor, usernameWaveFrom, usernameWaveTo
+- publicProfile() renvoie les 3 champs (null si effacés) pour tous les visiteurs
+
+## Correctifs MODIF 313
+- UsernameDisplay : style inline pour tout dégradé wave (évite conflit text-white)
+- UsernameColorPicker : changement couleur wave → active automatiquement mode wave
+- ProfilePage : sauvegarde force usernameColor=wave si couleurs wave définies
+- Backend auth : auto wave si usernameWaveFrom/To sans usernameColor explicite
+- UserProfilePage / ReelsTabPage : retrait text-white sur UsernameDisplay
+
+## Fichiers modifiés
+  app/src/components/UsernameDisplay.tsx
+  app/src/components/UsernameColorPicker.tsx
+  app/src/pages/ProfilePage.tsx
+  app/src/pages/UserProfilePage.tsx
+  app/src/pages/ReelsTabPage.tsx
+  backend/src/routes/auth.ts
+  modification.txt
+
+================================================================================
+Fin MODIF 313 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 313 — Connexion Instagram (Comptes streaming profil)
+Date : 2026-06-10
+================================================================================
+
+## Objectif
+Ajouter une carte « Connecter Instagram » dans la section Comptes streaming (édition
+profil + vue publique propriétaire), au même niveau que Spotify et YouTube, avec OAuth
+Meta/Facebook et stockage dans platformLinks / instagramHandle.
+
+## Changements
+- Type ConnectPlatform = spotify | youtube | instagram (connectedPlatforms reste music-only)
+- backend/src/lib/instagramOAuth.ts : Facebook Login (instagram_basic, pages_show_list)
+  → récupération compte Instagram Business via page Facebook
+- Routes GET /api/auth/instagram et /api/auth/instagram/callback
+- GET /api/platforms/status : instagramOAuthAvailable
+- PlatformConnectCard : style dégradé rose/violet Instagram, avatar + @username connecté
+- ProfilePage : carte Instagram dans les deux vues (lecture + édition)
+- i18n fr/en (clés platform.*)
+- App.tsx : gestion ?instagram_oauth=ok|error
+- deploy/.env.production.example : FACEBOOK_APP_ID, FACEBOOK_APP_SECRET, INSTAGRAM_CALLBACK_URL
+
+## Variables d'environnement
+  FACEBOOK_APP_ID=
+  FACEBOOK_APP_SECRET=
+  INSTAGRAM_CALLBACK_URL=https://getsoundy.com/api/auth/instagram/callback
+  (FACEBOOK_CALLBACK_URL reste pour login Facebook classique)
+
+## Meta Developer — étapes si credentials absents
+  1. developers.facebook.com → Créer une app (type Business ou Consumer)
+  2. Ajouter produit « Facebook Login » → Valid OAuth Redirect URIs :
+     https://getsoundy.com/api/auth/instagram/callback
+  3. Ajouter produit « Instagram » / Instagram Graph API
+  4. Permissions : instagram_basic, pages_show_list (+ public_profile)
+  5. Lier un compte Instagram Business/Creator à une page Facebook (requis par l'API)
+  6. Mode Live : soumettre l'app à l'examen Meta pour les permissions Instagram
+  7. Copier App ID + App Secret dans le .env production du serveur
+
+## Fichiers modifiés
+  app/src/components/PlatformConnectCard.tsx
+  app/src/lib/platformConnect.ts
+  app/src/lib/api.ts
+  app/src/types.ts
+  app/src/pages/ProfilePage.tsx
+  app/src/App.tsx
+  app/src/locales/fr.json
+  app/src/locales/en.json
+  backend/src/lib/instagramOAuth.ts (nouveau)
+  backend/src/lib/platformConnect.ts
+  backend/src/models/schema.ts
+  backend/src/routes/oauth.ts
+  backend/src/routes/platforms.ts
+  deploy/.env.production.example
+  modification.txt
+
+================================================================================
+Fin MODIF 313 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 314 — Header Soundly toujours visible (fixe, z-index, overlays)
+Date : 2026-06-10
+================================================================================
+
+## Objectif
+La barre ms-app-header (logo Soundly, recherche, notifications) doit rester
+visible en permanence — salon, live, profil public, overlay « Mon profil » /
+réglages, scroll feed/carte — sans être masquée ni recouverte.
+
+## Changements CSS / layout
+
+1. **Header fixe renforcé** (`app/src/index.css`, `apptel/src/index.css`)
+   - `header.ms-app-header` : `position: fixed`, `z-index: 100` (était 50).
+   - Safe-area iOS inchangée : `paddingTop: max(0.75rem, env(safe-area-inset-top))`
+     sur le bloc interne `div.px-3` (apptel : variante compacte 0.375rem).
+   - `main.ms-app-main` : `padding-top: var(--app-header-total-h)` toujours actif
+     (suppression de la classe `ms-app-main--no-header` en salon/live/profil).
+
+2. **Hauteur header + onglets appa2**
+   - Nouvelle classe shell `.ms-app-shell--header-tabs` propage
+     `--app-header-tabs-h: 3.25rem` au parent commun header/main (corrige le
+     padding-top du main quand MainTabNav est dans le header appa2).
+
+3. **Overlay profil / réglages**
+   - Classe `.ms-app-profile-overlay` (remplace `absolute inset-0 z-30`).
+   - Remplit la zone `main` ; le header fixe (z-100) reste au-dessus (z-30).
+
+4. **App shell** (`app/src/App.tsx`, `apptel/src/App.tsx`)
+   - Header rendu sans condition `immersiveView` (plus masqué en salon/live/profil).
+   - Shell : `ms-app-shell--header-tabs` si appa2 et profil fermé.
+   - Overlay profil : classe `ms-app-profile-overlay`.
+
+## Fichiers modifiés
+  app/src/index.css
+  app/src/App.tsx
+  apptel/src/index.css
+  apptel/src/App.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 314 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 315 — Situation « Autre » (profil)
+Date : 2026-06-10
+================================================================================
+
+## Résumé
+Ajout de l'option « Autre » dans le menu Situation (optionnel) de l'édition de
+profil. Si l'utilisateur choisit « Autre », un champ texte apparaît pour saisir
+une situation personnalisée (relationshipStatusCustom, max 80 car.). La valeur
+est enregistrée via PATCH /auth/profile et affichée sur le profil public
+(en-tête + carte Situation). L'éligibilité aux cœurs reste réservée au statut
+« célibataire » uniquement.
+
+## Comportement
+- Options : Ne pas afficher, Célibataire, En couple, Autre
+- Autre → champ texte obligatoire à l'enregistrement
+- Affichage public : texte libre (ex. « Compliqué ») au lieu du libellé « Autre »
+- canSendHeart : inchangé (autre ≠ celibataire → pas de cœurs)
+- Onboarding : pas de champ Situation (inchangé)
+
+## Fichiers modifiés
+  app/src/types.ts
+  app/src/lib/relationshipStatus.ts (nouveau)
+  app/src/pages/ProfilePage.tsx
+  app/src/components/ProfileHeaderSection.tsx
+  app/src/components/UserProfileView.tsx
+  app/src/locales/fr.json
+  app/src/locales/en.json
+  apptel/src/types.ts
+  backend/src/models/schema.ts
+  backend/src/lib/relationshipStatus.ts (nouveau)
+  backend/src/lib/relationshipStatus.test.ts (nouveau)
+  backend/src/lib/profile.ts
+  backend/src/routes/auth.ts
+  modification.txt
+
+================================================================================
+Fin MODIF 315 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 316 — Visionneuse stories plein écran (style IG/TikTok/FB)
+Date : 2026-06-10
+================================================================================
+
+## Résumé
+Remplacement de la modale centrée (max-w-md, scrollable) par une visionneuse
+immersive plein écran type Instagram / TikTok / Facebook Stories, thème sombre
+Soundy conservé.
+
+## UX
+- Plein écran : image/vidéo en object-cover, fond noir
+- Barres de progression en haut (un segment par story dans la pile utilisateur)
+- Tap gauche/droite et swipe horizontal pour précédent/suivant
+- Avance automatique après ~5 s par story ; pause au maintien (press & hold)
+- Swipe vers le bas ou touche Échap pour fermer
+- En-tête overlay : avatar, pseudo, « il y a X », bouton X
+- Passage à l'anneau suivant en fin de pile (swipe/tap droit)
+- Musique, tags et texte en overlay bas (inchangés fonctionnellement)
+- « Publier une nouvelle story » retiré du viewer ; bouton + sur l'anneau
+  « Ma story » (style IG) + création via anneau sans story active
+- MapStorySheet conservé uniquement pour la création de story
+
+## Fichiers modifiés / ajoutés
+  app/src/components/StoryViewer.tsx (nouveau)
+  app/src/hooks/useVerticalSwipe.ts (nouveau)
+  app/src/lib/storyViewerNav.ts (nouveau)
+  app/src/components/MapStorySheet.tsx
+  app/src/components/StoriesInlineBar.tsx
+  app/src/components/MapStoriesAccordion.tsx
+  app/src/components/MapStoryRings.tsx
+  app/src/pages/ActualiteTabPage.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 316 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 317 — Filtres profil plus étroits (centres d'intérêt, genres, artistes)
+Date : 2026-06-10
+================================================================================
+
+## Résumé
+
+Les sections tags du profil personnel (Centres d'intérêt, Genres favoris,
+Artistes) s'étiraient sur toute la largeur de l'overlay. Elles sont désormais
+centrées, dimensionnées au contenu (`w-fit`) avec un plafond `max-w-sm`, comme
+le bloc « Vous suivent / Mes Favoris ».
+
+## Correctifs appliqués
+
+1. **ProfilePage.tsx** — Constante `PROFILE_TAG_BOX_CLASS` partagée par
+   `TagSection` (lecture) et `EditableTags` (édition) : `max-w-sm mx-auto w-fit`
+   + styles existants (fond #12121a, bordure, rounded-2xl).
+
+## Fichiers modifiés
+  app/src/pages/ProfilePage.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 317 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 316 — Photos carrousel « Événements autour 30 km »
+Date : 2026-06-10
+================================================================================
+
+## Résumé (pourquoi les photos manquaient)
+
+Le carrousel « Événements autour 30 km » (EventsCarousel → EventCard) affichait
+un fond violet foncé (#1a1028) avec l’icône image cassée car :
+
+1. **URLs Unsplash invalides (404)** — Plusieurs imageUrl des seeds prod/msdev
+   (ex. photo-1516280440615, photo-1571266028245, photo-1429962710561…) ne
+   répondent plus chez Unsplash. Les événements seedés et certains fallbacks
+   resolveEventHeroVisual pointaient vers ces liens morts.
+2. **Pas de gestion d’erreur `<img>`** — EventCard rendait toujours une balise
+   image quand imageUrl était présent, sans onError : échec de chargement →
+   icône brisée sur le fond violet + dégradé overlay.
+3. **CSP non en cause** — Le backend autorise déjà img-src https: ; le problème
+   n’était pas un blocage CSP mais des URLs 404 et l’absence de repli visuel.
+
+Les événements sans image (isEvent sans imageUrl) tombaient déjà sur un dégradé,
+mais ceux avec imageUrl cassée affichaient l’icône brisée au lieu d’un placeholder.
+
+## Correctifs appliqués
+
+1. **EventCard.tsx** — onError sur l’image hero ; repli vers dégradé thématique
+   + icône calendrier (plus d’icône image cassée).
+2. **feedEvents.ts** — URL fallback festival corrigée (Unsplash valide).
+3. **Seeds** — imageUrl remplacées par des URLs Unsplash vérifiées (200) dans
+   seed_prod_testdata.js, seed-production-testdata.ts, seed-feed-events.ts,
+   seed-user-events.ts.
+
+## Fichiers modifiés
+  app/src/components/EventCard.tsx
+  app/src/lib/feedEvents.ts
+  MeloSong Dev/seed_prod_testdata.js
+  backend/src/scripts/seed-production-testdata.ts
+  backend/src/seed-feed-events.ts
+  backend/src/seed-user-events.ts
+  modification.txt
+
+## Note déploiement
+
+Les événements déjà en base gardent leurs anciennes imageUrl jusqu’au prochain
+seed ; le repli onError dans EventCard corrige l’affichage immédiatement sans
+migration DB. Re-seeder pour des photos hero réelles sur les cartes.
+
+================================================================================
+Fin MODIF 316 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 318 — Galerie photos profil visible (Mon profil)
+Date : 2026-06-10
+================================================================================
+
+## Problème
+- Les URLs DiceBear (avatar par défaut à l'inscription) étaient traitées comme
+  de vraies photos : getProfilePhotos renvoyait [dicebear] → galerie en mode
+  lecture affichait un second cercle 150 px identique à l'en-tête, sans grille.
+- normalizeProfilePhotos (backend) recopiait avatarUrl DiceBear dans profilePhotos
+  via applyProfileDefaults → les comptes sans upload n'avaient pas profilePhotos=[].
+- L'avatar d'en-tête recevait l'URL DiceBear (seed pseudo) au lieu de la 1re photo
+  uploadée ; les vraies photos n'apparaissaient pas si profilePhotos était vide
+  côté client (session stale).
+
+## Correctifs
+- isDicebearAvatarUrl + getUserProfilePhotos (client) : ne retient que les photos
+  réelles (data URL ou https hors DiceBear).
+- normalizeProfilePhotos / syncProfilePhotos (backend) : excluent DiceBear.
+- ProfilePhotoGallery mode lecture : grille Instagram (2 ou 3 colonnes) avec
+  toutes les photos, badge « Avatar » sur la 1re ; plus de cercle dupliqué ;
+  section masquée si aucune vraie photo (DiceBear reste dans l'en-tête via
+  UserAvatarOnline).
+- ProfilePage : refreshUser à l'ouverture pour recharger profilePhotos ;
+  avatar d'en-tête = 1re photo uploadée si disponible.
+- UserProfileView : même filtrage + section photos conditionnelle.
+
+## Fichiers modifiés
+  app/src/lib/avatarUrl.ts
+  app/src/lib/profilePhotos.ts
+  app/src/components/ProfilePhotoGallery.tsx
+  app/src/pages/ProfilePage.tsx
+  app/src/components/UserProfileView.tsx
+  backend/src/lib/profile.ts
+  modification.txt
+
+================================================================================
+Fin MODIF 318 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 319 — Correctifs sécurité audit Soundy/MeloSong (P0 + P1)
+Date : 2026-06-10
+Tâche : 9c9b44ff-0a5b-4971-add8-3e4701fa1d13
+================================================================================
+
+## P0 — Corrigé
+
+1. **JWT retiré des URLs OAuth Google/Facebook**
+   - Callbacks → code éphémère `oauth_code` (5 min, usage unique) au lieu de `?token=JWT`.
+   - Nouveau `POST /api/auth/oauth/exchange` : échange code → JWT (localStorage / X-Auth-Token inchangé).
+   - `AuthPage.tsx` : échange + écran d’acceptation CGU pour nouveaux comptes OAuth.
+
+2. **JWT retiré des URLs OAuth plateformes (Spotify/YouTube/Instagram)**
+   - Routes `GET /api/auth/{youtube,spotify,instagram}?token=` dépréciées (redirection erreur).
+   - `PlatformConnectCard` → `GET /api/platforms/{platform}/oauth/url` avec JWT en en-tête.
+   - Nouveaux endpoints Spotify/Instagram dans `platforms.ts`.
+
+3. **WebSocket authentifié par JWT**
+   - Middleware `io.use` : token via `handshake.auth.token` ou `X-Auth-Token`.
+   - `userId` dérivé du JWT ; connexion sans token rejetée.
+   - Client `socket.ts` : envoi du token à la connexion ; `registerUser(userId, token)`.
+
+4. **OAuth soumis au contrôle d’accès**
+   - `findOrCreateOAuthUser` : `assertRegistrationAllowed`, `resolveInitialAccountStatus()`.
+   - Plus d’auto-activation ni d’acceptation CGU implicite à la création OAuth.
+   - Comptes pending → `/?oauth_pending=1` ; login refusé si blocked/pending existant.
+
+## P1 — Corrigé
+
+5. **Mock connect plateforme désactivé en production** (`APP_ENV=production`).
+6. **Rate-limit `/check-username`** : inclus dans le limiteur auth (plus de skip).
+7. **HSTS Caddy** : `Strict-Transport-Security` sur `getsoundy.com` ; strip HSTS sur blocs IP.
+8. **`ENCRYPTION_KEY`** documenté dans `backend/.env.production.example`.
+
+## Fichiers modifiés
+
+  backend/src/lib/oauthExchange.ts          (nouveau)
+  backend/src/middleware/auth.ts
+  backend/src/routes/oauth.ts
+  backend/src/routes/platforms.ts
+  backend/src/socket.ts
+  backend/src/server.ts
+  backend/src/bootstrap.ts
+  backend/.env.production.example
+  deploy/Caddyfile
+  app/src/lib/api.ts
+  app/src/lib/socket.ts
+  app/src/context/AuthContext.tsx
+  app/src/pages/AuthPage.tsx
+  app/src/components/PlatformConnectCard.tsx
+  apptel/src/lib/socket.ts
+  modification.txt
+
+================================================================================
+Fin MODIF 319 - 2026-06-10
+================================================================================

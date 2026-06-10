@@ -62,6 +62,16 @@ describe('stories', () => {
     expect(getMyActiveStory('me')).toBeNull();
   });
 
+  it('allows a story with image only (no text)', () => {
+    const dataUrl =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    const r = createStory('me', { imageUrl: dataUrl });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.story.imageUrl).toBe(dataUrl);
+    expect(r.story.content).toBeUndefined();
+  });
+
   it('stores music track and tagged users', () => {
     const r = createStory('me', {
       content: 'avec musique',

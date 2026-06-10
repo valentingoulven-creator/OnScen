@@ -36,12 +36,6 @@ import {
 } from '../lib/settings';
 import { USERNAME_WAVE_CLASS } from '../lib/usernameColor';
 
-const ROLE_SHORT: Record<string, string> = {
-  auditeur: 'Auditeur',
-  host: 'Host',
-  les_deux: 'Host & auditeur',
-};
-
 function GearIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
@@ -501,11 +495,7 @@ export function NearbyPeoplePanel({
                       usernameWaveTo={p.usernameWaveTo}
                       className="text-xs font-semibold truncate leading-tight"
                     />
-                    <p className="text-[10px] text-gray-500 truncate hidden sm:block">
-                      {p.distanceKm != null ? `${p.distanceKm} km` : p.city || 'À proximité'}
-                      {p.listeningRole && ` · ${ROLE_SHORT[p.listeningRole] ?? p.listeningRole}`}
-                    </p>
-                    <p className="text-[10px] text-gray-500 sm:hidden">
+                    <p className="text-[10px] text-gray-500 truncate">
                       {p.distanceKm != null ? `${p.distanceKm} km` : p.city || 'À proximité'}
                     </p>
                     {p.salonTitle && (

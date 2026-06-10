@@ -5,6 +5,7 @@ export type AppLanguage = 'fr' | 'en';
 export interface PrivacyPreferences {
   showOnNearbyList: boolean;
   allowDmFromAnyone: boolean;
+  locationSharing: boolean;
 }
 
 const KEYS = {
@@ -54,6 +55,7 @@ export function setNearbyDistanceFilterEnabled(enabled: boolean): void {
 const DEFAULT_PRIVACY: PrivacyPreferences = {
   showOnNearbyList: true,
   allowDmFromAnyone: true,
+  locationSharing: true,
 };
 
 export function notifySettingsChanged(): void {
@@ -82,6 +84,9 @@ export function getAppLanguage(): AppLanguage {
 export function setAppLanguage(lang: AppLanguage): void {
   localStorage.setItem(KEYS.language, lang);
   notifySettingsChanged();
+  void import('../i18n').then(({ default: i18n }) => {
+    void i18n.changeLanguage(lang);
+  });
 }
 
 export function getPrivacyPreferences(): PrivacyPreferences {

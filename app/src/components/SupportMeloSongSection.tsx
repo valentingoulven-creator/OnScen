@@ -4,8 +4,8 @@ import { SUPPORT } from '../content/support';
 import { getAppShareUrl } from '../lib/shareLink';
 import { getSupportClickCount, incrementSupportClick } from '../lib/support';
 
-const APP_SHARE_TITLE = 'Soundly';
-const APP_SHARE_TEXT = 'Découvre Soundly — salons musicaux, lives et carte autour de toi.';
+const APP_SHARE_TITLE = 'Soundy';
+const APP_SHARE_TEXT = 'Découvre Soundy — salons musicaux, lives et carte autour de toi.';
 
 interface SupportMeloSongSectionProps {
   onToast?: (msg: string) => void;

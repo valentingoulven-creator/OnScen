@@ -1,0 +1,77 @@
+# Soundy — Caddyfile CANONIQUE (source de vérité)
+# Repo : deploy/Caddyfile  →  VPS : /opt/soundly/deploy/Caddyfile  →  /etc/caddy/Caddyfile
+#
+# ⚠ NE JAMAIS écrire un bloc minimal `:80 { ... }` à la main sur le VPS.
+#    Utiliser : ./deploy/sync-caddy.sh  ou  deploy-scaleway.ps1
+#
+# Basic Auth protège l'UI (index.html) ; les assets hashés, le SW et l'API
+# restent accessibles sans Basic Auth pour éviter les 401 sur les scripts
+# (module + Service Worker n'envoient pas toujours Authorization).
+#
+# IP autorisée (admin/dev) : accès UI sans Basic Auth. Toutes les autres IP
+# doivent s'authentifier sur les routes UI. Mettre à jour si l'IP publique change.
+# IP whitelistée : 195.36.171.84/32 (France, box utilisateur — 2026-06-10)
+
+(soundy_handlers) {
+	@allowed_ips client_ip 195.36.171.84/32
+
+	@api path /api/* /health /socket.io/*
+	@static path /assets/* /sw.js /workbox-* /manifest.webmanifest /icon.svg /favicon.svg /pwa-* /clear-pwa
+
+	handle @api {
+		reverse_proxy localhost:3000
+	}
+
+	handle @static {
+		reverse_proxy localhost:3000
+	}
+
+	handle @allowed_ips {
+		reverse_proxy localhost:3000
+	}
+
+	handle {
+		basic_auth {
+			testeur1 $2a$14$Lw6L.oYeFQwmYrqvZLFkOuxu.JdwlJS65ybqnMFBoNF2A5FJEqlmS
+			testeur2 $2a$14$U509RsKDgOcsMB6egwa8a.Nvd/Y850C3HcQnbcTpoPzCDTmosO.EK
+			testeur3 $2a$14$PpD9dQRGiaAum4a8jw6mzOChiyPRo/Ji0pZX2nkm4BmyMRS9XP2bq
+			testeur4 $2a$14$oCOzHBJou/d5K/kJoYIgFeCNMr68GAK0ipaF01t1inL1lf7HsdmXK
+			testeur5 $2a$14$iOFxMXMoqduORGq50ZNhM.VjKd0IJaoUUvgjNh6e9kbi54vM3GmZ6
+			dev $2a$14$KxZJr.PKL8jpOsG1oZ1Z8O3ETcwcfl/90P36iR/pzeOhLYdRJbcCW
+		}
+		reverse_proxy localhost:3000
+	}
+
+	header {
+		-X-Frame-Options
+		-Content-Security-Policy
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	encode gzip
+}
+
+# Production — domaine principal (HTTPS automatique Let's Encrypt)
+getsoundy.com {
+	import soundy_handlers
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+}
+
+# www → apex
+www.getsoundy.com {
+	redir https://getsoundy.com{uri} permanent
+}
+
+# Accès par IP pendant la transition (HTTP)
+http://51.159.164.100 {
+	import soundy_handlers
+	header -Strict-Transport-Security
+}
+
+# Accès par IP en HTTPS (certificat auto-signé)
+https://51.159.164.100 {
+	tls /etc/caddy/certs/cert.pem /etc/caddy/certs/key.pem
+	import soundy_handlers
+	header -Strict-Transport-Security
+}

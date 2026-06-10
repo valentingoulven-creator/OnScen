@@ -1,16 +1,21 @@
 <!doctype html>
 <html lang="fr">
   <head>
+    <script>
+      if (location.protocol === 'https:' && /^\d+\.\d+\.\d+\.\d+$/.test(location.hostname)) {
+        location.replace('http://' + location.host + location.pathname + location.search + location.hash);
+      }
+    </script>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/pwa-192x192.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5" />
     <meta name="theme-color" content="#7c3aed" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Soundly" />
+    <meta name="apple-mobile-web-app-title" content="Soundy" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <title>Soundly</title>
+    <title>Soundy</title>
   </head>
   <body>
     <div id="root">
@@ -40,7 +45,7 @@
             animation: melosong-spin 0.8s linear infinite;
           "
         ></div>
-        <p style="margin: 0; font-size: 0.95rem">Chargement de Soundly\u2026</p>
+        <p style="margin: 0; font-size: 0.95rem">Chargement de Soundy\u2026</p>
         <p id="melosong-boot-hint" style="margin: 0; font-size: 0.75rem; color: #6b7280; max-width: 20rem">
           Si l\u2019\u00e9cran reste noir : <a href="/clear-pwa" style="color:#a78bfa">Vider le cache PWA</a> ou <strong style="color: #c4b5fd">Ctrl+Shift+R</strong>
         </p>
@@ -55,7 +60,7 @@
     </style>
     <script>
       (function () {
-        var SW_CLEAR_KEY = 'melosong_sw_purge_v5';
+        var SW_CLEAR_KEY = 'melosong_sw_purge_v8';
         function purgePwaCaches() {
           if (!('serviceWorker' in navigator)) return Promise.resolve();
           return navigator.serviceWorker

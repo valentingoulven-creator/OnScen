@@ -1,4 +1,5 @@
 export const PROFILE_TYPE_OPTIONS = [
+  { value: 'melomane', label: 'Mélomane', emoji: '🎵' },
   { value: 'bar', label: 'Bar', emoji: '🍸' },
   { value: 'restaurant', label: 'Restaurant', emoji: '🍽️' },
   { value: 'cafe', label: 'Café / Bar à musique', emoji: '☕' },
@@ -21,4 +22,9 @@ export type ProfileType = (typeof PROFILE_TYPE_OPTIONS)[number]['value'];
 export function getProfileTypeLabel(value: string | undefined): string | undefined {
   if (!value) return undefined;
   return PROFILE_TYPE_OPTIONS.find((o) => o.value === value)?.label ?? undefined;
+}
+
+export function getProfileTypeOption(value: string | undefined) {
+  if (!value) return undefined;
+  return PROFILE_TYPE_OPTIONS.find((o) => o.value === value);
 }

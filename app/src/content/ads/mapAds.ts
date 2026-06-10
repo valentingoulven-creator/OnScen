@@ -7,18 +7,18 @@ export interface MapAd {
   accent: 'purple' | 'pink' | 'amber' | 'cyan' | 'rose';
   /** Nom affiché à côté du badge Sponsorisé (démo) */
   sponsor?: string;
-  /** Promo interne Soundly vs partenaire fictif */
+  /** Promo interne Soundy vs partenaire fictif */
   kind?: 'promo' | 'sponsored';
 }
 
 export const MAP_ADS: MapAd[] = [
   {
     id: 'premium',
-    title: 'Soundly Premium',
+    title: 'Soundy Premium',
     subtitle: 'Sans pub sur la carte et badge exclusif pour ton profil',
     cta: 'Découvrir',
     accent: 'purple',
-    sponsor: 'Soundly',
+    sponsor: 'Soundy',
     kind: 'promo',
   },
   {
@@ -27,7 +27,7 @@ export const MAP_ADS: MapAd[] = [
     subtitle: 'Partage Spotify ou YouTube avec les auditeurs autour de toi',
     cta: 'Créer un salon',
     accent: 'pink',
-    sponsor: 'Soundly',
+    sponsor: 'Soundy',
     kind: 'promo',
   },
   {
@@ -36,7 +36,7 @@ export const MAP_ADS: MapAd[] = [
     subtitle: 'Réactions, chat public et messages privés depuis la carte',
     cta: 'Voir les lives',
     accent: 'amber',
-    sponsor: 'Soundly',
+    sponsor: 'Soundy',
     kind: 'promo',
   },
   {
@@ -60,11 +60,11 @@ export const MAP_ADS: MapAd[] = [
   },
   {
     id: 'discover',
-    title: 'Explore la carte Soundly',
+    title: 'Explore la carte Soundy',
     subtitle: 'Salons, lives et créateurs musicaux à proximité — rejoins la communauté',
     cta: 'Explorer',
     accent: 'purple',
-    sponsor: 'Soundly',
+    sponsor: 'Soundy',
     kind: 'promo',
   },
 ];

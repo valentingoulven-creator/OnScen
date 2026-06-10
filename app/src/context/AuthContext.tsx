@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import i18n from '../i18n';
 import { api } from '../lib/api';
 import { clearStoredToken, getStoredToken, persistToken } from '../lib/authStorage';
 import { clearSocketUser, registerUser } from '../lib/socket';
@@ -23,7 +24,7 @@ interface AuthCtx {
   logout: () => void;
   refreshUser: () => Promise<void>;
   setUserFromProfile: (user: User) => void;
-  setSession: (token: string, user: User, rememberMe?: boolean) => void;
+  setSession: (token: string, user: User, rememberMe?: boolean, isNew?: boolean) => void;
 }
 
 const AuthContext = createContext<AuthCtx | null>(null);
@@ -50,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     const timeout = window.setTimeout(() => {
       setAuthBootError(
-        'Impossible de charger votre profil (serveur injoignable ou trop lent). Vérifiez que Soundly tourne sur https://localhost:4080 puis réessayez.'
+        i18n.t('errors.serverUnreachable')
       );
       if (cancelled) return;
       clearStoredToken();
@@ -62,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((r) => {
         if (cancelled) return;
         setUser(r.user);
-        registerUser(r.user.id);
+        registerUser(r.user.id, token);
       })
       .catch((e: Error) => {
         setAuthBootError(
@@ -70,7 +71,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             'Erreur lors du chargement de la session. Déconnectez-vous ou actualisez la page (Ctrl+Shift+R).'
         );
         if (cancelled) return;
-        if (e.message?.includes('Session expirée') || e.message?.includes('Token invalide')) {
+        if (
+          e.message?.includes('Session expirée') ||
+          e.message?.includes('Token invalide') ||
+          e.message?.includes('Token manquant')
+        ) {
           logoutRef.current();
         }
         // Erreur réseau (serveur arrêté, cert, etc.) : on conserve le token.
@@ -91,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     persistToken(r.token, rememberMe);
     setToken(r.token);
     setUser(r.user);
-    registerUser(r.user.id);
+    registerUser(r.user.id, r.token);
   };
 
   const register = async (
@@ -116,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(r.token);
     setUser(r.user);
     setIsNewUser(true);
-    registerUser(r.user.id);
+    registerUser(r.user.id, r.token);
   };
 
   const refreshUser = async () => {
@@ -126,7 +131,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(r.user);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '';
-      if (msg.includes('Session expirée') || msg.includes('Token invalide')) {
+      if (
+        msg.includes('Session expirée') ||
+        msg.includes('Token invalide') ||
+        msg.includes('Token manquant')
+      ) {
         logoutRef.current();
       }
     }
@@ -148,11 +157,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return next;
     });
 
-  const setSession = (t: string, u: User, rememberMe = true) => {
+  const setSession = (t: string, u: User, rememberMe = true, isNew = false) => {
     persistToken(t, rememberMe);
     setToken(t);
     setUser(u);
-    registerUser(u.id);
+    if (isNew) setIsNewUser(true);
+    registerUser(u.id, t);
   };
 
   return (

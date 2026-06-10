@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { db } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
 import { getIo } from '../lib/ioInstance';
+import { notifyContentHeartReceived } from '../lib/notifications';
 import {
   isValidReelId,
   toggleReelHeart,
@@ -145,6 +146,17 @@ reelsRouter.post('/:reelId/heart', authenticateJWT, (req: Request, res: Response
   if (!requireReel(reelId, res)) return;
   const me = (req as Request & { user: { id: string } }).user.id;
   const result = toggleReelHeart(reelId, me);
+  if (result.liked) {
+    const reel = db.userReels.find((r) => r.id === reelId);
+    const sender = db.users.get(me);
+    if (reel && sender) {
+      notifyContentHeartReceived({
+        recipientId: reel.authorId,
+        sender: { id: me, username: sender.username, avatarUrl: sender.avatarUrl },
+        target: { kind: 'reel', id: reelId },
+      });
+    }
+  }
   res.json(result);
 });
 

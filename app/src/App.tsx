@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from './context/AuthContext';
 import {
   consumePendingProfileView,
@@ -18,27 +19,30 @@ import { pauseAllReelsMediaInDom } from './lib/reelsMedia';
 import { pauseMediaElements } from './hooks/usePauseMediaOnPageHidden';
 import { AuthPage } from './pages/AuthPage';
 import { OnboardingPage } from './pages/OnboardingPage';
-import { HomePage } from './pages/HomePage';
-import { ProfilePage } from './pages/ProfilePage';
-import { LivesTabPage } from './pages/LivesTabPage';
-import { ReelsTabPage } from './pages/ReelsTabPage';
 import { NotificationBell } from './components/NotificationBell';
 import { PrivacyVisibilityMenu } from './components/PrivacyVisibilityMenu';
 import { useDmUnread } from './context/DmUnreadContext';
 import { ProfileSearchBar } from './components/ProfileSearchBar';
-import { AppLayoutToggle } from './components/AppLayoutToggle';
 import { MainTabNav } from './components/MainTabNav';
+import { PlatformConnectPrompt } from './components/PlatformConnectPrompt';
 import { APP_LAYOUT_CHANGED_EVENT, getAppLayout, isAppa2Layout } from './lib/appLayout';
 import { dicebearAdventurerAvatar } from './lib/avatarUrl';
 import { isMsdevEnvironment } from './lib/liveCameraSupport';
 import { api } from './lib/api';
+import { dispatchPlatformStatusRefresh } from './lib/platformStatusEvents';
 import type { NearbyPerson } from './types';
 
+// Heavy pages are lazy-loaded to defer bundle parsing of Leaflet, react-globe.gl,
+// and other large media deps until the user first visits each tab.
 const DmPage = lazy(() => import('./pages/DmPage').then((m) => ({ default: m.DmPage })));
 const ActualiteTabPage = lazy(() => import('./pages/ActualiteTabPage').then((m) => ({ default: m.ActualiteTabPage })));
 const LivePage = lazy(() => import('./pages/LivePage').then((m) => ({ default: m.LivePage })));
 const SalonPage = lazy(() => import('./pages/SalonPage').then((m) => ({ default: m.SalonPage })));
 const UserProfilePage = lazy(() => import('./pages/UserProfilePage').then((m) => ({ default: m.UserProfilePage })));
+const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
+const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
+const LivesTabPage = lazy(() => import('./pages/LivesTabPage').then((m) => ({ default: m.LivesTabPage })));
+const ReelsTabPage = lazy(() => import('./pages/ReelsTabPage').then((m) => ({ default: m.ReelsTabPage })));
 
 function PageFallback() {
   return (
@@ -56,7 +60,8 @@ type View =
   | { type: 'profile'; id: string };
 
 export default function App() {
-  const { user, token, isNewUser, clearNewUser, refreshUser, authBootError, clearAuthBootError } = useAuth();
+  const { t } = useTranslation();
+  const { user, token, isNewUser, clearNewUser, refreshUser, authBootError, clearAuthBootError, setUserFromProfile } = useAuth();
   const { unreadCount: dmUnread, incomingToast, dismissToast, setDmTabActive } = useDmUnread();
   const [tab, setTab] = useState<Tab>('actualite');
   const tabRef = useRef<Tab>('actualite');
@@ -81,6 +86,8 @@ export default function App() {
   const [msdevRebuildError, setMsdevRebuildError] = useState<string | null>(null);
   /** Après réduction du grand salon : rouvrir la fiche carte sur l'onglet Carte. */
   const [restoreSalonOnMapId, setRestoreSalonOnMapId] = useState<string | null>(null);
+  /** Publication du fil à mettre en avant (depuis la carte). */
+  const [focusFeedPostId, setFocusFeedPostId] = useState<string | null>(null);
 
   const handleMsdevRebuild = useCallback(async () => {
     if (!token || msdevRebuilding) return;
@@ -140,11 +147,60 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const oauth = params.get('youtube_oauth');
     if (!oauth) return;
-    if (oauth === 'ok' && token) void refreshUser();
+    if (oauth === 'ok' && token) {
+      void refreshUser().then(() => dispatchPlatformStatusRefresh());
+    }
     if (oauth === 'error') {
-      alert('Connexion YouTube annulée ou échouée.');
+      const reason = params.get('reason');
+      if (reason === 'not_configured') {
+        alert('Connexion YouTube indisponible : OAuth Google non configuré sur le serveur.');
+      } else {
+        alert('Connexion YouTube annulée ou échouée.');
+      }
     }
     params.delete('youtube_oauth');
+    params.delete('reason');
+    const q = params.toString();
+    window.history.replaceState({}, '', `${window.location.pathname}${q ? `?${q}` : ''}`);
+  }, [token, refreshUser]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const oauth = params.get('spotify_oauth');
+    if (!oauth) return;
+    if (oauth === 'ok' && token) {
+      void refreshUser().then(() => dispatchPlatformStatusRefresh());
+    }
+    if (oauth === 'error') {
+      alert('Connexion Spotify annulée ou échouée.');
+    }
+    params.delete('spotify_oauth');
+    params.delete('reason');
+    const q = params.toString();
+    window.history.replaceState({}, '', `${window.location.pathname}${q ? `?${q}` : ''}`);
+  }, [token, refreshUser]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const oauth = params.get('instagram_oauth');
+    if (!oauth) return;
+    if (oauth === 'ok' && token) {
+      void refreshUser().then(() => dispatchPlatformStatusRefresh());
+    }
+    if (oauth === 'error') {
+      const reason = params.get('reason');
+      if (reason === 'not_configured') {
+        alert('Connexion Instagram indisponible : OAuth Meta/Facebook non configuré sur le serveur.');
+      } else if (reason === 'no_instagram_account') {
+        alert(
+          'Aucun compte Instagram professionnel lié à votre page Facebook. Liez un compte Instagram Business ou Creator à une page Facebook, puis réessayez.'
+        );
+      } else {
+        alert('Connexion Instagram annulée ou échouée.');
+      }
+    }
+    params.delete('instagram_oauth');
+    params.delete('reason');
     const q = params.toString();
     window.history.replaceState({}, '', `${window.location.pathname}${q ? `?${q}` : ''}`);
   }, [token, refreshUser]);
@@ -253,6 +309,12 @@ export default function App() {
     setTab('live');
   }, []);
 
+  const openFeedPostFromMap = useCallback((postId: string) => {
+    setFocusFeedPostId(postId);
+    setTab('actualite');
+    setView({ type: 'home' });
+  }, []);
+
   const openDmWithUser = useCallback((userId: string) => {
     if (tabRef.current === 'reels') pauseAllReelsMediaInDom({ resetPosition: true });
     pauseMediaElements();
@@ -317,17 +379,14 @@ export default function App() {
   if (isNewUser) return <OnboardingPage onDone={clearNewUser} />;
 
   const reelsActive = tab === 'reels' && !profileOpen && view.type === 'home';
-  const mapPlaybackActive = tab === 'map' && view.type === 'home' && !profileOpen;
+  /** Carte visible : lecture petit salon même si overlay « Mon profil » ouvert. */
+  const mapPlaybackActive = tab === 'map' && view.type === 'home';
   const appa2 = isAppa2Layout(appLayout);
   const liveViewActive = tab === 'live' || view.type === 'live';
-  const immersiveView =
-    view.type === 'salon' || view.type === 'profile' || view.type === 'live';
-
-  const hideStartLiveOnMap = profileOpen;
 
   return (
     <div
-      className={`flex flex-col min-h-dvh max-h-dvh overflow-hidden${!appa2 ? ' ms-app-shell--bottom-tabs' : ''}`}
+      className={`flex flex-col min-h-dvh max-h-dvh overflow-hidden${!appa2 ? ' ms-app-shell--bottom-tabs' : ''}${appa2 && !profileOpen ? ' ms-app-shell--header-tabs' : ''}`}
     >
       {incomingToast && (
         <button
@@ -361,22 +420,20 @@ export default function App() {
         </button>
       )}
 
-      {!immersiveView && (
       <header
         className={`ms-app-header${appa2 && !profileOpen ? ' ms-app-header--with-tabs' : ''}`}
       >
           <div className="px-3 sm:px-4 pb-2" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
           <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-1.5 sm:gap-x-2 min-w-0">
             <div className="flex items-center gap-1.5 sm:gap-2 justify-self-start min-w-0 overflow-hidden">
-              <AppLayoutToggle layout={appLayout} onLayoutChange={setAppLayoutState} />
               <button
                 type="button"
                 onClick={() => selectTab('map')}
                 className="text-lg font-extrabold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent shrink-0 cursor-pointer hover:opacity-75 active:scale-95 transition"
-                title="Retour à la Carte"
-                aria-label="Aller à la carte"
+                title={t('nav.goToMap')}
+                aria-label={t('nav.goToMap')}
               >
-                Soundly
+                {t('app.name')}
               </button>
               {isMsdevEnvironment() && (
                 <>
@@ -395,17 +452,17 @@ export default function App() {
                 </>
               )}
             </div>
-            <div className="justify-self-center w-[min(100%,17.5rem)] sm:w-[min(100%,21.25rem)] min-w-[8.5rem] px-0.5">
-              <ProfileSearchBar
-                token={token}
-                onSelectUser={handleSearchSelectUser}
-              />
-            </div>
+            <ProfileSearchBar
+              token={token}
+              onSelectUser={handleSearchSelectUser}
+              className="justify-self-center w-[min(18rem,calc(100vw-7.5rem))] sm:w-[min(22rem,calc(100vw-9rem))]"
+            />
             <div className="flex items-center gap-1 justify-self-end shrink-0">
               <PrivacyVisibilityMenu />
               <NotificationBell
                 onOpenLive={openLive}
                 onOpenProfile={openProfile}
+                onOpenSalon={openSalonPage}
                 onOpenDm={openDmWithUser}
                 onOpenGroup={openGroupChat}
               />
@@ -446,11 +503,18 @@ export default function App() {
           />
         )}
       </header>
-      )}
 
       <main
-        className={`ms-app-main flex-1 min-h-0 overflow-hidden flex flex-col relative${immersiveView ? ' ms-app-main--no-header' : ''}`}
+        className="ms-app-main flex-1 min-h-0 overflow-hidden flex flex-col relative"
       >
+            {user && token && !isNewUser && view.type === 'home' && !profileOpen && (
+              <PlatformConnectPrompt
+                token={token}
+                user={user}
+                onUserUpdated={setUserFromProfile}
+                onOpenProfile={() => setProfileOpen(true)}
+              />
+            )}
             {view.type === 'salon' && (
               <Suspense fallback={<PageFallback />}>
                 <SalonPage
@@ -483,6 +547,10 @@ export default function App() {
                       : undefined
                   }
                   onSelectSalon={(salonId) => openSalonPage(salonId)}
+                  onOpenDm={(peerId) => {
+                    closeProfile();
+                    openDmWithUser(peerId);
+                  }}
                   onOpenLive={(liveId) => {
                     clearProfileUrlFromBar();
                     setProfilePreview(null);
@@ -515,6 +583,8 @@ export default function App() {
                   onOpenReel={openReelInTab}
                   onOpenLive={openLive}
                   isActive={tab === 'actualite' && !profileOpen && view.type === 'home'}
+                  focusPostId={focusFeedPostId}
+                  onFocusPostConsumed={() => setFocusFeedPostId(null)}
                 />
               </Suspense>
             </div>
@@ -526,18 +596,20 @@ export default function App() {
               }
               aria-hidden={tab !== 'map' || view.type !== 'home'}
             >
-              <HomePage
-                appLayout={appLayout}
-                onOpenSalon={openSalonPage}
-                onOpenLive={openLive}
-                onOpenProfile={openProfileFromPerson}
-                onOpenReel={openReelInTab}
-                hideStartLiveMapButton={hideStartLiveOnMap}
-                onCloseMapProfile={closeProfile}
-                mapPlaybackActive={mapPlaybackActive}
-                restoreSalonId={restoreSalonOnMapId}
-                onSalonMapRestored={() => setRestoreSalonOnMapId(null)}
-              />
+              <Suspense fallback={<PageFallback />}>
+                <HomePage
+                  appLayout={appLayout}
+                  onOpenSalon={openSalonPage}
+                  onOpenLive={openLive}
+                  onOpenProfile={openProfileFromPerson}
+                  onOpenReel={openReelInTab}
+                  onOpenFeedPost={openFeedPostFromMap}
+                  onCloseMapProfile={closeProfile}
+                  mapPlaybackActive={mapPlaybackActive}
+                  restoreSalonId={restoreSalonOnMapId}
+                  onSalonMapRestored={() => setRestoreSalonOnMapId(null)}
+                />
+              </Suspense>
             </div>
             <div
               className={
@@ -547,7 +619,9 @@ export default function App() {
               }
               aria-hidden={tab !== 'live' || view.type !== 'home'}
             >
-              <LivesTabPage onOpenLive={openLive} />
+              <Suspense fallback={<PageFallback />}>
+                <LivesTabPage onOpenLive={openLive} />
+              </Suspense>
             </div>
             <div
               className={
@@ -575,23 +649,28 @@ export default function App() {
               }
               aria-hidden={tab !== 'reels' || view.type !== 'home'}
             >
-              <ReelsTabPage
-                onOpenLive={openLive}
-                initialReelId={reelsInitialId}
-                onIntentHandled={clearReelsIntent}
-                isActive={reelsActive}
-              />
+              <Suspense fallback={<PageFallback />}>
+                <ReelsTabPage
+                  onOpenLive={openLive}
+                  onOpenProfile={openProfile}
+                  initialReelId={reelsInitialId}
+                  onIntentHandled={clearReelsIntent}
+                  isActive={reelsActive}
+                />
+              </Suspense>
             </div>
 
         {profileOpen && (
-          <div className="absolute inset-0 z-30 flex flex-col min-h-0 bg-[#0b0b0f]">
-            <ProfilePage
-              onBack={() => setProfileOpen(false)}
-              onOpenReel={openReelInTab}
-              onOpenProfile={openProfile}
-              openRecorderOnMount={profileOpenRecorder}
-              onRecorderMountHandled={() => setProfileOpenRecorder(false)}
-            />
+          <div className="ms-app-profile-overlay flex flex-col min-h-0 bg-[#0b0b0f]">
+            <Suspense fallback={<PageFallback />}>
+              <ProfilePage
+                onBack={() => setProfileOpen(false)}
+                onOpenReel={openReelInTab}
+                onOpenProfile={openProfile}
+                openRecorderOnMount={profileOpenRecorder}
+                onRecorderMountHandled={() => setProfileOpenRecorder(false)}
+              />
+            </Suspense>
           </div>
         )}
 

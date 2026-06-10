@@ -25,12 +25,76 @@ button, a, [role="button"], input[type="button"], input[type="submit"], label {
 
 /* Bandeau anneaux stories — scroll horizontal tactile fluide */
 .stories-rings-carousel {
+  display: flex;
+  flex-wrap: nowrap;
+  width: 100%;
+  min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
+  scroll-snap-type: x proximity;
+  /* pan-x : swipe horizontal sur la rangée ; le feed vertical se fait hors du bandeau */
   touch-action: pan-x;
   overscroll-behavior-x: contain;
+}
+
+.stories-rings-carousel > * {
+  flex-shrink: 0;
+}
+
+.stories-rings-carousel button {
+  touch-action: pan-x;
+}
+
+/* Carrousel événements (Actualités) — swipe horizontal, aperçu carte suivante */
+.events-carousel {
+  --events-carousel-peek: 2.75rem;
+  display: flex;
+  flex-wrap: nowrap;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  /* pan-x : swipe horizontal ; scroll vertical du feed hors du carrousel (cf. MODIF 212) */
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+}
+
+.events-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.events-carousel-card {
+  flex: 0 0 calc(100% - var(--events-carousel-peek));
+  width: calc(100% - var(--events-carousel-peek));
+  max-width: min(20rem, calc(100% - var(--events-carousel-peek)));
+  flex-shrink: 0;
+  touch-action: pan-x;
+}
+
+.events-carousel > * {
+  flex-shrink: 0;
+  touch-action: pan-x;
+}
+
+.events-carousel button {
+  touch-action: pan-x;
+}
+
+/* Fil d'accueil / actualités — zone publications scrollable */
+.feed-scroll {
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
 }
 
 /* Masquer scrollbars — scroll toujours actif */
@@ -130,13 +194,18 @@ body {
   height: 100dvh;
 }
 
+/* Shell appa2 : propage --app-header-tabs-h au main (sibling du header) */
+.ms-app-shell--header-tabs {
+  --app-header-tabs-h: 3.25rem;
+}
+
 /* ── Header Soundly fixe (toujours visible au scroll) ─────────────── */
 header.ms-app-header {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 50;
+  z-index: 100;
   background: var(--ms-bg);
   border-bottom: 1px solid var(--ms-border);
 }
@@ -149,12 +218,15 @@ header.ms-app-header {
   max-width: var(--phone-max-w);
 }
 
-.ms-app-header--with-tabs {
-  --app-header-tabs-h: 3.25rem;
-}
-
 main.ms-app-main {
   padding-top: var(--app-header-total-h);
+}
+
+/* Overlay « Mon profil » / réglages — remplit la zone main ; le header fixe (z-100) reste au-dessus */
+.ms-app-profile-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
 }
 
 /* Shell classique : réserve la hauteur de la barre d'onglets fixe en bas */
@@ -207,6 +279,16 @@ nav.ms-tab-bar-bottom > div {
 .leaflet-container {
   background: #0b0b0f !important;
   font-family: inherit;
+}
+
+.event-location-map-picker .leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 0;
+}
+
+.event-location-map-picker .leaflet-tile-pane {
+  z-index: 1;
 }
 
 /* Crédits carto : mentions légales uniquement (pas d’overlay Leaflet/OSM) */
@@ -334,6 +416,69 @@ nav.ms-tab-bar-bottom > div {
   border-radius: 4px;
 }
 
+.map-marker.event .event-marker-icon {
+  display: block;
+  font-size: 26px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.95))
+    drop-shadow(0 0 6px rgba(0, 0, 0, 0.55));
+}
+
+.map-marker.event .event-cluster-badge {
+  position: absolute;
+  top: -2px;
+  right: -6px;
+  min-width: 1.1rem;
+  padding: 1px 4px;
+  border-radius: 999px;
+  background: #9333ea;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+
+.map-marker.event {
+  position: relative;
+}
+
+/* Simplified overview dots (z < 8 / globe alt ≥ 0.6) */
+.map-marker-overview-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #c084fc;
+  border: 1.5px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 0 6px rgba(192, 132, 252, 0.55);
+  pointer-events: auto;
+}
+.map-marker-overview-dot.live {
+  background: #f87171;
+  box-shadow: 0 0 8px rgba(248, 113, 113, 0.65);
+}
+.map-marker-overview-dot.salon.live {
+  background: #f87171;
+  box-shadow: 0 0 8px rgba(248, 113, 113, 0.65);
+}
+
+.map-event-tooltip {
+  background: rgba(30, 10, 50, 0.92) !important;
+  border: 1px solid rgba(192, 132, 252, 0.45) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45) !important;
+  color: #f3e8ff !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding: 6px 8px !important;
+}
+
+.map-event-tooltip::before {
+  border-top-color: rgba(30, 10, 50, 0.92) !important;
+}
+
 /* ── World capital markers (flat map) ──────────────────────────────────── */
 .map-capital-tooltip {
   background: rgba(12, 12, 22, 0.88) !important;
@@ -428,15 +573,23 @@ nav.ms-tab-bar-bottom > div {
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
+.reels-viewport {
+  flex: 1 1 0;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+}
+
 .reels-track {
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-x;
-  overscroll-behavior-x: contain;
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
   scrollbar-width: none;
   flex: 1 1 0;
   min-height: 0;
   height: 100%;
   align-items: stretch;
+  flex-direction: column;
 }
 
 .reel-slide {
@@ -461,6 +614,29 @@ nav.ms-tab-bar-bottom > div {
 
 .reel-heart-pop {
   animation: reel-heart-pop 0.35s ease-out;
+}
+
+@keyframes reel-double-tap-heart {
+  0% {
+    transform: scale(0);
+    opacity: 0.85;
+  }
+  18% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  32% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.reel-double-tap-heart {
+  animation: reel-double-tap-heart 0.9s ease-out forwards;
 }
 
 /* Messages (DmPage) — cases à cocher plus visibles */
@@ -505,6 +681,48 @@ nav.ms-tab-bar-bottom > div {
 .dm-messages-scroll {
   overflow-y: scroll;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Live — animation cadeau / pourboire (style overlay) */
+@keyframes live-gift-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.55);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(-1.25rem) scale(1.08);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-7.5rem) scale(1);
+  }
+}
+
+.live-gift-burst {
+  animation: live-gift-rise 2.4s ease-out forwards;
+}
+
+@keyframes live-gift-picker-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.live-gift-picker {
+  animation: live-gift-picker-in 0.18s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-gift-burst,
+  .live-gift-picker {
+    animation: none;
+  }
 }
 
 /* ── Salon / Live — chat flottant + languette ───────────────────────── */

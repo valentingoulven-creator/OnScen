@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { isPlatformConnected } from '../lib/platformConnect';
+import {
+  MAP_INLINE_LISTEN_MAX_MS,
+  startMapInlineListenSession,
+} from '../lib/mapListenSession';
 import { preferredParticipantPlatform } from '../lib/salonPlayback';
 import { useSalonPlaybackSync } from '../hooks/useSalonPlaybackSync';
 import { SalonYouTubePlayer } from './SalonYouTubePlayer';
@@ -24,6 +28,9 @@ interface MapSalonListenControlsProps {
   controlsTrailingEnd?: ReactNode;
   /** false = audio uniquement, pas de zone vidéo (fiche repliée). */
   showVideo?: boolean;
+  /** Petit salon : limite d'écoute carte (10 min). */
+  mapInlineListen?: boolean;
+  onMapInlineListenCapReached?: () => void;
 }
 
 /** Bouton « Salon » (plein écran) — petit salon carte, violet #9b7bd4.
@@ -56,6 +63,8 @@ export function MapSalonListenControls({
   onOpenSalon,
   controlsTrailingEnd,
   showVideo = true,
+  mapInlineListen = false,
+  onMapInlineListenCapReached,
 }: MapSalonListenControlsProps) {
   const { user, token } = useAuth();
   const isHost = Boolean(salon.isHost ?? (salon.hostId && salon.hostId === user?.id));
@@ -75,6 +84,10 @@ export function MapSalonListenControls({
   useEffect(() => {
     setParticipantPlatform(preferredParticipantPlatform(user?.connectedPlatforms, salon.platform));
   }, [salon.platform, user?.connectedPlatforms]);
+
+  useEffect(() => {
+    if (mapInlineListen) startMapInlineListenSession(salon.id);
+  }, [mapInlineListen, salon.id]);
 
   useEffect(() => {
     if (!token || hostLinked) return;
@@ -150,6 +163,9 @@ export function MapSalonListenControls({
         minimalLocalControls={minimalControls}
         showLocalPause={false}
         youtubeLinkVariant={minimalControls ? 'youtube-red' : 'default'}
+        mapInlineListenCapMs={mapInlineListen ? MAP_INLINE_LISTEN_MAX_MS : undefined}
+        mapInlineListenSessionKey={mapInlineListen ? salon.id : undefined}
+        onMapInlineListenCapReached={onMapInlineListenCapReached}
         controlsTrailing={
           minimalControls && (onOpenSalon || controlsTrailingEnd) ? (
             <>

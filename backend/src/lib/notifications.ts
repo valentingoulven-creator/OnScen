@@ -1,18 +1,40 @@
 import { db, AppNotification } from '../models/schema';
+import { getFollowerIds } from './follows';
+import { getFanIds } from './favorites';
 import { getIo } from './ioInstance';
 
-
-/** Heart-sent alerts are intentionally disabled — only match/live/don notifications. */
 export function isDeliverableNotificationType(type: string): boolean {
-  return type !== 'heart';
+  return true;
 }
 
-export function purgeHeartNotifications(): number {
-  const before = db.notifications.length;
-  const kept = db.notifications.filter((n) => isDeliverableNotificationType(n.type));
-  db.notifications.length = 0;
-  db.notifications.push(...kept);
-  return before - kept.length;
+function publicNotificationPayload(notification: AppNotification) {
+  return {
+    id: notification.id,
+    type: notification.type,
+    senderId: notification.senderId,
+    senderName: notification.senderName,
+    senderAvatarUrl: notification.senderAvatarUrl,
+    message: notification.message,
+    read: notification.read,
+    createdAt: notification.createdAt,
+    matchId: notification.matchId,
+    liveId: notification.liveId,
+    salonId: notification.salonId,
+    peerUserId: notification.peerUserId,
+    groupId: notification.groupId,
+    postId: notification.postId,
+    reelId: notification.reelId,
+  };
+}
+
+export function hasUnreadDmFromSender(recipientId: string, senderId: string): boolean {
+  return db.notifications.some(
+    (n) =>
+      n.recipientId === recipientId &&
+      n.type === 'dm_message' &&
+      !n.read &&
+      (n.peerUserId === senderId || n.senderId === senderId)
+  );
 }
 
 export function pushNotification(
@@ -33,26 +55,30 @@ export function pushNotification(
     salonId: n.salonId,
     peerUserId: n.peerUserId,
     groupId: n.groupId,
+    postId: n.postId,
+    reelId: n.reelId,
     read: false,
     createdAt: Date.now(),
   };
   db.notifications.push(notification);
-  getIo()?.to(`user_${n.recipientId}`).emit('notification', {
-    id: notification.id,
-    type: notification.type,
-    senderId: notification.senderId,
-    senderName: notification.senderName,
-    senderAvatarUrl: notification.senderAvatarUrl,
-    message: notification.message,
-    read: notification.read,
-    createdAt: notification.createdAt,
-    matchId: notification.matchId,
-    liveId: notification.liveId,
-    salonId: notification.salonId,
-    peerUserId: notification.peerUserId,
-    groupId: notification.groupId,
-  });
+  getIo()?.to(`user_${n.recipientId}`).emit('notification', publicNotificationPayload(notification));
   return notification;
+}
+
+export function notifyFollowReceived(params: {
+  recipientId: string;
+  sender: { id: string; username: string; avatarUrl?: string };
+}): void {
+  if (params.recipientId === params.sender.id) return;
+  pushNotification({
+    recipientId: params.recipientId,
+    senderId: params.sender.id,
+    senderName: params.sender.username,
+    senderAvatarUrl: params.sender.avatarUrl,
+    type: 'follow',
+    message: `${params.sender.username} vous suit maintenant 👤`,
+    peerUserId: params.sender.id,
+  });
 }
 
 export function notifyDmReceived(params: {
@@ -60,6 +86,9 @@ export function notifyDmReceived(params: {
   sender: { id: string; username: string; avatarUrl?: string };
   preview: string;
 }): void {
+  if (params.recipientId === params.sender.id) return;
+  if (hasUnreadDmFromSender(params.recipientId, params.sender.id)) return;
+
   const preview =
     params.preview.length > 80 ? `${params.preview.slice(0, 77)}…` : params.preview;
   pushNotification({
@@ -112,4 +141,75 @@ export function notifyHostLiveDon(params: {
     message: `${params.senderName} vous a envoyé un don de ${params.amount} €`,
     liveId: params.liveId,
   });
+}
+
+export function notifyHeartReceived(params: {
+  recipientId: string;
+  sender: { id: string; username: string; avatarUrl?: string };
+}): void {
+  if (params.recipientId === params.sender.id) return;
+  pushNotification({
+    recipientId: params.recipientId,
+    senderId: params.sender.id,
+    senderName: params.sender.username,
+    senderAvatarUrl: params.sender.avatarUrl,
+    type: 'heart',
+    message: `${params.sender.username} vous a envoyé un cœur 💜`,
+    peerUserId: params.sender.id,
+  });
+}
+
+export function notifyContentHeartReceived(params: {
+  recipientId: string;
+  sender: { id: string; username: string; avatarUrl?: string };
+  target: { kind: 'post'; id: string } | { kind: 'reel'; id: string };
+}): void {
+  if (params.recipientId === params.sender.id) return;
+
+  const label = params.target.kind === 'post' ? 'publication' : 'reel';
+  pushNotification({
+    recipientId: params.recipientId,
+    senderId: params.sender.id,
+    senderName: params.sender.username,
+    senderAvatarUrl: params.sender.avatarUrl,
+    type: 'content_heart',
+    message: `${params.sender.username} a aimé votre ${label} ❤️`,
+    peerUserId: params.sender.id,
+    ...(params.target.kind === 'post' ? { postId: params.target.id } : { reelId: params.target.id }),
+  });
+}
+
+export function notifyEventCreated(params: {
+  creator: { id: string; username: string; avatarUrl?: string };
+  postId: string;
+  eventLocation?: string;
+}): void {
+  const recipientIds = new Set<string>();
+
+  for (const followerId of getFollowerIds(params.creator.id)) {
+    if (followerId !== params.creator.id) recipientIds.add(followerId);
+  }
+
+  for (const fanId of getFanIds(params.creator.id)) {
+    if (fanId === params.creator.id) continue;
+    const entry = db.userFavorites.get(fanId)?.get(params.creator.id);
+    if (entry?.notificationsEnabled === false) continue;
+    recipientIds.add(fanId);
+  }
+
+  const locHint = params.eventLocation ? ` — ${params.eventLocation}` : '';
+  const message = `${params.creator.username} a créé un événement 📅${locHint}`;
+
+  for (const recipientId of recipientIds) {
+    pushNotification({
+      recipientId,
+      senderId: params.creator.id,
+      senderName: params.creator.username,
+      senderAvatarUrl: params.creator.avatarUrl,
+      type: 'event_created',
+      message,
+      postId: params.postId,
+      peerUserId: params.creator.id,
+    });
+  }
 }

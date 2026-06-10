@@ -1,25 +1,29 @@
 <!doctype html>
 <html lang="fr">
   <head>
+    <script>
+      if (location.protocol === 'https:' && /^\d+\.\d+\.\d+\.\d+$/.test(location.hostname)) {
+        location.replace('http://' + location.host + location.pathname + location.search + location.hash);
+      }
+    </script>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/pwa-192x192.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5" />
     <meta name="theme-color" content="#7c3aed" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Soundly" />
+    <meta name="apple-mobile-web-app-title" content="Soundy" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <title>Soundly</title>
-    <script type="module" crossorigin src="/assets/index-BLSK3Bl9.js"></script>
+    <title>Soundy</title>
+    <script type="module" crossorigin src="/assets/index-BPxCBd9a.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/rolldown-runtime-QTnfLwEv.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-map-DcuiXHny.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-misc-TRemZmQ8.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-react-DRPaF4Xc.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-socketio-Zry7HDe0.js">
-    <link rel="modulepreload" crossorigin href="/assets/UsernameDisplay-B7t4A5QR.js">
-    <link rel="modulepreload" crossorigin href="/assets/liveCameraSupport-D7yEmqWg.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-WU0sWlRs.css">
+    <link rel="modulepreload" crossorigin href="/assets/settings-B4kpCIlG.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-misc-DWpXZg89.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-react-xs4un-TZ.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-socketio-CZhFgCkq.js">
+    <link rel="modulepreload" crossorigin href="/assets/i18n-D9QCg5--.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-moZ5vJzZ.css">
   <link rel="manifest" href="/manifest.webmanifest"></head>
   <body>
     <div id="root">
@@ -49,7 +53,7 @@
             animation: melosong-spin 0.8s linear infinite;
           "
         ></div>
-        <p style="margin: 0; font-size: 0.95rem">Chargement de Soundly\u2026</p>
+        <p style="margin: 0; font-size: 0.95rem">Chargement de Soundy\u2026</p>
         <p id="melosong-boot-hint" style="margin: 0; font-size: 0.75rem; color: #6b7280; max-width: 20rem">
           Si l\u2019\u00e9cran reste noir : <a href="/clear-pwa" style="color:#a78bfa">Vider le cache PWA</a> ou <strong style="color: #c4b5fd">Ctrl+Shift+R</strong>
         </p>
@@ -64,7 +68,7 @@
     </style>
     <script>
       (function () {
-        var SW_CLEAR_KEY = 'melosong_sw_purge_mq3m7shf';
+        var SW_CLEAR_KEY = 'melosong_sw_purge_mq7tkd3h';
         function purgePwaCaches() {
           if (!('serviceWorker' in navigator)) return Promise.resolve();
           return navigator.serviceWorker

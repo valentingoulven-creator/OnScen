@@ -135,6 +135,8 @@ export function useLiveCamera() {
 
   useEffect(() => () => stop(), [stop]);
 
+  const getStream = useCallback((): MediaStream | null => streamRef.current, []);
+
   return {
     videoRef,
     active,
@@ -145,5 +147,6 @@ export function useLiveCamera() {
     start,
     startFromFile,
     stop,
+    getStream,
   };
 }

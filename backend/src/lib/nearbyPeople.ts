@@ -1,6 +1,6 @@
 import { db, MusicPlatform, User } from '../models/schema';
 import { getDistanceKm } from './geo';
-import { getPublicMapCoords, getUserPublicCoords, userSharesDistance } from './locationPrivacy';
+import { getUserPublicCoords, userSharesDistance } from './locationPrivacy';
 import { applyProfileDefaults, type PublicCurrentListening } from './profile';
 import { getHostRatingSummary } from './ratings';
 import { isBotHost } from '../seed-bots';
@@ -40,31 +40,25 @@ export interface NearbyPersonDto {
   favoriteArtists?: string[];
 }
 
+/** Position personne sur la carte : géolocalisation live de l'utilisateur (pas le salon). */
 function mapCoordsForUser(
   u: User,
-  viewerId: string,
-  extra?: { salonId?: string }
+  viewerId: string
 ): { latitude: number; longitude: number } | null {
-  if (extra?.salonId) {
-    const s = db.salons.get(extra.salonId);
-    if (s) {
-      const c = getPublicMapCoords(
-        u,
-        s.latitude,
-        s.longitude,
-        s.blurredLatitude,
-        s.blurredLongitude,
-        viewerId
-      );
-      if (isValidLatLng(c.latitude, c.longitude)) {
-        return { latitude: c.latitude, longitude: c.longitude };
-      }
-      return null;
-    }
-  }
   const pos = getUserPublicCoords(u, viewerId);
   if (!pos || !isValidLatLng(pos.lat, pos.lon)) return null;
   return { latitude: pos.lat, longitude: pos.lon };
+}
+
+function hostDistanceKm(
+  viewerLat: number,
+  viewerLon: number,
+  host: User,
+  viewerId: string
+): number | null {
+  const pos = getUserPublicCoords(host, viewerId);
+  if (!pos) return null;
+  return getDistanceKm(viewerLat, viewerLon, pos.lat, pos.lon);
 }
 
 function listeningFromSalon(salonId: string): PublicCurrentListening | undefined {
@@ -152,7 +146,7 @@ export function getNearbyPeople(
           (mergedLiveId ? listeningFromLive(mergedLiveId) : undefined) ??
           (mergedSalonId ? listeningFromSalon(mergedSalonId) : undefined) ??
           prev.currentListening;
-        const coords = mapCoordsForUser(u, viewerId, mergedSalonId ? { salonId: mergedSalonId } : undefined);
+        const coords = mapCoordsForUser(u, viewerId);
         byId.set(u.id, {
           ...prev,
           usernameColor: u.usernameColor ?? prev.usernameColor,
@@ -188,7 +182,7 @@ export function getNearbyPeople(
       (isLive && liveId ? listeningFromLive(liveId) : undefined) ??
       (salonId ? listeningFromSalon(salonId) : undefined) ??
       prev?.currentListening;
-    const coords = mapCoordsForUser(u, viewerId, salonId ? { salonId } : undefined);
+    const coords = mapCoordsForUser(u, viewerId);
 
     byId.set(u.id, {
       id: u.id,
@@ -233,17 +227,8 @@ export function getNearbyPeople(
     if (!isValidLatLng(s.latitude, s.longitude)) continue;
     const host = db.users.get(s.hostId);
     if (!host) continue;
-    const mapCoords = getPublicMapCoords(
-      host,
-      s.latitude,
-      s.longitude,
-      s.blurredLatitude,
-      s.blurredLongitude,
-      viewerId
-    );
-    if (!isValidLatLng(mapCoords.latitude, mapCoords.longitude)) continue;
-    const d = getDistanceKm(lat, lon, mapCoords.latitude, mapCoords.longitude);
-    if (!withinRadius(d)) continue;
+    const d = hostDistanceKm(lat, lon, host, viewerId);
+    if (d == null || !withinRadius(d)) continue;
     const live = db.lives.get(s.id);
     upsert(host, d, {
       salonId: s.id,
@@ -262,17 +247,8 @@ export function getNearbyPeople(
     if (!isValidLatLng(l.latitude, l.longitude)) continue;
     const host = db.users.get(l.hostId);
     if (!host) continue;
-    const mapCoords = getPublicMapCoords(
-      host,
-      l.latitude,
-      l.longitude,
-      l.blurredLatitude,
-      l.blurredLongitude,
-      viewerId
-    );
-    if (!isValidLatLng(mapCoords.latitude, mapCoords.longitude)) continue;
-    const d = getDistanceKm(lat, lon, mapCoords.latitude, mapCoords.longitude);
-    if (!withinRadius(d)) continue;
+    const d = hostDistanceKm(lat, lon, host, viewerId);
+    if (d == null || !withinRadius(d)) continue;
     upsert(host, d, {
       isLive: true,
       liveId: l.id,

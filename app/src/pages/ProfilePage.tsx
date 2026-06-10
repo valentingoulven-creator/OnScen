@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { MAX_PROFILE_PAYLOAD_CHARS, getUserProfilePhotos, prepareProfilePhotosForSave, profilePhotosChanged } from '../lib/profilePhotos';
+import {
+  defaultHideBirthDateOnProfile,
+  todayIsoDate,
+  validateBirthDate,
+} from '../lib/profileAge';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
-import {
-  MAX_PROFILE_PAYLOAD_CHARS,
-  prepareProfilePhotosForSave,
-  profilePhotosChanged,
-} from '../lib/profilePhotos';
+import { ArtistAutocomplete } from '../components/ArtistAutocomplete';
 import { CityAutocomplete } from '../components/CityAutocomplete';
 import { HostRatingBlock } from '../components/HostRatingBlock';
 import { ProfilePhotoGallery } from '../components/ProfilePhotoGallery';
@@ -13,27 +16,29 @@ import { SettingsPage, SettingsGearButton } from './SettingsPage';
 import { AnalyticsPage } from './AnalyticsPage';
 import { AccessManagementPage } from './AccessManagementPage';
 import { SupportMeloSongTeaser } from '../components/SupportMeloSongSection';
+import { DonationSheet } from '../components/DonationSheet';
 import { ProfileReelRecorder } from '../components/ProfileReelRecorder';
 import { UserReelsSection } from '../components/UserReelsSection';
 import { PlatformConnectCard } from '../components/PlatformConnectCard';
 import { UsernameColorPicker } from '../components/UsernameColorPicker';
 import { UsernameDisplay } from '../components/UsernameDisplay';
+import { USERNAME_COLOR_WAVE, isWaveUsernameColor } from '../lib/usernameColor';
 import { ProfileCurrentListening } from '../components/ProfileCurrentListening';
 import { MyFavoritesSheet } from '../components/MyFavoritesSheet';
-import { formatCompactCount, formatFavoritesCountLabel } from '../lib/formatCount';
-import { PROFILE_TYPE_OPTIONS, getProfileTypeLabel } from '../lib/profileTypes';
-import type { ListeningRole, ProfileType, RelationshipStatus, User } from '../types';
+import { formatCompactCount } from '../lib/formatCount';
+import { ProfileHeaderSection } from '../components/ProfileHeaderSection';
+import { PROFILE_TYPE_OPTIONS } from '../lib/profileTypes';
+import {
+  getRelationshipDisplayLabel,
+  getRelationshipEmoji,
+} from '../lib/relationshipStatus';
+import type { ProfileType, RelationshipStatus, User } from '../types';
 
-const ROLE_LABELS: Record<ListeningRole, string> = {
-  auditeur: 'Auditeur',
-  host: 'Host / DJ',
-  les_deux: 'Auditeur & Host',
-};
+const HIDE_AGE_CHECKBOX_ID = 'profile-hide-age';
 
-const RELATIONSHIP_LABELS: Record<RelationshipStatus, string> = {
-  celibataire: 'Célibataire',
-  en_couple: 'En couple',
-};
+/** Boîtes tags profil : largeur au contenu, plafonnée et centrée (pas pleine largeur). */
+const PROFILE_TAG_BOX_CLASS =
+  'bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4 max-w-sm mx-auto w-fit';
 
 const SUGGESTED_INTERESTS = [
   'Live local',
@@ -48,14 +53,8 @@ const SUGGESTED_INTERESTS = [
   'Électro',
 ];
 
-function getProfilePhotos(user: User | null): string[] {
-  if (user?.profilePhotos?.length) return [...user.profilePhotos];
-  if (user?.avatarUrl) return [user.avatarUrl];
-  return [];
-}
-
 function profileToForm(user: User | null) {
-  const profilePhotos = getProfilePhotos(user);
+  const profilePhotos = getUserProfilePhotos(user);
   return {
     username: user?.username ?? '',
     usernameColor: user?.usernameColor ?? '',
@@ -65,11 +64,12 @@ function profileToForm(user: User | null) {
     city: user?.city ?? '',
     avatarUrl: profilePhotos[0] ?? '',
     profilePhotos,
-    listeningRole: (user?.listeningRole ?? 'auditeur') as ListeningRole,
     profileType: user?.profileType ?? '',
     relationshipStatus: user?.relationshipStatus ?? '',
-    age: user?.age != null ? String(user.age) : '',
-    showAge: user?.showAge ?? false,
+    relationshipStatusCustom: user?.relationshipStatusCustom ?? '',
+    birthDate: user?.birthDate ?? '',
+    hideBirthDateOnProfile:
+      user?.hideBirthDateOnProfile ?? defaultHideBirthDateOnProfile(user),
     interests: [...(user?.interests ?? [])],
     favoriteGenres: [...(user?.favoriteGenres ?? [])],
     favoriteArtists: [...(user?.favoriteArtists ?? [])],
@@ -98,7 +98,8 @@ export function ProfilePage({
   openRecorderOnMount = false,
   onRecorderMountHandled,
 }: ProfilePageProps) {
-  const { user, token, logout, setUserFromProfile } = useAuth();
+  const { user, token, logout, setUserFromProfile, refreshUser } = useAuth();
+  const { t } = useTranslation();
   const [profileTab, setProfileTab] = useState<ProfileTab>('profil');
   const [showReelRecorder, setShowReelRecorder] = useState(false);
   const [reelsRefreshKey, setReelsRefreshKey] = useState(0);
@@ -107,6 +108,8 @@ export function ProfilePage({
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showAccessManagement, setShowAccessManagement] = useState(false);
   const [showFavoritesSheet, setShowFavoritesSheet] = useState(false);
+  const [showDonationSheet, setShowDonationSheet] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [myFavoritesCount, setMyFavoritesCount] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
@@ -114,9 +117,19 @@ export function ProfilePage({
 
   const [form, setForm] = useState(() => profileToForm(user));
 
+  const relationshipLabels: Record<RelationshipStatus, string> = {
+    celibataire: t('profile.relationshipSingle'),
+    en_couple: t('profile.relationshipCouple'),
+    autre: t('profile.relationshipOther'),
+  };
+
   useEffect(() => {
     if (user && !editing) setForm(profileToForm(user));
   }, [user, editing]);
+
+  useEffect(() => {
+    if (token) void refreshUser();
+  }, [token, refreshUser]);
 
   useEffect(() => {
     if (!token || editing) return;
@@ -156,33 +169,46 @@ export function ProfilePage({
       setSaveError('Le pseudo doit faire au moins 2 caractères');
       return;
     }
-    const ageTrim = form.age.trim();
-    if (ageTrim) {
-      const ageNum = Number(ageTrim);
-      if (!Number.isInteger(ageNum) || ageNum < 13 || ageNum > 120) {
-        setSaveError("L'âge doit être un nombre entier entre 13 et 120.");
+    const birthDateTrim = form.birthDate.trim();
+    if (birthDateTrim) {
+      const birthError = validateBirthDate(birthDateTrim);
+      if (birthError) {
+        setSaveError(t(`profile.${birthError}`));
         return;
       }
+    }
+    if (form.relationshipStatus === 'autre' && !form.relationshipStatusCustom.trim()) {
+      setSaveError(t('profile.relationshipCustomRequired'));
+      return;
     }
     setSaving(true);
     setSavedMsg(null);
     setSaveError(null);
     try {
-      const currentPhotos = getProfilePhotos(user);
+      const currentPhotos = getUserProfilePhotos(user);
       const photosChanged = profilePhotosChanged(currentPhotos, form.profilePhotos);
+
+      const waveFrom = form.usernameWaveFrom.trim();
+      const waveTo = form.usernameWaveTo.trim();
+      const colorTrim = form.usernameColor.trim();
+      const usernameColor =
+        isWaveUsernameColor(colorTrim) || waveFrom || waveTo
+          ? USERNAME_COLOR_WAVE
+          : colorTrim || null;
 
       const body: Record<string, unknown> = {
         username: name,
-        usernameColor: form.usernameColor.trim() || null,
-        usernameWaveFrom: form.usernameWaveFrom.trim() || null,
-        usernameWaveTo: form.usernameWaveTo.trim() || null,
+        usernameColor,
+        usernameWaveFrom: waveFrom || null,
+        usernameWaveTo: waveTo || null,
         bio: form.bio,
         city: form.city,
-        listeningRole: form.listeningRole,
         profileType: form.profileType || null,
         relationshipStatus: form.relationshipStatus || null,
-        age: ageTrim ? Number(ageTrim) : null,
-        showAge: ageTrim ? form.showAge : false,
+        relationshipStatusCustom:
+          form.relationshipStatus === 'autre' ? form.relationshipStatusCustom.trim() || null : null,
+        birthDate: birthDateTrim || null,
+        hideBirthDateOnProfile: birthDateTrim ? form.hideBirthDateOnProfile : true,
         interests: form.interests,
         favoriteGenres: form.favoriteGenres,
         favoriteArtists: form.favoriteArtists,
@@ -238,7 +264,8 @@ export function ProfilePage({
     ? new Date(user.memberSince).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
     : '—';
 
-  const displayPhotos = editing ? form.profilePhotos : getProfilePhotos(user);
+  const displayPhotos = editing ? form.profilePhotos : getUserProfilePhotos(user);
+  const headerAvatarUrl = displayPhotos[0];
 
   const addTag = (field: 'interests' | 'favoriteGenres' | 'favoriteArtists', value: string) => {
     const v = value.trim();
@@ -253,7 +280,6 @@ export function ProfilePage({
   return (
     <div className="flex flex-col h-full overflow-y-auto bg-[#0b0b0f]">
       <div className="relative shrink-0">
-        <div className="h-36 bg-gradient-to-br from-purple-900/80 via-[#1a1035] to-pink-900/40" />
         <div className="absolute top-3 left-3 z-10">
           {onBack && (
             <button
@@ -273,78 +299,45 @@ export function ProfilePage({
             </span>
           )}
           {!editing && <SettingsGearButton onClick={() => setShowSettings(true)} />}
-          {!editing ? (
-            <button
-              type="button"
-              onClick={startEditing}
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur border border-white/20 rounded-full text-xs font-bold text-white"
-            >
-              Modifier
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
-              className="px-4 py-2 bg-[#1a1a26]/90 border border-[#2d2d3d] rounded-full text-xs font-bold text-gray-300"
-            >
-              Annuler
-            </button>
-          )}
         </div>
-        <div className="absolute -bottom-10 left-4 right-4">
-          <UsernameDisplay
-            as="h1"
-            username={editing ? form.username || user.username : user.username}
-            usernameColor={editing ? form.usernameColor : user.usernameColor}
-            usernameWaveFrom={editing ? form.usernameWaveFrom : user.usernameWaveFrom}
-            usernameWaveTo={editing ? form.usernameWaveTo : user.usernameWaveTo}
-            className="text-2xl font-extrabold truncate block"
-          />
-          {(editing ? form.profileType : user.profileType) && (
-            <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-500/20 text-purple-200 border border-purple-500/30">
-              {getProfileTypeLabel(editing ? form.profileType : user.profileType)}
-            </span>
-          )}
-          <p className="text-sm text-purple-300 mt-0.5">
-            {ROLE_LABELS[editing ? form.listeningRole : (user.listeningRole ?? 'auditeur')]}
-          </p>
-          {(editing ? form.city : user.city) && (
-            <p className="text-xs text-gray-400 mt-0.5">📍 {editing ? form.city : user.city}</p>
-          )}
-          {(() => {
-            const displayAge = editing
-              ? form.age.trim()
-                ? Number(form.age)
-                : null
-              : user.age ?? null;
-            if (displayAge == null || !Number.isInteger(displayAge)) return null;
-            return (
-              <p className="text-sm text-gray-400 mt-0.5">
-                {displayAge} ans
-                {editing && !form.showAge && (
-                  <span className="text-xs text-gray-500"> (masqué sur le profil public)</span>
-                )}
-              </p>
-            );
-          })()}
-          {!editing && user.relationshipStatus && (
-            <p className="text-xs text-pink-300/90 mt-0.5">
-              {user.relationshipStatus === 'en_couple' ? '💑' : '✨'}{' '}
-              {RELATIONSHIP_LABELS[user.relationshipStatus]}
-            </p>
-          )}
-          {!editing && user.favoritesCount != null && (
-            <p
-              className="text-xs text-amber-300/90 mt-0.5"
-              title="Personnes qui vous ont ajouté en favoris"
-            >
-              ⭐ {formatFavoritesCountLabel(user.favoritesCount)}
-            </p>
-          )}
-        </div>
+        <ProfileHeaderSection
+          userId={user.id}
+          username={editing ? form.username || user.username : user.username}
+          usernameColor={editing ? form.usernameColor : user.usernameColor}
+          usernameWaveFrom={editing ? form.usernameWaveFrom : user.usernameWaveFrom}
+          usernameWaveTo={editing ? form.usernameWaveTo : user.usernameWaveTo}
+          avatarUrl={headerAvatarUrl}
+          profileType={editing ? form.profileType : user.profileType}
+          city={editing ? form.city : user.city}
+          birthDate={editing ? form.birthDate.trim() : user.birthDate}
+          age={editing ? undefined : user.age}
+          showAgeHiddenHint={editing && form.hideBirthDateOnProfile && Boolean(form.birthDate.trim())}
+          relationshipStatus={editing ? undefined : user.relationshipStatus}
+          relationshipStatusCustom={editing ? undefined : user.relationshipStatusCustom}
+          favoritesCount={editing ? undefined : user.favoritesCount}
+          action={
+            !editing ? (
+              <button
+                type="button"
+                onClick={startEditing}
+                className="px-3 py-1.5 sm:py-2 bg-purple-600 hover:bg-purple-500 rounded-xl font-semibold text-white text-[11px] sm:text-sm shadow-lg shadow-purple-900/30 whitespace-nowrap"
+              >
+                Modifier le profil
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEditing(false)}
+                className="px-3 py-1.5 sm:py-2 bg-[#1a1a26]/90 border border-[#2d2d3d] rounded-xl text-[11px] sm:text-xs font-bold text-gray-300 whitespace-nowrap"
+              >
+                Annuler
+              </button>
+            )
+          }
+        />
       </div>
 
-      <div className="pt-12 px-4 pb-8 space-y-5">
+      <div className="px-4 pb-8 space-y-5">
         {!editing && user.currentListening && (
           <ProfileCurrentListening listening={user.currentListening} />
         )}
@@ -455,7 +448,7 @@ export function ProfilePage({
         )}
 
         <p className="text-xs text-gray-500 text-center">
-          Membre depuis {memberDate} · Profil musical Soundly
+          Membre depuis {memberDate} · {t('profile.musicalProfile')}
         </p>
 
         {(user.listeningRole === 'host' ||
@@ -472,11 +465,19 @@ export function ProfilePage({
             {user.relationshipStatus && (
               <section className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4 flex items-center gap-3">
                 <span className="text-2xl">
-                  {user.relationshipStatus === 'en_couple' ? '💑' : '✨'}
+                  {getRelationshipEmoji(user.relationshipStatus)}
                 </span>
                 <div>
-                  <h3 className="text-xs font-bold text-pink-300/90 uppercase tracking-wider">Situation</h3>
-                  <p className="text-sm text-gray-300">{RELATIONSHIP_LABELS[user.relationshipStatus]}</p>
+                  <h3 className="text-xs font-bold text-pink-300/90 uppercase tracking-wider">
+                    {t('profile.relationshipLabel')}
+                  </h3>
+                  <p className="text-sm text-gray-300">
+                    {getRelationshipDisplayLabel(
+                      user.relationshipStatus,
+                      user.relationshipStatusCustom,
+                      relationshipLabels
+                    )}
+                  </p>
                 </div>
               </section>
             )}
@@ -499,12 +500,13 @@ export function ProfilePage({
               <p className="text-[10px] text-gray-500">
                 Obligatoire pour créer ou animer un salon sur la plateforme choisie.
               </p>
-              {(['spotify', 'youtube'] as const).map((p) => (
+              {(['spotify', 'youtube', 'instagram'] as const).map((p) => (
                 <PlatformConnectCard
                   key={p}
                   token={token}
                   platform={p}
                   connectedPlatforms={user.connectedPlatforms}
+                  platformLinks={user.platformLinks}
                   onUserUpdated={(u) => {
                     setUserFromProfile(u);
                     setForm(profileToForm(u));
@@ -516,14 +518,6 @@ export function ProfilePage({
             <p className="text-xs text-gray-500 text-center px-2">
               Votre profil aide les autres à trouver des goûts musicaux communs — pas un profil de rencontre.
             </p>
-
-            <button
-              type="button"
-              onClick={startEditing}
-              className="w-full py-3.5 bg-purple-600 hover:bg-purple-500 rounded-xl font-bold text-white shadow-lg shadow-purple-900/30"
-            >
-              Modifier mon profil
-            </button>
           </>
         ) : (
           <div className="space-y-4">
@@ -563,7 +557,7 @@ export function ProfilePage({
                 onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
                 rows={4}
                 maxLength={500}
-                placeholder="Parlez de votre rapport à la musique, vos sessions, ce que vous cherchez sur Soundly..."
+                placeholder="Parlez de votre rapport à la musique, vos sessions, ce que vous cherchez sur Soundy..."
                 className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-2 text-white text-sm"
               />
               <span className="text-[10px] text-gray-600">{form.bio.length}/500</span>
@@ -576,40 +570,53 @@ export function ProfilePage({
               />
             </label>
             <label className="block">
-              <span className="text-xs text-gray-400">Âge (optionnel)</span>
+              <span className="text-xs text-gray-400">{t('profile.birthDate')}</span>
               <input
-                type="number"
-                min={13}
-                max={120}
-                value={form.age}
+                type="date"
+                max={todayIsoDate()}
+                value={form.birthDate}
                 onChange={(e) => {
                   const next = e.target.value;
                   setForm((f) => ({
                     ...f,
-                    age: next,
-                    showAge: next.trim() ? f.showAge : false,
+                    birthDate: next,
+                    hideBirthDateOnProfile: next.trim()
+                      ? f.birthDate.trim()
+                        ? f.hideBirthDateOnProfile
+                        : true
+                      : true,
                   }));
                 }}
-                placeholder="Ex. 28"
-                className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-2 text-white text-sm"
+                className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-2 text-white text-sm [color-scheme:dark]"
               />
-              <p className="text-[10px] text-gray-600 mt-1">Minimum 13 ans (conformité app 13+)</p>
+              <p className="text-[10px] text-gray-600 mt-1">{t('profile.minAge')}</p>
             </label>
-            <label className="flex items-start gap-3 rounded-xl border border-[#2d2d3d] bg-[#12121a] px-4 py-3">
+            <div className="flex items-start gap-3 rounded-xl border border-[#2d2d3d] bg-[#12121a] px-4 py-3">
               <input
+                id={HIDE_AGE_CHECKBOX_ID}
                 type="checkbox"
-                checked={form.showAge}
-                disabled={!form.age.trim()}
-                onChange={(e) => setForm((f) => ({ ...f, showAge: e.target.checked }))}
-                className="mt-0.5 accent-purple-500 disabled:opacity-40"
+                checked={Boolean(form.hideBirthDateOnProfile)}
+                disabled={!form.birthDate.trim()}
+                onChange={(e) => {
+                  if (!form.birthDate.trim()) return;
+                  setForm((f) => ({ ...f, hideBirthDateOnProfile: e.target.checked }));
+                }}
+                className="mt-0.5 shrink-0 accent-purple-500 disabled:opacity-40 disabled:cursor-not-allowed"
               />
-              <span className="text-sm text-gray-300">
-                Afficher mon âge sur mon profil
+              <label
+                htmlFor={HIDE_AGE_CHECKBOX_ID}
+                className={`text-sm text-gray-300 min-w-0 ${
+                  form.birthDate.trim() ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
+                }`}
+              >
+                {t('profile.hideAge')}
                 <span className="block text-[10px] text-gray-500 mt-0.5">
-                  Visible par les autres uniquement si activé
+                  {form.birthDate.trim()
+                    ? t('profile.hideAgeHint')
+                    : t('profile.hideAgeNeedsDate')}
                 </span>
-              </span>
-            </label>
+              </label>
+            </div>
             <label className="block">
               <span className="text-xs text-gray-400">Qui êtes-vous ? (optionnel)</span>
               <select
@@ -629,37 +636,37 @@ export function ProfilePage({
             </label>
 
             <label className="block">
-              <span className="text-xs text-gray-400">Rôle sur Soundly</span>
-              <select
-                value={form.listeningRole}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, listeningRole: e.target.value as ListeningRole }))
-                }
-                className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-2 text-white text-sm"
-              >
-                <option value="auditeur">Auditeur</option>
-                <option value="host">Host / DJ</option>
-                <option value="les_deux">Auditeur & Host</option>
-              </select>
-            </label>
-
-            <label className="block">
-              <span className="text-xs text-gray-400">Situation (optionnel)</span>
+              <span className="text-xs text-gray-400">{t('profile.relationshipOptional')}</span>
               <select
                 value={form.relationshipStatus}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const next = e.target.value as RelationshipStatus | '';
                   setForm((f) => ({
                     ...f,
-                    relationshipStatus: e.target.value as RelationshipStatus | '',
-                  }))
-                }
+                    relationshipStatus: next,
+                    relationshipStatusCustom: next === 'autre' ? f.relationshipStatusCustom : '',
+                  }));
+                }}
                 className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-2 text-white text-sm"
               >
-                <option value="">Ne pas afficher</option>
-                <option value="celibataire">Célibataire</option>
-                <option value="en_couple">En couple</option>
+                <option value="">{t('profile.relationshipHidden')}</option>
+                <option value="celibataire">{relationshipLabels.celibataire}</option>
+                <option value="en_couple">{relationshipLabels.en_couple}</option>
+                <option value="autre">{relationshipLabels.autre}</option>
               </select>
-              <p className="text-[10px] text-gray-600 mt-1">Information facultative sur votre profil musical</p>
+              {form.relationshipStatus === 'autre' && (
+                <input
+                  type="text"
+                  value={form.relationshipStatusCustom}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, relationshipStatusCustom: e.target.value }))
+                  }
+                  placeholder={t('profile.relationshipCustomPlaceholder')}
+                  maxLength={80}
+                  className="mt-2 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-2 text-white text-sm"
+                />
+              )}
+              <p className="text-[10px] text-gray-600 mt-1">{t('profile.relationshipHeartHint')}</p>
             </label>
 
             <EditableTags
@@ -695,16 +702,22 @@ export function ProfilePage({
                 setForm((f) => ({ ...f, newArtist: '' }));
               }}
               onRemove={(t) => removeTag('favoriteArtists', t)}
+              autocomplete="artist"
+              onSelectSuggestion={(v) => {
+                addTag('favoriteArtists', v);
+                setForm((f) => ({ ...f, newArtist: '' }));
+              }}
             />
 
             <div className="space-y-2">
               <span className="text-xs text-gray-400">Comptes streaming</span>
-              {(['spotify', 'youtube'] as const).map((p) => (
+              {(['spotify', 'youtube', 'instagram'] as const).map((p) => (
                 <PlatformConnectCard
                   key={p}
                   token={token}
                   platform={p}
                   connectedPlatforms={user.connectedPlatforms}
+                  platformLinks={user.platformLinks}
                   onUserUpdated={(u) => {
                     setUserFromProfile(u);
                     setForm(profileToForm(u));
@@ -736,7 +749,7 @@ export function ProfilePage({
         {!editing && profileTab === 'profil' && (
           <section className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4 space-y-3">
             <p className="text-xs text-gray-500">{user.email}</p>
-            <SupportMeloSongTeaser onOpen={() => setShowSettings(true)} />
+            <SupportMeloSongTeaser onOpen={() => setShowDonationSheet(true)} />
             <button
               type="button"
               onClick={() => setShowSettings(true)}
@@ -746,10 +759,10 @@ export function ProfilePage({
             </button>
             <button
               type="button"
-              onClick={logout}
+              onClick={() => setShowLogoutConfirm(true)}
               className="w-full py-3 rounded-xl bg-[#1a1a26] border border-[#2d2d3d] text-red-400 font-semibold"
             >
-              Déconnexion
+              {t('profile.logout')}
             </button>
           </section>
         )}
@@ -765,6 +778,50 @@ export function ProfilePage({
           }}
           onFavoritesChanged={setMyFavoritesCount}
         />
+      )}
+
+      {showDonationSheet && (
+        <DonationSheet onClose={() => setShowDonationSheet(false)} />
+      )}
+
+      {showLogoutConfirm && (
+        <div
+          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="logout-confirm-title"
+          onClick={() => setShowLogoutConfirm(false)}
+        >
+          <div
+            className="w-full max-w-sm bg-[#12121a] border border-[#2d2d3d] rounded-2xl shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5">
+              <p id="logout-confirm-title" className="text-lg font-bold text-white">
+                {t('profile.logoutConfirmTitle')}
+              </p>
+            </div>
+            <div className="flex gap-2 p-4 border-t border-[#1e1e2f] bg-[#0b0b0f]/50">
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(false)}
+                className="flex-1 py-3 rounded-xl border border-[#2d2d3d] text-gray-300 text-sm font-semibold hover:text-white"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLogoutConfirm(false);
+                  logout();
+                }}
+                className="flex-1 py-3 rounded-xl bg-red-600/90 hover:bg-red-500 text-white text-sm font-bold"
+              >
+                {t('profile.logout')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -788,7 +845,7 @@ function TagSection({
   };
   if (!tags.length && !emptyHint) return null;
   return (
-    <section className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4">
+    <section className={PROFILE_TAG_BOX_CLASS}>
       <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2">{title}</h3>
       {tags.length > 0 ? (
         <div className="flex flex-wrap gap-2">
@@ -813,6 +870,8 @@ function EditableTags({
   onAdd,
   onRemove,
   suggestions,
+  autocomplete,
+  onSelectSuggestion,
 }: {
   label: string;
   tags: string[];
@@ -821,9 +880,11 @@ function EditableTags({
   onAdd: () => void;
   onRemove: (t: string) => void;
   suggestions?: string[];
+  autocomplete?: 'artist';
+  onSelectSuggestion?: (value: string) => void;
 }) {
   return (
-    <div className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4">
+    <div className={PROFILE_TAG_BOX_CLASS}>
       <span className="text-xs text-gray-400">{label}</span>
       <div className="flex flex-wrap gap-2 mt-2 mb-2">
         {tags.map((t) => (
@@ -839,14 +900,25 @@ function EditableTags({
         ))}
       </div>
       <div className="flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => onInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), onAdd())}
-          className="flex-1 bg-[#1a1a26] border border-[#2d2d3d] rounded-lg px-3 py-2 text-white text-sm"
-          placeholder="Ajouter..."
-        />
-        <button type="button" onClick={onAdd} className="px-3 py-2 bg-purple-600 rounded-lg text-white text-sm">
+        {autocomplete === 'artist' ? (
+          <ArtistAutocomplete
+            value={input}
+            onChange={onInput}
+            exclude={tags}
+            placeholder="Ex: Daft Punk, Lomepal…"
+            onSelect={(s) => onSelectSuggestion?.(s.value)}
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), onAdd())}
+          />
+        ) : (
+          <input
+            value={input}
+            onChange={(e) => onInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), onAdd())}
+            className="flex-1 bg-[#1a1a26] border border-[#2d2d3d] rounded-lg px-3 py-2 text-white text-sm"
+            placeholder="Ajouter..."
+          />
+        )}
+        <button type="button" onClick={onAdd} className="px-3 py-2 bg-purple-600 rounded-lg text-white text-sm shrink-0">
           +
         </button>
       </div>

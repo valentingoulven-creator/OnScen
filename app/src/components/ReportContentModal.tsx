@@ -22,22 +22,31 @@ export interface ReportContentContext {
 interface ReportContentModalProps {
   context: ReportContentContext;
   onClose: () => void;
+  /** Appelé après signalement réussi quand un utilisateur a été bloqué. */
+  onUserBlocked?: (userId: string) => void;
 }
 
-export function ReportContentModal({ context, onClose }: ReportContentModalProps) {
+export function ReportContentModal({ context, onClose, onUserBlocked }: ReportContentModalProps) {
   const { token } = useAuth();
   const [category, setCategory] = useState<string>('illegal');
   const [details, setDetails] = useState('');
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
+  const [userBlocked, setUserBlocked] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const submit = async () => {
     if (!token) return;
+    const targetLabel = context.targetUsername ?? 'cet utilisateur';
+    const confirmText = context.targetUserId
+      ? `Signaler ${targetLabel} ?\n\nCette personne sera bloquée automatiquement. Elle ne sera pas avertie et vous ne verrez plus ses messages ni son contenu.`
+      : 'Envoyer ce signalement ?';
+    if (!window.confirm(confirmText)) return;
+
     setSending(true);
     setError(null);
     try {
-      await api.submitContentReport(token, {
+      const result = await api.submitContentReport(token, {
         category,
         details,
         targetUserId: context.targetUserId,
@@ -45,6 +54,10 @@ export function ReportContentModal({ context, onClose }: ReportContentModalProps
         roomId: context.roomId,
         messageId: context.messageId,
       });
+      if (result.blocked && context.targetUserId) {
+        setUserBlocked(true);
+        onUserBlocked?.(context.targetUserId);
+      }
       setDone(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Envoi impossible');
@@ -73,6 +86,11 @@ export function ReportContentModal({ context, onClose }: ReportContentModalProps
         {done ? (
           <div className="p-6 text-center space-y-3">
             <p className="text-green-400 font-semibold">Signalement enregistré</p>
+            {userBlocked && (
+              <p className="text-sm text-gray-300">
+                {context.targetUsername ?? 'Cet utilisateur'} a été bloqué. Vous ne verrez plus son contenu.
+              </p>
+            )}
             <p className="text-sm text-gray-400">Merci. Nous examinerons votre signalement dans un délai raisonnable.</p>
             <button type="button" onClick={onClose} className="w-full py-3 rounded-xl bg-purple-600 text-white font-bold">
               Fermer

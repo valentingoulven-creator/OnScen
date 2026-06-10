@@ -13,6 +13,8 @@ import {
   resolveNearbyRadiusKm,
 } from '../lib/geoLimits';
 import { DEFAULT_MAP_LAT, DEFAULT_MAP_LON, isValidLatLng } from '../lib/mapCoords';
+import { MIN_LIVE_AGE, userMeetsLiveAge } from '../lib/ageGates';
+import { serializePublicLive } from '../lib/livePublic';
 
 export const livesRouter = Router();
 
@@ -102,6 +104,14 @@ livesRouter.post('/start', authenticateJWT, (req: Request, res: Response) => {
   const user = db.users.get(userId);
   if (!user) {
     res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+
+  if (!userMeetsLiveAge(user.age)) {
+    res.status(403).json({
+      error: `Vous devez avoir au moins ${MIN_LIVE_AGE} ans pour lancer un live.`,
+      code: 'LIVE_AGE_REQUIRED',
+    });
     return;
   }
 
@@ -204,32 +214,5 @@ livesRouter.get('/:id', authenticateJWT, (req: Request, res: Response) => {
 });
 
 function publicLive(l: Live, distanceKm?: number, viewerId?: string) {
-  const host = db.users.get(l.hostId);
-  const coords =
-    host != null
-      ? getPublicMapCoords(host, l.latitude, l.longitude, l.blurredLatitude, l.blurredLongitude, viewerId)
-      : { latitude: l.blurredLatitude, longitude: l.blurredLongitude };
-  const base = {
-    id: l.id,
-    salonId: l.salonId,
-    hostId: l.hostId,
-    hostName: l.hostName,
-    hostUsernameColor: host?.usernameColor,
-    hostUsernameWaveFrom: host?.usernameWaveFrom,
-    hostUsernameWaveTo: host?.usernameWaveTo,
-    title: l.title,
-    platform: l.platform,
-    playbackState: l.playbackState,
-    latitude: coords.latitude,
-    longitude: coords.longitude,
-    viewersCount: l.viewersCount,
-    isActive: l.isActive,
-    startedAt: l.startedAt,
-    cameraActive: !!l.cameraActive,
-    vipModeratorIds: l.vipModeratorIds ?? [],
-  };
-  if (distanceKm !== undefined) {
-    return { ...base, distanceKm: Math.round(distanceKm * 10) / 10 };
-  }
-  return base;
+  return serializePublicLive(l, distanceKm, viewerId);
 }

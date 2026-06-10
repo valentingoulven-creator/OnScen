@@ -15,6 +15,7 @@ import {
   getMutedIds,
 } from '../lib/mutes';
 import { isUserOnline, getOnlineUserIds } from '../lib/presence';
+import { isFollowing } from '../lib/follows';
 import { getActiveLiveHosts } from '../lib/liveStatus';
 import { getIo } from '../lib/ioInstance';
 import { hideDmForUser, isDmVisibleToUser } from '../lib/dmVisibility';
@@ -38,6 +39,29 @@ function dmPairKey(senderId: string, receiverId: string): string {
   return `${senderId}::${receiverId}`;
 }
 
+// ── Lazy cache for legacy accepted DM pairs ─────────────────────────────────
+// Older data may not have entries in db.dmPendingPairs ('accepted' state).
+// Building this Set once avoids O(n) db.directMessages.some() on every send.
+let _legacyAcceptedCache: Set<string> | null = null;
+
+function getLegacyAcceptedCache(): Set<string> {
+  if (_legacyAcceptedCache) return _legacyAcceptedCache;
+  const cache = new Set<string>();
+  for (const m of db.directMessages) {
+    if (m.accepted) {
+      cache.add(dmPairKey(m.senderId, m.receiverId));
+      cache.add(dmPairKey(m.receiverId, m.senderId));
+    }
+  }
+  _legacyAcceptedCache = cache;
+  return cache;
+}
+
+/** Call after any operation that mutates accepted status (request accept / delete). */
+function invalidateLegacyAcceptedCache(): void {
+  _legacyAcceptedCache = null;
+}
+
 /**
  * Retourne le statut de la relation A→B.
  * - 'accepted' si des messages acceptés existent (rétro-compat) ou explicitement accepté
@@ -51,14 +75,8 @@ function getDmRelationStatus(
 ): 'none' | 'pending' | 'accepted' | 'refused' {
   const explicit = db.dmPendingPairs.get(dmPairKey(senderId, receiverId));
   if (explicit) return explicit;
-  // rétro-compat : si des messages acceptés existent → accepted
-  const hasAccepted = db.directMessages.some(
-    (m) =>
-      ((m.senderId === senderId && m.receiverId === receiverId) ||
-        (m.senderId === receiverId && m.receiverId === senderId)) &&
-      m.accepted
-  );
-  return hasAccepted ? 'accepted' : 'none';
+  // Rétro-compat: use pre-built O(1) cache instead of O(n) db.directMessages.some().
+  return getLegacyAcceptedCache().has(dmPairKey(senderId, receiverId)) ? 'accepted' : 'none';
 }
 
 function emitDmUnreadToUser(userId: string): void {
@@ -225,13 +243,28 @@ dmRouter.get('/conversations/list', authenticateJWT, (req: Request, res: Respons
       };
     });
 
+  // Pre-index group messages by groupId: O(total_messages) once instead of
+  // O(groups × total_messages) with nested .filter() inside the .map() below.
+  const groupMsgsByGroupId = new Map<string, typeof db.groupMessages>();
+  for (const m of db.groupMessages) {
+    let bucket = groupMsgsByGroupId.get(m.groupId);
+    if (!bucket) {
+      bucket = [];
+      groupMsgsByGroupId.set(m.groupId, bucket);
+    }
+    bucket.push(m);
+  }
+
   const groupConversations = db.messageGroups
     .filter((g) => g.memberIds.includes(me))
     .map((g) => {
-      const visibleMessages = db.groupMessages.filter(
-        (m) => m.groupId === g.id && isGroupMessageVisibleToUser(m, me)
-      );
-      const last = visibleMessages.sort((a, b) => b.timestamp - a.timestamp)[0];
+      const msgs = groupMsgsByGroupId.get(g.id) ?? [];
+      // Find most recent visible message without a full sort (O(n) max instead of O(n log n)).
+      let last: (typeof msgs)[number] | undefined;
+      for (const m of msgs) {
+        if (!isGroupMessageVisibleToUser(m, me)) continue;
+        if (!last || m.timestamp > last.timestamp) last = m;
+      }
       const lastSender = last ? db.users.get(last.senderId) : undefined;
       return {
         kind: 'group' as const,
@@ -259,11 +292,21 @@ dmRouter.get('/conversations/list', authenticateJWT, (req: Request, res: Respons
 /** Contacts disponibles pour nouveau message */
 dmRouter.get('/contacts/list', authenticateJWT, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
+  const MAX_CONTACTS = 200;
+  const rawLimit = Number(req.query.limit);
+  const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, MAX_CONTACTS) : MAX_CONTACTS;
+  const q = typeof req.query.q === 'string' ? req.query.q.trim().toLowerCase() : '';
+
   const contacts = [...db.users.values()]
-    .filter((u) => u.id !== me && !hasBlocked(me, u.id))
-    .map((u) => dmContactDto(u))
-    .sort((a, b) => a.username.localeCompare(b.username));
-  res.json({ contacts });
+    .filter((u) => {
+      if (u.id === me || hasBlocked(me, u.id)) return false;
+      if (q) return u.username.toLowerCase().includes(q);
+      return true;
+    })
+    .sort((a, b) => a.username.localeCompare(b.username, 'fr'))
+    .slice(0, limit)
+    .map((u) => dmContactDto(u));
+  res.json({ contacts, total: contacts.length, limit });
 });
 
 dmRouter.get('/thread/:userId', authenticateJWT, (req: Request, res: Response) => {
@@ -342,6 +385,16 @@ dmRouter.post('/thread/:userId', authenticateJWT, (req: Request, res: Response) 
   }
 
   const status = getDmRelationStatus(me, receiverId);
+
+  // Mutual follow required to start a new conversation.
+  // Existing conversations (accepted or pending) are exempt.
+  if (status === 'none') {
+    const mutualFollow = isFollowing(me, receiverId) && isFollowing(receiverId, me);
+    if (!mutualFollow) {
+      res.status(403).json({ error: 'Vous devez vous suivre mutuellement pour envoyer un message' });
+      return;
+    }
+  }
 
   if (status === 'refused') {
     res.status(403).json({ error: 'Votre demande de conversation a été refusée' });
@@ -456,6 +509,7 @@ dmRouter.post('/requests/:senderId/accept', authenticateJWT, (req: Request, res:
       m.accepted = true;
     }
   }
+  invalidateLegacyAcceptedCache();
 
   const receiver = db.users.get(me);
   getIo()?.to(`user_${senderId}`).emit('dm_request_accepted', {
@@ -487,6 +541,7 @@ dmRouter.post('/requests/:senderId/refuse', authenticateJWT, (req: Request, res:
       if (!m.hiddenFor.includes(senderId)) m.hiddenFor.push(senderId);
     }
   }
+  invalidateLegacyAcceptedCache();
 
   const receiver = db.users.get(me);
   getIo()?.to(`user_${senderId}`).emit('dm_request_refused', {

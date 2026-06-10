@@ -1,22 +1,29 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { db, User, ListeningRole, RelationshipStatus } from '../models/schema';
+import { db, User, ListeningRole } from '../models/schema';
 import { authenticateJWT, signToken } from '../middleware/auth';
 import {
   applyAgeSettings,
   applyProfileDefaults,
+  applyRelationshipSettings,
   publicProfile,
   syncProfilePhotos,
   MAX_PROFILE_PHOTOS,
 } from '../lib/profile';
 import { trackEvent, trackUserActive } from '../lib/analytics';
 import {
+  USERNAME_COLOR_WAVE,
   parseUsernameColorInput,
   parseUsernameWaveHexInput,
 } from '../lib/usernameColor';
 import { applyPrivacySettings } from '../lib/locationPrivacy';
-import { ensurePlatformAccountsFromLegacy } from '../lib/platformConnect';
+import {
+  ensurePlatformAccountsFromLegacy,
+  migratePlaintextPlatformTokens,
+} from '../lib/platformConnect';
 import { schedulePersist } from '../lib/persist';
+import { buildUserDataExport } from '../lib/accountDataExport';
+import { deleteUserAccountCascade } from '../lib/accountDeletion';
 import { CURRENT_TERMS_VERSION } from '../lib/legalConstants';
 import { isValidProfileType } from '../lib/profileTypes';
 import {
@@ -150,6 +157,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
   }
   applyProfileDefaults(user);
   ensurePlatformAccountsFromLegacy(user);
+  migratePlaintextPlatformTokens(user);
   db.users.set(user.id, user);
   const stayLoggedIn = rememberMe !== false;
   const token = signToken({ id: user.id, username: user.username }, stayLoggedIn);
@@ -166,8 +174,24 @@ authRouter.get('/me', authenticateJWT, (req: Request, res: Response) => {
   }
   applyProfileDefaults(user);
   ensurePlatformAccountsFromLegacy(user);
+  migratePlaintextPlatformTokens(user);
   db.users.set(user.id, user);
   res.json({ user: publicProfile(user, true, user.id) });
+});
+
+authRouter.get('/me/export', authenticateJWT, (req: Request, res: Response) => {
+  const userId = (req as Request & { user: { id: string } }).user.id;
+  const user = db.users.get(userId);
+  if (!user) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+  applyProfileDefaults(user);
+  const exportData = buildUserDataExport(user);
+  const filename = `melosong-export-${user.username.replace(/[^a-zA-Z0-9_-]/g, '_')}-${Date.now()}.json`;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.json(exportData);
 });
 
 authRouter.get('/profile/:userId', authenticateJWT, (req: Request, res: Response) => {
@@ -212,13 +236,19 @@ authRouter.patch('/profile', authenticateJWT, (req: Request, res: Response) => {
     avatarUrl,
     profilePhotos,
     relationshipStatus,
+    relationshipStatusCustom,
+    birthDate,
     age,
     showAge,
+    hideBirthDateOnProfile,
     shareDistance,
     locationPrecision,
     usernameColor,
     usernameWaveFrom,
     usernameWaveTo,
+    instagramHandle,
+    youtubeChannel,
+    spotifyUrl,
   } = req.body;
 
   if (username && typeof username === 'string') {
@@ -250,13 +280,26 @@ authRouter.patch('/profile', authenticateJWT, (req: Request, res: Response) => {
   } else if (typeof profileType === 'string' && isValidProfileType(profileType)) {
     user.profileType = profileType;
   }
-  if (relationshipStatus === null || relationshipStatus === '') {
-    delete user.relationshipStatus;
-  } else if (relationshipStatus === 'celibataire' || relationshipStatus === 'en_couple') {
-    user.relationshipStatus = relationshipStatus as RelationshipStatus;
+  if (
+    relationshipStatus !== undefined ||
+    relationshipStatusCustom !== undefined
+  ) {
+    const relResult = applyRelationshipSettings(user, {
+      relationshipStatus,
+      relationshipStatusCustom,
+    });
+    if (!relResult.ok) {
+      res.status(400).json({ error: relResult.error });
+      return;
+    }
   }
-  if (age !== undefined || showAge !== undefined) {
-    const ageResult = applyAgeSettings(user, { age, showAge });
+  if (
+    birthDate !== undefined ||
+    age !== undefined ||
+    showAge !== undefined ||
+    hideBirthDateOnProfile !== undefined
+  ) {
+    const ageResult = applyAgeSettings(user, { birthDate, age, showAge, hideBirthDateOnProfile });
     if (!ageResult.ok) {
       res.status(400).json({ error: ageResult.error });
       return;
@@ -296,7 +339,24 @@ authRouter.patch('/profile', authenticateJWT, (req: Request, res: Response) => {
     return;
   }
 
+  if (
+    parsedColor === undefined &&
+    (user.usernameWaveFrom || user.usernameWaveTo) &&
+    user.usernameColor !== USERNAME_COLOR_WAVE
+  ) {
+    user.usernameColor = USERNAME_COLOR_WAVE;
+  }
+
   if (Array.isArray(profilePhotos)) {
+    /** Base64 d'une photo compressée max 2 Mo ≈ 2,8 M de caractères (facteur 4/3). */
+    const MAX_PHOTO_CHARS = Math.ceil(2 * 1024 * 1024 * (4 / 3)) + 64;
+    const oversized = profilePhotos
+      .map(String)
+      .find((p) => p.startsWith('data:image/') && p.length > MAX_PHOTO_CHARS);
+    if (oversized) {
+      res.status(413).json({ error: 'Chaque photo ne peut pas dépasser 2 Mo.' });
+      return;
+    }
     syncProfilePhotos(user, profilePhotos.map(String));
   } else if (avatarUrl && typeof avatarUrl === 'string') {
     const url = avatarUrl.trim().slice(0, 2000);
@@ -307,6 +367,22 @@ authRouter.patch('/profile', authenticateJWT, (req: Request, res: Response) => {
       existing[0] = url;
       syncProfilePhotos(user, existing.slice(0, MAX_PROFILE_PHOTOS));
     }
+  }
+
+  if (instagramHandle !== undefined) {
+    const handle = String(instagramHandle).replace(/^@/, '').trim().slice(0, 64);
+    if (handle) user.instagramHandle = handle;
+    else delete user.instagramHandle;
+  }
+  if (youtubeChannel !== undefined) {
+    const ch = String(youtubeChannel).trim().slice(0, 200);
+    if (ch) user.youtubeChannel = ch;
+    else delete user.youtubeChannel;
+  }
+  if (spotifyUrl !== undefined) {
+    const url = String(spotifyUrl).trim().slice(0, 500);
+    if (url) user.spotifyUrl = url;
+    else delete user.spotifyUrl;
   }
 
   const saved: User = {
@@ -420,7 +496,7 @@ authRouter.delete('/account', authenticateJWT, async (req: Request, res: Respons
     res.status(400).json({ error: 'Mot de passe incorrect' });
     return;
   }
-  db.users.delete(userId);
+  deleteUserAccountCascade(userId);
   schedulePersist();
   res.json({ ok: true });
 });

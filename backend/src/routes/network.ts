@@ -26,12 +26,12 @@ networkRouter.get('/info', async (_req, res) => {
     youtubeReachable,
     hint: `Sur le telephone, ouvrez dans le navigateur: ${fixedUrl}`,
     notePcIp:
-      "L'adresse 192.168.x.x est celle du PC qui heberge Soundly. Ce n'est pas l'IP du telephone.",
+      "L'adresse 192.168.x.x est celle du PC qui heberge Soundy. Ce n'est pas l'IP du telephone.",
     noteYoutube: youtubeReachable
       ? 'YouTube accessible depuis le PC (lecteur et recherche OK).'
       : 'YouTube bloque sur ce PC — verifiez Internet / pare-feu avant le salon.',
     noteNoDeviceList:
-      "L'app n'affiche pas les telephones connectes au reseau. « Personnes proches » = comptes Soundly avec position.",
+      "L'app n'affiche pas les telephones connectes au reseau. « Personnes proches » = comptes Soundy avec position.",
   });
 });
 

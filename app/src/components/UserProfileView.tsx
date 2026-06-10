@@ -1,34 +1,25 @@
 import { useCallback, useEffect, useState } from 'react';
+import { getUserProfilePhotos } from '../lib/profilePhotos';
+import { isDicebearAvatarUrl } from '../lib/avatarUrl';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { useMatchCreated } from '../lib/useMatchCreated';
 import { HostRatingBlock } from './HostRatingBlock';
 import { ProfilePhotoGallery } from './ProfilePhotoGallery';
-import { formatCompactCount, formatFavoritesCountLabel } from '../lib/formatCount';
+import { formatCompactCount } from '../lib/formatCount';
 import { resolveProfileLiveId } from '../lib/profileLive';
 import { FollowUserButton } from './FollowUserButton';
-import { UsernameDisplay } from './UsernameDisplay';
+import { CreatorSubscribeSheet } from './CreatorSubscribeSheet';
 import { ProfileCurrentListening } from './ProfileCurrentListening';
-import { getProfileTypeLabel } from '../lib/profileTypes';
+import { ProfileHeaderSection } from './ProfileHeaderSection';
+import { canSendHeart, heartDisabledReason } from '../lib/canSendHeart';
 import type {
   CurrentListening,
   MatchStatus,
   MusicMatch,
   NearbyPerson,
-  RelationshipStatus,
   User,
 } from '../types';
-
-const ROLE_LABELS: Record<string, string> = {
-  auditeur: 'Auditeur',
-  host: 'Host / DJ',
-  les_deux: 'Auditeur & Host',
-};
-
-const RELATIONSHIP_LABELS: Record<RelationshipStatus, string> = {
-  celibataire: 'Célibataire',
-  en_couple: 'En couple',
-};
 
 interface UserProfileViewProps {
   userId: string;
@@ -36,6 +27,8 @@ interface UserProfileViewProps {
   onOpenLive?: (liveId: string) => void;
   /** Salon actif (preview carte ou profil API) remonté au parent pour le pied de page fixe. */
   onSalonInfo?: (info: { salonId: string; salonTitle?: string } | null) => void;
+  /** Ouvrir la conversation DM avec cet utilisateur. */
+  onOpenDm?: (userId: string) => void;
 }
 
 export function UserProfileView({
@@ -43,6 +36,7 @@ export function UserProfileView({
   preview,
   onOpenLive,
   onSalonInfo,
+  onOpenDm,
 }: UserProfileViewProps) {
   const { user: me, token } = useAuth();
   const [profile, setProfile] = useState<User | null>(null);
@@ -51,10 +45,16 @@ export function UserProfileView({
   const [sending, setSending] = useState(false);
   const [heartSent, setHeartSent] = useState(false);
   const [justMatched, setJustMatched] = useState<MusicMatch | null>(null);
+  const [heartToast, setHeartToast] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [subscribeOpen, setSubscribeOpen] = useState(false);
+  const [subscribeToast, setSubscribeToast] = useState<string | null>(null);
 
   const isSelf = me?.id === userId;
   const isMatched = Boolean(matchStatus?.matched || justMatched);
+  const heartAllowed = canSendHeart(me, profile);
+  const heartBlockReason = heartDisabledReason(me, profile);
+  const isMutualFollow = Boolean(profile?.isFollowing && profile?.isFollowingMe);
 
   useEffect(() => {
     if (!token) return;
@@ -112,17 +112,14 @@ export function UserProfileView({
     profile?.salonTitle,
   ]);
 
-  const photos =
-    profile?.profilePhotos?.length
-      ? profile.profilePhotos
-      : profile?.avatarUrl
-        ? [profile.avatarUrl]
-        : preview?.avatarUrl
-          ? [preview.avatarUrl]
-          : [];
+  const photos = profile
+    ? getUserProfilePhotos(profile)
+    : preview?.avatarUrl && !isDicebearAvatarUrl(preview.avatarUrl)
+      ? [preview.avatarUrl]
+      : [];
 
   const sendHeart = async () => {
-    if (!token || isSelf || sending || heartSent || isMatched) return;
+    if (!token || isSelf || sending || heartSent || isMatched || !heartAllowed) return;
     setSending(true);
     setError(null);
     try {
@@ -132,6 +129,8 @@ export function UserProfileView({
         applyRemoteMatch(r.match);
       } else {
         setMatchStatus((s) => (s ? { ...s, iSentHeart: true } : null));
+        setHeartToast(true);
+        window.setTimeout(() => setHeartToast(false), 3500);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur');
@@ -182,10 +181,12 @@ export function UserProfileView({
     return null;
   }
 
+  const avatarUrl = photos[0];
+
   return (
-    <div className="p-4 space-y-4 max-w-lg mx-auto w-full">
+    <div className="space-y-4 max-w-lg mx-auto w-full">
       {(isMatched || justMatched) && (
-        <div className="text-center p-4 rounded-xl bg-gradient-to-br from-pink-900/50 to-purple-900/40 border border-pink-500/40">
+        <div className="mx-4 text-center p-4 rounded-xl bg-gradient-to-br from-pink-900/50 to-purple-900/40 border border-pink-500/40">
           <p className="text-3xl mb-1">💞</p>
           <p className="text-lg font-bold text-white">Match musical !</p>
           <p className="text-sm text-pink-200 mt-1">
@@ -194,78 +195,72 @@ export function UserProfileView({
         </div>
       )}
 
-      <div className="min-w-0">
-        <UsernameDisplay
-          as="p"
-          username={displayName}
-          usernameColor={displayColor}
-          usernameWaveFrom={displayWaveFrom}
-          usernameWaveTo={displayWaveTo}
-          className="text-xl font-bold truncate"
-        />
-        {profile?.profileType && (
-          <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-500/20 text-purple-200 border border-purple-500/30">
-            {getProfileTypeLabel(profile.profileType)}
-          </span>
-        )}
-        {profile?.listeningRole && (
-          <p className="text-sm text-purple-300 mt-0.5">
-            {ROLE_LABELS[profile.listeningRole] ?? profile.listeningRole}
-          </p>
-        )}
-        {profile?.city && <p className="text-xs text-gray-400 mt-0.5">📍 {profile.city}</p>}
-        {profile?.age != null && (
-          <p className="text-sm text-gray-400 mt-0.5">{profile.age} ans</p>
-        )}
-        {profile?.relationshipStatus && (
-          <p className="text-xs text-pink-300/90 mt-0.5">
-            {profile.relationshipStatus === 'en_couple' ? '💑' : '✨'}{' '}
-            {RELATIONSHIP_LABELS[profile.relationshipStatus]}
-          </p>
-        )}
-        {profile?.favoritesCount != null && (
-          <p className="text-xs text-amber-300/90 mt-0.5" title="Personnes qui ont ajouté ce profil en favoris">
-            ⭐ {formatFavoritesCountLabel(profile.favoritesCount)}
-          </p>
-        )}
-        {preview && (
-          <p className="text-xs text-gray-500 mt-1">
-            {preview.distanceKm != null
-              ? `${preview.distanceKm} km · à proximité`
-              : preview.city
-                ? `${preview.city} · à proximité`
-                : 'À proximité'}
-          </p>
-        )}
-      </div>
+      <ProfileHeaderSection
+        userId={userId}
+        username={displayName}
+        usernameColor={displayColor}
+        usernameWaveFrom={displayWaveFrom}
+        usernameWaveTo={displayWaveTo}
+        avatarUrl={avatarUrl}
+        profileType={profile?.profileType}
+        city={profile?.city}
+        birthDate={profile?.birthDate}
+        age={profile?.age}
+        relationshipStatus={profile?.relationshipStatus}
+        relationshipStatusCustom={profile?.relationshipStatusCustom}
+        favoritesCount={profile?.favoritesCount}
+        isLive={isLiveHost}
+        liveViewersCount={liveViewers}
+        isSupporter={profile?.isSupporter}
+        supporterTier={profile?.supporterTier}
+        extraMeta={
+          <>
+            {profile?.subscriberCount != null && profile.subscriberCount > 0 && (
+              <p className="text-xs text-amber-300/80 mt-1">
+                {profile.subscriberCount} abonné{profile.subscriberCount > 1 ? 's' : ''}
+              </p>
+            )}
+            {preview && (
+              <p className="text-xs text-gray-500 mt-1">
+                {preview.distanceKm != null
+                  ? `${preview.distanceKm} km · à proximité`
+                  : preview.city
+                    ? `${preview.city} · à proximité`
+                    : 'À proximité'}
+              </p>
+            )}
+          </>
+        }
+      />
+
+      <div className="px-4 space-y-4">
 
       {currentListening && <ProfileCurrentListening listening={currentListening} />}
 
-      <section>
-        <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-2">
-          Photos{photos.length > 0 ? ` (${photos.length})` : ''}
-        </h3>
-        <div
-          className={`rounded-2xl ${
-            profile?.isLive || preview?.isLive
-              ? 'p-1 bg-gradient-to-br from-red-500 via-rose-500 to-red-600 shadow-[0_0_16px_rgba(239,68,68,0.45)]'
-              : ''
-          }`}
-        >
-          <ProfilePhotoGallery photos={photos} fallbackSeed={userId} editing={false} />
-        </div>
-        {isLiveHost && (
-          <p className="text-center text-xs text-red-400 font-bold mt-2">
-            🔴 En live
-            {liveViewers != null && (
-              <>
-                {' '}
-                · {formatCompactCount(liveViewers)} spectateurs
-              </>
-            )}
-          </p>
-        )}
-      </section>
+      {photos.length > 0 && (
+        <section>
+          <div
+            className={`rounded-2xl ${
+              profile?.isLive || preview?.isLive
+                ? 'p-1 bg-gradient-to-br from-red-500 via-rose-500 to-red-600 shadow-[0_0_16px_rgba(239,68,68,0.45)]'
+                : ''
+            }`}
+          >
+            <ProfilePhotoGallery photos={photos} fallbackSeed={userId} editing={false} />
+          </div>
+          {isLiveHost && (
+            <p className="text-center text-xs text-red-400 font-bold mt-2">
+              🔴 En live
+              {liveViewers != null && (
+                <>
+                  {' '}
+                  · {formatCompactCount(liveViewers)} spectateurs
+                </>
+              )}
+            </p>
+          )}
+        </section>
+      )}
 
       {isLiveHost && liveId && onOpenLive && (
         <button
@@ -306,6 +301,12 @@ export function UserProfileView({
 
       {heartHint()}
 
+      {heartToast && (
+        <p className="text-sm text-center font-semibold text-pink-200 bg-pink-950/40 border border-pink-500/40 rounded-xl px-3 py-2.5">
+          Cœur envoyé ! 💜
+        </p>
+      )}
+
       {!isSelf && (
         <FollowUserButton
           userId={userId}
@@ -314,11 +315,71 @@ export function UserProfileView({
         />
       )}
 
+      {!isSelf && onOpenDm && (
+        isMutualFollow ? (
+          <button
+            type="button"
+            onClick={() => onOpenDm(userId)}
+            className="w-full py-2.5 rounded-xl text-sm font-bold border border-purple-500/50 bg-purple-600/80 hover:bg-purple-600 text-white transition"
+          >
+            💬 Envoyer un message
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled
+            title="Suivez-vous mutuellement pour pouvoir vous écrire"
+            className="w-full py-2.5 rounded-xl text-sm font-bold border border-[#2d2d3d] bg-[#1a1a26]/90 text-gray-500 cursor-not-allowed"
+          >
+            💬 Suivez-vous mutuellement pour écrire
+          </button>
+        )
+      )}
+
+      {!isSelf && token && profile?.monetizationEligible !== false && (
+        <button
+          type="button"
+          onClick={() => setSubscribeOpen(true)}
+          className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition ${
+            profile?.isSupporter
+              ? 'bg-amber-900/40 border border-amber-500/40 text-amber-100'
+              : 'bg-purple-700/80 hover:bg-purple-600 text-white'
+          }`}
+        >
+          <span aria-hidden>⭐</span>
+          {profile?.isSupporter ? 'Abonnement actif — modifier' : 'S’abonner au créateur'}
+        </button>
+      )}
+
+      {subscribeToast && (
+        <p className="text-xs text-center text-amber-200 bg-amber-950/40 border border-amber-500/30 rounded-lg px-3 py-2">
+          {subscribeToast}
+        </p>
+      )}
+
+      {token && profile?.monetizationEligible !== false && (
+        <CreatorSubscribeSheet
+          open={subscribeOpen}
+          onClose={() => setSubscribeOpen(false)}
+          token={token}
+          userAge={me?.age}
+          creatorId={userId}
+          creatorName={displayName}
+          targetType="creator"
+          onSuccess={(msg) => {
+            setSubscribeToast(msg);
+            setProfile((p) => (p ? { ...p, isSupporter: true } : p));
+            window.setTimeout(() => setSubscribeToast(null), 4000);
+          }}
+        />
+      )}
+
       {!isSelf && !isMatched && (
         <button
           type="button"
           onClick={sendHeart}
-          disabled={sending || heartSent}
+          disabled={sending || heartSent || !heartAllowed}
+          title={!heartAllowed && !heartSent ? (heartBlockReason ?? undefined) : undefined}
           className={`w-full py-3.5 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition ${
             heartSent
               ? 'bg-pink-900/40 border border-pink-500/40 text-pink-200'
@@ -339,6 +400,7 @@ export function UserProfileView({
       )}
 
       {error && profile && <p className="text-xs text-red-400 text-center">{error}</p>}
+      </div>
     </div>
   );
 }

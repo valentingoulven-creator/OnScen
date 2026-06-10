@@ -2,7 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FilterIcon } from './FilterIcon';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
-import { buildMapStoryEntries, buildViewableStories, type MapStoryEntry } from '../lib/mapStoriesFeed';
+import { buildMapStoryEntries, type MapStoryEntry } from '../lib/mapStoriesFeed';
+import {
+  buildStoryUserStacks,
+  findStackForStory,
+  resolveNextStory,
+  resolvePrevStory,
+  stackIndexForStory,
+} from '../lib/storyViewerNav';
 import {
   getLivesGeo,
   MAP_GEO_CHANGED_EVENT,
@@ -35,6 +42,7 @@ import type { MapStory, NearbyPerson } from '../types';
 import { MapLocationPinButton } from './MapLocationPinButton';
 import { MapStorySheet } from './MapStorySheet';
 import { MapStoryRing, MyMapStoryRing } from './MapStoryRings';
+import { StoryViewer } from './StoryViewer';
 import { USERNAME_WAVE_CLASS } from '../lib/usernameColor';
 
 interface MapStoriesAccordionProps {
@@ -161,25 +169,34 @@ export function MapStoriesAccordion({
     return String(base);
   }, [entries.length, loading, token, user]);
 
-  const viewableStories = useMemo(
-    () => buildViewableStories(entries, storiesByUser, myStory),
+  const storyStacks = useMemo(
+    () => buildStoryUserStacks(entries, storiesByUser, myStory),
     [entries, storiesByUser, myStory]
   );
 
-  const navigateStory = useCallback(
-    (delta: 1 | -1) => {
-      if (sheet.kind !== 'view') return;
-      const idx = viewableStories.findIndex((s) => s.id === sheet.story.id);
-      if (idx < 0) return;
-      const next = viewableStories[idx + delta];
-      if (!next) return;
-      setSheet({ kind: 'view', story: next, isOwn: next.userId === user?.id });
-    },
-    [sheet, viewableStories, user?.id]
-  );
+  const viewerStack =
+    sheet.kind === 'view' ? findStackForStory(storyStacks, sheet.story) : undefined;
+  const viewerStackIndex =
+    sheet.kind === 'view' && viewerStack ? stackIndexForStory(viewerStack, sheet.story) : 0;
 
-  const currentStoryIndex =
-    sheet.kind === 'view' ? viewableStories.findIndex((s) => s.id === sheet.story.id) : -1;
+  const goNextStory = useCallback(() => {
+    if (sheet.kind !== 'view') return;
+    const next = resolveNextStory(storyStacks, sheet.story, user?.id);
+    if (!next) return;
+    setSheet({ kind: 'view', story: next.story, isOwn: next.isOwn });
+  }, [sheet, storyStacks, user?.id]);
+
+  const goPrevStory = useCallback(() => {
+    if (sheet.kind !== 'view') return;
+    const prev = resolvePrevStory(storyStacks, sheet.story, user?.id);
+    if (!prev) return;
+    setSheet({ kind: 'view', story: prev.story, isOwn: prev.isOwn });
+  }, [sheet, storyStacks, user?.id]);
+
+  const canNextStory =
+    sheet.kind === 'view' && resolveNextStory(storyStacks, sheet.story, user?.id) != null;
+  const canPrevStory =
+    sheet.kind === 'view' && resolvePrevStory(storyStacks, sheet.story, user?.id) != null;
 
   const openEntry = (entry: MapStoryEntry) => {
     if (entry.hasActiveStory && entry.storyId) {
@@ -351,15 +368,15 @@ export function MapStoriesAccordion({
           )}
 
           {!collapsed && (
-            <div className="px-2 py-2">
+            <div className="min-w-0">
               {loading && entries.length === 0 && !user ? (
-                <p className="text-[10px] text-gray-500 text-center py-2">Chargement des stories…</p>
+                <p className="text-[10px] text-gray-500 text-center py-2 px-2">Chargement des stories…</p>
               ) : showEmpty ? (
-                <p className="text-[10px] text-gray-500 text-center py-2 leading-snug">
+                <p className="text-[10px] text-gray-500 text-center py-2 px-2 leading-snug">
                   Aucune story à proximité pour le moment.
                 </p>
               ) : (
-                <div className="stories-rings-carousel flex gap-2 pb-0.5 snap-x snap-mandatory -mx-0.5 px-0.5">
+                <div className="stories-rings-carousel flex flex-nowrap gap-2 pb-1 -mx-2 px-2">
                   {user && token ? (
                     <MyMapStoryRing
                       userId={user.id}
@@ -368,6 +385,7 @@ export function MapStoriesAccordion({
                       hasActiveStory={!!myStory}
                       storyImageUrl={myStory?.imageUrl}
                       onClick={openMyStory}
+                      onAddClick={() => setSheet({ kind: 'create' })}
                     />
                   ) : null}
                   {entries.map((entry) => (
@@ -386,31 +404,21 @@ export function MapStoriesAccordion({
       {token && sheet.kind === 'create' ? (
         <MapStorySheet
           token={token}
-          mode="create"
           onClose={() => setSheet({ kind: 'closed' })}
           onPublished={handlePublished}
         />
       ) : null}
 
-      {token && sheet.kind === 'view' ? (
-        <MapStorySheet
-          token={token}
-          mode="view"
+      {sheet.kind === 'view' && viewerStack ? (
+        <StoryViewer
           story={sheet.story}
-          isOwn={sheet.isOwn}
+          stack={viewerStack.stories}
+          stackIndex={viewerStackIndex}
           onClose={() => setSheet({ kind: 'closed' })}
-          onPublished={handlePublished}
-          onRequestCreate={
-            sheet.isOwn
-              ? () => setSheet({ kind: 'create' })
-              : undefined
-          }
-          onSwipeNext={
-            currentStoryIndex >= 0 && currentStoryIndex < viewableStories.length - 1
-              ? () => navigateStory(1)
-              : undefined
-          }
-          onSwipePrev={currentStoryIndex > 0 ? () => navigateStory(-1) : undefined}
+          onNext={goNextStory}
+          onPrev={goPrevStory}
+          canNext={canNextStory}
+          canPrev={canPrevStory}
         />
       ) : null}
     </>

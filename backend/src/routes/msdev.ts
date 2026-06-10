@@ -70,7 +70,7 @@ msdevRouter.get('/clear-pwa', (_req: Request, res: Response) => {
     ok: true,
     hint: 'Ouvrez https://localhost:4080/?clear-pwa=1 ou http://localhost:4080/?clear-pwa=1 puis Ctrl+Shift+R',
     steps: [
-      'Fermer l’icône PWA (désinstaller « Soundly » de l’écran d’accueil)',
+      'Fermer l’icône PWA (désinstaller « Soundy » de l’écran d’accueil)',
       'Chrome, Edge ou Opera → Paramètres du site → Effacer les données',
       'Ouvrir l’URL affichée par LANCER-MELOSONG.bat (http ou https, pas l’autre)',
       'Ctrl+Shift+R sur la page de connexion',

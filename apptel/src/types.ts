@@ -33,7 +33,7 @@ export interface AccessManagedUser {
 
 export type ListeningRole = 'auditeur' | 'host' | 'les_deux';
 
-export type RelationshipStatus = 'celibataire' | 'en_couple';
+export type RelationshipStatus = 'celibataire' | 'en_couple' | 'autre';
 
 export type ProfileType =
   | 'bar'
@@ -102,6 +102,7 @@ export interface User {
   listeningRole?: ListeningRole;
   profileType?: ProfileType;
   relationshipStatus?: RelationshipStatus;
+  relationshipStatusCustom?: string;
   memberSince?: number;
   stats?: UserProfileStats;
   /** Nombre d'utilisateurs ayant mis ce profil en favoris (public). */
@@ -185,7 +186,18 @@ export interface MsdevDualIpConfig {
 
 export interface AppNotification {
   id: string;
-  type: 'match' | 'live_started' | 'live_don' | 'favorite_online' | 'dm_message' | 'group_message';
+  type:
+    | 'match'
+    | 'live_started'
+    | 'live_don'
+    | 'favorite_online'
+    | 'dm_message'
+    | 'group_message'
+    | 'heart'
+    | 'content_heart'
+    | 'follow'
+    | 'event_created'
+    | 'mention';
   senderId: string;
   senderName: string;
   senderAvatarUrl?: string;
@@ -197,6 +209,8 @@ export interface AppNotification {
   salonId?: string;
   peerUserId?: string;
   groupId?: string;
+  postId?: string;
+  reelId?: string;
 }
 
 export interface MusicMatch {
@@ -332,7 +346,10 @@ export interface Live {
   startedAt?: number;
   distanceKm?: number;
   cameraActive?: boolean;
+  cameraMode?: 'camera' | 'file';
   vipModeratorIds?: string[];
+  /** L'hôte du live peut recevoir des dons (18+). */
+  hostMonetizationEligible?: boolean;
 }
 
 export interface ChatMessage {

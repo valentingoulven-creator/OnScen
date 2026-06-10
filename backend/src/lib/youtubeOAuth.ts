@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { User } from '../models/schema';
 import { connectPlatformAccount, getPlatformAccounts } from './platformConnect';
+import { encryptPlatformTokens } from './tokenEncryption';
 
 const YOUTUBE_SCOPE = 'https://www.googleapis.com/auth/youtube.readonly';
 
@@ -13,16 +14,21 @@ function cleanupStates(): void {
   }
 }
 
+/** Prefers YOUTUBE_CALLBACK_URL (platform linking); falls back to GOOGLE_REDIRECT_URI. */
+export function getYoutubeOAuthRedirectUri(): string {
+  const uri = (process.env.YOUTUBE_CALLBACK_URL || process.env.GOOGLE_REDIRECT_URI)?.trim();
+  if (!uri) {
+    throw new Error('YouTube OAuth redirect URI not configured (YOUTUBE_CALLBACK_URL or GOOGLE_REDIRECT_URI)');
+  }
+  return uri;
+}
+
 export function isYoutubeOAuthConfigured(): boolean {
   return Boolean(
     process.env.GOOGLE_CLIENT_ID?.trim() &&
       process.env.GOOGLE_CLIENT_SECRET?.trim() &&
-      process.env.GOOGLE_REDIRECT_URI?.trim()
+      (process.env.YOUTUBE_CALLBACK_URL?.trim() || process.env.GOOGLE_REDIRECT_URI?.trim())
   );
-}
-
-export function getYoutubeOAuthRedirectUri(): string {
-  return process.env.GOOGLE_REDIRECT_URI!.trim();
 }
 
 export function createYoutubeOAuthUrl(userId: string): string {
@@ -42,6 +48,43 @@ export function createYoutubeOAuthUrl(userId: string): string {
   return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
 }
 
+export async function fetchYoutubeChannelInfo(
+  accessToken: string,
+  fallbackUserId?: string
+): Promise<{
+  channelId: string;
+  channelTitle: string;
+  avatarUrl?: string;
+}> {
+  const channelRes = await fetch(
+    'https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true',
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(8000),
+    }
+  );
+  let channelId = fallbackUserId ? `google_${fallbackUserId}` : 'unknown';
+  let channelTitle = 'YouTube';
+  let avatarUrl: string | undefined;
+  if (channelRes.ok) {
+    const ch = (await channelRes.json()) as {
+      items?: Array<{
+        id?: string;
+        snippet?: {
+          title?: string;
+          thumbnails?: { default?: { url?: string }; medium?: { url?: string } };
+        };
+      }>;
+    };
+    channelId = ch.items?.[0]?.id ?? channelId;
+    channelTitle = ch.items?.[0]?.snippet?.title ?? channelTitle;
+    avatarUrl =
+      ch.items?.[0]?.snippet?.thumbnails?.medium?.url ??
+      ch.items?.[0]?.snippet?.thumbnails?.default?.url;
+  }
+  return { channelId, channelTitle, avatarUrl };
+}
+
 export async function completeYoutubeOAuth(
   code: string,
   state: string
@@ -51,6 +94,7 @@ export async function completeYoutubeOAuth(
   accessToken: string;
   refreshToken?: string;
   channelId: string;
+  avatarUrl?: string;
 } | null> {
   const pending = pendingStates.get(state);
   pendingStates.delete(state);
@@ -75,22 +119,10 @@ export async function completeYoutubeOAuth(
   };
   if (!tokens.access_token) return null;
 
-  const channelRes = await fetch(
-    'https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true',
-    {
-      headers: { Authorization: `Bearer ${tokens.access_token}` },
-      signal: AbortSignal.timeout(8000),
-    }
+  const { channelId, channelTitle, avatarUrl } = await fetchYoutubeChannelInfo(
+    tokens.access_token,
+    pending.userId
   );
-  let channelId = `google_${pending.userId}`;
-  let channelTitle = 'YouTube';
-  if (channelRes.ok) {
-    const ch = (await channelRes.json()) as {
-      items?: Array<{ id?: string; snippet?: { title?: string } }>;
-    };
-    channelId = ch.items?.[0]?.id ?? channelId;
-    channelTitle = ch.items?.[0]?.snippet?.title ?? channelTitle;
-  }
 
   return {
     userId: pending.userId,
@@ -98,6 +130,7 @@ export async function completeYoutubeOAuth(
     accessToken: tokens.access_token,
     refreshToken: tokens.refresh_token,
     channelId,
+    avatarUrl,
   };
 }
 
@@ -108,19 +141,21 @@ export function applyYoutubeOAuthToUser(
     refreshToken?: string;
     channelId: string;
     channelTitle: string;
+    avatarUrl?: string;
   }
 ): void {
   connectPlatformAccount(user, 'youtube');
   const accounts = getPlatformAccounts(user);
   const idx = accounts.findIndex((a) => a.platform === 'youtube');
   if (idx >= 0) {
-    accounts[idx] = {
+    accounts[idx] = encryptPlatformTokens({
       ...accounts[idx],
       externalUserId: data.channelId,
       accessToken: data.accessToken,
       refreshToken: data.refreshToken,
       displayName: data.channelTitle,
-    };
+      avatarUrl: data.avatarUrl,
+    });
     user.platformAccounts = accounts;
   }
 }

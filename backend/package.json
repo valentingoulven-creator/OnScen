@@ -1,16 +1,17 @@
 {
   "name": "melosong-backend",
   "version": "1.0.0",
-  "description": "Soundly Real-time Geolocation & Music Sharing Backend",
+  "description": "Soundy Real-time Geolocation & Music Sharing Backend",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node -e \"require('fs').cpSync('src/db/migrations','dist/db/migrations',{recursive:true})\"",
     "start": "node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "dev:msdev": "ts-node-dev --respawn --transpile-only src/index.ts --msdev",
     "dev:msdev:https": "ts-node-dev --respawn --transpile-only src/index.ts --msdev --https",
     "build:exe": "npm run build && node ../msdev/scripts/build-exe.js",
-    "test": "vitest run --config vitest.config.ts"
+    "test": "vitest run --config vitest.config.ts",
+    "seed:production": "npm run build && node dist/scripts/seed-production-testdata.js"
   },
   "bin": {
     "msdev": "dist/entry-msdev.js"
@@ -34,8 +35,11 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "express-rate-limit": "^8.5.2",
+    "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.2",
-    "socket.io": "^4.7.5"
+    "pg": "^8.16.0",
+    "socket.io": "^4.7.5",
+    "stripe": "^17.7.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -44,6 +48,7 @@
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^20.12.12",
+    "@types/pg": "^8.15.4",
     "resedit": "^3.0.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.4.5",

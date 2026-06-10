@@ -4,12 +4,50 @@
 
 // ─── Generic limits (used by profileImageProcessing.ts) ─────────────────────
 
+/** Taille max fichier source avant compression auto (Instagram accepte ~30 Mo). */
+export const INSTAGRAM_MAX_INPUT_FILE_SIZE_MB = 30;
+export const INSTAGRAM_MAX_INPUT_FILE_SIZE_BYTES = 30 * 1024 * 1024;
+
+/** MIME types image acceptés (alignés Instagram + HEIC/HEIF iPhone). */
+export const ACCEPTED_IMAGE_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+] as const;
+
+/** Extensions fichier pour l'attribut `accept` (iOS HEIC souvent sans MIME fiable). */
+export const ACCEPTED_IMAGE_EXTENSIONS = [
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.webp',
+  '.heic',
+  '.heif',
+] as const;
+
+const EXTENSION_TO_MIME: Record<string, string> = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+  heic: 'image/heic',
+  heif: 'image/heif',
+};
+
+/** Libellé affiché pour les formats supportés. */
+export const SUPPORTED_IMAGE_FORMATS_LABEL = 'JPEG, JPG, PNG, WebP, HEIC/HEIF';
+
 export const INSTAGRAM_IMAGE_LIMITS = {
-  maxFileSizeMB: 8,
-  maxFileSizeBytes: 8 * 1024 * 1024,
+  maxInputFileSizeMB: INSTAGRAM_MAX_INPUT_FILE_SIZE_MB,
+  maxInputFileSizeBytes: INSTAGRAM_MAX_INPUT_FILE_SIZE_BYTES,
+  /** @deprecated Alias entrée — utiliser maxInputFileSizeBytes */
+  maxFileSizeMB: INSTAGRAM_MAX_INPUT_FILE_SIZE_MB,
+  maxFileSizeBytes: INSTAGRAM_MAX_INPUT_FILE_SIZE_BYTES,
   minWidth: 320,
   maxWidth: 1080,
-  acceptedFormats: ['image/jpeg', 'image/png', 'image/webp'] as const,
+  acceptedFormats: ACCEPTED_IMAGE_MIME_TYPES,
   outputQuality: 0.85,
   outputFormat: 'image/jpeg' as const,
 } as const;
@@ -20,12 +58,12 @@ export type InstagramAcceptedFormat =
 // ─── Spec-specific limits ─────────────────────────────────────────────────────
 
 export const INSTAGRAM_POST_LIMITS = {
-  maxFileSizeBytes: 8 * 1024 * 1024,
+  maxFileSizeBytes: INSTAGRAM_MAX_INPUT_FILE_SIZE_BYTES,
   maxWidth: 1080,
   minWidth: 320,
   outputQuality: 0.85,
   outputFormat: 'image/jpeg' as const,
-  acceptedFormats: ['image/jpeg', 'image/png', 'image/webp'],
+  acceptedFormats: [...ACCEPTED_IMAGE_MIME_TYPES],
   allowedRatios: [
     { label: 'Carré 1:1', w: 1, h: 1 },
     { label: 'Portrait 4:5', w: 4, h: 5 },
@@ -35,14 +73,14 @@ export const INSTAGRAM_POST_LIMITS = {
 
 export const INSTAGRAM_STORY_LIMITS = {
   photo: {
-    /** Max 4 Mo par photo de story */
-    maxFileSizeBytes: 4 * 1024 * 1024,
+    /** Max fichier source avant compression auto (même seuil que le fil). */
+    maxFileSizeBytes: INSTAGRAM_MAX_INPUT_FILE_SIZE_BYTES,
     targetWidth: 1080,
     targetHeight: 1920,
     aspectRatio: 9 / 16,
     outputQuality: 0.85,
     outputFormat: 'image/jpeg' as const,
-    acceptedFormats: ['image/jpeg', 'image/png', 'image/webp'],
+    acceptedFormats: [...ACCEPTED_IMAGE_MIME_TYPES],
     /** px réservés en haut et en bas pour les éléments d'interface */
     safeZoneTopBottom: 250,
   },
@@ -55,40 +93,89 @@ export const INSTAGRAM_STORY_LIMITS = {
 };
 
 export const INSTAGRAM_PROFILE_PHOTO_LIMITS = {
-  /** Max 5 Mo pour une photo de profil */
-  maxFileSizeBytes: 5 * 1024 * 1024,
-  minDimension: 180,
-  /** Dimension de sortie cible : 400 × 400 px */
-  targetDimension: 400,
+  /** Max fichier source avant compression auto (Instagram ~30 Mo). */
+  maxFileSizeBytes: INSTAGRAM_MAX_INPUT_FILE_SIZE_BYTES,
+  /** Dimension minimale acceptée : 320 px (standard Instagram) */
+  minDimension: 320,
+  /** Dimension de sortie cible : 1080 × 1080 px (standard Instagram max) */
+  targetDimension: 1080,
   maxDimension: 1080,
   outputQuality: 0.85,
   outputFormat: 'image/jpeg' as const,
-  acceptedFormats: ['image/jpeg', 'image/png', 'image/webp'],
+  acceptedFormats: [...ACCEPTED_IMAGE_MIME_TYPES],
+  /** Ratio 1:1 — carré, comme Instagram */
   aspectRatio: 1,
 };
 
+/** Limites publication vidéo fil d'accueil (msdev : data URL base64). */
+export const FEED_VIDEO_LIMITS = {
+  maxFileSizeBytes: 12 * 1024 * 1024,
+  maxDurationSeconds: 30,
+  acceptedFormats: ['video/mp4', 'video/webm', 'video/quicktime'] as const,
+  /** Taille max data URL envoyée au serveur (marge sous express.json 15 Mo). */
+  maxDataUrlChars: 12_000_000,
+} as const;
+
 /** Chaîne pour l'attribut `accept` des `<input type="file">` image. */
-export const ACCEPTED_IMAGE_FORMATS = INSTAGRAM_IMAGE_LIMITS.acceptedFormats.join(',');
+export const ACCEPTED_IMAGE_FORMATS = [
+  ...ACCEPTED_IMAGE_MIME_TYPES,
+  ...ACCEPTED_IMAGE_EXTENSIONS,
+].join(',');
+
+/** MIME effectif d'un fichier image (type navigateur ou extension). */
+export function getImageFileMimeType(file: File): string {
+  if (file.type) return file.type.toLowerCase();
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+  return EXTENSION_TO_MIME[ext] ?? '';
+}
+
+/** Vérifie format image via MIME ou extension (HEIC iPhone). */
+export function isAcceptedImageFormat(
+  file: File,
+  acceptedFormats: readonly string[] = ACCEPTED_IMAGE_MIME_TYPES
+): boolean {
+  const mime = getImageFileMimeType(file);
+  if (mime && (acceptedFormats as readonly string[]).includes(mime)) return true;
+  const ext = '.' + (file.name.split('.').pop()?.toLowerCase() ?? '');
+  return (ACCEPTED_IMAGE_EXTENSIONS as readonly string[]).includes(ext);
+}
+
+export function isHeicImageFile(file: File): boolean {
+  const mime = getImageFileMimeType(file);
+  if (mime === 'image/heic' || mime === 'image/heif') return true;
+  return /\.heic$/i.test(file.name) || /\.heif$/i.test(file.name);
+}
+
+/** Chaîne pour l'attribut `accept` des `<input type="file">` vidéo (fil). */
+export const ACCEPTED_FEED_VIDEO_FORMATS = FEED_VIDEO_LIMITS.acceptedFormats.join(',');
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
-/** Valide le format et la taille d'un fichier image avant traitement (règles génériques). */
+/** Valide le format (et un plafond source très haut) avant compression automatique. */
 export function validateImageFile(file: File): { valid: boolean; error?: string } {
-  const accepted = INSTAGRAM_IMAGE_LIMITS.acceptedFormats as readonly string[];
-  if (!accepted.includes(file.type)) {
-    return { valid: false, error: 'Format non supporté (JPEG, PNG ou WebP uniquement)' };
+  if (!isAcceptedImageFormat(file, INSTAGRAM_IMAGE_LIMITS.acceptedFormats)) {
+    return {
+      valid: false,
+      error: `Format non supporté (${SUPPORTED_IMAGE_FORMATS_LABEL} uniquement)`,
+    };
   }
-  if (file.size > INSTAGRAM_IMAGE_LIMITS.maxFileSizeBytes) {
-    return { valid: false, error: 'Image trop volumineuse (max 8 Mo)' };
+  if (file.size > INSTAGRAM_IMAGE_LIMITS.maxInputFileSizeBytes) {
+    return {
+      valid: false,
+      error: `Photo trop volumineuse (max ${INSTAGRAM_IMAGE_LIMITS.maxInputFileSizeMB} Mo).`,
+    };
   }
   return { valid: true };
 }
 
-/** Valide une photo de story : format + max 4 Mo. */
+/** Valide une photo de story : format + plafond source (compression auto ensuite). */
 export function validateStoryPhoto(file: File): { valid: boolean; error?: string } {
   const { maxFileSizeBytes, acceptedFormats } = INSTAGRAM_STORY_LIMITS.photo;
-  if (!(acceptedFormats as string[]).includes(file.type)) {
-    return { valid: false, error: 'Format non supporté. Utilisez JPG, PNG ou WebP.' };
+  if (!isAcceptedImageFormat(file, acceptedFormats)) {
+    return {
+      valid: false,
+      error: `Format non supporté. Utilisez ${SUPPORTED_IMAGE_FORMATS_LABEL}.`,
+    };
   }
   if (file.size > maxFileSizeBytes) {
     const maxMb = maxFileSizeBytes / (1024 * 1024);
@@ -97,11 +184,14 @@ export function validateStoryPhoto(file: File): { valid: boolean; error?: string
   return { valid: true };
 }
 
-/** Valide une photo de profil : format + max 5 Mo. */
+/** Valide une photo de profil : format + plafond source (compression auto ensuite). */
 export function validateProfilePhoto(file: File): { valid: boolean; error?: string } {
   const { maxFileSizeBytes, acceptedFormats } = INSTAGRAM_PROFILE_PHOTO_LIMITS;
-  if (!(acceptedFormats as string[]).includes(file.type)) {
-    return { valid: false, error: 'Format non supporté. Utilisez JPG, PNG ou WebP.' };
+  if (!isAcceptedImageFormat(file, acceptedFormats)) {
+    return {
+      valid: false,
+      error: `Format non supporté. Utilisez ${SUPPORTED_IMAGE_FORMATS_LABEL}.`,
+    };
   }
   if (file.size > maxFileSizeBytes) {
     const maxMb = maxFileSizeBytes / (1024 * 1024);

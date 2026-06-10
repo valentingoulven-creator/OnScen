@@ -41,6 +41,8 @@ interface MapSalonListenSheetProps {
   mapPlaybackActive?: boolean;
   /** Ouvre le profil hôte (overlay carte) sans fermer la fiche écoute. */
   onOpenHostProfile?: () => void;
+  /** Aperçu carte : 10 min d'écoute atteintes. */
+  onMapInlineListenCapReached?: () => void;
 }
 
 export function MapSalonListenSheet({
@@ -55,6 +57,7 @@ export function MapSalonListenSheet({
   onSalonUpdate,
   mapPlaybackActive = true,
   onOpenHostProfile,
+  onMapInlineListenCapReached,
 }: MapSalonListenSheetProps) {
   const { user, token, setUserFromProfile } = useAuth();
   const isHost = Boolean(salon.isHost ?? (salon.hostId && salon.hostId === user?.id));
@@ -233,7 +236,7 @@ export function MapSalonListenSheet({
   return (
     <div
       ref={sheetRef}
-      className={`absolute bottom-0 left-0 right-0 z-30 bg-[#0e0e14] border-t border-white/10 flex flex-col shadow-[0_-12px_40px_rgba(0,0,0,0.5)] ${
+      className={`absolute bottom-0 left-0 right-0 z-40 bg-[#0e0e14] border-t border-white/10 flex flex-col shadow-[0_-12px_40px_rgba(0,0,0,0.5)] pointer-events-auto ${
         expanded ? 'max-h-[75dvh]' : 'max-h-[48dvh]'
       }`}
     >
@@ -309,7 +312,10 @@ export function MapSalonListenSheet({
             {showHeaderHostActions ? headerHostActions : null}
             <button
               type="button"
-              onClick={onOpenFullExperience}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenFullExperience();
+              }}
               className={MAP_SALON_OUTLINE_BUTTON_CLASS}
               title={salon.isLive ? 'Ouvrir le live en plein écran' : 'Ouvrir le salon en plein écran'}
             >
@@ -339,6 +345,9 @@ export function MapSalonListenSheet({
             showYoutubeLink
             minimalControls
             showVideo={true}
+            mapInlineListen={!isHost}
+            onOpenSalon={onOpenFullExperience}
+            onMapInlineListenCapReached={onMapInlineListenCapReached}
           />
         </div>
       )}
@@ -373,6 +382,7 @@ export function MapSalonListenSheet({
               onProposeTrack={!isHost ? proposeTrack : undefined}
               mapInline
               playbackActive={mapPlaybackActive}
+              onMapInlineListenCapReached={onMapInlineListenCapReached}
             />
           </div>
 

@@ -1,8 +1,11 @@
 export type MusicPlatform = 'spotify' | 'youtube';
 
+/** Plateformes liées au profil (streaming + réseaux sociaux). */
+export type ConnectPlatform = MusicPlatform | 'instagram';
+
 export type ListeningRole = 'auditeur' | 'host' | 'les_deux';
 
-export type RelationshipStatus = 'celibataire' | 'en_couple';
+export type RelationshipStatus = 'celibataire' | 'en_couple' | 'autre';
 
 /** Type de profil / activité (bar, DJ, compositeur, etc.) — distinct du rôle d'écoute Soundly. */
 export type ProfileType =
@@ -16,6 +19,7 @@ export type ProfileType =
   | 'compositeur'
   | 'rapper'
   | 'musicien'
+  | 'melomane'
   | 'chanteur'
   | 'producteur'
   | 'label'
@@ -24,12 +28,18 @@ export type ProfileType =
 
 /** Liaison OAuth (ou msdev simulée) — source de vérité pour l’hébergement salon */
 export interface PlatformAccount {
-  platform: MusicPlatform;
+  platform: ConnectPlatform;
   externalUserId: string;
   connectedAt: number;
   accessToken?: string;
   refreshToken?: string;
   displayName?: string;
+  /** Avatar / chaîne (URL publique, renvoyée au propriétaire via platformLinks). */
+  avatarUrl?: string;
+  /** E-mail Spotify (scope user-read-email) — jamais exposé aux autres utilisateurs. */
+  email?: string;
+  /** Top artistes Spotify au moment de la liaison (noms). */
+  topArtists?: string[];
 }
 
 export interface User {
@@ -57,9 +67,15 @@ export interface User {
   listeningRole?: ListeningRole;
   profileType?: ProfileType;
   relationshipStatus?: RelationshipStatus;
-  /** Âge renseigné (13–120) ; absent si non renseigné. */
+  /** Texte libre si relationshipStatus === autre. */
+  relationshipStatusCustom?: string;
+  /** Date de naissance ISO (YYYY-MM-DD). */
+  birthDate?: string;
+  /** Masquer la date de naissance aux autres visiteurs (défaut : true). */
+  hideBirthDateOnProfile?: boolean;
+  /** Âge dérivé de birthDate (13–120) ; absent si non renseigné. */
   age?: number;
-  /** Afficher l'âge sur le profil public (défaut : false). */
+  /** @deprecated Préférer hideBirthDateOnProfile (conservé pour rétrocompat). */
   showAge?: boolean;
   memberSince?: number;
   latitude?: number;
@@ -70,6 +86,8 @@ export interface User {
   shareDistance?: boolean;
   /** précis = position floutée ~50 m ; city = centre-ville uniquement pour les autres. */
   locationPrecision?: 'precise' | 'city';
+  /** Dernière position GPS envoyée via POST /geo/update (distinct du backfill ville). */
+  geoUpdatedAt?: number;
   lastSeenAt: number;
   acceptedTermsAt?: number;
   acceptedTermsVersion?: string;
@@ -79,6 +97,10 @@ export interface User {
   isAdmin?: boolean;
   /** Compteur « vous suivent » affiché (msdev démo) — remplace le décompte réel si défini. */
   favoritesCountOverride?: number;
+  /** Réseaux sociaux publics (optionnels) */
+  instagramHandle?: string;
+  youtubeChannel?: string;
+  spotifyUrl?: string;
 }
 
 export interface PlaybackState {
@@ -175,8 +197,10 @@ export interface Live {
   viewersCount: number;
   isActive: boolean;
   startedAt: number;
-  /** Host a activé la caméra (aperçu local hôte ; pas de flux WebRTC en msdev). */
+  /** Host a activé la caméra ou un fichier vidéo local. */
   cameraActive?: boolean;
+  /** Type de flux visuel hôte : caméra (relayée WebRTC) ou fichier local (aperçu hôte uniquement). */
+  cameraMode?: 'camera' | 'file';
   /** Utilisateurs VIP pouvant modérer le chat public du live. */
   vipModeratorIds?: string[];
 }
@@ -254,6 +278,49 @@ export interface Gift {
   giftType: string;
   amount: number;
   timestamp: number;
+  /** simulation (msdev) ou stripe (prod) — absent pour réactions gratuites historiques */
+  paymentMode?: 'simulation' | 'stripe';
+  paymentIntentId?: string;
+}
+
+export interface DonationPayment {
+  id: string;
+  paymentIntentId: string;
+  liveId: string;
+  senderId: string;
+  amountCents: number;
+  status: 'pending' | 'succeeded' | 'failed';
+  createdAt: number;
+}
+
+/** Abonnement mensuel à un créateur ou à Soundly+ (plateforme). */
+export interface CreatorSubscription {
+  id: string;
+  subscriberId: string;
+  /** userId du créateur, ou `platform` pour Soundly+ */
+  creatorId: string;
+  tierId: string;
+  tierLabel: string;
+  amountCents: number;
+  targetType: 'creator' | 'platform';
+  status: 'active' | 'canceled' | 'past_due';
+  paymentMode: 'simulation' | 'stripe';
+  stripeSubscriptionId?: string;
+  stripeCustomerId?: string;
+  currentPeriodEnd: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface SubscriptionCheckout {
+  id: string;
+  sessionId: string;
+  subscriberId: string;
+  creatorId: string;
+  tierId: string;
+  targetType: 'creator' | 'platform';
+  status: 'pending' | 'completed' | 'expired';
+  createdAt: number;
 }
 
 export interface UserBlock {
@@ -284,7 +351,18 @@ export interface AppNotification {
   senderId: string;
   senderName: string;
   senderAvatarUrl?: string;
-  type: 'match' | 'live_started' | 'live_don' | 'favorite_online' | 'dm_message' | 'group_message';
+  type:
+    | 'match'
+    | 'live_started'
+    | 'live_don'
+    | 'favorite_online'
+    | 'dm_message'
+    | 'group_message'
+    | 'heart'
+    | 'content_heart'
+    | 'follow'
+    | 'event_created'
+    | 'mention';
   message: string;
   read: boolean;
   createdAt: number;
@@ -295,6 +373,10 @@ export interface AppNotification {
   peerUserId?: string;
   /** Groupe de messages (notification group_message). */
   groupId?: string;
+  /** Publication du fil d'actualité (like ou événement). */
+  postId?: string;
+  /** Reel liké. */
+  reelId?: string;
 }
 
 export interface UserFavorite {
@@ -345,15 +427,24 @@ export interface UserReel {
   visibility?: ReelVisibility;
 }
 
-/** Publication fil d'actualité (texte + image optionnelle). */
+/** Publication fil d'actualité (texte + image ou vidéo optionnelle). */
 export interface FeedPost {
   id: string;
   userId: string;
   content: string;
   imageUrl?: string;
+  videoUrl?: string;
   createdAt: number;
   /** ID de la publication d'origine si c'est un repartage. */
   resharedFromId?: string;
+  /** Si true, la publication est un événement. */
+  isEvent?: boolean;
+  /** Date ISO 8601 de l'événement (ex: "2026-06-14T20:00:00.000Z"). */
+  eventDate?: string;
+  /** Lieu de l'événement (texte libre). */
+  eventLocation?: string;
+  /** Type : dance (danse), chant, autre (défaut). */
+  eventType?: 'dance' | 'chant' | 'autre';
 }
 
 export interface FeedPostComment {
@@ -389,6 +480,8 @@ export interface Story {
   taggedUserIds?: string[];
   createdAt: number;
   expiresAt: number;
+  /** 'public' = tout le monde, 'followers' = abonnés mutuels uniquement. Défaut : 'followers'. */
+  visibility?: 'public' | 'followers';
 }
 
 export const db = {
@@ -411,6 +504,9 @@ export const db = {
   /** userId → (otherUserId → dernier message lu, timestamp) */
   dmReadCursors: new Map<string, Map<string, number>>(),
   gifts: [] as Gift[],
+  donationPayments: [] as DonationPayment[],
+  creatorSubscriptions: [] as CreatorSubscription[],
+  subscriptionCheckouts: [] as SubscriptionCheckout[],
   hostRatings: [] as HostRating[],
   userBlocks: [] as UserBlock[],
   userMutes: [] as UserMute[],

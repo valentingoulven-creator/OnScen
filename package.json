@@ -2,7 +2,7 @@
   "name": "melosong",
   "version": "2.0.0",
   "private": true,
-  "description": "Soundly — salons musicaux géolocalisés (Spotify, YouTube, Lives)",
+  "description": "Soundy — salons musicaux géolocalisés (Spotify, YouTube, Lives)",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/valentingoulven-creator/Melo.git",
@@ -24,6 +24,7 @@
     "msdev:diagnose": "powershell -ExecutionPolicy Bypass -File msdev/scripts/diagnose-mobile.ps1",
     "msdev:fix-network": "powershell -Command \"Start-Process powershell -Verb RunAs -ArgumentList '-ExecutionPolicy Bypass -File \"\"$PWD/msdev/scripts/fix-network-access.ps1\"\"'\"",
     "app:build": "npm run build --prefix app",
+    "app:build:prod": "npm run build:prod --prefix app",
     "app:dev": "npm run dev --prefix app",
     "app:dev:https": "powershell -ExecutionPolicy Bypass -Command \"$env:MSDEV_HTTPS_PROXY='1'; npm run dev --prefix app\"",
     "appweb:dev": "npm run dev --prefix app",

@@ -1,15 +1,29 @@
 import { io, Socket } from 'socket.io-client';
 import { SOCKET_ORIGIN } from './nativeServer';
 
+const AUTH_TOKEN_HEADER = 'X-Auth-Token';
+
 let socket: Socket | null = null;
 let registeredUserId: string | null = null;
+let authToken: string | null = null;
 const onConnectHandlers = new Set<() => void>();
 
+function createSocket(token: string): Socket {
+  const opts = {
+    path: '/socket.io',
+    transports: ['websocket', 'polling'] as ('websocket' | 'polling')[],
+    auth: { token },
+    extraHeaders: { [AUTH_TOKEN_HEADER]: token },
+  };
+  return SOCKET_ORIGIN ? io(SOCKET_ORIGIN, opts) : io(opts);
+}
+
 function ensureSocket(): Socket {
+  if (!authToken) {
+    throw new Error('Socket requires authentication token');
+  }
   if (!socket) {
-    socket = SOCKET_ORIGIN
-      ? io(SOCKET_ORIGIN, { path: '/socket.io', transports: ['websocket', 'polling'] })
-      : io({ path: '/socket.io', transports: ['websocket', 'polling'] });
+    socket = createSocket(authToken);
     socket.on('connect', () => {
       if (registeredUserId) {
         socket!.emit('register', registeredUserId);
@@ -30,13 +44,31 @@ export function getSocket(): Socket {
   return ensureSocket();
 }
 
-export function registerUser(userId: string): void {
+export function registerUser(userId: string, token?: string | null): void {
   registeredUserId = userId;
-  ensureSocket().emit('register', userId);
+  if (token) {
+    if (authToken && authToken !== token && socket) {
+      socket.disconnect();
+      socket = null;
+    }
+    authToken = token;
+  }
+  if (!authToken) return;
+  const s = ensureSocket();
+  if (s.connected) {
+    s.emit('register', userId);
+  } else {
+    s.connect();
+  }
 }
 
 export function clearSocketUser(): void {
   registeredUserId = null;
+  authToken = null;
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
 }
 
 /** Re-run join_salon / join_live (etc.) after reconnect; also runs once if already connected. */

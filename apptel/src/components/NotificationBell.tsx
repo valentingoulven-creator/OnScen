@@ -13,12 +13,38 @@ function isVisibleNotification(n: AppNotification): boolean {
     n.type === 'live_don' ||
     n.type === 'favorite_online' ||
     n.type === 'dm_message' ||
-    n.type === 'group_message'
+    n.type === 'group_message' ||
+    n.type === 'heart' ||
+    n.type === 'content_heart' ||
+    n.type === 'follow' ||
+    n.type === 'event_created' ||
+    n.type === 'mention'
   );
 }
 
 function shouldShowToast(n: AppNotification): boolean {
-  return n.type === 'match' || n.type === 'live_started' || n.type === 'live_don' || n.type === 'favorite_online';
+  return (
+    n.type === 'match' ||
+    n.type === 'live_started' ||
+    n.type === 'live_don' ||
+    n.type === 'favorite_online' ||
+    n.type === 'heart' ||
+    n.type === 'content_heart' ||
+    n.type === 'follow' ||
+    n.type === 'event_created' ||
+    n.type === 'mention'
+  );
+}
+
+function opensProfileFromNotification(n: AppNotification): boolean {
+  return (
+    n.type === 'match' ||
+    n.type === 'heart' ||
+    n.type === 'content_heart' ||
+    n.type === 'follow' ||
+    n.type === 'event_created' ||
+    n.type === 'mention'
+  );
 }
 
 interface NotificationBellProps {
@@ -108,8 +134,8 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
       setOpen(false);
       return;
     }
-    if (n.type === 'match' && onOpenProfile) {
-      onOpenProfile(n.senderId);
+    if (opensProfileFromNotification(n) && onOpenProfile) {
+      onOpenProfile(n.peerUserId ?? n.senderId);
       setToast(null);
       setOpen(false);
       return;
@@ -148,7 +174,7 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
                 ? isGroupToast
                   ? !onOpenGroup
                   : !onOpenDm
-                : isMatchToast
+                : opensProfileFromNotification(toast)
                   ? !onOpenProfile
                   : (!isLiveToast && !isDonToast) || !toast.liveId || !onOpenLive
             }
@@ -167,7 +193,7 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
             } ${
               (isDmToast && onOpenDm) ||
               (isGroupToast && onOpenGroup) ||
-              (isMatchToast && onOpenProfile) ||
+              (opensProfileFromNotification(toast) && onOpenProfile) ||
               ((isLiveToast || isDonToast) && toast.liveId && onOpenLive) ||
               (isFavToast && (toast.salonId || toast.liveId || onOpenProfile))
                 ? 'cursor-pointer active:scale-[0.99]'
@@ -276,11 +302,11 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
                       ? !onOpenGroup
                       : n.type === 'dm_message'
                         ? !onOpenDm
-                        : n.type === 'match'
-                        ? !onOpenProfile
-                        : n.type === 'favorite_online'
-                          ? !(n.salonId || n.liveId || onOpenProfile)
-                          : (n.type !== 'live_started' && n.type !== 'live_don') || !n.liveId || !onOpenLive
+                        : opensProfileFromNotification(n)
+                          ? !onOpenProfile
+                          : n.type === 'favorite_online'
+                            ? !(n.salonId || n.liveId || onOpenProfile)
+                            : (n.type !== 'live_started' && n.type !== 'live_don') || !n.liveId || !onOpenLive
                   }
                   className={`w-full flex items-center gap-2 px-3 py-2.5 border-b border-[#1e1e2f]/50 text-left ${
                     !n.read
@@ -299,7 +325,7 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
                   } ${
                     (n.type === 'dm_message' && onOpenDm) ||
                     (n.type === 'group_message' && onOpenGroup) ||
-                    (n.type === 'match' && onOpenProfile) ||
+                    (opensProfileFromNotification(n) && onOpenProfile) ||
                     ((n.type === 'live_started' || n.type === 'live_don') && n.liveId && onOpenLive) ||
                     (n.type === 'favorite_online' && (n.salonId || n.liveId || onOpenProfile))
                       ? n.type === 'match'

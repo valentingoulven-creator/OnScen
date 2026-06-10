@@ -8,7 +8,7 @@ export const conformiteRgpd: LegalDocument = {
   sections: [
     {
       heading: '1. Engagement',
-      body: `Soundly s’engage à traiter les données personnelles conformément au Règlement (UE) 2016/679 (RGPD) et à la loi française « Informatique et Libertés ».\n\nCe document complète la Politique de confidentialité en détaillant les traitements principaux, les mesures de conformité et les actions attendues avant une mise en production publique.`,
+      body: `Soundy s’engage à traiter les données personnelles conformément au Règlement (UE) 2016/679 (RGPD) et à la loi française « Informatique et Libertés ».\n\nCe document complète la Politique de confidentialité en détaillant les traitements principaux, les mesures de conformité et les actions attendues avant une mise en production publique.`,
     },
     {
       heading: '2. Registre des activités de traitement (synthèse)',

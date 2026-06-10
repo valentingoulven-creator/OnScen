@@ -1,36 +1,43 @@
-import { useCallback, useState } from 'react';
-import {
-  getLivesGeo,
-  PRESET_CITIES,
-  type LivesGeoPrefs,
-  type LivesGeoSource,
-} from '../lib/livesGeo';
-import { geocodeAddress, geocodeQuery, type AddressSuggestion } from '../lib/geocodeAddress';
-import type { CitySuggestion } from '../lib/citySearch';
-import { CityAutocomplete } from './CityAutocomplete';
-import { AddressAutocomplete } from './AddressAutocomplete';
+import { useEffect, useRef, useState } from 'react';
+import L from 'leaflet';
+import type { LivesGeoPrefs } from '../lib/livesGeo';
 
-export type MapLocationPickerAccent = 'purple' | 'red';
+const TILE_URL = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+const TILE_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>';
 
-interface MapLocationPickerProps {
+const ACCENT: Record<string, string> = {
+  purple: 'bg-purple-600 hover:bg-purple-500 active:bg-purple-700',
+  red: 'bg-red-500 hover:bg-red-400 active:bg-red-600',
+  pink: 'bg-pink-600 hover:bg-pink-500 active:bg-pink-700',
+};
+
+export interface MapLocationPickerProps {
   mapGeo: LivesGeoPrefs;
   onPersist: (next: LivesGeoPrefs) => void;
-  /** compact = panneau carte ; default = onglet Lives */
-  size?: 'compact' | 'default';
-  accent?: MapLocationPickerAccent;
+  size?: 'default' | 'compact';
+  accent?: 'purple' | 'red' | 'pink';
 }
 
-type LocationMode = LivesGeoSource;
-
-const MODE_OPTIONS: { id: LocationMode; label: string }[] = [
-  { id: 'my_position', label: 'Ma position (GPS)' },
-  { id: 'address', label: 'Adresse précise' },
-  { id: 'city', label: 'Ville' },
-];
-
-function truncateLabel(label: string, max = 60): string {
-  return label.length > max ? `${label.slice(0, max - 1)}…` : label;
+function formatCoord(lat: number, lng: number): string {
+  const latDir = lat >= 0 ? 'N' : 'S';
+  const lngDir = lng >= 0 ? 'E' : 'O';
+  return `${Math.abs(lat).toFixed(4)}°${latDir}, ${Math.abs(lng).toFixed(4)}°${lngDir}`;
 }
+
+const PIN_HTML = `<div style="
+  width:32px;
+  height:40px;
+  filter:drop-shadow(0 2px 6px rgba(0,0,0,0.5));
+  cursor:grab;
+">
+  <svg width="32" height="40" viewBox="0 0 32 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="16" cy="37" rx="6" ry="3" fill="rgba(0,0,0,0.35)"/>
+    <path d="M16 2C9.373 2 4 7.373 4 14c0 8.75 12 24 12 24S28 22.75 28 14c0-6.627-5.373-12-12-12z"
+      fill="#a855f7" stroke="#7c3aed" stroke-width="1.5"/>
+    <circle cx="16" cy="14" r="5" fill="white"/>
+  </svg>
+</div>`;
 
 export function MapLocationPicker({
   mapGeo,
@@ -38,316 +45,147 @@ export function MapLocationPicker({
   size = 'default',
   accent = 'purple',
 }: MapLocationPickerProps) {
-  const compact = size === 'compact';
-  const [mode, setMode] = useState<LocationMode>(mapGeo.source);
-  const [cityQuery, setCityQuery] = useState(() =>
-    mapGeo.source === 'city' ? mapGeo.label.split(',')[0]?.trim() || mapGeo.label : ''
-  );
-  const [addressQuery, setAddressQuery] = useState(() =>
-    mapGeo.source === 'address' && mapGeo.addressLine ? mapGeo.addressLine : ''
-  );
-  const [locating, setLocating] = useState(false);
-  const [geocoding, setGeocoding] = useState(false);
-  const [geoError, setGeoError] = useState<string | null>(null);
-  const [street, setStreet] = useState(() =>
-    mapGeo.source === 'address' && mapGeo.addressLine ? mapGeo.addressLine : ''
-  );
-  const [postalCode, setPostalCode] = useState('');
-  const [cityField, setCityField] = useState('');
+  const lat = mapGeo.latitude;
+  const lng = mapGeo.longitude;
+  const label = mapGeo.label;
 
-  const accentBtn =
-    accent === 'red'
-      ? 'text-red-300 border-red-500/40 hover:bg-red-900/20'
-      : 'text-purple-300 border-purple-500/30 hover:bg-purple-900/20';
-  const accentActive =
-    accent === 'red' ? 'bg-red-600/25 border-red-500/50 text-red-200' : 'bg-purple-600/25 border-purple-500/50 text-purple-200';
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
+  const [markerPos, setMarkerPos] = useState({ lat, lng });
+  const isCompact = size === 'compact';
 
-  const persist = useCallback(
-    (next: LivesGeoPrefs) => {
-      setGeoError(null);
-      onPersist(next);
-    },
-    [onPersist]
-  );
+  useEffect(() => {
+    const container = mapContainerRef.current;
+    if (!container || mapInstanceRef.current) return;
 
-  const applyCoords = useCallback(
-    (opts: {
-      latitude: number;
-      longitude: number;
-      label: string;
-      source: LivesGeoSource;
-      addressLine?: string;
-    }) => {
-      const current = getLivesGeo();
-      persist({
-        latitude: opts.latitude,
-        longitude: opts.longitude,
-        radiusKm: current.radiusKm,
-        label: truncateLabel(opts.label),
-        source: opts.source,
-        addressLine: opts.addressLine,
-      });
-    },
-    [persist]
-  );
+    const zoom = isCompact ? 12 : 15;
+    const map = L.map(container, {
+      zoomControl: true,
+      attributionControl: !isCompact,
+      preferCanvas: false,
+      maxZoom: 19,
+    }).setView([lat, lng], zoom);
 
-  const useMyPosition = () => {
-    if (!navigator.geolocation) {
-      setGeoError('Géolocalisation non disponible sur cet appareil');
-      return;
-    }
-    setLocating(true);
-    setGeoError(null);
-    const current = getLivesGeo();
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        persist({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          radiusKm: current.radiusKm,
-          label: 'Ma position',
-          source: 'my_position',
-        });
-        setMode('my_position');
-        setLocating(false);
-      },
-      () => {
-        setLocating(false);
-        setGeoError('Impossible d\'obtenir votre position. Autorisez la géolocalisation ou choisissez une adresse.');
-      },
-      { enableHighAccuracy: true, timeout: 12000 }
+    L.tileLayer(TILE_URL, {
+      attribution: TILE_ATTRIBUTION,
+      maxZoom: 19,
+      noWrap: true,
+    }).addTo(map);
+
+    const pinIcon = L.divIcon({
+      className: '',
+      html: PIN_HTML,
+      iconSize: [32, 40],
+      iconAnchor: [16, 38],
+    });
+
+    const marker = L.marker([lat, lng], { icon: pinIcon, draggable: true }).addTo(map);
+    markerRef.current = marker;
+    mapInstanceRef.current = map;
+
+    marker.on('dragend', () => {
+      const pos = marker.getLatLng();
+      setMarkerPos({ lat: pos.lat, lng: pos.lng });
+    });
+
+    const rafId = requestAnimationFrame(() => map.invalidateSize());
+    const ro = new ResizeObserver(() => map.invalidateSize());
+    ro.observe(container);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      ro.disconnect();
+      map.remove();
+      mapInstanceRef.current = null;
+      markerRef.current = null;
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleConfirm = () => {
+    onPersist({ ...mapGeo, latitude: markerPos.lat, longitude: markerPos.lng });
+  };
+
+  if (isCompact) {
+    return (
+      <div className="flex flex-col gap-2">
+        <div className="relative rounded-lg overflow-hidden" style={{ height: '10rem' }}>
+          <div ref={mapContainerRef} className="absolute inset-0" />
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
+            <div className="bg-[#12121a]/90 backdrop-blur-sm rounded-full px-2.5 py-1 border border-[#2a2a3d] shadow">
+              <p className="text-[9px] text-gray-300 whitespace-nowrap">Déplacez le marqueur</p>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[10px] font-mono text-purple-300 truncate">
+            {formatCoord(markerPos.lat, markerPos.lng)}
+          </p>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            className={`shrink-0 px-3 py-1.5 rounded-lg text-xs text-white font-medium transition-colors ${ACCENT[accent] ?? ACCENT.purple}`}
+          >
+            Appliquer
+          </button>
+        </div>
+      </div>
     );
-  };
-
-  const selectPresetCity = (city: (typeof PRESET_CITIES)[number]) => {
-    applyCoords({
-      latitude: city.latitude,
-      longitude: city.longitude,
-      label: city.label,
-      source: 'city',
-    });
-    setMode('city');
-    setCityQuery(city.label.split(',')[0]?.trim() || city.label);
-  };
-
-  const selectCitySuggestion = async (suggestion: CitySuggestion) => {
-    setMode('city');
-    setCityQuery(suggestion.value);
-    setGeoError(null);
-
-    if (
-      typeof suggestion.latitude === 'number' &&
-      typeof suggestion.longitude === 'number'
-    ) {
-      applyCoords({
-        latitude: suggestion.latitude,
-        longitude: suggestion.longitude,
-        label: suggestion.label,
-        source: 'city',
-      });
-      return;
-    }
-
-    setGeocoding(true);
-    try {
-      const result = await geocodeQuery(`${suggestion.value}, France`);
-      applyCoords({
-        latitude: result.latitude,
-        longitude: result.longitude,
-        label: suggestion.label,
-        source: 'city',
-      });
-    } catch (e) {
-      setGeoError(e instanceof Error ? e.message : 'Ville introuvable');
-    } finally {
-      setGeocoding(false);
-    }
-  };
-
-  const selectAddressSuggestion = (suggestion: AddressSuggestion) => {
-    setMode('address');
-    setAddressQuery(suggestion.label);
-    setStreet(suggestion.label);
-    applyCoords({
-      latitude: suggestion.latitude,
-      longitude: suggestion.longitude,
-      label: suggestion.label,
-      source: 'address',
-      addressLine: suggestion.label,
-    });
-  };
-
-  const submitAddress = async () => {
-    setGeocoding(true);
-    setGeoError(null);
-    try {
-      const result = await geocodeAddress({
-        street,
-        postalCode,
-        city: cityField,
-      });
-      const line = [street, postalCode, cityField]
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .join(', ');
-      applyCoords({
-        latitude: result.latitude,
-        longitude: result.longitude,
-        label: result.label,
-        source: 'address',
-        addressLine: line,
-      });
-      setMode('address');
-      setAddressQuery(line);
-    } catch (e) {
-      setGeoError(e instanceof Error ? e.message : 'Géocodage impossible');
-    } finally {
-      setGeocoding(false);
-    }
-  };
-
-  const switchMode = (next: LocationMode) => {
-    setMode(next);
-    setGeoError(null);
-    if (next === 'my_position') {
-      useMyPosition();
-    }
-  };
-
-  const textXs = compact ? 'text-[9px]' : 'text-xs';
-  const text10 = compact ? 'text-[10px]' : 'text-xs';
-  const inputClass = compact
-    ? 'w-full px-2 py-1.5 rounded-lg bg-[#0b0b0f] border border-[#2a2a3f] text-[10px] text-white placeholder:text-gray-500'
-    : 'w-full px-3 py-2 rounded-lg bg-[#0b0b0f] border border-[#2a2a3f] text-xs text-white placeholder:text-gray-500';
+  }
 
   return (
-    <div className="space-y-2">
-      <p className={`${text10} text-gray-400`}>Point de référence carte</p>
-      <div className={`flex flex-wrap gap-1 ${compact ? '' : 'gap-1.5'}`}>
-        {MODE_OPTIONS.map((opt) => (
-          <button
-            key={opt.id}
-            type="button"
-            onClick={() => switchMode(opt.id)}
-            className={`${textXs} font-semibold px-2 py-1 rounded-lg border transition ${
-              mode === opt.id ? accentActive : 'border-[#2a2a3f] text-gray-400 hover:border-[#3d3d50]'
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-
-      <p className={`${text10} text-gray-500 truncate`} title={mapGeo.label}>
-        {mapGeo.label}
-      </p>
-
-      {mode === 'my_position' && (
+    <div className="fixed inset-0 z-[200] flex flex-col bg-[#0b0b0f]">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#2a2a3d] bg-[#12121a] shrink-0">
+        <div className="min-w-0 flex-1 pr-3">
+          <h2 className="text-sm font-semibold text-white">Ajustez la position exacte</h2>
+          <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-1">{label}</p>
+        </div>
         <button
           type="button"
-          onClick={useMyPosition}
-          disabled={locating}
-          className={`w-full px-2 py-1.5 rounded-lg ${textXs} font-semibold border disabled:opacity-50 ${accentBtn}`}
+          onClick={() => onPersist(mapGeo)}
+          className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-[#1e1e2f] transition-colors"
+          aria-label="Fermer"
         >
-          {locating ? 'Localisation…' : 'Actualiser ma position GPS'}
+          <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
         </button>
-      )}
+      </div>
 
-      {mode === 'address' && (
-        <div className="space-y-1.5">
-          <p className={`${text10} text-gray-500`}>Rechercher une adresse</p>
-          <AddressAutocomplete
-            value={addressQuery}
-            onChange={setAddressQuery}
-            onSelect={selectAddressSuggestion}
-            placeholder="Rue, code postal, ville…"
-            inputClassName={inputClass}
-            listMaxHeightClass={compact ? 'max-h-28' : 'max-h-40'}
-          />
-          <details className="group">
-            <summary className={`${textXs} text-gray-500 cursor-pointer hover:text-gray-400 list-none flex items-center gap-1`}>
-              <span className="group-open:rotate-90 transition inline-block">›</span>
-              Saisie manuelle
-            </summary>
-            <div className="space-y-1.5 mt-1.5">
-              <input
-                type="text"
-                value={street}
-                onChange={(e) => setStreet(e.target.value)}
-                placeholder="Rue et numéro"
-                className={inputClass}
-                autoComplete="street-address"
-              />
-              <div className="flex gap-1.5">
-                <input
-                  type="text"
-                  value={postalCode}
-                  onChange={(e) => setPostalCode(e.target.value)}
-                  placeholder="Code postal"
-                  className={`${inputClass} w-24 shrink-0`}
-                  autoComplete="postal-code"
-                />
-                <input
-                  type="text"
-                  value={cityField}
-                  onChange={(e) => setCityField(e.target.value)}
-                  placeholder="Ville"
-                  className={`${inputClass} flex-1 min-w-0`}
-                  autoComplete="address-level2"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => void submitAddress()}
-                disabled={geocoding}
-                className={`w-full px-2 py-1.5 rounded-lg ${textXs} font-semibold border disabled:opacity-50 ${accentBtn}`}
-              >
-                {geocoding ? 'Recherche de l\'adresse…' : 'Valider cette adresse'}
-              </button>
-            </div>
-          </details>
-          <p className={`${compact ? 'text-[8px]' : 'text-[10px]'} text-gray-600`}>
-            Choisissez une proposition ou validez une adresse (OpenStreetMap).
-          </p>
+      <div className="relative flex-1 min-h-0">
+        <div ref={mapContainerRef} className="absolute inset-0" />
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
+          <div className="bg-[#12121a]/90 backdrop-blur-sm rounded-full px-3 py-1.5 border border-[#2a2a3d] shadow-lg">
+            <p className="text-[10px] text-gray-300 whitespace-nowrap">
+              Déplacez le marqueur pour préciser l'emplacement
+            </p>
+          </div>
         </div>
-      )}
+      </div>
 
-      {mode === 'city' && (
-        <div className="space-y-1.5">
-          <p className={`${text10} text-gray-500`}>Rechercher une ville</p>
-          <CityAutocomplete
-            value={cityQuery}
-            onChange={setCityQuery}
-            onSelect={(s) => void selectCitySuggestion(s)}
-            placeholder="Tapez le nom de la ville…"
-            inputClassName={inputClass}
-            emptyHint="Aucune ville — essayez un autre nom"
-          />
-          {geocoding && (
-            <p className={`${textXs} text-gray-500`}>Localisation de la ville…</p>
-          )}
-          {!cityQuery.trim() && (
-            <>
-              <p className={`${textXs} text-gray-600`}>Villes populaires</p>
-              <ul className={`${compact ? 'max-h-24' : 'max-h-32'} overflow-y-auto space-y-0.5`}>
-                {PRESET_CITIES.slice(0, compact ? 6 : 10).map((city) => (
-                  <li key={city.id}>
-                    <button
-                      type="button"
-                      onClick={() => selectPresetCity(city)}
-                      className={`w-full text-left px-2 py-1.5 rounded-lg ${text10} text-gray-200 hover:bg-[#1a1a26]`}
-                    >
-                      {city.label}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
+      <div className="shrink-0 px-4 pt-3 pb-4 bg-[#12121a] border-t border-[#2a2a3d]">
+        <p className="text-center text-[11px] font-mono text-purple-300 mb-3 tracking-wide">
+          {formatCoord(markerPos.lat, markerPos.lng)}
+        </p>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => onPersist(mapGeo)}
+            className="flex-1 py-2.5 rounded-xl border border-[#2a2a3d] text-sm text-gray-300 hover:bg-[#1e1e2f] active:bg-[#252535] transition-colors"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            className={`flex-1 py-2.5 rounded-xl text-sm text-white font-semibold transition-colors ${ACCENT[accent] ?? ACCENT.purple}`}
+          >
+            Confirmer
+          </button>
         </div>
-      )}
-
-      {geoError && <p className={`${textXs} text-red-400`}>{geoError}</p>}
+      </div>
     </div>
   );
 }
+
+export { formatCoord as formatLocationCoord };

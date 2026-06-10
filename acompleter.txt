@@ -106,7 +106,79 @@ Ex. https://app.melosong.fr
 MeloSong est-il une marque déposée ? oui / non
 
 
-── 8. DÉCLARATIONS ──
+── 8. STRIPE — POURBOIRES LIVE (production) ──
+
+Compte Stripe (à créer sur https://dashboard.stripe.com) :
+
+Clé secrète (sk_live_…) :
+→ msdev/.env STRIPE_SECRET_KEY (ne pas commiter)
+
+Clé publique (pk_live_…) :
+→ msdev/.env STRIPE_PUBLISHABLE_KEY
+
+Secret webhook (whsec_…) — endpoint :
+  https://VOTRE_DOMAINE/api/donations/webhook
+  Événement : payment_intent.succeeded
+→ msdev/.env STRIPE_WEBHOOK_SECRET
+
+Activer les dons en production :
+→ DONATIONS_ENABLED=1
+
+SIRET / raison sociale :
+→ déjà dans legal-publisher.json (facturation, mentions légales)
+
+Nature des paiements :
+  Pourboires volontaires aux créateurs (hôtes de live), pas dons associatifs.
+  Pas de reçu fiscal. Stripe perçoit les frais de traitement.
+
+Plafond simulation msdev (optionnel) :
+→ MSDEV_DON_DAILY_CAP=50
+
+
+── 8b. STRIPE — ABONNEMENTS CRÉATEURS & SOUNDLY+ (production) ──
+
+Activer les abonnements :
+→ SUBSCRIPTIONS_ENABLED=1
+
+Créer dans Stripe Dashboard > Produits > chaque palier en mode « Recurring / Monthly » (EUR) :
+
+Palier Supporter (~4,99 €/mois) :
+→ STRIPE_PRICE_ID_TIER1=price_...
+→ SUBSCRIPTION_TIER1_LABEL=Supporter (optionnel)
+→ SUBSCRIPTION_TIER1_AMOUNT_EUR=4.99 (affichage si besoin)
+
+Palier Super fan (~9,99 €/mois) :
+→ STRIPE_PRICE_ID_TIER2=price_...
+→ SUBSCRIPTION_TIER2_LABEL=Super fan (optionnel)
+→ SUBSCRIPTION_TIER2_AMOUNT_EUR=9.99
+
+Soundly+ (abonnement plateforme, ~4,99 €/mois) :
+→ STRIPE_PRICE_ID_SOUNDLY_PLUS=price_...
+→ SUBSCRIPTION_SOUNDLY_PLUS_LABEL=Soundly+ (optionnel)
+→ SUBSCRIPTION_SOUNDLY_PLUS_AMOUNT_EUR=4.99
+
+Commission plateforme sur abos créateurs (%, documentée dans l’app) :
+→ SUBSCRIPTION_PLATFORM_COMMISSION_PERCENT=10
+
+Webhook abonnements — endpoint :
+  https://VOTRE_DOMAINE/api/subscriptions/webhook
+  Événements : checkout.session.completed, invoice.paid,
+               customer.subscription.updated, customer.subscription.deleted
+→ STRIPE_SUBSCRIPTION_WEBHOOK_SECRET=whsec_...
+  (ou réutiliser STRIPE_WEBHOOK_SECRET si même endpoint configuré côté Stripe)
+
+Portail client Stripe (résiliation / factures) :
+  Stripe Dashboard > Paramètres > Portail client → activer
+
+Plafond simulation msdev (optionnel) :
+→ MSDEV_SUB_DAILY_CAP=5
+
+Nature des paiements :
+  Abonnements récurrents de soutien créateur ou Soundly+ (pas don associatif).
+  Pas de reçu fiscal. Stripe Billing gère la facturation récurrente.
+
+
+── 9. DÉCLARATIONS ──
 
 ☐ Je confirme ne pas être un service de rencontre (positionnement social musical)
 ☐ J’ai lu la checklist RGPD dans Paramètres > Conformité RGPD

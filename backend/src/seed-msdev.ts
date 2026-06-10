@@ -5,6 +5,8 @@ import { refreshUserPublicCoords } from './lib/locationPrivacy';
 import { seedWorldMapBots, seedBotPosts } from './seed-bots';
 import { followUser } from './lib/follows';
 import { ensureSalonQueue, ensureSalonProposals, enqueueItem } from './lib/salonPlaybackOps';
+import { MSDEV_DEMO_AGE } from './lib/msdevDemoAccounts';
+import { FRANCE_COUNTRY_CODE, resolveLiveCountry } from './lib/liveCountry';
 
 export async function seedMsdevData(): Promise<void> {
   if (db.users.size > 0) return;
@@ -23,6 +25,7 @@ export async function seedMsdevData(): Promise<void> {
     avatarUrl: 'https://api.dicebear.com/7.x/adventurer/svg?seed=DJMelody',
     meloCoins: 500,
     isGhostMode: false,
+    age: MSDEV_DEMO_AGE,
     lastSeenAt: Date.now(),
   };
 
@@ -34,6 +37,7 @@ export async function seedMsdevData(): Promise<void> {
     avatarUrl: 'https://api.dicebear.com/7.x/adventurer/svg?seed=BassHunter',
     meloCoins: 200,
     isGhostMode: false,
+    age: MSDEV_DEMO_AGE,
     lastSeenAt: Date.now(),
   };
 
@@ -52,6 +56,7 @@ export async function seedMsdevData(): Promise<void> {
     ],
     meloCoins: 100,
     isGhostMode: false,
+    age: MSDEV_DEMO_AGE,
     lastSeenAt: Date.now(),
     memberSince: Date.now() - 86400000 * 30,
     bio: 'Curieux·se de tout ce qui sonne autour de moi. J’explore les salons sur la carte et je partage mes découvertes — ici pour la musique, pas pour le dating.',
@@ -65,7 +70,7 @@ export async function seedMsdevData(): Promise<void> {
   };
 
   Object.assign(dj, {
-    bio: 'Host deep house — je mixe en live sur Soundly pour faire vibrer le quartier.',
+    bio: 'Host deep house — je mixe en live sur Soundy pour faire vibrer le quartier.',
     interests: ['Deep house', 'Live mixing', 'Communauté'],
     favoriteGenres: ['House', 'Techno'],
     favoriteArtists: ['M83', 'Disclosure'],
@@ -258,6 +263,7 @@ export async function seedMsdevData(): Promise<void> {
   );
 
   seedWorldMapBots();
+  ensureDemoLivesOutsideFrance(hash);
   seedBotPosts();
 
   followUser(listener.id, dj.id);
@@ -267,7 +273,7 @@ export async function seedMsdevData(): Promise<void> {
   const dmSeed = [
     { from: bass.id, to: listener.id, content: 'Hey ! On écoute quoi ce soir ?', ago: 3600000 },
     { from: listener.id, to: bass.id, content: 'Je suis sur la carte, je te rejoins !', ago: 3500000 },
-    { from: dj.id, to: listener.id, content: 'Bienvenue sur Soundly 🎵', ago: 7200000 },
+    { from: dj.id, to: listener.id, content: 'Bienvenue sur Soundy 🎵', ago: 7200000 },
     { from: listener.id, to: dj.id, content: 'Merci DJ Melody, super live !', ago: 7000000 },
     { from: dj.id, to: listener.id, content: 'Merci d\'être passé, à bientôt sur la carte', ago: 6800000 },
   ];
@@ -284,4 +290,122 @@ export async function seedMsdevData(): Promise<void> {
 
   console.log('[msdev] Données de démo chargées');
   console.log('[msdev] Connexion: listener@msdev.local / msdev123');
+}
+
+/** Lives de démo hors France (Bruxelles, Genève) si aucun live actif n'est détecté hors FR. */
+function ensureDemoLivesOutsideFrance(passwordHash: string): void {
+  const active = [...db.lives.values()].filter((l) => l.isActive);
+  const hasForeign = active.some((l) => {
+    const host = db.users.get(l.hostId);
+    const country = resolveLiveCountry(l.latitude, l.longitude, host?.city);
+    return country != null && country.code !== FRANCE_COUNTRY_CODE;
+  });
+  if (hasForeign) return;
+
+  const demos: Array<{
+    id: string;
+    username: string;
+    email: string;
+    city: string;
+    lat: number;
+    lon: number;
+    title: string;
+    viewers: number;
+  }> = [
+    {
+      id: 'user_live_be',
+      username: 'Bruxelles Beats',
+      email: 'bruxelles@msdev.local',
+      city: 'Brussels',
+      lat: 50.8503,
+      lon: 4.3517,
+      title: 'Live Bruxelles',
+      viewers: 12,
+    },
+    {
+      id: 'user_live_ch',
+      username: 'Geneva Groove',
+      email: 'geneva@msdev.local',
+      city: 'Geneva',
+      lat: 46.2044,
+      lon: 6.1432,
+      title: 'Live Genève',
+      viewers: 9,
+    },
+  ];
+
+  for (const d of demos) {
+    if (db.users.has(d.id)) continue;
+    const user: User = {
+      id: d.id,
+      username: d.username,
+      email: d.email,
+      passwordHash,
+      avatarUrl: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(d.username)}`,
+      meloCoins: 120,
+      isGhostMode: false,
+      age: MSDEV_DEMO_AGE,
+      city: d.city,
+      lastSeenAt: Date.now(),
+      connectedPlatforms: ['spotify'],
+      listeningRole: 'host',
+      favoritesCountOverride: d.id === 'user_live_be' ? 1_200 : 900,
+    };
+    user.latitude = d.lat;
+    user.longitude = d.lon;
+    refreshUserPublicCoords(user);
+    db.users.set(user.id, user);
+
+    const live: Live = {
+      id: `live_${d.id}`,
+      hostId: user.id,
+      hostName: user.username,
+      title: d.title,
+      platform: 'spotify',
+      playbackState: {
+        platform: 'spotify',
+        trackId: 'demo',
+        title: 'Soundly Session',
+        artist: user.username,
+        albumArtUrl: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=400',
+        isPlaying: true,
+        progressMs: 0,
+        updatedAt: Date.now(),
+      },
+      latitude: d.lat,
+      longitude: d.lon,
+      blurredLatitude: blurCoordinate(d.lat),
+      blurredLongitude: blurCoordinate(d.lon),
+      viewersCount: d.viewers,
+      isActive: true,
+      startedAt: Date.now() - 120000,
+    };
+    db.lives.set(live.id, live);
+    db.liveChats.set(live.id, []);
+    db.liveBans.set(live.id, new Map());
+
+    const salon: Salon = {
+      id: `salon_${d.id}`,
+      hostId: user.id,
+      hostName: user.username,
+      hostAvatarUrl: user.avatarUrl,
+      title: `${d.title} — salon`,
+      platform: 'spotify',
+      playbackState: live.playbackState,
+      latitude: d.lat,
+      longitude: d.lon,
+      blurredLatitude: blurCoordinate(d.lat),
+      blurredLongitude: blurCoordinate(d.lon),
+      listenersCount: d.id === 'user_live_be' ? 6 : 4,
+      isGhostMode: false,
+      isPublic: true,
+      accessMode: 'public',
+      allowedUserIds: [user.id],
+      allowQueue: false,
+      createdAt: Date.now(),
+    };
+    db.salons.set(salon.id, salon);
+    ensureSalonQueue(salon.id);
+    ensureSalonProposals(salon.id);
+  }
 }

@@ -28,6 +28,7 @@ export interface PublicStory {
   taggedUsers?: PublicStoryTaggedUser[];
   createdAt: number;
   expiresAt: number;
+  visibility?: 'public' | 'followers';
   author: {
     id: string;
     username: string;
@@ -66,8 +67,8 @@ function normalizeImageUrl(raw: unknown): string | undefined {
   if (typeof raw !== 'string') return undefined;
   const url = raw.trim();
   if (!url) return undefined;
-  if (url.length > 2048) return undefined;
   if (isFeedImageDataUrl(url)) return url;
+  if (url.length > 2048) return undefined;
   if (!HTTPS_IMAGE_RE.test(url)) return undefined;
   return url;
 }
@@ -77,6 +78,12 @@ function normalizeContent(raw: unknown, opts?: { allowEmpty?: boolean }): string
   const content = raw.trim();
   if (content.length < 1) return opts?.allowEmpty ? '' : null;
   return content;
+}
+
+function isVisibleByFollowers(viewerId: string, authorId: string): boolean {
+  const viewerFollowsAuthor = db.userFavorites.get(viewerId)?.has(authorId) ?? false;
+  const authorFollowsViewer = db.userFavorites.get(authorId)?.has(viewerId) ?? false;
+  return viewerFollowsAuthor || authorFollowsViewer;
 }
 
 function isVisibleToViewer(viewerId: string, authorId: string): boolean {
@@ -152,6 +159,7 @@ function toPublicStory(story: Story): PublicStory | null {
     taggedUsers: resolveTaggedUsers(story.taggedUserIds),
     createdAt: story.createdAt,
     expiresAt: story.expiresAt,
+    visibility: story.visibility,
     author: authorDto(user),
   };
 }
@@ -163,6 +171,7 @@ export function createStory(
     imageUrl?: string;
     musicTrack?: unknown;
     taggedUserIds?: unknown;
+    visibility?: unknown;
   }
 ): { ok: true; story: PublicStory } | { ok: false; error: string } {
   const user = db.users.get(userId);
@@ -171,15 +180,15 @@ export function createStory(
   purgeExpiredStories();
 
   const imageUrl = normalizeImageUrl(input.imageUrl);
-  const content = normalizeContent(input.content ?? '', { allowEmpty: Boolean(imageUrl) });
-  if (content == null) {
-    return { ok: false, error: 'Le texte ne peut pas être vide.' };
+  const hasImageInput = input.imageUrl != null && String(input.imageUrl).trim().length > 0;
+  if (hasImageInput && !imageUrl) {
+    return { ok: false, error: 'Image invalide ou trop volumineuse.' };
   }
+  const content = normalizeContent(input.content ?? '', {
+    allowEmpty: Boolean(imageUrl) || hasImageInput,
+  });
   if (!content && !imageUrl) {
     return { ok: false, error: 'Ajoutez du texte ou une image.' };
-  }
-  if (input.imageUrl != null && String(input.imageUrl).trim() && !imageUrl) {
-    return { ok: false, error: 'Image invalide ou trop volumineuse.' };
   }
 
   const now = Date.now();
@@ -189,6 +198,8 @@ export function createStory(
 
   const musicTrack = normalizeMusicTrack(input.musicTrack);
   const taggedUserIds = normalizeTaggedUserIds(input.taggedUserIds, userId);
+  const visibility: 'public' | 'followers' =
+    input.visibility === 'public' ? 'public' : 'followers';
 
   const story: Story = {
     id: randomUUID(),
@@ -199,6 +210,7 @@ export function createStory(
     taggedUserIds,
     createdAt: now,
     expiresAt: now + STORY_TTL_MS,
+    visibility,
   };
   db.stories.push(story);
 
@@ -207,13 +219,18 @@ export function createStory(
   return { ok: true, story: pub };
 }
 
-export function getMyActiveStory(userId: string): PublicStory | null {
+export function getUserActiveStory(userId: string): PublicStory | null {
   purgeExpiredStories();
   const story = [...db.stories]
     .filter((s) => s.userId === userId && isActive(s))
     .sort((a, b) => b.createdAt - a.createdAt)[0];
   if (!story) return null;
   return toPublicStory(story);
+}
+
+/** @deprecated alias — use getUserActiveStory */
+export function getMyActiveStory(userId: string): PublicStory | null {
+  return getUserActiveStory(userId);
 }
 
 function latestActiveByUser(now = Date.now()): Map<string, Story> {
@@ -248,6 +265,11 @@ export function listStoriesForViewer(
     if (!isVisibleToViewer(viewerId, story.userId)) continue;
     const author = db.users.get(story.userId);
     if (!author) continue;
+
+    if (story.userId !== viewerId) {
+      const vis = story.visibility ?? 'followers';
+      if (vis === 'followers' && !isVisibleByFollowers(viewerId, story.userId)) continue;
+    }
 
     if (story.userId !== viewerId && lat != null && lon != null && radiusKm != null) {
       const pos = getUserPublicCoords(author, viewerId);
