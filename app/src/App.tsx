@@ -267,6 +267,13 @@ export default function App() {
     setMapSalonActiveId(null);
   }, []);
 
+  const leaveActiveSalonSession = useCallback(() => {
+    clearSalonUrlFromBar();
+    closeActiveSalonSession();
+    setView({ type: 'home' });
+    setTab('map');
+  }, [closeActiveSalonSession]);
+
   const openSalonPage = useCallback((salonId: string, salonTitle?: string) => {
     setRestoreSalonOnMapId(null);
     setProfileOpen(false);
@@ -417,7 +424,11 @@ export default function App() {
   const mapPlaybackActive = tab === 'map' && view.type === 'home';
   /** Montage conditionnel : un seul onglet à la fois (perf). Carte reste montée sous overlay profil (audio salon). */
   const actualiteTabMounted = tab === 'actualite' && view.type === 'home' && !profileOpen;
-  const mapTabMounted = tab === 'map' && view.type === 'home';
+  /** Carte aussi montée (masquée) sous SalonPage ou profil carte — évite démontage session salon. */
+  const mapTabMounted =
+    tab === 'map' && (view.type === 'home' || view.type === 'salon' || view.type === 'profile');
+  const mapTabHiddenUnderSalon = tab === 'map' && view.type === 'salon';
+  const mapTabHiddenUnderProfile = tab === 'map' && view.type === 'profile';
   const liveTabMounted = tab === 'live' && view.type === 'home';
   const dmTabMounted = tab === 'dm' && view.type === 'home' && !profileOpen;
   const reelsTabMounted = tab === 'reels' && view.type === 'home' && !profileOpen;
@@ -560,12 +571,8 @@ export default function App() {
               <Suspense fallback={<PageFallback />}>
                 <SalonPage
                   salonId={view.id}
-                  onBack={() => {
-                    clearSalonUrlFromBar();
-                    closeActiveSalonSession();
-                    setView({ type: 'home' });
-                    setTab('map');
-                  }}
+                  onBack={() => minimizeSalonToMap(view.id, activeSalonSession?.title)}
+                  onLeaveSalon={leaveActiveSalonSession}
                   onMinimizeToMap={(title) => minimizeSalonToMap(view.id, title)}
                   onSalonLoaded={(title) =>
                     setActiveSalonSession((prev) =>
@@ -630,21 +637,30 @@ export default function App() {
             )}
             {mapTabMounted && (
               <Suspense fallback={<PageFallback />}>
-                <HomePage
-                  appLayout={appLayout}
-                  onOpenSalon={openSalonPage}
-                  onOpenLive={openLive}
-                  onOpenProfile={openProfileFromPerson}
-                  onOpenReel={openReelInTab}
-                  onOpenFeedPost={openFeedPostFromMap}
-                  onCloseMapProfile={closeProfile}
-                  mapPlaybackActive={mapPlaybackActive}
-                  isActive={!profileOpen}
-                  restoreSalonId={restoreSalonOnMapId}
-                  onSalonMapRestored={() => setRestoreSalonOnMapId(null)}
-                  onMapSalonActive={handleMapSalonActive}
-                  onSalonSessionEnd={closeActiveSalonSession}
-                />
+                <div
+                  className={
+                    mapTabHiddenUnderSalon || mapTabHiddenUnderProfile
+                      ? 'hidden'
+                      : 'flex flex-col flex-1 min-h-0 min-w-0'
+                  }
+                >
+                  <HomePage
+                    appLayout={appLayout}
+                    onOpenSalon={openSalonPage}
+                    onOpenLive={openLive}
+                    onOpenProfile={openProfileFromPerson}
+                    onOpenReel={openReelInTab}
+                    onOpenFeedPost={openFeedPostFromMap}
+                    onCloseMapProfile={closeProfile}
+                    mapPlaybackActive={mapPlaybackActive}
+                    isActive={!profileOpen && view.type === 'home'}
+                    restoreSalonId={restoreSalonOnMapId}
+                    onSalonMapRestored={() => setRestoreSalonOnMapId(null)}
+                    onMapSalonActive={handleMapSalonActive}
+                    onSalonSessionEnd={closeActiveSalonSession}
+                    onLeaveSalon={leaveActiveSalonSession}
+                  />
+                </div>
               </Suspense>
             )}
             {liveTabMounted && (

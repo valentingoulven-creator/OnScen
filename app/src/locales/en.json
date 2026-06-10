@@ -126,7 +126,17 @@
       "defaultTrackTitle": "Spotify track",
       "errorGeneric": "Search unavailable",
       "changeError": "Could not change track",
-      "playlistsUnavailable": "Spotify playlists aren't available yet — choose YouTube or a track."
+      "playlistsUnavailable": "Spotify playlists aren't available yet — choose YouTube or a track.",
+      "playlistHostLabel": "Host playlist",
+      "playlistRealHint": "Your Spotify playlists (connected account).",
+      "playlistDemoHint": "Connect Spotify to load your playlists.",
+      "playlistChronoHint": "Shared timer — open each track in Spotify and align (no in-app playback).",
+      "playlistLoading": "Loading…",
+      "playlistLaunch": "Load playlist",
+      "playlistUrlPlaceholder": "Or open.spotify.com/playlist/… link",
+      "playlistPickRequired": "Pick a playlist or paste a link",
+      "playlistLoadError": "Could not load playlist",
+      "playlistError": "Playlists unavailable"
     }
   },
   "live": {

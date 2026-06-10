@@ -25,6 +25,7 @@ import {
   isInstagramOAuthConfigured,
 } from '../lib/instagramOAuth';
 import { listHostYoutubePlaylists } from '../lib/youtubePlaylists';
+import { isRealSpotifyAccount, listHostSpotifyPlaylists } from '../lib/spotifyPlaylists';
 
 export const platformsRouter = Router();
 
@@ -115,6 +116,25 @@ platformsRouter.get('/youtube/oauth/callback', async (req: Request, res: Respons
     db.users.set(user.id, user);
   }
   res.redirect(`${appUrl}/?youtube_oauth=ok`);
+});
+
+platformsRouter.get('/spotify/playlists', authenticateJWT, async (req: Request, res: Response) => {
+  const userId = (req as Request & { user: { id: string } }).user.id;
+  const user = db.users.get(userId);
+  if (!user) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+  ensurePlatformAccountsFromLegacy(user);
+  if (!isPlatformConnected(user, 'spotify')) {
+    res.status(403).json({ error: 'Connectez votre compte Spotify pour voir vos playlists' });
+    return;
+  }
+  const playlists = await listHostSpotifyPlaylists(user);
+  res.json({
+    playlists,
+    isRealAccount: isRealSpotifyAccount(user),
+  });
 });
 
 platformsRouter.get('/youtube/playlists', authenticateJWT, async (req: Request, res: Response) => {

@@ -160,8 +160,10 @@ interface HomePageProps {
   onSalonMapRestored?: () => void;
   /** Salon sélectionné sur la fiche carte (petit salon actif). */
   onMapSalonActive?: (session: { id: string; title?: string } | null) => void;
-  /** Fermeture explicite du salon (fiche carte ou accès refusé). */
+  /** Fermeture explicite du salon (kick / ban / refus carte). */
   onSalonSessionEnd?: () => void;
+  /** Quitter volontairement le salon (session + navigation). */
+  onLeaveSalon?: () => void;
 }
 
 export function HomePage({
@@ -179,6 +181,7 @@ export function HomePage({
   onSalonMapRestored,
   onMapSalonActive,
   onSalonSessionEnd,
+  onLeaveSalon,
 }: HomePageProps) {
   const { t } = useTranslation();
   const appa2 = isAppa2Layout(appLayout);
@@ -1338,9 +1341,14 @@ export function HomePage({
 
   const closeSalonSheet = useCallback(() => {
     dismissSalonSheetOnly();
-    onSalonSessionEnd?.();
     onCloseMapProfile?.();
-  }, [dismissSalonSheetOnly, onSalonSessionEnd, onCloseMapProfile]);
+  }, [dismissSalonSheetOnly, onCloseMapProfile]);
+
+  const leaveSalonFromMap = useCallback(() => {
+    dismissSalonSheetOnly();
+    onCloseMapProfile?.();
+    onLeaveSalon?.();
+  }, [dismissSalonSheetOnly, onCloseMapProfile, onLeaveSalon]);
 
   const closeLiveSheet = useCallback(() => {
     dismissLiveSheetOnly();
@@ -1355,11 +1363,11 @@ export function HomePage({
   const onSalonCreated = useCallback((salon: Salon, lat: number, lon: number) => {
     setShowCreateSalon(false);
     setSalons((s) => [...s, salon]);
-    setSelected(null);
     setSalonSheetExpanded(false);
     setSafeCenter([lat, lon]);
     loadNearby(lat, lon);
-    onOpenSalon?.(salon.id);
+    onOpenSalon?.(salon.id, salon.title);
+    setSelected(null);
   }, [loadNearby, onOpenSalon, setSafeCenter]);
 
   useEffect(() => {
@@ -1796,6 +1804,7 @@ export function HomePage({
             onOpenHostProfile={openHostProfileFromSheet}
             onCollapse={() => setSalonSheetExpanded(false)}
             onClose={closeSalonSheet}
+            onLeaveSalon={onLeaveSalon ? leaveSalonFromMap : undefined}
             onOpenFullExperience={() => {
               if (selected.isLive) {
                 onOpenLive(selected.id);

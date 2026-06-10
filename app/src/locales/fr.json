@@ -126,7 +126,17 @@
       "defaultTrackTitle": "Morceau Spotify",
       "errorGeneric": "Recherche impossible",
       "changeError": "Impossible de changer de morceau",
-      "playlistsUnavailable": "Les playlists Spotify ne sont pas encore disponibles — choisissez YouTube ou un morceau."
+      "playlistsUnavailable": "Les playlists Spotify ne sont pas encore disponibles — choisissez YouTube ou un morceau.",
+      "playlistHostLabel": "Playlist hôte",
+      "playlistRealHint": "Vos playlists Spotify (compte connecté).",
+      "playlistDemoHint": "Connectez Spotify pour charger vos playlists.",
+      "playlistChronoHint": "Chrono partagé — lancez Spotify sur chaque morceau et alignez-vous (pas de lecture dans Soundy).",
+      "playlistLoading": "Chargement…",
+      "playlistLaunch": "Lancer la playlist",
+      "playlistUrlPlaceholder": "Ou lien open.spotify.com/playlist/…",
+      "playlistPickRequired": "Choisissez une playlist ou collez un lien",
+      "playlistLoadError": "Impossible de lancer la playlist",
+      "playlistError": "Playlists indisponibles"
     }
   },
   "live": {

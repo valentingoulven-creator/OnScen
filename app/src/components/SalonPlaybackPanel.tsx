@@ -12,6 +12,7 @@ import { OpenOnYoutubeButton } from './OpenOnYoutubeButton';
 import { SalonYouTubePlayer } from './SalonYouTubePlayer';
 import { SalonYouTubeSearch } from './SalonYouTubeSearch';
 import { SalonSpotifySearch } from './SalonSpotifySearch';
+import { SalonSpotifyPlaylist } from './SalonSpotifyPlaylist';
 import { SalonYouTubePlaylist } from './SalonYouTubePlaylist';
 import { SalonQueueSection } from './SalonQueueSection';
 import { SalonProposalsSection } from './SalonProposalsSection';
@@ -806,6 +807,15 @@ export function SalonPlaybackPanel({
               currentTitle={playbackState.title}
               currentArtist={playbackState.artist}
               onTrackChanged={applyPlaybackState}
+            />
+          </div>
+          <SectionDivider />
+          <div className="p-4">
+            <SalonSpotifyPlaylist
+              salonId={salon.id}
+              token={token}
+              onTrackChanged={applyPlaybackState}
+              onQueueChanged={onQueueChange}
             />
           </div>
         </>

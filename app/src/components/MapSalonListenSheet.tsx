@@ -41,6 +41,8 @@ interface MapSalonListenSheetProps {
   mapPlaybackActive?: boolean;
   /** Ouvre le profil hôte (overlay carte) sans fermer la fiche écoute. */
   onOpenHostProfile?: () => void;
+  /** Quitter définitivement le salon (session effacée). */
+  onLeaveSalon?: () => void;
   /** Aperçu carte : 10 min d'écoute atteintes. */
   onMapInlineListenCapReached?: () => void;
 }
@@ -57,6 +59,7 @@ export function MapSalonListenSheet({
   onSalonUpdate,
   mapPlaybackActive = true,
   onOpenHostProfile,
+  onLeaveSalon,
   onMapInlineListenCapReached,
 }: MapSalonListenSheetProps) {
   const { user, token, setUserFromProfile } = useAuth();
@@ -325,7 +328,7 @@ export function MapSalonListenSheet({
               type="button"
               onClick={onClose}
               className="p-1.5 rounded-lg text-[#6b6b8a] hover:text-white hover:bg-white/10 transition shrink-0"
-              aria-label="Fermer l'écoute et le profil"
+              aria-label="Fermer la fiche d'écoute"
             >
               <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
@@ -407,6 +410,18 @@ export function MapSalonListenSheet({
               <span aria-hidden>⚠️</span>
               Connectez votre compte pour contrôler la lecture
             </p>
+          )}
+
+          {onLeaveSalon && (
+            <div className="px-3 pb-3">
+              <button
+                type="button"
+                onClick={onLeaveSalon}
+                className="w-full py-2 rounded-xl text-xs font-semibold text-gray-400 border border-[#2a2a3a] hover:text-white hover:border-gray-500 transition"
+              >
+                Quitter le salon
+              </button>
+            </div>
           )}
 
         </div>

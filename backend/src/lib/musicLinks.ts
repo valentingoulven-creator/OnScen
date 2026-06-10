@@ -34,6 +34,16 @@ export function parseYoutubePlaylistId(urlOrId: string): string | null {
   return null;
 }
 
+export function parseSpotifyPlaylistId(urlOrId: string): string | null {
+  const raw = urlOrId.trim();
+  const fromUrl =
+    raw.match(/spotify\.com\/playlist\/([a-zA-Z0-9]+)/)?.[1] ||
+    raw.match(/^spotify:playlist:([a-zA-Z0-9]+)$/)?.[1];
+  if (fromUrl) return fromUrl;
+  if (/^[a-zA-Z0-9]{10,}$/.test(raw) && !raw.startsWith('spotify:track:')) return raw;
+  return null;
+}
+
 export function buildPlatformTrackUrl(platform: MusicPlatform, trackId: string): string {
   if (platform === 'youtube') {
     return `https://www.youtube.com/watch?v=${trackId}`;

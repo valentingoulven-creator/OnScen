@@ -19,6 +19,7 @@ import { SalonPlaybackPanel } from '../components/SalonPlaybackPanel';
 import { SalonYouTubePlaylist } from '../components/SalonYouTubePlaylist';
 import { SalonYouTubeSearch } from '../components/SalonYouTubeSearch';
 import { SalonSpotifySearch } from '../components/SalonSpotifySearch';
+import { SalonSpotifyPlaylist } from '../components/SalonSpotifyPlaylist';
 import { SalonQueueSection } from '../components/SalonQueueSection';
 import { SalonProposalsSection } from '../components/SalonProposalsSection';
 import { SalonInviteLinkCopy } from '../components/SalonInviteLinkCopy';
@@ -43,11 +44,14 @@ function formatRemaining(ms: number): string {
 export function SalonPage({
   salonId,
   onBack,
+  onLeaveSalon,
   onMinimizeToMap,
   onSalonLoaded,
 }: {
   salonId: string;
   onBack: () => void;
+  /** Quitter définitivement le salon (session effacée). */
+  onLeaveSalon?: () => void;
   /** Quitte le grand salon et rouvre la fiche carte (petit salon). */
   onMinimizeToMap?: (salonTitle?: string) => void;
   /** Titre chargé (barre retour header). */
@@ -78,9 +82,9 @@ export function SalonPage({
     if (!token) return;
     api.getSalon(token, salonId).then((r) => setSalon(r.salon)).catch((e) => {
       setToastMsg(e instanceof Error ? e.message : t('salon.inaccessible'));
-      window.setTimeout(onBack, 1500);
+      window.setTimeout(() => (onLeaveSalon ?? onBack)(), 1500);
     });
-  }, [token, salonId, onBack, t]);
+  }, [token, salonId, onBack, onLeaveSalon, t]);
 
 
 
@@ -310,7 +314,7 @@ export function SalonPage({
         </p>
         <button
           type="button"
-          onClick={onBack}
+          onClick={onLeaveSalon ?? onBack}
           className="px-5 py-2.5 rounded-full bg-purple-600 text-white font-bold text-sm hover:bg-purple-500"
         >
           Retour
@@ -383,13 +387,20 @@ export function SalonPage({
       )}
 
       {isHost && hostCanControl && salon.platform === 'spotify' && token && (
-        <SalonSpotifySearch
-          salonId={salon.id}
-          token={token}
-          currentTitle={playback.title}
-          currentArtist={playback.artist}
-          onTrackChanged={applyPlayback}
-        />
+        <div className="space-y-3">
+          <SalonSpotifySearch
+            salonId={salon.id}
+            token={token}
+            currentTitle={playback.title}
+            currentArtist={playback.artist}
+            onTrackChanged={applyPlayback}
+          />
+          <SalonSpotifyPlaylist
+            salonId={salon.id}
+            token={token}
+            onTrackChanged={applyPlayback}
+          />
+        </div>
       )}
 
       <section className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4 space-y-4">
@@ -496,7 +507,7 @@ export function SalonPage({
         </div>
       )}
       <header className="shrink-0 flex items-center gap-3 px-3 pb-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] border-b border-[#1e1e2f]">
-        <button type="button" onClick={onBack} className="text-gray-400 hover:text-white text-xl" aria-label="Retour">
+        <button type="button" onClick={onBack} className="text-gray-400 hover:text-white text-xl" aria-label="Réduire">
           ←
         </button>
         <img
@@ -544,6 +555,15 @@ export function SalonPage({
             className="shrink-0 px-3 py-1.5 bg-red-600 rounded-full text-xs font-bold text-white"
           >
             Live
+          </button>
+        )}
+        {onLeaveSalon && (
+          <button
+            type="button"
+            onClick={onLeaveSalon}
+            className="shrink-0 px-2.5 py-1.5 rounded-full text-[10px] font-semibold text-gray-400 border border-[#2a2a3a] hover:text-white hover:border-gray-500 transition"
+          >
+            {t('salon.leaveSalon')}
           </button>
         )}
       </header>

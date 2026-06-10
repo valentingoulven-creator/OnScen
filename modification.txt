@@ -5924,3 +5924,120 @@ filtre reels : patterns similaires ou re-renders coûteux.
 ================================================================================
 Fin MODIF 402 - 2026-06-10
 ================================================================================
+
+================================================================================
+MODIF 403 — Fix salon se ferme à la création (MODIF 397)
+================================================================================
+Date : 2026-06-10
+
+## Symptôme
+Après « Créer le salon », le salon se ferme immédiatement (retour carte vide /
+session perdue).
+
+## Cause racine
+MODIF 397 : `mapTabMounted = tab === 'map' && view.type === 'home'` démonte
+HomePage dès `openSalonPage` (view → salon). À la création :
+- `onSalonCreated` appelle `onOpenSalon` puis `setSelected(null)`
+- HomePage unmount → cleanup `onMapSalonActive(null)` + perte du contexte carte
+  (CreateSalonModal, fiche) en plein milieu de l'ouverture SalonPage
+Avant MODIF 397, la carte restait montée (hidden) sous SalonPage.
+
+## Correctif
+- App.tsx : garder HomePage monté sur onglet Carte quand `view.type === 'salon'`
+  (wrapper `hidden`, comme sous overlay profil) ; `isActive` seulement si
+  `view.type === 'home'` (pas de nearby pendant SalonPage).
+- HomePage.tsx : `onSalonCreated` — `onOpenSalon(id, title)` avant
+  `setSelected(null)` pour stabiliser `activeSalonSession` avant fermeture fiche.
+
+## Fichiers modifiés
+- app/src/App.tsx
+- app/src/pages/HomePage.tsx
+- modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+  Carte → Créer un salon → SalonPage reste ouverte ; retour ← revient à la carte.
+
+================================================================================
+Fin MODIF 403 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 404 — Persistance session salon (ne se ferme qu’à la demande)
+================================================================================
+Date : 2026-06-10
+
+## Symptômes corrigés
+- Fermeture fiche carte (×) terminait la session (`onSalonSessionEnd` dans
+  `closeSalonSheet`).
+- Bouton ← SalonPage quittait définitivement le salon au lieu de réduire.
+- Profil hôte depuis la fiche carte démontait HomePage (`mapTabMounted` sans
+  `view.type === 'profile'`) → perte socket / fiche / session instable.
+
+## Correctifs
+- `closeSalonSheet` : replie la fiche uniquement ; session conservée + barre
+  retour si besoin.
+- `leaveActiveSalonSession` (App) : fermeture explicite (Quitter le salon).
+- SalonPage ← → `minimizeSalonToMap` ; bouton « Quitter le salon » → leave.
+- HomePage / MapSalonListenSheet : bouton quitter explicite en fiche étendue.
+- `mapTabMounted` inclut `view.type === 'profile'` sur onglet Carte (HomePage
+  reste monté, masqué).
+
+## Fichiers
+- app/src/App.tsx
+- app/src/pages/HomePage.tsx
+- app/src/pages/SalonPage.tsx
+- app/src/components/MapSalonListenSheet.tsx
+- modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+  Créer / ouvrir salon → changer d’onglet / profil / replier fiche → session OK.
+  « Quitter le salon » ou kick/ban/refus → session effacée.
+
+================================================================================
+Fin MODIF 404 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 405 — Playlists Spotify hôte (salon Spotify)
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+Playlists du compte Spotify hôte dans SalonPage / SalonPlaybackPanel (modèle
+légal : métadonnées API + file Soundy + chrono partagé + deep links track,
+pas de Web Playback SDK).
+
+## Backend
+- `backend/src/lib/spotifyPlaylists.ts` : GET /v1/me/playlists, tracks playlist.
+- `GET /api/platforms/spotify/playlists` (JWT, Spotify lié).
+- `POST /api/salons/:id/playback/load-playlist` étendu aux salons Spotify
+  (`parseSpotifyPlaylistId` dans musicLinks.ts).
+
+## Frontend
+- `SalonSpotifyPlaylist.tsx` (liste + lien + lancer file).
+- `api.getSpotifyPlaylists`, type `SpotifyPlaylistSummary`.
+- SalonPage + SalonPlaybackPanel (hôte Spotify connecté).
+- i18n fr/en — clés salon.spotifySearch.playlist*.
+
+## Fichiers
+- backend/src/lib/spotifyPlaylists.ts (nouveau)
+- backend/src/lib/musicLinks.ts
+- backend/src/routes/platforms.ts
+- backend/src/routes/salons.ts
+- app/src/components/SalonSpotifyPlaylist.tsx (nouveau)
+- app/src/components/SalonPlaybackPanel.tsx
+- app/src/pages/SalonPage.tsx
+- app/src/lib/api.ts
+- app/src/types.ts
+- app/src/locales/fr.json, en.json
+- modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+  Salon Spotify + OAuth → Playlists hôte → Lancer → file + chrono.
+
+================================================================================
+Fin MODIF 405 - 2026-06-10
+================================================================================

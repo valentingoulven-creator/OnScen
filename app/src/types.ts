@@ -245,6 +245,13 @@ export interface YoutubePlaylistSummary {
   thumbnailUrl?: string;
 }
 
+export interface SpotifyPlaylistSummary {
+  playlistId: string;
+  title: string;
+  itemCount?: number;
+  thumbnailUrl?: string;
+}
+
 export interface MsdevDualUserSlot {
   slot: 'A' | 'B';
   ip: string;

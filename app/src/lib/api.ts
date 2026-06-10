@@ -321,6 +321,13 @@ export const api = {
       token
     ),
 
+  getSpotifyPlaylists: (token: string) =>
+    request<{ playlists: import('../types').SpotifyPlaylistSummary[]; isRealAccount: boolean }>(
+      '/platforms/spotify/playlists',
+      {},
+      token
+    ),
+
   getYoutubeOAuthUrl: (token: string) =>
     request<{ url: string }>('/platforms/youtube/oauth/url', {}, token),
 

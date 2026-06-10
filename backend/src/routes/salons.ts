@@ -5,7 +5,7 @@ import { blurCoordinate } from '../lib/geo';
 import { getPublicMapCoords } from '../lib/locationPrivacy';
 import { isBotHost } from '../seed-bots';
 import { canJoinSalon, isSalonVisibleOnMap, normalizeSalonAccess } from '../lib/salonAccess';
-import { parseMusicLink, parseYoutubePlaylistId, buildPlatformTrackUrl } from '../lib/musicLinks';
+import { parseMusicLink, parseYoutubePlaylistId, parseSpotifyPlaylistId, buildPlatformTrackUrl } from '../lib/musicLinks';
 import { computePlaybackPositionMs } from '../lib/playbackClock';
 import { resolveTrackForPlatform } from '../lib/trackResolver';
 import {
@@ -32,6 +32,7 @@ import {
 import { searchYoutube } from '../lib/youtubeSearch';
 import { searchSpotifyTracks, SpotifySearchError } from '../lib/spotifySearch';
 import { resolvePlaylistVideos } from '../lib/youtubePlaylists';
+import { resolveSpotifyPlaylistTracks } from '../lib/spotifyPlaylists';
 import { notifyFavoritesSalonStarted } from '../lib/favorites';
 import { normalizeSpotifyJamUrl } from '../lib/spotifyJam';
 import { getIo } from '../lib/ioInstance';
@@ -405,45 +406,89 @@ salonsRouter.post('/:id/playback/load-playlist', authenticateJWT, async (req: Re
     res.status(403).json({ error: 'Non autorisé' });
     return;
   }
-  if (salon.platform !== 'youtube') {
-    res.status(400).json({ error: 'Playlists YouTube uniquement dans un salon YouTube' });
+  if (salon.platform !== 'youtube' && salon.platform !== 'spotify') {
+    res.status(400).json({ error: 'Playlists disponibles uniquement dans un salon YouTube ou Spotify' });
     return;
   }
   const hostUser = db.users.get(me);
   if (!hostUser || !requireHostPlatform(hostUser, salon.platform, res)) return;
 
   const { playlistId, playlistUrl } = req.body;
-  const resolvedPlaylistId =
+  const rawPlaylistRef =
     (typeof playlistId === 'string' ? playlistId.trim() : '') ||
-    (typeof playlistUrl === 'string' ? parseYoutubePlaylistId(playlistUrl) : null) ||
+    (typeof playlistUrl === 'string' ? playlistUrl.trim() : '') ||
     '';
-  if (!resolvedPlaylistId) {
-    res.status(400).json({ error: 'playlistId ou lien playlist requis' });
+
+  if (salon.platform === 'youtube') {
+    const resolvedPlaylistId =
+      rawPlaylistRef ||
+      (typeof playlistUrl === 'string' ? parseYoutubePlaylistId(playlistUrl) : null) ||
+      '';
+    if (!resolvedPlaylistId) {
+      res.status(400).json({ error: 'playlistId ou lien playlist requis' });
+      return;
+    }
+
+    const accessToken = getYoutubeAccessToken(hostUser);
+    let videos: Awaited<ReturnType<typeof resolvePlaylistVideos>>;
+    try {
+      videos = await resolvePlaylistVideos(resolvedPlaylistId, accessToken);
+    } catch {
+      res.status(502).json({ error: 'Erreur lors du chargement de la playlist YouTube' });
+      return;
+    }
+    if (!videos.length) {
+      res.status(400).json({
+        error:
+          'Playlist introuvable ou vide. Ajoutez YOUTUBE_API_KEY côté serveur ou collez une playlist publique.',
+      });
+      return;
+    }
+
+    const items = videos.map((v) => ({
+      title: v.title,
+      artist: v.artist,
+      trackId: v.videoId,
+      externalUrl: v.externalUrl,
+      albumArtUrl: v.thumbnailUrl,
+      addedById: me,
+      addedByName: hostUser.username,
+      source: 'host' as const,
+    }));
+
+    const state = hostLoadYoutubePlaylist(salon, items, me, hostUser.username);
+    if (!state) {
+      res.status(400).json({ error: 'Impossible de charger la playlist' });
+      return;
+    }
+    res.json({ playbackState: state, queue: ensureSalonQueue(salon.id) });
     return;
   }
 
-  const accessToken = getYoutubeAccessToken(hostUser);
-  let videos: Awaited<ReturnType<typeof resolvePlaylistVideos>>;
+  const resolvedSpotifyPlaylistId = parseSpotifyPlaylistId(rawPlaylistRef) ?? rawPlaylistRef;
+  if (!resolvedSpotifyPlaylistId) {
+    res.status(400).json({ error: 'playlistId ou lien playlist Spotify requis' });
+    return;
+  }
+
+  let tracks: Awaited<ReturnType<typeof resolveSpotifyPlaylistTracks>>;
   try {
-    videos = await resolvePlaylistVideos(resolvedPlaylistId, accessToken);
+    tracks = await resolveSpotifyPlaylistTracks(hostUser, resolvedSpotifyPlaylistId);
   } catch {
-    res.status(502).json({ error: 'Erreur lors du chargement de la playlist YouTube' });
+    res.status(502).json({ error: 'Erreur lors du chargement de la playlist Spotify' });
     return;
   }
-  if (!videos.length) {
-    res.status(400).json({
-      error:
-        'Playlist introuvable ou vide. Ajoutez YOUTUBE_API_KEY côté serveur ou collez une playlist publique.',
-    });
+  if (!tracks.length) {
+    res.status(400).json({ error: 'Playlist Spotify introuvable ou vide.' });
     return;
   }
 
-  const items = videos.map((v) => ({
-    title: v.title,
-    artist: v.artist,
-    trackId: v.videoId,
-    externalUrl: v.externalUrl,
-    albumArtUrl: v.thumbnailUrl,
+  const items = tracks.map((t) => ({
+    title: t.title,
+    artist: t.artist,
+    trackId: t.trackId,
+    externalUrl: t.externalUrl,
+    albumArtUrl: t.albumArtUrl,
     addedById: me,
     addedByName: hostUser.username,
     source: 'host' as const,
