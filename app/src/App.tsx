@@ -384,6 +384,15 @@ export default function App() {
     if (tabRef.current === 'reels' && id !== 'reels') pauseAllReelsMediaInDom({ resetPosition: true });
     if (id !== 'reels') pauseMediaElements();
     setProfileOpen(false);
+    if (viewRef.current.type === 'salon') {
+      const salonId = viewRef.current.id;
+      setView({ type: 'home' });
+      if (id === 'map') {
+        setRestoreSalonOnMapId(salonId);
+      }
+      setTab(id);
+      return;
+    }
     setView({ type: 'home' });
     setTab(id);
   }, []);
@@ -424,11 +433,13 @@ export default function App() {
   const mapPlaybackActive = tab === 'map' && view.type === 'home';
   /** Montage conditionnel : un seul onglet à la fois (perf). Carte reste montée sous overlay profil (audio salon). */
   const actualiteTabMounted = tab === 'actualite' && view.type === 'home' && !profileOpen;
-  /** Carte aussi montée (masquée) sous SalonPage ou profil carte — évite démontage session salon. */
+  /** Carte aussi montée (masquée) sous SalonPage, profil carte, ou autre onglet si session active. */
   const mapTabMounted =
-    tab === 'map' && (view.type === 'home' || view.type === 'salon' || view.type === 'profile');
+    (tab === 'map' && (view.type === 'home' || view.type === 'salon' || view.type === 'profile')) ||
+    Boolean(activeSalonSession);
   const mapTabHiddenUnderSalon = tab === 'map' && view.type === 'salon';
   const mapTabHiddenUnderProfile = tab === 'map' && view.type === 'profile';
+  const mapTabHiddenOffTab = Boolean(activeSalonSession) && tab !== 'map';
   const liveTabMounted = tab === 'live' && view.type === 'home';
   const dmTabMounted = tab === 'dm' && view.type === 'home' && !profileOpen;
   const reelsTabMounted = tab === 'reels' && view.type === 'home' && !profileOpen;
@@ -639,7 +650,7 @@ export default function App() {
               <Suspense fallback={<PageFallback />}>
                 <div
                   className={
-                    mapTabHiddenUnderSalon || mapTabHiddenUnderProfile
+                    mapTabHiddenUnderSalon || mapTabHiddenUnderProfile || mapTabHiddenOffTab
                       ? 'hidden'
                       : 'flex flex-col flex-1 min-h-0 min-w-0'
                   }
@@ -653,7 +664,7 @@ export default function App() {
                     onOpenFeedPost={openFeedPostFromMap}
                     onCloseMapProfile={closeProfile}
                     mapPlaybackActive={mapPlaybackActive}
-                    isActive={!profileOpen && view.type === 'home'}
+                    isActive={tab === 'map' && !profileOpen && view.type === 'home'}
                     restoreSalonId={restoreSalonOnMapId}
                     onSalonMapRestored={() => setRestoreSalonOnMapId(null)}
                     onMapSalonActive={handleMapSalonActive}

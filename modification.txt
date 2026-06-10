@@ -6302,3 +6302,51 @@ chargement, puis ré-enregistrement → cycle SW supplémentaire.
 ================================================================================
 Fin MODIF 411 - 2026-06-10
 ================================================================================
+
+================================================================================
+MODIF 412 — Fix salon se ferme seul (changement d’onglet / erreur API)
+================================================================================
+Date : 2026-06-10
+
+## Symptôme
+Malgré MODIF 404, le salon continue de se fermer tout seul (fiche carte /
+session perdue) lors d’un changement d’onglet ou après une erreur réseau
+passagère au chargement SalonPage.
+
+## Causes racines
+1. **MODIF 397 + onglet ≠ Carte** : `mapTabMounted` exigeait `tab === 'map'`.
+   Dès qu’on quitte l’onglet Carte avec `activeSalonSession` actif, HomePage
+   était démonté → cleanup `leave_salon` + `onMapSalonActive(null)` + perte
+   de `selected` (fiche carte). Au retour Carte : salon vide alors que la
+   session pouvait sembler « fermée ».
+2. **`selectTab` depuis SalonPage** : `setView({ type: 'home' })` fermait le
+   grand salon sans `restoreSalonOnMapId` quand on revenait sur Carte.
+3. **`SalonPage.loadSalon` catch** : erreur API transitoire appelait
+   `onLeaveSalon` après 1,5 s → effaçait `activeSalonSession` (session
+   terminée sans action utilisateur).
+
+## Correctifs
+- `App.tsx` : garder HomePage monté (masqué) tant que `activeSalonSession`
+  est défini, même sur un autre onglet ; `isActive` seulement si
+  `tab === 'map'`.
+- `selectTab` : si `view.type === 'salon'`, repasser en `home` et poser
+  `restoreSalonOnMapId` quand la cible est Carte.
+- `SalonPage.tsx` : erreur `getSalon` → `onBack` (réduire), pas
+  `onLeaveSalon` ; handlers `salon_kicked` / `salon_banned` → fin de session
+  légitime en plein écran.
+
+## Fichiers
+- app/src/App.tsx
+- app/src/pages/SalonPage.tsx
+- modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+  Ouvrir salon (carte ou plein écran) → Actualité / DM / Reels → revenir
+  Carte : fiche salon toujours là (ou barre retour). Pas de quit auto.
+  Erreur réseau getSalon → réduction, pas « Quitter le salon » implicite.
+  Kick/ban/refus / bouton Quitter → session effacée.
+
+================================================================================
+Fin MODIF 412 - 2026-06-10
+================================================================================

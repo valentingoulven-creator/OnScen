@@ -84,9 +84,9 @@ export function SalonPage({
     if (!token) return;
     api.getSalon(token, salonId).then((r) => setSalon(r.salon)).catch((e) => {
       setToastMsg(e instanceof Error ? e.message : t('salon.inaccessible'));
-      window.setTimeout(() => (onLeaveSalon ?? onBack)(), 1500);
+      window.setTimeout(() => onBack(), 1500);
     });
-  }, [token, salonId, onBack, onLeaveSalon, t]);
+  }, [token, salonId, onBack, t]);
 
 
 
@@ -164,11 +164,18 @@ export function SalonPage({
     joinSalon();
 
     const onDenied = () => {
-
       setToastMsg('Accès refusé');
-
       window.setTimeout(onBack, 1500);
+    };
 
+    const onKicked = ({ salonId: kickedId }: { salonId: string }) => {
+      if (kickedId !== salon.id) return;
+      (onLeaveSalon ?? onBack)();
+    };
+
+    const onBanned = ({ salonId: bannedId }: { salonId: string }) => {
+      if (bannedId !== salon.id) return;
+      (onLeaveSalon ?? onBack)();
     };
 
     const onUpdated = (updated: Salon) => {
@@ -188,6 +195,8 @@ export function SalonPage({
     };
 
     socket.on('salon_join_denied', onDenied);
+    socket.on('salon_kicked', onKicked);
+    socket.on('salon_banned', onBanned);
     socket.on('salon_updated', onUpdated);
     const offReconnect = onSocketConnect(joinSalon);
 
@@ -195,10 +204,12 @@ export function SalonPage({
       offReconnect();
       socket.emit('leave_salon', { salonId: salon.id });
       socket.off('salon_join_denied', onDenied);
+      socket.off('salon_kicked', onKicked);
+      socket.off('salon_banned', onBanned);
       socket.off('salon_updated', onUpdated);
     };
 
-  }, [salon?.id, user?.id, user?.username, onBack]);
+  }, [salon?.id, user?.id, user?.username, onBack, onLeaveSalon]);
 
 
 
