@@ -30,7 +30,7 @@ async function ensureSpotifyAccessToken(user: User): Promise<string> {
 
 async function spotifyPlayerRequest(
   user: User,
-  method: 'PUT',
+  method: 'GET' | 'PUT',
   url: string,
   body?: object
 ): Promise<Response> {
@@ -102,6 +102,66 @@ async function seekSpotifyPlayback(user: User, positionMs: number): Promise<void
   );
   if (res.status === 204 || res.status === 200) return;
   throw mapSpotifyPlayerError(res, 'Impossible de repositionner Spotify.');
+}
+
+export interface SpotifyNowPlaying {
+  active: boolean;
+  isPlaying: boolean;
+  progressMs: number;
+  trackId?: string;
+  title?: string;
+  artist?: string;
+  albumArtUrl?: string;
+  externalUrl?: string;
+}
+
+type SpotifyPlayerItem = {
+  id?: string;
+  name?: string;
+  artists?: Array<{ name?: string }>;
+  album?: { images?: Array<{ url?: string }> };
+  external_urls?: { spotify?: string };
+};
+
+type SpotifyPlayerResponse = {
+  is_playing?: boolean;
+  progress_ms?: number;
+  item?: SpotifyPlayerItem | null;
+};
+
+function mapSpotifyPlayerPayload(data: SpotifyPlayerResponse): SpotifyNowPlaying | null {
+  const item = data.item;
+  if (!item?.id) return null;
+  const artists = (item.artists ?? [])
+    .map((a) => a.name?.trim())
+    .filter((n): n is string => Boolean(n));
+  return {
+    active: true,
+    isPlaying: Boolean(data.is_playing),
+    progressMs: Math.max(0, Math.floor(data.progress_ms ?? 0)),
+    trackId: item.id,
+    title: item.name?.trim() || 'Morceau Spotify',
+    artist: artists.join(', ') || 'Spotify',
+    albumArtUrl: item.album?.images?.[0]?.url,
+    externalUrl: item.external_urls?.spotify,
+  };
+}
+
+/** Lecture en cours sur l'appareil Spotify actif de l'hôte (GET /v1/me/player). */
+export async function getSpotifyNowPlaying(user: User): Promise<SpotifyNowPlaying> {
+  const res = await spotifyPlayerRequest(user, 'GET', 'https://api.spotify.com/v1/me/player');
+  if (res.status === 204) {
+    return { active: false, isPlaying: false, progressMs: 0 };
+  }
+  if (!res.ok) {
+    throw mapSpotifyPlayerError(res, 'Impossible de lire l’état Spotify.');
+  }
+  const data = (await res.json()) as SpotifyPlayerResponse;
+  const mapped = mapSpotifyPlayerPayload(data);
+  if (!mapped) {
+    return { active: false, isPlaying: false, progressMs: 0 };
+  }
+  return mapped;
 }
 
 /** Contrôle la lecture Spotify de l'hôte (Connect / app ouverte). */

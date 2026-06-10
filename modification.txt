@@ -6453,3 +6453,83 @@ fantôme si le salon est supprimé côté serveur sans événement socket :
 ================================================================================
 Fin MODIF 414 - 2026-06-10
 ================================================================================
+
+================================================================================
+MODIF 415 - « Failed to fetch » après deploy (message réseau + boot auth)
+================================================================================
+Date : 2026-06-10
+
+## Diagnostic prod (862bb3d)
+- GET https://getsoundy.com/health → 200 OK
+- GET /api/auth/me, /api/salons → 401 (API joignable)
+- socket.io polling → 200 ; CORS preflight OK
+- PM2 melosong-backend online, DEPLOY_COMMIT=862bb3d (reload ~20:00 UTC)
+
+## Cause probable
+Indisponibilité transitoire pendant pm2 reload post-déploiement ; le navigateur
+expose l’erreur brute « Failed to fetch » (TypeError fetch) affichée telle quelle
+dans AuthContext (api.me au boot).
+
+Pas de régression CORS/routes liée à MODIF 414 (salon_ended uniquement).
+
+## Correctif
+- app/src/lib/api.ts : normalizeFetchNetworkError sur request/register/getLive
+- app/src/locales/fr.json + en.json : serverUnreachable sans localhost dev
+
+## Test
+  cd app && npx tsc -p tsconfig.app.json --noEmit
+
+================================================================================
+Fin MODIF 415 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 416 — Sync bidirectionnelle Spotify ↔ chrono salon
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+Afficher le morceau réellement écouté sur Spotify, synchroniser le chrono
+Soundy avec la lecture Spotify (morceau, position, play/pause), et répercuter
+les pause/stop Spotify vers le salon (en plus de Soundy → Spotify, MODIF 409).
+
+## Backend
+- `spotifyOAuth.ts` — scopes `user-read-playback-state`, `user-read-currently-playing`.
+- `spotifyPlayback.ts` — `getSpotifyNowPlaying()` via GET `/v1/me/player`.
+- `GET /api/salons/:id/playback/spotify-now-playing` — hôte salon Spotify uniquement.
+
+## Frontend
+- `useSpotifySalonSync.ts` (nouveau) — poll 2,5 s, détecte morceau/position/lecture
+  Spotify → `emitSync` / socket `sync_playback` ; garde anti-rebond après contrôle local.
+- `useSalonPlaybackSync.ts` — export `emitSync` pour le hook Spotify.
+- `SalonPlaybackPanel.tsx` — carte « En ce moment sur Spotify », play/pause/stop/seek
+  avec garde locale ; participants inchangés (socket `playback_sync`).
+- `api.ts` — `getSpotifySalonNowPlaying`.
+- i18n fr/en — hints sync Spotify.
+
+## Modèle légal
+Pas de Web Playback SDK : lecture API read + contrôle Connect uniquement.
+
+## Fichiers
+- backend/src/lib/spotifyOAuth.ts
+- backend/src/lib/spotifyPlayback.ts
+- backend/src/routes/salons.ts
+- app/src/hooks/useSpotifySalonSync.ts (nouveau)
+- app/src/hooks/useSalonPlaybackSync.ts
+- app/src/components/SalonPlaybackPanel.tsx
+- app/src/lib/api.ts
+- app/src/locales/fr.json, en.json
+- modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npx tsc --noEmit
+  1. Hôte salon Spotify, app ouverte → carte affiche le morceau Spotify réel
+  2. Pause/play/stop dans Spotify → chrono salon suit (participants via socket)
+  3. Pause/play/stop Soundy → Spotify suit (MODIF 409) + pas de boucle poll
+  4. Changement de morceau dans Spotify → titre/pochette salon mis à jour
+  5. Reconnecter Spotify si compte lié avant les nouveaux scopes lecture
+
+================================================================================
+Fin MODIF 416 - 2026-06-10
+================================================================================

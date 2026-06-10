@@ -31,7 +31,7 @@ import {
 } from '../lib/salonPlaybackOps';
 import { searchYoutube } from '../lib/youtubeSearch';
 import { searchSpotifyTracks, SpotifySearchError } from '../lib/spotifySearch';
-import { controlSpotifyPlayback, SpotifyPlaybackError } from '../lib/spotifyPlayback';
+import { controlSpotifyPlayback, getSpotifyNowPlaying, SpotifyPlaybackError } from '../lib/spotifyPlayback';
 import { resolvePlaylistVideos } from '../lib/youtubePlaylists';
 import { resolveSpotifyPlaylistTracks } from '../lib/spotifyPlaylists';
 import { notifyFavoritesSalonStarted } from '../lib/favorites';
@@ -398,6 +398,32 @@ salonsRouter.post('/:id/playback/change-track', authenticateJWT, (req: Request, 
     albumArtUrl: typeof albumArtUrl === 'string' && albumArtUrl.trim() ? albumArtUrl.trim() : undefined,
   });
   res.json({ playbackState: state });
+});
+
+salonsRouter.get('/:id/playback/spotify-now-playing', authenticateJWT, async (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const salon = db.salons.get(req.params.id);
+  if (!salon || salon.hostId !== me) {
+    res.status(403).json({ error: 'Non autorisé' });
+    return;
+  }
+  if (salon.platform !== 'spotify') {
+    res.status(400).json({ error: 'Lecture Spotify disponible uniquement dans un salon Spotify' });
+    return;
+  }
+  const hostUser = db.users.get(me);
+  if (!hostUser || !requireHostPlatform(hostUser, salon.platform, res)) return;
+
+  try {
+    const nowPlaying = await getSpotifyNowPlaying(hostUser);
+    res.json({ nowPlaying });
+  } catch (e) {
+    if (e instanceof SpotifyPlaybackError) {
+      res.status(e.status).json({ error: e.message, code: e.code });
+      return;
+    }
+    res.status(502).json({ error: 'État Spotify indisponible' });
+  }
 });
 
 salonsRouter.post('/:id/playback/spotify-control', authenticateJWT, async (req: Request, res: Response) => {

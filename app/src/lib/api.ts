@@ -12,6 +12,16 @@ function headers(token?: string | null): HeadersInit {
   return h;
 }
 
+function normalizeFetchNetworkError(e: unknown): never {
+  if (e instanceof TypeError) {
+    const m = e.message.toLowerCase();
+    if (m.includes('failed to fetch') || m.includes('networkerror') || m.includes('load failed')) {
+      throw new Error(i18n.t('errors.network'));
+    }
+  }
+  throw e;
+}
+
 async function parseApiError(res: Response): Promise<string> {
   const text = await res.text().catch(() => '');
   if (text) {
@@ -39,11 +49,16 @@ async function parseApiError(res: Response): Promise<string> {
 }
 
 async function request<T>(path: string, opts: RequestInit = {}, token?: string | null): Promise<T> {
-  const res = await fetch(`${API}${path}`, {
-    credentials: 'same-origin',
-    ...opts,
-    headers: { ...headers(token), ...opts.headers },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API}${path}`, {
+      credentials: 'same-origin',
+      ...opts,
+      headers: { ...headers(token), ...opts.headers },
+    });
+  } catch (e) {
+    normalizeFetchNetworkError(e);
+  }
   if (!res.ok) {
     throw new Error(await parseApiError(res));
   }
@@ -65,19 +80,24 @@ export const api = {
     termsVersion: string,
     inviteCode?: string
   ) => {
-    const res = await fetch(`${API}/auth/register`, {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: headers(),
-      body: JSON.stringify({
-        username,
-        email,
-        password,
-        acceptTerms,
-        termsVersion,
-        inviteCode: inviteCode?.trim() || undefined,
-      }),
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${API}/auth/register`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: headers(),
+        body: JSON.stringify({
+          username,
+          email,
+          password,
+          acceptTerms,
+          termsVersion,
+          inviteCode: inviteCode?.trim() || undefined,
+        }),
+      });
+    } catch (e) {
+      normalizeFetchNetworkError(e);
+    }
     const data = (await res.json().catch(() => ({}))) as {
       token?: string;
       user?: import('../types').User;
@@ -456,6 +476,20 @@ export const api = {
       token
     ),
 
+  getSpotifySalonNowPlaying: (token: string, salonId: string) =>
+    request<{
+      nowPlaying: {
+        active: boolean;
+        isPlaying: boolean;
+        progressMs: number;
+        trackId?: string;
+        title?: string;
+        artist?: string;
+        albumArtUrl?: string;
+        externalUrl?: string;
+      };
+    }>(`/salons/${salonId}/playback/spotify-now-playing`, {}, token),
+
   getLives: (
     token: string,
     opts?: { latitude?: number; longitude?: number; radiusKm?: number; distanceFilter?: boolean }
@@ -471,7 +505,12 @@ export const api = {
   },
 
   getLive: async (token: string, id: string) => {
-    const res = await fetch(`${API}/lives/${id}`, { headers: headers(token) });
+    let res: Response;
+    try {
+      res = await fetch(`${API}/lives/${id}`, { headers: headers(token) });
+    } catch (e) {
+      normalizeFetchNetworkError(e);
+    }
     const body = (await res.json().catch(() => ({}))) as {
       live?: import('../types').Live;
       error?: string;

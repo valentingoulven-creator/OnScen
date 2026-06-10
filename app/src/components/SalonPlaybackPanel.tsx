@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api';
 import { useSalonPlaybackSync } from '../hooks/useSalonPlaybackSync';
+import { useSpotifySalonSync } from '../hooks/useSpotifySalonSync';
 import {
   buildTrackUrlAtPosition,
   formatPlaybackTime,
@@ -121,6 +122,7 @@ export function SalonPlaybackPanel({
     seek,
     isPlaying,
     applyPlaybackState,
+    emitSync,
     emitPatch,
     reportHostProgress,
   } = useSalonPlaybackSync({
@@ -128,6 +130,18 @@ export function SalonPlaybackPanel({
       isHost: hostLinked,
       initialState: salon.playbackState,
       onStateChange: onPlaybackStateChange,
+    });
+
+  const spotifySyncEnabled =
+    salon.platform === 'spotify' && isHost && hostLinked && Boolean(token);
+  const { nowPlaying: spotifyNowPlaying, syncError: spotifySyncError, markLocalControl } =
+    useSpotifySalonSync({
+      salonId: salon.id,
+      token,
+      enabled: spotifySyncEnabled,
+      playbackActive,
+      playbackState,
+      emitSync,
     });
 
   useEffect(() => {
@@ -199,20 +213,31 @@ export function SalonPlaybackPanel({
   );
 
   const handleHostPlay = useCallback(() => {
+    markLocalControl();
     play();
     void callSpotifyControl('play');
-  }, [play, callSpotifyControl]);
+  }, [play, callSpotifyControl, markLocalControl]);
 
   const handleHostPause = useCallback(() => {
+    markLocalControl();
     pause();
     void callSpotifyControl('pause');
-  }, [pause, callSpotifyControl]);
+  }, [pause, callSpotifyControl, markLocalControl]);
 
   const handleHostStop = useCallback(() => {
+    markLocalControl();
     pause();
     seek(0);
     void callSpotifyControl('stop');
-  }, [pause, seek, callSpotifyControl]);
+  }, [pause, seek, callSpotifyControl, markLocalControl]);
+
+  const handleHostSeek = useCallback(
+    (ms: number) => {
+      if (spotifySyncEnabled) markLocalControl();
+      seek(ms);
+    },
+    [seek, markLocalControl, spotifySyncEnabled]
+  );
 
   const saveHostJamLink = async () => {
     if (!token || !isHost) return;
@@ -498,28 +523,28 @@ export function SalonPlaybackPanel({
               max={600000}
               step={1000}
               value={Math.min(displayPositionMs, 600000)}
-              onChange={(e) => seek(Number(e.target.value))}
-              className="w-full accent-purple-500 h-1"
-              aria-label="Position de lecture"
+            onChange={(e) => handleHostSeek(Number(e.target.value))}
+            className="w-full accent-purple-500 h-1"
+            aria-label="Position de lecture"
+          />
+        )}
+
+        {isHost && !hostLinked && token && (
+          <div className="space-y-2 pt-1">
+            <p className="text-xs text-amber-400/90 text-center">
+              Connectez {hostMeta.label} pour contrôler la lecture de ce salon.
+            </p>
+            <PlatformConnectCard
+              token={token}
+              platform={salon.platform}
+              connectedPlatforms={userPlatforms}
+              onUserUpdated={onUserUpdated}
             />
-          )}
+          </div>
+        )}
 
-          {isHost && !hostLinked && token && (
-            <div className="space-y-2 pt-1">
-              <p className="text-xs text-amber-400/90 text-center">
-                Connectez {hostMeta.label} pour contrôler la lecture de ce salon.
-              </p>
-              <PlatformConnectCard
-                token={token}
-                platform={salon.platform}
-                connectedPlatforms={userPlatforms}
-                onUserUpdated={onUserUpdated}
-              />
-            </div>
-          )}
-
-          {!isHost && (
-            <div className="space-y-2 pt-0.5 border-t border-[#1e1e2f]">
+        {!isHost && (
+          <div className="space-y-2 pt-0.5 border-t border-[#1e1e2f]">
               {spotifyNotif && (
                 <div className="rounded-xl bg-green-500/10 border border-green-500/25 px-3 py-2 text-sm text-green-300 text-center">
                   {spotifyNotif}
@@ -617,7 +642,7 @@ export function SalonPlaybackPanel({
         max={600000}
         step={1000}
         value={Math.min(displayPositionMs, 600000)}
-        onChange={(e) => seek(Number(e.target.value))}
+        onChange={(e) => handleHostSeek(Number(e.target.value))}
         className="w-full accent-purple-500 h-1 pointer-events-auto"
         aria-label="Position de lecture"
       />
@@ -706,7 +731,7 @@ export function SalonPlaybackPanel({
                   max={600000}
                   step={1000}
                   value={Math.min(displayPositionMs, 600000)}
-                  onChange={(e) => seek(Number(e.target.value))}
+                  onChange={(e) => handleHostSeek(Number(e.target.value))}
                   className="w-full accent-purple-500 h-1 mt-2 pointer-events-auto"
                   aria-label="Position de lecture"
                 />
@@ -832,6 +857,57 @@ export function SalonPlaybackPanel({
             {isHost && hostLinked ? t('salon.playbackMode.spotifyHostHint') : t('salon.playbackMode.spotifyParticipantHint')}
           </p>
         )}
+
+        {salon.platform === 'spotify' && isHost && hostLinked && (
+          <div className="rounded-xl border border-green-500/25 bg-[#0b120f] p-3 flex items-center gap-3 min-w-0">
+            {(spotifyNowPlaying?.albumArtUrl || playbackState.albumArtUrl) ? (
+              <img
+                src={spotifyNowPlaying?.albumArtUrl || playbackState.albumArtUrl}
+                alt=""
+                className="w-12 h-12 rounded-lg object-cover shrink-0 bg-[#1a1a26] ring-1 ring-white/10"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            ) : null}
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] text-green-400/80 uppercase tracking-wide">
+                {spotifyNowPlaying?.active
+                  ? t('salon.playbackMode.spotifyNowPlaying')
+                  : t('salon.playbackMode.spotifyNoActivePlayback')}
+              </p>
+              {spotifyNowPlaying?.active ? (
+                <>
+                  <p className="text-sm font-semibold text-white truncate">
+                    {spotifyNowPlaying.title ?? playbackState.title}
+                  </p>
+                  <p className="text-xs text-gray-400 truncate">
+                    {spotifyNowPlaying.artist ?? playbackState.artist}
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs text-gray-500 leading-snug">
+                  {t('salon.playbackMode.spotifyOpenAppHint')}
+                </p>
+              )}
+            </div>
+            {spotifyNowPlaying?.active ? (
+              <span
+                className={`text-[10px] px-2 py-0.5 rounded-full border shrink-0 ${
+                  spotifyNowPlaying.isPlaying
+                    ? 'text-green-400 border-green-500/30 bg-green-500/10'
+                    : 'text-gray-500 border-white/15'
+                }`}
+              >
+                {spotifyNowPlaying.isPlaying ? '▶ Spotify' : '⏸ Spotify'}
+              </span>
+            ) : null}
+          </div>
+        )}
+
+        {spotifySyncError && isHost && hostLinked && (
+          <p className="text-[10px] text-amber-400/90 leading-snug">{spotifySyncError}</p>
+        )}
         {salon.platform === 'youtube' && (
           <p className="text-[10px] text-red-400/80 leading-snug border border-red-500/20 bg-red-500/5 rounded-lg px-2.5 py-2">
             {t('salon.playbackMode.youtubeSyncBanner')}
@@ -875,7 +951,7 @@ export function SalonPlaybackPanel({
             max={600000}
             step={1000}
             value={Math.min(displayPositionMs, 600000)}
-            onChange={(e) => seek(Number(e.target.value))}
+            onChange={(e) => handleHostSeek(Number(e.target.value))}
             className="w-full accent-purple-500 h-1"
             aria-label="Position de lecture"
           />

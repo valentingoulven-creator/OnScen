@@ -156,6 +156,7 @@ export function useSalonPlaybackSync({
     seek,
     isPlaying: playbackState.isPlaying,
     applyPlaybackState,
+    emitSync,
     emitPatch,
     reportHostProgress,
   };

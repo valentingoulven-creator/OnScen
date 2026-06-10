@@ -108,8 +108,11 @@
       "youtubeSyncSuffix": "dans Soundy (lecteur synchronisé).",
       "spotifyChrono": "chrono partagé — lancez Spotify sur le morceau et alignez-vous.",
       "youtubeSyncBanner": "Lecture synchronisée YouTube dans Soundy",
-      "spotifyHostHint": "Chrono partagé — play/pause/stop contrôlent aussi Spotify si l'app est ouverte (Spotify Connect).",
+      "spotifyHostHint": "Synchronisé avec Spotify — le morceau, le chrono et play/pause/stop suivent votre lecture (Spotify Connect).",
       "spotifyParticipantHint": "Chrono partagé — ouvrez Spotify et alignez-vous sur l'horloge.",
+      "spotifyNowPlaying": "En ce moment sur Spotify",
+      "spotifyNoActivePlayback": "Aucune lecture Spotify détectée",
+      "spotifyOpenAppHint": "Ouvrez l'app Spotify et lancez un morceau pour synchroniser le salon.",
       "spotifyControlError": "Contrôle Spotify indisponible",
       "spotifyAlignHint": "Ouvrez Spotify au bon morceau et alignez-vous sur le chrono.",
       "spotifyCrossPlatformHint": "Spotify ne se lit pas dans le navigateur — utilisez YouTube pour écouter ensemble."

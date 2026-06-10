@@ -6,7 +6,7 @@ import { encryptPlatformTokens, decryptPlatformTokens, decryptToken } from './to
 // Profil + bibliothèque + contrôle lecture (pause/play/seek via Connect).
 // Scopes streaming requis pour Web Playback SDK — voir MODIF 400 / roadmap Spotify.
 const SPOTIFY_SCOPES =
-  'user-read-email user-read-private user-library-read user-top-read playlist-read-private user-modify-playback-state';
+  'user-read-email user-read-private user-library-read user-top-read playlist-read-private user-modify-playback-state user-read-playback-state user-read-currently-playing';
 
 const pendingStates = new Map<string, { userId: string; createdAt: number }>();
 
