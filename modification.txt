@@ -5002,3 +5002,62 @@ Date : 2026-06-10
 ================================================================================
 Fin MODIF 379 - 2026-06-10
 ================================================================================
+
+================================================================================
+MODIF 380 — Contacter le support (Paramètres)
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- Nouvelle entrée « Contacter le support » sous « Licences & crédits » (section Légal).
+- Clic → `mailto:Soundysupport@gmail.com` (sujet « Support Soundy »), ouvre le client mail.
+
+## Fichiers modifiés
+  app/src/pages/SettingsPage.tsx
+  app/src/locales/fr.json
+  app/src/locales/en.json
+  modification.txt
+
+================================================================================
+Fin MODIF 380 - 2026-06-10
+================================================================================
+================================================================================
+MODIF 381 - Photos HEIC/HEIF : conversion client heic2any
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- Conversion HEIC/HEIF en JPEG côté client (heic2any) avant upload / createImageBitmap.
+- Pipeline unifié via `prepareImageFile` (`app/src/lib/imageUtils.ts`) : profil, story, fil.
+- `ProfilePhotoGallery` : validation HEIC async + message « Conversion HEIC en cours… ».
+- L'erreur bloquante « Ce navigateur ne peut pas lire les photos HEIC/HEIF… » ne s'affiche qu'en échec de conversion.
+
+## Fichiers concernés
+  app/src/lib/imageUtils.ts
+  app/src/lib/imageConstraints.ts
+  app/src/lib/profileImageProcessing.ts
+  app/src/components/ProfilePhotoGallery.tsx
+  app/package.json (dépendance heic2any)
+  modification.txt
+
+================================================================================
+Fin MODIF 381 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 382 - Caddy Basic Auth : utilisateur Mamacc (ex testeur1)
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- Renommage Basic Auth `testeur1` → `Mamacc` dans `deploy/Caddyfile`.
+- Nouveau mot de passe (bcrypt coût 14) pour Mamacc.
+- Déployer : `deploy_zero_downtime.ps1` ou `scp` + `sudo bash /opt/soundly/deploy/sync-caddy.sh`.
+
+## Fichiers modifiés
+  deploy/Caddyfile
+  modification.txt
+
+================================================================================
+Fin MODIF 382 - 2026-06-10
+================================================================================

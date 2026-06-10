@@ -32,7 +32,7 @@
 
 	handle {
 		basic_auth {
-			testeur1 $2a$14$Lw6L.oYeFQwmYrqvZLFkOuxu.JdwlJS65ybqnMFBoNF2A5FJEqlmS
+			Mamacc $2b$14$yTDyM/6o5PbshbBPOlFlX.u/RmmZMlnZSnO4EFVD2l8/TQJSRB6KW
 			testeur2 $2a$14$U509RsKDgOcsMB6egwa8a.Nvd/Y850C3HcQnbcTpoPzCDTmosO.EK
 			testeur3 $2a$14$PpD9dQRGiaAum4a8jw6mzOChiyPRo/Ji0pZX2nkm4BmyMRS9XP2bq
 			testeur4 $2a$14$oCOzHBJou/d5K/kJoYIgFeCNMr68GAK0ipaF01t1inL1lf7HsdmXK

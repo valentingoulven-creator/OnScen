@@ -442,6 +442,12 @@ export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }
             onClick={() => setLegal('creatorMonetization')}
           />
           <SettingsRow label="Licences & crédits" onClick={() => setLegal('licenses')} />
+          <SettingsRow
+            label={t('settings.contactSupport')}
+            onClick={() => {
+              window.location.href = `mailto:Soundysupport@gmail.com?subject=${encodeURIComponent('Support Soundy')}`;
+            }}
+          />
         </section>
 
         {(onOpenAnalytics || onOpenAccessManagement) && (
