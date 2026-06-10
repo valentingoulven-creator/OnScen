@@ -37,6 +37,7 @@ import { NewsArticleCard } from '../components/NewsArticleCard';
 import { getUpcomingUserEvents, isUpcomingEvent } from '../lib/feedEvents';
 import { EventLocationInput } from '../components/EventLocationInput';
 import { getFeedAlgorithmPreferences } from '../lib/reelFeedAlgorithm';
+import { getFeaturedHeadlineForCountry } from '../lib/featuredHeadlines';
 
 interface ActualiteTabPageProps {
   onOpenProfile: (userId: string) => void;
@@ -406,14 +407,17 @@ function ActualitesContent({
   countryEventsLoading?: boolean;
 }) {
   const { t } = useTranslation();
-  const featured = newsItems.filter((n) => n.category === 'une');
+  const displayCountryCode = countryCode ?? EVENTS_COUNTRY_FALLBACK.code;
+  const featured = useMemo(
+    () => [getFeaturedHeadlineForCountry(displayCountryCode)],
+    [displayCountryCode]
+  );
   const userCreatedEvents = communityEvents;
   // MODIF 159 – country events (replaces static promo news items)
   const countryUpcoming = countryEventPosts
     .filter((p) => p.isEvent && isUpcomingEvent(p.eventDate))
     .sort((a, b) => new Date(a.eventDate!).getTime() - new Date(b.eventDate!).getTime());
   // MODIF 159/167 – remplace Promotions ; titre = pays (géoloc, profil ou France)
-  const displayCountryCode = countryCode ?? EVENTS_COUNTRY_FALLBACK.code;
   const displayCountryName = countryName ?? EVENTS_COUNTRY_FALLBACK.name;
   const countrySectionLabel = `ÉVÉNEMENTS EN ${displayCountryName.toUpperCase()}`;
   const countrySectionEmoji = countryCodeToFlag(displayCountryCode);

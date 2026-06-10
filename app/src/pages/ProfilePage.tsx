@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MAX_PROFILE_PAYLOAD_CHARS, getUserProfilePhotos, prepareProfilePhotosForSave, profilePhotosChanged } from '../lib/profilePhotos';
+import { MAX_PROFILE_PAYLOAD_CHARS, getUserProfilePhotos, prepareProfilePhotosForSave, profilePhotosChanged, resolveAvatarUrl } from '../lib/profilePhotos';
 import {
   defaultHideBirthDateOnProfile,
   todayIsoDate,
@@ -268,7 +268,9 @@ export function ProfilePage({
     : '—';
 
   const displayPhotos = editing ? form.profilePhotos : getUserProfilePhotos(user);
-  const headerAvatarUrl = displayPhotos[0];
+  const headerAvatarUrl = editing
+    ? displayPhotos.find((url) => url.trim())
+    : resolveAvatarUrl(user);
 
   const addTag = (field: 'interests' | 'favoriteGenres' | 'favoriteArtists', value: string) => {
     const v = value.trim();
@@ -359,7 +361,9 @@ export function ProfilePage({
         />
       </div>
 
-      <div className="px-4 pb-8 space-y-4">
+      <div
+        className={`px-4 space-y-4 ${editing ? 'pb-[calc(var(--tab-nav-total-h)+5rem)]' : 'pb-8'}`}
+      >
         {!editing && user.currentListening && (
           <ProfileCurrentListening listening={user.currentListening} />
         )}
@@ -737,7 +741,7 @@ export function ProfilePage({
               type="button"
               onClick={saveProfile}
               disabled={saving}
-              className="w-full py-3.5 bg-purple-600 hover:bg-purple-500 rounded-xl font-bold text-white disabled:opacity-50 sticky bottom-2 z-10 shadow-lg"
+              className="w-full py-3.5 bg-purple-600 hover:bg-purple-500 rounded-xl font-bold text-white disabled:opacity-50 sticky bottom-[calc(var(--tab-nav-total-h)+0.5rem)] z-10 shadow-lg"
             >
               {saving ? 'Enregistrement...' : 'Enregistrer les modifications'}
             </button>

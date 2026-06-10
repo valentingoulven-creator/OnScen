@@ -124,8 +124,8 @@ export function ProfilePhotoGallery({
     if (pickerTarget === 'avatar') {
       next = photos.length === 0 ? [dataUrl] : [dataUrl, ...photos.slice(1)];
     } else if (photos.length === 0) {
-      // Première photo via galerie → avatar principal (index 0)
-      next = [dataUrl];
+      // Galerie sans avatar : slot 0 vide, photo à l'index 1 (visible dans la grille)
+      next = ['', dataUrl];
     } else {
       next = [...photos, dataUrl];
     }
@@ -304,12 +304,6 @@ export function ProfilePhotoGallery({
                 <p className="text-[11px] text-gray-500 text-center leading-snug">
                   {SUPPORTED_IMAGE_FORMATS_LABEL} · compression auto · min 320 px · max 1080 px ·
                   rognage et filtres
-                  {!avatarUrl ? (
-                    <>
-                      {' '}
-                      · la 1<sup>re</sup> photo via galerie devient l&apos;avatar principal
-                    </>
-                  ) : null}
                 </p>
               )}
             </>

@@ -26,7 +26,8 @@ import { ProfileSearchBar } from './components/ProfileSearchBar';
 import { MainTabNav } from './components/MainTabNav';
 import { PlatformConnectPrompt } from './components/PlatformConnectPrompt';
 import { APP_LAYOUT_CHANGED_EVENT, getAppLayout, isAppa2Layout } from './lib/appLayout';
-import { dicebearAdventurerAvatar } from './lib/avatarUrl';
+import { UserAvatarOnline } from './components/UserAvatarOnline';
+import { resolveAvatarUrl } from './lib/profilePhotos';
 import { isMsdevEnvironment } from './lib/liveCameraSupport';
 import { api } from './lib/api';
 import { dispatchPlatformStatusRefresh } from './lib/platformStatusEvents';
@@ -473,16 +474,11 @@ export default function App() {
                 title="Mon profil"
                 aria-label="Ouvrir mon profil"
               >
-                <img
-                  src={user.avatarUrl}
-                  alt=""
-                  className="w-8 h-8 rounded-full object-cover bg-[#1a1a26]"
-                  onError={(e) => {
-                    const el = e.currentTarget;
-                    if (el.src !== dicebearAdventurerAvatar(user.id)) {
-                      el.src = dicebearAdventurerAvatar(user.id);
-                    }
-                  }}
+                <UserAvatarOnline
+                  userId={user.id}
+                  username={user.username}
+                  avatarUrl={resolveAvatarUrl(user)}
+                  size="xs"
                 />
               </button>
             </div>

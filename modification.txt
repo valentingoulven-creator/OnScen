@@ -3396,3 +3396,150 @@ correctif verify-backup (SIGPIPE), log JSON au démarrage prod.
 ================================================================================
 Fin MODIF 324 - 2026-06-10
 ================================================================================
+
+================================================================================
+MODIF 325 — Bouton « Enregistrer » profil au-dessus des onglets bas
+================================================================================
+Date : 2026-06-10
+
+PROBLÈME
+--------
+En mode édition du profil (overlay ProfilePage), le bouton sticky
+« Enregistrer les modifications » (bottom-2) chevauchait la barre d'onglets
+fixe en bas (Accueil / Carte / Live / Messages / Profil).
+
+CORRECTION
+----------
+app/src/pages/ProfilePage.tsx
+  - Bouton save : sticky bottom-[calc(var(--tab-nav-total-h)+0.5rem)] (token
+    shell existant, aligné sur index.css / sheets ReelsTabPage).
+  - Conteneur scroll : pb-[calc(var(--tab-nav-total-h)+5rem)] en mode édition
+    pour laisser défiler le formulaire au-dessus du bouton + barre.
+  - Bouton « Annuler » : inchangé (header, pas de chevauchement).
+
+FICHIERS MODIFIÉS
+-----------------
+  app/src/pages/ProfilePage.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 325 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 326 — Galerie profil édition : photo visible dans l'emplacement cliqué
+Date : 2026-06-10
+================================================================================
+
+## Problème (MODIF 321 insuffisante)
+- Clic « Galerie » sans avatar : onEditorConfirm mettait la photo à l'index 0
+  (avatar) alors que la grille n'affiche que photos.slice(1) → GALERIE · 0/4
+  vide après validation éditeur.
+- prepareProfilePhotosForSave / syncProfilePhotos / normalizeProfilePhotos
+  compactaient les tableaux (filter Boolean) → impossible de persister une photo
+  galerie sans avatar à l'index 1.
+
+## Correctifs
+- ProfilePhotoGallery : cible galerie sans avatar → ['', dataUrl] (slot 0 vide,
+  photo index 1 visible immédiatement ; compteur 1/4).
+- profilePhotos.ts + backend profile.ts : normalizeProfilePhotoSlots préserve
+  l'emplacement avatar vide quand des photos galerie existent ; save/load/API
+  conservent la structure [avatar, g1…g4].
+
+## Fichiers modifiés
+  app/src/components/ProfilePhotoGallery.tsx
+  app/src/lib/profilePhotos.ts
+  backend/src/lib/profile.ts
+  modification.txt
+
+================================================================================
+Fin MODIF 326 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 327 — Avatar header ms-app-header synchronisé avec photos profil
+Date : 2026-06-10
+================================================================================
+
+## Problème
+- Le bouton profil du header (ms-app-header) affichait `user.avatarUrl` brut :
+  URL DiceBear (seed pseudo, ex. Val) même après upload de photos profil.
+- MODIF 318 avait corrigé ProfilePage (getUserProfilePhotos) mais pas App.tsx.
+- `syncProfilePhotos` (backend) conserve avatarUrl DiceBear quand le slot 0 est
+  vide et les photos sont en galerie (index 1+) → avatarUrl seul est insuffisant.
+
+## Correctifs
+- `resolveAvatarUrl` (profilePhotos.ts) : 1re vraie photo uploadée, sinon
+  avatarUrl non-DiceBear, sinon undefined (fallback UserAvatarOnline).
+- App.tsx : UserAvatarOnline + resolveAvatarUrl(user) à la place de `<img src={user.avatarUrl}>`.
+- UserAvatarOnline : taille `xs` (w-8 h-8) pour le header.
+- ProfilePage : headerAvatarUrl via resolveAvatarUrl en lecture ; en édition,
+  1re photo non vide du formulaire.
+
+## Fichiers modifiés
+  app/src/lib/profilePhotos.ts
+  app/src/components/UserAvatarOnline.tsx
+  app/src/App.tsx
+  app/src/pages/ProfilePage.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 327 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 328 — StoryViewer : photo ajustée, pas plein écran
+Date : 2026-06-10
+================================================================================
+
+## Problème
+- MODIF 316 avait mis la visionneuse stories en plein écran immersif (object-cover,
+  fixed inset-0 bg-black) : la photo remplissait tout le viewport et était rognée.
+
+## Correctif
+- Visionneuse en modale centrée (max-w-md, max-h-[70vh]) sur fond assombri
+  (bg-black/70 + backdrop-blur), thème Soundy (#12121a, bordure #2d2d3d).
+- Image en object-contain dans une zone dédiée (max-h-[50vh]) : photo entière
+  visible, letterboxing sur fond #0b0b0f si besoin.
+- Barres de progression, en-tête (avatar, pseudo, X), tap gauche/droite, pause
+  au maintien, swipe bas et Échap pour fermer : conservés.
+- Clic sur le fond assombri ferme aussi le viewer.
+- Texte, musique et tags déplacés sous l'image (pied de carte), plus en overlay.
+
+## Fichiers modifiés
+  app/src/components/StoryViewer.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 328 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 329 — À la une par pays (événements musicaux 2026)
+Date : 2026-06-10
+================================================================================
+
+## Objectif
+- Remplacer le seed générique Taylor Swift par des titres « À la une » localisés
+  selon le pays de l'utilisateur (géoloc, ville du profil, repli France).
+- Contenu : festivals majeurs, tournées et concerts phares de l'année 2026.
+- Rotation quotidienne parmi le top 3 événements du pays.
+
+## Architecture
+- Données statiques : app/src/lib/featuredHeadlines.ts (FR, BE, CH, US, GB, CA, DE, ES).
+- Sélection pays : réutilise countryCode déjà résolu dans ActualiteTabPage (MODIF 159/167).
+- UI : une carte NewsArticleCard inchangée ; pas de carousel supplémentaire.
+- Backend : suppression de l'entrée « une » Taylor Swift dans news.ts (le client injecte).
+
+## Fichiers modifiés
+  app/src/lib/featuredHeadlines.ts          → NOUVEAU (données + rotation)
+  app/src/pages/ActualiteTabPage.tsx      → featured dynamique par pays
+  backend/src/routes/news.ts                → retrait seed « une » générique
+  modification.txt
+
+## Build
+  app/ → tsc -b → à valider
+
+================================================================================
+Fin MODIF 329 - 2026-06-10
+================================================================================

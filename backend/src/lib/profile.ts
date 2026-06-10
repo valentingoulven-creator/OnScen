@@ -225,25 +225,50 @@ function isDicebearAvatarUrl(url: string): boolean {
   }
 }
 
+function isRealProfilePhoto(url: string): boolean {
+  const trimmed = url.trim();
+  return Boolean(trimmed) && !isDicebearAvatarUrl(trimmed);
+}
+
+/** Preserve [avatar, g1…g4] slots; index 0 may be '' when only gallery photos exist. */
+export function normalizeProfilePhotoSlots(photos: string[]): string[] {
+  const slots = photos.map((u) => u.trim()).slice(0, MAX_PROFILE_PHOTOS);
+  let lastIdx = -1;
+  for (let i = slots.length - 1; i >= 0; i--) {
+    if (isRealProfilePhoto(slots[i] ?? '')) {
+      lastIdx = i;
+      break;
+    }
+  }
+  if (lastIdx < 0) return [];
+
+  const out: string[] = [];
+  for (let i = 0; i <= lastIdx; i++) {
+    const url = slots[i] ?? '';
+    if (isRealProfilePhoto(url)) {
+      out.push(url);
+    } else if (i === 0 && slots.slice(1).some(isRealProfilePhoto)) {
+      out.push('');
+    }
+  }
+  return out;
+}
+
 export function normalizeProfilePhotos(user: User): string[] {
-  const fromList = (user.profilePhotos ?? [])
-    .map((u) => u.trim())
-    .filter(Boolean)
-    .filter((u) => !isDicebearAvatarUrl(u));
-  if (fromList.length > 0) return fromList.slice(0, MAX_PROFILE_PHOTOS);
+  const raw = user.profilePhotos ?? [];
+  if (raw.length > 0) {
+    const normalized = normalizeProfilePhotoSlots(raw.map(String));
+    if (normalized.length > 0) return normalized;
+  }
   const avatar = user.avatarUrl?.trim();
   if (avatar && !isDicebearAvatarUrl(avatar)) return [avatar];
   return [];
 }
 
 export function syncProfilePhotos(user: User, photos: string[]): void {
-  const cleaned = photos
-    .map((u) => u.trim())
-    .filter(Boolean)
-    .filter((u) => !isDicebearAvatarUrl(u))
-    .slice(0, MAX_PROFILE_PHOTOS);
-  user.profilePhotos = cleaned;
-  user.avatarUrl = cleaned[0] || user.avatarUrl;
+  const normalized = normalizeProfilePhotoSlots(photos.map(String));
+  user.profilePhotos = normalized.length ? normalized : undefined;
+  user.avatarUrl = normalized[0] || user.avatarUrl;
 }
 
 export function applyProfileDefaults(user: User): User {

@@ -46,22 +46,7 @@ function buildItems(): MusicNewsItem[] {
   const d = 86_400_000;
 
   return [
-    // ── À la une ────────────────────────────────────────────────────────────
-    {
-      id: 'une-1',
-      type: 'news',
-      category: 'une',
-      title: 'Taylor Swift annonce son prochain album studio "The Eras – Sessions"',
-      source: 'Rolling Stone FR',
-      excerpt:
-        'Après sa tournée mondiale record, Taylor Swift dévoile un album live studio de 24 titres. Les enregistrements ont eu lieu dans quatre villes différentes avec un orchestre symphonique.',
-      imageUrl: 'https://picsum.photos/seed/taylorswift/600/300',
-      artist: 'Taylor Swift',
-      publishedAt: now - 2 * h,
-      url: '#',
-      badge: 'À la une',
-      genres: ['Pop'],
-    },
+    // ── À la une : fournie côté client (featuredHeadlines.ts, MODIF 329) ───
     // ── Musique ─────────────────────────────────────────────────────────────
     {
       id: 'news-1',
