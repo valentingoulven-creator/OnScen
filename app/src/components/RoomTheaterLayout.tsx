@@ -40,7 +40,7 @@ export function RoomTheaterLayout({
           <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
             {stage ? <div className="shrink-0">{stage}</div> : null}
             {stageFooter ? (
-              <div className="flex-1 min-h-0 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
+              <div className="room-theater-stage-footer flex-1 min-h-0 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
                 {stageFooter}
               </div>
             ) : null}
@@ -55,36 +55,6 @@ export function RoomTheaterLayout({
                 <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest flex-1 truncate min-w-0">
                   {chatTitle}
                 </p>
-                {onToggleMinimize && (
-                  <button
-                    type="button"
-                    onClick={onToggleMinimize}
-                    title={chatMinimized ? 'Agrandir' : 'Réduire'}
-                    className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-white hover:bg-white/10 transition"
-                    aria-label={chatMinimized ? 'Agrandir le chat' : 'Réduire le chat'}
-                    aria-expanded={!chatMinimized}
-                  >
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
-                      {chatMinimized ? (
-                        <polyline
-                          points="1,7 5,3 9,7"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      ) : (
-                        <polyline
-                          points="1,3 5,7 9,3"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      )}
-                    </svg>
-                  </button>
-                )}
                 <button
                   type="button"
                   onClick={onToggleChat}
@@ -94,12 +64,8 @@ export function RoomTheaterLayout({
                   ×
                 </button>
               </div>
-              {!chatMinimized && (
-                <>
-                  <div className="flex-1 min-h-0 overflow-hidden flex flex-col">{chat}</div>
-                  {chatInput ? <div className="shrink-0">{chatInput}</div> : null}
-                </>
-              )}
+              <div className="flex-1 min-h-0 overflow-hidden flex flex-col">{chat}</div>
+              {chatInput ? <div className="shrink-0">{chatInput}</div> : null}
             </aside>
           ) : (
             <button

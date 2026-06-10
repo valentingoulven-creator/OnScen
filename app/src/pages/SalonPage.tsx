@@ -296,13 +296,58 @@ export function SalonPage({
     );
   }, []);
 
+  const handleMinimizeSalon = useCallback(() => {
+    if (onMinimizeToMap) {
+      onMinimizeToMap(salon?.title);
+    } else {
+      onBack();
+    }
+  }, [onMinimizeToMap, onBack, salon?.title]);
+
+  const minimizeSalonButton = (
+    <button
+      type="button"
+      onClick={handleMinimizeSalon}
+      className="salon-header-icon-btn shrink-0"
+      aria-label="Réduire le salon"
+      title="Réduire le salon"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <polyline
+          points="6,9 12,15 18,9"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </button>
+  );
+
   if (!salon) {
     return (
-      <div className="h-full flex flex-col items-center justify-center gap-4 px-6 text-center bg-[#0b0b0f]">
-        {loadError ? (
-          <>
-            <p className="text-red-300 text-sm max-w-sm">{loadError}</p>
-            <div className="flex flex-wrap items-center justify-center gap-2">
+      <div className="h-full flex flex-col min-h-0 bg-[#0b0b0f] overflow-hidden">
+        <header className="relative z-30 shrink-0 flex items-center gap-2 px-3 pb-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] border-b border-[#1e1e2f]">
+          <button
+            type="button"
+            onClick={handleMinimizeSalon}
+            className="text-gray-400 hover:text-white text-xl shrink-0"
+            aria-label="Réduire le salon"
+            title="Réduire le salon"
+          >
+            ←
+          </button>
+          {minimizeSalonButton}
+          <p className="flex-1 min-w-0 text-sm text-gray-400 truncate">
+            {loadError
+              ? t('salon.inaccessible', { defaultValue: 'Salon inaccessible' })
+              : t('common.loading', { defaultValue: 'Chargement…' })}
+          </p>
+        </header>
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6 text-center">
+          {loadError ? (
+            <>
+              <p className="text-red-300 text-sm max-w-sm">{loadError}</p>
               <button
                 type="button"
                 onClick={loadSalon}
@@ -310,18 +355,11 @@ export function SalonPage({
               >
                 {t('common.retry', { defaultValue: 'Réessayer' })}
               </button>
-              <button
-                type="button"
-                onClick={onBack}
-                className="px-4 py-2 rounded-full border border-gray-600 text-gray-300 text-sm hover:border-gray-400"
-              >
-                {t('salon.minimize', { defaultValue: 'Réduire' })}
-              </button>
-            </div>
-          </>
-        ) : (
-          <p className="text-gray-400">{t('common.loading', { defaultValue: 'Chargement…' })}</p>
-        )}
+            </>
+          ) : (
+            <p className="text-gray-400">{t('common.loading', { defaultValue: 'Chargement…' })}</p>
+          )}
+        </div>
       </div>
     );
   }
@@ -336,7 +374,7 @@ export function SalonPage({
         </p>
         <button
           type="button"
-          onClick={onLeaveSalon ?? onBack}
+          onClick={onLeaveSalon ?? handleMinimizeSalon}
           className="px-5 py-2.5 rounded-full bg-purple-600 text-white font-bold text-sm hover:bg-purple-500"
         >
           Retour
@@ -531,10 +569,19 @@ export function SalonPage({
           </div>
         </div>
       )}
-      <header className="shrink-0 flex items-center gap-3 px-3 pb-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] border-b border-[#1e1e2f]">
-        <button type="button" onClick={onBack} className="text-gray-400 hover:text-white text-xl" aria-label="Réduire">
-          ←
-        </button>
+      <header className="relative z-30 shrink-0 flex items-center gap-2 sm:gap-3 px-3 pb-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] border-b border-[#1e1e2f] min-w-0">
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={handleMinimizeSalon}
+            className="text-gray-400 hover:text-white text-xl shrink-0"
+            aria-label="Réduire le salon"
+            title="Réduire le salon"
+          >
+            ←
+          </button>
+          {minimizeSalonButton}
+        </div>
         <img
           src={playback.albumArtUrl}
           alt=""
@@ -619,25 +666,6 @@ export function SalonPage({
               onToast={setToastMsg}
             />
           )}
-          {onMinimizeToMap && (
-            <button
-              type="button"
-              onClick={() => onMinimizeToMap(salon.title)}
-              className="salon-header-icon-btn"
-              aria-label="Réduire le salon"
-              title="Réduire le salon"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <polyline
-                  points="6,9 12,15 18,9"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          )}
           {onLeaveSalon && (
             <button
               type="button"
@@ -656,8 +684,12 @@ export function SalonPage({
           chatHidden={chatHidden}
           onToggleChat={() => setChatHidden((h) => !h)}
           chatTitle="Chat du salon"
-          chatMinimized={chatMinimized}
-          onToggleMinimize={() => setChatMinimized((m) => !m)}
+          {...(salon.platform !== 'spotify'
+            ? {
+                chatMinimized,
+                onToggleMinimize: () => setChatMinimized((m) => !m),
+              }
+            : {})}
           stage={
             <SalonPlaybackPanel
               salon={salon}

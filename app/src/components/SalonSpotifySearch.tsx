@@ -336,9 +336,7 @@ export function SalonSpotifySearch({
             ) : null}
 
             {error && !loading ? (
-
-              <p className="text-xs text-red-400 text-center py-3 px-3">{error}</p>
-
+              <p className="text-xs text-red-400 text-center py-3 px-3 leading-snug">{error}</p>
             ) : null}
 
             {showEmpty ? (

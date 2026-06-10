@@ -6762,3 +6762,400 @@ autre onglet sans action utilisateur ; barre retour parfois seule trace.
 ================================================================================
 Fin MODIF 420 - 2026-06-10
 ================================================================================
+
+================================================================================
+MODIF 421 — Salon Spotify plein écran : chat au-dessus de la barre d'onglets
+================================================================================
+Date : 2026-06-10
+
+## Problème
+Dans le salon Spotify plein écran (`ms-salon-fullscreen-overlay`), le formulaire
+de chat (`aside.room-theater-chat-dock`) chevauche la barre d'onglets bas
+(`ms-app-shell--bottom-tabs`, ~829 px) : la saisie est masquée derrière les
+boutons Reels / DM / etc.
+
+## Cause
+L'overlay `absolute inset-0` s'étend jusqu'au bord bas de `main` (padding box),
+y compris la zone réservée aux onglets fixes (`z-index: 50`), alors que le dock
+chat ancre son input en bas du flex.
+
+## Correctif
+- `index.css` : sous `.ms-app-shell--bottom-tabs`, `.ms-salon-fullscreen-overlay`
+  reçoit `bottom: var(--tab-nav-total-h)` (token existant : gap + bouton 50 px
+  + safe-area). Les onglets restent visibles pour le changement d'onglet
+  (MODIF 420) ; le contenu salon (dont le chat) se termine au-dessus.
+
+## Fichiers
+- app/src/index.css
+- modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+  1. Salon Spotify plein écran (layout queue-chat) → le champ chat est entièrement
+     visible au-dessus des icônes d'onglets bas.
+  2. Changer d'onglet → salon reste plein écran ; chat toujours au-dessus des tabs.
+  3. Layout Appa2 (onglets header) → pas de marge bas supplémentaire.
+
+================================================================================
+Fin MODIF 421 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 422 — Salon Spotify : chargement playlist (api.salonLoadPlaylist)
+================================================================================
+Date : 2026-06-10
+
+## Problème
+1. `SalonSpotifyPlaylist.tsx` appelait `api.salonLoadYoutubePlaylist` (nom trompeur)
+   pour lancer une playlist Spotify — même endpoint backend, mais confusion à la
+   revue et risque de régression si l’API YouTube diverge.
+2. « Playlist Spotify introuvable ou vide » à tort : échecs API silencieux
+   (`!res.ok` → `[]`), parsing URL incomplet (`intl-fr/`, embed), pas de scope
+   collaborative, morceaux locaux/indisponibles filtrés sans message distinct.
+
+## Correctif
+- `api.ts` : alias `salonLoadPlaylist` (YouTube + Spotify via
+  `POST /api/salons/:id/playback/load-playlist`).
+- `SalonSpotifyPlaylist.tsx` : utilise `salonLoadPlaylist` ; bloque le lancement
+  si compte mock (OAuth réel requis).
+- `musicLinks.ts` : `parseSpotifyPlaylistId` — URLs intl/embed Spotify.
+- `spotifyOAuth.ts` : scope `playlist-read-collaborative`.
+- `spotifyPlaylists.ts` : `SpotifyPlaylistError`, pagination `market=from_token`,
+  erreurs 401/403/404/429/réseau explicites ; morceaux locaux → message dédié.
+- `spotifyApi.ts` (nouveau) : helpers erreurs réseau/auth Spotify.
+- `salons.ts` : `requireRealSpotifyHost` sur load-playlist Spotify ;
+  propage `SpotifyPlaylistError`.
+
+## Fichiers
+- backend/src/lib/spotifyApi.ts (nouveau)
+- backend/src/lib/spotifyPlaylists.ts
+- backend/src/lib/spotifyOAuth.ts
+- backend/src/lib/musicLinks.ts
+- backend/src/routes/salons.ts
+- app/src/lib/api.ts
+- app/src/components/SalonSpotifyPlaylist.tsx
+- modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+  Salon Spotify plein écran → section playlist → lancer une playlist (liste ou URL).
+
+================================================================================
+Fin MODIF 422 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 423 — Fix « Recherche Spotify indisponible » (salon plein écran)
+================================================================================
+Date : 2026-06-10
+
+## Symptôme
+Dans `SalonSpotifySearch`, recherche « gims changer » affiche le message générique
+`Recherche Spotify indisponible` (p.text-xs.text-red-400) au lieu de résultats
+ou d’un message actionnable (reconnecter Spotify, quota, etc.).
+
+## Cause racine
+1. `requireHostPlatform` acceptait les comptes mock/legacy (`isPlatformConnected`)
+   alors que `getSpotifyAccessToken` ignore ces jetons → échec ou erreur opaque.
+2. `refreshSpotifyToken` pouvait lever une exception si `SPOTIFY_CLIENT_ID` /
+   `SECRET` absents (`.trim()` sur undefined) → catch générique 502.
+3. Échecs réseau / timeout Spotify (`AbortSignal.timeout`) non classés → 502 générique.
+4. Erreurs Spotify hors 401/403/429 renvoyées sans détail du corps de réponse.
+
+## Correctif
+### Backend
+- `spotifyOAuth.ts` : `isSpotifyApiConfigured`, `getSpotifyAppAccessToken`
+  (client_credentials + cache), `refreshSpotifyToken` sécurisé (pas de throw si env vide).
+- `spotifySearch.ts` : hôte OAuth réel requis en amont ; essai jeton hôte + refresh ;
+  repli `client_credentials` pour GET /v1/search ; `market=from_token` sur jeton hôte ;
+  messages par code
+  (`spotify_not_connected`, `spotify_token_expired`, `spotify_rate_limited`,
+  `spotify_oauth_not_configured`, `spotify_network_error`, `spotify_dev_user_not_allowed`).
+- `salons.ts` : `requireRealSpotifyHost` sur `GET /spotify-search` (JWT = hôte,
+  OAuth Spotify réel obligatoire).
+
+### Frontend
+- `api.ts` : mapping codes erreur Spotify → i18n.
+- i18n fr/en : clés `salon.spotifySearch.error*` (+ `errorDevUser`).
+- `SalonSpotifySearch.tsx` : affichage erreur multi-ligne.
+
+## Fichiers
+- backend/src/lib/spotifyOAuth.ts
+- backend/src/lib/spotifySearch.ts
+- backend/src/routes/salons.ts
+- app/src/lib/api.ts
+- app/src/components/SalonSpotifySearch.tsx
+- app/src/locales/fr.json, app/src/locales/en.json
+- modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npx tsc --noEmit
+  1. Hôte avec Spotify OAuth réel → salon plein écran → recherche « gims changer »
+     → résultats (ex. GIMS — Changer).
+  2. Hôte sans OAuth réel → message reconnecter Spotify (403), pas « indisponible ».
+  3. Jeton expiré + env serveur OK → repli client_credentials ou message reconnecter.
+  4. Aucun résultat → `noResultsHint`, pas d’erreur rouge.
+
+================================================================================
+Fin MODIF 423 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 424 — Réduire le salon plein écran (bouton ↓ / handlers)
+================================================================================
+Date : 2026-06-10
+
+## Symptôme
+Dans le salon Spotify plein écran (`ms-salon-fullscreen-overlay`), l'utilisateur
+ne voit pas ou ne peut pas utiliser « Réduire le salon » (chevron ↓) après les
+changements overlay MODIF 420/421.
+
+## Causes
+1. **Écran chargement** : pendant `getSalon`, aucun header ni bouton réduire —
+   salon bloqué plein écran sans sortie.
+2. **Chevron ↓ à droite** du header (après Jam + Quitter) : facilement masqué
+   sur petit écran ou noyé parmi les actions.
+3. **`handleSalonPageBack` / `handleSalonMinimizeToMap`** : garde
+   `viewMode !== 'full'` pouvait no-op dans certains cas de désync ref/état.
+4. **Overlay z-50** : même niveau que la barre d'onglets bas → risque de
+   chevauchement pointer-events.
+
+## Correctifs
+- `SalonPage.tsx` :
+  - `handleMinimizeSalon` unifié (`onMinimizeToMap` puis repli `onBack`).
+  - Header avec ← + chevron ↓ à **gauche** (toujours visible), `z-30`.
+  - État chargement/erreur : header fixe avec réduire + contenu centré.
+  - Suppression du doublon ↓ à droite (Jam / Quitter conservés).
+- `App.tsx` :
+  - Handlers réduire sans garde `viewMode === 'full'`.
+  - Overlay `z-[60]` au-dessus des onglets (MODIF 420 inchangé).
+
+## Fichiers
+- app/src/App.tsx
+- app/src/pages/SalonPage.tsx
+- modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+  1. Salon Spotify plein écran → chevron ↓ visible en haut à gauche (à côté de ←).
+  2. Clic ↓ ou ← → `viewMode: 'minimized'`, overlay fermé, onglet Carte + fiche
+     salon + barre retour header.
+  3. Barre retour → plein écran ; changement d'onglet → salon reste plein écran.
+  4. Pendant chargement salon → header avec réduire fonctionnel.
+
+================================================================================
+Fin MODIF 424 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 425 — Seek bidirectionnel Spotify ↔ chrono salon (slider plein écran)
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+Dans le salon Spotify plein écran (`salonQueueLayout`), déplacer le slider
+« Position de lecture » doit repositionner Spotify (hôte uniquement) ; un seek
+dans l’app Spotify doit mettre à jour le chrono Soundy et les participants via
+socket `sync_playback`.
+
+## Backend
+- `spotifyPlayback.ts` — action `seek` + `seekSpotifyPlaybackPosition` (PUT
+  `/v1/me/player/seek?position_ms=X`).
+- `POST /api/salons/:id/playback/spotify-control` — `action: 'seek'`,
+  `positionMs` requis.
+
+## Frontend
+- `api.ts` — `spotifySalonSeek`.
+- `SalonPlaybackPanel.tsx` — `onChange` → chrono local + garde 2,8 s ;
+  `onChangeCommitted` → `spotifySalonSeek` (hôte Spotify lié uniquement).
+- `useSpotifySalonSync.ts` — détection seek Spotify (écart vs progression
+  attendue ≥ 1,2 s) en plus du drift 2,5 s ; garde anti-rebond inchangée.
+
+## Fichiers
+- backend/src/lib/spotifyPlayback.ts
+- backend/src/routes/salons.ts
+- app/src/lib/api.ts
+- app/src/hooks/useSpotifySalonSync.ts
+- app/src/components/SalonPlaybackPanel.tsx
+- modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npx tsc --noEmit
+  1. Hôte salon Spotify plein écran → glisser le slider → Spotify saute à la
+     position (app ouverte / Connect actif).
+  2. Seek dans Spotify → slider + chrono Soundy suivent sous ~2,5 s max.
+  3. Participants : position suit via socket, pas d’appel API Spotify.
+  4. Pas de boucle : garde 2,8 s après seek local, poll ignoré.
+
+================================================================================
+Fin MODIF 425 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 426 — CHANGER DE MORCEAU : lecture immédiate Spotify (pas file)
+================================================================================
+Date : 2026-06-10
+
+## Problème
+Dans `SalonSpotifySearch`, « CHANGER DE MORCEAU » mettait à jour l'état salon
+sans lancer le morceau sur Spotify (PUT /play) — le morceau courant continuait
+ou passait via la file Spotify au lieu de remplacer la lecture à 0:00.
+
+## Correctif
+- `spotifyPlayback.ts` — `playSpotifyTrackNow` : PUT `/v1/me/player/play`
+  avec `{ uris: ['spotify:track:…'] }` (remplace la lecture, position 0).
+- `salons.ts` — `POST …/playback/change-track` (Spotify) :
+  `requireRealSpotifyHost` + `hostChangePlaybackTrack` puis `playSpotifyTrackNow`.
+  État salon diffusé ; erreur Spotify renvoyée avec `playbackState` si échec API.
+
+## Fichiers
+- backend/src/lib/spotifyPlayback.ts
+- backend/src/routes/salons.ts
+- modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit
+  1. Salon Spotify plein écran → recherche → sélection morceau → Spotify joue
+     immédiatement le nouveau titre à 0:00 (pas ajout en file).
+  2. État Soundy (titre, chrono) aligné sur le morceau choisi.
+
+================================================================================
+Fin MODIF 426 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 427 — Layout search/playlist/file au-dessus des onglets bas
+================================================================================
+Date : 2026-06-10
+
+## Problème
+La zone défilable `div.p-3.space-y-3` (recherche, playlist, file) dans le
+salon Spotify plein écran restait partiellement masquée derrière la barre
+d'onglets Accueil en bas de l'écran.
+
+## Correctif
+- `RoomTheaterLayout.tsx` — classe `room-theater-stage-footer` sur le conteneur
+  scroll du `stageFooter` (variant `queue-chat`).
+- `index.css` — `padding-bottom` sur `.ms-salon-fullscreen-overlay
+  .room-theater-stage-footer` (complète MODIF 421 sur la zone scroll).
+
+## Fichiers
+- app/src/components/RoomTheaterLayout.tsx
+- app/src/index.css
+- modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+  1. Salon Spotify plein écran → scroller jusqu'en bas (file / playlist) → contenu
+     entièrement visible au-dessus des icônes d'onglets.
+
+================================================================================
+Fin MODIF 427 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 428 — Bouton morceau suivant (⏭) dans SalonPlaybackPanel
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+Ajouter un bouton « morceau suivant » (⏭) à côté Pause / Stop pour l'hôte
+Spotify lié, via Spotify POST `/v1/me/player/next` (backend spotify-control).
+
+## Correctif
+### Backend
+- `spotifyPlayback.ts` — action `next` + `skipToNextSpotifyTrack` (POST next).
+- `salons.ts` — `spotify-control` accepte `action: 'next'`.
+
+### Frontend
+- `api.ts` — `spotifySalonPlaybackControl` inclut `'next'`.
+- `SalonPlaybackPanel.tsx` — bouton ⏭ (salonQueueLayout + autres barres host
+  Spotify) ; `handleHostNext` + garde locale Spotify sync.
+
+## Fichiers
+- backend/src/lib/spotifyPlayback.ts
+- backend/src/routes/salons.ts
+- app/src/lib/api.ts
+- app/src/components/SalonPlaybackPanel.tsx
+- modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npx tsc --noEmit
+  1. Hôte salon Spotify → ⏭ → morceau suivant dans Spotify (app active).
+  2. Erreur sans appareil actif → toast explicite.
+
+================================================================================
+Fin MODIF 428 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 429 — Retirer le bouton « Réduire » du chat salon Spotify
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+Dans le salon Spotify plein écran (variant `queue-chat`, dock
+`aside.room-theater-chat-dock`), retirer le chevron « Réduire le chat » du
+header. Le chat reste toujours déplié ; le bouton × (masquer le chat) est
+conservé.
+
+## Correctifs
+- `RoomTheaterLayout.tsx` (variant `queue-chat`) :
+  - Suppression du bouton chevron ↓ / ↑ dans l'en-tête du dock chat.
+  - Contenu chat + barre de saisie toujours visibles (plus de `chatMinimized`).
+- `SalonPage.tsx` :
+  - `chatMinimized` / `onToggleMinimize` transmis uniquement pour les salons
+    non-Spotify (variant `theater` + `FloatingSalonChat`).
+
+## Fichiers
+- app/src/components/RoomTheaterLayout.tsx
+- app/src/pages/SalonPage.tsx
+- modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+  1. Salon Spotify plein écran → header chat sans chevron « Réduire ».
+  2. Bouton × masque le chat ; badge « Chat » le réaffiche.
+  3. Salon YouTube / autre → chevron réduire du chat flottant inchangé.
+
+================================================================================
+Fin MODIF 429 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 430 — Audit latence + conformité (sans deploy)
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+Audit latence (poll Spotify, recherche debounced, chargement salon) et conformité
+légale / Spotify / YouTube. Correctifs code à faible risque uniquement.
+
+## Correctifs latence (implémentés)
+1. `useSpotifySalonSync.ts` : poll 2,5 s visible / 6 s onglet masqué
+   (visibilitychange) — moins d'appels GET /spotify-now-playing en arrière-plan.
+2. `SalonPlaybackPanel.tsx` : `resolveSalonTrack` ne dépend plus de
+   `playbackState.updatedAt` (ticks chrono) — uniquement trackId/title/artist.
+3. `MapSalonListenControls.tsx` : idem (carte) — évite re-résolution à chaque sync.
+
+## Audit conformité (résumé)
+- Légal EU/GDPR : vert/jaune (docs solides ; checklist prod + AIPD géoloc + SACEM).
+- Spotify : jaune (Web API + Connect OK, pas de relay ; quotas dev / Extended Quota).
+- YouTube : vert/jaune (IFrame API + cap 10 min carte ; cache API 1 h à formaliser).
+
+## Fichiers
+- app/src/hooks/useSpotifySalonSync.ts
+- app/src/components/SalonPlaybackPanel.tsx
+- app/src/components/MapSalonListenControls.tsx
+- modification.txt
+
+## Test
+  cd app && npx tsc -p tsconfig.app.json --noEmit
+
+================================================================================
+Fin MODIF 430 - 2026-06-10
+================================================================================
+

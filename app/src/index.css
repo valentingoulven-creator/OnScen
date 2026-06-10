@@ -211,6 +211,16 @@ body {
   isolation: isolate;
 }
 
+/* Shell classique : réserve la barre d'onglets flottante (Reels, DM…) sous le salon */
+.ms-app-shell--bottom-tabs .ms-salon-fullscreen-overlay {
+  bottom: var(--tab-nav-total-h);
+}
+
+/* Salon Spotify plein écran — search / playlist / file scrollables au-dessus des onglets */
+.ms-salon-fullscreen-overlay .room-theater-stage-footer {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
 /* ── Header Soundly fixe (toujours visible au scroll) ─────────────── */
 header.ms-app-header {
   position: fixed;

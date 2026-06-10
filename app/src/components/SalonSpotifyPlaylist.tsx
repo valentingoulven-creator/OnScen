@@ -49,6 +49,10 @@ export function SalonSpotifyPlaylist({
   }, [token, t]);
 
   const launch = async () => {
+    if (!isRealAccount) {
+      setError(t('salon.spotifySearch.playlistDemoHint'));
+      return;
+    }
     const body = playlistUrl.trim()
       ? { playlistUrl: playlistUrl.trim() }
       : selectedId
@@ -61,7 +65,7 @@ export function SalonSpotifyPlaylist({
     setLoadingPlay(true);
     setError(null);
     try {
-      const r = await api.salonLoadYoutubePlaylist(token, salonId, body);
+      const r = await api.salonLoadPlaylist(token, salonId, body);
       onTrackChanged(r.playbackState);
       onQueueChanged?.(r.queue);
       setPlaylistUrl('');

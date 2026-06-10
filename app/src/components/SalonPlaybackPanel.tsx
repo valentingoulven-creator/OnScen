@@ -201,10 +201,22 @@ export function SalonPlaybackPanel({
   }, [spotifyControlToast]);
 
   const callSpotifyControl = useCallback(
-    async (action: 'pause' | 'play' | 'stop') => {
+    async (action: 'pause' | 'play' | 'stop' | 'next') => {
       if (!token || salon.platform !== 'spotify' || !hostLinked) return;
       try {
         await api.spotifySalonPlaybackControl(token, salon.id, action);
+      } catch (e) {
+        setSpotifyControlToast(e instanceof Error ? e.message : t('salon.playbackMode.spotifyControlError'));
+      }
+    },
+    [token, salon.platform, salon.id, hostLinked, t]
+  );
+
+  const callSpotifySeek = useCallback(
+    async (positionMs: number) => {
+      if (!token || salon.platform !== 'spotify' || !hostLinked) return;
+      try {
+        await api.spotifySalonSeek(token, salon.id, positionMs);
       } catch (e) {
         setSpotifyControlToast(e instanceof Error ? e.message : t('salon.playbackMode.spotifyControlError'));
       }
@@ -231,12 +243,26 @@ export function SalonPlaybackPanel({
     void callSpotifyControl('stop');
   }, [pause, seek, callSpotifyControl, markLocalControl]);
 
+  const handleHostNext = useCallback(() => {
+    markLocalControl();
+    void callSpotifyControl('next');
+  }, [callSpotifyControl, markLocalControl]);
+
   const handleHostSeek = useCallback(
     (ms: number) => {
       if (spotifySyncEnabled) markLocalControl();
       seek(ms);
     },
     [seek, markLocalControl, spotifySyncEnabled]
+  );
+
+  const handleHostSeekCommitted = useCallback(
+    (ms: number) => {
+      if (!spotifySyncEnabled) return;
+      markLocalControl();
+      void callSpotifySeek(ms);
+    },
+    [spotifySyncEnabled, markLocalControl, callSpotifySeek]
   );
 
   const saveHostJamLink = async () => {
@@ -306,16 +332,7 @@ export function SalonPlaybackPanel({
     return () => {
       cancelled = true;
     };
-  }, [
-    token,
-    salon.id,
-    participantPlatform,
-    isHost,
-    playbackState.title,
-    playbackState.artist,
-    playbackState.trackId,
-    playbackState.updatedAt,
-  ]);
+  }, [token, salon.id, participantPlatform, isHost, playbackState.title, playbackState.artist, playbackState.trackId]);
 
   const hostMeta = PLATFORM_META[salon.platform];
   const participantMeta = PLATFORM_META[participantPlatform];
@@ -442,6 +459,16 @@ export function SalonPlaybackPanel({
           >
             ⏹
           </button>
+          {salon.platform === 'spotify' && (
+            <button
+              type="button"
+              onClick={handleHostNext}
+              className="px-2.5 py-1.5 rounded-xl border border-white/20 text-xs text-gray-300 hover:text-white transition"
+              title="Morceau suivant"
+            >
+              ⏭
+            </button>
+          )}
           {salon.platform === 'youtube' && playbackState.trackId && playbackState.trackId !== 'demo' && (
             <OpenOnYoutubeButton trackId={playbackState.trackId} positionMs={displayPositionMs} />
           )}
@@ -505,6 +532,16 @@ export function SalonPlaybackPanel({
                 >
                   ⏹
                 </button>
+                {salon.platform === 'spotify' && (
+                  <button
+                    type="button"
+                    onClick={handleHostNext}
+                    className="px-2.5 py-1.5 rounded-xl border border-[#2a2a3a] text-xs text-gray-400 hover:text-white transition"
+                    title="Morceau suivant"
+                  >
+                    ⏭
+                  </button>
+                )}
               </>
             )}
             <span
@@ -523,11 +560,12 @@ export function SalonPlaybackPanel({
               max={600000}
               step={1000}
               value={Math.min(displayPositionMs, 600000)}
-            onChange={(e) => handleHostSeek(Number(e.target.value))}
-            className="w-full accent-purple-500 h-1"
-            aria-label="Position de lecture"
-          />
-        )}
+              onChange={(e) => handleHostSeek(Number(e.target.value))}
+              onPointerUp={(e) => handleHostSeekCommitted(Number((e.target as HTMLInputElement).value))}
+              className="w-full accent-purple-500 h-1"
+              aria-label="Position de lecture"
+            />
+          )}
 
         {isHost && !hostLinked && token && (
           <div className="space-y-2 pt-1">
@@ -629,6 +667,16 @@ export function SalonPlaybackPanel({
         >
           ⏹
         </button>
+        {salon.platform === 'spotify' && (
+          <button
+            type="button"
+            onClick={handleHostNext}
+            className={theaterControlBtnClass}
+            title="Morceau suivant"
+          >
+            ⏭
+          </button>
+        )}
         {salon.platform === 'youtube' && playbackState.trackId && playbackState.trackId !== 'demo' && (
           <OpenOnYoutubeButton trackId={playbackState.trackId} positionMs={displayPositionMs} />
         )}
@@ -643,6 +691,7 @@ export function SalonPlaybackPanel({
         step={1000}
         value={Math.min(displayPositionMs, 600000)}
         onChange={(e) => handleHostSeek(Number(e.target.value))}
+        onPointerUp={(e) => handleHostSeekCommitted(Number((e.target as HTMLInputElement).value))}
         className="w-full accent-purple-500 h-1 pointer-events-auto"
         aria-label="Position de lecture"
       />
@@ -732,6 +781,7 @@ export function SalonPlaybackPanel({
                   step={1000}
                   value={Math.min(displayPositionMs, 600000)}
                   onChange={(e) => handleHostSeek(Number(e.target.value))}
+                  onPointerUp={(e) => handleHostSeekCommitted(Number((e.target as HTMLInputElement).value))}
                   className="w-full accent-purple-500 h-1 mt-2 pointer-events-auto"
                   aria-label="Position de lecture"
                 />
@@ -935,6 +985,16 @@ export function SalonPlaybackPanel({
               >
                 ⏹
               </button>
+              {salon.platform === 'spotify' && (
+                <button
+                  type="button"
+                  onClick={handleHostNext}
+                  className={`${mapInline ? 'px-2 py-1 text-xs' : 'px-3 py-2 text-sm'} rounded-xl border border-[#2a2a3a] text-gray-400 hover:text-white transition`}
+                  title="Morceau suivant"
+                >
+                  ⏭
+                </button>
+              )}
               {salon.platform === 'youtube' &&
                 playbackState.trackId &&
                 playbackState.trackId !== 'demo' && (
@@ -952,6 +1012,7 @@ export function SalonPlaybackPanel({
             step={1000}
             value={Math.min(displayPositionMs, 600000)}
             onChange={(e) => handleHostSeek(Number(e.target.value))}
+            onPointerUp={(e) => handleHostSeekCommitted(Number((e.target as HTMLInputElement).value))}
             className="w-full accent-purple-500 h-1"
             aria-label="Position de lecture"
           />

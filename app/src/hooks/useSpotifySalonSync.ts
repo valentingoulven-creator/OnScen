@@ -21,7 +21,9 @@ export interface SpotifyNowPlaying {
 }
 
 const POLL_MS = 2500;
+const POLL_MS_HIDDEN = 6000;
 const POSITION_DRIFT_MS = 2500;
+const SEEK_JUMP_MS = 1200;
 const LOCAL_CONTROL_GUARD_MS = 2800;
 
 interface UseSpotifySalonSyncOptions {
@@ -79,6 +81,11 @@ export function useSpotifySalonSync({
   stateRef.current = playbackState;
   const localControlUntilRef = useRef(0);
   const pollingRef = useRef(false);
+  const lastSpotifySampleRef = useRef<{
+    progressMs: number;
+    at: number;
+    isPlaying: boolean;
+  } | null>(null);
 
   const markLocalControl = useCallback(() => {
     localControlUntilRef.current = Date.now() + LOCAL_CONTROL_GUARD_MS;
@@ -123,13 +130,35 @@ export function useSpotifySalonSync({
         return;
       }
 
+      const lastSample = lastSpotifySampleRef.current;
+      let spotifySeeked = false;
+      if (lastSample) {
+        const elapsed = now - lastSample.at;
+        const expectedProgress =
+          lastSample.isPlaying && spotify.isPlaying
+            ? lastSample.progressMs + elapsed
+            : lastSample.progressMs;
+        if (Math.abs(spotify.progressMs - expectedProgress) >= SEEK_JUMP_MS) {
+          spotifySeeked = true;
+        }
+      }
+      lastSpotifySampleRef.current = {
+        progressMs: spotify.progressMs,
+        at: now,
+        isPlaying: spotify.isPlaying,
+      };
+
       if (spotify.isPlaying) {
         const localPos = computePlaybackPositionMs(local, now);
-        if (Math.abs(localPos - spotify.progressMs) >= POSITION_DRIFT_MS) {
+        const drift = Math.abs(localPos - spotify.progressMs);
+        if (spotifySeeked || drift >= POSITION_DRIFT_MS) {
           emitSync(playbackStateAtSeek(local, spotify.progressMs, now));
         }
-      } else if (Math.abs(local.progressMs - spotify.progressMs) >= POSITION_DRIFT_MS) {
-        emitSync(playbackStateAtSeek(local, spotify.progressMs, now));
+      } else {
+        const drift = Math.abs(local.progressMs - spotify.progressMs);
+        if (spotifySeeked || drift >= POSITION_DRIFT_MS) {
+          emitSync(playbackStateAtSeek(local, spotify.progressMs, now));
+        }
       }
     },
     [emitSync]
@@ -137,6 +166,7 @@ export function useSpotifySalonSync({
 
   useEffect(() => {
     if (!enabled || !token || !playbackActive) {
+      lastSpotifySampleRef.current = null;
       setNowPlaying(null);
       setSyncError(null);
       return;
@@ -164,10 +194,24 @@ export function useSpotifySalonSync({
       }
     };
 
+    const getPollMs = () => (typeof document !== 'undefined' && document.hidden ? POLL_MS_HIDDEN : POLL_MS);
+
     void poll();
-    const id = window.setInterval(() => void poll(), POLL_MS);
+    let intervalMs = getPollMs();
+    let id = window.setInterval(() => void poll(), intervalMs);
+
+    const onVisibility = () => {
+      const nextMs = getPollMs();
+      if (nextMs === intervalMs) return;
+      intervalMs = nextMs;
+      window.clearInterval(id);
+      id = window.setInterval(() => void poll(), intervalMs);
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
     return () => {
       cancelled = true;
+      document.removeEventListener('visibilitychange', onVisibility);
       window.clearInterval(id);
     };
   }, [enabled, token, salonId, playbackActive, applySpotifyState, t]);

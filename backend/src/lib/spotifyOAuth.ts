@@ -6,7 +6,7 @@ import { encryptPlatformTokens, decryptPlatformTokens, decryptToken } from './to
 // Profil + bibliothèque + contrôle lecture (pause/play/seek via Connect).
 // Scopes streaming requis pour Web Playback SDK — voir MODIF 400 / roadmap Spotify.
 const SPOTIFY_SCOPES =
-  'user-read-email user-read-private user-library-read user-top-read playlist-read-private user-modify-playback-state user-read-playback-state user-read-currently-playing';
+  'user-read-email user-read-private user-library-read user-top-read playlist-read-private playlist-read-collaborative user-modify-playback-state user-read-playback-state user-read-currently-playing';
 
 const pendingStates = new Map<string, { userId: string; createdAt: number }>();
 
@@ -23,6 +23,50 @@ export function isSpotifyOAuthConfigured(): boolean {
       process.env.SPOTIFY_CLIENT_SECRET?.trim() &&
       process.env.SPOTIFY_CALLBACK_URL?.trim()
   );
+}
+
+/** Client ID + secret suffisent pour client_credentials (recherche sans jeton utilisateur). */
+export function isSpotifyApiConfigured(): boolean {
+  return Boolean(process.env.SPOTIFY_CLIENT_ID?.trim() && process.env.SPOTIFY_CLIENT_SECRET?.trim());
+}
+
+function spotifyBasicAuthHeader(): string | null {
+  const id = process.env.SPOTIFY_CLIENT_ID?.trim();
+  const secret = process.env.SPOTIFY_CLIENT_SECRET?.trim();
+  if (!id || !secret) return null;
+  return `Basic ${Buffer.from(`${id}:${secret}`).toString('base64')}`;
+}
+
+let cachedAppToken: { token: string; expiresAt: number } | null = null;
+
+/** Jeton application (client_credentials) — cache ~50 min. Utilisable pour /v1/search. */
+export async function getSpotifyAppAccessToken(): Promise<string | null> {
+  const auth = spotifyBasicAuthHeader();
+  if (!auth) return null;
+  if (cachedAppToken && Date.now() < cachedAppToken.expiresAt - 60_000) {
+    return cachedAppToken.token;
+  }
+  try {
+    const res = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: auth,
+      },
+      body: new URLSearchParams({ grant_type: 'client_credentials' }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { access_token?: string; expires_in?: number };
+    if (!data.access_token) return null;
+    cachedAppToken = {
+      token: data.access_token,
+      expiresAt: Date.now() + (data.expires_in ?? 3600) * 1000,
+    };
+    return data.access_token;
+  } catch {
+    return null;
+  }
 }
 
 export function getSpotifyCallbackUrl(): string {
@@ -189,6 +233,9 @@ export function isRealSpotifyAccount(user: User | undefined): boolean {
  * à jour si présent dans la réponse.
  */
 export async function refreshSpotifyToken(user: User): Promise<string | null> {
+  const auth = spotifyBasicAuthHeader();
+  if (!auth) return null;
+
   const accounts = getPlatformAccounts(user);
   const idx = accounts.findIndex((a) => a.platform === 'spotify');
   if (idx < 0) return null;
@@ -196,21 +243,17 @@ export async function refreshSpotifyToken(user: User): Promise<string | null> {
   const decrypted = decryptPlatformTokens(accounts[idx]);
   if (!decrypted.refreshToken) return null;
 
-  const credentials = Buffer.from(
-    `${process.env.SPOTIFY_CLIENT_ID!.trim()}:${process.env.SPOTIFY_CLIENT_SECRET!.trim()}`
-  ).toString('base64');
-
   const res = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      Authorization: `Basic ${credentials}`,
+      Authorization: auth,
     },
     body: new URLSearchParams({
       grant_type: 'refresh_token',
       refresh_token: decrypted.refreshToken,
     }),
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(10_000),
   });
 
   if (!res.ok) return null;

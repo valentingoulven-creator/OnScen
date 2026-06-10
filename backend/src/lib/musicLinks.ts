@@ -37,7 +37,7 @@ export function parseYoutubePlaylistId(urlOrId: string): string | null {
 export function parseSpotifyPlaylistId(urlOrId: string): string | null {
   const raw = urlOrId.trim();
   const fromUrl =
-    raw.match(/spotify\.com\/playlist\/([a-zA-Z0-9]+)/)?.[1] ||
+    raw.match(/spotify\.com\/(?:embed\/|intl-[a-z]{2}\/)?playlist\/([a-zA-Z0-9]+)/)?.[1] ||
     raw.match(/^spotify:playlist:([a-zA-Z0-9]+)$/)?.[1];
   if (fromUrl) return fromUrl;
   if (/^[a-zA-Z0-9]{10,}$/.test(raw) && !raw.startsWith('spotify:track:')) return raw;

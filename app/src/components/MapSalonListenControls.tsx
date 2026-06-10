@@ -103,14 +103,7 @@ export function MapSalonListenControls({
     return () => {
       cancelled = true;
     };
-  }, [
-    token,
-    salon.id,
-    participantPlatform,
-    hostLinked,
-    playbackState.trackId,
-    playbackState.updatedAt,
-  ]);
+  }, [token, salon.id, participantPlatform, hostLinked, playbackState.trackId, playbackState.title, playbackState.artist]);
 
   const youtubeTrackId = useMemo(() => {
     if (salon.platform === 'youtube') {

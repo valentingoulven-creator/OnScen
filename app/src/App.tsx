@@ -374,13 +374,13 @@ export default function App() {
 
   const handleSalonPageBack = useCallback(() => {
     const session = activeSalonSessionRef.current;
-    if (!session || session.viewMode !== 'full') return;
+    if (!session) return;
     minimizeSalonToMap(session.id, session.title);
   }, [minimizeSalonToMap]);
 
   const handleSalonMinimizeToMap = useCallback((title?: string) => {
     const session = activeSalonSessionRef.current;
-    if (!session || session.viewMode !== 'full') return;
+    if (!session) return;
     minimizeSalonToMap(session.id, title ?? session.title);
   }, [minimizeSalonToMap]);
 
@@ -662,7 +662,7 @@ export default function App() {
               />
             )}
             {salonFullScreen && activeSalonSession && (
-              <div className="ms-salon-fullscreen-overlay absolute inset-0 z-50 flex flex-col min-h-0 bg-[#0b0b0f]">
+              <div className="ms-salon-fullscreen-overlay absolute inset-0 z-[60] flex flex-col min-h-0 bg-[#0b0b0f]">
                 <Suspense fallback={<PageFallback />}>
                   <SalonPage
                     salonId={activeSalonSession.id}

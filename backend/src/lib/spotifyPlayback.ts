@@ -1,7 +1,7 @@
 import { User } from '../models/schema';
 import { getSpotifyAccessToken, refreshSpotifyToken } from './spotifyOAuth';
 
-export type SpotifyPlaybackAction = 'pause' | 'play' | 'stop';
+export type SpotifyPlaybackAction = 'pause' | 'play' | 'stop' | 'seek' | 'next';
 
 export class SpotifyPlaybackError extends Error {
   constructor(
@@ -30,7 +30,7 @@ async function ensureSpotifyAccessToken(user: User): Promise<string> {
 
 async function spotifyPlayerRequest(
   user: User,
-  method: 'GET' | 'PUT',
+  method: 'GET' | 'PUT' | 'POST',
   url: string,
   body?: object
 ): Promise<Response> {
@@ -91,6 +91,24 @@ async function playSpotifyPlayback(user: User): Promise<void> {
   const res = await spotifyPlayerRequest(user, 'PUT', 'https://api.spotify.com/v1/me/player/play', {});
   if (res.status === 204 || res.status === 200) return;
   throw mapSpotifyPlayerError(res, 'Impossible de reprendre la lecture Spotify.');
+}
+
+async function playSpotifyTrack(user: User, trackId: string): Promise<void> {
+  const safeId = trackId.trim();
+  if (!safeId) {
+    throw new SpotifyPlaybackError('trackId Spotify requis.', 400, 'invalid_track_id');
+  }
+  const res = await spotifyPlayerRequest(user, 'PUT', 'https://api.spotify.com/v1/me/player/play', {
+    uris: [`spotify:track:${safeId}`],
+  });
+  if (res.status === 204 || res.status === 200) return;
+  throw mapSpotifyPlayerError(res, 'Impossible de lancer ce morceau sur Spotify.');
+}
+
+async function skipToNextSpotifyTrack(user: User): Promise<void> {
+  const res = await spotifyPlayerRequest(user, 'POST', 'https://api.spotify.com/v1/me/player/next');
+  if (res.status === 204 || res.status === 200) return;
+  throw mapSpotifyPlayerError(res, 'Impossible de passer au morceau suivant sur Spotify.');
 }
 
 async function seekSpotifyPlayback(user: User, positionMs: number): Promise<void> {
@@ -164,8 +182,22 @@ export async function getSpotifyNowPlaying(user: User): Promise<SpotifyNowPlayin
   return mapped;
 }
 
+/** Repositionne la lecture Spotify (PUT /v1/me/player/seek). */
+export async function seekSpotifyPlaybackPosition(user: User, positionMs: number): Promise<void> {
+  await seekSpotifyPlayback(user, positionMs);
+}
+
+/** Remplace la lecture en cours par un morceau (PUT /v1/me/player/play, position 0). */
+export async function playSpotifyTrackNow(user: User, trackId: string): Promise<void> {
+  await playSpotifyTrack(user, trackId);
+}
+
 /** Contrôle la lecture Spotify de l'hôte (Connect / app ouverte). */
-export async function controlSpotifyPlayback(user: User, action: SpotifyPlaybackAction): Promise<void> {
+export async function controlSpotifyPlayback(
+  user: User,
+  action: SpotifyPlaybackAction,
+  positionMs?: number
+): Promise<void> {
   switch (action) {
     case 'pause':
       await pauseSpotifyPlayback(user);
@@ -183,6 +215,16 @@ export async function controlSpotifyPlayback(user: User, action: SpotifyPlayback
         }
         throw e;
       }
+      return;
+    case 'seek': {
+      if (positionMs === undefined || !Number.isFinite(positionMs)) {
+        throw new SpotifyPlaybackError('position_ms requis pour seek.', 400, 'invalid_position');
+      }
+      await seekSpotifyPlayback(user, positionMs);
+      return;
+    }
+    case 'next':
+      await skipToNextSpotifyTrack(user);
       return;
     default:
       throw new SpotifyPlaybackError('Action Spotify invalide.', 400, 'invalid_action');

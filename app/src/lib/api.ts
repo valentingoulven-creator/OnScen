@@ -34,6 +34,24 @@ async function parseApiError(res: Response): Promise<string> {
         if (json.code === 'dm_mutual_follow_required') {
           return i18n.t('dm.mutualFollowRequired');
         }
+        if (json.code === 'spotify_not_connected') {
+          return json.error || i18n.t('salon.spotifySearch.errorNotConnected');
+        }
+        if (json.code === 'spotify_token_expired') {
+          return json.error || i18n.t('salon.spotifySearch.errorTokenExpired');
+        }
+        if (json.code === 'spotify_rate_limited') {
+          return json.error || i18n.t('salon.spotifySearch.errorRateLimited');
+        }
+        if (json.code === 'spotify_oauth_not_configured') {
+          return json.error || i18n.t('salon.spotifySearch.errorServerConfig');
+        }
+        if (json.code === 'spotify_network_error') {
+          return json.error || i18n.t('salon.spotifySearch.errorNetwork');
+        }
+        if (json.code === 'spotify_dev_user_not_allowed') {
+          return json.error || i18n.t('salon.spotifySearch.errorDevUser');
+        }
         return json.error;
       }
     } catch {
@@ -323,6 +341,18 @@ export const api = {
       token
     ),
 
+  salonLoadPlaylist: (
+    token: string,
+    salonId: string,
+    body: { playlistId?: string; playlistUrl?: string }
+  ) =>
+    request<{ playbackState: import('../types').PlaybackState; queue: import('../types').SalonQueueItem[] }>(
+      `/salons/${salonId}/playback/load-playlist`,
+      { method: 'POST', body: JSON.stringify(body) },
+      token
+    ),
+
+  /** @deprecated Préférer salonLoadPlaylist (YouTube + Spotify). */
   salonLoadYoutubePlaylist: (
     token: string,
     salonId: string,
@@ -468,11 +498,18 @@ export const api = {
   spotifySalonPlaybackControl: (
     token: string,
     salonId: string,
-    action: 'pause' | 'play' | 'stop'
+    action: 'pause' | 'play' | 'stop' | 'next'
   ) =>
     request<{ ok: boolean; action: string }>(
       `/salons/${salonId}/playback/spotify-control`,
       { method: 'POST', body: JSON.stringify({ action }) },
+      token
+    ),
+
+  spotifySalonSeek: (token: string, salonId: string, positionMs: number) =>
+    request<{ ok: boolean; action: string; positionMs: number }>(
+      `/salons/${salonId}/playback/spotify-control`,
+      { method: 'POST', body: JSON.stringify({ action: 'seek', positionMs }) },
       token
     ),
 

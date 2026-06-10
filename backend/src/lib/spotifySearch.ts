@@ -1,6 +1,12 @@
 import { User } from '../models/schema';
 import { parseMusicLink, buildPlatformTrackUrl } from './musicLinks';
-import { getSpotifyAccessToken, refreshSpotifyToken } from './spotifyOAuth';
+import {
+  getSpotifyAccessToken,
+  getSpotifyAppAccessToken,
+  isSpotifyApiConfigured,
+  isSpotifyOAuthConfigured,
+  refreshSpotifyToken,
+} from './spotifyOAuth';
 
 export interface SpotifySearchResult {
   id: string;
@@ -22,18 +28,11 @@ export class SpotifySearchError extends Error {
   }
 }
 
-async function ensureSpotifyAccessToken(user: User): Promise<string> {
+async function ensureHostSpotifyAccessToken(user: User): Promise<string | null> {
   let token = getSpotifyAccessToken(user);
   if (token) return token;
-  token = (await refreshSpotifyToken(user)) ?? undefined;
-  if (!token) {
-    throw new SpotifySearchError(
-      'Compte Spotify non connecté ou session expirée — reconnectez Spotify.',
-      403,
-      'spotify_not_connected'
-    );
-  }
-  return token;
+  if (!isSpotifyOAuthConfigured()) return null;
+  return (await refreshSpotifyToken(user)) ?? null;
 }
 
 function mapTrackItem(item: {
@@ -61,22 +60,91 @@ function mapTrackItem(item: {
   };
 }
 
+async function readSpotifyErrorBody(res: Response): Promise<string | undefined> {
+  try {
+    const data = (await res.json()) as { error?: { message?: string } };
+    return data.error?.message?.trim();
+  } catch {
+    return undefined;
+  }
+}
+
+function classifySpotifySearchFailure(
+  status: number,
+  spotifyMessage?: string
+): SpotifySearchError {
+  if (status === 401 || status === 403) {
+    const devUserHint = spotifyMessage?.toLowerCase().includes('user may not be registered');
+    if (devUserHint) {
+      return new SpotifySearchError(
+        'Compte Spotify non autorisé sur cette app (mode développement Spotify : ajoutez l’utilisateur dans le dashboard).',
+        403,
+        'spotify_dev_user_not_allowed'
+      );
+    }
+    return new SpotifySearchError(
+      'Session Spotify expirée — reconnectez votre compte Spotify.',
+      403,
+      'spotify_token_expired'
+    );
+  }
+  if (status === 429) {
+    return new SpotifySearchError(
+      'Quota Spotify atteint (mode développement : 5 utilisateurs max). Réessayez plus tard.',
+      429,
+      'spotify_rate_limited'
+    );
+  }
+  if (status === 400) {
+    return new SpotifySearchError(
+      spotifyMessage
+        ? `Requête Spotify invalide : ${spotifyMessage}`
+        : 'Requête de recherche Spotify invalide.',
+      400,
+      'spotify_bad_request'
+    );
+  }
+  return new SpotifySearchError(
+    spotifyMessage
+      ? `Recherche Spotify indisponible (${status}) : ${spotifyMessage}`
+      : `Recherche Spotify indisponible (erreur Spotify ${status}).`,
+    502,
+    'spotify_search_failed'
+  );
+}
+
 async function fetchSpotifySearch(
   accessToken: string,
-  query: string
-): Promise<{ ok: boolean; status: number; items: SpotifySearchResult[] }> {
+  query: string,
+  opts?: { userMarket?: boolean }
+): Promise<{ ok: boolean; status: number; items: SpotifySearchResult[]; spotifyMessage?: string }> {
   const params = new URLSearchParams({
     q: query,
     type: 'track',
     limit: '15',
   });
-  const res = await fetch(`https://api.spotify.com/v1/search?${params}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    signal: AbortSignal.timeout(6000),
-  });
+  if (opts?.userMarket) params.set('market', 'from_token');
+  let res: Response;
+  try {
+    res = await fetch(`https://api.spotify.com/v1/search?${params}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch (e) {
+    const isTimeout =
+      e instanceof DOMException && (e.name === 'TimeoutError' || e.name === 'AbortError');
+    throw new SpotifySearchError(
+      isTimeout
+        ? 'Recherche Spotify trop lente — réessayez.'
+        : 'Impossible de joindre l’API Spotify — réessayez.',
+      502,
+      'spotify_network_error'
+    );
+  }
 
   if (!res.ok) {
-    return { ok: false, status: res.status, items: [] };
+    const spotifyMessage = await readSpotifyErrorBody(res);
+    return { ok: false, status: res.status, items: [], spotifyMessage };
   }
 
   const data = (await res.json()) as {
@@ -106,34 +174,51 @@ export async function searchSpotifyTracks(user: User, query: string): Promise<Sp
     ];
   }
 
-  let accessToken = await ensureSpotifyAccessToken(user);
-  let result = await fetchSpotifySearch(accessToken, q);
-
-  if (!result.ok && result.status === 401) {
-    const refreshed = await refreshSpotifyToken(user);
-    if (refreshed) {
-      accessToken = refreshed;
-      result = await fetchSpotifySearch(accessToken, q);
-    }
+  if (!isSpotifyApiConfigured()) {
+    throw new SpotifySearchError(
+      'Recherche Spotify non configurée côté serveur (SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET).',
+      503,
+      'spotify_oauth_not_configured'
+    );
   }
 
-  if (!result.ok) {
-    if (result.status === 401 || result.status === 403) {
-      throw new SpotifySearchError(
-        'Session Spotify expirée — reconnectez votre compte Spotify.',
-        403,
-        'spotify_token_expired'
-      );
+  const hostToken = await ensureHostSpotifyAccessToken(user);
+  if (hostToken) {
+    let result = await fetchSpotifySearch(hostToken, q, { userMarket: true });
+
+    if (!result.ok && result.status === 401) {
+      const refreshed = await refreshSpotifyToken(user);
+      if (refreshed) {
+        result = await fetchSpotifySearch(refreshed, q, { userMarket: true });
+      }
     }
+
+    if (result.ok) return result.items;
     if (result.status === 429) {
-      throw new SpotifySearchError(
-        'Quota Spotify atteint (mode développement : 5 utilisateurs max). Réessayez plus tard.',
-        429,
-        'spotify_rate_limited'
-      );
+      throw classifySpotifySearchFailure(result.status, result.spotifyMessage);
     }
-    throw new SpotifySearchError('Recherche Spotify indisponible', 502, 'spotify_search_failed');
   }
 
-  return result.items;
+  // Repli client_credentials : recherche publique (hôte OAuth déjà vérifié en amont).
+  const appToken = await getSpotifyAppAccessToken();
+  if (!appToken) {
+    if (!hostToken) {
+      throw new SpotifySearchError(
+        'Compte Spotify non connecté ou session expirée — reconnectez Spotify.',
+        403,
+        'spotify_not_connected'
+      );
+    }
+    throw new SpotifySearchError(
+      'Recherche Spotify indisponible — vérifiez SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET sur le serveur.',
+      503,
+      'spotify_oauth_not_configured'
+    );
+  }
+
+  const fallback = await fetchSpotifySearch(appToken, q);
+  if (!fallback.ok) {
+    throw classifySpotifySearchFailure(fallback.status, fallback.spotifyMessage);
+  }
+  return fallback.items;
 }
