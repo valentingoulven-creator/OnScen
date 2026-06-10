@@ -217,6 +217,13 @@
     "adminPanel": "Espace administrateur",
     "adminPanelHint": "Comptes, accès, analytics"
   },
+  "profileSearch": {
+    "placeholder": "Rechercher un profil…",
+    "label": "Rechercher un profil",
+    "clear": "Effacer la recherche",
+    "searching": "Recherche…",
+    "noResults": "Aucun profil trouvé"
+  },
   "admin": {
     "title": "Administration",
     "tabs": {

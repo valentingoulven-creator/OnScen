@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useDebouncedApiSearch } from '../hooks/useDebouncedApiSearch';
 import { api } from '../lib/api';
 import { UserAvatarOnline } from './UserAvatarOnline';
 import { UsernameDisplay } from './UsernameDisplay';
+import { SearchInlineSpinner } from './SearchInlineSpinner';
 import type { NearbyPerson, UserSearchHit } from '../types';
 
 interface ProfileSearchBarProps {
@@ -29,37 +32,30 @@ function searchHitToPreview(hit: UserSearchHit): NearbyPerson {
 }
 
 export function ProfileSearchBar({ token, onSelectUser, className }: ProfileSearchBarProps) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<UserSearchHit[]>([]);
-  const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const fetchUsers = useCallback(
+    (q: string, signal: AbortSignal) =>
+      api.searchUsers(token, q, signal).then((r) => r.users),
+    [token]
+  );
+
+  const { results, loading, setResults } = useDebouncedApiSearch<UserSearchHit>({
+    query,
+    fetcher: fetchUsers,
+    cacheNamespace: 'profile-users',
+    debounceMs: 320,
+    minLength: 2,
+  });
+
   useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2) {
-      setResults([]);
-      setLoading(false);
-      setActiveIndex(-1);
-      return;
-    }
-
-    setLoading(true);
-    const timer = window.setTimeout(() => {
-      api
-        .searchUsers(token, q)
-        .then((r) => {
-          setResults(r.users);
-          setActiveIndex(-1);
-        })
-        .catch(() => setResults([]))
-        .finally(() => setLoading(false));
-    }, 280);
-
-    return () => window.clearTimeout(timer);
-  }, [query, token]);
+    setActiveIndex(-1);
+  }, [results]);
 
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
@@ -96,6 +92,7 @@ export function ProfileSearchBar({ token, onSelectUser, className }: ProfileSear
   };
 
   const showDropdown = open && query.trim().length >= 2;
+  const showEmpty = !loading && results.length === 0;
 
   return (
     <div ref={rootRef} className={`relative w-full min-w-0${className ? ` ${className}` : ''}`}>
@@ -116,9 +113,9 @@ export function ProfileSearchBar({ token, onSelectUser, className }: ProfileSear
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
-          placeholder="Rechercher un profil…"
+          placeholder={t('profileSearch.placeholder')}
           autoComplete="off"
-          aria-label="Rechercher un profil"
+          aria-label={t('profileSearch.label')}
           aria-expanded={showDropdown}
           aria-controls="profile-search-results"
           className="w-full h-full pl-9 pr-8 text-xs rounded-full bg-transparent text-white placeholder:text-gray-500/90 outline-none [&::-webkit-search-cancel-button]:hidden"
@@ -132,7 +129,7 @@ export function ProfileSearchBar({ token, onSelectUser, className }: ProfileSear
               inputRef.current?.focus();
             }}
             className="absolute right-2 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full text-gray-500 hover:text-white hover:bg-white/10 text-sm leading-none transition-colors"
-            aria-label="Effacer la recherche"
+            aria-label={t('profileSearch.clear')}
           >
             ×
           </button>
@@ -145,56 +142,57 @@ export function ProfileSearchBar({ token, onSelectUser, className }: ProfileSear
           role="listbox"
           className="absolute left-0 right-0 top-[calc(100%+0.25rem)] z-50 max-h-56 overflow-y-auto rounded-xl border border-[#2d2d3d] bg-[#12121a]/98 backdrop-blur-sm shadow-xl shadow-black/40 py-0.5"
         >
-          {loading && (
-            <li className="px-3 py-2 text-xs text-gray-500">Recherche…</li>
-          )}
-          {!loading && results.length === 0 && (
-            <li className="px-3 py-2 text-xs text-gray-500">Aucun profil trouvé</li>
-          )}
-          {!loading &&
-            results.map((u, i) => (
-              <li key={u.id} role="option" aria-selected={i === activeIndex}>
-                <button
-                  type="button"
-                  onClick={() => pick(u)}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 text-left hover:bg-purple-900/30 ${
-                    i === activeIndex ? 'bg-purple-900/40' : ''
-                  }`}
-                >
-                  <UserAvatarOnline
-                    userId={u.id}
-                    avatarUrl={u.avatarUrl}
-                    size="sm"
-                    isLive={u.isLive}
-                    liveViewersCount={u.isLive ? u.liveViewersCount : undefined}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1 min-w-0">
-                      <UsernameDisplay
-                        as="p"
-                        username={u.username}
-                        usernameColor={u.usernameColor}
-                        usernameWaveFrom={u.usernameWaveFrom}
-                        usernameWaveTo={u.usernameWaveTo}
-                        className="text-xs font-semibold truncate min-w-0"
-                      />
-                      {u.isLive && (
-                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-600 text-white uppercase tracking-wide shrink-0">
-                          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                          LIVE
-                        </span>
-                      )}
-                      {!u.isLive && u.salonId && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-800/80 text-purple-200 uppercase tracking-wide shrink-0">
-                          SALON
-                        </span>
-                      )}
-                    </div>
-                    {u.city && <p className="text-[9px] text-gray-500 truncate">📍 {u.city}</p>}
+          {loading && results.length === 0 ? (
+            <li>
+              <SearchInlineSpinner label={t('profileSearch.searching')} />
+            </li>
+          ) : null}
+          {showEmpty ? (
+            <li className="px-3 py-2 text-xs text-gray-500">{t('profileSearch.noResults')}</li>
+          ) : null}
+          {results.map((u, i) => (
+            <li key={u.id} role="option" aria-selected={i === activeIndex}>
+              <button
+                type="button"
+                onClick={() => pick(u)}
+                className={`w-full flex items-center gap-2 px-2 py-1.5 text-left hover:bg-purple-900/30 ${
+                  i === activeIndex ? 'bg-purple-900/40' : ''
+                }`}
+              >
+                <UserAvatarOnline
+                  userId={u.id}
+                  avatarUrl={u.avatarUrl}
+                  size="sm"
+                  isLive={u.isLive}
+                  liveViewersCount={u.isLive ? u.liveViewersCount : undefined}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1 min-w-0">
+                    <UsernameDisplay
+                      as="p"
+                      username={u.username}
+                      usernameColor={u.usernameColor}
+                      usernameWaveFrom={u.usernameWaveFrom}
+                      usernameWaveTo={u.usernameWaveTo}
+                      className="text-xs font-semibold truncate min-w-0"
+                    />
+                    {u.isLive && (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-600 text-white uppercase tracking-wide shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                        LIVE
+                      </span>
+                    )}
+                    {!u.isLive && u.salonId && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-800/80 text-purple-200 uppercase tracking-wide shrink-0">
+                        SALON
+                      </span>
+                    )}
                   </div>
-                </button>
-              </li>
-            ))}
+                  {u.city && <p className="text-[9px] text-gray-500 truncate">📍 {u.city}</p>}
+                </div>
+              </button>
+            </li>
+          ))}
         </ul>
       )}
     </div>

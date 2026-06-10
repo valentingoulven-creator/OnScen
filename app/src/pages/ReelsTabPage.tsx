@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePauseMediaOnPageHidden } from '../hooks/usePauseMediaOnPageHidden';
 import { REELS_DEMO_VIDEO_COUNT, type MusicReel } from '../content/reels';
@@ -249,9 +249,10 @@ export function ReelsTabPage({
   const [feedLoading, setFeedLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const deferredSearchQuery = useDeferredValue(debouncedSearchQuery);
   const reels = useMemo(
-    () => filterReelsBySearch(feedReels, debouncedSearchQuery),
-    [feedReels, debouncedSearchQuery]
+    () => filterReelsBySearch(feedReels, deferredSearchQuery),
+    [feedReels, deferredSearchQuery]
   );
   const scrollRef = useRef<HTMLDivElement>(null);
   const videoRefsById = useRef(new Map<string, HTMLVideoElement>());
@@ -289,11 +290,11 @@ export function ReelsTabPage({
   const [algoSheetOpen, setAlgoSheetOpen] = useState(false);
 
   const activeReel = reels[activeIndex];
-  const searchActive = debouncedSearchQuery.trim().length > 0;
+  const searchActive = deferredSearchQuery.trim().length > 0;
   const searchEmpty = searchActive && !feedLoading && reels.length === 0;
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setDebouncedSearchQuery(searchQuery), 280);
+    const timer = window.setTimeout(() => setDebouncedSearchQuery(searchQuery), 300);
     return () => window.clearTimeout(timer);
   }, [searchQuery]);
 
@@ -302,7 +303,7 @@ export function ReelsTabPage({
     activeIndexRef.current = 0;
     const el = scrollRef.current;
     if (el) el.scrollTo({ top: 0, behavior: 'auto' });
-  }, [debouncedSearchQuery]);
+  }, [deferredSearchQuery]);
 
   useEffect(() => {
     activeIndexRef.current = activeIndex;
@@ -1002,7 +1003,7 @@ export function ReelsTabPage({
           {searchEmpty && (
             <div className="pointer-events-none absolute inset-0 z-[15] flex items-center justify-center px-8">
               <p className="rounded-2xl bg-black/70 border border-purple-500/30 px-5 py-4 text-center text-sm text-gray-200 backdrop-blur-md shadow-xl">
-                {t('reels.searchNoResults', { query: debouncedSearchQuery.trim() })}
+                {t('reels.searchNoResults', { query: deferredSearchQuery.trim() })}
               </p>
             </div>
           )}

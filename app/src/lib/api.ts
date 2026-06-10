@@ -279,10 +279,10 @@ export const api = {
       token
     ),
 
-  searchSpotify: (token: string, query: string) =>
+  searchSpotify: (token: string, query: string, signal?: AbortSignal) =>
     request<{ results: import('../types').SpotifySearchResult[] }>(
       `/salons/spotify-search?q=${encodeURIComponent(query)}`,
-      {},
+      { signal },
       token
     ),
 
@@ -826,10 +826,10 @@ export const api = {
   getUserProfile: (token: string, userId: string) =>
     request<{ user: import('../types').User }>(`/auth/profile/${userId}`, {}, token),
 
-  searchUsers: (token: string, query: string) =>
+  searchUsers: (token: string, query: string, signal?: AbortSignal) =>
     request<{ users: import('../types').UserSearchHit[] }>(
       `/users/search?q=${encodeURIComponent(query)}`,
-      {},
+      { signal },
       token
     ),
 

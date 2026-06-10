@@ -217,6 +217,13 @@
     "adminPanel": "Admin panel",
     "adminPanelHint": "Accounts, access, analytics"
   },
+  "profileSearch": {
+    "placeholder": "Search for a profile…",
+    "label": "Search profiles",
+    "clear": "Clear search",
+    "searching": "Searching…",
+    "noResults": "No profiles found"
+  },
   "admin": {
     "title": "Administration",
     "tabs": {

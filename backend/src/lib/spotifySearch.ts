@@ -72,7 +72,7 @@ async function fetchSpotifySearch(
   });
   const res = await fetch(`https://api.spotify.com/v1/search?${params}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(6000),
   });
 
   if (!res.ok) {

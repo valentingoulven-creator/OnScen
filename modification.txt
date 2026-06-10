@@ -5884,3 +5884,43 @@ Spotify Web API (token OAuth hôte), sans Web Playback SDK.
 ================================================================================
 Fin MODIF 401 - 2026-06-10
 ================================================================================
+
+================================================================================
+MODIF 402 — Fluidité recherche (Spotify salon, profil, reels)
+================================================================================
+Date : 2026-06-10
+
+## Problème
+Recherche Spotify salon (SalonSpotifySearch, CreateSalonSpotifyPicker) peu
+fluide : spinner bloquant à chaque frappe, résultats effacés avant debounce,
+requêtes obsolètes non annulées, pas de cache session. ProfileSearchBar et
+filtre reels : patterns similaires ou re-renders coûteux.
+
+## Optimisations
+- Hook partagé `useDebouncedApiSearch` : debounce 350 ms, min 2 caractères,
+  AbortController (annule requêtes périmées), cache session (64 entrées),
+  stale-while-revalidate (garde les résultats pendant le chargement).
+- `searchSessionCache.ts` : cache client par namespace + requête normalisée.
+- API `searchSpotify` / `searchUsers` : support `AbortSignal` optionnel.
+- Composants Spotify : `SpotifySearchResultRow` (memo), spinner inline dans
+  l'input (non bloquant), liste visible pendant fetch.
+- ProfileSearchBar : hook + i18n `profileSearch.*` (fr/en).
+- ReelsTabPage : debounce 300 ms + `useDeferredValue` pour filtrer sans jank.
+- Backend `spotifySearch.ts` : timeout Spotify API 6 s (au lieu de 10 s).
+
+## Fichiers modifiés
+- app/src/hooks/useDebouncedApiSearch.ts (nouveau)
+- app/src/lib/searchSessionCache.ts (nouveau)
+- app/src/components/SearchInlineSpinner.tsx (nouveau)
+- app/src/components/SpotifySearchResultRow.tsx (nouveau)
+- app/src/components/SalonSpotifySearch.tsx
+- app/src/components/CreateSalonSpotifyPicker.tsx
+- app/src/components/ProfileSearchBar.tsx
+- app/src/pages/ReelsTabPage.tsx
+- app/src/lib/api.ts
+- app/src/locales/fr.json, app/src/locales/en.json
+- backend/src/lib/spotifySearch.ts
+
+================================================================================
+Fin MODIF 402 - 2026-06-10
+================================================================================
