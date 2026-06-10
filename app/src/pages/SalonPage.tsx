@@ -23,6 +23,7 @@ import { SalonSpotifyPlaylist } from '../components/SalonSpotifyPlaylist';
 import { SalonQueueSection } from '../components/SalonQueueSection';
 import { SalonProposalsSection } from '../components/SalonProposalsSection';
 import { SalonSpotifyJamButton } from '../components/SalonSpotifyJamButton';
+import { SalonInviteLinkCopy } from '../components/SalonInviteLinkCopy';
 import { useSalonQueueSync } from '../hooks/useSalonQueueSync';
 
 import { formatSalonAudienceLabel } from '../lib/salonAudience';
