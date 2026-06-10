@@ -61,9 +61,19 @@ accessRouter.get('/admin/overview', authenticateJWT, (req: Request, res: Respons
 accessRouter.get('/admin/users', authenticateJWT, (req: Request, res: Response) => {
   if (!requireAdmin(req, res)) return;
   const status = String(req.query.status || 'all') as AccountStatus | 'all';
+  const q = String(req.query.q || '')
+    .trim()
+    .toLowerCase();
   const users = [...db.users.values()]
     .filter((u) => !u.email.endsWith('@bot.local'))
     .filter((u) => status === 'all' || getAccountStatus(u) === status)
+    .filter(
+      (u) =>
+        !q ||
+        u.username.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q) ||
+        (u.city?.toLowerCase().includes(q) ?? false)
+    )
     .map((u) => ({
       id: u.id,
       username: u.username,
@@ -72,9 +82,14 @@ accessRouter.get('/admin/users', authenticateJWT, (req: Request, res: Response) 
       isAdmin: isAccessAdmin(u),
       memberSince: u.memberSince,
       lastSeenAt: u.lastSeenAt,
+      profileType: u.profileType,
+      city: u.city,
+      meloCoins: u.meloCoins,
+      listeningRole: u.listeningRole,
+      bioPreview: u.bio?.trim().slice(0, 120),
     }))
     .sort((a, b) => (b.lastSeenAt ?? 0) - (a.lastSeenAt ?? 0));
-  res.json({ users });
+  res.json({ users, total: users.length });
 });
 
 accessRouter.patch('/admin/policy', authenticateJWT, (req: Request, res: Response) => {

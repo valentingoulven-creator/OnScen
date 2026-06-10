@@ -132,10 +132,19 @@ export const api = {
       inviteCodes: import('../types').AccessInviteCode[];
     }>('/access/admin/overview', {}, token),
 
-  getAccessAdminUsers: (token: string, status: 'all' | 'active' | 'pending' | 'blocked') =>
+  getAccessAdminUsers: (
+    token: string,
+    status: 'all' | 'active' | 'pending' | 'blocked',
+    q?: string
+  ) =>
     request<{
       users: import('../types').AccessManagedUser[];
-    }>(`/access/admin/users?status=${status}`, {}, token),
+      total: number;
+    }>(
+      `/access/admin/users?status=${status}${q ? `&q=${encodeURIComponent(q)}` : ''}`,
+      {},
+      token
+    ),
 
   patchAccessPolicy: (token: string, registrationMode: string) =>
     request<{ policy: { registrationMode: string }; config: import('../types').PublicAccessConfig }>(

@@ -94,7 +94,7 @@ function ChartCard({
   );
 }
 
-export function AnalyticsPage({ onBack }: { onBack?: () => void }) {
+export function AnalyticsPage({ onBack, embedded = false }: { onBack?: () => void; embedded?: boolean }) {
   const { token } = useAuth();
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -118,32 +118,48 @@ export function AnalyticsPage({ onBack }: { onBack?: () => void }) {
   }, [token]);
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-[#0b0b0f]">
-      <header className="shrink-0 flex items-center gap-3 p-4 border-b border-[#1e1e2f] bg-[#0e0e14]">
-        {onBack && (
+    <div className={`flex flex-col ${embedded ? '' : 'h-full min-h-0'} bg-[#0b0b0f]`}>
+      {!embedded && (
+        <header className="shrink-0 flex items-center gap-3 p-4 border-b border-[#1e1e2f] bg-[#0e0e14]">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="text-gray-400 hover:text-white text-xl shrink-0"
+            >
+              ←
+            </button>
+          )}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg font-bold text-white">Analytics</h1>
+            <p className="text-xs text-gray-500">Tableau de bord — msdev</p>
+          </div>
           <button
             type="button"
-            onClick={onBack}
-            className="text-gray-400 hover:text-white text-xl shrink-0"
+            onClick={load}
+            disabled={loading}
+            className="px-3 py-1.5 text-xs border border-[#2d2d3d] text-gray-400 hover:text-white rounded-full disabled:opacity-50"
           >
-            ←
+            {loading ? '...' : '↻ Actualiser'}
           </button>
-        )}
-        <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-bold text-white">Analytics</h1>
-          <p className="text-xs text-gray-500">Tableau de bord — msdev</p>
-        </div>
-        <button
-          type="button"
-          onClick={load}
-          disabled={loading}
-          className="px-3 py-1.5 text-xs border border-[#2d2d3d] text-gray-400 hover:text-white rounded-full disabled:opacity-50"
-        >
-          {loading ? '...' : '↻ Actualiser'}
-        </button>
-      </header>
+        </header>
+      )}
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-6">
+      {embedded && (
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-xs text-gray-500">Tableau de bord — msdev</p>
+          <button
+            type="button"
+            onClick={load}
+            disabled={loading}
+            className="px-3 py-1.5 text-xs border border-[#2d2d3d] text-gray-400 hover:text-white rounded-full disabled:opacity-50"
+          >
+            {loading ? '...' : '↻'}
+          </button>
+        </div>
+      )}
+
+      <div className={`${embedded ? '' : 'flex-1 min-h-0 overflow-y-auto'} p-4 space-y-6`}>
         {error && (
           <div className="bg-red-900/20 border border-red-500/30 rounded-xl px-4 py-3 text-sm text-red-300">
             {error}

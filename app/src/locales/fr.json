@@ -173,7 +173,54 @@
     "account": "Compte",
     "premium": "Abonnement Soundy+",
     "premiumSoon": "Bientôt disponible",
-    "contactSupport": "Contacter le support"
+    "contactSupport": "Contacter le support",
+    "adminSection": "Administration",
+    "adminPanel": "Espace administrateur",
+    "adminPanelHint": "Comptes, accès, analytics"
+  },
+  "admin": {
+    "title": "Administration",
+    "tabs": {
+      "accounts": "Comptes",
+      "access": "Accès",
+      "analytics": "Analytics"
+    },
+    "accounts": {
+      "searchPlaceholder": "Rechercher pseudo, e-mail ou ville…",
+      "filterAll": "Tous",
+      "filterPending": "En attente",
+      "filterActive": "Actifs",
+      "filterBlocked": "Suspendus",
+      "noResults": "Aucun compte ne correspond.",
+      "memberSince": "Membre depuis {{date}}",
+      "lastSeen": "Vu le {{date}}",
+      "meloCoins": "{{count}} Soundy Coins",
+      "approve": "Approuver",
+      "block": "Suspendre",
+      "unblock": "Réactiver",
+      "blockConfirm": "Suspendre ce compte ? L'utilisateur ne pourra plus se connecter.",
+      "statusActive": "Actif",
+      "statusPending": "En attente",
+      "statusBlocked": "Suspendu",
+      "adminBadge": "Admin",
+      "counts": "{{total}} compte(s)"
+    },
+    "access": {
+      "title": "Gestion des accès",
+      "tunnelTitle": "Sécurité tunnel public",
+      "tunnelEnabled": "Contrôle d'accès actif (ngrok / Internet). Seuls les comptes validés peuvent utiliser l'application.",
+      "tunnelDisabled": "Contrôle d'accès désactivé (usage local uniquement).",
+      "registrations": "Inscriptions",
+      "registrationsHint": "Choisissez qui peut créer un compte via l'URL publique.",
+      "invites": "Codes d'invitation",
+      "inviteLabel": "Libellé (optionnel)",
+      "generateCode": "Générer un code",
+      "noInvites": "Aucun code pour l'instant.",
+      "modeOpen": "Ouvertes (tout le monde)",
+      "modeInviteOnly": "Sur invitation uniquement",
+      "modeAdminApproval": "Validation administrateur",
+      "modeClosed": "Fermées"
+    }
   },
   "share": {
     "title": "Partager",

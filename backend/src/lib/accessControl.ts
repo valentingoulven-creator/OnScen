@@ -101,11 +101,22 @@ function parseAdminEmails(): Set<string> {
   return new Set(list);
 }
 
+function parseAdminUsernames(): Set<string> {
+  const raw = process.env.ACCESS_ADMIN_USERNAMES?.trim();
+  const defaults = ['soundy_dev'];
+  const list = raw
+    ? raw.split(/[,;]/).map((u) => u.trim().toLowerCase()).filter(Boolean)
+    : defaults;
+  return new Set(list);
+}
+
 const adminEmails = parseAdminEmails();
+const adminUsernames = parseAdminUsernames();
 
 export function isAccessAdmin(user: User | undefined): boolean {
   if (!user) return false;
   if (user.isAdmin === true) return true;
+  if (adminUsernames.has(user.username.trim().toLowerCase())) return true;
   return adminEmails.has(user.email.trim().toLowerCase());
 }
 

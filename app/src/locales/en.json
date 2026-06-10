@@ -173,7 +173,54 @@
     "account": "Account",
     "premium": "Soundy+ subscription",
     "premiumSoon": "Coming soon",
-    "contactSupport": "Contact support"
+    "contactSupport": "Contact support",
+    "adminSection": "Administration",
+    "adminPanel": "Admin panel",
+    "adminPanelHint": "Accounts, access, analytics"
+  },
+  "admin": {
+    "title": "Administration",
+    "tabs": {
+      "accounts": "Accounts",
+      "access": "Access",
+      "analytics": "Analytics"
+    },
+    "accounts": {
+      "searchPlaceholder": "Search username, email or city…",
+      "filterAll": "All",
+      "filterPending": "Pending",
+      "filterActive": "Active",
+      "filterBlocked": "Blocked",
+      "noResults": "No matching accounts.",
+      "memberSince": "Member since {{date}}",
+      "lastSeen": "Last seen {{date}}",
+      "meloCoins": "{{count}} Soundy Coins",
+      "approve": "Approve",
+      "block": "Suspend",
+      "unblock": "Reactivate",
+      "blockConfirm": "Suspend this account? The user will no longer be able to sign in.",
+      "statusActive": "Active",
+      "statusPending": "Pending",
+      "statusBlocked": "Suspended",
+      "adminBadge": "Admin",
+      "counts": "{{total}} account(s)"
+    },
+    "access": {
+      "title": "Access management",
+      "tunnelTitle": "Public tunnel security",
+      "tunnelEnabled": "Access control active (ngrok / Internet). Only approved accounts can use the app.",
+      "tunnelDisabled": "Access control disabled (local use only).",
+      "registrations": "Registrations",
+      "registrationsHint": "Choose who can create an account via the public URL.",
+      "invites": "Invite codes",
+      "inviteLabel": "Label (optional)",
+      "generateCode": "Generate code",
+      "noInvites": "No codes yet.",
+      "modeOpen": "Open (everyone)",
+      "modeInviteOnly": "Invite only",
+      "modeAdminApproval": "Admin approval",
+      "modeClosed": "Closed"
+    }
   },
   "share": {
     "title": "Share",

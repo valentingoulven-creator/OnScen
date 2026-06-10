@@ -29,8 +29,7 @@ import {
   ProfilePhotoViewer,
 } from '../components/ProfilePhotoViewer';
 import { SettingsPage, SettingsGearButton } from './SettingsPage';
-import { AnalyticsPage } from './AnalyticsPage';
-import { AccessManagementPage } from './AccessManagementPage';
+import { AdminPage } from './AdminPage';
 import { SupportMeloSongTeaser } from '../components/SupportMeloSongSection';
 import { DonationSheet } from '../components/DonationSheet';
 import { ProfileReelRecorder } from '../components/ProfileReelRecorder';
@@ -108,8 +107,7 @@ export function ProfilePage({
   const [reelsRefreshKey, setReelsRefreshKey] = useState(0);
   const [editing, setEditing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showAnalytics, setShowAnalytics] = useState(false);
-  const [showAccessManagement, setShowAccessManagement] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
   const [showFavoritesSheet, setShowFavoritesSheet] = useState(false);
   const [showDonationSheet, setShowDonationSheet] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -262,20 +260,22 @@ export function ProfilePage({
 
   if (!user || !token) return null;
 
-  if (showAccessManagement) {
-    return <AccessManagementPage onBack={() => setShowAccessManagement(false)} />;
-  }
-
-  if (showAnalytics) {
-    return <AnalyticsPage onBack={() => setShowAnalytics(false)} />;
+  if (showAdmin) {
+    return <AdminPage onBack={() => setShowAdmin(false)} />;
   }
 
   if (showSettings) {
     return (
       <SettingsPage
         onBack={() => setShowSettings(false)}
-        onOpenAnalytics={user.isAdmin ? () => { setShowSettings(false); setShowAnalytics(true); } : undefined}
-        onOpenAccessManagement={user.isAdmin ? () => { setShowSettings(false); setShowAccessManagement(true); } : undefined}
+        onOpenAdmin={
+          user.isAdmin
+            ? () => {
+                setShowSettings(false);
+                setShowAdmin(true);
+              }
+            : undefined
+        }
       />
     );
   }

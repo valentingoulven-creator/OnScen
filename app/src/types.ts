@@ -36,6 +36,11 @@ export interface AccessManagedUser {
   isAdmin: boolean;
   memberSince?: number;
   lastSeenAt: number;
+  profileType?: ProfileType;
+  city?: string;
+  meloCoins?: number;
+  listeningRole?: ListeningRole;
+  bioPreview?: string;
 }
 
 export type ListeningRole = 'auditeur' | 'host' | 'les_deux';

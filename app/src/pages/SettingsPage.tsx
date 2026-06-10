@@ -63,7 +63,10 @@ function PasswordStrengthBar({ password }: { password: string }) {
 
 interface SettingsPageProps {
   onBack: () => void;
+  onOpenAdmin?: () => void;
+  /** @deprecated Use onOpenAdmin */
   onOpenAnalytics?: () => void;
+  /** @deprecated Use onOpenAdmin */
   onOpenAccessManagement?: () => void;
 }
 
@@ -127,7 +130,7 @@ function SettingsRow({
   );
 }
 
-export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }: SettingsPageProps) {
+export function SettingsPage({ onBack, onOpenAdmin, onOpenAnalytics, onOpenAccessManagement }: SettingsPageProps) {
   const { t } = useTranslation();
   const { token, logout } = useAuth();
   const [language, setLanguage] = useState<AppLanguage>(getAppLanguage);
@@ -450,19 +453,26 @@ export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }
           />
         </section>
 
-        {(onOpenAnalytics || onOpenAccessManagement) && (
+        {(onOpenAdmin || onOpenAnalytics || onOpenAccessManagement) && (
           <section className="border-t border-[#1e1e2f] mt-4">
             <p className="px-4 pt-5 pb-1 text-[10px] font-semibold text-gray-600 uppercase tracking-wider">
-              Développeur
+              {t('settings.adminSection')}
             </p>
-            {onOpenAccessManagement && (
+            {onOpenAdmin && (
+              <SettingsRow
+                label={t('settings.adminPanel')}
+                hint={t('settings.adminPanelHint')}
+                onClick={onOpenAdmin}
+              />
+            )}
+            {!onOpenAdmin && onOpenAccessManagement && (
               <SettingsRow
                 label="Gestion des accès"
                 hint="Approuver, suspendre, codes d’invitation (tunnel ngrok)"
                 onClick={onOpenAccessManagement}
               />
             )}
-            {onOpenAnalytics && (
+            {!onOpenAdmin && onOpenAnalytics && (
               <SettingsRow
                 label="Analytics"
                 hint="Statistiques d'utilisation (msdev)"

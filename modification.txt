@@ -5098,3 +5098,104 @@ Date : 2026-06-10
 ================================================================================
 Fin MODIF 382 - 2026-06-10
 ================================================================================
+
+================================================================================
+MODIF 383 — Espace administrateur unifié (soundy_dev super-admin)
+================================================================================
+Date : 2026-06-10
+
+## Contexte
+Infrastructure admin partielle existante : routes `/access/admin/*`, page
+AccessManagementPage (Profil → Paramètres → Développeur), flag `isAdmin` +
+emails `ACCESS_ADMIN_EMAILS`.
+
+## Changements
+- **Backend** : `soundy_dev` super-admin par pseudo (`ACCESS_ADMIN_USERNAMES`,
+  défaut `soundy_dev`) ; recherche `?q=` sur GET `/access/admin/users` ;
+  résumé profil enrichi (ville, type, coins, bio).
+- **Frontend** : page `AdminPage` à onglets Comptes / Accès / Analytics ;
+  recherche et filtres comptes ; entrée unique Paramètres → Administration.
+- **i18n** : clés `admin.*` et `settings.admin*` (fr/en).
+
+## Accès admin (soundy_dev)
+1. Se connecter avec le compte `soundy_dev`.
+2. Profil → ⚙ Paramètres → section **Administration** → **Espace administrateur**.
+3. Droits : `isAdmin=true` persisté au boot via `ensureAccessAdmins()`, ou
+   pseudo listé dans `ACCESS_ADMIN_USERNAMES` (défaut inclut soundy_dev).
+
+## Fichiers modifiés
+  backend/src/lib/accessControl.ts
+  backend/src/routes/access.ts
+  backend/.env.production.example
+  msdev/.env.example
+  app/src/pages/AdminPage.tsx (nouveau)
+  app/src/pages/AdminAccountsTab.tsx (nouveau)
+  app/src/pages/AdminAccessTab.tsx (nouveau)
+  app/src/pages/AccessManagementPage.tsx
+  app/src/pages/AnalyticsPage.tsx
+  app/src/pages/ProfilePage.tsx
+  app/src/pages/SettingsPage.tsx
+  app/src/lib/api.ts
+  app/src/types.ts
+  app/src/locales/fr.json
+  app/src/locales/en.json
+  modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npx tsc --noEmit
+
+================================================================================
+Fin MODIF 383 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 384 - Réinitialisation mot de passe compte prod (procédure ops)
+================================================================================
+Date : 2026-06-10
+
+## Contexte
+Réinitialisation manuelle du mot de passe du compte admin soundy_dev sur la
+production (VPS getsoundy.com). Aucun script dédié dans le dépôt ; hachage
+aligné sur l’API auth.
+
+## Hachage (codebase)
+- Bibliothèque : cryptjs (pas bcrypt natif).
+- Routes : ackend/src/routes/auth.ts — crypt.hash(password, 10) à
+  l’inscription / changement de mot de passe ; crypt.compare au login.
+- Modèle : passwordHash sur l’objet utilisateur (ackend/src/models/schema.ts).
+- PostgreSQL prod : table users, colonne payload (JSONB) contient l’objet
+  utilisateur complet, dont passwordHash (pas de colonne password_hash).
+
+## Connexion applicative
+- POST /api/auth/login avec **email** + mot de passe (pas le pseudo seul).
+- Compte soundy_dev : email colonne users.email = dev@soundy.local.
+
+## Procédure VPS (51.159.164.100, app /opt/soundly)
+1. **Arrêter** le backend PM2 (pm2 stop melosong-backend) avant toute mise à
+   jour SQL : la boucle de persistance (startPersistLoop) peut réécrire
+   users.payload depuis la mémoire et annuler un UPDATE manuel.
+2. Lire DATABASE_URL depuis /opt/soundly/.env (ne pas committer ; accès SSH
+   root déjà utilisé pour le déploiement).
+3. Script Node one-shot **sur le VPS** (cwd /opt/soundly pour pg /
+   cryptjs) :
+   - SELECT id, email, username, payload WHERE username = soundy_dev.
+   - crypt.hash(nouveauMotDePasse, 10) ; fusionner dans payload ;
+     UPDATE users SET payload = ::jsonb WHERE id = .
+4. Vérifier : crypt.compare sur le hash relu en base ; optionnel POST
+   http://127.0.0.1:$PORT/api/auth/login depuis le VPS.
+5. pm2 start melosong-backend (ou estart) pour recharger le store PostgreSQL.
+6. Supprimer les scripts temporaires sous /opt/soundly ; ne pas laisser de
+   mot de passe en clair sur le serveur.
+
+## Sécurité / git
+- Ne pas committer .env, DATABASE_URL, ni le mot de passe en clair.
+- Ne pas documenter le mot de passe choisi dans modification.txt (remise en
+  main propre hors dépôt).
+
+## Fichiers modifiés
+  modification.txt
+
+================================================================================
+Fin MODIF 384 - 2026-06-10
+================================================================================
