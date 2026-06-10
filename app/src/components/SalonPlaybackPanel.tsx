@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api';
 import { useSalonPlaybackSync } from '../hooks/useSalonPlaybackSync';
 import {
@@ -10,6 +11,7 @@ import {
 import { OpenOnYoutubeButton } from './OpenOnYoutubeButton';
 import { SalonYouTubePlayer } from './SalonYouTubePlayer';
 import { SalonYouTubeSearch } from './SalonYouTubeSearch';
+import { SalonSpotifySearch } from './SalonSpotifySearch';
 import { SalonYouTubePlaylist } from './SalonYouTubePlaylist';
 import { SalonQueueSection } from './SalonQueueSection';
 import { SalonProposalsSection } from './SalonProposalsSection';
@@ -91,6 +93,7 @@ export function SalonPlaybackPanel({
   playbackActive = true,
   onMapInlineListenCapReached,
 }: SalonPlaybackPanelProps) {
+  const { t } = useTranslation();
   const hostLinked = isHost && isPlatformConnected(userPlatforms, salon.platform);
 
   const [participantPlatform, setParticipantPlatform] = useState<MusicPlatform>(() =>
@@ -643,6 +646,17 @@ export function SalonPlaybackPanel({
           </div>
         </div>
 
+        {salon.platform === 'spotify' && (
+          <p className="text-[10px] text-green-400/80 leading-snug border border-green-500/20 bg-green-500/5 rounded-lg px-2.5 py-2">
+            {isHost && hostLinked ? t('salon.playbackMode.spotifyHostHint') : t('salon.playbackMode.spotifyParticipantHint')}
+          </p>
+        )}
+        {salon.platform === 'youtube' && (
+          <p className="text-[10px] text-red-400/80 leading-snug border border-red-500/20 bg-red-500/5 rounded-lg px-2.5 py-2">
+            {t('salon.playbackMode.youtubeSyncBanner')}
+          </p>
+        )}
+
         <div className="flex items-center gap-4">
           <p className="text-3xl font-mono tabular-nums text-white tracking-tight">
             {formatPlaybackTime(displayPositionMs)}
@@ -777,6 +791,21 @@ export function SalonPlaybackPanel({
               token={token}
               onTrackChanged={applyPlaybackState}
               onQueueChanged={onQueueChange}
+            />
+          </div>
+        </>
+      )}
+
+      {!mapInline && isHost && hostLinked && salon.platform === 'spotify' && token && (
+        <>
+          <SectionDivider />
+          <div className="p-4">
+            <SalonSpotifySearch
+              salonId={salon.id}
+              token={token}
+              currentTitle={playbackState.title}
+              currentArtist={playbackState.artist}
+              onTrackChanged={applyPlaybackState}
             />
           </div>
         </>
@@ -951,8 +980,8 @@ export function SalonPlaybackPanel({
             {participantPlatform === 'spotify' && (
               <p className="text-[10px] text-gray-600 text-center leading-snug">
                 {salon.platform === 'spotify'
-                  ? 'Ouvrez Spotify au bon morceau et alignez-vous sur le chrono.'
-                  : 'Spotify ne se lit pas dans le navigateur — utilisez YouTube pour écouter ensemble.'}
+                  ? t('salon.playbackMode.spotifyAlignHint')
+                  : t('salon.playbackMode.spotifyCrossPlatformHint')}
               </p>
             )}
           </div>

@@ -141,7 +141,7 @@ function liveFromNearbyPerson(person: NearbyPerson, liveId: string): Live | null
 interface HomePageProps {
   appLayout?: AppLayoutId;
   /** Ouvre la page plein écran du salon (bouton Salon de la fiche carte). */
-  onOpenSalon?: (salonId: string) => void;
+  onOpenSalon?: (salonId: string, salonTitle?: string) => void;
   onOpenLive: (liveId: string) => void;
   onOpenLiveTab?: () => void;
   onOpenProfile: (person: NearbyPerson) => void;
@@ -153,9 +153,15 @@ interface HomePageProps {
   onCloseMapProfile?: () => void;
   /** Onglet Carte visible : autorise l'audio du bottom sheet salon. */
   mapPlaybackActive?: boolean;
+  /** Onglet Carte actif (pas d'overlay profil) : requêtes nearby / intervalles. */
+  isActive?: boolean;
   /** Réouvre la fiche salon carte après réduction du grand salon. */
   restoreSalonId?: string | null;
   onSalonMapRestored?: () => void;
+  /** Salon sélectionné sur la fiche carte (petit salon actif). */
+  onMapSalonActive?: (session: { id: string; title?: string } | null) => void;
+  /** Fermeture explicite du salon (fiche carte ou accès refusé). */
+  onSalonSessionEnd?: () => void;
 }
 
 export function HomePage({
@@ -168,8 +174,11 @@ export function HomePage({
   mapProfileOpen = false,
   onCloseMapProfile,
   mapPlaybackActive = true,
+  isActive = true,
   restoreSalonId,
   onSalonMapRestored,
+  onMapSalonActive,
+  onSalonSessionEnd,
 }: HomePageProps) {
   const { t } = useTranslation();
   const appa2 = isAppa2Layout(appLayout);
@@ -287,15 +296,15 @@ export function HomePage({
   }, []);
 
   useEffect(() => {
-    if (!token) {
-      setFavoriteIds(new Set());
+    if (!isActive || !token) {
+      if (!token) setFavoriteIds(new Set());
       return;
     }
     api
       .getMyFavorites(token)
       .then((r) => setFavoriteIds(new Set(r.favorites.map((f) => f.id))))
       .catch(() => setFavoriteIds(new Set()));
-  }, [token]);
+  }, [isActive, token]);
 
   const viewerTastes = useMemo(
     () => ({
@@ -329,6 +338,18 @@ export function HomePage({
       requestAppMediaFocus('salon');
     }
   }, [selected?.id, mapPlaybackActive]);
+
+  useEffect(() => {
+    if (selected) {
+      onMapSalonActive?.({ id: selected.id, title: selected.title });
+    } else {
+      onMapSalonActive?.(null);
+    }
+  }, [selected?.id, selected?.title, onMapSalonActive]);
+
+  useEffect(() => {
+    return () => onMapSalonActive?.(null);
+  }, [onMapSalonActive]);
 
   const filteredNearbyPeople = useMemo(() => {
     const filtered = filterNearbyPeople(nearbyPeople, nearbyPanelPrefs, viewerTastes);
@@ -670,7 +691,7 @@ export function HomePage({
   }, [toggleEventsFilter]);
 
   useEffect(() => {
-    if (!showEventMarkers || !token) {
+    if (!isActive || !showEventMarkers || !token) {
       if (!showEventMarkers) setMapEvents([]);
       return;
     }
@@ -695,7 +716,7 @@ export function HomePage({
     return () => {
       cancelled = true;
     };
-  }, [showEventMarkers, token, mapEventsRefreshKey]);
+  }, [isActive, showEventMarkers, token, mapEventsRefreshKey]);
 
   const handleGlobeZoomToFlat = useCallback(
     (
@@ -813,7 +834,7 @@ export function HomePage({
   }, [loadNearbyAt]);
 
   useEffect(() => {
-    if (!token) return;
+    if (!isActive || !token) return;
 
     const geo = getLivesGeo();
     const { locationSharing } = getPrivacyPreferences();
@@ -889,9 +910,10 @@ export function HomePage({
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [token]);
+  }, [isActive, token]);
 
   useEffect(() => {
+    if (!isActive) return;
     const onMapGeo = () => {
       const geo = getLivesGeo();
       if (isFixedMapGeoSource(geo.source)) {
@@ -923,9 +945,10 @@ export function HomePage({
     };
     window.addEventListener(MAP_GEO_CHANGED_EVENT, onMapGeo);
     return () => window.removeEventListener(MAP_GEO_CHANGED_EVENT, onMapGeo);
-  }, [token]);
+  }, [isActive, token]);
 
   useEffect(() => {
+    if (!isActive) return;
     const reloadFromPrefs = () => {
       loadNearbyFromStateDebounced(userPosition, center);
     };
@@ -935,7 +958,7 @@ export function HomePage({
       window.removeEventListener(SETTINGS_CHANGED_EVENT, reloadFromPrefs);
       window.removeEventListener(NEARBY_PANEL_CHANGED_EVENT, reloadFromPrefs);
     };
-  }, [token, userPosition, center, loadNearbyFromStateDebounced]);
+  }, [isActive, token, userPosition, center, loadNearbyFromStateDebounced]);
 
   /** Ignore bounds-driven nearby reloads pendant flyTo programmé (center prop). */
   const programmaticMapMoveUntilRef = useRef(0);
@@ -990,7 +1013,7 @@ export function HomePage({
 
   /** Filtre Lives ON : recharger nearby dès que le centre requête est connu (flat ou globe). */
   useEffect(() => {
-    if (!livesFilterOn || !token || !pendingLivesNearbyReloadRef.current) return;
+    if (!isActive || !livesFilterOn || !token || !pendingLivesNearbyReloadRef.current) return;
     const queryCenter = resolveLivesNearbyQueryCenter();
     if (!queryCenter) return;
     pendingLivesNearbyReloadRef.current = false;
@@ -998,11 +1021,11 @@ export function HomePage({
     if (mapDetailState.mapStyle === 'globe') {
       lastGlobeNearbyRef.current = { lat: queryCenter[0], lon: queryCenter[1] };
     }
-  }, [livesFilterOn, mapDetailState, token, loadNearbyAt, resolveLivesNearbyQueryCenter]);
+  }, [isActive, livesFilterOn, mapDetailState, token, loadNearbyAt, resolveLivesNearbyQueryCenter]);
 
   /** Filtre Lives : recharger nearby au centre viewport (carte plate, sans updateGeo). */
   useEffect(() => {
-    if (!livesFilterOn || !token) return;
+    if (!isActive || !livesFilterOn || !token) return;
     if (mapDetailState.mapStyle !== 'flat' || !mapDetailState.bounds) return;
     if (pendingLivesNearbyReloadRef.current) return;
     if (Date.now() < programmaticMapMoveUntilRef.current) return;
@@ -1024,7 +1047,7 @@ export function HomePage({
     }
 
     loadNearbyViewportDebounced(viewportCenter);
-  }, [livesFilterOn, mapDetailState, token, loadNearbyViewportDebounced]);
+  }, [isActive, livesFilterOn, mapDetailState, token, loadNearbyViewportDebounced]);
 
   /** Filtre Lives + globe : recharger nearby quand l'utilisateur tourne/zoom le globe (zoom ville). */
   const handleGlobePovChange = useCallback(
@@ -1049,6 +1072,7 @@ export function HomePage({
 
   /** Désactivation filtre Lives : revenir aux données GPS / centre carte. */
   useEffect(() => {
+    if (!isActive) return;
     if (livesFilterOn) {
       livesFilterWasOnRef.current = true;
       return;
@@ -1056,7 +1080,7 @@ export function HomePage({
     if (!livesFilterWasOnRef.current || !token) return;
     livesFilterWasOnRef.current = false;
     loadNearbyFromState(userPosition, center);
-  }, [livesFilterOn, token, userPosition, center, loadNearbyFromState]);
+  }, [isActive, livesFilterOn, token, userPosition, center, loadNearbyFromState]);
 
   const recenterLabel = isFixedMapGeoSource(mapGeo.source)
     ? `Recentrer sur ${mapGeo.label}`
@@ -1314,8 +1338,9 @@ export function HomePage({
 
   const closeSalonSheet = useCallback(() => {
     dismissSalonSheetOnly();
+    onSalonSessionEnd?.();
     onCloseMapProfile?.();
-  }, [dismissSalonSheetOnly, onCloseMapProfile]);
+  }, [dismissSalonSheetOnly, onSalonSessionEnd, onCloseMapProfile]);
 
   const closeLiveSheet = useCallback(() => {
     dismissLiveSheetOnly();
@@ -1350,14 +1375,21 @@ export function HomePage({
     const onDenied = ({ salonId: deniedId }: { salonId: string }) => {
       if (deniedId === salonId) {
         setSelected(null);
+        onSalonSessionEnd?.();
         setToastMsg('Accès refusé à ce salon');
       }
     };
     const onKicked = ({ salonId: kickedId }: { salonId: string }) => {
-      if (kickedId === salonId) setSelected(null);
+      if (kickedId === salonId) {
+        setSelected(null);
+        onSalonSessionEnd?.();
+      }
     };
     const onBanned = ({ salonId: bannedId }: { salonId: string }) => {
-      if (bannedId === salonId) setSelected(null);
+      if (bannedId === salonId) {
+        setSelected(null);
+        onSalonSessionEnd?.();
+      }
     };
     const onSalonUpdated = (updated: Salon) => {
       if (updated.id !== salonId) return;
@@ -1401,7 +1433,7 @@ export function HomePage({
       socket.off('playback_sync', onPlaybackSync);
       socket.off('salon_playback', onPlaybackSync);
     };
-  }, [selected?.id, selected?.canJoin, user?.id, user?.username, token]);
+  }, [selected?.id, selected?.canJoin, user?.id, user?.username, token, onSalonSessionEnd]);
 
   const handleMapInlineListenCapReached = useCallback(() => {
     setToastMsg('Aperçu carte : 10 min atteintes — ouvrez le salon pour continuer');
@@ -1415,9 +1447,9 @@ export function HomePage({
         return;
       }
       clearMapInlineListenSession(salonId);
-      onOpenSalon(salonId);
+      onOpenSalon(salonId, selected?.id === salonId ? selected.title : undefined);
     },
-    [onOpenSalon]
+    [onOpenSalon, selected?.id, selected?.title]
   );
 
   const openHostProfileFromSheet = useCallback(() => {

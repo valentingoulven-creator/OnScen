@@ -59,12 +59,78 @@ function getEventCountLastNDays(type: AnalyticsEventType, n: number): number[] {
   return Array.from({ length: n }, (_, i) => getEventCount(type, n - 1 - i));
 }
 
-function getLast7DaysLabels(): string[] {
-  return Array.from({ length: 7 }, (_, i) => {
+export type AnalyticsPeriod = 'day' | 'week' | 'month' | 'year';
+
+const VALID_PERIODS: AnalyticsPeriod[] = ['day', 'week', 'month', 'year'];
+
+export function parseAnalyticsPeriod(value: unknown): AnalyticsPeriod {
+  if (typeof value === 'string' && VALID_PERIODS.includes(value as AnalyticsPeriod)) {
+    return value as AnalyticsPeriod;
+  }
+  return 'week';
+}
+
+function getLastNDaysLabels(n: number, locale = 'fr-FR'): string[] {
+  return Array.from({ length: n }, (_, i) => {
     const d = new Date();
-    d.setDate(d.getDate() - 6 + i);
-    return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' });
+    d.setDate(d.getDate() - (n - 1) + i);
+    if (n === 1) {
+      return d.toLocaleDateString(locale, { weekday: 'short', day: 'numeric' });
+    }
+    return d.toLocaleDateString(locale, { weekday: 'short', day: 'numeric' });
   });
+}
+
+function getLastNMonthsLabels(n: number, locale = 'fr-FR'): string[] {
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - (n - 1) + i);
+    return d.toLocaleDateString(locale, { month: 'short' });
+  });
+}
+
+function getEventCountForMonth(type: AnalyticsEventType, year: number, month: number): number {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  let total = 0;
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    total += eventBuckets.get(bucketKey(type, dateStr))?.count ?? 0;
+  }
+  return total;
+}
+
+function getEventCountLastNMonths(type: AnalyticsEventType, n: number): number[] {
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - (n - 1 - i));
+    return getEventCountForMonth(type, d.getFullYear(), d.getMonth());
+  });
+}
+
+function getPeriodLabels(period: AnalyticsPeriod, locale = 'fr-FR'): string[] {
+  switch (period) {
+    case 'day':
+      return getLastNDaysLabels(1, locale);
+    case 'week':
+      return getLastNDaysLabels(7, locale);
+    case 'month':
+      return getLastNDaysLabels(30, locale);
+    case 'year':
+      return getLastNMonthsLabels(12, locale);
+  }
+}
+
+function getEventSeriesForPeriod(type: AnalyticsEventType, period: AnalyticsPeriod): number[] {
+  switch (period) {
+    case 'day':
+      return getEventCountLastNDays(type, 1);
+    case 'week':
+      return getEventCountLastNDays(type, 7);
+    case 'month':
+      return getEventCountLastNDays(type, 30);
+    case 'year':
+      return getEventCountLastNMonths(type, 12);
+  }
 }
 
 function countDauLast24h(): number {
@@ -86,8 +152,8 @@ function countDauLast30Days(): number {
 }
 
 /** Synthèse complète pour le tableau de bord analytics. */
-export function getAnalyticsSummary() {
-  const labels7d = getLast7DaysLabels();
+export function getAnalyticsSummary(period: AnalyticsPeriod = 'week', locale = 'fr-FR') {
+  const labels = getPeriodLabels(period, locale);
 
   // Données dérivées du db en temps réel
   const totalUsers = db.users.size;
@@ -119,16 +185,17 @@ export function getAnalyticsSummary() {
       totalMatches,
       totalFeedPosts,
     },
-    // Séries temporelles 7 jours
+    period,
+    // Séries temporelles selon la période sélectionnée
     series: {
-      labels: labels7d,
-      logins: getEventCountLastNDays('user_login', 7),
-      messagesSent: getEventCountLastNDays('message_sent', 7),
-      salonsCreated: getEventCountLastNDays('salon_created', 7),
-      livesStarted: getEventCountLastNDays('live_started', 7),
-      reelsViewed: getEventCountLastNDays('reel_viewed', 7),
-      matchesCreated: getEventCountLastNDays('match_created', 7),
-      favoritesAdded: getEventCountLastNDays('favorite_added', 7),
+      labels,
+      logins: getEventSeriesForPeriod('user_login', period),
+      messagesSent: getEventSeriesForPeriod('message_sent', period),
+      salonsCreated: getEventSeriesForPeriod('salon_created', period),
+      livesStarted: getEventSeriesForPeriod('live_started', period),
+      reelsViewed: getEventSeriesForPeriod('reel_viewed', period),
+      matchesCreated: getEventSeriesForPeriod('match_created', period),
+      favoritesAdded: getEventSeriesForPeriod('favorite_added', period),
     },
   };
 }

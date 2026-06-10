@@ -5553,3 +5553,334 @@ Date : 2026-06-10
 ================================================================================
 Fin MODIF 394 - 2026-06-10
 ================================================================================
+
+================================================================================
+MODIF 395 — Admin Comptes : layout filtres, pagination, snapshot privé
+================================================================================
+Date : 2026-06-10
+
+## Retours utilisateur
+1. Ne pas afficher toute la liste d'un coup : filtres + pagination (30/page).
+2. Filtres sous la barre d'onglets (Comptes | Accès | Analytics), pas au-dessus.
+3. Compte Dev (soundy_dev / ACCESS_ADMIN) : voir toutes les données privées.
+
+## Layout (onglet Comptes)
+- Ordre : onglets (AdminPage) → recherche → puces filtre statut → tri/export →
+  compteur → liste paginée → stats en bas.
+- Filtres statut en boutons segmentés (Tous / En attente / Actifs / Suspendus).
+- Stats 4 colonnes déplacées sous la liste (plus au-dessus des filtres).
+
+## Pagination
+- Frontend : PAGE_SIZE 30, « Charger plus » (inchangé).
+- Backend GET `/access/admin/users` : défaut `limit=30` (était 50).
+
+## API admin — contournement confidentialité
+- `mapAdminManagedUser` enrichi (sans publicProfile) : birthDate, age,
+  hideBirthDateOnProfile, relationshipStatus/Custom, isGhostMode, bio complète,
+  privateReelsCount, publicReelsCount, instagramHandle, etc.
+- Nouveau GET `/access/admin/users/:userId` pour détail admin complet.
+- Réservé aux `isAccessAdmin` (soundy_dev, ACCESS_ADMIN_EMAILS, isAdmin).
+
+## Frontend détail
+- Panneau étendu : badges ghost mode / reels privés, naissance masquée publique,
+  relation, bio complète ; fetch détail à l'ouverture via getAccessAdminUser.
+- Export CSV : colonnes birthDate, age, relationship, reels privés/publics.
+
+## Fichiers modifiés
+  backend/src/routes/access.ts
+  app/src/pages/AdminAccountsTab.tsx
+  app/src/lib/api.ts
+  app/src/types.ts
+  app/src/locales/fr.json
+  app/src/locales/en.json
+  modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npx tsc --noEmit
+
+================================================================================
+Fin MODIF 395 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 396 — Admin Analytics : filtre période jour/semaine/mois/année
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+Ajouter un filtre de période sur l'onglet Analytics (AdminPage) pour afficher
+les séries temporelles selon la granularité choisie.
+
+## Périodes
+- `day` : 1 bucket (aujourd'hui)
+- `week` : 7 jours (défaut)
+- `month` : 30 jours
+- `year` : 12 mois (agrégation des buckets journaliers)
+
+## Backend
+- GET `/api/analytics/summary?period=day|week|month|year&locale=fr|en`
+- `parseAnalyticsPeriod()` + `getAnalyticsSummary(period, locale)` dans analytics.ts
+- Réponse enrichie avec champ `period`
+
+## Frontend
+- Boutons segmentés Jour | Semaine | Mois | Année (défaut : semaine)
+- Rechargement API à chaque changement de période
+- i18n `admin.analytics.*` (fr/en)
+- Snapshot temps réel inchangé ; graphiques adaptés à la période
+
+## Fichiers modifiés
+  backend/src/lib/analytics.ts
+  backend/src/routes/analytics.ts
+  app/src/lib/api.ts
+  app/src/pages/AnalyticsPage.tsx
+  app/src/locales/fr.json
+  app/src/locales/en.json
+  modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npx tsc --noEmit
+
+================================================================================
+Fin MODIF 396 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 397 — Latence : montage conditionnel onglets + PWA heic2any
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+Réduire la latence au démarrage et au changement d'onglet en ne montant plus
+tous les onglets en parallèle (CSS hidden), et alléger le précache PWA.
+
+## App.tsx — montage conditionnel (impact majeur)
+- Remplacement des wrappers `hidden` par rendu conditionnel : un seul onglet
+  monté à la fois (Actualité, Carte, Lives, DM, Reels).
+- Carte reste montée sous l'overlay « Mon profil » (audio petit salon via
+  mapPlaybackActive) ; isActive=false coupe nearby/intervalles pendant l'overlay.
+- Live plein écran (view.type === 'live') et profil overlay inchangés.
+- Suspense fallbacks conservés.
+
+## isActive — garde-fous réseau
+- HomePage : prop isActive — skip nearby, geo interval, map events, prefs reload.
+- DmPage : prop isActive — skip chargement initial, présence 30s, socket listeners.
+- LivesTabPage : prop isActive — skip following + polling lives 8s.
+
+## PWA — vite.config.ts
+- globIgnores : exclusion `**/vendor-heic2any*.js` du précache (chargement à la demande).
+
+## Fil actualités
+- ActualiteTabPage : limit getFeedPosts 100 → 50 (pas de scroll infini).
+
+## Fichiers modifiés
+  app/src/App.tsx
+  app/src/pages/HomePage.tsx
+  app/src/pages/DmPage.tsx
+  app/src/pages/LivesTabPage.tsx
+  app/src/pages/ActualiteTabPage.tsx
+  app/vite.config.ts
+  modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npx tsc --noEmit
+
+================================================================================
+Fin MODIF 397 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 398 — Badge cloche : masquer après consultation
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+Une fois le panneau notifications ouvert (cloche header), ne plus afficher le
+badge compteur ; état lu persisté au rafraîchissement.
+
+## Cause racine
+- PATCH /notifications/read-all mettait read=true en mémoire mais n'appelait pas
+  schedulePersist() → état lu perdu au redémarrage serveur / avant sauvegarde PG.
+- Front : badge effacé seulement après réponse API (pas optimiste) ; load() pouvait
+  réécrire unread depuis unreadCount serveur pendant l'appel mark-as-read.
+
+## Backend — routes/notifications.ts
+- read-all : schedulePersist() si au moins une notif passée en lue.
+- Réponse { ok: true, unreadCount: 0 }.
+
+## Front — NotificationBell.tsx (app + apptel)
+- markAllAsRead() : badge à 0 immédiat, items read=true, PATCH read-all.
+- useEffect(open) : marquer lu dès ouverture du panneau.
+- Compteur badge = notifs visibles non lues (aligné panneau).
+- markedReadRef : load() ne restaure pas le badge après consultation.
+- localStorage soundy:notifications-viewed:{userId} : re-tentative mark-as-read
+  au chargement si le serveur n'avait pas encore persisté ; flag effacé à nouvelle
+  notif socket.
+
+## API — api.ts (app + apptel)
+- markNotificationsRead : type réponse inclut unreadCount.
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npx tsc --noEmit
+
+================================================================================
+Fin MODIF 398 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 399 — Barre « Revenir au salon » dans le header
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+Quand un salon est ouvert (grand écran ou session active) et que l'utilisateur
+navigue ailleurs (autre onglet, profil, actualité), afficher une barre compacte
+sous le header Soundly pour revenir au salon jusqu'à fermeture explicite.
+
+## État « salon ouvert »
+- `activeSalonSession` (App.tsx) : { id, title? } — défini à l'ouverture
+  (openSalonPage, minimizeSalonToMap, deep link salon), effacé à la fermeture
+  (SalonPage onBack, fermeture fiche carte, refus / kick / ban carte).
+- `mapSalonActiveId` : salon sélectionné sur la fiche carte (HomePage) — masque
+  la barre sur l'onglet Carte tant que le petit salon est visible.
+
+## Visibilité barre
+- activeSalonSession && view.type !== 'salon'
+- pas sur Carte avec le même salon actif en fiche (mapSalonActiveId)
+
+## Clic
+- openSalonPage(activeSalonSession.id) → vue salon + URL /salon/:id
+
+## Fichiers
+- app/src/App.tsx — état session, showSalonReturnBar, callbacks
+- app/src/components/SalonReturnBar.tsx — barre pill violette i18n
+- app/src/pages/HomePage.tsx — onMapSalonActive, onSalonSessionEnd
+- app/src/pages/SalonPage.tsx — onSalonLoaded, titre au minimize
+- app/src/index.css — --app-header-salon-bar-h, ms-app-shell--salon-return
+- app/src/locales/fr.json, en.json — salon.returnTo, returnToWithTitle
+
+## Test
+  cd app && npx tsc --noEmit
+
+================================================================================
+Fin MODIF 399 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 400 — Roadmap Spotify conforme (architecture légale)
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+Documenter une architecture Spotify légale pour Soundy : salons Spotify + gestion
+depuis l'app, sans implémentation Web Playback SDK tant que non demandée.
+
+## État actuel Soundy (déjà en place)
+- OAuth Spotify : scopes profil uniquement (user-read-email, user-read-private,
+  user-library-read, user-top-read, playlist-read-private) — pas de streaming ni
+  user-modify-playback-state.
+- Salon Spotify : chrono partagé socket (useSalonPlaybackSync / salonPlayback) ;
+  hôte play/pause/seek = horloge Soundy, pas la lecture Spotify réelle.
+- Jam : lien socialsession collé manuellement (CreateSalonModal, SalonPlaybackPanel) ;
+  pas d'API Jam (conforme — aucun endpoint public Spotify).
+- Participants : deep link open.spotify.com/track + alignement chrono, ou écoute
+  croisée YouTube (resolveSalonTrack → mock / recherche URL).
+- Pas de recherche Spotify API, pas de Web Playback SDK, pas d'embed player.
+
+## Options évaluées
+- A — Jam + chrono + deep links (modèle actuel, UX à renforcer) : conforme, pas
+  Premium obligatoire pour participants, effort faible.
+- B — Web Playback SDK (hôte Premium, lecture navigateur) : conforme si scopes
+  streaming + attribution ; Premium hôte ; effort élevé ; quota dev 5 users.
+- C — Web API search + transfer playback (Spotify Connect / me/player/play) :
+  search conforme ; contrôle hôte via API Premium ; participants dans app Spotify ;
+  scopes playback requis.
+- D — Embed player : préviews 30 s / usage limité ; pas de search ni queue complète ;
+  non adapté comme cœur produit salon.
+
+## Roadmap recommandée (phases)
+### Phase 1 — MVP légal (court terme)
+- Conserver A ; clarifier UI « chrono Soundy ≠ lecture Spotify ».
+- Recherche morceaux via GET /v1/search (token hôte) dans CreateSalonModal +
+  SalonPage — UI custom + logo/attribution Spotify Branding Guidelines.
+- File d'attente salon : liens track URI Spotify (métadonnées API), pas de stream
+  Soundy.
+- Jam : tutoriel + paste lien inchangé (seule voie légale groupe Spotify natif).
+
+### Phase 2 — Contrôle hôte Premium (v2, optionnel)
+- Scopes additionnels : streaming, user-modify-playback-state,
+  user-read-playback-state, user-read-currently-playing.
+- Web Playback SDK pour hôte Premium OU transfer vers app Spotify (Connect).
+- Sync participants : chrono existant OU état SDK/API (lecture hôte seulement).
+- Demande Extended Quota Mode avant scale public (critères Spotify 2025+).
+
+### Phase 3 — Scale production
+- Formulaire partenaire Spotify (entité légale, service lancé, critères MAU).
+- Privacy policy : scopes playback documentés ; révocation OAuth.
+- Monitoring rate limits ; pas de cache catalogue dérivé non autorisé.
+
+## Checklist Dashboard Spotify
+- App créée ; Redirect URI prod : https://getsoundy.com/api/auth/spotify/callback
+- Variables : SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_CALLBACK_URL
+  (documentées dans backend/.env.production.example et deploy/.env.production.example)
+- Mode développement : max 5 utilisateurs autorisés (règles 2026) ; Premium requis
+  pour dev mode nouvelles apps.
+- Extended Quota : prérequis organisation + ~250k MAU pour usage commercial large.
+
+## Fichiers de référence
+- backend/src/lib/spotifyOAuth.ts (scopes)
+- backend/src/lib/spotifyJam.ts, app/src/lib/spotifyJam.ts
+- app/src/components/CreateSalonModal.tsx, SalonPlaybackPanel.tsx
+- app/src/lib/salonPlayback.ts, backend/src/routes/salons.ts
+- app/src/content/legal/apiPlatforms.ts
+
+## Note
+Ce document n'est pas un avis juridique — se référer aux Spotify Developer Terms
+et Platform Rules officiels.
+
+================================================================================
+Fin MODIF 400 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 401 — Spotify Phase 1 : recherche morceaux + UI chrono partagé
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+Implémenter la Phase 1 de la roadmap MODIF 400 : conserver le modèle Jam +
+chrono partagé + deep links (Option A), ajouter la recherche morceaux via
+Spotify Web API (token OAuth hôte), sans Web Playback SDK.
+
+## Backend
+- Nouveau `backend/src/lib/spotifySearch.ts` : GET Spotify /v1/search (type=track),
+  token hôte avec refresh automatique, parsing lien track direct.
+- Route `GET /api/salons/spotify-search?q=` (JWT, compte Spotify lié requis).
+  Erreurs : non connecté (403), token expiré (403), quota dev (429).
+- `POST /api/salons/:id/playback/change-track` étendu aux salons Spotify
+  (trackId, title, artist, albumArtUrl, chrono reset à 0:00).
+
+## Frontend
+- `CreateSalonSpotifyPicker.tsx` : recherche à la création salon Spotify.
+- `SalonSpotifySearch.tsx` : changement de morceau hôte (SalonPage + SalonPlaybackPanel).
+- CreateSalonModal : picker Spotify à la place du paste manuel (Jam conservé).
+- Labels UX chrono Spotify vs lecture YouTube synchronisée (i18n fr/en).
+- Attribution « Powered by Spotify » sur les résultats de recherche.
+
+## Fichiers modifiés
+- backend/src/lib/spotifySearch.ts (nouveau)
+- backend/src/routes/salons.ts
+- app/src/types.ts, app/src/lib/api.ts
+- app/src/components/CreateSalonSpotifyPicker.tsx (nouveau)
+- app/src/components/SalonSpotifySearch.tsx (nouveau)
+- app/src/components/CreateSalonModal.tsx
+- app/src/components/SalonPlaybackPanel.tsx
+- app/src/pages/SalonPage.tsx
+- app/src/locales/fr.json, app/src/locales/en.json
+
+================================================================================
+Fin MODIF 401 - 2026-06-10
+================================================================================

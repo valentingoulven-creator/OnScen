@@ -3,6 +3,7 @@ import { authenticateJWT } from '../middleware/auth';
 import { db, type User } from '../models/schema';
 import { countPersistableProfilePhotos, normalizeProfilePhotos, publicProfile } from '../lib/profile';
 import { getFavoriteCount } from '../lib/favorites';
+import { isPrivateReel } from '../lib/reels';
 import { schedulePersist } from '../lib/persist';
 import {
   createInviteCode,
@@ -67,8 +68,10 @@ const STATUS_SORT_ORDER: Record<AccountStatus, number> = {
   blocked: 2,
 };
 
+/** Snapshot admin : contourne les masquages publicProfile (données privées incluses). */
 function mapAdminManagedUser(u: User) {
   const photos = normalizeProfilePhotos(u);
+  const reels = db.userReels.filter((r) => r.authorId === u.id);
   return {
     id: u.id,
     username: u.username,
@@ -81,9 +84,22 @@ function mapAdminManagedUser(u: User) {
     city: u.city,
     meloCoins: u.meloCoins,
     listeningRole: u.listeningRole,
+    bio: u.bio,
     bioPreview: u.bio?.trim().slice(0, 120),
     followersCount: u.favoritesCountOverride ?? getFavoriteCount(u.id),
     photosCount: countPersistableProfilePhotos(photos),
+    birthDate: u.birthDate,
+    age: u.age,
+    hideBirthDateOnProfile: u.hideBirthDateOnProfile,
+    showAge: u.showAge,
+    relationshipStatus: u.relationshipStatus,
+    relationshipStatusCustom: u.relationshipStatusCustom,
+    isGhostMode: u.isGhostMode,
+    shareDistance: u.shareDistance,
+    locationPrecision: u.locationPrecision,
+    privateReelsCount: reels.filter((r) => isPrivateReel(r)).length,
+    publicReelsCount: reels.filter((r) => !isPrivateReel(r)).length,
+    instagramHandle: u.instagramHandle,
   };
 }
 
@@ -117,7 +133,7 @@ accessRouter.get('/admin/users', authenticateJWT, (req: Request, res: Response) 
   const sort = String(req.query.sort || 'lastSeen') as AdminUserSort;
   const allowedSort: AdminUserSort[] = ['lastSeen', 'memberSince', 'username', 'status'];
   const sortKey = allowedSort.includes(sort) ? sort : 'lastSeen';
-  const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '50'), 10) || 50, 1), 200);
+  const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '30'), 10) || 30, 1), 200);
   const offset = Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0);
 
   const realUsers = [...db.users.values()].filter((u) => !u.email.endsWith('@bot.local'));
@@ -150,6 +166,16 @@ accessRouter.get('/admin/users', authenticateJWT, (req: Request, res: Response) 
     offset,
     hasMore: offset + limit < filtered.length,
   });
+});
+
+accessRouter.get('/admin/users/:userId', authenticateJWT, (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const user = db.users.get(req.params.userId);
+  if (!user || user.email.endsWith('@bot.local')) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+  res.json({ user: mapAdminManagedUser(user) });
 });
 
 accessRouter.patch('/admin/policy', authenticateJWT, (req: Request, res: Response) => {

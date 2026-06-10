@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { getSocket } from '../lib/socket';
@@ -48,6 +48,16 @@ function opensProfileFromNotification(n: AppNotification): boolean {
   );
 }
 
+const NOTIF_VIEWED_LS_PREFIX = 'soundy:notifications-viewed:';
+
+function notifViewedLsKey(userId: string): string {
+  return `${NOTIF_VIEWED_LS_PREFIX}${userId}`;
+}
+
+function countVisibleUnread(notifications: AppNotification[]): number {
+  return notifications.filter((n) => isVisibleNotification(n) && !n.read).length;
+}
+
 function notificationEmoji(n: AppNotification): string {
   switch (n.type) {
     case 'match':
@@ -86,32 +96,89 @@ interface NotificationBellProps {
 }
 
 export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpenDm, onOpenGroup }: NotificationBellProps) {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<AppNotification[]>([]);
   const [matches, setMatches] = useState<MusicMatch[]>([]);
   const [unread, setUnread] = useState(0);
   const [toast, setToast] = useState<AppNotification | null>(null);
+  const markedReadRef = useRef(false);
+
+  const clearViewedLocalFlag = useCallback(() => {
+    if (!user?.id) return;
+    try {
+      localStorage.removeItem(notifViewedLsKey(user.id));
+    } catch {
+      /* ignore */
+    }
+  }, [user?.id]);
+
+  const setViewedLocalFlag = useCallback(() => {
+    if (!user?.id) return;
+    try {
+      localStorage.setItem(notifViewedLsKey(user.id), '1');
+    } catch {
+      /* ignore */
+    }
+  }, [user?.id]);
+
+  const hasViewedLocalFlag = useCallback((): boolean => {
+    if (!user?.id) return false;
+    try {
+      return localStorage.getItem(notifViewedLsKey(user.id)) === '1';
+    } catch {
+      return false;
+    }
+  }, [user?.id]);
+
+  const markAllAsRead = useCallback(() => {
+    if (!token) return;
+    markedReadRef.current = true;
+    setUnread(0);
+    setItems((list) => list.map((n) => ({ ...n, read: true })));
+    setViewedLocalFlag();
+    void api.markNotificationsRead(token).catch(() => {
+      markedReadRef.current = false;
+      clearViewedLocalFlag();
+    });
+  }, [token, setViewedLocalFlag, clearViewedLocalFlag]);
 
   const load = useCallback(() => {
     if (!token) return;
     api.getNotifications(token).then((r) => {
       const visible = r.notifications.filter(isVisibleNotification);
       setItems(visible);
-      setUnread(r.unreadCount);
+      const unreadFromServer = countVisibleUnread(visible);
+      if (markedReadRef.current) {
+        setUnread(0);
+        return;
+      }
+      if (hasViewedLocalFlag() && unreadFromServer > 0) {
+        markAllAsRead();
+        return;
+      }
+      setUnread(unreadFromServer);
     });
     api.getMatches(token).then((r) => setMatches(r.matches));
-  }, [token]);
+  }, [token, hasViewedLocalFlag, markAllAsRead]);
 
   useEffect(() => {
     load();
   }, [load]);
 
   useEffect(() => {
+    if (open && token) {
+      markAllAsRead();
+    }
+  }, [open, token, markAllAsRead]);
+
+  useEffect(() => {
     if (!token) return;
     const socket = getSocket();
     const onNotif = (n: AppNotification) => {
       if (!isVisibleNotification(n)) return;
+      markedReadRef.current = false;
+      clearViewedLocalFlag();
       setItems((prev) => [n, ...prev.filter((x) => x.id !== n.id)].slice(0, 50));
       setUnread((c) => c + 1);
       const skipDonToast = n.type === 'live_don' && n.liveId === getActiveHostLiveId();
@@ -144,17 +211,9 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
     return () => {
       socket.off('notification', onNotif);
     };
-  }, [token, load]);
+  }, [token, load, clearViewedLocalFlag]);
 
-  const openPanel = () => {
-    setOpen((v) => !v);
-    if (!open && token) {
-      api.markNotificationsRead(token).then(() => {
-        setUnread(0);
-        setItems((list) => list.map((n) => ({ ...n, read: true })));
-      });
-    }
-  };
+  const openPanel = () => setOpen((v) => !v);
 
   const isMatchToast = toast?.type === 'match';
   const isLiveToast = toast?.type === 'live_started';

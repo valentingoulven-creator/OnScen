@@ -26,6 +26,7 @@ import { ProfileSearchBar } from './components/ProfileSearchBar';
 import { MainTabNav } from './components/MainTabNav';
 import { PlatformConnectPrompt } from './components/PlatformConnectPrompt';
 import { APP_LAYOUT_CHANGED_EVENT, getAppLayout, isAppa2Layout } from './lib/appLayout';
+import { SalonReturnBar } from './components/SalonReturnBar';
 import { UserAvatarOnline } from './components/UserAvatarOnline';
 import { resolveAvatarUrl } from './lib/profilePhotos';
 import { isMsdevEnvironment } from './lib/liveCameraSupport';
@@ -60,6 +61,8 @@ type View =
   | { type: 'live'; id: string }
   | { type: 'profile'; id: string };
 
+type ActiveSalonSession = { id: string; title?: string };
+
 export default function App() {
   const { t } = useTranslation();
   const { user, token, isNewUser, clearNewUser, refreshUser, authBootError, clearAuthBootError, setUserFromProfile } = useAuth();
@@ -89,6 +92,10 @@ export default function App() {
   const [restoreSalonOnMapId, setRestoreSalonOnMapId] = useState<string | null>(null);
   /** Publication du fil à mettre en avant (depuis la carte). */
   const [focusFeedPostId, setFocusFeedPostId] = useState<string | null>(null);
+  /** Salon ouvert (grand écran ou minimisé) — persiste hors vue salon pour la barre retour. */
+  const [activeSalonSession, setActiveSalonSession] = useState<ActiveSalonSession | null>(null);
+  /** Salon actif sur la fiche carte (petit salon) — masque la barre retour sur l'onglet Carte. */
+  const [mapSalonActiveId, setMapSalonActiveId] = useState<string | null>(null);
 
   const handleMsdevRebuild = useCallback(async () => {
     if (!token || msdevRebuilding) return;
@@ -126,6 +133,7 @@ export default function App() {
     setTab('map');
     setProfileOpen(false);
     setProfilePreview(null);
+    setActiveSalonSession({ id: salonId });
     setView({ type: 'salon', id: salonId });
     syncSalonUrlInBar(salonId);
   }, [user, token]);
@@ -253,24 +261,49 @@ export default function App() {
     }
   }, []);
 
-  const openSalonPage = useCallback((salonId: string) => {
+  const closeActiveSalonSession = useCallback(() => {
+    setActiveSalonSession(null);
+    setRestoreSalonOnMapId(null);
+    setMapSalonActiveId(null);
+  }, []);
+
+  const openSalonPage = useCallback((salonId: string, salonTitle?: string) => {
     setRestoreSalonOnMapId(null);
     setProfileOpen(false);
     setProfilePreview(null);
     if (viewRef.current.type === 'profile' && parseProfileIdFromLocation()) {
       clearProfileUrlFromBar();
     }
+    setActiveSalonSession((prev) => ({
+      id: salonId,
+      title: salonTitle ?? (prev?.id === salonId ? prev.title : undefined),
+    }));
     setView({ type: 'salon', id: salonId });
     syncSalonUrlInBar(salonId);
   }, []);
 
-  const minimizeSalonToMap = useCallback((salonId: string) => {
+  const minimizeSalonToMap = useCallback((salonId: string, salonTitle?: string) => {
     clearSalonUrlFromBar();
     setRestoreSalonOnMapId(salonId);
+    setActiveSalonSession((prev) => ({
+      id: salonId,
+      title: salonTitle ?? (prev?.id === salonId ? prev.title : undefined),
+    }));
     setProfileOpen(false);
     setProfilePreview(null);
     setView({ type: 'home' });
     setTab('map');
+  }, []);
+
+  const handleMapSalonActive = useCallback((session: ActiveSalonSession | null) => {
+    setMapSalonActiveId(session?.id ?? null);
+    if (session) {
+      setActiveSalonSession((prev) =>
+        prev?.id === session.id
+          ? { id: session.id, title: session.title ?? prev.title }
+          : { id: session.id, title: session.title }
+      );
+    }
   }, []);
 
   const openProfileFromPerson = useCallback((person: NearbyPerson) => {
@@ -382,12 +415,23 @@ export default function App() {
   const reelsActive = tab === 'reels' && !profileOpen && view.type === 'home';
   /** Carte visible : lecture petit salon même si overlay « Mon profil » ouvert. */
   const mapPlaybackActive = tab === 'map' && view.type === 'home';
+  /** Montage conditionnel : un seul onglet à la fois (perf). Carte reste montée sous overlay profil (audio salon). */
+  const actualiteTabMounted = tab === 'actualite' && view.type === 'home' && !profileOpen;
+  const mapTabMounted = tab === 'map' && view.type === 'home';
+  const liveTabMounted = tab === 'live' && view.type === 'home';
+  const dmTabMounted = tab === 'dm' && view.type === 'home' && !profileOpen;
+  const reelsTabMounted = tab === 'reels' && view.type === 'home' && !profileOpen;
   const appa2 = isAppa2Layout(appLayout);
   const liveViewActive = tab === 'live' || view.type === 'live';
+  const showSalonReturnBar = Boolean(
+    activeSalonSession &&
+      view.type !== 'salon' &&
+      !(tab === 'map' && view.type === 'home' && mapSalonActiveId === activeSalonSession.id)
+  );
 
   return (
     <div
-      className={`flex flex-col min-h-dvh max-h-dvh overflow-hidden${!appa2 ? ' ms-app-shell--bottom-tabs' : ''}${appa2 && !profileOpen ? ' ms-app-shell--header-tabs' : ''}`}
+      className={`flex flex-col min-h-dvh max-h-dvh overflow-hidden${!appa2 ? ' ms-app-shell--bottom-tabs' : ''}${appa2 && !profileOpen ? ' ms-app-shell--header-tabs' : ''}${showSalonReturnBar ? ' ms-app-shell--salon-return' : ''}`}
     >
       {incomingToast && (
         <button
@@ -479,6 +523,12 @@ export default function App() {
             </div>
           </div>
         </div>
+        {showSalonReturnBar && activeSalonSession && (
+          <SalonReturnBar
+            salonTitle={activeSalonSession.title}
+            onReturn={() => openSalonPage(activeSalonSession.id, activeSalonSession.title)}
+          />
+        )}
         {msdevRebuildError && (
           <p className="px-4 pb-1 text-[10px] text-red-400 text-center" role="alert">
             {msdevRebuildError}
@@ -512,10 +562,16 @@ export default function App() {
                   salonId={view.id}
                   onBack={() => {
                     clearSalonUrlFromBar();
+                    closeActiveSalonSession();
                     setView({ type: 'home' });
                     setTab('map');
                   }}
-                  onMinimizeToMap={() => minimizeSalonToMap(view.id)}
+                  onMinimizeToMap={(title) => minimizeSalonToMap(view.id, title)}
+                  onSalonLoaded={(title) =>
+                    setActiveSalonSession((prev) =>
+                      prev?.id === view.id ? { ...prev, title: title ?? prev.title } : prev
+                    )
+                  }
                 />
               </Suspense>
             )}
@@ -560,33 +616,19 @@ export default function App() {
                 />
               </Suspense>
             )}
-            <div
-              className={
-                tab === 'actualite' && view.type === 'home'
-                  ? 'flex flex-col flex-1 min-h-0 overflow-hidden'
-                  : 'hidden'
-              }
-              aria-hidden={tab !== 'actualite' || view.type !== 'home'}
-            >
+            {actualiteTabMounted && (
               <Suspense fallback={<PageFallback />}>
                 <ActualiteTabPage
                   onOpenProfile={openProfile}
                   onOpenReel={openReelInTab}
                   onOpenLive={openLive}
-                  isActive={tab === 'actualite' && !profileOpen && view.type === 'home'}
+                  isActive
                   focusPostId={focusFeedPostId}
                   onFocusPostConsumed={() => setFocusFeedPostId(null)}
                 />
               </Suspense>
-            </div>
-            <div
-              className={
-                tab === 'map' && view.type === 'home'
-                  ? 'flex flex-col flex-1 min-h-0 overflow-hidden'
-                  : 'hidden'
-              }
-              aria-hidden={tab !== 'map' || view.type !== 'home'}
-            >
+            )}
+            {mapTabMounted && (
               <Suspense fallback={<PageFallback />}>
                 <HomePage
                   appLayout={appLayout}
@@ -597,31 +639,20 @@ export default function App() {
                   onOpenFeedPost={openFeedPostFromMap}
                   onCloseMapProfile={closeProfile}
                   mapPlaybackActive={mapPlaybackActive}
+                  isActive={!profileOpen}
                   restoreSalonId={restoreSalonOnMapId}
                   onSalonMapRestored={() => setRestoreSalonOnMapId(null)}
+                  onMapSalonActive={handleMapSalonActive}
+                  onSalonSessionEnd={closeActiveSalonSession}
                 />
               </Suspense>
-            </div>
-            <div
-              className={
-                tab === 'live' && view.type === 'home'
-                  ? 'flex flex-col flex-1 min-h-0 overflow-hidden'
-                  : 'hidden'
-              }
-              aria-hidden={tab !== 'live' || view.type !== 'home'}
-            >
+            )}
+            {liveTabMounted && (
               <Suspense fallback={<PageFallback />}>
-                <LivesTabPage onOpenLive={openLive} />
+                <LivesTabPage onOpenLive={openLive} isActive />
               </Suspense>
-            </div>
-            <div
-              className={
-                tab === 'dm' && view.type === 'home'
-                  ? 'flex flex-col flex-1 min-h-0 overflow-hidden'
-                  : 'hidden'
-              }
-              aria-hidden={tab !== 'dm' || view.type !== 'home'}
-            >
+            )}
+            {dmTabMounted && (
               <Suspense fallback={<PageFallback />}>
                 <DmPage
                   openPeerId={dmPeerToOpen}
@@ -631,17 +662,11 @@ export default function App() {
                   onOpenProfile={openProfileFromDm}
                   onOpenSalon={openSalonPage}
                   onOpenFeedPost={openFeedPostFromMap}
+                  isActive
                 />
               </Suspense>
-            </div>
-            <div
-              className={
-                tab === 'reels' && view.type === 'home'
-                  ? 'flex flex-col flex-1 min-h-0 w-full overflow-hidden'
-                  : 'hidden'
-              }
-              aria-hidden={tab !== 'reels' || view.type !== 'home'}
-            >
+            )}
+            {reelsTabMounted && (
               <Suspense fallback={<PageFallback />}>
                 <ReelsTabPage
                   onOpenLive={openLive}
@@ -651,7 +676,7 @@ export default function App() {
                   isActive={reelsActive}
                 />
               </Suspense>
-            </div>
+            )}
 
         {profileOpen && (
           <div className="ms-app-profile-overlay flex flex-col min-h-0 bg-[#0b0b0f]">

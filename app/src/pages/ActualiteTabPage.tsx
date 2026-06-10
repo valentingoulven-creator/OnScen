@@ -1070,7 +1070,7 @@ export function ActualiteTabPage({
       try {
         const [feedRes] = await Promise.all([
           api.getFeedPosts(token, {
-            limit: 100,
+            limit: 50,
             algo: getFeedAlgorithmPreferences().useBuiltInAlgorithm,
           }),
           loadFeedStories(),

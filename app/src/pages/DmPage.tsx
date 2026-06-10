@@ -180,6 +180,7 @@ export function DmPage({
   onOpenProfile,
   onOpenSalon,
   onOpenFeedPost,
+  isActive = true,
 }: {
   openPeerId?: string | null;
   openGroupId?: string | null;
@@ -188,6 +189,7 @@ export function DmPage({
   onOpenProfile?: (userId: string) => void;
   onOpenSalon?: (salonId: string) => void;
   onOpenFeedPost?: (postId: string) => void;
+  isActive?: boolean;
 } = {}) {
   const { user, token, setUserFromProfile } = useAuth();
   const { t } = useTranslation();
@@ -555,7 +557,7 @@ export function DmPage({
   };
 
   useEffect(() => {
-    if (!token) return;
+    if (!isActive || !token) return;
     setLoading(true);
     loadPresence();
     loadConversations();
@@ -563,7 +565,7 @@ export function DmPage({
     loadMatches();
     loadPendingRequests();
     setLoading(false);
-  }, [token]);
+  }, [isActive, token]);
 
   useEffect(() => {
     if (!openPeerId || !token || loading) return;
@@ -595,10 +597,10 @@ export function DmPage({
   }, [openGroupId, token, loading]);
 
   useEffect(() => {
-    if (!token) return;
+    if (!isActive || !token) return;
     const timer = window.setInterval(() => loadPresence(), 30_000);
     return () => window.clearInterval(timer);
-  }, [token]);
+  }, [isActive, token]);
 
   useEffect(() => {
     clearSelection();
@@ -622,7 +624,7 @@ export function DmPage({
   }, [view, setActivePeer, setActiveGroup]);
 
   useEffect(() => {
-    if (!token || !user) return;
+    if (!isActive || !token || !user) return;
     const socket = getSocket();
     const onDm = (msg: DirectMessage) => {
       if (
@@ -746,7 +748,7 @@ export function DmPage({
       socket.off('dm_request_refused', onDmRequestRefused);
       socket.off('dm_reaction', onDmReaction);
     };
-  }, [token, user?.id, view, activeUser?.id, activeGroup?.id]);
+  }, [isActive, token, user?.id, view, activeUser?.id, activeGroup?.id]);
 
   const handleMessagesScroll = useCallback(() => {
     const el = messagesScrollRef.current;

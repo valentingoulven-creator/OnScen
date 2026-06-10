@@ -53,6 +53,7 @@ function formatLiveViewersLabel(count: number): string {
 
 interface LivesTabPageProps {
   onOpenLive: (liveId: string) => void;
+  isActive?: boolean;
 }
 
 interface LiveGridCardProps {
@@ -136,7 +137,7 @@ const LiveGridCard = memo(function LiveGridCard({
   );
 });
 
-export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
+export function LivesTabPage({ onOpenLive, isActive = true }: LivesTabPageProps) {
   const { token, user } = useAuth();
   const [lives, setLives] = useState<Live[]>([]);
   const [loading, setLoading] = useState(true);
@@ -159,9 +160,9 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
   }, []);
 
   useEffect(() => {
-    if (!token) return;
+    if (!isActive || !token) return;
     api.getMyFollowing(token).then((r) => setFollowingIds(new Set(r.followingIds)));
-  }, [token]);
+  }, [isActive, token]);
 
   const persistGeo = useCallback((next: LivesGeoPrefs) => {
     setGeo(next);
@@ -207,10 +208,11 @@ export function LivesTabPage({ onOpenLive }: LivesTabPageProps) {
   }, [token, geo.latitude, geo.longitude, geo.radiusKm, panelPrefs.sortBy]);
 
   useEffect(() => {
+    if (!isActive) return;
     loadLives();
     const interval = setInterval(loadLives, 8000);
     return () => clearInterval(interval);
-  }, [loadLives]);
+  }, [isActive, loadLives]);
 
   const showCountryFilter = useMemo(() => hasLivesOutsideFrance(lives), [lives]);
 

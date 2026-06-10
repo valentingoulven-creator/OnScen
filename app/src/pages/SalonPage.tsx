@@ -18,6 +18,7 @@ import { RoomTheaterLayout } from '../components/RoomTheaterLayout';
 import { SalonPlaybackPanel } from '../components/SalonPlaybackPanel';
 import { SalonYouTubePlaylist } from '../components/SalonYouTubePlaylist';
 import { SalonYouTubeSearch } from '../components/SalonYouTubeSearch';
+import { SalonSpotifySearch } from '../components/SalonSpotifySearch';
 import { SalonQueueSection } from '../components/SalonQueueSection';
 import { SalonProposalsSection } from '../components/SalonProposalsSection';
 import { SalonInviteLinkCopy } from '../components/SalonInviteLinkCopy';
@@ -43,11 +44,14 @@ export function SalonPage({
   salonId,
   onBack,
   onMinimizeToMap,
+  onSalonLoaded,
 }: {
   salonId: string;
   onBack: () => void;
   /** Quitte le grand salon et rouvre la fiche carte (petit salon). */
-  onMinimizeToMap?: () => void;
+  onMinimizeToMap?: (salonTitle?: string) => void;
+  /** Titre chargé (barre retour header). */
+  onSalonLoaded?: (salonTitle?: string) => void;
 }) {
 
   const { user, token, setUserFromProfile } = useAuth();
@@ -90,6 +94,10 @@ export function SalonPage({
     loadSalon();
     if (token) api.getDmContacts(token).then((r) => setContacts(r.contacts));
   }, [loadSalon, token]);
+
+  useEffect(() => {
+    if (salon?.title) onSalonLoaded?.(salon.title);
+  }, [salon?.title, onSalonLoaded]);
 
 
 
@@ -374,6 +382,16 @@ export function SalonPage({
         </div>
       )}
 
+      {isHost && hostCanControl && salon.platform === 'spotify' && token && (
+        <SalonSpotifySearch
+          salonId={salon.id}
+          token={token}
+          currentTitle={playback.title}
+          currentArtist={playback.artist}
+          onTrackChanged={applyPlayback}
+        />
+      )}
+
       <section className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4 space-y-4">
         {isHost && (
           <div className="flex items-center gap-2 pb-2 border-b border-[#1e1e2f]">
@@ -537,7 +555,7 @@ export function SalonPage({
           chatTitle="Chat du salon"
           chatMinimized={chatMinimized}
           onToggleMinimize={() => setChatMinimized((m) => !m)}
-          onMinimize={onMinimizeToMap}
+          onMinimize={onMinimizeToMap ? () => onMinimizeToMap(salon.title) : undefined}
           stage={
             <SalonPlaybackPanel
               salon={salon}

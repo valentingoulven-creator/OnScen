@@ -672,7 +672,7 @@ export const api = {
     ),
 
   markNotificationsRead: (token: string) =>
-    request<{ ok: boolean }>('/notifications/read-all', { method: 'PATCH' }, token),
+    request<{ ok: boolean; unreadCount: number }>('/notifications/read-all', { method: 'PATCH' }, token),
 
   followUser: (token: string, userId: string) =>
     request<{ ok: boolean; followingId: string; isFollowing: boolean }>(

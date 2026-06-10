@@ -1,8 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 
+export type AnalyticsPeriod = 'day' | 'week' | 'month' | 'year';
+
 type AnalyticsSummary = Awaited<ReturnType<typeof api.getAnalyticsSummary>>;
+
+const PERIOD_OPTIONS: AnalyticsPeriod[] = ['day', 'week', 'month', 'year'];
+
+function periodTotalLabel(period: AnalyticsPeriod, t: (key: string) => string): string {
+  if (period === 'day') return t('admin.analytics.periodTotalDay');
+  if (period === 'week') return t('admin.analytics.periodTotalWeek');
+  if (period === 'month') return t('admin.analytics.periodTotalMonth');
+  return t('admin.analytics.periodTotalYear');
+}
+
+function periodLabel(period: AnalyticsPeriod, t: (key: string) => string): string {
+  if (period === 'day') return t('admin.analytics.periodDay');
+  if (period === 'week') return t('admin.analytics.periodWeek');
+  if (period === 'month') return t('admin.analytics.periodMonth');
+  return t('admin.analytics.periodYear');
+}
 
 function StatCard({
   label,
@@ -76,18 +95,22 @@ function ChartCard({
   labels,
   values,
   color,
+  periodTotal,
 }: {
   title: string;
   labels: string[];
   values: number[];
   color?: string;
+  periodTotal: string;
 }) {
   const total = values.reduce((a, b) => a + b, 0);
   return (
     <div className="bg-[#0f0f17] border border-[#1e1e2f] rounded-2xl p-4">
       <div className="flex items-baseline justify-between mb-3">
         <p className="text-sm font-semibold text-white">{title}</p>
-        <span className="text-xs text-gray-500">{total} / 7j</span>
+        <span className="text-xs text-gray-500">
+          {total} {periodTotal}
+        </span>
       </div>
       <BarChart labels={labels} values={values} color={color} height={72} />
     </div>
@@ -96,26 +119,30 @@ function ChartCard({
 
 export function AnalyticsPage({ onBack, embedded = false }: { onBack?: () => void; embedded?: boolean }) {
   const { token } = useAuth();
+  const { t, i18n } = useTranslation();
+  const [period, setPeriod] = useState<AnalyticsPeriod>('week');
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = () => {
+  const load = useCallback(() => {
     if (!token) return;
     setLoading(true);
     api
-      .getAnalyticsSummary(token)
+      .getAnalyticsSummary(token, { period, locale: i18n.language })
       .then((r) => {
         setSummary(r);
         setError(null);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Erreur'))
+      .catch((e) => setError(e instanceof Error ? e.message : t('admin.analytics.error')))
       .finally(() => setLoading(false));
-  };
+  }, [token, period, i18n.language, t]);
 
   useEffect(() => {
     load();
-  }, [token]);
+  }, [load]);
+
+  const periodTotal = periodTotalLabel(period, t);
 
   return (
     <div className={`flex flex-col ${embedded ? '' : 'h-full min-h-0'} bg-[#0b0b0f]`}>
@@ -131,8 +158,8 @@ export function AnalyticsPage({ onBack, embedded = false }: { onBack?: () => voi
             </button>
           )}
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold text-white">Analytics</h1>
-            <p className="text-xs text-gray-500">Tableau de bord — msdev</p>
+            <h1 className="text-lg font-bold text-white">{t('admin.analytics.title')}</h1>
+            <p className="text-xs text-gray-500">{t('admin.analytics.subtitle')}</p>
           </div>
           <button
             type="button"
@@ -140,14 +167,14 @@ export function AnalyticsPage({ onBack, embedded = false }: { onBack?: () => voi
             disabled={loading}
             className="px-3 py-1.5 text-xs border border-[#2d2d3d] text-gray-400 hover:text-white rounded-full disabled:opacity-50"
           >
-            {loading ? '...' : '↻ Actualiser'}
+            {loading ? '...' : t('admin.analytics.refresh')}
           </button>
         </header>
       )}
 
       {embedded && (
         <div className="flex items-center justify-between mb-4">
-          <p className="text-xs text-gray-500">Tableau de bord — msdev</p>
+          <p className="text-xs text-gray-500">{t('admin.analytics.subtitle')}</p>
           <button
             type="button"
             onClick={load}
@@ -160,6 +187,32 @@ export function AnalyticsPage({ onBack, embedded = false }: { onBack?: () => voi
       )}
 
       <div className={`${embedded ? '' : 'flex-1 min-h-0 overflow-y-auto'} p-4 space-y-6`}>
+        <div>
+          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">
+            {t('admin.analytics.periodLabel')}
+          </p>
+          <div
+            className="flex gap-1 overflow-x-auto"
+            role="group"
+            aria-label={t('admin.analytics.periodLabel')}
+          >
+            {PERIOD_OPTIONS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setPeriod(option)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition ${
+                  period === option
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-[#1a1a26] text-gray-400 hover:text-white'
+                }`}
+              >
+                {periodLabel(option, t)}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {error && (
           <div className="bg-red-900/20 border border-red-500/30 rounded-xl px-4 py-3 text-sm text-red-300">
             {error}
@@ -168,116 +221,121 @@ export function AnalyticsPage({ onBack, embedded = false }: { onBack?: () => voi
 
         {loading && !summary && (
           <div className="flex items-center justify-center py-20">
-            <p className="text-gray-500 text-sm">Chargement des statistiques…</p>
+            <p className="text-gray-500 text-sm">{t('admin.analytics.loading')}</p>
           </div>
         )}
 
         {summary && (
           <>
-            {/* Snapshot temps réel */}
             <section>
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                Snapshot en temps réel
+                {t('admin.analytics.snapshotTitle')}
               </h2>
               <div className="grid grid-cols-2 gap-3">
                 <StatCard
-                  label="Utilisateurs total"
+                  label={t('admin.analytics.totalUsers')}
                   value={summary.snapshot.totalUsers}
                   color="purple"
                 />
                 <StatCard
-                  label="Actifs 24h (DAU)"
+                  label={t('admin.analytics.dau24h')}
                   value={summary.snapshot.dau24h}
-                  sub={`${summary.snapshot.dau30d} sur 30j`}
+                  sub={t('admin.analytics.dau30d', { count: summary.snapshot.dau30d })}
                   color="green"
                 />
                 <StatCard
-                  label="Nouveaux aujourd'hui"
+                  label={t('admin.analytics.newUsersToday')}
                   value={summary.snapshot.newUsersToday}
                   color="blue"
                 />
                 <StatCard
-                  label="Salons actifs"
+                  label={t('admin.analytics.activeSalons')}
                   value={summary.snapshot.activeSalons}
-                  sub={`${summary.snapshot.activeLives} live${summary.snapshot.activeLives !== 1 ? 's' : ''}`}
+                  sub={t('admin.analytics.activeLives', { count: summary.snapshot.activeLives })}
                   color="red"
                 />
                 <StatCard
-                  label="Messages envoyés"
+                  label={t('admin.analytics.totalMessages')}
                   value={summary.snapshot.totalMessages}
                   color="yellow"
                 />
                 <StatCard
-                  label="Matchs musicaux"
+                  label={t('admin.analytics.totalMatches')}
                   value={summary.snapshot.totalMatches}
                   color="purple"
                 />
                 <StatCard
-                  label="Reels publiés"
+                  label={t('admin.analytics.totalReels')}
                   value={summary.snapshot.totalReels}
                   color="blue"
                 />
                 <StatCard
-                  label="Posts fil d'actu"
+                  label={t('admin.analytics.totalFeedPosts')}
                   value={summary.snapshot.totalFeedPosts}
                   color="green"
                 />
               </div>
             </section>
 
-            {/* Graphiques 7 jours */}
             <section>
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                Activité — 7 derniers jours
+                {t('admin.analytics.activityTitle', { period: periodLabel(period, t) })}
               </h2>
               <div className="grid grid-cols-1 gap-3">
                 <ChartCard
-                  title="Connexions"
+                  title={t('admin.analytics.chartLogins')}
                   labels={summary.series.labels}
                   values={summary.series.logins}
                   color="#9b7bd4"
+                  periodTotal={periodTotal}
                 />
                 <ChartCard
-                  title="Messages envoyés"
+                  title={t('admin.analytics.chartMessages')}
                   labels={summary.series.labels}
                   values={summary.series.messagesSent}
                   color="#f59e0b"
+                  periodTotal={periodTotal}
                 />
                 <ChartCard
-                  title="Matchs créés"
+                  title={t('admin.analytics.chartMatches')}
                   labels={summary.series.labels}
                   values={summary.series.matchesCreated}
                   color="#ec4899"
+                  periodTotal={periodTotal}
                 />
                 <ChartCard
-                  title="Salons créés"
+                  title={t('admin.analytics.chartSalons')}
                   labels={summary.series.labels}
                   values={summary.series.salonsCreated}
                   color="#6366f1"
+                  periodTotal={periodTotal}
                 />
                 <ChartCard
-                  title="Lives démarrés"
+                  title={t('admin.analytics.chartLives')}
                   labels={summary.series.labels}
                   values={summary.series.livesStarted}
                   color="#ef4444"
+                  periodTotal={periodTotal}
                 />
                 <ChartCard
-                  title="Reels visionnés"
+                  title={t('admin.analytics.chartReels')}
                   labels={summary.series.labels}
                   values={summary.series.reelsViewed}
                   color="#22c55e"
+                  periodTotal={periodTotal}
                 />
                 <ChartCard
-                  title="Favoris ajoutés"
+                  title={t('admin.analytics.chartFavorites')}
                   labels={summary.series.labels}
                   values={summary.series.favoritesAdded}
                   color="#f97316"
+                  periodTotal={periodTotal}
                 />
               </div>
             </section>
 
             <p className="text-center text-[10px] text-gray-700 pb-4">
-              Données en mémoire — réinitialisées au redémarrage du serveur
+              {t('admin.analytics.dataNote')}
             </p>
           </>
         )}

@@ -30,6 +30,7 @@ import {
   proposalToQueueItem,
 } from '../lib/salonPlaybackOps';
 import { searchYoutube } from '../lib/youtubeSearch';
+import { searchSpotifyTracks, SpotifySearchError } from '../lib/spotifySearch';
 import { resolvePlaylistVideos } from '../lib/youtubePlaylists';
 import { notifyFavoritesSalonStarted } from '../lib/favorites';
 import { normalizeSpotifyJamUrl } from '../lib/spotifyJam';
@@ -115,6 +116,30 @@ salonsRouter.get('/youtube-search', authenticateJWT, async (req: Request, res: R
     res.json({ results });
   } catch {
     res.status(502).json({ error: 'Recherche YouTube indisponible' });
+  }
+});
+
+salonsRouter.get('/spotify-search', authenticateJWT, async (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const user = db.users.get(me);
+  if (!requireHostPlatform(user, 'spotify', res)) return;
+
+  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  if (q.length < 2) {
+    res.json({ results: [] });
+    return;
+  }
+
+  try {
+    const results = await searchSpotifyTracks(user, q);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json({ results });
+  } catch (e) {
+    if (e instanceof SpotifySearchError) {
+      res.status(e.status).json({ error: e.message, code: e.code });
+      return;
+    }
+    res.status(502).json({ error: 'Recherche Spotify indisponible' });
   }
 });
 
@@ -328,30 +353,47 @@ salonsRouter.post('/:id/playback/change-track', authenticateJWT, (req: Request, 
     res.status(403).json({ error: 'Non autorisé' });
     return;
   }
-  if (salon.platform !== 'youtube') {
-    res.status(400).json({ error: 'Changement de morceau via recherche réservé aux salons YouTube' });
+  if (salon.platform !== 'youtube' && salon.platform !== 'spotify') {
+    res.status(400).json({ error: 'Changement de morceau non supporté pour cette plateforme' });
     return;
   }
   const hostUser = db.users.get(me);
   if (!requireHostPlatform(hostUser, salon.platform, res)) return;
 
-  const { trackId, title, artist, trackLink } = req.body;
+  const { trackId, title, artist, trackLink, albumArtUrl } = req.body;
   let resolvedId = typeof trackId === 'string' ? trackId.trim() : '';
   if (!resolvedId && trackLink && typeof trackLink === 'string') {
-    const parsed = parseMusicLink('youtube', trackLink);
+    const parsed = parseMusicLink(salon.platform, trackLink);
     if (parsed) resolvedId = parsed.trackId;
   }
   if (!resolvedId || resolvedId === 'demo') {
-    res.status(400).json({ error: 'trackId ou lien YouTube requis' });
+    res.status(400).json({
+      error:
+        salon.platform === 'spotify'
+          ? 'trackId ou lien Spotify requis'
+          : 'trackId ou lien YouTube requis',
+    });
+    return;
+  }
+
+  if (salon.platform === 'youtube') {
+    const state = hostChangePlaybackTrack(salon, {
+      trackId: resolvedId,
+      title: typeof title === 'string' && title.trim() ? title.trim() : 'Morceau YouTube',
+      artist: typeof artist === 'string' && artist.trim() ? artist.trim() : 'YouTube',
+      externalUrl: buildPlatformTrackUrl('youtube', resolvedId),
+      albumArtUrl: `https://img.youtube.com/vi/${resolvedId}/hqdefault.jpg`,
+    });
+    res.json({ playbackState: state });
     return;
   }
 
   const state = hostChangePlaybackTrack(salon, {
     trackId: resolvedId,
-    title: typeof title === 'string' && title.trim() ? title.trim() : 'Morceau YouTube',
-    artist: typeof artist === 'string' && artist.trim() ? artist.trim() : 'YouTube',
-    externalUrl: buildPlatformTrackUrl('youtube', resolvedId),
-    albumArtUrl: `https://img.youtube.com/vi/${resolvedId}/hqdefault.jpg`,
+    title: typeof title === 'string' && title.trim() ? title.trim() : 'Morceau Spotify',
+    artist: typeof artist === 'string' && artist.trim() ? artist.trim() : 'Spotify',
+    externalUrl: buildPlatformTrackUrl('spotify', resolvedId),
+    albumArtUrl: typeof albumArtUrl === 'string' && albumArtUrl.trim() ? albumArtUrl.trim() : undefined,
   });
   res.json({ playbackState: state });
 });

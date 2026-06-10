@@ -18,6 +18,17 @@ function formatDate(ts: number | undefined, locale: string): string {
   });
 }
 
+function formatIsoDate(iso: string | undefined, locale: string): string {
+  if (!iso) return '—';
+  const parsed = new Date(`${iso}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return iso;
+  return parsed.toLocaleDateString(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
 function formatDateTime(ts: number | undefined, locale: string): string {
   if (!ts) return '—';
   return new Date(ts).toLocaleString(locale, {
@@ -50,6 +61,25 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
+const FILTER_OPTIONS: UserFilter[] = ['all', 'pending', 'active', 'blocked'];
+
+function filterLabel(filter: UserFilter, t: (key: string) => string): string {
+  if (filter === 'all') return t('admin.accounts.filterAll');
+  if (filter === 'pending') return t('admin.accounts.filterPending');
+  if (filter === 'active') return t('admin.accounts.filterActive');
+  return t('admin.accounts.filterBlocked');
+}
+
+function relationshipLabel(
+  u: AccessManagedUser,
+  t: (key: string) => string
+): string | undefined {
+  if (u.relationshipStatus === 'celibataire') return t('admin.accounts.relationshipCelibataire');
+  if (u.relationshipStatus === 'en_couple') return t('admin.accounts.relationshipEnCouple');
+  if (u.relationshipStatusCustom) return u.relationshipStatusCustom;
+  return undefined;
+}
+
 function exportUsersCsv(users: AccessManagedUser[], t: (key: string) => string): void {
   const headers = [
     'id',
@@ -57,10 +87,15 @@ function exportUsersCsv(users: AccessManagedUser[], t: (key: string) => string):
     'email',
     'status',
     'city',
+    'birthDate',
+    'age',
+    'relationshipStatus',
     'memberSince',
     'lastSeenAt',
     'followers',
     'photos',
+    'privateReels',
+    'publicReels',
     'meloCoins',
   ];
   const rows = users.map((u) =>
@@ -70,10 +105,15 @@ function exportUsersCsv(users: AccessManagedUser[], t: (key: string) => string):
       u.email,
       statusLabel(u.accountStatus, t),
       u.city ?? '',
+      u.birthDate ?? '',
+      u.age != null ? String(u.age) : '',
+      u.relationshipStatus ?? u.relationshipStatusCustom ?? '',
       u.memberSince ? new Date(u.memberSince).toISOString() : '',
       u.lastSeenAt ? new Date(u.lastSeenAt).toISOString() : '',
       String(u.followersCount ?? 0),
       String(u.photosCount ?? 0),
+      String(u.privateReelsCount ?? 0),
+      String(u.publicReelsCount ?? 0),
       String(u.meloCoins ?? ''),
     ]
       .map((v) => `"${String(v).replace(/"/g, '""')}"`)
@@ -105,6 +145,8 @@ export function AdminAccountsTab() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [busy, setBusy] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [detailById, setDetailById] = useState<Record<string, AccessManagedUser>>({});
+  const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState('');
   const [exporting, setExporting] = useState(false);
 
@@ -176,6 +218,24 @@ export function AdminAccountsTab() {
     window.setTimeout(() => setCopyFeedback(''), 2000);
   };
 
+  const toggleExpanded = async (userId: string) => {
+    if (expandedId === userId) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(userId);
+    if (!token || detailById[userId]) return;
+    setDetailLoadingId(userId);
+    try {
+      const { user } = await api.getAccessAdminUser(token, userId);
+      setDetailById((prev) => ({ ...prev, [userId]: user }));
+    } catch {
+      // Liste paginée déjà enrichie — le panneau utilise les données locales.
+    } finally {
+      setDetailLoadingId(null);
+    }
+  };
+
   const handleExport = async () => {
     if (!token || exporting) return;
     setExporting(true);
@@ -200,24 +260,6 @@ export function AdminAccountsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {(
-          [
-            { key: 'total', value: counts.total, color: 'text-white' },
-            { key: 'active', value: counts.active, color: 'text-green-400' },
-            { key: 'pending', value: counts.pending, color: 'text-yellow-400' },
-            { key: 'blocked', value: counts.blocked, color: 'text-red-400' },
-          ] as const
-        ).map((stat) => (
-          <div key={stat.key} className="bg-[#12121a] border border-[#1e1e2f] rounded-xl p-3 text-center">
-            <div className={`text-xl font-bold ${stat.color}`}>{stat.value}</div>
-            <div className="text-[10px] text-gray-500 uppercase tracking-wide">
-              {t(`admin.accounts.stats.${stat.key}`)}
-            </div>
-          </div>
-        ))}
-      </div>
-
       <div className="relative">
         <input
           type="search"
@@ -240,17 +282,30 @@ export function AdminAccountsTab() {
         )}
       </div>
 
+      <div
+        className="flex gap-1 overflow-x-auto pb-1"
+        role="tablist"
+        aria-label={t('admin.accounts.sortLabel')}
+      >
+        {FILTER_OPTIONS.map((f) => (
+          <button
+            key={f}
+            type="button"
+            role="tab"
+            aria-selected={filter === f}
+            onClick={() => setFilter(f)}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition ${
+              filter === f
+                ? 'bg-purple-600 text-white'
+                : 'bg-[#1a1a26] text-gray-400 hover:text-white'
+            }`}
+          >
+            {filterLabel(f, t)}
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap">
-        <select
-          className="flex-1 min-w-[8rem] bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value as UserFilter)}
-        >
-          <option value="all">{t('admin.accounts.filterAll')}</option>
-          <option value="pending">{t('admin.accounts.filterPending')}</option>
-          <option value="active">{t('admin.accounts.filterActive')}</option>
-          <option value="blocked">{t('admin.accounts.filterBlocked')}</option>
-        </select>
         <select
           className="flex-1 min-w-[8rem] bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm"
           value={sort}
@@ -295,6 +350,8 @@ export function AdminAccountsTab() {
       <ul className="space-y-2">
         {users.map((u) => {
           const expanded = expandedId === u.id;
+          const detail = detailById[u.id] ?? u;
+          const rel = relationshipLabel(detail, t);
           return (
             <li
               key={u.id}
@@ -303,7 +360,7 @@ export function AdminAccountsTab() {
               <button
                 type="button"
                 className="w-full text-left"
-                onClick={() => setExpandedId(expanded ? null : u.id)}
+                onClick={() => void toggleExpanded(u.id)}
               >
                 <div className="flex justify-between gap-2">
                   <div className="min-w-0">
@@ -326,28 +383,63 @@ export function AdminAccountsTab() {
 
               {expanded && (
                 <div className="text-xs text-gray-400 space-y-2 border-t border-[#1e1e2f] pt-2">
+                  {detailLoadingId === u.id && (
+                    <p className="text-gray-500">{t('app.loading')}</p>
+                  )}
                   <div className="flex flex-wrap gap-2">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] ${statusBadgeClass(u.accountStatus)}`}>
-                      {statusLabel(u.accountStatus, t)}
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] ${statusBadgeClass(detail.accountStatus)}`}>
+                      {statusLabel(detail.accountStatus, t)}
                     </span>
-                    {u.isAdmin && (
+                    {detail.isAdmin && (
                       <span className="px-2 py-0.5 rounded-full text-[10px] bg-purple-500/20 text-purple-300">
                         {t('admin.accounts.adminBadge')}
                       </span>
                     )}
+                    {detail.isGhostMode && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] bg-gray-500/20 text-gray-300">
+                        {t('admin.accounts.ghostMode')}
+                      </span>
+                    )}
+                    {(detail.privateReelsCount ?? 0) > 0 && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-300">
+                        {t('admin.accounts.privateReels', { count: detail.privateReelsCount ?? 0 })}
+                      </span>
+                    )}
                   </div>
-                  <p>{t('admin.accounts.memberSince', { date: formatDate(u.memberSince, locale) })}</p>
-                  <p>{t('admin.accounts.lastSeen', { date: formatDateTime(u.lastSeenAt, locale) })}</p>
-                  <p>
-                    {t('admin.accounts.followersCount', { count: u.followersCount ?? 0 })}
-                    {' · '}
-                    {t('admin.accounts.photosCount', { count: u.photosCount ?? 0 })}
-                  </p>
-                  {u.meloCoins != null && (
-                    <p>{t('admin.accounts.meloCoins', { count: u.meloCoins })}</p>
+                  <p>{t('admin.accounts.memberSince', { date: formatDate(detail.memberSince, locale) })}</p>
+                  <p>{t('admin.accounts.lastSeen', { date: formatDateTime(detail.lastSeenAt, locale) })}</p>
+                  {detail.birthDate && (
+                    <p>
+                      {t('admin.accounts.birthDate', { date: formatIsoDate(detail.birthDate, locale) })}
+                      {detail.hideBirthDateOnProfile && (
+                        <span className="ml-1 text-amber-400/80">
+                          ({t('admin.accounts.birthDateHidden')})
+                        </span>
+                      )}
+                    </p>
                   )}
-                  {u.listeningRole && <p>{u.listeningRole}</p>}
-                  {u.bioPreview && <p className="italic text-gray-500">{u.bioPreview}</p>}
+                  {detail.age != null && !detail.birthDate && (
+                    <p>{t('admin.accounts.age', { age: detail.age })}</p>
+                  )}
+                  {rel && <p>{t('admin.accounts.relationship', { status: rel })}</p>}
+                  <p>
+                    {t('admin.accounts.followersCount', { count: detail.followersCount ?? 0 })}
+                    {' · '}
+                    {t('admin.accounts.photosCount', { count: detail.photosCount ?? 0 })}
+                    {(detail.publicReelsCount ?? 0) > 0 && (
+                      <>
+                        {' · '}
+                        {t('admin.accounts.publicReels', { count: detail.publicReelsCount ?? 0 })}
+                      </>
+                    )}
+                  </p>
+                  {detail.meloCoins != null && (
+                    <p>{t('admin.accounts.meloCoins', { count: detail.meloCoins })}</p>
+                  )}
+                  {detail.listeningRole && <p>{detail.listeningRole}</p>}
+                  {(detail.bio || detail.bioPreview) && (
+                    <p className="italic text-gray-500">{detail.bio ?? detail.bioPreview}</p>
+                  )}
                   <div className="flex flex-wrap gap-2 pt-1">
                     <button
                       type="button"
@@ -359,14 +451,14 @@ export function AdminAccountsTab() {
                     <button
                       type="button"
                       className="px-2.5 py-1 rounded-lg bg-[#1a1a26] border border-[#2d2d3d] text-[11px] hover:border-purple-500/50"
-                      onClick={() => void handleCopy(u.id, t('admin.accounts.copiedId'))}
+                      onClick={() => void handleCopy(detail.id, t('admin.accounts.copiedId'))}
                     >
                       {t('admin.accounts.copyId')}
                     </button>
                     <button
                       type="button"
                       className="px-2.5 py-1 rounded-lg bg-[#1a1a26] border border-[#2d2d3d] text-[11px] hover:border-purple-500/50"
-                      onClick={() => void handleCopy(u.email, t('admin.accounts.copiedEmail'))}
+                      onClick={() => void handleCopy(detail.email, t('admin.accounts.copiedEmail'))}
                     >
                       {t('admin.accounts.copyEmail')}
                     </button>
@@ -423,6 +515,24 @@ export function AdminAccountsTab() {
           {loadingMore ? t('app.loading') : t('admin.accounts.loadMore')}
         </button>
       )}
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 pt-2 border-t border-[#1e1e2f]">
+        {(
+          [
+            { key: 'total', value: counts.total, color: 'text-white' },
+            { key: 'active', value: counts.active, color: 'text-green-400' },
+            { key: 'pending', value: counts.pending, color: 'text-yellow-400' },
+            { key: 'blocked', value: counts.blocked, color: 'text-red-400' },
+          ] as const
+        ).map((stat) => (
+          <div key={stat.key} className="bg-[#12121a] border border-[#1e1e2f] rounded-xl p-3 text-center">
+            <div className={`text-xl font-bold ${stat.color}`}>{stat.value}</div>
+            <div className="text-[10px] text-gray-500 uppercase tracking-wide">
+              {t(`admin.accounts.stats.${stat.key}`)}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

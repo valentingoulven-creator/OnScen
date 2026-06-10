@@ -40,9 +40,23 @@ export interface AccessManagedUser {
   city?: string;
   meloCoins?: number;
   listeningRole?: ListeningRole;
+  bio?: string;
   bioPreview?: string;
   followersCount?: number;
   photosCount?: number;
+  /** Champs admin (contournent la confidentialité publique). */
+  birthDate?: string;
+  age?: number;
+  hideBirthDateOnProfile?: boolean;
+  showAge?: boolean;
+  relationshipStatus?: RelationshipStatus;
+  relationshipStatusCustom?: string;
+  isGhostMode?: boolean;
+  shareDistance?: boolean;
+  locationPrecision?: 'precise' | 'city';
+  privateReelsCount?: number;
+  publicReelsCount?: number;
+  instagramHandle?: string;
 }
 
 export type AdminUserSort = 'lastSeen' | 'memberSince' | 'username' | 'status';
@@ -212,6 +226,15 @@ export interface YoutubeSearchResult {
   title: string;
   artist: string;
   thumbnailUrl: string;
+  externalUrl: string;
+}
+
+export interface SpotifySearchResult {
+  id: string;
+  uri: string;
+  name: string;
+  artist: string;
+  albumArtUrl: string;
   externalUrl: string;
 }
 

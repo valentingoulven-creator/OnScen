@@ -150,11 +150,13 @@ html {
   --app-header-row-h: 2rem;
   --app-header-pad-b: 0.5rem;
   --app-header-tabs-h: 0px;
+  --app-header-salon-bar-h: 0px;
   --app-header-total-h: calc(
     max(0.75rem, env(safe-area-inset-top, 0px))
     + var(--app-header-row-h)
     + var(--app-header-pad-b)
     + var(--app-header-tabs-h)
+    + var(--app-header-salon-bar-h)
   );
   font-family: "Segoe UI", system-ui, sans-serif;
   background: var(--ms-bg);
@@ -197,6 +199,11 @@ body {
 /* Shell appa2 : propage --app-header-tabs-h au main (sibling du header) */
 .ms-app-shell--header-tabs {
   --app-header-tabs-h: 3.25rem;
+}
+
+/* Barre « Revenir au salon » sous la ligne logo / recherche */
+.ms-app-shell--salon-return {
+  --app-header-salon-bar-h: 2.25rem;
 }
 
 /* ── Header Soundly fixe (toujours visible au scroll) ─────────────── */

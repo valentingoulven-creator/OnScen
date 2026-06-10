@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { db } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
 import { isDeliverableNotificationType, notifyHeartReceived } from '../lib/notifications';
+import { schedulePersist } from '../lib/persist';
 import {
   recordHeart,
   hasHeart,
@@ -72,10 +73,15 @@ notificationsRouter.get('/matches/with/:userId', authenticateJWT, (req: Request,
 
 notificationsRouter.patch('/read-all', authenticateJWT, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
+  let changed = false;
   for (const n of db.notifications) {
-    if (n.recipientId === me) n.read = true;
+    if (n.recipientId === me && !n.read) {
+      n.read = true;
+      changed = true;
+    }
   }
-  res.json({ ok: true });
+  if (changed) schedulePersist();
+  res.json({ ok: true, unreadCount: 0 });
 });
 
 notificationsRouter.post('/heart/:userId', authenticateJWT, (req: Request, res: Response) => {

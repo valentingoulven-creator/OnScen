@@ -155,6 +155,13 @@ export const api = {
     );
   },
 
+  getAccessAdminUser: (token: string, userId: string) =>
+    request<{ user: import('../types').AccessManagedUser }>(
+      `/access/admin/users/${userId}`,
+      {},
+      token
+    ),
+
   patchAccessPolicy: (token: string, registrationMode: string) =>
     request<{ policy: { registrationMode: string }; config: import('../types').PublicAccessConfig }>(
       '/access/admin/policy',
@@ -272,10 +279,23 @@ export const api = {
       token
     ),
 
+  searchSpotify: (token: string, query: string) =>
+    request<{ results: import('../types').SpotifySearchResult[] }>(
+      `/salons/spotify-search?q=${encodeURIComponent(query)}`,
+      {},
+      token
+    ),
+
   salonChangeTrack: (
     token: string,
     salonId: string,
-    body: { trackId: string; title: string; artist: string; trackLink?: string }
+    body: {
+      trackId: string;
+      title: string;
+      artist: string;
+      trackLink?: string;
+      albumArtUrl?: string;
+    }
   ) =>
     request<{ playbackState: import('../types').PlaybackState }>(
       `/salons/${salonId}/playback/change-track`,
@@ -835,7 +855,7 @@ export const api = {
     ),
 
   markNotificationsRead: (token: string) =>
-    request<{ ok: boolean }>('/notifications/read-all', { method: 'PATCH' }, token),
+    request<{ ok: boolean; unreadCount: number }>('/notifications/read-all', { method: 'PATCH' }, token),
 
   followUser: (token: string, userId: string) =>
     request<{ ok: boolean; followingId: string; isFollowing: boolean }>(
@@ -1118,8 +1138,16 @@ export const api = {
     );
   },
 
-  getAnalyticsSummary: (token: string) =>
-    request<{
+  getAnalyticsSummary: (
+    token: string,
+    options?: { period?: 'day' | 'week' | 'month' | 'year'; locale?: string }
+  ) => {
+    const params = new URLSearchParams();
+    if (options?.period) params.set('period', options.period);
+    if (options?.locale) params.set('locale', options.locale);
+    const qs = params.toString();
+    return request<{
+      period: 'day' | 'week' | 'month' | 'year';
       snapshot: {
         totalUsers: number;
         dau24h: number;
@@ -1142,5 +1170,6 @@ export const api = {
         matchesCreated: number[];
         favoritesAdded: number[];
       };
-    }>('/analytics/summary', {}, token),
+    }>(`/analytics/summary${qs ? `?${qs}` : ''}`, {}, token);
+  },
 };

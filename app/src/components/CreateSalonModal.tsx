@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api';
 import { getLivesGeo, isFixedMapGeoSource } from '../lib/livesGeo';
 import { isPlatformConnected } from '../lib/platformConnect';
@@ -7,6 +8,7 @@ import { copyShareLink, getSalonShareUrl } from '../lib/shareLink';
 import { PlatformConnectCard } from './PlatformConnectCard';
 import { SpotifyJamLinkField } from './SpotifyJamLinkField';
 import { CreateSalonYouTubePicker } from './CreateSalonYouTubePicker';
+import { CreateSalonSpotifyPicker } from './CreateSalonSpotifyPicker';
 import {
   CreateSalonPlaylistPicker,
   type CreateSalonPlaylistSelection,
@@ -63,6 +65,7 @@ export function CreateSalonModal({
   onCreated,
   onUserUpdated,
 }: CreateSalonModalProps) {
+  const { t } = useTranslation();
   const [step, setStep] = useState(1);
   const [contacts, setContacts] = useState<DmContact[]>([]);
   const [saving, setSaving] = useState(false);
@@ -253,9 +256,11 @@ export function CreateSalonModal({
                   : "Choisissez l'application liée à votre salon"}
               </p>
               <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-2.5 text-[11px] text-purple-100 leading-snug">
-                <strong className="text-white">YouTube</strong> permet aux participants d&apos;écouter le même
-                morceau <strong className="text-white">en même temps</strong> dans Soundly (lecteur synchronisé).
-                Avec Spotify, ils suivent le chrono partagé dans leur app.
+                <strong className="text-white">YouTube</strong> — {t('salon.playbackMode.youtubeSync')}{' '}
+                <strong className="text-white">{t('salon.playbackMode.youtubeSyncEmphasis')}</strong>{' '}
+                {t('salon.playbackMode.youtubeSyncSuffix')}
+                <br />
+                <strong className="text-white">Spotify</strong> — {t('salon.playbackMode.spotifyChrono')}
               </div>
               {lockedPlatform ? (
                 <div
@@ -338,15 +343,32 @@ export function CreateSalonModal({
                 />
               </label>
               {form.platform === 'spotify' ? (
-                <label className="block">
-                  <span className="text-xs text-gray-400">Lien morceau Spotify (optionnel)</span>
-                  <input
-                    value={form.trackLink}
-                    onChange={(e) => setForm((f) => ({ ...f, trackLink: e.target.value }))}
-                    placeholder="https://open.spotify.com/track/..."
-                    className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
+                platformLinked ? (
+                  <CreateSalonSpotifyPicker
+                    token={token}
+                    value={
+                      form.trackLink.trim()
+                        ? {
+                            trackLink: form.trackLink,
+                            trackTitle: form.trackTitle,
+                            artist: form.artist,
+                          }
+                        : null
+                    }
+                    onChange={(selection) => {
+                      if (!selection) {
+                        setForm((f) => ({ ...f, trackLink: '' }));
+                        return;
+                      }
+                      setForm((f) => ({
+                        ...f,
+                        trackLink: selection.trackLink,
+                        trackTitle: selection.trackTitle,
+                        artist: selection.artist,
+                      }));
+                    }}
                   />
-                </label>
+                ) : null
               ) : (
                 platformLinked && (
                   <div className="space-y-3">
@@ -414,7 +436,7 @@ export function CreateSalonModal({
               )}
               {form.platform === 'spotify' && platformLinked && (
                 <p className="text-[10px] text-gray-500 leading-snug">
-                  Les playlists Spotify ne sont pas encore disponibles — choisissez YouTube ou un lien morceau.
+                  {t('salon.spotifySearch.playlistsUnavailable')}
                 </p>
               )}
               {form.platform === 'spotify' && platformLinked && (

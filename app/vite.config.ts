@@ -109,6 +109,7 @@ export default defineConfig(({ mode }) => {
           '**/pwa-512x512.png',
           '**/workbox-*.js',
           '**/sw.js',
+          '**/vendor-heic2any*.js',
         ],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/, /^\/socket\.io/, /^\/msdev-mobile$/, /^\/clear-pwa/, /^\/phone-preview/, /^\/tel\//],
