@@ -6350,3 +6350,71 @@ passagère au chargement SalonPage.
 ================================================================================
 Fin MODIF 412 - 2026-06-10
 ================================================================================
+
+================================================================================
+MODIF 413 — Fix définitif salon se ferme seul (membership centralisée)
+================================================================================
+Date : 2026-06-10
+
+## Symptôme
+Malgré MODIF 412, l’utilisateur prod signale encore que le salon « se clos
+tout seul » (barre retour disparaît, fiche carte perdue, écoute coupée).
+
+## Cause racine (trigger utilisateur le plus probable)
+**`leave_salon` émis au démontage React des composants UI**, pas à la
+volonté de quitter :
+
+1. **`SalonPage` cleanup** : quitter le plein écran (onglet, réduction, overlay)
+   démontait SalonPage → `socket.emit('leave_salon')` alors que la session App
+   (`activeSalonSession`) devait continuer.
+2. **`HomePage` cleanup** (fiche carte) : `selected` passait à `null` (fermeture
+   fiche, remount, effet `canJoin`) → cleanup du `useEffect` socket émettait
+   `leave_salon` + parfois `onSalonSessionEnd`.
+3. **Double membership** SalonPage + HomePage : leave d’un composant while
+   l’autre pensait encore être en salon → désync socket / `listenersCount`.
+4. **Unmount HomePage `onMapSalonActive(null)`** : effaçait `mapSalonActiveId`
+   au remount Suspense, masquant la barre retour ou forçant un état incohérent.
+5. **Retour Carte sans restore** : Actualité → Carte ne repassait pas
+   `restoreSalonOnMapId` si on n’était plus en `view.type === 'salon'`.
+
+Scénario prod typique : salon plein écran ou fiche carte → changement d’onglet
+ou fermeture fiche → `leave_salon` fantôme → session morte côté serveur alors
+que l’UI croyait encore être dedans (ou l’inverse après remount).
+
+## Architecture (correctif définitif)
+- **`activeSalonSession.ts`** : persistance `sessionStorage` (`id`, `title`).
+- **`useSalonSocketMembership`** (App.tsx) : **seule** source de vérité socket
+  `join_salon` / `leave_salon`. Join au montage session + reconnect ;
+  **jamais** `leave_salon` au cleanup d’effet React.
+- **`leave_salon` uniquement** via `leaveActiveSalonSession`, kick/ban/refus,
+  `salon_ended`, ou changement de salon explicite.
+- **HomePage / SalonPage** : écoutent `salon_updated` / playback seulement ;
+  ne gèrent plus join/leave.
+- **HomePage** : plus de `onMapSalonActive(null)` au unmount ; ne clear
+  `mapSalonActiveId` que si `activeSalonSessionId` est null.
+- **`selectTab('map')`** : restore fiche si `activeSalonSession` persiste.
+- **Boot** : rehydrate sessionStorage + `restoreSalonOnMapId` après auth.
+
+## Fichiers
+- app/src/lib/activeSalonSession.ts (nouveau)
+- app/src/hooks/useSalonSocketMembership.ts (nouveau)
+- app/src/App.tsx
+- app/src/pages/HomePage.tsx
+- app/src/pages/SalonPage.tsx
+- app/src/context/AuthContext.tsx
+- modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+  1. Salon carte → fermer fiche (X) → barre retour visible, pas de quit socket
+  2. Salon plein écran → Actualité / DM / Reels → barre retour → retour plein écran OK
+  3. Salon plein écran → Carte → fiche restaurée (restoreSalonOnMapId)
+  4. Actualité → Carte avec session active → fiche restaurée
+  5. Overlay Mon profil → session + audio conservés
+  6. Quitter explicite / kick / ban / refus → session effacée + leave_salon
+  7. Reload page (sessionStorage) → session restaurée, fiche carte au retour Carte
+  8. Logout → sessionStorage salon cleared
+
+================================================================================
+Fin MODIF 413 - 2026-06-10
+================================================================================

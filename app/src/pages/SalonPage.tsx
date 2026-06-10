@@ -7,7 +7,7 @@ import { mergeRemotePlaybackState } from '../lib/salonPlayback';
 
 import { api } from '../lib/api';
 
-import { getSocket, onSocketConnect } from '../lib/socket';
+import { getSocket } from '../lib/socket';
 
 import { ChatRoomProvider, ChatMessagesView, ChatInputBar, ChatModals } from '../components/ChatPanel';
 import { UsernameDisplay } from '../components/UsernameDisplay';
@@ -157,27 +157,6 @@ export function SalonPage({
 
     const socket = getSocket();
 
-    const joinSalon = () => {
-      socket.emit('join_salon', { salonId: salon.id, userId: user.id, username: user.username });
-    };
-
-    joinSalon();
-
-    const onDenied = () => {
-      setToastMsg('Accès refusé');
-      window.setTimeout(onBack, 1500);
-    };
-
-    const onKicked = ({ salonId: kickedId }: { salonId: string }) => {
-      if (kickedId !== salon.id) return;
-      (onLeaveSalon ?? onBack)();
-    };
-
-    const onBanned = ({ salonId: bannedId }: { salonId: string }) => {
-      if (bannedId !== salon.id) return;
-      (onLeaveSalon ?? onBack)();
-    };
-
     const onUpdated = (updated: Salon) => {
       if (updated.id !== salon.id) return;
       setSalon((prev) => {
@@ -194,22 +173,13 @@ export function SalonPage({
       });
     };
 
-    socket.on('salon_join_denied', onDenied);
-    socket.on('salon_kicked', onKicked);
-    socket.on('salon_banned', onBanned);
     socket.on('salon_updated', onUpdated);
-    const offReconnect = onSocketConnect(joinSalon);
 
     return () => {
-      offReconnect();
-      socket.emit('leave_salon', { salonId: salon.id });
-      socket.off('salon_join_denied', onDenied);
-      socket.off('salon_kicked', onKicked);
-      socket.off('salon_banned', onBanned);
       socket.off('salon_updated', onUpdated);
     };
 
-  }, [salon?.id, user?.id, user?.username, onBack, onLeaveSalon]);
+  }, [salon?.id, user?.id, salon?.canJoin]);
 
 
 

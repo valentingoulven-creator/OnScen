@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import i18n from '../i18n';
 import { api } from '../lib/api';
 import { clearStoredToken, getStoredToken, persistToken } from '../lib/authStorage';
+import { clearPersistedSalonSession } from '../lib/activeSalonSession';
 import { clearSocketUser, registerUser } from '../lib/socket';
 import type { User } from '../types';
 
@@ -40,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     clearStoredToken();
+    clearPersistedSalonSession();
     clearSocketUser();
     setToken(null);
     setUser(null);

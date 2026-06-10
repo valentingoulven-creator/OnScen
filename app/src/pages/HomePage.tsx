@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
-import { getSocket, onSocketConnect } from '../lib/socket';
+import { getSocket } from '../lib/socket';
 import { MapView, type MapViewHandle, type MapStyle } from '../components/MapView';
 import { NearbyPeoplePanel } from '../components/NearbyPeoplePanel';
 import { MapCityEventsPanel } from '../components/MapCityEventsPanel';
@@ -158,10 +158,10 @@ interface HomePageProps {
   /** Réouvre la fiche salon carte après réduction du grand salon. */
   restoreSalonId?: string | null;
   onSalonMapRestored?: () => void;
+  /** Session salon App (source de vérité) — sync fiche carte sans leave_salon au démontage. */
+  activeSalonSessionId?: string | null;
   /** Salon sélectionné sur la fiche carte (petit salon actif). */
   onMapSalonActive?: (session: { id: string; title?: string } | null) => void;
-  /** Fermeture explicite du salon (kick / ban / refus carte). */
-  onSalonSessionEnd?: () => void;
   /** Quitter volontairement le salon (session + navigation). */
   onLeaveSalon?: () => void;
 }
@@ -179,8 +179,8 @@ export function HomePage({
   isActive = true,
   restoreSalonId,
   onSalonMapRestored,
+  activeSalonSessionId = null,
   onMapSalonActive,
-  onSalonSessionEnd,
   onLeaveSalon,
 }: HomePageProps) {
   const { t } = useTranslation();
@@ -350,9 +350,21 @@ export function HomePage({
     }
   }, [selected?.id, selected?.title, onMapSalonActive]);
 
+  const prevActiveSalonSessionIdRef = useRef<string | null>(activeSalonSessionId);
   useEffect(() => {
-    return () => onMapSalonActive?.(null);
-  }, [onMapSalonActive]);
+    const prev = prevActiveSalonSessionIdRef.current;
+    prevActiveSalonSessionIdRef.current = activeSalonSessionId;
+    if (prev && !activeSalonSessionId && selected?.id === prev) {
+      setSelected((current) => {
+        if (current?.id === prev) {
+          clearMapInlineListenSession(prev);
+          return null;
+        }
+        return current;
+      });
+      setSalonSheetExpanded(false);
+    }
+  }, [activeSalonSessionId, selected?.id]);
 
   const filteredNearbyPeople = useMemo(() => {
     const filtered = filterNearbyPeople(nearbyPeople, nearbyPanelPrefs, viewerTastes);
@@ -1375,30 +1387,6 @@ export function HomePage({
     if (selected.canJoin === false && selected.hostId !== user.id) return;
     const salonId = selected.id;
     const socket = getSocket();
-    const joinSalon = () => {
-      socket.emit('join_salon', { salonId, userId: user.id, username: user.username });
-    };
-    joinSalon();
-    const offReconnect = onSocketConnect(joinSalon);
-    const onDenied = ({ salonId: deniedId }: { salonId: string }) => {
-      if (deniedId === salonId) {
-        setSelected(null);
-        onSalonSessionEnd?.();
-        setToastMsg('Accès refusé à ce salon');
-      }
-    };
-    const onKicked = ({ salonId: kickedId }: { salonId: string }) => {
-      if (kickedId === salonId) {
-        setSelected(null);
-        onSalonSessionEnd?.();
-      }
-    };
-    const onBanned = ({ salonId: bannedId }: { salonId: string }) => {
-      if (bannedId === salonId) {
-        setSelected(null);
-        onSalonSessionEnd?.();
-      }
-    };
     const onSalonUpdated = (updated: Salon) => {
       if (updated.id !== salonId) return;
       setSelected((prev) => {
@@ -1424,24 +1412,16 @@ export function HomePage({
         );
       }, 80);
     };
-    socket.on('salon_join_denied', onDenied);
-    socket.on('salon_kicked', onKicked);
-    socket.on('salon_banned', onBanned);
     socket.on('salon_updated', onSalonUpdated);
     socket.on('playback_sync', onPlaybackSync);
     socket.on('salon_playback', onPlaybackSync);
     return () => {
-      offReconnect();
       if (playbackSyncDebounceRef.current) clearTimeout(playbackSyncDebounceRef.current);
-      socket.emit('leave_salon', { salonId });
-      socket.off('salon_join_denied', onDenied);
-      socket.off('salon_kicked', onKicked);
-      socket.off('salon_banned', onBanned);
       socket.off('salon_updated', onSalonUpdated);
       socket.off('playback_sync', onPlaybackSync);
       socket.off('salon_playback', onPlaybackSync);
     };
-  }, [selected?.id, selected?.canJoin, user?.id, user?.username, token, onSalonSessionEnd]);
+  }, [selected?.id, selected?.canJoin, user?.id, token]);
 
   const handleMapInlineListenCapReached = useCallback(() => {
     setToastMsg('Aperçu carte : 10 min atteintes — ouvrez le salon pour continuer');

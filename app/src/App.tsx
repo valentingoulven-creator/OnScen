@@ -31,7 +31,18 @@ import { UserAvatarOnline } from './components/UserAvatarOnline';
 import { resolveAvatarUrl } from './lib/profilePhotos';
 import { isMsdevEnvironment } from './lib/liveCameraSupport';
 import { api } from './lib/api';
+import {
+  clearPersistedSalonSession,
+  readPersistedSalonSession,
+  writePersistedSalonSession,
+  type ActiveSalonSession,
+} from './lib/activeSalonSession';
 import { dispatchPlatformStatusRefresh } from './lib/platformStatusEvents';
+import {
+  emitLeaveSalon,
+  useSalonSocketMembership,
+  type SalonForcedEndReason,
+} from './hooks/useSalonSocketMembership';
 import type { NearbyPerson } from './types';
 
 // Heavy pages are lazy-loaded to defer bundle parsing of Leaflet, react-globe.gl,
@@ -60,8 +71,6 @@ type View =
   | { type: 'salon'; id: string }
   | { type: 'live'; id: string }
   | { type: 'profile'; id: string };
-
-type ActiveSalonSession = { id: string; title?: string };
 
 export default function App() {
   const { t } = useTranslation();
@@ -93,9 +102,34 @@ export default function App() {
   /** Publication du fil à mettre en avant (depuis la carte). */
   const [focusFeedPostId, setFocusFeedPostId] = useState<string | null>(null);
   /** Salon ouvert (grand écran ou minimisé) — persiste hors vue salon pour la barre retour. */
-  const [activeSalonSession, setActiveSalonSession] = useState<ActiveSalonSession | null>(null);
+  const [activeSalonSession, setActiveSalonSession] = useState<ActiveSalonSession | null>(
+    () => readPersistedSalonSession()
+  );
+  const activeSalonSessionRef = useRef<ActiveSalonSession | null>(activeSalonSession);
+  activeSalonSessionRef.current = activeSalonSession;
   /** Salon actif sur la fiche carte (petit salon) — masque la barre retour sur l'onglet Carte. */
   const [mapSalonActiveId, setMapSalonActiveId] = useState<string | null>(null);
+
+  useEffect(() => {
+    writePersistedSalonSession(activeSalonSession);
+  }, [activeSalonSession]);
+
+  useEffect(() => {
+    if (token !== null) return;
+    clearPersistedSalonSession();
+    setActiveSalonSession(null);
+    setRestoreSalonOnMapId(null);
+    setMapSalonActiveId(null);
+  }, [token]);
+
+  const salonRestoredOnBootRef = useRef(false);
+  useEffect(() => {
+    if (!user || !token || !activeSalonSession || salonRestoredOnBootRef.current) return;
+    salonRestoredOnBootRef.current = true;
+    if (viewRef.current.type === 'home') {
+      setRestoreSalonOnMapId(activeSalonSession.id);
+    }
+  }, [user, token, activeSalonSession]);
 
   const handleMsdevRebuild = useCallback(async () => {
     if (!token || msdevRebuilding) return;
@@ -262,17 +296,38 @@ export default function App() {
   }, []);
 
   const closeActiveSalonSession = useCallback(() => {
+    clearPersistedSalonSession();
     setActiveSalonSession(null);
     setRestoreSalonOnMapId(null);
     setMapSalonActiveId(null);
   }, []);
 
   const leaveActiveSalonSession = useCallback(() => {
+    const salonId = activeSalonSessionRef.current?.id;
+    if (salonId) emitLeaveSalon(salonId);
     clearSalonUrlFromBar();
     closeActiveSalonSession();
     setView({ type: 'home' });
     setTab('map');
   }, [closeActiveSalonSession]);
+
+  const handleSalonForcedEnd = useCallback(
+    (_reason: SalonForcedEndReason) => {
+      const salonId = activeSalonSessionRef.current?.id;
+      if (salonId) emitLeaveSalon(salonId);
+      clearSalonUrlFromBar();
+      closeActiveSalonSession();
+      setView({ type: 'home' });
+      setTab('map');
+    },
+    [closeActiveSalonSession]
+  );
+
+  useSalonSocketMembership(
+    activeSalonSession?.id ?? null,
+    user ? { id: user.id, username: user.username } : null,
+    handleSalonForcedEnd
+  );
 
   const openSalonPage = useCallback((salonId: string, salonTitle?: string) => {
     setRestoreSalonOnMapId(null);
@@ -384,6 +439,7 @@ export default function App() {
     if (tabRef.current === 'reels' && id !== 'reels') pauseAllReelsMediaInDom({ resetPosition: true });
     if (id !== 'reels') pauseMediaElements();
     setProfileOpen(false);
+    const persistedSalonId = activeSalonSessionRef.current?.id;
     if (viewRef.current.type === 'salon') {
       const salonId = viewRef.current.id;
       setView({ type: 'home' });
@@ -394,6 +450,9 @@ export default function App() {
       return;
     }
     setView({ type: 'home' });
+    if (id === 'map' && persistedSalonId) {
+      setRestoreSalonOnMapId(persistedSalonId);
+    }
     setTab(id);
   }, []);
 
@@ -665,10 +724,10 @@ export default function App() {
                     onCloseMapProfile={closeProfile}
                     mapPlaybackActive={mapPlaybackActive}
                     isActive={tab === 'map' && !profileOpen && view.type === 'home'}
+                    activeSalonSessionId={activeSalonSession?.id ?? null}
                     restoreSalonId={restoreSalonOnMapId}
                     onSalonMapRestored={() => setRestoreSalonOnMapId(null)}
                     onMapSalonActive={handleMapSalonActive}
-                    onSalonSessionEnd={closeActiveSalonSession}
                     onLeaveSalon={leaveActiveSalonSession}
                   />
                 </div>
