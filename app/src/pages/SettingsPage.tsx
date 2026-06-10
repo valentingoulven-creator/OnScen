@@ -221,20 +221,22 @@ export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }
 
   return (
     <div className="flex flex-col h-full min-h-0 bg-[#0b0b0f]">
-      <header className="shrink-0 relative h-12 flex items-center px-4 border-b border-[#1e1e2f]">
+      <header className="sticky top-0 z-10 shrink-0 bg-[#0b0b0f]/95 backdrop-blur border-b border-[#1e1e2f] px-4 py-3 flex items-center gap-3">
         <button
           type="button"
           onClick={onBack}
-          className="p-2 text-gray-400 hover:text-white transition"
-          aria-label="Retour"
+          className="text-purple-400 hover:text-purple-300 text-sm font-medium shrink-0"
+          aria-label={t('common.back')}
         >
-          ←
+          ← {t('common.back')}
         </button>
-        <h1 className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white pointer-events-none">
+        <h1 className="flex-1 min-w-0 text-center text-sm font-semibold text-white truncate">
           {t('settings.title')}
         </h1>
-        {saved && (
-          <span className="relative z-10 ml-auto text-[10px] text-green-400 bg-green-500/10 px-2 py-1 rounded-full">{saved}</span>
+        {saved ? (
+          <span className="shrink-0 text-[10px] text-green-400 bg-green-500/10 px-2 py-1 rounded-full">{saved}</span>
+        ) : (
+          <span className="shrink-0 w-[4.5rem]" aria-hidden />
         )}
       </header>
 

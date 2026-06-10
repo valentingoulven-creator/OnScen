@@ -29,6 +29,8 @@ interface ProfilePhotoGalleryProps {
   variant?: 'card' | 'bare';
   /** En lecture : n'afficher que les photos hors avatar (index > 0) */
   galleryOnly?: boolean;
+  /** En lecture : ouvre la visionneuse (index dans toutes les photos affichables, avatar inclus). */
+  onPhotoClick?: (index: number) => void;
 }
 
 function PhotoActionBar({
@@ -102,6 +104,7 @@ export function ProfilePhotoGallery({
   onBusyChange,
   variant = 'card',
   galleryOnly = false,
+  onPhotoClick,
 }: ProfilePhotoGalleryProps) {
   const [_activeIndex, setActiveIndex] = useState(0);
   const [editorFile, setEditorFile] = useState<File | null>(null);
@@ -109,6 +112,7 @@ export function ProfilePhotoGallery({
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isPreparingFile, setIsPreparingFile] = useState(false);
   const [pickerTarget, setPickerTarget] = useState<PhotoPickerTarget>('gallery');
+  const [deleteConfirmIndex, setDeleteConfirmIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -192,12 +196,18 @@ export function ProfilePhotoGallery({
     setEditorFile(null);
   };
 
-  const removePhoto = (index: number) => {
+  const requestRemovePhoto = (index: number) => {
     if (!onChange) return;
-    if (!window.confirm('Supprimer cette photo ?')) return;
+    setDeleteConfirmIndex(index);
+  };
+
+  const confirmRemovePhoto = () => {
+    if (deleteConfirmIndex === null || !onChange) return;
+    const index = deleteConfirmIndex;
     const next = photos.filter((_, i) => i !== index);
     onChange(next);
     setActiveIndex(Math.max(0, Math.min(index, next.length - 1)));
+    setDeleteConfirmIndex(null);
   };
 
   const setAsMain = (index: number) => {
@@ -253,7 +263,7 @@ export function ProfilePhotoGallery({
                 <span className="absolute top-2 left-1/2 -translate-x-1/2 text-[9px] bg-purple-600 text-white px-2 py-0.5 rounded-full font-bold whitespace-nowrap shadow">
                   Avatar
                 </span>
-                <PhotoActionBar onRemove={() => removePhoto(0)} />
+                <PhotoActionBar onRemove={() => requestRemovePhoto(0)} />
               </div>
             ) : editorFile && editorPreviewUrl && pickerTarget === 'avatar' ? (
               <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden border-2 border-purple-400/70 shadow-lg shadow-purple-900/30 bg-[#1a1a26] ring-2 ring-purple-500/40">
@@ -293,7 +303,7 @@ export function ProfilePhotoGallery({
                     <PhotoActionBar
                       showMain
                       onSetMain={() => setAsMain(photoIndex)}
-                      onRemove={() => removePhoto(photoIndex)}
+                      onRemove={() => requestRemovePhoto(photoIndex)}
                     />
                   </div>
                 );
@@ -363,10 +373,49 @@ export function ProfilePhotoGallery({
             </>
           ) : null}
         </div>
+
+        {deleteConfirmIndex !== null && (
+          <div
+            className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-photo-confirm-title"
+            onClick={() => setDeleteConfirmIndex(null)}
+          >
+            <div
+              className="w-full max-w-sm bg-[#12121a] border border-[#2d2d3d] rounded-2xl shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-5">
+                <p id="delete-photo-confirm-title" className="text-lg font-bold text-white">
+                  Supprimer cette photo ?
+                </p>
+                <p className="mt-2 text-sm text-gray-400">Cette action est définitive après enregistrement.</p>
+              </div>
+              <div className="flex gap-2 p-4 border-t border-[#1e1e2f] bg-[#0b0b0f]/50">
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmIndex(null)}
+                  className="flex-1 py-3 rounded-xl border border-[#2d2d3d] text-gray-300 text-sm font-semibold hover:text-white"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmRemovePhoto}
+                  className="flex-1 py-3 rounded-xl bg-red-600/90 hover:bg-red-500 text-white text-sm font-bold"
+                >
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </>
     );
   }
 
+  const viewablePhotos = photos.filter((url) => isDisplayableProfilePhotoUrl(url));
   const displayPhotos = (galleryOnly ? photos.slice(1) : photos).filter((url) =>
     isDisplayableProfilePhotoUrl(url)
   );
@@ -375,16 +424,51 @@ export function ProfilePhotoGallery({
   const gridCols =
     displayPhotos.length <= 2 ? 'grid-cols-2' : displayPhotos.length === 4 ? 'grid-cols-2' : 'grid-cols-3';
 
+  const openPhoto = (url: string) => {
+    if (!onPhotoClick) return;
+    const idx = viewablePhotos.indexOf(url);
+    if (idx >= 0) onPhotoClick(idx);
+  };
+
+  const renderGridCell = (
+    url: string,
+    i: number,
+    opts?: { rounded?: boolean; showAvatarBadge?: boolean }
+  ) => {
+    const cellClass = `relative aspect-square overflow-hidden bg-[#1a1a26] ${
+      opts?.rounded ? 'rounded-xl border border-[#2d2d3d]' : ''
+    }`;
+    const image = <ProfilePhotoImage url={url} className="w-full h-full object-cover" />;
+    const avatarBadge = opts?.showAvatarBadge ? (
+      <span className="absolute top-1.5 left-1.5 text-[9px] bg-purple-600/90 text-white px-1.5 py-0.5 rounded-full font-bold pointer-events-none">
+        Avatar
+      </span>
+    ) : null;
+    if (onPhotoClick) {
+      return (
+        <button
+          key={`${url}-${i}`}
+          type="button"
+          onClick={() => openPhoto(url)}
+          className={`${cellClass} cursor-pointer hover:opacity-90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500`}
+          aria-label="Voir la photo en grand"
+        >
+          {image}
+          {avatarBadge}
+        </button>
+      );
+    }
+    return (
+      <div key={`${url}-${i}`} className={cellClass}>
+        {image}
+        {avatarBadge}
+      </div>
+    );
+  };
+
   const grid = (
     <div className={`grid ${gridCols} gap-0.5 sm:gap-1`}>
-      {displayPhotos.map((url, i) => (
-        <div
-          key={`${url}-${i}`}
-          className="relative aspect-square overflow-hidden bg-[#1a1a26]"
-        >
-          <ProfilePhotoImage url={url} className="w-full h-full object-cover" />
-        </div>
-      ))}
+      {displayPhotos.map((url, i) => renderGridCell(url, i))}
     </div>
   );
 
@@ -403,19 +487,9 @@ export function ProfilePhotoGallery({
         </span>
       </div>
       <div className={`grid ${gridCols} gap-1.5 sm:gap-2`}>
-        {displayPhotos.map((url, i) => (
-          <div
-            key={`${url}-${i}`}
-            className="relative aspect-square overflow-hidden rounded-xl bg-[#1a1a26] border border-[#2d2d3d]"
-          >
-            <ProfilePhotoImage url={url} className="w-full h-full object-cover" />
-            {!galleryOnly && i === 0 ? (
-              <span className="absolute top-1.5 left-1.5 text-[9px] bg-purple-600/90 text-white px-1.5 py-0.5 rounded-full font-bold">
-                Avatar
-              </span>
-            ) : null}
-          </div>
-        ))}
+        {displayPhotos.map((url, i) =>
+          renderGridCell(url, i, { rounded: true, showAvatarBadge: !galleryOnly && i === 0 })
+        )}
       </div>
     </section>
   );

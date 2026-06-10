@@ -4431,3 +4431,329 @@ Date : 2026-06-10
 ================================================================================
 Fin MODIF 355 - 2026-06-10
 ================================================================================
+
+================================================================================
+MODIF 356 — Fichier statistiques app & base PostgreSQL (deploy/stats-app-db.sql)
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- deploy/stats-app-db.sql : requêtes SQL production-ready pour KPIs et stats
+  Soundy (utilisateurs, démographie, engagement, messagerie, salons/lives,
+  contenu, reels, monétisation, modération, meta DB). Commentaires en français.
+- deploy/stats-app-db.sh : wrapper VPS lisant DATABASE_URL depuis /opt/soundly/.env.
+- Basé sur le schéma migrations 001–004 et colonnes JSONB réelles (memberSince,
+  lastSeenAt, birthDate, account_status, etc.).
+
+## Usage prod
+  bash /opt/soundly/deploy/stats-app-db.sh
+  OUT=/opt/soundly/backups/stats-$(date +%Y%m%d).txt bash /opt/soundly/deploy/stats-app-db.sh
+
+## Fichiers modifiés
+  deploy/stats-app-db.sql (nouveau)
+  deploy/stats-app-db.sh (nouveau)
+  modification.txt
+
+================================================================================
+Fin MODIF 356 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 357 — Bouton retour visible (Paramètres)
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- SettingsPage : en-tête sticky « ← Retour » (common.back, style violet comme
+  AccessManagementPage) + titre centré ; retour au profil via onBack existant.
+
+## Test
+  tsc -b OK (app/)
+
+## Fichiers modifiés
+  app/src/pages/SettingsPage.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 357 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 358 — Bouton Comptes connectés + note host réelle (profil)
+================================================================================
+Date : 2026-06-10
+
+## Changements
+- ProfilePage : toggle « Comptes connectés » aligné sur le style Paramètres
+  (bordure rounded-lg border-[#2d2d3d], text-sm font-semibold text-gray-300,
+  icône 🔗, chevron ›/▾).
+- HostRatingBlock : prop `initialRating` (profil /me ou profil public) ;
+  fusion avec GET /ratings/host ; affichage moyenne 1 décimale si besoin (ex. 4.2),
+  « — » uniquement sans avis (count = 0).
+- Persistance notes hôtes : hostRatings dans store.json (storeCore) et table
+  host_ratings PostgreSQL (pgStore) ; schedulePersist après POST /ratings.
+
+## Calcul note
+- Backend getHostRatingSummary : moyenne arithmétique des étoiles (1–5) reçues,
+  arrondie à 1 décimale ; count = nombre d'évaluateurs uniques (host_id, rater_id).
+- publicProfile inclut hostRating pour profils host / les_deux / salonsHosted > 0.
+
+## Test
+  tsc -b OK (app/ + backend/)
+
+## Fichiers modifiés
+  app/src/pages/ProfilePage.tsx
+  app/src/components/HostRatingBlock.tsx
+  app/src/components/UserProfileView.tsx
+  backend/src/routes/ratings.ts
+  backend/src/lib/storeCore.ts
+  backend/src/lib/pgStore.ts
+  modification.txt
+
+================================================================================
+Fin MODIF 358 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 359 — Éligibilité cœurs (âge + célibataire, profil public)
+Date : 2026-06-10
+================================================================================
+
+## Règles
+- Envoi de cœur indisponible si l'un des deux utilisateurs a moins de 18 ans
+  (âge dérivé de birthDate ou champ age).
+- Envoi indisponible si les deux ne sont pas célibataires (relationshipStatus
+  === celibataire requis pour l'expéditeur ET le destinataire).
+- Comptes non validés : inchangé (bloqué).
+
+## UI
+- UserProfileView : bloc explicatif en bas (au-dessus du bouton cœur) listant
+  toutes les raisons de blocage ; tooltip bouton conservé (première raison).
+- ProfilePage : hint situation mis à jour (célibataire + 18 ans).
+
+## Backend
+- POST /notifications/heart/:userId : mêmes règles via heartSendDeniedReason
+  (âge expéditeur/destinataire + célibataire des deux côtés).
+
+## i18n
+- profile.heartBlocked* (fr/en) + relationshipHeartHint actualisé.
+
+## Test
+  tsc -b OK (app/ + backend/)
+
+## Fichiers modifiés
+  app/src/lib/canSendHeart.ts
+  app/src/components/UserProfileView.tsx
+  app/src/locales/fr.json
+  app/src/locales/en.json
+  backend/src/lib/canSendHeart.ts
+  modification.txt
+
+================================================================================
+Fin MODIF 359 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 360 — Hint éligibilité cœur sous le bouton (UserProfileView)
+Date : 2026-06-10
+================================================================================
+
+## UI
+- UserProfileView : messages d'éligibilité cœur (âge, célibataire, etc.) déplacés
+  immédiatement sous le bouton « Envoyer un cœur », en texte très petit
+  (text-[10px] text-gray-500), sans encadré bordé.
+
+## Test
+  tsc -b app/ OK
+
+## Fichiers modifiés
+  app/src/components/UserProfileView.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 360 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 361 — Retrait trait au-dessus Paramètres (profil)
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- ProfilePage : section Paramètres / Soutenir / Déconnexion — suppression
+  `border-t border-[#1e1e2f]` (trait horizontal au-dessus).
+
+## Fichiers modifiés
+  app/src/pages/ProfilePage.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 361 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 362 — Centrage libellé « Comptes connectés » (profil)
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- ProfilePage : bouton Comptes connectés — texte centré (`text-center`),
+  chevron expand en position absolue à droite.
+
+## Fichiers modifiés
+  app/src/pages/ProfilePage.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 362 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 363 — Avatar profil entièrement visible (compact)
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- ProfileHeaderSection (compact) : `pt-12` → `pt-16`, `overflow-visible` sur
+  l'en-tête pour éviter le clipping de l'anneau dégradé / ombre.
+- ProfilePage : conteneur header `overflow-visible`.
+
+## Fichiers modifiés
+  app/src/components/ProfileHeaderSection.tsx
+  app/src/pages/ProfilePage.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 363 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 364 — Confirmation suppression photo + dégradé wave champ pseudo
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- ProfilePhotoGallery : modal de confirmation avant suppression (× / Principale),
+  remplace window.confirm.
+- ProfilePage édition pseudo : overlay dégradé wave via usernameDisplayStyle inline
+  + bg-clip-text ; input color/WebkitTextFillColor transparent pour afficher le wave.
+
+## Test
+  tsc -b OK (app/)
+
+## Fichiers modifiés
+  app/src/components/ProfilePhotoGallery.tsx
+  app/src/pages/ProfilePage.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 364 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 365 — Visionneuse photos profil (grille + avatar)
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- Nouveau composant ProfilePhotoViewer : modal plein écran, navigation prev/next
+  (boutons + flèches clavier), compteur, fermeture backdrop ou ×.
+- ProfilePhotoGallery (lecture) : grille cliquable via onPhotoClick (index dans
+  toutes les photos affichables, avatar inclus).
+- ProfileHeaderSection : onAvatarClick pour ouvrir la visionneuse à l'index 0.
+- ProfilePage (lecture) + UserProfileView : état visionneuse partagé avatar + galerie.
+
+## Test
+  tsc -b OK (app/)
+
+## Fichiers modifiés
+  app/src/components/ProfilePhotoViewer.tsx (nouveau)
+  app/src/components/ProfilePhotoGallery.tsx
+  app/src/components/ProfileHeaderSection.tsx
+  app/src/pages/ProfilePage.tsx
+  app/src/components/UserProfileView.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 365 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 366 — En-tête profil : âge si case « Masquer mon âge » cochée
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+Quand hideBirthDateOnProfile est true (case « Masquer mon âge » cochée), l'en-tête
+affiche « 🎂 25 ans » et non la date complète (ex. « 25 juillet 2010 »).
+
+## Logique d'affichage (ProfileHeaderSection)
+- birthDate + hideBirthDateOnProfile false → date complète formatée
+- birthDate + hideBirthDateOnProfile true → âge dérivé (computeAgeFromBirthDate)
+- pas de birthDate + age fourni → âge (profil public visiteur, API publicAgeField)
+- rien → pas de ligne 🎂
+
+## Fichiers modifiés
+  app/src/components/ProfileHeaderSection.tsx
+  app/src/pages/ProfilePage.tsx
+  app/src/components/UserProfileView.tsx
+  modification.txt
+
+## Test
+  tsc -b app/
+
+================================================================================
+Fin MODIF 366 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 367 — Fermeture visionneuse photos (ProfilePhotoViewer)
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- z-[110] pour couvrir le header Soundy (z-100) ; bouton × plus visible en haut.
+- Bouton « Fermer » en bas ; backdrop + Esc inchangés.
+
+## Fichiers modifiés
+  app/src/components/ProfilePhotoViewer.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 367 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 368 — Avatar cliquable (Dicebear + galerie) profil public
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- UserProfileView + ProfilePage : viewerPhotos inclut l'avatar (même Dicebear)
+  si aucune photo uploadée ; clic avatar ouvre ProfilePhotoViewer.
+
+## Fichiers modifiés
+  app/src/components/UserProfileView.tsx
+  app/src/pages/ProfilePage.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 368 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 369 — Comptes connectés resserré avec Paramètres (profil)
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- ProfilePage : Comptes connectés + Paramètres / Soutenir / Déconnexion dans
+  une seule section `space-y-2` (plus d'écart space-y-5 entre les blocs).
+
+## Fichiers modifiés
+  app/src/pages/ProfilePage.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 369 - 2026-06-10
+================================================================================

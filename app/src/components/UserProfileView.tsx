@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getUserProfilePhotos } from '../lib/profilePhotos';
 import { isDicebearAvatarUrl } from '../lib/avatarUrl';
 import { useAuth } from '../context/AuthContext';
@@ -6,6 +7,7 @@ import { api } from '../lib/api';
 import { useMatchCreated } from '../lib/useMatchCreated';
 import { HostRatingBlock } from './HostRatingBlock';
 import { ProfilePhotoGallery } from './ProfilePhotoGallery';
+import { getViewableProfilePhotos, ProfilePhotoViewer } from './ProfilePhotoViewer';
 import { formatCompactCount } from '../lib/formatCount';
 import { resolveProfileLiveId } from '../lib/profileLive';
 import { FollowUserButton } from './FollowUserButton';
@@ -13,7 +15,7 @@ import { CreatorSubscribeSheet } from './CreatorSubscribeSheet';
 import { ProfileCurrentListening } from './ProfileCurrentListening';
 import { CompactTagChips } from './CompactTagChips';
 import { ProfileHeaderSection } from './ProfileHeaderSection';
-import { canSendHeart, heartDisabledReason } from '../lib/canSendHeart';
+import { canSendHeart, heartBlockReasonKeys, heartDisabledReason, type HeartBlockReasonKey } from '../lib/canSendHeart';
 import type {
   CurrentListening,
   MatchStatus,
@@ -39,6 +41,7 @@ export function UserProfileView({
   onSalonInfo,
   onOpenDm,
 }: UserProfileViewProps) {
+  const { t } = useTranslation();
   const { user: me, token } = useAuth();
   const [profile, setProfile] = useState<User | null>(null);
   const [matchStatus, setMatchStatus] = useState<MatchStatus | null>(null);
@@ -50,11 +53,24 @@ export function UserProfileView({
   const [error, setError] = useState<string | null>(null);
   const [subscribeOpen, setSubscribeOpen] = useState(false);
   const [subscribeToast, setSubscribeToast] = useState<string | null>(null);
+  const [photoViewerIndex, setPhotoViewerIndex] = useState<number | null>(null);
 
   const isSelf = me?.id === userId;
   const isMatched = Boolean(matchStatus?.matched || justMatched);
   const heartAllowed = canSendHeart(me, profile);
   const heartBlockReason = heartDisabledReason(me, profile);
+  const heartBlockMessages = useMemo(() => {
+    const keyToI18n: Record<HeartBlockReasonKey, string> = {
+      login: 'profile.heartBlockedLogin',
+      viewerNotValidated: 'profile.heartBlockedViewerNotValidated',
+      profileNotValidated: 'profile.heartBlockedProfileNotValidated',
+      viewerUnderAge: 'profile.heartBlockedViewerUnderAge',
+      profileUnderAge: 'profile.heartBlockedProfileUnderAge',
+      viewerNotSingle: 'profile.heartBlockedViewerNotSingle',
+      profileNotSingle: 'profile.heartBlockedProfileNotSingle',
+    };
+    return heartBlockReasonKeys(me, profile).map((key) => t(keyToI18n[key]));
+  }, [me, profile, t]);
   const isMutualFollow = Boolean(profile?.isFollowing && profile?.isFollowingMe);
 
   useEffect(() => {
@@ -118,6 +134,16 @@ export function UserProfileView({
     : preview?.avatarUrl && !isDicebearAvatarUrl(preview.avatarUrl)
       ? [preview.avatarUrl]
       : [];
+  const viewablePhotos = getViewableProfilePhotos(photos);
+  const avatarUrl =
+    photos[0]?.trim() || profile?.avatarUrl || preview?.avatarUrl || '';
+  const viewerPhotos =
+    viewablePhotos.length > 0 ? viewablePhotos : avatarUrl ? [avatarUrl] : [];
+
+  const openPhotoViewer = (index: number) => {
+    if (viewerPhotos.length === 0) return;
+    setPhotoViewerIndex(Math.max(0, Math.min(index, viewerPhotos.length - 1)));
+  };
 
   const sendHeart = async () => {
     if (!token || isSelf || sending || heartSent || isMatched || !heartAllowed) return;
@@ -182,8 +208,6 @@ export function UserProfileView({
     return null;
   }
 
-  const avatarUrl = photos[0];
-
   const showHostRating = Boolean(
     profile &&
       (profile.listeningRole === 'host' ||
@@ -239,10 +263,12 @@ export function UserProfileView({
         city={profile?.city}
         birthDate={profile?.birthDate}
         age={profile?.age}
+        hideBirthDateOnProfile={profile?.hideBirthDateOnProfile}
         relationshipStatus={
           profile?.relationshipStatus === 'autre' ? undefined : profile?.relationshipStatus
         }
-        hasPhotoGallery={photos.length > 1}
+        hasPhotoGallery={viewerPhotos.length > 1}
+        onAvatarClick={viewerPhotos.length > 0 ? () => openPhotoViewer(0) : undefined}
         isLive={isLiveHost}
         liveViewersCount={liveViewers}
         isSupporter={profile?.isSupporter}
@@ -262,7 +288,12 @@ export function UserProfileView({
         }
         hostRatingSlot={
           showHostRating ? (
-            <HostRatingBlock hostId={userId} hostName={displayName} averageOnly />
+            <HostRatingBlock
+              hostId={userId}
+              hostName={displayName}
+              averageOnly
+              initialRating={profile?.hostRating}
+            />
           ) : undefined
         }
       />
@@ -285,6 +316,7 @@ export function UserProfileView({
               fallbackSeed={userId}
               variant="bare"
               galleryOnly
+              onPhotoClick={viewerPhotos.length > 0 ? openPhotoViewer : undefined}
             />
           </div>
           {isLiveHost && (
@@ -401,7 +433,8 @@ export function UserProfileView({
       )}
 
       {!isSelf && !isMatched && (
-        <button
+        <div>
+          <button
           type="button"
           onClick={sendHeart}
           disabled={sending || heartSent || !heartAllowed}
@@ -422,11 +455,29 @@ export function UserProfileView({
               : matchStatus?.theySentHeart
                 ? 'Renvoyer un cœur — Match !'
                 : 'Envoyer un cœur'}
-        </button>
+          </button>
+          {heartBlockMessages.length > 0 && !heartSent && (
+            <div className="mt-1 space-y-0.5 px-1">
+              {heartBlockMessages.map((message) => (
+                <p key={message} className="text-[10px] text-center text-gray-500 leading-snug">
+                  {message}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {error && profile && <p className="text-xs text-red-400 text-center">{error}</p>}
       </div>
+
+      {photoViewerIndex !== null && viewerPhotos.length > 0 && (
+        <ProfilePhotoViewer
+          photos={viewerPhotos}
+          initialIndex={photoViewerIndex}
+          onClose={() => setPhotoViewerIndex(null)}
+        />
+      )}
     </div>
   );
 }

@@ -24,6 +24,10 @@ import { INTEREST_CATEGORIES } from '../lib/popularInterests';
 import { CityAutocomplete } from '../components/CityAutocomplete';
 import { HostRatingBlock } from '../components/HostRatingBlock';
 import { ProfilePhotoGallery } from '../components/ProfilePhotoGallery';
+import {
+  getViewableProfilePhotos,
+  ProfilePhotoViewer,
+} from '../components/ProfilePhotoViewer';
 import { SettingsPage, SettingsGearButton } from './SettingsPage';
 import { AnalyticsPage } from './AnalyticsPage';
 import { AccessManagementPage } from './AccessManagementPage';
@@ -33,11 +37,11 @@ import { ProfileReelRecorder } from '../components/ProfileReelRecorder';
 import { UserReelsSection } from '../components/UserReelsSection';
 import { PlatformConnectCard } from '../components/PlatformConnectCard';
 import { UsernameColorPicker } from '../components/UsernameColorPicker';
-import { UsernameDisplay } from '../components/UsernameDisplay';
 import {
   USERNAME_COLOR_WAVE,
   isWaveUsernameColor,
   resolveUsernameWaveColors,
+  usernameDisplayStyle,
 } from '../lib/usernameColor';
 import { ProfileCurrentListening } from '../components/ProfileCurrentListening';
 import { MyFavoritesSheet } from '../components/MyFavoritesSheet';
@@ -115,6 +119,7 @@ export function ProfilePage({
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [streamingExpanded, setStreamingExpanded] = useState(false);
+  const [photoViewerIndex, setPhotoViewerIndex] = useState<number | null>(null);
 
   const [form, setForm] = useState(() => profileToForm(user));
 
@@ -285,9 +290,22 @@ export function ProfilePage({
     (user.stats?.salonsHosted ?? 0) > 0;
 
   const displayPhotos = editing ? form.profilePhotos : getUserProfilePhotos(user);
+  const viewablePhotos = !editing ? getViewableProfilePhotos(displayPhotos) : [];
   const headerAvatarUrl = editing
     ? displayPhotos.find((url) => url.trim())
     : resolveAvatarUrl(user);
+  const viewerPhotos = !editing
+    ? viewablePhotos.length > 0
+      ? viewablePhotos
+      : headerAvatarUrl
+        ? [headerAvatarUrl]
+        : []
+    : [];
+
+  const openPhotoViewer = (index: number) => {
+    if (viewerPhotos.length === 0) return;
+    setPhotoViewerIndex(Math.max(0, Math.min(index, viewerPhotos.length - 1)));
+  };
 
   const addTag = (field: 'interests' | 'favoriteGenres' | 'favoriteArtists', value: string) => {
     const v = value.trim();
@@ -301,7 +319,7 @@ export function ProfilePage({
 
   return (
     <div className="flex flex-col h-full overflow-y-auto bg-[#0b0b0f]">
-      <div className="relative shrink-0 max-w-lg mx-auto w-full">
+      <div className="relative shrink-0 max-w-lg mx-auto w-full overflow-visible">
         <div className="absolute top-3 left-3 z-10">
           {onBack && (
             <button
@@ -334,11 +352,19 @@ export function ProfilePage({
           city={editing ? form.city : user.city}
           birthDate={editing ? form.birthDate.trim() : user.birthDate}
           age={editing ? undefined : user.age}
+          hideBirthDateOnProfile={
+            editing
+              ? form.hideBirthDateOnProfile
+              : (user.hideBirthDateOnProfile ?? defaultHideBirthDateOnProfile(user))
+          }
           showAgeHiddenHint={editing && form.hideBirthDateOnProfile && Boolean(form.birthDate.trim())}
           relationshipStatus={
             editing || user.relationshipStatus === 'autre' ? undefined : user.relationshipStatus
           }
           hasPhotoGallery={!editing && displayPhotos.length > 1}
+          onAvatarClick={
+            !editing && viewerPhotos.length > 0 ? () => openPhotoViewer(0) : undefined
+          }
           statsRow={
             !editing ? (
               <ProfileStatsRow
@@ -378,7 +404,12 @@ export function ProfilePage({
           }
           hostRatingSlot={
             !editing && showHostRating ? (
-              <HostRatingBlock hostId={user.id} hostName={user.username} averageOnly />
+              <HostRatingBlock
+                hostId={user.id}
+                hostName={user.username}
+                averageOnly
+                initialRating={user.hostRating}
+              />
             ) : undefined
           }
         />
@@ -459,6 +490,7 @@ export function ProfilePage({
             fallbackSeed={user.id}
             variant="bare"
             galleryOnly
+            onPhotoClick={viewerPhotos.length > 0 ? openPhotoViewer : undefined}
           />
         )}
 
@@ -470,36 +502,39 @@ export function ProfilePage({
               artists={user.favoriteArtists ?? []}
             />
 
-            <button
-              type="button"
-              onClick={() => setStreamingExpanded((v) => !v)}
-              className="w-full flex items-center justify-between py-2.5 text-xs font-semibold text-gray-400 hover:text-white transition"
-            >
-              <span>Comptes connectés</span>
-              <span aria-hidden>{streamingExpanded ? '▾' : '▸'}</span>
-            </button>
-            {streamingExpanded && (
-              <div className="space-y-2 pb-2">
-                <p className="text-[10px] text-gray-500">
-                  Obligatoire pour créer ou animer un salon sur la plateforme choisie.
-                </p>
-                {(['spotify', 'youtube', 'instagram'] as const).map((p) => (
-                  <PlatformConnectCard
-                    key={p}
-                    token={token}
-                    platform={p}
-                    connectedPlatforms={user.connectedPlatforms}
-                    platformLinks={user.platformLinks}
-                    onUserUpdated={(u) => {
-                      setUserFromProfile(u);
-                      setForm(profileToForm(u));
-                    }}
-                  />
-                ))}
-              </div>
-            )}
+            <section className="space-y-2 pb-2">
+              <button
+                type="button"
+                onClick={() => setStreamingExpanded((v) => !v)}
+                aria-expanded={streamingExpanded}
+                className="relative w-full py-2.5 rounded-lg border border-[#2d2d3d] text-gray-300 font-semibold text-sm text-center hover:bg-[#1a1a26] transition"
+              >
+                🔗 Comptes connectés
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" aria-hidden>
+                  {streamingExpanded ? '▾' : '›'}
+                </span>
+              </button>
+              {streamingExpanded && (
+                <div className="space-y-2 pb-1">
+                  <p className="text-[10px] text-gray-500">
+                    Obligatoire pour créer ou animer un salon sur la plateforme choisie.
+                  </p>
+                  {(['spotify', 'youtube', 'instagram'] as const).map((p) => (
+                    <PlatformConnectCard
+                      key={p}
+                      token={token}
+                      platform={p}
+                      connectedPlatforms={user.connectedPlatforms}
+                      platformLinks={user.platformLinks}
+                      onUserUpdated={(u) => {
+                        setUserFromProfile(u);
+                        setForm(profileToForm(u));
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
 
-            <section className="space-y-3 pt-2 pb-2 border-t border-[#1e1e2f]">
               <button
                 type="button"
                 onClick={() => setShowSettings(true)}
@@ -527,18 +562,22 @@ export function ProfilePage({
 
             <label className="block">
               <span className="text-xs text-gray-400">Pseudo</span>
-              <div className="relative mt-1 rounded-xl border border-[#2d2d3d] bg-[#1a1a26]">
+              <div className="relative mt-1 rounded-xl border border-[#2d2d3d] bg-[#1a1a26] overflow-hidden">
                 <div
-                  className="absolute inset-0 z-0 flex items-center px-4 py-2 pointer-events-none"
+                  className="absolute inset-0 z-0 flex items-center px-4 py-2 pointer-events-none overflow-hidden"
                   aria-hidden
                 >
-                  <UsernameDisplay
-                    username={form.username || '\u00a0'}
-                    usernameColor={form.usernameColor}
-                    usernameWaveFrom={form.usernameWaveFrom}
-                    usernameWaveTo={form.usernameWaveTo}
-                    className="text-sm font-extrabold truncate w-full min-w-0"
-                  />
+                  <span
+                    className="text-sm font-extrabold truncate w-full min-w-0 text-left bg-clip-text"
+                    style={
+                      usernameDisplayStyle(form.usernameColor, {
+                        from: form.usernameWaveFrom,
+                        to: form.usernameWaveTo,
+                      }) ?? { color: form.usernameColor || '#ffffff' }
+                    }
+                  >
+                    {form.username || '\u00a0'}
+                  </span>
                 </div>
                 <input
                   value={form.username}
@@ -553,6 +592,7 @@ export function ProfilePage({
                         }).from
                       : form.usernameColor || '#ffffff',
                     WebkitTextFillColor: 'transparent',
+                    color: 'transparent',
                   }}
                 />
               </div>
@@ -777,6 +817,14 @@ export function ProfilePage({
 
       {showDonationSheet && (
         <DonationSheet onClose={() => setShowDonationSheet(false)} />
+      )}
+
+      {photoViewerIndex !== null && viewerPhotos.length > 0 && (
+        <ProfilePhotoViewer
+          photos={viewerPhotos}
+          initialIndex={photoViewerIndex}
+          onClose={() => setPhotoViewerIndex(null)}
+        />
       )}
 
       {showLogoutConfirm && (

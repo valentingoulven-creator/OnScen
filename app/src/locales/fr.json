@@ -152,7 +152,14 @@
     "relationshipOther": "Autre",
     "relationshipCustomPlaceholder": "Précisez votre situation…",
     "relationshipCustomRequired": "Précisez votre situation personnalisée.",
-    "relationshipHeartHint": "Vous pouvez envoyer des cœurs si vous êtes célibataire"
+    "relationshipHeartHint": "Les cœurs sont réservés aux personnes célibataires de 18 ans et plus",
+    "heartBlockedLogin": "Connectez-vous pour envoyer un cœur.",
+    "heartBlockedViewerNotValidated": "Votre compte doit être validé pour envoyer un cœur.",
+    "heartBlockedProfileNotValidated": "Ce profil n’est pas encore validé.",
+    "heartBlockedViewerUnderAge": "Vous devez avoir au moins 18 ans pour envoyer un cœur.",
+    "heartBlockedProfileUnderAge": "Cette personne doit avoir au moins 18 ans.",
+    "heartBlockedViewerNotSingle": "Indiquez être célibataire sur votre profil pour envoyer un cœur.",
+    "heartBlockedProfileNotSingle": "Cette personne doit indiquer être célibataire sur son profil."
   },
   "settings": {
     "title": "Paramètres",

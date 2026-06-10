@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { db } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
 import { getHostRatingSummary } from '../lib/ratings';
+import { schedulePersist } from '../lib/persist';
 import { isBotHost } from '../seed-bots';
 
 export const ratingsRouter = Router();
@@ -66,5 +67,6 @@ ratingsRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
     });
   }
 
+  schedulePersist();
   res.status(201).json({ rating: getHostRatingSummary(hostId, raterId) });
 });

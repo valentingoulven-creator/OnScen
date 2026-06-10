@@ -20,6 +20,22 @@ interface HostRatingBlockProps {
   centered?: boolean;
   /** Badge compact : ★ + moyenne (header profil). */
   averageOnly?: boolean;
+  /** Note agrégée déjà fournie par le profil (/me ou profil public). */
+  initialRating?: HostRatingSummary;
+}
+
+function pickHostRating(
+  fetched: HostRatingSummary | null,
+  initial?: HostRatingSummary
+): HostRatingSummary | null {
+  if (fetched?.count) return fetched;
+  if (initial?.count) return initial;
+  return fetched ?? initial ?? null;
+}
+
+function formatHostAverage(avg: number): string {
+  if (!(avg > 0)) return '—';
+  return Number.isInteger(avg) ? String(avg) : avg.toFixed(1);
 }
 
 function StarButton({
@@ -76,6 +92,7 @@ export function HostRatingBlock({
   hideLabel,
   centered,
   averageOnly,
+  initialRating,
 }: HostRatingBlockProps) {
   const { user, token } = useAuth();
   const [summary, setSummary] = useState<HostRatingSummary | null>(null);
@@ -87,8 +104,22 @@ export function HostRatingBlock({
 
   useEffect(() => {
     if (!token || isBot) return;
-    api.getHostRating(token, hostId).then((r) => setSummary(r.rating));
+    let cancelled = false;
+    api
+      .getHostRating(token, hostId)
+      .then((r) => {
+        if (!cancelled) setSummary(r.rating);
+      })
+      .catch(() => {
+        /* garde initialRating / profil */
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [token, hostId, isBot]);
+
+  const profileFallback = isSelf ? user?.hostRating : initialRating;
+  const effective = pickHostRating(summary, profileFallback);
 
   const submit = async (stars: number) => {
     if (!token || isSelf || isBot || saving) return;
@@ -108,10 +139,7 @@ export function HostRatingBlock({
 
   if (averageOnly) {
     if (isBot) return null;
-    const avg = isSelf
-      ? summary?.average ?? user?.hostRating?.average ?? 0
-      : summary?.average ?? 0;
-    const display = avg > 0 ? String(avg) : '—';
+    const display = formatHostAverage(effective?.average ?? 0);
     return (
       <span className="inline-flex items-center gap-0.5 shrink-0 text-[11px] tabular-nums leading-none">
         <span className="text-amber-400 text-[10px]" aria-hidden>
@@ -130,12 +158,13 @@ export function HostRatingBlock({
   }
 
   if (isSelf) {
-    const avg = summary?.average ?? user?.hostRating?.average ?? 0;
-    const count = summary?.count ?? user?.hostRating?.count ?? 0;
+    const avg = effective?.average ?? 0;
+    const count = effective?.count ?? 0;
+    const avgLabel = formatHostAverage(avg);
     if (inline) {
       return (
         <span className="text-[10px] text-gray-500 shrink-0">
-          <span className="text-amber-400 font-bold">{avg > 0 ? `${avg} ★` : '—'}</span>
+          <span className="text-amber-400 font-bold">{avgLabel === '—' ? '—' : `${avgLabel} ★`}</span>
           {count > 0 && <span className="text-gray-600"> ({count})</span>}
         </span>
       );
@@ -143,13 +172,13 @@ export function HostRatingBlock({
     return (
       <p className={`text-xs text-gray-400${centered ? ' text-center' : ''}`}>
         Votre note moyenne :{' '}
-        <span className="text-amber-400 font-bold">{avg > 0 ? `${avg} ★` : '—'}</span>
+        <span className="text-amber-400 font-bold">{avgLabel === '—' ? '—' : `${avgLabel} ★`}</span>
         {count > 0 && <span className="text-gray-500"> ({count} avis)</span>}
       </p>
     );
   }
 
-  const displayHover = hover || summary?.userRating || 0;
+  const displayHover = hover || effective?.userRating || summary?.userRating || 0;
 
   const stars = (
     <div className={`flex items-center gap-0.5 shrink-0 ${starSizeClass}`}>
@@ -157,7 +186,7 @@ export function HostRatingBlock({
         <StarButton
           key={n}
           value={n}
-          filled={(summary?.userRating ?? 0) >= n}
+          filled={(effective?.userRating ?? summary?.userRating ?? 0) >= n}
           hover={displayHover}
           onSelect={submit}
           onHover={setHover}
@@ -178,10 +207,10 @@ export function HostRatingBlock({
           </span>
         )}
         {stars}
-        {summary && summary.count > 0 && (
+        {effective && effective.count > 0 && (
           <span className="text-[9px] text-gray-500 shrink-0 tabular-nums">
-            <span className="text-amber-400 font-bold">{summary.average}</span>
-            <span className="text-gray-600"> ({summary.count})</span>
+            <span className="text-amber-400 font-bold">{formatHostAverage(effective.average)}</span>
+            <span className="text-gray-600"> ({effective.count})</span>
           </span>
         )}
         {error && <span className="text-[9px] text-red-400 shrink-0">{error}</span>}
@@ -199,9 +228,10 @@ export function HostRatingBlock({
         <p className={`font-semibold text-gray-300 ${compact ? 'text-[10px]' : 'text-xs'}`}>
           Noter {hostName}
         </p>
-        {summary && summary.count > 0 && (
+        {effective && effective.count > 0 && (
           <p className="text-[10px] text-gray-500 shrink-0">
-            <span className="text-amber-400 font-bold">{summary.average}</span> · {summary.count} avis
+            <span className="text-amber-400 font-bold">{formatHostAverage(effective.average)}</span> ·{' '}
+            {effective.count} avis
           </p>
         )}
       </div>
@@ -211,7 +241,7 @@ export function HostRatingBlock({
           <StarButton
             key={n}
             value={n}
-            filled={(summary?.userRating ?? 0) >= n}
+            filled={(effective?.userRating ?? summary?.userRating ?? 0) >= n}
             hover={displayHover}
             onSelect={submit}
             onHover={setHover}

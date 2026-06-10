@@ -1,4 +1,4 @@
-import { CREATOR_MONETIZATION_MIN_AGE } from './profileAge';
+import { CREATOR_MONETIZATION_MIN_AGE, computeAgeFromBirthDate } from './profileAge';
 import type { AccountStatus, RelationshipStatus } from '../types';
 
 export const HEART_MIN_AGE = CREATOR_MONETIZATION_MIN_AGE;
@@ -8,8 +8,18 @@ export type HeartEligibilityUser = {
   accountValidated?: boolean;
   meetsHeartAge?: boolean;
   age?: number;
+  birthDate?: string;
   relationshipStatus?: RelationshipStatus;
 };
+
+export type HeartBlockReasonKey =
+  | 'login'
+  | 'viewerNotValidated'
+  | 'profileNotValidated'
+  | 'viewerUnderAge'
+  | 'profileUnderAge'
+  | 'viewerNotSingle'
+  | 'profileNotSingle';
 
 export function isAccountValidated(
   user: Pick<HeartEligibilityUser, 'accountStatus' | 'accountValidated'> | null | undefined
@@ -21,13 +31,27 @@ export function isAccountValidated(
   return true;
 }
 
-export function profileMeetsHeartAge(
-  profile: Pick<HeartEligibilityUser, 'meetsHeartAge' | 'age'> | null | undefined
+export function userMeetsHeartAge(
+  user: Pick<HeartEligibilityUser, 'meetsHeartAge' | 'age' | 'birthDate'> | null | undefined
 ): boolean {
-  if (!profile) return false;
-  if (profile.meetsHeartAge === true) return true;
-  if (profile.meetsHeartAge === false) return false;
-  return typeof profile.age === 'number' && profile.age >= HEART_MIN_AGE;
+  if (!user) return false;
+  if (user.meetsHeartAge === true) return true;
+  if (user.meetsHeartAge === false) return false;
+  if (typeof user.age === 'number') return user.age >= HEART_MIN_AGE;
+  if (user.birthDate) {
+    const age = computeAgeFromBirthDate(user.birthDate);
+    return age != null && age >= HEART_MIN_AGE;
+  }
+  return false;
+}
+
+/** @deprecated Use userMeetsHeartAge */
+export const profileMeetsHeartAge = userMeetsHeartAge;
+
+export function isSingleForHeart(
+  user: Pick<HeartEligibilityUser, 'relationshipStatus'> | null | undefined
+): boolean {
+  return user?.relationshipStatus === 'celibataire';
 }
 
 export function canSendHeart(
@@ -37,28 +61,47 @@ export function canSendHeart(
   if (!viewer || !profile) return false;
   if (!isAccountValidated(viewer)) return false;
   if (!isAccountValidated(profile)) return false;
-  if (!profileMeetsHeartAge(profile)) return false;
-  if (profile.relationshipStatus !== 'celibataire') return false;
+  if (!userMeetsHeartAge(viewer)) return false;
+  if (!userMeetsHeartAge(profile)) return false;
+  if (!isSingleForHeart(viewer)) return false;
+  if (!isSingleForHeart(profile)) return false;
   return true;
 }
+
+export function heartBlockReasonKeys(
+  viewer: HeartEligibilityUser | null | undefined,
+  profile: HeartEligibilityUser | null | undefined
+): HeartBlockReasonKey[] {
+  const keys: HeartBlockReasonKey[] = [];
+  if (!viewer) {
+    keys.push('login');
+    return keys;
+  }
+  if (!isAccountValidated(viewer)) keys.push('viewerNotValidated');
+  if (!profile) return keys;
+  if (!isAccountValidated(profile)) keys.push('profileNotValidated');
+  if (!userMeetsHeartAge(viewer)) keys.push('viewerUnderAge');
+  if (!userMeetsHeartAge(profile)) keys.push('profileUnderAge');
+  if (!isSingleForHeart(viewer)) keys.push('viewerNotSingle');
+  if (!isSingleForHeart(profile)) keys.push('profileNotSingle');
+  return keys;
+}
+
+const HEART_BLOCK_MESSAGES: Record<HeartBlockReasonKey, string> = {
+  login: 'Connectez-vous pour envoyer un cœur.',
+  viewerNotValidated: 'Votre compte doit être validé pour envoyer un cœur.',
+  profileNotValidated: 'Ce profil n’est pas encore validé.',
+  viewerUnderAge: 'Vous devez avoir au moins 18 ans pour envoyer un cœur.',
+  profileUnderAge: 'Cette personne doit avoir au moins 18 ans.',
+  viewerNotSingle: 'Indiquez être célibataire sur votre profil pour envoyer un cœur.',
+  profileNotSingle: 'Cette personne doit indiquer être célibataire sur son profil.',
+};
 
 export function heartDisabledReason(
   viewer: HeartEligibilityUser | null | undefined,
   profile: HeartEligibilityUser | null | undefined
 ): string | null {
-  if (!viewer) return 'Connectez-vous pour envoyer un cœur.';
-  if (!isAccountValidated(viewer)) {
-    return 'Votre compte doit être validé pour envoyer un cœur.';
-  }
-  if (!profile) return null;
-  if (!isAccountValidated(profile)) {
-    return 'Ce profil n’est pas encore validé.';
-  }
-  if (!profileMeetsHeartAge(profile)) {
-    return 'Cette personne doit avoir au moins 18 ans.';
-  }
-  if (profile.relationshipStatus !== 'celibataire') {
-    return 'Cette personne doit indiquer être célibataire sur son profil.';
-  }
-  return null;
+  const keys = heartBlockReasonKeys(viewer, profile);
+  if (keys.length === 0) return null;
+  return HEART_BLOCK_MESSAGES[keys[0]];
 }

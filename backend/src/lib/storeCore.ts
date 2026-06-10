@@ -12,6 +12,7 @@ import {
   type UserBlock,
   type UserFavorite,
   type UserMute,
+  type HostRating,
 } from '../models/schema';
 import { isValidLatLng } from './mapCoords';
 import { refreshUserPublicCoords } from './locationPrivacy';
@@ -53,6 +54,7 @@ export interface PersistedStore {
   feedPostComments?: Record<string, FeedPostComment[]>;
   feedPostFavorites?: MapOfSets;
   stories?: Story[];
+  hostRatings?: HostRating[];
 }
 
 function setsToRecord(map: Map<string, Set<string>>): MapOfSets {
@@ -128,6 +130,7 @@ export function snapshotStore(): PersistedStore {
     })(),
     feedPostFavorites: setsToRecord(db.feedPostFavorites),
     stories: [...db.stories],
+    hostRatings: [...db.hostRatings],
   };
 }
 
@@ -215,6 +218,9 @@ export function restoreStore(data: PersistedStore): void {
 
   db.stories.length = 0;
   db.stories.push(...(data.stories ?? []));
+
+  db.hostRatings.length = 0;
+  db.hostRatings.push(...(data.hostRatings ?? []));
 }
 
 export function isValidPersistedStore(raw: unknown): raw is PersistedStore {

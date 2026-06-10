@@ -1,7 +1,7 @@
 import type { Pool, PoolClient } from 'pg';
 import { getPool } from '../db/pool';
 import { runMigrations } from '../db/migrate';
-import { db, type AppNotification } from '../models/schema';
+import { db, type AppNotification, type HostRating } from '../models/schema';
 import {
   isValidPersistedStore,
   restoreStore,
@@ -26,6 +26,8 @@ export async function loadPersistedStoreFromPostgres(): Promise<boolean> {
   restoreStore(loaded.store);
   db.heartEvents.length = 0;
   db.heartEvents.push(...loaded.heartEvents);
+  db.hostRatings.length = 0;
+  db.hostRatings.push(...loaded.hostRatings);
   db.notifications.length = 0;
   db.notifications.push(...loaded.notifications);
   return true;
@@ -47,6 +49,7 @@ export async function savePersistedStoreToPostgres(): Promise<void> {
 interface LoadedStore {
   store: PersistedStore;
   heartEvents: { fromId: string; toId: string; createdAt: number }[];
+  hostRatings: HostRating[];
   notifications: AppNotification[];
 }
 
@@ -74,6 +77,7 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
     postFavsRes,
     storiesRes,
     heartsRes,
+    hostRatingsRes,
     notificationsRes,
   ] = await Promise.all([
     pool.query<{ version: number; saved_at: string }>(
@@ -146,6 +150,14 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
     pool.query<{ from_id: string; to_id: string; created_at: string }>(
       'SELECT from_id, to_id, created_at FROM heart_events'
     ),
+    pool.query<{
+      id: string;
+      host_id: string;
+      rater_id: string;
+      stars: number;
+      timestamp: string;
+      payload: Pick<HostRating, 'salonId' | 'liveId'>;
+    }>('SELECT id, host_id, rater_id, stars, timestamp, payload FROM host_ratings'),
     pool.query<{
       id: string;
       recipient_id: string;
@@ -256,6 +268,16 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
     createdAt: Number(row.created_at),
   }));
 
+  const hostRatings: HostRating[] = hostRatingsRes.rows.map((row) => ({
+    id: row.id,
+    hostId: row.host_id,
+    raterId: row.rater_id,
+    stars: row.stars,
+    salonId: row.payload?.salonId,
+    liveId: row.payload?.liveId,
+    timestamp: Number(row.timestamp),
+  }));
+
   const notifications: AppNotification[] = notificationsRes.rows.map((row) => {
     const n = row.payload ?? ({} as AppNotification);
     return {
@@ -278,7 +300,7 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
     };
   });
 
-  return { store, heartEvents, notifications };
+  return { store, heartEvents, hostRatings, notifications };
 }
 
 async function writeStore(client: PoolClient, data: PersistedStore): Promise<void> {
@@ -289,6 +311,7 @@ async function writeStore(client: PoolClient, data: PersistedStore): Promise<voi
     await client.query('DELETE FROM feed_post_likes');
     await client.query('DELETE FROM feed_posts');
     await client.query('DELETE FROM stories');
+    await client.query('DELETE FROM host_ratings');
     await client.query('DELETE FROM heart_events');
     await client.query('DELETE FROM notifications');
     await client.query('DELETE FROM user_favorites');
@@ -464,6 +487,21 @@ async function writeStore(client: PoolClient, data: PersistedStore): Promise<voi
       await client.query(
         'INSERT INTO heart_events (from_id, to_id, created_at) VALUES ($1, $2, $3)',
         [heart.fromId, heart.toId, heart.createdAt]
+      );
+    }
+
+    for (const rating of db.hostRatings) {
+      await client.query(
+        `INSERT INTO host_ratings (id, host_id, rater_id, stars, timestamp, payload)
+         VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
+        [
+          rating.id,
+          rating.hostId,
+          rating.raterId,
+          rating.stars,
+          rating.timestamp,
+          JSON.stringify({ salonId: rating.salonId, liveId: rating.liveId }),
+        ]
       );
     }
 

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 import { useTranslation } from 'react-i18next';
 
-import { formatBirthDate } from '../lib/profileAge';
+import { computeAgeFromBirthDate, formatBirthDate } from '../lib/profileAge';
 
 import { UsernameDisplay } from './UsernameDisplay';
 
@@ -44,6 +44,9 @@ interface ProfileHeaderSectionProps {
 
   age?: number | null;
 
+  /** true = masquer la date complète, afficher l'âge (hideBirthDateOnProfile) */
+  hideBirthDateOnProfile?: boolean;
+
   showAgeHiddenHint?: boolean;
 
   relationshipStatus?: RelationshipStatus;
@@ -67,6 +70,10 @@ interface ProfileHeaderSectionProps {
   /** Anneau dégradé si plusieurs photos de profil */
 
   hasPhotoGallery?: boolean;
+
+  /** En lecture : ouvre la visionneuse photos au clic sur l'avatar */
+
+  onAvatarClick?: () => void;
 
   /** Ligne stats 3 colonnes (sous le pseudo) */
 
@@ -111,6 +118,8 @@ export function ProfileHeaderSection({
 
   age,
 
+  hideBirthDateOnProfile = false,
+
   showAgeHiddenHint = false,
 
   relationshipStatus,
@@ -130,6 +139,8 @@ export function ProfileHeaderSection({
   variant = 'compact',
 
   hasPhotoGallery = false,
+
+  onAvatarClick,
 
   statsRow,
 
@@ -173,50 +184,35 @@ export function ProfileHeaderSection({
 
 
 
-  if (birthDate?.trim()) {
+  const birthDateTrimmed = birthDate?.trim() ?? '';
+  const resolvedAge =
+    age ?? (birthDateTrimmed ? computeAgeFromBirthDate(birthDateTrimmed) : null);
+  const showFullBirthDate = Boolean(birthDateTrimmed) && !hideBirthDateOnProfile;
 
-    const formatted = formatBirthDate(birthDate.trim(), i18n.language) ?? birthDate.trim();
+  if (showFullBirthDate) {
+    const formatted =
+      formatBirthDate(birthDateTrimmed, i18n.language) ?? birthDateTrimmed;
 
     metaItems.push(
-
       <span
-
         key="birth"
-
         className="inline-flex items-center gap-0.5 text-gray-400 whitespace-nowrap text-[11px]"
-
       >
-
         🎂 {formatted}
-
-        {showAgeHiddenHint && (
-
-          <span className="text-gray-500"> {t('profile.ageHiddenHint')}</span>
-
-        )}
-
       </span>
-
     );
-
-  } else if (age != null) {
-
+  } else if (resolvedAge != null) {
     metaItems.push(
-
       <span
-
         key="age"
-
         className="inline-flex items-center gap-0.5 text-gray-400 whitespace-nowrap text-[11px]"
-
       >
-
-        🎂 {age} ans
-
+        🎂 {resolvedAge} ans
+        {showAgeHiddenHint && (
+          <span className="text-gray-500"> {t('profile.ageHiddenHint')}</span>
+        )}
       </span>
-
     );
-
   }
 
 
@@ -287,27 +283,34 @@ export function ProfileHeaderSection({
 
     return (
 
-      <div className="relative shrink-0 bg-[#0b0b0f]">
+      <div className="relative shrink-0 bg-[#0b0b0f] overflow-visible">
 
-        <div className="px-4 pt-12 pb-3 flex flex-col items-center text-center">
+        <div className="px-4 pt-16 pb-3 flex flex-col items-center text-center overflow-visible">
 
-          <div
-
-            className={`shrink-0 rounded-full ${
-
-              hasPhotoGallery
-
-                ? 'p-[3px] bg-gradient-to-tr from-purple-500 via-pink-500 to-purple-400 shadow-lg shadow-purple-900/40'
-
-                : 'ring-2 ring-[#1e1e2f]'
-
-            }`}
-
-          >
-
-            <div className="rounded-full ring-2 ring-[#0b0b0f]">{avatarNode}</div>
-
-          </div>
+          {onAvatarClick ? (
+            <button
+              type="button"
+              onClick={onAvatarClick}
+              className={`shrink-0 rounded-full ${
+                hasPhotoGallery
+                  ? 'p-[3px] bg-gradient-to-tr from-purple-500 via-pink-500 to-purple-400 shadow-lg shadow-purple-900/40'
+                  : 'ring-2 ring-[#1e1e2f]'
+              } cursor-pointer hover:opacity-90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500`}
+              aria-label="Voir les photos du profil"
+            >
+              <div className="rounded-full ring-2 ring-[#0b0b0f]">{avatarNode}</div>
+            </button>
+          ) : (
+            <div
+              className={`shrink-0 rounded-full ${
+                hasPhotoGallery
+                  ? 'p-[3px] bg-gradient-to-tr from-purple-500 via-pink-500 to-purple-400 shadow-lg shadow-purple-900/40'
+                  : 'ring-2 ring-[#1e1e2f]'
+              }`}
+            >
+              <div className="rounded-full ring-2 ring-[#0b0b0f]">{avatarNode}</div>
+            </div>
+          )}
 
 
 
