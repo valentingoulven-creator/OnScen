@@ -629,6 +629,8 @@ export default function App() {
                   onOpenPeerConsumed={consumeDmPeer}
                   onOpenGroupConsumed={consumeDmGroup}
                   onOpenProfile={openProfileFromDm}
+                  onOpenSalon={openSalonPage}
+                  onOpenFeedPost={openFeedPostFromMap}
                 />
               </Suspense>
             </div>

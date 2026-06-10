@@ -134,17 +134,26 @@ export const api = {
 
   getAccessAdminUsers: (
     token: string,
-    status: 'all' | 'active' | 'pending' | 'blocked',
-    q?: string
-  ) =>
-    request<{
-      users: import('../types').AccessManagedUser[];
-      total: number;
-    }>(
-      `/access/admin/users?status=${status}${q ? `&q=${encodeURIComponent(q)}` : ''}`,
+    opts: {
+      status?: 'all' | 'active' | 'pending' | 'blocked';
+      q?: string;
+      sort?: import('../types').AdminUserSort;
+      limit?: number;
+      offset?: number;
+    } = {}
+  ) => {
+    const params = new URLSearchParams();
+    params.set('status', opts.status ?? 'all');
+    if (opts.q) params.set('q', opts.q);
+    if (opts.sort) params.set('sort', opts.sort);
+    if (opts.limit != null) params.set('limit', String(opts.limit));
+    if (opts.offset != null) params.set('offset', String(opts.offset));
+    return request<import('../types').AccessAdminUsersResponse>(
+      `/access/admin/users?${params.toString()}`,
       {},
       token
-    ),
+    );
+  },
 
   patchAccessPolicy: (token: string, registrationMode: string) =>
     request<{ policy: { registrationMode: string }; config: import('../types').PublicAccessConfig }>(
@@ -963,6 +972,7 @@ export const api = {
       eventDate?: string;
       eventLocationSearch?: string;
       eventCountry?: string;
+      eventType?: 'dance' | 'chant' | 'autre';
       /** When true, the server ranks posts with Algo Soundy instead of chronological order. */
       algo?: boolean;
     }
@@ -975,6 +985,7 @@ export const api = {
     if (opts?.eventDate) params.set('eventDate', opts.eventDate);
     if (opts?.eventLocationSearch) params.set('eventLocationSearch', opts.eventLocationSearch);
     if (opts?.eventCountry) params.set('eventCountry', opts.eventCountry);
+    if (opts?.eventType) params.set('eventType', opts.eventType);
     if (opts?.algo) params.set('algo', 'true');
     const qs = params.toString();
     return request<{ posts: import('../types').FeedPost[] }>(

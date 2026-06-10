@@ -21,6 +21,8 @@ export interface ShareLinkMenuProps {
   text?: string;
   onToast: (message: string) => void;
   onShared?: () => void | Promise<void>;
+  /** Ouvre le sélecteur d'utilisateur Soundy (DM). */
+  onSendToUser?: () => void;
 }
 
 type ShareAction =
@@ -161,6 +163,7 @@ export function ShareLinkMenu({
   text,
   onToast,
   onShared,
+  onSendToUser,
 }: ShareLinkMenuProps) {
   const { t } = useTranslation();
 
@@ -276,6 +279,26 @@ export function ShareLinkMenu({
             ✕
           </button>
         </div>
+
+        {onSendToUser ? (
+          <div className="px-3 pt-3">
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onSendToUser();
+              }}
+              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-blue-600/20 border border-blue-500/30 text-white hover:bg-blue-600/30 transition-colors"
+            >
+              <span className="flex items-center justify-center w-9 h-9 rounded-full bg-blue-500/25 text-blue-200">
+                <svg viewBox="0 0 24 24" className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              </span>
+              <span className="text-sm font-semibold">{t('share.sendToUser')}</span>
+            </button>
+          </div>
+        ) : null}
 
         {canNativeShare() ? (
           <div className="px-3 pt-3">

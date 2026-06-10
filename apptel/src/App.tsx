@@ -170,6 +170,14 @@ export default function App() {
     syncSalonUrlInBar(salonId);
   };
 
+  const openFeedPost = (postId: string) => {
+    setProfileOpen(false);
+    setProfilePreview(null);
+    setView({ type: 'home' });
+    setTab('actualite');
+    window.location.hash = `#/post/${encodeURIComponent(postId)}`;
+  };
+
   if (authBootError) {
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center gap-4 bg-[#0b0b0f] text-gray-300 px-6 text-center">
@@ -444,6 +452,8 @@ export default function App() {
                     setTab('dm');
                     openProfile(id);
                   }}
+                  onOpenSalon={openSalonPage}
+                  onOpenFeedPost={openFeedPost}
                 />
               </Suspense>
             </div>

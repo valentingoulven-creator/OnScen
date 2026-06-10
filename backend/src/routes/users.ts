@@ -12,6 +12,7 @@ import {
   getFavoriteEntry,
 } from '../lib/favorites';
 import { getActiveSalonForHost, publicProfile } from '../lib/profile';
+import { invalidateProfileCache } from './auth';
 import {
   getActiveLiveIdForHost,
   getLiveViewersCountForHost,
@@ -115,6 +116,9 @@ usersRouter.post('/:id/follow', authenticateJWT, (req: Request, res: Response) =
 
   followUser(me, targetId);
 
+  invalidateProfileCache(me);
+  invalidateProfileCache(targetId);
+
   const sender = db.users.get(me);
   if (sender) {
     notifyFollowReceived({
@@ -136,6 +140,8 @@ usersRouter.delete('/:id/follow', authenticateJWT, (req: Request, res: Response)
   }
 
   unfollowUser(me, targetId);
+  invalidateProfileCache(me);
+  invalidateProfileCache(targetId);
   res.json({ ok: true, followingId: targetId, isFollowing: false });
 });
 

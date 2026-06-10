@@ -448,6 +448,7 @@ export interface EventFilterOpts {
   eventDate?: string;
   eventLocationSearch?: string;
   eventCountry?: string;
+  eventType?: 'dance' | 'chant' | 'autre';
 }
 
 const COUNTRY_NAMES: Record<string, string> = {
@@ -477,6 +478,10 @@ function matchesEventFilters(post: FeedPost, f: EventFilterOpts): boolean {
   if (f.eventCountry) {
     const needle = COUNTRY_NAMES[f.eventCountry.toUpperCase()] ?? f.eventCountry.toLowerCase();
     if (!post.eventLocation?.toLowerCase().includes(needle)) return false;
+  }
+
+  if (f.eventType) {
+    if (normalizeEventType(post.eventType) !== f.eventType) return false;
   }
 
   return true;
@@ -533,6 +538,7 @@ export function listFeedPosts(
     eventDate?: string;
     eventLocationSearch?: string;
     eventCountry?: string;
+    eventType?: 'dance' | 'chant' | 'autre';
     /** When true, rank posts via the Algo Soundy scoring engine instead of chronological order. */
     useAlgo?: boolean;
   }
@@ -547,6 +553,7 @@ export function listFeedPosts(
     eventDate: opts?.eventDate,
     eventLocationSearch: opts?.eventLocationSearch,
     eventCountry: opts?.eventCountry,
+    eventType: opts?.eventType,
   };
 
   // Algo Soundy: only applies to the main feed (not events-only queries or msdev).

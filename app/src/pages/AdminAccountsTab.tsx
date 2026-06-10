@@ -2,9 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
-import type { AccessManagedUser, AccountStatus } from '../types';
+import { getProfilePath } from '../lib/profileDeepLink';
+import type { AccessManagedUser, AccountStatus, AdminUserSort } from '../types';
 
 type UserFilter = 'all' | AccountStatus;
+
+const PAGE_SIZE = 30;
 
 function formatDate(ts: number | undefined, locale: string): string {
   if (!ts) return '—';
@@ -15,52 +18,141 @@ function formatDate(ts: number | undefined, locale: string): string {
   });
 }
 
+function formatDateTime(ts: number | undefined, locale: string): string {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleString(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 function statusLabel(status: AccountStatus, t: (key: string) => string): string {
   if (status === 'active') return t('admin.accounts.statusActive');
   if (status === 'pending') return t('admin.accounts.statusPending');
   return t('admin.accounts.statusBlocked');
 }
 
+function statusBadgeClass(status: AccountStatus): string {
+  if (status === 'active') return 'bg-green-500/20 text-green-400';
+  if (status === 'pending') return 'bg-yellow-500/20 text-yellow-400';
+  return 'bg-red-500/20 text-red-400';
+}
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function exportUsersCsv(users: AccessManagedUser[], t: (key: string) => string): void {
+  const headers = [
+    'id',
+    'username',
+    'email',
+    'status',
+    'city',
+    'memberSince',
+    'lastSeenAt',
+    'followers',
+    'photos',
+    'meloCoins',
+  ];
+  const rows = users.map((u) =>
+    [
+      u.id,
+      u.username,
+      u.email,
+      statusLabel(u.accountStatus, t),
+      u.city ?? '',
+      u.memberSince ? new Date(u.memberSince).toISOString() : '',
+      u.lastSeenAt ? new Date(u.lastSeenAt).toISOString() : '',
+      String(u.followersCount ?? 0),
+      String(u.photosCount ?? 0),
+      String(u.meloCoins ?? ''),
+    ]
+      .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+      .join(',')
+  );
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `soundy-users-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function AdminAccountsTab() {
   const { token } = useAuth();
   const { t, i18n } = useTranslation();
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
   const [users, setUsers] = useState<AccessManagedUser[]>([]);
   const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [counts, setCounts] = useState({ total: 0, active: 0, pending: 0, blocked: 0 });
   const [filter, setFilter] = useState<UserFilter>('all');
+  const [sort, setSort] = useState<AdminUserSort>('lastSeen');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [busy, setBusy] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [copyFeedback, setCopyFeedback] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
     return () => window.clearTimeout(timer);
   }, [search]);
 
-  const reload = useCallback(async () => {
-    if (!token) return;
-    setLoading(true);
-    setError('');
-    try {
-      const userList = await api.getAccessAdminUsers(
-        token,
-        filter === 'all' ? 'all' : filter,
-        debouncedSearch || undefined
-      );
-      setUsers(userList.users);
-      setTotal(userList.total);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('errors.network'));
-    } finally {
-      setLoading(false);
-    }
-  }, [token, filter, debouncedSearch, t]);
+  const fetchPage = useCallback(
+    async (offset: number, append: boolean) => {
+      if (!token) return;
+      if (append) setLoadingMore(true);
+      else setLoading(true);
+      setError('');
+      try {
+        const result = await api.getAccessAdminUsers(token, {
+          status: filter === 'all' ? 'all' : filter,
+          q: debouncedSearch || undefined,
+          sort,
+          limit: PAGE_SIZE,
+          offset,
+        });
+        setUsers((prev) => (append ? [...prev, ...result.users] : result.users));
+        setTotal(result.total);
+        setHasMore(result.hasMore);
+        setCounts(result.counts);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : t('errors.network'));
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [token, filter, debouncedSearch, sort, t]
+  );
 
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    void fetchPage(0, false);
+  }, [fetchPage]);
+
+  const reload = useCallback(async () => {
+    await fetchPage(0, false);
+  }, [fetchPage]);
+
+  const loadMore = () => {
+    if (!hasMore || loadingMore) return;
+    void fetchPage(users.length, true);
+  };
 
   const actOnUser = async (userId: string, action: 'approve' | 'block' | 'unblock') => {
     if (!token) return;
@@ -78,20 +170,79 @@ export function AdminAccountsTab() {
     }
   };
 
+  const handleCopy = async (text: string, label: string) => {
+    const ok = await copyText(text);
+    setCopyFeedback(ok ? label : t('admin.accounts.copyFailed'));
+    window.setTimeout(() => setCopyFeedback(''), 2000);
+  };
+
+  const handleExport = async () => {
+    if (!token || exporting) return;
+    setExporting(true);
+    try {
+      const result = await api.getAccessAdminUsers(token, {
+        status: filter === 'all' ? 'all' : filter,
+        q: debouncedSearch || undefined,
+        sort,
+        limit: 5000,
+        offset: 0,
+      });
+      exportUsersCsv(result.users, t);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : t('errors.network'));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const locale = i18n.language.startsWith('en') ? 'en-GB' : 'fr-FR';
+  const hasSearch = search.trim().length > 0;
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {(
+          [
+            { key: 'total', value: counts.total, color: 'text-white' },
+            { key: 'active', value: counts.active, color: 'text-green-400' },
+            { key: 'pending', value: counts.pending, color: 'text-yellow-400' },
+            { key: 'blocked', value: counts.blocked, color: 'text-red-400' },
+          ] as const
+        ).map((stat) => (
+          <div key={stat.key} className="bg-[#12121a] border border-[#1e1e2f] rounded-xl p-3 text-center">
+            <div className={`text-xl font-bold ${stat.color}`}>{stat.value}</div>
+            <div className="text-[10px] text-gray-500 uppercase tracking-wide">
+              {t(`admin.accounts.stats.${stat.key}`)}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="relative">
         <input
           type="search"
-          className="flex-1 bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2.5 text-sm"
+          autoComplete="off"
+          className="w-full bg-[#1a1a26] border border-purple-500/40 rounded-2xl pl-4 pr-10 py-3 text-sm placeholder:text-gray-500 focus:outline-none focus:border-purple-400"
           placeholder={t('admin.accounts.searchPlaceholder')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          aria-label={t('admin.accounts.searchPlaceholder')}
         />
+        {hasSearch && (
+          <button
+            type="button"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-lg leading-none"
+            onClick={() => setSearch('')}
+            aria-label={t('admin.accounts.clearSearch')}
+          >
+            ×
+          </button>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap">
         <select
-          className="bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2.5 text-sm"
+          className="flex-1 min-w-[8rem] bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm"
           value={filter}
           onChange={(e) => setFilter(e.target.value as UserFilter)}
         >
@@ -100,11 +251,37 @@ export function AdminAccountsTab() {
           <option value="active">{t('admin.accounts.filterActive')}</option>
           <option value="blocked">{t('admin.accounts.filterBlocked')}</option>
         </select>
+        <select
+          className="flex-1 min-w-[8rem] bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm"
+          value={sort}
+          onChange={(e) => setSort(e.target.value as AdminUserSort)}
+          aria-label={t('admin.accounts.sortLabel')}
+        >
+          <option value="lastSeen">{t('admin.accounts.sortLastSeen')}</option>
+          <option value="memberSince">{t('admin.accounts.sortMemberSince')}</option>
+          <option value="username">{t('admin.accounts.sortUsername')}</option>
+          <option value="status">{t('admin.accounts.sortStatus')}</option>
+        </select>
+        <button
+          type="button"
+          disabled={exporting || loading}
+          onClick={() => void handleExport()}
+          className="px-4 py-2 rounded-xl bg-[#1a1a26] border border-[#2d2d3d] text-xs font-medium hover:border-purple-500/50 disabled:opacity-50"
+        >
+          {exporting ? t('admin.accounts.exporting') : t('admin.accounts.exportCsv')}
+        </button>
       </div>
 
-      <p className="text-xs text-gray-500">{t('admin.accounts.counts', { total })}</p>
+      <div className="flex items-center justify-between gap-2 text-xs text-gray-500">
+        <p>
+          {debouncedSearch
+            ? t('admin.accounts.resultCountFiltered', { shown: users.length, total })
+            : t('admin.accounts.resultCount', { shown: users.length, total })}
+        </p>
+        {copyFeedback && <span className="text-purple-400">{copyFeedback}</span>}
+      </div>
 
-      {loading && <p className="text-gray-400 text-sm">{t('app.loading')}</p>}
+      {loading && users.length === 0 && <p className="text-gray-400 text-sm">{t('app.loading')}</p>}
       {error && (
         <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
           {error}
@@ -119,7 +296,10 @@ export function AdminAccountsTab() {
         {users.map((u) => {
           const expanded = expandedId === u.id;
           return (
-            <li key={u.id} className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl px-3 py-3 text-sm space-y-2">
+            <li
+              key={u.id}
+              className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl px-3 py-3 text-sm space-y-2"
+            >
               <button
                 type="button"
                 className="w-full text-left"
@@ -136,13 +316,7 @@ export function AdminAccountsTab() {
                     )}
                   </div>
                   <span
-                    className={`text-[10px] px-2 py-0.5 rounded-full h-fit shrink-0 ${
-                      u.accountStatus === 'active'
-                        ? 'bg-green-500/20 text-green-400'
-                        : u.accountStatus === 'pending'
-                          ? 'bg-yellow-500/20 text-yellow-400'
-                          : 'bg-red-500/20 text-red-400'
-                    }`}
+                    className={`text-[10px] px-2 py-0.5 rounded-full h-fit shrink-0 ${statusBadgeClass(u.accountStatus)}`}
                   >
                     {statusLabel(u.accountStatus, t)}
                     {u.isAdmin ? ` · ${t('admin.accounts.adminBadge')}` : ''}
@@ -151,14 +325,52 @@ export function AdminAccountsTab() {
               </button>
 
               {expanded && (
-                <div className="text-xs text-gray-400 space-y-1 border-t border-[#1e1e2f] pt-2">
+                <div className="text-xs text-gray-400 space-y-2 border-t border-[#1e1e2f] pt-2">
+                  <div className="flex flex-wrap gap-2">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] ${statusBadgeClass(u.accountStatus)}`}>
+                      {statusLabel(u.accountStatus, t)}
+                    </span>
+                    {u.isAdmin && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] bg-purple-500/20 text-purple-300">
+                        {t('admin.accounts.adminBadge')}
+                      </span>
+                    )}
+                  </div>
                   <p>{t('admin.accounts.memberSince', { date: formatDate(u.memberSince, locale) })}</p>
-                  <p>{t('admin.accounts.lastSeen', { date: formatDate(u.lastSeenAt, locale) })}</p>
+                  <p>{t('admin.accounts.lastSeen', { date: formatDateTime(u.lastSeenAt, locale) })}</p>
+                  <p>
+                    {t('admin.accounts.followersCount', { count: u.followersCount ?? 0 })}
+                    {' · '}
+                    {t('admin.accounts.photosCount', { count: u.photosCount ?? 0 })}
+                  </p>
                   {u.meloCoins != null && (
                     <p>{t('admin.accounts.meloCoins', { count: u.meloCoins })}</p>
                   )}
                   {u.listeningRole && <p>{u.listeningRole}</p>}
                   {u.bioPreview && <p className="italic text-gray-500">{u.bioPreview}</p>}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button
+                      type="button"
+                      className="px-2.5 py-1 rounded-lg bg-[#1a1a26] border border-[#2d2d3d] text-[11px] hover:border-purple-500/50"
+                      onClick={() => window.open(getProfilePath(u.id), '_blank', 'noopener,noreferrer')}
+                    >
+                      {t('admin.accounts.openProfile')}
+                    </button>
+                    <button
+                      type="button"
+                      className="px-2.5 py-1 rounded-lg bg-[#1a1a26] border border-[#2d2d3d] text-[11px] hover:border-purple-500/50"
+                      onClick={() => void handleCopy(u.id, t('admin.accounts.copiedId'))}
+                    >
+                      {t('admin.accounts.copyId')}
+                    </button>
+                    <button
+                      type="button"
+                      className="px-2.5 py-1 rounded-lg bg-[#1a1a26] border border-[#2d2d3d] text-[11px] hover:border-purple-500/50"
+                      onClick={() => void handleCopy(u.email, t('admin.accounts.copiedEmail'))}
+                    >
+                      {t('admin.accounts.copyEmail')}
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -200,6 +412,17 @@ export function AdminAccountsTab() {
           );
         })}
       </ul>
+
+      {hasMore && (
+        <button
+          type="button"
+          disabled={loadingMore}
+          onClick={loadMore}
+          className="w-full py-2.5 rounded-xl bg-[#1a1a26] border border-[#2d2d3d] text-sm font-medium hover:border-purple-500/50 disabled:opacity-50"
+        >
+          {loadingMore ? t('app.loading') : t('admin.accounts.loadMore')}
+        </button>
+      )}
     </div>
   );
 }

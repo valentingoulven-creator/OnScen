@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePauseMediaOnPageHidden } from '../hooks/usePauseMediaOnPageHidden';
 import { REELS_DEMO_VIDEO_COUNT, type MusicReel } from '../content/reels';
@@ -12,6 +12,7 @@ import {
   resolveReelsFeed,
 } from '../content/reelsFeed';
 import { useAuth } from '../context/AuthContext';
+import { ReelsSearchBar } from '../components/ReelsSearchBar';
 import { ShareLinkMenu } from '../components/ShareLinkMenu';
 import { UserAvatarOnline } from '../components/UserAvatarOnline';
 import { UsernameDisplay } from '../components/UsernameDisplay';
@@ -46,6 +47,7 @@ import {
   subscribeAppMediaFocus,
 } from '../lib/appMediaFocus';
 import { pauseAllReelsMediaInDom, pauseInactiveReelsMediaInDom } from '../lib/reelsMedia';
+import { filterReelsBySearch } from '../lib/reelsSearch';
 import { getSocket } from '../lib/socket';
 import type { ReelComment, ReelStats } from '../types';
 
@@ -245,7 +247,12 @@ export function ReelsTabPage({
   const { token } = useAuth();
   const [feedReels, setFeedReels] = useState<MusicReel[]>(FALLBACK_REELS);
   const [feedLoading, setFeedLoading] = useState(false);
-  const reels = feedReels;
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const reels = useMemo(
+    () => filterReelsBySearch(feedReels, debouncedSearchQuery),
+    [feedReels, debouncedSearchQuery]
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
   const videoRefsById = useRef(new Map<string, HTMLVideoElement>());
   const audioRefsById = useRef(new Map<string, HTMLAudioElement>());
@@ -282,6 +289,20 @@ export function ReelsTabPage({
   const [algoSheetOpen, setAlgoSheetOpen] = useState(false);
 
   const activeReel = reels[activeIndex];
+  const searchActive = debouncedSearchQuery.trim().length > 0;
+  const searchEmpty = searchActive && !feedLoading && reels.length === 0;
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearchQuery(searchQuery), 280);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    setActiveIndex(0);
+    activeIndexRef.current = 0;
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: 0, behavior: 'auto' });
+  }, [debouncedSearchQuery]);
 
   useEffect(() => {
     activeIndexRef.current = activeIndex;
@@ -972,6 +993,20 @@ export function ReelsTabPage({
       )}
       <div className="reels-viewport flex flex-1 min-h-0 w-full justify-center">
         <div className="relative flex flex-1 min-h-0 w-full max-w-lg">
+          <ReelsSearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            className="absolute top-3 left-3 right-14 z-20"
+          />
+
+          {searchEmpty && (
+            <div className="pointer-events-none absolute inset-0 z-[15] flex items-center justify-center px-8">
+              <p className="rounded-2xl bg-black/70 border border-purple-500/30 px-5 py-4 text-center text-sm text-gray-200 backdrop-blur-md shadow-xl">
+                {t('reels.searchNoResults', { query: debouncedSearchQuery.trim() })}
+              </p>
+            </div>
+          )}
+
           <div
             ref={scrollRef}
             className={`reels-track flex-1 min-h-0 w-full flex flex-col items-stretch overflow-y-auto overflow-x-hidden self-stretch touch-pan-y ${

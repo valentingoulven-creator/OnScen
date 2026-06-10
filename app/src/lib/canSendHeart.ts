@@ -36,12 +36,12 @@ export function userMeetsHeartAge(
 ): boolean {
   if (!user) return false;
   if (user.meetsHeartAge === true) return true;
-  if (user.meetsHeartAge === false) return false;
   if (typeof user.age === 'number') return user.age >= HEART_MIN_AGE;
   if (user.birthDate) {
     const age = computeAgeFromBirthDate(user.birthDate);
     return age != null && age >= HEART_MIN_AGE;
   }
+  if (user.meetsHeartAge === false) return false;
   return false;
 }
 

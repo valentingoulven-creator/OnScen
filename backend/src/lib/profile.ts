@@ -16,6 +16,7 @@ import {
   creatorMeetsMonetizationAge,
   MAX_PROFILE_AGE,
   MIN_PROFILE_AGE,
+  resolveUserAge,
 } from './ageGates';
 import { isAccountValidated, userMeetsHeartAge } from './canSendHeart';
 
@@ -161,7 +162,7 @@ function publicBirthDateField(u: User, isOwner: boolean): string | undefined {
 }
 
 function publicAgeField(u: User, isOwner: boolean): number | undefined {
-  const derivedAge = u.birthDate ? computeAgeFromBirthDate(u.birthDate) : u.age;
+  const derivedAge = resolveUserAge(u);
   if (derivedAge == null) return undefined;
   if (isOwner || !isBirthDateHiddenOnProfile(u)) return derivedAge;
   return undefined;
@@ -281,6 +282,10 @@ export function countPersistableProfilePhotos(photos: string[]): number {
 }
 
 export function applyProfileDefaults(user: User): User {
+  if (user.birthDate && user.age == null) {
+    const derived = resolveUserAge(user);
+    if (derived != null) user.age = derived;
+  }
   if (user.hideBirthDateOnProfile === undefined && user.showAge === undefined) {
     user.hideBirthDateOnProfile = true;
     user.showAge = false;

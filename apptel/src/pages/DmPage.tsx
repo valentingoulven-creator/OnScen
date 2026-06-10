@@ -6,6 +6,7 @@ import { getSocket } from '../lib/socket';
 import { useMatchCreated } from '../lib/useMatchCreated';
 import { UserAvatarOnline } from '../components/UserAvatarOnline';
 import { UsernameDisplay } from '../components/UsernameDisplay';
+import { LinkifiedText } from '../components/LinkifiedText';
 import type { Conversation, DirectMessage, DmContact, DmRequest, GroupMessage, MessageGroupDetail } from '../types';
 
 function isGroupConversation(c: Conversation): boolean {
@@ -149,12 +150,16 @@ export function DmPage({
   onOpenPeerConsumed,
   onOpenGroupConsumed,
   onOpenProfile,
+  onOpenSalon,
+  onOpenFeedPost,
 }: {
   openPeerId?: string | null;
   openGroupId?: string | null;
   onOpenPeerConsumed?: () => void;
   onOpenGroupConsumed?: () => void;
   onOpenProfile?: (userId: string) => void;
+  onOpenSalon?: (salonId: string) => void;
+  onOpenFeedPost?: (postId: string) => void;
 } = {}) {
   const { user, token } = useAuth();
   const { refreshUnread, refreshMuted, setActivePeer, setActiveGroup } = useDmUnread();
@@ -1341,7 +1346,13 @@ export function DmPage({
                         : 'bg-[#1a1a26] border border-[#2d2d3d] text-gray-100 rounded-bl-sm'
                     }`}
                   >
-                    <p className="text-sm whitespace-pre-wrap break-words">{m.content}</p>
+                    <LinkifiedText
+                      text={m.content}
+                      className="text-sm whitespace-pre-wrap break-words"
+                      onOpenProfile={onOpenProfile}
+                      onOpenSalon={onOpenSalon}
+                      onOpenFeedPost={onOpenFeedPost}
+                    />
                     <p className={`text-[10px] mt-1 ${isMe ? 'text-purple-200' : 'text-gray-500'}`}>
                       {formatTime(m.timestamp)}
                     </p>
@@ -1460,7 +1471,13 @@ export function DmPage({
                         {!isMe && (
                           <p className="text-[10px] font-semibold text-purple-300 mb-0.5">{senderLabel}</p>
                         )}
-                        <p className="text-sm whitespace-pre-wrap break-words">{m.content}</p>
+                        <LinkifiedText
+                          text={m.content}
+                          className="text-sm whitespace-pre-wrap break-words"
+                          onOpenProfile={onOpenProfile}
+                          onOpenSalon={onOpenSalon}
+                          onOpenFeedPost={onOpenFeedPost}
+                        />
                         <p className={`text-[10px] mt-1 ${isMe ? 'text-purple-200' : 'text-gray-500'}`}>
                           {formatTime(m.timestamp)}
                         </p>

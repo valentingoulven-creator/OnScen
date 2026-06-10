@@ -30,6 +30,14 @@ export interface CreateSalonForm {
   spotifyJamUrl: string;
 }
 
+/** Préremplissage (ex. salon privé depuis un fil DM). */
+export type CreateSalonModalPreset = {
+  platform?: 'spotify' | 'youtube';
+  accessMode?: 'public' | 'invite';
+  allowedUserIds?: string[];
+  title?: string;
+};
+
 interface CreateSalonModalProps {
   token: string;
   username: string;
@@ -37,6 +45,7 @@ interface CreateSalonModalProps {
   open: boolean;
   fallbackLatitude: number;
   fallbackLongitude: number;
+  preset?: CreateSalonModalPreset | null;
   onClose: () => void;
   onCreated: (salon: Salon, lat: number, lon: number) => void;
   onUserUpdated?: (user: User) => void;
@@ -49,6 +58,7 @@ export function CreateSalonModal({
   open,
   fallbackLatitude,
   fallbackLongitude,
+  preset = null,
   onClose,
   onCreated,
   onUserUpdated,
@@ -72,16 +82,19 @@ export function CreateSalonModal({
     spotifyJamUrl: '',
   });
 
+  const skipAccessStep = preset?.accessMode === 'invite';
+  const lockedPlatform = preset?.platform;
+
   useEffect(() => {
     if (!open || !token) return;
     openedAtRef.current = Date.now();
     setStep(1);
     setCreatedInviteSalonId(null);
     setForm({
-      title: `Salon de ${username}`,
-      platform: 'youtube',
-      accessMode: 'public',
-      allowedUserIds: [],
+      title: preset?.title?.trim() || `Salon de ${username}`,
+      platform: preset?.platform ?? 'youtube',
+      accessMode: preset?.accessMode ?? 'public',
+      allowedUserIds: preset?.allowedUserIds ?? [],
       musicSource: 'track',
       trackLink: '',
       trackTitle: 'Ma session Soundy',
@@ -91,7 +104,7 @@ export function CreateSalonModal({
       spotifyJamUrl: '',
     });
     api.getDmContacts(token).then((r) => setContacts(r.contacts));
-  }, [open, token, username]);
+  }, [open, token, username, preset]);
 
   if (!open) return null;
 
@@ -220,48 +233,74 @@ export function CreateSalonModal({
         <div className="p-4 space-y-4">
           <div className="flex gap-1 text-[10px] text-gray-500">
             <span className={step >= 1 ? 'text-purple-400' : ''}>1. Musique</span>
+            {!skipAccessStep && (
+              <>
+                <span>·</span>
+                <span className={step >= 2 ? 'text-purple-400' : ''}>2. Accès</span>
+              </>
+            )}
             <span>·</span>
-            <span className={step >= 2 ? 'text-purple-400' : ''}>2. Accès</span>
-            <span>·</span>
-            <span className={step >= 3 ? 'text-purple-400' : ''}>3. Détails</span>
+            <span className={step >= 3 ? 'text-purple-400' : ''}>
+              {skipAccessStep ? '2. Détails' : '3. Détails'}
+            </span>
           </div>
 
           {step === 1 && (
             <>
-              <p className="text-sm text-gray-400">Choisissez l&apos;application liée à votre salon</p>
+              <p className="text-sm text-gray-400">
+                {lockedPlatform
+                  ? `Salon ${lockedPlatform === 'spotify' ? 'Spotify' : 'YouTube'} privé`
+                  : "Choisissez l'application liée à votre salon"}
+              </p>
               <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-2.5 text-[11px] text-purple-100 leading-snug">
                 <strong className="text-white">YouTube</strong> permet aux participants d&apos;écouter le même
                 morceau <strong className="text-white">en même temps</strong> dans Soundly (lecteur synchronisé).
                 Avec Spotify, ils suivent le chrono partagé dans leur app.
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                {(['youtube', 'spotify'] as const).map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() =>
-                      setForm((f) => ({
-                        ...f,
-                        platform: p,
-                        ...(p === 'spotify' ? { musicSource: 'track' as const, youtubePlaylist: null } : {}),
-                      }))
-                    }
-                    className={`p-4 rounded-2xl border text-left transition ${
-                      form.platform === p
-                        ? p === 'spotify'
-                          ? 'border-green-500 bg-green-500/10'
-                          : 'border-red-500 bg-red-500/10'
-                        : 'border-[#2d2d3d] bg-[#1a1a26]'
-                    }`}
-                  >
-                    <span className="text-2xl block mb-2">{p === 'spotify' ? '🎧' : '▶️'}</span>
-                    <span className="font-bold text-white capitalize">{p}</span>
-                    <p className="text-[10px] text-gray-500 mt-1">
-                      {p === 'spotify' ? 'Jam / écoute partagée' : 'Lecture vidéo YouTube'}
-                    </p>
-                  </button>
-                ))}
-              </div>
+              {lockedPlatform ? (
+                <div
+                  className={`p-4 rounded-2xl border text-left ${
+                    lockedPlatform === 'spotify'
+                      ? 'border-green-500 bg-green-500/10'
+                      : 'border-red-500 bg-red-500/10'
+                  }`}
+                >
+                  <span className="text-2xl block mb-2">{lockedPlatform === 'spotify' ? '🎧' : '▶️'}</span>
+                  <span className="font-bold text-white capitalize">{lockedPlatform}</span>
+                  <p className="text-[10px] text-gray-500 mt-1">
+                    {lockedPlatform === 'spotify' ? 'Jam / écoute partagée' : 'Lecture vidéo YouTube'}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  {(['youtube', 'spotify'] as const).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() =>
+                        setForm((f) => ({
+                          ...f,
+                          platform: p,
+                          ...(p === 'spotify' ? { musicSource: 'track' as const, youtubePlaylist: null } : {}),
+                        }))
+                      }
+                      className={`p-4 rounded-2xl border text-left transition ${
+                        form.platform === p
+                          ? p === 'spotify'
+                            ? 'border-green-500 bg-green-500/10'
+                            : 'border-red-500 bg-red-500/10'
+                          : 'border-[#2d2d3d] bg-[#1a1a26]'
+                      }`}
+                    >
+                      <span className="text-2xl block mb-2">{p === 'spotify' ? '🎧' : '▶️'}</span>
+                      <span className="font-bold text-white capitalize">{p}</span>
+                      <p className="text-[10px] text-gray-500 mt-1">
+                        {p === 'spotify' ? 'Jam / écoute partagée' : 'Lecture vidéo YouTube'}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
               {!platformLinked && (
                 <div className="space-y-2">
                   <p className="text-xs text-amber-400/90">
@@ -484,7 +523,7 @@ export function CreateSalonModal({
           {step > 1 ? (
             <button
               type="button"
-              onClick={() => setStep((s) => s - 1)}
+              onClick={() => setStep((s) => (s === 3 && skipAccessStep ? 1 : s - 1))}
               className="flex-1 py-3 rounded-xl border border-[#2d2d3d] text-gray-300"
             >
               Retour
@@ -497,7 +536,7 @@ export function CreateSalonModal({
           {step < 3 ? (
             <button
               type="button"
-              onClick={() => setStep((s) => s + 1)}
+              onClick={() => setStep((s) => (s === 1 && skipAccessStep ? 3 : s + 1))}
               disabled={step === 1 && !platformLinked}
               className="flex-1 py-3 rounded-xl bg-purple-600 font-bold text-white disabled:opacity-50"
             >

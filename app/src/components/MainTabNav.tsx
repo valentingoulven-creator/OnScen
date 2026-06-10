@@ -78,6 +78,12 @@ function navInnerClass(placement: 'bottom' | 'header'): string {
   return 'flex items-center justify-center gap-3 sm:gap-4';
 }
 
+function tabAriaLabel(id: Tab, label: string, dmUnread: number): string {
+  if (id !== 'dm' || dmUnread <= 0) return label;
+  const n = dmUnread > 99 ? 99 : dmUnread;
+  return n === 1 ? 'Messages, 1 non lu' : `Messages, ${n} non lus`;
+}
+
 export const MainTabNav = memo(function MainTabNav({
   tab,
   liveViewActive,
@@ -100,7 +106,7 @@ export const MainTabNav = memo(function MainTabNav({
             type="button"
             onClick={() => onSelectTab(id)}
             className={tabButtonClass(id, active, placement)}
-            aria-label={label}
+            aria-label={tabAriaLabel(id, label, dmUnread)}
             aria-current={active ? 'page' : undefined}
           >
             {id === 'live' && active && (
@@ -108,9 +114,12 @@ export const MainTabNav = memo(function MainTabNav({
             )}
             <span className="relative inline-flex items-center justify-center">
               <TabIcon tab={id} />
-              <span className="sr-only">{label}</span>
+              <span className="sr-only">{tabAriaLabel(id, label, dmUnread)}</span>
               {id === 'dm' && dmUnread > 0 && (
-                <span className="absolute -top-1 -right-1.5 min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-purple-500 text-white text-[10px] font-bold leading-none flex items-center justify-center shrink-0 ring-2 ring-[var(--ms-bg,#0b0b0f)]">
+                <span
+                  className="absolute -top-1 -right-1.5 min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-pink-600 text-white text-[10px] font-bold leading-none flex items-center justify-center shrink-0 ring-2 ring-[var(--ms-bg,#0b0b0f)]"
+                  aria-hidden="true"
+                >
                   {dmUnread > 99 ? '99+' : dmUnread}
                 </span>
               )}

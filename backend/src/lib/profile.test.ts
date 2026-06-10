@@ -173,6 +173,29 @@ describe('publicProfile age privacy', () => {
     expect(publicProfile(adult, false, 'other').monetizationEligible).toBe(true);
     expect(publicProfile(adult, false, 'other').age).toBeUndefined();
   });
+
+  it('expose meetsHeartAge aux visiteurs sans révéler birthDate ni age', () => {
+    const adult = makeUser({
+      birthDate: '1990-01-01',
+      hideBirthDateOnProfile: true,
+      relationshipStatus: 'celibataire',
+    });
+    delete adult.age;
+    const view = publicProfile(adult, false, 'other');
+    expect(view.birthDate).toBeUndefined();
+    expect(view.age).toBeUndefined();
+    expect(view.meetsHeartAge).toBe(true);
+  });
+
+  it('meetsHeartAge false si mineur même avec âge masqué', () => {
+    const minor = makeUser({
+      birthDate: '2012-06-01',
+      hideBirthDateOnProfile: true,
+    });
+    delete minor.age;
+    const view = publicProfile(minor, false, 'other');
+    expect(view.meetsHeartAge).toBe(false);
+  });
 });
 
 describe('userMeetsLiveAge', () => {

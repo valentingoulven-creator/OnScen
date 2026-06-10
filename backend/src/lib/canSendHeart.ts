@@ -1,5 +1,5 @@
 import { getAccountStatus } from './accessControl';
-import { CREATOR_MONETIZATION_MIN_AGE } from './ageGates';
+import { CREATOR_MONETIZATION_MIN_AGE, resolveUserAge } from './ageGates';
 import type { User } from '../models/schema';
 
 export const HEART_MIN_AGE = CREATOR_MONETIZATION_MIN_AGE;
@@ -11,7 +11,8 @@ export function isAccountValidated(user: User | null | undefined): boolean {
 
 export function userMeetsHeartAge(user: User | null | undefined): boolean {
   if (!user) return false;
-  return typeof user.age === 'number' && user.age >= HEART_MIN_AGE;
+  const age = resolveUserAge(user);
+  return typeof age === 'number' && age >= HEART_MIN_AGE;
 }
 
 export function isSingleForHeart(user: User | null | undefined): boolean {

@@ -31,6 +31,11 @@ feedRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
       : undefined;
   const eventCountry =
     typeof q.eventCountry === 'string' && q.eventCountry ? q.eventCountry : undefined;
+  const eventTypeRaw = typeof q.eventType === 'string' ? q.eventType : undefined;
+  const eventType =
+    eventTypeRaw === 'dance' || eventTypeRaw === 'chant' || eventTypeRaw === 'autre'
+      ? eventTypeRaw
+      : undefined;
   const useAlgo = q.algo === 'true' || q.algo === '1' ? true : undefined;
   res.json({
     posts: listFeedPosts(me, {
@@ -41,6 +46,7 @@ feedRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
       eventDate,
       eventLocationSearch,
       eventCountry,
+      eventType,
       useAlgo,
     }),
   });

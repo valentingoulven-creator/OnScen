@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { authenticateJWT } from '../middleware/auth';
-import { db } from '../models/schema';
-import { publicProfile } from '../lib/profile';
+import { db, type User } from '../models/schema';
+import { countPersistableProfilePhotos, normalizeProfilePhotos, publicProfile } from '../lib/profile';
+import { getFavoriteCount } from '../lib/favorites';
 import { schedulePersist } from '../lib/persist';
 import {
   createInviteCode,
@@ -58,38 +59,97 @@ accessRouter.get('/admin/overview', authenticateJWT, (req: Request, res: Respons
   });
 });
 
+type AdminUserSort = 'lastSeen' | 'memberSince' | 'username' | 'status';
+
+const STATUS_SORT_ORDER: Record<AccountStatus, number> = {
+  pending: 0,
+  active: 1,
+  blocked: 2,
+};
+
+function mapAdminManagedUser(u: User) {
+  const photos = normalizeProfilePhotos(u);
+  return {
+    id: u.id,
+    username: u.username,
+    email: u.email,
+    accountStatus: getAccountStatus(u),
+    isAdmin: isAccessAdmin(u),
+    memberSince: u.memberSince,
+    lastSeenAt: u.lastSeenAt,
+    profileType: u.profileType,
+    city: u.city,
+    meloCoins: u.meloCoins,
+    listeningRole: u.listeningRole,
+    bioPreview: u.bio?.trim().slice(0, 120),
+    followersCount: u.favoritesCountOverride ?? getFavoriteCount(u.id),
+    photosCount: countPersistableProfilePhotos(photos),
+  };
+}
+
+function sortAdminUsers<T extends { username: string; memberSince?: number; lastSeenAt: number; accountStatus: AccountStatus }>(
+  users: T[],
+  sort: AdminUserSort
+): T[] {
+  const list = [...users];
+  switch (sort) {
+    case 'username':
+      return list.sort((a, b) => a.username.localeCompare(b.username, undefined, { sensitivity: 'base' }));
+    case 'memberSince':
+      return list.sort((a, b) => (b.memberSince ?? 0) - (a.memberSince ?? 0));
+    case 'status':
+      return list.sort(
+        (a, b) =>
+          STATUS_SORT_ORDER[a.accountStatus] - STATUS_SORT_ORDER[b.accountStatus] ||
+          a.username.localeCompare(b.username, undefined, { sensitivity: 'base' })
+      );
+    default:
+      return list.sort((a, b) => (b.lastSeenAt ?? 0) - (a.lastSeenAt ?? 0));
+  }
+}
+
 accessRouter.get('/admin/users', authenticateJWT, (req: Request, res: Response) => {
   if (!requireAdmin(req, res)) return;
   const status = String(req.query.status || 'all') as AccountStatus | 'all';
   const q = String(req.query.q || '')
     .trim()
     .toLowerCase();
-  const users = [...db.users.values()]
-    .filter((u) => !u.email.endsWith('@bot.local'))
-    .filter((u) => status === 'all' || getAccountStatus(u) === status)
-    .filter(
-      (u) =>
-        !q ||
-        u.username.toLowerCase().includes(q) ||
-        u.email.toLowerCase().includes(q) ||
-        (u.city?.toLowerCase().includes(q) ?? false)
-    )
-    .map((u) => ({
-      id: u.id,
-      username: u.username,
-      email: u.email,
-      accountStatus: getAccountStatus(u),
-      isAdmin: isAccessAdmin(u),
-      memberSince: u.memberSince,
-      lastSeenAt: u.lastSeenAt,
-      profileType: u.profileType,
-      city: u.city,
-      meloCoins: u.meloCoins,
-      listeningRole: u.listeningRole,
-      bioPreview: u.bio?.trim().slice(0, 120),
-    }))
-    .sort((a, b) => (b.lastSeenAt ?? 0) - (a.lastSeenAt ?? 0));
-  res.json({ users, total: users.length });
+  const sort = String(req.query.sort || 'lastSeen') as AdminUserSort;
+  const allowedSort: AdminUserSort[] = ['lastSeen', 'memberSince', 'username', 'status'];
+  const sortKey = allowedSort.includes(sort) ? sort : 'lastSeen';
+  const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '50'), 10) || 50, 1), 200);
+  const offset = Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0);
+
+  const realUsers = [...db.users.values()].filter((u) => !u.email.endsWith('@bot.local'));
+  const counts = {
+    total: realUsers.length,
+    active: realUsers.filter((u) => getAccountStatus(u) === 'active').length,
+    pending: realUsers.filter((u) => getAccountStatus(u) === 'pending').length,
+    blocked: realUsers.filter((u) => getAccountStatus(u) === 'blocked').length,
+  };
+
+  const filtered = sortAdminUsers(
+    realUsers
+      .filter((u) => status === 'all' || getAccountStatus(u) === status)
+      .filter(
+        (u) =>
+          !q ||
+          u.username.toLowerCase().includes(q) ||
+          u.email.toLowerCase().includes(q) ||
+          (u.city?.toLowerCase().includes(q) ?? false)
+      )
+      .map(mapAdminManagedUser),
+    sortKey
+  );
+
+  res.json({
+    users: filtered.slice(offset, offset + limit),
+    total: filtered.length,
+    counts,
+    limit,
+    offset,
+    hasMore: offset + limit < filtered.length,
+  });
 });
 
 accessRouter.patch('/admin/policy', authenticateJWT, (req: Request, res: Response) => {

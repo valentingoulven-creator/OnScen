@@ -1,9 +1,13 @@
 import { normalizeCityLabel } from './eventLocationPresets';
+import type { FeedEventType } from './eventType';
 import { getLivesGeo } from './livesGeo';
 import { getDistanceKm } from './mapMarkerVisibility';
 import type { MapEventMarker } from '../types';
 
 export const DEFAULT_EVENT_FILTER_RADIUS_KM = 30;
+
+/** `all` = no type filter (tous). */
+export type MapEventFilterEventType = 'all' | FeedEventType;
 
 export interface MapEventFilterCriteria {
   dateFrom: string;
@@ -12,6 +16,7 @@ export interface MapEventFilterCriteria {
   latitude: number | null;
   longitude: number | null;
   radiusKm: number;
+  eventType: MapEventFilterEventType;
 }
 
 export const EMPTY_EVENT_FILTER: MapEventFilterCriteria = {
@@ -21,6 +26,7 @@ export const EMPTY_EVENT_FILTER: MapEventFilterCriteria = {
   latitude: null,
   longitude: null,
   radiusKm: DEFAULT_EVENT_FILTER_RADIUS_KM,
+  eventType: 'all',
 };
 
 /** Local calendar date as yyyy-MM-dd for HTML date inputs. */
@@ -65,7 +71,8 @@ export function hasActiveEventFilterCriteria(criteria: MapEventFilterCriteria): 
   return Boolean(
     criteria.dateFrom.trim() ||
       criteria.dateTo.trim() ||
-      criteria.location.trim()
+      criteria.location.trim() ||
+      criteria.eventType !== 'all'
   );
 }
 
@@ -98,6 +105,12 @@ export function filterMapEventsByCriteria(
   opts?: { viewerId?: string }
 ): MapEventMarker[] {
   let result = events;
+
+  if (criteria.eventType !== 'all') {
+    result = result.filter(
+      (event) => (event.eventType ?? 'autre') === criteria.eventType
+    );
+  }
 
   if (criteria.dateFrom.trim() || criteria.dateTo.trim()) {
     result = result.filter((event) =>

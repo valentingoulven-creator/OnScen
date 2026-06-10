@@ -33,6 +33,7 @@ import {
   type StoryUserStack,
 } from '../lib/storyViewerNav';
 import { ShareLinkMenu } from '../components/ShareLinkMenu';
+import { ShareToUserSheet } from '../components/ShareToUserSheet';
 import { buildFeedPostSharePayload, getFeedPostShareUrl } from '../lib/feedPostShare';
 import { markFeedPostLinkShared, readFeedPostLinkSharedIds } from '../lib/feedPostShareState';
 import { EventsCarousel } from '../components/EventsCarousel';
@@ -949,6 +950,7 @@ export function ActualiteTabPage({
 
   // ── Share & Toast ──
   const [sharePost, setSharePost] = useState<FeedPost | null>(null);
+  const [shareToUserOpen, setShareToUserOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [linkSharedPostIds, setLinkSharedPostIds] = useState<Set<string>>(() => readFeedPostLinkSharedIds());
   const [toast, setToast] = useState<string | null>(null);
@@ -1910,7 +1912,7 @@ export function ActualiteTabPage({
       ) : null}
 
       {/* ── Share sheet ── */}
-      {sharePost && shareUrl && (
+      {sharePost && shareUrl && !shareToUserOpen && (
         <ShareLinkMenu
           open
           onClose={() => setSharePost(null)}
@@ -1919,8 +1921,25 @@ export function ActualiteTabPage({
           text={sharePayload?.text}
           onToast={showToast}
           onShared={handleFeedPostLinkShared}
+          onSendToUser={token ? () => setShareToUserOpen(true) : undefined}
         />
       )}
+
+      {sharePost && shareUrl && shareToUserOpen && token ? (
+        <ShareToUserSheet
+          open
+          onBack={() => setShareToUserOpen(false)}
+          onClose={() => {
+            setShareToUserOpen(false);
+            setSharePost(null);
+          }}
+          token={token}
+          shareUrl={shareUrl}
+          shareText={sharePayload?.text}
+          onToast={showToast}
+          onSent={handleFeedPostLinkShared}
+        />
+      ) : null}
 
       {/* ── Toast ── */}
       {toast && (

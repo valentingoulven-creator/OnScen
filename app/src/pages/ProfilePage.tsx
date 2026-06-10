@@ -669,6 +669,23 @@ export function ProfilePage({
               </label>
             </div>
             <label className="block">
+              <span className="text-xs text-gray-400">{t('profile.relationshipOptional')}</span>
+              <select
+                value={form.relationshipStatus}
+                onChange={(e) => {
+                  const next = e.target.value as RelationshipStatus | '';
+                  setForm((f) => ({ ...f, relationshipStatus: next }));
+                }}
+                className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-2 text-white text-sm"
+              >
+                <option value="">{t('profile.relationshipHidden')}</option>
+                <option value="celibataire">{relationshipLabels.celibataire}</option>
+                <option value="en_couple">{relationshipLabels.en_couple}</option>
+              </select>
+              <p className="text-[10px] text-gray-600 mt-1">{t('profile.relationshipHeartHint')}</p>
+            </label>
+
+            <label className="block">
               <span className="text-xs text-gray-400">Qui êtes-vous ? (optionnel)</span>
               <select
                 value={form.profileType}
@@ -684,23 +701,6 @@ export function ProfilePage({
                   </option>
                 ))}
               </select>
-            </label>
-
-            <label className="block">
-              <span className="text-xs text-gray-400">{t('profile.relationshipOptional')}</span>
-              <select
-                value={form.relationshipStatus}
-                onChange={(e) => {
-                  const next = e.target.value as RelationshipStatus | '';
-                  setForm((f) => ({ ...f, relationshipStatus: next }));
-                }}
-                className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-2 text-white text-sm"
-              >
-                <option value="">{t('profile.relationshipHidden')}</option>
-                <option value="celibataire">{relationshipLabels.celibataire}</option>
-                <option value="en_couple">{relationshipLabels.en_couple}</option>
-              </select>
-              <p className="text-[10px] text-gray-600 mt-1">{t('profile.relationshipHeartHint')}</p>
             </label>
 
             <EditableTags

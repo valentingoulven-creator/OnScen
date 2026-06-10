@@ -5184,7 +5184,8 @@ aligné sur l’API auth.
      UPDATE users SET payload = ::jsonb WHERE id = .
 4. Vérifier : crypt.compare sur le hash relu en base ; optionnel POST
    http://127.0.0.1:$PORT/api/auth/login depuis le VPS.
-5. pm2 start melosong-backend (ou estart) pour recharger le store PostgreSQL.
+5. pm2 start melosong-backend (ou 
+estart) pour recharger le store PostgreSQL.
 6. Supprimer les scripts temporaires sous /opt/soundly ; ne pas laisser de
    mot de passe en clair sur le serveur.
 
@@ -5198,4 +5199,357 @@ aligné sur l’API auth.
 
 ================================================================================
 Fin MODIF 384 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 385 — Admin Comptes : recherche, tri, pagination, export CSV
+================================================================================
+Date : 2026-06-10
+
+## Changements
+- **Backend** GET `/access/admin/users` : pagination (`limit`/`offset`,
+  `hasMore`), tri (`sort=lastSeen|memberSince|username|status`), compteurs
+  globaux (`counts`), champs `followersCount` et `photosCount`.
+- **Comptes** : barre de recherche mise en avant (debounce, effacer), cartes
+  stats, tri, « Charger plus », panneau détail enrichi, actions rapides (profil,
+  copier ID/e-mail), export CSV client.
+- **Accès** : stats 4 colonnes, copie code invite, libellés i18n enable/disable.
+
+## Fichiers modifiés
+  backend/src/routes/access.ts
+  app/src/pages/AdminAccountsTab.tsx
+  app/src/pages/AdminAccessTab.tsx
+  app/src/lib/api.ts
+  app/src/types.ts
+  app/src/locales/fr.json
+  app/src/locales/en.json
+  modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npx tsc --noEmit
+
+================================================================================
+Fin MODIF 385 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 386 — Filtre carte : type d'événement (tous / danse / chant / autre)
+================================================================================
+
+## Contexte
+Modal « Filtrer les événements » (MapEventFilterSheet) : sections Période et Lieu
+existantes ; ajout d'une section Type d'événement avec boutons segmentés.
+
+## Fichiers modifiés
+  app/src/components/MapEventFilterSheet.tsx
+  app/src/lib/mapEventFilter.ts
+  app/src/lib/mapEventFilter.test.ts
+  app/src/lib/api.ts
+  app/src/locales/fr.json
+  app/src/locales/en.json
+  backend/src/lib/feedPosts.ts
+  backend/src/routes/feed.ts
+  modification.txt
+
+## Comportement
+- Nouveau champ criteria.eventType : 'all' | 'dance' | 'chant' | 'autre' (défaut all).
+- UI : radiogroup segmenté (style purple/dark, aligné ActualiteTabPage).
+- Réinitialiser → eventType 'all' ; Appliquer → criteria complet passé à HomePage.
+- Filtrage carte : filterMapEventsByCriteria (client-side, comme date/lieu).
+- API GET /feed : query eventType=dance|chant|autre (optionnel, eventsOnly).
+
+## Test
+  cd app && npx tsc --noEmit
+  cd app && npx vitest run src/lib/mapEventFilter.test.ts
+  cd backend && npx tsc --noEmit
+
+================================================================================
+Fin MODIF 386 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 387 — Profil public : bouton Message si abonnement mutuel
+================================================================================
+Date : 2026-06-10
+
+## Problème
+- Le bouton MP restait désactivé (« Suivez-vous mutuellement pour écrire ») alors
+  que « Ne plus suivre » était visible (abonnement mutuel effectif).
+- Cause : `isMutualFollow` lisait `profile.isFollowing` jamais resynchronisé après
+  Suivre/Ne plus suivre (`FollowUserButton` état local seul) ; cache profil API
+  (30 s) non invalidé sur follow/unfollow.
+
+## Changement
+- UserProfileView : `onFollowingChange` → met à jour `profile.isFollowing` ;
+  bouton activé si `isFollowing && isFollowingMe` → ouvre DM via `onOpenDm` ;
+  libellés i18n `profile.messageButton` / `messageButtonDisabled`.
+- users.ts : `invalidateProfileCache` sur follow/unfollow (visiteur + cible).
+- Backend dm.ts (MODIF 354) : inchangé — envoi toujours bloqué sans mutuel.
+
+## Test
+  cd app && npx tsc --noEmit
+  cd backend && npx tsc --noEmit
+
+## Fichiers modifiés
+  app/src/components/UserProfileView.tsx
+  app/src/locales/fr.json
+  app/src/locales/en.json
+  backend/src/routes/users.ts
+  modification.txt
+
+================================================================================
+Fin MODIF 387 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 388 — Profil : ordre Situation / Qui êtes-vous
+================================================================================
+Date : 2026-06-10
+
+## Problème
+- Dans le formulaire « Édition du profil », l’ordre des champs « Qui êtes-vous ? »
+  et « Situation (optionnel) » ne correspondait pas à l’UX souhaitée.
+
+## Changement
+- ProfilePage.tsx : inversion de l’ordre JSX — « Situation (optionnel) » avant
+  « Qui êtes-vous ? (optionnel) » ; texte d’aide cœurs conservé sur Situation.
+- OnboardingPage / SettingsPage : inchangés (pas de champ Situation ailleurs).
+
+## Test
+  cd app && npx tsc --noEmit
+
+## Fichiers modifiés
+  app/src/pages/ProfilePage.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 388 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 389 — Cœur profil public : éligibilité âge masqué
+================================================================================
+Date : 2026-06-10
+
+## Problème
+- Bouton « Envoyer un cœur » restait désactivé sur profil public avec le message
+  « Cette personne doit avoir au moins 18 ans. » alors que les deux utilisateurs
+  sont 18+ et célibataires.
+- Cause : `userMeetsHeartAge` (backend) ne regardait que `user.age`, pas
+  `birthDate` ; profils avec date de naissance mais `age` absent →
+  `meetsHeartAge: false` dans `publicProfile` alors que l’âge réel est ≥ 18.
+- Côté app, `meetsHeartAge === false` court-circuitait avant le fallback
+  `birthDate` (utile pour le viewer /me).
+
+## Changement
+- `resolveUserAge` dans ageGates.ts (âge stocké ou dérivé de birthDate).
+- Backend `userMeetsHeartAge` + `publicAgeField` + `applyProfileDefaults` :
+  dérivation depuis birthDate si `age` manquant.
+- App `userMeetsHeartAge` : tente age/birthDate avant d’honorer `meetsHeartAge: false`.
+- Tests publicProfile : meetsHeartAge true/false sans exposer age/birthDate.
+
+## Test
+  cd app && npx tsc --noEmit
+  cd backend && npx tsc --noEmit
+
+## Fichiers modifiés
+  app/src/lib/canSendHeart.ts
+  backend/src/lib/ageGates.ts
+  backend/src/lib/canSendHeart.ts
+  backend/src/lib/profile.ts
+  backend/src/lib/profile.test.ts
+  modification.txt
+
+================================================================================
+Fin MODIF 389 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 390 — Badge non lus sur onglet Messages (barre bas)
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+- Marqueur sur le bouton Messages (nav.ms-tab-bar-bottom) quand l'utilisateur a
+  des messages non lus (DM 1:1 + groupes), adressés à lui.
+- Mise à jour temps réel ; masqué quand tout est lu.
+
+## Calcul du non-lu (existant, réutilisé)
+- Backend `countDmUnreadForUser` + `countGroupUnreadForUser` :
+  messages entrants dont `timestamp > lastRead` (curseurs dmReadCursors /
+  groupReadCursors), hors bloqués, hors muets (agrégat global).
+- API `GET /dm/unread-count` → `{ unreadCount }`.
+- Socket `dm_unread` émis après envoi / marquage lu (routes dm + groups).
+- Client `DmUnreadContext` : fetch initial, écoute `dm` / `group_message` /
+  `dm_unread`, `refreshUnread()` après marquage lu dans DmPage.
+
+## Changements UI
+- `MainTabNav` (app + apptel) : pastille compteur rose (bg-pink-600) en haut-droite
+  de l’icône Messages si `dmUnread > 0` (affichage 99+).
+- `aria-label` : « Messages, N non lus » (ou « 1 non lu ») ; pastille `aria-hidden`.
+- `App.tsx` : `dmUnread` depuis `useDmUnread()` déjà passé à `MainTabNav`.
+
+## Fichiers modifiés
+  app/src/components/MainTabNav.tsx
+  apptel/src/components/MainTabNav.tsx
+  modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+
+================================================================================
+Fin MODIF 390 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 391 — Salon privé YouTube/Spotify depuis menu DM (⋮)
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+- Depuis le menu Options (⋮) de l’en-tête d’un fil DM 1:1 ou de groupe, créer un
+  salon privé (accessMode invite) YouTube ou Spotify.
+- Réutiliser CreateSalonModal (preset plateforme + invités + saut étape accès).
+- Après création : lien d’invitation envoyé dans la conversation + navigation salon.
+
+## Existant réutilisé
+- CreateSalonModal + POST /salons (accessMode invite, allowedUserIds, youtube/spotify).
+- SalonInviteLinkCopy, copie lien à la création invite.
+- getSalonShareUrl, api.sendDm / sendGroupMessage.
+
+## Changements
+- CreateSalonModal : prop `preset` (platform, accessMode, allowedUserIds, title) ;
+  plateforme verrouillée ; étape Accès sautée si invite.
+- DmPage : entrées menu « Créer un salon YouTube/Spotify privé » (DM si suivi mutuel,
+  groupe pour tous) ; modal + envoi lien + onOpenSalon.
+- App.tsx : onOpenSalon passé à DmPage.
+- i18n fr/en : dm.createPrivateYoutubeSalon, createPrivateSpotifySalon,
+  privateSalonTitle, privateSalonInviteMessage.
+
+## Backend
+- Aucun changement : POST /salons gère déjà youtube, spotify et accessMode invite.
+
+## Fichiers modifiés
+  app/src/components/CreateSalonModal.tsx
+  app/src/pages/DmPage.tsx
+  app/src/App.tsx
+  app/src/locales/fr.json
+  app/src/locales/en.json
+  modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+
+================================================================================
+Fin MODIF 391 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 392 — Partage publication fil vers utilisateur Soundy (DM)
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+- Depuis le bouton partage d'une publication du fil (Actualité), permettre
+  d'envoyer le lien à un autre utilisateur Soundy via message privé.
+- Conserver le menu de partage externe existant (ShareLinkMenu).
+
+## UX
+1. Clic sur l'icône partage d'une publication → ShareLinkMenu (inchangé).
+2. Nouvelle option en tête : « Envoyer à un utilisateur » (bleu).
+3. Clic → ShareToUserSheet : conversations récentes, abonnements mutuels,
+   recherche utilisateur (api.searchUsers).
+4. Sélection d'un contact → POST /dm/thread/:userId avec texte + URL
+   (getFeedPostShareUrl → /#/post/:id).
+5. Toast de confirmation ; retour arrière vers ShareLinkMenu possible.
+
+## API
+- Réutilise POST /dm/thread/:userId (content = extrait + lien).
+- Pas de nouvel endpoint backend (mutual follow requis côté serveur).
+
+## Fichiers modifiés
+  app/src/components/ShareLinkMenu.tsx
+  app/src/components/ShareToUserSheet.tsx (nouveau)
+  app/src/pages/ActualiteTabPage.tsx
+  app/src/locales/fr.json
+  app/src/locales/en.json
+  modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+
+================================================================================
+Fin MODIF 392 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 393 — Liens cliquables dans bulles DM
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+- Rendre les URLs cliquables dans le texte des messages DM (1:1 et groupes),
+  bulles envoyées et reçues.
+
+## Détection
+- `linkifyText.ts` : http(s), routes internes `#/post/…`, `/profile/…`, `/salon/…`,
+  liens getsoundy.com (ou origine courante) avec hash `#/post/…`.
+
+## Rendu
+- `LinkifiedText` : conserve `whitespace-pre-wrap break-words`.
+- Liens soulignés, hover ; `stopPropagation` pour ne pas déclencher le double-tap DM.
+- Externes : `<a target="_blank" rel="noopener noreferrer">`.
+- Internes Soundy : navigation in-app via callbacks (`onOpenFeedPost`, `onOpenProfile`,
+  `onOpenSalon`) ; repli `window.location.hash` pour les posts sans callback.
+
+## Fichiers modifiés
+  app/src/lib/linkifyText.ts (nouveau)
+  app/src/components/LinkifiedText.tsx (nouveau)
+  app/src/pages/DmPage.tsx
+  app/src/App.tsx
+  apptel/src/pages/DmPage.tsx
+  apptel/src/App.tsx
+  modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+
+================================================================================
+Fin MODIF 393 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 394 — Barre de recherche en haut de l'onglet Reels
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+- Ajouter une barre de recherche en overlay en haut du feed Reels (sous le header
+  app), distincte de la recherche profil globale.
+- Filtrer les reels déjà chargés par titre, artiste, genre et pseudo auteur.
+- Bouton effacer, état vide si aucun résultat, i18n fr/en.
+
+## Comportement recherche
+- Filtre client-side (debounce 280 ms) sur `feedReels` : title, artist, genre,
+  authorUsername (pas d'API `?q=` — GET /reels inchangé).
+- À chaque requête debouncée : index actif remis à 0, scroll en haut du track.
+- Overlay fixe `absolute top-3` dans le conteneur reels (z-20), ne casse pas le
+  snap scroll vertical (touch stoppé sur la barre).
+- Barre semi-transparente noir/violet, placeholder « Rechercher un reel, artiste,
+  genre… ».
+
+## Fichiers modifiés
+  app/src/pages/ReelsTabPage.tsx
+  app/src/components/ReelsSearchBar.tsx (nouveau)
+  app/src/lib/reelsSearch.ts (nouveau)
+  app/src/locales/fr.json
+  app/src/locales/en.json
+  modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+
+================================================================================
+Fin MODIF 394 - 2026-06-10
 ================================================================================

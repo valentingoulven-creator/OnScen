@@ -41,6 +41,19 @@ export interface AccessManagedUser {
   meloCoins?: number;
   listeningRole?: ListeningRole;
   bioPreview?: string;
+  followersCount?: number;
+  photosCount?: number;
+}
+
+export type AdminUserSort = 'lastSeen' | 'memberSince' | 'username' | 'status';
+
+export interface AccessAdminUsersResponse {
+  users: AccessManagedUser[];
+  total: number;
+  counts: { total: number; active: number; pending: number; blocked: number };
+  limit: number;
+  offset: number;
+  hasMore: boolean;
 }
 
 export type ListeningRole = 'auditeur' | 'host' | 'les_deux';

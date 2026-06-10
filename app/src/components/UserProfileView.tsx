@@ -374,6 +374,9 @@ export function UserProfileView({
           userId={userId}
           username={displayName}
           initialFollowing={profile?.isFollowing}
+          onFollowingChange={(following) =>
+            setProfile((p) => (p ? { ...p, isFollowing: following } : p))
+          }
         />
       )}
 
@@ -384,16 +387,16 @@ export function UserProfileView({
             onClick={() => onOpenDm(userId)}
             className="w-full py-2.5 rounded-xl text-sm font-bold border border-purple-500/50 bg-purple-600/80 hover:bg-purple-600 text-white transition"
           >
-            💬 Envoyer un message
+            {t('profile.messageButton')}
           </button>
         ) : (
           <button
             type="button"
             disabled
-            title="Suivez-vous mutuellement pour pouvoir vous écrire"
+            title={t('profile.messageButtonDisabledTitle')}
             className="w-full py-2.5 rounded-xl text-sm font-bold border border-[#2d2d3d] bg-[#1a1a26]/90 text-gray-500 cursor-not-allowed"
           >
-            💬 Suivez-vous mutuellement pour écrire
+            {t('profile.messageButtonDisabled')}
           </button>
         )
       )}

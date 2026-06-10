@@ -4,10 +4,14 @@ import { useAuth } from '../context/AuthContext';
 import { useDmUnread } from '../context/DmUnreadContext';
 import { api } from '../lib/api';
 import { ACCEPTED_IMAGE_FORMATS, validateImageFile, resizeImageInstagram } from '../lib/imageUtils';
+import { getLivesGeo } from '../lib/livesGeo';
+import { getSalonShareUrl } from '../lib/shareLink';
 import { getSocket } from '../lib/socket';
 import { useMatchCreated } from '../lib/useMatchCreated';
+import { CreateSalonModal, type CreateSalonModalPreset } from '../components/CreateSalonModal';
 import { UserAvatarOnline } from '../components/UserAvatarOnline';
 import { UsernameDisplay } from '../components/UsernameDisplay';
+import { LinkifiedText } from '../components/LinkifiedText';
 import type {
   Conversation,
   DirectMessage,
@@ -15,6 +19,7 @@ import type {
   DmRequest,
   GroupMessage,
   MessageGroupDetail,
+  Salon,
   UserSearchHit,
 } from '../types';
 
@@ -173,14 +178,18 @@ export function DmPage({
   onOpenPeerConsumed,
   onOpenGroupConsumed,
   onOpenProfile,
+  onOpenSalon,
+  onOpenFeedPost,
 }: {
   openPeerId?: string | null;
   openGroupId?: string | null;
   onOpenPeerConsumed?: () => void;
   onOpenGroupConsumed?: () => void;
   onOpenProfile?: (userId: string) => void;
+  onOpenSalon?: (salonId: string) => void;
+  onOpenFeedPost?: (postId: string) => void;
 } = {}) {
-  const { user, token } = useAuth();
+  const { user, token, setUserFromProfile } = useAuth();
   const { t } = useTranslation();
   const { refreshUnread, refreshMuted, setActivePeer, setActiveGroup } = useDmUnread();
   const [view, setView] = useState<View>('list');
@@ -232,6 +241,8 @@ export function DmPage({
   const [newDmQuery, setNewDmQuery] = useState('');
   const [newDmResults, setNewDmResults] = useState<UserSearchHit[]>([]);
   const [newDmSearching, setNewDmSearching] = useState(false);
+  const [createSalonOpen, setCreateSalonOpen] = useState(false);
+  const [createSalonPreset, setCreateSalonPreset] = useState<CreateSalonModalPreset | null>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
   const prevMessageCountRef = useRef(0);
@@ -877,6 +888,83 @@ export function DmPage({
     } finally {
       setSending(false);
     }
+  };
+
+  const openPrivateSalonModal = useCallback(
+    (platform: 'youtube' | 'spotify') => {
+      if (!user) return;
+      const allowedUserIds =
+        view === 'groupThread' && activeGroup
+          ? activeGroup.memberIds.filter((id) => id !== user.id)
+          : activeUser
+            ? [activeUser.id]
+            : [];
+      const peerLabel =
+        view === 'groupThread' && activeGroup ? activeGroup.name : (activeUser?.username ?? '');
+      setCreateSalonPreset({
+        platform,
+        accessMode: 'invite',
+        allowedUserIds,
+        title: peerLabel ? t('dm.privateSalonTitle', { name: peerLabel }) : undefined,
+      });
+      setMenuOpen(false);
+      setGroupMenuOpen(false);
+      setCreateSalonOpen(true);
+    },
+    [user, view, activeGroup, activeUser, t]
+  );
+
+  const onDmSalonCreated = useCallback(
+    async (salon: Salon, _lat: number, _lon: number) => {
+      setCreateSalonOpen(false);
+      setCreateSalonPreset(null);
+      if (!token) return;
+      try {
+        const shareUrl = await getSalonShareUrl(salon.id);
+        const platformLabel = salon.platform === 'youtube' ? 'YouTube' : 'Spotify';
+        const text = t('dm.privateSalonInviteMessage', { platform: platformLabel, url: shareUrl });
+        if (view === 'thread' && activeUser) {
+          const { message, status } = await api.sendDm(token, activeUser.id, text);
+          if (status === 'pending') setPendingStatus('pending_sent');
+          setMessages((m) => [...m, message]);
+          loadConversations();
+        } else if (view === 'groupThread' && activeGroup) {
+          const { message } = await api.sendGroupMessage(token, activeGroup.id, text);
+          setGroupMessages((m) => [...m, message]);
+          loadConversations();
+        }
+      } catch {
+        /* lien déjà copié par CreateSalonModal */
+      }
+      onOpenSalon?.(salon.id);
+    },
+    [token, t, view, activeUser, activeGroup, onOpenSalon]
+  );
+
+  const salonGeo = useMemo(() => {
+    const geo = getLivesGeo();
+    return { latitude: geo.latitude, longitude: geo.longitude };
+  }, [createSalonOpen]);
+
+  const renderCreateSalonModal = () => {
+    if (!token || !user) return null;
+    return (
+      <CreateSalonModal
+        token={token}
+        username={user.username}
+        connectedPlatforms={user.connectedPlatforms}
+        open={createSalonOpen}
+        preset={createSalonPreset}
+        fallbackLatitude={salonGeo.latitude}
+        fallbackLongitude={salonGeo.longitude}
+        onClose={() => {
+          setCreateSalonOpen(false);
+          setCreateSalonPreset(null);
+        }}
+        onCreated={onDmSalonCreated}
+        onUserUpdated={setUserFromProfile}
+      />
+    );
   };
 
   const memberIdsSet = useMemo(
@@ -1551,12 +1639,30 @@ export function DmPage({
           </button>
           {menuOpen && (
             <div className="absolute right-3 top-full mt-1 z-30 bg-[#1a1a26] border border-[#2d2d3d] rounded-xl shadow-xl overflow-hidden min-w-[12rem]">
+              {canSendDm && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => openPrivateSalonModal('youtube')}
+                    className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#2d2d3d]"
+                  >
+                    {t('dm.createPrivateYoutubeSalon')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openPrivateSalonModal('spotify')}
+                    className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#2d2d3d] border-t border-[#2d2d3d]"
+                  >
+                    {t('dm.createPrivateSpotifySalon')}
+                  </button>
+                </>
+              )}
               {activeUser.isMutedByMe ? (
                 <button
                   type="button"
                   onClick={() => void unmuteActiveUser()}
                   disabled={muting}
-                  className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#2d2d3d] disabled:opacity-50"
+                  className={`w-full px-4 py-3 text-left text-sm text-white hover:bg-[#2d2d3d] disabled:opacity-50${canSendDm ? ' border-t border-[#2d2d3d]' : ''}`}
                 >
                   {muting ? '...' : 'Réactiver les notifications'}
                 </button>
@@ -1565,7 +1671,7 @@ export function DmPage({
                   type="button"
                   onClick={() => void muteActiveUser()}
                   disabled={muting}
-                  className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#2d2d3d] disabled:opacity-50"
+                  className={`w-full px-4 py-3 text-left text-sm text-white hover:bg-[#2d2d3d] disabled:opacity-50${canSendDm ? ' border-t border-[#2d2d3d]' : ''}`}
                 >
                   {muting ? '...' : 'Mettre en sourdine'}
                 </button>
@@ -1675,7 +1781,13 @@ export function DmPage({
                     }}
                   >
                     {m.content && (
-                      <p className="text-sm whitespace-pre-wrap break-words">{m.content}</p>
+                      <LinkifiedText
+                        text={m.content}
+                        className="text-sm whitespace-pre-wrap break-words"
+                        onOpenProfile={onOpenProfile}
+                        onOpenSalon={onOpenSalon}
+                        onOpenFeedPost={onOpenFeedPost}
+                      />
                     )}
                     {m.attachmentUrl && (
                       <div className={m.content ? 'mt-1.5' : ''}>
@@ -1818,6 +1930,7 @@ export function DmPage({
             </button>
           </form>
         </div>
+        {renderCreateSalonModal()}
       </div>
     );
   }
@@ -2008,11 +2121,25 @@ export function DmPage({
             <div className="absolute right-3 top-full mt-1 z-30 bg-[#1a1a26] border border-[#2d2d3d] rounded-xl shadow-xl overflow-hidden min-w-[12rem]">
               <button
                 type="button"
+                onClick={() => openPrivateSalonModal('youtube')}
+                className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#2d2d3d]"
+              >
+                {t('dm.createPrivateYoutubeSalon')}
+              </button>
+              <button
+                type="button"
+                onClick={() => openPrivateSalonModal('spotify')}
+                className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#2d2d3d] border-t border-[#2d2d3d]"
+              >
+                {t('dm.createPrivateSpotifySalon')}
+              </button>
+              <button
+                type="button"
                 onClick={() => {
                   setGroupMenuOpen(false);
                   setGroupManageOpen(true);
                 }}
-                className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#2d2d3d]"
+                className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#2d2d3d] border-t border-[#2d2d3d]"
               >
                 Gérer le groupe
               </button>
@@ -2061,7 +2188,13 @@ export function DmPage({
                             className="text-[10px] font-semibold mb-0.5"
                           />
                         )}
-                        <p className="text-sm whitespace-pre-wrap break-words">{m.content}</p>
+                        <LinkifiedText
+                          text={m.content}
+                          className="text-sm whitespace-pre-wrap break-words"
+                          onOpenProfile={onOpenProfile}
+                          onOpenSalon={onOpenSalon}
+                          onOpenFeedPost={onOpenFeedPost}
+                        />
                         <p className={`text-[10px] mt-1 ${isMe ? 'text-purple-200' : 'text-gray-500'}`}>
                           {formatTime(m.timestamp)}
                         </p>
@@ -2116,6 +2249,7 @@ export function DmPage({
             </button>
           </form>
         </div>
+        {renderCreateSalonModal()}
       </div>
     );
   }

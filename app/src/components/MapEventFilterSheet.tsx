@@ -169,6 +169,41 @@ export function MapEventFilterSheet({
           </div>
 
           <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
+              {t('map.eventFilterTypeLabel')}
+            </p>
+            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={t('map.eventFilterTypeLabel')}>
+              {(
+                [
+                  ['all', t('map.eventFilterTypeAll')],
+                  ['dance', t('feed.eventTypeDance')],
+                  ['chant', t('feed.eventTypeChant')],
+                  ['autre', t('feed.eventTypeAutre')],
+                ] as const
+              ).map(([value, label]) => (
+                <label
+                  key={value}
+                  className={`cursor-pointer select-none rounded-full px-3 py-1 text-[11px] font-semibold border transition ${
+                    draft.eventType === value
+                      ? 'bg-purple-600/40 border-purple-400/60 text-purple-100'
+                      : 'bg-[#0b0b0f] border-[#2a2a3d] text-gray-400 hover:border-purple-500/40'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="map-event-filter-type"
+                    value={value}
+                    checked={draft.eventType === value}
+                    onChange={() => setDraft((d) => ({ ...d, eventType: value }))}
+                    className="sr-only"
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
             <label className="block text-[10px] font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
               {t('feed.eventLocation')}
             </label>

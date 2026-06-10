@@ -4,6 +4,15 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import type { AccessInviteCode, AccessRegistrationMode, PublicAccessConfig } from '../types';
 
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function AdminAccessTab() {
   const { token } = useAuth();
   const { t } = useTranslation();
@@ -16,6 +25,7 @@ export function AdminAccessTab() {
   const [inviteLabel, setInviteLabel] = useState('');
   const [inviteMaxUses, setInviteMaxUses] = useState(5);
   const [busy, setBusy] = useState('');
+  const [copyFeedback, setCopyFeedback] = useState('');
 
   const modeLabels: Record<AccessRegistrationMode, string> = {
     open: t('admin.access.modeOpen'),
@@ -77,6 +87,12 @@ export function AdminAccessTab() {
     }
   };
 
+  const handleCopyCode = async (code: string) => {
+    const ok = await copyText(code);
+    setCopyFeedback(ok ? t('admin.access.codeCopied') : t('admin.accounts.copyFailed'));
+    window.setTimeout(() => setCopyFeedback(''), 2000);
+  };
+
   if (loading && !config) {
     return <p className="text-gray-400 text-sm">{t('app.loading')}</p>;
   }
@@ -95,7 +111,11 @@ export function AdminAccessTab() {
           <p className="text-xs text-gray-400">
             {config.enabled ? t('admin.access.tunnelEnabled') : t('admin.access.tunnelDisabled')}
           </p>
-          <div className="grid grid-cols-2 gap-2 text-center text-xs">
+          <div className="grid grid-cols-2 gap-2 text-center text-xs sm:grid-cols-4">
+            <div className="bg-[#1a1a26] rounded-xl p-3">
+              <div className="text-2xl font-bold text-white">{counts.total}</div>
+              <div className="text-gray-500">{t('admin.accounts.stats.total')}</div>
+            </div>
             <div className="bg-[#1a1a26] rounded-xl p-3">
               <div className="text-2xl font-bold text-green-400">{counts.active}</div>
               <div className="text-gray-500">{t('admin.accounts.filterActive')}</div>
@@ -104,7 +124,12 @@ export function AdminAccessTab() {
               <div className="text-2xl font-bold text-yellow-400">{counts.pending}</div>
               <div className="text-gray-500">{t('admin.accounts.filterPending')}</div>
             </div>
+            <div className="bg-[#1a1a26] rounded-xl p-3">
+              <div className="text-2xl font-bold text-red-400">{counts.blocked}</div>
+              <div className="text-gray-500">{t('admin.accounts.filterBlocked')}</div>
+            </div>
           </div>
+          {copyFeedback && <p className="text-xs text-purple-400">{copyFeedback}</p>}
         </section>
       )}
 
@@ -123,10 +148,12 @@ export function AdminAccessTab() {
             </option>
           ))}
         </select>
+        <p className="text-[10px] text-gray-600">{t('admin.access.currentMode', { mode: modeLabels[policy] })}</p>
       </section>
 
       <section className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4 space-y-3">
         <h2 className="font-semibold">{t('admin.access.invites')}</h2>
+        <p className="text-xs text-gray-400">{t('admin.access.invitesHint')}</p>
         <div className="flex gap-2">
           <input
             className="flex-1 bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm"
@@ -141,6 +168,7 @@ export function AdminAccessTab() {
             className="w-20 bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-2 py-2 text-sm"
             value={inviteMaxUses}
             onChange={(e) => setInviteMaxUses(Number(e.target.value) || 1)}
+            aria-label={t('admin.access.maxUses')}
           />
         </div>
         <button
@@ -160,31 +188,38 @@ export function AdminAccessTab() {
                 key={inv.id}
                 className="flex items-center justify-between gap-2 bg-[#1a1a26] rounded-xl px-3 py-2 text-sm"
               >
-                <div>
-                  <div className="font-mono text-purple-300">{inv.code}</div>
+                <div className="min-w-0">
+                  <div className="font-mono text-purple-300 truncate">{inv.code}</div>
                   <div className="text-[10px] text-gray-500">
-                    {inv.useCount}/{inv.maxUses}
+                    {t('admin.access.uses', { used: inv.useCount, max: inv.maxUses })}
                     {inv.label ? ` · ${inv.label}` : ''}
-                    {inv.disabled ? ' · off' : ''}
+                    {inv.disabled ? ` · ${t('admin.access.disabled')}` : ''}
                   </div>
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-1 shrink-0">
                   <button
                     type="button"
-                    className="text-xs text-gray-400 px-2 py-1"
+                    className="text-xs text-gray-400 px-2 py-1 hover:text-white"
+                    onClick={() => void handleCopyCode(inv.code)}
+                  >
+                    {t('admin.access.copyCode')}
+                  </button>
+                  <button
+                    type="button"
+                    className="text-xs text-gray-400 px-2 py-1 hover:text-white"
                     onClick={() =>
                       void api
                         .setAccessInviteDisabled(token!, inv.id, !inv.disabled)
                         .then(() => reload())
                     }
                   >
-                    {inv.disabled ? 'On' : 'Off'}
+                    {inv.disabled ? t('admin.access.enable') : t('admin.access.disable')}
                   </button>
                   <button
                     type="button"
-                    className="text-xs text-red-400 px-2 py-1"
+                    className="text-xs text-red-400 px-2 py-1 hover:text-red-300"
                     onClick={() => {
-                      if (!confirm('Delete?')) return;
+                      if (!confirm(t('admin.access.deleteConfirm'))) return;
                       void api.deleteAccessInvite(token!, inv.id).then(() => reload());
                     }}
                   >

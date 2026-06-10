@@ -94,6 +94,27 @@ describe('filterMapEventsByCriteria', () => {
     expect(filtered.map((e) => e.id)).toEqual(['p', 'mine']);
   });
 
+  it('filters by event type', () => {
+    const dance = marker({ id: 'd', latitude: 48.8566, longitude: 2.3522, eventType: 'dance' });
+    const chant = marker({ id: 'c', latitude: 48.8566, longitude: 2.3522, eventType: 'chant' });
+    const other = marker({ id: 'o', latitude: 48.8566, longitude: 2.3522, eventType: 'autre' });
+    const noType = marker({ id: 'n', latitude: 48.8566, longitude: 2.3522 });
+
+    expect(
+      filterMapEventsByCriteria([dance, chant, other], {
+        ...EMPTY_EVENT_FILTER,
+        eventType: 'dance',
+      }).map((e) => e.id)
+    ).toEqual(['d']);
+
+    expect(
+      filterMapEventsByCriteria([dance, chant, noType], {
+        ...EMPTY_EVENT_FILTER,
+        eventType: 'autre',
+      }).map((e) => e.id)
+    ).toEqual(['n']);
+  });
+
   it('returns all events when criteria empty', () => {
     expect(filterMapEventsByCriteria([paris, lyon], EMPTY_EVENT_FILTER)).toHaveLength(2);
   });
@@ -112,6 +133,7 @@ describe('createDefaultEventFilter', () => {
     expect(criteria.dateFrom).toBe(getTodayDateInputValue());
     expect(criteria.dateTo).toBe('');
     expect(criteria.location).toBe('Montpellier, France');
+    expect(criteria.eventType).toBe('all');
   });
 });
 
@@ -138,7 +160,7 @@ describe('applyEventFilterDraftDefaults', () => {
 });
 
 describe('hasActiveEventFilterCriteria', () => {
-  it('detects active date or location', () => {
+  it('detects active date, location or event type', () => {
     expect(hasActiveEventFilterCriteria(EMPTY_EVENT_FILTER)).toBe(false);
     expect(
       hasActiveEventFilterCriteria({ ...EMPTY_EVENT_FILTER, dateFrom: '2026-06-01' })
@@ -149,6 +171,9 @@ describe('hasActiveEventFilterCriteria', () => {
         location: 'Lyon',
         radiusKm: DEFAULT_EVENT_FILTER_RADIUS_KM,
       })
+    ).toBe(true);
+    expect(
+      hasActiveEventFilterCriteria({ ...EMPTY_EVENT_FILTER, eventType: 'dance' })
     ).toBe(true);
   });
 });
