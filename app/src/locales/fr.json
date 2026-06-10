@@ -473,7 +473,7 @@
     "notFound": "Ressource introuvable",
     "forbidden": "Accès refusé",
     "profileTooLarge": "Profil trop volumineux (photos). Retirez une photo ou utilisez des images plus légères.",
-    "serverUnreachable": "Impossible de charger votre profil (serveur injoignable ou trop lent). Vérifiez que Soundy tourne sur https://localhost:4080 puis réessayez.",
+    "serverUnreachable": "Impossible de charger votre session (serveur injoignable ou trop lent). Réessayez dans un instant ou actualisez la page (Ctrl+Shift+R).",
     "salonNotFound": "Salon introuvable",
     "usernameTaken": "Ce pseudo est déjà pris",
     "registrationClosed": "Les inscriptions sont fermées"
@@ -503,6 +503,8 @@
     "configureInstagramServer": "Configurez Instagram OAuth sur le serveur",
     "demoConnectYoutube": "Connexion démo (sans Google)",
     "spotifyEnvHint": "Configurez SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET et SPOTIFY_CALLBACK_URL dans le .env du serveur.",
+    "spotifyScopeReconnectHint": "Reconnectez Spotify pour activer la synchro lecture (nouvelles autorisations requises).",
+    "retryStatus": "Réessayer",
     "youtubeEnvHint": "Configurez GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET et YOUTUBE_CALLBACK_URL (ex. https://getsoundy.com/api/auth/youtube/callback) dans le .env du serveur. La connexion démo permet d'héberger avec des playlists publiques uniquement.",
     "instagramEnvHint": "Configurez FACEBOOK_APP_ID, FACEBOOK_APP_SECRET et INSTAGRAM_CALLBACK_URL (ex. https://getsoundy.com/api/auth/instagram/callback) dans le .env du serveur. Nécessite un compte Instagram Business/Creator lié à une page Facebook."
   }

@@ -64,6 +64,7 @@ export function PlatformConnectCard({
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
   const [statusLoading, setStatusLoading] = useState(true);
   const [youtubeOAuthAvailable, setYoutubeOAuthAvailable] = useState(false);
   const [spotifyOAuthAvailable, setSpotifyOAuthAvailable] = useState(false);
@@ -75,6 +76,7 @@ export function PlatformConnectCard({
 
   const loadStatus = useCallback(() => {
     setStatusLoading(true);
+    setStatusError(null);
     api
       .getPlatformStatus(token)
       .then((s) => {
@@ -83,13 +85,11 @@ export function PlatformConnectCard({
         setInstagramOAuthAvailable(s.instagramOAuthAvailable);
         setPlatformLink(s.links.find((l) => l.platform === platform));
       })
-      .catch(() => {
-        setYoutubeOAuthAvailable(false);
-        setSpotifyOAuthAvailable(false);
-        setInstagramOAuthAvailable(false);
+      .catch((e) => {
+        setStatusError(e instanceof Error ? e.message : t('errors.network'));
       })
       .finally(() => setStatusLoading(false));
-  }, [token, platform]);
+  }, [token, platform, t]);
 
   useEffect(() => {
     loadStatus();
@@ -294,13 +294,26 @@ export function PlatformConnectCard({
         )}
       </div>
       {error && <p className="text-[10px] text-red-400 mt-2">{error}</p>}
-      {platform === 'spotify' && !linked && !spotifyOAuthAvailable && !statusLoading && (
+      {statusError && (
+        <p className="text-[10px] text-amber-400 mt-2 leading-snug">
+          {statusError}{' '}
+          <button
+            type="button"
+            onClick={loadStatus}
+            disabled={statusLoading}
+            className="underline hover:text-amber-300 disabled:opacity-50"
+          >
+            {t('platform.retryStatus')}
+          </button>
+        </p>
+      )}
+      {platform === 'spotify' && !linked && !spotifyOAuthAvailable && !statusLoading && !statusError && (
         <p className="text-[10px] text-gray-500 mt-2 leading-snug">{t('platform.spotifyEnvHint')}</p>
       )}
-      {platform === 'youtube' && !linked && !youtubeOAuthAvailable && !statusLoading && (
+      {platform === 'youtube' && !linked && !youtubeOAuthAvailable && !statusLoading && !statusError && (
         <p className="text-[10px] text-gray-500 mt-2 leading-snug">{t('platform.youtubeEnvHint')}</p>
       )}
-      {platform === 'instagram' && !linked && !instagramOAuthAvailable && !statusLoading && (
+      {platform === 'instagram' && !linked && !instagramOAuthAvailable && !statusLoading && !statusError && (
         <p className="text-[10px] text-gray-500 mt-2 leading-snug">{t('platform.instagramEnvHint')}</p>
       )}
     </div>

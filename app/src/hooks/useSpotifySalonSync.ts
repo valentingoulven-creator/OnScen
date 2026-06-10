@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api';
 import {
   computePlaybackPositionMs,
@@ -71,6 +72,7 @@ export function useSpotifySalonSync({
   playbackState,
   emitSync,
 }: UseSpotifySalonSyncOptions) {
+  const { t } = useTranslation();
   const [nowPlaying, setNowPlaying] = useState<SpotifyNowPlaying | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const stateRef = useRef(playbackState);
@@ -153,7 +155,10 @@ export function useSpotifySalonSync({
         applySpotifyState(spotify);
       } catch (e) {
         if (cancelled) return;
-        setSyncError(e instanceof Error ? e.message : 'Sync Spotify indisponible');
+        const msg = e instanceof Error ? e.message : 'Sync Spotify indisponible';
+        const needsReconnect =
+          /reconnectez spotify|autoriser le contrôle|session expirée/i.test(msg);
+        setSyncError(needsReconnect ? `${msg} ${t('platform.spotifyScopeReconnectHint')}` : msg);
       } finally {
         pollingRef.current = false;
       }
@@ -165,7 +170,7 @@ export function useSpotifySalonSync({
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [enabled, token, salonId, playbackActive, applySpotifyState]);
+  }, [enabled, token, salonId, playbackActive, applySpotifyState, t]);
 
   return { nowPlaying, syncError, markLocalControl };
 }

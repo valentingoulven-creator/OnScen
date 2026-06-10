@@ -76,7 +76,7 @@ Client Secret Spotify :
 → à mettre dans msdev/.env (ne pas commiter)
 
 Redirect URI enregistrée chez Spotify :
-Ex. https://votredomaine.com/api/platforms/spotify/callback
+Ex. https://getsoundy.com/api/auth/spotify/callback
 
 
 ── 6. API YOUTUBE / GOOGLE (si connexion réelle en production) ──

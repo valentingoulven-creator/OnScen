@@ -6533,3 +6533,28 @@ Pas de Web Playback SDK : lecture API read + contrôle Connect uniquement.
 ================================================================================
 Fin MODIF 416 - 2026-06-10
 ================================================================================
+
+================================================================================
+MODIF 417 — Diagnostic Spotify prod + UX erreur réseau plateformes
+================================================================================
+Date : 2026-06-10
+
+## Diagnostic prod (0dd5c43)
+- Health / API OK ; CORS preflight OK ; callback /api/auth/spotify/callback → 302
+- VPS .env : SPOTIFY_CLIENT_ID/SECRET/ CALLBACK_URL présents et non vides
+- SPOTIFY_CALLBACK_URL=https://getsoundy.com/api/auth/spotify/callback (correct)
+- Scopes MODIF 416 déjà dans dist VPS (user-read-playback-state, etc.)
+- « Erreur réseau » = normalizeFetchNetworkError (fetch échoué), pas misconfig Spotify
+
+## Correctifs
+- fr.json : serverUnreachable sans localhost (complète MODIF 415)
+- PlatformConnectCard : ne plus masquer OAuth dispo sur erreur réseau ; bouton Réessayer
+- useSpotifySalonSync : hint reconnexion si scopes/session Spotify manquants
+- acompleter.txt : Redirect URI corrigée (/api/auth/spotify/callback)
+
+## Test
+  cd app && npx tsc -p tsconfig.app.json --noEmit
+
+================================================================================
+Fin MODIF 417 - 2026-06-10
+================================================================================

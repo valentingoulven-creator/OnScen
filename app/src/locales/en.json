@@ -503,6 +503,8 @@
     "configureInstagramServer": "Configure Instagram OAuth on the server",
     "demoConnectYoutube": "Demo connect (without Google)",
     "spotifyEnvHint": "Set SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET and SPOTIFY_CALLBACK_URL in the server .env.",
+    "spotifyScopeReconnectHint": "Reconnect Spotify to enable playback sync (new permissions required).",
+    "retryStatus": "Retry",
     "youtubeEnvHint": "Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and YOUTUBE_CALLBACK_URL (e.g. https://getsoundy.com/api/auth/youtube/callback) in the server .env. Demo connect allows hosting with public playlists only.",
     "instagramEnvHint": "Set FACEBOOK_APP_ID, FACEBOOK_APP_SECRET and INSTAGRAM_CALLBACK_URL (e.g. https://getsoundy.com/api/auth/instagram/callback) in the server .env. Requires an Instagram Business/Creator account linked to a Facebook Page."
   }
