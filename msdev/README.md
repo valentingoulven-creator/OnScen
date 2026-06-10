@@ -56,6 +56,7 @@ Le serveur écoute sur **0.0.0.0:4080** (`HOST` dans `.env`) pour accepter les c
 
 - Variables : [`msdev/.env`](.env)
 - URLs partagées : [`msdev/config.json`](config.json)
+- Persistance locale : [`msdev/data/`](data/) — **ne pas synchroniser via iCloud** (voir [`data/README.md`](data/README.md))
 
 ## Port
 

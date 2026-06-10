@@ -186,7 +186,8 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
       console.log('[soundly] Persistance PostgreSQL (DATABASE_URL)');
     } else {
       console.warn(
-        '[soundly] DATABASE_URL absent — repli sur store.json local (non recommandé en production)'
+        '[soundly] DATABASE_URL absent — repli sur store.json local (non recommandé en production). ' +
+          'Configurer PostgreSQL : deploy/RUNBOOK-PROD.md § Checklist .env'
       );
     }
     const restored = await loadPersistedStoreAsync();

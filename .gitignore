@@ -7,7 +7,11 @@ dist/
 
 # msdev secrets (keep .env.example)
 msdev/.env
-msdev/data/
+# msdev local DB file (see msdev/data/README.md — do not iCloud-sync)
+msdev/data/*.json
+!msdev/data/README.md
+!msdev/data/.nosync
+!msdev/data/.gitignore
 msdev/legal-publisher.json
 
 # Built Windows executable (regenerate with npm run build:exe)

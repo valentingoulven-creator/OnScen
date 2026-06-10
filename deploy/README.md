@@ -1,5 +1,7 @@
 # Déploiement Soundy — PostgreSQL & Caddy
 
+**Runbook production** (backups, `.env`, `legal-publisher.json`, vérifs ops) : [`RUNBOOK-PROD.md`](RUNBOOK-PROD.md)
+
 ## Déploiement zero-downtime (production)
 
 Script recommandé pour les mises à jour prod sans coupure :

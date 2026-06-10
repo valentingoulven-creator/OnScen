@@ -3178,3 +3178,57 @@ Tâche : 9c9b44ff-0a5b-4971-add8-3e4701fa1d13
 ================================================================================
 Fin MODIF 319 - 2026-06-10
 ================================================================================
+
+================================================================================
+MODIF 320 — Durcissement infra ops Soundy (audit architecture)
+Date : 2026-06-10
+Tâche : renforcement post-audit — backups, runbook, vérifs prod, garde-fous msdev/data
+================================================================================
+
+## Objectif
+
+Renforcer l'exploitation production sans refonte architecture : scripts backup/vérif,
+documentation VPS, protection du dossier msdev/data contre iCloud, message bootstrap
+DATABASE_URL pointant vers le runbook.
+
+## Ajouts deploy/
+
+1. **deploy/backup-db.sh** — pg_dump → /opt/soundly/backups/soundy-*.sql.gz, rétention 14 j
+2. **deploy/verify-backup.sh** — intégrité gzip + en-tête SQL d'un dump
+3. **deploy/verify-prod.sh** — health, DATABASE_URL (hôte masqué), legal-publisher.json, PM2, disque/backups
+4. **deploy/RUNBOOK-PROD.md** — checklist .env, legal-publisher, backups Scaleway + VPS, restauration test
+
+## msdev/data (iCloud)
+
+- msdev/data/README.md, .nosync, .gitignore (store*.json)
+- .gitignore racine : ignore *.json dans data/, garde README/.nosync/.gitignore
+- Notes msdev/README.md + README.md racine
+
+## Backend
+
+- bootstrap.ts : WARNING DATABASE_URL absent → lien deploy/RUNBOOK-PROD.md
+
+## install-caddy-guard.sh
+
+- chmod +x backup-db, verify-backup, verify-prod ; mkdir /opt/soundly/backups
+
+## Fichiers
+
+  deploy/backup-db.sh
+  deploy/verify-backup.sh
+  deploy/verify-prod.sh
+  deploy/RUNBOOK-PROD.md
+  deploy/README.md
+  deploy/install-caddy-guard.sh
+  msdev/data/README.md
+  msdev/data/.nosync
+  msdev/data/.gitignore
+  msdev/README.md
+  README.md
+  .gitignore
+  backend/src/bootstrap.ts
+  modification.txt
+
+================================================================================
+Fin MODIF 320 - 2026-06-10
+================================================================================

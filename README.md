@@ -143,3 +143,11 @@ MeloSong Dev/
 Le plugin Vite et `rootDirs` TypeScript fonctionnent ensemble :
 - **Build/Dev** : le plugin Vite intercepte les imports et redirige vers `app/src` si le fichier est absent de `apptel/src`
 - **TypeScript** : `rootDirs` fait la même chose pour la vérification de types
+
+---
+
+## Production & ops
+
+Runbook VPS, sauvegardes PostgreSQL, checklist `.env` et `legal-publisher.json` : [`deploy/RUNBOOK-PROD.md`](deploy/RUNBOOK-PROD.md).
+
+**Dev local** : ne pas synchroniser `msdev/data/` via iCloud — voir [`msdev/data/README.md`](msdev/data/README.md).

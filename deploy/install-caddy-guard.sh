@@ -25,6 +25,10 @@ fi
 chmod +x /opt/soundly/deploy/sync-caddy.sh
 chmod +x /opt/soundly/deploy/caddy-watchdog.sh
 chmod +x /opt/soundly/deploy/healthcheck.sh 2>/dev/null || true
+chmod +x /opt/soundly/deploy/backup-db.sh 2>/dev/null || true
+chmod +x /opt/soundly/deploy/verify-backup.sh 2>/dev/null || true
+chmod +x /opt/soundly/deploy/verify-prod.sh 2>/dev/null || true
+mkdir -p /opt/soundly/backups
 
 cp /opt/soundly/deploy/caddy-watchdog.sh "$WATCHDOG_DST"
 chmod +x "$WATCHDOG_DST"
