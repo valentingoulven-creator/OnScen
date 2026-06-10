@@ -356,13 +356,19 @@ app.use(
   })
 );
 
+/** Login, register, change-password only — not /me, /profile, check-username (normal use). */
+const AUTH_RATE_LIMIT_SENSITIVE_PATHS = new Set(['/login', '/register', '/change-password']);
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 30,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Trop de tentatives. Réessayez dans 15 minutes.' },
-  skip: (req) => isMsdevRuntime(),
+  message: { error: 'Trop de tentatives. Réessayez plus tard.' },
+  skip: (req) => {
+    if (isMsdevRuntime()) return true;
+    return !AUTH_RATE_LIMIT_SENSITIVE_PATHS.has(req.path);
+  },
 });
 
 const reportsLimiter = rateLimit({

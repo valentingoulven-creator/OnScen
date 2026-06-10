@@ -3263,3 +3263,67 @@ Date : 2026-06-10
 ================================================================================
 Fin MODIF 321 - 2026-06-10
 ================================================================================
+
+================================================================================
+MODIF 322 — Profil style TikTok (Mon profil + profils publics)
+Date : 2026-06-10
+================================================================================
+
+## Objectif
+Réorganiser l'affichage du profil (lecture) façon TikTok : header compact centré,
+stats en ligne, onglets soulignés, moins de cartes empilées — thème sombre Soundy
+conservé, toutes les sections (bio, situation, tags, streaming) présentes.
+
+## Changements UI
+- ProfileHeaderSection variant compact : avatar hero centré, anneau dégradé si
+  plusieurs photos, pseudo + identité + méta (ville, âge, situation) inline.
+- Stats 3 colonnes : Vous suivent | Mes favoris | Salons (pas de grosses boîtes).
+- Bouton « Modifier le profil » outline pleine largeur sous les stats.
+- Bio 1–2 lignes dans le header (line-clamp).
+- Onglets Profil | Mes reels : barre pleine largeur + indicateur souligné blanc.
+- Tags (intérêts, genres, artistes) : rangée horizontale scrollable compacte.
+- Streaming + paramètres/compte : sections repliables (▸/▾).
+- ProfilePhotoGallery mode bare + galleryOnly : grille TikTok sous l'onglet Profil
+  (photos hors avatar ; avatar dans le header).
+- UserProfileView : même header compact + stats + tags scroll + grille photos.
+
+## Fichiers modifiés
+  app/src/components/ProfileHeaderSection.tsx
+  app/src/components/UserAvatarOnline.tsx
+  app/src/components/ProfilePhotoGallery.tsx
+  app/src/pages/ProfilePage.tsx
+  app/src/components/UserProfileView.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 322 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 323 — Assouplissement rate-limit auth (message « 15 minutes »)
+Date : 2026-06-10
+================================================================================
+
+## Problème
+
+Message « Trop de tentatives. Réessayez dans 15 minutes. » (HTTP 429) lors de
+l’inscription, de la navigation ou des tests : le limiteur `authLimiter` s’appliquait
+à **tout** `/api/auth` (30 req / 15 min par IP), y compris `/check-username` (MODIF 319),
+`/me`, `/profile`, etc.
+
+## Correctif
+
+- **msdev** : limiteur auth toujours désactivé (`isMsdevRuntime()`).
+- **prod** : limiteur limité à `/login`, `/register`, `/change-password` uniquement.
+- **Limites** : 100 requêtes / 15 min (au lieu de 30 sur tout `/api/auth`).
+- **Message** : « Trop de tentatives. Réessayez plus tard. » (sans mention « 15 minutes »).
+- `/check-username` : hors limiteur auth (plus de blocage à l’inscription).
+
+## Fichiers modifiés
+
+  backend/src/server.ts
+  modification.txt
+
+================================================================================
+Fin MODIF 323 - 2026-06-10
+================================================================================
