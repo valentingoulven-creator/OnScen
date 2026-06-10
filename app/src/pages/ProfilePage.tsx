@@ -1,14 +1,26 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MAX_PROFILE_PAYLOAD_CHARS, getUserProfilePhotos, prepareProfilePhotosForSave, profilePhotosChanged, resolveAvatarUrl } from '../lib/profilePhotos';
+import {
+  MAX_PROFILE_PAYLOAD_CHARS,
+  assertPreparedProfilePhotos,
+  countPersistableProfilePhotos,
+  getUserProfilePhotos,
+  prepareProfilePhotosForSave,
+  resolveAvatarUrl,
+  shouldIncludeProfilePhotosInSave,
+} from '../lib/profilePhotos';
 import {
   defaultHideBirthDateOnProfile,
-  todayIsoDate,
   validateBirthDate,
 } from '../lib/profileAge';
+import { BirthDateInput } from '../components/BirthDateInput';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { ArtistAutocomplete } from '../components/ArtistAutocomplete';
+import { ListAutocomplete } from '../components/ListAutocomplete';
+import { searchGenres } from '../lib/genreSearch';
+import { searchInterests } from '../lib/interestSearch';
+import { INTEREST_CATEGORIES } from '../lib/popularInterests';
 import { CityAutocomplete } from '../components/CityAutocomplete';
 import { HostRatingBlock } from '../components/HostRatingBlock';
 import { ProfilePhotoGallery } from '../components/ProfilePhotoGallery';
@@ -22,10 +34,15 @@ import { UserReelsSection } from '../components/UserReelsSection';
 import { PlatformConnectCard } from '../components/PlatformConnectCard';
 import { UsernameColorPicker } from '../components/UsernameColorPicker';
 import { UsernameDisplay } from '../components/UsernameDisplay';
-import { USERNAME_COLOR_WAVE, isWaveUsernameColor } from '../lib/usernameColor';
+import {
+  USERNAME_COLOR_WAVE,
+  isWaveUsernameColor,
+  resolveUsernameWaveColors,
+} from '../lib/usernameColor';
 import { ProfileCurrentListening } from '../components/ProfileCurrentListening';
 import { MyFavoritesSheet } from '../components/MyFavoritesSheet';
 import { formatCompactCount } from '../lib/formatCount';
+import { CompactTagChips } from '../components/CompactTagChips';
 import { ProfileHeaderSection } from '../components/ProfileHeaderSection';
 import { PROFILE_TYPE_OPTIONS } from '../lib/profileTypes';
 import type { ProfileType, RelationshipStatus, User } from '../types';
@@ -33,20 +50,7 @@ import type { ProfileType, RelationshipStatus, User } from '../types';
 const HIDE_AGE_CHECKBOX_ID = 'profile-hide-age';
 
 const PROFILE_TAB_CLASS =
-  'flex-1 py-3 text-sm font-semibold transition relative text-center';
-
-const SUGGESTED_INTERESTS = [
-  'Live local',
-  'Spotify Jam',
-  'YouTube',
-  'Découvertes',
-  'Écoute partagée',
-  'Chill',
-  'Club',
-  'Indie',
-  'Hip-hop',
-  'Électro',
-];
+  'px-6 sm:px-8 py-3 text-sm font-semibold transition relative text-center shrink-0';
 
 function profileToForm(user: User | null) {
   const profilePhotos = getUserProfilePhotos(user);
@@ -60,8 +64,8 @@ function profileToForm(user: User | null) {
     avatarUrl: profilePhotos[0] ?? '',
     profilePhotos,
     profileType: user?.profileType ?? '',
-    relationshipStatus: user?.relationshipStatus ?? '',
-    relationshipStatusCustom: user?.relationshipStatusCustom ?? '',
+    relationshipStatus:
+      user?.relationshipStatus === 'autre' ? '' : (user?.relationshipStatus ?? ''),
     birthDate: user?.birthDate ?? '',
     hideBirthDateOnProfile:
       user?.hideBirthDateOnProfile ?? defaultHideBirthDateOnProfile(user),
@@ -107,18 +111,17 @@ export function ProfilePage({
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [myFavoritesCount, setMyFavoritesCount] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [photoGalleryBusy, setPhotoGalleryBusy] = useState(false);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [streamingExpanded, setStreamingExpanded] = useState(false);
-  const [detailsExpanded, setDetailsExpanded] = useState(false);
 
   const [form, setForm] = useState(() => profileToForm(user));
 
-  const relationshipLabels: Record<RelationshipStatus, string> = {
+  const relationshipLabels = {
     celibataire: t('profile.relationshipSingle'),
     en_couple: t('profile.relationshipCouple'),
-    autre: t('profile.relationshipOther'),
-  };
+  } as const;
 
   useEffect(() => {
     if (user && !editing) setForm(profileToForm(user));
@@ -167,6 +170,10 @@ export function ProfilePage({
 
   const saveProfile = useCallback(async () => {
     if (!user || !token) return;
+    if (photoGalleryBusy) {
+      setSaveError('Terminez la modification de la photo avant d\'enregistrer.');
+      return;
+    }
     const name = form.username.trim();
     if (name.length < 2) {
       setSaveError('Le pseudo doit faire au moins 2 caractères');
@@ -180,16 +187,13 @@ export function ProfilePage({
         return;
       }
     }
-    if (form.relationshipStatus === 'autre' && !form.relationshipStatusCustom.trim()) {
-      setSaveError(t('profile.relationshipCustomRequired'));
-      return;
-    }
     setSaving(true);
     setSavedMsg(null);
     setSaveError(null);
     try {
       const currentPhotos = getUserProfilePhotos(user);
-      const photosChanged = profilePhotosChanged(currentPhotos, form.profilePhotos);
+      const includePhotos = shouldIncludeProfilePhotosInSave(currentPhotos, form.profilePhotos);
+      const intendedPhotoCount = countPersistableProfilePhotos(form.profilePhotos);
 
       const waveFrom = form.usernameWaveFrom.trim();
       const waveTo = form.usernameWaveTo.trim();
@@ -208,8 +212,6 @@ export function ProfilePage({
         city: form.city,
         profileType: form.profileType || null,
         relationshipStatus: form.relationshipStatus || null,
-        relationshipStatusCustom:
-          form.relationshipStatus === 'autre' ? form.relationshipStatusCustom.trim() || null : null,
         birthDate: birthDateTrim || null,
         hideBirthDateOnProfile: birthDateTrim ? form.hideBirthDateOnProfile : true,
         interests: form.interests,
@@ -217,8 +219,10 @@ export function ProfilePage({
         favoriteArtists: form.favoriteArtists,
       };
 
-      if (photosChanged) {
-        body.profilePhotos = await prepareProfilePhotosForSave(form.profilePhotos);
+      if (includePhotos) {
+        const preparedPhotos = await prepareProfilePhotosForSave(form.profilePhotos);
+        assertPreparedProfilePhotos(form.profilePhotos, preparedPhotos);
+        body.profilePhotos = preparedPhotos;
       }
 
       const payload = JSON.stringify(body);
@@ -229,19 +233,27 @@ export function ProfilePage({
       }
 
       const { user: updated } = await api.updateProfile(token, body);
+      if (includePhotos && intendedPhotoCount > 0) {
+        const savedPhotoCount = countPersistableProfilePhotos(getUserProfilePhotos(updated));
+        if (savedPhotoCount < intendedPhotoCount) {
+          throw new Error(
+            'Les photos n\'ont pas été enregistrées correctement. Réessayez ou réduisez la taille des images.'
+          );
+        }
+      }
       setUserFromProfile(updated);
       setForm(profileToForm(updated));
       setEditing(false);
       setSavedMsg('Profil enregistré');
       setTimeout(() => setSavedMsg(null), 3000);
+      await refreshUser();
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Impossible d\'enregistrer le profil';
       setSaveError(message);
-      alert(message);
     } finally {
       setSaving(false);
     }
-  }, [user, token, form, setUserFromProfile]);
+  }, [user, token, form, photoGalleryBusy, setUserFromProfile, refreshUser, t]);
 
   if (!user || !token) return null;
 
@@ -267,6 +279,11 @@ export function ProfilePage({
     ? new Date(user.memberSince).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
     : '—';
 
+  const showHostRating =
+    user.listeningRole === 'host' ||
+    user.listeningRole === 'les_deux' ||
+    (user.stats?.salonsHosted ?? 0) > 0;
+
   const displayPhotos = editing ? form.profilePhotos : getUserProfilePhotos(user);
   const headerAvatarUrl = editing
     ? displayPhotos.find((url) => url.trim())
@@ -284,7 +301,7 @@ export function ProfilePage({
 
   return (
     <div className="flex flex-col h-full overflow-y-auto bg-[#0b0b0f]">
-      <div className="relative shrink-0">
+      <div className="relative shrink-0 max-w-lg mx-auto w-full">
         <div className="absolute top-3 left-3 z-10">
           {onBack && (
             <button
@@ -318,8 +335,9 @@ export function ProfilePage({
           birthDate={editing ? form.birthDate.trim() : user.birthDate}
           age={editing ? undefined : user.age}
           showAgeHiddenHint={editing && form.hideBirthDateOnProfile && Boolean(form.birthDate.trim())}
-          relationshipStatus={editing ? undefined : user.relationshipStatus}
-          relationshipStatusCustom={editing ? undefined : user.relationshipStatusCustom}
+          relationshipStatus={
+            editing || user.relationshipStatus === 'autre' ? undefined : user.relationshipStatus
+          }
           hasPhotoGallery={!editing && displayPhotos.length > 1}
           statsRow={
             !editing ? (
@@ -358,12 +376,20 @@ export function ProfilePage({
               </button>
             )
           }
+          hostRatingSlot={
+            !editing && showHostRating ? (
+              <HostRatingBlock hostId={user.id} hostName={user.username} averageOnly />
+            ) : undefined
+          }
         />
       </div>
 
       <div
-        className={`px-4 space-y-4 ${editing ? 'pb-[calc(var(--tab-nav-total-h)+5rem)]' : 'pb-8'}`}
+        className={`px-4 ${editing ? 'pb-[calc(var(--tab-nav-total-h)+5rem)]' : 'pb-8'}`}
       >
+        <div
+          className={`max-w-lg mx-auto w-full ${editing ? 'space-y-4' : 'space-y-5'}`}
+        >
         {!editing && user.currentListening && (
           <ProfileCurrentListening listening={user.currentListening} />
         )}
@@ -418,6 +444,7 @@ export function ProfilePage({
             photos={displayPhotos}
             fallbackSeed={user.id}
             editing
+            onBusyChange={setPhotoGalleryBusy}
             onChange={(profilePhotos) =>
               setForm((f) => ({
                 ...f,
@@ -435,19 +462,6 @@ export function ProfilePage({
           />
         )}
 
-        {!editing && (
-          <p className="text-[10px] text-gray-600 text-center -mt-2">
-            Membre depuis {memberDate}
-          </p>
-        )}
-
-        {(user.listeningRole === 'host' ||
-          user.listeningRole === 'les_deux' ||
-          (user.stats?.salonsHosted ?? 0) > 0) &&
-          !editing && (
-            <HostRatingBlock hostId={user.id} hostName={user.username} compact />
-          )}
-
         {!editing ? (
           <>
             <CompactTagChips
@@ -461,7 +475,7 @@ export function ProfilePage({
               onClick={() => setStreamingExpanded((v) => !v)}
               className="w-full flex items-center justify-between py-2.5 text-xs font-semibold text-gray-400 hover:text-white transition"
             >
-              <span>Comptes streaming (host)</span>
+              <span>Comptes connectés</span>
               <span aria-hidden>{streamingExpanded ? '▾' : '▸'}</span>
             </button>
             {streamingExpanded && (
@@ -485,37 +499,27 @@ export function ProfilePage({
               </div>
             )}
 
-            <button
-              type="button"
-              onClick={() => setDetailsExpanded((v) => !v)}
-              className="w-full flex items-center justify-between py-2.5 text-xs font-semibold text-gray-400 hover:text-white transition border-t border-[#1e1e2f]"
-            >
-              <span>Paramètres & compte</span>
-              <span aria-hidden>{detailsExpanded ? '▾' : '▸'}</span>
-            </button>
-            {detailsExpanded && (
-              <section className="space-y-3 pb-2">
-                <p className="text-xs text-gray-500">{user.email}</p>
-                <SupportMeloSongTeaser onOpen={() => setShowDonationSheet(true)} />
-                <button
-                  type="button"
-                  onClick={() => setShowSettings(true)}
-                  className="w-full py-2.5 rounded-lg border border-[#2d2d3d] text-gray-300 font-semibold text-sm"
-                >
-                  ⚙️ Paramètres
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowLogoutConfirm(true)}
-                  className="w-full py-2.5 rounded-lg border border-[#2d2d3d] text-red-400 font-semibold text-sm"
-                >
-                  {t('profile.logout')}
-                </button>
-                <p className="text-[10px] text-gray-600 text-center px-2">
-                  Votre profil aide les autres à trouver des goûts musicaux communs — pas un profil de rencontre.
-                </p>
-              </section>
-            )}
+            <section className="space-y-3 pt-2 pb-2 border-t border-[#1e1e2f]">
+              <button
+                type="button"
+                onClick={() => setShowSettings(true)}
+                className="w-full py-2.5 rounded-lg border border-[#2d2d3d] text-gray-300 font-semibold text-sm"
+              >
+                ⚙️ Paramètres
+              </button>
+              <SupportMeloSongTeaser onOpen={() => setShowDonationSheet(true)} />
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(true)}
+                className="w-full py-2.5 rounded-lg border border-[#2d2d3d] text-red-400 font-semibold text-sm"
+              >
+                {t('profile.logout')}
+              </button>
+            </section>
+
+            <p className="text-[10px] text-gray-600 text-center py-2">
+              Membre depuis {memberDate}
+            </p>
           </>
         ) : (
           <div className="space-y-4">
@@ -523,12 +527,35 @@ export function ProfilePage({
 
             <label className="block">
               <span className="text-xs text-gray-400">Pseudo</span>
-              <input
-                value={form.username}
-                onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
-                maxLength={32}
-                className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-2 text-white text-sm"
-              />
+              <div className="relative mt-1 rounded-xl border border-[#2d2d3d] bg-[#1a1a26]">
+                <div
+                  className="absolute inset-0 z-0 flex items-center px-4 py-2 pointer-events-none"
+                  aria-hidden
+                >
+                  <UsernameDisplay
+                    username={form.username || '\u00a0'}
+                    usernameColor={form.usernameColor}
+                    usernameWaveFrom={form.usernameWaveFrom}
+                    usernameWaveTo={form.usernameWaveTo}
+                    className="text-sm font-extrabold truncate w-full min-w-0"
+                  />
+                </div>
+                <input
+                  value={form.username}
+                  onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
+                  maxLength={32}
+                  className="relative z-10 w-full bg-transparent border-0 rounded-xl px-4 py-2 text-sm font-extrabold text-transparent selection:bg-purple-500/30"
+                  style={{
+                    caretColor: isWaveUsernameColor(form.usernameColor)
+                      ? resolveUsernameWaveColors({
+                          from: form.usernameWaveFrom,
+                          to: form.usernameWaveTo,
+                        }).from
+                      : form.usernameColor || '#ffffff',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                />
+              </div>
             </label>
             <UsernameColorPicker
               value={form.usernameColor}
@@ -538,16 +565,6 @@ export function ProfilePage({
               onWaveFromChange={(usernameWaveFrom) => setForm((f) => ({ ...f, usernameWaveFrom }))}
               onWaveToChange={(usernameWaveTo) => setForm((f) => ({ ...f, usernameWaveTo }))}
             />
-            <div className="rounded-xl border border-[#2d2d3d] bg-[#12121a] px-4 py-3 text-center">
-              <p className="text-[10px] text-gray-500 mb-1">Aperçu du pseudo</p>
-              <UsernameDisplay
-                username={form.username || user.username}
-                usernameColor={form.usernameColor}
-                usernameWaveFrom={form.usernameWaveFrom}
-                usernameWaveTo={form.usernameWaveTo}
-                className="text-lg font-extrabold"
-              />
-            </div>
             <label className="block">
               <span className="text-xs text-gray-400">Bio</span>
               <textarea
@@ -567,14 +584,11 @@ export function ProfilePage({
                 onChange={(city) => setForm((f) => ({ ...f, city }))}
               />
             </label>
-            <label className="block">
+            <div className="block">
               <span className="text-xs text-gray-400">{t('profile.birthDate')}</span>
-              <input
-                type="date"
-                max={todayIsoDate()}
+              <BirthDateInput
                 value={form.birthDate}
-                onChange={(e) => {
-                  const next = e.target.value;
+                onChange={(next) => {
                   setForm((f) => ({
                     ...f,
                     birthDate: next,
@@ -585,10 +599,9 @@ export function ProfilePage({
                       : true,
                   }));
                 }}
-                className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-2 text-white text-sm [color-scheme:dark]"
               />
               <p className="text-[10px] text-gray-600 mt-1">{t('profile.minAge')}</p>
-            </label>
+            </div>
             <div className="flex items-start gap-3 rounded-xl border border-[#2d2d3d] bg-[#12121a] px-4 py-3">
               <input
                 id={HIDE_AGE_CHECKBOX_ID}
@@ -639,31 +652,14 @@ export function ProfilePage({
                 value={form.relationshipStatus}
                 onChange={(e) => {
                   const next = e.target.value as RelationshipStatus | '';
-                  setForm((f) => ({
-                    ...f,
-                    relationshipStatus: next,
-                    relationshipStatusCustom: next === 'autre' ? f.relationshipStatusCustom : '',
-                  }));
+                  setForm((f) => ({ ...f, relationshipStatus: next }));
                 }}
                 className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-2 text-white text-sm"
               >
                 <option value="">{t('profile.relationshipHidden')}</option>
                 <option value="celibataire">{relationshipLabels.celibataire}</option>
                 <option value="en_couple">{relationshipLabels.en_couple}</option>
-                <option value="autre">{relationshipLabels.autre}</option>
               </select>
-              {form.relationshipStatus === 'autre' && (
-                <input
-                  type="text"
-                  value={form.relationshipStatusCustom}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, relationshipStatusCustom: e.target.value }))
-                  }
-                  placeholder={t('profile.relationshipCustomPlaceholder')}
-                  maxLength={80}
-                  className="mt-2 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-2 text-white text-sm"
-                />
-              )}
               <p className="text-[10px] text-gray-600 mt-1">{t('profile.relationshipHeartHint')}</p>
             </label>
 
@@ -677,7 +673,14 @@ export function ProfilePage({
                 setForm((f) => ({ ...f, newInterest: '' }));
               }}
               onRemove={(t) => removeTag('interests', t)}
-              suggestions={SUGGESTED_INTERESTS}
+              interestsPreset
+              interestCategories={INTEREST_CATEGORIES}
+              autocomplete="list"
+              searchFn={searchInterests}
+              onSelectSuggestion={(v) => {
+                addTag('interests', v);
+                setForm((f) => ({ ...f, newInterest: '' }));
+              }}
             />
             <EditableTags
               label="Genres favoris"
@@ -689,6 +692,13 @@ export function ProfilePage({
                 setForm((f) => ({ ...f, newGenre: '' }));
               }}
               onRemove={(t) => removeTag('favoriteGenres', t)}
+              autocomplete="list"
+              searchFn={searchGenres}
+              placeholder="Ex: Pop, Hardstyle, Jazz…"
+              onSelectSuggestion={(v) => {
+                addTag('favoriteGenres', v);
+                setForm((f) => ({ ...f, newGenre: '' }));
+              }}
             />
             <EditableTags
               label="Artistes favoris"
@@ -708,7 +718,7 @@ export function ProfilePage({
             />
 
             <div className="space-y-2">
-              <span className="text-xs text-gray-400">Comptes streaming</span>
+              <span className="text-xs text-gray-400">Comptes connectés</span>
               {(['spotify', 'youtube', 'instagram'] as const).map((p) => (
                 <PlatformConnectCard
                   key={p}
@@ -750,6 +760,7 @@ export function ProfilePage({
 
           </>
         )}
+        </div>
       </div>
 
       {showFavoritesSheet && (
@@ -823,22 +834,24 @@ function ProfileTabBar({
     ['reels', 'Mes reels'],
   ];
   return (
-    <div className="flex border-b border-[#1e1e2f] -mx-4 px-4">
-      {tabs.map(([id, label]) => (
-        <button
-          key={id}
-          type="button"
-          onClick={() => onChange(id)}
-          className={`${PROFILE_TAB_CLASS} ${
-            active === id ? 'text-white' : 'text-gray-500 hover:text-gray-300'
-          }`}
-        >
-          {label}
-          {active === id ? (
-            <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-white rounded-full" />
-          ) : null}
-        </button>
-      ))}
+    <div className="flex justify-center border-b border-[#1e1e2f]">
+      <div className="inline-flex">
+        {tabs.map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onChange(id)}
+            className={`${PROFILE_TAB_CLASS} ${
+              active === id ? 'text-white' : 'text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            {label}
+            {active === id ? (
+              <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-white rounded-full" />
+            ) : null}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -905,44 +918,6 @@ function ProfileStatsRow({
   );
 }
 
-function CompactTagChips({
-  interests,
-  genres,
-  artists,
-}: {
-  interests: string[];
-  genres: string[];
-  artists: string[];
-}) {
-  const all = [
-    ...interests.map((t) => ({ t, color: 'cyan' as const })),
-    ...genres.map((t) => ({ t, color: 'purple' as const })),
-    ...artists.map((t) => ({ t, color: 'pink' as const })),
-  ];
-  if (!all.length) return null;
-
-  const colors = {
-    cyan: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/25',
-    purple: 'bg-purple-500/10 text-purple-300 border-purple-500/25',
-    pink: 'bg-pink-500/10 text-pink-300 border-pink-500/25',
-  };
-
-  return (
-    <div className="-mx-4 px-4 overflow-x-auto scrollbar-none">
-      <div className="flex gap-1.5 pb-1 min-w-min">
-        {all.map(({ t, color }) => (
-          <span
-            key={`${color}-${t}`}
-            className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] border ${colors[color]}`}
-          >
-            {t}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 const EDIT_TAG_BOX_CLASS =
   'bg-[#12121a] border border-[#1e1e2f] rounded-xl p-3 w-full';
 
@@ -954,7 +929,11 @@ function EditableTags({
   onAdd,
   onRemove,
   suggestions,
+  interestsPreset,
+  interestCategories,
   autocomplete,
+  searchFn,
+  placeholder,
   onSelectSuggestion,
 }: {
   label: string;
@@ -964,7 +943,11 @@ function EditableTags({
   onAdd: () => void;
   onRemove: (t: string) => void;
   suggestions?: string[];
-  autocomplete?: 'artist';
+  interestsPreset?: boolean;
+  interestCategories?: readonly { label: string; items: readonly string[] }[];
+  autocomplete?: 'artist' | 'list';
+  searchFn?: (query: string, exclude: string[]) => { label: string; value: string }[];
+  placeholder?: string;
   onSelectSuggestion?: (value: string) => void;
 }) {
   return (
@@ -993,20 +976,60 @@ function EditableTags({
             onSelect={(s) => onSelectSuggestion?.(s.value)}
             onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), onAdd())}
           />
+        ) : autocomplete === 'list' && searchFn ? (
+          <ListAutocomplete
+            value={input}
+            onChange={onInput}
+            exclude={tags}
+            searchFn={searchFn}
+            placeholder={placeholder ?? 'Ajouter...'}
+            onSelect={(v) => onSelectSuggestion?.(v)}
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), onAdd())}
+          />
         ) : (
           <input
             value={input}
             onChange={(e) => onInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), onAdd())}
             className="flex-1 bg-[#1a1a26] border border-[#2d2d3d] rounded-lg px-3 py-2 text-white text-sm"
-            placeholder="Ajouter..."
+            placeholder={placeholder ?? 'Ajouter...'}
           />
         )}
         <button type="button" onClick={onAdd} className="px-3 py-2 bg-purple-600 rounded-lg text-white text-sm shrink-0">
           +
         </button>
       </div>
-      {suggestions && (
+      {interestsPreset && interestCategories && (
+        <div className="mt-3 max-h-52 overflow-y-auto space-y-3 pr-1">
+          {interestCategories.map((cat) => {
+            const available = cat.items.filter((s) => !tags.includes(s));
+            if (available.length === 0) return null;
+            return (
+              <div key={cat.label}>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
+                  {cat.label}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {available.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => onSelectSuggestion?.(s)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-[#2d2d3d] bg-[#1a1a26] text-xs text-gray-300 hover:border-purple-500/50 hover:text-purple-200 hover:bg-purple-500/10 transition-colors"
+                    >
+                      <span className="text-purple-400 text-sm leading-none" aria-hidden>
+                        +
+                      </span>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {!interestsPreset && suggestions && (
         <div className="flex flex-wrap gap-1 mt-2">
           {suggestions
             .filter((s) => !tags.includes(s))

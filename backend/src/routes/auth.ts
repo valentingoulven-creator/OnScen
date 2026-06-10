@@ -8,6 +8,8 @@ import {
   applyRelationshipSettings,
   publicProfile,
   syncProfilePhotos,
+  sanitizeIncomingProfilePhotos,
+  countPersistableProfilePhotos,
   MAX_PROFILE_PHOTOS,
 } from '../lib/profile';
 import { trackEvent, trackUserActive } from '../lib/analytics';
@@ -350,14 +352,29 @@ authRouter.patch('/profile', authenticateJWT, (req: Request, res: Response) => {
   if (Array.isArray(profilePhotos)) {
     /** Base64 d'une photo compressée max 2 Mo ≈ 2,8 M de caractères (facteur 4/3). */
     const MAX_PHOTO_CHARS = Math.ceil(2 * 1024 * 1024 * (4 / 3)) + 64;
-    const oversized = profilePhotos
-      .map(String)
-      .find((p) => p.startsWith('data:image/') && p.length > MAX_PHOTO_CHARS);
+    const incoming = profilePhotos.map(String);
+    const oversized = incoming.find((p) => p.startsWith('data:image/') && p.length > MAX_PHOTO_CHARS);
     if (oversized) {
       res.status(413).json({ error: 'Chaque photo ne peut pas dépasser 2 Mo.' });
       return;
     }
-    syncProfilePhotos(user, profilePhotos.map(String));
+    const intendedCount = countPersistableProfilePhotos(incoming);
+    syncProfilePhotos(user, sanitizeIncomingProfilePhotos(incoming));
+    const savedCount = countPersistableProfilePhotos(user.profilePhotos ?? []);
+    if (intendedCount > 0 && savedCount === 0) {
+      res.status(400).json({
+        error:
+          'Les photos du profil n\'ont pas pu être enregistrées. Réessayez ou utilisez des images plus légères.',
+      });
+      return;
+    }
+    if (intendedCount > savedCount) {
+      res.status(400).json({
+        error:
+          'Certaines photos n\'ont pas pu être enregistrées. Réduisez le nombre ou la taille des images.',
+      });
+      return;
+    }
   } else if (avatarUrl && typeof avatarUrl === 'string') {
     const url = avatarUrl.trim().slice(0, 2000);
     const existing = user.profilePhotos?.length ? [...user.profilePhotos] : [];

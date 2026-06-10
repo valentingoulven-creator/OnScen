@@ -6,6 +6,7 @@ import {
   getUsernameStyle,
   isDefaultUsernameWaveTint,
   resolveUsernameWaveColors,
+  usernameDisplayClassName,
   usernameDisplayStyle,
   usernameWaveDisplayStyle,
 } from './usernameColor';
@@ -45,5 +46,14 @@ describe('usernameColor wave', () => {
   it('preview style matches wave display style', () => {
     const tint = { from: '#aabbcc', to: '#112233' };
     expect(usernameWaveDisplayStyle(tint)).toEqual(usernameDisplayStyle(USERNAME_COLOR_WAVE, tint));
+  });
+
+  it('adds bg-clip classes for custom wave tint', () => {
+    const className = usernameDisplayClassName(USERNAME_COLOR_WAVE, {
+      from: '#ff0000',
+      to: '#00ff00',
+    });
+    expect(className).toContain('bg-clip-text');
+    expect(className).toContain('text-transparent');
   });
 });

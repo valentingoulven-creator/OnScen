@@ -6,6 +6,7 @@ import './index.css';
 import { initAppTheme } from './lib/appTheme';
 import App from './App.tsx';
 import { AppErrorBoundary } from './components/AppErrorBoundary.tsx';
+import { MsdevEnvIndicator } from './components/MsdevEnvBadge.tsx';
 import { AuthProvider } from './context/AuthContext.tsx';
 import { DmUnreadProvider } from './context/DmUnreadContext.tsx';
 
@@ -24,6 +25,7 @@ createRoot(rootEl).render(
     <AppErrorBoundary>
       <AuthProvider>
         <DmUnreadProvider>
+          <MsdevEnvIndicator />
           <App />
         </DmUnreadProvider>
       </AuthProvider>

@@ -54,6 +54,7 @@ export function usernameWaveDisplayStyle(wave?: UsernameWaveTint | null): CSSPro
     WebkitBackgroundClip: 'text',
     backgroundClip: 'text',
     color: 'transparent',
+    WebkitTextFillColor: 'transparent',
   };
 }
 
@@ -64,10 +65,11 @@ export function usernameDisplayClassName(
 ): string | undefined {
   if (!color) return extra;
   if (isWaveUsernameColor(color)) {
+    const clip = 'bg-clip-text text-transparent';
     if (isDefaultUsernameWaveTint(wave)) {
       return [USERNAME_WAVE_CLASS, extra].filter(Boolean).join(' ');
     }
-    return extra;
+    return [clip, extra].filter(Boolean).join(' ');
   }
   return extra;
 }

@@ -9,6 +9,9 @@
     "directory": "MeloSongv2"
   },
   "scripts": {
+    "dev": "powershell -ExecutionPolicy Bypass -File scripts/dev-start.ps1",
+    "app:dev:full": "powershell -ExecutionPolicy Bypass -File scripts/dev-start.ps1",
+    "deploy:prod": "powershell -ExecutionPolicy Bypass -File scripts/deploy-prod.ps1",
     "msdev": "npm run msdev:sync-lan && npm run app:build && npm run dev:msdev --prefix backend",
     "msdev:app": "npm run dev --prefix app",
     "msdev:server": "npm run dev:msdev --prefix backend",

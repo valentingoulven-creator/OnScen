@@ -821,6 +821,10 @@ export function DmPage({
     const hasText = draft.trim().length > 0;
     const hasAttachment = Boolean(pendingAttachment);
     if (!token || !activeUser || (!hasText && !hasAttachment) || sending) return;
+    if (activeUser.isMutualFollow === false) {
+      alert(t('dm.mutualFollowRequired'));
+      return;
+    }
     setSending(true);
     const text = draft.trim();
     setDraft('');
@@ -1303,7 +1307,7 @@ export function DmPage({
 
         <ul className="flex-1 min-h-0 overflow-y-auto p-2">
           {contacts.length === 0 && (
-            <p className="text-center text-gray-500 text-sm py-8">Aucun contact disponible</p>
+            <p className="text-center text-gray-500 text-sm py-8">{t('dm.noMutualContacts')}</p>
           )}
           {contacts.length > 0 && filteredContacts.length === 0 && (
             <p className="text-center text-gray-500 text-sm py-8">
@@ -1469,6 +1473,7 @@ export function DmPage({
     const isPendingReceived = conversations.find((c) => c.userId === activeUser.id)?.isPendingRequest ?? false;
     const isPendingMySent = pendingStatus === 'pending_sent' ||
       (conversations.find((c) => c.userId === activeUser.id)?.isPendingSent ?? false);
+    const canSendDm = activeUser.isMutualFollow !== false;
     return (
       <div className="relative flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f] overflow-hidden">
         <header className="shrink-0 flex items-center gap-3 p-3 border-b border-[#1e1e2f] bg-[#12121a] relative">
@@ -1575,6 +1580,12 @@ export function DmPage({
             </div>
           )}
         </header>
+
+        {!canSendDm && (
+          <div className="shrink-0 px-4 py-3 bg-[#1a1a26] border-b border-[#2d2d3d]">
+            <p className="text-xs text-gray-400 text-center">{t('dm.mutualFollowHint')}</p>
+          </div>
+        )}
 
         {isPendingReceived && (
           <div className="shrink-0 px-4 py-3 bg-[#1a1a2f] border-b border-purple-500/20">
@@ -1784,7 +1795,8 @@ export function DmPage({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-[#1a1a26] border border-[#2d2d3d] text-base"
+              disabled={!canSendDm}
+              className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-[#1a1a26] border border-[#2d2d3d] text-base disabled:opacity-40 disabled:pointer-events-none"
               aria-label="Joindre un fichier"
             >
               📎
@@ -1793,12 +1805,13 @@ export function DmPage({
               type="text"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="Écrire un message privé..."
-              className="flex-1 bg-[#1a1a26] border border-[#2d2d3d] rounded-full px-4 py-2.5 text-sm text-white"
+              placeholder={canSendDm ? 'Écrire un message privé...' : t('dm.mutualFollowHint')}
+              disabled={!canSendDm}
+              className="flex-1 bg-[#1a1a26] border border-[#2d2d3d] rounded-full px-4 py-2.5 text-sm text-white disabled:opacity-50"
             />
             <button
               type="submit"
-              disabled={(!draft.trim() && !pendingAttachment) || sending}
+              disabled={!canSendDm || (!draft.trim() && !pendingAttachment) || sending}
               className="shrink-0 px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 rounded-full font-bold text-white text-sm"
             >
               {t('dm.send')}

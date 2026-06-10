@@ -1,4 +1,4 @@
-import { forwardRef, lazy, Suspense, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { forwardRef, lazy, memo, Suspense, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet.markercluster';
 import type { GlobeViewProps } from './GlobeView';
@@ -160,7 +160,7 @@ function safeCenter(center: [number, number]): [number, number] {
     : [...DEFAULT_CENTER];
 }
 
-export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView({
+export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function MapView({
   salons,
   lives,
   people = [],
@@ -227,6 +227,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
   const globeAltitudeRef = useRef(globeAltitude);
   globeAltitudeRef.current = globeAltitude;
   const lastGlobeTierRef = useRef(getGlobeDetailTier(globeAltitude));
+  const lastFlatZoomRef = useRef(14);
   const detailEmitRafRef = useRef<number | null>(null);
   const salonLivePeopleKeyRef = useRef<string | null>(null);
   const eventClusterKeyRef = useRef<string | null>(null);
@@ -549,6 +550,10 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       attribution: flatCfg.attribution,
       maxZoom: flatCfg.maxZoom,
       noWrap: true,
+      // Fewer tile fetches while panning/zooming — smoother map interaction.
+      updateWhenIdle: true,
+      updateWhenZooming: false,
+      keepBuffer: 2,
     }).addTo(map);
 
     const onMapClick = () => onMapBackgroundClickRef.current?.();
@@ -557,14 +562,19 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
     // Auto-switch to globe when the user zooms out to the minimum (zoom ≤ 2).
     // Guard on mapStyleRef to avoid re-triggering when we're already on globe.
     const onViewChange = () => {
-      setFlatMapZoom(map.getZoom());
+      const zoom = map.getZoom();
+      if (zoom !== lastFlatZoomRef.current) {
+        lastFlatZoomRef.current = zoom;
+        setFlatMapZoom(zoom);
+      }
       scheduleDetailEmit();
-      if (map.getZoom() <= 2 && mapStyleRef.current === 'flat') {
+      if (zoom <= 2 && mapStyleRef.current === 'flat') {
         onAutoSwitchToGlobeRef.current?.();
       }
     };
     map.on('zoomend', onViewChange);
     map.on('moveend', onViewChange);
+    lastFlatZoomRef.current = map.getZoom();
     setFlatMapZoom(map.getZoom());
 
     const rafId = requestAnimationFrame(() => map.invalidateSize());
@@ -640,40 +650,72 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
 
   const showCapitalLabels = flatMapZoom >= CAPITAL_LABEL_MIN_ZOOM;
 
-  // ── World capital markers (flat map) ─────────────────────────────────────
+  // ── World capital markers (flat map) — built once per visibility gate ─────
+  const capitalsBuiltRef = useRef(false);
+  const capitalsLabelsPermanentRef = useRef(false);
+
   useEffect(() => {
     const layer = capitalsLayerRef.current;
     if (!layer) return;
 
-    layer.clearLayers();
-    if (mapStyle !== 'flat' || flatReveal < 1 || !markerVisibility.capitals) return;
+    const shouldShow =
+      mapStyle === 'flat' && flatReveal >= 1 && markerVisibility.capitals;
+
+    if (!shouldShow) {
+      layer.clearLayers();
+      capitalsBuiltRef.current = false;
+      return;
+    }
 
     const showLabels = showCapitalLabels;
-    for (const cap of WORLD_CAPITALS) {
-      if (!isValidLatLng(cap.lat, cap.lng)) continue;
-      try {
-        const marker = L.circleMarker([cap.lat, cap.lng], {
-          radius: 3,
-          color: 'rgba(190, 190, 255, 0.95)',
-          fillColor: 'rgba(170, 170, 255, 0.8)',
-          fillOpacity: 0.85,
-          weight: 1,
-          interactive: false,
-        });
-        marker.bindTooltip(
-          `<span class="map-capital-label">${escapeHtml(cap.name)}</span>`,
-          {
-            permanent: showLabels,
-            direction: 'top',
-            offset: [0, -4],
-            className: 'map-capital-tooltip',
-          }
-        );
-        marker.addTo(layer);
-      } catch (err) {
-        console.error('[MapView] capital marker error:', err);
-      }
+    if (capitalsBuiltRef.current && capitalsLabelsPermanentRef.current === showLabels) {
+      return;
     }
+
+    if (!capitalsBuiltRef.current) {
+      layer.clearLayers();
+      for (const cap of WORLD_CAPITALS) {
+        if (!isValidLatLng(cap.lat, cap.lng)) continue;
+        try {
+          const marker = L.circleMarker([cap.lat, cap.lng], {
+            radius: 3,
+            color: 'rgba(190, 190, 255, 0.95)',
+            fillColor: 'rgba(170, 170, 255, 0.8)',
+            fillOpacity: 0.85,
+            weight: 1,
+            interactive: false,
+          });
+          marker.bindTooltip(
+            `<span class="map-capital-label">${escapeHtml(cap.name)}</span>`,
+            {
+              permanent: showLabels,
+              direction: 'top',
+              offset: [0, -4],
+              className: 'map-capital-tooltip',
+            }
+          );
+          marker.addTo(layer);
+        } catch (err) {
+          console.error('[MapView] capital marker error:', err);
+        }
+      }
+      capitalsBuiltRef.current = true;
+      capitalsLabelsPermanentRef.current = showLabels;
+      return;
+    }
+
+    // Toggle label visibility without rebuilding ~200 markers.
+    capitalsLabelsPermanentRef.current = showLabels;
+    layer.eachLayer((marker) => {
+      const tooltip = (marker as L.Marker).getTooltip?.();
+      if (!tooltip) return;
+      if (showLabels) tooltip.options.permanent = true;
+      else {
+        tooltip.options.permanent = false;
+        tooltip.close();
+      }
+      tooltip.update();
+    });
   }, [mapStyle, flatReveal, showCapitalLabels, markerVisibility.capitals]);
 
   const salonLivePeopleKey = useMemo(
@@ -1028,4 +1070,4 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapView(
       />
     </div>
   );
-});
+}));

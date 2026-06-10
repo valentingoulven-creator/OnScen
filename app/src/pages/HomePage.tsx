@@ -73,7 +73,19 @@ import { clearMapInlineListenSession } from '../lib/mapListenSession';
 import { clearSalonUrlFromBar } from '../lib/salonDeepLink';
 import { USERNAME_WAVE_CLASS } from '../lib/usernameColor';
 import { mergeRemotePlaybackState } from '../lib/salonPlayback';
+import {
+  nearbyCacheKey,
+  readNearbyCache,
+  writeNearbyCache,
+} from '../lib/nearbyCache';
 import type { PlaybackState } from '../types';
+
+/** Debounce viewport-driven nearby reloads (filtre Lives, pan/zoom). */
+const LIVES_VIEWPORT_NEARBY_DEBOUNCE_MS = 400;
+/** Bounds-only sidebar updates while panning the flat map. */
+const MAP_DETAIL_BOUNDS_DEBOUNCE_MS = 250;
+/** GPS / geo refresh when tab visible (was 20s — reduced API churn). */
+const GEO_REFRESH_INTERVAL_MS = 30_000;
 
 const NEARBY_PEOPLE_STORAGE_KEY = 'melosong_show_nearby_people';
 const MAP_STYLE_KEY = 'soundly_map_style';
@@ -564,7 +576,7 @@ export function HomePage({
             if (pending) {
               setMapDetailState((p) => (mapSidebarDetailEqual(p, pending) ? p : pending));
             }
-          }, 180);
+          }, MAP_DETAIL_BOUNDS_DEBOUNCE_MS);
         }
         return prev;
       }
@@ -738,21 +750,34 @@ export function HomePage({
 
   const loadNearbyAt = useCallback((
     coords: [number, number],
-    opts?: { updateUserGeo?: boolean }
+    opts?: { updateUserGeo?: boolean; silent?: boolean }
   ) => {
     const [lat, lon] = coords;
     if (!token || !isValidLatLng(lat, lon)) return;
     const prefs = getNearbyPanelPreferences();
     const radius = getNearbyRadiusKm();
-    setLoadingNearby(true);
+    const distanceFilter = isNearbyDistanceFilterActive(prefs);
+    const cacheKey = nearbyCacheKey(lat, lon, radius, distanceFilter);
+    const cached = readNearbyCache(cacheKey);
+    if (cached) {
+      applyNearbyResponse([lat, lon], cached);
+      return;
+    }
+
+    if (!opts?.silent) setLoadingNearby(true);
     const runNearby = () =>
       api
         .nearby(token, lat, lon, {
           radiusKm: radius,
-          distanceFilter: isNearbyDistanceFilterActive(prefs),
+          distanceFilter,
         })
-        .then((r) => applyNearbyResponse([lat, lon], r))
-        .finally(() => setLoadingNearby(false));
+        .then((r) => {
+          writeNearbyCache(cacheKey, r);
+          applyNearbyResponse([lat, lon], r);
+        })
+        .finally(() => {
+          if (!opts?.silent) setLoadingNearby(false);
+        });
 
     if (opts?.updateUserGeo === false) {
       runNearby();
@@ -833,7 +858,7 @@ export function HomePage({
           (pos) => loadNearbyAt([pos.coords.latitude, pos.coords.longitude]),
           () => loadNearbyAt([current.latitude, current.longitude])
         );
-      }, 20000);
+      }, GEO_REFRESH_INTERVAL_MS);
     };
 
     const stopGeoInterval = () => {
@@ -921,6 +946,28 @@ export function HomePage({
   /** Rechargement nearby en attente (filtre Lives ON avant bounds / globe prêts). */
   const pendingLivesNearbyReloadRef = useRef(false);
   const lastGlobeNearbyRef = useRef<{ lat: number; lon: number } | null>(null);
+  const livesViewportNearbyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const loadNearbyViewportDebounced = useCallback(
+    (coords: [number, number]) => {
+      if (livesViewportNearbyDebounceRef.current) {
+        clearTimeout(livesViewportNearbyDebounceRef.current);
+      }
+      livesViewportNearbyDebounceRef.current = setTimeout(() => {
+        livesViewportNearbyDebounceRef.current = null;
+        loadNearbyAt(coords, { updateUserGeo: false, silent: true });
+      }, LIVES_VIEWPORT_NEARBY_DEBOUNCE_MS);
+    },
+    [loadNearbyAt]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (livesViewportNearbyDebounceRef.current) {
+        clearTimeout(livesViewportNearbyDebounceRef.current);
+      }
+    };
+  }, []);
 
   const resolveLivesNearbyQueryCenter = useCallback((): [number, number] | null => {
     if (mapDetailState.mapStyle === 'flat' && mapDetailState.bounds) {
@@ -976,8 +1023,8 @@ export function HomePage({
       if (movedKm < minDeltaKm) return;
     }
 
-    loadNearbyAt(viewportCenter, { updateUserGeo: false });
-  }, [livesFilterOn, mapDetailState, token, loadNearbyAt]);
+    loadNearbyViewportDebounced(viewportCenter);
+  }, [livesFilterOn, mapDetailState, token, loadNearbyViewportDebounced]);
 
   /** Filtre Lives + globe : recharger nearby quand l'utilisateur tourne/zoom le globe (zoom ville). */
   const handleGlobePovChange = useCallback(
@@ -995,9 +1042,9 @@ export function HomePage({
       }
 
       lastGlobeNearbyRef.current = { lat, lon: lng };
-      loadNearbyAt([lat, lng], { updateUserGeo: false });
+      loadNearbyViewportDebounced([lat, lng]);
     },
-    [livesFilterOn, token, loadNearbyAt]
+    [livesFilterOn, token, loadNearbyViewportDebounced]
   );
 
   /** Désactivation filtre Lives : revenir aux données GPS / centre carte. */

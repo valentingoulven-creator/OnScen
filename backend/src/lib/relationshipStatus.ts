@@ -3,7 +3,6 @@ import type { RelationshipStatus, User } from '../models/schema';
 export const VALID_RELATIONSHIP_STATUSES: RelationshipStatus[] = [
   'celibataire',
   'en_couple',
-  'autre',
 ];
 
 export const MAX_RELATIONSHIP_STATUS_CUSTOM_LENGTH = 80;
@@ -23,6 +22,13 @@ export function applyRelationshipSettings(
     return { ok: true };
   }
 
+  if (relationshipStatus === undefined) {
+    if (relationshipStatusCustom !== undefined) {
+      delete user.relationshipStatusCustom;
+    }
+    return { ok: true };
+  }
+
   if (typeof relationshipStatus !== 'string') return { ok: true };
 
   if (relationshipStatus === 'celibataire' || relationshipStatus === 'en_couple') {
@@ -31,18 +37,7 @@ export function applyRelationshipSettings(
     return { ok: true };
   }
 
-  if (relationshipStatus === 'autre') {
-    const custom =
-      relationshipStatusCustom !== undefined
-        ? String(relationshipStatusCustom).trim().slice(0, MAX_RELATIONSHIP_STATUS_CUSTOM_LENGTH)
-        : user.relationshipStatusCustom?.trim().slice(0, MAX_RELATIONSHIP_STATUS_CUSTOM_LENGTH) ?? '';
-    if (!custom) {
-      return { ok: false, error: 'Précisez votre situation personnalisée.' };
-    }
-    user.relationshipStatus = 'autre';
-    user.relationshipStatusCustom = custom;
-    return { ok: true };
-  }
-
+  delete user.relationshipStatus;
+  delete user.relationshipStatusCustom;
   return { ok: true };
 }

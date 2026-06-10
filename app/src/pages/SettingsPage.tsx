@@ -10,15 +10,6 @@ import {
   type AppLanguage,
   type PrivacyPreferences,
 } from '../lib/settings';
-import {
-  getFeedAlgorithmPreferences,
-  setFeedAlgorithmPreferences,
-  notifyFeedAlgorithmChanged,
-  BUILTIN_ALGORITHM_WEIGHTS,
-  DEFAULT_CUSTOM_WEIGHTS,
-  type ReelFeedAlgorithmPreferences,
-  type ReelFeedAlgorithmWeights,
-} from '../lib/reelFeedAlgorithm';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 
@@ -143,7 +134,6 @@ export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }
   const [privacy, setPrivacy] = useState<PrivacyPreferences>(getPrivacyPreferences);
   const [legal, setLegal] = useState<LegalKey | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
-  const [feedAlgo, setFeedAlgo] = useState<ReelFeedAlgorithmPreferences>(getFeedAlgorithmPreferences);
 
   // Password change state
   const [pwSection, setPwSection] = useState(false);
@@ -159,7 +149,6 @@ export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleteError, setDeleteError] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [exportLoading, setExportLoading] = useState(false);
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -220,48 +209,10 @@ export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }
     flash(lang === 'fr' ? t('settings.languageSavedFr') : t('settings.languageSavedEn'));
   };
 
-  const handleExportData = async () => {
-    if (!token || exportLoading) return;
-    setExportLoading(true);
-    try {
-      const data = await api.exportUserData(token);
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `soundy-export-${Date.now()}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      flash(t('settings.exportDone'));
-    } catch (err) {
-      flash(err instanceof Error ? err.message : t('settings.exportError'));
-    } finally {
-      setExportLoading(false);
-    }
-  };
-
   const applyPrivacy = (next: PrivacyPreferences) => {
     setPrivacy(next);
     setPrivacyPreferences(next);
     flash('Préférences enregistrées');
-  };
-
-  const applyFeedAlgo = (next: ReelFeedAlgorithmPreferences) => {
-    setFeedAlgo(next);
-    setFeedAlgorithmPreferences(next);
-    notifyFeedAlgorithmChanged();
-    flash(
-      next.useBuiltInAlgorithm
-        ? t('settings.algoEnabled')
-        : 'Tri personnalisé des Reels activé'
-    );
-  };
-
-  const updateFeedWeight = (key: keyof ReelFeedAlgorithmWeights, value: number) => {
-    applyFeedAlgo({
-      ...feedAlgo,
-      weights: { ...feedAlgo.weights, [key]: value },
-    });
   };
 
   if (legal) {
@@ -300,14 +251,6 @@ export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }
         {/* ── Sécurité ── */}
         <section className="border-b border-[#1e1e2f]">
           <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('settings.security')}</p>
-
-          <SettingsRow
-            label={t('settings.exportData')}
-            hint={t('settings.exportDataHint')}
-            onClick={() => void handleExportData()}
-          >
-            <span className="text-purple-400 shrink-0 text-xs">{exportLoading ? '…' : '↓'}</span>
-          </SettingsRow>
 
           <SettingsRow
             label={t('settings.changePassword')}
@@ -442,76 +385,6 @@ export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }
 
         <section className="border-b border-[#1e1e2f]">
           <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-            Flux Reels
-          </p>
-          <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
-            <div>
-              <p className="text-sm font-semibold text-white">{t('settings.algoSoundly')}</p>
-            </div>
-            <input
-              type="checkbox"
-              checked={feedAlgo.useBuiltInAlgorithm}
-              onChange={(e) =>
-                applyFeedAlgo({
-                  ...feedAlgo,
-                  useBuiltInAlgorithm: e.target.checked,
-                  weights: e.target.checked
-                    ? { ...BUILTIN_ALGORITHM_WEIGHTS }
-                    : { ...feedAlgo.weights },
-                })
-              }
-              className="w-5 h-5 accent-purple-500"
-            />
-          </label>
-          {!feedAlgo.useBuiltInAlgorithm && (
-            <div className="px-4 pb-4 space-y-4 border-t border-[#1e1e2f]/50">
-              <p className="text-xs text-gray-400 pt-3">
-                Ajustez l’importance de chaque critère (0 = ignoré, 100 = priorité max). Le flux
-                se réordonne à chaque ouverture de l’onglet Reels.
-              </p>
-              {(
-                [
-                  ['likes', 'Nombre de likes', feedAlgo.weights.likes],
-                  ['comments', 'Nombre de commentaires', feedAlgo.weights.comments],
-                  ['views', 'Nombre de vues', feedAlgo.weights.views],
-                  ['shares', 'Nombre de partages', feedAlgo.weights.shares],
-                  ['recency', 'Date de mise en ligne (récent)', feedAlgo.weights.recency],
-                ] as const
-              ).map(([key, label, val]) => (
-                <div key={key}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-white">{label}</span>
-                    <span className="text-purple-400 font-bold">{val}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={5}
-                    value={val}
-                    onChange={(e) => updateFeedWeight(key, Number(e.target.value))}
-                    className="w-full accent-purple-500"
-                  />
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() =>
-                  applyFeedAlgo({
-                    useBuiltInAlgorithm: false,
-                    weights: { ...DEFAULT_CUSTOM_WEIGHTS },
-                  })
-                }
-                className="text-xs text-purple-400 hover:text-purple-300"
-              >
-                Réinitialiser les curseurs (20 % chacun)
-              </button>
-            </div>
-          )}
-        </section>
-
-        <section className="border-b border-[#1e1e2f]">
-          <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
             Application
           </p>
           <SettingsRow label={t('settings.language')}>
@@ -541,20 +414,6 @@ export function SettingsPage({ onBack, onOpenAnalytics, onOpenAccessManagement }
               checked={privacy.locationSharing}
               onChange={(e) =>
                 applyPrivacy({ ...privacy, locationSharing: e.target.checked })
-              }
-              className="w-5 h-5 accent-purple-500"
-            />
-          </label>
-          <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
-            <div>
-              <p className="text-sm font-semibold text-white">Messages de nouveaux contacts</p>
-              <p className="text-xs text-gray-500">Autoriser les MP sans invitation préalable</p>
-            </div>
-            <input
-              type="checkbox"
-              checked={privacy.allowDmFromAnyone}
-              onChange={(e) =>
-                applyPrivacy({ ...privacy, allowDmFromAnyone: e.target.checked })
               }
               className="w-5 h-5 accent-purple-500"
             />

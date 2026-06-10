@@ -4,7 +4,6 @@ export type AppLanguage = 'fr' | 'en';
 
 export interface PrivacyPreferences {
   showOnNearbyList: boolean;
-  allowDmFromAnyone: boolean;
   locationSharing: boolean;
 }
 
@@ -54,7 +53,6 @@ export function setNearbyDistanceFilterEnabled(enabled: boolean): void {
 }
 const DEFAULT_PRIVACY: PrivacyPreferences = {
   showOnNearbyList: true,
-  allowDmFromAnyone: true,
   locationSharing: true,
 };
 
@@ -93,7 +91,11 @@ export function getPrivacyPreferences(): PrivacyPreferences {
   try {
     const raw = localStorage.getItem(KEYS.privacy);
     if (!raw) return { ...DEFAULT_PRIVACY };
-    return { ...DEFAULT_PRIVACY, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw) as Partial<PrivacyPreferences>;
+    return {
+      showOnNearbyList: parsed.showOnNearbyList ?? DEFAULT_PRIVACY.showOnNearbyList,
+      locationSharing: parsed.locationSharing ?? DEFAULT_PRIVACY.locationSharing,
+    };
   } catch {
     return { ...DEFAULT_PRIVACY };
   }

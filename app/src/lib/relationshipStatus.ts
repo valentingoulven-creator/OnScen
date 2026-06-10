@@ -5,10 +5,9 @@ export function getRelationshipEmoji(status: RelationshipStatus): string {
 }
 
 export function getRelationshipDisplayLabel(
-  status: RelationshipStatus,
-  custom: string | undefined | null,
-  labels: Record<RelationshipStatus, string>
+  status: Exclude<RelationshipStatus, 'autre'>,
+  _custom: string | undefined | null,
+  labels: Record<Exclude<RelationshipStatus, 'autre'>, string>
 ): string {
-  if (status === 'autre') return custom?.trim() || labels.autre;
   return labels[status];
 }

@@ -49,7 +49,7 @@ const GLOBE_USE_ANTIALIAS = typeof window !== 'undefined' && window.devicePixelR
 const MAX_GLOBE_OVERVIEW_MARKERS = 120;
 
 /** Debounce POV pour rechargement nearby (filtre Lives). */
-const POV_DEBOUNCE_MS = 450;
+const POV_DEBOUNCE_MS = 600;
 
 export interface GlobeViewProps {
   salons: Salon[];
@@ -550,7 +550,7 @@ export const GlobeView = memo(function GlobeView({
     markerVisibility.capitals && !isInteracting ? GLOBE_CAPITAL_LABELS : [];
 
   const overviewDots = markerVisibility.density === 'overview';
-  const pointResolution = overviewDots ? 4 : 8;
+  const pointResolution = isInteracting ? 3 : overviewDots ? 4 : 8;
 
   const handlePointClick = useCallback(
     (pointObj: object) => {
@@ -625,7 +625,7 @@ export const GlobeView = memo(function GlobeView({
           height={size.h}
           animateIn={false}
           waitForGlobeReady={false}
-          rendererConfig={{ antialias: GLOBE_USE_ANTIALIAS, alpha: true }}
+          rendererConfig={{ antialias: GLOBE_USE_ANTIALIAS, alpha: true, powerPreference: 'high-performance' }}
           // Earth-at-night texture: dark continents + city lights
           globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
           backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"

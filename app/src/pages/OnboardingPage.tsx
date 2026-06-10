@@ -8,7 +8,8 @@ import { PlatformConnectCard } from '../components/PlatformConnectCard';
 import { PLATFORM_STATUS_REFRESH_EVENT } from '../lib/platformStatusEvents';
 import { getPrivacyPreferences, setPrivacyPreferences } from '../lib/settings';
 import { compressProfilePhotoDataUrl, prepareProfilePhotosForSave } from '../lib/profilePhotos';
-import { todayIsoDate, validateBirthDate } from '../lib/profileAge';
+import { validateBirthDate } from '../lib/profileAge';
+import { BirthDateInput } from '../components/BirthDateInput';
 import { validateProfilePhoto } from '../lib/imageConstraints';
 
 const MUSIC_GENRES = [
@@ -538,17 +539,14 @@ export function OnboardingPage({ onDone }: Props) {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-gray-400">Date de naissance (optionnel)</label>
-              <input
-                type="date"
-                max={todayIsoDate()}
+              <span className="text-xs text-gray-400">Date de naissance (optionnel)</span>
+              <BirthDateInput
                 value={birthDate}
-                onChange={(e) => {
-                  const next = e.target.value;
+                onChange={(next) => {
                   setBirthDate(next);
                   if (!next.trim()) setHideBirthDateOnProfile(true);
                 }}
-                className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white [color-scheme:dark]"
+                inputClassName="mt-0.5 w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-3 py-2.5 text-sm text-white text-center tabular-nums"
               />
               <p className="text-[10px] text-gray-600">Minimum 13 ans (CGU)</p>
             </div>

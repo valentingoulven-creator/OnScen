@@ -15,7 +15,7 @@ import {
   getMutedIds,
 } from '../lib/mutes';
 import { isUserOnline, getOnlineUserIds } from '../lib/presence';
-import { isFollowing } from '../lib/follows';
+import { isMutualFollow } from '../lib/follows';
 import { getActiveLiveHosts } from '../lib/liveStatus';
 import { getIo } from '../lib/ioInstance';
 import { hideDmForUser, isDmVisibleToUser } from '../lib/dmVisibility';
@@ -300,6 +300,7 @@ dmRouter.get('/contacts/list', authenticateJWT, (req: Request, res: Response) =>
   const contacts = [...db.users.values()]
     .filter((u) => {
       if (u.id === me || hasBlocked(me, u.id)) return false;
+      if (!isMutualFollow(me, u.id)) return false;
       if (q) return u.username.toLowerCase().includes(q);
       return true;
     })
@@ -343,6 +344,7 @@ dmRouter.get('/thread/:userId', authenticateJWT, (req: Request, res: Response) =
           isBlockedByMe: hasBlocked(me, other),
           isMutedByMe: hasMuted(me, other),
           isMatch: Boolean(findMatch(me, other)),
+          isMutualFollow: isMutualFollow(me, other),
         }
       : {
           id: other,
@@ -351,6 +353,7 @@ dmRouter.get('/thread/:userId', authenticateJWT, (req: Request, res: Response) =
           isOnline: false,
           isMatch: Boolean(findMatch(me, other)),
           isMutedByMe: hasMuted(me, other),
+          isMutualFollow: isMutualFollow(me, other),
         },
     isBlockedByMe: hasBlocked(me, other),
     isMutedByMe: hasMuted(me, other),
@@ -384,52 +387,46 @@ dmRouter.post('/thread/:userId', authenticateJWT, (req: Request, res: Response) 
     return;
   }
 
-  const status = getDmRelationStatus(me, receiverId);
+  if (!isMutualFollow(me, receiverId)) {
+    res.status(403).json({
+      error: 'Vous devez vous suivre mutuellement pour envoyer un message',
+      code: 'dm_mutual_follow_required',
+    });
+    return;
+  }
 
-  // Mutual follow required to start a new conversation.
-  // Existing conversations (accepted or pending) are exempt.
-  if (status === 'none') {
-    const mutualFollow = isFollowing(me, receiverId) && isFollowing(receiverId, me);
-    if (!mutualFollow) {
-      res.status(403).json({ error: 'Vous devez vous suivre mutuellement pour envoyer un message' });
-      return;
+  let status = getDmRelationStatus(me, receiverId);
+
+  if (status === 'pending') {
+    db.dmPendingPairs.set(dmPairKey(me, receiverId), 'accepted');
+    for (const m of db.directMessages) {
+      if (m.senderId === me && m.receiverId === receiverId && !m.accepted) {
+        m.accepted = true;
+      }
     }
+    invalidateLegacyAcceptedCache();
+    status = 'accepted';
   }
 
   if (status === 'refused') {
     res.status(403).json({ error: 'Votre demande de conversation a été refusée' });
     return;
   }
-  if (status === 'pending') {
-    res.status(429).json({ error: 'Votre demande est déjà en attente d\'acceptation' });
-    return;
-  }
 
-  const isPending = status === 'none';
   const msg = {
     id: `dm_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
     senderId: me,
     receiverId,
     content: content?.trim() || '',
     timestamp: Date.now(),
-    accepted: !isPending,
+    accepted: true,
     ...(attachmentUrl ? { attachmentUrl, attachmentName, attachmentSize, attachmentMimeType } : {}),
   };
   db.directMessages.push(msg);
 
-  if (isPending) {
-    db.dmPendingPairs.set(dmPairKey(me, receiverId), 'pending');
-    const sender = db.users.get(me);
-    getIo()?.to(`user_${receiverId}`).emit('dm_request', {
-      senderId: me,
-      senderName: sender?.username,
-      senderAvatarUrl: sender?.avatarUrl,
-      preview: msg.content,
-      messageId: msg.id,
-    });
-    schedulePersist();
-    res.status(201).json({ message: msg, delivered: false, status: 'pending' });
-    return;
+  if (status === 'none') {
+    db.dmPendingPairs.set(dmPairKey(me, receiverId), 'accepted');
+    invalidateLegacyAcceptedCache();
   }
 
   const canDeliver = shouldDeliverToReceiver(me, receiverId);

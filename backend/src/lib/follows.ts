@@ -15,6 +15,11 @@ export function isFollowing(followerId: string, followingId: string): boolean {
   return followingSet(followerId).has(followingId);
 }
 
+/** Both users follow each other (required for private messages). */
+export function isMutualFollow(userA: string, userB: string): boolean {
+  return isFollowing(userA, userB) && isFollowing(userB, userA);
+}
+
 export function followUser(followerId: string, followingId: string): void {
   followingSet(followerId).add(followingId);
 }

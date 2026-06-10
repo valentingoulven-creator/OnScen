@@ -16,6 +16,10 @@ interface HostRatingBlockProps {
   inline?: boolean;
   /** Masque « Noter {hostName} » quand le nom est déjà affiché à côté. */
   hideLabel?: boolean;
+  /** Centrer le bloc (fiche profil). */
+  centered?: boolean;
+  /** Badge compact : ★ + moyenne (header profil). */
+  averageOnly?: boolean;
 }
 
 function StarButton({
@@ -70,6 +74,8 @@ export function HostRatingBlock({
   mutedStars,
   inline,
   hideLabel,
+  centered,
+  averageOnly,
 }: HostRatingBlockProps) {
   const { user, token } = useAuth();
   const [summary, setSummary] = useState<HostRatingSummary | null>(null);
@@ -100,6 +106,22 @@ export function HostRatingBlock({
 
   const starSizeClass = inline || compact ? 'text-sm' : 'text-xl';
 
+  if (averageOnly) {
+    if (isBot) return null;
+    const avg = isSelf
+      ? summary?.average ?? user?.hostRating?.average ?? 0
+      : summary?.average ?? 0;
+    const display = avg > 0 ? String(avg) : '—';
+    return (
+      <span className="inline-flex items-center gap-0.5 shrink-0 text-[11px] tabular-nums leading-none">
+        <span className="text-amber-400 text-[10px]" aria-hidden>
+          ★
+        </span>
+        <span className="text-amber-400/90 font-semibold">{display}</span>
+      </span>
+    );
+  }
+
   if (isBot) {
     if (inline) return null;
     return (
@@ -119,7 +141,7 @@ export function HostRatingBlock({
       );
     }
     return (
-      <p className="text-xs text-gray-400">
+      <p className={`text-xs text-gray-400${centered ? ' text-center' : ''}`}>
         Votre note moyenne :{' '}
         <span className="text-amber-400 font-bold">{avg > 0 ? `${avg} ★` : '—'}</span>
         {count > 0 && <span className="text-gray-500"> ({count} avis)</span>}
@@ -168,8 +190,12 @@ export function HostRatingBlock({
   }
 
   return (
-    <div className={compact ? 'space-y-1' : 'space-y-2'}>
-      <div className="flex items-center justify-between gap-2">
+    <div className={`${compact ? 'space-y-1' : 'space-y-2'}${centered ? ' text-center' : ''}`}>
+      <div
+        className={`flex items-center gap-2 ${
+          centered ? 'flex-col justify-center' : 'justify-between'
+        }`}
+      >
         <p className={`font-semibold text-gray-300 ${compact ? 'text-[10px]' : 'text-xs'}`}>
           Noter {hostName}
         </p>
@@ -180,7 +206,7 @@ export function HostRatingBlock({
         )}
       </div>
 
-      <div className="flex items-center gap-0.5">
+      <div className={`flex items-center gap-0.5${centered ? ' justify-center' : ''}`}>
         {[1, 2, 3, 4, 5].map((n) => (
           <StarButton
             key={n}

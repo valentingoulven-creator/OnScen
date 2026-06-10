@@ -16,10 +16,13 @@ async function parseApiError(res: Response): Promise<string> {
   const text = await res.text().catch(() => '');
   if (text) {
     try {
-      const json = JSON.parse(text) as { error?: string };
+      const json = JSON.parse(text) as { error?: string; code?: string };
       if (json.error) {
         if (json.error === 'Token manquant' || json.error === 'Token invalide') {
           return i18n.t('errors.sessionExpired');
+        }
+        if (json.code === 'dm_mutual_follow_required') {
+          return i18n.t('dm.mutualFollowRequired');
         }
         return json.error;
       }
@@ -736,12 +739,6 @@ export const api = {
       method: 'DELETE',
       body: JSON.stringify({ password }),
     }, token),
-
-  exportUserData: async (token: string): Promise<object> => {
-    const res = await fetch(`${API}/auth/me/export`, { headers: headers(token) });
-    if (!res.ok) throw new Error(await parseApiError(res));
-    return res.json();
-  },
 
   updateProfile: (token: string, body: object) =>
     request<{ user: import('../types').User }>('/auth/profile', { method: 'PATCH', body: JSON.stringify(body) }, token),

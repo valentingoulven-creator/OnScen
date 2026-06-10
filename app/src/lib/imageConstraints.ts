@@ -8,13 +8,17 @@
 export const INSTAGRAM_MAX_INPUT_FILE_SIZE_MB = 30;
 export const INSTAGRAM_MAX_INPUT_FILE_SIZE_BYTES = 30 * 1024 * 1024;
 
-/** MIME types image acceptés (alignés Instagram + HEIC/HEIF iPhone). */
+/** MIME types image acceptés (Instagram + iOS HEIC + Android courants). */
 export const ACCEPTED_IMAGE_MIME_TYPES = [
   'image/jpeg',
   'image/png',
   'image/webp',
+  'image/gif',
+  'image/avif',
   'image/heic',
   'image/heif',
+  'image/bmp',
+  'image/x-ms-bmp',
 ] as const;
 
 /** Extensions fichier pour l'attribut `accept` (iOS HEIC souvent sans MIME fiable). */
@@ -23,8 +27,11 @@ export const ACCEPTED_IMAGE_EXTENSIONS = [
   '.jpeg',
   '.png',
   '.webp',
+  '.gif',
+  '.avif',
   '.heic',
   '.heif',
+  '.bmp',
 ] as const;
 
 const EXTENSION_TO_MIME: Record<string, string> = {
@@ -32,12 +39,16 @@ const EXTENSION_TO_MIME: Record<string, string> = {
   jpeg: 'image/jpeg',
   png: 'image/png',
   webp: 'image/webp',
+  gif: 'image/gif',
+  avif: 'image/avif',
   heic: 'image/heic',
   heif: 'image/heif',
+  bmp: 'image/bmp',
 };
 
 /** Libellé affiché pour les formats supportés. */
-export const SUPPORTED_IMAGE_FORMATS_LABEL = 'JPEG, JPG, PNG, WebP, HEIC/HEIF';
+export const SUPPORTED_IMAGE_FORMATS_LABEL =
+  'JPEG, JPG, PNG, WebP, GIF, AVIF, HEIC/HEIF, BMP';
 
 export const INSTAGRAM_IMAGE_LIMITS = {
   maxInputFileSizeMB: INSTAGRAM_MAX_INPUT_FILE_SIZE_MB,
@@ -118,9 +129,21 @@ export const FEED_VIDEO_LIMITS = {
 
 /** Chaîne pour l'attribut `accept` des `<input type="file">` image. */
 export const ACCEPTED_IMAGE_FORMATS = [
+  'image/*',
   ...ACCEPTED_IMAGE_MIME_TYPES,
   ...ACCEPTED_IMAGE_EXTENSIONS,
 ].join(',');
+
+/** Message d'erreur lisible quand le décodage navigateur échoue. */
+export function imageDecodeErrorMessage(file: File): string {
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  const mime = getImageFileMimeType(file);
+  const hint = ext ? `.${ext}` : mime || 'format inconnu';
+  if (isHeicImageFile(file)) {
+    return 'Impossible de lire cette photo HEIC/HEIF. Exportez-la en JPEG depuis votre galerie ou réessayez avec une autre photo.';
+  }
+  return `Impossible de lire cette image (${hint}). Formats acceptés : ${SUPPORTED_IMAGE_FORMATS_LABEL}.`;
+}
 
 /** MIME effectif d'un fichier image (type navigateur ou extension). */
 export function getImageFileMimeType(file: File): string {
@@ -140,10 +163,78 @@ export function isAcceptedImageFormat(
   return (ACCEPTED_IMAGE_EXTENSIONS as readonly string[]).includes(ext);
 }
 
+const HEIC_FTYP_BRANDS = new Set([
+  'heic',
+  'heix',
+  'hevc',
+  'hevx',
+  'heim',
+  'heis',
+  'mif1',
+  'msf1',
+]);
+
+/** Signatures des formats déjà décodables par le navigateur (aligné heic2any). */
+export type BrowserReadableImageKind = 'jpeg' | 'png' | 'gif';
+
+export function browserReadableKindFromHeader(bytes: Uint8Array): BrowserReadableImageKind | null {
+  if (bytes.length < 4) return null;
+  const h =
+    bytes[0].toString(16).padStart(2, '0') +
+    bytes[1].toString(16).padStart(2, '0') +
+    bytes[2].toString(16).padStart(2, '0') +
+    bytes[3].toString(16).padStart(2, '0');
+  switch (h) {
+    case '89504e47':
+      return 'png';
+    case '47494638':
+      return 'gif';
+    case 'ffd8ffe0':
+    case 'ffd8ffe1':
+    case 'ffd8ffe2':
+    case 'ffd8ffe3':
+    case 'ffd8ffe8':
+      return 'jpeg';
+    default:
+      return null;
+  }
+}
+
+function heicBrandFromHeader(bytes: Uint8Array): string | null {
+  if (bytes.length < 12) return null;
+  const ftyp = String.fromCharCode(bytes[4]!, bytes[5]!, bytes[6]!, bytes[7]!);
+  if (ftyp !== 'ftyp') return null;
+  return String.fromCharCode(bytes[8]!, bytes[9]!, bytes[10]!, bytes[11]!);
+}
+
+/** Détection HEIC/HEIF par en-tête ISO BMFF (ftyp heic/mif1…). */
+export function sniffHeicMagicBytes(bytes: Uint8Array): boolean {
+  const brand = heicBrandFromHeader(bytes);
+  return brand !== null && HEIC_FTYP_BRANDS.has(brand);
+}
+
+/** Lit les 12 premiers octets pour détecter HEIC ou JPEG/PNG/GIF natifs. */
+export async function readImageFileHeader(file: File): Promise<Uint8Array> {
+  const buf = await file.slice(0, 12).arrayBuffer();
+  return new Uint8Array(buf);
+}
+
 export function isHeicImageFile(file: File): boolean {
   const mime = getImageFileMimeType(file);
   if (mime === 'image/heic' || mime === 'image/heif') return true;
   return /\.heic$/i.test(file.name) || /\.heif$/i.test(file.name);
+}
+
+/**
+ * Détection HEIC fiable : MIME/extension + en-tête binaire
+ * (fichiers Windows/iCloud souvent sans type ni extension).
+ */
+export async function isHeicImageFileAsync(file: File): Promise<boolean> {
+  const header = await readImageFileHeader(file);
+  const browserKind = browserReadableKindFromHeader(header);
+  if (browserKind) return false;
+  if (sniffHeicMagicBytes(header)) return true;
+  return isHeicImageFile(file);
 }
 
 /** Chaîne pour l'attribut `accept` des `<input type="file">` vidéo (fil). */

@@ -164,9 +164,20 @@ export async function composePhotoImageWithEdits(
   const quality = options?.quality ?? STORY_JPEG_QUALITY;
   const cssFilter = getPhotoFilterCss(filterId);
   const hasEdits = overlays.some((o) => o.text.trim()) || cssFilter !== 'none';
-  if (!hasEdits) return imageDataUrl;
-
   const bitmap = await loadImageBitmapFromDataUrl(imageDataUrl);
+  if (!hasEdits) {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error("Impossible de traiter l'image");
+      ctx.drawImage(bitmap, 0, 0);
+      return canvas.toDataURL('image/jpeg', quality);
+    } finally {
+      bitmap.close();
+    }
+  }
   try {
     const canvas = document.createElement('canvas');
     canvas.width = bitmap.width;

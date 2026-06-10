@@ -11,6 +11,7 @@ import { resolveProfileLiveId } from '../lib/profileLive';
 import { FollowUserButton } from './FollowUserButton';
 import { CreatorSubscribeSheet } from './CreatorSubscribeSheet';
 import { ProfileCurrentListening } from './ProfileCurrentListening';
+import { CompactTagChips } from './CompactTagChips';
 import { ProfileHeaderSection } from './ProfileHeaderSection';
 import { canSendHeart, heartDisabledReason } from '../lib/canSendHeart';
 import type {
@@ -183,6 +184,13 @@ export function UserProfileView({
 
   const avatarUrl = photos[0];
 
+  const showHostRating = Boolean(
+    profile &&
+      (profile.listeningRole === 'host' ||
+        profile.listeningRole === 'les_deux' ||
+        (profile.stats?.salonsHosted ?? 0) > 0)
+  );
+
   const publicStatsRow = profile ? (
     <div className="flex justify-center gap-5 sm:gap-8 mt-3 w-full">
       {[
@@ -207,14 +215,8 @@ export function UserProfileView({
     </div>
   ) : null;
 
-  const allTags = [
-    ...(profile?.interests ?? []).map((t) => ({ t, color: 'cyan' as const })),
-    ...(profile?.favoriteGenres ?? []).map((t) => ({ t, color: 'purple' as const })),
-    ...(profile?.favoriteArtists ?? []).map((t) => ({ t, color: 'pink' as const })),
-  ];
-
   return (
-    <div className="space-y-3 max-w-lg mx-auto w-full bg-[#0b0b0f]">
+    <div className="space-y-5 max-w-lg mx-auto w-full bg-[#0b0b0f]">
       {(isMatched || justMatched) && (
         <div className="mx-4 text-center p-4 rounded-xl bg-gradient-to-br from-pink-900/50 to-purple-900/40 border border-pink-500/40">
           <p className="text-3xl mb-1">💞</p>
@@ -237,8 +239,9 @@ export function UserProfileView({
         city={profile?.city}
         birthDate={profile?.birthDate}
         age={profile?.age}
-        relationshipStatus={profile?.relationshipStatus}
-        relationshipStatusCustom={profile?.relationshipStatusCustom}
+        relationshipStatus={
+          profile?.relationshipStatus === 'autre' ? undefined : profile?.relationshipStatus
+        }
         hasPhotoGallery={photos.length > 1}
         isLive={isLiveHost}
         liveViewersCount={liveViewers}
@@ -257,9 +260,14 @@ export function UserProfileView({
             </p>
           ) : undefined
         }
+        hostRatingSlot={
+          showHostRating ? (
+            <HostRatingBlock hostId={userId} hostName={displayName} averageOnly />
+          ) : undefined
+        }
       />
 
-      <div className="px-4 space-y-3">
+      <div className="px-4 space-y-5 pb-8">
 
       {currentListening && <ProfileCurrentListening listening={currentListening} />}
 
@@ -311,32 +319,11 @@ export function UserProfileView({
         </button>
       )}
 
-      {allTags.length > 0 && (
-        <div className="-mx-4 px-4 overflow-x-auto scrollbar-none">
-          <div className="flex gap-1.5 pb-1 min-w-min">
-            {allTags.map(({ t, color }) => {
-              const chipClass =
-                color === 'cyan'
-                  ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/25'
-                  : color === 'purple'
-                    ? 'bg-purple-500/10 text-purple-300 border-purple-500/25'
-                    : 'bg-pink-500/10 text-pink-300 border-pink-500/25';
-              return (
-                <span
-                  key={`${color}-${t}`}
-                  className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] border ${chipClass}`}
-                >
-                  {t}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {profile && (profile.stats?.salonsHosted ?? 0) > 0 && (
-        <HostRatingBlock hostId={userId} hostName={displayName} compact />
-      )}
+      <CompactTagChips
+        interests={profile?.interests ?? []}
+        genres={profile?.favoriteGenres ?? []}
+        artists={profile?.favoriteArtists ?? []}
+      />
 
       {heartHint()}
 

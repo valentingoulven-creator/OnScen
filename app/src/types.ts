@@ -561,6 +561,7 @@ export interface DmContact {
   isBlockedByMe?: boolean;
   isMutedByMe?: boolean;
   isMatch?: boolean;
+  isMutualFollow?: boolean;
 }
 
 export interface ReelStats {

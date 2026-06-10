@@ -182,17 +182,7 @@ export function migrateUserRelationshipStatus(user: User): boolean {
     delete user.relationshipStatusCustom;
     return true;
   }
-  if (user.relationshipStatus === 'autre') {
-    const custom = user.relationshipStatusCustom?.trim();
-    if (!custom) {
-      delete user.relationshipStatus;
-      delete user.relationshipStatusCustom;
-      changed = true;
-    } else if (custom !== user.relationshipStatusCustom) {
-      user.relationshipStatusCustom = custom.slice(0, 80);
-      changed = true;
-    }
-  } else if (user.relationshipStatusCustom) {
+  if (user.relationshipStatusCustom) {
     delete user.relationshipStatusCustom;
     changed = true;
   }
@@ -225,9 +215,13 @@ function isDicebearAvatarUrl(url: string): boolean {
   }
 }
 
+function isEphemeralProfilePhotoUrl(url: string): boolean {
+  return url.trim().startsWith('blob:');
+}
+
 function isRealProfilePhoto(url: string): boolean {
   const trimmed = url.trim();
-  return Boolean(trimmed) && !isDicebearAvatarUrl(trimmed);
+  return Boolean(trimmed) && !isDicebearAvatarUrl(trimmed) && !isEphemeralProfilePhotoUrl(trimmed);
 }
 
 /** Preserve [avatar, g1…g4] slots; index 0 may be '' when only gallery photos exist. */
@@ -265,10 +259,25 @@ export function normalizeProfilePhotos(user: User): string[] {
   return [];
 }
 
+export function sanitizeIncomingProfilePhotos(photos: string[]): string[] {
+  return photos.map((url) => {
+    const trimmed = String(url).trim();
+    if (!trimmed || isDicebearAvatarUrl(trimmed) || isEphemeralProfilePhotoUrl(trimmed)) {
+      return '';
+    }
+    return trimmed;
+  });
+}
+
 export function syncProfilePhotos(user: User, photos: string[]): void {
-  const normalized = normalizeProfilePhotoSlots(photos.map(String));
+  const normalized = normalizeProfilePhotoSlots(sanitizeIncomingProfilePhotos(photos));
   user.profilePhotos = normalized.length ? normalized : undefined;
   user.avatarUrl = normalized[0] || user.avatarUrl;
+}
+
+export function countPersistableProfilePhotos(photos: string[]): number {
+  return normalizeProfilePhotoSlots(sanitizeIncomingProfilePhotos(photos)).filter(isRealProfilePhoto)
+    .length;
 }
 
 export function applyProfileDefaults(user: User): User {

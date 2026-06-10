@@ -1,21 +1,46 @@
-import { INSTAGRAM_IMAGE_LIMITS, validateImageFile } from './imageConstraints';
+import {
+  INSTAGRAM_IMAGE_LIMITS,
+  imageDecodeErrorMessage,
+  validateImageFile,
+} from './imageConstraints';
+import { prepareImageFile } from './imageUtils';
 
 /** Dimension de sortie cible pour les photos de profil (Instagram : 1080 × 1080 px max) */
 export const PROFILE_PHOTO_MAX_DIMENSION = 1080;
 /** Qualité JPEG de sortie conforme aux specs Instagram (0.85) */
 export const PROFILE_PHOTO_JPEG_QUALITY = 0.85;
 
+async function decodeFileToImageBitmap(file: File): Promise<ImageBitmap> {
+  try {
+    return await createImageBitmap(file);
+  } catch {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        void createImageBitmap(img)
+          .then(resolve)
+          .catch(() => reject(new Error(imageDecodeErrorMessage(file))));
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error(imageDecodeErrorMessage(file)));
+      };
+      img.src = url;
+    });
+  }
+}
+
 export async function loadImageBitmapFromFile(file: File): Promise<ImageBitmap> {
   const validation = validateImageFile(file);
   if (!validation.valid) {
     throw new Error(validation.error);
   }
-  let bitmap: ImageBitmap;
-  try {
-    bitmap = await createImageBitmap(file);
-  } catch {
-    throw new Error('Impossible de lire cette image');
-  }
+  const prepared = await prepareImageFile(file);
+  const bitmap = await decodeFileToImageBitmap(prepared).catch(() => {
+    throw new Error(imageDecodeErrorMessage(file));
+  });
   if (bitmap.width < INSTAGRAM_IMAGE_LIMITS.minWidth) {
     bitmap.close();
     throw new Error('Image trop petite (minimum 320 px de large)');

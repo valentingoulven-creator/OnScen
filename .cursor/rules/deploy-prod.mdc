@@ -1,0 +1,48 @@
+---
+description: Lancement dev local et deploiement production Soundy (getsoundy.com)
+alwaysApply: true
+---
+
+# Dev vs Prod — Soundy / MeloSongv2
+
+## Environnements
+
+| Contexte | Cible | Commande canonique |
+|----------|-------|-------------------|
+| **DEV** | `localhost:5173` (Vite) + API `localhost:4080` (msdev) | `npm run dev` ou `scripts/dev-start.ps1` |
+| **PROD** | VPS `getsoundy.com` | `scripts/deploy-prod.ps1` |
+
+## Quand l'utilisateur dit « deploy prod »
+
+Expressions declenchantes : **deploy prod**, **deploy production**, **deploie en prod**, **zero down** (contexte production), **mise en prod**.
+
+**Action obligatoire** (depuis la racine `MeloSongv2/`) :
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/deploy-prod.ps1
+```
+
+Ce script appelle `deploy_zero_downtime.ps1 -VerifyProd`. Ne pas inventer d'autre chemin de deploy.
+
+- **Ne jamais** deployer en prod sans demande **explicite** de l'utilisateur.
+- Ne pas confondre `npm run msdev` (ancien flux build+backend seul) avec `npm run dev` (flux dev recommande : Vite HMR + backend).
+
+## Quand l'utilisateur dit « dev » / « lancer dev »
+
+Expressions : **dev**, **lancer dev**, **mode dev**, **demarrer l'app en local**.
+
+**Action** :
+
+```powershell
+npm run dev
+```
+
+ou `powershell -ExecutionPolicy Bypass -File scripts/dev-start.ps1` ou `msdev/LANCER-DEV.ps1`.
+
+- `APP_ENV=msdev` — jamais la prod.
+- Navigateur : `http://localhost:5173`.
+
+## Secrets
+
+- `msdev/.env` et secrets prod : **jamais** dans Git.
+- Fichiers committables : `app/.env.development`, `app/.env.production` (sans secrets).

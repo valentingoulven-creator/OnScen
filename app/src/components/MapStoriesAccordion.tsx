@@ -38,7 +38,7 @@ import {
 } from '../lib/settings';
 import { normalizeProfileReelFromApi } from '../content/reelsFeed';
 import type { MusicReel } from '../content/reels';
-import type { MapStory, NearbyPerson } from '../types';
+import type { MapStory, NearbyPerson, User } from '../types';
 import { MapLocationPinButton } from './MapLocationPinButton';
 import { MapStorySheet } from './MapStorySheet';
 import { MapStoryRing, MyMapStoryRing } from './MapStoryRings';
@@ -70,9 +70,14 @@ export function MapStoriesAccordion({
   const [hidden, setHidden] = useState(isMapStoriesHidden);
   const [collapsed, setCollapsed] = useState(isMapStoriesCollapsed);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [entries, setEntries] = useState<MapStoryEntry[]>([]);
   const [myStory, setMyStory] = useState<MapStory | null>(null);
   const [storiesByUser, setStoriesByUser] = useState<Map<string, MapStory>>(new Map());
+  const [storyFeed, setStoryFeed] = useState<{
+    favorites: User[];
+    reels: MusicReel[];
+    ephemeralStories: MapStory[];
+    favoriteIds: Set<string>;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [sheet, setSheet] = useState<SheetState>({ kind: 'closed' });
   const [prefs, setPrefs] = useState<NearbyPanelPreferences>(() => getNearbyPanelPreferences());
@@ -108,9 +113,9 @@ export function MapStoriesAccordion({
 
   const filterActive = prefs.favoritesFirst || prefs.filterByDistance;
 
-  const loadStories = useCallback(async () => {
+  const fetchStoryFeed = useCallback(async () => {
     if (!token) {
-      setEntries([]);
+      setStoryFeed(null);
       setMyStory(null);
       setStoriesByUser(new Map());
       return;
@@ -141,27 +146,34 @@ export function MapStoriesAccordion({
       }
       setStoriesByUser(byUser);
       setMyStory(mineRes.story);
-
-      const people = nearbyPeople.filter((p) => p.id !== user?.id);
-      setEntries(
-        buildMapStoryEntries(people, favRes.favorites, reels, {
-          favoritesFirst: prefs.favoritesFirst,
-          favoriteIds,
-          ephemeralStories: ephemeral,
-        }).filter((e) => e.userId !== user?.id)
-      );
+      setStoryFeed({
+        favorites: favRes.favorites,
+        reels,
+        ephemeralStories: ephemeral,
+        favoriteIds,
+      });
     } catch {
-      setEntries([]);
+      setStoryFeed(null);
       setMyStory(null);
       setStoriesByUser(new Map());
     } finally {
       setLoading(false);
     }
-  }, [token, nearbyPeople, prefs.favoritesFirst, prefs.filterByDistance, radiusKm, mapGeo.latitude, mapGeo.longitude, user?.id]);
+  }, [token, prefs.filterByDistance, radiusKm, mapGeo.latitude, mapGeo.longitude]);
 
   useEffect(() => {
-    void loadStories();
-  }, [loadStories]);
+    void fetchStoryFeed();
+  }, [fetchStoryFeed]);
+
+  const entries = useMemo(() => {
+    if (!storyFeed) return [];
+    const people = nearbyPeople.filter((p) => p.id !== user?.id);
+    return buildMapStoryEntries(people, storyFeed.favorites, storyFeed.reels, {
+      favoritesFirst: prefs.favoritesFirst,
+      favoriteIds: storyFeed.favoriteIds,
+      ephemeralStories: storyFeed.ephemeralStories,
+    }).filter((e) => e.userId !== user?.id);
+  }, [nearbyPeople, storyFeed, prefs.favoritesFirst, user?.id]);
 
   const countLabel = useMemo(() => {
     if (loading) return '…';
@@ -236,7 +248,7 @@ export function MapStoriesAccordion({
   const handlePublished = (story: MapStory) => {
     setMyStory(story);
     setStoriesByUser((prev) => new Map(prev).set(story.userId, story));
-    void loadStories();
+    void fetchStoryFeed();
   };
 
   const showEmpty = !loading && entries.length === 0 && !user;

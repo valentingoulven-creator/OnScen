@@ -35,6 +35,9 @@ export default defineConfig(({ mode }) => {
   define: {
     'import.meta.env.VITE_APP_ENV': JSON.stringify(appEnv),
   },
+  optimizeDeps: {
+    exclude: ['heic2any'],
+  },
   plugins: [
     react(),
     tailwindcss(),

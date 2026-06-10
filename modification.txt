@@ -3543,3 +3543,891 @@ Date : 2026-06-10
 ================================================================================
 Fin MODIF 329 - 2026-06-10
 ================================================================================
+
+================================================================================
+MODIF 330 — Séparation dev / prod (lanceur dev + deploy prod canonique)
+Date : 2026-06-10
+================================================================================
+
+OBJECTIF / PROBLÈME
+-------------------
+  Clarifier le flux local (msdev + Vite HMR) vs production (getsoundy.com) et
+  donner une commande unique « deploy prod » pour l'utilisateur et l'agent Cursor.
+
+CHANGEMENTS / FIX
+-----------------
+  scripts/dev-start.ps1 (nouveau)
+  ───────────────────────────────
+  • Backend msdev :4080 + frontend Vite :5173, APP_ENV=msdev
+  • Bannière « MODE DEV — pas la prod », ouverture http://localhost:5173
+
+  scripts/deploy-prod.ps1 (nouveau)
+  ─────────────────────────────────
+  • Bannière DEPLOY PRODUCTION → getsoundy.com
+  • Vérification git (warn / -AskCommit), appelle deploy_zero_downtime.ps1 -VerifyProd
+
+  deploy-prod.bat, msdev/LANCER-DEV.ps1, .cursor/rules/deploy-prod.mdc
+  package.json → scripts dev, app:dev:full, deploy:prod
+  app/.env.development, app/.env.production (VITE_WEB_APP_URL)
+  docs/DEV-WORKFLOW.md — diagramme mermaid dev vs prod
+
+FICHIERS MODIFIÉS
+-----------------
+  scripts/dev-start.ps1, scripts/deploy-prod.ps1, deploy-prod.bat
+  msdev/LANCER-DEV.ps1, .cursor/rules/deploy-prod.mdc
+  package.json, app/.env.development, app/.env.production
+  docs/DEV-WORKFLOW.md, modification.txt
+
+================================================================================
+Fin MODIF 330 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 331 — Badge MSDEV visible en dev local (Vite :5173)
+Date : 2026-06-10
+================================================================================
+
+OBJECTIF / PROBLÈME
+-------------------
+  En `npm run dev` (VITE_APP_ENV=msdev), distinguer visuellement l’app locale de
+  la production getsoundy.com — le libellé « msdev » dans le header était masqué
+  sur mobile et absent sur la page de connexion.
+
+CHANGEMENTS / FIX
+-----------------
+  app/src/components/MsdevEnvBadge.tsx (nouveau)
+  • Pill ambre « MSDEV » si `import.meta.env.VITE_APP_ENV === 'msdev'`
+  • `MsdevEnvIndicator` : badge fixe haut-droite (z-index 110), toutes les vues
+  • Absent en build prod (`.env.production` → VITE_APP_ENV=production)
+
+  app/src/main.tsx
+  • `<MsdevEnvIndicator />` monté au-dessus de `<App />`
+
+  app/src/App.tsx
+  • Bouton « Rafraîchir » msdev conservé dans le header (desktop uniquement)
+
+FICHIERS MODIFIÉS
+-----------------
+  app/src/components/MsdevEnvBadge.tsx, app/src/main.tsx, app/src/App.tsx,
+  modification.txt
+
+================================================================================
+Fin MODIF 331 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 332 — MapStorySheet : formats image galerie iOS/Android + HEIC
+Date : 2026-06-10
+================================================================================
+
+OBJECTIF / PROBLÈME
+-------------------
+  Erreur « Impossible de lire cette image » dans MapStorySheet lors de la
+  sélection d'une photo depuis la galerie (souvent HEIC iPhone ou formats
+  Android non décodés par createImageBitmap sans conversion préalable).
+
+CHANGEMENTS / FIX
+-----------------
+  app/src/lib/imageConstraints.ts
+  • Formats élargis : JPEG/JPG, PNG, WebP, GIF, AVIF, HEIC/HEIF, BMP
+  • accept input : image/* + MIME explicites + extensions (.heic, .heif…)
+  • imageDecodeErrorMessage() — messages d'erreur par format
+
+  app/src/lib/profileImageProcessing.ts
+  • loadImageBitmapFromFile : prepareImageFile (heic2any) avant décodage
+  • Fallback HTMLImageElement si createImageBitmap échoue
+
+  app/src/lib/imageUtils.ts
+  • resizeImageInstagram : prepareImageFile avant chargement canvas
+
+  app/src/components/MapStorySheet.tsx
+  • Texte d'aide formats supportés
+
+  ProfilePhotoGallery : inchangé (utilisait déjà prepareImageFile + label dynamique)
+  Backend stories.ts : pas de restriction MIME (data URL JPEG client)
+
+FICHIERS MODIFIÉS
+-----------------
+  app/src/lib/imageConstraints.ts, app/src/lib/profileImageProcessing.ts,
+  app/src/lib/imageUtils.ts, app/src/components/MapStorySheet.tsx,
+  modification.txt
+
+================================================================================
+Fin MODIF 332 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 333 — Retrait option « Autre » (situation profil)
+Date : 2026-06-10
+================================================================================
+
+## Résumé
+Suppression de l'option « Autre » et du champ texte personnalisé dans le menu
+Situation de l'édition de profil (annule la partie UI de MODIF 315). Options
+restantes : Ne pas afficher, Célibataire, En couple.
+
+## Comportement
+- UI édition : plus d'option Autre ni de relationshipStatusCustom
+- Affichage profil : situation « autre » existante masquée (non affichée)
+- Backend : autre / custom effacés à l'enregistrement ou à la migration
+- Champs schema/API conservés pour rétrocompat sans erreur
+
+## Fichiers modifiés
+  app/src/pages/ProfilePage.tsx
+  app/src/components/ProfileHeaderSection.tsx
+  app/src/components/UserProfileView.tsx
+  app/src/lib/relationshipStatus.ts
+  backend/src/lib/relationshipStatus.ts
+  backend/src/lib/relationshipStatus.test.ts
+  backend/src/lib/profile.ts
+  modification.txt
+
+================================================================================
+Fin MODIF 333 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 335 — Expansion autocomplete artistes favoris
+Date : 2026-06-10
+================================================================================
+
+## Problème
+- Saisie « sch » dans ArtistAutocomplete : « Aucun artiste trouvé » (SCH absent
+  de la liste ~83 artistes).
+
+## Changements
+- Liste d'artistes passée de ~83 à 838 entrées curatées (FR + international,
+  tous genres : rap FR, pop, hip-hop, R&B, rock, électro, jazz, afro, latino,
+  country, classique…).
+- SCH, Gims, Jul, Vald, Aya Nakamura, etc. ajoutés.
+- Fichiers scindés par catégorie sous app/src/lib/popularArtists/ (déduplication
+  à l'assemblage).
+- Recherche (artistSearch.ts) : insensible casse/accents (déjà), tri amélioré —
+  nom commence par la requête, puis nom contient, puis genre ; max 8 suggestions ;
+  exclusion des tags déjà sélectionnés inchangée.
+
+## Fichiers modifiés / ajoutés
+  app/src/lib/popularArtists.ts
+  app/src/lib/popularArtists/index.ts
+  app/src/lib/popularArtists/types.ts
+  app/src/lib/popularArtists/frRap.ts
+  app/src/lib/popularArtists/frPopChanson.ts
+  app/src/lib/popularArtists/hipHop.ts
+  app/src/lib/popularArtists/pop.ts
+  app/src/lib/popularArtists/rnbSoul.ts
+  app/src/lib/popularArtists/rockIndie.ts
+  app/src/lib/popularArtists/electronic.ts
+  app/src/lib/popularArtists/jazz.ts
+  app/src/lib/popularArtists/worldLatin.ts
+  app/src/lib/popularArtists/countryClassic.ts
+  app/src/lib/artistSearch.ts
+  modification.txt
+
+## Vérification
+- tsc -b : OK
+- « sch » → SCH (Rap FR) en première suggestion
+
+================================================================================
+Fin MODIF 335 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 334 — Suggestions genres / intérêts (autocomplete profil)
+Date : 2026-06-10
+================================================================================
+
+## Changement
+- Champ « Genres favoris » (édition profil) : dropdown autocomplete avec
+  liste curatée (~75 genres), filtrage par préfixe insensible casse/accents.
+  Ex. « hard » → Hard rock, Hardstyle, Hardcore.
+- Champ « Centres d'intérêt » : même pattern ListAutocomplete + puces rapides
+  conservées ; liste déplacée dans popularInterests.ts (étendue).
+- Clic suggestion ou Entrée / « + » pour ajouter ; tags déjà sélectionnés
+  exclus des suggestions ; saisie libre hors liste toujours possible.
+- Dropdown sombre (#12121a) aligné ArtistAutocomplete (MODIF 303).
+
+## Fichiers modifiés / ajoutés
+  app/src/lib/popularGenres.ts
+  app/src/lib/popularInterests.ts
+  app/src/lib/listSearch.ts
+  app/src/lib/genreSearch.ts
+  app/src/lib/interestSearch.ts
+  app/src/components/ListAutocomplete.tsx
+  app/src/pages/ProfilePage.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 334 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 335 — MapStorySheet : retrait texte d'aide
+Date : 2026-06-10
+================================================================================
+
+## Changement
+- Suppression du paragraphe gris « Ajoutez une photo et/ou un texte… » dans
+  la feuille « Nouvelle story » (messages d'erreur rouges conservés).
+
+## Fichiers modifiés
+  app/src/components/MapStorySheet.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 335 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 336 — Galerie profil : photos affichées à moitié
+Date : 2026-06-10
+================================================================================
+
+## Résumé
+Réduction de la taille d'affichage (~50 %) des photos de galerie en mode lecture
+(onglet Profil, ProfilePage + UserProfileView). Qualité inchangée : même src /
+données image, uniquement CSS/layout. Avatar hero (header) inchangé.
+
+## Changements CSS/layout (ProfilePhotoGallery, mode lecture)
+- variant bare : section `w-full -mx-4` → `w-1/2 mx-auto` (grille centrée, demi-largeur)
+- variant card : section `w-full` → `w-1/2 mx-auto`
+- Grille inchangée (`grid-cols-2` / `grid-cols-3`, `aspect-square`, `object-cover`)
+- Mode édition inchangé (avatar + grille 4 colonnes)
+
+## Fichiers modifiés
+  app/src/components/ProfilePhotoGallery.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 336 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 337 — Onglets profil centrés et compacts (style TikTok)
+================================================================================
+Date : 2026-06-10
+
+## Problème
+Les onglets « Profil » et « Mes reels » s’étiraient sur toute la largeur (flex-1),
+jusqu’à ~840 px par onglet sur grand écran.
+
+## Solution
+- Retrait de flex-1 sur chaque bouton d’onglet.
+- Largeur auto via px-6 sm:px-8 + shrink-0.
+- Groupe d’onglets centré : wrapper flex justify-center + conteneur inline-flex.
+- Indicateur actif (underline) conservé, ajusté left-4 right-4.
+
+## Fichiers modifiés
+  app/src/pages/ProfilePage.tsx
+  modification.txt
+
+Note : UserProfileView n’utilise pas ProfileTabBar (onglets dans UserProfilePage,
+style segmenté distinct). Pas de changement partagé requis.
+
+================================================================================
+Fin MODIF 337 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 338 — Tags profil en sections (lecture)
+================================================================================
+Date : 2026-06-10
+
+## Problème
+En mode lecture, tous les tags (intérêts, genres, artistes) étaient fusionnés
+dans une seule rangée scrollable horizontale.
+
+## Solution
+- Extraction de `CompactTagChips` vers `app/src/components/CompactTagChips.tsx`.
+- Trois sections distinctes, affichées uniquement si non vides :
+  - Centres d'intérêt (teal / cyan)
+  - Genres favoris (purple)
+  - Artistes (pink / rose)
+- Labels compacts : `text-xs uppercase text-gray-500`.
+- Chips : wrap sur mobile, scroll horizontal sur sm+ si besoin.
+- Mode édition inchangé (`EditableTags` dans ProfilePage).
+
+## Fichiers modifiés
+  app/src/components/CompactTagChips.tsx (nouveau)
+  app/src/pages/ProfilePage.tsx
+  app/src/components/UserProfileView.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 338 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 339 — ProfilePhotoGallery : conversion HEIC fiable (Windows / iOS)
+Date : 2026-06-10
+================================================================================
+
+## Problème
+Erreur rouge dans ProfilePhotoGallery :
+« Ce navigateur ne peut pas lire les photos HEIC/HEIF… »
+lors de la sélection d'une photo HEIC depuis la galerie sur desktop Windows,
+alors que MODIF 332 avait ajouté heic2any pour MapStorySheet.
+
+## Cause racine
+1. prepareImageFile() attrapait toute erreur heic2any (y compris
+   « already browser readable » pour un JPEG mal étiqueté .heic) et affichait
+   le message HEIC unsupported à tort.
+2. Import statique de heic2any dans le chunk vendor-misc — worker libheif
+   parfois fragile sous Vite.
+3. Pas de retry avec blob typé image/heic ni application/octet-stream
+   (fichiers Windows/iCloud souvent sans MIME).
+4. Détection HEIC limitée à MIME/extension — pas de sniff ftyp/heic.
+
+## Fix
+  app/src/lib/imageConstraints.ts
+  • sniffHeicMagicBytes(), readImageFileHeader(), isHeicImageFileAsync()
+  • browserReadableKindFromHeader() — évite conversion inutile JPEG/PNG/GIF
+
+  app/src/lib/imageUtils.ts
+  • heic2any en import dynamique (chunk dédié)
+  • prepareImageFile : sniff en-tête → skip si déjà JPEG/PNG/GIF
+  • Retry heic2any : file, image/heic, image/heif, application/octet-stream
+  • Erreur HEIC affichée seulement après échec réel de conversion
+
+  app/src/components/ProfilePhotoGallery.tsx
+  • Validation async : isHeicImageFileAsync si validateProfilePhoto échoue
+    (HEIC sans extension/MIME)
+
+  app/vite.config.ts
+  • optimizeDeps.exclude: ['heic2any']
+
+  profileImageProcessing.ts : inchangé (prepareImageFile déjà avant decode)
+
+## Test
+  tsc -b OK
+  Chemin : profil → édition → galerie → sélection HEIC desktop
+
+## Fichiers modifiés
+  app/src/lib/imageConstraints.ts
+  app/src/lib/imageUtils.ts
+  app/src/components/ProfilePhotoGallery.tsx
+  app/vite.config.ts
+  modification.txt
+
+================================================================================
+Fin MODIF 339 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 340 — Aperçu wave inline dans le champ pseudo (édition profil)
+================================================================================
+Date : 2026-06-10
+
+## Problème
+En édition profil, le dégradé wave / couleur du pseudo n'était visible que dans
+un bloc séparé « Aperçu du pseudo » sous le UsernameColorPicker, pas dans le
+champ Pseudo lui-même.
+
+## Solution
+- Suppression du conteneur « Aperçu du pseudo » sous UsernameColorPicker.
+- Champ Pseudo : input texte transparent + overlay UsernameDisplay (même typo,
+  couleurs wave ou unie depuis form.usernameColor / usernameWaveFrom / usernameWaveTo).
+- Le caret reste visible (caretColor = couleur unie ou début du dégradé wave).
+- UsernameColorPicker inchangé ; la mise à jour est live dans le champ pseudo.
+- Mode lecture inchangé (ProfileHeaderSection / UsernameDisplay en-tête).
+
+## Fichiers modifiés
+  app/src/pages/ProfilePage.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 340 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 341 — Photos profil : ne plus persister les URL blob:
+Date : 2026-06-10
+================================================================================
+
+## Problème
+- En lecture, la galerie profil (grid-cols-3, w-1/2 mx-auto) affichait des icônes
+  img cassées avec src=blob:http://localhost:5173/...
+- Une photo Unsplash (https) s'affichait ; les autres étaient des blob: expirées.
+- Cause : PhotoImageEditor → composeProfileImageWithEdits sans filtre/texte retournait
+  l'URL blob: de l'aperçu tel quel ; prepareProfilePhotosForSave la passait au backend.
+- isRealProfilePhoto traitait blob: comme photo valide → rechargement affichait des
+  URLs mortes stockées en base.
+
+## Correctifs
+- storyImageCompose : sans calques, export JPEG data URL (plus de pass-through blob:).
+- profilePhotos.ts : isEphemeralProfilePhotoUrl / isDisplayableProfilePhotoUrl ;
+  ensurePersistableProfilePhotoUrl (blob → base64 JPEG, revoke implicite après fetch) ;
+  prepareProfilePhotosForSave utilise ensurePersistable ; getUserProfilePhotos exclut
+  blob: via isRealProfilePhoto (migration à la lecture).
+- ProfilePhotoGallery : onEditorConfirm → ensurePersistableProfilePhotoUrl ;
+  ProfilePhotoImage + filtre lecture + onError placeholder.
+- backend profile.ts : isRealProfilePhoto exclut blob: (syncProfilePhotos / applyDefaults).
+
+## Test
+  tsc -b OK
+
+## Fichiers modifiés
+  app/src/lib/profilePhotos.ts
+  app/src/lib/storyImageCompose.ts
+  app/src/components/ProfilePhotoGallery.tsx
+  backend/src/lib/profile.ts
+  modification.txt
+
+================================================================================
+Fin MODIF 341 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 342 — Profil centré et polish design (lecture)
+================================================================================
+Date : 2026-06-10
+
+## Problème
+Sur grand écran (~1712 px), le contenu profil (galerie w-1/2, tags -mx-4,
+méta « Membre depuis » / note host) restait décalé à gauche avec espace vide
+à droite ; rythme visuel hétérogène par rapport au header TikTok (MODIF 322).
+
+## Solution
+- Colonne principale `max-w-lg mx-auto w-full` : header, onglets, galerie,
+  tags, streaming (ProfilePage + UserProfileView déjà max-w-lg).
+- Galerie lecture : `max-w-sm mx-auto w-full` (remplace w-1/2 mx-auto).
+- CompactTagChips : labels et chips centrés, `flex-wrap justify-center`
+  (suppression du full-bleed -mx-4 et scroll horizontal sm+).
+- Carte méta `ProfileMetaCard` : « Membre depuis » + note host séparées par
+  un divider subtil (border + bg #12121a/40).
+- Espacement lecture `space-y-5` ; onglets sans -mx-4 (centrés dans la colonne).
+- HostRatingBlock : prop `centered` pour alignement fiche profil.
+- Mode édition inchangé fonctionnellement (même colonne max-w-lg, space-y-4).
+
+## Fichiers modifiés
+  app/src/pages/ProfilePage.tsx
+  app/src/components/UserProfileView.tsx
+  app/src/components/ProfilePhotoGallery.tsx
+  app/src/components/CompactTagChips.tsx
+  app/src/components/HostRatingBlock.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 342 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 343 — Fluidité carte / globe (latence pan & zoom)
+================================================================================
+Date : 2026-06-10
+
+## Problème
+Latence perceptible lors du pan/zoom carte et de la rotation globe : requêtes
+/geo/nearby trop fréquentes, re-renders inutiles, tuiles Leaflet rechargées en
+mouvement, stories re-fetchées à chaque tick nearbyPeople.
+
+## Goulots identifiés
+- Filtre Lives : reload nearby immédiat à chaque moveend / POV globe (sans cache).
+- loadNearbyAt mettait loadingNearby=true → spinner sidebar à chaque pan.
+- moveend déclenchait setFlatMapZoom même sans changement de zoom.
+- Tuiles Carto : updateWhenIdle absent → fetch tuiles pendant le drag.
+- ~200 marqueurs capitales reconstruits au passage zoom 5 (labels permanents).
+- MapStoriesAccordion : 4 appels API refaits à chaque update nearbyPeople (20s GPS).
+- Globe : POV debounce 450 ms, pointResolution identique pendant drag.
+
+## Optimisations appliquées
+- nearbyCache.ts : cache TTL 10 s (coords arrondies ~1.1 km + radius + filtre distance).
+- HomePage : loadNearbyAt silent pour viewport ; debounce 400 ms pan/zoom Lives ;
+  bounds sidebar debounce 250 ms ; intervalle GPS 30 s (était 20 s).
+- MapView : React.memo ; tuiles updateWhenIdle + updateWhenZooming:false ;
+  setFlatMapZoom uniquement si zoom change ; capitales build-once + toggle labels.
+- GlobeView : POV debounce 600 ms ; powerPreference high-performance ;
+  pointResolution 3 pendant interaction.
+- MapStoriesAccordion : fetch API séparé du rebuild entries (useMemo local).
+
+## Test
+  tsc -b OK (app/)
+
+## Amélioration attendue
+- Pan carte plus fluide (moins d'appels API / re-renders pendant le drag).
+- Globe : rotation moins saccadée, moins de reload nearby en mouvement.
+- Stories : plus de rafale API à chaque refresh GPS nearby.
+
+## Fichiers modifiés
+  app/src/lib/nearbyCache.ts (nouveau)
+  app/src/pages/HomePage.tsx
+  app/src/components/MapView.tsx
+  app/src/components/GlobeView.tsx
+  app/src/components/MapStoriesAccordion.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 343 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 344 — Note host compacte à côté du pseudo (header profil)
+================================================================================
+Date : 2026-06-10
+
+## Problème
+La note moyenne host (« Votre note moyenne : — ») occupait une ligne entière
+dans ProfileMetaCard, loin du pseudo (header TikTok MODIF 322).
+
+## Solution
+- HostRatingBlock : prop `averageOnly` → badge ★ + moyenne (ou —).
+- ProfileHeaderSection : prop `hostRatingSlot` à côté de UsernameDisplay
+  (variants compact et classic).
+- ProfilePage : note déplacée dans le header ; ProfileMetaCard ne garde que
+  « Membre depuis » (logique host : listeningRole host/les_deux ou salonsHosted).
+- UserProfileView : même badge header, bloc notation interactif retiré du corps.
+
+## Test
+  tsc -b OK (app/)
+
+## Fichiers modifiés
+  app/src/components/HostRatingBlock.tsx
+  app/src/components/ProfileHeaderSection.tsx
+  app/src/pages/ProfilePage.tsx
+  app/src/components/UserProfileView.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 344 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 348 — Date de naissance format européen (JJ/MM/AAAA)
+================================================================================
+Date : 2026-06-10
+
+## Problème
+Les champs `type="date"` du navigateur affichent le format US (mm/dd/yyyy),
+inadapté pour une app française / européenne.
+
+## Solution
+- Composant BirthDateInput : trois champs Jour / Mois / Année (placeholders JJ,
+  MM, AAAA) au lieu de `type="date"`.
+- Détection locale : format européen par défaut (app FR) ; ordre MM/JJ/AAAA si
+  langue i18n `en` ; `usesEuropeanDateFormat()` aussi sur navigator.language
+  (fr, de, es, it, etc.).
+- Conversion bidirectionnelle ISO ↔ champs (`isoToBirthDateFields`,
+  `birthDateFieldsToIso`) ; le backend reçoit toujours YYYY-MM-DD.
+- Édition profil : date existante pré-remplie depuis l’ISO stocké.
+- ProfilePage et OnboardingPage migrés ; MapEventFilterSheet inchangé (filtres
+  événements, pas date de naissance).
+
+## Test
+  tsc -b OK (app/)
+
+## Fichiers modifiés
+  app/src/lib/profileAge.ts
+  app/src/components/BirthDateInput.tsx
+  app/src/pages/ProfilePage.tsx
+  app/src/pages/OnboardingPage.tsx
+  app/src/locales/fr.json
+  app/src/locales/en.json
+  modification.txt
+
+================================================================================
+Fin MODIF 348 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 347 — Option « Personnalisé » pour la couleur du pseudo (profil)
+================================================================================
+Date : 2026-06-10
+
+## Problème
+Le sélecteur de couleur du pseudo affichait toujours les contrôles avancés
+(dégradé wave from/to, color picker) dès que le mode wave était actif, et le
+picker couleur unie restait visible en permanence — interface trop chargée.
+
+## Solution
+- UsernameColorPicker : puces presets (Par défaut, couleurs, Wave, Personnalisé).
+- État `showAdvancedPicker` : true uniquement si puce « Personnalisé » sélectionnée
+  ou si la couleur chargée ne correspond à aucun preset (wave custom ou hex custom).
+- Wave et presets solides s’appliquent en un clic, panneau avancé replié.
+- Panneau avancé (Personnalisé) : dégradé wave from/to + couleur unie personnalisée.
+- Sauvegarde / chargement inchangés (usernameColor, usernameWaveFrom, usernameWaveTo).
+
+## Test
+  tsc -b OK (app/)
+
+## Fichiers modifiés
+  app/src/components/UsernameColorPicker.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 347 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 346 — Champ pseudo édition : dégradé wave visible (overlay)
+================================================================================
+Date : 2026-06-10
+
+## Problème
+En édition profil (MODIF 340), sélectionner « Wave » dans UsernameColorPicker
+n’affichait pas le dégradé dans le champ Pseudo : seul le caret coloré restait
+visible (ex. jaune rgb(255,213,0)), comme une couleur unie.
+
+## Cause
+1. UsernameDisplay n’utilisait pas usernameDisplayClassName : en mode wave avec
+   teinte personnalisée, bg-clip-text / text-transparent manquaient — le texte
+   overlay restait color: transparent sans dégradé clipé (invisible).
+2. Empilement champ pseudo : input opaque (bg #1a1a26) au-dessus de l’overlay ;
+   text-transparent seul ne suffisait pas (WebkitTextFillColor manquant).
+
+## Solution
+- usernameColor.ts : WebkitTextFillColor sur usernameWaveDisplayStyle ; classes
+  bg-clip-text text-transparent pour wave custom dans usernameDisplayClassName.
+- UsernameDisplay : fusion className via usernameDisplayClassName + style inline.
+- ProfilePage : fond/bordure sur le wrapper ; overlay z-0 ; input z-10
+  bg-transparent + WebkitTextFillColor transparent ; caret inchangé.
+
+## Test
+  tsc -b OK (app/)
+  vitest usernameColor.test.ts OK
+
+## Fichiers modifiés
+  app/src/lib/usernameColor.ts
+  app/src/lib/usernameColor.test.ts
+  app/src/components/UsernameDisplay.tsx
+  app/src/pages/ProfilePage.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 346 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 345 — Persistance photos galerie profil (Enregistrer + rechargement)
+Date : 2026-06-10
+================================================================================
+
+## Problème
+- Galerie édition affichait GALERIE 1/4 (photo visible) mais après Enregistrer +
+  rechargement la lecture restait vide (compte Val : store.json inchangé, dicebear
+  seul).
+- Cause racine : `profilePhotosChanged` comparait des tableaux normalisés ; les URL
+  `blob:` / `data:` non encore persistées étaient ignorées par
+  `normalizeProfilePhotoSlots` → `photosChanged === false` → PATCH sans champ
+  `profilePhotos` (confirmé dans ProfilePage-D4lzrpIU.js : `if (n && …)`).
+- MODIF 326/341 avaient corrigé slots et blob→base64 à la confirmation éditeur,
+  mais la garde `photosChanged` pouvait encore omettre l’envoi (blob résiduel,
+  aperçu non validé, etc.).
+- msdev : persistance active = `msdev/data/store.json` (pas PostgreSQL sans
+  DATABASE_URL).
+
+## Correctifs
+- profilePhotos.ts : `formHasProfilePhotoEdits`, `shouldIncludeProfilePhotosInSave`,
+  `assertPreparedProfilePhotos`, `countPersistableProfilePhotos` ; détection blob/data
+  dans `profilePhotosChanged`.
+- ProfilePage : envoi `profilePhotos` si `shouldIncludeProfilePhotosInSave` ;
+  validation pré/post sauvegarde ; `refreshUser()` après succès ; erreurs UI sans
+  `alert()` ; blocage Enregistrer si éditeur photo ouvert (`onBusyChange`).
+- ProfilePhotoGallery : callback `onBusyChange` (préparation fichier / éditeur).
+- backend profile.ts + auth.ts : `sanitizeIncomingProfilePhotos` (ignore dicebear,
+  blob) ; rejet 400 si photos réelles perdues à l’écriture.
+
+## Test
+  vitest src/lib/profilePhotos.test.ts OK (5)
+  tsc -b OK (app/ + backend/)
+
+## Fichiers modifiés
+  app/src/lib/profilePhotos.ts
+  app/src/lib/profilePhotos.test.ts
+  app/src/pages/ProfilePage.tsx
+  app/src/components/ProfilePhotoGallery.tsx
+  backend/src/lib/profile.ts
+  backend/src/routes/auth.ts
+  modification.txt
+
+================================================================================
+Fin MODIF 345 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 349 — Suggestions centres d'intérêt style Hinge/Tinder (profil)
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- popularInterests.ts : 83 centres d'intérêt en 4 catégories (Musique 32,
+  Lifestyle 20, Sorties 17, Créatif 14) — lifestyle, sorties, créatif + musique
+  MeloSong (Live local, Spotify Jam, Sessions live, etc.).
+- POPULAR_INTERESTS : liste plate dédupliquée pour ListAutocomplete (MODIF 334).
+- EditableTags (profil) : prop `interestsPreset` + puces par thème sous le champ
+  — grille scrollable (max-h-52), chips rounded-full bordure subtile, icône +,
+  tap ajoute directement (tags déjà choisis exclus).
+- Uniquement section « Centres d'intérêt » ; genres/artistes inchangés.
+
+## Test
+  tsc -b OK (app/)
+
+## Fichiers modifiés
+  app/src/lib/popularInterests.ts
+  app/src/pages/ProfilePage.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 349 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 350 — « Membre depuis » sous Paramètres & compte (profil lecture)
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- ProfilePage (mode lecture) : « Membre depuis {mois année} » déplacé sous la
+  section repliable « Paramètres & compte » (après streaming & compte), au lieu
+  de la carte ProfileMetaCard au-dessus des tags.
+- ProfileMetaCard supprimée (vide après retrait de la méta).
+- Style discret : text-[10px] text-gray-600 text-center.
+- UserProfileView : inchangé (pas de section Paramètres ni ProfileMetaCard).
+
+## Test
+  tsc -b OK (app/)
+
+## Fichiers modifiés
+  app/src/pages/ProfilePage.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 350 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 351 — « Comptes connectés » (section profil streaming)
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- ProfilePage : renommage « Comptes streaming (host) » → « Comptes connectés »
+  (mode lecture, section repliable) et « Comptes streaming » → « Comptes connectés »
+  (mode édition). PlatformConnectCard inchangé (pas d’en-tête de section propre).
+
+## Test
+  tsc -b OK (app/)
+
+## Fichiers modifiés
+  app/src/pages/ProfilePage.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 351 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 352 — Retrait export données (paramètres)
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- SettingsPage : suppression du SettingsRow « Exporter mes données » /
+  « Télécharger une copie JSON (RGPD) » (section Sécurité).
+- api.ts : retrait de exportUserData (client mort).
+- fr.json / en.json : clés i18n settings.export* supprimées.
+- Backend GET /auth/me/export inchangé (disponible sur demande e-mail RGPD).
+
+## Test
+  tsc -b OK (app/)
+
+## Fichiers modifiés
+  app/src/pages/SettingsPage.tsx
+  app/src/lib/api.ts
+  app/src/locales/fr.json
+  app/src/locales/en.json
+  modification.txt
+
+================================================================================
+Fin MODIF 352 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 353 — Paramètres / Soutenir / Déconnexion toujours visibles (profil)
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- ProfilePage (mode lecture) : suppression de la section repliable
+  « Paramètres & compte » et de l’état detailsExpanded.
+- Après « Comptes connectés », affichage permanent (séparateur border-t) :
+  ⚙️ Paramètres, teaser Soutenir (SupportMeloSongTeaser), Déconnexion.
+- Retrait de l’e-mail affiché et du texte d’aide « pas un profil de rencontre »
+  (contenus auparavant masqués derrière l’accordéon).
+- « Membre depuis » inchangé, toujours visible en bas.
+
+## Test
+  tsc -b OK (app/)
+
+## Fichiers modifiés
+  app/src/pages/ProfilePage.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 353 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 354 — MP réservés aux abonnements mutuels
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- SettingsPage : suppression du toggle « Messages de nouveaux contacts /
+  Autoriser les MP sans invitation préalable ».
+- settings.ts : retrait du champ localStorage `allowDmFromAnyone` (lecture
+  rétro-compatible, non réécrit).
+- Backend dm.ts : envoi bloqué si pas d’abonnement mutuel (`isMutualFollow`) ;
+  plus de demande d’invitation pour les nouvelles conversations entre mutuels ;
+  liste contacts filtrée aux mutuels ; `isMutualFollow` exposé sur le fil.
+- follows.ts : helper `isMutualFollow(userA, userB)`.
+- DmPage : compose désactivé + message si pas mutuel ; i18n fr/en.
+- api.ts : code `dm_mutual_follow_required` → clé i18n.
+
+## Migration
+- `allowDmFromAnyone` n’existait qu’en localStorage client (pas en base).
+- Anciennes demandes MP en attente : auto-acceptées à l’envoi si mutuel.
+
+## Test
+  tsc -b OK (app/ + backend)
+
+## Fichiers modifiés
+  app/src/pages/SettingsPage.tsx
+  app/src/lib/settings.ts
+  app/src/pages/DmPage.tsx
+  app/src/lib/api.ts
+  app/src/types.ts
+  app/src/locales/fr.json
+  app/src/locales/en.json
+  backend/src/lib/follows.ts
+  backend/src/routes/dm.ts
+  modification.txt
+
+================================================================================
+Fin MODIF 354 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 355 — Retrait « Algorithme Soundy » des Paramètres (doublon Reels)
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- SettingsPage : suppression de la section « Flux Reels » (case « Algorithme Soundy »
+  + curseurs de tri personnalisé), doublon du toggle « Algo Soundly » déjà présent
+  dans le modal « Personnaliser mon feed » de l’onglet Reels.
+- Nettoyage état/handlers settings-only (feedAlgo, applyFeedAlgo, updateFeedWeight)
+  et imports reelFeedAlgorithm inutilisés dans SettingsPage.
+- Logique reelFeedAlgorithm / reelsUserPrefs conservée (ReelsTabPage, ActualiteTabPage).
+- Clés i18n orphelines retirées : settings.algoSoundly, settings.algoEnabled.
+
+## Test
+  tsc -b OK (app/)
+
+## Fichiers modifiés
+  app/src/pages/SettingsPage.tsx
+  app/src/locales/fr.json
+  app/src/locales/en.json
+  modification.txt
+
+================================================================================
+Fin MODIF 355 - 2026-06-10
+================================================================================

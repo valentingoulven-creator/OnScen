@@ -1,7 +1,10 @@
 import { useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { fileToFeedImageDataUrl } from '../lib/feedImagePaste';
-import { ACCEPTED_IMAGE_FORMATS, validateStoryPhoto } from '../lib/imageConstraints';
+import {
+  ACCEPTED_IMAGE_FORMATS,
+  validateStoryPhoto,
+} from '../lib/imageConstraints';
 import { StoryImageEditor, type StoryEditorResult } from './StoryImageEditor';
 import type { MapStory, StoryMusicTrack, StoryTaggedUser } from '../types';
 
@@ -122,10 +125,6 @@ export function MapStorySheet({
           </div>
 
           <div className="p-4 space-y-3">
-            <p className="text-[11px] text-gray-500">
-              Ajoutez une photo et/ou un texte — visible 24 h sur la carte pour les personnes à proximité.
-            </p>
-
             {imageUrl ? (
               <div className="relative">
                 <img src={imageUrl} alt="" className="w-full max-h-48 object-cover rounded-xl" />

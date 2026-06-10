@@ -3,9 +3,14 @@ import { createPortal } from 'react-dom';
 import {
   ACCEPTED_IMAGE_FORMATS,
   SUPPORTED_IMAGE_FORMATS_LABEL,
+  isHeicImageFileAsync,
   validateProfilePhoto,
 } from '../lib/imageConstraints';
 import { prepareImageFile } from '../lib/imageUtils';
+import {
+  ensurePersistableProfilePhotoUrl,
+  isDisplayableProfilePhotoUrl,
+} from '../lib/profilePhotos';
 import { PhotoImageEditor } from './PhotoImageEditor';
 
 const MAX_PHOTOS = 5;
@@ -18,6 +23,8 @@ interface ProfilePhotoGalleryProps {
   fallbackSeed: string;
   editing?: boolean;
   onChange?: (photos: string[]) => void;
+  /** True while file prep or editor overlay is open — block profile save. */
+  onBusyChange?: (busy: boolean) => void;
   /** card = encadré ; bare = grille TikTok sans boîte */
   variant?: 'card' | 'bare';
   /** En lecture : n'afficher que les photos hors avatar (index > 0) */
@@ -56,11 +63,43 @@ function PhotoActionBar({
   );
 }
 
+function ProfilePhotoImage({
+  url,
+  className,
+}: {
+  url: string;
+  className?: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  const displayable = isDisplayableProfilePhotoUrl(url) && !failed;
+
+  if (!displayable) {
+    return (
+      <div
+        className={`flex items-center justify-center bg-[#1a1a26] text-gray-600 ${className ?? ''}`}
+        aria-hidden
+      >
+        <span className="text-xl sm:text-2xl opacity-50">🖼️</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={url}
+      alt=""
+      className={className}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 export function ProfilePhotoGallery({
   photos,
   fallbackSeed: _fallbackSeed,
   editing,
   onChange,
+  onBusyChange,
   variant = 'card',
   galleryOnly = false,
 }: ProfilePhotoGalleryProps) {
@@ -82,6 +121,15 @@ export function ProfilePhotoGallery({
     return () => URL.revokeObjectURL(url);
   }, [editorFile]);
 
+  useEffect(() => {
+    if (!onBusyChange) return;
+    if (!editing) {
+      onBusyChange(false);
+      return;
+    }
+    onBusyChange(Boolean(editorFile) || isPreparingFile);
+  }, [editing, editorFile, isPreparingFile, onBusyChange]);
+
   const avatarUrl = photos[0];
   const galleryPhotos = photos.slice(1);
 
@@ -98,7 +146,7 @@ export function ProfilePhotoGallery({
       return;
     }
     const validation = validateProfilePhoto(file);
-    if (!validation.valid) {
+    if (!validation.valid && !(await isHeicImageFileAsync(file))) {
       setValidationError(validation.error ?? 'Fichier non valide.');
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
@@ -118,16 +166,22 @@ export function ProfilePhotoGallery({
     }
   };
 
-  const onEditorConfirm = (dataUrl: string) => {
+  const onEditorConfirm = async (dataUrl: string) => {
     if (!onChange) return;
+    const persisted = await ensurePersistableProfilePhotoUrl(dataUrl);
+    if (!persisted) {
+      setValidationError('Impossible d\'enregistrer cette photo.');
+      setEditorFile(null);
+      return;
+    }
     let next: string[];
     if (pickerTarget === 'avatar') {
-      next = photos.length === 0 ? [dataUrl] : [dataUrl, ...photos.slice(1)];
+      next = photos.length === 0 ? [persisted] : [persisted, ...photos.slice(1)];
     } else if (photos.length === 0) {
       // Galerie sans avatar : slot 0 vide, photo à l'index 1 (visible dans la grille)
-      next = ['', dataUrl];
+      next = ['', persisted];
     } else {
-      next = [...photos, dataUrl];
+      next = [...photos, persisted];
     }
     onChange(next);
     setActiveIndex(pickerTarget === 'avatar' ? 0 : next.length - 1);
@@ -168,7 +222,7 @@ export function ProfilePhotoGallery({
           mode="profile"
           initialImage={editorPreviewUrl}
           initialSource={editorFile}
-          onConfirm={(result) => onEditorConfirm(result.imageUrl)}
+          onConfirm={(result) => void onEditorConfirm(result.imageUrl)}
           onCancel={onEditorCancel}
         />
       ) : null;
@@ -195,7 +249,7 @@ export function ProfilePhotoGallery({
             </span>
             {avatarUrl ? (
               <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden border-2 border-purple-500/50 shadow-lg shadow-purple-900/30 bg-[#1a1a26]">
-                <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+                <ProfilePhotoImage url={avatarUrl} className="w-full h-full object-cover" />
                 <span className="absolute top-2 left-1/2 -translate-x-1/2 text-[9px] bg-purple-600 text-white px-2 py-0.5 rounded-full font-bold whitespace-nowrap shadow">
                   Avatar
                 </span>
@@ -235,7 +289,7 @@ export function ProfilePhotoGallery({
                     key={`${url}-${photoIndex}`}
                     className="relative aspect-square min-h-[72px] sm:min-h-[80px] rounded-xl overflow-hidden border border-[#2d2d3d] bg-[#1a1a26]"
                   >
-                    <img src={url} alt="" className="w-full h-full object-cover" />
+                    <ProfilePhotoImage url={url} className="w-full h-full object-cover" />
                     <PhotoActionBar
                       showMain
                       onSetMain={() => setAsMain(photoIndex)}
@@ -313,7 +367,9 @@ export function ProfilePhotoGallery({
     );
   }
 
-  const displayPhotos = galleryOnly ? photos.slice(1) : photos;
+  const displayPhotos = (galleryOnly ? photos.slice(1) : photos).filter((url) =>
+    isDisplayableProfilePhotoUrl(url)
+  );
   if (displayPhotos.length === 0) return null;
 
   const gridCols =
@@ -326,18 +382,18 @@ export function ProfilePhotoGallery({
           key={`${url}-${i}`}
           className="relative aspect-square overflow-hidden bg-[#1a1a26]"
         >
-          <img src={url} alt="" className="w-full h-full object-cover" />
+          <ProfilePhotoImage url={url} className="w-full h-full object-cover" />
         </div>
       ))}
     </div>
   );
 
   if (variant === 'bare') {
-    return <section className="w-full -mx-4">{grid}</section>;
+    return <section className="max-w-sm mx-auto w-full">{grid}</section>;
   }
 
   return (
-    <section className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4 space-y-3 w-full">
+    <section className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4 space-y-3 max-w-sm mx-auto w-full">
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wide">
           Photos du profil
@@ -352,7 +408,7 @@ export function ProfilePhotoGallery({
             key={`${url}-${i}`}
             className="relative aspect-square overflow-hidden rounded-xl bg-[#1a1a26] border border-[#2d2d3d]"
           >
-            <img src={url} alt="" className="w-full h-full object-cover" />
+            <ProfilePhotoImage url={url} className="w-full h-full object-cover" />
             {!galleryOnly && i === 0 ? (
               <span className="absolute top-1.5 left-1.5 text-[9px] bg-purple-600/90 text-white px-1.5 py-0.5 rounded-full font-bold">
                 Avatar

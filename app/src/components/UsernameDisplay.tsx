@@ -1,5 +1,9 @@
 import type { ComponentPropsWithoutRef, ElementType } from 'react';
-import { usernameDisplayStyle, type UsernameWaveTint } from '../lib/usernameColor';
+import {
+  usernameDisplayClassName,
+  usernameDisplayStyle,
+  type UsernameWaveTint,
+} from '../lib/usernameColor';
 
 type UsernameDisplayProps<T extends ElementType = 'span'> = {
   username: string;
@@ -32,9 +36,15 @@ export function UsernameDisplay<T extends ElementType = 'span'>({
   const Tag = (as ?? 'span') as ElementType;
   const tint = waveTint(usernameWaveFrom, usernameWaveTo);
   const style = usernameDisplayStyle(usernameColor, tint);
+  const displayClassName = usernameDisplayClassName(usernameColor, tint, className);
 
   return (
-    <Tag className={className || undefined} style={style} title={title ?? username} {...rest}>
+    <Tag
+      className={displayClassName || undefined}
+      style={style}
+      title={title ?? username}
+      {...rest}
+    >
       {username}
     </Tag>
   );

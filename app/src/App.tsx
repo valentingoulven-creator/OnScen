@@ -437,20 +437,15 @@ export default function App() {
                 {t('app.name')}
               </button>
               {isMsdevEnvironment() && (
-                <>
-                  <span className="max-sm:hidden text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full font-bold shrink-0">
-                    msdev
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => void handleMsdevRebuild()}
-                    disabled={msdevRebuilding}
-                    title="Rebuild frontend + recharger (msdev)"
-                    className="text-[10px] px-2 py-0.5 rounded-full border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 disabled:opacity-50 shrink-0 cursor-pointer bg-transparent"
-                  >
-                    {msdevRebuilding ? '⏳ Build…' : '🔄 Rafraîchir'}
-                  </button>
-                </>
+                <button
+                  type="button"
+                  onClick={() => void handleMsdevRebuild()}
+                  disabled={msdevRebuilding}
+                  title="Rebuild frontend + recharger (msdev)"
+                  className="text-[10px] px-2 py-0.5 rounded-full border border-amber-500/40 text-amber-400 hover:bg-amber-500/10 disabled:opacity-50 shrink-0 cursor-pointer bg-transparent max-sm:hidden"
+                >
+                  {msdevRebuilding ? '⏳ Build…' : '🔄 Rafraîchir'}
+                </button>
               )}
             </div>
             <ProfileSearchBar
