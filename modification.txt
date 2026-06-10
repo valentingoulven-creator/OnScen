@@ -3232,3 +3232,34 @@ DATABASE_URL pointant vers le runbook.
 ================================================================================
 Fin MODIF 320 - 2026-06-10
 ================================================================================
+
+================================================================================
+MODIF 321 — Aperçu galerie photos profil (édition)
+Date : 2026-06-10
+================================================================================
+
+## Problème
+- Après sélection d'une image (galerie / fichier), la grille « GALERIE · 0/4 »
+  restait vide : la 1re photo était ajoutée en index 0 (avatar principal) alors
+  que la grille n'affiche que photos.slice(1).
+- L'utilisateur ne voyait pas d'aperçu tant que l'éditeur PhotoImageEditor
+  n'était pas validé ; pas de retour visuel dans l'emplacement cliqué.
+- En ouverture rapide de « Modifier le profil », form.profilePhotos pouvait être
+  vide (refreshUser asynchrone non terminé) → photos enregistrées absentes en édition.
+
+## Correctifs
+- ProfilePhotoGallery : cible avatar vs galerie (pickerTarget), insertion selon
+  le bouton cliqué ; aperçu immédiat dans le cercle avatar ou la case galerie
+  pendant la préparation / édition ; compteur galerie inclut l'aperçu en cours ;
+  éditeur en portal document.body (z-index fiable) ; aide si pas d'avatar.
+- ProfilePage : startEditing recharge /auth/me avant d'initialiser le formulaire ;
+  en édition, connexion plateforme ne réinitialise plus profilePhotos du formulaire.
+
+## Fichiers modifiés
+  app/src/components/ProfilePhotoGallery.tsx
+  app/src/pages/ProfilePage.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 321 - 2026-06-10
+================================================================================

@@ -6,7 +6,7 @@ interface UserAvatarOnlineProps {
   userId: string;
   avatarUrl?: string;
   username?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | 'profile';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'profile' | 'hero';
   isOnline?: boolean;
   isLive?: boolean;
   liveViewersCount?: number;
@@ -19,6 +19,7 @@ const SIZES = {
   lg: 'w-12 h-12',
   xl: 'w-14 h-14',
   profile: 'w-[4.5rem] h-[4.5rem] sm:w-20 sm:h-20',
+  hero: 'w-24 h-24 sm:w-[6.5rem] sm:h-[6.5rem]',
 };
 
 const DOT = {
@@ -27,6 +28,7 @@ const DOT = {
   lg: 'w-3.5 h-3.5 border-2',
   xl: 'w-3.5 h-3.5 border-2',
   profile: 'w-4 h-4 border-2',
+  hero: 'w-4 h-4 border-2',
 };
 
 const LIVE_BADGE = {
@@ -35,6 +37,7 @@ const LIVE_BADGE = {
   lg: 'text-[8px] px-1',
   xl: 'text-[8px] px-1',
   profile: 'text-[9px] px-1.5',
+  hero: 'text-[9px] px-1.5',
 };
 
 const VIEWER_COUNT = {
@@ -43,6 +46,7 @@ const VIEWER_COUNT = {
   lg: 'text-[11px] min-w-[1.35rem]',
   xl: 'text-[11px] min-w-[1.4rem]',
   profile: 'text-[11px] min-w-[1.4rem]',
+  hero: 'text-[11px] min-w-[1.4rem]',
 };
 
 export function UserAvatarOnline({

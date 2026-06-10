@@ -183,8 +183,38 @@ export function UserProfileView({
 
   const avatarUrl = photos[0];
 
+  const publicStatsRow = profile ? (
+    <div className="flex justify-center gap-5 sm:gap-8 mt-3 w-full">
+      {[
+        {
+          value: formatCompactCount(profile.favoritesCount ?? 0),
+          label: 'Favoris',
+        },
+        {
+          value: formatCompactCount(profile.subscriberCount ?? 0),
+          label: 'Abonnés',
+        },
+        {
+          value: formatCompactCount(profile.stats?.salonsHosted ?? 0),
+          label: 'Salons',
+        },
+      ].map((item) => (
+        <div key={item.label} className="text-center min-w-[4.5rem]">
+          <p className="text-base font-bold text-white tabular-nums">{item.value}</p>
+          <p className="text-[10px] text-gray-500 uppercase tracking-wide">{item.label}</p>
+        </div>
+      ))}
+    </div>
+  ) : null;
+
+  const allTags = [
+    ...(profile?.interests ?? []).map((t) => ({ t, color: 'cyan' as const })),
+    ...(profile?.favoriteGenres ?? []).map((t) => ({ t, color: 'purple' as const })),
+    ...(profile?.favoriteArtists ?? []).map((t) => ({ t, color: 'pink' as const })),
+  ];
+
   return (
-    <div className="space-y-4 max-w-lg mx-auto w-full">
+    <div className="space-y-3 max-w-lg mx-auto w-full bg-[#0b0b0f]">
       {(isMatched || justMatched) && (
         <div className="mx-4 text-center p-4 rounded-xl bg-gradient-to-br from-pink-900/50 to-purple-900/40 border border-pink-500/40">
           <p className="text-3xl mb-1">💞</p>
@@ -196,6 +226,7 @@ export function UserProfileView({
       )}
 
       <ProfileHeaderSection
+        variant="compact"
         userId={userId}
         username={displayName}
         usernameColor={displayColor}
@@ -208,45 +239,45 @@ export function UserProfileView({
         age={profile?.age}
         relationshipStatus={profile?.relationshipStatus}
         relationshipStatusCustom={profile?.relationshipStatusCustom}
-        favoritesCount={profile?.favoritesCount}
+        hasPhotoGallery={photos.length > 1}
         isLive={isLiveHost}
         liveViewersCount={liveViewers}
         isSupporter={profile?.isSupporter}
         supporterTier={profile?.supporterTier}
+        statsRow={publicStatsRow}
+        bio={profile?.bio ? <p className="line-clamp-2">{profile.bio}</p> : undefined}
         extraMeta={
-          <>
-            {profile?.subscriberCount != null && profile.subscriberCount > 0 && (
-              <p className="text-xs text-amber-300/80 mt-1">
-                {profile.subscriberCount} abonné{profile.subscriberCount > 1 ? 's' : ''}
-              </p>
-            )}
-            {preview && (
-              <p className="text-xs text-gray-500 mt-1">
-                {preview.distanceKm != null
-                  ? `${preview.distanceKm} km · à proximité`
-                  : preview.city
-                    ? `${preview.city} · à proximité`
-                    : 'À proximité'}
-              </p>
-            )}
-          </>
+          preview ? (
+            <p className="text-[11px] text-gray-500 mt-1">
+              {preview.distanceKm != null
+                ? `${preview.distanceKm} km · à proximité`
+                : preview.city
+                  ? `${preview.city} · à proximité`
+                  : 'À proximité'}
+            </p>
+          ) : undefined
         }
       />
 
-      <div className="px-4 space-y-4">
+      <div className="px-4 space-y-3">
 
       {currentListening && <ProfileCurrentListening listening={currentListening} />}
 
-      {photos.length > 0 && (
+      {photos.length > 1 && (
         <section>
           <div
-            className={`rounded-2xl ${
+            className={
               profile?.isLive || preview?.isLive
-                ? 'p-1 bg-gradient-to-br from-red-500 via-rose-500 to-red-600 shadow-[0_0_16px_rgba(239,68,68,0.45)]'
+                ? 'p-0.5 bg-gradient-to-br from-red-500 via-rose-500 to-red-600 shadow-[0_0_16px_rgba(239,68,68,0.45)]'
                 : ''
-            }`}
+            }
           >
-            <ProfilePhotoGallery photos={photos} fallbackSeed={userId} editing={false} />
+            <ProfilePhotoGallery
+              photos={photos}
+              fallbackSeed={userId}
+              variant="bare"
+              galleryOnly
+            />
           </div>
           {isLiveHost && (
             <p className="text-center text-xs text-red-400 font-bold mt-2">
@@ -280,18 +311,26 @@ export function UserProfileView({
         </button>
       )}
 
-      {profile?.bio && <p className="text-sm text-gray-300 leading-relaxed">{profile.bio}</p>}
-
-      {profile?.interests && profile.interests.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {profile.interests.map((tag) => (
-            <span
-              key={tag}
-              className="text-[10px] px-2 py-1 rounded-full bg-purple-900/30 text-purple-300 border border-purple-500/20"
-            >
-              {tag}
-            </span>
-          ))}
+      {allTags.length > 0 && (
+        <div className="-mx-4 px-4 overflow-x-auto scrollbar-none">
+          <div className="flex gap-1.5 pb-1 min-w-min">
+            {allTags.map(({ t, color }) => {
+              const chipClass =
+                color === 'cyan'
+                  ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/25'
+                  : color === 'purple'
+                    ? 'bg-purple-500/10 text-purple-300 border-purple-500/25'
+                    : 'bg-pink-500/10 text-pink-300 border-pink-500/25';
+              return (
+                <span
+                  key={`${color}-${t}`}
+                  className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] border ${chipClass}`}
+                >
+                  {t}
+                </span>
+              );
+            })}
+          </div>
         </div>
       )}
 
