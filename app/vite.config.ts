@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -25,9 +25,15 @@ const msdevProxy = { target: msdevProxyTarget, secure: false, changeOrigin: true
 
 const swPurgeKey = `melosong_sw_purge_${Date.now().toString(36)}`;
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  // loadEnv lit .env.production (ou .env.msdev, etc.) selon le mode de build,
+  // contrairement à process.env qui ne voit que les variables du shell.
+  const envFromFile = loadEnv(mode, process.cwd(), '');
+  const appEnv = envFromFile.VITE_APP_ENV ?? process.env.VITE_APP_ENV ?? 'msdev';
+
+  return {
   define: {
-    'import.meta.env.VITE_APP_ENV': JSON.stringify(process.env.VITE_APP_ENV || 'msdev'),
+    'import.meta.env.VITE_APP_ENV': JSON.stringify(appEnv),
   },
   plugins: [
     react(),
@@ -49,8 +55,8 @@ export default defineConfig({
       injectRegister: false,
       includeAssets: ['icon.svg', 'favicon.svg', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
-        name: 'Soundly',
-        short_name: 'Soundly',
+        name: 'Soundy',
+        short_name: 'Soundy',
         description: "Salons d'écoute musicale géolocalisés — Spotify & YouTube",
         start_url: '/',
         display: 'standalone' as const,
@@ -84,7 +90,8 @@ export default defineConfig({
          * Clé de cache versionnée : changer manuellement si un conflit de cache
          * majeur survient et que la purge automatique (index.html) ne suffit pas.
          */
-        cacheId: 'melosong-msdev-v7',
+        cacheId: 'melosong-soundy-v8',
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         skipWaiting: true,
         clientsClaim: true,
         /**
@@ -154,4 +161,5 @@ export default defineConfig({
       },
     },
   },
+  };
 });
