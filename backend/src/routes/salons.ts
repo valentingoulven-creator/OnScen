@@ -803,9 +803,14 @@ salonsRouter.delete('/:id', authenticateJWT, (req: Request, res: Response) => {
     res.status(403).json({ error: 'Non autorisé' });
     return;
   }
-  db.salons.delete(salon.id);
-  db.salonChats.delete(salon.id);
-  clearSalonPlaybackData(salon.id);
+  const salonId = salon.id;
+  getIo()?.to(`salon_${salonId}`).emit('salon_ended', {
+    salonId,
+    reason: 'host_deleted',
+  });
+  db.salons.delete(salonId);
+  db.salonChats.delete(salonId);
+  clearSalonPlaybackData(salonId);
   res.json({ ok: true });
 });
 

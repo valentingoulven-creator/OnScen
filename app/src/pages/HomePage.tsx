@@ -164,6 +164,8 @@ interface HomePageProps {
   onMapSalonActive?: (session: { id: string; title?: string } | null) => void;
   /** Quitter volontairement le salon (session + navigation). */
   onLeaveSalon?: () => void;
+  /** Salon introuvable côté API (supprimé / expiré) pendant restore carte. */
+  onSalonRestoreFailed?: (salonId: string) => void;
 }
 
 export function HomePage({
@@ -182,6 +184,7 @@ export function HomePage({
   activeSalonSessionId = null,
   onMapSalonActive,
   onLeaveSalon,
+  onSalonRestoreFailed,
 }: HomePageProps) {
   const { t } = useTranslation();
   const appa2 = isAppa2Layout(appLayout);
@@ -1282,11 +1285,14 @@ export function HomePage({
 
   const restoreSalonOnMap = useCallback(async (salonId: string) => {
     const salon = await resolveSalonById(salonId);
-    if (!salon) return;
+    if (!salon) {
+      onSalonRestoreFailed?.(salonId);
+      return;
+    }
     flyMapTo(salon.latitude, salon.longitude);
     dismissLiveSheetOnly();
     await trySelectSalon(salon, { closeMapProfile: true });
-  }, [resolveSalonById, flyMapTo, dismissLiveSheetOnly, trySelectSalon]);
+  }, [resolveSalonById, flyMapTo, dismissLiveSheetOnly, trySelectSalon, onSalonRestoreFailed]);
 
   useEffect(() => {
     if (!restoreSalonId) return;

@@ -6418,3 +6418,38 @@ que l’UI croyait encore être dedans (ou l’inverse après remount).
 ================================================================================
 Fin MODIF 413 - 2026-06-10
 ================================================================================
+
+================================================================================
+MODIF 414 — salon_ended manquant + restore carte sur salon supprimé
+================================================================================
+Date : 2026-06-10
+
+## Symptôme
+Après MODIF 413, session client correcte mais listeners restent dans un état
+fantôme si le salon est supprimé côté serveur sans événement socket :
+- DELETE /salons/:id (hôte)
+- suppression compte hôte (accountDeletion cascade)
+- restore carte (getSalon 404) sans clear session
+
+## Correctif
+- `salons.ts` DELETE : `salon_ended` { reason: host_deleted } avant purge DB.
+- `accountDeletion.ts` : `salon_ended` { reason: host_account_deleted } par salon hôte.
+- `HomePage` : `onSalonRestoreFailed` si `resolveSalonById` échoue au restore.
+- `App.tsx` : `onSalonRestoreFailed` → `handleSalonForcedEnd('ended')`.
+
+## Fichiers
+- backend/src/routes/salons.ts
+- backend/src/lib/accountDeletion.ts
+- app/src/pages/HomePage.tsx
+- app/src/App.tsx
+- modification.txt
+
+## Test
+  cd app && npx tsc --noEmit
+  1. Listener dans salon → hôte DELETE API → session client cleared + toast/retour
+  2. Session active → retour Carte avec salon expiré/supprimé → pas de barre retour fantôme
+  3. Suppression compte hôte → listeners reçoivent salon_ended
+
+================================================================================
+Fin MODIF 414 - 2026-06-10
+================================================================================

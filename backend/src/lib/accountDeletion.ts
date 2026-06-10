@@ -1,6 +1,7 @@
 import { db } from '../models/schema';
 import { invalidateProfileCache } from '../routes/auth';
 import { purgeReportsForUser } from './contentReports';
+import { getIo } from './ioInstance';
 
 const DELETED_LABEL = '[Compte supprimé]';
 
@@ -14,6 +15,10 @@ function anonymizeChatMessage(msg: { senderId: string; senderName: string; conte
 export function deleteUserAccountCascade(userId: string): void {
   for (const [salonId, salon] of db.salons) {
     if (salon.hostId === userId) {
+      getIo()?.to(`salon_${salonId}`).emit('salon_ended', {
+        salonId,
+        reason: 'host_account_deleted',
+      });
       db.salons.delete(salonId);
       db.salonChats.delete(salonId);
       db.salonQueues.delete(salonId);

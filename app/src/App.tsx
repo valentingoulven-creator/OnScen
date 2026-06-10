@@ -729,6 +729,7 @@ export default function App() {
                     onSalonMapRestored={() => setRestoreSalonOnMapId(null)}
                     onMapSalonActive={handleMapSalonActive}
                     onLeaveSalon={leaveActiveSalonSession}
+                    onSalonRestoreFailed={() => handleSalonForcedEnd('ended')}
                   />
                 </div>
               </Suspense>
