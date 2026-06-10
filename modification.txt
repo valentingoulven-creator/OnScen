@@ -5021,6 +5021,43 @@ Date : 2026-06-10
 ================================================================================
 Fin MODIF 380 - 2026-06-10
 ================================================================================
+
+================================================================================
+MODIF 381 — Upload photo profil : HEIC/HEIF (conversion client fiable)
+================================================================================
+Date : 2026-06-10
+
+## Problème
+Erreur « Ce navigateur ne peut pas lire les photos HEIC/HEIF… » lors de
+l'ajout d'une photo depuis la galerie (profil), malgré heic2any déjà présent
+(MODIF 332 / 339).
+
+## Cause racine
+Vite 8 / Rolldown fusionnait heic2any dans le chunk vendor-misc (~3 Mo).
+L'import dynamique `import('heic2any')` était réécrit en import de vendor-misc
+avec un mauvais index d'export → `mod.default` n'était pas la fonction heic2any
+→ conversion échouait systématiquement et affichait le message bloquant.
+
+## Solution
+- Nouveau `heic2anyLoader.ts` : import statique local → chunk async dédié
+- `imageUtils.ts` : `import('./heic2anyLoader')` au lieu de `import('heic2any')`
+- `vite.config.ts` : `manualChunks` → `vendor-heic2any` (isolé de vendor-misc)
+- Message d'erreur remplacé par fallback uniquement si la conversion échoue
+  réellement (plus le message « navigateur ne peut pas lire »)
+
+## Fichiers modifiés
+  app/src/lib/heic2anyLoader.ts (nouveau)
+  app/src/lib/imageUtils.ts
+  app/vite.config.ts
+  modification.txt
+
+## Test
+  npm run build (tsc -b && vite build) OK
+  Chemin : profil → édition → galerie → photo HEIC Windows/iCloud
+
+================================================================================
+Fin MODIF 381 - 2026-06-10
+================================================================================
 ================================================================================
 MODIF 381 - Photos HEIC/HEIF : conversion client heic2any
 ================================================================================

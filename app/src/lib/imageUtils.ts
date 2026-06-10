@@ -43,8 +43,8 @@ export {
   resizeToProfilePhotoSpecs,
 };
 
-const HEIC_UNSUPPORTED_ERROR =
-  'Ce navigateur ne peut pas lire les photos HEIC/HEIF. Exportez la photo en JPEG depuis votre appareil.';
+const HEIC_CONVERSION_FAILED_ERROR =
+  'Impossible de convertir cette photo HEIC/HEIF. Réessayez avec une autre photo ou exportez-la en JPEG depuis votre appareil.';
 
 const BROWSER_READABLE_MIME: Record<BrowserReadableImageKind, string> = {
   jpeg: 'image/jpeg',
@@ -60,11 +60,11 @@ type Heic2AnyFn = (options: {
 
 let heic2anyLoader: Promise<Heic2AnyFn> | null = null;
 
-/** Import dynamique pour Vite (chunk séparé, worker heic2any intact). */
+/** Import dynamique via chunk local (évite fusion vendor-misc + mauvais export). */
 async function loadHeic2any(): Promise<Heic2AnyFn> {
   if (!heic2anyLoader) {
-    heic2anyLoader = import('heic2any').then((mod) => {
-      const fn = mod.default ?? mod;
+    heic2anyLoader = import('./heic2anyLoader').then((mod) => {
+      const fn = mod.default;
       if (typeof fn !== 'function') {
         throw new Error('Module heic2any indisponible');
       }
@@ -127,7 +127,7 @@ async function convertHeicToJpegFile(file: File): Promise<File> {
     }
   }
 
-  throw lastError instanceof Error ? lastError : new Error(HEIC_UNSUPPORTED_ERROR);
+  throw lastError instanceof Error ? lastError : new Error(HEIC_CONVERSION_FAILED_ERROR);
 }
 
 /**
@@ -146,8 +146,11 @@ export async function prepareImageFile(file: File): Promise<File> {
 
   try {
     return await convertHeicToJpegFile(file);
-  } catch {
-    throw new Error(HEIC_UNSUPPORTED_ERROR);
+  } catch (err) {
+    if (err instanceof Error && err.message && !err.message.includes('heic2any indisponible')) {
+      throw err;
+    }
+    throw new Error(HEIC_CONVERSION_FAILED_ERROR);
   }
 }
 
