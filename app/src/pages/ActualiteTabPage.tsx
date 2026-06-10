@@ -24,6 +24,9 @@ import { StoriesInlineBar, type StorySheetState } from '../components/StoriesInl
 import { StoryViewer } from '../components/StoryViewer';
 import {
   findStackForStory,
+  groupStoriesByUser,
+  latestStory,
+  pickInitialStory,
   resolveNextStory,
   resolvePrevStory,
   stackIndexForStory,
@@ -575,7 +578,7 @@ function ActualitesContent({
 interface PostCardProps {
   post: FeedPost;
   onOpenAuthor: (post: FeedPost) => void;
-  storiesByUser: Map<string, MapStory>;
+  storiesByUser: Map<string, MapStory[]>;
   commentOpenPostId: string | null;
   commentDraft: string;
   onCommentDraftChange: (v: string) => void;
@@ -609,7 +612,7 @@ const PostCard = memo(function PostCard({
 }: PostCardProps) {
   const commentsOpen = commentOpenPostId === post.id;
   const displayedComments = fullComments ?? post.recentComments ?? [];
-  const authorStory = storiesByUser.get(post.author.id);
+  const authorStory = latestStory(storiesByUser.get(post.author.id) ?? []);
   const authorHasStory = !!post.authorHasActiveStory;
 
   const upcoming = isUpcomingEvent(post.eventDate);
@@ -721,7 +724,7 @@ const PostCard = memo(function PostCard({
           >
             <StoryAvatarRing
               hasActiveStory={!!post.resharedFrom.authorHasActiveStory}
-              storyImageUrl={storiesByUser.get(post.resharedFrom.author.id)?.imageUrl}
+              storyImageUrl={latestStory(storiesByUser.get(post.resharedFrom.author.id) ?? [])?.imageUrl}
               avatarUrl={post.resharedFrom.author.avatarUrl}
               size="sm"
             />
@@ -952,7 +955,7 @@ export function ActualiteTabPage({
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Stories pour anneaux / ouverture depuis les publications ──
-  const [feedStoriesByUser, setFeedStoriesByUser] = useState<Map<string, MapStory>>(new Map());
+  const [feedStoriesByUser, setFeedStoriesByUser] = useState<Map<string, MapStory[]>>(new Map());
   const [feedStorySheet, setFeedStorySheet] = useState<StorySheetState>({ kind: 'closed' });
 
   const showToast = useCallback((msg: string) => {
@@ -1040,13 +1043,16 @@ export function ActualiteTabPage({
         api.getStories(token),
         api.getMyStory(token),
       ]);
-      const byUser = new Map<string, MapStory>();
-      for (const s of storiesRes.stories ?? []) {
-        const prev = byUser.get(s.userId);
-        if (!prev || s.createdAt > prev.createdAt) byUser.set(s.userId, s);
+      const allStories = [...(storiesRes.stories ?? [])];
+      const mineStories = mineRes.stories?.length
+        ? mineRes.stories
+        : mineRes.story
+          ? [mineRes.story]
+          : [];
+      for (const s of mineStories) {
+        if (!allStories.some((x) => x.id === s.id)) allStories.push(s);
       }
-      if (mineRes.story) byUser.set(mineRes.story.userId, mineRes.story);
-      setFeedStoriesByUser(byUser);
+      setFeedStoriesByUser(groupStoriesByUser(allStories));
     } catch {
       setFeedStoriesByUser(new Map());
     }
@@ -1092,8 +1098,16 @@ export function ActualiteTabPage({
   }, [isActive, token]);
 
   const feedStoryStacks = useMemo((): StoryUserStack[] => {
-    const stories = [...feedStoriesByUser.values()].sort((a, b) => b.createdAt - a.createdAt);
-    return stories.map((s) => ({ userId: s.userId, stories: [s] }));
+    const stacks: StoryUserStack[] = [];
+    for (const [userId, stories] of feedStoriesByUser) {
+      if (stories.length) stacks.push({ userId, stories });
+    }
+    stacks.sort((a, b) => {
+      const aLatest = a.stories[a.stories.length - 1]?.createdAt ?? 0;
+      const bLatest = b.stories[b.stories.length - 1]?.createdAt ?? 0;
+      return bLatest - aLatest;
+    });
+    return stacks;
   }, [feedStoriesByUser]);
 
   const feedViewerStack =
@@ -1129,7 +1143,8 @@ export function ActualiteTabPage({
   const handlePostAuthorClick = useCallback(
     (post: FeedPost) => {
       if (post.authorHasActiveStory) {
-        const story = feedStoriesByUser.get(post.author.id);
+        const userStories = feedStoriesByUser.get(post.author.id);
+        const story = userStories ? pickInitialStory(userStories, new Set()) : undefined;
         if (story) {
           setFeedStorySheet({ kind: 'view', story, isOwn: post.author.id === user?.id });
           return;

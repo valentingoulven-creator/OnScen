@@ -3,8 +3,12 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { buildMapStoryEntries, type MapStoryEntry } from '../lib/mapStoriesFeed';
 import {
+  areAllStoriesSeen,
   buildStoryUserStacks,
   findStackForStory,
+  groupStoriesByUser,
+  latestStory,
+  pickInitialStory,
   resolveNextStory,
   resolvePrevStory,
   stackIndexForStory,
@@ -74,8 +78,8 @@ export function StoriesInlineBar({
 }: StoriesInlineBarProps) {
   const { token, user } = useAuth();
   const [entries, setEntries] = useState<MapStoryEntry[]>([]);
-  const [myStory, setMyStory] = useState<MapStory | null>(null);
-  const [storiesByUser, setStoriesByUser] = useState<Map<string, MapStory>>(new Map());
+  const [myStories, setMyStories] = useState<MapStory[]>([]);
+  const [storiesByUser, setStoriesByUser] = useState<Map<string, MapStory[]>>(new Map());
   const [sheet, setSheet] = useState<StorySheetState>({ kind: 'closed' });
   const [loading, setLoading] = useState(false);
   const [collapsed, setCollapsed] = useState(isMapStoriesCollapsed);
@@ -141,7 +145,7 @@ export function StoriesInlineBar({
   const loadStories = useCallback(async () => {
     if (!token) {
       setEntries([]);
-      setMyStory(null);
+      setMyStories([]);
       setStoriesByUser(new Map());
       return;
     }
@@ -204,13 +208,9 @@ export function StoriesInlineBar({
       }
 
       const followedEphemeral = (storiesRes.stories ?? []).filter((s) => isFollowed(s.userId));
-      const byUser = new Map<string, MapStory>();
-      for (const s of followedEphemeral) {
-        const prev = byUser.get(s.userId);
-        if (!prev || s.createdAt > prev.createdAt) byUser.set(s.userId, s);
-      }
+      const byUser = groupStoriesByUser(followedEphemeral);
       setStoriesByUser(byUser);
-      setMyStory(mineRes.story);
+      setMyStories(mineRes.stories ?? (mineRes.story ? [mineRes.story] : []));
 
       const filteredPeople = syntheticPeople.filter((p) => p.id !== user?.id);
       setEntries(
@@ -223,7 +223,7 @@ export function StoriesInlineBar({
       );
     } catch {
       setEntries([]);
-      setMyStory(null);
+      setMyStories([]);
       setStoriesByUser(new Map());
     } finally {
       setLoading(false);
@@ -237,7 +237,8 @@ export function StoriesInlineBar({
 
   const openEntry = (entry: MapStoryEntry) => {
     if (entry.hasActiveStory && entry.storyId) {
-      const story = storiesByUser.get(entry.userId);
+      const userStories = storiesByUser.get(entry.userId);
+      const story = userStories ? pickInitialStory(userStories, seenStoryIds) : undefined;
       if (story) {
         markStoryAsSeen(story.id);
         setSheet({ kind: 'view', story, isOwn: entry.userId === user?.id });
@@ -256,31 +257,47 @@ export function StoriesInlineBar({
   };
 
   const openMyStory = () => {
-    if (myStory) {
-      markStoryAsSeen(myStory.id);
-      setSheet({ kind: 'view', story: myStory, isOwn: true });
+    if (myStories.length) {
+      const story = pickInitialStory(myStories, seenStoryIds) ?? myStories[0]!;
+      markStoryAsSeen(story.id);
+      setSheet({ kind: 'view', story, isOwn: true });
     } else {
       setSheet({ kind: 'create' });
     }
   };
 
   const handlePublished = (story: MapStory) => {
-    setMyStory(story);
-    setStoriesByUser((prev) => new Map(prev).set(story.userId, story));
+    setMyStories((prev) => [...prev, story].sort((a, b) => a.createdAt - b.createdAt));
+    setStoriesByUser((prev) => {
+      const next = new Map(prev);
+      const list = [...(next.get(story.userId) ?? []), story].sort((a, b) => a.createdAt - b.createdAt);
+      next.set(story.userId, list);
+      return next;
+    });
     void loadStories();
   };
+
+  const myLatestStory = latestStory(myStories);
 
   const showEmpty = !loading && entries.length === 0 && !user;
 
   const sortedEntries = useMemo(() => {
-    const unseen = entries.filter((e) => !e.storyId || !seenStoryIds.has(e.storyId));
-    const seen = entries.filter((e) => e.storyId && seenStoryIds.has(e.storyId));
+    const unseen = entries.filter((e) => {
+      if (!e.hasActiveStory) return true;
+      const stack = storiesByUser.get(e.userId);
+      return !stack?.length || !areAllStoriesSeen(stack, seenStoryIds);
+    });
+    const seen = entries.filter((e) => {
+      if (!e.hasActiveStory) return false;
+      const stack = storiesByUser.get(e.userId);
+      return !!stack?.length && areAllStoriesSeen(stack, seenStoryIds);
+    });
     return [...unseen, ...seen];
-  }, [entries, seenStoryIds]);
+  }, [entries, seenStoryIds, storiesByUser]);
 
   const storyStacks = useMemo(
-    () => buildStoryUserStacks(sortedEntries, storiesByUser, myStory),
-    [sortedEntries, storiesByUser, myStory]
+    () => buildStoryUserStacks(sortedEntries, storiesByUser, myStories),
+    [sortedEntries, storiesByUser, myStories]
   );
 
   const viewerStack =
@@ -417,15 +434,28 @@ export function StoriesInlineBar({
                       userId={user.id}
                       username={user.username}
                       avatarUrl={user.avatarUrl}
-                      hasActiveStory={!!myStory}
-                      storyImageUrl={myStory?.imageUrl}
+                      hasActiveStory={myStories.length > 0}
+                      storyImageUrl={myLatestStory?.imageUrl}
+                      storyCount={myStories.length}
                       onClick={openMyStory}
                       onAddClick={() => setSheet({ kind: 'create' })}
                     />
                   ) : null}
-                  {sortedEntries.map((entry) => (
-                    <MapStoryRing key={entry.userId} entry={entry} onClick={() => openEntry(entry)} isSeen={!!entry.storyId && seenStoryIds.has(entry.storyId)} />
-                  ))}
+                  {sortedEntries.map((entry) => {
+                    const userStoryIds = storiesByUser.get(entry.userId)?.map((s) => s.id);
+                    const stack = storiesByUser.get(entry.userId);
+                    const entrySeen = stack?.length ? areAllStoriesSeen(stack, seenStoryIds) : false;
+                    return (
+                      <MapStoryRing
+                        key={entry.userId}
+                        entry={entry}
+                        onClick={() => openEntry(entry)}
+                        isSeen={entrySeen}
+                        storyIds={userStoryIds}
+                        seenStoryIds={seenStoryIds}
+                      />
+                    );
+                  })}
                 </div>
               )}
             </div>

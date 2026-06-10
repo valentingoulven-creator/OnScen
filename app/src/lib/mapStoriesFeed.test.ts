@@ -77,9 +77,26 @@ describe('buildViewableStories', () => {
         isFavorite: false,
       },
     ];
-    const byUser = new Map([['u2', story]]);
-    const list = buildViewableStories(entries, byUser, myStory);
+    const byUser = new Map([['u2', [story]]]);
+    const list = buildViewableStories(entries, byUser, [myStory]);
     expect(list.map((s) => s.id)).toEqual(['mine', 's1']);
+  });
+
+  it('includes all segments in user stack', () => {
+    const s2: MapStory = { ...story, id: 's2', createdAt: story.createdAt + 1000 };
+    const entries: MapStoryEntry[] = [
+      {
+        userId: 'u2',
+        username: 'Bob',
+        storyId: 's2',
+        hasActiveStory: true,
+        storyCount: 2,
+        isFavorite: false,
+      },
+    ];
+    const byUser = new Map([['u2', [story, s2]]]);
+    const list = buildViewableStories(entries, byUser, null);
+    expect(list.map((s) => s.id)).toEqual(['s1', 's2']);
   });
 
   it('skips entries without active story', () => {

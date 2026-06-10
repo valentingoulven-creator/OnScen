@@ -8,20 +8,55 @@ export interface StoryUserStack {
   stories: MapStory[];
 }
 
+/** Ordre chronologique (plus ancienne → plus récente) pour la pile visionneuse. */
+export function sortStoriesChronological(stories: MapStory[]): MapStory[] {
+  return [...stories].sort((a, b) => a.createdAt - b.createdAt);
+}
+
+export function latestStory(stories: MapStory[]): MapStory | undefined {
+  const sorted = sortStoriesChronological(stories);
+  return sorted[sorted.length - 1];
+}
+
+/** Regroupe les stories actives par utilisateur (ordre chronologique dans chaque pile). */
+export function groupStoriesByUser(stories: MapStory[]): Map<string, MapStory[]> {
+  const map = new Map<string, MapStory[]>();
+  for (const story of stories) {
+    const list = map.get(story.userId) ?? [];
+    list.push(story);
+    map.set(story.userId, list);
+  }
+  for (const [userId, list] of map) {
+    map.set(userId, sortStoriesChronological(list));
+  }
+  return map;
+}
+
+export function areAllStoriesSeen(stories: MapStory[], seenIds: Set<string>): boolean {
+  return stories.length > 0 && stories.every((s) => seenIds.has(s.id));
+}
+
+/** Première story non vue, sinon la plus ancienne (relecture). */
+export function pickInitialStory(stories: MapStory[], seenIds: Set<string>): MapStory | undefined {
+  const sorted = sortStoriesChronological(stories);
+  if (!sorted.length) return undefined;
+  return sorted.find((s) => !seenIds.has(s.id)) ?? sorted[0];
+}
+
 /** Piles de stories par utilisateur (ordre bandeau : ma story puis entrées). */
 export function buildStoryUserStacks(
   entries: MapStoryEntry[],
-  storiesByUser: Map<string, MapStory>,
-  myStory?: MapStory | null
+  storiesByUser: Map<string, MapStory[]>,
+  myStories?: MapStory[] | null
 ): StoryUserStack[] {
   const stacks: StoryUserStack[] = [];
-  if (myStory) {
-    stacks.push({ userId: myStory.userId, stories: [myStory] });
+  if (myStories?.length) {
+    stacks.push({ userId: myStories[0]!.userId, stories: sortStoriesChronological(myStories) });
   }
   for (const entry of entries) {
     if (!entry.hasActiveStory || !entry.storyId) continue;
-    const story = storiesByUser.get(entry.userId);
-    if (story) stacks.push({ userId: entry.userId, stories: [story] });
+    const userStories = storiesByUser.get(entry.userId);
+    if (userStories?.length) stacks.push({ userId: entry.userId, stories: userStories });
   }
   return stacks;
 }

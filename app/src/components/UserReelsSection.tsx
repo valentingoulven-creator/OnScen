@@ -495,15 +495,15 @@ export function UserReelsSection({
               Publier sur votre profil
             </h4>
             <p className="text-[11px] text-gray-500">
-              Reel privé — visible sur votre profil uniquement (max {REEL_RECORD_MAX_SEC} s).
+              Reel privé — visible sur votre profil uniquement.
             </p>
-            <div className="flex gap-3">
+            <div className="space-y-3">
               <img
                 src={pendingUpload.posterUrl}
                 alt=""
-                className="w-16 aspect-[9/16] rounded-lg object-cover border border-[#2d2d3d] shrink-0"
+                className="w-full max-w-[min(100%,12rem)] mx-auto aspect-[9/16] rounded-xl object-cover border border-[#2d2d3d]"
               />
-              <div className="flex-1 min-w-0 space-y-2">
+              <div className="space-y-3">
                 <label className="block">
                   <span className="text-xs text-gray-400">Titre</span>
                   <input

@@ -378,7 +378,7 @@ export function ProfilePage({
           }
           bio={
             !editing && user.bio ? (
-              <p className="line-clamp-2">{user.bio}</p>
+              <p className="whitespace-pre-wrap break-words">{user.bio}</p>
             ) : !editing ? (
               <p className="text-gray-500 italic text-xs">Ajoutez une bio via Modifier</p>
             ) : undefined

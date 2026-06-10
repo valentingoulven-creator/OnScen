@@ -274,7 +274,11 @@ export function UserProfileView({
         isSupporter={profile?.isSupporter}
         supporterTier={profile?.supporterTier}
         statsRow={publicStatsRow}
-        bio={profile?.bio ? <p className="line-clamp-2">{profile.bio}</p> : undefined}
+        bio={
+          profile?.bio ? (
+            <p className="whitespace-pre-wrap break-words">{profile.bio}</p>
+          ) : undefined
+        }
         extraMeta={
           preview ? (
             <p className="text-[11px] text-gray-500 mt-1">

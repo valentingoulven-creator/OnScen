@@ -6,6 +6,10 @@ import {
 } from './reelFeedRanking';
 import { REEL_CATALOG_ENTRIES } from './reelsDemoCatalog';
 import { getFollowingIds } from './follows';
+import {
+  MAX_RECORDED_REEL_VIDEO_DATA_CHARS,
+  REEL_UPLOAD_MAX_FILE_BYTES,
+} from './reelUploadLimits';
 
 /** Durées approximatives Mixkit — alignées sur app/src/content/reels.ts */
 const MIXKIT_DURATION_SEC: Record<number, number> = {
@@ -326,12 +330,13 @@ function isHttpUrl(value: string): boolean {
   }
 }
 
-/** Vidéo enregistrée côté client (data URL) — limite alignée sur express.json 2 Mo. */
+/** Vidéo importée/enregistrée côté client (data URL) — plafond TikTok ~287 MiB brut. */
 const RECORDED_VIDEO_DATA_RE =
   /^data:video\/(webm|mp4|quicktime|x-m4v)(?:;[^;,]+)*;base64,[A-Za-z0-9+/=]+$/;
 const RECORDED_POSTER_DATA_RE = /^data:image\/(jpeg|png|webp)(?:;[^;,]+)*;base64,[A-Za-z0-9+/=]+$/;
-const MAX_RECORDED_VIDEO_CHARS = 1_650_000;
+const MAX_RECORDED_VIDEO_CHARS = MAX_RECORDED_REEL_VIDEO_DATA_CHARS;
 const MAX_RECORDED_POSTER_CHARS = 220_000;
+const REEL_UPLOAD_MAX_FILE_MB = Math.round(REEL_UPLOAD_MAX_FILE_BYTES / (1024 * 1024));
 
 export function isRecordedReelVideoUrl(url: string): boolean {
   const trimmed = url.trim();
@@ -449,8 +454,8 @@ export function createUserReel(authorId: string, input: CreateUserReelInput): Us
     return {
       error:
         visibility === 'private'
-          ? 'Média invalide pour un reel privé (vidéo ou image, max ~1,5 Mo)'
-          : 'Média non autorisé : vidéo Mixkit, image Unsplash, ou enregistrement caméra (max ~1,5 Mo)',
+          ? `Média invalide pour un reel privé (vidéo ou image, max ~${REEL_UPLOAD_MAX_FILE_MB} Mo)`
+          : `Média non autorisé : vidéo Mixkit, image Unsplash, ou enregistrement caméra (max ~${REEL_UPLOAD_MAX_FILE_MB} Mo)`,
     };
   }
   if (

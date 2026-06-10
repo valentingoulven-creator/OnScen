@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authenticateJWT } from '../middleware/auth';
 import { schedulePersist } from '../lib/persist';
-import { createStory, getMyActiveStory, listStoriesForViewer } from '../lib/stories';
+import { createStory, getMyActiveStory, getUserActiveStories, listStoriesForViewer } from '../lib/stories';
 import { notifyMentions } from '../lib/mentions';
 import { db } from '../models/schema';
 
@@ -24,7 +24,8 @@ storiesRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
 
 storiesRouter.get('/mine', authenticateJWT, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
-  res.json({ story: getMyActiveStory(me) });
+  const stories = getUserActiveStories(me);
+  res.json({ stories, story: stories.length ? stories[stories.length - 1]! : null });
 });
 
 storiesRouter.post('/', authenticateJWT, (req: Request, res: Response) => {

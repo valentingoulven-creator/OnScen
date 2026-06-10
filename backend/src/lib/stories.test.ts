@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { db } from '../models/schema';
-import { createStory, getMyActiveStory, listStoriesForViewer, purgeExpiredStories } from './stories';
+import { createStory, getMyActiveStory, getUserActiveStories, listStoriesForViewer, MAX_ACTIVE_STORIES_PER_USER, purgeExpiredStories } from './stories';
 
 function seedUser(id: string, lat: number, lon: number) {
   db.users.set(id, {
@@ -35,16 +35,27 @@ describe('stories', () => {
     expect(getMyActiveStory('me')?.content).toBe('Hello');
   });
 
-  it('replaces previous active story for same user', () => {
+  it('allows multiple active stories for same user', () => {
     createStory('me', { content: 'A' });
     createStory('me', { content: 'B' });
     expect(getMyActiveStory('me')?.content).toBe('B');
-    expect(db.stories.filter((s) => s.userId === 'me')).toHaveLength(1);
+    expect(getUserActiveStories('me')).toHaveLength(2);
+    expect(getUserActiveStories('me').map((s) => s.content)).toEqual(['A', 'B']);
+    expect(db.stories.filter((s) => s.userId === 'me')).toHaveLength(2);
+  });
+
+  it('rejects when max active stories reached', () => {
+    for (let i = 0; i < MAX_ACTIVE_STORIES_PER_USER; i++) {
+      const r = createStory('me', { content: `S${i}` });
+      expect(r.ok).toBe(true);
+    }
+    const overflow = createStory('me', { content: 'too many' });
+    expect(overflow.ok).toBe(false);
   });
 
   it('filters nearby stories by radius', () => {
-    createStory('near', { content: 'proche' });
-    createStory('far', { content: 'loin' });
+    createStory('near', { content: 'proche', visibility: 'public' });
+    createStory('far', { content: 'loin', visibility: 'public' });
     const list = listStoriesForViewer('me', {
       latitude: 48.85,
       longitude: 2.35,

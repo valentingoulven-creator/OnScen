@@ -31,6 +31,7 @@ import { accessRouter } from './routes/access';
 import { newsRouter } from './routes/news';
 import { trendingRouter } from './routes/trending';
 import { getPublicDir, getMsdevConfigPath } from './paths';
+import { REEL_UPLOAD_JSON_BODY_LIMIT } from './lib/reelUploadLimits';
 
 export const app = express();
 
@@ -310,6 +311,7 @@ app.post(
   express.raw({ type: 'application/json' }),
   (req, res) => void handleStripeSubscriptionWebhook(req, res)
 );
+app.use('/api/reels', express.json({ limit: REEL_UPLOAD_JSON_BODY_LIMIT }));
 app.use(express.json({ limit: '15mb' }));
 
 const publicDir = getPublicDir();

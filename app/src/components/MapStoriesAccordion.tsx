@@ -6,6 +6,9 @@ import { buildMapStoryEntries, type MapStoryEntry } from '../lib/mapStoriesFeed'
 import {
   buildStoryUserStacks,
   findStackForStory,
+  groupStoriesByUser,
+  latestStory,
+  pickInitialStory,
   resolveNextStory,
   resolvePrevStory,
   stackIndexForStory,
@@ -70,8 +73,8 @@ export function MapStoriesAccordion({
   const [hidden, setHidden] = useState(isMapStoriesHidden);
   const [collapsed, setCollapsed] = useState(isMapStoriesCollapsed);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [myStory, setMyStory] = useState<MapStory | null>(null);
-  const [storiesByUser, setStoriesByUser] = useState<Map<string, MapStory>>(new Map());
+  const [myStories, setMyStories] = useState<MapStory[]>([]);
+  const [storiesByUser, setStoriesByUser] = useState<Map<string, MapStory[]>>(new Map());
   const [storyFeed, setStoryFeed] = useState<{
     favorites: User[];
     reels: MusicReel[];
@@ -116,7 +119,7 @@ export function MapStoriesAccordion({
   const fetchStoryFeed = useCallback(async () => {
     if (!token) {
       setStoryFeed(null);
-      setMyStory(null);
+      setMyStories([]);
       setStoriesByUser(new Map());
       return;
     }
@@ -139,13 +142,9 @@ export function MapStoriesAccordion({
         .filter((r): r is MusicReel => r != null);
 
       const ephemeral = storiesRes.stories ?? [];
-      const byUser = new Map<string, MapStory>();
-      for (const s of ephemeral) {
-        const prev = byUser.get(s.userId);
-        if (!prev || s.createdAt > prev.createdAt) byUser.set(s.userId, s);
-      }
+      const byUser = groupStoriesByUser(ephemeral);
       setStoriesByUser(byUser);
-      setMyStory(mineRes.story);
+      setMyStories(mineRes.stories ?? (mineRes.story ? [mineRes.story] : []));
       setStoryFeed({
         favorites: favRes.favorites,
         reels,
@@ -154,7 +153,7 @@ export function MapStoriesAccordion({
       });
     } catch {
       setStoryFeed(null);
-      setMyStory(null);
+      setMyStories([]);
       setStoriesByUser(new Map());
     } finally {
       setLoading(false);
@@ -182,8 +181,8 @@ export function MapStoriesAccordion({
   }, [entries.length, loading, token, user]);
 
   const storyStacks = useMemo(
-    () => buildStoryUserStacks(entries, storiesByUser, myStory),
-    [entries, storiesByUser, myStory]
+    () => buildStoryUserStacks(entries, storiesByUser, myStories),
+    [entries, storiesByUser, myStories]
   );
 
   const viewerStack =
@@ -212,7 +211,8 @@ export function MapStoriesAccordion({
 
   const openEntry = (entry: MapStoryEntry) => {
     if (entry.hasActiveStory && entry.storyId) {
-      const story = storiesByUser.get(entry.userId);
+      const userStories = storiesByUser.get(entry.userId);
+      const story = userStories ? pickInitialStory(userStories, new Set()) : undefined;
       if (story) {
         setSheet({ kind: 'view', story, isOwn: entry.userId === user?.id });
         return;
@@ -238,18 +238,26 @@ export function MapStoriesAccordion({
   };
 
   const openMyStory = () => {
-    if (myStory) {
-      setSheet({ kind: 'view', story: myStory, isOwn: true });
+    if (myStories.length) {
+      const story = pickInitialStory(myStories, new Set()) ?? myStories[0]!;
+      setSheet({ kind: 'view', story, isOwn: true });
     } else {
       setSheet({ kind: 'create' });
     }
   };
 
   const handlePublished = (story: MapStory) => {
-    setMyStory(story);
-    setStoriesByUser((prev) => new Map(prev).set(story.userId, story));
+    setMyStories((prev) => [...prev, story].sort((a, b) => a.createdAt - b.createdAt));
+    setStoriesByUser((prev) => {
+      const next = new Map(prev);
+      const list = [...(next.get(story.userId) ?? []), story].sort((a, b) => a.createdAt - b.createdAt);
+      next.set(story.userId, list);
+      return next;
+    });
     void fetchStoryFeed();
   };
+
+  const myLatestStory = latestStory(myStories);
 
   const showEmpty = !loading && entries.length === 0 && !user;
 
@@ -394,14 +402,20 @@ export function MapStoriesAccordion({
                       userId={user.id}
                       username={user.username}
                       avatarUrl={user.avatarUrl}
-                      hasActiveStory={!!myStory}
-                      storyImageUrl={myStory?.imageUrl}
+                      hasActiveStory={myStories.length > 0}
+                      storyImageUrl={myLatestStory?.imageUrl}
+                      storyCount={myStories.length}
                       onClick={openMyStory}
                       onAddClick={() => setSheet({ kind: 'create' })}
                     />
                   ) : null}
                   {entries.map((entry) => (
-                    <MapStoryRing key={entry.userId} entry={entry} onClick={() => openEntry(entry)} />
+                    <MapStoryRing
+                      key={entry.userId}
+                      entry={entry}
+                      onClick={() => openEntry(entry)}
+                      storyIds={storiesByUser.get(entry.userId)?.map((s) => s.id)}
+                    />
                   ))}
                 </div>
               )}

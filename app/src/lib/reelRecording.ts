@@ -1,14 +1,19 @@
-/** Durée max d'enregistrement (msdev : tenir dans le JSON 2 Mo). */
+/** Durée max d'enregistrement / import (short-form, aligné TikTok). */
 export const REEL_RECORD_MAX_SEC = 30;
 
-/** Taille max estimée du corps POST (express.json 2 Mo). */
-export const REEL_UPLOAD_JSON_LIMIT_BYTES = 2 * 1024 * 1024;
+/** TikTok mobile upload cap — 287 MiB (commonly cited for short-form video). */
+export const REEL_UPLOAD_MAX_FILE_BYTES = 287 * 1024 * 1024;
 
-/** Fichier brut max avant encodage base64 (~1,1 Mo → ~1,5 Mo data URL). */
-export const REEL_UPLOAD_MAX_FILE_BYTES = 1_100_000;
+/** Taille max estimée du corps POST (base64 ~4/3 + poster/métadonnées). */
+export const REEL_UPLOAD_JSON_LIMIT_BYTES =
+  Math.ceil(REEL_UPLOAD_MAX_FILE_BYTES * (4 / 3)) + 512 * 1024;
 
-/** Marge pour métadonnées JSON hors data URLs. */
-export const REEL_UPLOAD_PAYLOAD_MARGIN_BYTES = 120_000;
+/** Marge pour métadonnées JSON hors data URL vidéo. */
+export const REEL_UPLOAD_PAYLOAD_MARGIN_BYTES = 512 * 1024;
+
+/** Max longueur data URL vidéo (base64 + préfixe). */
+export const MAX_RECORDED_REEL_VIDEO_DATA_CHARS =
+  Math.ceil((REEL_UPLOAD_MAX_FILE_BYTES * 4) / 3) + 64;
 
 export const REEL_RECORD_VIDEO_BITS_PER_SEC = 250_000;
 export const REEL_RECORD_AUDIO_BITS_PER_SEC = 32_000;

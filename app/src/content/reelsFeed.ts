@@ -1,4 +1,5 @@
 import { MUSIC_REELS, type MusicReel } from './reels';
+import { MAX_RECORDED_REEL_VIDEO_DATA_CHARS } from '../lib/reelRecording';
 
 const MIXKIT_VIDEO_RE =
   /^https:\/\/assets\.mixkit\.co\/videos\/\d+\/\d+(-720)?\.mp4(?:\?.*)?$/i;
@@ -13,7 +14,7 @@ const BLOCKED_MEDIA_RE =
 
 const RECORDED_VIDEO_DATA_RE = /^data:video\/(webm|mp4|quicktime|x-m4v)(?:;[^;,]+)*;base64,/i;
 const RECORDED_POSTER_DATA_RE = /^data:image\/(jpeg|png|webp)(?:;[^;,]+)*;base64,/i;
-const MAX_RECORDED_VIDEO_CHARS = 1_650_000;
+const MAX_RECORDED_VIDEO_CHARS = MAX_RECORDED_REEL_VIDEO_DATA_CHARS;
 const MAX_RECORDED_POSTER_CHARS = 220_000;
 
 function isRecordedReelVideoUrl(url: string): boolean {

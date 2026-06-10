@@ -4757,3 +4757,248 @@ Date : 2026-06-10
 ================================================================================
 Fin MODIF 369 - 2026-06-10
 ================================================================================
+
+================================================================================
+MODIF 370 — Visionneuse photos compacte (ProfilePhotoViewer)
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- Modal centré max-w-sm/md (plus de plein écran flex-1) ; image max ~18rem / 45dvh.
+
+## Fichiers modifiés
+  app/src/components/ProfilePhotoViewer.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 370 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 371 — Stories multiples par utilisateur (style Instagram)
+================================================================================
+Date : 2026-06-10
+
+## Contexte (existant)
+- Table `stories` (id, user_id, payload JSONB) : plusieurs lignes par user déjà possibles en DB.
+- Logique applicative limitait à **1 story active** : `createStory` supprimait les précédentes ;
+  `listStoriesForViewer` ne renvoyait que la plus récente par user.
+- Frontend : `StoryViewer` supportait déjà piles/segments (barres, swipe, tap) mais une seule
+  story par pile ; `MyMapStoryRing` avait déjà le bouton « + ».
+
+## Changements backend
+- `createStory` : **n'écrase plus** les stories actives ; plafond 20 actives / user (24 h chacune).
+- `getUserActiveStories(userId)` : toutes les stories actives (ordre chronologique).
+- `getUserActiveStory` : dernière publiée (aperçu anneau).
+- `GET /stories` : renvoie **toutes** les stories actives visibles (plusieurs par auteur).
+- `GET /stories/mine` : `{ stories: PublicStory[], story: PublicStory | null }` (story = dernière).
+
+## Changements frontend
+- `StoriesInlineBar`, `MapStoriesAccordion`, fil Actualité : piles `Map<string, MapStory[]>`.
+- Anneaux segmentés (`StorySegmentRing`) si storyCount > 1 ; état « vu » par segment.
+- « Ma story » : clic → visionneuse pile ; « + » → `MapStorySheet` sans remplacer les précédentes.
+- `storyViewerNav` : `groupStoriesByUser`, `pickInitialStory`, navigation intra/inter-piles.
+
+## Migration SQL
+- **Aucune** : schéma déjà compatible (1 row = 1 story).
+
+## Fichiers modifiés
+  backend/src/lib/stories.ts
+  backend/src/lib/stories.test.ts
+  backend/src/routes/stories.ts
+  app/src/lib/api.ts
+  app/src/lib/storyViewerNav.ts
+  app/src/lib/mapStoriesFeed.ts
+  app/src/lib/mapStoriesFeed.test.ts
+  app/src/components/MapStoryRings.tsx
+  app/src/components/StoriesInlineBar.tsx
+  app/src/components/MapStoriesAccordion.tsx
+  app/src/pages/ActualiteTabPage.tsx
+  modification.txt
+
+## UX — publier une 2e story
+1. L'utilisateur a déjà une story active → anneau « Ma story » avec segments + bouton « + ».
+2. Tap « + » → `MapStorySheet` (création).
+3. Publier → `POST /stories` ajoute une story (24 h) ; la 1re reste active.
+4. Tap anneau « Ma story » → `StoryViewer` avec barres de progression ; swipe/tap entre segments.
+
+## Vérification
+  backend/ → npx tsc --noEmit → exit 0
+  app/     → npx tsc --noEmit → exit 0
+  vitest stories.test.ts, mapStoriesFeed.test.ts → OK
+
+================================================================================
+Fin MODIF 371 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 372 — Logo Soundy → Accueil
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- Clic sur le logo « Soundy » en en-tête : ouvre l’onglet Accueil (`actualite`) au lieu de la Carte.
+- `selectTab('actualite')` ferme aussi le profil overlay et remet la vue sur le fil d’accueil.
+- `title` / `aria-label` : `nav.home` (« Accueil ») au lieu de `nav.goToMap`.
+
+## Fichiers modifiés
+  app/src/App.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 372 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 373 — Plafond upload reel TikTok (~287 Mo)
+================================================================================
+Date : 2026-06-10
+
+## Contexte
+- Limite précédente ~1,0–1,1 Mo (fichier brut) / ~1,5 Mo (data URL backend) — trop basse pour imports vidéo réalistes.
+- TikTok mobile autorise ~287 MiB par upload vidéo (référence courante pour le short-form).
+
+## Choix retenu
+- **Fichier brut max** : `287 * 1024 * 1024` octets (**287 Mo** affichés).
+- **Durée max inchangée** : 30 s (`REEL_RECORD_MAX_SEC`) — short-form aligné TikTok/Reels.
+- **Payload JSON** : base64 (~×4/3) + marge poster/métadonnées ; `express.json` dédié `/api/reels` (~383 Mo).
+- Architecture inchangée : vidéo en data URL dans le corps POST (pas de multipart).
+
+## Fichiers modifiés
+  app/src/lib/reelRecording.ts
+  app/src/content/reelsFeed.ts
+  backend/src/lib/reelUploadLimits.ts (nouveau)
+  backend/src/lib/reels.ts
+  backend/src/server.ts
+  modification.txt
+
+## Limites
+| Couche | Avant | Après |
+|--------|-------|-------|
+| Frontend fichier | 1 100 000 o (~1,0 Mo) | 300 647 710 o (287 Mo) |
+| Frontend JSON | 2 Mo | ~383 Mo |
+| Backend data URL | 1 650 000 car. (~1,5 Mo) | ~400 863 678 car. |
+| express.json /api/reels | 15 Mo (global) | 383 Mo (route dédiée) |
+
+================================================================================
+Fin MODIF 373 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 374 — Bio profil complète dans l'en-tête
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- Bio du profil (propre profil et profil public) : affichage intégral dans
+  ProfileHeaderSection, sans troncature `line-clamp-2`.
+- `whitespace-pre-wrap break-words` pour respecter les retours à la ligne.
+
+## Fichiers modifiés
+  app/src/pages/ProfilePage.tsx
+  app/src/components/UserProfileView.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 374 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 375 — Caption publish reel privé sans limite durée
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- Modal « Publier sur votre profil » (UserReelsSection) : suppression de la
+  mention « (max 30 s) » dans le texte d’aide du reel privé.
+- Texte affiché : « Reel privé — visible sur votre profil uniquement. »
+- Validation backend REEL_RECORD_MAX_SEC et messages d’erreur inchangés.
+
+## Fichiers modifiés
+  app/src/components/UserReelsSection.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 375 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 376 — Modal publish reel : aperçu vidéo agrandi, champs en dessous
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- Modal « Publier sur votre profil » (UserReelsSection) : passage d’un layout
+  horizontal (miniature w-16 à gauche, champs à droite) à une colonne verticale.
+- Aperçu vidéo centré, plus large (max-w-[min(100%,12rem)], aspect 9/16).
+- Champs Titre / Artiste / Genre empilés sous la vidéo (space-y-3).
+- ProfileReelRecorder inchangé (déjà en colonne avec vidéo au-dessus).
+
+## Fichiers modifiés
+  app/src/components/UserReelsSection.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 376 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 377 — Fix build frontend (import inutilisé MapStoriesAccordion)
+================================================================================
+Date : 2026-06-10
+
+## Cause
+- `npm run build` (`tsc -b && vite build`) échouait avec TS6133 :
+  `areAllStoriesSeen` importé mais non utilisé dans MapStoriesAccordion.tsx
+  (reste MODIF 371 multi-story).
+- Le bouton msdev « Rafraîchir » affichait « Échec du build frontend ».
+
+## Correction
+- Retrait de l'import `areAllStoriesSeen` inutilisé.
+
+## Fichiers modifiés
+  app/src/components/MapStoriesAccordion.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 377 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 378 — Visionneuse photos agrandie style Instagram (ProfilePhotoViewer)
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- Modal plus large et haute : max ~32rem / 85dvh (vs max-w-sm/md et 72dvh en MODIF 370).
+- Zone photo flex-1 sans padding horizontal (suppression px-2 sm:px-10).
+- Image object-contain remplit l'espace entre en-tête et pied (plus de plafond 18rem/45dvh).
+- Overlay et footer légèrement resserrés pour maximiser la photo.
+- Accessibilité conservée : Esc, backdrop, flèches ‹ ›, compteur, bouton Fermer.
+
+## Fichiers modifiés
+  app/src/components/ProfilePhotoViewer.tsx
+  modification.txt
+
+================================================================================
+Fin MODIF 378 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 379 — Caddy Basic Auth : rotation mot de passe dev
+================================================================================
+Date : 2026-06-10
+
+## Changement
+- Rotation du mot de passe Basic Auth Caddy pour l'utilisateur `dev`
+  (accès UI getsoundy.com / IP VPS hors whitelist admin).
+- Nouveau hash bcrypt (coût 14) dans `deploy/Caddyfile`.
+- Déployer sur le VPS : `scp deploy/Caddyfile` puis `sudo bash /opt/soundly/deploy/sync-caddy.sh`.
+
+## Fichiers modifiés
+  deploy/Caddyfile
+  modification.txt
+
+================================================================================
+Fin MODIF 379 - 2026-06-10
+================================================================================

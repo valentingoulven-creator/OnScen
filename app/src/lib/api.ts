@@ -1062,7 +1062,11 @@ export const api = {
   },
 
   getMyStory: (token: string) =>
-    request<{ story: import('../types').MapStory | null }>('/stories/mine', {}, token),
+    request<{ story: import('../types').MapStory | null; stories: import('../types').MapStory[] }>(
+      '/stories/mine',
+      {},
+      token
+    ),
 
   createStory: (
     token: string,

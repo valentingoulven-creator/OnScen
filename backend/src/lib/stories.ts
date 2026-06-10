@@ -7,6 +7,8 @@ import { isFeedImageDataUrl } from './feedPosts';
 import { clampNearbyRadiusKm } from './geoLimits';
 
 const STORY_TTL_MS = 24 * 60 * 60 * 1000;
+/** Limite style Instagram : plusieurs stories actives par utilisateur (24 h chacune). */
+export const MAX_ACTIVE_STORIES_PER_USER = 20;
 
 const HTTPS_IMAGE_RE = /^https:\/\//i;
 
@@ -192,9 +194,14 @@ export function createStory(
   }
 
   const now = Date.now();
-  const kept = db.stories.filter((s) => s.userId !== userId || !isActive(s, now));
-  db.stories.length = 0;
-  db.stories.push(...kept);
+  purgeExpiredStories();
+  const activeCount = db.stories.filter((s) => s.userId === userId && isActive(s, now)).length;
+  if (activeCount >= MAX_ACTIVE_STORIES_PER_USER) {
+    return {
+      ok: false,
+      error: `Maximum ${MAX_ACTIVE_STORIES_PER_USER} stories actives. Attendez l'expiration des plus anciennes.`,
+    };
+  }
 
   const musicTrack = normalizeMusicTrack(input.musicTrack);
   const taggedUserIds = normalizeTaggedUserIds(input.taggedUserIds, userId);
@@ -219,28 +226,28 @@ export function createStory(
   return { ok: true, story: pub };
 }
 
-export function getUserActiveStory(userId: string): PublicStory | null {
+function activeStoriesForUser(userId: string, now = Date.now()): Story[] {
+  return db.stories
+    .filter((s) => s.userId === userId && isActive(s, now))
+    .sort((a, b) => a.createdAt - b.createdAt);
+}
+
+export function getUserActiveStories(userId: string): PublicStory[] {
   purgeExpiredStories();
-  const story = [...db.stories]
-    .filter((s) => s.userId === userId && isActive(s))
-    .sort((a, b) => b.createdAt - a.createdAt)[0];
-  if (!story) return null;
-  return toPublicStory(story);
+  return activeStoriesForUser(userId)
+    .map((story) => toPublicStory(story))
+    .filter((s): s is PublicStory => s != null);
+}
+
+/** Dernière story publiée (aperçu anneau). */
+export function getUserActiveStory(userId: string): PublicStory | null {
+  const stories = getUserActiveStories(userId);
+  return stories.length ? stories[stories.length - 1]! : null;
 }
 
 /** @deprecated alias — use getUserActiveStory */
 export function getMyActiveStory(userId: string): PublicStory | null {
   return getUserActiveStory(userId);
-}
-
-function latestActiveByUser(now = Date.now()): Map<string, Story> {
-  const map = new Map<string, Story>();
-  for (const story of db.stories) {
-    if (!isActive(story, now)) continue;
-    const prev = map.get(story.userId);
-    if (!prev || story.createdAt > prev.createdAt) map.set(story.userId, story);
-  }
-  return map;
 }
 
 export function listStoriesForViewer(
@@ -258,10 +265,10 @@ export function listStoriesForViewer(
       ? clampNearbyRadiusKm(opts.radiusKm)
       : null;
 
-  const byUser = latestActiveByUser();
   const out: PublicStory[] = [];
 
-  for (const story of byUser.values()) {
+  for (const story of db.stories) {
+    if (!isActive(story)) continue;
     if (!isVisibleToViewer(viewerId, story.userId)) continue;
     const author = db.users.get(story.userId);
     if (!author) continue;
