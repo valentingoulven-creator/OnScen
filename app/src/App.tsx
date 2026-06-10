@@ -108,7 +108,7 @@ export default function App() {
   const activeSalonSessionRef = useRef<ActiveSalonSession | null>(activeSalonSession);
   activeSalonSessionRef.current = activeSalonSession;
   /** Salon actif sur la fiche carte (petit salon) — sync session, pas masquage barre retour. */
-  const [mapSalonActiveId, setMapSalonActiveId] = useState<string | null>(null);
+  const [, setMapSalonActiveId] = useState<string | null>(null);
 
   useEffect(() => {
     writePersistedSalonSession(activeSalonSession);
