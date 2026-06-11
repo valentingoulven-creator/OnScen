@@ -54,6 +54,10 @@ jobs:
             echo "MOBILE_SOCKET_URL=http://127.0.0.1:4080" >> msdev/.env
           fi
 
+      - name: Install app dependencies (shared source fallbacks)
+        working-directory: app
+        run: npm ci
+
       - name: Install apptel dependencies
         run: npm ci
 
