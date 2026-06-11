@@ -8362,3 +8362,67 @@ ne fermait pas `adminOpen` : l’overlay restait visible au-dessus du fil.
 ================================================================================
 Fin MODIF 461 - 2026-06-11
 ================================================================================
+
+================================================================================
+MODIF 462 — Filtre Salon : tous les salons publics selon le zoom
+================================================================================
+Date : 2026-06-11
+
+## Problème
+Avec le filtre **Salon** actif (🎵, aria-pressed=true), des filtres
+« À proximité » continuaient de masquer des salons : rayon distance
+(sortBy distance), proximité people (`filterSalonsForMap`), règle live-only
+au zoom ville, plafond 120 marqueurs globe overview, sidebar `zoomTooWide`
+à la vue globale, clip viewport trop agressif pendant flyTo.
+
+## Comportement cible
+- Filtre **Salon** ON : tous les salons **publics** visibles selon le niveau
+  de zoom (overview = points simplifiés, ville/rue = marqueurs complets).
+- Pas de filtre distance, proximité people, live-only ni plafond globe
+  overview pour les salons en mode Salon.
+- Liste latérale = marqueurs carte (même jeu de salons).
+
+## Correctifs
+- `nearbyPanelSettings.ts` : `resolveNearbyDistanceFilterForMap` — force
+  `distanceFilter: false` sur `/geo/nearby` en mode Salon.
+- `HomePage.tsx` : nearby viewport sans rayon ; cache invalidé au toggle
+  Salon ; seuil pan 2 km (carte + globe) pour recharger la zone visible.
+- `mapSidebarContent.ts` : `zoomTooWide` ne bloque plus le filtre Salon ;
+  clip viewport salons aligné sur le garde-fou flyTo (comme lives).
+- `GlobeView.tsx` : pas de cap 120 marqueurs overview quand filtre Salon ON.
+
+## Filtres désactivés en mode Salon (carte + globe)
+- Rayon distance panneau À proximité (`sortBy === 'distance'`)
+- Proximité people (`filterSalonsForNearbyPanel` / `filterSalonsForMap`)
+- Filtre plateforme / livesOnly sur la liste salons carte
+- Règle « live only » au zoom ville (`filterSalonsForZoom` via
+  `showAllSalonsAtCityZoom`)
+- Plafond globe overview 120 marqueurs
+- Message sidebar « zoomez sur une ville » (`zoomTooWide`)
+
+## Fichiers
+- app/src/lib/nearbyPanelSettings.ts
+- app/src/lib/nearbyPanelSettings.test.ts
+- app/src/lib/mapSidebarContent.ts
+- app/src/lib/mapSidebarContent.test.ts
+- app/src/pages/HomePage.tsx
+- app/src/components/GlobeView.tsx
+- modification.txt
+
+## Test
+  cd app && npm run build
+  cd app && npx vitest run src/lib/nearbyPanelSettings.test.ts src/lib/mapSidebarContent.test.ts src/lib/mapMarkerVisibility.test.ts
+  1. Activer filtre Salon → pan/zoom carte : tous les salons publics
+     visibles dans la zone (live et offline).
+  2. Tri « Distance » actif dans paramètres → salons toujours visibles
+     hors rayon utilisateur quand filtre Salon ON.
+  3. Globe overview + filtre Salon → pas de plafond 120 ; sidebar liste
+     les salons affichés sur le globe.
+  4. Filtre Salon OFF → comportement Lives / proximité inchangé.
+
+## Déploiement
+**Oui** — rebuild app (assets backend/public).
+
+================================================================================
+Fin MODIF 462 - 2026-06-11
+================================================================================

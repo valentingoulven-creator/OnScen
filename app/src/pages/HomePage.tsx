@@ -59,7 +59,7 @@ import {
   filterNearbyPeople,
   filterSalonsForMap,
   getNearbyPanelPreferences,
-  isNearbyDistanceFilterActive,
+  resolveNearbyDistanceFilterForMap,
   NEARBY_PANEL_CHANGED_EVENT,
   peopleMarkersOnMap,
   setNearbyPanelPreferences,
@@ -75,6 +75,7 @@ import { USERNAME_WAVE_CLASS } from '../lib/usernameColor';
 import { mergeRemotePlaybackState } from '../lib/salonPlayback';
 import {
   nearbyCacheKey,
+  clearNearbyCache,
   readNearbyCache,
   writeNearbyCache,
 } from '../lib/nearbyCache';
@@ -260,6 +261,10 @@ export function HomePage({
   }, []);
   /** Filtre carte « salons » — combinable avec Lives et Évènement. */
   const [showSalonMarkers, setShowSalonMarkers] = useState(false);
+  const showSalonMarkersRef = useRef(showSalonMarkers);
+  useEffect(() => {
+    showSalonMarkersRef.current = showSalonMarkers;
+  }, [showSalonMarkers]);
   const [mapEvents, setMapEvents] = useState<MapEventMarker[]>([]);
   const [mapEventsRefreshKey, setMapEventsRefreshKey] = useState(0);
   const eventFilterLongPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -666,6 +671,7 @@ export function HomePage({
     setShowSalonMarkers((on) => {
       if (!on) {
         pendingMapFilterNearbyReloadRef.current = true;
+        clearNearbyCache();
       }
       return !on;
     });
@@ -817,7 +823,10 @@ export function HomePage({
     if (!token || !isValidLatLng(lat, lon)) return;
     const prefs = getNearbyPanelPreferences();
     const radius = getNearbyRadiusKm();
-    const distanceFilter = isNearbyDistanceFilterActive(prefs);
+    const distanceFilter = resolveNearbyDistanceFilterForMap(
+      prefs,
+      showSalonMarkersRef.current
+    );
     const cacheKey = nearbyCacheKey(lat, lon, radius, distanceFilter);
     const cached = readNearbyCache(cacheKey);
     if (cached) {
@@ -1079,7 +1088,9 @@ export function HomePage({
 
     if (!viewportStale) {
       const radiusKm = getNearbyRadiusKm();
-      const minDeltaKm = Math.max(5, radiusKm * 0.3);
+      const minDeltaKm = salonFilterOn
+        ? 2
+        : Math.max(5, radiusKm * 0.3);
       const movedKm = getDistanceKm(
         viewportCenter[0],
         viewportCenter[1],
@@ -1090,7 +1101,7 @@ export function HomePage({
     }
 
     loadNearbyViewportDebounced(viewportCenter);
-  }, [isActive, mapFilterViewportOn, mapDetailState, token, loadNearbyViewportDebounced]);
+  }, [isActive, mapFilterViewportOn, mapDetailState, token, salonFilterOn, loadNearbyViewportDebounced]);
 
   /** Filtre Lives/Salon + globe : recharger nearby quand l'utilisateur tourne/zoom le globe. */
   const handleGlobePovChange = useCallback(
@@ -1104,7 +1115,7 @@ export function HomePage({
 
       const prev = lastGlobeNearbyRef.current;
       const radiusKm = getNearbyRadiusKm();
-      const minDeltaKm = Math.max(5, radiusKm * 0.3);
+      const minDeltaKm = salonFilterOn ? 2 : Math.max(5, radiusKm * 0.3);
       if (prev) {
         const movedKm = getDistanceKm(lat, lng, prev.lat, prev.lon);
         if (movedKm < minDeltaKm) return;

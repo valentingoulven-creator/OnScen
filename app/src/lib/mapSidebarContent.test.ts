@@ -342,6 +342,59 @@ describe('buildMapSidebarContent', () => {
     expect(content.salons.map((s) => s.id)).toEqual(['s-in']);
   });
 
+  it('shows public salons at overview when Salon filter is on', () => {
+    const content = buildMapSidebarContent({
+      detail: {
+        tier: 'overview',
+        flatZoom: 5,
+        globeAltitude: null,
+        bounds: { north: 50, south: 47, east: 4, west: 1 },
+        mapStyle: 'flat',
+      },
+      eventsFilterOn: false,
+      livesFilterOn: false,
+      salonFilterOn: true,
+      eventsOnly: false,
+      showAllSalonsAtCityZoom: true,
+      mapEvents: [],
+      eventClusters: [],
+      lives: [],
+      salons: [salon('s-live', true), salon('s-off', false)],
+      people: [],
+      favoriteIds: new Set(),
+    });
+    expect(content.zoomTooWide).toBe(false);
+    expect(content.salons.map((s) => s.id).sort()).toEqual(['s-live', 's-off']);
+  });
+
+  it('skips salon viewport clip during flyTo when fetch anchor is outside bounds', () => {
+    const content = buildMapSidebarContent({
+      detail: {
+        tier: 'street',
+        flatZoom: 14,
+        globeAltitude: null,
+        bounds: { north: 48.9, south: 48.8, east: 2.4, west: 2.3 },
+        mapStyle: 'flat',
+      },
+      eventsFilterOn: false,
+      livesFilterOn: false,
+      salonFilterOn: true,
+      eventsOnly: false,
+      showAllSalonsAtCityZoom: true,
+      mapEvents: [],
+      eventClusters: [],
+      lives: [],
+      salons: [
+        { ...salon('in-view'), latitude: 48.85, longitude: 2.35 },
+        { ...salon('out-view'), latitude: 50, longitude: 2.36 },
+      ],
+      people: [],
+      favoriteIds: new Set(),
+      nearbyFetchCenter: [45.76, 4.84],
+    });
+    expect(content.salons.map((s) => s.id).sort()).toEqual(['in-view', 'out-view']);
+  });
+
   it('event clusters viewport-clipped at overview tier independently of lives and salons', () => {
     // overview tier: only event clusters shown (lives/salons hidden by zoomTooWide)
     const content = buildMapSidebarContent({

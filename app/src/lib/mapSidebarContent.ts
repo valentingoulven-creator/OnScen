@@ -123,7 +123,8 @@ export function buildMapSidebarContent(opts: {
     eventsFilterOn,
   });
 
-  const zoomTooWide = tier === 'overview' && (livesFilterOn || salonFilterOn);
+  /** Salon filter shows overview dots — do not block the sidebar at world zoom. */
+  const zoomTooWide = tier === 'overview' && livesFilterOn && !salonFilterOn;
 
   let sidebarClusters: MapEventCityCluster[] = [];
   let sidebarEvents: MapEventMarker[] = [];
@@ -137,8 +138,15 @@ export function buildMapSidebarContent(opts: {
     }
   }
 
+  const salonClipGeo =
+    salonFilterOn &&
+    fetchAnchor != null &&
+    shouldClipMapMarkersToViewport(detail, fetchAnchor);
   const salonPool = salonFilterOn ? salons.filter(isPublicSalon) : salons;
-  const salonsInView = filterMarkersInViewport(salonPool, bounds);
+  const salonsInView =
+    salonFilterOn && bounds && salonClipGeo
+      ? filterMarkersInViewport(salonPool, bounds)
+      : salonPool;
   const visibleSalons = filterSalonsForZoom(
     salonsInView,
     visibility,

@@ -38,6 +38,15 @@ export function isNearbyDistanceFilterActive(
   return prefs.sortBy === 'distance';
 }
 
+/** Filtre carte Salon actif : pas de filtre rayon / proximité sur les salons. */
+export function resolveNearbyDistanceFilterForMap(
+  prefs: Pick<NearbyPanelPreferences, 'sortBy'>,
+  salonMapBrowse: boolean
+): boolean {
+  if (salonMapBrowse) return false;
+  return isNearbyDistanceFilterActive(prefs);
+}
+
 export interface NearbySortOptions {
   favoriteIds?: Set<string>;
   favoritesFirst?: boolean;

@@ -402,11 +402,11 @@ export const GlobeView = memo(function GlobeView({
   );
 
   const cappedSalonsForGlobe = useMemo(() => {
-    if (globeDetailTier !== 'overview') return visibleSalons;
+    if (globeDetailTier !== 'overview' || showAllSalonsAtCityZoom) return visibleSalons;
     const live = visibleSalons.filter((s) => s.isLive);
     const rest = visibleSalons.filter((s) => !s.isLive);
     return [...live, ...rest].slice(0, MAX_GLOBE_OVERVIEW_MARKERS);
-  }, [visibleSalons, globeDetailTier]);
+  }, [visibleSalons, globeDetailTier, showAllSalonsAtCityZoom]);
 
   const cappedLivesForGlobe = useMemo(() => {
     if (globeDetailTier !== 'overview') return visibleLives;

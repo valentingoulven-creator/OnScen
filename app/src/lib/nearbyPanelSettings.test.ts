@@ -4,6 +4,7 @@ import {
   filterLivesForMap,
   getNearbyPanelPreferences,
   isNearbyDistanceFilterActive,
+  resolveNearbyDistanceFilterForMap,
   peopleMarkersOnMap,
   personHasMapActivity,
   setNearbyPanelPreferences,
@@ -76,6 +77,13 @@ describe('nearbyPanelSettings favorites', () => {
     expect(isNearbyDistanceFilterActive(getNearbyPanelPreferences())).toBe(false);
     setNearbyPanelPreferences({ sortBy: 'none' });
     expect(isNearbyDistanceFilterActive(getNearbyPanelPreferences())).toBe(false);
+  });
+
+  it('resolveNearbyDistanceFilterForMap désactive le rayon en mode Salon', () => {
+    setNearbyPanelPreferences({ sortBy: 'distance' });
+    const prefs = getNearbyPanelPreferences();
+    expect(resolveNearbyDistanceFilterForMap(prefs, true)).toBe(false);
+    expect(resolveNearbyDistanceFilterForMap(prefs, false)).toBe(true);
   });
 
   it('persiste sortBy none', () => {
