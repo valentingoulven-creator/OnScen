@@ -154,7 +154,7 @@
       "spotifyCrossPlatformHint": "Spotify ne se lit pas dans le navigateur — utilisez YouTube pour écouter ensemble."
     },
     "create": {
-      "spotifyPremiumRequired": "Spotify Premium requis pour héberger"
+      "spotifyPremiumRequired": "Spotify Premium requis pour héberger un salon"
     },
     "spotifySearch": {
       "createLabel": "Morceau Spotify (optionnel)",
@@ -627,6 +627,7 @@
     "disconnectError": "Déconnexion impossible",
     "disconnectConfirmHost": "Déconnecter {{label}} ? Vous ne pourrez plus héberger de salon {{label}}.",
     "disconnectConfirmInstagram": "Déconnecter {{label}} ? Votre profil n'affichera plus ce compte lié.",
+    "connectedAccount": "Compte connecté : {{name}}",
     "linkedSpotify": "Compte Spotify lié",
     "linkedYoutube": "Compte YouTube lié",
     "linkedInstagram": "Compte Instagram lié",

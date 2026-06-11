@@ -72,6 +72,7 @@ export function CreateSalonModal({
   const [saving, setSaving] = useState(false);
   const [createdInviteSalonId, setCreatedInviteSalonId] = useState<string | null>(null);
   const [spotifyPremium, setSpotifyPremium] = useState<boolean | undefined>();
+  const [spotifySessionCode, setSpotifySessionCode] = useState<string | undefined>();
   const [platformStatusLoading, setPlatformStatusLoading] = useState(false);
   const openedAtRef = useRef(0);
   const [form, setForm] = useState<CreateSalonForm>({
@@ -96,6 +97,8 @@ export function CreateSalonModal({
     openedAtRef.current = Date.now();
     setStep(1);
     setCreatedInviteSalonId(null);
+    setSpotifyPremium(undefined);
+    setSpotifySessionCode(undefined);
     setForm({
       title: preset?.title?.trim() || `Salon de ${username}`,
       platform: preset?.platform ?? 'youtube',
@@ -117,8 +120,14 @@ export function CreateSalonModal({
     setPlatformStatusLoading(true);
     api
       .getPlatformStatus(token)
-      .then((s) => setSpotifyPremium(s.spotifyPremium))
-      .catch(() => setSpotifyPremium(undefined))
+      .then((s) => {
+        setSpotifyPremium(s.spotifyPremium);
+        setSpotifySessionCode(s.spotifySessionCode);
+      })
+      .catch(() => {
+        setSpotifyPremium(undefined);
+        setSpotifySessionCode(undefined);
+      })
       .finally(() => setPlatformStatusLoading(false));
   };
 
@@ -171,7 +180,9 @@ export function CreateSalonModal({
 
   const platformLinked = isPlatformConnected(connectedPlatforms, form.platform);
   const spotifyLinked = isPlatformConnected(connectedPlatforms, 'spotify');
-  const spotifyHostBlocked = spotifyLinked && spotifyPremium === false;
+  const spotifyHostBlocked =
+    spotifyLinked &&
+    (spotifySessionCode === 'spotify_premium_required' || spotifyPremium === false);
   const canProceedStep1 =
     platformLinked &&
     !(form.platform === 'spotify' && (spotifyHostBlocked || (spotifyLinked && platformStatusLoading)));
@@ -300,14 +311,25 @@ export function CreateSalonModal({
                 <div
                   className={`p-4 rounded-2xl border text-left ${
                     lockedPlatform === 'spotify'
-                      ? 'border-green-500 bg-green-500/10'
+                      ? spotifyHostBlocked
+                        ? 'border-gray-500/50 bg-gray-500/5 opacity-50 cursor-not-allowed'
+                        : 'border-green-500 bg-green-500/10'
                       : 'border-red-500 bg-red-500/10'
                   }`}
+                  title={
+                    lockedPlatform === 'spotify' && spotifyHostBlocked
+                      ? t('salon.create.spotifyPremiumRequired')
+                      : undefined
+                  }
                 >
                   <span className="text-2xl block mb-2">{lockedPlatform === 'spotify' ? '🎧' : '▶️'}</span>
                   <span className="font-bold text-white capitalize">{lockedPlatform}</span>
                   <p className="text-[10px] text-gray-500 mt-1">
-                    {lockedPlatform === 'spotify' ? 'Jam / écoute partagée' : 'Lecture vidéo YouTube'}
+                    {lockedPlatform === 'spotify' && spotifyHostBlocked
+                      ? t('salon.create.spotifyPremiumRequired')
+                      : lockedPlatform === 'spotify'
+                        ? 'Jam / écoute partagée'
+                        : 'Lecture vidéo YouTube'}
                   </p>
                 </div>
               ) : (
@@ -330,7 +352,7 @@ export function CreateSalonModal({
                       }}
                       className={`p-4 rounded-2xl border text-left transition ${
                         isSpotifyBlocked
-                          ? 'border-[#2d2d3d] bg-[#1a1a26] opacity-45 cursor-not-allowed'
+                          ? 'border-gray-500/50 bg-gray-500/5 opacity-50 cursor-not-allowed'
                           : form.platform === p
                           ? p === 'spotify'
                             ? 'border-green-500 bg-green-500/10'

@@ -8468,3 +8468,68 @@ si non Premium, informer à l'inscription / onboarding. Complète MODIF 463
 ================================================================================
 Fin MODIF 465 - 2026-06-11
 ================================================================================
+
+================================================================================
+MODIF 466 — Libellé compte Spotify connecté (PlatformConnectCard)
+================================================================================
+Date : 2026-06-11
+
+## Objectif
+Afficher clairement le nom du compte Spotify utilisé sur PlatformConnectCard
+(ex. « Compte connecté : Val ») au lieu du seul displayName nu ; email ou ID
+Spotify en secondaire ; supprimer le doublon « Premium ✓ » (badge + ligne).
+
+## Frontend
+- PlatformConnectCard : `connectedAccount` avec displayName ; email ou
+  externalUserId en gris discret ; retrait paragraphe Premium redondant ;
+  tooltip compact si displayName connu.
+- i18n fr/en : `platform.connectedAccount`.
+
+## Fichiers
+- app/src/components/PlatformConnectCard.tsx
+- app/src/locales/fr.json, en.json
+- modification.txt
+
+## Test
+  cd app; npm run build
+
+## Déploiement
+**Oui** — rebuild app.
+
+================================================================================
+Fin MODIF 466 - 2026-06-11
+================================================================================
+
+================================================================================
+MODIF 467 — CreateSalonModal : bouton Spotify grisé si Free (complète 465)
+================================================================================
+Date : 2026-06-11
+
+## Objectif
+Sur l'étape plateforme de CreateSalonModal, griser et désactiver le bouton
+« Spotify Jam / écoute partagée » si Spotify est connecté mais non Premium ;
+afficher le motif « Spotify Premium requis pour héberger un salon ».
+Complète MODIF 465 (alignement avec spotifySessionCode).
+
+## Frontend
+- CreateSalonModal : spotifyHostBlocked = connecté ET
+  (spotifyPremium === false OU spotifySessionCode === spotify_premium_required) ;
+  styles gris (border-gray-500/50, opacity-50, cursor-not-allowed) ;
+  reset état premium à l'ouverture ; refresh GET /platforms/status à l'ouverture.
+- Preset plateforme Spotify verrouillée : même grisage si Free.
+- i18n fr/en : salon.create.spotifyPremiumRequired (+ « un salon »).
+
+## Fichiers
+- app/src/components/CreateSalonModal.tsx
+- app/src/locales/fr.json, en.json
+- modification.txt
+
+## Test
+  cd app; npm run build
+
+## Déploiement
+**Oui** — rebuild app.
+
+================================================================================
+Fin MODIF 467 - 2026-06-11
+================================================================================

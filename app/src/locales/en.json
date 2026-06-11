@@ -154,7 +154,7 @@
       "spotifyCrossPlatformHint": "Spotify doesn't play in the browser — use YouTube to listen together."
     },
     "create": {
-      "spotifyPremiumRequired": "Spotify Premium required to host"
+      "spotifyPremiumRequired": "Spotify Premium required to host a salon"
     },
     "spotifySearch": {
       "createLabel": "Spotify track (optional)",
@@ -627,6 +627,7 @@
     "disconnectError": "Could not disconnect",
     "disconnectConfirmHost": "Disconnect {{label}}? You will no longer be able to host {{label}} rooms.",
     "disconnectConfirmInstagram": "Disconnect {{label}}? Your profile will no longer show this linked account.",
+    "connectedAccount": "Connected account: {{name}}",
     "linkedSpotify": "Spotify account linked",
     "linkedYoutube": "YouTube account linked",
     "linkedInstagram": "Instagram account linked",

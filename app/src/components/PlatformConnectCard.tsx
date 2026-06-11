@@ -190,8 +190,9 @@ export function PlatformConnectCard({
     }
   };
 
+  const linkedDisplayName = linked ? platformLink?.displayName?.trim() : undefined;
   const displayName = linked
-    ? platformLink?.displayName ??
+    ? linkedDisplayName ??
       (platform === 'spotify'
         ? t('platform.linkedSpotify')
         : platform === 'youtube'
@@ -202,6 +203,12 @@ export function PlatformConnectCard({
     : platform === 'instagram'
       ? t('platform.instagramHint')
       : t('platform.hostRequired');
+  const accountSubtitle =
+    linked && linkedDisplayName ? t('platform.connectedAccount', { name: linkedDisplayName }) : displayName;
+  const accountSecondary =
+    linked && platform === 'spotify'
+      ? platformLink?.email?.trim() || platformLink?.externalUserId?.trim() || undefined
+      : undefined;
 
   const avatarUrl = linked ? platformLink?.avatarUrl : undefined;
   const topArtists = linked && platform === 'spotify' ? platformLink?.topArtists : undefined;
@@ -209,6 +216,7 @@ export function PlatformConnectCard({
   if (compact && linked) {
     return (
       <span
+        title={linkedDisplayName ? accountSubtitle : undefined}
         className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border ${platformCompactClasses(platform)}`}
       >
         {avatarUrl ? (
@@ -236,7 +244,18 @@ export function PlatformConnectCard({
           )}
           <div className="min-w-0">
             <p className="text-sm font-bold text-white">{meta.label}</p>
-            <p className="text-[10px] text-gray-500 mt-0.5 truncate">{displayName}</p>
+            <p
+              className={`text-[10px] mt-0.5 truncate ${
+                linked && linkedDisplayName ? 'text-gray-300' : 'text-gray-500'
+              }`}
+            >
+              {accountSubtitle}
+            </p>
+            {accountSecondary ? (
+              <p className="text-[9px] text-gray-600 mt-0.5 truncate" title={accountSecondary}>
+                {accountSecondary}
+              </p>
+            ) : null}
             {topArtists?.length ? (
               <p className="text-[10px] text-gray-600 mt-0.5 truncate">
                 {t('platform.topArtists', { artists: topArtists.slice(0, 3).join(', ') })}
@@ -378,9 +397,6 @@ export function PlatformConnectCard({
             {t('salon.spotifySearch.playlistReconnectSpotify')}
           </button>
         </p>
-      )}
-      {platform === 'spotify' && linked && spotifyPremium === true && !spotifyPremiumRequired && !statusLoading && !statusError && (
-        <p className="text-[10px] text-green-400/80 mt-2 leading-snug">{t('platform.spotifyPremiumOk')}</p>
       )}
       {platform === 'spotify' && !statusLoading && !statusError && (
         <p className="text-[10px] text-gray-500 mt-2 leading-snug">{t('platform.spotifyScopesHint')}</p>
