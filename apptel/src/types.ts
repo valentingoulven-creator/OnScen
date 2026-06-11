@@ -46,6 +46,7 @@ export type ProfileType =
   | 'compositeur'
   | 'rapper'
   | 'musicien'
+  | 'melomane'
   | 'chanteur'
   | 'producteur'
   | 'label'

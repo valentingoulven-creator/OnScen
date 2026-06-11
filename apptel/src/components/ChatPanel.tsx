@@ -160,6 +160,7 @@ function useChatRoom({
 
   useEffect(() => {
     const socket = getSocket();
+    if (!socket) return;
     const event = roomType === 'salon' ? 'salon_message' : 'live_message';
     const deletedEvent = roomType === 'salon' ? 'salon_message_deleted' : 'live_message_deleted';
 
@@ -267,7 +268,7 @@ function useChatRoom({
     e.preventDefault();
     if (!text.trim() || chatBanned) return;
     const socket = getSocket();
-    if (!isSocketConnected()) {
+    if (!socket || !isSocketConnected()) {
       setSendError('Connexion au chat en cours… Patientez puis réessayez.');
       return;
     }

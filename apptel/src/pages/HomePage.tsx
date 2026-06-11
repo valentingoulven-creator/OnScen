@@ -505,6 +505,7 @@ export function HomePage({
     if (selected.canJoin === false && selected.hostId !== user.id) return;
     const salonId = selected.id;
     const socket = getSocket();
+    if (!socket) return;
     const joinSalon = () => {
       socket.emit('join_salon', { salonId, userId: user.id, username: user.username });
     };

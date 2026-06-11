@@ -521,6 +521,7 @@ export function DmPage({
   useEffect(() => {
     if (!token || !user) return;
     const socket = getSocket();
+    if (!socket) return;
     const onDm = (msg: DirectMessage) => {
       if (
         view === 'thread' &&

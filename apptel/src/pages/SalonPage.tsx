@@ -95,6 +95,7 @@ export function SalonPage({ salonId, onBack }: { salonId: string; onBack: () => 
 
   useEffect(() => {
     const socket = getSocket();
+    if (!socket) return;
     const onEnded = (payload: { salonId: string; reason: string }) => {
       if (payload.salonId !== salonId) return;
       if (payload.reason === 'duration_limit') {
@@ -123,6 +124,7 @@ export function SalonPage({ salonId, onBack }: { salonId: string; onBack: () => 
     if (!salon || !user || salon.canJoin === false) return;
 
     const socket = getSocket();
+    if (!socket) return;
 
     const joinSalon = () => {
       socket.emit('join_salon', { salonId: salon.id, userId: user.id, username: user.username });

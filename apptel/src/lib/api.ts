@@ -12,27 +12,63 @@ function headers(token?: string | null): HeadersInit {
   return h;
 }
 
-async function parseApiError(res: Response): Promise<string> {
+export class ApiRequestError extends Error {
+  code?: string;
+  status?: number;
+  playbackState?: import('../types').PlaybackState;
+  queue?: import('../types').SalonQueueItem[];
+
+  constructor(
+    message: string,
+    code?: string,
+    status?: number,
+    playbackState?: import('../types').PlaybackState,
+    queue?: import('../types').SalonQueueItem[]
+  ) {
+    super(message);
+    this.name = 'ApiRequestError';
+    this.code = code;
+    this.status = status;
+    this.playbackState = playbackState;
+    this.queue = queue;
+  }
+}
+
+async function parseApiError(res: Response): Promise<ApiRequestError> {
   const text = await res.text().catch(() => '');
   if (text) {
     try {
-      const json = JSON.parse(text) as { error?: string };
+      const json = JSON.parse(text) as {
+        error?: string;
+        code?: string;
+        playbackState?: import('../types').PlaybackState;
+        queue?: import('../types').SalonQueueItem[];
+      };
+      const playbackState = json.playbackState;
+      const queue = json.queue;
       if (json.error) {
         if (json.error === 'Token manquant' || json.error === 'Token invalide') {
-          return 'Session expirée — reconnectez-vous';
+          return new ApiRequestError('Session expirée — reconnectez-vous', json.code, res.status);
         }
-        return json.error;
+        if (json.code === 'no_active_device') {
+          return new ApiRequestError(json.error, json.code, res.status, playbackState, queue);
+        }
+        return new ApiRequestError(json.error, json.code, res.status, playbackState, queue);
       }
     } catch {
-      if (text.length < 200) return text;
+      if (text.length < 200) return new ApiRequestError(text, undefined, res.status);
     }
   }
   if (res.status === 413) {
-    return 'Profil trop volumineux (photos). Retirez une photo ou utilisez des images plus légères.';
+    return new ApiRequestError(
+      'Profil trop volumineux (photos). Retirez une photo ou utilisez des images plus légères.',
+      undefined,
+      res.status
+    );
   }
-  if (res.status === 401) return 'Session expirée — reconnectez-vous';
-  if (res.status === 403) return 'Accès refusé';
-  return res.statusText || 'Erreur réseau';
+  if (res.status === 401) return new ApiRequestError('Session expirée — reconnectez-vous', undefined, res.status);
+  if (res.status === 403) return new ApiRequestError('Accès refusé', undefined, res.status);
+  return new ApiRequestError(res.statusText || 'Erreur réseau', undefined, res.status);
 }
 
 async function request<T>(path: string, opts: RequestInit = {}, token?: string | null): Promise<T> {
@@ -42,7 +78,7 @@ async function request<T>(path: string, opts: RequestInit = {}, token?: string |
     headers: { ...headers(token), ...opts.headers },
   });
   if (!res.ok) {
-    throw new Error(await parseApiError(res));
+    throw await parseApiError(res);
   }
   return res.json();
 }
@@ -378,7 +414,7 @@ export const api = {
       err.until = body.until;
       throw err;
     }
-    if (!res.ok) throw new Error(await parseApiError(res));
+    if (!res.ok) throw await parseApiError(res);
     return body as { live: import('../types').Live };
   },
 
