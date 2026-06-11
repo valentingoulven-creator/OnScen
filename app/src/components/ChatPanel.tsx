@@ -1,4 +1,16 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from 'react';
+import { createPortal } from 'react-dom';
 
 import { api } from '../lib/api';
 import { ACCEPTED_IMAGE_FORMATS, validateImageFile, resizeImageInstagram } from '../lib/imageUtils';
@@ -43,6 +55,8 @@ export interface ChatPanelProps {
   onDeleteMessage?: (messageId: string) => void | Promise<void>;
   /** Ouvre le flux de pourboire sécurisé (live uniquement) */
   onOpenDonation?: (amount?: number) => void;
+  /** Pièces jointes dans la barre de saisie (désactivé en salon par défaut) */
+  allowAttachments?: boolean;
 }
 
 type FeedItem =
@@ -68,12 +82,17 @@ interface ChatRoomContextValue {
   onDeleteMessage?: (messageId: string) => void | Promise<void>;
   openMsgMenuId: string | null;
   setOpenMsgMenuId: (id: string | null | ((prev: string | null) => string | null)) => void;
+  msgMenuAnchor: DOMRect | null;
+  setMsgMenuAnchor: (anchor: DOMRect | null) => void;
   userMenuTarget: { id: string; name: string } | null;
   setUserMenuTarget: (target: { id: string; name: string } | null | ((prev: { id: string; name: string } | null) => { id: string; name: string } | null)) => void;
+  userMenuAnchor: DOMRect | null;
+  setUserMenuAnchor: (anchor: DOMRect | null) => void;
   setBanModalTarget: (target: { id: string; name: string } | null) => void;
   setReportContext: (ctx: ReportContentContext | null) => void;
   deleteMessage: (messageId: string, asModerator?: boolean) => Promise<void>;
-  openUserMenu: (target: { id: string; name: string }) => void;
+  openUserMenu: (target: { id: string; name: string }, anchor: DOMRect) => void;
+  toggleMsgMenu: (messageId: string, anchor: DOMRect) => void;
   bottomRef: React.RefObject<HTMLDivElement | null>;
   text: string;
   setText: (value: string) => void;
@@ -94,10 +113,99 @@ interface ChatRoomContextValue {
   reactionError: string | null;
   setReactionError: (error: string | null) => void;
   onOpenDonation?: (amount?: number) => void;
+  allowAttachments: boolean;
   banModalTarget: { id: string; name: string } | null;
   reportContext: ReportContentContext | null;
   onUserBlocked: (userId: string) => void;
   confirmBan: (opts: { permanent: boolean; durationMs?: number; scope: LiveBanScope }) => void;
+}
+
+const CHAT_MENU_BTN =
+  'block w-full px-4 py-2.5 text-left text-sm whitespace-normal leading-snug';
+
+function clampChatMenuPosition(
+  anchor: DOMRect,
+  menuWidth: number,
+  menuHeight: number,
+  align: 'left' | 'right'
+): { top: number; left: number } {
+  const pad = 8;
+  const gap = 4;
+  let left = align === 'right' ? anchor.right - menuWidth : anchor.left;
+  left = Math.max(pad, Math.min(left, window.innerWidth - menuWidth - pad));
+  let top = anchor.bottom + gap;
+  if (top + menuHeight > window.innerHeight - pad) {
+    top = anchor.top - menuHeight - gap;
+  }
+  top = Math.max(pad, top);
+  return { top, left };
+}
+
+function ChatContextMenu({
+  open,
+  anchor,
+  align,
+  menuRef,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  anchor: DOMRect | null;
+  align: 'left' | 'right';
+  menuRef: RefObject<HTMLDivElement | null>;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!open || !anchor) {
+      setPos(null);
+      return;
+    }
+    const update = () => {
+      const menuEl = menuRef.current;
+      const w = menuEl?.offsetWidth ?? 168;
+      const h = menuEl?.offsetHeight ?? 80;
+      setPos(clampChatMenuPosition(anchor, w, h, align));
+    };
+    update();
+    const raf = requestAnimationFrame(update);
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [open, anchor, align, menuRef, children]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: MouseEvent) => {
+      if (menuRef.current?.contains(e.target as Node)) return;
+      onClose();
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [open, onClose, menuRef]);
+
+  if (!open || !anchor || typeof document === 'undefined') return null;
+
+  return createPortal(
+    <div
+      ref={menuRef}
+      className="fixed z-[200] flex flex-col min-w-[10.5rem] max-w-[min(16rem,calc(100vw-1rem))] rounded-xl border border-[#2d2d3d] bg-[#12121a] shadow-xl py-1"
+      style={{
+        top: pos?.top ?? anchor.bottom + 4,
+        left: pos?.left ?? anchor.left,
+        visibility: pos ? 'visible' : 'hidden',
+      }}
+    >
+      {children}
+    </div>,
+    document.body
+  );
 }
 
 const ChatRoomContext = createContext<ChatRoomContextValue | null>(null);
@@ -127,13 +235,17 @@ function useChatRoom({
   chatBanMessage,
   onDeleteMessage,
   onOpenDonation,
+  allowAttachments: allowAttachmentsProp,
 }: ChatPanelProps): ChatRoomContextValue {
+  const allowAttachments = allowAttachmentsProp ?? roomType !== 'salon';
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [reactions, setReactions] = useState<LiveChatReaction[]>([]);
   const [text, setText] = useState('');
   const [pendingAttachment, setPendingAttachment] = useState<{ dataUrl: string; name: string; mimeType: string; size: number } | null>(null);
   const [openMsgMenuId, setOpenMsgMenuId] = useState<string | null>(null);
+  const [msgMenuAnchor, setMsgMenuAnchor] = useState<DOMRect | null>(null);
   const [userMenuTarget, setUserMenuTarget] = useState<{ id: string; name: string } | null>(null);
+  const [userMenuAnchor, setUserMenuAnchor] = useState<DOMRect | null>(null);
   const [banModalTarget, setBanModalTarget] = useState<{ id: string; name: string } | null>(null);
   const [reportContext, setReportContext] = useState<ReportContentContext | null>(null);
   const [blockedPeerIds, setBlockedPeerIds] = useState<Set<string>>(() => new Set());
@@ -151,6 +263,7 @@ function useChatRoom({
   const boundRoomIdRef = useRef<string | null>(null);
 
   const handleFileSelect = useCallback((file: File) => {
+    if (!allowAttachments) return;
     if (file.type.startsWith('image/')) {
       const imgError = validateImageFile(file);
       if (imgError) {
@@ -177,7 +290,7 @@ function useChatRoom({
       setPendingAttachment({ dataUrl, name: file.name, mimeType: file.type, size: file.size });
     };
     reader.readAsDataURL(file);
-  }, []);
+  }, [allowAttachments]);
 
   useEffect(() => {
     if (!token) {
@@ -274,15 +387,14 @@ function useChatRoom({
   }, [messages, reactions]);
 
   useEffect(() => {
-    if (!reactionMenuOpen && !userMenuTarget) return;
+    if (!reactionMenuOpen) return;
     const onPointerDown = (e: MouseEvent) => {
       if (reactionMenuRef.current?.contains(e.target as Node)) return;
       setReactionMenuOpen(false);
-      setUserMenuTarget(null);
     };
     document.addEventListener('mousedown', onPointerDown);
     return () => document.removeEventListener('mousedown', onPointerDown);
-  }, [reactionMenuOpen, userMenuTarget]);
+  }, [reactionMenuOpen]);
 
   const feed = useMemo((): FeedItem[] => {
     const items: FeedItem[] = messages
@@ -315,6 +427,7 @@ function useChatRoom({
       }
       setMessages((m) => m.filter((x) => x.id !== messageId));
       setOpenMsgMenuId(null);
+      setMsgMenuAnchor(null);
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Impossible de supprimer');
     }
@@ -338,7 +451,7 @@ function useChatRoom({
   const send = (e: React.FormEvent) => {
     e.preventDefault();
     const hasText = text.trim().length > 0;
-    const hasAttachment = Boolean(pendingAttachment);
+    const hasAttachment = allowAttachments && Boolean(pendingAttachment);
     if ((!hasText && !hasAttachment) || chatBanned) return;
     const socket = getSocket();
     if (!socket || !isSocketConnected()) {
@@ -353,7 +466,7 @@ function useChatRoom({
       senderId: userId,
       senderName: userName,
       content,
-      ...(pendingAttachment ? {
+      ...(hasAttachment && pendingAttachment ? {
         attachmentUrl: pendingAttachment.dataUrl,
         attachmentName: pendingAttachment.name,
         attachmentSize: pendingAttachment.size,
@@ -366,17 +479,33 @@ function useChatRoom({
     setPendingAttachment(null);
   };
 
-  const openUserMenu = (target: { id: string; name: string }) => {
+  const openUserMenu = useCallback((target: { id: string; name: string }, anchor: DOMRect) => {
     if (target.id === userId) return;
     setOpenMsgMenuId(null);
-    setUserMenuTarget((prev) => (prev?.id === target.id ? null : target));
-  };
+    setMsgMenuAnchor(null);
+    setUserMenuTarget((prev) => {
+      const next = prev?.id === target.id ? null : target;
+      setUserMenuAnchor(next ? anchor : null);
+      return next;
+    });
+  }, [userId]);
+
+  const toggleMsgMenu = useCallback((messageId: string, anchor: DOMRect) => {
+    setUserMenuTarget(null);
+    setUserMenuAnchor(null);
+    setOpenMsgMenuId((id) => {
+      const next = id === messageId ? null : messageId;
+      setMsgMenuAnchor(next ? anchor : null);
+      return next;
+    });
+  }, []);
 
   const confirmBan = (opts: { permanent: boolean; durationMs?: number; scope: LiveBanScope }) => {
     if (!banModalTarget || !onBanUser) return;
     onBanUser(banModalTarget.id, opts);
     setBanModalTarget(null);
     setUserMenuTarget(null);
+    setUserMenuAnchor(null);
   };
 
   const onUserBlocked = useCallback((userId: string) => {
@@ -408,12 +537,17 @@ function useChatRoom({
     onDeleteMessage,
     openMsgMenuId,
     setOpenMsgMenuId,
+    msgMenuAnchor,
+    setMsgMenuAnchor,
     userMenuTarget,
     setUserMenuTarget,
+    userMenuAnchor,
+    setUserMenuAnchor,
     setBanModalTarget,
     setReportContext,
     deleteMessage,
     openUserMenu,
+    toggleMsgMenu,
     bottomRef,
     text,
     setText,
@@ -434,6 +568,7 @@ function useChatRoom({
     reactionError,
     setReactionError,
     onOpenDonation,
+    allowAttachments,
     banModalTarget,
     reportContext,
     onUserBlocked,
@@ -464,16 +599,52 @@ export function ChatMessagesView() {
     onDeleteMessage,
     openMsgMenuId,
     setOpenMsgMenuId,
+    msgMenuAnchor,
+    setMsgMenuAnchor,
     userMenuTarget,
     setUserMenuTarget,
+    userMenuAnchor,
+    setUserMenuAnchor,
     setBanModalTarget,
     setReportContext,
     deleteMessage,
     openUserMenu,
+    toggleMsgMenu,
     bottomRef,
     chatBanned,
     chatBanMessage,
   } = useChatRoomContext();
+
+  const msgMenuRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  const openMsg = useMemo(() => {
+    if (!openMsgMenuId) return null;
+    const item = feed.find((x) => x.kind === 'message' && x.data.id === openMsgMenuId);
+    return item?.kind === 'message' ? item.data : null;
+  }, [feed, openMsgMenuId]);
+
+  const closeMsgMenu = useCallback(() => {
+    setOpenMsgMenuId(null);
+    setMsgMenuAnchor(null);
+  }, [setOpenMsgMenuId, setMsgMenuAnchor]);
+
+  const closeUserMenu = useCallback(() => {
+    setUserMenuTarget(null);
+    setUserMenuAnchor(null);
+  }, [setUserMenuTarget, setUserMenuAnchor]);
+
+  const openUserIsTargetVip = userMenuTarget ? vipModeratorIds.includes(userMenuTarget.id) : false;
+  const openUserIsTargetHost = userMenuTarget != null && hostId != null && userMenuTarget.id === hostId;
+  const openUserCanBan =
+    (isHost || canModerateChat) &&
+    userMenuTarget != null &&
+    !openUserIsTargetHost &&
+    Boolean(onBanUser) &&
+    (isHost || !openUserIsTargetVip);
+  const openUserCanHostVip =
+    roomType === 'live' && isHost && userMenuTarget != null && !openUserIsTargetHost && Boolean(onSetVip);
+  const openMsgCanDeleteAsMod = (isHost || canModerateChat) && Boolean(onDeleteMessage ?? token);
 
   return (
     <>
@@ -524,18 +695,13 @@ export function ChatMessagesView() {
             !isMe &&
             (onPrivateMessage ||
               onViewProfile ||
-              (isHost && onSetVip) ||
+              (isHost && onSetVip && roomType === 'live') ||
               (canMod && onBanUser));
-          const isTargetHost = hostId != null && m.senderId === hostId;
           const isTargetVip = vipModeratorIds.includes(m.senderId);
-          const canHostActions = isHost && !isTargetHost && Boolean(onSetVip || onBanUser);
-          const canBanTarget =
-            canMod && !isTargetHost && Boolean(onBanUser) && (isHost || !isTargetVip);
           const canDeleteOwn = roomType !== 'live' && isMe && Boolean(token);
           const canDeleteAsMod = canMod && Boolean(onDeleteMessage ?? token);
           const canDelete = canDeleteOwn || canDeleteAsMod;
           const menuOpen = openMsgMenuId === m.id;
-          const userMenuOpen = userMenuTarget?.id === m.senderId;
 
           return (
             <div key={m.id} className={`flex gap-2 items-start ${isMe ? 'flex-row-reverse' : ''}`}>
@@ -548,7 +714,9 @@ export function ChatMessagesView() {
                   {canInteractUser ? (
                     <button
                       type="button"
-                      onClick={() => openUserMenu({ id: m.senderId, name: m.senderName })}
+                      onClick={(e) =>
+                        openUserMenu({ id: m.senderId, name: m.senderName }, e.currentTarget.getBoundingClientRect())
+                      }
                       className="text-xs font-semibold text-[#8b8baf] hover:text-[#a5a5c5] text-left inline-flex items-center gap-1 min-w-0"
                       title="Options utilisateur"
                     >
@@ -576,12 +744,10 @@ export function ChatMessagesView() {
                   {canDelete && (
                     <button
                       type="button"
-                      onClick={() => {
-                        setUserMenuTarget(null);
-                        setOpenMsgMenuId((id) => (id === m.id ? null : m.id));
-                      }}
+                      onClick={(e) => toggleMsgMenu(m.id, e.currentTarget.getBoundingClientRect())}
                       className="ml-auto text-gray-500 hover:text-white text-xs px-1"
                       aria-label="Options du message"
+                      aria-expanded={menuOpen}
                     >
                       ⋮
                     </button>
@@ -610,117 +776,6 @@ export function ChatMessagesView() {
                     )}
                   </div>
                 )}
-                {userMenuOpen && canInteractUser && (
-                  <div className="absolute left-0 top-full mt-1 z-30 min-w-[10rem] rounded-xl border border-[#2d2d3d] bg-[#12121a] shadow-xl overflow-hidden">
-                    {onPrivateMessage && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onPrivateMessage({ id: m.senderId, name: m.senderName });
-                          setUserMenuTarget(null);
-                        }}
-                        className="w-full px-4 py-2.5 text-left text-sm text-gray-200 hover:bg-white/5"
-                      >
-                        Message privé
-                      </button>
-                    )}
-                    {onViewProfile && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onViewProfile(m.senderId);
-                          setUserMenuTarget(null);
-                        }}
-                        className="w-full px-4 py-2.5 text-left text-sm text-gray-200 hover:bg-white/5"
-                      >
-                        Voir le profil
-                      </button>
-                    )}
-                    {canHostActions && onSetVip && !isTargetVip && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onSetVip(m.senderId, true);
-                          setUserMenuTarget(null);
-                        }}
-                        className="w-full px-4 py-2.5 text-left text-sm text-amber-300 hover:bg-amber-500/10"
-                      >
-                        Mettre VIP
-                      </button>
-                    )}
-                    {canHostActions && onSetVip && isTargetVip && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!window.confirm(`Retirer le statut VIP de ${m.senderName} ?`)) return;
-                          onSetVip(m.senderId, false);
-                          setUserMenuTarget(null);
-                        }}
-                        className="w-full px-4 py-2.5 text-left text-sm text-amber-400/70 hover:bg-amber-500/10"
-                      >
-                        Retirer VIP
-                      </button>
-                    )}
-                    {canBanTarget && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setBanModalTarget({ id: m.senderId, name: m.senderName });
-                          setUserMenuTarget(null);
-                        }}
-                        className="w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-red-500/10"
-                      >
-                        Bannir
-                      </button>
-                    )}
-                    {m.senderId !== userId && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setReportContext({
-                            targetUserId: m.senderId,
-                            targetUsername: m.senderName,
-                            roomType,
-                            roomId,
-                          });
-                          setUserMenuTarget(null);
-                        }}
-                        className="w-full px-4 py-2.5 text-left text-sm text-red-400/90 hover:bg-red-500/10"
-                      >
-                        Signaler
-                      </button>
-                    )}
-                  </div>
-                )}
-                {menuOpen && canDelete && (
-                  <div className="absolute right-2 top-full mt-1 z-20 min-w-[8.5rem] rounded-xl border border-[#2d2d3d] bg-[#12121a] shadow-xl overflow-hidden">
-                    {m.senderId !== userId && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setReportContext({
-                            targetUserId: m.senderId,
-                            targetUsername: m.senderName,
-                            roomType,
-                            roomId,
-                            messageId: m.id,
-                          });
-                          setOpenMsgMenuId(null);
-                        }}
-                        className="w-full px-4 py-2.5 text-left text-sm text-red-400/90 hover:bg-red-500/10"
-                      >
-                        Signaler
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => deleteMessage(m.id, canDeleteAsMod)}
-                      className="w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-red-500/10"
-                    >
-                      {canDeleteAsMod ? 'Supprimer le message' : 'Supprimer'}
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
           );
@@ -728,6 +783,131 @@ export function ChatMessagesView() {
 
         <div ref={bottomRef} />
       </div>
+
+      {userMenuTarget && userMenuAnchor && (
+        <ChatContextMenu
+          open
+          anchor={userMenuAnchor}
+          align="left"
+          menuRef={userMenuRef}
+          onClose={closeUserMenu}
+        >
+          {onPrivateMessage && (
+            <button
+              type="button"
+              onClick={() => {
+                onPrivateMessage({ id: userMenuTarget.id, name: userMenuTarget.name });
+                closeUserMenu();
+              }}
+              className={`${CHAT_MENU_BTN} text-gray-200 hover:bg-white/5`}
+            >
+              Message privé
+            </button>
+          )}
+          {onViewProfile && (
+            <button
+              type="button"
+              onClick={() => {
+                onViewProfile(userMenuTarget.id);
+                closeUserMenu();
+              }}
+              className={`${CHAT_MENU_BTN} text-gray-200 hover:bg-white/5`}
+            >
+              Voir le profil
+            </button>
+          )}
+          {openUserCanHostVip && onSetVip && !openUserIsTargetVip && (
+            <button
+              type="button"
+              onClick={() => {
+                onSetVip(userMenuTarget.id, true);
+                closeUserMenu();
+              }}
+              className={`${CHAT_MENU_BTN} text-amber-300 hover:bg-amber-500/10`}
+            >
+              Mettre VIP
+            </button>
+          )}
+          {openUserCanHostVip && onSetVip && openUserIsTargetVip && (
+            <button
+              type="button"
+              onClick={() => {
+                if (!window.confirm(`Retirer le statut VIP de ${userMenuTarget.name} ?`)) return;
+                onSetVip(userMenuTarget.id, false);
+                closeUserMenu();
+              }}
+              className={`${CHAT_MENU_BTN} text-amber-400/70 hover:bg-amber-500/10`}
+            >
+              Retirer VIP
+            </button>
+          )}
+          {openUserCanBan && (
+            <button
+              type="button"
+              onClick={() => {
+                setBanModalTarget({ id: userMenuTarget.id, name: userMenuTarget.name });
+                closeUserMenu();
+              }}
+              className={`${CHAT_MENU_BTN} text-red-400 hover:bg-red-500/10`}
+            >
+              Bannir
+            </button>
+          )}
+          {userMenuTarget.id !== userId && (
+            <button
+              type="button"
+              onClick={() => {
+                setReportContext({
+                  targetUserId: userMenuTarget.id,
+                  targetUsername: userMenuTarget.name,
+                  roomType,
+                  roomId,
+                });
+                closeUserMenu();
+              }}
+              className={`${CHAT_MENU_BTN} text-red-400/90 hover:bg-red-500/10`}
+            >
+              Signaler
+            </button>
+          )}
+        </ChatContextMenu>
+      )}
+
+      {openMsg && msgMenuAnchor && (
+        <ChatContextMenu
+          open
+          anchor={msgMenuAnchor}
+          align="right"
+          menuRef={msgMenuRef}
+          onClose={closeMsgMenu}
+        >
+          {openMsg.senderId !== userId && (
+            <button
+              type="button"
+              onClick={() => {
+                setReportContext({
+                  targetUserId: openMsg.senderId,
+                  targetUsername: openMsg.senderName,
+                  roomType,
+                  roomId,
+                  messageId: openMsg.id,
+                });
+                closeMsgMenu();
+              }}
+              className={`${CHAT_MENU_BTN} text-red-400/90 hover:bg-red-500/10`}
+            >
+              Signaler
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => deleteMessage(openMsg.id, openMsgCanDeleteAsMod)}
+            className={`${CHAT_MENU_BTN} text-red-400 hover:bg-red-500/10`}
+          >
+            {openMsgCanDeleteAsMod ? 'Supprimer le message' : 'Supprimer'}
+          </button>
+        </ChatContextMenu>
+      )}
 
       {chatBanned && chatBanMessage && (
         <p className="px-3 py-2 text-xs text-red-400 text-center border-t border-red-500/20 bg-red-950/20" role="alert">
@@ -758,13 +938,14 @@ export function ChatInputBar({ className }: { className?: string }) {
     setDonCustomAmount,
     setReactionError,
     onOpenDonation,
+    allowAttachments,
     sendError,
     reactionError,
   } = useChatRoomContext();
 
   return (
     <div className={className}>
-      {pendingAttachment && (
+      {allowAttachments && pendingAttachment && (
         <div className="flex items-center gap-2 px-3 py-2 bg-[#0e0e16] border-t border-[#1e1e2f]">
           {pendingAttachment.mimeType.startsWith('image/') ? (
             <img src={pendingAttachment.dataUrl} alt={pendingAttachment.name} className="w-10 h-10 rounded-lg object-cover shrink-0" />
@@ -780,17 +961,19 @@ export function ChatInputBar({ className }: { className?: string }) {
           >✕</button>
         </div>
       )}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept={`${ACCEPTED_IMAGE_FORMATS},.pdf,.mp3,.mp4,.zip,.doc,.docx,.xls,.xlsx,.txt,.csv`}
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) handleFileSelect(file);
-          e.target.value = '';
-        }}
-      />
+      {allowAttachments && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={`${ACCEPTED_IMAGE_FORMATS},.pdf,.mp3,.mp4,.zip,.doc,.docx,.xls,.xlsx,.txt,.csv`}
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleFileSelect(file);
+            e.target.value = '';
+          }}
+        />
+      )}
       <form
         onSubmit={send}
         className="border-t border-[#1e1e2f] flex gap-2 items-center p-3 bg-[#0b0b0f]/95 backdrop-blur-sm"
@@ -887,7 +1070,7 @@ export function ChatInputBar({ className }: { className?: string }) {
           disabled={chatBanned}
           className="flex-1 min-w-0 bg-[#0e0e16] border border-[#1e1e2a] rounded-full px-4 py-2 text-sm text-white placeholder:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:border-[#3a3a5a]"
         />
-        {!chatBanned && (
+        {!chatBanned && allowAttachments && (
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}

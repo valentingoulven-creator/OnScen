@@ -539,6 +539,13 @@ export const api = {
       token
     ),
 
+  setSalonParticipantVip: (token: string, salonId: string, userId: string, add: boolean) =>
+    request<{ salon: import('../types').Salon }>(
+      `/salons/${salonId}/participants/${userId}/vip`,
+      { method: 'PATCH', body: JSON.stringify({ add }) },
+      token
+    ),
+
   proposeSalonTrack: (
     token: string,
     salonId: string,

@@ -175,10 +175,16 @@ export function SalonPage({
       if (updated.id !== salon.id) return;
       setSalon((prev) => {
         if (!prev) return prev;
-        const { playbackState: incomingPs, queue: incomingQueue, ...rest } = updated;
+        const {
+          playbackState: incomingPs,
+          queue: incomingQueue,
+          vipModeratorIds: incomingVips,
+          ...rest
+        } = updated;
         return {
           ...prev,
           ...rest,
+          ...(incomingVips !== undefined ? { vipModeratorIds: incomingVips } : {}),
           playbackState: incomingPs
             ? mergeRemotePlaybackState(prev.playbackState, incomingPs)
             : prev.playbackState,
@@ -278,9 +284,11 @@ export function SalonPage({
   };
 
   const isHost = Boolean(salon && (salon.isHost ?? salon.hostId === user?.id));
+  const isVipModerator = Boolean(salon?.isVip);
   const hostCanControl = Boolean(
     isHost && salon && isPlatformConnected(user?.connectedPlatforms, salon.platform)
   );
+  const canControlPlayback = hostCanControl || isVipModerator;
 
   const {
     queue,
@@ -327,24 +335,6 @@ export function SalonPage({
       setEndingSalon(false);
     }
   }, [token, salon, onLeaveSalon, t]);
-
-  const setVipModerator = useCallback(
-    (targetUserId: string, add: boolean) => {
-      if (!salon) return;
-      emitOnSocket('salon_set_vip', { salonId: salon.id, userId: targetUserId, add });
-      setSalon((prev) => {
-        if (!prev) return prev;
-        const ids = prev.vipModeratorIds ?? [];
-        const vipModeratorIds = add
-          ? ids.includes(targetUserId)
-            ? ids
-            : [...ids, targetUserId]
-          : ids.filter((id) => id !== targetUserId);
-        return { ...prev, vipModeratorIds };
-      });
-    },
-    [salon?.id]
-  );
 
   const banSalonUser = useCallback(
     (targetUserId: string, opts: { permanent: boolean; durationMs?: number }) => {
@@ -443,7 +433,7 @@ export function SalonPage({
   const playback = salon.playbackState;
 
   const handleSkip = async () => {
-    if (!isHost) return;
+    if (!canControlPlayback) return;
     setSkipping(true);
     try {
       const state = await skipNext();
@@ -476,9 +466,9 @@ export function SalonPage({
 
 
 
-  const isSpotifyParticipant = salon.platform === 'spotify' && !isHost;
+  const isSpotifyParticipantOnly = salon.platform === 'spotify' && !isHost && !isVipModerator;
 
-  const stageFooter = isSpotifyParticipant ? undefined : (
+  const stageFooter = isSpotifyParticipantOnly ? undefined : (
     <div className="p-3 space-y-3">
       {salon.platform !== 'spotify' && (
         <div className="flex flex-wrap items-center gap-2">
@@ -523,33 +513,54 @@ export function SalonPage({
         </div>
       )}
 
-      <section className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4 space-y-4">
-        {isHost && (
+      {isVipModerator && !isHost && salon.platform === 'youtube' && token && (
+        <SalonYouTubeSearch
+          salonId={salon.id}
+          token={token}
+          currentTitle={playback.title}
+          currentArtist={playback.artist}
+          onTrackChanged={applyPlayback}
+        />
+      )}
+
+      {isVipModerator && !isHost && salon.platform === 'spotify' && token && (
+        <SalonSpotifySearch
+          salonId={salon.id}
+          token={token}
+          currentTitle={playback.title}
+          currentArtist={playback.artist}
+          onTrackChanged={applyPlayback}
+          showCurrentTrack={false}
+        />
+      )}
+
+      {isHost && (
+        <section className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b border-[#1e1e2f]">
             <span className="text-xs font-medium text-[#7878a0] uppercase tracking-wider">Panneau host</span>
             <span className="text-[10px] text-gray-600">
               {hostCanControl ? '— lecture, file & propositions' : '— connectez la plateforme du salon'}
             </span>
           </div>
-        )}
-        <SalonQueueSection
-          queue={queue}
-          isHost={hostCanControl}
-          allowQueue={salon.allowQueue}
-          onSkip={hostCanControl ? handleSkip : undefined}
-          onPlayItem={hostCanControl ? handlePlayQueue : undefined}
-          skipping={skipping}
-        />
-        <SalonProposalsSection
-          isHost={hostCanControl}
-          allowQueue={salon.allowQueue}
-          proposals={proposals}
-          loadingProposals={loadingProposals}
-          onPropose={!isHost ? proposeTrack : undefined}
-          onAccept={hostCanControl ? handleAccept : undefined}
-          onReject={hostCanControl ? rejectProposal : undefined}
-        />
-      </section>
+          <SalonQueueSection
+            queue={queue}
+            isHost={hostCanControl}
+            allowQueue={salon.allowQueue}
+            onSkip={hostCanControl ? handleSkip : undefined}
+            onPlayItem={hostCanControl ? handlePlayQueue : undefined}
+            skipping={skipping}
+          />
+          <SalonProposalsSection
+            isHost={hostCanControl}
+            allowQueue={salon.allowQueue}
+            proposals={proposals}
+            loadingProposals={loadingProposals}
+            onPropose={!isHost && !isVipModerator ? proposeTrack : undefined}
+            onAccept={hostCanControl ? handleAccept : undefined}
+            onReject={hostCanControl ? rejectProposal : undefined}
+          />
+        </section>
+      )}
 
       {isHost && salon.accessMode === 'invite' && (
         <section className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4">
@@ -558,7 +569,7 @@ export function SalonPage({
         </section>
       )}
 
-      {hostCanControl && (
+      {isHost && hostCanControl && (
         <section className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4">
           <h3 className="text-xs font-medium text-[#7878a0] uppercase tracking-wider mb-3">Gérer l&apos;accès</h3>
           <div className="flex gap-2 mb-3">
@@ -611,14 +622,15 @@ export function SalonPage({
     userName: user!.username,
     token: token ?? undefined,
     isHost,
-    canModerateChat: isHost,
+    canModerateChat: isHost || isVipModerator,
     hostId: salon.hostId,
     vipModeratorIds: salon.vipModeratorIds ?? [],
-    onSetVip: isHost ? setVipModerator : undefined,
-    onBanUser: isHost
-      ? (targetUserId: string, opts: { permanent: boolean; durationMs?: number; scope: 'chat' | 'live' }) =>
-          banSalonUser(targetUserId, opts)
-      : undefined,
+    allowAttachments: false,
+    onBanUser:
+      isHost || isVipModerator
+        ? (targetUserId: string, opts: { permanent: boolean; durationMs?: number; scope: 'chat' | 'live' }) =>
+            banSalonUser(targetUserId, opts)
+        : undefined,
   };
 
   const chatHeaderExtra =
@@ -626,7 +638,11 @@ export function SalonPage({
       <SalonParticipantsPopover
         salonId={salon.id}
         token={token}
-        onVipChange={(userId, isVip) => setVipModerator(userId, isVip)}
+        vipModeratorIds={salon.vipModeratorIds ?? []}
+        onVipChange={async (userId, isVip) => {
+          const { salon: updated } = await api.setSalonParticipantVip(token, salon.id, userId, isVip);
+          setSalon(updated);
+        }}
         onActionDone={setToastMsg}
       />
     ) : undefined;
@@ -784,6 +800,7 @@ export function SalonPage({
               salon={salon}
               token={token}
               isHost={isHost}
+              isVipModerator={isVipModerator}
               userPlatforms={user?.connectedPlatforms}
               onUserUpdated={setUserFromProfile}
               onPlaybackStateChange={applyPlayback}

@@ -536,7 +536,7 @@ export default function App() {
 
   return (
     <div
-      className={`flex flex-col min-h-dvh max-h-dvh overflow-hidden${!appa2 ? ' ms-app-shell--bottom-tabs' : ''}${appa2 && !profileOpen ? ' ms-app-shell--header-tabs' : ''}${showSalonReturnBar ? ' ms-app-shell--salon-return' : ''}`}
+      className={`flex flex-col min-h-dvh max-h-dvh overflow-hidden${!appa2 ? ' ms-app-shell--bottom-tabs' : ''}${appa2 && !profileOpen ? ' ms-app-shell--header-tabs' : ''}${showSalonReturnBar ? ' ms-app-shell--salon-return' : ''}${salonFullScreen ? ' ms-app-shell--salon-fullscreen' : ''}`}
     >
       {incomingToast && (
         <button
@@ -570,6 +570,7 @@ export default function App() {
         </button>
       )}
 
+      {!salonFullScreen && (
       <header
         className={`ms-app-header${appa2 && !profileOpen ? ' ms-app-header--with-tabs' : ''}`}
       >
@@ -649,9 +650,10 @@ export default function App() {
           />
         )}
       </header>
+      )}
 
       <main
-        className="ms-app-main flex-1 min-h-0 overflow-hidden flex flex-col relative"
+        className={`ms-app-main flex-1 min-h-0 overflow-hidden flex flex-col relative${salonFullScreen ? ' ms-app-main--no-header' : ''}`}
       >
             {user && token && !isNewUser && view.type === 'home' && !profileOpen && !salonFullScreen && (
               <PlatformConnectPrompt

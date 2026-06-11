@@ -43,12 +43,13 @@ import { notifyFavoritesSalonStarted } from '../lib/favorites';
 import { normalizeSpotifyJamUrl } from '../lib/spotifyJam';
 import { getIo } from '../lib/ioInstance';
 import { getSalonConnectedParticipants } from '../lib/salonParticipants';
+import {
+  broadcastSalonUpdated,
+  canControlSalonPlayback,
+  setSalonVipModerator,
+} from '../lib/salonModeration';
 
 export const salonsRouter = Router();
-
-function broadcastSalonUpdated(salon: Salon): void {
-  getIo()?.to(`salon_${salon.id}`).emit('salon_updated', salon);
-}
 
 /**
  * YouTube search result cache — TTL 1 hour (well within the YouTube API ToS 24-hour limit).
@@ -110,6 +111,32 @@ function requireRealSpotifyHost(
     return false;
   }
   return true;
+}
+
+/** Hôte ou VIP autorisé à piloter la lecture ; le jeton Spotify/YouTube reste celui de l'hôte. */
+function requireSalonPlaybackController(
+  salon: Salon | undefined,
+  actorId: string,
+  res: Response
+): salon is Salon {
+  if (!salon) {
+    res.status(404).json({ error: 'Salon introuvable' });
+    return false;
+  }
+  if (!canControlSalonPlayback(salon, actorId)) {
+    res.status(403).json({ error: 'Non autorisé' });
+    return false;
+  }
+  return true;
+}
+
+function getSalonHostUser(salon: Salon, res: Response): import('../models/schema').User | undefined {
+  const hostUser = db.users.get(salon.hostId);
+  if (!hostUser) {
+    res.status(404).json({ error: 'Hôte introuvable' });
+    return undefined;
+  }
+  return hostUser;
 }
 
 salonsRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
@@ -267,6 +294,21 @@ salonsRouter.get('/:id/participants', authenticateJWT, (req: Request, res: Respo
   });
 });
 
+salonsRouter.patch('/:id/participants/:userId/vip', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const { add } = req.body as { add?: unknown };
+  if (typeof add !== 'boolean') {
+    res.status(400).json({ error: 'Paramètre add (boolean) requis' });
+    return;
+  }
+  const result = setSalonVipModerator(req.params.id, me, req.params.userId, add);
+  if (!result.ok) {
+    res.status(result.status).json({ error: result.error });
+    return;
+  }
+  res.json({ salon: publicSalon(result.salon, me) });
+});
+
 salonsRouter.post('/:id/proposals', authenticateJWT, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string; username: string } }).user;
   const salon = db.salons.get(req.params.id);
@@ -359,12 +401,9 @@ salonsRouter.post('/:id/proposals/:proposalId/reject', authenticateJWT, (req: Re
 salonsRouter.post('/:id/playback/skip', authenticateJWT, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const salon = db.salons.get(req.params.id);
-  if (!salon || salon.hostId !== me) {
-    res.status(403).json({ error: 'Non autorisé' });
-    return;
-  }
-  const hostUser = db.users.get(me);
-  if (!requireHostPlatform(hostUser, salon.platform, res)) return;
+  if (!requireSalonPlaybackController(salon, me, res)) return;
+  const hostUser = getSalonHostUser(salon, res);
+  if (!hostUser || !requireHostPlatform(hostUser, salon.platform, res)) return;
   const state = hostSkipNext(salon);
   if (!state) {
     res.status(400).json({ error: 'File vide' });
@@ -376,12 +415,9 @@ salonsRouter.post('/:id/playback/skip', authenticateJWT, (req: Request, res: Res
 salonsRouter.post('/:id/playback/play-queue', authenticateJWT, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const salon = db.salons.get(req.params.id);
-  if (!salon || salon.hostId !== me) {
-    res.status(403).json({ error: 'Non autorisé' });
-    return;
-  }
-  const hostUser = db.users.get(me);
-  if (!requireHostPlatform(hostUser, salon.platform, res)) return;
+  if (!requireSalonPlaybackController(salon, me, res)) return;
+  const hostUser = getSalonHostUser(salon, res);
+  if (!hostUser || !requireHostPlatform(hostUser, salon.platform, res)) return;
   const { queueItemId } = req.body;
   if (!queueItemId) {
     res.status(400).json({ error: 'queueItemId requis' });
@@ -398,15 +434,12 @@ salonsRouter.post('/:id/playback/play-queue', authenticateJWT, (req: Request, re
 salonsRouter.post('/:id/playback/change-track', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const salon = db.salons.get(req.params.id);
-  if (!salon || salon.hostId !== me) {
-    res.status(403).json({ error: 'Non autorisé' });
-    return;
-  }
+  if (!requireSalonPlaybackController(salon, me, res)) return;
   if (salon.platform !== 'youtube' && salon.platform !== 'spotify') {
     res.status(400).json({ error: 'Changement de morceau non supporté pour cette plateforme' });
     return;
   }
-  const hostUser = db.users.get(me);
+  const hostUser = getSalonHostUser(salon, res);
   if (!hostUser || !requireHostPlatform(hostUser, salon.platform, res)) return;
 
   const { trackId, title, artist, trackLink, albumArtUrl } = req.body;
@@ -490,15 +523,12 @@ salonsRouter.get('/:id/playback/spotify-now-playing', authenticateJWT, async (re
 salonsRouter.post('/:id/playback/spotify-control', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const salon = db.salons.get(req.params.id);
-  if (!salon || salon.hostId !== me) {
-    res.status(403).json({ error: 'Non autorisé' });
-    return;
-  }
+  if (!requireSalonPlaybackController(salon, me, res)) return;
   if (salon.platform !== 'spotify') {
     res.status(400).json({ error: 'Contrôle Spotify disponible uniquement dans un salon Spotify' });
     return;
   }
-  const hostUser = db.users.get(me);
+  const hostUser = getSalonHostUser(salon, res);
   if (!hostUser || !requireHostPlatform(hostUser, salon.platform, res)) return;
 
   const action = req.body?.action;

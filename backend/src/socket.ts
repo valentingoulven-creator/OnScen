@@ -30,6 +30,12 @@ import {
 } from './lib/liveVideoRelay';
 import { serializePublicLive } from './lib/livePublic';
 import { canUserUseApp } from './lib/accessControl';
+import {
+  canControlSalonPlayback,
+  canModerateSalon,
+  canModerateSalonTarget,
+  setSalonVipModerator,
+} from './lib/salonModeration';
 
 // Debounce presence broadcasts per user: prevents rapid-fire storms when a user
 // reconnects multiple times in quick succession (e.g., mobile network hiccup).
@@ -146,20 +152,8 @@ export function setupSockets(io: Server): void {
       'salon_set_vip',
       ({ salonId, userId: targetUserId, add }: { salonId: string; userId: string; add: boolean }) => {
         const actorId = (socket.data as { userId?: string }).userId;
-        if (!actorId || !salonId || !targetUserId) return;
-        const salon = db.salons.get(salonId);
-        if (!salon || salon.hostId !== actorId) return;
-        if (targetUserId === salon.hostId) return;
-
-        const ids = salon.vipModeratorIds ?? [];
-        if (add) {
-          if (!ids.includes(targetUserId)) ids.push(targetUserId);
-          salon.vipModeratorIds = ids;
-        } else {
-          salon.vipModeratorIds = ids.filter((id) => id !== targetUserId);
-        }
-        db.salons.set(salonId, salon);
-        io.to(`salon_${salonId}`).emit('salon_updated', salon);
+        if (!actorId) return;
+        setSalonVipModerator(salonId, actorId, targetUserId, add === true);
       }
     );
 
@@ -171,13 +165,8 @@ export function setupSockets(io: Server): void {
         const salon = db.salons.get(salonId);
         if (!salon) return;
 
-        const isActorHost = salon.hostId === actorId;
-        const isActorVip = (salon.vipModeratorIds ?? []).includes(actorId);
-        if (!isActorHost && !isActorVip) return;
-        if (targetUserId === salon.hostId) return;
-
-        const isTargetVip = (salon.vipModeratorIds ?? []).includes(targetUserId);
-        if (!isActorHost && isActorVip && isTargetVip) return;
+        if (!canModerateSalon(salon, actorId)) return;
+        if (!canModerateSalonTarget(salon, actorId, targetUserId)) return;
 
         io.to(`user_${targetUserId}`).emit('salon_kicked', { salonId });
         void io.in(`user_${targetUserId}`).socketsLeave(`salon_${salonId}`);
@@ -208,13 +197,10 @@ export function setupSockets(io: Server): void {
         const salon = db.salons.get(salonId);
         if (!salon) return;
 
-        const isActorHost = salon.hostId === actorId;
-        const isActorVip = (salon.vipModeratorIds ?? []).includes(actorId);
-        if (!isActorHost && !isActorVip) return;
-        if (targetUserId === salon.hostId) return;
+        if (!canModerateSalon(salon, actorId)) return;
+        if (!canModerateSalonTarget(salon, actorId, targetUserId)) return;
 
         const isTargetVip = (salon.vipModeratorIds ?? []).includes(targetUserId);
-        if (!isActorHost && isActorVip && isTargetVip) return;
 
         let banMap = db.salonBans.get(salonId);
         if (!banMap) {
@@ -612,8 +598,8 @@ export function setupSockets(io: Server): void {
     socket.on('sync_playback', ({ salonId, playbackState }: { salonId: string; playbackState: object }) => {
       const userId = (socket.data as { userId?: string }).userId;
       const salon = db.salons.get(salonId);
-      if (!salon || !userId || salon.hostId !== userId) return;
-      const hostUser = db.users.get(userId);
+      if (!salon || !userId || !canControlSalonPlayback(salon, userId)) return;
+      const hostUser = db.users.get(salon.hostId);
       if (!hostUser || !isPlatformConnected(hostUser, salon.platform)) {
         socket.emit('host_playback_denied', {
           salonId,

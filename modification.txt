@@ -7633,3 +7633,69 @@ participants connectés avec actions modération.
 ================================================================================
 Fin MODIF 439 - 2026-06-11
 ================================================================================
+
+================================================================================
+MODIF 443 — Désactiver pièces jointes chat salon (📎 Joindre un fichier)
+================================================================================
+Date : 2026-06-11
+
+## Objectif
+Masquer le bouton 📎 « Joindre un fichier » et bloquer l'envoi de pièces jointes
+dans le chat salon. Les DM et le chat live conservent les pièces jointes.
+
+## Correctif
+- `ChatPanelProps.allowAttachments?: boolean` — défaut `false` si `roomType === 'salon'`
+- `SalonPage` : `allowAttachments: false` explicite dans `chatProps`
+
+## Fichiers
+- app/src/components/ChatPanel.tsx
+- app/src/pages/SalonPage.tsx
+
+================================================================================
+Fin MODIF 443 - 2026-06-11
+================================================================================
+
+================================================================================
+MODIF 444 — Droits lecture musique modérateur VIP salon (⭐)
+================================================================================
+Date : 2026-06-11
+
+## Objectif
+Un modérateur VIP (⭐) peut piloter la lecture : play/pause/stop/next/seek et
+changement de morceau, sans playlists hôte, réglages accès, ni fin de salon.
+
+## Droits VIP lecture
+- ✅ play / pause / stop / next / seek
+- ✅ Changer de morceau (SalonSpotifySearch / SalonYouTubeSearch)
+- ✅ skip / play-queue (backend)
+- ❌ load-playlist (host OAuth)
+- ❌ Public/Invitation, panneau host, arrêter salon
+
+## Spotify Connect
+API Spotify (`change-track`, `spotify-control`) utilise le jeton Connect de
+l'hôte (`getSalonHostUser`). Le VIP déclenche la lecture sur l'appareil hôte.
+
+## Backend
+- `canControlSalonPlayback` dans `salonModeration.ts`
+- Routes : change-track, spotify-control, skip, play-queue → host OU VIP
+- Socket `sync_playback` → host OU VIP (plateforme vérifiée sur l'hôte)
+
+## Frontend
+- `SalonPage` : `isVipModerator`, stageFooter recherche VIP, modération chat
+- `SalonPlaybackPanel` : `isVipModerator`, barre contrôles VIP
+
+## Fichiers
+- backend/src/lib/salonModeration.ts
+- backend/src/routes/salons.ts
+- backend/src/socket.ts
+- app/src/pages/SalonPage.tsx
+- app/src/components/SalonPlaybackPanel.tsx
+- modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npx tsc -p tsconfig.app.json --noEmit
+
+================================================================================
+Fin MODIF 444 - 2026-06-11
+================================================================================
