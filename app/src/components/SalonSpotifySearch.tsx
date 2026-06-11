@@ -33,6 +33,9 @@ interface SalonSpotifySearchProps {
   /** Masque le morceau en cours (affiché ailleurs, ex. barre lecture salon). */
   showCurrentTrack?: boolean;
 
+  /** queue = file directe (hôte/VIP). propose = PROPOSITIONS pour l'hôte (auditeur). */
+  submitMode?: 'queue' | 'propose';
+
 }
 
 
@@ -70,6 +73,8 @@ export function SalonSpotifySearch({
   onQueueChanged,
 
   showCurrentTrack = true,
+
+  submitMode = 'queue',
 
 }: SalonSpotifySearchProps) {
 
@@ -209,6 +214,8 @@ export function SalonSpotifySearch({
 
 
 
+  const isProposeMode = submitMode === 'propose';
+
   const addResult = async (item: SpotifySearchResult) => {
 
     setAddingId(item.id);
@@ -216,6 +223,17 @@ export function SalonSpotifySearch({
     setError(null);
 
     try {
+
+      if (isProposeMode) {
+        await api.proposeSalonTrack(token, salonId, {
+          title: item.name,
+          artist: item.artist,
+          spotifyUrl: item.externalUrl,
+        });
+        setInfoToast(t('salon.spotifySearch.proposeSuccess'));
+        clearSearchUi();
+        return;
+      }
 
       const { queue } = await api.salonAddToQueue(token, salonId, trackBodyFromResult(item));
 
@@ -301,7 +319,7 @@ export function SalonSpotifySearch({
 
         <p className="text-[11px] font-semibold text-gray-300 uppercase tracking-wide">
 
-          {t('salon.spotifySearch.addToQueue')}
+          {isProposeMode ? t('salon.spotifySearch.proposeTrack') : t('salon.spotifySearch.addToQueue')}
 
         </p>
 
@@ -435,7 +453,13 @@ export function SalonSpotifySearch({
 
                       onSelect={(row) => addResult(row as SpotifySearchResult)}
 
-                      actionLabel={addingId === item.id ? '…' : t('salon.spotifySearch.add')}
+                      actionLabel={
+                        addingId === item.id
+                          ? '…'
+                          : isProposeMode
+                            ? t('salon.spotifySearch.propose')
+                            : t('salon.spotifySearch.add')
+                      }
 
                     />
 
@@ -455,7 +479,9 @@ export function SalonSpotifySearch({
 
 
 
-      <p className="text-[10px] text-gray-600 leading-snug">{t('salon.spotifySearch.addHint')}</p>
+      <p className="text-[10px] text-gray-600 leading-snug">
+        {isProposeMode ? t('salon.spotifySearch.proposeHint') : t('salon.spotifySearch.addHint')}
+      </p>
 
       <p className="text-[10px] text-[#1DB954]/70">{t('salon.spotifySearch.poweredBy')}</p>
 

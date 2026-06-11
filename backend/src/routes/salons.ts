@@ -345,8 +345,8 @@ salonsRouter.post('/:id/proposals', authenticateJWT, (req: Request, res: Respons
   const me = (req as Request & { user: { id: string; username: string } }).user;
   const salon = db.salons.get(req.params.id);
   if (!salonMemberOr403(salon, me.id, res)) return;
-  if (salon.hostId === me.id) {
-    res.status(400).json({ error: 'Le host ne propose pas — ajoutez directement à la file' });
+  if (salon.hostId === me.id || canControlSalonPlayback(salon, me.id)) {
+    res.status(400).json({ error: 'Ajoutez directement à la file ou changez le morceau' });
     return;
   }
   if (!salon.allowQueue) {

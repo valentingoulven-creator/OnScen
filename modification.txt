@@ -8205,3 +8205,84 @@ aucun masquage conditionnel — header reste visible.
 ================================================================================
 Fin MODIF 457 - 2026-06-11
 ================================================================================
+
+================================================================================
+MODIF 458 — Auditeur salon : recherche → PROPOSITIONS (pas file directe)
+================================================================================
+Date : 2026-06-11
+
+## Objectif
+Quand un participant (auditeur, non hôte / non VIP) ajoute un morceau via la
+recherche Spotify ou YouTube, l'envoi passe par `POST …/proposals` et apparaît
+dans le panneau host PROPOSITIONS — sans lecture Spotify ni changement de piste.
+
+## Comportement
+- **Hôte / VIP avec contrôle lecture** : inchangé (`add-to-queue` Spotify,
+  `change-track` YouTube).
+- **Auditeur** : `SalonSpotifySearch` / `SalonYouTubeSearch` en mode `propose`
+  → toast « Proposition envoyée » ; l'hôte accepte (Lire / File) ou refuse.
+
+## Backend
+- `POST …/proposals` : refus si `canControlSalonPlayback` (hôte, VIP, Dev) —
+  message « Ajoutez directement à la file ou changez le morceau ».
+- Endpoint propositions existant réutilisé (titre, artiste, spotifyUrl / youtubeUrl).
+
+## Frontend
+- `SalonSpotifySearch` : prop `submitMode: 'queue' | 'propose'`.
+- `SalonYouTubeSearch` : prop `submitMode: 'play' | 'propose'` + i18n.
+- Salon plein écran : footer auditeur (Spotify + YouTube) avec recherche propose.
+- `SalonPlaybackPanel` : recherche propose en layout file Spotify + fiche carte.
+- `SalonProposalsSection` : toast « Proposition envoyée ».
+
+## Fichiers
+- backend/src/routes/salons.ts
+- app/src/components/SalonSpotifySearch.tsx
+- app/src/components/SalonYouTubeSearch.tsx
+- app/src/components/SalonPlaybackPanel.tsx
+- app/src/components/SalonProposalsSection.tsx
+- app/src/pages/SalonPage.tsx
+- app/src/locales/fr.json, en.json
+- modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npm run build
+
+## Déploiement
+**Oui** — rebuild app + redémarrage backend (route proposals).
+
+================================================================================
+Fin MODIF 458 - 2026-06-11
+================================================================================
+
+================================================================================
+MODIF 459 — Documentation boutons app (boutons-app.txt)
+================================================================================
+Date : 2026-06-11
+
+## Objectif
+Créer un fichier texte à la racine du projet documentant tous les boutons
+majeurs de l'application Soundy, organisés par section, pour référence interne
+et onboarding.
+
+## Contenu
+- Fichier `boutons-app.txt` (~165 entrées)
+- 12 sections : en-tête, navigation, carte, salon, live, fil d'actu, messages,
+  reels, profil, paramètres, administration, authentification
+- Inclut les boutons récents MODIF 452–458 (Admin Salon, Validé, propositions
+  auditeur, chevron minimiser, header visible, filtres carte, etc.)
+- Format : Libellé → action
+
+## Fichiers
+- boutons-app.txt (nouveau)
+- modification.txt
+
+## Test
+  Vérifier présence et lisibilité de boutons-app.txt à la racine MeloSongv2.
+
+## Déploiement
+**Non** — documentation uniquement, aucun impact runtime.
+
+================================================================================
+Fin MODIF 459 - 2026-06-11
+================================================================================

@@ -538,6 +538,29 @@ export function SalonPage({
 
   const isSpotifyParticipantOnly = salon.platform === 'spotify' && !isHost && !isVipModerator && !isDevModerator;
 
+  const participantProposeSearch =
+    !canControlPlayback && salon.allowQueue && token ? (
+      salon.platform === 'spotify' ? (
+        <SalonSpotifySearch
+          salonId={salon.id}
+          token={token}
+          currentTitle={playback.title}
+          currentArtist={playback.artist}
+          showCurrentTrack={false}
+          submitMode="propose"
+        />
+      ) : (
+        <SalonYouTubeSearch
+          salonId={salon.id}
+          token={token}
+          currentTitle={playback.title}
+          currentArtist={playback.artist}
+          onTrackChanged={applyPlayback}
+          submitMode="propose"
+        />
+      )
+    ) : null;
+
   const stageFooter = isSpotifyParticipantOnly ? undefined : (
     <div className="p-3 space-y-3">
       {salon.platform !== 'spotify' && (
@@ -691,6 +714,8 @@ export function SalonPage({
           )}
         </section>
       )}
+
+      {participantProposeSearch}
 
     </div>
   );

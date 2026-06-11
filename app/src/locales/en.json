@@ -168,6 +168,11 @@
       "addToQueue": "Add a track",
       "addSuccess": "Track added to queue",
       "addError": "Could not add to queue",
+      "proposeTrack": "Suggest a track",
+      "propose": "Suggest",
+      "proposeSuccess": "Suggestion sent",
+      "proposeError": "Could not send suggestion",
+      "proposeHint": "Sent to the host PROPOSALS panel — no playback until they accept.",
       "changeTrack": "Change track",
       "defaultTrackTitle": "Spotify track",
       "errorGeneric": "Search unavailable",
@@ -193,6 +198,22 @@
       "playlistScopeError": "Reconnect Spotify to authorize playlist access (permission required).",
       "playlistReconnectSpotify": "Reconnect Spotify",
       "playlistError": "Playlists unavailable"
+    },
+    "youtubeSearch": {
+      "placeholder": "Title, artist, or YouTube link…",
+      "searching": "Searching YouTube…",
+      "noResultsHint": "No results — try another query or paste a youtube.com/watch?v=… link",
+      "changeTrack": "Change track",
+      "changeHint": "YouTube search · direct links accepted · salon timer resets to 0:00 on the new track.",
+      "changeError": "Could not change track",
+      "proposeTrack": "Suggest a track",
+      "propose": "Suggest",
+      "proposeSuccess": "Suggestion sent",
+      "proposeError": "Could not send suggestion",
+      "proposeHint": "Sent to the host PROPOSALS panel — no playback until they accept.",
+      "play": "Play",
+      "defaultTrackTitle": "YouTube video",
+      "errorGeneric": "Search unavailable"
     }
   },
   "live": {

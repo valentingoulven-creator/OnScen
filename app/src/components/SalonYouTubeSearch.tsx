@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api';
 import type { PlaybackState, YoutubeSearchResult } from '../types';
 
@@ -8,6 +9,8 @@ interface SalonYouTubeSearchProps {
   currentTitle: string;
   currentArtist: string;
   onTrackChanged: (state: PlaybackState) => void;
+  /** play = lecture immédiate (hôte/VIP). propose = PROPOSITIONS pour l'hôte (auditeur). */
+  submitMode?: 'play' | 'propose';
 }
 
 function parseYoutubeVideoId(input: string): string | null {
@@ -25,15 +28,25 @@ export function SalonYouTubeSearch({
   currentTitle,
   currentArtist,
   onTrackChanged,
+  submitMode = 'play',
 }: SalonYouTubeSearchProps) {
+  const { t } = useTranslation();
+  const isProposeMode = submitMode === 'propose';
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<YoutubeSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [changingId, setChangingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [infoToast, setInfoToast] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!infoToast) return;
+    const timer = window.setTimeout(() => setInfoToast(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [infoToast]);
 
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
@@ -63,19 +76,36 @@ export function SalonYouTubeSearch({
         .then((r) => setResults(r.results))
         .catch((e) => {
           setResults([]);
-          setError(e instanceof Error ? e.message : 'Recherche impossible');
+          setError(e instanceof Error ? e.message : t('salon.youtubeSearch.errorGeneric'));
         })
         .finally(() => setSearching(false));
     }, 350);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, token]);
+  }, [query, token, t]);
+
+  const clearSearchUi = () => {
+    setQuery('');
+    setResults([]);
+    setDropdownOpen(false);
+  };
 
   const playResult = async (item: YoutubeSearchResult) => {
     setChangingId(item.videoId);
     setError(null);
     try {
+      if (isProposeMode) {
+        await api.proposeSalonTrack(token, salonId, {
+          title: item.title,
+          artist: item.artist,
+          youtubeUrl: item.externalUrl,
+        });
+        setInfoToast(t('salon.youtubeSearch.proposeSuccess'));
+        clearSearchUi();
+        return;
+      }
+
       const { playbackState } = await api.salonChangeTrack(token, salonId, {
         trackId: item.videoId,
         title: item.title,
@@ -83,11 +113,15 @@ export function SalonYouTubeSearch({
         trackLink: item.externalUrl,
       });
       onTrackChanged(playbackState);
-      setQuery('');
-      setResults([]);
-      setDropdownOpen(false);
+      clearSearchUi();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Impossible de changer de morceau');
+      setError(
+        e instanceof Error
+          ? e.message
+          : isProposeMode
+            ? t('salon.youtubeSearch.proposeError')
+            : t('salon.youtubeSearch.changeError')
+      );
     } finally {
       setChangingId(null);
     }
@@ -104,7 +138,7 @@ export function SalonYouTubeSearch({
     if (videoId) {
       await playResult({
         videoId,
-        title: 'Vidéo YouTube',
+        title: t('salon.youtubeSearch.defaultTrackTitle'),
         artist: 'YouTube',
         thumbnailUrl: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
         externalUrl: `https://www.youtube.com/watch?v=${videoId}`,
@@ -115,10 +149,14 @@ export function SalonYouTubeSearch({
   const showDropdown =
     dropdownOpen && query.trim().length >= 2 && (searching || results.length > 0 || Boolean(error));
 
+  const actionLabel = isProposeMode ? t('salon.youtubeSearch.propose') : t('salon.youtubeSearch.play');
+
   return (
     <div ref={rootRef} className="relative space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[11px] font-semibold text-gray-300 uppercase tracking-wide">Changer de morceau</p>
+        <p className="text-[11px] font-semibold text-gray-300 uppercase tracking-wide">
+          {isProposeMode ? t('salon.youtubeSearch.proposeTrack') : t('salon.youtubeSearch.changeTrack')}
+        </p>
         <span className="text-[10px] text-gray-500 truncate max-w-[55%]">
           {currentTitle}
           {currentArtist ? ` · ${currentArtist}` : ''}
@@ -143,10 +181,10 @@ export function SalonYouTubeSearch({
               setDropdownOpen(false);
             }
           }}
-          placeholder="Titre, artiste ou lien YouTube…"
+          placeholder={t('salon.youtubeSearch.placeholder')}
           className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-[#0b0b0f] border border-[#2a2a3a] text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/30"
           autoComplete="off"
-          aria-label="Rechercher un morceau YouTube"
+          aria-label={t('salon.youtubeSearch.placeholder')}
           aria-expanded={showDropdown}
           aria-haspopup="listbox"
         />
@@ -157,14 +195,14 @@ export function SalonYouTubeSearch({
             role="listbox"
           >
             {searching && (
-              <p className="text-xs text-gray-500 text-center py-3">Recherche YouTube…</p>
+              <p className="text-xs text-gray-500 text-center py-3">{t('salon.youtubeSearch.searching')}</p>
             )}
             {error && !searching && (
               <p className="text-xs text-red-400 text-center py-3 px-3">{error}</p>
             )}
             {!searching && !error && results.length === 0 && (
               <p className="text-xs text-gray-500 text-center py-3 px-3 leading-snug">
-                Aucun résultat — reformulez ou collez un lien youtube.com/watch?v=…
+                {t('salon.youtubeSearch.noResultsHint')}
               </p>
             )}
             {!searching && results.length > 0 && (
@@ -184,7 +222,6 @@ export function SalonYouTubeSearch({
                           alt=""
                           className="w-14 h-10 rounded-md object-cover bg-[#1e1e2f]"
                         />
-                        {/* YouTube attribution — required by YouTube API Terms of Service */}
                         <span className="absolute bottom-0.5 right-0.5 bg-[#e62117] rounded px-1 text-[7px] font-bold text-white leading-none py-px tracking-tight">
                           YouTube
                         </span>
@@ -194,7 +231,7 @@ export function SalonYouTubeSearch({
                         <span className="block text-[10px] text-gray-500 truncate">{item.artist}</span>
                       </span>
                       <span className="text-[10px] text-purple-300 font-bold shrink-0">
-                        {changingId === item.videoId ? '…' : 'Lire'}
+                        {changingId === item.videoId ? '…' : actionLabel}
                       </span>
                     </button>
                   </li>
@@ -206,8 +243,17 @@ export function SalonYouTubeSearch({
       </div>
 
       <p className="text-[10px] text-gray-600 leading-snug">
-        Recherche YouTube · lien direct accepté · le salon repart à 0:00 sur le nouveau morceau.
+        {isProposeMode ? t('salon.youtubeSearch.proposeHint') : t('salon.youtubeSearch.changeHint')}
       </p>
+
+      {infoToast ? (
+        <div
+          className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 max-w-[90vw] px-4 py-2 rounded-full bg-green-950/95 border border-green-500/40 text-sm text-green-100 shadow-lg text-center"
+          role="status"
+        >
+          {infoToast}
+        </div>
+      ) : null}
     </div>
   );
 }

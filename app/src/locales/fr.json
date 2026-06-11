@@ -168,6 +168,11 @@
       "addToQueue": "Ajouter un morceau",
       "addSuccess": "Morceau ajouté à la file",
       "addError": "Impossible d'ajouter à la file",
+      "proposeTrack": "Proposer un morceau",
+      "propose": "Proposer",
+      "proposeSuccess": "Proposition envoyée",
+      "proposeError": "Impossible d'envoyer la proposition",
+      "proposeHint": "Envoi au panneau PROPOSITIONS de l'hôte — pas de lecture tant qu'il n'accepte pas.",
       "changeTrack": "Changer de morceau",
       "defaultTrackTitle": "Morceau Spotify",
       "errorGeneric": "Recherche impossible",
@@ -193,6 +198,22 @@
       "playlistScopeError": "Reconnectez Spotify pour autoriser l'accès aux playlists (autorisation requise).",
       "playlistReconnectSpotify": "Reconnecter Spotify",
       "playlistError": "Playlists indisponibles"
+    },
+    "youtubeSearch": {
+      "placeholder": "Titre, artiste ou lien YouTube…",
+      "searching": "Recherche YouTube…",
+      "noResultsHint": "Aucun résultat — reformulez ou collez un lien youtube.com/watch?v=…",
+      "changeTrack": "Changer de morceau",
+      "changeHint": "Recherche YouTube · lien direct accepté · le salon repart à 0:00 sur le nouveau morceau.",
+      "changeError": "Impossible de changer de morceau",
+      "proposeTrack": "Proposer un morceau",
+      "propose": "Proposer",
+      "proposeSuccess": "Proposition envoyée",
+      "proposeError": "Impossible d'envoyer la proposition",
+      "proposeHint": "Envoi au panneau PROPOSITIONS de l'hôte — pas de lecture tant qu'il n'accepte pas.",
+      "play": "Lire",
+      "defaultTrackTitle": "Vidéo YouTube",
+      "errorGeneric": "Recherche impossible"
     }
   },
   "live": {

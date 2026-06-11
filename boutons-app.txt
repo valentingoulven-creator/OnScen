@@ -1,0 +1,248 @@
+DOCUMENTATION DES BOUTONS — Soundy (MeloSongv2)
+Généré : 2026-06-11 — inclut MODIF 452–458
+Format : Libellé → action
+
+═══════════════════════════════════════════════════════════
+1. EN-TÊTE GLOBAL (toujours visible, salon/live plein écran — MODIF 457)
+═══════════════════════════════════════════════════════════
+• Soundy (logo) → ouvre l'onglet Accueil (fil d'actu)
+• Rafraîchir (msdev uniquement) → rebuild frontend + rechargement page
+• Rechercher un profil… → recherche pseudo ; sélection ouvre le profil public
+• Espace administrateur (icône bouclier, admins) → overlay Administration
+• Confidentialité et visibilité (icône œil barré) → menu :
+  - Masquer ma position sur la carte (mode fantôme)
+  - Ne communique pas la distance aux autres utilisateurs
+  - N'est pas précis sur la localisation (ville seule)
+• Notifications (cloche) → liste ; clic sur une notif :
+  - match / cœur / follow / mention / événement → profil
+  - live_started → live
+  - salon_invite / favorite_online → salon (MODIF 454)
+  - dm_message → conversation
+  - group_message → groupe
+• Avatar profil → ouvre Mon profil (overlay)
+• Toast message entrant (hors cloche) → ouvre la conversation ; × ferme le toast
+
+═══════════════════════════════════════════════════════════
+2. NAVIGATION PRINCIPALE
+═══════════════════════════════════════════════════════════
+• Accueil → fil d'actu, lives, événements communauté
+• Carte → carte / globe, salons, lives, personnes
+• Direct → liste des lives + lancer un live
+• Messages → conversations privées et groupes
+• Reels → flux vidéo vertical
+• Revenir au salon · {titre} (barre violette si salon minimisé) → réouvre le salon plein écran
+
+═══════════════════════════════════════════════════════════
+3. CARTE / GLOBE (onglet Carte)
+═══════════════════════════════════════════════════════════
+• Liste (panneau latéral) → affiche personnes / salons / lives filtrés
+• Masquer le panneau → replie la liste latérale
+• + Salon → modal Créer un salon
+• Recentrer (cible) → centre la carte sur votre position
+• Lives (filtre) → affiche / masque les marqueurs lives sur la carte
+• Salon (filtre) → affiche salons publics dans la zone visible (MODIF 455)
+• Évènement (filtre) → affiche événements ; appui long ouvre le panneau de filtre date/type/lieu
+• 🌐 / 🗺️ → bascule carte sombre ↔ globe satellite
+• Clic marqueur salon → fiche salon (petit lecteur carte, max 10 min YouTube)
+• Clic marqueur live → ouvre le live
+• Clic personne → profil public
+• Clic cluster événements → liste événements de la zone
+• Fermer la fiche (overlay sombre) → ferme la fiche carte ouverte
+• Ouvrir le salon (fiche) → salon plein écran
+• Étendre fiche salon → grand lecteur sur la carte (sans quitter l'onglet)
+
+Modal Créer un salon :
+• YouTube / Spotify → choix plateforme
+• Public / Sur invitation → mode d'accès
+• Créer le salon → crée et ouvre le salon
+• Annuler / × → ferme le modal
+
+Filtre événements (modal) :
+• Appliquer → applique date, type, lieu, rayon
+• Réinitialiser → efface le filtre
+
+═══════════════════════════════════════════════════════════
+4. SALON PLEIN ÉCRAN
+═══════════════════════════════════════════════════════════
+Header :
+• ↓ Réduire le salon (chevron seul — MODIF 456) → minimise sur la carte ; barre « Revenir au salon »
+• Live (hôte, pas déjà en live) → démarre un live lié au salon
+• Arrêter le salon (hôte) → ferme le salon pour tous
+• Quitter le salon (auditeur) → quitte la session
+• Bouton Jam Spotify (si applicable) → gère le lien Spotify Jam
+
+Lecture (YouTube) :
+• Lecture / Pause → contrôle synchronisé (hôte / mod VIP)
+• Suivant → morceau suivant dans la file
+• Morceau dans la file → lance ce morceau
+• Changer de morceau (recherche hôte) → change immédiatement
+• Lire (résultat recherche) → idem
+• Ajouter (Spotify hôte) → ajoute à la file sans couper le morceau
+• Lancer la playlist → lance une playlist Spotify
+• Vidéo on / off (si applicable) → affiche ou masque la vidéo YouTube
+
+Lecture (Spotify — chrono partagé) :
+• Contrôles play/pause/stop/suivant → pilote l'app Spotify de l'hôte
+• Ouvrir Spotify → deep link vers le morceau
+
+Auditeur (MODIF 458) :
+• Proposer un morceau (recherche YouTube/Spotify) → envoie au panneau PROPOSITIONS de l'hôte, pas de lecture directe
+• Proposer (bouton) → confirme la proposition
+• Formulaire Proposer un morceau (titre/artiste/liens) → proposition manuelle
+
+Panneau host (hôte avec plateforme connectée) :
+• Suivant → skip file
+• Propositions — Lire → accepte et joue maintenant
+• Propositions — File → accepte et ajoute à la file
+• Propositions — ✕ → refuse et supprime
+• Lien d'invitation → copie le lien de partage
+
+Gérer l'accès (hôte, MODIF 454) :
+• Public → salon visible et ouvert à tous
+• Invitation → salon sur invitation uniquement
+• Cases contacts → sélection des invités potentiels
+• Validé → enregistre la liste et envoie notification salon_invite
+
+Chat salon :
+• Masquer / Afficher le chat → toggle panneau chat
+• Participants (hôte/dev) → liste connectés ; actions mod :
+  - Droits mod. / Retirer droits
+  - Expulser
+  - Bloquer (durée ou permanent)
+• Sur un message : ⋮ → Supprimer ; Signaler
+• Sur un pseudo : Message privé, Voir profil, Mettre/Retirer VIP, Bannir, Signaler
+• Envoyer → poste le message
+
+États spéciaux :
+• Réessayer → recharge le salon en erreur
+• Retour → session terminée (2 h max)
+
+═══════════════════════════════════════════════════════════
+5. LIVE
+═══════════════════════════════════════════════════════════
+Header :
+• ← Retour → ferme le live, retour onglet Direct
+• Suivre (spectateur) → follow l'hôte
+• 💝 Pourboire → sheet cadeaux / pourboires
+• Message privé → chat privé avec l'hôte
+• Activer la caméra / Caméra on (hôte) → toggle webcam
+• Choisir une vidéo / Vidéo on (hôte) → flux fichier local
+• Arrêter (hôte) → termine le live
+
+Vidéo :
+• Plein écran / Quitter plein écran → toggle plein écran flux
+• Chat masquer/afficher → idem salon
+
+Chat live : mêmes actions mod que salon + VIP live
+
+═══════════════════════════════════════════════════════════
+6. FIL D'ACTU (Accueil)
+═══════════════════════════════════════════════════════════
+• Publier → envoie un post texte / média
+• Choisir une image / vidéo → attache un média
+• Retirer image/vidéo → supprime l'attachement
+• Créer un événement → mode publication événement (date, lieu, type)
+• Valider (date événement) → confirme la date
+• Pseudo auteur (post) → profil ou story
+• J'aime / Commentaires / Partager / Repartager → interactions post
+• Événement précédent / suivant (carrousel) → navigation événements locaux
+• Live en cours (carte) → ouvre le live
+
+═══════════════════════════════════════════════════════════
+7. MESSAGES (DM)
+═══════════════════════════════════════════════════════════
+• Nouveau message → choisir contact mutuel
+• Nouveau groupe → créer un groupe
+• Utilisateurs bloqués → liste blocages
+• Conversation → ouvre le fil
+• ← Retour → liste conversations
+• Envoyer → envoie le message
+• Créer un salon YouTube/Spotify privé (dans conversation) → salon privé avec le contact
+• Bloquer (sélection multiple) → bloque les utilisateurs cochés
+• Débloquer → sur une ligne ou sélection
+• Tout / Tout désélect. → sélection masse (bloqués)
+• Effacer la recherche → vide le champ
+
+═══════════════════════════════════════════════════════════
+8. REELS
+═══════════════════════════════════════════════════════════
+• Rechercher → filtre les reels
+• Effacer la recherche → reset
+• Aimer / double-tap → like
+• Commentaires → ouvre les commentaires
+• Partager → sheet partage
+• Voir le profil de {username} → profil auteur
+
+═══════════════════════════════════════════════════════════
+9. MON PROFIL
+═══════════════════════════════════════════════════════════
+• ← Fermer → ferme l'overlay profil
+• Paramètres (engrenage) → Paramètres
+• Modifier le profil → mode édition
+• Annuler (édition) → quitte l'édition
+• Enregistrer → sauvegarde le profil
+• Abonnements (stats) → liste des personnes suivies
+• Onglets Publications / Reels / Salons → contenu du profil
+• Enregistrer un reel → ouvre le recorder
+• Plateformes (Spotify/YouTube/Instagram) → connecter / déconnecter
+• Déconnexion → logout (avec confirmation)
+
+Profil public (autre utilisateur) :
+• ← Retour
+• 💬 Message → DM (si follow mutuel)
+• Cœur → match musical (conditions âge/célibataire/validation)
+• Suivre / Ne plus suivre
+• Partager le profil
+
+═══════════════════════════════════════════════════════════
+10. PARAMÈTRES
+═══════════════════════════════════════════════════════════
+• ← Retour
+• Changer le mot de passe → formulaire ; Enregistrer / Annuler
+• Supprimer mon compte → modal ; Supprimer (après SUPPRIMER) / Annuler
+• Langue → français / anglais
+• Toggles confidentialité locales (analytics, etc.)
+• Contacter le support
+• CGU / Politique de confidentialité → documents légaux
+• Espace administrateur (si admin) → Administration
+
+═══════════════════════════════════════════════════════════
+11. ADMINISTRATION
+═══════════════════════════════════════════════════════════
+Onglets : Comptes | Accès | Contenu | Analytics
+
+Comptes :
+• Filtres Tous / En attente / Actifs / Suspendus
+• Approuver → active un compte en attente
+• Suspendre / Réactiver → bloque ou restaure
+• Voir le profil → profil utilisateur
+• Copier l'ID / Copier l'e-mail
+• Exporter CSV
+• Charger plus
+
+Accès :
+• Modes inscriptions (Ouvertes / Invitation / Validation admin / Fermées)
+• Générer un code → nouveau code d'invitation
+• Copier / Activer / Désactiver / Supprimer (codes)
+• Tunnel public actif/inactif (info)
+
+Contenu (MODIF 452–453) :
+• Sections Salons | Lives | Événements
+• Filtres Tous / Actifs / Bloqués + recherche
+• Salon (ligne salon, visible sans expansion) → entre dans le salon admin (bypass accès)
+• Voir utilisateur → profil hôte/créateur
+• Bloquer / Débloquer → modération
+• Supprimer → suppression définitive
+• Expand ligne → détails + actions
+• Charger plus
+
+Analytics :
+• Actualiser → recharge les stats
+• Période Jour / Semaine / Mois / Année
+
+═══════════════════════════════════════════════════════════
+12. AUTHENTIFICATION
+═══════════════════════════════════════════════════════════
+• Se connecter / Créer un compte
+• Pas encore de compte ? S'inscrire / Déjà un compte ? Connexion
+• Réessayer (erreur session) → recharge l'app

@@ -65,7 +65,7 @@ export function SalonProposalsSection({
       setArtist('');
       setSpotifyUrl('');
       setYoutubeUrl('');
-      setSuccessMsg('Proposition envoyée au host !');
+      setSuccessMsg('Proposition envoyée');
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Erreur');
     } finally {

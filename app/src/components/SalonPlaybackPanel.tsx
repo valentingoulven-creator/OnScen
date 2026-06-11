@@ -680,6 +680,16 @@ export function SalonPlaybackPanel({
                 {spotifyNotif}
               </div>
             )}
+            {salon.allowQueue && token && (
+              <SalonSpotifySearch
+                salonId={salon.id}
+                token={token}
+                currentTitle={playbackState.title}
+                currentArtist={playbackState.artist}
+                showCurrentTrack={false}
+                submitMode="propose"
+              />
+            )}
             {playbackState.trackId && playbackState.trackId !== 'demo' ? (
               <a
                 href={
@@ -1314,8 +1324,28 @@ export function SalonPlaybackPanel({
           <SectionDivider />
           <div className="p-4 space-y-3">
             <p className="text-[11px] text-center text-[#6b6b8a] py-0.5">
-              🎵 L&apos;hôte contrôle la lecture&thinsp;•&thinsp;Vous pouvez proposer des vidéos
+              🎵 L&apos;hôte contrôle la lecture&thinsp;•&thinsp;Vous pouvez proposer des morceaux
             </p>
+            {salon.allowQueue && token && salon.platform === 'spotify' && (
+              <SalonSpotifySearch
+                salonId={salon.id}
+                token={token}
+                currentTitle={playbackState.title}
+                currentArtist={playbackState.artist}
+                showCurrentTrack={false}
+                submitMode="propose"
+              />
+            )}
+            {salon.allowQueue && token && salon.platform === 'youtube' && (
+              <SalonYouTubeSearch
+                salonId={salon.id}
+                token={token}
+                currentTitle={playbackState.title}
+                currentArtist={playbackState.artist}
+                onTrackChanged={applyPlaybackState}
+                submitMode="propose"
+              />
+            )}
             {spotifyNotif && (
               <div className="rounded-xl bg-green-500/10 border border-green-500/25 px-3 py-2 text-sm text-green-300 text-center">
                 {spotifyNotif}
