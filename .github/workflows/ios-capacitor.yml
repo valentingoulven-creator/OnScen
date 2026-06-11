@@ -59,7 +59,7 @@ jobs:
 
       - name: Build Capacitor web assets
         working-directory: .
-        run: npm run capacitor:build
+        run: npm run build:capacitor --prefix apptel
 
       - name: Sync iOS project
         run: npx cap sync ios
