@@ -13,15 +13,33 @@ import { savePersistedStore, schedulePersist } from './persist';
 
 import { encryptPlatformTokens, decryptPlatformTokens, decryptToken } from './tokenEncryption';
 
+import {
+  isSpotifyPlaybackHostProduct,
+  normalizeSpotifyProduct,
+  type SpotifyProduct,
+} from './spotifyApi';
+
 
 
 // Profil + bibliothèque + contrôle lecture (pause/play/seek via Spotify Connect).
 
 // Pas de scope « streaming » : Soundy ne diffuse pas l'audio dans le navigateur (Web Playback SDK non utilisé).
 
-const SPOTIFY_SCOPES =
+export const SPOTIFY_SCOPES =
 
   'user-read-email user-read-private user-library-read user-top-read playlist-read-private playlist-read-collaborative user-modify-playback-state user-read-playback-state user-read-currently-playing';
+
+/** Scopes requis pour lancer / contrôler la lecture (Spotify Connect). */
+export const SPOTIFY_PLAYBACK_SCOPES = [
+  'user-modify-playback-state',
+  'user-read-playback-state',
+  'user-read-currently-playing',
+] as const;
+
+export function getMissingSpotifyScopes(grantedScopes?: string): string[] {
+  const granted = new Set((grantedScopes ?? '').split(/\s+/).filter(Boolean));
+  return SPOTIFY_PLAYBACK_SCOPES.filter((scope) => !granted.has(scope));
+}
 
 
 
@@ -171,7 +189,7 @@ export function getSpotifyCallbackUrl(): string {
 
 
 
-export function createSpotifyOAuthUrl(userId: string): string {
+export function createSpotifyOAuthUrl(userId: string, options?: { forceConsent?: boolean }): string {
 
   cleanupStates();
 
@@ -192,6 +210,10 @@ export function createSpotifyOAuthUrl(userId: string): string {
     state,
 
   });
+
+  if (options?.forceConsent) {
+    params.set('show_dialog', 'true');
+  }
 
   return `https://accounts.spotify.com/authorize?${params}`;
 
@@ -219,11 +241,15 @@ export async function completeSpotifyOAuth(
 
   accessTokenExpiresAt: number;
 
+  oauthScopes?: string;
+
   avatarUrl?: string;
 
   email?: string;
 
   topArtists?: string[];
+
+  spotifyProduct?: SpotifyProduct;
 
 } | null> {
 
@@ -283,6 +309,8 @@ export async function completeSpotifyOAuth(
 
     expires_in?: number;
 
+    scope?: string;
+
   };
 
   if (!tokens.access_token) return null;
@@ -309,6 +337,8 @@ export async function completeSpotifyOAuth(
 
   let topArtists: string[] | undefined;
 
+  let spotifyProduct: SpotifyProduct = 'unknown';
+
 
 
   if (profileRes.ok) {
@@ -321,6 +351,8 @@ export async function completeSpotifyOAuth(
 
       email?: string;
 
+      product?: string;
+
       images?: Array<{ url?: string }>;
 
     };
@@ -332,6 +364,8 @@ export async function completeSpotifyOAuth(
     avatarUrl = profile.images?.[0]?.url;
 
     email = profile.email;
+
+    spotifyProduct = normalizeSpotifyProduct(profile.product);
 
   }
 
@@ -389,13 +423,91 @@ export async function completeSpotifyOAuth(
 
     accessTokenExpiresAt: Date.now() + (tokens.expires_in ?? 3600) * 1000,
 
+    oauthScopes: tokens.scope?.trim() || SPOTIFY_SCOPES,
+
     avatarUrl,
 
     email,
 
     topArtists,
 
+    spotifyProduct,
+
   };
+
+}
+
+
+
+export async function fetchSpotifyUserProduct(accessToken: string): Promise<SpotifyProduct> {
+
+  try {
+
+    const profileRes = await fetch('https://api.spotify.com/v1/me', {
+
+      headers: { Authorization: `Bearer ${accessToken}` },
+
+      signal: AbortSignal.timeout(8000),
+
+    });
+
+    if (!profileRes.ok) return 'unknown';
+
+    const profile = (await profileRes.json()) as { product?: string };
+
+    return normalizeSpotifyProduct(profile.product);
+
+  } catch {
+
+    return 'unknown';
+
+  }
+
+}
+
+
+
+export function getStoredSpotifyProduct(user: User): SpotifyProduct | undefined {
+
+  const account = getPlatformAccounts(user).find((a) => a.platform === 'spotify');
+
+  if (!account?.spotifyProduct) return undefined;
+
+  return normalizeSpotifyProduct(account.spotifyProduct);
+
+}
+
+
+
+export function isUserSpotifyPremium(user: User): boolean | undefined {
+
+  const product = getStoredSpotifyProduct(user);
+
+  if (!product || product === 'unknown') return undefined;
+
+  return isSpotifyPlaybackHostProduct(product);
+
+}
+
+
+
+export function persistSpotifyProduct(user: User, product: SpotifyProduct): void {
+
+  if (product === 'unknown') return;
+
+  const accounts = getPlatformAccounts(user);
+
+  const idx = accounts.findIndex((a) => a.platform === 'spotify');
+
+  if (idx < 0) return;
+
+  if (accounts[idx].spotifyProduct === product) return;
+
+  accounts[idx] = { ...accounts[idx], spotifyProduct: product };
+
+  user.platformAccounts = accounts;
+
+  schedulePersist();
 
 }
 
@@ -413,6 +525,8 @@ export function applySpotifyOAuthToUser(
 
     accessTokenExpiresAt?: number;
 
+    oauthScopes?: string;
+
     spotifyUserId: string;
 
     displayName: string;
@@ -422,6 +536,8 @@ export function applySpotifyOAuthToUser(
     email?: string;
 
     topArtists?: string[];
+
+    spotifyProduct?: SpotifyProduct;
 
   }
 
@@ -447,6 +563,8 @@ export function applySpotifyOAuthToUser(
 
       accessTokenExpiresAt: data.accessTokenExpiresAt,
 
+      oauthScopes: data.oauthScopes,
+
       displayName: data.displayName,
 
       avatarUrl: data.avatarUrl,
@@ -454,6 +572,12 @@ export function applySpotifyOAuthToUser(
       email: data.email,
 
       topArtists: data.topArtists,
+
+      ...(data.spotifyProduct && data.spotifyProduct !== 'unknown'
+
+        ? { spotifyProduct: data.spotifyProduct }
+
+        : {}),
 
     });
 
@@ -607,6 +731,8 @@ export async function refreshSpotifyAccessToken(user: User): Promise<SpotifyRefr
 
     expires_in?: number;
 
+    scope?: string;
+
   };
 
   if (!tokens.access_token) return { ok: false, reason: 'network' };
@@ -623,6 +749,8 @@ export async function refreshSpotifyAccessToken(user: User): Promise<SpotifyRefr
 
     ...(tokens.refresh_token ? { refreshToken: tokens.refresh_token } : {}),
 
+    ...(tokens.scope?.trim() ? { oauthScopes: tokens.scope.trim() } : {}),
+
   });
 
   user.platformAccounts = accounts;
@@ -633,6 +761,17 @@ export async function refreshSpotifyAccessToken(user: User): Promise<SpotifyRefr
     savePersistedStore();
   } catch (e) {
     console.warn('[spotify-oauth] persist immédiat échoué après refresh:', e);
+  }
+
+  const product = await fetchSpotifyUserProduct(tokens.access_token);
+
+  if (product !== 'unknown') {
+    persistSpotifyProduct(user, product);
+    try {
+      savePersistedStore();
+    } catch {
+      /* ignore */
+    }
   }
 
   return { ok: true, accessToken: tokens.access_token };
@@ -738,6 +877,30 @@ export async function getValidSpotifyHostToken(user: User): Promise<SpotifyHostT
   });
 
   return { ok: false, reason: result.reason };
+
+}
+
+
+
+export function getStoredSpotifyOAuthScopes(user: User): string | undefined {
+
+  const account = getPlatformAccounts(user).find((a) => a.platform === 'spotify');
+
+  return account?.oauthScopes;
+
+}
+
+
+
+export function userNeedsSpotifyScopeReconnect(user: User): boolean {
+
+  if (!isPlatformConnected(user, 'spotify')) return false;
+
+  const account = getPlatformAccounts(user).find((a) => a.platform === 'spotify');
+
+  if (!account?.oauthScopes) return false;
+
+  return getMissingSpotifyScopes(account.oauthScopes).length > 0;
 
 }
 

@@ -16,6 +16,10 @@ export function isPlatformConnected(
   return (connectedPlatforms ?? []).includes(platform);
 }
 
+export function isSpotifyPremiumProduct(product?: string): boolean {
+  return product?.trim().toLowerCase() === 'premium';
+}
+
 export const PLATFORM_LABELS: Record<
   ConnectPlatform,
   { label: string; emoji: string; connectKey: string }

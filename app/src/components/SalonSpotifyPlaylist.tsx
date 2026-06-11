@@ -98,7 +98,11 @@ export function SalonSpotifyPlaylist({
 
           if (r.spotifySessionCode === 'spotify_scope_missing') {
 
-            setError(t('salon.spotifySearch.playlistScopeError'));
+            setError(t('salon.spotifySearch.errorScopeMissing'));
+
+          } else if (r.spotifySessionCode === 'spotify_premium_required') {
+
+            setError(t('salon.spotifySearch.errorPremiumRequired'));
 
           } else if (r.spotifySessionCode) {
 
@@ -142,7 +146,7 @@ export function SalonSpotifyPlaylist({
 
     try {
 
-      const { url } = await api.getSpotifyOAuthUrl(token);
+      const { url } = await api.getSpotifyOAuthUrl(token, { reconnect: true });
 
       window.location.href = url;
 

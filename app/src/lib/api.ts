@@ -84,6 +84,13 @@ async function parseApiError(res: Response): Promise<ApiRequestError> {
             res.status
           );
         }
+        if (json.code === 'spotify_premium_required') {
+          return new ApiRequestError(
+            json.error || i18n.t('salon.spotifySearch.errorPremiumRequired'),
+            json.code,
+            res.status
+          );
+        }
         if (json.code === 'spotify_rate_limited') {
           return new ApiRequestError(
             json.error || i18n.t('salon.spotifySearch.errorRateLimited'),
@@ -578,8 +585,12 @@ export const api = {
   getYoutubeOAuthUrl: (token: string) =>
     request<{ url: string }>('/platforms/youtube/oauth/url', {}, token),
 
-  getSpotifyOAuthUrl: (token: string) =>
-    request<{ url: string }>('/platforms/spotify/oauth/url', {}, token),
+  getSpotifyOAuthUrl: (token: string, options?: { reconnect?: boolean }) =>
+    request<{ url: string }>(
+      `/platforms/spotify/oauth/url${options?.reconnect ? '?reconnect=1' : ''}`,
+      {},
+      token
+    ),
 
   getInstagramOAuthUrl: (token: string) =>
     request<{ url: string }>('/platforms/instagram/oauth/url', {}, token),
@@ -605,6 +616,9 @@ export const api = {
       hasRealPlatformConnection?: boolean;
       spotifySessionValid?: boolean;
       spotifySessionCode?: string;
+      spotifyProduct?: string;
+      spotifyPremium?: boolean;
+      spotifyNeedsScopeReconnect?: boolean;
     }>('/platforms/status', {}, token),
 
   getMsdevDualIp: () =>

@@ -14,6 +14,10 @@ import {
 
   isSpotifyScopeMissingError,
 
+  isSpotifyPlaybackHostProduct,
+
+  normalizeSpotifyProduct,
+
   parseSpotifyErrorMessage,
 
   spotifyAuthErrorMessage,
@@ -29,6 +33,10 @@ import {
   disconnectSpotifyOnAuthFailure,
 
   getValidSpotifyHostToken,
+
+  getMissingSpotifyScopes,
+
+  getStoredSpotifyOAuthScopes,
 
   isRealSpotifyAccount,
 
@@ -372,11 +380,32 @@ export async function probeSpotifyHostSession(
 
   user: User
 
-): Promise<{ ok: true } | { ok: false; code: string; disconnected?: boolean }> {
+): Promise<
+  | { ok: true; product: ReturnType<typeof normalizeSpotifyProduct> }
+  | { ok: false; code: string; disconnected?: boolean; product?: ReturnType<typeof normalizeSpotifyProduct> }
+> {
 
   if (!isPlatformConnected(user, 'spotify')) {
 
     return { ok: false, code: 'spotify_not_connected' };
+
+  }
+
+  const storedScopes = getStoredSpotifyOAuthScopes(user);
+
+  const missingScopes = getMissingSpotifyScopes(storedScopes);
+
+  if (storedScopes && missingScopes.length > 0) {
+
+    console.warn('[spotify-playlist] stored OAuth scopes missing playback scopes', {
+
+      userId: user.id,
+
+      missingScopes,
+
+    });
+
+    return { ok: false, code: 'spotify_scope_missing' };
 
   }
 
@@ -416,7 +445,14 @@ export async function probeSpotifyHostSession(
 
     });
 
-    if (probe.ok) return { ok: true };
+    if (probe.ok) {
+      const profile = (await probe.json()) as { product?: string };
+      const product = normalizeSpotifyProduct(profile.product);
+      if (!isSpotifyPlaybackHostProduct(product)) {
+        return { ok: false, code: 'spotify_premium_required', product };
+      }
+      return { ok: true, product };
+    }
 
     const detail = await parseSpotifyErrorMessage(probe);
 
@@ -430,7 +466,7 @@ export async function probeSpotifyHostSession(
 
       const refreshed = await refreshSpotifyAccessToken(user);
 
-      if (refreshed.ok) return { ok: true };
+      if (refreshed.ok) return { ok: true, product: 'unknown' };
 
       if (refreshed.reason === 'invalid_refresh') {
 

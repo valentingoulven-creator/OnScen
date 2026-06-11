@@ -391,6 +391,9 @@ export function OnboardingPage({ onDone }: Props) {
               <p className="text-xs text-gray-400 mt-0.5">
                 Lie au moins Spotify ou YouTube pour héberger des salons avec ta musique.
               </p>
+              <p className="text-[10px] text-amber-400/80 leading-snug">
+                {t('auth.spotifyHostPremiumNotice')}
+              </p>
             </div>
             {!platformStatusLoading && oauthConfigured && !hasRealPlatformConnection && (
               <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2">

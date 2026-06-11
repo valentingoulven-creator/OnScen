@@ -40,6 +40,10 @@ export interface PlatformAccount {
   email?: string;
   /** Top artistes Spotify au moment de la liaison (noms). */
   topArtists?: string[];
+  /** Scopes OAuth accordés par Spotify (séparés par des espaces). */
+  oauthScopes?: string;
+  /** Produit Spotify (premium, free, open) — renseigné à l'OAuth et au refresh. */
+  spotifyProduct?: string;
 }
 
 export interface User {

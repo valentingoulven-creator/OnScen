@@ -4,7 +4,7 @@ import {
   refreshSpotifyAccessToken,
   type SpotifyRefreshResult,
 } from './spotifyOAuth';
-import { isSpotifyRetryableAuthError, parseSpotifyErrorMessage } from './spotifyApi';
+import { isSpotifyRetryableAuthError, parseSpotifyErrorMessage, classifySpotifyPlayerApiError } from './spotifyApi';
 
 export type SpotifyPlaybackAction = 'pause' | 'play' | 'stop' | 'seek' | 'next';
 
@@ -67,9 +67,9 @@ async function spotifyPlayerRequest(
   }
 
   let res = await fetch(url, init);
-  if (isSpotifyRetryableAuthError(res.status)) {
-    const detail = res.status === 403 ? await parseSpotifyErrorMessage(res.clone()) : undefined;
-    if (!(res.status === 403 && detail?.toLowerCase().includes('insufficient'))) {
+  if (res.status === 401 || res.status === 403) {
+    const detail = await parseSpotifyErrorMessage(res.clone());
+    if (isSpotifyRetryableAuthError(res.status, detail)) {
       const refreshed = await refreshSpotifyAccessToken(user);
       if (refreshed.ok) {
         accessToken = refreshed.accessToken;
@@ -83,37 +83,22 @@ async function spotifyPlayerRequest(
   return res;
 }
 
-function mapSpotifyPlayerError(res: Response, fallback: string): SpotifyPlaybackError {
-  if (res.status === 404) {
-    return new SpotifyPlaybackError(
-      'Aucun appareil Spotify actif — ouvrez l’app Spotify et relancez la lecture.',
-      404,
-      'no_active_device'
-    );
-  }
-  if (res.status === 403) {
-    return new SpotifyPlaybackError(
-      'Reconnectez Spotify pour autoriser le contrôle de lecture (play/pause).',
-      403,
-      'spotify_scope_missing'
-    );
-  }
-  if (res.status === 429) {
-    return new SpotifyPlaybackError('Spotify temporairement indisponible — réessayez.', 429, 'spotify_rate_limited');
-  }
-  return new SpotifyPlaybackError(fallback, res.status || 502, 'spotify_playback_failed');
+async function mapSpotifyPlayerError(res: Response, fallback: string): Promise<SpotifyPlaybackError> {
+  const detail = await parseSpotifyErrorMessage(res);
+  const mapped = classifySpotifyPlayerApiError(res.status, detail, fallback);
+  return new SpotifyPlaybackError(mapped.message, mapped.status, mapped.code);
 }
 
 async function pauseSpotifyPlayback(user: User): Promise<void> {
   const res = await spotifyPlayerRequest(user, 'PUT', 'https://api.spotify.com/v1/me/player/pause');
   if (res.status === 204 || res.status === 200) return;
-  throw mapSpotifyPlayerError(res, 'Impossible de mettre Spotify en pause.');
+  throw await mapSpotifyPlayerError(res, 'Impossible de mettre Spotify en pause.');
 }
 
 async function playSpotifyPlayback(user: User): Promise<void> {
   const res = await spotifyPlayerRequest(user, 'PUT', 'https://api.spotify.com/v1/me/player/play', {});
   if (res.status === 204 || res.status === 200) return;
-  throw mapSpotifyPlayerError(res, 'Impossible de reprendre la lecture Spotify.');
+  throw await mapSpotifyPlayerError(res, 'Impossible de reprendre la lecture Spotify.');
 }
 
 type SpotifyDevice = {
@@ -144,7 +129,7 @@ async function transferSpotifyPlayback(user: User, deviceId: string): Promise<vo
     play: false,
   });
   if (res.status === 204 || res.status === 200) return;
-  throw mapSpotifyPlayerError(res, 'Impossible de prendre le contrôle Spotify Connect.');
+  throw await mapSpotifyPlayerError(res, 'Impossible de prendre le contrôle Spotify Connect.');
 }
 
 async function playSpotifyTrack(user: User, trackId: string, deviceId?: string): Promise<void> {
@@ -160,13 +145,13 @@ async function playSpotifyTrack(user: User, trackId: string, deviceId?: string):
     position_ms: 0,
   });
   if (res.status === 204 || res.status === 200) return;
-  throw mapSpotifyPlayerError(res, 'Impossible de lancer ce morceau sur Spotify.');
+  throw await mapSpotifyPlayerError(res, 'Impossible de lancer ce morceau sur Spotify.');
 }
 
 async function skipToNextSpotifyTrack(user: User): Promise<void> {
   const res = await spotifyPlayerRequest(user, 'POST', 'https://api.spotify.com/v1/me/player/next');
   if (res.status === 204 || res.status === 200) return;
-  throw mapSpotifyPlayerError(res, 'Impossible de passer au morceau suivant sur Spotify.');
+  throw await mapSpotifyPlayerError(res, 'Impossible de passer au morceau suivant sur Spotify.');
 }
 
 async function seekSpotifyPlayback(user: User, positionMs: number): Promise<void> {
@@ -177,7 +162,7 @@ async function seekSpotifyPlayback(user: User, positionMs: number): Promise<void
     `https://api.spotify.com/v1/me/player/seek?position_ms=${safeMs}`
   );
   if (res.status === 204 || res.status === 200) return;
-  throw mapSpotifyPlayerError(res, 'Impossible de repositionner Spotify.');
+  throw await mapSpotifyPlayerError(res, 'Impossible de repositionner Spotify.');
 }
 
 export interface SpotifyNowPlaying {
@@ -230,7 +215,7 @@ export async function getSpotifyNowPlaying(user: User): Promise<SpotifyNowPlayin
     return { active: false, isPlaying: false, progressMs: 0 };
   }
   if (!res.ok) {
-    throw mapSpotifyPlayerError(res, 'Impossible de lire l’état Spotify.');
+    throw await mapSpotifyPlayerError(res, 'Impossible de lire l’état Spotify.');
   }
   const data = (await res.json()) as SpotifyPlayerResponse;
   const mapped = mapSpotifyPlayerPayload(data);
@@ -258,7 +243,7 @@ export async function addSpotifyTrackToQueue(user: User, trackId: string): Promi
     : `https://api.spotify.com/v1/me/player/queue?uri=${uri}`;
   const res = await spotifyPlayerRequest(user, 'POST', queueUrl);
   if (res.status === 204 || res.status === 200) return;
-  throw mapSpotifyPlayerError(res, 'Impossible d’ajouter ce morceau à la file Spotify.');
+  throw await mapSpotifyPlayerError(res, 'Impossible d’ajouter ce morceau à la file Spotify.');
 }
 
 /** Remplace la lecture en cours par un morceau (Connect : transfer + PUT /play uris, position 0). */

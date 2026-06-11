@@ -27,6 +27,10 @@ export interface PlatformAccount {
   avatarUrl?: string;
   email?: string;
   topArtists?: string[];
+  /** Scopes OAuth accordés par Spotify (séparés par des espaces). */
+  oauthScopes?: string;
+  /** Produit Spotify (premium, free, open) — renseigné à l'OAuth et au refresh. */
+  spotifyProduct?: string;
 }
 
 export function getPlatformAccounts(user: User): PlatformAccount[] {

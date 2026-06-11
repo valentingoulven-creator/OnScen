@@ -40,6 +40,7 @@
     "registrationClosed": "Inscriptions fermées",
     "inviteCode": "Code d'invitation",
     "minAgeNotice": "Vous devez avoir au moins 13 ans pour utiliser Soundy.",
+    "spotifyHostPremiumNotice": "Pour héberger un salon Spotify, un abonnement Spotify Premium est requis.",
     "passwordMismatch": "Les mots de passe ne correspondent pas",
     "pendingSalon": "Connectez-vous pour rejoindre le salon partagé.",
     "secureAccess": "Accès Internet sécurisé — seuls les comptes autorisés peuvent se connecter.",
@@ -152,6 +153,9 @@
       "spotifyAlignHint": "Ouvrez Spotify au bon morceau et alignez-vous sur le chrono.",
       "spotifyCrossPlatformHint": "Spotify ne se lit pas dans le navigateur — utilisez YouTube pour écouter ensemble."
     },
+    "create": {
+      "spotifyPremiumRequired": "Spotify Premium requis pour héberger"
+    },
     "spotifySearch": {
       "createLabel": "Morceau Spotify (optionnel)",
       "placeholder": "Titre, artiste ou lien Spotify…",
@@ -178,7 +182,8 @@
       "errorGeneric": "Recherche impossible",
       "errorNotConnected": "Reconnectez votre compte Spotify pour rechercher des morceaux.",
       "errorTokenExpired": "Session Spotify expirée — reconnectez votre compte.",
-      "errorScopeMissing": "Reconnectez Spotify pour autoriser l'accès aux playlists.",
+      "errorScopeMissing": "Reconnectez Spotify pour autoriser le contrôle de lecture (play/pause).",
+      "errorPremiumRequired": "Spotify Premium requis — un compte Free ne peut pas lancer ni contrôler la lecture.",
       "errorRateLimited": "Quota Spotify atteint — réessayez plus tard.",
       "errorServerConfig": "Recherche Spotify non configurée sur le serveur.",
       "errorNetwork": "Impossible de joindre l’API Spotify — réessayez.",
@@ -634,7 +639,12 @@
     "configureInstagramServer": "Configurez Instagram OAuth sur le serveur",
     "demoConnectYoutube": "Connexion démo (sans Google)",
     "spotifyEnvHint": "Configurez SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET et SPOTIFY_CALLBACK_URL dans le .env du serveur.",
-    "spotifyScopeReconnectHint": "Reconnectez Spotify pour activer la synchro lecture (nouvelles autorisations requises).",
+    "spotifyScopeReconnectHint": "Reconnectez Spotify pour autoriser le contrôle de lecture (nouvelles autorisations requises).",
+    "spotifyPremiumRequiredHint": "Votre compte Spotify est Free — passez à Premium pour héberger et lancer des morceaux.",
+    "spotifyPremiumBadge": "Premium requis",
+    "spotifyPremiumOk": "Premium ✓",
+    "spotifyFreeNoHost": "Free — hébergement impossible",
+    "spotifySessionExpiredHint": "Session Spotify expirée — reconnectez votre compte.",
     "spotifyScopesHint": "Autorisations : profil, playlists, lecture en cours et contrôle via Spotify Connect — pas de lecture dans le navigateur.",
     "spotifyPremiumHostHint": "Pour héberger : compte Spotify Premium + app Spotify ouverte.",
     "spotifyDevQuotaHint": "Mode développement Spotify : seuls les comptes autorisés dans la console développeur peuvent se connecter tant que l'Extended Quota Mode n'est pas accordé.",

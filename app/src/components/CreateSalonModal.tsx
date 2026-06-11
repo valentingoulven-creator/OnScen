@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { getLivesGeo, isFixedMapGeoSource } from '../lib/livesGeo';
 import { isPlatformConnected } from '../lib/platformConnect';
 import { copyShareLink, getSalonShareUrl } from '../lib/shareLink';
+import { PLATFORM_STATUS_REFRESH_EVENT } from '../lib/platformStatusEvents';
 import { PlatformConnectCard } from './PlatformConnectCard';
 import { SpotifyJamLinkField } from './SpotifyJamLinkField';
 import { CreateSalonYouTubePicker } from './CreateSalonYouTubePicker';
@@ -70,6 +71,8 @@ export function CreateSalonModal({
   const [contacts, setContacts] = useState<DmContact[]>([]);
   const [saving, setSaving] = useState(false);
   const [createdInviteSalonId, setCreatedInviteSalonId] = useState<string | null>(null);
+  const [spotifyPremium, setSpotifyPremium] = useState<boolean | undefined>();
+  const [platformStatusLoading, setPlatformStatusLoading] = useState(false);
   const openedAtRef = useRef(0);
   const [form, setForm] = useState<CreateSalonForm>({
     title: `Salon de ${username}`,
@@ -109,6 +112,28 @@ export function CreateSalonModal({
     api.getDmContacts(token).then((r) => setContacts(r.contacts));
   }, [open, token, username, preset]);
 
+  const refreshPlatformStatus = () => {
+    if (!token) return;
+    setPlatformStatusLoading(true);
+    api
+      .getPlatformStatus(token)
+      .then((s) => setSpotifyPremium(s.spotifyPremium))
+      .catch(() => setSpotifyPremium(undefined))
+      .finally(() => setPlatformStatusLoading(false));
+  };
+
+  useEffect(() => {
+    if (!open || !token) return;
+    refreshPlatformStatus();
+  }, [open, token, connectedPlatforms]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onRefresh = () => refreshPlatformStatus();
+    window.addEventListener(PLATFORM_STATUS_REFRESH_EVENT, onRefresh);
+    return () => window.removeEventListener(PLATFORM_STATUS_REFRESH_EVENT, onRefresh);
+  }, [open, token]);
+
   if (!open) return null;
 
   const allowedUserIdsSet = new Set(form.allowedUserIds);
@@ -145,6 +170,11 @@ export function CreateSalonModal({
   };
 
   const platformLinked = isPlatformConnected(connectedPlatforms, form.platform);
+  const spotifyLinked = isPlatformConnected(connectedPlatforms, 'spotify');
+  const spotifyHostBlocked = spotifyLinked && spotifyPremium === false;
+  const canProceedStep1 =
+    platformLinked &&
+    !(form.platform === 'spotify' && (spotifyHostBlocked || (spotifyLinked && platformStatusLoading)));
 
   const submit = async () => {
     if (!isPlatformConnected(connectedPlatforms, form.platform)) {
@@ -153,6 +183,10 @@ export function CreateSalonModal({
           ? 'Connectez Spotify avant de créer un salon Spotify.'
           : 'Connectez YouTube avant de créer un salon YouTube.'
       );
+      return;
+    }
+    if (form.platform === 'spotify' && spotifyHostBlocked) {
+      alert(t('salon.create.spotifyPremiumRequired'));
       return;
     }
     if (form.platform === 'spotify' && form.spotifyJamUrl.trim()) {
@@ -278,19 +312,26 @@ export function CreateSalonModal({
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3">
-                  {(['youtube', 'spotify'] as const).map((p) => (
+                  {(['youtube', 'spotify'] as const).map((p) => {
+                    const isSpotifyBlocked = p === 'spotify' && spotifyHostBlocked;
+                    return (
                     <button
                       key={p}
                       type="button"
-                      onClick={() =>
+                      disabled={isSpotifyBlocked}
+                      title={isSpotifyBlocked ? t('salon.create.spotifyPremiumRequired') : undefined}
+                      onClick={() => {
+                        if (isSpotifyBlocked) return;
                         setForm((f) => ({
                           ...f,
                           platform: p,
                           ...(p === 'spotify' ? { musicSource: 'track' as const, youtubePlaylist: null } : {}),
-                        }))
-                      }
+                        }));
+                      }}
                       className={`p-4 rounded-2xl border text-left transition ${
-                        form.platform === p
+                        isSpotifyBlocked
+                          ? 'border-[#2d2d3d] bg-[#1a1a26] opacity-45 cursor-not-allowed'
+                          : form.platform === p
                           ? p === 'spotify'
                             ? 'border-green-500 bg-green-500/10'
                             : 'border-red-500 bg-red-500/10'
@@ -300,10 +341,15 @@ export function CreateSalonModal({
                       <span className="text-2xl block mb-2">{p === 'spotify' ? '🎧' : '▶️'}</span>
                       <span className="font-bold text-white capitalize">{p}</span>
                       <p className="text-[10px] text-gray-500 mt-1">
-                        {p === 'spotify' ? 'Jam / écoute partagée' : 'Lecture vidéo YouTube'}
+                        {isSpotifyBlocked
+                          ? t('salon.create.spotifyPremiumRequired')
+                          : p === 'spotify'
+                            ? 'Jam / écoute partagée'
+                            : 'Lecture vidéo YouTube'}
                       </p>
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
               {!platformLinked && (
@@ -319,7 +365,12 @@ export function CreateSalonModal({
                   />
                 </div>
               )}
-              {platformLinked && (
+              {platformLinked && form.platform === 'spotify' && spotifyHostBlocked && (
+                <p className="text-[10px] text-red-400/90 leading-snug">
+                  {t('salon.create.spotifyPremiumRequired')}
+                </p>
+              )}
+              {platformLinked && !(form.platform === 'spotify' && spotifyHostBlocked) && (
                 <p className="text-[10px] text-green-400/80">
                   ✓ Compte {form.platform} connecté — vous pouvez héberger ce salon.
                 </p>
@@ -559,7 +610,7 @@ export function CreateSalonModal({
             <button
               type="button"
               onClick={() => setStep((s) => (s === 1 && skipAccessStep ? 3 : s + 1))}
-              disabled={step === 1 && !platformLinked}
+              disabled={(step === 1 && !canProceedStep1) || platformStatusLoading}
               className="flex-1 py-3 rounded-xl bg-purple-600 font-bold text-white disabled:opacity-50"
             >
               Suivant
@@ -568,7 +619,7 @@ export function CreateSalonModal({
             <button
               type="button"
               onClick={submit}
-              disabled={saving || !platformLinked}
+              disabled={saving || !canProceedStep1}
               className="flex-1 py-3 rounded-xl bg-purple-600 font-bold text-white disabled:opacity-50"
             >
               {saving ? 'Création...' : 'Créer le salon'}

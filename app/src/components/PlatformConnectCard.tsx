@@ -71,10 +71,22 @@ export function PlatformConnectCard({
   const [instagramOAuthAvailable, setInstagramOAuthAvailable] = useState(false);
   const [platformLink, setPlatformLink] = useState<PlatformLink | undefined>();
   const [spotifySessionValid, setSpotifySessionValid] = useState<boolean | undefined>();
+  const [spotifySessionCode, setSpotifySessionCode] = useState<string | undefined>();
+  const [spotifyNeedsScopeReconnect, setSpotifyNeedsScopeReconnect] = useState(false);
+  const [spotifyProduct, setSpotifyProduct] = useState<string | undefined>();
+  const [spotifyPremium, setSpotifyPremium] = useState<boolean | undefined>();
 
   const linked = isPlatformConnected(connectedPlatforms, platform, platformLinks ?? (platformLink ? [platformLink] : undefined));
   const spotifyNeedsReconnect =
     platform === 'spotify' && linked && spotifySessionValid === false;
+  const spotifyPremiumRequired =
+    platform === 'spotify' &&
+    linked &&
+    (spotifySessionCode === 'spotify_premium_required' || spotifyPremium === false);
+  const spotifyScopeMissing =
+    platform === 'spotify' &&
+    linked &&
+    (spotifySessionCode === 'spotify_scope_missing' || spotifyNeedsScopeReconnect);
   const meta = PLATFORM_LABELS[platform];
 
   const loadStatus = useCallback(() => {
@@ -88,6 +100,10 @@ export function PlatformConnectCard({
         setInstagramOAuthAvailable(s.instagramOAuthAvailable);
         setPlatformLink(s.links.find((l) => l.platform === platform));
         setSpotifySessionValid(s.spotifySessionValid);
+        setSpotifySessionCode(s.spotifySessionCode);
+        setSpotifyNeedsScopeReconnect(Boolean(s.spotifyNeedsScopeReconnect));
+        setSpotifyProduct(s.spotifyProduct);
+        setSpotifyPremium(s.spotifyPremium);
       })
       .catch((e) => {
         setStatusError(e instanceof Error ? e.message : t('errors.network'));
@@ -131,11 +147,11 @@ export function PlatformConnectCard({
     }
   };
 
-  const connectSpotify = async () => {
+  const connectSpotify = async (options?: { reconnect?: boolean }) => {
     setBusy(true);
     setError(null);
     try {
-      const { url } = await api.getSpotifyOAuthUrl(token);
+      const { url } = await api.getSpotifyOAuthUrl(token, { reconnect: options?.reconnect });
       window.location.href = url;
     } catch (e) {
       setError(e instanceof Error ? e.message : t('platform.connectError'));
@@ -231,12 +247,20 @@ export function PlatformConnectCard({
         {linked ? (
           <span
             className={`text-[10px] px-2 py-0.5 rounded-full bg-[#12121a] border shrink-0 ${
-              spotifyNeedsReconnect
-                ? 'border-amber-500/40 text-amber-400'
-                : 'border-[#2d2d3d] text-green-400'
+              spotifyPremiumRequired
+                ? 'border-red-500/40 text-red-400'
+                : spotifyNeedsReconnect
+                  ? 'border-amber-500/40 text-amber-400'
+                  : 'border-[#2d2d3d] text-green-400'
             }`}
           >
-            {spotifyNeedsReconnect ? t('platform.sessionExpired') : t('platform.connected')}
+            {spotifyPremiumRequired
+              ? t('platform.spotifyPremiumBadge')
+              : platform === 'spotify' && spotifyPremium === true
+                ? t('platform.spotifyPremiumOk')
+                : spotifyNeedsReconnect
+                  ? t('platform.sessionExpired')
+                  : t('platform.connected')}
           </span>
         ) : null}
       </div>
@@ -275,7 +299,7 @@ export function PlatformConnectCard({
         ) : platform === 'spotify' ? (
           <button
             type="button"
-            onClick={spotifyOAuthAvailable ? connectSpotify : undefined}
+            onClick={spotifyOAuthAvailable ? () => connectSpotify({ reconnect: spotifyScopeMissing }) : undefined}
             disabled={busy || !spotifyOAuthAvailable || statusLoading}
             title={!spotifyOAuthAvailable ? t('platform.configureSpotifyServer') : undefined}
             className={platformConnectButtonClasses('spotify', spotifyOAuthAvailable)}
@@ -317,18 +341,46 @@ export function PlatformConnectCard({
           </button>
         </p>
       )}
-      {platform === 'spotify' && spotifyNeedsReconnect && !statusLoading && !statusError && (
+      {platform === 'spotify' && spotifyPremiumRequired && !statusLoading && !statusError && (
+        <p className="text-[10px] text-red-400 mt-2 leading-snug">
+          {spotifyProduct === 'free' || spotifyProduct === 'open'
+            ? t('platform.spotifyFreeNoHost')
+            : t('platform.spotifyPremiumRequiredHint')}
+        </p>
+      )}
+      {platform === 'spotify' && spotifyScopeMissing && !spotifyPremiumRequired && !statusLoading && !statusError && (
         <p className="text-[10px] text-amber-400 mt-2 leading-snug">
-          {t('salon.spotifySearch.playlistSessionError')}{' '}
+          {t('platform.spotifyScopeReconnectHint')}{' '}
           <button
             type="button"
-            onClick={connectSpotify}
+            onClick={() => connectSpotify({ reconnect: true })}
             disabled={busy || !spotifyOAuthAvailable}
             className="underline hover:text-amber-300 disabled:opacity-50"
           >
             {t('salon.spotifySearch.playlistReconnectSpotify')}
           </button>
         </p>
+      )}
+      {platform === 'spotify' &&
+        spotifyNeedsReconnect &&
+        !spotifyScopeMissing &&
+        !spotifyPremiumRequired &&
+        !statusLoading &&
+        !statusError && (
+        <p className="text-[10px] text-amber-400 mt-2 leading-snug">
+          {t('platform.spotifySessionExpiredHint')}{' '}
+          <button
+            type="button"
+            onClick={() => connectSpotify({ reconnect: true })}
+            disabled={busy || !spotifyOAuthAvailable}
+            className="underline hover:text-amber-300 disabled:opacity-50"
+          >
+            {t('salon.spotifySearch.playlistReconnectSpotify')}
+          </button>
+        </p>
+      )}
+      {platform === 'spotify' && linked && spotifyPremium === true && !spotifyPremiumRequired && !statusLoading && !statusError && (
+        <p className="text-[10px] text-green-400/80 mt-2 leading-snug">{t('platform.spotifyPremiumOk')}</p>
       )}
       {platform === 'spotify' && !statusLoading && !statusError && (
         <p className="text-[10px] text-gray-500 mt-2 leading-snug">{t('platform.spotifyScopesHint')}</p>

@@ -8426,3 +8426,45 @@ au zoom ville, plafond 120 marqueurs globe overview, sidebar `zoomTooWide`
 ================================================================================
 Fin MODIF 462 - 2026-06-11
 ================================================================================
+
+================================================================================
+MODIF 465 — Détection Spotify Premium (OAuth + UI salon / onboarding)
+================================================================================
+Date : 2026-06-11
+
+## Objectif
+Détecter le produit Spotify (Premium vs Free) à la liaison OAuth et au refresh,
+persister sur PlatformAccount, exposer au frontend, griser l'hébergement Spotify
+si non Premium, informer à l'inscription / onboarding. Complète MODIF 463
+(probeSpotifyHostSession).
+
+## Backend
+- spotifyOAuth.ts : product depuis GET /v1/me (OAuth + refresh) ;
+  fetchSpotifyUserProduct, persistSpotifyProduct, getStoredSpotifyProduct.
+- schema.ts / platformConnect.ts : PlatformAccount.spotifyProduct.
+- GET /platforms/status : spotifyPremium (bool), spotifyProduct.
+
+## Frontend
+- CreateSalonModal : bouton Spotify grisé si connecté mais !spotifyPremium.
+- PlatformConnectCard : Premium ✓ ou Free — hébergement impossible.
+- AuthPage + OnboardingPage : note Premium.
+- i18n fr/en.
+
+## Fichiers
+- backend/src/lib/spotifyOAuth.ts, platformConnect.ts, schema.ts, routes/platforms.ts
+- app/src/lib/api.ts, platformConnect.ts
+- app/src/components/CreateSalonModal.tsx, PlatformConnectCard.tsx
+- app/src/pages/AuthPage.tsx, OnboardingPage.tsx
+- app/src/locales/fr.json, en.json
+- modification.txt
+
+## Test
+  cd backend; npx tsc --noEmit
+  cd app; npm run build
+
+## Déploiement
+**Oui** — rebuild backend + app.
+
+================================================================================
+Fin MODIF 465 - 2026-06-11
+================================================================================

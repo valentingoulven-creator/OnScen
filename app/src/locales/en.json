@@ -40,6 +40,7 @@
     "registrationClosed": "Registration closed",
     "inviteCode": "Invite code",
     "minAgeNotice": "You must be at least 13 years old to use Soundy.",
+    "spotifyHostPremiumNotice": "To host a Spotify room, a Spotify Premium subscription is required.",
     "passwordMismatch": "Passwords do not match",
     "pendingSalon": "Sign in to join the shared room.",
     "secureAccess": "Secure Internet access — only authorized accounts can sign in.",
@@ -152,6 +153,9 @@
       "spotifyAlignHint": "Open Spotify on the right track and align with the shared timer.",
       "spotifyCrossPlatformHint": "Spotify doesn't play in the browser — use YouTube to listen together."
     },
+    "create": {
+      "spotifyPremiumRequired": "Spotify Premium required to host"
+    },
     "spotifySearch": {
       "createLabel": "Spotify track (optional)",
       "placeholder": "Title, artist, or Spotify link…",
@@ -178,7 +182,8 @@
       "errorGeneric": "Search unavailable",
       "errorNotConnected": "Reconnect your Spotify account to search tracks.",
       "errorTokenExpired": "Spotify session expired — reconnect your account.",
-      "errorScopeMissing": "Reconnect Spotify to allow playlist access.",
+      "errorScopeMissing": "Reconnect Spotify to allow playback control (play/pause).",
+      "errorPremiumRequired": "Spotify Premium required — Free accounts cannot start or control playback.",
       "errorRateLimited": "Spotify quota reached — try again later.",
       "errorServerConfig": "Spotify search is not configured on the server.",
       "errorNetwork": "Could not reach the Spotify API — try again.",
@@ -634,7 +639,12 @@
     "configureInstagramServer": "Configure Instagram OAuth on the server",
     "demoConnectYoutube": "Demo connect (without Google)",
     "spotifyEnvHint": "Set SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET and SPOTIFY_CALLBACK_URL in the server .env.",
-    "spotifyScopeReconnectHint": "Reconnect Spotify to enable playback sync (new permissions required).",
+    "spotifyScopeReconnectHint": "Reconnect Spotify to allow playback control (new permissions required).",
+    "spotifyPremiumRequiredHint": "Your Spotify account is Free — upgrade to Premium to host and launch tracks.",
+    "spotifyPremiumBadge": "Premium required",
+    "spotifyPremiumOk": "Premium ✓",
+    "spotifyFreeNoHost": "Free — cannot host",
+    "spotifySessionExpiredHint": "Spotify session expired — reconnect your account.",
     "spotifyScopesHint": "Permissions: profile, playlists, now playing, and control via Spotify Connect — no in-browser playback.",
     "spotifyPremiumHostHint": "To host: Spotify Premium account + Spotify app open.",
     "spotifyDevQuotaHint": "Spotify development mode: only allowlisted accounts can connect until Extended Quota Mode is granted.",

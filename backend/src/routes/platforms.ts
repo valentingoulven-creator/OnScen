@@ -17,7 +17,7 @@ import {
   createYoutubeOAuthUrl,
   isYoutubeOAuthConfigured,
 } from '../lib/youtubeOAuth';
-import { isSpotifyOAuthConfigured, createSpotifyOAuthUrl } from '../lib/spotifyOAuth';
+import { isSpotifyOAuthConfigured, createSpotifyOAuthUrl, userNeedsSpotifyScopeReconnect, getStoredSpotifyProduct, persistSpotifyProduct } from '../lib/spotifyOAuth';
 import {
   applyInstagramOAuthToUser,
   completeInstagramOAuth,
@@ -49,10 +49,23 @@ platformsRouter.get('/status', authenticateJWT, async (req: Request, res: Respon
 
   let spotifySessionValid: boolean | undefined;
   let spotifySessionCode: string | undefined;
+  let spotifyProduct: string | undefined;
+  let spotifyPremium: boolean | undefined;
   if (isPlatformConnected(user, 'spotify')) {
+    const storedProduct = getStoredSpotifyProduct(user);
+    if (storedProduct && storedProduct !== 'unknown') {
+      spotifyProduct = storedProduct;
+      spotifyPremium = storedProduct === 'premium';
+    }
     const session = await probeSpotifyHostSession(user);
     spotifySessionValid = session.ok;
     if (!session.ok) spotifySessionCode = session.code;
+    if ('product' in session && session.product && session.product !== 'unknown') {
+      spotifyProduct = session.product;
+      spotifyPremium = session.product === 'premium';
+      persistSpotifyProduct(user, session.product);
+      db.users.set(userId, user);
+    }
   }
 
   res.json({
@@ -66,6 +79,9 @@ platformsRouter.get('/status', authenticateJWT, async (req: Request, res: Respon
     hasRealPlatformConnection: hasRealPlatformConnection(user),
     spotifySessionValid,
     spotifySessionCode,
+    spotifyProduct,
+    spotifyPremium,
+    spotifyNeedsScopeReconnect: userNeedsSpotifyScopeReconnect(user),
   });
 });
 
@@ -91,7 +107,12 @@ platformsRouter.get('/spotify/oauth/url', authenticateJWT, (req: Request, res: R
     return;
   }
   const userId = (req as Request & { user: { id: string } }).user.id;
-  res.json({ url: createSpotifyOAuthUrl(userId) });
+  const forceConsent =
+    req.query.reconnect === '1' ||
+    req.query.reconnect === 'true' ||
+    req.query.force_consent === '1' ||
+    req.query.force_consent === 'true';
+  res.json({ url: createSpotifyOAuthUrl(userId, { forceConsent }) });
 });
 
 platformsRouter.get('/instagram/oauth/url', authenticateJWT, (req: Request, res: Response) => {
@@ -148,6 +169,7 @@ platformsRouter.get('/spotify/playlists', authenticateJWT, async (req: Request, 
       isRealAccount: false,
       spotifySessionValid: false,
       spotifySessionCode: session.code,
+      spotifyProduct: 'product' in session ? session.product : undefined,
     });
     return;
   }
@@ -156,6 +178,7 @@ platformsRouter.get('/spotify/playlists', authenticateJWT, async (req: Request, 
     playlists,
     isRealAccount: isRealSpotifyAccount(user),
     spotifySessionValid: true,
+    spotifyProduct: session.product,
   });
 });
 

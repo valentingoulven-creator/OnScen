@@ -396,6 +396,14 @@ export default function App() {
     minimizeSalonToMap(session.id, title ?? session.title);
   }, [minimizeSalonToMap]);
 
+  /** Titre chargé — ne pas forcer viewMode (évite de ré-ouvrir le plein écran après réduction). */
+  const handleSalonTitleLoaded = useCallback((title?: string) => {
+    setActiveSalonSession((prev) => {
+      if (!prev) return prev;
+      return { ...prev, title: title ?? prev.title };
+    });
+  }, []);
+
   const handleMapSalonActive = useCallback((session: ActiveSalonSession | null) => {
     setMapSalonActiveId(session?.id ?? null);
     if (session) {
@@ -486,14 +494,26 @@ export default function App() {
     const session = activeSalonSessionRef.current;
     const persistedSalonId = session?.id;
     const salonFullScreen = session?.viewMode === 'full';
-    if (!salonFullScreen) {
+    if (salonFullScreen && persistedSalonId) {
+      if (id === 'map') {
+        minimizeSalonToMap(persistedSalonId, session.title);
+      } else {
+        clearSalonUrlFromBar();
+        setActiveSalonSession((prev) =>
+          prev?.id === persistedSalonId
+            ? { ...prev, viewMode: 'minimized' }
+            : prev
+        );
+        setView({ type: 'home' });
+      }
+    } else {
       setView({ type: 'home' });
       if (id === 'map' && persistedSalonId) {
         setRestoreSalonOnMapId(persistedSalonId);
       }
     }
     setTab(id);
-  }, []);
+  }, [minimizeSalonToMap]);
 
   if (authBootError) {
     return (
@@ -683,13 +703,7 @@ export default function App() {
                     onBack={handleSalonPageBack}
                     onLeaveSalon={leaveActiveSalonSession}
                     onMinimizeToMap={handleSalonMinimizeToMap}
-                    onSalonLoaded={(title) =>
-                      setActiveSalonSession((prev) =>
-                        prev?.id === activeSalonSession.id
-                          ? { ...prev, title: title ?? prev.title, viewMode: 'full' }
-                          : prev
-                      )
-                    }
+                    onSalonLoaded={handleSalonTitleLoaded}
                   />
                 </Suspense>
               </div>
