@@ -28,6 +28,7 @@ import {
   hostLoadYoutubePlaylist,
   enqueueItem,
   proposalToQueueItem,
+  removeTrackFromSalonQueue,
 } from '../lib/salonPlaybackOps';
 import { searchYoutube } from '../lib/youtubeSearch';
 import {
@@ -36,7 +37,13 @@ import {
   SpotifySearchError,
 } from '../lib/spotifySearch';
 import { isRealSpotifyAccount } from '../lib/spotifyOAuth';
-import { controlSpotifyPlayback, getSpotifyNowPlaying, playSpotifyTrackNow, SpotifyPlaybackError } from '../lib/spotifyPlayback';
+import {
+  addSpotifyTrackToQueue,
+  controlSpotifyPlayback,
+  getSpotifyNowPlaying,
+  playSpotifyTrackNow,
+  SpotifyPlaybackError,
+} from '../lib/spotifyPlayback';
 import { resolvePlaylistVideos } from '../lib/youtubePlaylists';
 import { resolveSpotifyPlaylistTracks, SpotifyPlaylistError } from '../lib/spotifyPlaylists';
 import { notifyFavoritesSalonStarted } from '../lib/favorites';
@@ -472,26 +479,96 @@ salonsRouter.post('/:id/playback/change-track', authenticateJWT, async (req: Req
 
   if (!requireRealSpotifyHost(hostUser, res)) return;
 
-  const state = hostChangePlaybackTrack(salon, {
+  const trackPayload = {
     trackId: resolvedId,
     title: typeof title === 'string' && title.trim() ? title.trim() : 'Morceau Spotify',
     artist: typeof artist === 'string' && artist.trim() ? artist.trim() : 'Spotify',
     externalUrl: buildPlatformTrackUrl('spotify', resolvedId),
     albumArtUrl: typeof albumArtUrl === 'string' && albumArtUrl.trim() ? albumArtUrl.trim() : undefined,
-  });
+  };
 
   try {
     await playSpotifyTrackNow(hostUser, resolvedId);
   } catch (e) {
     if (e instanceof SpotifyPlaybackError) {
-      res.status(e.status).json({ error: e.message, code: e.code, playbackState: state });
+      if (e.code === 'no_active_device') {
+        const state = hostChangePlaybackTrack(salon, trackPayload);
+        removeTrackFromSalonQueue(salon.id, resolvedId);
+        res.status(e.status).json({ error: e.message, code: e.code, playbackState: state });
+        return;
+      }
+      res.status(e.status).json({ error: e.message, code: e.code });
       return;
     }
-    res.status(502).json({ error: 'Lecture Spotify indisponible', playbackState: state });
+    res.status(502).json({ error: 'Lecture Spotify indisponible' });
     return;
   }
 
+  const state = hostChangePlaybackTrack(salon, trackPayload);
+  removeTrackFromSalonQueue(salon.id, resolvedId);
   res.json({ playbackState: state });
+});
+
+salonsRouter.post('/:id/playback/add-to-queue', authenticateJWT, async (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string; username: string } }).user;
+  const salon = db.salons.get(req.params.id);
+  if (!requireSalonPlaybackController(salon, me.id, res)) return;
+  if (salon.platform !== 'spotify') {
+    res.status(400).json({ error: 'Ajout à la file disponible uniquement dans un salon Spotify' });
+    return;
+  }
+  const hostUser = getSalonHostUser(salon, res);
+  if (!hostUser || !requireHostPlatform(hostUser, salon.platform, res)) return;
+  if (!requireRealSpotifyHost(hostUser, res)) return;
+
+  const { trackId, title, artist, trackLink, albumArtUrl } = req.body;
+  let resolvedId = typeof trackId === 'string' ? trackId.trim() : '';
+  if (!resolvedId && trackLink && typeof trackLink === 'string') {
+    const parsed = parseMusicLink(salon.platform, trackLink);
+    if (parsed) resolvedId = parsed.trackId;
+  }
+  if (!resolvedId || resolvedId === 'demo') {
+    res.status(400).json({ error: 'trackId ou lien Spotify requis' });
+    return;
+  }
+
+  const queueItem = enqueueItem(salon.id, {
+    title: typeof title === 'string' && title.trim() ? title.trim().slice(0, 120) : 'Morceau Spotify',
+    artist: typeof artist === 'string' && artist.trim() ? artist.trim().slice(0, 80) : 'Spotify',
+    trackId: resolvedId,
+    externalUrl: buildPlatformTrackUrl('spotify', resolvedId),
+    albumArtUrl: typeof albumArtUrl === 'string' && albumArtUrl.trim() ? albumArtUrl.trim() : undefined,
+    addedById: me.id,
+    addedByName: me.username,
+    source: 'host',
+  });
+
+  try {
+    await addSpotifyTrackToQueue(hostUser, resolvedId);
+  } catch (e) {
+    if (e instanceof SpotifyPlaybackError) {
+      if (e.code === 'no_active_device') {
+        res.status(e.status).json({
+          error: e.message,
+          code: e.code,
+          queueItem,
+          queue: ensureSalonQueue(salon.id),
+          playbackState: salon.playbackState,
+        });
+        return;
+      }
+      res.status(e.status).json({ error: e.message, code: e.code });
+      return;
+    }
+    res.status(502).json({ error: 'File Spotify indisponible' });
+    return;
+  }
+
+  res.json({
+    queueItem,
+    queue: ensureSalonQueue(salon.id),
+    playbackState: salon.playbackState,
+  });
 });
 
 salonsRouter.get('/:id/playback/spotify-now-playing', authenticateJWT, async (req: Request, res: Response) => {

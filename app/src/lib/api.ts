@@ -26,18 +26,21 @@ export class ApiRequestError extends Error {
   code?: string;
   status?: number;
   playbackState?: import('../types').PlaybackState;
+  queue?: import('../types').SalonQueueItem[];
 
   constructor(
     message: string,
     code?: string,
     status?: number,
-    playbackState?: import('../types').PlaybackState
+    playbackState?: import('../types').PlaybackState,
+    queue?: import('../types').SalonQueueItem[]
   ) {
     super(message);
     this.name = 'ApiRequestError';
     this.code = code;
     this.status = status;
     this.playbackState = playbackState;
+    this.queue = queue;
   }
 }
 
@@ -49,8 +52,10 @@ async function parseApiError(res: Response): Promise<ApiRequestError> {
         error?: string;
         code?: string;
         playbackState?: import('../types').PlaybackState;
+        queue?: import('../types').SalonQueueItem[];
       };
       const playbackState = json.playbackState;
+      const queue = json.queue;
       if (json.error) {
         if (json.error === 'Token manquant' || json.error === 'Token invalide') {
           return new ApiRequestError(i18n.t('errors.sessionExpired'), json.code, res.status);
@@ -113,10 +118,11 @@ async function parseApiError(res: Response): Promise<ApiRequestError> {
             i18n.t('salon.playbackMode.spotifyLaunchingApp'),
             json.code,
             res.status,
-            playbackState
+            playbackState,
+            queue
           );
         }
-        return new ApiRequestError(json.error, json.code, res.status, playbackState);
+        return new ApiRequestError(json.error, json.code, res.status, playbackState, queue);
       }
     } catch {
       if (text.length < 200) return new ApiRequestError(text, undefined, res.status);
@@ -414,6 +420,23 @@ export const api = {
       { method: 'POST', body: JSON.stringify(body) },
       token
     ),
+
+  salonAddToQueue: (
+    token: string,
+    salonId: string,
+    body: {
+      trackId: string;
+      title: string;
+      artist: string;
+      trackLink?: string;
+      albumArtUrl?: string;
+    }
+  ) =>
+    request<{
+      queueItem: import('../types').SalonQueueItem;
+      queue: import('../types').SalonQueueItem[];
+      playbackState: import('../types').PlaybackState;
+    }>(`/salons/${salonId}/playback/add-to-queue`, { method: 'POST', body: JSON.stringify(body) }, token),
 
   salonLoadPlaylist: (
     token: string,

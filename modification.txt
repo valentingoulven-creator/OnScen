@@ -7699,3 +7699,56 @@ l'hôte (`getSalonHostUser`). Le VIP déclenche la lecture sur l'appareil hôte.
 ================================================================================
 Fin MODIF 444 - 2026-06-11
 ================================================================================
+
+================================================================================
+MODIF 445 — Recherche Spotify salon : ajout à la file (pas changement immédiat)
+================================================================================
+Date : 2026-06-11
+
+## Objectif
+Dans `SalonSpotifySearch`, la sélection d'un morceau doit l'ajouter à la file
+Soundy et Spotify sans interrompre le morceau en cours ni remettre le chrono à 0.
+
+## Avant
+- `POST …/playback/change-track` → `playSpotifyTrackNow` + `hostChangePlaybackTrack`
+- État salon et chrono remplacés ; morceau retiré de la file Soundy s'il y était.
+
+## Après
+- `POST …/playback/add-to-queue` (Spotify) :
+  - `enqueueItem` côté Soundy (socket `salon_queue_updated`)
+  - `addSpotifyTrackToQueue` → Spotify Web API `POST /v1/me/player/queue`
+  - `playbackState` inchangé
+- `change-track` conservé pour YouTube (`SalonYouTubeSearch`) et usages legacy.
+
+## UI (fr/en)
+- Titre : « Ajouter un morceau »
+- Hint : ajout file sans interruption · pas de « chrono repart à 0:00 »
+- Bouton résultat : « Ajouter »
+- Toast succès : « Morceau ajouté à la file »
+
+## VIP (MODIF 444)
+- Route protégée par `requireSalonPlaybackController` (hôte ou VIP ⭐)
+- Jeton Spotify Connect de l'hôte inchangé
+
+## Cas limites
+- `no_active_device` : file Soundy mise à jour, ouverture app Spotify + retry queue
+- Scope / token expiré : erreur API, file Soundy déjà enrichie (socket)
+
+## Fichiers
+- backend/src/lib/spotifyPlayback.ts
+- backend/src/routes/salons.ts
+- app/src/lib/api.ts
+- app/src/components/SalonSpotifySearch.tsx
+- app/src/components/SalonPlaybackPanel.tsx
+- app/src/pages/SalonPage.tsx
+- app/src/hooks/useSalonQueueSync.ts
+- app/src/locales/fr.json, en.json
+- modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npm run build
+
+================================================================================
+Fin MODIF 445 - 2026-06-11
+================================================================================

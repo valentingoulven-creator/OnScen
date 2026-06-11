@@ -116,13 +116,48 @@ async function playSpotifyPlayback(user: User): Promise<void> {
   throw mapSpotifyPlayerError(res, 'Impossible de reprendre la lecture Spotify.');
 }
 
-async function playSpotifyTrack(user: User, trackId: string): Promise<void> {
+type SpotifyDevice = {
+  id?: string;
+  is_active?: boolean;
+  is_restricted?: boolean;
+};
+
+type SpotifyDevicesResponse = {
+  devices?: SpotifyDevice[];
+};
+
+async function pickSpotifyControlDevice(user: User): Promise<string | undefined> {
+  const res = await spotifyPlayerRequest(user, 'GET', 'https://api.spotify.com/v1/me/player/devices');
+  if (!res.ok) return undefined;
+  const data = (await res.json()) as SpotifyDevicesResponse;
+  const devices = (data.devices ?? []).filter((d) => d.id && !d.is_restricted) as Array<
+    SpotifyDevice & { id: string }
+  >;
+  if (devices.length === 0) return undefined;
+  const active = devices.find((d) => d.is_active);
+  return active?.id ?? devices[0].id;
+}
+
+async function transferSpotifyPlayback(user: User, deviceId: string): Promise<void> {
+  const res = await spotifyPlayerRequest(user, 'PUT', 'https://api.spotify.com/v1/me/player', {
+    device_ids: [deviceId],
+    play: false,
+  });
+  if (res.status === 204 || res.status === 200) return;
+  throw mapSpotifyPlayerError(res, 'Impossible de prendre le contrôle Spotify Connect.');
+}
+
+async function playSpotifyTrack(user: User, trackId: string, deviceId?: string): Promise<void> {
   const safeId = trackId.trim();
   if (!safeId) {
     throw new SpotifyPlaybackError('trackId Spotify requis.', 400, 'invalid_track_id');
   }
-  const res = await spotifyPlayerRequest(user, 'PUT', 'https://api.spotify.com/v1/me/player/play', {
+  const playUrl = deviceId
+    ? `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(deviceId)}`
+    : 'https://api.spotify.com/v1/me/player/play';
+  const res = await spotifyPlayerRequest(user, 'PUT', playUrl, {
     uris: [`spotify:track:${safeId}`],
+    position_ms: 0,
   });
   if (res.status === 204 || res.status === 200) return;
   throw mapSpotifyPlayerError(res, 'Impossible de lancer ce morceau sur Spotify.');
@@ -210,8 +245,36 @@ export async function seekSpotifyPlaybackPosition(user: User, positionMs: number
   await seekSpotifyPlayback(user, positionMs);
 }
 
-/** Remplace la lecture en cours par un morceau (PUT /v1/me/player/play, position 0). */
+/** Ajoute un morceau à la file Spotify (POST /v1/me/player/queue) sans interrompre la lecture. */
+export async function addSpotifyTrackToQueue(user: User, trackId: string): Promise<void> {
+  const safeId = trackId.trim();
+  if (!safeId) {
+    throw new SpotifyPlaybackError('trackId Spotify requis.', 400, 'invalid_track_id');
+  }
+  const uri = encodeURIComponent(`spotify:track:${safeId}`);
+  const deviceId = await pickSpotifyControlDevice(user);
+  const queueUrl = deviceId
+    ? `https://api.spotify.com/v1/me/player/queue?uri=${uri}&device_id=${encodeURIComponent(deviceId)}`
+    : `https://api.spotify.com/v1/me/player/queue?uri=${uri}`;
+  const res = await spotifyPlayerRequest(user, 'POST', queueUrl);
+  if (res.status === 204 || res.status === 200) return;
+  throw mapSpotifyPlayerError(res, 'Impossible d’ajouter ce morceau à la file Spotify.');
+}
+
+/** Remplace la lecture en cours par un morceau (Connect : transfer + PUT /play uris, position 0). */
 export async function playSpotifyTrackNow(user: User, trackId: string): Promise<void> {
+  const deviceId = await pickSpotifyControlDevice(user);
+  if (deviceId) {
+    try {
+      await transferSpotifyPlayback(user, deviceId);
+    } catch (e) {
+      if (!(e instanceof SpotifyPlaybackError && e.code === 'no_active_device')) {
+        throw e;
+      }
+    }
+    await playSpotifyTrack(user, trackId, deviceId);
+    return;
+  }
   await playSpotifyTrack(user, trackId);
 }
 

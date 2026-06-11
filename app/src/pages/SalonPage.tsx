@@ -299,6 +299,7 @@ export function SalonPage({
     acceptProposal,
     rejectProposal,
     proposeTrack,
+    applyQueue,
   } = useSalonQueueSync(salon?.id ?? salonId, token, isHost, salon?.queue);
 
   const applyPlayback = useCallback((state: PlaybackState) => {
@@ -502,7 +503,7 @@ export function SalonPage({
             token={token}
             currentTitle={playback.title}
             currentArtist={playback.artist}
-            onTrackChanged={applyPlayback}
+            onQueueChanged={applyQueue}
             showCurrentTrack={false}
           />
           <SalonSpotifyPlaylist
@@ -529,7 +530,7 @@ export function SalonPage({
           token={token}
           currentTitle={playback.title}
           currentArtist={playback.artist}
-          onTrackChanged={applyPlayback}
+          onQueueChanged={applyQueue}
           showCurrentTrack={false}
         />
       )}

@@ -202,6 +202,18 @@ export function hostLoadYoutubePlaylist(
   return state;
 }
 
+/** Retire un morceau de la file Soundy s'il y est (changement immédiat ≠ file d'attente). */
+export function removeTrackFromSalonQueue(salonId: string, trackId: string): boolean {
+  const safeId = trackId.trim();
+  if (!safeId) return false;
+  const queue = ensureSalonQueue(salonId);
+  const next = queue.filter((item) => item.trackId !== safeId);
+  if (next.length === queue.length) return false;
+  db.salonQueues.set(salonId, next);
+  broadcastSalonQueue(salonId);
+  return true;
+}
+
 export function hostChangePlaybackTrack(
   salon: Salon,
   track: { trackId: string; title: string; artist: string; externalUrl?: string; albumArtUrl?: string }

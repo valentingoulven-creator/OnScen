@@ -107,5 +107,6 @@ export function useSalonQueueSync(
     acceptProposal,
     rejectProposal,
     proposeTrack,
+    applyQueue: setQueue,
   };
 }

@@ -8,7 +8,7 @@ import { api, ApiRequestError } from '../lib/api';
 
 import { openSpotifyApp } from '../lib/spotifyDeepLink';
 
-import type { PlaybackState, SpotifySearchResult } from '../types';
+import type { PlaybackState, SalonQueueItem, SpotifySearchResult } from '../types';
 
 import { SearchInlineSpinner } from './SearchInlineSpinner';
 
@@ -26,7 +26,9 @@ interface SalonSpotifySearchProps {
 
   currentArtist: string;
 
-  onTrackChanged: (state: PlaybackState) => void;
+  onTrackChanged?: (state: PlaybackState) => void;
+
+  onQueueChanged?: (queue: SalonQueueItem[]) => void;
 
   /** Masque le morceau en cours (affiché ailleurs, ex. barre lecture salon). */
   showCurrentTrack?: boolean;
@@ -65,7 +67,7 @@ export function SalonSpotifySearch({
 
   currentArtist,
 
-  onTrackChanged,
+  onQueueChanged,
 
   showCurrentTrack = true,
 
@@ -75,7 +77,7 @@ export function SalonSpotifySearch({
 
   const [query, setQuery] = useState('');
 
-  const [changingId, setChangingId] = useState<string | null>(null);
+  const [addingId, setAddingId] = useState<string | null>(null);
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -86,6 +88,8 @@ export function SalonSpotifySearch({
   const spotifyLaunchRetryRef = useRef<number | null>(null);
 
   const spotifyAppLaunchIssuedRef = useRef(false);
+
+  const pendingAddToQueueRef = useRef<SpotifySearchResult | null>(null);
 
 
 
@@ -137,35 +141,52 @@ export function SalonSpotifySearch({
     setDropdownOpen(false);
   };
 
-  const scheduleSpotifyPlayRetry = useCallback(() => {
+  const trackBodyFromResult = (item: SpotifySearchResult) => ({
+    trackId: item.id,
+    title: item.name,
+    artist: item.artist,
+    trackLink: item.externalUrl,
+    albumArtUrl: item.albumArtUrl || undefined,
+  });
+
+  const scheduleSpotifyAddToQueueRetry = useCallback(() => {
+    const pending = pendingAddToQueueRef.current;
+    if (!pending) return;
     if (spotifyLaunchRetryRef.current !== null) {
       window.clearTimeout(spotifyLaunchRetryRef.current);
     }
     spotifyLaunchRetryRef.current = window.setTimeout(() => {
       spotifyLaunchRetryRef.current = null;
-      void api.spotifySalonPlaybackControl(token, salonId, 'play').catch(() => {
-        /* Toast déjà affiché — l'hôte peut relancer Lecture manuellement. */
-      });
+      void api
+        .salonAddToQueue(token, salonId, trackBodyFromResult(pending))
+        .then(({ queue }) => {
+          pendingAddToQueueRef.current = null;
+          onQueueChanged?.(queue);
+        })
+        .catch(() => {
+          /* Toast déjà affiché — l'hôte peut relancer Spotify manuellement. */
+        });
     }, 3500);
-  }, [token, salonId]);
+  }, [token, salonId, onQueueChanged]);
 
   const handleSpotifyNoActiveDevice = useCallback(
-    (trackId: string, playbackState?: PlaybackState) => {
-      if (playbackState) {
-        onTrackChanged(playbackState);
+    (item: SpotifySearchResult, queue?: SalonQueueItem[]) => {
+      pendingAddToQueueRef.current = item;
+      if (queue) {
+        onQueueChanged?.(queue);
       }
       if (!spotifyAppLaunchIssuedRef.current) {
         spotifyAppLaunchIssuedRef.current = true;
-        openSpotifyApp(trackId);
+        openSpotifyApp(item.id);
         window.setTimeout(() => {
           spotifyAppLaunchIssuedRef.current = false;
         }, 5000);
       }
       setInfoToast(t('salon.playbackMode.spotifyLaunchingApp'));
-      scheduleSpotifyPlayRetry();
+      scheduleSpotifyAddToQueueRetry();
       clearSearchUi();
     },
-    [onTrackChanged, scheduleSpotifyPlayRetry, t]
+    [onQueueChanged, scheduleSpotifyAddToQueueRetry, t]
   );
 
   useEffect(() => {
@@ -188,44 +209,33 @@ export function SalonSpotifySearch({
 
 
 
-  const playResult = async (item: SpotifySearchResult) => {
+  const addResult = async (item: SpotifySearchResult) => {
 
-    setChangingId(item.id);
+    setAddingId(item.id);
 
     setError(null);
 
     try {
 
-      const { playbackState } = await api.salonChangeTrack(token, salonId, {
+      const { queue } = await api.salonAddToQueue(token, salonId, trackBodyFromResult(item));
 
-        trackId: item.id,
-
-        title: item.name,
-
-        artist: item.artist,
-
-        trackLink: item.externalUrl,
-
-        albumArtUrl: item.albumArtUrl || undefined,
-
-      });
-
-      onTrackChanged(playbackState);
-
+      onQueueChanged?.(queue);
+      pendingAddToQueueRef.current = null;
+      setInfoToast(t('salon.spotifySearch.addSuccess'));
       clearSearchUi();
 
     } catch (e) {
 
       if (e instanceof ApiRequestError && e.code === 'no_active_device') {
-        handleSpotifyNoActiveDevice(item.id, e.playbackState);
+        handleSpotifyNoActiveDevice(item, e.queue);
         return;
       }
 
-      setError(e instanceof Error ? e.message : t('salon.spotifySearch.changeError'));
+      setError(e instanceof Error ? e.message : t('salon.spotifySearch.addError'));
 
     } finally {
 
-      setChangingId(null);
+      setAddingId(null);
 
     }
 
@@ -237,11 +247,11 @@ export function SalonSpotifySearch({
 
     const q = query.trim();
 
-    if (!q || changingId) return;
+    if (!q || addingId) return;
 
     if (results.length > 0) {
 
-      await playResult(results[0]);
+      await addResult(results[0]);
 
       return;
 
@@ -251,7 +261,7 @@ export function SalonSpotifySearch({
 
     if (trackId) {
 
-      await playResult({
+      await addResult({
 
         id: trackId,
 
@@ -291,7 +301,7 @@ export function SalonSpotifySearch({
 
         <p className="text-[11px] font-semibold text-gray-300 uppercase tracking-wide">
 
-          {t('salon.spotifySearch.changeTrack')}
+          {t('salon.spotifySearch.addToQueue')}
 
         </p>
 
@@ -421,11 +431,11 @@ export function SalonSpotifySearch({
 
                       item={item}
 
-                      disabled={changingId !== null}
+                      disabled={addingId !== null}
 
-                      onSelect={(row) => playResult(row as SpotifySearchResult)}
+                      onSelect={(row) => addResult(row as SpotifySearchResult)}
 
-                      actionLabel={changingId === item.id ? '…' : t('salon.spotifySearch.play')}
+                      actionLabel={addingId === item.id ? '…' : t('salon.spotifySearch.add')}
 
                     />
 
@@ -445,7 +455,7 @@ export function SalonSpotifySearch({
 
 
 
-      <p className="text-[10px] text-gray-600 leading-snug">{t('salon.spotifySearch.changeHint')}</p>
+      <p className="text-[10px] text-gray-600 leading-snug">{t('salon.spotifySearch.addHint')}</p>
 
       <p className="text-[10px] text-[#1DB954]/70">{t('salon.spotifySearch.poweredBy')}</p>
 
@@ -463,5 +473,4 @@ export function SalonSpotifySearch({
   );
 
 }
-
 

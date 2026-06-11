@@ -1213,7 +1213,7 @@ export function SalonPlaybackPanel({
         </>
       )}
 
-      {!mapInline && isHost && hostLinked && salon.platform === 'spotify' && token && (
+      {!mapInline && canControlPlayback && salon.platform === 'spotify' && token && (
         <>
           <SectionDivider />
           <div className="p-4">
@@ -1222,7 +1222,7 @@ export function SalonPlaybackPanel({
               token={token}
               currentTitle={playbackState.title}
               currentArtist={playbackState.artist}
-              onTrackChanged={applyPlaybackState}
+              onQueueChanged={onQueueChange}
             />
           </div>
           <SectionDivider />
