@@ -478,7 +478,7 @@ export function SalonPlaybackPanel({
         ? 'Correspondance msdev'
         : 'Recherche automatique';
 
-  const showHostQueue = !mapInline && !theaterMode && !salonQueueLayout && isHost && hostCanControl;
+  const showHostQueue = !mapInline && !theaterMode && !salonQueueLayout && canControlPlayback;
   const showParticipantProposals = !mapInline && !theaterMode && !salonQueueLayout && !isHost && salon.allowQueue;
 
   const theaterVideoToggle =
@@ -1422,7 +1422,7 @@ export function SalonPlaybackPanel({
               <>
                 <SalonQueueSection
                   queue={queue}
-                  isHost
+                  isHost={canControlPlayback}
                   allowQueue={salon.allowQueue}
                   onSkip={onSkip}
                   onPlayItem={onPlayQueueItem}

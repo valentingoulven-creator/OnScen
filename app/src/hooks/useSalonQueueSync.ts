@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api } from '../lib/api';
+import { api, ApiRequestError } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import type { SalonQueueItem, SalonTrackProposal } from '../types';
 
@@ -55,17 +55,33 @@ export function useSalonQueueSync(
 
   const skipNext = useCallback(async () => {
     if (!token) return null;
-    const r = await api.salonPlaybackSkip(token, salonId);
-    setQueue(r.queue);
-    return r.playbackState;
+    try {
+      const r = await api.salonPlaybackSkip(token, salonId);
+      setQueue(r.queue);
+      return r.playbackState;
+    } catch (e) {
+      if (e instanceof ApiRequestError && e.code === 'no_active_device') {
+        if (e.queue) setQueue(e.queue);
+        throw e;
+      }
+      throw e;
+    }
   }, [token, salonId]);
 
   const playQueueItem = useCallback(
     async (queueItemId: string) => {
       if (!token) return null;
-      const r = await api.salonPlayQueueItem(token, salonId, queueItemId);
-      setQueue(r.queue);
-      return r.playbackState;
+      try {
+        const r = await api.salonPlayQueueItem(token, salonId, queueItemId);
+        setQueue(r.queue);
+        return r.playbackState;
+      } catch (e) {
+        if (e instanceof ApiRequestError && e.code === 'no_active_device') {
+          if (e.queue) setQueue(e.queue);
+          throw e;
+        }
+        throw e;
+      }
     },
     [token, salonId]
   );

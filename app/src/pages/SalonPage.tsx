@@ -5,7 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { isPlatformConnected } from '../lib/platformConnect';
 import { mergeRemotePlaybackState } from '../lib/salonPlayback';
 
-import { api } from '../lib/api';
+import { api, ApiRequestError } from '../lib/api';
+import { openSpotifyApp } from '../lib/spotifyDeepLink';
 
 import { getSocket } from '../lib/socket';
 
@@ -83,6 +84,8 @@ export function SalonPage({
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const warningTimerRef = useRef<number | null>(null);
+  const spotifyQueueLaunchRef = useRef(false);
+  const spotifyQueueRetryRef = useRef<number | null>(null);
 
   const loadSalon = useCallback(() => {
     if (!token) return;
@@ -434,13 +437,42 @@ export function SalonPage({
   const playback = salon.playbackState;
 
   const handleSkip = async () => {
-    if (!canControlPlayback) return;
+    if (!canControlPlayback || !token || !salon) return;
     setSkipping(true);
     try {
       const state = await skipNext();
       if (state) applyPlayback(state);
       else setToastMsg('File vide');
     } catch (e) {
+      if (e instanceof ApiRequestError && e.code === 'no_active_device') {
+        if (e.playbackState) applyPlayback(e.playbackState);
+        if (e.queue) applyQueue(e.queue);
+        if (salon.platform === 'spotify' && e.playbackState?.trackId) {
+          if (!spotifyQueueLaunchRef.current) {
+            spotifyQueueLaunchRef.current = true;
+            openSpotifyApp(e.playbackState.trackId);
+            window.setTimeout(() => {
+              spotifyQueueLaunchRef.current = false;
+            }, 5000);
+          }
+          if (spotifyQueueRetryRef.current !== null) {
+            window.clearTimeout(spotifyQueueRetryRef.current);
+          }
+          spotifyQueueRetryRef.current = window.setTimeout(() => {
+            spotifyQueueRetryRef.current = null;
+            void api
+              .salonChangeTrack(token, salon.id, {
+                trackId: e.playbackState!.trackId,
+                title: e.playbackState!.title,
+                artist: e.playbackState!.artist,
+                albumArtUrl: e.playbackState!.albumArtUrl,
+              })
+              .catch(() => {});
+          }, 3500);
+        }
+        setToastMsg(t('salon.playbackMode.spotifyLaunchingApp'));
+        return;
+      }
       setToastMsg(e instanceof Error ? e.message : 'Erreur');
     } finally {
       setSkipping(false);
@@ -448,10 +480,40 @@ export function SalonPage({
   };
 
   const handlePlayQueue = async (queueItemId: string) => {
+    if (!canControlPlayback || !token || !salon) return;
     try {
       const state = await playQueueItem(queueItemId);
       if (state) applyPlayback(state);
     } catch (e) {
+      if (e instanceof ApiRequestError && e.code === 'no_active_device') {
+        if (e.playbackState) applyPlayback(e.playbackState);
+        if (e.queue) applyQueue(e.queue);
+        if (salon.platform === 'spotify' && e.playbackState?.trackId) {
+          if (!spotifyQueueLaunchRef.current) {
+            spotifyQueueLaunchRef.current = true;
+            openSpotifyApp(e.playbackState.trackId);
+            window.setTimeout(() => {
+              spotifyQueueLaunchRef.current = false;
+            }, 5000);
+          }
+          if (spotifyQueueRetryRef.current !== null) {
+            window.clearTimeout(spotifyQueueRetryRef.current);
+          }
+          spotifyQueueRetryRef.current = window.setTimeout(() => {
+            spotifyQueueRetryRef.current = null;
+            void api
+              .salonChangeTrack(token, salon.id, {
+                trackId: e.playbackState!.trackId,
+                title: e.playbackState!.title,
+                artist: e.playbackState!.artist,
+                albumArtUrl: e.playbackState!.albumArtUrl,
+              })
+              .catch(() => {});
+          }, 3500);
+        }
+        setToastMsg(t('salon.playbackMode.spotifyLaunchingApp'));
+        return;
+      }
       setToastMsg(e instanceof Error ? e.message : 'Erreur');
     }
   };

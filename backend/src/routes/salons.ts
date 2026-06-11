@@ -146,6 +146,24 @@ function getSalonHostUser(salon: Salon, res: Response): import('../models/schema
   return hostUser;
 }
 
+/** Lance un morceau sur Spotify Connect (hôte) avant mise à jour file Soundy. */
+async function tryPlaySpotifyTrackForSalon(
+  hostUser: import('../models/schema').User,
+  salon: Salon,
+  trackId: string | undefined
+): Promise<SpotifyPlaybackError | null> {
+  if (salon.platform !== 'spotify') return null;
+  const safeId = trackId?.trim();
+  if (!safeId || safeId === 'demo') return null;
+  try {
+    await playSpotifyTrackNow(hostUser, safeId);
+    return null;
+  } catch (e) {
+    if (e instanceof SpotifyPlaybackError) return e;
+    throw e;
+  }
+}
+
 salonsRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const salons = [...db.salons.values()]
@@ -352,7 +370,7 @@ salonsRouter.post('/:id/proposals', authenticateJWT, (req: Request, res: Respons
   res.status(201).json({ proposal });
 });
 
-salonsRouter.post('/:id/proposals/:proposalId/accept', authenticateJWT, (req: Request, res: Response) => {
+salonsRouter.post('/:id/proposals/:proposalId/accept', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string; username: string } }).user;
   const salon = db.salons.get(req.params.id);
   if (!salon || salon.hostId !== me.id) {
@@ -375,8 +393,31 @@ salonsRouter.post('/:id/proposals/:proposalId/accept', authenticateJWT, (req: Re
   const playNow = req.body?.playNow === true;
   let playbackState = salon.playbackState;
   if (playNow) {
-    const played = hostPlayQueueItem(salon, item.id);
-    if (played) playbackState = played;
+    if (salon.platform === 'spotify') {
+      if (!requireRealSpotifyHost(hostUser, res)) return;
+      const spotifyErr = await tryPlaySpotifyTrackForSalon(hostUser, salon, item.trackId);
+      if (spotifyErr && spotifyErr.code !== 'no_active_device') {
+        res.status(spotifyErr.status).json({ error: spotifyErr.message, code: spotifyErr.code });
+        return;
+      }
+      const played = hostPlayQueueItem(salon, item.id);
+      if (played) playbackState = played;
+      if (spotifyErr?.code === 'no_active_device' && played) {
+        broadcastSalonProposals(salon.id);
+        res.status(spotifyErr.status).json({
+          error: spotifyErr.message,
+          code: spotifyErr.code,
+          proposal,
+          queueItem: item,
+          queue: ensureSalonQueue(salon.id),
+          playbackState,
+        });
+        return;
+      }
+    } else {
+      const played = hostPlayQueueItem(salon, item.id);
+      if (played) playbackState = played;
+    }
   }
   broadcastSalonProposals(salon.id);
   res.json({
@@ -405,21 +446,47 @@ salonsRouter.post('/:id/proposals/:proposalId/reject', authenticateJWT, (req: Re
   res.json({ proposal });
 });
 
-salonsRouter.post('/:id/playback/skip', authenticateJWT, (req: Request, res: Response) => {
+salonsRouter.post('/:id/playback/skip', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const salon = db.salons.get(req.params.id);
   if (!requireSalonPlaybackController(salon, me, res)) return;
   const hostUser = getSalonHostUser(salon, res);
   if (!hostUser || !requireHostPlatform(hostUser, salon.platform, res)) return;
+
+  const queue = ensureSalonQueue(salon.id);
+  if (queue.length === 0) {
+    res.status(400).json({ error: 'File vide' });
+    return;
+  }
+
+  if (salon.platform === 'spotify' && !requireRealSpotifyHost(hostUser, res)) return;
+
+  const spotifyErr = await tryPlaySpotifyTrackForSalon(hostUser, salon, queue[0]?.trackId);
+  if (spotifyErr && spotifyErr.code !== 'no_active_device') {
+    res.status(spotifyErr.status).json({ error: spotifyErr.message, code: spotifyErr.code });
+    return;
+  }
+
   const state = hostSkipNext(salon);
   if (!state) {
     res.status(400).json({ error: 'File vide' });
     return;
   }
+
+  if (spotifyErr?.code === 'no_active_device') {
+    res.status(spotifyErr.status).json({
+      error: spotifyErr.message,
+      code: spotifyErr.code,
+      playbackState: state,
+      queue: ensureSalonQueue(salon.id),
+    });
+    return;
+  }
+
   res.json({ playbackState: state, queue: ensureSalonQueue(salon.id) });
 });
 
-salonsRouter.post('/:id/playback/play-queue', authenticateJWT, (req: Request, res: Response) => {
+salonsRouter.post('/:id/playback/play-queue', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const salon = db.salons.get(req.params.id);
   if (!requireSalonPlaybackController(salon, me, res)) return;
@@ -430,11 +497,38 @@ salonsRouter.post('/:id/playback/play-queue', authenticateJWT, (req: Request, re
     res.status(400).json({ error: 'queueItemId requis' });
     return;
   }
+
+  const queue = ensureSalonQueue(salon.id);
+  const item = queue.find((q) => q.id === String(queueItemId));
+  if (!item) {
+    res.status(404).json({ error: 'Morceau introuvable dans la file' });
+    return;
+  }
+
+  if (salon.platform === 'spotify' && !requireRealSpotifyHost(hostUser, res)) return;
+
+  const spotifyErr = await tryPlaySpotifyTrackForSalon(hostUser, salon, item.trackId);
+  if (spotifyErr && spotifyErr.code !== 'no_active_device') {
+    res.status(spotifyErr.status).json({ error: spotifyErr.message, code: spotifyErr.code });
+    return;
+  }
+
   const state = hostPlayQueueItem(salon, String(queueItemId));
   if (!state) {
     res.status(404).json({ error: 'Morceau introuvable dans la file' });
     return;
   }
+
+  if (spotifyErr?.code === 'no_active_device') {
+    res.status(spotifyErr.status).json({
+      error: spotifyErr.message,
+      code: spotifyErr.code,
+      playbackState: state,
+      queue: ensureSalonQueue(salon.id),
+    });
+    return;
+  }
+
   res.json({ playbackState: state, queue: ensureSalonQueue(salon.id) });
 });
 

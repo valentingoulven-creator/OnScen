@@ -7752,3 +7752,47 @@ Soundy et Spotify sans interrompre le morceau en cours ni remettre le chrono à 
 ================================================================================
 Fin MODIF 445 - 2026-06-11
 ================================================================================
+
+================================================================================
+MODIF 446 — File d'attente salon : Lire / Suivant → lecture Spotify réelle
+================================================================================
+Date : 2026-06-11
+
+## Problème
+« Lire » sur un morceau en file ou « Suivant » mettait à jour l'état Soundy
+(chrono, titre) mais n'appelait pas Spotify Connect — le morceau en cours ne
+changeait pas dans l'app Spotify.
+
+## Cause
+`POST …/playback/play-queue` et `POST …/playback/skip` n'appelaient que
+`hostPlayQueueItem` / `hostSkipNext` (état in-memory + socket), sans
+`playSpotifyTrackNow` (contrairement à `change-track`).
+
+## Correction
+- Helper `tryPlaySpotifyTrackForSalon` dans `salons.ts`
+- `play-queue` / `skip` : `playSpotifyTrackNow` sur le `trackId` cible, puis
+  mise à jour file + `playbackState` Soundy
+- `no_active_device` : état Soundy mis à jour quand même ; frontend ouvre
+  Spotify + retry `change-track` après 3,5 s (comme add-to-queue)
+- Accept proposition `playNow` (Spotify) : même logique
+- VIP (MODIF 444) : routes déjà protégées par `requireSalonPlaybackController`
+
+## Frontend
+- `useSalonQueueSync` : propage `no_active_device` avec file socket
+- `SalonPage` : handlers Lire/Suivant — applyPlayback + openSpotifyApp + retry
+- `SalonPlaybackPanel` : file visible pour `canControlPlayback` (hôte ou VIP)
+
+## Fichiers
+- backend/src/routes/salons.ts
+- app/src/hooks/useSalonQueueSync.ts
+- app/src/pages/SalonPage.tsx
+- app/src/components/SalonPlaybackPanel.tsx
+- modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npm run build
+
+================================================================================
+Fin MODIF 446 - 2026-06-11
+================================================================================
