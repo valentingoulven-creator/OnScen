@@ -1,4 +1,5 @@
 import { db, ChatMessage } from '../models/schema';
+import { isDevUser } from './accessControl';
 
 /** Valeur spéciale : dégradé Soundly (header). */
 export const USERNAME_COLOR_WAVE = 'wave';
@@ -85,6 +86,7 @@ export function enrichChatMessages(messages: ChatMessage[]): ChatMessage[] {
       out = { ...out, senderUsernameColor: u.usernameColor };
     }
     if (u) out = enrichMessageWaveColors(out, u);
+    if (isDevUser(u)) out = { ...out, senderIsDev: true };
     return out;
   });
 }

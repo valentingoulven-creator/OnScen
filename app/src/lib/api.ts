@@ -318,6 +318,105 @@ export const api = {
   deleteAccessInvite: (token: string, id: string) =>
     request<{ ok: boolean }>(`/access/admin/invites/${id}`, { method: 'DELETE' }, token),
 
+  getAdminSalons: (
+    token: string,
+    opts: { filter?: import('../types').AdminContentFilter; q?: string; limit?: number; offset?: number } = {}
+  ) => {
+    const params = new URLSearchParams();
+    params.set('filter', opts.filter ?? 'all');
+    if (opts.q) params.set('q', opts.q);
+    if (opts.limit != null) params.set('limit', String(opts.limit));
+    if (opts.offset != null) params.set('offset', String(opts.offset));
+    return request<import('../types').AdminContentListResponse>(
+      `/access/admin/content/salons?${params.toString()}`,
+      {},
+      token
+    );
+  },
+
+  getAdminLives: (
+    token: string,
+    opts: { filter?: import('../types').AdminContentFilter; q?: string; limit?: number; offset?: number } = {}
+  ) => {
+    const params = new URLSearchParams();
+    params.set('filter', opts.filter ?? 'all');
+    if (opts.q) params.set('q', opts.q);
+    if (opts.limit != null) params.set('limit', String(opts.limit));
+    if (opts.offset != null) params.set('offset', String(opts.offset));
+    return request<import('../types').AdminContentListResponse>(
+      `/access/admin/content/lives?${params.toString()}`,
+      {},
+      token
+    );
+  },
+
+  getAdminEvents: (
+    token: string,
+    opts: { filter?: import('../types').AdminContentFilter; q?: string; limit?: number; offset?: number } = {}
+  ) => {
+    const params = new URLSearchParams();
+    params.set('filter', opts.filter ?? 'all');
+    if (opts.q) params.set('q', opts.q);
+    if (opts.limit != null) params.set('limit', String(opts.limit));
+    if (opts.offset != null) params.set('offset', String(opts.offset));
+    return request<import('../types').AdminContentListResponse>(
+      `/access/admin/content/events?${params.toString()}`,
+      {},
+      token
+    );
+  },
+
+  adminBlockSalon: (token: string, salonId: string) =>
+    request<{ salon: import('../types').AdminSalonRow }>(
+      `/access/admin/content/salons/${salonId}/block`,
+      { method: 'POST' },
+      token
+    ),
+
+  adminUnblockSalon: (token: string, salonId: string) =>
+    request<{ salon: import('../types').AdminSalonRow }>(
+      `/access/admin/content/salons/${salonId}/unblock`,
+      { method: 'POST' },
+      token
+    ),
+
+  adminDeleteSalon: (token: string, salonId: string) =>
+    request<{ ok: boolean }>(`/access/admin/content/salons/${salonId}`, { method: 'DELETE' }, token),
+
+  adminBlockLive: (token: string, liveId: string) =>
+    request<{ live: import('../types').AdminLiveRow }>(
+      `/access/admin/content/lives/${liveId}/block`,
+      { method: 'POST' },
+      token
+    ),
+
+  adminUnblockLive: (token: string, liveId: string) =>
+    request<{ live: import('../types').AdminLiveRow }>(
+      `/access/admin/content/lives/${liveId}/unblock`,
+      { method: 'POST' },
+      token
+    ),
+
+  adminDeleteLive: (token: string, liveId: string) =>
+    request<{ ok: boolean }>(`/access/admin/content/lives/${liveId}`, { method: 'DELETE' }, token),
+
+  adminBlockEvent: (token: string, eventId: string) =>
+    request<{ event: import('../types').AdminEventRow }>(
+      `/access/admin/content/events/${eventId}/block`,
+      { method: 'POST' },
+      token
+    ),
+
+  adminUnblockEvent: (token: string, eventId: string) =>
+    request<{ event: import('../types').AdminEventRow }>(
+      `/access/admin/content/events/${eventId}/unblock`,
+      { method: 'POST' },
+      token
+    ),
+
+  adminDeleteEvent: (token: string, eventId: string) =>
+    request<{ ok: boolean }>(`/access/admin/content/events/${eventId}`, { method: 'DELETE' }, token),
+
   getLegalPublisher: () =>
     request<{
       config: import('../types').LegalPublisherConfig;

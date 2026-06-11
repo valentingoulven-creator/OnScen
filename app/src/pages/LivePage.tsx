@@ -638,7 +638,8 @@ export function LivePage({
   };
 
   const isVipModerator = (live?.vipModeratorIds ?? []).includes(user?.id ?? '');
-  const canModerateChat = isHost || isVipModerator;
+  const isDevModerator = Boolean(user?.isAdmin || live?.isDev);
+  const canModerateChat = isHost || isVipModerator || isDevModerator;
   const chatParticipants = useMemo(() => {
     if (!live) return [];
     const seen = new Map<string, string>();
@@ -920,9 +921,10 @@ export function LivePage({
         onPrivateMessage={openPrivate}
         isHost={isHost}
         canModerateChat={canModerateChat}
+        isDevModerator={isDevModerator}
         hostId={live.hostId}
         vipModeratorIds={live.vipModeratorIds ?? []}
-        onSetVip={isHost ? setVipModerator : undefined}
+        onSetVip={isHost || isDevModerator ? setVipModerator : undefined}
         onBanUser={canModerateChat ? banUser : undefined}
         onViewProfile={!isHost && onOpenProfile ? onOpenProfile : undefined}
         chatBanned={chatBanned}
@@ -1050,7 +1052,7 @@ export function LivePage({
         stageFooter={
           <div className="p-3 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              {isHost && (
+              {(isHost || isDevModerator) && (
                 <button
                   type="button"
                   onClick={() => setShowVipPanel((v) => !v)}
@@ -1065,7 +1067,10 @@ export function LivePage({
                   ⭐ VIP
                 </button>
               )}
-              {!isHost && isVipModerator && (
+              {!isHost && isDevModerator && (
+                <span className="text-[10px] font-bold text-cyan-300">Dev</span>
+              )}
+              {!isHost && isVipModerator && !isDevModerator && (
                 <span className="text-[10px] font-bold text-amber-300">Modérateur VIP</span>
               )}
             </div>
@@ -1075,7 +1080,7 @@ export function LivePage({
                   {hint}
                 </p>
               ))}
-            {isHost && showVipPanel && (
+            {(isHost || isDevModerator) && showVipPanel && (
               <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-3">
                 <p className="text-xs font-bold text-amber-300 mb-2">VIP / Modérateurs</p>
                 {vipEntries.length === 0 ? (

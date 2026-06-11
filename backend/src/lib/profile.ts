@@ -419,6 +419,7 @@ export function publicProfile(u: User, isOwner = false, viewerId?: string) {
     email: isOwner ? snapshot.email : undefined,
     accountStatus: isOwner ? getAccountStatus(snapshot) : undefined,
     isAdmin: isOwner ? isAccessAdmin(snapshot) : undefined,
+    isDev: isAccessAdmin(snapshot) ? true : undefined,
     stats,
     favoritesCount: snapshot.favoritesCountOverride ?? getFavoriteCount(snapshot.id),
     hostRating,

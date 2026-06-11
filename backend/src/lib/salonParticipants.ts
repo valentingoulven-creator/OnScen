@@ -1,11 +1,13 @@
 import { db } from '../models/schema';
 import { getIo } from './ioInstance';
+import { isDevUser } from './accessControl';
 
 export interface SalonConnectedParticipant {
   id: string;
   username: string;
   usernameColor?: string;
   isVip: boolean;
+  isDev: boolean;
 }
 
 /** Connected socket members in salon room (host excluded, deduped by userId). */
@@ -35,6 +37,7 @@ export function getSalonConnectedParticipants(
       username: user?.username ?? 'Utilisateur',
       usernameColor: user?.usernameColor,
       isVip: vipSet.has(userId),
+      isDev: isDevUser(user),
     });
   }
 

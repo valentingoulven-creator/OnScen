@@ -120,6 +120,11 @@ export function isAccessAdmin(user: User | undefined): boolean {
   return adminEmails.has(user.email.trim().toLowerCase());
 }
 
+/** Compte développeur / super-admin (alias public de isAccessAdmin). */
+export function isDevUser(user: User | undefined): boolean {
+  return isAccessAdmin(user);
+}
+
 /** Comptes autorisés à utiliser l'API (hors routes publiques d'auth). */
 export function canUserUseApp(user: User): boolean {
   if (!isAccessControlEnabled()) return true;

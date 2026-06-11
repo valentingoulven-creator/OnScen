@@ -287,11 +287,13 @@ export function SalonPage({
   };
 
   const isHost = Boolean(salon && (salon.isHost ?? salon.hostId === user?.id));
+  const isDevModerator = Boolean(user?.isAdmin);
   const isVipModerator = Boolean(salon?.isVip);
+  const canModerateSalonChat = isHost || isVipModerator || isDevModerator;
   const hostCanControl = Boolean(
     isHost && salon && isPlatformConnected(user?.connectedPlatforms, salon.platform)
   );
-  const canControlPlayback = hostCanControl || isVipModerator;
+  const canControlPlayback = hostCanControl || isVipModerator || isDevModerator;
 
   const {
     queue,
@@ -303,7 +305,7 @@ export function SalonPage({
     rejectProposal,
     proposeTrack,
     applyQueue,
-  } = useSalonQueueSync(salon?.id ?? salonId, token, isHost, salon?.queue);
+  } = useSalonQueueSync(salon?.id ?? salonId, token, isHost || isDevModerator, salon?.queue);
 
   const applyPlayback = useCallback((state: PlaybackState) => {
     setSalon((prev) =>
@@ -529,7 +531,7 @@ export function SalonPage({
 
 
 
-  const isSpotifyParticipantOnly = salon.platform === 'spotify' && !isHost && !isVipModerator;
+  const isSpotifyParticipantOnly = salon.platform === 'spotify' && !isHost && !isVipModerator && !isDevModerator;
 
   const stageFooter = isSpotifyParticipantOnly ? undefined : (
     <div className="p-3 space-y-3">
@@ -576,7 +578,7 @@ export function SalonPage({
         </div>
       )}
 
-      {isVipModerator && !isHost && salon.platform === 'youtube' && token && (
+      {(isVipModerator || isDevModerator) && !isHost && salon.platform === 'youtube' && token && (
         <SalonYouTubeSearch
           salonId={salon.id}
           token={token}
@@ -586,7 +588,7 @@ export function SalonPage({
         />
       )}
 
-      {isVipModerator && !isHost && salon.platform === 'spotify' && token && (
+      {(isVipModerator || isDevModerator) && !isHost && salon.platform === 'spotify' && token && (
         <SalonSpotifySearch
           salonId={salon.id}
           token={token}
@@ -618,7 +620,7 @@ export function SalonPage({
             allowQueue={salon.allowQueue}
             proposals={proposals}
             loadingProposals={loadingProposals}
-            onPropose={!isHost && !isVipModerator ? proposeTrack : undefined}
+            onPropose={!isHost && !isVipModerator && !isDevModerator ? proposeTrack : undefined}
             onAccept={hostCanControl ? handleAccept : undefined}
             onReject={hostCanControl ? rejectProposal : undefined}
           />
@@ -685,19 +687,20 @@ export function SalonPage({
     userName: user!.username,
     token: token ?? undefined,
     isHost,
-    canModerateChat: isHost || isVipModerator,
+    canModerateChat: canModerateSalonChat,
+    isDevModerator,
     hostId: salon.hostId,
     vipModeratorIds: salon.vipModeratorIds ?? [],
     allowAttachments: false,
     onBanUser:
-      isHost || isVipModerator
+      canModerateSalonChat
         ? (targetUserId: string, opts: { permanent: boolean; durationMs?: number; scope: 'chat' | 'live' }) =>
             banSalonUser(targetUserId, opts)
         : undefined,
   };
 
   const chatHeaderExtra =
-    isHost && token ? (
+    (isHost || isDevModerator) && token ? (
       <SalonParticipantsPopover
         salonId={salon.id}
         token={token}
@@ -863,7 +866,7 @@ export function SalonPage({
               salon={salon}
               token={token}
               isHost={isHost}
-              isVipModerator={isVipModerator}
+              isVipModerator={isVipModerator || isDevModerator}
               userPlatforms={user?.connectedPlatforms}
               onUserUpdated={setUserFromProfile}
               onPlaybackStateChange={applyPlayback}

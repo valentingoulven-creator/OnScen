@@ -20,6 +20,7 @@ import { pauseMediaElements } from './hooks/usePauseMediaOnPageHidden';
 import { AuthPage } from './pages/AuthPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { NotificationBell } from './components/NotificationBell';
+import { AdminHeaderButton } from './components/AdminHeaderButton';
 import { PrivacyVisibilityMenu } from './components/PrivacyVisibilityMenu';
 import { useDmUnread } from './context/DmUnreadContext';
 import { ProfileSearchBar } from './components/ProfileSearchBar';
@@ -56,6 +57,7 @@ const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
 const LivesTabPage = lazy(() => import('./pages/LivesTabPage').then((m) => ({ default: m.LivesTabPage })));
 const ReelsTabPage = lazy(() => import('./pages/ReelsTabPage').then((m) => ({ default: m.ReelsTabPage })));
+const AdminPage = lazy(() => import('./pages/AdminPage').then((m) => ({ default: m.AdminPage })));
 
 function PageFallback() {
   return (
@@ -83,6 +85,7 @@ export default function App() {
   const viewRef = useRef<View>({ type: 'home' });
   viewRef.current = view;
   const [profileOpen, setProfileOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
   const [profileOpenRecorder, setProfileOpenRecorder] = useState(false);
   const [profilePreview, setProfilePreview] = useState<NearbyPerson | null>(null);
   const [profileReturnView, setProfileReturnView] = useState<View>({ type: 'home' });
@@ -273,6 +276,15 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [profileOpen]);
+
+  useEffect(() => {
+    if (!adminOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setAdminOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [adminOpen]);
 
   const openReelInTab = useCallback((reelId: string) => {
     setProfileOpen(false);
@@ -604,6 +616,7 @@ export default function App() {
               className="justify-self-center w-[min(18rem,calc(100vw-7.5rem))] sm:w-[min(22rem,calc(100vw-9rem))]"
             />
             <div className="flex items-center gap-1 justify-self-end shrink-0">
+              <AdminHeaderButton onClick={() => setAdminOpen(true)} active={adminOpen} />
               <PrivacyVisibilityMenu />
               <NotificationBell
                 onOpenLive={openLive}
@@ -805,6 +818,14 @@ export default function App() {
                 openRecorderOnMount={profileOpenRecorder}
                 onRecorderMountHandled={() => setProfileOpenRecorder(false)}
               />
+            </Suspense>
+          </div>
+        )}
+
+        {adminOpen && (
+          <div className="ms-app-profile-overlay flex flex-col min-h-0 bg-[#0b0b0f]">
+            <Suspense fallback={<PageFallback />}>
+              <AdminPage onBack={() => setAdminOpen(false)} />
             </Suspense>
           </div>
         )}

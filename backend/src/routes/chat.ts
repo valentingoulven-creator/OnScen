@@ -3,6 +3,7 @@ import { db } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
 import { getIo } from '../lib/ioInstance';
 import { canDeleteLiveChatMessage, deleteLiveChatMessage } from '../lib/liveModeration';
+import { canModerateSalon } from '../lib/salonModeration';
 import { enrichChatMessages } from '../lib/usernameColor';
 import { hasBlocked } from '../lib/blocks';
 
@@ -63,8 +64,10 @@ chatRouter.delete(
         return;
       }
     } else {
+      const salon = db.salons.get(roomId);
       const isOwn = msg.senderId === me;
-      if (!isOwn) {
+      const canMod = salon ? canModerateSalon(salon, me) : false;
+      if (!isOwn && !canMod) {
         res.status(403).json({ error: 'Vous ne pouvez supprimer que vos messages' });
         return;
       }

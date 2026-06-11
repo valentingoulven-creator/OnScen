@@ -70,6 +70,99 @@ export interface AccessAdminUsersResponse {
   hasMore: boolean;
 }
 
+export interface AdminCreatorInfo {
+  id: string;
+  username: string;
+  email: string;
+  accountStatus: AccountStatus;
+  city?: string;
+  isGhostMode: boolean;
+  profileType?: ProfileType;
+}
+
+export type AdminContentFilter = 'all' | 'blocked' | 'active';
+
+export interface AdminContentCounts {
+  total: number;
+  blocked: number;
+  active: number;
+}
+
+export interface AdminSalonRow {
+  id: string;
+  title: string;
+  platform: MusicPlatform;
+  accessMode: 'public' | 'invite';
+  isPublic: boolean;
+  isGhostMode: boolean;
+  hostGhostMode: boolean;
+  listenersCount: number;
+  latitude: number;
+  longitude: number;
+  createdAt: number;
+  adminBlocked: boolean;
+  adminBlockedAt?: number;
+  isLive: boolean;
+  hostId: string;
+  hostName: string;
+  creator: AdminCreatorInfo | null;
+  allowQueue: boolean;
+  allowedCount?: number;
+  currentTrack: { title: string; artist: string; isPlaying: boolean; platform: MusicPlatform };
+  city?: string;
+}
+
+export interface AdminLiveRow {
+  id: string;
+  title: string;
+  platform: MusicPlatform;
+  isActive: boolean;
+  viewersCount: number;
+  startedAt: number;
+  salonId?: string;
+  salonTitle?: string;
+  adminBlocked: boolean;
+  adminBlockedAt?: number;
+  hostId: string;
+  hostName: string;
+  creator: AdminCreatorInfo | null;
+  cameraActive: boolean;
+  cameraMode?: 'camera' | 'file';
+  hostGhostMode: boolean;
+  latitude: number;
+  longitude: number;
+  city?: string;
+  currentTrack: { title: string; artist: string; isPlaying: boolean; platform: MusicPlatform };
+}
+
+export interface AdminEventRow {
+  id: string;
+  content: string;
+  eventDate?: string;
+  eventLocation?: string;
+  eventType?: FeedEventType;
+  createdAt: number;
+  adminBlocked: boolean;
+  adminBlockedAt?: number;
+  userId: string;
+  creator: AdminCreatorInfo | null;
+  likeCount: number;
+  commentCount: number;
+  hasImage: boolean;
+  hasVideo: boolean;
+}
+
+export interface AdminContentListResponse {
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+  counts: AdminContentCounts;
+  salons?: AdminSalonRow[];
+  lives?: AdminLiveRow[];
+  events?: AdminEventRow[];
+}
+
 export type ListeningRole = 'auditeur' | 'host' | 'les_deux';
 
 export type RelationshipStatus = 'celibataire' | 'en_couple' | 'autre';
@@ -124,6 +217,8 @@ export interface User {
   email?: string;
   accountStatus?: 'active' | 'pending' | 'blocked';
   isAdmin?: boolean;
+  /** Badge Dev visible publiquement (soundy_dev, ACCESS_ADMIN). */
+  isDev?: boolean;
   avatarUrl?: string;
   profilePhotos?: string[];
   isGhostMode: boolean;
@@ -399,6 +494,7 @@ export interface Salon {
   canJoin?: boolean;
   isHost?: boolean;
   isVip?: boolean;
+  isDev?: boolean;
   allowedUserIds?: string[];
   allowedCount?: number;
   vipModeratorIds?: string[];
@@ -415,6 +511,7 @@ export interface SalonParticipant {
   username: string;
   usernameColor?: string;
   isVip: boolean;
+  isDev?: boolean;
 }
 
 export interface SalonBan {
@@ -444,6 +541,7 @@ export interface Live {
   cameraActive?: boolean;
   cameraMode?: 'camera' | 'file';
   vipModeratorIds?: string[];
+  isDev?: boolean;
   /** L'hôte du live peut recevoir des dons (18+). */
   hostMonetizationEligible?: boolean;
   /** Code ISO pays du live (dérivé coords / ville hôte). */
@@ -461,6 +559,7 @@ export interface ChatMessage {
   senderUsernameColor?: string;
   senderUsernameWaveFrom?: string;
   senderUsernameWaveTo?: string;
+  senderIsDev?: boolean;
   content: string;
   timestamp: number;
   /** Pièce jointe (image ou fichier encodé en base64 data URL). */

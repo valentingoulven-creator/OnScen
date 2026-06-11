@@ -84,6 +84,7 @@ export interface User {
   email?: string;
   accountStatus?: 'active' | 'pending' | 'blocked';
   isAdmin?: boolean;
+  isDev?: boolean;
   avatarUrl?: string;
   profilePhotos?: string[];
   isGhostMode: boolean;

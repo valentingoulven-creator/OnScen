@@ -5,6 +5,8 @@ import { blurCoordinate } from '../lib/geo';
 import { getPublicMapCoords } from '../lib/locationPrivacy';
 import { isBotHost } from '../seed-bots';
 import { canJoinSalon, isSalonVisibleOnMap, normalizeSalonAccess } from '../lib/salonAccess';
+import { assertSalonAccessible } from '../lib/adminContentModeration';
+import { isDevUser } from '../lib/accessControl';
 import { parseMusicLink, parseYoutubePlaylistId, parseSpotifyPlaylistId, buildPlatformTrackUrl } from '../lib/musicLinks';
 import { computePlaybackPositionMs } from '../lib/playbackClock';
 import { resolveTrackForPlatform } from '../lib/trackResolver';
@@ -231,6 +233,10 @@ salonsRouter.get('/:id', authenticateJWT, (req: Request, res: Response) => {
   const salon = db.salons.get(req.params.id);
   if (!salon) {
     res.status(404).json({ error: 'Salon introuvable' });
+    return;
+  }
+  if (!assertSalonAccessible(salon, me)) {
+    res.status(403).json({ error: 'Salon indisponible', code: 'content_blocked' });
     return;
   }
   normalizeSalonAccess(salon);
@@ -1135,6 +1141,7 @@ export function publicSalon(s: Salon, viewerId?: string) {
   normalizeSalonAccess(s);
   const isHost = viewerId === s.hostId;
   const isVip = viewerId != null && !isHost && (s.vipModeratorIds ?? []).includes(viewerId);
+  const isDev = viewerId != null && !isHost && isDevUser(db.users.get(viewerId));
   const canJoin = viewerId ? canJoinSalon(s, viewerId) : s.accessMode === 'public';
   const host = db.users.get(s.hostId);
   const mapCoords =
@@ -1171,6 +1178,7 @@ export function publicSalon(s: Salon, viewerId?: string) {
     canJoin,
     isHost,
     isVip: isVip ? true : undefined,
+    isDev: isDev ? true : undefined,
     allowedUserIds: isHost ? s.allowedUserIds : undefined,
     allowedCount: s.accessMode === 'invite' ? s.allowedUserIds.length - 1 : undefined,
     vipModeratorIds: isHost ? s.vipModeratorIds : undefined,

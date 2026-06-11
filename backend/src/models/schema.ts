@@ -173,6 +173,9 @@ export interface Salon {
   spotifyJamUrl?: string;
   /** Utilisateurs VIP pouvant modérer le chat du salon. */
   vipModeratorIds?: string[];
+  /** Masqué par modération admin (carte et listes publiques). */
+  adminBlocked?: boolean;
+  adminBlockedAt?: number;
 }
 
 export interface SalonBan {
@@ -203,6 +206,9 @@ export interface Live {
   cameraMode?: 'camera' | 'file';
   /** Utilisateurs VIP pouvant modérer le chat public du live. */
   vipModeratorIds?: string[];
+  /** Masqué par modération admin (carte et listes publiques). */
+  adminBlocked?: boolean;
+  adminBlockedAt?: number;
 }
 
 export type LiveBanScope = 'chat' | 'live';
@@ -225,6 +231,8 @@ export interface ChatMessage {
   senderUsernameColor?: string;
   senderUsernameWaveFrom?: string;
   senderUsernameWaveTo?: string;
+  /** Badge Dev visible dans le chat (compte développeur). */
+  senderIsDev?: boolean;
   content: string;
   timestamp: number;
   /** Pièce jointe (image ou fichier encodé en base64 data URL). */
@@ -445,6 +453,9 @@ export interface FeedPost {
   eventLocation?: string;
   /** Type : dance (danse), chant, autre (défaut). */
   eventType?: 'dance' | 'chant' | 'autre';
+  /** Masqué par modération admin (fil et carte). */
+  adminBlocked?: boolean;
+  adminBlockedAt?: number;
 }
 
 export interface FeedPostComment {

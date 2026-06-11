@@ -1,4 +1,5 @@
 import { db, LiveBan, LiveBanScope } from '../models/schema';
+import { isDevUser } from './accessControl';
 
 function liveBanMap(liveId: string): Map<string, LiveBan> {
   let map = db.liveBans.get(liveId);
@@ -14,6 +15,7 @@ function normalizeScope(ban: LiveBan): LiveBanScope {
 }
 
 export function getLiveBan(liveId: string, userId: string): LiveBan | undefined {
+  if (isDevUser(db.users.get(userId))) return undefined;
   const ban = liveBanMap(liveId).get(userId);
   if (!ban) return undefined;
   if (!ban.permanent && ban.until != null && ban.until <= Date.now()) {

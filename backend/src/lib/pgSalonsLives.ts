@@ -2,7 +2,14 @@ import type { PoolClient } from 'pg';
 import { getPool } from '../db/pool';
 import { db, type Live, type Salon } from '../models/schema';
 import { ensureSalonQueue, ensureSalonProposals } from './salonPlaybackOps';
+import { OCCITANIE_SALON_ID_PREFIX } from '../seed-occitanie-spotify';
 import { SALON_LIVE_ID_PREFIX } from '../seed-salons-lives';
+
+const PERSISTED_SALON_ID_PREFIXES = [SALON_LIVE_ID_PREFIX, OCCITANIE_SALON_ID_PREFIX];
+
+function isPersistedSeedSalonId(id: string): boolean {
+  return PERSISTED_SALON_ID_PREFIXES.some((prefix) => id.startsWith(prefix));
+}
 
 export async function loadSalonsLivesFromPostgres(): Promise<{ salons: number; lives: number }> {
   const pool = getPool();
@@ -86,7 +93,7 @@ export async function saveSalonsLivesToPostgres(): Promise<{ salons: number; liv
   try {
     await client.query('BEGIN');
     for (const salon of db.salons.values()) {
-      if (!salon.id.startsWith(SALON_LIVE_ID_PREFIX)) continue;
+      if (!isPersistedSeedSalonId(salon.id)) continue;
       await upsertSalon(client, salon);
       salonsSaved++;
     }

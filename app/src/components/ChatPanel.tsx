@@ -34,6 +34,7 @@ import { LiveUserBanModal, type LiveBanScope } from './LiveUserBanModal';
 import { SalonUserBanModal } from './SalonUserBanModal';
 import { ReportContentModal, type ReportContentContext } from './ReportContentModal';
 import { UsernameDisplay } from './UsernameDisplay';
+import { UserDevBadge } from './UserDevBadge';
 
 export interface ChatPanelProps {
   roomId: string;
@@ -45,6 +46,8 @@ export interface ChatPanelProps {
   onPrivateMessage?: (target: { id: string; name: string }) => void;
   isHost?: boolean;
   canModerateChat?: boolean;
+  /** Compte Dev (soundy_dev) : modération étendue (hôte, VIP). */
+  isDevModerator?: boolean;
   hostId?: string;
   vipModeratorIds?: string[];
   onSetVip?: (userId: string, add: boolean) => void;
@@ -71,6 +74,7 @@ interface ChatRoomContextValue {
   onPrivateMessage?: (target: { id: string; name: string }) => void;
   isHost: boolean;
   canModerateChat: boolean;
+  isDevModerator: boolean;
   hostId?: string;
   vipModeratorIds: string[];
   onSetVip?: (userId: string, add: boolean) => void;
@@ -226,6 +230,7 @@ function useChatRoom({
   onPrivateMessage,
   isHost = false,
   canModerateChat = false,
+  isDevModerator = false,
   hostId,
   vipModeratorIds = [],
   onSetVip,
@@ -526,6 +531,7 @@ function useChatRoom({
     onPrivateMessage,
     isHost,
     canModerateChat,
+    isDevModerator,
     hostId,
     vipModeratorIds,
     onSetVip,
@@ -590,6 +596,7 @@ export function ChatMessagesView() {
     onPrivateMessage,
     isHost,
     canModerateChat,
+    isDevModerator,
     hostId,
     vipModeratorIds,
     onSetVip,
@@ -639,11 +646,14 @@ export function ChatMessagesView() {
   const openUserCanBan =
     (isHost || canModerateChat) &&
     userMenuTarget != null &&
-    !openUserIsTargetHost &&
     Boolean(onBanUser) &&
-    (isHost || !openUserIsTargetVip);
+    (isDevModerator || (!openUserIsTargetHost && (isHost || !openUserIsTargetVip)));
   const openUserCanHostVip =
-    roomType === 'live' && isHost && userMenuTarget != null && !openUserIsTargetHost && Boolean(onSetVip);
+    roomType === 'live' &&
+    (isHost || isDevModerator) &&
+    userMenuTarget != null &&
+    !openUserIsTargetHost &&
+    Boolean(onSetVip);
   const openMsgCanDeleteAsMod = (isHost || canModerateChat) && Boolean(onDeleteMessage ?? token);
 
   return (
@@ -695,9 +705,10 @@ export function ChatMessagesView() {
             !isMe &&
             (onPrivateMessage ||
               onViewProfile ||
-              (isHost && onSetVip && roomType === 'live') ||
+              ((isHost || isDevModerator) && onSetVip && roomType === 'live') ||
               (canMod && onBanUser));
           const isTargetVip = vipModeratorIds.includes(m.senderId);
+          const isTargetDev = m.senderIsDev === true;
           const canDeleteOwn = roomType !== 'live' && isMe && Boolean(token);
           const canDeleteAsMod = canMod && Boolean(onDeleteMessage ?? token);
           const canDelete = canDeleteOwn || canDeleteAsMod;
@@ -727,6 +738,7 @@ export function ChatMessagesView() {
                         usernameWaveTo={m.senderUsernameWaveTo}
                         className="truncate"
                       />
+                      {isTargetDev && <UserDevBadge className="ml-1" />}
                       {isTargetVip && <span className="ml-1 text-amber-400/80 font-semibold shrink-0">VIP</span>}
                     </button>
                   ) : (
@@ -738,6 +750,7 @@ export function ChatMessagesView() {
                         usernameWaveTo={m.senderUsernameWaveTo}
                         className="truncate"
                       />
+                      {isTargetDev && <UserDevBadge className="ml-1" />}
                       {isTargetVip && <span className="ml-1 text-amber-400/80 font-semibold shrink-0">VIP</span>}
                     </p>
                   )}

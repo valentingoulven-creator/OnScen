@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AdminAccountsTab } from './AdminAccountsTab';
 import { AdminAccessTab } from './AdminAccessTab';
+import { AdminContentTab } from './AdminContentTab';
 import { AnalyticsPage } from './AnalyticsPage';
 
-type AdminTab = 'accounts' | 'access' | 'analytics';
+type AdminTab = 'accounts' | 'access' | 'content' | 'analytics';
 
 interface AdminPageProps {
   onBack?: () => void;
@@ -18,6 +19,7 @@ export function AdminPage({ onBack, initialTab = 'accounts' }: AdminPageProps) {
   const tabs: { id: AdminTab; label: string }[] = [
     { id: 'accounts', label: t('admin.tabs.accounts') },
     { id: 'access', label: t('admin.tabs.access') },
+    { id: 'content', label: t('admin.tabs.content') },
     { id: 'analytics', label: t('admin.tabs.analytics') },
   ];
 
@@ -56,6 +58,7 @@ export function AdminPage({ onBack, initialTab = 'accounts' }: AdminPageProps) {
       <div className="flex-1 min-h-0 overflow-y-auto p-4 max-w-lg mx-auto w-full">
         {tab === 'accounts' && <AdminAccountsTab />}
         {tab === 'access' && <AdminAccessTab />}
+        {tab === 'content' && <AdminContentTab />}
         {tab === 'analytics' && <AnalyticsPage embedded />}
       </div>
     </div>

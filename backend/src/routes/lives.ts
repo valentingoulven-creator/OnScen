@@ -15,6 +15,7 @@ import {
 import { DEFAULT_MAP_LAT, DEFAULT_MAP_LON, isValidLatLng } from '../lib/mapCoords';
 import { MIN_LIVE_AGE, userMeetsLiveAge } from '../lib/ageGates';
 import { serializePublicLive } from '../lib/livePublic';
+import { assertLiveAccessible } from '../lib/adminContentModeration';
 
 export const livesRouter = Router();
 
@@ -32,7 +33,7 @@ livesRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
     return;
   }
 
-  const active = [...db.lives.values()].filter((l) => l.isActive);
+  const active = [...db.lives.values()].filter((l) => l.isActive && !l.adminBlocked);
 
   if (hasGeoFilter) {
     const maxRadiusKm = resolveNearbyRadiusKm(radiusKm, distanceFilter);
@@ -188,12 +189,16 @@ livesRouter.post('/stop', authenticateJWT, (req: Request, res: Response) => {
 });
 
 livesRouter.get('/:id', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
   const live = db.lives.get(req.params.id);
   if (!live) {
     res.status(404).json({ error: 'Live introuvable' });
     return;
   }
-  const me = (req as Request & { user: { id: string } }).user.id;
+  if (!assertLiveAccessible(live, me)) {
+    res.status(403).json({ error: 'Live indisponible', code: 'content_blocked' });
+    return;
+  }
   if (live.hostId !== me && isLiveViewBanned(live.id, me)) {
     const ban = getLiveBan(live.id, me);
     res.status(403).json({

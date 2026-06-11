@@ -1,4 +1,5 @@
 import { db, type FeedPost, type User } from '../models/schema';
+import { canViewAdminBlockedContent } from './adminContentModeration';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -75,6 +76,7 @@ export function getAlgoFeed(viewerId: string, limit = 20): FeedPost[] {
 
   const scored = db.feedPosts
     .filter((p) => p.userId !== viewerId)
+    .filter((p) => !p.adminBlocked || canViewAdminBlockedContent(viewerId))
     .map((p) => ({ post: p, score: scorePost(p, viewer) }))
     .sort((a, b) => b.score - a.score);
 

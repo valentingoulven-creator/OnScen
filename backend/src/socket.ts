@@ -29,7 +29,7 @@ import {
   validateLiveWebrtcViewerReady,
 } from './lib/liveVideoRelay';
 import { serializePublicLive } from './lib/livePublic';
-import { canUserUseApp } from './lib/accessControl';
+import { canUserUseApp, isDevUser } from './lib/accessControl';
 import {
   canControlSalonPlayback,
   canModerateSalon,
@@ -239,9 +239,7 @@ export function setupSockets(io: Server): void {
         const salon = db.salons.get(salonId);
         if (!salon) return;
 
-        const isActorHost = salon.hostId === actorId;
-        const isActorVip = (salon.vipModeratorIds ?? []).includes(actorId);
-        if (!isActorHost && !isActorVip) return;
+        if (!canModerateSalon(salon, actorId)) return;
 
         const list = db.salonChats.get(salonId);
         if (!list) return;
@@ -366,7 +364,9 @@ export function setupSockets(io: Server): void {
         const actorId = (socket.data as { userId?: string }).userId;
         if (!actorId || !liveId || !targetUserId) return;
         const live = db.lives.get(liveId);
-        if (!live || !live.isActive || live.hostId !== actorId) return;
+        if (!live || !live.isActive) return;
+        const actor = db.users.get(actorId);
+        if (live.hostId !== actorId && !isDevUser(actor)) return;
         if (targetUserId === live.hostId) return;
 
         const ids = live.vipModeratorIds ?? [];
@@ -482,6 +482,7 @@ export function setupSockets(io: Server): void {
           senderUsernameColor: sender?.usernameColor,
           senderUsernameWaveFrom: sender?.usernameWaveFrom,
           senderUsernameWaveTo: sender?.usernameWaveTo,
+          senderIsDev: isDevUser(sender) ? true : undefined,
           content,
           timestamp: Date.now(),
           ...(payload.attachmentUrl ? {
@@ -547,6 +548,7 @@ export function setupSockets(io: Server): void {
           senderUsernameColor: liveSender?.usernameColor,
           senderUsernameWaveFrom: liveSender?.usernameWaveFrom,
           senderUsernameWaveTo: liveSender?.usernameWaveTo,
+          senderIsDev: isDevUser(liveSender) ? true : undefined,
           content: liveContent,
           timestamp: Date.now(),
           ...(payload.attachmentUrl ? {

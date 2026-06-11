@@ -11,7 +11,8 @@
     "dev:msdev:https": "ts-node-dev --respawn --transpile-only src/index.ts --msdev --https",
     "build:exe": "npm run build && node ../msdev/scripts/build-exe.js",
     "test": "vitest run --config vitest.config.ts",
-    "seed:production": "npm run build && node dist/scripts/seed-production-testdata.js"
+    "seed:production": "npm run build && node dist/scripts/seed-production-testdata.js",
+    "seed:occitanie": "npm run build && node dist/scripts/seed-production-occitanie-spotify.js"
   },
   "bin": {
     "msdev": "dist/entry-msdev.js"

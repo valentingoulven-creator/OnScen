@@ -1,6 +1,7 @@
 import type { Live } from '../models/schema';
 import { db } from '../models/schema';
 import { creatorMeetsMonetizationAge } from './ageGates';
+import { isDevUser } from './accessControl';
 import { getPublicMapCoords } from './locationPrivacy';
 import { resolveLiveCountry } from './liveCountry';
 
@@ -12,6 +13,9 @@ export function serializePublicLive(l: Live, distanceKm?: number, viewerId?: str
       ? getPublicMapCoords(host, l.latitude, l.longitude, l.blurredLatitude, l.blurredLongitude, viewerId)
       : { latitude: l.blurredLatitude, longitude: l.blurredLongitude };
   const country = resolveLiveCountry(l.latitude, l.longitude, host?.city);
+  const viewer = viewerId ? db.users.get(viewerId) : undefined;
+  const isDevModerator =
+    viewerId != null && viewerId !== l.hostId && isDevUser(viewer);
   const base = {
     id: l.id,
     salonId: l.salonId,
@@ -31,6 +35,7 @@ export function serializePublicLive(l: Live, distanceKm?: number, viewerId?: str
     cameraActive: !!l.cameraActive,
     cameraMode: l.cameraMode,
     vipModeratorIds: l.vipModeratorIds ?? [],
+    isDev: isDevModerator ? true : undefined,
     hostMonetizationEligible: creatorMeetsMonetizationAge(host?.age),
     countryCode: country?.code,
     countryName: country?.name,

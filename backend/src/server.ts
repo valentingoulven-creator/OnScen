@@ -28,6 +28,7 @@ import { msdevRouter } from './routes/msdev';
 import { legalRouter } from './routes/legal';
 import { analyticsRouter } from './routes/analytics';
 import { accessRouter } from './routes/access';
+import { adminContentRouter } from './routes/adminContent';
 import { newsRouter } from './routes/news';
 import { trendingRouter } from './routes/trending';
 import { getPublicDir, getMsdevConfigPath } from './paths';
@@ -405,6 +406,7 @@ app.use('/api/auth', authLimiter, authRouter);
 // rate-limited by Google/Facebook, and callback URLs must not be blocked.
 app.use('/api/auth', oauthRouter);
 app.use('/api/access', accessRouter);
+app.use('/api/access/admin/content', adminContentRouter);
 app.use('/api/geo', geoRouter);
 app.use('/api/salons', salonsRouter);
 app.use('/api/lives', livesRouter);

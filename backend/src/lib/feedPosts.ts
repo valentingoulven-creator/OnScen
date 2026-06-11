@@ -1,5 +1,6 @@
 import { db, FeedPost, FeedPostComment, User } from '../models/schema';
 import { EVENT_POST_ID_PREFIX } from '../seed-feed-events';
+import { canViewAdminBlockedContent } from './adminContentModeration';
 import { hasBlocked } from './blocks';
 import { getUserActiveStory } from './stories';
 import { getAlgoFeed } from './algoFeed';
@@ -517,6 +518,7 @@ function listFeedPostsChronological(
 
   for (const post of sorted) {
     if (before != null && post.createdAt >= before) continue;
+    if (post.adminBlocked && !canViewAdminBlockedContent(viewerId)) continue;
     if (!isVisibleToViewer(viewerId, post.userId)) continue;
     if (!matchesEventFilters(post, eventFilters)) continue;
     const author = db.users.get(post.userId);
@@ -567,6 +569,7 @@ export function listFeedPosts(
       }
       const result: PublicFeedPost[] = [];
       for (const post of algoPosts) {
+        if (post.adminBlocked && !canViewAdminBlockedContent(viewerId)) continue;
         if (!isVisibleToViewer(viewerId, post.userId)) continue;
         const author = db.users.get(post.userId);
         if (!author) continue;

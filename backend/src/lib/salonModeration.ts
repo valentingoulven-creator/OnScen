@@ -1,22 +1,26 @@
-import { db, Salon } from '../models/schema';
+import { Salon } from '../models/schema';
+import { db } from '../models/schema';
 import { getIo } from './ioInstance';
+import { isDevUserId } from './devUser';
 
 export function isSalonVipModerator(salon: Salon, userId: string): boolean {
   return (salon.vipModeratorIds ?? []).includes(userId);
 }
 
-/** Hôte ou modérateur VIP du salon. */
+/** Hôte, modérateur VIP ou compte Dev. */
 export function canModerateSalon(salon: Salon, actorId: string): boolean {
-  return salon.hostId === actorId || isSalonVipModerator(salon, actorId);
+  return salon.hostId === actorId || isSalonVipModerator(salon, actorId) || isDevUserId(actorId);
 }
 
 /** Lecture salon : play/pause/stop/next/seek et changement de morceau (pas playlists ni réglages). */
 export function canControlSalonPlayback(salon: Salon, actorId: string): boolean {
-  return salon.hostId === actorId || isSalonVipModerator(salon, actorId);
+  return salon.hostId === actorId || isSalonVipModerator(salon, actorId) || isDevUserId(actorId);
 }
 
-/** Kick / ban : VIP ne peut pas cibler l'hôte ni un autre modérateur VIP. */
+/** Kick / ban : Dev peut cibler tout le monde sauf lui-même ; VIP ne peut pas cibler l'hôte ni un autre VIP. */
 export function canModerateSalonTarget(salon: Salon, actorId: string, targetUserId: string): boolean {
+  if (targetUserId === actorId) return false;
+  if (isDevUserId(actorId)) return true;
   if (targetUserId === salon.hostId) return false;
   if (salon.hostId === actorId) return true;
   if (!isSalonVipModerator(salon, actorId)) return false;
@@ -46,7 +50,7 @@ export function setSalonVipModerator(
   if (!salon) {
     return { ok: false, status: 404, error: 'Salon introuvable' };
   }
-  if (salon.hostId !== actorId) {
+  if (salon.hostId !== actorId && !isDevUserId(actorId)) {
     return { ok: false, status: 403, error: 'Non autorisé' };
   }
   if (targetUserId === salon.hostId) {

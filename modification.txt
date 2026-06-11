@@ -7834,3 +7834,98 @@ Les utilisateurs « idle » (géolocalisés mais sans session live, salon ou
 ================================================================================
 Fin MODIF 447 - 2026-06-11
 ================================================================================
+
+================================================================================
+MODIF 449 — Statut Dev global (soundy_dev) : badge + droits modération partout
+Date : 2026-06-11
+================================================================================
+
+## Contexte
+Le compte `soundy_dev` (super-admin via `ACCESS_ADMIN_USERNAMES`, défaut
+`soundy_dev`) doit afficher le badge **Dev** dans tous les chats (salon, live)
+et disposer des droits équivalents VIP + modération étendue sur salon et live.
+
+## Identification Dev (backend)
+- `isAccessAdmin()` / alias `isDevUser()` — `accessControl.ts`
+- `isDevUserId()` — `devUser.ts`
+- Critères : `isAdmin`, pseudo `ACCESS_ADMIN_USERNAMES` (défaut soundy_dev),
+  email `ACCESS_ADMIN_EMAILS` ; boot `ensureAccessAdmins()`
+
+## Backend — droits & bypass
+- Salon : modération, lecture, kick/ban (hôte/VIP), set VIP — `salonModeration.ts`
+- Live : modération, ban étendu — `liveModeration.ts`
+- Join salon privé + carte — `salonAccess.ts`
+- Ignore bans live — `liveBans.ts`
+- Messages : `senderIsDev` ; profil public `isDev` ; participants `isDev`
+- Socket : delete salon chat Dev ; `live_set_vip` pour Dev
+
+## Frontend
+- `UserDevBadge.tsx`, `ChatPanel`, `SalonPage`, `LivePage`, `SalonParticipantsPopover`
+- `user.isAdmin` → `isDevModerator` (modération + playback VIP)
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npm run build
+
+## Déploiement
+**Oui** — redémarrage backend + rebuild app.
+
+================================================================================
+Fin MODIF 449 - 2026-06-11
+================================================================================
+
+================================================================================
+MODIF 451 — Admin : modération salons, lives et événements
+================================================================================
+Date : 2026-06-11
+
+## Contexte
+Vue administrateur (comptes dev via `isAccessAdmin`) : lister tous les salons,
+lives et événements avec détails, créateur, blocage et suppression.
+
+## Backend — routes `/api/access/admin/content/*`
+- GET `/salons`, `/lives`, `/events` — liste paginée + recherche + filtre
+  (all | active | blocked) + compteurs
+- POST `/:id/block`, `/:id/unblock`, DELETE `/:id` pour chaque type
+- Gate : `isAccessAdmin` (même que onglets Comptes / Accès)
+
+## Blocage (sémantique)
+- Salon / live : `adminBlocked` + `adminBlockedAt` ; live actif interrompu ;
+  événements socket `salon_ended` / `live_ended` (reason `admin_blocked`)
+- Événement (FeedPost `isEvent`) : masqué fil + carte pour le public
+- Déblocage : retire le flag (ne relance pas un live)
+- Suppression : salon (cascade live lié), live seul, événement (+ likes,
+  commentaires, favoris, notifications)
+
+## Visibilité publique
+- Carte / listes salons & lives : exclus si `adminBlocked` (sauf compte dev)
+- GET salon/live : 403 `content_blocked` si bloqué
+- Fil d'actu : posts bloqués exclus (`feedPosts.ts`, `algoFeed.ts`)
+
+## Frontend
+- `AdminPage` — onglet **Contenu** avec sous-sections Salons | Lives | Événements
+- `AdminContentTab.tsx` — détails, Block / Débloquer / Supprimer / Voir utilisateur
+- i18n `admin.content.*` (fr + en)
+- Types + méthodes `api.ts`
+
+## Fichiers
+- backend/src/lib/adminContentModeration.ts
+- backend/src/routes/adminContent.ts
+- backend/src/models/schema.ts — champs `adminBlocked`
+- backend/src/lib/salonAccess.ts, routes/salons.ts, routes/lives.ts
+- backend/src/lib/feedPosts.ts, algoFeed.ts
+- backend/src/server.ts
+- app/src/pages/AdminContentTab.tsx, AdminPage.tsx
+- app/src/types.ts, app/src/lib/api.ts
+- app/src/locales/fr.json, en.json
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npm run build
+
+## Déploiement
+**Oui** — redémarrage backend + rebuild app (assets statiques backend/public).
+
+================================================================================
+Fin MODIF 451 - 2026-06-11
+================================================================================
