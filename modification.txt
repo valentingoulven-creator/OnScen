@@ -7423,3 +7423,213 @@ contrôles lecture, gestion accès Public/Invitation).
 Fin MODIF 435 - 2026-06-11
 ================================================================================
 
+================================================================================
+MODIF 436 — Bouton « Arrêter le salon » (hôte plein écran)
+================================================================================
+Date : 2026-06-11
+
+## Objectif
+Dans le header du salon plein écran, l'hôte dispose d'un bouton dédié
+« Arrêter le salon » qui met fin à la session pour tous (DELETE salon +
+`salon_ended`). Les participants conservent « Quitter le salon » (leave
+socket uniquement, salon intact).
+
+## Comportement
+### Hôte
+- Bouton rouge « Arrêter le salon » à la place de « Quitter le salon ».
+- Confirmation avant action destructive.
+- Si Spotify en lecture → `POST …/spotify-control` action `pause`.
+- `DELETE /salons/:id` → backend émet `salon_ended` { reason: host_deleted }.
+- Puis `leaveActiveSalonSession` (leave_salon, clear session, overlay fermé).
+
+### Participant
+- « Quitter le salon » inchangé — quitte la room sans supprimer le salon.
+
+## Fichiers
+- app/src/lib/api.ts — `deleteSalon`
+- app/src/pages/SalonPage.tsx — `handleEndSalon`, bouton hôte vs participant
+- app/src/locales/fr.json, en.json — `endSalon`, `endSalonConfirm`
+- modification.txt
+
+## Test
+  cd app && npx tsc -p tsconfig.app.json --noEmit
+  1. Hôte Spotify plein écran → « Arrêter le salon » → confirm → overlay fermé,
+     auditeurs reçoivent fin de session.
+  2. Participant → « Quitter le salon » → salon reste actif pour les autres.
+  3. Hôte YouTube → même flux sans pause Spotify.
+
+================================================================================
+Fin MODIF 436 - 2026-06-11
+================================================================================
+
+================================================================================
+MODIF 437 — Fix définitif faux « Session Spotify expirée » (load-playlist)
+================================================================================
+Date : 2026-06-11
+
+## Symptôme (prod getsoundy.com, post MODIF 434)
+Playlists Spotify listées (« Vos playlists Spotify (compte connecté) ») mais
+« Lancer la playlist » → `Session Spotify expirée — reconnectez` + bouton
+Reconnecter, alors que l'utilisateur est connecté OAuth.
+
+## Cause racine
+1. **`isAccessTokenFresh`** : sans `accessTokenExpiresAt` (connexions antérieures
+   à MODIF 434), le jeton était considéré « frais » → pas de refresh proactif.
+2. **`spotifyFetch`** : retry refresh uniquement sur **401**, pas sur **403**
+   (Spotify renvoie parfois 403 sur `/playlists/{id}/tracks` pour jeton expiré).
+3. **Échec refresh silencieux** : si refresh échouait (hors `invalid_grant`),
+   la requête 401/403 était renvoyée telle quelle → message « expirée » trompeur.
+4. **UI « connecté » décorrélée** : `isRealSpotifyAccount` = présence jeton en base,
+   pas santé session ; `invalid_grant` ne déconnectait pas le lien plateforme.
+5. **Persistance différée** : refresh via `schedulePersist()` (800 ms) — risque
+   de jeton stale entre requêtes rapides list → load.
+6. **Chemins jeton divergents** : `spotifySearch` / `spotifyPlayback` utilisaient
+   encore l'ancien pattern (jeton expiré renvoyé tel quel).
+
+## Correctif
+### Backend — jeton unifié
+- `getValidSpotifyHostToken()` : point d'entrée unique (playlists, load, search, playback).
+- `invalid_grant` → `disconnectSpotifyOnAuthFailure()` + persist immédiat.
+- `isAccessTokenFresh` : sans `accessTokenExpiresAt` → considéré **périmé** (force refresh).
+- `refreshSpotifyAccessToken` : `savePersistedStore()` immédiat après refresh.
+- `probeSpotifyHostSession()` : pre-flight GET `/v1/me` + retry refresh.
+- `spotifyFetch` : retry refresh sur 401 **et** 403 (hors scope manquant) ; throw
+  si refresh échoue (plus de fallthrough silencieux).
+- Logs `[spotify-playlist]` / `[load-playlist]` avec status + code.
+
+### Routes
+- `GET /platforms/spotify/playlists` : `spotifySessionValid` + `spotifySessionCode`.
+- `GET /platforms/status` : `spotifySessionValid` / `spotifySessionCode`.
+
+### Frontend
+- `SalonSpotifyPlaylist` : pre-flight session ; retry load-playlist 1× sur
+  `spotify_token_expired` ; hint session si invalide.
+- `PlatformConnectCard` : badge « Session expirée » si `spotifySessionValid === false`.
+
+## Fichiers
+- backend/src/lib/spotifyOAuth.ts
+- backend/src/lib/spotifyApi.ts
+- backend/src/lib/spotifyPlaylists.ts
+- backend/src/lib/spotifyPlayback.ts
+- backend/src/lib/spotifySearch.ts
+- backend/src/routes/platforms.ts
+- backend/src/routes/salons.ts
+- app/src/lib/api.ts
+- app/src/components/SalonSpotifyPlaylist.tsx
+- app/src/components/PlatformConnectCard.tsx
+- app/src/locales/fr.json, en.json
+- modification.txt
+
+## Prod VPS (vérifié)
+- `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` présents dans `/opt/soundly/.env`.
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npx tsc -p tsconfig.app.json --noEmit
+  1. Hôte OAuth → playlists + « compte connecté » → « Lancer la playlist » → queue OK.
+  2. Jeton expiré → refresh transparent ou reconnecter si refresh révoqué.
+  3. Scope collaborative manquant → message scope (pas faux expired).
+  4. Refresh révoqué → déconnexion auto plateforme + reconnecter (pas boucle).
+
+================================================================================
+Fin MODIF 437 - 2026-06-11
+================================================================================
+
+================================================================================
+MODIF 438 — Changer morceau Spotify : lancer l'app si inactive
+================================================================================
+Date : 2026-06-11
+
+## Symptôme
+Recherche « Changer de morceau » (ex. GIMS — Changer) → erreur rouge
+« Aucun appareil Spotify actif » (`no_active_device`) sans ouvrir Spotify.
+MODIF 432 ne couvrait que le bouton Lecture, pas « Choisir » dans la recherche.
+
+## Cause racine (by design + no device)
+- Soundy ne lit pas l'audio dans le navigateur : contrôle via Spotify Connect.
+- `POST …/change-track` met à jour l'état salon (socket) puis appelle
+  `playSpotifyTrackNow` → Spotify 404 si aucune app Connect active.
+- Le front ignorait `playbackState` dans la réponse d'erreur et affichait l'erreur
+  API en rouge dans le dropdown au lieu d'ouvrir l'app.
+
+## Correctif
+1. `ApiRequestError.playbackState` + code `no_active_device` → toast i18n (pas erreur).
+2. `SalonSpotifySearch` : sur `no_active_device` → `onTrackChanged(playbackState)`,
+   `openSpotifyApp(trackId)`, retry `spotify-control` play après 3,5 s.
+3. Hint `changeHint` : Soundy pilote l'app Spotify, pas de lecture in-app.
+
+## Fichiers
+- app/src/lib/api.ts
+- app/src/components/SalonSpotifySearch.tsx
+- app/src/locales/fr.json, en.json
+- modification.txt
+
+## Test
+  cd app && npx tsc -p tsconfig.app.json --noEmit
+  1. Salon Spotify, app fermée → recherche « gims changer » → Choisir → toast
+     « Ouverture de Spotify… », app ouverte, chrono salon à 0:00.
+  2. Relancer Lecture ou attendre retry auto → sync Connect OK.
+
+================================================================================
+Fin MODIF 438 - 2026-06-11
+================================================================================
+
+================================================================================
+MODIF 439 — Bouton participants hôte (en-tête chat dock salon)
+================================================================================
+Date : 2026-06-11
+
+## Objectif
+Dans l'en-tête du chat ancré (`room-theater-chat-dock`, layout queue-chat Spotify)
+et du chat flottant (YouTube), l'hôte dispose d'un bouton 👥 listant les
+participants connectés avec actions modération.
+
+## Comportement
+### Hôte uniquement (MODIF 435 : masqué pour participants)
+- Bouton 👥 à gauche du × dans l'en-tête chat.
+- Popover : liste connectés (socket room), compteur auditeurs.
+- Par participant :
+  - **Droits mod.** — socket `salon_set_vip` (modérateur VIP : kick/ban chat)
+  - **Expulser** — socket `salon_kick`
+  - **Bloquer** — socket `salon_ban` (durée ou permanent)
+- Rafraîchissement auto toutes les 12 s tant que le panneau est ouvert.
+
+### API
+- `GET /api/salons/:id/participants` (host only) — membres socket room
+  `salon_{id}` dédupliqués, hors hôte.
+
+### Sockets existants réutilisés
+- `join_salon` / `leave_salon` — listenersCount
+- `salon_kick`, `salon_ban`, `salon_set_vip`
+- `salon_kicked`, `salon_banned` — côté participant (déjà géré)
+
+### Chat message (bonus)
+- `SalonPage` passe `onBanUser` / `onSetVip` au `ChatRoomProvider`.
+- `ChatModals` utilise `SalonUserBanModal` pour `roomType === 'salon'`.
+
+## Fichiers
+- backend/src/lib/salonParticipants.ts — helper liste socket room
+- backend/src/routes/salons.ts — GET `/:id/participants`
+- app/src/lib/api.ts — `getSalonParticipants`
+- app/src/types.ts — `SalonParticipant`
+- app/src/components/SalonParticipantsPopover.tsx
+- app/src/components/SalonUserBanModal.tsx
+- app/src/components/RoomTheaterLayout.tsx — `chatHeaderExtra`
+- app/src/components/FloatingSalonChat.tsx — `headerExtra`
+- app/src/components/ChatPanel.tsx — ban modal salon
+- app/src/pages/SalonPage.tsx — wiring hôte
+- app/src/locales/fr.json, en.json — `salon.participants.*`, `salon.chatTitle`
+- modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npx tsc -p tsconfig.app.json --noEmit
+  1. Hôte salon Spotify plein écran → 👥 dans en-tête chat → liste + actions.
+  2. Participant → pas de bouton 👥.
+  3. Expulser → participant reçoit `salon_kicked`, quitte le salon.
+  4. Bloquer → `salon_banned`, ne peut plus rejoindre.
+  5. Droits mod. → VIP peut modérer le chat (kick/ban messages).
+
+================================================================================
+Fin MODIF 439 - 2026-06-11
+================================================================================

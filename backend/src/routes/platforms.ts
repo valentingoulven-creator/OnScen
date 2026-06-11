@@ -25,7 +25,7 @@ import {
   isInstagramOAuthConfigured,
 } from '../lib/instagramOAuth';
 import { listHostYoutubePlaylists } from '../lib/youtubePlaylists';
-import { isRealSpotifyAccount, listHostSpotifyPlaylists } from '../lib/spotifyPlaylists';
+import { isRealSpotifyAccount, listHostSpotifyPlaylists, probeSpotifyHostSession } from '../lib/spotifyPlaylists';
 
 export const platformsRouter = Router();
 
@@ -33,7 +33,7 @@ function parsePlatform(param: string): ConnectPlatform | null {
   return param === 'spotify' || param === 'youtube' || param === 'instagram' ? param : null;
 }
 
-platformsRouter.get('/status', authenticateJWT, (req: Request, res: Response) => {
+platformsRouter.get('/status', authenticateJWT, async (req: Request, res: Response) => {
   const userId = (req as Request & { user: { id: string } }).user.id;
   const user = db.users.get(userId);
   if (!user) {
@@ -46,6 +46,15 @@ platformsRouter.get('/status', authenticateJWT, (req: Request, res: Response) =>
   const youtubeOAuthAvailable = isYoutubeOAuthConfigured();
   const instagramOAuthAvailable = isInstagramOAuthConfigured();
   const oauthConfigured = spotifyOAuthAvailable || youtubeOAuthAvailable || instagramOAuthAvailable;
+
+  let spotifySessionValid: boolean | undefined;
+  let spotifySessionCode: string | undefined;
+  if (isPlatformConnected(user, 'spotify')) {
+    const session = await probeSpotifyHostSession(user);
+    spotifySessionValid = session.ok;
+    if (!session.ok) spotifySessionCode = session.code;
+  }
+
   res.json({
     links: publicPlatformLinks(user),
     connectedPlatforms: user.connectedPlatforms ?? [],
@@ -55,6 +64,8 @@ platformsRouter.get('/status', authenticateJWT, (req: Request, res: Response) =>
     oauthConfigured,
     platformConnectionRequired: oauthConfigured,
     hasRealPlatformConnection: hasRealPlatformConnection(user),
+    spotifySessionValid,
+    spotifySessionCode,
   });
 });
 
@@ -130,10 +141,21 @@ platformsRouter.get('/spotify/playlists', authenticateJWT, async (req: Request, 
     res.status(403).json({ error: 'Connectez votre compte Spotify pour voir vos playlists' });
     return;
   }
+  const session = await probeSpotifyHostSession(user);
+  if (!session.ok) {
+    res.json({
+      playlists: [],
+      isRealAccount: false,
+      spotifySessionValid: false,
+      spotifySessionCode: session.code,
+    });
+    return;
+  }
   const playlists = await listHostSpotifyPlaylists(user);
   res.json({
     playlists,
     isRealAccount: isRealSpotifyAccount(user),
+    spotifySessionValid: true,
   });
 });
 

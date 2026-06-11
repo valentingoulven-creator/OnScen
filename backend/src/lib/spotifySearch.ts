@@ -1,11 +1,11 @@
 import { User } from '../models/schema';
 import { parseMusicLink, buildPlatformTrackUrl } from './musicLinks';
 import {
-  getSpotifyAccessToken,
   getSpotifyAppAccessToken,
+  getValidSpotifyHostToken,
   isSpotifyApiConfigured,
   isSpotifyOAuthConfigured,
-  refreshSpotifyToken,
+  refreshSpotifyAccessToken,
 } from './spotifyOAuth';
 
 export interface SpotifySearchResult {
@@ -53,10 +53,9 @@ function defaultSpotifySearchMarket(): string {
 }
 
 async function ensureHostSpotifyAccessToken(user: User): Promise<string | null> {
-  let token = getSpotifyAccessToken(user);
-  if (token) return token;
   if (!isSpotifyOAuthConfigured()) return null;
-  return (await refreshSpotifyToken(user)) ?? null;
+  const result = await getValidSpotifyHostToken(user);
+  return result.ok ? result.accessToken : null;
 }
 
 function mapTrackItem(item: {
@@ -217,9 +216,9 @@ export async function searchSpotifyTracks(
     let result = await fetchSpotifySearch(hostToken, q, { limit: searchLimit });
 
     if (!result.ok && result.status === 401) {
-      const refreshed = await refreshSpotifyToken(user);
-      if (refreshed) {
-        result = await fetchSpotifySearch(refreshed, q, { limit: searchLimit });
+      const refreshed = await refreshSpotifyAccessToken(user);
+      if (refreshed.ok) {
+        result = await fetchSpotifySearch(refreshed.accessToken, q, { limit: searchLimit });
       }
     }
 

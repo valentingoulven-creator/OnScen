@@ -1,5 +1,10 @@
 import { User } from '../models/schema';
-import { getSpotifyAccessToken, refreshSpotifyToken } from './spotifyOAuth';
+import {
+  getValidSpotifyHostToken,
+  refreshSpotifyAccessToken,
+  type SpotifyRefreshResult,
+} from './spotifyOAuth';
+import { isSpotifyRetryableAuthError, parseSpotifyErrorMessage } from './spotifyApi';
 
 export type SpotifyPlaybackAction = 'pause' | 'play' | 'stop' | 'seek' | 'next';
 
@@ -15,17 +20,30 @@ export class SpotifyPlaybackError extends Error {
 }
 
 async function ensureSpotifyAccessToken(user: User): Promise<string> {
-  let token = getSpotifyAccessToken(user);
-  if (token) return token;
-  token = (await refreshSpotifyToken(user)) ?? undefined;
-  if (!token) {
+  const result = await getValidSpotifyHostToken(user);
+  if (result.ok) return result.accessToken;
+  throw new SpotifyPlaybackError(
+    result.reason === 'invalid_refresh'
+      ? 'Session Spotify expirée — reconnectez Spotify.'
+      : 'Compte Spotify non connecté ou session expirée — reconnectez Spotify.',
+    403,
+    result.reason === 'invalid_refresh' ? 'spotify_token_expired' : 'spotify_not_connected'
+  );
+}
+
+function throwFromRefreshFailure(result: Extract<SpotifyRefreshResult, { ok: false }>): never {
+  if (result.reason === 'invalid_refresh') {
     throw new SpotifyPlaybackError(
-      'Compte Spotify non connecté ou session expirée — reconnectez Spotify.',
+      'Session Spotify expirée — reconnectez Spotify.',
       403,
-      'spotify_not_connected'
+      'spotify_token_expired'
     );
   }
-  return token;
+  throw new SpotifyPlaybackError(
+    'Compte Spotify non connecté ou session expirée — reconnectez Spotify.',
+    403,
+    'spotify_not_connected'
+  );
 }
 
 async function spotifyPlayerRequest(
@@ -49,12 +67,17 @@ async function spotifyPlayerRequest(
   }
 
   let res = await fetch(url, init);
-  if (res.status === 401) {
-    const refreshed = await refreshSpotifyToken(user);
-    if (refreshed) {
-      accessToken = refreshed;
-      headers.Authorization = `Bearer ${accessToken}`;
-      res = await fetch(url, init);
+  if (isSpotifyRetryableAuthError(res.status)) {
+    const detail = res.status === 403 ? await parseSpotifyErrorMessage(res.clone()) : undefined;
+    if (!(res.status === 403 && detail?.toLowerCase().includes('insufficient'))) {
+      const refreshed = await refreshSpotifyAccessToken(user);
+      if (refreshed.ok) {
+        accessToken = refreshed.accessToken;
+        headers.Authorization = `Bearer ${accessToken}`;
+        res = await fetch(url, init);
+      } else {
+        throwFromRefreshFailure(refreshed);
+      }
     }
   }
   return res;

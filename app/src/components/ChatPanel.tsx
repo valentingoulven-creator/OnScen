@@ -19,6 +19,7 @@ import {
 import { getSocket, isSocketConnected } from '../lib/socket';
 import type { ChatMessage, LiveChatReaction } from '../types';
 import { LiveUserBanModal, type LiveBanScope } from './LiveUserBanModal';
+import { SalonUserBanModal } from './SalonUserBanModal';
 import { ReportContentModal, type ReportContentContext } from './ReportContentModal';
 import { UsernameDisplay } from './UsernameDisplay';
 
@@ -915,6 +916,7 @@ export function ChatInputBar({ className }: { className?: string }) {
 
 export function ChatModals() {
   const {
+    roomType,
     banModalTarget,
     onBanUser,
     confirmBan,
@@ -926,14 +928,22 @@ export function ChatModals() {
 
   return (
     <>
-      {banModalTarget && onBanUser && (
+      {banModalTarget && onBanUser && roomType === 'salon' ? (
+        <SalonUserBanModal
+          username={banModalTarget.name}
+          open
+          onClose={() => setBanModalTarget(null)}
+          onConfirm={(opts) => confirmBan({ ...opts, scope: 'live' })}
+        />
+      ) : null}
+      {banModalTarget && onBanUser && roomType === 'live' ? (
         <LiveUserBanModal
           username={banModalTarget.name}
           open
           onClose={() => setBanModalTarget(null)}
           onConfirm={confirmBan}
         />
-      )}
+      ) : null}
       {reportContext && (
         <ReportContentModal
           context={reportContext}

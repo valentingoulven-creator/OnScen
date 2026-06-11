@@ -26,8 +26,16 @@ export function isSpotifyScopeMissingError(detail?: string): boolean {
   return (
     d.includes('insufficient client scope') ||
     d.includes('insufficient scope') ||
-    d.includes('missing scope')
+    d.includes('missing scope') ||
+    d.includes('scope not granted')
   );
+}
+
+/** 401 ou 403 générique (hors scope manquant) — tenter refresh + retry une fois. */
+export function isSpotifyRetryableAuthError(status: number, detail?: string): boolean {
+  if (status === 401) return true;
+  if (status !== 403) return false;
+  return !isSpotifyScopeMissingError(detail);
 }
 
 export function spotifyScopeMissingMessage(): string {

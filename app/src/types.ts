@@ -410,6 +410,13 @@ export interface Salon {
   spotifyJamUrl?: string;
 }
 
+export interface SalonParticipant {
+  id: string;
+  username: string;
+  usernameColor?: string;
+  isVip: boolean;
+}
+
 export interface SalonBan {
   permanent: boolean;
   until?: number;

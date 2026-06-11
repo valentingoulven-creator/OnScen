@@ -2,9 +2,14 @@ import crypto from 'crypto';
 
 import { User } from '../models/schema';
 
-import { connectPlatformAccount, getPlatformAccounts } from './platformConnect';
+import {
+  connectPlatformAccount,
+  disconnectPlatformAccount,
+  getPlatformAccounts,
+  isPlatformConnected,
+} from './platformConnect';
 
-import { schedulePersist } from './persist';
+import { savePersistedStore, schedulePersist } from './persist';
 
 import { encryptPlatformTokens, decryptPlatformTokens, decryptToken } from './tokenEncryption';
 
@@ -492,7 +497,7 @@ function isAccessTokenFresh(user: User): boolean {
 
   const expiresAt = decryptPlatformTokens(account).accessTokenExpiresAt;
 
-  if (!expiresAt) return true;
+  if (!expiresAt) return false;
 
   return Date.now() < expiresAt - TOKEN_EXPIRY_BUFFER_MS;
 
@@ -624,6 +629,12 @@ export async function refreshSpotifyAccessToken(user: User): Promise<SpotifyRefr
 
   schedulePersist();
 
+  try {
+    savePersistedStore();
+  } catch (e) {
+    console.warn('[spotify-oauth] persist immédiat échoué après refresh:', e);
+  }
+
   return { ok: true, accessToken: tokens.access_token };
 
 }
@@ -661,6 +672,72 @@ export async function ensureFreshSpotifyAccessToken(user: User): Promise<Spotify
   }
 
   return refreshSpotifyAccessToken(user);
+
+}
+
+
+
+export type SpotifyHostTokenResult =
+
+  | { ok: true; accessToken: string }
+
+  | { ok: false; reason: SpotifyRefreshFailureReason; disconnected?: boolean };
+
+
+
+/** Révoque le lien Spotify côté serveur après refresh impossible (invalid_grant). */
+
+export function disconnectSpotifyOnAuthFailure(user: User, reason: string): void {
+
+  if (!isPlatformConnected(user, 'spotify')) return;
+
+  disconnectPlatformAccount(user, 'spotify');
+
+  schedulePersist();
+
+  try {
+    savePersistedStore();
+  } catch {
+    /* ignore */
+  }
+
+  console.warn('[spotify-oauth] auto-disconnect Spotify', { userId: user.id, reason });
+
+}
+
+
+
+/**
+
+ * Jeton hôte unifié pour recherche, playlists et load-playlist.
+
+ * Sur invalid_grant : déconnexion automatique pour éviter un faux « compte connecté ».
+
+ */
+
+export async function getValidSpotifyHostToken(user: User): Promise<SpotifyHostTokenResult> {
+
+  const result = await ensureFreshSpotifyAccessToken(user);
+
+  if (result.ok) return result;
+
+  if (result.reason === 'invalid_refresh') {
+
+    disconnectSpotifyOnAuthFailure(user, result.reason);
+
+    return { ok: false, reason: result.reason, disconnected: true };
+
+  }
+
+  console.warn('[spotify-oauth] getValidSpotifyHostToken failed', {
+
+    userId: user.id,
+
+    reason: result.reason,
+
+  });
+
+  return { ok: false, reason: result.reason };
 
 }
 

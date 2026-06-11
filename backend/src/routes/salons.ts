@@ -42,6 +42,7 @@ import { resolveSpotifyPlaylistTracks, SpotifyPlaylistError } from '../lib/spoti
 import { notifyFavoritesSalonStarted } from '../lib/favorites';
 import { normalizeSpotifyJamUrl } from '../lib/spotifyJam';
 import { getIo } from '../lib/ioInstance';
+import { getSalonConnectedParticipants } from '../lib/salonParticipants';
 
 export const salonsRouter = Router();
 
@@ -246,6 +247,24 @@ salonsRouter.get('/:id/proposals', authenticateJWT, (req: Request, res: Response
     return;
   }
   res.json({ proposals: getPendingProposals(salon.id) });
+});
+
+salonsRouter.get('/:id/participants', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const salon = db.salons.get(req.params.id);
+  if (!salon) {
+    res.status(404).json({ error: 'Salon introuvable' });
+    return;
+  }
+  if (salon.hostId !== me) {
+    res.status(403).json({ error: 'Réservé au host' });
+    return;
+  }
+  const vipIds = salon.vipModeratorIds ?? [];
+  res.json({
+    participants: getSalonConnectedParticipants(salon.id, salon.hostId, vipIds),
+    listenersCount: salon.listenersCount,
+  });
 });
 
 salonsRouter.post('/:id/proposals', authenticateJWT, (req: Request, res: Response) => {
@@ -594,6 +613,14 @@ salonsRouter.post('/:id/playback/load-playlist', authenticateJWT, async (req: Re
     tracks = await resolveSpotifyPlaylistTracks(hostUser, resolvedSpotifyPlaylistId);
   } catch (e) {
     if (e instanceof SpotifyPlaylistError) {
+      console.warn('[load-playlist] spotify error', {
+        salonId: salon.id,
+        userId: me,
+        playlistId: resolvedSpotifyPlaylistId,
+        status: e.status,
+        code: e.code,
+        message: e.message,
+      });
       res.status(e.status).json({ error: e.message, code: e.code });
       return;
     }

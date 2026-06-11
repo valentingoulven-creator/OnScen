@@ -11,6 +11,8 @@ export interface RoomTheaterLayoutProps {
   /** Contenu défilable sous la scène vidéo (file, réglages host…). */
   stageFooter?: ReactNode;
   chatTitle?: string;
+  /** Actions hôte dans l'en-tête du chat ancré (ex. participants). */
+  chatHeaderExtra?: ReactNode;
   /** Chat réduit au bandeau d'en-tête uniquement (contenu masqué). */
   chatMinimized?: boolean;
   onToggleMinimize?: () => void;
@@ -29,6 +31,7 @@ export function RoomTheaterLayout({
   onToggleChat,
   stageFooter,
   chatTitle = 'Chat',
+  chatHeaderExtra,
   chatMinimized = false,
   onToggleMinimize,
   variant = 'theater',
@@ -55,6 +58,7 @@ export function RoomTheaterLayout({
                 <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest flex-1 truncate min-w-0">
                   {chatTitle}
                 </p>
+                {chatHeaderExtra}
                 <button
                   type="button"
                   onClick={onToggleChat}
@@ -92,6 +96,7 @@ export function RoomTheaterLayout({
           {!chatHidden && (
             <FloatingSalonChat
               title={chatTitle}
+              headerExtra={chatHeaderExtra}
               minimized={chatMinimized}
               onToggleMinimize={onToggleMinimize}
               onHide={onToggleChat}

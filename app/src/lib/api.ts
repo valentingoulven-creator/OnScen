@@ -25,12 +25,19 @@ function normalizeFetchNetworkError(e: unknown): never {
 export class ApiRequestError extends Error {
   code?: string;
   status?: number;
+  playbackState?: import('../types').PlaybackState;
 
-  constructor(message: string, code?: string, status?: number) {
+  constructor(
+    message: string,
+    code?: string,
+    status?: number,
+    playbackState?: import('../types').PlaybackState
+  ) {
     super(message);
     this.name = 'ApiRequestError';
     this.code = code;
     this.status = status;
+    this.playbackState = playbackState;
   }
 }
 
@@ -38,7 +45,12 @@ async function parseApiError(res: Response): Promise<ApiRequestError> {
   const text = await res.text().catch(() => '');
   if (text) {
     try {
-      const json = JSON.parse(text) as { error?: string; code?: string };
+      const json = JSON.parse(text) as {
+        error?: string;
+        code?: string;
+        playbackState?: import('../types').PlaybackState;
+      };
+      const playbackState = json.playbackState;
       if (json.error) {
         if (json.error === 'Token manquant' || json.error === 'Token invalide') {
           return new ApiRequestError(i18n.t('errors.sessionExpired'), json.code, res.status);
@@ -92,10 +104,19 @@ async function parseApiError(res: Response): Promise<ApiRequestError> {
           return new ApiRequestError(
             json.error || i18n.t('salon.spotifySearch.errorDevUser'),
             json.code,
-            res.status
+            res.status,
+            playbackState
           );
         }
-        return new ApiRequestError(json.error, json.code, res.status);
+        if (json.code === 'no_active_device') {
+          return new ApiRequestError(
+            i18n.t('salon.playbackMode.spotifyLaunchingApp'),
+            json.code,
+            res.status,
+            playbackState
+          );
+        }
+        return new ApiRequestError(json.error, json.code, res.status, playbackState);
       }
     } catch {
       if (text.length < 200) return new ApiRequestError(text, undefined, res.status);
@@ -425,11 +446,12 @@ export const api = {
     ),
 
   getSpotifyPlaylists: (token: string) =>
-    request<{ playlists: import('../types').SpotifyPlaylistSummary[]; isRealAccount: boolean }>(
-      '/platforms/spotify/playlists',
-      {},
-      token
-    ),
+    request<{
+      playlists: import('../types').SpotifyPlaylistSummary[];
+      isRealAccount: boolean;
+      spotifySessionValid?: boolean;
+      spotifySessionCode?: string;
+    }>('/platforms/spotify/playlists', {}, token),
 
   getYoutubeOAuthUrl: (token: string) =>
     request<{ url: string }>('/platforms/youtube/oauth/url', {}, token),
@@ -459,6 +481,8 @@ export const api = {
       oauthConfigured?: boolean;
       platformConnectionRequired?: boolean;
       hasRealPlatformConnection?: boolean;
+      spotifySessionValid?: boolean;
+      spotifySessionCode?: string;
     }>('/platforms/status', {}, token),
 
   getMsdevDualIp: () =>
@@ -482,6 +506,9 @@ export const api = {
   joinSalon: (token: string, salonId: string) =>
     request<{ ok: boolean; salon: import('../types').Salon }>(`/salons/${salonId}/join`, { method: 'POST' }, token),
 
+  deleteSalon: (token: string, salonId: string) =>
+    request<{ ok: boolean }>(`/salons/${salonId}`, { method: 'DELETE' }, token),
+
   updateSalonSettings: (token: string, salonId: string, body: object) =>
     request<{ salon: import('../types').Salon }>(
       `/salons/${salonId}/settings`,
@@ -504,6 +531,13 @@ export const api = {
 
   getSalonProposals: (token: string, salonId: string) =>
     request<{ proposals: import('../types').SalonTrackProposal[] }>(`/salons/${salonId}/proposals`, {}, token),
+
+  getSalonParticipants: (token: string, salonId: string) =>
+    request<{ participants: import('../types').SalonParticipant[]; listenersCount: number }>(
+      `/salons/${salonId}/participants`,
+      {},
+      token
+    ),
 
   proposeSalonTrack: (
     token: string,

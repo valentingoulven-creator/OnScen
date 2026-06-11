@@ -4,7 +4,9 @@ import { useTranslation } from 'react-i18next';
 
 import { useDebouncedApiSearch } from '../hooks/useDebouncedApiSearch';
 
-import { api } from '../lib/api';
+import { api, ApiRequestError } from '../lib/api';
+
+import { openSpotifyApp } from '../lib/spotifyDeepLink';
 
 import type { PlaybackState, SpotifySearchResult } from '../types';
 
@@ -77,7 +79,13 @@ export function SalonSpotifySearch({
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
+  const [infoToast, setInfoToast] = useState<string | null>(null);
+
   const rootRef = useRef<HTMLDivElement>(null);
+
+  const spotifyLaunchRetryRef = useRef<number | null>(null);
+
+  const spotifyAppLaunchIssuedRef = useRef(false);
 
 
 
@@ -108,6 +116,57 @@ export function SalonSpotifySearch({
   });
 
 
+
+  useEffect(() => {
+    return () => {
+      if (spotifyLaunchRetryRef.current !== null) {
+        window.clearTimeout(spotifyLaunchRetryRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!infoToast) return;
+    const timer = window.setTimeout(() => setInfoToast(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [infoToast]);
+
+  const clearSearchUi = () => {
+    setQuery('');
+    setResults([]);
+    setDropdownOpen(false);
+  };
+
+  const scheduleSpotifyPlayRetry = useCallback(() => {
+    if (spotifyLaunchRetryRef.current !== null) {
+      window.clearTimeout(spotifyLaunchRetryRef.current);
+    }
+    spotifyLaunchRetryRef.current = window.setTimeout(() => {
+      spotifyLaunchRetryRef.current = null;
+      void api.spotifySalonPlaybackControl(token, salonId, 'play').catch(() => {
+        /* Toast déjà affiché — l'hôte peut relancer Lecture manuellement. */
+      });
+    }, 3500);
+  }, [token, salonId]);
+
+  const handleSpotifyNoActiveDevice = useCallback(
+    (trackId: string, playbackState?: PlaybackState) => {
+      if (playbackState) {
+        onTrackChanged(playbackState);
+      }
+      if (!spotifyAppLaunchIssuedRef.current) {
+        spotifyAppLaunchIssuedRef.current = true;
+        openSpotifyApp(trackId);
+        window.setTimeout(() => {
+          spotifyAppLaunchIssuedRef.current = false;
+        }, 5000);
+      }
+      setInfoToast(t('salon.playbackMode.spotifyLaunchingApp'));
+      scheduleSpotifyPlayRetry();
+      clearSearchUi();
+    },
+    [onTrackChanged, scheduleSpotifyPlayRetry, t]
+  );
 
   useEffect(() => {
 
@@ -153,13 +212,14 @@ export function SalonSpotifySearch({
 
       onTrackChanged(playbackState);
 
-      setQuery('');
-
-      setResults([]);
-
-      setDropdownOpen(false);
+      clearSearchUi();
 
     } catch (e) {
+
+      if (e instanceof ApiRequestError && e.code === 'no_active_device') {
+        handleSpotifyNoActiveDevice(item.id, e.playbackState);
+        return;
+      }
 
       setError(e instanceof Error ? e.message : t('salon.spotifySearch.changeError'));
 
@@ -388,6 +448,15 @@ export function SalonSpotifySearch({
       <p className="text-[10px] text-gray-600 leading-snug">{t('salon.spotifySearch.changeHint')}</p>
 
       <p className="text-[10px] text-[#1DB954]/70">{t('salon.spotifySearch.poweredBy')}</p>
+
+      {infoToast ? (
+        <div
+          className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 max-w-[90vw] px-4 py-2 rounded-full bg-amber-950/95 border border-amber-500/40 text-sm text-amber-100 shadow-lg text-center"
+          role="status"
+        >
+          {infoToast}
+        </div>
+      ) : null}
 
     </div>
 

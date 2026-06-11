@@ -70,8 +70,11 @@ export function PlatformConnectCard({
   const [spotifyOAuthAvailable, setSpotifyOAuthAvailable] = useState(false);
   const [instagramOAuthAvailable, setInstagramOAuthAvailable] = useState(false);
   const [platformLink, setPlatformLink] = useState<PlatformLink | undefined>();
+  const [spotifySessionValid, setSpotifySessionValid] = useState<boolean | undefined>();
 
   const linked = isPlatformConnected(connectedPlatforms, platform, platformLinks ?? (platformLink ? [platformLink] : undefined));
+  const spotifyNeedsReconnect =
+    platform === 'spotify' && linked && spotifySessionValid === false;
   const meta = PLATFORM_LABELS[platform];
 
   const loadStatus = useCallback(() => {
@@ -84,6 +87,7 @@ export function PlatformConnectCard({
         setSpotifyOAuthAvailable(s.spotifyOAuthAvailable);
         setInstagramOAuthAvailable(s.instagramOAuthAvailable);
         setPlatformLink(s.links.find((l) => l.platform === platform));
+        setSpotifySessionValid(s.spotifySessionValid);
       })
       .catch((e) => {
         setStatusError(e instanceof Error ? e.message : t('errors.network'));
@@ -225,8 +229,14 @@ export function PlatformConnectCard({
           </div>
         </div>
         {linked ? (
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#12121a] border border-[#2d2d3d] text-green-400 shrink-0">
-            {t('platform.connected')}
+          <span
+            className={`text-[10px] px-2 py-0.5 rounded-full bg-[#12121a] border shrink-0 ${
+              spotifyNeedsReconnect
+                ? 'border-amber-500/40 text-amber-400'
+                : 'border-[#2d2d3d] text-green-400'
+            }`}
+          >
+            {spotifyNeedsReconnect ? t('platform.sessionExpired') : t('platform.connected')}
           </span>
         ) : null}
       </div>
@@ -304,6 +314,19 @@ export function PlatformConnectCard({
             className="underline hover:text-amber-300 disabled:opacity-50"
           >
             {t('platform.retryStatus')}
+          </button>
+        </p>
+      )}
+      {platform === 'spotify' && spotifyNeedsReconnect && !statusLoading && !statusError && (
+        <p className="text-[10px] text-amber-400 mt-2 leading-snug">
+          {t('salon.spotifySearch.playlistSessionError')}{' '}
+          <button
+            type="button"
+            onClick={connectSpotify}
+            disabled={busy || !spotifyOAuthAvailable}
+            className="underline hover:text-amber-300 disabled:opacity-50"
+          >
+            {t('salon.spotifySearch.playlistReconnectSpotify')}
           </button>
         </p>
       )}

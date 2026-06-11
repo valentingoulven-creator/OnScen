@@ -24,7 +24,9 @@ import { SalonQueueSection } from '../components/SalonQueueSection';
 import { SalonProposalsSection } from '../components/SalonProposalsSection';
 import { SalonSpotifyJamButton } from '../components/SalonSpotifyJamButton';
 import { SalonInviteLinkCopy } from '../components/SalonInviteLinkCopy';
+import { SalonParticipantsPopover } from '../components/SalonParticipantsPopover';
 import { useSalonQueueSync } from '../hooks/useSalonQueueSync';
+import { emitOnSocket } from '../lib/socket';
 
 import { formatSalonAudienceLabel } from '../lib/salonAudience';
 import type { DmContact, PlaybackState, Salon } from '../types';
@@ -68,6 +70,7 @@ export function SalonPage({
   const [contacts, setContacts] = useState<DmContact[]>([]);
 
   const [startingLive, setStartingLive] = useState(false);
+  const [endingSalon, setEndingSalon] = useState(false);
 
   const [accessSaving, setAccessSaving] = useState(false);
   const [skipping, setSkipping] = useState(false);
@@ -303,6 +306,58 @@ export function SalonPage({
       onBack();
     }
   }, [onMinimizeToMap, onBack, salon?.title]);
+
+  const handleEndSalon = useCallback(async () => {
+    if (!token || !salon || !onLeaveSalon) return;
+    const confirmMsg = t('salon.endSalonConfirm', {
+      defaultValue: 'Arrêter le salon pour tous les auditeurs ?',
+    });
+    if (!window.confirm(confirmMsg)) return;
+
+    setEndingSalon(true);
+    try {
+      if (salon.platform === 'spotify' && salon.playbackState.isPlaying) {
+        await api.spotifySalonPlaybackControl(token, salon.id, 'pause').catch(() => {});
+      }
+      await api.deleteSalon(token, salon.id);
+      onLeaveSalon();
+    } catch (e) {
+      setToastMsg(e instanceof Error ? e.message : t('common.error', { defaultValue: 'Erreur' }));
+    } finally {
+      setEndingSalon(false);
+    }
+  }, [token, salon, onLeaveSalon, t]);
+
+  const setVipModerator = useCallback(
+    (targetUserId: string, add: boolean) => {
+      if (!salon) return;
+      emitOnSocket('salon_set_vip', { salonId: salon.id, userId: targetUserId, add });
+      setSalon((prev) => {
+        if (!prev) return prev;
+        const ids = prev.vipModeratorIds ?? [];
+        const vipModeratorIds = add
+          ? ids.includes(targetUserId)
+            ? ids
+            : [...ids, targetUserId]
+          : ids.filter((id) => id !== targetUserId);
+        return { ...prev, vipModeratorIds };
+      });
+    },
+    [salon?.id]
+  );
+
+  const banSalonUser = useCallback(
+    (targetUserId: string, opts: { permanent: boolean; durationMs?: number }) => {
+      if (!salon) return;
+      emitOnSocket('salon_ban', {
+        salonId: salon.id,
+        userId: targetUserId,
+        permanent: opts.permanent,
+        durationMs: opts.durationMs,
+      });
+    },
+    [salon?.id]
+  );
 
   const minimizeSalonButton = (
     <button
@@ -555,7 +610,26 @@ export function SalonPage({
     userId: user!.id,
     userName: user!.username,
     token: token ?? undefined,
+    isHost,
+    canModerateChat: isHost,
+    hostId: salon.hostId,
+    vipModeratorIds: salon.vipModeratorIds ?? [],
+    onSetVip: isHost ? setVipModerator : undefined,
+    onBanUser: isHost
+      ? (targetUserId: string, opts: { permanent: boolean; durationMs?: number; scope: 'chat' | 'live' }) =>
+          banSalonUser(targetUserId, opts)
+      : undefined,
   };
+
+  const chatHeaderExtra =
+    isHost && token ? (
+      <SalonParticipantsPopover
+        salonId={salon.id}
+        token={token}
+        onVipChange={(userId, isVip) => setVipModerator(userId, isVip)}
+        onActionDone={setToastMsg}
+      />
+    ) : undefined;
 
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f] overflow-hidden">
@@ -668,7 +742,19 @@ export function SalonPage({
               onToast={setToastMsg}
             />
           )}
-          {onLeaveSalon && (
+          {onLeaveSalon && isHost && (
+            <button
+              type="button"
+              onClick={handleEndSalon}
+              disabled={endingSalon}
+              className="shrink-0 px-2.5 py-1.5 rounded-full text-[10px] font-semibold text-red-300 border border-red-500/50 hover:text-white hover:bg-red-600/25 hover:border-red-400 transition disabled:opacity-50"
+            >
+              {endingSalon
+                ? t('common.loading', { defaultValue: 'Chargement…' })
+                : t('salon.endSalon', { defaultValue: 'Arrêter le salon' })}
+            </button>
+          )}
+          {onLeaveSalon && !isHost && (
             <button
               type="button"
               onClick={onLeaveSalon}
@@ -685,7 +771,8 @@ export function SalonPage({
           variant={salon.platform === 'spotify' ? 'queue-chat' : 'theater'}
           chatHidden={chatHidden}
           onToggleChat={() => setChatHidden((h) => !h)}
-          chatTitle="Chat du salon"
+          chatTitle={t('salon.chatTitle', { defaultValue: 'Chat du salon' })}
+          chatHeaderExtra={chatHeaderExtra}
           {...(salon.platform !== 'spotify'
             ? {
                 chatMinimized,
