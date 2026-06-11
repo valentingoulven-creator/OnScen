@@ -364,6 +364,7 @@ export interface AppNotification {
     | 'live_started'
     | 'live_don'
     | 'favorite_online'
+    | 'salon_invite'
     | 'dm_message'
     | 'group_message'
     | 'heart'

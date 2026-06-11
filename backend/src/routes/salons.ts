@@ -49,6 +49,7 @@ import {
 import { resolvePlaylistVideos } from '../lib/youtubePlaylists';
 import { resolveSpotifyPlaylistTracks, SpotifyPlaylistError } from '../lib/spotifyPlaylists';
 import { notifyFavoritesSalonStarted } from '../lib/favorites';
+import { notifySalonInvite } from '../lib/notifications';
 import { normalizeSpotifyJamUrl } from '../lib/spotifyJam';
 import { getIo } from '../lib/ioInstance';
 import { getSalonConnectedParticipants } from '../lib/salonParticipants';
@@ -1004,6 +1005,50 @@ salonsRouter.delete('/:id/allowed/:userId', authenticateJWT, (req: Request, res:
   normalizeSalonAccess(salon);
   db.salons.set(salon.id, salon);
   res.json({ salon: publicSalon(salon, me) });
+});
+
+salonsRouter.post('/:id/validate-guests', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const salon = db.salons.get(req.params.id);
+  if (!salon || salon.hostId !== me) {
+    res.status(403).json({ error: 'Non autorisé' });
+    return;
+  }
+  if (salon.accessMode !== 'invite') {
+    res.status(400).json({ error: 'Le salon doit être en mode invitation' });
+    return;
+  }
+
+  const hostUser = db.users.get(me);
+  if (!hostUser) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+
+  const rawIds: unknown[] = Array.isArray(req.body?.userIds) ? req.body.userIds : [];
+  const guestIds = [
+    ...new Set(
+      rawIds.map((id) => String(id)).filter((id: string) => id !== me && db.users.has(id))
+    ),
+  ];
+
+  normalizeSalonAccess(salon);
+
+  salon.allowedUserIds = [me, ...guestIds];
+  normalizeSalonAccess(salon);
+  db.salons.set(salon.id, salon);
+
+  let invitedCount = 0;
+  for (const userId of guestIds) {
+    notifySalonInvite({
+      recipientId: userId,
+      host: { id: hostUser.id, username: hostUser.username, avatarUrl: hostUser.avatarUrl },
+      salon: { id: salon.id, title: salon.title },
+    });
+    invitedCount++;
+  }
+
+  res.json({ salon: publicSalon(salon, me), invitedCount });
 });
 
 salonsRouter.post('/', authenticateJWT, (req: Request, res: Response) => {

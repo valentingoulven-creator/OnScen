@@ -648,6 +648,13 @@ export const api = {
   removeSalonGuest: (token: string, salonId: string, userId: string) =>
     request<{ salon: import('../types').Salon }>(`/salons/${salonId}/allowed/${userId}`, { method: 'DELETE' }, token),
 
+  validateSalonGuests: (token: string, salonId: string, userIds: string[]) =>
+    request<{ salon: import('../types').Salon; invitedCount: number }>(
+      `/salons/${salonId}/validate-guests`,
+      { method: 'POST', body: JSON.stringify({ userIds }) },
+      token
+    ),
+
   getSalonQueue: (token: string, salonId: string) =>
     request<{ queue: import('../types').SalonQueueItem[] }>(`/salons/${salonId}/queue`, {}, token),
 

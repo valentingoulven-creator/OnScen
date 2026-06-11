@@ -17,6 +17,11 @@ export function normalizeSalonAccess(salon: Salon): Salon {
   return salon;
 }
 
+/** Salon ouvert à tous (accessMode public après normalisation). */
+export function isSalonPublic(salon: Salon): boolean {
+  return normalizeSalonAccess(salon).accessMode === 'public';
+}
+
 export function canJoinSalon(salon: Salon, userId: string): boolean {
   const user = db.users.get(userId);
   if (isDevUser(user)) return true;
@@ -26,9 +31,22 @@ export function canJoinSalon(salon: Salon, userId: string): boolean {
   return s.allowedUserIds.includes(userId);
 }
 
+/**
+ * Visibilité carte / globe :
+ * - public → tous les utilisateurs connectés (sauf ghost / adminBlocked)
+ * - invite → hôte + invités uniquement
+ * - dev → tout (y compris bloqué / ghost / invite)
+ */
 export function isSalonVisibleOnMap(salon: Salon, viewerId: string): boolean {
-  if (salon.adminBlocked && !isDevUser(db.users.get(viewerId))) return false;
-  if (isDevUser(db.users.get(viewerId))) return true;
+  const viewer = db.users.get(viewerId);
+  if (isDevUser(viewer)) return true;
+  if (salon.adminBlocked) return false;
   if (salon.isGhostMode) return false;
-  return canJoinSalon(salon, viewerId);
+  const host = db.users.get(salon.hostId);
+  if (host?.isGhostMode) return false;
+
+  const s = normalizeSalonAccess(salon);
+  if (s.accessMode === 'public') return true;
+  if (s.hostId === viewerId) return true;
+  return s.allowedUserIds.includes(viewerId);
 }

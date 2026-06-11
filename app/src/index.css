@@ -206,16 +206,15 @@ body {
   --app-header-salon-bar-h: 2.25rem;
 }
 
-/* Grand salon plein écran — overlay au-dessus des onglets (survit aux changements d'onglet).
-   Header Soundly masqué via ms-app-shell--salon-fullscreen (MODIF 442) ; le salon a son propre en-tête. */
+/* Grand salon plein écran — overlay sous le header Soundly fixe (MODIF 457), au-dessus des onglets. */
 .ms-salon-fullscreen-overlay {
-  isolation: isolate;
-}
-
-/* Miroir MODIF 421 (bottom) : réserve le header fixe si l'overlay s'affiche sans le masquer */
-.ms-app-shell:not(.ms-app-shell--salon-fullscreen) .ms-salon-fullscreen-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
   top: var(--app-header-total-h);
-  z-index: 110;
+  bottom: 0;
+  z-index: 60;
+  isolation: isolate;
 }
 
 /* Shell classique : réserve la barre d'onglets flottante (Reels, DM…) sous le salon */
@@ -256,6 +255,11 @@ main.ms-app-main {
   position: absolute;
   inset: 0;
   z-index: 30;
+}
+
+/* Admin plein écran — au-dessus de la barre d’onglets bas pour éviter le recouvrement du contenu */
+.ms-app-shell--bottom-tabs .ms-app-admin-overlay {
+  z-index: 55;
 }
 
 /* Shell classique : réserve la hauteur de la barre d'onglets fixe en bas */

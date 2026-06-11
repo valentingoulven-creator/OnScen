@@ -13,6 +13,7 @@ function isVisibleNotification(n: AppNotification): boolean {
     n.type === 'live_started' ||
     n.type === 'live_don' ||
     n.type === 'favorite_online' ||
+    n.type === 'salon_invite' ||
     n.type === 'dm_message' ||
     n.type === 'group_message' ||
     n.type === 'heart' ||
@@ -29,6 +30,7 @@ function shouldShowToast(n: AppNotification): boolean {
     n.type === 'live_started' ||
     n.type === 'live_don' ||
     n.type === 'favorite_online' ||
+    n.type === 'salon_invite' ||
     n.type === 'heart' ||
     n.type === 'content_heart' ||
     n.type === 'follow' ||
@@ -46,6 +48,10 @@ function opensProfileFromNotification(n: AppNotification): boolean {
     n.type === 'event_created' ||
     n.type === 'mention'
   );
+}
+
+function isSalonRelatedNotification(n: AppNotification): boolean {
+  return n.type === 'favorite_online' || n.type === 'salon_invite';
 }
 
 const NOTIF_VIEWED_LS_PREFIX = 'soundy:notifications-viewed:';
@@ -76,6 +82,8 @@ function notificationEmoji(n: AppNotification): string {
       return '💝';
     case 'favorite_online':
       return '⭐';
+    case 'salon_invite':
+      return '🎵';
     case 'mention':
       return '📣';
     case 'group_message':
@@ -201,7 +209,7 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
                     ? 6000
                     : n.type === 'live_don'
                       ? 5000
-                      : n.type === 'favorite_online'
+                      : isSalonRelatedNotification(n)
                         ? 5500
                         : 4000;
         window.setTimeout(() => setToast(null), toastMs);
@@ -219,7 +227,7 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
   const isMatchToast = toast?.type === 'match';
   const isLiveToast = toast?.type === 'live_started';
   const isDonToast = toast?.type === 'live_don';
-  const isFavToast = toast?.type === 'favorite_online';
+  const isSalonToast = toast ? isSalonRelatedNotification(toast) : false;
   const isDmToast = toast?.type === 'dm_message';
   const isGroupToast = toast?.type === 'group_message';
   const isHeartToast = toast?.type === 'heart';
@@ -254,7 +262,7 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
       setOpen(false);
       return;
     }
-    if (n.type === 'favorite_online') {
+    if (isSalonRelatedNotification(n)) {
       if (n.salonId && onOpenSalon) {
         onOpenSalon(n.salonId);
         setToast(null);
@@ -300,7 +308,7 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
                         ? 'bg-gradient-to-r from-red-950/90 to-purple-950/90 border border-red-400/50'
                         : isDonToast
                           ? 'bg-gradient-to-r from-amber-950/90 to-pink-950/90 border border-amber-400/50'
-                          : isFavToast
+                          : isSalonToast
                             ? 'bg-gradient-to-r from-yellow-950/90 to-purple-950/90 border border-yellow-500/50'
                             : isMentionToast
                               ? 'bg-gradient-to-r from-cyan-950/90 to-purple-950/90 border border-cyan-400/50'
@@ -313,7 +321,7 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
               ((isMatchToast || isHeartToast || isContentHeartToast || isFollowToast || isEventCreatedToast || isMentionToast) &&
                 onOpenProfile) ||
               ((isLiveToast || isDonToast) && toast.liveId && onOpenLive) ||
-              (isFavToast && (toast.salonId || toast.liveId || onOpenProfile))
+              (isSalonToast && (toast.salonId || toast.liveId || onOpenProfile))
                 ? 'cursor-pointer active:scale-[0.99]'
                 : ''
             }`}
@@ -338,7 +346,7 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
                             ? 'text-red-200'
                             : isDonToast
                               ? 'text-amber-200'
-                              : isFavToast
+                              : isSalonToast
                                 ? 'text-yellow-200'
                                 : isMentionToast
                                   ? 'text-cyan-300'
@@ -359,7 +367,7 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
                             ? 'En live !'
                             : isDonToast
                               ? 'Don reçu !'
-                              : isFavToast
+                              : isSalonToast
                                 ? 'Favori en ligne !'
                                 : isMentionToast
                                   ? 'Vous avez été mentionné !'
@@ -386,7 +394,7 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
                           ? '🔴'
                           : isDonToast
                             ? '💝'
-                            : isFavToast
+                            : isSalonToast
                               ? '⭐'
                               : isMentionToast
                                 ? '📣'
@@ -474,7 +482,7 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
                         ? !onOpenDm
                         : opensProfileFromNotification(n)
                           ? !onOpenProfile
-                          : n.type === 'favorite_online'
+                          : isSalonRelatedNotification(n)
                             ? !(n.salonId || n.liveId || onOpenProfile)
                             : (n.type !== 'live_started' && n.type !== 'live_don') || !n.liveId || !onOpenLive
                   }
@@ -492,7 +500,7 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
                                 ? 'bg-red-950/25'
                                 : n.type === 'live_don'
                                   ? 'bg-pink-950/25'
-                                  : n.type === 'favorite_online'
+                                  : isSalonRelatedNotification(n)
                                     ? 'bg-yellow-950/20'
                                     : n.type === 'mention'
                                       ? 'bg-cyan-950/20'
@@ -505,7 +513,7 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
                     (n.type === 'group_message' && onOpenGroup) ||
                     (opensProfileFromNotification(n) && onOpenProfile) ||
                     ((n.type === 'live_started' || n.type === 'live_don') && n.liveId && onOpenLive) ||
-                    (n.type === 'favorite_online' && (n.salonId || n.liveId || onOpenProfile))
+                    (isSalonRelatedNotification(n) && (n.salonId || n.liveId || onOpenProfile))
                       ? n.type === 'match'
                         ? 'hover:bg-purple-950/30 cursor-pointer'
                         : n.type === 'heart' || n.type === 'content_heart'
@@ -516,7 +524,7 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
                               ? 'hover:bg-emerald-950/20 cursor-pointer'
                               : n.type === 'live_don'
                                 ? 'hover:bg-pink-950/20 cursor-pointer'
-                                : n.type === 'favorite_online'
+                                : isSalonRelatedNotification(n)
                                   ? 'hover:bg-yellow-950/20 cursor-pointer'
                                   : n.type === 'mention'
                                     ? 'hover:bg-cyan-950/20 cursor-pointer'

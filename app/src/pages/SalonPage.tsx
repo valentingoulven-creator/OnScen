@@ -74,6 +74,8 @@ export function SalonPage({
   const [endingSalon, setEndingSalon] = useState(false);
 
   const [accessSaving, setAccessSaving] = useState(false);
+  const [validatingGuests, setValidatingGuests] = useState(false);
+  const [pendingGuestIds, setPendingGuestIds] = useState<Set<string>>(new Set());
   const [skipping, setSkipping] = useState(false);
   const [chatHidden, setChatHidden] = useState(() => window.innerWidth < 640);
   const [chatMinimized, setChatMinimized] = useState(false);
@@ -115,6 +117,11 @@ export function SalonPage({
     loadSalon();
     if (token) api.getDmContacts(token).then((r) => setContacts(r.contacts));
   }, [loadSalon, token]);
+
+  useEffect(() => {
+    if (!salon?.allowedUserIds) return;
+    setPendingGuestIds(new Set(salon.allowedUserIds.filter((id) => id !== salon.hostId)));
+  }, [salon?.id, salon?.hostId, salon?.allowedUserIds]);
 
   useEffect(() => {
     if (salon?.title) onSalonLoaded?.(salon.title);
@@ -258,32 +265,41 @@ export function SalonPage({
 
 
 
-  const toggleGuest = async (userId: string, add: boolean) => {
+  const togglePendingGuest = (userId: string, checked: boolean) => {
+    setPendingGuestIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(userId);
+      else next.delete(userId);
+      return next;
+    });
+  };
 
-    if (!token || !salon) return;
-
-    if (!add) {
-      const guest = contacts.find((c) => c.id === userId);
-      const name = guest?.username ?? 'cette personne';
-      if (!window.confirm(`Retirer ${name} de la liste des invités autorisés ?`)) return;
-    }
-
+  const validateGuests = async () => {
+    if (!token || !salon || salon.accessMode !== 'invite') return;
+    setValidatingGuests(true);
     try {
-
-      const { salon: updated } = add
-
-        ? await api.addSalonGuest(token, salon.id, userId)
-
-        : await api.removeSalonGuest(token, salon.id, userId);
-
+      const { salon: updated, invitedCount } = await api.validateSalonGuests(
+        token,
+        salon.id,
+        [...pendingGuestIds]
+      );
       setSalon(updated);
-
+      setPendingGuestIds(new Set(updated.allowedUserIds?.filter((id) => id !== salon.hostId) ?? []));
+      if (invitedCount > 0) {
+        setToastMsg(
+          t('salon.accessInvitesSent', {
+            count: invitedCount,
+            defaultValue: `Invitations envoyées à ${invitedCount} personne(s)`,
+          })
+        );
+      } else {
+        setToastMsg(t('salon.accessValidated', { defaultValue: 'Accès mis à jour' }));
+      }
     } catch (e) {
-
       setToastMsg(e instanceof Error ? e.message : 'Erreur');
-
+    } finally {
+      setValidatingGuests(false);
     }
-
   };
 
   const isHost = Boolean(salon && (salon.isHost ?? salon.hostId === user?.id));
@@ -378,16 +394,7 @@ export function SalonPage({
   if (!salon) {
     return (
       <div className="h-full flex flex-col min-h-0 bg-[#0b0b0f] overflow-hidden">
-        <header className="relative z-30 shrink-0 flex items-center gap-2 px-3 pb-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] border-b border-[#1e1e2f]">
-          <button
-            type="button"
-            onClick={handleMinimizeSalon}
-            className="text-gray-400 hover:text-white text-xl shrink-0"
-            aria-label="Réduire le salon"
-            title="Réduire le salon"
-          >
-            ←
-          </button>
+        <header className="relative z-30 shrink-0 flex items-center gap-2 px-3 py-2.5 border-b border-[#1e1e2f]">
           {minimizeSalonButton}
           <p className="flex-1 min-w-0 text-sm text-gray-400 truncate">
             {loadError
@@ -433,8 +440,6 @@ export function SalonPage({
       </div>
     );
   }
-
-  const allowedSet = new Set(salon.allowedUserIds ?? []);
 
   const playback = salon.playbackState;
 
@@ -660,18 +665,28 @@ export function SalonPage({
             </button>
           </div>
           {salon.accessMode === 'invite' && (
-            <div className="max-h-32 overflow-y-auto space-y-1">
-              <p className="text-[10px] text-gray-500 mb-1">Personnes autorisées :</p>
-              {contacts.map((c) => (
-                <label key={c.id} className="flex items-center gap-2 text-sm text-white">
-                  <input
-                    type="checkbox"
-                    checked={allowedSet.has(c.id)}
-                    onChange={(e) => toggleGuest(c.id, e.target.checked)}
-                  />
-                  {c.username}
-                </label>
-              ))}
+            <div className="space-y-3">
+              <div className="max-h-32 overflow-y-auto space-y-1">
+                <p className="text-[10px] text-gray-500 mb-1">Personnes autorisées :</p>
+                {contacts.map((c) => (
+                  <label key={c.id} className="flex items-center gap-2 text-sm text-white">
+                    <input
+                      type="checkbox"
+                      checked={pendingGuestIds.has(c.id)}
+                      onChange={(e) => togglePendingGuest(c.id, e.target.checked)}
+                    />
+                    {c.username}
+                  </label>
+                ))}
+              </div>
+              <button
+                type="button"
+                disabled={validatingGuests || accessSaving}
+                onClick={() => void validateGuests()}
+                className="w-full py-2.5 rounded-lg text-xs font-bold bg-[#42426a] text-white hover:bg-[#52527a] disabled:opacity-50 transition"
+              >
+                {validatingGuests ? 'Envoi…' : 'Validé'}
+              </button>
             </div>
           )}
         </section>
@@ -727,19 +742,8 @@ export function SalonPage({
           </div>
         </div>
       )}
-      <header className="relative z-30 shrink-0 flex items-center gap-2 sm:gap-3 px-3 pb-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] border-b border-[#1e1e2f] min-w-0">
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            type="button"
-            onClick={handleMinimizeSalon}
-            className="text-gray-400 hover:text-white text-xl shrink-0"
-            aria-label="Réduire le salon"
-            title="Réduire le salon"
-          >
-            ←
-          </button>
-          {minimizeSalonButton}
-        </div>
+      <header className="relative z-30 shrink-0 flex items-center gap-2 sm:gap-3 px-3 py-2.5 border-b border-[#1e1e2f] min-w-0">
+        {minimizeSalonButton}
         <img
           src={playback.albumArtUrl}
           alt=""

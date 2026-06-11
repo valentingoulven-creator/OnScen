@@ -102,12 +102,14 @@ geoRouter.get('/nearby', authenticateJWT, (req: Request, res: Response) => {
           : { latitude: s.blurredLatitude, longitude: s.blurredLongitude };
       return {
         salon: s,
+        coords,
         distanceKm: getDistanceKm(lat, lon, coords.latitude, coords.longitude),
       };
     })
     .filter(
-      ({ distanceKm, salon: s }) =>
-        withinRadius(distanceKm) && isValidLatLng(s.latitude, s.longitude)
+      ({ distanceKm, coords }) =>
+        withinRadius(distanceKm) &&
+        isValidLatLng(coords.latitude, coords.longitude)
     )
     .sort((a, b) => a.distanceKm - b.distanceKm)
     .slice(0, limits.maxSalons)

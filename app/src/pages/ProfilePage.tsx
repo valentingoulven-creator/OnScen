@@ -88,6 +88,7 @@ interface ProfilePageProps {
   onBack?: () => void;
   onOpenReel?: (reelId: string) => void;
   onOpenProfile?: (userId: string) => void;
+  onOpenSalon?: (salonId: string, salonTitle?: string) => void;
   /** À l’ouverture : Mes reels + enregistreur (ex. depuis profil carte). */
   openRecorderOnMount?: boolean;
   onRecorderMountHandled?: () => void;
@@ -97,6 +98,7 @@ export function ProfilePage({
   onBack,
   onOpenReel,
   onOpenProfile,
+  onOpenSalon,
   openRecorderOnMount = false,
   onRecorderMountHandled,
 }: ProfilePageProps) {
@@ -261,7 +263,15 @@ export function ProfilePage({
   if (!user || !token) return null;
 
   if (showAdmin) {
-    return <AdminPage onBack={() => setShowAdmin(false)} />;
+    return (
+      <AdminPage
+        onBack={() => setShowAdmin(false)}
+        onOpenSalon={(salonId, salonTitle) => {
+          setShowAdmin(false);
+          onOpenSalon?.(salonId, salonTitle);
+        }}
+      />
+    );
   }
 
   if (showSettings) {

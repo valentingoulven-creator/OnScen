@@ -7929,3 +7929,279 @@ lives et événements avec détails, créateur, blocage et suppression.
 ================================================================================
 Fin MODIF 451 - 2026-06-11
 ================================================================================
+
+================================================================================
+MODIF 452 — Admin contenu : bouton « Salon » pour entrer dans un salon
+================================================================================
+Date : 2026-06-11
+
+## Contexte
+Dans Admin → Contenu → Salons, les admins/dev doivent pouvoir ouvrir n’importe
+quel salon (public ou sur invitation, y compris bloqué côté modération) sans
+passer par la carte ni une invitation.
+
+## Backend
+Aucun changement — déjà en place (MODIF 449 / 451) :
+- `canJoinSalon` : bypass `isDevUser` (comptes `isAccessAdmin`)
+- `assertSalonAccessible` : salons `adminBlocked` visibles aux dev
+- Socket `join_salon` : même bypass via `canJoinSalon`
+
+## Frontend
+- `AdminContentTab` : bouton **Salon** sur les lignes salon (section développée)
+- Prop `onOpenSalon(salonId, salonTitle?)` remontée via `AdminPage`
+- `App.tsx` : fermeture overlay admin + `openSalonPage` (session plein écran)
+- `ProfilePage` : même callback si admin ouvert depuis le profil
+- i18n `admin.content.enterSalon` (fr/en : « Salon »)
+
+## Flux navigation
+1. Clic **Salon** sur une ligne
+2. `setAdminOpen(false)` (ou `setShowAdmin(false)` depuis profil)
+3. `openSalonPage(id, title)` → `activeSalonSession` viewMode `full`
+4. Overlay `SalonPage` + URL `/salon/:id` ; socket membership via hook existant
+
+## Fichiers
+- app/src/pages/AdminContentTab.tsx
+- app/src/pages/AdminPage.tsx
+- app/src/App.tsx
+- app/src/pages/ProfilePage.tsx
+- app/src/locales/fr.json, en.json
+
+## Test
+  cd app && npm run build
+
+## Déploiement
+**Oui** — rebuild app (assets statiques backend/public). Pas de redémarrage
+backend requis (aucun changement serveur).
+
+================================================================================
+Fin MODIF 452 - 2026-06-11
+================================================================================
+
+================================================================================
+MODIF 453 — Admin contenu : ajustement layout overlay et cartes salon
+================================================================================
+Date : 2026-06-11
+
+## Contexte
+Dans Admin → Contenu, la liste et les actions apparaissaient partiellement
+masquées sous la barre d’onglets bas (z-index) ou nécessitaient un scroll
+incorrect (`min-h-dvh` dans l’overlay). Les boutons d’action salon n’étaient
+visibles qu’après expansion.
+
+## Frontend
+- `AdminPage` : `h-full min-h-0 overflow-hidden` (suppression `min-h-dvh`) ;
+  header fixe hors zone scroll ; padding bas `var(--tab-nav-total-h)` sur le
+  conteneur scrollable
+- `App.tsx` + `index.css` : classe `ms-app-admin-overlay`, z-index 55 au-dessus
+  des onglets bas quand admin ouvert
+- `AdminContentTab` : bouton **Salon** visible sur chaque ligne (sans expansion) ;
+  chevrons expand/collapse ; grille 2 colonnes pour actions mobile ; Salon
+  mis en avant dans la rangée d’actions développée
+
+## Fichiers
+- app/src/pages/AdminPage.tsx
+- app/src/pages/AdminContentTab.tsx
+- app/src/App.tsx
+- app/src/index.css
+
+## Test
+  cd app && npm run build
+
+## Déploiement
+**Oui** — rebuild app (assets statiques backend/public).
+
+================================================================================
+Fin MODIF 453 - 2026-06-11
+================================================================================
+
+================================================================================
+MODIF 454 — Salon : bouton « Validé » (Gérer l'accès)
+================================================================================
+Date : 2026-06-11
+
+## Contexte
+Dans le panneau hôte, section « Gérer l'accès » (mode invitation), les cases
+à cocher sélectionnent des contacts sans envoyer d'invitation immédiatement.
+Un bouton « Validé » enregistre la liste et notifie les invités.
+
+## Frontend
+- `SalonPage` : état local `pendingGuestIds` (cases à cocher) ; bouton **Validé**
+  en bas de la section ; toast succès i18n
+- `api.validateSalonGuests` → POST `/salons/:id/validate-guests`
+- `NotificationBell` : type `salon_invite` (toast + clic → ouvrir le salon)
+- i18n : `salon.accessValidated`, `salon.accessInvitesSent`
+
+## Backend
+- POST `/salons/:id/validate-guests` (hôte uniquement, mode invite)
+  - body `{ userIds: string[] }` → sync `allowedUserIds`
+  - notification in-app `salon_invite` via socket (`pushNotification`)
+- `notifySalonInvite` dans `notifications.ts`
+- Type `salon_invite` dans le schéma
+
+## Mécanisme d'invitation
+Notification in-app temps réel (socket `notification`) avec `salonId` ;
+clic ouvre le salon. Pas de push Web Push / DM automatique (aligné
+`favorite_online`).
+
+## Fichiers
+- app/src/pages/SalonPage.tsx
+- app/src/lib/api.ts
+- app/src/types.ts
+- app/src/components/NotificationBell.tsx
+- app/src/locales/fr.json, en.json
+- backend/src/routes/salons.ts
+- backend/src/lib/notifications.ts
+- backend/src/models/schema.ts
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npm run build
+
+## Déploiement
+**Oui** — backend + rebuild app (assets backend/public).
+
+================================================================================
+Fin MODIF 454 - 2026-06-11
+================================================================================
+
+================================================================================
+MODIF 455 — Salons publics visibles par tous (carte + globe)
+================================================================================
+Date : 2026-06-11
+
+## Contexte
+Les salons **publics** doivent apparaître pour **tous** les utilisateurs
+connectés sur la carte (Leaflet) et le globe — pas seulement l’hôte ou le
+compte dev. Les salons **sur invitation** restent visibles uniquement pour
+l’hôte et les invités.
+
+## Cause racine
+1. **Backend** : `isSalonVisibleOnMap` s’appuyait sur `canJoinSalon` sans
+   distinguer explicitement public vs invite ; pas de prise en compte du mode
+   fantôme **hôte** (salon encore visible si l’hôte passe en ghost après création).
+2. **API `/geo/nearby`** : filtrage coordonnées sur `salon.latitude` brute au
+   lieu des coords publiques (`getPublicMapCoords`) — risque d’exclure des salons
+   valides côté carte.
+3. **Frontend** : le filtre **Salon** ne déclenchait pas de rechargement
+   `/geo/nearby` au pan/zoom (contrairement au filtre Lives) ; le panneau latéral
+   utilisait `mapSalons` (filtré distance/people) au lieu de `mapSalonsForView`
+   (publics dans le viewport). Globe : pas de reload nearby en vue overview
+   avec filtre Salon actif.
+
+## Backend
+- `salonAccess.ts` : `isSalonPublic`, `isSalonVisibleOnMap` refondu
+  (public → tous ; invite → hôte + allowedUserIds ; ghost hôte/salon ;
+  adminBlocked sauf dev)
+- `geo.ts` : validation lat/lng sur coords publiques retournées à la carte
+- `salonAccess.test.ts` : tests visibilité public / invite / ghost / dev
+
+## Frontend
+- `HomePage.tsx` : `mapFilterViewportOn` (Lives ∪ Salon) — reload nearby au
+  toggle Salon, pan carte, rotation globe (overview inclus si filtre Salon ON) ;
+  sidebar alimentée par `mapSalonsForView`
+
+## Comportement après fix
+- Filtre **Salon** ON : marqueurs 🎵 des salons **publics** dans la zone visible
+  (carte plate + globe), pour tout utilisateur connecté.
+- Salons invite : visibles carte/globe **uniquement** pour hôte et invités.
+- Ghost / adminBlocked : masqués pour le public (dev voit tout).
+
+## Fichiers
+- backend/src/lib/salonAccess.ts
+- backend/src/lib/salonAccess.test.ts
+- backend/src/routes/geo.ts
+- app/src/pages/HomePage.tsx
+
+## Test
+  cd backend && npx tsc --noEmit && npx vitest run src/lib/salonAccess.test.ts
+  cd app && npm run build
+
+## Déploiement
+**Oui** — redémarrage backend + rebuild app (assets backend/public).
+
+================================================================================
+Fin MODIF 455 - 2026-06-11
+================================================================================
+
+================================================================================
+MODIF 456 — Salon plein écran : supprimer flèche ← dupliquée
+================================================================================
+Date : 2026-06-11
+
+## Problème
+Dans le header du salon plein écran (`SalonPage`), la flèche ← et le chevron ↓
+appelaient tous deux `handleMinimizeSalon` — doublon visuel et fonctionnel.
+
+## Correctif
+- `SalonPage.tsx` :
+  - Suppression du bouton ← (état chargement + header principal).
+  - Conservation du seul chevron ↓ (`minimizeSalonButton`) → `onMinimizeToMap` /
+    `viewMode: 'minimized'`, overlay fermé, barre retour salon (MODIF 421).
+  - Quitter / arrêter le salon inchangés (`onLeaveSalon`, bouton hôte « Arrêter »).
+
+## Fichiers
+- app/src/pages/SalonPage.tsx
+- modification.txt
+
+## Test
+  cd app && npm run build
+  1. Salon plein écran → un seul bouton ↓ en haut à gauche.
+  2. Clic ↓ → `viewMode: 'minimized'`, overlay fermé, onglet Carte + fiche salon.
+  3. « Quitter le salon » / « Arrêter » → `leaveActiveSalonSession` (pas minimiser).
+
+================================================================================
+Fin MODIF 456 - 2026-06-11
+================================================================================
+
+================================================================================
+MODIF 457 — Header Soundly visible en salon et live plein écran
+================================================================================
+Date : 2026-06-11
+
+## Problème
+MODIF 442 masquait `header.ms-app-header` (logo Soundly, recherche, admin,
+fantôme, notifications, profil) quand le salon était en overlay plein écran
+(`salonFullScreen` / `ms-app-shell--salon-fullscreen` + `ms-app-main--no-header`).
+
+## Comportement cible
+- Header app **toujours visible** (salon plein écran, live, profil, onglets).
+- Contenu salon/live **sous** le header fixe (z-index 100), pas en dessous.
+- En-tête interne salon (chevron ↓, titre) reste sous le header app.
+- Onglets bas + chip salon minimisé inchangés.
+
+## Correctifs
+- `App.tsx` :
+  - Suppression condition `{!salonFullScreen && (…header…)}`.
+  - Suppression `ms-app-shell--salon-fullscreen` et `ms-app-main--no-header`.
+  - Overlay salon : positionnement via CSS (plus `absolute inset-0` plein viewport).
+- `index.css` :
+  - `.ms-salon-fullscreen-overlay` : `top: var(--app-header-total-h)`, `z-index: 60`
+    (sous header z-100), `bottom: 0` ; shell bottom-tabs réserve toujours les onglets.
+  - Suppression règle `:not(.ms-app-shell--salon-fullscreen)`.
+- `SalonPage.tsx` :
+  - En-tête salon : retrait `pt-[max(0.75rem,env(safe-area-inset-top))]` (safe-area
+    gérée par le header app).
+
+## Live
+LivePage déjà dans `main.ms-app-main` avec padding-top header (MODIF 314) ;
+aucun masquage conditionnel — header reste visible.
+
+## Fichiers
+- app/src/App.tsx
+- app/src/index.css
+- app/src/pages/SalonPage.tsx
+- modification.txt
+
+## Test
+  cd app && npm run build
+  1. Salon plein écran → header Soundly visible ; contenu salon sous le header.
+  2. Minimiser (↓) → chip + barre retour ; header inchangé.
+  3. Ouvrir un live → header visible ; en-tête live sous header app.
+  4. Changer onglet en salon plein écran → header + overlay salon conservés.
+
+## Déploiement
+**Oui** — rebuild app (assets backend/public).
+
+================================================================================
+Fin MODIF 457 - 2026-06-11
+================================================================================

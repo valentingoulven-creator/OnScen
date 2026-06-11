@@ -179,6 +179,24 @@ export function notifyContentHeartReceived(params: {
   });
 }
 
+export function notifySalonInvite(params: {
+  recipientId: string;
+  host: { id: string; username: string; avatarUrl?: string };
+  salon: { id: string; title: string };
+}): void {
+  if (params.recipientId === params.host.id) return;
+  pushNotification({
+    recipientId: params.recipientId,
+    senderId: params.host.id,
+    senderName: params.host.username,
+    senderAvatarUrl: params.host.avatarUrl,
+    type: 'salon_invite',
+    message: `${params.host.username} vous invite à rejoindre « ${params.salon.title} » 🎵`,
+    salonId: params.salon.id,
+    peerUserId: params.host.id,
+  });
+}
+
 export function notifyEventCreated(params: {
   creator: { id: string; username: string; avatarUrl?: string };
   postId: string;

@@ -272,6 +272,10 @@ export function HomePage({
   ]);
   const nearbyFetchCenterRef = useRef<[number, number]>([...DEFAULT_CENTER]);
   const livesFilterWasOnRef = useRef(false);
+  const salonFilterWasOnRef = useRef(false);
+  const pendingMapFilterNearbyReloadRef = useRef(false);
+  const lastGlobeNearbyRef = useRef<{ lat: number; lon: number } | null>(null);
+  const mapFilterViewportNearbyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [mapDetailState, setMapDetailState] = useState<MapViewDetailState>(() => ({
     tier: getFlatMapDetailTier(14),
@@ -426,6 +430,8 @@ export function HomePage({
   const salonFilterOn = showSalonMarkers;
   const eventsFilterOn = showEventMarkers;
   const anyMapFilterActive = livesFilterOn || salonFilterOn || eventsFilterOn;
+  /** Rechargement nearby au centre viewport (carte / globe). */
+  const mapFilterViewportOn = livesFilterOn || salonFilterOn;
 
   /**
    * Quand un filtre est actif, forcer l'affichage du point de géolocalisation
@@ -541,7 +547,7 @@ export function HomePage({
         mapEvents: filteredMapEvents,
         eventClusters: mapEventClusters,
         lives: mapLives,
-        salons: mapSalons,
+        salons: mapSalonsForView,
         people: mapPeople,
         favoriteIds,
         nearbyFetchCenter,
@@ -556,7 +562,7 @@ export function HomePage({
       filteredMapEvents,
       mapEventClusters,
       mapLives,
-      mapSalons,
+      mapSalonsForView,
       mapPeople,
       favoriteIds,
       nearbyFetchCenter,
@@ -657,7 +663,12 @@ export function HomePage({
   }, [nearbyPanelPrefs.livesOnly]);
 
   const toggleSalonFilter = useCallback(() => {
-    setShowSalonMarkers((on) => !on);
+    setShowSalonMarkers((on) => {
+      if (!on) {
+        pendingMapFilterNearbyReloadRef.current = true;
+      }
+      return !on;
+    });
   }, []);
 
   const disableEventsFilter = useCallback(() => {
@@ -995,18 +1006,14 @@ export function HomePage({
     programmaticMapMoveUntilRef.current = Date.now() + 900;
   }, [center]);
 
-  /** Rechargement nearby en attente (filtre Lives ON avant bounds / globe prêts). */
-  const pendingLivesNearbyReloadRef = useRef(false);
-  const lastGlobeNearbyRef = useRef<{ lat: number; lon: number } | null>(null);
-  const livesViewportNearbyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+  /** Rechargement nearby en attente (filtre Lives/Salon ON avant bounds / globe prêts). */
   const loadNearbyViewportDebounced = useCallback(
     (coords: [number, number]) => {
-      if (livesViewportNearbyDebounceRef.current) {
-        clearTimeout(livesViewportNearbyDebounceRef.current);
+      if (mapFilterViewportNearbyDebounceRef.current) {
+        clearTimeout(mapFilterViewportNearbyDebounceRef.current);
       }
-      livesViewportNearbyDebounceRef.current = setTimeout(() => {
-        livesViewportNearbyDebounceRef.current = null;
+      mapFilterViewportNearbyDebounceRef.current = setTimeout(() => {
+        mapFilterViewportNearbyDebounceRef.current = null;
         loadNearbyAt(coords, { updateUserGeo: false, silent: true });
       }, LIVES_VIEWPORT_NEARBY_DEBOUNCE_MS);
     },
@@ -1015,13 +1022,13 @@ export function HomePage({
 
   useEffect(() => {
     return () => {
-      if (livesViewportNearbyDebounceRef.current) {
-        clearTimeout(livesViewportNearbyDebounceRef.current);
+      if (mapFilterViewportNearbyDebounceRef.current) {
+        clearTimeout(mapFilterViewportNearbyDebounceRef.current);
       }
     };
   }, []);
 
-  const resolveLivesNearbyQueryCenter = useCallback((): [number, number] | null => {
+  const resolveMapFilterNearbyQueryCenter = useCallback((): [number, number] | null => {
     if (mapDetailState.mapStyle === 'flat' && mapDetailState.bounds) {
       return getMapBoundsCenter(mapDetailState.bounds);
     }
@@ -1032,31 +1039,38 @@ export function HomePage({
   }, [mapDetailState.mapStyle, mapDetailState.bounds, center]);
 
   useEffect(() => {
-    if (livesFilterOn) {
-      pendingLivesNearbyReloadRef.current = true;
+    if (mapFilterViewportOn) {
+      pendingMapFilterNearbyReloadRef.current = true;
       return;
     }
-    pendingLivesNearbyReloadRef.current = false;
+    pendingMapFilterNearbyReloadRef.current = false;
     lastGlobeNearbyRef.current = null;
-  }, [livesFilterOn]);
+  }, [mapFilterViewportOn]);
 
-  /** Filtre Lives ON : recharger nearby dès que le centre requête est connu (flat ou globe). */
+  /** Filtre Lives/Salon ON : recharger nearby dès que le centre requête est connu (flat ou globe). */
   useEffect(() => {
-    if (!isActive || !livesFilterOn || !token || !pendingLivesNearbyReloadRef.current) return;
-    const queryCenter = resolveLivesNearbyQueryCenter();
+    if (!isActive || !mapFilterViewportOn || !token || !pendingMapFilterNearbyReloadRef.current) return;
+    const queryCenter = resolveMapFilterNearbyQueryCenter();
     if (!queryCenter) return;
-    pendingLivesNearbyReloadRef.current = false;
+    pendingMapFilterNearbyReloadRef.current = false;
     loadNearbyAt(queryCenter, { updateUserGeo: false });
     if (mapDetailState.mapStyle === 'globe') {
       lastGlobeNearbyRef.current = { lat: queryCenter[0], lon: queryCenter[1] };
     }
-  }, [isActive, livesFilterOn, mapDetailState, token, loadNearbyAt, resolveLivesNearbyQueryCenter]);
+  }, [
+    isActive,
+    mapFilterViewportOn,
+    mapDetailState,
+    token,
+    loadNearbyAt,
+    resolveMapFilterNearbyQueryCenter,
+  ]);
 
-  /** Filtre Lives : recharger nearby au centre viewport (carte plate, sans updateGeo). */
+  /** Filtre Lives/Salon : recharger nearby au centre viewport (carte plate, sans updateGeo). */
   useEffect(() => {
-    if (!isActive || !livesFilterOn || !token) return;
+    if (!isActive || !mapFilterViewportOn || !token) return;
     if (mapDetailState.mapStyle !== 'flat' || !mapDetailState.bounds) return;
-    if (pendingLivesNearbyReloadRef.current) return;
+    if (pendingMapFilterNearbyReloadRef.current) return;
     if (Date.now() < programmaticMapMoveUntilRef.current) return;
 
     const viewportCenter = getMapBoundsCenter(mapDetailState.bounds);
@@ -1076,14 +1090,17 @@ export function HomePage({
     }
 
     loadNearbyViewportDebounced(viewportCenter);
-  }, [isActive, livesFilterOn, mapDetailState, token, loadNearbyViewportDebounced]);
+  }, [isActive, mapFilterViewportOn, mapDetailState, token, loadNearbyViewportDebounced]);
 
-  /** Filtre Lives + globe : recharger nearby quand l'utilisateur tourne/zoom le globe (zoom ville). */
+  /** Filtre Lives/Salon + globe : recharger nearby quand l'utilisateur tourne/zoom le globe. */
   const handleGlobePovChange = useCallback(
     (lat: number, lng: number, altitude: number) => {
-      if (!livesFilterOn || !token || altitude >= GLOBE_ALTITUDE_CITY_MAX) return;
+      if (!mapFilterViewportOn || !token) return;
       if (!isValidLatLng(lat, lng)) return;
       if (Date.now() < programmaticMapMoveUntilRef.current) return;
+
+      const atOverview = altitude >= GLOBE_ALTITUDE_CITY_MAX;
+      if (atOverview && !salonFilterOn) return;
 
       const prev = lastGlobeNearbyRef.current;
       const radiusKm = getNearbyRadiusKm();
@@ -1096,7 +1113,7 @@ export function HomePage({
       lastGlobeNearbyRef.current = { lat, lon: lng };
       loadNearbyViewportDebounced([lat, lng]);
     },
-    [livesFilterOn, token, loadNearbyViewportDebounced]
+    [mapFilterViewportOn, salonFilterOn, token, loadNearbyViewportDebounced]
   );
 
   /** Désactivation filtre Lives : revenir aux données GPS / centre carte. */
@@ -1108,8 +1125,24 @@ export function HomePage({
     }
     if (!livesFilterWasOnRef.current || !token) return;
     livesFilterWasOnRef.current = false;
-    loadNearbyFromState(userPosition, center);
-  }, [isActive, livesFilterOn, token, userPosition, center, loadNearbyFromState]);
+    if (!salonFilterOn) {
+      loadNearbyFromState(userPosition, center);
+    }
+  }, [isActive, livesFilterOn, salonFilterOn, token, userPosition, center, loadNearbyFromState]);
+
+  /** Désactivation filtre Salon : revenir aux données GPS / centre carte si Lives off. */
+  useEffect(() => {
+    if (!isActive) return;
+    if (salonFilterOn) {
+      salonFilterWasOnRef.current = true;
+      return;
+    }
+    if (!salonFilterWasOnRef.current || !token) return;
+    salonFilterWasOnRef.current = false;
+    if (!livesFilterOn) {
+      loadNearbyFromState(userPosition, center);
+    }
+  }, [isActive, salonFilterOn, livesFilterOn, token, userPosition, center, loadNearbyFromState]);
 
   const recenterLabel = isFixedMapGeoSource(mapGeo.source)
     ? `Recentrer sur ${mapGeo.label}`

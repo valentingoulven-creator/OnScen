@@ -10,9 +10,10 @@ type AdminTab = 'accounts' | 'access' | 'content' | 'analytics';
 interface AdminPageProps {
   onBack?: () => void;
   initialTab?: AdminTab;
+  onOpenSalon?: (salonId: string, salonTitle?: string) => void;
 }
 
-export function AdminPage({ onBack, initialTab = 'accounts' }: AdminPageProps) {
+export function AdminPage({ onBack, initialTab = 'accounts', onOpenSalon }: AdminPageProps) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<AdminTab>(initialTab);
 
@@ -24,8 +25,8 @@ export function AdminPage({ onBack, initialTab = 'accounts' }: AdminPageProps) {
   ];
 
   return (
-    <div className="flex flex-col h-full min-h-dvh bg-[#0b0b0f] text-white">
-      <header className="sticky top-0 z-10 bg-[#0b0b0f]/95 border-b border-[#1e1e2f] px-4 py-3">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden bg-[#0b0b0f] text-white">
+      <header className="shrink-0 z-10 bg-[#0b0b0f]/95 border-b border-[#1e1e2f] px-4 py-3">
         <div className="flex items-center gap-3 max-w-lg mx-auto">
           {onBack && (
             <button type="button" onClick={onBack} className="text-purple-400 text-sm shrink-0">
@@ -35,7 +36,7 @@ export function AdminPage({ onBack, initialTab = 'accounts' }: AdminPageProps) {
           <h1 className="text-lg font-bold flex-1">{t('admin.title')}</h1>
         </div>
         <nav
-          className="flex gap-1 mt-3 max-w-lg mx-auto overflow-x-auto"
+          className="flex gap-1 mt-3 max-w-lg mx-auto overflow-x-auto pb-0.5"
           aria-label={t('admin.title')}
         >
           {tabs.map((item) => (
@@ -55,10 +56,10 @@ export function AdminPage({ onBack, initialTab = 'accounts' }: AdminPageProps) {
         </nav>
       </header>
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 max-w-lg mx-auto w-full">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 max-w-lg mx-auto w-full pb-[calc(var(--tab-nav-total-h)+1rem)]">
         {tab === 'accounts' && <AdminAccountsTab />}
         {tab === 'access' && <AdminAccessTab />}
-        {tab === 'content' && <AdminContentTab />}
+        {tab === 'content' && <AdminContentTab onOpenSalon={onOpenSalon} />}
         {tab === 'analytics' && <AnalyticsPage embedded />}
       </div>
     </div>
