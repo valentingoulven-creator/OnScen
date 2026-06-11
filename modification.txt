@@ -7796,3 +7796,41 @@ changeait pas dans l'app Spotify.
 ================================================================================
 Fin MODIF 446 - 2026-06-11
 ================================================================================
+
+================================================================================
+MODIF 447 — Carte : masquer marqueurs personne sans live/salon/événement
+================================================================================
+Date : 2026-06-11
+
+## Contexte
+Les utilisateurs « idle » (géolocalisés mais sans session live, salon ou
+événement actif) apparaissaient comme marqueurs personne sur la carte.
+
+## Comportement
+- Marqueur personne affiché uniquement si l'utilisateur est :
+  - en live (`isLive`), ou
+  - hôte de salon (`salonId`), ou
+  - auteur d'un événement chargé sur la carte (`mapEvents.authorId`)
+- Filtre appliqué en permanence (pas lié aux boutons Lives / Salon / Évènement).
+- La liste latérale « À proximité » n'est pas affectée.
+
+## Fichiers
+- app/src/lib/nearbyPanelSettings.ts — `personHasMapActivity`, `peopleMarkersOnMap`
+- app/src/lib/mapMarkerVisibility.ts — commentaire `filterPeopleForZoom`
+- app/src/pages/HomePage.tsx — `mapEventAuthorIds` passé à `peopleMarkersOnMap`
+- app/src/lib/nearbyPanelSettings.test.ts — tests filtre activité
+
+## Cas limites
+- Mode fantôme : déjà exclus côté backend (`isGhostMode` dans `getNearbyPeople`).
+- Auditeurs salon (non hôtes) : pas de `salonId` dans le DTO — restent masqués
+  sur la carte (représentation via marqueur salon de l'hôte).
+- Auteurs événement : comptés seulement quand `mapEvents` est chargé (filtre
+  Évènement actif).
+
+## Test
+  cd app && npm run test -- nearbyPanelSettings
+  cd app && npm run build
+
+================================================================================
+Fin MODIF 447 - 2026-06-11
+================================================================================

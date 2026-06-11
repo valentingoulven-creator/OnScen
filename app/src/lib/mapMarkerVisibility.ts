@@ -375,7 +375,7 @@ export function filterSalonsForZoom<T extends { isLive?: boolean }>(
   return [];
 }
 
-/** Filtre personnes : au zoom ville, live uniquement ; rue = toutes. */
+/** Filtre personnes : au zoom ville, live uniquement ; rue = actives (déjà filtrées en amont). */
 export function filterPeopleForZoom<T extends { isLive?: boolean }>(
   people: T[],
   visibility: MapMarkerVisibility,

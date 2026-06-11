@@ -4,6 +4,8 @@ import {
   filterLivesForMap,
   getNearbyPanelPreferences,
   isNearbyDistanceFilterActive,
+  peopleMarkersOnMap,
+  personHasMapActivity,
   setNearbyPanelPreferences,
   sortNearbyPeople,
 } from './nearbyPanelSettings';
@@ -125,5 +127,28 @@ describe('nearbyPanelSettings favorites', () => {
     const filtered = filterLivesForMap(lives, people, { ...mapPrefs, sortBy: 'distance' });
     expect(filtered).toHaveLength(1);
     expect(filtered[0].hostId).toBe('h1');
+  });
+
+  it('personHasMapActivity : live, salon ou auteur événement', () => {
+    const idle: NearbyPerson = { id: 'idle', username: 'idle', latitude: 48.8, longitude: 2.3 };
+    const live: NearbyPerson = { ...idle, id: 'live', isLive: true };
+    const salonHost: NearbyPerson = { ...idle, id: 'host', salonId: 's1' };
+    const eventAuthor: NearbyPerson = { ...idle, id: 'author' };
+    const eventAuthors = new Set(['author']);
+
+    expect(personHasMapActivity(idle)).toBe(false);
+    expect(personHasMapActivity(live)).toBe(true);
+    expect(personHasMapActivity(salonHost)).toBe(true);
+    expect(personHasMapActivity(eventAuthor, eventAuthors)).toBe(true);
+    expect(personHasMapActivity(eventAuthor)).toBe(false);
+  });
+
+  it('peopleMarkersOnMap masque les utilisateurs sans activité', () => {
+    const people: NearbyPerson[] = [
+      { id: 'idle', username: 'idle', latitude: 48.8, longitude: 2.3 },
+      { id: 'live', username: 'live', latitude: 48.81, longitude: 2.31, isLive: true },
+      { id: 'no-coords', username: 'ghost', isLive: true },
+    ];
+    expect(peopleMarkersOnMap(people).map((p) => p.id)).toEqual(['live']);
   });
 });

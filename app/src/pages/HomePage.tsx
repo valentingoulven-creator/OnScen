@@ -382,7 +382,18 @@ export function HomePage({
     nearbySortOptions,
   ]);
 
-  const mapPeople = useMemo(() => peopleMarkersOnMap(filteredNearbyPeople), [filteredNearbyPeople]);
+  const mapEventAuthorIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const event of mapEvents) {
+      if (event.authorId) ids.add(event.authorId);
+    }
+    return ids;
+  }, [mapEvents]);
+
+  const mapPeople = useMemo(
+    () => peopleMarkersOnMap(filteredNearbyPeople, mapEventAuthorIds),
+    [filteredNearbyPeople, mapEventAuthorIds]
+  );
 
   const mapSalons = useMemo(() => {
     const filtered = filterSalonsForMap(salons, filteredNearbyPeople, nearbyPanelPrefs).filter((s) =>

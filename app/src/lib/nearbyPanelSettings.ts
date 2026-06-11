@@ -226,10 +226,26 @@ export function filterLivesForMap<T extends { hostId: string; platform?: string 
   return result;
 }
 
-/** Personnes seules sur la carte (pas déjà représentées par un marqueur salon). */
-export function peopleMarkersOnMap(people: NearbyPerson[]): NearbyPerson[] {
+/** Live, hôte de salon, ou auteur d'un événement carte — sinon masqué (MODIF 447). */
+export function personHasMapActivity(
+  person: NearbyPerson,
+  eventAuthorIds?: ReadonlySet<string>
+): boolean {
+  if (person.isLive) return true;
+  if (person.salonId) return true;
+  if (eventAuthorIds?.has(person.id)) return true;
+  return false;
+}
+
+/** Personnes affichées sur la carte : coords valides + activité live/salon/événement. */
+export function peopleMarkersOnMap(
+  people: NearbyPerson[],
+  eventAuthorIds?: ReadonlySet<string>
+): NearbyPerson[] {
   return people.filter(
-    (p) => isValidLatLng(p.latitude, p.longitude)
+    (p) =>
+      isValidLatLng(p.latitude, p.longitude) &&
+      personHasMapActivity(p, eventAuthorIds)
   );
 }
 
