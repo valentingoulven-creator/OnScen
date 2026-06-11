@@ -8286,3 +8286,79 @@ et onboarding.
 ================================================================================
 Fin MODIF 459 - 2026-06-11
 ================================================================================
+
+================================================================================
+MODIF 460 — Admin : onglets et contenu sous le header Soundly
+================================================================================
+Date : 2026-06-11
+
+## Problème
+Après MODIF 457 (header Soundly toujours visible), l’overlay admin
+(`.ms-app-profile-overlay.ms-app-admin-overlay` avec `inset: 0`) démarrait
+au sommet de `main`, derrière le header fixe (z-100). Les onglets internes
+Comptes / Accès / Contenu / Analytics et le titre « Admin » étaient partiellement
+masqués ou collés sous la barre Soundly.
+
+## Comportement cible
+- Overlay admin aligné sur le salon plein écran : commence sous
+  `--app-header-total-h`.
+- En-tête interne + nav onglets entièrement visibles ; zone contenu scrollable
+  en dessous (layout AdminPage inchangé : header `shrink-0`, body `flex-1 overflow-y-auto`).
+- Padding bas `var(--tab-nav-total-h)` conservé sur le contenu scrollable ;
+  z-index 55 au-dessus des onglets bas (MODIF 453).
+
+## Correctifs
+- `index.css` : `.ms-app-admin-overlay` — `inset: auto`, `top: var(--app-header-total-h)`,
+  `left/right/bottom: 0` (remplace le `inset: 0` hérité de `.ms-app-profile-overlay`).
+
+## Fichiers
+- app/src/index.css
+- modification.txt
+
+## Test
+  cd app && npm run build
+  1. Ouvrir Admin → onglets Comptes/Accès/Contenu/Analytics visibles sous le header.
+  2. Scroller le contenu d’un onglet → pas de recouvrement header ni onglets bas.
+  3. Mode appp2 (onglets header) → overlay toujours sous header complet.
+
+## Déploiement
+**Oui** — rebuild app (assets backend/public).
+
+================================================================================
+Fin MODIF 460 - 2026-06-11
+================================================================================
+
+================================================================================
+MODIF 461 — Logo Soundy / Accueil ferme l’overlay Admin
+================================================================================
+Date : 2026-06-11
+
+## Problème
+Avec l’overlay Admin ouvert (MODIF 457–460), un clic sur le logo Soundy
+(en-tête, aria-label Accueil) appelait déjà `selectTab('actualite')` mais
+ne fermait pas `adminOpen` : l’overlay restait visible au-dessus du fil.
+
+## Comportement cible
+- Clic logo Soundy ou onglet Accueil → fermer Admin, revenir au fil d’actu
+  (même logique que les autres onglets via `selectTab`).
+- Profil overlay déjà fermé par `selectTab` ; salon minimisé conservé.
+
+## Correctifs
+- `App.tsx` : `selectTab` appelle `setAdminOpen(false)` avec
+  `setProfileOpen(false)`.
+
+## Fichiers
+- app/src/App.tsx
+- modification.txt
+
+## Test
+  cd app && npm run build
+  1. Ouvrir Admin → cliquer logo Soundy → overlay fermé, fil Accueil visible.
+  2. Rouvrir Admin → onglet Accueil (header ou bas) → même résultat.
+
+## Déploiement
+**Oui** — rebuild app (assets backend/public).
+
+================================================================================
+Fin MODIF 461 - 2026-06-11
+================================================================================

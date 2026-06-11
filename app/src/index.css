@@ -257,7 +257,15 @@ main.ms-app-main {
   z-index: 30;
 }
 
-/* Admin plein écran — au-dessus de la barre d’onglets bas pour éviter le recouvrement du contenu */
+/* Admin plein écran — sous le header Soundly fixe (MODIF 457), au-dessus des onglets bas */
+.ms-app-admin-overlay {
+  inset: auto;
+  top: var(--app-header-total-h);
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
 .ms-app-shell--bottom-tabs .ms-app-admin-overlay {
   z-index: 55;
 }

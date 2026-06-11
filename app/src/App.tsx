@@ -482,6 +482,7 @@ export default function App() {
     if (tabRef.current === 'reels' && id !== 'reels') pauseAllReelsMediaInDom({ resetPosition: true });
     if (id !== 'reels') pauseMediaElements();
     setProfileOpen(false);
+    setAdminOpen(false);
     const session = activeSalonSessionRef.current;
     const persistedSalonId = session?.id;
     const salonFullScreen = session?.viewMode === 'full';
