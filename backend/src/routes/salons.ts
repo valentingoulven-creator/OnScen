@@ -30,7 +30,11 @@ import {
   proposalToQueueItem,
 } from '../lib/salonPlaybackOps';
 import { searchYoutube } from '../lib/youtubeSearch';
-import { searchSpotifyTracks, SpotifySearchError } from '../lib/spotifySearch';
+import {
+  normalizeSpotifySearchLimit,
+  searchSpotifyTracks,
+  SpotifySearchError,
+} from '../lib/spotifySearch';
 import { isRealSpotifyAccount } from '../lib/spotifyOAuth';
 import { controlSpotifyPlayback, getSpotifyNowPlaying, playSpotifyTrackNow, SpotifyPlaybackError } from '../lib/spotifyPlayback';
 import { resolvePlaylistVideos } from '../lib/youtubePlaylists';
@@ -150,8 +154,10 @@ salonsRouter.get('/spotify-search', authenticateJWT, async (req: Request, res: R
     return;
   }
 
+  const limit = normalizeSpotifySearchLimit(req.query.limit);
+
   try {
-    const results = await searchSpotifyTracks(user, q);
+    const results = await searchSpotifyTracks(user, q, { limit });
     res.setHeader('Cache-Control', 'private, no-store');
     res.json({ results });
   } catch (e) {

@@ -421,7 +421,9 @@ export function SalonPage({
 
 
 
-  const stageFooter = (
+  const isSpotifyParticipant = salon.platform === 'spotify' && !isHost;
+
+  const stageFooter = isSpotifyParticipant ? undefined : (
     <div className="p-3 space-y-3">
       {salon.platform !== 'spotify' && (
         <div className="flex flex-wrap items-center gap-2">

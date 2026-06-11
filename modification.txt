@@ -7159,3 +7159,267 @@ légale / Spotify / YouTube. Correctifs code à faible risque uniquement.
 Fin MODIF 430 - 2026-06-10
 ================================================================================
 
+================================================================================
+MODIF 431 — Conformité Spotify & YouTube → VERT
+================================================================================
+Date : 2026-06-10
+
+## Objectif
+Passer l'audit conformité plateformes de JAUNE à VERT pour Spotify et YouTube
+(MODIF 430 / agent bdbbde91) : textes légaux, cache API YouTube, UI hôte/participant.
+
+## Spotify (écarts comblés)
+- apiPlatforms.ts : Extended Quota Mode, Premium hôte, scopes sans streaming, Jam manuel,
+  Branding Guidelines, attribution « Powered by Spotify ».
+- privacy.ts §11 : justification de chaque scope OAuth Spotify (sans streaming).
+- terms.ts §5 : Premium, Connect, chrono partagé, modèle Jam manuel.
+- PlatformConnectCard : scopes, Premium hôte, quota dev Extended Quota.
+- SalonPlaybackPanel + SalonSpotifyPlaylist : Premium hôte, Powered by Spotify.
+- spotifyOAuth.ts : commentaire explicite — pas de scope streaming.
+- fr.json / en.json : nouvelles clés platform.* et salon.playbackMode.*
+
+## YouTube (écarts comblés)
+- youtubeDataApi.ts : cache mémoire TTL 1 h sur search, playlists et playlistItems
+  (aligné texte légal ; route salons.ts conserve son cache recherche).
+- apiPlatforms.ts : cache global Data API, cap 10 min carte, strictCompliance, attribution.
+- terms.ts §5 : cap 10 min aperçu carte, IFrame API.
+- SalonPlaybackPanel : hint 10 min carte + attribution YouTube API Services.
+- fr.json / en.json : mapListenCapHint, youtubeAttribution.
+
+## Fichiers
+- backend/src/lib/youtubeDataApi.ts
+- backend/src/lib/spotifyOAuth.ts
+- app/src/content/legal/apiPlatforms.ts
+- app/src/content/legal/privacy.ts
+- app/src/content/legal/terms.ts
+- app/src/components/PlatformConnectCard.tsx
+- app/src/components/SalonPlaybackPanel.tsx
+- app/src/components/SalonSpotifyPlaylist.tsx
+- app/src/locales/fr.json
+- app/src/locales/en.json
+- modification.txt
+
+## Test
+  cd app && npx tsc -p tsconfig.app.json --noEmit
+  cd backend && npx tsc --noEmit
+
+## Ops restantes (hors code)
+- Demande manuelle Extended Quota Mode Spotify (console développeur).
+- Validation OAuth Google youtube.readonly si >100 utilisateurs.
+- YOUTUBE_API_KEY + quotas production.
+
+================================================================================
+Fin MODIF 431 - 2026-06-10
+================================================================================
+
+================================================================================
+MODIF 432 — Lancer Spotify si aucun appareil actif (Lecture)
+================================================================================
+Date : 2026-06-11
+
+## Objectif
+Au clic sur Lecture / ⏭ dans un salon Spotify plein écran, si Spotify Connect
+renvoie `no_active_device` (404), ouvrir l'app Spotify via deep link puis
+proposer un retry automatique.
+
+## UX
+1. Hôte clique Lecture (pause → play) ou ⏭.
+2. Backend `spotify-control` → Spotify 404 « No active device » → code
+   `no_active_device`.
+3. Front : `openSpotifyApp(trackId)` (`spotify:track:…` desktop,
+   `spotify://track/…` mobile + secours open.spotify.com).
+4. Toast : « Ouverture de Spotify… Relancez Lecture une fois l'app ouverte »
+   (`salon.playbackMode.spotifyLaunchingApp`).
+5. Retry play/next après 3,5 s (best-effort) ; garde anti double-lancement 5 s.
+
+## Fichiers
+- app/src/lib/spotifyDeepLink.ts (nouveau)
+- app/src/components/SalonPlaybackPanel.tsx
+- app/src/lib/api.ts — `ApiRequestError` + code `no_active_device`
+- app/src/locales/fr.json, en.json — `spotifyLaunchingApp`
+
+## Test
+  cd app && npx tsc -p tsconfig.app.json --noEmit
+  1. Salon Spotify, app fermée → Lecture → toast + ouverture Spotify.
+  2. Relancer Lecture une fois l'app ouverte → sync OK.
+
+================================================================================
+Fin MODIF 432 - 2026-06-11
+================================================================================
+
+================================================================================
+MODIF 433 — Fix recherche Spotify « Invalid limit »
+================================================================================
+Date : 2026-06-11
+
+## Symptôme
+`SalonSpotifySearch` : recherche « gims changer » →
+`Requête Spotify invalide : Invalid limit`.
+
+## Cause racine
+1. `fetchSpotifySearch` envoyait `limit=15` alors que GET /v1/search n'accepte
+   que **1–10** (doc Spotify 2026 ; la limite 50 concerne d'autres endpoints).
+2. `market=from_token` (déprécié) sur le jeton hôte pouvait aussi provoquer 400.
+3. Pas de normalisation si `?limit=` client (0, string, float, >10).
+
+## Correctif
+- `normalizeSpotifySearchLimit()` : défaut **10**, clamp entier **1–10**.
+- Route `GET /spotify-search` : param `limit` optionnel normalisé.
+- Repli client_credentials : `market=FR` (ou `SPOTIFY_DEFAULT_MARKET`).
+- Jeton hôte : pas de `market` (pays du compte via OAuth).
+- `api.searchSpotify` : 4e arg `limit` optionnel.
+
+## Fichiers
+- backend/src/lib/spotifySearch.ts
+- backend/src/routes/salons.ts
+- app/src/lib/api.ts
+- modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npx tsc -p tsconfig.app.json --noEmit
+  1. Salon Spotify plein écran → « gims changer » → résultats (ex. GIMS — Changer).
+  2. `?limit=0`, `?limit=abc`, `?limit=99` → recherche OK (clamp 10).
+
+================================================================================
+Fin MODIF 433 - 2026-06-11
+================================================================================
+
+================================================================================
+MODIF 434 — Fix « Session Spotify expirée » au lancement playlist hôte
+================================================================================
+Date : 2026-06-11
+
+## Symptôme
+Salon Spotify plein écran → section playlist (ex. « Finn Darrig ») →
+« Lancer la playlist » → `Session Spotify expirée — reconnectez votre compte Spotify`
+alors que `GET /api/platforms/spotify/playlists` liste bien les playlists.
+
+## Cause racine
+1. `ensureSpotifyAccessToken` ne renouvelait le jeton que s'il était **absent** —
+   un access token expiré mais présent en base était renvoyé tel quel.
+2. `refreshSpotifyToken` échouait silencieusement (`null`) sans distinguer
+   `invalid_grant` (refresh révoqué) vs erreur réseau.
+3. `GET /me/playlists` peut réussir avec un jeton encore valide ou partiellement
+   expiré ; `GET /playlists/{id}/tracks` échoue ensuite en 401/403.
+4. Les 403 « Insufficient client scope » (ex. `playlist-read-collaborative`
+   manquant sur une connexion OAuth antérieure) étaient classés à tort en
+   `spotify_token_expired`.
+5. Après refresh dans `spotifyFetch`, la pagination réutilisait l'ancien jeton.
+
+## Correctif
+### Backend
+- `spotifyOAuth.ts` : `accessTokenExpiresAt` stocké à l'OAuth et au refresh ;
+  `refreshSpotifyAccessToken` (invalid_grant vs réseau) ;
+  `ensureFreshSpotifyAccessToken` (renouvellement proactif) ;
+  `schedulePersist()` après refresh.
+- `spotifyPlaylists.ts` : jeton frais avant load ; retry 401 après refresh ;
+  code `spotify_scope_missing` distinct ; jeton mis à jour en pagination.
+- `spotifyApi.ts` : détection scope manquant vs session expirée.
+
+### Frontend
+- `SalonSpotifyPlaylist.tsx` : bouton « Reconnecter Spotify » (OAuth) si
+  `spotify_token_expired`, `spotify_scope_missing` ou `spotify_not_connected`.
+- `api.ts` + i18n : code `spotify_scope_missing`.
+
+## Fichiers
+- backend/src/lib/spotifyOAuth.ts
+- backend/src/lib/spotifyPlaylists.ts
+- backend/src/lib/spotifyApi.ts
+- backend/src/lib/platformConnect.ts
+- app/src/components/SalonSpotifyPlaylist.tsx
+- app/src/lib/api.ts
+- app/src/locales/fr.json, en.json
+- modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npx tsc -p tsconfig.app.json --noEmit
+  1. Hôte Spotify OAuth → playlists visibles → « Lancer la playlist » → queue chargée.
+  2. Jeton expiré → refresh transparent ou bouton reconnecter si refresh révoqué.
+  3. Connexion OAuth sans scope collaborative → message scope + reconnecter.
+
+================================================================================
+Fin MODIF 434 - 2026-06-11
+================================================================================
+
+================================================================================
+MODIF 432 — Lecture salon Spotify : lancer l'app si inactive
+================================================================================
+Date : 2026-06-11
+
+## Objectif
+Bouton Lecture (SalonPlaybackPanel, salon Spotify plein écran) : si Spotify
+Connect ne trouve aucun appareil actif (404 `no_active_device`), ouvrir l'app
+Spotify via deep link puis retenter play après délai — sans Web Playback SDK.
+
+## UX
+1. Clic Lecture → chrono salon + appel `POST …/spotify-control` action play.
+2. Si poll sync indique déjà « aucune lecture Spotify » → deep link immédiat.
+3. Si API renvoie `no_active_device` → `spotify:track:ID` (desktop) /
+   `spotify://track/ID` (mobile), secours `open.spotify.com/track/ID`.
+4. Toast i18n : « Ouverture de Spotify… Relancez Lecture une fois l'app ouverte ».
+5. Retry automatique play ~3,5 s après ouverture (Connect).
+
+## Fichiers
+- app/src/lib/spotifyDeepLink.ts (nouveau)
+- app/src/lib/api.ts — ApiRequestError (code backend préservé)
+- app/src/components/SalonPlaybackPanel.tsx
+- app/src/locales/fr.json, en.json
+- modification.txt
+
+## Test
+  cd app && npx tsc -p tsconfig.app.json --noEmit
+  Salon Spotify, Spotify fermé → Lecture ouvre l'app + toast ; relancer Lecture
+  une fois Connect actif.
+
+================================================================================
+Fin MODIF 432 - 2026-06-11
+================================================================================
+
+================================================================================
+MODIF 435 — Salon Spotify participant : layout queue-chat lecture seule
+================================================================================
+Date : 2026-06-11
+
+## Objectif
+Même layout plein écran queue-chat (MODIF 406) pour les participants Spotify :
+colonne gauche = barre lecture read-only + CTA ; colonne droite = chat complet.
+Masquer toutes les fonctions réservées à l'hôte (recherche, playlist, panneau host,
+contrôles lecture, gestion accès Public/Invitation).
+
+## Participant voit
+- Layout queue-chat (pas de scène théâtre vide)
+- Titre salon, pochette, morceau, chrono partagé (lecture seule)
+- Message sync Spotify (alignement chrono / deep link)
+- Bouton « Ouvrir dans Spotify à MM:SS »
+- Jam : `SalonSpotifyJamButton` dans le header si `spotifyJamUrl`
+- Chat complet
+- Header : hôte, plateforme, timer session, auditeurs, « Quitter le salon »
+
+## Participant ne voit pas
+- Recherche / changement de morceau, playlist hôte
+- Panneau host (file, propositions, accès Public/Invitation)
+- Play / Pause / Stop / Next / seek
+- Configuration Jam hôte (uniquement rejoindre)
+
+## Frontend
+- `SalonPage.tsx` — `stageFooter` absent pour participant Spotify.
+- `SalonPlaybackPanel.tsx` — `salonQueueLayout` : badge accès et contrôles
+  host-only ; CTA participant simplifié (Spotify direct, sans picker YouTube).
+
+## Fichiers
+- app/src/pages/SalonPage.tsx
+- app/src/components/SalonPlaybackPanel.tsx
+- modification.txt
+
+## Test
+  cd app && npx tsc -p tsconfig.app.json --noEmit
+  1. Rejoindre un salon Spotify en tant que participant → layout queue-chat.
+  2. Vérifier chrono read-only, bouton Spotify, chat, pas de panneau host.
+  3. Hôte → recherche, playlist, file, accès inchangés.
+
+================================================================================
+Fin MODIF 435 - 2026-06-11
+================================================================================
+

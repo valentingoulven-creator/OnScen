@@ -1,4 +1,37 @@
+import crypto from 'crypto';
 import type { RemoteVideoHit } from './youtubeRemote';
+
+/** TTL 1 h — conforme YouTube API Services (stockage max 24 h) et texte légal Soundy. */
+export const YOUTUBE_DATA_API_CACHE_TTL_MS = 60 * 60 * 1000;
+
+const ytDataCache = new Map<string, { data: unknown; expiresAt: number }>();
+
+function pruneYtDataCache(now = Date.now()): void {
+  if (ytDataCache.size <= 500) return;
+  for (const [key, entry] of ytDataCache) {
+    if (now >= entry.expiresAt) ytDataCache.delete(key);
+  }
+}
+
+function getYtDataCached<T>(key: string): T | null {
+  const entry = ytDataCache.get(key);
+  if (!entry) return null;
+  if (Date.now() >= entry.expiresAt) {
+    ytDataCache.delete(key);
+    return null;
+  }
+  return entry.data as T;
+}
+
+function setYtDataCached(key: string, data: unknown): void {
+  pruneYtDataCache();
+  ytDataCache.set(key, { data, expiresAt: Date.now() + YOUTUBE_DATA_API_CACHE_TTL_MS });
+}
+
+function tokenCacheKey(accessToken?: string): string {
+  if (!accessToken) return 'public';
+  return crypto.createHash('sha256').update(accessToken).digest('hex').slice(0, 16);
+}
 
 function apiKey(): string | undefined {
   return process.env.YOUTUBE_API_KEY?.trim() || undefined;
@@ -9,6 +42,13 @@ function thumb(videoId: string): string {
 }
 
 export async function searchVideosViaDataApi(query: string): Promise<RemoteVideoHit[]> {
+  const normalized = query.trim().toLowerCase();
+  if (normalized.length < 2) return [];
+
+  const cacheKey = `search:${normalized}`;
+  const cached = getYtDataCached<RemoteVideoHit[]>(cacheKey);
+  if (cached) return cached;
+
   const key = apiKey();
   if (!key) return [];
   const params = new URLSearchParams({
@@ -38,6 +78,7 @@ export async function searchVideosViaDataApi(query: string): Promise<RemoteVideo
       thumbnailUrl: item.snippet?.thumbnails?.medium?.url ?? thumb(videoId),
     });
   }
+  setYtDataCached(cacheKey, out);
   return out;
 }
 
@@ -49,6 +90,10 @@ export interface YoutubePlaylistSummary {
 }
 
 export async function listMyPlaylists(accessToken: string): Promise<YoutubePlaylistSummary[]> {
+  const cacheKey = `playlists:${tokenCacheKey(accessToken)}`;
+  const cached = getYtDataCached<YoutubePlaylistSummary[]>(cacheKey);
+  if (cached) return cached;
+
   const out: YoutubePlaylistSummary[] = [];
   let pageToken: string | undefined;
   do {
@@ -83,6 +128,8 @@ export async function listMyPlaylists(accessToken: string): Promise<YoutubePlayl
     pageToken = data.nextPageToken;
     if (out.length >= 50) break;
   } while (pageToken);
+
+  if (out.length) setYtDataCached(cacheKey, out);
   return out;
 }
 
@@ -90,6 +137,10 @@ export async function fetchPlaylistItems(
   playlistId: string,
   accessToken?: string
 ): Promise<RemoteVideoHit[]> {
+  const cacheKey = `playlistItems:${playlistId}:${tokenCacheKey(accessToken)}`;
+  const cached = getYtDataCached<RemoteVideoHit[]>(cacheKey);
+  if (cached) return cached;
+
   const key = apiKey();
   if (!key && !accessToken) return [];
 
@@ -141,5 +192,6 @@ export async function fetchPlaylistItems(
     if (out.length >= 50) break;
   } while (pageToken);
 
+  if (out.length) setYtDataCached(cacheKey, out);
   return out;
 }

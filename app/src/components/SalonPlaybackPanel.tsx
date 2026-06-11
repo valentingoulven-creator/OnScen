@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { api } from '../lib/api';
+import { api, ApiRequestError } from '../lib/api';
 import { useSalonPlaybackSync } from '../hooks/useSalonPlaybackSync';
 import { useSpotifySalonSync } from '../hooks/useSpotifySalonSync';
 import {
@@ -9,6 +9,7 @@ import {
   preferredParticipantPlatform,
   type MusicPlatform,
 } from '../lib/salonPlayback';
+import { openSpotifyApp, buildSpotifyWebUrl } from '../lib/spotifyDeepLink';
 import { OpenOnYoutubeButton } from './OpenOnYoutubeButton';
 import { SalonYouTubePlayer } from './SalonYouTubePlayer';
 import { SalonYouTubeSearch } from './SalonYouTubeSearch';
@@ -182,6 +183,16 @@ export function SalonPlaybackPanel({
   const [savingJam, setSavingJam] = useState(false);
   const [jamToast, setJamToast] = useState<string | null>(null);
   const [spotifyControlToast, setSpotifyControlToast] = useState<string | null>(null);
+  const spotifyLaunchRetryRef = useRef<number | null>(null);
+  const spotifyAppLaunchIssuedRef = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      if (spotifyLaunchRetryRef.current !== null) {
+        window.clearTimeout(spotifyLaunchRetryRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     setHostJamDraft(salon.spotifyJamUrl ?? '');
@@ -190,15 +201,43 @@ export function SalonPlaybackPanel({
 
   useEffect(() => {
     if (!jamToast) return;
-    const t = window.setTimeout(() => setJamToast(null), 2500);
-    return () => window.clearTimeout(t);
+    const timer = window.setTimeout(() => setJamToast(null), 2500);
+    return () => window.clearTimeout(timer);
   }, [jamToast]);
 
   useEffect(() => {
     if (!spotifyControlToast) return;
-    const t = window.setTimeout(() => setSpotifyControlToast(null), 5000);
-    return () => window.clearTimeout(t);
+    const timer = window.setTimeout(() => setSpotifyControlToast(null), 5000);
+    return () => window.clearTimeout(timer);
   }, [spotifyControlToast]);
+
+  const launchSpotifyForHostPlayback = useCallback(
+    (trackId?: string | null) => {
+      spotifyAppLaunchIssuedRef.current = true;
+      openSpotifyApp(trackId ?? playbackState.trackId);
+      setSpotifyControlToast(t('salon.playbackMode.spotifyLaunchingApp'));
+      window.setTimeout(() => {
+        spotifyAppLaunchIssuedRef.current = false;
+      }, 5000);
+    },
+    [playbackState.trackId, t]
+  );
+
+  const scheduleSpotifyPlayRetry = useCallback(
+    (action: 'play' | 'next') => {
+      if (!token || salon.platform !== 'spotify' || !hostLinked) return;
+      if (spotifyLaunchRetryRef.current !== null) {
+        window.clearTimeout(spotifyLaunchRetryRef.current);
+      }
+      spotifyLaunchRetryRef.current = window.setTimeout(() => {
+        spotifyLaunchRetryRef.current = null;
+        void api.spotifySalonPlaybackControl(token, salon.id, action).catch(() => {
+          /* L'utilisateur a déjà le toast pour relancer Lecture manuellement. */
+        });
+      }, 3500);
+    },
+    [token, salon.platform, salon.id, hostLinked]
+  );
 
   const callSpotifyControl = useCallback(
     async (action: 'pause' | 'play' | 'stop' | 'next') => {
@@ -206,10 +245,27 @@ export function SalonPlaybackPanel({
       try {
         await api.spotifySalonPlaybackControl(token, salon.id, action);
       } catch (e) {
+        const code = e instanceof ApiRequestError ? e.code : undefined;
+        if (code === 'no_active_device' && (action === 'play' || action === 'next')) {
+          if (!spotifyAppLaunchIssuedRef.current) {
+            launchSpotifyForHostPlayback(playbackState.trackId);
+          }
+          scheduleSpotifyPlayRetry(action);
+          return;
+        }
         setSpotifyControlToast(e instanceof Error ? e.message : t('salon.playbackMode.spotifyControlError'));
       }
     },
-    [token, salon.platform, salon.id, hostLinked, t]
+    [
+      token,
+      salon.platform,
+      salon.id,
+      hostLinked,
+      t,
+      playbackState.trackId,
+      launchSpotifyForHostPlayback,
+      scheduleSpotifyPlayRetry,
+    ]
   );
 
   const callSpotifySeek = useCallback(
@@ -227,8 +283,18 @@ export function SalonPlaybackPanel({
   const handleHostPlay = useCallback(() => {
     markLocalControl();
     play();
+    if (spotifyNowPlaying && !spotifyNowPlaying.active) {
+      launchSpotifyForHostPlayback(playbackState.trackId);
+    }
     void callSpotifyControl('play');
-  }, [play, callSpotifyControl, markLocalControl]);
+  }, [
+    play,
+    callSpotifyControl,
+    markLocalControl,
+    spotifyNowPlaying,
+    launchSpotifyForHostPlayback,
+    playbackState.trackId,
+  ]);
 
   const handleHostPause = useCallback(() => {
     markLocalControl();
@@ -509,49 +575,59 @@ export function SalonPlaybackPanel({
           </div>
 
           {salon.platform === 'spotify' && (
-            <p className="text-[10px] text-green-400/80 leading-snug border border-green-500/20 bg-green-500/5 rounded-lg px-2.5 py-1.5">
-              {isHost && hostLinked ? t('salon.playbackMode.spotifyHostHint') : t('salon.playbackMode.spotifyParticipantHint')}
-            </p>
+            <div className="space-y-1">
+              <p className="text-[10px] text-green-400/80 leading-snug border border-green-500/20 bg-green-500/5 rounded-lg px-2.5 py-1.5">
+                {isHost && hostLinked ? t('salon.playbackMode.spotifyHostHint') : t('salon.playbackMode.spotifyParticipantHint')}
+              </p>
+              {isHost && (
+                <p className="text-[10px] text-green-400/60 leading-snug px-1">
+                  {t('salon.playbackMode.spotifyHostPremiumNote')}
+                </p>
+              )}
+              <p className="text-[10px] text-[#1DB954]/70 px-1">{t('salon.spotifySearch.poweredBy')}</p>
+            </div>
           )}
 
-          <div className="flex flex-wrap items-center gap-2">
-            {isHost && hostLinked && (
-              <>
-                <button
-                  type="button"
-                  onClick={isPlaying ? handleHostPause : handleHostPlay}
-                  className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-xs font-semibold text-white transition"
-                >
-                  {isPlaying ? 'Pause' : 'Lecture'}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleHostStop}
-                  className="px-2.5 py-1.5 rounded-xl border border-[#2a2a3a] text-xs text-gray-400 hover:text-white transition"
-                  title="Stop (retour au début)"
-                >
-                  ⏹
-                </button>
-                {salon.platform === 'spotify' && (
+          {isHost && (
+            <div className="flex flex-wrap items-center gap-2">
+              {hostLinked && (
+                <>
                   <button
                     type="button"
-                    onClick={handleHostNext}
-                    className="px-2.5 py-1.5 rounded-xl border border-[#2a2a3a] text-xs text-gray-400 hover:text-white transition"
-                    title="Morceau suivant"
+                    onClick={isPlaying ? handleHostPause : handleHostPlay}
+                    className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-xs font-semibold text-white transition"
                   >
-                    ⏭
+                    {isPlaying ? 'Pause' : 'Lecture'}
                   </button>
-                )}
-              </>
-            )}
-            <span
-              className={`text-[10px] px-2 py-0.5 rounded-md font-medium ${
-                salon.accessMode === 'public' ? 'text-[#7ecba0]' : 'text-[#c4a460]'
-              }`}
-            >
-              {salon.accessMode === 'public' ? '🌍 Public' : '🔒 Invitation'}
-            </span>
-          </div>
+                  <button
+                    type="button"
+                    onClick={handleHostStop}
+                    className="px-2.5 py-1.5 rounded-xl border border-[#2a2a3a] text-xs text-gray-400 hover:text-white transition"
+                    title="Stop (retour au début)"
+                  >
+                    ⏹
+                  </button>
+                  {salon.platform === 'spotify' && (
+                    <button
+                      type="button"
+                      onClick={handleHostNext}
+                      className="px-2.5 py-1.5 rounded-xl border border-[#2a2a3a] text-xs text-gray-400 hover:text-white transition"
+                      title="Morceau suivant"
+                    >
+                      ⏭
+                    </button>
+                  )}
+                </>
+              )}
+              <span
+                className={`text-[10px] px-2 py-0.5 rounded-md font-medium ${
+                  salon.accessMode === 'public' ? 'text-[#7ecba0]' : 'text-[#c4a460]'
+                }`}
+              >
+                {salon.accessMode === 'public' ? '🌍 Public' : '🔒 Invitation'}
+              </span>
+            </div>
+          )}
 
           {isHost && hostLinked && (
             <input
@@ -581,49 +657,41 @@ export function SalonPlaybackPanel({
           </div>
         )}
 
-        {!isHost && (
+        {!isHost && salon.platform === 'spotify' && (
           <div className="space-y-2 pt-0.5 border-t border-[#1e1e2f]">
-              {spotifyNotif && (
-                <div className="rounded-xl bg-green-500/10 border border-green-500/25 px-3 py-2 text-sm text-green-300 text-center">
-                  {spotifyNotif}
-                </div>
-              )}
-              {!(canUseYoutubeEmbed && participantPlatform === 'youtube') && (
-                <div className="grid grid-cols-2 gap-2">
-                  {(['spotify', 'youtube'] as const).map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setParticipantPlatform(p)}
-                      className={`py-2 rounded-xl border text-xs font-semibold capitalize transition ${
-                        participantPlatform === p ? PLATFORM_META[p].accent : 'border-[#2a2a3a] text-gray-500'
-                      }`}
-                    >
-                      {PLATFORM_META[p].emoji} {PLATFORM_META[p].label}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {participantPlatform === 'spotify' || !canUseYoutubeEmbed ? (
-                resolving ? (
-                  <p className="text-xs text-gray-500 text-center">Recherche du morceau…</p>
-                ) : resolved ? (
-                  <div className="rounded-xl border border-[#2a2a3a] bg-[#0b0b0f] p-3 space-y-2">
-                    <p className="text-[10px] text-purple-300/80 uppercase tracking-wide">{matchLabel}</p>
-                    <p className="text-sm text-white font-medium truncate">{resolved.title}</p>
-                    <a
-                      href={syncListenUrl ?? resolved.externalUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={`block w-full text-center py-2 rounded-xl border font-semibold text-sm ${participantMeta.accent}`}
-                    >
-                      {`Ouvrir dans Spotify à ${formatPlaybackTime(displayPositionMs)}`}
-                    </a>
-                  </div>
-                ) : null
-              ) : null}
-            </div>
-          )}
+            {spotifyNotif && (
+              <div className="rounded-xl bg-green-500/10 border border-green-500/25 px-3 py-2 text-sm text-green-300 text-center">
+                {spotifyNotif}
+              </div>
+            )}
+            {playbackState.trackId && playbackState.trackId !== 'demo' ? (
+              <a
+                href={
+                  buildTrackUrlAtPosition('spotify', playbackState.trackId, displayPositionMs) ||
+                  playbackState.externalUrl ||
+                  buildSpotifyWebUrl(playbackState.trackId)
+                }
+                target="_blank"
+                rel="noreferrer"
+                className="block w-full text-center py-2.5 rounded-xl border border-green-500/40 bg-green-500/10 font-semibold text-sm text-green-400 hover:bg-green-500/15 transition"
+              >
+                {`Ouvrir dans Spotify à ${formatPlaybackTime(displayPositionMs)}`}
+              </a>
+            ) : playbackState.externalUrl ? (
+              <a
+                href={playbackState.externalUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="block w-full text-center py-2.5 rounded-xl border border-green-500/40 bg-green-500/10 font-semibold text-sm text-green-400 hover:bg-green-500/15 transition"
+              >
+                Ouvrir dans Spotify
+              </a>
+            ) : null}
+            <p className="text-[10px] text-gray-600 text-center leading-snug">
+              {t('salon.playbackMode.spotifyAlignHint')}
+            </p>
+          </div>
+        )}
         </section>
         {spotifyControlToast && (
           <div
@@ -903,9 +971,17 @@ export function SalonPlaybackPanel({
         </div>
 
         {salon.platform === 'spotify' && (
-          <p className="text-[10px] text-green-400/80 leading-snug border border-green-500/20 bg-green-500/5 rounded-lg px-2.5 py-2">
-            {isHost && hostLinked ? t('salon.playbackMode.spotifyHostHint') : t('salon.playbackMode.spotifyParticipantHint')}
-          </p>
+          <div className="space-y-1">
+            <p className="text-[10px] text-green-400/80 leading-snug border border-green-500/20 bg-green-500/5 rounded-lg px-2.5 py-2">
+              {isHost && hostLinked ? t('salon.playbackMode.spotifyHostHint') : t('salon.playbackMode.spotifyParticipantHint')}
+            </p>
+            {isHost && (
+              <p className="text-[10px] text-green-400/60 leading-snug px-1">
+                {t('salon.playbackMode.spotifyHostPremiumNote')}
+              </p>
+            )}
+            <p className="text-[10px] text-[#1DB954]/70 px-1">{t('salon.spotifySearch.poweredBy')}</p>
+          </div>
         )}
 
         {salon.platform === 'spotify' && isHost && hostLinked && (
@@ -959,9 +1035,19 @@ export function SalonPlaybackPanel({
           <p className="text-[10px] text-amber-400/90 leading-snug">{spotifySyncError}</p>
         )}
         {salon.platform === 'youtube' && (
-          <p className="text-[10px] text-red-400/80 leading-snug border border-red-500/20 bg-red-500/5 rounded-lg px-2.5 py-2">
-            {t('salon.playbackMode.youtubeSyncBanner')}
-          </p>
+          <div className="space-y-1">
+            <p className="text-[10px] text-red-400/80 leading-snug border border-red-500/20 bg-red-500/5 rounded-lg px-2.5 py-2">
+              {t('salon.playbackMode.youtubeSyncBanner')}
+            </p>
+            {mapInline && !isHost && (
+              <p className="text-[10px] text-red-400/60 leading-snug px-1">
+                {t('salon.playbackMode.mapListenCapHint')}
+              </p>
+            )}
+            <p className="text-[10px] text-red-400/50 leading-snug px-1">
+              {t('salon.playbackMode.youtubeAttribution')}
+            </p>
+          </div>
         )}
 
         <div className="flex items-center gap-4">

@@ -4,7 +4,7 @@ import { LEGAL_PRIVACY_EMAIL } from './types';
 /** Politique de confidentialité (RGPD) */
 export const politiqueConfidentialite: LegalDocument = {
   title: 'Politique de confidentialité',
-  updated: '3 juin 2026',
+  updated: '10 juin 2026',
   sections: [
     {
       heading: '1. Responsable du traitement',
@@ -47,7 +47,11 @@ export const politiqueConfidentialite: LegalDocument = {
       body: `L’Application utilise le localStorage du navigateur pour : le jeton de connexion (melosong_token), le rayon de recherche sur la carte, la langue, les préférences de confidentialité locales, certains réglages d’interface (ex. chat live masqué).\n\nVous pouvez effacer ces données via les paramètres de votre navigateur ; cela vous déconnectera et réinitialisera certaines préférences.`,
     },
     {
-      heading: '11. Modifications',
+      heading: '11. Autorisations OAuth Spotify et YouTube',
+      body: `Lorsque vous connectez Spotify ou YouTube en production, Soundy demande uniquement les autorisations nécessaires aux fonctionnalités visibles :\n\nSpotify (sans scope « streaming » — pas de lecture audio dans le navigateur) :\n• user-read-email, user-read-private : identifier votre compte et afficher votre profil lié.\n• user-library-read, user-top-read : suggestions et affichage de vos artistes favoris.\n• playlist-read-private, playlist-read-collaborative : charger vos playlists pour animer un salon.\n• user-read-currently-playing, user-read-playback-state : afficher le morceau en cours et synchroniser le chrono du salon.\n• user-modify-playback-state : permettre à l’hôte de contrôler play/pause/seek via Spotify Connect sur son appareil.\n\nYouTube :\n• youtube.readonly : lister vos playlists YouTube privées lorsque vous hébergez un salon.\n\nLes métadonnées YouTube obtenues via la Data API (titres, chaînes, miniatures) sont mises en cache côté serveur au maximum 1 heure, conformément aux YouTube API Services Terms.\n\nVous pouvez révoquer ces autorisations à tout moment en déconnectant la plateforme dans Soundy ou depuis les paramètres de votre compte Spotify/Google.`,
+    },
+    {
+      heading: '12. Modifications',
       body: `Cette politique peut être mise à jour. La date de dernière mise à jour figure en tête du document. En cas de changement important, une information pourra être affichée dans l’Application.`,
     },
   ],

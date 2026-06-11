@@ -307,11 +307,23 @@ export function PlatformConnectCard({
           </button>
         </p>
       )}
+      {platform === 'spotify' && !statusLoading && !statusError && (
+        <p className="text-[10px] text-gray-500 mt-2 leading-snug">{t('platform.spotifyScopesHint')}</p>
+      )}
+      {platform === 'spotify' && !statusLoading && !statusError && (
+        <p className="text-[10px] text-green-400/70 mt-1 leading-snug">{t('platform.spotifyPremiumHostHint')}</p>
+      )}
       {platform === 'spotify' && !linked && !spotifyOAuthAvailable && !statusLoading && !statusError && (
-        <p className="text-[10px] text-gray-500 mt-2 leading-snug">{t('platform.spotifyEnvHint')}</p>
+        <p className="text-[10px] text-gray-500 mt-1 leading-snug">{t('platform.spotifyEnvHint')}</p>
+      )}
+      {platform === 'spotify' && !linked && spotifyOAuthAvailable && !statusLoading && !statusError && (
+        <p className="text-[10px] text-amber-400/80 mt-1 leading-snug">{t('platform.spotifyDevQuotaHint')}</p>
+      )}
+      {platform === 'youtube' && !linked && !statusLoading && !statusError && (
+        <p className="text-[10px] text-gray-500 mt-2 leading-snug">{t('platform.youtubeScopesHint')}</p>
       )}
       {platform === 'youtube' && !linked && !youtubeOAuthAvailable && !statusLoading && !statusError && (
-        <p className="text-[10px] text-gray-500 mt-2 leading-snug">{t('platform.youtubeEnvHint')}</p>
+        <p className="text-[10px] text-gray-500 mt-1 leading-snug">{t('platform.youtubeEnvHint')}</p>
       )}
       {platform === 'instagram' && !linked && !instagramOAuthAvailable && !statusLoading && !statusError && (
         <p className="text-[10px] text-gray-500 mt-2 leading-snug">{t('platform.instagramEnvHint')}</p>

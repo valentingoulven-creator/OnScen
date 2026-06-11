@@ -22,48 +22,91 @@ function normalizeFetchNetworkError(e: unknown): never {
   throw e;
 }
 
-async function parseApiError(res: Response): Promise<string> {
+export class ApiRequestError extends Error {
+  code?: string;
+  status?: number;
+
+  constructor(message: string, code?: string, status?: number) {
+    super(message);
+    this.name = 'ApiRequestError';
+    this.code = code;
+    this.status = status;
+  }
+}
+
+async function parseApiError(res: Response): Promise<ApiRequestError> {
   const text = await res.text().catch(() => '');
   if (text) {
     try {
       const json = JSON.parse(text) as { error?: string; code?: string };
       if (json.error) {
         if (json.error === 'Token manquant' || json.error === 'Token invalide') {
-          return i18n.t('errors.sessionExpired');
+          return new ApiRequestError(i18n.t('errors.sessionExpired'), json.code, res.status);
         }
         if (json.code === 'dm_mutual_follow_required') {
-          return i18n.t('dm.mutualFollowRequired');
+          return new ApiRequestError(i18n.t('dm.mutualFollowRequired'), json.code, res.status);
         }
         if (json.code === 'spotify_not_connected') {
-          return json.error || i18n.t('salon.spotifySearch.errorNotConnected');
+          return new ApiRequestError(
+            json.error || i18n.t('salon.spotifySearch.errorNotConnected'),
+            json.code,
+            res.status
+          );
         }
         if (json.code === 'spotify_token_expired') {
-          return json.error || i18n.t('salon.spotifySearch.errorTokenExpired');
+          return new ApiRequestError(
+            json.error || i18n.t('salon.spotifySearch.errorTokenExpired'),
+            json.code,
+            res.status
+          );
+        }
+        if (json.code === 'spotify_scope_missing') {
+          return new ApiRequestError(
+            json.error || i18n.t('salon.spotifySearch.errorScopeMissing'),
+            json.code,
+            res.status
+          );
         }
         if (json.code === 'spotify_rate_limited') {
-          return json.error || i18n.t('salon.spotifySearch.errorRateLimited');
+          return new ApiRequestError(
+            json.error || i18n.t('salon.spotifySearch.errorRateLimited'),
+            json.code,
+            res.status
+          );
         }
         if (json.code === 'spotify_oauth_not_configured') {
-          return json.error || i18n.t('salon.spotifySearch.errorServerConfig');
+          return new ApiRequestError(
+            json.error || i18n.t('salon.spotifySearch.errorServerConfig'),
+            json.code,
+            res.status
+          );
         }
         if (json.code === 'spotify_network_error') {
-          return json.error || i18n.t('salon.spotifySearch.errorNetwork');
+          return new ApiRequestError(
+            json.error || i18n.t('salon.spotifySearch.errorNetwork'),
+            json.code,
+            res.status
+          );
         }
         if (json.code === 'spotify_dev_user_not_allowed') {
-          return json.error || i18n.t('salon.spotifySearch.errorDevUser');
+          return new ApiRequestError(
+            json.error || i18n.t('salon.spotifySearch.errorDevUser'),
+            json.code,
+            res.status
+          );
         }
-        return json.error;
+        return new ApiRequestError(json.error, json.code, res.status);
       }
     } catch {
-      if (text.length < 200) return text;
+      if (text.length < 200) return new ApiRequestError(text, undefined, res.status);
     }
   }
-  if (res.status === 413) return i18n.t('errors.profileTooLarge');
-  if (res.status === 401) return i18n.t('errors.sessionExpired');
-  if (res.status === 403) return i18n.t('errors.forbidden');
-  if (res.status === 404) return i18n.t('errors.notFound');
-  if (res.status === 429) return i18n.t('errors.tooManyAttempts');
-  return res.statusText || i18n.t('errors.network');
+  if (res.status === 413) return new ApiRequestError(i18n.t('errors.profileTooLarge'), undefined, res.status);
+  if (res.status === 401) return new ApiRequestError(i18n.t('errors.sessionExpired'), undefined, res.status);
+  if (res.status === 403) return new ApiRequestError(i18n.t('errors.forbidden'), undefined, res.status);
+  if (res.status === 404) return new ApiRequestError(i18n.t('errors.notFound'), undefined, res.status);
+  if (res.status === 429) return new ApiRequestError(i18n.t('errors.tooManyAttempts'), undefined, res.status);
+  return new ApiRequestError(res.statusText || i18n.t('errors.network'), undefined, res.status);
 }
 
 async function request<T>(path: string, opts: RequestInit = {}, token?: string | null): Promise<T> {
@@ -78,7 +121,7 @@ async function request<T>(path: string, opts: RequestInit = {}, token?: string |
     normalizeFetchNetworkError(e);
   }
   if (!res.ok) {
-    throw new Error(await parseApiError(res));
+    throw await parseApiError(res);
   }
   return res.json();
 }
@@ -317,12 +360,22 @@ export const api = {
       token
     ),
 
-  searchSpotify: (token: string, query: string, signal?: AbortSignal) =>
-    request<{ results: import('../types').SpotifySearchResult[] }>(
-      `/salons/spotify-search?q=${encodeURIComponent(query)}`,
+  searchSpotify: (
+    token: string,
+    query: string,
+    signal?: AbortSignal,
+    limit?: number
+  ) => {
+    const params = new URLSearchParams({ q: query });
+    if (limit != null && Number.isFinite(limit)) {
+      params.set('limit', String(Math.floor(limit)));
+    }
+    return request<{ results: import('../types').SpotifySearchResult[] }>(
+      `/salons/spotify-search?${params}`,
       { signal },
       token
-    ),
+    );
+  },
 
   salonChangeTrack: (
     token: string,
@@ -566,7 +619,7 @@ export const api = {
       err.until = body.until;
       throw err;
     }
-    if (!res.ok) throw new Error(await parseApiError(res));
+    if (!res.ok) throw await parseApiError(res);
     return body as { live: import('../types').Live };
   },
 

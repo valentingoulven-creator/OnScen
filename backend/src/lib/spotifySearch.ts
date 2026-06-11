@@ -28,6 +28,30 @@ export class SpotifySearchError extends Error {
   }
 }
 
+/** Spotify GET /v1/search — limit 1–10 (doc officielle, pas 50). */
+export const SPOTIFY_SEARCH_DEFAULT_LIMIT = 10;
+const SPOTIFY_SEARCH_MIN_LIMIT = 1;
+const SPOTIFY_SEARCH_MAX_LIMIT = 10;
+
+/** Normalise limit (0, undefined, string, float, >10) → entier 1–10. */
+export function normalizeSpotifySearchLimit(raw?: unknown): number {
+  if (raw === undefined || raw === null || raw === '') {
+    return SPOTIFY_SEARCH_DEFAULT_LIMIT;
+  }
+  const parsed =
+    typeof raw === 'number' ? raw : Number.parseInt(String(raw).trim(), 10);
+  if (!Number.isFinite(parsed) || parsed < SPOTIFY_SEARCH_MIN_LIMIT) {
+    return SPOTIFY_SEARCH_DEFAULT_LIMIT;
+  }
+  return Math.min(Math.floor(parsed), SPOTIFY_SEARCH_MAX_LIMIT);
+}
+
+function defaultSpotifySearchMarket(): string {
+  const fromEnv = process.env.SPOTIFY_DEFAULT_MARKET?.trim().toUpperCase();
+  if (fromEnv && /^[A-Z]{2}$/.test(fromEnv)) return fromEnv;
+  return 'FR';
+}
+
 async function ensureHostSpotifyAccessToken(user: User): Promise<string | null> {
   let token = getSpotifyAccessToken(user);
   if (token) return token;
@@ -116,14 +140,15 @@ function classifySpotifySearchFailure(
 async function fetchSpotifySearch(
   accessToken: string,
   query: string,
-  opts?: { userMarket?: boolean }
+  opts?: { limit?: number; market?: string }
 ): Promise<{ ok: boolean; status: number; items: SpotifySearchResult[]; spotifyMessage?: string }> {
+  const limit = normalizeSpotifySearchLimit(opts?.limit);
   const params = new URLSearchParams({
     q: query,
     type: 'track',
-    limit: '15',
+    limit: String(limit),
   });
-  if (opts?.userMarket) params.set('market', 'from_token');
+  if (opts?.market) params.set('market', opts.market);
   let res: Response;
   try {
     res = await fetch(`https://api.spotify.com/v1/search?${params}`, {
@@ -156,9 +181,14 @@ async function fetchSpotifySearch(
   return { ok: true, status: res.status, items };
 }
 
-export async function searchSpotifyTracks(user: User, query: string): Promise<SpotifySearchResult[]> {
+export async function searchSpotifyTracks(
+  user: User,
+  query: string,
+  opts?: { limit?: unknown }
+): Promise<SpotifySearchResult[]> {
   const q = query.trim();
   if (q.length < 2) return [];
+  const searchLimit = normalizeSpotifySearchLimit(opts?.limit);
 
   const parsed = parseMusicLink('spotify', q);
   if (parsed) {
@@ -184,12 +214,12 @@ export async function searchSpotifyTracks(user: User, query: string): Promise<Sp
 
   const hostToken = await ensureHostSpotifyAccessToken(user);
   if (hostToken) {
-    let result = await fetchSpotifySearch(hostToken, q, { userMarket: true });
+    let result = await fetchSpotifySearch(hostToken, q, { limit: searchLimit });
 
     if (!result.ok && result.status === 401) {
       const refreshed = await refreshSpotifyToken(user);
       if (refreshed) {
-        result = await fetchSpotifySearch(refreshed, q, { userMarket: true });
+        result = await fetchSpotifySearch(refreshed, q, { limit: searchLimit });
       }
     }
 
@@ -216,7 +246,10 @@ export async function searchSpotifyTracks(user: User, query: string): Promise<Sp
     );
   }
 
-  const fallback = await fetchSpotifySearch(appToken, q);
+  const fallback = await fetchSpotifySearch(appToken, q, {
+    limit: searchLimit,
+    market: defaultSpotifySearchMarket(),
+  });
   if (!fallback.ok) {
     throw classifySpotifySearchFailure(fallback.status, fallback.spotifyMessage);
   }

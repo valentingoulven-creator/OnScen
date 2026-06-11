@@ -21,7 +21,23 @@ export async function parseSpotifyErrorMessage(res: Response): Promise<string | 
   }
 }
 
+export function isSpotifyScopeMissingError(detail?: string): boolean {
+  const d = detail?.toLowerCase() ?? '';
+  return (
+    d.includes('insufficient client scope') ||
+    d.includes('insufficient scope') ||
+    d.includes('missing scope')
+  );
+}
+
+export function spotifyScopeMissingMessage(): string {
+  return 'Reconnectez Spotify pour autoriser l’accès aux playlists (autorisation requise).';
+}
+
 export function spotifyAuthErrorMessage(status: number, detail?: string): string {
+  if (status === 403 && isSpotifyScopeMissingError(detail)) {
+    return spotifyScopeMissingMessage();
+  }
   if (status === 401 || status === 403) {
     if (detail?.toLowerCase().includes('not registered')) {
       return 'Compte Spotify non autorisé pour cette app — reconnectez Spotify (utilisateur allowlist requis en mode dev).';

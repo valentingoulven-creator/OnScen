@@ -21,6 +21,8 @@ export interface PlatformAccount {
   /** msdev: jeton simulé ; prod: OAuth access token (serveur uniquement) */
   accessToken?: string;
   refreshToken?: string;
+  /** Epoch ms — renouvellement proactif avant expiration Spotify. */
+  accessTokenExpiresAt?: number;
   displayName?: string;
   avatarUrl?: string;
   email?: string;
