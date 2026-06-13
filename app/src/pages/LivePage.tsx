@@ -5,7 +5,7 @@ import { usePauseMediaOnPageHidden, pauseMediaElements } from '../hooks/usePause
 import { useBackgroundPlayback } from '../hooks/useBackgroundPlayback';
 import { releaseAppMediaFocus, requestAppMediaFocus } from '../lib/appMediaFocus';
 import { api } from '../lib/api';
-import { LIVE_CAMERA_VIEWER_FILE_NOTE, LIVE_CAMERA_VIEWER_NOTE, LIVE_CAMERA_VIEWER_NO_HOST_CAMERA } from '../lib/liveCameraMessages';
+import { LIVE_CAMERA_VIEWER_AUDIO_BLOCKED, LIVE_CAMERA_VIEWER_FILE_NOTE, LIVE_CAMERA_VIEWER_NOTE, LIVE_CAMERA_VIEWER_NO_HOST_CAMERA, LIVE_CAMERA_MIC_SWITCHING } from '../lib/liveCameraMessages';
 import { emitLiveCameraToggle, clearLiveCameraToggleQueue } from '../lib/liveCameraSocket';
 import { useLiveVideoRelay } from '../hooks/useLiveVideoRelay';
 import { mergeRemotePlaybackState } from '../lib/salonPlayback';
@@ -159,6 +159,10 @@ export function LivePage({
     startFromFile: startCameraFromFile,
     stop: stopCamera,
     getStream: getCameraStream,
+    audioDevices,
+    audioDeviceId,
+    micSwitching,
+    switchMicrophone,
   } = useLiveCamera();
   const videoFileInputRef = useRef<HTMLInputElement>(null);
   const [videoFileLoading, setVideoFileLoading] = useState(false);
@@ -371,7 +375,7 @@ export function LivePage({
   const viewerCameraRelayActive =
     !isHost && !!live?.cameraActive && live.cameraMode !== 'file';
 
-  const { viewerVideoRef, viewerStreamActive, viewerRelayError, viewerRelayPhase } = useLiveVideoRelay({
+  const { viewerVideoRef, viewerStreamActive, viewerRelayError, viewerRelayPhase, viewerAudioBlocked, enableViewerAudio, replaceHostTrack } = useLiveVideoRelay({
     liveId,
     userId: user?.id,
     hostId: live?.hostId,
@@ -424,6 +428,9 @@ export function LivePage({
 
     const gen = ++pendingCameraStartGenRef.current;
 
+    emitCameraState(true, 'camera');
+    setLive((prev) => (prev ? { ...prev, cameraActive: true, cameraMode: 'camera' } : prev));
+
     void (async () => {
       const ok = await startCamera();
       if (gen !== pendingCameraStartGenRef.current) return;
@@ -431,6 +438,11 @@ export function LivePage({
         clearPendingLiveCameraStart();
         emitCameraState(true, 'camera');
         setLive((prev) => (prev ? { ...prev, cameraActive: true, cameraMode: 'camera' } : prev));
+      } else {
+        emitCameraState(false);
+        setLive((prev) =>
+          prev ? { ...prev, cameraActive: false, cameraMode: undefined } : prev
+        );
       }
     })();
 
@@ -463,15 +475,31 @@ export function LivePage({
     live?.playbackState.isPlaying ?? false
   );
 
+  const cameraPausedByHiddenRef = useRef(false);
+  const cameraModeBeforeHiddenRef = useRef<'camera' | 'file'>('camera');
+
   usePauseMediaOnPageHidden({
     onPageHidden: () => {
       if (isHostRef.current && cameraLocalActiveRef.current) {
+        cameraModeBeforeHiddenRef.current =
+          cameraModeRef.current === 'file' ? 'file' : 'camera';
         stopCamera();
-        emitCameraState(false);
-        setLive((prev) =>
-          prev ? { ...prev, cameraActive: false, cameraMode: undefined } : prev
-        );
+        cameraPausedByHiddenRef.current = true;
       }
+    },
+    onPageVisible: () => {
+      if (!isHostRef.current || !cameraPausedByHiddenRef.current) return;
+      cameraPausedByHiddenRef.current = false;
+      if (cameraModeBeforeHiddenRef.current === 'file') return;
+      void (async () => {
+        const ok = await startCamera();
+        if (ok) {
+          emitCameraState(true, 'camera');
+          setLive((prev) =>
+            prev ? { ...prev, cameraActive: true, cameraMode: 'camera' } : prev
+          );
+        }
+      })();
     },
   });
 
@@ -678,6 +706,12 @@ export function LivePage({
     }
   };
 
+  const onHostMicChange = async (nextDeviceId: string) => {
+    if (!isHost || cameraMode !== 'camera' || !cameraLocalActive || micSwitching) return;
+    const track = await switchMicrophone(nextDeviceId);
+    if (track) await replaceHostTrack(track);
+  };
+
   const isVipModerator = (live?.vipModeratorIds ?? []).includes(user?.id ?? '');
   const isDevModerator = Boolean(user?.isAdmin || live?.isDev);
   const canModerateChat = isHost || isVipModerator || isDevModerator;
@@ -790,6 +824,16 @@ export function LivePage({
     live.cameraMode === 'file'
       ? LIVE_CAMERA_VIEWER_FILE_NOTE
       : viewerRelayError ?? LIVE_CAMERA_VIEWER_NOTE;
+  const viewerRelayStatusLabel =
+    viewerRelayPhase === 'connected'
+      ? 'Vidéo connectée'
+      : viewerRelayPhase === 'failed'
+        ? 'Flux indisponible'
+        : viewerRelayPhase === 'connecting'
+          ? 'Connexion WebRTC…'
+          : viewerRelayPhase === 'waiting'
+            ? 'En attente du host…'
+            : null;
   const viewerStageHint = isHost
     ? 'Activez la caméra ou choisissez une vidéo'
     : showViewerNoCamera
@@ -922,6 +966,31 @@ export function LivePage({
                     ? '📹 Caméra on'
                     : '📷 Activer la caméra'}
               </button>
+              {cameraLocalActive && cameraMode === 'camera' && audioDevices.length > 0 && (
+                <label className="sr-only" htmlFor="live-host-mic-select">
+                  Microphone
+                </label>
+              )}
+              {cameraLocalActive && cameraMode === 'camera' && audioDevices.length > 0 && (
+                <select
+                  id="live-host-mic-select"
+                  value={audioDeviceId}
+                  disabled={micSwitching || cameraToggling}
+                  onChange={(e) => void onHostMicChange(e.target.value)}
+                  className="max-w-[7.5rem] px-2 py-1.5 rounded-full text-[10px] font-medium border bg-[#131318] border-[#232330] text-gray-300 hover:border-white/15 disabled:opacity-50 truncate"
+                  title="Changer de micro"
+                  aria-label="Microphone du live"
+                >
+                  {audioDevices.map((m) => (
+                    <option key={m.deviceId} value={m.deviceId}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {micSwitching && (
+                <span className="text-[9px] text-gray-500 shrink-0">{LIVE_CAMERA_MIC_SWITCHING}</span>
+              )}
               <button
                 type="button"
                 onClick={() => videoFileInputRef.current?.click()}
@@ -1007,7 +1076,7 @@ export function LivePage({
         stage={
           <div
             ref={videoContainerRef}
-            className={`live-video-container relative w-full h-full min-h-0 flex flex-col bg-black overflow-hidden${
+            className={`live-video-container relative w-full flex-1 min-h-0 flex flex-col bg-black overflow-hidden${
               isLandscapeTheater ? ' live-video-container--landscape-theater' : ''
             }`}
           >
@@ -1029,12 +1098,26 @@ export function LivePage({
                 ref={viewerVideoRef}
                 autoPlay
                 playsInline
+                muted={false}
                 className={`absolute inset-0 w-full h-full object-cover bg-black${
                   showViewerVideo ? '' : ' invisible pointer-events-none'
                 }`}
                 aria-hidden={!showViewerVideo}
                 aria-label="Flux vidéo du host"
               />
+            )}
+            {!isHost && viewerStreamActive && viewerAudioBlocked && (
+              <div className="absolute top-2 right-2 z-30 pointer-events-auto">
+                <button
+                  type="button"
+                  onClick={() => void enableViewerAudio()}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/70 border border-amber-500/40 text-amber-200 text-[11px] font-bold backdrop-blur hover:bg-black/85 active:scale-95 transition"
+                  aria-label="Activer le son du live"
+                  title={LIVE_CAMERA_VIEWER_AUDIO_BLOCKED}
+                >
+                  🔊 Activer le son
+                </button>
+              </div>
             )}
             {showViewerCameraBadge && (
               <div className="absolute inset-0 z-10 flex flex-col items-center justify-center px-6 text-center">
@@ -1109,6 +1192,21 @@ export function LivePage({
 
             {!isHost && hostCanReceiveDonations && (
               <LiveGiftOverlay liveId={liveId} visible onOpenGiftSheet={openDonSheet} />
+            )}
+
+            {!isHost && viewerCameraRelayActive && viewerRelayStatusLabel && (
+              <div
+                className={`absolute top-2 right-2 z-30 pointer-events-none px-2 py-1 rounded-md text-[10px] font-bold backdrop-blur border ${
+                  viewerRelayPhase === 'failed'
+                    ? 'bg-red-950/80 border-red-500/40 text-red-200'
+                    : viewerRelayPhase === 'connected'
+                      ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-200'
+                      : 'bg-black/70 border-white/20 text-gray-200'
+                }`}
+                aria-live="polite"
+              >
+                {viewerRelayStatusLabel}
+              </div>
             )}
 
             {(FULLSCREEN_SUPPORTED || isLandscapeTheater) && (

@@ -56,3 +56,10 @@ export const LIVE_CAMERA_INVALID_FILE =
 
 export const LIVE_CAMERA_FILE_LOAD_ERROR =
   'Impossible de lire cette vidéo. Essayez un autre format (MP4 recommandé).';
+
+/** Spectateur : le navigateur a bloqué la lecture audio automatique. */
+export const LIVE_CAMERA_VIEWER_AUDIO_BLOCKED =
+  'Le son du live est coupé. Appuyez sur « Activer le son » pour entendre le host.';
+
+/** Hôte : changement de micro en cours. */
+export const LIVE_CAMERA_MIC_SWITCHING = 'Changement de micro…';

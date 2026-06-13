@@ -8,11 +8,15 @@ import {
   createVideoFileObjectUrl,
   ensureMediaDevices,
   hasGetUserMediaCapability,
+  listLiveAudioInputDevices,
   mapLiveCameraError,
   playLiveVideo,
+  replaceLiveAudioTrack,
   validateLiveVideoFile,
   waitForVideoFileMetadata,
+  type LiveMediaDeviceOption,
 } from '../lib/liveCameraSupport';
+import { setLiveMediaPrefs } from '../lib/liveMediaPrefs';
 
 export type LiveCameraMode = 'camera' | 'file' | null;
 
@@ -26,6 +30,9 @@ export function useLiveCamera() {
   const [cameraUsable, setCameraUsable] = useState(() =>
     typeof window === 'undefined' ? true : hasGetUserMediaCapability()
   );
+  const [audioDevices, setAudioDevices] = useState<LiveMediaDeviceOption[]>([]);
+  const [audioDeviceId, setAudioDeviceId] = useState('');
+  const [micSwitching, setMicSwitching] = useState(false);
 
   useEffect(() => {
     setCameraUsable(hasGetUserMediaCapability());
@@ -45,6 +52,8 @@ export function useLiveCamera() {
     }
     setActive(false);
     setMode(null);
+    setAudioDevices([]);
+    setAudioDeviceId('');
   }, []);
 
   const attachPreview = useCallback(async () => {
@@ -112,6 +121,10 @@ export function useLiveCamera() {
       setMode('camera');
       setActive(true);
       setCameraUsable(true);
+      const mics = await listLiveAudioInputDevices();
+      setAudioDevices(mics);
+      const activeMic = stream.getAudioTracks()[0]?.getSettings().deviceId ?? '';
+      setAudioDeviceId(activeMic);
       const el = await waitForVideoElement();
       if (el) await attachPreview();
       return true;
@@ -181,6 +194,33 @@ export function useLiveCamera() {
 
   const getStream = useCallback((): MediaStream | null => streamRef.current, []);
 
+  const switchMicrophone = useCallback(
+    async (nextDeviceId: string): Promise<MediaStreamTrack | null> => {
+      const stream = streamRef.current;
+      const md = ensureMediaDevices();
+      if (!stream || !md?.getUserMedia || mode !== 'camera' || !nextDeviceId) return null;
+      if (nextDeviceId === audioDeviceId) return stream.getAudioTracks()[0] ?? null;
+
+      setMicSwitching(true);
+      setError(null);
+      try {
+        const track = await replaceLiveAudioTrack(stream, (c) => md.getUserMedia(c), nextDeviceId);
+        setAudioDeviceId(nextDeviceId);
+        setLiveMediaPrefs({
+          videoDeviceId: stream.getVideoTracks()[0]?.getSettings().deviceId,
+          audioDeviceId: nextDeviceId,
+        });
+        return track;
+      } catch (e) {
+        setError(mapLiveCameraError(e));
+        return null;
+      } finally {
+        setMicSwitching(false);
+      }
+    },
+    [audioDeviceId, mode]
+  );
+
   return {
     videoRef: setVideoRef,
     active,
@@ -188,9 +228,13 @@ export function useLiveCamera() {
     error,
     setError,
     cameraUsable,
+    audioDevices,
+    audioDeviceId,
+    micSwitching,
     start,
     startFromFile,
     stop,
     getStream,
+    switchMicrophone,
   };
 }

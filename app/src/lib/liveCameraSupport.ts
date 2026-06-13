@@ -273,22 +273,81 @@ export async function attachLiveCameraStream(
   await playLiveVideo(el);
 }
 
-/** Lecture flux distant (spectateur) — ne force pas muted. */
-export async function playLiveRemoteVideo(el: HTMLVideoElement): Promise<void> {
+export type LiveRemotePlaybackResult = 'playing' | 'muted_fallback' | 'failed';
+
+/** Lecture flux distant (spectateur) — tente le son, signale si le navigateur impose le muet. */
+export async function playLiveRemoteVideo(el: HTMLVideoElement): Promise<LiveRemotePlaybackResult> {
   el.playsInline = true;
   el.setAttribute('playsinline', 'true');
   el.setAttribute('webkit-playsinline', 'true');
   el.setAttribute('x5-playsinline', 'true');
+  el.muted = false;
+  if ('volume' in el) el.volume = 1;
   try {
     await el.play();
+    return 'playing';
   } catch {
-    el.muted = true;
     try {
+      el.muted = true;
       await el.play();
+      return 'muted_fallback';
     } catch {
-      /* autoplay policy */
+      return 'failed';
     }
   }
+}
+
+/** Débloque le son du flux distant après un geste utilisateur. */
+export async function unmuteLiveRemoteVideo(el: HTMLVideoElement): Promise<boolean> {
+  el.muted = false;
+  if ('volume' in el) el.volume = 1;
+  try {
+    await el.play();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export interface LiveMediaDeviceOption {
+  deviceId: string;
+  label: string;
+}
+
+export async function listLiveAudioInputDevices(): Promise<LiveMediaDeviceOption[]> {
+  const md = ensureMediaDevices();
+  if (!md?.enumerateDevices) return [];
+  const all = await md.enumerateDevices();
+  return all
+    .filter((d) => d.kind === 'audioinput')
+    .map((d, i) => ({ deviceId: d.deviceId, label: d.label || `Micro ${i + 1}` }));
+}
+
+/** Remplace la piste audio d'un flux live sans couper la vidéo. */
+export async function replaceLiveAudioTrack(
+  stream: MediaStream,
+  getUserMedia: (c: MediaStreamConstraints) => Promise<MediaStream>,
+  audioDeviceId: string
+): Promise<MediaStreamTrack> {
+  const audioStream = await getUserMedia({
+    audio: { deviceId: { ideal: audioDeviceId } },
+    video: false,
+  });
+  const newTrack = audioStream.getAudioTracks()[0];
+  if (!newTrack) {
+    audioStream.getTracks().forEach((t) => t.stop());
+    throw new DOMException('No audio track', 'NotFoundError');
+  }
+  const oldTrack = stream.getAudioTracks()[0];
+  if (oldTrack) {
+    stream.removeTrack(oldTrack);
+    oldTrack.stop();
+  }
+  stream.addTrack(newTrack);
+  audioStream.getTracks().forEach((t) => {
+    if (t !== newTrack) t.stop();
+  });
+  return newTrack;
 }
 
 export interface LiveCameraDevicePrefs {

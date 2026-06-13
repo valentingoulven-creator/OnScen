@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { playLiveRemoteVideo } from '../lib/liveCameraSupport';
+import { playLiveRemoteVideo, unmuteLiveRemoteVideo } from '../lib/liveCameraSupport';
 import {
   LIVE_CAMERA_VIEWER_ICE_FAILED,
   LIVE_CAMERA_VIEWER_TIMEOUT,
@@ -14,7 +14,7 @@ import { emitOnSocket, getSocket, onSocketConnect } from '../lib/socket';
 
 export type ViewerRelayPhase = 'idle' | 'waiting' | 'connecting' | 'connected' | 'failed';
 
-const VIEWER_RELAY_TIMEOUT_MS = 20_000;
+const VIEWER_RELAY_TIMEOUT_MS = 30_000;
 const VIEWER_READY_RETRY_MS = 3_000;
 const VIEWER_MAX_READY_ATTEMPTS = 8;
 
@@ -45,6 +45,7 @@ export function useLiveVideoRelay({
   const [viewerStreamActive, setViewerStreamActive] = useState(false);
   const [viewerRelayError, setViewerRelayError] = useState<string | null>(null);
   const [viewerRelayPhase, setViewerRelayPhase] = useState<ViewerRelayPhase>('idle');
+  const [viewerAudioBlocked, setViewerAudioBlocked] = useState(false);
 
   const isHost = !!(userId && hostId && userId === hostId);
   const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map());
@@ -74,7 +75,16 @@ export function useLiveVideoRelay({
     const el = viewerVideoRef.current;
     if (!stream || !el) return;
     el.srcObject = stream;
-    await playLiveRemoteVideo(el);
+    const result = await playLiveRemoteVideo(el);
+    setViewerAudioBlocked(result === 'muted_fallback');
+  }, []);
+
+  const enableViewerAudio = useCallback(async () => {
+    const el = viewerVideoRef.current;
+    if (!el) return false;
+    const ok = await unmuteLiveRemoteVideo(el);
+    if (ok) setViewerAudioBlocked(false);
+    return ok;
   }, []);
 
   const setViewerVideoRef = useCallback(
@@ -96,6 +106,7 @@ export function useLiveVideoRelay({
       el.srcObject = null;
     }
     setViewerStreamActive(false);
+    setViewerAudioBlocked(false);
   }, []);
 
   const emitSignal = useCallback(
@@ -182,6 +193,16 @@ export function useLiveVideoRelay({
     },
     []
   );
+
+  const replaceHostTrack = useCallback(async (track: MediaStreamTrack) => {
+    if (!isHost) return;
+    const replacements: Promise<void>[] = [];
+    for (const pc of peersRef.current.values()) {
+      const sender = pc.getSenders().find((s) => s.track?.kind === track.kind);
+      if (sender) replacements.push(sender.replaceTrack(track));
+    }
+    await Promise.all(replacements);
+  }, [isHost]);
 
   const handleViewerOffer = useCallback(
     async (fromHostId: string, offer: RTCSessionDescriptionInit) => {
@@ -417,6 +438,9 @@ export function useLiveVideoRelay({
     viewerStreamActive,
     viewerRelayError,
     viewerRelayPhase,
+    viewerAudioBlocked,
+    enableViewerAudio,
     signalViewerReady,
+    replaceHostTrack,
   };
 }

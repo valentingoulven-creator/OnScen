@@ -445,7 +445,7 @@ export default function App() {
 
   const openLive = useCallback((id: string) => {
     if (tabRef.current === 'reels') pauseAllReelsMediaInDom({ resetPosition: true });
-    pauseMediaElements();
+    pauseMediaElements(document, { exceptLiveStage: true });
     setProfileOpen(false);
     setTab('live');
     setView({ type: 'live', id });
@@ -488,7 +488,7 @@ export default function App() {
 
   const selectTab = useCallback((id: Tab) => {
     if (tabRef.current === 'reels' && id !== 'reels') pauseAllReelsMediaInDom({ resetPosition: true });
-    if (id !== 'reels') pauseMediaElements();
+    if (id !== 'reels') pauseMediaElements(document, { exceptLiveStage: true });
     setProfileOpen(false);
     setAdminOpen(false);
     const session = activeSalonSessionRef.current;
@@ -704,6 +704,15 @@ export default function App() {
                     onLeaveSalon={leaveActiveSalonSession}
                     onMinimizeToMap={handleSalonMinimizeToMap}
                     onSalonLoaded={handleSalonTitleLoaded}
+                    onOpenLive={(liveId) => {
+                      if (activeSalonSession?.viewMode === 'full') {
+                        clearSalonUrlFromBar();
+                        setActiveSalonSession((prev) =>
+                          prev ? { ...prev, viewMode: 'minimized' } : prev
+                        );
+                      }
+                      openLive(liveId);
+                    }}
                   />
                 </Suspense>
               </div>
@@ -741,13 +750,15 @@ export default function App() {
               </Suspense>
             )}
             {view.type === 'live' && (
-              <Suspense fallback={<PageFallback />}>
-                <LivePage
-                  liveId={view.id}
-                  onBack={closeLive}
-                  onOpenProfile={(id) => openProfile(id)}
-                />
-              </Suspense>
+              <div className="ms-salon-fullscreen-overlay flex flex-col min-h-0 bg-[#0b0b0f]">
+                <Suspense fallback={<PageFallback />}>
+                  <LivePage
+                    liveId={view.id}
+                    onBack={closeLive}
+                    onOpenProfile={(id) => openProfile(id)}
+                  />
+                </Suspense>
+              </div>
             )}
             {actualiteTabMounted && (
               <Suspense fallback={<PageFallback />}>
