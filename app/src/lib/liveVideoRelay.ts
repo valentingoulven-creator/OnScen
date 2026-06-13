@@ -64,18 +64,29 @@ export function mergeRemoteLiveStream(
   return canonical;
 }
 
-/** Attach host camera/mic tracks with explicit send transceivers (Unified Plan). */
+/** Attach host camera/mic tracks with explicit sendonly transceivers (Unified Plan). */
 export function attachLiveRelaySendTracks(pc: RTCPeerConnection, stream: MediaStream): void {
   for (const kind of ['video', 'audio'] as const) {
     const track = stream
       .getTracks()
       .find((t) => t.kind === kind && t.readyState === 'live' && t.enabled);
     if (!track) continue;
+
     const sender = pc.getSenders().find((s) => s.track?.kind === kind);
     if (sender) {
       void sender.replaceTrack(track);
+      continue;
+    }
+
+    const transceiver = pc.getTransceivers().find((t) => {
+      const mediaKind = t.receiver.track?.kind ?? t.sender.track?.kind;
+      return mediaKind === kind || (mediaKind == null && t.direction.includes('send'));
+    });
+
+    if (transceiver) {
+      void transceiver.sender.replaceTrack(track);
     } else {
-      pc.addTrack(track, stream);
+      pc.addTransceiver(track, { direction: 'sendonly', streams: [stream] });
     }
   }
 }

@@ -337,7 +337,7 @@ function remoteStreamHasVideoTrack(stream: MediaStream | null | undefined): bool
   return stream.getVideoTracks().some((t) => t.readyState === 'live' && t.enabled);
 }
 
-/** Lecture flux distant (spectateur) — tente le son, signale si le navigateur impose le muet. */
+/** Lecture flux distant (spectateur) — démarre muet (autoplay), son après geste utilisateur. */
 export async function playLiveRemoteVideo(
   el: HTMLVideoElement,
   stream?: MediaStream | null
@@ -348,16 +348,16 @@ export async function playLiveRemoteVideo(
     waitForLiveRemoteVideoDimensions(el, attached, 1200),
     new Promise<boolean>((resolve) => window.setTimeout(() => resolve(false), 1200)),
   ]);
-  el.muted = false;
   if ('volume' in el) el.volume = 1;
+  el.muted = true;
   try {
     await el.play();
-    return 'playing';
+    return 'muted_fallback';
   } catch {
     try {
-      el.muted = true;
+      el.muted = false;
       await el.play();
-      return 'muted_fallback';
+      return 'playing';
     } catch {
       return 'failed';
     }

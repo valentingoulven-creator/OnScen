@@ -148,6 +148,7 @@ export type LiveVideoStageProps = {
   viewerPlaybackBlocked: boolean;
   viewerAudioBlocked: boolean;
   viewerHasVideoTrack?: boolean;
+  viewerDebugInfo?: string;
   enableViewerPlayback: () => Promise<boolean>;
   hostPreviewBlocked?: boolean;
   enableHostPreview?: () => Promise<boolean>;
@@ -175,6 +176,7 @@ export function LiveVideoStage({
   viewerPlaybackBlocked,
   viewerAudioBlocked,
   viewerHasVideoTrack = true,
+  viewerDebugInfo = '',
   enableViewerPlayback,
   hostPreviewBlocked = false,
   enableHostPreview,
@@ -405,7 +407,7 @@ export function LiveVideoStage({
           ref={videoRef}
           autoPlay
           playsInline
-          muted={isHost}
+          {...(isHost ? { muted: true } : {})}
           className={`absolute inset-0 w-full h-full object-cover bg-black z-10${
             showVideo ? '' : ' opacity-0 pointer-events-none'
           }`}
@@ -507,6 +509,9 @@ export function LiveVideoStage({
         aria-live="polite"
       >
         {status}
+        {!isHost && viewerDebugInfo ? (
+          <span className="block text-[9px] text-gray-600 mt-0.5 font-mono">{viewerDebugInfo}</span>
+        ) : null}
       </div>
     </div>
   );
