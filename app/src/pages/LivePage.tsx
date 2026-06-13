@@ -158,7 +158,7 @@ export function LivePage({
     start: startCamera,
     startFromFile: startCameraFromFile,
     stop: stopCamera,
-    getStream: getCameraStream,
+    broadcastStream,
     audioDevices,
     audioDeviceId,
     micSwitching,
@@ -375,11 +375,11 @@ export function LivePage({
   const viewerCameraRelayActive =
     !isHost && !!live?.cameraActive && live.cameraMode !== 'file';
 
-  const { viewerVideoRef, viewerStreamActive, viewerRelayError, viewerRelayPhase, viewerAudioBlocked, enableViewerAudio, replaceHostTrack } = useLiveVideoRelay({
+  const { viewerVideoRef, viewerStreamActive, viewerRelayError, viewerRelayPhase, viewerAudioBlocked, viewerPlaybackBlocked, enableViewerPlayback, replaceHostTrack } = useLiveVideoRelay({
     liveId,
     userId: user?.id,
     hostId: live?.hostId,
-    broadcastStream: hostCameraRelayActive ? getCameraStream() : null,
+    broadcastStream: hostCameraRelayActive ? broadcastStream : null,
     cameraRelayActive: isHost ? hostCameraRelayActive : viewerCameraRelayActive,
   });
 
@@ -1106,13 +1106,13 @@ export function LivePage({
                 aria-label="Flux vidéo du host"
               />
             )}
-            {!isHost && viewerStreamActive && viewerAudioBlocked && (
+            {!isHost && viewerStreamActive && (viewerAudioBlocked || viewerPlaybackBlocked) && (
               <div className="absolute top-2 right-2 z-30 pointer-events-auto">
                 <button
                   type="button"
-                  onClick={() => void enableViewerAudio()}
+                  onClick={() => void enableViewerPlayback()}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/70 border border-amber-500/40 text-amber-200 text-[11px] font-bold backdrop-blur hover:bg-black/85 active:scale-95 transition"
-                  aria-label="Activer le son du live"
+                  aria-label="Activer le son et la vidéo du live"
                   title={LIVE_CAMERA_VIEWER_AUDIO_BLOCKED}
                 >
                   🔊 Activer le son

@@ -6,7 +6,9 @@ import {
   LIVE_CAMERA_VIEWER_UNAVAILABLE,
 } from '../lib/liveCameraMessages';
 import {
+  attachLiveRelaySendTracks,
   createLivePeerConnection,
+  liveStreamReadyForRelay,
   LIVE_WEBRTC_MESH_VIEWER_LIMIT,
   type LiveWebrtcSignalPayload,
 } from '../lib/liveVideoRelay';
@@ -14,9 +16,11 @@ import { emitOnSocket, getSocket, onSocketConnect } from '../lib/socket';
 
 export type ViewerRelayPhase = 'idle' | 'waiting' | 'connecting' | 'connected' | 'failed';
 
-const VIEWER_RELAY_TIMEOUT_MS = 30_000;
-const VIEWER_READY_RETRY_MS = 3_000;
-const VIEWER_MAX_READY_ATTEMPTS = 8;
+const VIEWER_RELAY_TIMEOUT_MS = 45_000;
+const VIEWER_READY_RETRY_MS = 2_000;
+const VIEWER_MAX_READY_ATTEMPTS = 15;
+const HOST_STREAM_WAIT_MS = 150;
+const ICE_RETRY_RELAY_MS = 2_500;
 
 type UseLiveVideoRelayOptions = {
   liveId: string;
@@ -33,6 +37,17 @@ function resolveLiveRemoteStream(ev: RTCTrackEvent): MediaStream | null {
   return null;
 }
 
+function mergeRemoteTracks(stream: MediaStream, track: MediaStreamTrack): MediaStream {
+  const existing = stream.getTracks().find((t) => t.kind === track.kind);
+  if (existing && existing.id !== track.id) {
+    stream.removeTrack(existing);
+  }
+  if (!stream.getTracks().some((t) => t.id === track.id)) {
+    stream.addTrack(track);
+  }
+  return stream;
+}
+
 export function useLiveVideoRelay({
   liveId,
   userId,
@@ -46,15 +61,24 @@ export function useLiveVideoRelay({
   const [viewerRelayError, setViewerRelayError] = useState<string | null>(null);
   const [viewerRelayPhase, setViewerRelayPhase] = useState<ViewerRelayPhase>('idle');
   const [viewerAudioBlocked, setViewerAudioBlocked] = useState(false);
+  const [viewerPlaybackBlocked, setViewerPlaybackBlocked] = useState(false);
 
   const isHost = !!(userId && hostId && userId === hostId);
   const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const peerRelayOnlyRef = useRef<Map<string, boolean>>(new Map());
   const pendingViewersRef = useRef<Set<string>>(new Set());
   const viewerPcRef = useRef<RTCPeerConnection | null>(null);
+  const viewerRelayOnlyRef = useRef(false);
+  const pendingViewerOfferRef = useRef<{
+    fromHostId: string;
+    offer: RTCSessionDescriptionInit;
+  } | null>(null);
   const broadcastStreamRef = useRef(broadcastStream);
   broadcastStreamRef.current = broadcastStream;
   const cameraRelayActiveRef = useRef(cameraRelayActive);
   cameraRelayActiveRef.current = cameraRelayActive;
+  const hostIdRef = useRef(hostId);
+  hostIdRef.current = hostId;
   const viewerReadyAttemptsRef = useRef(0);
 
   const closePeer = useCallback((viewerId: string) => {
@@ -62,6 +86,7 @@ export function useLiveVideoRelay({
     if (!pc) return;
     pc.close();
     peersRef.current.delete(viewerId);
+    peerRelayOnlyRef.current.delete(viewerId);
   }, []);
 
   const closeAllPeers = useCallback(() => {
@@ -77,15 +102,38 @@ export function useLiveVideoRelay({
     el.srcObject = stream;
     const result = await playLiveRemoteVideo(el);
     setViewerAudioBlocked(result === 'muted_fallback');
+    setViewerPlaybackBlocked(result === 'failed');
   }, []);
 
   const enableViewerAudio = useCallback(async () => {
     const el = viewerVideoRef.current;
     if (!el) return false;
     const ok = await unmuteLiveRemoteVideo(el);
-    if (ok) setViewerAudioBlocked(false);
+    if (ok) {
+      setViewerAudioBlocked(false);
+      setViewerPlaybackBlocked(false);
+    }
     return ok;
   }, []);
+
+  const enableViewerPlayback = useCallback(async () => {
+    const ok = await enableViewerAudio();
+    if (!ok) {
+      const el = viewerVideoRef.current;
+      if (el) {
+        try {
+          el.muted = false;
+          await el.play();
+          setViewerPlaybackBlocked(false);
+          setViewerAudioBlocked(false);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+    }
+    return ok;
+  }, [enableViewerAudio]);
 
   const setViewerVideoRef = useCallback(
     (el: HTMLVideoElement | null) => {
@@ -100,6 +148,7 @@ export function useLiveVideoRelay({
   const closeViewerPc = useCallback(() => {
     viewerPcRef.current?.close();
     viewerPcRef.current = null;
+    viewerRelayOnlyRef.current = false;
     remoteStreamRef.current = null;
     const el = viewerVideoRef.current;
     if (el) {
@@ -107,6 +156,7 @@ export function useLiveVideoRelay({
     }
     setViewerStreamActive(false);
     setViewerAudioBlocked(false);
+    setViewerPlaybackBlocked(false);
   }, []);
 
   const emitSignal = useCallback(
@@ -116,29 +166,45 @@ export function useLiveVideoRelay({
     [liveId]
   );
 
-  const markViewerFailed = useCallback((message: string) => {
-    setViewerRelayPhase('failed');
-    setViewerRelayError(message);
-    closeViewerPc();
-  }, [closeViewerPc]);
+  const markViewerFailed = useCallback(
+    (message: string) => {
+      setViewerRelayPhase('failed');
+      setViewerRelayError(message);
+      closeViewerPc();
+    },
+    [closeViewerPc]
+  );
+
+  const waitForHostStream = useCallback(async (): Promise<MediaStream | null> => {
+    for (let i = 0; i < 40; i++) {
+      const stream = broadcastStreamRef.current;
+      if (liveStreamReadyForRelay(stream)) return stream;
+      await new Promise<void>((resolve) => window.setTimeout(resolve, HOST_STREAM_WAIT_MS));
+    }
+    return liveStreamReadyForRelay(broadcastStreamRef.current)
+      ? broadcastStreamRef.current
+      : null;
+  }, []);
 
   const createOfferForViewer = useCallback(
-    async (viewerId: string) => {
-      const stream = broadcastStreamRef.current;
+    async (viewerId: string, relayOnly = false) => {
+      if (!isHost) return;
+      pendingViewersRef.current.add(viewerId);
+
+      const stream = await waitForHostStream();
       if (!stream || !isHost) {
-        if (isHost && cameraRelayActiveRef.current) {
-          pendingViewersRef.current.add(viewerId);
-        }
         return;
       }
-      if (peersRef.current.size >= LIVE_WEBRTC_MESH_VIEWER_LIMIT) return;
-
-      closePeer(viewerId);
-      pendingViewersRef.current.delete(viewerId);
-      const pc = createLivePeerConnection();
-      for (const track of stream.getTracks()) {
-        pc.addTrack(track, stream);
+      if (peersRef.current.size >= LIVE_WEBRTC_MESH_VIEWER_LIMIT) {
+        pendingViewersRef.current.delete(viewerId);
+        return;
       }
+
+      pendingViewersRef.current.delete(viewerId);
+      closePeer(viewerId);
+      const pc = createLivePeerConnection({ relayOnly });
+      attachLiveRelaySendTracks(pc, stream);
+      peerRelayOnlyRef.current.set(viewerId, relayOnly);
 
       pc.onicecandidate = (ev) => {
         if (!ev.candidate) return;
@@ -150,8 +216,28 @@ export function useLiveVideoRelay({
       };
 
       pc.onconnectionstatechange = () => {
-        if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+        if (pc.connectionState === 'failed') {
+          if (!peerRelayOnlyRef.current.get(viewerId)) {
+            window.setTimeout(() => {
+              if (peersRef.current.get(viewerId) === pc) {
+                void createOfferForViewer(viewerId, true);
+              }
+            }, ICE_RETRY_RELAY_MS);
+            return;
+          }
           closePeer(viewerId);
+        } else if (pc.connectionState === 'closed') {
+          closePeer(viewerId);
+        }
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        if (pc.iceConnectionState === 'failed' && !peerRelayOnlyRef.current.get(viewerId)) {
+          window.setTimeout(() => {
+            if (peersRef.current.get(viewerId) === pc) {
+              void createOfferForViewer(viewerId, true);
+            }
+          }, ICE_RETRY_RELAY_MS);
         }
       };
 
@@ -163,10 +249,22 @@ export function useLiveVideoRelay({
         emitSignal({ toUserId: viewerId, type: 'offer', data: offer });
       } catch {
         closePeer(viewerId);
+        pendingViewersRef.current.add(viewerId);
       }
     },
-    [closePeer, emitSignal, isHost]
+    [closePeer, emitSignal, isHost, waitForHostStream]
   );
+
+  const flushPendingViewers = useCallback(() => {
+    if (!isHost || !cameraRelayActiveRef.current) return;
+    const pending = [...pendingViewersRef.current];
+    if (!pending.length) return;
+    if (!liveStreamReadyForRelay(broadcastStreamRef.current)) return;
+    pendingViewersRef.current.clear();
+    for (const viewerId of pending) {
+      void createOfferForViewer(viewerId);
+    }
+  }, [createOfferForViewer, isHost]);
 
   const handleHostAnswer = useCallback(
     async (viewerId: string, answer: RTCSessionDescriptionInit) => {
@@ -176,50 +274,62 @@ export function useLiveVideoRelay({
         await pc.setRemoteDescription(answer);
       } catch {
         closePeer(viewerId);
+        pendingViewersRef.current.add(viewerId);
+        void createOfferForViewer(viewerId, peerRelayOnlyRef.current.get(viewerId) ?? false);
       }
     },
-    [closePeer]
+    [closePeer, createOfferForViewer]
   );
 
-  const handleHostIce = useCallback(
-    async (viewerId: string, candidate: RTCIceCandidateInit) => {
-      const pc = peersRef.current.get(viewerId);
-      if (!pc) return;
-      try {
-        await pc.addIceCandidate(candidate);
-      } catch {
-        /* ignore stale candidates */
-      }
-    },
-    []
-  );
-
-  const replaceHostTrack = useCallback(async (track: MediaStreamTrack) => {
-    if (!isHost) return;
-    const replacements: Promise<void>[] = [];
-    for (const pc of peersRef.current.values()) {
-      const sender = pc.getSenders().find((s) => s.track?.kind === track.kind);
-      if (sender) replacements.push(sender.replaceTrack(track));
+  const handleHostIce = useCallback(async (viewerId: string, candidate: RTCIceCandidateInit) => {
+    const pc = peersRef.current.get(viewerId);
+    if (!pc) return;
+    try {
+      await pc.addIceCandidate(candidate);
+    } catch {
+      /* ignore stale candidates */
     }
-    await Promise.all(replacements);
-  }, [isHost]);
+  }, []);
 
-  const handleViewerOffer = useCallback(
-    async (fromHostId: string, offer: RTCSessionDescriptionInit) => {
-      if (isHost || fromHostId !== hostId) return;
+  const replaceHostTrack = useCallback(
+    async (track: MediaStreamTrack) => {
+      if (!isHost) return;
+      const replacements: Promise<void>[] = [];
+      for (const pc of peersRef.current.values()) {
+        const sender = pc.getSenders().find((s) => s.track?.kind === track.kind);
+        if (sender) replacements.push(sender.replaceTrack(track));
+        else if (broadcastStreamRef.current) {
+          pc.addTrack(track, broadcastStreamRef.current);
+        }
+      }
+      await Promise.all(replacements);
+    },
+    [isHost]
+  );
+
+  const applyViewerOffer = useCallback(
+    async (fromHostId: string, offer: RTCSessionDescriptionInit, relayOnly = false) => {
+      if (isHost) return;
+      const expectedHostId = hostIdRef.current;
+      if (expectedHostId && fromHostId !== expectedHostId) return;
 
       closeViewerPc();
       setViewerRelayPhase('connecting');
       setViewerRelayError(null);
       viewerReadyAttemptsRef.current = 0;
+      viewerRelayOnlyRef.current = relayOnly;
 
-      const pc = createLivePeerConnection();
+      const pc = createLivePeerConnection({ relayOnly });
       viewerPcRef.current = pc;
 
       pc.ontrack = (ev) => {
-        const stream = resolveLiveRemoteStream(ev);
-        if (!stream) return;
-        remoteStreamRef.current = stream;
+        const incoming = resolveLiveRemoteStream(ev);
+        if (!incoming) return;
+        const merged =
+          remoteStreamRef.current && remoteStreamRef.current.id === incoming.id
+            ? mergeRemoteTracks(remoteStreamRef.current, ev.track)
+            : incoming;
+        remoteStreamRef.current = merged;
         setViewerStreamActive(true);
         setViewerRelayPhase('connected');
         setViewerRelayError(null);
@@ -227,9 +337,9 @@ export function useLiveVideoRelay({
       };
 
       pc.onicecandidate = (ev) => {
-        if (!ev.candidate || !hostId) return;
+        if (!ev.candidate) return;
         emitSignal({
-          toUserId: hostId,
+          toUserId: fromHostId,
           type: 'ice',
           data: ev.candidate.toJSON(),
         });
@@ -240,6 +350,14 @@ export function useLiveVideoRelay({
           setViewerRelayPhase('connected');
           setViewerRelayError(null);
         } else if (pc.connectionState === 'failed') {
+          if (!viewerRelayOnlyRef.current) {
+            window.setTimeout(() => {
+              if (viewerPcRef.current === pc) {
+                void applyViewerOffer(fromHostId, offer, true);
+              }
+            }, ICE_RETRY_RELAY_MS);
+            return;
+          }
           markViewerFailed(LIVE_CAMERA_VIEWER_ICE_FAILED);
         } else if (pc.connectionState === 'disconnected') {
           window.setTimeout(() => {
@@ -252,6 +370,14 @@ export function useLiveVideoRelay({
 
       pc.oniceconnectionstatechange = () => {
         if (pc.iceConnectionState === 'failed') {
+          if (!viewerRelayOnlyRef.current) {
+            window.setTimeout(() => {
+              if (viewerPcRef.current === pc) {
+                void applyViewerOffer(fromHostId, offer, true);
+              }
+            }, ICE_RETRY_RELAY_MS);
+            return;
+          }
           markViewerFailed(LIVE_CAMERA_VIEWER_ICE_FAILED);
         }
       };
@@ -265,8 +391,34 @@ export function useLiveVideoRelay({
         markViewerFailed(LIVE_CAMERA_VIEWER_UNAVAILABLE);
       }
     },
-    [attachViewerStream, closeViewerPc, emitSignal, hostId, isHost, markViewerFailed]
+    [attachViewerStream, closeViewerPc, emitSignal, isHost, markViewerFailed]
   );
+
+  const handleViewerOffer = useCallback(
+    async (fromHostId: string, offer: RTCSessionDescriptionInit) => {
+      if (isHost) return;
+      const expectedHostId = hostIdRef.current;
+      if (expectedHostId && fromHostId !== expectedHostId) return;
+      if (!expectedHostId) {
+        pendingViewerOfferRef.current = { fromHostId, offer };
+        setViewerRelayPhase('connecting');
+        return;
+      }
+      await applyViewerOffer(fromHostId, offer);
+    },
+    [applyViewerOffer, isHost]
+  );
+
+  useEffect(() => {
+    const pending = pendingViewerOfferRef.current;
+    if (!pending || isHost || !hostId) return;
+    if (pending.fromHostId !== hostId) {
+      pendingViewerOfferRef.current = null;
+      return;
+    }
+    pendingViewerOfferRef.current = null;
+    void applyViewerOffer(pending.fromHostId, pending.offer);
+  }, [applyViewerOffer, hostId, isHost]);
 
   const handleViewerIce = useCallback(async (candidate: RTCIceCandidateInit) => {
     const pc = viewerPcRef.current;
@@ -296,7 +448,7 @@ export function useLiveVideoRelay({
     if (!socket) return;
 
     const onViewerJoined = (payload: { liveId: string; viewerId: string }) => {
-      if (payload.liveId !== liveId || !cameraRelayActiveRef.current) return;
+      if (payload.liveId !== liveId) return;
       void createOfferForViewer(payload.viewerId);
     };
 
@@ -312,6 +464,7 @@ export function useLiveVideoRelay({
     const onViewerLeft = (payload: { liveId: string; viewerId: string }) => {
       if (payload.liveId !== liveId) return;
       closePeer(payload.viewerId);
+      pendingViewersRef.current.delete(payload.viewerId);
     };
 
     socket.on('live_webrtc_viewer_joined', onViewerJoined);
@@ -357,17 +510,13 @@ export function useLiveVideoRelay({
   // Host: démarre / arrête le broadcast quand le flux caméra change
   useEffect(() => {
     if (!isHost) return;
-    if (!cameraRelayActive || !broadcastStream) {
+    if (!cameraRelayActive || !liveStreamReadyForRelay(broadcastStream)) {
       pendingViewersRef.current.clear();
       closeAllPeers();
       return;
     }
-    const pending = [...pendingViewersRef.current];
-    pendingViewersRef.current.clear();
-    for (const viewerId of pending) {
-      void createOfferForViewer(viewerId);
-    }
-  }, [broadcastStream, cameraRelayActive, closeAllPeers, createOfferForViewer, isHost]);
+    flushPendingViewers();
+  }, [broadcastStream, cameraRelayActive, closeAllPeers, flushPendingViewers, isHost]);
 
   // Viewer: demande le flux quand la caméra host devient active (retry si l'hôte n'était pas prêt)
   useEffect(() => {
@@ -377,6 +526,7 @@ export function useLiveVideoRelay({
       setViewerRelayError(null);
       setViewerRelayPhase('idle');
       viewerReadyAttemptsRef.current = 0;
+      pendingViewerOfferRef.current = null;
       return;
     }
     signalViewerReady();
@@ -409,9 +559,11 @@ export function useLiveVideoRelay({
     const onReconnect = () => {
       if (isHost) {
         closeAllPeers();
+        flushPendingViewers();
       } else {
         closeViewerPc();
         viewerReadyAttemptsRef.current = 0;
+        pendingViewerOfferRef.current = null;
         setViewerRelayPhase('waiting');
         setViewerRelayError(null);
         signalViewerReady();
@@ -422,6 +574,7 @@ export function useLiveVideoRelay({
     cameraRelayActive,
     closeAllPeers,
     closeViewerPc,
+    flushPendingViewers,
     isHost,
     signalViewerReady,
   ]);
@@ -439,7 +592,9 @@ export function useLiveVideoRelay({
     viewerRelayError,
     viewerRelayPhase,
     viewerAudioBlocked,
+    viewerPlaybackBlocked,
     enableViewerAudio,
+    enableViewerPlayback,
     signalViewerReady,
     replaceHostTrack,
   };

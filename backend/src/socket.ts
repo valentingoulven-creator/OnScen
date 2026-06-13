@@ -369,6 +369,22 @@ export function setupSockets(io: Server): void {
         }
         db.lives.set(liveId, live);
         io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live));
+        if (active && mode === 'camera') {
+          const roomName = `live_${liveId}`;
+          const room = io.sockets.adapter.rooms.get(roomName);
+          if (room) {
+            for (const socketId of room) {
+              const viewerSocket = io.sockets.sockets.get(socketId);
+              const viewerId = (viewerSocket?.data as { userId?: string }).userId;
+              if (viewerId && viewerId !== live.hostId) {
+                io.to(`user_${live.hostId}`).emit('live_webrtc_viewer_joined', {
+                  liveId,
+                  viewerId,
+                });
+              }
+            }
+          }
+        }
       }
     );
 

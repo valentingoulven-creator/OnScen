@@ -5,7 +5,7 @@ import { usePauseMediaOnPageHidden, pauseMediaElements } from '../hooks/usePause
 import { useBackgroundPlayback } from '../hooks/useBackgroundPlayback';
 import { releaseAppMediaFocus, requestAppMediaFocus } from '../lib/appMediaFocus';
 import { api } from '../lib/api';
-import { LIVE_CAMERA_VIEWER_FILE_NOTE, LIVE_CAMERA_VIEWER_NOTE, LIVE_CAMERA_VIEWER_NO_HOST_CAMERA } from '../lib/liveCameraMessages';
+import { LIVE_CAMERA_VIEWER_AUDIO_BLOCKED, LIVE_CAMERA_VIEWER_FILE_NOTE, LIVE_CAMERA_VIEWER_NOTE, LIVE_CAMERA_VIEWER_NO_HOST_CAMERA, LIVE_CAMERA_MIC_SWITCHING } from '../lib/liveCameraMessages';
 import { emitLiveCameraToggle, clearLiveCameraToggleQueue } from '../lib/liveCameraSocket';
 import { useLiveVideoRelay } from '../hooks/useLiveVideoRelay';
 import { getLiveCameraContextHints } from '../lib/liveCameraSupport';
@@ -155,7 +155,11 @@ export function LivePage({
     start: startCamera,
     startFromFile: startCameraFromFile,
     stop: stopCamera,
-    getStream: getCameraStream,
+    broadcastStream,
+    audioDevices,
+    audioDeviceId,
+    micSwitching,
+    switchMicrophone,
   } = useLiveCamera();
   const videoFileInputRef = useRef<HTMLInputElement>(null);
   const [videoFileLoading, setVideoFileLoading] = useState(false);
@@ -369,11 +373,11 @@ export function LivePage({
   const viewerCameraRelayActive =
     !isHost && !!live?.cameraActive && live.cameraMode !== 'file';
 
-  const { viewerVideoRef, viewerStreamActive, viewerRelayError, viewerRelayPhase } = useLiveVideoRelay({
+  const { viewerVideoRef, viewerStreamActive, viewerRelayError, viewerRelayPhase, viewerAudioBlocked, viewerPlaybackBlocked, enableViewerPlayback, replaceHostTrack } = useLiveVideoRelay({
     liveId,
     userId: user?.id,
     hostId: live?.hostId,
-    broadcastStream: hostCameraRelayActive ? getCameraStream() : null,
+    broadcastStream: hostCameraRelayActive ? broadcastStream : null,
     cameraRelayActive: isHost ? hostCameraRelayActive : viewerCameraRelayActive,
   });
 
@@ -700,6 +704,12 @@ export function LivePage({
     }
   };
 
+  const onHostMicChange = async (nextDeviceId: string) => {
+    if (!isHost || cameraMode !== 'camera' || !cameraLocalActive || micSwitching) return;
+    const track = await switchMicrophone(nextDeviceId);
+    if (track) await replaceHostTrack(track);
+  };
+
   const isVipModerator = (live?.vipModeratorIds ?? []).includes(user?.id ?? '');
   const canModerateChat = isHost || isVipModerator;
   const chatParticipants = useMemo(() => {
@@ -947,6 +957,26 @@ export function LivePage({
                     ? '📹 Caméra on'
                     : '📷 Activer la caméra'}
               </button>
+              {cameraLocalActive && cameraMode === 'camera' && audioDevices.length > 0 && (
+                <select
+                  id="live-host-mic-select"
+                  value={audioDeviceId}
+                  disabled={micSwitching || cameraToggling}
+                  onChange={(e) => void onHostMicChange(e.target.value)}
+                  className="max-w-[7.5rem] px-2 py-1.5 rounded-full text-[10px] font-medium border bg-[#131318] border-[#232330] text-gray-300 hover:border-white/15 disabled:opacity-50 truncate"
+                  title="Changer de micro"
+                  aria-label="Microphone du live"
+                >
+                  {audioDevices.map((m) => (
+                    <option key={m.deviceId} value={m.deviceId}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {micSwitching && (
+                <span className="text-[9px] text-gray-500 shrink-0">{LIVE_CAMERA_MIC_SWITCHING}</span>
+              )}
               <button
                 type="button"
                 onClick={() => videoFileInputRef.current?.click()}
@@ -1022,12 +1052,26 @@ export function LivePage({
                 ref={viewerVideoRef}
                 autoPlay
                 playsInline
+                muted={false}
                 className={`absolute inset-0 w-full h-full object-cover bg-black${
                   showViewerVideo ? '' : ' invisible pointer-events-none'
                 }`}
                 aria-hidden={!showViewerVideo}
                 aria-label="Flux vidéo du host"
               />
+            )}
+            {!isHost && viewerStreamActive && (viewerAudioBlocked || viewerPlaybackBlocked) && (
+              <div className="absolute top-2 right-2 z-30 pointer-events-auto">
+                <button
+                  type="button"
+                  onClick={() => void enableViewerPlayback()}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/70 border border-amber-500/40 text-amber-200 text-[11px] font-bold backdrop-blur hover:bg-black/85 active:scale-95 transition"
+                  aria-label="Activer le son et la vidéo du live"
+                  title={LIVE_CAMERA_VIEWER_AUDIO_BLOCKED}
+                >
+                  🔊 Activer le son
+                </button>
+              </div>
             )}
             {showViewerCameraBadge && (
               <div className="absolute inset-0 z-10 flex flex-col items-center justify-center px-6 text-center">

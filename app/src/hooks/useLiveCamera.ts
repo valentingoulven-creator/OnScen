@@ -24,6 +24,7 @@ export function useLiveCamera() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileUrlRef = useRef<string | null>(null);
+  const [broadcastStream, setBroadcastStream] = useState<MediaStream | null>(null);
   const [active, setActive] = useState(false);
   const [mode, setMode] = useState<LiveCameraMode>(null);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +42,7 @@ export function useLiveCamera() {
   const stop = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    setBroadcastStream(null);
     if (fileUrlRef.current) {
       URL.revokeObjectURL(fileUrlRef.current);
       fileUrlRef.current = null;
@@ -118,6 +120,7 @@ export function useLiveCamera() {
         prefs
       );
       streamRef.current = stream;
+      setBroadcastStream(stream);
       setMode('camera');
       setActive(true);
       setCameraUsable(true);
@@ -235,6 +238,7 @@ export function useLiveCamera() {
     startFromFile,
     stop,
     getStream,
+    broadcastStream,
     switchMicrophone,
   };
 }

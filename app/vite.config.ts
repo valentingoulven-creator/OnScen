@@ -93,7 +93,7 @@ export default defineConfig(({ mode }) => {
          * Clé de cache versionnée : changer manuellement si un conflit de cache
          * majeur survient et que la purge automatique (index.html) ne suffit pas.
          */
-        cacheId: 'melosong-soundy-v8',
+        cacheId: 'melosong-soundy-v9',
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         skipWaiting: false,
         clientsClaim: true,
