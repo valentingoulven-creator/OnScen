@@ -5,7 +5,7 @@ import { usePauseMediaOnPageHidden, pauseMediaElements } from '../hooks/usePause
 import { useBackgroundPlayback } from '../hooks/useBackgroundPlayback';
 import { releaseAppMediaFocus, requestAppMediaFocus } from '../lib/appMediaFocus';
 import { api } from '../lib/api';
-import { LIVE_CAMERA_VIEWER_AUDIO_BLOCKED, LIVE_CAMERA_VIEWER_FILE_NOTE, LIVE_CAMERA_VIEWER_NOTE, LIVE_CAMERA_VIEWER_NO_HOST_CAMERA, LIVE_CAMERA_MIC_SWITCHING } from '../lib/liveCameraMessages';
+import { LIVE_CAMERA_MIC_SWITCHING } from '../lib/liveCameraMessages';
 import { emitLiveCameraToggle, clearLiveCameraToggleQueue } from '../lib/liveCameraSocket';
 import { useLiveVideoRelay } from '../hooks/useLiveVideoRelay';
 import { mergeRemotePlaybackState } from '../lib/salonPlayback';
@@ -23,6 +23,7 @@ import { HostRatingBlock } from '../components/HostRatingBlock';
 import { LiveDonationSheet } from '../components/LiveDonationSheet';
 import { LiveGiftOverlay } from '../components/LiveGiftOverlay';
 import { LiveParticipantsPopover } from '../components/LiveParticipantsPopover';
+import { LiveVideoStage } from '../components/LiveVideoStage';
 import type { ChatMessage, DmContact, Live, AppNotification, PlaybackState } from '../types';
 
 const LIVE_MAX_DURATION_MS = 8 * 60 * 60 * 1000;
@@ -44,75 +45,6 @@ function readLiveChatHidden(): boolean {
   } catch {
     return false;
   }
-}
-
-function getFullscreenElement(): Element | null {
-  return (
-    document.fullscreenElement ??
-    (document as Document & { webkitFullscreenElement?: Element }).webkitFullscreenElement ??
-    null
-  );
-}
-
-async function requestElementFullscreen(el: HTMLElement): Promise<void> {
-  if (el.requestFullscreen) {
-    await el.requestFullscreen();
-    return;
-  }
-  const webkit = (el as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> }).webkitRequestFullscreen;
-  if (webkit) await webkit.call(el);
-}
-
-async function exitDocumentFullscreen(): Promise<void> {
-  if (document.exitFullscreen) {
-    await document.exitFullscreen();
-    return;
-  }
-  const webkit = (document as Document & { webkitExitFullscreen?: () => Promise<void> }).webkitExitFullscreen;
-  if (webkit) await webkit.call(document);
-}
-
-const FULLSCREEN_SUPPORTED =
-  typeof document !== 'undefined' &&
-  (document.documentElement.requestFullscreen != null ||
-    (document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => void })
-      .webkitRequestFullscreen != null);
-
-function isLandscapeOrientation(): boolean {
-  if (typeof window === 'undefined') return false;
-  if (window.matchMedia('(orientation: landscape)').matches) return true;
-  const orientation = screen.orientation;
-  if (orientation?.type?.startsWith('landscape')) return true;
-  if (orientation?.angle != null) return orientation.angle === 90 || orientation.angle === 270;
-  return window.innerWidth > window.innerHeight;
-}
-
-function isMobileNarrowViewport(): boolean {
-  if (typeof window === 'undefined') return false;
-  return (
-    window.matchMedia('(max-width: 896px)').matches ||
-    window.matchMedia('(pointer: coarse)').matches
-  );
-}
-
-function shouldAutoLandscapeVideo(): boolean {
-  return isLandscapeOrientation() && isMobileNarrowViewport();
-}
-
-function LiveVideoExpandIcon() {
-  return (
-    <svg aria-hidden className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3" />
-    </svg>
-  );
-}
-
-function LiveVideoShrinkIcon() {
-  return (
-    <svg aria-hidden className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" />
-    </svg>
-  );
 }
 
 export function LivePage({
@@ -166,16 +98,9 @@ export function LivePage({
   } = useLiveCamera();
   const videoFileInputRef = useRef<HTMLInputElement>(null);
   const [videoFileLoading, setVideoFileLoading] = useState(false);
-  const videoContainerRef = useRef<HTMLDivElement>(null);
-  const [isVideoFullscreen, setIsVideoFullscreen] = useState(false);
-  const [isLandscapeTheater, setIsLandscapeTheater] = useState(initialTheater);
-  const landscapeAutoActiveRef = useRef(false);
-  const landscapeAutoDismissedRef = useRef(false);
-  const chatHiddenBeforeLandscapeRef = useRef<boolean | null>(null);
+  const chatHiddenBeforeExpandRef = useRef<boolean | null>(null);
   const chatHiddenRef = useRef(chatHidden);
   chatHiddenRef.current = chatHidden;
-
-  const isVideoExpanded = isVideoFullscreen || isLandscapeTheater;
 
   const emitCameraState = useCallback(
     (active: boolean, mode?: 'camera' | 'file') => {
@@ -526,147 +451,19 @@ export function LivePage({
     return () => window.clearTimeout(t);
   }, [cameraError, setCameraError]);
 
-  const restoreChatAfterLandscape = useCallback(() => {
-    if (chatHiddenBeforeLandscapeRef.current === null) return;
-    const prev = chatHiddenBeforeLandscapeRef.current;
-    chatHiddenBeforeLandscapeRef.current = null;
-      setChatHidden(prev);
-  }, []);
-
-  useEffect(() => {
-    const syncFullscreen = () => {
-      const inNative = getFullscreenElement() === videoContainerRef.current;
-      setIsVideoFullscreen(inNative);
-      if (landscapeAutoActiveRef.current && shouldAutoLandscapeVideo() && !inNative) {
-        setIsLandscapeTheater(true);
+  const handleVideoExpandedChange = useCallback((expanded: boolean) => {
+    if (expanded) {
+      if (chatHiddenBeforeExpandRef.current === null) {
+        chatHiddenBeforeExpandRef.current = chatHiddenRef.current;
+        setChatHidden(true);
       }
-    };
-    document.addEventListener('fullscreenchange', syncFullscreen);
-    document.addEventListener('webkitfullscreenchange', syncFullscreen);
-    return () => {
-      document.removeEventListener('fullscreenchange', syncFullscreen);
-      document.removeEventListener('webkitfullscreenchange', syncFullscreen);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!live) return;
-
-    const enterLandscapeAuto = async () => {
-      if (landscapeAutoActiveRef.current || landscapeAutoDismissedRef.current) return;
-      landscapeAutoActiveRef.current = true;
-      chatHiddenBeforeLandscapeRef.current = chatHiddenRef.current;
-      setChatHidden(true);
-
-      const el = videoContainerRef.current;
-      if (el && FULLSCREEN_SUPPORTED) {
-        try {
-          await requestElementFullscreen(el);
-          setIsLandscapeTheater(false);
-          return;
-        } catch {
-          /* iOS / PWA : fallback mode cinéma CSS */
-        }
-      }
-      setIsLandscapeTheater(true);
-    };
-
-    const exitLandscapeAuto = async () => {
-      if (!landscapeAutoActiveRef.current) return;
-      landscapeAutoActiveRef.current = false;
-      setIsLandscapeTheater(false);
-      if (getFullscreenElement() === videoContainerRef.current) {
-        try {
-          await exitDocumentFullscreen();
-        } catch {
-          /* best effort */
-        }
-      }
-      restoreChatAfterLandscape();
-    };
-
-    const applyOrientation = () => {
-      if (shouldAutoLandscapeVideo()) {
-        void enterLandscapeAuto();
-      } else {
-        landscapeAutoDismissedRef.current = false;
-        void exitLandscapeAuto();
-      }
-    };
-
-    applyOrientation();
-
-    const landscapeMq = window.matchMedia('(orientation: landscape)');
-    landscapeMq.addEventListener('change', applyOrientation);
-    window.addEventListener('orientationchange', applyOrientation);
-    screen.orientation?.addEventListener('change', applyOrientation);
-
-    return () => {
-      landscapeMq.removeEventListener('change', applyOrientation);
-      window.removeEventListener('orientationchange', applyOrientation);
-      screen.orientation?.removeEventListener('change', applyOrientation);
-      landscapeAutoDismissedRef.current = false;
-      void exitLandscapeAuto();
-    };
-  }, [live, restoreChatAfterLandscape]);
-
-  const enterTheaterFallback = useCallback(() => {
-    if (chatHiddenBeforeLandscapeRef.current === null) {
-      chatHiddenBeforeLandscapeRef.current = chatHiddenRef.current;
-      setChatHidden(true);
-    }
-    setIsLandscapeTheater(true);
-  }, []);
-
-  const enterVideoFullscreen = useCallback(() => {
-    const el = videoContainerRef.current;
-    if (!el) return;
-    if (!FULLSCREEN_SUPPORTED) {
-      enterTheaterFallback();
       return;
     }
-    void requestElementFullscreen(el).catch(() => {
-      if (isMobileNarrowViewport() || shouldAutoLandscapeVideo()) {
-        enterTheaterFallback();
-        return;
-      }
-      setCameraToast('Impossible d\'activer le plein écran sur cet appareil.');
-    });
-  }, [enterTheaterFallback]);
-
-  const exitVideoFullscreen = useCallback(() => {
-    if (isLandscapeTheater) {
-      landscapeAutoActiveRef.current = false;
-      landscapeAutoDismissedRef.current = true;
-      setIsLandscapeTheater(false);
-      restoreChatAfterLandscape();
-      return;
-    }
-    if (landscapeAutoActiveRef.current) {
-      landscapeAutoActiveRef.current = false;
-      landscapeAutoDismissedRef.current = true;
-      restoreChatAfterLandscape();
-    }
-    void exitDocumentFullscreen();
-  }, [isLandscapeTheater, restoreChatAfterLandscape]);
-
-  useEffect(() => {
-    if (!isVideoExpanded) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') exitVideoFullscreen();
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isVideoExpanded, exitVideoFullscreen]);
-
-  useEffect(() => {
-    if (!isLandscapeTheater) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [isLandscapeTheater]);
+    if (chatHiddenBeforeExpandRef.current === null) return;
+    const prev = chatHiddenBeforeExpandRef.current;
+    chatHiddenBeforeExpandRef.current = null;
+    setChatHidden(prev);
+  }, []);
 
   const openDonSheet = (amount?: number) => {
     setDonInitialAmount(amount);
@@ -858,43 +655,6 @@ export function LivePage({
       </div>
     );
   }
-
-  const showHostCamera = isHost && cameraLocalActive;
-  const showViewerVideo = !isHost && viewerStreamActive;
-  const showViewerCameraBadge =
-    !isHost && !!live.cameraActive && !viewerStreamActive;
-  const showViewerNoCamera = !isHost && !live.cameraActive;
-  const viewerRelayPendingVideo =
-    !isHost &&
-    viewerCameraRelayActive &&
-    (viewerRelayPhase === 'waiting' ||
-      viewerRelayPhase === 'connecting' ||
-      viewerRelayPhase === 'connected');
-  const showCenterStagePlaceholder =
-    !showHostCamera &&
-    !showViewerVideo &&
-    !showViewerCameraBadge &&
-    !viewerRelayPendingVideo;
-  const viewerCameraBadgeNote =
-    live.cameraMode === 'file'
-      ? LIVE_CAMERA_VIEWER_FILE_NOTE
-      : viewerRelayError ?? LIVE_CAMERA_VIEWER_NOTE;
-  const viewerRelayStatusLabel =
-    viewerRelayPhase === 'connected' && viewerStreamActive
-      ? 'Vidéo connectée'
-      : viewerRelayPhase === 'failed'
-        ? 'Flux indisponible'
-        : viewerRelayPhase === 'connecting'
-          ? 'Connexion WebRTC…'
-          : viewerRelayPhase === 'waiting'
-            ? 'En attente du host…'
-            : null;
-  const viewerStageHint = isHost
-    ? 'Activez la caméra ou choisissez une vidéo'
-    : showViewerNoCamera
-      ? LIVE_CAMERA_VIEWER_NO_HOST_CAMERA
-      : 'Écoutez et discutez dans le chat';
-  /** Live = caméra (ou fichier local hôte). La lecture YouTube reste dans SalonPlaybackPanel. */
 
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f] overflow-hidden">
@@ -1129,179 +889,32 @@ export function LivePage({
           </>
         }
         stage={
-          <div
-            ref={videoContainerRef}
-            className={`live-video-container relative w-full flex-1 min-h-0 flex flex-col bg-black overflow-hidden${
-              isLandscapeTheater ? ' live-video-container--landscape-theater' : ''
-            }`}
-          >
-            {isHost && (
-              <video
-                ref={videoRef}
-                autoPlay
-                muted
-                playsInline
-                className={`absolute inset-0 w-full h-full object-cover bg-black${
-                  showHostCamera ? '' : ' invisible pointer-events-none'
-                }`}
-                aria-hidden={!showHostCamera}
-                aria-label="Aperçu caméra"
-              />
-            )}
-            {!isHost && (
-              <video
-                ref={viewerVideoRef}
-                autoPlay
-                playsInline
-                muted={false}
-                className={`absolute inset-0 w-full h-full object-cover bg-black${
-                  showViewerVideo ? ' z-[1]' : ' invisible pointer-events-none'
-                }`}
-                aria-hidden={!showViewerVideo}
-                aria-label="Flux vidéo du host"
-              />
-            )}
-            {!isHost && viewerStreamActive && (viewerAudioBlocked || viewerPlaybackBlocked) && (
-              <div
-                className={`absolute right-2 z-30 pointer-events-auto ${
-                  viewerRelayStatusLabel ? 'top-11' : 'top-2'
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => void enableViewerPlayback()}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/70 border border-amber-500/40 text-amber-200 text-[11px] font-bold backdrop-blur hover:bg-black/85 active:scale-95 transition"
-                  aria-label={
-                    viewerPlaybackBlocked
-                      ? 'Activer la vidéo et le son du live'
-                      : 'Activer le son du live'
-                  }
-                  title={
-                    viewerPlaybackBlocked
-                      ? 'Appuyez pour lancer la lecture vidéo du live'
-                      : LIVE_CAMERA_VIEWER_AUDIO_BLOCKED
-                  }
-                >
-                  {viewerPlaybackBlocked ? '▶ Activer la vidéo' : '🔊 Activer le son'}
-                </button>
-              </div>
-            )}
-            {showViewerCameraBadge && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center px-6 text-center">
-                <div
-                  className={`rounded-2xl border px-5 py-4 max-w-sm ${
-                    viewerRelayPhase === 'failed'
-                      ? 'bg-red-950/90 border-red-500/30'
-                      : 'bg-[#12121a]/90 border-white/10'
-                  }`}
-                >
-                  <p className="text-3xl mb-2">{viewerRelayPhase === 'failed' ? '⚠️' : '📹'}</p>
-                  <p className="text-sm font-semibold text-gray-200">
-                    {viewerRelayPhase === 'failed'
-                      ? 'Flux vidéo indisponible'
-                      : 'Caméra du host active'}
-                  </p>
-                  <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">
-                    {viewerCameraBadgeNote}
-                  </p>
-                  {viewerRelayPhase === 'failed' && (
-                    <button
-                      type="button"
-                      onClick={() => window.location.reload()}
-                      className="mt-3 px-3 py-1.5 rounded-full text-[10px] font-bold bg-[#1a1a26] border border-white/15 text-gray-200 hover:text-white"
-                    >
-                      Rafraîchir la page
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-            {showCenterStagePlaceholder && (
-              <div
-                className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center"
-                style={{
-                  backgroundImage: live.playbackState.albumArtUrl
-                    ? `url(${live.playbackState.albumArtUrl})`
-                    : undefined,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                }}
-              >
-                <div className="absolute inset-0 bg-black/75" aria-hidden />
-                <img
-                  src={live.playbackState.albumArtUrl}
-                  alt=""
-                  className="relative z-10 w-28 h-28 rounded-xl object-cover shadow-xl"
-                />
-                <div className="relative z-10 max-w-xs">
-                  <p className="text-sm font-bold text-white truncate">{live.playbackState.title}</p>
-                  <p className="text-xs text-gray-300 truncate">{live.playbackState.artist}</p>
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    {viewerStageHint}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {(showHostCamera || showViewerVideo) ? null : (
-            <div className="absolute bottom-0 inset-x-0 z-20 pointer-events-none bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-12 pb-3 px-3">
-              <div className="flex items-center gap-2 pointer-events-none">
-                <img
-                  src={live.playbackState.albumArtUrl}
-                  alt=""
-                  className="w-10 h-10 rounded-lg object-cover shrink-0"
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-white truncate">{live.playbackState.title}</p>
-                  <p className="text-[10px] text-gray-400 truncate">{live.playbackState.artist}</p>
-                </div>
-              </div>
-            </div>
-            )}
-
-            {!isHost && hostCanReceiveDonations && (
-              <LiveGiftOverlay liveId={liveId} visible onOpenGiftSheet={openDonSheet} />
-            )}
-
-            {!isHost && viewerCameraRelayActive && viewerRelayStatusLabel && (
-              <div
-                className={`absolute top-2 right-2 z-30 pointer-events-none px-2 py-1 rounded-md text-[10px] font-bold backdrop-blur border ${
-                  viewerRelayPhase === 'failed'
-                    ? 'bg-red-950/80 border-red-500/40 text-red-200'
-                    : viewerRelayPhase === 'connected'
-                      ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-200'
-                      : 'bg-black/70 border-white/20 text-gray-200'
-                }`}
-                aria-live="polite"
-              >
-                {viewerRelayStatusLabel}
-              </div>
-            )}
-
-            <div className="absolute top-2 left-2 z-30 pointer-events-auto">
-                {isVideoExpanded ? (
-                  <button
-                    type="button"
-                    onClick={exitVideoFullscreen}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/70 border border-white/20 text-white text-[11px] font-bold backdrop-blur hover:bg-black/85 active:scale-95 transition"
-                    aria-label="Quitter le plein écran"
-                  >
-                    <LiveVideoShrinkIcon />
-                    <span className="hidden sm:inline">Quitter le plein écran</span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={enterVideoFullscreen}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/70 border border-white/20 text-white text-[11px] font-bold backdrop-blur hover:bg-black/85 active:scale-95 transition"
-                    aria-label="Plein écran"
-                  >
-                    <LiveVideoExpandIcon />
-                    <span className="hidden sm:inline">Plein écran</span>
-                  </button>
-                )}
-              </div>
-          </div>
+          <LiveVideoStage
+            isHost={isHost}
+            hostVideoRef={videoRef}
+            viewerVideoRef={viewerVideoRef}
+            hostStreamActive={cameraLocalActive}
+            hostCameraMode={cameraMode}
+            liveCameraActive={!!live.cameraActive}
+            liveCameraMode={live.cameraMode}
+            viewerStreamActive={viewerStreamActive}
+            viewerRelayPhase={viewerRelayPhase}
+            viewerRelayError={viewerRelayError}
+            viewerPlaybackBlocked={viewerPlaybackBlocked}
+            viewerAudioBlocked={viewerAudioBlocked}
+            enableViewerPlayback={enableViewerPlayback}
+            playbackTitle={live.playbackState.title}
+            playbackArtist={live.playbackState.artist}
+            albumArtUrl={live.playbackState.albumArtUrl}
+            initialTheater={initialTheater}
+            onExpandedChange={handleVideoExpandedChange}
+            onFullscreenError={setCameraToast}
+            overlay={
+              !isHost && hostCanReceiveDonations ? (
+                <LiveGiftOverlay liveId={liveId} visible onOpenGiftSheet={openDonSheet} />
+              ) : undefined
+            }
+          />
         }
         chat={
           <div className="flex flex-col h-full min-h-0">
