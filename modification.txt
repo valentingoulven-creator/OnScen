@@ -1,5 +1,42 @@
 ﻿
 ================================================================================
+MODIF 484 — Playlists publiques externes : repli client_credentials
+================================================================================
+Date : 2026-06-13
+
+## Symptôme (post-MODIF 483)
+Collage d'un lien playlist publique externe (ex. `18HC7CvDqHcCphUazqkPNk`) →
+`spotify_playlist_empty` (404) ou échec verify/load alors que la playlist est publique.
+
+## Cause (logs prod)
+1. Jeton OAuth hôte : GET `/playlists/{id}/items` → **403 Forbidden**.
+2. Repli GET `/playlists/{id}` → **200** mais `tracks.items` vide (metadata sans morceaux).
+3. MODIF 483 ne couvrait pas ce cas : pas de jeton application pour métadonnées publiques.
+
+## Correctif
+- `openSpotifyPlaylistItemsSession` : après échec/vide jeton hôte, repli **client_credentials**
+  (`getSpotifyAppAccessToken`) avec `market` explicite (pays hôte ou `SPOTIFY_DEFAULT_MARKET` / FR).
+- Pagination conserve le jeton utilisé (hôte ou app) via `pagingAccessToken` + `useAppPaging`.
+- Logs : `trying app token`, `resolved via app token /items`, `user + app token failed`.
+
+## Fichiers
+- backend/src/lib/spotifyPlaylists.ts
+- backend/src/lib/spotifyPlaylists.test.ts
+- modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit   ✓
+  cd backend && npm test -- --run  ✓ (111 tests)
+  cd app && npm run build          ✓
+
+## Déploiement
+deploy_zero_downtime.ps1 -VerifyProd -SkipFrontend
+
+================================================================================
+Fin MODIF 484 - 2026-06-13
+================================================================================
+
+================================================================================
 MODIF 483 — Playlists publiques externes par URL (salon hôte + create)
 ================================================================================
 Date : 2026-06-13
