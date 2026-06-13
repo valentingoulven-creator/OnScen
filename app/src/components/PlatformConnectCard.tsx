@@ -318,7 +318,7 @@ export function PlatformConnectCard({
         ) : platform === 'spotify' ? (
           <button
             type="button"
-            onClick={spotifyOAuthAvailable ? () => connectSpotify({ reconnect: spotifyScopeMissing }) : undefined}
+            onClick={spotifyOAuthAvailable ? () => connectSpotify({ reconnect: true }) : undefined}
             disabled={busy || !spotifyOAuthAvailable || statusLoading}
             title={!spotifyOAuthAvailable ? t('platform.configureSpotifyServer') : undefined}
             className={platformConnectButtonClasses('spotify', spotifyOAuthAvailable)}

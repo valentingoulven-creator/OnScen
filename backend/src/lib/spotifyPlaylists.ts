@@ -12,17 +12,17 @@ import {
   normalizeSpotifyProduct,
   parseSpotifyErrorMessage,
   spotifyNetworkErrorMessage,
-  spotifyScopeMissingMessage,
 } from './spotifyApi';
 import { SpotifyPlaylistError, throwSpotifyPlaylistApiError } from './spotifyPlaylistErrors';
 import {
   disconnectSpotifyOnAuthFailure,
   getValidSpotifyHostToken,
-  getMissingSpotifyScopes,
   getMissingSpotifyPlaylistReadScopes,
   getStoredSpotifyOAuthScopes,
   invalidateStoredSpotifyOAuthScopes,
   isRealSpotifyAccount,
+  persistStoredSpotifyOAuthScopes,
+  SPOTIFY_SCOPES,
   refreshSpotifyAccessToken,
   type SpotifyHostTokenResult,
   type SpotifyRefreshResult,
@@ -117,10 +117,6 @@ async function prepareAccessTokenForPlaylistTracks(user: User): Promise<string> 
   return ensureSpotifyAccessToken(user);
 }
 
-function playlistReadScopesMissing(user: User): boolean {
-  return getMissingSpotifyPlaylistReadScopes(getStoredSpotifyOAuthScopes(user)).length > 0;
-}
-
 async function spotifyFetch(
   user: User,
   url: string,
@@ -132,7 +128,6 @@ async function spotifyFetch(
     const detail = res.status === 403 ? await parseSpotifyErrorMessage(res.clone()) : undefined;
     if (!isSpotifyRetryableAuthError(res.status, detail)) break;
     if (res.status === 403 && isSpotifyScopeMissingError(detail)) break;
-    if (res.status === 403 && isSpotifyBareForbiddenError(detail) && playlistReadScopesMissing(user)) break;
 
     const refreshed = await refreshSpotifyAccessToken(user);
     if (!refreshed.ok) {
@@ -152,8 +147,8 @@ function buildPlaylistTracksUrl(playlistId: string, limit: number): string {
   return `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=${limit}&market=from_token&additional_types=track`;
 }
 
-/** Vérifie en live que le jeton peut lire les morceaux (pas seulement /me/playlists). */
-async function probeSpotifyPlaylistTracksAccess(
+/** Vérifie en live l'accès lecture playlists (/me/playlists) — source de vérité session. */
+async function probeSpotifyPlaylistListAccess(
   user: User,
   accessToken: string
 ): Promise<{ ok: true } | { ok: false; code: string }> {
@@ -164,60 +159,32 @@ async function probeSpotifyPlaylistTracksAccess(
       signal: AbortSignal.timeout(8000),
     });
   } catch (e) {
-    console.warn('[spotify-playlist] track probe: list network error', { userId: user.id, e });
+    console.warn('[spotify-playlist] list probe: network error', { userId: user.id, e });
     return { ok: false, code: 'spotify_network_error' };
   }
 
-  if (!listRes.ok) {
-    const detail = await parseSpotifyErrorMessage(listRes);
-    console.warn('[spotify-playlist] track probe: list failed', { userId: user.id, status: listRes.status, detail });
-    if (listRes.status === 403 && (isSpotifyScopeMissingError(detail) || isSpotifyBareForbiddenError(detail))) {
-      invalidateStoredSpotifyOAuthScopes(user, 'probe:list_403');
-      return { ok: false, code: 'spotify_scope_missing' };
-    }
-    if (isSpotifyRetryableAuthError(listRes.status, detail)) {
-      return { ok: false, code: 'spotify_token_expired' };
-    }
-    return { ok: false, code: 'spotify_network_error' };
-  }
+  if (listRes.ok) return { ok: true };
 
-  const listData = (await listRes.json()) as { items?: Array<{ id?: string }> };
-  const probePlaylistId = listData.items?.[0]?.id?.trim();
-  if (!probePlaylistId) return { ok: true };
-
-  let tracksRes: Response;
-  try {
-    tracksRes = await fetch(buildPlaylistTracksUrl(probePlaylistId, 1), {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      signal: AbortSignal.timeout(8000),
-    });
-  } catch (e) {
-    console.warn('[spotify-playlist] track probe: tracks network error', { userId: user.id, e });
-    return { ok: false, code: 'spotify_network_error' };
-  }
-
-  if (tracksRes.ok) return { ok: true };
-
-  const tracksDetail = await parseSpotifyErrorMessage(tracksRes);
-  console.warn('[spotify-playlist] track probe: tracks failed', {
-    userId: user.id,
-    playlistId: probePlaylistId,
-    status: tracksRes.status,
-    detail: tracksDetail,
-    storedScopes: getStoredSpotifyOAuthScopes(user),
-  });
-
-  if (
-    tracksRes.status === 403 &&
-    (isSpotifyScopeMissingError(tracksDetail) || isSpotifyBareForbiddenError(tracksDetail))
-  ) {
-    invalidateStoredSpotifyOAuthScopes(user, 'probe:tracks_403');
+  const detail = await parseSpotifyErrorMessage(listRes);
+  console.warn('[spotify-playlist] list probe failed', { userId: user.id, status: listRes.status, detail });
+  if (listRes.status === 403 && isSpotifyScopeMissingError(detail)) {
+    invalidateStoredSpotifyOAuthScopes(user, 'probe:list_scope_explicit');
     return { ok: false, code: 'spotify_scope_missing' };
   }
-  if (isSpotifyRetryableAuthError(tracksRes.status, tracksDetail)) {
+  if (listRes.status === 403 && isSpotifyBareForbiddenError(detail)) {
+    invalidateStoredSpotifyOAuthScopes(user, 'probe:list_403_forbidden');
+    return { ok: false, code: 'spotify_scope_missing' };
+  }
+  if (isSpotifyRetryableAuthError(listRes.status, detail)) {
     return { ok: false, code: 'spotify_token_expired' };
   }
   return { ok: false, code: 'spotify_network_error' };
+}
+
+function syncStoredScopesAfterListProbeOk(user: User): void {
+  const stored = getStoredSpotifyOAuthScopes(user);
+  if (stored?.trim() && getMissingSpotifyPlaylistReadScopes(stored).length === 0) return;
+  persistStoredSpotifyOAuthScopes(user, SPOTIFY_SCOPES, 'live_list_probe_ok');
 }
 
 async function finishHostSessionProbe(
@@ -228,32 +195,15 @@ async function finishHostSessionProbe(
   if (!isSpotifyPlaybackHostProduct(product)) {
     return { ok: false, code: 'spotify_premium_required', product };
   }
-  const trackProbe = await probeSpotifyPlaylistTracksAccess(user, accessToken);
-  if (!trackProbe.ok) return { ok: false, code: trackProbe.code, product };
+  const listProbe = await probeSpotifyPlaylistListAccess(user, accessToken);
+  if (!listProbe.ok) return { ok: false, code: listProbe.code, product };
+  syncStoredScopesAfterListProbeOk(user);
   return { ok: true, product };
 }
 
 export async function probeSpotifyHostSession(user: User): Promise<SpotifyHostSessionResult> {
   if (!isPlatformConnected(user, 'spotify')) {
     return { ok: false, code: 'spotify_not_connected' };
-  }
-
-  const storedScopes = getStoredSpotifyOAuthScopes(user);
-  if (!storedScopes?.trim()) {
-    console.warn('[spotify-playlist] stored OAuth scopes missing — reconnect required', { userId: user.id });
-    return { ok: false, code: 'spotify_scope_missing' };
-  }
-
-  const missingScopes = getMissingSpotifyScopes(storedScopes);
-  if (missingScopes.length > 0) {
-    console.warn('[spotify-playlist] missing playback scopes', { userId: user.id, missingScopes });
-    return { ok: false, code: 'spotify_scope_missing' };
-  }
-
-  const missingPlaylistScopes = getMissingSpotifyPlaylistReadScopes(storedScopes);
-  if (missingPlaylistScopes.length > 0) {
-    console.warn('[spotify-playlist] missing playlist read scopes', { userId: user.id, missingPlaylistScopes });
-    return { ok: false, code: 'spotify_scope_missing' };
   }
 
   const tokenResult = await getValidSpotifyHostToken(user);
@@ -438,9 +388,6 @@ export async function resolveSpotifyPlaylistTracks(
       'spotify_playlist_invalid'
     );
   }
-  if (playlistReadScopesMissing(user)) {
-    throw new SpotifyPlaylistError(spotifyScopeMissingMessage(), 403, 'spotify_scope_missing');
-  }
 
   let accessToken = await prepareAccessTokenForPlaylistTracks(user);
   const tracks: SpotifyPlaylistTrack[] = [];
@@ -494,9 +441,6 @@ export async function verifySpotifyPlaylistTrackAccess(
       400,
       'spotify_playlist_invalid'
     );
-  }
-  if (playlistReadScopesMissing(user)) {
-    throw new SpotifyPlaylistError(spotifyScopeMissingMessage(), 403, 'spotify_scope_missing');
   }
 
   const accessToken = await prepareAccessTokenForPlaylistTracks(user);

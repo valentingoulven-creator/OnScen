@@ -120,11 +120,13 @@ platformsRouter.get('/spotify/oauth/url', authenticateJWT, (req: Request, res: R
     return;
   }
   const userId = (req as Request & { user: { id: string } }).user.id;
+  const user = db.users.get(userId);
   const forceConsent =
     req.query.reconnect === '1' ||
     req.query.reconnect === 'true' ||
     req.query.force_consent === '1' ||
-    req.query.force_consent === 'true';
+    req.query.force_consent === 'true' ||
+    Boolean(user && userNeedsSpotifyScopeReconnect(user));
   res.json({ url: createSpotifyOAuthUrl(userId, { forceConsent }) });
 });
 
@@ -278,7 +280,11 @@ platformsRouter.post('/:platform/connect', authenticateJWT, (req: Request, res: 
   }
 
   if (platform === 'spotify' && isSpotifyOAuthConfigured()) {
-    res.json({ ok: false, oauthUrl: createSpotifyOAuthUrl(userId), code: 'USE_OAUTH_URL' });
+    res.json({
+      ok: false,
+      oauthUrl: createSpotifyOAuthUrl(userId, { forceConsent: true }),
+      code: 'USE_OAUTH_URL',
+    });
     return;
   }
 

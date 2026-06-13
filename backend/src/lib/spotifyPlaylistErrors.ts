@@ -10,11 +10,7 @@ import {
   spotifyPremiumRequiredMessage,
   spotifyScopeMissingMessage,
 } from './spotifyApi';
-import {
-  getMissingSpotifyPlaylistReadScopes,
-  getStoredSpotifyOAuthScopes,
-  invalidateStoredSpotifyOAuthScopes,
-} from './spotifyOAuth';
+import { invalidateStoredSpotifyOAuthScopes } from './spotifyOAuth';
 
 export class SpotifyPlaylistError extends Error {
   constructor(
@@ -27,8 +23,27 @@ export class SpotifyPlaylistError extends Error {
   }
 }
 
-function playlistReadScopesMissing(user: User): boolean {
-  return getMissingSpotifyPlaylistReadScopes(getStoredSpotifyOAuthScopes(user)).length > 0;
+function classifyPlaylist403(
+  detail: string | undefined,
+  context: string,
+  user?: User
+): SpotifyPlaylistError | null {
+  if (isSpotifyScopeMissingError(detail)) {
+    if (user) invalidateStoredSpotifyOAuthScopes(user, `${context}:scope_explicit`);
+    return new SpotifyPlaylistError(spotifyScopeMissingMessage(), 403, 'spotify_scope_missing');
+  }
+  if (isSpotifyBareForbiddenError(detail)) {
+    console.warn('[spotify-playlist] bare 403 Forbidden on playlist tracks', {
+      context,
+      userId: user?.id,
+    });
+    return new SpotifyPlaylistError(
+      'Accès à la playlist Spotify refusé — vérifiez le lien ou choisissez une autre playlist.',
+      403,
+      'spotify_playlist_forbidden'
+    );
+  }
+  return null;
 }
 
 /** Mappe une erreur API Spotify playlist → SpotifyPlaylistError (codes stables pour le frontend). */
@@ -38,24 +53,9 @@ export function throwSpotifyPlaylistApiError(
   context: string,
   user?: User
 ): never {
-  if (status === 403 && isSpotifyScopeMissingError(detail)) {
-    if (user) invalidateStoredSpotifyOAuthScopes(user, `${context}:scope_explicit`);
-    throw new SpotifyPlaylistError(spotifyScopeMissingMessage(), 403, 'spotify_scope_missing');
-  }
-
-  if (status === 403 && isSpotifyBareForbiddenError(detail)) {
-    if (user) invalidateStoredSpotifyOAuthScopes(user, `${context}:403_forbidden`);
-    console.warn('[spotify-playlist] bare 403 Forbidden → scope reconnect required', {
-      context,
-      userId: user?.id,
-      storedScopes: user ? getStoredSpotifyOAuthScopes(user) : undefined,
-    });
-    throw new SpotifyPlaylistError(spotifyScopeMissingMessage(), 403, 'spotify_scope_missing');
-  }
-
-  if (status === 403 && user && playlistReadScopesMissing(user)) {
-    if (user) invalidateStoredSpotifyOAuthScopes(user, `${context}:stored_scopes_missing`);
-    throw new SpotifyPlaylistError(spotifyScopeMissingMessage(), 403, 'spotify_scope_missing');
+  if (status === 403) {
+    const classified = classifyPlaylist403(detail, context, user);
+    if (classified) throw classified;
   }
 
   if (status === 403 && isSpotifyPremiumRequiredError(detail)) {

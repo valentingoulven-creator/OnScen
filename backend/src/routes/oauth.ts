@@ -22,6 +22,7 @@ import {
   isSpotifyOAuthConfigured,
   completeSpotifyOAuth,
   applySpotifyOAuthToUser,
+  resolveSpotifyOAuthScopesAfterConnect,
 } from '../lib/spotifyOAuth';
 import {
   applyInstagramOAuthToUser,
@@ -528,7 +529,11 @@ oauthRouter.get('/spotify', (_req: Request, res: Response) => {
     }
     const user = db.users.get(result.userId);
     if (user) {
-      applySpotifyOAuthToUser(user, result);
+      const oauthScopes = await resolveSpotifyOAuthScopesAfterConnect(
+        result.accessToken,
+        result.oauthScopes
+      );
+      applySpotifyOAuthToUser(user, { ...result, oauthScopes });
       db.users.set(user.id, user);
       schedulePersist();
     }

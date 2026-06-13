@@ -933,25 +933,61 @@ export function userNeedsSpotifyScopeReconnect(user: User): boolean {
 
 
 
-/** Efface les scopes stockés après un 403 playlist — force re-OAuth au prochain probe. */
-export function invalidateStoredSpotifyOAuthScopes(user: User, reason?: string): void {
+/** Enregistre les scopes OAuth après vérification live ou réponse token Spotify. */
+export function persistStoredSpotifyOAuthScopes(user: User, scopes: string, reason?: string): void {
+  if (!isPlatformConnected(user, 'spotify')) return;
+  const trimmed = scopes.trim();
+  if (!trimmed) return;
 
+  const accounts = getPlatformAccounts(user);
+  const idx = accounts.findIndex((a) => a.platform === 'spotify');
+  if (idx < 0) return;
+  if (accounts[idx].oauthScopes?.trim() === trimmed) return;
+
+  accounts[idx] = { ...accounts[idx], oauthScopes: trimmed };
+  user.platformAccounts = accounts;
+  schedulePersist();
+  console.info('[spotify-oauth] persisted OAuth scopes', { userId: user.id, reason });
+}
+
+/** Efface les scopes stockés après un 403 explicite « scope manquant » sur /me ou /me/playlists. */
+export function invalidateStoredSpotifyOAuthScopes(user: User, reason?: string): void {
   if (!isPlatformConnected(user, 'spotify')) return;
 
   const accounts = getPlatformAccounts(user);
-
   const idx = accounts.findIndex((a) => a.platform === 'spotify');
-
   if (idx < 0 || !accounts[idx].oauthScopes?.trim()) return;
 
   accounts[idx] = { ...accounts[idx], oauthScopes: undefined };
-
   user.platformAccounts = accounts;
-
   schedulePersist();
-
   console.warn('[spotify-oauth] invalidated stored OAuth scopes', { userId: user.id, reason });
+}
 
+/**
+ * Spotify omet parfois `scope` dans la réponse token même après consentement complet.
+ * Si absent, vérifie /me/playlists en live avant de persister les scopes demandés.
+ */
+export async function resolveSpotifyOAuthScopesAfterConnect(
+  accessToken: string,
+  tokenScope?: string
+): Promise<string | undefined> {
+  const fromToken = tokenScope?.trim();
+  if (fromToken) return fromToken;
+
+  try {
+    const res = await fetch('https://api.spotify.com/v1/me/playlists?limit=1', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (res.ok) {
+      console.info('[spotify-oauth] token sans scope mais /me/playlists OK — persisting requested scopes');
+      return SPOTIFY_SCOPES;
+    }
+  } catch {
+    /* ignore */
+  }
+  return undefined;
 }
 
 

@@ -1,7 +1,67 @@
 ﻿
 ================================================================================
-MODIF 479 — Refonte flux création salon Spotify + playlist (structure + fix définitif)
+MODIF 480 — Fix définitif reconnect Spotify playlist (scope gate + track probe)
 ================================================================================
+Date : 2026-06-13
+
+## Symptôme (persistant après MODIF 479 déployé SHA 8f14a91b)
+Après déconnexion + reconnexion Spotify, onglet playlist CreateSalonModal affiche
+toujours « Reconnectez Spotify pour autoriser l'accès aux playlists » + bouton
+Reconnecter — la reconnexion ne corrige rien.
+
+## Cause racine (preuve prod VPS 51.159.164.100, user user_1781017431039_0npao)
+1. **Boucle invalidate → gate DB** : probe `/playlists/{id}/tracks` renvoie 403 Forbidden
+   alors que `oauthScopes` contient déjà `playlist-read-private` + `playlist-read-collaborative`.
+   `invalidateStoredSpotifyOAuthScopes(probe:tracks_403)` efface les scopes.
+2. **Gate DB bloque le live** : `probeSpotifyHostSession` retournait `spotify_scope_missing`
+   dès `oauthScopes` vide, **sans** appeler `/me/playlists` → reconnexion inutile.
+3. **Track probe trop strict pour la session** : échec tracks sur la 1ère playlist (ex.
+   podcast/région) invalidait toute la session alors que `/me/playlists` OK.
+4. **OAuth scope absent** : si Spotify omet `scope` dans la réponse token, `oauthScopes`
+   restait undefined après reconnect.
+
+## Correctif
+### Backend
+- `probeSpotifyHostSession` : **plus de pré-vérification DB** ; validation live via
+  `/me` + `/me/playlists` uniquement (plus de track probe session).
+- `syncStoredScopesAfterListProbeOk` : persiste `SPOTIFY_SCOPES` si list OK et DB vide.
+- `resolveSpotifyOAuthScopesAfterConnect` : si token sans scope mais `/me/playlists` OK,
+  persiste les scopes demandés.
+- `persistStoredSpotifyOAuthScopes` : helper explicite ; invalidation limitée aux 403
+  **liste** avec message scope explicite (plus sur tracks).
+- `throwSpotifyPlaylistApiError` : 403 bare sur **tracks** → `spotify_playlist_forbidden`
+  (pas scope_missing + pas invalidate).
+- Routes OAuth : `forceConsent` auto si `userNeedsSpotifyScopeReconnect` ; POST connect
+  Spotify toujours `show_dialog=true`.
+
+### Frontend
+- `PlatformConnectCard` : connexion Spotify toujours avec `reconnect: true` (show_dialog).
+
+## Fichiers
+- backend/src/lib/spotifyOAuth.ts
+- backend/src/lib/spotifyPlaylists.ts
+- backend/src/lib/spotifyPlaylistErrors.ts
+- backend/src/routes/platforms.ts
+- backend/src/routes/oauth.ts
+- app/src/components/PlatformConnectCard.tsx
+- modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit   ✓
+  cd app && npm run build          ✓
+
+## Déploiement
+**Non** — en attente validation utilisateur.
+
+## Action utilisateur après déploiement
+**Pas de reconnexion obligatoire** si `/me/playlists` fonctionne déjà : le picker doit
+s'afficher immédiatement. Reconnecter seulement si message scope persiste après refresh
+(compte lié avant ajout scopes playlist).
+
+================================================================================
+Fin MODIF 480 - 2026-06-13
+================================================================================
+
 Date : 2026-06-13
 
 ## Symptôme (persistant après MODIF 478)
