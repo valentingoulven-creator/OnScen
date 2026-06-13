@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { playLiveRemoteVideo, unmuteLiveRemoteVideo } from '../lib/liveCameraSupport';
+import { forceAttachLiveRemoteStream, playLiveRemoteVideo, unmuteLiveRemoteVideo } from '../lib/liveCameraSupport';
 import {
   LIVE_CAMERA_VIEWER_ICE_FAILED,
   LIVE_CAMERA_VIEWER_TIMEOUT,
@@ -8,8 +8,10 @@ import {
 import {
   attachLiveRelaySendTracks,
   createLivePeerConnection,
+  hasLiveRelayVideoTrack,
   liveStreamReadyForRelay,
   LIVE_WEBRTC_MESH_VIEWER_LIMIT,
+  mergeRemoteLiveStream,
   type LiveWebrtcSignalPayload,
 } from '../lib/liveVideoRelay';
 import { emitOnSocket, getSocket, onSocketConnect } from '../lib/socket';
@@ -37,15 +39,13 @@ function resolveLiveRemoteStream(ev: RTCTrackEvent): MediaStream | null {
   return null;
 }
 
-function mergeRemoteTracks(stream: MediaStream, track: MediaStreamTrack): MediaStream {
-  const existing = stream.getTracks().find((t) => t.kind === track.kind);
-  if (existing && existing.id !== track.id) {
-    stream.removeTrack(existing);
-  }
-  if (!stream.getTracks().some((t) => t.id === track.id)) {
-    stream.addTrack(track);
-  }
-  return stream;
+function syncViewerStreamActive(
+  stream: MediaStream | null,
+  setActive: (active: boolean) => void
+): boolean {
+  const hasVideo = hasLiveRelayVideoTrack(stream);
+  setActive(hasVideo);
+  return hasVideo;
 }
 
 export function useLiveVideoRelay({
@@ -102,10 +102,11 @@ export function useLiveVideoRelay({
     const stream = remoteStreamRef.current;
     const el = viewerVideoRef.current;
     if (!stream || !el) return;
-    if (el.src) el.removeAttribute('src');
-    if (el.srcObject !== stream) {
-      el.srcObject = stream;
+    if (!hasLiveRelayVideoTrack(stream)) {
+      syncViewerStreamActive(stream, setViewerStreamActive);
+      return;
     }
+    forceAttachLiveRemoteStream(el, stream);
     const result = await playLiveRemoteVideo(el);
     setViewerAudioBlocked(result === 'muted_fallback');
     setViewerPlaybackBlocked(result === 'failed');
@@ -123,7 +124,7 @@ export function useLiveVideoRelay({
   const enableViewerAudio = useCallback(async () => {
     const el = viewerVideoRef.current;
     if (!el) return false;
-    const ok = await unmuteLiveRemoteVideo(el);
+    const ok = await unmuteLiveRemoteVideo(el, remoteStreamRef.current);
     if (ok) {
       setViewerAudioBlocked(false);
       setViewerPlaybackBlocked(false);
@@ -133,23 +134,24 @@ export function useLiveVideoRelay({
 
   const enableViewerPlayback = useCallback(async () => {
     const el = viewerVideoRef.current;
-    if (!el) return false;
+    const stream = remoteStreamRef.current;
+    if (!el || !stream) return false;
+    if (hasLiveRelayVideoTrack(stream)) {
+      forceAttachLiveRemoteStream(el, stream);
+    }
     const ok = await enableViewerAudio();
     if (!ok) {
-      if (el) {
-        try {
-          el.muted = false;
-          await el.play();
-          setViewerPlaybackBlocked(false);
-          setViewerAudioBlocked(false);
-          return true;
-        } catch {
-          return false;
-        }
+      try {
+        el.muted = false;
+        await el.play();
+        setViewerPlaybackBlocked(false);
+        setViewerAudioBlocked(false);
+        return true;
+      } catch {
+        return false;
       }
-    } else {
-      setViewerPlaybackBlocked(false);
     }
+    setViewerPlaybackBlocked(false);
     return ok;
   }, [enableViewerAudio]);
 
@@ -349,15 +351,17 @@ export function useLiveVideoRelay({
       pc.ontrack = (ev) => {
         const incoming = resolveLiveRemoteStream(ev);
         if (!incoming) return;
-        const merged =
-          remoteStreamRef.current && remoteStreamRef.current.id === incoming.id
-            ? mergeRemoteTracks(remoteStreamRef.current, ev.track)
-            : incoming;
-        remoteStreamRef.current = merged;
-        setViewerStreamActive(true);
-        setViewerRelayPhase('connected');
-        setViewerRelayError(null);
-        void attachViewerStream();
+        remoteStreamRef.current = mergeRemoteLiveStream(
+          remoteStreamRef.current,
+          incoming,
+          ev.track
+        );
+        const hasVideo = syncViewerStreamActive(remoteStreamRef.current, setViewerStreamActive);
+        if (hasVideo) {
+          setViewerRelayPhase('connected');
+          setViewerRelayError(null);
+          void attachViewerStream();
+        }
       };
 
       pc.onicecandidate = (ev) => {

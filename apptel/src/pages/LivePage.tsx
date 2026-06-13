@@ -861,6 +861,17 @@ export function LivePage({
   const showViewerCameraBadge =
     !isHost && !!live.cameraActive && !viewerStreamActive;
   const showViewerNoCamera = !isHost && !live.cameraActive;
+  const viewerRelayPendingVideo =
+    !isHost &&
+    viewerCameraRelayActive &&
+    (viewerRelayPhase === 'waiting' ||
+      viewerRelayPhase === 'connecting' ||
+      viewerRelayPhase === 'connected');
+  const showCenterStagePlaceholder =
+    !showHostCamera &&
+    !showViewerVideo &&
+    !showViewerCameraBadge &&
+    !viewerRelayPendingVideo;
   const viewerCameraBadgeNote =
     live.cameraMode === 'file'
       ? LIVE_CAMERA_VIEWER_FILE_NOTE
@@ -1159,7 +1170,7 @@ export function LivePage({
                 </div>
               </div>
             )}
-            {!showHostCamera && !showViewerVideo && !showViewerCameraBadge && (
+            {showCenterStagePlaceholder && (
               <div
                 className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center"
                 style={{
@@ -1186,6 +1197,7 @@ export function LivePage({
               </div>
             )}
 
+            {(showHostCamera || showViewerVideo) ? null : (
             <div className="absolute bottom-0 inset-x-0 z-20 pointer-events-none bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-12 pb-3 px-3">
               <div className="flex items-center gap-2 pointer-events-none">
                 <img
@@ -1199,6 +1211,7 @@ export function LivePage({
                 </div>
               </div>
             </div>
+            )}
 
             {!isHost && hostCanReceiveDonations && (
               <LiveGiftOverlay liveId={liveId} visible onOpenGiftSheet={openDonSheet} />

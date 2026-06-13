@@ -275,6 +275,16 @@ export async function attachLiveCameraStream(
 
 export type LiveRemotePlaybackResult = 'playing' | 'muted_fallback' | 'failed';
 
+/** Force re-bind MediaStream on video element (required when tracks are added later). */
+export function forceAttachLiveRemoteStream(el: HTMLVideoElement, stream: MediaStream): void {
+  if (el.src) el.removeAttribute('src');
+  el.srcObject = null;
+  el.srcObject = stream;
+  for (const track of stream.getVideoTracks()) {
+    track.enabled = true;
+  }
+}
+
 /** Lecture flux distant (spectateur) — tente le son, signale si le navigateur impose le muet. */
 export async function playLiveRemoteVideo(el: HTMLVideoElement): Promise<LiveRemotePlaybackResult> {
   el.playsInline = true;
@@ -282,11 +292,10 @@ export async function playLiveRemoteVideo(el: HTMLVideoElement): Promise<LiveRem
   el.setAttribute('webkit-playsinline', 'true');
   el.setAttribute('x5-playsinline', 'true');
   if (el.src) el.removeAttribute('src');
-  try {
-    await waitForLiveStreamReady(el);
-  } catch {
-    /* continue — play() may still succeed once frames arrive */
-  }
+  await Promise.race([
+    waitForLiveStreamReady(el).catch(() => undefined),
+    new Promise<void>((resolve) => window.setTimeout(resolve, 400)),
+  ]);
   el.muted = false;
   if ('volume' in el) el.volume = 1;
   try {
@@ -304,12 +313,15 @@ export async function playLiveRemoteVideo(el: HTMLVideoElement): Promise<LiveRem
 }
 
 /** Débloque le son du flux distant après un geste utilisateur. */
-export async function unmuteLiveRemoteVideo(el: HTMLVideoElement): Promise<boolean> {
-  try {
-    await waitForLiveStreamReady(el);
-  } catch {
-    /* continue */
-  }
+export async function unmuteLiveRemoteVideo(
+  el: HTMLVideoElement,
+  stream?: MediaStream | null
+): Promise<boolean> {
+  if (stream) forceAttachLiveRemoteStream(el, stream);
+  await Promise.race([
+    waitForLiveStreamReady(el).catch(() => undefined),
+    new Promise<void>((resolve) => window.setTimeout(resolve, 400)),
+  ]);
   el.muted = false;
   if ('volume' in el) el.volume = 1;
   try {
