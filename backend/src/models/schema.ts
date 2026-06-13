@@ -371,6 +371,21 @@ export interface HostRating {
   timestamp: number;
 }
 
+export type SupportContactStatus = 'open' | 'replied';
+
+/** Message utilisateur → équipe Soundy (support). */
+export interface SupportContactMessage {
+  id: string;
+  fromUserId: string;
+  body: string;
+  createdAt: number;
+  status: SupportContactStatus;
+  adminReply?: string;
+  repliedAt?: number;
+  repliedByUserId?: string;
+  threadId?: string;
+}
+
 export interface AppNotification {
   id: string;
   recipientId: string;
@@ -389,7 +404,9 @@ export interface AppNotification {
     | 'content_heart'
     | 'follow'
     | 'event_created'
-    | 'mention';
+    | 'mention'
+    | 'support_contact'
+    | 'support_reply';
   message: string;
   read: boolean;
   createdAt: number;
@@ -404,6 +421,8 @@ export interface AppNotification {
   postId?: string;
   /** Reel liké. */
   reelId?: string;
+  /** Message support (admin ou utilisateur). */
+  supportMessageId?: string;
 }
 
 export interface UserFavorite {
@@ -570,4 +589,5 @@ export const db = {
    * Valeurs : 'pending' | 'accepted' | 'refused'
    */
   dmPendingPairs: new Map<string, 'pending' | 'accepted' | 'refused'>(),
+  supportContactMessages: [] as SupportContactMessage[],
 };

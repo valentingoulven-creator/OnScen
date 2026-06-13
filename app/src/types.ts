@@ -439,7 +439,9 @@ export interface AppNotification {
     | 'content_heart'
     | 'follow'
     | 'event_created'
-    | 'mention';
+    | 'mention'
+    | 'support_contact'
+    | 'support_reply';
   senderId: string;
   senderName: string;
   senderAvatarUrl?: string;
@@ -453,6 +455,21 @@ export interface AppNotification {
   groupId?: string;
   postId?: string;
   reelId?: string;
+  supportMessageId?: string;
+}
+
+export type SupportContactStatus = 'open' | 'replied';
+
+export interface SupportContactMessage {
+  id: string;
+  fromUserId: string;
+  fromUsername: string;
+  body: string;
+  createdAt: number;
+  status: SupportContactStatus;
+  adminReply?: string;
+  repliedAt?: number;
+  threadId?: string;
 }
 
 export interface MusicMatch {

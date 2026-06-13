@@ -8663,3 +8663,58 @@ les reels utilisateur (liste, blocage, suppression) depuis l’onglet Contenu.
 ================================================================================
 Fin MODIF 469 - 2026-06-13
 ================================================================================
+
+================================================================================
+MODIF 471 — Contacter Soundy (support in-app)
+================================================================================
+Date : 2026-06-13
+
+## Objectif
+Permettre à tout utilisateur d'envoyer un message à l'équipe Soundy depuis le
+profil, sans afficher de destinataire. Les admins (soundy_dev) reçoivent une
+notification et peuvent répondre depuis un nouvel onglet Admin « Support ».
+L'utilisateur reçoit une notification à la réponse et voit l'historique.
+
+## Backend
+- Modèle `SupportContactMessage` (id, fromUserId, body, createdAt, status
+  open/replied, adminReply?, repliedAt?, repliedByUserId?, threadId?)
+- `POST /api/support/contact` — création + notification `support_contact` aux admins
+- `GET /api/support/my` — historique utilisateur
+- `GET /api/access/admin/support` — liste admin (filtre status)
+- `POST /api/access/admin/support/:id/reply` — réponse + notification `support_reply`
+- Migration PG `007_support_contact_messages.sql`
+- Persistance storeCore + pgStore
+
+## Frontend utilisateur
+- Bouton « Contacter Soundy » dans ProfilePage (au-dessus Déconnexion)
+- Page `ContactSoundyPage` : textarea, envoi, toast succès, historique + réponses
+- i18n fr/en (`profile.contactSoundy`, `support.*`)
+
+## Frontend admin
+- Onglet Admin « Support » (`AdminSupportTab`) : liste, détail, formulaire réponse
+- Clic notification `support_contact` → Admin onglet Support (message surligné)
+
+## Notifications
+- `support_contact` → admins (`isAccessAdmin`), lien admin support
+- `support_reply` → utilisateur, ouvre page Contacter Soundy
+
+## Fichiers
+- backend/src/models/schema.ts
+- backend/src/lib/storeCore.ts, notifications.ts, pgStore.ts
+- backend/src/routes/support.ts, server.ts
+- backend/src/db/migrations/007_support_contact_messages.sql
+- app/src/types.ts, lib/api.ts
+- app/src/pages/ContactSoundyPage.tsx, AdminSupportTab.tsx, AdminPage.tsx, ProfilePage.tsx
+- app/src/components/NotificationBell.tsx, App.tsx
+- app/src/locales/fr.json, en.json
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npm run build
+
+## Déploiement
+**Oui** — redémarrage backend + rebuild app (assets backend/public).
+
+================================================================================
+Fin MODIF 471 - 2026-06-13
+================================================================================

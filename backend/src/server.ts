@@ -32,6 +32,7 @@ import { adminContentRouter } from './routes/adminContent';
 import { adminCloudflareRouter } from './routes/adminCloudflare';
 import { newsRouter } from './routes/news';
 import { trendingRouter } from './routes/trending';
+import { supportRouter, supportAdminRouter } from './routes/support';
 import { getPublicDir, getMsdevConfigPath } from './paths';
 import { REEL_UPLOAD_JSON_BODY_LIMIT } from './lib/reelUploadLimits';
 
@@ -407,6 +408,7 @@ app.use('/api/auth', authLimiter, authRouter);
 // rate-limited by Google/Facebook, and callback URLs must not be blocked.
 app.use('/api/auth', oauthRouter);
 app.use('/api/access', accessRouter);
+app.use('/api/access/admin/support', supportAdminRouter);
 app.use('/api/access/admin/content', adminContentRouter);
 app.use('/api/admin', adminCloudflareRouter);
 app.use('/api/geo', geoRouter);
@@ -421,6 +423,7 @@ app.use('/api/subscriptions', subscriptionsLimiter, subscriptionsRouter);
 app.use('/api/network', networkRouter);
 app.use('/api/ratings', ratingsRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/support', supportRouter);
 app.use('/api/reels', reelsRouter);
 app.use('/api/feed', feedRouter);
 app.use('/api/stories', storiesRouter);

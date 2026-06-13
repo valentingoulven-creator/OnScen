@@ -30,6 +30,7 @@ import {
 } from '../components/ProfilePhotoViewer';
 import { SettingsPage, SettingsGearButton } from './SettingsPage';
 import { AdminPage } from './AdminPage';
+import { ContactSoundyPage } from './ContactSoundyPage';
 import { SupportMeloSongTeaser } from '../components/SupportMeloSongSection';
 import { DonationSheet } from '../components/DonationSheet';
 import { ProfileReelRecorder } from '../components/ProfileReelRecorder';
@@ -94,6 +95,9 @@ interface ProfilePageProps {
   /** À l’ouverture : Mes reels + enregistreur (ex. depuis profil carte). */
   openRecorderOnMount?: boolean;
   onRecorderMountHandled?: () => void;
+  /** À l’ouverture : page Contacter Soundy (ex. notification support_reply). */
+  openContactOnMount?: boolean;
+  onContactMountHandled?: () => void;
 }
 
 export function ProfilePage({
@@ -104,6 +108,8 @@ export function ProfilePage({
   onOpenSalon,
   openRecorderOnMount = false,
   onRecorderMountHandled,
+  openContactOnMount = false,
+  onContactMountHandled,
 }: ProfilePageProps) {
   const { user, token, logout, setUserFromProfile, refreshUser } = useAuth();
   const { t } = useTranslation();
@@ -112,6 +118,7 @@ export function ProfilePage({
   const [reelsRefreshKey, setReelsRefreshKey] = useState(0);
   const [editing, setEditing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showContactSoundy, setShowContactSoundy] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [showFavoritesSheet, setShowFavoritesSheet] = useState(false);
   const [showDonationSheet, setShowDonationSheet] = useState(false);
@@ -161,6 +168,12 @@ export function ProfilePage({
     setShowReelRecorder(true);
     onRecorderMountHandled?.();
   }, [openRecorderOnMount, onRecorderMountHandled]);
+
+  useEffect(() => {
+    if (!openContactOnMount) return;
+    setShowContactSoundy(true);
+    onContactMountHandled?.();
+  }, [openContactOnMount, onContactMountHandled]);
 
   const startEditing = useCallback(async () => {
     if (!user || !token) return;
@@ -264,6 +277,10 @@ export function ProfilePage({
   }, [user, token, form, photoGalleryBusy, setUserFromProfile, refreshUser, t]);
 
   if (!user || !token) return null;
+
+  if (showContactSoundy) {
+    return <ContactSoundyPage onBack={() => setShowContactSoundy(false)} />;
+  }
 
   if (showAdmin) {
     return (
@@ -567,6 +584,13 @@ export function ProfilePage({
                 ⚙️ Paramètres
               </button>
               <SupportMeloSongTeaser onOpen={() => setShowDonationSheet(true)} />
+              <button
+                type="button"
+                onClick={() => setShowContactSoundy(true)}
+                className="w-full py-2.5 rounded-lg border border-[#2d2d3d] text-gray-300 font-semibold text-sm"
+              >
+                {t('profile.contactSoundy')}
+              </button>
               <button
                 type="button"
                 onClick={() => setShowLogoutConfirm(true)}

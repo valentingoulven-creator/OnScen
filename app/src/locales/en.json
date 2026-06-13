@@ -300,6 +300,7 @@
     "roleOnApp": "Role on Soundy",
     "logout": "Log out",
     "logoutConfirmTitle": "Are you sure you want to log out?",
+    "contactSoundy": "Contact Soundy",
     "relationshipLabel": "Relationship status",
     "relationshipOptional": "Relationship status (optional)",
     "relationshipHidden": "Don't show",
@@ -349,6 +350,20 @@
     "adminPanel": "Admin panel",
     "adminPanelHint": "Accounts, access, analytics"
   },
+  "support": {
+    "title": "Contact Soundy",
+    "intro": "Write your message below. The Soundy team will reply in the app.",
+    "messageLabel": "Your message",
+    "messagePlaceholder": "Describe your question or request…",
+    "send": "Send",
+    "sending": "Sending…",
+    "sent": "Message sent — thank you!",
+    "sendError": "Could not send message",
+    "historyTitle": "Your messages",
+    "loading": "Loading…",
+    "replyLabel": "Soundy reply",
+    "pending": "Awaiting reply"
+  },
   "profileSearch": {
     "placeholder": "Search for a profile…",
     "label": "Search profiles",
@@ -363,7 +378,8 @@
       "access": "Access",
       "content": "Content",
       "analytics": "Analytics",
-      "costs": "Costs"
+      "costs": "Costs",
+      "support": "Support"
     },
     "accounts": {
       "searchPlaceholder": "Search username, email or city…",
@@ -449,6 +465,25 @@
       "modeInviteOnly": "Invite only",
       "modeAdminApproval": "Admin approval",
       "modeClosed": "Closed"
+    },
+    "support": {
+      "filter": {
+        "open": "Open",
+        "replied": "Replied",
+        "all": "All"
+      },
+      "loading": "Loading…",
+      "empty": "No messages yet.",
+      "loadError": "Could not load messages.",
+      "replyError": "Could not send reply.",
+      "statusOpen": "Open",
+      "statusReplied": "Replied",
+      "from": "From",
+      "message": "Message",
+      "yourReply": "Your reply",
+      "replyPlaceholder": "Your reply",
+      "sendReply": "Send reply",
+      "replying": "Sending…"
     },
     "content": {
       "title": "Content moderation",

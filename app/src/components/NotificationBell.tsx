@@ -20,7 +20,9 @@ function isVisibleNotification(n: AppNotification): boolean {
     n.type === 'content_heart' ||
     n.type === 'follow' ||
     n.type === 'event_created' ||
-    n.type === 'mention'
+    n.type === 'mention' ||
+    n.type === 'support_contact' ||
+    n.type === 'support_reply'
   );
 }
 
@@ -35,7 +37,9 @@ function shouldShowToast(n: AppNotification): boolean {
     n.type === 'content_heart' ||
     n.type === 'follow' ||
     n.type === 'event_created' ||
-    n.type === 'mention'
+    n.type === 'mention' ||
+    n.type === 'support_contact' ||
+    n.type === 'support_reply'
   );
 }
 
@@ -90,6 +94,10 @@ function notificationEmoji(n: AppNotification): string {
       return '👥';
     case 'dm_message':
       return '💬';
+    case 'support_contact':
+      return '📩';
+    case 'support_reply':
+      return '✉️';
     default:
       return '♥';
   }
@@ -101,9 +109,19 @@ interface NotificationBellProps {
   onOpenSalon?: (salonId: string) => void;
   onOpenDm?: (peerUserId: string) => void;
   onOpenGroup?: (groupId: string) => void;
+  onOpenAdminSupport?: (supportMessageId?: string) => void;
+  onOpenContactSupport?: () => void;
 }
 
-export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpenDm, onOpenGroup }: NotificationBellProps) {
+export function NotificationBell({
+  onOpenLive,
+  onOpenProfile,
+  onOpenSalon,
+  onOpenDm,
+  onOpenGroup,
+  onOpenAdminSupport,
+  onOpenContactSupport,
+}: NotificationBellProps) {
   const { token, user } = useAuth();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<AppNotification[]>([]);
@@ -191,7 +209,8 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
       setItems((prev) => [n, ...prev.filter((x) => x.id !== n.id)].slice(0, 50));
       setUnread((c) => c + 1);
       const skipDonToast = n.type === 'live_don' && n.liveId === getActiveHostLiveId();
-      if (shouldShowToast(n) && !skipDonToast) {
+      const showSupportToast = n.type === 'support_contact' || n.type === 'support_reply';
+      if ((shouldShowToast(n) || showSupportToast) && !skipDonToast) {
         setToast(n);
         if (n.type === 'match') {
           showMatchSystemNotification(n.senderName);
@@ -238,6 +257,18 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
   const isMessageToast = isDmToast || isGroupToast;
 
   const openFromNotif = (n: AppNotification) => {
+    if (n.type === 'support_contact' && onOpenAdminSupport) {
+      onOpenAdminSupport(n.supportMessageId);
+      setToast(null);
+      setOpen(false);
+      return;
+    }
+    if (n.type === 'support_reply' && onOpenContactSupport) {
+      onOpenContactSupport();
+      setToast(null);
+      setOpen(false);
+      return;
+    }
     if (n.type === 'group_message' && n.groupId && onOpenGroup) {
       onOpenGroup(n.groupId);
       setToast(null);

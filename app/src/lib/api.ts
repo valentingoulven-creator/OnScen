@@ -339,6 +339,37 @@ export const api = {
   deleteAccessInvite: (token: string, id: string) =>
     request<{ ok: boolean }>(`/access/admin/invites/${id}`, { method: 'DELETE' }, token),
 
+  submitSupportContact: (token: string, body: string) =>
+    request<{ message: import('../types').SupportContactMessage }>(
+      '/support/contact',
+      { method: 'POST', body: JSON.stringify({ body }) },
+      token
+    ),
+
+  getMySupportMessages: (token: string) =>
+    request<{ messages: import('../types').SupportContactMessage[] }>('/support/my', {}, token),
+
+  getAdminSupportMessages: (
+    token: string,
+    opts: { status?: 'open' | 'replied' | 'all' } = {}
+  ) => {
+    const params = new URLSearchParams();
+    if (opts.status && opts.status !== 'all') params.set('status', opts.status);
+    const qs = params.toString();
+    return request<{ messages: import('../types').SupportContactMessage[] }>(
+      `/access/admin/support${qs ? `?${qs}` : ''}`,
+      {},
+      token
+    );
+  },
+
+  replyAdminSupportMessage: (token: string, messageId: string, reply: string) =>
+    request<{ message: import('../types').SupportContactMessage }>(
+      `/access/admin/support/${messageId}/reply`,
+      { method: 'POST', body: JSON.stringify({ reply }) },
+      token
+    ),
+
   getAdminSalons: (
     token: string,
     opts: { filter?: import('../types').AdminContentFilter; q?: string; limit?: number; offset?: number } = {}

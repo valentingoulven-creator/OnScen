@@ -86,6 +86,11 @@ export default function App() {
   viewRef.current = view;
   const [profileOpen, setProfileOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [adminInitialTab, setAdminInitialTab] = useState<
+    'accounts' | 'access' | 'content' | 'analytics' | 'costs' | 'support'
+  >('accounts');
+  const [adminHighlightSupportMessageId, setAdminHighlightSupportMessageId] = useState<string | undefined>();
+  const [profileOpenContact, setProfileOpenContact] = useState(false);
   const [profileOpenRecorder, setProfileOpenRecorder] = useState(false);
   const [profilePreview, setProfilePreview] = useState<NearbyPerson | null>(null);
   const [profileReturnView, setProfileReturnView] = useState<View>({ type: 'home' });
@@ -636,7 +641,14 @@ export default function App() {
               className="justify-self-center w-[min(18rem,calc(100vw-7.5rem))] sm:w-[min(22rem,calc(100vw-9rem))]"
             />
             <div className="flex items-center gap-1 justify-self-end shrink-0">
-              <AdminHeaderButton onClick={() => setAdminOpen(true)} active={adminOpen} />
+              <AdminHeaderButton
+                onClick={() => {
+                  setAdminInitialTab('accounts');
+                  setAdminHighlightSupportMessageId(undefined);
+                  setAdminOpen(true);
+                }}
+                active={adminOpen}
+              />
               <PrivacyVisibilityMenu />
               <NotificationBell
                 onOpenLive={openLive}
@@ -644,6 +656,15 @@ export default function App() {
                 onOpenSalon={openSalonPage}
                 onOpenDm={openDmWithUser}
                 onOpenGroup={openGroupChat}
+                onOpenAdminSupport={(supportMessageId) => {
+                  setAdminInitialTab('support');
+                  setAdminHighlightSupportMessageId(supportMessageId);
+                  setAdminOpen(true);
+                }}
+                onOpenContactSupport={() => {
+                  setProfileOpenContact(true);
+                  setProfileOpen(true);
+                }}
               />
               <button
                 type="button"
@@ -836,13 +857,18 @@ export default function App() {
           <div className="ms-app-profile-overlay flex flex-col min-h-0 bg-[#0b0b0f]">
             <Suspense fallback={<PageFallback />}>
               <ProfilePage
-                onBack={() => setProfileOpen(false)}
+                onBack={() => {
+                  setProfileOpen(false);
+                  setProfileOpenContact(false);
+                }}
                 onOpenReel={openReelInTab}
                 onOpenLive={openLive}
                 onOpenProfile={openProfile}
                 onOpenSalon={openSalonPage}
                 openRecorderOnMount={profileOpenRecorder}
                 onRecorderMountHandled={() => setProfileOpenRecorder(false)}
+                openContactOnMount={profileOpenContact}
+                onContactMountHandled={() => setProfileOpenContact(false)}
               />
             </Suspense>
           </div>
@@ -852,9 +878,17 @@ export default function App() {
           <div className="ms-app-profile-overlay ms-app-admin-overlay flex flex-col min-h-0 bg-[#0b0b0f]">
             <Suspense fallback={<PageFallback />}>
               <AdminPage
-                onBack={() => setAdminOpen(false)}
+                initialTab={adminInitialTab}
+                highlightSupportMessageId={adminHighlightSupportMessageId}
+                onBack={() => {
+                  setAdminOpen(false);
+                  setAdminInitialTab('accounts');
+                  setAdminHighlightSupportMessageId(undefined);
+                }}
                 onOpenSalon={(salonId, salonTitle) => {
                   setAdminOpen(false);
+                  setAdminInitialTab('accounts');
+                  setAdminHighlightSupportMessageId(undefined);
                   openSalonPage(salonId, salonTitle);
                 }}
               />

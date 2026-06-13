@@ -1,22 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AdminAccountsTab } from './AdminAccountsTab';
 import { AdminAccessTab } from './AdminAccessTab';
 import { AdminContentTab } from './AdminContentTab';
 import { AdminCostsTab } from './AdminCostsTab';
+import { AdminSupportTab } from './AdminSupportTab';
 import { AnalyticsPage } from './AnalyticsPage';
 
-type AdminTab = 'accounts' | 'access' | 'content' | 'analytics' | 'costs';
+type AdminTab = 'accounts' | 'access' | 'content' | 'analytics' | 'costs' | 'support';
 
 interface AdminPageProps {
   onBack?: () => void;
   initialTab?: AdminTab;
+  highlightSupportMessageId?: string;
   onOpenSalon?: (salonId: string, salonTitle?: string) => void;
 }
 
-export function AdminPage({ onBack, initialTab = 'accounts', onOpenSalon }: AdminPageProps) {
+export function AdminPage({
+  onBack,
+  initialTab = 'accounts',
+  highlightSupportMessageId,
+  onOpenSalon,
+}: AdminPageProps) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<AdminTab>(initialTab);
+
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
 
   const tabs: { id: AdminTab; label: string }[] = [
     { id: 'accounts', label: t('admin.tabs.accounts') },
@@ -24,6 +35,7 @@ export function AdminPage({ onBack, initialTab = 'accounts', onOpenSalon }: Admi
     { id: 'content', label: t('admin.tabs.content') },
     { id: 'analytics', label: t('admin.tabs.analytics') },
     { id: 'costs', label: t('admin.tabs.costs') },
+    { id: 'support', label: t('admin.tabs.support') },
   ];
 
   return (
@@ -64,6 +76,7 @@ export function AdminPage({ onBack, initialTab = 'accounts', onOpenSalon }: Admi
         {tab === 'content' && <AdminContentTab onOpenSalon={onOpenSalon} />}
         {tab === 'analytics' && <AnalyticsPage embedded />}
         {tab === 'costs' && <AdminCostsTab />}
+        {tab === 'support' && <AdminSupportTab highlightMessageId={highlightSupportMessageId} />}
       </div>
     </div>
   );

@@ -14,6 +14,7 @@ import {
   type UserMute,
   type HostRating,
   type Live,
+  type SupportContactMessage,
 } from '../models/schema';
 import { isValidLatLng } from './mapCoords';
 import { refreshUserPublicCoords } from './locationPrivacy';
@@ -60,6 +61,7 @@ export interface PersistedStore {
   analyticsBuckets?: Record<string, number>;
   /** Lives terminés (archivés sur le profil). */
   archivedLives?: Live[];
+  supportContactMessages?: SupportContactMessage[];
 }
 
 function setsToRecord(map: Map<string, Set<string>>): MapOfSets {
@@ -138,6 +140,7 @@ export function snapshotStore(): PersistedStore {
     hostRatings: [...db.hostRatings],
     analyticsBuckets: snapshotAnalyticsBuckets(),
     archivedLives: [...db.lives.values()].filter((l) => !l.isActive),
+    supportContactMessages: [...db.supportContactMessages],
   };
 }
 
@@ -236,6 +239,9 @@ export function restoreStore(data: PersistedStore): void {
       db.lives.set(live.id, live);
     }
   }
+
+  db.supportContactMessages.length = 0;
+  db.supportContactMessages.push(...(data.supportContactMessages ?? []));
 }
 
 export function isValidPersistedStore(raw: unknown): raw is PersistedStore {

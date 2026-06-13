@@ -79,6 +79,7 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
     heartsRes,
     hostRatingsRes,
     notificationsRes,
+    supportContactRes,
   ] = await Promise.all([
     pool.query<{ version: number; saved_at: string; analytics_buckets: Record<string, number> }>(
       'SELECT version, saved_at, analytics_buckets FROM store_meta WHERE id = 1'
@@ -167,6 +168,9 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
       created_at: string;
       payload: AppNotification;
     }>('SELECT id, recipient_id, sender_id, type, read, created_at, payload FROM notifications'),
+    pool.query<{ payload: NonNullable<PersistedStore['supportContactMessages']>[number] }>(
+      'SELECT payload FROM support_contact_messages'
+    ),
   ]);
 
   const savedAt = metaRes.rows[0] ? Number(metaRes.rows[0].saved_at) : Date.now();
@@ -259,6 +263,7 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
     feedPostFavorites,
     stories: storiesRes.rows.map((r) => r.payload),
     analyticsBuckets: metaRes.rows[0]?.analytics_buckets ?? {},
+    supportContactMessages: supportContactRes.rows.map((r) => r.payload),
   };
 
   if (!isValidPersistedStore(store)) return null;
@@ -298,6 +303,7 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
       groupId: n.groupId,
       postId: n.postId,
       reelId: n.reelId,
+      supportMessageId: n.supportMessageId,
     };
   });
 
@@ -315,6 +321,7 @@ async function writeStore(client: PoolClient, data: PersistedStore): Promise<voi
     await client.query('DELETE FROM host_ratings');
     await client.query('DELETE FROM heart_events');
     await client.query('DELETE FROM notifications');
+    await client.query('DELETE FROM support_contact_messages');
     await client.query('DELETE FROM user_favorites');
     await client.query('DELETE FROM user_follows');
     await client.query('DELETE FROM user_mutes');
@@ -524,12 +531,20 @@ async function writeStore(client: PoolClient, data: PersistedStore): Promise<voi
         groupId: n.groupId,
         postId: n.postId,
         reelId: n.reelId,
+        supportMessageId: n.supportMessageId,
       };
       await client.query(
         `INSERT INTO notifications (id, recipient_id, sender_id, type, read, created_at, payload)
          VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)`,
         [n.id, n.recipientId, n.senderId, n.type, n.read, n.createdAt, JSON.stringify(payload)]
       );
+    }
+
+    for (const msg of data.supportContactMessages ?? []) {
+      await client.query('INSERT INTO support_contact_messages (id, payload) VALUES ($1, $2::jsonb)', [
+        msg.id,
+        JSON.stringify(msg),
+      ]);
     }
 
     await client.query(

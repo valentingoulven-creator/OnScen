@@ -300,6 +300,7 @@
     "roleOnApp": "Rôle sur Soundy",
     "logout": "Déconnexion",
     "logoutConfirmTitle": "Êtes-vous sûr de vouloir vous déconnecter ?",
+    "contactSoundy": "Contacter Soundy",
     "relationshipLabel": "Situation",
     "relationshipOptional": "Situation (optionnel)",
     "relationshipHidden": "Ne pas afficher",
@@ -349,6 +350,20 @@
     "adminPanel": "Espace administrateur",
     "adminPanelHint": "Comptes, accès, analytics"
   },
+  "support": {
+    "title": "Contacter Soundy",
+    "intro": "Écrivez votre message ci-dessous. L'équipe Soundy vous répondra dans l'application.",
+    "messageLabel": "Votre message",
+    "messagePlaceholder": "Décrivez votre question ou votre demande…",
+    "send": "Envoyer",
+    "sending": "Envoi…",
+    "sent": "Message envoyé — merci !",
+    "sendError": "Envoi impossible",
+    "historyTitle": "Vos messages",
+    "loading": "Chargement…",
+    "replyLabel": "Réponse Soundy",
+    "pending": "En attente de réponse"
+  },
   "profileSearch": {
     "placeholder": "Rechercher un profil…",
     "label": "Rechercher un profil",
@@ -363,7 +378,8 @@
       "access": "Accès",
       "content": "Contenu",
       "analytics": "Analytics",
-      "costs": "Coût"
+      "costs": "Coût",
+      "support": "Support"
     },
     "accounts": {
       "searchPlaceholder": "Rechercher pseudo, e-mail ou ville…",
@@ -449,6 +465,25 @@
       "modeInviteOnly": "Sur invitation uniquement",
       "modeAdminApproval": "Validation administrateur",
       "modeClosed": "Fermées"
+    },
+    "support": {
+      "filter": {
+        "open": "Ouverts",
+        "replied": "Répondus",
+        "all": "Tous"
+      },
+      "loading": "Chargement…",
+      "empty": "Aucun message pour l'instant.",
+      "loadError": "Impossible de charger les messages.",
+      "replyError": "Impossible d'envoyer la réponse.",
+      "statusOpen": "Ouvert",
+      "statusReplied": "Répondu",
+      "from": "De",
+      "message": "Message",
+      "yourReply": "Votre réponse",
+      "replyPlaceholder": "Votre réponse",
+      "sendReply": "Envoyer la réponse",
+      "replying": "Envoi…"
     },
     "content": {
       "title": "Modération contenu",

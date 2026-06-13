@@ -2,6 +2,7 @@ import { db, AppNotification } from '../models/schema';
 import { getFollowerIds } from './follows';
 import { getFanIds } from './favorites';
 import { getIo } from './ioInstance';
+import { isAccessAdmin } from './accessControl';
 
 export function isDeliverableNotificationType(type: string): boolean {
   return true;
@@ -24,6 +25,7 @@ function publicNotificationPayload(notification: AppNotification) {
     groupId: notification.groupId,
     postId: notification.postId,
     reelId: notification.reelId,
+    supportMessageId: notification.supportMessageId,
   };
 }
 
@@ -57,6 +59,7 @@ export function pushNotification(
     groupId: n.groupId,
     postId: n.postId,
     reelId: n.reelId,
+    supportMessageId: n.supportMessageId,
     read: false,
     createdAt: Date.now(),
   };
@@ -230,4 +233,50 @@ export function notifyEventCreated(params: {
       peerUserId: params.creator.id,
     });
   }
+}
+
+export function notifySupportContact(params: {
+  message: { id: string; body: string };
+  sender: { id: string; username: string; avatarUrl?: string };
+}): void {
+  const preview =
+    params.message.body.length > 80
+      ? `${params.message.body.slice(0, 77)}…`
+      : params.message.body;
+
+  for (const admin of db.users.values()) {
+    if (!isAccessAdmin(admin)) continue;
+    if (admin.id === params.sender.id) continue;
+    pushNotification({
+      recipientId: admin.id,
+      senderId: params.sender.id,
+      senderName: params.sender.username,
+      senderAvatarUrl: params.sender.avatarUrl,
+      type: 'support_contact',
+      message: `${params.sender.username} : ${preview}`,
+      peerUserId: params.sender.id,
+      supportMessageId: params.message.id,
+    });
+  }
+}
+
+export function notifySupportReply(params: {
+  message: { id: string; fromUserId: string };
+  admin: { id: string; username: string; avatarUrl?: string };
+  replyPreview: string;
+}): void {
+  if (params.message.fromUserId === params.admin.id) return;
+  const preview =
+    params.replyPreview.length > 80
+      ? `${params.replyPreview.slice(0, 77)}…`
+      : params.replyPreview;
+  pushNotification({
+    recipientId: params.message.fromUserId,
+    senderId: params.admin.id,
+    senderName: params.admin.username,
+    senderAvatarUrl: params.admin.avatarUrl,
+    type: 'support_reply',
+    message: `Réponse Soundy : ${preview}`,
+    supportMessageId: params.message.id,
+  });
 }
