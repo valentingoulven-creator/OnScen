@@ -31,6 +31,12 @@ export function isSpotifyScopeMissingError(detail?: string): boolean {
   );
 }
 
+/** 403 Spotify sans détail explicite — souvent scope manquant ou jeton invalide. */
+export function isSpotifyBareForbiddenError(detail?: string): boolean {
+  const d = detail?.trim().toLowerCase() ?? '';
+  return !d || d === 'forbidden' || d === 'access denied';
+}
+
 export function isSpotifyPremiumRequiredError(detail?: string): boolean {
   const d = detail?.toLowerCase() ?? '';
   return (

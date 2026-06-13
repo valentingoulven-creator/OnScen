@@ -40,7 +40,7 @@ export function CreateSalonSpotifyPlaylistPicker({
         if (r.spotifySessionValid === false) {
           setNeedsReconnect(true);
           if (r.spotifySessionCode === 'spotify_scope_missing') {
-            setError(t('salon.spotifySearch.errorScopeMissing'));
+            setError(t('salon.spotifySearch.errorPlaylistScopeMissing'));
           } else if (r.spotifySessionCode === 'spotify_premium_required') {
             setError(t('salon.spotifySearch.errorPremiumRequired'));
           } else if (r.spotifySessionCode) {

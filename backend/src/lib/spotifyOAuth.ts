@@ -48,7 +48,7 @@ export const SPOTIFY_PLAYLIST_READ_SCOPES = [
 
 /** Au moins un scope lecture playlist requis (private ou collaborative). */
 export function getMissingSpotifyPlaylistReadScopes(grantedScopes?: string): string[] {
-  if (!grantedScopes?.trim()) return [];
+  if (!grantedScopes?.trim()) return [...SPOTIFY_PLAYLIST_READ_SCOPES];
   const granted = new Set(grantedScopes.split(/\s+/).filter(Boolean));
   const hasAny = SPOTIFY_PLAYLIST_READ_SCOPES.some((scope) => granted.has(scope));
   return hasAny ? [] : [...SPOTIFY_PLAYLIST_READ_SCOPES];
@@ -923,9 +923,12 @@ export function userNeedsSpotifyScopeReconnect(user: User): boolean {
 
   const account = getPlatformAccounts(user).find((a) => a.platform === 'spotify');
 
-  if (!account?.oauthScopes) return false;
+  if (!account?.oauthScopes?.trim()) return true;
 
-  return getMissingSpotifyScopes(account.oauthScopes).length > 0;
+  return (
+    getMissingSpotifyScopes(account.oauthScopes).length > 0 ||
+    getMissingSpotifyPlaylistReadScopes(account.oauthScopes).length > 0
+  );
 
 }
 

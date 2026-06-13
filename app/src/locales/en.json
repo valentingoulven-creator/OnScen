@@ -192,6 +192,8 @@
       "errorNotConnected": "Reconnect your Spotify account to search tracks.",
       "errorTokenExpired": "Spotify session expired — reconnect your account.",
       "errorScopeMissing": "Reconnect Spotify to allow playback control (play/pause).",
+      "errorPlaylistScopeMissing": "Reconnect Spotify to allow playlist access (authorization required).",
+      "errorPlaylistForbidden": "Playlist access denied — pick a playlist from your library or reconnect Spotify.",
       "errorPremiumRequired": "Spotify Premium required — Free accounts cannot start or control playback.",
       "errorRateLimited": "Spotify quota reached — try again later.",
       "errorServerConfig": "Spotify search is not configured on the server.",

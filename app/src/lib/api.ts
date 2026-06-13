@@ -79,7 +79,14 @@ async function parseApiError(res: Response): Promise<ApiRequestError> {
         }
         if (json.code === 'spotify_scope_missing') {
           return new ApiRequestError(
-            json.error || i18n.t('salon.spotifySearch.errorScopeMissing'),
+            json.error || i18n.t('salon.spotifySearch.errorPlaylistScopeMissing'),
+            json.code,
+            res.status
+          );
+        }
+        if (json.code === 'spotify_playlist_forbidden') {
+          return new ApiRequestError(
+            json.error || i18n.t('salon.spotifySearch.errorPlaylistForbidden'),
             json.code,
             res.status
           );

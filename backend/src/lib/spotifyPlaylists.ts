@@ -14,6 +14,8 @@ import {
 
   isSpotifyScopeMissingError,
 
+  isSpotifyBareForbiddenError,
+
   isSpotifyDevUserNotAllowedError,
 
   isSpotifyPremiumRequiredError,
@@ -242,6 +244,12 @@ async function prepareAccessTokenForPlaylistTracks(user: User): Promise<string> 
 
 
 
+function playlistReadScopesMissing(user: User): boolean {
+  return getMissingSpotifyPlaylistReadScopes(getStoredSpotifyOAuthScopes(user)).length > 0;
+}
+
+
+
 async function spotifyFetch(
 
   user: User,
@@ -263,6 +271,8 @@ async function spotifyFetch(
     if (!isSpotifyRetryableAuthError(res.status, detail)) break;
 
     if (res.status === 403 && isSpotifyScopeMissingError(detail)) break;
+
+    if (res.status === 403 && isSpotifyBareForbiddenError(detail) && playlistReadScopesMissing(user)) break;
 
 
 
@@ -294,9 +304,15 @@ async function spotifyFetch(
 
 
 
-function throwPlaylistApiError(status: number, detail?: string, context?: string): never {
+function throwPlaylistApiError(status: number, detail?: string, context?: string, user?: User): never {
 
   if (status === 403 && isSpotifyScopeMissingError(detail)) {
+
+    throw new SpotifyPlaylistError(spotifyScopeMissingMessage(), 403, 'spotify_scope_missing');
+
+  }
+
+  if (status === 403 && user && isSpotifyBareForbiddenError(detail) && playlistReadScopesMissing(user)) {
 
     throw new SpotifyPlaylistError(spotifyScopeMissingMessage(), 403, 'spotify_scope_missing');
 
@@ -330,11 +346,25 @@ function throwPlaylistApiError(status: number, detail?: string, context?: string
 
   }
 
+  if (status === 403 && isSpotifyBareForbiddenError(detail)) {
+
+    throw new SpotifyPlaylistError(
+
+      'Session Spotify expirée — reconnectez votre compte Spotify.',
+
+      403,
+
+      'spotify_token_expired'
+
+    );
+
+  }
+
   if (status === 403) {
 
     throw new SpotifyPlaylistError(
 
-      detail
+      detail && !isSpotifyBareForbiddenError(detail)
 
         ? `Impossible de charger la playlist — ${detail}`
 
@@ -411,9 +441,17 @@ export async function probeSpotifyHostSession(
 
   const storedScopes = getStoredSpotifyOAuthScopes(user);
 
+  if (!storedScopes?.trim()) {
+
+    console.warn('[spotify-playlist] stored OAuth scopes missing — reconnect required', { userId: user.id });
+
+    return { ok: false, code: 'spotify_scope_missing' };
+
+  }
+
   const missingScopes = getMissingSpotifyScopes(storedScopes);
 
-  if (storedScopes && missingScopes.length > 0) {
+  if (missingScopes.length > 0) {
 
     console.warn('[spotify-playlist] stored OAuth scopes missing playback scopes', {
 
@@ -429,7 +467,7 @@ export async function probeSpotifyHostSession(
 
   const missingPlaylistScopes = getMissingSpotifyPlaylistReadScopes(storedScopes);
 
-  if (storedScopes && missingPlaylistScopes.length > 0) {
+  if (missingPlaylistScopes.length > 0) {
 
     console.warn('[spotify-playlist] stored OAuth scopes missing playlist read scopes', {
 
@@ -490,7 +528,7 @@ export async function probeSpotifyHostSession(
 
     const detail = await parseSpotifyErrorMessage(probe);
 
-    if (probe.status === 403 && isSpotifyScopeMissingError(detail)) {
+    if (probe.status === 403 && (isSpotifyScopeMissingError(detail) || isSpotifyBareForbiddenError(detail))) {
 
       return { ok: false, code: 'spotify_scope_missing' };
 
@@ -530,7 +568,7 @@ export async function probeSpotifyHostSession(
 
           const retryDetail = await parseSpotifyErrorMessage(retryProbe);
 
-          if (retryProbe.status === 403 && isSpotifyScopeMissingError(retryDetail)) {
+          if (retryProbe.status === 403 && (isSpotifyScopeMissingError(retryDetail) || isSpotifyBareForbiddenError(retryDetail))) {
 
             return { ok: false, code: 'spotify_scope_missing' };
 
@@ -786,6 +824,12 @@ export async function resolveSpotifyPlaylistTracks(
 
   }
 
+  if (playlistReadScopesMissing(user)) {
+
+    throw new SpotifyPlaylistError(spotifyScopeMissingMessage(), 403, 'spotify_scope_missing');
+
+  }
+
 
 
   let accessToken = await prepareAccessTokenForPlaylistTracks(user);
@@ -814,7 +858,7 @@ export async function resolveSpotifyPlaylistTracks(
 
       const detail = await parseSpotifyErrorMessage(res);
 
-      throwPlaylistApiError(res.status, detail, 'resolveSpotifyPlaylistTracks');
+      throwPlaylistApiError(res.status, detail, 'resolveSpotifyPlaylistTracks', user);
 
     }
 

@@ -30,6 +30,8 @@ const SPOTIFY_RECONNECT_CODES = new Set([
 
   'spotify_not_connected',
 
+  'spotify_playlist_forbidden',
+
 ]);
 
 
@@ -98,7 +100,7 @@ export function SalonSpotifyPlaylist({
 
           if (r.spotifySessionCode === 'spotify_scope_missing') {
 
-            setError(t('salon.spotifySearch.errorScopeMissing'));
+            setError(t('salon.spotifySearch.errorPlaylistScopeMissing'));
 
           } else if (r.spotifySessionCode === 'spotify_premium_required') {
 
@@ -215,7 +217,10 @@ export function SalonSpotifyPlaylist({
       } catch (firstErr) {
         if (
           firstErr instanceof ApiRequestError &&
-          (firstErr.code === 'spotify_token_expired' || firstErr.code === 'spotify_network_error')
+          (firstErr.code === 'spotify_token_expired' ||
+            firstErr.code === 'spotify_scope_missing' ||
+            firstErr.code === 'spotify_network_error' ||
+            firstErr.code === 'spotify_playlist_forbidden')
         ) {
           r = await warmSessionAndLoad();
         } else {

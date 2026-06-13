@@ -250,7 +250,7 @@ export function CreateSalonModal({
         ? t('salon.create.spotifyPremiumRequired')
         : form.platform === 'spotify' && spotifySessionBlocked
           ? spotifySessionCode === 'spotify_scope_missing'
-            ? t('salon.spotifySearch.errorScopeMissing')
+            ? t('salon.spotifySearch.errorPlaylistScopeMissing')
             : t('salon.spotifySearch.errorTokenExpired')
           : null
     : null;
@@ -259,7 +259,8 @@ export function CreateSalonModal({
     if (e instanceof ApiRequestError) {
       if (e.code === 'spotify_premium_required') return t('salon.create.spotifyPremiumRequired');
       if (e.code === 'spotify_token_expired') return t('salon.spotifySearch.errorTokenExpired');
-      if (e.code === 'spotify_scope_missing') return t('salon.spotifySearch.errorScopeMissing');
+      if (e.code === 'spotify_scope_missing') return t('salon.spotifySearch.errorPlaylistScopeMissing');
+      if (e.code === 'spotify_playlist_forbidden') return t('salon.spotifySearch.errorPlaylistForbidden');
       if (e.code === 'spotify_not_connected') return t('salon.spotifySearch.errorNotConnected');
       if (e.code === 'HOST_PLATFORM_NOT_LINKED') {
         return form.platform === 'spotify'
@@ -335,7 +336,12 @@ export function CreateSalonModal({
           try {
             await loadOnce();
           } catch (firstErr) {
-            if (firstErr instanceof ApiRequestError && firstErr.code === 'spotify_token_expired') {
+            if (
+              firstErr instanceof ApiRequestError &&
+              (firstErr.code === 'spotify_token_expired' ||
+                firstErr.code === 'spotify_scope_missing' ||
+                firstErr.code === 'spotify_playlist_forbidden')
+            ) {
               await loadOnce();
             } else {
               throw firstErr;
