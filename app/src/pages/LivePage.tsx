@@ -610,17 +610,29 @@ export function LivePage({
     };
   }, [live, restoreChatAfterLandscape]);
 
+  const enterTheaterFallback = useCallback(() => {
+    if (chatHiddenBeforeLandscapeRef.current === null) {
+      chatHiddenBeforeLandscapeRef.current = chatHiddenRef.current;
+      setChatHidden(true);
+    }
+    setIsLandscapeTheater(true);
+  }, []);
+
   const enterVideoFullscreen = useCallback(() => {
     const el = videoContainerRef.current;
     if (!el) return;
+    if (!FULLSCREEN_SUPPORTED) {
+      enterTheaterFallback();
+      return;
+    }
     void requestElementFullscreen(el).catch(() => {
-      if (shouldAutoLandscapeVideo()) {
-        setIsLandscapeTheater(true);
+      if (isMobileNarrowViewport() || shouldAutoLandscapeVideo()) {
+        enterTheaterFallback();
         return;
       }
       setCameraToast('Impossible d\'activer le plein écran sur cet appareil.');
     });
-  }, []);
+  }, [enterTheaterFallback]);
 
   const exitVideoFullscreen = useCallback(() => {
     if (isLandscapeTheater) {
@@ -637,6 +649,24 @@ export function LivePage({
     }
     void exitDocumentFullscreen();
   }, [isLandscapeTheater, restoreChatAfterLandscape]);
+
+  useEffect(() => {
+    if (!isVideoExpanded) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') exitVideoFullscreen();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isVideoExpanded, exitVideoFullscreen]);
+
+  useEffect(() => {
+    if (!isLandscapeTheater) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isLandscapeTheater]);
 
   const openDonSheet = (amount?: number) => {
     setDonInitialAmount(amount);
@@ -839,7 +869,7 @@ export function LivePage({
       ? LIVE_CAMERA_VIEWER_FILE_NOTE
       : viewerRelayError ?? LIVE_CAMERA_VIEWER_NOTE;
   const viewerRelayStatusLabel =
-    viewerRelayPhase === 'connected'
+    viewerRelayPhase === 'connected' && viewerStreamActive
       ? 'Vidéo connectée'
       : viewerRelayPhase === 'failed'
         ? 'Flux indisponible'
@@ -1114,22 +1144,34 @@ export function LivePage({
                 playsInline
                 muted={false}
                 className={`absolute inset-0 w-full h-full object-cover bg-black${
-                  showViewerVideo ? '' : ' invisible pointer-events-none'
+                  showViewerVideo ? ' z-[1]' : ' invisible pointer-events-none'
                 }`}
                 aria-hidden={!showViewerVideo}
                 aria-label="Flux vidéo du host"
               />
             )}
             {!isHost && viewerStreamActive && (viewerAudioBlocked || viewerPlaybackBlocked) && (
-              <div className="absolute top-2 right-2 z-30 pointer-events-auto">
+              <div
+                className={`absolute right-2 z-30 pointer-events-auto ${
+                  viewerRelayStatusLabel ? 'top-11' : 'top-2'
+                }`}
+              >
                 <button
                   type="button"
                   onClick={() => void enableViewerPlayback()}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/70 border border-amber-500/40 text-amber-200 text-[11px] font-bold backdrop-blur hover:bg-black/85 active:scale-95 transition"
-                  aria-label="Activer le son et la vidéo du live"
-                  title={LIVE_CAMERA_VIEWER_AUDIO_BLOCKED}
+                  aria-label={
+                    viewerPlaybackBlocked
+                      ? 'Activer la vidéo et le son du live'
+                      : 'Activer le son du live'
+                  }
+                  title={
+                    viewerPlaybackBlocked
+                      ? 'Appuyez pour lancer la lecture vidéo du live'
+                      : LIVE_CAMERA_VIEWER_AUDIO_BLOCKED
+                  }
                 >
-                  🔊 Activer le son
+                  {viewerPlaybackBlocked ? '▶ Activer la vidéo' : '🔊 Activer le son'}
                 </button>
               </div>
             )}
@@ -1223,8 +1265,7 @@ export function LivePage({
               </div>
             )}
 
-            {(FULLSCREEN_SUPPORTED || isLandscapeTheater) && (
-              <div className="absolute top-2 left-2 z-30 pointer-events-auto">
+            <div className="absolute top-2 left-2 z-30 pointer-events-auto">
                 {isVideoExpanded ? (
                   <button
                     type="button"
@@ -1247,7 +1288,6 @@ export function LivePage({
                   </button>
                 )}
               </div>
-            )}
           </div>
         }
         chat={

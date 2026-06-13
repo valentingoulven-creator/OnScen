@@ -1068,6 +1068,16 @@ nav.ms-tab-bar-bottom > div {
   right: 1.5rem;
 }
 
+.live-video-container:fullscreen video,
+.live-video-container:-webkit-full-screen video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
+}
+
 /* Live — mode cinéma paysage (fallback PWA / iOS sans Fullscreen API) */
 .live-video-container--landscape-theater {
   position: fixed;
@@ -1094,6 +1104,15 @@ nav.ms-tab-bar-bottom > div {
 .live-video-container--landscape-theater .live-video-camera-pip {
   bottom: 1.5rem;
   right: 1.5rem;
+}
+
+.live-video-container--landscape-theater video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
 }
 
 /* ── APPWEB — Desktop / large-screen layout ─────────────────────────── */
