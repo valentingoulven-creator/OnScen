@@ -375,7 +375,7 @@ export function LivePage({
   const viewerCameraRelayActive =
     !isHost && !!live?.cameraActive && live.cameraMode !== 'file';
 
-  const { viewerVideoRef, viewerStreamActive, viewerRelayError, viewerRelayPhase, viewerAudioBlocked, viewerPlaybackBlocked, enableViewerPlayback, replaceHostTrack } = useLiveVideoRelay({
+  const { viewerVideoRef, viewerStreamActive, viewerRelayError, viewerRelayPhase, viewerAudioBlocked, viewerPlaybackBlocked, enableViewerPlayback, replaceHostTrack, releaseRelayConnections } = useLiveVideoRelay({
     liveId,
     userId: user?.id,
     hostId: live?.hostId,
@@ -422,6 +422,18 @@ export function LivePage({
   }, [liveId, user?.id, isHost]);
 
   const pendingCameraStartGenRef = useRef(0);
+
+  const releaseHostLiveMedia = useCallback(() => {
+    pendingCameraStartGenRef.current += 1;
+    clearPendingLiveCameraStart();
+    if (hostCameraBroadcastRef.current) {
+      emitCameraState(false);
+    }
+    clearLiveCameraToggleQueue(liveId);
+    releaseRelayConnections();
+    stopCamera();
+  }, [emitCameraState, liveId, releaseRelayConnections, stopCamera]);
+
   useEffect(() => {
     if (!live || !isHost || cameraLocalActive) return;
     if (!hasPendingLiveCameraStart()) return;
@@ -453,13 +465,14 @@ export function LivePage({
 
   useEffect(() => {
     return () => {
-      if (hostCameraBroadcastRef.current) {
-        emitLiveCameraToggle(liveId, false);
-      }
-      clearLiveCameraToggleQueue(liveId);
-      stopCamera();
+      releaseHostLiveMedia();
     };
-  }, [liveId, stopCamera]);
+  }, [liveId, releaseHostLiveMedia]);
+
+  useEffect(() => {
+    if (!liveEnded || !isHost) return;
+    releaseHostLiveMedia();
+  }, [isHost, liveEnded, releaseHostLiveMedia]);
 
   const isHostRef = useRef(isHost);
   isHostRef.current = isHost;
@@ -649,12 +662,13 @@ export function LivePage({
 
   const stopLive = async () => {
     if (!token || live?.hostId !== user?.id) return;
-    if (cameraLocalActive) {
-      stopCamera();
-      emitCameraState(false);
+    releaseHostLiveMedia();
+    emitOnSocket('leave_live', { liveId });
+    try {
+      await api.stopLive(token);
+    } finally {
+      onBack();
     }
-    await api.stopLive(token);
-    onBack();
   };
 
   const leaveLive = () => {

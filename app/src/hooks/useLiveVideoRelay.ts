@@ -84,6 +84,9 @@ export function useLiveVideoRelay({
   const closePeer = useCallback((viewerId: string) => {
     const pc = peersRef.current.get(viewerId);
     if (!pc) return;
+    for (const sender of pc.getSenders()) {
+      if (sender.track) void sender.replaceTrack(null);
+    }
     pc.close();
     peersRef.current.delete(viewerId);
     peerRelayOnlyRef.current.delete(viewerId);
@@ -146,7 +149,13 @@ export function useLiveVideoRelay({
   );
 
   const closeViewerPc = useCallback(() => {
-    viewerPcRef.current?.close();
+    const pc = viewerPcRef.current;
+    if (pc) {
+      for (const sender of pc.getSenders()) {
+        if (sender.track) void sender.replaceTrack(null);
+      }
+      pc.close();
+    }
     viewerPcRef.current = null;
     viewerRelayOnlyRef.current = false;
     remoteStreamRef.current = null;
@@ -597,5 +606,6 @@ export function useLiveVideoRelay({
     enableViewerPlayback,
     signalViewerReady,
     replaceHostTrack,
+    releaseRelayConnections: closeAllPeers,
   };
 }
