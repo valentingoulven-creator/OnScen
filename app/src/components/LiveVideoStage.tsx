@@ -150,6 +150,7 @@ export type LiveVideoStageProps = {
   viewerHasVideoTrack?: boolean;
   viewerDebugInfo?: string;
   enableViewerPlayback: () => Promise<boolean>;
+  onRetryViewerRelay?: () => void;
   hostPreviewBlocked?: boolean;
   enableHostPreview?: () => Promise<boolean>;
   playbackTitle: string;
@@ -178,6 +179,7 @@ export function LiveVideoStage({
   viewerHasVideoTrack = true,
   viewerDebugInfo = '',
   enableViewerPlayback,
+  onRetryViewerRelay,
   hostPreviewBlocked = false,
   enableHostPreview,
   playbackTitle,
@@ -437,13 +439,24 @@ export function LiveVideoStage({
               <div className="mt-2 w-8 h-8 border-2 border-white/20 border-t-purple-400 rounded-full animate-spin" />
             )}
             {stageState === 'error' && (
-              <button
-                type="button"
-                onClick={() => window.location.reload()}
-                className="mt-2 px-4 py-2 rounded-full text-xs font-bold bg-[#1a1a26] border border-white/15 text-gray-200 hover:text-white"
-              >
-                Rafraîchir la page
-              </button>
+              <div className="mt-2 flex flex-col items-center gap-2">
+                {onRetryViewerRelay ? (
+                  <button
+                    type="button"
+                    onClick={() => onRetryViewerRelay()}
+                    className="px-4 py-2 rounded-full text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white"
+                  >
+                    Réessayer
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="px-4 py-2 rounded-full text-xs font-bold bg-[#1a1a26] border border-white/15 text-gray-200 hover:text-white"
+                >
+                  Rafraîchir la page
+                </button>
+              </div>
             )}
           </div>
         )}

@@ -302,7 +302,7 @@ export function LivePage({
   const viewerCameraRelayActive =
     !isHost && !!live?.cameraActive && live.cameraMode !== 'file';
 
-  const { viewerVideoRef, viewerStreamActive, viewerRelayError, viewerRelayPhase, viewerAudioBlocked, viewerPlaybackBlocked, viewerHasVideoTrack, viewerDebugInfo, enableViewerPlayback, replaceHostTrack, releaseRelayConnections } = useLiveVideoRelay({
+  const { viewerVideoRef, viewerStreamActive, viewerRelayError, viewerRelayPhase, viewerAudioBlocked, viewerPlaybackBlocked, viewerHasVideoTrack, viewerDebugInfo, enableViewerPlayback, retryViewerRelay, replaceHostTrack, releaseRelayConnections } = useLiveVideoRelay({
     liveId,
     userId: user?.id,
     hostId: live?.hostId,
@@ -907,6 +907,7 @@ export function LivePage({
             viewerHasVideoTrack={viewerHasVideoTrack}
             viewerDebugInfo={viewerDebugInfo}
             enableViewerPlayback={enableViewerPlayback}
+            onRetryViewerRelay={!isHost ? retryViewerRelay : undefined}
             hostPreviewBlocked={hostPreviewBlocked}
             enableHostPreview={enableHostPreview}
             playbackTitle={live.playbackState.title}

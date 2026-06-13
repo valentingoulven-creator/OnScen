@@ -6,13 +6,21 @@ export const LIVE_CAMERA_VIEWER_NOTE =
 export const LIVE_CAMERA_VIEWER_NO_HOST_CAMERA =
   'Le host n’a pas activé sa caméra pour ce live.';
 
-/** Spectateur : échec WebRTC après plusieurs tentatives. */
+/** Spectateur : échec WebRTC générique (SDP, coupure, etc.). */
 export const LIVE_CAMERA_VIEWER_UNAVAILABLE =
   'Flux vidéo indisponible. Vérifiez votre connexion ou réessayez plus tard.';
 
+/** Spectateur : le host n’a pas répondu aux demandes de connexion WebRTC. */
+export const LIVE_CAMERA_VIEWER_SIGNALING_FAILED =
+  'Le host n’a pas répondu à la demande de flux vidéo. Réessayez dans quelques instants.';
+
+/** Spectateur : connexion WebRTC perdue après établissement. */
+export const LIVE_CAMERA_VIEWER_DISCONNECTED =
+  'Connexion au flux vidéo interrompue. Réessayez pour vous reconnecter.';
+
 /** Spectateur : délai dépassé en attente du flux. */
 export const LIVE_CAMERA_VIEWER_TIMEOUT =
-  'Connexion au flux vidéo expirée. Rafraîchissez la page ou réessayez dans quelques instants.';
+  'Connexion au flux vidéo expirée (délai dépassé). Appuyez sur « Réessayer » ou rafraîchissez la page.';
 
 /** Spectateur : échec ICE / NAT. */
 export const LIVE_CAMERA_VIEWER_ICE_FAILED =

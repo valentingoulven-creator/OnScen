@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { forceAttachLiveRemoteStream, playLiveRemoteVideo, unlockLiveRemotePlayback } from '../lib/liveCameraSupport';
 import {
+  LIVE_CAMERA_VIEWER_DISCONNECTED,
   LIVE_CAMERA_VIEWER_ICE_FAILED,
+  LIVE_CAMERA_VIEWER_SIGNALING_FAILED,
   LIVE_CAMERA_VIEWER_TIMEOUT,
   LIVE_CAMERA_VIEWER_UNAVAILABLE,
 } from '../lib/liveCameraMessages';
@@ -418,7 +420,7 @@ export function useLiveVideoRelay({
         } else if (pc.connectionState === 'disconnected') {
           window.setTimeout(() => {
             if (viewerPcRef.current === pc && pc.connectionState === 'disconnected') {
-              markViewerFailed(LIVE_CAMERA_VIEWER_UNAVAILABLE);
+              markViewerFailed(LIVE_CAMERA_VIEWER_DISCONNECTED);
             }
           }, 5000);
         }
@@ -490,12 +492,22 @@ export function useLiveVideoRelay({
     if (isHost || !cameraRelayActiveRef.current) return;
     viewerReadyAttemptsRef.current += 1;
     if (viewerReadyAttemptsRef.current > VIEWER_MAX_READY_ATTEMPTS) {
-      markViewerFailed(LIVE_CAMERA_VIEWER_UNAVAILABLE);
+      markViewerFailed(LIVE_CAMERA_VIEWER_SIGNALING_FAILED);
       return;
     }
     setViewerRelayPhase((prev) => (prev === 'connected' ? prev : 'waiting'));
     emitOnSocket('live_webrtc_viewer_ready', { liveId });
   }, [isHost, liveId, markViewerFailed]);
+
+  const retryViewerRelay = useCallback(() => {
+    if (isHost || !cameraRelayActiveRef.current) return;
+    closeViewerPc();
+    viewerReadyAttemptsRef.current = 0;
+    pendingViewerOfferRef.current = null;
+    setViewerRelayError(null);
+    setViewerRelayPhase('waiting');
+    emitOnSocket('live_webrtc_viewer_ready', { liveId });
+  }, [closeViewerPc, isHost, liveId]);
 
   // Host: écoute les spectateurs prêts et les signaux WebRTC entrants
   useEffect(() => {
@@ -654,6 +666,7 @@ export function useLiveVideoRelay({
     enableViewerAudio,
     enableViewerPlayback,
     signalViewerReady,
+    retryViewerRelay,
     replaceHostTrack,
     releaseRelayConnections: closeAllPeers,
   };
