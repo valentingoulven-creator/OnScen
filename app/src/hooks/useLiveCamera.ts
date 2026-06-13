@@ -82,6 +82,14 @@ export function useLiveCamera() {
     [attachPreview]
   );
 
+  const waitForVideoElement = useCallback(async (): Promise<HTMLVideoElement | null> => {
+    for (let i = 0; i < 90; i++) {
+      if (videoRef.current) return videoRef.current;
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    }
+    return videoRef.current;
+  }, []);
+
   const start = useCallback(async (): Promise<boolean> => {
     setError(null);
 
@@ -104,13 +112,15 @@ export function useLiveCamera() {
       setMode('camera');
       setActive(true);
       setCameraUsable(true);
+      const el = await waitForVideoElement();
+      if (el) await attachPreview();
       return true;
     } catch (e) {
       setError(mapLiveCameraError(e));
       stop();
       return false;
     }
-  }, [stop]);
+  }, [stop, waitForVideoElement, attachPreview]);
 
   const startFromFile = useCallback(
     async (file: File): Promise<boolean> => {

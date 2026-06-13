@@ -22,6 +22,7 @@ import { LivePrivateSheet } from '../components/LivePrivateSheet';
 import { HostRatingBlock } from '../components/HostRatingBlock';
 import { LiveDonationSheet } from '../components/LiveDonationSheet';
 import { LiveGiftOverlay } from '../components/LiveGiftOverlay';
+import { LiveParticipantsPopover } from '../components/LiveParticipantsPopover';
 import type { ChatMessage, DmContact, Live, AppNotification, PlaybackState } from '../types';
 
 const LIVE_MAX_DURATION_MS = 8 * 60 * 60 * 1000;
@@ -416,32 +417,27 @@ export function LivePage({
     };
   }, [liveId, user?.id, isHost]);
 
-  const pendingCameraStartRef = useRef(false);
+  const pendingCameraStartGenRef = useRef(0);
   useEffect(() => {
     if (!live || !isHost || cameraLocalActive) return;
     if (!hasPendingLiveCameraStart()) return;
-    if (pendingCameraStartRef.current) return;
-    pendingCameraStartRef.current = true;
 
-    let cancelled = false;
-    (async () => {
-      try {
-        const ok = await startCamera();
-        if (cancelled) return;
-        if (ok) {
-          clearPendingLiveCameraStart();
-          emitCameraState(true, 'camera');
-          setLive((prev) => (prev ? { ...prev, cameraActive: true, cameraMode: 'camera' } : prev));
-        }
-      } finally {
-        if (!cancelled) pendingCameraStartRef.current = false;
+    const gen = ++pendingCameraStartGenRef.current;
+
+    void (async () => {
+      const ok = await startCamera();
+      if (gen !== pendingCameraStartGenRef.current) return;
+      if (ok) {
+        clearPendingLiveCameraStart();
+        emitCameraState(true, 'camera');
+        setLive((prev) => (prev ? { ...prev, cameraActive: true, cameraMode: 'camera' } : prev));
       }
     })();
 
     return () => {
-      cancelled = true;
+      pendingCameraStartGenRef.current += 1;
     };
-  }, [live, isHost, cameraLocalActive, startCamera, emitCameraState]);
+  }, [live?.id, isHost, cameraLocalActive, startCamera, emitCameraState]);
 
   useEffect(() => {
     return () => {
@@ -978,21 +974,35 @@ export function LivePage({
         chatMinimized={chatMinimized}
         onToggleMinimize={() => setChatMinimized((m) => !m)}
         chatHeaderExtra={
-          (isHost || isDevModerator) ? (
-            <button
-              type="button"
-              onClick={() => setShowVipPanel((v) => !v)}
-              className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-medium border transition ${
-                showVipPanel
-                  ? 'bg-[#2a2010] border-[#3a3010] text-[#c8a850]'
-                  : 'bg-[#131318] border-[#232330] text-gray-400 hover:border-white/15'
-              }`}
-              title="Modérateurs VIP"
-              aria-expanded={showVipPanel}
-            >
-              ⭐ VIP
-            </button>
-          ) : null
+          <>
+            {token ? (
+              <LiveParticipantsPopover
+                liveId={liveId}
+                token={token}
+                hostId={live.hostId}
+                hostName={live.hostName}
+                hostUsernameColor={live.hostUsernameColor}
+                vipModeratorIds={live.vipModeratorIds ?? []}
+                viewersCount={viewers}
+                panelAbove
+              />
+            ) : null}
+            {(isHost || isDevModerator) ? (
+              <button
+                type="button"
+                onClick={() => setShowVipPanel((v) => !v)}
+                className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-medium border transition ${
+                  showVipPanel
+                    ? 'bg-[#2a2010] border-[#3a3010] text-[#c8a850]'
+                    : 'bg-[#131318] border-[#232330] text-gray-400 hover:border-white/15'
+                }`}
+                title="Modérateurs VIP"
+                aria-expanded={showVipPanel}
+              >
+                ⭐ VIP
+              </button>
+            ) : null}
+          </>
         }
         stage={
           <div

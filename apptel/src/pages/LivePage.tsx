@@ -312,7 +312,7 @@ export function LivePage({
   }, [chatBanned, chatBanUntil]);
 
   useEffect(() => {
-    pauseMediaElements();
+    pauseMediaElements(document, { exceptLiveStage: true });
     requestAppMediaFocus('live');
     return () => releaseAppMediaFocus('live');
   }, [liveId]);
@@ -415,32 +415,27 @@ export function LivePage({
     };
   }, [liveId, user?.id, isHost]);
 
-  const pendingCameraStartRef = useRef(false);
+  const pendingCameraStartGenRef = useRef(0);
   useEffect(() => {
     if (!live || !isHost || cameraLocalActive) return;
     if (!hasPendingLiveCameraStart()) return;
-    if (pendingCameraStartRef.current) return;
-    pendingCameraStartRef.current = true;
 
-    let cancelled = false;
-    (async () => {
-      try {
-        const ok = await startCamera();
-        if (cancelled) return;
-        if (ok) {
-          clearPendingLiveCameraStart();
-          emitCameraState(true, 'camera');
-          setLive((prev) => (prev ? { ...prev, cameraActive: true, cameraMode: 'camera' } : prev));
-        }
-      } finally {
-        if (!cancelled) pendingCameraStartRef.current = false;
+    const gen = ++pendingCameraStartGenRef.current;
+
+    void (async () => {
+      const ok = await startCamera();
+      if (gen !== pendingCameraStartGenRef.current) return;
+      if (ok) {
+        clearPendingLiveCameraStart();
+        emitCameraState(true, 'camera');
+        setLive((prev) => (prev ? { ...prev, cameraActive: true, cameraMode: 'camera' } : prev));
       }
     })();
 
     return () => {
-      cancelled = true;
+      pendingCameraStartGenRef.current += 1;
     };
-  }, [live, isHost, cameraLocalActive, startCamera, emitCameraState]);
+  }, [live?.id, isHost, cameraLocalActive, startCamera, emitCameraState]);
 
   useEffect(() => {
     return () => {
