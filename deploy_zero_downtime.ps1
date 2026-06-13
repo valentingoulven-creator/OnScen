@@ -109,6 +109,10 @@ if (-not $SkipFrontend) {
     & npm run app:build 2>&1
     if ($LASTEXITCODE -ne 0) { Fail "Build frontend echoue (code $LASTEXITCODE)." }
 
+    Write-Host "  -> npm run apptel:build..."
+    & npm run apptel:build 2>&1
+    if ($LASTEXITCODE -ne 0) { Fail "Build apptel echoue (code $LASTEXITCODE)." }
+
     if (-not (Test-Path (Join-Path $PublicDir "index.html"))) {
         Fail "backend/public/index.html absent apres build frontend."
     }
