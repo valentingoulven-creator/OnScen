@@ -4,6 +4,7 @@ import {
   LIVE_CAMERA_VIEWER_FILE_NOTE,
   LIVE_CAMERA_VIEWER_NO_HOST_CAMERA,
   LIVE_CAMERA_VIEWER_NOTE,
+  LIVE_CAMERA_VIEWER_VIDEO_PENDING,
 } from '../lib/liveCameraMessages';
 import type { ViewerRelayPhase } from '../hooks/useLiveVideoRelay';
 
@@ -146,7 +147,10 @@ export type LiveVideoStageProps = {
   viewerRelayError: string | null;
   viewerPlaybackBlocked: boolean;
   viewerAudioBlocked: boolean;
+  viewerHasVideoTrack?: boolean;
   enableViewerPlayback: () => Promise<boolean>;
+  hostPreviewBlocked?: boolean;
+  enableHostPreview?: () => Promise<boolean>;
   playbackTitle: string;
   playbackArtist: string;
   albumArtUrl?: string;
@@ -170,7 +174,10 @@ export function LiveVideoStage({
   viewerRelayError,
   viewerPlaybackBlocked,
   viewerAudioBlocked,
+  viewerHasVideoTrack = true,
   enableViewerPlayback,
+  hostPreviewBlocked = false,
+  enableHostPreview,
   playbackTitle,
   playbackArtist,
   albumArtUrl,
@@ -199,8 +206,26 @@ export function LiveVideoStage({
   });
 
   const showVideo = stageState === 'live';
-  const showPlayOverlay =
-    !isHost && showVideo && (viewerPlaybackBlocked || viewerAudioBlocked);
+  const playbackUnlockNeeded = isHost
+    ? hostPreviewBlocked
+    : viewerPlaybackBlocked || viewerAudioBlocked;
+  const showPlayOverlay = showVideo && playbackUnlockNeeded;
+  const unlockPlayback = isHost ? enableHostPreview ?? enableViewerPlayback : enableViewerPlayback;
+
+  const playOverlayHint = (() => {
+    if (isHost) {
+      return 'Appuyez pour démarrer l’aperçu caméra';
+    }
+    if (!viewerHasVideoTrack) {
+      return LIVE_CAMERA_VIEWER_VIDEO_PENDING;
+    }
+    if (viewerPlaybackBlocked) {
+      return 'Appuyez pour démarrer la lecture vidéo';
+    }
+    return LIVE_CAMERA_VIEWER_AUDIO_BLOCKED;
+  })();
+
+  const playOverlayLabel = isHost || viewerPlaybackBlocked ? 'Lancer la vidéo' : 'Activer le son';
   const status = statusLabel(stageState, {
     isHost,
     viewerRelayPhase,
@@ -342,6 +367,29 @@ export function LiveVideoStage({
     };
   }, [isLandscapeTheater]);
 
+  const handleUnlockPlayback = useCallback(() => {
+    void unlockPlayback();
+  }, [unlockPlayback]);
+
+  useEffect(() => {
+    if (!showPlayOverlay) return;
+    const root = containerRef.current;
+    if (!root) return;
+
+    let autoAttempted = false;
+    const onStageInteraction = (event: PointerEvent) => {
+      if (autoAttempted) return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest('[data-live-play-unlock]')) return;
+      autoAttempted = true;
+      void unlockPlayback();
+    };
+
+    root.addEventListener('pointerdown', onStageInteraction, { capture: true });
+    return () => root.removeEventListener('pointerdown', onStageInteraction, { capture: true });
+  }, [showPlayOverlay, unlockPlayback]);
+
   const videoRef = isHost ? hostVideoRef : viewerVideoRef;
 
   return (
@@ -403,16 +451,15 @@ export function LiveVideoStage({
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60">
             <button
               type="button"
-              onClick={() => void enableViewerPlayback()}
+              data-live-play-unlock
+              onClick={handleUnlockPlayback}
               className="flex flex-col items-center gap-3 px-8 py-6 rounded-2xl bg-purple-600 hover:bg-purple-500 active:scale-95 transition shadow-xl"
-              aria-label="Lancer la vidéo et le son du live"
+              aria-label={isHost ? 'Lancer l’aperçu caméra' : 'Lancer la vidéo et le son du live'}
             >
               <span className="text-4xl">▶</span>
-              <span className="text-base font-bold text-white">Lancer la vidéo</span>
+              <span className="text-base font-bold text-white">{playOverlayLabel}</span>
               <span className="text-xs text-purple-200 max-w-[14rem] text-center">
-                {viewerPlaybackBlocked
-                  ? 'Appuyez pour démarrer la lecture vidéo'
-                  : LIVE_CAMERA_VIEWER_AUDIO_BLOCKED}
+                {playOverlayHint}
               </span>
             </button>
           </div>

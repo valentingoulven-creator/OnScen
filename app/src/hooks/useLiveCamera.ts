@@ -34,6 +34,7 @@ export function useLiveCamera() {
   const [audioDevices, setAudioDevices] = useState<LiveMediaDeviceOption[]>([]);
   const [audioDeviceId, setAudioDeviceId] = useState('');
   const [micSwitching, setMicSwitching] = useState(false);
+  const [previewBlocked, setPreviewBlocked] = useState(false);
 
   useEffect(() => {
     setCameraUsable(hasGetUserMediaCapability());
@@ -54,6 +55,7 @@ export function useLiveCamera() {
     }
     setActive(false);
     setMode(null);
+    setPreviewBlocked(false);
     setAudioDevices([]);
     setAudioDeviceId('');
   }, []);
@@ -66,6 +68,7 @@ export function useLiveCamera() {
     const stream = streamRef.current;
     if (stream) {
       await attachLiveCameraStream(el, stream);
+      setPreviewBlocked(el.paused || el.videoWidth === 0);
       return;
     }
 
@@ -76,12 +79,39 @@ export function useLiveCamera() {
       try {
         await waitForVideoFileMetadata(el);
         await playLiveVideo(el);
+        setPreviewBlocked(el.paused || el.videoWidth === 0);
       } catch (e) {
         setError(e instanceof Error ? e.message : LIVE_CAMERA_FILE_LOAD_ERROR);
         stop();
       }
     }
   }, [stop]);
+
+  const enableHostPreview = useCallback(async (): Promise<boolean> => {
+    const el = videoRef.current;
+    const stream = streamRef.current;
+    const fileUrl = fileUrlRef.current;
+    if (!el) return false;
+
+    try {
+      if (stream) {
+        await attachLiveCameraStream(el, stream);
+      } else if (fileUrl) {
+        el.srcObject = null;
+        el.src = fileUrl;
+        await waitForVideoFileMetadata(el);
+        await playLiveVideo(el);
+      } else {
+        return false;
+      }
+      const ok = !el.paused && el.videoWidth > 0;
+      setPreviewBlocked(!ok);
+      return ok;
+    } catch {
+      setPreviewBlocked(true);
+      return false;
+    }
+  }, []);
 
   const setVideoRef = useCallback(
     (el: HTMLVideoElement | null) => {
@@ -240,5 +270,7 @@ export function useLiveCamera() {
     getStream,
     broadcastStream,
     switchMicrophone,
+    previewBlocked,
+    enableHostPreview,
   };
 }

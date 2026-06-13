@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { forceAttachLiveRemoteStream, playLiveRemoteVideo, unmuteLiveRemoteVideo } from '../lib/liveCameraSupport';
+import { forceAttachLiveRemoteStream, playLiveRemoteVideo, unlockLiveRemotePlayback } from '../lib/liveCameraSupport';
 import {
   LIVE_CAMERA_VIEWER_ICE_FAILED,
   LIVE_CAMERA_VIEWER_TIMEOUT,
@@ -41,9 +41,11 @@ function resolveLiveRemoteStream(ev: RTCTrackEvent): MediaStream | null {
 
 function syncViewerStreamActive(
   stream: MediaStream | null,
-  setActive: (active: boolean) => void
+  setActive: (active: boolean) => void,
+  setHasVideoTrack: (hasVideo: boolean) => void
 ): boolean {
   const hasVideo = hasLiveRelayVideoTrack(stream);
+  setHasVideoTrack(hasVideo);
   setActive(hasVideo);
   return hasVideo;
 }
@@ -62,6 +64,7 @@ export function useLiveVideoRelay({
   const [viewerRelayPhase, setViewerRelayPhase] = useState<ViewerRelayPhase>('idle');
   const [viewerAudioBlocked, setViewerAudioBlocked] = useState(false);
   const [viewerPlaybackBlocked, setViewerPlaybackBlocked] = useState(false);
+  const [viewerHasVideoTrack, setViewerHasVideoTrack] = useState(false);
 
   const isHost = !!(userId && hostId && userId === hostId);
   const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map());
@@ -103,57 +106,50 @@ export function useLiveVideoRelay({
     const el = viewerVideoRef.current;
     if (!stream || !el) return;
     if (!hasLiveRelayVideoTrack(stream)) {
-      syncViewerStreamActive(stream, setViewerStreamActive);
+      syncViewerStreamActive(stream, setViewerStreamActive, setViewerHasVideoTrack);
       return;
     }
     forceAttachLiveRemoteStream(el, stream);
-    const result = await playLiveRemoteVideo(el);
+    const result = await playLiveRemoteVideo(el, stream);
     setViewerAudioBlocked(result === 'muted_fallback');
     setViewerPlaybackBlocked(result === 'failed');
-    if (result === 'failed') {
+    if (result === 'failed' || el.videoWidth === 0) {
       for (const track of stream.getVideoTracks()) {
         const retry = () => {
           track.removeEventListener('unmute', retry);
           void attachViewerStream();
         };
-        track.addEventListener('unmute', retry);
+        track.addEventListener('unmute', retry, { once: true });
       }
     }
   }, []);
 
   const enableViewerAudio = useCallback(async () => {
     const el = viewerVideoRef.current;
-    if (!el) return false;
-    const ok = await unmuteLiveRemoteVideo(el, remoteStreamRef.current);
-    if (ok) {
+    const stream = remoteStreamRef.current;
+    if (!el || !stream) return false;
+    const result = await unlockLiveRemotePlayback(el, stream);
+    if (result.ok && !result.muted) {
       setViewerAudioBlocked(false);
       setViewerPlaybackBlocked(false);
+      return true;
     }
-    return ok;
+    return false;
   }, []);
 
   const enableViewerPlayback = useCallback(async () => {
     const el = viewerVideoRef.current;
     const stream = remoteStreamRef.current;
     if (!el || !stream) return false;
-    if (hasLiveRelayVideoTrack(stream)) {
-      forceAttachLiveRemoteStream(el, stream);
+
+    const result = await unlockLiveRemotePlayback(el, stream);
+    if (result.ok) {
+      setViewerPlaybackBlocked(false);
+      setViewerAudioBlocked(result.muted);
+      return true;
     }
-    const ok = await enableViewerAudio();
-    if (!ok) {
-      try {
-        el.muted = false;
-        await el.play();
-        setViewerPlaybackBlocked(false);
-        setViewerAudioBlocked(false);
-        return true;
-      } catch {
-        return false;
-      }
-    }
-    setViewerPlaybackBlocked(false);
-    return ok;
-  }, [enableViewerAudio]);
+    return false;
+  }, []);
 
   const setViewerVideoRef = useCallback(
     (el: HTMLVideoElement | null) => {
@@ -181,6 +177,7 @@ export function useLiveVideoRelay({
       el.srcObject = null;
     }
     setViewerStreamActive(false);
+    setViewerHasVideoTrack(false);
     setViewerAudioBlocked(false);
     setViewerPlaybackBlocked(false);
   }, []);
@@ -356,7 +353,11 @@ export function useLiveVideoRelay({
           incoming,
           ev.track
         );
-        const hasVideo = syncViewerStreamActive(remoteStreamRef.current, setViewerStreamActive);
+        const hasVideo = syncViewerStreamActive(
+          remoteStreamRef.current,
+          setViewerStreamActive,
+          setViewerHasVideoTrack
+        );
         if (hasVideo) {
           setViewerRelayPhase('connected');
           setViewerRelayError(null);
@@ -618,6 +619,7 @@ export function useLiveVideoRelay({
     viewerRelayPhase,
     viewerAudioBlocked,
     viewerPlaybackBlocked,
+    viewerHasVideoTrack,
     enableViewerAudio,
     enableViewerPlayback,
     signalViewerReady,

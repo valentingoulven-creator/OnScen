@@ -92,6 +92,8 @@ export function LivePage({
     audioDeviceId,
     micSwitching,
     switchMicrophone,
+    previewBlocked: hostPreviewBlocked,
+    enableHostPreview,
   } = useLiveCamera();
   const videoFileInputRef = useRef<HTMLInputElement>(null);
   const [videoFileLoading, setVideoFileLoading] = useState(false);
@@ -298,7 +300,7 @@ export function LivePage({
   const viewerCameraRelayActive =
     !isHost && !!live?.cameraActive && live.cameraMode !== 'file';
 
-  const { viewerVideoRef, viewerStreamActive, viewerRelayError, viewerRelayPhase, viewerAudioBlocked, viewerPlaybackBlocked, enableViewerPlayback, replaceHostTrack, releaseRelayConnections } = useLiveVideoRelay({
+  const { viewerVideoRef, viewerStreamActive, viewerRelayError, viewerRelayPhase, viewerAudioBlocked, viewerPlaybackBlocked, viewerHasVideoTrack, enableViewerPlayback, replaceHostTrack, releaseRelayConnections } = useLiveVideoRelay({
     liveId,
     userId: user?.id,
     hostId: live?.hostId,
@@ -856,7 +858,10 @@ export function LivePage({
             viewerRelayError={viewerRelayError}
             viewerPlaybackBlocked={viewerPlaybackBlocked}
             viewerAudioBlocked={viewerAudioBlocked}
+            viewerHasVideoTrack={viewerHasVideoTrack}
             enableViewerPlayback={enableViewerPlayback}
+            hostPreviewBlocked={hostPreviewBlocked}
+            enableHostPreview={enableHostPreview}
             playbackTitle={live.playbackState.title}
             playbackArtist={live.playbackState.artist}
             albumArtUrl={live.playbackState.albumArtUrl}

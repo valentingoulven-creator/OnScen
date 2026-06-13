@@ -230,32 +230,64 @@ export async function playLiveVideo(el: HTMLVideoElement): Promise<void> {
 
 /** Attend que le flux live expose des dimensions (évite l’aperçu noir au démarrage). */
 export async function waitForLiveStreamReady(el: HTMLVideoElement): Promise<void> {
-  if (el.readyState >= HTMLMediaElement.HAVE_METADATA && el.videoWidth > 0) return;
+  await waitForLiveRemoteVideoDimensions(el, null, 3000);
+}
 
-  await new Promise<void>((resolve, reject) => {
-    const onReady = () => {
+/** Attend des dimensions vidéo > 0 (WebRTC : écoute aussi resize et track unmute). */
+export async function waitForLiveRemoteVideoDimensions(
+  el: HTMLVideoElement,
+  stream?: MediaStream | null,
+  timeoutMs = 8000
+): Promise<boolean> {
+  if (el.readyState >= HTMLMediaElement.HAVE_METADATA && el.videoWidth > 0) {
+    return true;
+  }
+
+  return new Promise<boolean>((resolve) => {
+    const trackUnmuteHandlers = new Map<MediaStreamTrack, () => void>();
+
+    const check = () => {
       if (el.videoWidth > 0) {
         cleanup();
-        resolve();
+        resolve(true);
       }
     };
+
+    const cleanup = () => {
+      el.removeEventListener('loadedmetadata', check);
+      el.removeEventListener('loadeddata', check);
+      el.removeEventListener('resize', check);
+      el.removeEventListener('playing', check);
+      el.removeEventListener('error', onError);
+      for (const [track, handler] of trackUnmuteHandlers) {
+        track.removeEventListener('unmute', handler);
+      }
+      trackUnmuteHandlers.clear();
+    };
+
     const onError = () => {
       cleanup();
-      reject(new Error('Camera preview failed'));
+      resolve(false);
     };
-    const cleanup = () => {
-      el.removeEventListener('loadedmetadata', onReady);
-      el.removeEventListener('loadeddata', onReady);
-      el.removeEventListener('error', onError);
-    };
-    el.addEventListener('loadedmetadata', onReady);
-    el.addEventListener('loadeddata', onReady);
+
+    el.addEventListener('loadedmetadata', check);
+    el.addEventListener('loadeddata', check);
+    el.addEventListener('resize', check);
+    el.addEventListener('playing', check);
     el.addEventListener('error', onError);
+
+    if (stream) {
+      for (const track of stream.getVideoTracks()) {
+        const onTrackUnmute = () => check();
+        trackUnmuteHandlers.set(track, onTrackUnmute);
+        track.addEventListener('unmute', onTrackUnmute);
+      }
+    }
+
     window.setTimeout(() => {
       cleanup();
-      if (el.srcObject) resolve();
-      else reject(new Error('Camera preview timeout'));
-    }, 3000);
+      resolve(el.videoWidth > 0);
+    }, timeoutMs);
   });
 }
 
@@ -275,9 +307,24 @@ export async function attachLiveCameraStream(
 
 export type LiveRemotePlaybackResult = 'playing' | 'muted_fallback' | 'failed';
 
+export type LiveRemoteUnlockResult = {
+  ok: boolean;
+  muted: boolean;
+  hasDimensions: boolean;
+  hasVideoTrack: boolean;
+};
+
+function configureLiveRemoteVideoElement(el: HTMLVideoElement): void {
+  el.playsInline = true;
+  el.setAttribute('playsinline', 'true');
+  el.setAttribute('webkit-playsinline', 'true');
+  el.setAttribute('x5-playsinline', 'true');
+  if (el.src) el.removeAttribute('src');
+}
+
 /** Force re-bind MediaStream on video element (required when tracks are added later). */
 export function forceAttachLiveRemoteStream(el: HTMLVideoElement, stream: MediaStream): void {
-  if (el.src) el.removeAttribute('src');
+  configureLiveRemoteVideoElement(el);
   el.srcObject = null;
   el.srcObject = stream;
   for (const track of stream.getVideoTracks()) {
@@ -285,16 +332,21 @@ export function forceAttachLiveRemoteStream(el: HTMLVideoElement, stream: MediaS
   }
 }
 
+function remoteStreamHasVideoTrack(stream: MediaStream | null | undefined): boolean {
+  if (!stream) return false;
+  return stream.getVideoTracks().some((t) => t.readyState === 'live' && t.enabled);
+}
+
 /** Lecture flux distant (spectateur) — tente le son, signale si le navigateur impose le muet. */
-export async function playLiveRemoteVideo(el: HTMLVideoElement): Promise<LiveRemotePlaybackResult> {
-  el.playsInline = true;
-  el.setAttribute('playsinline', 'true');
-  el.setAttribute('webkit-playsinline', 'true');
-  el.setAttribute('x5-playsinline', 'true');
-  if (el.src) el.removeAttribute('src');
+export async function playLiveRemoteVideo(
+  el: HTMLVideoElement,
+  stream?: MediaStream | null
+): Promise<LiveRemotePlaybackResult> {
+  configureLiveRemoteVideoElement(el);
+  const attached = stream ?? (el.srcObject instanceof MediaStream ? el.srcObject : null);
   await Promise.race([
-    waitForLiveStreamReady(el).catch(() => undefined),
-    new Promise<void>((resolve) => window.setTimeout(resolve, 400)),
+    waitForLiveRemoteVideoDimensions(el, attached, 1200),
+    new Promise<boolean>((resolve) => window.setTimeout(() => resolve(false), 1200)),
   ]);
   el.muted = false;
   if ('volume' in el) el.volume = 1;
@@ -312,24 +364,53 @@ export async function playLiveRemoteVideo(el: HTMLVideoElement): Promise<LiveRem
   }
 }
 
+/** Débloque lecture + son du flux distant après un geste utilisateur. */
+export async function unlockLiveRemotePlayback(
+  el: HTMLVideoElement,
+  stream: MediaStream
+): Promise<LiveRemoteUnlockResult> {
+  const hasVideoTrack = remoteStreamHasVideoTrack(stream);
+  if (!hasVideoTrack) {
+    return { ok: false, muted: false, hasDimensions: false, hasVideoTrack: false };
+  }
+
+  forceAttachLiveRemoteStream(el, stream);
+  const hasDimensions = await waitForLiveRemoteVideoDimensions(el, stream, 8000);
+
+  el.muted = false;
+  if ('volume' in el) el.volume = 1;
+  try {
+    await el.play();
+    return {
+      ok: true,
+      muted: false,
+      hasDimensions: hasDimensions || el.videoWidth > 0,
+      hasVideoTrack: true,
+    };
+  } catch {
+    try {
+      el.muted = true;
+      await el.play();
+      return {
+        ok: true,
+        muted: true,
+        hasDimensions: hasDimensions || el.videoWidth > 0,
+        hasVideoTrack: true,
+      };
+    } catch {
+      return { ok: false, muted: false, hasDimensions: false, hasVideoTrack: true };
+    }
+  }
+}
+
 /** Débloque le son du flux distant après un geste utilisateur. */
 export async function unmuteLiveRemoteVideo(
   el: HTMLVideoElement,
   stream?: MediaStream | null
 ): Promise<boolean> {
-  if (stream) forceAttachLiveRemoteStream(el, stream);
-  await Promise.race([
-    waitForLiveStreamReady(el).catch(() => undefined),
-    new Promise<void>((resolve) => window.setTimeout(resolve, 400)),
-  ]);
-  el.muted = false;
-  if ('volume' in el) el.volume = 1;
-  try {
-    await el.play();
-    return true;
-  } catch {
-    return false;
-  }
+  if (!stream) return false;
+  const result = await unlockLiveRemotePlayback(el, stream);
+  return result.ok && !result.muted;
 }
 
 export interface LiveMediaDeviceOption {

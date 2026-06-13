@@ -61,5 +61,9 @@ export const LIVE_CAMERA_FILE_LOAD_ERROR =
 export const LIVE_CAMERA_VIEWER_AUDIO_BLOCKED =
   'Le son du live est coupé. Appuyez sur « Activer le son » pour entendre le host.';
 
+/** Spectateur : flux WebRTC connecté mais piste vidéo pas encore reçue. */
+export const LIVE_CAMERA_VIEWER_VIDEO_PENDING =
+  'Connexion à la vidéo en cours… Le host diffuse peut-être encore sans image.';
+
 /** Hôte : changement de micro en cours. */
 export const LIVE_CAMERA_MIC_SWITCHING = 'Changement de micro…';
