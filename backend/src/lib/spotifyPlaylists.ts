@@ -16,7 +16,11 @@ import {
 
   isSpotifyDevUserNotAllowedError,
 
+  isSpotifyPremiumRequiredError,
+
   isSpotifyPlaybackHostProduct,
+
+  isSpotifyTokenExpiredError,
 
   normalizeSpotifyProduct,
 
@@ -24,7 +28,11 @@ import {
 
   spotifyAuthErrorMessage,
 
+  spotifyDevUserNotAllowedMessage,
+
   spotifyNetworkErrorMessage,
+
+  spotifyPremiumRequiredMessage,
 
   spotifyScopeMissingMessage,
 
@@ -37,6 +45,8 @@ import {
   getValidSpotifyHostToken,
 
   getMissingSpotifyScopes,
+
+  getMissingSpotifyPlaylistReadScopes,
 
   getStoredSpotifyOAuthScopes,
 
@@ -168,21 +178,11 @@ async function ensureSpotifyAccessToken(user: User): Promise<string> {
 
 
 
-async function spotifyFetch(
-
-  user: User,
-
-  url: string,
-
-  accessToken: string
-
-): Promise<{ res: Response; accessToken: string }> {
-
-  let res: Response;
+async function spotifyApiFetch(url: string, accessToken: string): Promise<Response> {
 
   try {
 
-    res = await fetch(url, {
+    return await fetch(url, {
 
       headers: { Authorization: `Bearer ${accessToken}` },
 
@@ -224,69 +224,51 @@ async function spotifyFetch(
 
   }
 
+}
 
 
-  if (isSpotifyRetryableAuthError(res.status)) {
+
+/** Renouvelle le jeton avant load tracks — /me/playlists peut réussir alors que /tracks renvoie 401/403. */
+
+async function prepareAccessTokenForPlaylistTracks(user: User): Promise<string> {
+
+  const refreshed = await refreshSpotifyAccessToken(user);
+
+  if (refreshed.ok) return refreshed.accessToken;
+
+  return ensureSpotifyAccessToken(user);
+
+}
+
+
+
+async function spotifyFetch(
+
+  user: User,
+
+  url: string,
+
+  accessToken: string
+
+): Promise<{ res: Response; accessToken: string }> {
+
+  let res = await spotifyApiFetch(url, accessToken);
+
+
+
+  for (let attempt = 0; attempt < 2; attempt++) {
 
     const detail = res.status === 403 ? await parseSpotifyErrorMessage(res.clone()) : undefined;
 
-    if (res.status === 403 && detail && isSpotifyScopeMissingError(detail)) {
+    if (!isSpotifyRetryableAuthError(res.status, detail)) break;
 
-      return { res, accessToken };
+    if (res.status === 403 && isSpotifyScopeMissingError(detail)) break;
 
-    }
+
 
     const refreshed = await refreshSpotifyAccessToken(user);
 
-    if (refreshed.ok) {
-
-      accessToken = refreshed.accessToken;
-
-      try {
-
-        res = await fetch(url, {
-
-          headers: { Authorization: `Bearer ${accessToken}` },
-
-          signal: AbortSignal.timeout(12000),
-
-        });
-
-      } catch (e) {
-
-        if (isFetchAbortError(e)) {
-
-          throw new SpotifyPlaylistError(
-
-            'Chargement Spotify trop lent — réessayez.',
-
-            504,
-
-            'spotify_playlist_timeout'
-
-          );
-
-        }
-
-        if (isFetchNetworkError(e)) {
-
-          throw new SpotifyPlaylistError(
-
-            spotifyNetworkErrorMessage('playlist'),
-
-            502,
-
-            'spotify_network_error'
-
-          );
-
-        }
-
-        throw e;
-
-      }
-
-    } else {
+    if (!refreshed.ok) {
 
       if (refreshed.reason === 'invalid_refresh') {
 
@@ -297,6 +279,10 @@ async function spotifyFetch(
       throwFromRefreshFailure(refreshed);
 
     }
+
+    accessToken = refreshed.accessToken;
+
+    res = await spotifyApiFetch(url, accessToken);
 
   }
 
@@ -316,9 +302,21 @@ function throwPlaylistApiError(status: number, detail?: string, context?: string
 
   }
 
+  if (status === 403 && isSpotifyPremiumRequiredError(detail)) {
+
+    throw new SpotifyPlaylistError(spotifyPremiumRequiredMessage(), 403, 'spotify_premium_required');
+
+  }
+
+  if (status === 403 && isSpotifyDevUserNotAllowedError(detail)) {
+
+    throw new SpotifyPlaylistError(spotifyDevUserNotAllowedMessage(), 403, 'spotify_dev_user_not_allowed');
+
+  }
+
   console.warn('[spotify-playlist] API error', { status, detail, context });
 
-  if (status === 401 || status === 403) {
+  if (status === 401 || (status === 403 && isSpotifyTokenExpiredError(detail))) {
 
     throw new SpotifyPlaylistError(
 
@@ -327,6 +325,24 @@ function throwPlaylistApiError(status: number, detail?: string, context?: string
       403,
 
       'spotify_token_expired'
+
+    );
+
+  }
+
+  if (status === 403) {
+
+    throw new SpotifyPlaylistError(
+
+      detail
+
+        ? `Impossible de charger la playlist — ${detail}`
+
+        : 'Accès à la playlist Spotify refusé — vérifiez le lien ou reconnectez Spotify.',
+
+      403,
+
+      'spotify_playlist_forbidden'
 
     );
 
@@ -411,6 +427,22 @@ export async function probeSpotifyHostSession(
 
   }
 
+  const missingPlaylistScopes = getMissingSpotifyPlaylistReadScopes(storedScopes);
+
+  if (storedScopes && missingPlaylistScopes.length > 0) {
+
+    console.warn('[spotify-playlist] stored OAuth scopes missing playlist read scopes', {
+
+      userId: user.id,
+
+      missingPlaylistScopes,
+
+    });
+
+    return { ok: false, code: 'spotify_scope_missing' };
+
+  }
+
   const tokenResult = await getValidSpotifyHostToken(user);
 
   if (!tokenResult.ok) {
@@ -468,23 +500,75 @@ export async function probeSpotifyHostSession(
 
       const refreshed = await refreshSpotifyAccessToken(user);
 
-      if (refreshed.ok) return { ok: true, product: 'unknown' };
+      if (refreshed.ok) {
 
-      if (refreshed.reason === 'invalid_refresh') {
+        try {
+
+          const retryProbe = await fetch('https://api.spotify.com/v1/me', {
+
+            headers: { Authorization: `Bearer ${refreshed.accessToken}` },
+
+            signal: AbortSignal.timeout(8000),
+
+          });
+
+          if (retryProbe.ok) {
+
+            const profile = (await retryProbe.json()) as { product?: string };
+
+            const product = normalizeSpotifyProduct(profile.product);
+
+            if (!isSpotifyPlaybackHostProduct(product)) {
+
+              return { ok: false, code: 'spotify_premium_required', product };
+
+            }
+
+            return { ok: true, product };
+
+          }
+
+          const retryDetail = await parseSpotifyErrorMessage(retryProbe);
+
+          if (retryProbe.status === 403 && isSpotifyScopeMissingError(retryDetail)) {
+
+            return { ok: false, code: 'spotify_scope_missing' };
+
+          }
+
+          console.warn('[spotify-playlist] pre-flight /me failed after refresh', {
+
+            status: retryProbe.status,
+
+            detail: retryDetail,
+
+          });
+
+          return { ok: false, code: 'spotify_token_expired' };
+
+        } catch (e) {
+
+          console.warn('[spotify-playlist] pre-flight /me network error after refresh', e);
+
+          return { ok: false, code: 'spotify_network_error' };
+
+        }
+
+      } else if (refreshed.reason === 'invalid_refresh') {
 
         disconnectSpotifyOnAuthFailure(user, refreshed.reason);
 
         return { ok: false, code: 'spotify_token_expired', disconnected: true };
 
-      }
-
-      if (refreshed.reason === 'network' || refreshed.reason === 'not_configured') {
+      } else if (refreshed.reason === 'network' || refreshed.reason === 'not_configured') {
 
         return { ok: false, code: 'spotify_network_error' };
 
-      }
+      } else {
 
-      return { ok: false, code: 'spotify_not_connected' };
+        return { ok: false, code: 'spotify_not_connected' };
+
+      }
 
     }
 
@@ -704,7 +788,7 @@ export async function resolveSpotifyPlaylistTracks(
 
 
 
-  let accessToken = await ensureSpotifyAccessToken(user);
+  let accessToken = await prepareAccessTokenForPlaylistTracks(user);
 
 
 

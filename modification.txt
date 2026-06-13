@@ -8913,3 +8913,58 @@ refresh token échoue transitoirement et invalide à tort la session hôte.
 ================================================================================
 Fin MODIF 476 - 2026-06-13
 ================================================================================
+
+================================================================================
+MODIF 477 — Fix « Session Spotify expirée » au lancement playlist (SalonPage)
+================================================================================
+Date : 2026-06-13
+
+## Symptôme
+Salon Spotify plein écran → section playlist hôte → « Lancer la playlist » →
+`Session Spotify expirée — reconnectez votre compte Spotify` + bouton
+Reconnecter, alors que les playlists du compte sont bien listées.
+
+## Cause racine
+1. `GET /me/playlists` (liste) peut réussir avec un jeton encore valide ou
+   partiellement expiré ; `GET /playlists/{id}/tracks` échoue ensuite en 401/403.
+2. `resolveSpotifyPlaylistTracks` ne forçait pas le refresh avant le load tracks.
+3. `spotifyFetch` ne faisait qu'un seul retry refresh ; 403 génériques classés
+   à tort en `spotify_token_expired`.
+4. `probeSpotifyHostSession` retournait `ok: true` après refresh sans re-vérifier
+   `/v1/me`.
+
+## Correctif
+### Backend
+- `prepareAccessTokenForPlaylistTracks` : refresh proactif avant load tracks.
+- `spotifyFetch` : boucle jusqu'à 2 refresh ; parse detail 403 avant retry.
+- `throwPlaylistApiError` : `spotify_token_expired` seulement si 401 ou message
+   « expired » ; sinon `spotify_playlist_forbidden`.
+- `probeSpotifyHostSession` : re-probe `/v1/me` après refresh ; vérif scopes
+   playlist (`getMissingSpotifyPlaylistReadScopes`).
+- `POST …/load-playlist` Spotify : pre-flight `probeSpotifyHostSession`.
+
+### Frontend
+- `SalonSpotifyPlaylist` : retry avec warmup `getSpotifyPlaylists` sur
+  `spotify_token_expired` ou `spotify_network_error`.
+
+## Fichiers
+- backend/src/lib/spotifyApi.ts
+- backend/src/lib/spotifyOAuth.ts
+- backend/src/lib/spotifyPlaylists.ts
+- backend/src/routes/salons.ts
+- app/src/components/SalonSpotifyPlaylist.tsx
+- modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npm run build
+  1. Hôte Spotify OAuth → salon plein écran → playlists visibles →
+     « Lancer la playlist » → queue chargée (pas faux « session expirée »).
+  2. Jeton réellement expiré/révoqué → message reconnecter ou déconnexion auto.
+
+## Déploiement
+**Oui** — rebuild backend + app (assets backend/public).
+
+================================================================================
+Fin MODIF 477 - 2026-06-13
+================================================================================

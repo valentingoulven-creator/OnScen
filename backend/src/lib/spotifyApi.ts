@@ -46,6 +46,18 @@ export function isSpotifyDevUserNotAllowedError(detail?: string): boolean {
   return d.includes('not registered') || d.includes('user not registered');
 }
 
+/** 403 Spotify lié au jeton (pas scope manquant ni premium). */
+export function isSpotifyTokenExpiredError(detail?: string): boolean {
+  if (!detail) return false;
+  const d = detail.toLowerCase();
+  return (
+    d.includes('expired') ||
+    d.includes('invalid access token') ||
+    d.includes('token revoked') ||
+    d.includes('invalid token')
+  );
+}
+
 export type SpotifyProduct = 'premium' | 'free' | 'open' | 'unknown';
 
 export function normalizeSpotifyProduct(product?: string): SpotifyProduct {

@@ -201,47 +201,30 @@ export function SalonSpotifyPlaylist({
     }
 
     setLoadingPlay(true);
-
     setError(null);
-
     setNeedsReconnect(false);
-
     try {
-
       const loadOnce = () => api.salonLoadPlaylist(token, salonId, body);
-
+      const warmSessionAndLoad = async () => {
+        await api.getSpotifyPlaylists(token).catch(() => undefined);
+        return loadOnce();
+      };
       let r;
-
       try {
-
         r = await loadOnce();
-
       } catch (firstErr) {
-
         if (
-
           firstErr instanceof ApiRequestError &&
-
-          firstErr.code === 'spotify_token_expired'
-
+          (firstErr.code === 'spotify_token_expired' || firstErr.code === 'spotify_network_error')
         ) {
-
-          r = await loadOnce();
-
+          r = await warmSessionAndLoad();
         } else {
-
           throw firstErr;
-
         }
-
       }
-
       onTrackChanged(r.playbackState);
-
       onQueueChanged?.(r.queue);
-
       setPlaylistUrl('');
-
     } catch (e) {
 
       if (e instanceof ApiRequestError && e.code && SPOTIFY_RECONNECT_CODES.has(e.code)) {

@@ -41,6 +41,19 @@ export function getMissingSpotifyScopes(grantedScopes?: string): string[] {
   return SPOTIFY_PLAYBACK_SCOPES.filter((scope) => !granted.has(scope));
 }
 
+export const SPOTIFY_PLAYLIST_READ_SCOPES = [
+  'playlist-read-private',
+  'playlist-read-collaborative',
+] as const;
+
+/** Au moins un scope lecture playlist requis (private ou collaborative). */
+export function getMissingSpotifyPlaylistReadScopes(grantedScopes?: string): string[] {
+  if (!grantedScopes?.trim()) return [];
+  const granted = new Set(grantedScopes.split(/\s+/).filter(Boolean));
+  const hasAny = SPOTIFY_PLAYLIST_READ_SCOPES.some((scope) => granted.has(scope));
+  return hasAny ? [] : [...SPOTIFY_PLAYLIST_READ_SCOPES];
+}
+
 
 
 const TOKEN_EXPIRY_BUFFER_MS = 60_000;

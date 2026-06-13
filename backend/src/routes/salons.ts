@@ -49,7 +49,7 @@ import {
 } from '../lib/spotifyPlayback';
 import { resolvePlaylistVideos } from '../lib/youtubePlaylists';
 import { resolveSpotifyPlaylistTracks, SpotifyPlaylistError, probeSpotifyHostSession } from '../lib/spotifyPlaylists';
-import { spotifyScopeMissingMessage } from '../lib/spotifyApi';
+import { spotifyScopeMissingMessage, spotifyPremiumRequiredMessage, spotifyDevUserNotAllowedMessage } from '../lib/spotifyApi';
 import { notifyFavoritesSalonStarted } from '../lib/favorites';
 import { notifySalonInvite } from '../lib/notifications';
 import { normalizeSpotifyJamUrl } from '../lib/spotifyJam';
@@ -816,6 +816,29 @@ salonsRouter.post('/:id/playback/load-playlist', authenticateJWT, async (req: Re
   if (!resolvedSpotifyPlaylistId) {
     res.status(400).json({ error: 'playlistId ou lien playlist Spotify requis' });
     return;
+  }
+
+  const session = await probeSpotifyHostSession(hostUser);
+  if (!session.ok) {
+    const authCodes = new Set([
+      'spotify_token_expired',
+      'spotify_scope_missing',
+      'spotify_not_connected',
+      'spotify_premium_required',
+      'spotify_dev_user_not_allowed',
+    ]);
+    if (authCodes.has(session.code)) {
+      const message =
+        session.code === 'spotify_scope_missing'
+          ? spotifyScopeMissingMessage()
+          : session.code === 'spotify_premium_required'
+            ? spotifyPremiumRequiredMessage()
+            : session.code === 'spotify_dev_user_not_allowed'
+              ? spotifyDevUserNotAllowedMessage()
+              : 'Session Spotify expirée — reconnectez votre compte Spotify.';
+      res.status(403).json({ error: message, code: session.code });
+      return;
+    }
   }
 
   let tracks: Awaited<ReturnType<typeof resolveSpotifyPlaylistTracks>>;
