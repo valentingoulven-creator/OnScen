@@ -28,6 +28,11 @@ import {
   type SpotifyHostTokenResult,
   type SpotifyRefreshResult,
 } from './spotifyOAuth';
+import {
+  getSpotifyPlayerQueueTracks,
+  playSpotifyPlaylistContext,
+  SpotifyPlaybackError,
+} from './spotifyPlayback';
 
 export { SpotifyPlaylistError } from './spotifyPlaylistErrors';
 
@@ -159,6 +164,97 @@ function buildPlaylistMetadataUrl(playlistId: string, market = 'from_token'): st
     additional_types: 'track',
   });
   return `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}?${params.toString()}`;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isExternalPlaylistItemsDenied(status: number, detail?: string): boolean {
+  if (status === 403 && isSpotifyBareForbiddenError(detail)) return true;
+  const d = detail?.toLowerCase() ?? '';
+  return d.includes('neither the owner nor a collaborator');
+}
+
+async function fetchSpotifyPlaylistMetadata(
+  user: User,
+  playlistId: string,
+  accessToken: string
+): Promise<{ ok: true; title: string; accessToken: string } | { ok: false; status: number; accessToken: string }> {
+  const country = await fetchSpotifyUserMarket(user, accessToken);
+  for (const market of playlistUserMarkets(country)) {
+    const fetched = await spotifyFetch(user, buildPlaylistMetadataUrl(playlistId, market), accessToken);
+    accessToken = fetched.accessToken;
+    if (!fetched.res.ok) continue;
+    const data = (await fetched.res.json()) as { name?: string };
+    const title = data.name?.trim();
+    if (title) return { ok: true, title, accessToken };
+  }
+
+  const appToken = await getSpotifyAppAccessToken();
+  if (appToken) {
+    const market = defaultSpotifyPlaylistMarket(country);
+    const res = await spotifyApiFetch(buildPlaylistMetadataUrl(playlistId, market), appToken);
+    if (res.ok) {
+      const data = (await res.json()) as { name?: string };
+      const title = data.name?.trim();
+      if (title) return { ok: true, title, accessToken };
+    }
+  }
+
+  return { ok: false, status: 404, accessToken };
+}
+
+/**
+ * Playlists publiques externes (API Spotify fév. 2026) : /items renvoie 403 et la metadata
+ * n'inclut plus les morceaux. On lance context_uri puis on lit GET /me/player/queue.
+ */
+async function resolveSpotifyPlaylistTracksViaPlayerContext(
+  user: User,
+  playlistId: string,
+  accessToken: string
+): Promise<SpotifyPlaylistTrack[]> {
+  const meta = await fetchSpotifyPlaylistMetadata(user, playlistId, accessToken);
+  if (!meta.ok) {
+    throw new SpotifyPlaylistError(
+      'Playlist Spotify introuvable — vérifiez le lien open.spotify.com/playlist/…',
+      404,
+      'spotify_playlist_not_found'
+    );
+  }
+
+  console.info('[spotify-playlist] external playlist — resolving via player context_uri', {
+    userId: user.id,
+    playlistId,
+    title: meta.title,
+  });
+
+  try {
+    await playSpotifyPlaylistContext(user, playlistId);
+  } catch (e) {
+    if (e instanceof SpotifyPlaybackError) {
+      throw new SpotifyPlaylistError(e.message, e.status, e.code);
+    }
+    throw e;
+  }
+
+  await sleep(450);
+  const queueTracks = await getSpotifyPlayerQueueTracks(user);
+  if (!queueTracks.length) {
+    throw new SpotifyPlaylistError(
+      'Playlist lisible mais file Spotify vide — ouvrez Spotify sur un appareil actif puis réessayez.',
+      403,
+      'spotify_no_active_device'
+    );
+  }
+
+  console.info('[spotify-playlist] resolved external playlist via player queue', {
+    userId: user.id,
+    playlistId,
+    trackCount: queueTracks.length,
+  });
+
+  return queueTracks.slice(0, 200);
 }
 
 function defaultSpotifyPlaylistMarket(country?: string): string {
@@ -347,27 +443,12 @@ async function openSpotifyPlaylistItemsSession(
   const appToken = await getSpotifyAppAccessToken();
   if (appToken) {
     const appMarkets = [defaultSpotifyPlaylistMarket(country)];
-    console.info('[spotify-playlist] trying app token for public playlist', {
+    console.info('[spotify-playlist] user token blocked — metadata check with app token', {
       userId: user.id,
       playlistId,
-      userItemsOk: userItems.ok,
-      userMetaOk: userMeta.ok,
+      userItemsStatus: userItems.ok ? undefined : userItems.status,
+      userMetaHasTracks: userMeta.ok && pageHasPlayableTracks(userMeta.page),
     });
-
-    const appItems = await tryPlaylistUrlsWithToken(
-      appMarkets.map((m) => buildPlaylistItemsUrl(playlistId, limit, m)),
-      appToken
-    );
-    if (appItems.ok && pageHasPlayableTracks(appItems.page)) {
-      console.info('[spotify-playlist] resolved via app token /items', { playlistId, userId: user.id });
-      return {
-        ok: true,
-        page: appItems.page,
-        accessToken,
-        pagingAccessToken: appToken,
-        useAppPaging: true,
-      };
-    }
 
     const appMeta = await tryPlaylistUrlsWithToken(
       appMarkets.map((m) => buildPlaylistMetadataUrl(playlistId, m)),
@@ -387,45 +468,24 @@ async function openSpotifyPlaylistItemsSession(
       };
     }
 
-    if (!userItems.ok && !userMeta.ok) {
-      console.warn('[spotify-playlist] user + app token failed', {
-        userId: user.id,
-        playlistId,
-        userItemsStatus: userItems.status,
-        appItemsStatus: appItems.ok ? undefined : appItems.status,
-        appMetaStatus: appMeta.ok ? undefined : appMeta.status,
-      });
-    }
+    console.warn('[spotify-playlist] external playlist — /items restricted (Spotify API 2026)', {
+      userId: user.id,
+      playlistId,
+      userItemsStatus: userItems.ok ? undefined : userItems.status,
+      userItemsDetail: userItems.ok ? undefined : userItems.detail,
+      appMetaStatus: appMeta.ok ? undefined : appMeta.status,
+    });
   } else {
-    console.warn('[spotify-playlist] app token unavailable — cannot fallback public playlist', {
+    console.warn('[spotify-playlist] app token unavailable — external playlist needs player fallback', {
       playlistId,
       userId: user.id,
     });
   }
 
-  if (userMeta.ok) {
-    return {
-      ok: true,
-      page: userMeta.page,
-      accessToken,
-      pagingAccessToken: accessToken,
-      useAppPaging: false,
-    };
-  }
-  if (userItems.ok) {
-    return {
-      ok: true,
-      page: userItems.page,
-      accessToken,
-      pagingAccessToken: accessToken,
-      useAppPaging: false,
-    };
-  }
-
   return {
     ok: false,
-    status: userItems.status,
-    detail: userItems.detail,
+    status: userItems.ok ? 403 : userItems.status,
+    detail: userItems.ok ? 'external_playlist_items_restricted' : (userItems.detail ?? 'external_playlist_items_restricted'),
     accessToken,
   };
 }
@@ -693,12 +753,6 @@ export async function resolveSpotifyPlaylistTracks(
 
   const opened = await openSpotifyPlaylistItemsSession(user, playlistId, 100, accessToken);
   accessToken = opened.accessToken;
-  if (!opened.ok) {
-    throwSpotifyPlaylistApiError(opened.status, opened.detail, 'resolveSpotifyPlaylistTracks', user);
-  }
-
-  const pagingToken = opened.pagingAccessToken;
-  const useAppPaging = opened.useAppPaging;
 
   let nextUrl: string | null = null;
   const consumePage = (page: PlaylistItemsPage) => {
@@ -709,32 +763,53 @@ export async function resolveSpotifyPlaylistTracks(
     }
     nextUrl = page.next;
   };
-  consumePage(opened.page);
 
-  while (nextUrl && tracks.length < 200) {
-    if (useAppPaging) {
-      const pageResult = await fetchPlaylistItemsPageRaw(nextUrl, pagingToken);
-      if (!pageResult.ok) {
-        throwSpotifyPlaylistApiError(
-          pageResult.status,
-          pageResult.detail,
-          'resolveSpotifyPlaylistTracks',
-          user
-        );
+  if (opened.ok) {
+    const pagingToken = opened.pagingAccessToken;
+    const useAppPaging = opened.useAppPaging;
+    consumePage(opened.page);
+
+    while (nextUrl && tracks.length < 200) {
+      if (useAppPaging) {
+        const pageResult = await fetchPlaylistItemsPageRaw(nextUrl, pagingToken);
+        if (!pageResult.ok) {
+          throwSpotifyPlaylistApiError(
+            pageResult.status,
+            pageResult.detail,
+            'resolveSpotifyPlaylistTracks',
+            user
+          );
+        }
+        consumePage(pageResult.page);
+      } else {
+        const pageResult = await fetchPlaylistItemsPage(user, nextUrl, accessToken);
+        accessToken = pageResult.accessToken;
+        if (!pageResult.ok) {
+          throwSpotifyPlaylistApiError(
+            pageResult.status,
+            pageResult.detail,
+            'resolveSpotifyPlaylistTracks',
+            user
+          );
+        }
+        consumePage(pageResult.page);
       }
-      consumePage(pageResult.page);
-    } else {
-      const pageResult = await fetchPlaylistItemsPage(user, nextUrl, accessToken);
-      accessToken = pageResult.accessToken;
-      if (!pageResult.ok) {
-        throwSpotifyPlaylistApiError(
-          pageResult.status,
-          pageResult.detail,
-          'resolveSpotifyPlaylistTracks',
-          user
-        );
-      }
-      consumePage(pageResult.page);
+    }
+  }
+
+  if (!tracks.length) {
+    const shouldTryPlayer =
+      !opened.ok &&
+      (isExternalPlaylistItemsDenied(opened.status, opened.detail) ||
+        opened.detail === 'external_playlist_items_restricted' ||
+        (opened.status === 403 && isSpotifyBareForbiddenError(opened.detail)));
+
+    if (shouldTryPlayer || (!opened.ok && opened.status === 403)) {
+      return resolveSpotifyPlaylistTracksViaPlayerContext(user, playlistId, accessToken);
+    }
+
+    if (!opened.ok) {
+      throwSpotifyPlaylistApiError(opened.status, opened.detail, 'resolveSpotifyPlaylistTracks', user);
     }
   }
 
@@ -768,7 +843,23 @@ export async function verifySpotifyPlaylistTrackAccess(
 
   let accessToken = await prepareAccessTokenForPlaylistTracks(user);
   const opened = await openSpotifyPlaylistItemsSession(user, playlistId, 1, accessToken);
+  if (opened.ok && pageHasPlayableTracks(opened.page)) return;
+
+  const meta = await fetchSpotifyPlaylistMetadata(user, playlistId, opened.accessToken);
+  if (meta.ok) return;
+
   if (!opened.ok) {
+    if (
+      isExternalPlaylistItemsDenied(opened.status, opened.detail) ||
+      opened.detail === 'external_playlist_items_restricted' ||
+      (opened.status === 403 && isSpotifyBareForbiddenError(opened.detail))
+    ) {
+      throw new SpotifyPlaylistError(
+        'Playlist publique externe — lancez-la depuis un appareil Spotify actif (Connect).',
+        403,
+        'spotify_playlist_external'
+      );
+    }
     throwSpotifyPlaylistApiError(
       opened.status,
       opened.detail,
@@ -776,4 +867,6 @@ export async function verifySpotifyPlaylistTrackAccess(
       user
     );
   }
+
+  throw new SpotifyPlaylistError('Playlist Spotify introuvable ou vide.', 404, 'spotify_playlist_empty');
 }

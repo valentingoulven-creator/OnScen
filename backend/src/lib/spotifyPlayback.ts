@@ -246,6 +246,101 @@ export async function addSpotifyTrackToQueue(user: User, trackId: string): Promi
   throw await mapSpotifyPlayerError(res, 'Impossible d’ajouter ce morceau à la file Spotify.');
 }
 
+type SpotifyQueueTrack = {
+  id?: string;
+  name?: string;
+  artists?: Array<{ name?: string }>;
+  album?: { images?: Array<{ url?: string }> };
+  external_urls?: { spotify?: string };
+};
+
+type SpotifyPlayerQueueResponse = {
+  currently_playing?: SpotifyQueueTrack | null;
+  queue?: SpotifyQueueTrack[];
+};
+
+function mapSpotifyQueueTrack(track: SpotifyQueueTrack | null | undefined) {
+  const trackId = track?.id?.trim();
+  if (!track || !trackId) return null;
+  const artist =
+    track.artists
+      ?.map((a) => a.name?.trim())
+      .filter((n): n is string => Boolean(n))
+      .join(', ') || 'Spotify';
+  return {
+    trackId,
+    title: (track.name ?? 'Morceau Spotify').slice(0, 120),
+    artist: artist.slice(0, 80),
+    externalUrl: track.external_urls?.spotify ?? `https://open.spotify.com/track/${trackId}`,
+    albumArtUrl: track.album?.images?.[0]?.url,
+  };
+}
+
+/** Lance une playlist Spotify via context_uri (playlists externes post-fév. 2026). */
+export async function playSpotifyPlaylistContext(user: User, playlistId: string): Promise<void> {
+  const safeId = playlistId.trim();
+  if (!safeId) {
+    throw new SpotifyPlaybackError('playlistId Spotify requis.', 400, 'invalid_playlist_id');
+  }
+  const deviceId = await pickSpotifyControlDevice(user);
+  if (!deviceId) {
+    throw new SpotifyPlaybackError(
+      'Aucun appareil Spotify actif — ouvrez Spotify sur votre téléphone ou ordinateur.',
+      403,
+      'spotify_no_active_device'
+    );
+  }
+  try {
+    await transferSpotifyPlayback(user, deviceId);
+  } catch (e) {
+    if (!(e instanceof SpotifyPlaybackError && e.code === 'no_active_device')) {
+      throw e;
+    }
+  }
+  const playUrl = `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(deviceId)}`;
+  const res = await spotifyPlayerRequest(user, 'PUT', playUrl, {
+    context_uri: `spotify:playlist:${safeId}`,
+    offset: { position: 0 },
+  });
+  if (res.status === 204 || res.status === 200) return;
+  throw await mapSpotifyPlayerError(res, 'Impossible de lancer cette playlist sur Spotify.');
+}
+
+/** Lit la file Spotify Connect (GET /me/player/queue) après context_uri playlist. */
+export async function getSpotifyPlayerQueueTracks(user: User): Promise<
+  Array<{
+    trackId: string;
+    title: string;
+    artist: string;
+    externalUrl: string;
+    albumArtUrl?: string;
+  }>
+> {
+  const res = await spotifyPlayerRequest(user, 'GET', 'https://api.spotify.com/v1/me/player/queue');
+  if (res.status === 204) return [];
+  if (!res.ok) {
+    throw await mapSpotifyPlayerError(res, 'Impossible de lire la file Spotify.');
+  }
+  const data = (await res.json()) as SpotifyPlayerQueueResponse;
+  const seen = new Set<string>();
+  const tracks: Array<{
+    trackId: string;
+    title: string;
+    artist: string;
+    externalUrl: string;
+    albumArtUrl?: string;
+  }> = [];
+  const push = (track: SpotifyQueueTrack | null | undefined) => {
+    const mapped = mapSpotifyQueueTrack(track);
+    if (!mapped || seen.has(mapped.trackId)) return;
+    seen.add(mapped.trackId);
+    tracks.push(mapped);
+  };
+  push(data.currently_playing);
+  for (const item of data.queue ?? []) push(item);
+  return tracks;
+}
+
 /** Remplace la lecture en cours par un morceau (Connect : transfer + PUT /play uris, position 0). */
 export async function playSpotifyTrackNow(user: User, trackId: string): Promise<void> {
   const deviceId = await pickSpotifyControlDevice(user);

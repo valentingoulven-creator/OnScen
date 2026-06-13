@@ -195,6 +195,8 @@
       "errorPlaylistScopeMissing": "Reconnect Spotify to allow playlist access (authorization required).",
       "errorPlaylistForbidden": "Playlist access denied — pick a playlist from your library or reconnect Spotify.",
       "errorPlaylistPrivate": "Playlist unavailable — it may be private or owner-only. Paste a public open.spotify.com/playlist/… link.",
+      "errorPlaylistExternal": "External public playlist — open Spotify on an active device (phone or computer) then try again.",
+      "errorNoActiveDevice": "No active Spotify device — open the Spotify app then try again.",
       "errorPlaylistNotFound": "Playlist not found — check the open.spotify.com/playlist/… link.",
       "errorPremiumRequired": "Spotify Premium required — Free accounts cannot start or control playback.",
       "errorRateLimited": "Spotify quota reached — try again later.",

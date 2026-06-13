@@ -1,5 +1,53 @@
 ﻿
 ================================================================================
+MODIF 485 — Playlists externes : context_uri + file player (API Spotify 2026)
+================================================================================
+Date : 2026-06-13
+
+## Symptôme (post-MODIF 484)
+Playlists publiques non créées par l'hôte → toujours `spotify_playlist_empty` malgré
+repli client_credentials (SHA 3a06e851).
+
+## Cause racine (logs + tests prod)
+1. Spotify API **fév. 2026** : GET `/playlists/{id}/items` → **403** si l'hôte n'est ni
+   propriétaire ni collaborateur ; metadata seule sans morceaux.
+2. Repli MODIF 484 : client_credentials sur `/items` → **401** « Valid user authentication
+   required » (confirmé curl prod). Metadata app token : nom OK, **0 morceau**.
+3. Bug MODIF 484 : retour `ok: true` sur metadata vide (l.406-423) → `spotify_playlist_empty`
+   au lieu du repli player.
+
+## Correctif
+- Suppression repli `/items` client_credentials (inopérant).
+- Détection playlist externe (403 bare / metadata sans pistes jouables).
+- Repli : `PUT /me/player/play` avec `context_uri: spotify:playlist:{id}` puis
+  `GET /me/player/queue` (`playSpotifyPlaylistContext` + `getSpotifyPlayerQueueTracks`).
+- `verify-access` : metadata (nom) suffit pour lien externe ; message `spotify_playlist_external`
+  si appareil requis au lancement.
+- i18n FR/EN : `errorPlaylistExternal`, `errorNoActiveDevice`.
+- Tests parsing + détection externe.
+
+## Fichiers
+- backend/src/lib/spotifyPlaylists.ts
+- backend/src/lib/spotifyPlayback.ts
+- backend/src/lib/spotifyPlaylists.test.ts
+- app/src/lib/spotifyPlaylistSession.ts
+- app/src/locales/fr.json, en.json
+- modification.txt
+
+## Test URL
+  https://open.spotify.com/playlist/18HC7CvDqHcCphUazqkPNk  (Finn Darrig — publique)
+
+## Prérequis utilisateur
+Spotify ouvert sur un appareil Connect actif (téléphone / desktop) au lancement.
+
+## Déploiement
+deploy_zero_downtime.ps1 -VerifyProd -SkipFrontend
+
+================================================================================
+Fin MODIF 485 - 2026-06-13
+================================================================================
+
+================================================================================
 MODIF 484 — Playlists publiques externes : repli client_credentials
 ================================================================================
 Date : 2026-06-13

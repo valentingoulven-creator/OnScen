@@ -42,6 +42,10 @@ export function spotifySessionCodeI18nKey(code?: string): string | null {
       return 'salon.spotifySearch.errorNotConnected';
     case 'spotify_playlist_private':
       return 'salon.spotifySearch.errorPlaylistPrivate';
+    case 'spotify_playlist_external':
+      return 'salon.spotifySearch.errorPlaylistExternal';
+    case 'spotify_no_active_device':
+      return 'salon.spotifySearch.errorNoActiveDevice';
     case 'spotify_playlist_not_found':
       return 'salon.spotifySearch.errorPlaylistNotFound';
     case 'spotify_playlist_forbidden':

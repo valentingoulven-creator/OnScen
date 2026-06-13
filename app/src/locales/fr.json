@@ -195,6 +195,8 @@
       "errorPlaylistScopeMissing": "Reconnectez Spotify pour autoriser l'accès aux playlists (autorisation requise).",
       "errorPlaylistForbidden": "Accès à la playlist refusé — choisissez une playlist de votre bibliothèque ou reconnectez Spotify.",
       "errorPlaylistPrivate": "Playlist inaccessible — elle est privée ou réservée à son propriétaire. Collez un lien public open.spotify.com/playlist/…",
+      "errorPlaylistExternal": "Playlist publique externe — ouvrez Spotify sur un appareil actif (téléphone ou ordinateur) puis relancez.",
+      "errorNoActiveDevice": "Aucun appareil Spotify actif — ouvrez l'app Spotify puis réessayez.",
       "errorPlaylistNotFound": "Playlist introuvable — vérifiez le lien open.spotify.com/playlist/…",
       "errorPremiumRequired": "Spotify Premium requis — un compte Free ne peut pas lancer ni contrôler la lecture.",
       "errorRateLimited": "Quota Spotify atteint — réessayez plus tard.",
