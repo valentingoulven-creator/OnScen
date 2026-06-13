@@ -17,7 +17,14 @@ import {
   createYoutubeOAuthUrl,
   isYoutubeOAuthConfigured,
 } from '../lib/youtubeOAuth';
-import { isSpotifyOAuthConfigured, createSpotifyOAuthUrl, userNeedsSpotifyScopeReconnect, getStoredSpotifyProduct, persistSpotifyProduct } from '../lib/spotifyOAuth';
+import {
+  isSpotifyOAuthConfigured,
+  createSpotifyOAuthUrl,
+  userNeedsSpotifyScopeReconnect,
+  getStoredSpotifyProduct,
+  persistSpotifyProduct,
+} from '../lib/spotifyOAuth';
+import { respondSpotifySessionAuthFailure } from '../lib/spotifySession';
 import {
   applyInstagramOAuthToUser,
   completeInstagramOAuth,
@@ -25,7 +32,13 @@ import {
   isInstagramOAuthConfigured,
 } from '../lib/instagramOAuth';
 import { listHostYoutubePlaylists } from '../lib/youtubePlaylists';
-import { isRealSpotifyAccount, listHostSpotifyPlaylists, probeSpotifyHostSession } from '../lib/spotifyPlaylists';
+import {
+  isRealSpotifyAccount,
+  listHostSpotifyPlaylists,
+  probeSpotifyHostSession,
+  SpotifyPlaylistError,
+  verifySpotifyPlaylistTrackAccess,
+} from '../lib/spotifyPlaylists';
 
 export const platformsRouter = Router();
 
@@ -180,6 +193,49 @@ platformsRouter.get('/spotify/playlists', authenticateJWT, async (req: Request, 
     spotifySessionValid: true,
     spotifyProduct: session.product,
   });
+});
+
+platformsRouter.post('/spotify/playlists/verify-access', authenticateJWT, async (req: Request, res: Response) => {
+  const userId = (req as Request & { user: { id: string } }).user.id;
+  const user = db.users.get(userId);
+  if (!user) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+  ensurePlatformAccountsFromLegacy(user);
+  if (!isPlatformConnected(user, 'spotify')) {
+    res.status(403).json({ error: 'Connectez votre compte Spotify', code: 'spotify_not_connected' });
+    return;
+  }
+
+  const { playlistId, playlistUrl } = req.body ?? {};
+  const rawRef =
+    (typeof playlistId === 'string' ? playlistId.trim() : '') ||
+    (typeof playlistUrl === 'string' ? playlistUrl.trim() : '') ||
+    '';
+  if (!rawRef) {
+    res.status(400).json({ error: 'playlistId ou lien playlist requis' });
+    return;
+  }
+
+  const session = await probeSpotifyHostSession(user);
+  if (!session.ok && respondSpotifySessionAuthFailure(res, session.code)) {
+    db.users.set(userId, user);
+    return;
+  }
+
+  try {
+    await verifySpotifyPlaylistTrackAccess(user, rawRef);
+    db.users.set(userId, user);
+    res.json({ ok: true });
+  } catch (e) {
+    if (e instanceof SpotifyPlaylistError) {
+      db.users.set(userId, user);
+      res.status(e.status).json({ error: e.message, code: e.code });
+      return;
+    }
+    res.status(502).json({ error: 'Vérification playlist Spotify indisponible' });
+  }
 });
 
 platformsRouter.get('/youtube/playlists', authenticateJWT, async (req: Request, res: Response) => {

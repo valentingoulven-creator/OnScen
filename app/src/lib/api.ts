@@ -684,6 +684,15 @@ export const api = {
       spotifySessionCode?: string;
     }>('/platforms/spotify/playlists', {}, token),
 
+  verifySpotifyPlaylistAccess: (
+    token: string,
+    body: { playlistId?: string; playlistUrl?: string }
+  ) =>
+    request<{ ok: boolean }>('/platforms/spotify/playlists/verify-access', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }, token),
+
   getYoutubeOAuthUrl: (token: string) =>
     request<{ url: string }>('/platforms/youtube/oauth/url', {}, token),
 

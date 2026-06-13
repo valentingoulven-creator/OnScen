@@ -1,7 +1,85 @@
 ﻿
 ================================================================================
-MODIF 478 — Fix toast « Impossible de charger la playlist — Forbidden »
+MODIF 479 — Refonte flux création salon Spotify + playlist (structure + fix définitif)
 ================================================================================
+Date : 2026-06-13
+
+## Symptôme (persistant après MODIF 478)
+Création salon Spotify avec playlist : toast « Forbidden » ou « Session expirée »
+alors que /me/playlists listait les playlists. Logs prod :
+  [spotify-playlist] API error { status: 403, detail: 'Forbidden', context: 'resolveSpotifyPlaylistTracks' }
+
+## Cause racine (vérification complète)
+1. **Faux positif oauthScopes** : à l’OAuth initial, `tokens.scope || SPOTIFY_SCOPES`
+   enregistrait tous les scopes même non accordés → probe DB OK, API /tracks 403.
+2. **Probe session incomplet** : `/me` + scopes stockés suffisaient ; `/me/playlists`
+   peut réussir sans accès réel aux morceaux (`/playlists/{id}/tracks`).
+3. **403 bare Forbidden mal classé** : si scopes DB « OK », renvoyait `spotify_token_expired`
+   au lieu de `spotify_scope_missing` → message trompeur, retry inutile.
+4. **Scopes playlist partiels** : un seul scope (private OU collaborative) suffisait ;
+   playlists mixtes → 403 selon le type choisi.
+5. **Duplication frontend** : CreateSalonSpotifyPlaylistPicker et SalonSpotifyPlaylist
+   dupliquaient chargement session, codes reconnect, mapping erreurs, retry load-playlist.
+6. **Salon créé avant échec load** : pas de pré-vol → salon vide si load-playlist échoue.
+
+## Correctif structurel
+
+### Backend — modules partagés
+- `spotifySession.ts` : codes auth, `spotifySessionFailureMessage()`, `respondSpotifySessionAuthFailure()`
+- `spotifyPlaylistErrors.ts` : `SpotifyPlaylistError`, `throwSpotifyPlaylistApiError()`
+- `spotifyPlaylists.ts` : refactoré (format propre), probe live `/tracks?limit=1`,
+  `verifySpotifyPlaylistTrackAccess()`, invalidation scopes sur 403 bare
+- `spotifyOAuth.ts` : plus de fallback `SPOTIFY_SCOPES` ; les deux scopes playlist requis ;
+  `invalidateStoredSpotifyOAuthScopes()`
+- Route `POST /platforms/spotify/playlists/verify-access` (pré-vol avant création)
+- Routes `load-playlist`, `POST /salons`, `verify-access` : réponses auth unifiées
+
+### Frontend — source de vérité
+- `lib/spotifyPlaylistSession.ts` : codes reconnect, i18n, `toSpotifyPlaylistRef()`,
+  `translateSpotifyApiError()`, `translateSalonCreateError()`
+- `hooks/useSpotifyPlaylistLibrary.ts` : bibliothèque + session + verify + reconnect
+- `components/SpotifyPlaylistPickerFields.tsx` : UI partagée (select, URL, erreur, reconnect)
+- `CreateSalonSpotifyPlaylistPicker`, `SalonSpotifyPlaylist` : utilisent hook + champs partagés
+- `CreateSalonModal` : verify-access **avant** createSalon ; plus de retry load-playlist inutile
+
+## Fichiers
+- backend/src/lib/spotifySession.ts (nouveau)
+- backend/src/lib/spotifyPlaylistErrors.ts (nouveau)
+- backend/src/lib/spotifyPlaylists.ts
+- backend/src/lib/spotifyOAuth.ts
+- backend/src/routes/platforms.ts
+- backend/src/routes/salons.ts
+- app/src/lib/spotifyPlaylistSession.ts (nouveau)
+- app/src/hooks/useSpotifyPlaylistLibrary.ts (nouveau)
+- app/src/components/SpotifyPlaylistPickerFields.tsx (nouveau)
+- app/src/components/CreateSalonSpotifyPlaylistPicker.tsx
+- app/src/components/SalonSpotifyPlaylist.tsx
+- app/src/components/CreateSalonModal.tsx
+- app/src/lib/api.ts
+- modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit   ✓
+  cd app && npm run build          ✓
+
+  1. Compte Spotify lié avant scopes playlist → picker affiche « Reconnecter Spotify »
+     (pas Forbidden / pas session expirée).
+  2. Reconnexion OAuth (show_dialog) → scopes enregistrés depuis tokens.scope réel.
+  3. CreateSalonModal : Spotify → Playlist → choisir → Créer → salon + queue OK.
+  4. SalonSpotifyPlaylist : Lancer la playlist → verify + load OK.
+  5. Coller URL playlist privée → verify inline (create) ou au lancement (salon).
+
+## Déploiement
+**Non** — en attente validation utilisateur.
+
+## Action utilisateur
+**Reconnecter Spotify** une fois (Profil ou bouton dans le picker) pour ré-accorder
+`playlist-read-private` et `playlist-read-collaborative`.
+
+================================================================================
+Fin MODIF 479 - 2026-06-13
+================================================================================
+
 Date : 2026-06-13
 
 ## Symptôme

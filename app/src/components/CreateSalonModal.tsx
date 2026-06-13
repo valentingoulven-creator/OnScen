@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { api, ApiRequestError } from '../lib/api';
+import { api } from '../lib/api';
+import { toSpotifyPlaylistRef, translateSalonCreateError, translateSpotifySessionCode } from '../lib/spotifyPlaylistSession';
 import { getLivesGeo, isFixedMapGeoSource } from '../lib/livesGeo';
 import { isPlatformConnected } from '../lib/platformConnect';
 import { generateSalonId } from '../lib/salonDeepLink';
@@ -249,29 +250,12 @@ export function CreateSalonModal({
       : form.platform === 'spotify' && spotifyHostBlocked
         ? t('salon.create.spotifyPremiumRequired')
         : form.platform === 'spotify' && spotifySessionBlocked
-          ? spotifySessionCode === 'spotify_scope_missing'
-            ? t('salon.spotifySearch.errorPlaylistScopeMissing')
-            : t('salon.spotifySearch.errorTokenExpired')
+          ? translateSpotifySessionCode(t, spotifySessionCode) ??
+            t('salon.spotifySearch.errorTokenExpired')
           : null
     : null;
 
-  const resolveCreateError = (e: unknown): string => {
-    if (e instanceof ApiRequestError) {
-      if (e.code === 'spotify_premium_required') return t('salon.create.spotifyPremiumRequired');
-      if (e.code === 'spotify_token_expired') return t('salon.spotifySearch.errorTokenExpired');
-      if (e.code === 'spotify_scope_missing') return t('salon.spotifySearch.errorPlaylistScopeMissing');
-      if (e.code === 'spotify_playlist_forbidden') return t('salon.spotifySearch.errorPlaylistForbidden');
-      if (e.code === 'spotify_not_connected') return t('salon.spotifySearch.errorNotConnected');
-      if (e.code === 'HOST_PLATFORM_NOT_LINKED') {
-        return form.platform === 'spotify'
-          ? t('salon.create.errorPlatformNotLinkedSpotify')
-          : t('salon.create.errorPlatformNotLinkedYoutube');
-      }
-      if (e.message) return e.message;
-    }
-    if (e instanceof Error && e.message) return e.message;
-    return t('salon.create.errorFailed');
-  };
+  const resolveCreateError = (e: unknown): string => translateSalonCreateError(t, e, form.platform);
 
   const submit = async () => {
     if (!canSubmitSalon) {
@@ -297,6 +281,14 @@ export function CreateSalonModal({
       const useSpotifyPlaylist =
         form.platform === 'spotify' && form.musicSource === 'playlist' && form.spotifyPlaylist;
       const usePlaylist = useYoutubePlaylist || useSpotifyPlaylist;
+
+      if (useSpotifyPlaylist && form.spotifyPlaylist) {
+        const verifyBody = toSpotifyPlaylistRef(form.spotifyPlaylist);
+        if (verifyBody) {
+          await api.verifySpotifyPlaylistAccess(token, verifyBody);
+        }
+      }
+
       const { salon } = await api.createSalon(token, {
         ...(form.accessMode === 'invite' ? { id: draftSalonId } : {}),
         title: form.title.trim(),
@@ -326,27 +318,9 @@ export function CreateSalonModal({
         }
       }
       if (useSpotifyPlaylist && form.spotifyPlaylist) {
-        const body = form.spotifyPlaylist.playlistUrl
-          ? { playlistUrl: form.spotifyPlaylist.playlistUrl }
-          : form.spotifyPlaylist.playlistId
-            ? { playlistId: form.spotifyPlaylist.playlistId }
-            : null;
+        const body = toSpotifyPlaylistRef(form.spotifyPlaylist);
         if (body) {
-          const loadOnce = () => api.salonLoadPlaylist(token, salon.id, body);
-          try {
-            await loadOnce();
-          } catch (firstErr) {
-            if (
-              firstErr instanceof ApiRequestError &&
-              (firstErr.code === 'spotify_token_expired' ||
-                firstErr.code === 'spotify_scope_missing' ||
-                firstErr.code === 'spotify_playlist_forbidden')
-            ) {
-              await loadOnce();
-            } else {
-              throw firstErr;
-            }
-          }
+          await api.salonLoadPlaylist(token, salon.id, body);
         }
       }
       if (form.accessMode === 'invite') {

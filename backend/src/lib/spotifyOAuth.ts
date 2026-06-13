@@ -46,12 +46,11 @@ export const SPOTIFY_PLAYLIST_READ_SCOPES = [
   'playlist-read-collaborative',
 ] as const;
 
-/** Au moins un scope lecture playlist requis (private ou collaborative). */
+/** Les deux scopes lecture playlist requis (privées + collaboratives). */
 export function getMissingSpotifyPlaylistReadScopes(grantedScopes?: string): string[] {
   if (!grantedScopes?.trim()) return [...SPOTIFY_PLAYLIST_READ_SCOPES];
   const granted = new Set(grantedScopes.split(/\s+/).filter(Boolean));
-  const hasAny = SPOTIFY_PLAYLIST_READ_SCOPES.some((scope) => granted.has(scope));
-  return hasAny ? [] : [...SPOTIFY_PLAYLIST_READ_SCOPES];
+  return SPOTIFY_PLAYLIST_READ_SCOPES.filter((scope) => !granted.has(scope));
 }
 
 
@@ -436,7 +435,7 @@ export async function completeSpotifyOAuth(
 
     accessTokenExpiresAt: Date.now() + (tokens.expires_in ?? 3600) * 1000,
 
-    oauthScopes: tokens.scope?.trim() || SPOTIFY_SCOPES,
+    oauthScopes: tokens.scope?.trim() || undefined,
 
     avatarUrl,
 
@@ -929,6 +928,29 @@ export function userNeedsSpotifyScopeReconnect(user: User): boolean {
     getMissingSpotifyScopes(account.oauthScopes).length > 0 ||
     getMissingSpotifyPlaylistReadScopes(account.oauthScopes).length > 0
   );
+
+}
+
+
+
+/** Efface les scopes stockés après un 403 playlist — force re-OAuth au prochain probe. */
+export function invalidateStoredSpotifyOAuthScopes(user: User, reason?: string): void {
+
+  if (!isPlatformConnected(user, 'spotify')) return;
+
+  const accounts = getPlatformAccounts(user);
+
+  const idx = accounts.findIndex((a) => a.platform === 'spotify');
+
+  if (idx < 0 || !accounts[idx].oauthScopes?.trim()) return;
+
+  accounts[idx] = { ...accounts[idx], oauthScopes: undefined };
+
+  user.platformAccounts = accounts;
+
+  schedulePersist();
+
+  console.warn('[spotify-oauth] invalidated stored OAuth scopes', { userId: user.id, reason });
 
 }
 
