@@ -64,6 +64,7 @@ function clamp(n: number, min: number, max: number) {
 export interface FloatingSalonChatProps {
   children: ReactNode;
   title?: string;
+  headerExtra?: ReactNode;
   minimized?: boolean;
   onToggleMinimize?: () => void;
   onHide?: () => void;
@@ -72,6 +73,7 @@ export interface FloatingSalonChatProps {
 export function FloatingSalonChat({
   children,
   title = 'Chat',
+  headerExtra,
   minimized = false,
   onToggleMinimize,
   onHide,
@@ -326,6 +328,12 @@ export function FloatingSalonChat({
           <p className="text-[9px] font-bold text-purple-400 uppercase tracking-widest flex-1 truncate min-w-0">
             {title}
           </p>
+
+          {headerExtra ? (
+            <div className="shrink-0" onPointerDown={(e) => e.stopPropagation()}>
+              {headerExtra}
+            </div>
+          ) : null}
 
           <button
             type="button"

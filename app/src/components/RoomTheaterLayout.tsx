@@ -96,7 +96,7 @@ export function RoomTheaterLayout({
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
       <div className="flex-1 min-w-0 flex flex-col min-h-0">
-        <div className="relative flex-1 min-h-0 overflow-hidden bg-black">
+        <div className="room-theater-video-stage relative flex-1 min-h-0 overflow-hidden bg-black">
           {stage}
 
           {!chatHidden && chatDock === 'floating' && (
@@ -152,12 +152,12 @@ export function RoomTheaterLayout({
           )}
         </div>
 
-        {!chatHidden && chatInput ? (
+        {!chatHidden && chatDock === 'floating' && chatInput ? (
           <div className="shrink-0 pointer-events-auto">{chatInput}</div>
         ) : null}
 
         {!chatHidden && chatDock === 'bottom' ? (
-          <div className="shrink-0 flex flex-col max-h-[38dvh] min-h-[8rem] border-t border-[#1e1e2f] bg-[#0b0b0f]/95 backdrop-blur-sm pb-[env(safe-area-inset-bottom)]">
+          <div className="room-theater-bottom-chat-dock shrink-0 flex flex-col border-t border-[#1e1e2f] bg-[#0b0b0f]/95 backdrop-blur-sm pb-[env(safe-area-inset-bottom)]">
             <div className="shrink-0 flex items-center gap-1.5 px-3 py-2 border-b border-[#1e1e2f] bg-[#14141c]/80">
               <span className="text-purple-400 text-[10px]" aria-hidden>
                 💬
@@ -176,6 +176,7 @@ export function RoomTheaterLayout({
               </button>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden flex flex-col">{chat}</div>
+            {chatInput ? <div className="shrink-0 pointer-events-auto">{chatInput}</div> : null}
           </div>
         ) : null}
 

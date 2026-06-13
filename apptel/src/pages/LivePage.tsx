@@ -422,6 +422,9 @@ export function LivePage({
 
     const gen = ++pendingCameraStartGenRef.current;
 
+    emitCameraState(true, 'camera');
+    setLive((prev) => (prev ? { ...prev, cameraActive: true, cameraMode: 'camera' } : prev));
+
     void (async () => {
       const ok = await startCamera();
       if (gen !== pendingCameraStartGenRef.current) return;
@@ -429,6 +432,11 @@ export function LivePage({
         clearPendingLiveCameraStart();
         emitCameraState(true, 'camera');
         setLive((prev) => (prev ? { ...prev, cameraActive: true, cameraMode: 'camera' } : prev));
+      } else {
+        emitCameraState(false);
+        setLive((prev) =>
+          prev ? { ...prev, cameraActive: false, cameraMode: undefined } : prev
+        );
       }
     })();
 
@@ -461,15 +469,31 @@ export function LivePage({
     live?.playbackState.isPlaying ?? false
   );
 
+  const cameraPausedByHiddenRef = useRef(false);
+  const cameraModeBeforeHiddenRef = useRef<'camera' | 'file'>('camera');
+
   usePauseMediaOnPageHidden({
     onPageHidden: () => {
       if (isHostRef.current && cameraLocalActiveRef.current) {
+        cameraModeBeforeHiddenRef.current =
+          cameraModeRef.current === 'file' ? 'file' : 'camera';
         stopCamera();
-        emitCameraState(false);
-        setLive((prev) =>
-          prev ? { ...prev, cameraActive: false, cameraMode: undefined } : prev
-        );
+        cameraPausedByHiddenRef.current = true;
       }
+    },
+    onPageVisible: () => {
+      if (!isHostRef.current || !cameraPausedByHiddenRef.current) return;
+      cameraPausedByHiddenRef.current = false;
+      if (cameraModeBeforeHiddenRef.current === 'file') return;
+      void (async () => {
+        const ok = await startCamera();
+        if (ok) {
+          emitCameraState(true, 'camera');
+          setLive((prev) =>
+            prev ? { ...prev, cameraActive: true, cameraMode: 'camera' } : prev
+          );
+        }
+      })();
     },
   });
 
@@ -787,6 +811,16 @@ export function LivePage({
     live.cameraMode === 'file'
       ? LIVE_CAMERA_VIEWER_FILE_NOTE
       : viewerRelayError ?? LIVE_CAMERA_VIEWER_NOTE;
+  const viewerRelayStatusLabel =
+    viewerRelayPhase === 'connected'
+      ? 'Vidéo connectée'
+      : viewerRelayPhase === 'failed'
+        ? 'Flux indisponible'
+        : viewerRelayPhase === 'connecting'
+          ? 'Connexion WebRTC…'
+          : viewerRelayPhase === 'waiting'
+            ? 'En attente du host…'
+            : null;
   const viewerStageHint = isHost
     ? 'Activez la caméra ou choisissez une vidéo'
     : showViewerNoCamera
@@ -957,6 +991,7 @@ export function LivePage({
         onOpenDonation={!isHost && hostCanReceiveDonations ? openDonSheet : undefined}
       >
       <RoomTheaterLayout
+        chatDock="bottom"
         chatHidden={chatHidden}
         onToggleChat={toggleChatHidden}
         chatTitle="Chat public"
@@ -965,7 +1000,7 @@ export function LivePage({
         stage={
           <div
             ref={videoContainerRef}
-            className={`live-video-container relative w-full h-full min-h-0 flex flex-col bg-black overflow-hidden${
+            className={`live-video-container relative w-full flex-1 min-h-0 flex flex-col bg-black overflow-hidden${
               isLandscapeTheater ? ' live-video-container--landscape-theater' : ''
             }`}
           >
@@ -1067,6 +1102,21 @@ export function LivePage({
 
             {!isHost && hostCanReceiveDonations && (
               <LiveGiftOverlay liveId={liveId} visible onOpenGiftSheet={openDonSheet} />
+            )}
+
+            {!isHost && viewerCameraRelayActive && viewerRelayStatusLabel && (
+              <div
+                className={`absolute top-2 right-2 z-30 pointer-events-none px-2 py-1 rounded-md text-[10px] font-bold backdrop-blur border ${
+                  viewerRelayPhase === 'failed'
+                    ? 'bg-red-950/80 border-red-500/40 text-red-200'
+                    : viewerRelayPhase === 'connected'
+                      ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-200'
+                      : 'bg-black/70 border-white/20 text-gray-200'
+                }`}
+                aria-live="polite"
+              >
+                {viewerRelayStatusLabel}
+              </div>
             )}
 
             {(FULLSCREEN_SUPPORTED || isLandscapeTheater) && (

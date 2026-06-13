@@ -937,6 +937,26 @@ nav.ms-tab-bar-bottom > div {
   min-height: 0;
 }
 
+/* Live — panneau chat ancré en bas (chatDock=bottom) */
+/* Live — scène vidéo prioritaire (majorité de l'écran) */
+.room-theater-video-stage {
+  flex: 1 1 auto;
+  min-height: min(52dvh, 52vh);
+}
+
+.room-theater-bottom-chat-dock {
+  flex: 0 1 auto;
+  max-height: 38dvh;
+  min-height: 0;
+  flex-shrink: 0;
+}
+
+.room-theater-bottom-chat-dock .live-chat-messages {
+  max-height: none;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 /* Live — saisie collée au bas (au-dessus de la barre d’onglets) */
 .live-chat-panel {
   margin-bottom: 0;

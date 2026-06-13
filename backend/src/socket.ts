@@ -271,10 +271,13 @@ export function setupSockets(io: Server): void {
       const alreadyIn = socket.rooms.has(roomName);
       socket.join(roomName);
       const live = db.lives.get(liveId);
-      if (live && !alreadyIn) {
-        live.viewersCount += 1;
-        db.lives.set(liveId, live);
-        io.to(roomName).emit('live_updated', serializePublicLive(live));
+      if (live) {
+        socket.emit('live_updated', serializePublicLive(live, undefined, userId));
+        if (!alreadyIn) {
+          live.viewersCount += 1;
+          db.lives.set(liveId, live);
+          io.to(roomName).emit('live_updated', serializePublicLive(live));
+        }
         if (
           userId &&
           userId !== live.hostId &&
