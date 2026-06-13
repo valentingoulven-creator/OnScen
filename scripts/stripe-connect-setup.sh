@@ -1,111 +1,148 @@
 #!/bin/bash
+# Stripe Connect setup for a specific MeloSong host (production VPS).
+# Usage: ./stripe-connect-setup.sh [user_id] [connect_account_id]
 set -euo pipefail
 set -a
 source /opt/soundly/.env
 set +a
 
-echo "=== Users (Val / admin) ==="
+TARGET_USER_ID="${1:-user_1781025111633_ipv5l}"
+REQUESTED_ACCT="${2:-${STRIPE_CONNECT_ACCOUNT_ID:-}}"
+DEFAULT_ACCT="acct_1ThwQ2FsKQ6HX3Pk"
+APP_BASE="${WEB_APP_URL:-https://getsoundy.com}"
+APP_BASE="${APP_BASE%/}"
+
+if [ -z "${STRIPE_SECRET_KEY:-}" ]; then
+  echo "ERROR: STRIPE_SECRET_KEY missing in /opt/soundly/.env"
+  exit 1
+fi
+
+stripe_get() {
+  curl -sS "https://api.stripe.com/v1/accounts/${1}" -u "${STRIPE_SECRET_KEY}:"
+}
+
+stripe_post() {
+  curl -sS -X POST "$1" -u "${STRIPE_SECRET_KEY}:" "${@:2}"
+}
+
+echo "=== Target user ==="
 psql "$DATABASE_URL" -t -A -F'|' -c "
 SELECT id, username, email,
        payload->>'role' AS role,
+       payload->>'age' AS age,
        payload->>'stripeConnectAccountId' AS connect
 FROM users
-WHERE username ILIKE '%val%'
-   OR payload->>'role' = 'admin'
-ORDER BY username
-LIMIT 10;
-"
+WHERE id = '${TARGET_USER_ID}';
+" || { echo "ERROR: user ${TARGET_USER_ID} not found"; exit 1; }
 
-echo "=== Create Express Connect account ==="
-ACCT_JSON=$(curl -sS -X POST https://api.stripe.com/v1/accounts \
-  -u "${STRIPE_SECRET_KEY}:" \
-  -d type=express \
-  -d country=FR \
-  -d email=val-test-host@getsoundy.com \
-  -d "capabilities[card_payments][requested]=true" \
-  -d "capabilities[transfers][requested]=true" \
-  -d "metadata[melosongUser]=test-host-val")
-
-ACCT_ID=$(echo "$ACCT_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('id',''))")
-ERR=$(echo "$ACCT_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('error',{}).get('message',''))")
-
-if [ -z "$ACCT_ID" ]; then
-  echo "CREATE_FAILED: $ERR"
-  echo "$ACCT_JSON"
-  exit 1
-fi
-echo "CREATED: $ACCT_ID"
-
-echo "=== Complete test onboarding (Stripe test helpers) ==="
-UPD=$(curl -sS -X POST "https://api.stripe.com/v1/accounts/${ACCT_ID}" \
-  -u "${STRIPE_SECRET_KEY}:" \
-  -d business_type=individual \
-  -d "individual[first_name]=Val" \
-  -d "individual[last_name]=TestHost" \
-  -d "individual[email]=val-test-host@getsoundy.com" \
-  -d "individual[dob][day]=1" \
-  -d "individual[dob][month]=1" \
-  -d "individual[dob][year]=1990" \
-  -d "individual[address][line1]=1 rue Test" \
-  -d "individual[address][city]=Paris" \
-  -d "individual[address][postal_code]=75001" \
-  -d "individual[address][country]=FR" \
-  -d "tos_acceptance[date]=$(date +%s)" \
-  -d "tos_acceptance[ip]=127.0.0.1" \
-  -d "external_account[object]=bank_account" \
-  -d "external_account[country]=FR" \
-  -d "external_account[currency]=eur" \
-  -d "external_account[account_number]=FR1420041010050500013M02606")
-
-CHARGES=$(echo "$UPD" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('charges_enabled', d.get('error',{}).get('message','?')))")
-PAYOUTS=$(echo "$UPD" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('payouts_enabled','?'))")
-echo "charges_enabled=$CHARGES payouts_enabled=$PAYOUTS"
-
-echo "=== Set stripeConnectAccountId on first Val/admin without connect ==="
-TARGET=$(psql "$DATABASE_URL" -t -A -c "
-SELECT id FROM users
-WHERE (username ILIKE '%val%' OR payload->>'role' = 'admin')
-  AND COALESCE(payload->>'stripeConnectAccountId','') = ''
-ORDER BY CASE WHEN username ILIKE '%val%' THEN 0 ELSE 1 END, username
-LIMIT 1;
+EXISTING_CONNECT=$(psql "$DATABASE_URL" -t -A -c "
+SELECT COALESCE(payload->>'stripeConnectAccountId','')
+FROM users WHERE id = '${TARGET_USER_ID}';
 " | tr -d '[:space:]')
 
-if [ -z "$TARGET" ]; then
-  TARGET=$(psql "$DATABASE_URL" -t -A -c "
-SELECT id FROM users
-WHERE username ILIKE '%val%' OR payload->>'role' = 'admin'
-ORDER BY CASE WHEN username ILIKE '%val%' THEN 0 ELSE 1 END, username
-LIMIT 1;
-" | tr -d '[:space:]')
+ACCT_ID=""
+if [ -n "$REQUESTED_ACCT" ]; then
+  ACCT_ID="$REQUESTED_ACCT"
+  echo "Using requested Connect account: $ACCT_ID"
+elif [ -n "$EXISTING_CONNECT" ]; then
+  ACCT_ID="$EXISTING_CONNECT"
+  echo "Using existing Connect account on user: $ACCT_ID"
+else
+  # Prefer known account before creating a new one
+  CHECK=$(stripe_get "$DEFAULT_ACCT")
+  DEFAULT_OK=$(echo "$CHECK" | python3 -c "import sys,json; d=json.load(sys.stdin); print('yes' if d.get('id') else 'no')")
+  if [ "$DEFAULT_OK" = "yes" ]; then
+    ACCT_ID="$DEFAULT_ACCT"
+    echo "Using default Connect account: $ACCT_ID"
+  else
+    echo "=== Create Express Connect account ==="
+    ACCT_JSON=$(stripe_post https://api.stripe.com/v1/accounts \
+      -d type=express \
+      -d country=FR \
+      -d email=valentin.goulven@gmail.com \
+      -d "capabilities[card_payments][requested]=true" \
+      -d "capabilities[transfers][requested]=true" \
+      -d "metadata[melosongUserId]=${TARGET_USER_ID}")
+    ACCT_ID=$(echo "$ACCT_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('id',''))")
+    ERR=$(echo "$ACCT_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('error',{}).get('message',''))")
+    if [ -z "$ACCT_ID" ]; then
+      echo "CREATE_FAILED: $ERR"
+      echo "$ACCT_JSON"
+      exit 1
+    fi
+    echo "CREATED: $ACCT_ID"
+  fi
 fi
 
-if [ -z "$TARGET" ]; then
-  echo "NO_TARGET_USER"
-  exit 1
+echo "=== Stripe account status ==="
+ACCT_JSON=$(stripe_get "$ACCT_ID")
+python3 - <<'PY' "$ACCT_JSON"
+import json, sys
+d = json.loads(sys.argv[1])
+if d.get("error"):
+    print(f"STRIPE_ERROR: {d['error'].get('message')}")
+    sys.exit(1)
+print(f"id={d.get('id')} type={d.get('type')} charges_enabled={d.get('charges_enabled')} payouts_enabled={d.get('payouts_enabled')}")
+req = d.get("requirements") or {}
+print(f"currently_due={req.get('currently_due')}")
+print(f"disabled_reason={req.get('disabled_reason')}")
+PY
+
+CHARGES=$(echo "$ACCT_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('charges_enabled', False))")
+
+ONBOARDING_URL=""
+if [ "$CHARGES" != "True" ]; then
+  echo "=== Express onboarding required (charges_enabled=false) ==="
+  LINK_JSON=$(stripe_post https://api.stripe.com/v1/account_links \
+    -d "account=${ACCT_ID}" \
+    -d "refresh_url=${APP_BASE}/profile?stripeConnect=refresh" \
+    -d "return_url=${APP_BASE}/profile?stripeConnect=return" \
+    -d type=account_onboarding)
+  ONBOARDING_URL=$(echo "$LINK_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('url',''))")
+  LINK_ERR=$(echo "$LINK_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('error',{}).get('message',''))")
+  if [ -z "$ONBOARDING_URL" ]; then
+    echo "ACCOUNT_LINK_FAILED: $LINK_ERR"
+    echo "$LINK_JSON"
+  else
+    echo ""
+    echo ">>> ONBOARDING URL (open in browser as Val) <<<"
+    echo "$ONBOARDING_URL"
+    echo ""
+  fi
 fi
 
-echo "TARGET_USER: $TARGET"
+echo "=== Stop backend before direct DB patch (avoid persist overwrite on reload) ==="
+pm2 stop melosong-backend >/dev/null 2>&1 || true
+sleep 2
+
+echo "=== Persist stripeConnectAccountId on target user (full payload merge) ==="
 psql "$DATABASE_URL" -c "
 UPDATE users
-SET payload = jsonb_set(payload, '{stripeConnectAccountId}', to_jsonb('${ACCT_ID}'::text), true)
-WHERE id = '${TARGET}';
+SET payload = COALESCE(payload, '{}'::jsonb) || jsonb_build_object('stripeConnectAccountId', '${ACCT_ID}')
+WHERE id = '${TARGET_USER_ID}';
 "
 
-echo "=== Verify user connect id ==="
+echo "=== Verify DB payload ==="
 psql "$DATABASE_URL" -t -A -F'|' -c "
 SELECT id, username, payload->>'stripeConnectAccountId'
-FROM users WHERE id = '${TARGET}';
+FROM users WHERE id = '${TARGET_USER_ID}';
 "
 
-echo "=== Reload backend to pick up DB changes ==="
-pm2 reload melosong-backend --update-env >/dev/null 2>&1 || true
-sleep 4
+echo "=== Start backend (fresh PostgreSQL load) ==="
+pm2 start melosong-backend --update-env >/dev/null 2>&1 || pm2 restart melosong-backend --update-env >/dev/null 2>&1 || true
+sleep 5
 
-echo "=== Active live for host (if any) ==="
+echo "=== Active lives for host (payload.title, not column) ==="
 psql "$DATABASE_URL" -t -A -F'|' -c "
-SELECT id, title, host_id FROM lives
-WHERE is_active = true AND host_id = '${TARGET}'
-LIMIT 3;
+SELECT id, host_id, is_active, payload->>'title' AS title
+FROM lives
+WHERE host_id = '${TARGET_USER_ID}' AND is_active = true
+LIMIT 5;
 "
 
-echo "DONE acct=$ACCT_ID user=$TARGET"
+echo "=== Summary ==="
+echo "user=${TARGET_USER_ID} acct=${ACCT_ID} charges_enabled=${CHARGES}"
+if [ -n "$ONBOARDING_URL" ]; then
+  echo "ACTION_REQUIRED: Complete Express onboarding at URL above, then re-run stripe-donation-verify.sh"
+fi
+echo "DONE"

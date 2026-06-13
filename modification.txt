@@ -8768,3 +8768,40 @@ les relances utilisateur et le statut résolu.
 ================================================================================
 Fin MODIF 472 - 2026-06-13
 ================================================================================
+
+================================================================================
+MODIF 473 — Stripe Connect : scripts setup/check/verify production
+================================================================================
+Date : 2026-06-13
+
+## Objectif
+Configurer Stripe Connect pour les pourboires live en production : cibler explicitement
+Val (`user_1781025111633_ipv5l`), persister `stripeConnectAccountId` dans le payload
+PostgreSQL, générer un Account Link Express si `charges_enabled=false`, corriger les
+requêtes SQL `lives` (titre dans `payload`, pas de colonne `title`).
+
+## Scripts corrigés
+- `scripts/stripe-connect-setup.sh` — user_id explicite, réutilise `acct_1ThwQ2FsKQ6HX3Pk`
+  ou compte existant, merge JSONB payload, Account Link onboarding si requis,
+  **pm2 stop → patch SQL → pm2 start** (évite écrasement persist au reload)
+- `scripts/stripe-connect-check.sh` — affiche env donations + statut Stripe account
+- `scripts/stripe-donation-verify.sh` — live test via payload, cleanup `live_stripe_test_*`,
+  même pattern stop/start pour inserts SQL users/lives
+
+## Prérequis VPS `/opt/soundly/.env`
+- `DONATIONS_ENABLED=1`
+- `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`
+
+## Usage VPS
+```bash
+bash /opt/soundly/scripts/stripe-connect-setup.sh user_1781025111633_ipv5l
+bash /opt/soundly/scripts/stripe-connect-check.sh
+CLEANUP=1 bash /opt/soundly/scripts/stripe-donation-verify.sh
+```
+
+## Déploiement
+**Oui** — copier les 3 scripts sur le VPS (`/opt/soundly/scripts/`), pas de rebuild app.
+
+================================================================================
+Fin MODIF 473 - 2026-06-13
+================================================================================
