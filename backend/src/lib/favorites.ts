@@ -1,5 +1,6 @@
 import { db, Live, Salon, User, UserFavorite } from '../models/schema';
 import { pushNotification } from './notifications';
+import { trackEvent } from './analytics';
 
 function fanMap(fanId: string): Map<string, UserFavorite> {
   let map = db.userFavorites.get(fanId);
@@ -27,6 +28,7 @@ export function addFavorite(fanId: string, hostId: string): UserFavorite {
     createdAt: Date.now(),
   };
   fanMap(fanId).set(hostId, entry);
+  trackEvent('favorite_added', fanId);
   return entry;
 }
 

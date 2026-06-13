@@ -13,6 +13,7 @@ import {
   type UserFavorite,
   type UserMute,
   type HostRating,
+  type Live,
 } from '../models/schema';
 import { isValidLatLng } from './mapCoords';
 import { refreshUserPublicCoords } from './locationPrivacy';
@@ -24,6 +25,7 @@ import {
   type AccessInviteCode,
   type AccessPolicy,
 } from './accessControl';
+import { restoreAnalyticsBuckets, snapshotAnalyticsBuckets } from './analytics';
 
 type MapOfSets = Record<string, string[]>;
 
@@ -55,6 +57,9 @@ export interface PersistedStore {
   feedPostFavorites?: MapOfSets;
   stories?: Story[];
   hostRatings?: HostRating[];
+  analyticsBuckets?: Record<string, number>;
+  /** Lives terminés (archivés sur le profil). */
+  archivedLives?: Live[];
 }
 
 function setsToRecord(map: Map<string, Set<string>>): MapOfSets {
@@ -131,6 +136,8 @@ export function snapshotStore(): PersistedStore {
     feedPostFavorites: setsToRecord(db.feedPostFavorites),
     stories: [...db.stories],
     hostRatings: [...db.hostRatings],
+    analyticsBuckets: snapshotAnalyticsBuckets(),
+    archivedLives: [...db.lives.values()].filter((l) => !l.isActive),
   };
 }
 
@@ -221,6 +228,14 @@ export function restoreStore(data: PersistedStore): void {
 
   db.hostRatings.length = 0;
   db.hostRatings.push(...(data.hostRatings ?? []));
+
+  restoreAnalyticsBuckets(data.analyticsBuckets);
+
+  for (const live of data.archivedLives ?? []) {
+    if (!db.lives.has(live.id)) {
+      db.lives.set(live.id, live);
+    }
+  }
 }
 
 export function isValidPersistedStore(raw: unknown): raw is PersistedStore {

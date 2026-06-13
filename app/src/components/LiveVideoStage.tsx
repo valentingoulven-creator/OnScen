@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
+  LIVE_CAMERA_HOST_CLOUDFLARE_OBS_REQUIRED,
   LIVE_CAMERA_VIEWER_AUDIO_BLOCKED,
+  LIVE_CAMERA_VIEWER_CLOUDFLARE_WAITING_OBS,
   LIVE_CAMERA_VIEWER_FILE_NOTE,
   LIVE_CAMERA_VIEWER_NO_HOST_CAMERA,
   LIVE_CAMERA_VIEWER_NOTE,
   LIVE_CAMERA_VIEWER_VIDEO_PENDING,
 } from '../lib/liveCameraMessages';
 import type { ViewerRelayPhase } from '../hooks/useLiveVideoRelay';
+import type { HlsPlaybackPhase } from '../hooks/useCloudflareHlsPlayback';
+import { LiveStreamEndedOverlay } from './LiveStreamEndedOverlay';
 
-export type LiveVideoStageState = 'loading' | 'live' | 'no-camera' | 'error';
+export type LiveVideoStageState = 'loading' | 'live' | 'no-camera' | 'error' | 'ended';
 
 function getFullscreenElement(): Element | null {
   return (
@@ -83,8 +87,11 @@ function LiveVideoShrinkIcon() {
 
 function resolveStageState(opts: {
   isHost: boolean;
+  streamMode?: 'webrtc' | 'cloudflare';
   hostStreamActive: boolean;
   viewerStreamActive: boolean;
+  hlsStreamActive?: boolean;
+  hlsPhase?: HlsPlaybackPhase;
   liveCameraActive: boolean;
   liveCameraMode?: 'camera' | 'file';
   viewerRelayPhase: ViewerRelayPhase;
@@ -92,8 +99,11 @@ function resolveStageState(opts: {
 }): LiveVideoStageState {
   const {
     isHost,
+    streamMode = 'webrtc',
     hostStreamActive,
     viewerStreamActive,
+    hlsStreamActive = false,
+    hlsPhase = 'idle',
     liveCameraActive,
     liveCameraMode,
     viewerRelayPhase,
@@ -101,7 +111,17 @@ function resolveStageState(opts: {
   } = opts;
 
   if (isHost) {
+    if (streamMode === 'cloudflare') {
+      return hostStreamActive ? 'live' : 'no-camera';
+    }
     return hostStreamActive ? 'live' : 'no-camera';
+  }
+
+  if (streamMode === 'cloudflare') {
+    if (hlsPhase === 'error') return 'error';
+    if (hlsStreamActive) return 'live';
+    if (hlsPhase === 'loading' || hlsPhase === 'waiting' || hlsPhase === 'idle') return 'loading';
+    return 'loading';
   }
 
   if (viewerRelayPhase === 'failed') return 'error';
@@ -117,16 +137,44 @@ function statusLabel(
   state: LiveVideoStageState,
   opts: {
     isHost: boolean;
+    streamMode?: 'webrtc' | 'cloudflare';
     viewerRelayPhase: ViewerRelayPhase;
     viewerRelayError: string | null;
+    hlsPhase?: HlsPlaybackPhase;
+    hlsError?: string | null;
     liveCameraMode?: 'camera' | 'file';
     viewerHasVideoTrack?: boolean;
   }
 ): string {
-  const { isHost, viewerRelayPhase, viewerRelayError, liveCameraMode, viewerHasVideoTrack } = opts;
+  const {
+    isHost,
+    streamMode = 'webrtc',
+    viewerRelayPhase,
+    viewerRelayError,
+    hlsError,
+    liveCameraMode,
+    viewerHasVideoTrack,
+  } = opts;
 
   if (isHost) {
+    if (streamMode === 'cloudflare') {
+      return state === 'live'
+        ? 'Aperçu local — diffusez via OBS pour les spectateurs'
+        : LIVE_CAMERA_HOST_CLOUDFLARE_OBS_REQUIRED;
+    }
     return state === 'live' ? 'Caméra active' : 'Activez la caméra ou choisissez une vidéo';
+  }
+
+  if (streamMode === 'cloudflare') {
+    switch (state) {
+      case 'live':
+        return 'Vidéo en direct (CDN)';
+      case 'error':
+        return hlsError ?? 'Flux CDN indisponible';
+      case 'loading':
+      default:
+        return LIVE_CAMERA_VIEWER_CLOUDFLARE_WAITING_OBS;
+    }
   }
 
   switch (state) {
@@ -149,6 +197,7 @@ function statusLabel(
 
 export type LiveVideoStageProps = {
   isHost: boolean;
+  streamMode?: 'webrtc' | 'cloudflare';
   hostVideoRef: (el: HTMLVideoElement | null) => void;
   viewerVideoRef: (el: HTMLVideoElement | null) => void;
   hostStreamActive: boolean;
@@ -162,8 +211,13 @@ export type LiveVideoStageProps = {
   viewerAudioBlocked: boolean;
   viewerHasVideoTrack?: boolean;
   viewerDebugInfo?: string;
+  hlsStreamActive?: boolean;
+  hlsPhase?: HlsPlaybackPhase;
+  hlsError?: string | null;
+  hlsPlaybackBlocked?: boolean;
   enableViewerPlayback: () => Promise<boolean>;
   onRetryViewerRelay?: () => void;
+  onRetryHlsPlayback?: () => void;
   hostPreviewBlocked?: boolean;
   enableHostPreview?: () => Promise<boolean>;
   playbackTitle: string;
@@ -175,10 +229,14 @@ export type LiveVideoStageProps = {
   onFullscreenError?: (message: string) => void;
   overlay?: ReactNode;
   enabled?: boolean;
+  streamEnded?: boolean;
+  streamEndedTitle?: string;
+  streamEndedHint?: string;
 };
 
 export function LiveVideoStage({
   isHost,
+  streamMode = 'webrtc',
   hostVideoRef,
   viewerVideoRef,
   hostStreamActive,
@@ -191,8 +249,13 @@ export function LiveVideoStage({
   viewerAudioBlocked,
   viewerHasVideoTrack = true,
   viewerDebugInfo = '',
+  hlsStreamActive = false,
+  hlsPhase = 'idle',
+  hlsError = null,
+  hlsPlaybackBlocked = false,
   enableViewerPlayback,
   onRetryViewerRelay,
+  onRetryHlsPlayback,
   hostPreviewBlocked = false,
   enableHostPreview,
   playbackTitle,
@@ -203,6 +266,9 @@ export function LiveVideoStage({
   onFullscreenError,
   overlay,
   enabled = true,
+  streamEnded = false,
+  streamEndedTitle = 'Stream terminé',
+  streamEndedHint,
 }: LiveVideoStageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isVideoFullscreen, setIsVideoFullscreen] = useState(false);
@@ -213,20 +279,28 @@ export function LiveVideoStage({
 
   const isVideoExpanded = isVideoFullscreen || isLandscapeTheater;
 
-  const stageState = resolveStageState({
-    isHost,
-    hostStreamActive,
-    viewerStreamActive,
-    liveCameraActive,
-    liveCameraMode,
-    viewerRelayPhase,
-    viewerHasVideoTrack,
-  });
+  const stageState: LiveVideoStageState = streamEnded
+    ? 'ended'
+    : resolveStageState({
+        isHost,
+        streamMode,
+        hostStreamActive,
+        viewerStreamActive,
+        hlsStreamActive,
+        hlsPhase,
+        liveCameraActive,
+        liveCameraMode,
+        viewerRelayPhase,
+        viewerHasVideoTrack,
+      });
 
   const showVideo = stageState === 'live';
+  const isCloudflareViewer = !isHost && streamMode === 'cloudflare';
   const playbackUnlockNeeded = isHost
     ? hostPreviewBlocked
-    : viewerPlaybackBlocked || viewerAudioBlocked;
+    : isCloudflareViewer
+      ? hlsPlaybackBlocked
+      : viewerPlaybackBlocked || viewerAudioBlocked;
   const showPlayOverlay = showVideo && playbackUnlockNeeded;
   const unlockPlayback = isHost ? enableHostPreview ?? enableViewerPlayback : enableViewerPlayback;
 
@@ -244,13 +318,27 @@ export function LiveVideoStage({
   })();
 
   const playOverlayLabel = isHost || viewerPlaybackBlocked ? 'Lancer la vidéo' : 'Activer le son';
-  const status = statusLabel(stageState, {
+  const status = streamEnded
+    ? streamEndedTitle
+    : statusLabel(stageState, {
     isHost,
+    streamMode,
     viewerRelayPhase,
     viewerRelayError,
+    hlsPhase,
+    hlsError,
     liveCameraMode,
     viewerHasVideoTrack,
   });
+
+  useEffect(() => {
+    if (!streamEnded) return;
+    const video = containerRef.current?.querySelector('video');
+    if (video) {
+      video.pause();
+      video.srcObject = null;
+    }
+  }, [streamEnded]);
 
   useEffect(() => {
     const next = isVideoExpanded;
@@ -414,12 +502,12 @@ export function LiveVideoStage({
   return (
     <div
       ref={containerRef}
-      className={`live-video-container relative w-full flex-1 min-h-0 flex flex-col bg-black overflow-hidden${
+      className={`live-video-container relative w-full h-full min-h-0 flex flex-col bg-black overflow-hidden${
         isLandscapeTheater ? ' live-video-container--landscape-theater' : ''
       }`}
     >
       {/* Video layer — single element, always mounted when role known */}
-      <div className="relative flex-1 min-h-0 w-full bg-black">
+      <div className="live-video-stage-area">
         <video
           ref={videoRef}
           autoPlay
@@ -433,8 +521,8 @@ export function LiveVideoStage({
         />
 
         {/* Placeholder — album art only when no live video */}
-        {!showVideo && (
-          <div className="absolute inset-0 z-0 flex flex-col items-center justify-center gap-3 px-6 text-center bg-black">
+        {!showVideo && !streamEnded && (
+          <div className="live-video-stage-overlay z-0 bg-black">
             {albumArtUrl ? (
               <img
                 src={albumArtUrl}
@@ -455,7 +543,15 @@ export function LiveVideoStage({
             )}
             {stageState === 'error' && (
               <div className="mt-2 flex flex-col items-center gap-2">
-                {onRetryViewerRelay ? (
+                {onRetryHlsPlayback ? (
+                  <button
+                    type="button"
+                    onClick={() => onRetryHlsPlayback()}
+                    className="px-4 py-2 rounded-full text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white"
+                  >
+                    Réessayer
+                  </button>
+                ) : onRetryViewerRelay ? (
                   <button
                     type="button"
                     onClick={() => onRetryViewerRelay()}
@@ -476,8 +572,12 @@ export function LiveVideoStage({
           </div>
         )}
 
+        {streamEnded ? (
+          <LiveStreamEndedOverlay title={streamEndedTitle} hint={streamEndedHint} />
+        ) : null}
+
         {/* Autoplay blocked — big obvious button covering video */}
-        {showPlayOverlay && (
+        {showPlayOverlay && !streamEnded && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60">
             <button
               type="button"

@@ -352,6 +352,11 @@ export interface Live {
   vipModeratorIds?: string[];
   /** L'hôte du live peut recevoir des dons (18+). */
   hostMonetizationEligible?: boolean;
+  /** Mode diffusion : webrtc (mesh), livekit (navigateur) ou cloudflare (HLS/CDN). */
+  streamMode?: 'webrtc' | 'cloudflare' | 'livekit';
+  /** URL manifest HLS Cloudflare (spectateurs). */
+  cloudflarePlaybackUrl?: string;
+  cloudflareLiveInputId?: string;
 }
 
 export interface ChatMessage {

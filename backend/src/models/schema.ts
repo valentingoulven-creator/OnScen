@@ -105,6 +105,8 @@ export interface User {
   instagramHandle?: string;
   youtubeChannel?: string;
   spotifyUrl?: string;
+  /** Compte Stripe Connect (acct_…) pour recevoir les pourboires live en production. */
+  stripeConnectAccountId?: string;
 }
 
 export interface PlaybackState {
@@ -204,6 +206,8 @@ export interface Live {
   viewersCount: number;
   isActive: boolean;
   startedAt: number;
+  /** Horodatage de fin (live archivé). */
+  endedAt?: number;
   /** Host a activé la caméra ou un fichier vidéo local. */
   cameraActive?: boolean;
   /** Type de flux visuel hôte : caméra (relayée WebRTC) ou fichier local (aperçu hôte uniquement). */
@@ -213,6 +217,14 @@ export interface Live {
   /** Masqué par modération admin (carte et listes publiques). */
   adminBlocked?: boolean;
   adminBlockedAt?: number;
+  /** Mode de diffusion vidéo : mesh WebRTC, LiveKit Cloud ou Cloudflare Stream (HLS/CDN). */
+  streamMode?: 'webrtc' | 'cloudflare' | 'livekit';
+  /** UID Cloudflare Live Input (ingest + playback). */
+  cloudflareLiveInputId?: string;
+  /** URL manifest HLS pour les spectateurs. */
+  cloudflarePlaybackUrl?: string;
+  /** Sous-domaine customer-xxx.cloudflarestream.com (dérivé ou env). */
+  cloudflareCustomerSubdomain?: string;
 }
 
 export type LiveBanScope = 'chat' | 'live';
@@ -300,7 +312,9 @@ export interface DonationPayment {
   paymentIntentId: string;
   liveId: string;
   senderId: string;
+  hostId?: string;
   amountCents: number;
+  platformFeeCents?: number;
   status: 'pending' | 'succeeded' | 'failed';
   createdAt: number;
 }
@@ -438,6 +452,9 @@ export interface UserReel {
   createdAt: number;
   /** private = profil uniquement ; absent = public (rétrocompat) */
   visibility?: ReelVisibility;
+  /** Masqué par modération admin (flux et profils publics). */
+  adminBlocked?: boolean;
+  adminBlockedAt?: number;
 }
 
 /** Publication fil d'actualité (texte + image ou vidéo optionnelle). */

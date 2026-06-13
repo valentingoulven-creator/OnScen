@@ -96,7 +96,7 @@ export function RoomTheaterLayout({
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
       <div className="flex-1 min-w-0 flex flex-col min-h-0">
-        <div className="room-theater-video-stage relative flex-1 min-h-0 overflow-hidden bg-black">
+        <div className="room-theater-video-stage relative flex flex-col flex-1 min-h-0 overflow-hidden bg-black">
           {stage}
 
           {!chatHidden && chatDock === 'floating' && (

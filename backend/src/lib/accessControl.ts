@@ -262,6 +262,48 @@ export function setUserAccountStatus(userId: string, status: AccountStatus): Use
   return user;
 }
 
+function wouldRetainAdminWithoutFlag(user: User): boolean {
+  if (adminUsernames.has(user.username.trim().toLowerCase())) return true;
+  return adminEmails.has(user.email.trim().toLowerCase());
+}
+
+function countEffectiveAdmins(excludeUserId?: string, excludeFlag = false): number {
+  return [...db.users.values()].filter((u) => {
+    if (u.email.endsWith('@bot.local')) return false;
+    if (excludeUserId && u.id === excludeUserId && excludeFlag) {
+      return wouldRetainAdminWithoutFlag(u);
+    }
+    return isAccessAdmin(u);
+  }).length;
+}
+
+/** Promouvoir ou rétrograder un compte (flag `isAdmin` persisté). */
+export function setUserIsAdmin(
+  userId: string,
+  isAdmin: boolean
+): User | { error: string; status: number } {
+  const user = db.users.get(userId);
+  if (!user || user.email.endsWith('@bot.local')) {
+    return { error: 'Utilisateur introuvable', status: 404 };
+  }
+  if (!isAdmin) {
+    if (!user.isAdmin) {
+      return { error: 'Ce compte n’est pas administrateur', status: 400 };
+    }
+    if (countEffectiveAdmins(userId, true) < 1) {
+      return { error: 'Impossible de retirer le dernier administrateur', status: 400 };
+    }
+    user.isAdmin = false;
+  } else {
+    user.isAdmin = true;
+    if (getAccountStatus(user) !== 'active') {
+      user.accountStatus = 'active';
+    }
+  }
+  db.users.set(userId, user);
+  return user;
+}
+
 export function ensureAccessAdmins(): number {
   let changed = 0;
   for (const user of db.users.values()) {

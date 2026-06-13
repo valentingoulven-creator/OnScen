@@ -1,7 +1,16 @@
-import { db, type FeedPost, type Live, type Salon, type User } from '../models/schema';
+import { db, type FeedPost, type Live, type Salon, type User, type UserReel } from '../models/schema';
 import { getAccountStatus, isDevUser } from './accessControl';
 import { getIo } from './ioInstance';
 import { clearSalonPlaybackData } from './salonPlaybackOps';
+import { endLiveSession } from './liveArchive';
+import { schedulePersist } from './persist';
+import {
+  isAdminBlockedReel,
+  isPrivateReel,
+  purgeReelById,
+  reelStats,
+  reelVisibility,
+} from './reels';
 
 export interface AdminCreatorInfo {
   id: string;
@@ -152,10 +161,9 @@ export function adminBlockSalon(salonId: string): Salon | null {
 
   const live = db.lives.get(salonId);
   if (live?.isActive) {
-    live.isActive = false;
     live.adminBlocked = true;
     live.adminBlockedAt = Date.now();
-    db.lives.set(salonId, live);
+    endLiveSession(live);
     getIo()?.to(`live_${salonId}`).emit('live_ended', { liveId: salonId, reason: 'admin_blocked' });
   }
 
@@ -205,10 +213,12 @@ export function adminBlockLive(liveId: string): Live | null {
   live.adminBlocked = true;
   live.adminBlockedAt = Date.now();
   if (live.isActive) {
-    live.isActive = false;
+    endLiveSession(live);
     getIo()?.to(`live_${liveId}`).emit('live_ended', { liveId, reason: 'admin_blocked' });
+  } else {
+    db.lives.set(liveId, live);
+    schedulePersist();
   }
-  db.lives.set(liveId, live);
 
   if (live.salonId) {
     const salon = db.salons.get(live.salonId);
@@ -278,4 +288,57 @@ export function adminDeleteEvent(postId: string): boolean {
   }
   db.notifications = db.notifications.filter((n) => n.postId !== postId);
   return true;
+}
+
+export function mapAdminReelRow(r: UserReel) {
+  const creator = mapAdminCreator(r.authorId);
+  const stats = reelStats(r.id);
+  const legacyMediaUrl = (r as UserReel & { mediaUrl?: string }).mediaUrl;
+  const posterUrl =
+    r.posterUrl ||
+    (r.mediaType === 'image' ? legacyMediaUrl : undefined) ||
+    r.videoUrl ||
+    '';
+  const caption = [r.title, r.artist].filter(Boolean).join(' — ') || r.title;
+  return {
+    id: r.id,
+    title: r.title,
+    artist: r.artist,
+    genre: r.genre,
+    caption,
+    posterUrl,
+    videoUrl: r.videoUrl,
+    mediaType: r.mediaType,
+    visibility: reelVisibility(r),
+    isPrivate: isPrivateReel(r),
+    createdAt: r.createdAt,
+    authorId: r.authorId,
+    creator,
+    adminBlocked: isAdminBlockedReel(r),
+    adminBlockedAt: r.adminBlockedAt,
+    viewCount: stats.viewCount,
+    heartCount: stats.heartCount,
+    commentCount: stats.commentCount,
+    shareCount: stats.shareCount,
+  };
+}
+
+export function adminBlockReel(reelId: string): UserReel | null {
+  const reel = db.userReels.find((r) => r.id === reelId);
+  if (!reel) return null;
+  reel.adminBlocked = true;
+  reel.adminBlockedAt = Date.now();
+  return reel;
+}
+
+export function adminUnblockReel(reelId: string): UserReel | null {
+  const reel = db.userReels.find((r) => r.id === reelId);
+  if (!reel) return null;
+  reel.adminBlocked = false;
+  reel.adminBlockedAt = undefined;
+  return reel;
+}
+
+export function adminDeleteReel(reelId: string): boolean {
+  return purgeReelById(reelId);
 }

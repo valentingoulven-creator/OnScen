@@ -34,6 +34,8 @@ export interface AccessManagedUser {
   email: string;
   accountStatus: AccountStatus;
   isAdmin: boolean;
+  /** Droit admin persisté (`user.isAdmin`), distinct des comptes dev par pseudo/e-mail. */
+  adminFlag?: boolean;
   memberSince?: number;
   lastSeenAt: number;
   profileType?: ProfileType;
@@ -152,6 +154,28 @@ export interface AdminEventRow {
   hasVideo: boolean;
 }
 
+export interface AdminReelRow {
+  id: string;
+  title: string;
+  artist: string;
+  genre: string;
+  caption: string;
+  posterUrl: string;
+  videoUrl?: string;
+  mediaType: 'video' | 'image';
+  visibility: 'public' | 'private';
+  isPrivate: boolean;
+  createdAt: number;
+  authorId: string;
+  creator: AdminCreatorInfo | null;
+  adminBlocked: boolean;
+  adminBlockedAt?: number;
+  viewCount: number;
+  heartCount: number;
+  commentCount: number;
+  shareCount: number;
+}
+
 export interface AdminContentListResponse {
   total: number;
   limit: number;
@@ -161,6 +185,42 @@ export interface AdminContentListResponse {
   salons?: AdminSalonRow[];
   lives?: AdminLiveRow[];
   events?: AdminEventRow[];
+  reels?: AdminReelRow[];
+}
+
+export interface CloudflareUsageReport {
+  configured: boolean;
+  fetchedAt: string;
+  periodStart: string;
+  periodEnd: string;
+  minutesDelivered: number;
+  minutesDeliveredSource: 'graphql' | 'unavailable';
+  storageMinutes: number;
+  storageMinutesSource: 'videos_api' | 'unavailable';
+  liveInputsTotal: number;
+  liveInputsActive: number;
+  estimatedCostUsd: { delivery: number; storage: number; total: number };
+  estimatedCostEur: { delivery: number; storage: number; total: number };
+  usdToEurRate: number;
+  warnings: string[];
+}
+
+export interface DonationsSummaryPeriod {
+  totalDonationsCents: number;
+  platformFeesCents: number;
+  creatorPayoutsCents: number;
+  count: number;
+  simulationCount: number;
+  stripeCount: number;
+}
+
+export interface DonationsSummaryReport {
+  fetchedAt: string;
+  platformFeePercent: number;
+  paymentTermsDocKey: string;
+  simulationMode: boolean;
+  allTime: DonationsSummaryPeriod;
+  thisMonth: DonationsSummaryPeriod;
 }
 
 export type ListeningRole = 'auditeur' | 'host' | 'les_deux';
@@ -552,6 +612,11 @@ export interface Live {
   countryCode?: string;
   /** Libellé pays en français. */
   countryName?: string;
+  /** Mode diffusion : webrtc (mesh), livekit (navigateur) ou cloudflare (HLS/CDN). */
+  streamMode?: 'webrtc' | 'cloudflare' | 'livekit';
+  /** URL manifest HLS Cloudflare (spectateurs). */
+  cloudflarePlaybackUrl?: string;
+  cloudflareLiveInputId?: string;
 }
 
 export interface ChatMessage {

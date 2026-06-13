@@ -2,8 +2,11 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   assertCreatorCanReceiveDonation,
   assertDonAmount,
+  computeDonationFeeBreakdown,
+  computeDonationPlatformFeeCents,
   DON_AMOUNT_MAX,
   DON_AMOUNT_MIN,
+  getDonationPlatformFeePercent,
   getUserDailyDonationTotal,
   isDonationSimulationMode,
   isDonationsEnabled,
@@ -118,6 +121,22 @@ describe('donations validation', () => {
         paymentMode: 'simulation',
       })
     ).toThrow(/monétisation disponible à partir de 18 ans/i);
+  });
+
+  it('calcule la commission plateforme 30 % sur un pourboire de 10 €', () => {
+    const breakdown = computeDonationFeeBreakdown(10, 30);
+    expect(breakdown.platformFeeEur).toBe(3);
+    expect(breakdown.creatorNetEstimateEur).toBe(7);
+  });
+
+  it('calcule application_fee_amount en centimes', () => {
+    expect(computeDonationPlatformFeeCents(1000, 30)).toBe(300);
+    expect(computeDonationPlatformFeeCents(2500, 30)).toBe(750);
+  });
+
+  it('utilise DONATION_PLATFORM_FEE_PERCENT depuis l’environnement', () => {
+    process.env.DONATION_PLATFORM_FEE_PERCENT = '25';
+    expect(getDonationPlatformFeePercent()).toBe(25);
   });
 
   it('calcule le total journalier simulation', () => {

@@ -1,5 +1,12 @@
 export const DONATION_MIN_AGE = 18;
 
+export interface DonationLegalConfig {
+  platformFeePercent: number;
+  stripeTermsUrl: string;
+  paymentTermsDocKey: string;
+  i18nKeys: Record<string, string>;
+}
+
 export interface DonationsConfig {
   enabled: boolean;
   simulation: boolean;
@@ -10,7 +17,16 @@ export interface DonationsConfig {
   maxAmount: number;
   currency: string;
   minAge: number;
+  platformFeePercent: number;
+  legal?: DonationLegalConfig;
   dailyCapRemaining: number | null;
+}
+
+export interface DonationFeeBreakdown {
+  amountEur: number;
+  platformFeePercent: number;
+  platformFeeEur: number;
+  creatorNetEstimateEur: number;
 }
 
 export function userCanDonateByAge(age: number | undefined, ageConfirmed: boolean): boolean {
@@ -18,7 +34,25 @@ export function userCanDonateByAge(age: number | undefined, ageConfirmed: boolea
   return ageConfirmed;
 }
 
-export const DONATION_LEGAL_NOTICE =
-  'Les montants versés sont des pourboires volontaires au créateur du live (hôte), et non des dons associatifs ouvrant droit à reçu fiscal. Paiement sécurisé par Stripe (DSP2 / authentification forte). Aucune donnée de carte n’est stockée sur nos serveurs.';
+export function computeDonationFeeBreakdown(
+  amountEur: number,
+  platformFeePercent: number
+): DonationFeeBreakdown {
+  const amount = Math.max(0, Math.round(amountEur * 100) / 100);
+  const platformFeeEur = Math.round(amount * platformFeePercent) / 100;
+  const creatorNetEstimateEur = Math.round((amount - platformFeeEur) * 100) / 100;
+  return {
+    amountEur: amount,
+    platformFeePercent,
+    platformFeeEur,
+    creatorNetEstimateEur,
+  };
+}
 
 export const DONATION_STRIPE_TERMS_URL = 'https://stripe.com/fr/legal/consumer';
+
+export const DONATION_PAYMENT_TERMS_DOC_KEY = 'creatorMonetization';
+
+/** @deprecated Préférer i18n `donation.legal.*` */
+export const DONATION_LEGAL_NOTICE =
+  'Les montants versés sont des pourboires volontaires au créateur du live (hôte), et non des dons associatifs ouvrant droit à reçu fiscal. Paiement sécurisé par Stripe (DSP2 / authentification forte). Aucune donnée de carte n’est stockée sur nos serveurs.';

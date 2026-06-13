@@ -77,9 +77,9 @@ function BarChart({
             <div
               className="w-full rounded-t-sm transition-all"
               style={{
-                height: `${Math.max(pct, 2)}%`,
+                height: v === 0 ? '0%' : `${Math.max(pct, 2)}%`,
                 backgroundColor: color,
-                opacity: v === 0 ? 0.2 : 0.85,
+                opacity: v === 0 ? 0 : 0.85,
               }}
             />
             <span className="text-[8px] text-gray-600 truncate w-full text-center">{labels[i]}</span>
@@ -96,12 +96,14 @@ function ChartCard({
   values,
   color,
   periodTotal,
+  emptyLabel,
 }: {
   title: string;
   labels: string[];
   values: number[];
   color?: string;
   periodTotal: string;
+  emptyLabel: string;
 }) {
   const total = values.reduce((a, b) => a + b, 0);
   return (
@@ -112,7 +114,11 @@ function ChartCard({
           {total} {periodTotal}
         </span>
       </div>
-      <BarChart labels={labels} values={values} color={color} height={72} />
+      {values.some((v) => v > 0) ? (
+        <BarChart labels={labels} values={values} color={color} height={72} />
+      ) : (
+        <p className="text-xs text-gray-600 py-6 text-center">{emptyLabel}</p>
+      )}
     </div>
   );
 }
@@ -288,6 +294,7 @@ export function AnalyticsPage({ onBack, embedded = false }: { onBack?: () => voi
                   values={summary.series.logins}
                   color="#9b7bd4"
                   periodTotal={periodTotal}
+                  emptyLabel={t('admin.analytics.noActivity')}
                 />
                 <ChartCard
                   title={t('admin.analytics.chartMessages')}
@@ -295,6 +302,7 @@ export function AnalyticsPage({ onBack, embedded = false }: { onBack?: () => voi
                   values={summary.series.messagesSent}
                   color="#f59e0b"
                   periodTotal={periodTotal}
+                  emptyLabel={t('admin.analytics.noActivity')}
                 />
                 <ChartCard
                   title={t('admin.analytics.chartMatches')}
@@ -302,6 +310,7 @@ export function AnalyticsPage({ onBack, embedded = false }: { onBack?: () => voi
                   values={summary.series.matchesCreated}
                   color="#ec4899"
                   periodTotal={periodTotal}
+                  emptyLabel={t('admin.analytics.noActivity')}
                 />
                 <ChartCard
                   title={t('admin.analytics.chartSalons')}
@@ -309,6 +318,7 @@ export function AnalyticsPage({ onBack, embedded = false }: { onBack?: () => voi
                   values={summary.series.salonsCreated}
                   color="#6366f1"
                   periodTotal={periodTotal}
+                  emptyLabel={t('admin.analytics.noActivity')}
                 />
                 <ChartCard
                   title={t('admin.analytics.chartLives')}
@@ -316,6 +326,7 @@ export function AnalyticsPage({ onBack, embedded = false }: { onBack?: () => voi
                   values={summary.series.livesStarted}
                   color="#ef4444"
                   periodTotal={periodTotal}
+                  emptyLabel={t('admin.analytics.noActivity')}
                 />
                 <ChartCard
                   title={t('admin.analytics.chartReels')}
@@ -323,6 +334,7 @@ export function AnalyticsPage({ onBack, embedded = false }: { onBack?: () => voi
                   values={summary.series.reelsViewed}
                   color="#22c55e"
                   periodTotal={periodTotal}
+                  emptyLabel={t('admin.analytics.noActivity')}
                 />
                 <ChartCard
                   title={t('admin.analytics.chartFavorites')}
@@ -330,6 +342,7 @@ export function AnalyticsPage({ onBack, embedded = false }: { onBack?: () => voi
                   values={summary.series.favoritesAdded}
                   color="#f97316"
                   periodTotal={periodTotal}
+                  emptyLabel={t('admin.analytics.noActivity')}
                 />
               </div>
             </section>

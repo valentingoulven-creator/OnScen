@@ -42,6 +42,11 @@ import { getUpcomingUserEvents, isUpcomingEvent } from '../lib/feedEvents';
 import { EventLocationInput } from '../components/EventLocationInput';
 import { getFeedAlgorithmPreferences } from '../lib/reelFeedAlgorithm';
 import { getFeaturedHeadlineForCountry } from '../lib/featuredHeadlines';
+import {
+  formatEventDateInputValue,
+  isEventDateInFuture,
+  parseEventDateInputValue,
+} from '../lib/eventDateInput';
 
 interface ActualiteTabPageProps {
   onOpenProfile: (userId: string) => void;
@@ -917,6 +922,7 @@ export function ActualiteTabPage({
   const [isEvent, setIsEvent] = useState(false);
   const [eventDate, setEventDate] = useState('');
   const [eventDateDraft, setEventDateDraft] = useState('');
+  const [eventDateError, setEventDateError] = useState<string | null>(null);
   const eventDateInputRef = useRef<HTMLInputElement>(null);
   const [eventLocation, setEventLocation] = useState('');
   const [eventType, setEventType] = useState<'dance' | 'chant' | 'autre'>('autre');
@@ -1394,8 +1400,9 @@ export function ActualiteTabPage({
     openFeedImageEditor(file);
   };
 
+  const parsedEventDateDraft = parseEventDateInputValue(eventDateDraft, i18n.language);
   const isEventDateConfirmed =
-    Boolean(eventDate.trim()) && eventDate === eventDateDraft;
+    Boolean(eventDate.trim()) && parsedEventDateDraft === eventDate;
   const showEventDateValidate = Boolean(eventDateDraft.trim()) && !isEventDateConfirmed;
   const eventFieldsValid =
     !isEvent || (isEventDateConfirmed && Boolean(eventLocation.trim()));
@@ -1403,7 +1410,18 @@ export function ActualiteTabPage({
   const confirmEventDate = () => {
     const value = eventDateDraft.trim();
     if (!value) return;
-    setEventDate(value);
+    const parsed = parseEventDateInputValue(value, i18n.language);
+    if (!parsed) {
+      setEventDateError(t('feed.eventDateInvalid'));
+      return;
+    }
+    if (!isEventDateInFuture(parsed)) {
+      setEventDateError(t('feed.eventDatePast'));
+      return;
+    }
+    setEventDateError(null);
+    setEventDate(parsed);
+    setEventDateDraft(formatEventDateInputValue(parsed, i18n.language));
     eventDateInputRef.current?.blur();
   };
   const canPublish = Boolean(draft.trim() || imageUrl.trim() || videoUrl.trim()) && eventFieldsValid;
@@ -1438,6 +1456,7 @@ export function ActualiteTabPage({
       setIsEvent(false);
       setEventDate('');
       setEventDateDraft('');
+      setEventDateError(null);
       setEventLocation('');
       setEventType('autre');
     } catch (e) {
@@ -1630,6 +1649,7 @@ export function ActualiteTabPage({
                           if (!e.target.checked) {
                             setEventDate('');
                             setEventDateDraft('');
+                            setEventDateError(null);
                             setEventLocation('');
                             setEventType('autre');
                           }
@@ -1686,18 +1706,24 @@ export function ActualiteTabPage({
                             <div className="relative flex-1 min-w-0">
                               <input
                                 ref={eventDateInputRef}
-                                type="datetime-local"
+                                type="text"
+                                inputMode="numeric"
+                                autoComplete="off"
+                                placeholder={t('feed.eventDatePlaceholder')}
+                                aria-label={t('feed.eventDate')}
                                 value={eventDateDraft}
-                                min={new Date().toISOString().slice(0, 16)}
                                 onChange={(e) => {
                                   const value = e.target.value;
                                   setEventDateDraft(value);
+                                  setEventDateError(null);
                                   if (!value.trim()) setEventDate('');
                                 }}
-                                className={`w-full rounded-lg bg-[#0b0b0f] border px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 [color-scheme:dark] ${
-                                  isEventDateConfirmed
-                                    ? 'border-green-500/60 focus:ring-green-500/40 pr-9'
-                                    : 'border-[#2a2a3d] focus:ring-purple-500/50'
+                                className={`w-full rounded-lg bg-[#0b0b0f] border px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 ${
+                                  eventDateError
+                                    ? 'border-red-500/60 focus:ring-red-500/40'
+                                    : isEventDateConfirmed
+                                      ? 'border-green-500/60 focus:ring-green-500/40 pr-9'
+                                      : 'border-[#2a2a3d] focus:ring-purple-500/50'
                                 }`}
                               />
                               {isEventDateConfirmed && (
@@ -1721,6 +1747,11 @@ export function ActualiteTabPage({
                               </button>
                             )}
                           </div>
+                          {eventDateError && (
+                            <p className="mt-1 text-[10px] text-red-400" role="alert">
+                              {eventDateError}
+                            </p>
+                          )}
                         </div>
                         <div>
                           <label className="block text-[10px] text-gray-400 mb-1">{t('feed.eventLocation')} *</label>

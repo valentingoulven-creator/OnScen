@@ -6,6 +6,7 @@ import {
 } from './reelFeedRanking';
 import { REEL_CATALOG_ENTRIES } from './reelsDemoCatalog';
 import { getFollowingIds } from './follows';
+import { isDevUser } from './accessControl';
 import {
   MAX_RECORDED_REEL_VIDEO_DATA_CHARS,
   REEL_UPLOAD_MAX_FILE_BYTES,
@@ -169,6 +170,17 @@ export function isPrivateReel(r: UserReel): boolean {
   return reelVisibility(r) === 'private';
 }
 
+export function isAdminBlockedReel(r: UserReel): boolean {
+  return r.adminBlocked === true;
+}
+
+function reelVisibleToViewer(reel: UserReel, viewerId?: string): boolean {
+  if (!isAdminBlockedReel(reel)) return true;
+  if (viewerId != null && viewerId === reel.authorId) return true;
+  if (!viewerId) return false;
+  return isDevUser(db.users.get(viewerId));
+}
+
 function enrichReelWithAuthor<T extends { authorId?: string }>(
   reel: T
 ): T & {
@@ -232,7 +244,7 @@ export function listReelsByAuthor(
 ): ReturnType<typeof publicUserReel>[] {
   const isOwner = viewerId != null && viewerId === authorId;
   return sortAuthorReels(db.userReels.filter((r) => r.authorId === authorId))
-    .filter((r) => isOwner || !isPrivateReel(r))
+    .filter((r) => (isOwner || !isPrivateReel(r)) && reelVisibleToViewer(r, viewerId))
     .map(publicUserReel);
 }
 
@@ -261,6 +273,7 @@ export function getAccessibleUserReel(
   if (owned) {
     const isOwner = viewerId != null && viewerId === owned.authorId;
     if (!isOwner && isPrivateReel(owned)) return null;
+    if (!reelVisibleToViewer(owned, viewerId)) return null;
     return publicUserReel(owned);
   }
   const demo = DEMO_REELS.find((d) => d.id === reelId);
@@ -292,7 +305,7 @@ export function buildReelsFeed(
   algoPrefs?: ReelFeedAlgorithmPreferences | null
 ): PublicReel[] {
   const userReels = db.userReels
-    .filter((r) => !isPrivateReel(r))
+    .filter((r) => !isPrivateReel(r) && reelVisibleToViewer(r, viewerId))
     .slice()
     .map(publicUserReel)
     .map(canonicalPublicReel)
@@ -514,8 +527,8 @@ export function publishUserReel(reelId: string, userId: string): UserReel | { er
   return reel;
 }
 
-export function deleteUserReel(reelId: string, userId: string): boolean {
-  const index = db.userReels.findIndex((r) => r.id === reelId && r.authorId === userId);
+export function purgeReelById(reelId: string): boolean {
+  const index = db.userReels.findIndex((r) => r.id === reelId);
   if (index < 0) return false;
   db.userReels.splice(index, 1);
   db.reelLikes.delete(reelId);
@@ -523,6 +536,12 @@ export function deleteUserReel(reelId: string, userId: string): boolean {
   db.reelShares.delete(reelId);
   db.reelViews.delete(reelId);
   return true;
+}
+
+export function deleteUserReel(reelId: string, userId: string): boolean {
+  const index = db.userReels.findIndex((r) => r.id === reelId && r.authorId === userId);
+  if (index < 0) return false;
+  return purgeReelById(reelId);
 }
 
 export function getReelLikes(reelId: string): Set<string> {

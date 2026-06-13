@@ -13,6 +13,7 @@ import { seedMsdevData } from './seed-msdev';
 import { seedProductionAdmin } from './seed-production';
 import { seedBotsAtStartup } from './seed-bots';
 import { seedOccitanieSpotifyAtStartup } from './seed-occitanie-spotify';
+import { seedWorldRandomAtStartup } from './seed-world-random';
 import { seedHomeFeed } from './seed-home-feed';
 import {
   loadPersistedStore,
@@ -249,6 +250,7 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
 
   seedBotsAtStartup();
   seedOccitanieSpotifyAtStartup();
+  seedWorldRandomAtStartup();
   if (APP_ENV === 'msdev') {
     seedHomeFeed({ forceRepair: process.env.MSDEV_FORCE_SEED === '1' });
   }

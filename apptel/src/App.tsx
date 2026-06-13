@@ -480,6 +480,7 @@ export default function App() {
             <ProfilePage
               onBack={() => setProfileOpen(false)}
               onOpenReel={openReelInTab}
+              onOpenLive={openLive}
               openRecorderOnMount={profileOpenRecorder}
               onRecorderMountHandled={() => setProfileOpenRecorder(false)}
             />

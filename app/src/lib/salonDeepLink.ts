@@ -3,6 +3,11 @@ export const SALON_JOIN_QUERY = 'join';
 
 const PENDING_KEY = 'melosong_pending_salon_join';
 
+/** Same format as POST /salons (backend). Use before creation for shareable invite links. */
+export function generateSalonId(): string {
+  return `salon_${Date.now()}`;
+}
+
 export function getSalonPath(salonId: string): string {
   return `/salon/${encodeURIComponent(salonId)}`;
 }

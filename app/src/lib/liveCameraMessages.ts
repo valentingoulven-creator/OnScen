@@ -75,3 +75,50 @@ export const LIVE_CAMERA_VIEWER_VIDEO_PENDING =
 
 /** Hôte : changement de micro en cours. */
 export const LIVE_CAMERA_MIC_SWITCHING = 'Changement de micro…';
+
+/** Spectateur (Cloudflare CDN) : en attente du flux RTMP/OBS de l'hôte. */
+export const LIVE_CAMERA_VIEWER_CLOUDFLARE_WAITING_OBS =
+  'En attente de la vidéo de l’hôte — il doit diffuser via OBS pour que vous voyiez l’image.';
+
+/** Hôte (Cloudflare CDN) : rappel OBS avant diffusion locale. */
+export const LIVE_CAMERA_HOST_CLOUDFLARE_OBS_REQUIRED =
+  'Connectez OBS pour que les spectateurs voient la vidéo (l’aperçu caméra ici est local uniquement).';
+
+/** Hôte (LiveKit) : invite à activer la caméra navigateur. */
+export const LIVE_CAMERA_HOST_LIVEKIT_START =
+  'Appuyez sur « Activer la caméra » pour diffuser en direct (navigateur).';
+
+/** Spectateur (LiveKit) : connexion à la salle. */
+export const LIVE_CAMERA_VIEWER_LIVEKIT_CONNECTING = 'Connexion au live LiveKit…';
+
+/** Spectateur (LiveKit) : en attente du flux caméra hôte. */
+export const LIVE_CAMERA_VIEWER_LIVEKIT_WAITING =
+  'Le host diffuse en caméra. Connexion au flux LiveKit en cours…';
+
+/** Spectateur (LiveKit) : le host n’a pas activé sa caméra. */
+export const LIVE_CAMERA_VIEWER_LIVEKIT_NO_HOST_CAMERA =
+  'Le host n’a pas encore activé sa caméra pour ce live.';
+
+/** LiveKit : erreur générique. */
+export const LIVE_CAMERA_VIEWER_LIVEKIT_ERROR =
+  'Flux LiveKit indisponible. Vérifiez votre connexion ou réessayez.';
+
+export type LiveStreamEndedReason =
+  | 'host_stopped'
+  | 'duration_limit'
+  | 'admin_blocked'
+  | 'admin_deleted'
+  | string;
+
+/** i18n key for stream-ended hint by socket `live_ended` reason. */
+export function liveStreamEndedHintKey(reason: LiveStreamEndedReason): string {
+  switch (reason) {
+    case 'duration_limit':
+      return 'live.streamEndedDuration';
+    case 'admin_blocked':
+    case 'admin_deleted':
+      return 'live.streamEndedAdmin';
+    default:
+      return 'live.streamEndedHost';
+  }
+}

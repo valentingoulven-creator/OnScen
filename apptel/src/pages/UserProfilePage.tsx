@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { UserProfileView } from '../components/UserProfileView';
 import { UserReelsSection } from '../components/UserReelsSection';
+import { UserLivesSection } from '../components/UserLivesSection';
 import { ReportContentButton } from '../components/ReportContentModal';
 import { getProfileShareUrl } from '../lib/shareLink';
 import type { NearbyPerson } from '../types';
@@ -30,9 +32,11 @@ export function UserProfilePage({
   mapOverlay = false,
 }: UserProfilePageProps) {
   const { user: me } = useAuth();
+  const { t } = useTranslation();
   const isSelf = me?.id === userId;
-  const [profileTab, setProfileTab] = useState<'profil' | 'reels'>('profil');
-  const reelsTabLabel = isSelf ? 'Mes reels' : 'Reels';
+  const [profileTab, setProfileTab] = useState<'profil' | 'reels' | 'lives'>('profil');
+  const reelsTabLabel = isSelf ? t('profile.tabReels') : t('profile.tabReelsOther');
+  const livesTabLabel = isSelf ? t('profile.tabLives') : t('profile.tabLivesOther');
   const displayName = preview?.username ?? 'Profil';
   const [shareCopied, setShareCopied] = useState(false);
   const [salonFromApi, setSalonFromApi] = useState<{ salonId: string; salonTitle?: string } | null>(
@@ -110,19 +114,20 @@ export function UserProfilePage({
         </div>
       </header>
 
-      {onOpenReel && (
+      {(onOpenReel || onOpenLive) && (
         <div className="shrink-0 px-3 sm:px-4 py-2 border-b border-[#1e1e2f] bg-[#0b0b0f]">
           <div className="flex gap-1 p-1 max-w-lg mx-auto bg-[#12121a] border border-[#1e1e2f] rounded-xl">
             {(
               [
-                ['profil', 'Profil'],
-                ['reels', reelsTabLabel],
+                ['profil', t('profile.tabProfil')],
+                ...(onOpenReel ? ([['reels', reelsTabLabel]] as const) : []),
+                ...(onOpenLive ? ([['lives', livesTabLabel]] as const) : []),
               ] as const
             ).map(([id, label]) => (
               <button
                 key={id}
                 type="button"
-                onClick={() => setProfileTab(id)}
+                onClick={() => setProfileTab(id as 'profil' | 'reels' | 'lives')}
                 className={`flex-1 py-2 rounded-lg text-sm font-bold transition ${
                   profileTab === id
                     ? 'bg-purple-600 text-white shadow-md'
@@ -144,7 +149,7 @@ export function UserProfilePage({
             onOpenLive={onOpenLive}
             onSalonInfo={setSalonFromApi}
           />
-        ) : (
+        ) : profileTab === 'reels' ? (
           onOpenReel && (
             <UserReelsSection
               userId={userId}
@@ -156,6 +161,13 @@ export function UserProfilePage({
               onRecordReel={isSelf ? onRecordReel : undefined}
             />
           )
+        ) : (
+          <UserLivesSection
+            userId={userId}
+            isOwner={isSelf}
+            hideSectionTitle
+            onOpenLive={onOpenLive}
+          />
         )}
       </main>
 

@@ -305,6 +305,20 @@ export const api = {
       token
     ),
 
+  promoteAccessUser: (token: string, userId: string) =>
+    request<{ user: import('../types').AccessManagedUser }>(
+      `/access/admin/users/${userId}/promote`,
+      { method: 'POST' },
+      token
+    ),
+
+  demoteAccessUser: (token: string, userId: string) =>
+    request<{ user: import('../types').AccessManagedUser }>(
+      `/access/admin/users/${userId}/demote`,
+      { method: 'POST' },
+      token
+    ),
+
   createAccessInvite: (
     token: string,
     body: { code?: string; label?: string; maxUses?: number }
@@ -423,6 +437,39 @@ export const api = {
 
   adminDeleteEvent: (token: string, eventId: string) =>
     request<{ ok: boolean }>(`/access/admin/content/events/${eventId}`, { method: 'DELETE' }, token),
+
+  getAdminReels: (
+    token: string,
+    opts: { filter?: import('../types').AdminContentFilter; q?: string; limit?: number; offset?: number } = {}
+  ) => {
+    const params = new URLSearchParams();
+    params.set('filter', opts.filter ?? 'all');
+    if (opts.q) params.set('q', opts.q);
+    if (opts.limit != null) params.set('limit', String(opts.limit));
+    if (opts.offset != null) params.set('offset', String(opts.offset));
+    return request<import('../types').AdminContentListResponse>(
+      `/access/admin/content/reels?${params.toString()}`,
+      {},
+      token
+    );
+  },
+
+  adminBlockReel: (token: string, reelId: string) =>
+    request<{ reel: import('../types').AdminReelRow }>(
+      `/access/admin/content/reels/${reelId}/block`,
+      { method: 'POST' },
+      token
+    ),
+
+  adminUnblockReel: (token: string, reelId: string) =>
+    request<{ reel: import('../types').AdminReelRow }>(
+      `/access/admin/content/reels/${reelId}/unblock`,
+      { method: 'POST' },
+      token
+    ),
+
+  adminDeleteReel: (token: string, reelId: string) =>
+    request<{ ok: boolean }>(`/access/admin/content/reels/${reelId}`, { method: 'DELETE' }, token),
 
   getLegalPublisher: () =>
     request<{
@@ -833,6 +880,38 @@ export const api = {
     ),
 
   stopLive: (token: string) => request<{ ok: boolean }>('/lives/stop', { method: 'POST' }, token),
+
+  getLivePlayback: (token: string, liveId: string) =>
+    request<{
+      streamMode: 'cloudflare';
+      playbackUrl: string;
+      liveInputId?: string;
+    }>(`/lives/${liveId}/playback`, {}, token),
+
+  provisionCloudflareStream: (token: string, liveId: string) =>
+    request<{ live: import('../types').Live }>(
+      `/lives/${liveId}/cloudflare-stream`,
+      { method: 'POST' },
+      token
+    ),
+
+  getCloudflareIngest: (token: string, liveId: string) =>
+    request<{
+      rtmpsUrl: string;
+      streamKey: string;
+      playbackUrl: string;
+      whipUrl?: string;
+      liveInputId: string;
+    }>(`/lives/${liveId}/cloudflare-ingest`, {}, token),
+
+  getLiveKitToken: (token: string, liveId: string) =>
+    request<{
+      token: string;
+      serverUrl: string;
+      roomName: string;
+      canPublish: boolean;
+      streamMode: 'livekit';
+    }>(`/lives/${liveId}/livekit-token`, {}, token),
 
   salonChat: (token: string, salonId: string) =>
     request<{ messages: import('../types').ChatMessage[] }>(`/chat/salon/${salonId}`, {}, token),
@@ -1262,6 +1341,13 @@ export const api = {
   getUserReels: (token: string, userId: string) =>
     request<{ reels: import('../content/reels').MusicReel[] }>(`/reels/user/${userId}`, {}, token),
 
+  getUserLives: (token: string, userId: string) =>
+    request<{ lives: import('../components/UserLivesSection').ArchivedLive[] }>(
+      `/lives/user/${userId}`,
+      {},
+      token
+    ),
+
   getMyPrivateReels: (token: string) =>
     request<{ reels: import('../content/reels').MusicReel[] }>('/reels/private/me', {}, token),
 
@@ -1510,4 +1596,10 @@ export const api = {
       };
     }>(`/analytics/summary${qs ? `?${qs}` : ''}`, {}, token);
   },
+
+  getCloudflareUsage: (token: string) =>
+    request<import('../types').CloudflareUsageReport>('/admin/cloudflare-usage', {}, token),
+
+  getDonationsSummary: (token: string) =>
+    request<import('../types').DonationsSummaryReport>('/admin/donations-summary', {}, token),
 };

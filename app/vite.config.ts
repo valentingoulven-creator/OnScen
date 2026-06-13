@@ -149,6 +149,7 @@ export default defineConfig(({ mode }) => {
           if (id.includes('heic2any')) return 'vendor-heic2any';
           if (id.includes('react-dom') || id.includes('react/')) return 'vendor-react';
           if (id.includes('socket.io-client')) return 'vendor-socketio';
+          if (id.includes('livekit-client') || id.includes('@livekit/')) return 'vendor-livekit';
           if (id.includes('leaflet') || id.includes('react-leaflet') || id.includes('leaflet.markercluster')) return 'vendor-map';
           // Globe/Three/D3 sont seulement chargés par le lazy GlobeView →
           // ne pas les forcer dans vendor-misc, Rollup les gardera avec le chunk lazy

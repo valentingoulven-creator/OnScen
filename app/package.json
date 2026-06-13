@@ -13,13 +13,16 @@
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
+    "@livekit/components-react": "^2.9.21",
     "@stripe/react-stripe-js": "^3.10.0",
     "@stripe/stripe-js": "^5.10.0",
     "@types/leaflet.markercluster": "^1.5.6",
     "heic2any": "^0.0.4",
+    "hls.js": "^1.6.16",
     "i18next": "^26.3.1",
     "leaflet": "^1.9.4",
     "leaflet.markercluster": "^1.5.3",
+    "livekit-client": "^2.19.2",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-globe.gl": "^2.38.0",

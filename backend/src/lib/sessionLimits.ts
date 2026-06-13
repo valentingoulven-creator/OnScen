@@ -1,6 +1,7 @@
 import { Server } from 'socket.io';
 import { db } from '../models/schema';
 import { clearSalonPlaybackData } from './salonPlaybackOps';
+import { endLiveSession } from './liveArchive';
 
 /** Durée maximale d'une session d'écoute salon : 2 heures. */
 export const SALON_MAX_DURATION_MS = 2 * 60 * 60 * 1000;
@@ -63,8 +64,7 @@ export function checkSessionLimits(io: Server): void {
     const remaining = LIVE_MAX_DURATION_MS - elapsed;
 
     if (remaining <= 0) {
-      live.isActive = false;
-      db.lives.set(liveId, live);
+      endLiveSession(live);
       warnedLives.delete(liveId);
       io.to(`live_${liveId}`).emit('live_ended', {
         liveId,

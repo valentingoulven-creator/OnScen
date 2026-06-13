@@ -8533,3 +8533,133 @@ Complète MODIF 465 (alignement avec spotifySessionCode).
 ================================================================================
 Fin MODIF 467 - 2026-06-11
 ================================================================================
+
+================================================================================
+MODIF 468 — Feed : date événement jj/mm/aaaa (FR) au lieu de datetime-local
+================================================================================
+Date : 2026-06-13
+
+## Objectif
+Remplacer l'input natif `datetime-local` (affichage MM/DD/YYYY selon locale OS)
+par un champ texte avec format explicite selon la langue i18n :
+- FR / européen : jj/mm/aaaa hh:mm (placeholder « jj/mm/aaaa --:-- »)
+- EN : mm/dd/yyyy hh:mm (placeholder « mm/dd/yyyy --:-- »)
+Conversion vers ISO (`YYYY-MM-DDTHH:mm`) à la validation, inchangée côté API.
+
+## Frontend
+- Nouveau `app/src/lib/eventDateInput.ts` : parse/format + validation futur
+  (réutilise `usesEuropeanDateFormat` de profileAge.ts).
+- ActualiteTabPage : `type="text"` + bouton Valider + messages d'erreur
+  (date invalide / date passée).
+
+## i18n
+- feed.eventDatePlaceholder, eventDateInvalid, eventDatePast (fr + en).
+
+## Fichiers
+- app/src/lib/eventDateInput.ts (nouveau)
+- app/src/pages/ActualiteTabPage.tsx
+- app/src/locales/fr.json, en.json
+- modification.txt
+
+## Test
+  cd app; npm run build
+
+## Déploiement
+**Oui** — rebuild app.
+
+================================================================================
+Fin MODIF 468 - 2026-06-13
+================================================================================
+
+================================================================================
+MODIF 470 — Seed monde : 20 salons, 20 lives, 50 événements (villes aléatoires)
+================================================================================
+Date : 2026-06-13
+
+## Objectif
+Peupler la carte et le feed avec du contenu public réparti dans le monde :
+20 salons Spotify/YouTube, 20 lives (12 liés à un salon + 8 autonomes),
+50 publications événement feed avec dates futures.
+
+## Backend
+- `backend/src/seed-world-random.ts` — seed idempotent (préfixes `salon_soundy_world_*`,
+  `live_soundy_world_*`, `feed-world-event-*`, bots `soundy_world_salon_XX`,
+  `soundy_world_live_XX`, `soundy_world_event_XX`).
+- Villes tirées de `POPULATED_CITIES` (Paris, NYC, Tokyo, São Paulo, Sydney, etc.)
+  avec léger jitter GPS ; public, non ghost, coords compatibles carte.
+- `backend/src/scripts/seed-production-world-random.ts` — script production PostgreSQL.
+- `backend/src/lib/pgSalonsLives.ts` — persistance PG des salons/lives world.
+- `backend/src/bootstrap.ts` — `seedWorldRandomAtStartup()` en msdev (idempotent).
+- `backend/package.json` — script `npm run seed:world`.
+
+## Commandes
+- **msdev** : démarrage automatique (`npm run msdev` / bootstrap).
+- **Production** :
+  `cd backend && npm run seed:world`
+  ou sur VPS :
+  `cd /opt/soundly && APP_ENV=production node dist/scripts/seed-production-world-random.js`
+  puis `pm2 restart melosong-backend`.
+
+## Fichiers
+- backend/src/seed-world-random.ts (nouveau)
+- backend/src/scripts/seed-production-world-random.ts (nouveau)
+- backend/src/lib/pgSalonsLives.ts
+- backend/src/bootstrap.ts
+- backend/package.json
+- modification.txt
+
+## Test
+  cd backend; npm run build
+
+## Déploiement
+**Oui** — rebuild backend + exécuter seed:world en prod si souhaité.
+
+================================================================================
+Fin MODIF 470 - 2026-06-13
+================================================================================
+
+================================================================================
+MODIF 469 — Admin : promotion admin + modération reels
+================================================================================
+Date : 2026-06-13
+
+## Contexte
+Administration : accorder/retirer le flag `isAdmin` sur un compte, et modérer
+les reels utilisateur (liste, blocage, suppression) depuis l’onglet Contenu.
+
+## A) Promotion administrateur (onglet Comptes)
+- POST `/api/access/admin/users/:userId/promote` — `isAdmin=true`, compte activé
+- POST `/api/access/admin/users/:userId/demote` — `isAdmin=false`
+- Gate : `isAccessAdmin` ; impossible de retirer le dernier admin effectif
+- Réponse enrichie : `adminFlag` (flag persisté) vs `isAdmin` (`isAccessAdmin`)
+- UI : boutons « Rendre admin » / « Retirer admin » + confirmation
+
+## B) Modération reels (onglet Contenu → Reels)
+- GET `/api/access/admin/content/reels` — liste paginée + filtre + recherche
+- POST `/reels/:id/block`, `/unblock`, DELETE `/reels/:id`
+- Champs `adminBlocked` / `adminBlockedAt` sur `UserReel`
+- Blocage : masqué flux Reels + profils publics (auteur et dev voient encore)
+- Suppression : purge reel + likes, commentaires, partages, vues
+
+## Fichiers
+- backend/src/lib/accessControl.ts — `setUserIsAdmin`
+- backend/src/routes/access.ts — promote/demote, `adminFlag`
+- backend/src/models/schema.ts — `UserReel.adminBlocked`
+- backend/src/lib/reels.ts — visibilité bloquée, `purgeReelById`
+- backend/src/lib/adminContentModeration.ts — `mapAdminReelRow`, block/delete
+- backend/src/routes/adminContent.ts — routes reels
+- app/src/pages/AdminAccountsTab.tsx — promote/demote
+- app/src/pages/AdminContentTab.tsx — sous-section Reels
+- app/src/types.ts, app/src/lib/api.ts
+- app/src/locales/fr.json, en.json
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npm run build
+
+## Déploiement
+**Oui** — redémarrage backend + rebuild app (assets backend/public).
+
+================================================================================
+Fin MODIF 469 - 2026-06-13
+================================================================================

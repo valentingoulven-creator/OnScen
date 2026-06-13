@@ -1,5 +1,11 @@
 import { useState } from 'react';
 import {
+  isSaveSpotifyJamEnabled,
+  persistSavedSpotifyJamUrl,
+  setSaveSpotifyJamEnabled,
+  updateSavedSpotifyJamUrlIfEnabled,
+} from '../lib/spotifyJamPrefs';
+import {
   normalizeSpotifyJamUrl,
   parseSpotifyJamLink,
   SPOTIFY_JAM_AUTO_FETCH_UNAVAILABLE,
@@ -21,8 +27,26 @@ export function SpotifyJamLinkField({
   disabled = false,
 }: SpotifyJamLinkFieldProps) {
   const [pasteError, setPasteError] = useState<string | null>(null);
+  const [saveForNextSalons, setSaveForNextSalons] = useState(() =>
+    variant === 'create' ? isSaveSpotifyJamEnabled() : false
+  );
   const parsed = value.trim() ? parseSpotifyJamLink(value) : null;
   const invalid = value.trim().length > 0 && !parsed;
+
+  const syncSavedJamUrl = (nextValue: string) => {
+    if (variant !== 'create' || !saveForNextSalons) return;
+    updateSavedSpotifyJamUrlIfEnabled(nextValue);
+  };
+
+  const toggleSaveForNextSalons = (checked: boolean) => {
+    setSaveForNextSalons(checked);
+    if (checked) {
+      const normalized = persistSavedSpotifyJamUrl(value);
+      if (normalized && normalized !== value) onChange(normalized);
+    } else {
+      setSaveSpotifyJamEnabled(false);
+    }
+  };
 
   const pasteFromClipboard = async () => {
     setPasteError(null);
@@ -42,6 +66,7 @@ export function SpotifyJamLinkField({
         return;
       }
       onChange(normalized);
+      syncSavedJamUrl(normalized);
     } catch {
       setPasteError('Autorisez l’accès au presse-papiers ou collez manuellement.');
     }
@@ -68,7 +93,12 @@ export function SpotifyJamLinkField({
           }}
           onBlur={() => {
             const normalized = normalizeSpotifyJamUrl(value);
-            if (normalized && normalized !== value) onChange(normalized);
+            if (normalized && normalized !== value) {
+              onChange(normalized);
+              syncSavedJamUrl(normalized);
+            } else {
+              syncSavedJamUrl(value);
+            }
           }}
           disabled={disabled}
           placeholder="https://open.spotify.com/socialsession/…"
@@ -83,6 +113,21 @@ export function SpotifyJamLinkField({
       )}
       {parsed && (
         <p className="text-[11px] text-green-400/90">✓ Lien Jam valide</p>
+      )}
+
+      {variant === 'create' && (
+        <label className="flex items-start gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={saveForNextSalons}
+            onChange={(e) => toggleSaveForNextSalons(e.target.checked)}
+            disabled={disabled}
+            className="mt-0.5 rounded border-[#2d2d3d] bg-[#1a1a26] text-green-500 focus:ring-green-500/40"
+          />
+          <span className="text-xs text-gray-300 leading-snug">
+            Enregistrer ce lien pour mes prochains salons
+          </span>
+        </label>
       )}
 
       <div className="flex flex-wrap gap-2">

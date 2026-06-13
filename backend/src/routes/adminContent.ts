@@ -15,7 +15,11 @@ import {
   adminUnblockSalon,
   mapAdminEventRow,
   mapAdminLiveRow,
+  mapAdminReelRow,
   mapAdminSalonRow,
+  adminBlockReel,
+  adminDeleteReel,
+  adminUnblockReel,
 } from '../lib/adminContentModeration';
 
 export const adminContentRouter = Router();
@@ -249,6 +253,77 @@ adminContentRouter.delete('/events/:id', authenticateJWT, (req: Request, res: Re
   if (!requireAdmin(req, res)) return;
   if (!adminDeleteEvent(req.params.id)) {
     res.status(404).json({ error: 'Événement introuvable' });
+    return;
+  }
+  schedulePersist();
+  res.json({ ok: true });
+});
+
+adminContentRouter.get('/reels', authenticateJWT, (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const filter = parseContentFilter(req.query.filter);
+  const q = String(req.query.q || '').trim();
+  const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '50'), 10) || 50, 1), 200);
+  const offset = Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0);
+
+  let rows = db.userReels.map(mapAdminReelRow);
+  if (filter === 'blocked') rows = rows.filter((r) => r.adminBlocked);
+  if (filter === 'active') rows = rows.filter((r) => !r.adminBlocked);
+  if (q) {
+    rows = rows.filter((r) =>
+      matchesSearch(
+        q,
+        r.title,
+        r.artist,
+        r.genre,
+        r.caption,
+        r.creator?.username,
+        r.creator?.email,
+        r.id
+      )
+    );
+  }
+  rows.sort((a, b) => b.createdAt - a.createdAt);
+
+  const all = db.userReels;
+  const blocked = all.filter((r) => r.adminBlocked).length;
+  const page = paginate(rows, limit, offset);
+  res.json({
+    reels: page.items,
+    total: page.total,
+    limit: page.limit,
+    offset: page.offset,
+    hasMore: page.hasMore,
+    counts: { total: all.length, blocked, active: all.length - blocked },
+  });
+});
+
+adminContentRouter.post('/reels/:id/block', authenticateJWT, (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const reel = adminBlockReel(req.params.id);
+  if (!reel) {
+    res.status(404).json({ error: 'Reel introuvable' });
+    return;
+  }
+  schedulePersist();
+  res.json({ reel: mapAdminReelRow(reel) });
+});
+
+adminContentRouter.post('/reels/:id/unblock', authenticateJWT, (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const reel = adminUnblockReel(req.params.id);
+  if (!reel) {
+    res.status(404).json({ error: 'Reel introuvable' });
+    return;
+  }
+  schedulePersist();
+  res.json({ reel: mapAdminReelRow(reel) });
+});
+
+adminContentRouter.delete('/reels/:id', authenticateJWT, (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  if (!adminDeleteReel(req.params.id)) {
+    res.status(404).json({ error: 'Reel introuvable' });
     return;
   }
   schedulePersist();

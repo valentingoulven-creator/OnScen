@@ -4,6 +4,13 @@ import { getIo } from './ioInstance';
 import { notifyHostLiveDon } from './notifications';
 import { CREATOR_MONETIZATION_MIN_AGE, creatorMeetsMonetizationAge } from './ageGates';
 
+export {
+  computeDonationFeeBreakdown,
+  computeDonationPlatformFeeCents,
+  getDonationLegalConfig,
+  getDonationPlatformFeePercent,
+} from '../config/donationLegal';
+
 export const DON_AMOUNT_MIN = 1;
 export const DON_AMOUNT_MAX = 100;
 export const LIVE_DON_TIERS_MS_DEV = [1, 2, 5] as const;
@@ -52,6 +59,22 @@ export function assertCreatorCanReceiveDonation(hostId: string): void {
   if (!host || !creatorMeetsMonetizationAge(host.age)) {
     throw new Error(
       `Ce live ne peut pas recevoir de dons (monétisation disponible à partir de ${CREATOR_MONETIZATION_MIN_AGE} ans).`
+    );
+  }
+}
+
+export function getCreatorStripeConnectAccountId(hostId: string): string | null {
+  const host = db.users.get(hostId);
+  const id = host?.stripeConnectAccountId?.trim();
+  return id || null;
+}
+
+export function assertCreatorCanReceiveStripeDonation(hostId: string): void {
+  assertCreatorCanReceiveDonation(hostId);
+  if (isDonationSimulationMode()) return;
+  if (!getCreatorStripeConnectAccountId(hostId)) {
+    throw new Error(
+      'Ce créateur n’a pas encore configuré la réception des pourboires (Stripe Connect).'
     );
   }
 }

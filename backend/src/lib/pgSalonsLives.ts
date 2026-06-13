@@ -4,8 +4,19 @@ import { db, type Live, type Salon } from '../models/schema';
 import { ensureSalonQueue, ensureSalonProposals } from './salonPlaybackOps';
 import { OCCITANIE_SALON_ID_PREFIX } from '../seed-occitanie-spotify';
 import { SALON_LIVE_ID_PREFIX } from '../seed-salons-lives';
+import { WORLD_LIVE_ID_PREFIX, WORLD_SALON_ID_PREFIX } from '../seed-world-random';
 
-const PERSISTED_SALON_ID_PREFIXES = [SALON_LIVE_ID_PREFIX, OCCITANIE_SALON_ID_PREFIX];
+const PERSISTED_SALON_ID_PREFIXES = [
+  SALON_LIVE_ID_PREFIX,
+  OCCITANIE_SALON_ID_PREFIX,
+  WORLD_SALON_ID_PREFIX,
+];
+
+const PERSISTED_LIVE_ID_PREFIXES = [SALON_LIVE_ID_PREFIX, WORLD_LIVE_ID_PREFIX];
+
+function isPersistedSeedLiveId(id: string): boolean {
+  return PERSISTED_LIVE_ID_PREFIXES.some((prefix) => id.startsWith(prefix));
+}
 
 function isPersistedSeedSalonId(id: string): boolean {
   return PERSISTED_SALON_ID_PREFIXES.some((prefix) => id.startsWith(prefix));
@@ -98,7 +109,7 @@ export async function saveSalonsLivesToPostgres(): Promise<{ salons: number; liv
       salonsSaved++;
     }
     for (const live of db.lives.values()) {
-      if (!live.id.startsWith(SALON_LIVE_ID_PREFIX)) continue;
+      if (!isPersistedSeedLiveId(live.id)) continue;
       await upsertLive(client, live);
       livesSaved++;
     }

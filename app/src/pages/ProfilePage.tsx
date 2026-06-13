@@ -34,6 +34,7 @@ import { SupportMeloSongTeaser } from '../components/SupportMeloSongSection';
 import { DonationSheet } from '../components/DonationSheet';
 import { ProfileReelRecorder } from '../components/ProfileReelRecorder';
 import { UserReelsSection } from '../components/UserReelsSection';
+import { UserLivesSection } from '../components/UserLivesSection';
 import { PlatformConnectCard } from '../components/PlatformConnectCard';
 import { UsernameColorPicker } from '../components/UsernameColorPicker';
 import {
@@ -82,11 +83,12 @@ function profileToForm(user: User | null) {
   };
 }
 
-type ProfileTab = 'profil' | 'reels';
+type ProfileTab = 'profil' | 'reels' | 'lives';
 
 interface ProfilePageProps {
   onBack?: () => void;
   onOpenReel?: (reelId: string) => void;
+  onOpenLive?: (liveId: string) => void;
   onOpenProfile?: (userId: string) => void;
   onOpenSalon?: (salonId: string, salonTitle?: string) => void;
   /** À l’ouverture : Mes reels + enregistreur (ex. depuis profil carte). */
@@ -97,6 +99,7 @@ interface ProfilePageProps {
 export function ProfilePage({
   onBack,
   onOpenReel,
+  onOpenLive,
   onOpenProfile,
   onOpenSalon,
   openRecorderOnMount = false,
@@ -441,6 +444,17 @@ export function ProfilePage({
               setProfileTab(id);
               if (id !== 'reels') setShowReelRecorder(false);
             }}
+            showReels={!!onOpenReel}
+            showLives
+          />
+        )}
+
+        {profileTab === 'lives' && !editing && user && (
+          <UserLivesSection
+            userId={user.id}
+            isOwner
+            hideSectionTitle
+            onOpenLive={onOpenLive}
           />
         )}
 
@@ -883,14 +897,18 @@ export function ProfilePage({
 function ProfileTabBar({
   active,
   onChange,
+  showReels,
+  showLives,
 }: {
   active: ProfileTab;
   onChange: (tab: ProfileTab) => void;
+  showReels?: boolean;
+  showLives?: boolean;
 }) {
-  const tabs: [ProfileTab, string][] = [
-    ['profil', 'Profil'],
-    ['reels', 'Mes reels'],
-  ];
+  const { t } = useTranslation();
+  const tabs: [ProfileTab, string][] = [['profil', t('profile.tabProfil')]];
+  if (showReels) tabs.push(['reels', t('profile.tabReels')]);
+  if (showLives) tabs.push(['lives', t('profile.tabLives')]);
   return (
     <div className="flex justify-center border-b border-[#1e1e2f]">
       <div className="inline-flex">

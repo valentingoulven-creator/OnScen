@@ -7,10 +7,11 @@ import type {
   AdminContentFilter,
   AdminEventRow,
   AdminLiveRow,
+  AdminReelRow,
   AdminSalonRow,
 } from '../types';
 
-type ContentSection = 'salons' | 'lives' | 'events';
+type ContentSection = 'salons' | 'lives' | 'events' | 'reels';
 
 const PAGE_SIZE = 40;
 const FILTER_OPTIONS: AdminContentFilter[] = ['all', 'active', 'blocked'];
@@ -150,6 +151,7 @@ export function AdminContentTab({ onOpenSalon }: AdminContentTabProps) {
   const [salons, setSalons] = useState<AdminSalonRow[]>([]);
   const [lives, setLives] = useState<AdminLiveRow[]>([]);
   const [events, setEvents] = useState<AdminEventRow[]>([]);
+  const [reels, setReels] = useState<AdminReelRow[]>([]);
   const [counts, setCounts] = useState({ total: 0, blocked: 0, active: 0 });
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -180,9 +182,15 @@ export function AdminContentTab({ onOpenSalon }: AdminContentTabProps) {
           setCounts(res.counts);
           setHasMore(res.hasMore);
           setOffset(nextOffset);
-        } else {
+        } else if (section === 'events') {
           const res = await api.getAdminEvents(token, opts);
           setEvents((prev) => (append ? [...prev, ...(res.events ?? [])] : res.events ?? []));
+          setCounts(res.counts);
+          setHasMore(res.hasMore);
+          setOffset(nextOffset);
+        } else {
+          const res = await api.getAdminReels(token, opts);
+          setReels((prev) => (append ? [...prev, ...(res.reels ?? [])] : res.reels ?? []));
           setCounts(res.counts);
           setHasMore(res.hasMore);
           setOffset(nextOffset);
@@ -220,10 +228,17 @@ export function AdminContentTab({ onOpenSalon }: AdminContentTabProps) {
     { id: 'salons', label: t('admin.content.sectionSalons') },
     { id: 'lives', label: t('admin.content.sectionLives') },
     { id: 'events', label: t('admin.content.sectionEvents') },
+    { id: 'reels', label: t('admin.content.sectionReels') },
   ];
 
   const listCount =
-    section === 'salons' ? salons.length : section === 'lives' ? lives.length : events.length;
+    section === 'salons'
+      ? salons.length
+      : section === 'lives'
+        ? lives.length
+        : section === 'events'
+          ? events.length
+          : reels.length;
 
   return (
     <div className="space-y-4">
@@ -536,6 +551,122 @@ export function AdminContentTab({ onOpenSalon }: AdminContentTabProps) {
                           onDelete={() => {
                             if (!token || !window.confirm(t('admin.content.deleteEventConfirm'))) return;
                             void runAction(ev.id, () => api.adminDeleteEvent(token, ev.id).then(() => undefined));
+                          }}
+                        />
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+
+            {section === 'reels' &&
+              reels.map((reel) => {
+                const expanded = expandedId === reel.id;
+                const busy = busyId === reel.id;
+                const creatorId = reel.creator?.id ?? reel.authorId;
+                return (
+                  <li
+                    key={reel.id}
+                    className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl px-3 py-3 text-sm"
+                  >
+                    <button
+                      type="button"
+                      className="w-full text-left"
+                      onClick={() => setExpandedId(expanded ? null : reel.id)}
+                    >
+                      <div className="flex gap-3">
+                        {reel.posterUrl ? (
+                          <img
+                            src={reel.posterUrl}
+                            alt=""
+                            className="w-14 h-14 rounded-lg object-cover shrink-0 bg-[#1a1a26]"
+                          />
+                        ) : (
+                          <div className="w-14 h-14 rounded-lg shrink-0 bg-[#1a1a26] flex items-center justify-center text-[10px] text-gray-600">
+                            —
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium line-clamp-2">{reel.caption || reel.title}</div>
+                          <div className="text-xs text-gray-500 truncate">
+                            {reel.creator?.username ?? '—'}
+                            {' · '}
+                            {formatDateTime(reel.createdAt, locale)}
+                          </div>
+                          <div className="text-[10px] text-gray-600 mt-0.5">
+                            {t('admin.content.reelViews', { count: reel.viewCount })}
+                            {' · '}
+                            {t('admin.content.reelLikes', { count: reel.heartCount })}
+                            {reel.isPrivate && (
+                              <span className="ml-1 text-amber-400/90">
+                                · {t('admin.content.reelPrivate')}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          {reel.adminBlocked && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-400">
+                              {t('admin.content.statusBlocked')}
+                            </span>
+                          )}
+                          <span className="text-gray-600 text-xs leading-none mt-0.5" aria-hidden>
+                            {expanded ? '▾' : '▸'}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                    {expanded && (
+                      <div className="mt-2 pt-2 border-t border-[#1e1e2f] text-xs text-gray-400 space-y-1.5">
+                        <p>{t('admin.content.reelGenre')}: {reel.genre || '—'}</p>
+                        <p>
+                          {t('admin.content.reelStats')}: {t('admin.content.reelViews', { count: reel.viewCount })}
+                          {' · '}
+                          {t('admin.content.reelLikes', { count: reel.heartCount })}
+                          {' · '}
+                          {t('admin.content.comments')}: {reel.commentCount}
+                        </p>
+                        {reel.posterUrl && (
+                          <a
+                            href={reel.posterUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-purple-400 hover:underline"
+                          >
+                            {t('admin.content.reelThumbnail')}
+                          </a>
+                        )}
+                        <p>{t('admin.content.publishedAt')}: {formatDateTime(reel.createdAt, locale)}</p>
+                        <p className="text-[10px] text-gray-600 font-mono truncate">{reel.id}</p>
+                        {reel.creator && (
+                          <p>
+                            {t('admin.content.creator')}: {reel.creator.username} ({reel.creator.email})
+                          </p>
+                        )}
+                        <ActionButtons
+                          blocked={reel.adminBlocked}
+                          busy={busy}
+                          t={t}
+                          onViewUser={() =>
+                            window.open(getProfilePath(creatorId), '_blank', 'noopener,noreferrer')
+                          }
+                          onBlock={() => {
+                            if (!token || !window.confirm(t('admin.content.blockReelConfirm'))) return;
+                            void runAction(reel.id, () =>
+                              api.adminBlockReel(token, reel.id).then(() => undefined)
+                            );
+                          }}
+                          onUnblock={() => {
+                            if (!token) return;
+                            void runAction(reel.id, () =>
+                              api.adminUnblockReel(token, reel.id).then(() => undefined)
+                            );
+                          }}
+                          onDelete={() => {
+                            if (!token || !window.confirm(t('admin.content.deleteReelConfirm'))) return;
+                            void runAction(reel.id, () =>
+                              api.adminDeleteReel(token, reel.id).then(() => undefined)
+                            );
                           }}
                         />
                       </div>

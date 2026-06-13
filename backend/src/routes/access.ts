@@ -17,6 +17,7 @@ import {
   setAccessPolicy,
   setInviteCodeDisabled,
   setUserAccountStatus,
+  setUserIsAdmin,
   type AccessRegistrationMode,
   type AccountStatus,
 } from '../lib/accessControl';
@@ -78,6 +79,7 @@ function mapAdminManagedUser(u: User) {
     email: u.email,
     accountStatus: getAccountStatus(u),
     isAdmin: isAccessAdmin(u),
+    adminFlag: u.isAdmin === true,
     memberSince: u.memberSince,
     lastSeenAt: u.lastSeenAt,
     profileType: u.profileType,
@@ -227,6 +229,28 @@ accessRouter.post('/admin/users/:userId/unblock', authenticateJWT, (req: Request
   }
   schedulePersist();
   res.json({ user: publicProfile(user, true, user.id) });
+});
+
+accessRouter.post('/admin/users/:userId/promote', authenticateJWT, (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const result = setUserIsAdmin(req.params.userId, true);
+  if ('error' in result) {
+    res.status(result.status).json({ error: result.error });
+    return;
+  }
+  schedulePersist();
+  res.json({ user: mapAdminManagedUser(result) });
+});
+
+accessRouter.post('/admin/users/:userId/demote', authenticateJWT, (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const result = setUserIsAdmin(req.params.userId, false);
+  if ('error' in result) {
+    res.status(result.status).json({ error: result.error });
+    return;
+  }
+  schedulePersist();
+  res.json({ user: mapAdminManagedUser(result) });
 });
 
 accessRouter.post('/admin/invites', authenticateJWT, (req: Request, res: Response) => {

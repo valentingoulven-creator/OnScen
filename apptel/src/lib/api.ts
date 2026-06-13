@@ -438,6 +438,38 @@ export const api = {
 
   stopLive: (token: string) => request<{ ok: boolean }>('/lives/stop', { method: 'POST' }, token),
 
+  getLivePlayback: (token: string, liveId: string) =>
+    request<{
+      streamMode: 'cloudflare';
+      playbackUrl: string;
+      liveInputId?: string;
+    }>(`/lives/${liveId}/playback`, {}, token),
+
+  provisionCloudflareStream: (token: string, liveId: string) =>
+    request<{ live: import('../types').Live }>(
+      `/lives/${liveId}/cloudflare-stream`,
+      { method: 'POST' },
+      token
+    ),
+
+  getCloudflareIngest: (token: string, liveId: string) =>
+    request<{
+      rtmpsUrl: string;
+      streamKey: string;
+      playbackUrl: string;
+      whipUrl?: string;
+      liveInputId: string;
+    }>(`/lives/${liveId}/cloudflare-ingest`, {}, token),
+
+  getLiveKitToken: (token: string, liveId: string) =>
+    request<{
+      token: string;
+      serverUrl: string;
+      roomName: string;
+      canPublish: boolean;
+      streamMode: 'livekit';
+    }>(`/lives/${liveId}/livekit-token`, {}, token),
+
   salonChat: (token: string, salonId: string) =>
     request<{ messages: import('../types').ChatMessage[] }>(`/chat/salon/${salonId}`, {}, token),
 
@@ -610,6 +642,64 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ liveId, amount, ageConfirmed }),
       },
+      token
+    ),
+
+  getSubscriptionsConfig: (token?: string | null) =>
+    request<import('./subscriptions').SubscriptionsConfig>('/subscriptions/config', {}, token),
+
+  getSubscriptionStatus: (
+    token: string,
+    params: { creatorId?: string; targetType?: 'creator' | 'platform' }
+  ) => {
+    const q = new URLSearchParams();
+    if (params.creatorId) q.set('creatorId', params.creatorId);
+    if (params.targetType) q.set('targetType', params.targetType);
+    const qs = q.toString();
+    return request<import('./subscriptions').SubscriptionStatus>(
+      `/subscriptions/status${qs ? `?${qs}` : ''}`,
+      {},
+      token
+    );
+  },
+
+  simulateSubscription: (
+    token: string,
+    body: {
+      creatorId?: string;
+      tierId: string;
+      targetType?: 'creator' | 'platform';
+      ageConfirmed: boolean;
+    }
+  ) =>
+    request<{ subscription: object; simulation: boolean; message: string }>(
+      '/subscriptions/simulate',
+      { method: 'POST', body: JSON.stringify(body) },
+      token
+    ),
+
+  createSubscriptionCheckout: (
+    token: string,
+    body: {
+      creatorId?: string;
+      tierId: string;
+      targetType?: 'creator' | 'platform';
+      ageConfirmed: boolean;
+    }
+  ) =>
+    request<{ checkoutUrl: string | null; sessionId: string }>(
+      '/subscriptions/create-checkout',
+      { method: 'POST', body: JSON.stringify(body) },
+      token
+    ),
+
+  createSubscriptionPortal: (
+    token: string,
+    body: { creatorId?: string; targetType?: 'creator' | 'platform' }
+  ) =>
+    request<{ portalUrl: string }>(
+      '/subscriptions/create-portal',
+      { method: 'POST', body: JSON.stringify(body) },
       token
     ),
 

@@ -9,6 +9,12 @@ import {
   DON_AMOUNT_MIN,
   assertDailyDonationBudget,
   assertDonAmount,
+  assertCreatorCanReceiveStripeDonation,
+  computeDonationFeeBreakdown,
+  computeDonationPlatformFeeCents,
+  getCreatorStripeConnectAccountId,
+  getDonationLegalConfig,
+  getDonationPlatformFeePercent,
   getDonationTiers,
   getRemainingDailyDonationBudget,
   isDonationSimulationMode,
@@ -19,6 +25,7 @@ import {
   userMeetsDonationAge,
 } from '../lib/donations';
 import { CREATOR_MONETIZATION_MIN_AGE } from '../lib/ageGates';
+import { schedulePersist } from '../lib/persist';
 
 export const donationsRouter = Router();
 
@@ -26,6 +33,14 @@ function getStripe(): Stripe | null {
   const key = process.env.STRIPE_SECRET_KEY?.trim();
   if (!key) return null;
   return new Stripe(key);
+}
+
+function getAppBaseUrl(): string {
+  return (
+    process.env.WEB_APP_URL?.trim() ||
+    process.env.APP_URL?.trim() ||
+    'http://localhost:4080'
+  ).replace(/\/$/, '');
 }
 
 donationsRouter.get('/config', (req: Request, res: Response) => {
@@ -53,9 +68,78 @@ donationsRouter.get('/config', (req: Request, res: Response) => {
     maxAmount: DON_AMOUNT_MAX,
     currency: 'EUR',
     minAge: 18,
+    platformFeePercent: getDonationPlatformFeePercent(),
+    legal: getDonationLegalConfig(),
     dailyCapRemaining:
       simulation && userId ? getRemainingDailyDonationBudget(userId) : null,
   });
+});
+
+donationsRouter.get('/connect-status', authenticateJWT, (req: Request, res: Response) => {
+  const userId = (req as Request & { user: { id: string } }).user.id;
+  const connectId = getCreatorStripeConnectAccountId(userId);
+  res.json({
+    stripeConfigured: isStripeConfigured(),
+    stripeConnectAccountId: connectId,
+    ready: Boolean(connectId),
+  });
+});
+
+donationsRouter.post('/connect-onboard', authenticateJWT, async (req: Request, res: Response) => {
+  if (isDonationSimulationMode()) {
+    res.status(400).json({ error: 'Stripe Connect réservé à la production' });
+    return;
+  }
+  if (!isStripeConfigured()) {
+    res.status(503).json({ error: 'Stripe non configuré' });
+    return;
+  }
+
+  const stripe = getStripe();
+  if (!stripe) {
+    res.status(503).json({ error: 'Stripe non configuré' });
+    return;
+  }
+
+  const userId = (req as Request & { user: { id: string } }).user.id;
+  const user = db.users.get(userId);
+  if (!user) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+
+  let connectId = getCreatorStripeConnectAccountId(userId);
+  try {
+    if (!connectId) {
+      const account = await stripe.accounts.create({
+        type: 'express',
+        country: 'FR',
+        email: user.email,
+        capabilities: {
+          card_payments: { requested: true },
+          transfers: { requested: true },
+        },
+        metadata: { melosongUserId: userId },
+      });
+      connectId = account.id;
+      user.stripeConnectAccountId = connectId;
+      db.users.set(userId, user);
+      schedulePersist();
+    }
+
+    const link = await stripe.accountLinks.create({
+      account: connectId,
+      refresh_url: `${getAppBaseUrl()}/profile?stripeConnect=refresh`,
+      return_url: `${getAppBaseUrl()}/profile?stripeConnect=return`,
+      type: 'account_onboarding',
+    });
+
+    res.json({ url: link.url, stripeConnectAccountId: connectId });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Erreur Stripe Connect';
+    console.error('[donations] connect-onboard error');
+    res.status(502).json({ error: message });
+  }
 });
 
 donationsRouter.post('/simulate', authenticateJWT, (req: Request, res: Response) => {
@@ -181,23 +265,36 @@ donationsRouter.post('/create-intent', authenticateJWT, async (req: Request, res
   const amount = Math.trunc(Number(rawAmount));
   try {
     assertDonAmount(amount);
+    assertCreatorCanReceiveStripeDonation(live.hostId);
   } catch (e) {
-    res.status(400).json({ error: e instanceof Error ? e.message : 'Montant invalide' });
+    const message = e instanceof Error ? e.message : 'Montant invalide';
+    const code =
+      message.includes('Stripe Connect') ? 'CREATOR_STRIPE_CONNECT_REQUIRED' : undefined;
+    res.status(code ? 503 : 400).json({ error: message, code });
     return;
   }
 
   const amountCents = amount * 100;
+  const platformFeeCents = computeDonationPlatformFeeCents(amountCents);
+  const connectAccountId = getCreatorStripeConnectAccountId(live.hostId);
+  const feeBreakdown = computeDonationFeeBreakdown(amount);
 
   try {
     const intent = await stripe.paymentIntents.create({
       amount: amountCents,
       currency: DONATION_CURRENCY,
       automatic_payment_methods: { enabled: true },
+      application_fee_amount: platformFeeCents,
+      transfer_data: {
+        destination: connectAccountId!,
+      },
       metadata: {
         liveId,
         senderId: userId,
         hostId: live.hostId,
         type: 'live_tip',
+        platformFeePercent: String(getDonationPlatformFeePercent()),
+        platformFeeCents: String(platformFeeCents),
       },
       description: `Pourboire live — ${live.title}`.slice(0, 200),
     });
@@ -207,7 +304,9 @@ donationsRouter.post('/create-intent', authenticateJWT, async (req: Request, res
       paymentIntentId: intent.id,
       liveId,
       senderId: userId,
+      hostId: live.hostId,
       amountCents,
+      platformFeeCents,
       status: 'pending',
       createdAt: Date.now(),
     });
@@ -217,6 +316,9 @@ donationsRouter.post('/create-intent', authenticateJWT, async (req: Request, res
       paymentIntentId: intent.id,
       amount,
       currency: 'EUR',
+      platformFeePercent: feeBreakdown.platformFeePercent,
+      platformFeeEur: feeBreakdown.platformFeeEur,
+      creatorNetEstimateEur: feeBreakdown.creatorNetEstimateEur,
     });
   } catch (e) {
     console.error('[donations] create-intent error');

@@ -54,6 +54,9 @@ export function SalonInviteLinkCopy({ salonId, className = '' }: SalonInviteLink
       >
         {copied ? '✓ Lien copié' : '🔗 Copier le lien d\'invitation'}
       </button>
+      {ready && (
+        <p className="text-[10px] text-gray-400 break-all leading-snug">{shareUrl}</p>
+      )}
       {!salonId && (
         <p className="text-[10px] text-gray-500 leading-snug">
           Le lien sera généré à la création du salon.

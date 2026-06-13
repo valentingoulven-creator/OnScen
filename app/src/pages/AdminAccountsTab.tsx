@@ -212,6 +212,22 @@ export function AdminAccountsTab() {
     }
   };
 
+  const toggleAdmin = async (userId: string, promote: boolean) => {
+    if (!token) return;
+    const confirmKey = promote ? 'admin.accounts.promoteConfirm' : 'admin.accounts.demoteConfirm';
+    if (!window.confirm(t(confirmKey))) return;
+    setBusy(userId);
+    try {
+      if (promote) await api.promoteAccessUser(token, userId);
+      else await api.demoteAccessUser(token, userId);
+      await reload();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : t('errors.network'));
+    } finally {
+      setBusy('');
+    }
+  };
+
   const handleCopy = async (text: string, label: string) => {
     const ok = await copyText(text);
     setCopyFeedback(ok ? label : t('admin.accounts.copyFailed'));
@@ -465,6 +481,28 @@ export function AdminAccountsTab() {
                   </div>
                 </div>
               )}
+
+              <div className="flex gap-2">
+                {u.adminFlag ? (
+                  <button
+                    type="button"
+                    disabled={busy === u.id}
+                    className="flex-1 py-1.5 rounded-lg bg-purple-600/40 text-xs border border-purple-500/40 disabled:opacity-50"
+                    onClick={() => void toggleAdmin(u.id, false)}
+                  >
+                    {t('admin.accounts.demoteAdmin')}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={busy === u.id}
+                    className="flex-1 py-1.5 rounded-lg bg-purple-600/80 text-xs disabled:opacity-50"
+                    onClick={() => void toggleAdmin(u.id, true)}
+                  >
+                    {t('admin.accounts.promoteAdmin')}
+                  </button>
+                )}
+              </div>
 
               {!u.isAdmin && (
                 <div className="flex gap-2">

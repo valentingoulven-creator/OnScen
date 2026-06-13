@@ -7,6 +7,7 @@ import { isBotHost } from '../seed-bots';
 import { canJoinSalon, isSalonVisibleOnMap, normalizeSalonAccess } from '../lib/salonAccess';
 import { assertSalonAccessible } from '../lib/adminContentModeration';
 import { isDevUser } from '../lib/accessControl';
+import { trackEvent } from '../lib/analytics';
 import { parseMusicLink, parseYoutubePlaylistId, parseSpotifyPlaylistId, buildPlatformTrackUrl } from '../lib/musicLinks';
 import { computePlaybackPositionMs } from '../lib/playbackClock';
 import { resolveTrackForPlatform } from '../lib/trackResolver';
@@ -1060,6 +1061,7 @@ salonsRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
   }
 
   const {
+    id: requestedSalonId,
     title,
     platform,
     latitude,
@@ -1115,8 +1117,15 @@ salonsRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
     normalizedJamUrl = normalized;
   }
 
+  const salonId =
+    typeof requestedSalonId === 'string' &&
+    /^salon_\d+$/.test(requestedSalonId) &&
+    !db.salons.has(requestedSalonId)
+      ? requestedSalonId
+      : `salon_${Date.now()}`;
+
   const salon: Salon = {
-    id: `salon_${Date.now()}`,
+    id: salonId,
     hostId: userId,
     hostName: user.username,
     hostAvatarUrl: user.avatarUrl,
@@ -1155,6 +1164,7 @@ salonsRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
 
   normalizeSalonAccess(salon);
   db.salons.set(salon.id, salon);
+  trackEvent('salon_created', userId);
   db.salonChats.set(salon.id, []);
   ensureSalonQueue(salon.id);
   ensureSalonProposals(salon.id);

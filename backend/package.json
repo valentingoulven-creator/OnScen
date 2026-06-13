@@ -12,7 +12,8 @@
     "build:exe": "npm run build && node ../msdev/scripts/build-exe.js",
     "test": "vitest run --config vitest.config.ts",
     "seed:production": "npm run build && node dist/scripts/seed-production-testdata.js",
-    "seed:occitanie": "npm run build && node dist/scripts/seed-production-occitanie-spotify.js"
+    "seed:occitanie": "npm run build && node dist/scripts/seed-production-occitanie-spotify.js",
+    "seed:world": "npm run build && node dist/scripts/seed-production-world-random.js"
   },
   "bin": {
     "msdev": "dist/entry-msdev.js"
@@ -38,6 +39,7 @@
     "express-rate-limit": "^8.5.2",
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.2",
+    "livekit-server-sdk": "^2.15.4",
     "pg": "^8.16.0",
     "socket.io": "^4.7.5",
     "stripe": "^17.7.0"

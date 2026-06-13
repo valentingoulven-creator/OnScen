@@ -161,6 +161,7 @@ export default defineConfig({
         cacheId: 'melosong-msdev-v7',
         skipWaiting: true,
         clientsClaim: true,
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         /**
          * Exclure les icônes déjà listées dans includeAssets pour éviter les
          * doublons dans le manifeste de précache du service worker.
@@ -227,6 +228,7 @@ export default defineConfig({
           if (!id.includes('node_modules')) return undefined;
           if (id.includes('react-dom') || id.includes('react/')) return 'vendor-react';
           if (id.includes('socket.io-client')) return 'vendor-socketio';
+          if (id.includes('livekit-client') || id.includes('@livekit/')) return 'vendor-livekit';
           if (id.includes('leaflet') || id.includes('react-leaflet')) return 'vendor-map';
           return 'vendor-misc';
         },

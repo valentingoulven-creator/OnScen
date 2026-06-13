@@ -3,9 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { AdminAccountsTab } from './AdminAccountsTab';
 import { AdminAccessTab } from './AdminAccessTab';
 import { AdminContentTab } from './AdminContentTab';
+import { AdminCostsTab } from './AdminCostsTab';
 import { AnalyticsPage } from './AnalyticsPage';
 
-type AdminTab = 'accounts' | 'access' | 'content' | 'analytics';
+type AdminTab = 'accounts' | 'access' | 'content' | 'analytics' | 'costs';
 
 interface AdminPageProps {
   onBack?: () => void;
@@ -22,6 +23,7 @@ export function AdminPage({ onBack, initialTab = 'accounts', onOpenSalon }: Admi
     { id: 'access', label: t('admin.tabs.access') },
     { id: 'content', label: t('admin.tabs.content') },
     { id: 'analytics', label: t('admin.tabs.analytics') },
+    { id: 'costs', label: t('admin.tabs.costs') },
   ];
 
   return (
@@ -56,11 +58,12 @@ export function AdminPage({ onBack, initialTab = 'accounts', onOpenSalon }: Admi
         </nav>
       </header>
 
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 max-w-lg mx-auto w-full pb-[calc(var(--tab-nav-total-h)+1rem)]">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 max-w-lg mx-auto w-full pb-4">
         {tab === 'accounts' && <AdminAccountsTab />}
         {tab === 'access' && <AdminAccessTab />}
         {tab === 'content' && <AdminContentTab onOpenSalon={onOpenSalon} />}
         {tab === 'analytics' && <AnalyticsPage embedded />}
+        {tab === 'costs' && <AdminCostsTab />}
       </div>
     </div>
   );

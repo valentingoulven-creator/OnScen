@@ -35,7 +35,7 @@ function buildParsed(sessionId: string): ParsedSpotifyJam {
 }
 
 export const SPOTIFY_JAM_AUTO_FETCH_UNAVAILABLE =
-  "Spotify ne propose pas d'API publique pour créer ou récupérer un lien Jam. Démarrez un Jam dans l'application Spotify, copiez le lien d'invitation, puis collez-le ici.";
+  'Démarrez un Jam dans l\'application Spotify, copiez le lien d\'invitation, puis collez-le ici.';
 
 export const SPOTIFY_JAM_START_HINT =
   "Dans Spotify : icône haut-parleur (en bas) → Démarrer un Jam → Inviter → Copier le lien.";

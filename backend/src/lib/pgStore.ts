@@ -80,8 +80,8 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
     hostRatingsRes,
     notificationsRes,
   ] = await Promise.all([
-    pool.query<{ version: number; saved_at: string }>(
-      'SELECT version, saved_at FROM store_meta WHERE id = 1'
+    pool.query<{ version: number; saved_at: string; analytics_buckets: Record<string, number> }>(
+      'SELECT version, saved_at, analytics_buckets FROM store_meta WHERE id = 1'
     ),
     pool.query<{ payload: PersistedStore['users'][number] }>(
       'SELECT payload FROM users'
@@ -258,6 +258,7 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
     feedPostComments,
     feedPostFavorites,
     stories: storiesRes.rows.map((r) => r.payload),
+    analyticsBuckets: metaRes.rows[0]?.analytics_buckets ?? {},
   };
 
   if (!isValidPersistedStore(store)) return null;
@@ -532,10 +533,13 @@ async function writeStore(client: PoolClient, data: PersistedStore): Promise<voi
     }
 
     await client.query(
-      `INSERT INTO store_meta (id, version, saved_at)
-       VALUES (1, $1, $2)
-       ON CONFLICT (id) DO UPDATE SET version = EXCLUDED.version, saved_at = EXCLUDED.saved_at`,
-      [data.version, data.savedAt]
+      `INSERT INTO store_meta (id, version, saved_at, analytics_buckets)
+       VALUES (1, $1, $2, $3::jsonb)
+       ON CONFLICT (id) DO UPDATE SET
+         version = EXCLUDED.version,
+         saved_at = EXCLUDED.saved_at,
+         analytics_buckets = EXCLUDED.analytics_buckets`,
+      [data.version, data.savedAt, JSON.stringify(data.analyticsBuckets ?? {})]
     );
 
     await client.query('COMMIT');

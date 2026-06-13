@@ -24,7 +24,11 @@ export const conditionsCreatorMonetization: LegalDocument = {
     },
     {
       heading: '5. Abonnements récurrents',
-      body: `Les abonnements sont facturés mensuellement jusqu’à résiliation. Vous pouvez gérer ou annuler votre abonnement via le portail client Stripe (production) ; l’accès aux avantages liés au statut supporter reste actif jusqu’à la fin de la période en cours.\n\nLes paliers et tarifs (ex. Supporter 4,99 €/mois, Super fan 9,99 €/mois, Soundy+) sont configurables par l’éditeur et affichés avant validation.\n\nUne commission plateforme peut être prélevée sur les abonnements créateurs (pourcentage configurable, documenté dans l’application). Elle ne s’applique pas aux pourboires ponctuels traités comme gratifications directes.`,
+      body: `Les abonnements sont facturés mensuellement jusqu’à résiliation. Vous pouvez gérer ou annuler votre abonnement via le portail client Stripe (production) ; l’accès aux avantages liés au statut supporter reste actif jusqu’à la fin de la période en cours.\n\nLes paliers et tarifs (ex. Supporter 4,99 €/mois, Super fan 9,99 €/mois, Soundy+) sont configurables par l’éditeur et affichés avant validation.\n\nUne commission plateforme distincte peut être prélevée sur les abonnements créateurs (pourcentage configurable via SUBSCRIPTION_PLATFORM_COMMISSION_PERCENT, documenté dans l’application).`,
+    },
+    {
+      heading: '5 bis. Commission sur les pourboires live',
+      body: `Sur chaque pourboire payant en production, Soundy prélève une commission plateforme de 30 % par défaut (variable DONATION_PLATFORM_FEE_PERCENT).\n\nExemple pour un pourboire de 10 € : commission Soundy 3 €, part créateur estimée 7 € avant frais de traitement Stripe (modèle Stripe Connect).\n\nLa répartition (montant, commission Soundy, net créateur estimé, mention des frais Stripe) est affichée avant validation du paiement.\n\nLes pourboires ne constituent pas des dons associatifs ouvrant droit à reçu fiscal.`,
     },
     {
       heading: '6. Montants, plafonds et remboursements',
