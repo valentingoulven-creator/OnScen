@@ -1,5 +1,50 @@
 ﻿
 ================================================================================
+MODIF 482 — Suppression verify-access à la sélection playlist (create salon)
+================================================================================
+Date : 2026-06-13
+
+## Symptôme
+Dans CreateSalonModal, choisir une playlist dans la liste déclenche une erreur
+(`spotify_playlist_forbidden` ou message reconnect) alors que la même playlist
+apparaît dans `/me/playlists`. Le collage d'URL fonctionne mieux car le flux diffère.
+
+## Cause
+MODIF 481 a ajouté `verifyPlaylistAccess` (POST verify-access → `/items`) **au clic
+sur la liste** avant d'enregistrer la sélection. Playlists déjà listées par l'API
+hôte peuvent échouer ce pré-vol prématuré ; l'utilisateur ne voit jamais la sélection.
+
+## Correctif
+### Frontend
+- `CreateSalonSpotifyPlaylistPicker` : sélection liste/URL → stocke id/titre sans verify.
+- Vérification conservée uniquement à la **création du salon** (`CreateSalonModal.submit`
+  → verify-access puis createSalon + load-playlist), comme `SalonSpotifyPlaylist` qui
+  verify au clic « Lancer » et non au changement de `<select>`.
+
+## Filtre retiré
+- verify-access **on select** dans CreateSalonSpotifyPlaylistPicker (pickFromList, pickFromUrl).
+
+## Nouveau flux sélection
+1. GET `/platforms/spotify/playlists` → liste complète `/me/playlists` (sans filtre extra).
+2. Choix liste ou URL → `onChange({ playlistId|playlistUrl, title })` immédiat.
+3. Submit create salon → verify-access (backend `/items` + fallback) → createSalon → load-playlist.
+
+## Fichiers
+- app/src/components/CreateSalonSpotifyPlaylistPicker.tsx
+- modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit   ✓
+  cd app && npm run build          ✓
+
+## Déploiement
+Non déployé (code only).
+
+================================================================================
+Fin MODIF 482 - 2026-06-13
+================================================================================
+
+================================================================================
 MODIF 481 — Fix 403 playlist tracks → /items + fallback metadata
 ================================================================================
 Date : 2026-06-13

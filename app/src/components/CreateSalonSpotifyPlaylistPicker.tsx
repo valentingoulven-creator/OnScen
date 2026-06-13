@@ -19,20 +19,18 @@ export function CreateSalonSpotifyPlaylistPicker({
   const [playlistUrl, setPlaylistUrl] = useState('');
   const library = useSpotifyPlaylistLibrary(token);
 
-  const pickFromList = async (playlistId: string) => {
+  const pickFromList = (playlistId: string) => {
     const playlist = library.playlists.find((p) => p.playlistId === playlistId);
     if (!playlist) return;
-    const ok = await library.verifyPlaylistAccess({ playlistId: playlist.playlistId });
-    if (!ok) return;
+    library.setError(null);
     setPlaylistUrl('');
     onChange({ playlistId: playlist.playlistId, title: playlist.title });
   };
 
-  const pickFromUrl = async () => {
+  const pickFromUrl = () => {
     const url = playlistUrl.trim();
     if (!url) return;
-    const ok = await library.verifyPlaylistAccess({ playlistUrl: url });
-    if (!ok) return;
+    library.setError(null);
     onChange({ playlistUrl: url, title: t('salon.spotifySearch.defaultPlaylistTitle') });
   };
 
