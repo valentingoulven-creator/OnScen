@@ -7,7 +7,11 @@ import {
   mapLiveCameraError,
   playLiveVideo,
 } from '../lib/liveCameraSupport';
-import { setLiveMediaPrefs, type LiveMediaPrefs } from '../lib/liveMediaPrefs';
+import {
+  setLiveMediaPrefs,
+  setPendingLiveCameraStart,
+  type LiveMediaPrefs,
+} from '../lib/liveMediaPrefs';
 
 type Phase = 'loading' | 'config' | 'error';
 
@@ -189,6 +193,7 @@ export function StartLiveMediaSetupModal({
       audioDeviceId: audioDeviceId || undefined,
     };
     setLiveMediaPrefs(prefs);
+    setPendingLiveCameraStart();
     stopStream();
     onReady(prefs);
   };
@@ -233,7 +238,8 @@ export function StartLiveMediaSetupModal({
           {phase === 'config' && (
             <div className="mt-3 space-y-3">
               <p className="text-sm text-gray-400 leading-relaxed">
-                Choisissez vos périphériques avant de passer en direct.
+                Choisissez vos périphériques : la caméra s&apos;activera automatiquement dès
+                l&apos;ouverture du live.
               </p>
 
               <div className="relative aspect-video w-full bg-[#0b0b0f] rounded-xl overflow-hidden border border-[#2d2d3d]">

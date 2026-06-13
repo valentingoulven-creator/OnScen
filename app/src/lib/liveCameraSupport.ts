@@ -228,6 +228,24 @@ export async function playLiveVideo(el: HTMLVideoElement): Promise<void> {
   }
 }
 
+/** Lecture flux distant (spectateur) — ne force pas muted. */
+export async function playLiveRemoteVideo(el: HTMLVideoElement): Promise<void> {
+  el.playsInline = true;
+  el.setAttribute('playsinline', 'true');
+  el.setAttribute('webkit-playsinline', 'true');
+  el.setAttribute('x5-playsinline', 'true');
+  try {
+    await el.play();
+  } catch {
+    el.muted = true;
+    try {
+      await el.play();
+    } catch {
+      /* autoplay policy */
+    }
+  }
+}
+
 export interface LiveCameraDevicePrefs {
   videoDeviceId?: string;
   audioDeviceId?: string;

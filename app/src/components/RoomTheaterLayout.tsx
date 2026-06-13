@@ -21,6 +21,11 @@ export interface RoomTheaterLayoutProps {
    * queue-chat — colonne file à gauche, chat ancré à droite (salon Spotify).
    */
   variant?: 'theater' | 'queue-chat';
+  /**
+   * floating — fenêtre flottante sur la vidéo (défaut).
+   * bottom — messages dans le panneau bas sous la saisie.
+   */
+  chatDock?: 'floating' | 'bottom';
 }
 
 export function RoomTheaterLayout({
@@ -35,6 +40,7 @@ export function RoomTheaterLayout({
   chatMinimized = false,
   onToggleMinimize,
   variant = 'theater',
+  chatDock = 'floating',
 }: RoomTheaterLayoutProps) {
   if (variant === 'queue-chat') {
     return (
@@ -93,7 +99,7 @@ export function RoomTheaterLayout({
         <div className="relative flex-1 min-h-0 overflow-hidden bg-black">
           {stage}
 
-          {!chatHidden && (
+          {!chatHidden && chatDock === 'floating' && (
             <FloatingSalonChat
               title={chatTitle}
               headerExtra={chatHeaderExtra}
@@ -148,6 +154,29 @@ export function RoomTheaterLayout({
 
         {!chatHidden && chatInput ? (
           <div className="shrink-0 pointer-events-auto">{chatInput}</div>
+        ) : null}
+
+        {!chatHidden && chatDock === 'bottom' ? (
+          <div className="shrink-0 flex flex-col max-h-[38dvh] min-h-[8rem] border-t border-[#1e1e2f] bg-[#0b0b0f]/95 backdrop-blur-sm pb-[env(safe-area-inset-bottom)]">
+            <div className="shrink-0 flex items-center gap-1.5 px-3 py-2 border-b border-[#1e1e2f] bg-[#14141c]/80">
+              <span className="text-purple-400 text-[10px]" aria-hidden>
+                💬
+              </span>
+              <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest flex-1 truncate min-w-0">
+                {chatTitle}
+              </p>
+              {chatHeaderExtra}
+              <button
+                type="button"
+                onClick={onToggleChat}
+                className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-white hover:bg-white/10 transition text-lg leading-none"
+                aria-label="Masquer le chat"
+              >
+                ×
+              </button>
+            </div>
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col">{chat}</div>
+          </div>
         ) : null}
 
         {stageFooter ? (

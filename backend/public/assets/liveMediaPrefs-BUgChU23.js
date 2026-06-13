@@ -1,1 +1,0 @@
-var e=`melosong_live_media_prefs`;function t(){if(typeof sessionStorage>`u`)return null;try{let t=sessionStorage.getItem(e);if(!t)return null;let n=JSON.parse(t);return!n||typeof n!=`object`?null:n}catch{return null}}function n(t){if(!(typeof sessionStorage>`u`))try{sessionStorage.setItem(e,JSON.stringify(t))}catch{}}export{n,t};

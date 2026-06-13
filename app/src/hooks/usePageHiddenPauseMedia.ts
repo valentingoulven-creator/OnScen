@@ -49,10 +49,19 @@ export function usePageHiddenPauseMedia({
   }, [enabled]);
 }
 
+export type PauseMediaElementsOptions = {
+  /** Keep host/viewer live stage videos playing (`.live-video-container`). */
+  exceptLiveStage?: boolean;
+};
+
 /** Pause and mute every video/audio under `root` (defaults to document). */
-export function pauseMediaElements(root: ParentNode = document) {
+export function pauseMediaElements(
+  root: ParentNode = document,
+  opts?: PauseMediaElementsOptions
+) {
   root.querySelectorAll('video, audio').forEach((node) => {
     if (!(node instanceof HTMLMediaElement)) return;
+    if (opts?.exceptLiveStage && node.closest('.live-video-container')) return;
     node.pause();
     node.muted = true;
     if ('volume' in node) node.volume = 0;

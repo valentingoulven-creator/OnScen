@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  configureLiveVideoElement,
-  playLiveVideo,
-} from '../lib/liveCameraSupport';
+import { playLiveRemoteVideo } from '../lib/liveCameraSupport';
 import {
   createLivePeerConnection,
   LIVE_WEBRTC_MESH_VIEWER_LIMIT,
@@ -19,6 +16,12 @@ type UseLiveVideoRelayOptions = {
   cameraRelayActive: boolean;
 };
 
+function resolveLiveRemoteStream(ev: RTCTrackEvent): MediaStream | null {
+  if (ev.streams[0]) return ev.streams[0];
+  if (ev.track) return new MediaStream([ev.track]);
+  return null;
+}
+
 export function useLiveVideoRelay({
   liveId,
   userId,
@@ -26,15 +29,19 @@ export function useLiveVideoRelay({
   broadcastStream,
   cameraRelayActive,
 }: UseLiveVideoRelayOptions) {
-  const viewerVideoRef = useRef<HTMLVideoElement>(null);
+  const viewerVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
   const [viewerStreamActive, setViewerStreamActive] = useState(false);
   const [viewerRelayError, setViewerRelayError] = useState<string | null>(null);
 
   const isHost = !!(userId && hostId && userId === hostId);
   const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const pendingViewersRef = useRef<Set<string>>(new Set());
   const viewerPcRef = useRef<RTCPeerConnection | null>(null);
   const broadcastStreamRef = useRef(broadcastStream);
   broadcastStreamRef.current = broadcastStream;
+  const cameraRelayActiveRef = useRef(cameraRelayActive);
+  cameraRelayActiveRef.current = cameraRelayActive;
 
   const closePeer = useCallback((viewerId: string) => {
     const pc = peersRef.current.get(viewerId);
@@ -49,9 +56,28 @@ export function useLiveVideoRelay({
     }
   }, [closePeer]);
 
+  const attachViewerStream = useCallback(async () => {
+    const stream = remoteStreamRef.current;
+    const el = viewerVideoRef.current;
+    if (!stream || !el) return;
+    el.srcObject = stream;
+    await playLiveRemoteVideo(el);
+  }, []);
+
+  const setViewerVideoRef = useCallback(
+    (el: HTMLVideoElement | null) => {
+      viewerVideoRef.current = el;
+      if (el && remoteStreamRef.current) {
+        void attachViewerStream();
+      }
+    },
+    [attachViewerStream]
+  );
+
   const closeViewerPc = useCallback(() => {
     viewerPcRef.current?.close();
     viewerPcRef.current = null;
+    remoteStreamRef.current = null;
     const el = viewerVideoRef.current;
     if (el) {
       el.srcObject = null;
@@ -69,10 +95,16 @@ export function useLiveVideoRelay({
   const createOfferForViewer = useCallback(
     async (viewerId: string) => {
       const stream = broadcastStreamRef.current;
-      if (!stream || !isHost) return;
+      if (!stream || !isHost) {
+        if (isHost && cameraRelayActiveRef.current) {
+          pendingViewersRef.current.add(viewerId);
+        }
+        return;
+      }
       if (peersRef.current.size >= LIVE_WEBRTC_MESH_VIEWER_LIMIT) return;
 
       closePeer(viewerId);
+      pendingViewersRef.current.delete(viewerId);
       const pc = createLivePeerConnection();
       for (const track of stream.getTracks()) {
         pc.addTrack(track, stream);
@@ -141,19 +173,12 @@ export function useLiveVideoRelay({
       viewerPcRef.current = pc;
 
       pc.ontrack = (ev) => {
-        const stream = ev.streams[0];
+        const stream = resolveLiveRemoteStream(ev);
         if (!stream) return;
-        const el = viewerVideoRef.current;
-        if (!el) return;
-        configureLiveVideoElement(el);
-        el.muted = false;
-        el.srcObject = stream;
-        void playLiveVideo(el).catch(() => {
-          el.muted = true;
-          void playLiveVideo(el);
-        });
+        remoteStreamRef.current = stream;
         setViewerStreamActive(true);
         setViewerRelayError(null);
+        void attachViewerStream();
       };
 
       pc.onicecandidate = (ev) => {
@@ -182,7 +207,7 @@ export function useLiveVideoRelay({
         setViewerRelayError('Impossible de recevoir le flux vidéo.');
       }
     },
-    [closeViewerPc, emitSignal, hostId, isHost]
+    [attachViewerStream, closeViewerPc, emitSignal, hostId, isHost]
   );
 
   const handleViewerIce = useCallback(async (candidate: RTCIceCandidateInit) => {
@@ -270,13 +295,18 @@ export function useLiveVideoRelay({
   useEffect(() => {
     if (!isHost) return;
     if (!cameraRelayActive || !broadcastStream) {
+      pendingViewersRef.current.clear();
       closeAllPeers();
       return;
     }
-    // Les nouveaux spectateurs déclenchent live_webrtc_viewer_joined ; pas de re-négociation globale ici.
-  }, [broadcastStream, cameraRelayActive, closeAllPeers, isHost]);
+    const pending = [...pendingViewersRef.current];
+    pendingViewersRef.current.clear();
+    for (const viewerId of pending) {
+      void createOfferForViewer(viewerId);
+    }
+  }, [broadcastStream, cameraRelayActive, closeAllPeers, createOfferForViewer, isHost]);
 
-  // Viewer: demande le flux quand la caméra host devient active
+  // Viewer: demande le flux quand la caméra host devient active (retry si l'hôte n'était pas prêt)
   useEffect(() => {
     if (isHost) return;
     if (!cameraRelayActive) {
@@ -285,7 +315,10 @@ export function useLiveVideoRelay({
       return;
     }
     signalViewerReady();
-  }, [cameraRelayActive, closeViewerPc, isHost, signalViewerReady]);
+    if (viewerStreamActive) return undefined;
+    const retryId = window.setInterval(() => signalViewerReady(), 4000);
+    return () => window.clearInterval(retryId);
+  }, [cameraRelayActive, closeViewerPc, isHost, signalViewerReady, viewerStreamActive]);
 
   // Reconnexion socket : le spectateur redemande le flux ; l'hôte referme les pairs obsolètes
   useEffect(() => {
@@ -315,7 +348,7 @@ export function useLiveVideoRelay({
   }, [closeAllPeers, closeViewerPc]);
 
   return {
-    viewerVideoRef,
+    viewerVideoRef: setViewerVideoRef,
     viewerStreamActive,
     viewerRelayError,
     signalViewerReady,

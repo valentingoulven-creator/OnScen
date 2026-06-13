@@ -11,12 +11,15 @@ import { getLiveCameraContextHints } from '../lib/liveCameraSupport';
 import { mergeRemotePlaybackState } from '../lib/salonPlayback';
 import { emitOnSocket, getSocket, onSocketConnect } from '../lib/socket';
 import { setActiveHostLiveId } from '../lib/liveHostContext';
+import {
+  clearPendingLiveCameraStart,
+  hasPendingLiveCameraStart,
+} from '../lib/liveMediaPrefs';
 import { ChatRoomProvider, ChatMessagesView, ChatInputBar, ChatModals } from '../components/ChatPanel';
 import { UsernameDisplay } from '../components/UsernameDisplay';
 import { RoomTheaterLayout } from '../components/RoomTheaterLayout';
 import { LivePrivateSheet } from '../components/LivePrivateSheet';
 import { HostRatingBlock } from '../components/HostRatingBlock';
-import { FollowUserButton } from '../components/FollowUserButton';
 import { LiveDonationSheet } from '../components/LiveDonationSheet';
 import { LiveGiftOverlay } from '../components/LiveGiftOverlay';
 import type { ChatMessage, DmContact, Live, AppNotification, PlaybackState } from '../types';
@@ -134,7 +137,6 @@ export function LivePage({
   const [cameraToast, setCameraToast] = useState<string | null>(null);
   const [cameraToggling, setCameraToggling] = useState(false);
   const [showVipPanel, setShowVipPanel] = useState(false);
-  const [hostFollowing, setHostFollowing] = useState(false);
   const [chatBanned, setChatBanned] = useState(false);
   const [chatBanMessage, setChatBanMessage] = useState<string | null>(null);
   const [chatBanUntil, setChatBanUntil] = useState<number | null>(null);
@@ -176,6 +178,10 @@ export function LivePage({
   );
 
   const hostCameraBroadcastRef = useRef(false);
+  const cameraModeRef = useRef(cameraMode);
+  cameraModeRef.current = cameraMode;
+  const cameraLocalActiveRef = useRef(cameraLocalActive);
+  cameraLocalActiveRef.current = cameraLocalActive;
   useEffect(() => {
     hostCameraBroadcastRef.current = !!(live?.hostId === user?.id && cameraLocalActive);
   }, [live?.hostId, user?.id, cameraLocalActive]);
@@ -187,12 +193,6 @@ export function LivePage({
       .then((r) => {
         setLive(r.live);
         setViewers(r.live.viewersCount);
-        if (r.live.hostId !== user?.id) {
-          api
-            .getUserProfile(token, r.live.hostId)
-            .then((p) => setHostFollowing(!!p.user.isFollowing))
-            .catch(() => setHostFollowing(false));
-        }
       })
       .catch((e: Error & { liveBanned?: boolean }) => {
         if (e.liveBanned) {
@@ -214,11 +214,21 @@ export function LivePage({
     const offReconnect = onSocketConnect(joinLive);
     const onUpdate = (l: Live) => {
       if (l.id === liveId) {
-        setLive((prev) => ({
-          ...l,
-          hostMonetizationEligible:
-            l.hostMonetizationEligible ?? prev?.hostMonetizationEligible,
-        }));
+        setLive((prev) => {
+          const preserveHostCamera =
+            !!prev &&
+            prev.hostId === user?.id &&
+            cameraLocalActiveRef.current &&
+            !l.cameraActive;
+          return {
+            ...l,
+            ...(preserveHostCamera
+              ? { cameraActive: true, cameraMode: prev.cameraMode ?? 'camera' }
+              : {}),
+            hostMonetizationEligible:
+              l.hostMonetizationEligible ?? prev?.hostMonetizationEligible,
+          };
+        });
         setViewers(l.viewersCount);
       }
     };
@@ -366,6 +376,18 @@ export function LivePage({
     cameraRelayActive: isHost ? hostCameraRelayActive : viewerCameraRelayActive,
   });
 
+  /** Re-emit camera state after socket connect (emitOnSocket is no-op when disconnected). */
+  useEffect(() => {
+    if (!isHost || !cameraLocalActive) return;
+    return onSocketConnect(() => {
+      const mode = cameraModeRef.current === 'file' ? 'file' : 'camera';
+      emitOnSocket('live_camera_toggle', { liveId, active: true, mode });
+      setLive((prev) =>
+        prev ? { ...prev, cameraActive: true, cameraMode: mode } : prev
+      );
+    });
+  }, [isHost, cameraLocalActive, liveId]);
+
   const hostCanReceiveDonations = live?.hostMonetizationEligible !== false;
 
   useEffect(() => {
@@ -392,12 +414,32 @@ export function LivePage({
     };
   }, [liveId, user?.id, isHost]);
 
+  const pendingCameraStartRef = useRef(false);
   useEffect(() => {
-    if (!live || live.hostId !== user?.id) return;
-    if (!live.cameraActive && cameraLocalActive) {
-      stopCamera();
-    }
-  }, [live?.cameraActive, live?.hostId, user?.id, cameraLocalActive, stopCamera, live]);
+    if (!live || !isHost || cameraLocalActive) return;
+    if (!hasPendingLiveCameraStart()) return;
+    if (pendingCameraStartRef.current) return;
+    pendingCameraStartRef.current = true;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const ok = await startCamera();
+        if (cancelled) return;
+        if (ok) {
+          clearPendingLiveCameraStart();
+          emitCameraState(true, 'camera');
+          setLive((prev) => (prev ? { ...prev, cameraActive: true, cameraMode: 'camera' } : prev));
+        }
+      } finally {
+        if (!cancelled) pendingCameraStartRef.current = false;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [live, isHost, cameraLocalActive, startCamera, emitCameraState]);
 
   useEffect(() => {
     return () => {
@@ -408,8 +450,6 @@ export function LivePage({
     };
   }, [liveId, stopCamera]);
 
-  const cameraLocalActiveRef = useRef(cameraLocalActive);
-  cameraLocalActiveRef.current = cameraLocalActive;
   const isHostRef = useRef(isHost);
   isHostRef.current = isHost;
   useBackgroundPlayback(
@@ -587,6 +627,11 @@ export function LivePage({
       emitCameraState(false);
     }
     await api.stopLive(token);
+    onBack();
+  };
+
+  const leaveLive = () => {
+    emitOnSocket('leave_live', { liveId });
     onBack();
   };
 
@@ -829,34 +874,13 @@ export function LivePage({
             )}
           </div>
           {!isHost && (
-            <div className="shrink-0 flex items-center gap-1.5">
-              <FollowUserButton
-                userId={live.hostId}
-                username={live.hostName}
-                initialFollowing={hostFollowing}
-                compact
-                onFollowingChange={setHostFollowing}
-              />
-              {hostCanReceiveDonations && (
-                <button
-                  type="button"
-                  onClick={() => openDonSheet()}
-                  className="hidden sm:inline-flex px-2.5 py-1.5 bg-pink-950/50 border border-pink-500/50 rounded-full text-[10px] font-bold text-pink-200"
-                  aria-label="Envoyer un pourboire"
-                >
-                  💝 Pourboire
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => openPrivate({ id: live.hostId, name: live.hostName })}
-                className="px-2.5 py-1.5 bg-[#131318] border border-[#232330] rounded-full text-[10px] font-medium text-gray-400 hover:text-gray-200 hover:border-white/15 transition"
-                title="Message privé"
-                aria-label={`Message privé à ${live.hostName}`}
-              >
-                Message privé
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={leaveLive}
+              className="shrink-0 px-3 py-1.5 bg-[#1a1a26] border border-[#232330] rounded-full text-xs text-gray-300 font-bold hover:text-white hover:border-white/15 transition"
+            >
+              Quitter le live
+            </button>
           )}
           {isHost && (
             <div className="shrink-0 flex items-center gap-1.5 flex-wrap justify-end max-w-[min(100%,14rem)]">
@@ -940,22 +964,28 @@ export function LivePage({
               isLandscapeTheater ? ' live-video-container--landscape-theater' : ''
             }`}
           >
-            {showHostCamera && (
+            {isHost && (
               <video
                 ref={videoRef}
                 autoPlay
                 muted
                 playsInline
-                className="absolute inset-0 w-full h-full object-cover bg-black"
+                className={`absolute inset-0 w-full h-full object-cover bg-black${
+                  showHostCamera ? '' : ' invisible pointer-events-none'
+                }`}
+                aria-hidden={!showHostCamera}
                 aria-label="Aperçu caméra"
               />
             )}
-            {showViewerVideo && (
+            {!isHost && (
               <video
                 ref={viewerVideoRef}
                 autoPlay
                 playsInline
-                className="absolute inset-0 w-full h-full object-cover bg-black"
+                className={`absolute inset-0 w-full h-full object-cover bg-black${
+                  showViewerVideo ? '' : ' invisible pointer-events-none'
+                }`}
+                aria-hidden={!showViewerVideo}
                 aria-label="Flux vidéo du host"
               />
             )}

@@ -16,7 +16,7 @@ import {
 export type LiveCameraMode = 'camera' | 'file' | null;
 
 export function useLiveCamera() {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileUrlRef = useRef<string | null>(null);
   const [active, setActive] = useState(false);
@@ -75,6 +75,16 @@ export function useLiveCamera() {
     }
   }, [stop]);
 
+  const setVideoRef = useCallback(
+    (el: HTMLVideoElement | null) => {
+      videoRef.current = el;
+      if (el && (streamRef.current || fileUrlRef.current)) {
+        void attachPreview();
+      }
+    },
+    [attachPreview]
+  );
+
   const start = useCallback(async (): Promise<boolean> => {
     setError(null);
 
@@ -130,15 +140,42 @@ export function useLiveCamera() {
   );
 
   useEffect(() => {
-    if (active) void attachPreview();
+    if (!active) return;
+    let cancelled = false;
+    let raf = 0;
+    const tryAttach = () => {
+      if (cancelled) return;
+      if (!videoRef.current) {
+        raf = requestAnimationFrame(tryAttach);
+        return;
+      }
+      void attachPreview();
+    };
+    tryAttach();
+    return () => {
+      cancelled = true;
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, [active, attachPreview]);
+
+  useEffect(() => {
+    if (!active) return;
+    const el = videoRef.current;
+    if (!el) return;
+    const onPause = () => {
+      if (!streamRef.current && !fileUrlRef.current) return;
+      if (el.paused) void playLiveVideo(el);
+    };
+    el.addEventListener('pause', onPause);
+    return () => el.removeEventListener('pause', onPause);
+  }, [active]);
 
   useEffect(() => () => stop(), [stop]);
 
   const getStream = useCallback((): MediaStream | null => streamRef.current, []);
 
   return {
-    videoRef,
+    videoRef: setVideoRef,
     active,
     mode,
     error,

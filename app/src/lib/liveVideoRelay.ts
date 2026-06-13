@@ -2,7 +2,10 @@
 export const LIVE_WEBRTC_ICE_SERVERS: RTCIceServer[] = [
   { urls: 'stun:stun.l.google.com:19302' },
   {
-    urls: 'turn:51.159.164.100:3478',
+    urls: [
+      'turn:51.159.164.100:3478?transport=udp',
+      'turn:51.159.164.100:3478?transport=tcp',
+    ],
     username: 'soundy',
     credential: 'TurnSoundy2026!',
   },
