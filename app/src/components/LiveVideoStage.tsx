@@ -88,9 +88,17 @@ function resolveStageState(opts: {
   liveCameraActive: boolean;
   liveCameraMode?: 'camera' | 'file';
   viewerRelayPhase: ViewerRelayPhase;
+  viewerHasVideoTrack?: boolean;
 }): LiveVideoStageState {
-  const { isHost, hostStreamActive, viewerStreamActive, liveCameraActive, liveCameraMode, viewerRelayPhase } =
-    opts;
+  const {
+    isHost,
+    hostStreamActive,
+    viewerStreamActive,
+    liveCameraActive,
+    liveCameraMode,
+    viewerRelayPhase,
+    viewerHasVideoTrack,
+  } = opts;
 
   if (isHost) {
     return hostStreamActive ? 'live' : 'no-camera';
@@ -99,6 +107,9 @@ function resolveStageState(opts: {
   if (viewerRelayPhase === 'failed') return 'error';
   if (!liveCameraActive || liveCameraMode === 'file') return 'no-camera';
   if (viewerStreamActive) return 'live';
+  if (viewerHasVideoTrack || viewerRelayPhase === 'connecting' || viewerRelayPhase === 'waiting') {
+    return 'loading';
+  }
   return 'loading';
 }
 
@@ -109,9 +120,10 @@ function statusLabel(
     viewerRelayPhase: ViewerRelayPhase;
     viewerRelayError: string | null;
     liveCameraMode?: 'camera' | 'file';
+    viewerHasVideoTrack?: boolean;
   }
 ): string {
-  const { isHost, viewerRelayPhase, viewerRelayError, liveCameraMode } = opts;
+  const { isHost, viewerRelayPhase, viewerRelayError, liveCameraMode, viewerHasVideoTrack } = opts;
 
   if (isHost) {
     return state === 'live' ? 'Caméra active' : 'Activez la caméra ou choisissez une vidéo';
@@ -128,6 +140,7 @@ function statusLabel(
         : LIVE_CAMERA_VIEWER_NO_HOST_CAMERA;
     case 'loading':
     default:
+      if (viewerHasVideoTrack) return LIVE_CAMERA_VIEWER_VIDEO_PENDING;
       if (viewerRelayPhase === 'connecting') return 'Connexion WebRTC…';
       if (viewerRelayPhase === 'waiting') return 'En attente du host…';
       return LIVE_CAMERA_VIEWER_NOTE;
@@ -207,6 +220,7 @@ export function LiveVideoStage({
     liveCameraActive,
     liveCameraMode,
     viewerRelayPhase,
+    viewerHasVideoTrack,
   });
 
   const showVideo = stageState === 'live';
@@ -235,6 +249,7 @@ export function LiveVideoStage({
     viewerRelayPhase,
     viewerRelayError,
     liveCameraMode,
+    viewerHasVideoTrack,
   });
 
   useEffect(() => {
@@ -522,7 +537,7 @@ export function LiveVideoStage({
         aria-live="polite"
       >
         {status}
-        {!isHost && viewerDebugInfo ? (
+        {import.meta.env.DEV && !isHost && viewerDebugInfo ? (
           <span className="block text-[9px] text-gray-600 mt-0.5 font-mono">{viewerDebugInfo}</span>
         ) : null}
       </div>

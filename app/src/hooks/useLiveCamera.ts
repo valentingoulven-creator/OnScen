@@ -149,16 +149,27 @@ export function useLiveCamera() {
         (c) => mediaDevices.getUserMedia(c),
         prefs
       );
+      for (const track of stream.getTracks()) {
+        track.enabled = true;
+      }
       streamRef.current = stream;
       setBroadcastStream(stream);
       setMode('camera');
       setActive(true);
       setCameraUsable(true);
+
+      const previewEl = videoRef.current;
+      if (previewEl) {
+        configureLiveVideoElement(previewEl);
+        if (previewEl.src) previewEl.removeAttribute('src');
+        previewEl.srcObject = stream;
+      }
+
       const mics = await listLiveAudioInputDevices();
       setAudioDevices(mics);
       const activeMic = stream.getAudioTracks()[0]?.getSettings().deviceId ?? '';
       setAudioDeviceId(activeMic);
-      const el = await waitForVideoElement();
+      const el = previewEl ?? (await waitForVideoElement());
       if (el) await attachPreview();
       return true;
     } catch (e) {

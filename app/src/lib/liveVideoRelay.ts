@@ -35,16 +35,47 @@ export function createLivePeerConnection(opts?: LivePeerConnectionOptions): RTCP
   });
 }
 
-/** Host stream must expose at least one live video track before mesh offers. */
+/** Video track must be enabled, live, and producing frames (not WebRTC-muted). */
+export function isRelayVideoTrackReady(track: MediaStreamTrack): boolean {
+  return track.kind === 'video' && track.readyState === 'live' && track.enabled && !track.muted;
+}
+
+/** Host stream must expose at least one producing video track before mesh offers. */
 export function liveStreamReadyForRelay(stream: MediaStream | null | undefined): boolean {
   if (!stream) return false;
-  return stream.getVideoTracks().some((t) => t.readyState === 'live' && t.enabled);
+  return stream.getVideoTracks().some(isRelayVideoTrackReady);
 }
 
 /** Viewer stream must expose a live video track (audio-only ≠ vidéo connectée). */
 export function hasLiveRelayVideoTrack(stream: MediaStream | null | undefined): boolean {
   if (!stream) return false;
   return stream.getVideoTracks().some((t) => t.readyState === 'live' && t.enabled);
+}
+
+/** Prefer VP8 over H264 for broader browser decode support. */
+export function preferVp8VideoCodecPreferences(): RTCRtpCodec[] | null {
+  if (typeof RTCRtpSender === 'undefined' || !RTCRtpSender.getCapabilities) return null;
+  const codecs = RTCRtpSender.getCapabilities('video')?.codecs ?? [];
+  if (!codecs.length) return null;
+  const vp8 = codecs.filter((c) => c.mimeType.toLowerCase() === 'video/vp8');
+  const h264 = codecs.filter((c) => c.mimeType.toLowerCase() === 'video/h264');
+  const rest = codecs.filter((c) => !vp8.includes(c) && !h264.includes(c));
+  return [...vp8, ...h264, ...rest];
+}
+
+/** Apply VP8-first codec preferences on all video transceivers in a peer connection. */
+export function applyVp8VideoCodecPreferences(pc: RTCPeerConnection): void {
+  const preferred = preferVp8VideoCodecPreferences();
+  if (!preferred?.length) return;
+  for (const transceiver of pc.getTransceivers()) {
+    const kind = transceiver.sender.track?.kind ?? transceiver.receiver.track?.kind;
+    if (kind !== 'video') continue;
+    try {
+      transceiver.setCodecPreferences(preferred);
+    } catch {
+      /* setCodecPreferences unsupported on some browsers */
+    }
+  }
 }
 
 /** Merge remote WebRTC tracks into one canonical stream (handles split ontrack events). */
@@ -69,7 +100,11 @@ export function attachLiveRelaySendTracks(pc: RTCPeerConnection, stream: MediaSt
   for (const kind of ['video', 'audio'] as const) {
     const track = stream
       .getTracks()
-      .find((t) => t.kind === kind && t.readyState === 'live' && t.enabled);
+      .find((t) =>
+        kind === 'video'
+          ? isRelayVideoTrackReady(t)
+          : t.kind === kind && t.readyState === 'live' && t.enabled
+      );
     if (!track) continue;
 
     const sender = pc.getSenders().find((s) => s.track?.kind === kind);
@@ -85,8 +120,19 @@ export function attachLiveRelaySendTracks(pc: RTCPeerConnection, stream: MediaSt
 
     if (transceiver) {
       void transceiver.sender.replaceTrack(track);
+      if (kind === 'video') applyVp8VideoCodecPreferences(pc);
     } else {
-      pc.addTransceiver(track, { direction: 'sendonly', streams: [stream] });
+      const added = pc.addTransceiver(track, { direction: 'sendonly', streams: [stream] });
+      if (kind === 'video') {
+        const preferred = preferVp8VideoCodecPreferences();
+        if (preferred?.length) {
+          try {
+            added.setCodecPreferences(preferred);
+          } catch {
+            /* ignore */
+          }
+        }
+      }
     }
   }
 }
