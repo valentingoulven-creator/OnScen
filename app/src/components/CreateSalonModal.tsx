@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { api } from '../lib/api';
+import { api, ApiRequestError } from '../lib/api';
 import { getLivesGeo, isFixedMapGeoSource } from '../lib/livesGeo';
 import { isPlatformConnected } from '../lib/platformConnect';
 import { generateSalonId } from '../lib/salonDeepLink';
@@ -87,7 +87,9 @@ export function CreateSalonModal({
   const [spotifyPremium, setSpotifyPremium] = useState<boolean | undefined>();
   const [spotifySessionCode, setSpotifySessionCode] = useState<string | undefined>();
   const [platformStatusLoading, setPlatformStatusLoading] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const openedAtRef = useRef(0);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [form, setForm] = useState<CreateSalonForm>({
     title: `Salon de ${username}`,
     platform: 'youtube',
@@ -107,10 +109,17 @@ export function CreateSalonModal({
   const skipAccessStep = preset?.accessMode === 'invite';
   const lockedPlatform = preset?.platform;
 
+  const showToast = (message: string) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast(message);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3500);
+  };
+
   useEffect(() => {
     if (!open || !token) return;
     openedAtRef.current = Date.now();
     setStep(1);
+    setToast(null);
     setDraftSalonId(generateSalonId());
     setSpotifyPremium(undefined);
     setSpotifySessionCode(undefined);
@@ -166,6 +175,13 @@ export function CreateSalonModal({
     return () => window.removeEventListener(PLATFORM_STATUS_REFRESH_EVENT, onRefresh);
   }, [open, token]);
 
+  useEffect(
+    () => () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    },
+    []
+  );
+
   if (!open) return null;
 
   const allowedUserIdsSet = new Set(form.allowedUserIds);
@@ -206,26 +222,47 @@ export function CreateSalonModal({
   const spotifyHostBlocked =
     spotifyLinked &&
     (spotifySessionCode === 'spotify_premium_required' || spotifyPremium === false);
-  const canProceedStep1 =
-    platformLinked &&
-    !(form.platform === 'spotify' && (spotifyHostBlocked || (spotifyLinked && platformStatusLoading)));
+  const platformHostReady =
+    platformLinked && !(form.platform === 'spotify' && spotifyHostBlocked);
+  /** Step 1 only — wait for Spotify status before advancing (MODIF 465/467). */
+  const canAdvanceFromStep1 =
+    platformHostReady &&
+    !(form.platform === 'spotify' && spotifyLinked && platformStatusLoading);
+  /** Step 3 — do not re-block on background Spotify refresh (fix MODIF 475). */
+  const canSubmitSalon = platformHostReady;
+
+  const submitBlockedReason = !canSubmitSalon
+    ? !platformLinked
+      ? form.platform === 'spotify'
+        ? t('salon.create.errorPlatformNotLinkedSpotify')
+        : t('salon.create.errorPlatformNotLinkedYoutube')
+      : form.platform === 'spotify' && spotifyHostBlocked
+        ? t('salon.create.spotifyPremiumRequired')
+        : null
+    : null;
+
+  const resolveCreateError = (e: unknown): string => {
+    if (e instanceof ApiRequestError) {
+      if (e.code === 'spotify_premium_required') return t('salon.create.spotifyPremiumRequired');
+      if (e.code === 'HOST_PLATFORM_NOT_LINKED') {
+        return form.platform === 'spotify'
+          ? t('salon.create.errorPlatformNotLinkedSpotify')
+          : t('salon.create.errorPlatformNotLinkedYoutube');
+      }
+      if (e.message) return e.message;
+    }
+    if (e instanceof Error && e.message) return e.message;
+    return t('salon.create.errorFailed');
+  };
 
   const submit = async () => {
-    if (!isPlatformConnected(connectedPlatforms, form.platform)) {
-      alert(
-        form.platform === 'spotify'
-          ? 'Connectez Spotify avant de créer un salon Spotify.'
-          : 'Connectez YouTube avant de créer un salon YouTube.'
-      );
-      return;
-    }
-    if (form.platform === 'spotify' && spotifyHostBlocked) {
-      alert(t('salon.create.spotifyPremiumRequired'));
+    if (!canSubmitSalon) {
+      showToast(submitBlockedReason ?? t('salon.create.errorFailed'));
       return;
     }
     if (form.platform === 'spotify' && form.useSpotifyJam && form.spotifyJamUrl.trim()) {
       if (!normalizeSpotifyJamUrl(form.spotifyJamUrl)) {
-        alert(t('salon.create.spotifyJamInvalidAlert'));
+        showToast(t('salon.create.spotifyJamInvalidAlert'));
         return;
       }
     }
@@ -287,7 +324,7 @@ export function CreateSalonModal({
       onCreated(salon, latitude, longitude);
       onClose();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Impossible de créer le salon');
+      showToast(resolveCreateError(e));
     } finally {
       setSaving(false);
     }
@@ -755,7 +792,7 @@ export function CreateSalonModal({
             <button
               type="button"
               onClick={() => setStep((s) => (s === 1 && skipAccessStep ? 3 : s + 1))}
-              disabled={(step === 1 && !canProceedStep1) || platformStatusLoading}
+              disabled={step === 1 && !canAdvanceFromStep1}
               className="flex-1 py-3 rounded-xl bg-purple-600 font-bold text-white disabled:opacity-50"
             >
               Suivant
@@ -764,13 +801,24 @@ export function CreateSalonModal({
             <button
               type="button"
               onClick={submit}
-              disabled={saving || !canProceedStep1}
+              disabled={saving || !canSubmitSalon}
               className="flex-1 py-3 rounded-xl bg-purple-600 font-bold text-white disabled:opacity-50"
             >
               {saving ? 'Création...' : 'Créer le salon'}
             </button>
           )}
         </div>
+        {step === 3 && submitBlockedReason && (
+          <p className="px-4 pb-3 text-[11px] text-red-400/90 leading-snug">{submitBlockedReason}</p>
+        )}
+        {toast && (
+          <div
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[110] max-w-[min(90vw,22rem)] px-4 py-2.5 rounded-xl bg-[#1a1a28] border border-purple-500/40 text-sm text-white shadow-lg text-center"
+            role="status"
+          >
+            {toast}
+          </div>
+        )}
       </div>
     </div>,
     document.body

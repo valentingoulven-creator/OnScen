@@ -48,7 +48,7 @@ import {
   SpotifyPlaybackError,
 } from '../lib/spotifyPlayback';
 import { resolvePlaylistVideos } from '../lib/youtubePlaylists';
-import { resolveSpotifyPlaylistTracks, SpotifyPlaylistError } from '../lib/spotifyPlaylists';
+import { resolveSpotifyPlaylistTracks, SpotifyPlaylistError, probeSpotifyHostSession } from '../lib/spotifyPlaylists';
 import { notifyFavoritesSalonStarted } from '../lib/favorites';
 import { notifySalonInvite } from '../lib/notifications';
 import { normalizeSpotifyJamUrl } from '../lib/spotifyJam';
@@ -1052,7 +1052,7 @@ salonsRouter.post('/:id/validate-guests', authenticateJWT, (req: Request, res: R
   res.json({ salon: publicSalon(salon, me), invitedCount });
 });
 
-salonsRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
+salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
   const userId = (req as Request & { user: { id: string } }).user.id;
   const user = db.users.get(userId);
   if (!user) {
@@ -1085,6 +1085,18 @@ salonsRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
 
   const plat: MusicPlatform = platform === 'youtube' ? 'youtube' : 'spotify';
   if (!requireHostPlatform(user, plat, res)) return;
+
+  if (plat === 'spotify') {
+    const session = await probeSpotifyHostSession(user);
+    if (!session.ok && session.code === 'spotify_premium_required') {
+      res.status(403).json({
+        error: 'Spotify Premium requis pour héberger un salon Spotify.',
+        code: 'spotify_premium_required',
+        platform: 'spotify',
+      });
+      return;
+    }
+  }
 
   let resolvedTrackId = trackId || 'demo';
   let externalUrl: string | undefined;

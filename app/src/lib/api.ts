@@ -91,6 +91,9 @@ async function parseApiError(res: Response): Promise<ApiRequestError> {
             res.status
           );
         }
+        if (json.code === 'HOST_PLATFORM_NOT_LINKED') {
+          return new ApiRequestError(json.error || i18n.t('errors.forbidden'), json.code, res.status);
+        }
         if (json.code === 'spotify_rate_limited') {
           return new ApiRequestError(
             json.error || i18n.t('salon.spotifySearch.errorRateLimited'),

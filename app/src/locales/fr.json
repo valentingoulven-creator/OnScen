@@ -155,6 +155,9 @@
     },
     "create": {
       "spotifyPremiumRequired": "Spotify Premium requis pour héberger un salon",
+      "errorFailed": "Impossible de créer le salon",
+      "errorPlatformNotLinkedSpotify": "Connectez Spotify avant de créer un salon Spotify.",
+      "errorPlatformNotLinkedYoutube": "Connectez YouTube avant de créer un salon YouTube.",
       "useSpotifyJam": "Utiliser un Jam Spotify",
       "spotifyJamDisabled": "Désactivé",
       "spotifyJamNoLink": "Activé, lien non renseigné",
@@ -323,8 +326,8 @@
     "tabProfil": "Profil",
     "tabReels": "Mes reels",
     "tabReelsOther": "Reels",
-    "tabLives": "Lives",
-    "tabLivesOther": "Lives",
+    "tabLives": "Redif",
+    "tabLivesOther": "Redif",
     "lives": {
       "title": "Lives passés",
       "myTitle": "Mes lives",

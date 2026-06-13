@@ -155,6 +155,9 @@
     },
     "create": {
       "spotifyPremiumRequired": "Spotify Premium required to host a salon",
+      "errorFailed": "Could not create the salon",
+      "errorPlatformNotLinkedSpotify": "Connect Spotify before creating a Spotify salon.",
+      "errorPlatformNotLinkedYoutube": "Connect YouTube before creating a YouTube salon.",
       "useSpotifyJam": "Use a Spotify Jam",
       "spotifyJamDisabled": "Disabled",
       "spotifyJamNoLink": "Enabled, no link provided",
@@ -323,8 +326,8 @@
     "tabProfil": "Profile",
     "tabReels": "My reels",
     "tabReelsOther": "Reels",
-    "tabLives": "Lives",
-    "tabLivesOther": "Lives",
+    "tabLives": "Redif",
+    "tabLivesOther": "Redif",
     "lives": {
       "title": "Past lives",
       "myTitle": "My lives",

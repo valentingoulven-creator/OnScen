@@ -8805,3 +8805,78 @@ CLEANUP=1 bash /opt/soundly/scripts/stripe-donation-verify.sh
 ================================================================================
 Fin MODIF 473 - 2026-06-13
 ================================================================================
+
+================================================================================
+MODIF 474 — Onglet profil « Lives » → « Redif »
+================================================================================
+Date : 2026-06-13
+
+## Changement
+- Renommer le libellé de l'onglet profil « Lives » en « Redif » (profil perso et
+  profil autre utilisateur).
+- Clés i18n `profile.tabLives` et `profile.tabLivesOther` uniquement — pas de
+  changement sur la nav bas « Direct », filtres carte « Lives », etc.
+
+## Fichiers modifiés
+  app/src/locales/fr.json
+  app/src/locales/en.json
+  modification.txt
+
+## Test
+  cd app && npm run build
+
+## Déploiement
+**Oui** — rebuild app (assets backend/public).
+
+================================================================================
+Fin MODIF 474 - 2026-06-13
+================================================================================
+
+================================================================================
+MODIF 475 — Fix « Créer le salon » inactif (CreateSalonModal)
+================================================================================
+Date : 2026-06-13
+
+## Symptôme
+Clic sur « Créer le salon » (étape 3) sans création — bouton parfois grisé sans
+message, ou bloqué pendant un refresh Spotify en arrière-plan.
+
+## Cause racine
+- Le bouton final réutilisait `canProceedStep1`, qui inclut
+  `spotifyLinked && platformStatusLoading` (MODIF 465/467).
+- Chaque refresh `GET /platforms/status` (ouverture modal, OAuth, event
+  `PLATFORM_STATUS_REFRESH`) désactivait le bouton à l'étape 3 même pour un
+  salon **YouTube** déjà valide, ou pour Spotify Premium après navigation.
+- Étape 1 : `|| platformStatusLoading` bloquait aussi « Suivant » pour YouTube
+  pendant le chargement Spotify.
+- Erreurs API affichées via `alert()` peu visibles ; pas de message si bouton
+  désactivé (Spotify Free).
+
+## Correctif
+- `canAdvanceFromStep1` (étape 1) vs `canSubmitSalon` (étape 3) séparés ;
+  l'étape 3 ne dépend plus de `platformStatusLoading`.
+- Toast inline pour erreurs création + libellé sous le bouton si soumission
+  bloquée (Premium / plateforme non liée).
+- `ApiRequestError` : codes `HOST_PLATFORM_NOT_LINKED`, `spotify_premium_required`.
+- Backend `POST /salons` : rejet Spotify Free via `probeSpotifyHostSession`.
+
+## Fichiers
+- app/src/components/CreateSalonModal.tsx
+- app/src/lib/api.ts
+- app/src/locales/fr.json, en.json
+- backend/src/routes/salons.ts
+- modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npm run build
+  YouTube connecté → créer salon public : OK
+  Spotify Premium → créer salon : OK
+  Spotify Free → bouton désactivé + message Premium ; API 403 si contournement
+
+## Déploiement
+**Oui** — rebuild backend + app (assets backend/public).
+
+================================================================================
+Fin MODIF 475 - 2026-06-13
+================================================================================
