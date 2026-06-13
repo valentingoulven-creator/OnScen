@@ -2,10 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
-import type { SupportContactMessage } from '../types';
+import type { SupportContactMessage, SupportThreadMessage } from '../types';
 
 interface ContactSoundyPageProps {
   onBack: () => void;
+  highlightMessageId?: string;
 }
 
 function formatDateTime(ts: number, locale: string): string {
@@ -18,7 +19,39 @@ function formatDateTime(ts: number, locale: string): string {
   });
 }
 
-export function ContactSoundyPage({ onBack }: ContactSoundyPageProps) {
+function getThread(msg: SupportContactMessage): SupportThreadMessage[] {
+  if (msg.thread && msg.thread.length > 0) return msg.thread;
+  const thread: SupportThreadMessage[] = [
+    {
+      id: `${msg.id}_u0`,
+      role: 'user',
+      body: msg.body,
+      createdAt: msg.createdAt,
+      authorUserId: msg.fromUserId,
+    },
+  ];
+  if (msg.adminReply && msg.repliedAt) {
+    thread.push({
+      id: `${msg.id}_a0`,
+      role: 'admin',
+      body: msg.adminReply,
+      createdAt: msg.repliedAt,
+      authorUserId: 'admin',
+    });
+  }
+  if (msg.userReply && msg.userRepliedAt) {
+    thread.push({
+      id: `${msg.id}_u1`,
+      role: 'user',
+      body: msg.userReply,
+      createdAt: msg.userRepliedAt,
+      authorUserId: msg.fromUserId,
+    });
+  }
+  return thread;
+}
+
+export function ContactSoundyPage({ onBack, highlightMessageId }: ContactSoundyPageProps) {
   const { token } = useAuth();
   const { t, i18n } = useTranslation();
   const [body, setBody] = useState('');
@@ -27,7 +60,11 @@ export function ContactSoundyPage({ onBack }: ContactSoundyPageProps) {
   const [toast, setToast] = useState<string | null>(null);
   const [history, setHistory] = useState<SupportContactMessage[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [replyingId, setReplyingId] = useState<string | null>(null);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const highlightRef = useRef<HTMLDivElement | null>(null);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -52,6 +89,11 @@ export function ContactSoundyPage({ onBack }: ContactSoundyPageProps) {
     void loadHistory();
   }, [loadHistory]);
 
+  useEffect(() => {
+    if (!highlightMessageId || loadingHistory) return;
+    highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [highlightMessageId, loadingHistory, history.length]);
+
   const submit = async () => {
     if (!token) return;
     const text = body.trim();
@@ -67,6 +109,39 @@ export function ContactSoundyPage({ onBack }: ContactSoundyPageProps) {
       setError(e instanceof Error ? e.message : t('support.sendError'));
     } finally {
       setSending(false);
+    }
+  };
+
+  const sendThreadReply = async (msg: SupportContactMessage) => {
+    if (!token) return;
+    const text = (replyDrafts[msg.id] ?? '').trim();
+    if (text.length < 3) return;
+    setReplyingId(msg.id);
+    setError(null);
+    try {
+      await api.replySupportContact(token, msg.id, text);
+      setReplyDrafts((prev) => ({ ...prev, [msg.id]: '' }));
+      showToast(t('support.replySent'));
+      await loadHistory();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('support.replyError'));
+    } finally {
+      setReplyingId(null);
+    }
+  };
+
+  const markResolved = async (msg: SupportContactMessage) => {
+    if (!token) return;
+    setResolvingId(msg.id);
+    setError(null);
+    try {
+      await api.resolveSupportContact(token, msg.id);
+      showToast(t('support.resolved'));
+      await loadHistory();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('support.resolveError'));
+    } finally {
+      setResolvingId(null);
     }
   };
 
@@ -113,29 +188,88 @@ export function ContactSoundyPage({ onBack }: ContactSoundyPageProps) {
             {loadingHistory ? (
               <p className="text-xs text-gray-500">{t('support.loading')}</p>
             ) : (
-              history.map((msg) => (
-                <div
-                  key={msg.id}
-                  className="rounded-xl border border-[#2d2d3d] bg-[#12121a] p-3 space-y-2"
-                >
-                  <p className="text-xs text-gray-500">{formatDateTime(msg.createdAt, i18n.language)}</p>
-                  <p className="text-sm text-gray-200 whitespace-pre-wrap">{msg.body}</p>
-                  {msg.adminReply && (
-                    <div className="mt-2 pt-2 border-t border-[#2d2d3d]">
-                      <p className="text-xs font-semibold text-purple-300">{t('support.replyLabel')}</p>
-                      {msg.repliedAt && (
-                        <p className="text-[10px] text-gray-500">
-                          {formatDateTime(msg.repliedAt, i18n.language)}
-                        </p>
-                      )}
-                      <p className="text-sm text-gray-200 whitespace-pre-wrap mt-1">{msg.adminReply}</p>
+              history.map((msg) => {
+                const thread = getThread(msg);
+                const isHighlighted = msg.id === highlightMessageId;
+                const canReplyOrResolve = msg.status === 'replied';
+
+                return (
+                  <div
+                    key={msg.id}
+                    ref={isHighlighted ? highlightRef : undefined}
+                    className={`rounded-xl border p-3 space-y-2 ${
+                      isHighlighted
+                        ? 'border-purple-500/60 bg-purple-950/20'
+                        : 'border-[#2d2d3d] bg-[#12121a]'
+                    }`}
+                  >
+                    {msg.status === 'resolved' && (
+                      <p className="text-[10px] font-bold text-green-400/90">{t('support.statusResolved')}</p>
+                    )}
+                    <div className="space-y-3">
+                      {thread.map((entry) => (
+                        <div
+                          key={entry.id}
+                          className={
+                            entry.role === 'admin' ? 'pt-2 border-t border-[#2d2d3d]' : undefined
+                          }
+                        >
+                          <p className="text-xs font-semibold text-purple-300">
+                            {entry.role === 'admin' ? t('support.replyLabel') : t('support.youLabel')}
+                          </p>
+                          <p className="text-[10px] text-gray-500">
+                            {formatDateTime(entry.createdAt, i18n.language)}
+                          </p>
+                          <p className="text-sm text-gray-200 whitespace-pre-wrap mt-1">{entry.body}</p>
+                        </div>
+                      ))}
                     </div>
-                  )}
-                  {!msg.adminReply && msg.status === 'open' && (
-                    <p className="text-[10px] text-amber-400/90">{t('support.pending')}</p>
-                  )}
-                </div>
-              ))
+                    {msg.status === 'open' && !msg.adminReply && (
+                      <p className="text-[10px] text-amber-400/90">{t('support.pending')}</p>
+                    )}
+                    {msg.status === 'open' && msg.adminReply && (
+                      <p className="text-[10px] text-amber-400/90">{t('support.awaitingAdmin')}</p>
+                    )}
+                    {canReplyOrResolve && (
+                      <div className="pt-2 border-t border-[#2d2d3d] space-y-2">
+                        <label className="block">
+                          <span className="text-xs text-gray-400">{t('support.followUpLabel')}</span>
+                          <textarea
+                            value={replyDrafts[msg.id] ?? ''}
+                            onChange={(e) =>
+                              setReplyDrafts((prev) => ({ ...prev, [msg.id]: e.target.value }))
+                            }
+                            rows={3}
+                            maxLength={4000}
+                            placeholder={t('support.followUpPlaceholder')}
+                            className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-white text-sm"
+                          />
+                        </label>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void sendThreadReply(msg)}
+                            disabled={
+                              replyingId === msg.id || (replyDrafts[msg.id] ?? '').trim().length < 3
+                            }
+                            className="flex-1 py-2.5 rounded-xl bg-purple-600 text-white font-bold text-sm disabled:opacity-50"
+                          >
+                            {replyingId === msg.id ? t('support.replying') : t('support.reply')}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void markResolved(msg)}
+                            disabled={resolvingId === msg.id}
+                            className="flex-1 py-2.5 rounded-xl bg-green-700 hover:bg-green-600 text-white font-bold text-sm disabled:opacity-50"
+                          >
+                            {resolvingId === msg.id ? t('support.resolving') : t('support.resolvedButton')}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
             )}
           </section>
         )}

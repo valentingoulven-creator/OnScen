@@ -8718,3 +8718,53 @@ L'utilisateur reçoit une notification à la réponse et voit l'historique.
 ================================================================================
 Fin MODIF 471 - 2026-06-13
 ================================================================================
+
+================================================================================
+MODIF 472 — Support : fil de conversation, réponse utilisateur, résolu
+================================================================================
+Date : 2026-06-13
+
+## Objectif
+Après réponse admin, l'utilisateur reçoit une notification `support_reply` cliquable
+qui ouvre ContactSoundyPage sur le ticket concerné. Il peut répondre par texte
+(continuer la conversation) ou marquer « Résolu ». L'admin voit le fil complet,
+les relances utilisateur et le statut résolu.
+
+## Backend
+- `SupportContactStatus` : `open` | `replied` | `resolved`
+- `SupportThreadMessage` + champ `thread[]` sur le ticket (rétrocompat legacy)
+- `threadId` assigné à la création ; `userReply` / `userRepliedAt` synchronisés
+- `POST /api/support/contact/:id/reply` — relance utilisateur → status `open` + notif admins
+- `PATCH /api/support/contact/:id/status` — `{ status: 'resolved' }` par l'utilisateur
+- Admin reply autorisé quand status `open` (y compris après relance utilisateur)
+- `notifySupportUserReply` — notifie soundy_dev (type `support_contact`)
+
+## Frontend utilisateur
+- ContactSoundyPage : fil (messages user + admin), boutons « Répondre » et « Résolu »
+  quand status `replied` ; surbrillance du ticket depuis notification
+- NotificationBell : toasts/liste cliquables pour `support_contact` / `support_reply`
+  ; titre toast « Réponse Soundy » ; ouverture avec `supportMessageId`
+
+## Frontend admin
+- AdminSupportTab : fil complet, filtre « Résolus », badge statut, relance utilisateur
+- Réponse admin possible sur tickets `open` (relance) ; lecture seule si `replied` ou `resolved`
+
+## Fichiers
+- backend/src/models/schema.ts
+- backend/src/routes/support.ts
+- backend/src/lib/notifications.ts
+- app/src/types.ts, lib/api.ts
+- app/src/pages/ContactSoundyPage.tsx, AdminSupportTab.tsx, ProfilePage.tsx
+- app/src/components/NotificationBell.tsx, App.tsx
+- app/src/locales/fr.json, en.json
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npm run build
+
+## Déploiement
+**Oui** — redémarrage backend + rebuild app (assets backend/public).
+
+================================================================================
+Fin MODIF 472 - 2026-06-13
+================================================================================

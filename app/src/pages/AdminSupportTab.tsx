@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
-import type { SupportContactMessage, SupportContactStatus } from '../types';
+import type { SupportContactMessage, SupportContactStatus, SupportThreadMessage } from '../types';
 
 type StatusFilter = 'all' | SupportContactStatus;
 
@@ -14,6 +14,50 @@ function formatDateTime(ts: number, locale: string): string {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function getThread(msg: SupportContactMessage): SupportThreadMessage[] {
+  if (msg.thread && msg.thread.length > 0) return msg.thread;
+  const thread: SupportThreadMessage[] = [
+    {
+      id: `${msg.id}_u0`,
+      role: 'user',
+      body: msg.body,
+      createdAt: msg.createdAt,
+      authorUserId: msg.fromUserId,
+    },
+  ];
+  if (msg.adminReply && msg.repliedAt) {
+    thread.push({
+      id: `${msg.id}_a0`,
+      role: 'admin',
+      body: msg.adminReply,
+      createdAt: msg.repliedAt,
+      authorUserId: 'admin',
+    });
+  }
+  if (msg.userReply && msg.userRepliedAt) {
+    thread.push({
+      id: `${msg.id}_u1`,
+      role: 'user',
+      body: msg.userReply,
+      createdAt: msg.userRepliedAt,
+      authorUserId: msg.fromUserId,
+    });
+  }
+  return thread;
+}
+
+function statusLabelKey(status: SupportContactStatus): string {
+  if (status === 'open') return 'admin.support.statusOpen';
+  if (status === 'replied') return 'admin.support.statusReplied';
+  return 'admin.support.statusResolved';
+}
+
+function statusBadgeClass(status: SupportContactStatus): string {
+  if (status === 'open') return 'bg-amber-500/20 text-amber-300';
+  if (status === 'replied') return 'bg-green-500/20 text-green-300';
+  return 'bg-gray-500/20 text-gray-300';
 }
 
 interface AdminSupportTabProps {
@@ -59,9 +103,10 @@ export function AdminSupportTab({ highlightMessageId }: AdminSupportTabProps) {
   }, [highlightMessageId]);
 
   const selected = messages.find((m) => m.id === selectedId) ?? null;
+  const canReply = selected && selected.status === 'open';
 
   const sendReply = async () => {
-    if (!token || !selected || selected.status === 'replied') return;
+    if (!token || !selected || !canReply) return;
     const reply = replyDraft.trim();
     if (!reply) return;
     setReplying(true);
@@ -77,7 +122,7 @@ export function AdminSupportTab({ highlightMessageId }: AdminSupportTabProps) {
     }
   };
 
-  const filters: StatusFilter[] = ['open', 'replied', 'all'];
+  const filters: StatusFilter[] = ['open', 'replied', 'resolved', 'all'];
 
   return (
     <div className="space-y-4">
@@ -126,16 +171,15 @@ export function AdminSupportTab({ highlightMessageId }: AdminSupportTabProps) {
                   <p className="text-[10px] text-gray-500">{formatDateTime(msg.createdAt, i18n.language)}</p>
                 </div>
                 <span
-                  className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    msg.status === 'open'
-                      ? 'bg-amber-500/20 text-amber-300'
-                      : 'bg-green-500/20 text-green-300'
-                  }`}
+                  className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${statusBadgeClass(msg.status)}`}
                 >
-                  {msg.status === 'open' ? t('admin.support.statusOpen') : t('admin.support.statusReplied')}
+                  {t(statusLabelKey(msg.status))}
                 </span>
               </div>
               <p className="text-xs text-gray-300 mt-2 line-clamp-2 whitespace-pre-wrap">{msg.body}</p>
+              {msg.userReply && (
+                <p className="text-[10px] text-amber-300/80 mt-1">{t('admin.support.userFollowUp')}</p>
+              )}
             </button>
           ))}
         </div>
@@ -148,22 +192,25 @@ export function AdminSupportTab({ highlightMessageId }: AdminSupportTabProps) {
             <p className="text-sm font-semibold">{selected.fromUsername}</p>
             <p className="text-[10px] text-gray-500">{formatDateTime(selected.createdAt, i18n.language)}</p>
           </div>
-          <div>
-            <p className="text-xs text-gray-500 mb-1">{t('admin.support.message')}</p>
-            <p className="text-sm text-gray-200 whitespace-pre-wrap">{selected.body}</p>
+
+          <div className="space-y-3">
+            {getThread(selected).map((entry) => (
+              <div
+                key={entry.id}
+                className={entry.role === 'admin' ? 'pt-2 border-t border-[#2d2d3d]' : undefined}
+              >
+                <p className="text-xs font-semibold text-purple-300">
+                  {entry.role === 'admin' ? t('admin.support.yourReply') : t('admin.support.userMessage')}
+                </p>
+                <p className="text-[10px] text-gray-500">
+                  {formatDateTime(entry.createdAt, i18n.language)}
+                </p>
+                <p className="text-sm text-gray-200 whitespace-pre-wrap mt-1">{entry.body}</p>
+              </div>
+            ))}
           </div>
 
-          {selected.adminReply ? (
-            <div className="pt-2 border-t border-[#2d2d3d]">
-              <p className="text-xs font-semibold text-purple-300">{t('admin.support.yourReply')}</p>
-              {selected.repliedAt && (
-                <p className="text-[10px] text-gray-500">
-                  {formatDateTime(selected.repliedAt, i18n.language)}
-                </p>
-              )}
-              <p className="text-sm text-gray-200 whitespace-pre-wrap mt-1">{selected.adminReply}</p>
-            </div>
-          ) : (
+          {canReply ? (
             <>
               <label className="block">
                 <span className="text-xs text-gray-400">{t('admin.support.replyPlaceholder')}</span>
@@ -184,6 +231,10 @@ export function AdminSupportTab({ highlightMessageId }: AdminSupportTabProps) {
                 {replying ? t('admin.support.replying') : t('admin.support.sendReply')}
               </button>
             </>
+          ) : selected.status === 'resolved' ? (
+            <p className="text-xs text-gray-400">{t('admin.support.ticketResolved')}</p>
+          ) : (
+            <p className="text-xs text-gray-400">{t('admin.support.awaitingUser')}</p>
           )}
         </div>
       )}

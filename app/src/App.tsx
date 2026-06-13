@@ -91,6 +91,9 @@ export default function App() {
   >('accounts');
   const [adminHighlightSupportMessageId, setAdminHighlightSupportMessageId] = useState<string | undefined>();
   const [profileOpenContact, setProfileOpenContact] = useState(false);
+  const [profileHighlightSupportMessageId, setProfileHighlightSupportMessageId] = useState<
+    string | undefined
+  >(undefined);
   const [profileOpenRecorder, setProfileOpenRecorder] = useState(false);
   const [profilePreview, setProfilePreview] = useState<NearbyPerson | null>(null);
   const [profileReturnView, setProfileReturnView] = useState<View>({ type: 'home' });
@@ -661,7 +664,8 @@ export default function App() {
                   setAdminHighlightSupportMessageId(supportMessageId);
                   setAdminOpen(true);
                 }}
-                onOpenContactSupport={() => {
+                onOpenContactSupport={(supportMessageId) => {
+                  setProfileHighlightSupportMessageId(supportMessageId);
                   setProfileOpenContact(true);
                   setProfileOpen(true);
                 }}
@@ -860,6 +864,7 @@ export default function App() {
                 onBack={() => {
                   setProfileOpen(false);
                   setProfileOpenContact(false);
+                  setProfileHighlightSupportMessageId(undefined);
                 }}
                 onOpenReel={openReelInTab}
                 onOpenLive={openLive}
@@ -868,7 +873,11 @@ export default function App() {
                 openRecorderOnMount={profileOpenRecorder}
                 onRecorderMountHandled={() => setProfileOpenRecorder(false)}
                 openContactOnMount={profileOpenContact}
-                onContactMountHandled={() => setProfileOpenContact(false)}
+                onContactMountHandled={() => {
+                  setProfileOpenContact(false);
+                  setProfileHighlightSupportMessageId(undefined);
+                }}
+                highlightSupportMessageId={profileHighlightSupportMessageId}
               />
             </Suspense>
           </div>

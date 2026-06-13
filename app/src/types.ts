@@ -458,7 +458,15 @@ export interface AppNotification {
   supportMessageId?: string;
 }
 
-export type SupportContactStatus = 'open' | 'replied';
+export type SupportContactStatus = 'open' | 'replied' | 'resolved';
+
+export interface SupportThreadMessage {
+  id: string;
+  role: 'user' | 'admin';
+  body: string;
+  createdAt: number;
+  authorUserId: string;
+}
 
 export interface SupportContactMessage {
   id: string;
@@ -469,7 +477,10 @@ export interface SupportContactMessage {
   status: SupportContactStatus;
   adminReply?: string;
   repliedAt?: number;
-  threadId?: string;
+  userReply?: string;
+  userRepliedAt?: number;
+  threadId: string;
+  thread?: SupportThreadMessage[];
 }
 
 export interface MusicMatch {

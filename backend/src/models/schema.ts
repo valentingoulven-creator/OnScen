@@ -371,7 +371,15 @@ export interface HostRating {
   timestamp: number;
 }
 
-export type SupportContactStatus = 'open' | 'replied';
+export type SupportContactStatus = 'open' | 'replied' | 'resolved';
+
+export interface SupportThreadMessage {
+  id: string;
+  role: 'user' | 'admin';
+  body: string;
+  createdAt: number;
+  authorUserId: string;
+}
 
 /** Message utilisateur → équipe Soundy (support). */
 export interface SupportContactMessage {
@@ -383,7 +391,10 @@ export interface SupportContactMessage {
   adminReply?: string;
   repliedAt?: number;
   repliedByUserId?: string;
+  userReply?: string;
+  userRepliedAt?: number;
   threadId?: string;
+  thread?: SupportThreadMessage[];
 }
 
 export interface AppNotification {

@@ -362,7 +362,20 @@
     "historyTitle": "Vos messages",
     "loading": "Chargement…",
     "replyLabel": "Réponse Soundy",
-    "pending": "En attente de réponse"
+    "youLabel": "Vous",
+    "pending": "En attente de réponse",
+    "awaitingAdmin": "En attente d'une nouvelle réponse Soundy",
+    "statusResolved": "Résolu",
+    "followUpLabel": "Votre réponse",
+    "followUpPlaceholder": "Répondez ou précisez votre demande…",
+    "reply": "Répondre",
+    "replying": "Envoi…",
+    "replySent": "Réponse envoyée",
+    "replyError": "Impossible d'envoyer la réponse",
+    "resolvedButton": "Résolu",
+    "resolving": "…",
+    "resolved": "Ticket marqué comme résolu",
+    "resolveError": "Impossible de marquer comme résolu"
   },
   "profileSearch": {
     "placeholder": "Rechercher un profil…",
@@ -470,6 +483,7 @@
       "filter": {
         "open": "Ouverts",
         "replied": "Répondus",
+        "resolved": "Résolus",
         "all": "Tous"
       },
       "loading": "Chargement…",
@@ -478,12 +492,17 @@
       "replyError": "Impossible d'envoyer la réponse.",
       "statusOpen": "Ouvert",
       "statusReplied": "Répondu",
+      "statusResolved": "Résolu",
       "from": "De",
       "message": "Message",
+      "userMessage": "Message utilisateur",
       "yourReply": "Votre réponse",
       "replyPlaceholder": "Votre réponse",
       "sendReply": "Envoyer la réponse",
-      "replying": "Envoi…"
+      "replying": "Envoi…",
+      "userFollowUp": "Réponse utilisateur en attente",
+      "ticketResolved": "Ticket résolu par l'utilisateur",
+      "awaitingUser": "En attente de l'utilisateur (réponse ou résolution)"
     },
     "content": {
       "title": "Modération contenu",

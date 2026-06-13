@@ -280,3 +280,29 @@ export function notifySupportReply(params: {
     supportMessageId: params.message.id,
   });
 }
+
+export function notifySupportUserReply(params: {
+  message: { id: string; body: string };
+  sender: { id: string; username: string; avatarUrl?: string };
+  replyPreview: string;
+}): void {
+  const preview =
+    params.replyPreview.length > 80
+      ? `${params.replyPreview.slice(0, 77)}…`
+      : params.replyPreview;
+
+  for (const admin of db.users.values()) {
+    if (!isAccessAdmin(admin)) continue;
+    if (admin.id === params.sender.id) continue;
+    pushNotification({
+      recipientId: admin.id,
+      senderId: params.sender.id,
+      senderName: params.sender.username,
+      senderAvatarUrl: params.sender.avatarUrl,
+      type: 'support_contact',
+      message: `${params.sender.username} (réponse) : ${preview}`,
+      peerUserId: params.sender.id,
+      supportMessageId: params.message.id,
+    });
+  }
+}

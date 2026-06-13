@@ -351,7 +351,7 @@ export const api = {
 
   getAdminSupportMessages: (
     token: string,
-    opts: { status?: 'open' | 'replied' | 'all' } = {}
+    opts: { status?: 'open' | 'replied' | 'resolved' | 'all' } = {}
   ) => {
     const params = new URLSearchParams();
     if (opts.status && opts.status !== 'all') params.set('status', opts.status);
@@ -367,6 +367,20 @@ export const api = {
     request<{ message: import('../types').SupportContactMessage }>(
       `/access/admin/support/${messageId}/reply`,
       { method: 'POST', body: JSON.stringify({ reply }) },
+      token
+    ),
+
+  replySupportContact: (token: string, messageId: string, body: string) =>
+    request<{ message: import('../types').SupportContactMessage }>(
+      `/support/contact/${messageId}/reply`,
+      { method: 'POST', body: JSON.stringify({ body }) },
+      token
+    ),
+
+  resolveSupportContact: (token: string, messageId: string) =>
+    request<{ message: import('../types').SupportContactMessage }>(
+      `/support/contact/${messageId}/status`,
+      { method: 'PATCH', body: JSON.stringify({ status: 'resolved' }) },
       token
     ),
 

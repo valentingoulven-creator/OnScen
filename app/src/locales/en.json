@@ -362,7 +362,20 @@
     "historyTitle": "Your messages",
     "loading": "Loading…",
     "replyLabel": "Soundy reply",
-    "pending": "Awaiting reply"
+    "youLabel": "You",
+    "pending": "Awaiting reply",
+    "awaitingAdmin": "Awaiting a new Soundy reply",
+    "statusResolved": "Resolved",
+    "followUpLabel": "Your reply",
+    "followUpPlaceholder": "Reply or clarify your request…",
+    "reply": "Reply",
+    "replying": "Sending…",
+    "replySent": "Reply sent",
+    "replyError": "Could not send reply",
+    "resolvedButton": "Resolved",
+    "resolving": "…",
+    "resolved": "Ticket marked as resolved",
+    "resolveError": "Could not mark as resolved"
   },
   "profileSearch": {
     "placeholder": "Search for a profile…",
@@ -470,6 +483,7 @@
       "filter": {
         "open": "Open",
         "replied": "Replied",
+        "resolved": "Resolved",
         "all": "All"
       },
       "loading": "Loading…",
@@ -478,12 +492,17 @@
       "replyError": "Could not send reply.",
       "statusOpen": "Open",
       "statusReplied": "Replied",
+      "statusResolved": "Resolved",
       "from": "From",
       "message": "Message",
+      "userMessage": "User message",
       "yourReply": "Your reply",
       "replyPlaceholder": "Your reply",
       "sendReply": "Send reply",
-      "replying": "Sending…"
+      "replying": "Sending…",
+      "userFollowUp": "User follow-up pending",
+      "ticketResolved": "Ticket resolved by user",
+      "awaitingUser": "Awaiting user (reply or resolution)"
     },
     "content": {
       "title": "Content moderation",

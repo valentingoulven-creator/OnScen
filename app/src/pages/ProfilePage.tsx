@@ -98,6 +98,8 @@ interface ProfilePageProps {
   /** À l’ouverture : page Contacter Soundy (ex. notification support_reply). */
   openContactOnMount?: boolean;
   onContactMountHandled?: () => void;
+  /** Message support à mettre en évidence (depuis notification support_reply). */
+  highlightSupportMessageId?: string;
 }
 
 export function ProfilePage({
@@ -110,6 +112,7 @@ export function ProfilePage({
   onRecorderMountHandled,
   openContactOnMount = false,
   onContactMountHandled,
+  highlightSupportMessageId,
 }: ProfilePageProps) {
   const { user, token, logout, setUserFromProfile, refreshUser } = useAuth();
   const { t } = useTranslation();
@@ -279,7 +282,12 @@ export function ProfilePage({
   if (!user || !token) return null;
 
   if (showContactSoundy) {
-    return <ContactSoundyPage onBack={() => setShowContactSoundy(false)} />;
+    return (
+      <ContactSoundyPage
+        onBack={() => setShowContactSoundy(false)}
+        highlightMessageId={highlightSupportMessageId}
+      />
+    );
   }
 
   if (showAdmin) {

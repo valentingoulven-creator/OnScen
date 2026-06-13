@@ -58,6 +58,20 @@ function isSalonRelatedNotification(n: AppNotification): boolean {
   return n.type === 'favorite_online' || n.type === 'salon_invite';
 }
 
+function isSupportNotification(n: AppNotification): boolean {
+  return n.type === 'support_contact' || n.type === 'support_reply';
+}
+
+function canOpenSupportNotification(
+  n: AppNotification,
+  onOpenAdminSupport?: (supportMessageId?: string) => void,
+  onOpenContactSupport?: (supportMessageId?: string) => void
+): boolean {
+  if (n.type === 'support_contact') return !!onOpenAdminSupport;
+  if (n.type === 'support_reply') return !!onOpenContactSupport;
+  return false;
+}
+
 const NOTIF_VIEWED_LS_PREFIX = 'soundy:notifications-viewed:';
 
 function notifViewedLsKey(userId: string): string {
@@ -110,7 +124,7 @@ interface NotificationBellProps {
   onOpenDm?: (peerUserId: string) => void;
   onOpenGroup?: (groupId: string) => void;
   onOpenAdminSupport?: (supportMessageId?: string) => void;
-  onOpenContactSupport?: () => void;
+  onOpenContactSupport?: (supportMessageId?: string) => void;
 }
 
 export function NotificationBell({
@@ -254,6 +268,9 @@ export function NotificationBell({
   const isFollowToast = toast?.type === 'follow';
   const isEventCreatedToast = toast?.type === 'event_created';
   const isMentionToast = toast?.type === 'mention';
+  const isSupportToast = toast ? isSupportNotification(toast) : false;
+  const isSupportContactToast = toast?.type === 'support_contact';
+  const isSupportReplyToast = toast?.type === 'support_reply';
   const isMessageToast = isDmToast || isGroupToast;
 
   const openFromNotif = (n: AppNotification) => {
@@ -264,7 +281,7 @@ export function NotificationBell({
       return;
     }
     if (n.type === 'support_reply' && onOpenContactSupport) {
-      onOpenContactSupport();
+      onOpenContactSupport(n.supportMessageId);
       setToast(null);
       setOpen(false);
       return;
@@ -318,13 +335,17 @@ export function NotificationBell({
             type="button"
             onClick={() => openFromNotif(toast)}
             disabled={
-              isMessageToast
+              isSupportToast
+                ? !canOpenSupportNotification(toast, onOpenAdminSupport, onOpenContactSupport)
+                : isMessageToast
                 ? isGroupToast
                   ? !onOpenGroup
                   : !onOpenDm
                 : isMatchToast || isHeartToast || isContentHeartToast || isFollowToast || isEventCreatedToast || isMentionToast
                   ? !onOpenProfile
-                  : (!isLiveToast && !isDonToast) || !toast.liveId || !onOpenLive
+                  : isSalonToast
+                    ? !(toast.salonId || toast.liveId || onOpenProfile)
+                    : (!isLiveToast && !isDonToast) || !toast.liveId || !onOpenLive
             }
             className={`w-full flex items-center gap-3 p-3 rounded-xl shadow-xl text-left ${
               isMatchToast
@@ -343,6 +364,8 @@ export function NotificationBell({
                             ? 'bg-gradient-to-r from-yellow-950/90 to-purple-950/90 border border-yellow-500/50'
                             : isMentionToast
                               ? 'bg-gradient-to-r from-cyan-950/90 to-purple-950/90 border border-cyan-400/50'
+                              : isSupportToast
+                                ? 'bg-gradient-to-r from-indigo-950/90 to-purple-950/90 border border-indigo-400/50'
                               : isMessageToast
                                 ? 'bg-gradient-to-r from-purple-950/90 to-indigo-950/90 border border-purple-400/50'
                                 : 'bg-[#1a1a26] border border-pink-500/40'
@@ -352,7 +375,8 @@ export function NotificationBell({
               ((isMatchToast || isHeartToast || isContentHeartToast || isFollowToast || isEventCreatedToast || isMentionToast) &&
                 onOpenProfile) ||
               ((isLiveToast || isDonToast) && toast.liveId && onOpenLive) ||
-              (isSalonToast && (toast.salonId || toast.liveId || onOpenProfile))
+              (isSalonToast && (toast.salonId || toast.liveId || onOpenProfile)) ||
+              (isSupportToast && canOpenSupportNotification(toast, onOpenAdminSupport, onOpenContactSupport))
                 ? 'cursor-pointer active:scale-[0.99]'
                 : ''
             }`}
@@ -402,6 +426,10 @@ export function NotificationBell({
                                 ? 'Favori en ligne !'
                                 : isMentionToast
                                   ? 'Vous avez été mentionné !'
+                                  : isSupportContactToast
+                                    ? 'Nouveau message support'
+                                    : isSupportReplyToast
+                                      ? 'Réponse Soundy'
                                   : isMessageToast
                                     ? isGroupToast
                                       ? 'Message de groupe'
@@ -429,6 +457,10 @@ export function NotificationBell({
                               ? '⭐'
                               : isMentionToast
                                 ? '📣'
+                                : isSupportContactToast
+                                  ? '📩'
+                                  : isSupportReplyToast
+                                    ? '✉️'
                                 : isGroupToast
                                   ? '👥'
                                   : isDmToast
@@ -507,7 +539,9 @@ export function NotificationBell({
                   key={n.id}
                   onClick={() => openFromNotif(n)}
                   disabled={
-                    n.type === 'group_message'
+                    isSupportNotification(n)
+                      ? !canOpenSupportNotification(n, onOpenAdminSupport, onOpenContactSupport)
+                      : n.type === 'group_message'
                       ? !onOpenGroup
                       : n.type === 'dm_message'
                         ? !onOpenDm
@@ -537,6 +571,8 @@ export function NotificationBell({
                                       ? 'bg-cyan-950/20'
                                       : n.type === 'dm_message' || n.type === 'group_message'
                                         ? 'bg-purple-950/25'
+                                        : isSupportNotification(n)
+                                          ? 'bg-indigo-950/20'
                                         : 'bg-pink-950/20'
                       : ''
                   } ${
@@ -544,7 +580,9 @@ export function NotificationBell({
                     (n.type === 'group_message' && onOpenGroup) ||
                     (opensProfileFromNotification(n) && onOpenProfile) ||
                     ((n.type === 'live_started' || n.type === 'live_don') && n.liveId && onOpenLive) ||
-                    (isSalonRelatedNotification(n) && (n.salonId || n.liveId || onOpenProfile))
+                    (isSalonRelatedNotification(n) && (n.salonId || n.liveId || onOpenProfile)) ||
+                    (isSupportNotification(n) &&
+                      canOpenSupportNotification(n, onOpenAdminSupport, onOpenContactSupport))
                       ? n.type === 'match'
                         ? 'hover:bg-purple-950/30 cursor-pointer'
                         : n.type === 'heart' || n.type === 'content_heart'
