@@ -102,10 +102,22 @@ export function useLiveVideoRelay({
     const stream = remoteStreamRef.current;
     const el = viewerVideoRef.current;
     if (!stream || !el) return;
-    el.srcObject = stream;
+    if (el.src) el.removeAttribute('src');
+    if (el.srcObject !== stream) {
+      el.srcObject = stream;
+    }
     const result = await playLiveRemoteVideo(el);
     setViewerAudioBlocked(result === 'muted_fallback');
     setViewerPlaybackBlocked(result === 'failed');
+    if (result === 'failed') {
+      for (const track of stream.getVideoTracks()) {
+        const retry = () => {
+          track.removeEventListener('unmute', retry);
+          void attachViewerStream();
+        };
+        track.addEventListener('unmute', retry);
+      }
+    }
   }, []);
 
   const enableViewerAudio = useCallback(async () => {
@@ -120,9 +132,10 @@ export function useLiveVideoRelay({
   }, []);
 
   const enableViewerPlayback = useCallback(async () => {
+    const el = viewerVideoRef.current;
+    if (!el) return false;
     const ok = await enableViewerAudio();
     if (!ok) {
-      const el = viewerVideoRef.current;
       if (el) {
         try {
           el.muted = false;
@@ -134,6 +147,8 @@ export function useLiveVideoRelay({
           return false;
         }
       }
+    } else {
+      setViewerPlaybackBlocked(false);
     }
     return ok;
   }, [enableViewerAudio]);
@@ -355,10 +370,7 @@ export function useLiveVideoRelay({
       };
 
       pc.onconnectionstatechange = () => {
-        if (pc.connectionState === 'connected') {
-          setViewerRelayPhase('connected');
-          setViewerRelayError(null);
-        } else if (pc.connectionState === 'failed') {
+        if (pc.connectionState === 'failed') {
           if (!viewerRelayOnlyRef.current) {
             window.setTimeout(() => {
               if (viewerPcRef.current === pc) {

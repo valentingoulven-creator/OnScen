@@ -281,6 +281,12 @@ export async function playLiveRemoteVideo(el: HTMLVideoElement): Promise<LiveRem
   el.setAttribute('playsinline', 'true');
   el.setAttribute('webkit-playsinline', 'true');
   el.setAttribute('x5-playsinline', 'true');
+  if (el.src) el.removeAttribute('src');
+  try {
+    await waitForLiveStreamReady(el);
+  } catch {
+    /* continue — play() may still succeed once frames arrive */
+  }
   el.muted = false;
   if ('volume' in el) el.volume = 1;
   try {
@@ -299,6 +305,11 @@ export async function playLiveRemoteVideo(el: HTMLVideoElement): Promise<LiveRem
 
 /** Débloque le son du flux distant après un geste utilisateur. */
 export async function unmuteLiveRemoteVideo(el: HTMLVideoElement): Promise<boolean> {
+  try {
+    await waitForLiveStreamReady(el);
+  } catch {
+    /* continue */
+  }
   el.muted = false;
   if ('volume' in el) el.volume = 1;
   try {
