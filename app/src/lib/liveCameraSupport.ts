@@ -228,6 +228,51 @@ export async function playLiveVideo(el: HTMLVideoElement): Promise<void> {
   }
 }
 
+/** Attend que le flux live expose des dimensions (évite l’aperçu noir au démarrage). */
+export async function waitForLiveStreamReady(el: HTMLVideoElement): Promise<void> {
+  if (el.readyState >= HTMLMediaElement.HAVE_METADATA && el.videoWidth > 0) return;
+
+  await new Promise<void>((resolve, reject) => {
+    const onReady = () => {
+      if (el.videoWidth > 0) {
+        cleanup();
+        resolve();
+      }
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error('Camera preview failed'));
+    };
+    const cleanup = () => {
+      el.removeEventListener('loadedmetadata', onReady);
+      el.removeEventListener('loadeddata', onReady);
+      el.removeEventListener('error', onError);
+    };
+    el.addEventListener('loadedmetadata', onReady);
+    el.addEventListener('loadeddata', onReady);
+    el.addEventListener('error', onError);
+    window.setTimeout(() => {
+      cleanup();
+      if (el.srcObject) resolve();
+      else reject(new Error('Camera preview timeout'));
+    }, 3000);
+  });
+}
+
+/** Branche un flux getUserMedia sur l’élément vidéo et démarre la lecture. */
+export async function attachLiveCameraStream(
+  el: HTMLVideoElement,
+  stream: MediaStream
+): Promise<void> {
+  configureLiveVideoElement(el);
+  if (el.src) el.removeAttribute('src');
+  if (el.srcObject !== stream) {
+    el.srcObject = stream;
+  }
+  await waitForLiveStreamReady(el);
+  await playLiveVideo(el);
+}
+
 /** Lecture flux distant (spectateur) — ne force pas muted. */
 export async function playLiveRemoteVideo(el: HTMLVideoElement): Promise<void> {
   el.playsInline = true;
@@ -262,7 +307,15 @@ export function buildLiveCameraConstraintAttempts(
     ];
   }
 
-  const audio = prefs.audioDeviceId ? { deviceId: { ideal: prefs.audioDeviceId } } : true;
+  const audioExact = prefs.audioDeviceId ? { deviceId: { exact: prefs.audioDeviceId } } : true;
+  const audioIdeal = prefs.audioDeviceId ? { deviceId: { ideal: prefs.audioDeviceId } } : true;
+  const videoExact = prefs.videoDeviceId
+    ? {
+        deviceId: { exact: prefs.videoDeviceId },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      }
+    : { facingMode: 'user' as const, width: { ideal: 1280 }, height: { ideal: 720 } };
   const videoIdeal = prefs.videoDeviceId
     ? {
         deviceId: { ideal: prefs.videoDeviceId },
@@ -275,9 +328,10 @@ export function buildLiveCameraConstraintAttempts(
     : { facingMode: 'user' as const };
 
   return [
-    { video: videoIdeal, audio },
-    { video: videoRelaxed, audio },
-    { video: prefs.videoDeviceId ? { deviceId: { ideal: prefs.videoDeviceId } } : true, audio },
+    { video: videoExact, audio: audioExact },
+    { video: videoIdeal, audio: audioIdeal },
+    { video: videoRelaxed, audio: audioIdeal },
+    { video: prefs.videoDeviceId ? { deviceId: { ideal: prefs.videoDeviceId } } : true, audio: audioIdeal },
   ];
 }
 

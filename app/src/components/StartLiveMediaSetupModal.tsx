@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  configureLiveVideoElement,
+  acquireLiveCameraStream,
+  attachLiveCameraStream,
   ensureMediaDevices,
   getLiveCameraContextHints,
   getLiveCameraPreflightError,
   mapLiveCameraError,
-  playLiveVideo,
 } from '../lib/liveCameraSupport';
 import {
   setLiveMediaPrefs,
@@ -60,10 +60,29 @@ export function StartLiveMediaSetupModal({
   const attachPreview = useCallback(async (stream: MediaStream) => {
     const el = videoRef.current;
     if (!el) return;
-    configureLiveVideoElement(el);
-    el.srcObject = stream;
-    await playLiveVideo(el);
+    await attachLiveCameraStream(el, stream);
   }, []);
+
+  const attachPreviewWhenReady = useCallback(
+    (stream: MediaStream) => {
+      let cancelled = false;
+      let raf = 0;
+      const tryAttach = () => {
+        if (cancelled) return;
+        if (!videoRef.current) {
+          raf = requestAnimationFrame(tryAttach);
+          return;
+        }
+        void attachPreview(stream);
+      };
+      tryAttach();
+      return () => {
+        cancelled = true;
+        if (raf) cancelAnimationFrame(raf);
+      };
+    },
+    [attachPreview]
+  );
 
   const refreshDeviceLists = useCallback(async () => {
     const md = ensureMediaDevices();
@@ -84,11 +103,10 @@ export function StartLiveMediaSetupModal({
   const openStream = useCallback(async (videoId?: string, audioId?: string) => {
     const md = ensureMediaDevices();
     if (!md?.getUserMedia) throw new DOMException('', 'NotSupportedError');
-    const constraints: MediaStreamConstraints = {
-      video: videoId ? { deviceId: { ideal: videoId } } : true,
-      audio: audioId ? { deviceId: { ideal: audioId } } : true,
-    };
-    return md.getUserMedia(constraints);
+    return acquireLiveCameraStream((c) => md.getUserMedia(c), {
+      videoDeviceId: videoId,
+      audioDeviceId: audioId,
+    });
   }, []);
 
   useEffect(() => {
@@ -135,9 +153,6 @@ export function StartLiveMediaSetupModal({
         setVideoDeviceId(vTrack?.getSettings().deviceId ?? '');
         setAudioDeviceId(aTrack?.getSettings().deviceId ?? '');
         setPhase('config');
-        window.setTimeout(() => {
-          if (!cancelled && streamRef.current) void attachPreview(streamRef.current);
-        }, 50);
       } catch (e) {
         if (!cancelled) {
           setError(mapLiveCameraError(e));
@@ -151,7 +166,12 @@ export function StartLiveMediaSetupModal({
     return () => {
       cancelled = true;
     };
-  }, [open, stopStream, openStream, refreshDeviceLists, attachPreview]);
+  }, [open, stopStream, openStream, refreshDeviceLists]);
+
+  useEffect(() => {
+    if (phase !== 'config' || !streamRef.current) return;
+    return attachPreviewWhenReady(streamRef.current);
+  }, [phase, attachPreviewWhenReady]);
 
   const handleVideoChange = async (nextId: string) => {
     setVideoDeviceId(nextId);
@@ -161,7 +181,7 @@ export function StartLiveMediaSetupModal({
       stopStream();
       const stream = await openStream(nextId || undefined, audioDeviceId || undefined);
       streamRef.current = stream;
-      await attachPreview(stream);
+      attachPreviewWhenReady(stream);
     } catch (e) {
       setError(mapLiveCameraError(e));
       setPhase('error');
@@ -178,7 +198,7 @@ export function StartLiveMediaSetupModal({
       stopStream();
       const stream = await openStream(videoDeviceId || undefined, nextId || undefined);
       streamRef.current = stream;
-      await attachPreview(stream);
+      attachPreviewWhenReady(stream);
     } catch (e) {
       setError(mapLiveCameraError(e));
       setPhase('error');
@@ -245,6 +265,7 @@ export function StartLiveMediaSetupModal({
               <div className="relative aspect-video w-full bg-[#0b0b0f] rounded-xl overflow-hidden border border-[#2d2d3d]">
                 <video
                   ref={videoRef}
+                  autoPlay
                   className="absolute inset-0 w-full h-full object-cover [transform:scaleX(-1)]"
                   muted
                   playsInline

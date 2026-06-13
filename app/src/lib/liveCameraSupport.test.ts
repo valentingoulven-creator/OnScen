@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildLiveCameraConstraintAttempts,
   getLiveCameraPreflightIssue,
   isLocalNetworkHost,
   liveCameraPreflightMessage,
@@ -74,6 +75,26 @@ describe('mapLiveCameraError', () => {
   it('mappe SecurityError vers HTTPS', () => {
     const err = new DOMException('insecure', 'SecurityError');
     expect(mapLiveCameraError(err)).toMatch(/HTTPS/i);
+  });
+});
+
+describe('buildLiveCameraConstraintAttempts', () => {
+  it('utilise exact deviceId quand une caméra est choisie', () => {
+    const attempts = buildLiveCameraConstraintAttempts({
+      videoDeviceId: 'cam-123',
+      audioDeviceId: 'mic-456',
+    });
+    expect(attempts[0]?.video).toEqual({
+      deviceId: { exact: 'cam-123' },
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+    });
+    expect(attempts[0]?.audio).toEqual({ deviceId: { exact: 'mic-456' } });
+  });
+
+  it('conserve facingMode sans prefs explicites', () => {
+    const attempts = buildLiveCameraConstraintAttempts(null);
+    expect(attempts[0]?.video).toMatchObject({ facingMode: 'user' });
   });
 });
 

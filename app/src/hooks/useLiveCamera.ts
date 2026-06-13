@@ -3,6 +3,7 @@ import { LIVE_CAMERA_FILE_LOAD_ERROR } from '../lib/liveCameraMessages';
 import { getLiveMediaPrefs } from '../lib/liveMediaPrefs';
 import {
   acquireLiveCameraStream,
+  attachLiveCameraStream,
   configureLiveVideoElement,
   createVideoFileObjectUrl,
   ensureMediaDevices,
@@ -53,11 +54,7 @@ export function useLiveCamera() {
 
     const stream = streamRef.current;
     if (stream) {
-      if (el.src) {
-        el.removeAttribute('src');
-      }
-      el.srcObject = stream;
-      await playLiveVideo(el);
+      await attachLiveCameraStream(el, stream);
       return;
     }
 
