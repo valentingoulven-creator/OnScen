@@ -14,6 +14,8 @@ export interface UseSpotifyPlaylistLibraryResult {
   loading: boolean;
   isRealAccount: boolean;
   spotifySessionValid: boolean;
+  spotifyLibraryValid: boolean;
+  libraryUnavailable: boolean;
   needsReconnect: boolean;
   connectingSpotify: boolean;
   error: string | null;
@@ -30,6 +32,8 @@ export function useSpotifyPlaylistLibrary(token: string): UseSpotifyPlaylistLibr
   const [loading, setLoading] = useState(true);
   const [isRealAccount, setIsRealAccount] = useState(false);
   const [spotifySessionValid, setSpotifySessionValid] = useState(true);
+  const [spotifyLibraryValid, setSpotifyLibraryValid] = useState(true);
+  const [libraryUnavailable, setLibraryUnavailable] = useState(false);
   const [needsReconnect, setNeedsReconnect] = useState(false);
   const [connectingSpotify, setConnectingSpotify] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,12 +51,16 @@ export function useSpotifyPlaylistLibrary(token: string): UseSpotifyPlaylistLibr
         setPlaylists(response.playlists);
         setIsRealAccount(response.isRealAccount);
         setSpotifySessionValid(response.spotifySessionValid !== false);
+        setSpotifyLibraryValid(response.spotifyLibraryValid !== false);
         const session = applySpotifyPlaylistListSession(
           response.spotifySessionValid,
           response.spotifySessionCode,
+          response.spotifyLibraryValid,
+          response.spotifyLibraryCode,
           t
         );
         setNeedsReconnect(session.needsReconnect);
+        setLibraryUnavailable(session.libraryUnavailable);
         if (session.error) setError(session.error);
       })
       .catch((e) => {
@@ -108,6 +116,8 @@ export function useSpotifyPlaylistLibrary(token: string): UseSpotifyPlaylistLibr
     loading,
     isRealAccount,
     spotifySessionValid,
+    spotifyLibraryValid,
+    libraryUnavailable,
     needsReconnect,
     connectingSpotify,
     error,

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSpotifyPlaylistLibrary } from '../hooks/useSpotifyPlaylistLibrary';
+import { isSpotifyPlaylistUrlInput } from '../lib/spotifyPlaylistSession';
 import { SpotifyPlaylistPickerFields } from './SpotifyPlaylistPickerFields';
 import type { CreateSalonPlaylistSelection } from './CreateSalonPlaylistPicker';
 
@@ -30,6 +31,10 @@ export function CreateSalonSpotifyPlaylistPicker({
   const pickFromUrl = () => {
     const url = playlistUrl.trim();
     if (!url) return;
+    if (!isSpotifyPlaylistUrlInput(url)) {
+      library.setError(t('salon.spotifySearch.playlistUrlInvalid'));
+      return;
+    }
     library.setError(null);
     onChange({ playlistUrl: url, title: t('salon.spotifySearch.defaultPlaylistTitle') });
   };
@@ -67,6 +72,7 @@ export function CreateSalonSpotifyPlaylistPicker({
             loading={library.loading}
             isRealAccount={library.isRealAccount}
             spotifySessionValid={library.spotifySessionValid}
+            libraryUnavailable={library.libraryUnavailable}
             needsReconnect={library.needsReconnect}
             connectingSpotify={library.connectingSpotify}
             error={library.error}
@@ -77,6 +83,7 @@ export function CreateSalonSpotifyPlaylistPicker({
             onReconnect={library.reconnectSpotify}
           />
           <p className="text-[10px] text-gray-600">{t('salon.spotifySearch.createPlaylistHint')}</p>
+          <p className="text-[10px] text-gray-600">{t('salon.spotifySearch.createPlaylistPublicUrlHint')}</p>
           <p className="text-[10px] text-[#1DB954]/70">{t('salon.spotifySearch.poweredBy')}</p>
         </>
       )}

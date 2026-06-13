@@ -22,6 +22,7 @@ import {
   createSpotifyOAuthUrl,
   userNeedsSpotifyScopeReconnect,
   getStoredSpotifyProduct,
+  getValidSpotifyHostToken,
   persistSpotifyProduct,
 } from '../lib/spotifyOAuth';
 import { respondSpotifySessionAuthFailure } from '../lib/spotifySession';
@@ -36,6 +37,7 @@ import {
   isRealSpotifyAccount,
   listHostSpotifyPlaylists,
   probeSpotifyHostSession,
+  probeSpotifyPlaylistLibraryAccess,
   SpotifyPlaylistError,
   verifySpotifyPlaylistTrackAccess,
 } from '../lib/spotifyPlaylists';
@@ -188,11 +190,34 @@ platformsRouter.get('/spotify/playlists', authenticateJWT, async (req: Request, 
     });
     return;
   }
-  const playlists = await listHostSpotifyPlaylists(user);
+
+  let spotifyLibraryValid = true;
+  let spotifyLibraryCode: string | undefined;
+  const tokenResult = await getValidSpotifyHostToken(user);
+  if (tokenResult.ok) {
+    const libraryProbe = await probeSpotifyPlaylistLibraryAccess(user, tokenResult.accessToken);
+    if (!libraryProbe.ok) {
+      spotifyLibraryValid = false;
+      spotifyLibraryCode = libraryProbe.code;
+    }
+  } else {
+    spotifyLibraryValid = false;
+    spotifyLibraryCode =
+      tokenResult.reason === 'invalid_refresh'
+        ? 'spotify_token_expired'
+        : tokenResult.reason === 'not_connected' || tokenResult.reason === 'not_configured'
+          ? 'spotify_not_connected'
+          : 'spotify_network_error';
+  }
+
+  const playlists = spotifyLibraryValid ? await listHostSpotifyPlaylists(user) : [];
+  db.users.set(userId, user);
   res.json({
     playlists,
     isRealAccount: isRealSpotifyAccount(user),
     spotifySessionValid: true,
+    spotifyLibraryValid,
+    spotifyLibraryCode,
     spotifyProduct: session.product,
   });
 });

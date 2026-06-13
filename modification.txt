@@ -1,5 +1,70 @@
 ﻿
 ================================================================================
+MODIF 483 — Playlists publiques externes par URL (salon hôte + create)
+================================================================================
+Date : 2026-06-13
+
+## Symptôme
+Dans le panneau PLAYLIST HÔTE (`SalonSpotifyPlaylist`), coller un lien
+`open.spotify.com/playlist/…` d'une playlist publique **non créée par l'hôte**
+affiche « Session Spotify à renouveler — reconnectez Spotify pour lancer une playlist. »
+alors que la session playback est valide.
+
+## Cause
+1. `probeSpotifyHostSession` exigeait `/me/playlists` → échec bibliothèque invalidait
+   `spotifySessionValid` et bloquait le lancement par URL.
+2. Échec `/items` sur playlist externe parfois classé reconnect (`spotify_playlist_forbidden`
+   dans `SPOTIFY_PLAYLIST_RECONNECT_CODES`).
+3. Repli metadata GET `/playlists/{id}` limité au seul 403 bare sur `/items`.
+
+## Correctif
+### Backend
+- Session hôte (token + Premium + `/me`) **séparée** de la bibliothèque (`probeSpotifyPlaylistLibraryAccess`).
+- GET `/platforms/spotify/playlists` : `spotifySessionValid` + `spotifyLibraryValid` / `spotifyLibraryCode`.
+- `verify-access` et `load-playlist` : sonde session playback uniquement (pas `/me/playlists`).
+- `openSpotifyPlaylistItemsSession` : repli systématique GET `/playlists/{id}` si `/items` échoue.
+- Nouveau code `spotify_playlist_private` (playlist privée d'un tiers) vs session.
+
+### Frontend
+- Hook `useSpotifyPlaylistLibrary` : `spotifyLibraryValid`, `libraryUnavailable`.
+- `SalonSpotifyPlaylist` : lancement URL si session playback OK ; validation lien ; erreurs distinctes.
+- `CreateSalonSpotifyPlaylistPicker` : validation URL + hint playlist publique externe.
+- `spotify_playlist_forbidden` retiré des codes reconnect ; i18n FR/EN dédiés.
+
+## Fichiers
+- backend/src/lib/spotifyPlaylists.ts
+- backend/src/lib/spotifyPlaylistErrors.ts
+- backend/src/routes/platforms.ts
+- app/src/lib/spotifyPlaylistSession.ts
+- app/src/lib/api.ts
+- app/src/hooks/useSpotifyPlaylistLibrary.ts
+- app/src/components/SalonSpotifyPlaylist.tsx
+- app/src/components/SpotifyPlaylistPickerFields.tsx
+- app/src/components/CreateSalonSpotifyPlaylistPicker.tsx
+- app/src/locales/fr.json, en.json
+- modification.txt
+
+## Comportement API
+| Cas | Résultat |
+|-----|----------|
+| Playlist publique (lien URL, pas dans bibliothèque) | OK via GET `/playlists/{id}` + pagination |
+| Playlist privée d'un autre utilisateur | 403 `spotify_playlist_private` |
+| Lien invalide / ID inconnu | 404 `spotify_playlist_not_found` |
+| Session expirée / Premium manquant | 403 `spotify_token_expired` / `spotify_premium_required` |
+| Scope bibliothèque manquant | `spotifyLibraryValid: false` mais URL publique OK |
+
+## Test
+  cd backend && npx tsc --noEmit   ✓
+  cd app && npm run build          ✓
+
+## Déploiement
+Non déployé (code only).
+
+================================================================================
+Fin MODIF 483 - 2026-06-13
+================================================================================
+
+================================================================================
 MODIF 482 — Suppression verify-access à la sélection playlist (create salon)
 ================================================================================
 Date : 2026-06-13

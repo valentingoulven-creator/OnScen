@@ -86,7 +86,21 @@ async function parseApiError(res: Response): Promise<ApiRequestError> {
         }
         if (json.code === 'spotify_playlist_forbidden') {
           return new ApiRequestError(
-            json.error || i18n.t('salon.spotifySearch.errorPlaylistForbidden'),
+            json.error || i18n.t('salon.spotifySearch.errorPlaylistPrivate'),
+            json.code,
+            res.status
+          );
+        }
+        if (json.code === 'spotify_playlist_private') {
+          return new ApiRequestError(
+            json.error || i18n.t('salon.spotifySearch.errorPlaylistPrivate'),
+            json.code,
+            res.status
+          );
+        }
+        if (json.code === 'spotify_playlist_not_found') {
+          return new ApiRequestError(
+            json.error || i18n.t('salon.spotifySearch.errorPlaylistNotFound'),
             json.code,
             res.status
           );
@@ -682,6 +696,8 @@ export const api = {
       isRealAccount: boolean;
       spotifySessionValid?: boolean;
       spotifySessionCode?: string;
+      spotifyLibraryValid?: boolean;
+      spotifyLibraryCode?: string;
     }>('/platforms/spotify/playlists', {}, token),
 
   verifySpotifyPlaylistAccess: (

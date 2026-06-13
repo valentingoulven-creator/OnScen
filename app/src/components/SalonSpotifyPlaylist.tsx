@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api';
 import { useSpotifyPlaylistLibrary } from '../hooks/useSpotifyPlaylistLibrary';
-import { toSpotifyPlaylistRef } from '../lib/spotifyPlaylistSession';
+import { toSpotifyPlaylistRef, isSpotifyPlaylistUrlInput } from '../lib/spotifyPlaylistSession';
 import { SpotifyPlaylistPickerFields } from './SpotifyPlaylistPickerFields';
 import type { PlaybackState, SalonQueueItem } from '../types';
 
@@ -33,17 +33,26 @@ export function SalonSpotifyPlaylist({
   }, [library.playlists, selectedId]);
 
   const launch = async () => {
-    if (!library.isRealAccount || !library.spotifySessionValid) {
-      library.setError(
-        !library.spotifySessionValid
-          ? t('salon.spotifySearch.playlistSessionError')
-          : t('salon.spotifySearch.playlistDemoHint')
-      );
+    const urlInput = playlistUrl.trim();
+    const usingPublicUrl = Boolean(urlInput);
+
+    if (!library.isRealAccount) {
+      library.setError(t('salon.spotifySearch.playlistDemoHint'));
+      return;
+    }
+
+    if (!library.spotifySessionValid) {
+      library.setError(t('salon.spotifySearch.playlistSessionError'));
+      return;
+    }
+
+    if (usingPublicUrl && !isSpotifyPlaylistUrlInput(urlInput)) {
+      library.setError(t('salon.spotifySearch.playlistUrlInvalid'));
       return;
     }
 
     const body = toSpotifyPlaylistRef(
-      playlistUrl.trim() ? { playlistUrl: playlistUrl.trim() } : selectedId ? { playlistId: selectedId } : null
+      usingPublicUrl ? { playlistUrl: urlInput } : selectedId ? { playlistId: selectedId } : null
     );
 
     if (!body) {
@@ -97,6 +106,7 @@ export function SalonSpotifyPlaylist({
             loading={library.loading}
             isRealAccount={library.isRealAccount}
             spotifySessionValid={library.spotifySessionValid}
+            libraryUnavailable={library.libraryUnavailable}
             needsReconnect={library.needsReconnect}
             connectingSpotify={library.connectingSpotify}
             error={library.error}

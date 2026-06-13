@@ -6,6 +6,7 @@ export interface SpotifyPlaylistPickerFieldsProps {
   loading: boolean;
   isRealAccount: boolean;
   spotifySessionValid: boolean;
+  libraryUnavailable?: boolean;
   needsReconnect: boolean;
   connectingSpotify: boolean;
   error: string | null;
@@ -28,6 +29,7 @@ export function SpotifyPlaylistPickerFields({
   loading,
   isRealAccount,
   spotifySessionValid,
+  libraryUnavailable = false,
   needsReconnect,
   connectingSpotify,
   error,
@@ -48,11 +50,13 @@ export function SpotifyPlaylistPickerFields({
   return (
     <>
       <p className="text-[10px] text-gray-500 leading-snug">
-        {isRealAccount && spotifySessionValid
-          ? t('salon.spotifySearch.playlistRealHint')
-          : isRealAccount && !spotifySessionValid
-            ? t('salon.spotifySearch.playlistSessionError')
-            : t('salon.spotifySearch.playlistDemoHint')}
+        {isRealAccount && spotifySessionValid && libraryUnavailable
+          ? t('salon.spotifySearch.playlistPublicUrlHint')
+          : isRealAccount && spotifySessionValid
+            ? t('salon.spotifySearch.playlistRealHint')
+            : isRealAccount && !spotifySessionValid
+              ? t('salon.spotifySearch.playlistSessionError')
+              : t('salon.spotifySearch.playlistDemoHint')}
       </p>
 
       {loading ? (

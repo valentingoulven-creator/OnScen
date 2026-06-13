@@ -8,7 +8,8 @@ export type SpotifySessionCode =
   | 'spotify_not_connected'
   | 'spotify_premium_required'
   | 'spotify_dev_user_not_allowed'
-  | 'spotify_playlist_forbidden'
+  | 'spotify_playlist_private'
+  | 'spotify_playlist_not_found'
   | 'spotify_network_error';
 
 /** Codes API déclenchant le bouton « Reconnecter Spotify » dans les pickers playlist. */
@@ -16,7 +17,6 @@ export const SPOTIFY_PLAYLIST_RECONNECT_CODES = new Set<string>([
   'spotify_token_expired',
   'spotify_scope_missing',
   'spotify_not_connected',
-  'spotify_playlist_forbidden',
 ]);
 
 export type SpotifyPlaylistRef = { playlistId?: string; playlistUrl?: string };
@@ -40,8 +40,12 @@ export function spotifySessionCodeI18nKey(code?: string): string | null {
       return 'salon.spotifySearch.errorTokenExpired';
     case 'spotify_not_connected':
       return 'salon.spotifySearch.errorNotConnected';
+    case 'spotify_playlist_private':
+      return 'salon.spotifySearch.errorPlaylistPrivate';
+    case 'spotify_playlist_not_found':
+      return 'salon.spotifySearch.errorPlaylistNotFound';
     case 'spotify_playlist_forbidden':
-      return 'salon.spotifySearch.errorPlaylistForbidden';
+      return 'salon.spotifySearch.errorPlaylistPrivate';
     default:
       return code ? 'salon.spotifySearch.playlistSessionError' : null;
   }
@@ -71,6 +75,21 @@ export function toSpotifyPlaylistRef(
   return null;
 }
 
+/** Extrait l'ID d'un lien open.spotify.com/playlist/… ou d'un ID brut. */
+export function parseSpotifyPlaylistIdFromInput(urlOrId: string): string | null {
+  const raw = urlOrId.trim();
+  const fromUrl =
+    raw.match(/spotify\.com\/(?:embed\/|intl-[a-z]{2}\/)?playlist\/([a-zA-Z0-9]+)/)?.[1] ||
+    raw.match(/^spotify:playlist:([a-zA-Z0-9]+)$/)?.[1];
+  if (fromUrl) return fromUrl;
+  if (/^[a-zA-Z0-9]{10,}$/.test(raw) && !raw.startsWith('spotify:track:')) return raw;
+  return null;
+}
+
+export function isSpotifyPlaylistUrlInput(value: string): boolean {
+  return Boolean(parseSpotifyPlaylistIdFromInput(value));
+}
+
 export async function redirectToSpotifyReconnect(token: string): Promise<void> {
   const { url } = await api.getSpotifyOAuthUrl(token, { reconnect: true });
   window.location.href = url;
@@ -97,13 +116,25 @@ export function translateSalonCreateError(
 export function applySpotifyPlaylistListSession(
   spotifySessionValid: boolean | undefined,
   spotifySessionCode: string | undefined,
+  spotifyLibraryValid: boolean | undefined,
+  spotifyLibraryCode: string | undefined,
   t: TFunction
-): { needsReconnect: boolean; error: string | null } {
-  if (spotifySessionValid !== false) {
-    return { needsReconnect: false, error: null };
+): { needsReconnect: boolean; error: string | null; libraryUnavailable: boolean } {
+  if (spotifySessionValid === false) {
+    return {
+      needsReconnect: spotifySessionCodeNeedsReconnect(spotifySessionCode),
+      error:
+        translateSpotifySessionCode(t, spotifySessionCode) ??
+        t('salon.spotifySearch.playlistSessionError'),
+      libraryUnavailable: false,
+    };
   }
-  return {
-    needsReconnect: true,
-    error: translateSpotifySessionCode(t, spotifySessionCode) ?? t('salon.spotifySearch.playlistSessionError'),
-  };
+  if (spotifyLibraryValid === false) {
+    return {
+      needsReconnect: spotifySessionCodeNeedsReconnect(spotifyLibraryCode),
+      error: null,
+      libraryUnavailable: true,
+    };
+  }
+  return { needsReconnect: false, error: null, libraryUnavailable: false };
 }

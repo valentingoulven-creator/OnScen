@@ -234,23 +234,22 @@ async function openSpotifyPlaylistItemsSession(
     if (result.ok) return result;
     lastStatus = result.status;
     lastDetail = result.detail;
-    if (result.status !== 403 || !isSpotifyBareForbiddenError(result.detail)) break;
   }
 
-  if (lastStatus === 403 && isSpotifyBareForbiddenError(lastDetail)) {
-    console.warn('[spotify-playlist] /items 403 — fallback GET /playlists/{id}', {
-      userId: user.id,
-      playlistId,
-    });
-    const metaAttempts = [buildPlaylistMetadataUrl(playlistId, 'from_token')];
-    if (country) metaAttempts.push(buildPlaylistMetadataUrl(playlistId, country));
-    for (const url of metaAttempts) {
-      const result = await fetchPlaylistItemsPage(user, url, accessToken);
-      accessToken = result.accessToken;
-      if (result.ok) return result;
-      lastStatus = result.status;
-      lastDetail = result.detail;
-    }
+  console.warn('[spotify-playlist] /items failed — fallback GET /playlists/{id}', {
+    userId: user.id,
+    playlistId,
+    status: lastStatus,
+    detail: lastDetail,
+  });
+  const metaAttempts = [buildPlaylistMetadataUrl(playlistId, 'from_token')];
+  if (country) metaAttempts.push(buildPlaylistMetadataUrl(playlistId, country));
+  for (const url of metaAttempts) {
+    const result = await fetchPlaylistItemsPage(user, url, accessToken);
+    accessToken = result.accessToken;
+    if (result.ok) return result;
+    lastStatus = result.status;
+    lastDetail = result.detail;
   }
 
   return { ok: false, status: lastStatus, detail: lastDetail, accessToken };
@@ -298,16 +297,24 @@ function syncStoredScopesAfterListProbeOk(user: User): void {
 
 async function finishHostSessionProbe(
   user: User,
-  accessToken: string,
+  _accessToken: string,
   product: ReturnType<typeof normalizeSpotifyProduct>
 ): Promise<SpotifyHostSessionResult> {
   if (!isSpotifyPlaybackHostProduct(product)) {
     return { ok: false, code: 'spotify_premium_required', product };
   }
-  const listProbe = await probeSpotifyPlaylistListAccess(user, accessToken);
-  if (!listProbe.ok) return { ok: false, code: listProbe.code, product };
-  syncStoredScopesAfterListProbeOk(user);
   return { ok: true, product };
+}
+
+/** Vérifie l'accès à /me/playlists (bibliothèque hôte) — distinct de la lecture par ID/URL. */
+export async function probeSpotifyPlaylistLibraryAccess(
+  user: User,
+  accessToken: string
+): Promise<{ ok: true } | { ok: false; code: string }> {
+  const listProbe = await probeSpotifyPlaylistListAccess(user, accessToken);
+  if (!listProbe.ok) return listProbe;
+  syncStoredScopesAfterListProbeOk(user);
+  return { ok: true };
 }
 
 export async function probeSpotifyHostSession(user: User): Promise<SpotifyHostSessionResult> {

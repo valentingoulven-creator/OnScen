@@ -38,9 +38,9 @@ function classifyPlaylist403(
       userId: user?.id,
     });
     return new SpotifyPlaylistError(
-      'Accès à la playlist Spotify refusé — vérifiez le lien ou choisissez une autre playlist.',
+      'Playlist Spotify inaccessible — elle est peut-être privée ou réservée à son propriétaire.',
       403,
-      'spotify_playlist_forbidden'
+      'spotify_playlist_private'
     );
   }
   return null;
@@ -76,9 +76,9 @@ export function throwSpotifyPlaylistApiError(
     throw new SpotifyPlaylistError(
       detail
         ? `Impossible de charger la playlist — ${detail}`
-        : 'Accès à la playlist Spotify refusé — vérifiez le lien ou reconnectez Spotify.',
+        : 'Playlist Spotify inaccessible — elle est peut-être privée ou réservée à son propriétaire.',
       403,
-      'spotify_playlist_forbidden'
+      'spotify_playlist_private'
     );
   }
 
