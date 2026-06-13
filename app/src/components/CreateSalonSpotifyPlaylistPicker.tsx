@@ -19,9 +19,11 @@ export function CreateSalonSpotifyPlaylistPicker({
   const [playlistUrl, setPlaylistUrl] = useState('');
   const library = useSpotifyPlaylistLibrary(token);
 
-  const pickFromList = (playlistId: string) => {
+  const pickFromList = async (playlistId: string) => {
     const playlist = library.playlists.find((p) => p.playlistId === playlistId);
     if (!playlist) return;
+    const ok = await library.verifyPlaylistAccess({ playlistId: playlist.playlistId });
+    if (!ok) return;
     setPlaylistUrl('');
     onChange({ playlistId: playlist.playlistId, title: playlist.title });
   };

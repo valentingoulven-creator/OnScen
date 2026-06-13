@@ -1,7 +1,49 @@
 ﻿
 ================================================================================
-MODIF 480 — Fix définitif reconnect Spotify playlist (scope gate + track probe)
+MODIF 481 — Fix 403 playlist tracks → /items + fallback metadata
 ================================================================================
+Date : 2026-06-13
+
+## Symptôme (persistant après MODIF 480 déployé SHA 6ab16fc0)
+Création salon Spotify avec playlist : toast
+« Accès à la playlist refusé — choisissez une playlist de votre bibliothèque ou reconnectez Spotify. »
+(code `spotify_playlist_forbidden`).
+
+## Cause racine (preuve prod VPS 51.159.164.100)
+Logs PM2 `melosong-backend-error.log` :
+- `[load-playlist] spotify error { playlistId: '18HC7CvDqHcCphUazqkPNk', status: 403, code: 'spotify_playlist_forbidden' }`
+- `[spotify-playlist] bare 403 Forbidden on playlist tracks { context: 'verifySpotifyPlaylistTrackAccess' }`
+- Même playlist listée via `/me/playlists` OK, scopes complets (`playlist-read-private` + `collaborative` + `user-read-private`).
+- Endpoint legacy `/playlists/{id}/tracks` renvoie 403 bare « Forbidden » (changement API Spotify ~fév. 2026) alors que
+  GET `/playlists/{id}` et `/playlists/{id}/items` restent accessibles.
+
+## Correctif
+### Backend (`spotifyPlaylists.ts`)
+- Migration `/tracks` → `/playlists/{id}/items?market=from_token&additional_types=track`.
+- Repli marché explicite (pays `/me`) si 403 bare sur `/items`.
+- Repli GET `/playlists/{id}` (pagination `tracks`/`items`) si `/items` toujours 403.
+- `verifySpotifyPlaylistTrackAccess` et `resolveSpotifyPlaylistTracks` partagent `openSpotifyPlaylistItemsSession`.
+
+### Frontend
+- `CreateSalonSpotifyPlaylistPicker` : verify-access au clic liste (comme URL) avant sélection.
+
+## Fichiers
+- backend/src/lib/spotifyPlaylists.ts
+- app/src/components/CreateSalonSpotifyPlaylistPicker.tsx
+- modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit   ✓
+  cd backend && npm test           ✓ (108)
+  cd app && npm run build          ✓
+
+## Déploiement
+deploy_zero_downtime.ps1 — voir SHA ci-dessous.
+
+================================================================================
+Fin MODIF 481 - 2026-06-13
+================================================================================
+
 Date : 2026-06-13
 
 ## Symptôme (persistant après MODIF 479 déployé SHA 8f14a91b)

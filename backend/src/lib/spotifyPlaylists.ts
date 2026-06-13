@@ -143,8 +143,117 @@ async function spotifyFetch(
   return { res, accessToken };
 }
 
-function buildPlaylistTracksUrl(playlistId: string, limit: number): string {
-  return `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/tracks?limit=${limit}&market=from_token&additional_types=track`;
+function buildPlaylistItemsUrl(playlistId: string, limit: number, market = 'from_token'): string {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    market,
+    additional_types: 'track',
+  });
+  return `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}/items?${params.toString()}`;
+}
+
+function buildPlaylistMetadataUrl(playlistId: string, market = 'from_token'): string {
+  const params = new URLSearchParams({
+    market,
+    additional_types: 'track',
+  });
+  return `https://api.spotify.com/v1/playlists/${encodeURIComponent(playlistId)}?${params.toString()}`;
+}
+
+async function fetchSpotifyUserMarket(user: User, accessToken: string): Promise<string | undefined> {
+  const fetched = await spotifyFetch(user, 'https://api.spotify.com/v1/me', accessToken);
+  if (!fetched.res.ok) return undefined;
+  const profile = (await fetched.res.json()) as { country?: string };
+  const country = profile.country?.trim().toUpperCase();
+  return country && /^[A-Z]{2}$/.test(country) ? country : undefined;
+}
+
+type PlaylistItemsPage = {
+  items: PlaylistItemPayload[];
+  next: string | null;
+};
+
+function parsePlaylistItemsPage(data: {
+  items?: PlaylistItemPayload[];
+  next?: string | null;
+  tracks?: { items?: PlaylistItemPayload[]; next?: string | null };
+}): PlaylistItemsPage {
+  if (data.items) {
+    return { items: data.items, next: data.next ?? null };
+  }
+  return { items: data.tracks?.items ?? [], next: data.tracks?.next ?? null };
+}
+
+async function fetchPlaylistItemsPage(
+  user: User,
+  url: string,
+  accessToken: string
+): Promise<
+  | { ok: true; page: PlaylistItemsPage; accessToken: string }
+  | { ok: false; status: number; detail?: string; accessToken: string }
+> {
+  const fetched = await spotifyFetch(user, url, accessToken);
+  accessToken = fetched.accessToken;
+  if (!fetched.res.ok) {
+    return {
+      ok: false,
+      status: fetched.res.status,
+      detail: await parseSpotifyErrorMessage(fetched.res),
+      accessToken,
+    };
+  }
+  const data = (await fetched.res.json()) as {
+    items?: PlaylistItemPayload[];
+    next?: string | null;
+    tracks?: { items?: PlaylistItemPayload[]; next?: string | null };
+  };
+  return { ok: true, page: parsePlaylistItemsPage(data), accessToken };
+}
+
+/** Ouvre une session paginée sur les morceaux (API /items, repli /playlists/{id}). */
+async function openSpotifyPlaylistItemsSession(
+  user: User,
+  playlistId: string,
+  limit: number,
+  accessToken: string
+): Promise<
+  | { ok: true; page: PlaylistItemsPage; accessToken: string }
+  | { ok: false; status: number; detail?: string; accessToken: string }
+> {
+  const attempts: string[] = [buildPlaylistItemsUrl(playlistId, limit, 'from_token')];
+  const country = await fetchSpotifyUserMarket(user, accessToken);
+  if (country) {
+    attempts.push(buildPlaylistItemsUrl(playlistId, limit, country));
+  }
+
+  let lastStatus = 502;
+  let lastDetail: string | undefined;
+  for (const url of attempts) {
+    const result = await fetchPlaylistItemsPage(user, url, accessToken);
+    accessToken = result.accessToken;
+    if (result.ok) return result;
+    lastStatus = result.status;
+    lastDetail = result.detail;
+    if (result.status !== 403 || !isSpotifyBareForbiddenError(result.detail)) break;
+  }
+
+  if (lastStatus === 403 && isSpotifyBareForbiddenError(lastDetail)) {
+    console.warn('[spotify-playlist] /items 403 — fallback GET /playlists/{id}', {
+      userId: user.id,
+      playlistId,
+    });
+    const metaAttempts = [buildPlaylistMetadataUrl(playlistId, 'from_token')];
+    if (country) metaAttempts.push(buildPlaylistMetadataUrl(playlistId, country));
+    for (const url of metaAttempts) {
+      const result = await fetchPlaylistItemsPage(user, url, accessToken);
+      accessToken = result.accessToken;
+      if (result.ok) return result;
+      lastStatus = result.status;
+      lastDetail = result.detail;
+    }
+  }
+
+  return { ok: false, status: lastStatus, detail: lastDetail, accessToken };
 }
 
 /** Vérifie en live l'accès lecture playlists (/me/playlists) — source de vérité session. */
@@ -392,27 +501,36 @@ export async function resolveSpotifyPlaylistTracks(
   let accessToken = await prepareAccessTokenForPlaylistTracks(user);
   const tracks: SpotifyPlaylistTrack[] = [];
   let skippedItems = 0;
-  let nextUrl: string | null = buildPlaylistTracksUrl(playlistId, 100);
 
-  while (nextUrl && tracks.length < 200) {
-    const fetched = await spotifyFetch(user, nextUrl, accessToken);
-    accessToken = fetched.accessToken;
-    if (!fetched.res.ok) {
-      const detail = await parseSpotifyErrorMessage(fetched.res);
-      throwSpotifyPlaylistApiError(fetched.res.status, detail, 'resolveSpotifyPlaylistTracks', user);
-    }
+  const opened = await openSpotifyPlaylistItemsSession(user, playlistId, 100, accessToken);
+  accessToken = opened.accessToken;
+  if (!opened.ok) {
+    throwSpotifyPlaylistApiError(opened.status, opened.detail, 'resolveSpotifyPlaylistTracks', user);
+  }
 
-    const data = (await fetched.res.json()) as {
-      items?: PlaylistItemPayload[];
-      next?: string | null;
-    };
-
-    for (const item of data.items ?? []) {
+  let nextUrl: string | null = null;
+  const consumePage = (page: PlaylistItemsPage) => {
+    for (const item of page.items) {
       const mapped = mapPlaylistTrack(item);
       if (mapped) tracks.push(mapped);
       else skippedItems += 1;
     }
-    nextUrl = data.next ?? null;
+    nextUrl = page.next;
+  };
+  consumePage(opened.page);
+
+  while (nextUrl && tracks.length < 200) {
+    const pageResult = await fetchPlaylistItemsPage(user, nextUrl, accessToken);
+    accessToken = pageResult.accessToken;
+    if (!pageResult.ok) {
+      throwSpotifyPlaylistApiError(
+        pageResult.status,
+        pageResult.detail,
+        'resolveSpotifyPlaylistTracks',
+        user
+      );
+    }
+    consumePage(pageResult.page);
   }
 
   if (!tracks.length) {
@@ -443,10 +561,14 @@ export async function verifySpotifyPlaylistTrackAccess(
     );
   }
 
-  const accessToken = await prepareAccessTokenForPlaylistTracks(user);
-  const fetched = await spotifyFetch(user, buildPlaylistTracksUrl(playlistId, 1), accessToken);
-  if (!fetched.res.ok) {
-    const detail = await parseSpotifyErrorMessage(fetched.res);
-    throwSpotifyPlaylistApiError(fetched.res.status, detail, 'verifySpotifyPlaylistTrackAccess', user);
+  let accessToken = await prepareAccessTokenForPlaylistTracks(user);
+  const opened = await openSpotifyPlaylistItemsSession(user, playlistId, 1, accessToken);
+  if (!opened.ok) {
+    throwSpotifyPlaylistApiError(
+      opened.status,
+      opened.detail,
+      'verifySpotifyPlaylistTrackAccess',
+      user
+    );
   }
 }
