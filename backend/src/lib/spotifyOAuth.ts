@@ -810,7 +810,19 @@ export async function ensureFreshSpotifyAccessToken(user: User): Promise<Spotify
 
   }
 
-  return refreshSpotifyAccessToken(user);
+  const refreshed = await refreshSpotifyAccessToken(user);
+
+  if (refreshed.ok) return refreshed;
+
+  if (refreshed.reason === 'invalid_refresh' || refreshed.reason === 'not_connected') {
+
+    return refreshed;
+
+  }
+
+  // Échec transitoire (réseau / config) : conserver le jeton stocké ; les appels API réessaient le refresh sur 401/403.
+
+  return { ok: true, accessToken: token };
 
 }
 

@@ -14,6 +14,8 @@ import {
 
   isSpotifyScopeMissingError,
 
+  isSpotifyDevUserNotAllowedError,
+
   isSpotifyPlaybackHostProduct,
 
   normalizeSpotifyProduct,
@@ -475,6 +477,32 @@ export async function probeSpotifyHostSession(
         return { ok: false, code: 'spotify_token_expired', disconnected: true };
 
       }
+
+      if (refreshed.reason === 'network' || refreshed.reason === 'not_configured') {
+
+        return { ok: false, code: 'spotify_network_error' };
+
+      }
+
+      return { ok: false, code: 'spotify_not_connected' };
+
+    }
+
+    if (probe.status === 429) {
+
+      return { ok: false, code: 'spotify_rate_limited' };
+
+    }
+
+    if (probe.status >= 500) {
+
+      return { ok: false, code: 'spotify_network_error' };
+
+    }
+
+    if (probe.status === 403 && isSpotifyDevUserNotAllowedError(detail)) {
+
+      return { ok: false, code: 'spotify_dev_user_not_allowed' };
 
     }
 

@@ -49,6 +49,7 @@ import {
 } from '../lib/spotifyPlayback';
 import { resolvePlaylistVideos } from '../lib/youtubePlaylists';
 import { resolveSpotifyPlaylistTracks, SpotifyPlaylistError, probeSpotifyHostSession } from '../lib/spotifyPlaylists';
+import { spotifyScopeMissingMessage } from '../lib/spotifyApi';
 import { notifyFavoritesSalonStarted } from '../lib/favorites';
 import { notifySalonInvite } from '../lib/notifications';
 import { normalizeSpotifyJamUrl } from '../lib/spotifyJam';
@@ -1088,13 +1089,30 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
 
   if (plat === 'spotify') {
     const session = await probeSpotifyHostSession(user);
-    if (!session.ok && session.code === 'spotify_premium_required') {
-      res.status(403).json({
-        error: 'Spotify Premium requis pour héberger un salon Spotify.',
-        code: 'spotify_premium_required',
-        platform: 'spotify',
-      });
-      return;
+    if (!session.ok) {
+      if (session.code === 'spotify_premium_required') {
+        res.status(403).json({
+          error: 'Spotify Premium requis pour héberger un salon Spotify.',
+          code: 'spotify_premium_required',
+          platform: 'spotify',
+        });
+        return;
+      }
+      if (
+        session.code === 'spotify_token_expired' ||
+        session.code === 'spotify_scope_missing' ||
+        session.code === 'spotify_not_connected'
+      ) {
+        res.status(403).json({
+          error:
+            session.code === 'spotify_scope_missing'
+              ? spotifyScopeMissingMessage()
+              : 'Session Spotify expirée — reconnectez votre compte Spotify.',
+          code: session.code,
+          platform: 'spotify',
+        });
+        return;
+      }
     }
   }
 

@@ -85,6 +85,7 @@ export function CreateSalonModal({
   const [saving, setSaving] = useState(false);
   const [draftSalonId, setDraftSalonId] = useState(() => generateSalonId());
   const [spotifyPremium, setSpotifyPremium] = useState<boolean | undefined>();
+  const [spotifySessionValid, setSpotifySessionValid] = useState<boolean | undefined>();
   const [spotifySessionCode, setSpotifySessionCode] = useState<string | undefined>();
   const [platformStatusLoading, setPlatformStatusLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -122,6 +123,7 @@ export function CreateSalonModal({
     setToast(null);
     setDraftSalonId(generateSalonId());
     setSpotifyPremium(undefined);
+    setSpotifySessionValid(undefined);
     setSpotifySessionCode(undefined);
     setForm({
       title: preset?.title?.trim() || `Salon de ${username}`,
@@ -154,10 +156,12 @@ export function CreateSalonModal({
       .getPlatformStatus(token)
       .then((s) => {
         setSpotifyPremium(s.spotifyPremium);
+        setSpotifySessionValid(s.spotifySessionValid);
         setSpotifySessionCode(s.spotifySessionCode);
       })
       .catch(() => {
         setSpotifyPremium(undefined);
+        setSpotifySessionValid(undefined);
         setSpotifySessionCode(undefined);
       })
       .finally(() => setPlatformStatusLoading(false));
@@ -222,8 +226,14 @@ export function CreateSalonModal({
   const spotifyHostBlocked =
     spotifyLinked &&
     (spotifySessionCode === 'spotify_premium_required' || spotifyPremium === false);
+  const spotifySessionBlocked =
+    spotifyLinked &&
+    spotifySessionValid === false &&
+    (spotifySessionCode === 'spotify_token_expired' ||
+      spotifySessionCode === 'spotify_scope_missing' ||
+      spotifySessionCode === 'spotify_not_connected');
   const platformHostReady =
-    platformLinked && !(form.platform === 'spotify' && spotifyHostBlocked);
+    platformLinked && !(form.platform === 'spotify' && (spotifyHostBlocked || spotifySessionBlocked));
   /** Step 1 only — wait for Spotify status before advancing (MODIF 465/467). */
   const canAdvanceFromStep1 =
     platformHostReady &&
@@ -238,12 +248,19 @@ export function CreateSalonModal({
         : t('salon.create.errorPlatformNotLinkedYoutube')
       : form.platform === 'spotify' && spotifyHostBlocked
         ? t('salon.create.spotifyPremiumRequired')
-        : null
+        : form.platform === 'spotify' && spotifySessionBlocked
+          ? spotifySessionCode === 'spotify_scope_missing'
+            ? t('salon.spotifySearch.errorScopeMissing')
+            : t('salon.spotifySearch.errorTokenExpired')
+          : null
     : null;
 
   const resolveCreateError = (e: unknown): string => {
     if (e instanceof ApiRequestError) {
       if (e.code === 'spotify_premium_required') return t('salon.create.spotifyPremiumRequired');
+      if (e.code === 'spotify_token_expired') return t('salon.spotifySearch.errorTokenExpired');
+      if (e.code === 'spotify_scope_missing') return t('salon.spotifySearch.errorScopeMissing');
+      if (e.code === 'spotify_not_connected') return t('salon.spotifySearch.errorNotConnected');
       if (e.code === 'HOST_PLATFORM_NOT_LINKED') {
         return form.platform === 'spotify'
           ? t('salon.create.errorPlatformNotLinkedSpotify')
@@ -314,7 +331,16 @@ export function CreateSalonModal({
             ? { playlistId: form.spotifyPlaylist.playlistId }
             : null;
         if (body) {
-          await api.salonLoadPlaylist(token, salon.id, body);
+          const loadOnce = () => api.salonLoadPlaylist(token, salon.id, body);
+          try {
+            await loadOnce();
+          } catch (firstErr) {
+            if (firstErr instanceof ApiRequestError && firstErr.code === 'spotify_token_expired') {
+              await loadOnce();
+            } else {
+              throw firstErr;
+            }
+          }
         }
       }
       if (form.accessMode === 'invite') {

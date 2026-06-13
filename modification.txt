@@ -8880,3 +8880,36 @@ message, ou bloqué pendant un refresh Spotify en arrière-plan.
 ================================================================================
 Fin MODIF 475 - 2026-06-13
 ================================================================================
+
+================================================================================
+MODIF 476 - Spotify session expirée (host / création salon)
+================================================================================
+Date : 2026-06-13
+
+## Symptôme
+Salon Spotify : session expirée ou scopes manquants non bloqués à la création ;
+refresh token échoue transitoirement et invalide à tort la session hôte.
+
+## Correctif
+- Backend : probeSpotifyHostSession (429/5xx/dev user) ; POST /salons rejette
+  spotify_token_expired / scope_missing / not_connected ; ensureFreshSpotifyAccessToken
+  conserve le jeton sur échec refresh transitoire ; search refresh sur 403 non-scope.
+- App : spotifySessionValid + messages ; retry load playlist sur spotify_token_expired.
+
+## Fichiers
+- backend/src/lib/spotifyOAuth.ts, spotifyPlaylists.ts, spotifySearch.ts
+- backend/src/routes/salons.ts
+- app/src/components/CreateSalonModal.tsx
+- modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit
+  cd app && npm run build
+  npm run apptel:build
+
+## Déploiement
+**Oui** - rebuild backend + app + apptel (assets backend/public).
+
+================================================================================
+Fin MODIF 476 - 2026-06-13
+================================================================================

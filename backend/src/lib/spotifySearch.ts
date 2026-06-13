@@ -1,5 +1,6 @@
 import { User } from '../models/schema';
 import { parseMusicLink, buildPlatformTrackUrl } from './musicLinks';
+import { isSpotifyScopeMissingError } from './spotifyApi';
 import {
   getSpotifyAppAccessToken,
   getValidSpotifyHostToken,
@@ -215,7 +216,11 @@ export async function searchSpotifyTracks(
   if (hostToken) {
     let result = await fetchSpotifySearch(hostToken, q, { limit: searchLimit });
 
-    if (!result.ok && result.status === 401) {
+    if (
+      !result.ok &&
+      (result.status === 401 ||
+        (result.status === 403 && !isSpotifyScopeMissingError(result.spotifyMessage)))
+    ) {
       const refreshed = await refreshSpotifyAccessToken(user);
       if (refreshed.ok) {
         result = await fetchSpotifySearch(refreshed.accessToken, q, { limit: searchLimit });
