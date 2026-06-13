@@ -807,6 +807,13 @@ export const api = {
     return body as { live: import('../types').Live };
   },
 
+  getLiveParticipants: (token: string, liveId: string) =>
+    request<{ participants: import('../types').LiveParticipant[]; viewersCount: number }>(
+      `/lives/${liveId}/participants`,
+      {},
+      token
+    ),
+
   startLive: (
     token: string,
     title?: string,

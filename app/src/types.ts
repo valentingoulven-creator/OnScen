@@ -515,6 +515,9 @@ export interface SalonParticipant {
   isDev?: boolean;
 }
 
+/** Spectateur connecté au live (socket room live_*). */
+export type LiveParticipant = SalonParticipant;
+
 export interface SalonBan {
   permanent: boolean;
   until?: number;
