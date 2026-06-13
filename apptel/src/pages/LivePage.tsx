@@ -5,7 +5,8 @@ import { usePauseMediaOnPageHidden, pauseMediaElements } from '../hooks/usePause
 import { useBackgroundPlayback } from '../hooks/useBackgroundPlayback';
 import { releaseAppMediaFocus, requestAppMediaFocus } from '../lib/appMediaFocus';
 import { api } from '../lib/api';
-import { LIVE_CAMERA_VIEWER_FILE_NOTE, LIVE_CAMERA_VIEWER_NOTE } from '../lib/liveCameraMessages';
+import { LIVE_CAMERA_VIEWER_FILE_NOTE, LIVE_CAMERA_VIEWER_NOTE, LIVE_CAMERA_VIEWER_NO_HOST_CAMERA } from '../lib/liveCameraMessages';
+import { emitLiveCameraToggle, clearLiveCameraToggleQueue } from '../lib/liveCameraSocket';
 import { useLiveVideoRelay } from '../hooks/useLiveVideoRelay';
 import { getLiveCameraContextHints } from '../lib/liveCameraSupport';
 import { mergeRemotePlaybackState } from '../lib/salonPlayback';
@@ -172,7 +173,7 @@ export function LivePage({
 
   const emitCameraState = useCallback(
     (active: boolean, mode?: 'camera' | 'file') => {
-      emitOnSocket('live_camera_toggle', { liveId, active, mode: active ? mode : undefined });
+      emitLiveCameraToggle(liveId, active, mode);
     },
     [liveId]
   );
@@ -368,7 +369,7 @@ export function LivePage({
   const viewerCameraRelayActive =
     !isHost && !!live?.cameraActive && live.cameraMode !== 'file';
 
-  const { viewerVideoRef, viewerStreamActive, viewerRelayError } = useLiveVideoRelay({
+  const { viewerVideoRef, viewerStreamActive, viewerRelayError, viewerRelayPhase } = useLiveVideoRelay({
     liveId,
     userId: user?.id,
     hostId: live?.hostId,
@@ -381,7 +382,7 @@ export function LivePage({
     if (!isHost || !cameraLocalActive) return;
     return onSocketConnect(() => {
       const mode = cameraModeRef.current === 'file' ? 'file' : 'camera';
-      emitOnSocket('live_camera_toggle', { liveId, active: true, mode });
+      emitLiveCameraToggle(liveId, true, mode);
       setLive((prev) =>
         prev ? { ...prev, cameraActive: true, cameraMode: mode } : prev
       );
@@ -444,8 +445,9 @@ export function LivePage({
   useEffect(() => {
     return () => {
       if (hostCameraBroadcastRef.current) {
-        emitOnSocket('live_camera_toggle', { liveId, active: false });
+        emitLiveCameraToggle(liveId, false);
       }
+      clearLiveCameraToggleQueue(liveId);
       stopCamera();
     };
   }, [liveId, stopCamera]);
@@ -785,8 +787,16 @@ export function LivePage({
   const showViewerVideo = !isHost && viewerStreamActive;
   const showViewerCameraBadge =
     !isHost && !!live.cameraActive && !viewerStreamActive;
+  const showViewerNoCamera = !isHost && !live.cameraActive;
   const viewerCameraBadgeNote =
-    live.cameraMode === 'file' ? LIVE_CAMERA_VIEWER_FILE_NOTE : LIVE_CAMERA_VIEWER_NOTE;
+    live.cameraMode === 'file'
+      ? LIVE_CAMERA_VIEWER_FILE_NOTE
+      : viewerRelayError ?? LIVE_CAMERA_VIEWER_NOTE;
+  const viewerStageHint = isHost
+    ? 'Activez la caméra ou choisissez une vidéo'
+    : showViewerNoCamera
+      ? LIVE_CAMERA_VIEWER_NO_HOST_CAMERA
+      : 'Écoutez et discutez dans le chat';
   /** Live = caméra (ou fichier local hôte). La lecture YouTube reste dans SalonPlaybackPanel. */
 
   return (
@@ -990,13 +1000,32 @@ export function LivePage({
               />
             )}
             {showViewerCameraBadge && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
-                <div className="rounded-2xl bg-[#12121a]/90 border border-white/10 px-5 py-4 max-w-sm">
-                  <p className="text-3xl mb-2">📹</p>
-                  <p className="text-sm font-semibold text-gray-200">Caméra du host active</p>
-                  <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">
-                    {viewerRelayError ?? viewerCameraBadgeNote}
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center px-6 text-center">
+                <div
+                  className={`rounded-2xl border px-5 py-4 max-w-sm ${
+                    viewerRelayPhase === 'failed'
+                      ? 'bg-red-950/90 border-red-500/30'
+                      : 'bg-[#12121a]/90 border-white/10'
+                  }`}
+                >
+                  <p className="text-3xl mb-2">{viewerRelayPhase === 'failed' ? '⚠️' : '📹'}</p>
+                  <p className="text-sm font-semibold text-gray-200">
+                    {viewerRelayPhase === 'failed'
+                      ? 'Flux vidéo indisponible'
+                      : 'Caméra du host active'}
                   </p>
+                  <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">
+                    {viewerCameraBadgeNote}
+                  </p>
+                  {viewerRelayPhase === 'failed' && (
+                    <button
+                      type="button"
+                      onClick={() => window.location.reload()}
+                      className="mt-3 px-3 py-1.5 rounded-full text-[10px] font-bold bg-[#1a1a26] border border-white/15 text-gray-200 hover:text-white"
+                    >
+                      Rafraîchir la page
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -1021,9 +1050,7 @@ export function LivePage({
                   <p className="text-sm font-bold text-white truncate">{live.playbackState.title}</p>
                   <p className="text-xs text-gray-300 truncate">{live.playbackState.artist}</p>
                   <p className="text-[11px] text-gray-500 mt-2">
-                    {isHost
-                      ? 'Activez la caméra ou choisissez une vidéo'
-                      : 'Écoutez et discutez dans le chat'}
+                    {viewerStageHint}
                   </p>
                 </div>
               </div>

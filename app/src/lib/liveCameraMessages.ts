@@ -2,6 +2,22 @@
 export const LIVE_CAMERA_VIEWER_NOTE =
   'Le host diffuse en caméra. Connexion au flux vidéo en cours…';
 
+/** Spectateur : le host n’a pas activé sa caméra côté serveur. */
+export const LIVE_CAMERA_VIEWER_NO_HOST_CAMERA =
+  'Le host n’a pas activé sa caméra pour ce live.';
+
+/** Spectateur : échec WebRTC après plusieurs tentatives. */
+export const LIVE_CAMERA_VIEWER_UNAVAILABLE =
+  'Flux vidéo indisponible. Vérifiez votre connexion ou réessayez plus tard.';
+
+/** Spectateur : délai dépassé en attente du flux. */
+export const LIVE_CAMERA_VIEWER_TIMEOUT =
+  'Connexion au flux vidéo expirée. Rafraîchissez la page ou réessayez dans quelques instants.';
+
+/** Spectateur : échec ICE / NAT. */
+export const LIVE_CAMERA_VIEWER_ICE_FAILED =
+  'Connexion réseau au flux vidéo impossible (pare-feu ou NAT).';
+
 /** Fichier vidéo local hôte — non relayé via WebRTC. */
 export const LIVE_CAMERA_VIEWER_FILE_NOTE =
   'Le host diffuse une vidéo locale (aperçu non relayé aux spectateurs).';

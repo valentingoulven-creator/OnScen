@@ -275,6 +275,17 @@ export function setupSockets(io: Server): void {
         live.viewersCount += 1;
         db.lives.set(liveId, live);
         io.to(roomName).emit('live_updated', serializePublicLive(live));
+        if (
+          userId &&
+          userId !== live.hostId &&
+          live.cameraActive &&
+          live.cameraMode !== 'file'
+        ) {
+          io.to(`user_${live.hostId}`).emit('live_webrtc_viewer_joined', {
+            liveId,
+            viewerId: userId,
+          });
+        }
       }
     });
 

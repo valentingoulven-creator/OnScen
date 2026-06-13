@@ -26,6 +26,7 @@ import { SalonProposalsSection } from '../components/SalonProposalsSection';
 import { SalonSpotifyJamButton } from '../components/SalonSpotifyJamButton';
 import { SalonInviteLinkCopy } from '../components/SalonInviteLinkCopy';
 import { SalonParticipantsPopover } from '../components/SalonParticipantsPopover';
+import { StartLiveMediaSetupModal } from '../components/StartLiveMediaSetupModal';
 import { useSalonQueueSync } from '../hooks/useSalonQueueSync';
 import { emitOnSocket } from '../lib/socket';
 
@@ -52,6 +53,7 @@ export function SalonPage({
   onLeaveSalon,
   onMinimizeToMap,
   onSalonLoaded,
+  onOpenLive,
 }: {
   salonId: string;
   onBack: () => void;
@@ -61,6 +63,8 @@ export function SalonPage({
   onMinimizeToMap?: (salonTitle?: string) => void;
   /** Titre chargé (barre retour header). */
   onSalonLoaded?: (salonTitle?: string) => void;
+  /** Ouvre LivePage après démarrage du live. */
+  onOpenLive?: (liveId: string) => void;
 }) {
 
   const { user, token, setUserFromProfile } = useAuth();
@@ -71,6 +75,7 @@ export function SalonPage({
   const [contacts, setContacts] = useState<DmContact[]>([]);
 
   const [startingLive, setStartingLive] = useState(false);
+  const [liveMediaSetupOpen, setLiveMediaSetupOpen] = useState(false);
   const [endingSalon, setEndingSalon] = useState(false);
 
   const [accessSaving, setAccessSaving] = useState(false);
@@ -213,28 +218,23 @@ export function SalonPage({
 
 
 
-  const startLive = async () => {
+  const startLive = () => {
+    if (!token || startingLive || liveMediaSetupOpen) return;
+    setLiveMediaSetupOpen(true);
+  };
 
-    if (!token) return;
-
+  const launchLiveAfterSetup = async () => {
+    if (!token || startingLive) return;
     setStartingLive(true);
-
     try {
-
-      await api.startLive(token, `Live — ${salon?.title}`);
-
+      const { live } = await api.startLive(token, `Live — ${salon?.title}`);
       loadSalon();
-
+      onOpenLive?.(live.id);
     } catch (e) {
-
       setToastMsg(e instanceof Error ? e.message : 'Erreur');
-
     } finally {
-
       setStartingLive(false);
-
     }
-
   };
 
 
@@ -838,7 +838,7 @@ export function SalonPage({
             type="button"
             onClick={startLive}
             disabled={startingLive}
-            className="shrink-0 px-3 py-1.5 bg-red-600 rounded-full text-xs font-bold text-white"
+            className="shrink-0 px-3 py-1.5 bg-red-600 rounded-full text-xs font-bold text-white disabled:opacity-50"
           >
             Live
           </button>
@@ -913,6 +913,17 @@ export function SalonPage({
         />
         <ChatModals />
       </ChatRoomProvider>
+
+      <StartLiveMediaSetupModal
+        open={liveMediaSetupOpen}
+        onClose={() => setLiveMediaSetupOpen(false)}
+        onReady={() => {
+          setLiveMediaSetupOpen(false);
+          void launchLiveAfterSetup();
+        }}
+        confirmLabel="Lancer le live"
+      />
+
     </div>
   );
 
