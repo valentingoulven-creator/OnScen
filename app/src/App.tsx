@@ -267,6 +267,19 @@ export default function App() {
   }, [token, refreshUser]);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const stripeConnect = params.get('stripeConnect');
+    if (!stripeConnect) return;
+    if ((stripeConnect === 'return' || stripeConnect === 'refresh') && token) {
+      void refreshUser();
+      setProfileOpen(true);
+    }
+    params.delete('stripeConnect');
+    const q = params.toString();
+    window.history.replaceState({}, '', `${window.location.pathname}${q ? `?${q}` : ''}`);
+  }, [token, refreshUser]);
+
+  useEffect(() => {
     const dmTabActive =
       Boolean(user && token) &&
       tab === 'dm' &&
@@ -403,6 +416,19 @@ export default function App() {
     if (!session) return;
     minimizeSalonToMap(session.id, title ?? session.title);
   }, [minimizeSalonToMap]);
+
+  const openAdminPanel = useCallback(
+    (options?: { tab?: 'accounts' | 'access' | 'content' | 'analytics' | 'costs' | 'support'; supportMessageId?: string }) => {
+      const session = activeSalonSessionRef.current;
+      if (session?.viewMode === 'full') {
+        setActiveSalonSession((prev) => (prev ? { ...prev, viewMode: 'minimized' } : prev));
+      }
+      setAdminInitialTab(options?.tab ?? 'accounts');
+      setAdminHighlightSupportMessageId(options?.supportMessageId);
+      setAdminOpen(true);
+    },
+    []
+  );
 
   /** Titre chargé — ne pas forcer viewMode (évite de ré-ouvrir le plein écran après réduction). */
   const handleSalonTitleLoaded = useCallback((title?: string) => {
@@ -645,11 +671,7 @@ export default function App() {
             />
             <div className="flex items-center gap-1 justify-self-end shrink-0">
               <AdminHeaderButton
-                onClick={() => {
-                  setAdminInitialTab('accounts');
-                  setAdminHighlightSupportMessageId(undefined);
-                  setAdminOpen(true);
-                }}
+                onClick={() => openAdminPanel()}
                 active={adminOpen}
               />
               <PrivacyVisibilityMenu />
@@ -660,9 +682,7 @@ export default function App() {
                 onOpenDm={openDmWithUser}
                 onOpenGroup={openGroupChat}
                 onOpenAdminSupport={(supportMessageId) => {
-                  setAdminInitialTab('support');
-                  setAdminHighlightSupportMessageId(supportMessageId);
-                  setAdminOpen(true);
+                  openAdminPanel({ tab: 'support', supportMessageId });
                 }}
                 onOpenContactSupport={(supportMessageId) => {
                   setProfileHighlightSupportMessageId(supportMessageId);

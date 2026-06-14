@@ -21,8 +21,14 @@ import {
   type AccessRegistrationMode,
   type AccountStatus,
 } from '../lib/accessControl';
-import { isPlatformConnected } from '../lib/platformConnect';
-import { getStoredSpotifyProduct } from '../lib/spotifyOAuth';
+import { ensurePlatformAccountsFromLegacy, isPlatformConnected } from '../lib/platformConnect';
+import {
+  fetchSpotifyUserProduct,
+  getStoredSpotifyProduct,
+  getValidSpotifyHostToken,
+  isRealSpotifyAccount,
+  persistSpotifyProduct,
+} from '../lib/spotifyOAuth';
 import { isSpotifyPlaybackHostProduct } from '../lib/spotifyApi';
 
 export const accessRouter = Router();
@@ -38,6 +44,7 @@ function countSpotifyConnectionTiers(users: User[]): AdminSpotifyConnectionCount
   let premium = 0;
   let basic = 0;
   for (const u of users) {
+    ensurePlatformAccountsFromLegacy(u);
     if (!isPlatformConnected(u, 'spotify')) continue;
     const product = getStoredSpotifyProduct(u);
     if (product && isSpotifyPlaybackHostProduct(product)) {
@@ -47,6 +54,24 @@ function countSpotifyConnectionTiers(users: User[]): AdminSpotifyConnectionCount
     }
   }
   return { premium, basic };
+}
+
+/** Renseigne spotifyProduct manquant (comptes OAuth réels) avant agrégation admin. */
+async function backfillSpotifyProductsForAdminCounts(users: User[]): Promise<void> {
+  await Promise.all(
+    users.map(async (u) => {
+      ensurePlatformAccountsFromLegacy(u);
+      if (!isPlatformConnected(u, 'spotify')) return;
+      const stored = getStoredSpotifyProduct(u);
+      if (stored && stored !== 'unknown') return;
+      if (!isRealSpotifyAccount(u)) return;
+      const tokenResult = await getValidSpotifyHostToken(u);
+      if (!tokenResult.ok) return;
+      const product = await fetchSpotifyUserProduct(tokenResult.accessToken);
+      if (product === 'unknown') return;
+      persistSpotifyProduct(u, product);
+    })
+  );
 }
 
 /** Config publique (écran inscription / connexion). */
@@ -68,9 +93,10 @@ function requireAdmin(req: Request, res: Response): boolean {
   return true;
 }
 
-accessRouter.get('/admin/overview', authenticateJWT, (req: Request, res: Response) => {
+accessRouter.get('/admin/overview', authenticateJWT, async (req: Request, res: Response) => {
   if (!requireAdmin(req, res)) return;
   const users = [...db.users.values()].filter((u) => !u.email.endsWith('@bot.local'));
+  await backfillSpotifyProductsForAdminCounts(users);
   const pending = users.filter((u) => getAccountStatus(u) === 'pending');
   const blocked = users.filter((u) => getAccountStatus(u) === 'blocked');
   res.json({
@@ -152,7 +178,7 @@ function sortAdminUsers<T extends { username: string; memberSince?: number; last
   }
 }
 
-accessRouter.get('/admin/users', authenticateJWT, (req: Request, res: Response) => {
+accessRouter.get('/admin/users', authenticateJWT, async (req: Request, res: Response) => {
   if (!requireAdmin(req, res)) return;
   const status = String(req.query.status || 'all') as AccountStatus | 'all';
   const q = String(req.query.q || '')
@@ -165,6 +191,7 @@ accessRouter.get('/admin/users', authenticateJWT, (req: Request, res: Response) 
   const offset = Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0);
 
   const realUsers = [...db.users.values()].filter((u) => !u.email.endsWith('@bot.local'));
+  await backfillSpotifyProductsForAdminCounts(realUsers);
   const counts = {
     total: realUsers.length,
     active: realUsers.filter((u) => getAccountStatus(u) === 'active').length,

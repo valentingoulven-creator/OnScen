@@ -48,7 +48,7 @@ export function isPlatformConnected(user: User | undefined, platform: ConnectPla
   if (!user) return false;
   const accounts = user.platformAccounts;
   if (accounts?.length) {
-    return accounts.some((a) => a.platform === platform);
+    if (accounts.some((a) => a.platform === platform)) return true;
   }
   if (!isMusicPlatform(platform)) return false;
   return (user.connectedPlatforms ?? []).includes(platform);

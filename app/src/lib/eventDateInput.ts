@@ -21,7 +21,28 @@ export function formatEventDateInputValue(isoLocal: string, locale?: string): st
 }
 
 export function parseEventDateInputValue(text: string, locale?: string): EventDateLocalValue | null {
-  const match = DISPLAY_DT_RE.exec(text.trim());
+  const trimmed = text.trim();
+  const isoMatch = LOCAL_DT_RE.exec(trimmed);
+  if (isoMatch) {
+    const year = Number(isoMatch[1]);
+    const month = Number(isoMatch[2]);
+    const day = Number(isoMatch[3]);
+    const hour = Number(isoMatch[4]);
+    const minute = Number(isoMatch[5]);
+    const date = new Date(year, month - 1, day, hour, minute);
+    if (
+      date.getFullYear() !== year ||
+      date.getMonth() !== month - 1 ||
+      date.getDate() !== day ||
+      date.getHours() !== hour ||
+      date.getMinutes() !== minute
+    ) {
+      return null;
+    }
+    return trimmed as EventDateLocalValue;
+  }
+
+  const match = DISPLAY_DT_RE.exec(trimmed);
   if (!match) return null;
 
   const partA = Number(match[1]);

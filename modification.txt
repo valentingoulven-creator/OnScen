@@ -1,5 +1,61 @@
 ﻿
 ================================================================================
+MODIF 498 — Correctifs E2E (rapport task 41d40165)
+================================================================================
+Date : 2026-06-14
+
+## Contexte
+Correctifs issus du rapport E2E : comptes Spotify admin, barres UI bloquantes,
+date événement, URL Stripe Connect, flash compteurs admin.
+
+## Correctifs
+### BUG-3 — Admin Spotify Premium/Basic 0/0
+- `countSpotifyConnectionTiers` : `ensurePlatformAccountsFromLegacy` + backfill
+  async `spotifyProduct` via `/v1/me` pour comptes OAuth réels sans produit stocké.
+- `isPlatformConnected` : fallback `connectedPlatforms` même si d'autres comptes
+  platformAccounts existent.
+
+### BUG-1 — Barre PWA `#pwa-update-bar`
+- Position au-dessus de la barre d'onglets (`--tab-nav-total-h`), z-index 65
+  (sous onglets z-70), hauteur réduite.
+
+### BUG-2 — `.ms-salon-return-bar` intercepte clics
+- Header fixe : `pointer-events: none` sauf éléments interactifs.
+- Shell salon-return : `--app-header-row-h` 2.75rem + `max-height` barre.
+
+### BUG-4 — Admin sous overlay salon plein écran
+- `.ms-app-admin-overlay` z-index 75 (> salon z-60).
+- Ouverture admin : réduit salon `viewMode` full → minimized.
+
+### BUG-5 — Date événement datetime-local vs jj/mm/aaaa
+- `parseEventDateInputValue` accepte aussi `YYYY-MM-DDTHH:mm` (ISO datetime-local).
+
+### BUG-6 — `?stripeConnect=refresh` persiste
+- `App.tsx` : strip `stripeConnect` via `replaceState` après retour Stripe ;
+  ouvre profil + refresh user si token.
+
+### BUG-7 — Flash « 0 sur 0 » admin
+- `AdminAccountsTab` : compteurs `null` jusqu'au chargement, skeletons stats.
+
+## Fichiers
+- backend/src/routes/access.ts
+- backend/src/lib/platformConnect.ts
+- app/src/main.tsx
+- app/src/index.css
+- app/src/App.tsx
+- app/src/lib/eventDateInput.ts
+- app/src/lib/eventDateInput.test.ts
+- app/src/pages/AdminAccountsTab.tsx
+- modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit && npm test
+  cd app && npm run build && npm test
+
+## Déploiement
+**Non** — en attente validation utilisateur.
+
+================================================================================
 MODIF 497 — Nettoyage code mort (audit 7ce6907d, P0 + P1)
 ================================================================================
 Date : 2026-06-14

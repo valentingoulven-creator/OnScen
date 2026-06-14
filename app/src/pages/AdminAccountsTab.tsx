@@ -138,13 +138,13 @@ export function AdminAccountsTab() {
   const [users, setUsers] = useState<AccessManagedUser[]>([]);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
-  const [counts, setCounts] = useState({
-    total: 0,
-    active: 0,
-    pending: 0,
-    blocked: 0,
-    spotify: { premium: 0, basic: 0 },
-  });
+  const [counts, setCounts] = useState<{
+    total: number;
+    active: number;
+    pending: number;
+    blocked: number;
+    spotify: { premium: number; basic: number };
+  } | null>(null);
   const [filter, setFilter] = useState<UserFilter>('all');
   const [sort, setSort] = useState<AdminUserSort>('lastSeen');
   const [search, setSearch] = useState('');
@@ -350,11 +350,13 @@ export function AdminAccountsTab() {
       </div>
 
       <div className="flex items-center justify-between gap-2 text-xs text-gray-500">
-        <p>
-          {debouncedSearch
-            ? t('admin.accounts.resultCountFiltered', { shown: users.length, total })
-            : t('admin.accounts.resultCount', { shown: users.length, total })}
-        </p>
+        {!loading && (
+          <p>
+            {debouncedSearch
+              ? t('admin.accounts.resultCountFiltered', { shown: users.length, total })
+              : t('admin.accounts.resultCount', { shown: users.length, total })}
+          </p>
+        )}
         {copyFeedback && <span className="text-purple-400">{copyFeedback}</span>}
       </div>
 
@@ -564,30 +566,57 @@ export function AdminAccountsTab() {
         <p className="text-[10px] text-gray-500 uppercase tracking-wide">
           {t('admin.accounts.spotifySection')}
         </p>
-        <div className="grid grid-cols-2 gap-2">
-          {(
-            [
-              { key: 'spotifyPremium', value: counts.spotify.premium, color: 'text-green-400' },
-              { key: 'spotifyBasic', value: counts.spotify.basic, color: 'text-gray-300' },
-            ] as const
-          ).map((stat) => (
-            <div key={stat.key} className="bg-[#12121a] border border-[#1e1e2f] rounded-xl p-3 text-center">
-              <div className={`text-xl font-bold ${stat.color}`}>{stat.value}</div>
-              <div className="text-[10px] text-gray-500 uppercase tracking-wide">
-                {t(`admin.accounts.stats.${stat.key}`)}
+        {loading && !counts ? (
+          <div className="grid grid-cols-2 gap-2">
+            {[0, 1].map((i) => (
+              <div
+                key={i}
+                className="bg-[#12121a] border border-[#1e1e2f] rounded-xl p-3 text-center animate-pulse"
+              >
+                <div className="h-7 bg-[#1e1e2f] rounded mb-2" />
+                <div className="h-3 bg-[#1e1e2f] rounded w-2/3 mx-auto" />
               </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {(
+              [
+                { key: 'spotifyPremium', value: counts?.spotify.premium ?? 0, color: 'text-green-400' },
+                { key: 'spotifyBasic', value: counts?.spotify.basic ?? 0, color: 'text-gray-300' },
+              ] as const
+            ).map((stat) => (
+              <div key={stat.key} className="bg-[#12121a] border border-[#1e1e2f] rounded-xl p-3 text-center">
+                <div className={`text-xl font-bold ${stat.color}`}>{stat.value}</div>
+                <div className="text-[10px] text-gray-500 uppercase tracking-wide">
+                  {t(`admin.accounts.stats.${stat.key}`)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {loading && !counts ? (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 pt-2 border-t border-[#1e1e2f]">
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="bg-[#12121a] border border-[#1e1e2f] rounded-xl p-3 text-center animate-pulse"
+            >
+              <div className="h-7 bg-[#1e1e2f] rounded mb-2" />
+              <div className="h-3 bg-[#1e1e2f] rounded w-2/3 mx-auto" />
             </div>
           ))}
         </div>
-      </div>
-
+      ) : (
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 pt-2 border-t border-[#1e1e2f]">
         {(
           [
-            { key: 'total', value: counts.total, color: 'text-white' },
-            { key: 'active', value: counts.active, color: 'text-green-400' },
-            { key: 'pending', value: counts.pending, color: 'text-yellow-400' },
-            { key: 'blocked', value: counts.blocked, color: 'text-red-400' },
+            { key: 'total', value: counts?.total ?? 0, color: 'text-white' },
+            { key: 'active', value: counts?.active ?? 0, color: 'text-green-400' },
+            { key: 'pending', value: counts?.pending ?? 0, color: 'text-yellow-400' },
+            { key: 'blocked', value: counts?.blocked ?? 0, color: 'text-red-400' },
           ] as const
         ).map((stat) => (
           <div key={stat.key} className="bg-[#12121a] border border-[#1e1e2f] rounded-xl p-3 text-center">
@@ -598,6 +627,7 @@ export function AdminAccountsTab() {
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }

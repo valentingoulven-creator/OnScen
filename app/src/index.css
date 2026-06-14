@@ -204,6 +204,12 @@ body {
 /* Barre « Revenir au salon » sous la ligne logo / recherche */
 .ms-app-shell--salon-return {
   --app-header-salon-bar-h: 2.25rem;
+  --app-header-row-h: 2.75rem;
+}
+
+.ms-salon-return-bar {
+  flex-shrink: 0;
+  max-height: var(--app-header-salon-bar-h);
 }
 
 /* Grand salon plein écran — overlay sous le header Soundly fixe (MODIF 457), au-dessus des onglets. */
@@ -236,6 +242,11 @@ header.ms-app-header {
   z-index: 100;
   background: var(--ms-bg);
   border-bottom: 1px solid var(--ms-border);
+  pointer-events: none;
+}
+
+header.ms-app-header :is(a, button, input, select, textarea, label, [role='tablist']) {
+  pointer-events: auto;
 }
 
 .ms-phone-shell > header.ms-app-header {
@@ -257,17 +268,17 @@ main.ms-app-main {
   z-index: 30;
 }
 
-/* Admin plein écran — sous le header Soundly fixe (MODIF 457), au-dessus des onglets bas */
+/* Admin plein écran — sous le header Soundly fixe (MODIF 457), au-dessus salon + onglets bas */
 .ms-app-admin-overlay {
   inset: auto;
   top: var(--app-header-total-h);
   left: 0;
   right: 0;
   bottom: 0;
+  z-index: 75;
 }
 
 .ms-app-shell--bottom-tabs .ms-app-admin-overlay {
-  z-index: 55;
   /* Même recette que .ms-salon-fullscreen-overlay : ne pas peindre sous la barre d'onglets */
   bottom: var(--tab-nav-total-h);
 }
