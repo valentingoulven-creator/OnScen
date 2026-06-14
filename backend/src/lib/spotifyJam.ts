@@ -35,7 +35,3 @@ function buildParsed(sessionId: string): ParsedSpotifyJam {
     uri: `spotify:socialsession:${sessionId}`,
   };
 }
-
-/** Message affiché quand la récupération auto n'est pas possible (conformité Spotify). */
-export const SPOTIFY_JAM_AUTO_FETCH_UNAVAILABLE =
-  "Spotify ne propose pas d'API publique pour créer ou récupérer un lien Jam. Démarrez un Jam dans l'application Spotify, copiez le lien d'invitation, puis collez-le ici.";

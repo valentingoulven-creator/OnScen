@@ -37,11 +37,6 @@ export function isLiveChatBanned(liveId: string, userId: string): boolean {
   return scope === 'chat' || scope === 'live';
 }
 
-/** @deprecated Préférer isLiveViewBanned / isLiveChatBanned */
-export function isLiveBanned(liveId: string, userId: string): boolean {
-  return isLiveChatBanned(liveId, userId);
-}
-
 export function setLiveBan(liveId: string, userId: string, ban: LiveBan): void {
   liveBanMap(liveId).set(userId, { ...ban, scope: normalizeScope(ban) });
 }

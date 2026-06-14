@@ -45,9 +45,6 @@ export function userMeetsHeartAge(
   return false;
 }
 
-/** @deprecated Use userMeetsHeartAge */
-export const profileMeetsHeartAge = userMeetsHeartAge;
-
 export function isSingleForHeart(
   user: Pick<HeartEligibilityUser, 'relationshipStatus'> | null | undefined
 ): boolean {

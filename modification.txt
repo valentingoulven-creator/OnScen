@@ -1,5 +1,43 @@
 ﻿
 ================================================================================
+MODIF 497 — Nettoyage code mort (audit 7ce6907d, P0 + P1)
+================================================================================
+Date : 2026-06-14
+
+## Contexte
+Audit code mort (7ce6907d) — suppression fichiers orphelins et exports inutilisés.
+P3 (texte CGU Jam) et retrait routes backend Jam exclus volontairement.
+
+## P0 — Fichiers supprimés (0 import)
+- app/src/components/MapEventsSheet.tsx
+- app/src/pages/AccessManagementPage.tsx
+- app/src/content/mapAds.ts (shim deprecated ; ads/mapAds.ts conservé)
+- app/src/content/legal/donations.ts (shim deprecated ; legal/index.ts inchangé)
+
+## P1 — Exports supprimés
+- backend/src/lib/spotifyJam.ts : SPOTIFY_JAM_AUTO_FETCH_UNAVAILABLE
+- app/src/lib/donations.ts : DONATION_LEGAL_NOTICE
+- app/src/lib/canSendHeart.ts : profileMeetsHeartAge
+- backend/src/lib/spotifyOAuth.ts : refreshSpotifyToken
+- backend/src/lib/liveBans.ts : isLiveBanned
+
+## P1 — SettingsPage
+- Props/branches mortes onOpenAnalytics et onOpenAccessManagement retirées
+  (ProfilePage ne passe que onOpenAdmin).
+
+## P2 — Type frontend
+- app/src/types.ts : spotifyJamUrl retiré du type Salon (aucune usage app ;
+  routes/handlers backend conservés).
+
+## Build / tests
+- backend : npm run build (tsc) OK
+- backend : npm test — 18 fichiers, 115 tests OK
+- app : npm run build OK
+
+## Déploiement
+Non déployé (sur demande utilisateur).
+
+================================================================================
 MODIF 496 — Retrait morceau YouTube (création salon, playlist seule)
 ================================================================================
 Date : 2026-06-14

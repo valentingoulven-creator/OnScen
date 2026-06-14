@@ -790,20 +790,6 @@ export async function refreshSpotifyAccessToken(user: User): Promise<SpotifyRefr
 
 }
 
-
-
-/** @deprecated Préférer refreshSpotifyAccessToken pour distinguer invalid_grant. */
-
-export async function refreshSpotifyToken(user: User): Promise<string | null> {
-
-  const result = await refreshSpotifyAccessToken(user);
-
-  return result.ok ? result.accessToken : null;
-
-}
-
-
-
 /** Jeton hôte valide : renouvellement proactif si expiration connue, sinon refresh à la demande. */
 
 export async function ensureFreshSpotifyAccessToken(user: User): Promise<SpotifyRefreshResult> {

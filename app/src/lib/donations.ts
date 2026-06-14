@@ -52,7 +52,3 @@ export function computeDonationFeeBreakdown(
 export const DONATION_STRIPE_TERMS_URL = 'https://stripe.com/fr/legal/consumer';
 
 export const DONATION_PAYMENT_TERMS_DOC_KEY = 'creatorMonetization';
-
-/** @deprecated Préférer i18n `donation.legal.*` */
-export const DONATION_LEGAL_NOTICE =
-  'Les montants versés sont des pourboires volontaires au créateur du live (hôte), et non des dons associatifs ouvrant droit à reçu fiscal. Paiement sécurisé par Stripe (DSP2 / authentification forte). Aucune donnée de carte n’est stockée sur nos serveurs.';
