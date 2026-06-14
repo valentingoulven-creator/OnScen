@@ -1,5 +1,34 @@
 ﻿
 ================================================================================
+MODIF 496 — Retrait morceau YouTube (création salon, playlist seule)
+================================================================================
+Date : 2026-06-14
+
+## Contexte
+MODIF 495 avait retiré le morceau Spotify à la création, mais le toggle
+Morceau/Playlist (bouton vert « Morceau ») restait visible pour YouTube avec
+le picker « Morceau YouTube (optionnel) ».
+
+## Correctif
+- Suppression du toggle Morceau/Playlist pour YouTube (et toute trace `musicSource`).
+- Playlist optionnelle uniquement : `CreateSalonPlaylistPicker` (YouTube) et
+  `CreateSalonSpotifyPlaylistPicker` (Spotify).
+- Plus de `trackLink` envoyé à `createSalon` — création sans morceau initial.
+- Suppression du composant orphelin `CreateSalonYouTubePicker.tsx`.
+- Récap étape 3 : playlist optionnelle + libellé session (titre/artiste).
+
+## Fichiers
+- app/src/components/CreateSalonModal.tsx
+- app/src/components/CreateSalonYouTubePicker.tsx (supprimé)
+- modification.txt
+
+## Build
+cd app && npm run build
+
+## Déploiement
+deploy_zero_downtime.ps1 -VerifyProd
+
+================================================================================
 MODIF 495 — Retrait morceau Spotify optionnel (création salon)
 ================================================================================
 Date : 2026-06-14
