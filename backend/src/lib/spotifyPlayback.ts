@@ -169,6 +169,7 @@ export interface SpotifyNowPlaying {
   active: boolean;
   isPlaying: boolean;
   progressMs: number;
+  durationMs?: number;
   trackId?: string;
   title?: string;
   artist?: string;
@@ -179,6 +180,7 @@ export interface SpotifyNowPlaying {
 type SpotifyPlayerItem = {
   id?: string;
   name?: string;
+  duration_ms?: number;
   artists?: Array<{ name?: string }>;
   album?: { images?: Array<{ url?: string }> };
   external_urls?: { spotify?: string };
@@ -196,10 +198,12 @@ function mapSpotifyPlayerPayload(data: SpotifyPlayerResponse): SpotifyNowPlaying
   const artists = (item.artists ?? [])
     .map((a) => a.name?.trim())
     .filter((n): n is string => Boolean(n));
+  const durationMs = Math.max(0, Math.floor(item.duration_ms ?? 0));
   return {
     active: true,
     isPlaying: Boolean(data.is_playing),
     progressMs: Math.max(0, Math.floor(data.progress_ms ?? 0)),
+    ...(durationMs > 0 ? { durationMs } : {}),
     trackId: item.id,
     title: item.name?.trim() || 'Morceau Spotify',
     artist: artists.join(', ') || 'Spotify',

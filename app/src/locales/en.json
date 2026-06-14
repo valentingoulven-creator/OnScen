@@ -153,6 +153,16 @@
       "spotifyAlignHint": "Open Spotify on the right track and align with the shared timer.",
       "spotifyCrossPlatformHint": "Spotify doesn't play in the browser — use YouTube to listen together."
     },
+    "queue": {
+      "title": "Queue",
+      "empty": "No tracks waiting",
+      "disabled": "The queue is disabled in this salon.",
+      "next": "Next",
+      "play": "Play",
+      "truncated": "+{{count}} more track(s) not shown",
+      "reorderHint": "Drag to reorder",
+      "reorderHandle": "Move this track"
+    },
     "create": {
       "spotifyPremiumRequired": "Spotify Premium required to host a salon",
       "errorFailed": "Could not create the salon",

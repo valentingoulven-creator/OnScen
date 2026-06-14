@@ -3,11 +3,16 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api';
 import { toSpotifyPlaylistRef, translateSalonCreateError, translateSpotifySessionCode } from '../lib/spotifyPlaylistSession';
-import { getLivesGeo, isFixedMapGeoSource } from '../lib/livesGeo';
 import { isPlatformConnected } from '../lib/platformConnect';
 import { generateSalonId } from '../lib/salonDeepLink';
 import { copyShareLink, getSalonShareUrl } from '../lib/shareLink';
 import { PLATFORM_STATUS_REFRESH_EVENT } from '../lib/platformStatusEvents';
+import {
+  buildPlaylistLoadBody,
+  deferSalonPlaylistLoad,
+  resolveSalonCreatePosition,
+  shouldVerifySpotifyPlaylistOnCreate,
+} from '../lib/salonCreateFlow';
 import { PlatformConnectCard } from './PlatformConnectCard';
 import { SpotifyJamLinkField } from './SpotifyJamLinkField';
 import { CreateSalonYouTubePicker } from './CreateSalonYouTubePicker';
@@ -66,6 +71,8 @@ interface CreateSalonModalProps {
   onClose: () => void;
   onCreated: (salon: Salon, lat: number, lon: number) => void;
   onUserUpdated?: (user: User) => void;
+  /** Erreur chargement playlist différé (modal déjà fermé). */
+  onDeferredError?: (message: string) => void;
 }
 
 export function CreateSalonModal({
@@ -79,6 +86,7 @@ export function CreateSalonModal({
   onClose,
   onCreated,
   onUserUpdated,
+  onDeferredError,
 }: CreateSalonModalProps) {
   const { t } = useTranslation();
   const [step, setStep] = useState(1);
@@ -150,11 +158,11 @@ export function CreateSalonModal({
     if (saved) setForm((f) => ({ ...f, spotifyJamUrl: saved }));
   }, [open, form.platform, form.useSpotifyJam, form.spotifyJamUrl]);
 
-  const refreshPlatformStatus = () => {
+  const refreshPlatformStatus = (fresh = false) => {
     if (!token) return;
     setPlatformStatusLoading(true);
     api
-      .getPlatformStatus(token)
+      .getPlatformStatus(token, fresh ? { fresh: true } : undefined)
       .then((s) => {
         setSpotifyPremium(s.spotifyPremium);
         setSpotifySessionValid(s.spotifySessionValid);
@@ -175,7 +183,7 @@ export function CreateSalonModal({
 
   useEffect(() => {
     if (!open) return;
-    const onRefresh = () => refreshPlatformStatus();
+    const onRefresh = () => refreshPlatformStatus(true);
     window.addEventListener(PLATFORM_STATUS_REFRESH_EVENT, onRefresh);
     return () => window.removeEventListener(PLATFORM_STATUS_REFRESH_EVENT, onRefresh);
   }, [open, token]);
@@ -202,25 +210,7 @@ export function CreateSalonModal({
     }));
   };
 
-  const resolvePosition = async (): Promise<{ latitude: number; longitude: number }> => {
-    const geo = getLivesGeo();
-    // City or address mode: use the chosen reference point, never GPS
-    if (isFixedMapGeoSource(geo.source)) {
-      return { latitude: fallbackLatitude, longitude: fallbackLongitude };
-    }
-    // GPS mode: try to get real position, fall back to stored coords
-    if (!navigator.geolocation) {
-      return { latitude: fallbackLatitude, longitude: fallbackLongitude };
-    }
-    try {
-      const pos = await new Promise<GeolocationPosition>((res, rej) =>
-        navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 12000 })
-      );
-      return { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-    } catch {
-      return { latitude: fallbackLatitude, longitude: fallbackLongitude };
-    }
-  };
+  const resolvePosition = () => resolveSalonCreatePosition(fallbackLatitude, fallbackLongitude);
 
   const platformLinked = isPlatformConnected(connectedPlatforms, form.platform);
   const spotifyLinked = isPlatformConnected(connectedPlatforms, 'spotify');
@@ -271,23 +261,27 @@ export function CreateSalonModal({
 
     setSaving(true);
     try {
-      const { latitude, longitude } = await resolvePosition();
-      const jamNormalized =
-        form.platform === 'spotify' && form.useSpotifyJam && form.spotifyJamUrl.trim()
-          ? normalizeSpotifyJamUrl(form.spotifyJamUrl.trim())
-          : undefined;
       const useYoutubePlaylist =
         form.platform === 'youtube' && form.musicSource === 'playlist' && form.youtubePlaylist;
       const useSpotifyPlaylist =
         form.platform === 'spotify' && form.musicSource === 'playlist' && form.spotifyPlaylist;
       const usePlaylist = useYoutubePlaylist || useSpotifyPlaylist;
+      const spotifyVerifyRef =
+        useSpotifyPlaylist && form.spotifyPlaylist && shouldVerifySpotifyPlaylistOnCreate(form.spotifyPlaylist)
+          ? toSpotifyPlaylistRef(form.spotifyPlaylist)
+          : null;
 
-      if (useSpotifyPlaylist && form.spotifyPlaylist) {
-        const verifyBody = toSpotifyPlaylistRef(form.spotifyPlaylist);
-        if (verifyBody) {
-          await api.verifySpotifyPlaylistAccess(token, verifyBody);
-        }
-      }
+      const jamNormalized =
+        form.platform === 'spotify' && form.useSpotifyJam && form.spotifyJamUrl.trim()
+          ? normalizeSpotifyJamUrl(form.spotifyJamUrl.trim())
+          : undefined;
+
+      const [{ latitude, longitude }] = await Promise.all([
+        resolvePosition(),
+        spotifyVerifyRef
+          ? api.verifySpotifyPlaylistAccess(token, spotifyVerifyRef)
+          : Promise.resolve(),
+      ]);
 
       const { salon } = await api.createSalon(token, {
         ...(form.accessMode === 'invite' ? { id: draftSalonId } : {}),
@@ -307,28 +301,25 @@ export function CreateSalonModal({
         allowQueue: form.allowQueue,
         ...(jamNormalized ? { spotifyJamUrl: jamNormalized } : {}),
       });
-      if (useYoutubePlaylist && form.youtubePlaylist) {
-        const body = form.youtubePlaylist.playlistUrl
-          ? { playlistUrl: form.youtubePlaylist.playlistUrl }
-          : form.youtubePlaylist.playlistId
-            ? { playlistId: form.youtubePlaylist.playlistId }
-            : null;
-        if (body) {
-          await api.salonLoadYoutubePlaylist(token, salon.id, body);
-        }
-      }
-      if (useSpotifyPlaylist && form.spotifyPlaylist) {
-        const body = toSpotifyPlaylistRef(form.spotifyPlaylist);
-        if (body) {
-          await api.salonLoadPlaylist(token, salon.id, body);
-        }
-      }
+
+      const playlistLoadBody = usePlaylist
+        ? buildPlaylistLoadBody(form.platform, form.youtubePlaylist, form.spotifyPlaylist)
+        : null;
+
       if (form.accessMode === 'invite') {
-        const shareUrl = await getSalonShareUrl(salon.id);
-        await copyShareLink(shareUrl);
+        void getSalonShareUrl(salon.id)
+          .then((shareUrl) => copyShareLink(shareUrl))
+          .catch(() => {});
       }
+
       onCreated(salon, latitude, longitude);
       onClose();
+
+      if (playlistLoadBody) {
+        deferSalonPlaylistLoad(token, salon.id, playlistLoadBody, (error) => {
+          onDeferredError?.(resolveCreateError(error));
+        });
+      }
     } catch (e) {
       showToast(resolveCreateError(e));
     } finally {

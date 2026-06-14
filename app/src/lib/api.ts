@@ -1,4 +1,9 @@
 import i18n from '../i18n';
+import {
+  readCachedPlatformStatus,
+  writeCachedPlatformStatus,
+  type PlatformStatusResponse,
+} from './platformStatusCache';
 import { serializeFeedAlgoForApi, type ReelFeedAlgorithmPreferences } from './reelFeedAlgorithm';
 
 const API = '/api';
@@ -722,31 +727,15 @@ export const api = {
   getInstagramOAuthUrl: (token: string) =>
     request<{ url: string }>('/platforms/instagram/oauth/url', {}, token),
 
-  getPlatformStatus: (token: string) =>
-    request<{
-      links: Array<{
-        platform: 'spotify' | 'youtube' | 'instagram';
-        externalUserId: string;
-        connectedAt: number;
-        displayName?: string;
-        avatarUrl?: string;
-        email?: string;
-        topArtists?: string[];
-        isRealOAuth?: boolean;
-      }>;
-      connectedPlatforms: ('spotify' | 'youtube')[];
-      youtubeOAuthAvailable: boolean;
-      spotifyOAuthAvailable: boolean;
-      instagramOAuthAvailable: boolean;
-      oauthConfigured?: boolean;
-      platformConnectionRequired?: boolean;
-      hasRealPlatformConnection?: boolean;
-      spotifySessionValid?: boolean;
-      spotifySessionCode?: string;
-      spotifyProduct?: string;
-      spotifyPremium?: boolean;
-      spotifyNeedsScopeReconnect?: boolean;
-    }>('/platforms/status', {}, token),
+  getPlatformStatus: async (token: string, options?: { fresh?: boolean }) => {
+    if (!options?.fresh) {
+      const cached = readCachedPlatformStatus(token);
+      if (cached) return cached;
+    }
+    const data = await request<PlatformStatusResponse>('/platforms/status', {}, token);
+    writeCachedPlatformStatus(token, data);
+    return data;
+  },
 
   getMsdevDualIp: () =>
     request<import('../types').MsdevDualIpConfig>('/msdev/dual-ip', {}),
@@ -798,6 +787,13 @@ export const api = {
 
   getSalonQueue: (token: string, salonId: string) =>
     request<{ queue: import('../types').SalonQueueItem[] }>(`/salons/${salonId}/queue`, {}, token),
+
+  reorderSalonQueue: (token: string, salonId: string, order: string[]) =>
+    request<{ queue: import('../types').SalonQueueItem[] }>(
+      `/salons/${salonId}/queue/reorder`,
+      { method: 'PATCH', body: JSON.stringify({ order }) },
+      token
+    ),
 
   getSalonProposals: (token: string, salonId: string) =>
     request<{ proposals: import('../types').SalonTrackProposal[] }>(`/salons/${salonId}/proposals`, {}, token),
@@ -883,6 +879,7 @@ export const api = {
         active: boolean;
         isPlaying: boolean;
         progressMs: number;
+        durationMs?: number;
         trackId?: string;
         title?: string;
         artist?: string;

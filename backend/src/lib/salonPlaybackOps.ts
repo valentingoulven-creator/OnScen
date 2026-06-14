@@ -203,6 +203,18 @@ export function hostLoadYoutubePlaylist(
 }
 
 /** Retire un morceau de la file Soundy s'il y est (changement immédiat ≠ file d'attente). */
+/** Réordonne la file Soundy (hôte / VIP). `orderedIds` doit lister tous les ids actuels. */
+export function reorderSalonQueue(salonId: string, orderedIds: string[]): SalonQueueItem[] | null {
+  const queue = ensureSalonQueue(salonId);
+  if (orderedIds.length !== queue.length) return null;
+  const byId = new Map(queue.map((q) => [q.id, q]));
+  if (!orderedIds.every((id) => byId.has(id))) return null;
+  const reordered = orderedIds.map((id) => byId.get(id)!);
+  db.salonQueues.set(salonId, reordered);
+  broadcastSalonQueue(salonId);
+  return reordered;
+}
+
 export function removeTrackFromSalonQueue(salonId: string, trackId: string): boolean {
   const safeId = trackId.trim();
   if (!safeId) return false;

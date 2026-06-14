@@ -334,6 +334,13 @@ export const api = {
   getSalonQueue: (token: string, salonId: string) =>
     request<{ queue: import('../types').SalonQueueItem[] }>(`/salons/${salonId}/queue`, {}, token),
 
+  reorderSalonQueue: (token: string, salonId: string, order: string[]) =>
+    request<{ queue: import('../types').SalonQueueItem[] }>(
+      `/salons/${salonId}/queue/reorder`,
+      { method: 'PATCH', body: JSON.stringify({ order }) },
+      token
+    ),
+
   getSalonProposals: (token: string, salonId: string) =>
     request<{ proposals: import('../types').SalonTrackProposal[] }>(`/salons/${salonId}/proposals`, {}, token),
 

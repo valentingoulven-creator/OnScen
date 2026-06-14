@@ -32,6 +32,7 @@ import {
   enqueueItem,
   proposalToQueueItem,
   removeTrackFromSalonQueue,
+  reorderSalonQueue,
 } from '../lib/salonPlaybackOps';
 import { searchYoutube } from '../lib/youtubeSearch';
 import {
@@ -298,6 +299,27 @@ salonsRouter.get('/:id/queue', authenticateJWT, (req: Request, res: Response) =>
   const salon = db.salons.get(req.params.id);
   if (!salonMemberOr403(salon, me, res)) return;
   res.json({ queue: ensureSalonQueue(salon.id) });
+});
+
+salonsRouter.patch('/:id/queue/reorder', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const salon = db.salons.get(req.params.id);
+  if (!requireSalonPlaybackController(salon, me, res)) return;
+  if (!salon.allowQueue) {
+    res.status(400).json({ error: 'File désactivée dans ce salon' });
+    return;
+  }
+  const { order } = req.body as { order?: unknown };
+  if (!Array.isArray(order) || order.some((id) => typeof id !== 'string')) {
+    res.status(400).json({ error: 'Paramètre order (string[]) requis' });
+    return;
+  }
+  const reordered = reorderSalonQueue(salon.id, order.map(String));
+  if (!reordered) {
+    res.status(400).json({ error: 'Ordre invalide' });
+    return;
+  }
+  res.json({ queue: reordered });
 });
 
 salonsRouter.get('/:id/proposals', authenticateJWT, (req: Request, res: Response) => {

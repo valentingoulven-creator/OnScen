@@ -50,6 +50,8 @@ interface SalonPlaybackPanelProps {
   skipping?: boolean;
   onSkip?: () => void;
   onPlayQueueItem?: (id: string) => void;
+  onReorderQueue?: (orderedIds: string[]) => void | Promise<void>;
+  reordering?: boolean;
   onAcceptProposal?: (proposalId: string, playNow: boolean) => Promise<void>;
   onRejectProposal?: (proposalId: string) => Promise<void>;
   onProposeTrack?: (body: {
@@ -87,13 +89,14 @@ export function SalonPlaybackPanel({
   onUserUpdated,
   onPlaybackStateChange,
   onQueueChange,
-  hostCanControl = false,
   queue = [],
   proposals = [],
   loadingProposals,
   skipping,
   onSkip,
   onPlayQueueItem,
+  onReorderQueue,
+  reordering,
   onAcceptProposal,
   onRejectProposal,
   onProposeTrack,
@@ -181,6 +184,8 @@ export function SalonPlaybackPanel({
 
   const prevPlayingRef = useRef(playbackState.isPlaying);
   const prevTrackIdRef = useRef(playbackState.trackId);
+  const autoSkipLockRef = useRef(false);
+  const prevSpotifyActiveRef = useRef<boolean | null>(null);
   const [spotifyNotif, setSpotifyNotif] = useState<string | null>(null);
   const [hostJamDraft, setHostJamDraft] = useState(salon.spotifyJamUrl ?? '');
   const [editingHostJam, setEditingHostJam] = useState(false);
@@ -462,9 +467,57 @@ export function SalonPlaybackPanel({
 
   /** Déclenché par SalonYouTubePlayer quand la vidéo se termine → skip auto si file non vide. */
   const handleVideoEnd = useCallback(() => {
-    if (!canControlPlayback || !hostCanControl || !onSkip) return;
-    if (queue.length > 0) onSkip();
-  }, [canControlPlayback, hostCanControl, onSkip, queue.length]);
+    if (!canControlPlayback || !onSkip || queue.length === 0 || skipping) return;
+    if (autoSkipLockRef.current) return;
+    autoSkipLockRef.current = true;
+    onSkip();
+  }, [canControlPlayback, onSkip, queue.length, skipping]);
+
+  useEffect(() => {
+    autoSkipLockRef.current = false;
+    prevSpotifyActiveRef.current = null;
+  }, [playbackState.trackId, playbackState.updatedAt]);
+
+  /** Spotify : fin de piste détectée via poll hôte → morceau suivant dans la file salon. */
+  useEffect(() => {
+    if (!canControlPlayback || !onSkip || queue.length === 0 || skipping) return;
+    if (salon.platform !== 'spotify' || !spotifySyncEnabled) return;
+
+    const spotify = spotifyNowPlaying;
+    if (!spotify) return;
+
+    const tryAutoSkip = () => {
+      if (autoSkipLockRef.current || skipping) return;
+      autoSkipLockRef.current = true;
+      onSkip();
+    };
+
+    const wasActive = prevSpotifyActiveRef.current;
+    prevSpotifyActiveRef.current = spotify.active;
+
+    if (wasActive === true && !spotify.active && playbackState.isPlaying) {
+      tryAutoSkip();
+      return;
+    }
+
+    if (!spotify.active || !spotify.durationMs || spotify.durationMs < 5000) return;
+    if (spotify.trackId && spotify.trackId !== playbackState.trackId) return;
+
+    const nearEnd = spotify.progressMs >= spotify.durationMs - 2500;
+    if (nearEnd && (!spotify.isPlaying || spotify.progressMs >= spotify.durationMs - 500)) {
+      tryAutoSkip();
+    }
+  }, [
+    canControlPlayback,
+    onSkip,
+    queue.length,
+    skipping,
+    salon.platform,
+    spotifySyncEnabled,
+    spotifyNowPlaying,
+    playbackState.isPlaying,
+    playbackState.trackId,
+  ]);
 
   const syncListenUrl = useMemo(() => {
     if (!resolved?.trackId || resolved.trackId === 'demo') return resolved?.externalUrl;
@@ -819,6 +872,7 @@ export function SalonPlaybackPanel({
                   ) : undefined
                 }
                 controlsFooter={showTheaterDockedControls ? theaterControlsFooter : undefined}
+                onVideoEnd={handleVideoEnd}
               />
             </div>
           ) : (
@@ -1456,7 +1510,9 @@ export function SalonPlaybackPanel({
                   allowQueue={salon.allowQueue}
                   onSkip={onSkip}
                   onPlayItem={onPlayQueueItem}
+                  onReorder={onReorderQueue}
                   skipping={skipping}
+                  reordering={reordering}
                   compact
                 />
                 <SalonProposalsSection

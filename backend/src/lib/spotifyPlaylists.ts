@@ -552,7 +552,34 @@ export async function probeSpotifyPlaylistLibraryAccess(
   return { ok: true };
 }
 
+const HOST_SESSION_PROBE_TTL_MS = 20_000;
+
+const hostSessionProbeCache = new Map<
+  string,
+  { at: number; result: SpotifyHostSessionResult }
+>();
+
+function readCachedHostSessionProbe(userId: string): SpotifyHostSessionResult | null {
+  const entry = hostSessionProbeCache.get(userId);
+  if (!entry || Date.now() - entry.at > HOST_SESSION_PROBE_TTL_MS) return null;
+  return entry.result;
+}
+
+function writeCachedHostSessionProbe(userId: string, result: SpotifyHostSessionResult): void {
+  if (!result.ok) return;
+  hostSessionProbeCache.set(userId, { at: Date.now(), result });
+}
+
 export async function probeSpotifyHostSession(user: User): Promise<SpotifyHostSessionResult> {
+  const cached = readCachedHostSessionProbe(user.id);
+  if (cached) return cached;
+
+  const result = await probeSpotifyHostSessionUncached(user);
+  writeCachedHostSessionProbe(user.id, result);
+  return result;
+}
+
+async function probeSpotifyHostSessionUncached(user: User): Promise<SpotifyHostSessionResult> {
   if (!isPlatformConnected(user, 'spotify')) {
     return { ok: false, code: 'spotify_not_connected' };
   }

@@ -114,6 +114,25 @@ export function useSalonQueueSync(
     [token, salonId]
   );
 
+  const reorderQueue = useCallback(
+    async (orderedIds: string[]) => {
+      if (!token) return null;
+      setQueue((prev) => {
+        const byId = new Map(prev.map((q) => [q.id, q]));
+        return orderedIds.map((id) => byId.get(id)).filter((q): q is SalonQueueItem => !!q);
+      });
+      try {
+        const r = await api.reorderSalonQueue(token, salonId, orderedIds);
+        setQueue(r.queue);
+        return r.queue;
+      } catch (e) {
+        api.getSalonQueue(token, salonId).then((r) => setQueue(r.queue)).catch(() => {});
+        throw e;
+      }
+    },
+    [token, salonId]
+  );
+
   return {
     queue,
     proposals,
@@ -123,6 +142,7 @@ export function useSalonQueueSync(
     acceptProposal,
     rejectProposal,
     proposeTrack,
+    reorderQueue,
     applyQueue: setQueue,
   };
 }

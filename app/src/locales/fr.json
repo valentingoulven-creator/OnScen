@@ -153,6 +153,16 @@
       "spotifyAlignHint": "Ouvrez Spotify au bon morceau et alignez-vous sur le chrono.",
       "spotifyCrossPlatformHint": "Spotify ne se lit pas dans le navigateur — utilisez YouTube pour écouter ensemble."
     },
+    "queue": {
+      "title": "File d'attente",
+      "empty": "Aucun morceau en attente",
+      "disabled": "La file d'attente est désactivée dans ce salon.",
+      "next": "Suivant",
+      "play": "Lire",
+      "truncated": "+{{count}} morceau(x) supplémentaire(s) non affiché(s)",
+      "reorderHint": "Glisser pour réordonner",
+      "reorderHandle": "Déplacer ce morceau"
+    },
     "create": {
       "spotifyPremiumRequired": "Spotify Premium requis pour héberger un salon",
       "errorFailed": "Impossible de créer le salon",

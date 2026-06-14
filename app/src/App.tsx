@@ -729,15 +729,6 @@ export default function App() {
                     onLeaveSalon={leaveActiveSalonSession}
                     onMinimizeToMap={handleSalonMinimizeToMap}
                     onSalonLoaded={handleSalonTitleLoaded}
-                    onOpenLive={(liveId) => {
-                      if (activeSalonSession?.viewMode === 'full') {
-                        clearSalonUrlFromBar();
-                        setActiveSalonSession((prev) =>
-                          prev ? { ...prev, viewMode: 'minimized' } : prev
-                        );
-                      }
-                      openLive(liveId);
-                    }}
                   />
                 </Suspense>
               </div>

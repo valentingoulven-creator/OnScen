@@ -1561,6 +1561,7 @@ export function HomePage({
           onClose={() => setShowCreateSalon(false)}
           onCreated={onSalonCreated}
           onUserUpdated={setUserFromProfile}
+          onDeferredError={setToastMsg}
         />
       )}
 

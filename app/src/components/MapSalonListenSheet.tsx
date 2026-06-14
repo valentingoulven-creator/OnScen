@@ -143,7 +143,26 @@ export function MapSalonListenSheet({
     acceptProposal,
     rejectProposal,
     proposeTrack,
+    reorderQueue,
   } = useSalonQueueSync(salon.id, token, isHost, salon.queue);
+
+  const [reordering, setReordering] = useState(false);
+
+  const handleReorderQueue = useCallback(
+    async (orderedIds: string[]) => {
+      if (!hostCanControl) return;
+      setReordering(true);
+      try {
+        const next = await reorderQueue(orderedIds);
+        if (next) onSalonUpdate({ ...salon, queue: next });
+      } catch {
+        // hook refetches queue on error
+      } finally {
+        setReordering(false);
+      }
+    },
+    [hostCanControl, onSalonUpdate, reorderQueue, salon]
+  );
 
   const playback = salon.playbackState;
   const trackPlatform = playback.platform ?? salon.platform;
@@ -378,6 +397,8 @@ export function MapSalonListenSheet({
               skipping={false}
               onSkip={hostCanControl ? skipNext : undefined}
               onPlayQueueItem={hostCanControl ? playQueueItem : undefined}
+              onReorderQueue={hostCanControl ? handleReorderQueue : undefined}
+              reordering={reordering}
               onAcceptProposal={
                 hostCanControl
                   ? async (proposalId, playNow) => {

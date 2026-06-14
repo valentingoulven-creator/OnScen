@@ -26,7 +26,6 @@ import { SalonProposalsSection } from '../components/SalonProposalsSection';
 import { SalonSpotifyJamButton } from '../components/SalonSpotifyJamButton';
 import { SalonInviteLinkCopy } from '../components/SalonInviteLinkCopy';
 import { SalonParticipantsPopover } from '../components/SalonParticipantsPopover';
-import { StartLiveMediaSetupModal } from '../components/StartLiveMediaSetupModal';
 import { useSalonQueueSync } from '../hooks/useSalonQueueSync';
 import { emitOnSocket } from '../lib/socket';
 
@@ -53,7 +52,6 @@ export function SalonPage({
   onLeaveSalon,
   onMinimizeToMap,
   onSalonLoaded,
-  onOpenLive,
 }: {
   salonId: string;
   onBack: () => void;
@@ -63,8 +61,6 @@ export function SalonPage({
   onMinimizeToMap?: (salonTitle?: string) => void;
   /** Titre chargé (barre retour header). */
   onSalonLoaded?: (salonTitle?: string) => void;
-  /** Ouvre LivePage après démarrage du live. */
-  onOpenLive?: (liveId: string) => void;
 }) {
 
   const { user, token, setUserFromProfile } = useAuth();
@@ -74,14 +70,13 @@ export function SalonPage({
 
   const [contacts, setContacts] = useState<DmContact[]>([]);
 
-  const [startingLive, setStartingLive] = useState(false);
-  const [liveMediaSetupOpen, setLiveMediaSetupOpen] = useState(false);
   const [endingSalon, setEndingSalon] = useState(false);
 
   const [accessSaving, setAccessSaving] = useState(false);
   const [validatingGuests, setValidatingGuests] = useState(false);
   const [pendingGuestIds, setPendingGuestIds] = useState<Set<string>>(new Set());
   const [skipping, setSkipping] = useState(false);
+  const [reordering, setReordering] = useState(false);
   const [chatHidden, setChatHidden] = useState(() => window.innerWidth < 640);
   const [chatMinimized, setChatMinimized] = useState(false);
 
@@ -218,27 +213,6 @@ export function SalonPage({
 
 
 
-  const startLive = () => {
-    if (!token || startingLive || liveMediaSetupOpen) return;
-    setLiveMediaSetupOpen(true);
-  };
-
-  const launchLiveAfterSetup = async () => {
-    if (!token || startingLive) return;
-    setStartingLive(true);
-    try {
-      const { live } = await api.startLive(token, `Live — ${salon?.title}`);
-      loadSalon();
-      onOpenLive?.(live.id);
-    } catch (e) {
-      setToastMsg(e instanceof Error ? e.message : 'Erreur');
-    } finally {
-      setStartingLive(false);
-    }
-  };
-
-
-
   const setAccessMode = async (mode: 'public' | 'invite') => {
 
     if (!token || !salon) return;
@@ -320,6 +294,7 @@ export function SalonPage({
     acceptProposal,
     rejectProposal,
     proposeTrack,
+    reorderQueue,
     applyQueue,
   } = useSalonQueueSync(salon?.id ?? salonId, token, isHost || isDevModerator, salon?.queue);
 
@@ -525,6 +500,18 @@ export function SalonPage({
     }
   };
 
+  const handleReorderQueue = async (orderedIds: string[]) => {
+    if (!hostCanControl) return;
+    setReordering(true);
+    try {
+      await reorderQueue(orderedIds);
+    } catch (e) {
+      setToastMsg(e instanceof Error ? e.message : 'Erreur');
+    } finally {
+      setReordering(false);
+    }
+  };
+
   const handleAccept = async (proposalId: string, playNow: boolean) => {
     try {
       const state = await acceptProposal(proposalId, playNow);
@@ -641,7 +628,9 @@ export function SalonPage({
             allowQueue={salon.allowQueue}
             onSkip={hostCanControl ? handleSkip : undefined}
             onPlayItem={hostCanControl ? handlePlayQueue : undefined}
+            onReorder={hostCanControl ? handleReorderQueue : undefined}
             skipping={skipping}
+            reordering={reordering}
           />
           <SalonProposalsSection
             isHost={hostCanControl}
@@ -833,16 +822,6 @@ export function SalonPage({
             </p>
           )}
         </div>
-        {isHost && !salon.isLive && (
-          <button
-            type="button"
-            onClick={startLive}
-            disabled={startingLive}
-            className="shrink-0 px-3 py-1.5 bg-red-600 rounded-full text-xs font-bold text-white disabled:opacity-50"
-          >
-            Live
-          </button>
-        )}
         <div className="flex items-center gap-1.5 shrink-0">
           {salon.platform === 'spotify' && (
             <SalonSpotifyJamButton
@@ -901,6 +880,10 @@ export function SalonPage({
               onPlaybackStateChange={applyPlayback}
               theaterMode={salon.platform !== 'spotify'}
               salonQueueLayout={salon.platform === 'spotify'}
+              hostCanControl={hostCanControl}
+              queue={queue}
+              skipping={skipping}
+              onSkip={canControlPlayback ? handleSkip : undefined}
             />
           }
           stageFooter={stageFooter}
@@ -913,16 +896,6 @@ export function SalonPage({
         />
         <ChatModals />
       </ChatRoomProvider>
-
-      <StartLiveMediaSetupModal
-        open={liveMediaSetupOpen}
-        onClose={() => setLiveMediaSetupOpen(false)}
-        onReady={() => {
-          setLiveMediaSetupOpen(false);
-          void launchLiveAfterSetup();
-        }}
-        confirmLabel="Lancer le live"
-      />
 
     </div>
   );

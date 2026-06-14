@@ -13,6 +13,7 @@ export interface SpotifyNowPlaying {
   active: boolean;
   isPlaying: boolean;
   progressMs: number;
+  durationMs?: number;
   trackId?: string;
   title?: string;
   artist?: string;

@@ -49,6 +49,7 @@ export function SalonPage({ salonId, onBack }: { salonId: string; onBack: () => 
 
   const [accessSaving, setAccessSaving] = useState(false);
   const [skipping, setSkipping] = useState(false);
+  const [reordering, setReordering] = useState(false);
   const [chatHidden, setChatHidden] = useState(false);
   const [chatMinimized, setChatMinimized] = useState(false);
 
@@ -259,6 +260,7 @@ export function SalonPage({ salonId, onBack }: { salonId: string; onBack: () => 
     acceptProposal,
     rejectProposal,
     proposeTrack,
+    reorderQueue,
   } = useSalonQueueSync(salon?.id ?? salonId, token, isHost, salon?.queue);
 
   const applyPlayback = useCallback((state: PlaybackState) => {
@@ -312,6 +314,18 @@ export function SalonPage({ salonId, onBack }: { salonId: string; onBack: () => 
       if (state) applyPlayback(state);
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Erreur');
+    }
+  };
+
+  const handleReorderQueue = async (orderedIds: string[]) => {
+    if (!hostCanControl) return;
+    setReordering(true);
+    try {
+      await reorderQueue(orderedIds);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Erreur');
+    } finally {
+      setReordering(false);
     }
   };
 
@@ -374,7 +388,9 @@ export function SalonPage({ salonId, onBack }: { salonId: string; onBack: () => 
           allowQueue={salon.allowQueue}
           onSkip={hostCanControl ? handleSkip : undefined}
           onPlayItem={hostCanControl ? handlePlayQueue : undefined}
+          onReorder={hostCanControl ? handleReorderQueue : undefined}
           skipping={skipping}
+          reordering={reordering}
         />
         <SalonProposalsSection
           isHost={hostCanControl}
@@ -512,6 +528,10 @@ export function SalonPage({ salonId, onBack }: { salonId: string; onBack: () => 
               onUserUpdated={setUserFromProfile}
               onPlaybackStateChange={applyPlayback}
               theaterMode
+              hostCanControl={hostCanControl}
+              queue={queue}
+              skipping={skipping}
+              onSkip={hostCanControl ? handleSkip : undefined}
             />
           }
           stageFooter={stageFooter}
