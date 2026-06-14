@@ -27,8 +27,6 @@ import { getSalonShowYoutubeVideo, setSalonShowYoutubeVideo } from '../lib/salon
 import { isYoutubeStrictCompliance } from '../lib/youtubeCompliance';
 import { useBackgroundPlayback } from '../hooks/useBackgroundPlayback';
 import { PlatformConnectCard } from './PlatformConnectCard';
-import { SpotifyJamJoinCard, SpotifyJamLinkField } from './SpotifyJamLinkField';
-import { normalizeSpotifyJamUrl } from '../lib/spotifyJam';
 import { formatSalonAudienceLabel } from '../lib/salonAudience';
 import type { User } from '../types';
 import type { PlaybackState, ResolvedSalonTrack, Salon, SalonQueueItem, SalonTrackProposal } from '../types';
@@ -142,7 +140,7 @@ export function SalonPlaybackPanel({
 
   const spotifySyncEnabled =
     salon.platform === 'spotify' && isHost && hostLinked && Boolean(token);
-  const { nowPlaying: spotifyNowPlaying, syncError: spotifySyncError, markLocalControl } =
+  const { nowPlaying: spotifyNowPlaying, syncError: spotifySyncError, markLocalControl, refreshNow: refreshSpotifySync } =
     useSpotifySalonSync({
       salonId: salon.id,
       token,
@@ -187,10 +185,6 @@ export function SalonPlaybackPanel({
   const autoSkipLockRef = useRef(false);
   const prevSpotifyActiveRef = useRef<boolean | null>(null);
   const [spotifyNotif, setSpotifyNotif] = useState<string | null>(null);
-  const [hostJamDraft, setHostJamDraft] = useState(salon.spotifyJamUrl ?? '');
-  const [editingHostJam, setEditingHostJam] = useState(false);
-  const [savingJam, setSavingJam] = useState(false);
-  const [jamToast, setJamToast] = useState<string | null>(null);
   const [spotifyControlToast, setSpotifyControlToast] = useState<string | null>(null);
   const spotifyLaunchRetryRef = useRef<number | null>(null);
   const spotifyAppLaunchIssuedRef = useRef(false);
@@ -202,17 +196,6 @@ export function SalonPlaybackPanel({
       }
     };
   }, []);
-
-  useEffect(() => {
-    setHostJamDraft(salon.spotifyJamUrl ?? '');
-    if (salon.spotifyJamUrl) setEditingHostJam(false);
-  }, [salon.spotifyJamUrl]);
-
-  useEffect(() => {
-    if (!jamToast) return;
-    const timer = window.setTimeout(() => setJamToast(null), 2500);
-    return () => window.clearTimeout(timer);
-  }, [jamToast]);
 
   useEffect(() => {
     if (!spotifyControlToast) return;
@@ -253,6 +236,7 @@ export function SalonPlaybackPanel({
       if (!token || salon.platform !== 'spotify' || !canControlPlayback) return;
       try {
         await api.spotifySalonPlaybackControl(token, salon.id, action);
+        refreshSpotifySync();
       } catch (e) {
         const code = e instanceof ApiRequestError ? e.code : undefined;
         if (code === 'no_active_device' && (action === 'play' || action === 'next')) {
@@ -274,6 +258,7 @@ export function SalonPlaybackPanel({
       playbackState.trackId,
       launchSpotifyForHostPlayback,
       scheduleSpotifyPlayRetry,
+      refreshSpotifySync,
     ]
   );
 
@@ -282,11 +267,12 @@ export function SalonPlaybackPanel({
       if (!token || salon.platform !== 'spotify' || !canControlPlayback) return;
       try {
         await api.spotifySalonSeek(token, salon.id, positionMs);
+        refreshSpotifySync();
       } catch (e) {
         setSpotifyControlToast(e instanceof Error ? e.message : t('salon.playbackMode.spotifyControlError'));
       }
     },
-    [token, salon.platform, salon.id, canControlPlayback, t]
+    [token, salon.platform, salon.id, canControlPlayback, t, refreshSpotifySync]
   );
 
   const handleHostPlay = useCallback(() => {
@@ -341,27 +327,6 @@ export function SalonPlaybackPanel({
     [salon.platform, canControlPlayback, spotifySyncEnabled, markLocalControl, callSpotifySeek]
   );
 
-  const saveHostJamLink = async () => {
-    if (!token || !isHost) return;
-    const trimmed = hostJamDraft.trim();
-    if (trimmed && !normalizeSpotifyJamUrl(trimmed)) {
-      setJamToast('Lien Jam invalide');
-      return;
-    }
-    setSavingJam(true);
-    try {
-      const { salon: updated } = await api.updateSalonSettings(token, salon.id, {
-        spotifyJamUrl: trimmed ? normalizeSpotifyJamUrl(trimmed) : '',
-      });
-      setHostJamDraft(updated.spotifyJamUrl ?? '');
-      setEditingHostJam(false);
-      setJamToast(trimmed ? 'Lien Jam enregistré' : 'Lien Jam retiré');
-    } catch (e) {
-      setJamToast(e instanceof Error ? e.message : 'Enregistrement impossible');
-    } finally {
-      setSavingJam(false);
-    }
-  };
   useEffect(() => {
     if (isHost || isVipModerator || salon.platform !== 'spotify') return;
     if (playbackState.isPlaying !== prevPlayingRef.current) {
@@ -634,18 +599,13 @@ export function SalonPlaybackPanel({
 
           {salon.platform === 'spotify' && (
             <div className="space-y-1">
-              <p className="text-[10px] text-green-400/80 leading-snug border border-green-500/20 bg-green-500/5 rounded-lg px-2.5 py-1.5">
-                {canControlPlayback
-                  ? isVipModerator && !isHost
+              {(canControlPlayback ? isVipModerator && !isHost : true) && (
+                <p className="text-[10px] text-green-400/80 leading-snug border border-green-500/20 bg-green-500/5 rounded-lg px-2.5 py-1.5">
+                  {canControlPlayback
                     ? t('salon.playbackMode.spotifyVipHint', {
-                        defaultValue: 'Modérateur VIP — vous pilotez la lecture Spotify de l’hôte.',
+                        defaultValue: 'Modérateur VIP — vous pilotez la lecture Spotify de l\u2019hôte.',
                       })
-                    : t('salon.playbackMode.spotifyHostHint')
-                  : t('salon.playbackMode.spotifyParticipantHint')}
-              </p>
-              {isHost && (
-                <p className="text-[10px] text-green-400/60 leading-snug px-1">
-                  {t('salon.playbackMode.spotifyHostPremiumNote')}
+                    : t('salon.playbackMode.spotifyParticipantHint')}
                 </p>
               )}
               <p className="text-[10px] text-[#1DB954]/70 px-1">{t('salon.spotifySearch.poweredBy')}</p>
@@ -962,9 +922,6 @@ export function SalonPlaybackPanel({
                 {spotifyNotif}
               </div>
             )}
-            {salon.platform === 'spotify' && salon.spotifyJamUrl && (
-              <SpotifyJamJoinCard jamUrl={salon.spotifyJamUrl} onCopy={setJamToast} />
-            )}
             {!(canUseYoutubeEmbed && participantPlatform === 'youtube') && (
               <div className="grid grid-cols-2 gap-2">
                 {(['spotify', 'youtube'] as const).map((p) => (
@@ -1052,12 +1009,9 @@ export function SalonPlaybackPanel({
 
         {salon.platform === 'spotify' && (
           <div className="space-y-1">
-            <p className="text-[10px] text-green-400/80 leading-snug border border-green-500/20 bg-green-500/5 rounded-lg px-2.5 py-2">
-              {isHost && hostLinked ? t('salon.playbackMode.spotifyHostHint') : t('salon.playbackMode.spotifyParticipantHint')}
-            </p>
-            {isHost && (
-              <p className="text-[10px] text-green-400/60 leading-snug px-1">
-                {t('salon.playbackMode.spotifyHostPremiumNote')}
+            {!(isHost && hostLinked) && (
+              <p className="text-[10px] text-green-400/80 leading-snug border border-green-500/20 bg-green-500/5 rounded-lg px-2.5 py-2">
+                {t('salon.playbackMode.spotifyParticipantHint')}
               </p>
             )}
             <p className="text-[10px] text-[#1DB954]/70 px-1">{t('salon.spotifySearch.poweredBy')}</p>
@@ -1184,56 +1138,6 @@ export function SalonPlaybackPanel({
           />
         )}
 
-        {salon.platform === 'spotify' && isHost && hostLinked && (
-          <div className="space-y-2 pt-1">
-            {salon.spotifyJamUrl && !editingHostJam ? (
-              <>
-                <SpotifyJamJoinCard jamUrl={salon.spotifyJamUrl} isHost onCopy={setJamToast} />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setHostJamDraft(salon.spotifyJamUrl ?? '');
-                    setEditingHostJam(true);
-                  }}
-                  className="text-[11px] text-gray-500 hover:text-gray-300"
-                >
-                  Modifier le lien Jam
-                </button>
-              </>
-            ) : (
-              <>
-                <SpotifyJamLinkField
-                  value={hostJamDraft}
-                  onChange={setHostJamDraft}
-                  variant="inline"
-                  disabled={savingJam}
-                />
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void saveHostJamLink()}
-                    disabled={savingJam || !hostJamDraft.trim()}
-                    className="flex-1 py-2 rounded-xl bg-green-600/80 hover:bg-green-600 text-xs font-bold text-white disabled:opacity-50"
-                  >
-                    {savingJam ? 'Enregistrement…' : 'Enregistrer le lien Jam'}
-                  </button>
-                  {salon.spotifyJamUrl && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setHostJamDraft(salon.spotifyJamUrl ?? '');
-                        setEditingHostJam(false);
-                      }}
-                      className="px-3 py-2 rounded-xl border border-[#2a2a3a] text-xs text-gray-400"
-                    >
-                      Annuler
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        )}
       </div>
 
       {isHost && !hostLinked && token && (
@@ -1405,15 +1309,6 @@ export function SalonPlaybackPanel({
                 {spotifyNotif}
               </div>
             )}
-            {salon.platform === 'spotify' && salon.spotifyJamUrl && (
-              <SpotifyJamJoinCard jamUrl={salon.spotifyJamUrl} onCopy={setJamToast} />
-            )}
-            {salon.platform === 'spotify' && !salon.spotifyJamUrl && (
-              <p className="text-[11px] text-center text-amber-400/90">
-                L&apos;hôte n&apos;a pas encore partagé de lien Jam — suivez le chrono ci-dessous dans Spotify.
-              </p>
-            )}
-
             {!(canUseYoutubeEmbed && participantPlatform === 'youtube') && (
               <>
                 <p className="text-xs text-gray-400 text-center leading-snug">
@@ -1508,6 +1403,7 @@ export function SalonPlaybackPanel({
                   queue={queue}
                   isHost={canControlPlayback}
                   allowQueue={salon.allowQueue}
+                  salonId={salon.id}
                   onSkip={onSkip}
                   onPlayItem={onPlayQueueItem}
                   onReorder={onReorderQueue}
@@ -1538,14 +1434,6 @@ export function SalonPlaybackPanel({
         </>
       )}
     </section>
-    {jamToast && (
-      <div
-        className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-[#1a1a28] border border-green-500/40 text-sm text-white shadow-lg"
-        role="status"
-      >
-        {jamToast}
-      </div>
-    )}
     {spotifyControlToast && (
       <div
         className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 max-w-[90vw] px-4 py-2 rounded-full bg-amber-950/95 border border-amber-500/40 text-sm text-amber-100 shadow-lg text-center"

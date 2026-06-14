@@ -140,8 +140,6 @@
       "youtubeSyncSuffix": "in Soundy (synchronized player).",
       "spotifyChrono": "shared timer — launch Spotify on the track and stay in sync.",
       "youtubeSyncBanner": "Synchronized YouTube playback in Soundy",
-      "spotifyHostHint": "Premium required — Spotify app open (Connect active). Track, timer, and play/pause/stop follow your playback.",
-      "spotifyHostPremiumNote": "Spotify Premium subscription required to host.",
       "spotifyParticipantHint": "Shared timer — open Spotify and align with the clock.",
       "mapListenCapHint": "Map preview: listening capped at 10 min — open the room to continue (YouTube compliance).",
       "youtubeAttribution": "Content provided via YouTube APIs — per YouTube API Services Terms.",
@@ -161,19 +159,17 @@
       "play": "Play",
       "truncated": "+{{count}} more track(s) not shown",
       "reorderHint": "Drag to reorder",
-      "reorderHandle": "Move this track"
+      "reorderHandle": "Move this track",
+      "hideQueue": "Hide queue",
+      "showQueue": "Show queue",
+      "hideQueueToggle": "Hide ▲",
+      "showQueueToggle": "Show ▼"
     },
     "create": {
       "spotifyPremiumRequired": "Spotify Premium required to host a salon",
       "errorFailed": "Could not create the salon",
       "errorPlatformNotLinkedSpotify": "Connect Spotify before creating a Spotify salon.",
-      "errorPlatformNotLinkedYoutube": "Connect YouTube before creating a YouTube salon.",
-      "useSpotifyJam": "Use a Spotify Jam",
-      "spotifyJamDisabled": "Disabled",
-      "spotifyJamNoLink": "Enabled, no link provided",
-      "spotifyJamLinkProvided": "link provided",
-      "spotifyJamLinkInvalid": "invalid link",
-      "spotifyJamInvalidAlert": "Invalid Spotify Jam link. Use an open.spotify.com/socialsession/… URL."
+      "errorPlatformNotLinkedYoutube": "Connect YouTube before creating a YouTube salon."
     },
     "spotifySearch": {
       "createLabel": "Spotify track (optional)",
@@ -458,8 +454,11 @@
         "total": "Total",
         "active": "Active",
         "pending": "Pending",
-        "blocked": "Blocked"
+        "blocked": "Blocked",
+        "spotifyPremium": "Premium connected",
+        "spotifyBasic": "Basic connected"
       },
+      "spotifySection": "Spotify connected on Soundy",
       "birthDate": "Birth date: {{date}}",
       "age": "Age: {{age}}",
       "birthDateHidden": "Birth date hidden on public profile",

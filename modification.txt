@@ -1,7 +1,185 @@
 ﻿
 ================================================================================
-MODIF 489 — Auto-avance file d'attente à la fin du morceau
+MODIF 494 — Admin : comptes Spotify Premium / Basic connectés
 ================================================================================
+Date : 2026-06-14
+
+## Contexte
+Demande d'afficher dans l'espace admin le nombre de comptes Premium et Basic
+(Spotify Free/Open) connectés sur Soundy.
+
+## Correctif
+- Backend : agrégation `counts.spotify.premium` / `counts.spotify.basic` sur
+  GET `/access/admin/users` et GET `/access/admin/overview`.
+  Source : `platformAccounts[].spotifyProduct` (renseigné à l'OAuth et au refresh
+  via `/v1/me`), utilisateurs réels hors `@bot.local`.
+- Frontend : section stats dédiée dans `AdminAccountsTab` (cartes alignées UI admin).
+- i18n FR/EN : libellés Premium/Basic + section « Spotify connecté sur Soundy ».
+
+## Fichiers
+- backend/src/routes/access.ts
+- app/src/types.ts
+- app/src/lib/api.ts
+- app/src/pages/AdminAccountsTab.tsx
+- app/src/locales/fr.json
+- app/src/locales/en.json
+- modification.txt
+
+## Déploiement
+**Non** — en attente validation utilisateur.
+
+================================================================================
+MODIF 493 — Sync salon Spotify : poll adaptatif + refresh immédiat
+================================================================================
+Date : 2026-06-14
+
+## Contexte
+Analyse sync salon : Spotify ne permet pas l'audio in-app ; le modèle actuel
+(chrono partagé + poll hôte + WebSocket) est le meilleur réaliste sous contraintes
+API. Améliorations marginales possibles sur la réactivité du poll.
+
+## Correctif
+- `useSpotifySalonSync` : poll adaptatif 2 s en lecture / 4,5 s en pause /
+  6 s onglet masqué (au lieu de 2,5 s fixe).
+- Seuil dérive `POSITION_DRIFT_MS` : 2200 ms (aligné poll plus rapide).
+- `refreshNow()` : poll immédiat après contrôle Spotify hôte réussi
+  (play/pause/stop/next/seek) pour pousser `playback_sync` sans attendre le timer.
+
+## Fichiers
+- app/src/hooks/useSpotifySalonSync.ts
+- app/src/components/SalonPlaybackPanel.tsx
+- modification.txt
+
+## Déploiement
+**Non** — en attente validation utilisateur.
+
+================================================================================
+MODIF 492 — Retrait options configuration Jam Spotify (UI)
+================================================================================
+Date : 2026-06-14
+
+## Demande
+Retirer toutes les options de configuration Jam Spotify dans l'application
+(checkbox création salon, bouton header, champs lien, cartes « Rejoindre le Jam »).
+
+## Correctif
+### Frontend
+- `CreateSalonModal` : checkbox « Utiliser un Jam Spotify », champ lien, récap Jam.
+- `SalonPage` : bouton header `SalonSpotifyJamButton` retiré.
+- `SalonPlaybackPanel` : config host (enregistrer/modifier lien), cartes join,
+  message « lien Jam non partagé », toast Jam.
+- Fichiers supprimés : `SalonSpotifyJamButton`, `SpotifyJamLinkField`,
+  `spotifyJamPrefs`, `lib/spotifyJam` (frontend).
+- i18n FR/EN : clés `salon.create.useSpotifyJam*` retirées.
+- `boutons-app.txt` : entrée bouton Jam Spotify retirée.
+
+### Backend
+- Inchangé : champ `spotifyJamUrl` et routes PATCH/POST conservés pour
+  compatibilité données existantes ; plus d'appel depuis le frontend.
+
+## Fichiers
+- app/src/components/CreateSalonModal.tsx
+- app/src/components/SalonPlaybackPanel.tsx
+- app/src/pages/SalonPage.tsx
+- app/src/components/SalonSpotifyJamButton.tsx (supprimé)
+- app/src/components/SpotifyJamLinkField.tsx (supprimé)
+- app/src/lib/spotifyJam.ts (supprimé)
+- app/src/lib/spotifyJamPrefs.ts (supprimé)
+- app/src/locales/fr.json, en.json
+- boutons-app.txt
+- modification.txt
+
+## Test
+  cd app && npm run build
+  1. Créer salon Spotify → plus de checkbox Jam ni champ lien.
+  2. Salon Spotify plein écran → plus de bouton Jam dans le header.
+  3. Panneau « Écoute ensemble » → plus de section config/join Jam.
+
+## Déploiement
+**Non** — en attente validation utilisateur.
+
+================================================================================
+Fin MODIF 492 - 2026-06-14
+================================================================================
+
+================================================================================
+MODIF 491 — Retrait mentions Premium (lecture salon Spotify)
+================================================================================
+Date : 2026-06-14
+
+## Demande
+Retirer les deux paragraphes d'info Premium dans la section lecture Spotify
+du salon (en-tête plein écran + panneau « Écoute ensemble »), tout en
+conservant l'attribution « Powered by Spotify » (Spotify Branding Guidelines).
+
+## Correctif
+### Frontend
+- `SalonPlaybackPanel` : suppression du bandeau vert host (`spotifyHostHint`)
+  et de la note « Abonnement Spotify Premium obligatoire » (`spotifyHostPremiumNote`).
+- Hôte connecté : seul « Powered by Spotify » reste visible.
+- Participants / modérateur VIP : hints non-Premium conservés + attribution.
+- i18n FR/EN : clés `spotifyHostHint` et `spotifyHostPremiumNote` retirées
+  (clés Premium CreateSalonModal, erreurs API, auth, platform inchangées).
+
+## Fichiers
+- app/src/components/SalonPlaybackPanel.tsx
+- app/src/locales/fr.json, en.json
+- modification.txt
+
+## Test
+  cd app && npm run build
+  1. Salon Spotify host (plein écran) → plus de bandeau Premium ni note
+     abonnement ; « Powered by Spotify » visible.
+  2. Panneau « Écoute ensemble » (host lié) → idem.
+  3. Participant → hint chrono partagé + Powered by Spotify.
+
+## Déploiement
+**Non** — en attente validation utilisateur.
+
+================================================================================
+Fin MODIF 491 - 2026-06-14
+================================================================================
+
+================================================================================
+MODIF 490 — Replier la file d'attente (panneau host)
+================================================================================
+Date : 2026-06-14
+
+## Demande
+Panneau host : possibilité de replier la section FILE D'ATTENTE tout en
+laissant PROPOSITIONS toujours visible en dessous.
+
+## Correctif
+### Frontend
+- `SalonQueueSection` : toggle « Masquer ▲ » / « Afficher ▼ » (même pattern que
+  PLAYLIST HÔTE Spotify).
+- Replié : en-tête compact (titre + compteur + bouton Suivant), liste scrollable
+  et hint « Glisser pour réordonner » masqués.
+- `SalonProposalsSection` inchangée — reste visible sous la file.
+- État replié persisté en `sessionStorage` par salon (`salon-queue-collapsed:{id}`).
+- i18n FR/EN : `hideQueueToggle`, `showQueueToggle`, aria-labels.
+
+## Fichiers
+- app/src/components/SalonQueueSection.tsx
+- app/src/components/SalonPlaybackPanel.tsx
+- app/src/pages/SalonPage.tsx
+- app/src/locales/fr.json, en.json
+- modification.txt
+
+## Test
+  cd app && npm run build
+  1. Salon host → FILE D'ATTENTE (N) → « Masquer ▲ » → liste masquée, Suivant
+     et compteur visibles, PROPOSITIONS toujours affichées.
+  2. « Afficher ▼ » → liste réapparaît avec drag hint si > 1 morceau.
+  3. Recharger l'onglet → état replié conservé pour ce salon.
+
+## Déploiement
+**Non** — en attente validation utilisateur.
+
+================================================================================
+Fin MODIF 490 - 2026-06-14
+================================================================================
+
 Date : 2026-06-14
 
 ## Demande

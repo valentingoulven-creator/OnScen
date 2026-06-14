@@ -14,7 +14,6 @@ import {
   shouldVerifySpotifyPlaylistOnCreate,
 } from '../lib/salonCreateFlow';
 import { PlatformConnectCard } from './PlatformConnectCard';
-import { SpotifyJamLinkField } from './SpotifyJamLinkField';
 import { CreateSalonYouTubePicker } from './CreateSalonYouTubePicker';
 import { CreateSalonSpotifyPicker } from './CreateSalonSpotifyPicker';
 import { CreateSalonSpotifyPlaylistPicker } from './CreateSalonSpotifyPlaylistPicker';
@@ -24,17 +23,7 @@ import {
 } from './CreateSalonPlaylistPicker';
 import { SalonInviteLinkCopy } from './SalonInviteLinkCopy';
 import { SalonInviteUserSearch } from './SalonInviteUserSearch';
-import { normalizeSpotifyJamUrl } from '../lib/spotifyJam';
-import { getSavedSpotifyJamUrl, isSaveSpotifyJamEnabled } from '../lib/spotifyJamPrefs';
 import type { DmContact, Salon, User } from '../types';
-
-function getDefaultSpotifyJamState(): { useSpotifyJam: boolean; spotifyJamUrl: string } {
-  if (isSaveSpotifyJamEnabled()) {
-    const saved = getSavedSpotifyJamUrl();
-    if (saved) return { useSpotifyJam: true, spotifyJamUrl: saved };
-  }
-  return { useSpotifyJam: false, spotifyJamUrl: '' };
-}
 
 export interface CreateSalonForm {
   title: string;
@@ -48,8 +37,6 @@ export interface CreateSalonForm {
   youtubePlaylist: CreateSalonPlaylistSelection | null;
   spotifyPlaylist: CreateSalonPlaylistSelection | null;
   allowQueue: boolean;
-  useSpotifyJam: boolean;
-  spotifyJamUrl: string;
 }
 
 /** Préremplissage (ex. salon privé depuis un fil DM). */
@@ -112,8 +99,6 @@ export function CreateSalonModal({
     youtubePlaylist: null,
     spotifyPlaylist: null,
     allowQueue: true,
-    useSpotifyJam: false,
-    spotifyJamUrl: '',
   });
 
   const skipAccessStep = preset?.accessMode === 'invite';
@@ -146,17 +131,9 @@ export function CreateSalonModal({
       youtubePlaylist: null,
       spotifyPlaylist: null,
       allowQueue: true,
-      ...getDefaultSpotifyJamState(),
     });
     api.getDmContacts(token).then((r) => setContacts(r.contacts));
   }, [open, token, username, preset]);
-
-  useEffect(() => {
-    if (!open || form.platform !== 'spotify' || !form.useSpotifyJam || form.spotifyJamUrl.trim()) return;
-    if (!isSaveSpotifyJamEnabled()) return;
-    const saved = getSavedSpotifyJamUrl();
-    if (saved) setForm((f) => ({ ...f, spotifyJamUrl: saved }));
-  }, [open, form.platform, form.useSpotifyJam, form.spotifyJamUrl]);
 
   const refreshPlatformStatus = (fresh = false) => {
     if (!token) return;
@@ -252,13 +229,6 @@ export function CreateSalonModal({
       showToast(submitBlockedReason ?? t('salon.create.errorFailed'));
       return;
     }
-    if (form.platform === 'spotify' && form.useSpotifyJam && form.spotifyJamUrl.trim()) {
-      if (!normalizeSpotifyJamUrl(form.spotifyJamUrl)) {
-        showToast(t('salon.create.spotifyJamInvalidAlert'));
-        return;
-      }
-    }
-
     setSaving(true);
     try {
       const useYoutubePlaylist =
@@ -270,11 +240,6 @@ export function CreateSalonModal({
         useSpotifyPlaylist && form.spotifyPlaylist && shouldVerifySpotifyPlaylistOnCreate(form.spotifyPlaylist)
           ? toSpotifyPlaylistRef(form.spotifyPlaylist)
           : null;
-
-      const jamNormalized =
-        form.platform === 'spotify' && form.useSpotifyJam && form.spotifyJamUrl.trim()
-          ? normalizeSpotifyJamUrl(form.spotifyJamUrl.trim())
-          : undefined;
 
       const [{ latitude, longitude }] = await Promise.all([
         resolvePosition(),
@@ -299,7 +264,6 @@ export function CreateSalonModal({
             : form.trackTitle.trim(),
         artist: form.artist.trim(),
         allowQueue: form.allowQueue,
-        ...(jamNormalized ? { spotifyJamUrl: jamNormalized } : {}),
       });
 
       const playlistLoadBody = usePlaylist
@@ -403,7 +367,7 @@ export function CreateSalonModal({
                     {lockedPlatform === 'spotify' && spotifyHostBlocked
                       ? t('salon.create.spotifyPremiumRequired')
                       : lockedPlatform === 'spotify'
-                        ? 'Jam / écoute partagée'
+                        ? t('salon.playbackMode.spotifyChrono')
                         : 'Lecture vidéo YouTube'}
                   </p>
                 </div>
@@ -443,7 +407,7 @@ export function CreateSalonModal({
                         {isSpotifyBlocked
                           ? t('salon.create.spotifyPremiumRequired')
                           : p === 'spotify'
-                            ? 'Jam / écoute partagée'
+                            ? t('salon.playbackMode.spotifyChrono')
                             : 'Lecture vidéo YouTube'}
                       </p>
                     </button>
@@ -621,34 +585,6 @@ export function CreateSalonModal({
                   </div>
                 )
               )}
-              {form.platform === 'spotify' && platformLinked && (
-                <div className="space-y-3">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.useSpotifyJam}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          useSpotifyJam: e.target.checked,
-                          ...(e.target.checked && !f.spotifyJamUrl.trim()
-                            ? { spotifyJamUrl: getSavedSpotifyJamUrl() ?? '' }
-                            : {}),
-                        }))
-                      }
-                      className="rounded border-[#2d2d3d] bg-[#1a1a26] text-green-500 focus:ring-green-500/40"
-                    />
-                    <span className="text-sm text-gray-300">{t('salon.create.useSpotifyJam')}</span>
-                  </label>
-                  {form.useSpotifyJam && (
-                    <SpotifyJamLinkField
-                      value={form.spotifyJamUrl}
-                      onChange={(spotifyJamUrl) => setForm((f) => ({ ...f, spotifyJamUrl }))}
-                      variant="create"
-                    />
-                  )}
-                </div>
-              )}
             </>
           )}
 
@@ -750,18 +686,6 @@ export function CreateSalonModal({
                 <p>
                   <span className="text-purple-400">Plateforme :</span> {form.platform}
                 </p>
-                {form.platform === 'spotify' && (
-                  <p>
-                    <span className="text-purple-400">Jam :</span>{' '}
-                    {form.useSpotifyJam
-                      ? form.spotifyJamUrl.trim()
-                        ? normalizeSpotifyJamUrl(form.spotifyJamUrl)
-                          ? t('salon.create.spotifyJamLinkProvided')
-                          : t('salon.create.spotifyJamLinkInvalid')
-                        : t('salon.create.spotifyJamNoLink')
-                      : t('salon.create.spotifyJamDisabled')}
-                  </p>
-                )}
                 <p>
                   <span className="text-purple-400">Accès :</span>{' '}
                   {form.accessMode === 'public' ? 'Public' : `Invitation (${form.allowedUserIds.length} invité(s))`}

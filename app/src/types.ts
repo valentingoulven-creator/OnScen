@@ -63,10 +63,21 @@ export interface AccessManagedUser {
 
 export type AdminUserSort = 'lastSeen' | 'memberSince' | 'username' | 'status';
 
+export interface AdminSpotifyConnectionCounts {
+  premium: number;
+  basic: number;
+}
+
 export interface AccessAdminUsersResponse {
   users: AccessManagedUser[];
   total: number;
-  counts: { total: number; active: number; pending: number; blocked: number };
+  counts: {
+    total: number;
+    active: number;
+    pending: number;
+    blocked: number;
+    spotify: AdminSpotifyConnectionCounts;
+  };
   limit: number;
   offset: number;
   hasMore: boolean;

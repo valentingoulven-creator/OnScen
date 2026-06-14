@@ -21,9 +21,10 @@ export interface SpotifyNowPlaying {
   externalUrl?: string;
 }
 
-const POLL_MS = 2500;
+const POLL_MS_PLAYING = 2000;
+const POLL_MS_IDLE = 4500;
 const POLL_MS_HIDDEN = 6000;
-const POSITION_DRIFT_MS = 2500;
+const POSITION_DRIFT_MS = 2200;
 const SEEK_JUMP_MS = 1200;
 const LOCAL_CONTROL_GUARD_MS = 2800;
 
@@ -82,6 +83,7 @@ export function useSpotifySalonSync({
   stateRef.current = playbackState;
   const localControlUntilRef = useRef(0);
   const pollingRef = useRef(false);
+  const pollNowRef = useRef<(() => void) | null>(null);
   const lastSpotifySampleRef = useRef<{
     progressMs: number;
     at: number;
@@ -195,27 +197,44 @@ export function useSpotifySalonSync({
       }
     };
 
-    const getPollMs = () => (typeof document !== 'undefined' && document.hidden ? POLL_MS_HIDDEN : POLL_MS);
+    const getPollMs = () => {
+      if (typeof document !== 'undefined' && document.hidden) return POLL_MS_HIDDEN;
+      const playing = stateRef.current.isPlaying;
+      return playing ? POLL_MS_PLAYING : POLL_MS_IDLE;
+    };
 
-    void poll();
-    let intervalMs = getPollMs();
-    let id = window.setInterval(() => void poll(), intervalMs);
+    pollNowRef.current = () => {
+      if (!cancelled) void poll();
+    };
+
+    let timeoutId = 0;
+    const scheduleNext = () => {
+      if (cancelled) return;
+      window.clearTimeout(timeoutId);
+      timeoutId = window.setTimeout(() => {
+        void poll().finally(() => scheduleNext());
+      }, getPollMs());
+    };
+
+    void poll().finally(() => scheduleNext());
 
     const onVisibility = () => {
-      const nextMs = getPollMs();
-      if (nextMs === intervalMs) return;
-      intervalMs = nextMs;
-      window.clearInterval(id);
-      id = window.setInterval(() => void poll(), intervalMs);
+      if (cancelled) return;
+      scheduleNext();
     };
     document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
       cancelled = true;
+      pollNowRef.current = null;
       document.removeEventListener('visibilitychange', onVisibility);
-      window.clearInterval(id);
+      window.clearTimeout(timeoutId);
     };
   }, [enabled, token, salonId, playbackActive, applySpotifyState, t]);
 
-  return { nowPlaying, syncError, markLocalControl };
+  const refreshNow = useCallback(() => {
+    pollNowRef.current?.();
+  }, []);
+
+  return { nowPlaying, syncError, markLocalControl, refreshNow };
 }

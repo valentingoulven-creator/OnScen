@@ -69,7 +69,6 @@ Header :
 • Live (hôte, pas déjà en live) → démarre un live lié au salon
 • Arrêter le salon (hôte) → ferme le salon pour tous
 • Quitter le salon (auditeur) → quitte la session
-• Bouton Jam Spotify (si applicable) → gère le lien Spotify Jam
 
 Lecture (YouTube) :
 • Lecture / Pause → contrôle synchronisé (hôte / mod VIP)

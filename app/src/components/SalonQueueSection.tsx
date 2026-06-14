@@ -5,16 +5,39 @@ import type { SalonQueueItem } from '../types';
 /** Nombre max de morceaux affichés dans le panneau host (file d'attente). */
 export const SALON_QUEUE_DISPLAY_MAX = 50;
 
+const queueCollapsedStorageKey = (salonId: string) => `salon-queue-collapsed:${salonId}`;
+
+function readQueueCollapsed(salonId?: string): boolean {
+  if (!salonId || typeof sessionStorage === 'undefined') return false;
+  try {
+    return sessionStorage.getItem(queueCollapsedStorageKey(salonId)) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeQueueCollapsed(salonId: string, collapsed: boolean): void {
+  if (typeof sessionStorage === 'undefined') return;
+  try {
+    sessionStorage.setItem(queueCollapsedStorageKey(salonId), collapsed ? '1' : '0');
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
 interface SalonQueueSectionProps {
   queue: SalonQueueItem[];
   isHost: boolean;
   allowQueue: boolean;
+  salonId?: string;
   onSkip?: () => void;
   onPlayItem?: (id: string) => void;
   onReorder?: (orderedIds: string[]) => void | Promise<void>;
   skipping?: boolean;
   reordering?: boolean;
   compact?: boolean;
+  /** Permet de replier la liste (défaut : hôte avec file activée). */
+  collapsible?: boolean;
 }
 
 function reorderList<T>(items: T[], fromIndex: number, toIndex: number): T[] {
@@ -67,14 +90,24 @@ export function SalonQueueSection({
   queue,
   isHost,
   allowQueue,
+  salonId,
   onSkip,
   onPlayItem,
   onReorder,
   skipping,
   reordering,
   compact,
+  collapsible,
 }: SalonQueueSectionProps) {
   const { t } = useTranslation();
+  const canCollapse = collapsible ?? (isHost && allowQueue);
+  const [collapsed, setCollapsed] = useState(() => readQueueCollapsed(salonId));
+
+  useEffect(() => {
+    if (!salonId) return;
+    writeQueueCollapsed(salonId, collapsed);
+  }, [collapsed, salonId]);
+
   const visibleQueue = queue.slice(0, SALON_QUEUE_DISPLAY_MAX);
   const hiddenCount = queue.length - visibleQueue.length;
   const listMaxHeight = compact ? 'max-h-[min(40vh,20rem)]' : 'max-h-[min(50vh,28rem)]';
@@ -186,22 +219,36 @@ export function SalonQueueSection({
     );
   }
 
+  const titleBlock = (
+    <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+      {t('salon.queue.title')}
+      {queue.length > 0 ? (
+        <span className="ml-1.5 text-gray-600 normal-case tracking-normal font-medium">
+          ({queue.length})
+        </span>
+      ) : null}
+    </h4>
+  );
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
-            {t('salon.queue.title')}
-            {queue.length > 0 ? (
-              <span className="ml-1.5 text-gray-600 normal-case tracking-normal font-medium">
-                ({queue.length})
-              </span>
-            ) : null}
-          </h4>
-          {canReorder ? (
-            <p className="text-[10px] text-gray-600 mt-0.5">{t('salon.queue.reorderHint')}</p>
-          ) : null}
-        </div>
+        {canCollapse ? (
+          <button
+            type="button"
+            onClick={() => setCollapsed((v) => !v)}
+            className="flex-1 min-w-0 flex items-center justify-between gap-2 py-0.5 text-left"
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? t('salon.queue.showQueue') : t('salon.queue.hideQueue')}
+          >
+            {titleBlock}
+            <span className="text-[10px] text-gray-500 shrink-0">
+              {collapsed ? t('salon.queue.showQueueToggle') : t('salon.queue.hideQueueToggle')}
+            </span>
+          </button>
+        ) : (
+          <div className="min-w-0">{titleBlock}</div>
+        )}
         {isHost && queue.length > 0 && onSkip && (
           <button
             type="button"
@@ -213,7 +260,10 @@ export function SalonQueueSection({
           </button>
         )}
       </div>
-      {queue.length === 0 ? (
+      {!collapsed && canReorder ? (
+        <p className="text-[10px] text-gray-600">{t('salon.queue.reorderHint')}</p>
+      ) : null}
+      {collapsed ? null : queue.length === 0 ? (
         <p className={`text-gray-600 text-center ${compact ? 'text-[10px] py-1' : 'text-xs py-2'}`}>
           {t('salon.queue.empty')}
         </p>

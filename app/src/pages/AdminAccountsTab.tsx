@@ -138,7 +138,13 @@ export function AdminAccountsTab() {
   const [users, setUsers] = useState<AccessManagedUser[]>([]);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
-  const [counts, setCounts] = useState({ total: 0, active: 0, pending: 0, blocked: 0 });
+  const [counts, setCounts] = useState({
+    total: 0,
+    active: 0,
+    pending: 0,
+    blocked: 0,
+    spotify: { premium: 0, basic: 0 },
+  });
   const [filter, setFilter] = useState<UserFilter>('all');
   const [sort, setSort] = useState<AdminUserSort>('lastSeen');
   const [search, setSearch] = useState('');
@@ -553,6 +559,27 @@ export function AdminAccountsTab() {
           {loadingMore ? t('app.loading') : t('admin.accounts.loadMore')}
         </button>
       )}
+
+      <div className="space-y-3 pt-2 border-t border-[#1e1e2f]">
+        <p className="text-[10px] text-gray-500 uppercase tracking-wide">
+          {t('admin.accounts.spotifySection')}
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {(
+            [
+              { key: 'spotifyPremium', value: counts.spotify.premium, color: 'text-green-400' },
+              { key: 'spotifyBasic', value: counts.spotify.basic, color: 'text-gray-300' },
+            ] as const
+          ).map((stat) => (
+            <div key={stat.key} className="bg-[#12121a] border border-[#1e1e2f] rounded-xl p-3 text-center">
+              <div className={`text-xl font-bold ${stat.color}`}>{stat.value}</div>
+              <div className="text-[10px] text-gray-500 uppercase tracking-wide">
+                {t(`admin.accounts.stats.${stat.key}`)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 pt-2 border-t border-[#1e1e2f]">
         {(

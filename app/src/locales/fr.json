@@ -140,8 +140,6 @@
       "youtubeSyncSuffix": "dans Soundy (lecteur synchronisé).",
       "spotifyChrono": "chrono partagé — lancez Spotify sur le morceau et alignez-vous.",
       "youtubeSyncBanner": "Lecture synchronisée YouTube dans Soundy",
-      "spotifyHostHint": "Premium requis — app Spotify ouverte (Connect actif). Le morceau, le chrono et play/pause/stop suivent votre lecture.",
-      "spotifyHostPremiumNote": "Abonnement Spotify Premium obligatoire pour héberger.",
       "spotifyParticipantHint": "Chrono partagé — ouvrez Spotify et alignez-vous sur l'horloge.",
       "mapListenCapHint": "Aperçu carte : écoute limitée à 10 min — ouvrez le salon pour continuer (conformité YouTube).",
       "youtubeAttribution": "Contenu fourni via les API YouTube — conformément aux YouTube API Services Terms.",
@@ -161,19 +159,17 @@
       "play": "Lire",
       "truncated": "+{{count}} morceau(x) supplémentaire(s) non affiché(s)",
       "reorderHint": "Glisser pour réordonner",
-      "reorderHandle": "Déplacer ce morceau"
+      "reorderHandle": "Déplacer ce morceau",
+      "hideQueue": "Masquer la file d'attente",
+      "showQueue": "Afficher la file d'attente",
+      "hideQueueToggle": "Masquer ▲",
+      "showQueueToggle": "Afficher ▼"
     },
     "create": {
       "spotifyPremiumRequired": "Spotify Premium requis pour héberger un salon",
       "errorFailed": "Impossible de créer le salon",
       "errorPlatformNotLinkedSpotify": "Connectez Spotify avant de créer un salon Spotify.",
-      "errorPlatformNotLinkedYoutube": "Connectez YouTube avant de créer un salon YouTube.",
-      "useSpotifyJam": "Utiliser un Jam Spotify",
-      "spotifyJamDisabled": "Désactivé",
-      "spotifyJamNoLink": "Activé, lien non renseigné",
-      "spotifyJamLinkProvided": "lien fourni",
-      "spotifyJamLinkInvalid": "lien invalide",
-      "spotifyJamInvalidAlert": "Le lien Jam Spotify n’est pas valide. Utilisez un lien open.spotify.com/socialsession/…"
+      "errorPlatformNotLinkedYoutube": "Connectez YouTube avant de créer un salon YouTube."
     },
     "spotifySearch": {
       "createLabel": "Morceau Spotify (optionnel)",
@@ -458,8 +454,11 @@
         "total": "Total",
         "active": "Actifs",
         "pending": "En attente",
-        "blocked": "Suspendus"
+        "blocked": "Suspendus",
+        "spotifyPremium": "Premium connectés",
+        "spotifyBasic": "Basic connectés"
       },
+      "spotifySection": "Spotify connecté sur Soundy",
       "birthDate": "Naissance : {{date}}",
       "age": "Âge : {{age}} ans",
       "birthDateHidden": "Date de naissance masquée sur le profil public",

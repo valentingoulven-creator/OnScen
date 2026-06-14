@@ -21,8 +21,33 @@ import {
   type AccessRegistrationMode,
   type AccountStatus,
 } from '../lib/accessControl';
+import { isPlatformConnected } from '../lib/platformConnect';
+import { getStoredSpotifyProduct } from '../lib/spotifyOAuth';
+import { isSpotifyPlaybackHostProduct } from '../lib/spotifyApi';
 
 export const accessRouter = Router();
+
+export interface AdminSpotifyConnectionCounts {
+  /** Comptes Soundy avec Spotify lié et produit `premium` (API /v1/me). */
+  premium: number;
+  /** Comptes Soundy avec Spotify lié et produit `free` ou `open`. */
+  basic: number;
+}
+
+function countSpotifyConnectionTiers(users: User[]): AdminSpotifyConnectionCounts {
+  let premium = 0;
+  let basic = 0;
+  for (const u of users) {
+    if (!isPlatformConnected(u, 'spotify')) continue;
+    const product = getStoredSpotifyProduct(u);
+    if (product && isSpotifyPlaybackHostProduct(product)) {
+      premium++;
+    } else if (product === 'free' || product === 'open') {
+      basic++;
+    }
+  }
+  return { premium, basic };
+}
 
 /** Config publique (écran inscription / connexion). */
 accessRouter.get('/config', (_req: Request, res: Response) => {
@@ -56,6 +81,7 @@ accessRouter.get('/admin/overview', authenticateJWT, (req: Request, res: Respons
       active: users.filter((u) => getAccountStatus(u) === 'active').length,
       pending: pending.length,
       blocked: blocked.length,
+      spotify: countSpotifyConnectionTiers(users),
     },
     inviteCodes: listInviteCodes(),
   });
@@ -144,6 +170,7 @@ accessRouter.get('/admin/users', authenticateJWT, (req: Request, res: Response) 
     active: realUsers.filter((u) => getAccountStatus(u) === 'active').length,
     pending: realUsers.filter((u) => getAccountStatus(u) === 'pending').length,
     blocked: realUsers.filter((u) => getAccountStatus(u) === 'blocked').length,
+    spotify: countSpotifyConnectionTiers(realUsers),
   };
 
   const filtered = sortAdminUsers(

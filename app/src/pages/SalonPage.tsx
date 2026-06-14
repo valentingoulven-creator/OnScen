@@ -23,7 +23,6 @@ import { SalonSpotifySearch } from '../components/SalonSpotifySearch';
 import { SalonSpotifyPlaylist } from '../components/SalonSpotifyPlaylist';
 import { SalonQueueSection } from '../components/SalonQueueSection';
 import { SalonProposalsSection } from '../components/SalonProposalsSection';
-import { SalonSpotifyJamButton } from '../components/SalonSpotifyJamButton';
 import { SalonInviteLinkCopy } from '../components/SalonInviteLinkCopy';
 import { SalonParticipantsPopover } from '../components/SalonParticipantsPopover';
 import { useSalonQueueSync } from '../hooks/useSalonQueueSync';
@@ -626,6 +625,7 @@ export function SalonPage({
             queue={queue}
             isHost={hostCanControl}
             allowQueue={salon.allowQueue}
+            salonId={salon.id}
             onSkip={hostCanControl ? handleSkip : undefined}
             onPlayItem={hostCanControl ? handlePlayQueue : undefined}
             onReorder={hostCanControl ? handleReorderQueue : undefined}
@@ -823,15 +823,6 @@ export function SalonPage({
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          {salon.platform === 'spotify' && (
-            <SalonSpotifyJamButton
-              salon={salon}
-              token={token}
-              isHost={isHost}
-              onSalonUpdated={setSalon}
-              onToast={setToastMsg}
-            />
-          )}
           {onLeaveSalon && isHost && (
             <button
               type="button"

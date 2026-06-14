@@ -272,7 +272,13 @@ export const api = {
     request<{
       policy: { registrationMode: string; updatedAt: number };
       config: import('../types').PublicAccessConfig;
-      counts: { total: number; active: number; pending: number; blocked: number };
+      counts: {
+        total: number;
+        active: number;
+        pending: number;
+        blocked: number;
+        spotify: import('../types').AdminSpotifyConnectionCounts;
+      };
       inviteCodes: import('../types').AccessInviteCode[];
     }>('/access/admin/overview', {}, token),
 
