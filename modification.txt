@@ -1,5 +1,34 @@
 ﻿
 ================================================================================
+MODIF 495 — Retrait morceau Spotify optionnel (création salon)
+================================================================================
+Date : 2026-06-14
+
+## Contexte
+Dans CreateSalonModal (étape 1, salon Spotify), l'onglet Morceau proposait une
+recherche « Morceau Spotify (optionnel) » distincte de la playlist optionnelle.
+
+## Correctif
+- Suppression de l'onglet Morceau / toggle Morceau·Playlist pour Spotify.
+- Conservation uniquement du sélecteur playlist optionnel (`CreateSalonSpotifyPlaylistPicker`).
+- Sélection Spotify → `musicSource: 'playlist'` par défaut ; plus de `trackLink` initial.
+- Suppression du composant orphelin `CreateSalonSpotifyPicker.tsx`.
+- i18n FR/EN : retrait clés `createLabel` et `createHint` (usage exclusif création morceau).
+
+## Fichiers
+- app/src/components/CreateSalonModal.tsx
+- app/src/components/CreateSalonSpotifyPicker.tsx (supprimé)
+- app/src/locales/fr.json
+- app/src/locales/en.json
+- modification.txt
+
+## Build
+cd app && npm run build
+
+## Déploiement
+**Non** — en attente validation utilisateur.
+
+================================================================================
 MODIF 494 — Admin : comptes Spotify Premium / Basic connectés
 ================================================================================
 Date : 2026-06-14

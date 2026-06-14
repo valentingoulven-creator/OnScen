@@ -172,12 +172,10 @@
       "errorPlatformNotLinkedYoutube": "Connect YouTube before creating a YouTube salon."
     },
     "spotifySearch": {
-      "createLabel": "Spotify track (optional)",
       "placeholder": "Title, artist, or Spotify link…",
       "searching": "Searching Spotify…",
       "noResults": "No results",
       "noResultsHint": "No results — try another query or paste an open.spotify.com/track/… link",
-      "createHint": "Spotify search · direct links accepted · shared timer (no in-app playback).",
       "addHint": "Adds to the Soundy and Spotify queues without interrupting the current track · Soundy controls the Spotify app (no playback here).",
       "changeHint": "Soundy controls the Spotify app (no playback here) · timer resets to 0:00 on the selected track.",
       "poweredBy": "Powered by Spotify",

@@ -15,7 +15,6 @@ import {
 } from '../lib/salonCreateFlow';
 import { PlatformConnectCard } from './PlatformConnectCard';
 import { CreateSalonYouTubePicker } from './CreateSalonYouTubePicker';
-import { CreateSalonSpotifyPicker } from './CreateSalonSpotifyPicker';
 import { CreateSalonSpotifyPlaylistPicker } from './CreateSalonSpotifyPlaylistPicker';
 import {
   CreateSalonPlaylistPicker,
@@ -124,7 +123,7 @@ export function CreateSalonModal({
       platform: preset?.platform ?? 'youtube',
       accessMode: preset?.accessMode ?? 'public',
       allowedUserIds: preset?.allowedUserIds ?? [],
-      musicSource: 'track',
+      musicSource: preset?.platform === 'spotify' ? 'playlist' : 'track',
       trackLink: '',
       trackTitle: 'Ma session Soundy',
       artist: username,
@@ -387,7 +386,12 @@ export function CreateSalonModal({
                           ...f,
                           platform: p,
                           ...(p === 'spotify'
-                            ? { musicSource: 'track' as const, youtubePlaylist: null, spotifyPlaylist: null }
+                            ? {
+                                musicSource: 'playlist' as const,
+                                trackLink: '',
+                                youtubePlaylist: null,
+                                spotifyPlaylist: null,
+                              }
                             : { spotifyPlaylist: null }),
                         }));
                       }}
@@ -458,67 +462,11 @@ export function CreateSalonModal({
               </label>
               {form.platform === 'spotify' ? (
                 platformLinked ? (
-                  <div className="space-y-3">
-                    <div className="flex gap-1 rounded-xl bg-[#1a1a26] p-1 border border-[#2d2d3d]">
-                      {(
-                        [
-                          { id: 'track' as const, label: 'Morceau' },
-                          { id: 'playlist' as const, label: 'Playlist' },
-                        ] as const
-                      ).map(({ id, label }) => (
-                        <button
-                          key={id}
-                          type="button"
-                          onClick={() =>
-                            setForm((f) => ({
-                              ...f,
-                              musicSource: id,
-                              ...(id === 'track' ? { spotifyPlaylist: null } : { trackLink: '' }),
-                            }))
-                          }
-                          className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition ${
-                            form.musicSource === id
-                              ? 'bg-green-600 text-white'
-                              : 'text-gray-400 hover:text-white'
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                    {form.musicSource === 'track' ? (
-                      <CreateSalonSpotifyPicker
-                        token={token}
-                        value={
-                          form.trackLink.trim()
-                            ? {
-                                trackLink: form.trackLink,
-                                trackTitle: form.trackTitle,
-                                artist: form.artist,
-                              }
-                            : null
-                        }
-                        onChange={(selection) => {
-                          if (!selection) {
-                            setForm((f) => ({ ...f, trackLink: '' }));
-                            return;
-                          }
-                          setForm((f) => ({
-                            ...f,
-                            trackLink: selection.trackLink,
-                            trackTitle: selection.trackTitle,
-                            artist: selection.artist,
-                          }));
-                        }}
-                      />
-                    ) : (
-                      <CreateSalonSpotifyPlaylistPicker
-                        token={token}
-                        value={form.spotifyPlaylist}
-                        onChange={(spotifyPlaylist) => setForm((f) => ({ ...f, spotifyPlaylist }))}
-                      />
-                    )}
-                  </div>
+                  <CreateSalonSpotifyPlaylistPicker
+                    token={token}
+                    value={form.spotifyPlaylist}
+                    onChange={(spotifyPlaylist) => setForm((f) => ({ ...f, spotifyPlaylist }))}
+                  />
                 ) : null
               ) : (
                 platformLinked && (

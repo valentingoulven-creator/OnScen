@@ -172,12 +172,10 @@
       "errorPlatformNotLinkedYoutube": "Connectez YouTube avant de créer un salon YouTube."
     },
     "spotifySearch": {
-      "createLabel": "Morceau Spotify (optionnel)",
       "placeholder": "Titre, artiste ou lien Spotify…",
       "searching": "Recherche Spotify…",
       "noResults": "Aucun résultat",
       "noResultsHint": "Aucun résultat — reformulez ou collez un lien open.spotify.com/track/…",
-      "createHint": "Recherche Spotify · lien direct accepté · chrono partagé (pas de lecture dans Soundy).",
       "addHint": "Ajoute à la file Soundy et Spotify sans interrompre le morceau en cours · Soundy pilote l'app Spotify (pas de lecture ici).",
       "changeHint": "Soundy pilote l'app Spotify (pas de lecture ici) · chrono repart à 0:00 sur le morceau choisi.",
       "poweredBy": "Powered by Spotify",
