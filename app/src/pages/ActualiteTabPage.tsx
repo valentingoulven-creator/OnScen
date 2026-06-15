@@ -521,32 +521,52 @@ function ActualitesContent({
           uppercase={false}
         />
         {featuredUserSoundsLoading && featuredUserSounds.length === 0 ? (
-          <p className="text-[11px] text-gray-500 px-0.5">{t('feed.featuredUserSoundsLoading')}</p>
+          <div className="overflow-x-auto -mx-3 px-3">
+            <div className="flex gap-3 w-max pb-1">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="w-[300px] shrink-0 overflow-hidden rounded-xl border border-[#2a2a3d] bg-[#12121a] animate-pulse"
+                >
+                  <div className="aspect-video bg-[#1e1e2f]" />
+                  <div className="space-y-2 p-3">
+                    <div className="h-4 rounded bg-[#1e1e2f]" />
+                    <div className="h-3 w-4/5 rounded bg-[#1e1e2f]" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         ) : featuredUserSounds.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-5 text-center">
             <p className="text-xs text-gray-500">{t('feed.featuredUserSoundsEmpty')}</p>
           </div>
         ) : (
-          featuredUserSounds.map((item) => (
-            <NewsArticleCard
-              key={`${item.kind}-${item.id}`}
-              imageUrl={item.imageUrl}
-              title={item.title}
-              excerpt={item.excerpt}
-              source={item.source}
-              timeAgo={formatWhen(item.publishedAt)}
-              badge={t(item.badgeKey)}
-              genres={item.genres}
-              readMoreLabel={t('feed.featuredReadMore')}
-              onReadMoreClick={() => {
-                if (item.kind === 'salon') {
-                  onOpenSalon?.(item.id, item.title);
-                } else {
-                  onOpenReel?.(item.id);
-                }
-              }}
-            />
-          ))
+          <div className="overflow-x-auto -mx-3 px-3">
+            <div className="flex w-max gap-3 pb-1 snap-x snap-mandatory">
+              {featuredUserSounds.map((item) => (
+                <NewsArticleCard
+                  key={`${item.kind}-${item.id}`}
+                  className="w-[300px] shrink-0 snap-start"
+                  imageUrl={item.imageUrl}
+                  title={item.title}
+                  excerpt={item.excerpt}
+                  source={item.source}
+                  timeAgo={formatWhen(item.publishedAt)}
+                  badge={t(item.badgeKey)}
+                  genres={item.genres}
+                  readMoreLabel={t('feed.featuredReadMore')}
+                  onReadMoreClick={() => {
+                    if (item.kind === 'salon') {
+                      onOpenSalon?.(item.id, item.title);
+                    } else {
+                      onOpenReel?.(item.id);
+                    }
+                  }}
+                />
+              ))}
+            </div>
+          </div>
         )}
       </div>
 

@@ -13,6 +13,8 @@ export interface NewsArticleCardProps {
   readMoreLabel?: string;
   /** In-app navigation (replaces external link when set). */
   onReadMoreClick?: () => void;
+  /** Optional wrapper classes (e.g. fixed width in horizontal carousel). */
+  className?: string;
 }
 
 function badgeStyle(badge?: string): string {
@@ -48,11 +50,14 @@ export function NewsArticleCard({
   genres,
   readMoreLabel = 'Lire plus →',
   onReadMoreClick,
+  className,
 }: NewsArticleCardProps) {
   const [imgOk, setImgOk] = useState(true);
 
   return (
-    <article className="overflow-hidden rounded-xl border border-[#2a2a3d] bg-[#12121a] shadow-lg">
+    <article
+      className={`overflow-hidden rounded-xl border border-[#2a2a3d] bg-[#12121a] shadow-lg${className ? ` ${className}` : ''}`}
+    >
       <div className={`relative aspect-video w-full overflow-hidden bg-gradient-to-br ${genreGradient(genres)}`}>
         {imageUrl && imgOk ? (
           <img

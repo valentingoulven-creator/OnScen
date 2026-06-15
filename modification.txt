@@ -1,6 +1,31 @@
 
 ================================================================================
-MODIF 501 - Photos HEIC/HEIF : stories (MapStorySheet)
+MODIF 503 - Les nouveautés : carrousel horizontal
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+La section « Les nouveautés » (sons utilisateurs salons + reels) affichait les
+cartes empilées verticalement (~2364px), prenant trop de place dans Actualités.
+
+## Changements
+- `ActualiteTabPage` : rangée horizontale `flex` + `overflow-x-auto` + snap
+  (`snap-x snap-mandatory` / `snap-start`), largeur fixe 300px par carte.
+- Skeleton de chargement aligné sur le même layout horizontal.
+- `NewsArticleCard` : prop `className` pour largeur fixe en carrousel.
+- En-tête « Les nouveautés » + sous-titre inchangés au-dessus du scroll.
+
+## Fichiers
+- app/src/pages/ActualiteTabPage.tsx
+- app/src/components/NewsArticleCard.tsx
+- modification.txt
+
+## Test
+  cd app && npm run build
+
+## Déploiement
+**Non** ? en attente validation utilisateur.
+
 ================================================================================
 Date : 2026-06-15
 
@@ -43,19 +68,19 @@ MODIF 502 - Feed : nouveaux sons utilisateurs (ex seed Eurovision)
 Date : 2026-06-15
 
 ## Contexte
-La section « Les nouveautés » affichait un article seed statique (ex. Eurovision 2026)
-via `featuredHeadlines.ts`. Remplacement par du contenu dynamique publié par les
+La section ? Les nouveaut?s ? affichait un article seed statique (ex. Eurovision 2026)
+via `featuredHeadlines.ts`. Remplacement par du contenu dynamique publi? par les
 utilisateurs (salons musicaux + reels publics).
 
 ## Changements
 - `featuredUserSounds.ts` : fusion salons (GET /salons) + reels utilisateur (GET /reels),
   tri par date, max 5, exclusion bots.
-- `ActualiteTabPage` : charge les sons au panneau Actualités ; cartes `NewsArticleCard`
-  avec sous-titre i18n « Nouveaux sons sortis par les utilisateurs ».
+- `ActualiteTabPage` : charge les sons au panneau Actualit?s ; cartes `NewsArticleCard`
+  avec sous-titre i18n ? Nouveaux sons sortis par les utilisateurs ?.
 - `NewsArticleCard` : prop `onReadMoreClick` pour navigation in-app (salon / reel).
 - `api.listSalons` : wrapper GET /salons.
 - i18n fr/en : `feed.featuredUserSounds*`, badges Salon/Reel.
-- Seed Eurovision masqué : section vide si aucun contenu utilisateur.
+- Seed Eurovision masqu? : section vide si aucun contenu utilisateur.
 
 ## Fichiers
 - app/src/lib/featuredUserSounds.ts (nouveau)
