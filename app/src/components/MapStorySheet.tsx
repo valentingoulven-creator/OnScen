@@ -20,7 +20,6 @@ export function MapStorySheet({
   const fileRef = useRef<HTMLInputElement>(null);
   const [imageUrl, setImageUrl] = useState('');
   const [imageSource, setImageSource] = useState<File | string | null>(null);
-  const [text, setText] = useState('');
   const [musicTrack, setMusicTrack] = useState<StoryMusicTrack | null>(null);
   const [taggedUsers, setTaggedUsers] = useState<StoryTaggedUser[]>([]);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -68,7 +67,7 @@ export function MapStorySheet({
     setTaggedUsers([]);
   };
 
-  const canPublish = Boolean(imageUrl.trim() || text.trim());
+  const canPublish = Boolean(imageUrl.trim());
 
   const publish = async () => {
     if (!canPublish || publishing || imageAttaching) return;
@@ -76,14 +75,12 @@ export function MapStorySheet({
     setError(null);
     try {
       const body: {
-        content?: string;
         imageUrl?: string;
         musicTrack?: StoryMusicTrack;
         taggedUserIds?: string[];
         visibility?: 'public' | 'followers';
       } = {};
       if (imageUrl.trim()) body.imageUrl = imageUrl.trim();
-      if (text.trim()) body.content = text.trim();
       if (musicTrack) body.musicTrack = musicTrack;
       if (taggedUsers.length) body.taggedUserIds = taggedUsers.map((t) => t.id);
       const r = await api.createStory(token, { ...body, visibility });
@@ -156,15 +153,6 @@ export function MapStorySheet({
                 ) : null}
               </div>
             ) : null}
-
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Ajouter un texte (optionnel)…"
-              rows={2}
-              maxLength={300}
-              className="w-full rounded-xl bg-[#0b0b0f] border border-[#2a2a3d] px-3 py-2 text-sm text-white placeholder:text-gray-600 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-            />
 
             <div className="flex gap-2">
               <button
