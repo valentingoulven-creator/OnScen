@@ -63,6 +63,9 @@ if ($SkipBuild)    { Write-Host "  [!] Build backend ignore (-SkipBuild)" -Foreg
 if ($SkipFrontend) { Write-Host "  [!] Frontend ignore (-SkipFrontend)" -ForegroundColor Yellow }
 if ($VerifyProd)   { Write-Host "  [+] Verify-prod actif (-VerifyProd)" -ForegroundColor Cyan }
 Write-Host ""
+Write-Host "  [!] RAPPEL : creer un snapshot VPS Scaleway avant upgrade majeur" -ForegroundColor Yellow
+Write-Host "      Console → Instances → Snapshots (voir deploy/snapshot-vps-reminder.sh)" -ForegroundColor Yellow
+Write-Host ""
 
 
 # -- 1. Connexion VPS ---------------------------------------------------------
@@ -72,6 +75,17 @@ if ("$ping" -notmatch "PING_OK") {
     Fail "VPS inaccessible. Verifiez la cle SSH (~/.ssh/id_ed25519, soundly-scaleway).`nDetail : $ping"
 }
 Write-Host "  [OK] VPS accessible" -ForegroundColor Green
+
+$snapshotReminder = Join-Path $DeployDir "snapshot-vps-reminder.sh"
+if (Test-Path $snapshotReminder) {
+    Write-Host "  -> Rappel snapshot VPS (non bloquant)..." -ForegroundColor DarkGray
+    try {
+        Invoke-Scp @($snapshotReminder, "${VPS}:${REMOTE}/deploy/snapshot-vps-reminder.sh")
+        Invoke-Remote "sed -i 's/\r$//' ${REMOTE}/deploy/snapshot-vps-reminder.sh 2>/dev/null; chmod +x ${REMOTE}/deploy/snapshot-vps-reminder.sh 2>/dev/null; bash ${REMOTE}/deploy/snapshot-vps-reminder.sh" | Out-Null
+    } catch {
+        Write-Host "  [!] snapshot-vps-reminder ignore (non bloquant)" -ForegroundColor DarkGray
+    }
+}
 
 
 # -- 2. Build backend ---------------------------------------------------------
@@ -194,8 +208,10 @@ Write-Host "`n[7/9] Migrations PostgreSQL..." -ForegroundColor Yellow
 
 $deployFiles = @(
     "Caddyfile", "sync-caddy.sh", "caddy-watchdog.sh", "install-caddy-guard.sh", "healthcheck.sh",
-    "postgres-setup.sh", "migrate-remote.sh", "backup-db.sh", "verify-backup.sh", "verify-prod.sh",
-    "install-backup-cron.sh", "install-health-cron.sh", "setup-legal-publisher.sh", "ecosystem.config.cjs"
+    "postgres-setup.sh", "migrate-remote.sh", "backup-db.sh", "backup-uploads.sh", "backup-offsite.sh",
+    "verify-backup.sh", "verify-prod.sh", "verify-scaleway-backup.sh", "snapshot-vps-reminder.sh",
+    "install-backup-cron.sh", "install-uploads-backup-cron.sh", "install-offsite-backup-cron.sh",
+    "install-health-cron.sh", "setup-legal-publisher.sh", "ecosystem.config.cjs"
 )
 foreach ($f in $deployFiles) {
     $local = Join-Path $DeployDir $f

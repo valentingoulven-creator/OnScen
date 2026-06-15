@@ -196,6 +196,32 @@ sudo bash /opt/soundly/deploy/install-backup-cron.sh
 15 3 * * * set -a && . /opt/soundly/.env && set +a && /bin/bash /opt/soundly/deploy/backup-db.sh >> /opt/soundly/backups/cron.log 2>&1
 ```
 
+### Sauvegarde uploads utilisateur
+
+Fichiers : `/opt/soundly/public/uploads/` (avatars, sponsors, pièces jointes).
+
+```bash
+bash /opt/soundly/deploy/backup-uploads.sh
+sudo bash /opt/soundly/deploy/install-uploads-backup-cron.sh   # dim. 04:30
+```
+
+### Copie off-site (second chemin + Object Storage optionnel)
+
+```bash
+set -a && source /opt/soundly/.env && set +a
+bash /opt/soundly/deploy/backup-offsite.sh
+sudo bash /opt/soundly/deploy/install-offsite-backup-cron.sh   # 04:00 quotidien
+```
+
+Variables optionnelles `.env` : `BACKUP_OFFSITE_DIR`, `SCW_BUCKET`, `SCW_ACCESS_KEY`, `SCW_SECRET_KEY`.
+
+### Checklist Scaleway (manuelle)
+
+```bash
+bash /opt/soundly/deploy/verify-scaleway-backup.sh
+bash /opt/soundly/deploy/snapshot-vps-reminder.sh   # avant upgrade majeur
+```
+
 ### VÃ©rifier un dump
 
 ```bash
@@ -279,9 +305,15 @@ Voir [`docs/DEV-WORKFLOW.md`](../docs/DEV-WORKFLOW.md) â€” clone hors iClou
 | Script | Usage |
 |--------|--------|
 | `deploy/backup-db.sh` | Dump PostgreSQL â†’ `/opt/soundly/backups/` |
+| `deploy/backup-uploads.sh` | Archive uploads hebdo |
+| `deploy/backup-offsite.sh` | Copie secondaire + S3 optionnel |
 | `deploy/verify-backup.sh` | IntÃ©gritÃ© d'un dump `.sql.gz` |
-| `deploy/verify-prod.sh` | Checklist ops VPS |
+| `deploy/verify-prod.sh` | Checklist ops VPS (âge backups, crons) |
+| `deploy/verify-scaleway-backup.sh` | Checklist manuelle console Scaleway |
+| `deploy/snapshot-vps-reminder.sh` | Rappel snapshot VPS |
 | `deploy/install-backup-cron.sh` | Cron quotidien 03:15 (backup-db) |
+| `deploy/install-uploads-backup-cron.sh` | Cron hebdo uploads |
+| `deploy/install-offsite-backup-cron.sh` | Cron quotidien off-site |
 | `deploy/install-health-cron.sh` | Cron hebdo verify-prod (optionnel) |
 | `deploy/setup-legal-publisher.sh` | CrÃ©e / valide `legal-publisher.json` |
 | `deploy/ecosystem.config.cjs` | Config PM2 (logs, mÃ©moire, autorestart) |

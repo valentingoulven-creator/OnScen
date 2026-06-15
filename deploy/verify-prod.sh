@@ -82,12 +82,76 @@ fi
 if [[ -d "$BACKUP_DIR" ]]; then
   COUNT="$(find "$BACKUP_DIR" -maxdepth 1 -name 'soundy-*.sql.gz' 2>/dev/null | wc -l | tr -d ' ')"
   AVAIL="$(df -h "$BACKUP_DIR" 2>/dev/null | awk 'NR==2 {print $4}' || echo "?")"
-  ok "Backups : ${COUNT} fichier(s) dans $BACKUP_DIR (disponible : ${AVAIL})"
+  ok "Backups DB : ${COUNT} fichier(s) dans $BACKUP_DIR (disponible : ${AVAIL})"
   if [[ "${COUNT:-0}" -eq 0 ]]; then
     warn "Aucune sauvegarde pg_dump locale — lancer deploy/backup-db.sh ou vérifier cron"
+  else
+    LATEST_DB="$(find "$BACKUP_DIR" -maxdepth 1 -name 'soundy-*.sql.gz' -type f -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2- || true)"
+    if [[ -n "$LATEST_DB" ]]; then
+      DB_AGE_H=$(( ($(date +%s) - $(stat -c %Y "$LATEST_DB" 2>/dev/null || echo 0)) / 3600 ))
+      if [[ "${DB_AGE_H:-999}" -gt 26 ]]; then
+        warn "Dernier dump DB vieux de ${DB_AGE_H}h (> 26h) — vérifier cron backup-db (03:15)"
+      else
+        ok "Dernier dump DB : il y a ${DB_AGE_H}h"
+      fi
+    fi
   fi
 else
   warn "Dossier backups absent : $BACKUP_DIR (mkdir -p && cron backup-db.sh)"
+fi
+
+# Backups uploads
+UPLOADS_BACKUP_DIR="${UPLOADS_BACKUP_DIR:-${ROOT}/backups/uploads}"
+if [[ -d "$UPLOADS_BACKUP_DIR" ]]; then
+  UP_COUNT="$(find "$UPLOADS_BACKUP_DIR" -maxdepth 1 -name 'uploads-*.tar.gz' 2>/dev/null | wc -l | tr -d ' ')"
+  ok "Backups uploads : ${UP_COUNT} archive(s) dans $UPLOADS_BACKUP_DIR"
+  if [[ "${UP_COUNT:-0}" -eq 0 ]]; then
+    warn "Aucune archive uploads — lancer deploy/backup-uploads.sh ou install-uploads-backup-cron.sh"
+  else
+    LATEST_UP="$(find "$UPLOADS_BACKUP_DIR" -maxdepth 1 -name 'uploads-*.tar.gz' -type f -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2- || true)"
+    if [[ -n "$LATEST_UP" ]]; then
+      UP_AGE_D=$(( ($(date +%s) - $(stat -c %Y "$LATEST_UP" 2>/dev/null || echo 0)) / 86400 ))
+      if [[ "${UP_AGE_D:-999}" -gt 8 ]]; then
+        warn "Dernière archive uploads vieille de ${UP_AGE_D}j (> 8j) — cron hebdo attendu (dim. 04:30)"
+      else
+        ok "Dernière archive uploads : il y a ${UP_AGE_D}j"
+      fi
+    fi
+  fi
+else
+  warn "Dossier backups uploads absent : $UPLOADS_BACKUP_DIR"
+fi
+
+# Backup off-site secondaire
+OFFSITE_DIR="${BACKUP_OFFSITE_DIR:-${ROOT}/backups-offsite}"
+if [[ -d "$OFFSITE_DIR/db" ]]; then
+  OFF_COUNT="$(find "$OFFSITE_DIR/db" -maxdepth 1 -type f 2>/dev/null | wc -l | tr -d ' ')"
+  ok "Backup off-site : ${OFF_COUNT} dump(s) dans $OFFSITE_DIR/db"
+  if [[ "${OFF_COUNT:-0}" -eq 0 ]]; then
+    warn "Copie off-site vide — lancer deploy/backup-offsite.sh ou install-offsite-backup-cron.sh"
+  fi
+else
+  warn "Backup off-site absent : $OFFSITE_DIR (optionnel mais recommandé)"
+fi
+
+# Crons backup
+if command -v crontab >/dev/null 2>&1; then
+  CRON="$(crontab -l 2>/dev/null || true)"
+  if echo "$CRON" | grep -q 'backup-db.sh'; then
+    ok "Cron backup-db installé"
+  else
+    warn "Cron backup-db absent — sudo bash deploy/install-backup-cron.sh"
+  fi
+  if echo "$CRON" | grep -q 'backup-uploads.sh'; then
+    ok "Cron backup-uploads installé"
+  else
+    warn "Cron backup-uploads absent — sudo bash deploy/install-uploads-backup-cron.sh"
+  fi
+  if echo "$CRON" | grep -q 'backup-offsite.sh'; then
+    ok "Cron backup-offsite installé"
+  else
+    warn "Cron backup-offsite absent — sudo bash deploy/install-offsite-backup-cron.sh"
+  fi
 fi
 
 # Espace disque racine app
