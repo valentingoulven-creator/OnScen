@@ -19,6 +19,8 @@ export const STORY_JPEG_QUALITY = 0.85;
 /** Qualité JPEG publication fil conforme aux specs Instagram (0.85) */
 export const FEED_JPEG_QUALITY = 0.85;
 
+export type StoryTextOverlayStyle = 'plain' | 'background' | 'outline';
+
 export interface StoryTextOverlay {
   id: string;
   text: string;
@@ -27,6 +29,7 @@ export interface StoryTextOverlay {
   y: number;
   color: string;
   fontSize: number;
+  style?: StoryTextOverlayStyle;
 }
 
 export async function loadImageBitmapFromDataUrl(dataUrl: string): Promise<ImageBitmap> {
@@ -139,17 +142,46 @@ function drawTextOverlays(
     const text = o.text.trim();
     if (!text) continue;
     const size = Math.max(12, Math.round(o.fontSize * (bitmap.width / referenceViewportW)));
+    const style = o.style ?? 'plain';
     ctx.font = `bold ${size}px system-ui, -apple-system, sans-serif`;
-    ctx.fillStyle = o.color;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    const px = o.x * bitmap.width;
+    const py = o.y * bitmap.height;
+
+    if (style === 'background') {
+      const metrics = ctx.measureText(text);
+      const padX = size * 0.35;
+      const padY = size * 0.2;
+      const w = metrics.width + padX * 2;
+      const h = size + padY * 2;
+      const rx = 6 * (bitmap.width / referenceViewportW);
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.beginPath();
+      ctx.roundRect(px - w / 2, py - h / 2, w, h, rx);
+      ctx.fill();
+      ctx.fillStyle = '#111111';
+      ctx.fillText(text, px, py);
+      continue;
+    }
+
+    if (style === 'outline') {
+      ctx.lineWidth = Math.max(2, size / 14);
+      ctx.strokeStyle = o.color;
+      ctx.lineJoin = 'round';
+      ctx.strokeText(text, px, py);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(text, px, py);
+      continue;
+    }
+
+    ctx.fillStyle = o.color;
     ctx.shadowColor = 'rgba(0,0,0,0.6)';
     ctx.shadowBlur = Math.max(2, size / 8);
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 1;
-    const px = o.x * bitmap.width;
-    const py = o.y * bitmap.height;
     ctx.fillText(text, px, py);
+    ctx.shadowBlur = 0;
   }
 }
 

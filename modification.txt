@@ -1,4 +1,37 @@
 ================================================================================
+MODIF 508 - Story : redesign editeur modification (PhotoImageEditor)
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+L'editeur story plein ecran (PhotoImageEditor mode story) avait une UX
+encombree : barre d'outils en haut, panneaux flottants, et superpositions
+texte dupliquees ("Votre texte" par defaut + nouvel overlay a chaque tap
+sur Texte).
+
+## Correctifs / redesign
+- Layout Instagram/TikTok : header fixe, preview centree, dock outils en bas.
+- Panneaux outils en bottom sheets (#12121a, bordures #2d2d3d).
+- Fix doublon texte : nouvel overlay vide (placeholder "Tapez?" seulement
+  si actif) ; tap Texte n'ajoute plus un overlay a chaque fois (toggle
+  panneau ; ajout explicite via "+ Ajouter un texte").
+- Styles texte : Classique / Fond / Contour (preview + composition canvas).
+- Couleurs theme : #0b0b0f, #12121a, accents purple-500/600.
+- Labels FR conserves (Annuler, Story, Suivant, Texte, Rogner, etc.).
+
+## Fichiers
+- app/src/components/PhotoImageEditor.tsx
+- app/src/lib/storyImageCompose.ts
+- modification.txt
+
+## Test
+  cd app && npm run build && npm test
+
+## Deploiement
+**Non** - en attente validation utilisateur.
+
+
+================================================================================
 MODIF 507 - HEIC desktop : erreurs heic2any + fallbacks conversion
 ================================================================================
 Date : 2026-06-15
@@ -6,24 +39,24 @@ Date : 2026-06-15
 ## Symptome
 Upload HEIC/HEIF en story (MapStorySheet, section Photo / galerie) depuis
 navigateur desktop : " Impossible de convertir cette photo HEIC/HEIF. "
-(fil parfois OK selon fichier ; desktop Windows/Chrome le plus touché).
+(fil parfois OK selon fichier ; desktop Windows/Chrome le plus touch?).
 
 ## Cause
 1. `heic2any` rejette avec un objet `{ code, message }`, pas une `Error`.
    Le code ne lisait que `err.message` sur les instances Error : la branche
-   "already browser readable" (JPEG/PNG déjà décodable, fréquent iCloud /
-   Windows avec extension .heic) n'était jamais détectée ? échec affiché.
-2. Conversion limitée à JPEG sans `multiple: true` (séquences HEIF / bursts).
-3. Pas de tentative de décodage natif (Safari macOS) avant heic2any.
-4. Marques ftyp HEIF incomplètes et en-tête lu sur 32 octets seulement.
+   "already browser readable" (JPEG/PNG d?j? d?codable, fr?quent iCloud /
+   Windows avec extension .heic) n'?tait jamais d?tect?e ? ?chec affich?.
+2. Conversion limit?e ? JPEG sans `multiple: true` (s?quences HEIF / bursts).
+3. Pas de tentative de d?codage natif (Safari macOS) avant heic2any.
+4. Marques ftyp HEIF incompl?tes et en-t?te lu sur 32 octets seulement.
 
 ## Correctifs
 - `imageUtils.ts` : `heic2anyErrorMessage`, parsing "already browser readable"
-  sur rejets objet ; normalisation MIME/extension selon type détecté.
-- Tentatives élargies : JPEG/PNG × multiple false/true × qualités 0.92/0.85/0.7.
+  sur rejets objet ; normalisation MIME/extension selon type d?tect?.
+- Tentatives ?largies : JPEG/PNG ? multiple false/true ? qualit?s 0.92/0.85/0.7.
 - `tryConvertViaNativeDecode` (createImageBitmap / Image) avant heic2any.
-- Re-encodage PNG ? JPEG après conversion heic2any si besoin.
-- `imageConstraints.ts` : marques ftyp élargies, en-tête 64 octets.
+- Re-encodage PNG ? JPEG apr?s conversion heic2any si besoin.
+- `imageConstraints.ts` : marques ftyp ?largies, en-t?te 64 octets.
 - Tests : `imageUtils.heic.test.ts` (parsing erreurs heic2any).
 
 ## Fichiers
@@ -45,13 +78,13 @@ MODIF 506 - Story : retrait texte optionnel a la creation
 Date : 2026-06-15
 
 ## Contexte
-La modale « Nouvelle story » (MapStorySheet) proposait un champ texte optionnel
-sous le titre, au-dessus du bouton « Photo / galerie ». L'utilisateur souhaite
+La modale ? Nouvelle story ? (MapStorySheet) proposait un champ texte optionnel
+sous le titre, au-dessus du bouton ? Photo / galerie ?. L'utilisateur souhaite
 publier une story image uniquement a cette etape (le texte overlay reste dans
 l'editeur d'image StoryImageEditor / PhotoImageEditor).
 
 ## Changements
-- Suppression du textarea « Ajouter un texte (optionnel)? » et de l'etat `text`.
+- Suppression du textarea ? Ajouter un texte (optionnel)? ? et de l'etat `text`.
 - Publication desormais conditionnee a la presence d'une image (`canPublish`).
 - Payload API : plus d'envoi de `content` depuis la modale de creation.
 

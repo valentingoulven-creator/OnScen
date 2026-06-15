@@ -5,13 +5,20 @@ import {
   composeProfileImageWithEdits,
   composeStoryImageWithOverlays,
   type StoryTextOverlay,
+  type StoryTextOverlayStyle,
 } from '../lib/storyImageCompose';
 import type { StoryMusicTrack, StoryTaggedUser } from '../types';
 import { StoryImageCropModal, type PhotoCropAspect } from './StoryImageCropModal';
 import { StoryMusicPicker } from './StoryMusicPicker';
 import { StoryUserTagPicker } from './StoryUserTagPicker';
 
-const TEXT_COLORS = ['#ffffff', '#000000', '#fbbf24', '#f472b6', '#60a5fa', '#34d399'];
+const TEXT_COLORS = ['#ffffff', '#fbbf24', '#f472b6', '#60a5fa', '#34d399', '#000000'];
+
+const TEXT_STYLES: { id: StoryTextOverlayStyle; label: string }[] = [
+  { id: 'plain', label: 'Classique' },
+  { id: 'background', label: 'Fond' },
+  { id: 'outline', label: 'Contour' },
+];
 
 export type PhotoEditorMode = 'story' | 'profile' | 'feed';
 
@@ -38,7 +45,49 @@ function newOverlayId(): string {
   return `o-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-function ToolbarIcon({
+function overlayPreviewStyle(o: StoryTextOverlay, isActive: boolean): React.CSSProperties {
+  const style = o.style ?? 'plain';
+  const base: React.CSSProperties = {
+    left: `${o.x * 100}%`,
+    top: `${o.y * 100}%`,
+    transform: 'translate(-50%, -50%)',
+    fontSize: o.fontSize,
+    fontWeight: 700,
+    maxWidth: '88%',
+    textAlign: 'center',
+    wordBreak: 'break-word',
+  };
+
+  if (style === 'background') {
+    return {
+      ...base,
+      color: '#111111',
+      backgroundColor: 'rgba(255,255,255,0.92)',
+      padding: '6px 14px',
+      borderRadius: 6,
+      boxShadow: isActive ? '0 0 0 2px rgba(168,85,247,0.9)' : undefined,
+    };
+  }
+
+  if (style === 'outline') {
+    return {
+      ...base,
+      color: '#ffffff',
+      WebkitTextStroke: `1.5px ${o.color}`,
+      paintOrder: 'stroke fill',
+    };
+  }
+
+  return {
+    ...base,
+    color: o.color,
+    textShadow: '0 1px 4px rgba(0,0,0,0.75)',
+    boxShadow: isActive ? '0 0 0 2px rgba(168,85,247,0.55)' : undefined,
+    borderRadius: isActive ? 4 : undefined,
+  };
+}
+
+function DockTool({
   label,
   active,
   onClick,
@@ -53,17 +102,17 @@ function ToolbarIcon({
     <button
       type="button"
       onClick={onClick}
-      className={`flex flex-col items-center gap-1 min-w-[52px] py-1 rounded-xl transition-colors ${
-        active ? 'text-white' : 'text-white/70 hover:text-white'
+      className={`flex flex-col items-center gap-1 min-w-[56px] py-1 transition-colors ${
+        active ? 'text-purple-300' : 'text-gray-400 hover:text-white'
       }`}
       aria-label={label}
       aria-pressed={active}
     >
       <span
-        className={`flex items-center justify-center w-10 h-10 rounded-full border ${
+        className={`flex items-center justify-center w-11 h-11 rounded-2xl transition-all ${
           active
-            ? 'border-white bg-white/15'
-            : 'border-white/25 bg-black/30 backdrop-blur-sm hover:border-white/50'
+            ? 'bg-purple-600/30 border border-purple-500/60 text-white'
+            : 'bg-[#1a1a26] border border-[#2d2d3d] text-gray-300 hover:border-purple-500/40'
         }`}
       >
         {children}
@@ -131,6 +180,38 @@ function IconTag() {
   );
 }
 
+function ToolSheet({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className="mx-2 mb-2 rounded-2xl border border-[#2d2d3d] bg-[#12121a]/98 backdrop-blur-xl shadow-2xl pointer-events-auto"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#2d2d3d]">
+        <h3 className="text-xs font-semibold text-white tracking-wide">{title}</h3>
+        <button
+          type="button"
+          onClick={onClose}
+          className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-[#1a1a26]"
+          aria-label="Fermer le panneau"
+        >
+          <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
+          </svg>
+        </button>
+      </div>
+      <div className="p-3 max-h-[42vh] overflow-y-auto">{children}</div>
+    </div>
+  );
+}
+
 export function PhotoImageEditor({
   mode,
   token = '',
@@ -172,13 +253,28 @@ export function PhotoImageEditor({
   const activeOverlay = overlays.find((o) => o.id === activeOverlayId) ?? null;
   const filterCss = getPhotoFilterCss(filterId);
 
-  const addTextOverlay = () => {
+  const createTextOverlay = (): string => {
     const id = newOverlayId();
     setOverlays((prev) => [
       ...prev,
-      { id, text: 'Votre texte', x: 0.5, y: 0.5, color: '#ffffff', fontSize: 22 },
+      { id, text: '', x: 0.5, y: 0.42, color: '#ffffff', fontSize: 28, style: 'plain' },
     ]);
     setActiveOverlayId(id);
+    return id;
+  };
+
+  const handleTextTool = () => {
+    if (tab === 'texte') {
+      setTab(null);
+      return;
+    }
+    if (!activeOverlayId) {
+      if (overlays.length === 0) {
+        createTextOverlay();
+      } else {
+        setActiveOverlayId(overlays[overlays.length - 1].id);
+      }
+    }
     setTab('texte');
   };
 
@@ -188,7 +284,10 @@ export function PhotoImageEditor({
 
   const removeOverlay = (id: string) => {
     setOverlays((prev) => prev.filter((o) => o.id !== id));
-    if (activeOverlayId === id) setActiveOverlayId(null);
+    if (activeOverlayId === id) {
+      setActiveOverlayId(null);
+      if (overlays.length <= 1) setTab(null);
+    }
   };
 
   const onOverlayPointerDown = (e: React.PointerEvent, id: string) => {
@@ -232,6 +331,8 @@ export function PhotoImageEditor({
     setTab((prev) => (prev === next ? null : next));
   };
 
+  const closePanel = () => setTab(null);
+
   const confirm = useCallback(async () => {
     setComposing(true);
     setError(null);
@@ -254,17 +355,45 @@ export function PhotoImageEditor({
     }
   }, [imageUrl, overlays, filterId, musicTrack, taggedUsers, onConfirm, isStory, isFeed]);
 
+  const hasStoryMeta = isStory && (musicTrack || taggedUsers.length > 0);
+
   return (
     <>
-      <div className="fixed inset-0 z-[125] bg-black overflow-hidden">
-        <div className="absolute inset-0 flex items-center justify-center">
+      <div className="fixed inset-0 z-[125] bg-[#0b0b0f] overflow-hidden flex flex-col">
+        {/* Header */}
+        <header className="relative z-20 flex items-center justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 bg-gradient-to-b from-[#0b0b0f] via-[#0b0b0f]/90 to-transparent">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="text-sm text-gray-300 hover:text-white min-w-[4.5rem] text-left"
+          >
+            Annuler
+          </button>
+          <h2 className="text-sm font-semibold text-white tracking-wide">
+            {isStory ? 'Story' : isFeed ? 'Publication' : 'Photo de profil'}
+          </h2>
+          <button
+            type="button"
+            onClick={() => void confirm()}
+            disabled={composing}
+            className="text-sm font-semibold text-purple-400 hover:text-purple-300 disabled:opacity-40 min-w-[4.5rem] text-right"
+          >
+            {composing ? '…' : isStory ? 'Suivant' : 'Utiliser'}
+          </button>
+        </header>
+
+        {/* Preview */}
+        <div
+          className="relative flex-1 flex items-center justify-center min-h-0 px-2"
+          onClick={() => setTab(null)}
+        >
           <div
             ref={previewRef}
-            className={`relative h-full w-auto max-w-full ${previewAspect} touch-none select-none overflow-hidden bg-black`}
+            className={`relative h-full w-auto max-w-full ${previewAspect} touch-none select-none overflow-hidden rounded-xl bg-black shadow-[0_0_40px_rgba(0,0,0,0.5)]`}
             onPointerMove={onOverlayPointerMove}
             onPointerUp={onOverlayPointerUp}
             onPointerCancel={onOverlayPointerUp}
-            onClick={() => setTab(null)}
+            onClick={(e) => e.stopPropagation()}
           >
             <img
               src={imageUrl}
@@ -273,161 +402,149 @@ export function PhotoImageEditor({
               style={{ filter: filterCss }}
               draggable={false}
             />
-            {overlays.map((o) => (
-              <div
-                key={o.id}
-                className={`absolute cursor-grab active:cursor-grabbing px-1 ${
-                  activeOverlayId === o.id ? 'ring-1 ring-white/80 rounded' : ''
-                }`}
-                style={{
-                  left: `${o.x * 100}%`,
-                  top: `${o.y * 100}%`,
-                  transform: 'translate(-50%, -50%)',
-                  color: o.color,
-                  fontSize: o.fontSize,
-                  fontWeight: 700,
-                  textShadow: '0 1px 4px rgba(0,0,0,0.7)',
-                  maxWidth: '90%',
-                  textAlign: 'center',
-                  wordBreak: 'break-word',
-                }}
-                onPointerDown={(e) => onOverlayPointerDown(e, o.id)}
-                onClick={(e) => e.stopPropagation()}
-              >
-                {o.text || '…'}
-              </div>
-            ))}
+            {overlays.map((o) => {
+              const isActive = activeOverlayId === o.id;
+              const displayText = o.text.trim();
+              return (
+                <div
+                  key={o.id}
+                  className={`absolute cursor-grab active:cursor-grabbing ${
+                    isActive ? 'z-10' : 'z-[1]'
+                  }`}
+                  style={overlayPreviewStyle(o, isActive)}
+                  onPointerDown={(e) => onOverlayPointerDown(e, o.id)}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {displayText ? (
+                    displayText
+                  ) : isActive ? (
+                    <span className="text-white/45 italic text-[0.85em] font-medium">Tapez…</span>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
+
+          {hasStoryMeta ? (
+            <div className="absolute bottom-2 inset-x-4 flex flex-wrap justify-center gap-2 pointer-events-none z-10">
+              {musicTrack ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-black/55 backdrop-blur-sm border border-[#2d2d3d] px-3 py-1.5 text-[11px] text-white/90 max-w-[85vw] truncate">
+                  <IconMusic />
+                  <span className="truncate">{musicTrack.title}</span>
+                </span>
+              ) : null}
+              {taggedUsers.length > 0 ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-black/55 backdrop-blur-sm border border-[#2d2d3d] px-3 py-1.5 text-[11px] text-white/90">
+                  <IconTag />
+                  {taggedUsers.length} tag{taggedUsers.length > 1 ? 's' : ''}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
-        <div
-          className="relative z-10 flex flex-col bg-gradient-to-b from-black/90 via-black/55 to-transparent pointer-events-none"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <header className="flex items-center justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2 pointer-events-auto">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="text-sm text-white/80 hover:text-white min-w-[4.5rem] text-left"
-            >
-              Annuler
-            </button>
-            <h2 className="text-sm font-semibold text-white tracking-wide">
-              {isStory ? 'Story' : isFeed ? 'Publication' : 'Photo de profil'}
-            </h2>
-            <button
-              type="button"
-              onClick={() => void confirm()}
-              disabled={composing}
-              className="text-sm font-semibold text-purple-400 hover:text-purple-300 disabled:opacity-40 min-w-[4.5rem] text-right"
-            >
-              {composing ? '…' : isStory ? 'Suivant' : 'Utiliser'}
-            </button>
-          </header>
-
-          <nav
-            className="flex items-start justify-center gap-2 px-3 pb-2 pointer-events-auto flex-wrap"
-            aria-label="Outils de modification"
-          >
-            <ToolbarIcon label="Texte" active={tab === 'texte'} onClick={addTextOverlay}>
-              <IconText />
-            </ToolbarIcon>
-            <ToolbarIcon label="Rogner" onClick={openCrop}>
-              <IconCrop />
-            </ToolbarIcon>
-            <ToolbarIcon
-              label="Filtre"
-              active={tab === 'filtre'}
-              onClick={() => toggleTab('filtre')}
-            >
-              <IconFilter />
-            </ToolbarIcon>
-            {isStory ? (
-              <>
-                <ToolbarIcon
-                  label="Musique"
-                  active={tab === 'musique'}
-                  onClick={() => toggleTab('musique')}
-                >
-                  <IconMusic />
-                </ToolbarIcon>
-                <ToolbarIcon label="Taguer" active={tab === 'taguer'} onClick={() => toggleTab('taguer')}>
-                  <IconTag />
-                </ToolbarIcon>
-              </>
-            ) : null}
-          </nav>
-
+        {/* Bottom dock + panels */}
+        <div className="relative z-20 shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
           {tab === 'texte' && activeOverlay ? (
-            <div
-              className="mx-3 mb-2 space-y-2 rounded-2xl border border-white/10 p-3 bg-black/75 backdrop-blur-md max-h-[38vh] overflow-y-auto pointer-events-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <input
-                type="text"
-                value={activeOverlay.text}
-                onChange={(e) => updateOverlay(activeOverlay.id, { text: e.target.value })}
-                placeholder="Écrire sur la photo…"
-                className="w-full rounded-xl bg-white/10 border border-white/15 px-3 py-2.5 text-sm text-white placeholder:text-white/40"
-              />
-              <label className="block">
-                <span className="text-[10px] text-white/50 uppercase tracking-wide">Taille</span>
+            <ToolSheet title="Texte" onClose={closePanel}>
+              <div className="space-y-3">
                 <input
-                  type="range"
-                  min={14}
-                  max={48}
-                  value={activeOverlay.fontSize}
-                  onChange={(e) =>
-                    updateOverlay(activeOverlay.id, { fontSize: Number(e.target.value) })
-                  }
-                  className="w-full accent-purple-400"
+                  type="text"
+                  value={activeOverlay.text}
+                  onChange={(e) => updateOverlay(activeOverlay.id, { text: e.target.value })}
+                  placeholder="Écrire sur la photo…"
+                  autoFocus
+                  className="w-full rounded-xl bg-[#0b0b0f] border border-[#2d2d3d] px-3 py-2.5 text-sm text-white placeholder:text-gray-500 focus:border-purple-500/60 focus:outline-none"
                 />
-              </label>
-              <div className="flex gap-2 flex-wrap">
-                {TEXT_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => updateOverlay(activeOverlay.id, { color: c })}
-                    className={`w-8 h-8 rounded-full border-2 ${
-                      activeOverlay.color === c ? 'border-white' : 'border-transparent'
-                    }`}
-                    style={{ backgroundColor: c }}
-                    aria-label={`Couleur ${c}`}
+
+                <div className="flex gap-1.5">
+                  {TEXT_STYLES.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => updateOverlay(activeOverlay.id, { style: s.id })}
+                      className={`flex-1 py-1.5 rounded-lg text-[10px] font-medium transition ${
+                        (activeOverlay.style ?? 'plain') === s.id
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-[#0b0b0f] text-gray-400 border border-[#2d2d3d] hover:text-white'
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] text-gray-500 uppercase tracking-wide shrink-0">Taille</span>
+                  <input
+                    type="range"
+                    min={14}
+                    max={48}
+                    value={activeOverlay.fontSize}
+                    onChange={(e) =>
+                      updateOverlay(activeOverlay.id, { fontSize: Number(e.target.value) })
+                    }
+                    className="flex-1 accent-purple-500"
                   />
-                ))}
+                  <span className="text-[10px] text-gray-400 w-6 text-right">{activeOverlay.fontSize}</span>
+                </div>
+
+                <div className="flex gap-2 flex-wrap justify-center">
+                  {TEXT_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => updateOverlay(activeOverlay.id, { color: c })}
+                      className={`w-8 h-8 rounded-full border-2 transition ${
+                        activeOverlay.color === c
+                          ? 'border-purple-400 scale-110'
+                          : 'border-[#2d2d3d] hover:border-gray-500'
+                      }`}
+                      style={{ backgroundColor: c }}
+                      aria-label={`Couleur ${c}`}
+                    />
+                  ))}
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      createTextOverlay();
+                    }}
+                    className="flex-1 py-2 rounded-xl border border-[#2d2d3d] text-[11px] text-gray-300 hover:border-purple-500/50 hover:text-white"
+                  >
+                    + Ajouter un texte
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeOverlay(activeOverlay.id)}
+                    className="px-3 py-2 rounded-xl text-[11px] text-red-400 hover:bg-red-500/10"
+                  >
+                    Supprimer
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => removeOverlay(activeOverlay.id)}
-                className="text-[11px] text-red-400 hover:text-red-300"
-              >
-                Supprimer ce texte
-              </button>
-            </div>
+            </ToolSheet>
           ) : null}
 
           {tab === 'filtre' ? (
-            <div
-              className="mx-3 mb-2 rounded-2xl border border-white/10 p-3 bg-black/75 backdrop-blur-md pointer-events-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <p className="text-[10px] text-white/50 uppercase tracking-wide mb-2">Filtres</p>
-              <div className="flex gap-2 overflow-x-auto pb-1">
+            <ToolSheet title="Filtres" onClose={closePanel}>
+              <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-1 px-1">
                 {PHOTO_FILTERS.map((f) => (
                   <button
                     key={f.id}
                     type="button"
                     onClick={() => setFilterId(f.id)}
-                    className={`shrink-0 flex flex-col items-center gap-1.5 ${
-                      filterId === f.id ? 'opacity-100' : 'opacity-70 hover:opacity-90'
+                    className={`shrink-0 flex flex-col items-center gap-1.5 transition ${
+                      filterId === f.id ? 'opacity-100' : 'opacity-65 hover:opacity-90'
                     }`}
                     aria-pressed={filterId === f.id}
                     aria-label={`Filtre ${f.label}`}
                   >
                     <span
-                      className={`block w-14 h-14 rounded-xl overflow-hidden border-2 ${
-                        filterId === f.id ? 'border-purple-400' : 'border-white/20'
+                      className={`block w-16 h-16 rounded-xl overflow-hidden border-2 ${
+                        filterId === f.id ? 'border-purple-500' : 'border-[#2d2d3d]'
                       }`}
                     >
                       <img
@@ -438,52 +555,56 @@ export function PhotoImageEditor({
                         draggable={false}
                       />
                     </span>
-                    <span className="text-[10px] text-white font-medium">{f.label}</span>
+                    <span className="text-[10px] text-gray-300 font-medium">{f.label}</span>
                   </button>
                 ))}
               </div>
-            </div>
+            </ToolSheet>
           ) : null}
 
           {tab === 'musique' && isStory ? (
-            <div
-              className="mx-3 mb-2 rounded-2xl border border-white/10 p-3 bg-black/75 backdrop-blur-md max-h-[42vh] overflow-y-auto pointer-events-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <ToolSheet title="Musique" onClose={closePanel}>
               <StoryMusicPicker token={token} value={musicTrack} onChange={setMusicTrack} />
-            </div>
+            </ToolSheet>
           ) : null}
 
           {tab === 'taguer' && isStory ? (
-            <div
-              className="mx-3 mb-2 rounded-2xl border border-white/10 p-3 bg-black/75 backdrop-blur-md max-h-[42vh] overflow-y-auto pointer-events-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <ToolSheet title="Taguer" onClose={closePanel}>
               <StoryUserTagPicker token={token} tagged={taggedUsers} onChange={setTaggedUsers} />
-            </div>
+            </ToolSheet>
           ) : null}
 
-          {error ? (
-            <p className="mx-4 mb-2 text-xs text-red-400 pointer-events-auto">{error}</p>
-          ) : null}
+          {error ? <p className="mx-4 mb-2 text-xs text-red-400">{error}</p> : null}
+
+          <nav
+            className="flex items-start justify-center gap-1 px-3 pt-2 border-t border-[#2d2d3d] bg-[#12121a]/95 backdrop-blur-md"
+            aria-label="Outils de modification"
+          >
+            <DockTool label="Texte" active={tab === 'texte'} onClick={handleTextTool}>
+              <IconText />
+            </DockTool>
+            <DockTool label="Rogner" onClick={openCrop}>
+              <IconCrop />
+            </DockTool>
+            <DockTool label="Filtre" active={tab === 'filtre'} onClick={() => toggleTab('filtre')}>
+              <IconFilter />
+            </DockTool>
+            {isStory ? (
+              <>
+                <DockTool
+                  label="Musique"
+                  active={tab === 'musique'}
+                  onClick={() => toggleTab('musique')}
+                >
+                  <IconMusic />
+                </DockTool>
+                <DockTool label="Taguer" active={tab === 'taguer'} onClick={() => toggleTab('taguer')}>
+                  <IconTag />
+                </DockTool>
+              </>
+            ) : null}
+          </nav>
         </div>
-
-        {isStory && (musicTrack || taggedUsers.length > 0) && (
-          <div className="absolute bottom-0 inset-x-0 z-10 flex flex-wrap justify-center gap-2 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-6 bg-gradient-to-t from-black/70 to-transparent pointer-events-none">
-            {musicTrack ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-black/50 backdrop-blur-sm border border-white/15 px-3 py-1.5 text-[11px] text-white/90 max-w-[85vw] truncate">
-                <IconMusic />
-                <span className="truncate">{musicTrack.title}</span>
-              </span>
-            ) : null}
-            {taggedUsers.length > 0 ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-black/50 backdrop-blur-sm border border-white/15 px-3 py-1.5 text-[11px] text-white/90">
-                <IconTag />
-                {taggedUsers.length} tag{taggedUsers.length > 1 ? 's' : ''}
-              </span>
-            ) : null}
-          </div>
-        )}
       </div>
 
       {cropSource ? (
