@@ -166,12 +166,17 @@ export function isAcceptedImageFormat(
 const HEIC_FTYP_BRANDS = new Set([
   'heic',
   'heix',
+  'heif',
   'hevc',
   'hevx',
   'heim',
   'heis',
+  'hevm',
+  'hevs',
   'mif1',
   'msf1',
+  'hvc1',
+  'hev1',
 ]);
 
 /** Signatures des formats déjà décodables par le navigateur (aligné heic2any). */
@@ -220,7 +225,7 @@ export function sniffHeicMagicBytes(bytes: Uint8Array): boolean {
 }
 
 /** Lit les premiers octets pour détecter HEIC ou JPEG/PNG/GIF natifs. */
-export async function readImageFileHeader(file: File, maxBytes = 32): Promise<Uint8Array> {
+export async function readImageFileHeader(file: File, maxBytes = 64): Promise<Uint8Array> {
   const buf = await file.slice(0, maxBytes).arrayBuffer();
   return new Uint8Array(buf);
 }

@@ -1,16 +1,57 @@
 ================================================================================
+MODIF 507 - HEIC desktop : erreurs heic2any + fallbacks conversion
+================================================================================
+Date : 2026-06-15
+
+## Symptome
+Upload HEIC/HEIF en story (MapStorySheet, section Photo / galerie) depuis
+navigateur desktop : " Impossible de convertir cette photo HEIC/HEIF. "
+(fil parfois OK selon fichier ; desktop Windows/Chrome le plus touché).
+
+## Cause
+1. `heic2any` rejette avec un objet `{ code, message }`, pas une `Error`.
+   Le code ne lisait que `err.message` sur les instances Error : la branche
+   "already browser readable" (JPEG/PNG déjà décodable, fréquent iCloud /
+   Windows avec extension .heic) n'était jamais détectée ? échec affiché.
+2. Conversion limitée à JPEG sans `multiple: true` (séquences HEIF / bursts).
+3. Pas de tentative de décodage natif (Safari macOS) avant heic2any.
+4. Marques ftyp HEIF incomplètes et en-tête lu sur 32 octets seulement.
+
+## Correctifs
+- `imageUtils.ts` : `heic2anyErrorMessage`, parsing "already browser readable"
+  sur rejets objet ; normalisation MIME/extension selon type détecté.
+- Tentatives élargies : JPEG/PNG × multiple false/true × qualités 0.92/0.85/0.7.
+- `tryConvertViaNativeDecode` (createImageBitmap / Image) avant heic2any.
+- Re-encodage PNG ? JPEG après conversion heic2any si besoin.
+- `imageConstraints.ts` : marques ftyp élargies, en-tête 64 octets.
+- Tests : `imageUtils.heic.test.ts` (parsing erreurs heic2any).
+
+## Fichiers
+- app/src/lib/imageUtils.ts
+- app/src/lib/imageConstraints.ts
+- app/src/lib/imageUtils.heic.test.ts (nouveau)
+- modification.txt
+
+## Test
+  cd app && npm run build && npm test
+
+## Deploiement
+**Non** - en attente validation utilisateur.
+
+
+================================================================================
 MODIF 506 - Story : retrait texte optionnel a la creation
 ================================================================================
 Date : 2026-06-15
 
 ## Contexte
-La modale Â« Nouvelle story Â» (MapStorySheet) proposait un champ texte optionnel
-sous le titre, au-dessus du bouton Â« Photo / galerie Â». L'utilisateur souhaite
+La modale « Nouvelle story » (MapStorySheet) proposait un champ texte optionnel
+sous le titre, au-dessus du bouton « Photo / galerie ». L'utilisateur souhaite
 publier une story image uniquement a cette etape (le texte overlay reste dans
 l'editeur d'image StoryImageEditor / PhotoImageEditor).
 
 ## Changements
-- Suppression du textarea Â« Ajouter un texte (optionnel)â€¦ Â» et de l'etat `text`.
+- Suppression du textarea « Ajouter un texte (optionnel)? » et de l'etat `text`.
 - Publication desormais conditionnee a la presence d'une image (`canPublish`).
 - Payload API : plus d'envoi de `content` depuis la modale de creation.
 
@@ -22,7 +63,7 @@ l'editeur d'image StoryImageEditor / PhotoImageEditor).
   cd app && npm run build
 
 ## Deploiement
-**Non** â€“ en attente validation utilisateur.
+**Non** ? en attente validation utilisateur.
 
 
 ================================================================================
@@ -32,21 +73,21 @@ Date : 2026-06-15
 
 ## Contexte
 Le fil d'Accueil (ActualiteTabPage) devait afficher les publications et les
-ï¿½vï¿½nements crï¿½ï¿½s par les comptes suivis (et les vï¿½tres) dans l'ordre de
-publication (createdAt dï¿½croissant), publications et ï¿½vï¿½nements entrelacï¿½s.
+?v?nements cr??s par les comptes suivis (et les v?tres) dans l'ordre de
+publication (createdAt d?croissant), publications et ?v?nements entrelac?s.
 
 ## Avant
 - GET /api/feed renvoyait toutes les publications visibles (sans filtre suivis).
-- En production, l'algo Soundy pouvait rï¿½ordonner le fil (param algo=true).
-- Le client triait dï¿½jï¿½ par createdAt via HOME_FEED_DISPLAY_PREFS, mais la
+- En production, l'algo Soundy pouvait r?ordonner le fil (param algo=true).
+- Le client triait d?j? par createdAt via HOME_FEED_DISPLAY_PREFS, mais la
   source incluait des auteurs non suivis.
 
 ## Changements
-- Backend : paramï¿½tre `followingOnly` sur GET /api/feed ? filtre aux comptes
-  suivis + publications du viewer ; tri chronologique createdAt ; algo dï¿½sactivï¿½
-  quand followingOnly est actif ; ï¿½vï¿½nements (isEvent) inclus dans le mï¿½me flux.
+- Backend : param?tre `followingOnly` sur GET /api/feed ? filtre aux comptes
+  suivis + publications du viewer ; tri chronologique createdAt ; algo d?sactiv?
+  quand followingOnly est actif ; ?v?nements (isEvent) inclus dans le m?me flux.
 - Frontend : `ActualiteTabPage` appelle `getFeedPosts({ followingOnly: true })`
-  sans algo ; PostCard affiche dï¿½jï¿½ posts et ï¿½vï¿½nements dans la mï¿½me timeline.
+  sans algo ; PostCard affiche d?j? posts et ?v?nements dans la m?me timeline.
 - Tests : `backend/src/lib/feedPosts.test.ts`.
 
 ## Fichiers
@@ -61,7 +102,7 @@ publication (createdAt dï¿½croissant), publications et ï¿½vï¿½nements entrelacï¿
   cd backend && npx tsc --noEmit && npm test
   cd app && npm run build && npm test
 
-## Dï¿½ploiement
+## D?ploiement
 **Non** ? en attente validation utilisateur.
 
 ================================================================================

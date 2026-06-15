@@ -57,6 +57,7 @@ type Heic2AnyFn = (options: {
   blob: Blob;
   toType?: string;
   quality?: number;
+  multiple?: boolean;
 }) => Promise<Blob | Blob[]>;
 
 let heic2anyLoader: Promise<Heic2AnyFn> | null = null;
@@ -94,14 +95,107 @@ function heicConversionBlobCandidates(file: File): Blob[] {
 
 const HEIC_CONVERSION_QUALITIES = [0.92, 0.85, 0.7] as const;
 
-function isHeicAlreadyReadableError(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : String(err);
-  return msg.includes('already browser readable');
+type HeicConversionAttempt = {
+  toType: 'image/jpeg' | 'image/png';
+  multiple: boolean;
+};
+
+/** heic2any rejette avec { code, message }, pas une instance Error. */
+function heic2anyErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === 'object' && 'message' in err) {
+    const message = (err as { message: unknown }).message;
+    if (typeof message === 'string') return message;
+  }
+  return String(err ?? '');
+}
+
+function browserReadableKindFromHeic2anyError(err: unknown): BrowserReadableImageKind | null {
+  const msg = heic2anyErrorMessage(err);
+  if (!msg.includes('already browser readable')) return null;
+  if (msg.includes('image/png')) return 'png';
+  if (msg.includes('image/gif')) return 'gif';
+  return 'jpeg';
 }
 
 function fileFromConvertedBlob(file: File, blob: Blob): File {
   const baseName = file.name.replace(/\.(heic|heif)$/i, '') || 'photo';
-  return new File([blob], `${baseName}.jpg`, { type: 'image/jpeg' });
+  const isJpeg = blob.type === 'image/jpeg' || blob.type === 'image/jpg';
+  const ext = isJpeg ? '.jpg' : blob.type === 'image/png' ? '.png' : '.jpg';
+  const type = isJpeg ? 'image/jpeg' : blob.type || 'image/jpeg';
+  return new File([blob], `${baseName}${ext}`, { type });
+}
+
+async function bitmapToJpegFile(
+  bitmap: ImageBitmap,
+  baseName: string,
+  quality = 0.92
+): Promise<File> {
+  const canvas = document.createElement('canvas');
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas non disponible');
+  ctx.drawImage(bitmap, 0, 0);
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error('Conversion canvas échouée'))),
+      'image/jpeg',
+      quality
+    );
+  });
+  const name = `${baseName.replace(/\.(heic|heif|jpe?g|png|gif)$/i, '') || 'photo'}.jpg`;
+  return new File([blob], name, { type: 'image/jpeg' });
+}
+
+/** Safari et futurs navigateurs peuvent décoder HEIC sans heic2any. */
+async function tryConvertViaNativeDecode(file: File): Promise<File | null> {
+  const baseName = file.name.replace(/\.(heic|heif)$/i, '') || 'photo';
+  try {
+    const bitmap = await createImageBitmap(file);
+    try {
+      return await bitmapToJpegFile(bitmap, baseName);
+    } finally {
+      bitmap.close();
+    }
+  } catch {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        void createImageBitmap(img)
+          .then(async (bitmap) => {
+            try {
+              resolve(await bitmapToJpegFile(bitmap, baseName));
+            } catch {
+              resolve(null);
+            } finally {
+              bitmap.close();
+            }
+          })
+          .catch(() => resolve(null));
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(null);
+      };
+      img.src = url;
+    });
+  }
+}
+
+async function blobToJpegFile(source: File, blob: Blob): Promise<File> {
+  if (blob.type === 'image/jpeg' || blob.type === 'image/jpg') {
+    return fileFromConvertedBlob(source, blob);
+  }
+  const bitmap = await createImageBitmap(blob);
+  try {
+    const baseName = source.name.replace(/\.(heic|heif)$/i, '') || 'photo';
+    return await bitmapToJpegFile(bitmap, baseName);
+  } finally {
+    bitmap.close();
+  }
 }
 
 function normalizeBrowserReadableFile(file: File, kind: BrowserReadableImageKind): File {
@@ -113,33 +207,47 @@ function normalizeBrowserReadableFile(file: File, kind: BrowserReadableImageKind
 }
 
 async function convertHeicToJpegFile(file: File, header: Uint8Array): Promise<File> {
+  const native = await tryConvertViaNativeDecode(file);
+  if (native) return native;
+
   const heic2any = await loadHeic2any();
   const normalized = normalizeHeicFileMetadata(file, header);
   let lastError: unknown;
 
+  const attempts: HeicConversionAttempt[] = [
+    { toType: 'image/jpeg', multiple: false },
+    { toType: 'image/jpeg', multiple: true },
+    { toType: 'image/png', multiple: false },
+    { toType: 'image/png', multiple: true },
+  ];
+
   for (const candidate of heicConversionBlobCandidates(normalized)) {
-    for (const quality of HEIC_CONVERSION_QUALITIES) {
-      try {
-        const result = await heic2any({
-          blob: candidate,
-          toType: 'image/jpeg',
-          quality,
-        });
-        const converted = Array.isArray(result) ? result[0] : result;
-        if (!(converted instanceof Blob)) {
-          throw new Error('Conversion HEIC échouée');
+    for (const { toType, multiple } of attempts) {
+      for (const quality of HEIC_CONVERSION_QUALITIES) {
+        try {
+          const result = await heic2any({
+            blob: candidate,
+            toType,
+            quality,
+            multiple,
+          });
+          const converted = Array.isArray(result) ? result[0] : result;
+          if (!(converted instanceof Blob)) {
+            throw new Error('Conversion HEIC échouée');
+          }
+          return await blobToJpegFile(normalized, converted);
+        } catch (err) {
+          const readableKind = browserReadableKindFromHeic2anyError(err);
+          if (readableKind) {
+            return normalizeBrowserReadableFile(normalized, readableKind);
+          }
+          lastError = err;
         }
-        return fileFromConvertedBlob(normalized, converted);
-      } catch (err) {
-        if (isHeicAlreadyReadableError(err)) {
-          return normalizeBrowserReadableFile(normalized, 'jpeg');
-        }
-        lastError = err;
       }
     }
   }
 
-  throw lastError instanceof Error ? lastError : new Error(HEIC_CONVERSION_FAILED_ERROR);
+  throw new Error(heic2anyErrorMessage(lastError) || HEIC_CONVERSION_FAILED_ERROR);
 }
 
 /**
@@ -158,11 +266,7 @@ export async function prepareImageFile(file: File): Promise<File> {
 
   try {
     return await convertHeicToJpegFile(file, header);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : '';
-    if (msg && !msg.includes('heic2any indisponible') && !msg.includes('ERR_LIBHEIF')) {
-      throw err instanceof Error ? err : new Error(HEIC_CONVERSION_FAILED_ERROR);
-    }
+  } catch {
     throw new Error(HEIC_CONVERSION_FAILED_ERROR);
   }
 }
