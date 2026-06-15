@@ -84,8 +84,15 @@ function heicConversionBlobCandidates(file: File): Blob[] {
       candidates.push(new File([normalized], normalized.name, { type }));
     }
   }
+  const altExt = normalized.name.toLowerCase().endsWith('.heif') ? '.heic' : '.heif';
+  const altName = normalized.name.replace(/\.(heic|heif)$/i, '') + altExt;
+  if (altName !== normalized.name) {
+    candidates.push(new File([normalized], altName, { type: normalized.type || 'image/heic' }));
+  }
   return candidates;
 }
+
+const HEIC_CONVERSION_QUALITIES = [0.92, 0.85, 0.7] as const;
 
 function isHeicAlreadyReadableError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
@@ -111,22 +118,24 @@ async function convertHeicToJpegFile(file: File, header: Uint8Array): Promise<Fi
   let lastError: unknown;
 
   for (const candidate of heicConversionBlobCandidates(normalized)) {
-    try {
-      const result = await heic2any({
-        blob: candidate,
-        toType: 'image/jpeg',
-        quality: 0.92,
-      });
-      const converted = Array.isArray(result) ? result[0] : result;
-      if (!(converted instanceof Blob)) {
-        throw new Error('Conversion HEIC échouée');
+    for (const quality of HEIC_CONVERSION_QUALITIES) {
+      try {
+        const result = await heic2any({
+          blob: candidate,
+          toType: 'image/jpeg',
+          quality,
+        });
+        const converted = Array.isArray(result) ? result[0] : result;
+        if (!(converted instanceof Blob)) {
+          throw new Error('Conversion HEIC échouée');
+        }
+        return fileFromConvertedBlob(normalized, converted);
+      } catch (err) {
+        if (isHeicAlreadyReadableError(err)) {
+          return normalizeBrowserReadableFile(normalized, 'jpeg');
+        }
+        lastError = err;
       }
-      return fileFromConvertedBlob(normalized, converted);
-    } catch (err) {
-      if (isHeicAlreadyReadableError(err)) {
-        return normalizeBrowserReadableFile(normalized, 'jpeg');
-      }
-      lastError = err;
     }
   }
 

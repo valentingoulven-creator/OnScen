@@ -42,7 +42,7 @@ import { NewsArticleCard } from '../components/NewsArticleCard';
 import { getUpcomingUserEvents, isUpcomingEvent } from '../lib/feedEvents';
 import { EventLocationInput } from '../components/EventLocationInput';
 import { getFeedAlgorithmPreferences } from '../lib/reelFeedAlgorithm';
-import { getFeaturedHeadlineForCountry } from '../lib/featuredHeadlines';
+import { pickRecentUserSounds, type FeaturedUserSoundItem } from '../lib/featuredUserSounds';
 import {
   formatEventDateInputValue,
   isEventDateInFuture,
@@ -52,6 +52,7 @@ import {
 interface ActualiteTabPageProps {
   onOpenProfile: (userId: string) => void;
   onOpenReel?: (reelId: string) => void;
+  onOpenSalon?: (salonId: string, salonTitle?: string) => void;
   onOpenLive?: (liveId: string) => void;
   isActive: boolean;
   /** Scroll vers une publication (ex. depuis la carte). */
@@ -214,12 +215,6 @@ function commentBubbleClass(align?: CommentAlign): string {
   return 'text-left';
 }
 
-function newsItemBadge(item: MusicNewsItem): string | undefined {
-  if (item.badge) return item.badge;
-  if (item.category === 'musique') return 'Musique';
-  if (item.category === 'promo') return item.badge ?? 'Promo';
-  return undefined;
-}
 
 function TrendingUserCard({ user, onOpenProfile }: { user: TrendingUser; onOpenProfile: (userId: string) => void }) {
   const [imgOk, setImgOk] = useState(true);
@@ -403,6 +398,10 @@ function ActualitesContent({
   countryName = null,
   countryEventPosts = [],
   countryEventsLoading = false,
+  featuredUserSounds = [],
+  featuredUserSoundsLoading = false,
+  onOpenReel,
+  onOpenSalon,
 }: {
   newsItems: MusicNewsItem[];
   newsLoading: boolean;
@@ -421,13 +420,13 @@ function ActualitesContent({
   countryName?: string | null;
   countryEventPosts?: FeedPost[];
   countryEventsLoading?: boolean;
+  featuredUserSounds?: FeaturedUserSoundItem[];
+  featuredUserSoundsLoading?: boolean;
+  onOpenReel?: (reelId: string) => void;
+  onOpenSalon?: (salonId: string, salonTitle?: string) => void;
 }) {
   const { t } = useTranslation();
   const displayCountryCode = countryCode ?? EVENTS_COUNTRY_FALLBACK.code;
-  const featured = useMemo(
-    () => [getFeaturedHeadlineForCountry(displayCountryCode)],
-    [displayCountryCode]
-  );
   const userCreatedEvents = communityEvents;
   // MODIF 159 – country events (replaces static promo news items)
   const countryUpcoming = countryEventPosts
@@ -513,25 +512,43 @@ function ActualitesContent({
       </div>
 
       <div className="mt-4 space-y-4 min-w-0">
-      {/* Les nouveautés */}
-      {featured.length > 0 && (
-        <div className="space-y-2.5">
-          <SectionHeader label={t('feed.featured')} emoji="🌟" uppercase={false} />
-          {featured.map((item) => (
+      {/* Les nouveautés — sons publiés par la communauté (salons + reels) */}
+      <div className="space-y-2.5">
+        <SectionHeader
+          label={t('feed.featured')}
+          emoji="🌟"
+          subtitle={t('feed.featuredUserSoundsSubtitle')}
+          uppercase={false}
+        />
+        {featuredUserSoundsLoading && featuredUserSounds.length === 0 ? (
+          <p className="text-[11px] text-gray-500 px-0.5">{t('feed.featuredUserSoundsLoading')}</p>
+        ) : featuredUserSounds.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-5 text-center">
+            <p className="text-xs text-gray-500">{t('feed.featuredUserSoundsEmpty')}</p>
+          </div>
+        ) : (
+          featuredUserSounds.map((item) => (
             <NewsArticleCard
-              key={item.id}
+              key={`${item.kind}-${item.id}`}
               imageUrl={item.imageUrl}
               title={item.title}
               excerpt={item.excerpt}
               source={item.source}
               timeAgo={formatWhen(item.publishedAt)}
-              href={item.url}
-              badge={newsItemBadge(item)}
+              badge={t(item.badgeKey)}
               genres={item.genres}
+              readMoreLabel={t('feed.featuredReadMore')}
+              onReadMoreClick={() => {
+                if (item.kind === 'salon') {
+                  onOpenSalon?.(item.id, item.title);
+                } else {
+                  onOpenReel?.(item.id);
+                }
+              }}
             />
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
 
       {/* Événements autour — publications événement créées par les utilisateurs */}
       <div className="space-y-2.5 min-w-0">
@@ -902,6 +919,7 @@ const PostCard = memo(function PostCard({
 export function ActualiteTabPage({
   onOpenProfile,
   onOpenReel,
+  onOpenSalon,
   onOpenLive,
   isActive,
   focusPostId,
@@ -954,6 +972,8 @@ export function ActualiteTabPage({
   const [countryEventsLoading, setCountryEventsLoading] = useState(false);
   const [communityEventPosts, setCommunityEventPosts] = useState<FeedPost[]>([]);
   const [communityEventsLoading, setCommunityEventsLoading] = useState(false);
+  const [featuredUserSounds, setFeaturedUserSounds] = useState<FeaturedUserSoundItem[]>([]);
+  const [featuredUserSoundsLoading, setFeaturedUserSoundsLoading] = useState(false);
 
   // ── Post interactions ──
   const [commentOpenPostId, setCommentOpenPostId] = useState<string | null>(null);
@@ -1239,6 +1259,27 @@ export function ActualiteTabPage({
     if (!isActive || !token || !showNews) return;
     void loadCommunityEvents();
   }, [isActive, token, showNews, loadCommunityEvents]);
+
+  const loadFeaturedUserSounds = useCallback(async () => {
+    if (!token) return;
+    setFeaturedUserSoundsLoading(true);
+    try {
+      const [salonsRes, reelsRes] = await Promise.all([
+        api.listSalons(token),
+        api.getReelsFeed(token),
+      ]);
+      setFeaturedUserSounds(pickRecentUserSounds(salonsRes.salons, reelsRes.reels, 5));
+    } catch {
+      setFeaturedUserSounds([]);
+    } finally {
+      setFeaturedUserSoundsLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (!isActive || !token || !showNews) return;
+    void loadFeaturedUserSounds();
+  }, [isActive, token, showNews, loadFeaturedUserSounds]);
 
   // ── MODIF 159 – Load events filtered by user's country ──
   const loadCountryEvents = useCallback(async () => {
@@ -1930,6 +1971,7 @@ export function ActualiteTabPage({
               void loadCommunityEvents();
               void loadCountryEvents();
               void loadTrendingUsers();
+              void loadFeaturedUserSounds();
             }}
             refreshing={newsRefreshing}
             onBack={() => setShowNews(false)}
@@ -1944,6 +1986,10 @@ export function ActualiteTabPage({
             countryName={countryName}
             countryEventPosts={countryEventPosts}
             countryEventsLoading={countryEventsLoading}
+            featuredUserSounds={featuredUserSounds}
+            featuredUserSoundsLoading={featuredUserSoundsLoading}
+            onOpenReel={onOpenReel}
+            onOpenSalon={onOpenSalon}
           />
         )}
 

@@ -3,6 +3,7 @@ import {
   normalizeHeicFileMetadata,
   sniffHeicMagicBytes,
   isHeicImageFile,
+  validateStoryPhotoAsync,
 } from './imageConstraints';
 
 /** En-tête ISO BMFF minimal ftyp heic (12 octets). */
@@ -37,5 +38,15 @@ describe('HEIC detection and normalization', () => {
   it('detects HEIC via extension when MIME is empty', () => {
     const file = new File([new Blob(['x'])], 'IMG_0001.HEIC', { type: '' });
     expect(isHeicImageFile(file)).toBe(true);
+  });
+
+  it('validateStoryPhotoAsync accepts HEIC without extension via magic bytes', async () => {
+    const raw = new File([new Blob(['x'])], 'IMG_5678', { type: '' });
+    const result = await validateStoryPhotoAsync(raw);
+    expect(result.valid).toBe(false);
+
+    const heic = new File([new Blob([heicHeader() as BlobPart])], 'IMG_5678', { type: '' });
+    const ok = await validateStoryPhotoAsync(heic);
+    expect(ok.valid).toBe(true);
   });
 });

@@ -801,6 +801,7 @@ export default function App() {
                 <ActualiteTabPage
                   onOpenProfile={openProfile}
                   onOpenReel={openReelInTab}
+                  onOpenSalon={openSalonPage}
                   onOpenLive={openLive}
                   isActive
                   focusPostId={focusFeedPostId}

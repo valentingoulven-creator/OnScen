@@ -1,10 +1,8 @@
 import { useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { fileToFeedImageDataUrl } from '../lib/feedImagePaste';
-import {
-  ACCEPTED_IMAGE_FORMATS,
-  validateStoryPhoto,
-} from '../lib/imageConstraints';
+import { ACCEPTED_IMAGE_FORMATS, validateStoryPhotoAsync } from '../lib/imageConstraints';
+import { prepareImageFile } from '../lib/imageUtils';
 import { StoryImageEditor, type StoryEditorResult } from './StoryImageEditor';
 import type { MapStory, StoryMusicTrack, StoryTaggedUser } from '../types';
 
@@ -38,7 +36,7 @@ export function MapStorySheet({
   };
 
   const attachImageFromFile = async (file: File) => {
-    const validation = validateStoryPhoto(file);
+    const validation = await validateStoryPhotoAsync(file);
     if (!validation.valid) {
       setError(validation.error ?? 'Fichier non valide.');
       return;
@@ -46,8 +44,9 @@ export function MapStorySheet({
     setImageAttaching(true);
     setError(null);
     try {
-      const url = await fileToFeedImageDataUrl(file);
-      openEditorWithImage(url, file);
+      const prepared = await prepareImageFile(file);
+      const url = await fileToFeedImageDataUrl(prepared);
+      openEditorWithImage(url, prepared);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Impossible d'ajouter l'image.");
     } finally {
@@ -174,7 +173,7 @@ export function MapStorySheet({
                 disabled={imageAttaching}
                 className="flex-1 py-2 rounded-xl border border-[#2d2d3d] text-xs text-gray-300 hover:border-purple-500/50"
               >
-                {imageAttaching ? 'Traitement…' : 'Photo / galerie'}
+                {imageAttaching ? 'Préparation…' : 'Photo / galerie'}
               </button>
               <input
                 ref={fileRef}

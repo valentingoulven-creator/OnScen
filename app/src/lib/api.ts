@@ -603,6 +603,9 @@ export const api = {
     }>(`/geo/nearby?${params}`, {}, token);
   },
 
+  listSalons: (token: string) =>
+    request<{ salons: import('../types').Salon[] }>('/salons', {}, token),
+
   getSalon: (token: string, id: string) =>
     request<{ salon: import('../types').Salon }>(`/salons/${id}`, {}, token),
 

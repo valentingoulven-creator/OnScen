@@ -330,6 +330,26 @@ export function validateStoryPhoto(file: File): { valid: boolean; error?: string
   return { valid: true };
 }
 
+/** Validation story avec détection HEIC binaire (fichiers iOS/iCloud sans extension/MIME). */
+export async function validateStoryPhotoAsync(
+  file: File
+): Promise<{ valid: boolean; error?: string }> {
+  const { maxFileSizeBytes, acceptedFormats } = INSTAGRAM_STORY_LIMITS.photo;
+  const accepted =
+    isAcceptedImageFormat(file, acceptedFormats) || (await isHeicImageFileAsync(file));
+  if (!accepted) {
+    return {
+      valid: false,
+      error: `Format non supporté. Utilisez ${SUPPORTED_IMAGE_FORMATS_LABEL}.`,
+    };
+  }
+  if (file.size > maxFileSizeBytes) {
+    const maxMb = maxFileSizeBytes / (1024 * 1024);
+    return { valid: false, error: `Photo trop volumineuse (max ${maxMb} Mo).` };
+  }
+  return { valid: true };
+}
+
 /** Valide une photo de profil : format + plafond source (compression auto ensuite). */
 export function validateProfilePhoto(file: File): { valid: boolean; error?: string } {
   const { maxFileSizeBytes, acceptedFormats } = INSTAGRAM_PROFILE_PHOTO_LIMITS;

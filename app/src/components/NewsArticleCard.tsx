@@ -11,6 +11,8 @@ export interface NewsArticleCardProps {
   badge?: string;
   genres?: string[];
   readMoreLabel?: string;
+  /** In-app navigation (replaces external link when set). */
+  onReadMoreClick?: () => void;
 }
 
 function badgeStyle(badge?: string): string {
@@ -45,6 +47,7 @@ export function NewsArticleCard({
   badge,
   genres,
   readMoreLabel = 'Lire plus →',
+  onReadMoreClick,
 }: NewsArticleCardProps) {
   const [imgOk, setImgOk] = useState(true);
 
@@ -83,12 +86,22 @@ export function NewsArticleCard({
             {source ? <span className="shrink-0 text-[10px] text-gray-600">·</span> : null}
             <span className="shrink-0 text-[10px] text-gray-600">{timeAgo}</span>
           </div>
-          <a
-            href={href}
-            className="shrink-0 text-[10px] font-semibold text-purple-400 transition hover:text-purple-300"
-          >
-            {readMoreLabel}
-          </a>
+          {onReadMoreClick ? (
+            <button
+              type="button"
+              onClick={onReadMoreClick}
+              className="shrink-0 text-[10px] font-semibold text-purple-400 transition hover:text-purple-300"
+            >
+              {readMoreLabel}
+            </button>
+          ) : (
+            <a
+              href={href}
+              className="shrink-0 text-[10px] font-semibold text-purple-400 transition hover:text-purple-300"
+            >
+              {readMoreLabel}
+            </a>
+          )}
         </div>
       </div>
     </article>

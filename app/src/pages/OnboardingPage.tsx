@@ -10,7 +10,8 @@ import { getPrivacyPreferences, setPrivacyPreferences } from '../lib/settings';
 import { compressProfilePhotoDataUrl, prepareProfilePhotosForSave } from '../lib/profilePhotos';
 import { validateBirthDate } from '../lib/profileAge';
 import { BirthDateInput } from '../components/BirthDateInput';
-import { validateProfilePhoto } from '../lib/imageConstraints';
+import { validateImageFileAsync } from '../lib/imageConstraints';
+import { prepareImageFile } from '../lib/imageUtils';
 
 const MUSIC_GENRES = [
   'Pop', 'Rap', 'Hip-hop', 'R&B', 'Rock', 'Metal',
@@ -153,7 +154,7 @@ export function OnboardingPage({ onDone }: Props) {
   const handleOnboardingPhotoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const validation = validateProfilePhoto(file);
+    const validation = await validateImageFileAsync(file);
     if (!validation.valid) {
       setError(validation.error ?? 'Fichier non valide');
       return;
@@ -161,16 +162,17 @@ export function OnboardingPage({ onDone }: Props) {
     setError('');
     setSaving(true);
     try {
+      const prepared = await prepareImageFile(file);
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (ev) => resolve(ev.target?.result as string);
         reader.onerror = reject;
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(prepared);
       });
       const compressed = await compressProfilePhotoDataUrl(dataUrl);
-      setPhotos((prev) => prev.length < 5 ? [...prev, compressed] : prev);
-    } catch {
-      setError('Erreur lors du chargement de la photo');
+      setPhotos((prev) => (prev.length < 5 ? [...prev, compressed] : prev));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du chargement de la photo');
     } finally {
       setSaving(false);
     }
