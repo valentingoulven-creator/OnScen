@@ -39,6 +39,8 @@ import { loadSalonsLivesFromPostgres } from './lib/pgSalonsLives';
 import { migrateAllUsersRelationshipStatus } from './lib/profile';
 import { getMsdevEnvPath } from './paths';
 import { startSessionLimitScheduler, stopSessionLimitScheduler } from './lib/sessionLimits';
+import { assertProductionStartup } from './lib/productionStartup';
+import { resolveCorsOrigin } from './lib/corsConfig';
 
 function getLocalIpv4Addresses(): string[] {
   const ips: string[] = [];
@@ -143,6 +145,8 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
     dotenv.config();
   }
 
+  assertProductionStartup();
+
   const PORT = Number(process.env.PORT) || (forceMsdev ? 4080 : 3000);
   const APP_ENV = process.env.APP_ENV || (forceMsdev ? 'msdev' : 'development');
   const HOST = process.env.HOST || '0.0.0.0';
@@ -164,16 +168,9 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
   }
   httpServer = server;
   const scheme = server instanceof https.Server ? 'https' : 'http';
-  const corsConfigured = process.env.CORS_ORIGIN?.trim();
-  const corsOrigin =
-    APP_ENV === 'msdev' || !corsConfigured
-      ? '*'
-      : corsConfigured.includes(',')
-        ? corsConfigured.split(',').map((o) => o.trim()).filter(Boolean)
-        : corsConfigured;
   const io = new Server(server, {
     cors: {
-      origin: corsOrigin,
+      origin: resolveCorsOrigin(),
       methods: ['GET', 'POST'],
       allowedHeaders: ['X-Auth-Token', 'Content-Type'],
     },

@@ -16,18 +16,11 @@ import { isMsdevShortcutBlocked, loginAccessDeniedReason } from '../lib/accessCo
 import { seedCommunityPosts } from '../seed-community-posts';
 import { getHomeFeedSeedStats, seedHomeFeed } from '../seed-home-feed';
 import { seedMsdevStories } from '../seed-msdev-stories';
+import { assertMsdev } from '../lib/msdevGuard';
 
 export const msdevRouter = Router();
 
 const MSDEV_DEMO_PASSWORD = 'msdev123';
-
-function assertMsdev(_req: Request, res: Response, next: () => void): void {
-  if (process.env.APP_ENV !== 'msdev' && process.env.MSENV !== 'msdev') {
-    res.status(404).json({ error: 'Disponible en mode msdev uniquement' });
-    return;
-  }
-  next();
-}
 
 msdevRouter.use(assertMsdev);
 

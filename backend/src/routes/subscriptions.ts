@@ -463,8 +463,8 @@ export async function handleStripeSubscriptionWebhook(req: Request, res: Respons
         const stripeSub = await stripe.subscriptions.retrieve(stripeSubId);
         const periodEnd = (stripeSub.current_period_end ?? 0) * 1000;
         if (periodEnd) renewSubscriptionFromInvoice(stripeSubId, periodEnd);
-      } catch {
-        /* ignore */
+      } catch (e) {
+        console.error('[subscriptions] invoice.paid webhook renewal failed:', stripeSubId, e);
       }
     }
   }

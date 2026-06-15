@@ -107,11 +107,12 @@ export function useLiveVideoRelay({
   const iceServersRef = useRef<RTCIceServer[]>(getDefaultIceServers());
 
   useEffect(() => {
-    if (!authToken) return;
-    void ensureLiveIceServers(() => api.getLiveIceServers(authToken)).then((servers) => {
+    if (!authToken || !liveId) return;
+    if (!isHost && !cameraRelayActive) return;
+    void ensureLiveIceServers(() => api.getLiveIceServers(authToken, liveId)).then((servers) => {
       iceServersRef.current = servers;
     });
-  }, [authToken]);
+  }, [authToken, liveId, isHost, cameraRelayActive]);
 
   const closePeer = useCallback((viewerId: string) => {
     const pc = peersRef.current.get(viewerId);

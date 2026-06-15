@@ -1,1 +1,0 @@
-import{T as e}from"./index-e1u4yQWM.js";var t=[...e];function n(e){return typeof e==`number`&&Number.isFinite(e)}function r(e,t){return n(e)&&n(t)&&e>=-90&&e<=90&&t>=-180&&t<=180}function i(e,n,i=t){return r(e,n)?[e,n]:i}export{i as n,r as t};

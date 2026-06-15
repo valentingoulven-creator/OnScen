@@ -61,11 +61,16 @@ export async function loadPersistedStoreAsync(): Promise<boolean> {
 export function savePersistedStore(): void {
   if (usesPostgresPersistence()) {
     void savePersistedStoreToPostgres().catch((e) => {
-      console.warn('[soundly] Échec sauvegarde PostgreSQL:', e);
+      console.error('[soundly] Échec sauvegarde PostgreSQL:', e);
     });
     return;
   }
-  savePersistedStoreToFile();
+  try {
+    savePersistedStoreToFile();
+  } catch (e) {
+    console.error('[soundly] Échec sauvegarde store.json:', e);
+    throw e;
+  }
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -78,7 +83,7 @@ export function schedulePersist(): void {
     try {
       savePersistedStore();
     } catch (e) {
-      console.warn('[melosong] Échec sauvegarde:', e);
+      console.error('[melosong] Échec sauvegarde planifiée:', e);
     }
   }, 800);
 }
@@ -99,7 +104,7 @@ export async function stopPersistLoop(): Promise<void> {
     } else {
       savePersistedStoreToFile();
     }
-  } catch {
-    /* ignore */
+  } catch (e) {
+    console.error('[melosong] Échec sauvegarde finale à l’arrêt:', e);
   }
 }

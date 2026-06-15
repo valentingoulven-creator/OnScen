@@ -1099,8 +1099,12 @@ export const api = {
       liveInputId?: string;
     }>(`/lives/${liveId}/playback`, {}, token),
 
-  getLiveIceServers: (token: string) =>
-    request<{ iceServers: RTCIceServer[] }>('/lives/ice-servers', {}, token),
+  getLiveIceServers: (token: string, liveId: string) =>
+    request<{ iceServers: RTCIceServer[] }>(
+      `/lives/ice-servers?liveId=${encodeURIComponent(liveId)}`,
+      {},
+      token
+    ),
 
   getLiveStreamCapabilities: (token: string) =>
     request<{

@@ -244,7 +244,7 @@ salonsRouter.get('/:id', authenticateJWT, (req: Request, res: Response) => {
     res.status(403).json({ error: 'Salon indisponible', code: 'content_blocked' });
     return;
   }
-  normalizeSalonAccess(salon);
+  if (!salonMemberOr403(salon, me, res)) return;
   res.json({ salon: publicSalon(salon, me) });
 });
 

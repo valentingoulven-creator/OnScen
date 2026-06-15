@@ -44,6 +44,7 @@ import {
   canModerateSalonTarget,
   setSalonVipModerator,
 } from './lib/salonModeration';
+import { isAllowedChatAttachmentUrl } from './lib/chatAttachmentUrl';
 
 // Debounce presence broadcasts per user: prevents rapid-fire storms when a user
 // reconnects multiple times in quick succession (e.g., mobile network hiccup).
@@ -532,13 +533,14 @@ export function setupSockets(io: Server): void {
         // Limit message content length to avoid storing oversized data.
         const content = typeof payload.content === 'string' ? payload.content.slice(0, 2000) : '';
         if (!content.trim() && !payload.attachmentUrl) return;
+        if (payload.attachmentUrl && !isAllowedChatAttachmentUrl(payload.attachmentUrl)) return;
         const sender = db.users.get(authUserId);
         const msg: ChatMessage = {
           id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
           roomId: payload.salonId,
           roomType: 'salon',
           senderId: authUserId,
-          senderName: payload.senderName,
+          senderName: sender?.username ?? 'Utilisateur',
           senderUsernameColor: sender?.usernameColor,
           senderUsernameWaveFrom: sender?.usernameWaveFrom,
           senderUsernameWaveTo: sender?.usernameWaveTo,
@@ -598,13 +600,14 @@ export function setupSockets(io: Server): void {
         }
         const liveContent = typeof payload.content === 'string' ? payload.content.slice(0, 2000) : '';
         if (!liveContent.trim() && !payload.attachmentUrl) return;
+        if (payload.attachmentUrl && !isAllowedChatAttachmentUrl(payload.attachmentUrl)) return;
         const liveSender = db.users.get(authUserId);
         const msg: ChatMessage = {
           id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
           roomId: payload.liveId,
           roomType: 'live',
           senderId: authUserId,
-          senderName: payload.senderName,
+          senderName: liveSender?.username ?? 'Utilisateur',
           senderUsernameColor: liveSender?.usernameColor,
           senderUsernameWaveFrom: liveSender?.usernameWaveFrom,
           senderUsernameWaveTo: liveSender?.usernameWaveTo,
@@ -646,7 +649,11 @@ export function setupSockets(io: Server): void {
     socket.on('gift_sent', (gift: { liveId: string; senderName: string; giftType: string; amount: number }) => {
       const authUserId = (socket.data as { userId?: string }).userId;
       if (!authUserId || !gift?.liveId) return;
-      io.to(`live_${gift.liveId}`).emit('gift_animation', gift);
+      const sender = db.users.get(authUserId);
+      io.to(`live_${gift.liveId}`).emit('gift_animation', {
+        ...gift,
+        senderName: sender?.username ?? 'Utilisateur',
+      });
     });
 
     socket.on('join_reel', ({ reelId }: { reelId: string }) => {

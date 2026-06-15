@@ -87,6 +87,14 @@ export function isLastLiveSocketForUser(liveId: string, userId: string): boolean
   return true;
 }
 
+/** TURN/ICE credentials: host of an active live, or viewer currently in the live socket room. */
+export function canAccessLiveIceServers(liveId: string, userId: string): boolean {
+  const live = db.lives.get(liveId);
+  if (!live?.isActive) return false;
+  if (live.hostId === userId) return true;
+  return isUserViewingLive(liveId, live.hostId, userId);
+}
+
 /** Enforce viewer plan limits for new spectators (skips host and returning viewers). */
 export function assertViewerCanAccessLive(live: Live, viewerId: string): void {
   if (viewerId === live.hostId) return;

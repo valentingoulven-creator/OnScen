@@ -1,4 +1,6 @@
 import { Router, Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
+import { isMsdevRuntime } from '../lib/msdevGuard';
 import { db } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
 import { getDistanceKm } from '../lib/geo';
@@ -177,7 +179,16 @@ const GOUV_COMMUNES_API = 'https://geo.api.gouv.fr/communes';
 const DEFAULT_GEOCODE_LIMIT = 5;
 const MAX_GEOCODE_LIMIT = 10;
 
-geoRouter.get('/geocode', async (req: Request, res: Response) => {
+const geocodeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de requêtes de géocodage. Réessayez plus tard.' },
+  skip: () => isMsdevRuntime(),
+});
+
+geoRouter.get('/geocode', geocodeLimiter, async (req: Request, res: Response) => {
   const q = String(req.query.q ?? '').trim();
   if (q.length < 2) {
     res.status(400).json({ error: 'Paramètre q requis (min. 2 caractères)' });

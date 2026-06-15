@@ -17,7 +17,11 @@ import { DEFAULT_MAP_LAT, DEFAULT_MAP_LON, isValidLatLng } from '../lib/mapCoord
 import { MIN_LIVE_AGE, userMeetsLiveAge } from '../lib/ageGates';
 import { serializePublicLive } from '../lib/livePublic';
 import { assertLiveAccessible } from '../lib/adminContentModeration';
-import { getLiveConnectedParticipants, assertViewerCanAccessLive } from '../lib/liveParticipants';
+import {
+  getLiveConnectedParticipants,
+  assertViewerCanAccessLive,
+  canAccessLiveIceServers,
+} from '../lib/liveParticipants';
 import {
   endLiveSession,
   listHostedArchivedLives,
@@ -49,8 +53,18 @@ import { buildIceServers } from '../lib/iceServers';
 
 export const livesRouter = Router();
 
-/** Authenticated ICE servers for WebRTC live relay (TURN credentials from server env). */
-livesRouter.get('/ice-servers', authenticateJWT, (_req: Request, res: Response) => {
+/** ICE servers for WebRTC live relay — TURN only for host or active viewer of liveId. */
+livesRouter.get('/ice-servers', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const liveId = typeof req.query.liveId === 'string' ? req.query.liveId.trim() : '';
+  if (!liveId) {
+    res.status(400).json({ error: 'Paramètre liveId requis' });
+    return;
+  }
+  if (!canAccessLiveIceServers(liveId, me)) {
+    res.status(403).json({ error: 'Accès refusé — rejoignez le live en cours' });
+    return;
+  }
   res.json({ iceServers: buildIceServers() });
 });
 

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pickPreferredLanIp, getPublicLanIps, testYoutubeReachableFromServer } from '../lib/lanNetwork';
 import { syncMsdevLanConfig } from '../lib/msdevLanConfig';
+import { assertMsdev } from '../lib/msdevGuard';
 
 export const networkRouter = Router();
 
@@ -35,7 +36,7 @@ networkRouter.get('/info', async (_req, res) => {
   });
 });
 
-networkRouter.post('/sync-lan', async (_req, res) => {
+networkRouter.post('/sync-lan', assertMsdev, async (_req, res) => {
   try {
     const result = await syncMsdevLanConfig();
     res.json(result);

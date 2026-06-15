@@ -37,6 +37,8 @@ import { trendingRouter } from './routes/trending';
 import { supportRouter, supportAdminRouter } from './routes/support';
 import { getPublicDir, getMsdevConfigPath } from './paths';
 import { REEL_UPLOAD_JSON_BODY_LIMIT } from './lib/reelUploadLimits';
+import { resolveCorsOrigin } from './lib/corsConfig';
+import { isMsdevRuntime } from './lib/msdevGuard';
 
 export const app = express();
 
@@ -252,19 +254,6 @@ const PHONE_PREVIEW_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
-
-function isMsdevRuntime(): boolean {
-  return process.env.APP_ENV === 'msdev' || process.env.MSENV === 'msdev';
-}
-
-function resolveCorsOrigin(): cors.CorsOptions['origin'] {
-  const configured = process.env.CORS_ORIGIN?.trim();
-  if (isMsdevRuntime() || !configured) return '*';
-  const origins = configured.split(',').map((o) => o.trim()).filter(Boolean);
-  if (origins.length === 0) return '*';
-  if (origins.length === 1) return origins[0];
-  return origins;
-}
 
 app.set('trust proxy', 1);
 app.use(compression());
