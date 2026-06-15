@@ -24,6 +24,10 @@ import {
   type SubscriptionTargetType,
 } from '../lib/subscriptions';
 import { isStripeConfigured } from '../lib/donations';
+import {
+  getPlatformPlanStatus,
+  listPlatformPlans,
+} from '../lib/platformPlans';
 import { CREATOR_MONETIZATION_MIN_AGE } from '../lib/ageGates';
 
 export const subscriptionsRouter = Router();
@@ -75,6 +79,32 @@ subscriptionsRouter.get('/config', (req: Request, res: Response) => {
     platformCommissionPercent: getPlatformCommissionPercent(),
     dailyCapRemaining:
       simulation && userId ? getRemainingDailySimulationSubBudget(userId) : null,
+    platformPlans: listPlatformPlans().map((p) => ({
+      id: p.id,
+      label: p.label,
+      priceCents: p.priceCents,
+      priceDisplay: p.priceDisplay,
+      subscriptionTierId: p.subscriptionTierId,
+      limits: p.limits,
+      featuresFr: p.featuresFr,
+    })),
+  });
+});
+
+subscriptionsRouter.get('/platform-plan', authenticateJWT, (req: Request, res: Response) => {
+  const userId = (req as Request & { user: { id: string } }).user.id;
+  const status = getPlatformPlanStatus(userId);
+  res.json({
+    ...status,
+    plans: listPlatformPlans().map((p) => ({
+      id: p.id,
+      label: p.label,
+      priceCents: p.priceCents,
+      priceDisplay: p.priceDisplay,
+      subscriptionTierId: p.subscriptionTierId,
+      limits: p.limits,
+      featuresFr: p.featuresFr,
+    })),
   });
 });
 

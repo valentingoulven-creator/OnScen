@@ -7,12 +7,15 @@ export type PhotoFilterId =
   | 'cool'
   | 'bw'
   | 'sepia'
-  | 'ai_enhance'
-  | 'ai_portrait'
-  | 'ai_cinematic'
-  | 'ai_vintage'
-  | 'ai_neon'
-  | 'ai_dream';
+  | 'ai_clarendon'
+  | 'ai_valencia'
+  | 'ai_lark'
+  | 'ai_xpro'
+  | 'ai_lofi'
+  | 'ai_gingham'
+  | 'ai_juno'
+  | 'ai_aden'
+  | 'ai_hudson';
 
 export interface PhotoFilterPreset {
   id: PhotoFilterId;
@@ -49,39 +52,57 @@ export const PHOTO_FILTERS: PhotoFilterPreset[] = [
     category: 'classic',
   },
   {
-    id: 'ai_enhance',
-    label: 'Amélioration IA',
-    cssFilter: 'saturate(1.22) contrast(1.14) brightness(1.05) hue-rotate(-3deg)',
+    id: 'ai_clarendon',
+    label: 'Clarendon · punch',
+    cssFilter: 'contrast(1.28) saturate(1.22) brightness(1.1)',
     category: 'ai',
   },
   {
-    id: 'ai_portrait',
-    label: 'Portrait éclat',
-    cssFilter: 'brightness(1.1) contrast(0.93) saturate(1.08) sepia(0.1) hue-rotate(-10deg)',
+    id: 'ai_valencia',
+    label: 'Valencia · chaleur',
+    cssFilter: 'sepia(0.18) saturate(1.08) contrast(1.02) brightness(1.12) hue-rotate(-14deg)',
     category: 'ai',
   },
   {
-    id: 'ai_cinematic',
-    label: 'Cinéma IA',
-    cssFilter: 'contrast(1.22) saturate(1.08) sepia(0.18) hue-rotate(168deg) brightness(0.9)',
+    id: 'ai_lark',
+    label: 'Lark · lumineux',
+    cssFilter: 'brightness(1.14) contrast(0.92) saturate(0.82) hue-rotate(4deg)',
     category: 'ai',
   },
   {
-    id: 'ai_vintage',
-    label: 'Vintage IA',
-    cssFilter: 'sepia(0.42) contrast(0.85) saturate(0.68) brightness(1.08) hue-rotate(8deg)',
+    id: 'ai_xpro',
+    label: 'X-Pro · rétro',
+    cssFilter: 'sepia(0.38) contrast(1.34) saturate(1.18) hue-rotate(172deg) brightness(0.86)',
     category: 'ai',
   },
   {
-    id: 'ai_neon',
-    label: 'Néon nocturne',
-    cssFilter: 'saturate(1.6) contrast(1.28) brightness(0.88) hue-rotate(20deg)',
+    id: 'ai_lofi',
+    label: 'Lo-fi · grainé',
+    cssFilter: 'contrast(1.38) saturate(1.14) brightness(0.9) sepia(0.12)',
     category: 'ai',
   },
   {
-    id: 'ai_dream',
-    label: 'Rêve pastel',
-    cssFilter: 'saturate(0.65) brightness(1.14) contrast(0.88) hue-rotate(-8deg)',
+    id: 'ai_gingham',
+    label: 'Gingham · pastel',
+    cssFilter: 'brightness(1.08) contrast(0.88) saturate(0.72) sepia(0.14) hue-rotate(6deg)',
+    category: 'ai',
+  },
+  {
+    id: 'ai_juno',
+    label: 'Juno · doux',
+    cssFilter: 'brightness(1.06) contrast(0.94) saturate(0.88) sepia(0.12) hue-rotate(-8deg)',
+    category: 'ai',
+  },
+  {
+    id: 'ai_aden',
+    label: 'Aden · froid',
+    cssFilter: 'brightness(1.12) contrast(0.9) saturate(0.78) hue-rotate(22deg) sepia(0.06)',
+    category: 'ai',
+  },
+  {
+    id: 'ai_hudson',
+    label: 'Hudson · bleu',
+    cssFilter: 'brightness(1.04) contrast(1.12) saturate(0.7) sepia(0.2) hue-rotate(168deg)',
     category: 'ai',
   },
 ];

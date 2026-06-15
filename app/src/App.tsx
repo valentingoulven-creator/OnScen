@@ -87,7 +87,7 @@ export default function App() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [adminInitialTab, setAdminInitialTab] = useState<
-    'accounts' | 'access' | 'content' | 'analytics' | 'costs' | 'support'
+    'accounts' | 'access' | 'content' | 'analytics' | 'costs' | 'support' | 'sponsors'
   >('accounts');
   const [adminHighlightSupportMessageId, setAdminHighlightSupportMessageId] = useState<string | undefined>();
   const [profileOpenContact, setProfileOpenContact] = useState(false);
@@ -418,7 +418,7 @@ export default function App() {
   }, [minimizeSalonToMap]);
 
   const openAdminPanel = useCallback(
-    (options?: { tab?: 'accounts' | 'access' | 'content' | 'analytics' | 'costs' | 'support'; supportMessageId?: string }) => {
+    (options?: { tab?: 'accounts' | 'access' | 'content' | 'analytics' | 'costs' | 'support' | 'sponsors'; supportMessageId?: string }) => {
       const session = activeSalonSessionRef.current;
       if (session?.viewMode === 'full') {
         setActiveSalonSession((prev) => (prev ? { ...prev, viewMode: 'minimized' } : prev));
@@ -603,7 +603,7 @@ export default function App() {
 
   return (
     <div
-      className={`flex flex-col min-h-dvh max-h-dvh overflow-hidden${!appa2 ? ' ms-app-shell--bottom-tabs' : ''}${appa2 && !profileOpen ? ' ms-app-shell--header-tabs' : ''}${showSalonReturnBar ? ' ms-app-shell--salon-return' : ''}`}
+      className={`ms-app-shell flex flex-col min-h-dvh max-h-dvh overflow-hidden min-w-0 w-full${!appa2 ? ' ms-app-shell--bottom-tabs' : ''}${appa2 && !profileOpen ? ' ms-app-shell--header-tabs' : ''}${showSalonReturnBar ? ' ms-app-shell--salon-return' : ''}`}
     >
       {incomingToast && (
         <button
@@ -640,7 +640,7 @@ export default function App() {
       <header
         className={`ms-app-header${appa2 && !profileOpen ? ' ms-app-header--with-tabs' : ''}`}
       >
-          <div className="px-3 sm:px-4 pb-2" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
+          <div className="px-3 sm:px-4 pb-2 ms-safe-area-top">
           <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-1.5 sm:gap-x-2 min-w-0">
             <div className="flex items-center gap-1.5 sm:gap-2 justify-self-start min-w-0 overflow-hidden">
               <button
@@ -730,7 +730,7 @@ export default function App() {
       </header>
 
       <main
-        className="ms-app-main flex-1 min-h-0 overflow-hidden flex flex-col relative"
+        className="ms-app-main flex-1 min-h-0 min-w-0 w-full overflow-hidden flex flex-col relative"
       >
             {user && token && !isNewUser && view.type === 'home' && !profileOpen && !salonFullScreen && (
               <PlatformConnectPrompt

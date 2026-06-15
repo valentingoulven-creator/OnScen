@@ -1539,7 +1539,7 @@ export function HomePage({
   const mapSheetOpen = Boolean(selected || selectedLive);
 
   return (
-    <div className={`relative flex-1 flex min-h-0 ${appa2 ? 'flex-col' : 'flex-row'}`}>
+    <div className={`ms-map-page relative flex-1 flex min-h-0 ${appa2 ? 'flex-col' : 'flex-row'}`}>
       {token && (
         <MapEventFilterSheet
           open={showEventFilterSheet}
@@ -1620,7 +1620,7 @@ export function HomePage({
           <MapAdBanner onCtaSalon={() => setShowCreateSalon(true)} onCtaLive={onOpenLiveTab} />
         )}
 
-        <div className="relative flex-1 min-h-0">
+        <div className="ms-map-viewport relative flex-1 min-h-0">
         {toastMsg && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
             <div className="px-4 py-2.5 rounded-xl bg-[#1a1a26] border border-white/15 text-sm text-white shadow-lg whitespace-nowrap">

@@ -144,7 +144,12 @@ export default defineConfig(({ mode }) => {
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (!id.includes('node_modules')) return undefined;
+          if (!id.includes('node_modules')) {
+            if (id.includes('PhotoImageEditor') || id.includes('PhotoInlineCrop')) {
+              return 'photo-editor';
+            }
+            return undefined;
+          }
           // heic2any : chunk isolé (worker libheif ; ne pas fusionner dans vendor-misc)
           if (id.includes('heic2any')) return 'vendor-heic2any';
           if (id.includes('react-dom') || id.includes('react/')) return 'vendor-react';

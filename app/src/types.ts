@@ -59,6 +59,8 @@ export interface AccessManagedUser {
   privateReelsCount?: number;
   publicReelsCount?: number;
   instagramHandle?: string;
+  platformPlanId?: 'free' | 'soundy_plus' | 'soundy_ultra';
+  platformPlanLabel?: string;
 }
 
 export type AdminUserSort = 'lastSeen' | 'memberSince' | 'username' | 'status';
@@ -94,6 +96,90 @@ export interface AdminCreatorInfo {
 }
 
 export type AdminContentFilter = 'all' | 'blocked' | 'active';
+
+export type SponsorPlacement = 'map_banner' | 'feed_inline' | 'stories_banner' | 'reels_sponsored';
+export type SponsorAccent = 'purple' | 'pink' | 'amber' | 'cyan' | 'rose';
+export type SponsorKind = 'promo' | 'sponsored';
+export type SponsorFilter = 'all' | 'active' | 'inactive';
+
+export interface Sponsor {
+  id: string;
+  name: string;
+  logoUrl?: string;
+  linkUrl?: string;
+  placement: SponsorPlacement;
+  active: boolean;
+  priority: number;
+  startsAt?: number;
+  endsAt?: number;
+  title: string;
+  subtitle: string;
+  cta: string;
+  accent: SponsorAccent;
+  kind: SponsorKind;
+  actionId?: 'salon' | 'live';
+  /** Durée d'affichage dans le carrousel (secondes). */
+  displayDurationSec?: number;
+  /** URL vidéo (reels sponsorisés). */
+  videoUrl?: string;
+  /** Vignette / poster (reels sponsorisés). */
+  posterUrl?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface SponsorPlatformConfig {
+  reelsSponsorEnabled: boolean;
+  reelsSponsorEveryN: number;
+}
+
+export interface ReelsSponsorsResponse {
+  items: ReelsSponsorAd[];
+  config: Pick<SponsorPlatformConfig, 'reelsSponsorEnabled' | 'reelsSponsorEveryN'>;
+}
+
+export interface ReelsSponsorAd {
+  id: string;
+  title: string;
+  subtitle: string;
+  cta: string;
+  href?: string;
+  accent: SponsorAccent;
+  sponsor?: string;
+  kind?: SponsorKind;
+  logoUrl?: string;
+  displayDurationSec?: number;
+  videoUrl?: string;
+  posterUrl?: string;
+}
+
+export interface SponsorCounts {
+  total: number;
+  active: number;
+  inactive: number;
+}
+
+export interface AdminSponsorsListResponse {
+  items: Sponsor[];
+  total: number;
+  counts: SponsorCounts;
+}
+
+export interface MapAdItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  cta: string;
+  href?: string;
+  accent: SponsorAccent;
+  sponsor?: string;
+  kind?: SponsorKind;
+  logoUrl?: string;
+  actionId?: 'salon' | 'live';
+  displayDurationSec?: number;
+  videoUrl?: string;
+  posterUrl?: string;
+}
 
 export interface AdminContentCounts {
   total: number;
@@ -941,6 +1027,8 @@ export interface StoryTaggedUser {
   x?: number;
   /** Position verticale relative 0–1 sur l'image (tag visuel). */
   y?: number;
+  /** Facteur d'échelle du sticker @ (0,5–2). */
+  scale?: number;
 }
 
 /** Lien cliquable sur story (sticker, non intégré au JPEG). */

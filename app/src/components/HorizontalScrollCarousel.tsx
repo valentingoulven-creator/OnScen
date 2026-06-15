@@ -18,12 +18,25 @@ function ChevronRightIcon({ className }: { className?: string }) {
 
 const SCROLL_EDGE_EPS = 4;
 
+/** Distance de scroll = (largeur item + gap) × stepCount. */
+export function computeHorizontalScrollAmount(
+  itemWidth: number,
+  gap: number,
+  stepCount: number
+): number {
+  return (itemWidth + gap) * stepCount;
+}
+
 export interface HorizontalScrollCarouselProps {
   children: ReactNode;
   itemCount: number;
   ariaPrevLabel: string;
   ariaNextLabel: string;
   scrollClassName?: string;
+  /** Nombre d'items par clic flèche (défaut 1). */
+  scrollStepCount?: number;
+  /** Dégradés latéraux quand le contenu défile (défaut true). */
+  fadeEdges?: boolean;
 }
 
 /** Carrousel horizontal avec flèches (scroll d'une carte à la fois). */
@@ -33,6 +46,8 @@ export function HorizontalScrollCarousel({
   ariaPrevLabel,
   ariaNextLabel,
   scrollClassName = 'min-w-0 w-full flex flex-nowrap gap-3 pb-1 -mx-3 px-3 overflow-x-auto',
+  scrollStepCount = 1,
+  fadeEdges = true,
 }: HorizontalScrollCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -62,22 +77,34 @@ export function HorizontalScrollCarousel({
     };
   }, [itemCount, updateScrollState]);
 
-  const scrollByCard = useCallback((direction: 'left' | 'right') => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const firstCard = el.firstElementChild as HTMLElement | null;
-    if (!firstCard) return;
-    const gap = parseFloat(getComputedStyle(el).columnGap || getComputedStyle(el).gap || '12') || 12;
-    const amount = firstCard.offsetWidth + gap;
-    el.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' });
-  }, []);
+  const scrollByCard = useCallback(
+    (direction: 'left' | 'right') => {
+      const el = scrollRef.current;
+      if (!el) return;
+      const firstCard = el.firstElementChild as HTMLElement | null;
+      if (!firstCard) return;
+      const gap = parseFloat(getComputedStyle(el).columnGap || getComputedStyle(el).gap || '12') || 12;
+      const amount = computeHorizontalScrollAmount(firstCard.offsetWidth, gap, scrollStepCount);
+      el.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' });
+    },
+    [scrollStepCount]
+  );
 
   const showArrows = itemCount > 1;
   const arrowBtnClass =
     'absolute top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-8 h-8 rounded-full border backdrop-blur-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60';
 
+  const fadeWrapClass = [
+    'relative min-w-0 w-full group/carousel',
+    fadeEdges ? 'ms-hscroll-fade-wrap' : '',
+    fadeEdges && canScrollLeft ? 'ms-hscroll-fade-wrap--can-left' : '',
+    fadeEdges && canScrollRight ? 'ms-hscroll-fade-wrap--can-right' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <div className="relative min-w-0 w-full group/carousel">
+    <div className={fadeWrapClass}>
       {showArrows ? (
         <>
           <button

@@ -48,6 +48,13 @@ import {
 } from '../lib/appMediaFocus';
 import { pauseAllReelsMediaInDom, pauseInactiveReelsMediaInDom } from '../lib/reelsMedia';
 import { filterReelsBySearch } from '../lib/reelsSearch';
+import { ReelsSponsoredSlide } from '../components/ReelsSponsoredSlide';
+import {
+  DEFAULT_REELS_SPONSOR_CONFIG,
+  interleaveReelsSponsors,
+  type ReelsFeedDisplayItem,
+} from '../lib/reelsSponsorFeed';
+import type { ReelsSponsorAd } from '../types';
 import { getSocket } from '../lib/socket';
 import type { ReelComment, ReelStats } from '../types';
 
@@ -213,9 +220,13 @@ async function playActiveReelMedia(
 
 const FALLBACK_REELS = buildReelsFeed([]);
 
-function findReelIndex(feed: MusicReel[], reelId: string): number {
-  const i = feed.findIndex((r) => r.id === reelId);
+function findReelIndex(feed: ReelsFeedDisplayItem[], reelId: string): number {
+  const i = feed.findIndex((item) => item.kind === 'reel' && item.reel.id === reelId);
   return i >= 0 ? i : 0;
+}
+
+function displayItemOrganicReel(item: ReelsFeedDisplayItem | undefined): MusicReel | undefined {
+  return item?.kind === 'reel' ? item.reel : undefined;
 }
 
 const DEFAULT_STATS: ReelStats = {
@@ -246,13 +257,23 @@ export function ReelsTabPage({
   const { t } = useTranslation();
   const { token } = useAuth();
   const [feedReels, setFeedReels] = useState<MusicReel[]>(FALLBACK_REELS);
+  const [reelsSponsorAds, setReelsSponsorAds] = useState<ReelsSponsorAd[]>([]);
+  const [reelsSponsorConfig, setReelsSponsorConfig] = useState(DEFAULT_REELS_SPONSOR_CONFIG);
   const [feedLoading, setFeedLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const deferredSearchQuery = useDeferredValue(debouncedSearchQuery);
-  const reels = useMemo(
+  const searchActive = deferredSearchQuery.trim().length > 0;
+  const organicReels = useMemo(
     () => filterReelsBySearch(feedReels, deferredSearchQuery),
     [feedReels, deferredSearchQuery]
+  );
+  const displayItems = useMemo(
+    () =>
+      searchActive
+        ? organicReels.map((reel) => ({ kind: 'reel' as const, reel, key: reel.id }))
+        : interleaveReelsSponsors(organicReels, reelsSponsorAds, reelsSponsorConfig),
+    [organicReels, reelsSponsorAds, reelsSponsorConfig, searchActive]
   );
   const scrollRef = useRef<HTMLDivElement>(null);
   const videoRefsById = useRef(new Map<string, HTMLVideoElement>());
@@ -263,8 +284,8 @@ export function ReelsTabPage({
   const scrollSettleTimerRef = useRef<number | null>(null);
   const lastScheduledReelIdRef = useRef<string | null>(null);
   const [scrollSnapDuringTouch, setScrollSnapDuringTouch] = useState(false);
-  const reelsRef = useRef(reels);
-  reelsRef.current = reels;
+  const reelsRef = useRef(displayItems);
+  reelsRef.current = displayItems;
   const feedReelsRef = useRef(feedReels);
   feedReelsRef.current = feedReels;
   const wasTabActiveRef = useRef(isActive);
@@ -289,9 +310,9 @@ export function ReelsTabPage({
   const viewedReelsThisSession = useRef(new Set<string>());
   const [algoSheetOpen, setAlgoSheetOpen] = useState(false);
 
-  const activeReel = reels[activeIndex];
-  const searchActive = deferredSearchQuery.trim().length > 0;
-  const searchEmpty = searchActive && !feedLoading && reels.length === 0;
+  const activeItem = displayItems[activeIndex];
+  const activeReel = displayItemOrganicReel(activeItem);
+  const searchEmpty = searchActive && !feedLoading && displayItems.length === 0;
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearchQuery(searchQuery), 300);
@@ -323,8 +344,8 @@ export function ReelsTabPage({
   }, [initialReelId]);
 
   useEffect(() => {
-    if (!initialReelId || initialScrollDone.current || reels.length === 0) return;
-    const found = reels.some((r) => r.id === initialReelId);
+    if (!initialReelId || initialScrollDone.current || displayItems.length === 0) return;
+    const found = displayItems.some((item) => item.kind === 'reel' && item.reel.id === initialReelId);
     if (!found && token) {
       api
         .getReel(token, initialReelId)
@@ -339,7 +360,7 @@ export function ReelsTabPage({
         .catch(() => undefined);
       return;
     }
-    const index = findReelIndex(reels, initialReelId);
+    const index = findReelIndex(displayItems, initialReelId);
     initialScrollDone.current = true;
     setActiveIndex(index);
     const el = scrollRef.current;
@@ -347,7 +368,18 @@ export function ReelsTabPage({
       el.scrollTo({ top: index * el.clientHeight, behavior: 'auto' });
     }
     onIntentHandled?.();
-  }, [initialReelId, reels, onIntentHandled, token]);
+  }, [initialReelId, displayItems, onIntentHandled, token]);
+
+  useEffect(() => {
+    if (!isActive) return;
+    api
+      .getReelsSponsors()
+      .then((r) => {
+        setReelsSponsorAds(r.items);
+        setReelsSponsorConfig(r.config);
+      })
+      .catch(() => undefined);
+  }, [isActive]);
 
   const activeHasSound =
     !!activeReel &&
@@ -459,13 +491,13 @@ export function ReelsTabPage({
   }, [token, isActive, activeReel?.id]);
 
   const goToIndex = useCallback((index: number, scrollBehavior: ScrollBehavior = 'smooth') => {
-    const clamped = Math.max(0, Math.min(reels.length - 1, index));
+    const clamped = Math.max(0, Math.min(displayItems.length - 1, index));
     const el = scrollRef.current;
     if (!el) return;
     const h = el.clientHeight;
     el.scrollTo({ top: clamped * h, behavior: scrollBehavior });
     setActiveIndex(clamped);
-  }, [reels.length]);
+  }, [displayItems.length]);
 
   const settleScrollPosition = useCallback(() => {
     const el = scrollRef.current;
@@ -486,14 +518,15 @@ export function ReelsTabPage({
     const el = scrollRef.current;
     if (!el || el.clientHeight === 0) return;
     const index = Math.round(el.scrollTop / el.clientHeight);
-    const clamped = Math.max(0, Math.min(reels.length - 1, index));
+    const clamped = Math.max(0, Math.min(displayItems.length - 1, index));
     if (clamped !== activeIndexRef.current) {
       playGenerationRef.current += 1;
       if (playScheduleRef.current) {
         clearTimeout(playScheduleRef.current);
         playScheduleRef.current = null;
       }
-      const nextReelId = reelsRef.current[clamped]?.id;
+      const nextItem = reelsRef.current[clamped];
+      const nextReelId = nextItem?.key;
       if (nextReelId) pauseInactiveReelsMediaInDom(nextReelId);
     }
     setActiveIndex(clamped);
@@ -502,14 +535,14 @@ export function ReelsTabPage({
       scrollSettleTimerRef.current = null;
       settleScrollPosition();
     }, 140);
-  }, [reels.length, settleScrollPosition]);
+  }, [displayItems.length, settleScrollPosition]);
 
   const snapIndexFromScroll = useCallback((): number => {
     const el = scrollRef.current;
     if (!el || el.clientHeight === 0) return activeIndexRef.current;
     const index = Math.round(el.scrollTop / el.clientHeight);
-    return Math.max(0, Math.min(reels.length - 1, index));
-  }, [reels.length]);
+    return Math.max(0, Math.min(displayItems.length - 1, index));
+  }, [displayItems.length]);
 
   const finishTouchGesture = useCallback(
     (endY: number) => {
@@ -606,15 +639,16 @@ export function ReelsTabPage({
 
   const applyMuteStateToAllRefs = useCallback((wantMuted: boolean) => {
     const list = reelsRef.current;
-    const activeId = list[activeIndexRef.current]?.id;
-    videoRefsById.current.forEach((video, reelId) => {
-      const reel = list.find((r) => r.id === reelId);
+    const activeKey = list[activeIndexRef.current]?.key;
+    videoRefsById.current.forEach((video, mediaKey) => {
+      const item = list.find((entry) => entry.key === mediaKey);
+      const reel = displayItemOrganicReel(item);
       const separateAudio = reelHasSeparateAudio(reel);
-      const forActive = reelId === activeId;
+      const forActive = mediaKey === activeKey;
       applyVideoAudio(video, forActive ? wantMuted : true, separateAudio);
     });
-    audioRefsById.current.forEach((audio, reelId) => {
-      applyReelAudio(audio, reelId === activeId ? wantMuted : true);
+    audioRefsById.current.forEach((audio, mediaKey) => {
+      applyReelAudio(audio, mediaKey === activeKey ? wantMuted : true);
     });
   }, [reelHasSeparateAudio]);
 
@@ -628,8 +662,9 @@ export function ReelsTabPage({
   const stopAllReelsMedia = useCallback(() => {
     cancelPlayRetry();
     const list = reelsRef.current;
-    videoRefsById.current.forEach((video, reelId) => {
-      const reel = list.find((r) => r.id === reelId);
+    videoRefsById.current.forEach((video, mediaKey) => {
+      const item = list.find((entry) => entry.key === mediaKey);
+      const reel = displayItemOrganicReel(item);
       const separateAudio = reelHasSeparateAudio(reel);
       video.pause();
       try {
@@ -664,9 +699,10 @@ export function ReelsTabPage({
   const pauseInactiveReelsMedia = useCallback(
     (activeId: string) => {
       const list = reelsRef.current;
-      videoRefsById.current.forEach((video, reelId) => {
-        if (reelId === activeId) return;
-        const reel = list.find((r) => r.id === reelId);
+      videoRefsById.current.forEach((video, mediaKey) => {
+        if (mediaKey === activeId) return;
+        const item = list.find((entry) => entry.key === mediaKey);
+        const reel = displayItemOrganicReel(item);
         const reelSeparateAudio = reelHasSeparateAudio(reel);
         video.pause();
         try {
@@ -677,8 +713,8 @@ export function ReelsTabPage({
         applyVideoAudio(video, true, reelSeparateAudio);
         video.playbackRate = 1;
       });
-      audioRefsById.current.forEach((audio, reelId) => {
-        if (reelId === activeId) return;
+      audioRefsById.current.forEach((audio, mediaKey) => {
+        if (mediaKey === activeId) return;
         audio.pause();
         audio.playbackRate = 1;
         try {
@@ -714,19 +750,42 @@ export function ReelsTabPage({
         return;
       }
 
-      const separateAudio = reelHasSeparateAudio(active);
-
-      const video = videoRefsById.current.get(active.id);
-      const audio = audioRefsById.current.get(active.id);
+      const mediaKey = active.key;
+      const video = videoRefsById.current.get(mediaKey);
+      const audio = audioRefsById.current.get(mediaKey);
 
       if (playbackPausedRef.current) {
-        pauseInactiveReelsMedia(active.id);
+        pauseInactiveReelsMedia(mediaKey);
         video?.pause();
         audio?.pause();
         return;
       }
 
-      pauseInactiveReelsMedia(active.id);
+      pauseInactiveReelsMedia(mediaKey);
+
+      if (active.kind === 'sponsor') {
+        if (!video) {
+          cancelPlayRetry();
+          playRetryRef.current = requestAnimationFrame(() => {
+            playRetryRef.current = null;
+            if (isStale()) return;
+            playActiveReel(index, wantMuted, fromStart);
+          });
+          return;
+        }
+        cancelPlayRetry();
+        if (fromStart) seekToStart(video);
+        void playMediaElement(video, wantMuted).then((forcedMuted) => {
+          if (forcedMuted && !wantMuted && !isStale()) {
+            mutedRef.current = true;
+            setMuted(true);
+          }
+        });
+        return;
+      }
+
+      const reel = active.reel;
+      const separateAudio = reelHasSeparateAudio(reel);
 
       if (!video || (separateAudio && !audio)) {
         cancelPlayRetry();
@@ -740,15 +799,13 @@ export function ReelsTabPage({
 
       cancelPlayRetry();
       void playActiveReelMedia(
-        active,
+        reel,
         video,
         separateAudio ? audio ?? null : null,
         wantMuted,
         isStale,
         fromStart
       ).then((forcedMuted) => {
-        // Si le navigateur a bloqué l'autoplay avec son, on synchronise l'état React
-        // pour que l'icône 🔇 Muet s'affiche correctement (évite l'état fantôme "Son activé mais silencieux")
         if (forcedMuted && !wantMuted && !isStale()) {
           mutedRef.current = true;
           setMuted(true);
@@ -793,9 +850,27 @@ export function ReelsTabPage({
 
     const active = reelsRef.current[activeIndexRef.current];
     if (!active) return;
-    const separateAudio = reelHasSeparateAudio(active);
-    const video = videoRefsById.current.get(active.id);
-    const audio = audioRefsById.current.get(active.id) ?? null;
+    const mediaKey = active.key;
+    if (active.kind === 'sponsor') {
+      const video = videoRefsById.current.get(mediaKey);
+      if (!video) {
+        playActiveReel(activeIndexRef.current, false);
+        return;
+      }
+      video.muted = false;
+      video.volume = 1;
+      if (video.paused) {
+        try {
+          void video.play();
+        } catch {
+          /* ignore */
+        }
+      }
+      return;
+    }
+    const separateAudio = reelHasSeparateAudio(active.reel);
+    const video = videoRefsById.current.get(mediaKey);
+    const audio = audioRefsById.current.get(mediaKey) ?? null;
     if (!video || (separateAudio && !audio)) {
       playActiveReel(activeIndexRef.current, false);
       return;
@@ -824,8 +899,8 @@ export function ReelsTabPage({
       playScheduleRef.current = null;
     }
     playGenerationRef.current += 1;
-    videoRefsById.current.get(active.id)?.pause();
-    audioRefsById.current.get(active.id)?.pause();
+    videoRefsById.current.get(active.key)?.pause();
+    audioRefsById.current.get(active.key)?.pause();
   }, [cancelPlayRetry]);
 
   const togglePlaybackPause = useCallback(() => {
@@ -982,13 +1057,13 @@ export function ReelsTabPage({
   return (
     <div
       data-reels-root
-      className="relative flex flex-col flex-1 min-h-0 w-full bg-black outline-none"
+      className="ms-reels-root relative flex flex-col flex-1 min-h-0 w-full bg-black outline-none"
       tabIndex={0}
       onKeyDown={onKeyDown}
       role="region"
       aria-label="Reels musicaux"
     >
-      {feedLoading && reels.length === 0 && (
+      {feedLoading && displayItems.length === 0 && (
         <div className="pointer-events-none absolute top-14 left-1/2 -translate-x-1/2 z-10 px-3 py-1 rounded-full bg-black/70 text-xs text-gray-300">
           Chargement…
         </div>
@@ -1019,31 +1094,47 @@ export function ReelsTabPage({
             onTouchEnd={onTouchEnd}
             onTouchCancel={onTouchCancel}
           >
-            {reels.map((reel, index) => (
-              <ReelSlide
-                key={reel.id}
-                reel={reel}
-                isActive={index === activeIndex}
-                muted={index === activeIndex ? muted : true}
-                videoRef={(el) => {
-                  if (el) videoRefsById.current.set(reel.id, el);
-                  else videoRefsById.current.delete(reel.id);
-                }}
-                audioRef={(el) => {
-                  if (el) audioRefsById.current.set(reel.id, el);
-                  else audioRefsById.current.delete(reel.id);
-                }}
-                onTapForSound={index === activeIndex ? tapVideoForSound : undefined}
-                onTapCenter={index === activeIndex ? togglePlaybackPause : undefined}
-                onDoubleTapLike={index === activeIndex ? likeReelOnDoubleTap : undefined}
-                showPlaybackPaused={index === activeIndex && playbackPaused}
-                resolveMuted={resolveMuted}
-                devCatalogVideoCount={
-                  isMsdevEnvironment() && index === activeIndex ? REELS_DEMO_VIDEO_COUNT : undefined
-                }
-                onOpenAuthor={onOpenProfile}
-              />
-            ))}
+            {displayItems.map((item, index) =>
+              item.kind === 'sponsor' ? (
+                <ReelsSponsoredSlide
+                  key={item.key}
+                  ad={item.ad}
+                  isActive={index === activeIndex}
+                  muted={index === activeIndex ? muted : true}
+                  videoRef={(el) => {
+                    if (el) videoRefsById.current.set(item.key, el);
+                    else videoRefsById.current.delete(item.key);
+                  }}
+                  onTapCenter={index === activeIndex ? togglePlaybackPause : undefined}
+                  showPlaybackPaused={index === activeIndex && playbackPaused}
+                  resolveMuted={resolveMuted}
+                />
+              ) : (
+                <ReelSlide
+                  key={item.key}
+                  reel={item.reel}
+                  isActive={index === activeIndex}
+                  muted={index === activeIndex ? muted : true}
+                  videoRef={(el) => {
+                    if (el) videoRefsById.current.set(item.key, el);
+                    else videoRefsById.current.delete(item.key);
+                  }}
+                  audioRef={(el) => {
+                    if (el) audioRefsById.current.set(item.key, el);
+                    else audioRefsById.current.delete(item.key);
+                  }}
+                  onTapForSound={index === activeIndex ? tapVideoForSound : undefined}
+                  onTapCenter={index === activeIndex ? togglePlaybackPause : undefined}
+                  onDoubleTapLike={index === activeIndex ? likeReelOnDoubleTap : undefined}
+                  showPlaybackPaused={index === activeIndex && playbackPaused}
+                  resolveMuted={resolveMuted}
+                  devCatalogVideoCount={
+                    isMsdevEnvironment() && index === activeIndex ? REELS_DEMO_VIDEO_COUNT : undefined
+                  }
+                  onOpenAuthor={onOpenProfile}
+                />
+              )
+            )}
           </div>
 
           {activeReel && (

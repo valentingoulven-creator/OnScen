@@ -11,6 +11,8 @@ interface StoryUserTagPickerProps {
   activeTagId?: string | null;
   onActiveTagChange?: (id: string | null) => void;
   maxTags?: number;
+  /** Total tagués (stickers + mentions @ dans le texte), pour la limite globale. */
+  totalTagCount?: number;
 }
 
 export function StoryUserTagPicker({
@@ -20,6 +22,7 @@ export function StoryUserTagPicker({
   activeTagId = null,
   onActiveTagChange,
   maxTags = 5,
+  totalTagCount,
 }: StoryUserTagPickerProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UserSearchHit[]>([]);
@@ -53,9 +56,11 @@ export function StoryUserTagPicker({
     return () => window.clearTimeout(timer);
   }, [query, token]);
 
+  const effectiveTotal = totalTagCount ?? tagged.length;
+
   const addTag = (hit: UserSearchHit) => {
     if (tagged.some((t) => t.id === hit.id)) return;
-    if (tagged.length >= maxTags) return;
+    if (effectiveTotal >= maxTags) return;
     onChange([
       ...tagged,
       {
@@ -133,7 +138,7 @@ export function StoryUserTagPicker({
         </div>
       ) : null}
 
-      {tagged.length < maxTags ? (
+      {effectiveTotal < maxTags ? (
         <>
           <input
             type="search"

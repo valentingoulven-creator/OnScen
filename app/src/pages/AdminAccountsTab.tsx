@@ -9,6 +9,14 @@ type UserFilter = 'all' | AccountStatus;
 
 const PAGE_SIZE = 30;
 
+type PlatformPlanId = 'free' | 'soundy_plus' | 'soundy_ultra';
+
+const PLATFORM_PLAN_OPTIONS: { id: PlatformPlanId; labelKey: string }[] = [
+  { id: 'free', labelKey: 'admin.accounts.platformPlanFree' },
+  { id: 'soundy_plus', labelKey: 'admin.accounts.platformPlanPlus' },
+  { id: 'soundy_ultra', labelKey: 'admin.accounts.platformPlanUltra' },
+];
+
 function formatDate(ts: number | undefined, locale: string): string {
   if (!ts) return '—';
   return new Date(ts).toLocaleDateString(locale, {
@@ -50,6 +58,33 @@ function statusBadgeClass(status: AccountStatus): string {
   if (status === 'active') return 'bg-green-500/20 text-green-400';
   if (status === 'pending') return 'bg-yellow-500/20 text-yellow-400';
   return 'bg-red-500/20 text-red-400';
+}
+
+function platformPlanBadgeClass(planId: PlatformPlanId | undefined): string {
+  if (planId === 'soundy_ultra') return 'bg-amber-500/20 text-amber-300';
+  if (planId === 'soundy_plus') return 'bg-purple-500/20 text-purple-300';
+  return 'bg-gray-500/20 text-gray-300';
+}
+
+function resolvePlatformPlanLabel(
+  user: AccessManagedUser,
+  t: (key: string) => string
+): string {
+  if (user.platformPlanLabel) return user.platformPlanLabel;
+  const planId = user.platformPlanId ?? 'free';
+  const option = PLATFORM_PLAN_OPTIONS.find((p) => p.id === planId);
+  return option ? t(option.labelKey) : t('admin.accounts.platformPlanFree');
+}
+
+type FeedbackKind = 'success' | 'error';
+
+function showFeedback(
+  setFeedback: (value: { message: string; kind: FeedbackKind } | null) => void,
+  message: string,
+  kind: FeedbackKind
+) {
+  setFeedback({ message, kind });
+  window.setTimeout(() => setFeedback(null), kind === 'error' ? 4000 : 2500);
 }
 
 async function copyText(text: string): Promise<boolean> {
@@ -153,7 +188,7 @@ export function AdminAccountsTab() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [detailById, setDetailById] = useState<Record<string, AccessManagedUser>>({});
   const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
-  const [copyFeedback, setCopyFeedback] = useState('');
+  const [feedback, setFeedback] = useState<{ message: string; kind: FeedbackKind } | null>(null);
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
@@ -234,10 +269,61 @@ export function AdminAccountsTab() {
     }
   };
 
+  const assignPlatformPlan = async (userId: string, planId: PlatformPlanId, username: string) => {
+    if (!token) return;
+    const planLabel = t(
+      PLATFORM_PLAN_OPTIONS.find((p) => p.id === planId)?.labelKey ?? 'admin.accounts.platformPlanFree'
+    );
+    if (
+      !window.confirm(
+        t('admin.accounts.platformPlanAssignConfirm', { plan: planLabel, username })
+      )
+    ) {
+      return;
+    }
+    setBusy(userId);
+    try {
+      const res = await api.assignAdminPlatformPlan(token, userId, planId);
+      const nextPlanId = res.status.plan.id as PlatformPlanId;
+      const nextPlanLabel = res.status.plan.label;
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === userId
+            ? { ...u, platformPlanId: nextPlanId, platformPlanLabel: nextPlanLabel }
+            : u
+        )
+      );
+      setDetailById((prev) => {
+        const existing = prev[userId];
+        if (!existing) return prev;
+        return {
+          ...prev,
+          [userId]: {
+            ...existing,
+            platformPlanId: nextPlanId,
+            platformPlanLabel: nextPlanLabel,
+          },
+        };
+      });
+      showFeedback(setFeedback, t('admin.accounts.platformPlanAssigned'), 'success');
+    } catch (e) {
+      showFeedback(
+        setFeedback,
+        e instanceof Error ? e.message : t('errors.network'),
+        'error'
+      );
+    } finally {
+      setBusy('');
+    }
+  };
+
   const handleCopy = async (text: string, label: string) => {
     const ok = await copyText(text);
-    setCopyFeedback(ok ? label : t('admin.accounts.copyFailed'));
-    window.setTimeout(() => setCopyFeedback(''), 2000);
+    showFeedback(
+      setFeedback,
+      ok ? label : t('admin.accounts.copyFailed'),
+      ok ? 'success' : 'error'
+    );
   };
 
   const toggleExpanded = async (userId: string) => {
@@ -357,7 +443,11 @@ export function AdminAccountsTab() {
               : t('admin.accounts.resultCount', { shown: users.length, total })}
           </p>
         )}
-        {copyFeedback && <span className="text-purple-400">{copyFeedback}</span>}
+        {feedback && (
+          <span className={feedback.kind === 'error' ? 'text-red-400' : 'text-purple-400'}>
+            {feedback.message}
+          </span>
+        )}
       </div>
 
       {loading && users.length === 0 && <p className="text-gray-400 text-sm">{t('app.loading')}</p>}
@@ -376,6 +466,8 @@ export function AdminAccountsTab() {
           const expanded = expandedId === u.id;
           const detail = detailById[u.id] ?? u;
           const rel = relationshipLabel(detail, t);
+          const planId = (detail.platformPlanId ?? 'free') as PlatformPlanId;
+          const planLabel = resolvePlatformPlanLabel(detail, t);
           return (
             <li
               key={u.id}
@@ -396,12 +488,20 @@ export function AdminAccountsTab() {
                       </div>
                     )}
                   </div>
-                  <span
-                    className={`text-[10px] px-2 py-0.5 rounded-full h-fit shrink-0 ${statusBadgeClass(u.accountStatus)}`}
-                  >
-                    {statusLabel(u.accountStatus, t)}
-                    {u.isAdmin ? ` · ${t('admin.accounts.adminBadge')}` : ''}
-                  </span>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full h-fit ${statusBadgeClass(u.accountStatus)}`}
+                    >
+                      {statusLabel(u.accountStatus, t)}
+                      {u.isAdmin ? ` · ${t('admin.accounts.adminBadge')}` : ''}
+                    </span>
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full h-fit ${platformPlanBadgeClass(planId)}`}
+                      title={t('admin.accounts.platformPlan', { plan: planLabel })}
+                    >
+                      {planLabel}
+                    </span>
+                  </div>
                 </div>
               </button>
 
@@ -460,6 +560,14 @@ export function AdminAccountsTab() {
                   {detail.meloCoins != null && (
                     <p>{t('admin.accounts.meloCoins', { count: detail.meloCoins })}</p>
                   )}
+                  <p className="flex flex-wrap items-center gap-2">
+                    <span className="text-gray-500">{t('admin.accounts.platformPlanSection')} :</span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] ${platformPlanBadgeClass(planId)}`}
+                    >
+                      {planLabel}
+                    </span>
+                  </p>
                   {detail.listeningRole && <p>{detail.listeningRole}</p>}
                   {(detail.bio || detail.bioPreview) && (
                     <p className="italic text-gray-500">{detail.bio ?? detail.bioPreview}</p>
@@ -486,6 +594,32 @@ export function AdminAccountsTab() {
                     >
                       {t('admin.accounts.copyEmail')}
                     </button>
+                  </div>
+                  <div className="pt-2 space-y-2 border border-purple-500/20 rounded-xl p-2.5 bg-purple-500/5">
+                    <p className="text-[10px] font-bold text-purple-300/90 uppercase tracking-wider">
+                      {t('admin.accounts.platformPlanSection')}
+                    </p>
+                    <p className="text-[10px] text-gray-500">{t('admin.accounts.platformPlanManageHint')}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {PLATFORM_PLAN_OPTIONS.map((plan) => {
+                        const isCurrent = (detail.platformPlanId ?? 'free') === plan.id;
+                        return (
+                          <button
+                            key={plan.id}
+                            type="button"
+                            disabled={busy === u.id || isCurrent}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border transition disabled:opacity-50 ${
+                              isCurrent
+                                ? 'bg-purple-600/30 border-purple-500/50 text-purple-200'
+                                : 'bg-[#1a1a26] border-[#2d2d3d] hover:border-purple-500/50'
+                            }`}
+                            onClick={() => void assignPlatformPlan(u.id, plan.id, u.username)}
+                          >
+                            {t(plan.labelKey)}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}

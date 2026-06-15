@@ -4,6 +4,11 @@ import {
   type StoryTextFontId,
 } from './storyTextFonts';
 import type { StoryTaggedUser } from '../types';
+import type { StoryTextMentionRef } from './storyTextMention';
+import {
+  effectiveTagFontSize,
+  effectiveTextFontSize,
+} from './storyOverlayTransform';
 import {
   computeCropRectFromViewport,
   initialCoverScale,
@@ -34,8 +39,12 @@ export interface StoryTextOverlay {
   y: number;
   color: string;
   fontSize: number;
+  /** Facteur d'échelle visuel (0,5–2) appliqué au fontSize. */
+  scale?: number;
   style?: StoryTextOverlayStyle;
   fontId?: StoryTextFontId;
+  /** Utilisateurs tagués inline via @ dans ce texte (pas de sticker séparé). */
+  mentionRefs?: StoryTextMentionRef[];
 }
 
 export async function loadImageBitmapFromDataUrl(dataUrl: string): Promise<ImageBitmap> {
@@ -48,6 +57,59 @@ export async function dataUrlToFile(dataUrl: string, name = 'story.jpg'): Promis
   const res = await fetch(dataUrl);
   const blob = await res.blob();
   return new File([blob], name, { type: blob.type || 'image/jpeg' });
+}
+
+/** Limite le décalage pour que l'image couvre toujours le viewport (pan type Insta/TikTok). */
+export function clampPanOffset(
+  imgW: number,
+  imgH: number,
+  viewportW: number,
+  viewportH: number,
+  scale: number,
+  offsetX: number,
+  offsetY: number
+): { offsetX: number; offsetY: number } {
+  const scaledW = imgW * scale;
+  const scaledH = imgH * scale;
+  const maxX = Math.max(0, (scaledW - viewportW) / 2);
+  const maxY = Math.max(0, (scaledH - viewportH) / 2);
+  return {
+    offsetX: Math.min(maxX, Math.max(-maxX, offsetX)),
+    offsetY: Math.min(maxY, Math.max(-maxY, offsetY)),
+  };
+}
+
+/** Zoom autour d'un point viewport tout en conservant le pixel source sous le curseur. */
+export function zoomPanAtViewportPoint(
+  imgW: number,
+  imgH: number,
+  viewportW: number,
+  viewportH: number,
+  scale: number,
+  offsetX: number,
+  offsetY: number,
+  nextScale: number,
+  pointX: number,
+  pointY: number
+): { scale: number; offsetX: number; offsetY: number } {
+  const left = (viewportW - imgW * scale) / 2 + offsetX;
+  const top = (viewportH - imgH * scale) / 2 + offsetY;
+  const imgX = (pointX - left) / scale;
+  const imgY = (pointY - top) / scale;
+  const newLeft = pointX - imgX * nextScale;
+  const newTop = pointY - imgY * nextScale;
+  const rawOffsetX = newLeft - (viewportW - imgW * nextScale) / 2;
+  const rawOffsetY = newTop - (viewportH - imgH * nextScale) / 2;
+  const clamped = clampPanOffset(
+    imgW,
+    imgH,
+    viewportW,
+    viewportH,
+    nextScale,
+    rawOffsetX,
+    rawOffsetY
+  );
+  return { scale: nextScale, offsetX: clamped.offsetX, offsetY: clamped.offsetY };
 }
 
 /** Zone source pour un viewport rectangulaire (story 9:16). */
@@ -169,11 +231,16 @@ function drawUserTagOverlays(
   referenceViewportW: number
 ): void {
   if (!tags.length) return;
-  const fontSize = Math.max(11, Math.round(13 * (bitmap.width / referenceViewportW)));
   const rx = 8 * (bitmap.width / referenceViewportW);
 
   for (let i = 0; i < tags.length; i++) {
     const tag = tags[i];
+    const fontSize = Math.max(
+      8,
+      Math.round(
+        effectiveTagFontSize(tag) * (13 / 11) * (bitmap.width / referenceViewportW)
+      )
+    );
     const { x, y } = resolveStoryTagPosition(tag, i, tags.length);
     const label = `@${tag.username}`;
     ctx.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`;
@@ -206,7 +273,10 @@ function drawTextOverlays(
   for (const o of overlays) {
     const text = o.text.trim();
     if (!text) continue;
-    const size = Math.max(12, Math.round(o.fontSize * (bitmap.width / referenceViewportW)));
+    const size = Math.max(
+      12,
+      Math.round(effectiveTextFontSize(o) * (bitmap.width / referenceViewportW))
+    );
     const style = o.style ?? 'plain';
     const font = resolveStoryTextFont(o.fontId);
     ctx.font = `${font.fontWeight} ${size}px ${font.fontFamily}`;

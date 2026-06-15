@@ -80,6 +80,7 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
     hostRatingsRes,
     notificationsRes,
     supportContactRes,
+    sponsorsRes,
   ] = await Promise.all([
     pool.query<{ version: number; saved_at: string; analytics_buckets: Record<string, number> }>(
       'SELECT version, saved_at, analytics_buckets FROM store_meta WHERE id = 1'
@@ -170,6 +171,9 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
     }>('SELECT id, recipient_id, sender_id, type, read, created_at, payload FROM notifications'),
     pool.query<{ payload: NonNullable<PersistedStore['supportContactMessages']>[number] }>(
       'SELECT payload FROM support_contact_messages'
+    ),
+    pool.query<{ payload: NonNullable<PersistedStore['sponsors']>[number] }>(
+      'SELECT payload FROM sponsors'
     ),
   ]);
 
@@ -264,6 +268,7 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
     stories: storiesRes.rows.map((r) => r.payload),
     analyticsBuckets: metaRes.rows[0]?.analytics_buckets ?? {},
     supportContactMessages: supportContactRes.rows.map((r) => r.payload),
+    sponsors: sponsorsRes.rows.map((r) => r.payload),
   };
 
   if (!isValidPersistedStore(store)) return null;
@@ -322,6 +327,7 @@ async function writeStore(client: PoolClient, data: PersistedStore): Promise<voi
     await client.query('DELETE FROM heart_events');
     await client.query('DELETE FROM notifications');
     await client.query('DELETE FROM support_contact_messages');
+    await client.query('DELETE FROM sponsors');
     await client.query('DELETE FROM user_favorites');
     await client.query('DELETE FROM user_follows');
     await client.query('DELETE FROM user_mutes');
@@ -544,6 +550,13 @@ async function writeStore(client: PoolClient, data: PersistedStore): Promise<voi
       await client.query('INSERT INTO support_contact_messages (id, payload) VALUES ($1, $2::jsonb)', [
         msg.id,
         JSON.stringify(msg),
+      ]);
+    }
+
+    for (const sponsor of data.sponsors ?? []) {
+      await client.query('INSERT INTO sponsors (id, payload) VALUES ($1, $2::jsonb)', [
+        sponsor.id,
+        JSON.stringify(sponsor),
       ]);
     }
 

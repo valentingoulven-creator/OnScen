@@ -1,5 +1,5 @@
 import type { MapStoryEntry } from '../lib/mapStoriesFeed';
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { UserAvatarOnline } from './UserAvatarOnline';
 
 export const STORY_ACTIVE_RING_CLASS =
@@ -157,7 +157,7 @@ function countSeenSegments(storyIds: string[] | undefined, seenIds: Set<string>)
   return storyIds.filter((id) => seenIds.has(id)).length;
 }
 
-export function MapStoryRing({
+export const MapStoryRing = memo(function MapStoryRing({
   entry,
   onClick,
   isSeen,
@@ -190,7 +190,11 @@ export function MapStoryRing({
       onClick={onClick}
       className="shrink-0 flex flex-col items-center gap-1 w-[4.5rem] snap-start"
       title={entry.username}
-      aria-label={`Story de ${entry.username}${segmentCount > 1 ? ` (${segmentCount})` : ''}`}
+      aria-label={
+        entry.isLive
+          ? `Live de ${entry.username}`
+          : `Story de ${entry.username}${segmentCount > 1 ? ` (${segmentCount})` : ''}`
+      }
     >
       {useSegmentRing ? (
         <div className="relative">
@@ -224,7 +228,7 @@ export function MapStoryRing({
       </span>
     </button>
   );
-}
+});
 
 export function MyMapStoryRing({
   username,
@@ -292,11 +296,13 @@ export function MyMapStoryRing({
               e.stopPropagation();
               onAddClick();
             }}
-            className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-purple-600 border-2 border-[#0b0b0f] flex items-center justify-center text-white text-xs font-bold leading-none hover:bg-purple-500 z-10"
+            className="absolute -bottom-2 -right-2 min-w-11 min-h-11 flex items-center justify-center rounded-full z-10"
             aria-label="Publier une nouvelle story"
             title="Publier une nouvelle story"
           >
-            +
+            <span className="w-6 h-6 rounded-full bg-purple-600 border-2 border-[var(--ms-bg,#0b0b0f)] flex items-center justify-center text-white text-xs font-bold leading-none hover:bg-purple-500">
+              +
+            </span>
           </button>
         ) : null}
       </div>

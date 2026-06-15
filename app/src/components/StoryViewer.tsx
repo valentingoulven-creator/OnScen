@@ -35,6 +35,15 @@ export function StoryViewer({
   const progressRef = useRef(0);
   const rafRef = useRef(0);
   const segmentStartRef = useRef(Date.now());
+  const onNextRef = useRef(onNext);
+  const onCloseRef = useRef(onClose);
+  const canNextRef = useRef(canNext);
+
+  useEffect(() => {
+    onNextRef.current = onNext;
+    onCloseRef.current = onClose;
+    canNextRef.current = canNext;
+  }, [onNext, onClose, canNext]);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -65,21 +74,25 @@ export function StoryViewer({
 
   useEffect(() => {
     if (paused) return;
-    const tick = () => {
+    let lastPaint = 0;
+    const tick = (now: number) => {
       const elapsed = Date.now() - segmentStartRef.current;
       const p = Math.min(1, elapsed / STORY_VIEW_DURATION_MS);
-      setProgress(p);
-      progressRef.current = p;
+      if (now - lastPaint >= 50 || p >= 1) {
+        setProgress(p);
+        progressRef.current = p;
+        lastPaint = now;
+      }
       if (p >= 1) {
-        if (canNext) onNext();
-        else onClose();
+        if (canNextRef.current) onNextRef.current();
+        else onCloseRef.current();
         return;
       }
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [story.id, paused, canNext, onNext, onClose]);
+  }, [story.id, paused]);
 
   const pause = useCallback(() => {
     setPaused(true);
@@ -134,7 +147,7 @@ export function StoryViewer({
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 select-none"
+      className="fixed inset-0 z-[200] flex items-stretch sm:items-center justify-center bg-black sm:bg-black/70 sm:backdrop-blur-sm p-0 sm:p-4 select-none"
       role="dialog"
       aria-modal="true"
       aria-label={`Story de ${story.author.username}`}
@@ -142,11 +155,11 @@ export function StoryViewer({
       {...mergeTouch}
     >
       <div
-        className="relative w-full max-w-md max-h-[70vh] flex flex-col overflow-hidden rounded-2xl bg-[#12121a] border border-[#2d2d3d] shadow-2xl"
+        className="relative w-full h-full sm:h-auto sm:max-w-md sm:max-h-[85dvh] flex flex-col overflow-hidden sm:rounded-2xl bg-[#12121a] sm:border sm:border-[#2d2d3d] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Barres de progression */}
-        <div className="flex gap-1 px-3 pt-3 shrink-0">
+        <div className="flex gap-1 px-3 ms-safe-area-top sm:pt-3 shrink-0">
           {stack.map((seg, i) => {
             let fill = 0;
             if (i < stackIndex) fill = 1;
@@ -199,8 +212,8 @@ export function StoryViewer({
           </button>
         </div>
 
-        {/* Media ajusté (object-contain, pas plein écran) */}
-        <div className="relative flex-1 min-h-[200px] max-h-[50vh] flex items-center justify-center bg-[#0b0b0f]">
+        {/* Media ajusté (object-contain, plein écran sur mobile) */}
+        <div className="relative flex-1 min-h-0 sm:min-h-[200px] sm:max-h-[55dvh] flex items-center justify-center bg-[#0b0b0f]">
           <div className="relative max-w-full max-h-full">
             {story.imageUrl ? (
               <img
@@ -257,7 +270,7 @@ export function StoryViewer({
           story.musicTrack ||
           story.link?.url ||
           (story.taggedUsers && story.taggedUsers.length > 0)) && (
-          <div className="shrink-0 px-4 py-3 space-y-2 overflow-y-auto max-h-[22vh] border-t border-[#1e1e2f]">
+          <div className="shrink-0 px-4 py-3 ms-safe-area-bottom pb-[max(0.75rem,env(safe-area-inset-bottom))] space-y-2 overflow-y-auto max-h-[22dvh] sm:max-h-[22vh] border-t border-[#1e1e2f]">
             {story.content ? (
               <p className="text-sm text-gray-200 whitespace-pre-wrap break-words">{story.content}</p>
             ) : null}

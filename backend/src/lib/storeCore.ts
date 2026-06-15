@@ -15,7 +15,10 @@ import {
   type HostRating,
   type Live,
   type SupportContactMessage,
+  type Sponsor,
+  type SponsorPlatformConfig,
 } from '../models/schema';
+import { ensureDefaultSponsorPlatformConfig } from './sponsorPlatformConfig';
 import { isValidLatLng } from './mapCoords';
 import { refreshUserPublicCoords } from './locationPrivacy';
 import { migrateUserRelationshipStatus } from './profile';
@@ -62,6 +65,8 @@ export interface PersistedStore {
   /** Lives terminés (archivés sur le profil). */
   archivedLives?: Live[];
   supportContactMessages?: SupportContactMessage[];
+  sponsors?: Sponsor[];
+  sponsorPlatformConfig?: SponsorPlatformConfig;
 }
 
 function setsToRecord(map: Map<string, Set<string>>): MapOfSets {
@@ -141,6 +146,8 @@ export function snapshotStore(): PersistedStore {
     analyticsBuckets: snapshotAnalyticsBuckets(),
     archivedLives: [...db.lives.values()].filter((l) => !l.isActive),
     supportContactMessages: [...db.supportContactMessages],
+    sponsors: [...db.sponsors],
+    sponsorPlatformConfig: { ...db.sponsorPlatformConfig },
   };
 }
 
@@ -242,6 +249,13 @@ export function restoreStore(data: PersistedStore): void {
 
   db.supportContactMessages.length = 0;
   db.supportContactMessages.push(...(data.supportContactMessages ?? []));
+
+  db.sponsors.length = 0;
+  db.sponsors.push(...(data.sponsors ?? []));
+  if (data.sponsorPlatformConfig) {
+    db.sponsorPlatformConfig = { ...data.sponsorPlatformConfig };
+  }
+  ensureDefaultSponsorPlatformConfig();
 }
 
 export function isValidPersistedStore(raw: unknown): raw is PersistedStore {

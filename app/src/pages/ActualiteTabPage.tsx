@@ -1,11 +1,11 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { applyFeedPreferences, sortFeedPostsByPublicationDate } from '../lib/feedFilter';
 import { HOME_FEED_DISPLAY_PREFS } from '../lib/feedUserPrefs';
 import { UsernameDisplay } from '../components/UsernameDisplay';
-import { PhotoImageEditor } from '../components/PhotoImageEditor';
+import { fetchStoriesBundle } from '../lib/storiesApiCache';
 import {
   clipboardItemsToImageFile,
   dataUrlToFeedImageDataUrl,
@@ -18,10 +18,11 @@ import {
 } from '../lib/feedVideo';
 import { geocodeCountryFromQuery } from '../lib/geocodeAddress';
 import { resolveEventCoords } from '../lib/mapEventCoords';
-import { dispatchMapEventsRefresh } from '../lib/mapUiEvents';
+import { dispatchMapEventsRefresh, dispatchMapOpenCreateSalon } from '../lib/mapUiEvents';
 import type { CommentAlign, FeedPost, FeedPostComment, MapStory, MusicNewsItem, TrendingUser } from '../types';
 import { StoryAvatarRing } from '../components/MapStoryRings';
 import { StoriesInlineBar, type StorySheetState } from '../components/StoriesInlineBar';
+import { FeedInlineAdBanner } from '../components/FeedInlineAdBanner';
 import { StoryViewer } from '../components/StoryViewer';
 import {
   findStackForStory,
@@ -48,6 +49,10 @@ import {
   isEventDateInFuture,
   parseEventDateInputValue,
 } from '../lib/eventDateInput';
+
+const PhotoImageEditor = lazy(() =>
+  import('../components/PhotoImageEditor').then((m) => ({ default: m.PhotoImageEditor }))
+);
 
 interface ActualiteTabPageProps {
   onOpenProfile: (userId: string) => void;
@@ -271,8 +276,8 @@ function SectionHeader({
       >
         {label}
       </h3>
-      {subtitle ? (
-        <span className="text-[10px] text-gray-500 font-normal normal-case tracking-normal">
+        {subtitle ? (
+        <span className="text-[10px] max-[374px]:text-[11px] text-gray-500 font-normal normal-case tracking-normal">
           {subtitle}
         </span>
       ) : null}
@@ -354,23 +359,24 @@ function PullToRefreshContainer({
 
   return (
     <div ref={containerRef} className={`feed-scroll ${className ?? ''}`.trim()}>
-      {refreshing ? (
-        <div className="flex items-center justify-center h-11 pointer-events-none" aria-hidden>
-          <div className="w-5 h-5 rounded-full border-2 border-purple-500 border-t-transparent animate-spin" />
-        </div>
-      ) : pullY > 0 ? (
+      {!refreshing && pullY > 0 ? (
         <div
-          className="flex items-center justify-center overflow-hidden pointer-events-none"
+          className="absolute left-0 right-0 top-0 z-10 flex items-end justify-center overflow-hidden pointer-events-none"
           style={{ height: pullY }}
           aria-hidden
         >
           <div
-            className="w-5 h-5 rounded-full border-2 border-purple-500/70 border-t-transparent shrink-0"
+            className="w-5 h-5 rounded-full border-2 border-purple-500/70 border-t-transparent shrink-0 mb-1"
             style={{
               opacity: 0.3 + progress * 0.7,
               transform: `rotate(${pullY * 4}deg) scale(${0.5 + progress * 0.5})`,
             }}
           />
+        </div>
+      ) : null}
+      {refreshing ? (
+        <div className="flex items-center justify-center h-11 shrink-0 pointer-events-none" aria-hidden>
+          <div className="w-5 h-5 rounded-full border-2 border-purple-500 border-t-transparent animate-spin" />
         </div>
       ) : null}
       {children}
@@ -754,6 +760,7 @@ const PostCard = memo(function PostCard({
           src={post.imageUrl}
           alt=""
           loading="lazy"
+          decoding="async"
           className="w-full rounded-lg max-h-64 object-cover bg-[#1e1e2f]"
         />
       )}
@@ -799,6 +806,8 @@ const PostCard = memo(function PostCard({
             <img
               src={post.resharedFrom.imageUrl}
               alt=""
+              loading="lazy"
+              decoding="async"
               className="w-full rounded-md max-h-40 object-cover bg-[#1e1e2f]"
             />
           )}
@@ -1098,17 +1107,9 @@ export function ActualiteTabPage({
       return;
     }
     try {
-      const [storiesRes, mineRes] = await Promise.all([
-        api.getStories(token),
-        api.getMyStory(token),
-      ]);
-      const allStories = [...(storiesRes.stories ?? [])];
-      const mineStories = mineRes.stories?.length
-        ? mineRes.stories
-        : mineRes.story
-          ? [mineRes.story]
-          : [];
-      for (const s of mineStories) {
+      const bundle = await fetchStoriesBundle(token);
+      const allStories = [...bundle.stories];
+      for (const s of bundle.mine) {
         if (!allStories.some((x) => x.id === s.id)) allStories.push(s);
       }
       setFeedStoriesByUser(groupStoriesByUser(allStories));
@@ -1203,7 +1204,7 @@ export function ActualiteTabPage({
     (post: FeedPost) => {
       if (post.authorHasActiveStory) {
         const userStories = feedStoriesByUser.get(post.author.id);
-        const story = userStories ? pickInitialStory(userStories, new Set()) : undefined;
+        const story = userStories ? pickInitialStory(userStories) : undefined;
         if (story) {
           setFeedStorySheet({ kind: 'view', story, isOwn: post.author.id === user?.id });
           return;
@@ -1662,8 +1663,8 @@ export function ActualiteTabPage({
   );
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 bg-[#0b0b0f]">
-      <div className="flex flex-col flex-1 min-h-0 w-full max-w-2xl mx-auto">
+    <div className="flex flex-col flex-1 min-h-0 min-w-0 w-full bg-[var(--ms-bg)]">
+      <div className="flex flex-col flex-1 min-h-0 min-w-0 w-full max-w-2xl mx-auto">
 
 
         {/* ══ FIL D'ACCUEIL ═════════════════════════════════════════════════ */}
@@ -1672,7 +1673,7 @@ export function ActualiteTabPage({
             <PullToRefreshContainer
               onRefresh={() => void loadFeed(true)}
               refreshing={refreshing}
-              className="flex-1 min-h-0 h-full p-3 space-y-3"
+              className="flex-1 min-h-0 min-w-0 h-full p-3 space-y-3"
             >
               <div className="mt-4">{storiesSection}</div>
 
@@ -1685,8 +1686,8 @@ export function ActualiteTabPage({
                 Actualités
               </button>
 
-              <div className="rounded-xl border border-[#1e1e2f] bg-[#12121a] p-3 space-y-2">
-                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">{t('feed.publish')}</p>
+              <div className="rounded-xl border border-[var(--ms-border)] bg-[var(--ms-surface)] p-3 space-y-2">
+                    <p className="text-xs text-[var(--ms-text-muted)] font-medium uppercase tracking-wide">{t('feed.publish')}</p>
                     <input
                       ref={imageFileInputRef}
                       type="file"
@@ -1717,7 +1718,7 @@ export function ActualiteTabPage({
                       title="Coller une image (Ctrl+V)"
                       rows={3}
                       maxLength={2000}
-                      className="w-full rounded-xl bg-[#0b0b0f] border border-[#2a2a3d] px-3 py-2 text-sm text-white placeholder:text-gray-600 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                      className="w-full rounded-xl bg-[var(--ms-bg)] border border-[var(--ms-border)] px-3 py-2 text-sm text-[var(--ms-text)] placeholder:text-[var(--ms-text-muted)] resize-none focus:outline-none focus:ring-2 focus:ring-[var(--ms-accent)]/50"
                     />
 
                     {/* ── Créer un événement ── */}
@@ -1751,7 +1752,7 @@ export function ActualiteTabPage({
                       <div className="space-y-2 p-3 rounded-xl bg-purple-950/30 border border-purple-500/25">
                         <p className="text-[10px] font-bold text-purple-300 uppercase tracking-wide">{t('feed.eventDetails')}</p>
                         <div>
-                          <p className="block text-[10px] text-gray-400 mb-1.5">{t('feed.eventType')}</p>
+                          <p className="block text-[10px] text-gray-300 mb-1.5">{t('feed.eventType')}</p>
                           <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={t('feed.eventType')}>
                             {(
                               [
@@ -1782,7 +1783,7 @@ export function ActualiteTabPage({
                           </div>
                         </div>
                         <div>
-                          <label className="block text-[10px] text-gray-400 mb-1">{t('feed.eventDate')} *</label>
+                          <label className="block text-[10px] text-gray-300 mb-1">{t('feed.eventDate')} *</label>
                           <div className="flex gap-2 items-stretch">
                             <div className="relative flex-1 min-w-0">
                               <input
@@ -1835,7 +1836,7 @@ export function ActualiteTabPage({
                           )}
                         </div>
                         <div>
-                          <label className="block text-[10px] text-gray-400 mb-1">{t('feed.eventLocation')} *</label>
+                          <label className="block text-[10px] text-gray-300 mb-1">{t('feed.eventLocation')} *</label>
                           <EventLocationInput
                             value={eventLocation}
                             onChange={setEventLocation}
@@ -1857,7 +1858,7 @@ export function ActualiteTabPage({
                           <div className="h-20 w-20 rounded-lg bg-[#1e1e2f] border border-[#2a2a3d] animate-pulse shrink-0" />
                         )}
                         <div className="min-w-0 flex-1 pt-0.5">
-                          <p className="text-[10px] text-gray-400">
+                          <p className="text-[10px] text-gray-300">
                             {imageAttaching ? t('feed.preparingImage') : t('feed.imageAttached')}
                           </p>
                           {imageUrl.trim() && !imageAttaching && (
@@ -1886,7 +1887,7 @@ export function ActualiteTabPage({
                           <div className="h-24 w-36 rounded-lg bg-[#1e1e2f] border border-[#2a2a3d] animate-pulse shrink-0" />
                         )}
                         <div className="min-w-0 flex-1 pt-0.5">
-                          <p className="text-[10px] text-gray-400">
+                          <p className="text-[10px] text-gray-300">
                             {videoAttaching ? t('feed.preparingVideo') : t('feed.videoAttached')}
                           </p>
                           {videoUrl.trim() && !videoAttaching && (
@@ -1910,10 +1911,10 @@ export function ActualiteTabPage({
                           onClick={() => imageFileInputRef.current?.click()}
                           title={t('feed.attachImage')}
                           aria-label={t('feed.attachImage')}
-                          className={`p-1.5 rounded-lg transition disabled:opacity-40 ${
+                          className={`min-w-11 min-h-11 flex items-center justify-center p-1.5 rounded-lg transition disabled:opacity-40 ${
                             imageUrl.trim()
                               ? 'text-purple-300 bg-purple-900/40'
-                              : 'text-gray-500 hover:text-gray-300 hover:bg-[#1e1e2f]'
+                              : 'text-[var(--ms-text-muted)] hover:text-gray-300 hover:bg-[var(--ms-surface-2)]'
                           }`}
                         >
                           <PhotoIcon className="w-4 h-4" />
@@ -1924,10 +1925,10 @@ export function ActualiteTabPage({
                           onClick={() => videoFileInputRef.current?.click()}
                           title={t('feed.attachVideo')}
                           aria-label={t('feed.attachVideo')}
-                          className={`p-1.5 rounded-lg transition disabled:opacity-40 ${
+                          className={`min-w-11 min-h-11 flex items-center justify-center p-1.5 rounded-lg transition disabled:opacity-40 ${
                             videoUrl.trim()
                               ? 'text-purple-300 bg-purple-900/40'
-                              : 'text-gray-500 hover:text-gray-300 hover:bg-[#1e1e2f]'
+                              : 'text-[var(--ms-text-muted)] hover:text-gray-300 hover:bg-[var(--ms-surface-2)]'
                           }`}
                         >
                           <VideoIcon className="w-4 h-4" />
@@ -1936,7 +1937,7 @@ export function ActualiteTabPage({
                           type="button"
                           disabled={!canPublish || publishing || mediaAttaching || editorOpen}
                           onClick={() => void publish()}
-                          className="rounded-lg bg-purple-600 hover:bg-purple-500 px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
+                          className="min-h-11 rounded-lg bg-[var(--ms-accent)] hover:bg-purple-500 px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
                         >
                           {publishing ? t('feed.publishing') : t('feed.publish')}
                         </button>
@@ -1949,35 +1950,55 @@ export function ActualiteTabPage({
                 <p className="text-sm text-gray-500 text-center py-8">Chargement…</p>
               )}
               {!loading && visiblePosts.length === 0 && (
-                <p className="text-sm text-gray-500 text-center py-8">
-                  {posts.length === 0
-                    ? 'Aucune publication pour le moment. Sois le premier !'
-                    : 'Aucune publication pour le moment.'}
-                </p>
+                <div className="flex flex-col items-center gap-2 py-8 px-4 text-center">
+                  <p className="text-sm text-gray-300">
+                    {posts.length === 0
+                      ? 'Aucune publication de vos abonnements pour le moment.'
+                      : 'Aucune publication ne correspond à vos filtres.'}
+                  </p>
+                  {posts.length === 0 ? (
+                    <p className="text-xs text-[var(--ms-text-muted)] max-w-xs">
+                      Suivez des artistes depuis la carte ou leurs profils pour remplir votre fil d&apos;accueil.
+                    </p>
+                  ) : null}
+                </div>
               )}
-              {visiblePosts.map((post) => (
-                <PostCard
-                  key={post.id}
-                  post={{
-                    ...post,
-                    resharedByMe: !!post.resharedByMe || linkSharedPostIds.has(post.id),
-                  }}
-                  onOpenAuthor={handlePostAuthorClick}
-                  storiesByUser={feedStoriesByUser}
-                  commentOpenPostId={commentOpenPostId}
-                  commentDraft={commentDrafts[post.id] ?? ''}
-                  onCommentDraftChange={(v: string) => setCommentDrafts((p) => ({ ...p, [post.id]: v }))}
-                  fullComments={fullComments[post.id]}
-                  commentsLoading={commentsLoading[post.id] ?? false}
-                  commentPosting={commentPosting[post.id] ?? false}
-                  onToggleLike={() => void handleLike(post)}
-                  onToggleComments={() => void handleToggleComments(post)}
-                  onPostComment={() => void handlePostComment(post.id)}
-                  onReshare={() => void handleReshare(post)}
-                  onShare={() => setSharePost(post)}
-                  onToggleFavorite={() => void handleToggleFavorite(post)}
-                />
+              {visiblePosts.map((post, postIndex) => (
+                <div key={post.id} className="space-y-3">
+                  <PostCard
+                    post={{
+                      ...post,
+                      resharedByMe: !!post.resharedByMe || linkSharedPostIds.has(post.id),
+                    }}
+                    onOpenAuthor={handlePostAuthorClick}
+                    storiesByUser={feedStoriesByUser}
+                    commentOpenPostId={commentOpenPostId}
+                    commentDraft={commentDrafts[post.id] ?? ''}
+                    onCommentDraftChange={(v: string) => setCommentDrafts((p) => ({ ...p, [post.id]: v }))}
+                    fullComments={fullComments[post.id]}
+                    commentsLoading={commentsLoading[post.id] ?? false}
+                    commentPosting={commentPosting[post.id] ?? false}
+                    onToggleLike={() => void handleLike(post)}
+                    onToggleComments={() => void handleToggleComments(post)}
+                    onPostComment={() => void handlePostComment(post.id)}
+                    onReshare={() => void handleReshare(post)}
+                    onShare={() => setSharePost(post)}
+                    onToggleFavorite={() => void handleToggleFavorite(post)}
+                  />
+                  {postIndex === 0 ? (
+                    <FeedInlineAdBanner
+                      onCtaSalon={() => dispatchMapOpenCreateSalon()}
+                      onCtaLive={onOpenLive ? () => onOpenLive('') : undefined}
+                    />
+                  ) : null}
+                </div>
               ))}
+              {!loading && visiblePosts.length === 0 ? (
+                <FeedInlineAdBanner
+                  onCtaSalon={() => dispatchMapOpenCreateSalon()}
+                  onCtaLive={onOpenLive ? () => onOpenLive('') : undefined}
+                />
+              ) : null}
             </PullToRefreshContainer>
           </>
         )}
@@ -2019,13 +2040,15 @@ export function ActualiteTabPage({
       </div>
 
       {editorOpen ? (
-        <PhotoImageEditor
-          mode="feed"
-          initialImage={editorPreviewUrl!}
-          initialSource={editorSource!}
-          onConfirm={(result) => void onFeedEditorConfirm(result.imageUrl)}
-          onCancel={onFeedEditorCancel}
-        />
+        <Suspense fallback={null}>
+          <PhotoImageEditor
+            mode="feed"
+            initialImage={editorPreviewUrl!}
+            initialSource={editorSource!}
+            onConfirm={(result) => void onFeedEditorConfirm(result.imageUrl)}
+            onCancel={onFeedEditorCancel}
+          />
+        </Suspense>
       ) : null}
 
       {/* ── Share sheet ── */}

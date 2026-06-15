@@ -1,15 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { MAP_ADS, type MapAd } from '../content/ads';
-
-const ROTATE_MS = 8000;
-
-const accentStyles: Record<MapAd['accent'], string> = {
-  purple: 'from-purple-600/90 via-violet-700/80 to-purple-900/90',
-  pink: 'from-pink-600/90 via-fuchsia-700/80 to-purple-900/90',
-  amber: 'from-amber-500/90 via-orange-600/80 to-amber-900/90',
-  cyan: 'from-cyan-600/90 via-teal-600/80 to-indigo-900/90',
-  rose: 'from-rose-600/90 via-pink-700/80 to-purple-900/90',
-};
+import { type MapAd } from '../content/ads';
+import { api } from '../lib/api';
+import { mapApiAdToMapAd, resolveMapAds } from '../lib/sponsorAds';
+import { getDisplayDurationMs, SPONSOR_ACCENT_GRADIENTS } from '../lib/sponsorDisplaySpec';
 
 interface MapAdBannerProps {
   onCtaSalon?: () => void;
@@ -17,10 +10,30 @@ interface MapAdBannerProps {
 }
 
 export function MapAdBanner({ onCtaSalon, onCtaLive }: MapAdBannerProps) {
+  const [ads, setAds] = useState<MapAd[]>(() => resolveMapAds(null));
   const [index, setIndex] = useState(0);
   const [fading, setFading] = useState(false);
 
-  const ad = MAP_ADS[index % MAP_ADS.length];
+  useEffect(() => {
+    let cancelled = false;
+    void api
+      .getMapSponsors()
+      .then((res) => {
+        if (cancelled) return;
+        const mapped = res.items.map(mapApiAdToMapAd);
+        setAds(resolveMapAds(mapped));
+        setIndex(0);
+      })
+      .catch(() => {
+        if (!cancelled) setAds(resolveMapAds(null));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const count = ads.length || 1;
+  const ad = ads[index % count];
   const badgeLabel = ad.kind === 'sponsored' ? 'Sponsorisé' : 'Promo';
 
   const goTo = useCallback((nextIndex: number) => {
@@ -32,23 +45,39 @@ export function MapAdBanner({ onCtaSalon, onCtaLive }: MapAdBannerProps) {
   }, []);
 
   useEffect(() => {
-    const t = window.setInterval(() => {
-      setIndex((i) => {
-        const nextIndex = (i + 1) % MAP_ADS.length;
+    if (ads.length <= 1) return;
+    let cancelled = false;
+    let timer: number | undefined;
+
+    const scheduleNext = (currentIndex: number) => {
+      if (cancelled) return;
+      const currentAd = ads[currentIndex % ads.length];
+      timer = window.setTimeout(() => {
+        if (cancelled) return;
         setFading(true);
         window.setTimeout(() => setFading(false), 180);
-        return nextIndex;
-      });
-    }, ROTATE_MS);
-    return () => clearInterval(t);
-  }, []);
+        setIndex((i) => {
+          const nextIndex = (i + 1) % ads.length;
+          scheduleNext(nextIndex);
+          return nextIndex;
+        });
+      }, getDisplayDurationMs(currentAd.displayDurationSec));
+    };
+
+    scheduleNext(0);
+    return () => {
+      cancelled = true;
+      if (timer != null) clearTimeout(timer);
+    };
+  }, [ads]);
 
   const handleCta = () => {
-    if (ad.id === 'salon' && onCtaSalon) {
+    const action = ad.actionId ?? (ad.id === 'salon' ? 'salon' : ad.id === 'live' ? 'live' : undefined);
+    if (action === 'salon' && onCtaSalon) {
       onCtaSalon();
       return;
     }
-    if (ad.id === 'live' && onCtaLive) {
+    if (action === 'live' && onCtaLive) {
       onCtaLive();
       return;
     }
@@ -64,7 +93,7 @@ export function MapAdBanner({ onCtaSalon, onCtaLive }: MapAdBannerProps) {
       aria-label="Bandeau publicitaire"
     >
       <div
-        className={`relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-r ${accentStyles[ad.accent]} shadow-lg shadow-black/20`}
+        className={`relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-r ${SPONSOR_ACCENT_GRADIENTS[ad.accent]} shadow-lg shadow-black/20`}
       >
         <div className="absolute top-2 left-3 z-10 flex items-center gap-2">
           <span className="text-[13.5px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded-full border border-amber-400/25">
@@ -96,19 +125,21 @@ export function MapAdBanner({ onCtaSalon, onCtaLive }: MapAdBannerProps) {
           </button>
         </div>
 
-        <div className="flex justify-center gap-1.5 pb-2">
-          {MAP_ADS.map((item, i) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => goTo(i)}
-              className={`h-1.5 rounded-full transition-all ${
-                i === index % MAP_ADS.length ? 'w-6 bg-white/90' : 'w-2.5 bg-white/35 hover:bg-white/55'
-              }`}
-              aria-label={`Publicité ${i + 1} sur ${MAP_ADS.length}`}
-            />
-          ))}
-        </div>
+        {ads.length > 1 && (
+          <div className="flex justify-center gap-1.5 pb-2">
+            {ads.map((item, i) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => goTo(i)}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === index % ads.length ? 'w-6 bg-white/90' : 'w-2.5 bg-white/35 hover:bg-white/55'
+                }`}
+                aria-label={`Publicité ${i + 1} sur ${ads.length}`}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

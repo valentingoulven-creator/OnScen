@@ -62,11 +62,13 @@ export function getPlatformCommissionPercent(): number {
 export function getSubscriptionTiers(): SubscriptionTier[] {
   const tier1Cents = parseAmountCents('SUBSCRIPTION_TIER1_AMOUNT_EUR', 499);
   const tier2Cents = parseAmountCents('SUBSCRIPTION_TIER2_AMOUNT_EUR', 999);
-  const soundlyPlusCents = parseAmountCents('SUBSCRIPTION_SOUNDLY_PLUS_AMOUNT_EUR', 499);
+  const soundyPlusCents = parseAmountCents('SUBSCRIPTION_SOUNDY_PLUS_AMOUNT_EUR', 999);
+  const soundyUltraCents = parseAmountCents('SUBSCRIPTION_SOUNDY_ULTRA_AMOUNT_EUR', 1999);
 
   const tier1Label = process.env.SUBSCRIPTION_TIER1_LABEL?.trim() || 'Supporter';
   const tier2Label = process.env.SUBSCRIPTION_TIER2_LABEL?.trim() || 'Super fan';
-  const soundlyPlusLabel = process.env.SUBSCRIPTION_SOUNDLY_PLUS_LABEL?.trim() || 'Soundy+';
+  const soundyPlusLabel = process.env.SUBSCRIPTION_SOUNDY_PLUS_LABEL?.trim() || 'Soundy+';
+  const soundyUltraLabel = process.env.SUBSCRIPTION_SOUNDY_ULTRA_LABEL?.trim() || 'SoundyUltra';
 
   const tiers: SubscriptionTier[] = [
     {
@@ -84,10 +86,17 @@ export function getSubscriptionTiers(): SubscriptionTier[] {
       targetType: 'creator',
     },
     {
-      id: 'soundly_plus',
-      label: soundlyPlusLabel,
-      amountCents: soundlyPlusCents,
-      stripePriceId: process.env.STRIPE_PRICE_ID_SOUNDLY_PLUS?.trim() || null,
+      id: 'soundy_plus',
+      label: soundyPlusLabel,
+      amountCents: soundyPlusCents,
+      stripePriceId: process.env.STRIPE_PRICE_ID_SOUNDY_PLUS?.trim() || null,
+      targetType: 'platform',
+    },
+    {
+      id: 'soundy_ultra',
+      label: soundyUltraLabel,
+      amountCents: soundyUltraCents,
+      stripePriceId: process.env.STRIPE_PRICE_ID_SOUNDY_ULTRA?.trim() || null,
       targetType: 'platform',
     },
   ];

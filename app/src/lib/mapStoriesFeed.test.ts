@@ -55,6 +55,18 @@ describe('buildMapStoryEntries', () => {
     expect(entries).toHaveLength(1);
     expect(entries[0].username).toBe('Bob');
   });
+
+  it('includes live person with viewer count', () => {
+    const entries = buildMapStoryEntries(
+      [{ id: 'u3', username: 'Nova', isLive: true, liveId: 'live-1', liveViewersCount: 42 }],
+      [],
+      []
+    );
+    expect(entries).toHaveLength(1);
+    expect(entries[0].isLive).toBe(true);
+    expect(entries[0].liveId).toBe('live-1');
+    expect(entries[0].liveViewersCount).toBe(42);
+  });
 });
 
 describe('buildViewableStories', () => {

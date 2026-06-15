@@ -381,6 +381,49 @@ export interface SupportThreadMessage {
   authorUserId: string;
 }
 
+/** Emplacement d'affichage d'un sponsor dans l'application. */
+export type SponsorPlacement = 'map_banner' | 'feed_inline' | 'stories_banner' | 'reels_sponsored';
+
+/** Configuration globale des sponsors (admin). */
+export interface SponsorPlatformConfig {
+  reelsSponsorEnabled: boolean;
+  reelsSponsorEveryN: number;
+}
+
+export type SponsorAccent = 'purple' | 'pink' | 'amber' | 'cyan' | 'rose';
+
+export type SponsorKind = 'promo' | 'sponsored';
+
+/** Sponsor / bandeau publicitaire géré depuis l'administration. */
+export interface Sponsor {
+  id: string;
+  /** Nom affiché (ex. « Deezer », « Soundy »). */
+  name: string;
+  logoUrl?: string;
+  linkUrl?: string;
+  placement: SponsorPlacement;
+  active: boolean;
+  /** Ordre d'affichage (plus petit = prioritaire). */
+  priority: number;
+  startsAt?: number;
+  endsAt?: number;
+  title: string;
+  subtitle: string;
+  cta: string;
+  accent: SponsorAccent;
+  kind: SponsorKind;
+  /** Action interne (salon, live) si pas de lien externe. */
+  actionId?: 'salon' | 'live';
+  /** Durée d'affichage dans le carrousel (secondes, défaut 8). */
+  displayDurationSec?: number;
+  /** URL vidéo (reels sponsorisés). */
+  videoUrl?: string;
+  /** Vignette / poster (reels sponsorisés). */
+  posterUrl?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 /** Message utilisateur → équipe Soundy (support). */
 export interface SupportContactMessage {
   id: string;
@@ -609,4 +652,9 @@ export const db = {
    */
   dmPendingPairs: new Map<string, 'pending' | 'accepted' | 'refused'>(),
   supportContactMessages: [] as SupportContactMessage[],
+  sponsors: [] as Sponsor[],
+  sponsorPlatformConfig: {
+    reelsSponsorEnabled: true,
+    reelsSponsorEveryN: 5,
+  } as SponsorPlatformConfig,
 };

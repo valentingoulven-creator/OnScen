@@ -19,16 +19,9 @@
   --tab-nav-total-h: calc(
     var(--tab-nav-float-gap) + var(--tab-nav-btn-size) + env(safe-area-inset-bottom, 0px)
   );
-  --app-header-row-h: 2rem;
-  --app-header-pad-b: 0.25rem;
+  --app-header-row-h: 2.25rem;
+  --app-header-pad-b: 0.5rem;
   --app-header-tabs-h: 0px;
-  --app-header-total-h: calc(
-    max(0.375rem, env(safe-area-inset-top, 0px))
-    + var(--app-header-row-h)
-    + var(--app-header-pad-b)
-    + var(--app-header-tabs-h)
-  );
-  --map-h: calc(100dvh - var(--app-header-total-h) - var(--tab-nav-total-h));
 }
 
 html {
@@ -436,6 +429,69 @@ body {
 
 .safe-area-pb {
   padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.ms-safe-area-top {
+  padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
+}
+
+.ms-safe-area-bottom {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+.ms-app-shell {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+  --app-header-total-h: calc(
+    max(0.75rem, env(safe-area-inset-top, 0px))
+    + var(--app-header-row-h)
+    + var(--app-header-pad-b)
+    + var(--app-header-tabs-h)
+    + 1px
+  );
+  --map-h: calc(100dvh - var(--app-header-total-h) - var(--tab-nav-total-h));
+}
+
+.ms-story-editor-shell {
+  --keyboard-inset: 0px;
+}
+
+.ms-story-editor-dock {
+  transition: transform 0.15s ease-out;
+  transform: translateY(calc(-1 * var(--keyboard-inset, 0px)));
+}
+
+.ms-map-page {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.ms-map-viewport {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: min(280px, 52dvh);
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.ms-reels-root {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+.ms-reels-root .reels-viewport {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .reels-viewport {

@@ -45,7 +45,9 @@ import type { MapStory, NearbyPerson, User } from '../types';
 import { MapLocationPinButton } from './MapLocationPinButton';
 import { MapStorySheet } from './MapStorySheet';
 import { MapStoryRing, MyMapStoryRing } from './MapStoryRings';
+import { StoryLivePreviewViewer } from './StoryLivePreviewViewer';
 import { StoryViewer } from './StoryViewer';
+import { StoriesRingsCarousel } from './StoriesRingsCarousel';
 import { USERNAME_WAVE_CLASS } from '../lib/usernameColor';
 
 interface MapStoriesAccordionProps {
@@ -61,6 +63,10 @@ type SheetState =
   | { kind: 'closed' }
   | { kind: 'create' }
   | { kind: 'view'; story: MapStory; isOwn: boolean };
+
+type LivePreviewState =
+  | { kind: 'closed' }
+  | { kind: 'open'; entry: MapStoryEntry; liveId: string };
 
 export function MapStoriesAccordion({
   nearbyPeople,
@@ -83,6 +89,7 @@ export function MapStoriesAccordion({
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const [sheet, setSheet] = useState<SheetState>({ kind: 'closed' });
+  const [livePreview, setLivePreview] = useState<LivePreviewState>({ kind: 'closed' });
   const [prefs, setPrefs] = useState<NearbyPanelPreferences>(() => getNearbyPanelPreferences());
   const [mapGeo, setMapGeo] = useState<LivesGeoPrefs>(() => getLivesGeo());
   const [radiusKm, setRadiusKm] = useState(() => getNearbyRadiusKm());
@@ -180,6 +187,11 @@ export function MapStoriesAccordion({
     return String(base);
   }, [entries.length, loading, token, user]);
 
+  const ringCount = useMemo(
+    () => entries.length + (user && token ? 1 : 0),
+    [entries.length, token, user]
+  );
+
   const storyStacks = useMemo(
     () => buildStoryUserStacks(entries, storiesByUser, myStories),
     [entries, storiesByUser, myStories]
@@ -212,14 +224,14 @@ export function MapStoriesAccordion({
   const openEntry = (entry: MapStoryEntry) => {
     if (entry.hasActiveStory && entry.storyId) {
       const userStories = storiesByUser.get(entry.userId);
-      const story = userStories ? pickInitialStory(userStories, new Set()) : undefined;
+      const story = userStories ? pickInitialStory(userStories) : undefined;
       if (story) {
         setSheet({ kind: 'view', story, isOwn: entry.userId === user?.id });
         return;
       }
     }
-    if (entry.isLive && entry.liveId && onOpenLive) {
-      onOpenLive(entry.liveId);
+    if (entry.isLive && entry.liveId) {
+      setLivePreview({ kind: 'open', entry, liveId: entry.liveId });
       return;
     }
     if (entry.reelId && onOpenReel) {
@@ -239,7 +251,7 @@ export function MapStoriesAccordion({
 
   const openMyStory = () => {
     if (myStories.length) {
-      const story = pickInitialStory(myStories, new Set()) ?? myStories[0]!;
+      const story = pickInitialStory(myStories) ?? myStories[0]!;
       setSheet({ kind: 'view', story, isOwn: true });
     } else {
       setSheet({ kind: 'create' });
@@ -396,7 +408,7 @@ export function MapStoriesAccordion({
                   Aucune story à proximité pour le moment.
                 </p>
               ) : (
-                <div className="stories-rings-carousel flex flex-nowrap gap-2 pb-1 -mx-2 px-2">
+                <StoriesRingsCarousel itemCount={ringCount}>
                   {user && token ? (
                     <MyMapStoryRing
                       userId={user.id}
@@ -417,7 +429,7 @@ export function MapStoriesAccordion({
                       storyIds={storiesByUser.get(entry.userId)?.map((s) => s.id)}
                     />
                   ))}
-                </div>
+                </StoriesRingsCarousel>
               )}
             </div>
           )}
@@ -445,6 +457,16 @@ export function MapStoriesAccordion({
           onPrev={goPrevStory}
           canNext={canNextStory}
           canPrev={canPrevStory}
+        />
+      ) : null}
+
+      {token && livePreview.kind === 'open' ? (
+        <StoryLivePreviewViewer
+          entry={livePreview.entry}
+          liveId={livePreview.liveId}
+          token={token}
+          onClose={() => setLivePreview({ kind: 'closed' })}
+          onJoin={onOpenLive}
         />
       ) : null}
     </>

@@ -2,6 +2,12 @@ export const SUBSCRIPTION_MIN_AGE = 18;
 
 export type SubscriptionTargetType = 'creator' | 'platform';
 
+export type PlatformPlanId = 'free' | 'soundy_plus' | 'soundy_ultra';
+
+export function canAccessArchivedLives(planId: string): boolean {
+  return planId === 'soundy_plus' || planId === 'soundy_ultra';
+}
+
 export interface SubscriptionTierConfig {
   id: string;
   label: string;
@@ -21,6 +27,37 @@ export interface SubscriptionsConfig {
   minAge: number;
   platformCommissionPercent: number;
   dailyCapRemaining: number | null;
+  platformPlans?: PlatformPlanConfig[];
+}
+
+export interface PlatformPlanLimits {
+  maxViewers: number | null;
+  maxLiveMinutesPerDay: number | null;
+  allowObs: boolean;
+  allowLiveKit: boolean;
+  allowCloudflare: boolean;
+}
+
+export interface PlatformPlanConfig {
+  id: string;
+  label: string;
+  priceCents: number;
+  priceDisplay: string;
+  subscriptionTierId: string | null;
+  limits: PlatformPlanLimits;
+  featuresFr: string[];
+}
+
+export interface PlatformPlanStatusResponse {
+  plan: PlatformPlanConfig;
+  dailyLiveMinutesUsed: number;
+  dailyLiveMinutesLimit: number | null;
+  activePlatformSubscription: {
+    tierId: string;
+    tierLabel: string;
+    currentPeriodEnd: number;
+  } | null;
+  plans: PlatformPlanConfig[];
 }
 
 export interface SubscriptionStatus {

@@ -12,6 +12,7 @@ export interface MapStoryEntry {
   isFavorite: boolean;
   isLive?: boolean;
   liveId?: string;
+  liveViewersCount?: number;
   /** Story éphémère 24 h */
   storyId?: string;
   storyImageUrl?: string;
@@ -20,8 +21,6 @@ export interface MapStoryEntry {
   storyCount?: number;
   storyVisibility?: 'public' | 'followers';
 }
-
-const MAX_STORIES = 24;
 
 function latestReelByAuthor(reels: MusicReel[]): Map<string, MusicReel> {
   const map = new Map<string, MusicReel>();
@@ -76,6 +75,7 @@ function personToEntry(
       isFavorite: favoriteIds.has(person.id),
       isLive: person.isLive,
       liveId: person.liveId,
+      liveViewersCount: person.liveViewersCount,
     },
     story,
     storyCounts.get(person.id) ?? 1
@@ -104,6 +104,7 @@ function favoriteToEntry(
       isFavorite: true,
       isLive: user.isLive,
       liveId: user.liveId,
+      liveViewersCount: user.liveViewersCount,
     },
     story,
     storyCounts.get(user.id) ?? 1
@@ -177,7 +178,7 @@ export function buildMapStoryEntries(
     options?.favoritesFirst
   );
 
-  return sorted.slice(0, MAX_STORIES);
+  return sorted;
 }
 
 /** Stories ouvrables dans la visionneuse (ordre bandeau : ma story puis entrées). */

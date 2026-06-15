@@ -9,6 +9,11 @@ export interface MapAd {
   sponsor?: string;
   /** Promo interne Soundy vs partenaire fictif */
   kind?: 'promo' | 'sponsored';
+  logoUrl?: string;
+  /** Action interne (salon, live) si pas de lien externe */
+  actionId?: 'salon' | 'live';
+  /** Durée d'affichage dans le carrousel (secondes). */
+  displayDurationSec?: number;
 }
 
 export const MAP_ADS: MapAd[] = [

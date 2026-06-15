@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useVisualViewportInset } from '../hooks/useVisualViewportInset';
 import {
   PHOTO_AI_FILTERS,
   PHOTO_CLASSIC_FILTERS,
@@ -24,14 +25,43 @@ import {
   DEFAULT_STORY_LINK_POSITION,
   validateStoryLinkUrl,
 } from '../lib/storyLink';
-import type { StoryLink, StoryMusicTrack, StoryTaggedUser } from '../types';
+import type { StoryLink, StoryMusicTrack, StoryTaggedUser, UserSearchHit } from '../types';
+import {
+  appendOverlayMentionRef,
+  collectAllTaggedUserIds,
+  countUniqueTaggedUsers,
+  filterStickerTagsNotInText,
+  insertStoryMention,
+  mergeTaggedUsersForExport,
+  parseActiveStoryMention,
+  syncOverlayMentionRefs,
+  type ActiveStoryMention,
+  type StoryTextMentionRef,
+} from '../lib/storyTextMention';
+import {
+  clampOverlayScale,
+  effectiveTagFontSize,
+  effectiveTextFontSize,
+  pointerDistance,
+  resolveOverlayScale,
+  scaleFromCornerDrag,
+  scaleFromPinchDistance,
+  STORY_OVERLAY_SCALE_MAX,
+  STORY_OVERLAY_SCALE_MIN,
+  STORY_TAG_BASE_FONT_SIZE,
+  STORY_TEXT_FONT_SIZE_MAX,
+  STORY_TEXT_FONT_SIZE_MIN,
+} from '../lib/storyOverlayTransform';
 import { PhotoInlineCrop, type InlineCropControls } from './PhotoInlineCrop';
 import type { PhotoCropAspect } from './StoryImageCropModal';
 import { StoryLinkOverlay } from './StoryLinkSticker';
+import { StoryMentionAutocomplete } from './StoryMentionAutocomplete';
 import { StoryMusicPicker } from './StoryMusicPicker';
 import { StoryUserTagPicker } from './StoryUserTagPicker';
 
 const TEXT_COLORS = ['#ffffff', '#fbbf24', '#f472b6', '#60a5fa', '#34d399', '#000000'];
+const TAP_MOVE_THRESHOLD_PX = 10;
+const MAX_STORY_TAGS = 5;
 
 const TEXT_STYLES: { id: StoryTextOverlayStyle; label: string }[] = [
   { id: 'plain', label: 'Classique' },
@@ -90,11 +120,12 @@ function assignDefaultTagPositions(users: StoryTaggedUser[]): StoryTaggedUser[] 
 function overlayPreviewStyle(o: StoryTextOverlay, isActive: boolean): React.CSSProperties {
   const style = o.style ?? 'plain';
   const font = resolveStoryTextFont(o.fontId);
+  const fontSize = effectiveTextFontSize(o);
   const base: React.CSSProperties = {
     left: `${o.x * 100}%`,
     top: `${o.y * 100}%`,
     transform: 'translate(-50%, -50%)',
-    fontSize: o.fontSize,
+    fontSize,
     fontFamily: font.fontFamily,
     fontWeight: font.fontWeight,
     maxWidth: '88%',
@@ -131,6 +162,66 @@ function overlayPreviewStyle(o: StoryTextOverlay, isActive: boolean): React.CSSP
   };
 }
 
+function ScaleHandle({
+  onPointerDown,
+  pointerHandlers,
+}: {
+  onPointerDown: (e: React.PointerEvent) => void;
+  pointerHandlers: {
+    onPointerMove: (e: React.PointerEvent) => void;
+    onPointerUp: (e: React.PointerEvent) => void;
+    onPointerCancel: (e: React.PointerEvent) => void;
+  };
+}) {
+  return (
+    <span
+      role="presentation"
+      aria-hidden
+      data-scale-handle
+      className="absolute -bottom-2 -right-2 z-20 h-4 w-4 cursor-se-resize touch-none rounded-full border-2 border-white bg-purple-500 shadow-md"
+      onPointerDown={onPointerDown}
+      {...pointerHandlers}
+    />
+  );
+}
+
+function renderTextWithMentions(
+  text: string,
+  mentionRefs: StoryTextMentionRef[] | undefined
+): ReactNode {
+  const synced = syncOverlayMentionRefs(text, mentionRefs);
+  if (!synced.length) return text;
+
+  const known = new Map(synced.map((r) => [r.username.toLowerCase(), r.username]));
+  const re = /(^|[\s])(@\w+(?:\.\w+)*)/g;
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text)) !== null) {
+    const prefix = match[1];
+    const mention = match[2];
+    const username = mention.slice(1);
+    const start = match.index + prefix.length;
+    if (start > lastIndex) {
+      parts.push(text.slice(lastIndex, start));
+    }
+    if (known.has(username.toLowerCase())) {
+      parts.push(
+        <strong key={`${start}-${username}`} className="font-extrabold">
+          {mention}
+        </strong>
+      );
+    } else {
+      parts.push(mention);
+    }
+    lastIndex = start + mention.length;
+  }
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  return parts.length ? parts : text;
+}
+
 function DockTool({
   label,
   active,
@@ -146,8 +237,8 @@ function DockTool({
     <button
       type="button"
       onClick={onClick}
-      className={`flex flex-col items-center gap-1 min-w-[56px] py-1 transition-colors ${
-        active ? 'text-purple-300' : 'text-gray-400 hover:text-white'
+      className={`flex flex-col items-center gap-1 min-w-[56px] min-h-11 py-1 transition-colors ${
+        active ? 'text-purple-300' : 'text-gray-300 hover:text-white'
       }`}
       aria-label={label}
       aria-pressed={active}
@@ -258,7 +349,7 @@ function FilterThumb({
     <button
       type="button"
       onClick={onSelect}
-      className={`shrink-0 flex flex-col items-center gap-1.5 transition ${
+      className={`shrink-0 snap-center flex flex-col items-center gap-1.5 transition ${
         selected ? 'opacity-100' : 'opacity-65 hover:opacity-90'
       }`}
       aria-pressed={selected}
@@ -331,14 +422,15 @@ export function PhotoImageEditor({
   const isFeed = mode === 'feed';
   const cropAspect: PhotoCropAspect = isStory ? 'story' : isFeed ? 'feed' : 'profile';
   const previewAspect = isStory
-    ? 'aspect-[9/16]'
+    ? 'ms-story-editor-preview-frame touch-none select-none overflow-hidden rounded-xl bg-black shadow-[0_0_40px_rgba(0,0,0,0.5)]'
     : isFeed
-      ? 'aspect-[4/5] max-h-full max-w-[min(100%,28rem)]'
-      : 'aspect-square max-h-full max-w-[min(100%,28rem)]';
+      ? 'aspect-[4/5] h-full max-h-full w-auto max-w-[min(100%,28rem)]'
+      : 'aspect-square h-full max-h-full w-auto max-w-[min(100%,28rem)]';
 
   const [imageUrl, setImageUrl] = useState(initialImage);
   const [cropSource, setCropSource] = useState<File | string | null>(null);
-  const [cropControls, setCropControls] = useState<InlineCropControls | null>(null);
+  const cropControlsRef = useRef<InlineCropControls | null>(null);
+  const pendingTabRef = useRef<EditorTab | null | undefined>(undefined);
   const [overlays, setOverlays] = useState<StoryTextOverlay[]>([]);
   const [activeOverlayId, setActiveOverlayId] = useState<string | null>(null);
   const [filterId, setFilterId] = useState<PhotoFilterId>('none');
@@ -362,20 +454,72 @@ export function PhotoImageEditor({
     baseX: number;
     baseY: number;
   } | null>(null);
+  const pendingTextDragRef = useRef<{
+    id: string;
+    startX: number;
+    startY: number;
+    baseX: number;
+    baseY: number;
+  } | null>(null);
+  const previewTapRef = useRef<{ x: number; y: number } | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
+  const scalePointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const scalePinchRef = useRef<{
+    distance: number;
+    baseScale: number;
+    kind: 'text' | 'tag';
+    id: string;
+  } | null>(null);
+  const scaleCornerRef = useRef<{
+    startDistance: number;
+    baseScale: number;
+    centerX: number;
+    centerY: number;
+    kind: 'text' | 'tag';
+    id: string;
+  } | null>(null);
+  const textInputRef = useRef<HTMLInputElement>(null);
+  const sheetTextInputRef = useRef<HTMLInputElement>(null);
+  const [inlineEditing, setInlineEditing] = useState(false);
+  const [isScaling, setIsScaling] = useState(false);
+  const [activeMention, setActiveMention] = useState<ActiveStoryMention | null>(null);
+  const keyboardInset = useVisualViewportInset();
+  const keyboardOpen = keyboardInset > 80;
+
+  const clearCropState = () => {
+    setCropSource(null);
+    cropControlsRef.current = null;
+  };
+
+  const leaveRognerIfNeeded = (nextTab: EditorTab | null): boolean => {
+    if (tab !== 'rogner' || !cropSource) return false;
+    const controls = cropControlsRef.current;
+    if (controls && !controls.exporting) {
+      pendingTabRef.current = nextTab;
+      controls.apply();
+      return true;
+    }
+    clearCropState();
+    return false;
+  };
 
   const activeOverlay = overlays.find((o) => o.id === activeOverlayId) ?? null;
+  const activeTag = taggedUsers.find((t) => t.id === activeTagId) ?? null;
   const filterCss = getPhotoFilterCss(filterId);
 
-  const createTextOverlay = (): string => {
+  const updateOverlay = (id: string, patch: Partial<StoryTextOverlay>) => {
+    setOverlays((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch } : o)));
+  };
+
+  const createTextOverlayAt = (x = 0.5, y = 0.42): string => {
     const id = newOverlayId();
     setOverlays((prev) => [
       ...prev,
       {
         id,
         text: '',
-        x: 0.5,
-        y: 0.42,
+        x,
+        y,
         color: '#ffffff',
         fontSize: 28,
         style: 'plain',
@@ -383,7 +527,47 @@ export function PhotoImageEditor({
       },
     ]);
     setActiveOverlayId(id);
+    setInlineEditing(true);
+    setActiveMention(null);
     return id;
+  };
+
+  const createTextOverlay = (): string => createTextOverlayAt(0.5, 0.42);
+
+  const focusTextInput = () => {
+    window.requestAnimationFrame(() => {
+      const el = textInputRef.current ?? sheetTextInputRef.current;
+      el?.focus();
+    });
+  };
+
+  useEffect(() => {
+    if (inlineEditing && activeOverlayId) focusTextInput();
+  }, [inlineEditing, activeOverlayId]);
+
+  useEffect(() => {
+    if (!keyboardOpen || tab !== 'texte') return;
+    const el = sheetTextInputRef.current ?? textInputRef.current;
+    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [keyboardOpen, keyboardInset, tab]);
+
+  const syncMentionFromInput = (text: string, cursor: number) => {
+    setActiveMention(parseActiveStoryMention(text, cursor));
+  };
+
+  const handleOverlayTextChange = (id: string, raw: string, cursor: number) => {
+    setOverlays((prev) =>
+      prev.map((o) =>
+        o.id === id
+          ? {
+              ...o,
+              text: raw,
+              mentionRefs: syncOverlayMentionRefs(raw, o.mentionRefs),
+            }
+          : o
+      )
+    );
+    syncMentionFromInput(raw, cursor);
   };
 
   const handleTextTool = () => {
@@ -391,20 +575,20 @@ export function PhotoImageEditor({
       setTab(null);
       return;
     }
-    setCropSource(null);
-    setCropControls(null);
+    if (leaveRognerIfNeeded('texte')) return;
+    if (tab !== 'rogner') clearCropState();
     if (!activeOverlayId) {
       if (overlays.length === 0) {
         createTextOverlay();
       } else {
         setActiveOverlayId(overlays[overlays.length - 1].id);
+        setInlineEditing(true);
       }
+    } else {
+      setInlineEditing(true);
     }
     setTab('texte');
-  };
-
-  const updateOverlay = (id: string, patch: Partial<StoryTextOverlay>) => {
-    setOverlays((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch } : o)));
+    setInlineEditing(true);
   };
 
   const removeOverlay = (id: string) => {
@@ -417,14 +601,21 @@ export function PhotoImageEditor({
 
   const onOverlayPointerDown = (e: React.PointerEvent, id: string) => {
     e.stopPropagation();
+    if ((e.target as HTMLElement).closest('input, [data-scale-handle]')) return;
     const o = overlays.find((x) => x.id === id);
     if (!o) return;
     setActiveOverlayId(id);
     setActiveTagId(null);
+    if (leaveRognerIfNeeded('texte')) return;
     setTab('texte');
+    setInlineEditing(true);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    dragRef.current = {
-      kind: 'text',
+    trackScalePointer(e);
+    if (scalePointersRef.current.size >= 2) {
+      beginScalePinch('text', id, resolveOverlayScale(o.scale));
+      return;
+    }
+    pendingTextDragRef.current = {
       id,
       startX: e.clientX,
       startY: e.clientY,
@@ -435,14 +626,21 @@ export function PhotoImageEditor({
 
   const onTagPointerDown = (e: React.PointerEvent, id: string) => {
     e.stopPropagation();
+    if ((e.target as HTMLElement).closest('[data-scale-handle]')) return;
     const tag = taggedUsers.find((t) => t.id === id);
     if (!tag) return;
     const index = taggedUsers.findIndex((t) => t.id === id);
     const pos = resolveStoryTagPosition(tag, index, taggedUsers.length);
     setActiveTagId(id);
     setActiveOverlayId(null);
+    if (leaveRognerIfNeeded('taguer')) return;
     setTab('taguer');
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    trackScalePointer(e);
+    if (scalePointersRef.current.size >= 2) {
+      beginScalePinch('tag', id, resolveOverlayScale(tag.scale));
+      return;
+    }
     dragRef.current = {
       kind: 'tag',
       id,
@@ -458,6 +656,7 @@ export function PhotoImageEditor({
     if (!link) return;
     setActiveOverlayId(null);
     setActiveTagId(null);
+    if (leaveRognerIfNeeded('lien')) return;
     setTab('lien');
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     dragRef.current = {
@@ -525,8 +724,8 @@ export function PhotoImageEditor({
       setTab(null);
       return;
     }
-    setCropSource(null);
-    setCropControls(null);
+    if (leaveRognerIfNeeded('lien')) return;
+    if (tab !== 'rogner') clearCropState();
     ensureLinkDraft();
     setTab('lien');
   };
@@ -545,9 +744,191 @@ export function PhotoImageEditor({
     );
   };
 
+  const updateTagScale = (id: string, scale: number) => {
+    setTaggedUsers((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, scale: clampOverlayScale(scale) } : t))
+    );
+  };
+
+  const clearScaleGesture = () => {
+    scalePointersRef.current.clear();
+    scalePinchRef.current = null;
+    scaleCornerRef.current = null;
+    setIsScaling(false);
+  };
+
+  const applyTextScale = (id: string, scale: number) => {
+    updateOverlay(id, { scale: clampOverlayScale(scale) });
+  };
+
+  const trackScalePointer = (e: React.PointerEvent) => {
+    scalePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  };
+
+  const beginScalePinch = (
+    kind: 'text' | 'tag',
+    id: string,
+    baseScale: number
+  ) => {
+    const pts = [...scalePointersRef.current.values()];
+    if (pts.length < 2) return;
+    scalePinchRef.current = {
+      distance: pointerDistance(pts[0], pts[1]),
+      baseScale,
+      kind,
+      id,
+    };
+    scaleCornerRef.current = null;
+    dragRef.current = null;
+    pendingTextDragRef.current = null;
+    setIsScaling(true);
+    setInlineEditing(false);
+  };
+
+  const syncScalePinch = () => {
+    const pinch = scalePinchRef.current;
+    if (!pinch) return;
+    const pts = [...scalePointersRef.current.values()];
+    if (pts.length < 2) return;
+    const distance = pointerDistance(pts[0], pts[1]);
+    const nextScale = scaleFromPinchDistance(pinch.distance, distance, pinch.baseScale);
+    if (pinch.kind === 'text') {
+      applyTextScale(pinch.id, nextScale);
+    } else {
+      updateTagScale(pinch.id, nextScale);
+    }
+  };
+
+  const onCornerScalePointerDown = (
+    e: React.PointerEvent,
+    kind: 'text' | 'tag',
+    id: string,
+    baseScale: number
+  ) => {
+    e.stopPropagation();
+    const host = (e.currentTarget as HTMLElement).offsetParent as HTMLElement | null;
+    const rect = host?.getBoundingClientRect();
+    if (!rect) return;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    scaleCornerRef.current = {
+      startDistance: Math.hypot(e.clientX - centerX, e.clientY - centerY),
+      baseScale,
+      centerX,
+      centerY,
+      kind,
+      id,
+    };
+    scalePinchRef.current = null;
+    dragRef.current = null;
+    pendingTextDragRef.current = null;
+    setIsScaling(true);
+    setInlineEditing(false);
+  };
+
+  const syncCornerScale = (e: React.PointerEvent) => {
+    const corner = scaleCornerRef.current;
+    if (!corner) return;
+    const distance = Math.hypot(
+      e.clientX - corner.centerX,
+      e.clientY - corner.centerY
+    );
+    const nextScale = scaleFromCornerDrag(
+      corner.startDistance,
+      distance,
+      corner.baseScale
+    );
+    if (corner.kind === 'text') {
+      applyTextScale(corner.id, nextScale);
+    } else {
+      updateTagScale(corner.id, nextScale);
+    }
+  };
+
+  const previewCoords = (e: React.PointerEvent): { x: number; y: number } | null => {
+    if (!previewRef.current) return null;
+    const rect = previewRef.current.getBoundingClientRect();
+    return {
+      x: Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)),
+      y: Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height)),
+    };
+  };
+
+  const handlePreviewBackgroundTap = (e: React.PointerEvent) => {
+    const coords = previewCoords(e);
+    if (!coords) return;
+
+    if (isStory && tab === 'taguer') {
+      if (activeTagId) {
+        updateTagPosition(activeTagId, coords.x, coords.y);
+        return;
+      }
+      if (taggedUsers.length > 0) {
+        const last = taggedUsers[taggedUsers.length - 1];
+        setActiveTagId(last.id);
+        updateTagPosition(last.id, coords.x, coords.y);
+      }
+      return;
+    }
+
+    if (tab === 'rogner' || tab === 'lien') return;
+
+    if (leaveRognerIfNeeded('texte')) return;
+    clearCropState();
+    setActiveTagId(null);
+    createTextOverlayAt(coords.x, coords.y);
+    setTab('texte');
+  };
+
+  const onPreviewPointerDown = (e: React.PointerEvent) => {
+    const target = e.target as Node;
+    const preview = previewRef.current;
+    if (!preview) return;
+    const bgImg = preview.querySelector('img');
+    if (target !== preview && target !== bgImg) return;
+    previewTapRef.current = { x: e.clientX, y: e.clientY };
+  };
+
   const onPreviewPointerMove = (e: React.PointerEvent) => {
+    if (scalePointersRef.current.has(e.pointerId)) {
+      trackScalePointer(e);
+      if (scalePointersRef.current.size >= 2) {
+        if (!scalePinchRef.current) {
+          const activeText = activeOverlayId
+            ? overlays.find((o) => o.id === activeOverlayId)
+            : null;
+          const activeTag = activeTagId
+            ? taggedUsers.find((t) => t.id === activeTagId)
+            : null;
+          if (activeText) {
+            beginScalePinch('text', activeText.id, resolveOverlayScale(activeText.scale));
+          } else if (activeTag) {
+            beginScalePinch('tag', activeTag.id, resolveOverlayScale(activeTag.scale));
+          }
+        }
+        syncScalePinch();
+        return;
+      }
+    }
+
+    if (scaleCornerRef.current) {
+      syncCornerScale(e);
+      return;
+    }
+
+    const pending = pendingTextDragRef.current;
+    if (pending && previewRef.current && !isScaling) {
+      const moved = Math.hypot(e.clientX - pending.startX, e.clientY - pending.startY);
+      if (moved > TAP_MOVE_THRESHOLD_PX) {
+        dragRef.current = { kind: 'text', ...pending };
+        pendingTextDragRef.current = null;
+        setInlineEditing(false);
+      }
+    }
+
     const d = dragRef.current;
-    if (!d || !previewRef.current) return;
+    if (!d || !previewRef.current || isScaling) return;
     const rect = previewRef.current.getBoundingClientRect();
     const dx = (e.clientX - d.startX) / rect.width;
     const dy = (e.clientY - d.startY) / rect.height;
@@ -562,44 +943,92 @@ export function PhotoImageEditor({
     }
   };
 
-  const onPreviewPointerUp = () => {
+  const onPreviewPointerUp = (e: React.PointerEvent) => {
+    const wasScaling =
+      isScaling ||
+      Boolean(scalePinchRef.current) ||
+      Boolean(scaleCornerRef.current);
+
+    scalePointersRef.current.delete(e.pointerId);
+    if (scalePointersRef.current.size < 2) {
+      scalePinchRef.current = null;
+    }
+    if (scaleCornerRef.current) {
+      clearScaleGesture();
+    } else if (scalePointersRef.current.size === 0) {
+      setIsScaling(false);
+    }
+
+    const wasDragging = Boolean(dragRef.current);
     dragRef.current = null;
+    pendingTextDragRef.current = null;
+
+    const tapStart = previewTapRef.current;
+    previewTapRef.current = null;
+    if (wasDragging || wasScaling || !tapStart) return;
+
+    const moved = Math.hypot(e.clientX - tapStart.x, e.clientY - tapStart.y);
+    if (moved > TAP_MOVE_THRESHOLD_PX) return;
+
+    handlePreviewBackgroundTap(e);
   };
 
-  const onPreviewTap = (e: React.PointerEvent) => {
-    if (dragRef.current) return;
-    if (!isStory || tab !== 'taguer' || !previewRef.current) return;
-    const rect = previewRef.current.getBoundingClientRect();
-    const x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-    const y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
-    if (activeTagId) {
-      updateTagPosition(activeTagId, x, y);
-      return;
-    }
-    if (taggedUsers.length > 0) {
-      const last = taggedUsers[taggedUsers.length - 1];
-      setActiveTagId(last.id);
-      updateTagPosition(last.id, x, y);
-    }
+  const overlayPointerHandlers = {
+    onPointerMove: onPreviewPointerMove,
+    onPointerUp: onPreviewPointerUp,
+    onPointerCancel: onPreviewPointerUp,
   };
 
-  const handleTaggedUsersChange = (users: StoryTaggedUser[]) => {
+  const handleTaggedUsersChange = (
+    users: StoryTaggedUser[],
+    options?: { focusTagTab?: boolean }
+  ) => {
     const withPositions = assignDefaultTagPositions(users);
     const added = users.find((u) => !taggedUsers.some((t) => t.id === u.id));
     setTaggedUsers(withPositions);
-    if (added) {
+    const focusTagTab = options?.focusTagTab !== false;
+    if (added && focusTagTab) {
       setActiveTagId(added.id);
+      if (leaveRognerIfNeeded('taguer')) return;
       setTab('taguer');
     } else if (activeTagId && !withPositions.some((t) => t.id === activeTagId)) {
       setActiveTagId(withPositions.length ? withPositions[withPositions.length - 1].id : null);
     }
   };
 
+  const handleMentionSelect = (hit: UserSearchHit) => {
+    if (!activeOverlay || !activeMention) return;
+    if (countUniqueTaggedUsers(taggedUsers, overlays) >= MAX_STORY_TAGS) return;
+    if (collectAllTaggedUserIds(taggedUsers, overlays).includes(hit.id)) return;
+
+    const { text, cursor } = insertStoryMention(
+      activeOverlay.text,
+      activeMention.start,
+      activeMention.end,
+      hit.username
+    );
+    const mentionRefs = appendOverlayMentionRef(activeOverlay.mentionRefs, {
+      id: hit.id,
+      username: hit.username,
+    });
+    updateOverlay(activeOverlay.id, {
+      text,
+      mentionRefs: syncOverlayMentionRefs(text, mentionRefs),
+    });
+    setActiveMention(null);
+    window.requestAnimationFrame(() => {
+      const el = textInputRef.current ?? sheetTextInputRef.current;
+      if (el) {
+        el.focus();
+        el.setSelectionRange(cursor, cursor);
+      }
+    });
+  };
+
   const openCrop = () => {
     if (tab === 'rogner') {
+      if (leaveRognerIfNeeded(null)) return;
       setTab(null);
-      setCropSource(null);
-      setCropControls(null);
       return;
     }
     setCropSource(initialSource ?? imageUrl);
@@ -608,24 +1037,24 @@ export function PhotoImageEditor({
 
   const handleCropApplied = (url: string) => {
     setImageUrl(url);
-    setTab(null);
-    setCropSource(null);
-    setCropControls(null);
+    clearCropState();
+    if (pendingTabRef.current !== undefined) {
+      setTab(pendingTabRef.current);
+      pendingTabRef.current = undefined;
+    } else {
+      setTab(null);
+    }
   };
 
   const toggleTab = (next: EditorTab) => {
-    if (next !== 'rogner') {
-      setCropSource(null);
-      setCropControls(null);
-    }
-    setTab((prev) => (prev === next ? null : next));
+    const target = tab === next ? null : next;
+    if (leaveRognerIfNeeded(target)) return;
+    if (target !== 'rogner') clearCropState();
+    setTab(target);
   };
 
   const closePanel = () => {
-    if (tab === 'rogner') {
-      setCropSource(null);
-      setCropControls(null);
-    }
+    if (leaveRognerIfNeeded(null)) return;
     setTab(null);
   };
 
@@ -665,15 +1094,33 @@ export function PhotoImageEditor({
         resolvedLink = null;
       }
 
+      let composeUrl = imageUrl;
+      if (tab === 'rogner' && cropSource) {
+        const applied = cropControlsRef.current?.apply();
+        if (applied) composeUrl = applied;
+      }
+
+      const stickerTagsForCanvas = isStory
+        ? filterStickerTagsNotInText(taggedUsers, overlays)
+        : [];
+      const exportTaggedUsers = isStory
+        ? mergeTaggedUsersForExport(taggedUsers, overlays)
+        : [];
+
       const composed = isStory
-        ? await composeStoryImageWithOverlays(imageUrl, overlays, filterId, taggedUsers)
+        ? await composeStoryImageWithOverlays(
+            composeUrl,
+            overlays,
+            filterId,
+            stickerTagsForCanvas
+          )
         : isFeed
-          ? await composeFeedImageWithEdits(imageUrl, overlays, filterId)
-          : await composeProfileImageWithEdits(imageUrl, overlays, filterId);
+          ? await composeFeedImageWithEdits(composeUrl, overlays, filterId)
+          : await composeProfileImageWithEdits(composeUrl, overlays, filterId);
       onConfirm({
         imageUrl: composed,
         musicTrack: isStory ? musicTrack : null,
-        taggedUsers: isStory ? taggedUsers : [],
+        taggedUsers: exportTaggedUsers,
         link: isStory ? resolvedLink : null,
       });
     } catch (e) {
@@ -693,15 +1140,24 @@ export function PhotoImageEditor({
     onConfirm,
     isStory,
     isFeed,
+    tab,
+    cropSource,
   ]);
 
   const hasStoryMeta = isStory && Boolean(musicTrack || link?.url.trim());
 
+  const editorShellStyle = {
+    '--keyboard-inset': `${keyboardInset}px`,
+  } as CSSProperties;
+
   return (
     <>
-      <div className="fixed inset-0 z-[125] bg-[#0b0b0f] overflow-hidden flex flex-col">
+      <div
+        className="ms-story-editor-shell fixed inset-0 z-[125] bg-[#0b0b0f] overflow-hidden flex flex-col h-dvh max-h-dvh"
+        style={editorShellStyle}
+      >
         {/* Header */}
-        <header className="relative z-20 flex items-center justify-between px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 bg-gradient-to-b from-[#0b0b0f] via-[#0b0b0f]/90 to-transparent">
+        <header className="relative z-20 flex items-center justify-between px-4 ms-safe-area-top pb-3 bg-gradient-to-b from-[#0b0b0f] via-[#0b0b0f]/90 to-transparent">
           <button
             type="button"
             onClick={onCancel}
@@ -724,40 +1180,45 @@ export function PhotoImageEditor({
 
         {/* Preview */}
         <div
-          className="relative flex-1 flex items-center justify-center min-h-0 px-2"
+          className={`relative flex-1 flex items-center justify-center min-h-0 px-2${isStory ? ' ms-story-editor-preview' : ''}`}
           onClick={() => {
             if (tab !== 'rogner') setTab(null);
           }}
         >
           <div
             ref={previewRef}
-            className={`relative h-full w-auto max-w-full ${previewAspect} touch-none select-none overflow-hidden rounded-xl bg-black shadow-[0_0_40px_rgba(0,0,0,0.5)]`}
+            className={`relative mx-auto ${previewAspect}${isStory ? '' : ' touch-none select-none overflow-hidden rounded-xl bg-black shadow-[0_0_40px_rgba(0,0,0,0.5)]'}`}
             onPointerMove={isCropping ? undefined : onPreviewPointerMove}
             onPointerUp={isCropping ? undefined : onPreviewPointerUp}
             onPointerCancel={isCropping ? undefined : onPreviewPointerUp}
-            onPointerDown={isCropping ? undefined : onPreviewTap}
+            onPointerDown={isCropping ? undefined : onPreviewPointerDown}
             onClick={(e) => e.stopPropagation()}
           >
             <img
               src={imageUrl}
               alt=""
-              className={`w-full h-full object-cover pointer-events-none ${isCropping ? 'opacity-0' : ''}`}
+              className={`absolute inset-0 block h-full w-full object-cover object-center pointer-events-none ${isCropping ? 'opacity-0' : ''}`}
               style={{ filter: filterCss }}
               draggable={false}
             />
-            {isCropping && cropSource ? (
-              <PhotoInlineCrop
-                source={cropSource}
-                aspect={cropAspect}
-                filterCss={filterCss}
-                onApply={handleCropApplied}
-                onControlsChange={setCropControls}
-              />
-            ) : null}
+            <div className="absolute inset-0">
+              {isCropping && cropSource ? (
+                <PhotoInlineCrop
+                  source={cropSource}
+                  aspect={cropAspect}
+                  filterCss={filterCss}
+                  onApply={handleCropApplied}
+                  onControlsChange={(controls) => {
+                    cropControlsRef.current = controls;
+                  }}
+                />
+              ) : null}
+            </div>
             {!isCropping && isStory
-              ? taggedUsers.map((t, index) => {
+              ? filterStickerTagsNotInText(taggedUsers, overlays).map((t, index, arr) => {
                   const isActive = activeTagId === t.id;
-                  const pos = resolveStoryTagPosition(t, index, taggedUsers.length);
+                  const pos = resolveStoryTagPosition(t, index, arr.length);
+                  const tagFontSize = effectiveTagFontSize(t);
                   return (
                     <div
                       key={t.id}
@@ -767,36 +1228,122 @@ export function PhotoImageEditor({
                       style={tagPreviewStyle(pos.x, pos.y, isActive)}
                       onPointerDown={(e) => onTagPointerDown(e, t.id)}
                       onClick={(e) => e.stopPropagation()}
+                      {...overlayPointerHandlers}
                     >
-                      <span className="inline-flex items-center rounded-md bg-white/92 px-2.5 py-1 text-[11px] font-semibold text-[#111111] shadow-[0_1px_6px_rgba(0,0,0,0.35)] whitespace-nowrap max-w-[min(72vw,220px)] truncate">
+                      <span
+                        className="inline-flex items-center rounded-md bg-white/92 px-2.5 py-1 font-semibold text-[#111111] shadow-[0_1px_6px_rgba(0,0,0,0.35)] whitespace-nowrap max-w-[min(72vw,220px)] truncate"
+                        style={{ fontSize: tagFontSize }}
+                      >
                         @{t.username}
                       </span>
+                      {isActive ? (
+                        <ScaleHandle
+                          pointerHandlers={overlayPointerHandlers}
+                          onPointerDown={(e) =>
+                            onCornerScalePointerDown(
+                              e,
+                              'tag',
+                              t.id,
+                              resolveOverlayScale(t.scale)
+                            )
+                          }
+                        />
+                      ) : null}
                     </div>
                   );
                 })
               : null}
             {!isCropping
               ? overlays.map((o) => {
-              const isActive = activeOverlayId === o.id;
-              const displayText = o.text.trim();
-              return (
-                <div
-                  key={o.id}
-                  className={`absolute cursor-grab active:cursor-grabbing ${
-                    isActive ? 'z-10' : 'z-[1]'
-                  }`}
-                  style={overlayPreviewStyle(o, isActive)}
-                  onPointerDown={(e) => onOverlayPointerDown(e, o.id)}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {displayText ? (
-                    displayText
-                  ) : isActive ? (
-                    <span className="text-white/45 italic text-[0.85em] font-medium">Tapez…</span>
-                  ) : null}
-                </div>
-              );
-            })
+                  const isActive = activeOverlayId === o.id;
+                  const displayText = o.text.trim();
+                  const showInlineInput =
+                    isActive &&
+                    inlineEditing &&
+                    tab === 'texte' &&
+                    !dragRef.current &&
+                    !isScaling;
+                  const font = resolveStoryTextFont(o.fontId);
+                  const renderedSize = effectiveTextFontSize(o);
+                  return (
+                    <div
+                      key={o.id}
+                      className={`absolute ${showInlineInput ? 'cursor-text' : 'cursor-grab active:cursor-grabbing'} ${
+                        isActive ? 'z-10' : 'z-[1]'
+                      }`}
+                      style={overlayPreviewStyle(o, isActive && !showInlineInput)}
+                      onPointerDown={(e) => onOverlayPointerDown(e, o.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      {...overlayPointerHandlers}
+                    >
+                      {showInlineInput ? (
+                        <input
+                          ref={textInputRef}
+                          type="text"
+                          value={o.text}
+                          onChange={(e) =>
+                            handleOverlayTextChange(
+                              o.id,
+                              e.target.value,
+                              e.target.selectionStart ?? e.target.value.length
+                            )
+                          }
+                          onSelect={(e) => {
+                            const el = e.currentTarget;
+                            syncMentionFromInput(
+                              el.value,
+                              el.selectionStart ?? el.value.length
+                            );
+                          }}
+                          onKeyUp={(e) => {
+                            const el = e.currentTarget;
+                            syncMentionFromInput(
+                              el.value,
+                              el.selectionStart ?? el.value.length
+                            );
+                          }}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          placeholder="Tapez…"
+                          className="bg-transparent border-none outline-none text-center min-w-[3rem] max-w-[min(72vw,280px)] placeholder:text-white/45 placeholder:italic"
+                          style={{
+                            fontSize: renderedSize,
+                            fontFamily: font.fontFamily,
+                            fontWeight: font.fontWeight,
+                            color:
+                              (o.style ?? 'plain') === 'background'
+                                ? '#111111'
+                                : (o.style ?? 'plain') === 'outline'
+                                  ? '#ffffff'
+                                  : o.color,
+                            WebkitTextStroke:
+                              (o.style ?? 'plain') === 'outline'
+                                ? `1.5px ${o.color}`
+                                : undefined,
+                          }}
+                        />
+                      ) : displayText ? (
+                        renderTextWithMentions(displayText, o.mentionRefs)
+                      ) : isActive ? (
+                        <span className="text-white/45 italic text-[0.85em] font-medium">
+                          Tapez…
+                        </span>
+                      ) : null}
+                      {isActive && !showInlineInput ? (
+                        <ScaleHandle
+                          pointerHandlers={overlayPointerHandlers}
+                          onPointerDown={(e) =>
+                            onCornerScalePointerDown(
+                              e,
+                              'text',
+                              o.id,
+                              resolveOverlayScale(o.scale)
+                            )
+                          }
+                        />
+                      ) : null}
+                    </div>
+                  );
+                })
               : null}
             {!isCropping && isStory && link ? (
               <StoryLinkOverlay
@@ -827,16 +1374,48 @@ export function PhotoImageEditor({
         </div>
 
         {/* Bottom dock + panels */}
-        <div className="relative z-20 shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+        <div className="ms-story-editor-dock relative z-20 shrink-0 ms-safe-area-bottom pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+          {tab === 'texte' && activeMention && isStory ? (
+            <StoryMentionAutocomplete
+              token={token}
+              query={activeMention.query}
+              excludeIds={collectAllTaggedUserIds(taggedUsers, overlays)}
+              currentTagCount={countUniqueTaggedUsers(taggedUsers, overlays)}
+              maxTags={MAX_STORY_TAGS}
+              onSelect={handleMentionSelect}
+              className="mx-2 mb-2 pointer-events-auto"
+            />
+          ) : null}
+
           {tab === 'texte' && activeOverlay ? (
             <ToolSheet title="Texte" onClose={closePanel}>
               <div className="space-y-3">
+                <p className="text-[10px] text-gray-500">
+                  Touchez la photo pour placer un texte. Glissez pour déplacer, pincez ou
+                  tirez la poignée pour redimensionner ({STORY_OVERLAY_SCALE_MIN}×–
+                  {STORY_OVERLAY_SCALE_MAX}×). Tapez @ pour taguer une personne.
+                </p>
                 <input
+                  ref={sheetTextInputRef}
                   type="text"
                   value={activeOverlay.text}
-                  onChange={(e) => updateOverlay(activeOverlay.id, { text: e.target.value })}
+                  onChange={(e) =>
+                    handleOverlayTextChange(
+                      activeOverlay.id,
+                      e.target.value,
+                      e.target.selectionStart ?? e.target.value.length
+                    )
+                  }
+                  onSelect={(e) => {
+                    const el = e.currentTarget;
+                    syncMentionFromInput(el.value, el.selectionStart ?? el.value.length);
+                  }}
+                  onKeyUp={(e) => {
+                    const el = e.currentTarget;
+                    syncMentionFromInput(el.value, el.selectionStart ?? el.value.length);
+                  }}
+                  onFocus={() => setInlineEditing(true)}
                   placeholder="Écrire sur la photo…"
-                  autoFocus
                   className="w-full rounded-xl bg-[#0b0b0f] border border-[#2d2d3d] px-3 py-2.5 text-sm text-white placeholder:text-gray-500 focus:border-purple-500/60 focus:outline-none"
                 />
 
@@ -882,15 +1461,21 @@ export function PhotoImageEditor({
                   <span className="text-[10px] text-gray-500 uppercase tracking-wide shrink-0">Taille</span>
                   <input
                     type="range"
-                    min={14}
-                    max={48}
-                    value={activeOverlay.fontSize}
-                    onChange={(e) =>
-                      updateOverlay(activeOverlay.id, { fontSize: Number(e.target.value) })
-                    }
+                    min={Math.round(STORY_TEXT_FONT_SIZE_MIN * STORY_OVERLAY_SCALE_MIN)}
+                    max={Math.round(STORY_TEXT_FONT_SIZE_MAX * STORY_OVERLAY_SCALE_MAX)}
+                    value={effectiveTextFontSize(activeOverlay)}
+                    onChange={(e) => {
+                      const effective = Number(e.target.value);
+                      const ratio = effective / activeOverlay.fontSize;
+                      updateOverlay(activeOverlay.id, {
+                        scale: clampOverlayScale(ratio),
+                      });
+                    }}
                     className="flex-1 accent-purple-500"
                   />
-                  <span className="text-[10px] text-gray-400 w-6 text-right">{activeOverlay.fontSize}</span>
+                  <span className="text-[10px] text-gray-400 w-6 text-right">
+                    {effectiveTextFontSize(activeOverlay)}
+                  </span>
                 </div>
 
                 <div className="flex gap-2 flex-wrap justify-center">
@@ -932,38 +1517,6 @@ export function PhotoImageEditor({
             </ToolSheet>
           ) : null}
 
-          {tab === 'rogner' ? (
-            <ToolSheet title="Rogner" onClose={closePanel}>
-              <p className="text-[11px] text-gray-400 text-center mb-3">
-                Glissez la photo ou tirez les coins pour ajuster le cadrage
-              </p>
-              {cropControls ? (
-                <label className="block mb-3">
-                  <span className="text-xs text-gray-400">Zoom</span>
-                  <input
-                    type="range"
-                    min={cropControls.minScale}
-                    max={cropControls.maxScale}
-                    step={0.01}
-                    value={cropControls.scale}
-                    onChange={(e) => cropControls.setScale(Number(e.target.value))}
-                    className="w-full mt-1 accent-purple-500"
-                  />
-                </label>
-              ) : (
-                <p className="text-center text-gray-500 text-xs py-2 mb-3">Chargement…</p>
-              )}
-              <button
-                type="button"
-                onClick={() => cropControls?.apply()}
-                disabled={!cropControls || cropControls.exporting}
-                className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-sm disabled:opacity-50"
-              >
-                {cropControls?.exporting ? '…' : 'Appliquer le rognage'}
-              </button>
-            </ToolSheet>
-          ) : null}
-
           {tab === 'filtre' ? (
             <ToolSheet title="Filtres" onClose={closePanel}>
               <div className="space-y-3">
@@ -971,7 +1524,7 @@ export function PhotoImageEditor({
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-2 px-0.5">
                     Classiques
                   </p>
-                  <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-1 px-1">
+                  <div className="flex gap-2.5 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-1 -mx-1 px-1 touch-pan-x">
                     {PHOTO_CLASSIC_FILTERS.map((f) => (
                       <FilterThumb
                         key={f.id}
@@ -988,9 +1541,9 @@ export function PhotoImageEditor({
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-purple-400/90">
                       IA · libre de droit
                     </p>
-                    <span className="text-[9px] text-gray-500 shrink-0">100 % local</span>
+                    <span className="text-[9px] text-gray-500 shrink-0">Aperçu sur votre photo</span>
                   </div>
-                  <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-1 px-1">
+                  <div className="flex gap-2.5 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-1 -mx-1 px-1 touch-pan-x">
                     {PHOTO_AI_FILTERS.map((f) => (
                       <FilterThumb
                         key={f.id}
@@ -1015,14 +1568,40 @@ export function PhotoImageEditor({
           {tab === 'taguer' && isStory ? (
             <ToolSheet title="Taguer" onClose={closePanel}>
               <p className="text-[10px] text-gray-500 mb-2">
-                Glissez un tag sur la photo ou touchez l&apos;image pour le repositionner.
+                Sticker @ séparé : glissez, pincez ou redimensionnez ({STORY_OVERLAY_SCALE_MIN}×–
+                {STORY_OVERLAY_SCALE_MAX}×). Pour taguer dans le texte, tapez @ dans un calque
+                Texte — pas de pastille en double.
               </p>
+              {activeTag ? (
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-[10px] text-gray-500 uppercase tracking-wide shrink-0">
+                    Taille @{activeTag.username}
+                  </span>
+                  <input
+                    type="range"
+                    min={Math.round(STORY_TAG_BASE_FONT_SIZE * STORY_OVERLAY_SCALE_MIN)}
+                    max={Math.round(STORY_TAG_BASE_FONT_SIZE * STORY_OVERLAY_SCALE_MAX)}
+                    value={effectiveTagFontSize(activeTag)}
+                    onChange={(e) => {
+                      const effective = Number(e.target.value);
+                      const ratio = effective / STORY_TAG_BASE_FONT_SIZE;
+                      updateTagScale(activeTag.id, ratio);
+                    }}
+                    className="flex-1 accent-purple-500"
+                  />
+                  <span className="text-[10px] text-gray-400 w-6 text-right">
+                    {effectiveTagFontSize(activeTag)}
+                  </span>
+                </div>
+              ) : null}
               <StoryUserTagPicker
                 token={token}
                 tagged={taggedUsers}
                 activeTagId={activeTagId}
                 onActiveTagChange={setActiveTagId}
                 onChange={handleTaggedUsersChange}
+                totalTagCount={countUniqueTaggedUsers(taggedUsers, overlays)}
+                maxTags={MAX_STORY_TAGS}
               />
             </ToolSheet>
           ) : null}

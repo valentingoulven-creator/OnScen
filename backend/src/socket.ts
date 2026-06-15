@@ -25,6 +25,10 @@ import type { LiveBanScope } from './models/schema';
 import { isPlatformConnected } from './lib/platformConnect';
 import { schedulePersist } from './lib/persist';
 import {
+  assertCanJoinLiveAsViewer,
+  PlatformPlanError,
+} from './lib/platformPlans';
+import {
   validateLiveWebrtcSignal,
   validateLiveWebrtcViewerReady,
 } from './lib/liveVideoRelay';
@@ -269,8 +273,23 @@ export function setupSockets(io: Server): void {
       }
       const roomName = `live_${liveId}`;
       const alreadyIn = socket.rooms.has(roomName);
-      socket.join(roomName);
       const live = db.lives.get(liveId);
+      if (live && userId && userId !== live.hostId && !alreadyIn) {
+        try {
+          assertCanJoinLiveAsViewer(live.hostId, live.viewersCount, userId);
+        } catch (e) {
+          if (e instanceof PlatformPlanError) {
+            socket.emit('live_join_denied', {
+              liveId,
+              message: e.message,
+              code: e.code,
+            });
+            return;
+          }
+          throw e;
+        }
+      }
+      socket.join(roomName);
       if (live) {
         socket.emit('live_updated', serializePublicLive(live, undefined, userId));
         if (!alreadyIn) {

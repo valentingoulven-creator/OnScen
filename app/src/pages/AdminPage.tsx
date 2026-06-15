@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { AdminScrollTabBar } from '../components/AdminScrollTabBar';
 import { AdminAccountsTab } from './AdminAccountsTab';
 import { AdminAccessTab } from './AdminAccessTab';
 import { AdminContentTab } from './AdminContentTab';
 import { AdminCostsTab } from './AdminCostsTab';
 import { AdminSupportTab } from './AdminSupportTab';
+import { AdminSponsorsTab } from './AdminSponsorsTab';
 import { AnalyticsPage } from './AnalyticsPage';
 
-type AdminTab = 'accounts' | 'access' | 'content' | 'analytics' | 'costs' | 'support';
+type AdminTab = 'accounts' | 'access' | 'content' | 'analytics' | 'costs' | 'support' | 'sponsors';
 
 interface AdminPageProps {
   onBack?: () => void;
@@ -36,29 +38,27 @@ export function AdminPage({
     { id: 'analytics', label: t('admin.tabs.analytics') },
     { id: 'costs', label: t('admin.tabs.costs') },
     { id: 'support', label: t('admin.tabs.support') },
+    { id: 'sponsors', label: t('admin.tabs.sponsors') },
   ];
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden bg-[#0b0b0f] text-white">
-      <header className="shrink-0 z-10 bg-[#0b0b0f]/95 border-b border-[#1e1e2f] px-4 py-3">
-        <div className="flex items-center gap-3 max-w-lg mx-auto">
+      <header className="shrink-0 z-10 bg-[#0b0b0f]/95 border-b border-[#1e1e2f] px-4 py-3 ms-safe-area-top">
+        <div className="flex items-center gap-3 max-w-lg mx-auto min-w-0">
           {onBack && (
             <button type="button" onClick={onBack} className="text-purple-400 text-sm shrink-0">
               ←
             </button>
           )}
-          <h1 className="text-lg font-bold flex-1">{t('admin.title')}</h1>
+          <h1 className="text-lg font-bold flex-1 min-w-0 truncate">{t('admin.title')}</h1>
         </div>
-        <nav
-          className="flex gap-1 mt-3 max-w-lg mx-auto overflow-x-auto pb-0.5"
-          aria-label={t('admin.title')}
-        >
+        <AdminScrollTabBar className="mt-3 -mx-4 px-4" aria-label={t('admin.title')}>
           {tabs.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => setTab(item.id)}
-              className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition ${
+              className={`shrink-0 snap-start px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition ${
                 tab === item.id
                   ? 'bg-purple-600 text-white'
                   : 'bg-[#1a1a26] text-gray-400 hover:text-white'
@@ -67,7 +67,7 @@ export function AdminPage({
               {item.label}
             </button>
           ))}
-        </nav>
+        </AdminScrollTabBar>
       </header>
 
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 max-w-lg mx-auto w-full pb-4">
@@ -77,6 +77,7 @@ export function AdminPage({
         {tab === 'analytics' && <AnalyticsPage embedded />}
         {tab === 'costs' && <AdminCostsTab />}
         {tab === 'support' && <AdminSupportTab highlightMessageId={highlightSupportMessageId} />}
+        {tab === 'sponsors' && <AdminSponsorsTab />}
       </div>
     </div>
   );

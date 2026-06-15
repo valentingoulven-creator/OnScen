@@ -31,6 +31,7 @@ import {
 import { SettingsPage, SettingsGearButton } from './SettingsPage';
 import { AdminPage } from './AdminPage';
 import { ContactSoundyPage } from './ContactSoundyPage';
+import { PlatformSubscriptionPage } from './PlatformSubscriptionPage';
 import { SupportMeloSongTeaser } from '../components/SupportMeloSongSection';
 import { DonationSheet } from '../components/DonationSheet';
 import { ProfileReelRecorder } from '../components/ProfileReelRecorder';
@@ -121,6 +122,7 @@ export function ProfilePage({
   const [reelsRefreshKey, setReelsRefreshKey] = useState(0);
   const [editing, setEditing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showSubscription, setShowSubscription] = useState(false);
   const [showContactSoundy, setShowContactSoundy] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [showFavoritesSheet, setShowFavoritesSheet] = useState(false);
@@ -288,6 +290,10 @@ export function ProfilePage({
         highlightMessageId={highlightSupportMessageId}
       />
     );
+  }
+
+  if (showSubscription) {
+    return <PlatformSubscriptionPage onBack={() => setShowSubscription(false)} />;
   }
 
   if (showAdmin) {
@@ -480,6 +486,7 @@ export function ProfilePage({
             isOwner
             hideSectionTitle
             onOpenLive={onOpenLive}
+            onSubscribe={() => setShowSubscription(true)}
           />
         )}
 
@@ -586,10 +593,24 @@ export function ProfilePage({
 
               <button
                 type="button"
-                onClick={() => setShowSettings(true)}
-                className="w-full py-2.5 rounded-lg border border-[#2d2d3d] text-gray-300 font-semibold text-sm"
+                onClick={() => setShowSubscription(true)}
+                className="relative w-full py-2.5 rounded-lg border border-[#2d2d3d] text-gray-300 font-semibold text-sm text-center hover:bg-[#1a1a26] transition"
               >
-                ⚙️ Paramètres
+                ✨ {t('profile.subscription')}
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" aria-hidden>
+                  ›
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowSettings(true)}
+                className="relative w-full py-2.5 rounded-lg border border-[#2d2d3d] text-gray-300 font-semibold text-sm text-center hover:bg-[#1a1a26] transition"
+              >
+                ⚙️ {t('profile.settings')}
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" aria-hidden>
+                  ›
+                </span>
               </button>
               <SupportMeloSongTeaser onOpen={() => setShowDonationSheet(true)} />
               <button

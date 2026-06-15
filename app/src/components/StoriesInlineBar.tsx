@@ -9,6 +9,7 @@ import {
   groupStoriesByUser,
   latestStory,
   pickInitialStory,
+  pruneSeenStoryIds,
   resolveNextStory,
   resolvePrevStory,
   stackIndexForStory,
@@ -34,14 +35,19 @@ import {
   type LivesGeoPrefs,
 } from '../lib/livesGeo';
 import { isMapStoriesCollapsed, setMapStoriesCollapsed } from '../lib/mapStoriesPrefs';
+import { fetchStoriesBundle, invalidateStoriesCache } from '../lib/storiesApiCache';
 import { normalizeProfileReelFromApi } from '../content/reelsFeed';
 import type { MusicReel } from '../content/reels';
 import { USERNAME_WAVE_CLASS } from '../lib/usernameColor';
 import type { MapStory, NearbyPerson } from '../types';
 import { MapStorySheet } from './MapStorySheet';
 import { MapStoryRing, MyMapStoryRing } from './MapStoryRings';
+import { StoryLivePreviewViewer } from './StoryLivePreviewViewer';
 import { StoryViewer } from './StoryViewer';
 import { FilterIcon } from './FilterIcon';
+import { StoriesRingsCarousel } from './StoriesRingsCarousel';
+import { StoriesAdBanner } from './StoriesAdBanner';
+import { dispatchMapOpenCreateSalon } from '../lib/mapUiEvents';
 
 function loadSeenStoryIds(userId: string): Set<string> {
   try {
@@ -63,6 +69,10 @@ export type StorySheetState =
   | { kind: 'create' }
   | { kind: 'view'; story: MapStory; isOwn: boolean };
 
+export type LivePreviewState =
+  | { kind: 'closed' }
+  | { kind: 'open'; entry: MapStoryEntry; liveId: string };
+
 export interface StoriesInlineBarProps {
   onOpenProfile: (userId: string) => void;
   onOpenReel?: (reelId: string) => void;
@@ -81,6 +91,7 @@ export function StoriesInlineBar({
   const [myStories, setMyStories] = useState<MapStory[]>([]);
   const [storiesByUser, setStoriesByUser] = useState<Map<string, MapStory[]>>(new Map());
   const [sheet, setSheet] = useState<StorySheetState>({ kind: 'closed' });
+  const [livePreview, setLivePreview] = useState<LivePreviewState>({ kind: 'closed' });
   const [loading, setLoading] = useState(false);
   const [collapsed, setCollapsed] = useState(isMapStoriesCollapsed);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -152,16 +163,15 @@ export function StoriesInlineBar({
     setLoading(true);
     try {
       const storyRadius = prefs.filterByDistance ? radiusKm : undefined;
-      const [favRes, feedRes, livesOrNull, storiesRes, mineRes] = await Promise.all([
+      const storyQuery =
+        storyRadius != null
+          ? { latitude: mapGeo.latitude, longitude: mapGeo.longitude, radius: storyRadius }
+          : undefined;
+      const [favRes, feedRes, livesOrNull, storiesBundle] = await Promise.all([
         api.getMyFavorites(token),
         api.getReelsFeed(token),
         api.getLives(token, { distanceFilter: false }).catch(() => null),
-        api.getStories(token, {
-          latitude: mapGeo.latitude,
-          longitude: mapGeo.longitude,
-          radius: storyRadius,
-        }),
-        api.getMyStory(token),
+        fetchStoriesBundle(token, storyQuery),
       ]);
       const favoriteIds = new Set(favRes.favorites.map((f) => f.id));
       const isFollowed = (userId: string) => favoriteIds.has(userId);
@@ -207,10 +217,21 @@ export function StoriesInlineBar({
         syntheticPeople.push({ id: aid, username: info.username, avatarUrl: info.avatarUrl });
       }
 
-      const followedEphemeral = (storiesRes.stories ?? []).filter((s) => isFollowed(s.userId));
+      const followedEphemeral = storiesBundle.stories.filter((s) => isFollowed(s.userId));
       const byUser = groupStoriesByUser(followedEphemeral);
       setStoriesByUser(byUser);
-      setMyStories(mineRes.stories ?? (mineRes.story ? [mineRes.story] : []));
+      const mine = storiesBundle.mine;
+      setMyStories(mine);
+
+      if (user?.id) {
+        const activeIds = [...followedEphemeral, ...mine].map((s) => s.id);
+        setSeenStoryIds((prev) => {
+          const pruned = pruneSeenStoryIds(prev, activeIds);
+          if (pruned === prev) return prev;
+          saveSeenStoryIds(user.id, pruned);
+          return pruned;
+        });
+      }
 
       const filteredPeople = syntheticPeople.filter((p) => p.id !== user?.id);
       setEntries(
@@ -238,15 +259,15 @@ export function StoriesInlineBar({
   const openEntry = (entry: MapStoryEntry) => {
     if (entry.hasActiveStory && entry.storyId) {
       const userStories = storiesByUser.get(entry.userId);
-      const story = userStories ? pickInitialStory(userStories, seenStoryIds) : undefined;
+      const story = userStories ? pickInitialStory(userStories) : undefined;
       if (story) {
         markStoryAsSeen(story.id);
         setSheet({ kind: 'view', story, isOwn: entry.userId === user?.id });
         return;
       }
     }
-    if (entry.isLive && entry.liveId && onOpenLive) {
-      onOpenLive(entry.liveId);
+    if (entry.isLive && entry.liveId) {
+      setLivePreview({ kind: 'open', entry, liveId: entry.liveId });
       return;
     }
     if (entry.reelId && onOpenReel) {
@@ -258,7 +279,7 @@ export function StoriesInlineBar({
 
   const openMyStory = () => {
     if (myStories.length) {
-      const story = pickInitialStory(myStories, seenStoryIds) ?? myStories[0]!;
+      const story = pickInitialStory(myStories) ?? myStories[0]!;
       markStoryAsSeen(story.id);
       setSheet({ kind: 'view', story, isOwn: true });
     } else {
@@ -267,6 +288,7 @@ export function StoriesInlineBar({
   };
 
   const handlePublished = (story: MapStory) => {
+    invalidateStoriesCache();
     setMyStories((prev) => [...prev, story].sort((a, b) => a.createdAt - b.createdAt));
     setStoriesByUser((prev) => {
       const next = new Map(prev);
@@ -279,7 +301,8 @@ export function StoriesInlineBar({
 
   const myLatestStory = latestStory(myStories);
 
-  const showEmpty = !loading && entries.length === 0 && !user;
+  const showEmptyGuest = !loading && entries.length === 0 && !user;
+  const showEmptyFollowing = !loading && entries.length === 0 && Boolean(user && token);
 
   const sortedEntries = useMemo(() => {
     const unseen = entries.filter((e) => {
@@ -294,6 +317,11 @@ export function StoriesInlineBar({
     });
     return [...unseen, ...seen];
   }, [entries, seenStoryIds, storiesByUser]);
+
+  const ringCount = useMemo(
+    () => sortedEntries.length + (user && token ? 1 : 0),
+    [sortedEntries.length, token, user]
+  );
 
   const storyStacks = useMemo(
     () => buildStoryUserStacks(sortedEntries, storiesByUser, myStories),
@@ -328,9 +356,9 @@ export function StoriesInlineBar({
 
   return (
     <>
-      <div className="rounded-xl border border-[#1e1e2f] bg-[#12121a] overflow-hidden min-w-0">
+      <div className="rounded-xl border border-[var(--ms-border)] bg-[var(--ms-surface)] overflow-hidden min-w-0">
         <div className="w-full min-w-0">
-          <div className="flex items-center gap-1 px-2 py-1.5 border-b border-[#2d2d3d]/80">
+          <div className="flex items-center gap-1 px-2 py-1.5 border-b border-[var(--ms-border)]/80">
             <button
               type="button"
               onClick={() => {
@@ -338,16 +366,16 @@ export function StoriesInlineBar({
                 setCollapsed(next);
                 setMapStoriesCollapsed(next);
               }}
-              className="flex-1 flex items-center gap-1.5 min-w-0 text-left"
+              className="flex-1 flex items-center gap-1.5 min-w-0 min-h-11 text-left"
               aria-expanded={!collapsed}
             >
               <span className={`text-[10px] font-extrabold uppercase tracking-wider ${USERNAME_WAVE_CLASS}`}>
                 Stories
               </span>
-              <span className="text-[9px] text-gray-500">({countLabel})</span>
+              <span className="text-[9px] text-[var(--ms-text-muted)]">({countLabel})</span>
               <svg
                 viewBox="0 0 24 24"
-                className={`w-3.5 h-3.5 text-gray-400 shrink-0 transition ${collapsed ? '' : 'rotate-180'}`}
+                className={`w-3.5 h-3.5 text-gray-300 shrink-0 transition ${collapsed ? '' : 'rotate-180'}`}
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
@@ -361,10 +389,10 @@ export function StoriesInlineBar({
               title="Filtrer les stories (favoris et distance)"
               aria-label="Filtrer les stories par favoris et distance"
               aria-expanded={filterOpen}
-              className={`p-1 rounded-lg shrink-0 transition ${
+              className={`min-w-11 min-h-11 flex items-center justify-center p-1 rounded-lg shrink-0 transition ${
                 filterOpen || filterActive
                   ? 'text-purple-300 bg-purple-900/30 hover:bg-purple-900/40'
-                  : 'text-gray-500 hover:text-gray-200 hover:bg-[#1a1a26]'
+                  : 'text-[var(--ms-text-muted)] hover:text-gray-200 hover:bg-[var(--ms-surface-2)]'
               }`}
             >
               <FilterIcon className="w-5 h-5" />
@@ -372,7 +400,7 @@ export function StoriesInlineBar({
           </div>
 
           {filterOpen && (
-            <div className="px-2.5 pb-2.5 pt-0 border-b border-[#2d2d3d]/80 space-y-2 max-h-[min(52vh,20rem)] overflow-y-auto overscroll-contain">
+            <div className="px-2.5 pb-2.5 pt-0 border-b border-[var(--ms-border)]/80 space-y-2 max-h-[min(52vh,20rem)] overflow-y-auto overscroll-contain">
               <label className="flex items-center justify-between gap-2 cursor-pointer">
                 <span className="text-[10px] text-gray-300">Favoris en premier</span>
                 <input
@@ -398,7 +426,7 @@ export function StoriesInlineBar({
               {prefs.filterByDistance && (
                 <div>
                   <div className="flex justify-between text-[10px] mb-1">
-                    <span className="text-gray-400">Rayon</span>
+                    <span className="text-gray-300">Rayon</span>
                     <span className="text-purple-400 font-bold">{radiusKm} km</span>
                   </div>
                   <input
@@ -421,42 +449,58 @@ export function StoriesInlineBar({
 
           {!collapsed && (
             <div className="min-w-0">
+              <StoriesAdBanner
+                onCtaSalon={() => dispatchMapOpenCreateSalon()}
+                onCtaLive={onOpenLive ? () => onOpenLive('') : undefined}
+              />
               {loading && entries.length === 0 && !user ? (
-                <p className="text-[10px] text-gray-500 text-center py-2 px-2">Chargement des stories…</p>
-              ) : showEmpty ? (
-                <p className="text-[10px] text-gray-500 text-center py-2 px-2 leading-snug">
+                <p className="text-[10px] text-[var(--ms-text-muted)] text-center py-2 px-2">Chargement des stories…</p>
+              ) : showEmptyGuest ? (
+                <p className="text-[10px] text-[var(--ms-text-muted)] text-center py-2 px-2 leading-snug">
                   Aucune story pour le moment.
                 </p>
               ) : (
-                <div className="stories-rings-carousel flex flex-nowrap gap-2 pb-1 -mx-2 px-2">
-                  {user && token ? (
-                    <MyMapStoryRing
-                      userId={user.id}
-                      username={user.username}
-                      avatarUrl={user.avatarUrl}
-                      hasActiveStory={myStories.length > 0}
-                      storyImageUrl={myLatestStory?.imageUrl}
-                      storyCount={myStories.length}
-                      onClick={openMyStory}
-                      onAddClick={() => setSheet({ kind: 'create' })}
-                    />
-                  ) : null}
-                  {sortedEntries.map((entry) => {
-                    const userStoryIds = storiesByUser.get(entry.userId)?.map((s) => s.id);
-                    const stack = storiesByUser.get(entry.userId);
-                    const entrySeen = stack?.length ? areAllStoriesSeen(stack, seenStoryIds) : false;
-                    return (
-                      <MapStoryRing
-                        key={entry.userId}
-                        entry={entry}
-                        onClick={() => openEntry(entry)}
-                        isSeen={entrySeen}
-                        storyIds={userStoryIds}
-                        seenStoryIds={seenStoryIds}
+                <>
+                  <StoriesRingsCarousel itemCount={ringCount}>
+                    {user && token ? (
+                      <MyMapStoryRing
+                        userId={user.id}
+                        username={user.username}
+                        avatarUrl={user.avatarUrl}
+                        hasActiveStory={myStories.length > 0}
+                        storyImageUrl={myLatestStory?.imageUrl}
+                        storyCount={myStories.length}
+                        onClick={openMyStory}
+                        onAddClick={() => setSheet({ kind: 'create' })}
                       />
-                    );
-                  })}
-                </div>
+                    ) : null}
+                    {sortedEntries.map((entry) => {
+                      const userStoryIds = storiesByUser.get(entry.userId)?.map((s) => s.id);
+                      const stack = storiesByUser.get(entry.userId);
+                      const entrySeen = stack?.length ? areAllStoriesSeen(stack, seenStoryIds) : false;
+                      return (
+                        <MapStoryRing
+                          key={entry.userId}
+                          entry={entry}
+                          onClick={() => openEntry(entry)}
+                          isSeen={entrySeen}
+                          storyIds={userStoryIds}
+                          seenStoryIds={seenStoryIds}
+                        />
+                      );
+                    })}
+                  </StoriesRingsCarousel>
+                  {showEmptyFollowing ? (
+                    <div className="px-3 py-2.5 text-center border-t border-[var(--ms-border)]/60">
+                      <p className="text-[10px] text-gray-300 leading-snug">
+                        Suivez des artistes pour voir leurs stories
+                      </p>
+                      <p className="mt-1 text-[9px] text-[var(--ms-text-muted)]">
+                        Parcourez la carte ou les profils pour vous abonner
+                      </p>
+                    </div>
+                  ) : null}
+                </>
               )}
             </div>
           )}
@@ -481,6 +525,16 @@ export function StoriesInlineBar({
           onPrev={goPrevStory}
           canNext={canNextStory}
           canPrev={canPrevStory}
+        />
+      ) : null}
+
+      {token && livePreview.kind === 'open' ? (
+        <StoryLivePreviewViewer
+          entry={livePreview.entry}
+          liveId={livePreview.liveId}
+          token={token}
+          onClose={() => setLivePreview({ kind: 'closed' })}
+          onJoin={(id) => onOpenLive?.(id)}
         />
       ) : null}
     </>

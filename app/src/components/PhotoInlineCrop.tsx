@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
 import {
   bitmapCropToProfileDataUrl,
   computeCropRectFromViewport,
@@ -7,31 +7,18 @@ import {
 import {
   bitmapCropToFeedDataUrl,
   bitmapCropToStoryDataUrl,
+  clampPanOffset,
   computeStoryCropRect,
   loadImageBitmapFromDataUrl,
   loadImageBitmapFromFile,
   STORY_VIEWPORT_H,
   STORY_VIEWPORT_W,
+  zoomPanAtViewportPoint,
 } from '../lib/storyImageCompose';
 import type { PhotoCropAspect } from './StoryImageCropModal';
 
-type CropHandle =
-  | 'move'
-  | 'nw'
-  | 'n'
-  | 'ne'
-  | 'e'
-  | 'se'
-  | 's'
-  | 'sw'
-  | 'w';
-
 export interface InlineCropControls {
-  apply: () => void;
-  scale: number;
-  minScale: number;
-  maxScale: number;
-  setScale: (scale: number) => void;
+  apply: () => string | null;
   exporting: boolean;
 }
 
@@ -53,133 +40,40 @@ function initialScaleForAspect(
   if (aspect === 'profile') {
     return initialCoverScale(imgW, imgH, Math.min(viewW, viewH));
   }
-  if (aspect === 'feed') {
-    return Math.max(viewW / imgW, viewH / imgH);
-  }
   return Math.max(viewW / imgW, viewH / imgH);
 }
 
-function anchorForHandle(handle: CropHandle): { x: number; y: number } {
-  switch (handle) {
-    case 'nw':
-      return { x: 1, y: 1 };
-    case 'n':
-      return { x: 0.5, y: 1 };
-    case 'ne':
-      return { x: 0, y: 1 };
-    case 'e':
-      return { x: 0, y: 0.5 };
-    case 'se':
-      return { x: 0, y: 0 };
-    case 's':
-      return { x: 0.5, y: 0 };
-    case 'sw':
-      return { x: 1, y: 0 };
-    case 'w':
-      return { x: 1, y: 0.5 };
-    default:
-      return { x: 0.5, y: 0.5 };
-  }
+function measureContainerSize(el: HTMLDivElement | null): { w: number; h: number } | null {
+  if (!el) return null;
+  const rect = el.getBoundingClientRect();
+  if (rect.width < 1 || rect.height < 1) return null;
+  return { w: rect.width, h: rect.height };
 }
 
-function scaleFromHandleDrag(
-  handle: CropHandle,
-  dx: number,
-  dy: number,
-  viewW: number,
-  viewH: number
+function syncViewSizeFromContainer(
+  el: HTMLDivElement | null,
+  viewSizeRef: MutableRefObject<{ w: number; h: number }>,
+  setViewSize: (size: { w: number; h: number }) => void
+): boolean {
+  const measured = measureContainerSize(el);
+  if (!measured) return false;
+  viewSizeRef.current = measured;
+  setViewSize(measured);
+  return true;
+}
+
+function pointerDistance(
+  a: { x: number; y: number },
+  b: { x: number; y: number }
 ): number {
-  const corner = handle === 'nw' || handle === 'ne' || handle === 'se' || handle === 'sw';
-  if (corner) {
-    const diagonal = Math.hypot(viewW, viewH);
-    const delta =
-      handle === 'se'
-        ? dx + dy
-        : handle === 'nw'
-          ? -dx - dy
-          : handle === 'ne'
-            ? -dx + dy
-            : dx - dy;
-    return 1 + delta / (diagonal * 0.85);
-  }
-  if (handle === 'e' || handle === 'w') {
-    const sign = handle === 'e' ? 1 : -1;
-    return 1 + (sign * dx) / (viewW * 0.85);
-  }
-  const sign = handle === 's' ? 1 : -1;
-  return 1 + (sign * dy) / (viewH * 0.85);
+  return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-function offsetForAnchor(
-  imgW: number,
-  imgH: number,
-  viewW: number,
-  viewH: number,
-  scale: number,
-  anchorX: number,
-  anchorY: number,
-  anchorImgX: number,
-  anchorImgY: number
+function pointerCenter(
+  a: { x: number; y: number },
+  b: { x: number; y: number }
 ): { x: number; y: number } {
-  const scaledW = imgW * scale;
-  const scaledH = imgH * scale;
-  const left = anchorX * viewW - anchorImgX * scale;
-  const top = anchorY * viewH - anchorImgY * scale;
-  return {
-    x: left - (viewW - scaledW) / 2,
-    y: top - (viewH - scaledH) / 2,
-  };
-}
-
-function Handle({
-  position,
-  onPointerDown,
-}: {
-  position: CropHandle;
-  onPointerDown: (e: React.PointerEvent, handle: CropHandle) => void;
-}) {
-  const base =
-    'absolute z-20 touch-none flex items-center justify-center w-7 h-7 -m-3.5';
-  const pos: Record<CropHandle, string> = {
-    move: '',
-    nw: 'top-0 left-0 cursor-nwse-resize',
-    n: 'top-0 left-1/2 -translate-x-1/2 cursor-ns-resize',
-    ne: 'top-0 right-0 cursor-nesw-resize',
-    e: 'top-1/2 right-0 -translate-y-1/2 cursor-ew-resize',
-    se: 'bottom-0 right-0 cursor-nwse-resize',
-    s: 'bottom-0 left-1/2 -translate-x-1/2 cursor-ns-resize',
-    sw: 'bottom-0 left-0 cursor-nesw-resize',
-    w: 'top-1/2 left-0 -translate-y-1/2 cursor-ew-resize',
-  };
-
-  if (position === 'move') return null;
-
-  const isCorner = position === 'nw' || position === 'ne' || position === 'se' || position === 'sw';
-
-  return (
-    <div
-      className={`${base} ${pos[position]}`}
-      onPointerDown={(e) => onPointerDown(e, position)}
-      role="presentation"
-    >
-      {isCorner ? (
-        <span
-          className={`block w-4 h-4 border-white ${
-            position === 'nw'
-              ? 'border-t-[3px] border-l-[3px]'
-              : position === 'ne'
-                ? 'border-t-[3px] border-r-[3px]'
-                : position === 'se'
-                  ? 'border-b-[3px] border-r-[3px]'
-                  : 'border-b-[3px] border-l-[3px]'
-          }`}
-          aria-hidden
-        />
-      ) : (
-        <span className="block w-2.5 h-2.5 rounded-full bg-white shadow-md" aria-hidden />
-      )}
-    </div>
-  );
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
 }
 
 export function PhotoInlineCrop({
@@ -201,16 +95,25 @@ export function PhotoInlineCrop({
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const dragRef = useRef<{
-    handle: CropHandle;
-    startX: number;
-    startY: number;
-    baseX: number;
-    baseY: number;
-    baseScale: number;
-    anchorImgX: number;
-    anchorImgY: number;
+  const [showHint, setShowHint] = useState(true);
+  const scaleRef = useRef(1);
+  const offsetRef = useRef({ x: 0, y: 0 });
+  const pointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const panRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(
+    null
+  );
+  const pinchRef = useRef<{
+    distance: number;
+    scale: number;
   } | null>(null);
+
+  useEffect(() => {
+    scaleRef.current = scale;
+  }, [scale]);
+
+  useEffect(() => {
+    offsetRef.current = offset;
+  }, [offset]);
 
   useEffect(() => {
     if (typeof source === 'string') {
@@ -225,21 +128,20 @@ export function PhotoInlineCrop({
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const ro = new ResizeObserver((entries) => {
-      const rect = entries[0]?.contentRect;
-      if (!rect || rect.width < 1 || rect.height < 1) return;
-      viewSizeRef.current = { w: rect.width, h: rect.height };
-      setViewSize({ w: rect.width, h: rect.height });
+    syncViewSizeFromContainer(el, viewSizeRef, setViewSize);
+    const ro = new ResizeObserver(() => {
+      syncViewSizeFromContainer(el, viewSizeRef, setViewSize);
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [loading]);
 
   useEffect(() => {
     let cancelled = false;
     let loaded: ImageBitmap | null = null;
     setLoading(true);
     setError(null);
+    setShowHint(true);
     const load =
       typeof source === 'string'
         ? loadImageBitmapFromDataUrl(source)
@@ -251,6 +153,7 @@ export function PhotoInlineCrop({
           return;
         }
         loaded = bmp;
+        syncViewSizeFromContainer(containerRef.current, viewSizeRef, setViewSize);
         const { w, h } = viewSizeRef.current;
         const base = initialScaleForAspect(aspect, bmp.width, bmp.height, w, h);
         setBitmap(bmp);
@@ -280,110 +183,181 @@ export function PhotoInlineCrop({
     : 1;
   const maxScale = minScale * 4;
 
-  const clampScale = (s: number) => Math.min(maxScale, Math.max(minScale, s));
+  const clampScale = useCallback(
+    (s: number) => Math.min(maxScale, Math.max(minScale, s)),
+    [minScale, maxScale]
+  );
 
-  const imageLayout = bitmap
-    ? {
-        width: bitmap.width * scale,
-        height: bitmap.height * scale,
-        left: (viewSize.w - bitmap.width * scale) / 2 + offset.x,
-        top: (viewSize.h - bitmap.height * scale) / 2 + offset.y,
-      }
-    : null;
-
-  const onPointerDown = (e: React.PointerEvent, handle: CropHandle) => {
-    if (!bitmap || !imageLayout) return;
-    e.stopPropagation();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-
-    let anchorImgX = bitmap.width / 2;
-    let anchorImgY = bitmap.height / 2;
-    if (handle !== 'move') {
-      const anchor = anchorForHandle(handle);
-      const scaledW = bitmap.width * scale;
-      const scaledH = bitmap.height * scale;
-      const left = (viewSize.w - scaledW) / 2 + offset.x;
-      const top = (viewSize.h - scaledH) / 2 + offset.y;
-      anchorImgX = (anchor.x * viewSize.w - left) / scale;
-      anchorImgY = (anchor.y * viewSize.h - top) / scale;
-    }
-
-    dragRef.current = {
-      handle,
-      startX: e.clientX,
-      startY: e.clientY,
-      baseX: offset.x,
-      baseY: offset.y,
-      baseScale: scale,
-      anchorImgX,
-      anchorImgY,
-    };
-  };
-
-  const onPointerMove = (e: React.PointerEvent) => {
-    const d = dragRef.current;
-    if (!d || !bitmap) return;
-
-    const dx = e.clientX - d.startX;
-    const dy = e.clientY - d.startY;
-
-    if (d.handle === 'move') {
-      setOffset({ x: d.baseX + dx, y: d.baseY + dy });
-      return;
-    }
-
-    const factor = scaleFromHandleDrag(d.handle, dx, dy, viewSize.w, viewSize.h);
-    const newScale = clampScale(d.baseScale * factor);
-    const anchor = anchorForHandle(d.handle);
-    const next = offsetForAnchor(
-      bitmap.width,
-      bitmap.height,
-      viewSize.w,
-      viewSize.h,
-      newScale,
-      anchor.x,
-      anchor.y,
-      d.anchorImgX,
-      d.anchorImgY
-    );
-    setScale(newScale);
-    setOffset(next);
-  };
-
-  const onPointerUp = () => {
-    dragRef.current = null;
-  };
-
-  const setScaleCentered = useCallback(
-    (next: number) => {
+  const applyPanZoom = useCallback(
+    (nextScale: number, nextOffsetX: number, nextOffsetY: number) => {
       if (!bitmap) return;
-      const clamped = clampScale(next);
-      const anchor = { x: 0.5, y: 0.5 };
-      const scaledW = bitmap.width * scale;
-      const scaledH = bitmap.height * scale;
-      const left = (viewSize.w - scaledW) / 2 + offset.x;
-      const top = (viewSize.h - scaledH) / 2 + offset.y;
-      const anchorImgX = (anchor.x * viewSize.w - left) / scale;
-      const anchorImgY = (anchor.y * viewSize.h - top) / scale;
-      const nextOffset = offsetForAnchor(
+      const clampedScale = clampScale(nextScale);
+      const clamped = clampPanOffset(
         bitmap.width,
         bitmap.height,
         viewSize.w,
         viewSize.h,
-        clamped,
-        anchor.x,
-        anchor.y,
-        anchorImgX,
-        anchorImgY
+        clampedScale,
+        nextOffsetX,
+        nextOffsetY
       );
-      setScale(clamped);
-      setOffset(nextOffset);
+      setScale(clampedScale);
+      setOffset({ x: clamped.offsetX, y: clamped.offsetY });
     },
-    [bitmap, scale, offset, viewSize.w, viewSize.h, minScale, maxScale]
+    [bitmap, clampScale, viewSize.w, viewSize.h]
   );
 
-  const applyCrop = useCallback(() => {
-    if (!bitmap || exporting) return;
+  const zoomAtPoint = useCallback(
+    (nextScale: number, pointX: number, pointY: number) => {
+      if (!bitmap) return;
+      const clampedScale = clampScale(nextScale);
+      const next = zoomPanAtViewportPoint(
+        bitmap.width,
+        bitmap.height,
+        viewSize.w,
+        viewSize.h,
+        scaleRef.current,
+        offsetRef.current.x,
+        offsetRef.current.y,
+        clampedScale,
+        pointX,
+        pointY
+      );
+      setScale(next.scale);
+      setOffset({ x: next.offsetX, y: next.offsetY });
+    },
+    [bitmap, clampScale, viewSize.w, viewSize.h]
+  );
+
+  const localPoint = (clientX: number, clientY: number) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return { x: viewSize.w / 2, y: viewSize.h / 2 };
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  };
+
+  const dismissHint = () => {
+    setShowHint((prev) => (prev ? false : prev));
+  };
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !bitmap) return;
+    const onWheelNative = (e: WheelEvent) => {
+      e.preventDefault();
+      dismissHint();
+      const rect = el.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
+      zoomAtPoint(scaleRef.current * factor, x, y);
+    };
+    el.addEventListener('wheel', onWheelNative, { passive: false });
+    return () => el.removeEventListener('wheel', onWheelNative);
+  }, [bitmap, zoomAtPoint]);
+
+  useEffect(() => {
+    if (!bitmap) return;
+    const newMin = initialScaleForAspect(aspect, bitmap.width, bitmap.height, viewSize.w, viewSize.h);
+    const nextScale = Math.max(newMin, scaleRef.current);
+    if (nextScale !== scaleRef.current) {
+      setScale(nextScale);
+    }
+    const clamped = clampPanOffset(
+      bitmap.width,
+      bitmap.height,
+      viewSize.w,
+      viewSize.h,
+      nextScale,
+      offsetRef.current.x,
+      offsetRef.current.y
+    );
+    if (clamped.offsetX !== offsetRef.current.x || clamped.offsetY !== offsetRef.current.y) {
+      setOffset({ x: clamped.offsetX, y: clamped.offsetY });
+    }
+  }, [bitmap, aspect, viewSize.w, viewSize.h]);
+
+  const syncPinch = () => {
+    const pts = [...pointersRef.current.values()];
+    if (pts.length !== 2 || !bitmap) return;
+    const center = pointerCenter(pts[0], pts[1]);
+    const distance = pointerDistance(pts[0], pts[1]);
+    const pinch = pinchRef.current;
+    if (!pinch || pinch.distance < 1) return;
+    const factor = distance / pinch.distance;
+    zoomAtPoint(pinch.scale * factor, center.x, center.y);
+  };
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (!bitmap) return;
+    e.stopPropagation();
+    dismissHint();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    const pt = localPoint(e.clientX, e.clientY);
+    pointersRef.current.set(e.pointerId, pt);
+
+    if (pointersRef.current.size === 1) {
+      panRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        baseX: offsetRef.current.x,
+        baseY: offsetRef.current.y,
+      };
+      pinchRef.current = null;
+      return;
+    }
+
+    if (pointersRef.current.size === 2) {
+      const pts = [...pointersRef.current.values()];
+      panRef.current = null;
+      pinchRef.current = {
+        distance: pointerDistance(pts[0], pts[1]),
+        scale: scaleRef.current,
+      };
+    }
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!bitmap || !pointersRef.current.has(e.pointerId)) return;
+    pointersRef.current.set(e.pointerId, localPoint(e.clientX, e.clientY));
+
+    if (pointersRef.current.size >= 2) {
+      if (!pinchRef.current) {
+        const pts = [...pointersRef.current.values()];
+        pinchRef.current = {
+          distance: pointerDistance(pts[0], pts[1]),
+          scale: scaleRef.current,
+        };
+      }
+      syncPinch();
+      return;
+    }
+
+    const pan = panRef.current;
+    if (!pan) return;
+    const dx = e.clientX - pan.startX;
+    const dy = e.clientY - pan.startY;
+    applyPanZoom(scaleRef.current, pan.baseX + dx, pan.baseY + dy);
+  };
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    pointersRef.current.delete(e.pointerId);
+    if (pointersRef.current.size < 2) pinchRef.current = null;
+    if (pointersRef.current.size === 0) {
+      panRef.current = null;
+      return;
+    }
+    if (pointersRef.current.size === 1) {
+      panRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        baseX: offsetRef.current.x,
+        baseY: offsetRef.current.y,
+      };
+    }
+  };
+
+  const applyCrop = useCallback((): string | null => {
+    if (!bitmap || exporting) return null;
     setExporting(true);
     try {
       const crop = isProfile
@@ -410,8 +384,10 @@ export function PhotoInlineCrop({
           ? bitmapCropToFeedDataUrl(bitmap, crop)
           : bitmapCropToStoryDataUrl(bitmap, crop);
       onApply(dataUrl);
+      return dataUrl;
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Rognage impossible');
+      return null;
     } finally {
       setExporting(false);
     }
@@ -424,24 +400,17 @@ export function PhotoInlineCrop({
     }
     onControlsChange?.({
       apply: applyCrop,
-      scale,
-      minScale,
-      maxScale,
-      setScale: setScaleCentered,
       exporting,
     });
-  }, [
-    bitmap,
-    loading,
-    error,
-    scale,
-    minScale,
-    maxScale,
-    exporting,
-    applyCrop,
-    setScaleCentered,
-    onControlsChange,
-  ]);
+  }, [bitmap, loading, error, exporting, applyCrop, onControlsChange]);
+
+  const imageLayout = bitmap
+    ? {
+        width: bitmap.width * scale,
+        height: bitmap.height * scale,
+        transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`,
+      }
+    : null;
 
   if (loading) {
     return (
@@ -468,44 +437,45 @@ export function PhotoInlineCrop({
   return (
     <div
       ref={containerRef}
-      className="absolute inset-0 touch-none select-none overflow-hidden"
+      className="absolute inset-0 touch-none select-none overflow-hidden cursor-grab active:cursor-grabbing"
+      onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
       onClick={(e) => e.stopPropagation()}
     >
       <div
-        className="absolute cursor-grab active:cursor-grabbing"
+        className="absolute left-1/2 top-1/2 pointer-events-none max-w-none"
         style={{
           width: imageLayout.width,
           height: imageLayout.height,
-          left: imageLayout.left,
-          top: imageLayout.top,
+          transform: imageLayout.transform,
         }}
-        onPointerDown={(e) => onPointerDown(e, 'move')}
       >
         {previewUrl ? (
           <img
             src={previewUrl}
             alt=""
             draggable={false}
-            className="w-full h-full max-w-none pointer-events-none"
+            className="w-full h-full max-w-none"
             style={{ filter: filterCss }}
           />
         ) : null}
       </div>
 
       <div className="absolute inset-0 pointer-events-none z-10" aria-hidden>
-        <div className="absolute inset-0 border-2 border-white/90" />
-        <div className="absolute inset-x-0 top-1/3 border-t border-white/25" />
-        <div className="absolute inset-x-0 top-2/3 border-t border-white/25" />
-        <div className="absolute inset-y-0 left-1/3 border-l border-white/25" />
-        <div className="absolute inset-y-0 left-2/3 border-l border-white/25" />
+        <div className="absolute inset-0 border border-white/35" />
+        <div className="absolute inset-x-0 top-1/3 border-t border-white/20" />
+        <div className="absolute inset-x-0 top-2/3 border-t border-white/20" />
+        <div className="absolute inset-y-0 left-1/3 border-l border-white/20" />
+        <div className="absolute inset-y-0 left-2/3 border-l border-white/20" />
       </div>
 
-      {(['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const).map((h) => (
-        <Handle key={h} position={h} onPointerDown={onPointerDown} />
-      ))}
+      {showHint ? (
+        <p className="absolute bottom-3 inset-x-0 z-20 pointer-events-none text-center text-[11px] text-white/55 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
+          Pincez ou glissez
+        </p>
+      ) : null}
     </div>
   );
 }

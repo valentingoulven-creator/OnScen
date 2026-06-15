@@ -263,7 +263,7 @@ export default function App() {
   };
 
   return (
-    <div className="ms-phone-shell flex flex-col min-h-dvh max-h-dvh overflow-hidden">
+    <div className="ms-phone-shell ms-app-shell flex flex-col min-h-dvh max-h-dvh overflow-hidden min-w-0 w-full">
       {incomingToast && (
         <button
           type="button"

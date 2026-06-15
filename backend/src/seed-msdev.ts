@@ -7,14 +7,12 @@ import { followUser } from './lib/follows';
 import { ensureSalonQueue, ensureSalonProposals, enqueueItem } from './lib/salonPlaybackOps';
 import { MSDEV_DEMO_AGE } from './lib/msdevDemoAccounts';
 import { FRANCE_COUNTRY_CODE, resolveLiveCountry } from './lib/liveCountry';
+import { schedulePersist } from './lib/persist';
 
-export async function seedMsdevData(): Promise<void> {
-  if (db.users.size > 0) return;
+const PARIS_LAT = 48.8566;
+const PARIS_LON = 2.3522;
 
-  const hash = await bcrypt.hash('msdev123', 10);
-  const parisLat = 48.8566;
-  const parisLon = 2.3522;
-
+function buildMsdevDemoUsers(hash: string): { dj: User; bass: User; listener: User } {
   const dj: User = {
     id: 'user_dj',
     username: 'DJ Melody',
@@ -98,13 +96,48 @@ export async function seedMsdevData(): Promise<void> {
     u.lastSeenAt = Date.now();
   };
 
-  setUserGeo(dj, parisLat + 0.0004, parisLon + 0.0003);
-  setUserGeo(bass, parisLat - 0.0005, parisLon + 0.0002);
-  setUserGeo(listener, parisLat - 0.0008, parisLon - 0.0004);
+  setUserGeo(dj, PARIS_LAT + 0.0004, PARIS_LON + 0.0003);
+  setUserGeo(bass, PARIS_LAT - 0.0005, PARIS_LON + 0.0002);
+  setUserGeo(listener, PARIS_LAT - 0.0008, PARIS_LON - 0.0004);
+
+  return { dj, bass, listener };
+}
+
+/**
+ * Après restauration d'un store.json partiel (ex. bots world sans comptes démo),
+ * recrée les comptes listener@ / dj@ / bass@ msdev manquants.
+ */
+export async function ensureMsdevDemoAccounts(): Promise<number> {
+  if (process.env.APP_ENV !== 'msdev' && process.env.MSENV !== 'msdev') return 0;
+
+  const hash = await bcrypt.hash('msdev123', 10);
+  const { dj, bass, listener } = buildMsdevDemoUsers(hash);
+  let added = 0;
+  for (const user of [dj, bass, listener]) {
+    const exists = [...db.users.values()].some(
+      (u) => u.email === user.email || u.id === user.id
+    );
+    if (exists) continue;
+    db.users.set(user.id, user);
+    added++;
+    console.log(`[msdev] Compte démo créé : ${user.email}`);
+  }
+  if (added > 0) schedulePersist();
+  return added;
+}
+
+export async function seedMsdevData(): Promise<void> {
+  if (db.users.size > 0) return;
+
+  const hash = await bcrypt.hash('msdev123', 10);
+  const { dj, bass, listener } = buildMsdevDemoUsers(hash);
 
   db.users.set(dj.id, dj);
   db.users.set(bass.id, bass);
   db.users.set(listener.id, listener);
+
+  const parisLat = PARIS_LAT;
+  const parisLon = PARIS_LON;
 
   const salon1: Salon = {
     id: 'salon_dj',

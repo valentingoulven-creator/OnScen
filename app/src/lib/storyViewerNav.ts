@@ -36,11 +36,20 @@ export function areAllStoriesSeen(stories: MapStory[], seenIds: Set<string>): bo
   return stories.length > 0 && stories.every((s) => seenIds.has(s.id));
 }
 
-/** Première story non vue, sinon la plus ancienne (relecture). */
-export function pickInitialStory(stories: MapStory[], seenIds: Set<string>): MapStory | undefined {
+/** Première story de la pile (lecture depuis le début, re-regardable). */
+export function pickInitialStory(stories: MapStory[]): MapStory | undefined {
   const sorted = sortStoriesChronological(stories);
-  if (!sorted.length) return undefined;
-  return sorted.find((s) => !seenIds.has(s.id)) ?? sorted[0];
+  return sorted[0];
+}
+
+/** Retire les IDs expirés/absents du set « vu » local. */
+export function pruneSeenStoryIds(seenIds: Set<string>, activeIds: Iterable<string>): Set<string> {
+  const active = new Set(activeIds);
+  const next = new Set<string>();
+  for (const id of seenIds) {
+    if (active.has(id)) next.add(id);
+  }
+  return next.size === seenIds.size ? seenIds : next;
 }
 
 /** Piles de stories par utilisateur (ordre bandeau : ma story puis entrées). */

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import i18n from '../i18n';
-import { api } from '../lib/api';
+import { api, ApiRequestError } from '../lib/api';
 import { clearStoredToken, getStoredToken, persistToken } from '../lib/authStorage';
 import { clearPersistedSalonSession } from '../lib/activeSalonSession';
 import { clearSocketUser, registerUser, setSocketAuthToken } from '../lib/socket';
@@ -29,6 +29,27 @@ interface AuthCtx {
 }
 
 const AuthContext = createContext<AuthCtx | null>(null);
+
+function isInvalidSessionError(message: string | undefined, status?: number): boolean {
+  if (status === 404) return true;
+  if (!message) return false;
+  return (
+    message.includes('Session expirée') ||
+    message.includes('Token invalide') ||
+    message.includes('Token manquant') ||
+    message.includes('Utilisateur introuvable')
+  );
+}
+
+function sessionErrorFromUnknown(e: unknown): { message: string; status?: number } {
+  if (e instanceof ApiRequestError) {
+    return { message: e.message, status: e.status };
+  }
+  if (e instanceof Error) {
+    return { message: e.message };
+  }
+  return { message: String(e ?? '') };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => getStoredToken());
@@ -72,19 +93,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(r.user);
         registerUser(r.user.id, token);
       })
-      .catch((e: Error) => {
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        const { message, status } = sessionErrorFromUnknown(e);
+        if (isInvalidSessionError(message, status)) {
+          logoutRef.current();
+          return;
+        }
         setAuthBootError(
-          e.message ||
+          message ||
             'Erreur lors du chargement de la session. Déconnectez-vous ou actualisez la page (Ctrl+Shift+R).'
         );
-        if (cancelled) return;
-        if (
-          e.message?.includes('Session expirée') ||
-          e.message?.includes('Token invalide') ||
-          e.message?.includes('Token manquant')
-        ) {
-          logoutRef.current();
-        }
         // Erreur réseau (serveur arrêté, cert, etc.) : on conserve le token.
         // L'authBootError guide l'utilisateur ; le timeout de 20 s déconnecte si nécessaire.
       })
@@ -137,12 +156,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const r = await api.me(token);
       setUser(r.user);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : '';
-      if (
-        msg.includes('Session expirée') ||
-        msg.includes('Token invalide') ||
-        msg.includes('Token manquant')
-      ) {
+      const { message, status } = sessionErrorFromUnknown(e);
+      if (isInvalidSessionError(message, status)) {
         logoutRef.current();
       }
     }

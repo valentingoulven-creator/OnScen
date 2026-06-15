@@ -15,6 +15,7 @@ import {
 import { isMsdevShortcutBlocked, loginAccessDeniedReason } from '../lib/accessControl';
 import { seedCommunityPosts } from '../seed-community-posts';
 import { getHomeFeedSeedStats, seedHomeFeed } from '../seed-home-feed';
+import { seedMsdevStories } from '../seed-msdev-stories';
 
 export const msdevRouter = Router();
 
@@ -93,6 +94,20 @@ msdevRouter.post('/seed-community-posts', authenticateJWT, (req: Request, res: R
       result.created > 0
         ? `${result.created} publication(s) hors favoris créée(s) (${result.nonFavoriteTotal ?? result.total} non-favoris).`
         : `${result.nonFavoriteTotal ?? result.total} publication(s) hors favoris déjà présentes.`,
+  });
+});
+
+/** Regénère des stories aléatoires pour les favoris de listener@msdev.local (msdev). ?force=1 recrée tout le seed stories. */
+msdevRouter.post('/seed-stories', authenticateJWT, (req: Request, res: Response) => {
+  const force = req.body?.force === true || req.query.force === '1';
+  const result = seedMsdevStories({ force });
+  res.json({
+    ok: true,
+    ...result,
+    message:
+      result.created > 0
+        ? `${result.created} story(s) créée(s) pour ${result.authorIds.length} auteur(s) favori(s) (${result.authorsWithStories} auteurs avec story active).`
+        : `${result.authorsWithStories} auteur(s) favori(s) ont déjà une story active.`,
   });
 });
 

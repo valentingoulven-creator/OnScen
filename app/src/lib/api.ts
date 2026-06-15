@@ -354,6 +354,17 @@ export const api = {
       token
     ),
 
+  assignAdminPlatformPlan: (
+    token: string,
+    userId: string,
+    planId: 'free' | 'soundy_plus' | 'soundy_ultra'
+  ) =>
+    request<{ ok: boolean; status: import('./subscriptions').PlatformPlanStatusResponse }>(
+      `/access/admin/users/${userId}/platform-plan`,
+      { method: 'POST', body: JSON.stringify({ planId }) },
+      token
+    ),
+
   createAccessInvite: (
     token: string,
     body: { code?: string; label?: string; maxUses?: number }
@@ -550,6 +561,85 @@ export const api = {
 
   adminDeleteReel: (token: string, reelId: string) =>
     request<{ ok: boolean }>(`/access/admin/content/reels/${reelId}`, { method: 'DELETE' }, token),
+
+  getAdminSponsors: (
+    token: string,
+    opts: {
+      filter?: import('../types').SponsorFilter;
+      placement?: import('../types').SponsorPlacement;
+      q?: string;
+    } = {}
+  ) => {
+    const params = new URLSearchParams();
+    params.set('filter', opts.filter ?? 'all');
+    if (opts.placement) params.set('placement', opts.placement);
+    if (opts.q) params.set('q', opts.q);
+    return request<import('../types').AdminSponsorsListResponse>(
+      `/access/admin/sponsors?${params.toString()}`,
+      {},
+      token
+    );
+  },
+
+  createAdminSponsor: (token: string, body: Partial<import('../types').Sponsor>) =>
+    request<{ sponsor: import('../types').Sponsor }>(
+      '/access/admin/sponsors',
+      { method: 'POST', body: JSON.stringify(body) },
+      token
+    ),
+
+  updateAdminSponsor: (token: string, sponsorId: string, body: Partial<import('../types').Sponsor>) =>
+    request<{ sponsor: import('../types').Sponsor }>(
+      `/access/admin/sponsors/${sponsorId}`,
+      { method: 'PATCH', body: JSON.stringify(body) },
+      token
+    ),
+
+  toggleAdminSponsor: (token: string, sponsorId: string) =>
+    request<{ sponsor: import('../types').Sponsor }>(
+      `/access/admin/sponsors/${sponsorId}/toggle`,
+      { method: 'POST' },
+      token
+    ),
+
+  reorderAdminSponsors: (token: string, ids: string[]) =>
+    request<{ items: import('../types').Sponsor[] }>(
+      '/access/admin/sponsors/reorder',
+      { method: 'POST', body: JSON.stringify({ ids }) },
+      token
+    ),
+
+  deleteAdminSponsor: (token: string, sponsorId: string) =>
+    request<{ ok: boolean }>(`/access/admin/sponsors/${sponsorId}`, { method: 'DELETE' }, token),
+
+  getMapSponsors: () =>
+    request<{ items: import('../types').MapAdItem[] }>('/sponsors/map', {}),
+
+  getFeedSponsors: () =>
+    request<{ items: import('../types').MapAdItem[] }>('/sponsors/feed', {}),
+
+  getStoriesSponsors: () =>
+    request<{ items: import('../types').MapAdItem[] }>('/sponsors/stories', {}),
+
+  getReelsSponsors: () =>
+    request<import('../types').ReelsSponsorsResponse>('/sponsors/reels', {}),
+
+  getAdminSponsorsConfig: (token: string) =>
+    request<{ config: import('../types').SponsorPlatformConfig }>(
+      '/access/admin/sponsors/config',
+      {},
+      token
+    ),
+
+  patchAdminSponsorsConfig: (
+    token: string,
+    body: Partial<import('../types').SponsorPlatformConfig>
+  ) =>
+    request<{ config: import('../types').SponsorPlatformConfig }>(
+      '/access/admin/sponsors/config',
+      { method: 'PATCH', body: JSON.stringify(body) },
+      token
+    ),
 
   getLegalPublisher: () =>
     request<{
@@ -974,6 +1064,14 @@ export const api = {
       liveInputId?: string;
     }>(`/lives/${liveId}/playback`, {}, token),
 
+  getLiveStreamCapabilities: (token: string) =>
+    request<{
+      cloudflareStreamAvailable: boolean;
+      livekitAvailable: boolean;
+      obsAllowed?: boolean;
+      platformPlanId?: string;
+    }>('/lives/stream-capabilities', {}, token),
+
   provisionCloudflareStream: (token: string, liveId: string) =>
     request<{ live: import('../types').Live }>(
       `/lives/${liveId}/cloudflare-stream`,
@@ -1207,6 +1305,13 @@ export const api = {
 
   getSubscriptionsConfig: (token?: string | null) =>
     request<import('./subscriptions').SubscriptionsConfig>('/subscriptions/config', {}, token),
+
+  getPlatformPlan: (token: string) =>
+    request<import('./subscriptions').PlatformPlanStatusResponse>(
+      '/subscriptions/platform-plan',
+      {},
+      token
+    ),
 
   getSubscriptionStatus: (
     token: string,

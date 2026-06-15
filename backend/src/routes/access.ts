@@ -30,6 +30,13 @@ import {
   persistSpotifyProduct,
 } from '../lib/spotifyOAuth';
 import { isSpotifyPlaybackHostProduct } from '../lib/spotifyApi';
+import {
+  getActiveSubscription,
+  getTierById,
+  PLATFORM_CREATOR_ID,
+  recordCreatorSubscription,
+} from '../lib/subscriptions';
+import { getPlatformPlanStatus, getUserPlatformPlan } from '../lib/platformPlans';
 
 export const accessRouter = Router();
 
@@ -125,6 +132,7 @@ const STATUS_SORT_ORDER: Record<AccountStatus, number> = {
 function mapAdminManagedUser(u: User) {
   const photos = normalizeProfilePhotos(u);
   const reels = db.userReels.filter((r) => r.authorId === u.id);
+  const platformPlan = getUserPlatformPlan(u.id);
   return {
     id: u.id,
     username: u.username,
@@ -154,6 +162,8 @@ function mapAdminManagedUser(u: User) {
     privateReelsCount: reels.filter((r) => isPrivateReel(r)).length,
     publicReelsCount: reels.filter((r) => !isPrivateReel(r)).length,
     instagramHandle: u.instagramHandle,
+    platformPlanId: platformPlan.id,
+    platformPlanLabel: platformPlan.label,
   };
 }
 
@@ -305,6 +315,49 @@ accessRouter.post('/admin/users/:userId/demote', authenticateJWT, (req: Request,
   }
   schedulePersist();
   res.json({ user: mapAdminManagedUser(result) });
+});
+
+/** Attribution manuelle du forfait plateforme (Gratuit / Soundy+ / SoundyUltra). */
+accessRouter.post('/admin/users/:userId/platform-plan', authenticateJWT, (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const userId = req.params.userId;
+  const user = db.users.get(userId);
+  if (!user || user.email.endsWith('@bot.local')) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+
+  const planId = String(req.body?.planId ?? req.body?.tierId ?? '').trim();
+  if (!['free', 'soundy_plus', 'soundy_ultra'].includes(planId)) {
+    res.status(400).json({ error: 'Forfait invalide (free, soundy_plus, soundy_ultra)' });
+    return;
+  }
+
+  const active = getActiveSubscription(userId, PLATFORM_CREATOR_ID);
+  if (active) {
+    active.status = 'canceled';
+    active.updatedAt = Date.now();
+  }
+
+  if (planId !== 'free') {
+    const tier = getTierById(planId, 'platform');
+    if (!tier) {
+      res.status(400).json({ error: 'Palier plateforme inconnu' });
+      return;
+    }
+    recordCreatorSubscription({
+      subscriberId: userId,
+      creatorId: PLATFORM_CREATOR_ID,
+      tierId: tier.id,
+      tierLabel: tier.label,
+      amountCents: tier.amountCents,
+      targetType: 'platform',
+      paymentMode: 'simulation',
+    });
+  }
+
+  schedulePersist();
+  res.json({ ok: true, status: getPlatformPlanStatus(userId) });
 });
 
 accessRouter.post('/admin/invites', authenticateJWT, (req: Request, res: Response) => {

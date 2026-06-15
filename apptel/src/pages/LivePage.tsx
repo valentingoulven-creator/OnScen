@@ -5,7 +5,7 @@ import { useLiveCamera } from '../hooks/useLiveCamera';
 import { usePauseMediaOnPageHidden, pauseMediaElements } from '../hooks/usePauseMediaOnPageHidden';
 import { useBackgroundPlayback } from '../hooks/useBackgroundPlayback';
 import { releaseAppMediaFocus, requestAppMediaFocus } from '../lib/appMediaFocus';
-import { api } from '../lib/api';
+import { api, ApiRequestError } from '../lib/api';
 import {
   LIVE_CAMERA_MIC_SWITCHING,
   liveStreamEndedHintKey,
@@ -83,6 +83,9 @@ export function LivePage({
   const [cameraToggling, setCameraToggling] = useState(false);
   const [showVipPanel, setShowVipPanel] = useState(false);
   const [showCfHostPanel, setShowCfHostPanel] = useState(true);
+  const [cfProvisioning, setCfProvisioning] = useState(false);
+  const [cloudflareAvailable, setCloudflareAvailable] = useState<boolean | null>(null);
+  const [obsAllowed, setObsAllowed] = useState<boolean | null>(null);
   const [chatBanned, setChatBanned] = useState(false);
   const [chatBanMessage, setChatBanMessage] = useState<string | null>(null);
   const [chatBanUntil, setChatBanUntil] = useState<number | null>(null);
@@ -195,15 +198,22 @@ export function LivePage({
         return { ...prev, playbackState: mergeRemotePlaybackState(prev.playbackState, state) };
       });
     };
+    const onJoinDenied = (payload: { liveId: string; message?: string }) => {
+      if (payload.liveId !== liveId) return;
+      setLiveViewBanned(true);
+      setLiveViewBanMessage(payload.message ?? 'Impossible de rejoindre ce live.');
+    };
     socket.on('live_updated', onUpdate);
     socket.on('playback_sync', onPlayback);
     socket.on('salon_playback', onPlayback);
+    socket.on('live_join_denied', onJoinDenied);
     return () => {
       offReconnect();
       socket.emit('leave_live', { liveId });
       socket.off('live_updated', onUpdate);
       socket.off('playback_sync', onPlayback);
       socket.off('salon_playback', onPlayback);
+      socket.off('live_join_denied', onJoinDenied);
     };
   }, [liveId, user?.id]);
 
@@ -339,6 +349,84 @@ export function LivePage({
   const isLiveKitStream = live?.streamMode === 'livekit';
   const isCloudflareStream =
     live?.streamMode === 'cloudflare' && !!live.cloudflarePlaybackUrl;
+  const canSwitchToCloudflare = !!(
+    isHost &&
+    live?.isActive &&
+    !isCloudflareStream &&
+    (live.streamMode === 'livekit' || live.streamMode === 'webrtc' || !live.streamMode)
+  );
+  const showConfigureObsButton =
+    canSwitchToCloudflare && cloudflareAvailable === true && obsAllowed !== false;
+
+  useEffect(() => {
+    if (!token || !canSwitchToCloudflare) return;
+    let cancelled = false;
+    api
+      .getLiveStreamCapabilities(token)
+      .then((caps) => {
+        if (!cancelled) {
+          setCloudflareAvailable(caps.cloudflareStreamAvailable);
+          setObsAllowed(caps.obsAllowed ?? false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCloudflareAvailable(false);
+          setObsAllowed(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, canSwitchToCloudflare]);
+
+  const configureObs = useCallback(async () => {
+    if (!token || !live || cfProvisioning || !canSwitchToCloudflare) return;
+    setCfProvisioning(true);
+    try {
+      if (isLiveKitStream && live.cameraActive) {
+        emitCameraState(false);
+        setLive((prev) =>
+          prev ? { ...prev, cameraActive: false, cameraMode: undefined } : prev
+        );
+      } else if (hostCameraBroadcastRef.current) {
+        emitCameraState(false);
+        setLive((prev) =>
+          prev ? { ...prev, cameraActive: false, cameraMode: undefined } : prev
+        );
+      }
+      const res = await api.provisionCloudflareStream(token, liveId);
+      if (res.live.streamMode !== 'cloudflare' || !res.live.cloudflarePlaybackUrl) {
+        throw new Error('Impossible de configurer Cloudflare Stream.');
+      }
+      setLive((prev) => ({
+        ...res.live,
+        hostMonetizationEligible:
+          res.live.hostMonetizationEligible ?? prev?.hostMonetizationEligible,
+      }));
+      setShowCfHostPanel(true);
+    } catch (e) {
+      const message =
+        e instanceof ApiRequestError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : 'Impossible de configurer Cloudflare Stream.';
+      setCameraToast(message);
+      window.setTimeout(() => setCameraToast(null), 5000);
+    } finally {
+      setCfProvisioning(false);
+    }
+  }, [
+    token,
+    live,
+    liveId,
+    cfProvisioning,
+    canSwitchToCloudflare,
+    isLiveKitStream,
+    emitCameraState,
+  ]);
+
   const hostCameraRelayActive = !!(
     isHost &&
     cameraLocalActive &&
@@ -909,6 +997,25 @@ export function LivePage({
                 aria-hidden
                 onChange={(e) => void onPickVideoFile(e)}
               />
+              {showConfigureObsButton && (
+                <button
+                  type="button"
+                  onClick={() => void configureObs()}
+                  disabled={cfProvisioning}
+                  className="px-2.5 py-1.5 rounded-full text-[10px] font-bold border border-orange-500/40 bg-orange-950/60 text-orange-200 hover:bg-orange-900/70 hover:border-orange-400/50 transition disabled:opacity-50"
+                  title="Passer en diffusion OBS via Cloudflare Stream (SoundyUltra)"
+                >
+                  {cfProvisioning ? '…' : '📡 Configurer OBS'}
+                </button>
+              )}
+              {canSwitchToCloudflare && obsAllowed === false && cloudflareAvailable && (
+                <span
+                  className="px-2 py-1 rounded-full text-[9px] text-gray-500 border border-[#2d2d3d]"
+                  title="Réservé à SoundyUltra"
+                >
+                  OBS · Ultra
+                </span>
+              )}
               <button
                 type="button"
                 onClick={toggleHostCamera}

@@ -29,8 +29,10 @@ import { legalRouter } from './routes/legal';
 import { analyticsRouter } from './routes/analytics';
 import { accessRouter } from './routes/access';
 import { adminContentRouter } from './routes/adminContent';
+import { adminSponsorsRouter } from './routes/adminSponsors';
 import { adminCloudflareRouter } from './routes/adminCloudflare';
 import { newsRouter } from './routes/news';
+import { sponsorsRouter } from './routes/sponsors';
 import { trendingRouter } from './routes/trending';
 import { supportRouter, supportAdminRouter } from './routes/support';
 import { getPublicDir, getMsdevConfigPath } from './paths';
@@ -410,6 +412,7 @@ app.use('/api/auth', oauthRouter);
 app.use('/api/access', accessRouter);
 app.use('/api/access/admin/support', supportAdminRouter);
 app.use('/api/access/admin/content', adminContentRouter);
+app.use('/api/access/admin/sponsors', adminSponsorsRouter);
 app.use('/api/admin', adminCloudflareRouter);
 app.use('/api/geo', geoRouter);
 app.use('/api/salons', salonsRouter);
@@ -434,6 +437,7 @@ app.use('/api/legal/reports', reportsLimiter);
 app.use('/api/legal', legalRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/news', newsRouter);
+app.use('/api/sponsors', sponsorsRouter);
 app.use('/api/trending', trendingRouter);
 
 app.get('/api/config', (_req, res) => {

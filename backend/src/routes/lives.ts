@@ -30,7 +30,15 @@ import {
   getCloudflareLiveInput,
   isCloudflareStreamConfigured,
 } from '../lib/cloudflareStream';
-import { defaultLiveStreamMode } from '../lib/liveStreamMode';
+import {
+  assertCanStartLive,
+  assertCanJoinLiveAsViewer,
+  assertCanUseCloudflareObs,
+  canAccessArchivedLives,
+  getUserPlatformPlan,
+  PlatformPlanError,
+  resolveStreamModeForHost,
+} from '../lib/platformPlans';
 import {
   createLiveKitToken,
   getLiveKitUrl,
@@ -123,6 +131,7 @@ function defaultStandalonePlayback(hostName: string, platform: MusicPlatform) {
 }
 
 async function provisionCloudflareStreamForLive(live: Live): Promise<void> {
+  assertCanUseCloudflareObs(live.hostId);
   if (!isCloudflareStreamConfigured()) return;
   live.streamMode = 'cloudflare';
   try {
@@ -178,9 +187,19 @@ livesRouter.post('/start', authenticateJWT, async (req: Request, res: Response) 
     return;
   }
 
+  try {
+    assertCanStartLive(userId);
+  } catch (e) {
+    if (e instanceof PlatformPlanError) {
+      res.status(403).json({ error: e.message, code: e.code });
+      return;
+    }
+    throw e;
+  }
+
   const salon = [...db.salons.values()].find((s) => s.hostId === userId);
   let live: Live;
-  const streamMode = defaultLiveStreamMode();
+  const streamMode = resolveStreamModeForHost(userId);
 
   if (salon) {
     /** playbackState reprend le salon (métadonnées morceau) ; la vidéo YouTube reste côté SalonPage, pas LivePage. */
@@ -260,11 +279,29 @@ livesRouter.post('/stop', authenticateJWT, async (req: Request, res: Response) =
   res.json({ ok: true });
 });
 
+livesRouter.get('/stream-capabilities', authenticateJWT, (req: Request, res: Response) => {
+  const userId = (req as Request & { user: { id: string } }).user.id;
+  const plan = getUserPlatformPlan(userId);
+  res.json({
+    cloudflareStreamAvailable: isCloudflareStreamConfigured() && plan.limits.allowCloudflare,
+    livekitAvailable: isLiveKitConfigured() && plan.limits.allowLiveKit,
+    obsAllowed: plan.limits.allowObs,
+    platformPlanId: plan.id,
+  });
+});
+
 livesRouter.get('/user/:userId', authenticateJWT, (req: Request, res: Response) => {
   const userId = req.params.userId;
   const me = (req as Request & { user: { id: string } }).user.id;
   if (!db.users.has(userId)) {
     res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+  if (userId === me && !canAccessArchivedLives(me)) {
+    res.status(403).json({
+      error: 'Les rediffusions sont réservées aux abonné·e·s Soundy+.',
+      code: 'ARCHIVED_LIVES_PLUS_REQUIRED',
+    });
     return;
   }
   const lives = listHostedArchivedLives(userId, me).map(serializeArchivedLive);
@@ -351,6 +388,18 @@ livesRouter.get('/:id/livekit-token', authenticateJWT, async (req: Request, res:
     });
     return;
   }
+  const isHost = live.hostId === me.id;
+  if (!isHost) {
+    try {
+      assertCanJoinLiveAsViewer(live.hostId, live.viewersCount, me.id);
+    } catch (e) {
+      if (e instanceof PlatformPlanError) {
+        res.status(403).json({ error: e.message, code: e.code });
+        return;
+      }
+      throw e;
+    }
+  }
   if (!isLiveKitConfigured()) {
     res.status(503).json({
       error: 'LiveKit non configuré sur le serveur.',
@@ -360,7 +409,6 @@ livesRouter.get('/:id/livekit-token', authenticateJWT, async (req: Request, res:
   }
 
   const user = db.users.get(me.id);
-  const isHost = live.hostId === me.id;
   const roomName = liveKitRoomName(live.id);
 
   try {
@@ -444,8 +492,13 @@ livesRouter.post('/:id/cloudflare-stream', authenticateJWT, async (req: Request,
       await provisionCloudflareStreamForLive(live);
     }
     db.lives.set(live.id, live);
+    getIo()?.to(`live_${live.id}`).emit('live_updated', serializePublicLive(live));
     res.json({ live: publicLive(live, undefined, userId) });
   } catch (err) {
+    if (err instanceof PlatformPlanError) {
+      res.status(403).json({ error: err.message, code: err.code });
+      return;
+    }
     const message = err instanceof Error ? err.message : 'Erreur Cloudflare Stream';
     res.status(502).json({ error: message, code: 'cloudflare_error' });
   }
@@ -463,12 +516,21 @@ livesRouter.get('/:id/cloudflare-ingest', authenticateJWT, async (req: Request, 
     res.status(403).json({ error: 'Réservé à l’hôte du live.' });
     return;
   }
-  if (!live.cloudflareLiveInputId) {
-    res.status(404).json({ error: 'Aucun flux Cloudflare pour ce live.', code: 'no_cloudflare_input' });
-    return;
-  }
   if (!isCloudflareStreamConfigured()) {
     res.status(503).json({ error: 'Cloudflare Stream non configuré.', code: 'cloudflare_not_configured' });
+    return;
+  }
+  try {
+    assertCanUseCloudflareObs(userId);
+  } catch (e) {
+    if (e instanceof PlatformPlanError) {
+      res.status(403).json({ error: e.message, code: e.code });
+      return;
+    }
+    throw e;
+  }
+  if (!live.cloudflareLiveInputId) {
+    res.status(404).json({ error: 'Aucun flux Cloudflare pour ce live.', code: 'no_cloudflare_input' });
     return;
   }
 

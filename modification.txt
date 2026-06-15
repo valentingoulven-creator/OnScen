@@ -1,4 +1,528 @@
-﻿================================================================================
+================================================================================
+MODIF 539 - Admin : barre d'onglets centrée horizontalement
+================================================================================
+Date : 2026-06-15
+
+## Symptôme
+Dans l'en-tête admin, les pills d'onglets (Comptes, Accès, Contenu, Analytics,
+Coût, Support, Sponsors) étaient alignées à gauche.
+
+## Correctif
+- `AdminScrollTabBar` : wrapper interne `.ms-admin-tab-bar__inner` avec
+  `justify-content: center`, `min-width: 100%` et `width: max-content`.
+- Si tous les onglets tiennent : pills centrées dans la barre.
+- Si débordement : scroll horizontal inchangé (snap, dégradés latéraux).
+- S'applique aussi aux sous-onglets Sponsors (même composant).
+
+## Fichiers
+- app/src/components/AdminScrollTabBar.tsx
+- app/src/index.css
+- modification.txt
+
+## Test
+  cd app && npm run build
+
+## Déploiement
+**Non** — en attente validation utilisateur.
+
+================================================================================
+MODIF 538 - Reels sponsorisés (admin + feed Reels)
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+MODIF 533–537 : sponsors carte, fil et stories opérationnels. Les reels n'avaient
+pas encore d'emplacement sponsor ni de configuration globale de fréquence.
+
+## Modèle & config globale
+- Nouveau placement `reels_sponsored` sur le modèle `Sponsor`.
+- Champs optionnels `videoUrl` et `posterUrl` (reel vertical 9:16).
+- Config plateforme persistée : `db.sponsorPlatformConfig` / `PersistedStore.sponsorPlatformConfig`
+  - `reelsSponsorEnabled` (bool, défaut true)
+  - `reelsSponsorEveryN` (int, défaut 5, min 1, max 50)
+
+## Backend
+- `listActiveReelsAds()` + `GET /api/sponsors/reels` → `{ items, config }` (public, cache 60 s).
+- `GET/PATCH /api/access/admin/sponsors/config` pour l'admin.
+- Validation : reel sponsorisé requiert `videoUrl` ou `posterUrl`.
+
+## Admin
+- Sous-onglet **Reels** dans Sponsors (`AdminScrollTabBar`).
+- Section **Configuration** : toggle activation + « Afficher un reel sponsorisé tous les ___ reels ».
+- Formulaire : URL vidéo, vignette, aperçu vertical `SponsorAdPreview`.
+
+## Consommateur (ReelsTabPage)
+- `interleaveReelsSponsors()` : insertion tous les N reels organiques (round-robin).
+- `ReelsSponsoredSlide` : badge « Sponsorisé », lecture vidéo, CTA lien externe.
+- Pas d'injection pendant la recherche ; pas de `recordReelView` sur les slides sponsor.
+
+## Fichiers
+- backend/src/models/schema.ts
+- backend/src/lib/sponsors.ts, sponsorPlatformConfig.ts, sponsors.test.ts
+- backend/src/lib/storeCore.ts, bootstrap.ts
+- backend/src/routes/sponsors.ts, adminSponsors.ts
+- app/src/types.ts, api.ts
+- app/src/lib/reelsSponsorFeed.ts, reelsSponsorFeed.test.ts
+- app/src/lib/sponsorAdminPlacement.ts, sponsorDisplaySpec.ts
+- app/src/components/ReelsSponsoredSlide.tsx, SponsorAdPreview.tsx
+- app/src/pages/AdminSponsorsTab.tsx, ReelsTabPage.tsx
+- app/src/locales/fr.json, en.json
+- modification.txt
+
+## Test
+  cd backend && npm test -- sponsors && npm run build
+  cd app && npm test -- reelsSponsorFeed sponsorAdminPlacement && npm run build
+
+## Déploiement
+**Non** — en attente validation utilisateur.
+
+================================================================================
+MODIF 537 - Sponsors fil d'actualité et stories (UI consommateur)
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+MODIF 533–535 : CRUD admin et bandeau carte opérationnels ; `feed_inline` et
+`stories_banner` étaient en maquette admin seulement.
+
+## Backend
+- `GET /api/sponsors/feed` — sponsors actifs `feed_inline` (public, cache 60 s).
+- `GET /api/sponsors/stories` — sponsors actifs `stories_banner` (public, cache 60 s).
+- `listActiveFeedAds()` / `listActiveStoriesAds()` dans `backend/src/lib/sponsors.ts`.
+
+## Frontend
+- **Fil d'accueil (ActualiteTabPage)** : `FeedInlineAdBanner` injecté après le 1er post
+  (ou seul si fil vide) — style `SponsorAdPreview` / 343×120, badge « Sponsorisé »,
+  carrousel avec `displayDurationSec`.
+- **Stories (StoriesInlineBar)** : `StoriesAdBanner` au-dessus du carrousel anneaux
+  (390×56), rotation multi-sponsors, CTA cliquable.
+- Hook partagé `useSponsorAdsRotation` + `handleSponsorCta` (`useSponsorAdsRotation.ts`, `sponsorAds.ts`).
+- Admin : libellés FR/EN mis à jour (plus « à venir »).
+
+## Fichiers
+- backend/src/lib/sponsors.ts + sponsors.test.ts
+- backend/src/routes/sponsors.ts
+- app/src/lib/api.ts
+- app/src/lib/sponsorAds.ts + sponsorAds.test.ts
+- app/src/lib/useSponsorAdsRotation.ts (nouveau)
+- app/src/components/FeedInlineAdBanner.tsx (nouveau)
+- app/src/components/StoriesAdBanner.tsx (nouveau)
+- app/src/pages/ActualiteTabPage.tsx
+- app/src/components/StoriesInlineBar.tsx
+- app/src/components/SponsorAdPreview.tsx
+- app/src/locales/fr.json, en.json
+- modification.txt
+
+## Test
+  cd backend && npm test && npm run build
+  cd app && npm test && npm run build
+
+## Déploiement
+**Non** — en attente validation utilisateur.
+
+================================================================================
+MODIF 536 - Admin : barre d'onglets entièrement visible (scroll + snap)
+================================================================================
+Date : 2026-06-15
+
+## Symptôme
+Dans l'en-tête admin (~924 px), l'onglet **Sponsors** était coupé à droite.
+La barre était limitée à `max-w-lg` (512 px) sans scroll fiable ; les pills
+flex pouvaient être tronquées.
+
+## Correctif
+- Nouveau composant `AdminScrollTabBar` : scroll horizontal (`overflow-x-auto`),
+  `flex-nowrap`, `shrink-0` / snap sur chaque pill, dégradés latéraux optionnels
+  (`ms-hscroll-fade-wrap`) quand le contenu déborde.
+- Classe CSS `.ms-admin-tab-bar` (touch scroll, scrollbar masquée, snap proximity).
+- **AdminPage** : barre d'onglets pleine largeur (`-mx-4 px-4`), retrait de
+  `max-w-lg` sur la nav ; `ms-safe-area-top` sur le header.
+- **AdminSponsorsTab** : sous-onglets placement via le même composant.
+
+## Fichiers
+- app/src/components/AdminScrollTabBar.tsx (nouveau)
+- app/src/pages/AdminPage.tsx
+- app/src/pages/AdminSponsorsTab.tsx
+- app/src/index.css
+- modification.txt
+
+## Test
+  cd app && npm test && npm run build
+
+## Déploiement
+**Non** — en attente validation utilisateur.
+
+================================================================================
+MODIF 534 - Admin sponsors : aperçu, tailles image, durée d'affichage
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+Complément MODIF 533 : dans l'admin Sponsors, ajout d'un aperçu live à la création/
+édition, recommandations de dimensions d'image par emplacement, et durée d'affichage
+configurable (carrousel bandeau carte).
+
+## Partie 1 — Aperçu admin
+- `SponsorAdPreview` : rendu fidèle à `MapAdBanner` pour `map_banner` ; maquettes
+  pour `feed_inline` et `stories_banner` (UI consommateur à venir).
+- Aperçu mis à jour en direct dans le formulaire création/édition.
+
+## Partie 2 — Recommandations image (UI FR)
+- **map_banner** : logo 80×80 px ; zone bandeau ~360×90 px (mobile) / 640×96 px (≥640 px) ;
+  ratio ~4:1 ; pas d'image de fond (texte + dégradé).
+- **feed_inline** (à venir) : logo 48×48 px ; bannière 343×120 px (~2,9:1).
+- **stories_banner** (à venir) : logo 32×32 px ; bande 390×56 px (~7:1).
+
+## Partie 3 — Durée d'affichage
+- Nouveau champ `displayDurationSec` (optionnel, défaut **8 s**, min 3 / max 60).
+- Exposé dans l'API admin + `GET /api/sponsors/map` via `MapAdPublic`.
+- `MapAdBanner` : carrousel avec durée par slide selon le sponsor affiché (plus de
+  intervalle fixe global 8 s pour tous).
+
+## Fichiers
+- app/src/lib/sponsorDisplaySpec.ts + sponsorDisplaySpec.test.ts (nouveau)
+- app/src/components/SponsorAdPreview.tsx (nouveau)
+- app/src/components/MapAdBanner.tsx
+- app/src/pages/AdminSponsorsTab.tsx
+- app/src/lib/sponsorAds.ts + sponsorAds.test.ts
+- app/src/types.ts
+- app/src/content/ads/mapAds.ts
+- app/src/locales/fr.json, en.json
+- backend/src/models/schema.ts
+- backend/src/lib/sponsors.ts + sponsors.test.ts
+- backend/src/routes/adminSponsors.ts
+- backend/src/db/migrations/009_sponsors_display_duration.sql (commentaire JSONB)
+- modification.txt
+
+## Test
+  cd backend && npm test
+  cd app && npm test
+  cd backend && npm run build
+  cd app && npm run build
+
+## Déploiement
+**Non** — en attente validation utilisateur.
+
+================================================================================
+MODIF 535 - Admin sponsors : sous-onglets par emplacement (+ MODIF 534)
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+Demande utilisateur : sous-onglets par localisation du sponsor dans l’admin.
+Fusion avec MODIF 534 (aperçu, dimensions image, durée d’affichage) partiellement
+préparée (SponsorAdPreview, sponsorDisplaySpec, displayDurationSec backend).
+
+## Partie 1 — Sous-onglets par placement
+- Barre de navigation (style AdminCostsTab) : **Carte**, **Fil / Actualités**,
+  **Stories**, **Tous**.
+- Filtre API `placement` selon l’onglet actif ; stats recalculées pour l’onglet.
+- Création : placement par défaut = emplacement de l’onglet actif.
+- Réordonnancement : permutation intra-placement sans perturber les autres emplacements.
+- Badge emplacement masqué quand un sous-onglet spécifique est actif.
+
+## Partie 2 — Aperçu & specs (MODIF 534 intégrée)
+- `SponsorAdPreview` dans le formulaire création / édition (live preview).
+- Aide dimensions : logo, bandeau, ratio par placement (`SPONSOR_IMAGE_SPECS`).
+- Champ **Durée d’affichage** (3–60 s, défaut 8 s) — persisté via API existante.
+- `MapAdBanner` utilise déjà `displayDurationSec` par sponsor.
+
+## Dimensions recommandées
+| Emplacement | Logo | Bandeau |
+|-------------|------|---------|
+| map_banner | 80×80 px | 360×90 min. mobile, 640×96 min. desktop |
+| feed_inline | 48×48 px | 343×120 px |
+| stories_banner | 32×32 px | 390×56 px |
+
+## Fichiers
+- app/src/pages/AdminSponsorsTab.tsx
+- app/src/lib/sponsorAdminPlacement.ts + .test.ts (nouveau)
+- app/src/lib/sponsorDisplaySpec.test.ts (nouveau)
+- app/src/components/SponsorAdPreview.tsx (MODIF 534)
+- app/src/lib/sponsorDisplaySpec.ts (MODIF 534)
+- app/src/locales/fr.json, en.json
+- modification.txt
+
+## Test
+  cd app && npm test -- sponsorAdminPlacement sponsorDisplaySpec && npm run build
+  cd backend && npm test -- sponsors
+
+## Déploiement
+**Non** — en attente validation utilisateur.
+
+================================================================================
+MODIF 533 - Administration : gestion des sponsors
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+Ajout d’un module complet de gestion des sponsors dans l’administration Soundy :
+modèle persisté, API admin CRUD, onglet « Sponsors », bandeau carte alimenté par l’API.
+
+## Partie 1 — Modèle & persistance
+- `Sponsor` : id, name, logoUrl, linkUrl, placement, active, priority, dates, contenu bandeau.
+- Emplacements : `map_banner`, `feed_inline`, `stories_banner`.
+- Migration PostgreSQL `008_sponsors.sql` + snapshot/restore JSONB (`storeCore`, `pgStore`).
+- Seed par défaut (anciens `MAP_ADS`) au démarrage si liste vide.
+
+## Partie 2 — Backend API
+- Admin (JWT + isAccessAdmin) : `/api/access/admin/sponsors`
+  GET list, GET :id, POST create, PATCH :id, POST :id/toggle, POST /reorder, DELETE :id
+- Public : `GET /api/sponsors/map` — bandeaux actifs carte (cache 60s).
+
+## Partie 3 — Frontend admin
+- Onglet « Sponsors » dans `AdminPage` (thème sombre, labels FR).
+- `AdminSponsorsTab` : liste, filtres, recherche, création, édition, activation, réordonnancement, suppression.
+
+## Partie 4 — Affichage app
+- `MapAdBanner` charge `/api/sponsors/map` avec repli sur `MAP_ADS` statiques.
+- Placements `feed_inline` et `stories_banner` prêts côté modèle (affichage à brancher ultérieurement).
+
+## Fichiers
+- backend/src/models/schema.ts
+- backend/src/db/migrations/008_sponsors.sql
+- backend/src/lib/sponsors.ts + sponsors.test.ts
+- backend/src/lib/storeCore.ts
+- backend/src/lib/pgStore.ts
+- backend/src/routes/adminSponsors.ts
+- backend/src/routes/sponsors.ts
+- backend/src/server.ts
+- backend/src/bootstrap.ts
+- app/src/pages/AdminSponsorsTab.tsx
+- app/src/pages/AdminPage.tsx
+- app/src/App.tsx
+- app/src/lib/api.ts
+- app/src/lib/sponsorAds.ts + sponsorAds.test.ts
+- app/src/types.ts
+- app/src/content/ads/mapAds.ts
+- app/src/components/MapAdBanner.tsx
+- app/src/locales/fr.json
+- app/src/locales/en.json
+- modification.txt
+
+## Test
+  cd backend && npm test
+  cd app && npm test
+  cd backend && npm run build
+  cd app && npm run build
+
+## Déploiement
+**Non** — en attente validation utilisateur.
+
+## Limitations
+- Seul `map_banner` est branché à l’affichage (carte Home).
+- `feed_inline` et `stories_banner` : CRUD admin + API prêts, UI consommateur à venir.
+
+================================================================================
+MODIF 532 - Mobile total + perf (compat MODIF 531, latence)
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+Compléter MODIF 531 : StoryLivePreviewViewer, éditeur story/clavier, carte Leaflet,
+Reels, apptel ; optimisations latence sans refactor massif.
+
+## Partie 1 — Mobile
+- StoryLivePreviewViewer : plein écran mobile (comme StoryViewer), safe-area top/bottom.
+- PhotoImageEditor : hook visualViewport, `--keyboard-inset`, dock remonté, preview
+  recalculée ; classes `.ms-story-editor-shell` / `-dock`.
+- Carte : `.ms-map-page` + `.ms-map-viewport` (min-height, overflow, Leaflet 100%).
+- Reels : `.ms-reels-root`, safe-area bas sur viewport.
+- apptel : shell `ms-app-shell min-w-0`, tokens safe-area/map/reels dans index.css.
+- PWA : meta `format-detection=telephone=no` (index.html déjà viewport-fit=cover).
+- Breakpoints consolidés ≤374px, ≤359px, ≤430px dans index.css.
+
+## Partie 2 — Code
+- Utilitaires `.ms-safe-area-top` / `.ms-safe-area-bottom` (remplace inline répétés).
+- StoryViewer / App header : migration vers utilitaires safe-area.
+
+## Partie 3 — Perf / latence
+- `storiesApiCache.ts` : déduplication getStories+getMyStory (TTL 4s, in-flight).
+  ActualiteTabPage + StoriesInlineBar partagent le cache au mount.
+- PhotoImageEditor : React.lazy dans ActualiteTabPage + chunk Vite `photo-editor`.
+- MapStoryRing : React.memo sur anneaux du carrousel.
+- StoryViewer : barre progression throttlée ~20 fps (50 ms) vs rAF chaque frame.
+- Feed PostCard : `decoding="async"` + lazy sur images repartagées.
+
+## Fichiers
+- app/src/index.css
+- app/src/hooks/useVisualViewportInset.ts (nouveau)
+- app/src/lib/storiesApiCache.ts + test (nouveau)
+- app/src/components/StoryLivePreviewViewer.tsx
+- app/src/components/PhotoImageEditor.tsx
+- app/src/components/StoryViewer.tsx
+- app/src/components/StoriesInlineBar.tsx
+- app/src/components/MapStoryRings.tsx
+- app/src/pages/HomePage.tsx
+- app/src/pages/ReelsTabPage.tsx
+- app/src/pages/ActualiteTabPage.tsx
+- app/src/App.tsx
+- app/index.html
+- app/vite.config.ts
+- apptel/src/App.tsx
+- apptel/src/index.css
+- modification.txt
+
+## Test
+  cd app && npm test && npm run build
+
+## Déploiement
+**Non** — en attente validation utilisateur.
+
+## Limitations
+- Cache stories : clés distinctes feed (sans geo) vs barre (avec geo) — pas de fusion.
+- Clavier Android : visualViewport parfois absent sur vieux WebViews.
+- PhotoImageEditor encore import statique depuis MapStorySheet / profil (chunk lazy feed seulement).
+- Tests visuels 320–414px : validation manuelle recommandée.
+
+================================================================================
+MODIF 531 - Mobile : viewport, safe-area, feed, modales story
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+Demande utilisateur : affichage compatible téléphones (iOS/Android navigateur + PWA).
+
+## Audit — constats
+1. `index.html` : viewport-fit=cover déjà OK ; shell sans `min-w-0` → risque overflow horizontal feed.
+2. Safe-area : header/onglets/MapStorySheet/PhotoImageEditor déjà partiels ; StoryViewer sans inset top/bottom plein écran.
+3. StoryViewer : modale centrée `max-h-[70vh]` peu immersive sur mobile (390×844, 375×667).
+4. PullToRefresh : indicateur en flux (`height: pullY`) décalait le scroll du feed.
+5. Onglets bas : 5×50px + gaps serrés sur 320px.
+6. PhotoImageEditor story : aperçu 9:16 ne maximisait pas la hauteur dispo (dock + safe-area).
+7. z-index : modales story (120–200) > onglets (70) > header (100 overlay toast seulement) — OK.
+
+## Correctifs
+- `index.css` : overflow-x clip html/body/#root ; `.ms-app-shell` ; feed-scroll `position:relative` + width 100% ;
+  media ≤374px/≤359px (onglets compacts, textes feed 11px) ; `.ms-story-editor-preview(-frame)` pour éditeur.
+- `App.tsx` : classe `ms-app-shell`, `min-w-0 w-full` sur shell et main.
+- `ActualiteTabPage` : `min-w-0` chaîne flex ; PullToRefresh indicateur en overlay absolu (scroll intact).
+- `StoryViewer` : plein écran mobile, safe-area, `dvh` desktop.
+- `MapStorySheet` : `max-h` en `dvh` + safe-area bottom.
+- `PhotoImageEditor` : `h-dvh max-h-dvh`, aperçu story via classes CSS dédiées.
+- `MainTabNav` : gaps réduits ≤374px.
+
+## Fichiers
+- app/src/index.css
+- app/src/App.tsx
+- app/src/pages/ActualiteTabPage.tsx
+- app/src/components/StoryViewer.tsx
+- app/src/components/MapStorySheet.tsx
+- app/src/components/PhotoImageEditor.tsx
+- app/src/components/MainTabNav.tsx
+- modification.txt
+
+## Test
+  cd app && npm test && npm run build
+  Vérifier manuellement : 390×844 et 375×667 — feed scroll, pull-refresh, story viewer plein écran,
+  éditeur story hauteur max, onglets accessibles, pas de scroll horizontal.
+
+## Déploiement
+**Non** — en attente validation utilisateur.
+
+## Limitations restantes
+- Carte Leaflet / Reels : non audités en profondeur dans cette MODIF.
+- StoryLivePreviewViewer : layout desktop-like conservé (hors scope viewer principal).
+- Clavier virtuel éditeur story : hauteur preview recalculée au resize mais pas de `visualViewport` dédié.
+- apptel (layout téléphone natif) : tokens partagés via index.css, pas de changement structurel.
+
+================================================================================
+MODIF 530 - Story : aperçu éditeur 9:16 cover + overlays alignés
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+Bug utilisateur : dans PhotoImageEditor (story), l'aperçu 9:16 n'était pas rempli
+(image décalée à gauche, bande noire ~40 % à droite) et les overlays texte/tag/lien
+étaient mal positionnés par rapport au cadre visible.
+
+## Cause racine
+1. PhotoInlineCrop initialisait le zoom/pan avec `STORY_VIEWPORT_W/H` (280×498) par
+   défaut avant mesure réelle du conteneur preview — scale « cover » trop faible pour
+   le cadre affiché → bandes noires et image non centrée.
+2. L'image rognage était positionnée en px depuis le coin (left/top) au lieu du
+   centre du conteneur, amplifiant l'écart si viewSize ≠ taille DOM.
+3. PhotoImageEditor : `<img>` en flux (sans `absolute inset-0`) dans un cadre
+   `h-full w-auto aspect-[9/16]` — remplissage object-cover fragile ; overlays en
+   % du conteneur alors que l'image visible ne couvrait pas tout le cadre.
+
+## Correctifs
+- PhotoImageEditor : cadre `mx-auto h-full max-h-full w-auto max-w-full aspect-[9/16]`,
+  image `absolute inset-0 object-cover object-center`, couche crop/overlays `inset-0`.
+- PhotoInlineCrop : mesure DOM (`getBoundingClientRect`) avant init scale, resync au
+  resize, recentrage `left-1/2 top-1/2` + `translate(calc(-50% + offset))`.
+- MapStorySheet : même pattern `absolute inset-0 object-cover` sur l'aperçu 9:16.
+- Test : couverture viewport avec scale calculé sur taille réelle vs défauts stale.
+
+## Fichiers
+- app/src/components/PhotoImageEditor.tsx
+- app/src/components/PhotoInlineCrop.tsx
+- app/src/components/MapStorySheet.tsx
+- app/src/lib/storyImageCompose.test.ts
+- modification.txt
+
+## Test
+  cd app && npm test && npm run build
+
+## Déploiement
+**Non** - en attente validation utilisateur.
+
+
+================================================================================
+MODIF 529 - UI mass-market : accessibilité, tokens, empty states, stories
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+Lot graphique / UX pour l'app Soundy/MeloSong (fil d'accueil, stories, création
+story) : contraste, touch targets, tokens CSS, états vides, aperçu 9:16, carrousel.
+
+## P1 — Accessibilité & touch
+- Labels secondaires gray-400 → gray-300 / --ms-text-muted sur fond sombre
+- min-h-11 / min-w-11 sur onglets story dock, CTAs MapStorySheet, filtre stories,
+  boutons publication fil, bouton + story
+- prefers-reduced-motion étendu (live, reels, pulse carte, carrousels)
+
+## P2 — Tokens CSS (--ms-*)
+- index.css : --ms-surface-2, --ms-accent (+ alias existants)
+- Migration partielle MapStorySheet, StoriesInlineBar header, ActualiteTabPage
+  (compose + fond page)
+
+## P3 — Empty states
+- StoriesInlineBar : message abonnements vides + hint CTA (carte / profils)
+- ActualiteTabPage fil : message abonnements + hint suivre des artistes
+
+## P4 — Aperçu story 9:16
+- MapStorySheet : preview aspect-[9/16] centré (plus bandeau max-h-52)
+
+## P5 — Carrousel stories
+- HorizontalScrollCarousel : dégradés latéraux ms-hscroll-fade-wrap quand scrollable
+
+## P6 — Mini-player
+- **Non implémenté** : pas de PlayerContext / lecteur global persistant dans app/
+
+## P7 — Visibilité story
+- MapStorySheet : aide « Visible par vos abonnés uniquement » / « Visible par tous »
+  (SVG Abonnés/Public déjà en place, MODIF 527)
+
+## Fichiers
+- app/src/index.css
+- app/src/components/MapStorySheet.tsx
+- app/src/components/StoriesInlineBar.tsx
+- app/src/components/HorizontalScrollCarousel.tsx
+- app/src/components/PhotoImageEditor.tsx
+- app/src/components/MapStoryRings.tsx
+- app/src/pages/ActualiteTabPage.tsx
+- modification.txt
+
+## Test
+  cd app && npm test && npm run build
+
+## Déploiement
+**Non** — en attente validation utilisateur (tests doivent passer).
+
+
+================================================================================
 MODIF 528 - Script bootstrap second Cursor (VPS, GitHub, secrets)
 ================================================================================
 Date : 2026-06-15

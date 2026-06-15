@@ -9,12 +9,13 @@ import dotenv from 'dotenv';
 import { app } from './server';
 import { setupSockets } from './socket';
 import { setIo, clearIo } from './lib/ioInstance';
-import { seedMsdevData } from './seed-msdev';
+import { seedMsdevData, ensureMsdevDemoAccounts } from './seed-msdev';
 import { seedProductionAdmin } from './seed-production';
 import { seedBotsAtStartup } from './seed-bots';
 import { seedOccitanieSpotifyAtStartup } from './seed-occitanie-spotify';
 import { seedWorldRandomAtStartup } from './seed-world-random';
 import { seedHomeFeed } from './seed-home-feed';
+import { seedMsdevStories } from './seed-msdev-stories';
 import {
   loadPersistedStore,
   loadPersistedStoreAsync,
@@ -31,6 +32,8 @@ import {
   ensureMsdevListenerFollowersCount,
 } from './lib/msdevDemoAccounts';
 import { ensureAccessAdmins, isAccessControlEnabled, loadAccessControlFromPersist } from './lib/accessControl';
+import { ensureDefaultSponsors } from './lib/sponsors';
+import { ensureDefaultSponsorPlatformConfig } from './lib/sponsorPlatformConfig';
 import { repairInvalidGeoInDb } from './lib/mapCoords';
 import { loadSalonsLivesFromPostgres } from './lib/pgSalonsLives';
 import { migrateAllUsersRelationshipStatus } from './lib/profile';
@@ -196,6 +199,10 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
       await seedMsdevData();
       loadAccessControlFromPersist(undefined, []);
     }
+    const demoAdded = await ensureMsdevDemoAccounts();
+    if (demoAdded > 0) {
+      console.log(`[msdev] ${demoAdded} compte(s) démo ajouté(s) au store restauré`);
+    }
     await ensureMsdevDemoCredentials();
     ensureMsdevDemoMonetizationAges();
     ensureMsdevListenerFollowersCount();
@@ -248,11 +255,22 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
     startPersistLoop();
   }
 
+  ensureDefaultSponsors();
+  ensureDefaultSponsorPlatformConfig();
+
   seedBotsAtStartup();
   seedOccitanieSpotifyAtStartup();
   seedWorldRandomAtStartup();
   if (APP_ENV === 'msdev') {
     seedHomeFeed({ forceRepair: process.env.MSDEV_FORCE_SEED === '1' });
+    const storiesSeed = seedMsdevStories({
+      force: process.env.MSDEV_FORCE_SEED === '1',
+    });
+    if (storiesSeed.created > 0) {
+      console.log(
+        `[msdev] Stories seed : ${storiesSeed.created} story(s) pour ${storiesSeed.authorIds.length} auteur(s) favori(s) (${storiesSeed.authorsWithStories} auteurs avec story)`
+      );
+    }
   }
   const relationshipMigrated = migrateAllUsersRelationshipStatus();
   if (relationshipMigrated > 0) {

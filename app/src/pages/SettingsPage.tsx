@@ -12,7 +12,6 @@ import {
 } from '../lib/settings';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
-
 type PasswordStrength = 'vide' | 'faible' | 'moyen' | 'fort';
 
 function getPasswordStrength(pwd: string): PasswordStrength {
@@ -240,15 +239,6 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
       </header>
 
       <div className="flex-1 overflow-y-auto pb-8">
-        <section className="border-b border-[#1e1e2f]">
-          <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('settings.account')}</p>
-          <SettingsRow label={t('settings.premium')} hint={t('settings.premiumSoon')}>
-            <span className="text-[10px] px-2 py-1 rounded-full bg-amber-500/20 text-amber-400 font-bold">
-              Gratuit
-            </span>
-          </SettingsRow>
-        </section>
-
         {/* ── Sécurité ── */}
         <section className="border-b border-[#1e1e2f]">
           <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('settings.security')}</p>

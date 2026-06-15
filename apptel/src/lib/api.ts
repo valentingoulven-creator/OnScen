@@ -452,6 +452,21 @@ export const api = {
       liveInputId?: string;
     }>(`/lives/${liveId}/playback`, {}, token),
 
+  getLiveStreamCapabilities: (token: string) =>
+    request<{
+      cloudflareStreamAvailable: boolean;
+      livekitAvailable: boolean;
+      obsAllowed?: boolean;
+      platformPlanId?: string;
+    }>('/lives/stream-capabilities', {}, token),
+
+  getPlatformPlan: (token: string) =>
+    request<import('./subscriptions').PlatformPlanStatusResponse>(
+      '/subscriptions/platform-plan',
+      {},
+      token
+    ),
+
   provisionCloudflareStream: (token: string, liveId: string) =>
     request<{ live: import('../types').Live }>(
       `/lives/${liveId}/cloudflare-stream`,
