@@ -38,10 +38,10 @@ import { ShareToUserSheet } from '../components/ShareToUserSheet';
 import { buildFeedPostSharePayload, getFeedPostShareUrl } from '../lib/feedPostShare';
 import { markFeedPostLinkShared, readFeedPostLinkSharedIds } from '../lib/feedPostShareState';
 import { EventsCarousel } from '../components/EventsCarousel';
+import { HorizontalScrollCarousel } from '../components/HorizontalScrollCarousel';
 import { NewsArticleCard } from '../components/NewsArticleCard';
 import { getUpcomingUserEvents, isUpcomingEvent } from '../lib/feedEvents';
 import { EventLocationInput } from '../components/EventLocationInput';
-import { getFeedAlgorithmPreferences } from '../lib/reelFeedAlgorithm';
 import { pickRecentUserSounds, type FeaturedUserSoundItem } from '../lib/featuredUserSounds';
 import {
   formatEventDateInputValue,
@@ -542,31 +542,34 @@ function ActualitesContent({
             <p className="text-xs text-gray-500">{t('feed.featuredUserSoundsEmpty')}</p>
           </div>
         ) : (
-          <div className="overflow-x-auto -mx-3 px-3">
-            <div className="flex w-max gap-3 pb-1 snap-x snap-mandatory">
-              {featuredUserSounds.map((item) => (
-                <NewsArticleCard
-                  key={`${item.kind}-${item.id}`}
-                  className="w-[300px] shrink-0 snap-start"
-                  imageUrl={item.imageUrl}
-                  title={item.title}
-                  excerpt={item.excerpt}
-                  source={item.source}
-                  timeAgo={formatWhen(item.publishedAt)}
-                  badge={t(item.badgeKey)}
-                  genres={item.genres}
-                  readMoreLabel={t('feed.featuredReadMore')}
-                  onReadMoreClick={() => {
-                    if (item.kind === 'salon') {
-                      onOpenSalon?.(item.id, item.title);
-                    } else {
-                      onOpenReel?.(item.id);
-                    }
-                  }}
-                />
-              ))}
-            </div>
-          </div>
+          <HorizontalScrollCarousel
+            itemCount={featuredUserSounds.length}
+            ariaPrevLabel={t('feed.featuredCarouselPrev')}
+            ariaNextLabel={t('feed.featuredCarouselNext')}
+            scrollClassName="overflow-x-auto -mx-3 px-3 flex w-max gap-3 pb-1 snap-x snap-mandatory"
+          >
+            {featuredUserSounds.map((item) => (
+              <NewsArticleCard
+                key={`${item.kind}-${item.id}`}
+                className="w-[300px] shrink-0 snap-start"
+                imageUrl={item.imageUrl}
+                title={item.title}
+                excerpt={item.excerpt}
+                source={item.source}
+                timeAgo={formatWhen(item.publishedAt)}
+                badge={t(item.badgeKey)}
+                genres={item.genres}
+                readMoreLabel={t('feed.featuredReadMore')}
+                onReadMoreClick={() => {
+                  if (item.kind === 'salon') {
+                    onOpenSalon?.(item.id, item.title);
+                  } else {
+                    onOpenReel?.(item.id);
+                  }
+                }}
+              />
+            ))}
+          </HorizontalScrollCarousel>
         )}
       </div>
 
@@ -1125,7 +1128,7 @@ export function ActualiteTabPage({
         const [feedRes] = await Promise.all([
           api.getFeedPosts(token, {
             limit: 50,
-            algo: getFeedAlgorithmPreferences().useBuiltInAlgorithm,
+            followingOnly: true,
           }),
           loadFeedStories(),
         ]);

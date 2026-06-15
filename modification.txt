@@ -1,19 +1,87 @@
 
 ================================================================================
-MODIF 503 - Les nouveautés : carrousel horizontal
+MODIF 505 - Fil Accueil : suivis + ordre de publication
 ================================================================================
 Date : 2026-06-15
 
 ## Contexte
-La section « Les nouveautés » (sons utilisateurs salons + reels) affichait les
-cartes empilées verticalement (~2364px), prenant trop de place dans Actualités.
+Le fil d'Accueil (ActualiteTabPage) devait afficher les publications et les
+événements créés par les comptes suivis (et les vôtres) dans l'ordre de
+publication (createdAt décroissant), publications et événements entrelacés.
+
+## Avant
+- GET /api/feed renvoyait toutes les publications visibles (sans filtre suivis).
+- En production, l'algo Soundy pouvait réordonner le fil (param algo=true).
+- Le client triait déjà par createdAt via HOME_FEED_DISPLAY_PREFS, mais la
+  source incluait des auteurs non suivis.
 
 ## Changements
-- `ActualiteTabPage` : rangée horizontale `flex` + `overflow-x-auto` + snap
+- Backend : paramètre `followingOnly` sur GET /api/feed ? filtre aux comptes
+  suivis + publications du viewer ; tri chronologique createdAt ; algo désactivé
+  quand followingOnly est actif ; événements (isEvent) inclus dans le même flux.
+- Frontend : `ActualiteTabPage` appelle `getFeedPosts({ followingOnly: true })`
+  sans algo ; PostCard affiche déjà posts et événements dans la même timeline.
+- Tests : `backend/src/lib/feedPosts.test.ts`.
+
+## Fichiers
+- backend/src/lib/feedPosts.ts
+- backend/src/routes/feed.ts
+- backend/src/lib/feedPosts.test.ts (nouveau)
+- app/src/lib/api.ts
+- app/src/pages/ActualiteTabPage.tsx
+- modification.txt
+
+## Test
+  cd backend && npx tsc --noEmit && npm test
+  cd app && npm run build && npm test
+
+## Déploiement
+**Non** ? en attente validation utilisateur.
+
+================================================================================
+MODIF 504 - Les nouveautes : fleches carrousel
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+MODIF 503 a rendu " Les nouveautes " scrollable horizontalement ; il manquait
+des fleches pour naviguer sans swipe (comme le carrousel evenements).
+
+## Changements
+- Nouveau composant `HorizontalScrollCarousel` (fleches gauche/droite, scroll
+  d'une carte, masquage aux extremites et si une seule carte).
+- `ActualiteTabPage` : section " Les nouveautes " utilise ce composant.
+- `EventsCarousel` refactorise pour reutiliser le meme composant.
+- i18n FR/EN : `feed.featuredCarouselPrev`, `feed.featuredCarouselNext`.
+
+## Fichiers
+- app/src/components/HorizontalScrollCarousel.tsx (nouveau)
+- app/src/components/EventsCarousel.tsx
+- app/src/pages/ActualiteTabPage.tsx
+- app/src/locales/fr.json, en.json
+- modification.txt
+
+## Test
+  cd app && npm run build
+
+## Deploiement
+**Non** - en attente validation utilisateur.
+
+================================================================================
+MODIF 503 - Les nouveaut?s : carrousel horizontal
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+La section ? Les nouveaut?s ? (sons utilisateurs salons + reels) affichait les
+cartes empil?es verticalement (~2364px), prenant trop de place dans Actualit?s.
+
+## Changements
+- `ActualiteTabPage` : rang?e horizontale `flex` + `overflow-x-auto` + snap
   (`snap-x snap-mandatory` / `snap-start`), largeur fixe 300px par carte.
-- Skeleton de chargement aligné sur le même layout horizontal.
+- Skeleton de chargement align? sur le m?me layout horizontal.
 - `NewsArticleCard` : prop `className` pour largeur fixe en carrousel.
-- En-tête « Les nouveautés » + sous-titre inchangés au-dessus du scroll.
+- En-t?te ? Les nouveaut?s ? + sous-titre inchang?s au-dessus du scroll.
 
 ## Fichiers
 - app/src/pages/ActualiteTabPage.tsx
@@ -23,7 +91,7 @@ cartes empilées verticalement (~2364px), prenant trop de place dans Actualités.
 ## Test
   cd app && npm run build
 
-## Déploiement
+## D?ploiement
 **Non** ? en attente validation utilisateur.
 
 ================================================================================

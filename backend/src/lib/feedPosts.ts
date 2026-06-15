@@ -2,6 +2,7 @@ import { db, FeedPost, FeedPostComment, User } from '../models/schema';
 import { EVENT_POST_ID_PREFIX } from '../seed-feed-events';
 import { canViewAdminBlockedContent } from './adminContentModeration';
 import { hasBlocked } from './blocks';
+import { getFollowingIds } from './follows';
 import { getUserActiveStory } from './stories';
 import { getAlgoFeed } from './algoFeed';
 
@@ -494,8 +495,9 @@ function listFeedPostsMsdev(
   limit: number,
   before: number | undefined,
   eventFilters: EventFilterOpts,
+  followedIds?: Set<string>,
 ): PublicFeedPost[] {
-  return listFeedPostsChronological(viewerId, limit, before, eventFilters);
+  return listFeedPostsChronological(viewerId, limit, before, eventFilters, followedIds);
 }
 
 function listFeedPostsChronological(
@@ -503,6 +505,7 @@ function listFeedPostsChronological(
   limit: number,
   before: number | undefined,
   eventFilters: EventFilterOpts,
+  followedIds?: Set<string>,
 ): PublicFeedPost[] {
   // Pre-build a Set of post IDs that viewerId has reshared in O(n) rather than checking
   // db.feedPosts.some() inside toPublicPost which would be O(n) × limit = O(n²).
@@ -520,6 +523,13 @@ function listFeedPostsChronological(
     if (before != null && post.createdAt >= before) continue;
     if (post.adminBlocked && !canViewAdminBlockedContent(viewerId)) continue;
     if (!isVisibleToViewer(viewerId, post.userId)) continue;
+    if (
+      followedIds &&
+      post.userId !== viewerId &&
+      !followedIds.has(post.userId)
+    ) {
+      continue;
+    }
     if (!matchesEventFilters(post, eventFilters)) continue;
     const author = db.users.get(post.userId);
     if (!author) continue;
@@ -543,6 +553,8 @@ export function listFeedPosts(
     eventType?: 'dance' | 'chant' | 'autre';
     /** When true, rank posts via the Algo Soundy scoring engine instead of chronological order. */
     useAlgo?: boolean;
+    /** Fil d'accueil : publications et événements des comptes suivis + les vôtres, par createdAt. */
+    followingOnly?: boolean;
   }
 ): PublicFeedPost[] {
   let limit = typeof opts?.limit === 'number' && Number.isFinite(opts.limit) ? opts.limit : DEFAULT_LIMIT;
@@ -558,8 +570,11 @@ export function listFeedPosts(
     eventType: opts?.eventType,
   };
 
-  // Algo Soundy: only applies to the main feed (not events-only queries or msdev).
-  if (opts?.useAlgo && !eventFilters.eventsOnly && !isMsdevFeed()) {
+  const followingOnly = opts?.followingOnly === true;
+  const followedIds = followingOnly ? new Set(getFollowingIds(viewerId)) : undefined;
+
+  // Algo Soundy: only applies to the main feed (not events-only, following-only, or msdev).
+  if (opts?.useAlgo && !eventFilters.eventsOnly && !followingOnly && !isMsdevFeed()) {
     const algoPosts = getAlgoFeed(viewerId, limit);
     // Fall back to chronological when not enough posts to rank meaningfully.
     if (algoPosts.length >= 5) {
@@ -580,8 +595,8 @@ export function listFeedPosts(
   }
 
   if (isMsdevFeed()) {
-    return listFeedPostsMsdev(viewerId, limit, before, eventFilters);
+    return listFeedPostsMsdev(viewerId, limit, before, eventFilters, followedIds);
   }
 
-  return listFeedPostsChronological(viewerId, limit, before, eventFilters);
+  return listFeedPostsChronological(viewerId, limit, before, eventFilters, followedIds);
 }

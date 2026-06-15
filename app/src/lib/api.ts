@@ -1505,6 +1505,8 @@ export const api = {
       eventType?: 'dance' | 'chant' | 'autre';
       /** When true, the server ranks posts with Algo Soundy instead of chronological order. */
       algo?: boolean;
+      /** Fil d'accueil : publications et événements des comptes suivis + les vôtres. */
+      followingOnly?: boolean;
     }
   ) => {
     const params = new URLSearchParams();
@@ -1517,6 +1519,7 @@ export const api = {
     if (opts?.eventCountry) params.set('eventCountry', opts.eventCountry);
     if (opts?.eventType) params.set('eventType', opts.eventType);
     if (opts?.algo) params.set('algo', 'true');
+    if (opts?.followingOnly) params.set('followingOnly', 'true');
     const qs = params.toString();
     return request<{ posts: import('../types').FeedPost[] }>(
       `/feed${qs ? `?${qs}` : ''}`,

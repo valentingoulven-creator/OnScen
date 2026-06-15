@@ -37,6 +37,7 @@ feedRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
       ? eventTypeRaw
       : undefined;
   const useAlgo = q.algo === 'true' || q.algo === '1' ? true : undefined;
+  const followingOnly = q.followingOnly === 'true' || q.followingOnly === '1' ? true : undefined;
   res.json({
     posts: listFeedPosts(me, {
       limit,
@@ -48,6 +49,7 @@ feedRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
       eventCountry,
       eventType,
       useAlgo,
+      followingOnly,
     }),
   });
 });
