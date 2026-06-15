@@ -1,5 +1,10 @@
 import { getPhotoFilterCss, type PhotoFilterId } from './photoFilters';
 import {
+  resolveStoryTextFont,
+  type StoryTextFontId,
+} from './storyTextFonts';
+import type { StoryTaggedUser } from '../types';
+import {
   computeCropRectFromViewport,
   initialCoverScale,
   loadImageBitmapFromFile,
@@ -30,6 +35,7 @@ export interface StoryTextOverlay {
   color: string;
   fontSize: number;
   style?: StoryTextOverlayStyle;
+  fontId?: StoryTextFontId;
 }
 
 export async function loadImageBitmapFromDataUrl(dataUrl: string): Promise<ImageBitmap> {
@@ -132,6 +138,65 @@ export function bitmapCropToFeedDataUrl(
   return canvas.toDataURL('image/jpeg', quality);
 }
 
+/** Position par défaut pour un tag story (évite la superposition). */
+export function defaultStoryTagPosition(
+  index: number,
+  _total: number
+): { x: number; y: number } {
+  const row = index % 3;
+  const col = Math.floor(index / 3);
+  const x = 0.35 + col * 0.15;
+  const y = 0.22 + row * 0.12;
+  return { x: Math.min(0.85, x), y: Math.min(0.88, y) };
+}
+
+export function resolveStoryTagPosition(
+  tag: Pick<StoryTaggedUser, 'x' | 'y'>,
+  index: number,
+  total: number
+): { x: number; y: number } {
+  const fallback = defaultStoryTagPosition(index, total);
+  return {
+    x: tag.x ?? fallback.x,
+    y: tag.y ?? fallback.y,
+  };
+}
+
+function drawUserTagOverlays(
+  ctx: CanvasRenderingContext2D,
+  bitmap: ImageBitmap,
+  tags: StoryTaggedUser[],
+  referenceViewportW: number
+): void {
+  if (!tags.length) return;
+  const fontSize = Math.max(11, Math.round(13 * (bitmap.width / referenceViewportW)));
+  const rx = 8 * (bitmap.width / referenceViewportW);
+
+  for (let i = 0; i < tags.length; i++) {
+    const tag = tags[i];
+    const { x, y } = resolveStoryTagPosition(tag, i, tags.length);
+    const label = `@${tag.username}`;
+    ctx.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const metrics = ctx.measureText(label);
+    const padX = fontSize * 0.45;
+    const padY = fontSize * 0.28;
+    const w = metrics.width + padX * 2;
+    const h = fontSize + padY * 2;
+    const px = x * bitmap.width;
+    const py = y * bitmap.height;
+
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.beginPath();
+    ctx.roundRect(px - w / 2, py - h / 2, w, h, rx);
+    ctx.fill();
+
+    ctx.fillStyle = '#111111';
+    ctx.fillText(label, px, py);
+  }
+}
+
 function drawTextOverlays(
   ctx: CanvasRenderingContext2D,
   bitmap: ImageBitmap,
@@ -143,7 +208,8 @@ function drawTextOverlays(
     if (!text) continue;
     const size = Math.max(12, Math.round(o.fontSize * (bitmap.width / referenceViewportW)));
     const style = o.style ?? 'plain';
-    ctx.font = `bold ${size}px system-ui, -apple-system, sans-serif`;
+    const font = resolveStoryTextFont(o.fontId);
+    ctx.font = `${font.fontWeight} ${size}px ${font.fontFamily}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const px = o.x * bitmap.width;
@@ -190,12 +256,18 @@ export async function composePhotoImageWithEdits(
   imageDataUrl: string,
   overlays: StoryTextOverlay[],
   filterId: PhotoFilterId = 'none',
-  options?: { referenceViewportW?: number; quality?: number }
+  options?: {
+    referenceViewportW?: number;
+    quality?: number;
+    taggedUsers?: StoryTaggedUser[];
+  }
 ): Promise<string> {
   const referenceViewportW = options?.referenceViewportW ?? STORY_VIEWPORT_W;
   const quality = options?.quality ?? STORY_JPEG_QUALITY;
+  const taggedUsers = options?.taggedUsers ?? [];
   const cssFilter = getPhotoFilterCss(filterId);
-  const hasEdits = overlays.some((o) => o.text.trim()) || cssFilter !== 'none';
+  const hasEdits =
+    overlays.some((o) => o.text.trim()) || cssFilter !== 'none' || taggedUsers.length > 0;
   const bitmap = await loadImageBitmapFromDataUrl(imageDataUrl);
   if (!hasEdits) {
     try {
@@ -221,6 +293,7 @@ export async function composePhotoImageWithEdits(
     ctx.drawImage(bitmap, 0, 0);
     ctx.filter = 'none';
     drawTextOverlays(ctx, bitmap, overlays, referenceViewportW);
+    drawUserTagOverlays(ctx, bitmap, taggedUsers, referenceViewportW);
     return canvas.toDataURL('image/jpeg', quality);
   } finally {
     bitmap.close();
@@ -231,11 +304,13 @@ export async function composePhotoImageWithEdits(
 export async function composeStoryImageWithOverlays(
   imageDataUrl: string,
   overlays: StoryTextOverlay[],
-  filterId: PhotoFilterId = 'none'
+  filterId: PhotoFilterId = 'none',
+  taggedUsers: StoryTaggedUser[] = []
 ): Promise<string> {
   return composePhotoImageWithEdits(imageDataUrl, overlays, filterId, {
     referenceViewportW: STORY_VIEWPORT_W,
     quality: STORY_JPEG_QUALITY,
+    taggedUsers,
   });
 }
 

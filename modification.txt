@@ -1,3 +1,214 @@
+﻿================================================================================
+MODIF 513 - Story : lien cliquable (sticker overlay)
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+L'editeur story (PhotoImageEditor, dock MODIF 508) proposait Texte, Rogner,
+Filtre, Musique et Taguer, mais pas de lien cliquable type sticker Instagram.
+
+## Fonctionnalite
+- Nouvel outil dock **Lien** (story uniquement) : saisie URL http/https,
+  libelle optionnel, sticker draggable sur la preview.
+- Metadonnees `link` persistees cote API (url, label?, x, y) ? **non** bakees
+  dans le JPEG ; overlay interactif dans StoryViewer.
+- Clic / tap sur le sticker : ouverture de l'URL dans un nouvel onglet
+  (`noopener,noreferrer`).
+- Labels FR : Lien, placeholders, erreurs de validation, aide repositionnement.
+- Theme sombre aligne MODIF 508 (#12121a, #2d2d3d, purple accents).
+
+## Modele de donnees (StoryLink)
+- `url` : string (http/https, max 2048, normalise via URL parser)
+- `label` : string optionnel (max 80 ; defaut affichage = domaine ou � Voir plus �)
+- `x`, `y` : position relative 0?1 sur l'image
+- **Limite : 1 lien maximum par story** (comme Instagram)
+
+## Fichiers
+- app/src/lib/storyLink.ts, storyLink.test.ts (nouveau)
+- app/src/components/StoryLinkSticker.tsx (nouveau)
+- app/src/types.ts (StoryLink, MapStory.link)
+- app/src/components/PhotoImageEditor.tsx
+- app/src/components/StoryImageEditor.tsx
+- app/src/components/MapStorySheet.tsx
+- app/src/components/StoryViewer.tsx
+- app/src/lib/api.ts
+- backend/src/models/schema.ts
+- backend/src/lib/stories.ts
+- backend/src/routes/stories.ts
+- backend/src/lib/stories.test.ts
+- modification.txt
+
+## Limitations
+- Un seul lien par story.
+- Sticker non visible sur le JPEG exporte (overlay viewer uniquement).
+- Pas de suivi de clics / analytics.
+- URLs javascript:, ftp:, etc. rejetees cote serveur.
+
+## Test
+  cd backend && npx tsc --noEmit && npm test
+  cd app && npm run build && npm test
+
+## Deploiement
+**Non** - en attente validation utilisateur.
+
+
+================================================================================
+MODIF 511 - Story : tags visibles sur l'image (PhotoImageEditor)
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+L'outil Taguer de l'editeur story permettait de selectionner des utilisateurs
+(chips dans le panneau + compteur au-dessus du dock) mais les tags n'apparaissaient
+pas sur la photo, ni dans l'export JPEG final.
+
+## Correctifs
+- Tags @username affiches sur la preview (pastilles blanches style Instagram).
+- Glisser-deposer pour repositionner un tag ; tap sur la photo en mode Taguer
+  pour placer le tag actif (ou le dernier ajoute).
+- Positions stockees en coordonnees relatives 0?1 (x, y) sur StoryTaggedUser.
+- Export canvas : drawUserTagOverlays dans storyImageCompose.ts (JPEG final).
+- Labels FR : aide ? Glissez un tag? ?, selection du tag actif dans le panneau.
+
+## Fichiers
+- app/src/types.ts (StoryTaggedUser.x / .y)
+- app/src/lib/storyImageCompose.ts
+- app/src/lib/storyImageCompose.test.ts
+- app/src/components/PhotoImageEditor.tsx
+- app/src/components/StoryUserTagPicker.tsx
+- modification.txt
+
+## Limitations
+- Pastille export = @username uniquement (pas d'avatar ni couleurs username sur le JPEG).
+- Positions non persistees cote API (taggedUserIds inchang?) ; visuel bake dans imageUrl.
+- Max 5 tags (existant).
+
+## Test
+  cd app && npm run build && npm test
+
+## Deploiement
+**Non** - en attente validation utilisateur.
+
+
+================================================================================
+MODIF 512 - Story : typographies texte overlay (PhotoImageEditor)
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+MODIF 508 : styles texte (Classique/Fond/Contour), taille, couleurs. L'utilisateur
+souhaite choisir une typographie differente par calque texte sur la story.
+
+## Approche technique
+- Nouveau module storyTextFonts.ts : 7 polices distinctes via piles systeme /
+  web-safe (libres de droit, zero telechargement reseau, zero Google Fonts).
+- Champ fontId optionnel sur StoryTextOverlay (defaut : modern).
+- Panneau Texte : rang?e horizontale ? Typographie ? avec apercu live du nom
+  dans la police choisie ; selection par calque actif.
+- Export JPEG : drawTextOverlays utilise ctx.font avec fontFamily + fontWeight
+  du preset (identique a l'aper?u).
+
+## Polices (labels FR)
+- Moderne ? system-ui / Segoe UI
+- ?l?gante ? Georgia / Times
+- Affichage ? Impact
+- Manuscrite ? Segoe Script / Brush Script
+- Grasse ? Arial Black
+- Machine ? ?crire ? Courier New
+- D?contract?e ? Comic Sans MS
+
+## Fichiers
+- app/src/lib/storyTextFonts.ts (nouveau)
+- app/src/lib/storyTextFonts.test.ts (nouveau)
+- app/src/lib/storyImageCompose.ts
+- app/src/components/PhotoImageEditor.tsx
+- modification.txt
+
+## Impact bundle
+Negligeable (~1 Ko source, pas de dependance ni de fichiers font).
+
+## Test
+  cd app && npm run build && npm test
+
+## Deploiement
+**Non** - en attente validation utilisateur.
+
+
+================================================================================
+MODIF 510 - Story : filtres IA libres de droit (PhotoImageEditor)
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+L'editeur story (PhotoImageEditor, dock Filtre) proposait uniquement des
+presets classiques (Vif, Chaud, Sepia, etc.). Demande d'ajouter des filtres
+style IA utilisables commercialement sans API payante ni pack proprietaire.
+
+## Approche technique (libre de droit)
+- Presets ? IA ? = combinaisons CSS filter (saturate, contrast, sepia,
+  hue-rotate, brightness) ? algorithmes ouverts, 100 % client-side.
+- Aucune dependance ML (TensorFlow.js, modeles externes) : zero impact bundle.
+- Preview live (style CSS sur l'image) et export identique via
+  ctx.filter canvas dans storyImageCompose.ts (deja en place).
+- Section UI ? IA ? libre de droit ? + mention ? 100 % local ?.
+
+## Filtres IA ajoutes (labels FR)
+- Amelioration IA ? auto-contraste / saturation equilibree
+- Portrait eclat ? tons chauds adoucis type retouche portrait
+- Cinema IA ? color grading teal-orange cinematographique
+- Vintage IA ? film desature et chaud
+- Neon nocturne ? saturation et contraste type nuit urbaine
+- Reve pastel ? pastels doux desatures
+
+## Fichiers
+- app/src/lib/photoFilters.ts
+- app/src/lib/photoFilters.test.ts
+- app/src/components/PhotoImageEditor.tsx
+- modification.txt
+
+## Limitations
+- Pas de ML reel (pas de style transfer neuronal) : rendu ? IA-style ? par
+  presets calibres. Pas de retouche locale visage / segmentation.
+
+## Test
+  cd app && npm run build && npm test
+
+## Deploiement
+**Non** - en attente validation utilisateur.
+
+
+================================================================================
+MODIF 509 - Story : rognage inline sur l'aper?u photo
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+MODIF 508 : le bouton Rogner ouvrait StoryImageCropModal (dialogue s?par?,
+d?connect? de l'aper?u story). L'utilisateur veut rogner directement sur les
+contours de la photo, style Instagram (cadre + poign?es sur l'image).
+
+## Correctifs
+- Nouveau composant PhotoInlineCrop : cadre de rognage superpos? ? l'aper?u
+  story/publication/profil dans PhotoImageEditor.
+- Poign?es coins (L blancs) et bords (pastilles) sur le cadre ; glisser la
+  photo pour repositionner ; poign?es pour zoomer.
+- Grille tiers + bordure blanche sur le cadre de crop.
+- Rogner = onglet actif (dock surlign?) ; bottom sheet minimal (zoom + Appliquer).
+- Suppression de l'ouverture de StoryImageCropModal depuis PhotoImageEditor.
+- Export inchang? via computeStoryCropRect / bitmapCropTo*DataUrl.
+
+## Fichiers
+- app/src/components/PhotoInlineCrop.tsx (nouveau)
+- app/src/components/PhotoImageEditor.tsx
+- modification.txt
+
+## Test
+  cd app && npm run build && npm test
+
+## Deploiement
+**Non** - en attente validation utilisateur.
+
+
 ================================================================================
 MODIF 508 - Story : redesign editeur modification (PhotoImageEditor)
 ================================================================================

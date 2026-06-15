@@ -534,6 +534,13 @@ export interface StoryMusicTrack {
   url?: string;
 }
 
+export interface StoryLink {
+  url: string;
+  label?: string;
+  x: number;
+  y: number;
+}
+
 export interface Story {
   id: string;
   userId: string;
@@ -541,6 +548,7 @@ export interface Story {
   imageUrl?: string;
   musicTrack?: StoryMusicTrack;
   taggedUserIds?: string[];
+  link?: StoryLink;
   createdAt: number;
   expiresAt: number;
   /** 'public' = tout le monde, 'followers' = abonnés mutuels uniquement. Défaut : 'followers'. */

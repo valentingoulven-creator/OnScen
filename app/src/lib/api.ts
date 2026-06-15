@@ -1628,6 +1628,7 @@ export const api = {
       imageUrl?: string;
       musicTrack?: import('../types').StoryMusicTrack;
       taggedUserIds?: string[];
+      link?: import('../types').StoryLink;
       visibility?: 'public' | 'followers';
     }
   ) =>

@@ -95,4 +95,33 @@ describe('stories', () => {
     expect(r.story.musicTrack?.videoId).toBe('dQw4w9WgXcQ');
     expect(r.story.taggedUsers?.map((u) => u.id)).toEqual(['near']);
   });
+
+  it('stores a clickable link with position and label', () => {
+    const r = createStory('me', {
+      imageUrl:
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      link: {
+        url: 'https://example.com/page',
+        label: 'Voir plus',
+        x: 0.42,
+        y: 0.66,
+      },
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.story.link?.url).toBe('https://example.com/page');
+    expect(r.story.link?.label).toBe('Voir plus');
+    expect(r.story.link?.x).toBe(0.42);
+    expect(r.story.link?.y).toBe(0.66);
+  });
+
+  it('rejects invalid story links', () => {
+    const r = createStory('me', {
+      content: 'bad link',
+      link: { url: 'javascript:alert(1)', x: 0.5, y: 0.5 },
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.story.link).toBeUndefined();
+  });
 });

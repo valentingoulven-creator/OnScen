@@ -36,6 +36,7 @@ storiesRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
     imageUrl: body.imageUrl != null ? String(body.imageUrl) : undefined,
     musicTrack: body.musicTrack,
     taggedUserIds: body.taggedUserIds,
+    link: body.link,
     visibility: body.visibility,
   });
   if (!result.ok) {

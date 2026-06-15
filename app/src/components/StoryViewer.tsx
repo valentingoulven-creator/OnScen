@@ -4,6 +4,7 @@ import { useVerticalSwipe } from '../hooks/useVerticalSwipe';
 import { STORY_VIEW_DURATION_MS, formatStoryTimeAgo } from '../lib/storyViewerNav';
 import type { MapStory } from '../types';
 import { OpenOnYoutubeButton } from './OpenOnYoutubeButton';
+import { StoryLinkOverlay } from './StoryLinkSticker';
 import { UsernameDisplay } from './UsernameDisplay';
 import { UserAvatarOnline } from './UserAvatarOnline';
 
@@ -200,53 +201,62 @@ export function StoryViewer({
 
         {/* Media ajusté (object-contain, pas plein écran) */}
         <div className="relative flex-1 min-h-[200px] max-h-[50vh] flex items-center justify-center bg-[#0b0b0f]">
-          {story.imageUrl ? (
-            <img
-              src={story.imageUrl}
-              alt=""
-              className="max-w-full max-h-full object-contain"
-              draggable={false}
-            />
-          ) : (
-            <div className="w-full h-full min-h-[200px] bg-gradient-to-b from-[#1a1028] via-[#0b0b0f] to-[#12121a]" />
-          )}
+          <div className="relative max-w-full max-h-full">
+            {story.imageUrl ? (
+              <img
+                src={story.imageUrl}
+                alt=""
+                className="max-w-full max-h-full object-contain block"
+                draggable={false}
+              />
+            ) : (
+              <div className="w-full h-full min-h-[200px] bg-gradient-to-b from-[#1a1028] via-[#0b0b0f] to-[#12121a]" />
+            )}
 
-          {/* Zones tactiles gauche / droite + pause au maintien */}
-          <div className="absolute inset-0 z-10 flex">
-            <button
-              type="button"
-              className="w-[30%] h-full cursor-default"
-              aria-label="Story précédente"
-              onClick={() => handleTapZone('left')}
-              onPointerDown={pause}
-              onPointerUp={resume}
-              onPointerLeave={resume}
-              onPointerCancel={resume}
-            />
-            <button
-              type="button"
-              className="flex-1 h-full cursor-default"
-              aria-label="Pause"
-              onPointerDown={pause}
-              onPointerUp={resume}
-              onPointerLeave={resume}
-              onPointerCancel={resume}
-            />
-            <button
-              type="button"
-              className="w-[30%] h-full cursor-default"
-              aria-label="Story suivante"
-              onClick={() => handleTapZone('right')}
-              onPointerDown={pause}
-              onPointerUp={resume}
-              onPointerLeave={resume}
-              onPointerCancel={resume}
-            />
+            {/* Zones tactiles gauche / droite + pause au maintien (sous le lien cliquable) */}
+            <div className="absolute inset-0 z-10 flex pointer-events-none">
+              <button
+                type="button"
+                className="w-[30%] h-full cursor-default pointer-events-auto"
+                aria-label="Story précédente"
+                onClick={() => handleTapZone('left')}
+                onPointerDown={pause}
+                onPointerUp={resume}
+                onPointerLeave={resume}
+                onPointerCancel={resume}
+              />
+              <button
+                type="button"
+                className="flex-1 h-full cursor-default pointer-events-auto"
+                aria-label="Pause"
+                onPointerDown={pause}
+                onPointerUp={resume}
+                onPointerLeave={resume}
+                onPointerCancel={resume}
+              />
+              <button
+                type="button"
+                className="w-[30%] h-full cursor-default pointer-events-auto"
+                aria-label="Story suivante"
+                onClick={() => handleTapZone('right')}
+                onPointerDown={pause}
+                onPointerUp={resume}
+                onPointerLeave={resume}
+                onPointerCancel={resume}
+              />
+            </div>
+
+            {story.link?.url ? (
+              <StoryLinkOverlay link={story.link} interactive="open" />
+            ) : null}
           </div>
         </div>
 
         {/* Contenu bas (texte, musique, tags) */}
-        {(story.content || story.musicTrack || (story.taggedUsers && story.taggedUsers.length > 0)) && (
+        {(story.content ||
+          story.musicTrack ||
+          story.link?.url ||
+          (story.taggedUsers && story.taggedUsers.length > 0)) && (
           <div className="shrink-0 px-4 py-3 space-y-2 overflow-y-auto max-h-[22vh] border-t border-[#1e1e2f]">
             {story.content ? (
               <p className="text-sm text-gray-200 whitespace-pre-wrap break-words">{story.content}</p>
@@ -276,6 +286,19 @@ export function StoryViewer({
                   </a>
                 ) : null}
               </div>
+            ) : null}
+
+            {story.link?.url ? (
+              <a
+                href={story.link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#1a1a28] border border-[#2d2d3d] px-3 py-2 text-xs text-purple-300 hover:text-purple-200 max-w-sm"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span aria-hidden>🔗</span>
+                <span className="truncate">{story.link.label?.trim() || story.link.url}</span>
+              </a>
             ) : null}
 
             {story.taggedUsers && story.taggedUsers.length > 0 ? (

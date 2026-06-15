@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { db, Story, StoryMusicTrack, User } from '../models/schema';
+import { db, Story, StoryLink, StoryMusicTrack, User } from '../models/schema';
 import { hasBlocked } from './blocks';
 import { getDistanceKm } from './geo';
 import { getUserPublicCoords } from './locationPrivacy';
@@ -28,6 +28,7 @@ export interface PublicStory {
   imageUrl?: string;
   musicTrack?: StoryMusicTrack;
   taggedUsers?: PublicStoryTaggedUser[];
+  link?: StoryLink;
   createdAt: number;
   expiresAt: number;
   visibility?: 'public' | 'followers';
@@ -149,6 +150,31 @@ function normalizeTaggedUserIds(raw: unknown, authorId: string): string[] | unde
   return ids.length ? ids : undefined;
 }
 
+function normalizeStoryLink(raw: unknown): StoryLink | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const o = raw as Record<string, unknown>;
+  const urlRaw = typeof o.url === 'string' ? o.url.trim() : '';
+  if (!urlRaw || urlRaw.length > 2048) return undefined;
+  if (!/^https?:\/\//i.test(urlRaw)) return undefined;
+  let url: string;
+  try {
+    const parsed = new URL(urlRaw);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return undefined;
+    url = parsed.href;
+  } catch {
+    return undefined;
+  }
+  const label =
+    typeof o.label === 'string' && o.label.trim()
+      ? o.label.trim().slice(0, 80)
+      : undefined;
+  let x = typeof o.x === 'number' && Number.isFinite(o.x) ? o.x : 0.5;
+  let y = typeof o.y === 'number' && Number.isFinite(o.y) ? o.y : 0.78;
+  x = Math.min(1, Math.max(0, x));
+  y = Math.min(1, Math.max(0, y));
+  return { url, label, x, y };
+}
+
 function toPublicStory(story: Story): PublicStory | null {
   const user = db.users.get(story.userId);
   if (!user) return null;
@@ -159,6 +185,7 @@ function toPublicStory(story: Story): PublicStory | null {
     imageUrl: story.imageUrl || undefined,
     musicTrack: story.musicTrack,
     taggedUsers: resolveTaggedUsers(story.taggedUserIds),
+    link: story.link,
     createdAt: story.createdAt,
     expiresAt: story.expiresAt,
     visibility: story.visibility,
@@ -173,6 +200,7 @@ export function createStory(
     imageUrl?: string;
     musicTrack?: unknown;
     taggedUserIds?: unknown;
+    link?: unknown;
     visibility?: unknown;
   }
 ): { ok: true; story: PublicStory } | { ok: false; error: string } {
@@ -205,6 +233,7 @@ export function createStory(
 
   const musicTrack = normalizeMusicTrack(input.musicTrack);
   const taggedUserIds = normalizeTaggedUserIds(input.taggedUserIds, userId);
+  const link = normalizeStoryLink(input.link);
   const visibility: 'public' | 'followers' =
     input.visibility === 'public' ? 'public' : 'followers';
 
@@ -215,6 +244,7 @@ export function createStory(
     imageUrl,
     musicTrack,
     taggedUserIds,
+    link,
     createdAt: now,
     expiresAt: now + STORY_TTL_MS,
     visibility,

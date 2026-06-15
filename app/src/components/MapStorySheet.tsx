@@ -4,7 +4,7 @@ import { fileToFeedImageDataUrl } from '../lib/feedImagePaste';
 import { ACCEPTED_IMAGE_FORMATS, validateStoryPhotoAsync } from '../lib/imageConstraints';
 import { prepareImageFile } from '../lib/imageUtils';
 import { StoryImageEditor, type StoryEditorResult } from './StoryImageEditor';
-import type { MapStory, StoryMusicTrack, StoryTaggedUser } from '../types';
+import type { MapStory, StoryLink, StoryMusicTrack, StoryTaggedUser } from '../types';
 
 interface MapStorySheetProps {
   token: string;
@@ -22,6 +22,7 @@ export function MapStorySheet({
   const [imageSource, setImageSource] = useState<File | string | null>(null);
   const [musicTrack, setMusicTrack] = useState<StoryMusicTrack | null>(null);
   const [taggedUsers, setTaggedUsers] = useState<StoryTaggedUser[]>([]);
+  const [storyLink, setStoryLink] = useState<StoryLink | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [imageAttaching, setImageAttaching] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -57,6 +58,7 @@ export function MapStorySheet({
     setImageUrl(result.imageUrl);
     setMusicTrack(result.musicTrack);
     setTaggedUsers(result.taggedUsers);
+    setStoryLink(result.link);
     setEditorOpen(false);
   };
 
@@ -65,6 +67,7 @@ export function MapStorySheet({
     setImageSource(null);
     setMusicTrack(null);
     setTaggedUsers([]);
+    setStoryLink(null);
   };
 
   const canPublish = Boolean(imageUrl.trim());
@@ -78,11 +81,13 @@ export function MapStorySheet({
         imageUrl?: string;
         musicTrack?: StoryMusicTrack;
         taggedUserIds?: string[];
+        link?: StoryLink;
         visibility?: 'public' | 'followers';
       } = {};
       if (imageUrl.trim()) body.imageUrl = imageUrl.trim();
       if (musicTrack) body.musicTrack = musicTrack;
       if (taggedUsers.length) body.taggedUserIds = taggedUsers.map((t) => t.id);
+      if (storyLink?.url) body.link = storyLink;
       const r = await api.createStory(token, { ...body, visibility });
       onPublished(r.story);
       onClose();
@@ -149,6 +154,11 @@ export function MapStorySheet({
                 {taggedUsers.length > 0 ? (
                   <div className="absolute bottom-2 right-2 px-2 py-1 rounded-lg bg-black/70 text-[10px] text-white">
                     @{taggedUsers.length}
+                  </div>
+                ) : null}
+                {storyLink?.url ? (
+                  <div className="absolute top-2 right-12 px-2 py-1 rounded-lg bg-black/70 text-[10px] text-white">
+                    Lien
                   </div>
                 ) : null}
               </div>
@@ -223,6 +233,7 @@ export function MapStorySheet({
           initialSource={imageSource ?? imageUrl}
           initialMusicTrack={musicTrack}
           initialTaggedUsers={taggedUsers}
+          initialLink={storyLink}
           onConfirm={handleEditorConfirm}
           onCancel={() => setEditorOpen(false)}
         />

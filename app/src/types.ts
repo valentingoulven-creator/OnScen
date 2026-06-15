@@ -937,6 +937,21 @@ export interface StoryTaggedUser {
   usernameColor?: string;
   usernameWaveFrom?: string;
   usernameWaveTo?: string;
+  /** Position horizontale relative 0–1 sur l'image (tag visuel). */
+  x?: number;
+  /** Position verticale relative 0–1 sur l'image (tag visuel). */
+  y?: number;
+}
+
+/** Lien cliquable sur story (sticker, non intégré au JPEG). */
+export interface StoryLink {
+  url: string;
+  /** Texte affiché sur le sticker ; domaine ou « Voir plus » si absent. */
+  label?: string;
+  /** Position horizontale relative 0–1 sur l'image. */
+  x: number;
+  /** Position verticale relative 0–1 sur l'image. */
+  y: number;
 }
 
 /** Story éphémère (24 h) sur la carte. */
@@ -947,6 +962,7 @@ export interface MapStory {
   imageUrl?: string;
   musicTrack?: StoryMusicTrack;
   taggedUsers?: StoryTaggedUser[];
+  link?: StoryLink;
   createdAt: number;
   expiresAt: number;
   /** 'public' = tout le monde, 'followers' = abonnés mutuels uniquement. Défaut : 'followers'. */

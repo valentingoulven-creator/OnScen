@@ -1,4 +1,4 @@
-import type { StoryMusicTrack, StoryTaggedUser } from '../types';
+import type { StoryLink, StoryMusicTrack, StoryTaggedUser } from '../types';
 import { PhotoImageEditor, type PhotoEditorResult } from './PhotoImageEditor';
 
 export type StoryEditorResult = PhotoEditorResult;
@@ -9,6 +9,7 @@ interface StoryImageEditorProps {
   initialSource?: File | string;
   initialMusicTrack?: StoryMusicTrack | null;
   initialTaggedUsers?: StoryTaggedUser[];
+  initialLink?: StoryLink | null;
   onConfirm: (result: StoryEditorResult) => void;
   onCancel: () => void;
 }
