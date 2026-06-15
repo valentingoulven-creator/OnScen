@@ -1,7 +1,7 @@
 import {
   INSTAGRAM_IMAGE_LIMITS,
   imageDecodeErrorMessage,
-  validateImageFile,
+  validateImageFileAsync,
 } from './imageConstraints';
 import { prepareImageFile } from './imageUtils';
 
@@ -33,7 +33,7 @@ async function decodeFileToImageBitmap(file: File): Promise<ImageBitmap> {
 }
 
 export async function loadImageBitmapFromFile(file: File): Promise<ImageBitmap> {
-  const validation = validateImageFile(file);
+  const validation = await validateImageFileAsync(file);
   if (!validation.valid) {
     throw new Error(validation.error);
   }

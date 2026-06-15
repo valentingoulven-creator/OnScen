@@ -1,40 +1,102 @@
-ï»¿
+
 ================================================================================
-MODIF 498 â€” Correctifs E2E (rapport task 41d40165)
+MODIF 500 - Photos HEIC/HEIF : extension + fil d'actualite
+================================================================================
+Date : 2026-06-15
+
+## Symptome
+Upload photo iPhone depuis le compositeur du fil :
+" Impossible de convertir cette photo HEIC/HEIF. "
+
+## Cause
+1. Fichiers iOS/iCloud souvent sans extension `.heic` / `.heif` ni MIME fiable.
+2. `heic2any` / libheif echoue sans nom de fichier reconnu.
+3. Le fil passait le fichier brut a l'editeur (pas de `prepareImageFile` avant ouverture).
+4. Validation synchrone rejetait les HEIC detectables uniquement par en-tete binaire.
+
+## Correctifs
+- `normalizeHeicFileMetadata` : ajoute extension + MIME avant conversion.
+- `sniffHeicMagicBytes` : scan marques compatibles ftyp (32 octets).
+- `validateImageFileAsync` : accepte HEIC sans extension/MIME.
+- `convertHeicToJpegFile` : candidats `File` nommes (plus seulement `Blob` type).
+- Fil (`ActualiteTabPage`) : `prepareImageFile` avant editeur, etat " preparation ".
+- `loadImageBitmapFromFile` : validation async unifiee.
+
+## Fichiers
+- app/src/lib/imageConstraints.ts
+- app/src/lib/imageConstraints.heic.test.ts
+- app/src/lib/imageUtils.ts
+- app/src/lib/profileImageProcessing.ts
+- app/src/pages/ActualiteTabPage.tsx
+- modification.txt
+
+## Test
+  cd app && npm run build && npm test
+
+## Deploiement
+**Oui** - deploy zero 2026-06-15.
+
+================================================================================
+MODIF 499 - Feed : section " Les nouveautes " (ex " a la une ")
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+Renommage de l'en-tete de section feed " a la une " -> " Les nouveautes "
+(title case, sans uppercase CSS).
+
+## Changements
+- i18n : cle `feed.featured` (`fr` : " Les nouveautes ", `en` : " What's new ").
+- `ActualiteTabPage` : `SectionHeader` via `t('feed.featured')`, `uppercase={false}`.
+- `SectionHeader` : prop optionnelle `uppercase` (defaut `true` pour les autres sections).
+
+## Fichiers
+- app/src/locales/fr.json, en.json
+- app/src/pages/ActualiteTabPage.tsx
+- modification.txt
+
+## Test
+  cd app && npm run build
+
+## Deploiement
+**Oui** - deploy zero 2026-06-15.
+
+================================================================================
+MODIF 498 — Correctifs E2E (rapport task 41d40165)
 ================================================================================
 Date : 2026-06-14
 
 ## Contexte
 Correctifs issus du rapport E2E : comptes Spotify admin, barres UI bloquantes,
-date Ã©vÃ©nement, URL Stripe Connect, flash compteurs admin.
+date événement, URL Stripe Connect, flash compteurs admin.
 
 ## Correctifs
-### BUG-3 â€” Admin Spotify Premium/Basic 0/0
+### BUG-3 — Admin Spotify Premium/Basic 0/0
 - `countSpotifyConnectionTiers` : `ensurePlatformAccountsFromLegacy` + backfill
-  async `spotifyProduct` via `/v1/me` pour comptes OAuth rÃ©els sans produit stockÃ©.
-- `isPlatformConnected` : fallback `connectedPlatforms` mÃªme si d'autres comptes
+  async `spotifyProduct` via `/v1/me` pour comptes OAuth réels sans produit stocké.
+- `isPlatformConnected` : fallback `connectedPlatforms` même si d'autres comptes
   platformAccounts existent.
 
-### BUG-1 â€” Barre PWA `#pwa-update-bar`
+### BUG-1 — Barre PWA `#pwa-update-bar`
 - Position au-dessus de la barre d'onglets (`--tab-nav-total-h`), z-index 65
-  (sous onglets z-70), hauteur rÃ©duite.
+  (sous onglets z-70), hauteur réduite.
 
-### BUG-2 â€” `.ms-salon-return-bar` intercepte clics
-- Header fixe : `pointer-events: none` sauf Ã©lÃ©ments interactifs.
+### BUG-2 — `.ms-salon-return-bar` intercepte clics
+- Header fixe : `pointer-events: none` sauf éléments interactifs.
 - Shell salon-return : `--app-header-row-h` 2.75rem + `max-height` barre.
 
-### BUG-4 â€” Admin sous overlay salon plein Ã©cran
+### BUG-4 — Admin sous overlay salon plein écran
 - `.ms-app-admin-overlay` z-index 75 (> salon z-60).
-- Ouverture admin : rÃ©duit salon `viewMode` full â†’ minimized.
+- Ouverture admin : réduit salon `viewMode` full ? minimized.
 
-### BUG-5 â€” Date Ã©vÃ©nement datetime-local vs jj/mm/aaaa
+### BUG-5 — Date événement datetime-local vs jj/mm/aaaa
 - `parseEventDateInputValue` accepte aussi `YYYY-MM-DDTHH:mm` (ISO datetime-local).
 
-### BUG-6 â€” `?stripeConnect=refresh` persiste
-- `App.tsx` : strip `stripeConnect` via `replaceState` aprÃ¨s retour Stripe ;
+### BUG-6 — `?stripeConnect=refresh` persiste
+- `App.tsx` : strip `stripeConnect` via `replaceState` après retour Stripe ;
   ouvre profil + refresh user si token.
 
-### BUG-7 â€” Flash Â« 0 sur 0 Â» admin
+### BUG-7 — Flash « 0 sur 0 » admin
 - `AdminAccountsTab` : compteurs `null` jusqu'au chargement, skeletons stats.
 
 ## Fichiers
@@ -52,95 +114,95 @@ date Ã©vÃ©nement, URL Stripe Connect, flash compteurs admin.
   cd backend && npx tsc --noEmit && npm test
   cd app && npm run build && npm test
 
-## DÃ©ploiement
-**Non** â€” en attente validation utilisateur.
+## Déploiement
+**Non** — en attente validation utilisateur.
 
 ================================================================================
-MODIF 497 â€” Nettoyage code mort (audit 7ce6907d, P0 + P1)
+MODIF 497 — Nettoyage code mort (audit 7ce6907d, P0 + P1)
 ================================================================================
 Date : 2026-06-14
 
 ## Contexte
-Audit code mort (7ce6907d) â€” suppression fichiers orphelins et exports inutilisÃ©s.
+Audit code mort (7ce6907d) — suppression fichiers orphelins et exports inutilisés.
 P3 (texte CGU Jam) et retrait routes backend Jam exclus volontairement.
 
-## P0 â€” Fichiers supprimÃ©s (0 import)
+## P0 — Fichiers supprimés (0 import)
 - app/src/components/MapEventsSheet.tsx
 - app/src/pages/AccessManagementPage.tsx
-- app/src/content/mapAds.ts (shim deprecated ; ads/mapAds.ts conservÃ©)
-- app/src/content/legal/donations.ts (shim deprecated ; legal/index.ts inchangÃ©)
+- app/src/content/mapAds.ts (shim deprecated ; ads/mapAds.ts conservé)
+- app/src/content/legal/donations.ts (shim deprecated ; legal/index.ts inchangé)
 
-## P1 â€” Exports supprimÃ©s
+## P1 — Exports supprimés
 - backend/src/lib/spotifyJam.ts : SPOTIFY_JAM_AUTO_FETCH_UNAVAILABLE
 - app/src/lib/donations.ts : DONATION_LEGAL_NOTICE
 - app/src/lib/canSendHeart.ts : profileMeetsHeartAge
 - backend/src/lib/spotifyOAuth.ts : refreshSpotifyToken
 - backend/src/lib/liveBans.ts : isLiveBanned
 
-## P1 â€” SettingsPage
-- Props/branches mortes onOpenAnalytics et onOpenAccessManagement retirÃ©es
+## P1 — SettingsPage
+- Props/branches mortes onOpenAnalytics et onOpenAccessManagement retirées
   (ProfilePage ne passe que onOpenAdmin).
 
-## P2 â€” Type frontend
-- app/src/types.ts : spotifyJamUrl retirÃ© du type Salon (aucune usage app ;
-  routes/handlers backend conservÃ©s).
+## P2 — Type frontend
+- app/src/types.ts : spotifyJamUrl retiré du type Salon (aucune usage app ;
+  routes/handlers backend conservés).
 
 ## Build / tests
 - backend : npm run build (tsc) OK
-- backend : npm test â€” 18 fichiers, 115 tests OK
+- backend : npm test — 18 fichiers, 115 tests OK
 - app : npm run build OK
 
-## DÃ©ploiement
-Non dÃ©ployÃ© (sur demande utilisateur).
+## Déploiement
+Non déployé (sur demande utilisateur).
 
 ================================================================================
-MODIF 496 â€” Retrait morceau YouTube (crÃ©ation salon, playlist seule)
+MODIF 496 — Retrait morceau YouTube (création salon, playlist seule)
 ================================================================================
 Date : 2026-06-14
 
 ## Contexte
-MODIF 495 avait retirÃ© le morceau Spotify Ã  la crÃ©ation, mais le toggle
-Morceau/Playlist (bouton vert Â« Morceau Â») restait visible pour YouTube avec
-le picker Â« Morceau YouTube (optionnel) Â».
+MODIF 495 avait retiré le morceau Spotify à la création, mais le toggle
+Morceau/Playlist (bouton vert « Morceau ») restait visible pour YouTube avec
+le picker « Morceau YouTube (optionnel) ».
 
 ## Correctif
 - Suppression du toggle Morceau/Playlist pour YouTube (et toute trace `musicSource`).
 - Playlist optionnelle uniquement : `CreateSalonPlaylistPicker` (YouTube) et
   `CreateSalonSpotifyPlaylistPicker` (Spotify).
-- Plus de `trackLink` envoyÃ© Ã  `createSalon` â€” crÃ©ation sans morceau initial.
+- Plus de `trackLink` envoyé à `createSalon` — création sans morceau initial.
 - Suppression du composant orphelin `CreateSalonYouTubePicker.tsx`.
-- RÃ©cap Ã©tape 3 : playlist optionnelle + libellÃ© session (titre/artiste).
+- Récap étape 3 : playlist optionnelle + libellé session (titre/artiste).
 
 ## Fichiers
 - app/src/components/CreateSalonModal.tsx
-- app/src/components/CreateSalonYouTubePicker.tsx (supprimÃ©)
+- app/src/components/CreateSalonYouTubePicker.tsx (supprimé)
 - modification.txt
 
 ## Build
 cd app && npm run build
 
-## DÃ©ploiement
+## Déploiement
 deploy_zero_downtime.ps1 -VerifyProd
 
 ================================================================================
-MODIF 495 â€” Retrait morceau Spotify optionnel (crÃ©ation salon)
+MODIF 495 — Retrait morceau Spotify optionnel (création salon)
 ================================================================================
 Date : 2026-06-14
 
 ## Contexte
-Dans CreateSalonModal (Ã©tape 1, salon Spotify), l'onglet Morceau proposait une
-recherche Â« Morceau Spotify (optionnel) Â» distincte de la playlist optionnelle.
+Dans CreateSalonModal (étape 1, salon Spotify), l'onglet Morceau proposait une
+recherche « Morceau Spotify (optionnel) » distincte de la playlist optionnelle.
 
 ## Correctif
-- Suppression de l'onglet Morceau / toggle MorceauÂ·Playlist pour Spotify.
-- Conservation uniquement du sÃ©lecteur playlist optionnel (`CreateSalonSpotifyPlaylistPicker`).
-- SÃ©lection Spotify â†’ `musicSource: 'playlist'` par dÃ©faut ; plus de `trackLink` initial.
+- Suppression de l'onglet Morceau / toggle Morceau·Playlist pour Spotify.
+- Conservation uniquement du sélecteur playlist optionnel (`CreateSalonSpotifyPlaylistPicker`).
+- Sélection Spotify ? `musicSource: 'playlist'` par défaut ; plus de `trackLink` initial.
 - Suppression du composant orphelin `CreateSalonSpotifyPicker.tsx`.
-- i18n FR/EN : retrait clÃ©s `createLabel` et `createHint` (usage exclusif crÃ©ation morceau).
+- i18n FR/EN : retrait clés `createLabel` et `createHint` (usage exclusif création morceau).
 
 ## Fichiers
 - app/src/components/CreateSalonModal.tsx
-- app/src/components/CreateSalonSpotifyPicker.tsx (supprimÃ©)
+- app/src/components/CreateSalonSpotifyPicker.tsx (supprimé)
 - app/src/locales/fr.json
 - app/src/locales/en.json
 - modification.txt
@@ -148,25 +210,25 @@ recherche Â« Morceau Spotify (optionnel) Â» distincte de la playlist optionnelle
 ## Build
 cd app && npm run build
 
-## DÃ©ploiement
-**Non** â€” en attente validation utilisateur.
+## Déploiement
+**Non** — en attente validation utilisateur.
 
 ================================================================================
-MODIF 494 â€” Admin : comptes Spotify Premium / Basic connectÃ©s
+MODIF 494 — Admin : comptes Spotify Premium / Basic connectés
 ================================================================================
 Date : 2026-06-14
 
 ## Contexte
 Demande d'afficher dans l'espace admin le nombre de comptes Premium et Basic
-(Spotify Free/Open) connectÃ©s sur Soundy.
+(Spotify Free/Open) connectés sur Soundy.
 
 ## Correctif
-- Backend : agrÃ©gation `counts.spotify.premium` / `counts.spotify.basic` sur
+- Backend : agrégation `counts.spotify.premium` / `counts.spotify.basic` sur
   GET `/access/admin/users` et GET `/access/admin/overview`.
-  Source : `platformAccounts[].spotifyProduct` (renseignÃ© Ã  l'OAuth et au refresh
-  via `/v1/me`), utilisateurs rÃ©els hors `@bot.local`.
-- Frontend : section stats dÃ©diÃ©e dans `AdminAccountsTab` (cartes alignÃ©es UI admin).
-- i18n FR/EN : libellÃ©s Premium/Basic + section Â« Spotify connectÃ© sur Soundy Â».
+  Source : `platformAccounts[].spotifyProduct` (renseigné à l'OAuth et au refresh
+  via `/v1/me`), utilisateurs réels hors `@bot.local`.
+- Frontend : section stats dédiée dans `AdminAccountsTab` (cartes alignées UI admin).
+- i18n FR/EN : libellés Premium/Basic + section « Spotify connecté sur Soundy ».
 
 ## Fichiers
 - backend/src/routes/access.ts
@@ -177,24 +239,24 @@ Demande d'afficher dans l'espace admin le nombre de comptes Premium et Basic
 - app/src/locales/en.json
 - modification.txt
 
-## DÃ©ploiement
-**Non** â€” en attente validation utilisateur.
+## Déploiement
+**Non** — en attente validation utilisateur.
 
 ================================================================================
-MODIF 493 â€” Sync salon Spotify : poll adaptatif + refresh immÃ©diat
+MODIF 493 — Sync salon Spotify : poll adaptatif + refresh immédiat
 ================================================================================
 Date : 2026-06-14
 
 ## Contexte
-Analyse sync salon : Spotify ne permet pas l'audio in-app ; le modÃ¨le actuel
-(chrono partagÃ© + poll hÃ´te + WebSocket) est le meilleur rÃ©aliste sous contraintes
-API. AmÃ©liorations marginales possibles sur la rÃ©activitÃ© du poll.
+Analyse sync salon : Spotify ne permet pas l'audio in-app ; le modèle actuel
+(chrono partagé + poll hôte + WebSocket) est le meilleur réaliste sous contraintes
+API. Améliorations marginales possibles sur la réactivité du poll.
 
 ## Correctif
 - `useSpotifySalonSync` : poll adaptatif 2 s en lecture / 4,5 s en pause /
-  6 s onglet masquÃ© (au lieu de 2,5 s fixe).
-- Seuil dÃ©rive `POSITION_DRIFT_MS` : 2200 ms (alignÃ© poll plus rapide).
-- `refreshNow()` : poll immÃ©diat aprÃ¨s contrÃ´le Spotify hÃ´te rÃ©ussi
+  6 s onglet masqué (au lieu de 2,5 s fixe).
+- Seuil dérive `POSITION_DRIFT_MS` : 2200 ms (aligné poll plus rapide).
+- `refreshNow()` : poll immédiat après contrôle Spotify hôte réussi
   (play/pause/stop/next/seek) pour pousser `playback_sync` sans attendre le timer.
 
 ## Fichiers
@@ -202,76 +264,76 @@ API. AmÃ©liorations marginales possibles sur la rÃ©activitÃ© du poll.
 - app/src/components/SalonPlaybackPanel.tsx
 - modification.txt
 
-## DÃ©ploiement
-**Non** â€” en attente validation utilisateur.
+## Déploiement
+**Non** — en attente validation utilisateur.
 
 ================================================================================
-MODIF 492 â€” Retrait options configuration Jam Spotify (UI)
+MODIF 492 — Retrait options configuration Jam Spotify (UI)
 ================================================================================
 Date : 2026-06-14
 
 ## Demande
 Retirer toutes les options de configuration Jam Spotify dans l'application
-(checkbox crÃ©ation salon, bouton header, champs lien, cartes Â« Rejoindre le Jam Â»).
+(checkbox création salon, bouton header, champs lien, cartes « Rejoindre le Jam »).
 
 ## Correctif
 ### Frontend
-- `CreateSalonModal` : checkbox Â« Utiliser un Jam Spotify Â», champ lien, rÃ©cap Jam.
-- `SalonPage` : bouton header `SalonSpotifyJamButton` retirÃ©.
+- `CreateSalonModal` : checkbox « Utiliser un Jam Spotify », champ lien, récap Jam.
+- `SalonPage` : bouton header `SalonSpotifyJamButton` retiré.
 - `SalonPlaybackPanel` : config host (enregistrer/modifier lien), cartes join,
-  message Â« lien Jam non partagÃ© Â», toast Jam.
-- Fichiers supprimÃ©s : `SalonSpotifyJamButton`, `SpotifyJamLinkField`,
+  message « lien Jam non partagé », toast Jam.
+- Fichiers supprimés : `SalonSpotifyJamButton`, `SpotifyJamLinkField`,
   `spotifyJamPrefs`, `lib/spotifyJam` (frontend).
-- i18n FR/EN : clÃ©s `salon.create.useSpotifyJam*` retirÃ©es.
-- `boutons-app.txt` : entrÃ©e bouton Jam Spotify retirÃ©e.
+- i18n FR/EN : clés `salon.create.useSpotifyJam*` retirées.
+- `boutons-app.txt` : entrée bouton Jam Spotify retirée.
 
 ### Backend
-- InchangÃ© : champ `spotifyJamUrl` et routes PATCH/POST conservÃ©s pour
-  compatibilitÃ© donnÃ©es existantes ; plus d'appel depuis le frontend.
+- Inchangé : champ `spotifyJamUrl` et routes PATCH/POST conservés pour
+  compatibilité données existantes ; plus d'appel depuis le frontend.
 
 ## Fichiers
 - app/src/components/CreateSalonModal.tsx
 - app/src/components/SalonPlaybackPanel.tsx
 - app/src/pages/SalonPage.tsx
-- app/src/components/SalonSpotifyJamButton.tsx (supprimÃ©)
-- app/src/components/SpotifyJamLinkField.tsx (supprimÃ©)
-- app/src/lib/spotifyJam.ts (supprimÃ©)
-- app/src/lib/spotifyJamPrefs.ts (supprimÃ©)
+- app/src/components/SalonSpotifyJamButton.tsx (supprimé)
+- app/src/components/SpotifyJamLinkField.tsx (supprimé)
+- app/src/lib/spotifyJam.ts (supprimé)
+- app/src/lib/spotifyJamPrefs.ts (supprimé)
 - app/src/locales/fr.json, en.json
 - boutons-app.txt
 - modification.txt
 
 ## Test
   cd app && npm run build
-  1. CrÃ©er salon Spotify â†’ plus de checkbox Jam ni champ lien.
-  2. Salon Spotify plein Ã©cran â†’ plus de bouton Jam dans le header.
-  3. Panneau Â« Ã‰coute ensemble Â» â†’ plus de section config/join Jam.
+  1. Créer salon Spotify ? plus de checkbox Jam ni champ lien.
+  2. Salon Spotify plein écran ? plus de bouton Jam dans le header.
+  3. Panneau « Écoute ensemble » ? plus de section config/join Jam.
 
-## DÃ©ploiement
-**Non** â€” en attente validation utilisateur.
+## Déploiement
+**Non** — en attente validation utilisateur.
 
 ================================================================================
 Fin MODIF 492 - 2026-06-14
 ================================================================================
 
 ================================================================================
-MODIF 491 â€” Retrait mentions Premium (lecture salon Spotify)
+MODIF 491 — Retrait mentions Premium (lecture salon Spotify)
 ================================================================================
 Date : 2026-06-14
 
 ## Demande
 Retirer les deux paragraphes d'info Premium dans la section lecture Spotify
-du salon (en-tÃªte plein Ã©cran + panneau Â« Ã‰coute ensemble Â»), tout en
-conservant l'attribution Â« Powered by Spotify Â» (Spotify Branding Guidelines).
+du salon (en-tête plein écran + panneau « Écoute ensemble »), tout en
+conservant l'attribution « Powered by Spotify » (Spotify Branding Guidelines).
 
 ## Correctif
 ### Frontend
 - `SalonPlaybackPanel` : suppression du bandeau vert host (`spotifyHostHint`)
-  et de la note Â« Abonnement Spotify Premium obligatoire Â» (`spotifyHostPremiumNote`).
-- HÃ´te connectÃ© : seul Â« Powered by Spotify Â» reste visible.
-- Participants / modÃ©rateur VIP : hints non-Premium conservÃ©s + attribution.
-- i18n FR/EN : clÃ©s `spotifyHostHint` et `spotifyHostPremiumNote` retirÃ©es
-  (clÃ©s Premium CreateSalonModal, erreurs API, auth, platform inchangÃ©es).
+  et de la note « Abonnement Spotify Premium obligatoire » (`spotifyHostPremiumNote`).
+- Hôte connecté : seul « Powered by Spotify » reste visible.
+- Participants / modérateur VIP : hints non-Premium conservés + attribution.
+- i18n FR/EN : clés `spotifyHostHint` et `spotifyHostPremiumNote` retirées
+  (clés Premium CreateSalonModal, erreurs API, auth, platform inchangées).
 
 ## Fichiers
 - app/src/components/SalonPlaybackPanel.tsx
@@ -280,35 +342,35 @@ conservant l'attribution Â« Powered by Spotify Â» (Spotify Branding Guidelines).
 
 ## Test
   cd app && npm run build
-  1. Salon Spotify host (plein Ã©cran) â†’ plus de bandeau Premium ni note
-     abonnement ; Â« Powered by Spotify Â» visible.
-  2. Panneau Â« Ã‰coute ensemble Â» (host liÃ©) â†’ idem.
-  3. Participant â†’ hint chrono partagÃ© + Powered by Spotify.
+  1. Salon Spotify host (plein écran) ? plus de bandeau Premium ni note
+     abonnement ; « Powered by Spotify » visible.
+  2. Panneau « Écoute ensemble » (host lié) ? idem.
+  3. Participant ? hint chrono partagé + Powered by Spotify.
 
-## DÃ©ploiement
-**Non** â€” en attente validation utilisateur.
+## Déploiement
+**Non** — en attente validation utilisateur.
 
 ================================================================================
 Fin MODIF 491 - 2026-06-14
 ================================================================================
 
 ================================================================================
-MODIF 490 â€” Replier la file d'attente (panneau host)
+MODIF 490 — Replier la file d'attente (panneau host)
 ================================================================================
 Date : 2026-06-14
 
 ## Demande
-Panneau host : possibilitÃ© de replier la section FILE D'ATTENTE tout en
+Panneau host : possibilité de replier la section FILE D'ATTENTE tout en
 laissant PROPOSITIONS toujours visible en dessous.
 
 ## Correctif
 ### Frontend
-- `SalonQueueSection` : toggle Â« Masquer â–² Â» / Â« Afficher â–¼ Â» (mÃªme pattern que
-  PLAYLIST HÃ”TE Spotify).
-- RepliÃ© : en-tÃªte compact (titre + compteur + bouton Suivant), liste scrollable
-  et hint Â« Glisser pour rÃ©ordonner Â» masquÃ©s.
-- `SalonProposalsSection` inchangÃ©e â€” reste visible sous la file.
-- Ã‰tat repliÃ© persistÃ© en `sessionStorage` par salon (`salon-queue-collapsed:{id}`).
+- `SalonQueueSection` : toggle « Masquer ? » / « Afficher ? » (même pattern que
+  PLAYLIST HÔTE Spotify).
+- Replié : en-tête compact (titre + compteur + bouton Suivant), liste scrollable
+  et hint « Glisser pour réordonner » masqués.
+- `SalonProposalsSection` inchangée — reste visible sous la file.
+- État replié persisté en `sessionStorage` par salon (`salon-queue-collapsed:{id}`).
 - i18n FR/EN : `hideQueueToggle`, `showQueueToggle`, aria-labels.
 
 ## Fichiers
@@ -320,13 +382,13 @@ laissant PROPOSITIONS toujours visible en dessous.
 
 ## Test
   cd app && npm run build
-  1. Salon host â†’ FILE D'ATTENTE (N) â†’ Â« Masquer â–² Â» â†’ liste masquÃ©e, Suivant
-     et compteur visibles, PROPOSITIONS toujours affichÃ©es.
-  2. Â« Afficher â–¼ Â» â†’ liste rÃ©apparaÃ®t avec drag hint si > 1 morceau.
-  3. Recharger l'onglet â†’ Ã©tat repliÃ© conservÃ© pour ce salon.
+  1. Salon host ? FILE D'ATTENTE (N) ? « Masquer ? » ? liste masquée, Suivant
+     et compteur visibles, PROPOSITIONS toujours affichées.
+  2. « Afficher ? » ? liste réapparaît avec drag hint si > 1 morceau.
+  3. Recharger l'onglet ? état replié conservé pour ce salon.
 
-## DÃ©ploiement
-**Non** â€” en attente validation utilisateur.
+## Déploiement
+**Non** — en attente validation utilisateur.
 
 ================================================================================
 Fin MODIF 490 - 2026-06-14
@@ -335,31 +397,31 @@ Fin MODIF 490 - 2026-06-14
 Date : 2026-06-14
 
 ## Demande
-Ã€ la fin de la musique, la lecture passe automatiquement au morceau suivant
+À la fin de la musique, la lecture passe automatiquement au morceau suivant
 dans la file d'attente salon.
 
 ## Diagnostic
-- **YouTube** : `SalonYouTubePlayer` Ã©met dÃ©jÃ  `onVideoEnd` (YT `ENDED`) ;
-  `handleVideoEnd` existait mais n'Ã©tait pas branchÃ© en mode thÃ©Ã¢tre (salon
-  plein Ã©cran) et `SalonPage` ne passait pas `onSkip` / `queue` au panneau.
-- **Spotify** : pas de lecteur in-app â€” horloge partagÃ©e + poll hÃ´te
-  (`useSpotifySalonSync`) ; aucune dÃ©tection de fin de piste â†’ pas d'appel
-  Ã  `hostSkipNext`.
+- **YouTube** : `SalonYouTubePlayer` émet déjà `onVideoEnd` (YT `ENDED`) ;
+  `handleVideoEnd` existait mais n'était pas branché en mode théâtre (salon
+  plein écran) et `SalonPage` ne passait pas `onSkip` / `queue` au panneau.
+- **Spotify** : pas de lecteur in-app — horloge partagée + poll hôte
+  (`useSpotifySalonSync`) ; aucune détection de fin de piste ? pas d'appel
+  à `hostSkipNext`.
 - **Backend** : `hostSkipNext` + `POST /playback/skip` + WebSocket
-  `playback_sync` / `salon_queue_updated` dÃ©jÃ  en place.
+  `playback_sync` / `salon_queue_updated` déjà en place.
 
 ## Correctif
 ### YouTube
-- `onVideoEnd={handleVideoEnd}` sur le lecteur en mode thÃ©Ã¢tre.
+- `onVideoEnd={handleVideoEnd}` sur le lecteur en mode théâtre.
 - `SalonPage` / `apptel SalonPage` : passage de `queue`, `onSkip`, `skipping`,
-  `hostCanControl` Ã  `SalonPlaybackPanel`.
-- `handleVideoEnd` : `canControlPlayback` (hÃ´te / VIP), garde anti double-skip,
+  `hostCanControl` à `SalonPlaybackPanel`.
+- `handleVideoEnd` : `canControlPlayback` (hôte / VIP), garde anti double-skip,
   file non vide uniquement.
 
 ### Spotify
-- `durationMs` exposÃ© dans `getSpotifyNowPlaying` (API Spotify `duration_ms`).
-- Effet hÃ´te : fin dÃ©tectÃ©e si lecture inactive aprÃ¨s Ã©tat actif, ou
-  `progressMs` proche de `durationMs` â†’ appel `onSkip()` (API skip existante).
+- `durationMs` exposé dans `getSpotifyNowPlaying` (API Spotify `duration_ms`).
+- Effet hôte : fin détectée si lecture inactive après état actif, ou
+  `progressMs` proche de `durationMs` ? appel `onSkip()` (API skip existante).
 
 ## Fichiers
 - backend/src/lib/spotifyPlayback.ts
@@ -374,13 +436,13 @@ dans la file d'attente salon.
   cd backend && npx tsc --noEmit
   cd app && npm run build
   cd app && npm test
-  1. Salon YouTube plein Ã©cran, file â‰¥ 2 morceaux â†’ fin vidÃ©o â†’ morceau suivant.
-  2. Salon Spotify, file â‰¥ 2 morceaux â†’ fin piste Spotify â†’ morceau suivant.
-  3. File vide ou dernier morceau â†’ pas de skip (lecture s'arrÃªte).
-  4. Participant sans contrÃ´le â†’ pas d'auto-skip cÃ´tÃ© client.
+  1. Salon YouTube plein écran, file = 2 morceaux ? fin vidéo ? morceau suivant.
+  2. Salon Spotify, file = 2 morceaux ? fin piste Spotify ? morceau suivant.
+  3. File vide ou dernier morceau ? pas de skip (lecture s'arrête).
+  4. Participant sans contrôle ? pas d'auto-skip côté client.
 
-## DÃ©ploiement
-**Non** â€” en attente validation utilisateur.
+## Déploiement
+**Non** — en attente validation utilisateur.
 
 ================================================================================
 Fin MODIF 489 - 2026-06-14
@@ -397,26 +459,26 @@ l'ordre dans la file d'attente.
 
 ## Correctif
 ### Backend
-- `reorderSalonQueue` dans `salonPlaybackOps.ts` â€” persiste le nouvel ordre et
-  Ã©met `salon_queue_updated` (WebSocket).
-- `PATCH /salons/:id/queue/reorder` â€” body `{ order: string[] }` (tous les ids
-  de la file) ; rÃ©servÃ© Ã  `canControlSalonPlayback` (hÃ´te / VIP / Dev).
+- `reorderSalonQueue` dans `salonPlaybackOps.ts` — persiste le nouvel ordre et
+  émet `salon_queue_updated` (WebSocket).
+- `PATCH /salons/:id/queue/reorder` — body `{ order: string[] }` (tous les ids
+  de la file) ; réservé à `canControlSalonPlayback` (hôte / VIP / Dev).
 
 ### Frontend
-- PoignÃ©e de drag (pointer events, touch-friendly) sur chaque ligne visible.
-- RÃ©ordonnancement optimiste + persistance API ; resync socket existant.
-- Hint i18n FR/EN : Â« Glisser pour rÃ©ordonner Â».
-- Compatible MODIF 487 (50 morceaux visibles : reorder sur la portion affichÃ©e,
-  queue complÃ¨te envoyÃ©e Ã  l'API).
+- Poignée de drag (pointer events, touch-friendly) sur chaque ligne visible.
+- Réordonnancement optimiste + persistance API ; resync socket existant.
+- Hint i18n FR/EN : « Glisser pour réordonner ».
+- Compatible MODIF 487 (50 morceaux visibles : reorder sur la portion affichée,
+  queue complète envoyée à l'API).
 
-## Retrait bouton Live (header salon plein Ã©cran)
-- Suppression du bouton Â« Live Â» dans le header `SalonPage`.
-- Suppression du flux dÃ©marrage live depuis le salon : Ã©tats `startingLive` /
+## Retrait bouton Live (header salon plein écran)
+- Suppression du bouton « Live » dans le header `SalonPage`.
+- Suppression du flux démarrage live depuis le salon : états `startingLive` /
   `liveMediaSetupOpen`, handlers `startLive` / `launchLiveAfterSetup`,
   modal `StartLiveMediaSetupModal`, prop `onOpenLive` sur `SalonPage`.
-- Callback `onOpenLive` retirÃ© de l'appel `SalonPage` dans `App.tsx`.
-- Les autres contrÃ´les header conservÃ©s (Jam Spotify, ArrÃªter/Quitter salon, etc.).
-- DÃ©marrage live reste disponible via l'onglet Lives (`LivesTabPage`).
+- Callback `onOpenLive` retiré de l'appel `SalonPage` dans `App.tsx`.
+- Les autres contrôles header conservés (Jam Spotify, Arrêter/Quitter salon, etc.).
+- Démarrage live reste disponible via l'onglet Lives (`LivesTabPage`).
 
 
 ## Fichiers
@@ -437,64 +499,64 @@ l'ordre dans la file d'attente.
 ## Test
   cd backend && npx tsc --noEmit
   cd app && npm run build
-  Salon host â†’ panneau FILE D'ATTENTE â†’ glisser une ligne â†’ ordre persistÃ©
+  Salon host ? panneau FILE D'ATTENTE ? glisser une ligne ? ordre persisté
   (refresh / autre client voit le nouvel ordre via socket).
 
-## DÃ©ploiement
-**Non** â€” en attente validation utilisateur.
+## Déploiement
+**Non** — en attente validation utilisateur.
 
 ================================================================================
 Fin MODIF 488 - 2026-06-14
 ================================================================================
 
 ================================================================================
-MODIF 486 - CrÃ©ation salon plus rapide (GPS, verify, probe cache)
+MODIF 486 - Création salon plus rapide (GPS, verify, probe cache)
 ================================================================================
 Date : 2026-06-14
 
-## SymptÃ´me
-CrÃ©ation de salon lente : enchaÃ®nement sÃ©quentiel GPS (12 s) â†’ verify-access Spotify
-â†’ POST /salons (re-probe session) â†’ load-playlist (rÃ©solution API externe) â†’ copie lien
-invitation, modal bloquÃ©e jusqu'Ã  la fin.
+## Symptôme
+Création de salon lente : enchaînement séquentiel GPS (12 s) ? verify-access Spotify
+? POST /salons (re-probe session) ? load-playlist (résolution API externe) ? copie lien
+invitation, modal bloquée jusqu'à la fin.
 
-## Goulets identifiÃ©s
+## Goulets identifiés
 1. **GPS** : `enableHighAccuracy` + timeout 12 s avant tout appel API.
-2. **verify-access** : appelÃ© pour toutes les playlists Spotify, y compris celles dÃ©jÃ 
-   listÃ©es via `/me/playlists` (redondant avec load-playlist).
+2. **verify-access** : appelé pour toutes les playlists Spotify, y compris celles déjà
+   listées via `/me/playlists` (redondant avec load-playlist).
 3. **load-playlist** : bloquait fermeture modal + navigation (YouTube + Spotify).
-4. **probeSpotifyHostSession** : rÃ©pÃ©tÃ© sur status, verify, create, load-playlist (~4Ã—).
-5. **getPlatformStatus** : re-fetch Ã  chaque ouverture modal sans cache court.
-6. **Lien invitation** : `getSalonShareUrl` + `copyShareLink` synchrones aprÃ¨s create.
+4. **probeSpotifyHostSession** : répété sur status, verify, create, load-playlist (~4×).
+5. **getPlatformStatus** : re-fetch à chaque ouverture modal sans cache court.
+6. **Lien invitation** : `getSalonShareUrl` + `copyShareLink` synchrones après create.
 
 ## Correctif
 ### Frontend
 - `salonCreateFlow.ts` : GPS rapide (5 s, cache 2 min, sans high accuracy) ;
-  skip verify si playlist bibliothÃ¨que (`playlistId` sans URL) ; `deferSalonPlaylistLoad`.
+  skip verify si playlist bibliothèque (`playlistId` sans URL) ; `deferSalonPlaylistLoad`.
 - `CreateSalonModal.submit` : `Promise.all` position + verify (URL seulement) ;
-  create â†’ fermeture immÃ©diate â†’ playlist en arriÃ¨re-plan (socket `salon_updated`) ;
+  create ? fermeture immédiate ? playlist en arrière-plan (socket `salon_updated`) ;
   copie lien invitation non bloquante ; prop `onDeferredError` pour toast erreur load.
 - `platformStatusCache.ts` : cache TTL 25 s sur GET `/platforms/status` ;
   invalidation sur `dispatchPlatformStatusRefresh`.
 - `HomePage` : `onDeferredError={setToastMsg}`.
 
 ### Backend
-- `spotifyPlaylists.ts` : cache probe session hÃ´te 20 s (succÃ¨s uniquement) pour Ã©viter
-  3â€“4 appels `/me` Spotify pendant le flux create.
+- `spotifyPlaylists.ts` : cache probe session hôte 20 s (succès uniquement) pour éviter
+  3–4 appels `/me` Spotify pendant le flux create.
 
-## Nouveau flux submit (playlist Spotify bibliothÃ¨que)
-1. GPS + create en parallÃ¨le (pas de verify).
-2. Modal fermÃ©e, navigation salon.
-3. load-playlist en background â†’ queue via WebSocket.
+## Nouveau flux submit (playlist Spotify bibliothèque)
+1. GPS + create en parallèle (pas de verify).
+2. Modal fermée, navigation salon.
+3. load-playlist en background ? queue via WebSocket.
 
 ## Nouveau flux submit (playlist URL externe)
-1. GPS â€– verify-access (prÃ©-vol lÃ©ger metadata).
-2. create â†’ fermeture â†’ load-playlist background.
+1. GPS ? verify-access (pré-vol léger metadata).
+2. create ? fermeture ? load-playlist background.
 
 ## Gain attendu
-- **Morceau / sans playlist** : ~1â€“5 s (GPS + create seuls, vs 12 s+ avant).
-- **Playlist bibliothÃ¨que** : ~0,5â€“2 s perÃ§u (modal fermÃ©e aprÃ¨s POST /salons) ;
-  queue visible quelques secondes aprÃ¨s via socket (charge API hors chemin critique).
-- **Playlist URL** : verify â€– GPS Ã©conomise 1â€“3 s ; load-playlist n'ajoute plus 3â€“15 s
+- **Morceau / sans playlist** : ~1–5 s (GPS + create seuls, vs 12 s+ avant).
+- **Playlist bibliothèque** : ~0,5–2 s perçu (modal fermée après POST /salons) ;
+  queue visible quelques secondes après via socket (charge API hors chemin critique).
+- **Playlist URL** : verify ? GPS économise 1–3 s ; load-playlist n'ajoute plus 3–15 s
   au spinner modal.
 
 ## Fichiers
@@ -508,32 +570,32 @@ invitation, modal bloquÃ©e jusqu'Ã  la fin.
 - modification.txt
 
 ## Test
-  cd backend && npx tsc --noEmit   âœ“
-  cd app && npm run build          âœ“
+  cd backend && npx tsc --noEmit   ?
+  cd app && npm run build          ?
 
-## DÃ©ploiement
-Non â€” en attente validation utilisateur.
+## Déploiement
+Non — en attente validation utilisateur.
 
 ================================================================================
 Fin MODIF 486 - 2026-06-14
 ================================================================================
 
 ================================================================================
-MODIF 487 â€” File d'attente salon : afficher les 50 premiers morceaux
+MODIF 487 — File d'attente salon : afficher les 50 premiers morceaux
 ================================================================================
 Date : 2026-06-14
 
-## SymptÃ´me
-Panneau host salon (FILE D'ATTENTE) : seuls ~4 morceaux visibles malgrÃ© une file
-plus longue (playlist Spotify chargÃ©e).
+## Symptôme
+Panneau host salon (FILE D'ATTENTE) : seuls ~4 morceaux visibles malgré une file
+plus longue (playlist Spotify chargée).
 
 ## Cause
-- Pas de limite backend sur GET `/salons/:id/queue` (file complÃ¨te renvoyÃ©e).
-- UI `SalonQueueSection` : conteneur `max-h-40` (~160 px) â†’ ~4 lignes visibles,
+- Pas de limite backend sur GET `/salons/:id/queue` (file complète renvoyée).
+- UI `SalonQueueSection` : conteneur `max-h-40` (~160 px) ? ~4 lignes visibles,
   sans slice explicite mais scroll trop court pour parcourir la file.
 
 ## Correctif
-- Constante `SALON_QUEUE_DISPLAY_MAX = 50` â€” affiche les 50 premiers morceaux.
+- Constante `SALON_QUEUE_DISPLAY_MAX = 50` — affiche les 50 premiers morceaux.
 - Scroll : `max-h-[min(50vh,28rem)]` (+ variante compact) + `overscroll-contain`.
 - Compteur `(N)` dans le titre ; message si file > 50 morceaux.
 - i18n FR/EN (`salon.queue.*`).
@@ -545,41 +607,41 @@ plus longue (playlist Spotify chargÃ©e).
 
 ## Test
   cd app && npm run build
-  Salon host â†’ panneau FILE D'ATTENTE â†’ scroll jusqu'Ã  50 morceaux numÃ©rotÃ©s.
+  Salon host ? panneau FILE D'ATTENTE ? scroll jusqu'à 50 morceaux numérotés.
 
-## DÃ©ploiement
-**Non** â€” en attente validation utilisateur.
+## Déploiement
+**Non** — en attente validation utilisateur.
 
 ================================================================================
 Fin MODIF 487 - 2026-06-14
 ================================================================================
 
 ================================================================================
-MODIF 485 â€” Playlists externes : context_uri + file player (API Spotify 2026)
+MODIF 485 — Playlists externes : context_uri + file player (API Spotify 2026)
 ================================================================================
 Date : 2026-06-13
 
-## SymptÃ´me (post-MODIF 484)
-Playlists publiques non crÃ©Ã©es par l'hÃ´te â†’ toujours `spotify_playlist_empty` malgrÃ©
+## Symptôme (post-MODIF 484)
+Playlists publiques non créées par l'hôte ? toujours `spotify_playlist_empty` malgré
 repli client_credentials (SHA 3a06e851).
 
 ## Cause racine (logs + tests prod)
-1. Spotify API **fÃ©v. 2026** : GET `/playlists/{id}/items` â†’ **403** si l'hÃ´te n'est ni
-   propriÃ©taire ni collaborateur ; metadata seule sans morceaux.
-2. Repli MODIF 484 : client_credentials sur `/items` â†’ **401** Â« Valid user authentication
-   required Â» (confirmÃ© curl prod). Metadata app token : nom OK, **0 morceau**.
-3. Bug MODIF 484 : retour `ok: true` sur metadata vide (l.406-423) â†’ `spotify_playlist_empty`
+1. Spotify API **fév. 2026** : GET `/playlists/{id}/items` ? **403** si l'hôte n'est ni
+   propriétaire ni collaborateur ; metadata seule sans morceaux.
+2. Repli MODIF 484 : client_credentials sur `/items` ? **401** « Valid user authentication
+   required » (confirmé curl prod). Metadata app token : nom OK, **0 morceau**.
+3. Bug MODIF 484 : retour `ok: true` sur metadata vide (l.406-423) ? `spotify_playlist_empty`
    au lieu du repli player.
 
 ## Correctif
-- Suppression repli `/items` client_credentials (inopÃ©rant).
-- DÃ©tection playlist externe (403 bare / metadata sans pistes jouables).
+- Suppression repli `/items` client_credentials (inopérant).
+- Détection playlist externe (403 bare / metadata sans pistes jouables).
 - Repli : `PUT /me/player/play` avec `context_uri: spotify:playlist:{id}` puis
   `GET /me/player/queue` (`playSpotifyPlaylistContext` + `getSpotifyPlayerQueueTracks`).
 - `verify-access` : metadata (nom) suffit pour lien externe ; message `spotify_playlist_external`
   si appareil requis au lancement.
 - i18n FR/EN : `errorPlaylistExternal`, `errorNoActiveDevice`.
-- Tests parsing + dÃ©tection externe.
+- Tests parsing + détection externe.
 
 ## Fichiers
 - backend/src/lib/spotifyPlaylists.ts
@@ -590,12 +652,12 @@ repli client_credentials (SHA 3a06e851).
 - modification.txt
 
 ## Test URL
-  https://open.spotify.com/playlist/18HC7CvDqHcCphUazqkPNk  (Finn Darrig â€” publique)
+  https://open.spotify.com/playlist/18HC7CvDqHcCphUazqkPNk  (Finn Darrig — publique)
 
-## PrÃ©requis utilisateur
-Spotify ouvert sur un appareil Connect actif (tÃ©lÃ©phone / desktop) au lancement.
+## Prérequis utilisateur
+Spotify ouvert sur un appareil Connect actif (téléphone / desktop) au lancement.
 
-## DÃ©ploiement
+## Déploiement
 deploy_zero_downtime.ps1 -VerifyProd -SkipFrontend
 
 ================================================================================
@@ -603,23 +665,23 @@ Fin MODIF 485 - 2026-06-13
 ================================================================================
 
 ================================================================================
-MODIF 484 â€” Playlists publiques externes : repli client_credentials
+MODIF 484 — Playlists publiques externes : repli client_credentials
 ================================================================================
 Date : 2026-06-13
 
-## SymptÃ´me (post-MODIF 483)
-Collage d'un lien playlist publique externe (ex. `18HC7CvDqHcCphUazqkPNk`) â†’
-`spotify_playlist_empty` (404) ou Ã©chec verify/load alors que la playlist est publique.
+## Symptôme (post-MODIF 483)
+Collage d'un lien playlist publique externe (ex. `18HC7CvDqHcCphUazqkPNk`) ?
+`spotify_playlist_empty` (404) ou échec verify/load alors que la playlist est publique.
 
 ## Cause (logs prod)
-1. Jeton OAuth hÃ´te : GET `/playlists/{id}/items` â†’ **403 Forbidden**.
-2. Repli GET `/playlists/{id}` â†’ **200** mais `tracks.items` vide (metadata sans morceaux).
-3. MODIF 483 ne couvrait pas ce cas : pas de jeton application pour mÃ©tadonnÃ©es publiques.
+1. Jeton OAuth hôte : GET `/playlists/{id}/items` ? **403 Forbidden**.
+2. Repli GET `/playlists/{id}` ? **200** mais `tracks.items` vide (metadata sans morceaux).
+3. MODIF 483 ne couvrait pas ce cas : pas de jeton application pour métadonnées publiques.
 
 ## Correctif
-- `openSpotifyPlaylistItemsSession` : aprÃ¨s Ã©chec/vide jeton hÃ´te, repli **client_credentials**
-  (`getSpotifyAppAccessToken`) avec `market` explicite (pays hÃ´te ou `SPOTIFY_DEFAULT_MARKET` / FR).
-- Pagination conserve le jeton utilisÃ© (hÃ´te ou app) via `pagingAccessToken` + `useAppPaging`.
+- `openSpotifyPlaylistItemsSession` : après échec/vide jeton hôte, repli **client_credentials**
+  (`getSpotifyAppAccessToken`) avec `market` explicite (pays hôte ou `SPOTIFY_DEFAULT_MARKET` / FR).
+- Pagination conserve le jeton utilisé (hôte ou app) via `pagingAccessToken` + `useAppPaging`.
 - Logs : `trying app token`, `resolved via app token /items`, `user + app token failed`.
 
 ## Fichiers
@@ -628,11 +690,11 @@ Collage d'un lien playlist publique externe (ex. `18HC7CvDqHcCphUazqkPNk`) â†’
 - modification.txt
 
 ## Test
-  cd backend && npx tsc --noEmit   âœ“
-  cd backend && npm test -- --run  âœ“ (111 tests)
-  cd app && npm run build          âœ“
+  cd backend && npx tsc --noEmit   ?
+  cd backend && npm test -- --run  ? (111 tests)
+  cd app && npm run build          ?
 
-## DÃ©ploiement
+## Déploiement
 deploy_zero_downtime.ps1 -VerifyProd -SkipFrontend
 
 ================================================================================
@@ -640,36 +702,36 @@ Fin MODIF 484 - 2026-06-13
 ================================================================================
 
 ================================================================================
-MODIF 483 â€” Playlists publiques externes par URL (salon hÃ´te + create)
+MODIF 483 — Playlists publiques externes par URL (salon hôte + create)
 ================================================================================
 Date : 2026-06-13
 
-## SymptÃ´me
-Dans le panneau PLAYLIST HÃ”TE (`SalonSpotifyPlaylist`), coller un lien
-`open.spotify.com/playlist/â€¦` d'une playlist publique **non crÃ©Ã©e par l'hÃ´te**
-affiche Â« Session Spotify Ã  renouveler â€” reconnectez Spotify pour lancer une playlist. Â»
+## Symptôme
+Dans le panneau PLAYLIST HÔTE (`SalonSpotifyPlaylist`), coller un lien
+`open.spotify.com/playlist/…` d'une playlist publique **non créée par l'hôte**
+affiche « Session Spotify à renouveler — reconnectez Spotify pour lancer une playlist. »
 alors que la session playback est valide.
 
 ## Cause
-1. `probeSpotifyHostSession` exigeait `/me/playlists` â†’ Ã©chec bibliothÃ¨que invalidait
+1. `probeSpotifyHostSession` exigeait `/me/playlists` ? échec bibliothèque invalidait
    `spotifySessionValid` et bloquait le lancement par URL.
-2. Ã‰chec `/items` sur playlist externe parfois classÃ© reconnect (`spotify_playlist_forbidden`
+2. Échec `/items` sur playlist externe parfois classé reconnect (`spotify_playlist_forbidden`
    dans `SPOTIFY_PLAYLIST_RECONNECT_CODES`).
-3. Repli metadata GET `/playlists/{id}` limitÃ© au seul 403 bare sur `/items`.
+3. Repli metadata GET `/playlists/{id}` limité au seul 403 bare sur `/items`.
 
 ## Correctif
 ### Backend
-- Session hÃ´te (token + Premium + `/me`) **sÃ©parÃ©e** de la bibliothÃ¨que (`probeSpotifyPlaylistLibraryAccess`).
+- Session hôte (token + Premium + `/me`) **séparée** de la bibliothèque (`probeSpotifyPlaylistLibraryAccess`).
 - GET `/platforms/spotify/playlists` : `spotifySessionValid` + `spotifyLibraryValid` / `spotifyLibraryCode`.
 - `verify-access` et `load-playlist` : sonde session playback uniquement (pas `/me/playlists`).
-- `openSpotifyPlaylistItemsSession` : repli systÃ©matique GET `/playlists/{id}` si `/items` Ã©choue.
-- Nouveau code `spotify_playlist_private` (playlist privÃ©e d'un tiers) vs session.
+- `openSpotifyPlaylistItemsSession` : repli systématique GET `/playlists/{id}` si `/items` échoue.
+- Nouveau code `spotify_playlist_private` (playlist privée d'un tiers) vs session.
 
 ### Frontend
 - Hook `useSpotifyPlaylistLibrary` : `spotifyLibraryValid`, `libraryUnavailable`.
 - `SalonSpotifyPlaylist` : lancement URL si session playback OK ; validation lien ; erreurs distinctes.
 - `CreateSalonSpotifyPlaylistPicker` : validation URL + hint playlist publique externe.
-- `spotify_playlist_forbidden` retirÃ© des codes reconnect ; i18n FR/EN dÃ©diÃ©s.
+- `spotify_playlist_forbidden` retiré des codes reconnect ; i18n FR/EN dédiés.
 
 ## Fichiers
 - backend/src/lib/spotifyPlaylists.ts
@@ -685,97 +747,97 @@ alors que la session playback est valide.
 - modification.txt
 
 ## Comportement API
-| Cas | RÃ©sultat |
+| Cas | Résultat |
 |-----|----------|
-| Playlist publique (lien URL, pas dans bibliothÃ¨que) | OK via GET `/playlists/{id}` + pagination |
-| Playlist privÃ©e d'un autre utilisateur | 403 `spotify_playlist_private` |
+| Playlist publique (lien URL, pas dans bibliothèque) | OK via GET `/playlists/{id}` + pagination |
+| Playlist privée d'un autre utilisateur | 403 `spotify_playlist_private` |
 | Lien invalide / ID inconnu | 404 `spotify_playlist_not_found` |
-| Session expirÃ©e / Premium manquant | 403 `spotify_token_expired` / `spotify_premium_required` |
-| Scope bibliothÃ¨que manquant | `spotifyLibraryValid: false` mais URL publique OK |
+| Session expirée / Premium manquant | 403 `spotify_token_expired` / `spotify_premium_required` |
+| Scope bibliothèque manquant | `spotifyLibraryValid: false` mais URL publique OK |
 
 ## Test
-  cd backend && npx tsc --noEmit   âœ“
-  cd app && npm run build          âœ“
+  cd backend && npx tsc --noEmit   ?
+  cd app && npm run build          ?
 
-## DÃ©ploiement
-Non dÃ©ployÃ© (code only).
+## Déploiement
+Non déployé (code only).
 
 ================================================================================
 Fin MODIF 483 - 2026-06-13
 ================================================================================
 
 ================================================================================
-MODIF 482 â€” Suppression verify-access Ã  la sÃ©lection playlist (create salon)
+MODIF 482 — Suppression verify-access à la sélection playlist (create salon)
 ================================================================================
 Date : 2026-06-13
 
-## SymptÃ´me
-Dans CreateSalonModal, choisir une playlist dans la liste dÃ©clenche une erreur
-(`spotify_playlist_forbidden` ou message reconnect) alors que la mÃªme playlist
-apparaÃ®t dans `/me/playlists`. Le collage d'URL fonctionne mieux car le flux diffÃ¨re.
+## Symptôme
+Dans CreateSalonModal, choisir une playlist dans la liste déclenche une erreur
+(`spotify_playlist_forbidden` ou message reconnect) alors que la même playlist
+apparaît dans `/me/playlists`. Le collage d'URL fonctionne mieux car le flux diffère.
 
 ## Cause
-MODIF 481 a ajoutÃ© `verifyPlaylistAccess` (POST verify-access â†’ `/items`) **au clic
-sur la liste** avant d'enregistrer la sÃ©lection. Playlists dÃ©jÃ  listÃ©es par l'API
-hÃ´te peuvent Ã©chouer ce prÃ©-vol prÃ©maturÃ© ; l'utilisateur ne voit jamais la sÃ©lection.
+MODIF 481 a ajouté `verifyPlaylistAccess` (POST verify-access ? `/items`) **au clic
+sur la liste** avant d'enregistrer la sélection. Playlists déjà listées par l'API
+hôte peuvent échouer ce pré-vol prématuré ; l'utilisateur ne voit jamais la sélection.
 
 ## Correctif
 ### Frontend
-- `CreateSalonSpotifyPlaylistPicker` : sÃ©lection liste/URL â†’ stocke id/titre sans verify.
-- VÃ©rification conservÃ©e uniquement Ã  la **crÃ©ation du salon** (`CreateSalonModal.submit`
-  â†’ verify-access puis createSalon + load-playlist), comme `SalonSpotifyPlaylist` qui
-  verify au clic Â« Lancer Â» et non au changement de `<select>`.
+- `CreateSalonSpotifyPlaylistPicker` : sélection liste/URL ? stocke id/titre sans verify.
+- Vérification conservée uniquement à la **création du salon** (`CreateSalonModal.submit`
+  ? verify-access puis createSalon + load-playlist), comme `SalonSpotifyPlaylist` qui
+  verify au clic « Lancer » et non au changement de `<select>`.
 
-## Filtre retirÃ©
+## Filtre retiré
 - verify-access **on select** dans CreateSalonSpotifyPlaylistPicker (pickFromList, pickFromUrl).
 
-## Nouveau flux sÃ©lection
-1. GET `/platforms/spotify/playlists` â†’ liste complÃ¨te `/me/playlists` (sans filtre extra).
-2. Choix liste ou URL â†’ `onChange({ playlistId|playlistUrl, title })` immÃ©diat.
-3. Submit create salon â†’ verify-access (backend `/items` + fallback) â†’ createSalon â†’ load-playlist.
+## Nouveau flux sélection
+1. GET `/platforms/spotify/playlists` ? liste complète `/me/playlists` (sans filtre extra).
+2. Choix liste ou URL ? `onChange({ playlistId|playlistUrl, title })` immédiat.
+3. Submit create salon ? verify-access (backend `/items` + fallback) ? createSalon ? load-playlist.
 
 ## Fichiers
 - app/src/components/CreateSalonSpotifyPlaylistPicker.tsx
 - modification.txt
 
 ## Test
-  cd backend && npx tsc --noEmit   âœ“
-  cd app && npm run build          âœ“
+  cd backend && npx tsc --noEmit   ?
+  cd app && npm run build          ?
 
-## DÃ©ploiement
-Non dÃ©ployÃ© (code only).
+## Déploiement
+Non déployé (code only).
 
 ================================================================================
 Fin MODIF 482 - 2026-06-13
 ================================================================================
 
 ================================================================================
-MODIF 481 â€” Fix 403 playlist tracks â†’ /items + fallback metadata
+MODIF 481 — Fix 403 playlist tracks ? /items + fallback metadata
 ================================================================================
 Date : 2026-06-13
 
-## SymptÃ´me (persistant aprÃ¨s MODIF 480 dÃ©ployÃ© SHA 6ab16fc0)
-CrÃ©ation salon Spotify avec playlist : toast
-Â« AccÃ¨s Ã  la playlist refusÃ© â€” choisissez une playlist de votre bibliothÃ¨que ou reconnectez Spotify. Â»
+## Symptôme (persistant après MODIF 480 déployé SHA 6ab16fc0)
+Création salon Spotify avec playlist : toast
+« Accès à la playlist refusé — choisissez une playlist de votre bibliothèque ou reconnectez Spotify. »
 (code `spotify_playlist_forbidden`).
 
 ## Cause racine (preuve prod VPS 51.159.164.100)
 Logs PM2 `melosong-backend-error.log` :
 - `[load-playlist] spotify error { playlistId: '18HC7CvDqHcCphUazqkPNk', status: 403, code: 'spotify_playlist_forbidden' }`
 - `[spotify-playlist] bare 403 Forbidden on playlist tracks { context: 'verifySpotifyPlaylistTrackAccess' }`
-- MÃªme playlist listÃ©e via `/me/playlists` OK, scopes complets (`playlist-read-private` + `collaborative` + `user-read-private`).
-- Endpoint legacy `/playlists/{id}/tracks` renvoie 403 bare Â« Forbidden Â» (changement API Spotify ~fÃ©v. 2026) alors que
+- Même playlist listée via `/me/playlists` OK, scopes complets (`playlist-read-private` + `collaborative` + `user-read-private`).
+- Endpoint legacy `/playlists/{id}/tracks` renvoie 403 bare « Forbidden » (changement API Spotify ~fév. 2026) alors que
   GET `/playlists/{id}` et `/playlists/{id}/items` restent accessibles.
 
 ## Correctif
 ### Backend (`spotifyPlaylists.ts`)
-- Migration `/tracks` â†’ `/playlists/{id}/items?market=from_token&additional_types=track`.
-- Repli marchÃ© explicite (pays `/me`) si 403 bare sur `/items`.
+- Migration `/tracks` ? `/playlists/{id}/items?market=from_token&additional_types=track`.
+- Repli marché explicite (pays `/me`) si 403 bare sur `/items`.
 - Repli GET `/playlists/{id}` (pagination `tracks`/`items`) si `/items` toujours 403.
 - `verifySpotifyPlaylistTrackAccess` et `resolveSpotifyPlaylistTracks` partagent `openSpotifyPlaylistItemsSession`.
 
 ### Frontend
-- `CreateSalonSpotifyPlaylistPicker` : verify-access au clic liste (comme URL) avant sÃ©lection.
+- `CreateSalonSpotifyPlaylistPicker` : verify-access au clic liste (comme URL) avant sélection.
 
 ## Fichiers
 - backend/src/lib/spotifyPlaylists.ts
@@ -783,12 +845,12 @@ Logs PM2 `melosong-backend-error.log` :
 - modification.txt
 
 ## Test
-  cd backend && npx tsc --noEmit   âœ“
-  cd backend && npm test           âœ“ (108)
-  cd app && npm run build          âœ“
+  cd backend && npx tsc --noEmit   ?
+  cd backend && npm test           ? (108)
+  cd app && npm run build          ?
 
-## DÃ©ploiement
-deploy_zero_downtime.ps1 â€” voir SHA ci-dessous.
+## Déploiement
+deploy_zero_downtime.ps1 — voir SHA ci-dessous.
 
 ================================================================================
 Fin MODIF 481 - 2026-06-13
@@ -796,32 +858,32 @@ Fin MODIF 481 - 2026-06-13
 
 Date : 2026-06-13
 
-## SymptÃ´me (persistant aprÃ¨s MODIF 479 dÃ©ployÃ© SHA 8f14a91b)
-AprÃ¨s dÃ©connexion + reconnexion Spotify, onglet playlist CreateSalonModal affiche
-toujours Â« Reconnectez Spotify pour autoriser l'accÃ¨s aux playlists Â» + bouton
-Reconnecter â€” la reconnexion ne corrige rien.
+## Symptôme (persistant après MODIF 479 déployé SHA 8f14a91b)
+Après déconnexion + reconnexion Spotify, onglet playlist CreateSalonModal affiche
+toujours « Reconnectez Spotify pour autoriser l'accès aux playlists » + bouton
+Reconnecter — la reconnexion ne corrige rien.
 
 ## Cause racine (preuve prod VPS 51.159.164.100, user user_1781017431039_0npao)
-1. **Boucle invalidate â†’ gate DB** : probe `/playlists/{id}/tracks` renvoie 403 Forbidden
-   alors que `oauthScopes` contient dÃ©jÃ  `playlist-read-private` + `playlist-read-collaborative`.
+1. **Boucle invalidate ? gate DB** : probe `/playlists/{id}/tracks` renvoie 403 Forbidden
+   alors que `oauthScopes` contient déjà `playlist-read-private` + `playlist-read-collaborative`.
    `invalidateStoredSpotifyOAuthScopes(probe:tracks_403)` efface les scopes.
 2. **Gate DB bloque le live** : `probeSpotifyHostSession` retournait `spotify_scope_missing`
-   dÃ¨s `oauthScopes` vide, **sans** appeler `/me/playlists` â†’ reconnexion inutile.
-3. **Track probe trop strict pour la session** : Ã©chec tracks sur la 1Ã¨re playlist (ex.
-   podcast/rÃ©gion) invalidait toute la session alors que `/me/playlists` OK.
-4. **OAuth scope absent** : si Spotify omet `scope` dans la rÃ©ponse token, `oauthScopes`
-   restait undefined aprÃ¨s reconnect.
+   dès `oauthScopes` vide, **sans** appeler `/me/playlists` ? reconnexion inutile.
+3. **Track probe trop strict pour la session** : échec tracks sur la 1ère playlist (ex.
+   podcast/région) invalidait toute la session alors que `/me/playlists` OK.
+4. **OAuth scope absent** : si Spotify omet `scope` dans la réponse token, `oauthScopes`
+   restait undefined après reconnect.
 
 ## Correctif
 ### Backend
-- `probeSpotifyHostSession` : **plus de prÃ©-vÃ©rification DB** ; validation live via
+- `probeSpotifyHostSession` : **plus de pré-vérification DB** ; validation live via
   `/me` + `/me/playlists` uniquement (plus de track probe session).
 - `syncStoredScopesAfterListProbeOk` : persiste `SPOTIFY_SCOPES` si list OK et DB vide.
 - `resolveSpotifyOAuthScopesAfterConnect` : si token sans scope mais `/me/playlists` OK,
-  persiste les scopes demandÃ©s.
-- `persistStoredSpotifyOAuthScopes` : helper explicite ; invalidation limitÃ©e aux 403
+  persiste les scopes demandés.
+- `persistStoredSpotifyOAuthScopes` : helper explicite ; invalidation limitée aux 403
   **liste** avec message scope explicite (plus sur tracks).
-- `throwSpotifyPlaylistApiError` : 403 bare sur **tracks** â†’ `spotify_playlist_forbidden`
+- `throwSpotifyPlaylistApiError` : 403 bare sur **tracks** ? `spotify_playlist_forbidden`
   (pas scope_missing + pas invalidate).
 - Routes OAuth : `forceConsent` auto si `userNeedsSpotifyScopeReconnect` ; POST connect
   Spotify toujours `show_dialog=true`.
@@ -839,16 +901,16 @@ Reconnecter â€” la reconnexion ne corrige rien.
 - modification.txt
 
 ## Test
-  cd backend && npx tsc --noEmit   âœ“
-  cd app && npm run build          âœ“
+  cd backend && npx tsc --noEmit   ?
+  cd app && npm run build          ?
 
-## DÃ©ploiement
-**Non** â€” en attente validation utilisateur.
+## Déploiement
+**Non** — en attente validation utilisateur.
 
-## Action utilisateur aprÃ¨s dÃ©ploiement
-**Pas de reconnexion obligatoire** si `/me/playlists` fonctionne dÃ©jÃ  : le picker doit
-s'afficher immÃ©diatement. Reconnecter seulement si message scope persiste aprÃ¨s refresh
-(compte liÃ© avant ajout scopes playlist).
+## Action utilisateur après déploiement
+**Pas de reconnexion obligatoire** si `/me/playlists` fonctionne déjà : le picker doit
+s'afficher immédiatement. Reconnecter seulement si message scope persiste après refresh
+(compte lié avant ajout scopes playlist).
 
 ================================================================================
 Fin MODIF 480 - 2026-06-13
@@ -856,42 +918,42 @@ Fin MODIF 480 - 2026-06-13
 
 Date : 2026-06-13
 
-## SymptÃ´me (persistant aprÃ¨s MODIF 478)
-CrÃ©ation salon Spotify avec playlist : toast Â« Forbidden Â» ou Â« Session expirÃ©e Â»
+## Symptôme (persistant après MODIF 478)
+Création salon Spotify avec playlist : toast « Forbidden » ou « Session expirée »
 alors que /me/playlists listait les playlists. Logs prod :
   [spotify-playlist] API error { status: 403, detail: 'Forbidden', context: 'resolveSpotifyPlaylistTracks' }
 
-## Cause racine (vÃ©rification complÃ¨te)
-1. **Faux positif oauthScopes** : Ã  lâ€™OAuth initial, `tokens.scope || SPOTIFY_SCOPES`
-   enregistrait tous les scopes mÃªme non accordÃ©s â†’ probe DB OK, API /tracks 403.
-2. **Probe session incomplet** : `/me` + scopes stockÃ©s suffisaient ; `/me/playlists`
-   peut rÃ©ussir sans accÃ¨s rÃ©el aux morceaux (`/playlists/{id}/tracks`).
-3. **403 bare Forbidden mal classÃ©** : si scopes DB Â« OK Â», renvoyait `spotify_token_expired`
-   au lieu de `spotify_scope_missing` â†’ message trompeur, retry inutile.
+## Cause racine (vérification complète)
+1. **Faux positif oauthScopes** : à l’OAuth initial, `tokens.scope || SPOTIFY_SCOPES`
+   enregistrait tous les scopes même non accordés ? probe DB OK, API /tracks 403.
+2. **Probe session incomplet** : `/me` + scopes stockés suffisaient ; `/me/playlists`
+   peut réussir sans accès réel aux morceaux (`/playlists/{id}/tracks`).
+3. **403 bare Forbidden mal classé** : si scopes DB « OK », renvoyait `spotify_token_expired`
+   au lieu de `spotify_scope_missing` ? message trompeur, retry inutile.
 4. **Scopes playlist partiels** : un seul scope (private OU collaborative) suffisait ;
-   playlists mixtes â†’ 403 selon le type choisi.
+   playlists mixtes ? 403 selon le type choisi.
 5. **Duplication frontend** : CreateSalonSpotifyPlaylistPicker et SalonSpotifyPlaylist
    dupliquaient chargement session, codes reconnect, mapping erreurs, retry load-playlist.
-6. **Salon crÃ©Ã© avant Ã©chec load** : pas de prÃ©-vol â†’ salon vide si load-playlist Ã©choue.
+6. **Salon créé avant échec load** : pas de pré-vol ? salon vide si load-playlist échoue.
 
 ## Correctif structurel
 
-### Backend â€” modules partagÃ©s
+### Backend — modules partagés
 - `spotifySession.ts` : codes auth, `spotifySessionFailureMessage()`, `respondSpotifySessionAuthFailure()`
 - `spotifyPlaylistErrors.ts` : `SpotifyPlaylistError`, `throwSpotifyPlaylistApiError()`
-- `spotifyPlaylists.ts` : refactorÃ© (format propre), probe live `/tracks?limit=1`,
+- `spotifyPlaylists.ts` : refactoré (format propre), probe live `/tracks?limit=1`,
   `verifySpotifyPlaylistTrackAccess()`, invalidation scopes sur 403 bare
 - `spotifyOAuth.ts` : plus de fallback `SPOTIFY_SCOPES` ; les deux scopes playlist requis ;
   `invalidateStoredSpotifyOAuthScopes()`
-- Route `POST /platforms/spotify/playlists/verify-access` (prÃ©-vol avant crÃ©ation)
-- Routes `load-playlist`, `POST /salons`, `verify-access` : rÃ©ponses auth unifiÃ©es
+- Route `POST /platforms/spotify/playlists/verify-access` (pré-vol avant création)
+- Routes `load-playlist`, `POST /salons`, `verify-access` : réponses auth unifiées
 
-### Frontend â€” source de vÃ©ritÃ©
+### Frontend — source de vérité
 - `lib/spotifyPlaylistSession.ts` : codes reconnect, i18n, `toSpotifyPlaylistRef()`,
   `translateSpotifyApiError()`, `translateSalonCreateError()`
-- `hooks/useSpotifyPlaylistLibrary.ts` : bibliothÃ¨que + session + verify + reconnect
-- `components/SpotifyPlaylistPickerFields.tsx` : UI partagÃ©e (select, URL, erreur, reconnect)
-- `CreateSalonSpotifyPlaylistPicker`, `SalonSpotifyPlaylist` : utilisent hook + champs partagÃ©s
+- `hooks/useSpotifyPlaylistLibrary.ts` : bibliothèque + session + verify + reconnect
+- `components/SpotifyPlaylistPickerFields.tsx` : UI partagée (select, URL, erreur, reconnect)
+- `CreateSalonSpotifyPlaylistPicker`, `SalonSpotifyPlaylist` : utilisent hook + champs partagés
 - `CreateSalonModal` : verify-access **avant** createSalon ; plus de retry load-playlist inutile
 
 ## Fichiers
@@ -911,21 +973,21 @@ alors que /me/playlists listait les playlists. Logs prod :
 - modification.txt
 
 ## Test
-  cd backend && npx tsc --noEmit   âœ“
-  cd app && npm run build          âœ“
+  cd backend && npx tsc --noEmit   ?
+  cd app && npm run build          ?
 
-  1. Compte Spotify liÃ© avant scopes playlist â†’ picker affiche Â« Reconnecter Spotify Â»
-     (pas Forbidden / pas session expirÃ©e).
-  2. Reconnexion OAuth (show_dialog) â†’ scopes enregistrÃ©s depuis tokens.scope rÃ©el.
-  3. CreateSalonModal : Spotify â†’ Playlist â†’ choisir â†’ CrÃ©er â†’ salon + queue OK.
-  4. SalonSpotifyPlaylist : Lancer la playlist â†’ verify + load OK.
-  5. Coller URL playlist privÃ©e â†’ verify inline (create) ou au lancement (salon).
+  1. Compte Spotify lié avant scopes playlist ? picker affiche « Reconnecter Spotify »
+     (pas Forbidden / pas session expirée).
+  2. Reconnexion OAuth (show_dialog) ? scopes enregistrés depuis tokens.scope réel.
+  3. CreateSalonModal : Spotify ? Playlist ? choisir ? Créer ? salon + queue OK.
+  4. SalonSpotifyPlaylist : Lancer la playlist ? verify + load OK.
+  5. Coller URL playlist privée ? verify inline (create) ou au lancement (salon).
 
-## DÃ©ploiement
-**Non** â€” en attente validation utilisateur.
+## Déploiement
+**Non** — en attente validation utilisateur.
 
 ## Action utilisateur
-**Reconnecter Spotify** une fois (Profil ou bouton dans le picker) pour rÃ©-accorder
+**Reconnecter Spotify** une fois (Profil ou bouton dans le picker) pour ré-accorder
 `playlist-read-private` et `playlist-read-collaborative`.
 
 ================================================================================
@@ -934,35 +996,35 @@ Fin MODIF 479 - 2026-06-13
 
 Date : 2026-06-13
 
-## SymptÃ´me
-AprÃ¨s MODIF 477 : toast **Â« Impossible de charger la playlist â€” Forbidden Â»**
-au chargement/sÃ©lection playlist (CreateSalonModal ou SalonPage).
+## Symptôme
+Après MODIF 477 : toast **« Impossible de charger la playlist — Forbidden »**
+au chargement/sélection playlist (CreateSalonModal ou SalonPage).
 
 ## Cause racine
 1. Spotify renvoie souvent 403 avec message brut `Forbidden` (pas
-   Â« insufficient client scope Â») sur `GET /playlists/{id}/tracks`.
-2. MODIF 477 a correctement cessÃ© de classer ce 403 en `spotify_token_expired`,
-   mais `throwPlaylistApiError` affichait encore le dÃ©tail brut dans le toast.
-3. Comptes liÃ©s **avant** l'ajout des scopes playlist (`playlist-read-private`,
-   `playlist-read-collaborative`) : `oauthScopes` vide ou incomplet â†’
-   `probeSpotifyHostSession` laissait passer (garde `if (storedScopes && â€¦)`),
-   `/me/playlists` pouvait lister, `/tracks` Ã©chouait en 403 Forbidden.
-4. `userNeedsSpotifyScopeReconnect` ne vÃ©rifiait pas les scopes playlist.
+   « insufficient client scope ») sur `GET /playlists/{id}/tracks`.
+2. MODIF 477 a correctement cessé de classer ce 403 en `spotify_token_expired`,
+   mais `throwPlaylistApiError` affichait encore le détail brut dans le toast.
+3. Comptes liés **avant** l'ajout des scopes playlist (`playlist-read-private`,
+   `playlist-read-collaborative`) : `oauthScopes` vide ou incomplet ?
+   `probeSpotifyHostSession` laissait passer (garde `if (storedScopes && …)`),
+   `/me/playlists` pouvait lister, `/tracks` échouait en 403 Forbidden.
+4. `userNeedsSpotifyScopeReconnect` ne vérifiait pas les scopes playlist.
 
 ## Correctif
 ### Backend
-- `isSpotifyBareForbiddenError` : dÃ©tecte 403 sans dÃ©tail explicite.
+- `isSpotifyBareForbiddenError` : détecte 403 sans détail explicite.
 - `getMissingSpotifyPlaylistReadScopes` : scopes manquants si `oauthScopes` vide.
-- `probeSpotifyHostSession` : Ã©chec `spotify_scope_missing` si scopes absents
-  ou playlist-read manquants ; 403 bare â†’ scope_missing.
-- `resolveSpotifyPlaylistTracks` : prÃ©-vol scopes + mapping 403 Forbidden
-  â†’ `spotify_scope_missing` (scopes manquants) ou `spotify_token_expired`
-  (aprÃ¨s refresh) ; plus de suffixe brut Â« Forbidden Â».
+- `probeSpotifyHostSession` : échec `spotify_scope_missing` si scopes absents
+  ou playlist-read manquants ; 403 bare ? scope_missing.
+- `resolveSpotifyPlaylistTracks` : pré-vol scopes + mapping 403 Forbidden
+  ? `spotify_scope_missing` (scopes manquants) ou `spotify_token_expired`
+  (après refresh) ; plus de suffixe brut « Forbidden ».
 - `spotifyFetch` : pas de retry refresh si scopes playlist manquants.
 - `userNeedsSpotifyScopeReconnect` : inclut scopes playlist.
 
 ### Frontend
-- Messages FR dÃ©diÃ©s playlist (`errorPlaylistScopeMissing`, `errorPlaylistForbidden`).
+- Messages FR dédiés playlist (`errorPlaylistScopeMissing`, `errorPlaylistForbidden`).
 - Retry load-playlist sur `spotify_scope_missing` / `spotify_playlist_forbidden`.
 - Bouton reconnecter sur `spotify_playlist_forbidden`.
 
@@ -980,17 +1042,17 @@ au chargement/sÃ©lection playlist (CreateSalonModal ou SalonPage).
 ## Test
   cd backend && npx tsc --noEmit
   cd app && npm run build
-  1. Compte Spotify liÃ© avant MODIF playlist scopes â†’ message reconnecter
-     (pas Â« Forbidden Â») + bouton Reconnecter Spotify.
-  2. Reconnexion OAuth â†’ load playlist OK.
-  3. Playlist de la bibliothÃ¨que â†’ queue chargÃ©e.
+  1. Compte Spotify lié avant MODIF playlist scopes ? message reconnecter
+     (pas « Forbidden ») + bouton Reconnecter Spotify.
+  2. Reconnexion OAuth ? load playlist OK.
+  3. Playlist de la bibliothèque ? queue chargée.
 
-## DÃ©ploiement
-**Non** â€” en attente validation utilisateur.
+## Déploiement
+**Non** — en attente validation utilisateur.
 
 ## Action utilisateur si re-auth
 Reconnecter Spotify via le bouton **Reconnecter Spotify** (Profil ou modal
-playlist) : OAuth avec `show_dialog=true` pour rÃ©-accorder
+playlist) : OAuth avec `show_dialog=true` pour ré-accorder
 `playlist-read-private` et `playlist-read-collaborative`.
 
 ================================================================================

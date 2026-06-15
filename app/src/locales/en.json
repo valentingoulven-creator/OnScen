@@ -781,6 +781,7 @@
     "eventLocationPrecisionStreet": "Approximate street (no number)",
     "eventLocationPrecisionCity": "Approximate position (city level)",
     "eventLocationPrecisionApprox": "Approximate position",
+    "featured": "What's new",
     "eventsAround": "Events nearby",
     "eventsAroundRadius": "30 km",
     "carouselPrev": "Previous event",

@@ -200,23 +200,54 @@ export function browserReadableKindFromHeader(bytes: Uint8Array): BrowserReadabl
   }
 }
 
-function heicBrandFromHeader(bytes: Uint8Array): string | null {
-  if (bytes.length < 12) return null;
+function heicBrandsFromHeader(bytes: Uint8Array): string[] {
+  if (bytes.length < 12) return [];
   const ftyp = String.fromCharCode(bytes[4]!, bytes[5]!, bytes[6]!, bytes[7]!);
-  if (ftyp !== 'ftyp') return null;
-  return String.fromCharCode(bytes[8]!, bytes[9]!, bytes[10]!, bytes[11]!);
+  if (ftyp !== 'ftyp') return [];
+  const boxSize =
+    (bytes[0]! << 24) | (bytes[1]! << 16) | (bytes[2]! << 8) | bytes[3]!;
+  const scanEnd = Math.min(bytes.length, boxSize > 8 ? boxSize : bytes.length);
+  const brands: string[] = [];
+  for (let i = 8; i + 4 <= scanEnd; i += 4) {
+    brands.push(String.fromCharCode(bytes[i]!, bytes[i + 1]!, bytes[i + 2]!, bytes[i + 3]!));
+  }
+  return brands;
 }
 
-/** Détection HEIC/HEIF par en-tête ISO BMFF (ftyp heic/mif1…). */
+/** Détection HEIC/HEIF par en-tête ISO BMFF (marque majeure + marques compatibles ftyp). */
 export function sniffHeicMagicBytes(bytes: Uint8Array): boolean {
-  const brand = heicBrandFromHeader(bytes);
-  return brand !== null && HEIC_FTYP_BRANDS.has(brand);
+  return heicBrandsFromHeader(bytes).some((brand) => HEIC_FTYP_BRANDS.has(brand));
 }
 
-/** Lit les 12 premiers octets pour détecter HEIC ou JPEG/PNG/GIF natifs. */
-export async function readImageFileHeader(file: File): Promise<Uint8Array> {
-  const buf = await file.slice(0, 12).arrayBuffer();
+/** Lit les premiers octets pour détecter HEIC ou JPEG/PNG/GIF natifs. */
+export async function readImageFileHeader(file: File, maxBytes = 32): Promise<Uint8Array> {
+  const buf = await file.slice(0, maxBytes).arrayBuffer();
   return new Uint8Array(buf);
+}
+
+/**
+ * Assigne extension (.heic/.heif) et MIME si manquants.
+ * heic2any/libheif échoue parfois sans nom de fichier reconnu (iOS, iCloud, Windows).
+ */
+export function normalizeHeicFileMetadata(file: File, header?: Uint8Array): File {
+  const brands = header ? heicBrandsFromHeader(header) : [];
+  const preferHeif =
+    file.type === 'image/heif' ||
+    /\.heif$/i.test(file.name) ||
+    brands.some((b) => b === 'heim' || b === 'heis');
+  const ext = preferHeif ? '.heif' : '.heic';
+  const mime = preferHeif ? 'image/heif' : 'image/heic';
+
+  let baseName = (file.name.trim() || 'photo').replace(/\.(heic|heif)$/i, '');
+  if (!/\.(heic|heif)$/i.test(file.name)) {
+    baseName = baseName.replace(/\.[^.]+$/, '') || 'photo';
+  }
+  const name = `${baseName}${ext}`;
+  const type =
+    file.type === 'image/heic' || file.type === 'image/heif' ? file.type : mime;
+
+  if (file.name === name && file.type === type) return file;
+  return new File([file], name, { type });
 }
 
 export function isHeicImageFile(file: File): boolean {
@@ -245,6 +276,30 @@ export const ACCEPTED_FEED_VIDEO_FORMATS = FEED_VIDEO_LIMITS.acceptedFormats.joi
 /** Valide le format (et un plafond source très haut) avant compression automatique. */
 export function validateImageFile(file: File): { valid: boolean; error?: string } {
   if (!isAcceptedImageFormat(file, INSTAGRAM_IMAGE_LIMITS.acceptedFormats)) {
+    return {
+      valid: false,
+      error: `Format non supporté (${SUPPORTED_IMAGE_FORMATS_LABEL} uniquement)`,
+    };
+  }
+  if (file.size > INSTAGRAM_IMAGE_LIMITS.maxInputFileSizeBytes) {
+    return {
+      valid: false,
+      error: `Photo trop volumineuse (max ${INSTAGRAM_IMAGE_LIMITS.maxInputFileSizeMB} Mo).`,
+    };
+  }
+  return { valid: true };
+}
+
+/**
+ * Validation image avec détection HEIC binaire (fichiers sans extension/MIME iOS/iCloud).
+ */
+export async function validateImageFileAsync(
+  file: File
+): Promise<{ valid: boolean; error?: string }> {
+  const accepted =
+    isAcceptedImageFormat(file, INSTAGRAM_IMAGE_LIMITS.acceptedFormats) ||
+    (await isHeicImageFileAsync(file));
+  if (!accepted) {
     return {
       valid: false,
       error: `Format non supporté (${SUPPORTED_IMAGE_FORMATS_LABEL} uniquement)`,

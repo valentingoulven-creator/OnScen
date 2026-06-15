@@ -15,6 +15,7 @@ import {
   isHeicImageFileAsync,
   readImageFileHeader,
   sniffHeicMagicBytes,
+  normalizeHeicFileMetadata,
   browserReadableKindFromHeader,
   validateImageFile as _validateImageFileDetailed,
   validateStoryPhoto,
@@ -75,11 +76,12 @@ async function loadHeic2any(): Promise<Heic2AnyFn> {
 }
 
 function heicConversionBlobCandidates(file: File): Blob[] {
-  const candidates: Blob[] = [file];
+  const normalized = file;
+  const candidates: Blob[] = [normalized];
   const types = ['image/heic', 'image/heif', 'application/octet-stream'] as const;
   for (const type of types) {
-    if (file.type !== type) {
-      candidates.push(file.slice(0, file.size, type));
+    if (normalized.type !== type) {
+      candidates.push(new File([normalized], normalized.name, { type }));
     }
   }
   return candidates;
@@ -103,11 +105,12 @@ function normalizeBrowserReadableFile(file: File, kind: BrowserReadableImageKind
   return new File([file], `${baseName}${ext}`, { type: mime });
 }
 
-async function convertHeicToJpegFile(file: File): Promise<File> {
+async function convertHeicToJpegFile(file: File, header: Uint8Array): Promise<File> {
   const heic2any = await loadHeic2any();
+  const normalized = normalizeHeicFileMetadata(file, header);
   let lastError: unknown;
 
-  for (const candidate of heicConversionBlobCandidates(file)) {
+  for (const candidate of heicConversionBlobCandidates(normalized)) {
     try {
       const result = await heic2any({
         blob: candidate,
@@ -118,10 +121,10 @@ async function convertHeicToJpegFile(file: File): Promise<File> {
       if (!(converted instanceof Blob)) {
         throw new Error('Conversion HEIC échouée');
       }
-      return fileFromConvertedBlob(file, converted);
+      return fileFromConvertedBlob(normalized, converted);
     } catch (err) {
       if (isHeicAlreadyReadableError(err)) {
-        return normalizeBrowserReadableFile(file, 'jpeg');
+        return normalizeBrowserReadableFile(normalized, 'jpeg');
       }
       lastError = err;
     }
@@ -145,10 +148,11 @@ export async function prepareImageFile(file: File): Promise<File> {
   if (!needsHeic) return file;
 
   try {
-    return await convertHeicToJpegFile(file);
+    return await convertHeicToJpegFile(file, header);
   } catch (err) {
-    if (err instanceof Error && err.message && !err.message.includes('heic2any indisponible')) {
-      throw err;
+    const msg = err instanceof Error ? err.message : '';
+    if (msg && !msg.includes('heic2any indisponible') && !msg.includes('ERR_LIBHEIF')) {
+      throw err instanceof Error ? err : new Error(HEIC_CONVERSION_FAILED_ERROR);
     }
     throw new Error(HEIC_CONVERSION_FAILED_ERROR);
   }

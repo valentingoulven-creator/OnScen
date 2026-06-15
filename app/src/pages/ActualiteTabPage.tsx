@@ -10,7 +10,8 @@ import {
   clipboardItemsToImageFile,
   dataUrlToFeedImageDataUrl,
 } from '../lib/feedImagePaste';
-import { ACCEPTED_FEED_VIDEO_FORMATS, ACCEPTED_IMAGE_FORMATS, validateImageFile } from '../lib/imageConstraints';
+import { ACCEPTED_FEED_VIDEO_FORMATS, ACCEPTED_IMAGE_FORMATS, validateImageFileAsync } from '../lib/imageConstraints';
+import { prepareImageFile } from '../lib/imageUtils';
 import {
   fileToFeedVideoDataUrl,
   validateFeedVideoFile,
@@ -260,15 +261,21 @@ function SectionHeader({
   label,
   emoji,
   subtitle,
+  uppercase = true,
 }: {
   label: string;
   emoji: string;
   subtitle?: string;
+  uppercase?: boolean;
 }) {
   return (
     <div className="flex items-center gap-2 px-1">
       <span className="text-base leading-none">{emoji}</span>
-      <h3 className="text-xs font-bold text-gray-300 uppercase tracking-wide">{label}</h3>
+      <h3
+        className={`text-xs font-bold text-gray-300 tracking-wide${uppercase ? ' uppercase' : ''}`}
+      >
+        {label}
+      </h3>
       {subtitle ? (
         <span className="text-[10px] text-gray-500 font-normal normal-case tracking-normal">
           {subtitle}
@@ -506,10 +513,10 @@ function ActualitesContent({
       </div>
 
       <div className="mt-4 space-y-4 min-w-0">
-      {/* À la une */}
+      {/* Les nouveautés */}
       {featured.length > 0 && (
         <div className="space-y-2.5">
-          <SectionHeader label="À la une" emoji="🌟" />
+          <SectionHeader label={t('feed.featured')} emoji="🌟" uppercase={false} />
           {featured.map((item) => (
             <NewsArticleCard
               key={item.id}
@@ -911,6 +918,7 @@ export function ActualiteTabPage({
   const [imageUrl, setImageUrl] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [imageAttaching, setImageAttaching] = useState(false);
+  const [imagePreparing, setImagePreparing] = useState(false);
   const [videoAttaching, setVideoAttaching] = useState(false);
   const [editorSource, setEditorSource] = useState<File | string | null>(null);
   const [editorPreviewUrl, setEditorPreviewUrl] = useState<string | null>(null);
@@ -1345,14 +1353,23 @@ export function ActualiteTabPage({
     setEditorSource(source);
   };
 
-  const attachImageFromFile = (file: File) => {
-    const validation = validateImageFile(file);
+  const attachImageFromFile = async (file: File) => {
+    const validation = await validateImageFileAsync(file);
     if (!validation.valid) {
       setError(validation.error ?? 'Fichier non valide.');
       return;
     }
     setVideoUrl('');
-    openFeedImageEditor(file);
+    setError(null);
+    setImagePreparing(true);
+    try {
+      const prepared = await prepareImageFile(file);
+      openFeedImageEditor(prepared);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible d'ajouter l'image.");
+    } finally {
+      setImagePreparing(false);
+    }
   };
 
   const attachVideoFromFile = async (file: File) => {
@@ -1391,13 +1408,13 @@ export function ActualiteTabPage({
     setEditorSource(null);
   };
 
-  const handleComposePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+  const handleComposePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData?.items;
     if (!items?.length) return;
     const file = clipboardItemsToImageFile(items);
     if (!file) return;
     e.preventDefault();
-    openFeedImageEditor(file);
+    await attachImageFromFile(file);
   };
 
   const parsedEventDateDraft = parseEventDateInputValue(eventDateDraft, i18n.language);
@@ -1426,7 +1443,7 @@ export function ActualiteTabPage({
   };
   const canPublish = Boolean(draft.trim() || imageUrl.trim() || videoUrl.trim()) && eventFieldsValid;
   const editorOpen = Boolean(editorSource && editorPreviewUrl);
-  const mediaAttaching = imageAttaching || videoAttaching;
+  const mediaAttaching = imageAttaching || videoAttaching || imagePreparing;
 
   const publish = async () => {
     if (!token || !canPublish || publishing || mediaAttaching || editorOpen) return;

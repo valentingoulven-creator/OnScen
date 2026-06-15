@@ -59,7 +59,7 @@ describe('feedUserPrefs', () => {
     expect(HOME_FEED_DISPLAY_PREFS.profileTypes).toEqual([]);
     expect(HOME_FEED_DISPLAY_PREFS.musicalAffinitiesOnly).toBe(false);
     expect(HOME_FEED_DISPLAY_PREFS.audienceScope).toBe('all');
-    expect(HOME_FEED_DISPLAY_PREFS.favoritesFirst).toBe(true);
+    expect(HOME_FEED_DISPLAY_PREFS.favoritesFirst).toBe(false);
     expect(feedPrefsFiltersActive(HOME_FEED_DISPLAY_PREFS)).toBe(false);
   });
 });
