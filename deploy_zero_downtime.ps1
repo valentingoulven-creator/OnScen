@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # deploy_zero_downtime.ps1 - Soundy production (zero-downtime)
 # Executer depuis MeloSongv2/ :
 #   powershell -ExecutionPolicy Bypass -File deploy_zero_downtime.ps1
@@ -64,7 +64,7 @@ if ($SkipFrontend) { Write-Host "  [!] Frontend ignore (-SkipFrontend)" -Foregro
 if ($VerifyProd)   { Write-Host "  [+] Verify-prod actif (-VerifyProd)" -ForegroundColor Cyan }
 Write-Host ""
 Write-Host "  [!] RAPPEL : creer un snapshot VPS Scaleway avant upgrade majeur" -ForegroundColor Yellow
-Write-Host "      Console → Instances → Snapshots (voir deploy/snapshot-vps-reminder.sh)" -ForegroundColor Yellow
+Write-Host "      Console â†’ Instances â†’ Snapshots (voir deploy/snapshot-vps-reminder.sh)" -ForegroundColor Yellow
 Write-Host ""
 
 
@@ -209,7 +209,7 @@ Write-Host "`n[7/9] Migrations PostgreSQL..." -ForegroundColor Yellow
 $deployFiles = @(
     "Caddyfile", "sync-caddy.sh", "caddy-watchdog.sh", "install-caddy-guard.sh", "healthcheck.sh",
     "postgres-setup.sh", "migrate-remote.sh", "backup-db.sh", "backup-uploads.sh", "backup-offsite.sh",
-    "verify-backup.sh", "verify-prod.sh", "verify-scaleway-backup.sh", "snapshot-vps-reminder.sh",
+    "verify-backup.sh", "verify-prod.sh", "verify-scaleway-backup.sh", "setup-scaleway-object-storage.sh", "snapshot-vps-reminder.sh",
     "install-backup-cron.sh", "install-uploads-backup-cron.sh", "install-offsite-backup-cron.sh",
     "install-health-cron.sh", "setup-legal-publisher.sh", "ecosystem.config.cjs"
 )
@@ -311,3 +311,4 @@ Write-Host "  Diagnostic :"
 Write-Host "  ssh $VPS pm2 logs $PM2_APP --lines 50"
 Write-Host "  ssh $VPS bash $REMOTE/deploy/verify-prod.sh   # ou -VerifyProd au prochain deploy"
 Write-Host "==============================================" -ForegroundColor Green
+

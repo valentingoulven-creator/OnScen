@@ -1839,4 +1839,7 @@ export const api = {
 
   getDonationsSummary: (token: string) =>
     request<import('../types').DonationsSummaryReport>('/admin/donations-summary', {}, token),
+
+  getVpsMetrics: (token: string) =>
+    request<import('../types').VpsMetricsReport>('/admin/vps-metrics', {}, token),
 };

@@ -333,6 +333,46 @@ export interface DonationsSummaryReport {
   thisMonth: DonationsSummaryPeriod;
 }
 
+export interface VpsMetricsReport {
+  fetchedAt: string;
+  platform: string;
+  hostname: string;
+  env: string;
+  source: 'system' | 'partial' | 'mock';
+  uptimeSeconds: number;
+  latencyMs: number;
+  latencySource: 'postgres' | 'internal';
+  memory: {
+    usedBytes: number;
+    totalBytes: number;
+    freeBytes: number;
+    usedPercent: number;
+    processRssBytes: number;
+    processHeapUsedBytes: number;
+  };
+  cpu: {
+    cores: number;
+    model: string;
+    loadAverage1m: number | null;
+    loadAverage5m: number | null;
+    loadAverage15m: number | null;
+    loadPercent: number | null;
+  };
+  disk: {
+    usedBytes: number | null;
+    totalBytes: number | null;
+    freeBytes: number | null;
+    usedPercent: number | null;
+    mountPoint: string | null;
+    source: 'statfs' | 'unavailable';
+  };
+  node: {
+    version: string;
+    pid: number;
+  };
+  warnings: string[];
+}
+
 export type ListeningRole = 'auditeur' | 'host' | 'les_deux';
 
 export type RelationshipStatus = 'celibataire' | 'en_couple' | 'autre';

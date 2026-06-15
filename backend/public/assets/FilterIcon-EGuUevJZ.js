@@ -1,0 +1,1 @@
+import{U as e}from"./photo-editor-DZPgWmwb.js";var t=e(),n=`w-7 h-7`;function r({className:e=n}){return(0,t.jsx)(`svg`,{viewBox:`0 0 24 24`,className:e,fill:`none`,stroke:`currentColor`,strokeWidth:`2`,"aria-hidden":`true`,children:(0,t.jsx)(`path`,{d:`M4 6h16M7 12h10M10 18h4`,strokeLinecap:`round`,strokeLinejoin:`round`})})}export{r as t};

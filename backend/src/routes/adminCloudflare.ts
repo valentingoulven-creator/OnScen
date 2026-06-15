@@ -4,6 +4,7 @@ import { db } from '../models/schema';
 import { isAccessAdmin } from '../lib/accessControl';
 import { getCloudflareUsageReport } from '../lib/cloudflareUsage';
 import { getDonationsSummaryReport } from '../lib/donationsSummary';
+import { getVpsMetricsReport } from '../lib/vpsMetrics';
 
 export const adminCloudflareRouter = Router();
 
@@ -44,4 +45,20 @@ adminCloudflareRouter.get('/cloudflare-usage', authenticateJWT, async (req: Requ
 adminCloudflareRouter.get('/donations-summary', authenticateJWT, (req: Request, res: Response) => {
   if (!requireAdmin(req, res)) return;
   res.json(getDonationsSummaryReport());
+});
+
+/**
+ * GET /api/admin/vps-metrics
+ * Métriques VPS / hôte (RAM, disque, CPU, latence) — admin uniquement.
+ */
+adminCloudflareRouter.get('/vps-metrics', authenticateJWT, async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const report = await getVpsMetricsReport();
+    res.json(report);
+  } catch (e) {
+    res.status(502).json({
+      error: e instanceof Error ? e.message : 'Erreur métriques VPS',
+    });
+  }
 });

@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
+import { AnalyticsVpsTab } from './AnalyticsVpsTab';
 
 export type AnalyticsPeriod = 'day' | 'week' | 'month' | 'year';
+type AnalyticsSubTab = 'overview' | 'vps';
 
 type AnalyticsSummary = Awaited<ReturnType<typeof api.getAnalyticsSummary>>;
 
@@ -123,9 +125,47 @@ function ChartCard({
   );
 }
 
+function AnalyticsSubTabBar({
+  subTab,
+  onChange,
+  t,
+}: {
+  subTab: AnalyticsSubTab;
+  onChange: (tab: AnalyticsSubTab) => void;
+  t: (key: string) => string;
+}) {
+  const items: { id: AnalyticsSubTab; label: string }[] = [
+    { id: 'overview', label: t('admin.analytics.subTabOverview') },
+    { id: 'vps', label: t('admin.analytics.subTabVps') },
+  ];
+
+  return (
+    <nav
+      className="flex gap-1 overflow-x-auto pb-0.5 border-b border-[#1e1e2f]"
+      aria-label={t('admin.analytics.subTabsAria')}
+    >
+      {items.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          onClick={() => onChange(item.id)}
+          className={`px-3 py-2 text-xs font-semibold whitespace-nowrap transition border-b-2 -mb-px ${
+            subTab === item.id
+              ? 'border-purple-500 text-white'
+              : 'border-transparent text-gray-500 hover:text-gray-300'
+          }`}
+        >
+          {item.label}
+        </button>
+      ))}
+    </nav>
+  );
+}
+
 export function AnalyticsPage({ onBack, embedded = false }: { onBack?: () => void; embedded?: boolean }) {
   const { token } = useAuth();
   const { t, i18n } = useTranslation();
+  const [subTab, setSubTab] = useState<AnalyticsSubTab>('overview');
   const [period, setPeriod] = useState<AnalyticsPeriod>('week');
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -193,6 +233,12 @@ export function AnalyticsPage({ onBack, embedded = false }: { onBack?: () => voi
       )}
 
       <div className={`${embedded ? '' : 'flex-1 min-h-0 overflow-y-auto'} p-4 space-y-6`}>
+        <AnalyticsSubTabBar subTab={subTab} onChange={setSubTab} t={t} />
+
+        {subTab === 'vps' && <AnalyticsVpsTab />}
+
+        {subTab === 'overview' && (
+          <>
         <div>
           <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">
             {t('admin.analytics.periodLabel')}
@@ -350,6 +396,8 @@ export function AnalyticsPage({ onBack, embedded = false }: { onBack?: () => voi
             <p className="text-center text-[10px] text-gray-700 pb-4">
               {t('admin.analytics.dataNote')}
             </p>
+          </>
+        )}
           </>
         )}
       </div>

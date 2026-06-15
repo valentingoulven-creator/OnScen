@@ -144,6 +144,20 @@ flowchart TB
 |-----------|--------|
 | Fréquence | Quotidien **04:00** (après pg_dump) |
 | Destination locale | `/opt/soundly/backups-offsite/` |
+
+
+### Object Storage — activation manuelle (SCW_BUCKET)
+
+Le sync S3 de `backup-offsite.sh` nécessite un bucket et des clés IAM. Sur la machine de dev, le CLI `scw` n’est pas toujours installé ; la procédure console reste la référence.
+
+1. [Console Object Storage](https://console.scaleway.com/object-storage) → bucket **soundy-backups** en **fr-par** (privé).
+2. [IAM → API keys](https://console.scaleway.com/iam/api-keys) → droits Object Storage sur le bucket.
+3. VPS `/opt/soundly/.env` : `SCW_BUCKET`, `SCW_REGION=fr-par`, `SCW_ACCESS_KEY`, `SCW_SECRET_KEY` (voir `deploy/.env.production.example`).
+4. VPS : `bash /opt/soundly/deploy/setup-scaleway-object-storage.sh --vps-only` (installe `awscli`, teste `backup-offsite.sh`).
+5. `mkdir -p /opt/soundly/public/uploads` ; `backup-uploads.sh` archive dès qu’il y a des fichiers.
+
+Helper : `deploy/setup-scaleway-object-storage.sh` (création bucket via `scw` si CLI configuré).
+
 | Object Storage (opt.) | `SCW_BUCKET` + clés S3 → sync Scaleway |
 | Rétention | **30 jours** (`OFFSITE_RETENTION_DAYS`) |
 
@@ -223,6 +237,7 @@ gunzip -c /opt/soundly/backups/soundy-XXXX.sql.gz | psql "$DATABASE_URL"
 | `deploy/backup-offsite.sh` | Copie secondaire DB + uploads (+ S3 optionnel) |
 | `deploy/install-uploads-backup-cron.sh` | Cron hebdo uploads (dim. 04:30) |
 | `deploy/install-offsite-backup-cron.sh` | Cron quotidien off-site (04:00) |
+| `deploy/setup-scaleway-object-storage.sh` | Bucket + awscli VPS + test off-site |
 | `deploy/verify-scaleway-backup.sh` | Checklist manuelle console Scaleway |
 | `deploy/snapshot-vps-reminder.sh` | Rappel snapshot VPS avant upgrade |
 | `deploy/verify-backup.sh` | Intégrité dump `.sql.gz` |
