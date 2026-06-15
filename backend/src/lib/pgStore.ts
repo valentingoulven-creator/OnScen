@@ -12,6 +12,9 @@ import type { AccessPolicy } from './accessControl';
 
 let initialized = false;
 
+/** Sérialise les écritures PostgreSQL (évite les courses DELETE+INSERT concurrentes). */
+let pgSaveTail: Promise<void> = Promise.resolve();
+
 export async function initPostgresPersistence(): Promise<void> {
   if (initialized) return;
   await runMigrations();
@@ -33,15 +36,25 @@ export async function loadPersistedStoreFromPostgres(): Promise<boolean> {
   return true;
 }
 
-export async function savePersistedStoreToPostgres(): Promise<void> {
+async function savePersistedStoreToPostgresOnce(): Promise<void> {
   await initPostgresPersistence();
   const pool = getPool();
   const client = await pool.connect();
   try {
-    await writeStore(client, snapshotStore());
+    const data = snapshotStore();
+    if (!isValidPersistedStore(data)) {
+      throw new Error('[pgStore] Snapshot invalide — sauvegarde PostgreSQL annulée');
+    }
+    await writeStore(client, data);
   } finally {
     client.release();
   }
+}
+
+export function savePersistedStoreToPostgres(): Promise<void> {
+  const job = pgSaveTail.then(() => savePersistedStoreToPostgresOnce());
+  pgSaveTail = job.catch(() => {});
+  return job;
 }
 
 // Uses the pool directly (no single held client) so all 19 SELECTs can run in parallel
@@ -473,14 +486,21 @@ async function writeStore(client: PoolClient, data: PersistedStore): Promise<voi
       }
     }
 
-    for (const [postId, comments] of Object.entries(data.feedPostComments ?? {})) {
+    const commentsById = new Map<
+      string,
+      NonNullable<PersistedStore['feedPostComments']>[string][number]
+    >();
+    for (const comments of Object.values(data.feedPostComments ?? {})) {
       for (const comment of comments) {
-        await client.query('INSERT INTO feed_post_comments (id, post_id, payload) VALUES ($1, $2, $3::jsonb)', [
-          comment.id,
-          postId,
-          JSON.stringify(comment),
-        ]);
+        if (comment?.id) commentsById.set(comment.id, comment);
       }
+    }
+    for (const comment of commentsById.values()) {
+      await client.query(
+        `INSERT INTO feed_post_comments (id, post_id, payload) VALUES ($1, $2, $3::jsonb)
+         ON CONFLICT (id) DO UPDATE SET post_id = EXCLUDED.post_id, payload = EXCLUDED.payload`,
+        [comment.id, comment.postId, JSON.stringify(comment)]
+      );
     }
 
     for (const [userId, postIds] of Object.entries(data.feedPostFavorites ?? {})) {

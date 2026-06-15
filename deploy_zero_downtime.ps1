@@ -181,6 +181,7 @@ if (-not $SkipFrontend) {
     if ("$swapOut" -notmatch "SWAP_OK") {
         Fail "Swap atomique frontend echoue. Etat VPS incertain - verifiez $REMOTE/public*."
     }
+    Invoke-Remote ('mkdir -p ' + $REMOTE + '/public/uploads')
     Write-Host "  [OK] Frontend active (swap atomique)" -ForegroundColor Green
 } else {
     Write-Host "`n[5/9] Deploiement frontend - ignore (-SkipFrontend)" -ForegroundColor DarkGray

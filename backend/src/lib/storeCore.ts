@@ -30,6 +30,7 @@ import {
   type AccessPolicy,
 } from './accessControl';
 import { restoreAnalyticsBuckets, snapshotAnalyticsBuckets } from './analytics';
+import { purgeUnboundedChatHistory } from './chatHistory';
 
 type MapOfSets = Record<string, string[]>;
 
@@ -83,6 +84,8 @@ function recordToSets(record: MapOfSets | undefined): Map<string, Set<string>> {
 }
 
 export function snapshotStore(): PersistedStore {
+  purgeUnboundedChatHistory();
+
   const salonChats: Record<string, ChatMessage[]> = {};
   for (const [id, list] of db.salonChats.entries()) salonChats[id] = list ?? [];
 
@@ -258,8 +261,90 @@ export function restoreStore(data: PersistedStore): void {
   ensureDefaultSponsorPlatformConfig();
 }
 
+function isNonEmptyString(v: unknown): v is string {
+  return typeof v === 'string' && v.length > 0;
+}
+
+function isValidTimestamp(v: unknown): boolean {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return false;
+  const min = Date.UTC(2020, 0, 1);
+  const max = Date.now() + 86_400_000;
+  return v >= min && v <= max;
+}
+
+function isValidChatRecord(record: unknown): boolean {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) return false;
+  for (const val of Object.values(record as Record<string, unknown>)) {
+    if (!Array.isArray(val)) return false;
+    for (const msg of val) {
+      if (!msg || typeof msg !== 'object') return false;
+      const m = msg as ChatMessage;
+      if (!isNonEmptyString(m.id) || !isNonEmptyString(m.senderId)) return false;
+      if (typeof m.content !== 'string') return false;
+      if (!isValidTimestamp(m.timestamp)) return false;
+      if (m.roomType !== undefined && m.roomType !== 'salon' && m.roomType !== 'live') return false;
+    }
+  }
+  return true;
+}
+
+function isValidUserArray(users: unknown): users is User[] {
+  if (!Array.isArray(users)) return false;
+  const ids = new Set<string>();
+  for (const u of users) {
+    if (!u || typeof u !== 'object') return false;
+    const user = u as User;
+    if (!isNonEmptyString(user.id)) return false;
+    if (ids.has(user.id)) return false;
+    ids.add(user.id);
+    if (typeof user.username !== 'string' || typeof user.email !== 'string') return false;
+    if (typeof user.passwordHash !== 'string') return false;
+    if (typeof user.meloCoins !== 'number' || !Number.isFinite(user.meloCoins)) return false;
+    if (typeof user.isGhostMode !== 'boolean') return false;
+    if (typeof user.lastSeenAt !== 'number' || !Number.isFinite(user.lastSeenAt)) return false;
+  }
+  return true;
+}
+
+function isValidDirectMessages(dms: unknown): boolean {
+  if (dms === undefined) return true;
+  if (!Array.isArray(dms)) return false;
+  for (const dm of dms) {
+    if (!dm || typeof dm !== 'object') return false;
+    const m = dm as DirectMessage;
+    if (!isNonEmptyString(m.id)) return false;
+  }
+  return true;
+}
+
+function isValidArchivedLives(lives: unknown): boolean {
+  if (lives === undefined) return true;
+  if (!Array.isArray(lives)) return false;
+  for (const live of lives) {
+    if (!live || typeof live !== 'object') return false;
+    const l = live as Live;
+    if (!isNonEmptyString(l.id)) return false;
+    if (typeof l.isActive !== 'boolean') return false;
+  }
+  return true;
+}
+
 export function isValidPersistedStore(raw: unknown): raw is PersistedStore {
   if (!raw || typeof raw !== 'object') return false;
   const data = raw as PersistedStore;
-  return data.version === 1 && Array.isArray(data.users);
+  if (data.version !== 1) return false;
+  if (!isValidTimestamp(data.savedAt)) return false;
+  if (!isValidUserArray(data.users)) return false;
+  if (!isValidDirectMessages(data.directMessages)) return false;
+  if (!isValidChatRecord(data.salonChats ?? {})) return false;
+  if (!isValidChatRecord(data.liveChats ?? {})) return false;
+  if (!isValidArchivedLives(data.archivedLives)) return false;
+  if (data.accessPolicy !== undefined) {
+    const mode = data.accessPolicy.registrationMode;
+    if (mode !== 'open' && mode !== 'invite_only' && mode !== 'admin_approval' && mode !== 'closed') {
+      return false;
+    }
+    if (!isValidTimestamp(data.accessPolicy.updatedAt)) return false;
+  }
+  return true;
 }
