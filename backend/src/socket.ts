@@ -25,9 +25,13 @@ import type { LiveBanScope } from './models/schema';
 import { isPlatformConnected } from './lib/platformConnect';
 import { schedulePersist } from './lib/persist';
 import {
-  assertCanJoinLiveAsViewer,
   PlatformPlanError,
 } from './lib/platformPlans';
+import {
+  assertViewerCanAccessLive,
+  isLastLiveSocketForUser,
+  isUserViewingLive,
+} from './lib/liveParticipants';
 import {
   validateLiveWebrtcSignal,
   validateLiveWebrtcViewerReady,
@@ -105,7 +109,12 @@ export function setupSockets(io: Server): void {
       }
     });
 
-    socket.on('join_salon', ({ salonId, userId, username }: { salonId: string; userId: string; username: string }) => {
+    socket.on('join_salon', ({ salonId }: { salonId: string }) => {
+      const userId = (socket.data as { userId?: string }).userId;
+      if (!userId) {
+        socket.emit('salon_join_denied', { salonId });
+        return;
+      }
       const salon = db.salons.get(salonId);
       if (!salon || !canJoinSalon(salon, userId)) {
         socket.emit('salon_join_denied', { salonId });
@@ -274,9 +283,11 @@ export function setupSockets(io: Server): void {
       const roomName = `live_${liveId}`;
       const alreadyIn = socket.rooms.has(roomName);
       const live = db.lives.get(liveId);
-      if (live && userId && userId !== live.hostId && !alreadyIn) {
+      const wasAlreadyViewing =
+        !!(live && userId && userId !== live.hostId && isUserViewingLive(liveId, live.hostId, userId));
+      if (live && userId && userId !== live.hostId && !alreadyIn && !wasAlreadyViewing) {
         try {
-          assertCanJoinLiveAsViewer(live.hostId, live.viewersCount, userId);
+          assertViewerCanAccessLive(live, userId);
         } catch (e) {
           if (e instanceof PlatformPlanError) {
             socket.emit('live_join_denied', {
@@ -292,7 +303,7 @@ export function setupSockets(io: Server): void {
       socket.join(roomName);
       if (live) {
         socket.emit('live_updated', serializePublicLive(live, undefined, userId));
-        if (!alreadyIn) {
+        if (!alreadyIn && userId && userId !== live.hostId && !wasAlreadyViewing) {
           live.viewersCount += 1;
           db.lives.set(liveId, live);
           io.to(roomName).emit('live_updated', serializePublicLive(live));
@@ -316,7 +327,7 @@ export function setupSockets(io: Server): void {
       const roomName = `live_${liveId}`;
       socket.leave(roomName);
       const live = db.lives.get(liveId);
-      if (live && live.viewersCount > 0) {
+      if (live && live.viewersCount > 0 && userId && userId !== live.hostId && isLastLiveSocketForUser(liveId, userId)) {
         live.viewersCount -= 1;
         db.lives.set(liveId, live);
         io.to(roomName).emit('live_updated', serializePublicLive(live));

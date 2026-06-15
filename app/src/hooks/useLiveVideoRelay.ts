@@ -11,12 +11,15 @@ import {
   applyVp8VideoCodecPreferences,
   attachLiveRelaySendTracks,
   createLivePeerConnection,
+  ensureLiveIceServers,
+  getDefaultIceServers,
   hasLiveRelayVideoTrack,
   liveStreamReadyForRelay,
   LIVE_WEBRTC_MESH_VIEWER_LIMIT,
   mergeRemoteLiveStream,
   type LiveWebrtcSignalPayload,
 } from '../lib/liveVideoRelay';
+import { api } from '../lib/api';
 import { emitOnSocket, getSocket, onSocketConnect } from '../lib/socket';
 
 export type ViewerRelayPhase = 'idle' | 'waiting' | 'connecting' | 'connected' | 'failed';
@@ -33,6 +36,7 @@ const VIEWER_MAX_AUTO_FAILURE_RETRIES = 2;
 type UseLiveVideoRelayOptions = {
   liveId: string;
   userId: string | undefined;
+  authToken?: string;
   hostId: string | undefined;
   /** Caméra réelle (getUserMedia) — pas le mode fichier local. */
   broadcastStream: MediaStream | null;
@@ -66,6 +70,7 @@ function syncViewerStreamActive(
 export function useLiveVideoRelay({
   liveId,
   userId,
+  authToken,
   hostId,
   broadcastStream,
   cameraRelayActive,
@@ -99,6 +104,14 @@ export function useLiveVideoRelay({
   const hostIdRef = useRef(hostId);
   hostIdRef.current = hostId;
   const viewerReadyAttemptsRef = useRef(0);
+  const iceServersRef = useRef<RTCIceServer[]>(getDefaultIceServers());
+
+  useEffect(() => {
+    if (!authToken) return;
+    void ensureLiveIceServers(() => api.getLiveIceServers(authToken)).then((servers) => {
+      iceServersRef.current = servers;
+    });
+  }, [authToken]);
 
   const closePeer = useCallback((viewerId: string) => {
     const pc = peersRef.current.get(viewerId);
@@ -324,7 +337,7 @@ export function useLiveVideoRelay({
 
       pendingViewersRef.current.delete(viewerId);
       closePeer(viewerId);
-      const pc = createLivePeerConnection({ relayOnly });
+      const pc = createLivePeerConnection({ relayOnly }, iceServersRef.current);
       attachLiveRelaySendTracks(pc, stream);
       peerRelayOnlyRef.current.set(viewerId, relayOnly);
 
@@ -442,7 +455,7 @@ export function useLiveVideoRelay({
       viewerReadyAttemptsRef.current = 0;
       viewerRelayOnlyRef.current = relayOnly;
 
-      const pc = createLivePeerConnection({ relayOnly });
+      const pc = createLivePeerConnection({ relayOnly }, iceServersRef.current);
       viewerPcRef.current = pc;
 
       pc.ontrack = (ev) => {

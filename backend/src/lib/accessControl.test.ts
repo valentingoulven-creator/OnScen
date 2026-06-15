@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   assertRegistrationAllowed,
   getPublicAccessConfig,
+  isAccessAdmin,
   isAccessControlEnabled,
   loadAccessControlFromPersist,
   setAccessPolicy,
@@ -9,6 +10,7 @@ import {
   createInviteCode,
   consumeInviteCode,
 } from './accessControl';
+import type { User } from '../models/schema';
 
 describe('accessControl', () => {
   const envBackup = { ...process.env };
@@ -56,5 +58,28 @@ describe('accessControl', () => {
     consumeInviteCode('TEST-INVITE');
     const exhausted = validateInviteCode('TEST-INVITE');
     expect(exhausted.ok).toBe(false);
+  });
+
+  it('en production exige isAdmin sans élévation implicite par email', () => {
+    process.env.APP_ENV = 'production';
+    const msdevUser = {
+      id: 'u1',
+      email: 'listener@msdev.local',
+      username: 'soundy_dev',
+      isAdmin: false,
+    } as User;
+    expect(isAccessAdmin(msdevUser)).toBe(false);
+    expect(isAccessAdmin({ ...msdevUser, isAdmin: true })).toBe(true);
+  });
+
+  it('conserve les comptes msdev par défaut hors production', () => {
+    process.env.APP_ENV = 'msdev';
+    const msdevUser = {
+      id: 'u1',
+      email: 'listener@msdev.local',
+      username: 'listener',
+      isAdmin: false,
+    } as User;
+    expect(isAccessAdmin(msdevUser)).toBe(true);
   });
 });

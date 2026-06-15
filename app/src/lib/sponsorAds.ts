@@ -21,6 +21,10 @@ export const MAP_SPONSOR_BOUNDS_PADDING_DEG = 0.01;
 /** Aligné sur backend/src/lib/sponsors.ts */
 export const MAP_REGION_MIN_ZOOM = 8;
 
+function allowStaticMapAdsFallback(): boolean {
+  return import.meta.env.DEV || import.meta.env.VITE_APP_ENV === 'msdev';
+}
+
 export function mapApiAdToMapAd(item: MapAdItem): MapAd {
   return {
     id: item.id,
@@ -97,9 +101,9 @@ function isMapAdVisibleOnViewport(ad: MapAd, viewport?: MapSponsorViewport | nul
 }
 
 /**
- * Utilise les sponsors API ou retombe sur les bandeaux statiques msdev.
+ * Utilise les sponsors API ou retombe sur les bandeaux statiques msdev/dev.
  * - `items === []` : réponse API vide (ex. tous désactivés) → pas de repli.
- * - `items == null` : erreur / chargement → repli filtré par viewport.
+ * - `items == null` : erreur / chargement → repli filtré par viewport (msdev/dev uniquement).
  */
 export function resolveMapAds(
   items: MapAd[] | undefined | null,
@@ -107,6 +111,7 @@ export function resolveMapAds(
 ): MapAd[] {
   if (items && items.length > 0) return items;
   if (Array.isArray(items) && items.length === 0) return [];
+  if (!allowStaticMapAdsFallback()) return [];
   return filterMapAdsByViewport(MAP_ADS, viewport);
 }
 
@@ -117,6 +122,7 @@ export function resolvePlacementAds(
 ): MapAd[] {
   if (items && items.length > 0) return items;
   if (Array.isArray(items) && items.length === 0) return [];
+  if (!allowStaticMapAdsFallback()) return [];
   return placement === 'map' ? filterMapAdsByViewport(MAP_ADS, viewport) : [];
 }
 

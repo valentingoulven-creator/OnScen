@@ -772,7 +772,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
               {
                 icon: L.divIcon({
                   className: '',
-                  html: `<div class="map-marker ${botClass} ${liveClass}">${s.isBot ? '<span class="bot-badge">BOT</span>' : ''}${s.isLive ? '<span class="live-badge">LIVE</span>' : ''}<img src="${s.playbackState.albumArtUrl || ''}" alt=""/>${usernameMapLabelHtml(s.hostName, s.hostUsernameColor, { wave: { from: s.hostUsernameWaveFrom, to: s.hostUsernameWaveTo } })}</div>`,
+                  html: `<div class="map-marker ${botClass} ${liveClass}">${s.isBot ? '<span class="bot-badge">BOT</span>' : ''}${s.isLive ? '<span class="live-badge">LIVE</span>' : ''}<img src="${escapeHtml(s.playbackState.albumArtUrl || '')}" alt=""/>${usernameMapLabelHtml(s.hostName, s.hostUsernameColor, { wave: { from: s.hostUsernameWaveFrom, to: s.hostUsernameWaveTo } })}</div>`,
                   iconSize: [56, 56],
                   iconAnchor: [28, 28],
                 }),
@@ -808,7 +808,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
               {
                 icon: L.divIcon({
                   className: '',
-                  html: `<div class="map-marker live"><span class="live-badge">LIVE</span><img src="${l.playbackState.albumArtUrl || ''}" alt=""/>${usernameMapLabelHtml(l.hostName, l.hostUsernameColor, { wave: { from: l.hostUsernameWaveFrom, to: l.hostUsernameWaveTo } })}</div>`,
+                  html: `<div class="map-marker live"><span class="live-badge">LIVE</span><img src="${escapeHtml(l.playbackState.albumArtUrl || '')}" alt=""/>${usernameMapLabelHtml(l.hostName, l.hostUsernameColor, { wave: { from: l.hostUsernameWaveFrom, to: l.hostUsernameWaveTo } })}</div>`,
                   iconSize: [56, 56],
                   iconAnchor: [28, 28],
                 }),

@@ -1099,6 +1099,9 @@ export const api = {
       liveInputId?: string;
     }>(`/lives/${liveId}/playback`, {}, token),
 
+  getLiveIceServers: (token: string) =>
+    request<{ iceServers: RTCIceServer[] }>('/lives/ice-servers', {}, token),
+
   getLiveStreamCapabilities: (token: string) =>
     request<{
       cloudflareStreamAvailable: boolean;

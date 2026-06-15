@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
+  getDefaultIceServers,
   hasLiveRelayVideoTrack,
   isRelayVideoTrackReady,
   liveStreamReadyForRelay,
   mergeRemoteLiveStream,
+  setLiveIceServers,
+  clearLiveIceServersCache,
 } from './liveVideoRelay';
 
 function mockTrack(opts: {
@@ -72,6 +75,23 @@ describe('hasLiveRelayVideoTrack', () => {
   it('returns true with a live enabled video track', () => {
     const stream = mockStream([{ kind: 'video', readyState: 'live', enabled: true }]);
     expect(hasLiveRelayVideoTrack(stream)).toBe(true);
+  });
+});
+
+describe('getDefaultIceServers', () => {
+  it('falls back to Google STUN without cached TURN', () => {
+    clearLiveIceServersCache();
+    expect(getDefaultIceServers()).toEqual([{ urls: 'stun:stun.l.google.com:19302' }]);
+  });
+
+  it('uses cached servers from API', () => {
+    clearLiveIceServersCache();
+    setLiveIceServers([
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'turn:example.com:3478', username: 'u', credential: 'p' },
+    ]);
+    expect(getDefaultIceServers()).toHaveLength(2);
+    clearLiveIceServersCache();
   });
 });
 

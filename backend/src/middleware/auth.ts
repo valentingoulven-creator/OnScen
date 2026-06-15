@@ -2,15 +2,9 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { db } from '../models/schema';
 import { canUserUseApp } from '../lib/accessControl';
+import { getJwtSecret } from '../lib/jwtSecret';
 
-const _envSecret = process.env.JWT_SECRET;
-if (!_envSecret) {
-  if (process.env.APP_ENV === 'production') {
-    throw new Error('[auth] JWT_SECRET must be set in production — refusing to start with default key.');
-  }
-  console.warn('[auth] ⚠ JWT_SECRET not set — using insecure development default. Set JWT_SECRET in .env before deploying to production.');
-}
-const JWT_SECRET = _envSecret || 'melosong_secret_dev_fallback';
+const JWT_SECRET = getJwtSecret();
 
 export interface AuthPayload {
   id: string;

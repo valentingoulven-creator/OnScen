@@ -102,7 +102,19 @@ Diffusion **camÃ©ra + micro depuis le navigateur** (sans OBS). Prioritaire sur
 
 Plan **Build** (gratuit) : **100 participants simultanÃ©s**, **5000 min/mois**. Au-delÃ , passer au plan Ship ou limiter les spectateurs.
 
-AprÃ¨s ajout sur le VPS :
+### TURN / WebRTC mesh (live caméra navigateur)
+
+Sans LiveKit ni Cloudflare, les spectateurs se connectent en WebRTC mesh. Les identifiants TURN **ne doivent jamais** être dans le frontend : le client appelle `GET /api/lives/ice-servers` (JWT requis).
+
+| Variable | Description |
+|----------|-------------|
+| `TURN_URL` | URL(s) TURN (`turn:host:3478?transport=udp`, plusieurs séparées par virgule) |
+| `TURN_USERNAME` | Nom d'utilisateur TURN |
+| `TURN_CREDENTIAL` | Mot de passe TURN |
+
+Google STUN (`stun:stun.l.google.com:19302`) est toujours renvoyé en fallback. Si les variables TURN sont absentes, seul le STUN est exposé.
+
+Après ajout sur le VPS :
 
 ```bash
 nano /opt/soundly/.env

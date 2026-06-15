@@ -458,6 +458,7 @@ export function LivePage({
   } = useLiveVideoRelay({
     liveId,
     userId: user?.id,
+    authToken: token ?? undefined,
     hostId: live?.hostId,
     broadcastStream: hostCameraRelayActive ? broadcastStream : null,
     cameraRelayActive: isHost ? hostCameraRelayActive : viewerCameraRelayActive,

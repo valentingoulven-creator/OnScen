@@ -17,7 +17,7 @@ import { DEFAULT_MAP_LAT, DEFAULT_MAP_LON, isValidLatLng } from '../lib/mapCoord
 import { MIN_LIVE_AGE, userMeetsLiveAge } from '../lib/ageGates';
 import { serializePublicLive } from '../lib/livePublic';
 import { assertLiveAccessible } from '../lib/adminContentModeration';
-import { getLiveConnectedParticipants } from '../lib/liveParticipants';
+import { getLiveConnectedParticipants, assertViewerCanAccessLive } from '../lib/liveParticipants';
 import {
   endLiveSession,
   listHostedArchivedLives,
@@ -32,7 +32,6 @@ import {
 } from '../lib/cloudflareStream';
 import {
   assertCanStartLive,
-  assertCanJoinLiveAsViewer,
   assertCanUseCloudflareObs,
   canAccessArchivedLives,
   getUserPlatformPlan,
@@ -46,8 +45,14 @@ import {
   liveKitRoomName,
 } from '../lib/livekit';
 import { getIo } from '../lib/ioInstance';
+import { buildIceServers } from '../lib/iceServers';
 
 export const livesRouter = Router();
+
+/** Authenticated ICE servers for WebRTC live relay (TURN credentials from server env). */
+livesRouter.get('/ice-servers', authenticateJWT, (_req: Request, res: Response) => {
+  res.json({ iceServers: buildIceServers() });
+});
 
 livesRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
   const latStr = req.query.latitude as string | undefined;
@@ -391,7 +396,7 @@ livesRouter.get('/:id/livekit-token', authenticateJWT, async (req: Request, res:
   const isHost = live.hostId === me.id;
   if (!isHost) {
     try {
-      assertCanJoinLiveAsViewer(live.hostId, live.viewersCount, me.id);
+      assertViewerCanAccessLive(live, me.id);
     } catch (e) {
       if (e instanceof PlatformPlanError) {
         res.status(403).json({ error: e.message, code: e.code });
@@ -446,6 +451,17 @@ livesRouter.get('/:id/playback', authenticateJWT, (req: Request, res: Response) 
   if (live.hostId !== me && isLiveViewBanned(live.id, me)) {
     res.status(403).json({ error: 'Vous êtes banni de ce live.', code: 'live_banned' });
     return;
+  }
+  if (live.hostId !== me) {
+    try {
+      assertViewerCanAccessLive(live, me);
+    } catch (e) {
+      if (e instanceof PlatformPlanError) {
+        res.status(403).json({ error: e.message, code: e.code });
+        return;
+      }
+      throw e;
+    }
   }
   if (live.streamMode !== 'cloudflare' || !live.cloudflarePlaybackUrl) {
     res.status(404).json({

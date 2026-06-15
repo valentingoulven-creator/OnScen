@@ -1,6 +1,8 @@
 import { db } from '../models/schema';
 import { getIo } from './ioInstance';
 import { isDevUser } from './accessControl';
+import { assertCanJoinLiveAsViewer } from './platformPlans';
+import type { Live } from '../models/schema';
 
 export interface LiveConnectedParticipant {
   id: string;
@@ -43,4 +45,51 @@ export function getLiveConnectedParticipants(
 
   result.sort((a, b) => a.username.localeCompare(b.username, 'fr'));
   return result;
+}
+
+/** Unique non-host userIds with at least one socket in the live room. */
+export function getLiveRoomViewerUserIds(liveId: string, hostId: string): Set<string> {
+  const io = getIo();
+  const ids = new Set<string>();
+  if (!io) return ids;
+
+  const room = io.sockets.adapter.rooms.get(`live_${liveId}`);
+  if (!room) return ids;
+
+  for (const socketId of room) {
+    const userId = (io.sockets.sockets.get(socketId)?.data as { userId?: string }).userId;
+    if (!userId || userId === hostId) continue;
+    ids.add(userId);
+  }
+  return ids;
+}
+
+export function countLiveUniqueViewers(liveId: string, hostId: string): number {
+  return getLiveRoomViewerUserIds(liveId, hostId).size;
+}
+
+export function isUserViewingLive(liveId: string, hostId: string, userId: string): boolean {
+  return getLiveRoomViewerUserIds(liveId, hostId).has(userId);
+}
+
+/** True when no other socket for this user remains in the live room. */
+export function isLastLiveSocketForUser(liveId: string, userId: string): boolean {
+  const io = getIo();
+  if (!io) return true;
+
+  const room = io.sockets.adapter.rooms.get(`live_${liveId}`);
+  if (!room) return true;
+
+  for (const socketId of room) {
+    const sockUserId = (io.sockets.sockets.get(socketId)?.data as { userId?: string }).userId;
+    if (sockUserId === userId) return false;
+  }
+  return true;
+}
+
+/** Enforce viewer plan limits for new spectators (skips host and returning viewers). */
+export function assertViewerCanAccessLive(live: Live, viewerId: string): void {
+  if (viewerId === live.hostId) return;
+  if (isUserViewingLive(live.id, live.hostId, viewerId)) return;
+  assertCanJoinLiveAsViewer(live.hostId, countLiveUniqueViewers(live.id, live.hostId), viewerId);
 }

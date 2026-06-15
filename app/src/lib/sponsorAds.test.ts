@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { MAP_ADS } from '../content/ads';
 import {
   filterMapAdsByViewport,
@@ -78,7 +78,7 @@ describe('sponsorAds', () => {
     expect(resolveMapAds([], cresViewport)).toEqual([]);
   });
 
-  it('retombe sur MAP_ADS filtrés si la liste API est absente (erreur réseau)', () => {
+  it('retombe sur MAP_ADS filtrés si la liste API est absente (erreur réseau, msdev/dev)', () => {
     const franceOverview = resolveMapAds(undefined, { lat: 46.6, lng: 2.4, zoom: 6 });
     expect(franceOverview.some((ad) => ad.id === 'solar-festival-cres')).toBe(false);
     expect(franceOverview.some((ad) => ad.id === 'premium')).toBe(true);
@@ -126,6 +126,21 @@ describe('sponsorAds', () => {
     expect(resolvePlacementAds('feed', [])).toEqual([]);
     expect(resolvePlacementAds('stories', undefined)).toEqual([]);
     expect(resolvePlacementAds('map', []).some((ad) => ad.id === 'solar-festival-cres')).toBe(false);
+  });
+
+  it('ne retombe pas sur MAP_ADS en build production', async () => {
+    vi.stubEnv('DEV', false);
+    vi.stubEnv('VITE_APP_ENV', 'production');
+    vi.resetModules();
+    const { resolveMapAds: resolveProd } = await import('./sponsorAds');
+    expect(resolveProd(null, cresViewport)).toEqual([]);
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
   });
 
   it('déclenche les handlers CTA internes ou le lien externe', () => {

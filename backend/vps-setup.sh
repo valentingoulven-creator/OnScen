@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 # vps-setup.sh — Exécuté directement sur le VPS
 # Envoyé par SCP depuis deploy-scaleway.ps1
+#
+# ⚠ Ne jamais committer de mots de passe DB dans ce dépôt.
+# Définir DB_PASS (et optionnellement DB_HOST, DB_PORT, DB_USER) dans l'environnement
+# du VPS ou dans /opt/soundly/.env avant d'exécuter ce script.
 set -euo pipefail
 
-DB_HOST="51.15.132.229"
-DB_PORT="14440"
-DB_USER="soundy"
-DB_PASS='b5+D5/uE8Qng(s?.huy0'
-DB_PASS_URL="b5%2BD5%2FuE8Qng%28s%3F.huy0"
+DB_HOST="${DB_HOST:-51.15.132.229}"
+DB_PORT="${DB_PORT:-14440}"
+DB_USER="${DB_USER:-soundy}"
+DB_PASS="${DB_PASS:?DB_PASS must be set — use secrets from VPS .env, never commit passwords}"
 ENV_FILE="/opt/soundly/.env"
+
+# URL-encode password for DATABASE_URL (requires python3 on VPS)
+DB_PASS_URL="$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$DB_PASS")"
 
 echo "=== [VPS] Installation postgresql-client ==="
 apt-get install -y postgresql-client -q 2>&1 | tail -5

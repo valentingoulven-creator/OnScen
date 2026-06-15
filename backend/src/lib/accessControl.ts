@@ -94,30 +94,39 @@ export function isDemoAccount(user: User): boolean {
   return MSDEV_DEMO_EMAILS.includes(user.email as (typeof MSDEV_DEMO_EMAILS)[number]);
 }
 
+function isMsdevAccessEnv(): boolean {
+  return process.env.APP_ENV === 'msdev' || process.env.MSENV === 'msdev';
+}
+
+function isProductionAccessEnv(): boolean {
+  return process.env.APP_ENV === 'production' || process.env.NODE_ENV === 'production';
+}
+
 function parseAdminEmails(): Set<string> {
   const raw = process.env.ACCESS_ADMIN_EMAILS?.trim();
-  const defaults = ['listener@msdev.local', 'dj@msdev.local'];
+  const defaults = isMsdevAccessEnv() ? ['listener@msdev.local', 'dj@msdev.local'] : [];
   const list = raw ? raw.split(/[,;]/).map((e) => e.trim().toLowerCase()).filter(Boolean) : defaults;
   return new Set(list);
 }
 
 function parseAdminUsernames(): Set<string> {
   const raw = process.env.ACCESS_ADMIN_USERNAMES?.trim();
-  const defaults = ['soundy_dev'];
+  const defaults = isMsdevAccessEnv() ? ['soundy_dev'] : [];
   const list = raw
     ? raw.split(/[,;]/).map((u) => u.trim().toLowerCase()).filter(Boolean)
     : defaults;
   return new Set(list);
 }
 
-const adminEmails = parseAdminEmails();
-const adminUsernames = parseAdminUsernames();
+const adminEmails = () => parseAdminEmails();
+const adminUsernames = () => parseAdminUsernames();
 
 export function isAccessAdmin(user: User | undefined): boolean {
   if (!user) return false;
   if (user.isAdmin === true) return true;
-  if (adminUsernames.has(user.username.trim().toLowerCase())) return true;
-  return adminEmails.has(user.email.trim().toLowerCase());
+  if (isProductionAccessEnv()) return false;
+  if (adminUsernames().has(user.username.trim().toLowerCase())) return true;
+  return adminEmails().has(user.email.trim().toLowerCase());
 }
 
 /** Compte développeur / super-admin (alias public de isAccessAdmin). */
@@ -263,8 +272,9 @@ export function setUserAccountStatus(userId: string, status: AccountStatus): Use
 }
 
 function wouldRetainAdminWithoutFlag(user: User): boolean {
-  if (adminUsernames.has(user.username.trim().toLowerCase())) return true;
-  return adminEmails.has(user.email.trim().toLowerCase());
+  if (isProductionAccessEnv()) return false;
+  if (adminUsernames().has(user.username.trim().toLowerCase())) return true;
+  return adminEmails().has(user.email.trim().toLowerCase());
 }
 
 function countEffectiveAdmins(excludeUserId?: string, excludeFlag = false): number {

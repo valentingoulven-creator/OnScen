@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import Stripe from 'stripe';
 import { db } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
+import { getJwtSecret } from '../lib/jwtSecret';
 import {
   PLATFORM_CREATOR_ID,
   assertCreatorCanReceiveSubscription,
@@ -53,8 +54,7 @@ subscriptionsRouter.get('/config', (req: Request, res: Response) => {
   let userId: string | undefined;
   if (authHeader?.startsWith('Bearer ')) {
     try {
-      const secret = process.env.JWT_SECRET || 'melosong_dev_secret';
-      const decoded = jwt.verify(authHeader.slice(7), secret) as { id: string };
+      const decoded = jwt.verify(authHeader.slice(7), getJwtSecret()) as { id: string };
       userId = decoded.id;
     } catch {
       /* config publique */

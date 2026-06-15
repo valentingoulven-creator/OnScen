@@ -1,15 +1,8 @@
-/** ICE servers : STUN public + TURN Soundy VPS (51.159.164.100). */
-export const LIVE_WEBRTC_ICE_SERVERS: RTCIceServer[] = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  {
-    urls: [
-      'turn:51.159.164.100:3478?transport=udp',
-      'turn:51.159.164.100:3478?transport=tcp',
-    ],
-    username: 'soundy',
-    credential: 'TurnSoundy2026!',
-  },
-];
+/** Google STUN fallback when TURN credentials are not yet loaded from the API. */
+const GOOGLE_STUN: RTCIceServer = { urls: 'stun:stun.l.google.com:19302' };
+
+let cachedIceServers: RTCIceServer[] | null = null;
+let iceServersPromise: Promise<RTCIceServer[]> | null = null;
 
 /** Limite pratique du mesh hôte→N spectateurs (bande passante upload hôte). */
 export const LIVE_WEBRTC_MESH_VIEWER_LIMIT = 30;
@@ -28,9 +21,45 @@ export type LivePeerConnectionOptions = {
   relayOnly?: boolean;
 };
 
-export function createLivePeerConnection(opts?: LivePeerConnectionOptions): RTCPeerConnection {
+export function getDefaultIceServers(): RTCIceServer[] {
+  return cachedIceServers ?? [GOOGLE_STUN];
+}
+
+export function setLiveIceServers(servers: RTCIceServer[]): void {
+  cachedIceServers = servers.length > 0 ? servers : [GOOGLE_STUN];
+}
+
+export function clearLiveIceServersCache(): void {
+  cachedIceServers = null;
+  iceServersPromise = null;
+}
+
+/** Fetch authenticated ICE servers from backend (TURN creds stay server-side). */
+export async function ensureLiveIceServers(
+  fetchIceServers: () => Promise<{ iceServers: RTCIceServer[] }>
+): Promise<RTCIceServer[]> {
+  if (cachedIceServers) return cachedIceServers;
+  if (!iceServersPromise) {
+    iceServersPromise = fetchIceServers()
+      .then((res) => {
+        const servers = res.iceServers?.length ? res.iceServers : [GOOGLE_STUN];
+        cachedIceServers = servers;
+        return servers;
+      })
+      .catch(() => [GOOGLE_STUN])
+      .finally(() => {
+        iceServersPromise = null;
+      });
+  }
+  return iceServersPromise;
+}
+
+export function createLivePeerConnection(
+  opts?: LivePeerConnectionOptions,
+  iceServers?: RTCIceServer[]
+): RTCPeerConnection {
   return new RTCPeerConnection({
-    iceServers: LIVE_WEBRTC_ICE_SERVERS,
+    iceServers: iceServers ?? getDefaultIceServers(),
     iceTransportPolicy: opts?.relayOnly ? 'relay' : 'all',
   });
 }
