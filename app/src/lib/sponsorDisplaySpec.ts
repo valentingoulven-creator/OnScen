@@ -15,6 +15,30 @@ export const SPONSOR_ACCENT_GRADIENTS: Record<SponsorAccent, string> = {
   rose: 'from-rose-600/90 via-pink-700/80 to-purple-900/90',
 };
 
+/** Fond neutre quand aucun accent n'est défini (bandeau carte mode full). */
+export const SPONSOR_NEUTRAL_BANNER_BG = 'from-[#1a1a26] to-[#0b0b0f]';
+
+/** Bandeau carte : 90 px mobile, 96 px desktop, plafond 105 px, pleine largeur. */
+export const MAP_BANNER_SHELL_CLASS =
+  'w-full max-w-full h-[5.625rem] sm:h-[6rem] max-h-[6.5625rem] overflow-hidden';
+export const MAP_BANNER_IMAGE_CLASS = 'w-full h-full object-cover object-center';
+export const MAP_BANNER_CONTENT_CLASS =
+  'relative z-10 flex items-center gap-3 px-4 py-2 pt-7 sm:pt-8 h-full min-h-0 overflow-hidden';
+
+/** Image source recommandée (1×) et export rognage (2× retina), ratio 20:3 (= 640:96). */
+export const MAP_BANNER_IMAGE_W = 640;
+export const MAP_BANNER_IMAGE_H = 96;
+export const MAP_BANNER_EXPORT_W = 1280;
+export const MAP_BANNER_EXPORT_H = 192;
+export const MAP_BANNER_CROP_VIEWPORT_W = 320;
+export const MAP_BANNER_CROP_VIEWPORT_H = 48;
+export const MAP_BANNER_ASPECT_RATIO = '20:3';
+
+export function resolveAccentGradientClass(accent?: SponsorAccent): string | null {
+  if (!accent) return null;
+  return SPONSOR_ACCENT_GRADIENTS[accent] ?? null;
+}
+
 export type SponsorImageSpec = {
   logoPx: string;
   bannerPx?: string;
@@ -26,8 +50,8 @@ export type SponsorImageSpec = {
 export const SPONSOR_IMAGE_SPECS: Record<SponsorPlacement, SponsorImageSpec> = {
   map_banner: {
     logoPx: '80 × 80 px',
-    bannerPx: '360 × 90 px min. (mobile), 640 × 96 px min. (≥640 px)',
-    ratio: '4:1 environ (pleine largeur, hauteur min. 90–96 px)',
+    bannerPx: `${MAP_BANNER_IMAGE_W} × ${MAP_BANNER_IMAGE_H} px (recommandé), ${MAP_BANNER_EXPORT_W} × ${MAP_BANNER_EXPORT_H} px (retina @2×)`,
+    ratio: `${MAP_BANNER_ASPECT_RATIO} (pleine largeur · coque 90 px mobile, 96 px desktop, max. 105 px)`,
     noteKey: 'admin.sponsors.helpImageMapBanner',
   },
   feed_inline: {

@@ -552,7 +552,7 @@ function ActualitesContent({
             itemCount={featuredUserSounds.length}
             ariaPrevLabel={t('feed.featuredCarouselPrev')}
             ariaNextLabel={t('feed.featuredCarouselNext')}
-            scrollClassName="overflow-x-auto -mx-3 px-3 flex w-max gap-3 pb-1 snap-x snap-mandatory"
+            scrollClassName="ms-hscroll-track overflow-x-auto flex w-max gap-3 pb-1 snap-x snap-mandatory"
           >
             {featuredUserSounds.map((item) => (
               <NewsArticleCard

@@ -1,19 +1,29 @@
+export type MapAdVisibilityScope = 'france' | 'region';
+export type MapBannerDisplayMode = 'full' | 'image_only';
+
 export interface MapAd {
   id: string;
   title: string;
   subtitle: string;
   cta: string;
   href?: string;
-  accent: 'purple' | 'pink' | 'amber' | 'cyan' | 'rose';
+  accent?: 'purple' | 'pink' | 'amber' | 'cyan' | 'rose';
+  bannerDisplayMode?: MapBannerDisplayMode;
   /** Nom affiché à côté du badge Sponsorisé (démo) */
   sponsor?: string;
   /** Promo interne Soundy vs partenaire fictif */
   kind?: 'promo' | 'sponsored';
   logoUrl?: string;
+  /** Image de fond du bandeau carte (optionnel). */
+  bannerImageUrl?: string;
   /** Action interne (salon, live) si pas de lien externe */
   actionId?: 'salon' | 'live';
   /** Durée d'affichage dans le carrousel (secondes). */
   displayDurationSec?: number;
+  /** Ciblage carte (repli statique msdev). */
+  mapVisibilityScope?: MapAdVisibilityScope;
+  mapTargetLat?: number;
+  mapTargetLng?: number;
 }
 
 export const MAP_ADS: MapAd[] = [
@@ -25,6 +35,38 @@ export const MAP_ADS: MapAd[] = [
     accent: 'purple',
     sponsor: 'Soundy',
     kind: 'promo',
+  },
+  {
+    id: 'solar-festival-cres',
+    title: 'Solar Festival au Crès',
+    subtitle: '5e édition — électro en bord de lac, 4 juillet 2026 · Petit Biscuit, KAS:ST & plus',
+    cta: 'Billetterie',
+    href: 'https://solarfestival.fr/billetterie',
+    accent: 'amber',
+    sponsor: 'Solar Festival',
+    kind: 'promo',
+    logoUrl:
+      'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=80&h=80&fit=crop',
+    displayDurationSec: 10,
+    mapVisibilityScope: 'region',
+    mapTargetLat: 43.6489,
+    mapTargetLng: 3.8567,
+  },
+  {
+    id: 'les-deferlantes-2026',
+    title: 'Les Déferlantes 2026',
+    subtitle: 'Rock & chanson française à Argelès-sur-Mer — 3 au 7 juillet 2026 · scène méditerranéenne',
+    cta: 'Billetterie',
+    href: 'https://www.lesdeferlantes.com',
+    accent: 'rose',
+    sponsor: 'Les Déferlantes',
+    kind: 'promo',
+    logoUrl:
+      'https://images.unsplash.com/photo-1459749411176-827ae46c79ea?w=80&h=80&fit=crop',
+    displayDurationSec: 10,
+    mapVisibilityScope: 'region',
+    mapTargetLat: 42.5467,
+    mapTargetLng: 3.0222,
   },
   {
     id: 'salon',

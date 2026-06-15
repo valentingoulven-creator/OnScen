@@ -612,17 +612,52 @@ export const api = {
   deleteAdminSponsor: (token: string, sponsorId: string) =>
     request<{ ok: boolean }>(`/access/admin/sponsors/${sponsorId}`, { method: 'DELETE' }, token),
 
-  getMapSponsors: () =>
-    request<{ items: import('../types').MapAdItem[] }>('/sponsors/map', {}),
+  uploadAdminSponsorLogo: (token: string, image: string) =>
+    request<{ url: string }>(
+      '/access/admin/sponsors/upload-logo',
+      { method: 'POST', body: JSON.stringify({ image }) },
+      token
+    ),
+
+  uploadAdminSponsorBanner: (token: string, image: string) =>
+    request<{ url: string }>(
+      '/access/admin/sponsors/upload-banner',
+      { method: 'POST', body: JSON.stringify({ image }) },
+      token
+    ),
+
+  getMapSponsors: (query?: {
+    lat?: number;
+    lng?: number;
+    zoom?: number;
+    north?: number;
+    south?: number;
+    east?: number;
+    west?: number;
+  }) => {
+    const params = new URLSearchParams();
+    if (query?.lat != null && Number.isFinite(query.lat)) params.set('lat', String(query.lat));
+    if (query?.lng != null && Number.isFinite(query.lng)) params.set('lng', String(query.lng));
+    if (query?.zoom != null && Number.isFinite(query.zoom)) params.set('zoom', String(query.zoom));
+    if (query?.north != null && Number.isFinite(query.north)) params.set('north', String(query.north));
+    if (query?.south != null && Number.isFinite(query.south)) params.set('south', String(query.south));
+    if (query?.east != null && Number.isFinite(query.east)) params.set('east', String(query.east));
+    if (query?.west != null && Number.isFinite(query.west)) params.set('west', String(query.west));
+    const qs = params.toString();
+    return request<{ items: import('../types').MapAdItem[] }>(
+      `/sponsors/map${qs ? `?${qs}` : ''}`,
+      { cache: 'no-store' }
+    );
+  },
 
   getFeedSponsors: () =>
-    request<{ items: import('../types').MapAdItem[] }>('/sponsors/feed', {}),
+    request<{ items: import('../types').MapAdItem[] }>('/sponsors/feed', { cache: 'no-store' }),
 
   getStoriesSponsors: () =>
-    request<{ items: import('../types').MapAdItem[] }>('/sponsors/stories', {}),
+    request<{ items: import('../types').MapAdItem[] }>('/sponsors/stories', { cache: 'no-store' }),
 
   getReelsSponsors: () =>
-    request<import('../types').ReelsSponsorsResponse>('/sponsors/reels', {}),
+    request<import('../types').ReelsSponsorsResponse>('/sponsors/reels', { cache: 'no-store' }),
 
   getAdminSponsorsConfig: (token: string) =>
     request<{ config: import('../types').SponsorPlatformConfig }>(

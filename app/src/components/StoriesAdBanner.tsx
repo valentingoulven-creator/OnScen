@@ -1,6 +1,6 @@
 import { handleSponsorCta } from '../lib/sponsorAds';
 import { useSponsorAdsRotation } from '../lib/useSponsorAdsRotation';
-import { SPONSOR_ACCENT_GRADIENTS, sponsorKindBadgeLabel } from '../lib/sponsorDisplaySpec';
+import { resolveAccentGradientClass, SPONSOR_NEUTRAL_BANNER_BG, sponsorKindBadgeLabel } from '../lib/sponsorDisplaySpec';
 
 interface StoriesAdBannerProps {
   onCtaSalon?: () => void;
@@ -35,6 +35,7 @@ export function StoriesAdBanner({ onCtaSalon, onCtaLive }: StoriesAdBannerProps)
   if (!hasAds || !ad) return null;
 
   const badgeLabel = sponsorKindBadgeLabel(ad.kind ?? 'promo');
+  const accentGradient = resolveAccentGradientClass(ad.accent) ?? SPONSOR_NEUTRAL_BANNER_BG;
 
   return (
     <div className="px-2 pt-2 pb-1 min-w-0" role="region" aria-label="Bandeau sponsorisé stories">
@@ -42,7 +43,7 @@ export function StoriesAdBanner({ onCtaSalon, onCtaLive }: StoriesAdBannerProps)
         type="button"
         key={ad.id}
         onClick={() => handleSponsorCta(ad, { onCtaSalon, onCtaLive })}
-        className={`w-full flex items-center gap-2 px-3 py-2 min-h-14 rounded-xl border border-white/10 bg-gradient-to-r ${SPONSOR_ACCENT_GRADIENTS[ad.accent]} text-left transition-opacity duration-200 ${
+        className={`w-full flex items-center gap-2 px-3 py-2 min-h-14 rounded-xl border border-white/10 bg-gradient-to-r ${accentGradient} text-left transition-opacity duration-200 ${
           fading ? 'opacity-0' : 'opacity-100'
         }`}
       >

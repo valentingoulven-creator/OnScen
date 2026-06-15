@@ -3,17 +3,23 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { AdminScrollTabBar } from '../components/AdminScrollTabBar';
+import { SponsorRegionAutocomplete } from '../components/SponsorRegionAutocomplete';
 import { SponsorAdPreview } from '../components/SponsorAdPreview';
+import { SponsorBannerUploadField } from '../components/SponsorBannerUploadField';
+import { SponsorLogoUploadField } from '../components/SponsorLogoUploadField';
 
 import { useAuth } from '../context/AuthContext';
 
 import { api } from '../lib/api';
+import { resolveSponsorLogoSrc } from '../lib/sponsorLogoUpload';
 
 import {
 
   countsForSponsors,
 
   defaultPlacementForTab,
+
+  isSponsorActiveAt,
 
   placementTabToApiPlacement,
 
@@ -39,7 +45,11 @@ import {
 
 } from '../lib/sponsorDisplaySpec';
 
-import type { Sponsor, SponsorAccent, SponsorFilter, SponsorKind, SponsorPlacement, SponsorPlatformConfig } from '../types';
+import { MAP_REGION_MIN_ZOOM } from '../lib/sponsorAds';
+
+import { validateSponsorAdminForm } from '../lib/sponsorAdminForm';
+
+import type { Sponsor, SponsorAccent, SponsorBannerDisplayMode, SponsorFilter, SponsorKind, SponsorMapVisibilityScope, SponsorPlacement, SponsorPlatformConfig } from '../types';
 
 
 
@@ -59,6 +69,8 @@ type FormState = {
 
   logoUrl: string;
 
+  bannerImageUrl: string;
+
   linkUrl: string;
 
   placement: SponsorPlacement;
@@ -69,7 +81,9 @@ type FormState = {
 
   cta: string;
 
-  accent: SponsorAccent;
+  accent: SponsorAccent | '';
+
+  bannerDisplayMode: SponsorBannerDisplayMode;
 
   kind: SponsorKind;
 
@@ -85,6 +99,14 @@ type FormState = {
 
   posterUrl: string;
 
+  mapVisibilityScope: SponsorMapVisibilityScope;
+
+  mapTargetRegionName: string;
+
+  mapTargetLat: string;
+
+  mapTargetLng: string;
+
 };
 
 
@@ -96,6 +118,8 @@ function emptyForm(placement: SponsorPlacement): FormState {
     name: '',
 
     logoUrl: '',
+
+    bannerImageUrl: '',
 
     linkUrl: '',
 
@@ -109,11 +133,13 @@ function emptyForm(placement: SponsorPlacement): FormState {
 
     accent: 'purple',
 
+    bannerDisplayMode: 'full',
+
     kind: 'promo',
 
     actionId: '',
 
-    startsAt: '',
+    startsAt: nowDatetimeLocal(),
 
     endsAt: '',
 
@@ -122,6 +148,14 @@ function emptyForm(placement: SponsorPlacement): FormState {
     videoUrl: '',
 
     posterUrl: '',
+
+    mapVisibilityScope: 'france',
+
+    mapTargetRegionName: '',
+
+    mapTargetLat: '',
+
+    mapTargetLng: '',
 
   };
 
@@ -165,6 +199,14 @@ function toDatetimeLocal(ts: number | undefined): string {
 
 
 
+function nowDatetimeLocal(): string {
+
+  return toDatetimeLocal(Date.now());
+
+}
+
+
+
 function parseDatetimeLocal(value: string): number | undefined {
 
   if (!value.trim()) return undefined;
@@ -185,6 +227,8 @@ function sponsorToForm(sponsor: Sponsor): FormState {
 
     logoUrl: sponsor.logoUrl ?? '',
 
+    bannerImageUrl: sponsor.bannerImageUrl ?? '',
+
     linkUrl: sponsor.linkUrl ?? '',
 
     placement: sponsor.placement,
@@ -195,7 +239,9 @@ function sponsorToForm(sponsor: Sponsor): FormState {
 
     cta: sponsor.cta,
 
-    accent: sponsor.accent,
+    accent: sponsor.accent ?? '',
+
+    bannerDisplayMode: sponsor.bannerDisplayMode ?? 'full',
 
     kind: sponsor.kind,
 
@@ -215,7 +261,29 @@ function sponsorToForm(sponsor: Sponsor): FormState {
 
     posterUrl: sponsor.posterUrl ?? '',
 
+    mapVisibilityScope: sponsor.mapVisibilityScope ?? 'france',
+
+    mapTargetRegionName: sponsor.mapTargetRegionName ?? '',
+
+    mapTargetLat: sponsor.mapTargetLat != null ? String(sponsor.mapTargetLat) : '',
+
+    mapTargetLng: sponsor.mapTargetLng != null ? String(sponsor.mapTargetLng) : '',
+
   };
+
+}
+
+
+
+function parseOptionalCoordField(value: string): number | undefined {
+
+  const trimmed = value.trim();
+
+  if (!trimmed) return undefined;
+
+  const parsed = Number(trimmed);
+
+  return Number.isFinite(parsed) ? parsed : undefined;
 
 }
 
@@ -223,7 +291,7 @@ function sponsorToForm(sponsor: Sponsor): FormState {
 
 function formToPayload(form: FormState): Partial<Sponsor> {
 
-  return {
+  const payload: Partial<Sponsor> = {
 
     name: form.name.trim(),
 
@@ -239,7 +307,10 @@ function formToPayload(form: FormState): Partial<Sponsor> {
 
     cta: form.cta.trim(),
 
-    accent: form.accent,
+    accent:
+      form.accent === ''
+        ? (null as unknown as Sponsor['accent'])
+        : form.accent || undefined,
 
     kind: form.kind,
 
@@ -256,6 +327,23 @@ function formToPayload(form: FormState): Partial<Sponsor> {
     posterUrl: form.posterUrl.trim() || undefined,
 
   };
+
+  if (form.placement === 'map_banner') {
+    payload.mapVisibilityScope = form.mapVisibilityScope;
+    payload.bannerImageUrl = form.bannerImageUrl.trim() || undefined;
+    payload.bannerDisplayMode = form.bannerDisplayMode;
+    if (form.mapVisibilityScope === 'region') {
+      payload.mapTargetRegionName = form.mapTargetRegionName.trim() || undefined;
+      payload.mapTargetLat = parseOptionalCoordField(form.mapTargetLat);
+      payload.mapTargetLng = parseOptionalCoordField(form.mapTargetLng);
+    } else {
+      payload.mapTargetRegionName = undefined;
+      payload.mapTargetLat = undefined;
+      payload.mapTargetLng = undefined;
+    }
+  }
+
+  return payload;
 
 }
 
@@ -377,6 +465,8 @@ export function AdminSponsorsTab() {
 
   const [form, setForm] = useState<FormState>(() => emptyForm('map_banner'));
 
+  const [formError, setFormError] = useState('');
+
   const [platformConfig, setPlatformConfig] = useState<SponsorPlatformConfig>({
     reelsSponsorEnabled: true,
     reelsSponsorEveryN: 5,
@@ -393,6 +483,14 @@ export function AdminSponsorsTab() {
     return () => clearTimeout(tmr);
 
   }, [search]);
+
+
+
+  useEffect(() => {
+
+    setFormError('');
+
+  }, [form]);
 
 
 
@@ -514,6 +612,8 @@ export function AdminSponsorsTab() {
 
         setEditingId(null);
 
+        setFormError('');
+
         setForm(emptyForm(defaultPlacementForTab(placementTab)));
 
       }
@@ -528,7 +628,25 @@ export function AdminSponsorsTab() {
 
   const handleCreate = async () => {
 
-    if (!token) return;
+    if (!token) {
+
+      setFormError(t('errors.sessionExpired'));
+
+      return;
+
+    }
+
+    const validationError = validateSponsorAdminForm(form, t);
+
+    if (validationError) {
+
+      setFormError(validationError);
+
+      return;
+
+    }
+
+    setFormError('');
 
     setBusyId('create');
 
@@ -544,7 +662,7 @@ export function AdminSponsorsTab() {
 
     } catch (e) {
 
-      alert(e instanceof Error ? e.message : t('admin.sponsors.actionError'));
+      setFormError(e instanceof Error ? e.message : t('admin.sponsors.actionError'));
 
     } finally {
 
@@ -558,7 +676,25 @@ export function AdminSponsorsTab() {
 
   const handleSave = async (id: string) => {
 
-    if (!token) return;
+    if (!token) {
+
+      setFormError(t('errors.sessionExpired'));
+
+      return;
+
+    }
+
+    const validationError = validateSponsorAdminForm(form, t);
+
+    if (validationError) {
+
+      setFormError(validationError);
+
+      return;
+
+    }
+
+    setFormError('');
 
     setBusyId(id);
 
@@ -572,7 +708,7 @@ export function AdminSponsorsTab() {
 
     } catch (e) {
 
-      alert(e instanceof Error ? e.message : t('admin.sponsors.actionError'));
+      setFormError(e instanceof Error ? e.message : t('admin.sponsors.actionError'));
 
     } finally {
 
@@ -738,11 +874,62 @@ export function AdminSponsorsTab() {
 
   const displayDurationSec = normalizeDisplayDurationSec(form.displayDurationSec);
 
+  const isMapImageOnly =
+    form.placement === 'map_banner' && form.bannerDisplayMode === 'image_only';
 
 
-  const renderFormFields = (formId: string) => (
 
-    <div className="space-y-3">
+  const renderFormFields = (
+
+    formId: string,
+
+    opts: { mode: 'create' } | { mode: 'edit'; editId: string }
+
+  ) => {
+
+    const isSubmitBusy =
+
+      opts.mode === 'create' ? busyId === 'create' : busyId === opts.editId;
+
+
+
+    return (
+
+    <form
+
+      id={formId}
+
+      noValidate
+
+      onSubmit={(e) => {
+
+        e.preventDefault();
+
+        if (opts.mode === 'create') void handleCreate();
+
+        else void handleSave(opts.editId);
+
+      }}
+
+      className="space-y-3"
+
+    >
+
+      {formError ? (
+
+        <p
+
+          role="alert"
+
+          className="text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2"
+
+        >
+
+          {formError}
+
+        </p>
+
+      ) : null}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
 
@@ -798,6 +985,204 @@ export function AdminSponsorsTab() {
 
 
 
+      {form.placement === 'map_banner' && (
+
+        <div className="rounded-xl border border-[#1e1e2f] bg-[#12121a] px-3 py-3 space-y-3">
+
+          <p className="text-xs font-semibold text-gray-300">{t('admin.sponsors.mapVisibilityTitle')}</p>
+
+          <fieldset className="space-y-2">
+
+            <legend className="sr-only">{t('admin.sponsors.mapVisibilityTitle')}</legend>
+
+            <label className="flex items-start gap-2 text-xs text-gray-300 cursor-pointer">
+
+              <input
+
+                type="radio"
+
+                name={`${formId}-map-scope`}
+
+                checked={form.mapVisibilityScope === 'france'}
+
+                onChange={() => setForm((f) => ({ ...f, mapVisibilityScope: 'france' }))}
+
+                className="mt-0.5"
+
+              />
+
+              <span>
+
+                <span className="font-semibold text-white block">{t('admin.sponsors.mapScopeFrance')}</span>
+
+                <span className="text-gray-500">{t('admin.sponsors.mapScopeFranceHint')}</span>
+
+              </span>
+
+            </label>
+
+            <label className="flex items-start gap-2 text-xs text-gray-300 cursor-pointer">
+
+              <input
+
+                type="radio"
+
+                name={`${formId}-map-scope`}
+
+                checked={form.mapVisibilityScope === 'region'}
+
+                onChange={() => setForm((f) => ({ ...f, mapVisibilityScope: 'region' }))}
+
+                className="mt-0.5"
+
+              />
+
+              <span>
+
+                <span className="font-semibold text-white block">{t('admin.sponsors.mapScopeRegion')}</span>
+
+                <span className="text-gray-500">{t('admin.sponsors.mapScopeRegionHint', { minZoom: MAP_REGION_MIN_ZOOM })}</span>
+
+              </span>
+
+            </label>
+
+          </fieldset>
+
+
+
+          {form.mapVisibilityScope === 'region' && (
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+
+              <label className="block text-xs text-gray-400 sm:col-span-3">
+
+                {t('admin.sponsors.fieldMapTargetRegion')}
+
+                <SponsorRegionAutocomplete
+
+                  value={form.mapTargetRegionName}
+
+                  onChange={(name) => setForm((f) => ({ ...f, mapTargetRegionName: name }))}
+
+                  onSelect={(suggestion) =>
+                    setForm((f) => ({
+                      ...f,
+                      mapTargetRegionName: suggestion.value,
+                      mapTargetLat:
+                        suggestion.latitude != null ? String(suggestion.latitude) : f.mapTargetLat,
+                      mapTargetLng:
+                        suggestion.longitude != null ? String(suggestion.longitude) : f.mapTargetLng,
+                    }))
+                  }
+
+                  placeholder={t('admin.sponsors.fieldMapTargetRegionPlaceholder')}
+
+                />
+
+              </label>
+
+              <label className="block text-xs text-gray-400">
+
+                {t('admin.sponsors.fieldMapTargetLat')}
+
+                <input
+
+                  type="number"
+
+                  step="any"
+
+                  className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
+
+                  value={form.mapTargetLat}
+
+                  onChange={(e) => setForm((f) => ({ ...f, mapTargetLat: e.target.value }))}
+
+                  placeholder="43.6489"
+
+                />
+
+              </label>
+
+              <label className="block text-xs text-gray-400">
+
+                {t('admin.sponsors.fieldMapTargetLng')}
+
+                <input
+
+                  type="number"
+
+                  step="any"
+
+                  className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
+
+                  value={form.mapTargetLng}
+
+                  onChange={(e) => setForm((f) => ({ ...f, mapTargetLng: e.target.value }))}
+
+                  placeholder="3.8567"
+
+                />
+
+              </label>
+
+              <p className="text-[11px] text-gray-500 sm:col-span-3">
+                {t('admin.sponsors.mapScopeRegionCoordsHint', {
+                  minZoom: MAP_REGION_MIN_ZOOM,
+                })}
+              </p>
+
+            </div>
+
+          )}
+
+          <SponsorBannerUploadField
+            token={token}
+            bannerImageUrl={form.bannerImageUrl}
+            onBannerImageUrlChange={(url) => setForm((f) => ({ ...f, bannerImageUrl: url }))}
+            inputId={`${formId}-banner`}
+          />
+
+          <label className="flex items-start gap-2 text-xs text-gray-300 cursor-pointer pt-1">
+            <input
+              type="checkbox"
+              checked={form.bannerDisplayMode === 'image_only'}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  bannerDisplayMode: e.target.checked ? 'image_only' : 'full',
+                }))
+              }
+              className="mt-0.5 rounded border-[#2d2d3d]"
+            />
+            <span>
+              <span className="font-semibold text-white block">{t('admin.sponsors.fieldBannerImageOnly')}</span>
+              <span className="text-gray-500">{t('admin.sponsors.fieldBannerImageOnlyHint')}</span>
+            </span>
+          </label>
+
+          <label className="block text-xs text-gray-400">
+            {t('admin.sponsors.fieldLinkUrl')}
+            {isMapImageOnly && <span className="text-amber-400/90"> *</span>}
+            <input
+              className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
+              value={form.linkUrl}
+              onChange={(e) => setForm((f) => ({ ...f, linkUrl: e.target.value }))}
+              placeholder="https://…"
+            />
+            {isMapImageOnly && (
+              <span className="text-[10px] text-gray-500 mt-0.5 block">
+                {t('admin.sponsors.fieldLinkUrlImageOnlyHint')}
+              </span>
+            )}
+          </label>
+
+        </div>
+
+      )}
+
+
+
       <div className="rounded-xl border border-[#2d2d3d] bg-[#0b0b0f] p-3 space-y-2">
 
         <p className="text-xs font-semibold text-purple-300">{t('admin.sponsors.previewTitle')}</p>
@@ -814,11 +1199,15 @@ export function AdminSponsorsTab() {
 
           cta={form.cta}
 
-          accent={form.accent}
+          accent={form.accent || undefined}
+
+          bannerDisplayMode={form.bannerDisplayMode}
 
           kind={form.kind}
 
           logoUrl={form.logoUrl || undefined}
+
+          bannerImageUrl={form.bannerImageUrl || undefined}
 
           videoUrl={form.videoUrl || undefined}
 
@@ -876,6 +1265,8 @@ export function AdminSponsorsTab() {
 
         {t('admin.sponsors.fieldTitle')}
 
+        {isMapImageOnly && <span className="text-gray-500"> ({t('admin.sponsors.fieldAdminOnly')})</span>}
+
         <input
 
           className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
@@ -888,6 +1279,7 @@ export function AdminSponsorsTab() {
 
       </label>
 
+      {!isMapImageOnly && (
       <label className="block text-xs text-gray-400">
 
         {t('admin.sponsors.fieldSubtitle')}
@@ -903,9 +1295,11 @@ export function AdminSponsorsTab() {
         />
 
       </label>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
 
+        {!isMapImageOnly && (
         <label className="block text-xs text-gray-400">
 
           {t('admin.sponsors.fieldCta')}
@@ -921,6 +1315,7 @@ export function AdminSponsorsTab() {
           />
 
         </label>
+        )}
 
         <label className="block text-xs text-gray-400">
 
@@ -954,24 +1349,19 @@ export function AdminSponsorsTab() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
 
-        <label className="block text-xs text-gray-400">
+        <SponsorLogoUploadField
 
-          {t('admin.sponsors.fieldLogoUrl')}
+          token={token}
 
-          <input
+          logoUrl={form.logoUrl}
 
-            className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
+          onLogoUrlChange={(url) => setForm((f) => ({ ...f, logoUrl: url }))}
 
-            value={form.logoUrl}
+          inputId={`${formId}-logo`}
 
-            onChange={(e) => setForm((f) => ({ ...f, logoUrl: e.target.value }))}
+        />
 
-            placeholder="https://…"
-
-          />
-
-        </label>
-
+        {form.placement !== 'map_banner' && (
         <label className="block text-xs text-gray-400">
 
           {t('admin.sponsors.fieldLinkUrl')}
@@ -989,6 +1379,7 @@ export function AdminSponsorsTab() {
           />
 
         </label>
+        )}
 
       </div>
 
@@ -1042,15 +1433,23 @@ export function AdminSponsorsTab() {
 
           {t('admin.sponsors.fieldAccent')}
 
+          {form.placement === 'map_banner' && (
+            <span className="text-gray-500 font-normal"> ({t('admin.sponsors.fieldAccentOptional')})</span>
+          )}
+
           <select
 
             className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
 
-            value={form.accent}
+            value={form.placement === 'map_banner' ? form.accent : form.accent || 'purple'}
 
-            onChange={(e) => setForm((f) => ({ ...f, accent: e.target.value as SponsorAccent }))}
+            onChange={(e) => setForm((f) => ({ ...f, accent: e.target.value as FormState['accent'] }))}
 
           >
+
+            {form.placement === 'map_banner' && (
+              <option value="">{t('admin.sponsors.fieldAccentNone')}</option>
+            )}
 
             {ACCENT_OPTIONS.map((a) => (
 
@@ -1063,6 +1462,12 @@ export function AdminSponsorsTab() {
             ))}
 
           </select>
+
+          {form.placement === 'map_banner' && isMapImageOnly && (
+            <span className="text-[10px] text-gray-500 mt-0.5 block">
+              {t('admin.sponsors.fieldAccentImageOnlyHint')}
+            </span>
+          )}
 
         </label>
 
@@ -1174,25 +1579,23 @@ export function AdminSponsorsTab() {
 
       <button
 
-        type="button"
+        type="submit"
 
-        form={formId}
-
-        disabled={busyId != null}
-
-        onClick={() => (editingId ? void handleSave(editingId) : void handleCreate())}
+        disabled={isSubmitBusy}
 
         className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-sm font-medium disabled:opacity-50"
 
       >
 
-        {editingId ? t('admin.sponsors.save') : t('admin.sponsors.create')}
+        {opts.mode === 'edit' ? t('admin.sponsors.save') : t('admin.sponsors.create')}
 
       </button>
 
-    </div>
+    </form>
 
-  );
+    );
+
+  };
 
 
 
@@ -1400,7 +1803,7 @@ export function AdminSponsorsTab() {
 
           <h3 className="font-semibold text-sm mb-3">{t('admin.sponsors.newSponsor')}</h3>
 
-          {renderFormFields('create-sponsor-form')}
+          {renderFormFields('create-sponsor-form', { mode: 'create' })}
 
         </section>
 
@@ -1442,17 +1845,17 @@ export function AdminSponsorsTab() {
 
                     <img
 
-                      src={sponsor.logoUrl}
+                      src={resolveSponsorLogoSrc(sponsor.logoUrl)}
 
                       alt=""
 
-                      className="w-10 h-10 rounded-lg object-cover bg-[#1a1a26] shrink-0"
+                      className="w-20 h-20 rounded-lg object-cover bg-[#1a1a26] shrink-0"
 
                     />
 
                   ) : (
 
-                    <div className="w-10 h-10 rounded-lg bg-[#1a1a26] shrink-0 flex items-center justify-center text-xs text-gray-500">
+                    <div className="w-20 h-20 rounded-lg bg-[#1a1a26] shrink-0 flex items-center justify-center text-xs text-gray-500">
 
                       AD
 
@@ -1470,7 +1873,7 @@ export function AdminSponsorsTab() {
 
                         className={`text-[10px] px-2 py-0.5 rounded-full ${
 
-                          sponsor.active
+                          isSponsorActiveAt(sponsor)
 
                             ? 'bg-green-600/20 text-green-300 border border-green-500/30'
 
@@ -1480,7 +1883,7 @@ export function AdminSponsorsTab() {
 
                       >
 
-                        {sponsor.active ? t('admin.sponsors.statusActive') : t('admin.sponsors.statusInactive')}
+                        {isSponsorActiveAt(sponsor) ? t('admin.sponsors.statusActive') : t('admin.sponsors.statusInactive')}
 
                       </span>
 
@@ -1516,6 +1919,22 @@ export function AdminSponsorsTab() {
 
                         : ''}
 
+                      {sponsor.placement === 'map_banner' && sponsor.bannerDisplayMode === 'image_only'
+
+                        ? ` · ${t('admin.sponsors.bannerModeImageOnlyBadge')}`
+
+                        : ''}
+
+                      {sponsor.placement === 'map_banner'
+
+                        ? sponsor.mapVisibilityScope === 'region'
+
+                          ? ` · ${t('admin.sponsors.mapScopeRegionBadge', { region: sponsor.mapTargetRegionName ?? '—' })}`
+
+                          : ` · ${t('admin.sponsors.mapScopeFranceBadge')}`
+
+                        : ''}
+
                     </p>
 
                   </div>
@@ -1526,7 +1945,11 @@ export function AdminSponsorsTab() {
 
                 {isEditing ? (
 
-                  <div className="border-t border-[#1e1e2f] pt-3">{renderFormFields(`edit-${sponsor.id}`)}</div>
+                  <div className="border-t border-[#1e1e2f] pt-3">
+
+                    {renderFormFields(`edit-${sponsor.id}`, { mode: 'edit', editId: sponsor.id })}
+
+                  </div>
 
                 ) : (
 

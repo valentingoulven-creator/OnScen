@@ -10,7 +10,7 @@ import { MapEventFilterSheet } from '../components/MapEventFilterSheet';
 import { MapSalonListenSheet } from '../components/MapSalonListenSheet';
 import { MapLiveListenSheet } from '../components/MapLiveListenSheet';
 import { CreateSalonModal } from '../components/CreateSalonModal';
-import { MapAdBanner } from '../components/MapAdBanner';
+import { MapAdBanner, type MapSponsorViewport } from '../components/MapAdBanner';
 import { MAP_EVENTS_REFRESH_EVENT, MAP_OPEN_CREATE_SALON_EVENT } from '../lib/mapUiEvents';
 import { isAppa2Layout, type AppLayoutId } from '../lib/appLayout';
 import {
@@ -1159,6 +1159,32 @@ export function HomePage({
     ? `Recentrer sur ${mapGeo.label}`
     : 'Recentrer sur ma position';
 
+  const mapSponsorViewport = useMemo((): MapSponsorViewport | null => {
+    const sponsorZoomForTier =
+      mapDetailState.tier === 'street' ? 12 : mapDetailState.tier === 'city' ? 9 : 6;
+
+    if (mapDetailState.mapStyle === 'flat' && mapDetailState.bounds) {
+      const [lat, lng] = getMapBoundsCenter(mapDetailState.bounds);
+      const zoom =
+        mapDetailState.tier === 'overview'
+          ? Math.min(mapDetailState.flatZoom, sponsorZoomForTier)
+          : mapDetailState.flatZoom;
+      return {
+        lat,
+        lng,
+        zoom,
+        north: mapDetailState.bounds.north,
+        south: mapDetailState.bounds.south,
+        east: mapDetailState.bounds.east,
+        west: mapDetailState.bounds.west,
+      };
+    }
+    if (mapDetailState.mapStyle === 'globe') {
+      return { lat: center[0], lng: center[1], zoom: sponsorZoomForTier };
+    }
+    return { lat: center[0], lng: center[1], zoom: sponsorZoomForTier };
+  }, [mapDetailState, center]);
+
   const recenterMap = useCallback(() => {
     const geo = getLivesGeo();
 
@@ -1617,7 +1643,12 @@ export function HomePage({
 
       <div className="relative flex-1 min-w-0 flex flex-col min-h-0">
         {!appa2 && !mapProfileOpen && (
-          <MapAdBanner onCtaSalon={() => setShowCreateSalon(true)} onCtaLive={onOpenLiveTab} />
+          <MapAdBanner
+            viewport={mapSponsorViewport}
+            isActive={isActive && !mapProfileOpen}
+            onCtaSalon={() => setShowCreateSalon(true)}
+            onCtaLive={onOpenLiveTab}
+          />
         )}
 
         <div className="ms-map-viewport relative flex-1 min-h-0">

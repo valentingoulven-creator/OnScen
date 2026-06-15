@@ -101,11 +101,15 @@ export type SponsorPlacement = 'map_banner' | 'feed_inline' | 'stories_banner' |
 export type SponsorAccent = 'purple' | 'pink' | 'amber' | 'cyan' | 'rose';
 export type SponsorKind = 'promo' | 'sponsored';
 export type SponsorFilter = 'all' | 'active' | 'inactive';
+export type SponsorMapVisibilityScope = 'france' | 'region';
+export type SponsorBannerDisplayMode = 'full' | 'image_only';
 
 export interface Sponsor {
   id: string;
   name: string;
   logoUrl?: string;
+  /** Image de fond du bandeau carte (map_banner uniquement). */
+  bannerImageUrl?: string;
   linkUrl?: string;
   placement: SponsorPlacement;
   active: boolean;
@@ -115,8 +119,10 @@ export interface Sponsor {
   title: string;
   subtitle: string;
   cta: string;
-  accent: SponsorAccent;
+  accent?: SponsorAccent;
   kind: SponsorKind;
+  /** Bandeau carte : texte + dégradé (full) ou image seule cliquable (image_only). */
+  bannerDisplayMode?: SponsorBannerDisplayMode;
   actionId?: 'salon' | 'live';
   /** Durée d'affichage dans le carrousel (secondes). */
   displayDurationSec?: number;
@@ -124,6 +130,11 @@ export interface Sponsor {
   videoUrl?: string;
   /** Vignette / poster (reels sponsorisés). */
   posterUrl?: string;
+  /** Bandeau carte : France entière ou zone régionale. */
+  mapVisibilityScope?: SponsorMapVisibilityScope;
+  mapTargetRegionName?: string;
+  mapTargetLat?: number;
+  mapTargetLng?: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -171,10 +182,12 @@ export interface MapAdItem {
   subtitle: string;
   cta: string;
   href?: string;
-  accent: SponsorAccent;
+  accent?: SponsorAccent;
   sponsor?: string;
   kind?: SponsorKind;
   logoUrl?: string;
+  bannerImageUrl?: string;
+  bannerDisplayMode?: SponsorBannerDisplayMode;
   actionId?: 'salon' | 'live';
   displayDurationSec?: number;
   videoUrl?: string;

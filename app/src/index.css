@@ -178,6 +178,12 @@ html {
   position: relative;
 }
 
+/* Piste scroll : pas de bleed négatif (feed-scroll clippe overflow-x) */
+.ms-hscroll-fade-wrap > .ms-hscroll-track {
+  margin-inline: 0;
+  padding-inline: 0;
+}
+
 .ms-hscroll-fade-wrap::before,
 .ms-hscroll-fade-wrap::after {
   content: '';

@@ -22,7 +22,7 @@ export function EventsCarousel({ posts, onOpen, onShare, getExtraBadges }: Event
       itemCount={posts.length}
       ariaPrevLabel={t('feed.carouselPrev')}
       ariaNextLabel={t('feed.carouselNext')}
-      scrollClassName="events-carousel min-w-0 w-full flex flex-nowrap gap-3 pb-1 -mx-3 px-3"
+      scrollClassName="events-carousel ms-hscroll-track min-w-0 w-full flex flex-nowrap gap-3 pb-1"
     >
       {posts.map((post) => (
         <EventCard

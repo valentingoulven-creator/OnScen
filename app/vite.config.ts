@@ -133,6 +133,7 @@ export default defineConfig(({ mode }) => {
     port: 5173,
     proxy: {
       '/api': msdevProxy,
+      '/uploads': msdevProxy,
       '/socket.io': { ...msdevProxy, ws: true },
     },
   },

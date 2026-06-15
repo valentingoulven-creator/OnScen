@@ -1,8 +1,13 @@
 import { useTranslation } from 'react-i18next';
-import type { SponsorAccent, SponsorKind, SponsorPlacement } from '../types';
+import type { SponsorAccent, SponsorBannerDisplayMode, SponsorKind, SponsorPlacement } from '../types';
+import { resolveSponsorBannerSrc } from '../lib/sponsorBannerUpload';
 import {
   DEFAULT_DISPLAY_DURATION_SEC,
-  SPONSOR_ACCENT_GRADIENTS,
+  MAP_BANNER_CONTENT_CLASS,
+  MAP_BANNER_IMAGE_CLASS,
+  MAP_BANNER_SHELL_CLASS,
+  resolveAccentGradientClass,
+  SPONSOR_NEUTRAL_BANNER_BG,
   sponsorKindBadgeLabel,
 } from '../lib/sponsorDisplaySpec';
 
@@ -12,9 +17,11 @@ export type SponsorPreviewProps = {
   title: string;
   subtitle: string;
   cta: string;
-  accent: SponsorAccent;
+  accent?: SponsorAccent;
+  bannerDisplayMode?: SponsorBannerDisplayMode;
   kind: SponsorKind;
   logoUrl?: string;
+  bannerImageUrl?: string;
   videoUrl?: string;
   posterUrl?: string;
   displayDurationSec?: number;
@@ -49,36 +56,76 @@ function MapBannerPreview({
   subtitle,
   cta,
   accent,
+  bannerDisplayMode = 'full',
   kind,
+  bannerImageUrl,
 }: Omit<SponsorPreviewProps, 'placement' | 'logoUrl' | 'displayDurationSec' | 'className'>) {
+  const { t } = useTranslation();
   const badgeLabel = sponsorKindBadgeLabel(kind);
+  const bannerSrc = bannerImageUrl?.trim() ? resolveSponsorBannerSrc(bannerImageUrl) : '';
+  const isImageOnly = bannerDisplayMode === 'image_only' && Boolean(bannerSrc);
+  const accentGradient = resolveAccentGradientClass(accent);
+
+  if (isImageOnly) {
+    return (
+      <div className={`relative ${MAP_BANNER_SHELL_CLASS} rounded-xl border border-white/10 shadow-lg shadow-black/20`}>
+        <img
+          src={bannerSrc}
+          alt=""
+          className={MAP_BANNER_IMAGE_CLASS}
+        />
+        <p className="absolute bottom-1 right-2 text-[9px] text-white/50 bg-black/40 px-1.5 py-0.5 rounded">
+          {t('admin.sponsors.previewImageOnlyHint')}
+        </p>
+      </div>
+    );
+  }
+
+  const bgClass = bannerSrc
+    ? ''
+    : accentGradient
+      ? `bg-gradient-to-r ${accentGradient}`
+      : `bg-gradient-to-r ${SPONSOR_NEUTRAL_BANNER_BG}`;
+
   return (
     <div
-      className={`relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-r ${SPONSOR_ACCENT_GRADIENTS[accent]} shadow-lg shadow-black/20`}
+      className={`relative ${MAP_BANNER_SHELL_CLASS} rounded-xl border border-white/10 shadow-lg shadow-black/20 ${bgClass}`}
     >
+      {bannerSrc ? (
+        <>
+          <img src={bannerSrc} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          {accentGradient ? (
+            <div
+              className={`absolute inset-0 bg-gradient-to-r ${accentGradient} opacity-75`}
+              aria-hidden
+            />
+          ) : null}
+          <div className="absolute inset-0 bg-black/35" aria-hidden />
+        </>
+      ) : null}
       <div className="absolute top-2 left-3 z-10 flex items-center gap-2">
         <span className="text-[13.5px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded-full border border-amber-400/25">
           {badgeLabel}
         </span>
         {name.trim() && (
-          <span className="text-[13.5px] font-semibold text-white/55 truncate max-w-[9rem] sm:max-w-none">
+          <span className="text-[13.5px] font-semibold text-white/55 truncate max-w-[9rem] sm:max-w-[12rem]">
             {name.trim()}
           </span>
         )}
       </div>
-      <div className="flex items-stretch gap-3 p-4 pt-9 pr-4 min-h-[5.625rem] sm:min-h-[6rem]">
+      <div className={MAP_BANNER_CONTENT_CLASS}>
         <div className="flex-1 min-w-0">
           <p className="text-[19.5px] sm:text-[21px] font-bold text-white leading-tight truncate">
             {title.trim() || 'Titre du bandeau'}
           </p>
-          <p className="text-[15px] sm:text-[16.5px] text-white/85 mt-1 line-clamp-2 leading-snug">
+          <p className="text-[15px] sm:text-[16.5px] text-white/85 mt-0.5 line-clamp-2 leading-snug">
             {subtitle.trim() || 'Sous-titre descriptif'}
           </p>
         </div>
         <button
           type="button"
           disabled
-          className="shrink-0 self-center px-4 sm:px-[1.125rem] py-2 sm:py-3 rounded-lg bg-white/15 border border-white/20 text-[16.5px] sm:text-[18px] font-bold text-white whitespace-nowrap opacity-90 cursor-default"
+          className="shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-white/15 border border-white/20 text-[15px] sm:text-[16.5px] font-bold text-white whitespace-nowrap opacity-90 cursor-default"
         >
           {cta.trim() || 'CTA'}
         </button>
@@ -95,12 +142,13 @@ function FeedInlinePreview({
   accent,
   kind,
   logoUrl,
-}: Omit<SponsorPreviewProps, 'placement' | 'displayDurationSec' | 'className'>) {
+}: Omit<SponsorPreviewProps, 'placement' | 'displayDurationSec' | 'className' | 'bannerDisplayMode' | 'bannerImageUrl'>) {
   const badgeLabel = sponsorKindBadgeLabel(kind);
+  const accentGradient = resolveAccentGradientClass(accent) ?? SPONSOR_NEUTRAL_BANNER_BG;
   return (
     <div className="rounded-2xl border border-[#2d2d3d] bg-[#12121a] overflow-hidden">
       <div
-        className={`h-1 bg-gradient-to-r ${SPONSOR_ACCENT_GRADIENTS[accent]}`}
+        className={`h-1 bg-gradient-to-r ${accentGradient}`}
         aria-hidden
       />
       <div className="flex items-start gap-3 p-3">
@@ -143,9 +191,10 @@ function StoriesBannerPreview({
   'name' | 'title' | 'cta' | 'accent' | 'kind' | 'logoUrl'
 >) {
   const badgeLabel = sponsorKindBadgeLabel(kind);
+  const accentGradient = resolveAccentGradientClass(accent) ?? SPONSOR_NEUTRAL_BANNER_BG;
   return (
     <div
-      className={`flex items-center gap-2 px-3 py-2 min-h-14 rounded-xl border border-white/10 bg-gradient-to-r ${SPONSOR_ACCENT_GRADIENTS[accent]}`}
+      className={`flex items-center gap-2 px-3 py-2 min-h-14 rounded-xl border border-white/10 bg-gradient-to-r ${accentGradient}`}
     >
       <PreviewLogo logoUrl={logoUrl} className="w-8 h-8 rounded-lg" />
       <span className="text-[10px] font-bold uppercase text-amber-200 shrink-0">{badgeLabel}</span>
@@ -177,12 +226,13 @@ function ReelsSponsoredPreview({
 >) {
   const badgeLabel = sponsorKindBadgeLabel(kind);
   const bg = posterUrl?.trim() || logoUrl?.trim();
+  const accentGradient = resolveAccentGradientClass(accent) ?? SPONSOR_NEUTRAL_BANNER_BG;
   return (
     <div className="relative mx-auto w-[180px] aspect-[9/16] rounded-2xl overflow-hidden border border-[#2d2d3d] bg-black shadow-xl">
       {bg ? (
         <img src={bg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-80" />
       ) : (
-        <div className={`absolute inset-0 bg-gradient-to-b ${SPONSOR_ACCENT_GRADIENTS[accent]}`} />
+        <div className={`absolute inset-0 bg-gradient-to-b ${accentGradient}`} />
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/50" />
       <div className="absolute top-2 left-2 flex items-center gap-1">
@@ -211,8 +261,10 @@ export function SponsorAdPreview({
   subtitle,
   cta,
   accent,
+  bannerDisplayMode,
   kind,
   logoUrl,
+  bannerImageUrl,
   videoUrl,
   posterUrl,
   displayDurationSec = DEFAULT_DISPLAY_DURATION_SEC,
@@ -229,7 +281,9 @@ export function SponsorAdPreview({
           subtitle={subtitle}
           cta={cta}
           accent={accent}
+          bannerDisplayMode={bannerDisplayMode}
           kind={kind}
+          bannerImageUrl={bannerImageUrl}
         />
       )}
       {placement === 'feed_inline' && (

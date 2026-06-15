@@ -1,4 +1,6 @@
-import { db, type Sponsor, type SponsorAccent, type SponsorKind, type SponsorPlacement } from '../models/schema';
+import { db, type Sponsor, type SponsorAccent, type SponsorBannerDisplayMode, type SponsorKind, type SponsorMapVisibilityScope, type SponsorPlacement } from '../models/schema';
+import { assertValidSponsorBannerUrl } from './sponsorBannerAssets';
+import { assertValidSponsorLogoUrl } from './sponsorLogoAssets';
 
 export type MapAdPublic = {
   id: string;
@@ -6,10 +8,12 @@ export type MapAdPublic = {
   subtitle: string;
   cta: string;
   href?: string;
-  accent: SponsorAccent;
+  accent?: SponsorAccent;
+  bannerDisplayMode?: SponsorBannerDisplayMode;
   sponsor?: string;
   kind?: SponsorKind;
   logoUrl?: string;
+  bannerImageUrl?: string;
   actionId?: 'salon' | 'live';
   displayDurationSec?: number;
   videoUrl?: string;
@@ -23,6 +27,40 @@ const DEFAULT_DISPLAY_DURATION_SEC = 8;
 const DISPLAY_DURATION_MIN_SEC = 3;
 const DISPLAY_DURATION_MAX_SEC = 60;
 
+/** Zoom minimal (carte plate) pour afficher un bandeau régional. */
+export const MAP_REGION_MIN_ZOOM = 8;
+
+/** Marge optionnelle sur les bounds viewport (degrés) pour les villes en bord de carte. */
+export const MAP_SPONSOR_BOUNDS_PADDING_DEG = 0.01;
+
+export type MapViewportBounds = {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+};
+
+const MAP_VISIBILITY_SCOPES: SponsorMapVisibilityScope[] = ['france', 'region'];
+const BANNER_DISPLAY_MODES: SponsorBannerDisplayMode[] = ['full', 'image_only'];
+
+const REGION_SPONSOR_DEFAULTS: Record<
+  string,
+  Pick<Sponsor, 'mapVisibilityScope' | 'mapTargetRegionName' | 'mapTargetLat' | 'mapTargetLng'>
+> = {
+  'solar-festival-cres': {
+    mapVisibilityScope: 'region',
+    mapTargetRegionName: 'Le Crès',
+    mapTargetLat: 43.6489,
+    mapTargetLng: 3.8567,
+  },
+  'les-deferlantes-2026': {
+    mapVisibilityScope: 'region',
+    mapTargetRegionName: 'Argelès-sur-Mer',
+    mapTargetLat: 42.5467,
+    mapTargetLng: 3.0222,
+  },
+};
+
 const DEFAULT_SPONSORS: Omit<Sponsor, 'createdAt' | 'updatedAt'>[] = [
   {
     id: 'premium',
@@ -35,69 +73,117 @@ const DEFAULT_SPONSORS: Omit<Sponsor, 'createdAt' | 'updatedAt'>[] = [
     cta: 'Découvrir',
     accent: 'purple',
     kind: 'promo',
+    mapVisibilityScope: 'france',
+  },
+  {
+    id: 'solar-festival-cres',
+    name: 'Solar Festival',
+    placement: 'map_banner',
+    active: true,
+    priority: 1,
+    title: 'Solar Festival au Crès',
+    subtitle: '5e édition — électro en bord de lac, 4 juillet 2026 · Petit Biscuit, KAS:ST & plus',
+    cta: 'Billetterie',
+    linkUrl: 'https://solarfestival.fr/billetterie',
+    logoUrl:
+      'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=80&h=80&fit=crop',
+    accent: 'amber',
+    kind: 'promo',
+    displayDurationSec: 10,
+    endsAt: 1783224000000,
+    mapVisibilityScope: 'region',
+    mapTargetRegionName: 'Le Crès',
+    mapTargetLat: 43.6489,
+    mapTargetLng: 3.8567,
+  },
+  {
+    id: 'les-deferlantes-2026',
+    name: 'Les Déferlantes',
+    placement: 'map_banner',
+    active: true,
+    priority: 2,
+    title: 'Les Déferlantes 2026',
+    subtitle: 'Rock & chanson française à Argelès-sur-Mer — 3 au 7 juillet 2026 · scène méditerranéenne',
+    cta: 'Billetterie',
+    linkUrl: 'https://www.lesdeferlantes.com',
+    logoUrl:
+      'https://images.unsplash.com/photo-1459749411176-827ae46c79ea?w=80&h=80&fit=crop',
+    accent: 'rose',
+    kind: 'promo',
+    displayDurationSec: 10,
+    endsAt: 1783545599999,
+    mapVisibilityScope: 'region',
+    mapTargetRegionName: 'Argelès-sur-Mer',
+    mapTargetLat: 42.5467,
+    mapTargetLng: 3.0222,
   },
   {
     id: 'salon',
     name: 'Soundy',
     placement: 'map_banner',
     active: true,
-    priority: 1,
+    priority: 3,
     title: 'Lance ton salon',
     subtitle: 'Partage Spotify ou YouTube avec les auditeurs autour de toi',
     cta: 'Créer un salon',
     accent: 'pink',
     kind: 'promo',
     actionId: 'salon',
+    mapVisibilityScope: 'france',
   },
   {
     id: 'live',
     name: 'Soundy',
     placement: 'map_banner',
     active: true,
-    priority: 2,
+    priority: 4,
     title: 'Passe en live',
     subtitle: 'Réactions, chat public et messages privés depuis la carte',
     cta: 'Voir les lives',
     accent: 'amber',
     kind: 'promo',
     actionId: 'live',
+    mapVisibilityScope: 'france',
   },
   {
     id: 'deezer-demo',
     name: 'Deezer',
     placement: 'map_banner',
     active: true,
-    priority: 3,
+    priority: 5,
     title: 'Deezer — essai gratuit',
     subtitle: 'HiFi, paroles synchronisées et playlists sans pub pendant 3 mois',
     cta: 'En savoir plus',
     linkUrl: 'https://www.deezer.com/fr/offers',
     accent: 'cyan',
     kind: 'sponsored',
+    mapVisibilityScope: 'france',
   },
   {
     id: 'fnac-demo',
     name: 'Fnac',
     placement: 'map_banner',
     active: true,
-    priority: 4,
+    priority: 6,
     title: 'Fnac Musique',
     subtitle: '−20 % sur les vinyles et CD près de chez toi — offre démo msdev',
     cta: 'Voir l’offre',
     accent: 'rose',
     kind: 'sponsored',
+    mapVisibilityScope: 'france',
   },
   {
     id: 'discover',
     name: 'Soundy',
     placement: 'map_banner',
     active: true,
-    priority: 5,
+    priority: 7,
     title: 'Explore la carte Soundy',
     subtitle: 'Salons, lives et créateurs musicaux à proximité — rejoins la communauté',
     cta: 'Explorer',
     accent: 'purple',
     kind: 'promo',
+    mapVisibilityScope: 'france',
   },
 ];
 
@@ -109,9 +195,25 @@ function newId(): string {
   return `sp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function parseAccent(raw: unknown): SponsorAccent {
-  const v = String(raw || 'purple');
-  return ACCENTS.includes(v as SponsorAccent) ? (v as SponsorAccent) : 'purple';
+function parseAccent(raw: unknown, existing?: SponsorAccent): SponsorAccent | undefined {
+  if (raw === null || raw === '') return undefined;
+  if (raw === undefined) return existing;
+  const v = String(raw).trim();
+  if (!v) return undefined;
+  return ACCENTS.includes(v as SponsorAccent) ? (v as SponsorAccent) : existing;
+}
+
+function parseBannerDisplayMode(
+  raw: unknown,
+  existing?: SponsorBannerDisplayMode,
+  placement?: SponsorPlacement
+): SponsorBannerDisplayMode | undefined {
+  if (placement !== 'map_banner') return undefined;
+  if (raw === null || raw === '') return 'full';
+  const v = String(raw ?? existing ?? 'full');
+  return BANNER_DISPLAY_MODES.includes(v as SponsorBannerDisplayMode)
+    ? (v as SponsorBannerDisplayMode)
+    : 'full';
 }
 
 function parsePlacement(raw: unknown): SponsorPlacement {
@@ -122,6 +224,20 @@ function parsePlacement(raw: unknown): SponsorPlacement {
 function parseKind(raw: unknown): SponsorKind {
   const v = String(raw || 'promo');
   return KINDS.includes(v as SponsorKind) ? (v as SponsorKind) : 'promo';
+}
+
+function parseMapVisibilityScope(raw: unknown, existing?: SponsorMapVisibilityScope): SponsorMapVisibilityScope {
+  const v = String(raw ?? existing ?? 'france');
+  return MAP_VISIBILITY_SCOPES.includes(v as SponsorMapVisibilityScope)
+    ? (v as SponsorMapVisibilityScope)
+    : 'france';
+}
+
+function parseOptionalCoord(raw: unknown, existing?: number): number | undefined {
+  if (raw === null || raw === '') return undefined;
+  const value = raw !== undefined ? Number(raw) : existing;
+  if (value == null || !Number.isFinite(value)) return existing;
+  return value;
 }
 
 function parseDisplayDurationSec(raw: unknown, existing?: number): number {
@@ -155,9 +271,12 @@ export function sponsorToMapAd(sponsor: Sponsor): MapAdPublic {
     cta: sponsor.cta,
     href: sponsor.linkUrl,
     accent: sponsor.accent,
+    bannerDisplayMode:
+      sponsor.placement === 'map_banner' ? (sponsor.bannerDisplayMode ?? 'full') : undefined,
     sponsor: sponsor.name,
     kind: sponsor.kind,
     logoUrl: sponsor.logoUrl,
+    bannerImageUrl: sponsor.bannerImageUrl,
     actionId: sponsor.actionId,
     displayDurationSec: sponsor.displayDurationSec ?? DEFAULT_DISPLAY_DURATION_SEC,
     videoUrl: sponsor.videoUrl,
@@ -185,8 +304,8 @@ export function listSponsors(opts?: {
   return rows;
 }
 
-export function listActiveMapAds(at = now()): MapAdPublic[] {
-  return listActiveAdsByPlacement('map_banner', at);
+export function listActiveMapAds(at = now(), viewport?: MapViewportQuery): MapAdPublic[] {
+  return listActiveAdsByPlacement('map_banner', at, viewport);
 }
 
 export function listActiveFeedAds(at = now()): MapAdPublic[] {
@@ -201,8 +320,105 @@ export function listActiveReelsAds(at = now()): MapAdPublic[] {
   return listActiveAdsByPlacement('reels_sponsored', at);
 }
 
-function listActiveAdsByPlacement(placement: SponsorPlacement, at = now()): MapAdPublic[] {
-  return listSponsors({ placement, activeOnly: true, at }).map(sponsorToMapAd);
+/** Filtre les sponsors carte par viewport (France toujours + région si zoom/portée OK). */
+export function filterMapSponsorsByViewport(
+  sponsors: Sponsor[],
+  viewport?: MapViewportQuery
+): Sponsor[] {
+  return sponsors.filter((sponsor) => isSponsorVisibleOnMap(sponsor, viewport));
+}
+
+function listActiveAdsByPlacement(
+  placement: SponsorPlacement,
+  at = now(),
+  viewport?: MapViewportQuery
+): MapAdPublic[] {
+  return filterMapSponsorsByViewport(
+    listSponsors({ placement, activeOnly: true, at }),
+    placement === 'map_banner' ? viewport : undefined
+  ).map(sponsorToMapAd);
+}
+
+export type MapViewportQuery = {
+  lat?: number;
+  lng?: number;
+  zoom?: number;
+  north?: number;
+  south?: number;
+  east?: number;
+  west?: number;
+};
+
+function expandMapViewportBounds(
+  bounds: MapViewportBounds,
+  padding = MAP_SPONSOR_BOUNDS_PADDING_DEG
+): MapViewportBounds {
+  return {
+    north: bounds.north + padding,
+    south: bounds.south - padding,
+    east: bounds.east + padding,
+    west: bounds.west - padding,
+  };
+}
+
+export function parseMapViewportBounds(
+  viewport?: MapViewportQuery | null
+): MapViewportBounds | null {
+  if (!viewport) return null;
+  const { north, south, east, west } = viewport;
+  if (
+    north == null ||
+    south == null ||
+    east == null ||
+    west == null ||
+    !Number.isFinite(north) ||
+    !Number.isFinite(south) ||
+    !Number.isFinite(east) ||
+    !Number.isFinite(west)
+  ) {
+    return null;
+  }
+  return { north, south, east, west };
+}
+
+function isInMapViewportBounds(
+  latitude: number,
+  longitude: number,
+  bounds: MapViewportBounds
+): boolean {
+  const padded = expandMapViewportBounds(bounds);
+  if (latitude < padded.south || latitude > padded.north) return false;
+  if (padded.west <= padded.east) {
+    return longitude >= padded.west && longitude <= padded.east;
+  }
+  return longitude >= padded.west || longitude <= padded.east;
+}
+
+/** Bandeau carte visible pour la vue courante (France toujours ; région si zoom ville + ville dans viewport). */
+export function isSponsorVisibleOnMap(sponsor: Sponsor, viewport?: MapViewportQuery): boolean {
+  const scope = sponsor.mapVisibilityScope ?? 'france';
+  if (scope === 'france') return true;
+
+  const zoom = viewport?.zoom;
+  if (zoom == null || !Number.isFinite(zoom) || zoom < MAP_REGION_MIN_ZOOM) {
+    return false;
+  }
+
+  const bounds = parseMapViewportBounds(viewport);
+  if (!bounds) return false;
+
+  const lat = sponsor.mapTargetLat;
+  const lng = sponsor.mapTargetLng;
+  if (
+    lat == null ||
+    lng == null ||
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng)
+  ) {
+    return false;
+  }
+
+  return isInMapViewportBounds(lat, lng, bounds);
 }
 
 export function getSponsorById(id: string): Sponsor | undefined {
@@ -212,6 +428,7 @@ export function getSponsorById(id: string): Sponsor | undefined {
 export type SponsorInput = {
   name?: string;
   logoUrl?: string;
+  bannerImageUrl?: string | null;
   linkUrl?: string;
   placement?: SponsorPlacement;
   active?: boolean;
@@ -221,12 +438,17 @@ export type SponsorInput = {
   title?: string;
   subtitle?: string;
   cta?: string;
-  accent?: SponsorAccent;
+  accent?: SponsorAccent | null;
+  bannerDisplayMode?: SponsorBannerDisplayMode | null;
   kind?: SponsorKind;
   actionId?: 'salon' | 'live' | null;
   displayDurationSec?: number | null;
   videoUrl?: string;
   posterUrl?: string;
+  mapVisibilityScope?: SponsorMapVisibilityScope;
+  mapTargetRegionName?: string | null;
+  mapTargetLat?: number | null;
+  mapTargetLng?: number | null;
 };
 
 function normalizeInput(input: SponsorInput, existing?: Sponsor): Sponsor {
@@ -234,11 +456,22 @@ function normalizeInput(input: SponsorInput, existing?: Sponsor): Sponsor {
   const name = String(input.name ?? existing?.name ?? '').trim();
   if (!name) throw new Error('Le nom du sponsor est requis');
 
+  const placement = parsePlacement(input.placement ?? existing?.placement);
+  const bannerDisplayMode = parseBannerDisplayMode(
+    input.bannerDisplayMode !== undefined ? input.bannerDisplayMode : undefined,
+    existing?.bannerDisplayMode,
+    placement
+  );
+  const isImageOnlyBanner = placement === 'map_banner' && bannerDisplayMode === 'image_only';
+
   const title = String(input.title ?? existing?.title ?? '').trim();
   const subtitle = String(input.subtitle ?? existing?.subtitle ?? '').trim();
   const cta = String(input.cta ?? existing?.cta ?? '').trim();
-  if (!title || !subtitle || !cta) {
+  if (!isImageOnlyBanner && (!title || !subtitle || !cta)) {
     throw new Error('Titre, sous-titre et appel à l’action sont requis');
+  }
+  if (isImageOnlyBanner && !title) {
+    throw new Error('Un titre est requis pour l’administration (non affiché sur la carte en mode image seule)');
   }
 
   const actionRaw = input.actionId !== undefined ? input.actionId : existing?.actionId;
@@ -247,8 +480,14 @@ function normalizeInput(input: SponsorInput, existing?: Sponsor): Sponsor {
   const linkUrlRaw = input.linkUrl !== undefined ? input.linkUrl : existing?.linkUrl;
   const linkUrl = linkUrlRaw ? String(linkUrlRaw).trim() || undefined : undefined;
 
+  if (isImageOnlyBanner && !linkUrl && !actionId) {
+    throw new Error('Lien ou action interne requis pour un bandeau image seule cliquable');
+  }
+
   const logoUrlRaw = input.logoUrl !== undefined ? input.logoUrl : existing?.logoUrl;
-  const logoUrl = logoUrlRaw ? String(logoUrlRaw).trim() || undefined : undefined;
+  const logoUrl = assertValidSponsorLogoUrl(
+    logoUrlRaw ? String(logoUrlRaw).trim() || undefined : undefined
+  );
 
   const videoUrlRaw = input.videoUrl !== undefined ? input.videoUrl : existing?.videoUrl;
   const videoUrl = videoUrlRaw ? String(videoUrlRaw).trim() || undefined : undefined;
@@ -256,16 +495,70 @@ function normalizeInput(input: SponsorInput, existing?: Sponsor): Sponsor {
   const posterUrlRaw = input.posterUrl !== undefined ? input.posterUrl : existing?.posterUrl;
   const posterUrl = posterUrlRaw ? String(posterUrlRaw).trim() || undefined : undefined;
 
-  const placement = parsePlacement(input.placement ?? existing?.placement);
+  const bannerImageUrlRaw =
+    input.bannerImageUrl !== undefined ? input.bannerImageUrl : existing?.bannerImageUrl;
+  const bannerImageUrl =
+    placement === 'map_banner'
+      ? assertValidSponsorBannerUrl(
+          bannerImageUrlRaw === null
+            ? undefined
+            : bannerImageUrlRaw
+              ? String(bannerImageUrlRaw).trim() || undefined
+              : undefined
+        )
+      : undefined;
+
+  if (isImageOnlyBanner && !bannerImageUrl) {
+    throw new Error('Image du bandeau requise en mode image seule');
+  }
 
   if (placement === 'reels_sponsored' && !videoUrl && !posterUrl) {
     throw new Error('URL vidéo ou vignette requise pour un reel sponsorisé');
+  }
+
+  const mapVisibilityScope = parseMapVisibilityScope(
+    input.mapVisibilityScope ?? existing?.mapVisibilityScope,
+    existing?.mapVisibilityScope
+  );
+
+  const mapTargetRegionNameRaw =
+    input.mapTargetRegionName !== undefined
+      ? input.mapTargetRegionName
+      : existing?.mapTargetRegionName;
+  const mapTargetRegionName = mapTargetRegionNameRaw
+    ? String(mapTargetRegionNameRaw).trim() || undefined
+    : undefined;
+
+  const mapTargetLat =
+    input.mapTargetLat === null
+      ? undefined
+      : parseOptionalCoord(input.mapTargetLat, existing?.mapTargetLat);
+  const mapTargetLng =
+    input.mapTargetLng === null
+      ? undefined
+      : parseOptionalCoord(input.mapTargetLng, existing?.mapTargetLng);
+
+  if (placement === 'map_banner' && mapVisibilityScope === 'region') {
+    if (!mapTargetRegionName) {
+      throw new Error('Nom de la ville ou région requis pour un bandeau régional');
+    }
+    if (
+      mapTargetLat == null ||
+      mapTargetLng == null ||
+      mapTargetLat < -90 ||
+      mapTargetLat > 90 ||
+      mapTargetLng < -180 ||
+      mapTargetLng > 180
+    ) {
+      throw new Error('Latitude et longitude requises pour un bandeau régional');
+    }
   }
 
   return {
     id: existing?.id ?? newId(),
     name,
     logoUrl,
+    bannerImageUrl,
     linkUrl,
     placement,
     active: input.active ?? existing?.active ?? true,
@@ -275,10 +568,14 @@ function normalizeInput(input: SponsorInput, existing?: Sponsor): Sponsor {
         : (existing?.priority ?? db.sponsors.length),
     startsAt: input.startsAt === null ? undefined : parseOptionalTs(input.startsAt ?? existing?.startsAt),
     endsAt: input.endsAt === null ? undefined : parseOptionalTs(input.endsAt ?? existing?.endsAt),
-    title,
-    subtitle,
-    cta,
-    accent: parseAccent(input.accent ?? existing?.accent),
+    title: title || name,
+    subtitle: subtitle || '—',
+    cta: cta || '—',
+    accent: parseAccent(
+      input.accent !== undefined ? input.accent : undefined,
+      existing?.accent
+    ),
+    bannerDisplayMode: placement === 'map_banner' ? bannerDisplayMode : undefined,
     kind: parseKind(input.kind ?? existing?.kind),
     actionId,
     displayDurationSec: parseDisplayDurationSec(
@@ -287,6 +584,13 @@ function normalizeInput(input: SponsorInput, existing?: Sponsor): Sponsor {
     ),
     videoUrl,
     posterUrl,
+    mapVisibilityScope: placement === 'map_banner' ? mapVisibilityScope : undefined,
+    mapTargetRegionName:
+      placement === 'map_banner' && mapVisibilityScope === 'region' ? mapTargetRegionName : undefined,
+    mapTargetLat:
+      placement === 'map_banner' && mapVisibilityScope === 'region' ? mapTargetLat : undefined,
+    mapTargetLng:
+      placement === 'map_banner' && mapVisibilityScope === 'region' ? mapTargetLng : undefined,
     createdAt: existing?.createdAt ?? ts,
     updatedAt: ts,
   };
@@ -341,12 +645,43 @@ export function reorderSponsors(ids: string[]): Sponsor[] {
   return listSponsors();
 }
 
-export function ensureDefaultSponsors(): void {
-  if (db.sponsors.length > 0) return;
+/** Insère les sponsors par défaut manquants (upsert par id). Retourne le nombre ajouté. */
+export function ensureDefaultSponsors(): number {
   const ts = now();
-  for (const seed of DEFAULT_SPONSORS) {
-    db.sponsors.push({ ...seed, createdAt: ts, updatedAt: ts });
+  const existingIds = new Set(db.sponsors.map((s) => s.id));
+  let added = 0;
+
+  if (db.sponsors.length === 0) {
+    for (const seed of DEFAULT_SPONSORS) {
+      db.sponsors.push({ ...seed, createdAt: ts, updatedAt: ts });
+    }
+    return DEFAULT_SPONSORS.length;
   }
+
+  for (const seed of DEFAULT_SPONSORS) {
+    if (existingIds.has(seed.id)) continue;
+    db.sponsors.push({ ...seed, createdAt: ts, updatedAt: ts });
+    added += 1;
+  }
+  return added;
+}
+
+/** Renseigne mapVisibilityScope sur les sponsors existants (migration douce). */
+export function migrateSponsorMapVisibility(): number {
+  let migrated = 0;
+  const ts = now();
+  for (const sponsor of db.sponsors) {
+    if (sponsor.mapVisibilityScope) continue;
+    const regionalDefaults = REGION_SPONSOR_DEFAULTS[sponsor.id];
+    if (regionalDefaults) {
+      Object.assign(sponsor, regionalDefaults);
+    } else if (sponsor.placement === 'map_banner') {
+      sponsor.mapVisibilityScope = 'france';
+    }
+    sponsor.updatedAt = ts;
+    migrated += 1;
+  }
+  return migrated;
 }
 
 export function sponsorCounts(): { total: number; active: number; inactive: number } {

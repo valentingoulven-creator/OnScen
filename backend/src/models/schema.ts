@@ -394,12 +394,20 @@ export type SponsorAccent = 'purple' | 'pink' | 'amber' | 'cyan' | 'rose';
 
 export type SponsorKind = 'promo' | 'sponsored';
 
+/** Visibilité géographique d'un bandeau carte. */
+export type SponsorMapVisibilityScope = 'france' | 'region';
+
+/** Mode d'affichage du bandeau carte. */
+export type SponsorBannerDisplayMode = 'full' | 'image_only';
+
 /** Sponsor / bandeau publicitaire géré depuis l'administration. */
 export interface Sponsor {
   id: string;
   /** Nom affiché (ex. « Deezer », « Soundy »). */
   name: string;
   logoUrl?: string;
+  /** Image de fond du bandeau carte (map_banner uniquement). */
+  bannerImageUrl?: string;
   linkUrl?: string;
   placement: SponsorPlacement;
   active: boolean;
@@ -410,8 +418,10 @@ export interface Sponsor {
   title: string;
   subtitle: string;
   cta: string;
-  accent: SponsorAccent;
+  accent?: SponsorAccent;
   kind: SponsorKind;
+  /** Bandeau carte : texte + dégradé (full) ou image seule cliquable (image_only). */
+  bannerDisplayMode?: SponsorBannerDisplayMode;
   /** Action interne (salon, live) si pas de lien externe. */
   actionId?: 'salon' | 'live';
   /** Durée d'affichage dans le carrousel (secondes, défaut 8). */
@@ -420,6 +430,13 @@ export interface Sponsor {
   videoUrl?: string;
   /** Vignette / poster (reels sponsorisés). */
   posterUrl?: string;
+  /** Bandeau carte : France entière ou zone régionale (map_banner uniquement). */
+  mapVisibilityScope?: SponsorMapVisibilityScope;
+  /** Nom de la ville/région cible (scope region). */
+  mapTargetRegionName?: string;
+  /** Coordonnées cible pour le filtrage régional (scope region). */
+  mapTargetLat?: number;
+  mapTargetLng?: number;
   createdAt: number;
   updatedAt: number;
 }

@@ -17,7 +17,7 @@ export function StoriesRingsCarousel({ children, itemCount }: StoriesRingsCarous
       ariaPrevLabel="Précédent"
       ariaNextLabel="Suivant"
       scrollStepCount={STORIES_RINGS_SCROLL_STEP}
-      scrollClassName="stories-rings-carousel flex flex-nowrap gap-2 pb-1 -mx-2 px-2"
+      scrollClassName="stories-rings-carousel ms-hscroll-track flex flex-nowrap gap-2 pb-1"
     >
       {children}
     </HorizontalScrollCarousel>

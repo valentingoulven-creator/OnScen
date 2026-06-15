@@ -158,3 +158,65 @@ geoRouter.get('/nearby', authenticateJWT, (req: Request, res: Response) => {
 
   res.json({ salons, lives, people });
 });
+
+interface GouvCommune {
+  nom: string;
+  codeDepartement: string;
+  centre?: { type: string; coordinates: [number, number] };
+}
+
+interface GeocodeSuggestion {
+  label: string;
+  subtitle?: string;
+  value: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+const GOUV_COMMUNES_API = 'https://geo.api.gouv.fr/communes';
+const DEFAULT_GEOCODE_LIMIT = 5;
+const MAX_GEOCODE_LIMIT = 10;
+
+geoRouter.get('/geocode', async (req: Request, res: Response) => {
+  const q = String(req.query.q ?? '').trim();
+  if (q.length < 2) {
+    res.status(400).json({ error: 'Paramètre q requis (min. 2 caractères)' });
+    return;
+  }
+
+  const limitRaw = parseInt(String(req.query.limit ?? DEFAULT_GEOCODE_LIMIT), 10);
+  const limit = Number.isFinite(limitRaw)
+    ? Math.min(Math.max(limitRaw, 1), MAX_GEOCODE_LIMIT)
+    : DEFAULT_GEOCODE_LIMIT;
+
+  try {
+    const params = new URLSearchParams({
+      nom: q,
+      boost: 'population',
+      limit: String(limit),
+      fields: 'nom,codeDepartement,centre',
+    });
+    const gouvRes = await fetch(`${GOUV_COMMUNES_API}?${params}`);
+    if (!gouvRes.ok) {
+      res.status(502).json({ error: 'geo.api.gouv.fr indisponible' });
+      return;
+    }
+
+    const data = (await gouvRes.json()) as GouvCommune[];
+    const results: GeocodeSuggestion[] = data.map((c) => {
+      const [lon, lat] = c.centre?.coordinates ?? [];
+      const hasCoords = Number.isFinite(lat) && Number.isFinite(lon);
+      return {
+        label: c.nom,
+        subtitle: `Dép. ${c.codeDepartement}`,
+        value: c.nom,
+        ...(hasCoords ? { latitude: lat, longitude: lon } : {}),
+      };
+    });
+
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.json({ results });
+  } catch {
+    res.status(502).json({ error: 'Géocodage indisponible' });
+  }
+});

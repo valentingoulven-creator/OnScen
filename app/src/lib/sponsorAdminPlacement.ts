@@ -49,8 +49,16 @@ export function reorderSponsorIdsWithinPlacement(
   return result;
 }
 
+/** Sponsor réellement diffusé (flag actif + fenêtre de dates). */
+export function isSponsorActiveAt(sponsor: Sponsor, at = Date.now()): boolean {
+  if (!sponsor.active) return false;
+  if (sponsor.startsAt != null && at < sponsor.startsAt) return false;
+  if (sponsor.endsAt != null && at > sponsor.endsAt) return false;
+  return true;
+}
+
 export function countsForSponsors(items: Sponsor[]): { total: number; active: number; inactive: number } {
   const total = items.length;
-  const active = items.filter((s) => s.active).length;
+  const active = items.filter((s) => isSponsorActiveAt(s)).length;
   return { total, active, inactive: total - active };
 }

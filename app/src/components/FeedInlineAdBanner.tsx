@@ -1,6 +1,6 @@
 import { handleSponsorCta } from '../lib/sponsorAds';
 import { useSponsorAdsRotation } from '../lib/useSponsorAdsRotation';
-import { SPONSOR_ACCENT_GRADIENTS, sponsorKindBadgeLabel } from '../lib/sponsorDisplaySpec';
+import { resolveAccentGradientClass, SPONSOR_NEUTRAL_BANNER_BG, sponsorKindBadgeLabel } from '../lib/sponsorDisplaySpec';
 
 interface FeedInlineAdBannerProps {
   onCtaSalon?: () => void;
@@ -35,6 +35,7 @@ export function FeedInlineAdBanner({ onCtaSalon, onCtaLive }: FeedInlineAdBanner
   if (!hasAds || !ad) return null;
 
   const badgeLabel = sponsorKindBadgeLabel(ad.kind ?? 'promo');
+  const accentGradient = resolveAccentGradientClass(ad.accent) ?? SPONSOR_NEUTRAL_BANNER_BG;
 
   return (
     <div
@@ -43,7 +44,7 @@ export function FeedInlineAdBanner({ onCtaSalon, onCtaLive }: FeedInlineAdBanner
       aria-label="Publicité sponsorisée dans le fil"
     >
       <div className="rounded-2xl border border-[#2d2d3d] bg-[#12121a] overflow-hidden">
-        <div className={`h-1 bg-gradient-to-r ${SPONSOR_ACCENT_GRADIENTS[ad.accent]}`} aria-hidden />
+        <div className={`h-1 bg-gradient-to-r ${accentGradient}`} aria-hidden />
         <div
           key={ad.id}
           className={`flex items-start gap-3 p-3 min-h-[7.5rem] transition-opacity duration-200 ${

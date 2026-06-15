@@ -45,7 +45,7 @@ export function HorizontalScrollCarousel({
   itemCount,
   ariaPrevLabel,
   ariaNextLabel,
-  scrollClassName = 'min-w-0 w-full flex flex-nowrap gap-3 pb-1 -mx-3 px-3 overflow-x-auto',
+  scrollClassName = 'ms-hscroll-track min-w-0 w-full flex flex-nowrap gap-3 pb-1 overflow-x-auto',
   scrollStepCount = 1,
   fadeEdges = true,
 }: HorizontalScrollCarouselProps) {
@@ -111,7 +111,7 @@ export function HorizontalScrollCarousel({
             type="button"
             onClick={() => scrollByCard('left')}
             disabled={!canScrollLeft}
-            className={`${arrowBtnClass} left-0 -translate-x-1 shadow-[0_0_12px_rgba(0,0,0,0.45)] ${
+            className={`${arrowBtnClass} left-1 shadow-[0_0_12px_rgba(0,0,0,0.45)] ${
               canScrollLeft
                 ? 'bg-[#12121a]/95 border-purple-500/45 text-purple-200 hover:border-purple-400/70 hover:text-white hover:bg-purple-900/40'
                 : 'bg-[#12121a]/50 border-purple-500/15 text-purple-400/25 pointer-events-none opacity-0'
@@ -124,7 +124,7 @@ export function HorizontalScrollCarousel({
             type="button"
             onClick={() => scrollByCard('right')}
             disabled={!canScrollRight}
-            className={`${arrowBtnClass} right-0 translate-x-1 shadow-[0_0_12px_rgba(0,0,0,0.45)] ${
+            className={`${arrowBtnClass} right-1 shadow-[0_0_12px_rgba(0,0,0,0.45)] ${
               canScrollRight
                 ? 'bg-[#12121a]/95 border-purple-500/45 text-purple-200 hover:border-purple-400/70 hover:text-white hover:bg-purple-900/40'
                 : 'bg-[#12121a]/50 border-purple-500/15 text-purple-400/25 pointer-events-none opacity-0'

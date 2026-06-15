@@ -7,6 +7,7 @@ import {
   createSponsor,
   deleteSponsor,
   getSponsorById,
+  isSponsorActiveAt,
   listSponsors,
   reorderSponsors,
   sponsorCounts,
@@ -18,6 +19,8 @@ import {
   getSponsorPlatformConfig,
   updateSponsorPlatformConfig,
 } from '../lib/sponsorPlatformConfig';
+import { saveSponsorBannerFromDataUrl } from '../lib/sponsorBannerAssets';
+import { saveSponsorLogoFromDataUrl } from '../lib/sponsorLogoAssets';
 import type { SponsorPlacement } from '../models/schema';
 
 export const adminSponsorsRouter = Router();
@@ -61,6 +64,12 @@ function parseBodyInput(body: Record<string, unknown>): SponsorInput {
   return {
     name: body.name != null ? String(body.name) : undefined,
     logoUrl: body.logoUrl != null ? String(body.logoUrl) : undefined,
+    bannerImageUrl:
+      body.bannerImageUrl === null
+        ? null
+        : body.bannerImageUrl != null
+          ? String(body.bannerImageUrl)
+          : undefined,
     linkUrl: body.linkUrl != null ? String(body.linkUrl) : undefined,
     placement: parsePlacement(body.placement),
     active: body.active != null ? Boolean(body.active) : undefined,
@@ -76,7 +85,18 @@ function parseBodyInput(body: Record<string, unknown>): SponsorInput {
     title: body.title != null ? String(body.title) : undefined,
     subtitle: body.subtitle != null ? String(body.subtitle) : undefined,
     cta: body.cta != null ? String(body.cta) : undefined,
-    accent: body.accent != null ? (String(body.accent) as SponsorInput['accent']) : undefined,
+    accent:
+      body.accent === null || body.accent === ''
+        ? null
+        : body.accent != null
+          ? (String(body.accent) as SponsorInput['accent'])
+          : undefined,
+    bannerDisplayMode:
+      body.bannerDisplayMode === null || body.bannerDisplayMode === ''
+        ? null
+        : body.bannerDisplayMode === 'full' || body.bannerDisplayMode === 'image_only'
+          ? body.bannerDisplayMode
+          : undefined,
     kind: body.kind != null ? (String(body.kind) as SponsorInput['kind']) : undefined,
     actionId:
       body.actionId === null
@@ -92,6 +112,28 @@ function parseBodyInput(body: Record<string, unknown>): SponsorInput {
           : undefined,
     videoUrl: body.videoUrl != null ? String(body.videoUrl) : undefined,
     posterUrl: body.posterUrl != null ? String(body.posterUrl) : undefined,
+    mapVisibilityScope:
+      body.mapVisibilityScope === 'france' || body.mapVisibilityScope === 'region'
+        ? body.mapVisibilityScope
+        : undefined,
+    mapTargetRegionName:
+      body.mapTargetRegionName === null
+        ? null
+        : body.mapTargetRegionName != null
+          ? String(body.mapTargetRegionName)
+          : undefined,
+    mapTargetLat:
+      body.mapTargetLat === null
+        ? null
+        : body.mapTargetLat != null
+          ? Number(body.mapTargetLat)
+          : undefined,
+    mapTargetLng:
+      body.mapTargetLng === null
+        ? null
+        : body.mapTargetLng != null
+          ? Number(body.mapTargetLng)
+          : undefined,
   };
 }
 
@@ -123,8 +165,8 @@ adminSponsorsRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
   const placement = parsePlacement(req.query.placement);
   const q = String(req.query.q || '').trim();
   let items = listSponsors({ placement, q });
-  if (filter === 'active') items = items.filter((s) => s.active);
-  if (filter === 'inactive') items = items.filter((s) => !s.active);
+  if (filter === 'active') items = items.filter((s) => isSponsorActiveAt(s));
+  if (filter === 'inactive') items = items.filter((s) => !isSponsorActiveAt(s));
   const counts = sponsorCounts();
   res.json({ items, total: items.length, counts });
 });
@@ -139,6 +181,36 @@ adminSponsorsRouter.post('/reorder', authenticateJWT, (req: Request, res: Respon
   const items = reorderSponsors(ids);
   schedulePersist();
   res.json({ items });
+});
+
+adminSponsorsRouter.post('/upload-logo', authenticateJWT, (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const image = String(req.body?.image ?? '').trim();
+    if (!image) {
+      res.status(400).json({ error: 'Image requise' });
+      return;
+    }
+    const url = saveSponsorLogoFromDataUrl(image);
+    res.json({ url });
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : 'Upload impossible' });
+  }
+});
+
+adminSponsorsRouter.post('/upload-banner', authenticateJWT, (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const image = String(req.body?.image ?? '').trim();
+    if (!image) {
+      res.status(400).json({ error: 'Image requise' });
+      return;
+    }
+    const url = saveSponsorBannerFromDataUrl(image);
+    res.json({ url });
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : 'Upload impossible' });
+  }
 });
 
 adminSponsorsRouter.get('/:id', authenticateJWT, (req: Request, res: Response) => {
