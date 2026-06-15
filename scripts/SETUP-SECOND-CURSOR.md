@@ -1,0 +1,63 @@
+# Setup second Cursor — checklist rapide
+
+Bootstrap d’un **second poste** ou **second compte Cursor** avec accès dev local + deploy prod Soundy / MeloSongv2.
+
+## Lancer le script
+
+```powershell
+# Recommandé : clone hors iCloud vers C:\Dev\MeloSongv2
+powershell -ExecutionPolicy Bypass -File scripts/setup-second-cursor.ps1
+
+# Options utiles
+powershell -ExecutionPolicy Bypass -File scripts/setup-second-cursor.ps1 -SeedStories
+powershell -ExecutionPolicy Bypass -File scripts/setup-second-cursor.ps1 -SkipClone -TargetDir "C:\Dev\MeloSongv2"
+```
+
+## Avant de lancer
+
+| Étape | Action |
+|-------|--------|
+| Git | [Git for Windows](https://git-scm.com/download/win) |
+| Node | LTS 18+ ([nodejs.org](https://nodejs.org/)) |
+| SSH | Client OpenSSH Windows activé |
+| GitHub | Inviter le compte #2 sur `valentingoulven-creator/MeloSong` |
+| Emplacement | **Pas iCloud** — utiliser `C:\Dev\MeloSongv2` |
+
+## À faire manuellement (secrets)
+
+1. **Clé SSH** — copier `~/.ssh/id_ed25519` (+ `.pub`) depuis la machine 1 (USB/SCP), **jamais dans Git**.
+2. **msdev/.env** — coller les secrets OAuth/YouTube/Spotify/Stripe **dev** depuis la machine 1.
+3. **backend/.env.production** — référence locale uniquement ; la prod réelle est sur le VPS `/opt/soundly/.env`.
+4. **VPS prod** — récupérer les variables critiques :
+
+   ```bash
+   ssh root@51.159.164.100 "cat /opt/soundly/.env"
+   ```
+
+   Variables clés : `JWT_SECRET`, `ENCRYPTION_KEY`, `DATABASE_URL`, `PG_SSL`, Stripe, OAuth, Cloudflare Stream, LiveKit.
+
+5. **Checklist détaillée** — `scripts/secrets-checklist.template.txt` (placeholders uniquement).
+
+## Vérifications après setup
+
+```powershell
+cd C:\Dev\MeloSongv2
+npm run dev                    # http://localhost:5173
+ssh -i $env:USERPROFILE\.ssh\id_ed25519 root@51.159.164.100 "echo OK"
+curl https://getsoundy.com/health
+git status
+```
+
+## Deploy production
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/deploy-prod.ps1
+```
+
+VPS : `51.159.164.100`, chemin `/opt/soundly`, health `https://getsoundy.com/health`.
+
+## Références
+
+- Workflow dev : [`docs/DEV-WORKFLOW.md`](../docs/DEV-WORKFLOW.md)
+- Runbook prod : [`deploy/RUNBOOK-PROD.md`](../deploy/RUNBOOK-PROD.md)
+- Deploy : [`deploy_zero_downtime.ps1`](../deploy_zero_downtime.ps1)

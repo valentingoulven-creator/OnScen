@@ -1,4 +1,551 @@
 ﻿================================================================================
+MODIF 528 - Script bootstrap second Cursor (VPS, GitHub, secrets)
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+Besoin d’un script Windows PowerShell pour configurer un **second poste / second
+compte Cursor** avec les mêmes accès dev local et deploy prod que la machine 1
+(VPS 51.159.164.100, GitHub MeloSong, msdev, deploy_zero_downtime.ps1).
+
+## Livrables
+- `scripts/setup-second-cursor.ps1` — prérequis, clone C:\Dev\MeloSongv2, GitHub,
+  SSH, .env depuis .example, npm install, vérifs health/SSH/git
+- `scripts/SETUP-SECOND-CURSOR.md` — checklist courte
+- `scripts/secrets-checklist.template.txt` — placeholders secrets (machine 1 / VPS)
+
+## Sécurité
+- Aucun mot de passe réel dans les scripts (pas de vps-setup.sh ni liveVideoRelay)
+- Transfert clé SSH documenté (USB/SCP/nouvelle clé sur VPS) — jamais dans Git
+
+## Fichiers
+- scripts/setup-second-cursor.ps1 (nouveau)
+- scripts/SETUP-SECOND-CURSOR.md (nouveau)
+- scripts/secrets-checklist.template.txt (nouveau)
+- modification.txt
+
+## Test
+  powershell -ExecutionPolicy Bypass -File scripts/setup-second-cursor.ps1 -SkipClone -SkipNpmInstall
+
+## Déploiement
+**Non** — pas de commit demandé par l’utilisateur.
+
+
+================================================================================
+MODIF 527 - Story : aperçu modale = photo composée (filtres / texte / tags)
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+Après édition dans PhotoImageEditor (filtres, texte, @, lien) et clic Suivant,
+l'aperçu de MapStorySheet (« Nouvelle story ») affichait la photo brute : `imageUrl`
+était renseigné dès la sélection fichier, avant composition canvas.
+
+## Cause
+`openEditorWithImage` appelait `setImageUrl(url)` avec le dataUrl brut ; l'aperçu
+et le bouton Publier étaient actifs avant validation éditeur. Même après Suivant,
+l'utilisateur voyait l'image non composée.
+
+## Correctif
+- `editorDraftUrl` : brouillon brut uniquement pour l'éditeur (sélection / changer photo).
+- `imageUrl` : rempli uniquement dans `handleEditorConfirm` avec le JPEG composé
+  (`composeStoryImageWithOverlays` via PhotoImageEditor).
+- `imageSource` synchronisé sur l'image composée pour ré-édition cohérente.
+- Annuler éditeur : purge `editorDraftUrl` sans toucher l'aperçu existant.
+- Publication : même `imageUrl` composé ; badges musique / tags / lien inchangés.
+
+## Fichiers
+- app/src/components/MapStorySheet.tsx
+- app/src/lib/mapStorySheetPreview.test.ts (nouveau)
+- modification.txt
+
+## Test
+  cd app && npm test -- mapStorySheetPreview storyImageCompose && npm run build
+
+## Déploiement
+**Non** — en attente validation utilisateur.
+
+
+================================================================================
+MODIF 525 - Story : déplacer et redimensionner texte / tags sur la photo
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+MODIF 524 : tap-to-text et mentions @. L'utilisateur souhaite déplacer et
+réduire/agrandir les calques texte et stickers @ directement sur l'aperçu photo
+(style Instagram).
+
+## Modèle d'interaction
+1. **Déplacer** : glisser un texte (seuil ~10 px avant drag, tap = édition) ou
+   un tag @ (drag immédiat). Les handlers pointer move/up sont sur le calque ET
+   le conteneur preview (corrige pointer capture).
+2. **Redimensionner** (calque sélectionné) :
+   - Pincement à deux doigts sur le calque
+   - Poignée violette coin bas-droit (desktop / tactile)
+3. **Slider Taille** (panneau Texte / Taguer) : synchronisé avec la taille
+   effective (fontSize × scale).
+4. **Export** : scale intégré dans drawTextOverlays / drawUserTagOverlays.
+5. Bornes scale : 0,5× – 2×.
+
+## Champs d'état
+- `StoryTextOverlay.scale?: number` (défaut 1)
+- `StoryTaggedUser.scale?: number` (défaut 1)
+- `isScaling` (UI éditeur, non persisté)
+
+## Fichiers
+- app/src/lib/storyOverlayTransform.ts (nouveau)
+- app/src/lib/storyOverlayTransform.test.ts (nouveau)
+- app/src/lib/storyImageCompose.ts
+- app/src/lib/storyImageCompose.test.ts
+- app/src/types.ts
+- app/src/components/PhotoImageEditor.tsx
+- modification.txt
+
+## Test
+  cd app && npm test -- storyOverlayTransform storyImageCompose && npm run build
+
+## Déploiement
+**Non** — en attente validation utilisateur.
+
+================================================================================
+MODIF 526 - Story : @ inline dans le texte (sans sticker duplique)
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+MODIF 524 ajoutait un sticker @ separe a chaque mention inseree via autocomplete
+dans un calque texte. Comportement attendu type Instagram : le @username reste
+dans le texte, sans pastille blanche en double.
+
+## Modele de donnees
+- **StoryTextOverlay.mentionRefs** : `{ id, username }[]` — utilisateurs tagues
+  inline via autocomplete @ dans ce calque (pas de position x/y).
+- **StoryTaggedUser** (stickers) : inchangé — tags ajoutes via l'outil Taguer,
+  avec position (et scale MODIF move/scale).
+- **Export API** : `mergeTaggedUsersForExport(stickers, overlays)` fusionne
+  stickers + mentionRefs actives (dedupe par id) → `taggedUserIds` a la publication.
+- **Canvas JPEG** : texte dessine en un bloc (`drawTextOverlays`, @ inclus) ;
+  stickers seulement pour `filterStickerTagsNotInText` (exclut ceux deja dans le texte).
+
+## UX
+1. Selection @ dans le texte : insere `@username ` + enregistre mentionRefs (pas de sticker).
+2. Apercu : @ connus en gras dans le calque texte ; stickers Taguer seuls restent visibles.
+3. Outil Taguer : stickers @ optionnels, limite 5 comptant aussi les mentions inline.
+4. Suppression du @ dans le texte : syncOverlayMentionRefs retire l'id des mentionRefs.
+
+## Fichiers
+- app/src/lib/storyTextMention.ts
+- app/src/lib/storyTextMention.test.ts
+- app/src/lib/storyImageCompose.ts (StoryTextOverlay.mentionRefs)
+- app/src/components/PhotoImageEditor.tsx
+- app/src/components/StoryUserTagPicker.tsx
+- modification.txt
+
+## Test
+  cd app && npm test -- storyTextMention && npm run build
+
+## Deploiement
+**Non** - en attente validation utilisateur.
+
+
+================================================================================
+MODIF 524 - Story : tap photo + mentions @ (texte et tags)
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+L'editeur story (PhotoImageEditor) proposait des outils separes Texte et Taguer.
+L'utilisateur souhaite une UX type Instagram : toucher la photo pour ecrire,
+taper @ pour taguer une personne dans le meme flux.
+
+## UX
+1. **Tap sur la photo** (hors crop / drag lien / mode Taguer) : cree un overlay
+   texte aux coordonnees normalisees du tap, ouvre le panneau Texte et focus
+   clavier (saisie inline sur la photo + champ dans le bottom sheet).
+2. **Glisser un texte existant** : seuil ~10 px avant drag (tap = edition).
+3. **@ dans le texte** : liste de recherche utilisateurs (autocomplete).
+4. **Selection @** : insere `@username ` dans le texte + ajoute un sticker tag
+   `@username` sur la photo a la position du calque texte (decalage vertical si
+   plusieurs tags au meme endroit).
+5. **Mode Taguer** : tap sur photo = repositionner le tag actif (inchange).
+6. Export JPEG : texte via drawTextOverlays + tags via drawUserTagOverlays
+   (storyImageCompose, inchange).
+
+## Fichiers
+- app/src/lib/storyTextMention.ts (nouveau)
+- app/src/lib/storyTextMention.test.ts (nouveau)
+- app/src/components/StoryMentionAutocomplete.tsx (nouveau)
+- app/src/components/PhotoImageEditor.tsx
+- modification.txt
+
+## Test
+  cd app && npm test -- storyTextMention && npm run build
+
+## Deploiement
+**Non** - en attente validation utilisateur.
+
+
+Date : 2026-06-15
+
+## Contexte
+Le carrousel anneaux stories (StoriesInlineBar, MapStoriesAccordion) etait
+scrollable au swipe mais sans fleches de navigation (contrairement aux
+carrousels evenements / nouveautes, MODIF 504).
+
+## Changements
+- `HorizontalScrollCarousel` : prop `scrollStepCount` (defaut 1) pour defiler
+  plusieurs items par clic.
+- Nouveau `StoriesRingsCarousel` : reutilise le pattern MODIF 504, scroll ~3,5
+  anneaux, aria-labels FR « Precédent » / « Suivant », theme sombre #12121a /
+  accents violet ; fleches masquees aux extremites et si un seul anneau.
+- `StoriesInlineBar` et `MapStoriesAccordion` utilisent ce composant.
+
+## Fichiers
+- app/src/components/HorizontalScrollCarousel.tsx
+- app/src/components/StoriesRingsCarousel.tsx (nouveau)
+- app/src/components/StoriesInlineBar.tsx
+- app/src/components/MapStoriesAccordion.tsx
+- app/src/components/horizontalScrollCarousel.test.ts (nouveau)
+- modification.txt
+
+## Test
+  cd app && npm test -- horizontalScrollCarousel
+  cd app && npm run build
+
+## Deploiement
+**Non** — modification locale uniquement.
+
+================================================================================
+MODIF 522 - Carrousel Stories : suppression limite 24 entrees
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+Le carrousel Stories (StoriesInlineBar, MapStoriesAccordion) tronquait les
+entrees a 24 via MAX_STORIES dans mapStoriesFeed.ts.
+
+## Correctif
+- Suppression de MAX_STORIES et du slice(0, 24) dans buildMapStoryEntries.
+- Toutes les entrees eligibles (proximite, favoris, stories ephemeres) sont
+  affichees ; le scroll horizontal du carrousel gere le surplus.
+
+## Fichiers
+- app/src/lib/mapStoriesFeed.ts
+- modification.txt
+
+## Limites conservees
+- Backend MAX_ACTIVE_STORIES_PER_USER = 20 (publication par utilisateur).
+- Filtres favoris / distance inchanges.
+
+## Test
+  cd app && npm test -- mapStoriesFeed
+  cd app && npm run build
+
+## Deploiement
+**Non** — modification locale uniquement.
+
+================================================================================
+MODIF 521 - msdev : stories aleatoires des favoris suivis
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+En local msdev, le carrousel Stories (Accueil / StoriesInlineBar) filtre les
+stories des comptes favoris de l'utilisateur. Sans seed, listener@msdev.local
+n'avait aucune story d'autres utilisateurs suivis.
+
+## Correctif
+- Module `seed-msdev-stories.ts` : stories aleatoires (texte FR, images
+  picsum / unsplash / avatar dicebear) pour les favoris seedes de l'auditeur
+  demo (DJ Melody, BassHunter, bots carte…).
+- Regeneration auto au demarrage msdev si moins de 4 auteurs favoris ont une
+  story active ; `MSDEV_FORCE_SEED=1` force la regen.
+- Endpoint msdev `POST /api/msdev/seed-stories` (?force=1).
+- Script npm `npm run msdev:seed-stories` (--force).
+
+## Fichiers
+- backend/src/seed-msdev-stories.ts
+- backend/src/seed-msdev-stories.test.ts
+- backend/src/scripts/seed-msdev-stories.ts
+- backend/src/routes/msdev.ts
+- backend/src/bootstrap.ts
+- backend/package.json
+- modification.txt
+
+## Test
+  cd backend && npm test -- seed-msdev-stories
+  cd backend && npm run msdev:seed-stories
+
+## Utilisation
+1. Demarrer msdev (Lancer-msdev.ps1) — seed auto si fil stories vide.
+2. Ou : `cd backend && npm run msdev:seed-stories` (store.json charge).
+3. Ou API (JWT) : `POST /api/msdev/seed-stories` body `{ "force": true }`.
+4. Se connecter listener@msdev.local / msdev123 → Accueil → carrousel Stories.
+
+## Deploiement
+**Non** — dev msdev uniquement.
+
+================================================================================
+MODIF 520 - StoryViewer : timer auto-avance stable 5 s
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+Chaque segment story doit rester 5 s avant passage auto au suivant (ou fermeture
+si dernier). La duree etait deja definie via `STORY_VIEW_DURATION_MS = 5000`
+(`storyViewerNav.ts`, depuis MODIF 325-329). Le timer RAF + barres de progression
+dans StoryViewer utilisent cette constante.
+
+## Correctif
+- Timer auto-avance : callbacks `onNext` / `onClose` / `canNext` via refs pour
+  eviter le redemarrage du RAF a chaque re-render parent (ex. markStoryAsSeen).
+- Progress bar synchronisee sur le meme elapsed / STORY_VIEW_DURATION_MS.
+- Pause au maintien (pointer down/up) : inchange.
+- Dernier segment : auto-fermeture apres 5 s si plus de story suivante.
+- StoryLivePreviewViewer : pas de timer auto-avance (inchange).
+
+## Fichiers
+- app/src/components/StoryViewer.tsx
+- app/src/lib/storyViewerNav.ts (constante 5000, inchangee)
+- app/src/lib/storyViewerNav.test.ts (assert STORY_VIEW_DURATION_MS === 5000)
+- modification.txt
+
+## Test
+  cd app && npm test -- storyViewerNav && npm run build
+
+## Deploiement
+**Non** - en attente validation utilisateur.
+
+================================================================================
+MODIF 519 - Stories re-regardables + timer visionneuse 5 s
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+Les stories devaient rester ouvrables apres visionnage. Le bandeau Actu
+(StoriesInlineBar) memorisait les IDs vus dans localStorage (`soundy_seen_stories_*`)
+et `pickInitialStory` sautait au premier segment non vu : re-tap = reprise au milieu,
+pas relecture depuis le debut.
+
+## Comportement
+- Tap anneau story : ouvre toujours StoryViewer depuis la **premiere** story de la pile
+  (chronologique), meme si deja vue.
+- Indicateur « vu » conserve : anneau gris / segments gris (MapStoryRings), tri
+  non-vues en premier dans le carrousel — indicatif uniquement, ne bloque plus.
+- `markStoryAsSeen` + localStorage : toujours actifs pour le style « vu ».
+- Purge des IDs expires du localStorage au chargement du feed.
+- StoryViewer : auto-avance 5 s (`STORY_VIEW_DURATION_MS`) — inchange, confirme.
+
+## Fichiers
+- app/src/lib/storyViewerNav.ts
+- app/src/lib/storyViewerNav.test.ts (nouveau)
+- app/src/components/StoriesInlineBar.tsx
+- app/src/components/MapStoriesAccordion.tsx
+- app/src/pages/ActualiteTabPage.tsx
+- modification.txt
+
+## Test
+  cd app && npm test && npm run build
+
+## Deploiement
+**Non** - en attente validation utilisateur.
+
+================================================================================
+MODIF 518 - Stories : apercu live plein ecran style story (remplace sheet)
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+MODIF 517 ajoutait StoryLivePreviewSheet (bottom sheet avec piste, note hote,
+etc.). L'utilisateur souhaite une experience story immersive : image live plein
+ecran 9:16 et bouton Rejoindre uniquement.
+
+## Comportement
+- Tap anneau LIVE sans story active : overlay plein ecran StoryLivePreviewViewer
+  (meme z-index / fermeture que StoryViewer : backdrop, croix, swipe bas, Echap).
+- Fond : pochette du morceau en cours (live.playbackState.albumArtUrl), sinon
+  avatar hote (entry.avatarUrl), sinon dicebear.
+- UI minimale : badge Live, pseudo hote, nb spectateurs optionnel, CTA Rejoindre.
+- Rejoindre -> onOpenLive / openLive (inchange).
+- Stories classiques et priorite story+live : inchange.
+
+## Fichiers
+- app/src/components/StoryLivePreviewViewer.tsx (remplace StoryLivePreviewSheet)
+- app/src/lib/storyLivePreviewCover.ts + .test.ts
+- app/src/components/StoriesInlineBar.tsx
+- app/src/components/MapStoriesAccordion.tsx
+- modification.txt
+
+## Test
+  cd app && npm run build && npm test
+
+## Deploiement
+**Non** - en attente validation utilisateur.
+
+================================================================================
+MODIF 517 - Stories : apercu live + Rejoindre depuis le carrousel (remplace par 518)
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+Dans le carrousel stories (StoriesInlineBar / MapStoriesAccordion), un tap sur
+un anneau LIVE (badge rouge) ouvrait directement la room live. Premiere etape :
+apercu puis CTA Rejoindre (voir MODIF 518 pour UX story plein ecran).
+
+## Comportement (historique)
+- Tap anneau LIVE sans story active : apercu live puis Rejoindre.
+- Tap story classique : StoryViewer inchange.
+- Si story + live : priorite story.
+
+## Fichiers (517 initial)
+- app/src/components/MapStoryRings.tsx
+- app/src/lib/mapStoriesFeed.ts
+- app/src/lib/mapStoriesFeed.test.ts
+
+================================================================================
+MODIF 516 - Story : presets IA Instagram-class (libre de droit)
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+Section « IA · libre de droit » (PhotoImageEditor) : 6 presets generiques
+(Amelioration IA, Portrait eclat, etc.). L'utilisateur souhaite des looks
+reconnus, style presets Instagram-class, 100 % CSS client-side (libre de droit).
+
+## Verification flux story (MapStorySheet → StoryImageEditor → export)
+- Preview live : style CSS `filter` sur l'image utilisateur (pas de vignette fixe).
+- Suivant : `composeStoryImageWithOverlays(..., filterId, ...)` via ctx.filter canvas.
+- Publier : JPEG deja compose (filtre incruste) envoye tel quel a l'API.
+- Aucune regression detectee sur le pipeline ; tests export canvas ajoutes.
+
+## Presets IA (labels FR + nom familier)
+- Clarendon · punch — contraste + saturation (punchy)
+- Valencia · chaleur — fade chaud lumineux
+- Lark · lumineux — clair, legerement desature
+- X-Pro · retro — cross-process vintage
+- Lo-fi · graine — contraste eleve, fade
+- Gingham · pastel — vintage pastel doux
+- Juno · doux — tons chauds adoucis
+- Aden · froid — teinte froide desaturee
+- Hudson · bleu — fade bleu retro
+
+Distincts des classiques (Vif, Chaud, Sepia, etc.) : calibrage CSS separe.
+Carrousel horizontal snap sur la photo de l'utilisateur.
+
+## Fichiers
+- app/src/lib/photoFilters.ts
+- app/src/lib/photoFilters.test.ts
+- app/src/lib/storyImageCompose.test.ts
+- app/src/components/PhotoImageEditor.tsx
+- modification.txt
+
+## Test
+  cd app && npm run build && npm test
+
+## Deploiement
+**Non** - en attente validation utilisateur.
+
+
+================================================================================
+MODIF 515 - Story : redesign modale creation (MapStorySheet)
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+La modale ? Nouvelle story ? (MapStorySheet) paraissait peu professionnelle :
+bouton photo plat, emojis visibilite (?? ??), segments purple massifs, CTA
+Publier terne. L'utilisateur souhaite une DA premium alignee MODIF 508.
+
+## Redesign
+- Theme sombre raffine : #0b0b0f, #12121a, bordures #2d2d3d, backdrop blur.
+- Zone upload : cadre pointille, icone SVG, degrade purple subtil, libelles FR.
+- Apercu image : cartouche arrondi, badges overlay (musique, tags, lien) avec
+  icones SVG (plus d'emojis).
+- Selecteur visibilite : segmented control fin (ring purple actif, pas blocs
+  purple-700), icones Users / Globe.
+- CTA Publier : footer fixe, gradient purple actif, etat disabled explicite +
+  message d'aide si pas d'image.
+- Fonctionnalites conservees : HEIC, visibilite, flux publication, editeur.
+
+## Fichiers
+- app/src/components/MapStorySheet.tsx
+- modification.txt
+
+## Test
+  cd app && npm run build && npm test
+
+## Deploiement
+**Non** - en attente validation utilisateur.
+
+
+================================================================================
+MODIF 514 - Story : suppression panneau rognage (Rogner)
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+MODIF 509 avait ajoute le rognage inline sur l'aper?u (poignees coins/bords)
+mais conservait un bottom sheet Rogner (consignes, slider zoom, bouton
+? Appliquer le rognage ?). Redondant avec le crop direct sur l'image.
+
+## Correctifs
+- Suppression du ToolSheet Rogner (texte d'aide, slider zoom, bouton Appliquer).
+- Rogner = mode inline uniquement : dock surligne, cadre + poignees sur la photo.
+- Zoom via poignees coins/bords (pas de slider) ; glisser la photo pour repositionner.
+- Rognage applique automatiquement a la sortie du mode (changement d'outil,
+  re-tap Rogner, Suivant/Utiliser).
+- InlineCropControls simplifie (apply + exporting).
+
+## Fichiers
+- app/src/components/PhotoImageEditor.tsx
+- app/src/components/PhotoInlineCrop.tsx
+- modification.txt
+
+## Test
+  cd app && npm run build && npm test
+
+## Deploiement
+**Non** - en attente validation utilisateur.
+
+
+================================================================================
+MODIF 514 - Story : rognage pan/zoom type Instagram/TikTok
+================================================================================
+Date : 2026-06-15
+
+## Contexte
+Le mode Rogner affichait une zone de recadrage redimensionnable (poignees + grille
+bleue) et un panneau bas (slider zoom, bouton Appliquer, instructions).
+
+## Fonctionnalite
+- Cadre fixe 9:16 (story), 4:5 (fil) ou carre (profil) : l'image se deplace et
+  zoome **a l'interieur** du cadre, comme Insta Stories / TikTok upload.
+- Gestes : glisser (pan), molette / trackpad (zoom), pincement (mobile).
+- Plus de poignees de redimensionnement ni panneau bas Rogner.
+- Rognage applique automatiquement en quittant l'outil ou via Suivant/Utiliser.
+- Indication discrete overlay : « Pincez ou glissez » (masquee apres 1ere interaction).
+
+## Modele d'etat (PhotoInlineCrop)
+- `scale` : facteur zoom (min = cover viewport, max = 4x cover)
+- `offsetX`, `offsetY` : decalage pan en px viewport (0 = centre)
+- Export via `computeStoryCropRect` / `computeCropRectFromViewport` inchangé
+
+## Fichiers
+- app/src/components/PhotoInlineCrop.tsx (refonte pan/zoom)
+- app/src/components/PhotoImageEditor.tsx (auto-apply, sans panneau Rogner)
+- app/src/lib/storyImageCompose.ts (`clampPanOffset`, `zoomPanAtViewportPoint`)
+- app/src/lib/storyImageCompose.test.ts
+- modification.txt
+
+## Test
+  cd app && npm test && npm run build
+
+## Deploiement
+**Non** - en attente validation utilisateur.
+
+
+================================================================================
 MODIF 513 - Story : lien cliquable (sticker overlay)
 ================================================================================
 Date : 2026-06-15
