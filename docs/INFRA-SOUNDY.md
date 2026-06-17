@@ -217,6 +217,7 @@ gunzip -c /opt/soundly/backups/soundy-XXXX.sql.gz | psql "$DATABASE_URL"
 | Uploads non sauvegardés | Élevée | **Mitigé** — `backup-uploads.sh` + cron hebdo ; doc RUNBOOK |
 | Persistance PG concurrente (DELETE+INSERT) | Élevée | **Mitigé** — mutex sérialisé dans `pgStore.ts` |
 | Snapshot store invalide en prod | Élevée | **Mitigé** — validation renforcée `isValidPersistedStore` + rejet avant write |
+| Suppression masse comptes (DELETE FROM users) | Critique | **Corrigé** — UPSERT par utilisateur (`pgUsers.ts`), jamais de DELETE global ; refus d’écrire si store mémoire vide alors que PG contient des users |
 | Pas de backup off-site | Moyenne | **Mitigé** — `backup-offsite.sh` (copie 2e chemin + S3 optionnel) |
 | Autobackup Scaleway non vérifié | Moyenne | **Partiel** — `verify-scaleway-backup.sh` (checklist manuelle console) |
 | Pas de snapshot VPS auto | Moyenne | **Partiel** — rappel `snapshot-vps-reminder.sh` + deploy PS1 |

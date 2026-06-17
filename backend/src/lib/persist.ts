@@ -3,6 +3,7 @@ import path from 'path';
 import { getMsdevEnvPath } from '../paths';
 import { isPostgresEnabled } from '../db/pool';
 import {
+  filterValidUsers,
   isValidPersistedStore,
   restoreStore,
   snapshotStore,
@@ -27,9 +28,17 @@ function loadPersistedStoreFromFile(): boolean {
   if (!fs.existsSync(file)) return false;
   try {
     const raw = JSON.parse(fs.readFileSync(file, 'utf-8')) as PersistedStore;
-    if (!isValidPersistedStore(raw)) return false;
-    restoreStore(raw);
-    return raw.users.length > 0;
+    if (!raw || typeof raw !== 'object' || raw.version !== 1) return false;
+    const { valid: users, skippedIds } = filterValidUsers(raw.users ?? []);
+    if (skippedIds.length > 0) {
+      console.warn(
+        `[persist] ${skippedIds.length} utilisateur(s) ignoré(s) à la lecture store.json`
+      );
+    }
+    const sanitized: PersistedStore = { ...raw, users };
+    if (!isValidPersistedStore(sanitized)) return false;
+    restoreStore(sanitized);
+    return users.length > 0;
   } catch {
     return false;
   }

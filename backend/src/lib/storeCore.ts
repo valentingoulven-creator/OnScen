@@ -288,22 +288,52 @@ function isValidChatRecord(record: unknown): boolean {
   return true;
 }
 
+export function isValidUserRecord(u: unknown): u is User {
+  if (!u || typeof u !== 'object') return false;
+  const user = u as User;
+  if (!isNonEmptyString(user.id)) return false;
+  if (typeof user.username !== 'string' || typeof user.email !== 'string') return false;
+  if (typeof user.passwordHash !== 'string') return false;
+  if (typeof user.meloCoins !== 'number' || !Number.isFinite(user.meloCoins)) return false;
+  if (typeof user.isGhostMode !== 'boolean') return false;
+  if (typeof user.lastSeenAt !== 'number' || !Number.isFinite(user.lastSeenAt)) return false;
+  return true;
+}
+
+/** Filtre les utilisateurs invalides individuellement (ne rejette pas tout le store). */
+export function filterValidUsers(users: unknown[]): { valid: User[]; skippedIds: string[] } {
+  const valid: User[] = [];
+  const seenIds = new Set<string>();
+  const skippedIds: string[] = [];
+  for (const u of users) {
+    if (!isValidUserRecord(u)) {
+      const id =
+        u && typeof u === 'object' && 'id' in u && typeof (u as User).id === 'string'
+          ? (u as User).id
+          : '?';
+      const email =
+        u && typeof u === 'object' && 'email' in u && typeof (u as User).email === 'string'
+          ? (u as User).email
+          : '?';
+      console.warn(`[storeCore] Utilisateur ignoré (données invalides): id=${id} email=${email}`);
+      skippedIds.push(id);
+      continue;
+    }
+    if (seenIds.has(u.id)) {
+      console.warn(`[storeCore] Utilisateur ignoré (id dupliqué): ${u.id}`);
+      skippedIds.push(u.id);
+      continue;
+    }
+    seenIds.add(u.id);
+    valid.push(u);
+  }
+  return { valid, skippedIds };
+}
+
 function isValidUserArray(users: unknown): users is User[] {
   if (!Array.isArray(users)) return false;
-  const ids = new Set<string>();
-  for (const u of users) {
-    if (!u || typeof u !== 'object') return false;
-    const user = u as User;
-    if (!isNonEmptyString(user.id)) return false;
-    if (ids.has(user.id)) return false;
-    ids.add(user.id);
-    if (typeof user.username !== 'string' || typeof user.email !== 'string') return false;
-    if (typeof user.passwordHash !== 'string') return false;
-    if (typeof user.meloCoins !== 'number' || !Number.isFinite(user.meloCoins)) return false;
-    if (typeof user.isGhostMode !== 'boolean') return false;
-    if (typeof user.lastSeenAt !== 'number' || !Number.isFinite(user.lastSeenAt)) return false;
-  }
-  return true;
+  const { valid, skippedIds } = filterValidUsers(users);
+  return skippedIds.length === 0 && valid.length === users.length;
 }
 
 function isValidDirectMessages(dms: unknown): boolean {

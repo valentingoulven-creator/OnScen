@@ -24,6 +24,7 @@ import {
   migratePlaintextPlatformTokens,
 } from '../lib/platformConnect';
 import { schedulePersist } from '../lib/persist';
+import { schedulePersistUserToPg } from '../lib/pgUsers';
 import { buildUserDataExport } from '../lib/accountDataExport';
 import { deleteUserAccountCascade } from '../lib/accountDeletion';
 import { CURRENT_TERMS_VERSION } from '../lib/legalConstants';
@@ -115,6 +116,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     consumeInviteCode(String(inviteCode));
   }
   db.users.set(user.id, user);
+  schedulePersistUserToPg(user);
   schedulePersist();
 
   if (accountStatus === 'pending') {
@@ -412,6 +414,7 @@ authRouter.patch('/profile', authenticateJWT, (req: Request, res: Response) => {
   };
   db.users.set(userId, saved);
   invalidateProfileCache(userId);
+  schedulePersistUserToPg(saved);
   schedulePersist();
   res.json({ user: publicProfile(saved, true, saved.id) });
 });
@@ -485,6 +488,7 @@ authRouter.post('/change-password', authenticateJWT, async (req: Request, res: R
     return;
   }
   db.users.set(userId, user);
+  schedulePersistUserToPg(user);
   schedulePersist();
   res.json({ ok: true });
 });

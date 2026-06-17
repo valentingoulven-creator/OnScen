@@ -2,6 +2,7 @@ import { db } from '../models/schema';
 import { invalidateProfileCache } from '../routes/auth';
 import { purgeReportsForUser } from './contentReports';
 import { getIo } from './ioInstance';
+import { scheduleRemoveUserFromPg } from './pgUsers';
 
 const DELETED_LABEL = '[Compte supprimé]';
 
@@ -166,4 +167,5 @@ export function deleteUserAccountCascade(userId: string): void {
   purgeReportsForUser(userId);
   invalidateProfileCache(userId);
   db.users.delete(userId);
+  scheduleRemoveUserFromPg(userId);
 }

@@ -3,11 +3,13 @@ import { getPool } from '../db/pool';
 import { runMigrations } from '../db/migrate';
 import { db, type AppNotification, type HostRating } from '../models/schema';
 import {
+  filterValidUsers,
   isValidPersistedStore,
   restoreStore,
   snapshotStore,
   type PersistedStore,
 } from './storeCore';
+import { countUsersInPg, upsertUser } from './pgUsers';
 import type { AccessPolicy } from './accessControl';
 
 let initialized = false;
@@ -42,12 +44,34 @@ async function savePersistedStoreToPostgresOnce(): Promise<void> {
   const client = await pool.connect();
   try {
     const data = snapshotStore();
+    await assertSafeUserSnapshot(client, data);
     if (!isValidPersistedStore(data)) {
       throw new Error('[pgStore] Snapshot invalide — sauvegarde PostgreSQL annulée');
     }
     await writeStore(client, data);
   } finally {
     client.release();
+  }
+}
+
+function isProductionEnv(): boolean {
+  return process.env.APP_ENV === 'production' || process.env.NODE_ENV === 'production';
+}
+
+/** Bloque toute écriture qui effacerait les comptes en production (store vide en mémoire). */
+async function assertSafeUserSnapshot(client: PoolClient, data: PersistedStore): Promise<void> {
+  if (data.users.length > 0) return;
+
+  const pgUserCount = await countUsersInPg(client);
+  if (pgUserCount > 0) {
+    throw new Error(
+      `[pgStore] Refus d'écrire un store sans utilisateurs alors que PostgreSQL en contient ${pgUserCount} — aucune suppression en masse`
+    );
+  }
+  if (isProductionEnv()) {
+    throw new Error(
+      '[pgStore] Refus de persister un store sans utilisateurs en production'
+    );
   }
 }
 
@@ -191,7 +215,13 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
   ]);
 
   const savedAt = metaRes.rows[0] ? Number(metaRes.rows[0].saved_at) : Date.now();
-  const users = usersRes.rows.map((r) => r.payload);
+  const rawUsers = usersRes.rows.map((r) => r.payload);
+  const { valid: users, skippedIds } = filterValidUsers(rawUsers);
+  if (skippedIds.length > 0) {
+    console.warn(
+      `[pgStore] ${skippedIds.length} utilisateur(s) ignoré(s) à la lecture PostgreSQL (store partiel conservé)`
+    );
+  }
   if (!users.length) return null;
 
   const accessPolicy = policyRes.rows[0]
@@ -354,7 +384,7 @@ async function writeStore(client: PoolClient, data: PersistedStore): Promise<voi
     await client.query('DELETE FROM message_groups');
     await client.query('DELETE FROM direct_messages');
     await client.query('DELETE FROM access_invite_codes');
-    await client.query('DELETE FROM users');
+    // users: jamais DELETE FROM users — upsert individuel uniquement (voir writeUsersToPg)
 
     if (data.accessPolicy) {
       await client.query(
@@ -372,12 +402,7 @@ async function writeStore(client: PoolClient, data: PersistedStore): Promise<voi
       ]);
     }
 
-    for (const user of data.users) {
-      await client.query(
-        'INSERT INTO users (id, email, username, payload) VALUES ($1, $2, $3, $4::jsonb)',
-        [user.id, user.email?.toLowerCase() ?? null, user.username ?? null, JSON.stringify(user)]
-      );
-    }
+    await writeUsersToPg(client, data.users);
 
     for (const dm of data.directMessages) {
       await client.query('INSERT INTO direct_messages (id, payload) VALUES ($1, $2::jsonb)', [
@@ -594,5 +619,12 @@ async function writeStore(client: PoolClient, data: PersistedStore): Promise<voi
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
+  }
+}
+
+/** UPSERT par utilisateur — pas de DELETE global sur la table users. */
+async function writeUsersToPg(client: PoolClient, users: PersistedStore['users']): Promise<void> {
+  for (const user of users) {
+    await upsertUser(client, user);
   }
 }
