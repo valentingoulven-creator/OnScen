@@ -4,14 +4,33 @@ import { Resend } from 'resend';
 let _transporter: nodemailer.Transporter | null = null;
 let _resend: Resend | null = null;
 
+function smtpVarsPresent(): boolean {
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  return !!(host && user && pass);
+}
+
+/** SMTP outbound is blocked on Scaleway VPS; only use when explicitly enabled (local dev). */
+function isSmtpEnabled(): boolean {
+  if (!smtpVarsPresent()) return false;
+  const flag = process.env.SMTP_ENABLED?.trim().toLowerCase();
+  if (flag === 'true' || flag === '1' || flag === 'yes') return true;
+  if (flag === 'false' || flag === '0' || flag === 'no') return false;
+  const appEnv = process.env.APP_ENV?.trim().toLowerCase();
+  return appEnv !== 'production';
+}
+
 function getResend(): Resend | null {
-  const apiKey = process.env.RESEND_API_KEY;
+  const apiKey = process.env.RESEND_API_KEY?.trim();
   if (!apiKey) return null;
   if (!_resend) _resend = new Resend(apiKey);
   return _resend;
 }
 
 function getTransporter(): nodemailer.Transporter | null {
+  if (!isSmtpEnabled()) return null;
+
   const host = process.env.SMTP_HOST;
   const port = parseInt(process.env.SMTP_PORT ?? '587', 10);
   const user = process.env.SMTP_USER;
@@ -31,11 +50,8 @@ function getTransporter(): nodemailer.Transporter | null {
 }
 
 export function isEmailConfigured(): boolean {
-  if (process.env.RESEND_API_KEY) return true;
-  const host = process.env.SMTP_HOST;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-  return !!(host && user && pass);
+  if (process.env.RESEND_API_KEY?.trim()) return true;
+  return isSmtpEnabled();
 }
 
 export function getEmailFrom(fallbackName = 'Soundy'): string {
@@ -69,7 +85,11 @@ export async function sendEmail(params: {
   }
 
   const transporter = getTransporter();
-  if (!transporter) throw new Error('Email non configuré (RESEND_API_KEY ou SMTP_*)');
+  if (!transporter) {
+    throw new Error(
+      'Email non configuré (RESEND_API_KEY requis en production; SMTP désactivé ou incomplet)',
+    );
+  }
 
   await transporter.sendMail({
     from,

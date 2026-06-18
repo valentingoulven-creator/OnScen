@@ -54,8 +54,21 @@ RESEND_FROM="${RESEND_FROM_RAW:-${SMTP_FROM_RAW:-Soundy Monitoring <onboarding@r
 RESEND_ENABLED="false"
 [[ -n "$RESEND_API_KEY" ]] && RESEND_ENABLED="true"
 
+APP_ENV=$(get_env APP_ENV "production")
+SMTP_ENABLED_FLAG=$(get_env SMTP_ENABLED "")
+SMTP_VARS_OK="false"
+[[ -n "$SMTP_HOST" && -n "$SMTP_USER" && -n "$SMTP_PASS" ]] && SMTP_VARS_OK="true"
+
 SMTP_ENABLED="false"
-[[ -n "$SMTP_HOST" && -n "$SMTP_USER" && -n "$SMTP_PASS" ]] && SMTP_ENABLED="true"
+if [[ "$SMTP_VARS_OK" == "true" ]]; then
+  case "${SMTP_ENABLED_FLAG,,}" in
+    true|1|yes) SMTP_ENABLED="true" ;;
+    false|0|no) SMTP_ENABLED="false" ;;
+    *)
+      if [[ "$APP_ENV" != "production" ]]; then SMTP_ENABLED="true"; fi
+      ;;
+  esac
+fi
 
 MAIL_ENABLED="false"
 [[ "$RESEND_ENABLED" == "true" || "$SMTP_ENABLED" == "true" ]] && MAIL_ENABLED="true"
@@ -123,6 +136,11 @@ PYEOF
     fi
 
     echo "${ts}: Erreur Resend (HTTP ${http_code}) : $(cat "$response_file" 2>/dev/null || echo '(pas de réponse)')" >> "$LOG_FILE"
+    return 1
+  fi
+
+  if [[ "$SMTP_ENABLED" != "true" ]]; then
+    echo "${ts}: SMTP désactivé (production VPS : utiliser RESEND_API_KEY)" >> "$LOG_FILE"
     return 1
   fi
 
