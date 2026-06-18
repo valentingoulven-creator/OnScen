@@ -37,13 +37,19 @@ function isTabActive(id: Tab, tab: Tab, liveViewActive: boolean): boolean {
   return tab === id || (id === 'live' && liveViewActive);
 }
 
-function tabButtonClass(id: Tab, active: boolean, placement: 'bottom' | 'header'): string {
+function tabButtonClass(
+  id: Tab,
+  active: boolean,
+  elevated: boolean,
+  placement: 'bottom' | 'header',
+): string {
   const width = 'shrink-0';
 
   if (placement === 'bottom') {
-    const hub = id === 'live' ? ' ms-tab-vinyl-hub' : '';
+    const vinyl = id === 'live' && elevated ? ' ms-tab-vinyl-hub' : '';
+    const pop = elevated ? ' ms-tab-rail-btn--elevated' : '';
     const base =
-      `${width} ms-tab-rail-btn flex items-center justify-center w-[var(--tab-nav-btn-size)] h-[var(--tab-nav-btn-size)] rounded-full relative transition-colors active:opacity-70 touch-manipulation${hub}`;
+      `${width} ms-tab-rail-btn flex items-center justify-center w-[var(--tab-nav-btn-size)] h-[var(--tab-nav-btn-size)] rounded-full relative active:opacity-70 touch-manipulation${vinyl}${pop}`;
     if (!active) {
       return `${base} text-gray-400 bg-transparent`;
     }
@@ -101,17 +107,18 @@ interface TabButtonProps {
   id: Tab;
   label: string;
   active: boolean;
+  elevated: boolean;
   placement: 'bottom' | 'header';
   dmUnread: number;
   onSelectTab: (id: Tab) => void;
 }
 
-function TabButton({ id, label, active, placement, dmUnread, onSelectTab }: TabButtonProps) {
+function TabButton({ id, label, active, elevated, placement, dmUnread, onSelectTab }: TabButtonProps) {
   return (
     <button
       type="button"
       onClick={() => onSelectTab(id)}
-      className={tabButtonClass(id, active, placement)}
+      className={tabButtonClass(id, active, elevated, placement)}
       aria-label={tabAriaLabel(id, label, dmUnread)}
       aria-current={active ? 'page' : undefined}
       data-tab={id}
@@ -120,7 +127,10 @@ function TabButton({ id, label, active, placement, dmUnread, onSelectTab }: TabB
         <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
       )}
       <span className="relative inline-flex items-center justify-center">
-        <TabIcon tab={id} className={placement === 'bottom' && id === 'live' ? 'w-8 h-8 shrink-0' : undefined} />
+        <TabIcon
+          tab={id}
+          className={placement === 'bottom' && id === 'live' && elevated ? 'w-8 h-8 shrink-0' : undefined}
+        />
         <span className="sr-only">{tabAriaLabel(id, label, dmUnread)}</span>
         {id === 'dm' && dmUnread > 0 && (
           <span
@@ -131,7 +141,7 @@ function TabButton({ id, label, active, placement, dmUnread, onSelectTab }: TabB
           </span>
         )}
       </span>
-      {placement === 'bottom' && active && id !== 'live' && (
+      {placement === 'bottom' && elevated && (
         <span className="ms-tab-rail-label" aria-hidden="true">
           {label}
         </span>
@@ -154,6 +164,7 @@ export const MainTabNav = memo(function MainTabNav({
       id={id}
       label={label}
       active={isTabActive(id, tab, liveViewActive)}
+      elevated={placement === 'bottom' && tab === id}
       placement={placement}
       dmUnread={dmUnread}
       onSelectTab={onSelectTab}
@@ -168,7 +179,7 @@ export const MainTabNav = memo(function MainTabNav({
       {placement === 'header' ? (
         <div className={navInnerClass(placement)}>{TABS.map(renderTab)}</div>
       ) : (
-        <div className={navInnerClass(placement)}>
+        <div className={navInnerClass(placement)} data-active-tab={tab}>
           <div className="ms-tab-rail__wave" aria-hidden="true" />
           <div className="ms-tab-rail__cluster ms-tab-rail__left">{LEFT_TABS.map(renderTab)}</div>
           <div className="ms-tab-rail__hub">{renderTab(CENTER_TAB)}</div>
