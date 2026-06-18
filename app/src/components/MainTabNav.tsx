@@ -21,6 +21,18 @@ const TABS: ReadonlyArray<readonly [Tab, string]> = [
   ['reels', 'Reels'],
 ];
 
+const LEFT_TABS: ReadonlyArray<readonly [Tab, string]> = [
+  ['actualite', 'Accueil'],
+  ['map', 'Carte'],
+];
+
+const CENTER_TAB: readonly [Tab, string] = ['live', 'Direct'];
+
+const RIGHT_TABS: ReadonlyArray<readonly [Tab, string]> = [
+  ['dm', 'Messages'],
+  ['reels', 'Reels'],
+];
+
 function isTabActive(id: Tab, tab: Tab, liveViewActive: boolean): boolean {
   return tab === id || (id === 'live' && liveViewActive);
 }
@@ -29,8 +41,9 @@ function tabButtonClass(id: Tab, active: boolean, placement: 'bottom' | 'header'
   const width = 'shrink-0';
 
   if (placement === 'bottom') {
+    const hub = id === 'live' ? ' ms-tab-vinyl-hub' : '';
     const base =
-      `${width} flex items-center justify-center w-[var(--tab-nav-btn-size)] h-[var(--tab-nav-btn-size)] rounded-full relative transition-colors active:opacity-70 touch-manipulation`;
+      `${width} ms-tab-rail-btn flex items-center justify-center w-[var(--tab-nav-btn-size)] h-[var(--tab-nav-btn-size)] rounded-full relative transition-colors active:opacity-70 touch-manipulation${hub}`;
     if (!active) {
       return `${base} text-gray-400 bg-transparent`;
     }
@@ -75,13 +88,56 @@ function navInnerClass(placement: 'bottom' | 'header'): string {
   if (placement === 'header') {
     return 'flex items-center justify-center flex-wrap gap-1.5 sm:gap-2 max-w-full';
   }
-  return 'flex items-center justify-center gap-2 sm:gap-3 max-[374px]:gap-1.5';
+  return 'ms-tab-rail';
 }
 
 function tabAriaLabel(id: Tab, label: string, dmUnread: number): string {
   if (id !== 'dm' || dmUnread <= 0) return label;
   const n = dmUnread > 99 ? 99 : dmUnread;
   return n === 1 ? 'Messages, 1 non lu' : `Messages, ${n} non lus`;
+}
+
+interface TabButtonProps {
+  id: Tab;
+  label: string;
+  active: boolean;
+  placement: 'bottom' | 'header';
+  dmUnread: number;
+  onSelectTab: (id: Tab) => void;
+}
+
+function TabButton({ id, label, active, placement, dmUnread, onSelectTab }: TabButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelectTab(id)}
+      className={tabButtonClass(id, active, placement)}
+      aria-label={tabAriaLabel(id, label, dmUnread)}
+      aria-current={active ? 'page' : undefined}
+      data-tab={id}
+    >
+      {id === 'live' && active && (
+        <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+      )}
+      <span className="relative inline-flex items-center justify-center">
+        <TabIcon tab={id} className={placement === 'bottom' && id === 'live' ? 'w-8 h-8 shrink-0' : undefined} />
+        <span className="sr-only">{tabAriaLabel(id, label, dmUnread)}</span>
+        {id === 'dm' && dmUnread > 0 && (
+          <span
+            className="absolute -top-1 -right-1.5 min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-pink-600 text-white text-[10px] font-bold leading-none flex items-center justify-center shrink-0 ring-2 ring-[var(--ms-bg,#0b0b0f)]"
+            aria-hidden="true"
+          >
+            {dmUnread > 99 ? '99+' : dmUnread}
+          </span>
+        )}
+      </span>
+      {placement === 'bottom' && active && id !== 'live' && (
+        <span className="ms-tab-rail-label" aria-hidden="true">
+          {label}
+        </span>
+      )}
+    </button>
+  );
 }
 
 export const MainTabNav = memo(function MainTabNav({
@@ -92,42 +148,33 @@ export const MainTabNav = memo(function MainTabNav({
   placement = 'bottom',
   className = '',
 }: MainTabNavProps) {
+  const renderTab = ([id, label]: readonly [Tab, string]) => (
+    <TabButton
+      key={id}
+      id={id}
+      label={label}
+      active={isTabActive(id, tab, liveViewActive)}
+      placement={placement}
+      dmUnread={dmUnread}
+      onSelectTab={onSelectTab}
+    />
+  );
+
   return (
     <nav
       className={`${placement === 'header' ? 'shrink-0 flex w-full justify-center' : ''} ${navPlacementClass(placement)} ${className}`}
       aria-label="Navigation principale"
     >
-      <div className={navInnerClass(placement)}>
-      {TABS.map(([id, label]) => {
-        const active = isTabActive(id, tab, liveViewActive);
-        return (
-          <button
-            key={id}
-            type="button"
-            onClick={() => onSelectTab(id)}
-            className={tabButtonClass(id, active, placement)}
-            aria-label={tabAriaLabel(id, label, dmUnread)}
-            aria-current={active ? 'page' : undefined}
-          >
-            {id === 'live' && active && (
-              <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-            )}
-            <span className="relative inline-flex items-center justify-center">
-              <TabIcon tab={id} />
-              <span className="sr-only">{tabAriaLabel(id, label, dmUnread)}</span>
-              {id === 'dm' && dmUnread > 0 && (
-                <span
-                  className="absolute -top-1 -right-1.5 min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-pink-600 text-white text-[10px] font-bold leading-none flex items-center justify-center shrink-0 ring-2 ring-[var(--ms-bg,#0b0b0f)]"
-                  aria-hidden="true"
-                >
-                  {dmUnread > 99 ? '99+' : dmUnread}
-                </span>
-              )}
-            </span>
-          </button>
-        );
-      })}
-      </div>
+      {placement === 'header' ? (
+        <div className={navInnerClass(placement)}>{TABS.map(renderTab)}</div>
+      ) : (
+        <div className={navInnerClass(placement)}>
+          <div className="ms-tab-rail__wave" aria-hidden="true" />
+          <div className="ms-tab-rail__cluster ms-tab-rail__left">{LEFT_TABS.map(renderTab)}</div>
+          <div className="ms-tab-rail__hub">{renderTab(CENTER_TAB)}</div>
+          <div className="ms-tab-rail__cluster ms-tab-rail__right">{RIGHT_TABS.map(renderTab)}</div>
+        </div>
+      )}
     </nav>
   );
 });

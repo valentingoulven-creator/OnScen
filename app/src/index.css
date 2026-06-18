@@ -437,6 +437,27 @@ nav.ms-tab-bar-bottom > div {
   pointer-events: auto;
 }
 
+/* Rail layout — fallback plat (hors quick wins) */
+nav.ms-tab-bar-bottom > div.ms-tab-rail {
+  position: relative;
+}
+
+nav.ms-tab-bar-bottom .ms-tab-rail__wave {
+  display: none;
+}
+
+nav.ms-tab-bar-bottom .ms-tab-rail__cluster {
+  display: contents;
+}
+
+nav.ms-tab-bar-bottom .ms-tab-rail__hub {
+  display: contents;
+}
+
+nav.ms-tab-bar-bottom .ms-tab-rail-label {
+  display: none;
+}
+
 @media (orientation: landscape) and (max-height: 500px) {
   :root {
     --tab-nav-btn-size: 45px;
@@ -2006,17 +2027,179 @@ nav.ms-tab-bar-bottom > div {
   --ms-event-glow: rgba(168, 85, 247, 0.45);
   --ms-glass: rgba(18, 18, 26, 0.72);
   --ms-glass-border: rgba(255, 255, 255, 0.08);
+  --tab-nav-btn-size: 44px;
+  --tab-nav-hub-size: 62px;
+  --tab-nav-rail-h: 3.25rem;
+  --tab-nav-total-h: calc(
+    var(--tab-nav-float-gap) + var(--tab-nav-hub-size) * 0.55 + var(--tab-nav-rail-h) * 0.45 +
+      env(safe-area-inset-bottom, 0px)
+  );
   font-family: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
 }
 
-[data-design-quick-wins="1"] nav.ms-tab-bar-bottom > div {
-  background: var(--ms-glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+/* Sound Rail — nav asymétrique, hub vinyl LIVE surélevé */
+[data-design-quick-wins="1"] nav.ms-tab-bar-bottom > div.ms-tab-rail {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+  gap: 0;
+  width: min(calc(100vw - 1.25rem), 22.5rem);
+  min-height: var(--tab-nav-rail-h);
+  padding: 0.35rem 0.65rem 0.45rem;
+  background:
+    linear-gradient(180deg, rgba(147, 51, 234, 0.08) 0%, transparent 42%),
+    var(--ms-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--ms-glass-border);
-  border-radius: 9999px;
-  padding: 0.375rem 0.75rem;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+  border-radius: 1.35rem 1.35rem 1.75rem 1.75rem;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  overflow: visible;
+}
+
+[data-design-quick-wins="1"] nav.ms-tab-bar-bottom .ms-tab-rail__wave {
+  display: block;
+  position: absolute;
+  left: 50%;
+  top: 0.45rem;
+  transform: translateX(-50%);
+  width: min(72%, 11rem);
+  height: 0.55rem;
+  pointer-events: none;
+  opacity: 0.55;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0,
+    transparent 3px,
+    rgba(147, 51, 234, 0.55) 3px,
+    rgba(147, 51, 234, 0.55) 4px,
+    transparent 4px,
+    transparent 7px,
+    rgba(217, 70, 239, 0.45) 7px,
+    rgba(217, 70, 239, 0.45) 8px,
+    transparent 8px,
+    transparent 10px,
+    rgba(147, 51, 234, 0.35) 10px,
+    rgba(147, 51, 234, 0.35) 11px
+  );
+  mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+}
+
+[data-design-quick-wins="1"] nav.ms-tab-bar-bottom .ms-tab-rail__cluster {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+[data-design-quick-wins="1"] nav.ms-tab-bar-bottom .ms-tab-rail__left {
+  justify-content: flex-end;
+  padding-right: 0.35rem;
+}
+
+[data-design-quick-wins="1"] nav.ms-tab-bar-bottom .ms-tab-rail__right {
+  justify-content: flex-start;
+  padding-left: 0.35rem;
+}
+
+[data-design-quick-wins="1"] nav.ms-tab-bar-bottom .ms-tab-rail__hub {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: end;
+  margin: 0 0.15rem;
+  transform: translateY(calc(var(--tab-nav-hub-size) * -0.38));
+}
+
+[data-design-quick-wins="1"] nav.ms-tab-bar-bottom .ms-tab-rail-btn {
+  flex-direction: column;
+  gap: 0.1rem;
+  width: var(--tab-nav-btn-size);
+  height: auto;
+  min-height: var(--tab-nav-btn-size);
+  padding-bottom: 0.15rem;
+}
+
+[data-design-quick-wins="1"] nav.ms-tab-bar-bottom .ms-tab-rail-label {
+  display: block;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  text-transform: uppercase;
+  opacity: 0.92;
+}
+
+[data-design-quick-wins="1"] nav.ms-tab-bar-bottom .ms-tab-vinyl-hub {
+  width: var(--tab-nav-hub-size);
+  height: var(--tab-nav-hub-size);
+  min-height: var(--tab-nav-hub-size);
+  padding: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(11, 11, 15, 0.35) 0 18%, transparent 19%),
+    radial-gradient(circle at 50% 50%, transparent 0 28%, rgba(255, 255, 255, 0.04) 29% 30%, transparent 31%),
+    radial-gradient(circle at 50% 50%, transparent 0 42%, rgba(255, 255, 255, 0.03) 43% 44%, transparent 45%),
+    radial-gradient(circle at 50% 50%, #1a1028 0 52%, #120a1e 100%);
+  border: 2px solid rgba(147, 51, 234, 0.55);
+  box-shadow:
+    0 0 0 3px rgba(147, 51, 234, 0.12),
+    0 10px 28px rgba(0, 0, 0, 0.55),
+    inset 0 0 12px rgba(147, 51, 234, 0.15);
+}
+
+[data-design-quick-wins="1"] nav.ms-tab-bar-bottom .ms-tab-vinyl-hub:not([aria-current='page']) {
+  color: #c4b5fd;
+}
+
+[data-design-quick-wins="1"] nav.ms-tab-bar-bottom .ms-tab-vinyl-hub[aria-current='page'] {
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.75);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(239, 68, 68, 0.25) 0 18%, transparent 19%),
+    radial-gradient(circle at 50% 50%, transparent 0 28%, rgba(255, 255, 255, 0.05) 29% 30%, transparent 31%),
+    radial-gradient(circle at 50% 50%, transparent 0 42%, rgba(255, 255, 255, 0.04) 43% 44%, transparent 45%),
+    radial-gradient(circle at 50% 50%, #2a0f18 0 52%, #180810 100%);
+  box-shadow:
+    0 0 0 3px rgba(239, 68, 68, 0.18),
+    0 0 22px var(--ms-live-glow),
+    0 12px 32px rgba(0, 0, 0, 0.55),
+    inset 0 0 16px rgba(239, 68, 68, 0.2);
+}
+
+[data-design-quick-wins="1"] nav.ms-tab-bar-bottom .ms-tab-vinyl-hub .ms-tab-rail-label {
+  display: none;
+}
+
+@media (max-width: 374px) {
+  [data-design-quick-wins="1"] {
+    --tab-nav-btn-size: 40px;
+    --tab-nav-hub-size: 56px;
+    --tab-nav-rail-h: 3rem;
+  }
+
+  [data-design-quick-wins="1"] nav.ms-tab-bar-bottom > div.ms-tab-rail {
+    width: min(calc(100vw - 1rem), 21rem);
+    padding-inline: 0.5rem;
+  }
+
+  [data-design-quick-wins="1"] nav.ms-tab-bar-bottom .ms-tab-rail__cluster {
+    gap: 0.125rem;
+  }
+}
+
+@media (max-width: 359px) {
+  [data-design-quick-wins="1"] {
+    --tab-nav-btn-size: 38px;
+    --tab-nav-hub-size: 52px;
+  }
+
+  [data-design-quick-wins="1"] nav.ms-tab-bar-bottom .ms-tab-rail-label {
+    font-size: 0.5rem;
+  }
 }
 
 [data-design-quick-wins="1"] .ms-map-filter-stack {
