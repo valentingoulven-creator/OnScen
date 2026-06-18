@@ -65,7 +65,7 @@ export function ReelsSponsoredSlide({
 
   return (
     <section
-      className="reels-slide relative flex-shrink-0 w-full h-full min-h-[100dvh] snap-start snap-always overflow-hidden bg-black"
+      className="reel-slide relative snap-start snap-always bg-black self-stretch"
       aria-label={t('reels.sponsoredAria', { title: ad.title })}
     >
       {hasVideo ? (
@@ -94,7 +94,7 @@ export function ReelsSponsoredSlide({
         />
       )}
 
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40 pointer-events-none" />
+      <div className="reel-slide__scrim absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40 pointer-events-none" />
 
       <div className="absolute top-4 left-3 z-10 flex items-center gap-2">
         <span className="text-[11px] font-bold uppercase tracking-wide text-amber-200 bg-amber-500/20 px-2.5 py-1 rounded-full border border-amber-400/30">
@@ -122,7 +122,7 @@ export function ReelsSponsoredSlide({
         </div>
       )}
 
-      <div className="absolute bottom-0 left-0 right-0 z-20 p-4 pb-8 pointer-events-none">
+      <div className="reel-sponsor-foot absolute bottom-0 left-0 right-0 z-20 p-4 pb-8 pointer-events-none">
         <div className="pointer-events-auto max-w-[85%]">
           {ad.logoUrl?.trim() && (
             <img

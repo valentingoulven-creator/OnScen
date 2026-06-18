@@ -2061,6 +2061,61 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   padding-bottom: 0;
 }
 
+/* Reels — vidéo edge-to-edge ; overlays lisibles au-dessus du Sound Rail */
+[data-design-quick-wins="1"] .ms-reels-root .reels-viewport,
+[data-design-quick-wins="1"] .ms-reels-root .reels-track {
+  height: 100%;
+  min-height: 0;
+}
+
+[data-design-quick-wins="1"] .reel-slide {
+  flex: 0 0 100%;
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+}
+
+[data-design-quick-wins="1"] .reel-slide > video,
+[data-design-quick-wins="1"] .reel-slide > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+/* Pas de bande sombre/orangée sous le dock — dégradé repoussé au-dessus de la nav */
+[data-design-quick-wins="1"] .reel-slide__scrim {
+  background: linear-gradient(
+    to top,
+    transparent 0,
+    transparent var(--tab-nav-total-h),
+    rgba(0, 0, 0, 0.55) calc(var(--tab-nav-total-h) + 3rem),
+    rgba(0, 0, 0, 0.18) 52%,
+    rgba(0, 0, 0, 0.38) 100%
+  );
+}
+
+/* Même offset visuel qu’avec padding-bottom sur main (mode classique) */
+[data-design-quick-wins="1"] .reel-author-stack {
+  bottom: calc(var(--tab-nav-total-h) + 5rem);
+}
+
+[data-design-quick-wins="1"] .reel-duration-badge {
+  bottom: calc(var(--tab-nav-total-h) + 1.25rem);
+}
+
+[data-design-quick-wins="1"] .reel-actions-rail {
+  bottom: calc(var(--tab-nav-total-h) + 7rem);
+}
+
+[data-design-quick-wins="1"] .reel-mute-control {
+  bottom: calc(var(--tab-nav-total-h) + 1rem);
+}
+
+[data-design-quick-wins="1"] .reel-sponsor-foot {
+  padding-bottom: calc(var(--tab-nav-total-h) + 1rem);
+}
+
 /* Scroll : dernier contenu dégagé sous les icônes sans bande noire fixe */
 [data-design-quick-wins="1"] .feed-scroll,
 [data-design-quick-wins="1"] .ms-app-shell--bottom-tabs main.ms-app-main .overflow-y-auto,

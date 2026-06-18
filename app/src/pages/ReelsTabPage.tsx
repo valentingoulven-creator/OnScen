@@ -1163,7 +1163,7 @@ export function ReelsTabPage({
           )}
 
           {activeHasSound && (
-            <div className="absolute bottom-4 right-4 z-30 pointer-events-auto flex flex-col items-center gap-1">
+            <div className="reel-mute-control absolute bottom-4 right-4 z-30 pointer-events-auto flex flex-col items-center gap-1">
               <button
                 type="button"
                 onClick={(e) => {
@@ -1254,7 +1254,7 @@ function ReelActions({
   };
 
   return (
-    <div className="absolute right-3 bottom-28 z-30 flex flex-col items-center gap-5">
+    <div className="reel-actions-rail absolute right-3 bottom-28 z-30 flex flex-col items-center gap-5">
       <ActionButton
         label={stats.likedByMe ? t('reels.like') : t('reels.like')}
         count={stats.heartCount}
@@ -1890,7 +1890,7 @@ function ReelSlide({
           </span>
         </div>
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/40 pointer-events-none" />
+      <div className="reel-slide__scrim absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/40 pointer-events-none" />
       {devCatalogVideoCount != null && !showPosterOnly && (
         <span
           className="absolute top-4 left-4 z-10 pointer-events-none rounded-md bg-black/60 px-2 py-0.5 text-[11px] font-semibold text-white/90 tabular-nums shadow-sm"
@@ -1901,7 +1901,7 @@ function ReelSlide({
       )}
       {durationBadgeText != null && (
         <span
-          className="absolute bottom-5 left-4 z-10 pointer-events-none rounded-md bg-black/60 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-white tabular-nums shadow-sm"
+          className="reel-duration-badge absolute bottom-5 left-4 z-10 pointer-events-none rounded-md bg-black/60 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-white tabular-nums shadow-sm"
           aria-label={
             isActive
               ? `Lecture ${formatReelDuration(currentTimeSec)} sur ${formatReelDuration(durationSec!)}`
@@ -1911,7 +1911,7 @@ function ReelSlide({
           {durationBadgeText}
         </span>
       )}
-      <div className="absolute bottom-20 left-4 right-24 z-10">
+      <div className="reel-author-stack absolute bottom-20 left-4 right-24 z-10">
         <ReelAuthorRow reel={reel} onOpenAuthor={onOpenAuthor} />
         <div className="max-w-[85%] rounded-2xl bg-black/60 backdrop-blur-md border border-white/15 px-4 py-3 shadow-xl pointer-events-none">
           <p className="text-[11px] uppercase tracking-[0.18em] text-pink-300 font-bold">{reel.genre}</p>
