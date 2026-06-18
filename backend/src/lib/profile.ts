@@ -417,6 +417,7 @@ export function publicProfile(u: User, isOwner = false, viewerId?: string) {
     shareDistance: isOwner ? snapshot.shareDistance !== false : undefined,
     locationPrecision: isOwner ? (snapshot.locationPrecision ?? 'precise') : undefined,
     email: isOwner ? snapshot.email : undefined,
+    isOAuthAccount: isOwner ? snapshot.passwordHash.startsWith('oauth_') : undefined,
     accountStatus: isOwner ? getAccountStatus(snapshot) : undefined,
     isAdmin: isOwner ? isAccessAdmin(snapshot) : undefined,
     isDev: isAccessAdmin(snapshot) ? true : undefined,

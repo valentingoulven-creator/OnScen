@@ -10,8 +10,8 @@ import { openSpotifyApp } from '../lib/spotifyDeepLink';
 
 import type { PlaybackState, SalonQueueItem, SpotifySearchResult } from '../types';
 
+import { PoweredBySpotify } from './PoweredBySpotify';
 import { SearchInlineSpinner } from './SearchInlineSpinner';
-
 import { SpotifySearchResultRow } from './SpotifySearchResultRow';
 
 
@@ -483,7 +483,7 @@ export function SalonSpotifySearch({
         {isProposeMode ? t('salon.spotifySearch.proposeHint') : t('salon.spotifySearch.addHint')}
       </p>
 
-      <p className="text-[10px] text-[#1DB954]/70">{t('salon.spotifySearch.poweredBy')}</p>
+      <PoweredBySpotify />
 
       {infoToast ? (
         <div

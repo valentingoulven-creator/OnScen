@@ -58,8 +58,120 @@ const mentionsLegales: LegalDocument = {
   ],
 };
 
+const politiqueConfidentialite: LegalDocument = {
+  title: 'Politique de confidentialité',
+  updated: '10 juin 2026',
+  sections: [
+    {
+      heading: '1. Responsable du traitement',
+      body: `Le responsable du traitement des données personnelles est l’éditeur de Soundy, identifié dans les Mentions légales.\n\nContact données personnelles : {{privacyEmail}}\nContact général : {{contactEmail}}\n\nDélégué à la protection des données (DPO) : {{dpoEmail}}`,
+    },
+    {
+      heading: '2. Données traitées',
+      body: `Selon votre utilisation, nous pouvons traiter :\n\n• Données de compte : pseudo, e-mail, mot de passe (stocké de manière hachée), photo(s) de profil, bio, centres d’intérêt, genres et artistes favoris, rôle (auditeur/host).\n• Données de localisation : coordonnées GPS fournies par votre appareil, position floutée affichée sur la carte, préférences de précision (ville / ~50 m), mode fantôme.\n• Données d’usage : salons créés ou rejoints, lives, file d’attente musicale, état de lecture synchronisé.\n• Communications : messages de chat (salon, live), messages privés, commentaires sur reels.\n• Données sociales : abonnements, cœurs/matchs, notifications, blocages, notes aux hosts.\n• Données techniques : jeton de session, identifiants socket, logs techniques, adresse IP lors des connexions au serveur.\n• Connexions plateformes : indicateur de liaison Spotify/YouTube (jetons OAuth le cas échéant).`,
+    },
+    {
+      heading: '3. Finalités et bases légales',
+      body: `Nous traitons vos données pour :\n\n• Fournir le Service (exécution du contrat / CGU) : compte, carte, salons, chat, synchronisation.\n• Assurer la sécurité et la modération (intérêt légitime) : prévention des abus, bannissements live, signalements.\n• Respecter nos obligations légales : conservation des logs si requis, réponse aux autorités.\n• Améliorer le Service (intérêt légitime, dans la mesure du nécessaire) : statistiques agrégées, correction de bugs.\n\nLe géolocalisation repose sur votre action positive (activation de la géolocalisation du navigateur) et les paramètres de confidentialité que vous choisissez.\n\nNous ne vendons pas vos données personnelles à des tiers à des fins publicitaires.`,
+    },
+    {
+      heading: '4. Destinataires et sous-traitants',
+      body: `Les données peuvent être accessibles :\n• aux autres utilisateurs, selon vos paramètres (profil public, carte, messages) ;\n• à l’éditeur et aux personnes habilitées pour l’exploitation et la maintenance ;\n• à des prestataires techniques (hébergement) ;\n• aux plateformes Spotify et YouTube lorsque vous connectez votre compte ou ouvrez un lien de lecture (politiques propres à ces services).\n\nCartographie : tuiles CARTO / OpenStreetMap. Avatars : service DiceBear (URLs d’images).`,
+    },
+    {
+      heading: '5. Durées de conservation',
+      body: `• Compte et profil : pendant la durée du compte, puis suppression ou anonymisation dans un délai raisonnable après clôture.\n• Messages : conservés tant que nécessaire au fonctionnement de l’historique des conversations.\n• Données de localisation : dernière position connue mise à jour à chaque session.\n• Logs techniques : durée limitée (ex. 12 mois en production, sauf obligation légale contraire).`,
+    },
+    {
+      heading: '6. Sécurité',
+      body: `Nous mettons en œuvre des mesures appropriées : authentification par jeton (JWT), mots de passe hachés (bcrypt), floutage des coordonnées, contrôles d’accès aux salons sur invitation, chiffrement HTTPS en production.\n\nSignalez toute compromission à {{privacyEmail}}.`,
+    },
+    {
+      heading: '7. Vos droits (RGPD)',
+      body: `Vous disposez des droits d’accès, rectification, effacement, limitation, opposition et portabilité, conformément au RGPD.\n\nPour exercer vos droits : {{privacyEmail}}.\n\nRéclamation auprès de la CNIL : www.cnil.fr`,
+    },
+    {
+      heading: '8. Transferts hors UE',
+      body: `Certains prestataires (ex. Google/YouTube, Spotify) peuvent traiter des données hors UE. Des garanties appropriées (clauses contractuelles types, décision d’adéquation) seront mises en place conformément au RGPD.`,
+    },
+    {
+      heading: '9. Mineurs',
+      body: `Le Service s’adresse aux personnes de 13 ans et plus. Contactez-nous pour demander la suppression de données concernant un mineur de moins de 13 ans.`,
+    },
+    {
+      heading: '10. Cookies et stockage local',
+      body: `L’Application utilise le localStorage du navigateur pour le jeton de connexion, les préférences et certains réglages d’interface. Vous pouvez effacer ces données via les paramètres de votre navigateur.`,
+    },
+    {
+      heading: '11. Autorisations OAuth Spotify et YouTube',
+      body: `Lorsque vous connectez Spotify ou YouTube, Soundy demande uniquement les autorisations nécessaires aux fonctionnalités visibles (lecture de playlists, état de lecture, contrôle Spotify Connect). Vous pouvez révoquer ces autorisations à tout moment dans Soundy ou depuis votre compte Spotify/Google.`,
+    },
+    {
+      heading: '12. Modifications',
+      body: `Cette politique peut être mise à jour. La date de dernière mise à jour figure en tête du document.`,
+    },
+  ],
+};
+
+const cgu: LegalDocument = {
+  title: "Conditions générales d'utilisation",
+  updated: '10 juin 2026',
+  sections: [
+    {
+      heading: '1. Objet et acceptation',
+      body: `Les présentes Conditions générales d’utilisation (« CGU ») régissent l’accès et l’utilisation de l’application Soundy (« l’Application », « le Service »), accessible via navigateur web ou PWA.\n\nEn créant un compte ou en utilisant le Service, vous acceptez sans réserve les CGU, la Politique de confidentialité, les Mentions légales et, le cas échéant, les Conditions relatives aux API Spotify et YouTube.`,
+    },
+    {
+      heading: '2. Description du Service',
+      body: `Soundy permet notamment de visualiser sur une carte des salons d’écoute musicale et des lives, de créer ou rejoindre des salons (Spotify ou YouTube), d’échanger via chat et messages privés, et de publier ou consulter des contenus sociaux autour de la musique.\n\nLe Service est une plateforme sociale musicale. Il ne constitue pas un service de rencontre.`,
+    },
+    {
+      heading: '3. Éligibilité et compte',
+      body: `Vous devez avoir au moins 13 ans pour créer un compte. Lancer un live est réservé aux 16 ans et plus. Les paiements sont réservés aux 18 ans et plus.\n\nL’éditeur peut suspendre ou supprimer un compte en cas de violation des CGU.`,
+    },
+    {
+      heading: '4. Comportement des utilisateurs',
+      body: `Vous vous engagez à respecter les lois applicables, à ne pas harceler ou publier de contenus illicites, et à ne pas perturber le Service.`,
+    },
+    {
+      heading: '5. Contenus et musique',
+      body: `La lecture musicale s’effectue via Spotify ou YouTube : vous devez disposer des droits et abonnements nécessaires. Soundy ne fournit pas de licence musicale propre.\n\nSalons Spotify : l’hôte doit disposer de Spotify Premium et maintenir l’application Spotify ouverte (Spotify Connect). L’audio est lu dans Spotify, pas dans le navigateur Soundy.`,
+    },
+    {
+      heading: '6. Géolocalisation et visibilité',
+      body: `Le Service utilise votre position pour afficher des contenus à proximité. Par défaut, la position affichée est floutée. Vous pouvez masquer votre position ou limiter la précision.`,
+    },
+    {
+      heading: '7. Messages privés et modération',
+      body: `Les messages peuvent être stockés pour assurer l’historique des conversations. L’éditeur peut intervenir en cas de signalement d’abus manifeste.`,
+    },
+    {
+      heading: '8. Propriété intellectuelle de Soundy',
+      body: `Soundy, son interface et sa marque restent la propriété de l’éditeur. Aucune cession de droits de propriété intellectuelle n’est consentie au-delà d’une licence d’utilisation personnelle.`,
+    },
+    {
+      heading: '9. Disponibilité et évolutions',
+      body: `Le Service est fourni « en l’état ». L’éditeur peut faire évoluer les fonctionnalités et les CGU.`,
+    },
+    {
+      heading: '10. Limitation de responsabilité',
+      body: `Dans les limites autorisées par la loi, l’éditeur n’est pas responsable des dommages indirects ou des contenus publiés par les utilisateurs.`,
+    },
+    {
+      heading: '11. Résiliation',
+      body: `Vous pouvez cesser d’utiliser le Service et supprimer votre compte depuis les paramètres ou en contactant {{contactEmail}}.`,
+    },
+    {
+      heading: '12. Droit applicable et contact',
+      body: `Les CGU sont régies par le droit français. Contact : {{contactEmail}}`,
+    },
+  ],
+};
+
 const LEGAL_DOCS: Record<string, LegalDocument> = {
   mentions: mentionsLegales,
+  privacy: politiqueConfidentialite,
+  terms: cgu,
 };
 
 export function getLegalDocument(key: string): LegalDocument | null {

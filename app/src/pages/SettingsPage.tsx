@@ -127,7 +127,7 @@ function SettingsRow({
 
 export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
   const { t } = useTranslation();
-  const { token, logout } = useAuth();
+  const { token, logout, user } = useAuth();
   const [language, setLanguage] = useState<AppLanguage>(getAppLanguage);
   const [privacy, setPrivacy] = useState<PrivacyPreferences>(getPrivacyPreferences);
   const [legal, setLegal] = useState<LegalKey | null>(null);
@@ -185,9 +185,17 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
       setDeleteError('Tapez exactement SUPPRIMER pour confirmer');
       return;
     }
+    const oauthOnly = user?.isOAuthAccount === true;
+    if (!oauthOnly && !deletePwd) {
+      setDeleteError('Mot de passe requis pour confirmer la suppression');
+      return;
+    }
     setDeleteLoading(true);
     try {
-      await api.deleteAccount(token!, deletePwd);
+      await api.deleteAccount(
+        token!,
+        oauthOnly ? { confirmation: 'SUPPRIMER' } : { password: deletePwd, confirmation: 'SUPPRIMER' }
+      );
       logout();
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Erreur');
@@ -329,15 +337,21 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
                   Cette action est <strong className="text-red-400">irréversible</strong>. Toutes vos données seront définitivement supprimées.
                 </p>
               </div>
-              <input
-                type="password"
-                placeholder="Votre mot de passe"
-                value={deletePwd}
-                onChange={(e) => setDeletePwd(e.target.value)}
-                required
-                autoComplete="current-password"
-                className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white"
-              />
+              {user?.isOAuthAccount !== true ? (
+                <input
+                  type="password"
+                  placeholder="Votre mot de passe"
+                  value={deletePwd}
+                  onChange={(e) => setDeletePwd(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                  className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white"
+                />
+              ) : (
+                <p className="text-xs text-gray-500">
+                  Compte connecté via Google ou Facebook — confirmez avec SUPPRIMER ci-dessous.
+                </p>
+              )}
               <div className="space-y-1">
                 <p className="text-xs text-gray-400">
                   Tapez <span className="font-mono font-bold text-red-400">SUPPRIMER</span> pour confirmer

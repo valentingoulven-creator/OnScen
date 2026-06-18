@@ -35,10 +35,13 @@ import { newsRouter } from './routes/news';
 import { sponsorsRouter } from './routes/sponsors';
 import { trendingRouter } from './routes/trending';
 import { supportRouter, supportAdminRouter } from './routes/support';
+import { pushRouter } from './routes/push';
 import { getPublicDir, getMsdevConfigPath } from './paths';
 import { REEL_UPLOAD_JSON_BODY_LIMIT } from './lib/reelUploadLimits';
 import { resolveCorsOrigin } from './lib/corsConfig';
 import { isMsdevRuntime } from './lib/msdevGuard';
+import { injectOgMetaIntoHtml, resolveShareOgMeta } from './lib/shareOgMeta';
+import { renderPublicLegalHtml, resolvePublicLegalDocKey } from './lib/publicLegalHtml';
 
 export const app = express();
 
@@ -428,6 +431,7 @@ app.use('/api/analytics', analyticsRouter);
 app.use('/api/news', newsRouter);
 app.use('/api/sponsors', sponsorsRouter);
 app.use('/api/trending', trendingRouter);
+app.use('/api/push', pushRouter);
 
 app.get('/api/config', (_req, res) => {
   const configPath = getMsdevConfigPath();
@@ -450,6 +454,26 @@ app.get('/health', (_req, res) => {
     timestamp: new Date(),
   });
 });
+
+/** Pages légales publiques (sans auth, requises LCEN / Spotify / Google OAuth). */
+function sendPublicLegalPage(req: express.Request, res: express.Response): void {
+  const docKey = resolvePublicLegalDocKey(req.path);
+  if (!docKey) {
+    res.status(404).type('text/plain').send('Not found');
+    return;
+  }
+  const html = renderPublicLegalHtml(docKey);
+  if (!html) {
+    res.status(404).type('text/plain').send('Not found');
+    return;
+  }
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  res.type('html').send(html);
+}
+
+app.get('/privacy', sendPublicLegalPage);
+app.get('/terms', sendPublicLegalPage);
+app.get('/legal/mentions', sendPublicLegalPage);
 
 /** Page msdev : URL smartphone + QR (même réseau Wi‑Fi). */
 app.get('/msdev-mobile', (req, res) => {
@@ -564,6 +588,32 @@ function isStaticAssetPath(urlPath: string): boolean {
   return /\.(js|mjs|css|map|woff2?|ttf|eot|png|jpe?g|gif|webp|svg|ico|json|webmanifest|txt|wasm)$/i.test(urlPath);
 }
 
+function getShareOgBaseUrl(req: express.Request): string {
+  const env =
+    process.env.WEB_APP_URL?.trim() ||
+    process.env.APP_URL?.trim() ||
+    process.env.PUBLIC_APP_URL?.trim();
+  if (env) return env.replace(/\/$/, '');
+  const proto = (req.get('x-forwarded-proto') || req.protocol || 'https').split(',')[0].trim();
+  const host = (req.get('x-forwarded-host') || req.get('host') || 'getsoundy.com').split(',')[0].trim();
+  return `${proto}://${host}`;
+}
+
+function sendSpaIndex(req: express.Request, res: express.Response, indexPath: string): void {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  const og = resolveShareOgMeta(req.path, getShareOgBaseUrl(req));
+  if (!og) {
+    res.sendFile(indexPath);
+    return;
+  }
+  try {
+    const html = injectOgMetaIntoHtml(fs.readFileSync(indexPath, 'utf-8'), og);
+    res.type('html').send(html);
+  } catch {
+    res.sendFile(indexPath);
+  }
+}
+
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
     next();
@@ -575,8 +625,7 @@ app.get('*', (req, res, next) => {
   }
   const indexPath = path.join(publicDir, 'index.html');
   if (fs.existsSync(indexPath)) {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.sendFile(indexPath);
+    sendSpaIndex(req, res, indexPath);
   } else {
     res.status(404).send('Soundy app not built. Run: npm run app:build');
   }

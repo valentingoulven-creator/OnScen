@@ -4,6 +4,7 @@ import { api } from '../lib/api';
 import { useSpotifyPlaylistLibrary } from '../hooks/useSpotifyPlaylistLibrary';
 import { toSpotifyPlaylistRef, isSpotifyPlaylistUrlInput } from '../lib/spotifyPlaylistSession';
 import { SpotifyPlaylistPickerFields } from './SpotifyPlaylistPickerFields';
+import { PoweredBySpotify } from './PoweredBySpotify';
 import type { PlaybackState, SalonQueueItem } from '../types';
 
 interface SalonSpotifyPlaylistProps {
@@ -131,7 +132,7 @@ export function SalonSpotifyPlaylist({
             {loadingPlay ? t('salon.spotifySearch.playlistLoading') : t('salon.spotifySearch.playlistLaunch')}
           </button>
 
-          <p className="text-[10px] text-[#1DB954]/70 text-center">{t('salon.spotifySearch.poweredBy')}</p>
+          <PoweredBySpotify className="text-[10px] text-[#1DB954]/70 text-center" />
         </div>
       )}
     </div>

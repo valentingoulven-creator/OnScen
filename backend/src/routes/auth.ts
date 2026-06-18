@@ -36,6 +36,7 @@ import {
   loginAccessDeniedReason,
   resolveInitialAccountStatus,
 } from '../lib/accessControl';
+import { isOAuthOnlyPasswordHash } from '../lib/oauthAccount';
 
 export const authRouter = Router();
 
@@ -501,21 +502,30 @@ authRouter.delete('/account', authenticateJWT, async (req: Request, res: Respons
     res.status(404).json({ error: 'Utilisateur introuvable' });
     return;
   }
-  const { password } = req.body;
-  if (!password) {
-    res.status(400).json({ error: 'Mot de passe requis pour confirmer la suppression' });
-    return;
-  }
-  let deleteValid: boolean;
-  try {
-    deleteValid = await bcrypt.compare(password, user.passwordHash);
-  } catch {
-    res.status(500).json({ error: 'Erreur interne' });
-    return;
-  }
-  if (!deleteValid) {
-    res.status(400).json({ error: 'Mot de passe incorrect' });
-    return;
+  const { password, confirmation } = req.body ?? {};
+  const oauthOnly = isOAuthOnlyPasswordHash(user.passwordHash);
+
+  if (oauthOnly) {
+    if (confirmation !== 'SUPPRIMER') {
+      res.status(400).json({ error: 'Tapez SUPPRIMER pour confirmer la suppression' });
+      return;
+    }
+  } else {
+    if (!password) {
+      res.status(400).json({ error: 'Mot de passe requis pour confirmer la suppression' });
+      return;
+    }
+    let deleteValid: boolean;
+    try {
+      deleteValid = await bcrypt.compare(password, user.passwordHash);
+    } catch {
+      res.status(500).json({ error: 'Erreur interne' });
+      return;
+    }
+    if (!deleteValid) {
+      res.status(400).json({ error: 'Mot de passe incorrect' });
+      return;
+    }
   }
   deleteUserAccountCascade(userId);
   schedulePersist();

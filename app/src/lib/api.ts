@@ -1097,6 +1097,7 @@ export const api = {
       streamMode: 'cloudflare';
       playbackUrl: string;
       liveInputId?: string;
+      isArchived?: boolean;
     }>(`/lives/${liveId}/playback`, {}, token),
 
   getLiveIceServers: (token: string, liveId: string) =>
@@ -1345,6 +1346,16 @@ export const api = {
       token
     ),
 
+  getStripeConnectStatus: (token: string) =>
+    request<import('./donations').StripeConnectStatus>('/donations/connect-status', {}, token),
+
+  startStripeConnectOnboard: (token: string) =>
+    request<{ url: string; stripeConnectAccountId: string }>(
+      '/donations/connect-onboard',
+      { method: 'POST', body: JSON.stringify({}) },
+      token
+    ),
+
   getSubscriptionsConfig: (token?: string | null) =>
     request<import('./subscriptions').SubscriptionsConfig>('/subscriptions/config', {}, token),
 
@@ -1422,10 +1433,10 @@ export const api = {
       body: JSON.stringify({ currentPassword, newPassword }),
     }, token),
 
-  deleteAccount: (token: string, password: string) =>
+  deleteAccount: (token: string, body: { password?: string; confirmation?: string }) =>
     request<{ ok: boolean }>('/auth/account', {
       method: 'DELETE',
-      body: JSON.stringify({ password }),
+      body: JSON.stringify(body),
     }, token),
 
   updateProfile: (token: string, body: object) =>
@@ -1578,6 +1589,30 @@ export const api = {
     request<{ lives: import('../components/UserLivesSection').ArchivedLive[] }>(
       `/lives/user/${userId}`,
       {},
+      token
+    ),
+
+  getCreatorStats: (token: string) =>
+    request<{ stats: import('../components/CreatorDashboardCard').CreatorDashboardStats }>(
+      '/users/me/creator-stats',
+      {},
+      token
+    ),
+
+  getPushVapidPublicKey: (token: string) =>
+    request<{ publicKey: string | null; configured?: boolean }>(
+      '/push/vapid-public-key',
+      {},
+      token
+    ),
+
+  subscribePush: (
+    token: string,
+    subscription: { endpoint: string; keys: { p256dh: string; auth: string } }
+  ) =>
+    request<{ ok: boolean }>(
+      '/push/subscribe',
+      { method: 'POST', body: JSON.stringify({ subscription }) },
       token
     ),
 

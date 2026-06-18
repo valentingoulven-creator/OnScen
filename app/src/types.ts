@@ -425,6 +425,8 @@ export interface User {
   /** Couleur de fin du dégradé wave (hex). */
   usernameWaveTo?: string;
   email?: string;
+  /** Compte créé via OAuth (Google/Facebook) — pas de mot de passe local. Propriétaire uniquement. */
+  isOAuthAccount?: boolean;
   accountStatus?: 'active' | 'pending' | 'blocked';
   isAdmin?: boolean;
   /** Badge Dev visible publiquement (soundy_dev, ACCESS_ADMIN). */

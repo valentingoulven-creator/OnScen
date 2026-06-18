@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSpotifyPlaylistLibrary } from '../hooks/useSpotifyPlaylistLibrary';
 import { isSpotifyPlaylistUrlInput } from '../lib/spotifyPlaylistSession';
+import { PoweredBySpotify } from './PoweredBySpotify';
 import { SpotifyPlaylistPickerFields } from './SpotifyPlaylistPickerFields';
 import type { CreateSalonPlaylistSelection } from './CreateSalonPlaylistPicker';
 
@@ -84,7 +85,7 @@ export function CreateSalonSpotifyPlaylistPicker({
           />
           <p className="text-[10px] text-gray-600">{t('salon.spotifySearch.createPlaylistHint')}</p>
           <p className="text-[10px] text-gray-600">{t('salon.spotifySearch.createPlaylistPublicUrlHint')}</p>
-          <p className="text-[10px] text-[#1DB954]/70">{t('salon.spotifySearch.poweredBy')}</p>
+          <PoweredBySpotify />
         </>
       )}
     </div>

@@ -7,6 +7,7 @@ import {
   buildTrackUrlAtPosition,
   formatPlaybackTime,
   preferredParticipantPlatform,
+  resolveSalonYoutubeTrackId,
   type MusicPlatform,
 } from '../lib/salonPlayback';
 import { openSpotifyApp, buildSpotifyWebUrl } from '../lib/spotifyDeepLink';
@@ -18,6 +19,7 @@ import { SalonSpotifyPlaylist } from './SalonSpotifyPlaylist';
 import { SalonYouTubePlaylist } from './SalonYouTubePlaylist';
 import { SalonQueueSection } from './SalonQueueSection';
 import { SalonProposalsSection } from './SalonProposalsSection';
+import { PoweredBySpotify } from './PoweredBySpotify';
 import { isPlatformConnected } from '../lib/platformConnect';
 import {
   MAP_INLINE_LISTEN_MAX_MS,
@@ -27,7 +29,6 @@ import { getSalonShowYoutubeVideo, setSalonShowYoutubeVideo } from '../lib/salon
 import { isYoutubeStrictCompliance } from '../lib/youtubeCompliance';
 import { useBackgroundPlayback } from '../hooks/useBackgroundPlayback';
 import { PlatformConnectCard } from './PlatformConnectCard';
-import { formatSalonAudienceLabel } from '../lib/salonAudience';
 import type { User } from '../types';
 import type { PlaybackState, ResolvedSalonTrack, Salon, SalonQueueItem, SalonTrackProposal } from '../types';
 
@@ -62,6 +63,8 @@ interface SalonPlaybackPanelProps {
   mapInline?: boolean;
   /** Grand salon : vidéo plein cadre + barre de contrôles en overlay. */
   theaterMode?: boolean;
+  /** Salon YouTube — chat à gauche : hauteur chat = scène 16:9 uniquement (contrôles en dessous). */
+  theaterSideDock?: boolean;
   /** Salon Spotify grand écran : barre de lecture compacte (sans scène théâtre). */
   salonQueueLayout?: boolean;
   /** false = coupe le lecteur (onglet carte masqué, autre audio actif). */
@@ -100,6 +103,7 @@ export function SalonPlaybackPanel({
   onProposeTrack,
   mapInline = false,
   theaterMode = false,
+  theaterSideDock = false,
   salonQueueLayout = false,
   playbackActive = true,
   onMapInlineListenCapReached,
@@ -115,6 +119,7 @@ export function SalonPlaybackPanel({
   const [resolving, setResolving] = useState(false);
 
   const [showYoutubeVideo, setShowYoutubeVideo] = useState<boolean>(() => {
+    if (salon.platform === 'youtube' && isYoutubeStrictCompliance()) return true;
     if (mapInline) return salon.playbackState.showVideo ?? (salon.platform === 'youtube');
     return salon.playbackState.showVideo ?? (salon.platform === 'youtube' ? true : getSalonShowYoutubeVideo());
   });
@@ -151,12 +156,20 @@ export function SalonPlaybackPanel({
     });
 
   useEffect(() => {
+    if (salon.platform === 'youtube' && isYoutubeStrictCompliance()) {
+      if (!showYoutubeVideo) {
+        hostShowVideoRef.current = true;
+        setShowYoutubeVideo(true);
+        setSalonShowYoutubeVideo(true);
+      }
+      return;
+    }
     if (playbackState.showVideo === undefined) return;
     if (playbackState.showVideo === hostShowVideoRef.current) return;
     hostShowVideoRef.current = playbackState.showVideo;
     setShowYoutubeVideo(playbackState.showVideo);
     setSalonShowYoutubeVideo(playbackState.showVideo);
-  }, [playbackState.showVideo]);
+  }, [salon.platform, playbackState.showVideo, showYoutubeVideo]);
 
   useEffect(() => {
     if (salon.platform !== 'youtube') return;
@@ -392,22 +405,18 @@ export function SalonPlaybackPanel({
     return resolved?.externalUrl;
   }, [isHost, playbackState, resolved, participantPlatform, salon.platform]);
 
-  // Pour un salon YouTube : lecteur disponible immédiatement (trackId connu sans résolution async).
-  // Pour un salon Spotify : lecteur YouTube uniquement si le participant a choisi YouTube et que
-  // la résolution (resolveSalonTrack) a renvoyé un trackId.
   const youtubeTrackId =
-    salon.platform === 'youtube'
-      ? isHost
-        ? playbackState.trackId
-        : (resolved?.trackId ?? playbackState.trackId)
-      : participantPlatform === 'youtube'
-        ? resolved?.trackId
-        : undefined;
+    salon.platform === 'youtube' || participantPlatform === 'youtube'
+      ? resolveSalonYoutubeTrackId(playbackState, resolved)
+      : undefined;
 
   const canUseYoutubeEmbed =
-    Boolean(youtubeTrackId && youtubeTrackId !== 'demo') &&
+    Boolean(youtubeTrackId) &&
     (salon.platform === 'youtube' ||
       (isHost ? !hostLinked && participantPlatform === 'youtube' : participantPlatform === 'youtube'));
+
+  const effectiveShowYoutubeVideo =
+    salon.platform === 'youtube' && isYoutubeStrictCompliance() ? true : showYoutubeVideo;
 
   useBackgroundPlayback(
     {
@@ -526,48 +535,6 @@ export function SalonPlaybackPanel({
     </span>
   );
 
-  const hostControlBar = (
-    <div className="flex flex-wrap items-center gap-2 pointer-events-auto">
-      <p className="text-lg font-mono tabular-nums text-white shrink-0">
-        {formatPlaybackTime(displayPositionMs)}
-      </p>
-      {canControlPlayback && (
-        <>
-          <button
-            type="button"
-            onClick={isPlaying ? handleHostPause : handleHostPlay}
-            className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-xs font-semibold text-white transition"
-          >
-            {isPlaying ? 'Pause' : 'Lecture'}
-          </button>
-          <button
-            type="button"
-            onClick={handleHostStop}
-            className="px-2.5 py-1.5 rounded-xl border border-white/20 text-xs text-gray-300 hover:text-white transition"
-            title="Stop (retour au début)"
-          >
-            ⏹
-          </button>
-          {salon.platform === 'spotify' && (
-            <button
-              type="button"
-              onClick={handleHostNext}
-              className="px-2.5 py-1.5 rounded-xl border border-white/20 text-xs text-gray-300 hover:text-white transition"
-              title="Morceau suivant"
-            >
-              ⏭
-            </button>
-          )}
-          {salon.platform === 'youtube' && playbackState.trackId && playbackState.trackId !== 'demo' && (
-            <OpenOnYoutubeButton trackId={playbackState.trackId} positionMs={displayPositionMs} />
-          )}
-        </>
-      )}
-      {theaterVideoToggle}
-      <span className="ml-auto flex shrink-0">{playbackStatusBadge}</span>
-    </div>
-  );
-
   if (salonQueueLayout) {
     return (
       <>
@@ -608,7 +575,7 @@ export function SalonPlaybackPanel({
                     : t('salon.playbackMode.spotifyParticipantHint')}
                 </p>
               )}
-              <p className="text-[10px] text-[#1DB954]/70 px-1">{t('salon.spotifySearch.poweredBy')}</p>
+              <PoweredBySpotify className="text-[10px] text-[#1DB954]/70 px-1" />
             </div>
           )}
 
@@ -746,7 +713,6 @@ export function SalonPlaybackPanel({
 
   if (theaterMode) {
     const showHostTheaterBar = Boolean(canControlPlayback);
-    const showTheaterDockedControls = Boolean(canUseYoutubeEmbed && youtubeTrackId);
 
     const theaterControlBtnClass =
       'px-2.5 py-1 rounded-full border border-white/10 bg-[#131318] text-xs font-medium text-[#8b8baf] hover:bg-white/5 hover:text-white transition shrink-0';
@@ -788,116 +754,87 @@ export function SalonPlaybackPanel({
           <OpenOnYoutubeButton trackId={playbackState.trackId} positionMs={displayPositionMs} />
         )}
       </>
-    ) : undefined;
+    ) : null;
 
-    const theaterControlsFooter = showHostTheaterBar ? (
-      <input
-        type="range"
-        min={0}
-        max={600000}
-        step={1000}
-        value={Math.min(displayPositionMs, 600000)}
-        onChange={(e) => handleHostSeek(Number(e.target.value))}
-        onPointerUp={(e) => handleHostSeekCommitted(Number((e.target as HTMLInputElement).value))}
-        className="w-full accent-purple-500 h-1 pointer-events-auto"
-        aria-label="Position de lecture"
+    const theaterHero = canUseYoutubeEmbed && youtubeTrackId ? (
+      <SalonYouTubePlayer
+        videoId={youtubeTrackId}
+        playbackState={playbackState}
+        showVideo={effectiveShowYoutubeVideo}
+        fillContainer
+        showLocalControls={false}
+        showLocalPause={false}
+        showYoutubeLinkInControls={false}
+        playbackActive={playbackActive}
+        isHost={isHost}
+        onHostProgressReport={hostLinked ? reportHostProgress : undefined}
+        onVideoEnd={handleVideoEnd}
       />
-    ) : undefined;
+    ) : (
+      <div
+        className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 bg-[#0b0b0f]"
+        style={{
+          backgroundImage: playbackState.albumArtUrl
+            ? `url(${playbackState.albumArtUrl})`
+            : undefined,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
+        <div className="absolute inset-0 bg-black/70" aria-hidden />
+        <img
+          src={playbackState.albumArtUrl}
+          alt=""
+          className="relative z-10 w-28 h-28 sm:w-36 sm:h-36 rounded-2xl shadow-2xl object-cover"
+        />
+        <div className="relative z-10 text-center max-w-sm px-4">
+          <p className="text-base sm:text-lg font-bold text-white truncate">{playbackState.title}</p>
+          <p className="text-sm text-gray-300 truncate">{playbackState.artist}</p>
+        </div>
+      </div>
+    );
 
     return (
-      <section className="relative flex flex-col h-full w-full min-h-0 overflow-hidden bg-transparent">
-        <div className="relative flex-1 min-h-0 w-full">
-          {canUseYoutubeEmbed && youtubeTrackId ? (
-            <div className="absolute inset-0">
-              <SalonYouTubePlayer
-                videoId={youtubeTrackId}
-                playbackState={playbackState}
-                showVideo={showYoutubeVideo}
-                fillContainer
-                showLocalControls={showTheaterDockedControls}
-                minimalLocalControls={showTheaterDockedControls}
-                showLocalPause={canControlPlayback ? !showHostTheaterBar : false}
-                showYoutubeLinkInControls={false}
-                playbackActive={playbackActive}
-                isHost={isHost}
-                onHostProgressReport={hostLinked ? reportHostProgress : undefined}
-                controlsPlayOverride={theaterSyncPlayControls}
-                controlsLeading={showTheaterDockedControls ? theaterTimeLabel : undefined}
-                controlsTrailing={
-                  showTheaterDockedControls ? (
-                    <>
-                      {theaterVideoToggle}
-                      {playbackStatusBadge}
-                    </>
-                  ) : undefined
-                }
-                controlsFooter={showTheaterDockedControls ? theaterControlsFooter : undefined}
-                onVideoEnd={handleVideoEnd}
-              />
-            </div>
-          ) : (
-            <div
-              className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 bg-[#0b0b0f]"
-              style={{
-                backgroundImage: playbackState.albumArtUrl
-                  ? `url(${playbackState.albumArtUrl})`
-                  : undefined,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-              }}
-            >
-              <div className="absolute inset-0 bg-black/70" aria-hidden />
-              <img
-                src={playbackState.albumArtUrl}
-                alt=""
-                className="relative z-10 w-40 h-40 rounded-2xl shadow-2xl object-cover"
-              />
-              <div className="relative z-10 text-center max-w-sm">
-                <p className="text-lg font-bold text-white truncate">{playbackState.title}</p>
-                <p className="text-sm text-gray-300 truncate">{playbackState.artist}</p>
-              </div>
-            </div>
-          )}
-
-          <div className="absolute inset-x-0 top-0 z-20 pointer-events-none bg-gradient-to-b from-black/90 via-black/55 to-transparent px-3 pt-2 pb-8">
-            <p className="text-sm font-bold text-white truncate">{playbackState.title}</p>
-            <p className="text-xs text-gray-400 truncate">{playbackState.artist}</p>
-            <div className="flex items-center gap-1.5 mt-1.5">
-              <span
-                className={`text-[10px] px-2 py-0.5 rounded-md font-medium ${
-                  salon.accessMode === 'public'
-                    ? 'bg-black/60 text-[#7ecba0]'
-                    : 'bg-black/60 text-[#c4a460]'
-                }`}
-              >
-                {salon.accessMode === 'public' ? '🌍 Salon public' : '🔒 Sur invitation'}
-              </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-md font-medium bg-black/60 text-gray-300">
-                {formatSalonAudienceLabel(salon.listenersCount, t)}
-              </span>
+      <section
+        className={`salon-theater-panel flex flex-col w-full min-h-0 overflow-hidden bg-black${
+          theaterSideDock ? '' : ' h-full'
+        }`}
+      >
+        <div className="salon-theater-hero-wrap relative w-full shrink-0 bg-black">
+          <div className="salon-theater-hero shrink-0 w-full relative bg-black">
+            <div className="w-full aspect-video relative overflow-hidden">
+              {theaterHero}
             </div>
           </div>
+        </div>
 
-          {!showTheaterDockedControls && (
-            <div className="absolute inset-x-0 bottom-0 z-20 pointer-events-none bg-gradient-to-t from-black/95 via-black/60 to-transparent pt-12 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-              {hostControlBar}
-              {showHostTheaterBar && (
-                <input
-                  type="range"
-                  min={0}
-                  max={600000}
-                  step={1000}
-                  value={Math.min(displayPositionMs, 600000)}
-                  onChange={(e) => handleHostSeek(Number(e.target.value))}
-                  onPointerUp={(e) => handleHostSeekCommitted(Number((e.target as HTMLInputElement).value))}
-                  className="w-full accent-purple-500 h-1 mt-2 pointer-events-auto"
-                  aria-label="Position de lecture"
-                />
-              )}
-            </div>
+        <div className="salon-theater-controls shrink-0 border-t border-[#1e1e2f] bg-[#0b0b0f] px-3 py-2.5 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {theaterTimeLabel}
+            {theaterSyncPlayControls}
+            {theaterVideoToggle}
+            <span className="ml-auto flex shrink-0">{playbackStatusBadge}</span>
+          </div>
+          {showHostTheaterBar && (
+            <input
+              type="range"
+              min={0}
+              max={600000}
+              step={1000}
+              value={Math.min(displayPositionMs, 600000)}
+              onChange={(e) => handleHostSeek(Number(e.target.value))}
+              onPointerUp={(e) => handleHostSeekCommitted(Number((e.target as HTMLInputElement).value))}
+              className="w-full accent-purple-500 h-1"
+              aria-label="Position de lecture"
+            />
           )}
         </div>
 
+        <div
+          className={`salon-theater-panel-extra min-h-0 overflow-y-auto${
+            theaterSideDock ? ' shrink-0' : ' flex-1'
+          }`}
+        >
         {isHost && !hostLinked && token && (
           <div className="shrink-0 p-3 border-t border-[#1e1e2f] bg-[#101018]/90 space-y-2">
             <p className="text-xs text-amber-400/90 text-center">
@@ -913,7 +850,7 @@ export function SalonPlaybackPanel({
         )}
 
         {!isHost && (
-          <div className="shrink-0 max-h-[40%] overflow-y-auto border-t border-[#1e1e2f] bg-[#101018]/95 p-3 space-y-3">
+          <div className="shrink-0 border-t border-[#1e1e2f] bg-[#101018]/95 p-3 space-y-3">
             <p className="text-[11px] text-center text-[#6b6b8a] py-0.5">
               🎵 L&apos;hôte contrôle la lecture&thinsp;•&thinsp;Vous pouvez proposer des vidéos
             </p>
@@ -962,6 +899,7 @@ export function SalonPlaybackPanel({
             ) : null}
           </div>
         )}
+        </div>
       </section>
     );
   }
@@ -973,7 +911,7 @@ export function SalonPlaybackPanel({
         <SalonYouTubePlayer
           videoId={youtubeTrackId}
           playbackState={playbackState}
-          showVideo={showYoutubeVideo}
+          showVideo={effectiveShowYoutubeVideo}
           showLocalControls={!canControlPlayback}
           showLocalPause={false}
           showYoutubeLinkInControls={salon.platform === 'youtube' && !canControlPlayback}
@@ -1014,7 +952,7 @@ export function SalonPlaybackPanel({
                 {t('salon.playbackMode.spotifyParticipantHint')}
               </p>
             )}
-            <p className="text-[10px] text-[#1DB954]/70 px-1">{t('salon.spotifySearch.poweredBy')}</p>
+            <PoweredBySpotify className="text-[10px] text-[#1DB954]/70 px-1" />
           </div>
         )}
 
@@ -1166,7 +1104,7 @@ export function SalonPlaybackPanel({
               token={token}
               currentTitle={playbackState.title}
               currentArtist={playbackState.artist}
-              onTrackChanged={applyPlaybackState}
+              onQueueChanged={onQueueChange}
             />
           </div>
           <SectionDivider />
@@ -1237,7 +1175,7 @@ export function SalonPlaybackPanel({
               <SalonYouTubePlayer
                 videoId={youtubeTrackId}
                 playbackState={playbackState}
-                showVideo={showYoutubeVideo}
+                showVideo={effectiveShowYoutubeVideo}
               showLocalControls={mapInline && !(isHost && hostLinked)}
               showLocalPause={false}
               showYoutubeLinkInControls={!mapInline || (salon.platform === 'youtube' && !(isHost && hostLinked))}
@@ -1300,7 +1238,6 @@ export function SalonPlaybackPanel({
                 token={token}
                 currentTitle={playbackState.title}
                 currentArtist={playbackState.artist}
-                onTrackChanged={applyPlaybackState}
                 submitMode="propose"
               />
             )}

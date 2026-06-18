@@ -1,4 +1,4 @@
-﻿# Runbook production â€” Soundy / MeloSong
+# Runbook production â€” Soundy / MeloSong
 
 Guide ops pour le VPS (`51.159.164.100`, `/opt/soundly`) et la base PostgreSQL Scaleway.
 
@@ -155,10 +155,11 @@ pm2 reload melosong-backend --update-env
 
 Ã‰tapes dÃ©taillÃ©es :
 
-1. Remplir `acompleter.txt` (dÃ©pÃ´t local, ne pas committer si infos sensibles).
-2. Le script copie `msdev/legal-publisher.example.json` â†’ `/opt/soundly/legal-publisher.json` si absent.
-3. VÃ©rifier qu'**aucun** champ ne contient `[Ã€ complÃ©ter]`.
-4. RedÃ©marrer : `pm2 reload melosong-backend --update-env`
+1. Remplir `acompleter.txt` (dépôt local, ne pas committer si infos sensibles).
+2. Copier `deploy/legal-publisher.template.json` → `/opt/soundly/legal-publisher.json` (ou le script `setup-legal-publisher.sh` depuis l'exemple).
+3. **Manuel obligatoire** : renseigner `siren`, `address` (postale complète éditeur) et `rcs`/`capital` si société — voir `acompleter.txt`.
+4. Vérifier qu'**aucun** champ ne contient `[À compléter]`.
+5. Redémarrer : `pm2 reload melosong-backend --update-env`
 
 Le backend charge ce fichier depuis le **mÃªme rÃ©pertoire que `.env`** (`/opt/soundly/`).
 
@@ -338,6 +339,7 @@ Le dossier `msdev/data/` contient `store.json` (persistance msdev). **Ne pas syn
 
 ## Liens
 
+- OAuth Google / YouTube test users (403 `access_denied`) : [`docs/GOOGLE-OAUTH-TEST-USERS.md`](../docs/GOOGLE-OAUTH-TEST-USERS.md)
 - Setup DB dÃ©taillÃ© : `deploy/README.md`
 - DÃ©ploiement zero-downtime : `deploy_zero_downtime.ps1`
 - Audit sÃ©curitÃ© : MODIF 319 dans `modification.txt`

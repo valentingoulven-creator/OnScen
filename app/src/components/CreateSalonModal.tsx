@@ -21,6 +21,7 @@ import {
 } from './CreateSalonPlaylistPicker';
 import { SalonInviteLinkCopy } from './SalonInviteLinkCopy';
 import { SalonInviteUserSearch } from './SalonInviteUserSearch';
+import { PoweredBySpotify } from './PoweredBySpotify';
 import type { DmContact, Salon, User } from '../types';
 
 export interface CreateSalonForm {
@@ -601,6 +602,11 @@ export function CreateSalonModal({
         </div>
         {step === 3 && submitBlockedReason && (
           <p className="px-4 pb-3 text-[11px] text-red-400/90 leading-snug">{submitBlockedReason}</p>
+        )}
+        {form.platform === 'spotify' && (
+          <div className="px-4 pb-2">
+            <PoweredBySpotify />
+          </div>
         )}
         {toast && (
           <div
