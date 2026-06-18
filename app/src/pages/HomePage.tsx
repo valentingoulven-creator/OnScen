@@ -1730,7 +1730,7 @@ export function HomePage({
         )}
 
         {token && !mapProfileOpen && (
-          <div className="absolute bottom-4 left-3 z-30 pointer-events-auto">
+          <div className="ms-map-salon-fab absolute bottom-4 left-3 z-30 pointer-events-auto">
             <button
               type="button"
               onClick={() => setShowCreateSalon(true)}

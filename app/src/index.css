@@ -2034,21 +2034,22 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   --ms-glass-border: rgba(255, 255, 255, 0.12);
   --tab-nav-btn-size: 44px;
   --tab-nav-hub-size: 62px;
-  --tab-nav-rail-h: 3.25rem;
   --tab-nav-total-h: calc(
-    var(--tab-nav-float-gap) + var(--tab-nav-hub-size) * 0.55 + var(--tab-nav-rail-h) * 0.45 +
-      env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-bottom, 0px) + var(--tab-nav-float-gap) + var(--tab-nav-hub-size) * 0.55 +
+      0.75rem
   );
   font-family: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
 }
 
-/* Dock flottant — safe-area sur le pill uniquement (pas de bande pleine largeur) */
+/* Dock flottant — icônes seules, pas de pill ; nav transparente pour laisser passer les clics */
 [data-design-quick-wins="1"] nav.ms-tab-bar-bottom {
   padding-bottom: 0;
   min-height: 0;
   height: auto;
   background: transparent;
+  border: none;
   box-shadow: none;
+  pointer-events: none;
 }
 
 /* Contenu edge-to-edge sous le dock flottant — tous les onglets (pas de réserve #0b0b0f) */
@@ -2060,38 +2061,36 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   padding-bottom: 0;
 }
 
-/* Scroll : dernier contenu dégagé sous le pill sans réserver une bande noire fixe */
+/* Scroll : dernier contenu dégagé sous les icônes sans bande noire fixe */
 [data-design-quick-wins="1"] .feed-scroll,
-[data-design-quick-wins="1"] .ms-app-shell--bottom-tabs main.ms-app-main .overflow-y-auto {
+[data-design-quick-wins="1"] .ms-app-shell--bottom-tabs main.ms-app-main .overflow-y-auto,
+[data-design-quick-wins="1"] .ms-app-profile-overlay .overflow-y-auto {
   scroll-padding-bottom: calc(var(--tab-nav-total-h) + 0.5rem);
 }
 
-/* Padding scroll interne (profil, réglages…) — pas de bande noire fixe sur main */
+/* Padding scroll interne (profil, réglages, feed…) — pas de bande noire fixe sur main */
 [data-design-quick-wins="1"] .ms-app-shell--bottom-tabs main.ms-app-main .flex-1.min-h-0.overflow-y-auto,
-[data-design-quick-wins="1"] .ms-app-shell--bottom-tabs main.ms-app-main .h-full.overflow-y-auto {
+[data-design-quick-wins="1"] .ms-app-shell--bottom-tabs main.ms-app-main .h-full.overflow-y-auto,
+[data-design-quick-wins="1"] .ms-app-profile-overlay .overflow-y-auto {
   padding-bottom: calc(var(--tab-nav-total-h) + 0.5rem);
 }
 
-/* Sound Rail — onglet sélectionné surélevé (vinyl LIVE si actif) */
+/* Sound Rail — layout seul, pas de pill visible ; onglet actif surélevé (vinyl LIVE si actif) */
 [data-design-quick-wins="1"] nav.ms-tab-bar-bottom > div.ms-tab-rail {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: end;
   gap: 0;
   width: min(calc(100vw - 1.25rem), 22.5rem);
-  min-height: var(--tab-nav-rail-h);
+  min-height: 0;
   margin-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--tab-nav-float-gap));
-  padding: 0.35rem 0.65rem 0.45rem;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 28%),
-    rgba(18, 18, 26, 0.42);
-  backdrop-filter: blur(18px) saturate(1.15);
-  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+  padding: 0;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: none;
-  border-radius: 1.35rem 1.35rem 1.75rem 1.75rem;
-  box-shadow:
-    0 10px 36px rgba(0, 0, 0, 0.48),
-    0 2px 8px rgba(0, 0, 0, 0.32);
+  border-radius: 0;
+  box-shadow: none;
   overflow: visible;
   pointer-events: none;
 }
@@ -2227,12 +2226,10 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   [data-design-quick-wins="1"] {
     --tab-nav-btn-size: 40px;
     --tab-nav-hub-size: 56px;
-    --tab-nav-rail-h: 3rem;
   }
 
   [data-design-quick-wins="1"] nav.ms-tab-bar-bottom > div.ms-tab-rail {
     width: min(calc(100vw - 1rem), 21rem);
-    padding-inline: 0.5rem;
   }
 
   [data-design-quick-wins="1"] nav.ms-tab-bar-bottom .ms-tab-rail__cluster {
@@ -2249,6 +2246,10 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   [data-design-quick-wins="1"] nav.ms-tab-bar-bottom .ms-tab-rail-label {
     font-size: 0.5rem;
   }
+}
+
+[data-design-quick-wins="1"] .ms-map-salon-fab {
+  bottom: calc(var(--tab-nav-total-h) + 0.75rem);
 }
 
 [data-design-quick-wins="1"] .ms-map-filter-stack {
