@@ -166,23 +166,24 @@ if ($pkgChanged) {
 }
 
 
-# -- 5. Swap atomique frontend ------------------------------------------------
+# -- 5. Fusion frontend (public.new -> public, conserve anciens chunks) ---------
 if (-not $SkipFrontend) {
-    Write-Host "`n[5/9] Swap atomique frontend (public.new -> public)..." -ForegroundColor Yellow
+    Write-Host "`n[5/9] Fusion frontend (public.new -> public)..." -ForegroundColor Yellow
 
-    $prepPublicCmd = 'rm -rf ' + $REMOTE + '/public.new ' + $REMOTE + '/public.old; mkdir -p ' + $REMOTE + '/public.new'
+    $prepPublicCmd = 'rm -rf ' + $REMOTE + '/public.new; mkdir -p ' + $REMOTE + '/public.new'
     Invoke-Remote $prepPublicCmd
 
     Write-Host "  -> backend/public -> public.new..."
     Invoke-Scp @("-r", (Join-Path $PublicDir "/."), "${VPS}:${REMOTE}/public.new/")
 
-    $swapCmd = 'cd ' + $REMOTE + '; if [ -d public ]; then mv public public.old; fi; mv public.new public; rm -rf public.old; echo SWAP_OK'
-    $swapOut = Invoke-Remote $swapCmd
-    if ("$swapOut" -notmatch "SWAP_OK") {
-        Fail "Swap atomique frontend echoue. Etat VPS incertain - verifiez $REMOTE/public*."
+    # Fusion dans public/ : conserve les anciens chunks hashés (clients avec bundle stale)
+    # tout en mettant à jour index.html, sw.js et les nouveaux assets.
+    $mergeCmd = 'cd ' + $REMOTE + '; mkdir -p public/uploads; if [ -d public ]; then cp -a public.new/. public/; else mv public.new public; fi; rm -rf public.new; echo MERGE_OK'
+    $mergeOut = Invoke-Remote $mergeCmd
+    if ("$mergeOut" -notmatch "MERGE_OK") {
+        Fail "Fusion frontend echoue. Etat VPS incertain - verifiez $REMOTE/public*."
     }
-    Invoke-Remote ('mkdir -p ' + $REMOTE + '/public/uploads')
-    Write-Host "  [OK] Frontend active (swap atomique)" -ForegroundColor Green
+    Write-Host "  [OK] Frontend fusionne (anciens chunks conserves)" -ForegroundColor Green
 } else {
     Write-Host "`n[5/9] Deploiement frontend - ignore (-SkipFrontend)" -ForegroundColor DarkGray
 }
