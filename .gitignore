@@ -25,6 +25,15 @@ msdev/release/
 # Auto-signed dev TLS (regenerate with msdev/scripts/generate-dev-cert.ps1)
 msdev/certs/
 
+# Tile proxy disk cache (auto-populated at runtime — never commit)
+backend/tile-cache/
+
 # IDE
 .idea/
 *.swp
+
+# Windows server proxy binary (root-level)
+server.exe
+
+# node_modules backup
+app/node_modules.bak/

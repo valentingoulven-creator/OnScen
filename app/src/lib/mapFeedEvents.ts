@@ -52,11 +52,10 @@ export async function buildMapEventMarkersFromPosts(
 /** Charge les marqueurs événement depuis l'API feed (eventsOnly). */
 export async function loadMapEventMarkers(
   token: string,
-  opts?: { limit?: number; signal?: { cancelled: boolean } }
+  opts?: { signal?: { cancelled: boolean } }
 ): Promise<MapEventMarker[]> {
   const res = await api.getFeedPosts(token, {
     eventsOnly: true,
-    limit: opts?.limit ?? 50,
   });
   if (opts?.signal?.cancelled) return [];
   return buildMapEventMarkersFromPosts(res.posts, opts);

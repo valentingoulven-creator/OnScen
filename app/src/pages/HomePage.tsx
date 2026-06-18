@@ -43,7 +43,7 @@ import {
   shouldShowAllSalonsAtCityZoom,
   type MapViewDetailState,
 } from '../lib/mapMarkerVisibility';
-import type { NearbyPerson, Salon, Live, MapEventMarker, MapEventCityCluster } from '../types';
+import type { NearbyPerson, Salon, Live, MapEventMarker, MapEventCityCluster, PlaybackState } from '../types';
 import { getNearbyRadiusKm, getPrivacyPreferences, SETTINGS_CHANGED_EVENT } from '../lib/settings';
 import {
   DEFAULT_CENTER,
@@ -79,7 +79,13 @@ import {
   readNearbyCache,
   writeNearbyCache,
 } from '../lib/nearbyCache';
-import type { PlaybackState } from '../types';
+import {
+  canUseGlobeView,
+  disableGlobeView,
+  GLOBE_UNAVAILABLE_EVENT,
+  MAP_STYLE_STORAGE_KEY,
+  shouldForceFlatMap,
+} from '../lib/webglSupport';
 
 /** Debounce viewport-driven nearby reloads (filtre Lives, pan/zoom). */
 const LIVES_VIEWPORT_NEARBY_DEBOUNCE_MS = 400;
@@ -89,7 +95,7 @@ const MAP_DETAIL_BOUNDS_DEBOUNCE_MS = 250;
 const GEO_REFRESH_INTERVAL_MS = 30_000;
 
 const NEARBY_PEOPLE_STORAGE_KEY = 'melosong_show_nearby_people';
-const MAP_STYLE_KEY = 'soundly_map_style';
+const MAP_STYLE_KEY = MAP_STYLE_STORAGE_KEY;
 const MAP_LIVE_ZOOM = 15;
 /** Recentrer : quartier (GPS) vs ville (profil). */
 const MAP_RECENTER_ZOOM_GPS = 13;
@@ -211,9 +217,13 @@ export function HomePage({
   const [showNearbyPeople, setShowNearbyPeople] = useState(
     () => localStorage.getItem(NEARBY_PEOPLE_STORAGE_KEY) !== 'false'
   );
-  const [mapStyle, setMapStyle] = useState<MapStyle>(
-    () => (localStorage.getItem(MAP_STYLE_KEY) as MapStyle | null) ?? 'flat'
-  );
+  const [mapStyle, setMapStyle] = useState<MapStyle>(() => {
+    const saved = localStorage.getItem(MAP_STYLE_KEY) as MapStyle | null;
+    if (shouldForceFlatMap() || (saved === 'globe' && !canUseGlobeView())) {
+      return 'flat';
+    }
+    return saved ?? 'flat';
+  });
   const [nearbyPanelPrefs, setNearbyPanelPrefs] = useState(getNearbyPanelPreferences);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
   const [mapGeo, setMapGeo] = useState<LivesGeoPrefs>(() => getLivesGeo());
@@ -259,6 +269,15 @@ export function HomePage({
     window.addEventListener(MAP_EVENTS_REFRESH_EVENT, onRefresh);
     return () => window.removeEventListener(MAP_EVENTS_REFRESH_EVENT, onRefresh);
   }, []);
+
+  useEffect(() => {
+    const onGlobeDisabled = () => {
+      setMapStyle('flat');
+      setToastMsg(t('map.globeFallback'));
+    };
+    window.addEventListener(GLOBE_UNAVAILABLE_EVENT, onGlobeDisabled);
+    return () => window.removeEventListener(GLOBE_UNAVAILABLE_EVENT, onGlobeDisabled);
+  }, [t]);
   /** Filtre carte « salons » — combinable avec Lives et Évènement. */
   const [showSalonMarkers, setShowSalonMarkers] = useState(false);
   const showSalonMarkersRef = useRef(showSalonMarkers);
@@ -658,9 +677,17 @@ export function HomePage({
 
   const toggleMapStyle = useCallback(() => {
     const next: MapStyle = mapStyle === 'flat' ? 'globe' : 'flat';
+    if (next === 'globe' && !canUseGlobeView()) {
+      setToastMsg(t('map.globeUnavailable'));
+      return;
+    }
     setMapStyle(next);
     localStorage.setItem(MAP_STYLE_KEY, next);
-  }, [mapStyle]);
+  }, [mapStyle, t]);
+
+  const handleGlobeUnavailable = useCallback(() => {
+    disableGlobeView();
+  }, []);
 
   /** Filtres carte haut-gauche : Lives, Salon et Évènement — toggles indépendants. */
   const toggleLivesFilter = useCallback(() => {
@@ -791,6 +818,7 @@ export function HomePage({
   );
 
   const handleAutoSwitchToGlobe = useCallback(() => {
+    if (!canUseGlobeView()) return;
     setMapStyle('globe');
     localStorage.setItem(MAP_STYLE_KEY, 'globe');
   }, []);
@@ -1678,6 +1706,7 @@ export function HomePage({
           mapStyle={mapStyle}
           onGlobeZoomToFlat={handleGlobeZoomToFlat}
           onAutoSwitchToGlobe={handleAutoSwitchToGlobe}
+          onGlobeUnavailable={handleGlobeUnavailable}
           onMapDetailStateChange={handleMapDetailStateChange}
           onGlobePovChange={handleGlobePovChange}
           livesFilterOn={livesFilterOn}

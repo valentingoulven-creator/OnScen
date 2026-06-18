@@ -86,7 +86,9 @@
     "eventFilterActiveTitle": "Event filter on — long-press to turn off",
     "eventFilterEnableTitle": "Show events on the map",
     "eventFilterDisableTitle": "Turn off event filter",
-    "eventFilterLocationError": "Location not found. Pick a suggestion or refine the address."
+    "eventFilterLocationError": "Location not found. Pick a suggestion or refine the address.",
+    "globeUnavailable": "3D globe view is unavailable on this device.",
+    "globeFallback": "3D globe unavailable — flat map enabled."
   },
   "home": {
     "nearbyPeople": "People nearby",

@@ -86,7 +86,9 @@
     "eventFilterActiveTitle": "Filtre événements actif — appui long pour désactiver",
     "eventFilterEnableTitle": "Afficher les événements sur la carte",
     "eventFilterDisableTitle": "Désactiver le filtre Évènement",
-    "eventFilterLocationError": "Lieu introuvable. Choisissez une suggestion ou précisez l'adresse."
+    "eventFilterLocationError": "Lieu introuvable. Choisissez une suggestion ou précisez l'adresse.",
+    "globeUnavailable": "Vue globe 3D indisponible sur cet appareil.",
+    "globeFallback": "Vue globe 3D indisponible — carte plate activée."
   },
   "home": {
     "nearbyPeople": "Personnes proches",

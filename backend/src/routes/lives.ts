@@ -8,11 +8,7 @@ import { notifyFavoritesLiveStarted } from '../lib/favorites';
 import { trackEvent } from '../lib/analytics';
 import { publicSalon } from './salons';
 import { isLiveViewBanned, liveBanMessage, getLiveBan } from '../lib/liveBans';
-import {
-  LIVES_LIST_MAX,
-  parseDistanceFilterQuery,
-  resolveNearbyRadiusKm,
-} from '../lib/geoLimits';
+import { parseDistanceFilterQuery, resolveNearbyRadiusKm } from '../lib/geoLimits';
 import { DEFAULT_MAP_LAT, DEFAULT_MAP_LON, isValidLatLng } from '../lib/mapCoords';
 import { MIN_LIVE_AGE, userMeetsLiveAge } from '../lib/ageGates';
 import { serializePublicLive } from '../lib/livePublic';
@@ -108,17 +104,15 @@ livesRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
       .sort((a, b) => a.distanceKm - b.distanceKm);
 
     res.json({
-      lives: filtered
-        .slice(0, LIVES_LIST_MAX)
-        .map(({ live, host, distanceKm }) =>
-          publicLive(live, host && userSharesDistance(host) ? distanceKm : undefined, me)
-        ),
+      lives: filtered.map(({ live, host, distanceKm }) =>
+        publicLive(live, host && userSharesDistance(host) ? distanceKm : undefined, me)
+      ),
     });
     return;
   }
 
   const me = (req as Request & { user: { id: string } }).user.id;
-  res.json({ lives: active.slice(0, LIVES_LIST_MAX).map((l) => publicLive(l, undefined, me)) });
+  res.json({ lives: active.map((l) => publicLive(l, undefined, me)) });
 });
 
 function resolveStartCoordinates(

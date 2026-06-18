@@ -54,6 +54,8 @@ import {
   type MapDetailTier,
   type MapViewDetailState,
 } from '../lib/mapMarkerVisibility';
+import { canUseGlobeView } from '../lib/webglSupport';
+import { GlobeErrorBoundary } from './GlobeErrorBoundary';
 
 // Lazy-load the 3D globe (large Three.js bundle) only when needed.
 const LazyGlobeView = lazy<React.ComponentType<GlobeViewProps>>(
@@ -74,9 +76,6 @@ export interface MapViewHandle {
   flyToCityBounds: (lat: number, lng: number, radiusKm: number) => void;
 }
 
-/** Max person markers rendered on the flat map to avoid freezing with 10 000+ bots. */
-const MAX_PERSON_MARKERS = 300;
-
 /** Globe ↔ flat crossfade duration (ms) — keep in sync with CSS transition. */
 const MAP_CROSSFADE_MS = 500;
 
@@ -88,7 +87,9 @@ const CAPITAL_LABEL_MIN_ZOOM = 5;
 
 const TILE_LAYERS: Record<MapStyle, { url: string; attribution: string; maxZoom: number }> = {
   flat: {
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    // Local tile proxy — backend fetches from CARTO and caches tiles on disk.
+    // Falls back gracefully (502) when the upstream is unreachable.
+    url: '/tiles/{z}/{x}/{y}{r}.png',
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
     maxZoom: 19,
@@ -135,6 +136,8 @@ interface MapViewProps {
   ) => void;
   /** Appelé quand le zoom descend à ≤ 2 sur la carte plate → bascule automatiquement vers le globe. */
   onAutoSwitchToGlobe?: () => void;
+  /** WebGL indisponible ou échec du globe 3D — repasser en carte plate. */
+  onGlobeUnavailable?: () => void;
   /** Zoom / altitude / bounds pour le panneau latéral (filtres carte). */
   onMapDetailStateChange?: (state: MapViewDetailState) => void;
   /** POV globe (centre visible + altitude) — rechargement nearby. */
@@ -178,6 +181,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   mapStyle = 'flat',
   onGlobeZoomToFlat,
   onAutoSwitchToGlobe,
+  onGlobeUnavailable,
   onMapDetailStateChange,
   onGlobePovChange,
   livesFilterOn = false,
@@ -189,7 +193,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   // Separate layer for salons + lives (always visible, small count).
   const salonLiveLayerRef = useRef<L.LayerGroup | null>(null);
   const eventsLayerRef = useRef<L.LayerGroup | null>(null);
-  // Cluster group for person markers (up to MAX_PERSON_MARKERS).
+  // Cluster group for person markers.
   const personClusterRef = useRef<L.MarkerClusterGroup | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const capitalsLayerRef = useRef<L.LayerGroup | null>(null);
@@ -219,6 +223,9 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   onSelectEventClusterRef.current = onSelectEventCluster;
   const onAutoSwitchToGlobeRef = useRef(onAutoSwitchToGlobe);
   onAutoSwitchToGlobeRef.current = onAutoSwitchToGlobe;
+  const onGlobeUnavailableRef = useRef(onGlobeUnavailable);
+  onGlobeUnavailableRef.current = onGlobeUnavailable;
+  const webglSupportedRef = useRef(canUseGlobeView());
   // Track current mapStyle in a ref so the zoomend handler (created once) can read it.
   const mapStyleRef = useRef(mapStyle);
   mapStyleRef.current = mapStyle;
@@ -272,6 +279,35 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     () => (markerVisibility.eventClusters ? eventClusters : []),
     [eventClusters, markerVisibility.eventClusters]
   );
+
+  /**
+   * Stable data refs for marker effects.
+   *
+   * Problem: with a filter active, `mapSalonsForView` in HomePage creates a new
+   * array reference on every debounced bounds update (250 ms while panning).
+   * This propagates through the useMemo chain:
+   *   mapSalonsForView → salons prop → visibleSalons useMemo → salonLivePeopleKey useMemo
+   *
+   * Even though `salonLivePeopleKey` ends up as the same string value, the
+   * `visibleSalons` dep change makes React re-run the marker effect, which then
+   * exits early after the key check — wasted work, especially at 60 fps.
+   *
+   * Solution: read these arrays from refs inside the effects and remove them
+   * from the dependency arrays.  The effects are still correctly triggered by
+   * `salonLivePeopleKey` / `eventClusterKey`, which encode all meaningful
+   * content changes.  Refs are updated synchronously during render, so by the
+   * time an effect runs they already hold the current-render values.
+   */
+  const markerVisibilityRef = useRef(markerVisibility);
+  markerVisibilityRef.current = markerVisibility;
+  const visibleSalonsRef = useRef(visibleSalons);
+  visibleSalonsRef.current = visibleSalons;
+  const visibleLivesRef = useRef(visibleLives);
+  visibleLivesRef.current = visibleLives;
+  const visiblePeopleRef = useRef(visiblePeople);
+  visiblePeopleRef.current = visiblePeople;
+  const visibleEventClustersRef = useRef(visibleEventClusters);
+  visibleEventClustersRef.current = visibleEventClusters;
 
   const readFlatMapBounds = useCallback((): MapBounds | null => {
     if (!mapInstance.current) return null;
@@ -331,6 +367,13 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     setGlobeAltitude(altitude);
   }, []);
 
+  const requestGlobeFallback = useCallback(() => {
+    webglSupportedRef.current = false;
+    setShowGlobe(false);
+    setFlatReveal(1);
+    onGlobeUnavailableRef.current?.();
+  }, []);
+
   useEffect(() => {
     scheduleDetailEmit();
   }, [flatMapZoom, globeAltitude, mapStyle, scheduleDetailEmit]);
@@ -382,6 +425,13 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     },
   }));
 
+  // Skip globe when WebGL is unavailable (GPU off, context limit, low power mode, etc.)
+  useEffect(() => {
+    if (mapStyle === 'globe' && !webglSupportedRef.current) {
+      requestGlobeFallback();
+    }
+  }, [mapStyle, requestGlobeFallback]);
+
   // ── Globe ↔ flat crossfade ────────────────────────────────────────────────
   // Globe→flat: warm Carto tiles (kept mounted under opacity 0), then crossfade
   // globe out while flat fades in (MAP_CROSSFADE_MS). Unmount globe after fade.
@@ -396,9 +446,15 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       crossfadeRafRef.current = null;
     }
 
-    if (mapStyle === 'globe') {
+    if (mapStyle === 'globe' && webglSupportedRef.current) {
       setShowGlobe(true);
       setFlatReveal(0);
+      return;
+    }
+
+    if (mapStyle === 'globe' && !webglSupportedRef.current) {
+      setShowGlobe(false);
+      setFlatReveal(1);
       return;
     }
 
@@ -568,7 +624,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
         setFlatMapZoom(zoom);
       }
       scheduleDetailEmit();
-      if (zoom <= 2 && mapStyleRef.current === 'flat') {
+      if (zoom <= 2 && mapStyleRef.current === 'flat' && webglSupportedRef.current) {
         onAutoSwitchToGlobeRef.current?.();
       }
     };
@@ -733,6 +789,14 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   // accessed via stable refs so they are NOT listed as deps.  Without this,
   // every parent re-render would recreate 10 000+ markers because the parent
   // passes fresh arrow functions on every render.
+  //
+  // The arrays visibleSalons / visibleLives / visiblePeople are also read via
+  // stable refs and removed from the dep array.  With a filter active, their
+  // array *references* change on every 250 ms bounds update even when the
+  // actual content is unchanged, which would otherwise cause this effect to
+  // run and clear+rebuild all Leaflet DOM nodes unnecessarily.
+  // The salonLivePeopleKey string encodes every field that matters for visual
+  // output, so it is the single correct dep for triggering a rebuild.
   useEffect(() => {
     const salonLayer = salonLiveLayerRef.current;
     const personCluster = personClusterRef.current;
@@ -746,6 +810,11 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     }
     salonLivePeopleKeyRef.current = salonLivePeopleKey;
 
+    // Read current data from refs — always up-to-date by render time.
+    const visibleSalons = visibleSalonsRef.current;
+    const visibleLives = visibleLivesRef.current;
+    const visiblePeople = visiblePeopleRef.current;
+    const markerVisibility = markerVisibilityRef.current;
     const overviewDots = markerVisibility.density === 'overview';
 
     // ── Salons ──
@@ -853,20 +922,17 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       return;
     }
 
-    // Prioritise: live people first, then salon-hosts, then the rest.
-    // Cap at MAX_PERSON_MARKERS to avoid freezing with 10 000 bots.
-    const cappedPeople = visiblePeople
+    const sortedPeople = visiblePeople
       .filter((p) => isValidLatLng(p.latitude, p.longitude))
       .sort((a, b) => {
         const scoreA = (a.isLive ? 2 : 0) + (a.salonId ? 1 : 0);
         const scoreB = (b.isLive ? 2 : 0) + (b.salonId ? 1 : 0);
         return scoreB - scoreA;
-      })
-      .slice(0, MAX_PERSON_MARKERS);
+      });
 
     const batchMarkers: L.Marker[] = [];
 
-    cappedPeople.forEach((p) => {
+    sortedPeople.forEach((p) => {
       const avatar = p.avatarUrl?.trim() || dicebearAdventurerAvatar(p.id);
       const avatarFallback = dicebearAdventurerAvatar(p.id);
       const avatarOnError = `this.onerror=null;this.src='${avatarFallback.replace(/'/g, '%27')}';`;
@@ -914,7 +980,8 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     if (batchMarkers.length > 0) {
       personCluster.addLayers(batchMarkers);
     }
-  }, [salonLivePeopleKey, visibleSalons, visibleLives, visiblePeople, markerVisibility.density]); // callbacks via stable refs
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [salonLivePeopleKey]); // data arrays read via stable refs; callbacks via stable refs
 
   // ── Event markers (location pins) ───────────────────────────────────────
   useEffect(() => {
@@ -928,6 +995,9 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       return;
     }
     eventClusterKeyRef.current = eventClusterKey;
+
+    // Read visibleEventClusters from ref — same rationale as the salon effect above.
+    const visibleEventClusters = visibleEventClustersRef.current;
 
     layer.clearLayers();
 
@@ -1009,12 +1079,13 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     } catch (err) {
       console.error('[MapView] event marker error:', err);
     }
-  }, [eventClusterKey, visibleEventClusters, flatDetailTier]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventClusterKey, flatDetailTier]); // visibleEventClusters read via stable ref
 
   return (
     <div className="absolute inset-0 z-0">
       {/* Globe below Leaflet — fades out in sync during globe→flat crossfade. */}
-      {showGlobe && (
+      {showGlobe && webglSupportedRef.current && (
         <div
           className="absolute inset-0"
           style={{
@@ -1032,27 +1103,30 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
             </div>
           }
         >
-          <LazyGlobeView
-            salons={salons}
-            lives={lives}
-            people={people}
-            eventClusters={eventClusters}
-            hasEventClusters={eventClustersActive}
-            eventsOnly={eventsOnly}
-            showAllSalonsAtCityZoom={showAllSalonsAtCityZoom}
-            center={center}
-            userPosition={userPosition}
-            onSelectSalon={onSelectSalon}
-            onSelectLive={onSelectLive}
-            onSelectPerson={onSelectPerson}
-            onSelectEventCluster={onSelectEventCluster}
-            onZoomToFlat={onGlobeZoomToFlat}
-            onGlobeAltitudeChange={handleGlobeAltitudeChange}
-            onGlobePovChange={onGlobePovChange}
-            livesFilterOn={livesFilterOn}
-            salonFilterOn={salonFilterOn}
-            eventsFilterOn={eventsFilterOn}
-          />
+          <GlobeErrorBoundary onUnavailable={requestGlobeFallback}>
+            <LazyGlobeView
+              salons={salons}
+              lives={lives}
+              people={people}
+              eventClusters={eventClusters}
+              hasEventClusters={eventClustersActive}
+              eventsOnly={eventsOnly}
+              showAllSalonsAtCityZoom={showAllSalonsAtCityZoom}
+              center={center}
+              userPosition={userPosition}
+              onSelectSalon={onSelectSalon}
+              onSelectLive={onSelectLive}
+              onSelectPerson={onSelectPerson}
+              onSelectEventCluster={onSelectEventCluster}
+              onZoomToFlat={onGlobeZoomToFlat}
+              onGlobeAltitudeChange={handleGlobeAltitudeChange}
+              onGlobePovChange={onGlobePovChange}
+              onGlobeUnavailable={requestGlobeFallback}
+              livesFilterOn={livesFilterOn}
+              salonFilterOn={salonFilterOn}
+              eventsFilterOn={eventsFilterOn}
+            />
+          </GlobeErrorBoundary>
         </Suspense>
         </div>
       )}

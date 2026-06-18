@@ -4,6 +4,7 @@ import type { GlobeMethods } from 'react-globe.gl';
 import { formatEventDateShort } from '../lib/feedEvents';
 import { getEventTypeIcon } from '../lib/eventType';
 import { isValidLatLng } from '../lib/mapCoords';
+import { isWebGLError } from '../lib/webglSupport';
 import { getCityMapView } from '../lib/mapEventClusters';
 import {
   filterPeopleForZoom,
@@ -45,11 +46,42 @@ const GLOBE_MAX_PIXEL_RATIO = 1.5;
  */
 const GLOBE_USE_ANTIALIAS = typeof window !== 'undefined' && window.devicePixelRatio <= 1;
 
-/** Max marqueurs salon/live en vue overview (dézoom). */
-const MAX_GLOBE_OVERVIEW_MARKERS = 120;
-
 /** Debounce POV pour rechargement nearby (filtre Lives). */
 const POV_DEBOUNCE_MS = 600;
+
+/** Textures globe servies localement (app/public/globe → backend/public/globe). */
+const GLOBE_EARTH_TEXTURE = '/globe/earth-night.jpg';
+const GLOBE_SKY_TEXTURE = '/globe/night-sky.png';
+
+/**
+ * Stable empty arrays — passed as globe layer props when the layer has no data.
+ * Using module-level constants prevents Three.js from receiving a new array
+ * reference on every render, which would otherwise trigger geometry re-uploads
+ * even when there is nothing to show.
+ */
+const EMPTY_RINGS: GlobeRing[] = [];
+const EMPTY_CAPITAL_LABELS: GlobeCapitalLabel[] = [];
+
+/**
+ * Shallow equality over the fields that drive Three.js geometry / material.
+ * If these fields are unchanged, Three.js does not need to re-upload the buffer.
+ */
+function globePointsEqual(a: GlobePoint[], b: GlobePoint[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const ai = a[i];
+    const bi = b[i];
+    if (
+      ai.lat !== bi.lat ||
+      ai.lng !== bi.lng ||
+      ai.type !== bi.type ||
+      ai.color !== bi.color ||
+      ai.radius !== bi.radius
+    )
+      return false;
+  }
+  return true;
+}
 
 export interface GlobeViewProps {
   salons: Salon[];
@@ -90,6 +122,8 @@ export interface GlobeViewProps {
   livesFilterOn?: boolean;
   salonFilterOn?: boolean;
   eventsFilterOn?: boolean;
+  /** WebGL / Three.js init failed — parent should fall back to flat map. */
+  onGlobeUnavailable?: () => void;
 }
 
 function buildEventClusterGlobeLabel(cluster: MapEventCityCluster): string {
@@ -132,6 +166,7 @@ export const GlobeView = memo(function GlobeView({
   livesFilterOn = false,
   salonFilterOn = false,
   eventsFilterOn = false,
+  onGlobeUnavailable,
 }: GlobeViewProps) {
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -160,9 +195,19 @@ export const GlobeView = memo(function GlobeView({
   onGlobeAltitudeChangeRef.current = onGlobeAltitudeChange;
   const onGlobePovChangeRef = useRef(onGlobePovChange);
   onGlobePovChangeRef.current = onGlobePovChange;
+  const onGlobeUnavailableRef = useRef(onGlobeUnavailable);
+  onGlobeUnavailableRef.current = onGlobeUnavailable;
+  const globeUnavailableReportedRef = useRef(false);
   // Empêche la transition auto de se déclencher plusieurs fois
   const autoSwitchedRef = useRef(false);
   const lastReportedTierRef = useRef<MapDetailTier>(getGlobeDetailTier(1.0));
+
+  const reportGlobeUnavailable = useCallback((err?: unknown) => {
+    if (globeUnavailableReportedRef.current) return;
+    if (err != null && !isWebGLError(err)) return;
+    globeUnavailableReportedRef.current = true;
+    onGlobeUnavailableRef.current?.();
+  }, []);
 
   const flushPovChange = useCallback(() => {
     if (povDebounceRef.current !== null) {
@@ -208,6 +253,7 @@ export const GlobeView = memo(function GlobeView({
   useEffect(() => {
     if (!globeRef.current || size.w === 0) return;
     let cleanupListener: (() => void) | undefined;
+    let cleanupRendererListeners: (() => void) | undefined;
     try {
       const controls = globeRef.current.controls() as {
         autoRotate: boolean;
@@ -289,7 +335,8 @@ export const GlobeView = memo(function GlobeView({
         controls.removeEventListener('end', handleInteractionEnd);
         controls.removeEventListener('change', handleControlsChange);
       };
-    } catch {
+    } catch (err) {
+      if (isWebGLError(err)) reportGlobeUnavailable(err);
       // OrbitControls may not be ready on first render
     }
     try {
@@ -299,6 +346,13 @@ export const GlobeView = memo(function GlobeView({
       // Ensure the canvas captures all touch gestures so OrbitControls handles
       // drag/rotation everywhere on mobile without browser interference.
       renderer.domElement.style.touchAction = 'none';
+
+      const onContextLost = () => reportGlobeUnavailable();
+      const onContextCreationError = (event: Event) => {
+        reportGlobeUnavailable((event as WebGLContextEvent).statusMessage ?? event);
+      };
+      renderer.domElement.addEventListener('webglcontextlost', onContextLost);
+      renderer.domElement.addEventListener('webglcontextcreationerror', onContextCreationError);
 
       // Disable pointer events on any HTML overlay elements that react-globe.gl
       // places beside the canvas (tooltip div, CSS2D/CSS3D containers).
@@ -313,17 +367,24 @@ export const GlobeView = memo(function GlobeView({
           }
         });
       }
-    } catch {
+
+      cleanupRendererListeners = () => {
+        renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
+        renderer.domElement.removeEventListener('webglcontextcreationerror', onContextCreationError);
+      };
+    } catch (err) {
+      if (isWebGLError(err)) reportGlobeUnavailable(err);
       // renderer accessor may not be available
     }
     return () => {
       cleanupListener?.();
+      cleanupRendererListeners?.();
       if (altitudeRafRef.current !== null) {
         cancelAnimationFrame(altitudeRafRef.current);
         altitudeRafRef.current = null;
       }
     };
-  }, [size.w, flushPovChange, schedulePovChange]);
+  }, [size.w, flushPovChange, schedulePovChange, reportGlobeUnavailable]);
 
   // Cleanup pending zoom timer on unmount
   useEffect(() => {
@@ -354,9 +415,6 @@ export const GlobeView = memo(function GlobeView({
   }, [center[0], center[1]]);
 
   const salonIds = useMemo(() => new Set(salons.map((s) => s.id)), [salons]);
-
-  /** Max person points on the globe — Three.js slows down with 10 000+ points. */
-  const MAX_GLOBE_PEOPLE = 300;
 
   const eventClustersActive = hasEventClusters ?? eventClusters.length > 0;
   const markerVisibility = useMemo(
@@ -391,9 +449,9 @@ export const GlobeView = memo(function GlobeView({
   );
   const visiblePeople = useMemo(
     () =>
-      filterPeopleForZoom(people, markerVisibility, globeDetailTier)
-        .filter((p) => isValidLatLng(Number(p.latitude), Number(p.longitude)))
-        .slice(0, MAX_GLOBE_PEOPLE),
+      filterPeopleForZoom(people, markerVisibility, globeDetailTier).filter((p) =>
+        isValidLatLng(Number(p.latitude), Number(p.longitude))
+      ),
     [people, markerVisibility, globeDetailTier]
   );
   const visibleEventClusters = useMemo(
@@ -401,25 +459,11 @@ export const GlobeView = memo(function GlobeView({
     [eventClusters, markerVisibility.eventClusters]
   );
 
-  const cappedSalonsForGlobe = useMemo(() => {
-    if (globeDetailTier !== 'overview' || showAllSalonsAtCityZoom) return visibleSalons;
-    const live = visibleSalons.filter((s) => s.isLive);
-    const rest = visibleSalons.filter((s) => !s.isLive);
-    return [...live, ...rest].slice(0, MAX_GLOBE_OVERVIEW_MARKERS);
-  }, [visibleSalons, globeDetailTier, showAllSalonsAtCityZoom]);
-
-  const cappedLivesForGlobe = useMemo(() => {
-    if (globeDetailTier !== 'overview') return visibleLives;
-    const salonCap = cappedSalonsForGlobe.length;
-    const budget = Math.max(0, MAX_GLOBE_OVERVIEW_MARKERS - salonCap);
-    return visibleLives.slice(0, budget);
-  }, [visibleLives, globeDetailTier, cappedSalonsForGlobe.length]);
-
-  const points = useMemo<GlobePoint[]>(() => {
+  const rawPoints = useMemo<GlobePoint[]>(() => {
     const pts: GlobePoint[] = [];
     const overviewDots = markerVisibility.density === 'overview';
 
-    cappedSalonsForGlobe.forEach((s) => {
+    visibleSalons.forEach((s) => {
       const lat = Number(s.latitude);
       const lng = Number(s.longitude);
       if (!isValidLatLng(lat, lng)) return;
@@ -437,7 +481,7 @@ export const GlobeView = memo(function GlobeView({
       });
     });
 
-    cappedLivesForGlobe.forEach((l) => {
+    visibleLives.forEach((l) => {
       if (salonIds.has(l.id)) return;
       const lat = Number(l.latitude);
       const lng = Number(l.longitude);
@@ -515,8 +559,8 @@ export const GlobeView = memo(function GlobeView({
 
     return pts;
   }, [
-    cappedSalonsForGlobe,
-    cappedLivesForGlobe,
+    visibleSalons,
+    visibleLives,
     visiblePeople,
     visibleEventClusters,
     userPosition,
@@ -525,18 +569,40 @@ export const GlobeView = memo(function GlobeView({
     markerVisibility.density,
   ]);
 
+  /**
+   * Reference stabilizer for `rawPoints`.
+   * When the parent re-renders due to a bounds update (e.g., every 250 ms while
+   * panning with a filter active), `rawPoints` may be a new array object even
+   * though every point's geometry/color/radius is identical.  Passing a new
+   * reference to <Globe pointsData> would cause Three.js to re-upload the
+   * entire geometry buffer for no visual change.
+   *
+   * This block runs during render (not in an effect) so there is no extra
+   * commit cycle.  Mutating refs during render is safe here because it has no
+   * observable side-effects on React state.
+   */
+  const prevRawPointsRef = useRef<GlobePoint[] | null>(null);
+  const stablePointsRef = useRef<GlobePoint[]>(rawPoints);
+  if (rawPoints !== prevRawPointsRef.current) {
+    prevRawPointsRef.current = rawPoints;
+    if (!globePointsEqual(rawPoints, stablePointsRef.current)) {
+      stablePointsRef.current = rawPoints;
+    }
+  }
+  const points = stablePointsRef.current;
+
   // Pulsing rings on live sessions (ville + rue uniquement) — off pendant drag
   const liveRings = useMemo<GlobeRing[]>(() => {
-    if (!markerVisibility.lives || isInteracting) return [];
+    if (!markerVisibility.lives || isInteracting) return EMPTY_RINGS;
     const rings: GlobeRing[] = [];
-    cappedSalonsForGlobe.forEach((s) => {
+    visibleSalons.forEach((s) => {
       if (!s.isLive) return;
       const lat = Number(s.latitude);
       const lng = Number(s.longitude);
       if (!isValidLatLng(lat, lng)) return;
       rings.push({ lat, lng });
     });
-    cappedLivesForGlobe.forEach((l) => {
+    visibleLives.forEach((l) => {
       if (salonIds.has(l.id)) return;
       const lat = Number(l.latitude);
       const lng = Number(l.longitude);
@@ -544,10 +610,18 @@ export const GlobeView = memo(function GlobeView({
       rings.push({ lat, lng });
     });
     return rings;
-  }, [cappedSalonsForGlobe, cappedLivesForGlobe, salonIds, markerVisibility.lives, isInteracting]);
+  }, [visibleSalons, visibleLives, salonIds, markerVisibility.lives, isInteracting]);
 
-  const capitalLabels =
-    markerVisibility.capitals && !isInteracting ? GLOBE_CAPITAL_LABELS : [];
+  // useMemo keeps the reference stable — GLOBE_CAPITAL_LABELS and EMPTY_CAPITAL_LABELS
+  // are module-level constants, so labelsData never gets a fresh array object unless
+  // the visible tier actually changes.
+  const capitalLabels = useMemo(
+    () =>
+      markerVisibility.capitals && !isInteracting
+        ? GLOBE_CAPITAL_LABELS
+        : EMPTY_CAPITAL_LABELS,
+    [markerVisibility.capitals, isInteracting]
+  );
 
   const overviewDots = markerVisibility.density === 'overview';
   const pointResolution = isInteracting ? 3 : overviewDots ? 4 : 8;
@@ -625,10 +699,16 @@ export const GlobeView = memo(function GlobeView({
           height={size.h}
           animateIn={false}
           waitForGlobeReady={false}
-          rendererConfig={{ antialias: GLOBE_USE_ANTIALIAS, alpha: true, powerPreference: 'high-performance' }}
-          // Earth-at-night texture: dark continents + city lights
-          globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
-          backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
+          rendererConfig={{
+            antialias: GLOBE_USE_ANTIALIAS,
+            alpha: true,
+            powerPreference: 'default',
+            failIfMajorPerformanceCaveat: false,
+            preserveDrawingBuffer: true,
+          }}
+          // Earth-at-night texture: dark continents + city lights (bundled locally)
+          globeImageUrl={GLOBE_EARTH_TEXTURE}
+          backgroundImageUrl={GLOBE_SKY_TEXTURE}
           // Purple-indigo atmosphere matching app palette
           atmosphereColor="rgba(120, 90, 255, 0.85)"
           atmosphereAltitude={0.22}

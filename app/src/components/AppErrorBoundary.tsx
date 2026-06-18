@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { DEFAULT_CENTER } from '../lib/livesGeo';
 import { isMsdevEnvironment } from '../lib/liveCameraSupport';
+import { disableGlobeView, isWebGLError } from '../lib/webglSupport';
 
 interface Props {
   children: ReactNode;
@@ -83,6 +84,9 @@ export class AppErrorBoundary extends Component<Props, State> {
     if (isSocketAuthError(error)) {
       return { error: null, recovering: true };
     }
+    if (isWebGLError(error)) {
+      return { error: null, recovering: true };
+    }
     return { error: toError(error), recovering: false };
   }
 
@@ -101,6 +105,12 @@ export class AppErrorBoundary extends Component<Props, State> {
         this.setState({ error: null, recovering: false });
       }, 1200);
     } else if (isYouTubePlayerError(error)) {
+      this.autoResetTimer = setTimeout(() => {
+        this.setState({ error: null, recovering: false });
+      }, 100);
+    } else if (isWebGLError(error)) {
+      disableGlobeView();
+      this.setState({ recovering: true });
       this.autoResetTimer = setTimeout(() => {
         this.setState({ error: null, recovering: false });
       }, 100);

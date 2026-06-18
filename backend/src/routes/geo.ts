@@ -13,7 +13,6 @@ import { getPublicMapCoords } from '../lib/locationPrivacy';
 import {
   DEFAULT_NEARBY_RADIUS_KM,
   parseDistanceFilterQuery,
-  resolveGeoNearbyLimits,
   resolveNearbyRadiusKm,
 } from '../lib/geoLimits';
 import { isValidLatLng } from '../lib/mapCoords';
@@ -81,7 +80,6 @@ geoRouter.get('/nearby', authenticateJWT, (req: Request, res: Response) => {
   const lon = parseFloat(req.query.longitude as string);
   const radiusKm = parseFloat((req.query.radius as string) || String(DEFAULT_NEARBY_RADIUS_KM));
   const distanceFilter = parseDistanceFilterQuery(req.query.distanceFilter as string | undefined);
-  const limits = resolveGeoNearbyLimits(distanceFilter);
   const maxRadiusKm = resolveNearbyRadiusKm(radiusKm, distanceFilter);
   const withinRadius = (d: number) => maxRadiusKm == null || d <= maxRadiusKm;
 
@@ -114,7 +112,6 @@ geoRouter.get('/nearby', authenticateJWT, (req: Request, res: Response) => {
         isValidLatLng(coords.latitude, coords.longitude)
     )
     .sort((a, b) => a.distanceKm - b.distanceKm)
-    .slice(0, limits.maxSalons)
     .map(({ salon: s }) => publicSalon(s, me));
 
   const lives = [...db.lives.values()]
@@ -136,7 +133,6 @@ geoRouter.get('/nearby', authenticateJWT, (req: Request, res: Response) => {
         withinRadius(distanceKm) && isValidLatLng(coords.latitude, coords.longitude)
     )
     .sort((a, b) => a.distanceKm - b.distanceKm)
-    .slice(0, limits.maxLives)
     .map(({ live: l, coords }) => {
       const host = db.users.get(l.hostId);
       return {
@@ -156,7 +152,7 @@ geoRouter.get('/nearby', authenticateJWT, (req: Request, res: Response) => {
       };
     });
 
-  const people = getNearbyPeople(me, lat, lon, radiusKm, distanceFilter).slice(0, limits.maxPeople);
+  const people = getNearbyPeople(me, lat, lon, radiusKm, distanceFilter);
 
   res.json({ salons, lives, people });
 });

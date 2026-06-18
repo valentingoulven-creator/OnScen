@@ -557,8 +557,18 @@ export function listFeedPosts(
     followingOnly?: boolean;
   }
 ): PublicFeedPost[] {
-  let limit = typeof opts?.limit === 'number' && Number.isFinite(opts.limit) ? opts.limit : DEFAULT_LIMIT;
-  limit = Math.min(Math.max(1, Math.floor(limit)), MAX_LIMIT);
+  const eventsOnly = Boolean(opts?.eventsOnly);
+  let limit: number;
+  if (eventsOnly) {
+    limit =
+      typeof opts?.limit === 'number' && Number.isFinite(opts.limit)
+        ? Math.max(1, Math.floor(opts.limit))
+        : Number.MAX_SAFE_INTEGER;
+  } else {
+    limit =
+      typeof opts?.limit === 'number' && Number.isFinite(opts.limit) ? opts.limit : DEFAULT_LIMIT;
+    limit = Math.min(Math.max(1, Math.floor(limit)), MAX_LIMIT);
+  }
   const before =
     typeof opts?.before === 'number' && Number.isFinite(opts.before) ? opts.before : undefined;
   const eventFilters: EventFilterOpts = {

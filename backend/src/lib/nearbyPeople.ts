@@ -5,7 +5,7 @@ import { applyProfileDefaults, type PublicCurrentListening } from './profile';
 import { getHostRatingSummary } from './ratings';
 import { isBotHost } from '../seed-bots';
 import { isSalonVisibleOnMap } from './salonAccess';
-import { resolveGeoNearbyLimits, resolveNearbyRadiusKm } from './geoLimits';
+import { resolveNearbyRadiusKm } from './geoLimits';
 import { isValidLatLng } from './mapCoords';
 
 export interface NearbyPersonDto {
@@ -258,10 +258,7 @@ export function getNearbyPeople(
     });
   }
 
-  const sorted = [...byId.values()].sort(
+  return [...byId.values()].sort(
     (a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity)
   );
-
-  const { nearbyPeopleLimit } = resolveGeoNearbyLimits(distanceFilter);
-  return sorted.slice(0, nearbyPeopleLimit);
 }

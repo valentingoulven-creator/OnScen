@@ -36,6 +36,7 @@ import { sponsorsRouter } from './routes/sponsors';
 import { trendingRouter } from './routes/trending';
 import { supportRouter, supportAdminRouter } from './routes/support';
 import { pushRouter } from './routes/push';
+import { tilesRouter } from './routes/tiles';
 import { getPublicDir, getMsdevConfigPath } from './paths';
 import { REEL_UPLOAD_JSON_BODY_LIMIT } from './lib/reelUploadLimits';
 import { resolveCorsOrigin } from './lib/corsConfig';
@@ -638,6 +639,10 @@ function sendSpaIndex(req: express.Request, res: express.Response, indexPath: st
     res.sendFile(indexPath);
   }
 }
+
+// Tile proxy: fetches CARTO dark tiles server-side and caches them locally.
+// Must be registered before the SPA catchall to avoid the .png 404 short-circuit.
+app.use('/tiles', tilesRouter);
 
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
