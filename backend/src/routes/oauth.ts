@@ -192,6 +192,16 @@ async function postForm(url: string, body: Record<string, string>): Promise<unkn
 
 // ─── Provider status (no secrets exposed) ───────────────────────────────────
 
+function isAppleOAuthConfigured(): boolean {
+  return Boolean(
+    process.env.APPLE_CLIENT_ID &&
+    process.env.APPLE_TEAM_ID &&
+    process.env.APPLE_KEY_ID &&
+    process.env.APPLE_PRIVATE_KEY &&
+    process.env.APPLE_CALLBACK_URL,
+  );
+}
+
 /**
  * GET /api/auth/providers
  * Returns which social providers are fully configured.
@@ -209,6 +219,7 @@ oauthRouter.get('/providers', (_req: Request, res: Response) => {
         process.env.FACEBOOK_APP_SECRET &&
         process.env.FACEBOOK_CALLBACK_URL,
     ),
+    apple: isAppleOAuthConfigured(),
     youtube: isYoutubeOAuthConfigured(),
     spotify: isSpotifyOAuthConfigured(),
     instagram: isInstagramOAuthConfigured(),
@@ -558,5 +569,65 @@ oauthRouter.get('/instagram', (_req: Request, res: Response) => {
   } catch (err) {
     console.error('[oauth] Instagram callback error:', err);
     res.redirect(`${origin}/?instagram_oauth=error`);
+  }
+});
+
+// ─── Apple Sign In ────────────────────────────────────────────────────────────
+
+const APPLE_AUTH_URL = 'https://appleid.apple.com/auth/authorize';
+
+/**
+ * GET /api/auth/apple — initiates the Sign in with Apple flow.
+ * Required env vars: APPLE_CLIENT_ID, APPLE_TEAM_ID, APPLE_KEY_ID,
+ *                    APPLE_PRIVATE_KEY, APPLE_CALLBACK_URL
+ */
+oauthRouter.get('/apple', (_req: Request, res: Response) => {
+  if (!isAppleOAuthConfigured()) {
+    res.redirect(`${appOrigin()}/?oauth_error=not_configured&provider=apple`);
+    return;
+  }
+  const state = createState('apple');
+  const params = new URLSearchParams({
+    client_id: process.env.APPLE_CLIENT_ID!,
+    redirect_uri: process.env.APPLE_CALLBACK_URL!,
+    response_type: 'code id_token',
+    scope: 'name email',
+    response_mode: 'form_post',
+    state,
+  });
+  res.redirect(`${APPLE_AUTH_URL}?${params}`);
+});
+
+/**
+ * POST /api/auth/apple/callback — Apple sends a form_post after sign in.
+ *
+ * TODO: Full implementation requires:
+ *   1. Generate client_secret JWT (ES256) signed with APPLE_PRIVATE_KEY, exp ≤ 6 months.
+ *   2. POST to https://appleid.apple.com/auth/token with code + client_secret.
+ *   3. Decode returned id_token (JWT) to extract sub (stable user ID) and email.
+ *      Note: email is only present in id_token on the user's first sign-in — persist immediately.
+ *   4. Apple also sends a `user` JSON field (name) on first login only — extract from req.body.user.
+ */
+oauthRouter.post('/apple/callback', async (req: Request, res: Response) => {
+  const origin = appOrigin();
+  const { code, state, error } = req.body as Record<string, string>;
+
+  if (error || !code) {
+    res.redirect(`${origin}/?oauth_error=cancelled&provider=apple`);
+    return;
+  }
+  if (!validateAndConsumeState(state, 'apple')) {
+    res.redirect(`${origin}/?oauth_error=invalid_state&provider=apple`);
+    return;
+  }
+
+  try {
+    // Apple Sign In token exchange not yet implemented.
+    // Set APPLE_CLIENT_ID, APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_PRIVATE_KEY, APPLE_CALLBACK_URL
+    // and implement the client_secret JWT generation + token exchange described above.
+    res.redirect(`${origin}/?oauth_error=not_configured&provider=apple`);
+  } catch (err) {
+    console.error('[oauth] Apple callback error:', err);
+    res.redirect(`${origin}/?oauth_error=server_error&provider=apple`);
   }
 });
