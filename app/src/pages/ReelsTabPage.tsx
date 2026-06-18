@@ -1452,7 +1452,7 @@ function ReelCommentsSheet({
   );
 }
 
-function ReelAuthorRow({
+function ReelAuthorStack({
   reel,
   onOpenAuthor,
 }: {
@@ -1465,29 +1465,41 @@ function ReelAuthorRow({
   const avatarUserId = authorId || reel.id;
   const canOpenProfile = !!authorId && !!onOpenAuthor;
 
-  const row = (
-    <>
-      <UserAvatarOnline
-        userId={avatarUserId}
-        avatarUrl={reel.authorAvatarUrl}
-        username={displayName}
-        size="sm"
-        className="ring-2 ring-white/25 shadow-md"
-      />
-      <UsernameDisplay
-        username={displayName}
-        usernameColor={reel.authorUsernameColor}
-        usernameWaveFrom={reel.authorUsernameWaveFrom}
-        usernameWaveTo={reel.authorUsernameWaveTo}
-        className="text-sm font-bold drop-shadow-md truncate max-w-[10rem]"
-      />
-    </>
+  const card = (
+    <div className="reel-author-card max-w-[88%] rounded-xl bg-black/55 backdrop-blur-md border border-white/12 px-2.5 py-2 shadow-lg">
+      <div className="flex items-start gap-2 min-w-0">
+        <UserAvatarOnline
+          userId={avatarUserId}
+          avatarUrl={reel.authorAvatarUrl}
+          username={displayName}
+          size="sm"
+          className="ring-1 ring-white/20 shadow-sm flex-shrink-0"
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <UsernameDisplay
+              username={displayName}
+              usernameColor={reel.authorUsernameColor}
+              usernameWaveFrom={reel.authorUsernameWaveFrom}
+              usernameWaveTo={reel.authorUsernameWaveTo}
+              className="text-xs font-semibold drop-shadow truncate max-w-[9rem]"
+            />
+            {reel.genre ? (
+              <span className="reel-genre-badge shrink-0 rounded px-1.5 py-px text-[9px] font-bold uppercase tracking-wider text-pink-300 bg-pink-500/15 border border-pink-400/20">
+                {reel.genre}
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-0.5 text-sm font-bold text-white leading-snug line-clamp-2 drop-shadow-sm">{reel.title}</p>
+        </div>
+      </div>
+    </div>
   );
 
   if (!canOpenProfile) {
     return (
-      <div className="flex items-center gap-2.5 mb-2.5 pointer-events-none" aria-label={displayName}>
-        {row}
+      <div className="pointer-events-none" aria-label={displayName}>
+        {card}
       </div>
     );
   }
@@ -1499,10 +1511,10 @@ function ReelAuthorRow({
         e.stopPropagation();
         onOpenAuthor!(authorId);
       }}
-      className="flex items-center gap-2.5 mb-2.5 pointer-events-auto rounded-full pr-3 py-0.5 -ml-0.5 hover:bg-white/10 active:bg-white/15 transition-colors text-left"
+      className="pointer-events-auto text-left rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors"
       aria-label={t('reels.openAuthorProfile', { username: displayName })}
     >
-      {row}
+      {card}
     </button>
   );
 }
@@ -1912,12 +1924,7 @@ function ReelSlide({
         </span>
       )}
       <div className="reel-author-stack absolute bottom-20 left-4 right-24 z-10">
-        <ReelAuthorRow reel={reel} onOpenAuthor={onOpenAuthor} />
-        <div className="max-w-[85%] rounded-2xl bg-black/60 backdrop-blur-md border border-white/15 px-4 py-3 shadow-xl pointer-events-none">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-pink-300 font-bold">{reel.genre}</p>
-          <p className="mt-1 text-2xl font-extrabold text-white leading-tight drop-shadow-md">{reel.title}</p>
-          <p className="mt-0.5 text-base font-medium text-white/90">{reel.artist}</p>
-        </div>
+        <ReelAuthorStack reel={reel} onOpenAuthor={onOpenAuthor} />
       </div>
     </section>
   );
