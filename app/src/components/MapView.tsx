@@ -54,13 +54,22 @@ import {
   type MapDetailTier,
   type MapViewDetailState,
 } from '../lib/mapMarkerVisibility';
-import { canUseGlobeView } from '../lib/webglSupport';
+import { canUseGlobeView, disableGlobeView, isChunkLoadError } from '../lib/webglSupport';
 import { GlobeErrorBoundary } from './GlobeErrorBoundary';
 
+function loadGlobeViewModule(): Promise<{ default: React.ComponentType<GlobeViewProps> }> {
+  return import('./GlobeView')
+    .then((m) => ({ default: m.GlobeView }))
+    .catch((err: unknown) => {
+      if (isChunkLoadError(err)) {
+        disableGlobeView();
+      }
+      throw err;
+    });
+}
+
 // Lazy-load the 3D globe (large Three.js bundle) only when needed.
-const LazyGlobeView = lazy<React.ComponentType<GlobeViewProps>>(
-  () => import('./GlobeView').then((m) => ({ default: m.GlobeView }))
-);
+const LazyGlobeView = lazy<React.ComponentType<GlobeViewProps>>(loadGlobeViewModule);
 
 export type MapStyle = 'flat' | 'globe';
 
