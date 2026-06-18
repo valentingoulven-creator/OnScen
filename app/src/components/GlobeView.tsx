@@ -433,9 +433,38 @@ export const GlobeView = memo(function GlobeView({
         });
       }
 
+      // Double-click anywhere on the globe surface → transition to flat map
+      // centered on that location, with a brief globe spin as visual feedback.
+      const handleDblClick = (e: MouseEvent) => {
+        if (!globeRef.current) return;
+        try {
+          const globeWithCoords = globeRef.current as unknown as {
+            toGlobeCoords?: (x: number, y: number) => { lat: number; lng: number } | null;
+          };
+          const coords = globeWithCoords.toGlobeCoords?.(e.offsetX, e.offsetY);
+          if (!coords || !isValidLatLng(coords.lat, coords.lng)) return;
+          // Cancel any pending single-click zoom timer to avoid a double transition.
+          if (zoomTimerRef.current !== null) {
+            clearTimeout(zoomTimerRef.current);
+            zoomTimerRef.current = null;
+          }
+          // Spin globe toward the clicked point for natural visual feedback.
+          try {
+            globeRef.current?.pointOfView({ lat: coords.lat, lng: coords.lng, altitude: 0.5 }, 350);
+          } catch { /* Globe may not be ready */ }
+          // Start crossfade after 300 ms (while the spin animation is still playing).
+          zoomTimerRef.current = setTimeout(() => {
+            zoomTimerRef.current = null;
+            onZoomToFlatRef.current?.(coords.lat, coords.lng, () => {}, 12, undefined, false);
+          }, 300);
+        } catch { /* toGlobeCoords may not be available */ }
+      };
+      renderer.domElement.addEventListener('dblclick', handleDblClick);
+
       cleanupRendererListeners = () => {
         renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
         renderer.domElement.removeEventListener('webglcontextcreationerror', onContextCreationError);
+        renderer.domElement.removeEventListener('dblclick', handleDblClick);
       };
     } catch (err) {
       if (isWebGLError(err)) reportGlobeUnavailable(err);

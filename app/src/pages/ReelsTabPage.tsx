@@ -75,14 +75,15 @@ function isCenterTap(clientX: number, clientY: number, rect: DOMRect): boolean {
   return relX >= CENTER_TAP_MIN && relX <= CENTER_TAP_MAX && relY >= CENTER_TAP_MIN && relY <= CENTER_TAP_MAX;
 }
 
-/** Préférence persistante (localStorage) : absent = muet par défaut (autoplay safe) ; '0' = muet ; '1' = son activé. */
+/** Préférence persistante (localStorage) : absent = son activé par défaut ; '0' = muet ; '1' = son activé.
+ *  Si l'autoplay sans son est bloqué par le navigateur, playMediaElement() bascule en muet automatiquement. */
 function readReelsUnmutedPreference(): boolean {
   try {
     const stored = localStorage.getItem(REELS_UNMUTED_KEY);
-    if (stored === null) return false;
+    if (stored === null) return true;
     return stored === '1';
   } catch {
-    return false;
+    return true;
   }
 }
 
