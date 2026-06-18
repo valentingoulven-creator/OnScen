@@ -2108,8 +2108,8 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 }
 
 /* Même offset visuel qu’avec padding-bottom sur main (mode classique) */
-[data-design-quick-wins="1"] .reel-author-stack {
-  bottom: calc(var(--tab-nav-total-h) + 4.25rem);
+[data-design-quick-wins="1"] .reel-meta-stack {
+  bottom: calc(var(--tab-nav-total-h) + 3rem);
 }
 
 [data-design-quick-wins="1"] .reel-author-card {
@@ -2120,10 +2120,6 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 [data-design-quick-wins="1"] .reel-genre-badge {
   font-size: 0.5625rem;
   letter-spacing: 0.06em;
-}
-
-[data-design-quick-wins="1"] .reel-duration-badge {
-  bottom: calc(var(--tab-nav-total-h) + 1.25rem);
 }
 
 [data-design-quick-wins="1"] .reel-actions-rail {

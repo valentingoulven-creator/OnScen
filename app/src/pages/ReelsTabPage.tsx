@@ -1911,20 +1911,22 @@ function ReelSlide({
           {devCatalogVideoCount} vidéos
         </span>
       )}
-      {durationBadgeText != null && (
-        <span
-          className="reel-duration-badge absolute bottom-5 left-4 z-10 pointer-events-none rounded-md bg-black/60 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-white tabular-nums shadow-sm"
-          aria-label={
-            isActive
-              ? `Lecture ${formatReelDuration(currentTimeSec)} sur ${formatReelDuration(durationSec!)}`
-              : `Durée ${formatReelDuration(durationSec!)}`
-          }
-        >
-          {durationBadgeText}
-        </span>
-      )}
-      <div className="reel-author-stack absolute bottom-20 left-4 right-24 z-10">
-        <ReelAuthorStack reel={reel} onOpenAuthor={onOpenAuthor} />
+      <div className="reel-meta-stack absolute bottom-14 left-4 right-24 z-10 flex flex-col items-start gap-1.5">
+        {durationBadgeText != null && (
+          <span
+            className="reel-duration-badge pointer-events-none rounded-md bg-black/60 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-white tabular-nums shadow-sm"
+            aria-label={
+              isActive
+                ? `Lecture ${formatReelDuration(currentTimeSec)} sur ${formatReelDuration(durationSec!)}`
+                : `Durée ${formatReelDuration(durationSec!)}`
+            }
+          >
+            {durationBadgeText}
+          </span>
+        )}
+        <div className="reel-author-stack w-full min-w-0">
+          <ReelAuthorStack reel={reel} onOpenAuthor={onOpenAuthor} />
+        </div>
       </div>
     </section>
   );
