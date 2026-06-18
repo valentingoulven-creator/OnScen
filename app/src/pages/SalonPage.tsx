@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+const SOUNDY_BASE_URL = 'https://getsoundy.com';
+
 import { useAuth } from '../context/AuthContext';
 import { isPlatformConnected } from '../lib/platformConnect';
 import { mergeRemotePlaybackState } from '../lib/salonPlayback';
@@ -79,6 +81,7 @@ export function SalonPage({
   const [reordering, setReordering] = useState(false);
   const [chatHidden, setChatHidden] = useState(() => window.innerWidth < 640);
   const [chatMinimized, setChatMinimized] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
 
   const [sessionEnded, setSessionEnded] = useState(false);
   const [durationWarning, setDurationWarning] = useState(false);
@@ -310,6 +313,23 @@ export function SalonPage({
       onBack();
     }
   }, [onMinimizeToMap, onBack, salon?.title]);
+
+  const handleShareSalon = useCallback(async () => {
+    const url = `${SOUNDY_BASE_URL}/salon/${salonId}`;
+    const title = salon?.title ?? 'Salon Soundy';
+    const text = `Rejoins ce salon d'écoute musicale sur Soundy !`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setShareCopied(true);
+        window.setTimeout(() => setShareCopied(false), 2000);
+      }
+    } catch {
+      /* share cancelled or not supported */
+    }
+  }, [salonId, salon?.title]);
 
   const handleEndSalon = useCallback(async () => {
     if (!token || !salon || !onLeaveSalon) return;
@@ -847,6 +867,23 @@ export function SalonPage({
               {t('salon.leaveSalon')}
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => void handleShareSalon()}
+            title={shareCopied ? 'Lien copié !' : 'Partager ce salon'}
+            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-[#2a2a3a] transition"
+            aria-label="Partager le salon"
+          >
+            {shareCopied ? (
+              <svg className="w-4 h-4 text-green-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 00-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z" clipRule="evenodd" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+              </svg>
+            )}
+          </button>
         </div>
       </header>
 

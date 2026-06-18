@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
 import { useAuth } from '../context/AuthContext';
 import { useLiveCamera } from '../hooks/useLiveCamera';
 import { usePauseMediaOnPageHidden, pauseMediaElements } from '../hooks/usePauseMediaOnPageHidden';
@@ -35,6 +36,7 @@ import { LiveKitVideoStage } from '../components/LiveKitVideoStage';
 import { LiveCloudflareHostPanel } from '../components/LiveCloudflareHostPanel';
 import type { ChatMessage, DmContact, Live, AppNotification, PlaybackState } from '../types';
 
+const SOUNDY_BASE_URL = 'https://getsoundy.com';
 const LIVE_MAX_DURATION_MS = 8 * 60 * 60 * 1000;
 
 function formatRemaining(ms: number): string {
@@ -95,6 +97,7 @@ export function LivePage({
   const [liveViewBanned, setLiveViewBanned] = useState(false);
   const [liveViewBanMessage, setLiveViewBanMessage] = useState<string | null>(null);
   const [liveEnded, setLiveEnded] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const [streamEndedReason, setStreamEndedReason] = useState<LiveStreamEndedReason | null>(null);
   const [archivedPlaybackUrl, setArchivedPlaybackUrl] = useState<string | null>(null);
   const [durationWarning, setDurationWarning] = useState(false);
@@ -662,6 +665,23 @@ export function LivePage({
     setShowDonSheet(true);
   };
 
+  const handleShareLive = async () => {
+    const url = `${SOUNDY_BASE_URL}/live/${liveId}`;
+    const title = live?.title ?? 'Live Soundy';
+    const text = `Rejoins ce live musical sur Soundy !`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setShareCopied(true);
+        window.setTimeout(() => setShareCopied(false), 2000);
+      }
+    } catch {
+      /* share cancelled or not supported */
+    }
+  };
+
   const openPrivate = (target: { id: string; name: string }) => {
     if (target.id === user?.id) return;
     setPrivateTarget({ id: target.id, username: target.name });
@@ -1104,6 +1124,23 @@ export function LivePage({
               </button>
             </div>
           )}
+          <button
+            type="button"
+            onClick={() => void handleShareLive()}
+            title={shareCopied ? 'Lien copié !' : 'Partager ce live'}
+            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-[#2a2a3a] transition"
+            aria-label="Partager le live"
+          >
+            {shareCopied ? (
+              <svg className="w-4 h-4 text-green-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 00-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z" clipRule="evenodd" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+              </svg>
+            )}
+          </button>
       </header>
 
       <ChatRoomProvider
