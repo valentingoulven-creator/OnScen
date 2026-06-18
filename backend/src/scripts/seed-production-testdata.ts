@@ -104,7 +104,7 @@ const EVENT_SEEDS: EventSeed[] = [
   },
   {
     id: `${ID_PREFIX}evt-bordeaux-club`,
-    authorUsername: 'soundy_dev',
+    authorUsername: 'Val',
     content: 'Club night électro — set 3h non-stop 💃',
     eventDate: '2026-06-25T23:00:00.000Z',
     eventLocation: 'Darwin, Bordeaux, France',
@@ -185,10 +185,7 @@ function findTargetUser(): User {
   const keval = findUserByUsername('keval');
   if (keval) return keval;
 
-  const dev = [...db.users.values()].find((u) => u.email === 'dev@soundy.local');
-  if (dev) return dev;
-
-  throw new Error('Utilisateur cible introuvable (Val / keval / dev@soundy.local)');
+  throw new Error('Utilisateur cible introuvable (Val / keval)');
 }
 
 function ensureTargetProfile(target: User): void {
