@@ -413,7 +413,7 @@ export function MapStoriesAccordion({
                     <MyMapStoryRing
                       userId={user.id}
                       username={user.username}
-                      avatarUrl={user.avatarUrl}
+                      avatarUrl={user.profilePhotos?.find(p => !!p) ?? user.avatarUrl}
                       hasActiveStory={myStories.length > 0}
                       storyImageUrl={myLatestStory?.imageUrl}
                       storyCount={myStories.length}
