@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { MsdevDualIpPanel } from '../components/MsdevDualIpPanel';
@@ -544,7 +544,7 @@ export function AuthPage() {
           </button>
         </form>
 
-        {/* ── Connexion sociale ─────────────────────────────────────────── */}
+        {(oauthProviders.google || oauthProviders.facebook || oauthProviders.apple) && (
         <div className="mt-3 space-y-3">
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-[#1e1e2f]" />
@@ -554,6 +554,7 @@ export function AuthPage() {
 
           <div className="flex items-center justify-center gap-3">
             {/* Google */}
+            {oauthProviders.google && (
             <button
               type="button"
               onClick={() => { window.location.href = '/api/auth/google'; }}
@@ -568,8 +569,10 @@ export function AuthPage() {
                 <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
               </svg>
             </button>
+            )}
 
             {/* Facebook */}
+            {oauthProviders.facebook && (
             <button
               type="button"
               onClick={() => { window.location.href = '/api/auth/facebook'; }}
@@ -581,8 +584,10 @@ export function AuthPage() {
                 <path fill="#1877F2" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
               </svg>
             </button>
+            )}
 
             {/* Apple */}
+            {oauthProviders.apple && (
             <button
               type="button"
               onClick={() => { window.location.href = '/api/auth/apple'; }}
@@ -594,8 +599,10 @@ export function AuthPage() {
                 <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76.5 0-103.7 40.8-165.9 40.8s-105-36.8-162.8-106.3C248.6 714.7 204 643.5 194 596.1c-12.4-61.6-19.2-120.9-19.2-179 0-106.2 35.3-213.6 107.5-286.6 70.2-73 160.8-115.7 255.2-115.7 96.7 0 176.4 43.1 227.4 117.2l17.8 11.6c36.4-31.8 98.3-117.9 183.7-117.9h30.4c99.3 0 187.6 60.1 203 157.6z"/>
               </svg>
             </button>
+            )}
           </div>
         </div>
+        )}
 
         <MsdevDualIpPanel onAutoLogin={handleAutoLogin} hasToken={Boolean(token)} />
 
