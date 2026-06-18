@@ -1742,7 +1742,7 @@ export function HomePage({
           </div>
         )}
 
-        <div className="absolute bottom-4 right-3 z-30 flex flex-row items-center gap-2 pointer-events-auto">
+        <div className="ms-map-recenter-fab absolute bottom-4 right-3 z-30 flex flex-row items-center gap-2 pointer-events-auto">
           <button
             type="button"
             onClick={recenterMap}
