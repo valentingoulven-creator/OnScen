@@ -1002,6 +1002,7 @@
     "openAuthorProfile": "View {{username}}'s profile",
     "share": "Share",
     "like": "Like",
+    "unlike": "Unlike",
     "doubleTapLike": "Double-tap to like",
     "comments": "Comments",
     "alreadyShared": "Already shared",

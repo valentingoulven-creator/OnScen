@@ -1253,7 +1253,7 @@ function ReelActions({
   return (
     <div className="reel-actions-rail absolute right-3 bottom-28 z-30 flex flex-col items-center gap-5">
       <ActionButton
-        label={stats.likedByMe ? t('reels.like') : t('reels.like')}
+        label={stats.likedByMe ? t('reels.unlike') : t('reels.like')}
         count={stats.heartCount}
         disabled={disabled}
         onClick={handleHeart}

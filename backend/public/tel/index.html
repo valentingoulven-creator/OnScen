@@ -1,15 +1,13 @@
 <!doctype html>
 <html lang="fr">
   <head>
-    <script>
-      if (location.protocol === 'https:' && /^\d+\.\d+\.\d+\.\d+$/.test(location.hostname)) {
-        location.replace('http://' + location.host + location.pathname + location.search + location.hash);
-      }
-    </script>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-    <link rel="apple-touch-icon" href="/pwa-192x192.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5" />
+    <link rel="icon" type="image/svg+xml" href="/tel/icon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/tel/apple-touch-icon.png" />
+    <link rel="apple-touch-startup-image" href="/tel/pwa-512x512.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" />
+    <link rel="apple-touch-startup-image" href="/tel/pwa-512x512.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" />
+    <link rel="apple-touch-startup-image" href="/tel/pwa-512x512.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover" />
     <meta name="theme-color" content="#7c3aed" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -17,15 +15,17 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="format-detection" content="telephone=no" />
     <title>Soundy</title>
-    <script type="module" crossorigin src="/assets/index-BI-z2yjU.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/rolldown-runtime-QTnfLwEv.js">
-    <link rel="modulepreload" crossorigin href="/assets/photo-editor-cMYacE-e.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-misc-BwKT9zZW.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-livekit-B0jZPWQB.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-react-D_YLKrjs.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-socketio-4XOb2MYK.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-CZjxi_aW.css">
-  <link rel="manifest" href="/manifest.webmanifest"></head>
+    <script type="module" crossorigin src="/tel/assets/index-DBew5qb0.js"></script>
+    <link rel="modulepreload" crossorigin href="/tel/assets/rolldown-runtime-b3L32Ng1.js">
+    <link rel="modulepreload" crossorigin href="/tel/assets/vendor-misc-BBvJdzVD.js">
+    <link rel="modulepreload" crossorigin href="/tel/assets/i18n-C9B41WvH.js">
+    <link rel="modulepreload" crossorigin href="/tel/assets/vendor-livekit-ClSLlWSu.js">
+    <link rel="modulepreload" crossorigin href="/tel/assets/vendor-react-Cr8HBXlc.js">
+    <link rel="modulepreload" crossorigin href="/tel/assets/vendor-map-BNivx4H2.js">
+    <link rel="modulepreload" crossorigin href="/tel/assets/vendor-socketio-Cef30g2I.js">
+    <link rel="modulepreload" crossorigin href="/tel/assets/usernameColor-DMjOjB4h.js">
+    <link rel="stylesheet" crossorigin href="/tel/assets/index-en8Vxzqe.css">
+  <link rel="manifest" href="/tel/manifest.webmanifest"></head>
   <body>
     <div id="root">
       <div
@@ -54,9 +54,9 @@
             animation: melosong-spin 0.8s linear infinite;
           "
         ></div>
-        <p style="margin: 0; font-size: 0.95rem">Chargement de Soundy\u2026</p>
+        <p style="margin: 0; font-size: 0.95rem">Chargement de Soundy…</p>
         <p id="melosong-boot-hint" style="margin: 0; font-size: 0.75rem; color: #6b7280; max-width: 20rem">
-          Si l\u2019\u00e9cran reste noir : <a href="/clear-pwa" style="color:#a78bfa">Vider le cache PWA</a> ou <strong style="color: #c4b5fd">Ctrl+Shift+R</strong>
+          Si l’écran reste noir : <strong style="color: #c4b5fd">Ctrl+Shift+R</strong> (actualisation forcée)
         </p>
       </div>
     </div>
@@ -69,7 +69,7 @@
     </style>
     <script>
       (function () {
-        var SW_CLEAR_KEY = 'melosong_sw_purge_mqjx6tzw';
+        var SW_CLEAR_KEY = 'melosong_sw_purge_mqjx74s2';
         function purgePwaCaches() {
           if (!('serviceWorker' in navigator)) return Promise.resolve();
           return navigator.serviceWorker
@@ -89,33 +89,16 @@
             localStorage.setItem(SW_CLEAR_KEY, '1');
           });
         }
-        var _clrPath = location.pathname === '/clear-pwa';
-        var _clrQuery = location.search.indexOf('clear-pwa=1') !== -1;
-        if (_clrPath || _clrQuery) {
-          if (_clrPath) {
-            var _bp = document.querySelector('#melosong-boot > p');
-            if (_bp) _bp.textContent = 'Nettoyage du cache PWA\u2026';
-            var _bh = document.getElementById('melosong-boot-hint');
-            if (_bh) _bh.textContent = 'D\u00e9sinscription du Service Worker et suppression des caches\u2026';
-          }
-          try {
-            Object.keys(localStorage).forEach(function (k) {
-              if (k.startsWith('melosong_sw_purge_')) localStorage.removeItem(k);
-            });
-          } catch (e) {}
+        if (location.search.indexOf('clear-pwa=1') !== -1) {
           purgePwaCaches().then(function () {
-            if (_clrPath) {
-              location.replace('/');
-            } else {
-              try {
-                var u = new URL(location.href);
-                u.searchParams.delete('clear-pwa');
-                location.replace(u.pathname + u.search + u.hash);
-              } catch (e) {
-                location.replace('/');
-              }
+            try {
+              var u = new URL(location.href);
+              u.searchParams.delete('clear-pwa');
+              location.replace(u.pathname + u.search + u.hash);
+            } catch (e) {
+              location.reload();
             }
-          }).catch(function () { location.replace('/'); });
+          });
         }
         window.addEventListener(
           'error',
@@ -125,8 +108,8 @@
             var hint = document.getElementById('melosong-boot-hint');
             if (!hint) return;
             hint.innerHTML =
-              'Le fichier JavaScript n\u2019a pas pu se charger (souvent cache PWA ou mauvaise URL http/https). ' +
-              'Fermez l\u2019ic\u00f4ne PWA, ouvrez le site dans Chrome, Edge ou Opera, puis <strong style="color:#c4b5fd">Ctrl+Shift+R</strong>.';
+              'Le fichier JavaScript n’a pas pu se charger (souvent cache PWA ou mauvaise URL http/https). ' +
+              'Fermez l’icône PWA, ouvrez le site dans Chrome, Edge ou Opera, puis <strong style="color:#c4b5fd">Ctrl+Shift+R</strong>.';
             hint.style.color = '#fca5a5';
           },
           true
@@ -136,7 +119,7 @@
             var hint = document.getElementById('melosong-boot-hint');
             if (hint && hint.style.color !== 'rgb(252, 165, 165)') {
               hint.textContent =
-                'Toujours bloqu\u00e9 ? Allez sur /clear-pwa pour vider le cache PWA, ou Ctrl+Shift+R.';
+                'Toujours bloqué ? Ctrl+Shift+R sur http://localhost:4080 (navigateur, pas l’icône PWA).';
             }
           }
         }, 12000);
