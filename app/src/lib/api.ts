@@ -1948,4 +1948,54 @@ export const api = {
       {},
       token,
     ),
+
+  // ── WebAuthn / Passkeys (Face ID, Touch ID, empreinte Android, Windows Hello) ──
+
+  webauthnRegisterOptions: (token: string) =>
+    request<import('@simplewebauthn/browser').PublicKeyCredentialCreationOptionsJSON>(
+      '/auth/webauthn/register/options',
+      { method: 'POST' },
+      token,
+    ),
+
+  webauthnRegisterVerify: (
+    token: string,
+    body: import('@simplewebauthn/browser').RegistrationResponseJSON
+  ) =>
+    request<{ verified: boolean }>(
+      '/auth/webauthn/register/verify',
+      { method: 'POST', body: JSON.stringify(body) },
+      token,
+    ),
+
+  webauthnLoginOptions: () =>
+    request<
+      import('@simplewebauthn/browser').PublicKeyCredentialRequestOptionsJSON & { sessionId: string }
+    >('/auth/webauthn/login/options', { method: 'POST' }),
+
+  webauthnLoginVerify: (
+    sessionId: string,
+    response: import('@simplewebauthn/browser').AuthenticationResponseJSON
+  ) =>
+    request<{ token: string; user: import('../types').User }>(
+      '/auth/webauthn/login/verify',
+      { method: 'POST', body: JSON.stringify({ response, sessionId }) },
+    ),
+
+  webauthnGetCredentials: (token: string) =>
+    request<{
+      credentials: Array<{
+        id: string;
+        deviceType: string | null;
+        backedUp: boolean;
+        createdAt: string;
+      }>;
+    }>('/auth/webauthn/credentials', {}, token),
+
+  webauthnDeleteCredential: (token: string, credentialId: string) =>
+    request<{ ok: boolean }>(
+      `/auth/webauthn/credential/${encodeURIComponent(credentialId)}`,
+      { method: 'DELETE' },
+      token,
+    ),
 };

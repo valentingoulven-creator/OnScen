@@ -420,7 +420,7 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
                 />
               ) : (
                 <p className="text-xs text-gray-500">
-                  Compte connecté via Google ou Facebook — confirmez avec SUPPRIMER ci-dessous.
+                  Compte connecté via Google — confirmez avec SUPPRIMER ci-dessous.
                 </p>
               )}
               <div className="space-y-1">

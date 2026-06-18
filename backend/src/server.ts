@@ -53,6 +53,7 @@ import { adminSyslogRouter } from './routes/adminSyslog';
 import { adminReportsRouter } from './routes/adminReports';
 import { startServerMonitor } from './lib/serverMonitor';
 import { startSystemMonitor } from './lib/systemMonitor';
+import { webauthnRouter } from './routes/webauthn';
 
 export const app = express();
 
@@ -427,6 +428,8 @@ app.use('/api/auth', authLimiter, authRouter);
 // OAuth routes are mounted separately: the auth code exchange is naturally
 // rate-limited by Google/Facebook, and callback URLs must not be blocked.
 app.use('/api/auth', oauthRouter);
+// WebAuthn / Passkeys (Face ID, Touch ID, empreinte Android, Windows Hello)
+app.use('/api/auth/webauthn', webauthnRouter);
 app.use('/api/access', accessRouter);
 app.use('/api/access/admin/support', supportAdminRouter);
 app.use('/api/access/admin/content', adminContentRouter);

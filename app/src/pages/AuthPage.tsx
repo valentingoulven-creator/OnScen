@@ -10,6 +10,7 @@ import { api } from '../lib/api';
 import { PasswordStrengthBar } from '../components/PasswordStrengthBar';
 import { getPasswordStrength } from '../lib/passwordStrength';
 import type { PublicAccessConfig, User } from '../types';
+import { startAuthentication } from '@simplewebauthn/browser';
 
 // ─── OAuth provider status ───────────────────────────────────────────────────
 
@@ -24,8 +25,7 @@ const OAUTH_ERROR_MESSAGES: Record<string, (provider: string) => string> = {
 };
 
 function oauthErrorMessage(code: string, provider: string): string {
-  const labels: Record<string, string> = { google: 'Google', facebook: 'Facebook' };
-  const label = labels[provider] ?? provider;
+  const label = provider === 'google' ? 'Google' : provider;
   const fn = OAUTH_ERROR_MESSAGES[code];
   return fn ? fn(label) : `Erreur de connexion ${label}.`;
 }
@@ -61,13 +61,14 @@ export function AuthPage() {
   const usernameTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [oauthLoading, setOauthLoading] = useState(false);
-  const [oauthProviders, setOauthProviders] = useState<{ google: boolean; facebook: boolean }>({
-    google: false,
-    facebook: false,
-  });
+  const [googleOAuthAvailable, setGoogleOAuthAvailable] = useState(false);
   const [oauthTermsCode, setOauthTermsCode] = useState<string | null>(null);
   const [oauthAcceptTerms, setOauthAcceptTerms] = useState(false);
   const [oauthTermsBusy, setOauthTermsBusy] = useState(false);
+
+  // ── Biometric / Face ID ───────────────────────────────────────────────────
+  const [biometricSupported, setBiometricSupported] = useState(false);
+  const [biometricLoading, setBiometricLoading]     = useState(false);
 
   const checkUsername = useCallback((value: string) => {
     if (usernameTimer.current) clearTimeout(usernameTimer.current);
@@ -96,10 +97,21 @@ export function AuthPage() {
 
   useEffect(() => {
     api.getAccessConfig().then(setAccessConfig).catch(() => {});
-    api.getOAuthProviders().then(setOauthProviders).catch(() => {});
+    api.getOAuthProviders().then((p) => setGoogleOAuthAvailable(p.google)).catch(() => {});
+
+    // Vérifie si la biométrie est disponible sur cet appareil/navigateur
+    if (
+      typeof window !== 'undefined' &&
+      typeof window.PublicKeyCredential !== 'undefined' &&
+      typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function'
+    ) {
+      window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        .then(setBiometricSupported)
+        .catch(() => setBiometricSupported(false));
+    }
   }, []);
 
-  // Handle OAuth callback: backend redirects to /?oauth_code=… after Google/Facebook auth.
+  // Handle OAuth callback: backend redirects to /?oauth_code=… after Google auth.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const oauthCode = params.get('oauth_code');
@@ -207,6 +219,32 @@ export function AuthPage() {
     return () => { if (usernameTimer.current) clearTimeout(usernameTimer.current); };
   }, []);
 
+  const handleBiometricLogin = async () => {
+    setError('');
+    setBiometricLoading(true);
+    try {
+      const options = await api.webauthnLoginOptions();
+      const { sessionId, ...authOptions } = options;
+      const authResponse = await startAuthentication({ optionsJSON: authOptions });
+      const result = await api.webauthnLoginVerify(sessionId, authResponse);
+      setSession(result.token, result.user, true, false);
+    } catch (err) {
+      if (err instanceof Error) {
+        if (err.name === 'NotAllowedError') {
+          setError(t('auth.biometricLoginLoading') + ' — annulé.');
+        } else if ((err as { code?: string }).code === 'webauthn_credential_not_found') {
+          setError(t('auth.biometricNotRegistered'));
+        } else {
+          setError(err.message || t('auth.biometricNotSupported'));
+        }
+      } else {
+        setError(t('auth.biometricNotSupported'));
+      }
+    } finally {
+      setBiometricLoading(false);
+    }
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -294,7 +332,7 @@ export function AuthPage() {
         <div className="w-full max-w-sm bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-6 space-y-4">
           <h2 className="text-lg font-bold text-white text-center">Finaliser votre inscription</h2>
           <p className="text-sm text-gray-400 text-center">
-            Acceptez les conditions pour activer votre compte créé via Google ou Facebook.
+            Acceptez les conditions pour activer votre compte créé via Google.
           </p>
           <label className="flex items-start gap-2 cursor-pointer text-xs text-gray-400 leading-snug">
             <input
@@ -543,7 +581,7 @@ export function AuthPage() {
           </button>
         </form>
 
-        {(oauthProviders.google || oauthProviders.facebook) && (
+        {googleOAuthAvailable && (
         <div className="mt-3 space-y-3">
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-[#1e1e2f]" />
@@ -551,9 +589,7 @@ export function AuthPage() {
             <div className="h-px flex-1 bg-[#1e1e2f]" />
           </div>
 
-          <div className="flex items-center justify-center gap-3">
-            {/* Google */}
-            {oauthProviders.google && (
+          <div className="flex items-center justify-center">
             <button
               type="button"
               onClick={() => { window.location.href = '/api/auth/google'; }}
@@ -568,25 +604,38 @@ export function AuthPage() {
                 <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
               </svg>
             </button>
-            )}
-
-            {/* Facebook */}
-            {oauthProviders.facebook && (
-            <button
-              type="button"
-              onClick={() => { window.location.href = '/api/auth/facebook'; }}
-              aria-label="Continuer avec Facebook"
-              title="Continuer avec Facebook"
-              className="w-12 h-12 rounded-full bg-[#12121a] border border-[#1e1e2f] flex items-center justify-center transition active:scale-95 hover:border-purple-500/50 hover:bg-[#1a1a26] hover:shadow-[0_0_12px_rgba(139,92,246,0.3)] cursor-pointer"
-            >
-              <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-                <path fill="#1877F2" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-              </svg>
-            </button>
-            )}
-
           </div>
         </div>
+        )}
+
+        {/* ── Face ID / empreinte (WebAuthn) — connexion uniquement ── */}
+        {mode === 'login' && biometricSupported && (
+          <div className="mt-3 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-[#1e1e2f]" />
+              <span className="text-[11px] text-gray-500 shrink-0">{t('auth.biometricOr')}</span>
+              <div className="h-px flex-1 bg-[#1e1e2f]" />
+            </div>
+            <button
+              type="button"
+              disabled={biometricLoading}
+              onClick={() => void handleBiometricLogin()}
+              className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl bg-[#12121a] border border-[#1e1e2f] text-sm font-medium text-gray-200 hover:bg-[#1a1a26] hover:border-purple-500/40 hover:text-white transition active:scale-[0.98] disabled:opacity-50"
+              aria-label={t('auth.biometricLogin')}
+            >
+              {biometricLoading ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin" />
+                  <span>{t('auth.biometricLoginLoading')}</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-lg" aria-hidden>🔒</span>
+                  <span>{t('auth.biometricLogin')}</span>
+                </>
+              )}
+            </button>
+          </div>
         )}
 
         <MsdevDualIpPanel onAutoLogin={handleAutoLogin} hasToken={Boolean(token)} />

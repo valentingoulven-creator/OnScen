@@ -45,7 +45,7 @@ export function AdminPage({
   ];
 
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden bg-[#0b0b0f] text-white">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-[#0b0b0f] text-white">
       <header className="shrink-0 z-10 bg-[#0b0b0f]/95 border-b border-[#1e1e2f] px-4 py-3 ms-safe-area-top">
         <div className="flex items-center gap-3 max-w-lg mx-auto min-w-0">
           {onBack && (
@@ -73,7 +73,7 @@ export function AdminPage({
         </AdminScrollTabBar>
       </header>
 
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 max-w-lg mx-auto w-full pb-4">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 max-w-lg mx-auto w-full pb-6">
         {tab === 'accounts' && <AdminAccountsTab />}
         {tab === 'access' && <AdminAccessTab />}
         {tab === 'content' && <AdminContentTab onOpenSalon={onOpenSalon} />}
