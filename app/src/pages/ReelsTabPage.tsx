@@ -1,7 +1,7 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePauseMediaOnPageHidden } from '../hooks/usePauseMediaOnPageHidden';
-import { REELS_DEMO_VIDEO_COUNT, type MusicReel } from '../content/reels';
+import { type MusicReel } from '../content/reels';
 import { isMsdevEnvironment } from '../lib/liveCameraSupport';
 import { formatReelDuration } from '../lib/reelDuration';
 import {
@@ -1128,9 +1128,6 @@ export function ReelsTabPage({
                   onDoubleTapLike={index === activeIndex ? likeReelOnDoubleTap : undefined}
                   showPlaybackPaused={index === activeIndex && playbackPaused}
                   resolveMuted={resolveMuted}
-                  devCatalogVideoCount={
-                    isMsdevEnvironment() && index === activeIndex ? REELS_DEMO_VIDEO_COUNT : undefined
-                  }
                   onOpenAuthor={onOpenProfile}
                 />
               )
@@ -1530,7 +1527,6 @@ function ReelSlide({
   onDoubleTapLike,
   showPlaybackPaused,
   resolveMuted,
-  devCatalogVideoCount,
   onOpenAuthor,
 }: {
   reel: MusicReel;
@@ -1543,8 +1539,6 @@ function ReelSlide({
   onDoubleTapLike?: () => void;
   showPlaybackPaused?: boolean;
   resolveMuted?: () => boolean;
-  /** msdev : total de vidéos du catalogue, affiché en haut à gauche */
-  devCatalogVideoCount?: number;
   onOpenAuthor?: (userId: string) => void;
 }) {
   const { t } = useTranslation();
@@ -1903,14 +1897,6 @@ function ReelSlide({
         </div>
       )}
       <div className="reel-slide__scrim absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/40 pointer-events-none" />
-      {devCatalogVideoCount != null && !showPosterOnly && (
-        <span
-          className="absolute top-4 left-4 z-10 pointer-events-none rounded-md bg-black/60 px-2 py-0.5 text-[11px] font-semibold text-white/90 tabular-nums shadow-sm"
-          aria-label={`${devCatalogVideoCount} vidéos dans le catalogue`}
-        >
-          {devCatalogVideoCount} vidéos
-        </span>
-      )}
       <div className="reel-meta-stack absolute bottom-14 left-4 right-24 z-10 flex flex-col items-start gap-1.5">
         {durationBadgeText != null && (
           <span
