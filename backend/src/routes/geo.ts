@@ -16,6 +16,7 @@ import {
   resolveNearbyRadiusKm,
 } from '../lib/geoLimits';
 import { isValidLatLng } from '../lib/mapCoords';
+import { geoError, parseRequestLocale } from '../lib/requestLocale';
 
 export const geoRouter = Router();
 
@@ -58,8 +59,9 @@ geoRouter.post('/update', authenticateJWT, (req: Request, res: Response) => {
   }
   const lat = Number(req.body.latitude);
   const lon = Number(req.body.longitude);
+  const locale = parseRequestLocale(req.headers['accept-language']);
   if (!isValidLatLng(lat, lon)) {
-    res.status(400).json({ error: 'Coordonnées invalides' });
+    res.status(400).json({ error: geoError('invalidCoords', locale) });
     return;
   }
   user.latitude = lat;
@@ -113,8 +115,9 @@ geoRouter.get('/nearby', authenticateJWT, (req: Request, res: Response) => {
   // Optional bounding-box filter (overrides radius for salons + lives when provided).
   const bounds = parseBoundsQuery(req.query as Record<string, unknown>);
 
+  const locale = parseRequestLocale(req.headers['accept-language']);
   if (!isValidLatLng(lat, lon)) {
-    res.status(400).json({ error: 'latitude et longitude requis' });
+    res.status(400).json({ error: geoError('coordsRequired', locale) });
     return;
   }
 
@@ -205,22 +208,104 @@ interface GeocodeSuggestion {
 }
 
 const GOUV_COMMUNES_API = 'https://geo.api.gouv.fr/communes';
+const NOMINATIM_API = 'https://nominatim.openstreetmap.org/search';
+const NOMINATIM_UA = 'Soundy/1.0 (https://getsoundy.com; contact@getsoundy.com)';
 const DEFAULT_GEOCODE_LIMIT = 5;
 const MAX_GEOCODE_LIMIT = 10;
+
+/** Nominatim policy: max 1 request per second. */
+let lastNominatimAt = 0;
 
 const geocodeLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Trop de requêtes de géocodage. Réessayez plus tard.' },
+  handler: (req, res) => {
+    const locale = parseRequestLocale(req.headers['accept-language']);
+    res.status(429).json({ error: geoError('geocodeRateLimit', locale) });
+  },
   skip: () => isMsdevRuntime(),
 });
 
+function mapGouvResults(data: GouvCommune[]): GeocodeSuggestion[] {
+  return data.map((c) => {
+    const [lon, lat] = c.centre?.coordinates ?? [];
+    const hasCoords = Number.isFinite(lat) && Number.isFinite(lon);
+    return {
+      label: c.nom,
+      subtitle: `Dép. ${c.codeDepartement}`,
+      value: c.nom,
+      ...(hasCoords ? { latitude: lat, longitude: lon } : {}),
+    };
+  });
+}
+
+interface NominatimResult {
+  display_name?: string;
+  lat?: string;
+  lon?: string;
+  address?: {
+    city?: string;
+    town?: string;
+    village?: string;
+    municipality?: string;
+    country?: string;
+  };
+}
+
+async function searchNominatim(q: string, limit: number, acceptLanguage: string): Promise<GeocodeSuggestion[]> {
+  const now = Date.now();
+  const waitMs = Math.max(0, 1100 - (now - lastNominatimAt));
+  if (waitMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+  lastNominatimAt = Date.now();
+
+  const params = new URLSearchParams({
+    q,
+    format: 'json',
+    limit: String(limit),
+    addressdetails: '1',
+  });
+  const res = await fetch(`${NOMINATIM_API}?${params}`, {
+    headers: {
+      'User-Agent': NOMINATIM_UA,
+      'Accept-Language': acceptLanguage || 'fr,en',
+    },
+  });
+  if (!res.ok) return [];
+
+  const data = (await res.json()) as NominatimResult[];
+  return data.map((item) => {
+    const lat = parseFloat(item.lat ?? '');
+    const lon = parseFloat(item.lon ?? '');
+    const hasCoords = Number.isFinite(lat) && Number.isFinite(lon);
+    const addr = item.address;
+    const city = addr?.city ?? addr?.town ?? addr?.village ?? addr?.municipality;
+    const label = city ?? item.display_name?.split(',')[0]?.trim() ?? q;
+    const subtitle = item.display_name?.split(',').slice(1, 3).join(',').trim() || addr?.country;
+    return {
+      label,
+      subtitle,
+      value: item.display_name ?? label,
+      ...(hasCoords ? { latitude: lat, longitude: lon } : {}),
+    };
+  });
+}
+
 geoRouter.get('/geocode', geocodeLimiter, async (req: Request, res: Response) => {
+  const locale = parseRequestLocale(req.headers['accept-language']);
+  const acceptLanguage =
+    typeof req.headers['accept-language'] === 'string'
+      ? req.headers['accept-language']
+      : locale === 'en'
+        ? 'en'
+        : 'fr';
+
   const q = String(req.query.q ?? '').trim();
   if (q.length < 2) {
-    res.status(400).json({ error: 'Paramètre q requis (min. 2 caractères)' });
+    res.status(400).json({ error: geoError('geocodeMin', locale) });
     return;
   }
 
@@ -230,33 +315,44 @@ geoRouter.get('/geocode', geocodeLimiter, async (req: Request, res: Response) =>
     : DEFAULT_GEOCODE_LIMIT;
 
   try {
-    const params = new URLSearchParams({
-      nom: q,
-      boost: 'population',
-      limit: String(limit),
-      fields: 'nom,codeDepartement,centre',
-    });
-    const gouvRes = await fetch(`${GOUV_COMMUNES_API}?${params}`);
-    if (!gouvRes.ok) {
-      res.status(502).json({ error: 'geo.api.gouv.fr indisponible' });
+    let results: GeocodeSuggestion[] = [];
+
+    try {
+      const params = new URLSearchParams({
+        nom: q,
+        boost: 'population',
+        limit: String(limit),
+        fields: 'nom,codeDepartement,centre',
+      });
+      const gouvRes = await fetch(`${GOUV_COMMUNES_API}?${params}`);
+      if (gouvRes.ok) {
+        const data = (await gouvRes.json()) as GouvCommune[];
+        results = mapGouvResults(data);
+      }
+    } catch {
+      /* fall through to Nominatim */
+    }
+
+    if (results.length < limit) {
+      const nominatim = await searchNominatim(q, limit, acceptLanguage);
+      const seen = new Set(results.map((r) => `${r.latitude ?? ''}:${r.longitude ?? ''}:${r.label}`));
+      for (const item of nominatim) {
+        const key = `${item.latitude ?? ''}:${item.longitude ?? ''}:${item.label}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        results.push(item);
+        if (results.length >= limit) break;
+      }
+    }
+
+    if (results.length === 0) {
+      res.status(502).json({ error: geoError('geocodeUnavailable', locale) });
       return;
     }
 
-    const data = (await gouvRes.json()) as GouvCommune[];
-    const results: GeocodeSuggestion[] = data.map((c) => {
-      const [lon, lat] = c.centre?.coordinates ?? [];
-      const hasCoords = Number.isFinite(lat) && Number.isFinite(lon);
-      return {
-        label: c.nom,
-        subtitle: `Dép. ${c.codeDepartement}`,
-        value: c.nom,
-        ...(hasCoords ? { latitude: lat, longitude: lon } : {}),
-      };
-    });
-
     res.setHeader('Cache-Control', 'public, max-age=300');
-    res.json({ results });
+    res.json({ results: results.slice(0, limit) });
   } catch {
-    res.status(502).json({ error: 'Géocodage indisponible' });
+    res.status(502).json({ error: geoError('geocodeUnavailable', locale) });
   }
 });

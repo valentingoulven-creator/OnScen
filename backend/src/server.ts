@@ -44,6 +44,7 @@ import { resolveCorsOrigin } from './lib/corsConfig';
 import { isMsdevRuntime } from './lib/msdevGuard';
 import { injectOgMetaIntoHtml, resolveShareOgMeta } from './lib/shareOgMeta';
 import { renderPublicLegalHtml, resolvePublicLegalDocKey } from './lib/publicLegalHtml';
+import { parseRequestLocale } from './lib/requestLocale';
 import { checkPoolHealth, isPostgresEnabled } from './db/pool';
 import { latencyMonitorMiddleware } from './middleware/latencyMonitor';
 import { adminMonitorRouter } from './routes/adminMonitor';
@@ -491,7 +492,12 @@ function sendPublicLegalPage(req: express.Request, res: express.Response): void 
     res.status(404).type('text/plain').send('Not found');
     return;
   }
-  const html = renderPublicLegalHtml(docKey);
+  const langParam = typeof req.query.lang === 'string' ? req.query.lang : undefined;
+  const lang =
+    langParam === 'en' || langParam === 'fr'
+      ? langParam
+      : parseRequestLocale(req.headers['accept-language']);
+  const html = renderPublicLegalHtml(docKey, lang);
   if (!html) {
     res.status(404).type('text/plain').send('Not found');
     return;

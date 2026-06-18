@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { appLoginHref } from '../lib/forgotPasswordRoute';
 
 function getToken(): string {
@@ -7,6 +8,7 @@ function getToken(): string {
 }
 
 export function ResetPasswordPage() {
+  const { t } = useTranslation();
   const [token] = useState(getToken);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -16,19 +18,19 @@ export function ResetPasswordPage() {
 
   useEffect(() => {
     if (!token) {
-      setError('Lien invalide ou expiré. Refais une demande de réinitialisation.');
+      setError(t('auth.resetPasswordInvalidLink'));
     }
-  }, [token]);
+  }, [token, t]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     if (newPassword.length < 8) {
-      setError('Le mot de passe doit contenir au moins 8 caractères');
+      setError(t('auth.resetPasswordMinLength'));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError('Les mots de passe ne correspondent pas');
+      setError(t('auth.resetPasswordMismatch'));
       return;
     }
     setLoading(true);
@@ -38,13 +40,13 @@ export function ResetPasswordPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, newPassword }),
       });
-      const data = await res.json().catch(() => ({})) as { error?: string };
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
-        throw new Error(data.error ?? 'Erreur lors de la réinitialisation');
+        throw new Error(data.error ?? t('auth.resetPasswordError'));
       }
       setDone(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur réseau');
+      setError(err instanceof Error ? err.message : t('errors.network'));
     } finally {
       setLoading(false);
     }
@@ -58,7 +60,7 @@ export function ResetPasswordPage() {
             🔐
           </div>
           <h1 className="text-2xl font-extrabold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-            Nouveau mot de passe
+            {t('auth.resetPasswordTitle')}
           </h1>
         </div>
 
@@ -66,8 +68,8 @@ export function ResetPasswordPage() {
           {done ? (
             <div className="text-center space-y-4">
               <p className="text-3xl">✅</p>
-              <p className="text-sm font-semibold text-white">Mot de passe modifié !</p>
-              <p className="text-sm text-gray-400">Tu peux maintenant te connecter avec ton nouveau mot de passe.</p>
+              <p className="text-sm font-semibold text-white">{t('auth.resetPasswordDoneTitle')}</p>
+              <p className="text-sm text-gray-400">{t('auth.resetPasswordDoneBody')}</p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-3">
@@ -75,14 +77,12 @@ export function ResetPasswordPage() {
                 <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-3 text-center">{error}</p>
               ) : (
                 <>
-                  <p className="text-sm text-gray-400 leading-relaxed">
-                    Choisis un nouveau mot de passe pour ton compte Soundy.
-                  </p>
+                  <p className="text-sm text-gray-400 leading-relaxed">{t('auth.resetPasswordIntro')}</p>
                   <input
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Nouveau mot de passe (min. 8 caractères)"
+                    placeholder={t('auth.resetPasswordNew')}
                     required
                     autoComplete="new-password"
                     autoFocus
@@ -92,13 +92,13 @@ export function ResetPasswordPage() {
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Confirmer le mot de passe"
+                    placeholder={t('auth.resetPasswordConfirm')}
                     required
                     autoComplete="new-password"
                     className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 transition"
                   />
                   {confirmPassword && newPassword !== confirmPassword && (
-                    <p className="text-xs text-red-400">Les mots de passe ne correspondent pas</p>
+                    <p className="text-xs text-red-400">{t('auth.resetPasswordMismatch')}</p>
                   )}
                   {error && (
                     <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{error}</p>
@@ -108,7 +108,7 @@ export function ResetPasswordPage() {
                     disabled={loading || !token}
                     className="block w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 font-bold text-white text-center transition"
                   >
-                    {loading ? '…' : 'Réinitialiser le mot de passe'}
+                    {loading ? '…' : t('auth.resetPasswordSubmit')}
                   </button>
                 </>
               )}
@@ -119,7 +119,7 @@ export function ResetPasswordPage() {
             href={appLoginHref()}
             className="block w-full py-2.5 rounded-xl border border-purple-500/60 bg-purple-950/30 text-sm text-purple-300 font-medium text-center hover:bg-purple-900/40 hover:border-purple-400 transition"
           >
-            ← Retour à la connexion
+            ← {t('auth.forgotPasswordBack')}
           </a>
         </div>
       </div>

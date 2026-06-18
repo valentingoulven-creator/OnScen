@@ -88,12 +88,13 @@ function GearIcon({ className }: { className?: string }) {
 }
 
 export function SettingsGearButton({ onClick }: { onClick: () => void }) {
+  const { t } = useTranslation();
   return (
     <button
       type="button"
       onClick={onClick}
-      title="Paramètres"
-      aria-label="Paramètres"
+      title={t('settings.title')}
+      aria-label={t('settings.settingsAria')}
       className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur border border-white/20 text-gray-200 hover:text-white transition"
     >
       <GearIcon className="w-5 h-5" />
@@ -163,15 +164,15 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
       if (pushPermission === 'granted') {
         await unsubscribePush(token);
         setPushPermission('default');
-        flash('Notifications push désactivées');
+        flash(t('settings.pushDisabled'));
       } else {
         const ok = await requestAndSubscribePush(token);
         const newPerm = Notification.permission as PushPermissionState;
         setPushPermission(newPerm);
         if (ok && newPerm === 'granted') {
-          flash('Notifications push activées \u2713');
+          flash(t('settings.pushEnabled'));
         } else if (newPerm === 'denied') {
-          flash('Permission refusée dans le navigateur');
+          flash(t('settings.pushDenied'));
         }
       }
     } finally {
@@ -198,15 +199,15 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
     e.preventDefault();
     setPwError('');
     if (newPwd.length < 8) {
-      setPwError('Le nouveau mot de passe doit contenir au moins 8 caractères');
+      setPwError(t('settings.passwordTooShort'));
       return;
     }
     if (newPwd !== confirmPwd) {
-      setPwError('Les mots de passe ne correspondent pas');
+      setPwError(t('settings.passwordMismatch'));
       return;
     }
     if (getPasswordStrength(newPwd) === 'faible') {
-      setPwError('Mot de passe trop faible. Ajoutez des chiffres, majuscules ou symboles');
+      setPwError(t('settings.passwordTooWeak'));
       return;
     }
     setPwLoading(true);
@@ -216,7 +217,7 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
       setNewPwd('');
       setConfirmPwd('');
       setPwSection(false);
-      flash('Mot de passe mis à jour');
+      flash(t('settings.passwordUpdated'));
     } catch (err) {
       setPwError(err instanceof Error ? err.message : 'Erreur');
     } finally {
@@ -228,12 +229,12 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
     e.preventDefault();
     setDeleteError('');
     if (deleteConfirmText !== 'SUPPRIMER') {
-      setDeleteError('Tapez exactement SUPPRIMER pour confirmer');
+      setDeleteError(t('settings.deleteAccountConfirmError'));
       return;
     }
     const oauthOnly = user?.isOAuthAccount === true;
     if (!oauthOnly && !deletePwd) {
-      setDeleteError('Mot de passe requis pour confirmer la suppression');
+      setDeleteError(t('settings.deleteAccountPasswordRequired'));
       return;
     }
     setDeleteLoading(true);
@@ -264,7 +265,7 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
   const applyPrivacy = (next: PrivacyPreferences) => {
     setPrivacy(next);
     setPrivacyPreferences(next);
-    flash('Préférences enregistrées');
+    flash(t('settings.prefsSaved'));
   };
 
   const handleExportData = async () => {
@@ -281,9 +282,9 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      flash('Export téléchargé');
+      flash(t('settings.exportDone'));
     } catch {
-      flash('Erreur lors de l\'export');
+      flash(t('settings.exportError'));
     } finally {
       setExportLoading(false);
     }
@@ -325,7 +326,7 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
 
           <SettingsRow
             label={t('settings.changePassword')}
-            hint="Mot de passe actuel requis"
+            hint={t('settings.currentPasswordHint')}
             onClick={() => { setPwSection((s) => !s); setPwError(''); }}
           />
 
@@ -333,7 +334,7 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
             <form onSubmit={handleChangePassword} className="px-4 pb-4 space-y-3">
               <input
                 type="password"
-                placeholder="Mot de passe actuel"
+                placeholder={t('settings.currentPassword')}
                 value={currentPwd}
                 onChange={(e) => setCurrentPwd(e.target.value)}
                 required
@@ -343,7 +344,7 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
               <div className="space-y-1.5">
                 <input
                   type="password"
-                  placeholder="Nouveau mot de passe"
+                  placeholder={t('settings.newPassword')}
                   value={newPwd}
                   onChange={(e) => setNewPwd(e.target.value)}
                   required
@@ -354,7 +355,7 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
               </div>
               <input
                 type="password"
-                placeholder="Confirmer le nouveau mot de passe"
+                placeholder={t('settings.confirmNewPassword')}
                 value={confirmPwd}
                 onChange={(e) => setConfirmPwd(e.target.value)}
                 required
@@ -362,7 +363,7 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
                 className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white"
               />
               {confirmPwd && newPwd !== confirmPwd && (
-                <p className="text-[11px] text-red-400">Les mots de passe ne correspondent pas</p>
+                <p className="text-[11px] text-red-400">{t('settings.passwordMismatch')}</p>
               )}
               {pwError && (
                 <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{pwError}</p>
@@ -380,7 +381,7 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
                   disabled={pwLoading}
                   className="flex-1 py-2 rounded-xl text-sm font-bold text-white bg-purple-600 hover:bg-purple-500 disabled:opacity-50 transition"
                 >
-                  {pwLoading ? '…' : 'Enregistrer'}
+                  {pwLoading ? '…' : t('common.save')}
                 </button>
               </div>
             </form>
@@ -404,15 +405,13 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
             >
               <div className="text-center space-y-1">
                 <p className="text-2xl">⚠️</p>
-                <h2 className="text-lg font-bold text-white">Supprimer mon compte</h2>
-                <p className="text-xs text-gray-400 leading-relaxed">
-                  Cette action est <strong className="text-red-400">irréversible</strong>. Toutes vos données seront définitivement supprimées.
-                </p>
+                <h2 className="text-lg font-bold text-white">{t('settings.deleteAccountTitle')}</h2>
+                <p className="text-xs text-gray-400 leading-relaxed">{t('settings.deleteAccountIrreversible')}</p>
               </div>
               {user?.isOAuthAccount !== true ? (
                 <input
                   type="password"
-                  placeholder="Votre mot de passe"
+                  placeholder={t('settings.deleteAccountPassword')}
                   value={deletePwd}
                   onChange={(e) => setDeletePwd(e.target.value)}
                   required
@@ -425,12 +424,10 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
                 </p>
               )}
               <div className="space-y-1">
-                <p className="text-xs text-gray-400">
-                  Tapez <span className="font-mono font-bold text-red-400">SUPPRIMER</span> pour confirmer
-                </p>
+                <p className="text-xs text-gray-400">{t('settings.deleteAccountConfirmLabel')}</p>
                 <input
                   type="text"
-                  placeholder="SUPPRIMER"
+                  placeholder={t('settings.deleteAccountConfirmWord')}
                   value={deleteConfirmText}
                   onChange={(e) => setDeleteConfirmText(e.target.value)}
                   required
@@ -453,7 +450,7 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
                   disabled={deleteLoading || deleteConfirmText !== 'SUPPRIMER'}
                   className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white bg-red-600 hover:bg-red-500 disabled:opacity-50 transition"
                 >
-                  {deleteLoading ? '…' : 'Supprimer'}
+                  {deleteLoading ? '…' : t('common.delete')}
                 </button>
               </div>
             </form>
@@ -483,8 +480,8 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
           </p>
           <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
             <div>
-              <p className="text-sm font-semibold text-white">Partager ma position</p>
-              <p className="text-xs text-gray-500">Afficher les salons, lives et personnes près de toi</p>
+              <p className="text-sm font-semibold text-white">{t('settings.shareLocation')}</p>
+              <p className="text-xs text-gray-500">{t('settings.shareLocationHint')}</p>
             </div>
             <input
               type="checkbox"
@@ -502,24 +499,24 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
           {pushSupported && (
             <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-white">Notifications push</p>
+                <p className="text-sm font-semibold text-white">{t('settings.pushNotifications')}</p>
                 <p className="text-xs text-gray-500 mt-0.5">
                   {pushPermission === 'granted'
-                    ? 'Activ&#233;es &#8212; lives, invitations salon, abonnements'
+                    ? t('settings.pushEnabledHint')
                     : pushPermission === 'denied'
-                      ? 'Refus&#233;es dans le navigateur &#8212; modifie les param&#232;tres du site'
-                      : 'Recevoir des alertes m&#234;me app ferm&#233;e'}
+                      ? t('settings.pushDeniedHint')
+                      : t('settings.pushDefaultHint')}
                 </p>
               </div>
               {pushPermission === 'denied' ? (
-                <span className="text-xs text-gray-600 shrink-0">Bloqu&#233;</span>
+                <span className="text-xs text-gray-600 shrink-0">{t('settings.pushBlocked')}</span>
               ) : (
                 <button
                   type="button"
                   onClick={handleTogglePush}
                   disabled={pushLoading}
                   className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${pushPermission === 'granted' ? 'bg-purple-600' : 'bg-gray-600'}`}
-                  aria-label="Toggle push notifications"
+                  aria-label={t('settings.pushToggleAria')}
                 >
                   <span
                     className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${pushPermission === 'granted' ? 'translate-x-6' : 'translate-x-1'}`}
@@ -530,34 +527,34 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
           )}        </section>
 
         <section>
-          <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Légal</p>
-          <SettingsRow label="Mentions légales" onClick={() => setLegal('mentions')} />
-          <SettingsRow label={"Conditions générales d'utilisation"} onClick={() => setLegal('terms')} />
-          <SettingsRow label="Politique de confidentialité (RGPD)" onClick={() => setLegal('privacy')} />
-          <SettingsRow label="Conformité RGPD" onClick={() => setLegal('rgpd')} />
+          <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('settings.legalSection')}</p>
+          <SettingsRow label={t('settings.legalMentions')} onClick={() => setLegal('mentions')} />
+          <SettingsRow label={t('settings.legalTerms')} onClick={() => setLegal('terms')} />
+          <SettingsRow label={t('settings.legalPrivacy')} onClick={() => setLegal('privacy')} />
+          <SettingsRow label={t('settings.legalRgpd')} onClick={() => setLegal('rgpd')} />
           <SettingsRow
-            label="Spotify & YouTube (API)"
-            hint="Conditions des plateformes tierces"
+            label={t('settings.legalApiPlatforms')}
+            hint={t('settings.legalApiPlatformsHint')}
             onClick={() => setLegal('apiPlatforms')}
           />
-          <SettingsRow label="Préférences de confidentialité" hint="Réglages dans l’app ci-dessus" />
+          <SettingsRow label={t('settings.legalPrivacyPrefs')} hint={t('settings.legalPrivacyPrefsHint')} />
           <SettingsRow
-            label="Pourboires, abonnements et monétisation"
+            label={t('settings.legalMonetization')}
             onClick={() => setLegal('creatorMonetization')}
           />
-          <SettingsRow label="Licences & crédits" onClick={() => setLegal('licenses')} />
+          <SettingsRow label={t('settings.legalLicenses')} onClick={() => setLegal('licenses')} />
           <SettingsRow
             label={t('settings.contactSupport')}
             hint="Envoie un message à l'équipe Soundy"
             onClick={() => setShowContact(true)}
           />
           <SettingsRow
-            label="Exporter mes données"
-            hint="Télécharger tes données au format JSON (RGPD)"
+            label={t('settings.exportData')}
+            hint={t('settings.exportDataHint')}
             onClick={handleExportData}
           >
             <span className="text-xs text-purple-400 shrink-0 font-medium">
-              {exportLoading ? '…' : 'JSON ↓'}
+              {exportLoading ? '…' : t('settings.exportJson')}
             </span>
           </SettingsRow>
         </section>

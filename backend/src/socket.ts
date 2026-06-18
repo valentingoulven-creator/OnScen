@@ -46,6 +46,7 @@ import {
   setSalonVipModerator,
 } from './lib/salonModeration';
 import { isAllowedChatAttachmentUrl } from './lib/chatAttachmentUrl';
+import { checkChatRateLimit } from './lib/chatRateLimit';
 
 // Debounce presence broadcasts per user: prevents rapid-fire storms when a user
 // reconnects multiple times in quick succession (e.g., mobile network hiccup).
@@ -530,6 +531,7 @@ export function setupSockets(io: Server): void {
       }) => {
         const authUserId = (socket.data as { userId?: string }).userId;
         if (!authUserId || authUserId !== payload.senderId) return;
+        if (!checkChatRateLimit(authUserId)) return;
         // Require the sender to be in the salon room (prevents non-members flooding the chat).
         if (!socket.rooms.has(`salon_${payload.salonId}`)) return;
         // Limit message content length to avoid storing oversized data.
@@ -578,6 +580,7 @@ export function setupSockets(io: Server): void {
       }) => {
         const authUserId = (socket.data as { userId?: string }).userId;
         if (!authUserId || authUserId !== payload.senderId) return;
+        if (!checkChatRateLimit(authUserId)) return;
         // Require the sender to be in the live room (prevents non-members flooding the chat).
         if (!socket.rooms.has(`live_${payload.liveId}`)) return;
         if (isLiveChatBanned(payload.liveId, authUserId)) {
@@ -635,6 +638,7 @@ export function setupSockets(io: Server): void {
       const authUserId = (socket.data as { userId?: string }).userId;
       if (!msg?.id || !msg.senderId || !msg.receiverId) return;
       if (!authUserId || authUserId !== msg.senderId) return;
+      if (!checkChatRateLimit(authUserId)) return;
       const full = {
         id: msg.id,
         senderId: msg.senderId,

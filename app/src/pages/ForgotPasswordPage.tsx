@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { appLoginHref } from '../lib/forgotPasswordRoute';
 
 export function ForgotPasswordPage() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -11,7 +13,7 @@ export function ForgotPasswordPage() {
     e.preventDefault();
     setError('');
     if (!email.trim()) {
-      setError('Saisis ton adresse e-mail');
+      setError(t('auth.forgotPasswordEmailRequired'));
       return;
     }
     setLoading(true);
@@ -22,12 +24,12 @@ export function ForgotPasswordPage() {
         body: JSON.stringify({ email: email.trim() }),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({})) as { error?: string };
-        throw new Error(data.error ?? 'Erreur lors de la demande');
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error ?? t('auth.forgotPasswordError'));
       }
       setSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur réseau');
+      setError(err instanceof Error ? err.message : t('errors.network'));
     } finally {
       setLoading(false);
     }
@@ -41,7 +43,7 @@ export function ForgotPasswordPage() {
             ♪
           </div>
           <h1 className="text-2xl font-extrabold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-            Mot de passe oublié
+            {t('auth.forgotPasswordTitle')}
           </h1>
         </div>
 
@@ -49,23 +51,20 @@ export function ForgotPasswordPage() {
           {sent ? (
             <div className="text-center space-y-4">
               <p className="text-3xl">📬</p>
-              <p className="text-sm font-semibold text-white">E-mail envoyé !</p>
+              <p className="text-sm font-semibold text-white">{t('auth.forgotPasswordSentTitle')}</p>
               <p className="text-sm text-gray-400 leading-relaxed">
-                Si un compte existe pour <strong className="text-white">{email}</strong>, tu recevras un lien
-                de réinitialisation valable 1 heure.
+                {t('auth.forgotPasswordSentBody', { email })}
               </p>
-              <p className="text-xs text-gray-500">Pense à vérifier ton dossier spam.</p>
+              <p className="text-xs text-gray-500">{t('auth.forgotPasswordSpamHint')}</p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-3">
-              <p className="text-sm text-gray-400 leading-relaxed">
-                Saisis l'adresse e-mail associée à ton compte. Tu recevras un lien pour réinitialiser ton mot de passe.
-              </p>
+              <p className="text-sm text-gray-400 leading-relaxed">{t('auth.forgotPasswordIntro')}</p>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="ton@email.com"
+                placeholder={t('auth.email')}
                 required
                 autoComplete="email"
                 autoFocus
@@ -79,7 +78,7 @@ export function ForgotPasswordPage() {
                 disabled={loading}
                 className="block w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 font-bold text-white text-center transition"
               >
-                {loading ? '…' : 'Envoyer le lien'}
+                {loading ? '…' : t('auth.forgotPasswordSend')}
               </button>
             </form>
           )}
@@ -88,7 +87,7 @@ export function ForgotPasswordPage() {
             href={appLoginHref()}
             className="block w-full py-2.5 rounded-xl border border-purple-500/60 bg-purple-950/30 text-sm text-purple-300 font-medium text-center hover:bg-purple-900/40 hover:border-purple-400 transition"
           >
-            ← Retour à la connexion
+            ← {t('auth.forgotPasswordBack')}
           </a>
         </div>
       </div>

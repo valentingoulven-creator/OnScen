@@ -843,8 +843,8 @@ export function LivePage({
   if (liveViewBanned) {
     return (
       <div className="h-full flex flex-col items-center justify-center gap-4 px-6 text-center bg-[#0b0b0f]">
-        <p className="text-red-400 font-bold text-lg">Accès au live refusé</p>
-        <p className="text-gray-400 text-sm max-w-md">{liveViewBanMessage ?? 'Vous êtes banni de ce live.'}</p>
+        <p className="text-red-400 font-bold text-lg">{t('live.accessDeniedTitle')}</p>
+        <p className="text-gray-400 text-sm max-w-md">{liveViewBanMessage ?? t('live.accessDeniedDefault')}</p>
         <button
           type="button"
           onClick={onBack}
@@ -961,7 +961,7 @@ export function LivePage({
             <p className="font-bold text-white truncate">{live.title}</p>
             <p className="text-xs text-red-400 flex items-center gap-1.5 flex-wrap min-w-0">
               <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />
-              <span className="shrink-0">LIVE ·</span>
+              <span className="shrink-0">{t('live.liveBadge')}</span>
               <UsernameDisplay
                 username={live.hostName}
                 usernameColor={live.hostUsernameColor}
@@ -979,12 +979,12 @@ export function LivePage({
                   compact
                 />
               )}
-              <span className="shrink-0">· {viewers} spectateurs</span>
+              <span className="shrink-0">· {t('live.viewersCount', { count: viewers })}</span>
               {!isHost && isDevModerator && (
-                <span className="shrink-0 text-[10px] font-bold text-cyan-300">· Dev</span>
+                <span className="shrink-0 text-[10px] font-bold text-cyan-300">· {t('live.devBadge')}</span>
               )}
               {!isHost && isVipModerator && !isDevModerator && (
-                <span className="shrink-0 text-[10px] font-bold text-amber-300">· Modérateur VIP</span>
+                <span className="shrink-0 text-[10px] font-bold text-amber-300">· {t('live.vipModBadge')}</span>
               )}
             </p>
             {remainingMs !== null && remainingMs > 0 && (
@@ -1127,9 +1127,9 @@ export function LivePage({
           <button
             type="button"
             onClick={() => void handleShareLive()}
-            title={shareCopied ? 'Lien copié !' : 'Partager ce live'}
+            title={shareCopied ? t('live.shareLiveCopied') : t('live.shareLiveTitle')}
             className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-[#2a2a3a] transition"
-            aria-label="Partager le live"
+            aria-label={t('live.shareLive')}
           >
             {shareCopied ? (
               <svg className="w-4 h-4 text-green-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -1168,7 +1168,7 @@ export function LivePage({
         chatDock="bottom"
         chatHidden={chatHidden}
         onToggleChat={toggleChatHidden}
-        chatTitle="Chat public"
+        chatTitle={t('live.publicChat')}
         chatMinimized={chatMinimized}
         onToggleMinimize={() => setChatMinimized((m) => !m)}
         chatHeaderExtra={
@@ -1287,9 +1287,9 @@ export function LivePage({
           <div className="flex flex-col h-full min-h-0">
             {(isHost || isDevModerator) && showVipPanel && (
               <div className="shrink-0 rounded-lg border border-amber-500/30 bg-amber-950/20 p-2.5 mx-2 mt-2">
-                <p className="text-xs font-bold text-amber-300 mb-2">VIP / Modérateurs</p>
+                <p className="text-xs font-bold text-amber-300 mb-2">{t('live.vipModerators')}</p>
                 {vipEntries.length === 0 ? (
-                  <p className="text-[11px] text-gray-500 mb-2">Aucun modérateur VIP pour l&apos;instant.</p>
+                  <p className="text-[11px] text-gray-500 mb-2">{t('live.noVipModerators')}</p>
                 ) : (
                   <ul className="space-y-1.5 mb-3">
                     {vipEntries.map((v) => (
@@ -1305,7 +1305,7 @@ export function LivePage({
                           }}
                           className="shrink-0 px-2 py-1 rounded-lg text-[10px] font-bold text-red-300 border border-red-500/30 hover:bg-red-500/10"
                         >
-                          Retirer VIP
+                          {t('live.removeVip')} VIP
                         </button>
                       </li>
                     ))}
@@ -1326,7 +1326,7 @@ export function LivePage({
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-[11px] text-gray-500">Ajoutez un modérateur depuis le chat.</p>
+                  <p className="text-[11px] text-gray-500">{t('live.addModeratorFromChat')}</p>
                 )}
               </div>
             )}

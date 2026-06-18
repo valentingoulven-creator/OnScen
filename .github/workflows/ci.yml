@@ -30,8 +30,16 @@ jobs:
           npm ci
           npm run build
 
+      - name: Backend — tests
+        working-directory: backend
+        run: npm test
+
       - name: App — install & typecheck
         working-directory: app
         run: |
           npm ci
           npx tsc -b --noEmit
+
+      - name: App — tests
+        working-directory: app
+        run: npm test

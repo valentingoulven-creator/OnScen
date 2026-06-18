@@ -76,16 +76,19 @@ function countryCodeToFlag(code: string): string {
   return String.fromCodePoint(...[...cc].map((c) => 0x1f1e6 - 65 + c.charCodeAt(0)));
 }
 
+import i18n from '../i18n';
+
 function formatWhen(ts: number): string {
   const sec = Math.floor((Date.now() - ts) / 1000);
-  if (sec < 60) return "À l'instant";
+  if (sec < 60) return i18n.t('feed.timeAgoNow');
   const min = Math.floor(sec / 60);
-  if (min < 60) return `Il y a ${min} min`;
+  if (min < 60) return i18n.t('feed.timeAgoMinutes', { count: min });
   const h = Math.floor(min / 60);
-  if (h < 24) return `Il y a ${h} h`;
+  if (h < 24) return i18n.t('feed.timeAgoHours', { count: h });
   const d = Math.floor(h / 24);
-  if (d < 7) return `Il y a ${d} j`;
-  return new Date(ts).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  if (d < 7) return i18n.t('feed.timeAgoDays', { count: d });
+  const locale = i18n.language.startsWith('en') ? 'en-US' : 'fr-FR';
+  return new Date(ts).toLocaleDateString(locale, { day: 'numeric', month: 'short' });
 }
 
 function rankMedal(rank: number): string {
@@ -98,7 +101,8 @@ function rankMedal(rank: number): string {
 function formatEventDate(iso: string): string {
   try {
     const d = new Date(iso);
-    return d.toLocaleDateString('fr-FR', {
+    const locale = i18n.language.startsWith('en') ? 'en-US' : 'fr-FR';
+    return d.toLocaleDateString(locale, {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
@@ -442,14 +446,16 @@ function ActualitesContent({
     .sort((a, b) => new Date(a.eventDate!).getTime() - new Date(b.eventDate!).getTime());
   // MODIF 159/167 – remplace Promotions ; titre = pays (géoloc, profil ou France)
   const displayCountryName = countryName ?? EVENTS_COUNTRY_FALLBACK.name;
-  const countrySectionLabel = `ÉVÉNEMENTS EN ${displayCountryName.toUpperCase()}`;
+  const countrySectionLabel = t('feed.eventsCountryLabel', {
+    country: displayCountryName.toUpperCase(),
+  });
   const countrySectionEmoji = countryCodeToFlag(displayCountryCode);
   const trendsCountrySubtitle = `${countryCodeToFlag(displayCountryCode)} · ${displayCountryName}`;
 
   if (newsLoading && newsItems.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <p className="text-sm text-gray-500">Chargement des actualités…</p>
+        <p className="text-sm text-gray-500">{t('feed.loadingNews')}</p>
       </div>
     );
   }
@@ -463,7 +469,7 @@ function ActualitesContent({
           onClick={onRefresh}
           className="text-xs font-semibold text-purple-400 hover:text-purple-300 transition"
         >
-          Réessayer
+          {t('common.retry')}
         </button>
       </div>
     );
@@ -479,7 +485,7 @@ function ActualitesContent({
         {/* MODIF 214/215 – Tendances par pays en tête (remplace Stories dans Actualités) */}
         <div className="mt-4 space-y-2.5">
           <SectionHeader
-            label="TENDANCES DE LA SEMAINE"
+            label={t('feed.trendsWeek')}
             emoji="🔥"
             subtitle={trendsCountrySubtitle}
           />
@@ -495,7 +501,7 @@ function ActualitesContent({
               </div>
             </div>
           ) : trendingUsers.length === 0 ? (
-            <p className="text-xs text-gray-500 text-center py-4">Aucun live ou session pour le moment</p>
+            <p className="text-xs text-gray-500 text-center py-4">{t('feed.trendsEmpty')}</p>
           ) : (
             <div className="overflow-x-auto -mx-3 px-3">
               <div className="flex gap-4 w-max pb-1">
@@ -512,9 +518,9 @@ function ActualitesContent({
             type="button"
             onClick={onBack}
             className="w-full px-3 py-2 rounded-xl text-sm font-semibold text-amber-300 bg-amber-500/15 ring-1 ring-inset ring-amber-500/30 hover:bg-amber-500/25 transition"
-            aria-label="Retour à l'accueil"
+            aria-label={t('feed.backHomeAria')}
           >
-            ← Accueil
+            {t('feed.backHome')}
           </button>
         ) : null}
       </div>
@@ -589,11 +595,11 @@ function ActualitesContent({
           subtitle={t('feed.eventsAroundRadius')}
         />
         {communityEventsLoading && userCreatedEvents.length === 0 ? (
-          <p className="text-[11px] text-gray-500 px-0.5">Chargement des événements de la communauté…</p>
+          <p className="text-[11px] text-gray-500 px-0.5">{t('feed.eventsCommunityLoading')}</p>
         ) : userCreatedEvents.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-5 text-center">
             <CalendarIcon className="w-7 h-7 text-gray-600" />
-            <p className="text-xs text-gray-500">Aucun événement publié par la communauté pour le moment</p>
+            <p className="text-xs text-gray-500">{t('feed.eventsCommunityEmpty')}</p>
           </div>
         ) : (
           <EventsCarousel posts={userCreatedEvents} onOpen={onOpenAuthor} onShare={onShareEvent} />
@@ -604,11 +610,11 @@ function ActualitesContent({
       <div className="space-y-2.5 min-w-0">
         <SectionHeader label={countrySectionLabel} emoji={countrySectionEmoji} />
         {countryEventsLoading ? (
-          <p className="text-[11px] text-gray-500 px-0.5">Chargement des événements de votre pays…</p>
+          <p className="text-[11px] text-gray-500 px-0.5">{t('feed.eventsCountryLoading')}</p>
         ) : countryUpcoming.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-5 text-center">
             <CalendarIcon className="w-7 h-7 text-gray-600" />
-            <p className="text-xs text-gray-500">Aucun événement musical dans votre pays pour le moment</p>
+            <p className="text-xs text-gray-500">{t('feed.eventsCountryEmpty')}</p>
           </div>
         ) : (
           <EventsCarousel
@@ -671,6 +677,7 @@ const PostCard = memo(function PostCard({
   onShare,
   onToggleFavorite,
 }: PostCardProps) {
+  const { t } = useTranslation();
   const commentsOpen = commentOpenPostId === post.id;
   const displayedComments = fullComments ?? post.recentComments ?? [];
   const authorStory = latestStory(storiesByUser.get(post.author.id) ?? []);
@@ -729,7 +736,7 @@ const PostCard = memo(function PostCard({
             ) : null}
           </div>
           <p className="text-[11px] text-gray-500">
-            {post.resharedFromId && <span className="text-green-500/80 mr-1">🔁 Repartagé ·</span>}
+            {post.resharedFromId && <span className="text-green-500/80 mr-1">🔁 {t('feed.reshared')}</span>}
             {formatWhen(post.createdAt)}
           </p>
         </div>
@@ -834,7 +841,7 @@ const PostCard = memo(function PostCard({
           className={`flex items-center gap-1 px-2 py-1 rounded-lg transition text-xs font-medium ${
             post.likedByMe ? 'text-red-400' : 'text-gray-500 hover:text-red-300 hover:bg-red-900/10'
           }`}
-          title={post.likedByMe ? 'Ne plus aimer' : 'Aimer'}
+          title={post.likedByMe ? t('feed.unlike') : t('feed.like')}
         >
           <HeartIcon filled={post.likedByMe} className="w-3.5 h-3.5 shrink-0" />
           {post.likeCount > 0 && <span>{post.likeCount}</span>}
@@ -847,7 +854,7 @@ const PostCard = memo(function PostCard({
           className={`flex items-center gap-1 px-2 py-1 rounded-lg transition text-xs font-medium ${
             commentsOpen ? 'text-purple-400' : 'text-gray-500 hover:text-purple-300 hover:bg-purple-900/10'
           }`}
-          title="Commenter"
+          title={t('feed.comment')}
         >
           <CommentIcon className="w-3.5 h-3.5 shrink-0" />
           {post.commentCount > 0 && <span>{post.commentCount}</span>}
@@ -862,7 +869,7 @@ const PostCard = memo(function PostCard({
               ? 'text-green-300 bg-green-900/10'
               : 'text-gray-500 hover:text-green-300 hover:bg-green-900/10'
           }`}
-          title={post.resharedByMe ? 'Déjà repartagé' : 'Repartager'}
+          title={post.resharedByMe ? t('feed.alreadyReshared') : t('feed.reshare')}
         >
           <ReshareIcon className="w-3.5 h-3.5 shrink-0" />
         </button>
@@ -872,7 +879,7 @@ const PostCard = memo(function PostCard({
           type="button"
           onClick={onShare}
           className="flex items-center gap-1 px-2 py-1 rounded-lg transition text-xs font-medium text-gray-500 hover:text-blue-300 hover:bg-blue-900/10"
-          title="Partager"
+          title={t('common.share')}
         >
           <ShareIcon className="w-3.5 h-3.5 shrink-0" />
         </button>
@@ -886,7 +893,7 @@ const PostCard = memo(function PostCard({
               ? 'text-amber-400'
               : 'text-gray-500 hover:text-amber-300 hover:bg-amber-900/10'
           }`}
-          title={post.favoriteByMe ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+          title={post.favoriteByMe ? t('feed.removeFavorite') : t('feed.addFavorite')}
         >
           <BookmarkIcon filled={post.favoriteByMe} className="w-3.5 h-3.5 shrink-0" />
         </button>
@@ -896,10 +903,10 @@ const PostCard = memo(function PostCard({
       {commentsOpen && (
         <div className="space-y-2 pt-1">
           {commentsLoading && (
-            <p className="text-xs text-gray-600 text-center">Chargement des commentaires…</p>
+            <p className="text-xs text-gray-600 text-center">{t('feed.commentsLoading')}</p>
           )}
           {!commentsLoading && displayedComments.length === 0 && (
-            <p className="text-xs text-gray-600 text-center">Aucun commentaire. Soyez le premier !</p>
+            <p className="text-xs text-gray-600 text-center">{t('feed.commentsEmpty')}</p>
           )}
           <div className="post-comments-scroll max-h-[280px] space-y-2">
             {displayedComments.map((c) => (
@@ -927,7 +934,7 @@ const PostCard = memo(function PostCard({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onPostComment(); }
                 }}
-                placeholder="Ajouter un commentaire…"
+                placeholder={t('feed.commentPlaceholder')}
                 rows={1}
                 maxLength={500}
                 className="flex-1 rounded-xl bg-[#0b0b0f] border border-[#2a2a3d] px-3 py-2 text-xs text-white placeholder:text-gray-600 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500/50"
