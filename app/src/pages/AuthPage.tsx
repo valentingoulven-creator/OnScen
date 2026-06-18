@@ -59,13 +59,11 @@ export function AuthPage() {
   const [usernameMessage, setUsernameMessage] = useState('');
   const usernameTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // OAuth provider availability (fetched from backend at mount)
-  const [oauthProviders, setOauthProviders] = useState<{ google: boolean; facebook: boolean }>({
+  const [oauthLoading, setOauthLoading] = useState(false);
+  const [_oauthProviders, setOauthProviders] = useState<{ google: boolean; facebook: boolean }>({
     google: false,
     facebook: false,
   });
-  // True while processing the OAuth callback code from the URL
-  const [oauthLoading, setOauthLoading] = useState(false);
   const [oauthTermsCode, setOauthTermsCode] = useState<string | null>(null);
   const [oauthAcceptTerms, setOauthAcceptTerms] = useState(false);
   const [oauthTermsBusy, setOauthTermsBusy] = useState(false);
@@ -555,15 +553,9 @@ export function AuthPage() {
           {/* Google */}
           <button
             type="button"
-            disabled={!oauthProviders.google}
             onClick={() => { window.location.href = '/api/auth/google'; }}
-            title={oauthProviders.google ? 'Continuer avec Google' : 'Bientôt disponible'}
-            className={[
-              'w-full flex items-center gap-3 py-2.5 px-4 rounded-xl border text-sm font-medium transition',
-              oauthProviders.google
-                ? 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 active:bg-gray-100 cursor-pointer'
-                : 'bg-[#12121a] border-[#2a2a3a] text-gray-600 cursor-not-allowed opacity-60',
-            ].join(' ')}
+            title="Continuer avec Google"
+            className="w-full flex items-center gap-3 py-2.5 px-4 rounded-xl border text-sm font-medium transition bg-white border-gray-200 text-gray-700 hover:bg-gray-50 active:bg-gray-100 cursor-pointer"
           >
             <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true" className="shrink-0">
               <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
@@ -572,38 +564,6 @@ export function AuthPage() {
               <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
             </svg>
             <span className="flex-1 text-left">Continuer avec Google</span>
-            {!oauthProviders.google && (
-              <span className="text-[10px] text-gray-500 font-normal">Bientôt disponible</span>
-            )}
-          </button>
-
-          {/* Facebook */}
-          <button
-            type="button"
-            disabled={!oauthProviders.facebook}
-            onClick={() => { window.location.href = '/api/auth/facebook'; }}
-            title={oauthProviders.facebook ? 'Continuer avec Facebook' : 'Bientôt disponible'}
-            className={[
-              'w-full flex items-center gap-3 py-2.5 px-4 rounded-xl border text-sm font-medium transition',
-              oauthProviders.facebook
-                ? 'bg-[#1877F2] border-[#1877F2] text-white hover:bg-[#166FE5] active:bg-[#1565D8] cursor-pointer'
-                : 'bg-[#12121a] border-[#2a2a3a] text-gray-600 cursor-not-allowed opacity-60',
-            ].join(' ')}
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-              className="shrink-0"
-              fill={oauthProviders.facebook ? 'white' : '#4b5563'}
-            >
-              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-            </svg>
-            <span className="flex-1 text-left">Continuer avec Facebook</span>
-            {!oauthProviders.facebook && (
-              <span className="text-[10px] text-gray-500 font-normal">Bientôt disponible</span>
-            )}
           </button>
         </div>
 
