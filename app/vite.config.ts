@@ -87,6 +87,17 @@ export default defineConfig(({ mode }) => {
             purpose: 'any maskable',
           },
         ],
+        screenshots: [
+          {
+            src: '/pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            form_factor: 'narrow',
+            label: 'Salons d\'écoute musicale géolocalisés',
+          },
+        ],
+        categories: ['music', 'social', 'entertainment'],
+        iarc_rating_id: '',
       },
       workbox: {
         /**
@@ -110,6 +121,7 @@ export default defineConfig(({ mode }) => {
           '**/workbox-*.js',
           '**/sw.js',
           '**/vendor-heic2any*.js',
+          '**/vendor-globe*.js',
         ],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/, /^\/socket\.io/, /^\/msdev-mobile$/, /^\/clear-pwa/, /^\/phone-preview/, /^\/tel\//],
@@ -158,8 +170,11 @@ export default defineConfig(({ mode }) => {
           if (id.includes('socket.io-client')) return 'vendor-socketio';
           if (id.includes('livekit-client') || id.includes('@livekit/')) return 'vendor-livekit';
           if (id.includes('leaflet') || id.includes('react-leaflet') || id.includes('leaflet.markercluster')) return 'vendor-map';
-          // Globe/Three/D3 sont seulement chargés par le lazy GlobeView →
-          // ne pas les forcer dans vendor-misc, Rollup les gardera avec le chunk lazy
+          // Globe/Three/D3 : chunk nommé explicitement pour que Rolldown
+          // ne les fusionne PAS dans vendor-misc (retourner undefined laisse
+          // Rolldown les y injecter malgré le lazy-import de GlobeView).
+          // vendor-globe n'est PAS préchargé car il n'est atteint que via
+          // le dynamic-import de GlobeView.
           if (
             id.includes('react-globe') ||
             id.includes('/three/') ||
@@ -169,7 +184,7 @@ export default defineConfig(({ mode }) => {
             id.includes('topojson') ||
             id.includes('kapsule') ||
             id.includes('accessor-fn')
-          ) return undefined;
+          ) return 'vendor-globe';
           return 'vendor-misc';
         },
       },
