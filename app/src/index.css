@@ -2071,75 +2071,20 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   margin-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--tab-nav-float-gap));
   padding: 0.35rem 0.65rem 0.45rem;
   background:
-    linear-gradient(180deg, rgba(147, 51, 234, 0.1) 0%, transparent 46%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, transparent 28%),
-    var(--ms-glass);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 28%),
+    rgba(18, 18, 26, 0.42);
   backdrop-filter: blur(18px) saturate(1.15);
   -webkit-backdrop-filter: blur(18px) saturate(1.15);
-  border: 1px solid var(--ms-glass-border);
+  border: none;
   border-radius: 1.35rem 1.35rem 1.75rem 1.75rem;
   box-shadow:
-    0 0 0 1px rgba(147, 51, 234, 0.22),
     0 10px 36px rgba(0, 0, 0, 0.48),
-    0 2px 8px rgba(0, 0, 0, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+    0 2px 8px rgba(0, 0, 0, 0.32);
   overflow: visible;
 }
 
-[data-design-quick-wins="1"] nav.ms-tab-bar-bottom .ms-tab-rail__wave {
-  display: block;
-  position: absolute;
-  left: 50%;
-  top: 0.45rem;
-  transform: translateX(-50%);
-  width: min(72%, 11rem);
-  height: 0.55rem;
-  pointer-events: none;
-  opacity: 0.68;
-  transition: left 0.38s cubic-bezier(0.34, 1.4, 0.64, 1), opacity 0.22s ease;
-  background: repeating-linear-gradient(
-    90deg,
-    transparent 0,
-    transparent 3px,
-    rgba(147, 51, 234, 0.55) 3px,
-    rgba(147, 51, 234, 0.55) 4px,
-    transparent 4px,
-    transparent 7px,
-    rgba(217, 70, 239, 0.45) 7px,
-    rgba(217, 70, 239, 0.45) 8px,
-    transparent 8px,
-    transparent 10px,
-    rgba(147, 51, 234, 0.35) 10px,
-    rgba(147, 51, 234, 0.35) 11px
-  );
-  mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
-}
-
-[data-design-quick-wins="1"] nav.ms-tab-bar-bottom > div.ms-tab-rail[data-active-tab='actualite'] .ms-tab-rail__wave {
-  left: 16%;
-}
-
-[data-design-quick-wins="1"] nav.ms-tab-bar-bottom > div.ms-tab-rail[data-active-tab='map'] .ms-tab-rail__wave {
-  left: 32%;
-}
-
-[data-design-quick-wins="1"] nav.ms-tab-bar-bottom > div.ms-tab-rail[data-active-tab='live'] .ms-tab-rail__wave {
-  left: 50%;
-}
-
-[data-design-quick-wins="1"] nav.ms-tab-bar-bottom > div.ms-tab-rail[data-active-tab='dm'] .ms-tab-rail__wave {
-  left: 68%;
-}
-
-[data-design-quick-wins="1"] nav.ms-tab-bar-bottom > div.ms-tab-rail[data-active-tab='reels'] .ms-tab-rail__wave {
-  left: 84%;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  [data-design-quick-wins="1"] nav.ms-tab-bar-bottom .ms-tab-rail-btn,
-  [data-design-quick-wins="1"] nav.ms-tab-bar-bottom .ms-tab-rail__wave {
+  [data-design-quick-wins="1"] nav.ms-tab-bar-bottom .ms-tab-rail-btn {
     transition-duration: 0.01ms;
   }
 }
