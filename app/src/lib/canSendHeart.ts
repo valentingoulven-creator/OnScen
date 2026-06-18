@@ -51,6 +51,16 @@ export function isSingleForHeart(
   return user?.relationshipStatus === 'celibataire';
 }
 
+/**
+ * Sender-side relationship gate: only block when explicitly set to 'en_couple'.
+ * null/undefined (no status set) and 'celibataire'/'autre' are all allowed.
+ */
+export function senderPassesRelationshipGate(
+  user: Pick<HeartEligibilityUser, 'relationshipStatus'> | null | undefined
+): boolean {
+  return user?.relationshipStatus !== 'en_couple';
+}
+
 export function canSendHeart(
   viewer: HeartEligibilityUser | null | undefined,
   profile: HeartEligibilityUser | null | undefined
@@ -60,7 +70,7 @@ export function canSendHeart(
   if (!isAccountValidated(profile)) return false;
   if (!userMeetsHeartAge(viewer)) return false;
   if (!userMeetsHeartAge(profile)) return false;
-  if (!isSingleForHeart(viewer)) return false;
+  if (!senderPassesRelationshipGate(viewer)) return false;
   if (!isSingleForHeart(profile)) return false;
   return true;
 }
@@ -79,7 +89,7 @@ export function heartBlockReasonKeys(
   if (!isAccountValidated(profile)) keys.push('profileNotValidated');
   if (!userMeetsHeartAge(viewer)) keys.push('viewerUnderAge');
   if (!userMeetsHeartAge(profile)) keys.push('profileUnderAge');
-  if (!isSingleForHeart(viewer)) keys.push('viewerNotSingle');
+  if (!senderPassesRelationshipGate(viewer)) keys.push('viewerNotSingle');
   if (!isSingleForHeart(profile)) keys.push('profileNotSingle');
   return keys;
 }
@@ -90,7 +100,7 @@ const HEART_BLOCK_MESSAGES: Record<HeartBlockReasonKey, string> = {
   profileNotValidated: 'Ce profil n’est pas encore validé.',
   viewerUnderAge: 'Vous devez avoir au moins 18 ans pour envoyer un cœur.',
   profileUnderAge: 'Cette personne doit avoir au moins 18 ans.',
-  viewerNotSingle: 'Indiquez être célibataire sur votre profil pour envoyer un cœur.',
+  viewerNotSingle: 'Les cœurs sont réservés aux membres célibataires.',
   profileNotSingle: 'Cette personne doit indiquer être célibataire sur son profil.',
 };
 

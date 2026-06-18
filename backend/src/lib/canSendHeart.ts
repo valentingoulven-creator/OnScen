@@ -19,6 +19,14 @@ export function isSingleForHeart(user: User | null | undefined): boolean {
   return user?.relationshipStatus === 'celibataire';
 }
 
+/**
+ * Sender-side relationship gate: only block when explicitly set to 'en_couple'.
+ * null/undefined (no status set) and 'celibataire'/'autre' are all allowed.
+ */
+export function senderPassesRelationshipGate(user: User | null | undefined): boolean {
+  return user?.relationshipStatus !== 'en_couple';
+}
+
 export function canReceiveHeart(user: User | null | undefined): boolean {
   if (!user) return false;
   if (!isAccountValidated(user)) return false;
@@ -33,7 +41,7 @@ export function canSendHeart(sender: User | null | undefined, recipient: User | 
   if (!isAccountValidated(recipient)) return false;
   if (!userMeetsHeartAge(sender)) return false;
   if (!userMeetsHeartAge(recipient)) return false;
-  if (!isSingleForHeart(sender)) return false;
+  if (!senderPassesRelationshipGate(sender)) return false;
   if (!isSingleForHeart(recipient)) return false;
   return true;
 }
@@ -56,8 +64,8 @@ export function heartSendDeniedReason(
   if (!userMeetsHeartAge(recipient)) {
     return 'Cette personne doit avoir au moins 18 ans.';
   }
-  if (!isSingleForHeart(sender)) {
-    return 'Indiquez être célibataire sur votre profil pour envoyer un cœur.';
+  if (!senderPassesRelationshipGate(sender)) {
+    return 'Les cœurs sont réservés aux membres célibataires.';
   }
   if (!isSingleForHeart(recipient)) {
     return 'Cette personne doit indiquer être célibataire sur son profil.';

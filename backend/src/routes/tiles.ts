@@ -56,12 +56,28 @@ tilesRouter.get('/:z/:x/:filename', (req, res) => {
       res.status(400).type('text/plain').send('Invalid tile coordinates');
       return;
     }
+    const zNum = parseInt(z, 10);
+    if (zNum < 0 || zNum > 20) {
+      res.status(400).type('text/plain').send('Invalid tile coordinates');
+      return;
+    }
+    const xNum = parseInt(x, 10);
+    const maxCoord = Math.pow(2, zNum);
+    if (xNum < 0 || xNum >= maxCoord) {
+      res.status(400).type('text/plain').send('Invalid tile coordinates');
+      return;
+    }
     const yMatch = /^(\d+)(@2x)?\.png$/.exec(filename);
     if (!yMatch) {
       res.status(400).type('text/plain').send('Invalid tile filename');
       return;
     }
     const y = yMatch[1];
+    const yNum = parseInt(y, 10);
+    if (yNum < 0 || yNum >= maxCoord) {
+      res.status(400).type('text/plain').send('Invalid tile coordinates');
+      return;
+    }
     const r = yMatch[2] ?? '';
 
     const cacheFile = path.join(CACHE_DIR, z, x, filename);

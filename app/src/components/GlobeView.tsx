@@ -46,6 +46,20 @@ const GLOBE_MAX_PIXEL_RATIO = 1.5;
  */
 const GLOBE_USE_ANTIALIAS = typeof window !== 'undefined' && window.devicePixelRatio <= 1;
 
+/**
+ * Appareil à faible puissance GPU : mobile, petit DPR, ou peu de cœurs CPU.
+ * Sur ces devices un nombre élevé de markers risque l'OOM / crash WebGL.
+ */
+const IS_LOW_POWER_DEVICE =
+  typeof window !== 'undefined' &&
+  (window.devicePixelRatio <= 1 ||
+    navigator.hardwareConcurrency <= 4 ||
+    /Mobile|Android|iPhone/i.test(navigator.userAgent));
+
+/** Caps adaptatifs : bas (mobile) vs haut (desktop). */
+const GLOBE_PEOPLE_CAP = IS_LOW_POWER_DEVICE ? 800 : 5000;
+const GLOBE_OVERVIEW_CAP = IS_LOW_POWER_DEVICE ? 400 : 5000;
+
 /** Debounce POV pour rechargement nearby (filtre Lives). */
 const POV_DEBOUNCE_MS = 600;
 
@@ -449,10 +463,18 @@ export const GlobeView = memo(function GlobeView({
   );
   const visiblePeople = useMemo(
     () =>
-      filterPeopleForZoom(people, markerVisibility, globeDetailTier).filter((p) =>
-        isValidLatLng(Number(p.latitude), Number(p.longitude))
-      ),
+      filterPeopleForZoom(people, markerVisibility, globeDetailTier)
+        .filter((p) => isValidLatLng(Number(p.latitude), Number(p.longitude)))
+        .slice(0, GLOBE_PEOPLE_CAP),
     [people, markerVisibility, globeDetailTier]
+  );
+  const cappedSalonsForGlobe = useMemo(
+    () => visibleSalons.slice(0, GLOBE_OVERVIEW_CAP),
+    [visibleSalons]
+  );
+  const cappedLivesForGlobe = useMemo(
+    () => visibleLives.slice(0, GLOBE_OVERVIEW_CAP),
+    [visibleLives]
   );
   const visibleEventClusters = useMemo(
     () => (markerVisibility.eventClusters ? eventClusters : []),
@@ -463,7 +485,7 @@ export const GlobeView = memo(function GlobeView({
     const pts: GlobePoint[] = [];
     const overviewDots = markerVisibility.density === 'overview';
 
-    visibleSalons.forEach((s) => {
+    cappedSalonsForGlobe.forEach((s) => {
       const lat = Number(s.latitude);
       const lng = Number(s.longitude);
       if (!isValidLatLng(lat, lng)) return;
@@ -481,7 +503,7 @@ export const GlobeView = memo(function GlobeView({
       });
     });
 
-    visibleLives.forEach((l) => {
+    cappedLivesForGlobe.forEach((l) => {
       if (salonIds.has(l.id)) return;
       const lat = Number(l.latitude);
       const lng = Number(l.longitude);
@@ -559,8 +581,8 @@ export const GlobeView = memo(function GlobeView({
 
     return pts;
   }, [
-    visibleSalons,
-    visibleLives,
+    cappedSalonsForGlobe,
+    cappedLivesForGlobe,
     visiblePeople,
     visibleEventClusters,
     userPosition,
@@ -595,14 +617,14 @@ export const GlobeView = memo(function GlobeView({
   const liveRings = useMemo<GlobeRing[]>(() => {
     if (!markerVisibility.lives || isInteracting) return EMPTY_RINGS;
     const rings: GlobeRing[] = [];
-    visibleSalons.forEach((s) => {
+    cappedSalonsForGlobe.forEach((s) => {
       if (!s.isLive) return;
       const lat = Number(s.latitude);
       const lng = Number(s.longitude);
       if (!isValidLatLng(lat, lng)) return;
       rings.push({ lat, lng });
     });
-    visibleLives.forEach((l) => {
+    cappedLivesForGlobe.forEach((l) => {
       if (salonIds.has(l.id)) return;
       const lat = Number(l.latitude);
       const lng = Number(l.longitude);
@@ -610,7 +632,7 @@ export const GlobeView = memo(function GlobeView({
       rings.push({ lat, lng });
     });
     return rings;
-  }, [visibleSalons, visibleLives, salonIds, markerVisibility.lives, isInteracting]);
+  }, [cappedSalonsForGlobe, cappedLivesForGlobe, salonIds, markerVisibility.lives, isInteracting]);
 
   // useMemo keeps the reference stable — GLOBE_CAPITAL_LABELS and EMPTY_CAPITAL_LABELS
   // are module-level constants, so labelsData never gets a fresh array object unless

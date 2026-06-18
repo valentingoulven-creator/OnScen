@@ -39,6 +39,7 @@ import { pushRouter } from './routes/push';
 import { tilesRouter } from './routes/tiles';
 import { getPublicDir, getMsdevConfigPath } from './paths';
 import { REEL_UPLOAD_JSON_BODY_LIMIT } from './lib/reelUploadLimits';
+import { startTileCacheEviction } from './lib/tileCacheEviction';
 import { resolveCorsOrigin } from './lib/corsConfig';
 import { isMsdevRuntime } from './lib/msdevGuard';
 import { injectOgMetaIntoHtml, resolveShareOgMeta } from './lib/shareOgMeta';
@@ -48,6 +49,8 @@ import { latencyMonitorMiddleware } from './middleware/latencyMonitor';
 import { adminMonitorRouter } from './routes/adminMonitor';
 import { adminSyslogRouter } from './routes/adminSyslog';
 import { adminReportsRouter } from './routes/adminReports';
+import { startServerMonitor } from './lib/serverMonitor';
+import { startSystemMonitor } from './lib/systemMonitor';
 
 export const app = express();
 
@@ -642,7 +645,23 @@ function sendSpaIndex(req: express.Request, res: express.Response, indexPath: st
 
 // Tile proxy: fetches CARTO dark tiles server-side and caches them locally.
 // Must be registered before the SPA catchall to avoid the .png 404 short-circuit.
-app.use('/tiles', tilesRouter);
+// Rate-limited: 600 req/min per IP (≈ 10 tiles/s — covers normal map panning).
+const tileLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Too many tile requests',
+  skip: () => isMsdevRuntime(),
+});
+app.use('/tiles', tileLimiter, tilesRouter);
+
+// Evict oldest cached tiles on startup and every 24 h (cap: TILE_CACHE_MAX_MB, default 500 MB)
+startTileCacheEviction();
+
+// System resource monitors (production only — no-op in dev/msdev)
+startSystemMonitor();  // RAM + CPU via os module, alerts to ALERT_EMAIL
+startServerMonitor();  // Disk + RAM + CPU + API latency p95, alerts to SMTP_ADMIN_EMAIL
 
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {

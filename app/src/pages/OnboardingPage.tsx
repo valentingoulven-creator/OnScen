@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { PROFILE_TYPE_OPTIONS } from '../lib/profileTypes';
+import { ArtistAutocomplete } from '../components/ArtistAutocomplete';
 import { CityAutocomplete } from '../components/CityAutocomplete';
 import { PlatformConnectCard } from '../components/PlatformConnectCard';
 import { PLATFORM_STATUS_REFRESH_EVENT } from '../lib/platformStatusEvents';
@@ -21,13 +22,13 @@ const MUSIC_GENRES = [
   'Punk', 'Gospel', 'Lofi', 'Trap', 'Drill',
 ];
 
-type Step = 'genres' | 'profileType' | 'platforms' | 'socials' | 'profile' | 'photos' | 'location' | 'done';
+type Step = 'genres' | 'artists' | 'profileType' | 'platforms' | 'socials' | 'profile' | 'photos' | 'location' | 'done';
 
-const STEPS: Step[] = ['genres', 'profileType', 'platforms', 'socials', 'profile', 'photos', 'location', 'done'];
+const STEPS: Step[] = ['genres', 'artists', 'profileType', 'platforms', 'socials', 'profile', 'photos', 'location', 'done'];
 
 function StepIndicator({ current }: { current: Step }) {
   const activeIndex = STEPS.indexOf(current);
-  const labels = ['Genres', 'Identité', 'Plateformes', 'Réseaux', 'Infos', 'Photos', 'Position', 'Fin'];
+  const labels = ['Genres', 'Artistes', 'Identité', 'Plateformes', 'Réseaux', 'Infos', 'Photos', 'Position', 'Fin'];
   return (
     <div className="flex items-center gap-0 w-full max-w-xs mx-auto mb-6">
       {STEPS.map((step, i) => (
@@ -89,6 +90,8 @@ export function OnboardingPage({ onDone }: Props) {
   const { t } = useTranslation();
   const [step, setStep] = useState<Step>('genres');
   const [genres, setGenres] = useState<string[]>([]);
+  const [favoriteArtists, setFavoriteArtists] = useState<string[]>([]);
+  const [newArtist, setNewArtist] = useState('');
   const [profileType, setProfileType] = useState<string>('');
   const [bio, setBio] = useState('');
   const [birthDate, setBirthDate] = useState('');
@@ -97,6 +100,7 @@ export function OnboardingPage({ onDone }: Props) {
   const [instagramHandle, setInstagramHandle] = useState('');
   const [youtubeChannel, setYoutubeChannel] = useState('');
   const [spotifyUrl, setSpotifyUrl] = useState('');
+  const [relationshipStatus, setRelationshipStatus] = useState<'celibataire' | 'en_couple' | ''>('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [locating, setLocating] = useState(false);
@@ -105,6 +109,7 @@ export function OnboardingPage({ onDone }: Props) {
   const [oauthConfigured, setOauthConfigured] = useState(false);
   const [hasRealPlatformConnection, setHasRealPlatformConnection] = useState(false);
   const [platformStatusLoading, setPlatformStatusLoading] = useState(true);
+  const [instagramOAuthAvailable, setInstagramOAuthAvailable] = useState(false);
 
   const refreshPlatformRequirement = useCallback(() => {
     if (!token) {
@@ -117,10 +122,12 @@ export function OnboardingPage({ onDone }: Props) {
       .then((s) => {
         setOauthConfigured(s.oauthConfigured ?? (s.spotifyOAuthAvailable || s.youtubeOAuthAvailable));
         setHasRealPlatformConnection(s.hasRealPlatformConnection ?? false);
+        setInstagramOAuthAvailable(s.instagramOAuthAvailable ?? false);
       })
       .catch(() => {
         setOauthConfigured(false);
         setHasRealPlatformConnection(false);
+        setInstagramOAuthAvailable(false);
       })
       .finally(() => setPlatformStatusLoading(false));
   }, [token]);
@@ -211,6 +218,7 @@ export function OnboardingPage({ onDone }: Props) {
     try {
       const body: Record<string, unknown> = {};
       if (genres.length > 0) body.favoriteGenres = genres;
+      if (favoriteArtists.length > 0) body.favoriteArtists = favoriteArtists;
       if (profileType) body.profileType = profileType;
       if (bio.trim()) body.bio = bio.trim();
       if (birthDateTrim) {
@@ -222,6 +230,7 @@ export function OnboardingPage({ onDone }: Props) {
       if (cleanIG) body.instagramHandle = cleanIG;
       if (youtubeChannel.trim()) body.youtubeChannel = youtubeChannel.trim();
       if (spotifyUrl.trim()) body.spotifyUrl = spotifyUrl.trim();
+      if (relationshipStatus) body.relationshipStatus = relationshipStatus;
 
       if (photos.length > 0) {
         body.profilePhotos = await prepareProfilePhotosForSave(photos);
@@ -322,8 +331,89 @@ export function OnboardingPage({ onDone }: Props) {
             <div className="flex gap-2 pt-1">
               <button
                 type="button"
-                onClick={() => saveAndNext('profileType')}
+                onClick={() => saveAndNext('artists')}
                 className="text-xs text-gray-500 hover:text-gray-300 px-3 py-2"
+              >
+                Passer
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => saveAndNext('artists')}
+                className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white bg-purple-600 hover:bg-purple-500 disabled:opacity-50 transition"
+              >
+                {saving ? '…' : 'Continuer →'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'artists' && (
+          <div className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-5 space-y-4">
+            <div>
+              <h2 className="text-base font-bold text-white">Artistes favoris</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Ajoutez vos artistes préférés pour personnaliser votre expérience</p>
+            </div>
+            <div className="space-y-2">
+              {favoriteArtists.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {favoriteArtists.map((a) => (
+                    <span
+                      key={a}
+                      className="px-2 py-1 rounded-full bg-purple-500/20 text-purple-200 text-xs flex items-center gap-1"
+                    >
+                      {a}
+                      <button
+                        type="button"
+                        onClick={() => setFavoriteArtists((prev) => prev.filter((t) => t !== a))}
+                        className="text-purple-400 hover:text-white"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <ArtistAutocomplete
+                  value={newArtist}
+                  onChange={setNewArtist}
+                  exclude={favoriteArtists}
+                  placeholder="Ex: Daft Punk, Lomepal…"
+                  onSelect={(s) => {
+                    const v = s.value.trim();
+                    if (v && !favoriteArtists.includes(v)) setFavoriteArtists((prev) => [...prev, v]);
+                    setNewArtist('');
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const v = newArtist.trim();
+                      if (v && !favoriteArtists.includes(v)) setFavoriteArtists((prev) => [...prev, v]);
+                      setNewArtist('');
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const v = newArtist.trim();
+                    if (v && !favoriteArtists.includes(v)) setFavoriteArtists((prev) => [...prev, v]);
+                    setNewArtist('');
+                  }}
+                  className="px-3 py-2 bg-purple-600 rounded-lg text-white text-sm shrink-0"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+            {error && <p className="text-xs text-red-400">{error}</p>}
+            <div className="flex gap-2 pt-1">
+              <button type="button" onClick={() => setStep('genres')} className="text-xs text-gray-500 hover:text-gray-300 px-3 py-2">← Retour</button>
+              <button
+                type="button"
+                onClick={() => saveAndNext('profileType')}
+                className="text-xs text-gray-500 hover:text-gray-300 px-2 py-2"
               >
                 Passer
               </button>
@@ -364,7 +454,7 @@ export function OnboardingPage({ onDone }: Props) {
             </div>
             {error && <p className="text-xs text-red-400">{error}</p>}
             <div className="flex gap-2 pt-1">
-              <button type="button" onClick={() => setStep('genres')} className="text-xs text-gray-500 hover:text-gray-300 px-3 py-2">← Retour</button>
+              <button type="button" onClick={() => setStep('artists')} className="text-xs text-gray-500 hover:text-gray-300 px-3 py-2">← Retour</button>
               <button
                 type="button"
                 onClick={() => saveAndNext('platforms')}
@@ -450,6 +540,19 @@ export function OnboardingPage({ onDone }: Props) {
               <h2 className="text-base font-bold text-white">Tes réseaux sociaux</h2>
               <p className="text-xs text-gray-400 mt-0.5">Optionnel — connecte tes profils pour plus de visibilité</p>
             </div>
+
+            {instagramOAuthAvailable && token && (
+              <div className="space-y-2 pb-3 border-b border-[#2d2d3d]">
+                <p className="text-[10px] text-pink-400 font-semibold uppercase tracking-wide">📸 Instagram Pro</p>
+                <PlatformConnectCard
+                  token={token}
+                  platform="instagram"
+                  connectedPlatforms={user?.connectedPlatforms}
+                  onUserUpdated={(u) => setUserFromProfile(u)}
+                />
+              </div>
+            )}
+
             <div className="space-y-3">
               <div className="space-y-1">
                 <label className="flex items-center gap-1.5 text-xs text-gray-400">
@@ -525,7 +628,8 @@ export function OnboardingPage({ onDone }: Props) {
           </div>
         )}
 
-        {step === 'profile' && (          <div className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-5 space-y-4">
+        {step === 'profile' && (
+          <div className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-5 space-y-4">
             <div>
               <h2 className="text-base font-bold text-white">Votre profil</h2>
               <p className="text-xs text-gray-400 mt-0.5">Ces informations sont optionnelles</p>
@@ -576,6 +680,21 @@ export function OnboardingPage({ onDone }: Props) {
                     : t('profile.hideAgeNeedsDate')}
                 </span>
               </label>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-gray-400">{t('profile.relationshipOptional')}</label>
+              <select
+                value={relationshipStatus}
+                onChange={(e) => setRelationshipStatus(e.target.value as 'celibataire' | 'en_couple' | '')}
+                className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white"
+              >
+                <option value="">{t('profile.relationshipHidden')}</option>
+                <option value="celibataire">{t('profile.relationshipSingle')}</option>
+                <option value="en_couple">{t('profile.relationshipCouple')}</option>
+              </select>
+              <p className="text-[10px] font-medium mt-1" style={{ color: '#c084fc' }}>
+                {t('profile.relationshipHeartHintOnboarding')}
+              </p>
             </div>
             <div className="space-y-1">
               <label className="text-xs text-gray-400">Bio</label>
@@ -694,10 +813,6 @@ export function OnboardingPage({ onDone }: Props) {
             />
 
             {error && <p className="text-xs text-red-400">{error}</p>}
-            <p className="text-[10px] text-gray-600 text-center">
-              JPEG, PNG, WebP · compression automatique (jusqu'à 30 Mo)
-            </p>
-
             <div className="flex gap-2 pt-1">
               <button type="button" onClick={() => setStep('profile')} className="text-xs text-gray-500 hover:text-gray-300 px-3 py-2">← Retour</button>
               <button
