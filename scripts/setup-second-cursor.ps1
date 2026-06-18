@@ -336,8 +336,8 @@ if ($keyPath -and (Test-SshConnection $keyPath)) {
     Write-Warn 'Test SSH ignore - aucune cle disponible'
 }
 
-Write-Info "Deploy prod utilise : deploy_zero_downtime.ps1 (cle ~/.ssh/id_ed25519)"
-Write-Info "Secrets prod VPS : $RemotePath/.env (jamais dans Git)"
+Write-Info "Deploy prod : npm run deploy:prod (wrapper deploy-prod.ps1) ou deploy_zero_downtime.ps1 -VerifyProd"
+Write-Info "Secrets prod VPS : $RemotePath/.env (jamais dans Git) — PostgreSQL = Scaleway Managed (51.15.132.229), pas sur le VPS"
 
 # --- 5. Fichiers .env --------------------------------------------------------
 Write-Step '5/8 - Fichiers d environnement locaux'
@@ -358,15 +358,17 @@ if ($createdEnvFiles.Count -gt 0) {
         Write-Info "Checklist : scripts/secrets-checklist.template.txt"
     }
     Write-Info 'Recuperer prod : ssh root@51.159.164.100 puis cat /opt/soundly/.env (sans committer)'
+    Write-Info 'PostgreSQL prod = Scaleway Managed (51.15.132.229:14440) — DATABASE_URL dans .env VPS, pas sur le VPS lui-meme'
+    Write-Info 'Admin prod : PROD_ADMIN_EMAIL=valentin.goulven@gmail.com ; msdev : ACCESS_ADMIN_EMAILS (pas dev@soundy.local)'
     Write-Info '(Ne copiez que les variables necessaires - jamais dans Git)'
-    $manualActions.Add('Remplir msdev/.env et backend/.env.production depuis machine 1 ou VPS /opt/soundly/.env')
+    $manualActions.Add('Remplir msdev/.env (ACCESS_ADMIN_EMAILS) et backend/.env.production (PROD_ADMIN_EMAIL=valentin.goulven@gmail.com) depuis machine 1 ou VPS /opt/soundly/.env')
 }
 
 # --- 6. npm install --------------------------------------------------------
 if (-not $SkipNpmInstall) {
     Write-Step '6/8 - Installation des dependances npm'
 
-    foreach ($dir in @('.', 'backend', 'app')) {
+    foreach ($dir in @('.', 'backend', 'app', 'apptel')) {
         $path = if ($dir -eq '.') { $repoRoot } else { Join-Path $repoRoot $dir }
         $pkg = Join-Path $path 'package.json'
         if (-not (Test-Path $pkg)) {
@@ -461,8 +463,9 @@ Write-Host '     npm run dev'
 Write-Host '     -> http://localhost:5173 (API msdev :4080)'
 Write-Host ''
 Write-Host '  3. Deploy prod :' -ForegroundColor White
-Write-Host '     powershell -ExecutionPolicy Bypass -File scripts/deploy-prod.ps1'
-Write-Host "     (requiert cle SSH + acces $VpsTarget)"
+Write-Host '     npm run deploy:prod'
+Write-Host '     ou : powershell -ExecutionPolicy Bypass -File deploy_zero_downtime.ps1 -VerifyProd'
+Write-Host '     (deploy-prod.ps1 reste un wrapper OK ; requiert cle SSH + acces VPS)'
 Write-Host ''
 Write-Host '  4. Documentation :' -ForegroundColor White
 Write-Host '     docs/DEV-WORKFLOW.md'
