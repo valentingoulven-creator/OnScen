@@ -1,25 +1,4 @@
-import nodemailer from 'nodemailer';
-
-let _transporter: nodemailer.Transporter | null = null;
-
-function getTransporter(): nodemailer.Transporter | null {
-  const host = process.env.SMTP_HOST;
-  const port = parseInt(process.env.SMTP_PORT ?? '587', 10);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-
-  if (!host || !user || !pass) return null;
-
-  if (!_transporter) {
-    _transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: { user, pass },
-    });
-  }
-  return _transporter;
-}
+import { getEmailFrom, isEmailConfigured, sendEmail } from './emailSend';
 
 export async function sendSupportAlertEmail(params: {
   fromUsername: string;
@@ -28,16 +7,15 @@ export async function sendSupportAlertEmail(params: {
   bodyPreview: string;
   isFollowUp?: boolean;
 }): Promise<void> {
-  const transporter = getTransporter();
-  if (!transporter) {
+  if (!isEmailConfigured()) {
     if (process.env.APP_ENV === 'production') {
-      console.warn('[mailer] SMTP non configuré — email support non envoyé. Ajouter SMTP_HOST, SMTP_USER, SMTP_PASS dans .env');
+      console.warn('[mailer] Email non configuré — alerte support non envoyée. Ajouter RESEND_API_KEY ou SMTP_* dans .env');
     }
     return;
   }
 
   const adminEmail = process.env.SMTP_ADMIN_EMAIL ?? 'valentin.goulven@gmail.com';
-  const from = process.env.SMTP_FROM ?? `Soundy <${process.env.SMTP_USER}>`;
+  const from = getEmailFrom('Soundy');
   const adminUrl = `${process.env.WEB_APP_URL ?? 'https://getsoundy.com'}/admin?tab=support`;
 
   const preview =
@@ -91,7 +69,7 @@ export async function sendSupportAlertEmail(params: {
   ].join('\n');
 
   try {
-    await transporter.sendMail({ from, to: adminEmail, subject, text, html });
+    await sendEmail({ from, to: adminEmail, subject, text, html });
     console.info(`[mailer] Email support envoyé à ${adminEmail} pour ${params.fromUsername}`);
   } catch (err) {
     console.error('[mailer] Échec envoi email support:', err);
@@ -103,15 +81,14 @@ export async function sendVerificationEmail(params: {
   username: string;
   verificationUrl: string;
 }): Promise<void> {
-  const transporter = getTransporter();
-  if (!transporter) {
+  if (!isEmailConfigured()) {
     if (process.env.APP_ENV === 'production') {
-      console.warn('[mailer] SMTP non configuré — email de vérification non envoyé.');
+      console.warn('[mailer] Email non configuré — email de vérification non envoyé.');
     }
     return;
   }
 
-  const from = process.env.SMTP_FROM ?? `Soundy <${process.env.SMTP_USER}>`;
+  const from = getEmailFrom('Soundy');
   const subject = 'Vérifie ton adresse e-mail — Soundy';
 
   const html = `
@@ -145,7 +122,7 @@ export async function sendVerificationEmail(params: {
   ].join('\n');
 
   try {
-    await transporter.sendMail({ from, to: params.toEmail, subject, text, html });
+    await sendEmail({ from, to: params.toEmail, subject, text, html });
     console.info(`[mailer] Email de vérification envoyé à ${params.toEmail}`);
   } catch (err) {
     console.error('[mailer] Échec envoi email de vérification:', err);
@@ -157,15 +134,14 @@ export async function sendPasswordResetEmail(params: {
   username: string;
   resetUrl: string;
 }): Promise<void> {
-  const transporter = getTransporter();
-  if (!transporter) {
+  if (!isEmailConfigured()) {
     if (process.env.APP_ENV === 'production') {
-      console.warn('[mailer] SMTP non configuré — email de réinitialisation non envoyé.');
+      console.warn('[mailer] Email non configuré — email de réinitialisation non envoyé.');
     }
     return;
   }
 
-  const from = process.env.SMTP_FROM ?? `Soundy <${process.env.SMTP_USER}>`;
+  const from = getEmailFrom('Soundy');
   const subject = 'Réinitialisation de ton mot de passe — Soundy';
 
   const html = `
@@ -201,7 +177,7 @@ export async function sendPasswordResetEmail(params: {
   ].join('\n');
 
   try {
-    await transporter.sendMail({ from, to: params.toEmail, subject, text, html });
+    await sendEmail({ from, to: params.toEmail, subject, text, html });
     console.info(`[mailer] Email de réinitialisation envoyé à ${params.toEmail}`);
   } catch (err) {
     console.error('[mailer] Échec envoi email de réinitialisation:', err);

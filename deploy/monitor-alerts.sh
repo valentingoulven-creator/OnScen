@@ -5,7 +5,7 @@
 # Prérequis : python3 (pré-installé Ubuntu), pm2 dans PATH.
 #
 # Config :
-#   Les credentials SMTP sont lus depuis /opt/soundly/.env (ou SOUNDLY_ROOT/.env).
+#   RESEND_API_KEY (prioritaire, HTTP 443) ou credentials SMTP depuis /opt/soundly/.env.
 #   Les seuils peuvent être surchargés via des variables d'environnement.
 #
 # Usage manuel :
@@ -47,8 +47,18 @@ SMTP_FROM="${SMTP_FROM_RAW:-Soundy Monitoring <${SMTP_USER}>}"
 SMTP_ADMIN_EMAIL=$(get_env SMTP_ADMIN_EMAIL "valentin.goulven@gmail.com")
 ALERT_EXTRA_EMAILS=$(get_env ALERT_EXTRA_EMAILS "")
 
+RESEND_API_KEY=$(get_env RESEND_API_KEY "")
+RESEND_FROM_RAW=$(get_env RESEND_FROM "")
+RESEND_FROM="${RESEND_FROM_RAW:-${SMTP_FROM_RAW:-Soundy Monitoring <onboarding@resend.dev>}}"
+
+RESEND_ENABLED="false"
+[[ -n "$RESEND_API_KEY" ]] && RESEND_ENABLED="true"
+
 SMTP_ENABLED="false"
 [[ -n "$SMTP_HOST" && -n "$SMTP_USER" && -n "$SMTP_PASS" ]] && SMTP_ENABLED="true"
+
+MAIL_ENABLED="false"
+[[ "$RESEND_ENABLED" == "true" || "$SMTP_ENABLED" == "true" ]] && MAIL_ENABLED="true"
 
 # ── Cooldown (évite le spam d'alertes) ───────────────────────────────────────
 is_coolingdown() {
@@ -65,7 +75,7 @@ is_coolingdown() {
   return 1
 }
 
-# ── Envoi email via Python3 smtplib ──────────────────────────────────────────
+# ── Envoi email (Resend HTTP API ou SMTP Python) ─────────────────────────────
 send_alert_email() {
   local subject="$1"
   local body="$2"
@@ -74,8 +84,8 @@ send_alert_email() {
 
   echo "${ts}: ALERTE — ${subject}" >> "$LOG_FILE"
 
-  if [[ "$SMTP_ENABLED" != "true" ]]; then
-    echo "${ts}: SMTP non configuré — alerte non envoyée par email" >> "$LOG_FILE"
+  if [[ "$MAIL_ENABLED" != "true" ]]; then
+    echo "${ts}: Email non configuré — alerte non envoyée (RESEND_API_KEY ou SMTP_*)" >> "$LOG_FILE"
     return 0
   fi
 
@@ -89,7 +99,34 @@ send_alert_email() {
     recipients="${recipients},valentin.goulven@gmail.com"
   fi
 
-  # Passer les credentials via env pour éviter les problèmes d'échappement
+  if [[ "$RESEND_ENABLED" == "true" ]]; then
+    local json_payload http_code response_file="/tmp/soundly_resend_response.json"
+    json_payload=$(RESEND_FROM="$RESEND_FROM" MAIL_TO="$recipients" MAIL_SUBJECT="$subject" MAIL_BODY="$body" python3 - <<'PYEOF'
+import json, os
+print(json.dumps({
+    "from": os.environ["RESEND_FROM"],
+    "to": [a.strip() for a in os.environ["MAIL_TO"].split(",") if a.strip()],
+    "subject": os.environ["MAIL_SUBJECT"],
+    "text": os.environ["MAIL_BODY"],
+}))
+PYEOF
+)
+    http_code=$(curl -sS -o "$response_file" -w '%{http_code}' \
+      -X POST 'https://api.resend.com/emails' \
+      -H "Authorization: Bearer ${RESEND_API_KEY}" \
+      -H 'Content-Type: application/json' \
+      -d "$json_payload" 2>>"$LOG_FILE" || echo "000")
+
+    if [[ "$http_code" -ge 200 && "$http_code" -lt 300 ]]; then
+      echo "${ts}: Email envoyé via Resend : ${subject}" >> "$LOG_FILE"
+      return 0
+    fi
+
+    echo "${ts}: Erreur Resend (HTTP ${http_code}) : $(cat "$response_file" 2>/dev/null || echo '(pas de réponse)')" >> "$LOG_FILE"
+    return 1
+  fi
+
+  # Fallback SMTP (local dev ou réseaux sans blocage ports 587/465)
   SMTP_HOST="$SMTP_HOST" \
   SMTP_PORT="$SMTP_PORT" \
   SMTP_USER="$SMTP_USER" \

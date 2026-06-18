@@ -1,12 +1,11 @@
 /**
  * Monitoring alert notifier.
- * Sends email alerts via SMTP (nodemailer) and keeps an in-memory history.
- * Re-uses SMTP config from .env: SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS/SMTP_FROM.
+ * Sends email alerts via Resend HTTP API (RESEND_API_KEY) or SMTP (nodemailer fallback).
  * Recipients: SMTP_ADMIN_EMAIL (default valentin.goulven@gmail.com) + ALERT_EXTRA_EMAILS (comma-sep).
  * Cooldown: same alert type cannot be emailed more than once per 30 min (configurable).
  */
 
-import nodemailer from 'nodemailer';
+import { getEmailFrom, isEmailConfigured, sendEmail } from './emailSend';
 
 export type AlertSeverity = 'warning' | 'critical';
 
@@ -37,25 +36,6 @@ const alertHistory: MonitoringAlert[] = [];
 
 const cooldowns = new Map<AlertType, number>();
 const COOLDOWN_MS = parseInt(process.env.ALERT_COOLDOWN_MS ?? '1800000', 10); // 30 min
-
-let _transporter: nodemailer.Transporter | null = null;
-
-function getTransporter(): nodemailer.Transporter | null {
-  const host = process.env.SMTP_HOST;
-  const port = parseInt(process.env.SMTP_PORT ?? '587', 10);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-  if (!host || !user || !pass) return null;
-  if (!_transporter) {
-    _transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: { user, pass },
-    });
-  }
-  return _transporter;
-}
 
 function getRecipients(): string[] {
   const recipients = new Set<string>();
@@ -210,10 +190,9 @@ export async function sendMonitoringAlert(params: {
   alertHistory.push(alert);
   if (alertHistory.length > MAX_HISTORY) alertHistory.shift();
 
-  const transporter = getTransporter();
-  if (!transporter) {
+  if (!isEmailConfigured()) {
     if (process.env.APP_ENV === 'production') {
-      console.warn(`[monitor] Alerte ${type} enregistrée — SMTP non configuré, email ignoré.`);
+      console.warn(`[monitor] Alerte ${type} enregistrée — email non configuré (RESEND_API_KEY ou SMTP_*), email ignoré.`);
     }
     return;
   }
@@ -228,10 +207,10 @@ export async function sendMonitoringAlert(params: {
 
   const recipients = getRecipients();
   const { subject, html, text } = buildEmailContent(alert);
-  const from = process.env.SMTP_FROM ?? `Soundy Monitoring <${process.env.SMTP_USER}>`;
+  const from = getEmailFrom('Soundy Monitoring');
 
   try {
-    await transporter.sendMail({ from, to: recipients.join(', '), subject, text, html });
+    await sendEmail({ from, to: recipients, subject, text, html });
     alert.sentEmail = true;
     console.info(`[monitor] Alerte email envoyée : ${type} (${severity}) → ${recipients.join(', ')}`);
   } catch (err) {

@@ -5,7 +5,7 @@
 # Ce script installe :
 #   - monitor-alerts.sh en cron toutes les 5 min (disk/RAM/CPU/PM2)
 #
-# Les alertes email utilisent les credentials SMTP du fichier /opt/soundly/.env.
+# Les alertes email utilisent RESEND_API_KEY (prioritaire) ou SMTP depuis /opt/soundly/.env.
 # Le monitoring Node.js (API latency, uncaughtException, DB errors) est géré
 # côté backend via lib/serverMonitor.ts et lib/alertNotifier.ts.
 set -euo pipefail
@@ -45,7 +45,7 @@ echo "  Horaire  : toutes les 5 minutes"
 echo "  Script   : ${MONITOR_SCRIPT}"
 echo "  Log      : ${LOG_FILE}"
 echo "  Seuils   : disk ${ALERT_DISK_PERCENT:-80}%, RAM ${ALERT_RAM_PERCENT:-80}%, CPU ${ALERT_CPU_PERCENT:-80}%"
-echo "  SMTP     : configuré dans ${ROOT}/.env"
+echo "  Email    : RESEND_API_KEY ou SMTP dans ${ROOT}/.env"
 echo ""
 crontab -l | grep "$CRON_MARKER" || true
 echo ""
