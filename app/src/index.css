@@ -2037,6 +2037,21 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   font-family: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
 }
 
+/* Dock flottant — safe-area sur le pill uniquement (pas de bande pleine largeur) */
+[data-design-quick-wins="1"] nav.ms-tab-bar-bottom {
+  padding-bottom: 0;
+  background: transparent;
+}
+
+/* Reels plein écran — le contenu passe sous le dock, pas de réserve body sous la vidéo */
+[data-design-quick-wins="1"] .ms-app-shell--bottom-tabs main.ms-app-main:has(.ms-reels-root) {
+  padding-bottom: 0;
+}
+
+[data-design-quick-wins="1"] .ms-reels-root .reels-viewport {
+  padding-bottom: 0;
+}
+
 /* Sound Rail — nav asymétrique, hub vinyl LIVE surélevé */
 [data-design-quick-wins="1"] nav.ms-tab-bar-bottom > div.ms-tab-rail {
   display: grid;
@@ -2045,6 +2060,7 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   gap: 0;
   width: min(calc(100vw - 1.25rem), 22.5rem);
   min-height: var(--tab-nav-rail-h);
+  margin-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--tab-nav-float-gap));
   padding: 0.35rem 0.65rem 0.45rem;
   background:
     linear-gradient(180deg, rgba(147, 51, 234, 0.08) 0%, transparent 42%),
