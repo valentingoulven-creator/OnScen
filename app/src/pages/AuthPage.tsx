@@ -24,7 +24,7 @@ const OAUTH_ERROR_MESSAGES: Record<string, (provider: string) => string> = {
 };
 
 function oauthErrorMessage(code: string, provider: string): string {
-  const labels: Record<string, string> = { google: 'Google', facebook: 'Facebook', apple: 'Apple' };
+  const labels: Record<string, string> = { google: 'Google', facebook: 'Facebook' };
   const label = labels[provider] ?? provider;
   const fn = OAUTH_ERROR_MESSAGES[code];
   return fn ? fn(label) : `Erreur de connexion ${label}.`;
@@ -61,10 +61,9 @@ export function AuthPage() {
   const usernameTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [oauthLoading, setOauthLoading] = useState(false);
-  const [oauthProviders, setOauthProviders] = useState<{ google: boolean; facebook: boolean; apple: boolean }>({
+  const [oauthProviders, setOauthProviders] = useState<{ google: boolean; facebook: boolean }>({
     google: false,
     facebook: false,
-    apple: false,
   });
   const [oauthTermsCode, setOauthTermsCode] = useState<string | null>(null);
   const [oauthAcceptTerms, setOauthAcceptTerms] = useState(false);
@@ -295,7 +294,7 @@ export function AuthPage() {
         <div className="w-full max-w-sm bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-6 space-y-4">
           <h2 className="text-lg font-bold text-white text-center">Finaliser votre inscription</h2>
           <p className="text-sm text-gray-400 text-center">
-            Acceptez les conditions pour activer votre compte créé via Google, Facebook ou Apple.
+            Acceptez les conditions pour activer votre compte créé via Google ou Facebook.
           </p>
           <label className="flex items-start gap-2 cursor-pointer text-xs text-gray-400 leading-snug">
             <input
@@ -544,7 +543,7 @@ export function AuthPage() {
           </button>
         </form>
 
-        {(oauthProviders.google || oauthProviders.facebook || oauthProviders.apple) && (
+        {(oauthProviders.google || oauthProviders.facebook) && (
         <div className="mt-3 space-y-3">
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-[#1e1e2f]" />
@@ -586,20 +585,6 @@ export function AuthPage() {
             </button>
             )}
 
-            {/* Apple */}
-            {oauthProviders.apple && (
-            <button
-              type="button"
-              onClick={() => { window.location.href = '/api/auth/apple'; }}
-              aria-label="Continuer avec Apple"
-              title="Continuer avec Apple"
-              className="w-12 h-12 rounded-full bg-[#12121a] border border-[#1e1e2f] flex items-center justify-center transition active:scale-95 hover:border-purple-500/50 hover:bg-[#1a1a26] hover:shadow-[0_0_12px_rgba(139,92,246,0.3)] cursor-pointer"
-            >
-              <svg width="18" height="22" viewBox="0 0 814 1000" fill="#e5e7eb" aria-hidden="true">
-                <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76.5 0-103.7 40.8-165.9 40.8s-105-36.8-162.8-106.3C248.6 714.7 204 643.5 194 596.1c-12.4-61.6-19.2-120.9-19.2-179 0-106.2 35.3-213.6 107.5-286.6 70.2-73 160.8-115.7 255.2-115.7 96.7 0 176.4 43.1 227.4 117.2l17.8 11.6c36.4-31.8 98.3-117.9 183.7-117.9h30.4c99.3 0 187.6 60.1 203 157.6z"/>
-              </svg>
-            </button>
-            )}
           </div>
         </div>
         )}

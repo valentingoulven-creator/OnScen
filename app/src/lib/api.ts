@@ -239,7 +239,7 @@ export const api = {
     request<{ user: import('../types').User }>('/auth/complete-onboarding', { method: 'POST' }, token),
 
   getOAuthProviders: () =>
-    request<{ google: boolean; facebook: boolean; apple: boolean; youtube: boolean; spotify: boolean; instagram: boolean }>('/auth/providers', {}),
+    request<{ google: boolean; facebook: boolean; youtube: boolean; spotify: boolean; instagram: boolean }>('/auth/providers', {}),
 
   exchangeOAuthCode: (
     code: string,
