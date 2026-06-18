@@ -1771,7 +1771,7 @@ function ReelSlide({
 
   return (
     <section
-      className="reel-slide relative snap-start snap-always bg-black self-stretch"
+      className="reel-slide relative shrink-0 snap-start snap-always bg-black self-stretch"
       data-reel-id={reel.id}
       aria-label={`${reel.title} — ${reel.artist}`}
     >

@@ -65,7 +65,7 @@ export function ReelsSponsoredSlide({
 
   return (
     <section
-      className="reel-slide relative snap-start snap-always bg-black self-stretch"
+      className="reel-slide relative shrink-0 snap-start snap-always bg-black self-stretch"
       aria-label={t('reels.sponsoredAria', { title: ad.title })}
     >
       {hasVideo ? (
