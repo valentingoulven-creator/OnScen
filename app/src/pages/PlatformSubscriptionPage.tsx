@@ -24,7 +24,7 @@ function formatMinutesLabel(minutes: number | null): string {
 
 function formatViewersLabel(max: number | null): string {
   if (max == null) return 'Illimités';
-  return `Jusqu’à ${max}`;
+  return `Jusqu'à ${max}`;
 }
 
 function planBadgeClass(current: boolean): string {
@@ -71,7 +71,14 @@ export function PlatformSubscriptionPage({ onBack }: PlatformSubscriptionPagePro
   }, [reload]);
 
   const subscribeToPlan = async (plan: PlatformPlanConfig) => {
-    if (!token || !plan.subscriptionTierId) return;
+    if (!token) {
+      setError('Vous devez être connecté pour vous abonner.');
+      return;
+    }
+    if (!plan.subscriptionTierId) {
+      setError("Ce plan n'est pas disponible à l'abonnement.");
+      return;
+    }
     if (!config?.enabled) {
       setError('Les abonnements sont temporairement désactivés.');
       return;
@@ -115,6 +122,8 @@ export function PlatformSubscriptionPage({ onBack }: PlatformSubscriptionPagePro
 
   const currentPlanId = status?.plan.id ?? 'free';
   const plans = status?.plans ?? config?.platformPlans ?? [];
+  // Le bouton est actif seulement quand l'âge et le consentement sont confirmés
+  const canSubscribeNow = canProceedAge && consentChecked;
 
   return (
     <div className="flex flex-col h-full min-h-0 bg-[#0b0b0f] text-white">
@@ -134,6 +143,11 @@ export function PlatformSubscriptionPage({ onBack }: PlatformSubscriptionPagePro
 
       <div className="flex-1 overflow-y-auto p-4 pb-8 max-w-lg mx-auto w-full space-y-4">
         {loading && <p className="text-sm text-gray-500 text-center py-8">{t('common.loading')}</p>}
+
+        {/* Affichage de l'erreur quand status est null (échec API) – doit être hors du bloc status && */}
+        {!loading && !status && error && (
+          <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{error}</p>
+        )}
 
         {!loading && status && (
           <>
@@ -188,6 +202,50 @@ export function PlatformSubscriptionPage({ onBack }: PlatformSubscriptionPagePro
               </div>
             )}
 
+            {/* Notice explicite quand les abonnements sont désactivés (Stripe non configuré côté serveur) */}
+            {config && !config.enabled && !config.simulation && (
+              <div className="rounded-lg border border-yellow-500/40 bg-yellow-950/30 px-3 py-2 text-xs text-yellow-200">
+                Les abonnements payants ne sont pas encore disponibles. Revenez bientôt !
+              </div>
+            )}
+
+            {/* Checkboxes consentement/âge placées EN HAUT, avant les cartes plans,
+                pour que l'utilisateur les valide avant de cliquer sur "Choisir ce forfait" */}
+            {(currentPlanId === 'free' || config?.enabled) && (
+              <div className="rounded-xl border border-[#2d2d3d] p-3 space-y-2">
+                {needsAgeCheckbox && (
+                  <label className="flex items-start gap-2 text-xs text-gray-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={ageConfirmed}
+                      onChange={(e) => setAgeConfirmed(e.target.checked)}
+                      className="mt-0.5"
+                    />
+                    <span>{t('subscription.ageConfirm')}</span>
+                  </label>
+                )}
+                <label className="flex items-start gap-2 text-xs text-gray-400 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={consentChecked}
+                    onChange={(e) => setConsentChecked(e.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    {SUBSCRIPTION_LEGAL_NOTICE}{' '}
+                    <a
+                      href={SUBSCRIPTION_STRIPE_TERMS_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-purple-300 underline"
+                    >
+                      CGV Stripe
+                    </a>
+                  </span>
+                </label>
+              </div>
+            )}
+
             <section className="space-y-3">
               <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                 {t('subscription.comparePlans')}
@@ -229,13 +287,22 @@ export function PlatformSubscriptionPage({ onBack }: PlatformSubscriptionPagePro
                     {canUpgrade && config?.enabled && (
                       <button
                         type="button"
-                        disabled={busyTierId != null}
+                        disabled={busyTierId != null || !canSubscribeNow}
                         onClick={() => void subscribeToPlan(plan)}
-                        className="w-full py-2.5 rounded-lg bg-purple-600 text-white text-sm font-bold hover:bg-purple-500 disabled:opacity-50"
+                        title={
+                          !consentChecked
+                            ? 'Acceptez les conditions ci-dessus pour continuer'
+                            : !canProceedAge
+                              ? 'Confirmez votre âge ci-dessus pour continuer'
+                              : undefined
+                        }
+                        className="w-full py-2.5 rounded-lg bg-purple-600 text-white text-sm font-bold hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {busyTierId === plan.id
                           ? t('common.loading')
-                          : t('subscription.choosePlan', { plan: plan.label })}
+                          : !canSubscribeNow
+                            ? '↑ Acceptez les conditions ci-dessus'
+                            : t('subscription.choosePlan', { plan: plan.label })}
                       </button>
                     )}
                     {plan.id === 'free' && isCurrent && (
@@ -258,47 +325,12 @@ export function PlatformSubscriptionPage({ onBack }: PlatformSubscriptionPagePro
                       if (r.portalUrl) window.location.href = r.portalUrl;
                     })
                     .catch((e) =>
-                      setError(e instanceof Error ? e.message : 'Impossible d’ouvrir le portail')
+                      setError(e instanceof Error ? e.message : "Impossible d'ouvrir le portail")
                     );
                 }}
               >
                 {t('subscription.manageBilling')}
               </button>
-            )}
-
-            {(currentPlanId === 'free' || config?.enabled) && (
-              <div className="rounded-xl border border-[#2d2d3d] p-3 space-y-2">
-                {needsAgeCheckbox && (
-                  <label className="flex items-start gap-2 text-xs text-gray-300 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={ageConfirmed}
-                      onChange={(e) => setAgeConfirmed(e.target.checked)}
-                      className="mt-0.5"
-                    />
-                    <span>{t('subscription.ageConfirm')}</span>
-                  </label>
-                )}
-                <label className="flex items-start gap-2 text-xs text-gray-400 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={consentChecked}
-                    onChange={(e) => setConsentChecked(e.target.checked)}
-                    className="mt-0.5"
-                  />
-                  <span>
-                    {SUBSCRIPTION_LEGAL_NOTICE}{' '}
-                    <a
-                      href={SUBSCRIPTION_STRIPE_TERMS_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-purple-300 underline"
-                    >
-                      CGV Stripe
-                    </a>
-                  </span>
-                </label>
-              </div>
             )}
 
             {message && (
