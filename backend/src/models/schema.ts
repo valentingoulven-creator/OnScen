@@ -97,6 +97,8 @@ export interface User {
   acceptedTermsVersion?: string;
   /** active par défaut ; pending = attente admin (tunnel public) ; blocked = accès refusé */
   accountStatus?: 'active' | 'pending' | 'blocked';
+  /** false tant que le profil d'inscription n'est pas complété (genres, type, etc.) */
+  onboardingCompleted?: boolean;
   /** Gestion des accès ngrok / tunnel public */
   isAdmin?: boolean;
   /** Compteur « vous suivent » affiché (msdev démo) — remplace le décompte réel si défini. */
@@ -107,6 +109,15 @@ export interface User {
   spotifyUrl?: string;
   /** Compte Stripe Connect (acct_…) pour recevoir les pourboires live en production. */
   stripeConnectAccountId?: string;
+  /** Horodatage d'acceptation des règles de diffusion live Soundy (UNIX ms). */
+  liveTermsAcceptedAt?: number;
+  /** Vérification e-mail (inscription). */
+  emailVerified?: boolean;
+  verificationToken?: string;
+  verificationTokenExpiry?: number;
+  /** Réinitialisation de mot de passe. */
+  resetToken?: string;
+  resetTokenExpiry?: number;
 }
 
 export interface PlaybackState {
@@ -225,6 +236,10 @@ export interface Live {
   cloudflarePlaybackUrl?: string;
   /** Sous-domaine customer-xxx.cloudflarestream.com (dérivé ou env). */
   cloudflareCustomerSubdomain?: string;
+  /** URL HLS de rediffusion (conservée après arrêt du live Cloudflare). */
+  cloudflareVodPlaybackUrl?: string;
+  /** Pic de spectateurs simultanés pendant le live. */
+  peakViewersCount?: number;
 }
 
 export type LiveBanScope = 'chat' | 'live';

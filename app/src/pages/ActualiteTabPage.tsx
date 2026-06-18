@@ -221,7 +221,7 @@ function commentBubbleClass(align?: CommentAlign): string {
 }
 
 
-function TrendingUserCard({ user, onOpenProfile }: { user: TrendingUser; onOpenProfile: (userId: string) => void }) {
+const TrendingUserCard = memo(function TrendingUserCard({ user, onOpenProfile }: { user: TrendingUser; onOpenProfile: (userId: string) => void }) {
   const [imgOk, setImgOk] = useState(true);
   return (
     <button
@@ -235,6 +235,8 @@ function TrendingUserCard({ user, onOpenProfile }: { user: TrendingUser; onOpenP
           <img
             src={user.avatarUrl}
             alt=""
+            loading="lazy"
+            decoding="async"
             onError={() => setImgOk(false)}
             className="w-full h-full object-cover"
           />
@@ -255,7 +257,7 @@ function TrendingUserCard({ user, onOpenProfile }: { user: TrendingUser; onOpenP
       <p className="text-[10px] font-semibold text-white text-center leading-tight line-clamp-1 w-full">{user.username}</p>
     </button>
   );
-}
+});
 
 function SectionHeader({
   label,
@@ -1947,7 +1949,22 @@ export function ActualiteTabPage({
                   </div>
 
               {loading && posts.length === 0 && (
-                <p className="text-sm text-gray-500 text-center py-8">Chargement…</p>
+                <div className="space-y-3 py-2" aria-hidden="true">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="rounded-xl border border-[#1e1e2f] bg-[#12121a] p-3 space-y-3 animate-pulse">
+                      <div className="flex items-center gap-2">
+                        <div className="w-11 h-11 rounded-full bg-[#1e1e2f] ms-skeleton shrink-0" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-3 bg-[#1e1e2f] rounded ms-skeleton w-1/3" />
+                          <div className="h-2.5 bg-[#1e1e2f] rounded ms-skeleton w-1/4" />
+                        </div>
+                      </div>
+                      <div className="h-3 bg-[#1e1e2f] rounded ms-skeleton w-full" />
+                      <div className="h-3 bg-[#1e1e2f] rounded ms-skeleton w-4/5" />
+                      <div className="h-28 bg-[#1e1e2f] rounded-lg ms-skeleton w-full" />
+                    </div>
+                  ))}
+                </div>
               )}
               {!loading && visiblePosts.length === 0 && (
                 <div className="flex flex-col items-center gap-2 py-8 px-4 text-center">

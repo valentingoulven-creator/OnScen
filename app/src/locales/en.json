@@ -44,7 +44,13 @@
     "passwordMismatch": "Passwords do not match",
     "pendingSalon": "Sign in to join the shared room.",
     "secureAccess": "Secure Internet access — only authorized accounts can sign in.",
-    "adminApproval": " New registrations require administrator approval."
+    "adminApproval": " New registrations require administrator approval.",
+    "forgotPassword": "Forgot password?",
+    "forgotPasswordTitle": "Forgot password",
+    "forgotPasswordIntro": "Automatic password reset is not available yet. Contact Soundy support and include the email address for your account.",
+    "forgotPasswordContact": "Contact support",
+    "forgotPasswordBack": "Back to sign in",
+    "forgotPasswordMailSubject": "Soundy password reset"
   },
   "common": {
     "back": "Back",
@@ -165,6 +171,16 @@
       "hideQueueToggle": "Hide ▲",
       "showQueueToggle": "Show ▼"
     },
+    "youtubeHost": {
+      "tabSearch": "Search",
+      "tabPlaylist": "Playlist",
+      "tabQueue": "Queue",
+      "tabSettings": "Settings",
+      "collapse": "Collapse panel",
+      "expand": "Expand panel",
+      "inviteLink": "Invite link",
+      "manageAccess": "Manage access"
+    },
     "create": {
       "spotifyPremiumRequired": "Spotify Premium required to host a salon",
       "errorFailed": "Could not create the salon",
@@ -234,6 +250,11 @@
       "placeholder": "Title, artist, or YouTube link…",
       "searching": "Searching YouTube…",
       "noResultsHint": "No results — try another query or paste a youtube.com/watch?v=… link",
+      "addToQueue": "Add to queue",
+      "addHint": "YouTube search · direct links accepted · adds to the queue without interrupting the current track.",
+      "addSuccess": "Track added to queue",
+      "addError": "Could not add to queue",
+      "add": "Add",
       "changeTrack": "Change track",
       "changeHint": "YouTube search · direct links accepted · salon timer resets to 0:00 on the new track.",
       "changeError": "Could not change track",
@@ -318,6 +339,18 @@
     "logoutConfirmTitle": "Are you sure you want to log out?",
     "contactSoundy": "Contact Soundy",
     "subscription": "Soundy subscription",
+    "stripeConnect": {
+      "title": "Receive live tips",
+      "hint": "Set up Stripe Connect to receive live tips (Soundy takes 30% platform fee).",
+      "cta": "Set up Stripe Connect",
+      "onboarding": "Redirecting to Stripe…",
+      "statusReady": "Active",
+      "statusPending": "Setup required",
+      "readyHint": "Your account is ready — you can receive tips on your live streams.",
+      "refresh": "Refresh status",
+      "loadError": "Unable to load Stripe status",
+      "onboardError": "Unable to start Stripe onboarding"
+    },
     "settings": "Settings",
     "relationshipLabel": "Relationship status",
     "relationshipOptional": "Relationship status (optional)",
@@ -351,7 +384,16 @@
       "blocked": "Hidden by moderation",
       "plusRequired": "Replay of your past lives is available with Soundy+.",
       "plusRequiredHint": "Upgrade to Soundy+ or SoundyUltra to access your archived lives.",
-      "plusRequiredCta": "Explore Soundy+"
+      "plusRequiredCta": "Explore Soundy+",
+      "replay": "Replay",
+      "peakViewers": "{{count}} peak viewer(s)"
+    },
+    "creatorDashboard": {
+      "title": "Creator dashboard",
+      "tips": "Tips received",
+      "tipsCount": "{{count}} tip(s)",
+      "liveViews": "Live views (peak)",
+      "archivedLives": "{{count}} replay(s)"
     }
   },
   "settings": {
@@ -839,7 +881,19 @@
       "vpsLatencyInternal": "Internal Node",
       "vpsNodeTitle": "Node.js runtime",
       "vpsNodeVersion": "Version",
-      "vpsNodePid": "PID"
+      "vpsNodePid": "PID",
+      "syslogTitle": "Syslog",
+      "syslogTypeSystem": "System",
+      "syslogLevelAll": "All",
+      "syslogLevelError": "Err",
+      "syslogLevelWarn": "Warn",
+      "syslogLevelInfo": "Info",
+      "syslogAutoRefresh": "Auto 10s",
+      "syslogCopy": "Copy",
+      "syslogDownload": "Download",
+      "syslogError": "Unable to load logs",
+      "syslogEmpty": "No lines to display",
+      "syslogFetched": "{{count}} / {{total}} lines shown"
     },
     "costs": {
       "subTabSummary": "Summary",
@@ -1046,7 +1100,31 @@
     "donationSecurePay": "Secure payment · {{amount}} € · EUR",
     "donationPay": "Pay",
     "donationBack": "Back",
-    "donationStripeConfigError": "Incomplete Stripe setup (missing publishable key)."
+    "donationStripeConfigError": "Incomplete Stripe setup (missing publishable key).",
+    "stripeGateTitle": "Stripe Connect required",
+    "stripeGateSubtitle": "To go live and receive tips, you need to set up your Stripe Connect account.",
+    "stripeGateItem1": "Receive 70% of every tip directly to your bank account",
+    "stripeGateItem2": "Soundy keeps a 30% service commission",
+    "stripeGateItem3": "Quick setup via Stripe — secure and PCI-compliant",
+    "stripeGateCta": "Set up Stripe Connect",
+    "stripeGateProfileHint": "You can also do this from your profile → Receive tips",
+    "stripeGateNotReady": "Your Stripe Connect account is being reviewed (validation pending).",
+    "stripeGateNotReadyCta": "Continue Stripe setup",
+    "legalTitle": "Soundy Broadcast Rules",
+    "legalSubtitle": "Before starting your first live, please read and accept the rules below.",
+    "legalContentTitle": "Content Rules",
+    "legalContentRule1": "No violence, hate speech, or harassment",
+    "legalContentRule2": "No nudity or sexually explicit content",
+    "legalContentRule3": "Respect copyright — do not broadcast music without a licence",
+    "legalContentRule4": "Be respectful to all viewers and other creators",
+    "legalMonetTitle": "Monetisation Rules",
+    "legalMonetRule1": "Tips are voluntary — no obligation for your viewers",
+    "legalMonetRule2": "Soundy retains a 30% commission on each tip received",
+    "legalMonetRule3": "Payments are processed by Stripe — funds are paid out on their standard schedule",
+    "legalMonetRule4": "Any fraud attempt results in immediate account suspension",
+    "legalCheckbox": "I accept the Soundy broadcast rules and monetisation terms",
+    "legalAcceptCta": "Accept and start my live",
+    "legalAccepting": "Saving…"
   },
   "donation": {
     "legal": {

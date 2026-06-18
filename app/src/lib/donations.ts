@@ -22,6 +22,18 @@ export interface DonationsConfig {
   dailyCapRemaining: number | null;
 }
 
+export interface StripeConnectStatus {
+  stripeConfigured: boolean;
+  stripeConnectAccountId: string | null;
+  ready: boolean;
+  /** true si le compte Stripe Connect a charges_enabled (null = non vérifié) */
+  chargesEnabled?: boolean | null;
+  /** true si le formulaire d'onboarding a été soumis */
+  detailsSubmitted?: boolean | null;
+  /** Message d'erreur si la vérification Stripe a échoué */
+  error?: string;
+}
+
 export interface DonationFeeBreakdown {
   amountEur: number;
   platformFeePercent: number;

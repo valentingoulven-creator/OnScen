@@ -647,6 +647,23 @@ export const api = {
   getDonationsConfig: (token?: string | null) =>
     request<import('./donations').DonationsConfig>('/donations/config', {}, token),
 
+  getStripeConnectStatus: (token: string) =>
+    request<import('./donations').StripeConnectStatus>('/donations/connect-status', {}, token),
+
+  startStripeConnectOnboard: (token: string) =>
+    request<{ url: string; stripeConnectAccountId: string }>(
+      '/donations/connect-onboard',
+      { method: 'POST', body: JSON.stringify({}) },
+      token
+    ),
+
+  acceptLiveTerms: (token: string) =>
+    request<{ liveTermsAcceptedAt: number }>(
+      '/users/me/live-terms',
+      { method: 'PATCH', body: JSON.stringify({}) },
+      token
+    ),
+
   simulateDonation: (token: string, liveId: string, amount: number, ageConfirmed: boolean) =>
     request<{ gift: object; simulation: boolean; message: string }>(
       '/donations/simulate',

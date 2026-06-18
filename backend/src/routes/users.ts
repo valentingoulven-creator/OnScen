@@ -20,6 +20,7 @@ import {
 } from '../lib/liveStatus';
 import { applyPrivacySettings } from '../lib/locationPrivacy';
 import { schedulePersist } from '../lib/persist';
+import { getCreatorDashboardStats } from '../lib/creatorStats';
 
 export const usersRouter = Router();
 
@@ -92,6 +93,28 @@ usersRouter.patch('/me/settings', authenticateJWT, (req: Request, res: Response)
   db.users.set(me, user);
   schedulePersist();
   res.json({ user: publicProfile(user, true, me) });
+});
+
+usersRouter.get('/me/creator-stats', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  if (!db.users.has(me)) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+  res.json({ stats: getCreatorDashboardStats(me) });
+});
+
+usersRouter.patch('/me/live-terms', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const user = db.users.get(me);
+  if (!user) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+  user.liveTermsAcceptedAt = Date.now();
+  db.users.set(me, user);
+  schedulePersist();
+  res.json({ liveTermsAcceptedAt: user.liveTermsAcceptedAt });
 });
 
 usersRouter.post('/:id/follow', authenticateJWT, (req: Request, res: Response) => {

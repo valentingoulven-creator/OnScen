@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { buildMapStoryEntries, type MapStoryEntry } from '../lib/mapStoriesFeed';
@@ -80,7 +80,7 @@ export interface StoriesInlineBarProps {
   isActive: boolean;
 }
 
-export function StoriesInlineBar({
+export const StoriesInlineBar = memo(function StoriesInlineBar({
   onOpenProfile,
   onOpenReel,
   onOpenLive,
@@ -539,4 +539,4 @@ export function StoriesInlineBar({
       ) : null}
     </>
   );
-}
+});

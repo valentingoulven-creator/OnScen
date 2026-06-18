@@ -32,6 +32,7 @@
     "outputPath": "../msdev/release"
   },
   "dependencies": {
+    "@types/nodemailer": "^8.0.1",
     "bcryptjs": "^2.4.3",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
@@ -41,9 +42,11 @@
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.2",
     "livekit-server-sdk": "^2.15.4",
+    "nodemailer": "^9.0.1",
     "pg": "^8.16.0",
     "socket.io": "^4.8.3",
-    "stripe": "^17.7.0"
+    "stripe": "^17.7.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -53,6 +56,7 @@
     "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^20.12.12",
     "@types/pg": "^8.15.4",
+    "@types/web-push": "^3.6.4",
     "resedit": "^3.0.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.4.5",

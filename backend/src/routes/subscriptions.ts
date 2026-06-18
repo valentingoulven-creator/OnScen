@@ -289,6 +289,42 @@ subscriptionsRouter.post('/create-checkout', authenticateJWT, async (req: Reques
 
   const baseUrl = getAppBaseUrl();
 
+  // Fix #1 — Stripe Connect split : transférer au créateur si son compte est prêt
+  let connectTransferReady = false;
+  let creatorConnectId: string | null = null;
+  if (targetType === 'creator') {
+    const creatorUser = db.users.get(resolvedCreatorId);
+    const candidateId = creatorUser?.stripeConnectAccountId?.trim() || null;
+    if (candidateId) {
+      try {
+        const account = await stripe.accounts.retrieve(candidateId);
+        if (account.charges_enabled) {
+          creatorConnectId = candidateId;
+          connectTransferReady = true;
+        }
+      } catch {
+        // Non-bloquant : on crée quand même la session sans split
+        console.warn(`[subscriptions] Impossible de vérifier Connect account ${candidateId}`);
+      }
+    }
+  }
+
+  const subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData = {
+    metadata: {
+      subscriberId: userId,
+      creatorId: resolvedCreatorId,
+      tierId: tier.id,
+      tierLabel: tier.label,
+      targetType,
+    },
+    ...(connectTransferReady && creatorConnectId
+      ? {
+          application_fee_percent: getPlatformCommissionPercent(),
+          transfer_data: { destination: creatorConnectId },
+        }
+      : {}),
+  };
+
   try {
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
@@ -304,15 +340,7 @@ subscriptionsRouter.post('/create-checkout', authenticateJWT, async (req: Reques
         targetType,
         type: 'creator_subscription',
       },
-      subscription_data: {
-        metadata: {
-          subscriberId: userId,
-          creatorId: resolvedCreatorId,
-          tierId: tier.id,
-          tierLabel: tier.label,
-          targetType,
-        },
-      },
+      subscription_data: subscriptionData,
     });
 
     db.subscriptionCheckouts.push({

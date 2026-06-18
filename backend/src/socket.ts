@@ -37,6 +37,7 @@ import {
   validateLiveWebrtcViewerReady,
 } from './lib/liveVideoRelay';
 import { serializePublicLive } from './lib/livePublic';
+import { bumpLivePeakViewers } from './lib/liveArchive';
 import { canUserUseApp, isDevUser } from './lib/accessControl';
 import {
   canControlSalonPlayback,
@@ -306,6 +307,7 @@ export function setupSockets(io: Server): void {
         socket.emit('live_updated', serializePublicLive(live, undefined, userId));
         if (!alreadyIn && userId && userId !== live.hostId && !wasAlreadyViewing) {
           live.viewersCount += 1;
+          bumpLivePeakViewers(live);
           db.lives.set(liveId, live);
           io.to(roomName).emit('live_updated', serializePublicLive(live));
         }
@@ -680,6 +682,12 @@ export function setupSockets(io: Server): void {
 
       const now = Date.now();
       const patch = playbackState as Record<string, unknown>;
+      const incomingUpdatedAt =
+        typeof patch.updatedAt === 'number' ? (patch.updatedAt as number) : now;
+      if (incomingUpdatedAt < salon.playbackState.updatedAt) {
+        return;
+      }
+
       const clockTouched =
         'progressMs' in patch ||
         'startedAt' in patch ||
@@ -692,9 +700,15 @@ export function setupSockets(io: Server): void {
         ...patch,
       } as typeof salon.playbackState;
 
+      if (!('isPlaying' in patch)) {
+        merged.isPlaying = salon.playbackState.isPlaying;
+      }
+      if (!('startedAt' in patch)) {
+        merged.startedAt = salon.playbackState.startedAt;
+      }
+
       if (clockTouched) {
-        merged.updatedAt =
-          typeof patch.updatedAt === 'number' ? (patch.updatedAt as number) : now;
+        merged.updatedAt = incomingUpdatedAt;
         if (merged.isPlaying && typeof merged.startedAt !== 'number') {
           merged.startedAt = now;
         }

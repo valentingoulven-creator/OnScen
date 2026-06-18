@@ -92,7 +92,8 @@ Redirect URI :
 Ex. https://votredomaine.com/api/platforms/youtube/oauth/callback
 
 Clé YouTube Data API (recherche officielle) :
-→ msdev/.env YOUTUBE_API_KEY
+→ backend/.env.production YOUTUBE_API_KEY
+→ voir aussi backend/.env.production.example § YouTube Data API v3
 
 IMPORTANT : ne pas activer ALLOW_YOUTUBE_REMOTE_FALLBACK en production
 (Piped/Invidious = secours msdev uniquement, désactivé par défaut).

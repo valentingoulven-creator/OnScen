@@ -55,7 +55,10 @@ function dedupeResults(items: YoutubeSearchResult[]): YoutubeSearchResult[] {
   return out;
 }
 
-export async function searchYoutube(query: string): Promise<YoutubeSearchResult[]> {
+export async function searchYoutube(
+  query: string,
+  accessToken?: string
+): Promise<YoutubeSearchResult[]> {
   const q = query.trim();
   if (q.length < 2) return [];
 
@@ -67,7 +70,7 @@ export async function searchYoutube(query: string): Promise<YoutubeSearchResult[
 
   const remoteHits: YoutubeSearchResult[] = [];
 
-  const apiHits = await searchVideosViaDataApi(q);
+  const apiHits = await searchVideosViaDataApi(q, accessToken);
   for (const h of apiHits) {
     remoteHits.push(toResult(h.videoId, h.title, h.artist, h.thumbnailUrl));
   }

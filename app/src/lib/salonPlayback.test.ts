@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   computePlaybackPositionMs,
   mergeRemotePlaybackState,
+  parseYoutubeVideoId,
+  playbackStateAtProgressReport,
   playbackStateAtSeek,
+  resolveSalonYoutubeTrackId,
   shouldResetPlaybackFromInitial,
 } from './salonPlayback';
 import type { PlaybackState } from '../types';
@@ -49,10 +52,34 @@ describe('salonPlayback sync', () => {
     expect(mergeRemotePlaybackState(local, remote).trackId).toBe('xyz');
   });
 
+  it('playbackStateAtProgressReport ne touche pas isPlaying', () => {
+    const patch = playbackStateAtProgressReport(baseState(), 42_000, 2_000_000);
+    expect(patch.progressMs).toBe(42_000);
+    expect(patch.startedAt).toBe(2_000_000);
+    expect('isPlaying' in patch).toBe(false);
+  });
+
   it('playbackStateAtSeek réancre startedAt en lecture', () => {
     const patch = playbackStateAtSeek(baseState(), 42_000, 2_000_000);
     expect(patch.progressMs).toBe(42_000);
     expect(patch.startedAt).toBe(2_000_000);
     expect(patch.isPlaying).toBe(true);
+  });
+
+  it('parseYoutubeVideoId extrait un ID depuis une URL watch', () => {
+    expect(parseYoutubeVideoId('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe('dQw4w9WgXcQ');
+    expect(parseYoutubeVideoId('dQw4w9WgXcQ')).toBe('dQw4w9WgXcQ');
+    expect(parseYoutubeVideoId('demo')).toBeNull();
+  });
+
+  it('resolveSalonYoutubeTrackId retombe sur externalUrl', () => {
+    const id = resolveSalonYoutubeTrackId(
+      {
+        trackId: '',
+        externalUrl: 'https://youtu.be/abc123XYZ01',
+      },
+      null
+    );
+    expect(id).toBe('abc123XYZ01');
   });
 });

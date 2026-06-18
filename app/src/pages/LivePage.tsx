@@ -96,6 +96,7 @@ export function LivePage({
   const [liveViewBanMessage, setLiveViewBanMessage] = useState<string | null>(null);
   const [liveEnded, setLiveEnded] = useState(false);
   const [streamEndedReason, setStreamEndedReason] = useState<LiveStreamEndedReason | null>(null);
+  const [archivedPlaybackUrl, setArchivedPlaybackUrl] = useState<string | null>(null);
   const [durationWarning, setDurationWarning] = useState(false);
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const {
@@ -140,14 +141,25 @@ export function LivePage({
 
   useEffect(() => {
     if (!token) return;
+    setArchivedPlaybackUrl(null);
     api
       .getLive(token, liveId)
-      .then((r) => {
+      .then(async (r) => {
         setLive(r.live);
         setViewers(r.live.viewersCount);
-        if (!r.live.isActive && r.live.hostId !== user?.id) {
-          setStreamEndedReason('host_stopped');
-        } else if (r.live.isActive && r.live.hostId !== user?.id) {
+        if (!r.live.isActive) {
+          if (r.live.streamMode === 'cloudflare') {
+            try {
+              const playback = await api.getLivePlayback(token, liveId);
+              setArchivedPlaybackUrl(playback.playbackUrl);
+              setStreamEndedReason(null);
+            } catch {
+              if (r.live.hostId !== user?.id) setStreamEndedReason('host_stopped');
+            }
+          } else if (r.live.hostId !== user?.id) {
+            setStreamEndedReason('host_stopped');
+          }
+        } else if (r.live.hostId !== user?.id) {
           setStreamEndedReason(null);
         }
       })
@@ -349,8 +361,9 @@ export function LivePage({
     ? t(liveStreamEndedHintKey(streamEndedReason))
     : undefined;
   const isLiveKitStream = live?.streamMode === 'livekit';
+  const isArchivedReplay = !!live && !live.isActive && !!archivedPlaybackUrl;
   const isCloudflareStream =
-    live?.streamMode === 'cloudflare' && !!live.cloudflarePlaybackUrl;
+    (live?.streamMode === 'cloudflare' && !!live.cloudflarePlaybackUrl) || isArchivedReplay;
   const canSwitchToCloudflare = !!(
     isHost &&
     live?.isActive &&
@@ -478,7 +491,7 @@ export function LivePage({
     enableHlsPlayback,
     retryHlsPlayback,
   } = useCloudflareHlsPlayback({
-    playbackUrl: live?.cloudflarePlaybackUrl,
+    playbackUrl: archivedPlaybackUrl ?? live?.cloudflarePlaybackUrl,
     // Cloudflare HLS does not depend on browser cameraActive (OBS/RTMP ingest).
     active: !isHost && isCloudflareStream,
   });
@@ -961,7 +974,7 @@ export function LivePage({
             )}
           </div>
           {!isHost && (
-            <div className="shrink-0 flex items-center gap-1 sm:gap-1.5 max-w-[min(100%,11rem)] sm:max-w-none">
+            <div className="shrink-0 flex items-center flex-wrap gap-1 sm:gap-1.5 max-w-[min(100%,13rem)] sm:max-w-none justify-end">
               {hostCanReceiveDonations && token && (
                 <button
                   type="button"

@@ -5,13 +5,24 @@ import type { User } from '../models/schema';
 type DbExec = Pick<Pool, 'query'> | Pick<PoolClient, 'query'>;
 
 export async function upsertUser(db: DbExec, user: User): Promise<void> {
+  // Fix #6: stocker le hash bcrypt dans une colonne dédiée, hors du JSONB payload
+  // (évite l'exposition dans les logs PG, les exports JSONB, et les snapshots pgStore)
+  const { passwordHash, ...payloadWithoutHash } = user;
   await db.query(
-    `INSERT INTO users (id, email, username, payload) VALUES ($1, $2, $3, $4::jsonb)
+    `INSERT INTO users (id, email, username, password_hash, payload)
+     VALUES ($1, $2, $3, $4, $5::jsonb)
      ON CONFLICT (id) DO UPDATE SET
-       email = EXCLUDED.email,
-       username = EXCLUDED.username,
-       payload = EXCLUDED.payload`,
-    [user.id, user.email?.toLowerCase() ?? null, user.username ?? null, JSON.stringify(user)]
+       email         = EXCLUDED.email,
+       username      = EXCLUDED.username,
+       password_hash = EXCLUDED.password_hash,
+       payload       = EXCLUDED.payload`,
+    [
+      user.id,
+      user.email?.toLowerCase() ?? null,
+      user.username ?? null,
+      passwordHash ?? null,
+      JSON.stringify(payloadWithoutHash),
+    ]
   );
 }
 

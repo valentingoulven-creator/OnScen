@@ -9,6 +9,7 @@ import {
   MusicPlatform,
   PlaybackState,
 } from '../models/schema';
+import { clearSalonQueueFromPgAsync, persistSalonQueueAsync } from './pgSalonQueues';
 
 export function ensureSalonQueue(salonId: string): SalonQueueItem[] {
   if (!db.salonQueues.has(salonId)) db.salonQueues.set(salonId, []);
@@ -23,6 +24,11 @@ export function ensureSalonProposals(salonId: string): SalonTrackProposal[] {
 export function clearSalonPlaybackData(salonId: string): void {
   db.salonQueues.delete(salonId);
   db.salonProposals.delete(salonId);
+  clearSalonQueueFromPgAsync(salonId);
+}
+
+function persistQueue(salonId: string): void {
+  persistSalonQueueAsync(salonId);
 }
 
 export function getPendingProposals(salonId: string): SalonTrackProposal[] {
@@ -117,6 +123,7 @@ export function hostSkipNext(salon: Salon): PlaybackState | null {
   if (queue.length === 0) return null;
   const next = queue.shift()!;
   db.salonQueues.set(salon.id, queue);
+  persistQueue(salon.id);
   const state = applyQueueItemToSalon(salon, next);
   broadcastSalonQueue(salon.id);
   broadcastSalonPlayback(salon.id, state);
@@ -129,6 +136,7 @@ export function hostPlayQueueItem(salon: Salon, queueItemId: string): PlaybackSt
   if (idx < 0) return null;
   const [item] = queue.splice(idx, 1);
   db.salonQueues.set(salon.id, queue);
+  persistQueue(salon.id);
   const state = applyQueueItemToSalon(salon, item);
   broadcastSalonQueue(salon.id);
   broadcastSalonPlayback(salon.id, state);
@@ -144,6 +152,7 @@ export function enqueueItem(salonId: string, item: Omit<SalonQueueItem, 'id' | '
   };
   queue.push(full);
   db.salonQueues.set(salonId, queue);
+  persistQueue(salonId);
   broadcastSalonQueue(salonId);
   return full;
 }
@@ -196,6 +205,7 @@ export function hostLoadYoutubePlaylist(
   }));
   const [first, ...rest] = built;
   db.salonQueues.set(salon.id, rest);
+  persistQueue(salon.id);
   const state = applyQueueItemToSalon(salon, first);
   broadcastSalonQueue(salon.id);
   broadcastSalonPlayback(salon.id, state);
@@ -211,6 +221,7 @@ export function reorderSalonQueue(salonId: string, orderedIds: string[]): SalonQ
   if (!orderedIds.every((id) => byId.has(id))) return null;
   const reordered = orderedIds.map((id) => byId.get(id)!);
   db.salonQueues.set(salonId, reordered);
+  persistQueue(salonId);
   broadcastSalonQueue(salonId);
   return reordered;
 }
@@ -222,6 +233,7 @@ export function removeTrackFromSalonQueue(salonId: string, trackId: string): boo
   const next = queue.filter((item) => item.trackId !== safeId);
   if (next.length === queue.length) return false;
   db.salonQueues.set(salonId, next);
+  persistQueue(salonId);
   broadcastSalonQueue(salonId);
   return true;
 }

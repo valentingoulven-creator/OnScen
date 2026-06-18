@@ -5,6 +5,8 @@ import { isPlatformConnected } from '../lib/platformConnect';
 import { mergeRemotePlaybackState } from '../lib/salonPlayback';
 
 import { api } from '../lib/api';
+import { LiveStripeConnectGate } from '../components/LiveStripeConnectGate';
+import { LiveLegalAcceptanceModal } from '../components/LiveLegalAcceptanceModal';
 
 import { getSocket, onSocketConnect } from '../lib/socket';
 
@@ -46,6 +48,30 @@ export function SalonPage({ salonId, onBack }: { salonId: string; onBack: () => 
   const [contacts, setContacts] = useState<DmContact[]>([]);
 
   const [startingLive, setStartingLive] = useState(false);
+  const [stripeGateOpen, setStripeGateOpen] = useState(false);
+  const [stripeGatePending, setStripeGatePending] = useState(false);
+  const [legalGateOpen, setLegalGateOpen] = useState(false);
+  const [stripeSimulation, setStripeSimulation] = useState(false);
+  const [stripeChargesEnabled, setStripeChargesEnabled] = useState<boolean | null>(null);
+  const [stripeChecked, setStripeChecked] = useState(false);
+
+  useEffect(() => {
+    if (!token || stripeChecked) return;
+    api.getDonationsConfig(token)
+      .then((config) => {
+        setStripeSimulation(config.simulation ?? false);
+        if (config.simulation) { setStripeChecked(true); return; }
+        if (user?.stripeConnectAccountId) {
+          api.getStripeConnectStatus(token)
+            .then((s) => setStripeChargesEnabled(s.chargesEnabled ?? false))
+            .catch(() => setStripeChargesEnabled(null))
+            .finally(() => setStripeChecked(true));
+        } else {
+          setStripeChecked(true);
+        }
+      })
+      .catch(() => setStripeChecked(true));
+  }, [token, user?.stripeConnectAccountId, stripeChecked]);
 
   const [accessSaving, setAccessSaving] = useState(false);
   const [skipping, setSkipping] = useState(false);
@@ -172,28 +198,43 @@ export function SalonPage({ salonId, onBack }: { salonId: string; onBack: () => 
 
 
 
-  const startLive = async () => {
+  const doStartLive = async () => {
+    if (!token) return;
+    setStartingLive(true);
+    try {
+      await api.startLive(token, `Live — ${salon?.title}`);
+      loadSalon();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Erreur');
+    } finally {
+      setStartingLive(false);
+    }
+  };
 
+  const startLive = () => {
     if (!token) return;
 
-    setStartingLive(true);
-
-    try {
-
-      await api.startLive(token, `Live — ${salon?.title}`);
-
-      loadSalon();
-
-    } catch (e) {
-
-      alert(e instanceof Error ? e.message : 'Erreur');
-
-    } finally {
-
-      setStartingLive(false);
-
+    // Gate 1 — Stripe Connect (ignoré en mode simulation)
+    if (!stripeSimulation) {
+      if (!user?.stripeConnectAccountId) {
+        setStripeGatePending(false);
+        setStripeGateOpen(true);
+        return;
+      }
+      if (stripeChargesEnabled === false) {
+        setStripeGatePending(true);
+        setStripeGateOpen(true);
+        return;
+      }
     }
 
+    // Gate 2 — Acceptation des règles de diffusion (premier live)
+    if (!user?.liveTermsAcceptedAt) {
+      setLegalGateOpen(true);
+      return;
+    }
+
+    void doStartLive();
   };
 
 
@@ -514,6 +555,11 @@ export function SalonPage({ salonId, onBack }: { salonId: string; onBack: () => 
 
       <ChatRoomProvider {...chatProps}>
         <RoomTheaterLayout
+          variant={salon.platform === 'spotify' ? 'queue-chat' : 'theater'}
+          chatDock={salon.platform === 'youtube' ? 'left' : 'right'}
+          stageFooterMode={salon.platform === 'youtube' ? 'drawer' : 'scroll'}
+          allowFloatingChat={salon.platform !== 'youtube'}
+          sideDockMatchHero={salon.platform === 'youtube'}
           chatHidden={chatHidden}
           onToggleChat={() => setChatHidden((h) => !h)}
           chatTitle="Chat du salon"
@@ -528,6 +574,7 @@ export function SalonPage({ salonId, onBack }: { salonId: string; onBack: () => 
               onUserUpdated={setUserFromProfile}
               onPlaybackStateChange={applyPlayback}
               theaterMode
+              theaterSideDock={salon.platform === 'youtube'}
               hostCanControl={hostCanControl}
               queue={queue}
               skipping={skipping}
@@ -544,6 +591,26 @@ export function SalonPage({ salonId, onBack }: { salonId: string; onBack: () => 
         />
         <ChatModals />
       </ChatRoomProvider>
+
+      {stripeGateOpen && token && (
+        <LiveStripeConnectGate
+          token={token}
+          isPending={stripeGatePending}
+          onClose={() => setStripeGateOpen(false)}
+        />
+      )}
+
+      {legalGateOpen && token && (
+        <LiveLegalAcceptanceModal
+          token={token}
+          onClose={() => setLegalGateOpen(false)}
+          onAccepted={(acceptedAt) => {
+            setUserFromProfile({ ...user!, liveTermsAcceptedAt: acceptedAt });
+            setLegalGateOpen(false);
+            void doStartLive();
+          }}
+        />
+      )}
     </div>
   );
 

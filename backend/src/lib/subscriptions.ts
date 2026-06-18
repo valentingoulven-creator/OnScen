@@ -1,6 +1,7 @@
 import { db, type CreatorSubscription } from '../models/schema';
 import { isMsdevRuntime, isStripeConfigured, userMeetsDonationAge } from './donations';
 import { CREATOR_MONETIZATION_MIN_AGE, creatorMeetsMonetizationAge } from './ageGates';
+import { persistCreatorSubscriptionToPgAsync } from './pgSubscriptions';
 
 export const SUBSCRIPTION_MIN_AGE = 18;
 export const SUBSCRIPTION_CURRENCY = 'eur';
@@ -225,6 +226,7 @@ export function recordCreatorSubscription(params: {
       existing.status = 'active';
       existing.currentPeriodEnd = currentPeriodEnd ?? existing.currentPeriodEnd;
       existing.updatedAt = Date.now();
+      persistCreatorSubscriptionToPgAsync(existing);
       return existing;
     }
   }
@@ -239,6 +241,7 @@ export function recordCreatorSubscription(params: {
     existingActive.amountCents = amountCents;
     existingActive.currentPeriodEnd = periodEnd;
     existingActive.updatedAt = now;
+    persistCreatorSubscriptionToPgAsync(existingActive);
     return existingActive;
   }
 
@@ -264,6 +267,7 @@ export function recordCreatorSubscription(params: {
     updatedAt: now,
   };
   db.creatorSubscriptions.push(sub);
+  persistCreatorSubscriptionToPgAsync(sub);
   return sub;
 }
 
@@ -275,6 +279,7 @@ export function cancelSubscriptionRecord(
   if (!sub) return null;
   sub.status = status;
   sub.updatedAt = Date.now();
+  persistCreatorSubscriptionToPgAsync(sub);
   return sub;
 }
 
@@ -287,5 +292,6 @@ export function renewSubscriptionFromInvoice(
   sub.status = 'active';
   sub.currentPeriodEnd = periodEnd;
   sub.updatedAt = Date.now();
+  persistCreatorSubscriptionToPgAsync(sub);
   return sub;
 }

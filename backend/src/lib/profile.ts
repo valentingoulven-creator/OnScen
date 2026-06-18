@@ -441,5 +441,6 @@ export function publicProfile(u: User, isOwner = false, viewerId?: string) {
     instagramHandle: snapshot.instagramHandle,
     youtubeChannel: snapshot.youtubeChannel,
     spotifyUrl: snapshot.spotifyUrl,
+    onboardingCompleted: isOwner ? (snapshot.onboardingCompleted ?? true) : undefined,
   };
 }

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { db, User, ListeningRole } from '../models/schema';
 import { authenticateJWT, signToken } from '../middleware/auth';
 import {
@@ -37,6 +38,10 @@ import {
   resolveInitialAccountStatus,
 } from '../lib/accessControl';
 import { isOAuthOnlyPasswordHash } from '../lib/oauthAccount';
+import {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+} from '../lib/mailer';
 
 export const authRouter = Router();
 
@@ -98,6 +103,9 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Erreur interne lors de la création du compte' });
     return;
   }
+  const verificationToken = crypto.randomBytes(32).toString('hex');
+  const verificationTokenExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24h
+
   let user: User = {
     id: `user_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     username,
@@ -111,6 +119,10 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     acceptedTermsAt: Date.now(),
     acceptedTermsVersion: CURRENT_TERMS_VERSION,
     accountStatus,
+    onboardingCompleted: false,
+    emailVerified: false,
+    verificationToken,
+    verificationTokenExpiry,
   };
   user = applyProfileDefaults(user);
   if (getAccessPolicy().registrationMode === 'invite_only' && inviteCode) {
@@ -119,6 +131,11 @@ authRouter.post('/register', async (req: Request, res: Response) => {
   db.users.set(user.id, user);
   schedulePersistUserToPg(user);
   schedulePersist();
+
+  // Send verification email (graceful — no SMTP = skip, signup still proceeds)
+  const appUrl = process.env.WEB_APP_URL ?? 'https://getsoundy.com';
+  const verificationUrl = `${appUrl}/verify-email?token=${verificationToken}`;
+  void sendVerificationEmail({ toEmail: email, username, verificationUrl });
 
   if (accountStatus === 'pending') {
     res.status(202).json({
@@ -131,7 +148,11 @@ authRouter.post('/register', async (req: Request, res: Response) => {
   }
 
   const token = signToken({ id: user.id, username: user.username });
-  res.status(201).json({ token, user: publicProfile(user, true, user.id) });
+  res.status(201).json({
+    token,
+    user: publicProfile(user, true, user.id),
+    emailVerificationSent: true,
+  });
 });
 
 authRouter.post('/login', async (req: Request, res: Response) => {
@@ -530,4 +551,109 @@ authRouter.delete('/account', authenticateJWT, async (req: Request, res: Respons
   deleteUserAccountCascade(userId);
   schedulePersist();
   res.json({ ok: true });
+});
+
+authRouter.post('/complete-onboarding', authenticateJWT, (req: Request, res: Response) => {
+  const userId = (req as Request & { user: { id: string } }).user.id;
+  const user = db.users.get(userId);
+  if (!user) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+  user.onboardingCompleted = true;
+  db.users.set(user.id, user);
+  schedulePersistUserToPg(user);
+  schedulePersist();
+  res.json({ user: publicProfile(user, true, user.id) });
+});
+
+/** Vérification de l'adresse e-mail via token */
+authRouter.get('/verify-email', (req: Request, res: Response) => {
+  const token = String(req.query.token ?? '').trim();
+  if (!token) {
+    res.status(400).json({ error: 'Token manquant' });
+    return;
+  }
+  const user = [...db.users.values()].find((u) => u.verificationToken === token);
+  if (!user) {
+    res.status(400).json({ error: 'Token de vérification invalide ou déjà utilisé' });
+    return;
+  }
+  if (user.verificationTokenExpiry && Date.now() > user.verificationTokenExpiry) {
+    res.status(400).json({ error: 'Token de vérification expiré. Contacte le support pour en recevoir un nouveau.' });
+    return;
+  }
+  user.emailVerified = true;
+  delete user.verificationToken;
+  delete user.verificationTokenExpiry;
+  db.users.set(user.id, user);
+  schedulePersistUserToPg(user);
+  schedulePersist();
+  res.json({ ok: true, message: 'Adresse e-mail vérifiée avec succès !' });
+});
+
+/** Demande de réinitialisation de mot de passe */
+authRouter.post('/forgot-password', async (req: Request, res: Response) => {
+  const { email } = req.body ?? {};
+  if (!email || typeof email !== 'string') {
+    res.status(400).json({ error: 'Adresse e-mail requise' });
+    return;
+  }
+  // Always return 200 to avoid email enumeration
+  const user = [...db.users.values()].find(
+    (u) => u.email?.toLowerCase() === email.toLowerCase()
+  );
+  if (!user) {
+    res.json({ ok: true });
+    return;
+  }
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  const resetTokenExpiry = Date.now() + 60 * 60 * 1000; // 1h
+  user.resetToken = resetToken;
+  user.resetTokenExpiry = resetTokenExpiry;
+  db.users.set(user.id, user);
+  schedulePersistUserToPg(user);
+  schedulePersist();
+
+  const appUrl = process.env.WEB_APP_URL ?? 'https://getsoundy.com';
+  const resetUrl = `${appUrl}/reset-password?token=${resetToken}`;
+  void sendPasswordResetEmail({ toEmail: user.email, username: user.username, resetUrl });
+
+  res.json({ ok: true });
+});
+
+/** Réinitialisation du mot de passe avec token */
+authRouter.post('/reset-password', async (req: Request, res: Response) => {
+  const { token, newPassword } = req.body ?? {};
+  if (!token || !newPassword) {
+    res.status(400).json({ error: 'Token et nouveau mot de passe requis' });
+    return;
+  }
+  if (typeof newPassword !== 'string' || newPassword.length < 8) {
+    res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères' });
+    return;
+  }
+  const user = [...db.users.values()].find((u) => u.resetToken === token);
+  if (!user) {
+    res.status(400).json({ error: 'Token invalide ou déjà utilisé' });
+    return;
+  }
+  if (user.resetTokenExpiry && Date.now() > user.resetTokenExpiry) {
+    res.status(400).json({ error: 'Token expiré. Refais une demande de réinitialisation.' });
+    return;
+  }
+  let passwordHash: string;
+  try {
+    passwordHash = await bcrypt.hash(newPassword, 10);
+  } catch {
+    res.status(500).json({ error: 'Erreur interne lors de la mise à jour du mot de passe' });
+    return;
+  }
+  user.passwordHash = passwordHash;
+  delete user.resetToken;
+  delete user.resetTokenExpiry;
+  db.users.set(user.id, user);
+  schedulePersistUserToPg(user);
+  schedulePersist();
+  res.json({ ok: true, message: 'Mot de passe réinitialisé avec succès !' });
 });

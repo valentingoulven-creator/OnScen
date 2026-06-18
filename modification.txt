@@ -1,4 +1,50 @@
 ================================================================================
+MODIF 540 - Mobile responsiveness — correctifs critiques + règle Cursor
+================================================================================
+Date : 2026-06-18
+
+## Objectif
+Rendre toute l'application Soundy compatible mobile (390px iPhone 14 en cible).
+
+## Règle Cursor créée
+- `.cursor/rules/mobile-responsive.mdc` (alwaysApply: true)
+  Enforce : mobile-first Tailwind, dvh/dvw, touch targets 44px, bottom-sheet modals,
+  no horizontal overflow, apptel/ pour overrides Capacitor.
+
+## Correctifs CSS (index.css)
+1. **Salon YouTube mobile** — quand le chat est ouvert sur < 640px :
+   - `.room-theater-side-row--match-hero` redevient `flex: 1 1 0` (non shrink-0)
+     → la vidéo partage l'espace vertical avec le chat sheet et le chrome du tiroir
+   - `.ms-salon-fullscreen-overlay .room-theater-video-stage` : min-height réduit à
+     `min(40dvh, 40vh)` (depuis 58dvh) pour que tout tienne dans les 672px disponibles
+   - `.room-theater-side-row--match-hero ~ .room-theater-mobile-chat-sheet` :
+     max-height réduit à `min(30dvh, 200px)` (depuis 42dvh/320px) en mode YouTube salon
+2. **Touch targets** — `.salon-header-icon-btn` agrandi à 2.75rem (44px) sur mobile ;
+   `.room-theater-toggle` agrandi en hauteur.
+3. **Mobile chat sheet** — min-height: 6rem pour garantir la visibilité du contenu.
+4. **scrollbar-none** — utilitaire CSS ajouté pour masquer la scrollbar des tabs.
+
+## Correctifs composants
+- `LivePage.tsx` : boutons viewer (don/subscribe/quitter) — `flex-wrap` + `max-w-[13rem]`
+  pour éviter l'overflow sur 390px quand les 3 boutons sont affichés.
+- `ProfilePage.tsx` : barre d'onglets (Profil/Reels/Lives) — padding réduit `px-4 sm:px-8`
+  et wrapper `overflow-x-auto` pour éviter l'overflow avec 3 onglets.
+
+## Ce qui est desktop-only par conception (pas modifié)
+- Panel admin (AdminPage, toutes les tabs) : fonctionnalités de gestion pensées pour
+  desktop, pas de responsive prévu (desktop-only acceptable).
+- Colonnes chat latérales (gauche/droite) dans RoomTheaterLayout : `hidden sm:flex`
+  — remplacées par le bottom chat sheet sur mobile.
+- Analytiques VPS (graphes, tables) : contenu dense, desktop seulement.
+
+## Fichiers modifiés
+- .cursor/rules/mobile-responsive.mdc (créé)
+- app/src/index.css
+- app/src/pages/LivePage.tsx
+- app/src/pages/ProfilePage.tsx
+- modification.txt
+
+================================================================================
 MODIF 539 - Admin : barre d'onglets centrée horizontalement
 ================================================================================
 Date : 2026-06-15

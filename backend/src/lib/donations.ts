@@ -2,6 +2,7 @@ import type { Gift } from '../models/schema';
 import { db } from '../models/schema';
 import { getIo } from './ioInstance';
 import { notifyHostLiveDon } from './notifications';
+import { persistGiftToPgAsync } from './pgDonations';
 import { CREATOR_MONETIZATION_MIN_AGE, creatorMeetsMonetizationAge } from './ageGates';
 
 export {
@@ -171,6 +172,8 @@ export function recordLiveDonation(params: {
     paymentIntentId,
   };
   db.gifts.push(gift);
+
+  persistGiftToPgAsync(gift, live.hostId);
 
   emitGiftAnimation(liveId, {
     id: gift.id,

@@ -212,7 +212,8 @@ $deployFiles = @(
     "postgres-setup.sh", "migrate-remote.sh", "backup-db.sh", "backup-uploads.sh", "backup-offsite.sh",
     "verify-backup.sh", "verify-prod.sh", "verify-scaleway-backup.sh", "setup-scaleway-object-storage.sh", "snapshot-vps-reminder.sh",
     "install-backup-cron.sh", "install-uploads-backup-cron.sh", "install-offsite-backup-cron.sh",
-    "install-health-cron.sh", "setup-legal-publisher.sh", "ecosystem.config.cjs"
+    "install-health-cron.sh", "setup-legal-publisher.sh", "ecosystem.config.cjs",
+    "monitor-alerts.sh", "install-monitor-cron.sh"
 )
 foreach ($f in $deployFiles) {
     $local = Join-Path $DeployDir $f

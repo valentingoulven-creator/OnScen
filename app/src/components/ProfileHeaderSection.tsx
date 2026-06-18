@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 
 import { useTranslation } from 'react-i18next';
 
@@ -96,7 +96,7 @@ interface ProfileHeaderSectionProps {
 
 
 
-export function ProfileHeaderSection({
+export const ProfileHeaderSection = memo(function ProfileHeaderSection({
 
   userId,
 
@@ -470,5 +470,5 @@ export function ProfileHeaderSection({
 
   );
 
-}
+});
 

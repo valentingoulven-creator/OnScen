@@ -1,16 +1,20 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api';
-import type { PlaybackState, YoutubeSearchResult } from '../types';
+import type { PlaybackState, SalonQueueItem, YoutubeSearchResult } from '../types';
 
 interface SalonYouTubeSearchProps {
   salonId: string;
   token: string;
   currentTitle: string;
   currentArtist: string;
-  onTrackChanged: (state: PlaybackState) => void;
-  /** play = lecture immédiate (hôte/VIP). propose = PROPOSITIONS pour l'hôte (auditeur). */
-  submitMode?: 'play' | 'propose';
+  onTrackChanged?: (state: PlaybackState) => void;
+  onQueueChanged?: (queue: SalonQueueItem[]) => void;
+  /** queue = file directe (hôte/VIP). propose = PROPOSITIONS pour l'hôte (auditeur). */
+  submitMode?: 'queue' | 'propose';
+  /** Dans l'onglet panneau hôte — masque l'en-tête redondant. */
+  embedded?: boolean;
 }
 
 function parseYoutubeVideoId(input: string): string | null {
@@ -27,20 +31,24 @@ export function SalonYouTubeSearch({
   token,
   currentTitle,
   currentArtist,
-  onTrackChanged,
-  submitMode = 'play',
+  onQueueChanged,
+  submitMode = 'queue',
+  embedded = false,
 }: SalonYouTubeSearchProps) {
   const { t } = useTranslation();
   const isProposeMode = submitMode === 'propose';
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<YoutubeSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
-  const [changingId, setChangingId] = useState<string | null>(null);
+  const [addingId, setAddingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [infoToast, setInfoToast] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
   useEffect(() => {
     if (!infoToast) return;
@@ -50,9 +58,9 @@ export function SalonYouTubeSearch({
 
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false);
-      }
+      const target = e.target as Node;
+      if (rootRef.current?.contains(target) || dropdownRef.current?.contains(target)) return;
+      setDropdownOpen(false);
     };
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
@@ -91,8 +99,15 @@ export function SalonYouTubeSearch({
     setDropdownOpen(false);
   };
 
-  const playResult = async (item: YoutubeSearchResult) => {
-    setChangingId(item.videoId);
+  const trackBodyFromResult = (item: YoutubeSearchResult) => ({
+    trackId: item.videoId,
+    title: item.title,
+    artist: item.artist,
+    trackLink: item.externalUrl,
+  });
+
+  const addResult = async (item: YoutubeSearchResult) => {
+    setAddingId(item.videoId);
     setError(null);
     try {
       if (isProposeMode) {
@@ -106,13 +121,9 @@ export function SalonYouTubeSearch({
         return;
       }
 
-      const { playbackState } = await api.salonChangeTrack(token, salonId, {
-        trackId: item.videoId,
-        title: item.title,
-        artist: item.artist,
-        trackLink: item.externalUrl,
-      });
-      onTrackChanged(playbackState);
+      const { queue } = await api.salonAddToQueue(token, salonId, trackBodyFromResult(item));
+      onQueueChanged?.(queue);
+      setInfoToast(t('salon.youtubeSearch.addSuccess'));
       clearSearchUi();
     } catch (e) {
       setError(
@@ -120,23 +131,23 @@ export function SalonYouTubeSearch({
           ? e.message
           : isProposeMode
             ? t('salon.youtubeSearch.proposeError')
-            : t('salon.youtubeSearch.changeError')
+            : t('salon.youtubeSearch.addError')
       );
     } finally {
-      setChangingId(null);
+      setAddingId(null);
     }
   };
 
   const submitQuery = async () => {
     const q = query.trim();
-    if (!q || changingId) return;
+    if (!q || addingId) return;
     if (results.length > 0) {
-      await playResult(results[0]);
+      await addResult(results[0]);
       return;
     }
     const videoId = parseYoutubeVideoId(q);
     if (videoId) {
-      await playResult({
+      await addResult({
         videoId,
         title: t('salon.youtubeSearch.defaultTrackTitle'),
         artist: 'YouTube',
@@ -146,32 +157,62 @@ export function SalonYouTubeSearch({
     }
   };
 
-  const showDropdown =
-    dropdownOpen && query.trim().length >= 2 && (searching || results.length > 0 || Boolean(error));
+  const trimmedQuery = query.trim();
+  const showDropdown = dropdownOpen && trimmedQuery.length >= 2;
+  const showEmpty = !searching && !error && results.length === 0 && trimmedQuery.length >= 2;
 
-  const actionLabel = isProposeMode ? t('salon.youtubeSearch.propose') : t('salon.youtubeSearch.play');
+  useLayoutEffect(() => {
+    if (!showDropdown || !inputRef.current) return;
+    const updatePosition = () => {
+      const input = inputRef.current;
+      if (!input) return;
+      const rect = input.getBoundingClientRect();
+      setDropdownStyle({
+        position: 'fixed',
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+        zIndex: 9999,
+      });
+    };
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [showDropdown, query, searching, results.length, error]);
+
+  const actionLabel = isProposeMode ? t('salon.youtubeSearch.propose') : t('salon.youtubeSearch.add');
 
   return (
     <div ref={rootRef} className="relative space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[11px] font-semibold text-gray-300 uppercase tracking-wide">
-          {isProposeMode ? t('salon.youtubeSearch.proposeTrack') : t('salon.youtubeSearch.changeTrack')}
-        </p>
-        <span className="text-[10px] text-gray-500 truncate max-w-[55%]">
-          {currentTitle}
-          {currentArtist ? ` · ${currentArtist}` : ''}
-        </span>
-      </div>
+      {!embedded ? (
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[11px] font-semibold text-gray-300 uppercase tracking-wide">
+            {isProposeMode ? t('salon.youtubeSearch.proposeTrack') : t('salon.youtubeSearch.addToQueue')}
+          </p>
+          <span className="text-[10px] text-gray-500 truncate max-w-[55%]">
+            {currentTitle}
+            {currentArtist ? ` · ${currentArtist}` : ''}
+          </span>
+        </div>
+      ) : null}
 
       <div className="relative">
         <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm" aria-hidden>
           ▶
         </span>
         <input
+          ref={inputRef}
           type="search"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => query.trim().length >= 2 && setDropdownOpen(true)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            if (e.target.value.trim().length >= 2) setDropdownOpen(true);
+          }}
+          onFocus={() => trimmedQuery.length >= 2 && setDropdownOpen(true)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
@@ -189,61 +230,65 @@ export function SalonYouTubeSearch({
           aria-haspopup="listbox"
         />
 
-        {showDropdown && (
-          <div
-            className="absolute z-20 left-0 right-0 mt-1 rounded-xl border border-[#2a2a3a] bg-[#12121a] shadow-xl overflow-hidden"
-            role="listbox"
-          >
-            {searching && (
-              <p className="text-xs text-gray-500 text-center py-3">{t('salon.youtubeSearch.searching')}</p>
-            )}
-            {error && !searching && (
-              <p className="text-xs text-red-400 text-center py-3 px-3">{error}</p>
-            )}
-            {!searching && !error && results.length === 0 && (
-              <p className="text-xs text-gray-500 text-center py-3 px-3 leading-snug">
-                {t('salon.youtubeSearch.noResultsHint')}
-              </p>
-            )}
-            {!searching && results.length > 0 && (
-              <ul className="max-h-52 overflow-y-auto py-1">
-                {results.map((item) => (
-                  <li key={item.videoId}>
-                    <button
-                      type="button"
-                      disabled={changingId !== null}
-                      onClick={() => playResult(item)}
-                      className="w-full flex items-center gap-2.5 px-2.5 py-2 hover:bg-[#1a1a26] text-left disabled:opacity-50 transition"
-                      role="option"
-                    >
-                      <div className="relative shrink-0">
-                        <img
-                          src={item.thumbnailUrl}
-                          alt=""
-                          className="w-14 h-10 rounded-md object-cover bg-[#1e1e2f]"
-                        />
-                        <span className="absolute bottom-0.5 right-0.5 bg-[#e62117] rounded px-1 text-[7px] font-bold text-white leading-none py-px tracking-tight">
-                          YouTube
+        {showDropdown &&
+          createPortal(
+            <div
+              ref={dropdownRef}
+              style={dropdownStyle}
+              className="rounded-xl border border-[#2a2a3a] bg-[#12121a] shadow-xl overflow-hidden"
+              role="listbox"
+            >
+              {searching && results.length === 0 ? (
+                <p className="text-xs text-gray-500 text-center py-3">{t('salon.youtubeSearch.searching')}</p>
+              ) : null}
+              {error && !searching ? (
+                <p className="text-xs text-red-400 text-center py-3 px-3">{error}</p>
+              ) : null}
+              {showEmpty ? (
+                <p className="text-xs text-gray-500 text-center py-3 px-3 leading-snug">
+                  {t('salon.youtubeSearch.noResultsHint')}
+                </p>
+              ) : null}
+              {!searching && results.length > 0 ? (
+                <ul className="max-h-52 overflow-y-auto py-1">
+                  {results.map((item) => (
+                    <li key={item.videoId}>
+                      <button
+                        type="button"
+                        disabled={addingId !== null}
+                        onClick={() => addResult(item)}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-2 hover:bg-[#1a1a26] text-left disabled:opacity-50 transition"
+                        role="option"
+                      >
+                        <div className="relative shrink-0">
+                          <img
+                            src={item.thumbnailUrl}
+                            alt=""
+                            className="w-14 h-10 rounded-md object-cover bg-[#1e1e2f]"
+                          />
+                          <span className="absolute bottom-0.5 right-0.5 bg-[#e62117] rounded px-1 text-[7px] font-bold text-white leading-none py-px tracking-tight">
+                            YouTube
+                          </span>
+                        </div>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-xs text-white font-medium truncate">{item.title}</span>
+                          <span className="block text-[10px] text-gray-500 truncate">{item.artist}</span>
                         </span>
-                      </div>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-xs text-white font-medium truncate">{item.title}</span>
-                        <span className="block text-[10px] text-gray-500 truncate">{item.artist}</span>
-                      </span>
-                      <span className="text-[10px] text-purple-300 font-bold shrink-0">
-                        {changingId === item.videoId ? '…' : actionLabel}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
+                        <span className="text-[10px] text-purple-300 font-bold shrink-0">
+                          {addingId === item.videoId ? '…' : actionLabel}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>,
+            document.body
+          )}
       </div>
 
       <p className="text-[10px] text-gray-600 leading-snug">
-        {isProposeMode ? t('salon.youtubeSearch.proposeHint') : t('salon.youtubeSearch.changeHint')}
+        {isProposeMode ? t('salon.youtubeSearch.proposeHint') : t('salon.youtubeSearch.addHint')}
       </p>
 
       {infoToast ? (

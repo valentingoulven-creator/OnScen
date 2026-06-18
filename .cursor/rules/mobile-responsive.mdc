@@ -1,0 +1,97 @@
+---
+description: Mobile-first responsive development standards for Soundy (Vite + React + Tailwind v4)
+alwaysApply: true
+---
+
+# Soundy — Mobile-First Responsive Standards
+
+## Breakpoint order (Tailwind v4 — mobile first)
+
+```tsx
+// ✅ Default = mobile, sm: = tablet (640px), lg: = desktop (1024px)
+className="px-4 sm:px-6 lg:px-8"
+className="flex flex-col sm:flex-row"
+className="text-sm sm:text-base"
+
+// ❌ Never desktop-first
+className="text-base sm:text-sm"   // wrong direction
+```
+
+## Viewport units — always dvh/dvw
+
+```tsx
+// ✅
+className="min-h-dvh max-h-[90dvh]"
+style={{ height: '100dvh' }}
+
+// ❌
+className="min-h-screen"   // use min-h-dvh
+style={{ height: '100vh' }} // use dvh
+```
+
+## No fixed pixel widths that overflow on 390px
+
+```tsx
+// ✅ Responsive max-width
+className="w-full max-w-md"
+className="max-w-[min(100%,24rem)]"
+
+// ❌ Hardcoded widths > 360px without overflow-x-auto parent
+className="w-[600px]"
+```
+
+## Touch targets — minimum 44×44px
+
+```tsx
+// ✅ Small icon buttons need explicit touch area
+className="w-11 h-11 flex items-center justify-center"   // 44px
+// or use padding: px-3 py-2.5 min-h-[44px]
+
+// ❌
+className="w-6 h-6"   // 24px — too small without padding trick
+```
+
+## Modals — bottom-sheet on mobile, dialog on desktop
+
+```tsx
+// ✅
+className="fixed inset-0 flex items-end sm:items-center justify-center"
+// Panel:
+className="w-full max-w-md max-h-[90dvh] rounded-t-2xl sm:rounded-2xl"
+
+// ❌
+className="fixed inset-0 flex items-center justify-center"   // centered-only = bad on mobile
+```
+
+## No horizontal overflow
+
+Every scrollable row must have a bounded parent:
+```tsx
+// ✅
+<div className="overflow-x-auto -mx-4 px-4">
+  <div className="flex gap-3 w-max">...</div>
+</div>
+
+// ❌
+<div className="flex gap-3">  {/* no overflow guard */}
+  {items.map(i => <Card className="w-[300px]" />)}
+</div>
+```
+
+## Safe area insets
+
+```tsx
+// ✅
+className="pb-[env(safe-area-inset-bottom)]"
+className="ms-safe-area-top"   // project helper class
+```
+
+## Testing targets
+
+- 390px wide (iPhone 14) — primary target, no horizontal scroll
+- 768px wide (iPad) — two-column layouts expected
+- Admin panel features are **desktop-only by design** — acceptable
+
+## apptel/ mirrors app/ for mobile Capacitor overrides
+
+Mobile-specific overrides go in `apptel/src/` (Capacitor build). Shared fixes go in `app/src/`.

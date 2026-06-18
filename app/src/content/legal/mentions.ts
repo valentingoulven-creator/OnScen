@@ -1,4 +1,4 @@
-import type { LegalDocument } from './types';
+﻿import type { LegalDocument } from './types';
 
 /** Mentions légales (LCEN / France) — complétez les champs entre crochets avant mise en production. */
 export const mentionsLegales: LegalDocument = {
@@ -11,11 +11,11 @@ export const mentionsLegales: LegalDocument = {
     },
     {
       heading: 'Hébergement',
-      body: `En environnement de démonstration (msdev), l’application peut être exécutée localement ; l’hébergeur est alors l’utilisateur ou son fournisseur d’accès.\n\nEn production, l’hébergement est assuré par :\n{{hostName}}\n{{hostAddress}}\n{{hostPhone}}\nPays : {{hostCountry}}\n\nLes données techniques (logs, adresses IP) peuvent transiter par cet hébergeur.`,
+      body: `L’hébergement est assuré par :\n{{hostName}}\n{{hostAddress}}\n{{hostPhone}}\nPays : {{hostCountry}}\n\nLes données techniques (logs, adresses IP) peuvent transiter par cet hébergeur.`,
     },
     {
       heading: 'Activité du service',
-      body: `Soundy est une application sociale autour de la musique : salons d’écoute géolocalisés, lives, messagerie, carte des utilisateurs et contenus musicaux via des liens vers Spotify et YouTube. Soundy n’est pas un service de rencontre sentimental.\n\nVersion actuelle : environnement msdev (démonstration / développement local). Les fonctionnalités et la disponibilité peuvent évoluer sans préavis.`,
+      body: `Soundy est une application sociale autour de la musique : salons d’écoute géolocalisés, lives, messagerie, carte des utilisateurs et contenus musicaux via des liens vers Spotify et YouTube. Soundy n’est pas un service de rencontre sentimental.\n\nDomaine de production : getsoundy.com`,
     },
     {
       heading: 'Propriété intellectuelle',

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { formatCompactCount } from '../lib/formatCount';
 import { avatarInitialsLabel, dicebearAdventurerAvatar } from '../lib/avatarUrl';
 
@@ -53,7 +53,7 @@ const VIEWER_COUNT = {
   hero: 'text-[11px] min-w-[1.4rem]',
 };
 
-export function UserAvatarOnline({
+export const UserAvatarOnline = memo(function UserAvatarOnline({
   userId,
   avatarUrl,
   username,
@@ -125,6 +125,8 @@ export function UserAvatarOnline({
             <img
               src={src}
               alt=""
+              loading="lazy"
+              decoding="async"
               className={`${SIZES[size]} rounded-full object-cover bg-[#1a1a26] block`}
               onError={onImgError}
             />
@@ -148,4 +150,4 @@ export function UserAvatarOnline({
       </div>
     </div>
   );
-}
+});

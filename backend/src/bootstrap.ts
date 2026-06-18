@@ -36,12 +36,17 @@ import { ensureDefaultSponsors, migrateSponsorMapVisibility } from './lib/sponso
 import { ensureDefaultSponsorPlatformConfig } from './lib/sponsorPlatformConfig';
 import { repairInvalidGeoInDb } from './lib/mapCoords';
 import { loadSalonsLivesFromPostgres } from './lib/pgSalonsLives';
+import { loadSalonQueuesFromPg } from './lib/pgSalonQueues';
 import { loadReelsFromPg } from './lib/pgReels';
+import { loadDonationsFromPg } from './lib/pgDonations';
+import { loadCreatorSubscriptionsFromPg } from './lib/pgSubscriptions';
 import { migrateAllUsersRelationshipStatus } from './lib/profile';
 import { getMsdevEnvPath } from './paths';
 import { startSessionLimitScheduler, stopSessionLimitScheduler } from './lib/sessionLimits';
 import { assertProductionStartup } from './lib/productionStartup';
 import { resolveCorsOrigin } from './lib/corsConfig';
+import { startServerMonitor, stopServerMonitor } from './lib/serverMonitor';
+import { sendMonitoringAlert } from './lib/alertNotifier';
 
 function getLocalIpv4Addresses(): string[] {
   const ips: string[] = [];
@@ -101,6 +106,7 @@ function shutdown(): Promise<void> {
         .then(() => closePool())
         .finally(() => {
           stopSessionLimitScheduler();
+          stopServerMonitor();
           httpServer = null;
           ioServer = null;
           clearIo();
@@ -129,6 +135,36 @@ function registerShutdownHooks(): void {
   };
   process.on('SIGTERM', onSignal);
   process.on('SIGINT', onSignal);
+}
+
+let criticalHandlersRegistered = false;
+
+function registerCriticalEventHandlers(): void {
+  if (criticalHandlersRegistered) return;
+  criticalHandlersRegistered = true;
+
+  process.on('uncaughtException', (err: Error) => {
+    console.error('[monitor] Exception non capturée — arrêt du processus:', err);
+    void sendMonitoringAlert({
+      type: 'uncaught_exception',
+      severity: 'critical',
+      message: `Exception non capturée : ${err.message}\n\nStack:\n${err.stack ?? 'N/A'}`,
+      forceSend: true,
+    }).catch(() => {}).finally(() => process.exit(1));
+    // Ensure exit even if email sending hangs (PM2 will restart)
+    setTimeout(() => process.exit(1), 5_000).unref();
+  });
+
+  process.on('unhandledRejection', (reason: unknown) => {
+    const msg = reason instanceof Error ? reason.message : String(reason);
+    const stack = reason instanceof Error ? (reason.stack ?? '') : '';
+    console.error('[monitor] Promise rejection non gérée:', reason);
+    void sendMonitoringAlert({
+      type: 'unhandled_rejection',
+      severity: 'warning',
+      message: `Promise rejection non gérée : ${msg}\n\nStack:\n${stack || 'N/A'}`,
+    });
+  });
 }
 
 export async function startMeloSong(options: StartOptions = {}): Promise<void> {
@@ -188,6 +224,7 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
   setupSockets(io);
   startSessionLimitScheduler(io);
   registerShutdownHooks();
+  registerCriticalEventHandlers();
 
   if (APP_ENV === 'msdev') {
     const restored = loadPersistedStore();
@@ -239,6 +276,10 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
         if (salons > 0 || lives > 0) {
           console.log(`[soundly] Salons/lives restaurés depuis PostgreSQL (${salons} salon(s), ${lives} live(s))`);
         }
+        const queueRows = await loadSalonQueuesFromPg();
+        if (queueRows > 0) {
+          console.log(`[soundly] Files d'attente salon restaurées depuis PostgreSQL (${queueRows} morceau(x))`);
+        }
       } catch (e) {
         console.warn('[soundly] Échec chargement salons/lives PostgreSQL:', e);
       }
@@ -252,6 +293,28 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
         }
       } catch (e) {
         console.warn('[soundly] Échec chargement reels PostgreSQL:', e);
+      }
+      try {
+        const donationStats = await loadDonationsFromPg();
+        if (donationStats.gifts > 0 || donationStats.payments > 0) {
+          console.log(
+            `[soundly] Dons restaurés depuis PostgreSQL (${donationStats.gifts} pourboire(s), ` +
+              `${donationStats.payments} paiement(s))`
+          );
+        }
+      } catch (e) {
+        console.warn('[soundly] Échec chargement dons PostgreSQL:', e);
+      }
+      // Fix #2: restaurer les abonnements créateurs depuis PostgreSQL
+      try {
+        const subscriptionCount = await loadCreatorSubscriptionsFromPg();
+        if (subscriptionCount > 0) {
+          console.log(
+            `[soundly] Abonnements créateurs restaurés depuis PostgreSQL (${subscriptionCount})`
+          );
+        }
+      } catch (e) {
+        console.warn('[soundly] Échec chargement abonnements PostgreSQL:', e);
       }
     }
     const admins = ensureAccessAdmins();
@@ -312,6 +375,7 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
     server.listen(PORT, HOST, () => {
       if (APP_ENV === 'production') {
         logProductionStartup(PORT);
+        startServerMonitor();
       }
       console.log('');
       console.log('  ╔══════════════════════════════════════╗');

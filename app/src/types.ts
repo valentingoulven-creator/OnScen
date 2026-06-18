@@ -373,6 +373,21 @@ export interface VpsMetricsReport {
   warnings: string[];
 }
 
+export interface SyslogLine {
+  ts: string;
+  level: 'error' | 'warn' | 'info';
+  source: string;
+  message: string;
+  raw: string;
+}
+
+export interface SyslogResponse {
+  lines: SyslogLine[];
+  count: number;
+  type: 'pm2' | 'system';
+  fetchedAt: string;
+}
+
 export type ListeningRole = 'auditeur' | 'host' | 'les_deux';
 
 export type RelationshipStatus = 'celibataire' | 'en_couple' | 'autre';
@@ -428,6 +443,8 @@ export interface User {
   /** Compte créé via OAuth (Google/Facebook) — pas de mot de passe local. Propriétaire uniquement. */
   isOAuthAccount?: boolean;
   accountStatus?: 'active' | 'pending' | 'blocked';
+  /** false tant que l'onboarding n'est pas complété. Renvoyé au propriétaire uniquement. */
+  onboardingCompleted?: boolean;
   isAdmin?: boolean;
   /** Badge Dev visible publiquement (soundy_dev, ACCESS_ADMIN). */
   isDev?: boolean;
@@ -499,6 +516,10 @@ export interface User {
   instagramHandle?: string;
   youtubeChannel?: string;
   spotifyUrl?: string;
+  /** Compte Stripe Connect (acct_…) pour recevoir les pourboires live. */
+  stripeConnectAccountId?: string;
+  /** Horodatage d'acceptation des règles de diffusion live Soundy (UNIX ms). */
+  liveTermsAcceptedAt?: number;
 }
 
 export interface PlaybackState {
@@ -1146,4 +1167,19 @@ export interface TrendingUser {
   rank: number;
   liveCount: number;
   salonCount: number;
+}
+
+export interface ContentReport {
+  id: string;
+  reporterId: string;
+  reporterUsername: string;
+  category: string;
+  details: string;
+  targetUserId?: string;
+  roomType?: 'salon' | 'live' | 'dm' | 'reel' | 'profile';
+  roomId?: string;
+  messageId?: string;
+  createdAt: number;
+  status?: 'pending' | 'reviewed' | 'dismissed';
+  reviewedAt?: number;
 }

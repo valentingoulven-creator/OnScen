@@ -5,6 +5,7 @@ import { MsdevDualIpPanel } from '../components/MsdevDualIpPanel';
 import { LegalDocumentView } from '../components/LegalDocumentView';
 import { CURRENT_TERMS_VERSION, type LegalKey } from '../content/legal';
 import { peekPendingSalonJoin } from '../lib/salonDeepLink';
+import { forgotPasswordHref } from '../lib/forgotPasswordRoute';
 import { api } from '../lib/api';
 import type { PublicAccessConfig, User } from '../types';
 
@@ -469,6 +470,16 @@ export function AuthPage() {
               required
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             />
+            {mode === 'login' && (
+              <div className="flex justify-end">
+                <a
+                  href={forgotPasswordHref()}
+                  className="text-xs text-purple-400 hover:text-purple-300 underline transition"
+                >
+                  {t('auth.forgotPassword')}
+                </a>
+              </div>
+            )}
             {mode === 'register' && <PasswordStrengthBar password={password} />}
           </div>
 

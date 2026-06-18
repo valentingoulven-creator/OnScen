@@ -1,4 +1,4 @@
-import { applyPublisherTemplate } from './legalPublisher';
+﻿import { applyPublisherTemplate } from './legalPublisher';
 
 /** Mirrors app/src/content/legal — kept in sync for API-served merged documents. */
 
@@ -33,7 +33,7 @@ const mentionsLegales: LegalDocument = {
     },
     {
       heading: 'Hébergement',
-      body: `En environnement de démonstration (msdev), l’application peut être exécutée localement ; l’hébergeur est alors l’utilisateur ou son fournisseur d’accès.\n\nEn production, l’hébergement est assuré par :\n{{hostName}}\n{{hostAddress}}\n{{hostPhone}}\nPays : {{hostCountry}}\n\nLes données techniques (logs, adresses IP) peuvent transiter par cet hébergeur.`,
+      body: `L’hébergement est assuré par :\n{{hostName}}\n{{hostAddress}}\n{{hostPhone}}\nPays : {{hostCountry}}\n\nLes données techniques (logs, adresses IP) peuvent transiter par cet hébergeur.`,
     },
     {
       heading: 'Activité du service',

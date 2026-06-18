@@ -122,8 +122,8 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
     pool.query<{ version: number; saved_at: string; analytics_buckets: Record<string, number> }>(
       'SELECT version, saved_at, analytics_buckets FROM store_meta WHERE id = 1'
     ),
-    pool.query<{ payload: PersistedStore['users'][number] }>(
-      'SELECT payload FROM users'
+    pool.query<{ payload: PersistedStore['users'][number]; password_hash: string | null }>(
+      'SELECT payload, password_hash FROM users'
     ),
     pool.query<{ registration_mode: AccessPolicy['registrationMode']; updated_at: string }>(
       'SELECT registration_mode, updated_at FROM access_policy WHERE id = 1'
@@ -215,7 +215,15 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
   ]);
 
   const savedAt = metaRes.rows[0] ? Number(metaRes.rows[0].saved_at) : Date.now();
-  const rawUsers = usersRes.rows.map((r) => r.payload);
+  // Fix #6: restaurer passwordHash depuis la colonne dédiée si absent du payload
+  // (migration path : les payloads récents ne contiennent plus passwordHash)
+  const rawUsers = usersRes.rows.map((r) => {
+    const user = r.payload;
+    if (user && !user.passwordHash && r.password_hash) {
+      user.passwordHash = r.password_hash;
+    }
+    return user;
+  });
   const { valid: users, skippedIds } = filterValidUsers(rawUsers);
   if (skippedIds.length > 0) {
     console.warn(

@@ -17,6 +17,8 @@ import {
 import { pauseAllReelsMediaInDom } from './lib/reelsMedia';
 import { pauseMediaElements } from './hooks/usePauseMediaOnPageHidden';
 import { AuthPage } from './pages/AuthPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { isForgotPasswordRoute } from './lib/forgotPasswordRoute';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { HomePage } from './pages/HomePage';
 import { ProfilePage } from './pages/ProfilePage';
@@ -58,7 +60,7 @@ type View =
   | { type: 'profile'; id: string };
 
 export default function App() {
-  const { user, token, isNewUser, clearNewUser, refreshUser, authBootError, clearAuthBootError } = useAuth();
+  const { user, token, completeOnboarding, refreshUser, authBootError, clearAuthBootError } = useAuth();
   const { unreadCount: dmUnread, incomingToast, dismissToast, setDmTabActive } = useDmUnread();
   const [tab, setTab] = useState<Tab>('map');
   const [view, setView] = useState<View>({ type: 'home' });
@@ -205,9 +207,12 @@ export default function App() {
     );
   }
 
-  if (!user || !token) return <AuthPage />;
+  if (!user || !token) {
+    if (isForgotPasswordRoute()) return <ForgotPasswordPage />;
+    return <AuthPage />;
+  }
 
-  if (isNewUser) return <OnboardingPage onDone={clearNewUser} />;
+  if (!user.onboardingCompleted) return <OnboardingPage onDone={completeOnboarding} />;
 
   const reelsActive = tab === 'reels' && !profileOpen && view.type === 'home';
   const mapPlaybackActive = tab === 'map' && view.type === 'home' && !profileOpen;

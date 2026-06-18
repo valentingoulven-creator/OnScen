@@ -30,11 +30,14 @@ import {
   hostChangePlaybackTrack,
   hostLoadYoutubePlaylist,
   enqueueItem,
+  albumArtForTrack,
   proposalToQueueItem,
   removeTrackFromSalonQueue,
   reorderSalonQueue,
 } from '../lib/salonPlaybackOps';
 import { searchYoutube } from '../lib/youtubeSearch';
+import { youtubeDataApiKey } from '../lib/youtubeDataApi';
+import { ensureYoutubeAccessToken } from '../lib/youtubeOAuth';
 import {
   normalizeSpotifySearchLimit,
   searchSpotifyTracks,
@@ -62,6 +65,7 @@ import {
   canControlSalonPlayback,
   setSalonVipModerator,
 } from '../lib/salonModeration';
+import { upsertSalonToPgAsync, markSalonInactivePgAsync } from '../lib/pgSalonsLives';
 
 export const salonsRouter = Router();
 
@@ -185,6 +189,12 @@ salonsRouter.get('/youtube-search', authenticateJWT, async (req: Request, res: R
     res.json({ results: [] });
     return;
   }
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const user = db.users.get(me);
+  if (user) ensurePlatformAccountsFromLegacy(user);
+  const accessToken = user ? await ensureYoutubeAccessToken(user) : undefined;
+  const canSearch = Boolean(youtubeDataApiKey() || accessToken);
+
   const cacheKey = q.toLowerCase();
   const cached = getYtSearchCached(cacheKey);
   if (cached) {
@@ -194,7 +204,15 @@ salonsRouter.get('/youtube-search', authenticateJWT, async (req: Request, res: R
     return;
   }
   try {
-    const results = await searchYoutube(q);
+    const results = await searchYoutube(q, accessToken);
+    if (!canSearch && results.length === 0) {
+      res.status(503).json({
+        error:
+          'Recherche YouTube indisponible. Connectez votre compte YouTube ou contactez le support.',
+        code: 'youtube_search_not_configured',
+      });
+      return;
+    }
     setYtSearchCached(cacheKey, results);
     res.setHeader('Cache-Control', 'private, max-age=3600');
     res.json({ results });
@@ -639,13 +657,10 @@ salonsRouter.post('/:id/playback/add-to-queue', authenticateJWT, async (req: Req
   const me = (req as Request & { user: { id: string; username: string } }).user;
   const salon = db.salons.get(req.params.id);
   if (!requireSalonPlaybackController(salon, me.id, res)) return;
-  if (salon.platform !== 'spotify') {
-    res.status(400).json({ error: 'Ajout à la file disponible uniquement dans un salon Spotify' });
+  if (salon.platform !== 'spotify' && salon.platform !== 'youtube') {
+    res.status(400).json({ error: 'Ajout à la file non supporté pour cette plateforme' });
     return;
   }
-  const hostUser = getSalonHostUser(salon, res);
-  if (!hostUser || !requireHostPlatform(hostUser, salon.platform, res)) return;
-  if (!requireRealSpotifyHost(hostUser, res)) return;
 
   const { trackId, title, artist, trackLink, albumArtUrl } = req.body;
   let resolvedId = typeof trackId === 'string' ? trackId.trim() : '';
@@ -654,20 +669,51 @@ salonsRouter.post('/:id/playback/add-to-queue', authenticateJWT, async (req: Req
     if (parsed) resolvedId = parsed.trackId;
   }
   if (!resolvedId || resolvedId === 'demo') {
-    res.status(400).json({ error: 'trackId ou lien Spotify requis' });
+    res.status(400).json({
+      error:
+        salon.platform === 'spotify'
+          ? 'trackId ou lien Spotify requis'
+          : 'trackId ou lien YouTube requis',
+    });
     return;
   }
 
   const queueItem = enqueueItem(salon.id, {
-    title: typeof title === 'string' && title.trim() ? title.trim().slice(0, 120) : 'Morceau Spotify',
-    artist: typeof artist === 'string' && artist.trim() ? artist.trim().slice(0, 80) : 'Spotify',
+    title:
+      typeof title === 'string' && title.trim()
+        ? title.trim().slice(0, 120)
+        : salon.platform === 'spotify'
+          ? 'Morceau Spotify'
+          : 'Morceau YouTube',
+    artist:
+      typeof artist === 'string' && artist.trim()
+        ? artist.trim().slice(0, 80)
+        : salon.platform === 'spotify'
+          ? 'Spotify'
+          : 'YouTube',
     trackId: resolvedId,
-    externalUrl: buildPlatformTrackUrl('spotify', resolvedId),
-    albumArtUrl: typeof albumArtUrl === 'string' && albumArtUrl.trim() ? albumArtUrl.trim() : undefined,
+    externalUrl: buildPlatformTrackUrl(salon.platform, resolvedId),
+    albumArtUrl:
+      typeof albumArtUrl === 'string' && albumArtUrl.trim()
+        ? albumArtUrl.trim()
+        : albumArtForTrack(salon.platform, resolvedId),
     addedById: me.id,
     addedByName: me.username,
     source: 'host',
   });
+
+  if (salon.platform === 'youtube') {
+    res.json({
+      queueItem,
+      queue: ensureSalonQueue(salon.id),
+      playbackState: salon.playbackState,
+    });
+    return;
+  }
+
+  const hostUser = getSalonHostUser(salon, res);
+  if (!hostUser || !requireHostPlatform(hostUser, salon.platform, res)) return;
+  if (!requireRealSpotifyHost(hostUser, res)) return;
 
   try {
     await addSpotifyTrackToQueue(hostUser, resolvedId);
@@ -1218,6 +1264,9 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
   ensureSalonQueue(salon.id);
   ensureSalonProposals(salon.id);
 
+  // Fix #3: persister le salon utilisateur en PostgreSQL pour restauration au redémarrage
+  upsertSalonToPgAsync(salon);
+
   notifyFavoritesSalonStarted(user, salon);
 
   res.status(201).json({ salon: publicSalon(salon, userId) });
@@ -1238,6 +1287,8 @@ salonsRouter.delete('/:id', authenticateJWT, (req: Request, res: Response) => {
   db.salons.delete(salonId);
   db.salonChats.delete(salonId);
   clearSalonPlaybackData(salonId);
+  // Fix #3: marquer le salon comme inactif en PG pour ne pas le restaurer au redémarrage
+  markSalonInactivePgAsync(salonId);
   res.json({ ok: true });
 });
 

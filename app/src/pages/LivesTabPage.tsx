@@ -41,6 +41,27 @@ import {
 } from '../lib/liveCountry';
 import type { Live } from '../types';
 import { StartLiveMediaSetupModal } from '../components/StartLiveMediaSetupModal';
+import { LiveStripeConnectGate } from '../components/LiveStripeConnectGate';
+import { LiveLegalAcceptanceModal } from '../components/LiveLegalAcceptanceModal';
+
+function LiveGridSkeleton() {
+  return (
+    <ul className="px-3 pb-3 pt-1 grid grid-cols-2 gap-x-2 gap-y-4" aria-hidden="true">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <li key={i} className="animate-pulse">
+          <div className="aspect-video w-full bg-[#1a1a26] rounded-lg ms-skeleton" />
+          <div className="flex items-start gap-2 mt-2">
+            <div className="size-9 shrink-0 rounded-full bg-[#1a1a26] ms-skeleton" />
+            <div className="flex-1 space-y-1.5 pt-1">
+              <div className="h-3 bg-[#1a1a26] rounded ms-skeleton w-3/4" />
+              <div className="h-2.5 bg-[#1a1a26] rounded ms-skeleton w-1/2" />
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 function formatLiveViewersLabel(count: number): string {
   const n = Math.max(0, Math.floor(count));
@@ -82,6 +103,8 @@ const LiveGridCard = memo(function LiveGridCard({
             <img
               src={live.playbackState.albumArtUrl}
               alt=""
+              loading="lazy"
+              decoding="async"
               className="absolute inset-0 w-full h-full object-cover"
             />
           ) : (
@@ -111,6 +134,8 @@ const LiveGridCard = memo(function LiveGridCard({
           <img
             src={dicebearAdventurerAvatar(live.hostId)}
             alt=""
+            loading="lazy"
+            decoding="async"
             className="size-9 shrink-0 rounded-full object-cover bg-[#1a1a26]"
           />
           <div className="flex-1 min-w-0 overflow-hidden leading-tight">
@@ -138,16 +163,45 @@ const LiveGridCard = memo(function LiveGridCard({
 });
 
 export function LivesTabPage({ onOpenLive, isActive = true }: LivesTabPageProps) {
-  const { token, user } = useAuth();
+  const { token, user, setUserFromProfile } = useAuth();
   const [lives, setLives] = useState<Live[]>([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [mediaSetupOpen, setMediaSetupOpen] = useState(false);
+  const [stripeGateOpen, setStripeGateOpen] = useState(false);
+  const [stripeGatePending, setStripeGatePending] = useState(false);
+  const [legalGateOpen, setLegalGateOpen] = useState(false);
   const [geo, setGeo] = useState<LivesGeoPrefs>(getLivesGeo);
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [panelPrefs, setPanelPrefs] = useState<NearbyPanelPreferences>(() => getNearbyPanelPreferences());
   const [countryFilter, setCountryFilter] = useState(() => getLivesCountryFilter());
+
+  /** Stripe Connect status — fetched once when tab becomes active. */
+  const [stripeChecked, setStripeChecked] = useState(false);
+  const [stripeSimulation, setStripeSimulation] = useState(false);
+  const [stripeChargesEnabled, setStripeChargesEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!isActive || !token || stripeChecked) return;
+    api.getDonationsConfig(token)
+      .then((config) => {
+        setStripeSimulation(config.simulation ?? false);
+        if (config.simulation) {
+          setStripeChecked(true);
+          return;
+        }
+        if (user?.stripeConnectAccountId) {
+          api.getStripeConnectStatus(token)
+            .then((s) => setStripeChargesEnabled(s.chargesEnabled ?? false))
+            .catch(() => setStripeChargesEnabled(null))
+            .finally(() => setStripeChecked(true));
+        } else {
+          setStripeChecked(true);
+        }
+      })
+      .catch(() => setStripeChecked(true));
+  }, [isActive, token, user?.stripeConnectAccountId, stripeChecked]);
 
   useEffect(() => {
     const syncPrefs = () => setPanelPrefs(getNearbyPanelPreferences());
@@ -323,8 +377,35 @@ export function LivesTabPage({ onOpenLive, isActive = true }: LivesTabPageProps)
     }
   };
 
+  const proceedToMediaSetup = () => {
+    setStripeGateOpen(false);
+    setLegalGateOpen(false);
+    setMediaSetupOpen(true);
+  };
+
   const startMyLive = () => {
     if (!token || starting) return;
+
+    // Gate 1 — Stripe Connect (ignoré en mode simulation)
+    if (!stripeSimulation) {
+      if (!user?.stripeConnectAccountId) {
+        setStripeGatePending(false);
+        setStripeGateOpen(true);
+        return;
+      }
+      if (stripeChargesEnabled === false) {
+        setStripeGatePending(true);
+        setStripeGateOpen(true);
+        return;
+      }
+    }
+
+    // Gate 2 — Acceptation des règles de diffusion (premier live uniquement)
+    if (!user?.liveTermsAcceptedAt) {
+      setLegalGateOpen(true);
+      return;
+    }
+
     setMediaSetupOpen(true);
   };
 
@@ -426,9 +507,7 @@ export function LivesTabPage({ onOpenLive, isActive = true }: LivesTabPageProps)
         )}
       </div>
 
-      {loading && (
-        <p className="p-8 text-center text-gray-500 text-sm">Chargement des lives...</p>
-      )}
+      {loading && lives.length === 0 && <LiveGridSkeleton />}
 
       {!loading && sortedLives.length === 0 && (
         <div className="p-8 text-center">
@@ -485,6 +564,25 @@ export function LivesTabPage({ onOpenLive, isActive = true }: LivesTabPageProps)
           void launchLiveAfterSetup();
         }}
       />
+
+      {stripeGateOpen && token && (
+        <LiveStripeConnectGate
+          token={token}
+          isPending={stripeGatePending}
+          onClose={() => setStripeGateOpen(false)}
+        />
+      )}
+
+      {legalGateOpen && token && (
+        <LiveLegalAcceptanceModal
+          token={token}
+          onClose={() => setLegalGateOpen(false)}
+          onAccepted={(acceptedAt) => {
+            setUserFromProfile({ ...user!, liveTermsAcceptedAt: acceptedAt });
+            proceedToMediaSetup();
+          }}
+        />
+      )}
     </div>
   );
 }

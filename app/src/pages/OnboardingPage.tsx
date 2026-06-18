@@ -135,8 +135,6 @@ export function OnboardingPage({ onDone }: Props) {
     return () => window.removeEventListener(PLATFORM_STATUS_REFRESH_EVENT, onRefresh);
   }, [refreshPlatformRequirement]);
 
-  const platformStepBlocked = oauthConfigured && !hasRealPlatformConnection;
-
   const toggleGenre = (g: string) => {
     setGenres((prev) =>
       prev.includes(g) ? prev.filter((x) => x !== g) : prev.length < 10 ? [...prev, g] : prev
@@ -398,8 +396,8 @@ export function OnboardingPage({ onDone }: Props) {
               </p>
             </div>
             {!platformStatusLoading && oauthConfigured && !hasRealPlatformConnection && (
-              <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2">
-                Connecte Spotify et/ou YouTube pour continuer.
+              <p className="text-xs text-gray-400 bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-3 py-2 leading-snug">
+                Tu pourras connecter une plateforme plus tard depuis ton profil.
               </p>
             )}
             {!platformStatusLoading && !oauthConfigured && (
@@ -427,18 +425,16 @@ export function OnboardingPage({ onDone }: Props) {
             {error && <p className="text-xs text-red-400">{error}</p>}
             <div className="flex gap-2 pt-1">
               <button type="button" onClick={() => setStep('profileType')} className="text-xs text-gray-500 hover:text-gray-300 px-3 py-2">← Retour</button>
-              {!oauthConfigured ? (
-                <button
-                  type="button"
-                  onClick={() => setStep('socials')}
-                  className="text-xs text-gray-500 hover:text-gray-300 px-2 py-2"
-                >
-                  Passer
-                </button>
-              ) : null}
               <button
                 type="button"
-                disabled={saving || platformStepBlocked || platformStatusLoading}
+                onClick={() => setStep('socials')}
+                className="text-xs text-gray-500 hover:text-gray-300 px-2 py-2"
+              >
+                Passer
+              </button>
+              <button
+                type="button"
+                disabled={saving || platformStatusLoading}
                 onClick={() => setStep('socials')}
                 className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white bg-purple-600 hover:bg-purple-500 disabled:opacity-50 transition"
               >
@@ -767,13 +763,6 @@ export function OnboardingPage({ onDone }: Props) {
           </div>
         )}
 
-        <button
-          type="button"
-          onClick={onDone}
-          className="w-full mt-3 text-xs text-gray-600 hover:text-gray-400 transition py-2"
-        >
-          Passer l'onboarding — compléter plus tard
-        </button>
       </div>
     </div>
   );

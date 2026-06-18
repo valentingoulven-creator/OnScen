@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from './context/AuthContext';
+import { useWebPushRegistration } from './hooks/useWebPushRegistration';
 import {
   consumePendingProfileView,
   parseProfileIdFromLocation,
@@ -18,6 +19,14 @@ import {
 import { pauseAllReelsMediaInDom } from './lib/reelsMedia';
 import { pauseMediaElements } from './hooks/usePauseMediaOnPageHidden';
 import { AuthPage } from './pages/AuthPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { EmailVerificationPage } from './pages/EmailVerificationPage';
+import {
+  isForgotPasswordRoute,
+  isResetPasswordRoute,
+  isVerifyEmailRoute,
+} from './lib/forgotPasswordRoute';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { NotificationBell } from './components/NotificationBell';
 import { AdminHeaderButton } from './components/AdminHeaderButton';
@@ -76,7 +85,8 @@ type View =
 
 export default function App() {
   const { t } = useTranslation();
-  const { user, token, isNewUser, clearNewUser, refreshUser, authBootError, clearAuthBootError, setUserFromProfile } = useAuth();
+  const { user, token, completeOnboarding, refreshUser, authBootError, clearAuthBootError, setUserFromProfile } = useAuth();
+  useWebPushRegistration(token);
   const { unreadCount: dmUnread, incomingToast, dismissToast, setDmTabActive } = useDmUnread();
   const [tab, setTab] = useState<Tab>('actualite');
   const tabRef = useRef<Tab>('actualite');
@@ -87,7 +97,7 @@ export default function App() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [adminInitialTab, setAdminInitialTab] = useState<
-    'accounts' | 'access' | 'content' | 'analytics' | 'costs' | 'support' | 'sponsors'
+    'accounts' | 'access' | 'content' | 'analytics' | 'costs' | 'support' | 'sponsors' | 'reports'
   >('accounts');
   const [adminHighlightSupportMessageId, setAdminHighlightSupportMessageId] = useState<string | undefined>();
   const [profileOpenContact, setProfileOpenContact] = useState(false);
@@ -418,7 +428,7 @@ export default function App() {
   }, [minimizeSalonToMap]);
 
   const openAdminPanel = useCallback(
-    (options?: { tab?: 'accounts' | 'access' | 'content' | 'analytics' | 'costs' | 'support' | 'sponsors'; supportMessageId?: string }) => {
+    (options?: { tab?: 'accounts' | 'access' | 'content' | 'analytics' | 'costs' | 'support' | 'sponsors' | 'reports'; supportMessageId?: string }) => {
       const session = activeSalonSessionRef.current;
       if (session?.viewMode === 'full') {
         setActiveSalonSession((prev) => (prev ? { ...prev, viewMode: 'minimized' } : prev));
@@ -576,9 +586,14 @@ export default function App() {
     );
   }
 
-  if (!user || !token) return <AuthPage />;
+  if (!user || !token) {
+    if (isForgotPasswordRoute()) return <ForgotPasswordPage />;
+    if (isResetPasswordRoute()) return <ResetPasswordPage />;
+    if (isVerifyEmailRoute()) return <EmailVerificationPage />;
+    return <AuthPage />;
+  }
 
-  if (isNewUser) return <OnboardingPage onDone={clearNewUser} />;
+  if (!user.onboardingCompleted) return <OnboardingPage onDone={completeOnboarding} />;
 
   const salonFullScreen = activeSalonSession?.viewMode === 'full';
   /** Onglets montés sous le grand salon (overlay) ou en navigation normale. */
@@ -732,7 +747,7 @@ export default function App() {
       <main
         className="ms-app-main flex-1 min-h-0 min-w-0 w-full overflow-hidden flex flex-col relative"
       >
-            {user && token && !isNewUser && view.type === 'home' && !profileOpen && !salonFullScreen && (
+            {user && token && user.onboardingCompleted && view.type === 'home' && !profileOpen && !salonFullScreen && (
               <PlatformConnectPrompt
                 token={token}
                 user={user}

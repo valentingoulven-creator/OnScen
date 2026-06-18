@@ -37,7 +37,9 @@ import { DonationSheet } from '../components/DonationSheet';
 import { ProfileReelRecorder } from '../components/ProfileReelRecorder';
 import { UserReelsSection } from '../components/UserReelsSection';
 import { UserLivesSection } from '../components/UserLivesSection';
+import { CreatorDashboardCard } from '../components/CreatorDashboardCard';
 import { PlatformConnectCard } from '../components/PlatformConnectCard';
+import { CreatorStripeConnectCard } from '../components/CreatorStripeConnectCard';
 import { UsernameColorPicker } from '../components/UsernameColorPicker';
 import {
   USERNAME_COLOR_WAVE,
@@ -56,7 +58,7 @@ import type { ProfileType, RelationshipStatus, User } from '../types';
 const HIDE_AGE_CHECKBOX_ID = 'profile-hide-age';
 
 const PROFILE_TAB_CLASS =
-  'px-6 sm:px-8 py-3 text-sm font-semibold transition relative text-center shrink-0';
+  'px-4 sm:px-8 py-3 text-sm font-semibold transition relative text-center shrink-0';
 
 function profileToForm(user: User | null) {
   const profilePhotos = getUserProfilePhotos(user);
@@ -481,13 +483,16 @@ export function ProfilePage({
         )}
 
         {profileTab === 'lives' && !editing && user && (
-          <UserLivesSection
-            userId={user.id}
-            isOwner
-            hideSectionTitle
-            onOpenLive={onOpenLive}
-            onSubscribe={() => setShowSubscription(true)}
-          />
+          <div className="space-y-4">
+            <CreatorDashboardCard />
+            <UserLivesSection
+              userId={user.id}
+              isOwner
+              hideSectionTitle
+              onOpenLive={onOpenLive}
+              onSubscribe={() => setShowSubscription(true)}
+            />
+          </div>
         )}
 
         {profileTab === 'reels' && !editing && token && showReelRecorder && (
@@ -601,6 +606,14 @@ export function ProfilePage({
                   ›
                 </span>
               </button>
+
+              {token && user && (
+                <CreatorStripeConnectCard
+                  token={token}
+                  user={user}
+                  onUserUpdated={() => void refreshUser()}
+                />
+              )}
 
               <button
                 type="button"
@@ -963,8 +976,8 @@ function ProfileTabBar({
   if (showReels) tabs.push(['reels', t('profile.tabReels')]);
   if (showLives) tabs.push(['lives', t('profile.tabLives')]);
   return (
-    <div className="flex justify-center border-b border-[#1e1e2f]">
-      <div className="inline-flex">
+    <div className="border-b border-[#1e1e2f] overflow-x-auto scrollbar-none">
+      <div className="flex justify-center min-w-max">
         {tabs.map(([id, label]) => (
           <button
             key={id}

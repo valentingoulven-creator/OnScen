@@ -12,6 +12,7 @@ import {
 } from '../lib/settings';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
+import { ContactSoundyPage } from './ContactSoundyPage';
 type PasswordStrength = 'vide' | 'faible' | 'moyen' | 'fort';
 
 function getPasswordStrength(pwd: string): PasswordStrength {
@@ -132,6 +133,8 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
   const [privacy, setPrivacy] = useState<PrivacyPreferences>(getPrivacyPreferences);
   const [legal, setLegal] = useState<LegalKey | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
+  const [showContact, setShowContact] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
 
   // Password change state
   const [pwSection, setPwSection] = useState(false);
@@ -220,6 +223,32 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
     setPrivacyPreferences(next);
     flash('Préférences enregistrées');
   };
+
+  const handleExportData = async () => {
+    if (!token || exportLoading) return;
+    setExportLoading(true);
+    try {
+      const res = await api.exportMyData(token);
+      const blob = new Blob([JSON.stringify(res, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `soundy-export-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      flash('Export téléchargé');
+    } catch {
+      flash('Erreur lors de l\'export');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  if (showContact) {
+    return <ContactSoundyPage onBack={() => setShowContact(false)} />;
+  }
 
   if (legal) {
     return <LegalDocumentView docKey={legal} onBack={() => setLegal(null)} />;
@@ -447,10 +476,18 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
           <SettingsRow label="Licences & crédits" onClick={() => setLegal('licenses')} />
           <SettingsRow
             label={t('settings.contactSupport')}
-            onClick={() => {
-              window.location.href = `mailto:Soundysupport@gmail.com?subject=${encodeURIComponent('Support Soundy')}`;
-            }}
+            hint="Envoie un message à l'équipe Soundy"
+            onClick={() => setShowContact(true)}
           />
+          <SettingsRow
+            label="Exporter mes données"
+            hint="Télécharger tes données au format JSON (RGPD)"
+            onClick={handleExportData}
+          >
+            <span className="text-xs text-purple-400 shrink-0 font-medium">
+              {exportLoading ? '…' : 'JSON ↓'}
+            </span>
+          </SettingsRow>
         </section>
 
         {onOpenAdmin && (

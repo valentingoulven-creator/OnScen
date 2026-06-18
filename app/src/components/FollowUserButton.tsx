@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 
@@ -12,7 +12,7 @@ interface FollowUserButtonProps {
   onFollowingChange?: (following: boolean) => void;
 }
 
-export function FollowUserButton({
+export const FollowUserButton = memo(function FollowUserButton({
   userId,
   username,
   initialFollowing = false,
@@ -40,13 +40,16 @@ export function FollowUserButton({
     if (loading) return;
     setLoading(true);
     setError(null);
+    setFollowing(true);
+    onFollowingChange?.(true);
+    setFollowToast(`Vous suivez maintenant ${displayName}`);
+    window.setTimeout(() => setFollowToast(null), 3000);
     try {
       await api.followUser(token, userId);
-      setFollowing(true);
-      onFollowingChange?.(true);
-      setFollowToast(`Vous suivez maintenant ${displayName}`);
-      window.setTimeout(() => setFollowToast(null), 3000);
     } catch (e) {
+      setFollowing(false);
+      onFollowingChange?.(false);
+      setFollowToast(null);
       setError(e instanceof Error ? e.message : 'Erreur');
     } finally {
       setLoading(false);
@@ -57,12 +60,14 @@ export function FollowUserButton({
     if (loading) return;
     setLoading(true);
     setError(null);
+    setFollowing(false);
+    onFollowingChange?.(false);
+    setConfirmUnfollow(false);
     try {
       await api.unfollowUser(token, userId);
-      setFollowing(false);
-      onFollowingChange?.(false);
-      setConfirmUnfollow(false);
     } catch (e) {
+      setFollowing(true);
+      onFollowingChange?.(true);
       setError(e instanceof Error ? e.message : 'Erreur');
     } finally {
       setLoading(false);
@@ -174,4 +179,4 @@ export function FollowUserButton({
       )}
     </div>
   );
-}
+});

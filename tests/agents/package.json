@@ -1,0 +1,30 @@
+{
+  "name": "soundy-agent-tests",
+  "version": "1.0.0",
+  "description": "Infrastructure de tests automatisés — 30 agents IA simulant 24h d'utilisation de Soundy",
+  "private": true,
+  "scripts": {
+    "test:agents": "ts-node --project tsconfig.json run.ts",
+    "test:agents:prod": "TARGET_URL=https://getsoundy.com ts-node --project tsconfig.json run.ts",
+    "test:agents:dev": "TARGET_URL=http://localhost:3000 ts-node --project tsconfig.json run.ts",
+    "test:agents:quick": "DURATION_MS=300000 ts-node --project tsconfig.json run.ts",
+    "build": "tsc --project tsconfig.json",
+    "start": "node dist/run.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "chalk": "^4.1.2",
+    "cli-progress": "^3.12.0",
+    "faker": "^5.5.3",
+    "socket.io-client": "^4.8.1",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/cli-progress": "^3.11.6",
+    "@types/faker": "^5.5.9",
+    "@types/node": "^22.7.4",
+    "@types/uuid": "^10.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  }
+}

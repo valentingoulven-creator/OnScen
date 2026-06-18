@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import type { VpsMetricsReport } from '../types';
+import { AnalyticsSyslogSection } from './AnalyticsSyslogSection';
 
 function formatBytes(bytes: number, locale: string): string {
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -281,6 +282,8 @@ export function AnalyticsVpsTab() {
           )}
         </>
       )}
+
+      <AnalyticsSyslogSection />
     </div>
   );
 }

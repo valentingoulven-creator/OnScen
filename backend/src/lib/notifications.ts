@@ -3,6 +3,7 @@ import { getFollowerIds } from './follows';
 import { getFanIds } from './favorites';
 import { getIo } from './ioInstance';
 import { isAccessAdmin } from './accessControl';
+import { sendSupportAlertEmail } from './mailer';
 
 export function isDeliverableNotificationType(type: string): boolean {
   return true;
@@ -65,6 +66,9 @@ export function pushNotification(
   };
   db.notifications.push(notification);
   getIo()?.to(`user_${n.recipientId}`).emit('notification', publicNotificationPayload(notification));
+  void import('./webPush')
+    .then(({ sendWebPushForNotification }) => sendWebPushForNotification(notification))
+    .catch(() => {});
   return notification;
 }
 
@@ -258,6 +262,15 @@ export function notifySupportContact(params: {
       supportMessageId: params.message.id,
     });
   }
+
+  const senderUser = db.users.get(params.sender.id);
+  void sendSupportAlertEmail({
+    fromUsername: params.sender.username,
+    fromEmail: senderUser?.email ?? params.sender.id,
+    messageId: params.message.id,
+    bodyPreview: params.message.body,
+    isFollowUp: false,
+  });
 }
 
 export function notifySupportReply(params: {
@@ -305,4 +318,13 @@ export function notifySupportUserReply(params: {
       supportMessageId: params.message.id,
     });
   }
+
+  const senderUser = db.users.get(params.sender.id);
+  void sendSupportAlertEmail({
+    fromUsername: params.sender.username,
+    fromEmail: senderUser?.email ?? params.sender.id,
+    messageId: params.message.id,
+    bodyPreview: params.replyPreview,
+    isFollowUp: true,
+  });
 }

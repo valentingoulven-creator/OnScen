@@ -27,6 +27,7 @@ import {
 } from '../lib/donations';
 import { CREATOR_MONETIZATION_MIN_AGE } from '../lib/ageGates';
 import { schedulePersist } from '../lib/persist';
+import { persistDonationPaymentToPgAsync } from '../lib/pgDonations';
 
 export const donationsRouter = Router();
 
@@ -75,14 +76,54 @@ donationsRouter.get('/config', (req: Request, res: Response) => {
   });
 });
 
-donationsRouter.get('/connect-status', authenticateJWT, (req: Request, res: Response) => {
+// Fix #8: vérifie charges_enabled via l'API Stripe pour un statut précis
+donationsRouter.get('/connect-status', authenticateJWT, async (req: Request, res: Response) => {
   const userId = (req as Request & { user: { id: string } }).user.id;
   const connectId = getCreatorStripeConnectAccountId(userId);
-  res.json({
-    stripeConfigured: isStripeConfigured(),
-    stripeConnectAccountId: connectId,
-    ready: Boolean(connectId),
-  });
+
+  if (!connectId || isDonationSimulationMode()) {
+    res.json({
+      stripeConfigured: isStripeConfigured(),
+      stripeConnectAccountId: connectId,
+      ready: false,
+      chargesEnabled: false,
+      detailsSubmitted: false,
+    });
+    return;
+  }
+
+  const stripe = getStripe();
+  if (!stripe) {
+    res.json({
+      stripeConfigured: false,
+      stripeConnectAccountId: connectId,
+      ready: false,
+      chargesEnabled: false,
+      detailsSubmitted: false,
+    });
+    return;
+  }
+
+  try {
+    const account = await stripe.accounts.retrieve(connectId);
+    res.json({
+      stripeConfigured: isStripeConfigured(),
+      stripeConnectAccountId: connectId,
+      ready: account.charges_enabled === true,
+      chargesEnabled: account.charges_enabled,
+      detailsSubmitted: account.details_submitted,
+    });
+  } catch {
+    // Retourner les données connues sans bloquer si Stripe est indisponible
+    res.json({
+      stripeConfigured: isStripeConfigured(),
+      stripeConnectAccountId: connectId,
+      ready: Boolean(connectId),
+      chargesEnabled: null,
+      detailsSubmitted: null,
+      error: 'Impossible de vérifier le statut du compte Stripe',
+    });
+  }
 });
 
 donationsRouter.post('/connect-onboard', authenticateJWT, async (req: Request, res: Response) => {
@@ -310,6 +351,8 @@ donationsRouter.post('/create-intent', authenticateJWT, async (req: Request, res
       status: 'pending',
       createdAt: Date.now(),
     });
+    const pendingPayment = db.donationPayments[db.donationPayments.length - 1];
+    persistDonationPaymentToPgAsync(pendingPayment);
 
     res.status(201).json({
       clientSecret: intent.client_secret,
@@ -385,7 +428,10 @@ export async function handleStripeDonationWebhook(req: Request, res: Response): 
     }
 
     const payment = db.donationPayments?.find((p) => p.paymentIntentId === intent.id);
-    if (payment) payment.status = 'succeeded';
+    if (payment) {
+      payment.status = 'succeeded';
+      persistDonationPaymentToPgAsync(payment);
+    }
   }
 
   res.json({ received: true });

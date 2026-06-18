@@ -129,6 +129,45 @@ export function playbackStateAtSeek(
   return { progressMs: clamped, startedAt: undefined, updatedAt: now, isPlaying: false };
 }
 
+/** Heartbeat hôte YouTube : position uniquement (ne touche pas isPlaying). */
+export function playbackStateAtProgressReport(
+  state: PlaybackState,
+  progressMs: number,
+  now = Date.now()
+): Partial<PlaybackState> {
+  const clamped = Math.max(0, Math.floor(progressMs));
+  if (state.isPlaying) {
+    return { progressMs: clamped, startedAt: now, updatedAt: now };
+  }
+  return { progressMs: clamped, updatedAt: now };
+}
+
+/** Extrait un ID vidéo YouTube depuis une URL ou un identifiant brut. */
+export function parseYoutubeVideoId(input: string | undefined | null): string | null {
+  const raw = input?.trim();
+  if (!raw || raw === 'demo') return null;
+  const fromUrl = raw.match(
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{6,})/
+  )?.[1];
+  if (fromUrl) return fromUrl;
+  if (raw.length <= 15 && /^[a-zA-Z0-9_-]+$/.test(raw)) return raw;
+  return null;
+}
+
+/** Résout l'ID YouTube du morceau salon (trackId, externalUrl, résolution auditeur). */
+export function resolveSalonYoutubeTrackId(
+  playbackState: Pick<PlaybackState, 'trackId' | 'externalUrl'>,
+  resolved?: { trackId?: string; externalUrl?: string } | null
+): string | undefined {
+  return (
+    parseYoutubeVideoId(playbackState.trackId) ??
+    parseYoutubeVideoId(playbackState.externalUrl) ??
+    parseYoutubeVideoId(resolved?.trackId) ??
+    parseYoutubeVideoId(resolved?.externalUrl) ??
+    undefined
+  );
+}
+
 export function preferredParticipantPlatform(
   connectedPlatforms: MusicPlatform[] | undefined,
   hostPlatform: MusicPlatform

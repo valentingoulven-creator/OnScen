@@ -1,4 +1,4 @@
-import type { LegalDocument } from './types';
+﻿import type { LegalDocument } from './types';
 import { LEGAL_CONTACT_EMAIL } from './types';
 
 /** Conditions générales d’utilisation (CGU) */
@@ -12,7 +12,7 @@ export const cgu: LegalDocument = {
     },
     {
       heading: '2. Description du Service',
-      body: `Soundy permet notamment :\n• de visualiser sur une carte des salons d’écoute musicale et des lives à proximité ;\n• de créer ou rejoindre des salons (Spotify ou YouTube) et d’écouter de façon synchronisée via les plateformes tierces ;\n• d’échanger via chat public (salon, live) et messages privés ;\n• de publier ou consulter des reels, de suivre des utilisateurs, d’envoyer des réactions gratuites, des pourboires volontaires en live ou des abonnements mensuels créateurs / Soundy+ (simulation en msdev ; paiement Stripe en production, réservé aux 18 ans et plus — voir « Pourboires, abonnements et monétisation »).\n\nLe Service est une plateforme sociale musicale. Il ne constitue pas un service de rencontre, de conseil juridique, médical ou financier.`,
+      body: `Soundy permet notamment :\n• de visualiser sur une carte des salons d’écoute musicale et des lives à proximité ;\n• de créer ou rejoindre des salons (Spotify ou YouTube) et d’écouter de façon synchronisée via les plateformes tierces ;\n• d’échanger via chat public (salon, live) et messages privés ;\n• de publier ou consulter des reels, de suivre des utilisateurs, d’envoyer des réactions gratuites, des pourboires volontaires en live ou des abonnements mensuels créateurs / Soundy+ (paiement Stripe, réservé aux 18 ans et plus — voir « Pourboires, abonnements et monétisation »).\n\nLe Service est une plateforme sociale musicale. Il ne constitue pas un service de rencontre, de conseil juridique, médical ou financier.`,
     },
     {
       heading: '3. Éligibilité et compte',
@@ -32,7 +32,7 @@ export const cgu: LegalDocument = {
     },
     {
       heading: '7. Messages privés et modération',
-      body: `Les messages privés et chats peuvent être stockés sur les serveurs du Service pour assurer la délivrabilité et l’historique des conversations. En environnement msdev, les données peuvent être conservées localement sur le serveur de démonstration.\n\nL’éditeur peut intervenir en cas de signalement d’abus manifeste, sans obligation de surveillance générale et préalable de tous les contenus.`,
+      body: `Les messages privés et chats peuvent être stockés sur les serveurs du Service pour assurer la délivrabilité et l’historique des conversations.\n\nL’éditeur peut intervenir en cas de signalement d’abus manifeste, sans obligation de surveillance générale et préalable de tous les contenus.`,
     },
     {
       heading: '8. Propriété intellectuelle de Soundy',
@@ -40,7 +40,7 @@ export const cgu: LegalDocument = {
     },
     {
       heading: '9. Disponibilité et évolutions',
-      body: `Le Service est fourni « en l’état ». En version msdev, il peut être interrompu, réinitialisé ou modifié sans préavis (notamment redémarrage du serveur entraînant une perte temporaire des données non sauvegardées).\n\nL’éditeur peut faire évoluer les fonctionnalités, les CGU et les tarifs éventuels. Les CGU applicables sont celles en vigueur à la date d’utilisation ; en cas de changement substantiel, une information pourra être affichée dans l’Application.`,
+      body: `Le Service est fourni « en l’état ».\n\nL’éditeur peut faire évoluer les fonctionnalités, les CGU et les tarifs éventuels. Les CGU applicables sont celles en vigueur à la date d’utilisation ; en cas de changement substantiel, une information pourra être affichée dans l’Application.`,
     },
     {
       heading: '10. Limitation de responsabilité',

@@ -42,6 +42,11 @@ import { resolveCorsOrigin } from './lib/corsConfig';
 import { isMsdevRuntime } from './lib/msdevGuard';
 import { injectOgMetaIntoHtml, resolveShareOgMeta } from './lib/shareOgMeta';
 import { renderPublicLegalHtml, resolvePublicLegalDocKey } from './lib/publicLegalHtml';
+import { checkPoolHealth, isPostgresEnabled } from './db/pool';
+import { latencyMonitorMiddleware } from './middleware/latencyMonitor';
+import { adminMonitorRouter } from './routes/adminMonitor';
+import { adminSyslogRouter } from './routes/adminSyslog';
+import { adminReportsRouter } from './routes/adminReports';
 
 export const app = express();
 
@@ -260,6 +265,7 @@ const PHONE_PREVIEW_HTML = `<!DOCTYPE html>
 
 app.set('trust proxy', 1);
 app.use(compression());
+app.use(latencyMonitorMiddleware);
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -406,6 +412,9 @@ app.use('/api/access/admin/support', supportAdminRouter);
 app.use('/api/access/admin/content', adminContentRouter);
 app.use('/api/access/admin/sponsors', adminSponsorsRouter);
 app.use('/api/admin', adminCloudflareRouter);
+app.use('/api/admin/monitor', adminMonitorRouter);
+app.use('/api/admin/vps', adminSyslogRouter);
+app.use('/api/admin/reports', adminReportsRouter);
 app.use('/api/geo', geoRouter);
 app.use('/api/salons', salonsRouter);
 app.use('/api/lives', livesRouter);
@@ -446,13 +455,29 @@ app.get('/api/config', (_req, res) => {
   });
 });
 
+// Fix #7 + #5: /health teste PostgreSQL et retourne { status, db }
 app.get('/health', (_req, res) => {
-  res.json({
-    status: 'OK',
-    app: 'Soundy',
-    env: process.env.APP_ENV || 'development',
-    timestamp: new Date(),
-  });
+  const pgEnabled = isPostgresEnabled();
+
+  const respond = (dbStatus: 'ok' | 'error' | 'disabled') => {
+    const status = dbStatus === 'error' ? 'degraded' : 'OK';
+    res.json({
+      status,
+      app: 'Soundy',
+      env: process.env.APP_ENV || 'development',
+      db: dbStatus,
+      timestamp: new Date(),
+    });
+  };
+
+  if (!pgEnabled) {
+    respond('disabled');
+    return;
+  }
+
+  void checkPoolHealth()
+    .then((ok) => respond(ok ? 'ok' : 'error'))
+    .catch(() => respond('error'));
 });
 
 /** Pages légales publiques (sans auth, requises LCEN / Spotify / Google OAuth). */

@@ -4,6 +4,7 @@ import {
   computePlaybackPositionMs,
   mergeRemotePlaybackState,
   playbackStateAtPause,
+  playbackStateAtProgressReport,
   playbackStateAtResume,
   playbackStateAtSeek,
   shouldResetPlaybackFromInitial,
@@ -34,6 +35,26 @@ export function useSalonPlaybackSync({
 
   useEffect(() => {
     const local = stateRef.current;
+    if (isHost) {
+      if (initialState.trackId !== local.trackId) {
+        const merged = mergeRemotePlaybackState(local, initialState);
+        setPlaybackState(merged);
+        setDisplayPositionMs(computePlaybackPositionMs(merged));
+        return;
+      }
+      if (initialState.showVideo !== local.showVideo) {
+        setPlaybackState((s) => ({ ...s, showVideo: initialState.showVideo }));
+      }
+      if (
+        initialState.updatedAt > local.updatedAt &&
+        shouldResetPlaybackFromInitial(local, initialState)
+      ) {
+        const merged = mergeRemotePlaybackState(local, initialState);
+        setPlaybackState(merged);
+        setDisplayPositionMs(computePlaybackPositionMs(merged));
+      }
+      return;
+    }
     if (!shouldResetPlaybackFromInitial(local, initialState)) {
       if (initialState.showVideo !== local.showVideo) {
         setPlaybackState((s) => ({ ...s, showVideo: initialState.showVideo }));
@@ -49,6 +70,7 @@ export function useSalonPlaybackSync({
     initialState.startedAt,
     initialState.title,
     initialState.showVideo,
+    isHost,
   ]);
 
   useEffect(() => {
@@ -138,7 +160,7 @@ export function useSalonPlaybackSync({
       if (!isHost) return;
       const s = stateRef.current;
       if (!s.isPlaying) return;
-      const patch = playbackStateAtSeek(s, progressMs);
+      const patch = playbackStateAtProgressReport(s, progressMs);
       const next = { ...s, ...patch } as PlaybackState;
       stateRef.current = next;
       setPlaybackState(next);

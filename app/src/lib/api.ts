@@ -235,6 +235,9 @@ export const api = {
     return data;
   },
 
+  completeOnboarding: (token: string) =>
+    request<{ user: import('../types').User }>('/auth/complete-onboarding', { method: 'POST' }, token),
+
   getOAuthProviders: () =>
     request<{ google: boolean; facebook: boolean; youtube: boolean }>('/auth/providers', {}),
 
@@ -1439,6 +1442,29 @@ export const api = {
       body: JSON.stringify(body),
     }, token),
 
+  exportMyData: async (token: string): Promise<unknown> => {
+    const res = await fetch(`${API}/auth/me/export`, {
+      headers: headers(token),
+    });
+    if (!res.ok) {
+      const err = await parseApiError(res);
+      throw err;
+    }
+    return res.json();
+  },
+
+  adminGetReports: (token: string) =>
+    request<{ reports: import('../types').ContentReport[] }>('/admin/reports', {}, token),
+
+  adminPatchReport: (token: string, id: string, status: 'reviewed' | 'dismissed') =>
+    request<{ ok: boolean }>(`/admin/reports/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }, token),
+
+  adminDeleteReport: (token: string, id: string) =>
+    request<{ ok: boolean }>(`/admin/reports/${id}`, { method: 'DELETE' }, token),
+
   updateProfile: (token: string, body: object) =>
     request<{ user: import('../types').User }>('/auth/profile', { method: 'PATCH', body: JSON.stringify(body) }, token),
 
@@ -1463,6 +1489,13 @@ export const api = {
     request<{ user: import('../types').User }>(
       '/users/me/settings',
       { method: 'PATCH', body: JSON.stringify(body) },
+      token
+    ),
+
+  acceptLiveTerms: (token: string) =>
+    request<{ liveTermsAcceptedAt: number }>(
+      '/users/me/live-terms',
+      { method: 'PATCH', body: JSON.stringify({}) },
       token
     ),
 
@@ -1877,4 +1910,11 @@ export const api = {
 
   getVpsMetrics: (token: string) =>
     request<import('../types').VpsMetricsReport>('/admin/vps-metrics', {}, token),
+
+  getVpsSyslog: (token: string, opts: { lines?: number; type?: 'pm2' | 'system' }) =>
+    request<import('../types').SyslogResponse>(
+      `/admin/vps/syslog?lines=${opts.lines ?? 100}&type=${opts.type ?? 'pm2'}`,
+      {},
+      token,
+    ),
 };

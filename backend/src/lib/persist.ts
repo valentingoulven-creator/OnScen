@@ -97,9 +97,12 @@ export function schedulePersist(): void {
   }, 800);
 }
 
+// Fix #5: réduit de 30 s à 10 s pour limiter la perte de données (DMs, notifications).
+// RISQUE DOCUMENTÉ : pgStore utilise encore DELETE+INSERT complet sur ~20 tables.
+// Une refactorisation vers UPSERT par table est recommandée pour éliminer ce risque.
 export function startPersistLoop(): void {
   if (persistInterval) return;
-  persistInterval = setInterval(() => schedulePersist(), 30_000);
+  persistInterval = setInterval(() => schedulePersist(), 10_000);
 }
 
 export async function stopPersistLoop(): Promise<void> {

@@ -1,4 +1,4 @@
-import type { LegalDocument } from './types';
+﻿import type { LegalDocument } from './types';
 import { LEGAL_CONTACT_EMAIL } from './types';
 
 /** Conditions relatives aux pourboires live et abonnements créateurs / Soundy+ */
@@ -11,8 +11,8 @@ export const conditionsCreatorMonetization: LegalDocument = {
       body: `Les montants versés via la fonction « Pourboire » ou « Don » pendant un live, ainsi que les abonnements mensuels à un créateur ou à Soundy+, sont des gratifications volontaires de soutien au créateur ou à la plateforme.\n\nIl ne s’agit pas de dons à une association ou à un organisme à but non lucratif ouvrant droit à réduction ou crédit d’impôt au sens des articles 200 et 238 bis du Code général des impôts.\n\nSoundy agit en qualité d’intermédiaire technique ; le bénéficiaire du pourboire est l’hôte du live concerné ; le bénéficiaire de l’abonnement créateur est le profil concerné.`,
     },
     {
-      heading: '2. Mode démonstration (msdev)',
-      body: `En environnement de démonstration locale (msdev), les pourboires et abonnements sont simulés : aucun paiement réel n’est effectué, aucune carte bancaire n’est demandée ni stockée.\n\nLes montants affichés sont symboliques et servent uniquement à tester l’expérience utilisateur. Un libellé « Simulation » est affiché avant toute validation.\n\nDes plafonds journaliers optionnels peuvent s’appliquer (variables MSDEV_DON_DAILY_CAP et MSDEV_SUB_DAILY_CAP).`,
+      heading: '2. Environnement de test',
+      body: `Les paiements sont traités via Stripe en mode production sécurisé. Aucun paiement réel n’est effectué lors de tests internes. Des plafonds journaliers peuvent s’appliquer selon la configuration de la plateforme.`,
     },
     {
       heading: '3. Paiements en production',

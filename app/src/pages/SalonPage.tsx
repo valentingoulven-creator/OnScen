@@ -17,12 +17,13 @@ import { HostRatingBlock } from '../components/HostRatingBlock';
 
 import { RoomTheaterLayout } from '../components/RoomTheaterLayout';
 import { SalonPlaybackPanel } from '../components/SalonPlaybackPanel';
-import { SalonYouTubePlaylist } from '../components/SalonYouTubePlaylist';
+import { SalonYouTubeHostPanel } from '../components/SalonYouTubeHostPanel';
 import { SalonYouTubeSearch } from '../components/SalonYouTubeSearch';
 import { SalonSpotifySearch } from '../components/SalonSpotifySearch';
 import { SalonSpotifyPlaylist } from '../components/SalonSpotifyPlaylist';
 import { SalonQueueSection } from '../components/SalonQueueSection';
 import { SalonProposalsSection } from '../components/SalonProposalsSection';
+import { SalonAccessModeToggle } from '../components/SalonAccessModeToggle';
 import { SalonInviteLinkCopy } from '../components/SalonInviteLinkCopy';
 import { SalonParticipantsPopover } from '../components/SalonParticipantsPopover';
 import { useSalonQueueSync } from '../hooks/useSalonQueueSync';
@@ -292,7 +293,6 @@ export function SalonPage({
     playQueueItem,
     acceptProposal,
     rejectProposal,
-    proposeTrack,
     reorderQueue,
     applyQueue,
   } = useSalonQueueSync(salon?.id ?? salonId, token, isHost || isDevModerator, salon?.queue);
@@ -541,142 +541,25 @@ export function SalonPage({
           token={token}
           currentTitle={playback.title}
           currentArtist={playback.artist}
-          onTrackChanged={applyPlayback}
           submitMode="propose"
         />
       )
     ) : null;
 
-  const stageFooter = isSpotifyParticipantOnly ? undefined : (
-    <div className="p-3 space-y-3">
-      {salon.platform !== 'spotify' && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs px-3 py-1 rounded-full bg-[#131318] border border-[#232330] text-gray-400 capitalize">
-            {salon.platform}
-          </span>
-        </div>
-      )}
-
-      {isHost && hostCanControl && salon.platform === 'youtube' && token && (
-        <div className="space-y-3">
-          <SalonYouTubeSearch
-            salonId={salon.id}
-            token={token}
-            currentTitle={playback.title}
-            currentArtist={playback.artist}
-            onTrackChanged={applyPlayback}
-          />
-          <SalonYouTubePlaylist
-            salonId={salon.id}
-            token={token}
-            onTrackChanged={applyPlayback}
-          />
-        </div>
-      )}
-
-      {isHost && hostCanControl && salon.platform === 'spotify' && token && (
-        <div className="space-y-3">
-          <SalonSpotifySearch
-            salonId={salon.id}
-            token={token}
-            currentTitle={playback.title}
-            currentArtist={playback.artist}
-            onQueueChanged={applyQueue}
-            showCurrentTrack={false}
-          />
-          <SalonSpotifyPlaylist
-            salonId={salon.id}
-            token={token}
-            onTrackChanged={applyPlayback}
-          />
-        </div>
-      )}
-
-      {(isVipModerator || isDevModerator) && !isHost && salon.platform === 'youtube' && token && (
-        <SalonYouTubeSearch
-          salonId={salon.id}
-          token={token}
-          currentTitle={playback.title}
-          currentArtist={playback.artist}
-          onTrackChanged={applyPlayback}
-        />
-      )}
-
-      {(isVipModerator || isDevModerator) && !isHost && salon.platform === 'spotify' && token && (
-        <SalonSpotifySearch
-          salonId={salon.id}
-          token={token}
-          currentTitle={playback.title}
-          currentArtist={playback.artist}
-          onQueueChanged={applyQueue}
-          showCurrentTrack={false}
-        />
-      )}
-
-      {isHost && (
-        <section className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4 space-y-4">
-          <div className="flex items-center gap-2 pb-2 border-b border-[#1e1e2f]">
-            <span className="text-xs font-medium text-[#7878a0] uppercase tracking-wider">Panneau host</span>
-            <span className="text-[10px] text-gray-600">
-              {hostCanControl ? '— lecture, file & propositions' : '— connectez la plateforme du salon'}
-            </span>
-          </div>
-          <SalonQueueSection
-            queue={queue}
-            isHost={hostCanControl}
-            allowQueue={salon.allowQueue}
-            salonId={salon.id}
-            onSkip={hostCanControl ? handleSkip : undefined}
-            onPlayItem={hostCanControl ? handlePlayQueue : undefined}
-            onReorder={hostCanControl ? handleReorderQueue : undefined}
-            skipping={skipping}
-            reordering={reordering}
-          />
-          <SalonProposalsSection
-            isHost={hostCanControl}
-            allowQueue={salon.allowQueue}
-            proposals={proposals}
-            loadingProposals={loadingProposals}
-            onPropose={!isHost && !isVipModerator && !isDevModerator ? proposeTrack : undefined}
-            onAccept={hostCanControl ? handleAccept : undefined}
-            onReject={hostCanControl ? rejectProposal : undefined}
-          />
-        </section>
-      )}
-
-      {isHost && salon.accessMode === 'invite' && (
-        <section className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4">
-          <h3 className="text-xs font-medium text-[#7878a0] uppercase tracking-wider mb-3">Lien d&apos;invitation</h3>
+  const youtubeHostSettings =
+    isHost && salon.accessMode === 'invite' ? (
+      <div className="space-y-4">
+        <section className="space-y-3">
+          <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+            {t('salon.youtubeHost.inviteLink', { defaultValue: "Lien d'invitation" })}
+          </h3>
           <SalonInviteLinkCopy salonId={salon.id} />
         </section>
-      )}
-
-      {isHost && hostCanControl && (
-        <section className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4">
-          <h3 className="text-xs font-medium text-[#7878a0] uppercase tracking-wider mb-3">Gérer l&apos;accès</h3>
-          <div className="flex gap-2 mb-3">
-            <button
-              type="button"
-              disabled={accessSaving}
-              onClick={() => setAccessMode('public')}
-              className={`flex-1 py-2 rounded-lg text-xs font-semibold transition ${
-                salon.accessMode === 'public' ? 'bg-[#42426a] text-white' : 'bg-[#131318] border border-[#232330] text-gray-500 hover:text-gray-300'
-              }`}
-            >
-              Public
-            </button>
-            <button
-              type="button"
-              disabled={accessSaving}
-              onClick={() => setAccessMode('invite')}
-              className={`flex-1 py-2 rounded-lg text-xs font-semibold transition ${
-                salon.accessMode === 'invite' ? 'bg-[#42426a] text-white' : 'bg-[#131318] border border-[#232330] text-gray-500 hover:text-gray-300'
-              }`}
-            >
-              Invitation
-            </button>
-          </div>
-          {salon.accessMode === 'invite' && (
+        {hostCanControl ? (
+          <section className="space-y-3">
+            <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+              {t('salon.youtubeHost.manageAccess', { defaultValue: "Gérer l'accès" })}
+            </h3>
             <div className="space-y-3">
               <div className="max-h-32 overflow-y-auto space-y-1">
                 <p className="text-[10px] text-gray-500 mb-1">Personnes autorisées :</p>
@@ -700,13 +583,126 @@ export function SalonPage({
                 {validatingGuests ? 'Envoi…' : 'Validé'}
               </button>
             </div>
-          )}
-        </section>
+          </section>
+        ) : null}
+      </div>
+    ) : undefined;
+
+  const stageFooter = isSpotifyParticipantOnly ? undefined : (
+    <>
+      {isHost && hostCanControl && salon.platform === 'youtube' && token && (
+        <SalonYouTubeHostPanel
+          salon={salon}
+          token={token}
+          playback={playback}
+          queue={queue}
+          proposals={proposals}
+          loadingProposals={loadingProposals}
+          hostCanControl={hostCanControl}
+          skipping={skipping}
+          reordering={reordering}
+          pendingGuestIds={pendingGuestIds}
+          contacts={contacts}
+          onQueueChanged={applyQueue}
+          onTrackChanged={applyPlayback}
+          onSkip={handleSkip}
+          onPlayItem={handlePlayQueue}
+          onReorder={handleReorderQueue}
+          onAccept={handleAccept}
+          onReject={rejectProposal}
+          settingsContent={youtubeHostSettings}
+        />
       )}
 
-      {participantProposeSearch}
+      {(isVipModerator || isDevModerator) && !isHost && salon.platform === 'youtube' && token && (
+        <SalonYouTubeHostPanel
+          salon={salon}
+          token={token}
+          playback={playback}
+          queue={queue}
+          proposals={proposals}
+          loadingProposals={loadingProposals}
+          hostCanControl={canControlPlayback}
+          skipping={skipping}
+          reordering={reordering}
+          pendingGuestIds={pendingGuestIds}
+          contacts={contacts}
+          onQueueChanged={applyQueue}
+          onTrackChanged={applyPlayback}
+          onSkip={handleSkip}
+          onPlayItem={handlePlayQueue}
+          onReorder={handleReorderQueue}
+          onAccept={handleAccept}
+          onReject={rejectProposal}
+          vipOnly
+        />
+      )}
 
-    </div>
+      {isHost && hostCanControl && salon.platform === 'spotify' && token && (
+        <div className="p-3 space-y-3">
+          <SalonSpotifySearch
+            salonId={salon.id}
+            token={token}
+            currentTitle={playback.title}
+            currentArtist={playback.artist}
+            onQueueChanged={applyQueue}
+            showCurrentTrack={false}
+          />
+          <SalonSpotifyPlaylist
+            salonId={salon.id}
+            token={token}
+            onTrackChanged={applyPlayback}
+          />
+          <section className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4 space-y-4">
+            <SalonQueueSection
+              queue={queue}
+              isHost={hostCanControl}
+              allowQueue={salon.allowQueue}
+              salonId={salon.id}
+              onSkip={hostCanControl ? handleSkip : undefined}
+              onPlayItem={hostCanControl ? handlePlayQueue : undefined}
+              onReorder={hostCanControl ? handleReorderQueue : undefined}
+              skipping={skipping}
+              reordering={reordering}
+            />
+            <SalonProposalsSection
+              isHost={hostCanControl}
+              allowQueue={salon.allowQueue}
+              proposals={proposals}
+              loadingProposals={loadingProposals}
+              onAccept={hostCanControl ? handleAccept : undefined}
+              onReject={hostCanControl ? rejectProposal : undefined}
+            />
+          </section>
+        </div>
+      )}
+
+      {(isVipModerator || isDevModerator) && !isHost && salon.platform === 'spotify' && token && (
+        <div className="p-3">
+          <SalonSpotifySearch
+            salonId={salon.id}
+            token={token}
+            currentTitle={playback.title}
+            currentArtist={playback.artist}
+            onQueueChanged={applyQueue}
+            showCurrentTrack={false}
+          />
+        </div>
+      )}
+
+      {isHost && !hostCanControl && salon.platform === 'youtube' && token && (
+        <div className="p-3">
+          <p className="text-xs text-amber-400/90 text-center mb-3">
+            Connectez YouTube pour contrôler la lecture de ce salon.
+          </p>
+          {youtubeHostSettings}
+        </div>
+      )}
+
+      {!canControlPlayback && participantProposeSearch ? (
+        <div className="p-3">{participantProposeSearch}</div>
+      ) : null}
+    </>
   );
 
   const chatProps = {
@@ -823,6 +819,13 @@ export function SalonPage({
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
+          {isHost && hostCanControl && (
+            <SalonAccessModeToggle
+              accessMode={salon.accessMode ?? 'public'}
+              disabled={accessSaving}
+              onChange={(mode) => void setAccessMode(mode)}
+            />
+          )}
           {onLeaveSalon && isHost && (
             <button
               type="button"
@@ -850,6 +853,10 @@ export function SalonPage({
       <ChatRoomProvider {...chatProps}>
         <RoomTheaterLayout
           variant={salon.platform === 'spotify' ? 'queue-chat' : 'theater'}
+          chatDock={salon.platform === 'youtube' ? 'left' : 'right'}
+          stageFooterMode={salon.platform === 'youtube' ? 'drawer' : 'scroll'}
+          allowFloatingChat={salon.platform !== 'youtube'}
+          sideDockMatchHero={salon.platform === 'youtube'}
           chatHidden={chatHidden}
           onToggleChat={() => setChatHidden((h) => !h)}
           chatTitle={t('salon.chatTitle', { defaultValue: 'Chat du salon' })}
@@ -870,6 +877,7 @@ export function SalonPage({
               onUserUpdated={setUserFromProfile}
               onPlaybackStateChange={applyPlayback}
               theaterMode={salon.platform !== 'spotify'}
+              theaterSideDock={salon.platform === 'youtube'}
               salonQueueLayout={salon.platform === 'spotify'}
               hostCanControl={hostCanControl}
               queue={queue}

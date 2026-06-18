@@ -1,7 +1,7 @@
 import type { PoolClient } from 'pg';
-import { getPool } from '../db/pool';
+import { getPool, isPostgresEnabled } from '../db/pool';
 import { db, type Live, type Salon } from '../models/schema';
-import { ensureSalonQueue, ensureSalonProposals } from './salonPlaybackOps';
+import { ensureSalonProposals } from './salonPlaybackOps';
 import { OCCITANIE_SALON_ID_PREFIX } from '../seed-occitanie-spotify';
 import { SALON_LIVE_ID_PREFIX } from '../seed-salons-lives';
 import { WORLD_LIVE_ID_PREFIX, WORLD_SALON_ID_PREFIX } from '../seed-world-random';
@@ -34,18 +34,18 @@ export async function loadSalonsLivesFromPostgres(): Promise<{ salons: number; l
     const salon = row.payload;
     if (!salon?.id) continue;
     db.salons.set(salon.id, salon);
-    ensureSalonQueue(salon.id);
     ensureSalonProposals(salon.id);
     if (!db.salonChats.has(salon.id)) db.salonChats.set(salon.id, []);
     salonsLoaded++;
   }
 
-  const livesRes = await pool.query<{ payload: Live }>(
-    'SELECT payload FROM lives WHERE is_active = TRUE'
+  const livesRes = await pool.query<{ payload: Live; is_active: boolean }>(
+    'SELECT payload, is_active FROM lives'
   );
   for (const row of livesRes.rows) {
     const live = row.payload;
     if (!live?.id) continue;
+    live.isActive = row.is_active;
     db.lives.set(live.id, live);
     if (!db.liveChats.has(live.id)) db.liveChats.set(live.id, []);
     livesLoaded++;
@@ -122,4 +122,53 @@ export async function saveSalonsLivesToPostgres(): Promise<{ salons: number; liv
   }
 
   return { salons: salonsSaved, lives: livesSaved };
+}
+
+function logPgLiveError(label: string, err: unknown): void {
+  console.error(`[pgSalonsLives] ${label}:`, err);
+}
+
+/** Upsert d'un salon utilisateur — persistance immédiate pour récupérer après redémarrage. */
+export async function upsertSalonToPg(salon: Salon): Promise<void> {
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await upsertSalon(client, salon);
+  } finally {
+    client.release();
+  }
+}
+
+/** Marque un salon comme inactif en PostgreSQL (après suppression en mémoire). */
+export async function markSalonInactivePg(salonId: string): Promise<void> {
+  const pool = getPool();
+  await pool.query('UPDATE salons SET is_active = FALSE WHERE id = $1', [salonId]);
+}
+
+export function upsertSalonToPgAsync(salon: Salon): void {
+  if (!isPostgresEnabled()) return;
+  void upsertSalonToPg(salon).catch((err) => logPgLiveError(`upsert salon ${salon.id}`, err));
+}
+
+export function markSalonInactivePgAsync(salonId: string): void {
+  if (!isPostgresEnabled()) return;
+  void markSalonInactivePg(salonId).catch((err) =>
+    logPgLiveError(`mark salon inactive ${salonId}`, err)
+  );
+}
+
+/** Upsert d'un live (actif ou archivé) — persistance rediff VOD après arrêt. */
+export async function upsertLiveToPg(live: Live): Promise<void> {
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await upsertLive(client, live);
+  } finally {
+    client.release();
+  }
+}
+
+export function persistLiveToPgAsync(live: Live): void {
+  if (!isPostgresEnabled()) return;
+  void upsertLiveToPg(live).catch((err) => logPgLiveError(`upsert live ${live.id}`, err));
 }

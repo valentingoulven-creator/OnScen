@@ -44,7 +44,13 @@
     "passwordMismatch": "Les mots de passe ne correspondent pas",
     "pendingSalon": "Connectez-vous pour rejoindre le salon partagé.",
     "secureAccess": "Accès Internet sécurisé — seuls les comptes autorisés peuvent se connecter.",
-    "adminApproval": " Les nouvelles inscriptions nécessitent une validation administrateur."
+    "adminApproval": " Les nouvelles inscriptions nécessitent une validation administrateur.",
+    "forgotPassword": "Mot de passe oublié ?",
+    "forgotPasswordTitle": "Mot de passe oublié",
+    "forgotPasswordIntro": "La réinitialisation automatique n'est pas encore disponible. Contactez le support Soundy en indiquant l'adresse e-mail de votre compte.",
+    "forgotPasswordContact": "Contacter le support",
+    "forgotPasswordBack": "Retour à la connexion",
+    "forgotPasswordMailSubject": "Réinitialisation mot de passe Soundy"
   },
   "common": {
     "back": "Retour",
@@ -165,6 +171,16 @@
       "hideQueueToggle": "Masquer ▲",
       "showQueueToggle": "Afficher ▼"
     },
+    "youtubeHost": {
+      "tabSearch": "Recherche",
+      "tabPlaylist": "Playlist",
+      "tabQueue": "File",
+      "tabSettings": "Réglages",
+      "collapse": "Replier le panneau",
+      "expand": "Déplier le panneau",
+      "inviteLink": "Lien d'invitation",
+      "manageAccess": "Gérer l'accès"
+    },
     "create": {
       "spotifyPremiumRequired": "Spotify Premium requis pour héberger un salon",
       "errorFailed": "Impossible de créer le salon",
@@ -234,6 +250,11 @@
       "placeholder": "Titre, artiste ou lien YouTube…",
       "searching": "Recherche YouTube…",
       "noResultsHint": "Aucun résultat — reformulez ou collez un lien youtube.com/watch?v=…",
+      "addToQueue": "Ajouter à la file",
+      "addHint": "Recherche YouTube · lien direct accepté · ajoute à la file sans interrompre le morceau en cours.",
+      "addSuccess": "Morceau ajouté à la file",
+      "addError": "Impossible d'ajouter à la file",
+      "add": "Ajouter",
       "changeTrack": "Changer de morceau",
       "changeHint": "Recherche YouTube · lien direct accepté · le salon repart à 0:00 sur le nouveau morceau.",
       "changeError": "Impossible de changer de morceau",
@@ -318,6 +339,18 @@
     "logoutConfirmTitle": "Êtes-vous sûr de vouloir vous déconnecter ?",
     "contactSoundy": "Contacter Soundy",
     "subscription": "Abonnement Soundy",
+    "stripeConnect": {
+      "title": "Recevoir des pourboires",
+      "hint": "Configurez Stripe Connect pour encaisser les pourboires live (commission Soundy 30 %).",
+      "cta": "Configurer Stripe Connect",
+      "onboarding": "Redirection Stripe…",
+      "statusReady": "Actif",
+      "statusPending": "À configurer",
+      "readyHint": "Votre compte est prêt — vous pouvez recevoir des pourboires sur vos lives.",
+      "refresh": "Actualiser le statut",
+      "loadError": "Impossible de charger le statut Stripe",
+      "onboardError": "Impossible de lancer l'onboarding Stripe"
+    },
     "settings": "Paramètres",
     "relationshipLabel": "Situation",
     "relationshipOptional": "Situation (optionnel)",
@@ -351,7 +384,16 @@
       "blocked": "Masqué par modération",
       "plusRequired": "Les rediffusions de vos lives sont réservées aux abonné·e·s Soundy+.",
       "plusRequiredHint": "Passez à Soundy+ ou SoundyUltra pour accéder à vos lives archivés.",
-      "plusRequiredCta": "Découvrir Soundy+"
+      "plusRequiredCta": "Découvrir Soundy+",
+      "replay": "Redif",
+      "peakViewers": "{{count}} spectateur(s) max"
+    },
+    "creatorDashboard": {
+      "title": "Tableau de bord créateur",
+      "tips": "Pourboires reçus",
+      "tipsCount": "{{count}} don(s)",
+      "liveViews": "Vues live (pic)",
+      "archivedLives": "{{count}} rediffusion(s)"
     }
   },
   "settings": {
@@ -839,7 +881,19 @@
       "vpsLatencyInternal": "Interne Node",
       "vpsNodeTitle": "Runtime Node.js",
       "vpsNodeVersion": "Version",
-      "vpsNodePid": "PID"
+      "vpsNodePid": "PID",
+      "syslogTitle": "Syslog",
+      "syslogTypeSystem": "Système",
+      "syslogLevelAll": "Tous",
+      "syslogLevelError": "Err",
+      "syslogLevelWarn": "Warn",
+      "syslogLevelInfo": "Info",
+      "syslogAutoRefresh": "Auto 10s",
+      "syslogCopy": "Copier",
+      "syslogDownload": "Télécharger",
+      "syslogError": "Impossible de charger les logs",
+      "syslogEmpty": "Aucune ligne à afficher",
+      "syslogFetched": "{{count}} / {{total}} lignes affichées"
     },
     "costs": {
       "subTabSummary": "Résumé",
@@ -1046,7 +1100,31 @@
     "donationSecurePay": "Paiement sécurisé · {{amount}} € · devise EUR",
     "donationPay": "Payer",
     "donationBack": "Retour",
-    "donationStripeConfigError": "Configuration Stripe incomplète (clé publique manquante)."
+    "donationStripeConfigError": "Configuration Stripe incomplète (clé publique manquante).",
+    "stripeGateTitle": "Stripe Connect requis",
+    "stripeGateSubtitle": "Pour lancer un live et recevoir des pourboires, vous devez configurer votre compte Stripe Connect.",
+    "stripeGateItem1": "Recevez 70 % de chaque pourboire directement sur votre compte bancaire",
+    "stripeGateItem2": "Soundy retient 30 % de commission de service",
+    "stripeGateItem3": "Configuration rapide via Stripe — sécurisé et conforme PCI",
+    "stripeGateCta": "Configurer Stripe Connect",
+    "stripeGateProfileHint": "Vous pouvez aussi le faire depuis votre profil → Recevoir des pourboires",
+    "stripeGateNotReady": "Votre compte Stripe Connect est en cours de configuration (validation en attente).",
+    "stripeGateNotReadyCta": "Continuer la configuration Stripe",
+    "legalTitle": "Règles de diffusion Soundy",
+    "legalSubtitle": "Avant de lancer votre premier live, lisez et acceptez les règles ci-dessous.",
+    "legalContentTitle": "Règles de contenu",
+    "legalContentRule1": "Aucune violence, discours haineux ou harcèlement",
+    "legalContentRule2": "Aucune nudité ou contenu sexuellement explicite",
+    "legalContentRule3": "Respect des droits d'auteur — ne diffusez pas de musique sans licence",
+    "legalContentRule4": "Soyez respectueux envers tous les spectateurs et autres créateurs",
+    "legalMonetTitle": "Règles de monétisation",
+    "legalMonetRule1": "Les pourboires sont volontaires — aucune obligation pour vos spectateurs",
+    "legalMonetRule2": "Soundy retient 30 % de commission sur chaque pourboire reçu",
+    "legalMonetRule3": "Les paiements sont traités par Stripe — vos fonds sont versés selon leur calendrier habituel",
+    "legalMonetRule4": "Toute tentative de fraude entraîne la suspension immédiate du compte",
+    "legalCheckbox": "J'accepte les règles de diffusion Soundy et les conditions de monétisation",
+    "legalAcceptCta": "Accepter et lancer mon live",
+    "legalAccepting": "Enregistrement…"
   },
   "donation": {
     "legal": {

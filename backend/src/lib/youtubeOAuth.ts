@@ -1,7 +1,11 @@
 import crypto from 'crypto';
 import { User } from '../models/schema';
-import { connectPlatformAccount, getPlatformAccounts } from './platformConnect';
-import { encryptPlatformTokens } from './tokenEncryption';
+import {
+  connectPlatformAccount,
+  getPlatformAccounts,
+  getYoutubeAccessToken,
+} from './platformConnect';
+import { decryptPlatformTokens, decryptToken, encryptPlatformTokens } from './tokenEncryption';
 
 const YOUTUBE_SCOPE = 'https://www.googleapis.com/auth/youtube.readonly';
 
@@ -158,4 +162,51 @@ export function applyYoutubeOAuthToUser(
     });
     user.platformAccounts = accounts;
   }
+}
+
+/** Returns a valid YouTube access token, refreshing via refresh_token when needed. */
+export async function ensureYoutubeAccessToken(user: User): Promise<string | undefined> {
+  const existing = getYoutubeAccessToken(user);
+  if (existing) return existing;
+
+  const accounts = getPlatformAccounts(user);
+  const idx = accounts.findIndex((a) => a.platform === 'youtube');
+  if (idx < 0) return undefined;
+
+  const decrypted = decryptPlatformTokens(accounts[idx]);
+  const refreshToken = decryptToken(decrypted.refreshToken);
+  if (!refreshToken) return undefined;
+
+  const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+  if (!clientId || !clientSecret) return undefined;
+
+  let tokenRes: Response;
+  try {
+    tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch {
+    return undefined;
+  }
+
+  if (!tokenRes.ok) return undefined;
+  const tokens = (await tokenRes.json()) as { access_token?: string; refresh_token?: string };
+  if (!tokens.access_token) return undefined;
+
+  accounts[idx] = encryptPlatformTokens({
+    ...decrypted,
+    accessToken: tokens.access_token,
+    refreshToken: tokens.refresh_token ?? decrypted.refreshToken,
+  });
+  user.platformAccounts = accounts;
+  return tokens.access_token;
 }

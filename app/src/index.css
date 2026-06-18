@@ -332,11 +332,14 @@ body {
   bottom: 0;
   z-index: 60;
   isolation: isolate;
+  --salon-host-drawer-viewport-bottom: 0px;
+  --salon-host-drawer-chrome-h: 3rem;
 }
 
 /* Shell classique : réserve la barre d'onglets flottante (Reels, DM…) sous le salon */
 .ms-app-shell--bottom-tabs .ms-salon-fullscreen-overlay {
   bottom: var(--tab-nav-total-h);
+  --salon-host-drawer-viewport-bottom: var(--tab-nav-total-h);
 }
 
 /* Salon Spotify plein écran — search / playlist / file scrollables au-dessus des onglets */
@@ -1100,6 +1103,15 @@ nav.ms-tab-bar-bottom > div {
   }
 }
 
+/* Languette bascule chat — bord gauche (chatDock=left) */
+.room-theater-toggle--left {
+  left: 0;
+  right: auto;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: none;
+  border-radius: 0 6px 6px 0;
+}
+
 /* Salon header — boutons icône (Jam, réduire) */
 .salon-header-icon-btn {
   display: flex;
@@ -1138,6 +1150,28 @@ nav.ms-tab-bar-bottom > div {
 @media (prefers-reduced-motion: reduce) {
   .salon-header-icon-btn {
     transition-duration: 0.01ms;
+  }
+}
+
+/* Salon header — bascule Public / Invitation (compact mobile) */
+.salon-access-mode-toggle {
+  max-width: min(100%, 11rem);
+}
+
+.salon-access-mode-toggle__btn {
+  min-width: 1.75rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 639px) {
+  .salon-access-mode-toggle {
+    max-width: 4.25rem;
+  }
+
+  .salon-access-mode-toggle__btn {
+    min-width: 1.65rem;
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
   }
 }
 
@@ -1187,6 +1221,156 @@ nav.ms-tab-bar-bottom > div {
     width: min(360px, 38vw);
     max-height: none;
   }
+}
+
+/* YouTube / Live theater — colonne chat pleine hauteur à droite de la vidéo */
+.room-theater-chat-dock--theater {
+  width: min(340px, 34vw);
+  min-width: 280px;
+  max-width: 360px;
+  max-height: none;
+  height: auto;
+  align-self: stretch;
+}
+
+/* Theater — chat + vidéo : largeur chat ~30 % de la vidéo (grille proportionnelle) */
+@media (min-width: 640px) {
+  .room-theater-side-row {
+    display: grid;
+    align-items: stretch;
+    grid-template-columns: minmax(240px, 0.3fr) minmax(0, 1fr);
+  }
+
+  .room-theater-side-row--right {
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 0.3fr);
+  }
+
+  .room-theater-side-row .room-theater-video-stage {
+    flex: none;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .room-theater-side-row .room-theater-chat-dock--theater {
+    width: auto;
+    min-width: 0;
+    max-width: 360px;
+  }
+}
+
+/* YouTube — chat sur scène 16:9 + barre de contrôles (bas aligné au tiroir Recherche) */
+@media (min-width: 640px) {
+  .room-theater-side-row--match-hero {
+    display: grid;
+    grid-template-columns: minmax(240px, 0.3fr) minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    flex: 0 0 auto;
+    align-items: stretch;
+    align-content: start;
+  }
+
+  .room-theater-side-row--match-hero.room-theater-side-row--right {
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 0.3fr);
+  }
+
+  .room-theater-side-row--match-hero .room-theater-video-stage--match-hero,
+  .room-theater-side-row--match-hero .salon-theater-panel {
+    display: contents;
+  }
+
+  .room-theater-side-row--match-hero .room-theater-chat-dock--theater {
+    grid-row: 1 / 3;
+    grid-column: 1;
+    align-self: stretch;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    max-height: none;
+  }
+
+  .room-theater-side-row--match-hero .salon-theater-hero-wrap,
+  .room-theater-side-row--match-hero .salon-theater-hero {
+    grid-row: 1;
+    grid-column: 2;
+    min-width: 0;
+  }
+
+  .room-theater-side-row--match-hero .salon-theater-controls {
+    grid-row: 2;
+    grid-column: 2;
+    min-width: 0;
+  }
+
+  .room-theater-side-row--match-hero .salon-theater-panel-extra {
+    grid-row: 3;
+    grid-column: 2;
+    min-width: 0;
+  }
+
+  .room-theater-side-row--match-hero .room-theater-toggle {
+    grid-row: 1;
+    grid-column: 2;
+    align-self: center;
+    z-index: 60;
+  }
+
+  .room-theater-side-row--match-hero.room-theater-side-row--right .room-theater-chat-dock--theater {
+    grid-column: 2;
+  }
+
+  .room-theater-side-row--match-hero.room-theater-side-row--right .salon-theater-hero-wrap,
+  .room-theater-side-row--match-hero.room-theater-side-row--right .salon-theater-hero,
+  .room-theater-side-row--match-hero.room-theater-side-row--right .salon-theater-controls,
+  .room-theater-side-row--match-hero.room-theater-side-row--right .salon-theater-panel-extra,
+  .room-theater-side-row--match-hero.room-theater-side-row--right .room-theater-toggle {
+    grid-column: 1;
+  }
+}
+
+.room-theater-chat-dock__body {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.room-theater-chat-dock__input {
+  flex-shrink: 0;
+  margin-top: auto;
+}
+
+.room-theater-mobile-chat-sheet .live-chat-messages,
+.room-theater-chat-dock--theater .live-chat-messages,
+.room-theater-chat-dock--left .live-chat-messages {
+  max-height: none;
+}
+
+.room-theater-mobile-chat-sheet .live-chat-collapsible,
+.room-theater-chat-dock--theater .live-chat-collapsible,
+.room-theater-chat-dock--left .live-chat-collapsible {
+  --live-chat-body-h: 100%;
+  max-height: none;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  clip-path: none;
+  transition: none;
+}
+
+.room-theater-mobile-chat-sheet .live-chat-body,
+.room-theater-chat-dock--theater .live-chat-body,
+.room-theater-chat-dock--left .live-chat-body {
+  height: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Mobile — tiroir chat sous la vidéo (pas de superposition sur le centre) */
+.room-theater-mobile-chat-sheet {
+  max-height: min(42dvh, 320px);
+  min-height: 0;
 }
 
 .room-theater-chat-dock .live-chat-messages {
@@ -1277,6 +1461,65 @@ nav.ms-tab-bar-bottom > div {
   min-height: 0;
 }
 
+/* Salon YouTube — colonne centrée : vidéo 16:9, chat et tiroir hôte à la même largeur */
+.room-theater-stack-column {
+  width: min(100%, calc(min(56dvh, 56vh) * 16 / 9));
+  max-width: 100%;
+  margin-inline: auto;
+  min-height: 0;
+}
+
+.room-theater-stack-column .room-theater-video-stage {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
+.room-theater-stack-column .salon-theater-hero .aspect-video {
+  max-height: min(56dvh, 56vh);
+  width: 100%;
+  margin-inline: 0;
+}
+
+.room-theater-bottom-chat-dock--stacked {
+  flex: 1 1 auto;
+  min-height: 10rem;
+  max-height: none;
+  width: 100%;
+}
+
+.room-theater-bottom-chat-dock--stacked .live-chat-collapsible {
+  --live-chat-body-h: 100%;
+  max-height: none;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  clip-path: none;
+  transition: none;
+}
+
+.room-theater-bottom-chat-dock--stacked .live-chat-body {
+  height: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.room-theater-stack-column .salon-youtube-host-drawer-wrap {
+  width: 100%;
+}
+
+@media (max-width: 639px) {
+  .room-theater-stack-column {
+    width: 100%;
+  }
+
+  .room-theater-bottom-chat-dock--stacked {
+    min-height: 8rem;
+    max-height: min(42dvh, 320px);
+    flex: 0 1 auto;
+  }
+}
+
 /* Live — saisie collée au bas (au-dessus de la barre d’onglets) */
 .live-chat-panel {
   margin-bottom: 0;
@@ -1353,11 +1596,146 @@ nav.ms-tab-bar-bottom > div {
 }
 
 /* Salon / live — lecteur YouTube (iframe API) */
-.salon-youtube-player__mount iframe {
+.salon-youtube-player--fill {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  container-type: size;
+  container-name: salon-yt;
+}
+
+.salon-youtube-player__stage {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  max-width: 100%;
+  max-height: 100%;
+  width: 100%;
+  height: auto;
+  overflow: hidden;
+  background: #000;
+}
+
+.salon-youtube-player__stage--inline {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+}
+
+@container salon-yt (min-aspect-ratio: 16 / 9) {
+  .salon-youtube-player__stage {
+    height: 100%;
+    width: auto;
+  }
+}
+
+@container salon-yt (max-aspect-ratio: 16 / 9) {
+  .salon-youtube-player__stage {
+    width: 100%;
+    height: auto;
+  }
+}
+
+.salon-youtube-player__mount {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+}
+
+.salon-youtube-player__mount iframe {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  border: 0;
+}
+
+/* Salon YouTube — scène théâtre : vidéo 16:9 en tête, contrôles en dessous */
+.salon-theater-hero {
+  width: 100%;
+  background: #000;
+}
+
+.salon-theater-hero .aspect-video {
+  max-height: min(56dvh, 56vh);
+  margin-inline: auto;
+}
+
+.salon-theater-hero .salon-youtube-player--fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Salon YouTube — tiroir hôte repliable (Recherche | Playlist | File) */
+.salon-youtube-host-drawer-wrap {
+  position: relative;
+  z-index: 25;
+  flex-shrink: 0;
+  background: #0b0b0f;
+}
+
+.salon-youtube-host-drawer {
+  position: relative;
+}
+
+.salon-youtube-host-drawer__chrome {
+  position: relative;
+  z-index: 70;
+  min-height: var(--salon-host-drawer-chrome-h);
+}
+
+.salon-youtube-host-drawer__content {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 65;
+  bottom: calc(
+    var(--salon-host-drawer-viewport-bottom) + var(--salon-host-drawer-chrome-h) +
+      env(safe-area-inset-bottom, 0px)
+  );
+  max-height: min(42dvh, 22rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  background: #0b0b0f;
+  border-top: 1px solid #1e1e2f;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+}
+
+.salon-youtube-host-drawer__content[hidden] {
+  display: none;
+}
+
+.salon-youtube-host-drawer__tab {
+  line-height: 1.2;
+}
+
+/* Grand salon YouTube — vidéo prioritaire, tiroir compact replié */
+.ms-salon-fullscreen-overlay .room-theater-video-stage {
+  flex: 1 1 auto;
+  min-height: min(52dvh, 52vh);
+}
+
+.ms-salon-fullscreen-overlay .salon-youtube-host-drawer-wrap:has([data-expanded='true']) {
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45);
+}
+
+@media (max-width: 639px) {
+  .ms-salon-fullscreen-overlay .room-theater-video-stage {
+    min-height: min(58dvh, 58vh);
+  }
+
+  .salon-youtube-host-drawer__content {
+    max-height: min(38dvh, 18rem);
+  }
 }
 
 /* Live — zone vidéo plein écran (YouTube + caméra PiP) */
@@ -1520,5 +1898,96 @@ nav.ms-tab-bar-bottom > div {
 @media (max-width: 767px) {
   .desktop-only {
     display: none !important;
+  }
+}
+
+/* ── Scrollbar-none utilitaire (ProfilePage tabs, etc.) ─────────────── */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Salon YouTube mobile — layout rééquilibré quand le chat est ouvert ─ */
+/*
+  Sur desktop, .room-theater-side-row--match-hero est un CSS grid (sm:+).
+  Sur mobile (< 640px) la colonne chat gauche est hidden; la side row doit
+  participer à la flexbox verticale (flex-1) pour que la vidéo partage l'espace
+  avec le chat sheet et le chrome du tiroir hôte.
+
+  Budget iPhone 14 (844px, overlay ≈ 672px disponibles après header salon) :
+    vidéo min 40dvh (338px) + chat max 200px + chrome tiroir 48px = 586px < 672px ✓
+*/
+@media (max-width: 639px) {
+  /* Side row redevient flex-1 (le grid sm: ne s'applique pas) */
+  .room-theater-side-row--match-hero {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  /* Vidéo YouTube : hauteur min réduite sur mobile pour laisser de la place
+     au chat sheet et au chrome du tiroir (depuis 58dvh → 40dvh) */
+  .ms-salon-fullscreen-overlay .room-theater-video-stage {
+    min-height: min(40dvh, 40vh);
+  }
+
+  /* Chat sheet en mode match-hero (YouTube salon) — hauteur réduite pour
+     laisser plus de place à la vidéo */
+  .room-theater-side-row--match-hero ~ .room-theater-mobile-chat-sheet {
+    max-height: min(30dvh, 200px);
+  }
+}
+
+/* ── Touch targets min 44 px — salon header icon buttons ────────────── */
+/*
+  .salon-header-icon-btn est déjà 2rem (32px) visuellement.
+  On agrandit à 2.75rem (44px) sur mobile uniquement pour le tap.
+*/
+@media (max-width: 639px) {
+  .salon-header-icon-btn {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  /* Languette bascule chat — taille agrandie si affichée sur mobile (sm: show) */
+  .room-theater-toggle {
+    width: 2rem;
+    height: 3rem;
+  }
+}
+
+/* ── room-theater-mobile-chat-sheet — hauteur minimale visible ──────── */
+/*
+  Garantit qu'au moins 6rem de contenu chat est visible sur mobile
+  quand le sheet est ouvert (en plus du header).
+*/
+.room-theater-mobile-chat-sheet {
+  min-height: 6rem;
+}
+
+/* ── Skeleton shimmer loader ────────────────────────────────────────── */
+
+@keyframes ms-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.ms-skeleton {
+  background: linear-gradient(
+    90deg,
+    #1a1a26 25%,
+    #22223a 50%,
+    #1a1a26 75%
+  );
+  background-size: 200% 100%;
+  animation: ms-shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-skeleton {
+    animation: none;
+    background: #1a1a26;
   }
 }

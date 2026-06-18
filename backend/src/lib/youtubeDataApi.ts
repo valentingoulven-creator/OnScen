@@ -33,40 +33,44 @@ function tokenCacheKey(accessToken?: string): string {
   return crypto.createHash('sha256').update(accessToken).digest('hex').slice(0, 16);
 }
 
-function apiKey(): string | undefined {
+export function youtubeDataApiKey(): string | undefined {
   return process.env.YOUTUBE_API_KEY?.trim() || undefined;
+}
+
+function apiKey(): string | undefined {
+  return youtubeDataApiKey();
 }
 
 function thumb(videoId: string): string {
   return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
 }
 
-export async function searchVideosViaDataApi(query: string): Promise<RemoteVideoHit[]> {
-  const normalized = query.trim().toLowerCase();
-  if (normalized.length < 2) return [];
-
-  const cacheKey = `search:${normalized}`;
-  const cached = getYtDataCached<RemoteVideoHit[]>(cacheKey);
-  if (cached) return cached;
-
-  const key = apiKey();
-  if (!key) return [];
+async function fetchSearchHits(
+  query: string,
+  options: { apiKey?: string; accessToken?: string }
+): Promise<RemoteVideoHit[]> {
   const params = new URLSearchParams({
     part: 'snippet',
     type: 'video',
     maxResults: '12',
     q: query,
-    key,
   });
-  const data = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`, {
+  if (options.apiKey) params.set('key', options.apiKey);
+
+  const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`, {
+    headers: options.accessToken ? { Authorization: `Bearer ${options.accessToken}` } : undefined,
     signal: AbortSignal.timeout(8000),
-  }).then((r) => (r.ok ? r.json() : null) as Promise<{
+  });
+  if (!res.ok) return [];
+
+  const data = (await res.json()) as {
     items?: Array<{
       id?: { videoId?: string };
       snippet?: { title?: string; channelTitle?: string; thumbnails?: { medium?: { url?: string } } };
     }>;
-  } | null>);
-  if (!data?.items) return [];
+  };
+  if (!data.items?.length) return [];
+
   const out: RemoteVideoHit[] = [];
   for (const item of data.items) {
     const videoId = item.id?.videoId;
@@ -78,7 +82,32 @@ export async function searchVideosViaDataApi(query: string): Promise<RemoteVideo
       thumbnailUrl: item.snippet?.thumbnails?.medium?.url ?? thumb(videoId),
     });
   }
-  setYtDataCached(cacheKey, out);
+  return out;
+}
+
+/** Public search via YouTube Data API — API key (preferred) or user OAuth (youtube.readonly). */
+export async function searchVideosViaDataApi(
+  query: string,
+  accessToken?: string
+): Promise<RemoteVideoHit[]> {
+  const normalized = query.trim().toLowerCase();
+  if (normalized.length < 2) return [];
+
+  const cacheKey = `search:${normalized}`;
+  const cached = getYtDataCached<RemoteVideoHit[]>(cacheKey);
+  if (cached) return cached;
+
+  const key = apiKey();
+  let out: RemoteVideoHit[] = [];
+
+  if (key) {
+    out = await fetchSearchHits(query, { apiKey: key });
+  }
+  if (!out.length && accessToken) {
+    out = await fetchSearchHits(query, { accessToken });
+  }
+
+  if (out.length) setYtDataCached(cacheKey, out);
   return out;
 }
 

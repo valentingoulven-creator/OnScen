@@ -39,6 +39,7 @@ interface YTPlayerInstance {
   unMute: () => void;
   isMuted: () => boolean;
   loadVideoById: (videoId: string, startSeconds?: number) => void;
+  setSize: (width: number, height: number) => void;
   destroy: () => void;
 }
 
@@ -160,7 +161,7 @@ export function SalonYouTubePlayer({
   controlsPlayOverride,
   showLocalPause = true,
   controlsFooter,
-  isHost = false,
+  isHost: _isHost = false,
   onVideoEnd,
   onEmbedError,
   mapInlineListenCapMs,
@@ -169,6 +170,8 @@ export function SalonYouTubePlayer({
 }: SalonYouTubePlayerProps) {
   const apiReady = useYouTubeIframeApi();
   const containerRef = useRef<HTMLDivElement>(null);
+  /** Boîte 16:9 réelle (stage théâtre ou surface aspect-video). */
+  const sizeRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const loadedVideoRef = useRef<string | null>(null);
   const lastKnownSecRef = useRef(0);
@@ -269,6 +272,30 @@ export function SalonYouTubePlayer({
       /* ignore */
     }
   }, []);
+
+  const syncPlayerSize = useCallback(() => {
+    const player = playerRef.current;
+    const el = sizeRef.current;
+    if (!player || !el) return;
+    const w = Math.round(el.clientWidth);
+    const h = Math.round(el.clientHeight);
+    if (w < 1 || h < 1) return;
+    try {
+      player.setSize(w, h);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!playerReady) return;
+    const el = sizeRef.current;
+    if (!el) return;
+    syncPlayerSize();
+    const ro = new ResizeObserver(() => syncPlayerSize());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [playerReady, fillContainer, showVideo]);
 
   useEffect(() => {
     if (!playbackActive) {
@@ -376,14 +403,21 @@ export function SalonYouTubePlayer({
     lastMountedVideoRef.current = videoId;
 
     setEmbedError(false);
+    const sizeEl = sizeRef.current;
+    const initialW = Math.max(1, Math.round(sizeEl?.clientWidth ?? 640));
+    const initialH = Math.max(1, Math.round(sizeEl?.clientHeight ?? 360));
     new window.YT!.Player(containerRef.current, {
       videoId,
+      width: initialW,
+      height: initialH,
       playerVars: {
         enablejsapi: 1,
         rel: 0,
         playsinline: 1,
-        controls: isHost ? 1 : 0,
+        controls: 0,
         start: startSec,
+        origin: typeof window !== 'undefined' ? window.location.origin : undefined,
+        modestbranding: 1,
       },
       events: {
         onReady: (e: { target: YTPlayerInstance }) => {
@@ -391,6 +425,7 @@ export function SalonYouTubePlayer({
           playerRef.current = e.target;
           loadedVideoRef.current = videoId;
           setPlayerReady(true);
+          syncPlayerSize();
           const allowPlay =
             playbackActiveRef.current &&
             autoplayAllowedRef.current &&
@@ -578,6 +613,8 @@ export function SalonYouTubePlayer({
         if (stateRef.current.isPlaying && playerState !== YT_PLAYING) {
           requestAppMediaFocus('salon');
           player.playVideo();
+        } else if (!stateRef.current.isPlaying && playerState === YT_PLAYING) {
+          player.pauseVideo();
         }
       } catch {
         /* ignore */
@@ -708,10 +745,14 @@ export function SalonYouTubePlayer({
       : (className ?? '');
 
   const playerSurfaceClass = fillContainer
-    ? `salon-youtube-player relative w-full h-full min-h-0 overflow-hidden bg-black${
+    ? `salon-youtube-player salon-youtube-player--fill${
         hidden ? ' invisible pointer-events-none' : ''
       }`
     : 'salon-youtube-player relative w-full aspect-video overflow-hidden rounded-xl border border-[#1e1e2f] bg-black';
+
+  const playerStageClass = fillContainer
+    ? 'salon-youtube-player__stage'
+    : 'salon-youtube-player__stage salon-youtube-player__stage--inline absolute inset-0';
 
   const playerSurface = (
     <div
@@ -723,22 +764,24 @@ export function SalonYouTubePlayer({
       aria-hidden={hidden}
       {...(showVideo && !hidden ? holdAccelerate.handlers : {})}
     >
-      <div className="salon-youtube-player__mount absolute inset-0 w-full h-full">
-        <div ref={containerRef} className="absolute inset-0 w-full h-full" />
+      <div ref={sizeRef} className={playerStageClass}>
+        <div className="salon-youtube-player__mount">
+          <div ref={containerRef} className="absolute inset-0 w-full h-full" />
+        </div>
+        <AccelerateBadge visible={holdAccelerate.accelerating && showVideo && !hidden} rate={HOLD_ACCELERATE_RATE} />
+        {!apiReady && showVideo && !hidden && (
+          <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-400 bg-black/80">
+            Chargement du lecteur…
+          </div>
+        )}
+        {embedError && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/90 text-center px-3">
+            <span className="text-2xl">⚠️</span>
+            <p className="text-xs text-gray-300">Vidéo indisponible</p>
+            <p className="text-[10px] text-gray-500">Cette vidéo ne peut pas être lue ici.</p>
+          </div>
+        )}
       </div>
-      <AccelerateBadge visible={holdAccelerate.accelerating && showVideo && !hidden} rate={HOLD_ACCELERATE_RATE} />
-      {!apiReady && showVideo && !hidden && (
-        <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-400 bg-black/80">
-          Chargement du lecteur…
-        </div>
-      )}
-      {embedError && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/90 text-center px-3">
-          <span className="text-2xl">⚠️</span>
-          <p className="text-xs text-gray-300">Vidéo indisponible</p>
-          <p className="text-[10px] text-gray-500">Cette vidéo ne peut pas être lue ici.</p>
-        </div>
-      )}
     </div>
   );
 

@@ -13,6 +13,7 @@ interface AuthCtx {
   token: string | null;
   isNewUser: boolean;
   clearNewUser: () => void;
+  completeOnboarding: () => Promise<void>;
   login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   register: (
     username: string,
@@ -58,6 +59,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clearAuthBootError = () => setAuthBootError(null);
   const [isNewUser, setIsNewUser] = useState(false);
   const clearNewUser = () => setIsNewUser(false);
+
+  const completeOnboarding = async () => {
+    setIsNewUser(false);
+    if (!token) {
+      setUser((prev) => (prev ? { ...prev, onboardingCompleted: true } : prev));
+      return;
+    }
+    try {
+      const { user: updated } = await api.completeOnboarding(token);
+      setUser(updated);
+    } catch {
+      // Optimistic fallback: don't block the user if the API call fails
+      setUser((prev) => (prev ? { ...prev, onboardingCompleted: true } : prev));
+    }
+  };
   const logoutRef = useRef<() => void>(null!);
 
   const logout = () => {
@@ -189,7 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, isNewUser, clearNewUser, login, register, logout, refreshUser, setUserFromProfile, setSession, authBootError, clearAuthBootError }}
+      value={{ user, token, isNewUser, clearNewUser, completeOnboarding, login, register, logout, refreshUser, setUserFromProfile, setSession, authBootError, clearAuthBootError }}
     >
       {children}
     </AuthContext.Provider>

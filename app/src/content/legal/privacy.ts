@@ -1,4 +1,4 @@
-import type { LegalDocument } from './types';
+﻿import type { LegalDocument } from './types';
 import { LEGAL_PRIVACY_EMAIL } from './types';
 
 /** Politique de confidentialité (RGPD) */
@@ -12,7 +12,7 @@ export const politiqueConfidentialite: LegalDocument = {
     },
     {
       heading: '2. Données traitées',
-      body: `Selon votre utilisation, nous pouvons traiter :\n\n• Données de compte : pseudo, e-mail, mot de passe (stocké de manière hachée), photo(s) de profil, bio, centres d’intérêt, genres et artistes favoris, rôle (auditeur/host).\n• Données de localisation : coordonnées GPS fournies par votre appareil, position floutée affichée sur la carte, préférences de précision (ville / ~50 m), mode fantôme.\n• Données d’usage : salons créés ou rejoints, lives, file d’attente musicale, état de lecture synchronisé.\n• Communications : messages de chat (salon, live), messages privés, commentaires sur reels.\n• Données sociales : abonnements, cœurs/matchs, notifications, blocages, notes aux hosts.\n• Données techniques : jeton de session, identifiants socket, logs techniques, adresse IP lors des connexions au serveur.\n• Connexions plateformes : indicateur de liaison Spotify/YouTube (en msdev, connexion souvent simulée ; en production, jetons OAuth le cas échéant).`,
+      body: `Selon votre utilisation, nous pouvons traiter :\n\n• Données de compte : pseudo, e-mail, mot de passe (stocké de manière hachée), photo(s) de profil, bio, centres d’intérêt, genres et artistes favoris, rôle (auditeur/host).\n• Données de localisation : coordonnées GPS fournies par votre appareil, position floutée affichée sur la carte, préférences de précision (ville / ~50 m), mode fantôme.\n• Données d’usage : salons créés ou rejoints, lives, file d’attente musicale, état de lecture synchronisé.\n• Communications : messages de chat (salon, live), messages privés, commentaires sur reels.\n• Données sociales : abonnements, cœurs/matchs, notifications, blocages, notes aux hosts.\n• Données techniques : jeton de session, identifiants socket, logs techniques, adresse IP lors des connexions au serveur.\n• Connexions plateformes : indicateur de liaison Spotify/YouTube (jetons OAuth le cas échéant).`,
     },
     {
       heading: '3. Finalités et bases légales',
@@ -20,11 +20,11 @@ export const politiqueConfidentialite: LegalDocument = {
     },
     {
       heading: '4. Destinataires et sous-traitants',
-      body: `Les données peuvent être accessibles :\n• aux autres utilisateurs, selon vos paramètres (profil public, carte, messages) ;\n• à l’éditeur et aux personnes habilitées pour l’exploitation et la maintenance ;\n• à des prestataires techniques (hébergement, lors du passage en production) ;\n• aux plateformes Spotify et YouTube lorsque vous connectez votre compte ou ouvrez un lien de lecture (politiques propres à ces services).\n\nCartographie : tuiles CARTO / OpenStreetMap (pas de transmission de votre compte Soundy à OSM par défaut, mais requêtes cartographiques depuis votre appareil).\n\nAvatars de démonstration : service DiceBear (URLs d’images).`,
+      body: `Les données peuvent être accessibles :\n• aux autres utilisateurs, selon vos paramètres (profil public, carte, messages) ;\n• à l’éditeur et aux personnes habilitées pour l’exploitation et la maintenance ;\n• à des prestataires techniques (hébergement) ;\n• aux plateformes Spotify et YouTube lorsque vous connectez votre compte ou ouvrez un lien de lecture (politiques propres à ces services).\n\nCartographie : tuiles CARTO / OpenStreetMap (pas de transmission de votre compte Soundy à OSM par défaut, mais requêtes cartographiques depuis votre appareil).\n\nAvatars : service DiceBear (URLs d’images).`,
     },
     {
       heading: '5. Durées de conservation',
-      body: `• Compte et profil : pendant la durée du compte, puis suppression ou anonymisation dans un délai raisonnable après clôture.\n• Messages : conservés tant que nécessaire au fonctionnement de l’historique des conversations ; vous pouvez masquer ou supprimer certains messages selon les fonctions proposées.\n• Données de localisation : dernière position connue mise à jour à chaque session ; non conservées au-delà du nécessaire pour le Service.\n• Logs techniques : durée limitée (ex. 12 mois en production, sauf obligation légale contraire).\n\nEn environnement msdev : les données peuvent être stockées dans un fichier local sur le serveur de démonstration ou en mémoire ; un redémarrage sans sauvegarde peut entraîner une perte des données.`,
+      body: `• Compte et profil : pendant la durée du compte, puis suppression ou anonymisation dans un délai raisonnable après clôture.\n• Messages : conservés tant que nécessaire au fonctionnement de l’historique des conversations ; vous pouvez masquer ou supprimer certains messages selon les fonctions proposées.\n• Données de localisation : dernière position connue mise à jour à chaque session ; non conservées au-delà du nécessaire pour le Service.\n• Logs techniques : durée limitée (ex. 12 mois en production, sauf obligation légale contraire).`,
     },
     {
       heading: '6. Sécurité',

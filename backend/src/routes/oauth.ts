@@ -14,8 +14,7 @@ import {
 import { createOAuthExchangeCode, consumeOAuthExchangeCode, peekOAuthExchangeCode } from '../lib/oauthExchange';
 import {
   applyYoutubeOAuthToUser,
-  fetchYoutubeChannelInfo,
-  getYoutubeOAuthRedirectUri,
+  completeYoutubeOAuth,
   isYoutubeOAuthConfigured,
 } from '../lib/youtubeOAuth';
 import {
@@ -161,6 +160,7 @@ function findOrCreateOAuthUser(profile: OAuthProfile): { user: User; isNew: bool
     lastSeenAt: Date.now(),
     memberSince: Date.now(),
     accountStatus,
+    onboardingCompleted: false,
   };
   user = applyProfileDefaults(user);
   db.users.set(user.id, user);
@@ -456,7 +456,8 @@ oauthRouter.get('/youtube', (_req: Request, res: Response) => {
   res.redirect(`${origin}/?youtube_oauth=error&reason=use_platform_api`);
 });
 
-/** GET /api/auth/youtube/callback — handles the redirect from Google for YouTube linking */oauthRouter.get('/youtube/callback', async (req: Request, res: Response) => {
+/** GET /api/auth/youtube/callback — handles the redirect from Google for YouTube linking */
+oauthRouter.get('/youtube/callback', async (req: Request, res: Response) => {
   const origin = appOrigin();
   const { code, state, error } = req.query as Record<string, string>;
 
@@ -465,38 +466,18 @@ oauthRouter.get('/youtube', (_req: Request, res: Response) => {
     return;
   }
 
-  const userId = consumeStateForUser(state, 'youtube');
-  if (!userId) {
-    res.redirect(`${origin}/?youtube_oauth=error`);
-    return;
-  }
-
   try {
-    const tok = (await postForm(GOOGLE_TOKEN_URL, {
-      code,
-      client_id: process.env.GOOGLE_CLIENT_ID!,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-      redirect_uri: getYoutubeOAuthRedirectUri(),
-      grant_type: 'authorization_code',
-    })) as { access_token?: string; refresh_token?: string };
-
-    if (!tok.access_token) throw new Error('Missing access_token in YouTube token response');
-
-    const { channelId, channelTitle, avatarUrl } = await fetchYoutubeChannelInfo(tok.access_token, userId);
-
-    const user = db.users.get(userId);
+    const result = await completeYoutubeOAuth(code, state);
+    if (!result) {
+      res.redirect(`${origin}/?youtube_oauth=error`);
+      return;
+    }
+    const user = db.users.get(result.userId);
     if (user) {
-      applyYoutubeOAuthToUser(user, {
-        accessToken: tok.access_token,
-        refreshToken: tok.refresh_token,
-        channelId,
-        channelTitle,
-        avatarUrl,
-      });
+      applyYoutubeOAuthToUser(user, result);
       db.users.set(user.id, user);
       schedulePersist();
     }
-
     res.redirect(`${origin}/?youtube_oauth=ok`);
   } catch (err) {
     console.error('[oauth] YouTube callback error:', err);
