@@ -41,8 +41,11 @@ import {
 import {
   createLiveKitToken,
   getLiveKitUrl,
+  getLiveKitEgressId,
   isLiveKitConfigured,
   liveKitRoomName,
+  startLiveKitEgress,
+  stopLiveKitEgress,
 } from '../lib/livekit';
 import { getIo } from '../lib/ioInstance';
 import { buildIceServers } from '../lib/iceServers';
@@ -588,6 +591,81 @@ livesRouter.get('/:id/cloudflare-ingest', authenticateJWT, async (req: Request, 
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur Cloudflare Stream';
     res.status(502).json({ error: message, code: 'cloudflare_error' });
+  }
+});
+
+/** Start LiveKit → Cloudflare Stream RTMP egress (host only, livekit mode). */
+livesRouter.post('/:id/start-egress', authenticateJWT, async (req: Request, res: Response) => {
+  const userId = (req as Request & { user: { id: string } }).user.id;
+  const live = db.lives.get(req.params.id);
+  if (!live) {
+    res.status(404).json({ error: 'Live introuvable' });
+    return;
+  }
+  if (live.hostId !== userId) {
+    res.status(403).json({ error: 'Réservé à l\'hôte du live.' });
+    return;
+  }
+  if (live.streamMode !== 'livekit') {
+    res.status(400).json({ error: 'Ce live n\'est pas en mode LiveKit.', code: 'not_livekit' });
+    return;
+  }
+  if (!isLiveKitConfigured()) {
+    res.status(503).json({ error: 'LiveKit non configuré.', code: 'livekit_not_configured' });
+    return;
+  }
+  if (!isCloudflareStreamConfigured()) {
+    res.status(503).json({ error: 'Cloudflare Stream non configuré.', code: 'cloudflare_not_configured' });
+    return;
+  }
+  if (getLiveKitEgressId(live.id)) {
+    res.status(409).json({ error: 'Un egress est déjà actif pour ce live.', code: 'egress_already_active' });
+    return;
+  }
+
+  try {
+    let cfCreds;
+    if (live.cloudflareLiveInputId) {
+      cfCreds = await getCloudflareLiveInput(live.cloudflareLiveInputId);
+    } else {
+      cfCreds = await createCloudflareLiveInput({ name: `soundy-egress-${live.id}` });
+      live.cloudflareLiveInputId = cfCreds.uid;
+      live.cloudflarePlaybackUrl = cfCreds.playbackHlsUrl;
+      live.cloudflareCustomerSubdomain = cfCreds.customerSubdomain;
+      db.lives.set(live.id, live);
+    }
+    const rtmpUrl = `${cfCreds.rtmpsUrl}${cfCreds.rtmpsStreamKey}`;
+    const egressId = await startLiveKitEgress(live.id, rtmpUrl);
+    res.json({ egressId, hlsUrl: cfCreds.playbackHlsUrl });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Erreur démarrage egress';
+    res.status(502).json({ error: message, code: 'egress_error' });
+  }
+});
+
+/** Stop the active LiveKit RTMP egress (host only). */
+livesRouter.post('/:id/stop-egress', authenticateJWT, async (req: Request, res: Response) => {
+  const userId = (req as Request & { user: { id: string } }).user.id;
+  const live = db.lives.get(req.params.id);
+  if (!live) {
+    res.status(404).json({ error: 'Live introuvable' });
+    return;
+  }
+  if (live.hostId !== userId) {
+    res.status(403).json({ error: 'Réservé à l\'hôte du live.' });
+    return;
+  }
+  if (!getLiveKitEgressId(live.id)) {
+    res.status(404).json({ error: 'Aucun egress actif pour ce live.', code: 'no_active_egress' });
+    return;
+  }
+
+  try {
+    await stopLiveKitEgress(live.id);
+    res.json({ stopped: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Erreur arrêt egress';
+    res.status(502).json({ error: message, code: 'egress_error' });
   }
 });
 

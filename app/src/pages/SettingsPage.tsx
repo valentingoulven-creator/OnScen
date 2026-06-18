@@ -518,12 +518,11 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
                   type="button"
                   onClick={handleTogglePush}
                   disabled={pushLoading}
-                  className={
-elative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none  }
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${pushPermission === 'granted' ? 'bg-purple-600' : 'bg-gray-600'}`}
                   aria-label="Toggle push notifications"
                 >
                   <span
-                    className={inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform }
+                    className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${pushPermission === 'granted' ? 'translate-x-6' : 'translate-x-1'}`}
                   />
                 </button>
               )}

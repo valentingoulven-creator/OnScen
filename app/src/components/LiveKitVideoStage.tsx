@@ -319,6 +319,9 @@ export function LiveKitVideoStage({
   const [viewerStreamActive, setViewerStreamActive] = useState(false);
   const [roomError, setRoomError] = useState<string | null>(null);
   const [videoTimedOut, setVideoTimedOut] = useState(false);
+  const [egressActive, setEgressActive] = useState(false);
+  const [egressLoading, setEgressLoading] = useState(false);
+  const [egressError, setEgressError] = useState<string | null>(null);
   const fetchGenRef = useRef(0);
 
   useEffect(() => {
@@ -385,6 +388,24 @@ export function LiveKitVideoStage({
       }
     })();
   }, [authToken, liveId]);
+
+  const toggleEgress = useCallback(async () => {
+    setEgressError(null);
+    setEgressLoading(true);
+    try {
+      if (egressActive) {
+        await api.stopEgress(authToken, liveId);
+        setEgressActive(false);
+      } else {
+        await api.startEgress(authToken, liveId);
+        setEgressActive(true);
+      }
+    } catch (err) {
+      setEgressError(err instanceof Error ? err.message : 'Erreur egress CDN');
+    } finally {
+      setEgressLoading(false);
+    }
+  }, [authToken, liveId, egressActive]);
 
   const roomEnabled = enabled && !streamEnded;
 
@@ -686,6 +707,37 @@ export function LiveKitVideoStage({
           )}
         </div>
       </div>
+
+      {isHost && hostStreamActive && !streamEnded ? (
+        <div className="shrink-0 px-3 py-1.5 border-t border-white/10 bg-[#0a0a0f] flex items-center justify-between gap-2">
+          <span className="text-[10px] text-gray-500">
+            {egressActive ? 'CDN actif — HLS disponible' : 'Diffusion CDN désactivée'}
+          </span>
+          <button
+            type="button"
+            onClick={toggleEgress}
+            disabled={egressLoading}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold transition active:scale-95 ${
+              egressActive
+                ? 'bg-emerald-600/90 hover:bg-emerald-500 text-white'
+                : 'bg-[#1a1a26] border border-white/20 text-gray-200 hover:text-white hover:border-white/40'
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
+            title={egressActive ? 'Arrêter la diffusion CDN' : 'Diffuser sur CDN (HLS via Cloudflare)'}
+          >
+            <svg aria-hidden className="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              {egressActive
+                ? <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM9 10h6v4H9z" />
+                : <path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01" />}
+            </svg>
+            {egressLoading ? '…' : egressActive ? 'Arrêter CDN' : 'Diffuser sur CDN'}
+          </button>
+          {egressError ? (
+            <span className="text-[10px] text-red-400 truncate max-w-[160px]" title={egressError}>
+              {egressError}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       <div
         className={`shrink-0 px-3 py-2 border-t border-white/10 bg-[#0a0a0f] text-center text-[11px] leading-relaxed ${
