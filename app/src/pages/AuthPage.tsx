@@ -7,6 +7,8 @@ import { CURRENT_TERMS_VERSION, type LegalKey } from '../content/legal';
 import { peekPendingSalonJoin } from '../lib/salonDeepLink';
 import { forgotPasswordHref } from '../lib/forgotPasswordRoute';
 import { api } from '../lib/api';
+import { PasswordStrengthBar } from '../components/PasswordStrengthBar';
+import { getPasswordStrength } from '../lib/passwordStrength';
 import type { PublicAccessConfig, User } from '../types';
 
 // ─── OAuth provider status ───────────────────────────────────────────────────
@@ -28,53 +30,7 @@ function oauthErrorMessage(code: string, provider: string): string {
 }
 
 // ─── Password strength ────────────────────────────────────────────────────────
-
-type PasswordStrength = 'vide' | 'faible' | 'moyen' | 'fort';
-
-function getPasswordStrength(pwd: string): PasswordStrength {
-  if (!pwd) return 'vide';
-  let score = 0;
-  if (pwd.length >= 8) score++;
-  if (pwd.length >= 12) score++;
-  if (/[A-Z]/.test(pwd)) score++;
-  if (/[0-9]/.test(pwd)) score++;
-  if (/[^A-Za-z0-9]/.test(pwd)) score++;
-  if (score <= 1) return 'faible';
-  if (score <= 3) return 'moyen';
-  return 'fort';
-}
-
-const STRENGTH_CONFIG: Record<PasswordStrength, { label: string; color: string; bars: number }> = {
-  vide:   { label: '',       color: 'bg-gray-700',  bars: 0 },
-  faible: { label: 'Faible', color: 'bg-red-500',   bars: 1 },
-  moyen:  { label: 'Moyen',  color: 'bg-yellow-400', bars: 2 },
-  fort:   { label: 'Fort',   color: 'bg-green-500', bars: 3 },
-};
-
-function PasswordStrengthBar({ password }: { password: string }) {
-  const strength = getPasswordStrength(password);
-  const cfg = STRENGTH_CONFIG[strength];
-  if (!password) return null;
-  return (
-    <div className="space-y-1">
-      <div className="flex gap-1">
-        {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className={`h-1 flex-1 rounded-full transition-colors ${i < cfg.bars ? cfg.color : 'bg-gray-700'}`}
-          />
-        ))}
-      </div>
-      {cfg.label && (
-        <p className={`text-[11px] font-medium ${
-          strength === 'faible' ? 'text-red-400' : strength === 'moyen' ? 'text-yellow-400' : 'text-green-400'
-        }`}>
-          Sécurité : {cfg.label}
-        </p>
-      )}
-    </div>
-  );
-}
+// See src/components/PasswordStrengthBar.tsx and src/lib/passwordStrength.ts
 
 export function AuthPage() {
   const { t } = useTranslation();
