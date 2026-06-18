@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import crypto from 'node:crypto';
+import rateLimit from 'express-rate-limit';
 import { db, type User } from '../models/schema';
 import { signToken } from '../middleware/auth';
 import { applyProfileDefaults, publicProfile } from '../lib/profile';
@@ -28,8 +29,19 @@ import {
   completeInstagramOAuth,
   isInstagramOAuthConfigured,
 } from '../lib/instagramOAuth';
+import { isMsdevRuntime } from '../lib/msdevGuard';
 
 export const oauthRouter = Router();
+
+/** 20 tentatives / 15 min par IP sur les routes d'initiation et d'échange OAuth. */
+const oauthInitLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives OAuth. Réessayez dans quelques minutes.' },
+  skip: () => isMsdevRuntime(),
+});
 
 // ─── CSRF state store (TTL 10 min) ──────────────────────────────────────────
 const oauthStates = new Map<string, { provider: string; userId?: string; expiresAt: number }>();
@@ -230,7 +242,7 @@ oauthRouter.get('/providers', (_req: Request, res: Response) => {
  * POST /api/auth/oauth/exchange
  * Échange un code OAuth éphémère (redirection sans JWT dans l’URL) contre un jeton de session.
  */
-oauthRouter.post('/oauth/exchange', (req: Request, res: Response) => {
+oauthRouter.post('/oauth/exchange', oauthInitLimiter, (req: Request, res: Response) => {
   const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
   const acceptTerms = req.body?.acceptTerms === true;
   const termsVersion = typeof req.body?.termsVersion === 'string' ? req.body.termsVersion : undefined;
@@ -312,7 +324,7 @@ const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GOOGLE_USER_URL  = 'https://www.googleapis.com/oauth2/v2/userinfo';
 
 /** GET /api/auth/google — initiates the Google OAuth flow */
-oauthRouter.get('/google', (_req: Request, res: Response) => {
+oauthRouter.get('/google', oauthInitLimiter, (_req: Request, res: Response) => {
   const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL } = process.env;
   if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_CALLBACK_URL) {
     res.redirect(`${appOrigin()}/?oauth_error=not_configured&provider=google`);
@@ -386,7 +398,7 @@ const FB_TOKEN_URL = 'https://graph.facebook.com/v19.0/oauth/access_token';
 const FB_USER_URL  = 'https://graph.facebook.com/me?fields=id,name,email,picture.width(200)';
 
 /** GET /api/auth/facebook — initiates the Facebook OAuth flow */
-oauthRouter.get('/facebook', (_req: Request, res: Response) => {
+oauthRouter.get('/facebook', oauthInitLimiter, (_req: Request, res: Response) => {
   const { FACEBOOK_APP_ID, FACEBOOK_APP_SECRET, FACEBOOK_CALLBACK_URL } = process.env;
   if (!FACEBOOK_APP_ID || !FACEBOOK_APP_SECRET || !FACEBOOK_CALLBACK_URL) {
     res.redirect(`${appOrigin()}/?oauth_error=not_configured&provider=facebook`);
@@ -462,7 +474,7 @@ oauthRouter.get('/facebook/callback', async (req: Request, res: Response) => {
 // ─── YouTube OAuth (platform linking) ────────────────────────────────────────
 
 /** GET /api/auth/youtube — déprécié : utiliser GET /api/platforms/youtube/oauth/url avec JWT en en-tête. */
-oauthRouter.get('/youtube', (_req: Request, res: Response) => {
+oauthRouter.get('/youtube', oauthInitLimiter, (_req: Request, res: Response) => {
   const origin = appOrigin();
   res.redirect(`${origin}/?youtube_oauth=error&reason=use_platform_api`);
 });
@@ -499,7 +511,7 @@ oauthRouter.get('/youtube/callback', async (req: Request, res: Response) => {
 // ─── Spotify OAuth (platform linking) ────────────────────────────────────────
 
 /** GET /api/auth/spotify — déprécié : utiliser GET /api/platforms/spotify/oauth/url avec JWT en en-tête. */
-oauthRouter.get('/spotify', (_req: Request, res: Response) => {
+oauthRouter.get('/spotify', oauthInitLimiter, (_req: Request, res: Response) => {
   const origin = appOrigin();
   res.redirect(`${origin}/?spotify_oauth=error&reason=use_platform_api`);
 });
@@ -539,7 +551,7 @@ oauthRouter.get('/spotify', (_req: Request, res: Response) => {
 // ─── Instagram OAuth (platform linking via Facebook Login) ─────────────────
 
 /** GET /api/auth/instagram — déprécié : utiliser GET /api/platforms/instagram/oauth/url avec JWT en en-tête. */
-oauthRouter.get('/instagram', (_req: Request, res: Response) => {
+oauthRouter.get('/instagram', oauthInitLimiter, (_req: Request, res: Response) => {
   const origin = appOrigin();
   res.redirect(`${origin}/?instagram_oauth=error&reason=use_platform_api`);
 });

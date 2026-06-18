@@ -104,6 +104,10 @@ function isProductionAccessEnv(): boolean {
 
 function parseAdminEmails(): Set<string> {
   const raw = process.env.ACCESS_ADMIN_EMAILS?.trim();
+  // ⚠ ACCESS_ADMIN_EMAILS n'est lu QU'en mode msdev/dev.
+  // En production (APP_ENV=production), isAccessAdmin() retourne false immédiatement
+  // après le check user.isAdmin===true ; cette fonction n'est jamais appelée.
+  // Seul le flag isAdmin (colonne DB ou PROD_ADMIN_EMAIL au boot) fait foi en prod.
   const defaults = isMsdevAccessEnv() ? ['listener@msdev.local', 'dj@msdev.local'] : [];
   const list = raw ? raw.split(/[,;]/).map((e) => e.trim().toLowerCase()).filter(Boolean) : defaults;
   return new Set(list);
@@ -124,6 +128,8 @@ const adminUsernames = () => parseAdminUsernames();
 export function isAccessAdmin(user: User | undefined): boolean {
   if (!user) return false;
   if (user.isAdmin === true) return true;
+  // En production, seul le flag isAdmin (DB) est pris en compte.
+  // ACCESS_ADMIN_EMAILS / ACCESS_ADMIN_USERNAMES n'ont aucun effet en prod.
   if (isProductionAccessEnv()) return false;
   if (adminUsernames().has(user.username.trim().toLowerCase())) return true;
   return adminEmails().has(user.email.trim().toLowerCase());

@@ -2,6 +2,7 @@ import express from 'express';
 import compression from 'compression';
 import cors from 'cors';
 import helmet from 'helmet';
+import crypto from 'node:crypto';
 import fs from 'fs';
 import path from 'path';
 import rateLimit from 'express-rate-limit';
@@ -271,6 +272,11 @@ const PHONE_PREVIEW_HTML = `<!DOCTYPE html>
 app.set('trust proxy', 1);
 app.use(compression());
 app.use(latencyMonitorMiddleware);
+// Génère un nonce CSP aléatoire par requête (doit tourner avant helmet).
+app.use((_req, res, next) => {
+  res.locals.cspNonce = crypto.randomBytes(16).toString('base64');
+  next();
+});
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -280,7 +286,16 @@ app.use(
         // et double charge avec Caddy sur getsoundy.com.
         'upgrade-insecure-requests': null,
         'default-src': ["'self'"],
-        'script-src': ["'self'", "'unsafe-inline'", 'https://www.youtube.com', 'https://s.ytimg.com', 'https://js.stripe.com'],
+        // unsafe-inline retiré : les scripts inline des pages servies par Express
+        // reçoivent un attribut nonce="${res.locals.cspNonce}" injecté à la volée.
+        // /phone-preview (outil dev avec onclick) surcharge cette directive via setHeader.
+        'script-src': [
+          "'self'",
+          (_req, res) => `'nonce-${(res as express.Response).locals.cspNonce as string}'`,
+          'https://www.youtube.com',
+          'https://s.ytimg.com',
+          'https://js.stripe.com',
+        ],
         'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         'img-src': ["'self'", 'data:', 'blob:', 'https:', 'http:'],
         'font-src': ["'self'", 'data:', 'https://fonts.gstatic.com'],
@@ -558,6 +573,7 @@ app.get('/msdev-mobile', (req, res) => {
 /** Vide le cache SW/PWA et redirige vers l'accueil — contourne le service worker. */
 app.get('/clear-pwa', (_req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  const nonce = res.locals.cspNonce as string;
   res.type('html').send(`<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -577,7 +593,7 @@ app.get('/clear-pwa', (_req, res) => {
   <div class="sp" id="sp"></div>
   <h1>Nettoyage du cache PWA\u2026</h1>
   <p id="msg">D\u00e9sinscription du Service Worker et suppression des caches en cours\u2026</p>
-  <script>
+  <script nonce="${nonce}">
     (function () {
       function finish() {
         document.getElementById('sp').style.borderTopColor = '#86efac';
@@ -615,6 +631,12 @@ app.get('/clear-pwa', (_req, res) => {
 app.get('/phone-preview', (_req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  // Outil de dev : contient des attributs onclick inline qui nécessitent unsafe-inline.
+  // On restreint la CSP à ce que la page utilise réellement.
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; frame-src 'self'; connect-src 'self' ws: wss:;",
+  );
   res.send(PHONE_PREVIEW_HTML);
 });
 
