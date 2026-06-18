@@ -1,4 +1,4 @@
-import i18n from '../i18n';
+﻿import i18n from '../i18n';
 import {
   readCachedPlatformStatus,
   writeCachedPlatformStatus,
@@ -715,7 +715,11 @@ export const api = {
     token: string,
     lat: number,
     lon: number,
-    opts?: { radiusKm?: number; distanceFilter?: boolean }
+    opts?: {
+      radiusKm?: number;
+      distanceFilter?: boolean;
+      bounds?: { swLat: number; swLng: number; neLat: number; neLng: number };
+    }
   ) => {
     const params = new URLSearchParams({
       latitude: String(lat),
@@ -724,6 +728,12 @@ export const api = {
     if (opts?.radiusKm !== undefined) params.set('radius', String(opts.radiusKm));
     if (opts?.distanceFilter === false) params.set('distanceFilter', 'false');
     else if (opts?.distanceFilter === true) params.set('distanceFilter', 'true');
+    if (opts?.bounds) {
+      params.set('swLat', String(opts.bounds.swLat));
+      params.set('swLng', String(opts.bounds.swLng));
+      params.set('neLat', String(opts.bounds.neLat));
+      params.set('neLng', String(opts.bounds.neLng));
+    }
     return request<{
       salons: import('../types').Salon[];
       lives: import('../types').Live[];
@@ -1142,6 +1152,20 @@ export const api = {
       canPublish: boolean;
       streamMode: 'livekit';
     }>(`/lives/${liveId}/livekit-token`, {}, token),
+
+  startEgress: (token: string, liveId: string) =>
+    request<{ egressId: string; hlsUrl: string }>(
+      `/lives/${liveId}/start-egress`,
+      { method: 'POST' },
+      token
+    ),
+
+  stopEgress: (token: string, liveId: string) =>
+    request<{ stopped: boolean }>(
+      `/lives/${liveId}/stop-egress`,
+      { method: 'POST' },
+      token
+    ),
 
   salonChat: (token: string, salonId: string) =>
     request<{ messages: import('../types').ChatMessage[] }>(`/chat/salon/${salonId}`, {}, token),
@@ -1646,6 +1670,13 @@ export const api = {
     request<{ ok: boolean }>(
       '/push/subscribe',
       { method: 'POST', body: JSON.stringify({ subscription }) },
+      token
+    ),
+
+  unsubscribePush: (token: string, endpoint: string) =>
+    request<{ ok: boolean }>(
+      '/push/unsubscribe',
+      { method: 'POST', body: JSON.stringify({ endpoint }) },
       token
     ),
 

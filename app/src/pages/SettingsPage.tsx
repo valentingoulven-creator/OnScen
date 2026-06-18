@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type LegalKey } from '../content/legal';
 import { LegalDocumentView } from '../components/LegalDocumentView';
@@ -16,7 +16,55 @@ import { PasswordStrengthBar } from '../components/PasswordStrengthBar';
 import { getPasswordStrength } from '../lib/passwordStrength';
 import { ContactSoundyPage } from './ContactSoundyPage';
 
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i += 1) out[i] = raw.charCodeAt(i);
+  return out;
+}
 
+type PushPermissionState = 'unsupported' | 'denied' | 'granted' | 'default' | 'loading';
+
+async function requestAndSubscribePush(token: string): Promise<boolean> {
+  try {
+    const { publicKey } = await api.getPushVapidPublicKey(token);
+    if (!publicKey) return false;
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return false;
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
+      });
+    }
+    const json = sub.toJSON();
+    if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return false;
+    await api.subscribePush(token, {
+      endpoint: json.endpoint,
+      keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function unsubscribePush(token: string): Promise<void> {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) return;
+    const endpoint = sub.endpoint;
+    await sub.unsubscribe();
+    await api.unsubscribePush(token, endpoint);
+  } catch {
+    /* optionnel */
+  }
+}
 interface SettingsPageProps {
   onBack: () => void;
   onOpenAdmin?: () => void;
@@ -91,6 +139,45 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
   const [saved, setSaved] = useState<string | null>(null);
   const [showContact, setShowContact] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
+
+  const pushSupported =
+    typeof window !== 'undefined' &&
+    'Notification' in window &&
+    'serviceWorker' in navigator &&
+    'PushManager' in window;
+  const [pushPermission, setPushPermission] = useState<PushPermissionState>(() => {
+    if (!pushSupported) return 'unsupported';
+    return (Notification.permission as PushPermissionState) ?? 'default';
+  });
+  const [pushLoading, setPushLoading] = useState(false);
+
+  useEffect(() => {
+    if (!pushSupported) return;
+    setPushPermission(Notification.permission as PushPermissionState);
+  }, [pushSupported]);
+
+  const handleTogglePush = async () => {
+    if (!token || pushLoading) return;
+    setPushLoading(true);
+    try {
+      if (pushPermission === 'granted') {
+        await unsubscribePush(token);
+        setPushPermission('default');
+        flash('Notifications push désactivées');
+      } else {
+        const ok = await requestAndSubscribePush(token);
+        const newPerm = Notification.permission as PushPermissionState;
+        setPushPermission(newPerm);
+        if (ok && newPerm === 'granted') {
+          flash('Notifications push activées \u2713');
+        } else if (newPerm === 'denied') {
+          flash('Permission refusée dans le navigateur');
+        }
+      }
+    } finally {
+      setPushLoading(false);
+    }
+  };
 
   // Password change state
   const [pwSection, setPwSection] = useState(false);
@@ -411,7 +498,37 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
           <p className="px-4 pb-3 text-[10px] text-gray-500">
             Visibilité sur la carte : icône œil barré en haut de l&apos;écran.
           </p>
-        </section>
+
+          {pushSupported && (
+            <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-white">Notifications push</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {pushPermission === 'granted'
+                    ? 'Activ&#233;es &#8212; lives, invitations salon, abonnements'
+                    : pushPermission === 'denied'
+                      ? 'Refus&#233;es dans le navigateur &#8212; modifie les param&#232;tres du site'
+                      : 'Recevoir des alertes m&#234;me app ferm&#233;e'}
+                </p>
+              </div>
+              {pushPermission === 'denied' ? (
+                <span className="text-xs text-gray-600 shrink-0">Bloqu&#233;</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleTogglePush}
+                  disabled={pushLoading}
+                  className={
+elative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none  }
+                  aria-label="Toggle push notifications"
+                >
+                  <span
+                    className={inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform }
+                  />
+                </button>
+              )}
+            </label>
+          )}        </section>
 
         <section>
           <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Légal</p>

@@ -74,6 +74,33 @@ geoRouter.post('/update', authenticateJWT, (req: Request, res: Response) => {
   });
 });
 
+/** Parse an optional bounding-box from query params (swLat, swLng, neLat, neLng). */
+function parseBoundsQuery(query: Record<string, unknown>): {
+  swLat: number; swLng: number; neLat: number; neLng: number;
+} | null {
+  const swLat = parseFloat(query.swLat as string);
+  const swLng = parseFloat(query.swLng as string);
+  const neLat = parseFloat(query.neLat as string);
+  const neLng = parseFloat(query.neLng as string);
+  if (!isFinite(swLat) || !isFinite(swLng) || !isFinite(neLat) || !isFinite(neLng)) return null;
+  if (swLat > neLat) return null;
+  return { swLat, swLng, neLat, neLng };
+}
+
+/** Returns true when the point (lat, lng) is inside the bounding box. */
+function isInBounds(
+  lat: number,
+  lng: number,
+  bounds: { swLat: number; swLng: number; neLat: number; neLng: number }
+): boolean {
+  if (lat < bounds.swLat || lat > bounds.neLat) return false;
+  // Handle antimeridian crossing (east < west).
+  if (bounds.swLng <= bounds.neLng) {
+    return lng >= bounds.swLng && lng <= bounds.neLng;
+  }
+  return lng >= bounds.swLng || lng <= bounds.neLng;
+}
+
 geoRouter.get('/nearby', authenticateJWT, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const lat = parseFloat(req.query.latitude as string);
@@ -82,6 +109,9 @@ geoRouter.get('/nearby', authenticateJWT, (req: Request, res: Response) => {
   const distanceFilter = parseDistanceFilterQuery(req.query.distanceFilter as string | undefined);
   const maxRadiusKm = resolveNearbyRadiusKm(radiusKm, distanceFilter);
   const withinRadius = (d: number) => maxRadiusKm == null || d <= maxRadiusKm;
+
+  // Optional bounding-box filter (overrides radius for salons + lives when provided).
+  const bounds = parseBoundsQuery(req.query as Record<string, unknown>);
 
   if (!isValidLatLng(lat, lon)) {
     res.status(400).json({ error: 'latitude et longitude requis' });
@@ -106,10 +136,11 @@ geoRouter.get('/nearby', authenticateJWT, (req: Request, res: Response) => {
         distanceKm: getDistanceKm(lat, lon, coords.latitude, coords.longitude),
       };
     })
-    .filter(
-      ({ distanceKm, coords }) =>
-        withinRadius(distanceKm) &&
-        isValidLatLng(coords.latitude, coords.longitude)
+    .filter(({ coords }) => isValidLatLng(coords.latitude, coords.longitude))
+    .filter(({ distanceKm, coords }) =>
+      bounds
+        ? isInBounds(coords.latitude, coords.longitude, bounds)
+        : withinRadius(distanceKm)
     )
     .sort((a, b) => a.distanceKm - b.distanceKm)
     .map(({ salon: s }) => publicSalon(s, me));
@@ -128,9 +159,11 @@ geoRouter.get('/nearby', authenticateJWT, (req: Request, res: Response) => {
         distanceKm: getDistanceKm(lat, lon, coords.latitude, coords.longitude),
       };
     })
-    .filter(
-      ({ distanceKm, coords }) =>
-        withinRadius(distanceKm) && isValidLatLng(coords.latitude, coords.longitude)
+    .filter(({ coords }) => isValidLatLng(coords.latitude, coords.longitude))
+    .filter(({ distanceKm, coords }) =>
+      bounds
+        ? isInBounds(coords.latitude, coords.longitude, bounds)
+        : withinRadius(distanceKm)
     )
     .sort((a, b) => a.distanceKm - b.distanceKm)
     .map(({ live: l, coords }) => {

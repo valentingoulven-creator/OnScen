@@ -1687,6 +1687,17 @@ export function HomePage({
             </div>
           </div>
         )}
+        {loadingMapEvents && (
+          <div className="absolute bottom-4 right-4 z-40 pointer-events-none">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1a1a26]/90 border border-white/10 text-xs text-gray-300 shadow-lg backdrop-blur-sm">
+              <svg className="w-3 h-3 animate-spin text-purple-400" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+              </svg>
+              <span>Chargement…</span>
+            </div>
+          </div>
+        )}
         <MapView
           ref={mapViewRef}
           salons={mapSalonsForView}

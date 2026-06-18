@@ -12,6 +12,8 @@ const WEB_PUSH_TYPES = new Set<AppNotification['type']>([
   'live_don',
   'salon_invite',
   'favorite_online',
+  'follow',
+  'mention',
 ]);
 
 let configured = false;
@@ -36,17 +38,22 @@ export function getVapidPublicKey(): string | null {
   return key || null;
 }
 
+function resolveNotificationUrl(n: AppNotification): string {
+  if (n.liveId != null) return `/live/${n.liveId}`;
+  if (n.salonId != null) return `/salon/${n.salonId}`;
+  if (n.postId != null) return `/feed/post/${n.postId}`;
+  if (n.reelId != null) return `/reels/${n.reelId}`;
+  if (n.peerUserId != null && (n.type === 'follow' || n.type === 'mention')) {
+    return `/profile/${n.peerUserId}`;
+  }
+  return '/';
+}
+
 function pushPayloadForNotification(n: AppNotification): string {
-  const url =
-    n.liveId != null
-      ? `/live/${n.liveId}`
-      : n.salonId != null
-        ? `/salon/${n.salonId}`
-        : '/';
   return JSON.stringify({
     title: 'Soundy',
     body: n.message,
-    url,
+    url: resolveNotificationUrl(n),
     tag: n.id,
     type: n.type,
   });
