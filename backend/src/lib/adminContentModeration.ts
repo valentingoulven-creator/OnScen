@@ -4,6 +4,7 @@ import { getIo } from './ioInstance';
 import { clearSalonPlaybackData } from './salonPlaybackOps';
 import { endLiveSession } from './liveArchive';
 import { schedulePersist } from './persist';
+import { schedulePersistReelToPg } from './pgReels';
 import {
   isAdminBlockedReel,
   isPrivateReel,
@@ -328,6 +329,7 @@ export function adminBlockReel(reelId: string): UserReel | null {
   if (!reel) return null;
   reel.adminBlocked = true;
   reel.adminBlockedAt = Date.now();
+  schedulePersistReelToPg(reel);
   return reel;
 }
 
@@ -336,6 +338,7 @@ export function adminUnblockReel(reelId: string): UserReel | null {
   if (!reel) return null;
   reel.adminBlocked = false;
   reel.adminBlockedAt = undefined;
+  schedulePersistReelToPg(reel);
   return reel;
 }
 

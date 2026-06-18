@@ -11,6 +11,14 @@ import {
   MAX_RECORDED_REEL_VIDEO_DATA_CHARS,
   REEL_UPLOAD_MAX_FILE_BYTES,
 } from './reelUploadLimits';
+import {
+  scheduleDeleteReelFromPg,
+  schedulePersistReelComment,
+  schedulePersistReelLike,
+  schedulePersistReelShare,
+  schedulePersistReelToPg,
+  schedulePersistReelView,
+} from './pgReels';
 
 /** Durées approximatives Mixkit — alignées sur app/src/content/reels.ts */
 const MIXKIT_DURATION_SEC: Record<number, number> = {
@@ -500,6 +508,7 @@ export function createUserReel(authorId: string, input: CreateUserReelInput): Us
   };
 
   db.userReels.push(reel);
+  schedulePersistReelToPg(reel);
   return reel;
 }
 
@@ -524,6 +533,7 @@ export function publishUserReel(reelId: string, userId: string): UserReel | { er
     };
   }
   reel.visibility = 'public';
+  schedulePersistReelToPg(reel);
   return reel;
 }
 
@@ -535,6 +545,7 @@ export function purgeReelById(reelId: string): boolean {
   db.reelComments.delete(reelId);
   db.reelShares.delete(reelId);
   db.reelViews.delete(reelId);
+  scheduleDeleteReelFromPg(reelId);
   return true;
 }
 
@@ -560,7 +571,9 @@ export function toggleReelHeart(reelId: string, userId: string): { liked: boolea
   } else {
     likes.add(userId);
   }
-  return { liked: likes.has(userId), heartCount: likes.size };
+  const liked = likes.has(userId);
+  schedulePersistReelLike(reelId, userId, liked);
+  return { liked, heartCount: likes.size };
 }
 
 export function getReelComments(reelId: string): ReelComment[] {
@@ -586,6 +599,7 @@ export function addReelComment(
   const list = getReelComments(reelId);
   list.push(comment);
   db.reelComments.set(reelId, list);
+  schedulePersistReelComment(comment);
   return comment;
 }
 
@@ -607,6 +621,7 @@ export function recordReelShare(
     return { alreadyShared: true, shareCount: shares.size };
   }
   shares.add(userId);
+  schedulePersistReelShare(reelId, userId);
   return { alreadyShared: false, shareCount: shares.size };
 }
 
@@ -628,6 +643,7 @@ export function recordReelView(
     return { alreadyViewed: true, viewCount: views.size };
   }
   views.add(userId);
+  schedulePersistReelView(reelId, userId);
   return { alreadyViewed: false, viewCount: views.size };
 }
 

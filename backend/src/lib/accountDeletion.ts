@@ -3,6 +3,10 @@ import { invalidateProfileCache } from '../routes/auth';
 import { purgeReportsForUser } from './contentReports';
 import { getIo } from './ioInstance';
 import { scheduleRemoveUserFromPg } from './pgUsers';
+import {
+  scheduleDeleteReelEngagementByUserFromPg,
+  scheduleDeleteReelsByAuthorFromPg,
+} from './pgReels';
 
 const DELETED_LABEL = '[Compte supprimé]';
 
@@ -75,6 +79,8 @@ export function deleteUserAccountCascade(userId: string): void {
     .filter((g) => g.memberIds.length > 0);
 
   db.userReels = db.userReels.filter((r) => r.authorId !== userId);
+  scheduleDeleteReelsByAuthorFromPg(userId);
+  scheduleDeleteReelEngagementByUserFromPg(userId);
 
   for (const [reelId, comments] of db.reelComments) {
     const filtered = comments.filter((c) => c.userId !== userId);

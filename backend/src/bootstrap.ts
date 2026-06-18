@@ -36,6 +36,7 @@ import { ensureDefaultSponsors, migrateSponsorMapVisibility } from './lib/sponso
 import { ensureDefaultSponsorPlatformConfig } from './lib/sponsorPlatformConfig';
 import { repairInvalidGeoInDb } from './lib/mapCoords';
 import { loadSalonsLivesFromPostgres } from './lib/pgSalonsLives';
+import { loadReelsFromPg } from './lib/pgReels';
 import { migrateAllUsersRelationshipStatus } from './lib/profile';
 import { getMsdevEnvPath } from './paths';
 import { startSessionLimitScheduler, stopSessionLimitScheduler } from './lib/sessionLimits';
@@ -240,6 +241,17 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
         }
       } catch (e) {
         console.warn('[soundly] Échec chargement salons/lives PostgreSQL:', e);
+      }
+      try {
+        const reelStats = await loadReelsFromPg();
+        if (reelStats.reels > 0) {
+          console.log(
+            `[soundly] Reels restaurés depuis PostgreSQL (${reelStats.reels} reel(s), ` +
+              `${reelStats.likes} like(s), ${reelStats.comments} commentaire(s))`
+          );
+        }
+      } catch (e) {
+        console.warn('[soundly] Échec chargement reels PostgreSQL:', e);
       }
     }
     const admins = ensureAccessAdmins();
