@@ -12,6 +12,16 @@ import { DmUnreadProvider } from './context/DmUnreadContext.tsx';
 
 initAppTheme();
 
+/** Design quick wins locaux — activer via VITE_DESIGN_QUICK_WINS=1 (.env.development.local). */
+if (import.meta.env.VITE_DESIGN_QUICK_WINS === '1') {
+  document.documentElement.setAttribute('data-design-quick-wins', '1');
+  const fontLink = document.createElement('link');
+  fontLink.rel = 'stylesheet';
+  fontLink.href =
+    'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap';
+  document.head.appendChild(fontLink);
+}
+
 const isMsdevBuild = import.meta.env.VITE_APP_ENV === 'msdev';
 
 function showPwaUpdateBar(onUpdate: () => void): void {

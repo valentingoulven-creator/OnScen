@@ -1991,3 +1991,96 @@ nav.ms-tab-bar-bottom > div {
     background: #1a1a26;
   }
 }
+
+/* ── Design quick wins (local flag: VITE_DESIGN_QUICK_WINS=1) ─────────
+   Revert: retirer la variable d'env OU `git checkout master && git branch -D design/quick-wins-local`
+   Doc: msdev/DESIGN-QUICK-WINS-LOCAL.txt
+   ─────────────────────────────────────────────────────────────────── */
+
+[data-design-quick-wins="1"] {
+  --ms-live: #ef4444;
+  --ms-live-glow: rgba(239, 68, 68, 0.55);
+  --ms-salon: #d946ef;
+  --ms-salon-glow: rgba(217, 70, 239, 0.45);
+  --ms-event: #a855f7;
+  --ms-event-glow: rgba(168, 85, 247, 0.45);
+  --ms-glass: rgba(18, 18, 26, 0.72);
+  --ms-glass-border: rgba(255, 255, 255, 0.08);
+  font-family: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
+}
+
+[data-design-quick-wins="1"] nav.ms-tab-bar-bottom > div {
+  background: var(--ms-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--ms-glass-border);
+  border-radius: 9999px;
+  padding: 0.375rem 0.75rem;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+}
+
+[data-design-quick-wins="1"] .ms-map-filter-stack {
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: min(22rem, calc(100vw - 5rem));
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+[data-design-quick-wins="1"] .ms-map-filter-stack::-webkit-scrollbar {
+  display: none;
+}
+
+[data-design-quick-wins="1"] .ms-map-filter-stack > div,
+[data-design-quick-wins="1"] .ms-map-filter-stack > button {
+  width: auto;
+  flex-shrink: 0;
+  scroll-snap-align: start;
+}
+
+[data-design-quick-wins="1"] .map-marker.live img,
+[data-design-quick-wins="1"] .map-marker.person.live img {
+  border-color: var(--ms-live);
+  box-shadow:
+    0 0 0 2px var(--ms-live-glow),
+    0 4px 14px var(--ms-live-glow);
+}
+
+[data-design-quick-wins="1"] .map-marker .live-badge {
+  background: var(--ms-live);
+  box-shadow: 0 0 8px var(--ms-live-glow);
+}
+
+[data-design-quick-wins="1"] .map-marker-overview-dot.live,
+[data-design-quick-wins="1"] .map-marker-overview-dot.salon.live {
+  background: var(--ms-live);
+  box-shadow: 0 0 10px var(--ms-live-glow);
+}
+
+@keyframes ms-live-glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 4px var(--ms-live-glow), 0 0 8px var(--ms-live-glow);
+  }
+  50% {
+    box-shadow: 0 0 10px var(--ms-live-glow), 0 0 18px var(--ms-live-glow);
+  }
+}
+
+[data-design-quick-wins="1"] .live-indicator-dot {
+  animation: ms-live-glow-pulse 1.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-design-quick-wins="1"] .live-indicator-dot {
+    animation: live-blink 1.2s ease-in-out infinite;
+  }
+}

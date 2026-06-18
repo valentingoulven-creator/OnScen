@@ -1749,7 +1749,7 @@ export function HomePage({
             disabled={locating}
             title={recenterLabel}
             aria-label={recenterLabel}
-            className="w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center rounded-full bg-[#12121a] border border-[#2d2d3d] hover:border-indigo-500/60 text-indigo-400 shadow-lg disabled:opacity-50 active:scale-95 transition shrink-0"
+            className="w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center rounded-full bg-[var(--ms-surface)] border border-[var(--ms-border)] hover:border-indigo-500/60 text-indigo-400 shadow-lg disabled:opacity-50 active:scale-95 transition shrink-0"
           >
             {locating ? (
               <span className="w-5 h-5 border-2 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin" />
@@ -1762,7 +1762,7 @@ export function HomePage({
           </button>
         </div>
 
-        <div className="absolute top-3 left-3 z-30 inline-flex flex-col gap-2 pointer-events-auto">
+        <div className="ms-map-filter-stack absolute top-3 left-3 z-30 inline-flex flex-col gap-2 pointer-events-auto">
           <div className="relative w-full">
             <button
               type="button"
@@ -1887,7 +1887,7 @@ export function HomePage({
             onClick={toggleMapStyle}
             title={mapStyle === 'flat' ? 'Vue globe satellite' : 'Vue carte sombre'}
             aria-label={mapStyle === 'flat' ? 'Vue globe satellite' : 'Vue carte sombre'}
-            className={`self-center w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center rounded-full bg-[#12121a] border shadow-lg active:scale-95 transition shrink-0 text-lg ${mapStyle === 'globe' ? 'border-indigo-500 text-indigo-300' : 'border-[#2d2d3d] hover:border-indigo-500/60 text-white/70 hover:text-white'}`}
+            className={`self-center w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center rounded-full bg-[var(--ms-surface)] border shadow-lg active:scale-95 transition shrink-0 text-lg ${mapStyle === 'globe' ? 'border-indigo-500 text-indigo-300' : 'border-[var(--ms-border)] hover:border-indigo-500/60 text-white/70 hover:text-white'}`}
           >
             {mapStyle === 'globe' ? '🗺️' : '🌐'}
           </button>

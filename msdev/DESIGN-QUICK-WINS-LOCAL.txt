@@ -1,0 +1,36 @@
+Design quick wins — activation locale (Soundy / MeloSong app)
+==============================================================
+
+Branche : design/quick-wins-local
+
+Activer
+-------
+1. Créer ou éditer app/.env.development.local (gitignored) :
+   VITE_DESIGN_QUICK_WINS=1
+
+2. Redémarrer le serveur dev Vite (npm run dev dans app/).
+
+Désactiver (sans toucher au code)
+---------------------------------
+- Retirer VITE_DESIGN_QUICK_WINS ou mettre VITE_DESIGN_QUICK_WINS=0
+- Redémarrer le serveur dev
+
+Revenir complètement en arrière
+-------------------------------
+  git checkout master
+  git branch -D design/quick-wins-local
+
+Contenu visuel (flag actif)
+---------------------------
+- Tokens sémantiques (--ms-live, --ms-salon, --ms-event, --ms-glass)
+- Police Plus Jakarta Sans
+- Barre d'onglets bas : fond verre (blur + opacité)
+- Filtres carte : rangée horizontale scrollable
+- Indicateurs LIVE : halo lumineux
+
+Fichiers modifiés (branche)
+---------------------------
+- app/src/index.css
+- app/src/main.tsx
+- app/src/vite-env.d.ts
+- app/src/pages/HomePage.tsx
