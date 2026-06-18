@@ -2040,16 +2040,24 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 /* Dock flottant — safe-area sur le pill uniquement (pas de bande pleine largeur) */
 [data-design-quick-wins="1"] nav.ms-tab-bar-bottom {
   padding-bottom: 0;
+  min-height: 0;
+  height: auto;
   background: transparent;
+  box-shadow: none;
 }
 
-/* Reels plein écran — le contenu passe sous le dock, pas de réserve body sous la vidéo */
-[data-design-quick-wins="1"] .ms-app-shell--bottom-tabs main.ms-app-main:has(.ms-reels-root) {
+/* Contenu edge-to-edge sous le dock flottant — tous les onglets (pas de réserve #0b0b0f) */
+[data-design-quick-wins="1"] .ms-app-shell--bottom-tabs main.ms-app-main {
   padding-bottom: 0;
 }
 
 [data-design-quick-wins="1"] .ms-reels-root .reels-viewport {
   padding-bottom: 0;
+}
+
+/* Scroll : dernier contenu dégagé sous le pill sans réserver une bande noire fixe */
+[data-design-quick-wins="1"] .feed-scroll {
+  scroll-padding-bottom: calc(var(--tab-nav-total-h) + 0.5rem);
 }
 
 /* Sound Rail — onglet sélectionné surélevé (vinyl LIVE si actif) */
