@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
-import { applyFeedPreferences, sortFeedPostsByPublicationDate } from '../lib/feedFilter';
+import { applyFeedPreferences, boostPostsByGenreAffinity, sortFeedPostsByPublicationDate } from '../lib/feedFilter';
 import { HOME_FEED_DISPLAY_PREFS } from '../lib/feedUserPrefs';
 import { UsernameDisplay } from '../components/UsernameDisplay';
 import { fetchStoriesBundle } from '../lib/storiesApiCache';
@@ -1070,11 +1070,13 @@ export function ActualiteTabPage({
 
   const visiblePosts = useMemo(() => {
     if (!user?.id) return sortFeedPostsByPublicationDate(posts);
-    return applyFeedPreferences(posts, HOME_FEED_DISPLAY_PREFS, {
+    const filtered = applyFeedPreferences(posts, HOME_FEED_DISPLAY_PREFS, {
       viewerId: user.id,
       favoriteIds,
       viewerTastes,
     });
+    // Boost posts from genre-matched authors when the user has favorite genres set
+    return boostPostsByGenreAffinity(filtered, viewerTastes.favoriteGenres);
   }, [posts, user?.id, favoriteIds, viewerTastes]);
 
   const communityEvents = useMemo(

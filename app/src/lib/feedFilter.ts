@@ -1,6 +1,7 @@
 import type { FeedPost, ProfileType } from '../types';
 import {
   hasMusicalAffinity,
+  normalizeTags,
   type ProfileTastes,
   viewerHasTasteProfile,
 } from './musicAffinities';
@@ -55,6 +56,34 @@ function passesAffinityFilter(
     favoriteGenres: post.author.favoriteGenres,
     favoriteArtists: post.author.favoriteArtists,
   });
+}
+
+/**
+ * Booste les publications dont l'auteur partage au moins un genre avec le viewer,
+ * sans en masquer aucune. Les posts avec affinité sont mis en tête (triés par date),
+ * suivis des autres (triés par date).
+ */
+export function boostPostsByGenreAffinity(
+  posts: FeedPost[],
+  viewerGenres: string[] | undefined
+): FeedPost[] {
+  if (!viewerGenres || viewerGenres.length === 0) return sortFeedPostsByPublicationDate(posts);
+  const viewerSet = normalizeTags(viewerGenres);
+  const boosted: FeedPost[] = [];
+  const rest: FeedPost[] = [];
+  for (const post of posts) {
+    const authorSet = normalizeTags(post.author.favoriteGenres);
+    let match = false;
+    for (const g of viewerSet) {
+      if (authorSet.has(g)) { match = true; break; }
+    }
+    if (match) boosted.push(post);
+    else rest.push(post);
+  }
+  return [
+    ...sortFeedPostsByPublicationDate(boosted),
+    ...sortFeedPostsByPublicationDate(rest),
+  ];
 }
 
 /** Applique les préférences du fil d'actualité (le filtre ne masque jamais vos propres publications). */

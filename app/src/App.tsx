@@ -28,6 +28,7 @@ import {
   isVerifyEmailRoute,
 } from './lib/forgotPasswordRoute';
 import { OnboardingPage } from './pages/OnboardingPage';
+import { GenreOnboardingPrompt, shouldShowGenrePrompt } from './components/GenreOnboardingPrompt';
 import { NotificationBell } from './components/NotificationBell';
 import { AdminHeaderButton } from './components/AdminHeaderButton';
 import { PrivacyVisibilityMenu } from './components/PrivacyVisibilityMenu';
@@ -120,6 +121,7 @@ export default function App() {
   const [msdevRebuildError, setMsdevRebuildError] = useState<string | null>(null);
   /** Après réduction du grand salon : rouvrir la fiche carte sur l'onglet Carte. */
   const [restoreSalonOnMapId, setRestoreSalonOnMapId] = useState<string | null>(null);
+  const [showGenrePrompt, setShowGenrePrompt] = useState(false);
   /** Publication du fil à mettre en avant (depuis la carte). */
   const [focusFeedPostId, setFocusFeedPostId] = useState<string | null>(null);
   /** Salon ouvert (grand écran ou minimisé) — persiste hors vue salon pour la barre retour. */
@@ -142,6 +144,14 @@ export default function App() {
     setRestoreSalonOnMapId(null);
     setMapSalonActiveId(null);
   }, [token]);
+
+  useEffect(() => {
+    if (user?.onboardingCompleted && shouldShowGenrePrompt(user.favoriteGenres)) {
+      setShowGenrePrompt(true);
+    }
+  // Run once per user session (user.id change = new login)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const salonRestoredOnBootRef = useRef(false);
   useEffect(() => {
@@ -942,6 +952,10 @@ export default function App() {
           onSelectTab={selectTab}
           placement="bottom"
         />
+      )}
+
+      {showGenrePrompt && (
+        <GenreOnboardingPrompt onDismiss={() => setShowGenrePrompt(false)} />
       )}
     </div>
   );
