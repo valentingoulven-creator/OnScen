@@ -2,9 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api';
 import {
-  isPlatformConnected,
+  isProfilePlatformConnected,
   PLATFORM_LABELS,
   type ConnectPlatform,
+  type PlatformLinkSummary,
 } from '../lib/platformConnect';
 import { PLATFORM_STATUS_REFRESH_EVENT } from '../lib/platformStatusEvents';
 import type { User } from '../types';
@@ -56,7 +57,7 @@ function platformConnectButtonClasses(platform: ConnectPlatform, available: bool
 export function PlatformConnectCard({
   token,
   platform,
-  connectedPlatforms,
+  connectedPlatforms: _connectedPlatforms,
   platformLinks,
   compact,
   onUserUpdated,
@@ -76,7 +77,14 @@ export function PlatformConnectCard({
   const [spotifyProduct, setSpotifyProduct] = useState<string | undefined>();
   const [spotifyPremium, setSpotifyPremium] = useState<boolean | undefined>();
 
-  const linked = isPlatformConnected(connectedPlatforms, platform, platformLinks ?? (platformLink ? [platformLink] : undefined));
+  const mergedPlatformLinks: PlatformLinkSummary[] = [
+    ...(platformLinks ?? []),
+    ...(platformLink && !platformLinks?.some((l) => l.platform === platform) ? [platformLink] : []),
+  ];
+  const linked = isProfilePlatformConnected(
+    platform,
+    mergedPlatformLinks.length ? mergedPlatformLinks : undefined
+  );
   const spotifyNeedsReconnect =
     platform === 'spotify' && linked && spotifySessionValid === false;
   const spotifyPremiumRequired =

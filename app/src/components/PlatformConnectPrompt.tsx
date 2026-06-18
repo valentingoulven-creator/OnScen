@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { hasRealMusicPlatformLink } from '../lib/platformConnect';
 import { PLATFORM_STATUS_REFRESH_EVENT } from '../lib/platformStatusEvents';
 import { PlatformConnectCard } from './PlatformConnectCard';
 import type { User } from '../types';
@@ -21,30 +22,38 @@ export function PlatformConnectPrompt({
 }: PlatformConnectPromptProps) {
   const [visible, setVisible] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const [oauthConfigured, setOauthConfigured] = useState(false);
 
-  const evaluate = useCallback(() => {
-    if (sessionStorage.getItem(DISMISS_KEY) === '1') {
-      setVisible(false);
-      return;
-    }
-    api
-      .getPlatformStatus(token)
-      .then((s) => {
-        const required = s.platformConnectionRequired ?? s.oauthConfigured ?? false;
-        const connected = s.hasRealPlatformConnection ?? false;
-        setOauthConfigured(required);
-        setVisible(required && !connected);
-      })
-      .catch(() => setVisible(false));
-  }, [token]);
+  const evaluate = useCallback(
+    (fresh = false) => {
+      if (sessionStorage.getItem(DISMISS_KEY) === '1') {
+        setVisible(false);
+        return;
+      }
+      if (hasRealMusicPlatformLink(user.platformLinks)) {
+        setVisible(false);
+        return;
+      }
+      api
+        .getPlatformStatus(token, fresh ? { fresh: true } : undefined)
+        .then((s) => {
+          const required = s.platformConnectionRequired ?? s.oauthConfigured ?? false;
+          const connected =
+            hasRealMusicPlatformLink(user.platformLinks) ||
+            hasRealMusicPlatformLink(s.links) ||
+            Boolean(s.hasRealPlatformConnection);
+          setVisible(required && !connected);
+        })
+        .catch(() => setVisible(false));
+    },
+    [token, user.platformLinks]
+  );
 
   useEffect(() => {
-    evaluate();
-  }, [evaluate, user.connectedPlatforms]);
+    evaluate(true);
+  }, [evaluate, user.connectedPlatforms, user.platformLinks]);
 
   useEffect(() => {
-    const onRefresh = () => evaluate();
+    const onRefresh = () => evaluate(true);
     window.addEventListener(PLATFORM_STATUS_REFRESH_EVENT, onRefresh);
     return () => window.removeEventListener(PLATFORM_STATUS_REFRESH_EVENT, onRefresh);
   }, [evaluate]);
@@ -100,9 +109,13 @@ export function PlatformConnectPrompt({
               token={token}
               platform={p}
               connectedPlatforms={user.connectedPlatforms}
+              platformLinks={user.platformLinks}
               onUserUpdated={(u) => {
                 onUserUpdated(u);
-                if (oauthConfigured) evaluate();
+                if (hasRealMusicPlatformLink(u.platformLinks)) {
+                  setVisible(false);
+                }
+                evaluate(true);
               }}
             />
           ))}

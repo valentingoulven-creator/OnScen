@@ -45,7 +45,7 @@ export function AdminPage({
   ];
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-[#0b0b0f] text-white">
+    <div className="flex flex-col flex-1 min-h-0 h-full overflow-hidden bg-[#0b0b0f] text-white">
       <header className="shrink-0 z-10 bg-[#0b0b0f]/95 border-b border-[#1e1e2f] px-4 py-3 ms-safe-area-top">
         <div className="flex items-center gap-3 max-w-lg mx-auto min-w-0">
           {onBack && (

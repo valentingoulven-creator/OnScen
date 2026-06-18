@@ -123,6 +123,12 @@ export function MapStoriesAccordion({
 
   const filterActive = prefs.favoritesFirst || prefs.filterByDistance;
 
+  // Round GPS coords to ~1 km granularity so fetchStoryFeed is not re-created
+  // (and stories not re-fetched) on every sub-kilometre GPS micro-update.
+  // The story radius query doesn't need sub-km precision.
+  const storyGeoLat = Math.round(mapGeo.latitude  * 100) / 100;
+  const storyGeoLng = Math.round(mapGeo.longitude * 100) / 100;
+
   const fetchStoryFeed = useCallback(async () => {
     if (!token) {
       setStoryFeed(null);
@@ -137,8 +143,8 @@ export function MapStoriesAccordion({
         api.getMyFavorites(token),
         api.getReelsFeed(token),
         api.getStories(token, {
-          latitude: mapGeo.latitude,
-          longitude: mapGeo.longitude,
+          latitude: storyGeoLat,
+          longitude: storyGeoLng,
           radius: storyRadius,
         }),
         api.getMyStory(token),
@@ -165,7 +171,7 @@ export function MapStoriesAccordion({
     } finally {
       setLoading(false);
     }
-  }, [token, prefs.filterByDistance, radiusKm, mapGeo.latitude, mapGeo.longitude]);
+  }, [token, prefs.filterByDistance, radiusKm, storyGeoLat, storyGeoLng]);
 
   useEffect(() => {
     void fetchStoryFeed();

@@ -392,9 +392,10 @@ main.ms-app-main {
   z-index: 75;
 }
 
+/* Admin scrollable comme profil : overlay jusqu'en bas du main ; le padding scroll
+   (design-quick-wins + .ms-app-profile-overlay .overflow-y-auto) dégage les onglets. */
 .ms-app-shell--bottom-tabs .ms-app-admin-overlay {
-  /* Même recette que .ms-salon-fullscreen-overlay : ne pas peindre sous la barre d'onglets */
-  bottom: var(--tab-nav-total-h);
+  bottom: 0;
 }
 
 /* Shell classique : réserve la hauteur de la barre d'onglets fixe en bas */

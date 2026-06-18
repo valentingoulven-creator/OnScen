@@ -77,6 +77,57 @@ const EMPTY_RINGS: GlobeRing[] = [];
 const EMPTY_CAPITAL_LABELS: GlobeCapitalLabel[] = [];
 
 /**
+ * Stable WebGL renderer configuration.
+ *
+ * Must be a module-level constant so the same object reference is passed on
+ * every render.  react-globe.gl forwards rendererConfig to the Three.js
+ * WebGLRenderer constructor; a new object reference on every render risks
+ * triggering renderer re-creation (context destroy + recreate) in versions that
+ * do not memo the config themselves.
+ *
+ * preserveDrawingBuffer is intentionally false (the WebGL default):
+ *   – true forces the GPU to keep the full colour buffer alive between frames,
+ *     preventing the driver from using double-buffering / buffer-swap optimisation.
+ *   – On integrated GPUs this costs roughly 2–5 ms per frame → 10–20 % overhead
+ *     at 60 fps, visible as globe stuttering especially on mobile.
+ *   – The only reason to enable it is canvas.toDataURL() screenshots; Soundy does
+ *     not take globe screenshots, so the flag is unnecessary.
+ */
+const GLOBE_RENDERER_CONFIG = {
+  antialias: GLOBE_USE_ANTIALIAS,
+  alpha: true,
+  powerPreference: 'default' as WebGLPowerPreference,
+  failIfMajorPerformanceCaveat: false,
+  preserveDrawingBuffer: false,
+};
+
+/**
+ * Stable accessor functions for react-globe.gl layer props.
+ *
+ * react-globe.gl's underlying ThreeGlobe library tracks accessor function
+ * identity: when a function reference changes it schedules a full geometry
+ * rebuild for the affected layer.  Inline JSX arrow functions are new object
+ * references on every React render, so they cause unnecessary Three.js buffer
+ * re-uploads on every re-render even when the actual data has not changed.
+ *
+ * Module-level functions are always the same reference → no spurious rebuilds.
+ */
+const getPointLat    = (d: object) => (d as GlobePoint).lat;
+const getPointLng    = (d: object) => (d as GlobePoint).lng;
+const getPointColor  = (d: object) => (d as GlobePoint).color;
+const getPointRadius = (d: object) => (d as GlobePoint).radius;
+const getPointLabel  = (d: object) => (d as GlobePoint).label;
+
+const getRingLat   = (d: object) => (d as GlobeRing).lat;
+const getRingLng   = (d: object) => (d as GlobeRing).lng;
+const getRingColor = () => 'rgba(248, 113, 113, 0.5)';
+
+const getLabelLat   = (d: object) => (d as GlobeCapitalLabel).lat;
+const getLabelLng   = (d: object) => (d as GlobeCapitalLabel).lng;
+const getLabelText  = (d: object) => (d as GlobeCapitalLabel).text;
+const getLabelColor = () => 'rgba(210, 210, 255, 0.88)';
+
+/**
  * Shallow equality over the fields that drive Three.js geometry / material.
  * If these fields are unchanged, Three.js does not need to re-upload the buffer.
  */
@@ -721,13 +772,7 @@ export const GlobeView = memo(function GlobeView({
           height={size.h}
           animateIn={false}
           waitForGlobeReady={false}
-          rendererConfig={{
-            antialias: GLOBE_USE_ANTIALIAS,
-            alpha: true,
-            powerPreference: 'default',
-            failIfMajorPerformanceCaveat: false,
-            preserveDrawingBuffer: true,
-          }}
+          rendererConfig={GLOBE_RENDERER_CONFIG}
           // Earth-at-night texture: dark continents + city lights (bundled locally)
           globeImageUrl={GLOBE_EARTH_TEXTURE}
           backgroundImageUrl={GLOBE_SKY_TEXTURE}
@@ -738,29 +783,29 @@ export const GlobeView = memo(function GlobeView({
           labelsTransitionDuration={0}
           // Salon / live / person markers
           pointsData={points}
-          pointLat={(d) => (d as GlobePoint).lat}
-          pointLng={(d) => (d as GlobePoint).lng}
-          pointColor={(d) => (d as GlobePoint).color}
-          pointRadius={(d) => (d as GlobePoint).radius}
+          pointLat={getPointLat}
+          pointLng={getPointLng}
+          pointColor={getPointColor}
+          pointRadius={getPointRadius}
           pointAltitude={0.008}
           pointResolution={pointResolution}
-          pointLabel={(d) => (d as GlobePoint).label}
+          pointLabel={getPointLabel}
           onPointClick={handlePointClick}
           // Animated pulsing rings on live sessions
           ringsData={liveRings}
-          ringLat={(d) => (d as GlobeRing).lat}
-          ringLng={(d) => (d as GlobeRing).lng}
-          ringColor={() => 'rgba(248, 113, 113, 0.5)'}
+          ringLat={getRingLat}
+          ringLng={getRingLng}
+          ringColor={getRingColor}
           ringMaxRadius={3.5}
           ringPropagationSpeed={2}
           ringRepeatPeriod={800}
           // Capital city labels (hidden in events-only mode)
           labelsData={capitalLabels}
-          labelLat={(d) => (d as GlobeCapitalLabel).lat}
-          labelLng={(d) => (d as GlobeCapitalLabel).lng}
-          labelText={(d) => (d as GlobeCapitalLabel).text}
+          labelLat={getLabelLat}
+          labelLng={getLabelLng}
+          labelText={getLabelText}
           labelSize={0.45}
-          labelColor={() => 'rgba(210, 210, 255, 0.88)'}
+          labelColor={getLabelColor}
           labelDotRadius={0.3}
           labelAltitude={0.003}
           labelResolution={3}

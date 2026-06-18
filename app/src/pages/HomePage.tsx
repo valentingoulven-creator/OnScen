@@ -472,6 +472,17 @@ export function HomePage({
 
   const showAllSalonsAtCityZoom = shouldShowAllSalonsAtCityZoom(salonFilterOn);
 
+  // Extract individual mapDetailState fields used as useMemo dependencies.
+  //
+  // Using the full `mapDetailState` object as a dep would invalidate every memo
+  // that touches viewport clipping whenever ANY field changes (including flatZoom
+  // or globeAltitude), even when bounds/style/tier haven't changed.  Listing
+  // individual fields lets each memo stay stable when only irrelevant fields update.
+  const mapDetailBounds   = mapDetailState.bounds;
+  const mapDetailMapStyle = mapDetailState.mapStyle;
+  const mapDetailTier     = mapDetailState.tier;
+  const mapDetailFlatZoom = mapDetailState.flatZoom;
+
   const mapSalonsForView = useMemo(() => {
     if (!anyMapFilterActive) return mapSalons;
 
@@ -485,9 +496,15 @@ export function HomePage({
 
     if (salonFilterOn) {
       // Salon filter: public salons in the visible viewport (map-browsing mode).
-      addSalons(filterSalonsForSalonMapFilter(salons, mapDetailState.bounds));
+      addSalons(filterSalonsForSalonMapFilter(salons, mapDetailBounds));
     } else if (livesFilterOn) {
-      addSalons(clipSalonsForMapView(mapSalons, mapDetailState, nearbyFetchCenter));
+      addSalons(
+        clipSalonsForMapView(
+          mapSalons,
+          { bounds: mapDetailBounds, mapStyle: mapDetailMapStyle },
+          nearbyFetchCenter
+        )
+      );
     }
 
     return sortSalonsForNearby([...merged.values()], nearbyPanelPrefs.sortBy, nearbySortOptions);
@@ -497,7 +514,8 @@ export function HomePage({
     livesFilterOn,
     salons,
     mapSalons,
-    mapDetailState,
+    mapDetailBounds,
+    mapDetailMapStyle,
     nearbyFetchCenter,
     nearbyPanelPrefs.sortBy,
     nearbySortOptions,
@@ -506,14 +524,22 @@ export function HomePage({
   const mapLivesForView = useMemo(() => {
     if (!anyMapFilterActive) return mapLives;
     if (!livesFilterOn) return [];
-    return clipLivesForMapView(mapLives, mapDetailState, nearbyFetchCenter);
-  }, [anyMapFilterActive, livesFilterOn, mapLives, mapDetailState, nearbyFetchCenter]);
+    return clipLivesForMapView(
+      mapLives,
+      { bounds: mapDetailBounds, mapStyle: mapDetailMapStyle },
+      nearbyFetchCenter
+    );
+  }, [anyMapFilterActive, livesFilterOn, mapLives, mapDetailBounds, mapDetailMapStyle, nearbyFetchCenter]);
 
   const mapPeopleForView = useMemo(() => {
     if (!anyMapFilterActive) return mapPeople;
     if (!livesFilterOn) return [];
-    return clipPeopleForMapView(mapPeople, mapDetailState, nearbyFetchCenter);
-  }, [anyMapFilterActive, livesFilterOn, mapPeople, mapDetailState, nearbyFetchCenter]);
+    return clipPeopleForMapView(
+      mapPeople,
+      { bounds: mapDetailBounds, mapStyle: mapDetailMapStyle },
+      nearbyFetchCenter
+    );
+  }, [anyMapFilterActive, livesFilterOn, mapPeople, mapDetailBounds, mapDetailMapStyle, nearbyFetchCenter]);
   const filteredMapEvents = useMemo(
     () => filterMapEventsByCriteria(mapEvents, eventFilterCriteria, { viewerId: user?.id }),
     [mapEvents, eventFilterCriteria, user?.id]
@@ -529,40 +555,30 @@ export function HomePage({
    * On globe or when bounds are unknown the full cluster list is passed through.
    */
   const mapEventClustersForMap = useMemo(() => {
-    if (mapDetailState.tier === 'overview') return mapEventClusters;
-    if (mapDetailState.mapStyle !== 'flat' || !mapDetailState.bounds) return mapEventClusters;
-    return filterEventClustersInViewport(
-      mapEventClusters,
-      mapDetailState.bounds,
-      mapDetailState.tier
-    );
-  }, [mapEventClusters, mapDetailState.mapStyle, mapDetailState.bounds, mapDetailState.tier]);
+    if (mapDetailTier === 'overview') return mapEventClusters;
+    if (mapDetailMapStyle !== 'flat' || !mapDetailBounds) return mapEventClusters;
+    return filterEventClustersInViewport(mapEventClusters, mapDetailBounds, mapDetailTier);
+  }, [mapEventClusters, mapDetailMapStyle, mapDetailBounds, mapDetailTier]);
 
   /** Panneau ville : événements filtrés par viewport au zoom ville / rue. */
   const selectedEventClusterForPanel = useMemo(() => {
     if (!selectedEventCluster) return null;
-    if (
-      mapDetailState.mapStyle !== 'flat' ||
-      !mapDetailState.bounds ||
-      mapDetailState.tier === 'overview'
-    ) {
+    if (mapDetailMapStyle !== 'flat' || !mapDetailBounds || mapDetailTier === 'overview') {
       return selectedEventCluster;
     }
-    const eventsInView = filterMarkersInViewport(
-      selectedEventCluster.events,
-      mapDetailState.bounds
-    );
-    return {
-      ...selectedEventCluster,
-      events: eventsInView,
-      count: eventsInView.length,
-    };
-  }, [selectedEventCluster, mapDetailState.mapStyle, mapDetailState.bounds, mapDetailState.tier]);
+    const eventsInView = filterMarkersInViewport(selectedEventCluster.events, mapDetailBounds);
+    return { ...selectedEventCluster, events: eventsInView, count: eventsInView.length };
+  }, [selectedEventCluster, mapDetailMapStyle, mapDetailBounds, mapDetailTier]);
 
+  // buildMapSidebarContent only reads detail.tier, detail.mapStyle and detail.bounds
+  // (flatZoom / globeAltitude are not used inside that function).
+  // All four field variables are extracted above the memos block.
   const mapSidebarContent = useMemo(
     () =>
       buildMapSidebarContent({
-        detail: mapDetailState,
+        // Pass only the fields the function actually reads; flatZoom and
+        // globeAltitude are unused so placeholder values keep types happy.
+        detail: { tier: mapDetailTier, mapStyle: mapDetailMapStyle, bounds: mapDetailBounds, flatZoom: 0, globeAltitude: null },
         eventsFilterOn,
         livesFilterOn,
         salonFilterOn,
@@ -577,7 +593,9 @@ export function HomePage({
         nearbyFetchCenter,
       }),
     [
-      mapDetailState,
+      mapDetailTier,
+      mapDetailMapStyle,
+      mapDetailBounds,
       eventsFilterOn,
       livesFilterOn,
       salonFilterOn,
@@ -1188,30 +1206,29 @@ export function HomePage({
     : 'Recentrer sur ma position';
 
   const mapSponsorViewport = useMemo((): MapSponsorViewport | null => {
-    const sponsorZoomForTier =
-      mapDetailState.tier === 'street' ? 12 : mapDetailState.tier === 'city' ? 9 : 6;
+    const sponsorZoomForTier = mapDetailTier === 'street' ? 12 : mapDetailTier === 'city' ? 9 : 6;
 
-    if (mapDetailState.mapStyle === 'flat' && mapDetailState.bounds) {
-      const [lat, lng] = getMapBoundsCenter(mapDetailState.bounds);
+    if (mapDetailMapStyle === 'flat' && mapDetailBounds) {
+      const [lat, lng] = getMapBoundsCenter(mapDetailBounds);
       const zoom =
-        mapDetailState.tier === 'overview'
-          ? Math.min(mapDetailState.flatZoom, sponsorZoomForTier)
-          : mapDetailState.flatZoom;
+        mapDetailTier === 'overview'
+          ? Math.min(mapDetailFlatZoom, sponsorZoomForTier)
+          : mapDetailFlatZoom;
       return {
         lat,
         lng,
         zoom,
-        north: mapDetailState.bounds.north,
-        south: mapDetailState.bounds.south,
-        east: mapDetailState.bounds.east,
-        west: mapDetailState.bounds.west,
+        north: mapDetailBounds.north,
+        south: mapDetailBounds.south,
+        east: mapDetailBounds.east,
+        west: mapDetailBounds.west,
       };
     }
-    if (mapDetailState.mapStyle === 'globe') {
+    if (mapDetailMapStyle === 'globe') {
       return { lat: center[0], lng: center[1], zoom: sponsorZoomForTier };
     }
     return { lat: center[0], lng: center[1], zoom: sponsorZoomForTier };
-  }, [mapDetailState, center]);
+  }, [mapDetailTier, mapDetailMapStyle, mapDetailBounds, mapDetailFlatZoom, center]);
 
   const recenterMap = useCallback(() => {
     const geo = getLivesGeo();
