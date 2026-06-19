@@ -509,23 +509,29 @@ export default function App() {
   const handleSalonTitleLoaded = useCallback((title?: string) => {
     setActiveSalonSession((prev) => {
       if (!prev) return prev;
-      return { ...prev, title: title ?? prev.title };
+      const nextTitle = title ?? prev.title;
+      // Return same reference when nothing changed to avoid spurious App re-renders (#185)
+      if (nextTitle === prev.title) return prev;
+      return { ...prev, title: nextTitle };
     });
   }, []);
 
   const handleMapSalonActive = useCallback((session: { id: string; title?: string; isHost?: boolean } | null) => {
     setMapSalonActiveId(session?.id ?? null);
     if (session) {
-      setActiveSalonSession((prev) =>
-        prev?.id === session.id
-          ? {
-              id: session.id,
-              title: session.title ?? prev.title,
-              viewMode: prev?.viewMode === 'full' ? 'full' : (prev?.viewMode ?? 'minimized'),
-              isHost: session.isHost ?? prev.isHost,
-            }
-          : { id: session.id, title: session.title, viewMode: 'minimized', isHost: session.isHost }
-      );
+      setActiveSalonSession((prev) => {
+        if (prev?.id === session.id) {
+          const nextTitle = session.title ?? prev.title;
+          const nextViewMode = prev?.viewMode === 'full' ? 'full' : (prev?.viewMode ?? 'minimized');
+          const nextIsHost = session.isHost ?? prev.isHost;
+          // Return same reference when nothing changed to avoid spurious App re-renders (#185)
+          if (nextTitle === prev.title && nextViewMode === prev.viewMode && nextIsHost === prev.isHost) {
+            return prev;
+          }
+          return { id: session.id, title: nextTitle, viewMode: nextViewMode, isHost: nextIsHost };
+        }
+        return { id: session.id, title: session.title, viewMode: 'minimized', isHost: session.isHost };
+      });
     }
   }, []);
 

@@ -505,12 +505,16 @@ export function SalonPlaybackPanel({
 
   useEffect(() => {
     if (effectiveShowYoutubeVideo) return;
+    // Guard: skip if float is already inactive — prevents spurious store writes and App re-renders (#185)
+    if (!floatPipActiveRef.current) return;
     setFloatPipActive(false);
   }, [effectiveShowYoutubeVideo, setFloatPipActive]);
 
   useEffect(() => {
     if (playbackState.trackId === prevFloatResetTrackRef.current) return;
     prevFloatResetTrackRef.current = playbackState.trackId;
+    // Guard: skip if float is already inactive — prevents spurious store writes and App re-renders (#185)
+    if (!floatPipActiveRef.current) return;
     setFloatPipActive(false);
   }, [playbackState.trackId, setFloatPipActive]);
 

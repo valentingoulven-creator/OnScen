@@ -74,6 +74,8 @@ export function useDraggableVideoPip(active: boolean, onClose: () => void): Vide
     if (!active) return;
     setPos((current) => {
       const next = clampToViewport(current.x, current.y);
+      // Return same reference when coords are unchanged to avoid a gratuitous re-render (#185)
+      if (next.x === current.x && next.y === current.y) return current;
       persistPos(next);
       return next;
     });
@@ -83,6 +85,8 @@ export function useDraggableVideoPip(active: boolean, onClose: () => void): Vide
     const onResize = () => {
       setPos((current) => {
         const next = clampToViewport(current.x, current.y);
+        // Return same reference when coords are unchanged to avoid a gratuitous re-render (#185)
+        if (next.x === current.x && next.y === current.y) return current;
         persistPos(next);
         return next;
       });
