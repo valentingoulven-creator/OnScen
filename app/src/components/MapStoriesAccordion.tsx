@@ -49,7 +49,7 @@ import { MapStoryRing, MyMapStoryRing } from './MapStoryRings';
 import { StoryLivePreviewViewer } from './StoryLivePreviewViewer';
 import { StoryViewer } from './StoryViewer';
 import { StoriesRingsCarousel } from './StoriesRingsCarousel';
-import { fetchStoriesBundle, invalidateStoriesCache } from '../lib/storiesApiCache';
+import { invalidateStoriesCache } from '../lib/storiesApiCache';
 import { USERNAME_WAVE_CLASS } from '../lib/usernameColor';
 
 interface MapStoriesAccordionProps {
