@@ -13,7 +13,6 @@ import {
 import { openSpotifyApp, buildSpotifyAppUri } from '../lib/spotifyDeepLink';
 import { OpenOnYoutubeButton } from './OpenOnYoutubeButton';
 import { SalonYouTubePlayer } from './SalonYouTubePlayer';
-import { DraggableVideoPip } from './DraggableVideoPip';
 import { SalonYouTubeSearch } from './SalonYouTubeSearch';
 import { SalonSpotifySearch } from './SalonSpotifySearch';
 import { SalonSpotifyPlaylist } from './SalonSpotifyPlaylist';
@@ -130,9 +129,9 @@ export function SalonPlaybackPanel({
   const [theaterYoutubeVolume, setTheaterYoutubeVolume] = useState(() => getSalonYoutubeVolume());
   const [theaterYoutubeMuted, setTheaterYoutubeMuted] = useState(false);
   const [participantSyncTrigger, setParticipantSyncTrigger] = useState(0);
-  /** PiP flottant in-app (vidéo détachée, salon inchangé). */
-  const [floatPipActive, setFloatPipActive] = useState(false);
-  const [floatPipMount, setFloatPipMount] = useState<HTMLElement | null>(null);
+  /** Declencheur PiP expose par SalonYouTubePlayer quand l'API est disponible. */
+  const [pipTrigger, setPipTrigger] = useState<(() => Promise<void>) | null>(null);
+  const [inPip, setInPip] = useState(false);
   const hostShowVideoRef = useRef(salon.playbackState.showVideo);
   const prevYoutubeTrackRef = useRef(salon.playbackState.trackId);
 
@@ -366,8 +365,17 @@ export function SalonPlaybackPanel({
     window.setTimeout(() => setSyncNotif(null), 3000);
   }, [showParticipantYoutubeSync, token, salon.id, applyPlaybackState]);
 
-  const handleFloatPipMount = useCallback((el: HTMLElement | null) => {
-    setFloatPipMount(el);
+  /** Recu depuis SalonYouTubePlayer quand le declencheur PiP change. */
+  const handlePipAvailable = useCallback((trigger: (() => Promise<void>) | null) => {
+    if (trigger) {
+      setPipTrigger(() => trigger);
+    } else {
+      setPipTrigger(null);
+    }
+  }, []);
+
+  const handleAutoPipChange = useCallback((active: boolean) => {
+    setInPip(active);
   }, []);
 
   useEffect(() => {
@@ -442,18 +450,12 @@ export function SalonPlaybackPanel({
     setShowYoutubeVideo((prev) => {
       const next = !prev;
       setSalonShowYoutubeVideo(next);
-      if (!next) setFloatPipActive(false);
       if (isHost) {
         emitPatch({ showVideo: next });
       }
       return next;
     });
   };
-
-  useEffect(() => {
-    if (effectiveShowYoutubeVideo) return;
-    setFloatPipActive(false);
-  }, [effectiveShowYoutubeVideo]);
 
   /** Déclenché par SalonYouTubePlayer quand la vidéo se termine → skip auto si file non vide. */
   const handleVideoEnd = useCallback(() => {
@@ -794,21 +796,43 @@ export function SalonPlaybackPanel({
         </div>
       ) : null;
 
-    /** Bouton détacher : PiP flottant in-app (le salon reste inchangé). */
-    const theaterFloatPipButton =
-      canUseYoutubeEmbed && youtubeTrackId && effectiveShowYoutubeVideo ? (
+    /** Bouton PiP manuel : visible quand le navigateur supporte PiP et le lecteur est pret. */
+    const theaterPipButton =
+      canUseYoutubeEmbed && youtubeTrackId && pipTrigger ? (
         <button
           type="button"
-          onClick={() => setFloatPipActive((v) => !v)}
-          className={`${theaterControlBtnClass}${floatPipActive ? ' border-purple-500/50 text-purple-200' : ''}`}
-          title={floatPipActive ? 'Ancrer la vidéo' : 'Détacher la vidéo'}
-          aria-pressed={floatPipActive}
+          onClick={() => { void pipTrigger(); }}
+          className={`${theaterControlBtnClass}${inPip ? ' border-purple-500/50 text-purple-200' : ''}`}
+          title={inPip ? 'Quitter Picture-in-Picture' : 'Picture-in-Picture'}
+          aria-pressed={inPip}
         >
-          {floatPipActive ? '↙' : '⧉'}
+          ⧉
         </button>
       ) : null;
 
-    const theaterAlbumPlaceholder = (
+    const theaterHero = canUseYoutubeEmbed && youtubeTrackId ? (
+      <SalonYouTubePlayer
+        videoId={youtubeTrackId}
+        playbackState={playbackState}
+        showVideo={effectiveShowYoutubeVideo}
+        fillContainer
+        showLocalControls={false}
+        showLocalPause={false}
+        showYoutubeLinkInControls={false}
+        playbackActive={playbackActive}
+        isHost={canControlPlayback}
+        salonVolume={theaterYoutubeVolume}
+        salonMuted={theaterYoutubeMuted}
+        onHostProgressReport={canControlPlayback ? reportHostProgress : undefined}
+        onHostLocalPause={canControlPlayback ? handleHostPause : undefined}
+        onHostLocalPlay={canControlPlayback ? handleHostPlay : undefined}
+        onVideoEnd={handleVideoEnd}
+        participantSyncTrigger={participantSyncTrigger}
+        enableAutoPip={effectiveShowYoutubeVideo}
+        onPipAvailable={handlePipAvailable}
+        onAutoPipChange={handleAutoPipChange}
+      />
+    ) : (
       <div
         className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 bg-[#0b0b0f]"
         style={{
@@ -832,34 +856,6 @@ export function SalonPlaybackPanel({
       </div>
     );
 
-    const theaterHero = canUseYoutubeEmbed && youtubeTrackId ? (
-      <>
-        {floatPipActive && effectiveShowYoutubeVideo ? theaterAlbumPlaceholder : null}
-        <SalonYouTubePlayer
-          videoId={youtubeTrackId}
-          playbackState={playbackState}
-          showVideo={effectiveShowYoutubeVideo}
-          fillContainer
-          showLocalControls={false}
-          showLocalPause={false}
-          showYoutubeLinkInControls={false}
-          playbackActive={playbackActive}
-          isHost={canControlPlayback}
-          salonVolume={theaterYoutubeVolume}
-          salonMuted={theaterYoutubeMuted}
-          onHostProgressReport={canControlPlayback ? reportHostProgress : undefined}
-          onHostLocalPause={canControlPlayback ? handleHostPause : undefined}
-          onHostLocalPlay={canControlPlayback ? handleHostPlay : undefined}
-          onVideoEnd={handleVideoEnd}
-          participantSyncTrigger={participantSyncTrigger}
-          floatMode={floatPipActive && effectiveShowYoutubeVideo}
-          floatMount={floatPipMount}
-        />
-      </>
-    ) : (
-      theaterAlbumPlaceholder
-    );
-
     return (
       <>
       <section
@@ -881,7 +877,7 @@ export function SalonPlaybackPanel({
             {theaterSyncPlayControls}
             {theaterParticipantSyncButton}
             {canControlPlayback ? theaterVideoToggle : null}
-            {theaterFloatPipButton}
+            {theaterPipButton}
             {theaterVolumeControl}
             <span className="ml-auto flex shrink-0">{playbackStatusBadge}</span>
           </div>
@@ -958,13 +954,6 @@ export function SalonPlaybackPanel({
         )}
         </div>
       </section>
-      {floatPipActive && effectiveShowYoutubeVideo && canUseYoutubeEmbed && youtubeTrackId ? (
-        <DraggableVideoPip
-          onClose={() => setFloatPipActive(false)}
-          onMount={handleFloatPipMount}
-          title={playbackState.title}
-        />
-      ) : null}
       {syncNotif && (
         <div
           className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 max-w-[90vw] px-4 py-2 rounded-full bg-purple-950/95 border border-purple-500/40 text-sm text-purple-100 shadow-lg text-center"
