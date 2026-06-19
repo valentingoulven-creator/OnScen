@@ -1,4 +1,5 @@
 import { User } from '../models/schema';
+import { resolveYoutubePlaylistId } from './musicLinks';
 import { getYoutubeAccessToken, isPlatformConnected } from './platformConnect';
 import {
   fetchPlaylistItems,
@@ -36,9 +37,10 @@ export async function resolvePlaylistVideos(
   playlistId: string,
   accessToken?: string
 ): Promise<YoutubeSearchResult[]> {
-  let hits = await fetchPlaylistItems(playlistId, accessToken);
+  const normalizedId = resolveYoutubePlaylistId(playlistId) ?? playlistId.trim();
+  let hits = await fetchPlaylistItems(normalizedId, accessToken);
   if (!hits.length && isYoutubeRemoteFallbackAllowed()) {
-    hits = await fetchPlaylistVideosViaPiped(playlistId);
+    hits = await fetchPlaylistVideosViaPiped(normalizedId);
   }
   return hits.map((h) => ({
     videoId: h.videoId,

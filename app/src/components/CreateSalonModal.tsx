@@ -13,6 +13,7 @@ import {
   resolveSalonCreatePosition,
   shouldVerifySpotifyPlaylistOnCreate,
 } from '../lib/salonCreateFlow';
+import { normalizeSpotifyJamUrl, SPOTIFY_JAM_FIELD_HELP } from '../lib/spotifyJam';
 import { PlatformConnectCard } from './PlatformConnectCard';
 import { CreateSalonSpotifyPlaylistPicker } from './CreateSalonSpotifyPlaylistPicker';
 import {
@@ -34,6 +35,7 @@ export interface CreateSalonForm {
   youtubePlaylist: CreateSalonPlaylistSelection | null;
   spotifyPlaylist: CreateSalonPlaylistSelection | null;
   allowQueue: boolean;
+  spotifyJamUrl: string;
 }
 
 /** Préremplissage (ex. salon privé depuis un fil DM). */
@@ -94,6 +96,7 @@ export function CreateSalonModal({
     youtubePlaylist: null,
     spotifyPlaylist: null,
     allowQueue: true,
+    spotifyJamUrl: '',
   });
 
   const skipAccessStep = preset?.accessMode === 'invite';
@@ -124,6 +127,7 @@ export function CreateSalonModal({
       youtubePlaylist: null,
       spotifyPlaylist: null,
       allowQueue: true,
+      spotifyJamUrl: '',
     });
     api.getDmContacts(token).then((r) => setContacts(r.contacts));
   }, [open, token, username, preset]);
@@ -222,6 +226,11 @@ export function CreateSalonModal({
       showToast(submitBlockedReason ?? t('salon.create.errorFailed'));
       return;
     }
+    const jamTrimmed = form.platform === 'spotify' ? form.spotifyJamUrl.trim() : '';
+    if (jamTrimmed && !normalizeSpotifyJamUrl(jamTrimmed)) {
+      showToast('Lien Spotify Jam invalide (spotify.link ou socialsession attendu)');
+      return;
+    }
     setSaving(true);
     try {
       const useYoutubePlaylist = form.platform === 'youtube' && form.youtubePlaylist;
@@ -239,6 +248,8 @@ export function CreateSalonModal({
           : Promise.resolve(),
       ]);
 
+      const jamNormalized = jamTrimmed ? normalizeSpotifyJamUrl(jamTrimmed) : undefined;
+
       const { salon } = await api.createSalon(token, {
         ...(form.accessMode === 'invite' ? { id: draftSalonId } : {}),
         title: form.title.trim(),
@@ -254,6 +265,7 @@ export function CreateSalonModal({
             : form.trackTitle.trim(),
         artist: form.artist.trim(),
         allowQueue: form.allowQueue,
+        ...(jamNormalized ? { spotifyJamUrl: jamNormalized } : {}),
       });
 
       const playlistLoadBody = usePlaylist
@@ -389,6 +401,7 @@ export function CreateSalonModal({
                           platform: p,
                           youtubePlaylist: null,
                           spotifyPlaylist: null,
+                          spotifyJamUrl: '',
                         }));
                       }}
                       className={`p-4 rounded-2xl border text-left transition ${
@@ -458,11 +471,36 @@ export function CreateSalonModal({
               </label>
               {form.platform === 'spotify'
                 ? platformLinked && (
-                    <CreateSalonSpotifyPlaylistPicker
-                      token={token}
-                      value={form.spotifyPlaylist}
-                      onChange={(spotifyPlaylist) => setForm((f) => ({ ...f, spotifyPlaylist }))}
-                    />
+                    <>
+                      <CreateSalonSpotifyPlaylistPicker
+                        token={token}
+                        value={form.spotifyPlaylist}
+                        onChange={(spotifyPlaylist) => setForm((f) => ({ ...f, spotifyPlaylist }))}
+                      />
+                      <label className="block">
+                        <span className="text-xs text-gray-400">Lien Spotify Jam</span>
+                        <p className="text-[10px] text-gray-500 mt-0.5 leading-snug">{SPOTIFY_JAM_FIELD_HELP}</p>
+                        <input
+                          value={form.spotifyJamUrl}
+                          onChange={(e) => setForm((f) => ({ ...f, spotifyJamUrl: e.target.value }))}
+                          onBlur={() => {
+                            const normalized = normalizeSpotifyJamUrl(form.spotifyJamUrl);
+                            if (normalized && normalized !== form.spotifyJamUrl) {
+                              setForm((f) => ({ ...f, spotifyJamUrl: normalized }));
+                            }
+                          }}
+                          placeholder="https://spotify.link/…"
+                          className={`mt-1 w-full bg-[#1a1a26] border rounded-xl px-3 py-2 text-sm text-white ${
+                            form.spotifyJamUrl.trim() && !normalizeSpotifyJamUrl(form.spotifyJamUrl)
+                              ? 'border-red-500/50'
+                              : 'border-[#2d2d3d]'
+                          }`}
+                        />
+                        {form.spotifyJamUrl.trim() && normalizeSpotifyJamUrl(form.spotifyJamUrl) && (
+                          <p className="text-[10px] text-green-400/90 mt-1">✓ Lien Jam valide</p>
+                        )}
+                      </label>
+                    </>
                   )
                 : platformLinked && (
                     <CreateSalonPlaylistPicker
@@ -572,6 +610,16 @@ export function CreateSalonModal({
                   <span className="text-purple-400">Accès :</span>{' '}
                   {form.accessMode === 'public' ? 'Public' : `Invitation (${form.allowedUserIds.length} invité(s))`}
                 </p>
+                {form.platform === 'spotify' && (
+                  <p>
+                    <span className="text-purple-400">Jam :</span>{' '}
+                    {form.spotifyJamUrl.trim()
+                      ? normalizeSpotifyJamUrl(form.spotifyJamUrl)
+                        ? 'Lien fourni'
+                        : 'Lien invalide'
+                      : 'Non renseigné'}
+                  </p>
+                )}
               </div>
             </>
           )}

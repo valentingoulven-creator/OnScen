@@ -43,7 +43,7 @@ export function useSalonQueueSync(
       if (payload.salonId === salonId) setQueue(payload.queue);
     };
     const onProposals = (payload: { salonId: string; proposals: SalonTrackProposal[] }) => {
-      if (payload.salonId === salonId && isHost) setProposals(payload.proposals);
+      if (payload.salonId === salonId) setProposals(payload.proposals);
     };
     socket.on('salon_queue_updated', onQueue);
     socket.on('salon_proposals_updated', onProposals);

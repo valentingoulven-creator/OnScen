@@ -62,6 +62,10 @@ interface SalonYouTubePlayerProps {
   autoplayAllowed?: boolean;
   /** Hôte : rapporte la position réelle du lecteur (ms) pour sync_playback. */
   onHostProgressReport?: (progressMs: number) => void;
+  /** Hôte : pause locale sur l’embed YouTube (clic vidéo) — propage vers sync salon. */
+  onHostLocalPause?: () => void;
+  /** Hôte : reprise locale sur l’embed YouTube — propage vers sync salon. */
+  onHostLocalPlay?: () => void;
   /** Contrôles pause/volume discrets (petit salon carte). */
   minimalLocalControls?: boolean;
   /** Classes additionnelles du lien YouTube. */
@@ -153,6 +157,8 @@ export function SalonYouTubePlayer({
   playbackActive = true,
   autoplayAllowed = true,
   onHostProgressReport,
+  onHostLocalPause,
+  onHostLocalPlay,
   minimalLocalControls = false,
   youtubeLinkClassName = '',
   youtubeLinkVariant = 'default',
@@ -192,7 +198,7 @@ export function SalonYouTubePlayer({
   mutedRef.current = muted;
 
   // Participants are always force-synced with the host; only the host may locally pause.
-  const respectLocalPause = _isHost && showLocalControls && localPaused;
+  const respectLocalPause = _isHost && localPaused;
   /** YouTube interdit la lecture audio sans lecteur visible (hors démo msdev). */
   const strictCompliance = isYoutubeStrictCompliance();
   const videoPlaybackAllowed = showVideo || !strictCompliance;
@@ -203,6 +209,12 @@ export function SalonYouTubePlayer({
   autoplayAllowedRef.current = effectiveAutoplayAllowed;
   const onHostProgressReportRef = useRef(onHostProgressReport);
   onHostProgressReportRef.current = onHostProgressReport;
+  const onHostLocalPauseRef = useRef(onHostLocalPause);
+  onHostLocalPauseRef.current = onHostLocalPause;
+  const onHostLocalPlayRef = useRef(onHostLocalPlay);
+  onHostLocalPlayRef.current = onHostLocalPlay;
+  const isHostRef = useRef(_isHost);
+  isHostRef.current = _isHost;
   const onVideoEndRef = useRef(onVideoEnd);
   onVideoEndRef.current = onVideoEnd;
   const onEmbedErrorRef = useRef(onEmbedError);
@@ -340,7 +352,7 @@ export function SalonYouTubePlayer({
     setMediaSessionHandlers({
       play: () => {
         try {
-          if (_isHost && showLocalControls) setLocalPaused(false);
+          if (_isHost) setLocalPaused(false);
           applySync(player, stateRef.current, true, false);
           player.playVideo();
         } catch {
@@ -349,9 +361,10 @@ export function SalonYouTubePlayer({
       },
       pause: () => {
         try {
-          if (_isHost && showLocalControls) {
+          if (_isHost) {
             setLocalPaused(true);
             player.pauseVideo();
+            if (stateRef.current.isPlaying) onHostLocalPauseRef.current?.();
           } else {
             // Participant: hardware pause key is ignored — re-sync with host state.
             if (playbackActiveRef.current) {
@@ -459,6 +472,15 @@ export function SalonYouTubePlayer({
           if (e.data === YT_ENDED) {
             onVideoEndRef.current?.();
             return;
+          }
+          if (isHostRef.current) {
+            if (e.data === YT_PAUSED && stateRef.current.isPlaying) {
+              setLocalPaused(true);
+              onHostLocalPauseRef.current?.();
+            } else if (e.data === YT_PLAYING && !stateRef.current.isPlaying) {
+              setLocalPaused(false);
+              onHostLocalPlayRef.current?.();
+            }
           }
           if (e.data !== YT_PLAYING) return;
           try {
@@ -689,6 +711,7 @@ export function SalonYouTubePlayer({
     if (!player) return;
     if (localPaused) {
       setLocalPaused(false);
+      if (!playbackState.isPlaying) onHostLocalPlayRef.current?.();
       applySync(player, playbackState, true, false);
       try {
         player.playVideo();
@@ -702,6 +725,7 @@ export function SalonYouTubePlayer({
       } catch {
         /* ignore */
       }
+      if (playbackState.isPlaying) onHostLocalPauseRef.current?.();
     }
   };
 

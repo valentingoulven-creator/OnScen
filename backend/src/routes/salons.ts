@@ -8,7 +8,12 @@ import { canJoinSalon, isSalonVisibleOnMap, normalizeSalonAccess } from '../lib/
 import { assertSalonAccessible } from '../lib/adminContentModeration';
 import { isDevUser } from '../lib/accessControl';
 import { trackEvent } from '../lib/analytics';
-import { parseMusicLink, parseYoutubePlaylistId, parseSpotifyPlaylistId, buildPlatformTrackUrl } from '../lib/musicLinks';
+import {
+  parseMusicLink,
+  resolveYoutubePlaylistId,
+  parseSpotifyPlaylistId,
+  buildPlatformTrackUrl,
+} from '../lib/musicLinks';
 import { computePlaybackPositionMs } from '../lib/playbackClock';
 import { resolveTrackForPlatform } from '../lib/trackResolver';
 import {
@@ -836,12 +841,13 @@ salonsRouter.post('/:id/playback/load-playlist', authenticateJWT, async (req: Re
     '';
 
   if (salon.platform === 'youtube') {
-    const resolvedPlaylistId =
-      rawPlaylistRef ||
-      (typeof playlistUrl === 'string' ? parseYoutubePlaylistId(playlistUrl) : null) ||
-      '';
+    const resolvedPlaylistId = resolveYoutubePlaylistId(rawPlaylistRef) ?? '';
     if (!resolvedPlaylistId) {
-      res.status(400).json({ error: 'playlistId ou lien playlist requis' });
+      res.status(400).json({
+        error: rawPlaylistRef
+          ? 'Lien playlist invalide — utilisez youtube.com/playlist?list=PL… ou un ID PL…'
+          : 'playlistId ou lien playlist requis',
+      });
       return;
     }
 
@@ -854,10 +860,13 @@ salonsRouter.post('/:id/playback/load-playlist', authenticateJWT, async (req: Re
       return;
     }
     if (!videos.length) {
-      res.status(400).json({
-        error:
-          'Playlist introuvable ou vide. Ajoutez YOUTUBE_API_KEY côté serveur ou collez une playlist publique.',
-      });
+      const hasKey = Boolean(youtubeDataApiKey());
+      const hasToken = Boolean(accessToken);
+      const error =
+        !hasKey && !hasToken
+          ? 'Playlist introuvable ou vide. Ajoutez YOUTUBE_API_KEY côté serveur ou connectez YouTube.'
+          : 'Playlist introuvable, privée ou vide.';
+      res.status(400).json({ error });
       return;
     }
 
@@ -1022,7 +1031,7 @@ salonsRouter.patch('/:id/settings', authenticateJWT, (req: Request, res: Respons
     } else if (typeof spotifyJamUrl === 'string') {
       const normalized = normalizeSpotifyJamUrl(spotifyJamUrl);
       if (!normalized) {
-        res.status(400).json({ error: 'Lien Jam Spotify invalide (socialsession attendu)' });
+        res.status(400).json({ error: 'Lien Jam Spotify invalide (spotify.link ou socialsession attendu)' });
         return;
       }
       salon.spotifyJamUrl = normalized;
@@ -1216,7 +1225,7 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
   if (plat === 'spotify' && spotifyJamUrl && typeof spotifyJamUrl === 'string') {
     const normalized = normalizeSpotifyJamUrl(spotifyJamUrl);
     if (!normalized) {
-      res.status(400).json({ error: 'Lien Jam Spotify invalide (socialsession attendu)' });
+      res.status(400).json({ error: 'Lien Jam Spotify invalide (spotify.link ou socialsession attendu)' });
       return;
     }
     normalizedJamUrl = normalized;

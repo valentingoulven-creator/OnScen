@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { resolveYoutubePlaylistId } from './musicLinks';
 import type { RemoteVideoHit } from './youtubeRemote';
 
 /** TTL 1 h — conforme YouTube API Services (stockage max 24 h) et texte légal Soundy. */
@@ -166,7 +167,8 @@ export async function fetchPlaylistItems(
   playlistId: string,
   accessToken?: string
 ): Promise<RemoteVideoHit[]> {
-  const cacheKey = `playlistItems:${playlistId}:${tokenCacheKey(accessToken)}`;
+  const normalizedPlaylistId = resolveYoutubePlaylistId(playlistId) ?? playlistId.trim();
+  const cacheKey = `playlistItems:${normalizedPlaylistId}:${tokenCacheKey(accessToken)}`;
   const cached = getYtDataCached<RemoteVideoHit[]>(cacheKey);
   if (cached) return cached;
 
@@ -179,7 +181,7 @@ export async function fetchPlaylistItems(
   do {
     const params = new URLSearchParams({
       part: 'snippet,contentDetails',
-      playlistId,
+      playlistId: normalizedPlaylistId,
       maxResults: '50',
     });
     if (pageToken) params.set('pageToken', pageToken);

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SalonYouTubeSearch } from './SalonYouTubeSearch';
 import { SalonYouTubePlaylist } from './SalonYouTubePlaylist';
@@ -7,6 +7,57 @@ import { SalonProposalsSection } from './SalonProposalsSection';
 import type { PlaybackState, Salon, SalonQueueItem, SalonTrackProposal } from '../types';
 
 type HostTab = 'search' | 'playlist' | 'queue' | 'settings';
+
+const svgBase = {
+  xmlns: 'http://www.w3.org/2000/svg',
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 2,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+};
+
+function HostTabIcon({ tab }: { tab: HostTab }) {
+  const className = 'salon-youtube-host-drawer__tab-icon';
+  switch (tab) {
+    case 'search':
+      return (
+        <svg {...svgBase} className={className} aria-hidden="true">
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-3.5-3.5" />
+        </svg>
+      );
+    case 'playlist':
+      return (
+        <svg {...svgBase} className={className} aria-hidden="true">
+          <path d="M8 6h13" />
+          <path d="M8 12h13" />
+          <path d="M8 18h13" />
+          <path d="M3 6h.01" />
+          <path d="M3 12h.01" />
+          <path d="M3 18h.01" />
+        </svg>
+      );
+    case 'queue':
+      return (
+        <svg {...svgBase} className={className} aria-hidden="true">
+          <path d="M4 7h16" />
+          <path d="M4 12h12" />
+          <path d="M4 17h8" />
+        </svg>
+      );
+    case 'settings':
+      return (
+        <svg {...svgBase} className={className} aria-hidden="true">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
 
 interface SalonYouTubeHostPanelProps {
   salon: Salon;
@@ -94,6 +145,15 @@ export function SalonYouTubeHostPanel({
   ];
 
   const visibleTabs = tabs.filter((item) => !item.hidden);
+  const activeTabIndex = Math.max(
+    0,
+    visibleTabs.findIndex((item) => item.id === tab),
+  );
+
+  const tabRailStyle = {
+    '--salon-host-tab-count': visibleTabs.length,
+    '--salon-host-tab-index': activeTabIndex,
+  } as CSSProperties;
 
   const tabContent = (() => {
     switch (tab) {
@@ -157,35 +217,45 @@ export function SalonYouTubeHostPanel({
       className={`salon-youtube-host-drawer${expanded ? ' salon-youtube-host-drawer--expanded' : ''}`}
       data-expanded={expanded ? 'true' : 'false'}
     >
-      <div className="salon-youtube-host-drawer__chrome flex items-center gap-1 px-2 py-1.5 border-t border-[#1e1e2f] bg-[#0b0b0f]/98 backdrop-blur-md">
-        <div className="flex flex-1 min-w-0 items-center gap-0.5" role="tablist">
-          {visibleTabs.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              role="tab"
-              aria-selected={tab === item.id}
-              onClick={() => {
-                setTab(item.id);
-                setExpanded(true);
-              }}
-              className={`salon-youtube-host-drawer__tab flex-1 min-w-0 px-2 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wide transition ${
-                tab === item.id
-                  ? 'bg-purple-600/25 text-purple-200 border border-purple-500/35'
-                  : 'text-[#6b6b8a] hover:text-gray-300 border border-transparent'
-              }`}
-            >
-              <span className="truncate">{item.label}</span>
-              {item.badge != null ? (
-                <span className="ml-1 tabular-nums text-purple-300/90">({item.badge})</span>
-              ) : null}
-            </button>
-          ))}
+      <div className="salon-youtube-host-drawer__chrome">
+        <div
+          className="salon-youtube-host-drawer__tab-rail"
+          role="tablist"
+          style={tabRailStyle}
+        >
+          <span className="salon-youtube-host-drawer__tab-indicator" aria-hidden="true" />
+          {visibleTabs.map((item) => {
+            const active = tab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                data-tab={item.id}
+                onClick={() => {
+                  setTab(item.id);
+                  setExpanded(true);
+                }}
+                className={`salon-youtube-host-drawer__tab${active ? ' salon-youtube-host-drawer__tab--active' : ''}`}
+              >
+                <span className="salon-youtube-host-drawer__tab-icon-wrap">
+                  <HostTabIcon tab={item.id} />
+                  {item.badge != null ? (
+                    <span className="salon-youtube-host-drawer__tab-badge" aria-label={`${item.badge} en file`}>
+                      {item.badge > 9 ? '9+' : item.badge}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="salon-youtube-host-drawer__tab-label">{item.label}</span>
+              </button>
+            );
+          })}
         </div>
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-[#6b6b8a] hover:text-white hover:bg-white/5 transition"
+          className="salon-youtube-host-drawer__toggle"
           aria-expanded={expanded}
           aria-label={
             expanded
@@ -193,7 +263,14 @@ export function SalonYouTubeHostPanel({
               : t('salon.youtubeHost.expand', { defaultValue: 'Déplier le panneau' })
           }
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden className={expanded ? '' : 'rotate-180'}>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden
+            className={`salon-youtube-host-drawer__toggle-icon${expanded ? '' : ' salon-youtube-host-drawer__toggle-icon--collapsed'}`}
+          >
             <polyline
               points="6,14 12,8 18,14"
               stroke="currentColor"

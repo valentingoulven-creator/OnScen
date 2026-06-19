@@ -34,6 +34,13 @@ export function parseYoutubePlaylistId(urlOrId: string): string | null {
   return null;
 }
 
+/** Playlist ID from pasted URL, bare PL… id, or null if unrecognizable. */
+export function resolveYoutubePlaylistId(urlOrId: string): string | null {
+  const raw = urlOrId.trim();
+  if (!raw) return null;
+  return parseYoutubePlaylistId(raw);
+}
+
 export function parseSpotifyPlaylistId(urlOrId: string): string | null {
   const raw = urlOrId.trim();
   const fromUrl =

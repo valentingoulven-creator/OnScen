@@ -9,6 +9,7 @@ import { mergeRemotePlaybackState } from '../lib/salonPlayback';
 
 import { api, ApiRequestError } from '../lib/api';
 import { openSpotifyApp } from '../lib/spotifyDeepLink';
+import { openSpotifyJamLink } from '../lib/spotifyJam';
 
 import { getSocket } from '../lib/socket';
 
@@ -562,28 +563,15 @@ export function SalonPage({
 
 
 
-  const isSpotifyParticipantOnly = salon.platform === 'spotify' && !isHost && !isVipModerator && !isDevModerator;
-
   const participantProposeSearch =
-    !canControlPlayback && salon.allowQueue && token ? (
-      salon.platform === 'spotify' ? (
-        <SalonSpotifySearch
-          salonId={salon.id}
-          token={token}
-          currentTitle={playback.title}
-          currentArtist={playback.artist}
-          showCurrentTrack={false}
-          submitMode="propose"
-        />
-      ) : (
-        <SalonYouTubeSearch
-          salonId={salon.id}
-          token={token}
-          currentTitle={playback.title}
-          currentArtist={playback.artist}
-          submitMode="propose"
-        />
-      )
+    !canControlPlayback && salon.allowQueue && token && salon.platform !== 'spotify' ? (
+      <SalonYouTubeSearch
+        salonId={salon.id}
+        token={token}
+        currentTitle={playback.title}
+        currentArtist={playback.artist}
+        submitMode="propose"
+      />
     ) : null;
 
   const youtubeHostSettings =
@@ -621,10 +609,9 @@ export function SalonPage({
       </div>
     ) : undefined;
 
-  const stageFooter = isSpotifyParticipantOnly ? (
-    participantProposeSearch ? <div className="p-3">{participantProposeSearch}</div> : null
-  ) : (
+  const stageFooter = (
     <>
+      {/* YouTube: contrôles hôte */}
       {isHost && hostCanControl && salon.platform === 'youtube' && token && (
         <SalonYouTubeHostPanel
           salon={salon}
@@ -673,6 +660,21 @@ export function SalonPage({
         />
       )}
 
+      {isHost && !hostCanControl && salon.platform === 'youtube' && token && (
+        <div className="p-3">
+          <p className="text-xs text-amber-400/90 text-center mb-3">
+            Connectez YouTube pour contrôler la lecture de ce salon.
+          </p>
+          {youtubeHostSettings}
+        </div>
+      )}
+
+      {/* YouTube: participants proposent */}
+      {!canControlPlayback && salon.platform !== 'spotify' && participantProposeSearch ? (
+        <div className="p-3">{participantProposeSearch}</div>
+      ) : null}
+
+      {/* Spotify: contrôles hôte (recherche + playlist) */}
       {isHost && hostCanControl && salon.platform === 'spotify' && token && (
         <div className="p-3 space-y-3">
           <SalonSpotifySearch
@@ -688,30 +690,10 @@ export function SalonPage({
             token={token}
             onTrackChanged={applyPlayback}
           />
-          <section className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4 space-y-4">
-            <SalonQueueSection
-              queue={queue}
-              isHost={hostCanControl}
-              allowQueue={salon.allowQueue}
-              salonId={salon.id}
-              onSkip={hostCanControl ? handleSkip : undefined}
-              onPlayItem={hostCanControl ? handlePlayQueue : undefined}
-              onReorder={hostCanControl ? handleReorderQueue : undefined}
-              skipping={skipping}
-              reordering={reordering}
-            />
-            <SalonProposalsSection
-              isHost={hostCanControl}
-              allowQueue={salon.allowQueue}
-              proposals={proposals}
-              loadingProposals={loadingProposals}
-              onAccept={hostCanControl ? handleAccept : undefined}
-              onReject={hostCanControl ? rejectProposal : undefined}
-            />
-          </section>
         </div>
       )}
 
+      {/* Spotify: modérateur VIP — recherche uniquement */}
       {(isVipModerator || isDevModerator) && !isHost && salon.platform === 'spotify' && token && (
         <div className="p-3">
           <SalonSpotifySearch
@@ -725,18 +707,48 @@ export function SalonPage({
         </div>
       )}
 
-      {isHost && !hostCanControl && salon.platform === 'youtube' && token && (
+      {/* Spotify: participants proposent via recherche */}
+      {!canControlPlayback && salon.platform === 'spotify' && salon.allowQueue && token && (
         <div className="p-3">
-          <p className="text-xs text-amber-400/90 text-center mb-3">
-            Connectez YouTube pour contrôler la lecture de ce salon.
-          </p>
-          {youtubeHostSettings}
+          <SalonSpotifySearch
+            salonId={salon.id}
+            token={token}
+            currentTitle={playback.title}
+            currentArtist={playback.artist}
+            showCurrentTrack={false}
+            submitMode="propose"
+          />
         </div>
       )}
 
-      {!canControlPlayback && participantProposeSearch ? (
-        <div className="p-3">{participantProposeSearch}</div>
-      ) : null}
+      {/* Spotify: file d'attente + propositions — visibles par tous */}
+      {salon.platform === 'spotify' && (
+        <div className="p-3">
+          <section className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4 space-y-4">
+            <SalonQueueSection
+              queue={queue}
+              isHost={canControlPlayback}
+              allowQueue={salon.allowQueue}
+              salonId={salon.id}
+              onSkip={canControlPlayback ? handleSkip : undefined}
+              onPlayItem={canControlPlayback ? handlePlayQueue : undefined}
+              onReorder={canControlPlayback ? handleReorderQueue : undefined}
+              skipping={skipping}
+              reordering={reordering}
+              showSpotifyLink
+            />
+            <SalonProposalsSection
+              isHost={canControlPlayback}
+              allowQueue={salon.allowQueue}
+              proposals={proposals}
+              loadingProposals={loadingProposals}
+              onAccept={canControlPlayback ? handleAccept : undefined}
+              onReject={canControlPlayback ? rejectProposal : undefined}
+              showSpotifyLink
+            />
+          </section>
+        </div>
+      )}
     </>
   );
 
@@ -856,6 +868,16 @@ export function SalonPage({
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
+          {salon.platform === 'spotify' && salon.spotifyJamUrl && (
+            <button
+              type="button"
+              onClick={() => openSpotifyJamLink(salon.spotifyJamUrl!)}
+              className="shrink-0 px-2.5 py-1.5 rounded-full text-[10px] font-semibold text-green-200 border border-green-500/50 hover:text-white hover:bg-green-600/20 hover:border-green-400 transition"
+              title="Ouvrir la session Jam Spotify"
+            >
+              Rejoindre le Jam
+            </button>
+          )}
           {isHost && hostCanControl && (
             <SalonAccessModeToggle
               accessMode={salon.accessMode ?? 'public'}

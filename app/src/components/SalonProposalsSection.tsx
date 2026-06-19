@@ -16,6 +16,8 @@ interface SalonProposalsSectionProps {
   onAccept?: (proposalId: string, playNow: boolean) => Promise<void>;
   onReject?: (proposalId: string) => Promise<void>;
   compact?: boolean;
+  /** Affiche un lien "Ouvrir sur Spotify" pour les propositions avec spotifyUrl. */
+  showSpotifyLink?: boolean;
 }
 
 export function SalonProposalsSection({
@@ -27,6 +29,7 @@ export function SalonProposalsSection({
   onAccept,
   onReject,
   compact,
+  showSpotifyLink = false,
 }: SalonProposalsSectionProps) {
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
@@ -103,6 +106,17 @@ export function SalonProposalsSection({
                 <p className="text-[10px] text-gray-500 truncate">
                   {p.artist} · {p.proposerName}
                 </p>
+                {showSpotifyLink && p.spotifyUrl && (
+                  <a
+                    href={p.spotifyUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block mt-1 text-[9px] font-semibold text-[#1DB954]/80 hover:text-[#1DB954] transition"
+                    title="Ouvrir sur Spotify"
+                  >
+                    ↗ Ouvrir sur Spotify
+                  </a>
+                )}
                 <div className="flex gap-1.5 mt-2">
                   <button
                     type="button"
@@ -177,47 +191,95 @@ export function SalonProposalsSection({
   }
 
   return (
-    <form onSubmit={submitProposal} className="space-y-2">
-      <h4 className="text-[11px] font-semibold text-purple-400 uppercase tracking-wide">Proposer un morceau</h4>
-      <input
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Titre"
-        className="w-full px-3 py-2 rounded-xl bg-[#0b0b0f] border border-[#2a2a3a] text-sm text-white"
-        required
-      />
-      <input
-        value={artist}
-        onChange={(e) => setArtist(e.target.value)}
-        placeholder="Artiste"
-        className="w-full px-3 py-2 rounded-xl bg-[#0b0b0f] border border-[#2a2a3a] text-sm text-white"
-        required
-      />
-      <input
-        value={spotifyUrl}
-        onChange={(e) => setSpotifyUrl(e.target.value)}
-        placeholder="Lien Spotify (optionnel)"
-        className="w-full px-3 py-2 rounded-xl bg-[#0b0b0f] border border-[#2a2a3a] text-xs text-white"
-      />
-      <input
-        value={youtubeUrl}
-        onChange={(e) => setYoutubeUrl(e.target.value)}
-        placeholder="Lien YouTube (optionnel)"
-        className="w-full px-3 py-2 rounded-xl bg-[#0b0b0f] border border-[#2a2a3a] text-xs text-white"
-      />
-      {successMsg && (
-        <p className="text-xs text-green-400 bg-green-500/10 rounded-lg px-2.5 py-1.5 text-center">{successMsg}</p>
+    <div className="space-y-2">
+      {proposals.length > 0 && (
+        <>
+          <h4 className="text-[11px] font-semibold text-purple-400/80 uppercase tracking-wide">
+            Propositions en attente
+            <span className="ml-1.5 text-gray-500 normal-case tracking-normal font-medium">
+              ({proposals.length})
+            </span>
+          </h4>
+          <ul className={`space-y-1.5 overflow-y-auto ${compact ? 'max-h-32' : 'max-h-40'}`}>
+            {proposals.map((p) => (
+              <li key={p.id} className="px-2.5 py-1.5 rounded-xl bg-[#0b0b0f] border border-[#222233] flex items-center gap-2 min-w-0">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-white truncate">{p.title}</p>
+                  <p className="text-[10px] text-gray-500 truncate">
+                    {p.artist} · {p.proposerName}
+                  </p>
+                </div>
+                {showSpotifyLink && p.spotifyUrl && (
+                  <a
+                    href={p.spotifyUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="shrink-0 text-[9px] font-semibold text-[#1DB954]/80 hover:text-[#1DB954] transition"
+                    title="Ouvrir sur Spotify"
+                  >
+                    ↗ Spotify
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
       )}
-      {errorMsg && (
+
+      {onPropose ? (
+        <form onSubmit={submitProposal} className="space-y-2">
+          <h4 className="text-[11px] font-semibold text-purple-400 uppercase tracking-wide">Proposer un morceau</h4>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Titre"
+            className="w-full px-3 py-2 rounded-xl bg-[#0b0b0f] border border-[#2a2a3a] text-sm text-white"
+            required
+          />
+          <input
+            value={artist}
+            onChange={(e) => setArtist(e.target.value)}
+            placeholder="Artiste"
+            className="w-full px-3 py-2 rounded-xl bg-[#0b0b0f] border border-[#2a2a3a] text-sm text-white"
+            required
+          />
+          <input
+            value={spotifyUrl}
+            onChange={(e) => setSpotifyUrl(e.target.value)}
+            placeholder="Lien Spotify (optionnel)"
+            className="w-full px-3 py-2 rounded-xl bg-[#0b0b0f] border border-[#2a2a3a] text-xs text-white"
+          />
+          <input
+            value={youtubeUrl}
+            onChange={(e) => setYoutubeUrl(e.target.value)}
+            placeholder="Lien YouTube (optionnel)"
+            className="w-full px-3 py-2 rounded-xl bg-[#0b0b0f] border border-[#2a2a3a] text-xs text-white"
+          />
+          {successMsg && (
+            <p className="text-xs text-green-400 bg-green-500/10 rounded-lg px-2.5 py-1.5 text-center">{successMsg}</p>
+          )}
+          {errorMsg && (
+            <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-2.5 py-1.5 text-center">{errorMsg}</p>
+          )}
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full py-2 rounded-xl bg-purple-600 hover:bg-purple-500 font-semibold text-white text-sm disabled:opacity-50 transition"
+          >
+            {submitting ? 'Envoi…' : 'Envoyer au host'}
+          </button>
+        </form>
+      ) : proposals.length === 0 ? (
+        allowQueue ? (
+          <p className={`text-gray-600 text-center ${compact ? 'text-[10px] py-1' : 'text-xs py-2'}`}>
+            Aucune proposition
+          </p>
+        ) : null
+      ) : null}
+
+      {!onPropose && errorMsg && (
         <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-2.5 py-1.5 text-center">{errorMsg}</p>
       )}
-      <button
-        type="submit"
-        disabled={submitting}
-        className="w-full py-2 rounded-xl bg-purple-600 hover:bg-purple-500 font-semibold text-white text-sm disabled:opacity-50 transition"
-      >
-        {submitting ? 'Envoi…' : 'Envoyer au host'}
-      </button>
-    </form>
+    </div>
   );
 }

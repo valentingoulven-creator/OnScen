@@ -747,8 +747,10 @@ export function SalonPlaybackPanel({
         showLocalPause={false}
         showYoutubeLinkInControls={false}
         playbackActive={playbackActive}
-        isHost={isHost}
-        onHostProgressReport={hostLinked ? reportHostProgress : undefined}
+        isHost={canControlPlayback}
+        onHostProgressReport={canControlPlayback ? reportHostProgress : undefined}
+        onHostLocalPause={canControlPlayback ? handleHostPause : undefined}
+        onHostLocalPlay={canControlPlayback ? handleHostPlay : undefined}
         onVideoEnd={handleVideoEnd}
       />
     ) : (
@@ -897,6 +899,8 @@ export function SalonPlaybackPanel({
           playbackActive={playbackActive}
           isHost={canControlPlayback}
           onHostProgressReport={canControlPlayback ? reportHostProgress : undefined}
+          onHostLocalPause={canControlPlayback ? handleHostPause : undefined}
+          onHostLocalPlay={canControlPlayback ? handleHostPlay : undefined}
           onVideoEnd={handleVideoEnd}
         />
       </div>
@@ -1177,8 +1181,10 @@ export function SalonPlaybackPanel({
               showLocalPause={false}
               showYoutubeLinkInControls={!mapInline || (salon.platform === 'youtube' && !(isHost && hostLinked))}
                 playbackActive={playbackActive}
-                isHost={isHost}
-                onHostProgressReport={hostLinked ? reportHostProgress : undefined}
+                isHost={canControlPlayback}
+                onHostProgressReport={canControlPlayback ? reportHostProgress : undefined}
+                onHostLocalPause={canControlPlayback ? handleHostPause : undefined}
+                onHostLocalPlay={canControlPlayback ? handleHostPlay : undefined}
                 onVideoEnd={handleVideoEnd}
                 mapInlineListenCapMs={
                   mapInline && !isHost ? MAP_INLINE_LISTEN_MAX_MS : undefined

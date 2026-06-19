@@ -146,12 +146,10 @@ export function setupSockets(io: Server): void {
       socket.emit('playback_sync', salon.playbackState);
       socket.emit('salon_playback', salon.playbackState);
       socket.emit('salon_queue_updated', { salonId, queue: ensureSalonQueue(salonId) });
-      if (userId === salon.hostId) {
-        socket.emit('salon_proposals_updated', {
-          salonId,
-          proposals: getPendingProposals(salonId),
-        });
-      }
+      socket.emit('salon_proposals_updated', {
+        salonId,
+        proposals: getPendingProposals(salonId),
+      });
     });
 
     socket.on('leave_salon', ({ salonId }: { salonId: string }) => {

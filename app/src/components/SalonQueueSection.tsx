@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { buildSpotifyWebUrl } from '../lib/spotifyDeepLink';
 import type { SalonQueueItem } from '../types';
 
 /** Nombre max de morceaux affichés dans le panneau host (file d'attente). */
@@ -38,6 +39,8 @@ interface SalonQueueSectionProps {
   compact?: boolean;
   /** Permet de replier la liste (défaut : hôte avec file activée). */
   collapsible?: boolean;
+  /** Affiche un lien "Ouvrir sur Spotify" pour chaque morceau ayant un trackId. */
+  showSpotifyLink?: boolean;
 }
 
 function reorderList<T>(items: T[], fromIndex: number, toIndex: number): T[] {
@@ -98,6 +101,7 @@ export function SalonQueueSection({
   reordering,
   compact,
   collapsible,
+  showSpotifyLink = false,
 }: SalonQueueSectionProps) {
   const { t } = useTranslation();
   const canCollapse = collapsible ?? (isHost && allowQueue);
@@ -311,6 +315,17 @@ export function SalonQueueSection({
                     >
                       {t('salon.queue.play')}
                     </button>
+                  )}
+                  {showSpotifyLink && item.trackId && item.trackId !== 'demo' && (
+                    <a
+                      href={item.externalUrl || buildSpotifyWebUrl(item.trackId)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="shrink-0 text-[9px] font-semibold text-[#1DB954]/80 hover:text-[#1DB954] transition"
+                      title="Ouvrir sur Spotify"
+                    >
+                      ↗ Spotify
+                    </a>
                   )}
                 </li>
               );

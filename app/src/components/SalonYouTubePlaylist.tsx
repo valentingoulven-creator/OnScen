@@ -50,8 +50,13 @@ export function SalonYouTubePlaylist({
   }, [token]);
 
   const launch = async () => {
-    const body = playlistUrl.trim()
-      ? { playlistUrl: playlistUrl.trim() }
+    const url = playlistUrl.trim();
+    const body = url
+      ? (() => {
+          const fromUrl = url.match(/[?&]list=([a-zA-Z0-9_-]+)/)?.[1];
+          const playlistId = fromUrl ?? (/^PL[a-zA-Z0-9_-]+$/.test(url) ? url : null);
+          return playlistId ? { playlistId } : { playlistUrl: url };
+        })()
       : selectedId
         ? { playlistId: selectedId }
         : null;
