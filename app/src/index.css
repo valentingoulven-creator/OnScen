@@ -385,9 +385,13 @@ main.ms-app-main {
   bottom: 0;
 }
 
-/* Shell classique : réserve la hauteur de la barre d'onglets fixe en bas */
-.ms-app-shell--bottom-tabs main.ms-app-main {
+/* Shell classique : réserve la hauteur de la barre d'onglets fixe en bas (sauf fil DM — voir .dm-compose-bar) */
+.ms-app-shell--bottom-tabs:not([data-design-quick-wins="1"]) main.ms-app-main:not(:has(.dm-thread-root)) {
   padding-bottom: var(--tab-nav-total-h);
+}
+
+.ms-app-shell--bottom-tabs:not([data-design-quick-wins="1"]) main.ms-app-main:has(.dm-thread-root) {
+  padding-bottom: 0;
 }
 
 main.ms-app-main.ms-app-main--no-header {
@@ -993,8 +997,19 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 
 /* Messages privés (DmPage) — scroll sans ascenseur */
 .dm-messages-scroll {
-  overflow-y: scroll;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  min-height: 0;
+  flex: 1 1 0%;
+}
+
+/* DM thread — barre de saisie au-dessus du dock / onglets bas */
+.ms-app-shell--bottom-tabs .dm-compose-bar {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 65;
+  padding-bottom: var(--tab-nav-total-h);
 }
 
 /* Live — animation cadeau / pourboire (style overlay) */
@@ -1355,6 +1370,108 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 .room-theater-chat-dock__input {
   flex-shrink: 0;
   margin-top: auto;
+}
+
+/* Theater chat dock — redimensionnement horizontal (desktop + touch) */
+.room-theater-chat-dock--resizable {
+  position: relative;
+}
+
+.room-theater-chat-dock--custom-width,
+.room-theater-chat-dock--resizing {
+  width: auto;
+  min-width: 0;
+  max-width: none;
+}
+
+@media (min-width: 640px) {
+  .room-theater-chat-dock--custom-width:not(.room-theater-chat-dock--theater),
+  .room-theater-chat-dock--resizing:not(.room-theater-chat-dock--theater) {
+    flex: none;
+  }
+}
+
+.room-theater-side-row--resizing {
+  transition: none;
+}
+
+.room-theater-chat-dock--resizing {
+  transition: none;
+}
+
+.room-theater-chat-dock__resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  z-index: 30;
+  cursor: col-resize;
+  touch-action: none;
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .room-theater-chat-dock__resize-handle {
+    display: block;
+  }
+}
+
+.room-theater-chat-dock__resize-handle--left {
+  left: 0;
+  transform: translateX(-50%);
+}
+
+.room-theater-chat-dock__resize-handle--right {
+  right: 0;
+  transform: translateX(50%);
+}
+
+.room-theater-chat-dock__resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 36px;
+  border-radius: 1px;
+  background: #1e1e2f;
+  box-shadow: 0 0 0 1px rgba(16, 16, 24, 0.6);
+  transition: background 0.15s ease, height 0.15s ease;
+}
+
+.room-theater-chat-dock__resize-handle:hover::before,
+.room-theater-chat-dock__resize-handle--active::before {
+  background: rgba(168, 85, 247, 0.55);
+  height: 48px;
+}
+
+.room-theater-chat-dock__resize-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 31;
+  pointer-events: none;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid #1e1e2f;
+  background: rgba(20, 20, 28, 0.95);
+  color: #c4b5fd;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .room-theater-side-row--custom-width .room-theater-chat-dock--theater,
+  .room-theater-side-row--custom-width.room-theater-side-row--resizing .room-theater-chat-dock--theater {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+  }
 }
 
 .room-theater-mobile-chat-sheet .live-chat-messages,

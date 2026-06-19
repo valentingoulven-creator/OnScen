@@ -38,6 +38,25 @@ import { formatSalonAudienceLabel } from '../lib/salonAudience';
 import type { DmContact, PlaybackState, Salon } from '../types';
 
 const SALON_MAX_DURATION_MS = 2 * 60 * 60 * 1000;
+const SALON_CHAT_HIDDEN_KEY = 'soundly_salon_chat_hidden';
+const SALON_CHAT_MINIMIZED_KEY = 'soundly_salon_chat_minimized';
+
+function readSalonChatHidden(): boolean {
+  if (window.innerWidth < 640) return true;
+  try {
+    return localStorage.getItem(SALON_CHAT_HIDDEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function readSalonChatMinimized(): boolean {
+  try {
+    return localStorage.getItem(SALON_CHAT_MINIMIZED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 function formatRemaining(ms: number): string {
   if (ms <= 0) return '0 min';
@@ -83,8 +102,8 @@ export function SalonPage({
   const [pendingGuestIds, setPendingGuestIds] = useState<Set<string>>(new Set());
   const [skipping, setSkipping] = useState(false);
   const [reordering, setReordering] = useState(false);
-  const [chatHidden, setChatHidden] = useState(() => window.innerWidth < 640);
-  const [chatMinimized, setChatMinimized] = useState(false);
+  const [chatHidden, setChatHidden] = useState(readSalonChatHidden);
+  const [chatMinimized, setChatMinimized] = useState(readSalonChatMinimized);
   const [shareCopied, setShareCopied] = useState(false);
 
   const [sessionEnded, setSessionEnded] = useState(false);
@@ -602,7 +621,9 @@ export function SalonPage({
       </div>
     ) : undefined;
 
-  const stageFooter = isSpotifyParticipantOnly ? undefined : (
+  const stageFooter = isSpotifyParticipantOnly ? (
+    participantProposeSearch ? <div className="p-3">{participantProposeSearch}</div> : null
+  ) : (
     <>
       {isHost && hostCanControl && salon.platform === 'youtube' && token && (
         <SalonYouTubeHostPanel
@@ -904,15 +925,33 @@ export function SalonPage({
           allowFloatingChat={salon.platform !== 'youtube'}
           sideDockMatchHero={salon.platform === 'youtube'}
           chatHidden={chatHidden}
-          onToggleChat={() => setChatHidden((h) => !h)}
+          onToggleChat={() => {
+            setChatHidden((h) => {
+              const next = !h;
+              try {
+                if (window.innerWidth >= 640) {
+                  localStorage.setItem(SALON_CHAT_HIDDEN_KEY, next ? '1' : '0');
+                }
+              } catch {
+                /* ignore */
+              }
+              return next;
+            });
+          }}
           chatTitle={t('salon.chatTitle', { defaultValue: 'Chat du salon' })}
           chatHeaderExtra={chatHeaderExtra}
-          {...(salon.platform !== 'spotify'
-            ? {
-                chatMinimized,
-                onToggleMinimize: () => setChatMinimized((m) => !m),
+          chatMinimized={chatMinimized}
+          onToggleMinimize={() => {
+            setChatMinimized((m) => {
+              const next = !m;
+              try {
+                localStorage.setItem(SALON_CHAT_MINIMIZED_KEY, next ? '1' : '0');
+              } catch {
+                /* ignore */
               }
-            : {})}
+              return next;
+            });
+          }}
           stage={
             <SalonPlaybackPanel
               salon={salon}

@@ -1595,7 +1595,7 @@ export function DmPage({
     const canSendDm = activeUser.isMutualFollow !== false;
     const iBlockedThem = blockedUsers.some((b) => b.id === activeUser.id);
     return (
-      <div className="relative flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f] overflow-hidden">
+      <div className="dm-thread-root relative flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f] overflow-hidden">
         <header className="shrink-0 flex items-center gap-3 p-3 border-b border-[#1e1e2f] bg-[#12121a] relative">
           <button
             type="button"
@@ -1956,13 +1956,13 @@ export function DmPage({
             </div>
           )}
           {iBlockedThem || blockedByThem ? (
-            <div className="shrink-0 flex items-center justify-center px-4 py-3 bg-[#12121a] border-t border-[#1e1e2f]">
+            <div className="dm-compose-bar shrink-0 flex items-center justify-center px-4 py-3 bg-[#12121a] border-t border-[#1e1e2f]">
               <p className="text-xs text-[#5a5a7a]">Envoi de message désactivé</p>
             </div>
           ) : (
             <form
               onSubmit={sendMessage}
-              className="shrink-0 flex gap-2 px-3 py-2 border-t border-[#1e1e2f] bg-[#12121a] pb-0 items-center"
+              className="dm-compose-bar shrink-0 flex gap-2 px-3 py-2 border-t border-[#1e1e2f] bg-[#12121a] items-center"
             >
               <button
                 type="button"
@@ -2149,7 +2149,7 @@ export function DmPage({
     }
 
     return (
-      <div className="relative flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f] overflow-hidden">
+      <div className="dm-thread-root relative flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f] overflow-hidden">
         <header className="shrink-0 flex items-center gap-3 p-3 border-b border-[#1e1e2f] bg-[#12121a] relative">
           <button
             type="button"
@@ -2292,7 +2292,7 @@ export function DmPage({
 
           <form
             onSubmit={sendGroupMessage}
-            className="shrink-0 flex gap-2 px-3 py-2 border-t border-[#1e1e2f] bg-[#12121a] pb-0 items-center"
+            className="dm-compose-bar shrink-0 flex gap-2 px-3 py-2 border-t border-[#1e1e2f] bg-[#12121a] items-center"
           >
             <input
               type="text"

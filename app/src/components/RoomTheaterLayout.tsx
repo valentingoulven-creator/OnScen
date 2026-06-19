@@ -1,7 +1,38 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
 import { FloatingSalonChat } from './FloatingSalonChat';
 
 const DOCK_MODE_KEY = 'soundly_theater_chat_dock_mode';
+const CHAT_DOCK_WIDTH_KEY = 'salon-theater-chat-width';
+const CHAT_DOCK_MIN_WIDTH = 240;
+const CHAT_DOCK_MAX_WIDTH = 480;
+
+function getChatDockMaxWidth(viewportWidth = window.innerWidth) {
+  return Math.min(CHAT_DOCK_MAX_WIDTH, Math.floor(viewportWidth * 0.5));
+}
+
+function clampChatDockWidth(width: number, viewportWidth = window.innerWidth) {
+  return Math.min(getChatDockMaxWidth(viewportWidth), Math.max(CHAT_DOCK_MIN_WIDTH, Math.round(width)));
+}
+
+function readChatDockWidth(): number | null {
+  try {
+    const raw = localStorage.getItem(CHAT_DOCK_WIDTH_KEY);
+    if (!raw) return null;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return null;
+    return clampChatDockWidth(n);
+  } catch {
+    return null;
+  }
+}
+
+function persistChatDockWidth(width: number) {
+  try {
+    localStorage.setItem(CHAT_DOCK_WIDTH_KEY, String(width));
+  } catch {
+    /* ignore */
+  }
+}
 
 export type TheaterChatDock = 'floating' | 'bottom' | 'right' | 'left';
 
@@ -52,6 +83,200 @@ function DockChatBody({ chat, chatInput }: { chat: ReactNode; chatInput?: ReactN
       <div className="flex-1 min-h-0 overflow-hidden flex flex-col">{chat}</div>
       {chatInput ? <div className="room-theater-chat-dock__input shrink-0">{chatInput}</div> : null}
     </div>
+  );
+}
+
+function useTheaterChatDockWidth() {
+  const [width, setWidthState] = useState<number | null>(() => readChatDockWidth());
+
+  const setWidth = useCallback((next: number, options?: { persist?: boolean }) => {
+    const clamped = clampChatDockWidth(next);
+    setWidthState(clamped);
+    if (options?.persist !== false) {
+      persistChatDockWidth(clamped);
+    }
+  }, []);
+
+  const commitWidth = useCallback(
+    (next: number) => {
+      setWidth(next, { persist: true });
+    },
+    [setWidth]
+  );
+
+  useEffect(() => {
+    const onResize = () => {
+      setWidthState((current) => {
+        if (current === null) return null;
+        const clamped = clampChatDockWidth(current);
+        if (clamped !== current) persistChatDockWidth(clamped);
+        return clamped;
+      });
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  return { width, setWidth, commitWidth };
+}
+
+function TheaterChatDockResizeHandle({
+  dockEdge,
+  asideRef,
+  width,
+  setWidth,
+  commitWidth,
+  onDraggingChange,
+}: {
+  dockEdge: 'left' | 'right';
+  asideRef: RefObject<HTMLElement | null>;
+  width: number | null;
+  setWidth: (width: number, options?: { persist?: boolean }) => void;
+  commitWidth: (width: number) => void;
+  onDraggingChange?: (dragging: boolean) => void;
+}) {
+  const resizeRef = useRef<{
+    active: boolean;
+    pointerId: number;
+    startX: number;
+    startWidth: number;
+    lastWidth: number;
+  } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [previewWidth, setPreviewWidth] = useState<number | null>(null);
+  const handleEdge = dockEdge === 'left' ? 'right' : 'left';
+
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const measured = asideRef.current?.getBoundingClientRect().width;
+    const startWidth = width ?? measured ?? 320;
+    const clampedStart = clampChatDockWidth(startWidth);
+    resizeRef.current = {
+      active: true,
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startWidth: clampedStart,
+      lastWidth: clampedStart,
+    };
+    setDragging(true);
+    onDraggingChange?.(true);
+    setPreviewWidth(clampedStart);
+    setWidth(clampedStart, { persist: false });
+  };
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      const resize = resizeRef.current;
+      if (!resize?.active || e.pointerId !== resize.pointerId) return;
+      e.preventDefault();
+      const delta = e.clientX - resize.startX;
+      const next = dockEdge === 'right' ? resize.startWidth - delta : resize.startWidth + delta;
+      const clamped = clampChatDockWidth(next);
+      if (clamped === resize.lastWidth) return;
+      resize.lastWidth = clamped;
+      setPreviewWidth(clamped);
+      setWidth(clamped, { persist: false });
+    };
+
+    const onEnd = (e: PointerEvent) => {
+      const resize = resizeRef.current;
+      if (!resize?.active || e.pointerId !== resize.pointerId) return;
+      commitWidth(resize.lastWidth);
+      resizeRef.current = null;
+      setDragging(false);
+      onDraggingChange?.(false);
+      setPreviewWidth(null);
+    };
+
+    window.addEventListener('pointermove', onMove, { passive: false });
+    window.addEventListener('pointerup', onEnd);
+    window.addEventListener('pointercancel', onEnd);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onEnd);
+      window.removeEventListener('pointercancel', onEnd);
+    };
+  }, [commitWidth, dockEdge, onDraggingChange, setWidth]);
+
+  return (
+    <>
+      <div
+        className={`room-theater-chat-dock__resize-handle room-theater-chat-dock__resize-handle--${handleEdge}${
+          dragging ? ' room-theater-chat-dock__resize-handle--active' : ''
+        }`}
+        onPointerDown={onPointerDown}
+        role="separator"
+        aria-orientation="vertical"
+        aria-valuenow={previewWidth ?? width ?? undefined}
+        aria-valuemin={CHAT_DOCK_MIN_WIDTH}
+        aria-valuemax={getChatDockMaxWidth()}
+        aria-label="Redimensionner le chat"
+        title="Glisser pour ajuster la largeur du chat"
+      />
+      {dragging && previewWidth !== null ? (
+        <div className="room-theater-chat-dock__resize-label" aria-live="polite">
+          {previewWidth} px
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function TheaterChatDockAside({
+  dockEdge,
+  width,
+  setWidth,
+  commitWidth,
+  resizable,
+  resizing,
+  onDraggingChange,
+  className,
+  children,
+}: {
+  dockEdge: 'left' | 'right';
+  width: number | null;
+  setWidth: (width: number, options?: { persist?: boolean }) => void;
+  commitWidth: (width: number) => void;
+  resizable?: boolean;
+  resizing?: boolean;
+  onDraggingChange?: (dragging: boolean) => void;
+  className: string;
+  children: ReactNode;
+}) {
+  const asideRef = useRef<HTMLElement>(null);
+  const widthStyle: CSSProperties | undefined =
+    width !== null
+      ? {
+          width: `${width}px`,
+          minWidth: `${width}px`,
+          maxWidth: `${width}px`,
+          flex: 'none',
+        }
+      : undefined;
+
+  return (
+    <aside
+      ref={asideRef}
+      className={`${className}${resizable ? ' room-theater-chat-dock--resizable' : ''}${
+        width !== null ? ' room-theater-chat-dock--custom-width' : ''
+      }${resizing ? ' room-theater-chat-dock--resizing' : ''}`}
+      style={widthStyle}
+    >
+      {resizable ? (
+        <TheaterChatDockResizeHandle
+          dockEdge={dockEdge}
+          asideRef={asideRef}
+          width={width}
+          setWidth={setWidth}
+          commitWidth={commitWidth}
+          onDraggingChange={onDraggingChange}
+        />
+      ) : null}
+      {children}
+    </aside>
   );
 }
 
@@ -188,9 +413,24 @@ export function RoomTheaterLayout({
   stackBelowVideo = false,
   sideDockMatchHero = false,
 }: RoomTheaterLayoutProps) {
+  const { width: chatDockWidth, setWidth: setChatDockWidth, commitWidth: commitChatDockWidth } =
+    useTheaterChatDockWidth();
+  const [chatDockResizing, setChatDockResizing] = useState(false);
   const [dockMode, setDockMode] = useState<'floating' | 'right'>(() =>
     allowFloatingChat ? readDockMode() : 'right'
   );
+
+  useEffect(() => {
+    if (!chatDockResizing) return;
+    const prevCursor = document.body.style.cursor;
+    const prevSelect = document.body.style.userSelect;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    return () => {
+      document.body.style.cursor = prevCursor;
+      document.body.style.userSelect = prevSelect;
+    };
+  }, [chatDockResizing]);
 
   const toggleDockMode = useCallback(() => {
     setDockMode((current) => {
@@ -220,6 +460,14 @@ export function RoomTheaterLayout({
       <ChatLayoutToggle dockMode={theaterDock === 'floating' ? 'floating' : 'right'} onToggle={toggleDockMode} />
     ) : null;
 
+  const chatDockAsideProps = {
+    width: chatDockWidth,
+    setWidth: setChatDockWidth,
+    commitWidth: commitChatDockWidth,
+    resizable: true as const,
+    resizing: chatDockResizing,
+  };
+
   if (variant === 'queue-chat') {
     return (
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
@@ -234,26 +482,24 @@ export function RoomTheaterLayout({
           </div>
 
           {!chatHidden ? (
-            <aside className="room-theater-chat-dock shrink-0 flex flex-col min-h-0 border-t sm:border-t-0 sm:border-l border-[#1e1e2f] bg-[#101018]">
-              <div className="shrink-0 flex items-center gap-1.5 px-3 py-2 border-b border-[#1e1e2f] bg-[#14141c]/80">
-                <span className="text-purple-400 text-[10px]" aria-hidden>
-                  💬
-                </span>
-                <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest flex-1 truncate min-w-0">
-                  {chatTitle}
-                </p>
-                {chatHeaderExtra}
-                <button
-                  type="button"
-                  onClick={onToggleChat}
-                  className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-white hover:bg-white/10 transition text-lg leading-none"
-                  aria-label="Masquer le chat"
-                >
-                  ×
-                </button>
-              </div>
-              <DockChatBody chat={chat} chatInput={chatInput} />
-            </aside>
+            <TheaterChatDockAside
+              dockEdge="right"
+              {...chatDockAsideProps}
+              onDraggingChange={setChatDockResizing}
+              className="room-theater-chat-dock shrink-0 flex flex-col min-h-0 border-t sm:border-t-0 sm:border-l border-[#1e1e2f] bg-[#101018]"
+            >
+              <DockedChatHeader
+                chatTitle={chatTitle}
+                chatHeaderExtra={chatHeaderExtra}
+                dockMode="right"
+                onToggleDock={() => {}}
+                onToggleChat={onToggleChat}
+                onToggleMinimize={onToggleMinimize}
+                chatMinimized={chatMinimized}
+                showDockToggle={false}
+              />
+              {!chatMinimized && <DockChatBody chat={chat} chatInput={chatInput} />}
+            </TheaterChatDockAside>
           ) : (
             <button
               type="button"
@@ -280,9 +526,18 @@ export function RoomTheaterLayout({
   const sideRowClass = showSideDock
     ? ` room-theater-side-row${showRightDock ? ' room-theater-side-row--right' : ' room-theater-side-row--left'}${
         useMatchHero ? ' room-theater-side-row--match-hero' : ''
+      }${chatDockWidth !== null || chatDockResizing ? ' room-theater-side-row--custom-width' : ''}${
+        chatDockResizing ? ' room-theater-side-row--resizing' : ''
       }`
     : '';
   const sideRowFlex = useMatchHero ? 'shrink-0' : 'flex-1';
+  const sideRowStyle: CSSProperties | undefined =
+    chatDockWidth !== null && showSideDock
+      ? showRightDock
+        ? { gridTemplateColumns: `minmax(0, 1fr) ${chatDockWidth}px` }
+        : { gridTemplateColumns: `${chatDockWidth}px minmax(0, 1fr)` }
+      : undefined;
+
   const chevronCollapse = showLeftDock ? '6,1 2,7 6,13' : '2,1 6,7 2,13';
   const chevronExpand = showLeftDock ? '2,1 6,7 2,13' : '6,1 2,7 6,13';
 
@@ -428,9 +683,17 @@ export function RoomTheaterLayout({
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
       <div className="flex-1 min-w-0 flex flex-col min-h-0">
-        <div className={`${sideRowFlex} min-h-0 flex flex-col overflow-hidden${sideRowClass || ' sm:flex-row'}`}>
+        <div
+          className={`${sideRowFlex} min-h-0 flex flex-col overflow-hidden${sideRowClass || ' sm:flex-row'}`}
+          style={sideRowStyle}
+        >
           {showLeftDock && (
-            <aside className="room-theater-chat-dock room-theater-chat-dock--theater room-theater-chat-dock--left hidden sm:flex flex-col min-h-0 min-w-0 border-r border-[#1e1e2f] bg-[#101018]">
+            <TheaterChatDockAside
+              dockEdge="left"
+              {...chatDockAsideProps}
+              onDraggingChange={setChatDockResizing}
+              className="room-theater-chat-dock room-theater-chat-dock--theater room-theater-chat-dock--left hidden sm:flex flex-col min-h-0 min-w-0 border-r border-[#1e1e2f] bg-[#101018]"
+            >
               <DockedChatHeader
                 chatTitle={chatTitle}
                 chatHeaderExtra={chatHeaderExtra}
@@ -442,13 +705,18 @@ export function RoomTheaterLayout({
                 showDockToggle={false}
               />
               {!chatMinimized && <DockChatBody chat={chat} chatInput={chatInput} />}
-            </aside>
+            </TheaterChatDockAside>
           )}
 
           {videoStage}
 
           {showRightDock && (
-            <aside className="room-theater-chat-dock room-theater-chat-dock--theater hidden sm:flex flex-col min-h-0 min-w-0 border-l border-[#1e1e2f] bg-[#101018]">
+            <TheaterChatDockAside
+              dockEdge="right"
+              {...chatDockAsideProps}
+              onDraggingChange={setChatDockResizing}
+              className="room-theater-chat-dock room-theater-chat-dock--theater hidden sm:flex flex-col min-h-0 min-w-0 border-l border-[#1e1e2f] bg-[#101018]"
+            >
               <DockedChatHeader
                 chatTitle={chatTitle}
                 chatHeaderExtra={chatHeaderExtra}
@@ -460,7 +728,7 @@ export function RoomTheaterLayout({
                 showDockToggle={allowFloatingChat}
               />
               {!chatMinimized && <DockChatBody chat={chat} chatInput={chatInput} />}
-            </aside>
+            </TheaterChatDockAside>
           )}
         </div>
 

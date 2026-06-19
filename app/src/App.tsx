@@ -890,16 +890,18 @@ export default function App() {
             )}
             {dmTabMounted && (
               <Suspense fallback={<PageFallback />}>
-                <DmPage
-                  openPeerId={dmPeerToOpen}
-                  openGroupId={dmGroupToOpen}
-                  onOpenPeerConsumed={consumeDmPeer}
-                  onOpenGroupConsumed={consumeDmGroup}
-                  onOpenProfile={openProfileFromDm}
-                  onOpenSalon={openSalonPage}
-                  onOpenFeedPost={openFeedPostFromMap}
-                  isActive
-                />
+                <div className="flex flex-col flex-1 min-h-0 min-w-0">
+                  <DmPage
+                    openPeerId={dmPeerToOpen}
+                    openGroupId={dmGroupToOpen}
+                    onOpenPeerConsumed={consumeDmPeer}
+                    onOpenGroupConsumed={consumeDmGroup}
+                    onOpenProfile={openProfileFromDm}
+                    onOpenSalon={openSalonPage}
+                    onOpenFeedPost={openFeedPostFromMap}
+                    isActive
+                  />
+                </div>
               </Suspense>
             )}
             {reelsTabMounted && (
