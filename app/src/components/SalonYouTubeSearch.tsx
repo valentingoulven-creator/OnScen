@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api';
+import { parseYoutubeVideoId } from '../lib/salonPlayback';
 import type { PlaybackState, SalonQueueItem, YoutubeSearchResult } from '../types';
 
 interface SalonYouTubeSearchProps {
@@ -17,13 +18,15 @@ interface SalonYouTubeSearchProps {
   embedded?: boolean;
 }
 
-function parseYoutubeVideoId(input: string): string | null {
-  const raw = input.trim();
-  if (!raw) return null;
-  return (
-    raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{6,})/)?.[1] ??
-    (raw.length <= 15 && /^[a-zA-Z0-9_-]+$/.test(raw) ? raw : null)
-  );
+const GENERIC_YOUTUBE_TITLES = new Set(['vidéo youtube', 'sans titre', 'video youtube']);
+
+function isCompleteSearchResult(item: YoutubeSearchResult): boolean {
+  const title = item.title.trim();
+  const artist = item.artist.trim();
+  if (!item.videoId || !title) return false;
+  if (GENERIC_YOUTUBE_TITLES.has(title.toLowerCase())) return false;
+  if (title.toLowerCase() === 'youtube' && (!artist || artist.toLowerCase() === 'youtube')) return false;
+  return true;
 }
 
 const actionBtnClass =
@@ -86,7 +89,7 @@ export function SalonYouTubeSearch({
     debounceRef.current = setTimeout(() => {
       api
         .searchYoutube(token, q)
-        .then((r) => setResults(r.results))
+        .then((r) => setResults(r.results.filter(isCompleteSearchResult)))
         .catch((e) => {
           setResults([]);
           setError(e instanceof Error ? e.message : t('salon.youtubeSearch.errorGeneric'));

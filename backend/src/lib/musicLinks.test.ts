@@ -1,5 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { parseYoutubePlaylistId, resolveYoutubePlaylistId } from './musicLinks';
+import {
+  isValidYoutubeVideoId,
+  parseMusicLink,
+  parseYoutubePlaylistId,
+  resolveYoutubePlaylistId,
+} from './musicLinks';
+
+describe('parseMusicLink (youtube)', () => {
+  it('extracts id from watch URL', () => {
+    expect(parseMusicLink('youtube', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toEqual({
+      trackId: 'dQw4w9WgXcQ',
+    });
+  });
+
+  it('accepts bare video id (6+ chars)', () => {
+    expect(parseMusicLink('youtube', 'dQw4w9WgXcQ')).toEqual({ trackId: 'dQw4w9WgXcQ' });
+  });
+
+  it('rejects short search terms like artist names', () => {
+    expect(parseMusicLink('youtube', 'gims')).toBeNull();
+    expect(parseMusicLink('youtube', 'abc')).toBeNull();
+    expect(isValidYoutubeVideoId('gims')).toBe(false);
+  });
+});
 
 describe('parseYoutubePlaylistId', () => {
   it('extracts list id from playlist URL', () => {

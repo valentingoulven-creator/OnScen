@@ -110,7 +110,9 @@
     "eventFilterDisableTitle": "Désactiver le filtre Évènement",
     "eventFilterLocationError": "Lieu introuvable. Choisissez une suggestion ou précisez l'adresse.",
     "globeUnavailable": "Vue globe 3D indisponible sur cet appareil.",
-    "globeFallback": "Vue globe 3D indisponible — carte plate activée."
+    "globeFallback": "Vue globe 3D indisponible — carte plate activée.",
+    "hostedSalonBannerHost": "Hôte",
+    "hostedSalonBannerOpen": "Ouvrir"
   },
   "home": {
     "nearbyPeople": "Personnes proches",
@@ -284,7 +286,7 @@
     "youtubeSearch": {
       "placeholder": "Titre, artiste ou lien YouTube…",
       "searching": "Recherche YouTube…",
-      "noResultsHint": "Aucun résultat — reformulez ou collez un lien youtube.com/watch?v=…",
+      "noResultsHint": "Aucun résultat",
       "addToQueue": "Ajouter à la file",
       "addHint": "Recherche YouTube · lien direct accepté · ajoute à la file sans interrompre le morceau en cours.",
       "addSuccess": "Morceau ajouté à la file",

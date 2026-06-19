@@ -67,7 +67,7 @@ async function fetchSearchHits(
   const data = (await res.json()) as {
     items?: Array<{
       id?: { videoId?: string };
-      snippet?: { title?: string; channelTitle?: string; thumbnails?: { medium?: { url?: string } } };
+      snippet?: { title?: string; channelTitle?: string; thumbnails?: { medium?: { url?: string }; high?: { url?: string }; default?: { url?: string } } };
     }>;
   };
   if (!data.items?.length) return [];
@@ -75,12 +75,17 @@ async function fetchSearchHits(
   const out: RemoteVideoHit[] = [];
   for (const item of data.items) {
     const videoId = item.id?.videoId;
-    if (!videoId) continue;
+    const title = item.snippet?.title?.trim();
+    if (!videoId || !title) continue;
     out.push({
       videoId,
-      title: (item.snippet?.title ?? 'Sans titre').slice(0, 120),
+      title: (item.snippet?.title ?? '').slice(0, 120),
       artist: (item.snippet?.channelTitle ?? 'YouTube').slice(0, 80),
-      thumbnailUrl: item.snippet?.thumbnails?.medium?.url ?? thumb(videoId),
+      thumbnailUrl:
+        item.snippet?.thumbnails?.medium?.url ??
+        item.snippet?.thumbnails?.high?.url ??
+        item.snippet?.thumbnails?.default?.url ??
+        thumb(videoId),
     });
   }
   return out;

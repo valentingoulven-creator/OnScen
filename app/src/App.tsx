@@ -425,6 +425,11 @@ export default function App() {
     [closeActiveSalonSession]
   );
 
+  const handleOwnSalonEnded = useCallback(() => {
+    handleSalonForcedEnd('ended');
+    void refreshUser();
+  }, [handleSalonForcedEnd, refreshUser]);
+
   useSalonSocketMembership(
     activeSalonSession?.id ?? null,
     user ? { id: user.id, username: user.username } : null,
@@ -645,6 +650,11 @@ export default function App() {
   if (!user.onboardingCompleted) return <OnboardingPage onDone={completeOnboarding} />;
 
   const salonFullScreen = activeSalonSession?.viewMode === 'full';
+  /** Salon hébergé actif — bandeau carte (sessionStorage + /auth/me). */
+  const ownSalonSession =
+    activeSalonSession?.isHost && activeSalonSession
+      ? { id: activeSalonSession.id, title: activeSalonSession.title }
+      : null;
   const showSalonPageShell = Boolean(
     activeSalonSession && (salonFullScreen || salonVideoFloatActive)
   );
@@ -927,6 +937,12 @@ export default function App() {
                     onMapSalonActive={handleMapSalonActive}
                     onLeaveSalon={leaveActiveSalonSession}
                     onSalonRestoreFailed={() => handleSalonForcedEnd('ended')}
+                    ownSalonSession={ownSalonSession}
+                    onReturnToOwnSalon={() => {
+                      if (!ownSalonSession) return;
+                      openSalonPage(ownSalonSession.id, ownSalonSession.title, true);
+                    }}
+                    onOwnSalonEnded={handleOwnSalonEnded}
                   />
                 </div>
               </Suspense>

@@ -110,7 +110,9 @@
     "eventFilterDisableTitle": "Turn off event filter",
     "eventFilterLocationError": "Location not found. Pick a suggestion or refine the address.",
     "globeUnavailable": "3D globe view is unavailable on this device.",
-    "globeFallback": "3D globe unavailable — flat map enabled."
+    "globeFallback": "3D globe unavailable — flat map enabled.",
+    "hostedSalonBannerHost": "Host",
+    "hostedSalonBannerOpen": "Open"
   },
   "home": {
     "nearbyPeople": "People nearby",

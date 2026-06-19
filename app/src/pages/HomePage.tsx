@@ -12,6 +12,7 @@ import { MapLiveListenSheet } from '../components/MapLiveListenSheet';
 import { CreateSalonModal } from '../components/CreateSalonModal';
 import { canJoinSalonAsParticipant, salonParticipantAccessMessageKey } from '../lib/platformConnect';
 import { MapAdBanner, type MapSponsorViewport } from '../components/MapAdBanner';
+import { MapHostedSalonBanner } from '../components/MapHostedSalonBanner';
 import { MAP_EVENTS_REFRESH_EVENT, MAP_OPEN_CREATE_SALON_EVENT } from '../lib/mapUiEvents';
 import { isAppa2Layout, type AppLayoutId } from '../lib/appLayout';
 import {
@@ -174,6 +175,10 @@ interface HomePageProps {
   onLeaveSalon?: () => void;
   /** Salon introuvable côté API (supprimé / expiré) pendant restore carte. */
   onSalonRestoreFailed?: (salonId: string) => void;
+  /** Salon hébergé actif — bandeau persistant sur la carte. */
+  ownSalonSession?: { id: string; title?: string } | null;
+  onReturnToOwnSalon?: () => void;
+  onOwnSalonEnded?: () => void;
 }
 
 export function HomePage({
@@ -193,6 +198,9 @@ export function HomePage({
   onMapSalonActive,
   onLeaveSalon,
   onSalonRestoreFailed,
+  ownSalonSession = null,
+  onReturnToOwnSalon,
+  onOwnSalonEnded,
 }: HomePageProps) {
   const { t } = useTranslation();
   const appa2 = isAppa2Layout(appLayout);
@@ -1439,6 +1447,20 @@ export function HomePage({
     [activeSalonSessionId, user?.id]
   );
 
+  const ownHostedSalonDetails = useMemo(() => {
+    if (!ownSalonSession || !user) return null;
+    const fromList = salons.find((s) => s.id === ownSalonSession.id);
+    return {
+      salonTitle: fromList?.title ?? ownSalonSession.title,
+      hostName: fromList?.hostName ?? user.username,
+      hostUsernameColor: fromList?.hostUsernameColor ?? user.usernameColor,
+      hostUsernameWaveFrom: fromList?.hostUsernameWaveFrom ?? user.usernameWaveFrom,
+      hostUsernameWaveTo: fromList?.hostUsernameWaveTo ?? user.usernameWaveTo,
+      platform: fromList?.platform,
+      listenersCount: fromList?.listenersCount ?? 0,
+    };
+  }, [ownSalonSession, salons, user]);
+
   const restoreSalonOnMap = useCallback(async (salonId: string) => {
     const salon = await resolveSalonById(salonId);
     if (!salon) {
@@ -1747,6 +1769,21 @@ export function HomePage({
             isActive={isActive && !mapProfileOpen}
             onCtaSalon={() => setShowCreateSalon(true)}
             onCtaLive={onOpenLiveTab}
+          />
+        )}
+
+        {ownSalonSession && onReturnToOwnSalon && ownHostedSalonDetails && !mapProfileOpen && (
+          <MapHostedSalonBanner
+            salonId={ownSalonSession.id}
+            salonTitle={ownHostedSalonDetails.salonTitle}
+            hostName={ownHostedSalonDetails.hostName}
+            hostUsernameColor={ownHostedSalonDetails.hostUsernameColor}
+            hostUsernameWaveFrom={ownHostedSalonDetails.hostUsernameWaveFrom}
+            hostUsernameWaveTo={ownHostedSalonDetails.hostUsernameWaveTo}
+            platform={ownHostedSalonDetails.platform}
+            listenersCount={ownHostedSalonDetails.listenersCount}
+            onReturn={onReturnToOwnSalon}
+            onSalonEnded={onOwnSalonEnded}
           />
         )}
 

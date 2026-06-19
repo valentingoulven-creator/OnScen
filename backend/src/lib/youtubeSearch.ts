@@ -55,6 +55,22 @@ function dedupeResults(items: YoutubeSearchResult[]): YoutubeSearchResult[] {
   return out;
 }
 
+const GENERIC_YOUTUBE_TITLES = new Set(['vidéo youtube', 'sans titre', 'video youtube']);
+
+/** Exclut les entrées sans métadonnées réelles (ex. oEmbed échoué → « Vidéo YouTube »). */
+export function isCompleteYoutubeSearchResult(item: YoutubeSearchResult): boolean {
+  const title = item.title.trim();
+  const artist = item.artist.trim();
+  if (!item.videoId || !title) return false;
+  if (GENERIC_YOUTUBE_TITLES.has(title.toLowerCase())) return false;
+  if (title.toLowerCase() === 'youtube' && (!artist || artist.toLowerCase() === 'youtube')) return false;
+  return true;
+}
+
+function filterCompleteResults(items: YoutubeSearchResult[]): YoutubeSearchResult[] {
+  return items.filter(isCompleteYoutubeSearchResult);
+}
+
 export async function searchYoutube(
   query: string,
   accessToken?: string
@@ -65,7 +81,11 @@ export async function searchYoutube(
   const parsed = parseMusicLink('youtube', q);
   if (parsed) {
     const meta = await fetchOEmbed(parsed.trackId);
-    return [toResult(parsed.trackId, meta?.title ?? 'Vidéo YouTube', meta?.artist ?? 'YouTube')];
+    if (meta?.title) {
+      return filterCompleteResults([
+        toResult(parsed.trackId, meta.title, meta.artist ?? 'YouTube'),
+      ]);
+    }
   }
 
   const remoteHits: YoutubeSearchResult[] = [];
@@ -95,5 +115,5 @@ export async function searchYoutube(
     toResult(entry.youtube!.trackId, entry.title, entry.artist)
   );
 
-  return dedupeResults([...remoteHits, ...catalogHits]).slice(0, 15);
+  return filterCompleteResults(dedupeResults([...remoteHits, ...catalogHits])).slice(0, 15);
 }
