@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
+import { ConfirmModal } from '../components/ConfirmModal';
 import type { ContentReport } from '../types';
 
 function formatDate(ts: number): string {
@@ -33,6 +34,7 @@ export function AdminReportsTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'reviewed' | 'dismissed'>('all');
 
   const loadReports = useCallback(async () => {
@@ -72,11 +74,11 @@ export function AdminReportsTab() {
 
   const handleDelete = async (id: string) => {
     if (!token || actionLoading) return;
-    if (!confirm('Supprimer ce signalement ?')) return;
     setActionLoading(id);
     try {
       await api.adminDeleteReport(token, id);
       setReports((prev) => prev.filter((r) => r.id !== id));
+      setConfirmDeleteId(null);
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Erreur');
     } finally {
@@ -217,7 +219,7 @@ export function AdminReportsTab() {
               <button
                 type="button"
                 disabled={isLoading}
-                onClick={() => handleDelete(report.id)}
+                onClick={() => setConfirmDeleteId(report.id)}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-600/20 text-red-400 border border-red-500/30 hover:bg-red-600/30 disabled:opacity-50 transition ml-auto"
               >
                 {isLoading ? '…' : '🗑 Supprimer'}

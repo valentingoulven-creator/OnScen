@@ -53,6 +53,7 @@ import { MyFavoritesSheet } from '../components/MyFavoritesSheet';
 import { formatCompactCount } from '../lib/formatCount';
 import { CompactTagChips } from '../components/CompactTagChips';
 import { ProfileHeaderSection } from '../components/ProfileHeaderSection';
+import { ConfirmModal } from '../components/ConfirmModal';
 import { PROFILE_TYPE_OPTIONS } from '../lib/profileTypes';
 import type { ProfileType, RelationshipStatus, User } from '../types';
 
@@ -923,43 +924,17 @@ export function ProfilePage({
       )}
 
       {showLogoutConfirm && (
-        <div
-          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="logout-confirm-title"
-          onClick={() => setShowLogoutConfirm(false)}
-        >
-          <div
-            className="w-full max-w-sm bg-[#12121a] border border-[#2d2d3d] rounded-2xl shadow-2xl overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-5">
-              <p id="logout-confirm-title" className="text-lg font-bold text-white">
-                {t('profile.logoutConfirmTitle')}
-              </p>
-            </div>
-            <div className="flex gap-2 p-4 border-t border-[#1e1e2f] bg-[#0b0b0f]/50">
-              <button
-                type="button"
-                onClick={() => setShowLogoutConfirm(false)}
-                className="flex-1 py-3 rounded-xl border border-[#2d2d3d] text-gray-300 text-sm font-semibold hover:text-white"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowLogoutConfirm(false);
-                  logout();
-                }}
-                className="flex-1 py-3 rounded-xl bg-red-600/90 hover:bg-red-500 text-white text-sm font-bold"
-              >
-                {t('profile.logout')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmModal
+          open
+          title={t('profile.logoutConfirmTitle')}
+          cancelLabel={t('common.cancel')}
+          confirmLabel={t('profile.logout')}
+          onCancel={() => setShowLogoutConfirm(false)}
+          onConfirm={() => {
+            setShowLogoutConfirm(false);
+            logout();
+          }}
+        />
       )}
     </div>
   );

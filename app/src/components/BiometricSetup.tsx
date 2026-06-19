@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { startRegistration } from '@simplewebauthn/browser';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import { ConfirmModal } from './ConfirmModal';
 
 interface StoredCredential {
   id: string;
@@ -37,6 +38,7 @@ export function BiometricSetup() {
   const [credentials, setCredentials] = useState<StoredCredential[]>([]);
   const [loading, setLoading]         = useState(false);
   const [removing, setRemoving]       = useState<string | null>(null);
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [error, setError]             = useState('');
   const [success, setSuccess]         = useState('');
 
@@ -103,6 +105,7 @@ export function BiometricSetup() {
     try {
       await api.webauthnDeleteCredential(token, credentialId);
       await loadCredentials();
+      setConfirmRemoveId(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('settings.biometricRemoveError'));
     } finally {
@@ -169,7 +172,7 @@ export function BiometricSetup() {
               <button
                 type="button"
                 disabled={removing === cred.id}
-                onClick={() => void handleRemove(cred.id)}
+                onClick={() => setConfirmRemoveId(cred.id)}
                 className="text-xs text-red-400 hover:text-red-300 disabled:opacity-40 transition font-medium"
               >
                 {removing === cred.id ? t('settings.biometricDisabling') : t('settings.biometricDisable')}
@@ -211,6 +214,18 @@ export function BiometricSetup() {
           )}
         </button>
       )}
+
+      <ConfirmModal
+        open={confirmRemoveId !== null}
+        title="Supprimer cette clé biométrique ?"
+        description="Vous ne pourrez plus vous connecter avec cette passkey sur cet appareil."
+        confirmLabel={t('settings.biometricDisable')}
+        loading={Boolean(confirmRemoveId && removing === confirmRemoveId)}
+        onCancel={() => setConfirmRemoveId(null)}
+        onConfirm={() => {
+          if (confirmRemoveId) void handleRemove(confirmRemoveId);
+        }}
+      />
     </div>
   );
 }

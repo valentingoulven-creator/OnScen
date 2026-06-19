@@ -33,6 +33,7 @@ import type { ChatMessage, LiveChatReaction } from '../types';
 import { LiveUserBanModal, type LiveBanScope } from './LiveUserBanModal';
 import { SalonUserBanModal } from './SalonUserBanModal';
 import { ReportContentModal, type ReportContentContext } from './ReportContentModal';
+import { ConfirmModal } from './ConfirmModal';
 import { UsernameDisplay } from './UsernameDisplay';
 import { UserDevBadge } from './UserDevBadge';
 
@@ -94,7 +95,10 @@ interface ChatRoomContextValue {
   setUserMenuAnchor: (anchor: DOMRect | null) => void;
   setBanModalTarget: (target: { id: string; name: string } | null) => void;
   setReportContext: (ctx: ReportContentContext | null) => void;
-  deleteMessage: (messageId: string, asModerator?: boolean) => Promise<void>;
+  deleteMessage: (messageId: string, asModerator?: boolean) => void;
+  confirmDeleteMessage: { id: string; asModerator: boolean } | null;
+  performDeleteMessage: () => Promise<void>;
+  setConfirmDeleteMessage: (value: { id: string; asModerator: boolean } | null) => void;
   openUserMenu: (target: { id: string; name: string }, anchor: DOMRect) => void;
   toggleMsgMenu: (messageId: string, anchor: DOMRect) => void;
   bottomRef: React.RefObject<HTMLDivElement | null>;
@@ -262,6 +266,7 @@ function useChatRoom({
   const [reactionError, setReactionError] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
   const [messageSending, setMessageSending] = useState(false);
+  const [confirmDeleteMessage, setConfirmDeleteMessage] = useState<{ id: string; asModerator: boolean } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const reactionMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -420,12 +425,15 @@ function useChatRoom({
     });
   }, [messages, reactions, liveReactionsEnabled, blockedPeerIds]);
 
-  const deleteMessage = async (messageId: string, asModerator = false) => {
-    if (!token) return;
-    const confirmText = asModerator
-      ? 'Supprimer ce message du chat public ?'
-      : 'Supprimer ce message ?';
-    if (!window.confirm(confirmText)) return;
+  const deleteMessage = (messageId: string, asModerator = false) => {
+    setConfirmDeleteMessage({ id: messageId, asModerator });
+    setOpenMsgMenuId(null);
+    setMsgMenuAnchor(null);
+  };
+
+  const performDeleteMessage = async () => {
+    if (!token || !confirmDeleteMessage) return;
+    const { id: messageId } = confirmDeleteMessage;
     try {
       if (onDeleteMessage) {
         await onDeleteMessage(messageId);
@@ -433,8 +441,7 @@ function useChatRoom({
         await api.deleteChatMessage(token, roomType, roomId, messageId);
       }
       setMessages((m) => m.filter((x) => x.id !== messageId));
-      setOpenMsgMenuId(null);
-      setMsgMenuAnchor(null);
+      setConfirmDeleteMessage(null);
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Impossible de supprimer');
     }
@@ -556,6 +563,9 @@ function useChatRoom({
     setBanModalTarget,
     setReportContext,
     deleteMessage,
+    confirmDeleteMessage,
+    performDeleteMessage,
+    setConfirmDeleteMessage,
     openUserMenu,
     toggleMsgMenu,
     bottomRef,
@@ -1126,6 +1136,9 @@ export function ChatModals() {
     onUserBlocked,
     setBanModalTarget,
     setReportContext,
+    confirmDeleteMessage,
+    performDeleteMessage,
+    setConfirmDeleteMessage,
   } = useChatRoomContext();
 
   return (
@@ -1153,6 +1166,17 @@ export function ChatModals() {
           onUserBlocked={onUserBlocked}
         />
       )}
+      <ConfirmModal
+        open={confirmDeleteMessage !== null}
+        title="Supprimer ce message ?"
+        description={
+          confirmDeleteMessage?.asModerator
+            ? 'Le message sera retiré du chat public pour tous les participants.'
+            : 'Cette action est définitive.'
+        }
+        onCancel={() => setConfirmDeleteMessage(null)}
+        onConfirm={() => void performDeleteMessage()}
+      />
     </>
   );
 }

@@ -1604,10 +1604,8 @@ export function ActualiteTabPage({
     }
   }, [token, updatePostInList]);
 
-  const handleToggleFavorite = useCallback(async (post: FeedPost) => {
+  const performToggleFavorite = useCallback(async (post: FeedPost, wasFav: boolean) => {
     if (!token) return;
-    const wasFav = post.favoriteByMe;
-    if (wasFav && !window.confirm('Retirer cette publication de vos favoris ?')) return;
     updatePostInList(post.id, { favoriteByMe: !wasFav });
     try {
       if (wasFav) {
@@ -1622,6 +1620,15 @@ export function ActualiteTabPage({
       showToast('Erreur — réessayez');
     }
   }, [token, updatePostInList, showToast]);
+
+  const handleToggleFavorite = useCallback((post: FeedPost) => {
+    if (!token) return;
+    if (post.favoriteByMe) {
+      setConfirmRemoveFavoritePost(post);
+      return;
+    }
+    void performToggleFavorite(post, false);
+  }, [token, performToggleFavorite]);
 
   const handleReshare = useCallback(async (post: FeedPost) => {
     if (!token) return;
@@ -2152,6 +2159,20 @@ export function ActualiteTabPage({
           onDeleted={handleFeedStoryDeleted}
         />
       ) : null}
+
+      <ConfirmModal
+        open={confirmRemoveFavoritePost !== null}
+        title="Retirer cette publication de vos favoris ?"
+        description="Elle ne figurera plus dans votre liste de favoris."
+        confirmLabel="Retirer"
+        onCancel={() => setConfirmRemoveFavoritePost(null)}
+        onConfirm={() => {
+          if (!confirmRemoveFavoritePost) return;
+          const post = confirmRemoveFavoritePost;
+          setConfirmRemoveFavoritePost(null);
+          void performToggleFavorite(post, true);
+        }}
+      />
     </div>
   );
 }
