@@ -191,7 +191,10 @@ async function request<T>(path: string, opts: RequestInit = {}, token?: string |
 
 export const api = {
   login: (email: string, password: string, rememberMe = true) =>
-    request<{ token: string; user: import('../types').User; rememberMe?: boolean }>('/auth/login', {
+    request<
+      | { token: string; user: import('../types').User; rememberMe?: boolean; requires2FA?: never }
+      | { requires2FA: true; tempToken: string; token?: never; user?: never }
+    >('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password, rememberMe }),
     }),
@@ -1459,6 +1462,39 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ currentPassword, newPassword }),
     }, token),
+
+  // ─── Double authentification (TOTP) ────────────────────────────────────────
+
+  /** Génère un secret TOTP + QR code pour l'utilisateur connecté (ne l'active pas encore). */
+  setup2FA: (token: string) =>
+    request<{ otpauthUrl: string; qrCode: string }>('/auth/2fa/setup', {
+      method: 'POST',
+    }, token),
+
+  /** Confirme le code TOTP lors de l'activation. Retourne les 8 codes de secours. */
+  verify2FA: (token: string, code: string) =>
+    request<{ ok: boolean; backupCodes: string[] }>('/auth/2fa/verify', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    }, token),
+
+  /** Désactive la 2FA (nécessite un code TOTP ou code de secours valide). */
+  disable2FA: (token: string, code: string) =>
+    request<{ ok: boolean }>('/auth/2fa/disable', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    }, token),
+
+  /** Statut 2FA de l'utilisateur connecté. */
+  get2FAStatus: (token: string) =>
+    request<{ twoFactorEnabled: boolean; backupCodesRemaining: number }>('/auth/2fa/status', {}, token),
+
+  /** Échange un tempToken + code TOTP contre un JWT complet lors de la connexion. */
+  validate2FA: (tempToken: string, code: string) =>
+    request<{ token: string; user: import('../types').User }>('/auth/2fa/validate', {
+      method: 'POST',
+      body: JSON.stringify({ tempToken, code }),
+    }),
 
   deleteAccount: (token: string, body: { password?: string; confirmation?: string }) =>
     request<{ ok: boolean }>('/auth/account', {

@@ -520,6 +520,8 @@ export interface User {
   stripeConnectAccountId?: string;
   /** Horodatage d'acceptation des règles de diffusion live Soundy (UNIX ms). */
   liveTermsAcceptedAt?: number;
+  /** Double authentification TOTP activée (renvoyé au propriétaire uniquement). */
+  twoFactorEnabled?: boolean;
 }
 
 export interface PlaybackState {

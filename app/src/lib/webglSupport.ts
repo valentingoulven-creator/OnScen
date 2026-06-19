@@ -28,40 +28,6 @@ export function isWebGLError(err: unknown): boolean {
   );
 }
 
-/** Vite/Rollup dynamic import failure (stale SW cache or missing hashed chunk on server). */
-export function isChunkLoadError(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : String(err ?? '');
-  const lower = msg.toLowerCase();
-  return (
-    lower.includes('failed to fetch dynamically imported module') ||
-    lower.includes('importing a module script failed') ||
-    lower.includes('error loading dynamically imported module') ||
-    lower.includes('loading chunk') ||
-    lower.includes('loading css chunk') ||
-    (lower.includes('failed to fetch') && /\.js(\?|$)/i.test(msg))
-  );
-}
-
-export function isGlobeChunkLoadError(err: unknown): boolean {
-  if (!isChunkLoadError(err)) return false;
-  const msg = err instanceof Error ? err.message : String(err ?? '');
-  return /globeview/i.test(msg);
-}
-
-const CHUNK_RELOAD_SESSION_KEY = 'soundy_chunk_reload';
-
-/** One hard reload per session when a non-globe JS chunk is missing (stale bundle). */
-export function shouldAutoReloadForChunkError(err: unknown): boolean {
-  if (!isChunkLoadError(err) || isGlobeChunkLoadError(err)) return false;
-  try {
-    if (sessionStorage.getItem(CHUNK_RELOAD_SESSION_KEY) === '1') return false;
-    sessionStorage.setItem(CHUNK_RELOAD_SESSION_KEY, '1');
-    return true;
-  } catch {
-    return true;
-  }
-}
-
 function tryCreateContext(
   canvas: HTMLCanvasElement,
   contextId: 'webgl2' | 'webgl' | 'experimental-webgl',

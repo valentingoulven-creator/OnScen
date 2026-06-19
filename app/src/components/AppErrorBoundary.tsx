@@ -1,13 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { DEFAULT_CENTER } from '../lib/livesGeo';
 import { isMsdevEnvironment } from '../lib/liveCameraSupport';
-import {
-  disableGlobeView,
-  isChunkLoadError,
-  isGlobeChunkLoadError,
-  isWebGLError,
-  shouldAutoReloadForChunkError,
-} from '../lib/webglSupport';
+import { disableGlobeView, isWebGLError } from '../lib/webglSupport';
 
 interface Props {
   children: ReactNode;
@@ -93,12 +87,6 @@ export class AppErrorBoundary extends Component<Props, State> {
     if (isWebGLError(error)) {
       return { error: null, recovering: true };
     }
-    if (isGlobeChunkLoadError(error)) {
-      return { error: null, recovering: true };
-    }
-    if (isChunkLoadError(error) && shouldAutoReloadForChunkError(error)) {
-      return { error: null, recovering: true };
-    }
     return { error: toError(error), recovering: false };
   }
 
@@ -126,17 +114,6 @@ export class AppErrorBoundary extends Component<Props, State> {
       this.autoResetTimer = setTimeout(() => {
         this.setState({ error: null, recovering: false });
       }, 100);
-    } else if (isGlobeChunkLoadError(error)) {
-      disableGlobeView();
-      this.setState({ recovering: true });
-      this.autoResetTimer = setTimeout(() => {
-        this.setState({ error: null, recovering: false });
-      }, 100);
-    } else if (isChunkLoadError(error)) {
-      this.setState({ recovering: true });
-      this.autoResetTimer = setTimeout(() => {
-        window.location.reload();
-      }, 300);
     }
   }
 

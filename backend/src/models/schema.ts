@@ -118,6 +118,16 @@ export interface User {
   /** Réinitialisation de mot de passe. */
   resetToken?: string;
   resetTokenExpiry?: number;
+  /** Double authentification TOTP (Google Authenticator / Authy). */
+  twoFactorEnabled?: boolean;
+  /**
+   * Secret TOTP. Préfixé de `pending:` pendant la phase de configuration (avant confirmation).
+   * Chiffré AES-256-GCM une fois confirmé (format `iv:tag:ciphertext` en hex).
+   * Absent si 2FA désactivée.
+   */
+  totpSecret?: string;
+  /** Codes de secours bcrypt-hachés (usage unique). */
+  twoFactorBackupCodes?: string[];
 }
 
 export interface PlaybackState {

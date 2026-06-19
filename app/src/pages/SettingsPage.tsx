@@ -16,6 +16,13 @@ import { PasswordStrengthBar } from '../components/PasswordStrengthBar';
 import { getPasswordStrength } from '../lib/passwordStrength';
 import { ContactSoundyPage } from './ContactSoundyPage';
 
+// ─── 2FA setup modal states ───────────────────────────────────────────────────
+type TwoFAModalState =
+  | 'closed'
+  | 'setup_qr'       // Affiche le QR code, attente du code de confirmation
+  | 'setup_backup'   // Affiche les codes de secours après activation réussie
+  | 'disable';       // Désactiver la 2FA (code TOTP requis)
+
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -187,6 +194,74 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
   const [confirmPwd, setConfirmPwd] = useState('');
   const [pwError, setPwError] = useState('');
   const [pwLoading, setPwLoading] = useState(false);
+
+  // 2FA state
+  const [twoFAEnabled, setTwoFAEnabled] = useState(user?.twoFactorEnabled === true);
+  const [twoFAModal, setTwoFAModal] = useState<TwoFAModalState>('closed');
+  const [twoFAQrCode, setTwoFAQrCode] = useState('');
+  const [twoFACode, setTwoFACode] = useState('');
+  const [twoFABackupCodes, setTwoFABackupCodes] = useState<string[]>([]);
+  const [twoFAError, setTwoFAError] = useState('');
+  const [twoFALoading, setTwoFALoading] = useState(false);
+  const [twoFADisableCode, setTwoFADisableCode] = useState('');
+
+  const openTwoFASetup = async () => {
+    if (!token || twoFALoading) return;
+    setTwoFAError('');
+    setTwoFACode('');
+    setTwoFALoading(true);
+    try {
+      const r = await api.setup2FA(token);
+      setTwoFAQrCode(r.qrCode);
+      setTwoFAModal('setup_qr');
+    } catch (err) {
+      flash(err instanceof Error ? err.message : 'Erreur lors de la configuration 2FA');
+    } finally {
+      setTwoFALoading(false);
+    }
+  };
+
+  const confirmTwoFACode = async () => {
+    if (!token || !twoFACode || twoFALoading) return;
+    setTwoFAError('');
+    setTwoFALoading(true);
+    try {
+      const r = await api.verify2FA(token, twoFACode);
+      setTwoFABackupCodes(r.backupCodes);
+      setTwoFAEnabled(true);
+      setTwoFAModal('setup_backup');
+    } catch (err) {
+      setTwoFAError(err instanceof Error ? err.message : 'Code invalide');
+    } finally {
+      setTwoFALoading(false);
+    }
+  };
+
+  const disableTwoFA = async () => {
+    if (!token || !twoFADisableCode || twoFALoading) return;
+    setTwoFAError('');
+    setTwoFALoading(true);
+    try {
+      await api.disable2FA(token, twoFADisableCode);
+      setTwoFAEnabled(false);
+      setTwoFAModal('closed');
+      setTwoFADisableCode('');
+      flash('Double authentification désactivée');
+    } catch (err) {
+      setTwoFAError(err instanceof Error ? err.message : 'Code invalide');
+    } finally {
+      setTwoFALoading(false);
+    }
+  };
+
+  const closeTwoFAModal = () => {
+    setTwoFAModal('closed');
+    setTwoFACode('');
+    setTwoFADisableCode('');
+    setTwoFAError('');
+    setTwoFAQrCode('');
+    setTwoFABackupCodes([]);
+  };
 
   // Delete account state
   const [deleteModal, setDeleteModal] = useState(false);
@@ -387,6 +462,25 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
             </form>
           )}
 
+          {/* ── Double authentification (2FA) ── */}
+          <SettingsRow
+            label="Double authentification (2FA)"
+            hint={twoFAEnabled
+              ? 'Activée — votre compte est protégé par TOTP'
+              : 'Ajoutez une couche de sécurité avec Google Authenticator'}
+            onClick={twoFAEnabled
+              ? () => { setTwoFAModal('disable'); setTwoFAError(''); setTwoFADisableCode(''); }
+              : () => void openTwoFASetup()}
+          >
+            {twoFALoading && twoFAModal === 'closed'
+              ? <span className="w-4 h-4 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin shrink-0" />
+              : (
+                <span className={`text-xs font-semibold shrink-0 ${twoFAEnabled ? 'text-green-400' : 'text-gray-500'}`}>
+                  {twoFAEnabled ? 'Activée' : 'Désactivée'}
+                </span>
+              )}
+          </SettingsRow>
+
           <SettingsRow
             label={t('settings.deleteAccount')}
             hint={t('settings.deleteAccountHint')}
@@ -395,6 +489,122 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
             <span className="text-red-400/70 shrink-0">›</span>
           </SettingsRow>
         </section>
+
+        {/* ── Modal 2FA : scan QR code ── */}
+        {twoFAModal === 'setup_qr' && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <div className="w-full max-w-sm bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-6 space-y-4">
+              <div className="text-center space-y-1">
+                <p className="text-2xl">🔐</p>
+                <h2 className="text-lg font-bold text-white">Activer la 2FA</h2>
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  Scannez le QR code avec Google Authenticator ou Authy,<br />puis entrez le code à 6 chiffres.
+                </p>
+              </div>
+              {twoFAQrCode && (
+                <div className="flex justify-center">
+                  <img src={twoFAQrCode} alt="QR code 2FA" className="w-44 h-44 rounded-xl border border-[#2d2d3d]" />
+                </div>
+              )}
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="Code à 6 chiffres"
+                value={twoFACode}
+                onChange={(e) => setTwoFACode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                maxLength={6}
+                autoComplete="one-time-code"
+                className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white font-mono tracking-widest text-center"
+              />
+              {twoFAError && (
+                <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{twoFAError}</p>
+              )}
+              <div className="flex gap-2">
+                <button type="button" onClick={closeTwoFAModal} className="flex-1 py-2 rounded-xl text-sm text-gray-400 bg-[#1a1a26] hover:bg-[#22222f] transition">
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  disabled={twoFALoading || twoFACode.length !== 6}
+                  onClick={() => void confirmTwoFACode()}
+                  className="flex-1 py-2 rounded-xl text-sm font-bold text-white bg-purple-600 hover:bg-purple-500 disabled:opacity-50 transition"
+                >
+                  {twoFALoading ? '…' : 'Confirmer'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Modal 2FA : codes de secours ── */}
+        {twoFAModal === 'setup_backup' && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <div className="w-full max-w-sm bg-[#12121a] border border-green-500/30 rounded-2xl p-6 space-y-4">
+              <div className="text-center space-y-1">
+                <p className="text-2xl">✅</p>
+                <h2 className="text-lg font-bold text-white">2FA activée !</h2>
+                <p className="text-xs text-amber-300/90 leading-relaxed">
+                  Conservez ces codes de secours en lieu sûr.<br />
+                  Chaque code n'est utilisable qu'une seule fois.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {twoFABackupCodes.map((code) => (
+                  <span key={code} className="font-mono text-xs text-center bg-[#1a1a26] border border-[#2d2d3d] rounded-lg py-2 px-3 text-white tracking-wider">
+                    {code}
+                  </span>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={closeTwoFAModal}
+                className="w-full py-2.5 rounded-xl text-sm font-bold text-white bg-purple-600 hover:bg-purple-500 transition"
+              >
+                J'ai sauvegardé mes codes
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Modal 2FA : désactiver ── */}
+        {twoFAModal === 'disable' && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <div className="w-full max-w-sm bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-6 space-y-4">
+              <div className="text-center space-y-1">
+                <p className="text-2xl">🔓</p>
+                <h2 className="text-lg font-bold text-white">Désactiver la 2FA</h2>
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  Entrez le code de votre application d'authentification<br />ou un code de secours.
+                </p>
+              </div>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="Code TOTP ou code de secours"
+                value={twoFADisableCode}
+                onChange={(e) => setTwoFADisableCode(e.target.value)}
+                autoComplete="one-time-code"
+                className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white font-mono tracking-widest text-center"
+              />
+              {twoFAError && (
+                <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{twoFAError}</p>
+              )}
+              <div className="flex gap-2">
+                <button type="button" onClick={closeTwoFAModal} className="flex-1 py-2 rounded-xl text-sm text-gray-400 bg-[#1a1a26] hover:bg-[#22222f] transition">
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  disabled={twoFALoading || !twoFADisableCode}
+                  onClick={() => void disableTwoFA()}
+                  className="flex-1 py-2 rounded-xl text-sm font-bold text-white bg-red-600 hover:bg-red-500 disabled:opacity-50 transition"
+                >
+                  {twoFALoading ? '…' : 'Désactiver'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── Modal suppression de compte ── */}
         {deleteModal && (

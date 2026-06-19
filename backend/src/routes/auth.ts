@@ -1,8 +1,10 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import { db, User, ListeningRole } from '../models/schema';
 import { authenticateJWT, signToken } from '../middleware/auth';
+import { getJwtSecret } from '../lib/jwtSecret';
 import {
   applyAgeSettings,
   applyProfileDefaults,
@@ -44,6 +46,8 @@ import {
 } from '../lib/mailer';
 
 export const authRouter = Router();
+
+const JWT_SECRET = getJwtSecret();
 
 /** Per-user profile cache: 30-second TTL. Cleared on profile write. */
 const profileCache = new Map<string, { data: object; expiresAt: number }>();
@@ -183,17 +187,29 @@ authRouter.post('/login', async (req: Request, res: Response) => {
   }
   if (user.emailVerified === false) {
     res.status(403).json({
-      error: "Votre adresse e-mail n'est pas encore vÃ©rifiÃ©e. Consultez vos e-mails ou demandez un nouveau lien.",
+      error: "Votre adresse e-mail n'est pas encore vérifiée. Consultez vos e-mails ou demandez un nouveau lien.",
       code: 'email_not_verified',
       email: user.email,
     });
+    return;
+  }
+
+  const stayLoggedIn = rememberMe !== false;
+
+  // If 2FA is enabled, issue a short-lived temp token instead of a full JWT.
+  if (user.twoFactorEnabled && user.totpSecret && !user.totpSecret.startsWith('pending:')) {
+    const tempToken = jwt.sign(
+      { id: user.id, username: user.username, scope: '2fa_pending', rememberMe: stayLoggedIn },
+      JWT_SECRET,
+      { expiresIn: '5m' }
+    );
+    res.json({ requires2FA: true, tempToken });
     return;
   }
   applyProfileDefaults(user);
   ensurePlatformAccountsFromLegacy(user);
   migratePlaintextPlatformTokens(user);
   db.users.set(user.id, user);
-  const stayLoggedIn = rememberMe !== false;
   const token = signToken({ id: user.id, username: user.username }, stayLoggedIn);
   trackEvent('user_login', user.id);
   trackUserActive(user.id);

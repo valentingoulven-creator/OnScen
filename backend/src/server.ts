@@ -54,6 +54,7 @@ import { adminReportsRouter } from './routes/adminReports';
 import { startServerMonitor } from './lib/serverMonitor';
 import { startSystemMonitor } from './lib/systemMonitor';
 import { webauthnRouter } from './routes/webauthn';
+import { twoFactorRouter } from './routes/twoFactor';
 
 export const app = express();
 
@@ -501,6 +502,7 @@ app.use('/api/auth', authLimiter, authRouter);
 app.use('/api/auth', oauthRouter);
 // WebAuthn / Passkeys (Face ID, Touch ID, empreinte Android, Windows Hello)
 app.use('/api/auth/webauthn', webauthnRouter);
+app.use('/api/auth/2fa', twoFactorRouter);
 app.use('/api/access', accessRouter);
 app.use('/api/access/admin/support', supportAdminRouter);
 app.use('/api/access/admin/content', adminContentRouter);
