@@ -90,10 +90,14 @@ describe('storyImageCompose', () => {
       filterHistory.length = 0;
       drawImage = vi.fn();
       vi.stubGlobal(
-        'fetch',
-        vi.fn().mockResolvedValue({
-          blob: () => Promise.resolve(new Blob([''], { type: 'image/jpeg' })),
-        })
+        'Image',
+        class MockImage {
+          onload: (() => void) | null = null;
+          onerror: (() => void) | null = null;
+          set src(_: string) {
+            Promise.resolve().then(() => this.onload?.());
+          }
+        }
       );
       vi.stubGlobal(
         'createImageBitmap',

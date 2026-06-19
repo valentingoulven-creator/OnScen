@@ -47,16 +47,29 @@ export interface StoryTextOverlay {
   mentionRefs?: StoryTextMentionRef[];
 }
 
-export async function loadImageBitmapFromDataUrl(dataUrl: string): Promise<ImageBitmap> {
-  const res = await fetch(dataUrl);
-  const blob = await res.blob();
-  return createImageBitmap(blob);
+export function loadImageBitmapFromDataUrl(dataUrl: string): Promise<ImageBitmap> {
+  return new Promise<ImageBitmap>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      createImageBitmap(img).then(resolve, () =>
+        reject(new Error("Impossible de traiter l'image"))
+      );
+    };
+    img.onerror = () => reject(new Error("Impossible de charger l'image"));
+    img.src = dataUrl;
+  });
 }
 
-export async function dataUrlToFile(dataUrl: string, name = 'story.jpg'): Promise<File> {
-  const res = await fetch(dataUrl);
-  const blob = await res.blob();
-  return new File([blob], name, { type: blob.type || 'image/jpeg' });
+export function dataUrlToFile(dataUrl: string, name = 'story.jpg'): File {
+  const commaIdx = dataUrl.indexOf(',');
+  if (commaIdx < 0) throw new Error("Format de données invalide");
+  const meta = dataUrl.slice(0, commaIdx);
+  const mimeType = meta.match(/data:([^;,]+)/)?.[1] ?? 'image/jpeg';
+  const rawData = dataUrl.slice(commaIdx + 1);
+  const byteString = meta.includes(';base64') ? atob(rawData) : decodeURIComponent(rawData);
+  const bytes = new Uint8Array(byteString.length);
+  for (let i = 0; i < byteString.length; i++) bytes[i] = byteString.charCodeAt(i);
+  return new File([bytes], name, { type: mimeType });
 }
 
 /** Limite le décalage pour que l'image couvre toujours le viewport (pan type Insta/TikTok). */

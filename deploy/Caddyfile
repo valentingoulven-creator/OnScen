@@ -37,7 +37,7 @@
 			testeur3 $2a$14$PpD9dQRGiaAum4a8jw6mzOChiyPRo/Ji0pZX2nkm4BmyMRS9XP2bq
 			testeur4 $2a$14$oCOzHBJou/d5K/kJoYIgFeCNMr68GAK0ipaF01t1inL1lf7HsdmXK
 			testeur5 $2a$14$iOFxMXMoqduORGq50ZNhM.VjKd0IJaoUUvgjNh6e9kbi54vM3GmZ6
-			dev $2a$14$IM2Sq/jnRm3Abh/U4HlU.eWKa3gysDDEQyLGrRL4lt2KbRyqzdJcq
+			dev $2a$14$3ab9DEpqxIqhLX9GLi0cve8axHjrduVz/r9vg7O6L9LTxjiyZlYjW
 		}
 		reverse_proxy localhost:3000
 	}
