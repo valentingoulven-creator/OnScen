@@ -11,13 +11,31 @@ const PLATFORM_BADGE: Record<
 > = {
   spotify: {
     label: 'Spotify',
-    className: 'text-[#1DB954] border-[#1DB954]/30 bg-[#1DB954]/10',
+    className: 'map-hosted-salon-banner__platform--spotify',
   },
   youtube: {
     label: 'YouTube',
-    className: 'text-red-400 border-red-500/30 bg-red-500/10',
+    className: 'map-hosted-salon-banner__platform--youtube',
   },
 };
+
+function ViewerEyeIcon() {
+  return (
+    <svg
+      className="map-hosted-salon-banner__viewer-icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
 
 export interface MapHostedSalonBannerProps {
   salonId: string;
@@ -26,6 +44,8 @@ export interface MapHostedSalonBannerProps {
   hostUsernameColor?: string;
   hostUsernameWaveFrom?: string;
   hostUsernameWaveTo?: string;
+  hostAvatarUrl?: string;
+  albumArtUrl?: string;
   platform?: Salon['platform'];
   listenersCount?: number;
   onReturn: () => void;
@@ -41,6 +61,8 @@ export function MapHostedSalonBanner({
   hostUsernameColor,
   hostUsernameWaveFrom,
   hostUsernameWaveTo,
+  hostAvatarUrl,
+  albumArtUrl,
   platform,
   listenersCount = 0,
   onReturn,
@@ -85,51 +107,54 @@ export function MapHostedSalonBanner({
     : t('salon.returnTo');
   const audienceLabel = formatSalonAudienceLabel(liveListenersCount, t).replace(/^👥\s*/, '');
   const platformBadge = platform ? PLATFORM_BADGE[platform] : null;
+  const thumbnailUrl = albumArtUrl?.trim() || hostAvatarUrl?.trim() || null;
 
   return (
     <button
       type="button"
       onClick={onReturn}
       aria-label={ariaLabel}
-      className="shrink-0 z-20 flex w-full min-h-[2.75rem] items-center gap-2 border-b border-purple-500/35 bg-[#12121a]/95 px-3 py-2 text-left text-xs text-purple-100 shadow-md shadow-black/25 backdrop-blur-sm pointer-events-auto active:scale-[0.99] transition hover:border-purple-400/50 hover:bg-purple-950/85"
+      className="map-hosted-salon-banner shrink-0 z-20 w-full pointer-events-auto"
     >
-      <span className="relative flex h-2.5 w-2.5 shrink-0" aria-hidden>
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-purple-400 opacity-60" />
-        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-purple-500" />
+      <span className="map-hosted-salon-banner__accent" aria-hidden />
+
+      {thumbnailUrl ? (
+        <span className="map-hosted-salon-banner__thumb" aria-hidden>
+          <img src={thumbnailUrl} alt="" loading="lazy" />
+        </span>
+      ) : null}
+
+      <span className="map-hosted-salon-banner__live" aria-hidden>
+        <span className="map-hosted-salon-banner__live-dot live-indicator-dot" />
+        {t('map.hostedSalonBannerLive')}
       </span>
 
-      <span className="min-w-0 flex-1 flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2">
-        <span className="min-w-0 truncate font-semibold text-white">{title}</span>
-        <span className="hidden sm:inline text-white/25" aria-hidden>
-          ·
-        </span>
-        <span className="min-w-0 flex items-center gap-1 text-white/70">
-          <span className="shrink-0 text-white/45">{t('map.hostedSalonBannerHost')}</span>
+      <span className="map-hosted-salon-banner__body">
+        <span className="map-hosted-salon-banner__title">{title}</span>
+        <span className="map-hosted-salon-banner__host">
           <UsernameDisplay
             username={hostName}
             usernameColor={hostUsernameColor}
             usernameWaveFrom={hostUsernameWaveFrom}
             usernameWaveTo={hostUsernameWaveTo}
-            className="truncate font-medium"
+            className="map-hosted-salon-banner__host-name"
           />
         </span>
       </span>
 
-      <span className="flex shrink-0 items-center gap-1.5">
-        {platformBadge && (
-          <span
-            className={`rounded-full border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${platformBadge.className}`}
-          >
+      <span className="map-hosted-salon-banner__meta">
+        {platformBadge ? (
+          <span className={`map-hosted-salon-banner__platform ${platformBadge.className}`}>
             {platformBadge.label}
           </span>
-        )}
-        <span className="hidden sm:inline text-white/50" aria-hidden>
-          👥
+        ) : null}
+
+        <span className="map-hosted-salon-banner__viewers">
+          <ViewerEyeIcon />
+          <span>{audienceLabel}</span>
         </span>
-        <span className="text-[10px] sm:text-xs text-white/60 whitespace-nowrap">{audienceLabel}</span>
-        <span className="shrink-0 rounded-full border border-purple-500/40 px-2 py-0.5 text-[10px] font-semibold text-purple-300">
-          {t('map.hostedSalonBannerOpen')}
-        </span>
+
+        <span className="map-hosted-salon-banner__cta">{t('map.hostedSalonBannerJoin')}</span>
       </span>
     </button>
   );

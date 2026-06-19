@@ -112,7 +112,9 @@
     "globeUnavailable": "Vue globe 3D indisponible sur cet appareil.",
     "globeFallback": "Vue globe 3D indisponible — carte plate activée.",
     "hostedSalonBannerHost": "Hôte",
-    "hostedSalonBannerOpen": "Ouvrir"
+    "hostedSalonBannerOpen": "Ouvrir",
+    "hostedSalonBannerLive": "EN DIRECT",
+    "hostedSalonBannerJoin": "Rejoindre"
   },
   "home": {
     "nearbyPeople": "Personnes proches",

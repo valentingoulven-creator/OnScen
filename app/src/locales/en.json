@@ -112,7 +112,9 @@
     "globeUnavailable": "3D globe view is unavailable on this device.",
     "globeFallback": "3D globe unavailable — flat map enabled.",
     "hostedSalonBannerHost": "Host",
-    "hostedSalonBannerOpen": "Open"
+    "hostedSalonBannerOpen": "Open",
+    "hostedSalonBannerLive": "LIVE",
+    "hostedSalonBannerJoin": "Join"
   },
   "home": {
     "nearbyPeople": "People nearby",

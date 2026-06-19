@@ -1456,6 +1456,8 @@ export function HomePage({
       hostUsernameColor: fromList?.hostUsernameColor ?? user.usernameColor,
       hostUsernameWaveFrom: fromList?.hostUsernameWaveFrom ?? user.usernameWaveFrom,
       hostUsernameWaveTo: fromList?.hostUsernameWaveTo ?? user.usernameWaveTo,
+      hostAvatarUrl: fromList?.hostAvatarUrl,
+      albumArtUrl: fromList?.playbackState?.albumArtUrl,
       platform: fromList?.platform,
       listenersCount: fromList?.listenersCount ?? 0,
     };
@@ -1780,6 +1782,8 @@ export function HomePage({
             hostUsernameColor={ownHostedSalonDetails.hostUsernameColor}
             hostUsernameWaveFrom={ownHostedSalonDetails.hostUsernameWaveFrom}
             hostUsernameWaveTo={ownHostedSalonDetails.hostUsernameWaveTo}
+            hostAvatarUrl={ownHostedSalonDetails.hostAvatarUrl}
+            albumArtUrl={ownHostedSalonDetails.albumArtUrl}
             platform={ownHostedSalonDetails.platform}
             listenersCount={ownHostedSalonDetails.listenersCount}
             onReturn={onReturnToOwnSalon}
