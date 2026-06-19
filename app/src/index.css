@@ -1819,6 +1819,37 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   height: 100%;
 }
 
+/* PiP flottant in-app — vidéo seule, déplaçable, au-dessus du salon */
+.salon-video-pip.salon-youtube-player--pip-float {
+  position: fixed;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  border: 1px solid #2a2a36;
+  background: #0b0b0f;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  pointer-events: auto;
+}
+
+.salon-youtube-player__stage--pip-float {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-width: none;
+  max-height: none;
+  overflow: hidden;
+  background: #000;
+}
+
+.salon-youtube-player__stage--pip-float .salon-youtube-player__mount iframe {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+
 /* Salon YouTube — tiroir hôte repliable (Recherche | Playlist | File) */
 .salon-youtube-host-drawer-wrap {
   position: relative;

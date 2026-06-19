@@ -1,4 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  VIDEO_PIP_HEADER_HEIGHT,
+  VIDEO_PIP_WIDTH,
+  type VideoPipFloatApi,
+} from './DraggableVideoPip';
 import { AccelerateBadge } from './AccelerateBadge';
 import { OpenOnYoutubeButton } from './OpenOnYoutubeButton';
 import { useHoldToAccelerate, HOLD_ACCELERATE_RATE } from '../hooks/useHoldToAccelerate';
@@ -101,15 +106,10 @@ interface SalonYouTubePlayerProps {
   salonMuted?: boolean;
   /** Participant : incrémenté pour forcer l’alignement local sur l’état hôte. */
   participantSyncTrigger?: number;
-  /** Active le PiP automatique quand l'onglet est masque (mode theatre uniquement). */
-  enableAutoPip?: boolean;
-  /**
-   * Appele avec un declencheur PiP manuel quand la fonctionnalite est prete,
-   * null quand le lecteur est detruit ou que l'API PiP est indisponible.
-   */
-  onPipAvailable?: (trigger: (() => Promise<void>) | null) => void;
-  /** Appele quand l'etat Picture-in-Picture change (true = actif, false = sorti). */
-  onAutoPipChange?: (inPip: boolean) => void;
+  /** PiP flottant in-app : vidéo seule, déplaçable, toujours au premier plan. */
+  videoFloat?: VideoPipFloatApi;
+  /** Titre affiché dans la barre de drag du PiP flottant. */
+  videoFloatTitle?: string;
 }
 
 function applySync(
@@ -192,9 +192,8 @@ export function SalonYouTubePlayer({
   salonVolume,
   salonMuted,
   participantSyncTrigger,
-  enableAutoPip = false,
-  onPipAvailable,
-  onAutoPipChange,
+  videoFloat,
+  videoFloatTitle = 'Vidéo',
 }: SalonYouTubePlayerProps) {
   const apiReady = useYouTubeIframeApi();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -259,16 +258,7 @@ export function SalonYouTubePlayer({
   const lastSeekAtRef = useRef(0);
   const lastParticipantSyncTriggerRef = useRef<number | undefined>(undefined);
 
-  // PiP refs
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const autoPipActiveRef = useRef(false);
-  const onPipAvailableRef = useRef(onPipAvailable);
-  onPipAvailableRef.current = onPipAvailable;
-  const onAutoPipChangeRef = useRef(onAutoPipChange);
-  onAutoPipChangeRef.current = onAutoPipChange;
-  const respectLocalPauseRef = useRef(respectLocalPause);
-  respectLocalPauseRef.current = respectLocalPause;
-
+  const floatActive = Boolean(videoFloat);
   const pauseAndMutePlayer = useCallback((player: YTPlayerInstance) => {
     try {
       player.pauseVideo();
@@ -324,37 +314,6 @@ export function SalonYouTubePlayer({
     }
   }, []);
 
-  /** Tente d'entrer en mode PiP sur la video YouTube (echec silencieux si cross-origin). */
-  const tryEnterPip = useCallback(async () => {
-    const iframe = iframeRef.current;
-    if (!iframe || !document.pictureInPictureEnabled || document.pictureInPictureElement) return;
-    try {
-      const video = iframe.contentDocument?.querySelector<HTMLVideoElement>('video');
-      if (video) {
-        await video.requestPictureInPicture();
-        autoPipActiveRef.current = true;
-        onAutoPipChangeRef.current?.(true);
-      }
-    } catch {
-      /* cross-origin ou PiP refuse — silencieux */
-    }
-  }, []);
-
-  /** Quitte le mode PiP si actif. */
-  const tryExitPip = useCallback(async () => {
-    const wasActive = autoPipActiveRef.current;
-    autoPipActiveRef.current = false;
-    if (!wasActive && !document.pictureInPictureElement) return;
-    try {
-      if (document.pictureInPictureElement) {
-        await document.exitPictureInPicture();
-      }
-    } catch {
-      /* ignore */
-    }
-    onAutoPipChangeRef.current?.(false);
-  }, []);
-
   const syncPlayerSize = useCallback(() => {
     const player = playerRef.current;
     const el = sizeRef.current;
@@ -377,41 +336,7 @@ export function SalonYouTubePlayer({
     const ro = new ResizeObserver(() => syncPlayerSize());
     ro.observe(el);
     return () => ro.disconnect();
-  }, [playerReady, fillContainer, showVideo]);
-
-  // Iframe PiP setup: set allow="picture-in-picture" and try autoPictureInPicture attribute.
-  useEffect(() => {
-    if (!playerReady) {
-      iframeRef.current = null;
-      onPipAvailableRef.current?.(null);
-      return;
-    }
-    const iframe = containerRef.current?.querySelector<HTMLIFrameElement>('iframe');
-    if (!iframe) {
-      onPipAvailableRef.current?.(null);
-      return;
-    }
-    iframeRef.current = iframe;
-
-    // Allow browser-native PiP controls on the YouTube iframe
-    const currentAllow = iframe.allow ?? '';
-    if (!currentAllow.includes('picture-in-picture')) {
-      iframe.allow = currentAllow ? `${currentAllow}; picture-in-picture` : 'picture-in-picture';
-    }
-
-    // Try to set autoPictureInPicture on the inner video (fails silently for cross-origin YouTube)
-    try {
-      const vid = iframe.contentDocument?.querySelector<HTMLVideoElement>('video');
-      if (vid) {
-        (vid as HTMLVideoElement & { autoPictureInPicture?: boolean }).autoPictureInPicture = true;
-      }
-    } catch {
-      /* cross-origin iframe — expected for YouTube */
-    }
-
-    const pipSupported = enableAutoPip && document.pictureInPictureEnabled === true;
-    onPipAvailableRef.current?.(pipSupported ? tryEnterPip : null);
-  }, [playerReady, enableAutoPip, tryEnterPip]);
+  }, [playerReady, fillContainer, showVideo, floatActive]);
 
   useEffect(() => {
     if (!playbackActive) {
@@ -509,32 +434,6 @@ export function SalonYouTubePlayer({
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
   }, [playerReady, respectLocalPause, mayDrivePlayback, mayAutoplay, strictCompliance]);
-
-  // Auto-PiP: tente d'entrer en PiP quand l'onglet est masque, quitte au retour.
-  // Chrome : le try/catch silencieux absorbe l'erreur SecurityError (iframe cross-origin).
-  // L'attribut allow="picture-in-picture" active les controles PiP natifs du navigateur.
-  useEffect(() => {
-    if (!playerReady || !enableAutoPip || !showVideo) return;
-
-    const onVisibility = () => {
-      if (document.hidden) {
-        if (
-          stateRef.current.isPlaying &&
-          !respectLocalPauseRef.current &&
-          mayDrivePlayback()
-        ) {
-          void tryEnterPip();
-        }
-      } else {
-        void tryExitPip();
-      }
-    };
-
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => {
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, [playerReady, enableAutoPip, showVideo, tryEnterPip, tryExitPip, mayDrivePlayback]);
 
   useEffect(() => {
     if (!apiReady || !containerRef.current || !videoId) return;
@@ -937,26 +836,63 @@ export function SalonYouTubePlayer({
       ? ['h-full w-full', className].filter(Boolean).join(' ')
       : (className ?? '');
 
-  const playerSurfaceClass = fillContainer
-    ? `salon-youtube-player salon-youtube-player--fill${
-        hidden ? ' invisible pointer-events-none' : ''
-      }`
-    : 'salon-youtube-player relative w-full aspect-video overflow-hidden rounded-xl border border-[#1e1e2f] bg-black';
+  const playerSurfaceClass = floatActive
+    ? 'salon-video-pip salon-youtube-player salon-youtube-player--pip-float'
+    : fillContainer
+      ? `salon-youtube-player salon-youtube-player--fill${
+          hidden ? ' invisible pointer-events-none' : ''
+        }`
+      : 'salon-youtube-player relative w-full aspect-video overflow-hidden rounded-xl border border-[#1e1e2f] bg-black';
 
-  const playerStageClass = fillContainer
-    ? 'salon-youtube-player__stage'
-    : 'salon-youtube-player__stage salon-youtube-player__stage--inline absolute inset-0';
+  const playerStageClass = floatActive
+    ? 'salon-youtube-player__stage salon-youtube-player__stage--pip-float'
+    : fillContainer
+      ? 'salon-youtube-player__stage'
+      : 'salon-youtube-player__stage salon-youtube-player__stage--inline absolute inset-0';
+
+  const playerSurfaceStyle: React.CSSProperties | undefined = floatActive && videoFloat
+    ? {
+        left: videoFloat.position.x,
+        top: videoFloat.position.y,
+        width: VIDEO_PIP_WIDTH,
+      }
+    : undefined;
 
   const playerSurface = (
     <div
       className={
-        hidden && !fillContainer
+        hidden && !fillContainer && !floatActive
           ? 'fixed w-px h-px opacity-0 overflow-hidden pointer-events-none -z-10'
           : playerSurfaceClass
       }
-      aria-hidden={hidden}
+      style={playerSurfaceStyle}
+      aria-hidden={hidden && !floatActive}
       {...(showVideo && !hidden ? holdAccelerate.handlers : {})}
     >
+      {floatActive && videoFloat ? (
+        <div
+          className="salon-video-pip__header shrink-0 flex items-center gap-1.5 px-2 border-b border-[#2a2a36] bg-[#14141c]/95 cursor-grab active:cursor-grabbing select-none touch-none"
+          style={{ height: VIDEO_PIP_HEADER_HEIGHT }}
+          onPointerDown={videoFloat.onHeaderPointerDown}
+        >
+          <span className="text-[10px] text-purple-400/80 leading-none shrink-0" aria-hidden>
+            ⠿
+          </span>
+          <p className="text-[9px] font-bold text-purple-400 uppercase tracking-widest flex-1 truncate min-w-0">
+            {videoFloatTitle}
+          </p>
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={videoFloat.onClose}
+            className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 transition text-sm"
+            title="Ancrer la vidéo"
+            aria-label="Ancrer la vidéo"
+          >
+            ↙
+          </button>
+        </div>
+      ) : null}
       <div ref={sizeRef} className={playerStageClass}>
         <div className="salon-youtube-player__mount">
           <div ref={containerRef} className="absolute inset-0 w-full h-full" />
@@ -1061,9 +997,13 @@ export function SalonYouTubePlayer({
     </div>
   );
 
+  const rootClass = floatActive
+    ? 'absolute inset-0 w-full h-full pointer-events-none'
+    : outerClass || undefined;
+
   return (
-    <div className={outerClass || undefined}>
-      {playerChrome}
+    <div className={rootClass}>
+      <div className={floatActive ? 'pointer-events-auto' : undefined}>{playerChrome}</div>
       {embedError && !hidden && (
         <div className="rounded-xl border border-[#2a2a3a] bg-[#101018]/90 p-3 mt-2 flex flex-col items-center gap-2">
           <p className="text-[11px] text-gray-400">Cette vidéo ne peut pas être lue ici.</p>
