@@ -129,6 +129,9 @@ export function SalonPlaybackPanel({
   const [theaterYoutubeVolume, setTheaterYoutubeVolume] = useState(() => getSalonYoutubeVolume());
   const [theaterYoutubeMuted, setTheaterYoutubeMuted] = useState(false);
   const [participantSyncTrigger, setParticipantSyncTrigger] = useState(0);
+  /** Declencheur PiP expose par SalonYouTubePlayer quand l'API est disponible. */
+  const [pipTrigger, setPipTrigger] = useState<(() => Promise<void>) | null>(null);
+  const [inPip, setInPip] = useState(false);
   const hostShowVideoRef = useRef(salon.playbackState.showVideo);
   const prevYoutubeTrackRef = useRef(salon.playbackState.trackId);
 
@@ -361,6 +364,19 @@ export function SalonPlaybackPanel({
     setSyncNotif('✓ Synchronisé avec l\'hôte');
     window.setTimeout(() => setSyncNotif(null), 3000);
   }, [showParticipantYoutubeSync, token, salon.id, applyPlaybackState]);
+
+  /** Recu depuis SalonYouTubePlayer quand le declencheur PiP change. */
+  const handlePipAvailable = useCallback((trigger: (() => Promise<void>) | null) => {
+    if (trigger) {
+      setPipTrigger(() => trigger);
+    } else {
+      setPipTrigger(null);
+    }
+  }, []);
+
+  const handleAutoPipChange = useCallback((active: boolean) => {
+    setInPip(active);
+  }, []);
 
   useEffect(() => {
     setParticipantPlatform(preferredParticipantPlatform(userPlatforms, salon.platform));
@@ -780,6 +796,20 @@ export function SalonPlaybackPanel({
         </div>
       ) : null;
 
+    /** Bouton PiP manuel : visible quand le navigateur supporte PiP et le lecteur est pret. */
+    const theaterPipButton =
+      canUseYoutubeEmbed && youtubeTrackId && pipTrigger ? (
+        <button
+          type="button"
+          onClick={() => { void pipTrigger(); }}
+          className={`${theaterControlBtnClass}${inPip ? ' border-purple-500/50 text-purple-200' : ''}`}
+          title={inPip ? 'Quitter Picture-in-Picture' : 'Picture-in-Picture'}
+          aria-pressed={inPip}
+        >
+          ⧉
+        </button>
+      ) : null;
+
     const theaterHero = canUseYoutubeEmbed && youtubeTrackId ? (
       <SalonYouTubePlayer
         videoId={youtubeTrackId}
@@ -798,6 +828,9 @@ export function SalonPlaybackPanel({
         onHostLocalPlay={canControlPlayback ? handleHostPlay : undefined}
         onVideoEnd={handleVideoEnd}
         participantSyncTrigger={participantSyncTrigger}
+        enableAutoPip={effectiveShowYoutubeVideo}
+        onPipAvailable={handlePipAvailable}
+        onAutoPipChange={handleAutoPipChange}
       />
     ) : (
       <div
@@ -844,6 +877,7 @@ export function SalonPlaybackPanel({
             {theaterSyncPlayControls}
             {theaterParticipantSyncButton}
             {canControlPlayback ? theaterVideoToggle : null}
+            {theaterPipButton}
             {theaterVolumeControl}
             <span className="ml-auto flex shrink-0">{playbackStatusBadge}</span>
           </div>

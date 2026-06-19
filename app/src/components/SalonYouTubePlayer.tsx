@@ -101,6 +101,15 @@ interface SalonYouTubePlayerProps {
   salonMuted?: boolean;
   /** Participant : incrémenté pour forcer l’alignement local sur l’état hôte. */
   participantSyncTrigger?: number;
+  /** Active le PiP automatique quand l'onglet est masque (mode theatre uniquement). */
+  enableAutoPip?: boolean;
+  /**
+   * Appele avec un declencheur PiP manuel quand la fonctionnalite est prete,
+   * null quand le lecteur est detruit ou que l'API PiP est indisponible.
+   */
+  onPipAvailable?: (trigger: (() => Promise<void>) | null) => void;
+  /** Appele quand l'etat Picture-in-Picture change (true = actif, false = sorti). */
+  onAutoPipChange?: (inPip: boolean) => void;
 }
 
 function applySync(
@@ -183,6 +192,9 @@ export function SalonYouTubePlayer({
   salonVolume,
   salonMuted,
   participantSyncTrigger,
+  enableAutoPip = false,
+  onPipAvailable,
+  onAutoPipChange,
 }: SalonYouTubePlayerProps) {
   const apiReady = useYouTubeIframeApi();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -247,6 +259,16 @@ export function SalonYouTubePlayer({
   const lastSeekAtRef = useRef(0);
   const lastParticipantSyncTriggerRef = useRef<number | undefined>(undefined);
 
+  // PiP refs
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const autoPipActiveRef = useRef(false);
+  const onPipAvailableRef = useRef(onPipAvailable);
+  onPipAvailableRef.current = onPipAvailable;
+  const onAutoPipChangeRef = useRef(onAutoPipChange);
+  onAutoPipChangeRef.current = onAutoPipChange;
+  const respectLocalPauseRef = useRef(respectLocalPause);
+  respectLocalPauseRef.current = respectLocalPause;
+
   const pauseAndMutePlayer = useCallback((player: YTPlayerInstance) => {
     try {
       player.pauseVideo();
@@ -302,6 +324,37 @@ export function SalonYouTubePlayer({
     }
   }, []);
 
+  /** Tente d'entrer en mode PiP sur la video YouTube (echec silencieux si cross-origin). */
+  const tryEnterPip = useCallback(async () => {
+    const iframe = iframeRef.current;
+    if (!iframe || !document.pictureInPictureEnabled || document.pictureInPictureElement) return;
+    try {
+      const video = iframe.contentDocument?.querySelector<HTMLVideoElement>('video');
+      if (video) {
+        await video.requestPictureInPicture();
+        autoPipActiveRef.current = true;
+        onAutoPipChangeRef.current?.(true);
+      }
+    } catch {
+      /* cross-origin ou PiP refuse — silencieux */
+    }
+  }, []);
+
+  /** Quitte le mode PiP si actif. */
+  const tryExitPip = useCallback(async () => {
+    const wasActive = autoPipActiveRef.current;
+    autoPipActiveRef.current = false;
+    if (!wasActive && !document.pictureInPictureElement) return;
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+      }
+    } catch {
+      /* ignore */
+    }
+    onAutoPipChangeRef.current?.(false);
+  }, []);
+
   const syncPlayerSize = useCallback(() => {
     const player = playerRef.current;
     const el = sizeRef.current;
@@ -325,6 +378,40 @@ export function SalonYouTubePlayer({
     ro.observe(el);
     return () => ro.disconnect();
   }, [playerReady, fillContainer, showVideo]);
+
+  // Iframe PiP setup: set allow="picture-in-picture" and try autoPictureInPicture attribute.
+  useEffect(() => {
+    if (!playerReady) {
+      iframeRef.current = null;
+      onPipAvailableRef.current?.(null);
+      return;
+    }
+    const iframe = containerRef.current?.querySelector<HTMLIFrameElement>('iframe');
+    if (!iframe) {
+      onPipAvailableRef.current?.(null);
+      return;
+    }
+    iframeRef.current = iframe;
+
+    // Allow browser-native PiP controls on the YouTube iframe
+    const currentAllow = iframe.allow ?? '';
+    if (!currentAllow.includes('picture-in-picture')) {
+      iframe.allow = currentAllow ? `${currentAllow}; picture-in-picture` : 'picture-in-picture';
+    }
+
+    // Try to set autoPictureInPicture on the inner video (fails silently for cross-origin YouTube)
+    try {
+      const vid = iframe.contentDocument?.querySelector<HTMLVideoElement>('video');
+      if (vid) {
+        (vid as HTMLVideoElement & { autoPictureInPicture?: boolean }).autoPictureInPicture = true;
+      }
+    } catch {
+      /* cross-origin iframe — expected for YouTube */
+    }
+
+    const pipSupported = enableAutoPip && document.pictureInPictureEnabled === true;
+    onPipAvailableRef.current?.(pipSupported ? tryEnterPip : null);
+  }, [playerReady, enableAutoPip, tryEnterPip]);
 
   useEffect(() => {
     if (!playbackActive) {
@@ -422,6 +509,32 @@ export function SalonYouTubePlayer({
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
   }, [playerReady, respectLocalPause, mayDrivePlayback, mayAutoplay, strictCompliance]);
+
+  // Auto-PiP: tente d'entrer en PiP quand l'onglet est masque, quitte au retour.
+  // Chrome : le try/catch silencieux absorbe l'erreur SecurityError (iframe cross-origin).
+  // L'attribut allow="picture-in-picture" active les controles PiP natifs du navigateur.
+  useEffect(() => {
+    if (!playerReady || !enableAutoPip || !showVideo) return;
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        if (
+          stateRef.current.isPlaying &&
+          !respectLocalPauseRef.current &&
+          mayDrivePlayback()
+        ) {
+          void tryEnterPip();
+        }
+      } else {
+        void tryExitPip();
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [playerReady, enableAutoPip, showVideo, tryEnterPip, tryExitPip, mayDrivePlayback]);
 
   useEffect(() => {
     if (!apiReady || !containerRef.current || !videoId) return;
