@@ -10,6 +10,7 @@ import { MapEventFilterSheet } from '../components/MapEventFilterSheet';
 import { MapSalonListenSheet } from '../components/MapSalonListenSheet';
 import { MapLiveListenSheet } from '../components/MapLiveListenSheet';
 import { CreateSalonModal } from '../components/CreateSalonModal';
+import { canJoinSalonAsParticipant, salonParticipantAccessMessageKey } from '../lib/platformConnect';
 import { MapAdBanner, type MapSponsorViewport } from '../components/MapAdBanner';
 import { MapOwnSalonBanner } from '../components/MapOwnSalonBanner';
 import { MAP_EVENTS_REFRESH_EVENT, MAP_OPEN_CREATE_SALON_EVENT } from '../lib/mapUiEvents';
@@ -1363,17 +1364,27 @@ export function HomePage({
     setSelectedLive(null);
     setSelected(salon);
     setSalonSheetExpanded(false);
+    const isHost = salon.hostId === user?.id;
+    const platformLinked = canJoinSalonAsParticipant(
+      salon.platform,
+      user?.connectedPlatforms,
+      isHost
+    );
     if (token && salon.canJoin !== true && salon.hostId !== user?.id) {
-      try {
-        await api.joinSalon(token, salon.id);
-      } catch (e) {
-        setSelected(null);
-        setToastMsg(e instanceof Error ? e.message : 'Accès refusé');
-        return false;
+      if (!platformLinked) {
+        setToastMsg(t(salonParticipantAccessMessageKey(salon.platform)));
+      } else {
+        try {
+          await api.joinSalon(token, salon.id);
+        } catch (e) {
+          setSelected(null);
+          setToastMsg(e instanceof Error ? e.message : 'Accès refusé');
+          return false;
+        }
       }
     }
     return true;
-  }, [user?.id, token, onCloseMapProfile]);
+  }, [user?.id, user?.connectedPlatforms, token, onCloseMapProfile, t]);
 
   const resolveSalonById = useCallback(async (salonId: string): Promise<Salon | null> => {
     const local = salons.find((s) => s.id === salonId);
@@ -1584,11 +1595,21 @@ export function HomePage({
         setSalonSheetExpanded(true);
         return;
       }
+      const salonForGate = selected?.id === salonId ? selected : null;
+      const isHost = salonForGate?.hostId === user?.id;
+      if (
+        salonForGate &&
+        user &&
+        !canJoinSalonAsParticipant(salonForGate.platform, user.connectedPlatforms, isHost)
+      ) {
+        setToastMsg(t(salonParticipantAccessMessageKey(salonForGate.platform)));
+        setSalonSheetExpanded(true);
+        return;
+      }
       clearMapInlineListenSession(salonId);
-      const isHost = selected?.id === salonId ? selected.hostId === user?.id : undefined;
       onOpenSalon(salonId, selected?.id === salonId ? selected.title : undefined, isHost);
     },
-    [onOpenSalon, selected?.id, selected?.title, selected?.hostId, user?.id]
+    [onOpenSalon, selected, user, t]
   );
 
   const openHostProfileFromSheet = useCallback(() => {
@@ -1644,6 +1665,7 @@ export function HomePage({
           token={token}
           username={user.username}
           connectedPlatforms={user.connectedPlatforms}
+          platformLinks={user.platformLinks}
           open={showCreateSalon}
           fallbackLatitude={nearbyQueryCenter[0]}
           fallbackLongitude={nearbyQueryCenter[1]}

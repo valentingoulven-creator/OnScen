@@ -976,6 +976,7 @@ export function DmPage({
         token={token}
         username={user.username}
         connectedPlatforms={user.connectedPlatforms}
+        platformLinks={user.platformLinks}
         open={createSalonOpen}
         preset={createSalonPreset}
         fallbackLatitude={salonGeo.latitude}

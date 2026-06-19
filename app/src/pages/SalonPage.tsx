@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 const SOUNDY_BASE_URL = 'https://getsoundy.com';
 
 import { useAuth } from '../context/AuthContext';
-import { isPlatformConnected } from '../lib/platformConnect';
+import { canJoinSalonAsParticipant, isMusicPlatformLinkedForSalon } from '../lib/platformConnect';
+import { SalonPlatformAccessGate } from '../components/SalonPlatformAccessGate';
 import { mergeRemotePlaybackState } from '../lib/salonPlayback';
 
 import { api, ApiRequestError } from '../lib/api';
@@ -308,7 +309,7 @@ export function SalonPage({
   const isVipModerator = Boolean(salon?.isVip);
   const canModerateSalonChat = isHost || isVipModerator || isDevModerator;
   const hostCanControl = Boolean(
-    isHost && salon && isPlatformConnected(user?.connectedPlatforms, salon.platform)
+    isHost && salon && isMusicPlatformLinkedForSalon(salon.platform, user?.connectedPlatforms, user?.platformLinks)
   );
   const canControlPlayback = hostCanControl || isVipModerator || isDevModerator;
 
@@ -574,6 +575,24 @@ export function SalonPage({
       />
     ) : null;
 
+  const youtubeParticipantDrawer =
+    !canControlPlayback && salon.platform === 'youtube' && token ? (
+      <SalonYouTubeHostPanel
+        salon={salon}
+        token={token}
+        playback={playback}
+        queue={queue}
+        proposals={proposals}
+        loadingProposals={loadingProposals}
+        hostCanControl={false}
+        pendingGuestIds={pendingGuestIds}
+        contacts={contacts}
+        onQueueChanged={applyQueue}
+        onTrackChanged={applyPlayback}
+        participantMode
+      />
+    ) : null;
+
   const youtubeHostSettings =
     isHost && salon.accessMode === 'invite' ? (
       <div className="space-y-4">
@@ -669,8 +688,14 @@ export function SalonPage({
         </div>
       )}
 
-      {/* YouTube: participants proposent */}
-      {!canControlPlayback && salon.platform !== 'spotify' && participantProposeSearch ? (
+      {/* YouTube: participants — même tiroir, lecture seule */}
+      {youtubeParticipantDrawer}
+
+      {/* YouTube: participants proposent (hors salon YouTube — fallback) */}
+      {!canControlPlayback &&
+      salon.platform !== 'spotify' &&
+      salon.platform !== 'youtube' &&
+      participantProposeSearch ? (
         <div className="p-3">{participantProposeSearch}</div>
       ) : null}
 
@@ -753,6 +778,33 @@ export function SalonPage({
   );
 
   if (!user) return null;
+
+  const participantSalonBlocked =
+    !isHost &&
+    !canJoinSalonAsParticipant(salon.platform, user.connectedPlatforms, isHost);
+
+  if (participantSalonBlocked) {
+    return (
+      <div className="flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f] overflow-hidden">
+        <header className="relative z-30 shrink-0 flex items-center gap-2 px-3 py-2.5 border-b border-[#1e1e2f]">
+          {minimizeSalonButton}
+          <p className="flex-1 min-w-0 text-sm text-gray-400 truncate">{salon.title}</p>
+        </header>
+        <div className="flex-1 flex items-center justify-center min-h-0 overflow-y-auto">
+          <SalonPlatformAccessGate
+            salonPlatform={salon.platform}
+            connectedPlatforms={user.connectedPlatforms}
+            platformLinks={user.platformLinks}
+            token={token}
+            onUserUpdated={setUserFromProfile}
+            isHost={isHost}
+          >
+            <></>
+          </SalonPlatformAccessGate>
+        </div>
+      </div>
+    );
+  }
 
   const chatProps = {
     roomId: salon.id,
@@ -981,6 +1033,7 @@ export function SalonPage({
               isHost={isHost}
               isVipModerator={isVipModerator || isDevModerator}
               userPlatforms={user?.connectedPlatforms}
+              userPlatformLinks={user?.platformLinks}
               onUserUpdated={setUserFromProfile}
               onPlaybackStateChange={applyPlayback}
               theaterMode={salon.platform !== 'spotify'}

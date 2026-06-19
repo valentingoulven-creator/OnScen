@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { getSocket } from '../lib/socket';
-import { isPlatformConnected } from '../lib/platformConnect';
+import { isMusicPlatformLinkedForSalon, canJoinSalonAsParticipant, salonParticipantAccessMessageKey } from '../lib/platformConnect';
+import { SalonPlatformAccessGate } from './SalonPlatformAccessGate';
 import { HostRatingBlock } from './HostRatingBlock';
 import { ShareSalonLink } from './ShareSalonLink';
 import { SalonPlaybackPanel } from './SalonPlaybackPanel';
@@ -137,8 +138,11 @@ export function MapSalonListenSheet({
   }, [isHost, salon.id, token]);
 
   const hostCanControl = Boolean(
-    isHost && isPlatformConnected(user?.connectedPlatforms, salon.platform)
+    isHost && isMusicPlatformLinkedForSalon(salon.platform, user?.connectedPlatforms, user?.platformLinks)
   );
+  const participantSalonBlocked =
+    !isHost &&
+    !canJoinSalonAsParticipant(salon.platform, user?.connectedPlatforms, isHost);
 
   const applyPlayback = useCallback(
     (state: PlaybackState) => {
@@ -354,10 +358,18 @@ export function MapSalonListenSheet({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
+                if (participantSalonBlocked) return;
                 onOpenFullExperience();
               }}
-              className={MAP_SALON_OUTLINE_BUTTON_CLASS}
-              title={salon.isLive ? 'Ouvrir le live en plein écran' : 'Ouvrir le salon en plein écran'}
+              disabled={participantSalonBlocked}
+              title={
+                participantSalonBlocked
+                  ? t(salonParticipantAccessMessageKey(salon.platform))
+                  : salon.isLive
+                    ? 'Ouvrir le live en plein écran'
+                    : 'Ouvrir le salon en plein écran'
+              }
+              className={`${MAP_SALON_OUTLINE_BUTTON_CLASS}${participantSalonBlocked ? ' opacity-40 cursor-not-allowed' : ''}`}
             >
               {salon.isLive ? 'Live' : 'Salon'}
             </button>
@@ -377,23 +389,52 @@ export function MapSalonListenSheet({
 
       {!expanded && (
         <div className="shrink-0 px-3 py-2.5 border-b border-white/10">
-          <MapSalonListenControls
-            salon={salon}
-            onPlaybackStateChange={applyPlayback}
-            playbackActive={mapPlaybackActive}
-            autoplayAllowed={true}
-            showYoutubeLink
-            minimalControls
-            showVideo={true}
-            mapInlineListen={!isHost}
-            onOpenSalon={onOpenFullExperience}
-            onMapInlineListenCapReached={onMapInlineListenCapReached}
-          />
+          {participantSalonBlocked ? (
+            <SalonPlatformAccessGate
+              salonPlatform={salon.platform}
+              connectedPlatforms={user?.connectedPlatforms}
+              platformLinks={user?.platformLinks}
+              token={token}
+              onUserUpdated={setUserFromProfile}
+              isHost={isHost}
+              variant="compact"
+            >
+              <></>
+            </SalonPlatformAccessGate>
+          ) : (
+            <MapSalonListenControls
+              salon={salon}
+              onPlaybackStateChange={applyPlayback}
+              playbackActive={mapPlaybackActive}
+              autoplayAllowed={true}
+              showYoutubeLink
+              minimalControls
+              showVideo={true}
+              mapInlineListen={!isHost}
+              onOpenSalon={onOpenFullExperience}
+              onMapInlineListenCapReached={onMapInlineListenCapReached}
+            />
+          )}
         </div>
       )}
 
       {expanded && (
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+          {participantSalonBlocked ? (
+            <div className="p-3">
+              <SalonPlatformAccessGate
+                salonPlatform={salon.platform}
+                connectedPlatforms={user?.connectedPlatforms}
+                platformLinks={user?.platformLinks}
+                token={token}
+                onUserUpdated={setUserFromProfile}
+                variant="compact"
+              >
+                <></>
+              </SalonPlatformAccessGate>
+            </div>
+          ) : (
+          <>
           {/* SalonPlaybackPanel en premier : en mode mapInline il affiche la vidéo en plein-largeur tout en haut */}
           <div className="pb-2">
             <SalonPlaybackPanel
@@ -401,6 +442,7 @@ export function MapSalonListenSheet({
               token={token}
               isHost={isHost}
               userPlatforms={user?.connectedPlatforms}
+              userPlatformLinks={user?.platformLinks}
               onUserUpdated={setUserFromProfile}
               onPlaybackStateChange={applyPlayback}
               onQueueChange={(q) => onSalonUpdate({ ...salon, queue: q })}
@@ -461,6 +503,9 @@ export function MapSalonListenSheet({
                 Quitter le salon
               </button>
             </div>
+          )}
+
+          </>
           )}
 
         </div>

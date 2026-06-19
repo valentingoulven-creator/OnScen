@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { api, ApiRequestError } from '../lib/api';
 import { toSpotifyPlaylistRef, translateSalonCreateError, translateSpotifySessionCode } from '../lib/spotifyPlaylistSession';
-import { isPlatformConnected } from '../lib/platformConnect';
+import { isMusicPlatformLinkedForSalon } from '../lib/platformConnect';
 import { generateSalonId } from '../lib/salonDeepLink';
 import { copyShareLink, getSalonShareUrl } from '../lib/shareLink';
 import { PLATFORM_STATUS_REFRESH_EVENT } from '../lib/platformStatusEvents';
@@ -50,6 +50,7 @@ interface CreateSalonModalProps {
   token: string;
   username: string;
   connectedPlatforms?: User['connectedPlatforms'];
+  platformLinks?: User['platformLinks'];
   open: boolean;
   fallbackLatitude: number;
   fallbackLongitude: number;
@@ -65,6 +66,7 @@ export function CreateSalonModal({
   token,
   username,
   connectedPlatforms,
+  platformLinks,
   open,
   fallbackLatitude,
   fallbackLongitude,
@@ -186,8 +188,8 @@ export function CreateSalonModal({
 
   const resolvePosition = () => resolveSalonCreatePosition(fallbackLatitude, fallbackLongitude);
 
-  const platformLinked = isPlatformConnected(connectedPlatforms, form.platform);
-  const spotifyLinked = isPlatformConnected(connectedPlatforms, 'spotify');
+  const platformLinked = isMusicPlatformLinkedForSalon(form.platform, connectedPlatforms, platformLinks);
+  const spotifyLinked = isMusicPlatformLinkedForSalon('spotify', connectedPlatforms, platformLinks);
   const spotifyHostBlocked =
     spotifyLinked &&
     (spotifySessionCode === 'spotify_premium_required' || spotifyPremium === false);
@@ -437,6 +439,7 @@ export function CreateSalonModal({
                     token={token}
                     platform={form.platform}
                     connectedPlatforms={connectedPlatforms}
+                    platformLinks={platformLinks}
                     onUserUpdated={onUserUpdated}
                   />
                 </div>

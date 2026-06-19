@@ -83,6 +83,8 @@ interface SalonYouTubeHostPanelProps {
   settingsContent?: ReactNode;
   /** Modérateur VIP sans playlist ni réglages. */
   vipOnly?: boolean;
+  /** Participant — même tiroir, onglets en lecture seule / proposition. */
+  participantMode?: boolean;
 }
 
 const TAB_ORDER: HostTab[] = ['search', 'playlist', 'queue', 'settings'];
@@ -103,6 +105,7 @@ export function SalonYouTubeHostPanel({
   reordering,
   settingsContent,
   vipOnly = false,
+  participantMode = false,
   onQueueChanged,
   onTrackChanged,
   onSkip,
@@ -140,7 +143,7 @@ export function SalonYouTubeHostPanel({
     {
       id: 'settings',
       label: t('salon.youtubeHost.tabSettings', { defaultValue: 'Réglages' }),
-      hidden: vipOnly || !settingsContent,
+      hidden: vipOnly || participantMode || !settingsContent,
     },
   ];
 
@@ -158,6 +161,27 @@ export function SalonYouTubeHostPanel({
   const tabContent = (() => {
     switch (tab) {
       case 'search':
+        if (participantMode) {
+          if (!salon.allowQueue) {
+            return (
+              <p className="text-xs text-gray-500 text-center py-2">
+                {t('salon.youtubeHost.proposalsDisabled', {
+                  defaultValue: "Les propositions sont désactivées dans ce salon.",
+                })}
+              </p>
+            );
+          }
+          return (
+            <SalonYouTubeSearch
+              salonId={salon.id}
+              token={token}
+              currentTitle={playback.title}
+              currentArtist={playback.artist}
+              submitMode="propose"
+              embedded
+            />
+          );
+        }
         return (
           <SalonYouTubeSearch
             salonId={salon.id}
@@ -169,6 +193,18 @@ export function SalonYouTubeHostPanel({
           />
         );
       case 'playlist':
+        if (participantMode) {
+          return (
+            <div className="space-y-2 py-1">
+              <p className="text-[10px] text-gray-500 leading-snug">
+                {t('salon.youtubeHost.playlistParticipantHint', {
+                  defaultValue:
+                    "Seul l'hôte peut lancer une playlist YouTube. Utilisez Recherche pour proposer une vidéo.",
+                })}
+              </p>
+            </div>
+          );
+        }
         return (
           <SalonYouTubePlaylist
             salonId={salon.id}
@@ -186,23 +222,32 @@ export function SalonYouTubeHostPanel({
               isHost={hostCanControl}
               allowQueue={salon.allowQueue}
               salonId={salon.id}
-              onSkip={onSkip}
-              onPlayItem={onPlayItem}
-              onReorder={onReorder}
+              onSkip={hostCanControl ? onSkip : undefined}
+              onPlayItem={hostCanControl ? onPlayItem : undefined}
+              onReorder={hostCanControl ? onReorder : undefined}
               skipping={skipping}
               reordering={reordering}
               compact
               collapsible={false}
             />
-            <SalonProposalsSection
-              isHost={hostCanControl}
-              allowQueue={salon.allowQueue}
-              proposals={proposals}
-              loadingProposals={loadingProposals}
-              onAccept={onAccept}
-              onReject={onReject}
-              compact
-            />
+            {!participantMode ? (
+              <SalonProposalsSection
+                isHost={hostCanControl}
+                allowQueue={salon.allowQueue}
+                proposals={proposals}
+                loadingProposals={loadingProposals}
+                onAccept={onAccept}
+                onReject={onReject}
+                compact
+              />
+            ) : (
+              <SalonProposalsSection
+                isHost={false}
+                allowQueue={salon.allowQueue}
+                proposals={proposals}
+                compact
+              />
+            )}
           </div>
         );
       case 'settings':

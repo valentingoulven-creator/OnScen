@@ -212,6 +212,10 @@
       "errorPlatformNotLinkedSpotify": "Connectez Spotify avant de créer un salon Spotify.",
       "errorPlatformNotLinkedYoutube": "Connectez YouTube avant de créer un salon YouTube."
     },
+    "accessYoutubeRequired": "Connectez YouTube pour rejoindre ce salon.",
+    "accessYoutubeRequiredHint": "Un compte YouTube lié est requis pour écouter dans les salons YouTube.",
+    "accessSpotifyRequired": "Connectez Spotify pour rejoindre ce salon.",
+    "accessSpotifyRequiredHint": "Un compte Spotify lié est requis pour écouter dans les salons Spotify.",
     "spotifySearch": {
       "placeholder": "Titre, artiste ou lien Spotify…",
       "searching": "Recherche Spotify…",

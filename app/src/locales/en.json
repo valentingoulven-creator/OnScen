@@ -212,6 +212,10 @@
       "errorPlatformNotLinkedSpotify": "Connect Spotify before creating a Spotify salon.",
       "errorPlatformNotLinkedYoutube": "Connect YouTube before creating a YouTube salon."
     },
+    "accessYoutubeRequired": "Connect YouTube to join this salon.",
+    "accessYoutubeRequiredHint": "A linked YouTube account is required to listen in YouTube salons.",
+    "accessSpotifyRequired": "Connect Spotify to join this salon.",
+    "accessSpotifyRequiredHint": "A linked Spotify account is required to listen in Spotify salons.",
     "spotifySearch": {
       "placeholder": "Title, artist, or Spotify link…",
       "searching": "Searching Spotify…",

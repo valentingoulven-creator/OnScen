@@ -20,7 +20,7 @@ import { SalonYouTubePlaylist } from './SalonYouTubePlaylist';
 import { SalonQueueSection } from './SalonQueueSection';
 import { SalonProposalsSection } from './SalonProposalsSection';
 import { PoweredBySpotify } from './PoweredBySpotify';
-import { isPlatformConnected } from '../lib/platformConnect';
+import { isMusicPlatformLinkedForSalon } from '../lib/platformConnect';
 import {
   MAP_INLINE_LISTEN_MAX_MS,
   startMapInlineListenSession,
@@ -39,6 +39,7 @@ interface SalonPlaybackPanelProps {
   /** Modérateur VIP (⭐) : contrôle lecture et changement de morceau via le compte hôte. */
   isVipModerator?: boolean;
   userPlatforms?: MusicPlatform[];
+  userPlatformLinks?: User['platformLinks'];
   onUserUpdated?: (user: User) => void;
   onPlaybackStateChange?: (state: PlaybackState) => void;
   onQueueChange?: (queue: SalonQueueItem[]) => void;
@@ -87,6 +88,7 @@ export function SalonPlaybackPanel({
   isHost,
   isVipModerator = false,
   userPlatforms,
+  userPlatformLinks,
   onUserUpdated,
   onPlaybackStateChange,
   onQueueChange,
@@ -109,7 +111,7 @@ export function SalonPlaybackPanel({
   onMapInlineListenCapReached,
 }: SalonPlaybackPanelProps) {
   const { t } = useTranslation();
-  const hostLinked = isHost && isPlatformConnected(userPlatforms, salon.platform);
+  const hostLinked = isHost && isMusicPlatformLinkedForSalon(salon.platform, userPlatforms, userPlatformLinks);
   const canControlPlayback = Boolean(hostLinked || isVipModerator);
 
   const [participantPlatform, setParticipantPlatform] = useState<MusicPlatform>(() =>
@@ -796,11 +798,10 @@ export function SalonPlaybackPanel({
           <div className="flex flex-wrap items-center gap-2">
             {theaterTimeLabel}
             {theaterSyncPlayControls}
-            {theaterVideoToggle}
+            {canControlPlayback ? theaterVideoToggle : null}
             <span className="ml-auto flex shrink-0">{playbackStatusBadge}</span>
           </div>
-          {(showHostTheaterBar || (salon.platform === 'spotify' && !canControlPlayback)) &&
-            playbackProgressInput}
+          {playbackProgressInput}
         </div>
 
         <div
@@ -822,7 +823,7 @@ export function SalonPlaybackPanel({
           </div>
         )}
 
-        {!isHost && salon.platform !== 'spotify' && (
+        {!isHost && salon.platform !== 'spotify' && salon.platform !== 'youtube' && (
           <div className="shrink-0 border-t border-[#1e1e2f] bg-[#101018]/95 p-3 space-y-3">
             <p className="text-[11px] text-center text-[#6b6b8a] py-0.5">
               🎵 L&apos;hôte contrôle la lecture&thinsp;•&thinsp;Vous pouvez proposer des vidéos

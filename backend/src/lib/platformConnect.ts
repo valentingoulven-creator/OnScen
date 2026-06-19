@@ -13,6 +13,7 @@ import {
 } from './tokenEncryption';
 
 export const HOST_PLATFORM_NOT_LINKED = 'HOST_PLATFORM_NOT_LINKED';
+export const PARTICIPANT_PLATFORM_NOT_LINKED = 'PARTICIPANT_PLATFORM_NOT_LINKED';
 
 export interface PlatformAccount {
   platform: ConnectPlatform;
@@ -58,6 +59,12 @@ export function hostPlatformLinkMessage(platform: MusicPlatform): string {
   return platform === 'spotify'
     ? 'Connectez votre compte Spotify pour héberger ce salon'
     : 'Connectez votre compte YouTube pour héberger ce salon';
+}
+
+export function participantPlatformLinkMessage(platform: MusicPlatform): string {
+  return platform === 'spotify'
+    ? 'Connectez votre compte Spotify pour rejoindre ce salon'
+    : 'Connectez votre compte YouTube pour rejoindre ce salon';
 }
 
 export function connectPlatformAccount(user: User, platform: ConnectPlatform): PlatformAccount {

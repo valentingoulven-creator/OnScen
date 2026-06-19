@@ -53,6 +53,43 @@ export function isSpotifyPremiumProduct(product?: string): boolean {
   return product?.trim().toLowerCase() === 'premium';
 }
 
+/** OAuth réel requis pour créer / héberger / rejoindre un salon sur cette plateforme. */
+export function isMusicPlatformLinkedForSalon(
+  platform: MusicPlatform,
+  connectedPlatforms: MusicPlatform[] | undefined,
+  platformLinks: Array<PlatformLinkSummary> | undefined
+): boolean {
+  if (platformLinks?.length) {
+    return isProfilePlatformConnected(platform, platformLinks);
+  }
+  return isPlatformConnected(connectedPlatforms, platform);
+}
+
+/** Salons YouTube : compte YouTube lié requis (hôte et participants). */
+export function canAccessYoutubeSalon(
+  connectedPlatforms: MusicPlatform[] | undefined,
+  platformLinks: Array<PlatformLinkSummary> | undefined
+): boolean {
+  return isMusicPlatformLinkedForSalon('youtube', connectedPlatforms, platformLinks);
+}
+
+/** Auditeur : compte plateforme lié requis pour rejoindre un salon YouTube/Spotify. L'hôte n'est pas bloqué. */
+export function canJoinSalonAsParticipant(
+  salonPlatform: MusicPlatform,
+  connectedPlatforms: MusicPlatform[] | undefined,
+  isHost?: boolean
+): boolean {
+  if (isHost) return true;
+  if (salonPlatform !== 'youtube' && salonPlatform !== 'spotify') return true;
+  return isPlatformConnected(connectedPlatforms, salonPlatform);
+}
+
+export function salonParticipantAccessMessageKey(
+  platform: MusicPlatform
+): 'salon.accessSpotifyRequired' | 'salon.accessYoutubeRequired' {
+  return platform === 'spotify' ? 'salon.accessSpotifyRequired' : 'salon.accessYoutubeRequired';
+}
+
 export const PLATFORM_LABELS: Record<
   ConnectPlatform,
   { label: string; emoji: string; connectKey: string }

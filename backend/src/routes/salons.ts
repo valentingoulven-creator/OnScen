@@ -19,7 +19,9 @@ import { resolveTrackForPlatform } from '../lib/trackResolver';
 import {
   ensurePlatformAccountsFromLegacy,
   HOST_PLATFORM_NOT_LINKED,
+  PARTICIPANT_PLATFORM_NOT_LINKED,
   hostPlatformLinkMessage,
+  participantPlatformLinkMessage,
   isPlatformConnected,
   getYoutubeAccessToken,
 } from '../lib/platformConnect';
@@ -162,6 +164,31 @@ function getSalonHostUser(salon: Salon, res: Response): import('../models/schema
   return hostUser;
 }
 
+/** Salons YouTube/Spotify : auditeur avec compte plateforme lié (hôte exempté). */
+function requireSalonParticipantPlatform(
+  user: import('../models/schema').User | undefined,
+  salon: Salon,
+  viewerId: string,
+  res: Response
+): user is import('../models/schema').User {
+  if (salon.hostId === viewerId) return true;
+  if (salon.platform !== 'youtube' && salon.platform !== 'spotify') return true;
+  if (!user) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return false;
+  }
+  ensurePlatformAccountsFromLegacy(user);
+  if (!isPlatformConnected(user, salon.platform)) {
+    res.status(403).json({
+      error: participantPlatformLinkMessage(salon.platform),
+      code: PARTICIPANT_PLATFORM_NOT_LINKED,
+      platform: salon.platform,
+    });
+    return false;
+  }
+  return true;
+}
+
 /** Lance un morceau sur Spotify Connect (hôte) avant mise à jour file Soundy. */
 async function tryPlaySpotifyTrackForSalon(
   hostUser: import('../models/schema').User,
@@ -283,6 +310,8 @@ salonsRouter.get('/:id/resolve-track', authenticateJWT, (req: Request, res: Resp
     res.status(403).json({ error: 'Accès refusé' });
     return;
   }
+  const viewer = db.users.get(me);
+  if (!requireSalonParticipantPlatform(viewer, salon, me, res)) return;
 
   const platformParam = String(req.query.platform ?? '');
   const targetPlatform: MusicPlatform = platformParam === 'youtube' ? 'youtube' : 'spotify';
@@ -958,6 +987,8 @@ salonsRouter.post('/:id/join', authenticateJWT, (req: Request, res: Response) =>
     res.status(403).json({ error: 'Accès refusé — salon sur invitation uniquement' });
     return;
   }
+  const viewer = db.users.get(me);
+  if (!requireSalonParticipantPlatform(viewer, salon, me, res)) return;
   res.json({ ok: true, salon: publicSalon(salon, me) });
 });
 

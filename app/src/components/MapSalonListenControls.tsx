@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
-import { isPlatformConnected } from '../lib/platformConnect';
+import { isMusicPlatformLinkedForSalon, canJoinSalonAsParticipant, salonParticipantAccessMessageKey } from '../lib/platformConnect';
 import {
   MAP_INLINE_LISTEN_MAX_MS,
   startMapInlineListenSession,
@@ -66,9 +67,15 @@ export function MapSalonListenControls({
   mapInlineListen = false,
   onMapInlineListenCapReached,
 }: MapSalonListenControlsProps) {
+  const { t } = useTranslation();
   const { user, token } = useAuth();
   const isHost = Boolean(salon.isHost ?? (salon.hostId && salon.hostId === user?.id));
-  const hostLinked = Boolean(isHost && isPlatformConnected(user?.connectedPlatforms, salon.platform));
+  const hostLinked = Boolean(
+    isHost && isMusicPlatformLinkedForSalon(salon.platform, user?.connectedPlatforms, user?.platformLinks)
+  );
+  const participantSalonBlocked =
+    !isHost &&
+    !canJoinSalonAsParticipant(salon.platform, user?.connectedPlatforms, isHost);
   const [participantPlatform, setParticipantPlatform] = useState(() =>
     preferredParticipantPlatform(user?.connectedPlatforms, salon.platform)
   );
@@ -131,6 +138,14 @@ export function MapSalonListenControls({
         </button>
         <span className="text-[10px] text-[#6b6b8a]">Contrôle hôte</span>
       </div>
+    );
+  }
+
+  if (participantSalonBlocked) {
+    return (
+      <p className={`text-[10px] text-amber-400/90 text-center py-1 ${className}`}>
+        {t(salonParticipantAccessMessageKey(salon.platform))}
+      </p>
     );
   }
 

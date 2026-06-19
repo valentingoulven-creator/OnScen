@@ -22,7 +22,7 @@ import {
   setLiveBan,
 } from './lib/liveBans';
 import type { LiveBanScope } from './models/schema';
-import { isPlatformConnected } from './lib/platformConnect';
+import { isPlatformConnected, ensurePlatformAccountsFromLegacy } from './lib/platformConnect';
 import { schedulePersist } from './lib/persist';
 import {
   PlatformPlanError,
@@ -123,6 +123,18 @@ export function setupSockets(io: Server): void {
       if (!salon || !canJoinSalon(salon, userId)) {
         socket.emit('salon_join_denied', { salonId });
         return;
+      }
+      if (salon.platform === 'youtube') {
+        const viewer = db.users.get(userId);
+        if (!viewer) {
+          socket.emit('salon_join_denied', { salonId, reason: 'youtube_not_linked' });
+          return;
+        }
+        ensurePlatformAccountsFromLegacy(viewer);
+        if (!isPlatformConnected(viewer, 'youtube')) {
+          socket.emit('salon_join_denied', { salonId, reason: 'youtube_not_linked' });
+          return;
+        }
       }
       if (userId !== salon.hostId) {
         const banMap = db.salonBans.get(salonId);
