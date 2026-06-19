@@ -29,7 +29,7 @@
     "react-dom": "^19.2.6",
     "react-globe.gl": "^2.38.0",
     "react-i18next": "^17.0.8",
-    "react-router-dom": "^7.16.0",
+    "react-router-dom": "^7.18.0",
     "socket.io-client": "^4.8.3",
     "zxcvbn": "^4.4.2"
   },
