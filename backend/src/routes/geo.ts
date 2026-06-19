@@ -105,8 +105,8 @@ function isInBounds(
 
 geoRouter.get('/nearby', authenticateJWT, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
-  const lat = parseFloat(req.query.latitude as string);
-  const lon = parseFloat(req.query.longitude as string);
+  const lat = parseFloat(((req.query.latitude ?? req.query.lat) as string) ?? '');
+  const lon = parseFloat(((req.query.longitude ?? req.query.lng) as string) ?? '');
   const radiusKm = parseFloat((req.query.radius as string) || String(DEFAULT_NEARBY_RADIUS_KM));
   const distanceFilter = parseDistanceFilterQuery(req.query.distanceFilter as string | undefined);
   const maxRadiusKm = resolveNearbyRadiusKm(radiusKm, distanceFilter);

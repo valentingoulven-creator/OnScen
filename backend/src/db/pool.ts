@@ -1,4 +1,4 @@
-import { Pool, type PoolClient, type PoolConfig } from 'pg';
+import { Pool, type PoolConfig } from 'pg';
 
 let pool: Pool | null = null;
 
@@ -21,8 +21,16 @@ export function getPool(): Pool {
       throw new Error('DATABASE_URL est requis pour la persistance PostgreSQL');
     }
 
+    // ── statement_timeout défini comme paramètre de démarrage PostgreSQL ──
+    // Évite le problème de requête fire-and-forget dans pool.on('connect')
+    // qui pouvait provoquer des DeprecationWarnings pg (concurrent client queries).
+    const statementTimeout = Number(process.env.PG_STATEMENT_TIMEOUT_MS) || 30_000;
+
     const config: PoolConfig = {
       connectionString,
+
+      // Paramètre de démarrage PostgreSQL — défini avant toute requête sur la connexion.
+      options: `-c statement_timeout=${statementTimeout}`,
 
       // ── Taille du pool ──────────────────────────────────────────
       // PG_POOL_MAX=20 recommandé pour Scaleway DB-DEV-S (max_connections=100)
@@ -49,16 +57,6 @@ export function getPool(): Pool {
 
     pool = new Pool(config);
 
-    // ── statement_timeout par connexion ─────────────────────────
-    // Tue les requêtes SQL qui dépassent 30 s (défaut) côté PostgreSQL.
-    // Plus fiable que query_timeout côté Node pour les requêtes longues.
-    pool.on('connect', (client: PoolClient) => {
-      const statementTimeout = Number(process.env.PG_STATEMENT_TIMEOUT_MS) || 30_000;
-      client.query(`SET statement_timeout = ${statementTimeout}`).catch((err) => {
-        console.warn('[soundly] Impossible de définir statement_timeout :', err.message);
-      });
-    });
-
     pool.on('error', (err) => {
       console.error('[soundly] Erreur pool PostgreSQL :', err.message);
     });
@@ -67,7 +65,7 @@ export function getPool(): Pool {
     console.log(
       `[soundly] Pool PostgreSQL initialisé — max=${config.max} ` +
       `idle=${config.idleTimeoutMillis}ms conn=${config.connectionTimeoutMillis}ms ` +
-      `ssl=${config.ssl ? 'oui' : 'non'}`
+      `ssl=${config.ssl ? 'oui' : 'non'} statement_timeout=${statementTimeout}ms`
     );
   }
   return pool;

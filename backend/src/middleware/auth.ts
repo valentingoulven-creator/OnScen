@@ -47,7 +47,7 @@ export function authenticateJWT(req: Request, res: Response, next: NextFunction)
     (req as Request & { user: AuthPayload }).user = decoded;
     next();
   } catch {
-    res.status(403).json({ error: 'Token invalide' });
+    res.status(401).json({ error: 'Token invalide ou expiré' });
   }
 }
 

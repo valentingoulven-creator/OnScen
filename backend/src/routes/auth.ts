@@ -96,7 +96,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
   }
   const exists = [...db.users.values()].some((u) => u.email === email || u.username === username);
   if (exists) {
-    res.status(400).json({ error: 'Utilisateur déjà existant' });
+    res.status(409).json({ error: 'Utilisateur déjà existant' });
     return;
   }
   const accountStatus = resolveInitialAccountStatus();
@@ -163,7 +163,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
   const { email, password, rememberMe } = req.body;
   const user = [...db.users.values()].find((u) => u.email === email);
   if (!user) {
-    res.status(400).json({ error: 'Identifiants invalides' });
+    res.status(401).json({ error: 'Identifiants invalides' });
     return;
   }
   let passwordMatch: boolean;
@@ -174,7 +174,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
     return;
   }
   if (!passwordMatch) {
-    res.status(400).json({ error: 'Identifiants invalides' });
+    res.status(401).json({ error: 'Identifiants invalides' });
     return;
   }
   const denied = loginAccessDeniedReason(user);
