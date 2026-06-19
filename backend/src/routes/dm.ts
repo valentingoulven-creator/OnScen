@@ -390,7 +390,7 @@ dmRouter.post('/thread/:userId', authenticateJWT, (req: Request, res: Response) 
   const mutualMatch = !!findMatch(me, receiverId);
   if (!isMutualFollow(me, receiverId) && !mutualMatch) {
     res.status(403).json({
-      error: 'Vous devez vous suivre mutuellement ou avoir un match pour envoyer un message',
+      error: 'Vous devez vous suivre mutuellement ou avoir un match pour envoyer un message.',
       code: 'dm_mutual_follow_required',
     });
     return;

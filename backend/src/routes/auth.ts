@@ -107,8 +107,18 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Erreur interne lors de la création du compte' });
     return;
   }
-  const verificationToken = crypto.randomBytes(32).toString('hex');
-  const verificationTokenExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24h
+  // Bypass email verification for test accounts or when explicitly disabled in env.
+  // SKIP_EMAIL_VERIFICATION=true is for development/E2E only — never set in production.
+  const bypassEmails = (process.env.EMAIL_VERIFICATION_BYPASS_LIST ?? '')
+    .split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+  const skipVerification =
+    process.env.SKIP_EMAIL_VERIFICATION === 'true' ||
+    bypassEmails.includes(email.toLowerCase());
+
+  const verificationToken = skipVerification ? undefined : crypto.randomBytes(32).toString('hex');
+  const verificationTokenExpiry = skipVerification
+    ? undefined
+    : Date.now() + 24 * 60 * 60 * 1000; // 24h
 
   let user: User = {
     id: `user_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -124,7 +134,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     acceptedTermsVersion: CURRENT_TERMS_VERSION,
     accountStatus,
     onboardingCompleted: false,
-    emailVerified: false,
+    emailVerified: skipVerification,
     verificationToken,
     verificationTokenExpiry,
   };
@@ -137,9 +147,11 @@ authRouter.post('/register', async (req: Request, res: Response) => {
   schedulePersist();
 
   // Send verification email (graceful — no SMTP = skip, signup still proceeds)
-  const appUrl = process.env.WEB_APP_URL ?? 'https://getsoundy.com';
-  const verificationUrl = `${appUrl}/verify-email?token=${verificationToken}`;
-  void sendVerificationEmail({ toEmail: email, username, verificationUrl });
+  if (!skipVerification && verificationToken) {
+    const appUrl = process.env.WEB_APP_URL ?? 'https://getsoundy.com';
+    const verificationUrl = `${appUrl}/verify-email?token=${verificationToken}`;
+    void sendVerificationEmail({ toEmail: email, username, verificationUrl });
+  }
 
   if (accountStatus === 'pending') {
     res.status(202).json({
@@ -155,7 +167,8 @@ authRouter.post('/register', async (req: Request, res: Response) => {
   res.status(201).json({
     token,
     user: publicProfile(user, true, user.id),
-    emailVerificationSent: true,
+    emailVerificationSent: !skipVerification,
+    emailVerified: skipVerification,
   });
 });
 
@@ -163,7 +176,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
   const { email, password, rememberMe } = req.body;
   const user = [...db.users.values()].find((u) => u.email === email);
   if (!user) {
-    res.status(401).json({ error: 'Identifiants invalides' });
+    res.status(401).json({ error: 'Email ou mot de passe incorrect.' });
     return;
   }
   let passwordMatch: boolean;
@@ -174,7 +187,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
     return;
   }
   if (!passwordMatch) {
-    res.status(401).json({ error: 'Identifiants invalides' });
+    res.status(401).json({ error: 'Email ou mot de passe incorrect.' });
     return;
   }
   const denied = loginAccessDeniedReason(user);

@@ -457,7 +457,7 @@ export function createUserReel(authorId: string, input: CreateUserReelInput): Us
   const posterUrl = input.posterUrl?.trim();
 
   if (!title || !artist || !genre) {
-    return { error: 'Titre, artiste et genre requis' };
+    return { error: 'Champs requis manquants: title, artist, genre' };
   }
   if (!isAllowedMediaUrl(mediaUrl)) {
     return { error: 'URL média invalide' };

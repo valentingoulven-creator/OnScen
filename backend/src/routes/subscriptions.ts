@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+﻿import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import Stripe from 'stripe';
 import { db } from '../models/schema';
@@ -358,9 +358,20 @@ subscriptionsRouter.post('/create-checkout', authenticateJWT, async (req: Reques
       checkoutUrl: session.url,
       sessionId: session.id,
     });
-  } catch {
+  } catch (e) {
+    const stripeCardMessages: Record<string, string> = {
+      card_declined: 'Carte refusée. Vérifiez vos informations ou contactez votre banque.',
+      insufficient_funds: 'Fonds insuffisants sur votre carte.',
+      invalid_cvc: 'Code de sécurité (CVC) invalide.',
+      expired_card: 'Carte expirée. Veuillez utiliser une autre carte.',
+    };
+    if (e instanceof Stripe.errors.StripeCardError) {
+      const msg = (e.code && stripeCardMessages[e.code]) || 'Paiement refusé par votre banque.';
+      res.status(402).json({ error: msg, stripeCode: e.code });
+      return;
+    }
     console.error('[subscriptions] create-checkout error');
-    res.status(502).json({ error: 'Impossible de préparer l’abonnement' });
+    res.status(502).json({ error: "Impossible de préparer l'abonnement" });
   }
 });
 
