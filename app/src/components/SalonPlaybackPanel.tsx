@@ -77,6 +77,8 @@ interface SalonPlaybackPanelProps {
   /** false = coupe le lecteur (onglet carte masqué, autre audio actif). */
   playbackActive?: boolean;
   onMapInlineListenCapReached?: () => void;
+  /** Appelé quand l'utilisateur ancre la vidéo PiP (↙) — permet d'ouvrir le salon plein écran. */
+  onAnchorVideoFloat?: () => void;
 }
 
 const PLATFORM_META: Record<MusicPlatform, { label: string; emoji: string; accent: string }> = {
@@ -115,6 +117,7 @@ export function SalonPlaybackPanel({
   salonQueueLayout = false,
   playbackActive = true,
   onMapInlineListenCapReached,
+  onAnchorVideoFloat,
 }: SalonPlaybackPanelProps) {
   const { t } = useTranslation();
   const hostLinked = isHost && isMusicPlatformLinkedForSalon(salon.platform, userPlatforms, userPlatformLinks);
@@ -136,6 +139,8 @@ export function SalonPlaybackPanel({
   const [participantSyncTrigger, setParticipantSyncTrigger] = useState(0);
   /** PiP flottant in-app (vidéo seule détachée, salon inchangé). */
   const [floatPipActive, setFloatPipActiveState] = useState(false);
+  const [youtubeIsLive, setYoutubeIsLive] = useState(false);
+  const [ytLiveSeekTrigger, setYtLiveSeekTrigger] = useState(0);
   const setFloatPipActive = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
     setFloatPipActiveState((prev) => {
       const next = typeof value === 'function' ? value(prev) : value;
@@ -205,6 +210,8 @@ export function SalonPlaybackPanel({
     if (isHost && hostLinked && playbackState.showVideo !== true) {
       emitPatch({ showVideo: true });
     }
+    // Reset live badge when switching to a different video.
+    setYoutubeIsLive(false);
   }, [
     salon.platform,
     playbackState.trackId,
@@ -436,7 +443,10 @@ export function SalonPlaybackPanel({
 
   const theaterVideoFloatActive =
     theaterMode && floatPipActive && effectiveShowYoutubeVideo;
-  const videoPip = useDraggableVideoPip(theaterVideoFloatActive, () => setFloatPipActive(false));
+  const videoPip = useDraggableVideoPip(theaterVideoFloatActive, () => {
+    setFloatPipActive(false);
+    onAnchorVideoFloat?.();
+  });
 
   const canAutoVideoFloat =
     theaterMode &&
@@ -446,8 +456,15 @@ export function SalonPlaybackPanel({
 
   const tryAutoActivateVideoFloat = useCallback(() => {
     if (!canAutoVideoFloat || floatPipActive) return;
-    setFloatPipActive(true);
-  }, [canAutoVideoFloat, floatPipActive, setFloatPipActive]);
+    // Call setSalonVideoFloatActive SYNCHRONOUSLY (outside any React updater) so
+    // App.tsx's salonVideoFloatActive subscriber fires in the SAME React batch as
+    // setActiveSalonSession({ viewMode:'minimized' }). Without this, setSalonVideoFloatActive
+    // would run inside setFloatPipActiveState's updater, causing a cascading second render
+    // where salonFullScreen is already false but salonVideoFloatActive is still false —
+    // which triggers showSalonPageShell=false and unmounts SalonPage before PiP can float.
+    setSalonVideoFloatActive(true);
+    setFloatPipActiveState(true);
+  }, [canAutoVideoFloat, floatPipActive]);
 
   useEffect(() => {
     if (!theaterMode) return;
@@ -804,6 +821,19 @@ export function SalonPlaybackPanel({
       </>
     ) : null;
 
+    const theaterLiveButton =
+      youtubeIsLive && salon.platform === 'youtube' ? (
+        <button
+          type="button"
+          onClick={() => setYtLiveSeekTrigger((n) => n + 1)}
+          className="px-2.5 py-1 rounded-full border border-red-500/50 bg-red-950/30 text-xs font-semibold text-red-400 hover:bg-red-900/40 hover:text-red-300 transition shrink-0"
+          title="Revenir au direct"
+          aria-label="Revenir au direct"
+        >
+          🔴 Direct
+        </button>
+      ) : null;
+
     const theaterParticipantSyncButton = renderParticipantSyncButton(theaterControlBtnClass);
 
     const theaterVolumeControl =
@@ -896,6 +926,8 @@ export function SalonPlaybackPanel({
           participantSyncTrigger={participantSyncTrigger}
           videoFloat={theaterVideoFloatActive ? videoPip : undefined}
           videoFloatTitle={playbackState.title}
+          onIsLiveChange={setYoutubeIsLive}
+          liveSeekTrigger={ytLiveSeekTrigger}
         />
       </>
     ) : (
@@ -921,6 +953,7 @@ export function SalonPlaybackPanel({
           <div className="flex flex-wrap items-center gap-2">
             {theaterTimeLabel}
             {theaterSyncPlayControls}
+            {theaterLiveButton}
             {theaterParticipantSyncButton}
             {canControlPlayback ? theaterVideoToggle : null}
             {theaterFloatPipButton}

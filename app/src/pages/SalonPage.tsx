@@ -72,6 +72,7 @@ export function SalonPage({
   onLeaveSalon,
   onMinimizeToMap,
   onSalonLoaded,
+  onRestoreFullScreen,
 }: {
   salonId: string;
   onBack: () => void;
@@ -81,6 +82,8 @@ export function SalonPage({
   onMinimizeToMap?: (salonTitle?: string) => void;
   /** Titre chargé (barre retour header). */
   onSalonLoaded?: (salonTitle?: string) => void;
+  /** Ancrage du PiP vidéo → restaurer le salon plein écran. */
+  onRestoreFullScreen?: () => void;
 }) {
 
   const { user, token, setUserFromProfile } = useAuth();
@@ -886,6 +889,7 @@ export function SalonPage({
               queue={queue}
               skipping={skipping}
               onSkip={canControlPlayback ? handleSkip : undefined}
+              onAnchorVideoFloat={onRestoreFullScreen}
             />
           }
           stageFooter={stageFooter}

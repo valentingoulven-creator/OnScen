@@ -37,6 +37,8 @@ interface YTPlayerInstance {
   pauseVideo: () => void;
   seekTo: (seconds: number, allowSeekAhead: boolean) => void;
   getCurrentTime: () => number;
+  getDuration: () => number;
+  getVideoLoadedFraction: () => number;
   getPlayerState: () => number;
   getPlaybackRate: () => number;
   setPlaybackRate: (rate: number) => void;
@@ -48,6 +50,7 @@ interface YTPlayerInstance {
   loadVideoById: (videoId: string, startSeconds?: number) => void;
   setSize: (width: number, height: number) => void;
   destroy: () => void;
+  getVideoData?: () => { isLive?: boolean; [key: string]: unknown };
 }
 
 interface SalonYouTubePlayerProps {
@@ -95,6 +98,10 @@ interface SalonYouTubePlayerProps {
   onVideoEnd?: () => void;
   /** Appelé quand l'embed YouTube est interdit (erreur 101 ou 150). */
   onEmbedError?: () => void;
+  /** Appelé quand le statut live/non-live de la vidéo change. */
+  onIsLiveChange?: (isLive: boolean) => void;
+  /** Incrémenté pour déclencher un saut au direct (seekTo live edge). */
+  liveSeekTrigger?: number;
   /** Petit salon carte : durée max d'écoute (ms) avant pause automatique. */
   mapInlineListenCapMs?: number;
   /** Clé de session (salonId) pour le chrono carte. */
@@ -187,6 +194,8 @@ export function SalonYouTubePlayer({
   isHost: _isHost = false,
   onVideoEnd,
   onEmbedError,
+  onIsLiveChange,
+  liveSeekTrigger,
   mapInlineListenCapMs,
   mapInlineListenSessionKey,
   onMapInlineListenCapReached,
@@ -246,6 +255,10 @@ export function SalonYouTubePlayer({
   onVideoEndRef.current = onVideoEnd;
   const onEmbedErrorRef = useRef(onEmbedError);
   onEmbedErrorRef.current = onEmbedError;
+  const onIsLiveChangeRef = useRef(onIsLiveChange);
+  onIsLiveChangeRef.current = onIsLiveChange;
+  const isLiveRef = useRef(false);
+  const lastLiveSeekTriggerRef = useRef<number | undefined>(undefined);
   const onMapInlineListenCapReachedRef = useRef(onMapInlineListenCapReached);
   onMapInlineListenCapReachedRef.current = onMapInlineListenCapReached;
   const mapInlineListenCapReachedRef = useRef(false);
@@ -313,6 +326,22 @@ export function SalonYouTubePlayer({
     } catch {
       /* ignore */
     }
+  }, []);
+
+  const detectLiveStream = useCallback((player: YTPlayerInstance): boolean => {
+    try {
+      const videoData = player.getVideoData?.();
+      if (typeof videoData?.isLive === 'boolean') return videoData.isLive;
+      return player.getDuration() === Infinity;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const notifyIsLive = useCallback((isLive: boolean) => {
+    if (isLive === isLiveRef.current) return;
+    isLiveRef.current = isLive;
+    onIsLiveChangeRef.current?.(isLive);
   }, []);
 
   const syncPlayerSize = useCallback(() => {
@@ -476,6 +505,8 @@ export function SalonYouTubePlayer({
           loadedVideoRef.current = videoId;
           setPlayerReady(true);
           syncPlayerSize();
+          // Detect live stream status as soon as the player is ready.
+          notifyIsLive(detectLiveStream(e.target));
           const allowPlay =
             playbackActiveRef.current &&
             autoplayAllowedRef.current &&
@@ -501,6 +532,10 @@ export function SalonYouTubePlayer({
           if (e.data === YT_ENDED) {
             onVideoEndRef.current?.();
             return;
+          }
+          if (e.data === YT_PLAYING) {
+            // Re-check live status once playback starts (getVideoData may populate late).
+            notifyIsLive(detectLiveStream(e.target));
           }
           if (isHostRef.current) {
             if (e.data === YT_PAUSED && stateRef.current.isPlaying) {
@@ -530,6 +565,8 @@ export function SalonYouTubePlayer({
     return () => {
       destroyed = true;
       setPlayerReady(false);
+      // Reset live state when the video is unmounted/changed.
+      notifyIsLive(false);
       try {
         const p = playerRef.current;
         if (p) {
@@ -586,6 +623,20 @@ export function SalonYouTubePlayer({
     volume,
     muted,
   ]);
+
+  useEffect(() => {
+    if (!liveSeekTrigger) return;
+    if (lastLiveSeekTriggerRef.current === liveSeekTrigger) return;
+    lastLiveSeekTriggerRef.current = liveSeekTrigger;
+    const player = playerRef.current;
+    if (!player || !playerReady || !isLiveRef.current) return;
+    try {
+      // Seek to live edge: Infinity is handled by the YouTube IFrame API for live streams.
+      player.seekTo(Infinity, true);
+    } catch {
+      /* ignore */
+    }
+  }, [liveSeekTrigger, playerReady]);
 
   useEffect(() => {
     const player = playerRef.current;

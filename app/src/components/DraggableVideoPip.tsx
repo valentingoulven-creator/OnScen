@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 const POS_KEY = 'salon_video_pip_pos';
-export const VIDEO_PIP_WIDTH = 280;
-export const VIDEO_PIP_HEADER_HEIGHT = 28;
+// 240 px wide → 240×135 video (16:9). YouTube TOS minimum is 200×113; 240 gives a
+// comfortable margin while keeping the PiP as small as possible.
+export const VIDEO_PIP_WIDTH = 240;
+export const VIDEO_PIP_HEADER_HEIGHT = 24;
 const MARGIN = 12;
 
 function clamp(n: number, min: number, max: number) {

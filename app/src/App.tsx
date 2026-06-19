@@ -845,6 +845,13 @@ export default function App() {
                     onLeaveSalon={leaveActiveSalonSession}
                     onMinimizeToMap={handleSalonMinimizeToMap}
                     onSalonLoaded={handleSalonTitleLoaded}
+                    onRestoreFullScreen={() =>
+                      openSalonPage(
+                        activeSalonSession.id,
+                        activeSalonSession.title,
+                        activeSalonSession.isHost
+                      )
+                    }
                   />
                 </Suspense>
               </div>
