@@ -35,7 +35,7 @@ function isInvalidSessionError(message: string | undefined, status?: number): bo
   if (status === 404) return true;
   if (!message) return false;
   return (
-    message.includes('Session expirée') ||
+    message.includes('Session expirÃ©e') ||
     message.includes('Token invalide') ||
     message.includes('Token manquant') ||
     message.includes('Utilisateur introuvable')
@@ -118,10 +118,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         setAuthBootError(
           message ||
-            'Erreur lors du chargement de la session. Déconnectez-vous ou actualisez la page (Ctrl+Shift+R).'
+            'Erreur lors du chargement de la session. DÃ©connectez-vous ou actualisez la page (Ctrl+Shift+R).'
         );
-        // Erreur réseau (serveur arrêté, cert, etc.) : on conserve le token.
-        // L'authBootError guide l'utilisateur ; le timeout de 20 s déconnecte si nécessaire.
+        // Erreur rÃ©seau (serveur arrÃªtÃ©, cert, etc.) : on conserve le token.
+        // L'authBootError guide l'utilisateur ; le timeout de 20 s dÃ©connecte si nÃ©cessaire.
       })
       .finally(() => {
         window.clearTimeout(timeout);
@@ -135,6 +135,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string, rememberMe = true) => {
     const r = await api.login(email, password, rememberMe);
+    if (!r.token || !r.user) {
+      throw new Error('Réponse de connexion invalide');
+    }
     persistToken(r.token, rememberMe);
     setToken(r.token);
     setUser(r.user);
@@ -153,11 +156,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (r.pending) {
       throw new Error(
         r.message ||
-          'Inscription enregistrée. Un administrateur doit valider votre compte avant la première connexion.'
+          'Inscription enregistrÃ©e. Un administrateur doit valider votre compte avant la premiÃ¨re connexion.'
       );
     }
     if (!r.token || !r.user) {
-      throw new Error('Réponse d’inscription invalide');
+      throw new Error('RÃ©ponse dâ€™inscription invalide');
     }
     persistToken(r.token, true);
     setToken(r.token);
@@ -181,7 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const setUserFromProfile = (u: User) =>
     setUser((prev) => {
-      // API uses null to signal "field cleared" — JSON cannot represent undefined.
+      // API uses null to signal "field cleared" â€” JSON cannot represent undefined.
       // Convert null back to undefined to keep state consistent with the User type.
       const raw = u as unknown as Record<string, unknown>;
       const next: User = {
