@@ -1,35 +1,34 @@
 /**
- * System resource monitor — RAM & CPU alerting via email.
+ * System resource monitor — RAM, CPU & disk alerting via email.
  *
  * Env vars (all optional):
  *   RAM_ALERT_THRESHOLD   – RAM % that triggers a warning alert (default 85)
  *   CPU_ALERT_THRESHOLD   – CPU load % (1-min avg / cores) that triggers a warning (default 90)
+ *   DISK_ALERT_THRESHOLD  – disk used % that triggers a warning alert (default 80)
  *   ALERT_EMAIL           – primary recipient for system alerts (default valentin.goulven@gmail.com)
  *
  * Debounce: at most one alert email per metric per hour.
  * Checks are run every 5 minutes (same as serverMonitor.ts).
  *
- * This module delegates to serverMonitor.ts (which also monitors disk and API latency).
- * RAM_ALERT_THRESHOLD / CPU_ALERT_THRESHOLD are mapped to the ALERT_RAM_PERCENT /
- * ALERT_CPU_PERCENT env vars expected by serverMonitor.ts so both naming conventions work.
+ * Note: serverMonitor.ts also monitors disk + API latency via vpsMetrics.ts.
+ * This module adds a complementary disk check using Node's statfs API.
  */
 
 import os from 'os';
+import { statfs } from 'fs/promises';
 import { getEmailFrom, isEmailConfigured, sendEmail } from './emailSend';
 
 const RAM_THRESHOLD = parseInt(process.env.RAM_ALERT_THRESHOLD ?? process.env.ALERT_RAM_PERCENT ?? '85', 10);
 const CPU_THRESHOLD = parseInt(process.env.CPU_ALERT_THRESHOLD ?? process.env.ALERT_CPU_PERCENT ?? '90', 10);
+const DISK_THRESHOLD = parseInt(process.env.DISK_ALERT_THRESHOLD ?? process.env.ALERT_DISK_PERCENT ?? '80', 10);
 const CHECK_INTERVAL_MS = parseInt(process.env.MONITOR_INTERVAL_MS ?? '300000', 10);
 const DEBOUNCE_MS = 60 * 60 * 1000; // 1 hour per metric
 
-const alertEmail = process.env.ALERT_EMAIL?.trim() || process.env.SMTP_ADMIN_EMAIL?.trim() || '';
-if (!alertEmail && process.env.APP_ENV === 'production') {
-  console.warn('[systemMonitor] AVERTISSEMENT : ALERT_EMAIL non défini — les alertes RAM/CPU ne seront pas envoyées.');
-}
+const alertEmail = process.env.ALERT_EMAIL ?? process.env.SMTP_ADMIN_EMAIL ?? 'valentin.goulven@gmail.com';
 
-const lastAlertTime = new Map<'ram' | 'cpu', number>();
+const lastAlertTime = new Map<'ram' | 'cpu' | 'disk', number>();
 
-function isCoolingDown(metric: 'ram' | 'cpu'): boolean {
+function isCoolingDown(metric: 'ram' | 'cpu' | 'disk'): boolean {
   const last = lastAlertTime.get(metric);
   return last !== undefined && Date.now() - last < DEBOUNCE_MS;
 }
@@ -49,8 +48,20 @@ function getCpuPercent(): number | null {
   return Math.round((load1m / cores) * 1000) / 10;
 }
 
+async function getDiskPercent(): Promise<number | null> {
+  try {
+    const stats = await statfs('/');
+    const total = stats.blocks * stats.bsize;
+    const free = stats.bfree * stats.bsize;
+    if (!total) return null;
+    return Math.round(((total - free) / total) * 1000) / 10;
+  } catch {
+    return null;
+  }
+}
+
 async function sendSystemAlert(params: {
-  metric: 'ram' | 'cpu';
+  metric: 'ram' | 'cpu' | 'disk';
   value: number;
   threshold: number;
 }): Promise<void> {
@@ -59,7 +70,7 @@ async function sendSystemAlert(params: {
 
   lastAlertTime.set(params.metric, Date.now());
 
-  const label = params.metric === 'ram' ? 'RAM' : 'CPU';
+  const label = params.metric === 'ram' ? 'RAM' : params.metric === 'cpu' ? 'CPU' : 'Disque';
   const ts = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' });
   const subject = `🚨 [Soundy VPS] ${label} ${params.value}% - Action requise`;
   const adminUrl = `${process.env.WEB_APP_URL ?? 'https://getsoundy.com'}/admin?tab=monitoring`;
@@ -108,7 +119,6 @@ async function sendSystemAlert(params: {
   ].join('\n');
 
   try {
-    if (!alertEmail) return;
     await sendEmail({ from: getEmailFrom('Soundy Monitoring'), to: alertEmail, subject, text, html });
     console.info(`[systemMonitor] Alerte ${label} envoyée à ${alertEmail} (${params.value}% > ${params.threshold}%)`);
   } catch (err) {
@@ -126,6 +136,11 @@ async function runChecks(): Promise<void> {
     const cpuPercent = getCpuPercent();
     if (cpuPercent !== null && cpuPercent >= CPU_THRESHOLD) {
       await sendSystemAlert({ metric: 'cpu', value: cpuPercent, threshold: CPU_THRESHOLD });
+    }
+
+    const diskPercent = await getDiskPercent();
+    if (diskPercent !== null && diskPercent >= DISK_THRESHOLD) {
+      await sendSystemAlert({ metric: 'disk', value: diskPercent, threshold: DISK_THRESHOLD });
     }
   } catch (err) {
     console.error('[systemMonitor] Erreur lors des vérifications:', err);
@@ -145,8 +160,8 @@ export function startSystemMonitor(): void {
   }, 90_000);
 
   console.log(
-    `[systemMonitor] Actif — seuils RAM ${RAM_THRESHOLD}%, CPU ${CPU_THRESHOLD}%, ` +
-      `intervalle ${CHECK_INTERVAL_MS / 1000}s, alerte → ${alertEmail || '(non configuré)'}`
+    `[systemMonitor] Actif — seuils RAM ${RAM_THRESHOLD}%, CPU ${CPU_THRESHOLD}%, disque ${DISK_THRESHOLD}%, ` +
+      `intervalle ${CHECK_INTERVAL_MS / 1000}s, alerte → ${alertEmail}`
   );
 }
 
