@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type LegalKey } from '../content/legal';
 import { LegalDocumentView } from '../components/LegalDocumentView';

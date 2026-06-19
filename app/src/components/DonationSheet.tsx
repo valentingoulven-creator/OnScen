@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 const PAYPAL_URL: string =
-  (import.meta.env.VITE_DONATION_PAYPAL_URL as string | undefined) ?? 'https://paypal.me/SOUNDY';
+  (import.meta.env.VITE_DONATION_PAYPAL_URL as string | undefined) ?? 'https://paypal.me/getsoundy';
 
 const BMC_URL: string =
   (import.meta.env.VITE_DONATION_BMC_URL as string | undefined) ?? 'https://buymeacoffee.com/soundy';
@@ -155,11 +155,6 @@ export function DonationSheet({ onClose }: DonationSheetProps) {
           <span aria-hidden="true" className="text-base">{icon}</span>
           {linkLabel}
         </a>
-
-        {/* Footer */}
-        <p className="text-[11px] text-center text-gray-600 mt-5 leading-relaxed">
-          Soundy est indépendant et sans publicité. Merci de votre soutien !&nbsp;🙏
-        </p>
 
         {/* Dismiss */}
         <button
