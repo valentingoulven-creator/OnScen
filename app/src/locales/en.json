@@ -178,6 +178,7 @@
       "spotifyOpenAppHint": "Open the Spotify app and start a track to sync the salon.",
       "spotifyControlError": "Spotify control unavailable",
       "spotifyLaunchingApp": "Opening Spotify… Press Play again once the app is open",
+      "spotifyJamOpening": "Opening Spotify Jam…",
       "spotifyAlignHint": "Open Spotify on the right track and align with the shared timer.",
       "spotifyCrossPlatformHint": "Spotify doesn't play in the browser — use YouTube to listen together."
     },

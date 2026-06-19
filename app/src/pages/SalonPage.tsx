@@ -116,6 +116,7 @@ export function SalonPage({
   const warningTimerRef = useRef<number | null>(null);
   const spotifyQueueLaunchRef = useRef(false);
   const spotifyQueueRetryRef = useRef<number | null>(null);
+  const spotifyJamAutoOpenRef = useRef(false);
 
   const loadSalon = useCallback(() => {
     if (!token) return;
@@ -238,6 +239,46 @@ export function SalonPage({
     };
 
   }, [salon?.id, user?.id, salon?.canJoin]);
+
+  useEffect(() => {
+    if (!salon || !user) return;
+    if (salon.platform !== 'spotify' || !salon.spotifyJamUrl?.trim()) return;
+    if (salon.canJoin === false) return;
+
+    const isHostUser = salon.isHost ?? salon.hostId === user.id;
+    if (isHostUser) return;
+
+    if (!canJoinSalonAsParticipant(salon.platform, user.connectedPlatforms, false)) return;
+
+    const storageKey = `soundy.jamOpened.${salon.id}`;
+    try {
+      if (sessionStorage.getItem(storageKey) === '1') return;
+    } catch {
+      /* sessionStorage unavailable */
+    }
+
+    if (spotifyJamAutoOpenRef.current) return;
+    spotifyJamAutoOpenRef.current = true;
+
+    try {
+      sessionStorage.setItem(storageKey, '1');
+    } catch {
+      /* ignore */
+    }
+
+    setToastMsg(t('salon.playbackMode.spotifyJamOpening', { defaultValue: 'Ouverture de Spotify Jam…' }));
+    openSpotifyJamLink(salon.spotifyJamUrl);
+  }, [
+    salon?.id,
+    salon?.platform,
+    salon?.spotifyJamUrl,
+    salon?.canJoin,
+    salon?.isHost,
+    salon?.hostId,
+    user?.id,
+    user?.connectedPlatforms,
+    t,
+  ]);
 
 
 
