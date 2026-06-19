@@ -1748,6 +1748,31 @@ export const api = {
   deleteReel: (token: string, reelId: string) =>
     request<{ ok: boolean }>(`/reels/${reelId}`, { method: 'DELETE' }, token),
 
+  getMyCompositions: (token: string) =>
+    request<{ compositions: import('../components/UserCompositionsSection').UserCompositionItem[] }>(
+      '/compositions/mine',
+      {},
+      token
+    ),
+
+  createComposition: (
+    token: string,
+    body: {
+      title: string;
+      artist?: string;
+      fileUrl: string;
+      durationSec?: number;
+    }
+  ) =>
+    request<{ composition: import('../components/UserCompositionsSection').UserCompositionItem }>(
+      '/compositions',
+      { method: 'POST', body: JSON.stringify(body) },
+      token
+    ),
+
+  deleteComposition: (token: string, compositionId: string) =>
+    request<{ ok: boolean }>(`/compositions/${compositionId}`, { method: 'DELETE' }, token),
+
   publishReel: (token: string, reelId: string) =>
     request<{ reel: import('../content/reels').MusicReel }>(`/reels/${reelId}/publish`, { method: 'POST' }, token),
 

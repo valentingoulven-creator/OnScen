@@ -572,6 +572,17 @@ export interface UserReel {
   adminBlockedAt?: number;
 }
 
+/** Morceau original uploadé par l'utilisateur (onglet Composition du profil). */
+export interface UserComposition {
+  id: string;
+  userId: string;
+  title: string;
+  artist?: string;
+  fileUrl: string;
+  durationSec?: number;
+  createdAt: number;
+}
+
 /** Publication fil d'actualité (texte + image ou vidéo optionnelle). */
 export interface FeedPost {
   id: string;
@@ -675,6 +686,7 @@ export const db = {
   /** Spectateurs uniques par reel */
   reelViews: new Map<string, Set<string>>(),
   userReels: [] as UserReel[],
+  compositions: [] as UserComposition[],
   feedPosts: [] as FeedPost[],
   /** postId → Set<userId> ayant liké */
   feedPostLikes: new Map<string, Set<string>>(),

@@ -1,0 +1,56 @@
+﻿config:
+  target: "https://getsoundy.com"
+  phases:
+    - duration: 120
+      arrivalRate: 1
+      rampTo: 30
+      name: "Ramp up"
+    - duration: 3360
+      arrivalRate: 30
+      name: "Sustained load"
+    - duration: 120
+      arrivalRate: 30
+      rampTo: 1
+      name: "Ramp down"
+  defaults:
+    headers:
+      User-Agent: "Artillery/LoadTest"
+  ensure:
+    p95: 2000
+    maxErrorRate: 5
+
+scenarios:
+  - name: "geo_nearby_south"
+    weight: 2
+    flow:
+      - get:
+          url: "/api/geo/nearby?lat=43.6&lng=3.9&zoom=5"
+      - think: 10
+
+  - name: "feed"
+    weight: 2
+    flow:
+      - get:
+          url: "/api/feed?limit=20"
+      - think: 8
+
+  - name: "health"
+    weight: 1
+    flow:
+      - get:
+          url: "/health"
+      - think: 20
+
+  - name: "auth_providers"
+    weight: 2
+    flow:
+      - get:
+          url: "/api/auth/providers"
+      - think: 15
+
+  - name: "geo_nearby_paris"
+    weight: 2
+    flow:
+      - get:
+          url: "/api/geo/nearby?lat=48.8&lng=2.3&zoom=8"
+      - think: 12

@@ -36,6 +36,7 @@ import { SupportMeloSongTeaser } from '../components/SupportMeloSongSection';
 import { DonationSheet } from '../components/DonationSheet';
 import { ProfileReelRecorder } from '../components/ProfileReelRecorder';
 import { UserReelsSection } from '../components/UserReelsSection';
+import { UserCompositionsSection } from '../components/UserCompositionsSection';
 import { UserLivesSection } from '../components/UserLivesSection';
 import { CreatorDashboardCard } from '../components/CreatorDashboardCard';
 import { PlatformConnectCard } from '../components/PlatformConnectCard';
@@ -87,7 +88,7 @@ function profileToForm(user: User | null) {
   };
 }
 
-type ProfileTab = 'profil' | 'reels' | 'lives';
+type ProfileTab = 'profil' | 'reels' | 'compositions' | 'lives';
 
 interface ProfilePageProps {
   onBack?: () => void;
@@ -527,6 +528,10 @@ export function ProfilePage({
             refreshKey={reelsRefreshKey}
             onRecordReel={() => setShowReelRecorder(true)}
           />
+        )}
+
+        {profileTab === 'compositions' && !editing && user && (
+          <UserCompositionsSection defaultArtist={user.username} />
         )}
 
         {(profileTab === 'profil' || editing) && (
@@ -974,6 +979,7 @@ function ProfileTabBar({
   const { t } = useTranslation();
   const tabs: [ProfileTab, string][] = [['profil', t('profile.tabProfil')]];
   if (showReels) tabs.push(['reels', t('profile.tabReels')]);
+  tabs.push(['compositions', t('profile.tabCompositions')]);
   if (showLives) tabs.push(['lives', t('profile.tabLives')]);
   return (
     <div className="border-b border-[#1e1e2f] overflow-x-auto scrollbar-none">

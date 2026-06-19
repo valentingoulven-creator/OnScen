@@ -1,0 +1,43 @@
+import { Router, Request, Response } from 'express';
+import { authenticateJWT } from '../middleware/auth';
+import {
+  createUserComposition,
+  deleteUserComposition,
+  listUserCompositions,
+} from '../lib/compositions';
+
+export const compositionsRouter = Router();
+
+compositionsRouter.get('/mine', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  res.json({ compositions: listUserCompositions(me) });
+});
+
+compositionsRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const body = req.body ?? {};
+  const result = createUserComposition(me, {
+    title: String(body.title ?? ''),
+    artist: body.artist != null ? String(body.artist) : undefined,
+    fileUrl: String(body.fileUrl ?? body.audioUrl ?? ''),
+    durationSec:
+      typeof body.durationSec === 'number' && Number.isFinite(body.durationSec)
+        ? body.durationSec
+        : undefined,
+  });
+  if ('error' in result) {
+    res.status(400).json({ error: result.error });
+    return;
+  }
+  res.status(201).json({ composition: result });
+});
+
+compositionsRouter.delete('/:id', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const ok = deleteUserComposition(req.params.id, me);
+  if (!ok) {
+    res.status(404).json({ error: 'Composition introuvable' });
+    return;
+  }
+  res.json({ ok: true });
+});
