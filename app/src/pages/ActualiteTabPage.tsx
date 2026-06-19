@@ -44,6 +44,7 @@ import { HorizontalScrollCarousel } from '../components/HorizontalScrollCarousel
 import { NewsArticleCard } from '../components/NewsArticleCard';
 import { getUpcomingUserEvents, isUpcomingEvent } from '../lib/feedEvents';
 import { EventLocationInput } from '../components/EventLocationInput';
+import { ConfirmModal } from '../components/ConfirmModal';
 import { pickRecentUserSounds, type FeaturedUserSoundItem } from '../lib/featuredUserSounds';
 import {
   formatEventDateInputValue,
@@ -1030,6 +1031,7 @@ export function ActualiteTabPage({
   const [shareUrl, setShareUrl] = useState('');
   const [linkSharedPostIds, setLinkSharedPostIds] = useState<Set<string>>(() => readFeedPostLinkSharedIds());
   const [toast, setToast] = useState<string | null>(null);
+  const [confirmRemoveFavoritePost, setConfirmRemoveFavoritePost] = useState<FeedPost | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Stories pour anneaux / ouverture depuis les publications ──

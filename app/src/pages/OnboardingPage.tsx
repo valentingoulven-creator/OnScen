@@ -13,6 +13,7 @@ import { validateBirthDate } from '../lib/profileAge';
 import { BirthDateInput } from '../components/BirthDateInput';
 import { validateImageFileAsync } from '../lib/imageConstraints';
 import { prepareImageFile } from '../lib/imageUtils';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 const MUSIC_GENRES = [
   'Pop', 'Rap', 'Hip-hop', 'R&B', 'Rock', 'Metal',
@@ -105,6 +106,7 @@ export function OnboardingPage({ onDone }: Props) {
   const [error, setError] = useState('');
   const [locating, setLocating] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
+  const [deletePhotoIndex, setDeletePhotoIndex] = useState<number | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [oauthConfigured, setOauthConfigured] = useState(false);
   const [hasRealPlatformConnection, setHasRealPlatformConnection] = useState(false);
@@ -183,8 +185,14 @@ export function OnboardingPage({ onDone }: Props) {
     }
   };
 
-  const removeOnboardingPhoto = (idx: number) => {
-    setPhotos((prev) => prev.filter((_, i) => i !== idx));
+  const requestRemoveOnboardingPhoto = (idx: number) => {
+    setDeletePhotoIndex(idx);
+  };
+
+  const confirmRemoveOnboardingPhoto = () => {
+    if (deletePhotoIndex === null) return;
+    setPhotos((prev) => prev.filter((_, i) => i !== deletePhotoIndex));
+    setDeletePhotoIndex(null);
   };
 
   const completionPct = (() => {
@@ -741,8 +749,9 @@ export function OnboardingPage({ onDone }: Props) {
                     </span>
                     <button
                       type="button"
-                      onClick={() => removeOnboardingPhoto(0)}
-                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white text-xs flex items-center justify-center"
+                      onClick={() => requestRemoveOnboardingPhoto(0)}
+                      className="absolute top-0 left-0 z-10 w-6 h-6 rounded-full bg-black/75 border border-white/20 text-white text-xs flex items-center justify-center hover:bg-red-600/90 transition"
+                      aria-label="Supprimer l'avatar"
                     >
                       ×
                     </button>
@@ -771,8 +780,9 @@ export function OnboardingPage({ onDone }: Props) {
                         <img src={photos[idx]} alt="" className="w-full h-full object-cover" />
                         <button
                           type="button"
-                          onClick={() => removeOnboardingPhoto(idx)}
-                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white text-xs flex items-center justify-center"
+                          onClick={() => requestRemoveOnboardingPhoto(idx)}
+                          className="absolute top-0 left-0 z-10 w-6 h-6 rounded-full bg-black/75 border border-white/20 text-white text-xs flex items-center justify-center hover:bg-red-600/90 transition"
+                          aria-label="Supprimer la photo"
                         >
                           ×
                         </button>
@@ -879,6 +889,14 @@ export function OnboardingPage({ onDone }: Props) {
         )}
 
       </div>
+
+      <ConfirmModal
+        open={deletePhotoIndex !== null}
+        title="Supprimer cette photo ?"
+        description="La photo sera retirée de votre profil."
+        onCancel={() => setDeletePhotoIndex(null)}
+        onConfirm={confirmRemoveOnboardingPhoto}
+      />
     </div>
   );
 }

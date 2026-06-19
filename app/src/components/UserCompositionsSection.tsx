@@ -8,6 +8,7 @@ import {
   readFileAsDataUrl,
   validateCompositionFile,
 } from '../lib/compositionUpload';
+import { ConfirmModal } from './ConfirmModal';
 
 export interface UserCompositionItem {
   id: string;
@@ -45,6 +46,7 @@ export function UserCompositionsSection({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [pendingUpload, setPendingUpload] = useState<PendingUpload | null>(null);
   const [uploadTitle, setUploadTitle] = useState('');
@@ -147,9 +149,14 @@ export function UserCompositionsSection({
     void audio.play().then(() => setPlayingId(item.id)).catch(() => setPlayingId(null));
   };
 
-  const deleteComposition = async (id: string) => {
+  const requestDeleteComposition = (id: string) => {
     if (!token) return;
-    if (!window.confirm(t('profile.compositions.deleteConfirm'))) return;
+    setConfirmDeleteId(id);
+  };
+
+  const confirmDeleteComposition = async () => {
+    if (!token || !confirmDeleteId) return;
+    const id = confirmDeleteId;
     setDeletingId(id);
     try {
       if (playingId === id) {
@@ -158,6 +165,7 @@ export function UserCompositionsSection({
       }
       await api.deleteComposition(token, id);
       await loadCompositions();
+      setConfirmDeleteId(null);
     } catch (err) {
       alert(err instanceof Error ? err.message : t('profile.compositions.deleteFailed'));
     } finally {
@@ -253,7 +261,7 @@ export function UserCompositionsSection({
                   </div>
                   <button
                     type="button"
-                    onClick={() => void deleteComposition(item.id)}
+                    onClick={() => requestDeleteComposition(item.id)}
                     disabled={deletingId === item.id}
                     title={t('profile.compositions.delete')}
                     aria-label={t('profile.compositions.delete')}
@@ -333,6 +341,16 @@ export function UserCompositionsSection({
           </form>
         </div>
       )}
+
+      <ConfirmModal
+        open={confirmDeleteId !== null}
+        title="Supprimer cette composition ?"
+        description="Cette action est irréversible."
+        loading={Boolean(deletingId && confirmDeleteId === deletingId)}
+        loadingLabel="Suppression…"
+        onCancel={() => setConfirmDeleteId(null)}
+        onConfirm={() => void confirmDeleteComposition()}
+      />
     </>
   );
 }

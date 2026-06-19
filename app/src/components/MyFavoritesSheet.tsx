@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { UserAvatarOnline } from './UserAvatarOnline';
 import { UsernameDisplay } from './UsernameDisplay';
+import { ConfirmModal } from './ConfirmModal';
 import type { User } from '../types';
 
 interface MyFavoritesSheetProps {
@@ -21,6 +22,7 @@ export function MyFavoritesSheet({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [confirmRemoveUser, setConfirmRemoveUser] = useState<User | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -53,8 +55,9 @@ export function MyFavoritesSheet({
     };
   }, [token]);
 
-  const removeFavorite = async (userId: string) => {
-    if (removingId) return;
+  const confirmRemoveFavorite = async () => {
+    if (!confirmRemoveUser) return;
+    const userId = confirmRemoveUser.id;
     setRemovingId(userId);
     try {
       await api.removeFavorite(token, userId);
@@ -63,17 +66,12 @@ export function MyFavoritesSheet({
         onFavoritesChanged?.(next.length);
         return next;
       });
+      setConfirmRemoveUser(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Impossible de retirer ce favori');
     } finally {
       setRemovingId(null);
     }
-  };
-
-  const handleRemoveClick = (user: User) => {
-    const ok = window.confirm(`Retirer ${user.username} de vos favoris ?`);
-    if (!ok) return;
-    void removeFavorite(user.id);
   };
 
   return (
@@ -144,7 +142,7 @@ export function MyFavoritesSheet({
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleRemoveClick(user)}
+                    onClick={() => setConfirmRemoveUser(user)}
                     disabled={removingId === user.id}
                     className="shrink-0 p-2 mr-1 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-50 transition"
                     title="Retirer des favoris"
@@ -173,6 +171,20 @@ export function MyFavoritesSheet({
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        open={confirmRemoveUser !== null}
+        title={
+          confirmRemoveUser
+            ? `Retirer ${confirmRemoveUser.username} de vos favoris ?`
+            : 'Retirer ce favori ?'
+        }
+        description="Cette personne ne sera plus dans votre liste de favoris."
+        confirmLabel="Retirer"
+        loading={Boolean(confirmRemoveUser && removingId === confirmRemoveUser.id)}
+        onCancel={() => setConfirmRemoveUser(null)}
+        onConfirm={() => void confirmRemoveFavorite()}
+      />
     </div>
   );
 }

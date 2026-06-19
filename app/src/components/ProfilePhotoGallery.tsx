@@ -11,6 +11,7 @@ import {
   ensurePersistableProfilePhotoUrl,
   isDisplayableProfilePhotoUrl,
 } from '../lib/profilePhotos';
+import { ConfirmModal } from './ConfirmModal';
 import { PhotoImageEditor } from './PhotoImageEditor';
 
 const MAX_PHOTOS = 5;
@@ -260,10 +261,17 @@ export function ProfilePhotoGallery({
             {avatarUrl ? (
               <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden border-2 border-purple-500/50 shadow-lg shadow-purple-900/30 bg-[#1a1a26]">
                 <ProfilePhotoImage url={avatarUrl} className="w-full h-full object-cover" />
-                <span className="absolute top-2 left-1/2 -translate-x-1/2 text-[9px] bg-purple-600 text-white px-2 py-0.5 rounded-full font-bold whitespace-nowrap shadow">
+                <button
+                  type="button"
+                  onClick={() => requestRemovePhoto(0)}
+                  className="absolute top-0 left-0 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-black/75 backdrop-blur-sm border border-white/20 text-white text-base font-bold leading-none hover:bg-red-600/90 transition"
+                  aria-label="Supprimer l'avatar"
+                >
+                  ×
+                </button>
+                <span className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[9px] bg-purple-600 text-white px-2 py-0.5 rounded-full font-bold whitespace-nowrap shadow pointer-events-none">
                   Avatar
                 </span>
-                <PhotoActionBar onRemove={() => requestRemovePhoto(0)} />
               </div>
             ) : editorFile && editorPreviewUrl && pickerTarget === 'avatar' ? (
               <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden border-2 border-purple-400/70 shadow-lg shadow-purple-900/30 bg-[#1a1a26] ring-2 ring-purple-500/40">
@@ -374,43 +382,13 @@ export function ProfilePhotoGallery({
           ) : null}
         </div>
 
-        {deleteConfirmIndex !== null && (
-          <div
-            className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-photo-confirm-title"
-            onClick={() => setDeleteConfirmIndex(null)}
-          >
-            <div
-              className="w-full max-w-sm bg-[#12121a] border border-[#2d2d3d] rounded-2xl shadow-2xl overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-5">
-                <p id="delete-photo-confirm-title" className="text-lg font-bold text-white">
-                  Supprimer cette photo ?
-                </p>
-                <p className="mt-2 text-sm text-gray-400">Cette action est définitive après enregistrement.</p>
-              </div>
-              <div className="flex gap-2 p-4 border-t border-[#1e1e2f] bg-[#0b0b0f]/50">
-                <button
-                  type="button"
-                  onClick={() => setDeleteConfirmIndex(null)}
-                  className="flex-1 py-3 rounded-xl border border-[#2d2d3d] text-gray-300 text-sm font-semibold hover:text-white"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmRemovePhoto}
-                  className="flex-1 py-3 rounded-xl bg-red-600/90 hover:bg-red-500 text-white text-sm font-bold"
-                >
-                  Supprimer
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <ConfirmModal
+          open={deleteConfirmIndex !== null}
+          title="Supprimer cette photo ?"
+          description="Cette action est définitive après enregistrement."
+          onCancel={() => setDeleteConfirmIndex(null)}
+          onConfirm={confirmRemovePhoto}
+        />
       </>
     );
   }

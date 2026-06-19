@@ -32,6 +32,7 @@ import { SalonInviteUserSearch } from '../components/SalonInviteUserSearch';
 import { SalonParticipantsPopover } from '../components/SalonParticipantsPopover';
 import { useSalonQueueSync } from '../hooks/useSalonQueueSync';
 import { emitOnSocket } from '../lib/socket';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 import { formatSalonAudienceLabel } from '../lib/salonAudience';
 import type { DmContact, PlaybackState, Salon } from '../types';
@@ -75,6 +76,7 @@ export function SalonPage({
   const [contacts, setContacts] = useState<DmContact[]>([]);
 
   const [endingSalon, setEndingSalon] = useState(false);
+  const [showEndSalonConfirm, setShowEndSalonConfirm] = useState(false);
 
   const [accessSaving, setAccessSaving] = useState(false);
   const [validatingGuests, setValidatingGuests] = useState(false);
@@ -335,10 +337,6 @@ export function SalonPage({
 
   const handleEndSalon = useCallback(async () => {
     if (!token || !salon || !onLeaveSalon) return;
-    const confirmMsg = t('salon.endSalonConfirm', {
-      defaultValue: 'Arrêter le salon pour tous les auditeurs ?',
-    });
-    if (!window.confirm(confirmMsg)) return;
 
     setEndingSalon(true);
     try {
@@ -346,6 +344,7 @@ export function SalonPage({
         await api.spotifySalonPlaybackControl(token, salon.id, 'pause').catch(() => {});
       }
       await api.deleteSalon(token, salon.id);
+      setShowEndSalonConfirm(false);
       onLeaveSalon();
     } catch (e) {
       setToastMsg(e instanceof Error ? e.message : t('common.error', { defaultValue: 'Erreur' }));
@@ -859,7 +858,7 @@ export function SalonPage({
           {onLeaveSalon && isHost && (
             <button
               type="button"
-              onClick={handleEndSalon}
+              onClick={() => setShowEndSalonConfirm(true)}
               disabled={endingSalon}
               className="shrink-0 px-2.5 py-1.5 rounded-full text-[10px] font-semibold text-red-300 border border-red-500/50 hover:text-white hover:bg-red-600/25 hover:border-red-400 transition disabled:opacity-50"
             >
@@ -943,6 +942,18 @@ export function SalonPage({
         <ChatModals />
       </ChatRoomProvider>
 
+      <ConfirmModal
+        open={showEndSalonConfirm}
+        title="Supprimer ce salon ?"
+        description={t('salon.endSalonConfirm', {
+          defaultValue: 'Le salon sera arrêté pour tous les auditeurs. Cette action est définitive.',
+        })}
+        confirmLabel="Arrêter"
+        loading={endingSalon}
+        loadingLabel="Arrêt…"
+        onCancel={() => setShowEndSalonConfirm(false)}
+        onConfirm={() => void handleEndSalon()}
+      />
     </div>
   );
 

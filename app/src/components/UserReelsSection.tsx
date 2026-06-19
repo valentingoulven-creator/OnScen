@@ -12,6 +12,7 @@ import {
   validateReelVideoFile,
 } from '../lib/reelRecording';
 import { ProfileReelPreview } from './ProfileReelPreview';
+import { ConfirmModal } from './ConfirmModal';
 import type { MusicReel } from '../content/reels';
 
 interface UserReelsSectionProps {
@@ -217,6 +218,7 @@ export function UserReelsSection({
   const [reels, setReels] = useState<MusicReel[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteReelId, setConfirmDeleteReelId] = useState<string | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [previewReel, setPreviewReel] = useState<MusicReel | null>(null);
 
@@ -335,15 +337,21 @@ export function UserReelsSection({
     else onOpenReel(reel.id);
   };
 
-  const deleteReel = async (reelId: string, e: React.MouseEvent) => {
+  const requestDeleteReel = (reelId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!token || !canManage) return;
-    if (!window.confirm('Supprimer ce reel ? Cette action est irréversible.')) return;
+    setConfirmDeleteReelId(reelId);
+  };
+
+  const confirmDeleteReel = async () => {
+    if (!token || !canManage || !confirmDeleteReelId) return;
+    const reelId = confirmDeleteReelId;
     setDeletingId(reelId);
     try {
       await api.deleteReel(token, reelId);
       if (previewReel?.id === reelId) setPreviewReel(null);
       await loadReels();
+      setConfirmDeleteReelId(null);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Impossible de supprimer');
     } finally {
@@ -460,7 +468,7 @@ export function UserReelsSection({
             deletingId={deletingId}
             publishingId={publishingId}
             onReelClick={handleReelClick}
-            onDelete={(id, e) => void deleteReel(id, e)}
+            onDelete={(id, e) => requestDeleteReel(id, e)}
             onPublish={(id, e) => void publishReel(id, e)}
           />
         )}
@@ -566,6 +574,16 @@ export function UserReelsSection({
       )}
 
       {previewReel && <ProfileReelPreview reel={previewReel} onClose={() => setPreviewReel(null)} />}
+
+      <ConfirmModal
+        open={confirmDeleteReelId !== null}
+        title="Supprimer ce reel ?"
+        description="Cette action est irréversible."
+        loading={Boolean(deletingId && confirmDeleteReelId === deletingId)}
+        loadingLabel="Suppression…"
+        onCancel={() => setConfirmDeleteReelId(null)}
+        onConfirm={() => void confirmDeleteReel()}
+      />
     </>
   );
 }
