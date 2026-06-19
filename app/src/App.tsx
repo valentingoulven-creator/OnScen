@@ -38,6 +38,7 @@ import { MainTabNav } from './components/MainTabNav';
 import { PlatformConnectPrompt } from './components/PlatformConnectPrompt';
 import { APP_LAYOUT_CHANGED_EVENT, getAppLayout, isAppa2Layout } from './lib/appLayout';
 import { SalonReturnBar } from './components/SalonReturnBar';
+import { OwnSalonBanner } from './components/OwnSalonBanner';
 import { UserAvatarOnline } from './components/UserAvatarOnline';
 import { resolveAvatarUrl } from './lib/profilePhotos';
 import { isMsdevEnvironment } from './lib/liveCameraSupport';
@@ -399,7 +400,7 @@ export default function App() {
     handleSalonForcedEnd
   );
 
-  const openSalonPage = useCallback((salonId: string, salonTitle?: string) => {
+  const openSalonPage = useCallback((salonId: string, salonTitle?: string, isHost?: boolean) => {
     setRestoreSalonOnMapId(null);
     setProfileOpen(false);
     setProfilePreview(null);
@@ -410,6 +411,7 @@ export default function App() {
       id: salonId,
       title: salonTitle ?? (prev?.id === salonId ? prev.title : undefined),
       viewMode: 'full',
+      isHost: isHost ?? (prev?.id === salonId ? prev.isHost : undefined),
     }));
     if (viewRef.current.type === 'salon') {
       setView({ type: 'home' });
@@ -464,7 +466,7 @@ export default function App() {
     });
   }, []);
 
-  const handleMapSalonActive = useCallback((session: ActiveSalonSession | null) => {
+  const handleMapSalonActive = useCallback((session: { id: string; title?: string; isHost?: boolean } | null) => {
     setMapSalonActiveId(session?.id ?? null);
     if (session) {
       setActiveSalonSession((prev) =>
@@ -473,8 +475,9 @@ export default function App() {
               id: session.id,
               title: session.title ?? prev.title,
               viewMode: prev?.viewMode === 'full' ? 'full' : (prev?.viewMode ?? 'minimized'),
+              isHost: session.isHost ?? prev.isHost,
             }
-          : { id: session.id, title: session.title, viewMode: 'minimized' }
+          : { id: session.id, title: session.title, viewMode: 'minimized', isHost: session.isHost }
       );
     }
   }, []);
@@ -617,6 +620,10 @@ export default function App() {
   const reelsActive = tab === 'reels' && !profileOpen && tabContentBase;
   /** Carte visible : lecture petit salon même si overlay « Mon profil » ouvert. */
   const mapPlaybackActive = tab === 'map' && view.type === 'home' && !salonFullScreen;
+  /** Bandeau de session hôte : visible sur tous les onglets hors plein-écran salon. */
+  const showOwnSalonBanner = Boolean(
+    activeSalonSession?.isHost && !salonFullScreen && !profileOpen && !adminOpen && user && token
+  );
   /** Montage conditionnel : un seul onglet à la fois (perf). Carte reste montée sous overlay profil (audio salon). */
   const actualiteTabMounted = tab === 'actualite' && tabContentBase && !profileOpen;
   /** Carte aussi montée (masquée) sous SalonPage, profil carte, ou autre onglet si session active. */
@@ -761,7 +768,7 @@ export default function App() {
         {showSalonReturnBar && activeSalonSession && (
           <SalonReturnBar
             salonTitle={activeSalonSession.title}
-            onReturn={() => openSalonPage(activeSalonSession.id, activeSalonSession.title)}
+            onReturn={() => openSalonPage(activeSalonSession.id, activeSalonSession.title, activeSalonSession.isHost)}
           />
         )}
         {msdevRebuildError && (
@@ -969,6 +976,16 @@ export default function App() {
         )}
 
       </main>
+
+      {showOwnSalonBanner && activeSalonSession && token && (
+        <OwnSalonBanner
+          salonId={activeSalonSession.id}
+          salonTitle={activeSalonSession.title}
+          token={token}
+          onManage={() => openSalonPage(activeSalonSession.id, activeSalonSession.title, true)}
+          onSalonEnded={leaveActiveSalonSession}
+        />
+      )}
 
       {!appa2 && (
         <MainTabNav

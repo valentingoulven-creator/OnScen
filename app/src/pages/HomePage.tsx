@@ -148,7 +148,7 @@ function liveFromNearbyPerson(person: NearbyPerson, liveId: string): Live | null
 interface HomePageProps {
   appLayout?: AppLayoutId;
   /** Ouvre la page plein écran du salon (bouton Salon de la fiche carte). */
-  onOpenSalon?: (salonId: string, salonTitle?: string) => void;
+  onOpenSalon?: (salonId: string, salonTitle?: string, isHost?: boolean) => void;
   onOpenLive: (liveId: string) => void;
   onOpenLiveTab?: () => void;
   onOpenProfile: (person: NearbyPerson) => void;
@@ -168,7 +168,7 @@ interface HomePageProps {
   /** Session salon App (source de vérité) — sync fiche carte sans leave_salon au démontage. */
   activeSalonSessionId?: string | null;
   /** Salon sélectionné sur la fiche carte (petit salon actif). */
-  onMapSalonActive?: (session: { id: string; title?: string } | null) => void;
+  onMapSalonActive?: (session: { id: string; title?: string; isHost?: boolean } | null) => void;
   /** Quitter volontairement le salon (session + navigation). */
   onLeaveSalon?: () => void;
   /** Salon introuvable côté API (supprimé / expiré) pendant restore carte. */
@@ -375,11 +375,15 @@ export function HomePage({
 
   useEffect(() => {
     if (selected) {
-      onMapSalonActive?.({ id: selected.id, title: selected.title });
+      onMapSalonActive?.({
+        id: selected.id,
+        title: selected.title,
+        isHost: selected.hostId === user?.id,
+      });
     } else {
       onMapSalonActive?.(null);
     }
-  }, [selected?.id, selected?.title, onMapSalonActive]);
+  }, [selected?.id, selected?.title, selected?.hostId, user?.id, onMapSalonActive]);
 
   const prevActiveSalonSessionIdRef = useRef<string | null>(activeSalonSessionId);
   useEffect(() => {
@@ -1515,7 +1519,7 @@ export function HomePage({
     setSalonSheetExpanded(false);
     setSafeCenter([lat, lon]);
     loadNearby(lat, lon);
-    onOpenSalon?.(salon.id, salon.title);
+    onOpenSalon?.(salon.id, salon.title, true);
     setSelected(null);
   }, [loadNearby, onOpenSalon, setSafeCenter]);
 
@@ -1573,9 +1577,10 @@ export function HomePage({
         return;
       }
       clearMapInlineListenSession(salonId);
-      onOpenSalon(salonId, selected?.id === salonId ? selected.title : undefined);
+      const isHost = selected?.id === salonId ? selected.hostId === user?.id : undefined;
+      onOpenSalon(salonId, selected?.id === salonId ? selected.title : undefined, isHost);
     },
-    [onOpenSalon, selected?.id, selected?.title]
+    [onOpenSalon, selected?.id, selected?.title, selected?.hostId, user?.id]
   );
 
   const openHostProfileFromSheet = useCallback(() => {
