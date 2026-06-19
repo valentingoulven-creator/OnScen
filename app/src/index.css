@@ -1819,6 +1819,18 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   height: 100%;
 }
 
+/* PiP flottant in-app — mini lecteur déplaçable */
+.salon-video-pip {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+}
+
+.salon-video-pip__stage .salon-youtube-player--fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
 /* Salon YouTube — tiroir hôte repliable (Recherche | Playlist | File) */
 .salon-youtube-host-drawer-wrap {
   position: relative;
