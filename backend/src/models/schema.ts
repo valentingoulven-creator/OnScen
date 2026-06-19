@@ -118,6 +118,16 @@ export interface User {
   /** Réinitialisation de mot de passe. */
   resetToken?: string;
   resetTokenExpiry?: number;
+  /** Double authentification TOTP (Google Authenticator / Authy). */
+  twoFactorEnabled?: boolean;
+  /**
+   * Secret TOTP. Préfixé de `pending:` pendant la phase de configuration (avant confirmation).
+   * Chiffré AES-256-GCM une fois confirmé (format `iv:tag:ciphertext` en hex).
+   * Absent si 2FA désactivée.
+   */
+  totpSecret?: string;
+  /** Codes de secours bcrypt-hachés (usage unique). */
+  twoFactorBackupCodes?: string[];
 }
 
 export interface PlaybackState {
@@ -562,6 +572,17 @@ export interface UserReel {
   adminBlockedAt?: number;
 }
 
+/** Morceau original uploadé par l'utilisateur (onglet Composition du profil). */
+export interface UserComposition {
+  id: string;
+  userId: string;
+  title: string;
+  artist?: string;
+  fileUrl: string;
+  durationSec?: number;
+  createdAt: number;
+}
+
 /** Publication fil d'actualité (texte + image ou vidéo optionnelle). */
 export interface FeedPost {
   id: string;
@@ -665,6 +686,7 @@ export const db = {
   /** Spectateurs uniques par reel */
   reelViews: new Map<string, Set<string>>(),
   userReels: [] as UserReel[],
+  compositions: [] as UserComposition[],
   feedPosts: [] as FeedPost[],
   /** postId → Set<userId> ayant liké */
   feedPostLikes: new Map<string, Set<string>>(),

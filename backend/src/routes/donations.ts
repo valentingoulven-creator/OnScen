@@ -364,6 +364,17 @@ donationsRouter.post('/create-intent', authenticateJWT, async (req: Request, res
       creatorNetEstimateEur: feeBreakdown.creatorNetEstimateEur,
     });
   } catch (e) {
+    const stripeCardMessages: Record<string, string> = {
+      card_declined: 'Carte refusée. Vérifiez vos informations ou contactez votre banque.',
+      insufficient_funds: 'Fonds insuffisants sur votre carte.',
+      invalid_cvc: 'Code de sécurité (CVC) invalide.',
+      expired_card: 'Carte expirée. Veuillez utiliser une autre carte.',
+    };
+    if (e instanceof Stripe.errors.StripeCardError) {
+      const msg = (e.code && stripeCardMessages[e.code]) || 'Paiement refusé par votre banque.';
+      res.status(402).json({ error: msg, stripeCode: e.code });
+      return;
+    }
     console.error('[donations] create-intent error');
     res.status(502).json({ error: 'Impossible de préparer le paiement' });
   }

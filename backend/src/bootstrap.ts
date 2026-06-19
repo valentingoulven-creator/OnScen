@@ -38,6 +38,7 @@ import { repairInvalidGeoInDb } from './lib/mapCoords';
 import { loadSalonsLivesFromPostgres } from './lib/pgSalonsLives';
 import { loadSalonQueuesFromPg } from './lib/pgSalonQueues';
 import { loadReelsFromPg } from './lib/pgReels';
+import { loadCompositionsFromPg } from './lib/pgCompositions';
 import { loadDonationsFromPg } from './lib/pgDonations';
 import { loadCreatorSubscriptionsFromPg } from './lib/pgSubscriptions';
 import { migrateAllUsersRelationshipStatus } from './lib/profile';
@@ -293,6 +294,16 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
         }
       } catch (e) {
         console.warn('[soundly] Échec chargement reels PostgreSQL:', e);
+      }
+      try {
+        const compositionStats = await loadCompositionsFromPg();
+        if (compositionStats.compositions > 0) {
+          console.log(
+            `[soundly] Compositions restaurées depuis PostgreSQL (${compositionStats.compositions})`
+          );
+        }
+      } catch (e) {
+        console.warn('[soundly] Échec chargement compositions PostgreSQL:', e);
       }
       try {
         const donationStats = await loadDonationsFromPg();

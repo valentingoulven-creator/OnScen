@@ -7,6 +7,8 @@ export type ActiveSalonSession = {
   title?: string;
   /** Grand salon plein écran vs fiche carte / autre onglet. */
   viewMode?: SalonViewMode;
+  /** L'utilisateur courant est l'hôte de ce salon. */
+  isHost?: boolean;
 };
 
 const STORAGE_KEY = 'soundy.activeSalonSession';
@@ -19,7 +21,8 @@ export function readPersistedSalonSession(): ActiveSalonSession | null {
     if (!parsed?.id || typeof parsed.id !== 'string') return null;
     const viewMode =
       parsed.viewMode === 'full' || parsed.viewMode === 'minimized' ? parsed.viewMode : undefined;
-    return { id: parsed.id, title: parsed.title, viewMode };
+    const isHost = parsed.isHost === true ? true : undefined;
+    return { id: parsed.id, title: parsed.title, viewMode, isHost };
   } catch {
     return null;
   }

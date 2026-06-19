@@ -1,5 +1,7 @@
-import type { PoolClient } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 import { getPool, isPostgresEnabled } from '../db/pool';
+
+type DbExec = Pick<Pool, 'query'> | Pick<PoolClient, 'query'>;
 import { db, type Live, type Salon } from '../models/schema';
 import { ensureSalonProposals } from './salonPlaybackOps';
 import { OCCITANIE_SALON_ID_PREFIX } from '../seed-occitanie-spotify';
@@ -54,8 +56,8 @@ export async function loadSalonsLivesFromPostgres(): Promise<{ salons: number; l
   return { salons: salonsLoaded, lives: livesLoaded };
 }
 
-async function upsertSalon(client: PoolClient, salon: Salon): Promise<void> {
-  await client.query(
+async function upsertSalon(db: DbExec, salon: Salon): Promise<void> {
+  await db.query(
     `INSERT INTO salons (id, host_id, created_at, latitude, longitude, is_active, payload)
      VALUES ($1, $2, $3, $4, $5, TRUE, $6::jsonb)
      ON CONFLICT (id) DO UPDATE SET
@@ -69,8 +71,8 @@ async function upsertSalon(client: PoolClient, salon: Salon): Promise<void> {
   );
 }
 
-async function upsertLive(client: PoolClient, live: Live): Promise<void> {
-  await client.query(
+async function upsertLive(db: DbExec, live: Live): Promise<void> {
+  await db.query(
     `INSERT INTO lives (id, host_id, salon_id, started_at, is_active, latitude, longitude, payload)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
      ON CONFLICT (id) DO UPDATE SET
@@ -130,13 +132,7 @@ function logPgLiveError(label: string, err: unknown): void {
 
 /** Upsert d'un salon utilisateur — persistance immédiate pour récupérer après redémarrage. */
 export async function upsertSalonToPg(salon: Salon): Promise<void> {
-  const pool = getPool();
-  const client = await pool.connect();
-  try {
-    await upsertSalon(client, salon);
-  } finally {
-    client.release();
-  }
+  await upsertSalon(getPool(), salon);
 }
 
 /** Marque un salon comme inactif en PostgreSQL (après suppression en mémoire). */
@@ -159,13 +155,7 @@ export function markSalonInactivePgAsync(salonId: string): void {
 
 /** Upsert d'un live (actif ou archivé) — persistance rediff VOD après arrêt. */
 export async function upsertLiveToPg(live: Live): Promise<void> {
-  const pool = getPool();
-  const client = await pool.connect();
-  try {
-    await upsertLive(client, live);
-  } finally {
-    client.release();
-  }
+  await upsertLive(getPool(), live);
 }
 
 export function persistLiveToPgAsync(live: Live): void {

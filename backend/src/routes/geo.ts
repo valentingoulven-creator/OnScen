@@ -76,6 +76,42 @@ geoRouter.post('/update', authenticateJWT, (req: Request, res: Response) => {
   });
 });
 
+/**
+ * Rate limit IP-based avant auth: bloque les floods non authentifiés (10/min par IP).
+ * Placé avant authenticateJWT pour couvrir les requêtes sans token.
+ */
+const nearbyAnonLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    const locale = parseRequestLocale(req.headers['accept-language']);
+    res.status(429).json({ error: geoError('nearbyRateLimit', locale) });
+  },
+  skip: () => isMsdevRuntime(),
+});
+
+/**
+ * Rate limit par utilisateur authentifié: 20 req/min par user ID.
+ * Placé après authenticateJWT pour avoir accès à req.user.
+ */
+const nearbyAuthLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 20,
+  keyGenerator: (req) => {
+    const userId = (req as Request & { user?: { id: string } }).user?.id;
+    return userId ? `user:${userId}` : (req.ip ?? 'unknown');
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    const locale = parseRequestLocale(req.headers['accept-language']);
+    res.status(429).json({ error: geoError('nearbyRateLimit', locale) });
+  },
+  skip: () => isMsdevRuntime(),
+});
+
 /** Parse an optional bounding-box from query params (swLat, swLng, neLat, neLng). */
 function parseBoundsQuery(query: Record<string, unknown>): {
   swLat: number; swLng: number; neLat: number; neLng: number;
@@ -103,10 +139,10 @@ function isInBounds(
   return lng >= bounds.swLng || lng <= bounds.neLng;
 }
 
-geoRouter.get('/nearby', authenticateJWT, (req: Request, res: Response) => {
+geoRouter.get('/nearby', nearbyAnonLimiter, authenticateJWT, nearbyAuthLimiter, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
-  const lat = parseFloat(req.query.latitude as string);
-  const lon = parseFloat(req.query.longitude as string);
+  const lat = parseFloat(((req.query.latitude ?? req.query.lat) as string) ?? '');
+  const lon = parseFloat(((req.query.longitude ?? req.query.lng) as string) ?? '');
   const radiusKm = parseFloat((req.query.radius as string) || String(DEFAULT_NEARBY_RADIUS_KM));
   const distanceFilter = parseDistanceFilterQuery(req.query.distanceFilter as string | undefined);
   const maxRadiusKm = resolveNearbyRadiusKm(radiusKm, distanceFilter);

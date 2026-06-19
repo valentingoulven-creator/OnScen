@@ -1,11 +1,27 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
-import { hasRealMusicPlatformLink } from '../lib/platformConnect';
+import { isPlatformConnected } from '../lib/platformConnect';
 import { PLATFORM_STATUS_REFRESH_EVENT } from '../lib/platformStatusEvents';
 import { PlatformConnectCard } from './PlatformConnectCard';
 import type { User } from '../types';
 
 const DISMISS_KEY = 'soundly_platform_prompt_dismissed';
+
+function hasStreamingPlatformConnected(user: User): boolean {
+  return (
+    isPlatformConnected(user.connectedPlatforms, 'spotify') ||
+    isPlatformConnected(user.connectedPlatforms, 'youtube')
+  );
+}
+
+function statusHasStreamingPlatform(
+  connectedPlatforms: User['connectedPlatforms'] | undefined
+): boolean {
+  return (
+    isPlatformConnected(connectedPlatforms, 'spotify') ||
+    isPlatformConnected(connectedPlatforms, 'youtube')
+  );
+}
 
 interface PlatformConnectPromptProps {
   token: string;
@@ -22,35 +38,32 @@ export function PlatformConnectPrompt({
 }: PlatformConnectPromptProps) {
   const [visible, setVisible] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [oauthConfigured, setOauthConfigured] = useState(false);
 
-  const evaluate = useCallback(
-    (fresh = false) => {
-      if (sessionStorage.getItem(DISMISS_KEY) === '1') {
-        setVisible(false);
-        return;
-      }
-      if (hasRealMusicPlatformLink(user.platformLinks)) {
-        setVisible(false);
-        return;
-      }
-      api
-        .getPlatformStatus(token, fresh ? { fresh: true } : undefined)
-        .then((s) => {
-          const required = s.platformConnectionRequired ?? s.oauthConfigured ?? false;
-          const connected =
-            hasRealMusicPlatformLink(user.platformLinks) ||
-            hasRealMusicPlatformLink(s.links) ||
-            Boolean(s.hasRealPlatformConnection);
-          setVisible(required && !connected);
-        })
-        .catch(() => setVisible(false));
-    },
-    [token, user.platformLinks]
-  );
+  const evaluate = useCallback((fresh = false) => {
+    if (sessionStorage.getItem(DISMISS_KEY) === '1') {
+      setVisible(false);
+      return;
+    }
+    if (hasStreamingPlatformConnected(user)) {
+      setVisible(false);
+      return;
+    }
+    api
+      .getPlatformStatus(token, fresh ? { fresh: true } : undefined)
+      .then((s) => {
+        const required = s.platformConnectionRequired ?? s.oauthConfigured ?? false;
+        const connected =
+          Boolean(s.hasRealPlatformConnection) || statusHasStreamingPlatform(s.connectedPlatforms);
+        setOauthConfigured(required);
+        setVisible(required && !connected);
+      })
+      .catch(() => setVisible(false));
+  }, [token, user]);
 
   useEffect(() => {
-    evaluate(true);
-  }, [evaluate, user.connectedPlatforms, user.platformLinks]);
+    evaluate();
+  }, [evaluate, user.connectedPlatforms]);
 
   useEffect(() => {
     const onRefresh = () => evaluate(true);
@@ -109,13 +122,13 @@ export function PlatformConnectPrompt({
               token={token}
               platform={p}
               connectedPlatforms={user.connectedPlatforms}
-              platformLinks={user.platformLinks}
               onUserUpdated={(u) => {
                 onUserUpdated(u);
-                if (hasRealMusicPlatformLink(u.platformLinks)) {
+                if (hasStreamingPlatformConnected(u)) {
                   setVisible(false);
+                } else if (oauthConfigured) {
+                  evaluate(true);
                 }
-                evaluate(true);
               }}
             />
           ))}

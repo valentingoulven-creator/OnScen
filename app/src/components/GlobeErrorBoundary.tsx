@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 
-import { disableGlobeView, isChunkLoadError, isWebGLError } from '../lib/webglSupport';
+import { disableGlobeView, isWebGLError } from '../lib/webglSupport';
 
 
 
@@ -40,7 +40,7 @@ export class GlobeErrorBoundary extends Component<Props, State> {
 
   static getDerivedStateFromError(error: unknown): State | null {
 
-    if (isWebGLError(error) || isChunkLoadError(error)) return { failed: true, unhandledError: null };
+    if (isWebGLError(error)) return { failed: true, unhandledError: null };
 
     return { failed: false, unhandledError: error };
 
@@ -50,7 +50,7 @@ export class GlobeErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: unknown, info: ErrorInfo): void {
 
-    if (!isWebGLError(error) && !isChunkLoadError(error)) return;
+    if (!isWebGLError(error)) return;
 
     console.warn('[GlobeView] unavailable:', error, info.componentStack);
 

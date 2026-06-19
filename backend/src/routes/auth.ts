@@ -1,8 +1,10 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import { db, User, ListeningRole } from '../models/schema';
 import { authenticateJWT, signToken } from '../middleware/auth';
+import { getJwtSecret } from '../lib/jwtSecret';
 import {
   applyAgeSettings,
   applyProfileDefaults,
@@ -45,6 +47,8 @@ import {
 
 export const authRouter = Router();
 
+const JWT_SECRET = getJwtSecret();
+
 /** Per-user profile cache: 30-second TTL. Cleared on profile write. */
 const profileCache = new Map<string, { data: object; expiresAt: number }>();
 const PROFILE_CACHE_TTL = 30_000;
@@ -59,7 +63,7 @@ function pruneProfileCache(): void {
 }
 
 export function invalidateProfileCache(userId: string) {
-  // Cache keys have the form "${targetId}:${viewerId}" — remove all entries
+  // Cache keys have the form "${targetId}:${viewerId}" ? remove all entries
   // where the target profile is the updated user.
   const prefix = `${userId}:`;
   for (const key of profileCache.keys()) {
@@ -80,19 +84,19 @@ authRouter.post('/register', async (req: Request, res: Response) => {
   }
   if (!acceptTerms) {
     res.status(400).json({
-      error: 'Vous devez accepter les CGU et la Politique de confidentialité',
+      error: 'Vous devez accepter les CGU et la Politique de confidentialit?',
     });
     return;
   }
   if (termsVersion && termsVersion !== CURRENT_TERMS_VERSION) {
     res.status(400).json({
-      error: 'Les conditions ont été mises à jour. Rechargez la page et acceptez la nouvelle version.',
+      error: 'Les conditions ont ?t? mises ? jour. Rechargez la page et acceptez la nouvelle version.',
     });
     return;
   }
   const exists = [...db.users.values()].some((u) => u.email === email || u.username === username);
   if (exists) {
-    res.status(400).json({ error: 'Utilisateur déjà existant' });
+    res.status(409).json({ error: 'Utilisateur d?j? existant' });
     return;
   }
   const accountStatus = resolveInitialAccountStatus();
@@ -100,11 +104,21 @@ authRouter.post('/register', async (req: Request, res: Response) => {
   try {
     passwordHash = await bcrypt.hash(password, 10);
   } catch {
-    res.status(500).json({ error: 'Erreur interne lors de la création du compte' });
+    res.status(500).json({ error: 'Erreur interne lors de la cr?ation du compte' });
     return;
   }
-  const verificationToken = crypto.randomBytes(32).toString('hex');
-  const verificationTokenExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24h
+  // Bypass email verification for test accounts or when explicitly disabled in env.
+  // SKIP_EMAIL_VERIFICATION=true is for development/E2E only ? never set in production.
+  const bypassEmails = (process.env.EMAIL_VERIFICATION_BYPASS_LIST ?? '')
+    .split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+  const skipVerification =
+    process.env.SKIP_EMAIL_VERIFICATION === 'true' ||
+    bypassEmails.includes(email.toLowerCase());
+
+  const verificationToken = skipVerification ? undefined : crypto.randomBytes(32).toString('hex');
+  const verificationTokenExpiry = skipVerification
+    ? undefined
+    : Date.now() + 24 * 60 * 60 * 1000; // 24h
 
   let user: User = {
     id: `user_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -120,7 +134,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     acceptedTermsVersion: CURRENT_TERMS_VERSION,
     accountStatus,
     onboardingCompleted: false,
-    emailVerified: false,
+    emailVerified: skipVerification,
     verificationToken,
     verificationTokenExpiry,
   };
@@ -132,16 +146,18 @@ authRouter.post('/register', async (req: Request, res: Response) => {
   schedulePersistUserToPg(user);
   schedulePersist();
 
-  // Send verification email (graceful — no SMTP = skip, signup still proceeds)
-  const appUrl = process.env.WEB_APP_URL ?? 'https://getsoundy.com';
-  const verificationUrl = `${appUrl}/verify-email?token=${verificationToken}`;
-  void sendVerificationEmail({ toEmail: email, username, verificationUrl });
+  // Send verification email (graceful ? no SMTP = skip, signup still proceeds)
+  if (!skipVerification && verificationToken) {
+    const appUrl = process.env.WEB_APP_URL ?? 'https://getsoundy.com';
+    const verificationUrl = `${appUrl}/verify-email?token=${verificationToken}`;
+    void sendVerificationEmail({ toEmail: email, username, verificationUrl });
+  }
 
   if (accountStatus === 'pending') {
     res.status(202).json({
       pending: true,
       message:
-        'Inscription enregistrée. Un administrateur doit valider votre compte avant la première connexion.',
+        'Inscription enregistr?e. Un administrateur doit valider votre compte avant la premi?re connexion.',
       user: publicProfile(user, true, user.id),
     });
     return;
@@ -151,7 +167,8 @@ authRouter.post('/register', async (req: Request, res: Response) => {
   res.status(201).json({
     token,
     user: publicProfile(user, true, user.id),
-    emailVerificationSent: true,
+    emailVerificationSent: !skipVerification,
+    emailVerified: skipVerification,
   });
 });
 
@@ -159,7 +176,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
   const { email, password, rememberMe } = req.body;
   const user = [...db.users.values()].find((u) => u.email === email);
   if (!user) {
-    res.status(400).json({ error: 'Identifiants invalides' });
+    res.status(401).json({ error: 'Email ou mot de passe incorrect.' });
     return;
   }
   let passwordMatch: boolean;
@@ -170,7 +187,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
     return;
   }
   if (!passwordMatch) {
-    res.status(400).json({ error: 'Identifiants invalides' });
+    res.status(401).json({ error: 'Email ou mot de passe incorrect.' });
     return;
   }
   const denied = loginAccessDeniedReason(user);
@@ -183,17 +200,29 @@ authRouter.post('/login', async (req: Request, res: Response) => {
   }
   if (user.emailVerified === false) {
     res.status(403).json({
-      error: "Votre adresse e-mail n'est pas encore vérifiée. Consultez vos e-mails ou demandez un nouveau lien.",
+      error: "Votre adresse e-mail n'est pas encore v?rifi?e. Consultez vos e-mails ou demandez un nouveau lien.",
       code: 'email_not_verified',
       email: user.email,
     });
+    return;
+  }
+
+  const stayLoggedIn = rememberMe !== false;
+
+  // If 2FA is enabled, issue a short-lived temp token instead of a full JWT.
+  if (user.twoFactorEnabled && user.totpSecret && !user.totpSecret.startsWith('pending:')) {
+    const tempToken = jwt.sign(
+      { id: user.id, username: user.username, scope: '2fa_pending', rememberMe: stayLoggedIn },
+      JWT_SECRET,
+      { expiresIn: '5m' }
+    );
+    res.json({ requires2FA: true, tempToken });
     return;
   }
   applyProfileDefaults(user);
   ensurePlatformAccountsFromLegacy(user);
   migratePlaintextPlatformTokens(user);
   db.users.set(user.id, user);
-  const stayLoggedIn = rememberMe !== false;
   const token = signToken({ id: user.id, username: user.username }, stayLoggedIn);
   trackEvent('user_login', user.id);
   trackUserActive(user.id);
@@ -288,12 +317,12 @@ authRouter.patch('/profile', authenticateJWT, (req: Request, res: Response) => {
   if (username && typeof username === 'string') {
     const name = username.trim();
     if (name.length < 2) {
-      res.status(400).json({ error: 'Le pseudo doit faire au moins 2 caractères' });
+      res.status(400).json({ error: 'Le pseudo doit faire au moins 2 caract?res' });
       return;
     }
     const taken = [...db.users.values()].some((u) => u.id !== userId && u.username === name);
     if (taken) {
-      res.status(400).json({ error: 'Ce pseudo est déjà pris' });
+      res.status(400).json({ error: 'Ce pseudo est d?j? pris' });
       return;
     }
     user.username = name;
@@ -382,12 +411,12 @@ authRouter.patch('/profile', authenticateJWT, (req: Request, res: Response) => {
   }
 
   if (Array.isArray(profilePhotos)) {
-    /** Base64 d'une photo compressée max 2 Mo ≈ 2,8 M de caractères (facteur 4/3). */
+    /** Base64 d'une photo compress?e max 2 Mo ? 2,8 M de caract?res (facteur 4/3). */
     const MAX_PHOTO_CHARS = Math.ceil(2 * 1024 * 1024 * (4 / 3)) + 64;
     const incoming = profilePhotos.map(String);
     const oversized = incoming.find((p) => p.startsWith('data:image/') && p.length > MAX_PHOTO_CHARS);
     if (oversized) {
-      res.status(413).json({ error: 'Chaque photo ne peut pas dépasser 2 Mo.' });
+      res.status(413).json({ error: 'Chaque photo ne peut pas d?passer 2 Mo.' });
       return;
     }
     const intendedCount = countPersistableProfilePhotos(incoming);
@@ -396,14 +425,14 @@ authRouter.patch('/profile', authenticateJWT, (req: Request, res: Response) => {
     if (intendedCount > 0 && savedCount === 0) {
       res.status(400).json({
         error:
-          'Les photos du profil n\'ont pas pu être enregistrées. Réessayez ou utilisez des images plus légères.',
+          'Les photos du profil n\'ont pas pu ?tre enregistr?es. R?essayez ou utilisez des images plus l?g?res.',
       });
       return;
     }
     if (intendedCount > savedCount) {
       res.status(400).json({
         error:
-          'Certaines photos n\'ont pas pu être enregistrées. Réduisez le nombre ou la taille des images.',
+          'Certaines photos n\'ont pas pu ?tre enregistr?es. R?duisez le nombre ou la taille des images.',
       });
       return;
     }
@@ -462,19 +491,19 @@ authRouter.patch('/ghost-mode', authenticateJWT, (req: Request, res: Response) =
   res.json({ isGhostMode: user.isGhostMode });
 });
 
-/** Vérification disponibilité du pseudo (sans auth) */
+/** V?rification disponibilit? du pseudo (sans auth) */
 authRouter.get('/check-username', (req: Request, res: Response) => {
   const username = String(req.query.username || '').trim();
   if (username.length < 2) {
-    res.json({ available: false, reason: 'Pseudo trop court (min. 2 caractères)' });
+    res.json({ available: false, reason: 'Pseudo trop court (min. 2 caract?res)' });
     return;
   }
   if (username.length > 30) {
-    res.json({ available: false, reason: 'Pseudo trop long (max. 30 caractères)' });
+    res.json({ available: false, reason: 'Pseudo trop long (max. 30 caract?res)' });
     return;
   }
-  if (!/^[a-zA-Z0-9_\-\.àâäéèêëîïôùûüç]+$/i.test(username)) {
-    res.json({ available: false, reason: 'Caractères non autorisés dans le pseudo' });
+  if (!/^[a-zA-Z0-9_\-\.??????????????]+$/i.test(username)) {
+    res.json({ available: false, reason: 'Caract?res non autoris?s dans le pseudo' });
     return;
   }
   const taken = [...db.users.values()].some(
@@ -497,7 +526,7 @@ authRouter.post('/change-password', authenticateJWT, async (req: Request, res: R
     return;
   }
   if (newPassword.length < 8) {
-    res.status(400).json({ error: 'Le nouveau mot de passe doit contenir au moins 8 caractères' });
+    res.status(400).json({ error: 'Le nouveau mot de passe doit contenir au moins 8 caract?res' });
     return;
   }
   let valid: boolean;
@@ -514,7 +543,7 @@ authRouter.post('/change-password', authenticateJWT, async (req: Request, res: R
   try {
     user.passwordHash = await bcrypt.hash(newPassword, 10);
   } catch {
-    res.status(500).json({ error: 'Erreur interne lors de la mise à jour du mot de passe' });
+    res.status(500).json({ error: 'Erreur interne lors de la mise ? jour du mot de passe' });
     return;
   }
   db.users.set(userId, user);
@@ -575,7 +604,7 @@ authRouter.post('/complete-onboarding', authenticateJWT, (req: Request, res: Res
   res.json({ user: publicProfile(user, true, user.id) });
 });
 
-/** Vérification de l'adresse e-mail via token */
+/** V?rification de l'adresse e-mail via token */
 authRouter.get('/verify-email', (req: Request, res: Response) => {
   const token = String(req.query.token ?? '').trim();
   if (!token) {
@@ -584,11 +613,11 @@ authRouter.get('/verify-email', (req: Request, res: Response) => {
   }
   const user = [...db.users.values()].find((u) => u.verificationToken === token);
   if (!user) {
-    res.status(400).json({ error: 'Token de vérification invalide ou déjà utilisé' });
+    res.status(400).json({ error: 'Token de v?rification invalide ou d?j? utilis?' });
     return;
   }
   if (user.verificationTokenExpiry && Date.now() > user.verificationTokenExpiry) {
-    res.status(400).json({ error: 'Token de vérification expiré. Contacte le support pour en recevoir un nouveau.' });
+    res.status(400).json({ error: 'Token de v?rification expir?. Contacte le support pour en recevoir un nouveau.' });
     return;
   }
   user.emailVerified = true;
@@ -597,10 +626,10 @@ authRouter.get('/verify-email', (req: Request, res: Response) => {
   db.users.set(user.id, user);
   schedulePersistUserToPg(user);
   schedulePersist();
-  res.json({ ok: true, message: 'Adresse e-mail vérifiée avec succès !' });
+  res.json({ ok: true, message: 'Adresse e-mail v?rifi?e avec succ?s !' });
 });
 
-/** Demande de réinitialisation de mot de passe */
+/** Demande de r?initialisation de mot de passe */
 authRouter.post('/forgot-password', async (req: Request, res: Response) => {
   const { email } = req.body ?? {};
   if (!email || typeof email !== 'string') {
@@ -616,21 +645,22 @@ authRouter.post('/forgot-password', async (req: Request, res: Response) => {
     return;
   }
   const resetToken = crypto.randomBytes(32).toString('hex');
+  const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
   const resetTokenExpiry = Date.now() + 60 * 60 * 1000; // 1h
-  user.resetToken = resetToken;
+  user.resetToken = resetTokenHash; // stocker le hash en DB, jamais le token brut
   user.resetTokenExpiry = resetTokenExpiry;
   db.users.set(user.id, user);
   schedulePersistUserToPg(user);
   schedulePersist();
 
   const appUrl = process.env.WEB_APP_URL ?? 'https://getsoundy.com';
-  const resetUrl = `${appUrl}/reset-password?token=${resetToken}`;
+  const resetUrl = `${appUrl}/reset-password?token=${resetToken}`; // envoyer le token brut par email
   void sendPasswordResetEmail({ toEmail: user.email, username: user.username, resetUrl });
 
   res.json({ ok: true });
 });
 
-/** Réinitialisation du mot de passe avec token */
+/** R?initialisation du mot de passe avec token */
 authRouter.post('/reset-password', async (req: Request, res: Response) => {
   const { token, newPassword } = req.body ?? {};
   if (!token || !newPassword) {
@@ -638,23 +668,24 @@ authRouter.post('/reset-password', async (req: Request, res: Response) => {
     return;
   }
   if (typeof newPassword !== 'string' || newPassword.length < 8) {
-    res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères' });
+    res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caract?res' });
     return;
   }
-  const user = [...db.users.values()].find((u) => u.resetToken === token);
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const user = [...db.users.values()].find((u) => u.resetToken === tokenHash);
   if (!user) {
-    res.status(400).json({ error: 'Token invalide ou déjà utilisé' });
+    res.status(400).json({ error: 'Token invalide ou d?j? utilis?' });
     return;
   }
   if (user.resetTokenExpiry && Date.now() > user.resetTokenExpiry) {
-    res.status(400).json({ error: 'Token expiré. Refais une demande de réinitialisation.' });
+    res.status(400).json({ error: 'Token expir?. Refais une demande de r?initialisation.' });
     return;
   }
   let passwordHash: string;
   try {
     passwordHash = await bcrypt.hash(newPassword, 10);
   } catch {
-    res.status(500).json({ error: 'Erreur interne lors de la mise à jour du mot de passe' });
+    res.status(500).json({ error: 'Erreur interne lors de la mise ? jour du mot de passe' });
     return;
   }
   user.passwordHash = passwordHash;
@@ -663,5 +694,5 @@ authRouter.post('/reset-password', async (req: Request, res: Response) => {
   db.users.set(user.id, user);
   schedulePersistUserToPg(user);
   schedulePersist();
-  res.json({ ok: true, message: 'Mot de passe réinitialisé avec succès !' });
+  res.json({ ok: true, message: 'Mot de passe r?initialis? avec succ?s !' });
 });

@@ -35,12 +35,18 @@ function oauthErrorMessage(code: string, provider: string): string {
 
 export function AuthPage() {
   const { t } = useTranslation();
-  const { login, register, setSession, token } = useAuth();
+  const { register, setSession, token } = useAuth();
   const handleAutoLogin = useCallback(
     (t: string, u: User) => { setSession(t, u); },
     [setSession]
   );
   const [mode, setMode] = useState<'login' | 'register'>('login');
+
+  // ── 2FA challenge state ────────────────────────────────────────────────────
+  const [twoFAState, setTwoFAState] = useState<{ tempToken: string; rememberMe: boolean } | null>(null);
+  const [twoFACode, setTwoFACode] = useState('');
+  const [twoFALoading, setTwoFALoading] = useState(false);
+  const [twoFAError, setTwoFAError] = useState('');
   const isMsdev = import.meta.env.VITE_APP_ENV === 'msdev';
   const [email, setEmail] = useState(isMsdev ? 'listener@msdev.local' : '');
   const [password, setPassword] = useState(isMsdev ? 'msdev123' : '');
@@ -292,7 +298,14 @@ export function AuthPage() {
     setLoading(true);
     try {
       if (mode === 'login') {
-        await login(email, password, rememberMe);
+        const r = await api.login(email, password, rememberMe);
+        if (r.requires2FA && r.tempToken) {
+          setTwoFAState({ tempToken: r.tempToken, rememberMe });
+          return;
+        }
+        if (r.token && r.user) {
+          setSession(r.token, r.user, rememberMe);
+        }
       } else {
         await register(username.trim(), email, password, true, CURRENT_TERMS_VERSION, inviteCode.trim());
       }
@@ -308,6 +321,93 @@ export function AuthPage() {
       setLoading(false);
     }
   };
+
+  const submitTwoFA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!twoFAState || !twoFACode) return;
+    setTwoFAError('');
+    setTwoFALoading(true);
+    try {
+      const r = await api.validate2FA(twoFAState.tempToken, twoFACode);
+      setSession(r.token, r.user, twoFAState.rememberMe);
+    } catch (err) {
+      setTwoFAError(err instanceof Error ? err.message : 'Code invalide');
+    } finally {
+      setTwoFALoading(false);
+    }
+  };
+
+  // ── 2FA challenge screen ─────────────────────────────────────────────────
+  if (twoFAState) {
+    return (
+      <div className="min-h-dvh flex flex-col items-center justify-center p-6 bg-[#0b0b0f]">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-8">
+            <div className="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 items-center justify-center text-2xl mb-4">
+              🔐
+            </div>
+            <h1 className="text-2xl font-extrabold text-white">Vérification</h1>
+            <p className="text-gray-400 text-sm mt-2">Double authentification</p>
+          </div>
+
+          <form onSubmit={submitTwoFA} className="space-y-4 bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-6">
+            <p className="text-sm text-gray-300 text-center leading-relaxed">
+              Entrez le code à 6 chiffres de votre application d'authentification.
+            </p>
+
+            <input
+              className="w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-4 py-3 text-white font-mono text-xl tracking-[0.3em] text-center"
+              type="text"
+              inputMode="numeric"
+              placeholder="• • • • • •"
+              value={twoFACode}
+              onChange={(e) => setTwoFACode(e.target.value.replace(/\D/g, '').slice(0, 8))}
+              maxLength={8}
+              autoComplete="one-time-code"
+              autoFocus
+              required
+            />
+
+            <p className="text-[11px] text-gray-500 text-center">
+              Ou entrez un{' '}
+              <span className="text-purple-400">code de secours</span>{' '}
+              (format XXXX-XXXX).
+            </p>
+
+            {twoFAError && (
+              <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2">
+                <span className="text-red-400 shrink-0 mt-0.5">⚠</span>
+                <p className="text-red-400 text-sm">{twoFAError}</p>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={twoFALoading || twoFACode.length < 6}
+              className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 font-bold text-white disabled:opacity-50 transition"
+            >
+              {twoFALoading ? (
+                <span className="inline-flex items-center gap-2 justify-center">
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Vérification…
+                </span>
+              ) : (
+                'Valider'
+              )}
+            </button>
+          </form>
+
+          <button
+            type="button"
+            className="w-full mt-3 text-center text-sm text-gray-500 hover:text-gray-400 transition"
+            onClick={() => { setTwoFAState(null); setTwoFACode(''); setTwoFAError(''); }}
+          >
+            ← Retour à la connexion
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (oauthLoading) {
     return (

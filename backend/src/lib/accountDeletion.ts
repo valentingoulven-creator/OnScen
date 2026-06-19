@@ -7,6 +7,7 @@ import {
   scheduleDeleteReelEngagementByUserFromPg,
   scheduleDeleteReelsByAuthorFromPg,
 } from './pgReels';
+import { deleteCompositionsByUser } from './compositions';
 
 const DELETED_LABEL = '[Compte supprimé]';
 
@@ -81,6 +82,8 @@ export function deleteUserAccountCascade(userId: string): void {
   db.userReels = db.userReels.filter((r) => r.authorId !== userId);
   scheduleDeleteReelsByAuthorFromPg(userId);
   scheduleDeleteReelEngagementByUserFromPg(userId);
+
+  deleteCompositionsByUser(userId);
 
   for (const [reelId, comments] of db.reelComments) {
     const filtered = comments.filter((c) => c.userId !== userId);

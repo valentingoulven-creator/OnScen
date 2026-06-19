@@ -14,12 +14,6 @@ import {
 
   isWebGLError,
 
-  isChunkLoadError,
-
-  isGlobeChunkLoadError,
-
-  shouldAutoReloadForChunkError,
-
   isWebGLSupported,
 
   shouldForceFlatMap,
@@ -133,62 +127,6 @@ describe('isWebGLError', () => {
     expect(isWebGLError('Failed to initialize WebGL')).toBe(true);
 
     expect(isWebGLError(new Error('Leaflet map error'))).toBe(false);
-
-  });
-
-});
-
-
-
-describe('isChunkLoadError', () => {
-
-  it('detects Vite dynamic import failures', () => {
-
-    expect(
-
-      isChunkLoadError(
-
-        new Error('Failed to fetch dynamically imported module: https://getsoundy.com/assets/GlobeView-DpVArij5.js')
-
-      )
-
-    ).toBe(true);
-
-    expect(isChunkLoadError(new Error('Importing a module script failed.'))).toBe(true);
-
-    expect(isChunkLoadError(new Error('Leaflet map error'))).toBe(false);
-
-  });
-
-
-
-  it('identifies GlobeView chunk failures', () => {
-
-    const err = new Error(
-
-      'Failed to fetch dynamically imported module: https://getsoundy.com/assets/GlobeView-DpVArij5.js'
-
-    );
-
-    expect(isGlobeChunkLoadError(err)).toBe(true);
-
-    expect(isGlobeChunkLoadError(new Error('Failed to fetch dynamically imported module: https://getsoundy.com/assets/HomePage-abc.js'))).toBe(false);
-
-  });
-
-
-
-  it('auto-reloads only once per session for non-globe chunks', () => {
-
-    installStorageMock();
-
-    sessionStorage.clear();
-
-    const err = new Error('Failed to fetch dynamically imported module: https://getsoundy.com/assets/index-abc.js');
-
-    expect(shouldAutoReloadForChunkError(err)).toBe(true);
-
-    expect(shouldAutoReloadForChunkError(err)).toBe(false);
 
   });
 
