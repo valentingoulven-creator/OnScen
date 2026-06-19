@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ConfirmModal } from './ConfirmModal';
 import type { SalonTrackProposal } from '../types';
 
 interface SalonProposalsSectionProps {
@@ -33,6 +34,7 @@ export function SalonProposalsSection({
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
+  const [confirmRejectId, setConfirmRejectId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -139,17 +141,7 @@ export function SalonProposalsSection({
                   <button
                     type="button"
                     disabled={actionId === p.id}
-                    onClick={async () => {
-                      if (!window.confirm('Refuser cette proposition ? Elle sera définitivement supprimée.')) return;
-                      setActionId(p.id);
-                      try {
-                        await onReject?.(p.id);
-                      } catch (e) {
-                        setErrorMsg(e instanceof Error ? e.message : 'Erreur');
-                      } finally {
-                        setActionId(null);
-                      }
-                    }}
+                    onClick={() => setConfirmRejectId(p.id)}
                     className="px-2 py-1 rounded-lg border border-red-500/30 text-red-300 text-[10px] font-semibold hover:bg-red-500/10 transition"
                     aria-label="Refuser"
                   >

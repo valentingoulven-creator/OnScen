@@ -12,6 +12,7 @@ import { CreateSalonModal, type CreateSalonModalPreset } from '../components/Cre
 import { UserAvatarOnline } from '../components/UserAvatarOnline';
 import { UsernameDisplay } from '../components/UsernameDisplay';
 import { LinkifiedText } from '../components/LinkifiedText';
+import { ConfirmModal } from '../components/ConfirmModal';
 import type {
   Conversation,
   DirectMessage,
@@ -252,6 +253,12 @@ export function DmPage({
   const prevMessageCountRef = useRef(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<{
+    title: string;
+    description?: string;
+    confirmLabel?: string;
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
   const lastTapByMsgRef = useRef<Map<string, number>>(new Map());
   const newDmInputRef = useRef<HTMLInputElement>(null);
 
@@ -803,36 +810,38 @@ export function DmPage({
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, [conversationMenuOpen]);
 
-  const deleteMessage = async (messageId: string, isMine: boolean) => {
+  const deleteMessage = (messageId: string, isMine: boolean) => {
     if (!token) return;
-    const confirmText = isMine
-      ? 'Supprimer ce message pour vous et votre correspondant ? Cette action est définitive.'
-      : 'Masquer ce message de votre conversation ? Votre correspondant le verra toujours.';
-    if (!window.confirm(confirmText)) return;
-    try {
-      await api.deleteDmMessage(token, messageId, isMine);
-      setMessages((m) => m.filter((x) => x.id !== messageId));
-      setOpenMsgMenuId(null);
-      loadConversations();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : 'Impossible de supprimer');
-    }
+    setPendingConfirm({
+      title: isMine ? 'Supprimer ce message ?' : 'Masquer ce message ?',
+      description: isMine
+        ? 'Le message sera supprimé pour vous et votre correspondant. Cette action est définitive.'
+        : 'Le message sera masqué de votre conversation. Votre correspondant le verra toujours.',
+      onConfirm: async () => {
+        await api.deleteDmMessage(token, messageId, isMine);
+        setMessages((m) => m.filter((x) => x.id !== messageId));
+        setOpenMsgMenuId(null);
+        loadConversations();
+        setPendingConfirm(null);
+      },
+    });
   };
 
-  const deleteGroupMessage = async (messageId: string, isMine: boolean) => {
+  const deleteGroupMessage = (messageId: string, isMine: boolean) => {
     if (!token) return;
-    const confirmText = isMine
-      ? 'Supprimer ce message pour tous les membres ? Cette action est définitive.'
-      : 'Masquer ce message de votre conversation ? Les autres membres le verront toujours.';
-    if (!window.confirm(confirmText)) return;
-    try {
-      await api.deleteGroupMessage(token, messageId, isMine);
-      setGroupMessages((m) => m.filter((x) => x.id !== messageId));
-      setOpenMsgMenuId(null);
-      loadConversations();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : 'Impossible de supprimer');
-    }
+    setPendingConfirm({
+      title: isMine ? 'Supprimer ce message ?' : 'Masquer ce message ?',
+      description: isMine
+        ? 'Le message sera supprimé pour tous les membres. Cette action est définitive.'
+        : 'Le message sera masqué de votre conversation. Les autres membres le verront toujours.',
+      onConfirm: async () => {
+        await api.deleteGroupMessage(token, messageId, isMine);
+        setGroupMessages((m) => m.filter((x) => x.id !== messageId));
+        setOpenMsgMenuId(null);
+        loadConversations();
+        setPendingConfirm(null);
+      },
+    });
   };
 
   const sendMessage = async (e?: React.FormEvent) => {
@@ -1050,31 +1059,39 @@ export function DmPage({
     }
   };
 
-  const removeMemberFromGroup = async (memberId: string, username: string) => {
+  const removeMemberFromGroup = (memberId: string, username: string) => {
     if (!token || !activeGroup || removingMemberId) return;
     const isSelf = memberId === user?.id;
-    const confirmText = isSelf ? 'Quitter ce groupe ?' : `Retirer ${username} du groupe ?`;
-    if (!window.confirm(confirmText)) return;
-    setRemovingMemberId(memberId);
-    try {
-      await api.removeGroupMember(token, activeGroup.id, memberId);
-      if (isSelf) {
-        setGroupManageOpen(false);
-        setGroupMenuOpen(false);
-        setView('list');
-        setActiveGroupState(null);
-        setActiveGroup(null);
-        loadConversations();
-        return;
-      }
-      const r = await api.getGroupThread(token, activeGroup.id);
-      setActiveGroupState(r.group);
-      loadConversations();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Impossible de retirer ce membre');
-    } finally {
-      setRemovingMemberId(null);
-    }
+    setPendingConfirm({
+      title: isSelf ? 'Quitter ce groupe ?' : `Retirer ${username} du groupe ?`,
+      description: isSelf
+        ? 'Vous ne recevrez plus les messages de ce groupe.'
+        : 'Cette personne ne pourra plus voir les messages du groupe.',
+      confirmLabel: isSelf ? 'Quitter' : 'Retirer',
+      onConfirm: async () => {
+        setRemovingMemberId(memberId);
+        try {
+          await api.removeGroupMember(token, activeGroup.id, memberId);
+          if (isSelf) {
+            setGroupManageOpen(false);
+            setGroupMenuOpen(false);
+            setView('list');
+            setActiveGroupState(null);
+            setActiveGroup(null);
+            loadConversations();
+          } else {
+            const r = await api.getGroupThread(token, activeGroup.id);
+            setActiveGroupState(r.group);
+            loadConversations();
+          }
+          setPendingConfirm(null);
+        } catch (err) {
+          alert(err instanceof Error ? err.message : 'Impossible de retirer ce membre');
+        } finally {
+          setRemovingMemberId(null);
+        }
+      },
+    });
   };
 
   const blockActiveUser = () => {
@@ -2699,6 +2716,20 @@ export function DmPage({
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={pendingConfirm !== null}
+        title={pendingConfirm?.title ?? ''}
+        description={pendingConfirm?.description}
+        confirmLabel={pendingConfirm?.confirmLabel ?? 'Supprimer'}
+        onCancel={() => setPendingConfirm(null)}
+        onConfirm={() => {
+          if (!pendingConfirm) return;
+          void pendingConfirm.onConfirm().catch((e) => {
+            alert(e instanceof Error ? e.message : 'Impossible de supprimer');
+          });
+        }}
+      />
     </div>
   );
 }

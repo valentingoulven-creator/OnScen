@@ -228,6 +228,17 @@ export function AdminReportsTab() {
           </div>
         );
       })}
+
+      <ConfirmModal
+        open={confirmDeleteId !== null}
+        title="Supprimer ce signalement ?"
+        description="Cette action est définitive."
+        loading={Boolean(confirmDeleteId && actionLoading === confirmDeleteId)}
+        onCancel={() => setConfirmDeleteId(null)}
+        onConfirm={() => {
+          if (confirmDeleteId) void handleDelete(confirmDeleteId);
+        }}
+      />
     </div>
   );
 }
