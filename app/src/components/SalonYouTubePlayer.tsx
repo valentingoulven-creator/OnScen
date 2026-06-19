@@ -1048,18 +1048,23 @@ export function SalonYouTubePlayer({
     </div>
   );
 
+  const shouldPortalFloat =
+    floatActive && videoFloat && typeof document !== 'undefined';
+
+  /** PiP porté sur body : l’ancre in-tree reste cachée (pas absolute inset-0 qui peut bloquer les touches). */
   const rootClass = floatActive
-    ? 'absolute inset-0 w-full h-full pointer-events-none'
+    ? shouldPortalFloat
+      ? 'hidden'
+      : 'absolute inset-0 w-full h-full pointer-events-none'
     : outerClass || undefined;
 
   /** Hors `.salon-page-pip-host` (opacity:0) pour rester visible en salon minimisé. */
-  const floatedPlayer =
-    floatActive && videoFloat && typeof document !== 'undefined'
-      ? createPortal(
-          <div className="pointer-events-auto">{playerSurface}</div>,
-          document.body
-        )
-      : null;
+  const floatedPlayer = shouldPortalFloat
+    ? createPortal(
+        <div className="pointer-events-auto">{playerSurface}</div>,
+        document.body
+      )
+    : null;
 
   return (
     <div className={rootClass}>

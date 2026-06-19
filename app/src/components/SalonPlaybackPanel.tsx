@@ -906,7 +906,7 @@ export function SalonPlaybackPanel({
 
     const theaterHero = canUseYoutubeEmbed && youtubeTrackId ? (
       <>
-        {floatPipActive && effectiveShowYoutubeVideo ? theaterAlbumPlaceholder : null}
+        {(!effectiveShowYoutubeVideo || floatPipActive) ? theaterAlbumPlaceholder : null}
         <SalonYouTubePlayer
           videoId={youtubeTrackId}
           playbackState={playbackState}

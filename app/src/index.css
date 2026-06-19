@@ -1272,15 +1272,23 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 
 /* DM thread — réserve le dock en bas ; la barre de saisie reste cliquable au-dessus */
 .ms-app-shell--bottom-tabs .dm-thread-root {
+  position: relative;
+  z-index: 2;
   flex: 1 1 auto;
   min-height: 0;
   max-height: 100%;
   padding-bottom: var(--tab-nav-total-h);
   box-sizing: border-box;
+  pointer-events: auto;
 }
 
 .ms-app-shell--bottom-tabs .dm-compose-bar {
   flex-shrink: 0;
+  pointer-events: auto;
+}
+
+.ms-app-shell--bottom-tabs .dm-tab-root {
+  pointer-events: auto;
 }
 
 /* Live — animation cadeau / pourboire (style overlay) */

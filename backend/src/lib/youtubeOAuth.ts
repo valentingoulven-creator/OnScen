@@ -97,6 +97,7 @@ export async function completeYoutubeOAuth(
   channelTitle: string;
   accessToken: string;
   refreshToken?: string;
+  expiresIn?: number;
   channelId: string;
   avatarUrl?: string;
 } | null> {
@@ -120,6 +121,7 @@ export async function completeYoutubeOAuth(
   const tokens = (await tokenRes.json()) as {
     access_token?: string;
     refresh_token?: string;
+    expires_in?: number;
   };
   if (!tokens.access_token) return null;
 
@@ -133,6 +135,7 @@ export async function completeYoutubeOAuth(
     channelTitle,
     accessToken: tokens.access_token,
     refreshToken: tokens.refresh_token,
+    expiresIn: tokens.expires_in,
     channelId,
     avatarUrl,
   };
@@ -143,6 +146,7 @@ export function applyYoutubeOAuthToUser(
   data: {
     accessToken: string;
     refreshToken?: string;
+    expiresIn?: number;
     channelId: string;
     channelTitle: string;
     avatarUrl?: string;
@@ -157,6 +161,7 @@ export function applyYoutubeOAuthToUser(
       externalUserId: data.channelId,
       accessToken: data.accessToken,
       refreshToken: data.refreshToken,
+      accessTokenExpiresAt: data.expiresIn != null ? Date.now() + (data.expiresIn - 60) * 1000 : undefined,
       displayName: data.channelTitle,
       avatarUrl: data.avatarUrl,
     });
@@ -164,22 +169,45 @@ export function applyYoutubeOAuthToUser(
   }
 }
 
-/** Returns a valid YouTube access token, refreshing via refresh_token when needed. */
+/** Returns a valid YouTube access token, refreshing via refresh_token when needed.
+ *
+ * Refresh logic:
+ * - If `accessTokenExpiresAt` is set and the token is still fresh → return it as-is.
+ * - If `accessTokenExpiresAt` is missing (legacy account) or the token is expired → attempt
+ *   a token refresh using the stored refresh_token. This handles both newly-expired tokens
+ *   and legacy accounts that were connected before expiry tracking was introduced.
+ * - If the refresh fails (network error, invalid grant, etc.) → fall back to the stored
+ *   token so the caller can still attempt the API call (token may still be valid).
+ */
 export async function ensureYoutubeAccessToken(user: User): Promise<string | undefined> {
-  const existing = getYoutubeAccessToken(user);
-  if (existing) return existing;
-
   const accounts = getPlatformAccounts(user);
   const idx = accounts.findIndex((a) => a.platform === 'youtube');
   if (idx < 0) return undefined;
 
   const decrypted = decryptPlatformTokens(accounts[idx]);
+  const existingToken = decrypted.accessToken;
+  const isMockOrLegacy =
+    !existingToken || existingToken.startsWith('mock_') || existingToken.startsWith('legacy_');
+
+  if (!isMockOrLegacy) {
+    const expiresAt = decrypted.accessTokenExpiresAt;
+    // Token is fresh and we know the expiry → return it without refreshing.
+    if (expiresAt != null && Date.now() < expiresAt) return existingToken;
+    // expiresAt == null means legacy account (no expiry tracked yet) → fall through to refresh.
+    // expiresAt in the past means expired → fall through to refresh.
+  }
+
   const refreshToken = decryptToken(decrypted.refreshToken);
-  if (!refreshToken) return undefined;
+  if (!refreshToken) {
+    // No refresh token available. For a real (non-mock) account return the existing token as a
+    // last resort — it might still be valid (e.g. expiry timestamp was slightly off, server clock
+    // skew, or the token is actually fresh but we had no expiry info).
+    return isMockOrLegacy ? undefined : existingToken;
+  }
 
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
-  if (!clientId || !clientSecret) return undefined;
+  if (!clientId || !clientSecret) return isMockOrLegacy ? undefined : existingToken;
 
   let tokenRes: Response;
   try {
@@ -195,17 +223,25 @@ export async function ensureYoutubeAccessToken(user: User): Promise<string | und
       signal: AbortSignal.timeout(10_000),
     });
   } catch {
-    return undefined;
+    return isMockOrLegacy ? undefined : existingToken;
   }
 
-  if (!tokenRes.ok) return undefined;
-  const tokens = (await tokenRes.json()) as { access_token?: string; refresh_token?: string };
-  if (!tokens.access_token) return undefined;
+  if (!tokenRes.ok) return isMockOrLegacy ? undefined : existingToken;
+  const tokens = (await tokenRes.json()) as {
+    access_token?: string;
+    refresh_token?: string;
+    expires_in?: number;
+  };
+  if (!tokens.access_token) return isMockOrLegacy ? undefined : existingToken;
 
   accounts[idx] = encryptPlatformTokens({
     ...decrypted,
     accessToken: tokens.access_token,
     refreshToken: tokens.refresh_token ?? decrypted.refreshToken,
+    accessTokenExpiresAt:
+      tokens.expires_in != null
+        ? Date.now() + (tokens.expires_in - 60) * 1000
+        : decrypted.accessTokenExpiresAt,
   });
   user.platformAccounts = accounts;
   return tokens.access_token;

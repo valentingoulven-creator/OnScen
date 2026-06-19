@@ -665,9 +665,9 @@ export default function App() {
   const mapPlaybackActive = tab === 'map' && view.type === 'home' && !salonFullScreen;
   /** Montage conditionnel : un seul onglet à la fois (perf). Carte reste montée sous overlay profil (audio salon). */
   const actualiteTabMounted = tab === 'actualite' && tabContentBase && !profileOpen;
-  /** Carte aussi montée (masquée) sous SalonPage, profil carte, ou autre onglet si session active. */
+  /** Carte montée sur l'onglet Carte, profil carte, ou lecture map (petit salon). Pas en arrière-plan sur DM/Reels — évite overlays Leaflet qui figent les touches. */
   const mapTabMounted =
-    (tab === 'map' && (tabContentBase || view.type === 'profile')) || Boolean(activeSalonSession);
+    (tab === 'map' && (tabContentBase || view.type === 'profile')) || mapPlaybackActive;
   const mapTabHiddenUnderSalon = tab === 'map' && salonFullScreen;
   const mapTabHiddenUnderProfile = tab === 'map' && view.type === 'profile';
   const mapTabHiddenOffTab = Boolean(activeSalonSession) && tab !== 'map';
@@ -961,7 +961,7 @@ export default function App() {
             )}
             {dmTabMounted && (
               <Suspense fallback={<PageFallback />}>
-                <div className="flex flex-col flex-1 min-h-0 min-w-0">
+                <div className="dm-tab-root flex flex-col flex-1 min-h-0 min-w-0 relative z-[2] isolate">
                   <DmPage
                     openPeerId={dmPeerToOpen}
                     openGroupId={dmGroupToOpen}

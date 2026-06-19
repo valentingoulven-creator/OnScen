@@ -33,6 +33,8 @@ export interface PlatformAccount {
   connectedAt: number;
   accessToken?: string;
   refreshToken?: string;
+  /** Unix timestamp (ms) at which the access token expires (set from expires_in on OAuth grant/refresh). */
+  accessTokenExpiresAt?: number;
   displayName?: string;
   /** Avatar / chaîne (URL publique, renvoyée au propriétaire via platformLinks). */
   avatarUrl?: string;

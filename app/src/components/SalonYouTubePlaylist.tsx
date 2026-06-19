@@ -98,7 +98,11 @@ export function SalonYouTubePlaylist({
       ) : (
         <p className="text-[10px] text-gray-500 leading-snug">
           {isRealAccount
-            ? 'Vos playlists YouTube (compte Google connecté).'
+            ? playlists.length > 0
+              ? 'Vos playlists YouTube (compte Google connecté).'
+              : !loadingList
+                ? 'Session expirée — reconnectez Google dans les réglages pour accéder à vos playlists.'
+                : 'Chargement de vos playlists…'
             : 'Playlists démo ou publiques — connectez Google pour les vôtres.'}
         </p>
       )}
@@ -128,6 +132,10 @@ export function SalonYouTubePlaylist({
                 </option>
               ))}
             </select>
+          ) : isRealAccount ? (
+            <p className="text-[10px] text-amber-400 leading-snug">
+              Aucune playlist trouvée ou session expirée. Reconnectez votre compte Google depuis les réglages.
+            </p>
           ) : null}
 
           <input
