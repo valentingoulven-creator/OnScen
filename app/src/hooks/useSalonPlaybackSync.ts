@@ -16,6 +16,8 @@ interface UseSalonPlaybackSyncOptions {
   isHost: boolean;
   initialState: PlaybackState;
   onStateChange?: (state: PlaybackState) => void;
+  /** Participant uniquement — déclenché quand salon_force_sync reçu du serveur. */
+  onForceSync?: (state: PlaybackState) => void;
 }
 
 export function useSalonPlaybackSync({
@@ -23,6 +25,7 @@ export function useSalonPlaybackSync({
   isHost,
   initialState,
   onStateChange,
+  onForceSync,
 }: UseSalonPlaybackSyncOptions) {
   const [playbackState, setPlaybackState] = useState<PlaybackState>(initialState);
   const [displayPositionMs, setDisplayPositionMs] = useState(() =>
@@ -32,6 +35,8 @@ export function useSalonPlaybackSync({
   stateRef.current = playbackState;
   const onStateChangeRef = useRef(onStateChange);
   onStateChangeRef.current = onStateChange;
+  const onForceSyncRef = useRef(onForceSync);
+  onForceSyncRef.current = onForceSync;
 
   useEffect(() => {
     const local = stateRef.current;
@@ -89,19 +94,20 @@ export function useSalonPlaybackSync({
       setDisplayPositionMs(computePlaybackPositionMs(merged));
       onStateChangeRef.current?.(merged);
     };
-    const onForceSync = (state: PlaybackState) => {
+    const forceSyncListener = (state: PlaybackState) => {
       if (isHost) return;
       setPlaybackState(state);
       setDisplayPositionMs(computePlaybackPositionMs(state));
       onStateChangeRef.current?.(state);
+      onForceSyncRef.current?.(state);
     };
     socket.on('playback_sync', onSync);
     socket.on('salon_playback', onSync);
-    socket.on('salon_force_sync', onForceSync);
+    socket.on('salon_force_sync', forceSyncListener);
     return () => {
       socket.off('playback_sync', onSync);
       socket.off('salon_playback', onSync);
-      socket.off('salon_force_sync', onForceSync);
+      socket.off('salon_force_sync', forceSyncListener);
     };
   }, [salonId, isHost]);
 

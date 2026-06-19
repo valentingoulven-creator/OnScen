@@ -10,7 +10,7 @@ import {
   resolveSalonYoutubeTrackId,
   type MusicPlatform,
 } from '../lib/salonPlayback';
-import { openSpotifyApp, buildSpotifyWebUrl } from '../lib/spotifyDeepLink';
+import { openSpotifyApp, buildSpotifyWebUrl, buildSpotifyAppUri } from '../lib/spotifyDeepLink';
 import { OpenOnYoutubeButton } from './OpenOnYoutubeButton';
 import { SalonYouTubePlayer } from './SalonYouTubePlayer';
 import { SalonYouTubeSearch } from './SalonYouTubeSearch';
@@ -125,6 +125,27 @@ export function SalonPlaybackPanel({
   });
   const hostShowVideoRef = useRef(salon.playbackState.showVideo);
   const prevYoutubeTrackRef = useRef(salon.playbackState.trackId);
+
+  // Bannière persistante affichée aux participants Spotify quand le morceau change ou force_sync reçu.
+  const [spotifyTrackBanner, setSpotifyTrackBanner] = useState<{
+    trackId: string;
+    title: string;
+    artist?: string;
+    albumArtUrl?: string | null;
+  } | null>(null);
+  const onForceSyncForParticipant = useCallback(
+    (state: PlaybackState) => {
+      if (salon.platform !== 'spotify' || !state.trackId || state.trackId === 'demo') return;
+      setSpotifyTrackBanner({
+        trackId: state.trackId,
+        title: state.title ?? 'Morceau Spotify',
+        artist: state.artist,
+        albumArtUrl: state.albumArtUrl,
+      });
+    },
+    [salon.platform]
+  );
+
   const {
     playbackState,
     displayPositionMs,
@@ -142,6 +163,7 @@ export function SalonPlaybackPanel({
       isHost: canControlPlayback,
       initialState: salon.playbackState,
       onStateChange: onPlaybackStateChange,
+      onForceSync: canControlPlayback ? undefined : onForceSyncForParticipant,
     });
 
   const spotifySyncEnabled =
@@ -362,11 +384,16 @@ export function SalonPlaybackPanel({
     if (isHost || isVipModerator || salon.platform !== 'spotify') return;
     if (playbackState.trackId !== prevTrackIdRef.current) {
       prevTrackIdRef.current = playbackState.trackId;
-      setSpotifyNotif(`\uD83C\uDFB5 L\u2019h\u00F4te a chang\u00E9 : \u00AB ${playbackState.title} \u00BB`);
-      const t = window.setTimeout(() => setSpotifyNotif(null), 6000);
-      return () => window.clearTimeout(t);
+      if (playbackState.trackId && playbackState.trackId !== 'demo') {
+        setSpotifyTrackBanner({
+          trackId: playbackState.trackId,
+          title: playbackState.title ?? 'Morceau Spotify',
+          artist: playbackState.artist,
+          albumArtUrl: playbackState.albumArtUrl,
+        });
+      }
     }
-  }, [isHost, isVipModerator, salon.platform, playbackState.trackId, playbackState.title]);
+  }, [isHost, isVipModerator, salon.platform, playbackState.trackId, playbackState.title, playbackState.artist, playbackState.albumArtUrl]);
 
   useEffect(() => {
     setParticipantPlatform(preferredParticipantPlatform(userPlatforms, salon.platform));
@@ -543,6 +570,54 @@ export function SalonPlaybackPanel({
     </span>
   );
 
+  /**
+   * Bannière persistante Spotify pour les participants.
+   * Apparaît automatiquement au changement de morceau ou sur force_sync de l'hôte.
+   * L'utilisateur peut la fermer manuellement ; elle se met à jour sur le prochain changement.
+   */
+  const spotifyParticipantBannerEl =
+    !canControlPlayback && salon.platform === 'spotify' && spotifyTrackBanner ? (
+      <div className="rounded-xl border border-green-500/35 bg-[#0b1a10] p-3 space-y-2">
+        <div className="flex items-center gap-3 min-w-0">
+          {spotifyTrackBanner.albumArtUrl ? (
+            <img
+              src={spotifyTrackBanner.albumArtUrl}
+              alt=""
+              className="w-11 h-11 rounded-lg object-cover shrink-0"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          ) : null}
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] text-green-400/70 uppercase tracking-wide leading-none mb-0.5">
+              Écoute en cours chez l&apos;hôte
+            </p>
+            <p className="text-sm font-semibold text-white truncate">{spotifyTrackBanner.title}</p>
+            {spotifyTrackBanner.artist && (
+              <p className="text-xs text-gray-400 truncate">{spotifyTrackBanner.artist}</p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setSpotifyTrackBanner(null)}
+            className="shrink-0 text-gray-600 hover:text-gray-300 transition text-xl leading-none ml-1"
+            aria-label="Fermer"
+          >
+            ×
+          </button>
+        </div>
+        <a
+          href={buildSpotifyAppUri(spotifyTrackBanner.trackId)}
+          target="_blank"
+          rel="noreferrer"
+          className="block w-full text-center py-2 rounded-xl border border-green-500/40 bg-green-500/10 font-semibold text-sm text-green-300 hover:bg-green-500/15 transition"
+        >
+          {`▶ Écouter dans Spotify · ${formatPlaybackTime(displayPositionMs)}`}
+        </a>
+      </div>
+    ) : null;
+
   if (salonQueueLayout) {
     return (
       <>
@@ -673,7 +748,8 @@ export function SalonPlaybackPanel({
 
         {!canControlPlayback && salon.platform === 'spotify' && (
           <div className="space-y-2 pt-0.5 border-t border-[#1e1e2f]">
-            {spotifyNotif && (
+            {spotifyParticipantBannerEl}
+            {!spotifyTrackBanner && spotifyNotif && (
               <div className="rounded-xl bg-green-500/10 border border-green-500/25 px-3 py-2 text-sm text-green-300 text-center">
                 {spotifyNotif}
               </div>
@@ -688,29 +764,30 @@ export function SalonPlaybackPanel({
                 submitMode="propose"
               />
             )}
-            {playbackState.trackId && playbackState.trackId !== 'demo' ? (
-              <a
-                href={
-                  buildTrackUrlAtPosition('spotify', playbackState.trackId, displayPositionMs) ||
-                  playbackState.externalUrl ||
-                  buildSpotifyWebUrl(playbackState.trackId)
-                }
-                target="_blank"
-                rel="noreferrer"
-                className="block w-full text-center py-2.5 rounded-xl border border-green-500/40 bg-green-500/10 font-semibold text-sm text-green-400 hover:bg-green-500/15 transition"
-              >
-                {`Ouvrir dans Spotify à ${formatPlaybackTime(displayPositionMs)}`}
-              </a>
-            ) : playbackState.externalUrl ? (
-              <a
-                href={playbackState.externalUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="block w-full text-center py-2.5 rounded-xl border border-green-500/40 bg-green-500/10 font-semibold text-sm text-green-400 hover:bg-green-500/15 transition"
-              >
-                Ouvrir dans Spotify
-              </a>
-            ) : null}
+            {!spotifyTrackBanner && (
+              playbackState.trackId && playbackState.trackId !== 'demo' ? (
+                <a
+                  href={
+                    buildSpotifyAppUri(playbackState.trackId) ||
+                    buildSpotifyWebUrl(playbackState.trackId)
+                  }
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block w-full text-center py-2.5 rounded-xl border border-green-500/40 bg-green-500/10 font-semibold text-sm text-green-400 hover:bg-green-500/15 transition"
+                >
+                  {`Ouvrir dans Spotify à ${formatPlaybackTime(displayPositionMs)}`}
+                </a>
+              ) : playbackState.externalUrl ? (
+                <a
+                  href={playbackState.externalUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block w-full text-center py-2.5 rounded-xl border border-green-500/40 bg-green-500/10 font-semibold text-sm text-green-400 hover:bg-green-500/15 transition"
+                >
+                  Ouvrir dans Spotify
+                </a>
+              ) : null
+            )}
             <p className="text-[10px] text-gray-600 text-center leading-snug">
               {t('salon.playbackMode.spotifyAlignHint')}
             </p>
@@ -891,7 +968,8 @@ export function SalonPlaybackPanel({
             <p className="text-[11px] text-center text-[#6b6b8a] py-0.5">
               🎵 L&apos;hôte contrôle la lecture&thinsp;•&thinsp;Vous pouvez proposer des vidéos
             </p>
-            {spotifyNotif && (
+            {salon.platform === 'spotify' && spotifyParticipantBannerEl}
+            {!spotifyTrackBanner && spotifyNotif && (
               <div className="rounded-xl bg-green-500/10 border border-green-500/25 px-3 py-2 text-sm text-green-300 text-center">
                 {spotifyNotif}
               </div>
@@ -923,7 +1001,11 @@ export function SalonPlaybackPanel({
                     <OpenOnYoutubeButton trackId={resolved.trackId} positionMs={displayPositionMs} />
                   ) : (
                     <a
-                      href={syncListenUrl ?? resolved.externalUrl}
+                      href={
+                        participantPlatform === 'spotify'
+                          ? buildSpotifyAppUri(resolved.trackId) || (syncListenUrl ?? resolved.externalUrl)
+                          : syncListenUrl ?? resolved.externalUrl
+                      }
                       target="_blank"
                       rel="noreferrer"
                       className={`block w-full text-center py-2 rounded-xl border font-semibold text-sm ${participantMeta.accent}`}
@@ -1295,7 +1377,8 @@ export function SalonPlaybackPanel({
                 submitMode="propose"
               />
             )}
-            {spotifyNotif && (
+            {salon.platform === 'spotify' && spotifyParticipantBannerEl}
+            {!spotifyTrackBanner && spotifyNotif && (
               <div className="rounded-xl bg-green-500/10 border border-green-500/25 px-3 py-2 text-sm text-green-300 text-center">
                 {spotifyNotif}
               </div>
@@ -1340,7 +1423,11 @@ export function SalonPlaybackPanel({
                     </div>
                   ) : (
                     <a
-                      href={syncListenUrl ?? resolved.externalUrl}
+                      href={
+                        participantPlatform === 'spotify'
+                          ? buildSpotifyAppUri(resolved.trackId) || (syncListenUrl ?? resolved.externalUrl)
+                          : syncListenUrl ?? resolved.externalUrl
+                      }
                       target="_blank"
                       rel="noreferrer"
                       className={`block w-full text-center py-2 rounded-xl border font-semibold text-sm ${participantMeta.accent}`}

@@ -771,8 +771,8 @@ export function SalonPage({
       <header className="relative z-30 shrink-0 flex items-center gap-2 sm:gap-3 px-3 py-2.5 border-b border-[#1e1e2f] min-w-0">
         {minimizeSalonButton}
         <img
-          src={playback.albumArtUrl}
-          alt=""
+          src={salon.hostAvatarUrl ?? ''}
+          alt={salon.hostName}
           className="w-9 h-9 rounded-lg object-cover shrink-0 bg-[#1a1a26]"
           onError={(e) => { e.currentTarget.style.display = 'none'; }}
         />
