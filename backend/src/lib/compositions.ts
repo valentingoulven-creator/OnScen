@@ -1,5 +1,7 @@
 import crypto from 'crypto';
 import { db, type UserComposition } from '../models/schema';
+
+const MAX_COMPOSITIONS_PER_USER = parseInt(process.env.MAX_COMPOSITIONS_PER_USER ?? '50', 10) || 50;
 import {
   deleteCompositionFileIfLocal,
   isValidCompositionFileUrl,
@@ -63,6 +65,14 @@ export function createUserComposition(
   if (!title) {
     return { error: 'Titre requis' };
   }
+
+  const existingCount = db.compositions.filter((c) => c.userId === userId).length;
+  if (existingCount >= MAX_COMPOSITIONS_PER_USER) {
+    return {
+      error: `Limite de compositions atteinte (${MAX_COMPOSITIONS_PER_USER} max). Supprimez des fichiers pour en ajouter d'autres.`,
+    };
+  }
+
   if (!isValidCompositionFileUrl(rawFileUrl)) {
     return { error: 'Fichier audio invalide (mp3, wav, m4a, ogg — max 30 Mo)' };
   }

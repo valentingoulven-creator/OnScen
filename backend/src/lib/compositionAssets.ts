@@ -53,6 +53,30 @@ export function saveCompositionFromDataUrl(dataUrl: string): string {
     throw new Error('Fichier audio trop volumineux (max 30 Mo)');
   }
 
+  // Vérification des magic bytes — le MIME type client est falsifiable
+  if (buffer.length < 100) {
+    throw new Error('Format audio non reconnu');
+  }
+  const isValidAudioMagic = (
+    // MP3: FF FB / FF F3 / FF F2
+    (buffer[0] === 0xFF && (buffer[1] === 0xFB || buffer[1] === 0xF3 || buffer[1] === 0xF2)) ||
+    // MP3 avec tag ID3
+    (buffer[0] === 0x49 && buffer[1] === 0x44 && buffer[2] === 0x33) ||
+    // WAV: RIFF
+    (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46) ||
+    // OGG: OggS
+    (buffer[0] === 0x4F && buffer[1] === 0x67 && buffer[2] === 0x67 && buffer[3] === 0x53) ||
+    // FLAC: fLaC
+    (buffer[0] === 0x66 && buffer[1] === 0x4C && buffer[2] === 0x61 && buffer[3] === 0x43) ||
+    // M4A/AAC: boîte ftyp (offset 4-7 = "ftyp")
+    (buffer.length >= 8 && buffer[4] === 0x66 && buffer[5] === 0x74 && buffer[6] === 0x79 && buffer[7] === 0x70) ||
+    // WebM/Matroska: EBML header
+    (buffer[0] === 0x1A && buffer[1] === 0x45 && buffer[2] === 0xDF && buffer[3] === 0xA3)
+  );
+  if (!isValidAudioMagic) {
+    throw new Error('Format audio non reconnu');
+  }
+
   const dir = uploadsDir();
   fs.mkdirSync(dir, { recursive: true });
 

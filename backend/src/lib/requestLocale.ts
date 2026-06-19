@@ -15,6 +15,7 @@ const GEO_ERRORS: Record<AppLocale, Record<string, string>> = {
     geocodeMin: 'Paramètre q requis (min. 2 caractères)',
     geocodeUnavailable: 'Géocodage indisponible',
     geocodeRateLimit: 'Trop de requêtes de géocodage. Réessayez plus tard.',
+    nearbyRateLimit: 'Trop de requêtes. Réessayez dans une minute.',
     gouvUnavailable: 'geo.api.gouv.fr indisponible',
   },
   en: {
@@ -23,6 +24,7 @@ const GEO_ERRORS: Record<AppLocale, Record<string, string>> = {
     geocodeMin: 'Parameter q required (min. 2 characters)',
     geocodeUnavailable: 'Geocoding unavailable',
     geocodeRateLimit: 'Too many geocoding requests. Try again later.',
+    nearbyRateLimit: 'Too many requests. Try again in a minute.',
     gouvUnavailable: 'geo.api.gouv.fr unavailable',
   },
 };

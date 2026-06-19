@@ -32,11 +32,6 @@
 
 	handle {
 		basic_auth {
-			Mamacc $2b$14$yTDyM/6o5PbshbBPOlFlX.u/RmmZMlnZSnO4EFVD2l8/TQJSRB6KW
-			testeur2 $2a$14$U509RsKDgOcsMB6egwa8a.Nvd/Y850C3HcQnbcTpoPzCDTmosO.EK
-			testeur3 $2a$14$PpD9dQRGiaAum4a8jw6mzOChiyPRo/Ji0pZX2nkm4BmyMRS9XP2bq
-			testeur4 $2a$14$oCOzHBJou/d5K/kJoYIgFeCNMr68GAK0ipaF01t1inL1lf7HsdmXK
-			testeur5 $2a$14$iOFxMXMoqduORGq50ZNhM.VjKd0IJaoUUvgjNh6e9kbi54vM3GmZ6
 			dev $2a$14$IM2Sq/jnRm3Abh/U4HlU.eWKa3gysDDEQyLGrRL4lt2KbRyqzdJcq
 		}
 		reverse_proxy localhost:3000
