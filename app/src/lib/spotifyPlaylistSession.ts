@@ -106,6 +106,7 @@ export function translateSalonCreateError(
   platform: 'spotify' | 'youtube'
 ): string {
   if (error instanceof ApiRequestError) {
+    if (error.code === 'SALON_ALREADY_ACTIVE') return t('salon.create.errorAlreadyActive');
     if (error.code === 'spotify_premium_required') return t('salon.create.spotifyPremiumRequired');
     if (error.code === 'HOST_PLATFORM_NOT_LINKED') {
       return platform === 'spotify'

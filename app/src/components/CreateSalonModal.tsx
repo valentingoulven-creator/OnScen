@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { api } from '../lib/api';
+import { api, ApiRequestError } from '../lib/api';
 import { toSpotifyPlaylistRef, translateSalonCreateError, translateSpotifySessionCode } from '../lib/spotifyPlaylistSession';
 import { isPlatformConnected } from '../lib/platformConnect';
 import { generateSalonId } from '../lib/salonDeepLink';
@@ -275,7 +275,18 @@ export function CreateSalonModal({
         });
       }
     } catch (e) {
-      showToast(resolveCreateError(e));
+      const message = resolveCreateError(e);
+      if (e instanceof ApiRequestError && e.code === 'SALON_ALREADY_ACTIVE') {
+        // Salon already exists — surface error in parent then close, or show toast inline
+        if (onDeferredError) {
+          onDeferredError(message);
+          onClose();
+        } else {
+          showToast(message);
+        }
+      } else {
+        showToast(message);
+      }
     } finally {
       setSaving(false);
     }

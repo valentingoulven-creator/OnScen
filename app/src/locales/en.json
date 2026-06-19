@@ -207,6 +207,7 @@
     },
     "create": {
       "spotifyPremiumRequired": "Spotify Premium required to host a salon",
+      "errorAlreadyActive": "You already have an active salon. Close it before creating a new one.",
       "errorFailed": "Could not create the salon",
       "errorPlatformNotLinkedSpotify": "Connect Spotify before creating a Spotify salon.",
       "errorPlatformNotLinkedYoutube": "Connect YouTube before creating a YouTube salon."

@@ -1137,6 +1137,16 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
     return;
   }
 
+  const existingSalon = [...db.salons.values()].find((s) => s.hostId === userId);
+  if (existingSalon) {
+    res.status(409).json({
+      error: 'Vous avez déjà un salon actif',
+      code: 'SALON_ALREADY_ACTIVE',
+      salonId: existingSalon.id,
+    });
+    return;
+  }
+
   const {
     id: requestedSalonId,
     title,

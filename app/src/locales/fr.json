@@ -207,6 +207,7 @@
     },
     "create": {
       "spotifyPremiumRequired": "Spotify Premium requis pour héberger un salon",
+      "errorAlreadyActive": "Vous avez déjà un salon actif. Fermez-le avant d'en créer un nouveau.",
       "errorFailed": "Impossible de créer le salon",
       "errorPlatformNotLinkedSpotify": "Connectez Spotify avant de créer un salon Spotify.",
       "errorPlatformNotLinkedYoutube": "Connectez YouTube avant de créer un salon YouTube."
