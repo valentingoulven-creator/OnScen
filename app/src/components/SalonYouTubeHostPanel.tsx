@@ -188,6 +188,7 @@ export function SalonYouTubeHostPanel({
             token={token}
             currentTitle={playback.title}
             currentArtist={playback.artist}
+            onTrackChanged={onTrackChanged}
             onQueueChanged={onQueueChanged}
             embedded
           />

@@ -1152,6 +1152,7 @@ export function SalonPlaybackPanel({
               token={token}
               currentTitle={playbackState.title}
               currentArtist={playbackState.artist}
+              onTrackChanged={applyPlaybackState}
               onQueueChanged={onQueueChange}
             />
           </div>

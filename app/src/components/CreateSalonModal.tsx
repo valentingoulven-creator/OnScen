@@ -2,45 +2,38 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { api, ApiRequestError } from '../lib/api';
-import { toSpotifyPlaylistRef, translateSalonCreateError, translateSpotifySessionCode } from '../lib/spotifyPlaylistSession';
+import { translateSalonCreateError } from '../lib/spotifyPlaylistSession';
 import { isMusicPlatformLinkedForSalon } from '../lib/platformConnect';
 import { generateSalonId } from '../lib/salonDeepLink';
 import { copyShareLink, getSalonShareUrl } from '../lib/shareLink';
-import { PLATFORM_STATUS_REFRESH_EVENT } from '../lib/platformStatusEvents';
 import {
   buildPlaylistLoadBody,
   deferSalonPlaylistLoad,
   resolveSalonCreatePosition,
-  shouldVerifySpotifyPlaylistOnCreate,
 } from '../lib/salonCreateFlow';
-import { normalizeSpotifyJamUrl, SPOTIFY_JAM_FIELD_HELP } from '../lib/spotifyJam';
 import { PlatformConnectCard } from './PlatformConnectCard';
-import { CreateSalonSpotifyPlaylistPicker } from './CreateSalonSpotifyPlaylistPicker';
 import {
   CreateSalonPlaylistPicker,
   type CreateSalonPlaylistSelection,
 } from './CreateSalonPlaylistPicker';
 import { SalonInviteLinkCopy } from './SalonInviteLinkCopy';
 import { SalonInviteUserSearch } from './SalonInviteUserSearch';
-import { PoweredBySpotify } from './PoweredBySpotify';
 import type { DmContact, Salon, User } from '../types';
 
 export interface CreateSalonForm {
   title: string;
-  platform: 'spotify' | 'youtube';
+  platform: 'youtube';
   accessMode: 'public' | 'invite';
   allowedUserIds: string[];
   trackTitle: string;
   artist: string;
   youtubePlaylist: CreateSalonPlaylistSelection | null;
-  spotifyPlaylist: CreateSalonPlaylistSelection | null;
   allowQueue: boolean;
-  spotifyJamUrl: string;
 }
 
 /** Préremplissage (ex. salon privé depuis un fil DM). */
 export type CreateSalonModalPreset = {
-  platform?: 'spotify' | 'youtube';
+  platform?: 'youtube';
   accessMode?: 'public' | 'invite';
   allowedUserIds?: string[];
   title?: string;
@@ -81,10 +74,6 @@ export function CreateSalonModal({
   const [contacts, setContacts] = useState<DmContact[]>([]);
   const [saving, setSaving] = useState(false);
   const [draftSalonId, setDraftSalonId] = useState(() => generateSalonId());
-  const [spotifyPremium, setSpotifyPremium] = useState<boolean | undefined>();
-  const [spotifySessionValid, setSpotifySessionValid] = useState<boolean | undefined>();
-  const [spotifySessionCode, setSpotifySessionCode] = useState<string | undefined>();
-  const [platformStatusLoading, setPlatformStatusLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const openedAtRef = useRef(0);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -96,13 +85,10 @@ export function CreateSalonModal({
     trackTitle: 'Ma session Soundy',
     artist: username,
     youtubePlaylist: null,
-    spotifyPlaylist: null,
     allowQueue: true,
-    spotifyJamUrl: '',
   });
 
   const skipAccessStep = preset?.accessMode === 'invite';
-  const lockedPlatform = preset?.platform;
 
   const showToast = (message: string) => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -116,53 +102,18 @@ export function CreateSalonModal({
     setStep(1);
     setToast(null);
     setDraftSalonId(generateSalonId());
-    setSpotifyPremium(undefined);
-    setSpotifySessionValid(undefined);
-    setSpotifySessionCode(undefined);
     setForm({
       title: preset?.title?.trim() || `Salon de ${username}`,
-      platform: preset?.platform ?? 'youtube',
+      platform: 'youtube',
       accessMode: preset?.accessMode ?? 'public',
       allowedUserIds: preset?.allowedUserIds ?? [],
       trackTitle: 'Ma session Soundy',
       artist: username,
       youtubePlaylist: null,
-      spotifyPlaylist: null,
       allowQueue: true,
-      spotifyJamUrl: '',
     });
     api.getDmContacts(token).then((r) => setContacts(r.contacts));
   }, [open, token, username, preset]);
-
-  const refreshPlatformStatus = (fresh = false) => {
-    if (!token) return;
-    setPlatformStatusLoading(true);
-    api
-      .getPlatformStatus(token, fresh ? { fresh: true } : undefined)
-      .then((s) => {
-        setSpotifyPremium(s.spotifyPremium);
-        setSpotifySessionValid(s.spotifySessionValid);
-        setSpotifySessionCode(s.spotifySessionCode);
-      })
-      .catch(() => {
-        setSpotifyPremium(undefined);
-        setSpotifySessionValid(undefined);
-        setSpotifySessionCode(undefined);
-      })
-      .finally(() => setPlatformStatusLoading(false));
-  };
-
-  useEffect(() => {
-    if (!open || !token) return;
-    refreshPlatformStatus();
-  }, [open, token, connectedPlatforms]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onRefresh = () => refreshPlatformStatus(true);
-    window.addEventListener(PLATFORM_STATUS_REFRESH_EVENT, onRefresh);
-    return () => window.removeEventListener(PLATFORM_STATUS_REFRESH_EVENT, onRefresh);
-  }, [open, token]);
 
   useEffect(
     () => () => {
@@ -188,90 +139,42 @@ export function CreateSalonModal({
 
   const resolvePosition = () => resolveSalonCreatePosition(fallbackLatitude, fallbackLongitude);
 
-  const platformLinked = isMusicPlatformLinkedForSalon(form.platform, connectedPlatforms, platformLinks);
-  const spotifyLinked = isMusicPlatformLinkedForSalon('spotify', connectedPlatforms, platformLinks);
-  const spotifyHostBlocked =
-    spotifyLinked &&
-    (spotifySessionCode === 'spotify_premium_required' || spotifyPremium === false);
-  const spotifySessionBlocked =
-    spotifyLinked &&
-    spotifySessionValid === false &&
-    (spotifySessionCode === 'spotify_token_expired' ||
-      spotifySessionCode === 'spotify_scope_missing' ||
-      spotifySessionCode === 'spotify_not_connected');
-  const platformHostReady =
-    platformLinked && !(form.platform === 'spotify' && (spotifyHostBlocked || spotifySessionBlocked));
-  /** Step 1 only — wait for Spotify status before advancing (MODIF 465/467). */
-  const canAdvanceFromStep1 =
-    platformHostReady &&
-    !(form.platform === 'spotify' && spotifyLinked && platformStatusLoading);
-  /** Step 3 — do not re-block on background Spotify refresh (fix MODIF 475). */
-  const canSubmitSalon = platformHostReady;
+  const platformLinked = isMusicPlatformLinkedForSalon('youtube', connectedPlatforms, platformLinks);
+  const canAdvanceFromStep1 = platformLinked;
+  const canSubmitSalon = platformLinked;
 
   const submitBlockedReason = !canSubmitSalon
-    ? !platformLinked
-      ? form.platform === 'spotify'
-        ? t('salon.create.errorPlatformNotLinkedSpotify')
-        : t('salon.create.errorPlatformNotLinkedYoutube')
-      : form.platform === 'spotify' && spotifyHostBlocked
-        ? t('salon.create.spotifyPremiumRequired')
-        : form.platform === 'spotify' && spotifySessionBlocked
-          ? translateSpotifySessionCode(t, spotifySessionCode) ??
-            t('salon.spotifySearch.errorTokenExpired')
-          : null
+    ? t('salon.create.errorPlatformNotLinkedYoutube')
     : null;
 
-  const resolveCreateError = (e: unknown): string => translateSalonCreateError(t, e, form.platform);
+  const resolveCreateError = (e: unknown): string => translateSalonCreateError(t, e, 'youtube');
 
   const submit = async () => {
     if (!canSubmitSalon) {
       showToast(submitBlockedReason ?? t('salon.create.errorFailed'));
       return;
     }
-    const jamTrimmed = form.platform === 'spotify' ? form.spotifyJamUrl.trim() : '';
-    if (jamTrimmed && !normalizeSpotifyJamUrl(jamTrimmed)) {
-      showToast('Lien Spotify Jam invalide (spotify.link ou socialsession attendu)');
-      return;
-    }
     setSaving(true);
     try {
-      const useYoutubePlaylist = form.platform === 'youtube' && form.youtubePlaylist;
-      const useSpotifyPlaylist = form.platform === 'spotify' && form.spotifyPlaylist;
-      const usePlaylist = useYoutubePlaylist || useSpotifyPlaylist;
-      const spotifyVerifyRef =
-        useSpotifyPlaylist && form.spotifyPlaylist && shouldVerifySpotifyPlaylistOnCreate(form.spotifyPlaylist)
-          ? toSpotifyPlaylistRef(form.spotifyPlaylist)
-          : null;
+      const useYoutubePlaylist = Boolean(form.youtubePlaylist);
 
-      const [{ latitude, longitude }] = await Promise.all([
-        resolvePosition(),
-        spotifyVerifyRef
-          ? api.verifySpotifyPlaylistAccess(token, spotifyVerifyRef)
-          : Promise.resolve(),
-      ]);
-
-      const jamNormalized = jamTrimmed ? normalizeSpotifyJamUrl(jamTrimmed) : undefined;
+      const { latitude, longitude } = await resolvePosition();
 
       const { salon } = await api.createSalon(token, {
         ...(form.accessMode === 'invite' ? { id: draftSalonId } : {}),
         title: form.title.trim(),
-        platform: form.platform,
+        platform: 'youtube',
         latitude,
         longitude,
         accessMode: form.accessMode,
         allowedUserIds: form.accessMode === 'invite' ? form.allowedUserIds : [],
-        trackTitle: useYoutubePlaylist
-          ? form.youtubePlaylist!.title
-          : useSpotifyPlaylist
-            ? form.spotifyPlaylist!.title
-            : form.trackTitle.trim(),
+        trackTitle: useYoutubePlaylist ? form.youtubePlaylist!.title : form.trackTitle.trim(),
         artist: form.artist.trim(),
         allowQueue: form.allowQueue,
-        ...(jamNormalized ? { spotifyJamUrl: jamNormalized } : {}),
       });
 
-      const playlistLoadBody = usePlaylist
-        ? buildPlaylistLoadBody(form.platform, form.youtubePlaylist, form.spotifyPlaylist)
+      const playlistLoadBody = useYoutubePlaylist
+        ? buildPlaylistLoadBody('youtube', form.youtubePlaylist, null)
         : null;
 
       if (form.accessMode === 'invite') {
@@ -291,7 +194,6 @@ export function CreateSalonModal({
     } catch (e) {
       const message = resolveCreateError(e);
       if (e instanceof ApiRequestError && e.code === 'SALON_ALREADY_ACTIVE') {
-        // Salon already exists — surface error in parent then close, or show toast inline
         if (onDeferredError) {
           onDeferredError(message);
           onClose();
@@ -349,109 +251,34 @@ export function CreateSalonModal({
 
           {step === 1 && (
             <>
-              <p className="text-sm text-gray-400">
-                {lockedPlatform
-                  ? `Salon ${lockedPlatform === 'spotify' ? 'Spotify' : 'YouTube'} privé`
-                  : "Choisissez l'application liée à votre salon"}
-              </p>
+              <p className="text-sm text-gray-400">Salon YouTube — lecture synchronisée dans Soundy</p>
               <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-2.5 text-[11px] text-purple-100 leading-snug">
                 <strong className="text-white">YouTube</strong> — {t('salon.playbackMode.youtubeSync')}{' '}
                 <strong className="text-white">{t('salon.playbackMode.youtubeSyncEmphasis')}</strong>{' '}
                 {t('salon.playbackMode.youtubeSyncSuffix')}
-                <br />
-                <strong className="text-white">Spotify</strong> — {t('salon.playbackMode.spotifyChrono')}
               </div>
-              {lockedPlatform ? (
-                <div
-                  className={`p-4 rounded-2xl border text-left ${
-                    lockedPlatform === 'spotify'
-                      ? spotifyHostBlocked
-                        ? 'border-gray-500/50 bg-gray-500/5 opacity-50 cursor-not-allowed'
-                        : 'border-green-500 bg-green-500/10'
-                      : 'border-red-500 bg-red-500/10'
-                  }`}
-                  title={
-                    lockedPlatform === 'spotify' && spotifyHostBlocked
-                      ? t('salon.create.spotifyPremiumRequired')
-                      : undefined
-                  }
-                >
-                  <span className="text-2xl block mb-2">{lockedPlatform === 'spotify' ? '🎧' : '▶️'}</span>
-                  <span className="font-bold text-white capitalize">{lockedPlatform}</span>
-                  <p className="text-[10px] text-gray-500 mt-1">
-                    {lockedPlatform === 'spotify' && spotifyHostBlocked
-                      ? t('salon.create.spotifyPremiumRequired')
-                      : lockedPlatform === 'spotify'
-                        ? t('salon.playbackMode.spotifyChrono')
-                        : 'Lecture vidéo YouTube'}
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  {(['youtube', 'spotify'] as const).map((p) => {
-                    const isSpotifyBlocked = p === 'spotify' && spotifyHostBlocked;
-                    return (
-                    <button
-                      key={p}
-                      type="button"
-                      disabled={isSpotifyBlocked}
-                      title={isSpotifyBlocked ? t('salon.create.spotifyPremiumRequired') : undefined}
-                      onClick={() => {
-                        if (isSpotifyBlocked) return;
-                        setForm((f) => ({
-                          ...f,
-                          platform: p,
-                          youtubePlaylist: null,
-                          spotifyPlaylist: null,
-                          spotifyJamUrl: '',
-                        }));
-                      }}
-                      className={`p-4 rounded-2xl border text-left transition ${
-                        isSpotifyBlocked
-                          ? 'border-gray-500/50 bg-gray-500/5 opacity-50 cursor-not-allowed'
-                          : form.platform === p
-                          ? p === 'spotify'
-                            ? 'border-green-500 bg-green-500/10'
-                            : 'border-red-500 bg-red-500/10'
-                          : 'border-[#2d2d3d] bg-[#1a1a26]'
-                      }`}
-                    >
-                      <span className="text-2xl block mb-2">{p === 'spotify' ? '🎧' : '▶️'}</span>
-                      <span className="font-bold text-white capitalize">{p}</span>
-                      <p className="text-[10px] text-gray-500 mt-1">
-                        {isSpotifyBlocked
-                          ? t('salon.create.spotifyPremiumRequired')
-                          : p === 'spotify'
-                            ? t('salon.playbackMode.spotifyChrono')
-                            : 'Lecture vidéo YouTube'}
-                      </p>
-                    </button>
-                    );
-                  })}
-                </div>
-              )}
+              <div className="p-4 rounded-2xl border border-red-500 bg-red-500/10 text-left">
+                <span className="text-2xl block mb-2">▶️</span>
+                <span className="font-bold text-white">YouTube</span>
+                <p className="text-[10px] text-gray-500 mt-1">Lecture vidéo YouTube synchronisée</p>
+              </div>
               {!platformLinked && (
                 <div className="space-y-2">
                   <p className="text-xs text-amber-400/90">
-                    Liez votre compte {form.platform === 'spotify' ? 'Spotify' : 'YouTube'} pour héberger ce salon.
+                    Liez votre compte YouTube pour héberger ce salon.
                   </p>
                   <PlatformConnectCard
                     token={token}
-                    platform={form.platform}
+                    platform="youtube"
                     connectedPlatforms={connectedPlatforms}
                     platformLinks={platformLinks}
                     onUserUpdated={onUserUpdated}
                   />
                 </div>
               )}
-              {platformLinked && form.platform === 'spotify' && spotifyHostBlocked && (
-                <p className="text-[10px] text-red-400/90 leading-snug">
-                  {t('salon.create.spotifyPremiumRequired')}
-                </p>
-              )}
-              {platformLinked && !(form.platform === 'spotify' && spotifyHostBlocked) && (
+              {platformLinked && (
                 <p className="text-[10px] text-green-400/80">
-                  ✓ Compte {form.platform} connecté — vous pouvez héberger ce salon.
+                  ✓ Compte YouTube connecté — vous pouvez héberger ce salon.
                 </p>
               )}
               <label className="block">
@@ -472,46 +299,13 @@ export function CreateSalonModal({
                   className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
                 />
               </label>
-              {form.platform === 'spotify'
-                ? platformLinked && (
-                    <>
-                      <CreateSalonSpotifyPlaylistPicker
-                        token={token}
-                        value={form.spotifyPlaylist}
-                        onChange={(spotifyPlaylist) => setForm((f) => ({ ...f, spotifyPlaylist }))}
-                      />
-                      <label className="block">
-                        <span className="text-xs text-gray-400">Lien Spotify Jam</span>
-                        <p className="text-[10px] text-gray-500 mt-0.5 leading-snug">{SPOTIFY_JAM_FIELD_HELP}</p>
-                        <input
-                          value={form.spotifyJamUrl}
-                          onChange={(e) => setForm((f) => ({ ...f, spotifyJamUrl: e.target.value }))}
-                          onBlur={() => {
-                            const normalized = normalizeSpotifyJamUrl(form.spotifyJamUrl);
-                            if (normalized && normalized !== form.spotifyJamUrl) {
-                              setForm((f) => ({ ...f, spotifyJamUrl: normalized }));
-                            }
-                          }}
-                          placeholder="https://spotify.link/…"
-                          className={`mt-1 w-full bg-[#1a1a26] border rounded-xl px-3 py-2 text-sm text-white ${
-                            form.spotifyJamUrl.trim() && !normalizeSpotifyJamUrl(form.spotifyJamUrl)
-                              ? 'border-red-500/50'
-                              : 'border-[#2d2d3d]'
-                          }`}
-                        />
-                        {form.spotifyJamUrl.trim() && normalizeSpotifyJamUrl(form.spotifyJamUrl) && (
-                          <p className="text-[10px] text-green-400/90 mt-1">✓ Lien Jam valide</p>
-                        )}
-                      </label>
-                    </>
-                  )
-                : platformLinked && (
-                    <CreateSalonPlaylistPicker
-                      token={token}
-                      value={form.youtubePlaylist}
-                      onChange={(youtubePlaylist) => setForm((f) => ({ ...f, youtubePlaylist }))}
-                    />
-                  )}
+              {platformLinked && (
+                <CreateSalonPlaylistPicker
+                  token={token}
+                  value={form.youtubePlaylist}
+                  onChange={(youtubePlaylist) => setForm((f) => ({ ...f, youtubePlaylist }))}
+                />
+              )}
             </>
           )}
 
@@ -597,32 +391,18 @@ export function CreateSalonModal({
               <div className="bg-[#1a1a26] rounded-xl p-3 text-xs text-gray-500 space-y-1">
                 <p>
                   <span className="text-purple-400">Playlist :</span>{' '}
-                  {form.platform === 'youtube' && form.youtubePlaylist
-                    ? form.youtubePlaylist.title
-                    : form.platform === 'spotify' && form.spotifyPlaylist
-                      ? form.spotifyPlaylist.title
-                      : 'Aucune (optionnel)'}
+                  {form.youtubePlaylist ? form.youtubePlaylist.title : 'Aucune (optionnel)'}
                 </p>
                 <p>
                   <span className="text-purple-400">Session :</span> {form.trackTitle} — {form.artist}
                 </p>
                 <p>
-                  <span className="text-purple-400">Plateforme :</span> {form.platform}
+                  <span className="text-purple-400">Plateforme :</span> YouTube
                 </p>
                 <p>
                   <span className="text-purple-400">Accès :</span>{' '}
                   {form.accessMode === 'public' ? 'Public' : `Invitation (${form.allowedUserIds.length} invité(s))`}
                 </p>
-                {form.platform === 'spotify' && (
-                  <p>
-                    <span className="text-purple-400">Jam :</span>{' '}
-                    {form.spotifyJamUrl.trim()
-                      ? normalizeSpotifyJamUrl(form.spotifyJamUrl)
-                        ? 'Lien fourni'
-                        : 'Lien invalide'
-                      : 'Non renseigné'}
-                  </p>
-                )}
               </div>
             </>
           )}
@@ -664,11 +444,6 @@ export function CreateSalonModal({
         </div>
         {step === 3 && submitBlockedReason && (
           <p className="px-4 pb-3 text-[11px] text-red-400/90 leading-snug">{submitBlockedReason}</p>
-        )}
-        {form.platform === 'spotify' && (
-          <div className="px-4 pb-2">
-            <PoweredBySpotify />
-          </div>
         )}
         {toast && (
           <div

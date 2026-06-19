@@ -7,7 +7,7 @@ import { useMatchCreated } from '../lib/useMatchCreated';
 import { UserAvatarOnline } from '../components/UserAvatarOnline';
 import { UsernameDisplay } from '../components/UsernameDisplay';
 import { LinkifiedText } from '../components/LinkifiedText';
-import type { Conversation, DirectMessage, DmContact, DmRequest, GroupMessage, MessageGroupDetail } from '../types';
+import type { Conversation, DirectMessage, DmContact, DmRequest, GroupMessage, MessageGroupDetail, MusicMatch } from '../types';
 
 function isGroupConversation(c: Conversation): boolean {
   return c.kind === 'group' && Boolean(c.groupId);
@@ -53,6 +53,45 @@ function persistMatchesOnlyFilter(value: boolean) {
   } catch {
     /* ignore */
   }
+}
+
+function matchToConversation(m: MusicMatch): Conversation {
+  return {
+    kind: 'dm',
+    userId: m.otherUser.id,
+    username: m.otherUser.username,
+    usernameColor: m.otherUser.usernameColor,
+    usernameWaveFrom: m.otherUser.usernameWaveFrom,
+    usernameWaveTo: m.otherUser.usernameWaveTo,
+    avatarUrl: m.otherUser.avatarUrl,
+    lastMessage: 'Nouveau match musical ♥',
+    lastTimestamp: m.createdAt,
+    isFromMe: false,
+    isMatch: true,
+  };
+}
+
+function buildDisplayedConversations(
+  conversations: Conversation[],
+  matches: MusicMatch[],
+  showMatchesOnly: boolean,
+  isMatchedUser: (userId: string, explicit?: boolean) => boolean
+): Conversation[] {
+  if (!showMatchesOnly) return conversations;
+
+  const matchedConversations = conversations.filter(
+    (c) => !isGroupConversation(c) && isMatchedUser(c.userId ?? '', c.isMatch)
+  );
+  const conversationUserIds = new Set(
+    conversations.filter((c) => c.userId).map((c) => c.userId!)
+  );
+  const matchOnlyRows = matches
+    .filter((m) => !conversationUserIds.has(m.otherUser.id))
+    .map(matchToConversation);
+
+  return [...matchedConversations, ...matchOnlyRows].sort(
+    (a, b) => b.lastTimestamp - a.lastTimestamp
+  );
 }
 
 function normalizeForSearch(value: string): string {
@@ -187,7 +226,7 @@ export function DmPage({
   const [contactSearch, setContactSearch] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [openMsgMenuId, setOpenMsgMenuId] = useState<string | null>(null);
-  const [matchedUserIds, setMatchedUserIds] = useState<Set<string>>(new Set());
+  const [matches, setMatches] = useState<MusicMatch[]>([]);
   const [showMatchesOnly, setShowMatchesOnly] = useState(readMatchesOnlyFilter);
   const [pendingRequests, setPendingRequests] = useState<DmRequest[]>([]);
   const [acceptingRequest, setAcceptingRequest] = useState<string | null>(null);
@@ -218,19 +257,19 @@ export function DmPage({
     (id: string) => (liveIds.has(id) ? liveViewersByUserId[id] : undefined),
     [liveIds, liveViewersByUserId]
   );
+  const matchedUserIds = useMemo(
+    () => new Set(matches.map((m) => m.otherUser.id)),
+    [matches]
+  );
+
   const isMatchedUser = useCallback(
     (userId: string, explicit?: boolean) => explicit === true || matchedUserIds.has(userId),
     [matchedUserIds]
   );
 
   const displayedConversations = useMemo(
-    () =>
-      showMatchesOnly
-        ? conversations.filter(
-            (c) => isGroupConversation(c) || isMatchedUser(c.userId ?? '', c.isMatch)
-          )
-        : conversations,
-    [conversations, showMatchesOnly, isMatchedUser]
+    () => buildDisplayedConversations(conversations, matches, showMatchesOnly, isMatchedUser),
+    [conversations, matches, showMatchesOnly, isMatchedUser]
   );
 
   const toggleMatchesOnly = () => {
@@ -245,7 +284,7 @@ export function DmPage({
 
   const loadMatches = useCallback(() => {
     if (!token) return;
-    api.getMatches(token).then((r) => setMatchedUserIds(new Set(r.matches.map((m) => m.otherUser.id))));
+    api.getMatches(token).then((r) => setMatches(r.matches));
   }, [token]);
 
   const loadPresence = () => {
@@ -474,6 +513,7 @@ export function DmPage({
     if (!openPeerId || !token || loading) return;
     const convo = conversations.find((c) => c.userId === openPeerId);
     const contact = contacts.find((c) => c.id === openPeerId);
+    const match = matches.find((m) => m.otherUser.id === openPeerId);
     const peer: DmContact = convo?.userId
       ? {
           id: convo.userId,
@@ -484,11 +524,23 @@ export function DmPage({
           avatarUrl: convo.avatarUrl,
           isOnline: isOnline(convo.userId),
         }
-      : contact ?? {
-          id: openPeerId,
-          username: 'Utilisateur',
-          isOnline: isOnline(openPeerId),
-        };
+      : contact
+        ? { ...contact, isOnline: isOnline(contact.id) }
+        : match
+          ? {
+              id: match.otherUser.id,
+              username: match.otherUser.username,
+              usernameColor: match.otherUser.usernameColor,
+              usernameWaveFrom: match.otherUser.usernameWaveFrom,
+              usernameWaveTo: match.otherUser.usernameWaveTo,
+              avatarUrl: match.otherUser.avatarUrl,
+              isOnline: isOnline(match.otherUser.id),
+            }
+          : {
+              id: openPeerId,
+              username: 'Utilisateur',
+              isOnline: isOnline(openPeerId),
+            };
     void openThread(peer);
     onOpenPeerConsumed?.();
   }, [openPeerId, token, loading]);
@@ -1681,7 +1733,7 @@ export function DmPage({
         </div>
       )}
 
-      {!loading && conversations.length === 0 && pendingRequests.length === 0 && (
+      {!loading && !showMatchesOnly && conversations.length === 0 && pendingRequests.length === 0 && (
         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
           <p className="text-gray-400 text-sm mb-4">Aucune conversation pour le moment</p>
           <button
@@ -1697,10 +1749,13 @@ export function DmPage({
         </div>
       )}
 
-      {!loading && conversations.length > 0 && showMatchesOnly && displayedConversations.length === 0 && (
-        <p className="shrink-0 px-4 py-3 text-center text-sm text-gray-500 border-b border-[#1e1e2f]/50">
-          Aucune conversation avec un match pour le moment
-        </p>
+      {!loading && showMatchesOnly && displayedConversations.length === 0 && (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+          <p className="text-gray-400 text-sm mb-4">Aucun match pour le moment</p>
+          <p className="text-gray-500 text-xs max-w-xs">
+            Envoyez un cœur musical à quelqu&apos;un qui vous en envoie un pour créer un match.
+          </p>
+        </div>
       )}
 
       <ul className="flex-1 min-h-0 overflow-y-auto">

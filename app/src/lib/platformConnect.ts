@@ -40,12 +40,12 @@ export function isProfilePlatformConnected(
   return isRealMusicPlatformConnected(platform, platformLinks);
 }
 
-/** OAuth réel Spotify ou YouTube — requis pour héberger un salon avec sa bibliothèque. */
+/** OAuth réel YouTube — requis pour héberger un salon avec sa bibliothèque. */
 export function hasRealMusicPlatformLink(
   links: Array<PlatformLinkSummary> | undefined
 ): boolean {
   return (links ?? []).some(
-    (l) => l.isRealOAuth && (l.platform === 'spotify' || l.platform === 'youtube')
+    (l) => l.isRealOAuth && l.platform === 'youtube'
   );
 }
 
@@ -73,14 +73,15 @@ export function canAccessYoutubeSalon(
   return isMusicPlatformLinkedForSalon('youtube', connectedPlatforms, platformLinks);
 }
 
-/** Auditeur : compte plateforme lié requis pour rejoindre un salon YouTube/Spotify. L'hôte n'est pas bloqué. */
+/** Auditeur : compte YouTube lié requis pour rejoindre un salon YouTube. L'hôte n'est pas bloqué. */
 export function canJoinSalonAsParticipant(
   salonPlatform: MusicPlatform,
   connectedPlatforms: MusicPlatform[] | undefined,
   isHost?: boolean
 ): boolean {
   if (isHost) return true;
-  if (salonPlatform !== 'youtube' && salonPlatform !== 'spotify') return true;
+  if (salonPlatform === 'spotify') return true;
+  if (salonPlatform !== 'youtube') return true;
   return isPlatformConnected(connectedPlatforms, salonPlatform);
 }
 

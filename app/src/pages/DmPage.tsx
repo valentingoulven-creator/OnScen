@@ -20,6 +20,7 @@ import type {
   DmRequest,
   GroupMessage,
   MessageGroupDetail,
+  MusicMatch,
   Salon,
   UserSearchHit,
 } from '../types';
@@ -68,6 +69,45 @@ function persistMatchesOnlyFilter(value: boolean) {
   } catch {
     /* ignore */
   }
+}
+
+function matchToConversation(m: MusicMatch): Conversation {
+  return {
+    kind: 'dm',
+    userId: m.otherUser.id,
+    username: m.otherUser.username,
+    usernameColor: m.otherUser.usernameColor,
+    usernameWaveFrom: m.otherUser.usernameWaveFrom,
+    usernameWaveTo: m.otherUser.usernameWaveTo,
+    avatarUrl: m.otherUser.avatarUrl,
+    lastMessage: 'Nouveau match musical ♥',
+    lastTimestamp: m.createdAt,
+    isFromMe: false,
+    isMatch: true,
+  };
+}
+
+function buildDisplayedConversations(
+  conversations: Conversation[],
+  matches: MusicMatch[],
+  showMatchesOnly: boolean,
+  isMatchedUser: (userId: string, explicit?: boolean) => boolean
+): Conversation[] {
+  if (!showMatchesOnly) return conversations;
+
+  const matchedConversations = conversations.filter(
+    (c) => !isGroupConversation(c) && isMatchedUser(c.userId ?? '', c.isMatch)
+  );
+  const conversationUserIds = new Set(
+    conversations.filter((c) => c.userId).map((c) => c.userId!)
+  );
+  const matchOnlyRows = matches
+    .filter((m) => !conversationUserIds.has(m.otherUser.id))
+    .map(matchToConversation);
+
+  return [...matchedConversations, ...matchOnlyRows].sort(
+    (a, b) => b.lastTimestamp - a.lastTimestamp
+  );
 }
 
 function normalizeForSearch(value: string): string {
@@ -220,7 +260,7 @@ export function DmPage({
   const [blockedSearch, setBlockedSearch] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [openMsgMenuId, setOpenMsgMenuId] = useState<string | null>(null);
-  const [matchedUserIds, setMatchedUserIds] = useState<Set<string>>(new Set());
+  const [matches, setMatches] = useState<MusicMatch[]>([]);
   const [showMatchesOnly, setShowMatchesOnly] = useState(readMatchesOnlyFilter);
   const [pendingRequests, setPendingRequests] = useState<DmRequest[]>([]);
   const [acceptingRequest, setAcceptingRequest] = useState<string | null>(null);
@@ -284,19 +324,19 @@ export function DmPage({
     (id: string) => (liveIds.has(id) ? liveViewersByUserId[id] : undefined),
     [liveIds, liveViewersByUserId]
   );
+  const matchedUserIds = useMemo(
+    () => new Set(matches.map((m) => m.otherUser.id)),
+    [matches]
+  );
+
   const isMatchedUser = useCallback(
     (userId: string, explicit?: boolean) => explicit === true || matchedUserIds.has(userId),
     [matchedUserIds]
   );
 
   const displayedConversations = useMemo(
-    () =>
-      showMatchesOnly
-        ? conversations.filter(
-            (c) => isGroupConversation(c) || isMatchedUser(c.userId ?? '', c.isMatch)
-          )
-        : conversations,
-    [conversations, showMatchesOnly, isMatchedUser]
+    () => buildDisplayedConversations(conversations, matches, showMatchesOnly, isMatchedUser),
+    [conversations, matches, showMatchesOnly, isMatchedUser]
   );
 
   const toggleMatchesOnly = () => {
@@ -352,7 +392,7 @@ export function DmPage({
 
   const loadMatches = useCallback(() => {
     if (!token) return;
-    api.getMatches(token).then((r) => setMatchedUserIds(new Set(r.matches.map((m) => m.otherUser.id))));
+    api.getMatches(token).then((r) => setMatches(r.matches));
   }, [token]);
 
   const loadPresence = () => {
@@ -583,6 +623,7 @@ export function DmPage({
     if (!openPeerId || !token || loading) return;
     const convo = conversations.find((c) => c.userId === openPeerId);
     const contact = contacts.find((c) => c.id === openPeerId);
+    const match = matches.find((m) => m.otherUser.id === openPeerId);
     const peer: DmContact = convo?.userId
       ? {
           id: convo.userId,
@@ -593,11 +634,23 @@ export function DmPage({
           avatarUrl: convo.avatarUrl,
           isOnline: isOnline(convo.userId),
         }
-      : contact ?? {
-          id: openPeerId,
-          username: 'Utilisateur',
-          isOnline: isOnline(openPeerId),
-        };
+      : contact
+        ? { ...contact, isOnline: isOnline(contact.id) }
+        : match
+          ? {
+              id: match.otherUser.id,
+              username: match.otherUser.username,
+              usernameColor: match.otherUser.usernameColor,
+              usernameWaveFrom: match.otherUser.usernameWaveFrom,
+              usernameWaveTo: match.otherUser.usernameWaveTo,
+              avatarUrl: match.otherUser.avatarUrl,
+              isOnline: isOnline(match.otherUser.id),
+            }
+          : {
+              id: openPeerId,
+              username: 'Utilisateur',
+              isOnline: isOnline(openPeerId),
+            };
     void openThread(peer);
     onOpenPeerConsumed?.();
   }, [openPeerId, token, loading]);
@@ -913,8 +966,7 @@ export function DmPage({
     }
   };
 
-  const openPrivateSalonModal = useCallback(
-    (platform: 'youtube' | 'spotify') => {
+  const openPrivateSalonModal = useCallback(() => {
       if (!user) return;
       const allowedUserIds =
         view === 'groupThread' && activeGroup
@@ -925,7 +977,7 @@ export function DmPage({
       const peerLabel =
         view === 'groupThread' && activeGroup ? activeGroup.name : (activeUser?.username ?? '');
       setCreateSalonPreset({
-        platform,
+        platform: 'youtube',
         accessMode: 'invite',
         allowedUserIds,
         title: peerLabel ? t('dm.privateSalonTitle', { name: peerLabel }) : undefined,
@@ -944,7 +996,7 @@ export function DmPage({
       if (!token) return;
       try {
         const shareUrl = await getSalonShareUrl(salon.id);
-        const platformLabel = salon.platform === 'youtube' ? 'YouTube' : 'Spotify';
+        const platformLabel = 'YouTube';
         const text = t('dm.privateSalonInviteMessage', { platform: platformLabel, url: shareUrl });
         if (view === 'thread' && activeUser) {
           const { message, status } = await api.sendDm(token, activeUser.id, text);
@@ -1034,7 +1086,7 @@ export function DmPage({
 
   useEffect(() => {
     const q = newDmQuery.trim();
-    if (!token || !showNewDmSheet || q.length < 1) {
+    if (!token || !showNewDmSheet || q.length < 2) {
       setNewDmResults([]);
       setNewDmSearching(false);
       return;
@@ -1043,15 +1095,16 @@ export function DmPage({
     const timer = window.setTimeout(() => {
       api
         .searchUsers(token, q)
-        .then((r) => setNewDmResults(r.users.slice(0, 8)))
+        .then((r) => setNewDmResults(r.users.slice(0, 12)))
         .catch(() => setNewDmResults([]))
         .finally(() => setNewDmSearching(false));
-    }, 300);
+    }, 280);
     return () => window.clearTimeout(timer);
   }, [newDmQuery, token, showNewDmSheet]);
 
   useEffect(() => {
     if (showNewDmSheet) {
+      loadContacts();
       window.setTimeout(() => newDmInputRef.current?.focus(), 100);
     } else {
       setNewDmQuery('');
@@ -1059,6 +1112,113 @@ export function DmPage({
       setNewDmSearching(false);
     }
   }, [showNewDmSheet]);
+
+  type NewDmPick = {
+    id: string;
+    username: string;
+    avatarUrl?: string;
+    usernameColor?: string;
+    usernameWaveFrom?: string;
+    usernameWaveTo?: string;
+  };
+
+  const newDmQueryTrimmed = newDmQuery.trim();
+  const newDmIsSearchMode = newDmQueryTrimmed.length >= 2;
+
+  const newDmRecentUsers = useMemo(() => {
+    if (!showNewDmSheet) return [] as NewDmPick[];
+    const seen = new Set<string>();
+    const list: NewDmPick[] = [];
+    const sorted = [...conversations]
+      .filter((c) => !isGroupConversation(c) && c.userId)
+      .sort((a, b) => b.lastTimestamp - a.lastTimestamp);
+    for (const c of sorted) {
+      if (!c.userId || seen.has(c.userId)) continue;
+      const user: NewDmPick = {
+        id: c.userId,
+        username: c.username,
+        avatarUrl: c.avatarUrl,
+        usernameColor: c.usernameColor,
+        usernameWaveFrom: c.usernameWaveFrom,
+        usernameWaveTo: c.usernameWaveTo,
+      };
+      if (!contactMatchesQuery(user as DmContact, newDmQueryTrimmed)) continue;
+      seen.add(c.userId);
+      list.push(user);
+      if (list.length >= 8) break;
+    }
+    return list;
+  }, [showNewDmSheet, conversations, newDmQueryTrimmed]);
+
+  const newDmMatchUsers = useMemo(() => {
+    if (!showNewDmSheet) return [] as NewDmPick[];
+    const seen = new Set(newDmRecentUsers.map((u) => u.id));
+    return matches
+      .filter((m) => !seen.has(m.otherUser.id))
+      .map((m) => ({
+        id: m.otherUser.id,
+        username: m.otherUser.username,
+        avatarUrl: m.otherUser.avatarUrl,
+        usernameColor: m.otherUser.usernameColor,
+        usernameWaveFrom: m.otherUser.usernameWaveFrom,
+        usernameWaveTo: m.otherUser.usernameWaveTo,
+      }))
+      .filter((u) => contactMatchesQuery(u as DmContact, newDmQueryTrimmed))
+      .slice(0, 8);
+  }, [showNewDmSheet, matches, newDmRecentUsers, newDmQueryTrimmed]);
+
+  const newDmContactUsers = useMemo(() => {
+    if (!showNewDmSheet) return [] as NewDmPick[];
+    const seen = new Set([
+      ...newDmRecentUsers.map((u) => u.id),
+      ...newDmMatchUsers.map((u) => u.id),
+    ]);
+    return contacts
+      .filter((c) => !seen.has(c.id))
+      .filter((c) => contactMatchesQuery(c, newDmQueryTrimmed))
+      .map((c) => ({
+        id: c.id,
+        username: c.username,
+        avatarUrl: c.avatarUrl,
+        usernameColor: c.usernameColor,
+        usernameWaveFrom: c.usernameWaveFrom,
+        usernameWaveTo: c.usernameWaveTo,
+      }));
+  }, [showNewDmSheet, contacts, newDmRecentUsers, newDmMatchUsers, newDmQueryTrimmed]);
+
+  const newDmSearchUsers = useMemo(() => {
+    if (!showNewDmSheet || !newDmIsSearchMode) return [] as NewDmPick[];
+    const seen = new Set([
+      ...newDmRecentUsers.map((u) => u.id),
+      ...newDmMatchUsers.map((u) => u.id),
+      ...newDmContactUsers.map((u) => u.id),
+    ]);
+    return newDmResults
+      .filter((hit) => !seen.has(hit.id))
+      .map((hit) => ({
+        id: hit.id,
+        username: hit.username,
+        avatarUrl: hit.avatarUrl,
+        usernameColor: hit.usernameColor,
+        usernameWaveFrom: hit.usernameWaveFrom,
+        usernameWaveTo: hit.usernameWaveTo,
+      }));
+  }, [
+    showNewDmSheet,
+    newDmIsSearchMode,
+    newDmResults,
+    newDmRecentUsers,
+    newDmMatchUsers,
+    newDmContactUsers,
+  ]);
+
+  const openNewDmPick = useCallback(
+    (user: NewDmPick) => {
+      setShowNewDmSheet(false);
+      void openThread({ ...user, isOnline: isOnline(user.id) });
+    },
+    [isOnline]
+  );
 
   const addMemberToGroup = async (userId: string, username: string) => {
     if (!token || !activeGroup || addingMemberId) return;
@@ -1688,17 +1848,10 @@ export function DmPage({
                 <>
                   <button
                     type="button"
-                    onClick={() => openPrivateSalonModal('youtube')}
+                    onClick={() => openPrivateSalonModal()}
                     className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#2d2d3d]"
                   >
                     {t('dm.createPrivateYoutubeSalon')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openPrivateSalonModal('spotify')}
-                    className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#2d2d3d] border-t border-[#2d2d3d]"
-                  >
-                    {t('dm.createPrivateSpotifySalon')}
                   </button>
                 </>
               )}
@@ -2200,17 +2353,10 @@ export function DmPage({
             <div className="absolute right-3 top-full mt-1 z-30 bg-[#1a1a26] border border-[#2d2d3d] rounded-xl shadow-xl overflow-hidden min-w-[12rem]">
               <button
                 type="button"
-                onClick={() => openPrivateSalonModal('youtube')}
+                onClick={() => openPrivateSalonModal()}
                 className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#2d2d3d]"
               >
                 {t('dm.createPrivateYoutubeSalon')}
-              </button>
-              <button
-                type="button"
-                onClick={() => openPrivateSalonModal('spotify')}
-                className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#2d2d3d] border-t border-[#2d2d3d]"
-              >
-                {t('dm.createPrivateSpotifySalon')}
               </button>
               <button
                 type="button"
@@ -2376,10 +2522,7 @@ export function DmPage({
           </button>
           <button
             type="button"
-            onClick={() => {
-              loadContacts();
-              setView('new');
-            }}
+            onClick={() => setShowNewDmSheet(true)}
             className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-full text-sm font-bold text-white"
           >
             + Nouveau
@@ -2442,7 +2585,7 @@ export function DmPage({
         </div>
       )}
 
-      {!loading && conversations.length === 0 && pendingRequests.length === 0 && (
+      {!loading && !showMatchesOnly && conversations.length === 0 && pendingRequests.length === 0 && (
         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
           <p className="text-gray-400 text-sm mb-4">Aucune conversation pour le moment</p>
           <button
@@ -2455,10 +2598,13 @@ export function DmPage({
         </div>
       )}
 
-      {!loading && conversations.length > 0 && showMatchesOnly && displayedConversations.length === 0 && (
-        <p className="shrink-0 px-4 py-3 text-center text-sm text-gray-500 border-b border-[#1e1e2f]/50">
-          Aucune conversation avec un match pour le moment
-        </p>
+      {!loading && showMatchesOnly && displayedConversations.length === 0 && (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+          <p className="text-gray-400 text-sm mb-4">Aucun match pour le moment</p>
+          <p className="text-gray-500 text-xs max-w-xs">
+            Envoyez un cœur musical à quelqu&apos;un qui vous en envoie un pour créer un match.
+          </p>
+        </div>
       )}
 
       <ul className="flex-1 min-h-0 overflow-y-auto">
@@ -2631,11 +2777,16 @@ export function DmPage({
       {showNewDmSheet && (
         <div
           className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="new-dm-sheet-title"
           onClick={(e) => { if (e.target === e.currentTarget) setShowNewDmSheet(false); }}
         >
-          <div className="bg-[#12121a] rounded-t-2xl border-t border-[#2d2d3d] max-h-[85vh] flex flex-col shadow-2xl">
+          <div className="bg-[#12121a] rounded-t-2xl border-t border-[#2d2d3d] max-h-[85vh] flex flex-col shadow-2xl mb-[var(--tab-nav-total-h,0px)]">
             <div className="shrink-0 flex items-center justify-between p-4 border-b border-[#1e1e2f]">
-              <h2 className="font-bold text-white text-base">Nouvelle conversation</h2>
+              <h2 id="new-dm-sheet-title" className="font-bold text-white text-base">
+                Nouvelle conversation
+              </h2>
               <button
                 type="button"
                 onClick={() => setShowNewDmSheet(false)}
@@ -2664,7 +2815,7 @@ export function DmPage({
                   type="search"
                   value={newDmQuery}
                   onChange={(e) => setNewDmQuery(e.target.value)}
-                  placeholder="Rechercher un utilisateur…"
+                  placeholder="Rechercher par nom d'utilisateur…"
                   autoComplete="off"
                   className="flex-1 bg-transparent text-sm text-white placeholder:text-gray-500 outline-none [&::-webkit-search-cancel-button]:hidden"
                 />
@@ -2680,58 +2831,168 @@ export function DmPage({
                 )}
               </div>
             </div>
-            <ul className="flex-1 min-h-0 overflow-y-auto p-2">
-              {newDmSearching && (
-                <li className="text-center text-gray-500 text-sm py-6">Recherche…</li>
+            <div className="flex-1 min-h-0 overflow-y-auto p-2">
+              {newDmSearching && newDmIsSearchMode && (
+                <p className="text-center text-gray-500 text-sm py-6">Recherche…</p>
               )}
-              {!newDmSearching && newDmQuery.trim().length === 0 && (
-                <li className="text-center text-gray-500 text-sm py-6">Tapez un nom pour rechercher</li>
+
+              {!newDmSearching && newDmRecentUsers.length > 0 && (
+                <div className="mb-2">
+                  <p className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                    Conversations récentes
+                  </p>
+                  <ul>
+                    {newDmRecentUsers.map((user) => (
+                      <li key={`recent-${user.id}`}>
+                        <button
+                          type="button"
+                          onClick={() => openNewDmPick(user)}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#1a1a26] text-left transition-colors"
+                        >
+                          <UserAvatarOnline
+                            userId={user.id}
+                            avatarUrl={user.avatarUrl}
+                            size="md"
+                            isOnline={isOnline(user.id)}
+                            isLive={isLive(user.id)}
+                            liveViewersCount={liveViewersFor(user.id)}
+                          />
+                          <UsernameDisplay
+                            username={user.username}
+                            usernameColor={user.usernameColor}
+                            usernameWaveFrom={user.usernameWaveFrom}
+                            usernameWaveTo={user.usernameWaveTo}
+                            className="font-semibold text-white text-sm truncate flex-1"
+                          />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
-              {!newDmSearching && newDmQuery.trim().length > 0 && newDmResults.length === 0 && (
-                <li className="text-center text-gray-500 text-sm py-6">
-                  Aucun utilisateur trouvé pour « {newDmQuery.trim()} »
-                </li>
+
+              {!newDmSearching && newDmMatchUsers.length > 0 && (
+                <div className="mb-2">
+                  <p className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-pink-400/80">
+                    Matchs musicaux
+                  </p>
+                  <ul>
+                    {newDmMatchUsers.map((user) => (
+                      <li key={`match-${user.id}`}>
+                        <button
+                          type="button"
+                          onClick={() => openNewDmPick(user)}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#1a1a26] text-left transition-colors"
+                        >
+                          <UserAvatarOnline
+                            userId={user.id}
+                            avatarUrl={user.avatarUrl}
+                            size="md"
+                            isOnline={isOnline(user.id)}
+                            isLive={isLive(user.id)}
+                            liveViewersCount={liveViewersFor(user.id)}
+                          />
+                          <span className="font-semibold text-white text-sm truncate flex-1 inline-flex items-center gap-1 min-w-0">
+                            <UsernameDisplay
+                              username={user.username}
+                              usernameColor={user.usernameColor}
+                              usernameWaveFrom={user.usernameWaveFrom}
+                              usernameWaveTo={user.usernameWaveTo}
+                              className="truncate"
+                            />
+                            <span className="shrink-0 text-pink-400 text-sm" aria-hidden>
+                              ♥
+                            </span>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
+
+              {!newDmSearching && newDmContactUsers.length > 0 && (
+                <div className="mb-2">
+                  <p className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                    Abonnements mutuels
+                  </p>
+                  <ul>
+                    {newDmContactUsers.map((user) => (
+                      <li key={`contact-${user.id}`}>
+                        <button
+                          type="button"
+                          onClick={() => openNewDmPick(user)}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#1a1a26] text-left transition-colors"
+                        >
+                          <UserAvatarOnline
+                            userId={user.id}
+                            avatarUrl={user.avatarUrl}
+                            size="md"
+                            isOnline={isOnline(user.id)}
+                            isLive={isLive(user.id)}
+                            liveViewersCount={liveViewersFor(user.id)}
+                          />
+                          <UsernameDisplay
+                            username={user.username}
+                            usernameColor={user.usernameColor}
+                            usernameWaveFrom={user.usernameWaveFrom}
+                            usernameWaveTo={user.usernameWaveTo}
+                            className="font-semibold text-white text-sm truncate flex-1"
+                          />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {!newDmSearching && newDmIsSearchMode && newDmSearchUsers.length > 0 && (
+                <div className="mb-2">
+                  <p className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                    Résultats
+                  </p>
+                  <ul>
+                    {newDmSearchUsers.map((user) => (
+                      <li key={`search-${user.id}`}>
+                        <button
+                          type="button"
+                          onClick={() => openNewDmPick(user)}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#1a1a26] text-left transition-colors"
+                        >
+                          <UserAvatarOnline
+                            userId={user.id}
+                            avatarUrl={user.avatarUrl}
+                            size="md"
+                            isOnline={isOnline(user.id)}
+                            isLive={isLive(user.id)}
+                            liveViewersCount={liveViewersFor(user.id)}
+                          />
+                          <UsernameDisplay
+                            username={user.username}
+                            usernameColor={user.usernameColor}
+                            usernameWaveFrom={user.usernameWaveFrom}
+                            usernameWaveTo={user.usernameWaveTo}
+                            className="font-semibold text-white text-sm truncate flex-1"
+                          />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {!newDmSearching &&
-                newDmResults.map((hit) => (
-                  <li key={hit.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowNewDmSheet(false);
-                        void openThread({
-                          id: hit.id,
-                          username: hit.username,
-                          usernameColor: hit.usernameColor,
-                          usernameWaveFrom: hit.usernameWaveFrom,
-                          usernameWaveTo: hit.usernameWaveTo,
-                          avatarUrl: hit.avatarUrl,
-                          isOnline: false,
-                        });
-                      }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#1a1a26] text-left transition-colors"
-                    >
-                      <UserAvatarOnline
-                        userId={hit.id}
-                        avatarUrl={hit.avatarUrl}
-                        size="md"
-                        isOnline={false}
-                        isLive={hit.isLive ?? false}
-                        liveViewersCount={hit.liveViewersCount}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-white text-sm truncate">{hit.username}</p>
-                        {hit.city && (
-                          <p className="text-xs text-gray-400 truncate">{hit.city}</p>
-                        )}
-                      </div>
-                      {hit.isLive && (
-                        <span className="shrink-0 text-[10px] text-red-400 font-bold">En live</span>
-                      )}
-                    </button>
-                  </li>
-                ))}
-            </ul>
+                newDmRecentUsers.length === 0 &&
+                newDmMatchUsers.length === 0 &&
+                newDmContactUsers.length === 0 &&
+                (!newDmIsSearchMode || newDmSearchUsers.length === 0) && (
+                  <p className="text-center text-gray-500 text-sm py-6 px-4">
+                    {newDmIsSearchMode
+                      ? `Aucun utilisateur trouvé pour « ${newDmQueryTrimmed} »`
+                      : 'Recherchez un utilisateur pour démarrer une conversation'}
+                  </p>
+                )}
+            </div>
           </div>
         </div>
       )}

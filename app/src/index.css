@@ -385,12 +385,18 @@ main.ms-app-main {
   bottom: 0;
 }
 
-/* Shell classique : réserve la hauteur de la barre d'onglets fixe en bas (sauf fil DM — voir .dm-compose-bar) */
-.ms-app-shell--bottom-tabs:not([data-design-quick-wins="1"]) main.ms-app-main:not(:has(.dm-thread-root)) {
+/* Shell classique : réserve la hauteur de la barre d'onglets fixe en bas (sauf fil DM — voir .dm-compose-bar).
+   Flag sur html (:root), pas sur .ms-app-shell — sinon la règle s'applique toujours et recrée la bande #0b0b0f. */
+:root:not([data-design-quick-wins="1"]) .ms-app-shell--bottom-tabs main.ms-app-main:not(:has(.dm-thread-root)):not(:has(.ms-map-page)) {
   padding-bottom: var(--tab-nav-total-h);
 }
 
-.ms-app-shell--bottom-tabs:not([data-design-quick-wins="1"]) main.ms-app-main:has(.dm-thread-root) {
+:root:not([data-design-quick-wins="1"]) .ms-app-shell--bottom-tabs main.ms-app-main:has(.dm-thread-root) {
+  padding-bottom: 0;
+}
+
+/* Carte edge-to-edge — pas de réserve noire sous le dock flottant (quick wins ou classique) */
+.ms-app-shell--bottom-tabs main.ms-app-main:has(.ms-map-page) {
   padding-bottom: 0;
 }
 

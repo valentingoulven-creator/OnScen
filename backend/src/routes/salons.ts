@@ -1210,26 +1210,16 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
     return;
   }
 
-  const plat: MusicPlatform = platform === 'youtube' ? 'youtube' : 'spotify';
-  if (!requireHostPlatform(user, plat, res)) return;
-
-  if (plat === 'spotify') {
-    const session = await probeSpotifyHostSession(user);
-    if (!session.ok) {
-      if (session.code === 'spotify_premium_required') {
-        res.status(403).json({
-          error: spotifyPremiumRequiredMessage(),
-          code: 'spotify_premium_required',
-          platform: 'spotify',
-        });
-        return;
-      }
-      if (respondSpotifySessionAuthFailure(res, session.code)) {
-        db.users.set(userId, user);
-        return;
-      }
-    }
+  if (platform === 'spotify') {
+    res.status(400).json({
+      error: 'Les salons Spotify ne sont plus disponibles. Utilisez YouTube.',
+      code: 'SPOTIFY_SALON_DEPRECATED',
+    });
+    return;
   }
+
+  const plat: MusicPlatform = 'youtube';
+  if (!requireHostPlatform(user, plat, res)) return;
 
   let resolvedTrackId = trackId || 'demo';
   let externalUrl: string | undefined;
@@ -1251,16 +1241,6 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
   const guestIds = Array.isArray(allowedUserIds)
     ? allowedUserIds.map(String).filter((id: string) => id !== userId && db.users.has(id))
     : [];
-
-  let normalizedJamUrl: string | undefined;
-  if (plat === 'spotify' && spotifyJamUrl && typeof spotifyJamUrl === 'string') {
-    const normalized = normalizeSpotifyJamUrl(spotifyJamUrl);
-    if (!normalized) {
-      res.status(400).json({ error: 'Lien Jam Spotify invalide (spotify.link ou socialsession attendu)' });
-      return;
-    }
-    normalizedJamUrl = normalized;
-  }
 
   const salonId =
     typeof requestedSalonId === 'string' &&
@@ -1304,7 +1284,6 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
     allowedUserIds: [userId, ...guestIds],
     allowQueue: allowQueue ?? true,
     createdAt: Date.now(),
-    ...(normalizedJamUrl ? { spotifyJamUrl: normalizedJamUrl } : {}),
   };
 
   normalizeSalonAccess(salon);

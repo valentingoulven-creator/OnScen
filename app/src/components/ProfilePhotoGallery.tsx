@@ -451,7 +451,7 @@ export function ProfilePhotoGallery({
   );
 
   if (variant === 'bare') {
-    return <section className="max-w-sm mx-auto w-full">{grid}</section>;
+    return <section className="w-full overflow-hidden rounded-xl">{grid}</section>;
   }
 
   return (

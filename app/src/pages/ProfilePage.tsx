@@ -594,7 +594,7 @@ export function ProfilePage({
                   <p className="text-[10px] text-gray-500">
                     Obligatoire pour créer ou animer un salon sur la plateforme choisie.
                   </p>
-                  {(['spotify', 'youtube'] as const).map((p) => (
+                  {(['youtube'] as const).map((p) => (
                     <PlatformConnectCard
                       key={p}
                       token={token}
@@ -863,7 +863,7 @@ export function ProfilePage({
 
             <div className="space-y-2">
               <span className="text-xs text-gray-400">Comptes connectés</span>
-              {(['spotify', 'youtube'] as const).map((p) => (
+              {(['youtube'] as const).map((p) => (
                 <PlatformConnectCard
                   key={p}
                   token={token}

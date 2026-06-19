@@ -221,6 +221,9 @@ export interface MusicMatch {
   otherUser: {
     id: string;
     username: string;
+    usernameColor?: string;
+    usernameWaveFrom?: string;
+    usernameWaveTo?: string;
     avatarUrl?: string;
   };
 }

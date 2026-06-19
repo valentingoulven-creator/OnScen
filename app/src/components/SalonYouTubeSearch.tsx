@@ -26,11 +26,15 @@ function parseYoutubeVideoId(input: string): string | null {
   );
 }
 
+const actionBtnClass =
+  'text-[10px] font-bold px-1.5 py-0.5 rounded border shrink-0 disabled:opacity-50 transition';
+
 export function SalonYouTubeSearch({
   salonId,
   token,
   currentTitle,
   currentArtist,
+  onTrackChanged,
   onQueueChanged,
   submitMode = 'queue',
   embedded = false,
@@ -40,6 +44,7 @@ export function SalonYouTubeSearch({
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<YoutubeSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [playingId, setPlayingId] = useState<string | null>(null);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [infoToast, setInfoToast] = useState<string | null>(null);
@@ -106,6 +111,27 @@ export function SalonYouTubeSearch({
     trackLink: item.externalUrl,
   });
 
+  const isBusy = playingId !== null || addingId !== null;
+
+  const playResult = async (item: YoutubeSearchResult) => {
+    if (isProposeMode) {
+      window.open(item.externalUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    setPlayingId(item.videoId);
+    setError(null);
+    try {
+      const { playbackState } = await api.salonChangeTrack(token, salonId, trackBodyFromResult(item));
+      onTrackChanged?.(playbackState);
+      setInfoToast(t('salon.youtubeSearch.playSuccess'));
+      clearSearchUi();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('salon.youtubeSearch.changeError'));
+    } finally {
+      setPlayingId(null);
+    }
+  };
+
   const addResult = async (item: YoutubeSearchResult) => {
     setAddingId(item.videoId);
     setError(null);
@@ -140,7 +166,7 @@ export function SalonYouTubeSearch({
 
   const submitQuery = async () => {
     const q = query.trim();
-    if (!q || addingId) return;
+    if (!q || isBusy) return;
     if (results.length > 0) {
       await addResult(results[0]);
       return;
@@ -184,7 +210,8 @@ export function SalonYouTubeSearch({
     };
   }, [showDropdown, query, searching, results.length, error]);
 
-  const actionLabel = isProposeMode ? t('salon.youtubeSearch.propose') : t('salon.youtubeSearch.add');
+  const addLabel = isProposeMode ? t('salon.youtubeSearch.propose') : t('salon.youtubeSearch.add');
+  const playLabel = t('salon.youtubeSearch.play');
 
   return (
     <div ref={rootRef} className="relative space-y-2">
@@ -252,14 +279,8 @@ export function SalonYouTubeSearch({
               {!searching && results.length > 0 ? (
                 <ul className="max-h-52 overflow-y-auto py-1">
                   {results.map((item) => (
-                    <li key={item.videoId}>
-                      <button
-                        type="button"
-                        disabled={addingId !== null}
-                        onClick={() => addResult(item)}
-                        className="w-full flex items-center gap-2.5 px-2.5 py-2 hover:bg-[#1a1a26] text-left disabled:opacity-50 transition"
-                        role="option"
-                      >
+                    <li key={item.videoId} role="option" aria-selected={false}>
+                      <div className="flex items-center gap-2.5 px-2.5 py-2 hover:bg-[#1a1a26] transition">
                         <div className="relative shrink-0">
                           <img
                             src={item.thumbnailUrl}
@@ -274,10 +295,27 @@ export function SalonYouTubeSearch({
                           <span className="block text-xs text-white font-medium truncate">{item.title}</span>
                           <span className="block text-[10px] text-gray-500 truncate">{item.artist}</span>
                         </span>
-                        <span className="text-[10px] text-purple-300 font-bold shrink-0">
-                          {addingId === item.videoId ? '…' : actionLabel}
-                        </span>
-                      </button>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => void playResult(item)}
+                            className={`${actionBtnClass} border-white/20 text-white hover:bg-white/10`}
+                            aria-label={`${playLabel} — ${item.title}`}
+                          >
+                            {playingId === item.videoId ? '…' : playLabel}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => void addResult(item)}
+                            className={`${actionBtnClass} border-purple-500/40 text-purple-300 hover:bg-purple-500/10`}
+                            aria-label={`${addLabel} — ${item.title}`}
+                          >
+                            {addingId === item.videoId ? '…' : addLabel}
+                          </button>
+                        </div>
+                      </div>
                     </li>
                   ))}
                 </ul>

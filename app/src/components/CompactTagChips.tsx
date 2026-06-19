@@ -10,17 +10,21 @@ function CompactTagSection({
   label,
   tags,
   color,
+  align = 'center',
 }: {
   label: string;
   tags: string[];
   color: TagColor;
+  align?: 'center' | 'start';
 }) {
   if (!tags.length) return null;
 
   return (
-    <section className="text-center">
+    <section className={align === 'start' ? 'text-left' : 'text-center'}>
       <p className="text-xs uppercase text-gray-500 tracking-wide mb-1.5">{label}</p>
-      <div className="flex flex-wrap justify-center gap-1.5">
+      <div
+        className={`flex flex-wrap gap-1.5 ${align === 'start' ? 'justify-start' : 'justify-center'}`}
+      >
         {tags.map((t) => (
           <span
             key={`${color}-${t}`}
@@ -38,19 +42,21 @@ export function CompactTagChips({
   interests,
   genres,
   artists,
+  align = 'center',
 }: {
   interests: string[];
   genres: string[];
   artists: string[];
+  align?: 'center' | 'start';
 }) {
   const hasAny = interests.length > 0 || genres.length > 0 || artists.length > 0;
   if (!hasAny) return null;
 
   return (
     <div className="space-y-4">
-      <CompactTagSection label="Centres d'intérêt" tags={interests} color="cyan" />
-      <CompactTagSection label="Genres favoris" tags={genres} color="purple" />
-      <CompactTagSection label="Artistes" tags={artists} color="pink" />
+      <CompactTagSection label="Centres d'intérêt" tags={interests} color="cyan" align={align} />
+      <CompactTagSection label="Genres favoris" tags={genres} color="purple" align={align} />
+      <CompactTagSection label="Artistes" tags={artists} color="pink" align={align} />
     </div>
   );
 }

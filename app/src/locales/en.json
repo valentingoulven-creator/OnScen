@@ -182,6 +182,11 @@
       "spotifyAlignHint": "Open Spotify on the right track and align with the shared timer.",
       "spotifyCrossPlatformHint": "Spotify doesn't play in the browser — use YouTube to listen together."
     },
+    "spotifyDeprecated": {
+      "title": "Spotify salon unavailable",
+      "body": "Spotify salons are no longer offered on Soundy. Create a YouTube salon to listen together.",
+      "backToMap": "Back to map"
+    },
     "queue": {
       "title": "Queue",
       "empty": "No tracks waiting",
@@ -294,6 +299,7 @@
       "proposeError": "Could not send suggestion",
       "proposeHint": "Sent to the host PROPOSALS panel — no playback until they accept.",
       "play": "Play",
+      "playSuccess": "Now playing",
       "defaultTrackTitle": "YouTube video",
       "errorGeneric": "Search unavailable"
     }

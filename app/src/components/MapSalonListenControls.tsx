@@ -10,6 +10,7 @@ import {
 import { preferredParticipantPlatform } from '../lib/salonPlayback';
 import { useSalonPlaybackSync } from '../hooks/useSalonPlaybackSync';
 import { SalonYouTubePlayer } from './SalonYouTubePlayer';
+import { SpotifySalonDeprecatedNotice } from './SpotifySalonDeprecatedNotice';
 import type { PlaybackState, Salon } from '../types';
 
 interface MapSalonListenControlsProps {
@@ -70,6 +71,15 @@ export function MapSalonListenControls({
   const { t } = useTranslation();
   const { user, token } = useAuth();
   const isHost = Boolean(salon.isHost ?? (salon.hostId && salon.hostId === user?.id));
+
+  if (salon.platform === 'spotify') {
+    return (
+      <div className={className}>
+        <SpotifySalonDeprecatedNotice variant="compact" />
+      </div>
+    );
+  }
+
   const hostLinked = Boolean(
     isHost && isMusicPlatformLinkedForSalon(salon.platform, user?.connectedPlatforms, user?.platformLinks)
   );
@@ -152,7 +162,7 @@ export function MapSalonListenControls({
   if (!youtubeTrackId) {
     return (
       <p className={`text-[10px] text-[#6b6b8a] text-center py-1 ${className}`}>
-        Développez pour Spotify ou liez YouTube.
+        Liez YouTube pour écouter ce salon.
       </p>
     );
   }

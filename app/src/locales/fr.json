@@ -182,6 +182,11 @@
       "spotifyAlignHint": "Ouvrez Spotify au bon morceau et alignez-vous sur le chrono.",
       "spotifyCrossPlatformHint": "Spotify ne se lit pas dans le navigateur — utilisez YouTube pour écouter ensemble."
     },
+    "spotifyDeprecated": {
+      "title": "Salon Spotify indisponible",
+      "body": "Les salons Spotify ne sont plus proposés sur Soundy. Créez un salon YouTube pour écouter ensemble.",
+      "backToMap": "Retour à la carte"
+    },
     "queue": {
       "title": "File d'attente",
       "empty": "Aucun morceau en attente",
@@ -294,6 +299,7 @@
       "proposeError": "Impossible d'envoyer la proposition",
       "proposeHint": "Envoi au panneau PROPOSITIONS de l'hôte — pas de lecture tant qu'il n'accepte pas.",
       "play": "Lire",
+      "playSuccess": "Lecture lancée",
       "defaultTrackTitle": "Vidéo YouTube",
       "errorGeneric": "Recherche impossible"
     }

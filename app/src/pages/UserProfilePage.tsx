@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { UserProfileView } from '../components/UserProfileView';
 import { UserReelsSection } from '../components/UserReelsSection';
 import { UserLivesSection } from '../components/UserLivesSection';
 import { ReportContentButton } from '../components/ReportContentModal';
+import { ShareProfileLink } from '../components/ShareProfileLink';
 import { UsernameDisplay } from '../components/UsernameDisplay';
-import { getProfileShareUrl } from '../lib/shareLink';
 import type { NearbyPerson } from '../types';
 
 interface UserProfilePageProps {
@@ -42,7 +42,6 @@ export function UserProfilePage({
   const reelsTabLabel = isSelf ? t('profile.tabReels') : t('profile.tabReelsOther');
   const livesTabLabel = isSelf ? t('profile.tabLives') : t('profile.tabLivesOther');
   const displayName = preview?.username ?? 'Profil';
-  const [shareCopied, setShareCopied] = useState(false);
   const [salonFromApi, setSalonFromApi] = useState<{ salonId: string; salonTitle?: string } | null>(
     null
   );
@@ -54,17 +53,6 @@ export function UserProfilePage({
   useEffect(() => {
     setSalonFromApi(null);
     setProfileTab('profil');
-  }, [userId]);
-
-  const copyShareLink = useCallback(async () => {
-    try {
-      const url = await getProfileShareUrl(userId);
-      await navigator.clipboard.writeText(url);
-      setShareCopied(true);
-      window.setTimeout(() => setShareCopied(false), 2000);
-    } catch {
-      /* ignore */
-    }
   }, [userId]);
 
   useEffect(() => {
@@ -114,14 +102,7 @@ export function UserProfilePage({
               }}
             />
           )}
-          <button
-            type="button"
-            onClick={() => void copyShareLink()}
-            className="px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-purple-300 border border-purple-500/30 hover:bg-purple-900/20"
-            title="Copier le lien du profil"
-          >
-            {shareCopied ? 'Copié !' : 'Partager'}
-          </button>
+          <ShareProfileLink userId={userId} username={displayName} />
         </div>
       </header>
 

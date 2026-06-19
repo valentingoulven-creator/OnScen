@@ -8,19 +8,13 @@ import type { User } from '../types';
 const DISMISS_KEY = 'soundly_platform_prompt_dismissed';
 
 function hasStreamingPlatformConnected(user: User): boolean {
-  return (
-    isPlatformConnected(user.connectedPlatforms, 'spotify') ||
-    isPlatformConnected(user.connectedPlatforms, 'youtube')
-  );
+  return isPlatformConnected(user.connectedPlatforms, 'youtube');
 }
 
 function statusHasStreamingPlatform(
   connectedPlatforms: User['connectedPlatforms'] | undefined
 ): boolean {
-  return (
-    isPlatformConnected(connectedPlatforms, 'spotify') ||
-    isPlatformConnected(connectedPlatforms, 'youtube')
-  );
+  return isPlatformConnected(connectedPlatforms, 'youtube');
 }
 
 interface PlatformConnectPromptProps {
@@ -85,9 +79,9 @@ export function PlatformConnectPrompt({
     <div className="mx-3 mt-2 mb-1 rounded-xl border border-purple-500/30 bg-purple-500/10 p-3">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="text-sm font-bold text-white">Connecte Spotify et/ou YouTube</p>
+          <p className="text-sm font-bold text-white">Connecte YouTube</p>
           <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">
-            Au moins une plateforme est requise pour héberger des salons avec ta bibliothèque.
+            YouTube est requis pour héberger des salons avec ta bibliothèque.
           </p>
         </div>
         <button
@@ -119,7 +113,7 @@ export function PlatformConnectPrompt({
       </div>
       {expanded ? (
         <div className="mt-3 space-y-2">
-          {(['spotify', 'youtube'] as const).map((p) => (
+          {(['youtube'] as const).map((p) => (
             <PlatformConnectCard
               key={p}
               token={token}

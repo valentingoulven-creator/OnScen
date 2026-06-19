@@ -5,13 +5,11 @@ const SOUNDY_BASE_URL = 'https://getsoundy.com';
 
 import { useAuth } from '../context/AuthContext';
 import { canJoinSalonAsParticipant, isMusicPlatformLinkedForSalon } from '../lib/platformConnect';
+import { SpotifySalonDeprecatedNotice } from '../components/SpotifySalonDeprecatedNotice';
 import { SalonPlatformAccessGate } from '../components/SalonPlatformAccessGate';
 import { mergeRemotePlaybackState } from '../lib/salonPlayback';
 
 import { api, ApiRequestError } from '../lib/api';
-import { openSpotifyApp } from '../lib/spotifyDeepLink';
-import { openSpotifyJamLink } from '../lib/spotifyJam';
-
 import { getSocket } from '../lib/socket';
 
 import { ChatRoomProvider, ChatMessagesView, ChatInputBar, ChatModals } from '../components/ChatPanel';
@@ -23,10 +21,6 @@ import { RoomTheaterLayout } from '../components/RoomTheaterLayout';
 import { SalonPlaybackPanel } from '../components/SalonPlaybackPanel';
 import { SalonYouTubeHostPanel } from '../components/SalonYouTubeHostPanel';
 import { SalonYouTubeSearch } from '../components/SalonYouTubeSearch';
-import { SalonSpotifySearch } from '../components/SalonSpotifySearch';
-import { SalonSpotifyPlaylist } from '../components/SalonSpotifyPlaylist';
-import { SalonQueueSection } from '../components/SalonQueueSection';
-import { SalonProposalsSection } from '../components/SalonProposalsSection';
 import { SalonAccessModeToggle } from '../components/SalonAccessModeToggle';
 import { SalonInviteLinkCopy } from '../components/SalonInviteLinkCopy';
 import { SalonInviteSheet } from '../components/SalonInviteSheet';
@@ -114,9 +108,6 @@ export function SalonPage({
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const warningTimerRef = useRef<number | null>(null);
-  const spotifyQueueLaunchRef = useRef(false);
-  const spotifyQueueRetryRef = useRef<number | null>(null);
-  const spotifyJamAutoOpenRef = useRef(false);
 
   const loadSalon = useCallback(() => {
     if (!token) return;
@@ -239,48 +230,6 @@ export function SalonPage({
     };
 
   }, [salon?.id, user?.id, salon?.canJoin]);
-
-  useEffect(() => {
-    if (!salon || !user) return;
-    if (salon.platform !== 'spotify' || !salon.spotifyJamUrl?.trim()) return;
-    if (salon.canJoin === false) return;
-
-    const isHostUser = salon.isHost ?? salon.hostId === user.id;
-    if (isHostUser) return;
-
-    if (!canJoinSalonAsParticipant(salon.platform, user.connectedPlatforms, false)) return;
-
-    const storageKey = `soundy.jamOpened.${salon.id}`;
-    try {
-      if (sessionStorage.getItem(storageKey) === '1') return;
-    } catch {
-      /* sessionStorage unavailable */
-    }
-
-    if (spotifyJamAutoOpenRef.current) return;
-    spotifyJamAutoOpenRef.current = true;
-
-    try {
-      sessionStorage.setItem(storageKey, '1');
-    } catch {
-      /* ignore */
-    }
-
-    setToastMsg(t('salon.playbackMode.spotifyJamOpening', { defaultValue: 'Ouverture de Spotify Jam…' }));
-    openSpotifyJamLink(salon.spotifyJamUrl);
-  }, [
-    salon?.id,
-    salon?.platform,
-    salon?.spotifyJamUrl,
-    salon?.canJoin,
-    salon?.isHost,
-    salon?.hostId,
-    user?.id,
-    user?.connectedPlatforms,
-    t,
-  ]);
-
-
 
   const setAccessMode = async (mode: 'public' | 'invite') => {
 
@@ -498,6 +447,23 @@ export function SalonPage({
     );
   }
 
+  if (salon.platform === 'spotify') {
+    return (
+      <div className="flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f] overflow-hidden">
+        <header className="relative z-30 shrink-0 flex items-center gap-2 px-3 py-2.5 border-b border-[#1e1e2f]">
+          {minimizeSalonButton}
+          <p className="flex-1 min-w-0 text-sm text-gray-400 truncate">{salon.title}</p>
+        </header>
+        <div className="flex-1 flex items-center justify-center min-h-0 overflow-y-auto">
+          <SpotifySalonDeprecatedNotice
+            salonTitle={salon.title}
+            onBack={onMinimizeToMap ? () => onMinimizeToMap(salon.title) : onBack}
+          />
+        </div>
+      </div>
+    );
+  }
+
   const playback = salon.playbackState;
 
   const handleSkip = async () => {
@@ -511,30 +477,6 @@ export function SalonPage({
       if (e instanceof ApiRequestError && e.code === 'no_active_device') {
         if (e.playbackState) applyPlayback(e.playbackState);
         if (e.queue) applyQueue(e.queue);
-        if (salon.platform === 'spotify' && e.playbackState?.trackId) {
-          if (!spotifyQueueLaunchRef.current) {
-            spotifyQueueLaunchRef.current = true;
-            openSpotifyApp(e.playbackState.trackId);
-            window.setTimeout(() => {
-              spotifyQueueLaunchRef.current = false;
-            }, 5000);
-          }
-          if (spotifyQueueRetryRef.current !== null) {
-            window.clearTimeout(spotifyQueueRetryRef.current);
-          }
-          spotifyQueueRetryRef.current = window.setTimeout(() => {
-            spotifyQueueRetryRef.current = null;
-            void api
-              .salonChangeTrack(token, salon.id, {
-                trackId: e.playbackState!.trackId,
-                title: e.playbackState!.title,
-                artist: e.playbackState!.artist,
-                albumArtUrl: e.playbackState!.albumArtUrl,
-              })
-              .catch(() => {});
-          }, 3500);
-        }
-        setToastMsg(t('salon.playbackMode.spotifyLaunchingApp'));
         return;
       }
       setToastMsg(e instanceof Error ? e.message : 'Erreur');
@@ -552,30 +494,6 @@ export function SalonPage({
       if (e instanceof ApiRequestError && e.code === 'no_active_device') {
         if (e.playbackState) applyPlayback(e.playbackState);
         if (e.queue) applyQueue(e.queue);
-        if (salon.platform === 'spotify' && e.playbackState?.trackId) {
-          if (!spotifyQueueLaunchRef.current) {
-            spotifyQueueLaunchRef.current = true;
-            openSpotifyApp(e.playbackState.trackId);
-            window.setTimeout(() => {
-              spotifyQueueLaunchRef.current = false;
-            }, 5000);
-          }
-          if (spotifyQueueRetryRef.current !== null) {
-            window.clearTimeout(spotifyQueueRetryRef.current);
-          }
-          spotifyQueueRetryRef.current = window.setTimeout(() => {
-            spotifyQueueRetryRef.current = null;
-            void api
-              .salonChangeTrack(token, salon.id, {
-                trackId: e.playbackState!.trackId,
-                title: e.playbackState!.title,
-                artist: e.playbackState!.artist,
-                albumArtUrl: e.playbackState!.albumArtUrl,
-              })
-              .catch(() => {});
-          }, 3500);
-        }
-        setToastMsg(t('salon.playbackMode.spotifyLaunchingApp'));
         return;
       }
       setToastMsg(e instanceof Error ? e.message : 'Erreur');
@@ -606,7 +524,7 @@ export function SalonPage({
 
 
   const participantProposeSearch =
-    !canControlPlayback && salon.allowQueue && token && salon.platform !== 'spotify' ? (
+    !canControlPlayback && salon.allowQueue && token ? (
       <SalonYouTubeSearch
         salonId={salon.id}
         token={token}
@@ -617,7 +535,7 @@ export function SalonPage({
     ) : null;
 
   const youtubeParticipantDrawer =
-    !canControlPlayback && salon.platform === 'youtube' && token ? (
+    !canControlPlayback && token ? (
       <SalonYouTubeHostPanel
         salon={salon}
         token={token}
@@ -672,7 +590,7 @@ export function SalonPage({
   const stageFooter = (
     <>
       {/* YouTube: contrôles hôte */}
-      {isHost && hostCanControl && salon.platform === 'youtube' && token && (
+      {isHost && hostCanControl && token && (
         <SalonYouTubeHostPanel
           salon={salon}
           token={token}
@@ -696,7 +614,7 @@ export function SalonPage({
         />
       )}
 
-      {(isVipModerator || isDevModerator) && !isHost && salon.platform === 'youtube' && token && (
+      {(isVipModerator || isDevModerator) && !isHost && token && (
         <SalonYouTubeHostPanel
           salon={salon}
           token={token}
@@ -720,7 +638,7 @@ export function SalonPage({
         />
       )}
 
-      {isHost && !hostCanControl && salon.platform === 'youtube' && token && (
+      {isHost && !hostCanControl && token && (
         <div className="p-3">
           <p className="text-xs text-amber-400/90 text-center mb-3">
             Connectez YouTube pour contrôler la lecture de ce salon.
@@ -732,89 +650,9 @@ export function SalonPage({
       {/* YouTube: participants — même tiroir, lecture seule */}
       {youtubeParticipantDrawer}
 
-      {/* YouTube: participants proposent (hors salon YouTube — fallback) */}
-      {!canControlPlayback &&
-      salon.platform !== 'spotify' &&
-      salon.platform !== 'youtube' &&
-      participantProposeSearch ? (
+      {!canControlPlayback && participantProposeSearch ? (
         <div className="p-3">{participantProposeSearch}</div>
       ) : null}
-
-      {/* Spotify: contrôles hôte (recherche + playlist) */}
-      {isHost && hostCanControl && salon.platform === 'spotify' && token && (
-        <div className="p-3 space-y-3">
-          <SalonSpotifySearch
-            salonId={salon.id}
-            token={token}
-            currentTitle={playback.title}
-            currentArtist={playback.artist}
-            onQueueChanged={applyQueue}
-            showCurrentTrack={false}
-          />
-          <SalonSpotifyPlaylist
-            salonId={salon.id}
-            token={token}
-            onTrackChanged={applyPlayback}
-          />
-        </div>
-      )}
-
-      {/* Spotify: modérateur VIP — recherche uniquement */}
-      {(isVipModerator || isDevModerator) && !isHost && salon.platform === 'spotify' && token && (
-        <div className="p-3">
-          <SalonSpotifySearch
-            salonId={salon.id}
-            token={token}
-            currentTitle={playback.title}
-            currentArtist={playback.artist}
-            onQueueChanged={applyQueue}
-            showCurrentTrack={false}
-          />
-        </div>
-      )}
-
-      {/* Spotify: participants proposent via recherche */}
-      {!canControlPlayback && salon.platform === 'spotify' && salon.allowQueue && token && (
-        <div className="p-3">
-          <SalonSpotifySearch
-            salonId={salon.id}
-            token={token}
-            currentTitle={playback.title}
-            currentArtist={playback.artist}
-            showCurrentTrack={false}
-            submitMode="propose"
-          />
-        </div>
-      )}
-
-      {/* Spotify: file d'attente + propositions — visibles par tous */}
-      {salon.platform === 'spotify' && (
-        <div className="p-3">
-          <section className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4 space-y-4">
-            <SalonQueueSection
-              queue={queue}
-              isHost={canControlPlayback}
-              allowQueue={salon.allowQueue}
-              salonId={salon.id}
-              onSkip={canControlPlayback ? handleSkip : undefined}
-              onPlayItem={canControlPlayback ? handlePlayQueue : undefined}
-              onReorder={canControlPlayback ? handleReorderQueue : undefined}
-              skipping={skipping}
-              reordering={reordering}
-              showSpotifyLink
-            />
-            <SalonProposalsSection
-              isHost={canControlPlayback}
-              allowQueue={salon.allowQueue}
-              proposals={proposals}
-              loadingProposals={loadingProposals}
-              onAccept={canControlPlayback ? handleAccept : undefined}
-              onReject={canControlPlayback ? rejectProposal : undefined}
-              showSpotifyLink
-            />
-          </section>
-        </div>
-      )}
     </>
   );
 
@@ -903,54 +741,28 @@ export function SalonPage({
           onError={(e) => { e.currentTarget.style.display = 'none'; }}
         />
         <div className="flex-1 min-w-0">
-          {salon.platform === 'spotify' ? (
-            <p className="text-[11px] text-gray-400 truncate flex items-center gap-2 min-w-0">
-              <span className="truncate inline-flex items-center gap-1 min-w-0">
-                <UsernameDisplay
-                  username={salon.hostName}
-                  usernameColor={salon.hostUsernameColor}
-                  usernameWaveFrom={salon.hostUsernameWaveFrom}
-                  usernameWaveTo={salon.hostUsernameWaveTo}
-                  className="truncate"
-                />
-                <span className="shrink-0 text-[#6b6b8a]">· 🎧 Spotify</span>
-              </span>
-              <HostRatingBlock
-                hostId={salon.hostId}
-                hostName={salon.hostName}
-                isBot={salon.isBot}
-                salonId={salon.id}
-                inline
-                hideLabel
-                compact
+          <h1 className="font-bold text-white truncate text-sm">{salon.title}</h1>
+          <p className="text-[11px] text-gray-400 truncate flex items-center gap-2 min-w-0">
+            <span className="truncate inline-flex items-center gap-1 min-w-0">
+              <UsernameDisplay
+                username={salon.hostName}
+                usernameColor={salon.hostUsernameColor}
+                usernameWaveFrom={salon.hostUsernameWaveFrom}
+                usernameWaveTo={salon.hostUsernameWaveTo}
+                className="truncate"
               />
-            </p>
-          ) : (
-            <>
-              <h1 className="font-bold text-white truncate text-sm">{salon.title}</h1>
-              <p className="text-[11px] text-gray-400 truncate flex items-center gap-2 min-w-0">
-                <span className="truncate inline-flex items-center gap-1 min-w-0">
-                  <UsernameDisplay
-                    username={salon.hostName}
-                    usernameColor={salon.hostUsernameColor}
-                    usernameWaveFrom={salon.hostUsernameWaveFrom}
-                    usernameWaveTo={salon.hostUsernameWaveTo}
-                    className="truncate"
-                  />
-                  <span className="shrink-0 text-[#6b6b8a]">· ▶️ YouTube</span>
-                </span>
-                <HostRatingBlock
-                  hostId={salon.hostId}
-                  hostName={salon.hostName}
-                  isBot={salon.isBot}
-                  salonId={salon.id}
-                  inline
-                  hideLabel
-                  compact
-                />
-              </p>
-            </>
-          )}
+              <span className="shrink-0 text-[#6b6b8a]">· ▶️ YouTube</span>
+            </span>
+            <HostRatingBlock
+              hostId={salon.hostId}
+              hostName={salon.hostName}
+              isBot={salon.isBot}
+              salonId={salon.id}
+              inline
+              hideLabel
+              compact
+            />
+          </p>
           <p className="text-[10px] mt-0.5 text-[#6b6b8a] tabular-nums">
             {formatSalonAudienceLabel(salon.listenersCount, t)}
           </p>
@@ -961,16 +773,6 @@ export function SalonPage({
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          {salon.platform === 'spotify' && salon.spotifyJamUrl && (
-            <button
-              type="button"
-              onClick={() => openSpotifyJamLink(salon.spotifyJamUrl!)}
-              className="shrink-0 px-2.5 py-1.5 rounded-full text-[10px] font-semibold text-green-200 border border-green-500/50 hover:text-white hover:bg-green-600/20 hover:border-green-400 transition"
-              title="Ouvrir la session Jam Spotify"
-            >
-              Rejoindre le Jam
-            </button>
-          )}
           {isHost && hostCanControl && (
             <SalonAccessModeToggle
               accessMode={salon.accessMode ?? 'public'}
@@ -1034,11 +836,11 @@ export function SalonPage({
 
       <ChatRoomProvider {...chatProps}>
         <RoomTheaterLayout
-          variant={salon.platform === 'spotify' ? 'queue-chat' : 'theater'}
-          chatDock={salon.platform === 'youtube' ? 'left' : 'right'}
-          stageFooterMode={salon.platform === 'youtube' ? 'drawer' : 'scroll'}
-          allowFloatingChat={salon.platform !== 'youtube'}
-          sideDockMatchHero={salon.platform === 'youtube'}
+          variant="theater"
+          chatDock="left"
+          stageFooterMode="drawer"
+          allowFloatingChat={false}
+          sideDockMatchHero
           chatHidden={chatHidden}
           onToggleChat={() => {
             setChatHidden((h) => {
@@ -1077,9 +879,9 @@ export function SalonPage({
               userPlatformLinks={user?.platformLinks}
               onUserUpdated={setUserFromProfile}
               onPlaybackStateChange={applyPlayback}
-              theaterMode={salon.platform !== 'spotify'}
-              theaterSideDock={salon.platform === 'youtube'}
-              salonQueueLayout={salon.platform === 'spotify'}
+              theaterMode
+              theaterSideDock
+              salonQueueLayout={false}
               hostCanControl={hostCanControl}
               queue={queue}
               skipping={skipping}
