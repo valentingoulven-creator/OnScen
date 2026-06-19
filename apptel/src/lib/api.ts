@@ -546,6 +546,8 @@ export const api = {
     request<{
       messages: import('../types').DirectMessage[];
       otherUser: import('../types').DmContact;
+      isBlockedByMe?: boolean;
+      isBlockedByThem?: boolean;
     }>(`/dm/thread/${userId}`, {}, token),
 
   sendDm: (token: string, userId: string, content: string) =>
