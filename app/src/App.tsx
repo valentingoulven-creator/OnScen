@@ -47,6 +47,12 @@ import {
   writePersistedSalonSession,
   type ActiveSalonSession,
 } from './lib/activeSalonSession';
+import {
+  dispatchSalonBeforeMinimize,
+  getSalonVideoFloatActive,
+  setSalonVideoFloatActive,
+  subscribeSalonVideoFloat,
+} from './lib/salonVideoFloat';
 import { dispatchPlatformStatusRefresh } from './lib/platformStatusEvents';
 import {
   emitLeaveSalon,
@@ -132,6 +138,7 @@ export default function App() {
   const [activeSalonSession, setActiveSalonSession] = useState<ActiveSalonSession | null>(
     () => readPersistedSalonSession()
   );
+  const [salonVideoFloatActive, setSalonVideoFloatActiveState] = useState(getSalonVideoFloatActive);
   const activeSalonSessionRef = useRef<ActiveSalonSession | null>(activeSalonSession);
   activeSalonSessionRef.current = activeSalonSession;
   /** Salon actif sur la fiche carte (petit salon) — sync session, pas masquage barre retour. */
@@ -141,8 +148,11 @@ export default function App() {
     writePersistedSalonSession(activeSalonSession);
   }, [activeSalonSession]);
 
+  useEffect(() => subscribeSalonVideoFloat(() => setSalonVideoFloatActiveState(getSalonVideoFloatActive())), []);
+
   useEffect(() => {
     if (token !== null) return;
+    setSalonVideoFloatActive(false);
     clearPersistedSalonSession();
     setActiveSalonSession(null);
     setRestoreSalonOnMapId(null);
@@ -193,7 +203,6 @@ export default function App() {
     }
     if (viewRef.current.type !== 'home') return;
     setTab('map');
-    setRestoreSalonOnMapId(activeSalonSession.id);
   }, [user, token, activeSalonSession]);
 
   const handleMsdevRebuild = useCallback(async () => {
@@ -388,6 +397,7 @@ export default function App() {
   }, []);
 
   const closeActiveSalonSession = useCallback(() => {
+    setSalonVideoFloatActive(false);
     clearPersistedSalonSession();
     setActiveSalonSession(null);
     setRestoreSalonOnMapId(null);
@@ -441,8 +451,8 @@ export default function App() {
   }, []);
 
   const minimizeSalonToMap = useCallback((salonId: string, salonTitle?: string) => {
+    dispatchSalonBeforeMinimize();
     clearSalonUrlFromBar();
-    setRestoreSalonOnMapId(salonId);
     setActiveSalonSession((prev) => ({
       id: salonId,
       title: salonTitle ?? (prev?.id === salonId ? prev.title : undefined),
@@ -571,11 +581,6 @@ export default function App() {
     dismissToast();
   }, [dismissToast]);
 
-  const handleOwnSalonEnded = useCallback(() => {
-    handleSalonForcedEnd('ended');
-    void refreshUser();
-  }, [handleSalonForcedEnd, refreshUser]);
-
   const selectTab = useCallback((id: Tab) => {
     if (id !== 'reels') pauseMediaElements(document, { exceptLiveStage: true });
     setProfileOpen(false);
@@ -597,9 +602,6 @@ export default function App() {
       }
     } else {
       setView({ type: 'home' });
-      if (id === 'map' && persistedSalonId) {
-        setRestoreSalonOnMapId(persistedSalonId);
-      }
     }
     setTab(id);
   }, [minimizeSalonToMap]);
@@ -641,13 +643,9 @@ export default function App() {
   if (!user.onboardingCompleted) return <OnboardingPage onDone={completeOnboarding} />;
 
   const salonFullScreen = activeSalonSession?.viewMode === 'full';
-  /** Salon hébergé actif — bandeau carte (sessionStorage + /auth/me). */
-  const ownSalonSession =
-    activeSalonSession?.isHost && activeSalonSession
-      ? { id: activeSalonSession.id, title: activeSalonSession.title }
-      : user?.salonId
-        ? { id: user.salonId, title: user.salonTitle }
-        : null;
+  const showSalonPageShell = Boolean(
+    activeSalonSession && (salonFullScreen || salonVideoFloatActive)
+  );
   /** Onglets montés sous le grand salon (overlay) ou en navigation normale. */
   const tabContentBase = view.type === 'home' || salonFullScreen;
   const reelsActive = tab === 'reels' && !profileOpen && tabContentBase;
@@ -820,8 +818,14 @@ export default function App() {
                 onOpenProfile={() => setProfileOpen(true)}
               />
             )}
-            {salonFullScreen && activeSalonSession && (
-              <div className="ms-salon-fullscreen-overlay flex flex-col min-h-0 bg-[#0b0b0f]">
+            {showSalonPageShell && activeSalonSession && (
+              <div
+                className={
+                  salonFullScreen
+                    ? 'ms-salon-fullscreen-overlay flex flex-col min-h-0 bg-[#0b0b0f]'
+                    : 'salon-page-pip-host'
+                }
+              >
                 <Suspense fallback={<PageFallback />}>
                   <SalonPage
                     salonId={activeSalonSession.id}
@@ -921,12 +925,6 @@ export default function App() {
                     onMapSalonActive={handleMapSalonActive}
                     onLeaveSalon={leaveActiveSalonSession}
                     onSalonRestoreFailed={() => handleSalonForcedEnd('ended')}
-                    ownSalonSession={ownSalonSession}
-                    onReturnToOwnSalon={() => {
-                      if (!ownSalonSession) return;
-                      openSalonPage(ownSalonSession.id, ownSalonSession.title, true);
-                    }}
-                    onOwnSalonEnded={handleOwnSalonEnded}
                   />
                 </div>
               </Suspense>

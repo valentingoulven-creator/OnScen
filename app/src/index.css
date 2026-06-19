@@ -1819,6 +1819,17 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   height: 100%;
 }
 
+/* SalonPage monté hors overlay plein écran — conserve le lecteur PiP flottant */
+.salon-page-pip-host {
+  position: fixed;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+
 /* PiP flottant in-app — vidéo seule, déplaçable, au-dessus du salon */
 .salon-video-pip.salon-youtube-player--pip-float {
   position: fixed;

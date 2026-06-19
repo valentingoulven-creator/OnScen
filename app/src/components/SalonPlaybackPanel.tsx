@@ -30,6 +30,10 @@ import { getSalonShowYoutubeVideo, setSalonShowYoutubeVideo } from '../lib/salon
 import { getSalonYoutubeVolume, setSalonYoutubeVolume } from '../lib/salonYoutubeVolume';
 import { isYoutubeStrictCompliance } from '../lib/youtubeCompliance';
 import { useBackgroundPlayback } from '../hooks/useBackgroundPlayback';
+import {
+  SALON_BEFORE_MINIMIZE_EVENT,
+  setSalonVideoFloatActive,
+} from '../lib/salonVideoFloat';
 import { PlatformConnectCard } from './PlatformConnectCard';
 import type { User } from '../types';
 import type { PlaybackState, ResolvedSalonTrack, Salon, SalonQueueItem, SalonTrackProposal } from '../types';
@@ -131,7 +135,14 @@ export function SalonPlaybackPanel({
   const [theaterYoutubeMuted, setTheaterYoutubeMuted] = useState(false);
   const [participantSyncTrigger, setParticipantSyncTrigger] = useState(0);
   /** PiP flottant in-app (vidéo seule détachée, salon inchangé). */
-  const [floatPipActive, setFloatPipActive] = useState(false);
+  const [floatPipActive, setFloatPipActiveState] = useState(false);
+  const setFloatPipActive = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
+    setFloatPipActiveState((prev) => {
+      const next = typeof value === 'function' ? value(prev) : value;
+      setSalonVideoFloatActive(next);
+      return next;
+    });
+  }, []);
   const hostShowVideoRef = useRef(salon.playbackState.showVideo);
   const prevYoutubeTrackRef = useRef(salon.playbackState.trackId);
 
@@ -426,6 +437,33 @@ export function SalonPlaybackPanel({
   const theaterVideoFloatActive =
     theaterMode && floatPipActive && effectiveShowYoutubeVideo;
   const videoPip = useDraggableVideoPip(theaterVideoFloatActive, () => setFloatPipActive(false));
+
+  const canAutoVideoFloat =
+    theaterMode &&
+    canUseYoutubeEmbed &&
+    Boolean(youtubeTrackId) &&
+    effectiveShowYoutubeVideo;
+
+  const tryAutoActivateVideoFloat = useCallback(() => {
+    if (!canAutoVideoFloat || !playbackState.isPlaying || floatPipActive) return;
+    setFloatPipActive(true);
+  }, [canAutoVideoFloat, playbackState.isPlaying, floatPipActive, setFloatPipActive]);
+
+  useEffect(() => {
+    if (!theaterMode) return;
+    const onVisibility = () => {
+      if (document.hidden) tryAutoActivateVideoFloat();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [theaterMode, tryAutoActivateVideoFloat]);
+
+  useEffect(() => {
+    if (!theaterMode) return;
+    const onBeforeMinimize = () => tryAutoActivateVideoFloat();
+    window.addEventListener(SALON_BEFORE_MINIMIZE_EVENT, onBeforeMinimize);
+    return () => window.removeEventListener(SALON_BEFORE_MINIMIZE_EVENT, onBeforeMinimize);
+  }, [theaterMode, tryAutoActivateVideoFloat]);
 
   useBackgroundPlayback(
     {

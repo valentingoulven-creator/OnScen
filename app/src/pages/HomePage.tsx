@@ -12,7 +12,6 @@ import { MapLiveListenSheet } from '../components/MapLiveListenSheet';
 import { CreateSalonModal } from '../components/CreateSalonModal';
 import { canJoinSalonAsParticipant, salonParticipantAccessMessageKey } from '../lib/platformConnect';
 import { MapAdBanner, type MapSponsorViewport } from '../components/MapAdBanner';
-import { MapOwnSalonBanner } from '../components/MapOwnSalonBanner';
 import { MAP_EVENTS_REFRESH_EVENT, MAP_OPEN_CREATE_SALON_EVENT } from '../lib/mapUiEvents';
 import { isAppa2Layout, type AppLayoutId } from '../lib/appLayout';
 import {
@@ -175,10 +174,6 @@ interface HomePageProps {
   onLeaveSalon?: () => void;
   /** Salon introuvable côté API (supprimé / expiré) pendant restore carte. */
   onSalonRestoreFailed?: (salonId: string) => void;
-  /** Salon hébergé actif — bandeau persistant sur la carte. */
-  ownSalonSession?: { id: string; title?: string } | null;
-  onReturnToOwnSalon?: () => void;
-  onOwnSalonEnded?: () => void;
 }
 
 export function HomePage({
@@ -198,9 +193,6 @@ export function HomePage({
   onMapSalonActive,
   onLeaveSalon,
   onSalonRestoreFailed,
-  ownSalonSession = null,
-  onReturnToOwnSalon,
-  onOwnSalonEnded,
 }: HomePageProps) {
   const { t } = useTranslation();
   const appa2 = isAppa2Layout(appLayout);
@@ -1437,6 +1429,16 @@ export function HomePage({
     return trySelectSalon(salon, { closeMapProfile: true });
   }, [resolveSalonById, trySelectSalon, flyMapTo]);
 
+  const isOwnActiveHostedSalon = useCallback(
+    (salon: Salon) =>
+      Boolean(
+        activeSalonSessionId &&
+          salon.id === activeSalonSessionId &&
+          (salon.isHost || salon.hostId === user?.id)
+      ),
+    [activeSalonSessionId, user?.id]
+  );
+
   const restoreSalonOnMap = useCallback(async (salonId: string) => {
     const salon = await resolveSalonById(salonId);
     if (!salon) {
@@ -1445,8 +1447,16 @@ export function HomePage({
     }
     flyMapTo(salon.latitude, salon.longitude);
     dismissLiveSheetOnly();
+    if (isOwnActiveHostedSalon(salon)) return;
     await trySelectSalon(salon, { closeMapProfile: true });
-  }, [resolveSalonById, flyMapTo, dismissLiveSheetOnly, trySelectSalon, onSalonRestoreFailed]);
+  }, [
+    resolveSalonById,
+    flyMapTo,
+    dismissLiveSheetOnly,
+    trySelectSalon,
+    onSalonRestoreFailed,
+    isOwnActiveHostedSalon,
+  ]);
 
   useEffect(() => {
     if (!restoreSalonId) return;
@@ -1508,8 +1518,12 @@ export function HomePage({
   const handleMapSalonClick = useCallback((salon: Salon) => {
     flyMapTo(salon.latitude, salon.longitude);
     dismissLiveSheetOnly();
+    if (isOwnActiveHostedSalon(salon)) {
+      onOpenSalon?.(salon.id, salon.title, true);
+      return;
+    }
     void trySelectSalon(salon, { closeMapProfile: true });
-  }, [trySelectSalon, flyMapTo, dismissLiveSheetOnly]);
+  }, [trySelectSalon, flyMapTo, dismissLiveSheetOnly, isOwnActiveHostedSalon, onOpenSalon]);
 
   const closeSalonSheet = useCallback(() => {
     dismissSalonSheetOnly();
@@ -1744,14 +1758,6 @@ export function HomePage({
             </div>
           </div>
         )}
-        {ownSalonSession && onReturnToOwnSalon && !mapProfileOpen && (
-          <MapOwnSalonBanner
-            salonId={ownSalonSession.id}
-            salonTitle={ownSalonSession.title}
-            onReturn={onReturnToOwnSalon}
-            onSalonEnded={onOwnSalonEnded}
-          />
-        )}
         {loadingMapEvents && (
           <div className="absolute bottom-4 right-4 z-40 pointer-events-none">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1a1a26]/90 border border-white/10 text-xs text-gray-300 shadow-lg backdrop-blur-sm">
@@ -1969,7 +1975,7 @@ export function HomePage({
           </button>
         </div>
 
-        {selected && (
+        {selected && !isOwnActiveHostedSalon(selected) && (
           <MapSalonListenSheet
             salon={selected}
             expanded={salonSheetExpanded}
