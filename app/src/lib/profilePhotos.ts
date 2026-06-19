@@ -92,14 +92,23 @@ export function normalizeProfilePhotoSlots(photos: string[]): string[] {
 /** Marge sous la limite express.json (15 Mo) pour le corps JSON complet (12 Mo). */
 export const MAX_PROFILE_PAYLOAD_CHARS = 12_000_000;
 
+/** Load an image from any URL (data:, blob:, https:) without using fetch(). */
+function loadBitmapFromUrl(url: string): Promise<ImageBitmap> {
+  return new Promise<ImageBitmap>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () =>
+      createImageBitmap(img).then(resolve, () => reject(new Error('decode')));
+    img.onerror = () => reject(new Error('load'));
+    img.src = url;
+  });
+}
+
 export async function compressProfilePhotoDataUrl(dataUrl: string): Promise<string> {
   const trimmed = dataUrl.trim();
   if (!trimmed.startsWith('data:image/')) return trimmed;
 
   try {
-    const res = await fetch(trimmed);
-    const blob = await res.blob();
-    const bitmap = await createImageBitmap(blob);
+    const bitmap = await loadBitmapFromUrl(trimmed);
     const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(bitmap.width, bitmap.height));
     const w = Math.round(bitmap.width * scale);
     const h = Math.round(bitmap.height * scale);
@@ -122,9 +131,7 @@ export async function compressProfilePhotoDataUrl(dataUrl: string): Promise<stri
 
 async function blobUrlToProfileDataUrl(blobUrl: string): Promise<string> {
   try {
-    const res = await fetch(blobUrl);
-    const blob = await res.blob();
-    const bitmap = await createImageBitmap(blob);
+    const bitmap = await loadBitmapFromUrl(blobUrl);
     const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(bitmap.width, bitmap.height));
     const w = Math.round(bitmap.width * scale);
     const h = Math.round(bitmap.height * scale);

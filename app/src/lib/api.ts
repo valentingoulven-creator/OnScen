@@ -1224,6 +1224,8 @@ export const api = {
     request<{
       messages: import('../types').DirectMessage[];
       otherUser: import('../types').DmContact;
+      isBlockedByMe?: boolean;
+      isBlockedByThem?: boolean;
     }>(`/dm/thread/${userId}`, {}, token),
 
   sendDm: (
@@ -1944,6 +1946,9 @@ export const api = {
       { method: 'POST', body: JSON.stringify(body) },
       token
     ),
+
+  deleteStory: (token: string, storyId: string) =>
+    request<{ ok: boolean }>(`/stories/${storyId}`, { method: 'DELETE' }, token),
 
   getNews: () =>
     request<{ news: import('../types').MusicNewsItem[] }>('/news', {}),

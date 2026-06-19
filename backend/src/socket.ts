@@ -2,7 +2,7 @@ import { Server, Socket } from 'socket.io';
 import { db, ChatMessage, SalonBan } from './models/schema';
 import { extractSocketAuthToken, verifyAuthToken } from './middleware/auth';
 import { markSocketOnline, markSocketOffline } from './lib/presence';
-import { shouldDeliverToReceiver } from './lib/blocks';
+import { hasBlocked, shouldDeliverToReceiver } from './lib/blocks';
 import { canJoinSalon } from './lib/salonAccess';
 import {
   ensureSalonQueue,
@@ -47,6 +47,7 @@ import {
 } from './lib/salonModeration';
 import { isAllowedChatAttachmentUrl } from './lib/chatAttachmentUrl';
 import { checkChatRateLimit } from './lib/chatRateLimit';
+import { computePlaybackPositionMs } from './lib/playbackClock';
 
 // Debounce presence broadcasts per user: prevents rapid-fire storms when a user
 // reconnects multiple times in quick succession (e.g., mobile network hiccup).
@@ -639,6 +640,9 @@ export function setupSockets(io: Server): void {
       if (!msg?.id || !msg.senderId || !msg.receiverId) return;
       if (!authUserId || authUserId !== msg.senderId) return;
       if (!checkChatRateLimit(authUserId)) return;
+      // Block if sender has blocked recipient or recipient has blocked sender.
+      if (hasBlocked(msg.senderId, msg.receiverId)) return;
+      if (hasBlocked(msg.receiverId, msg.senderId)) return;
       const full = {
         id: msg.id,
         senderId: msg.senderId,
@@ -730,6 +734,25 @@ export function setupSockets(io: Server): void {
       salon.playbackState = merged;
       db.salons.set(salonId, salon);
       broadcastSalonPlayback(salonId, salon.playbackState);
+    });
+
+    socket.on('salon_force_sync', ({ salonId, progressMs: clientProgressMs }: { salonId: string; progressMs?: number }) => {
+      const userId = (socket.data as { userId?: string }).userId;
+      const salon = db.salons.get(salonId);
+      if (!salon || !userId || salon.hostId !== userId) return;
+      const now = Date.now();
+      const progressMs =
+        typeof clientProgressMs === 'number' && clientProgressMs >= 0
+          ? Math.floor(clientProgressMs)
+          : computePlaybackPositionMs(salon.playbackState, now);
+      salon.playbackState = {
+        ...salon.playbackState,
+        progressMs,
+        updatedAt: now,
+        startedAt: salon.playbackState.isPlaying ? now : undefined,
+      };
+      db.salons.set(salonId, salon);
+      socket.to(`salon_${salonId}`).emit('salon_force_sync', salon.playbackState);
     });
   });
 }

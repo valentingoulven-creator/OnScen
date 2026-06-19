@@ -135,6 +135,7 @@ export function SalonPlaybackPanel({
     applyPlaybackState,
     emitSync,
     emitPatch,
+    emitForceSync,
     reportHostProgress,
   } = useSalonPlaybackSync({
       salonId: salon.id,
@@ -199,6 +200,7 @@ export function SalonPlaybackPanel({
   const prevSpotifyActiveRef = useRef<boolean | null>(null);
   const [spotifyNotif, setSpotifyNotif] = useState<string | null>(null);
   const [spotifyControlToast, setSpotifyControlToast] = useState<string | null>(null);
+  const [syncNotif, setSyncNotif] = useState<string | null>(null);
   const spotifyLaunchRetryRef = useRef<number | null>(null);
   const spotifyAppLaunchIssuedRef = useRef(false);
 
@@ -339,6 +341,12 @@ export function SalonPlaybackPanel({
     },
     [salon.platform, canControlPlayback, spotifySyncEnabled, markLocalControl, callSpotifySeek]
   );
+
+  const handleForceSync = useCallback(() => {
+    emitForceSync();
+    setSyncNotif('✓ Participants synchronisés');
+    window.setTimeout(() => setSyncNotif(null), 3000);
+  }, [emitForceSync]);
 
   useEffect(() => {
     if (isHost || isVipModerator || salon.platform !== 'spotify') return;
@@ -617,6 +625,16 @@ export function SalonPlaybackPanel({
                   {salon.accessMode === 'public' ? '🌍 Public' : '🔒 Invitation'}
                 </span>
               )}
+              {isHost && (
+                <button
+                  type="button"
+                  onClick={handleForceSync}
+                  className="px-2.5 py-1.5 rounded-xl border border-[#2a2a3a] text-xs text-gray-400 hover:text-white transition"
+                  title="Forcer la synchronisation de tous les participants"
+                >
+                  ↺ Synchroniser
+                </button>
+              )}
               {isVipModerator && !isHost && (
                 <span className="text-[10px] px-2 py-0.5 rounded-md font-medium text-amber-300/90">
                   ⭐ Modérateur VIP
@@ -707,6 +725,14 @@ export function SalonPlaybackPanel({
             {spotifyControlToast}
           </div>
         )}
+        {syncNotif && (
+          <div
+            className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 max-w-[90vw] px-4 py-2 rounded-full bg-purple-950/95 border border-purple-500/40 text-sm text-purple-100 shadow-lg text-center"
+            role="status"
+          >
+            {syncNotif}
+          </div>
+        )}
       </>
     );
   }
@@ -753,6 +779,16 @@ export function SalonPlaybackPanel({
         {salon.platform === 'youtube' && playbackState.trackId && playbackState.trackId !== 'demo' && (
           <OpenOnYoutubeButton trackId={playbackState.trackId} positionMs={displayPositionMs} />
         )}
+        {isHost && (
+          <button
+            type="button"
+            onClick={handleForceSync}
+            className={theaterControlBtnClass}
+            title="Forcer la synchronisation de tous les participants"
+          >
+            ↺ Synchroniser
+          </button>
+        )}
       </>
     ) : null;
 
@@ -795,6 +831,7 @@ export function SalonPlaybackPanel({
     );
 
     return (
+      <>
       <section
         className={`salon-theater-panel flex flex-col w-full min-h-0 overflow-hidden bg-black${
           theaterSideDock ? '' : ' h-full'
@@ -901,6 +938,15 @@ export function SalonPlaybackPanel({
         )}
         </div>
       </section>
+      {syncNotif && (
+        <div
+          className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 max-w-[90vw] px-4 py-2 rounded-full bg-purple-950/95 border border-purple-500/40 text-sm text-purple-100 shadow-lg text-center"
+          role="status"
+        >
+          {syncNotif}
+        </div>
+      )}
+      </>
     );
   }
 
@@ -1058,6 +1104,14 @@ export function SalonPlaybackPanel({
                 playbackState.trackId !== 'demo' && (
                   <OpenOnYoutubeButton trackId={playbackState.trackId} positionMs={displayPositionMs} />
                 )}
+              <button
+                type="button"
+                onClick={handleForceSync}
+                className={`${mapInline ? 'px-2 py-1 text-xs' : 'px-3 py-2 text-sm'} rounded-xl border border-[#2a2a3a] text-gray-400 hover:text-white transition`}
+                title="Forcer la synchronisation de tous les participants"
+              >
+                ↺ Synchroniser
+              </button>
             </div>
           )}
         </div>
@@ -1377,6 +1431,14 @@ export function SalonPlaybackPanel({
         role="status"
       >
         {spotifyControlToast}
+      </div>
+    )}
+    {syncNotif && (
+      <div
+        className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 max-w-[90vw] px-4 py-2 rounded-full bg-purple-950/95 border border-purple-500/40 text-sm text-purple-100 shadow-lg text-center"
+        role="status"
+      >
+        {syncNotif}
       </div>
     )}
     </>

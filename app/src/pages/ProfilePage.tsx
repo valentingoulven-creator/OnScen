@@ -463,7 +463,7 @@ export function ProfilePage({
       </div>
 
       <div
-        className={`px-4 ${editing ? 'pb-[calc(var(--tab-nav-total-h)+5rem)]' : 'pb-8'}`}
+        className={`px-4 ${editing ? 'pb-[calc(var(--tab-nav-total-h)+5rem)]' : 'pb-[calc(var(--tab-nav-total-h)+2rem)]'}`}
       >
         <div
           className={`max-w-lg mx-auto w-full ${editing ? 'space-y-4' : 'space-y-5'}`}

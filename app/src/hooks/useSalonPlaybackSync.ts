@@ -89,11 +89,19 @@ export function useSalonPlaybackSync({
       setDisplayPositionMs(computePlaybackPositionMs(merged));
       onStateChangeRef.current?.(merged);
     };
+    const onForceSync = (state: PlaybackState) => {
+      if (isHost) return;
+      setPlaybackState(state);
+      setDisplayPositionMs(computePlaybackPositionMs(state));
+      onStateChangeRef.current?.(state);
+    };
     socket.on('playback_sync', onSync);
     socket.on('salon_playback', onSync);
+    socket.on('salon_force_sync', onForceSync);
     return () => {
       socket.off('playback_sync', onSync);
       socket.off('salon_playback', onSync);
+      socket.off('salon_force_sync', onForceSync);
     };
   }, [salonId, isHost]);
 
@@ -103,6 +111,12 @@ export function useSalonPlaybackSync({
     const id = window.setInterval(tick, 500);
     return () => window.clearInterval(id);
   }, []);
+
+  const emitForceSync = useCallback(() => {
+    if (!isHost) return;
+    const currentProgressMs = computePlaybackPositionMs(stateRef.current);
+    emitOnSocket('salon_force_sync', { salonId, progressMs: currentProgressMs });
+  }, [isHost, salonId]);
 
   const emitSync = useCallback(
     (patch: Partial<PlaybackState>) => {
@@ -181,6 +195,7 @@ export function useSalonPlaybackSync({
     applyPlaybackState,
     emitSync,
     emitPatch,
+    emitForceSync,
     reportHostProgress,
   };
 }

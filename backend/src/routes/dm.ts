@@ -356,6 +356,7 @@ dmRouter.get('/thread/:userId', authenticateJWT, (req: Request, res: Response) =
           isMutualFollow: isMutualFollow(me, other),
         },
     isBlockedByMe: hasBlocked(me, other),
+    isBlockedByThem: hasBlocked(other, me),
     isMutedByMe: hasMuted(me, other),
   });
 });
@@ -383,7 +384,7 @@ dmRouter.post('/thread/:userId', authenticateJWT, (req: Request, res: Response) 
     return;
   }
   if (hasBlocked(receiverId, me)) {
-    res.status(403).json({ error: 'Impossible d\'envoyer ce message' });
+    res.status(403).json({ error: 'Vous avez été bloqué par cet utilisateur' });
     return;
   }
 

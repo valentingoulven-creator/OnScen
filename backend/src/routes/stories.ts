@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authenticateJWT } from '../middleware/auth';
 import { schedulePersist } from '../lib/persist';
-import { createStory, getMyActiveStory, getUserActiveStories, listStoriesForViewer } from '../lib/stories';
+import { createStory, deleteStory, getMyActiveStory, getUserActiveStories, listStoriesForViewer } from '../lib/stories';
 import { notifyMentions } from '../lib/mentions';
 import { db } from '../models/schema';
 
@@ -49,4 +49,15 @@ storiesRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
     notifyMentions(result.story.content, me, storyAuthor.username, 'story', result.story.id, storyAuthor.avatarUrl);
   }
   res.status(201).json({ story: result.story });
+});
+
+storiesRouter.delete('/:id', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const ok = deleteStory(req.params.id, me);
+  if (!ok) {
+    res.status(404).json({ error: 'Story introuvable' });
+    return;
+  }
+  schedulePersist();
+  res.json({ ok: true });
 });

@@ -233,6 +233,8 @@ export function DmPage({
   const [addingMemberId, setAddingMemberId] = useState<string | null>(null);
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
   const [pendingStatus, setPendingStatus] = useState<'pending_sent' | null>(null);
+  const [blockedByThem, setBlockedByThem] = useState(false);
+  const [dmSendError, setDmSendError] = useState<string | null>(null);
   const [pendingAttachment, setPendingAttachment] = useState<{
     dataUrl: string;
     name: string;
@@ -448,6 +450,8 @@ export function DmPage({
       setMessages([]);
       setGroupMessages([]);
       setActiveGroupState(null);
+      setBlockedByThem(false);
+      setDmSendError(null);
       setActiveUser({ ...contact, isOnline: isOnline(contact.id) });
       setActivePeer(contact.id);
       setActiveGroup(null);
@@ -455,6 +459,7 @@ export function DmPage({
       const r = await api.getDmThread(token, contact.id);
       setMessages(r.messages);
       setActiveUser({ ...r.otherUser, isOnline: isOnline(r.otherUser.id) });
+      setBlockedByThem(r.isBlockedByThem ?? false);
       refreshUnread();
       refreshMuted();
     } catch (e) {
@@ -840,6 +845,7 @@ export function DmPage({
       return;
     }
     setSending(true);
+    setDmSendError(null);
     const text = draft.trim();
     setDraft('');
     const attachment = pendingAttachment ? { ...pendingAttachment } : null;
@@ -867,7 +873,12 @@ export function DmPage({
       }
       loadConversations();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erreur envoi');
+      const msg = err instanceof Error ? err.message : 'Erreur envoi';
+      setDmSendError(msg);
+      // If blocked by them, reflect that in state so the UI updates immediately.
+      if (msg === 'Vous avez été bloqué par cet utilisateur') {
+        setBlockedByThem(true);
+      }
       setDraft(text);
       if (attachment) setPendingAttachment(attachment);
     } finally {
@@ -1565,6 +1576,7 @@ export function DmPage({
     const isPendingMySent = pendingStatus === 'pending_sent' ||
       (conversations.find((c) => c.userId === activeUser.id)?.isPendingSent ?? false);
     const canSendDm = activeUser.isMutualFollow !== false;
+    const iBlockedThem = blockedUsers.some((b) => b.id === activeUser.id);
     return (
       <div className="relative flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f] overflow-hidden">
         <header className="shrink-0 flex items-center gap-3 p-3 border-b border-[#1e1e2f] bg-[#12121a] relative">
@@ -1575,14 +1587,10 @@ export function DmPage({
               setMenuOpen(false);
               loadConversations();
             }}
-            className="text-gray-400 hover:text-white text-xl"
+            className="text-gray-400 hover:text-white text-3xl w-10 h-10 flex items-center justify-center shrink-0"
           >
             ←
           </button>
-          <UserCheckbox
-            checked={selectedIds.has(activeUser.id)}
-            onChange={() => toggleSelect(activeUser.id)}
-          />
           <UserAvatarOnline
             userId={activeUser.id}
             avatarUrl={activeUser.avatarUrl}
@@ -1740,6 +1748,28 @@ export function DmPage({
               className="px-3 py-1.5 bg-red-600 rounded-full text-xs font-bold text-white disabled:opacity-50"
             >
               Bloquer
+            </button>
+          </div>
+        )}
+
+        {blockedByThem && !iBlockedThem && (
+          <div className="shrink-0 px-4 py-2.5 bg-red-950/20 border-b border-red-500/15">
+            <p className="text-xs text-red-400 text-center">
+              Vous avez été bloqué par cet utilisateur — vous ne pouvez plus lui envoyer de message.
+            </p>
+          </div>
+        )}
+
+        {iBlockedThem && (
+          <div className="shrink-0 px-4 py-2.5 bg-[#1a1010] border-b border-red-500/15 flex items-center justify-between gap-3">
+            <p className="text-xs text-red-400">Vous avez bloqué cet utilisateur.</p>
+            <button
+              type="button"
+              onClick={() => unblockOne(activeUser.id)}
+              disabled={unblocking}
+              className="shrink-0 px-3 py-1 bg-[#2d1818] border border-red-500/30 hover:bg-red-900/30 rounded-full text-xs text-red-300 disabled:opacity-50"
+            >
+              {unblocking ? '...' : 'Débloquer'}
             </button>
           </div>
         )}
@@ -1903,35 +1933,46 @@ export function DmPage({
               e.target.value = '';
             }}
           />
-          <form
-            onSubmit={sendMessage}
-            className="shrink-0 flex gap-2 px-3 py-2 border-t border-[#1e1e2f] bg-[#12121a] pb-0 items-center"
-          >
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={!canSendDm}
-              className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-[#1a1a26] border border-[#2d2d3d] text-base disabled:opacity-40 disabled:pointer-events-none"
-              aria-label="Joindre un fichier"
+          {dmSendError && !iBlockedThem && !blockedByThem && (
+            <div className="shrink-0 px-4 py-2 bg-red-950/30 border-t border-red-500/20">
+              <p className="text-xs text-red-400 text-center">{dmSendError}</p>
+            </div>
+          )}
+          {iBlockedThem || blockedByThem ? (
+            <div className="shrink-0 flex items-center justify-center px-4 py-3 bg-[#12121a] border-t border-[#1e1e2f]">
+              <p className="text-xs text-[#5a5a7a]">Envoi de message désactivé</p>
+            </div>
+          ) : (
+            <form
+              onSubmit={sendMessage}
+              className="shrink-0 flex gap-2 px-3 py-2 border-t border-[#1e1e2f] bg-[#12121a] pb-0 items-center"
             >
-              📎
-            </button>
-            <input
-              type="text"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder={canSendDm ? 'Écrire un message privé...' : t('dm.mutualFollowHint')}
-              disabled={!canSendDm}
-              className="flex-1 bg-[#1a1a26] border border-[#2d2d3d] rounded-full px-4 py-2.5 text-sm text-white disabled:opacity-50"
-            />
-            <button
-              type="submit"
-              disabled={!canSendDm || (!draft.trim() && !pendingAttachment) || sending}
-              className="shrink-0 px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 rounded-full font-bold text-white text-sm"
-            >
-              {t('dm.send')}
-            </button>
-          </form>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={!canSendDm}
+                className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-[#1a1a26] border border-[#2d2d3d] text-base disabled:opacity-40 disabled:pointer-events-none"
+                aria-label="Joindre un fichier"
+              >
+                📎
+              </button>
+              <input
+                type="text"
+                value={draft}
+                onChange={(e) => { setDraft(e.target.value); if (dmSendError) setDmSendError(null); }}
+                placeholder={canSendDm ? 'Écrire un message privé...' : t('dm.mutualFollowHint')}
+                disabled={!canSendDm}
+                className="flex-1 bg-[#1a1a26] border border-[#2d2d3d] rounded-full px-4 py-2.5 text-sm text-white disabled:opacity-50"
+              />
+              <button
+                type="submit"
+                disabled={!canSendDm || (!draft.trim() && !pendingAttachment) || sending}
+                className="shrink-0 px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 rounded-full font-bold text-white text-sm"
+              >
+                {t('dm.send')}
+              </button>
+            </form>
+          )}
         </div>
         {renderCreateSalonModal()}
       </div>

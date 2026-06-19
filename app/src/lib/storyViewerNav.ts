@@ -124,6 +124,47 @@ export function resolvePrevStory(
   return { story, isOwn: story.userId === viewerUserId };
 }
 
+export type StoryAfterDeleteNav =
+  | { action: 'close' }
+  | { action: 'view'; story: MapStory; isOwn: boolean };
+
+/** Après suppression : story suivante dans la pile, autre pile, ou fermeture. */
+export function resolveAfterStoryDeleted(
+  stacks: StoryUserStack[],
+  deleted: MapStory,
+  viewerUserId?: string
+): StoryAfterDeleteNav {
+  const stack = findStackForStory(stacks, deleted);
+  if (!stack) return { action: 'close' };
+  const idx = stackIndexForStory(stack, deleted);
+  const remaining = stack.stories.filter((s) => s.id !== deleted.id);
+
+  if (remaining.length > 0) {
+    const nextIdx = Math.min(idx, remaining.length - 1);
+    const story = remaining[nextIdx]!;
+    return { action: 'view', story, isOwn: story.userId === viewerUserId };
+  }
+
+  const updatedStacks = stacks
+    .map((s) => ({ ...s, stories: s.stories.filter((st) => st.id !== deleted.id) }))
+    .filter((s) => s.stories.length > 0);
+  if (updatedStacks.length === 0) return { action: 'close' };
+
+  const stackIdx = stacks.findIndex((s) => s.userId === deleted.userId);
+  if (stackIdx < updatedStacks.length) {
+    const nextStack = updatedStacks[stackIdx]!;
+    const story = nextStack.stories[0]!;
+    return { action: 'view', story, isOwn: story.userId === viewerUserId };
+  }
+  if (stackIdx > 0) {
+    const prevStack = updatedStacks[stackIdx - 1]!;
+    const story = prevStack.stories[prevStack.stories.length - 1]!;
+    return { action: 'view', story, isOwn: story.userId === viewerUserId };
+  }
+  const first = updatedStacks[0]!.stories[0]!;
+  return { action: 'view', story: first, isOwn: first.userId === viewerUserId };
+}
+
 export function formatStoryTimeAgo(ts: number): string {
   const sec = Math.floor((Date.now() - ts) / 1000);
   if (sec < 60) return "À l'instant";

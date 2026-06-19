@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { isPlatformConnected } from '../lib/platformConnect';
 import { PLATFORM_STATUS_REFRESH_EVENT } from '../lib/platformStatusEvents';
@@ -40,12 +40,15 @@ export function PlatformConnectPrompt({
   const [expanded, setExpanded] = useState(false);
   const [oauthConfigured, setOauthConfigured] = useState(false);
 
+  const userRef = useRef(user);
+  userRef.current = user;
+
   const evaluate = useCallback((fresh = false) => {
     if (sessionStorage.getItem(DISMISS_KEY) === '1') {
       setVisible(false);
       return;
     }
-    if (hasStreamingPlatformConnected(user)) {
+    if (hasStreamingPlatformConnected(userRef.current)) {
       setVisible(false);
       return;
     }
@@ -59,7 +62,7 @@ export function PlatformConnectPrompt({
         setVisible(required && !connected);
       })
       .catch(() => setVisible(false));
-  }, [token, user]);
+  }, [token]);
 
   useEffect(() => {
     evaluate();

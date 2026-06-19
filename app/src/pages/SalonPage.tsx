@@ -27,6 +27,8 @@ import { SalonQueueSection } from '../components/SalonQueueSection';
 import { SalonProposalsSection } from '../components/SalonProposalsSection';
 import { SalonAccessModeToggle } from '../components/SalonAccessModeToggle';
 import { SalonInviteLinkCopy } from '../components/SalonInviteLinkCopy';
+import { SalonInviteSheet } from '../components/SalonInviteSheet';
+import { SalonInviteUserSearch } from '../components/SalonInviteUserSearch';
 import { SalonParticipantsPopover } from '../components/SalonParticipantsPopover';
 import { useSalonQueueSync } from '../hooks/useSalonQueueSync';
 import { emitOnSocket } from '../lib/socket';
@@ -575,34 +577,27 @@ export function SalonPage({
           </h3>
           <SalonInviteLinkCopy salonId={salon.id} />
         </section>
-        {hostCanControl ? (
+        {hostCanControl && token ? (
           <section className="space-y-3">
             <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
               {t('salon.youtubeHost.manageAccess', { defaultValue: "Gérer l'accès" })}
             </h3>
-            <div className="space-y-3">
-              <div className="max-h-32 overflow-y-auto space-y-1">
-                <p className="text-[10px] text-gray-500 mb-1">Personnes autorisées :</p>
-                {contacts.map((c) => (
-                  <label key={c.id} className="flex items-center gap-2 text-sm text-white">
-                    <input
-                      type="checkbox"
-                      checked={pendingGuestIds.has(c.id)}
-                      onChange={(e) => togglePendingGuest(c.id, e.target.checked)}
-                    />
-                    {c.username}
-                  </label>
-                ))}
-              </div>
-              <button
-                type="button"
-                disabled={validatingGuests || accessSaving}
-                onClick={() => void validateGuests()}
-                className="w-full py-2.5 rounded-lg text-xs font-bold bg-[#42426a] text-white hover:bg-[#52527a] disabled:opacity-50 transition"
-              >
-                {validatingGuests ? 'Envoi…' : 'Validé'}
-              </button>
-            </div>
+            <SalonInviteUserSearch
+              token={token}
+              contacts={contacts}
+              allowedUserIds={pendingGuestIds}
+              onToggle={togglePendingGuest}
+            />
+            <button
+              type="button"
+              disabled={validatingGuests || accessSaving}
+              onClick={() => void validateGuests()}
+              className="w-full py-2.5 rounded-lg text-xs font-bold bg-[#42426a] text-white hover:bg-[#52527a] disabled:opacity-50 transition"
+            >
+              {validatingGuests
+                ? 'Envoi…'
+                : t('salon.youtubeHost.sendInvites', { defaultValue: 'Envoyer les invitations' })}
+            </button>
           </section>
         ) : null}
       </div>
@@ -846,6 +841,19 @@ export function SalonPage({
               accessMode={salon.accessMode ?? 'public'}
               disabled={accessSaving}
               onChange={(mode) => void setAccessMode(mode)}
+            />
+          )}
+          {isHost && salon.accessMode === 'invite' && token && (
+            <SalonInviteSheet
+              salonId={salon.id}
+              salonTitle={salon.title}
+              hostName={salon.hostName}
+              token={token}
+              contacts={contacts}
+              pendingGuestIds={pendingGuestIds}
+              validating={validatingGuests}
+              onToggleGuest={togglePendingGuest}
+              onValidate={validateGuests}
             />
           )}
           {onLeaveSalon && isHost && (

@@ -12,6 +12,7 @@ import {
   pruneSeenStoryIds,
   resolveNextStory,
   resolvePrevStory,
+  resolveAfterStoryDeleted,
   stackIndexForStory,
 } from '../lib/storyViewerNav';
 import {
@@ -354,6 +355,25 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
   const canPrevStory =
     sheet.kind === 'view' && resolvePrevStory(storyStacks, sheet.story, user?.id) != null;
 
+  const handleStoryDeleted = useCallback(
+    (deleted: MapStory) => {
+      invalidateStoriesCache();
+      setMyStories((prev) => prev.filter((s) => s.id !== deleted.id));
+      setStoriesByUser((prev) => {
+        const next = new Map(prev);
+        const list = (next.get(deleted.userId) ?? []).filter((s) => s.id !== deleted.id);
+        if (list.length) next.set(deleted.userId, list);
+        else next.delete(deleted.userId);
+        return next;
+      });
+      const nav = resolveAfterStoryDeleted(storyStacks, deleted, user?.id);
+      if (nav.action === 'close') setSheet({ kind: 'closed' });
+      else setSheet({ kind: 'view', story: nav.story, isOwn: nav.isOwn });
+      void loadStories();
+    },
+    [storyStacks, user?.id, loadStories]
+  );
+
   return (
     <>
       <div className="rounded-xl border border-[var(--ms-border)] bg-[var(--ms-surface)] overflow-hidden min-w-0">
@@ -525,6 +545,9 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
           onPrev={goPrevStory}
           canNext={canNextStory}
           canPrev={canPrevStory}
+          isOwn={sheet.isOwn}
+          token={token ?? undefined}
+          onDeleted={handleStoryDeleted}
         />
       ) : null}
 

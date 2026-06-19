@@ -37,8 +37,6 @@ import { ProfileSearchBar } from './components/ProfileSearchBar';
 import { MainTabNav } from './components/MainTabNav';
 import { PlatformConnectPrompt } from './components/PlatformConnectPrompt';
 import { APP_LAYOUT_CHANGED_EVENT, getAppLayout, isAppa2Layout } from './lib/appLayout';
-import { SalonReturnBar } from './components/SalonReturnBar';
-import { OwnSalonBanner } from './components/OwnSalonBanner';
 import { UserAvatarOnline } from './components/UserAvatarOnline';
 import { resolveAvatarUrl } from './lib/profilePhotos';
 import { isMsdevEnvironment } from './lib/liveCameraSupport';
@@ -620,10 +618,6 @@ export default function App() {
   const reelsActive = tab === 'reels' && !profileOpen && tabContentBase;
   /** Carte visible : lecture petit salon même si overlay « Mon profil » ouvert. */
   const mapPlaybackActive = tab === 'map' && view.type === 'home' && !salonFullScreen;
-  /** Bandeau de session hôte : visible sur tous les onglets hors plein-écran salon. */
-  const showOwnSalonBanner = Boolean(
-    activeSalonSession?.isHost && !salonFullScreen && !profileOpen && !adminOpen && user && token
-  );
   /** Montage conditionnel : un seul onglet à la fois (perf). Carte reste montée sous overlay profil (audio salon). */
   const actualiteTabMounted = tab === 'actualite' && tabContentBase && !profileOpen;
   /** Carte aussi montée (masquée) sous SalonPage, profil carte, ou autre onglet si session active. */
@@ -637,11 +631,10 @@ export default function App() {
   const reelsTabMounted = tab === 'reels' && tabContentBase && !profileOpen;
   const appa2 = isAppa2Layout(appLayout);
   const liveViewActive = tab === 'live' || view.type === 'live';
-  const showSalonReturnBar = Boolean(activeSalonSession && !salonFullScreen);
 
   return (
     <div
-      className={`ms-app-shell flex flex-col min-h-dvh max-h-dvh overflow-hidden min-w-0 w-full${!appa2 ? ' ms-app-shell--bottom-tabs' : ''}${appa2 && !profileOpen ? ' ms-app-shell--header-tabs' : ''}${showSalonReturnBar ? ' ms-app-shell--salon-return' : ''}`}
+      className={`ms-app-shell flex flex-col min-h-dvh max-h-dvh overflow-hidden min-w-0 w-full${!appa2 ? ' ms-app-shell--bottom-tabs' : ''}${appa2 && !profileOpen ? ' ms-app-shell--header-tabs' : ''}`}
     >
       {incomingToast && (
         <div
@@ -765,12 +758,6 @@ export default function App() {
             </div>
           </div>
         </div>
-        {showSalonReturnBar && activeSalonSession && (
-          <SalonReturnBar
-            salonTitle={activeSalonSession.title}
-            onReturn={() => openSalonPage(activeSalonSession.id, activeSalonSession.title, activeSalonSession.isHost)}
-          />
-        )}
         {msdevRebuildError && (
           <p className="px-4 pb-1 text-[10px] text-red-400 text-center" role="alert">
             {msdevRebuildError}
@@ -976,16 +963,6 @@ export default function App() {
         )}
 
       </main>
-
-      {showOwnSalonBanner && activeSalonSession && token && (
-        <OwnSalonBanner
-          salonId={activeSalonSession.id}
-          salonTitle={activeSalonSession.title}
-          token={token}
-          onManage={() => openSalonPage(activeSalonSession.id, activeSalonSession.title, true)}
-          onSalonEnded={leaveActiveSalonSession}
-        />
-      )}
 
       {!appa2 && (
         <MainTabNav

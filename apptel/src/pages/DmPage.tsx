@@ -194,6 +194,8 @@ export function DmPage({
   const [refusingRequest, setRefusingRequest] = useState<string | null>(null);
   const [conversationMenuOpen, setConversationMenuOpen] = useState<string | null>(null);
   const [pendingStatus, setPendingStatus] = useState<'pending_sent' | null>(null);
+  const [blockedByThem, setBlockedByThem] = useState(false);
+  const [dmSendError, setDmSendError] = useState<string | null>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
   const prevMessageCountRef = useRef(0);
@@ -346,6 +348,8 @@ export function DmPage({
       setMessages([]);
       setGroupMessages([]);
       setActiveGroupState(null);
+      setBlockedByThem(false);
+      setDmSendError(null);
       setActiveUser({ ...contact, isOnline: isOnline(contact.id) });
       setActivePeer(contact.id);
       setActiveGroup(null);
@@ -353,6 +357,7 @@ export function DmPage({
       const r = await api.getDmThread(token, contact.id);
       setMessages(r.messages);
       setActiveUser({ ...r.otherUser, isOnline: isOnline(r.otherUser.id) });
+      setBlockedByThem(r.isBlockedByThem ?? false);
       refreshUnread();
       refreshMuted();
     } catch (e) {
@@ -696,6 +701,7 @@ export function DmPage({
     e?.preventDefault();
     if (!token || !activeUser || !draft.trim() || sending) return;
     setSending(true);
+    setDmSendError(null);
     const text = draft.trim();
     setDraft('');
     try {
@@ -709,7 +715,11 @@ export function DmPage({
       }
       loadConversations();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erreur envoi');
+      const msg = err instanceof Error ? err.message : 'Erreur envoi';
+      setDmSendError(msg);
+      if (msg === 'Vous avez été bloqué par cet utilisateur') {
+        setBlockedByThem(true);
+      }
       setDraft(text);
     } finally {
       setSending(false);
@@ -1165,6 +1175,7 @@ export function DmPage({
     const isPendingReceived = conversations.find((c) => c.userId === activeUser.id)?.isPendingRequest ?? false;
     const isPendingMySent = pendingStatus === 'pending_sent' ||
       (conversations.find((c) => c.userId === activeUser.id)?.isPendingSent ?? false);
+    const iBlockedThem = blockedUsers.some((b) => b.id === activeUser.id);
     return (
       <div className="relative flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f] overflow-hidden">
         <header className="shrink-0 flex items-center gap-3 p-3 border-b border-[#1e1e2f] bg-[#12121a] relative">
@@ -1320,6 +1331,28 @@ export function DmPage({
           </div>
         )}
 
+        {blockedByThem && !iBlockedThem && (
+          <div className="shrink-0 px-4 py-2.5 bg-red-950/20 border-b border-red-500/15">
+            <p className="text-xs text-red-400 text-center">
+              Vous avez été bloqué par cet utilisateur — vous ne pouvez plus lui envoyer de message.
+            </p>
+          </div>
+        )}
+
+        {iBlockedThem && (
+          <div className="shrink-0 px-4 py-2.5 bg-[#1a1010] border-b border-red-500/15 flex items-center justify-between gap-3">
+            <p className="text-xs text-red-400">Vous avez bloqué cet utilisateur.</p>
+            <button
+              type="button"
+              onClick={() => unblockOne(activeUser.id)}
+              disabled={unblocking}
+              className="shrink-0 px-3 py-1 bg-[#2d1818] border border-red-500/30 hover:bg-red-900/30 rounded-full text-xs text-red-300 disabled:opacity-50"
+            >
+              {unblocking ? '...' : 'Débloquer'}
+            </button>
+          </div>
+        )}
+
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
           <div
             ref={messagesScrollRef}
@@ -1388,25 +1421,36 @@ export function DmPage({
             </div>
           </div>
 
-          <form
-            onSubmit={sendMessage}
-            className="shrink-0 flex gap-2 px-3 py-2 border-t border-[#1e1e2f] bg-[#12121a] pb-0"
-          >
-            <input
-              type="text"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="Écrire un message privé..."
-              className="flex-1 bg-[#1a1a26] border border-[#2d2d3d] rounded-full px-4 py-2.5 text-sm text-white"
-            />
-            <button
-              type="submit"
-              disabled={!draft.trim() || sending}
-              className="shrink-0 px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 rounded-full font-bold text-white text-sm"
+          {dmSendError && !iBlockedThem && !blockedByThem && (
+            <div className="shrink-0 px-4 py-2 bg-red-950/30 border-t border-red-500/20">
+              <p className="text-xs text-red-400 text-center">{dmSendError}</p>
+            </div>
+          )}
+          {iBlockedThem || blockedByThem ? (
+            <div className="shrink-0 flex items-center justify-center px-4 py-3 bg-[#12121a] border-t border-[#1e1e2f]">
+              <p className="text-xs text-[#5a5a7a]">Envoi de message désactivé</p>
+            </div>
+          ) : (
+            <form
+              onSubmit={sendMessage}
+              className="shrink-0 flex gap-2 px-3 py-2 border-t border-[#1e1e2f] bg-[#12121a] pb-0"
             >
-              Envoyer
-            </button>
-          </form>
+              <input
+                type="text"
+                value={draft}
+                onChange={(e) => { setDraft(e.target.value); if (dmSendError) setDmSendError(null); }}
+                placeholder="Écrire un message privé..."
+                className="flex-1 bg-[#1a1a26] border border-[#2d2d3d] rounded-full px-4 py-2.5 text-sm text-white"
+              />
+              <button
+                type="submit"
+                disabled={!draft.trim() || sending}
+                className="shrink-0 px-5 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 rounded-full font-bold text-white text-sm"
+              >
+                Envoyer
+              </button>
+            </form>
+          )}
         </div>
       </div>
     );

@@ -5,7 +5,7 @@ import { api } from '../lib/api';
 import { applyFeedPreferences, boostPostsByGenreAffinity, sortFeedPostsByPublicationDate } from '../lib/feedFilter';
 import { HOME_FEED_DISPLAY_PREFS } from '../lib/feedUserPrefs';
 import { UsernameDisplay } from '../components/UsernameDisplay';
-import { fetchStoriesBundle } from '../lib/storiesApiCache';
+import { fetchStoriesBundle, invalidateStoriesCache } from '../lib/storiesApiCache';
 import {
   clipboardItemsToImageFile,
   dataUrlToFeedImageDataUrl,
@@ -31,6 +31,7 @@ import {
   pickInitialStory,
   resolveNextStory,
   resolvePrevStory,
+  resolveAfterStoryDeleted,
   stackIndexForStory,
   type StoryUserStack,
 } from '../lib/storyViewerNav';
@@ -1211,6 +1212,24 @@ export function ActualiteTabPage({
     feedStorySheet.kind === 'view' &&
     resolvePrevStory(feedStoryStacks, feedStorySheet.story, user?.id) != null;
 
+  const handleFeedStoryDeleted = useCallback(
+    (deleted: MapStory) => {
+      invalidateStoriesCache();
+      setFeedStoriesByUser((prev) => {
+        const next = new Map(prev);
+        const list = (next.get(deleted.userId) ?? []).filter((s) => s.id !== deleted.id);
+        if (list.length) next.set(deleted.userId, list);
+        else next.delete(deleted.userId);
+        return next;
+      });
+      const nav = resolveAfterStoryDeleted(feedStoryStacks, deleted, user?.id);
+      if (nav.action === 'close') setFeedStorySheet({ kind: 'closed' });
+      else setFeedStorySheet({ kind: 'view', story: nav.story, isOwn: nav.isOwn });
+      void loadFeedStories();
+    },
+    [feedStoryStacks, user?.id, loadFeedStories]
+  );
+
   const handlePostAuthorClick = useCallback(
     (post: FeedPost) => {
       if (post.authorHasActiveStory) {
@@ -2126,6 +2145,9 @@ export function ActualiteTabPage({
           onPrev={goPrevFeedStory}
           canNext={canNextFeedStory}
           canPrev={canPrevFeedStory}
+          isOwn={feedStorySheet.isOwn}
+          token={token ?? undefined}
+          onDeleted={handleFeedStoryDeleted}
         />
       ) : null}
     </div>

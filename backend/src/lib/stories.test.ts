@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { db } from '../models/schema';
-import { createStory, getMyActiveStory, getUserActiveStories, listStoriesForViewer, MAX_ACTIVE_STORIES_PER_USER, purgeExpiredStories } from './stories';
+import { createStory, deleteStory, getMyActiveStory, getUserActiveStories, listStoriesForViewer, MAX_ACTIVE_STORIES_PER_USER, purgeExpiredStories } from './stories';
 
 function seedUser(id: string, lat: number, lon: number) {
   db.users.set(id, {
@@ -123,5 +123,15 @@ describe('stories', () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.story.link).toBeUndefined();
+  });
+
+  it('deletes own active story', () => {
+    const r = createStory('me', { content: 'bye' });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(deleteStory(r.story.id, 'me')).toBe(true);
+    expect(getUserActiveStories('me')).toHaveLength(0);
+    expect(deleteStory(r.story.id, 'me')).toBe(false);
+    expect(deleteStory(r.story.id, 'near')).toBe(false);
   });
 });

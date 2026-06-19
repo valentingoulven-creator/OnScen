@@ -1124,7 +1124,16 @@ export function PhotoImageEditor({
         link: isStory ? resolvedLink : null,
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erreur lors de la composition');
+      if (e instanceof Error) {
+        const msg = e.message;
+        setError(
+          /Failed to fetch|NetworkError|network error/i.test(msg)
+            ? 'Impossible de télécharger la photo. Vérifiez votre connexion.'
+            : msg
+        );
+      } else {
+        setError('Erreur lors de la composition');
+      }
     } finally {
       setComposing(false);
     }

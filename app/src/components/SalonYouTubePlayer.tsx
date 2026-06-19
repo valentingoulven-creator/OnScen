@@ -191,7 +191,8 @@ export function SalonYouTubePlayer({
   volumeRef.current = volume;
   mutedRef.current = muted;
 
-  const respectLocalPause = showLocalControls && localPaused;
+  // Participants are always force-synced with the host; only the host may locally pause.
+  const respectLocalPause = _isHost && showLocalControls && localPaused;
   /** YouTube interdit la lecture audio sans lecteur visible (hors démo msdev). */
   const strictCompliance = isYoutubeStrictCompliance();
   const videoPlaybackAllowed = showVideo || !strictCompliance;
@@ -339,7 +340,7 @@ export function SalonYouTubePlayer({
     setMediaSessionHandlers({
       play: () => {
         try {
-          if (showLocalControls) setLocalPaused(false);
+          if (_isHost && showLocalControls) setLocalPaused(false);
           applySync(player, stateRef.current, true, false);
           player.playVideo();
         } catch {
@@ -348,8 +349,15 @@ export function SalonYouTubePlayer({
       },
       pause: () => {
         try {
-          if (showLocalControls) setLocalPaused(true);
-          player.pauseVideo();
+          if (_isHost && showLocalControls) {
+            setLocalPaused(true);
+            player.pauseVideo();
+          } else {
+            // Participant: hardware pause key is ignored — re-sync with host state.
+            if (playbackActiveRef.current) {
+              applySync(player, stateRef.current, false, false, true);
+            }
+          }
         } catch {
           /* ignore */
         }
@@ -675,6 +683,8 @@ export function SalonYouTubePlayer({
   ]);
 
   const toggleLocalPlay = () => {
+    // Participants cannot pause locally — they are always synced with the host.
+    if (!_isHost) return;
     const player = playerRef.current;
     if (!player) return;
     if (localPaused) {

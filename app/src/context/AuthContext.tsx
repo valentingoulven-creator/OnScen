@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import i18n from '../i18n';
 import { api, ApiRequestError } from '../lib/api';
 import { clearStoredToken, getStoredToken, persistToken } from '../lib/authStorage';
@@ -169,7 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     registerUser(r.user.id, r.token);
   };
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     if (!token) return;
     try {
       const r = await api.me(token);
@@ -180,7 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logoutRef.current();
       }
     }
-  };
+  }, [token]);
 
   const setUserFromProfile = (u: User) =>
     setUser((prev) => {

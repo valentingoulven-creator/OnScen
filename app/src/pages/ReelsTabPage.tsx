@@ -610,18 +610,22 @@ export function ReelsTabPage({
     setCommentsOpen(false);
   }, [activeReel?.id, loadStats]);
 
+  const loadStatsRef = useRef(loadStats);
+  loadStatsRef.current = loadStats;
+
   useEffect(() => {
     if (!activeReel || !token) return;
     const socket = getSocket();
     if (!socket) return;
-    socket.emit('join_reel', { reelId: activeReel.id });
+    const reelId = activeReel.id;
+    socket.emit('join_reel', { reelId });
     const onComment = (comment: ReelComment) => {
-      if (comment.reelId !== activeReel.id) return;
-      void loadStats(activeReel.id);
+      if (comment.reelId !== reelId) return;
+      void loadStatsRef.current(reelId);
     };
     socket.on('reel_comment', onComment);
     return () => {
-      socket.emit('leave_reel', { reelId: activeReel.id });
+      socket.emit('leave_reel', { reelId });
       socket.off('reel_comment', onComment);
     };
   }, [activeReel?.id, token]);

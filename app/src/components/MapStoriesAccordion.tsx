@@ -11,6 +11,7 @@ import {
   pickInitialStory,
   resolveNextStory,
   resolvePrevStory,
+  resolveAfterStoryDeleted,
   stackIndexForStory,
 } from '../lib/storyViewerNav';
 import {
@@ -48,6 +49,7 @@ import { MapStoryRing, MyMapStoryRing } from './MapStoryRings';
 import { StoryLivePreviewViewer } from './StoryLivePreviewViewer';
 import { StoryViewer } from './StoryViewer';
 import { StoriesRingsCarousel } from './StoriesRingsCarousel';
+import { fetchStoriesBundle, invalidateStoriesCache } from '../lib/storiesApiCache';
 import { USERNAME_WAVE_CLASS } from '../lib/usernameColor';
 
 interface MapStoriesAccordionProps {
@@ -227,6 +229,34 @@ export function MapStoriesAccordion({
   const canPrevStory =
     sheet.kind === 'view' && resolvePrevStory(storyStacks, sheet.story, user?.id) != null;
 
+  const handleStoryDeleted = useCallback(
+    (deleted: MapStory) => {
+      invalidateStoriesCache();
+      setMyStories((prev) => prev.filter((s) => s.id !== deleted.id));
+      setStoriesByUser((prev) => {
+        const next = new Map(prev);
+        const list = (next.get(deleted.userId) ?? []).filter((s) => s.id !== deleted.id);
+        if (list.length) next.set(deleted.userId, list);
+        else next.delete(deleted.userId);
+        return next;
+      });
+      setStoryFeed((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          ephemeralStories: prev.ephemeralStories.filter((s) => s.id !== deleted.id),
+        };
+      });
+      const nav = resolveAfterStoryDeleted(storyStacks, deleted, user?.id);
+      if (nav.action === 'close') setSheet({ kind: 'closed' });
+      else setSheet({ kind: 'view', story: nav.story, isOwn: nav.isOwn });
+      void fetchStoryFeed();
+    },
+    [storyStacks, user?.id, fetchStoryFeed]
+  );
+
+  const myLatestStory = latestStory(myStories);
+
   const openEntry = (entry: MapStoryEntry) => {
     if (entry.hasActiveStory && entry.storyId) {
       const userStories = storiesByUser.get(entry.userId);
@@ -274,8 +304,6 @@ export function MapStoriesAccordion({
     });
     void fetchStoryFeed();
   };
-
-  const myLatestStory = latestStory(myStories);
 
   const showEmpty = !loading && entries.length === 0 && !user;
 
@@ -463,6 +491,9 @@ export function MapStoriesAccordion({
           onPrev={goPrevStory}
           canNext={canNextStory}
           canPrev={canPrevStory}
+          isOwn={sheet.isOwn}
+          token={token ?? undefined}
+          onDeleted={handleStoryDeleted}
         />
       ) : null}
 

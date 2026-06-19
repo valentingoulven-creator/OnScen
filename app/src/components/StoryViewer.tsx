@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useHorizontalSwipe } from '../hooks/useHorizontalSwipe';
 import { useVerticalSwipe } from '../hooks/useVerticalSwipe';
+import { api } from '../lib/api';
 import { STORY_VIEW_DURATION_MS, formatStoryTimeAgo } from '../lib/storyViewerNav';
 import type { MapStory } from '../types';
 import { OpenOnYoutubeButton } from './OpenOnYoutubeButton';
@@ -18,6 +19,10 @@ export interface StoryViewerProps {
   onPrev: () => void;
   canNext: boolean;
   canPrev: boolean;
+  /** Story de l'utilisateur connecté — affiche la suppression. */
+  isOwn?: boolean;
+  token?: string;
+  onDeleted?: (story: MapStory) => void;
 }
 
 export function StoryViewer({
@@ -29,9 +34,15 @@ export function StoryViewer({
   onPrev,
   canNext,
   canPrev,
+  isOwn = false,
+  token,
+  onDeleted,
 }: StoryViewerProps) {
   const [paused, setPaused] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const progressRef = useRef(0);
   const rafRef = useRef(0);
   const segmentStartRef = useRef(Date.now());
@@ -58,6 +69,8 @@ export function StoryViewer({
     progressRef.current = 0;
     segmentStartRef.current = Date.now();
     setPaused(false);
+    setShowDeleteConfirm(false);
+    setDeleteError(null);
   }, [story.id]);
 
   useEffect(() => {
@@ -145,6 +158,23 @@ export function StoryViewer({
     onClose();
   };
 
+  const canDelete = isOwn && Boolean(token) && Boolean(onDeleted);
+
+  const confirmDelete = useCallback(async () => {
+    if (!token || !onDeleted) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await api.deleteStory(token, story.id);
+      setShowDeleteConfirm(false);
+      onDeleted(story);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Suppression impossible');
+    } finally {
+      setDeleting(false);
+    }
+  }, [token, onDeleted, story]);
+
   return (
     <div
       className="fixed inset-0 z-[200] flex items-stretch sm:items-center justify-center bg-black sm:bg-black/70 sm:backdrop-blur-sm p-0 sm:p-4 select-none"
@@ -200,16 +230,34 @@ export function StoryViewer({
               </span>
             ) : null}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-white/10 shrink-0"
-            aria-label="Fermer"
-          >
-            <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-0.5 shrink-0">
+            {canDelete ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteError(null);
+                  setShowDeleteConfirm(true);
+                }}
+                className="p-2 rounded-full text-gray-400 hover:text-red-400 hover:bg-red-500/10"
+                aria-label="Supprimer la story"
+              >
+                <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M10 11v6M14 11v6" strokeLinecap="round" />
+                </svg>
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-white/10 shrink-0"
+              aria-label="Fermer"
+            >
+              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Media ajusté (object-contain, plein écran sur mobile) */}
@@ -336,6 +384,55 @@ export function StoryViewer({
           </div>
         )}
       </div>
+
+      {showDeleteConfirm ? (
+        <div
+          className="absolute inset-0 z-30 flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="story-delete-title"
+          onClick={() => {
+            if (!deleting) setShowDeleteConfirm(false);
+          }}
+        >
+          <div
+            className="w-full max-w-sm bg-[#12121a] border border-[#2d2d3d] rounded-2xl shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5">
+              <p id="story-delete-title" className="text-lg font-bold text-white">
+                Supprimer cette story ?
+              </p>
+              <p className="mt-2 text-sm text-gray-400">
+                Cette action est définitive. La story ne sera plus visible par vos abonnés.
+              </p>
+              {deleteError ? (
+                <p className="mt-2 text-sm text-red-400" role="alert">
+                  {deleteError}
+                </p>
+              ) : null}
+            </div>
+            <div className="flex gap-2 p-4 border-t border-[#1e1e2f] bg-[#0b0b0f]/50">
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 py-3 rounded-xl border border-[#2d2d3d] text-gray-300 text-sm font-semibold hover:text-white disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => void confirmDelete()}
+                className="flex-1 py-3 rounded-xl bg-red-600/90 hover:bg-red-500 text-white text-sm font-bold disabled:opacity-50"
+              >
+                {deleting ? 'Suppression…' : 'Supprimer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

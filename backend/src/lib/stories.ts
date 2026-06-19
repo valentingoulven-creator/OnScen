@@ -280,6 +280,14 @@ export function getMyActiveStory(userId: string): PublicStory | null {
   return getUserActiveStory(userId);
 }
 
+export function deleteStory(storyId: string, userId: string): boolean {
+  purgeExpiredStories();
+  const idx = db.stories.findIndex((s) => s.id === storyId && s.userId === userId && isActive(s));
+  if (idx < 0) return false;
+  db.stories.splice(idx, 1);
+  return true;
+}
+
 export function listStoriesForViewer(
   viewerId: string,
   opts?: { latitude?: number; longitude?: number; radiusKm?: number }

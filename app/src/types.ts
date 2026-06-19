@@ -983,6 +983,7 @@ export interface DmContact {
   avatarUrl?: string;
   isOnline?: boolean;
   isBlockedByMe?: boolean;
+  isBlockedByThem?: boolean;
   isMutedByMe?: boolean;
   isMatch?: boolean;
   isMutualFollow?: boolean;

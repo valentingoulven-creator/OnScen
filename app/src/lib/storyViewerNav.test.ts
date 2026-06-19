@@ -5,6 +5,7 @@ import {
   areAllStoriesSeen,
   pickInitialStory,
   pruneSeenStoryIds,
+  resolveAfterStoryDeleted,
   sortStoriesChronological,
 } from './storyViewerNav';
 
@@ -61,5 +62,22 @@ describe('sortStoriesChronological', () => {
   it('orders oldest to newest', () => {
     const sorted = sortStoriesChronological([story('b', 2), story('a', 1), story('c', 3)]);
     expect(sorted.map((s) => s.id)).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('resolveAfterStoryDeleted', () => {
+  it('shows next story in same stack when available', () => {
+    const s1 = story('s1', 1);
+    const s2 = { ...story('s2', 2), userId: 'u1' };
+    const stacks = [{ userId: 'u1', stories: [s1, s2] }];
+    const nav = resolveAfterStoryDeleted(stacks, s1, 'u1');
+    expect(nav.action).toBe('view');
+    if (nav.action === 'view') expect(nav.story.id).toBe('s2');
+  });
+
+  it('closes when last story is deleted', () => {
+    const s1 = story('s1', 1);
+    const stacks = [{ userId: 'u1', stories: [s1] }];
+    expect(resolveAfterStoryDeleted(stacks, s1, 'u1')).toEqual({ action: 'close' });
   });
 });
