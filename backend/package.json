@@ -61,7 +61,7 @@
     "@types/web-push": "^3.6.4",
     "resedit": "^3.0.2",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.4.5",
+    "typescript": "^6.0.3",
     "vitest": "^3.2.6"
   },
   "overrides": {
