@@ -152,6 +152,26 @@ export function SalonProposalsSection({
             ))}
           </ul>
         )}
+
+        <ConfirmModal
+          open={confirmRejectId !== null}
+          title="Supprimer cette proposition ?"
+          description="Elle sera définitivement refusée et retirée."
+          onCancel={() => setConfirmRejectId(null)}
+          onConfirm={async () => {
+            if (!confirmRejectId) return;
+            const id = confirmRejectId;
+            setActionId(id);
+            try {
+              await onReject?.(id);
+              setConfirmRejectId(null);
+            } catch (e) {
+              setErrorMsg(e instanceof Error ? e.message : 'Erreur');
+            } finally {
+              setActionId(null);
+            }
+          }}
+        />
       </div>
     );
   }

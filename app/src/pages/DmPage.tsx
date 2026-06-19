@@ -2725,7 +2725,7 @@ export function DmPage({
         onCancel={() => setPendingConfirm(null)}
         onConfirm={() => {
           if (!pendingConfirm) return;
-          void pendingConfirm.onConfirm().catch((e) => {
+          void Promise.resolve(pendingConfirm.onConfirm()).catch((e: unknown) => {
             alert(e instanceof Error ? e.message : 'Impossible de supprimer');
           });
         }}

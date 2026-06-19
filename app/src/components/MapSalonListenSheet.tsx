@@ -8,6 +8,7 @@ import { HostRatingBlock } from './HostRatingBlock';
 import { ShareSalonLink } from './ShareSalonLink';
 import { SalonPlaybackPanel } from './SalonPlaybackPanel';
 import { MapSalonListenControls, MAP_SALON_OUTLINE_BUTTON_CLASS } from './MapSalonListenControls';
+import { ConfirmModal } from './ConfirmModal';
 import { UserAvatarOnline } from './UserAvatarOnline';
 import { UsernameDisplay } from './UsernameDisplay';
 import { useSalonQueueSync } from '../hooks/useSalonQueueSync';
@@ -70,6 +71,7 @@ export function MapSalonListenSheet({
   const [isFav, setIsFav] = useState(false);
   const [notifsEnabled, setNotifsEnabled] = useState(true);
   const [loadingFav, setLoadingFav] = useState(false);
+  const [confirmRemoveFavorite, setConfirmRemoveFavorite] = useState(false);
   const [hostPlaybackDenied, setHostPlaybackDenied] = useState(false);
 
   useEffect(() => {
@@ -82,17 +84,29 @@ export function MapSalonListenSheet({
 
   const toggleFav = async () => {
     if (!token || loadingFav) return;
-    if (isFav && !window.confirm(`Retirer ${salon.hostName} de vos favoris ?`)) return;
+    if (isFav) {
+      setConfirmRemoveFavorite(true);
+      return;
+    }
     setLoadingFav(true);
     try {
-      if (isFav) {
-        await api.removeFavorite(token, salon.hostId);
-        setIsFav(false);
-      } else {
-        const r = await api.addFavorite(token, salon.hostId);
-        setIsFav(true);
-        setNotifsEnabled(r.notificationsEnabled);
-      }
+      const r = await api.addFavorite(token, salon.hostId);
+      setIsFav(true);
+      setNotifsEnabled(r.notificationsEnabled);
+    } catch {
+      /* ignore */
+    } finally {
+      setLoadingFav(false);
+    }
+  };
+
+  const confirmRemoveFavoriteAction = async () => {
+    if (!token || loadingFav) return;
+    setLoadingFav(true);
+    try {
+      await api.removeFavorite(token, salon.hostId);
+      setIsFav(false);
+      setConfirmRemoveFavorite(false);
     } catch {
       /* ignore */
     } finally {
@@ -451,6 +465,16 @@ export function MapSalonListenSheet({
 
         </div>
       )}
+
+      <ConfirmModal
+        open={confirmRemoveFavorite}
+        title={`Retirer ${salon.hostName} de vos favoris ?`}
+        description="Vous ne recevrez plus les notifications de cet hôte."
+        confirmLabel="Retirer"
+        loading={loadingFav}
+        onCancel={() => setConfirmRemoveFavorite(false)}
+        onConfirm={() => void confirmRemoveFavoriteAction()}
+      />
     </div>
   );
 }
