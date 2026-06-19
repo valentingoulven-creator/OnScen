@@ -784,7 +784,7 @@ export function DmPage({
     prevMessageCountRef.current = activeMessageCount;
     if (!shouldScroll) return;
     requestAnimationFrame(() => {
-      el.scrollTo({ top: el.scrollHeight, behavior: isInitialLoad ? 'auto' : 'smooth' });
+      el.scrollTo({ top: el.scrollHeight, behavior: 'auto' });
     });
   }, [activeMessageCount, view]);
 
@@ -989,6 +989,22 @@ export function DmPage({
       />
     );
   };
+
+  const renderConfirmModal = () => (
+    <ConfirmModal
+      open={pendingConfirm !== null}
+      title={pendingConfirm?.title ?? ''}
+      description={pendingConfirm?.description}
+      confirmLabel={pendingConfirm?.confirmLabel ?? 'Supprimer'}
+      onCancel={() => setPendingConfirm(null)}
+      onConfirm={() => {
+        if (!pendingConfirm) return;
+        void Promise.resolve(pendingConfirm.onConfirm()).catch((e: unknown) => {
+          alert(e instanceof Error ? e.message : 'Impossible de supprimer');
+        });
+      }}
+    />
+  );
 
   const memberIdsSet = useMemo(
     () => new Set(activeGroup?.memberIds ?? []),
@@ -1595,8 +1611,8 @@ export function DmPage({
     const canSendDm = activeUser.isMutualFollow !== false;
     const iBlockedThem = blockedUsers.some((b) => b.id === activeUser.id);
     return (
-      <div className="dm-thread-root relative flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f] overflow-hidden">
-        <header className="shrink-0 flex items-center gap-3 p-3 border-b border-[#1e1e2f] bg-[#12121a] relative">
+      <div className="dm-thread-root relative flex flex-col flex-1 min-h-0 bg-[#0b0b0f] overflow-hidden">
+        <header className="shrink-0 flex items-center gap-3 p-3 border-b border-[#1e1e2f] bg-[#12121a] relative z-10">
           <button
             type="button"
             onClick={() => {
@@ -1992,6 +2008,7 @@ export function DmPage({
           )}
         </div>
         {renderCreateSalonModal()}
+        {renderConfirmModal()}
       </div>
     );
   }
@@ -2149,8 +2166,8 @@ export function DmPage({
     }
 
     return (
-      <div className="dm-thread-root relative flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f] overflow-hidden">
-        <header className="shrink-0 flex items-center gap-3 p-3 border-b border-[#1e1e2f] bg-[#12121a] relative">
+      <div className="dm-thread-root relative flex flex-col flex-1 min-h-0 bg-[#0b0b0f] overflow-hidden">
+        <header className="shrink-0 flex items-center gap-3 p-3 border-b border-[#1e1e2f] bg-[#12121a] relative z-10">
           <button
             type="button"
             onClick={() => {
@@ -2311,6 +2328,7 @@ export function DmPage({
           </form>
         </div>
         {renderCreateSalonModal()}
+        {renderConfirmModal()}
       </div>
     );
   }
@@ -2717,19 +2735,7 @@ export function DmPage({
         </div>
       )}
 
-      <ConfirmModal
-        open={pendingConfirm !== null}
-        title={pendingConfirm?.title ?? ''}
-        description={pendingConfirm?.description}
-        confirmLabel={pendingConfirm?.confirmLabel ?? 'Supprimer'}
-        onCancel={() => setPendingConfirm(null)}
-        onConfirm={() => {
-          if (!pendingConfirm) return;
-          void Promise.resolve(pendingConfirm.onConfirm()).catch((e: unknown) => {
-            alert(e instanceof Error ? e.message : 'Impossible de supprimer');
-          });
-        }}
-      />
+      {renderConfirmModal()}
     </div>
   );
 }

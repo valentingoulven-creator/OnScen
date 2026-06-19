@@ -157,6 +157,29 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  /** Restaure la session hôte depuis /auth/me après rechargement (sessionStorage + API). */
+  useEffect(() => {
+    const hostedSalonId = user?.salonId;
+    if (!hostedSalonId || !token) return;
+    const hostedSalonTitle = user.salonTitle;
+    setActiveSalonSession((prev) => {
+      if (prev && prev.id !== hostedSalonId && !prev.isHost) return prev;
+      if (prev && prev.id === hostedSalonId) {
+        return {
+          ...prev,
+          isHost: true,
+          title: prev.title ?? hostedSalonTitle,
+        };
+      }
+      return {
+        id: hostedSalonId,
+        title: hostedSalonTitle,
+        viewMode: prev?.viewMode === 'full' ? 'full' : 'minimized',
+        isHost: true,
+      };
+    });
+  }, [user?.salonId, user?.salonTitle, token]);
+
   const salonRestoredOnBootRef = useRef(false);
   useEffect(() => {
     if (!user || !token || !activeSalonSession || salonRestoredOnBootRef.current) return;
@@ -424,6 +447,7 @@ export default function App() {
       id: salonId,
       title: salonTitle ?? (prev?.id === salonId ? prev.title : undefined),
       viewMode: 'minimized',
+      isHost: prev?.id === salonId ? prev.isHost : undefined,
     }));
     setProfileOpen(false);
     setProfilePreview(null);
@@ -547,8 +571,12 @@ export default function App() {
     dismissToast();
   }, [dismissToast]);
 
+  const handleOwnSalonEnded = useCallback(() => {
+    handleSalonForcedEnd('ended');
+    void refreshUser();
+  }, [handleSalonForcedEnd, refreshUser]);
+
   const selectTab = useCallback((id: Tab) => {
-    if (tabRef.current === 'reels' && id !== 'reels') pauseAllReelsMediaInDom({ resetPosition: true });
     if (id !== 'reels') pauseMediaElements(document, { exceptLiveStage: true });
     setProfileOpen(false);
     setAdminOpen(false);
@@ -613,6 +641,13 @@ export default function App() {
   if (!user.onboardingCompleted) return <OnboardingPage onDone={completeOnboarding} />;
 
   const salonFullScreen = activeSalonSession?.viewMode === 'full';
+  /** Salon hébergé actif — bandeau carte (sessionStorage + /auth/me). */
+  const ownSalonSession =
+    activeSalonSession?.isHost && activeSalonSession
+      ? { id: activeSalonSession.id, title: activeSalonSession.title }
+      : user?.salonId
+        ? { id: user.salonId, title: user.salonTitle }
+        : null;
   /** Onglets montés sous le grand salon (overlay) ou en navigation normale. */
   const tabContentBase = view.type === 'home' || salonFullScreen;
   const reelsActive = tab === 'reels' && !profileOpen && tabContentBase;
@@ -859,8 +894,13 @@ export default function App() {
                 <div
                   className={
                     mapTabHiddenUnderSalon || mapTabHiddenUnderProfile || mapTabHiddenOffTab
-                      ? 'hidden'
+                      ? 'hidden pointer-events-none inert'
                       : 'flex flex-col flex-1 min-h-0 min-w-0'
+                  }
+                  aria-hidden={
+                    mapTabHiddenUnderSalon || mapTabHiddenUnderProfile || mapTabHiddenOffTab
+                      ? true
+                      : undefined
                   }
                 >
                   <HomePage
@@ -879,6 +919,12 @@ export default function App() {
                     onMapSalonActive={handleMapSalonActive}
                     onLeaveSalon={leaveActiveSalonSession}
                     onSalonRestoreFailed={() => handleSalonForcedEnd('ended')}
+                    ownSalonSession={ownSalonSession}
+                    onReturnToOwnSalon={() => {
+                      if (!ownSalonSession) return;
+                      openSalonPage(ownSalonSession.id, ownSalonSession.title, true);
+                    }}
+                    onOwnSalonEnded={handleOwnSalonEnded}
                   />
                 </div>
               </Suspense>

@@ -1000,16 +1000,22 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
+  overscroll-behavior: contain;
   min-height: 0;
   flex: 1 1 0%;
 }
 
-/* DM thread — barre de saisie au-dessus du dock / onglets bas */
+/* DM thread — réserve le dock en bas ; la barre de saisie reste cliquable au-dessus */
+.ms-app-shell--bottom-tabs .dm-thread-root {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+  padding-bottom: var(--tab-nav-total-h);
+  box-sizing: border-box;
+}
+
 .ms-app-shell--bottom-tabs .dm-compose-bar {
   flex-shrink: 0;
-  position: relative;
-  z-index: 65;
-  padding-bottom: var(--tab-nav-total-h);
 }
 
 /* Live — animation cadeau / pourboire (style overlay) */

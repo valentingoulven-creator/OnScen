@@ -11,6 +11,7 @@ import { MapSalonListenSheet } from '../components/MapSalonListenSheet';
 import { MapLiveListenSheet } from '../components/MapLiveListenSheet';
 import { CreateSalonModal } from '../components/CreateSalonModal';
 import { MapAdBanner, type MapSponsorViewport } from '../components/MapAdBanner';
+import { MapOwnSalonBanner } from '../components/MapOwnSalonBanner';
 import { MAP_EVENTS_REFRESH_EVENT, MAP_OPEN_CREATE_SALON_EVENT } from '../lib/mapUiEvents';
 import { isAppa2Layout, type AppLayoutId } from '../lib/appLayout';
 import {
@@ -173,6 +174,10 @@ interface HomePageProps {
   onLeaveSalon?: () => void;
   /** Salon introuvable côté API (supprimé / expiré) pendant restore carte. */
   onSalonRestoreFailed?: (salonId: string) => void;
+  /** Salon hébergé actif — bandeau persistant sur la carte. */
+  ownSalonSession?: { id: string; title?: string } | null;
+  onReturnToOwnSalon?: () => void;
+  onOwnSalonEnded?: () => void;
 }
 
 export function HomePage({
@@ -192,6 +197,9 @@ export function HomePage({
   onMapSalonActive,
   onLeaveSalon,
   onSalonRestoreFailed,
+  ownSalonSession = null,
+  onReturnToOwnSalon,
+  onOwnSalonEnded,
 }: HomePageProps) {
   const { t } = useTranslation();
   const appa2 = isAppa2Layout(appLayout);
@@ -1713,6 +1721,14 @@ export function HomePage({
               {toastMsg}
             </div>
           </div>
+        )}
+        {ownSalonSession && onReturnToOwnSalon && !mapProfileOpen && (
+          <MapOwnSalonBanner
+            salonId={ownSalonSession.id}
+            salonTitle={ownSalonSession.title}
+            onReturn={onReturnToOwnSalon}
+            onSalonEnded={onOwnSalonEnded}
+          />
         )}
         {loadingMapEvents && (
           <div className="absolute bottom-4 right-4 z-40 pointer-events-none">
