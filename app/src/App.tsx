@@ -851,7 +851,9 @@ export default function App() {
                         }
                       : undefined
                   }
-                  onSelectSalon={(salonId) => openSalonPage(salonId)}
+                  onSelectSalon={(salonId, salonTitle, isHost) =>
+                    openSalonPage(salonId, salonTitle, isHost)
+                  }
                   onOpenDm={(peerId) => {
                     closeProfile();
                     openDmWithUser(peerId);

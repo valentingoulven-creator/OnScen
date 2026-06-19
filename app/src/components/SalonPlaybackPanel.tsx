@@ -26,6 +26,7 @@ import {
   startMapInlineListenSession,
 } from '../lib/mapListenSession';
 import { getSalonShowYoutubeVideo, setSalonShowYoutubeVideo } from '../lib/salonYoutubeDisplay';
+import { getSalonYoutubeVolume, setSalonYoutubeVolume } from '../lib/salonYoutubeVolume';
 import { isYoutubeStrictCompliance } from '../lib/youtubeCompliance';
 import { useBackgroundPlayback } from '../hooks/useBackgroundPlayback';
 import { PlatformConnectCard } from './PlatformConnectCard';
@@ -125,6 +126,9 @@ export function SalonPlaybackPanel({
     if (mapInline) return salon.playbackState.showVideo ?? (salon.platform === 'youtube');
     return salon.playbackState.showVideo ?? (salon.platform === 'youtube' ? true : getSalonShowYoutubeVideo());
   });
+  const [theaterYoutubeVolume, setTheaterYoutubeVolume] = useState(() => getSalonYoutubeVolume());
+  const [theaterYoutubeMuted, setTheaterYoutubeMuted] = useState(false);
+  const [participantSyncTrigger, setParticipantSyncTrigger] = useState(0);
   const hostShowVideoRef = useRef(salon.playbackState.showVideo);
   const prevYoutubeTrackRef = useRef(salon.playbackState.trackId);
 
@@ -138,7 +142,6 @@ export function SalonPlaybackPanel({
     applyPlaybackState,
     emitSync,
     emitPatch,
-    emitForceSync,
     reportHostProgress,
   } = useSalonPlaybackSync({
       salonId: salon.id,
@@ -342,11 +345,22 @@ export function SalonPlaybackPanel({
     [salon.platform, canControlPlayback, spotifySyncEnabled, markLocalControl, callSpotifySeek]
   );
 
-  const handleForceSync = useCallback(() => {
-    emitForceSync();
-    setSyncNotif('✓ Participants synchronisés');
+  const showParticipantYoutubeSync = !canControlPlayback && salon.platform === 'youtube';
+
+  const handleParticipantSync = useCallback(async () => {
+    if (!showParticipantYoutubeSync) return;
+    try {
+      if (token) {
+        const { salon: fresh } = await api.getSalon(token, salon.id);
+        applyPlaybackState(fresh.playbackState);
+      }
+    } catch {
+      /* fallback to current shared state */
+    }
+    setParticipantSyncTrigger((n) => n + 1);
+    setSyncNotif('✓ Synchronisé avec l\'hôte');
     window.setTimeout(() => setSyncNotif(null), 3000);
-  }, [emitForceSync]);
+  }, [showParticipantYoutubeSync, token, salon.id, applyPlaybackState]);
 
   useEffect(() => {
     setParticipantPlatform(preferredParticipantPlatform(userPlatforms, salon.platform));
@@ -513,6 +527,18 @@ export function SalonPlaybackPanel({
       </button>
     ) : null;
 
+  const renderParticipantSyncButton = (className: string) =>
+    showParticipantYoutubeSync ? (
+      <button
+        type="button"
+        onClick={() => void handleParticipantSync()}
+        className={className}
+        title="Synchroniser avec l'hôte"
+      >
+        ↺ Synchroniser
+      </button>
+    ) : null;
+
   const playbackStatusBadge = (
     <span
       className={`text-[10px] px-2 py-0.5 rounded-full border shrink-0 ${
@@ -629,22 +655,16 @@ export function SalonPlaybackPanel({
                   {salon.accessMode === 'public' ? '🌍 Public' : '🔒 Invitation'}
                 </span>
               )}
-              {isHost && (
-                <button
-                  type="button"
-                  onClick={handleForceSync}
-                  className="px-2.5 py-1.5 rounded-xl border border-[#2a2a3a] text-xs text-gray-400 hover:text-white transition"
-                  title="Forcer la synchronisation de tous les participants"
-                >
-                  ↺ Synchroniser
-                </button>
-              )}
               {isVipModerator && !isHost && (
                 <span className="text-[10px] px-2 py-0.5 rounded-md font-medium text-amber-300/90">
                   ⭐ Modérateur VIP
                 </span>
               )}
             </div>
+          )}
+
+          {renderParticipantSyncButton(
+            'px-2.5 py-1.5 rounded-xl border border-[#2a2a3a] text-xs text-gray-400 hover:text-white transition'
           )}
 
           {playbackProgressInput}
@@ -726,18 +746,39 @@ export function SalonPlaybackPanel({
         {salon.platform === 'youtube' && playbackState.trackId && playbackState.trackId !== 'demo' && (
           <OpenOnYoutubeButton trackId={playbackState.trackId} positionMs={displayPositionMs} />
         )}
-        {isHost && (
-          <button
-            type="button"
-            onClick={handleForceSync}
-            className={theaterControlBtnClass}
-            title="Forcer la synchronisation de tous les participants"
-          >
-            ↺ Synchroniser
-          </button>
-        )}
       </>
     ) : null;
+
+    const theaterParticipantSyncButton = renderParticipantSyncButton(theaterControlBtnClass);
+
+    const theaterVolumeControl =
+      canUseYoutubeEmbed && youtubeTrackId ? (
+        <div className="flex items-center gap-1.5 shrink-0 min-w-0">
+          <button
+            type="button"
+            onClick={() => setTheaterYoutubeMuted((m) => !m)}
+            className={theaterControlBtnClass}
+            aria-label={theaterYoutubeMuted ? 'Activer le son' : 'Couper le son'}
+            title={theaterYoutubeMuted ? 'Activer le son' : 'Couper le son (local)'}
+          >
+            {theaterYoutubeMuted ? 'Muet' : 'Son'}
+          </button>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={theaterYoutubeMuted ? 0 : theaterYoutubeVolume}
+            onChange={(e) => {
+              const v = setSalonYoutubeVolume(Number(e.target.value));
+              setTheaterYoutubeVolume(v);
+              if (v > 0) setTheaterYoutubeMuted(false);
+            }}
+            className="w-16 sm:w-24 min-w-0 accent-[#6b6b9f] h-1"
+            aria-label="Volume local"
+            title="Volume local (n'affecte que votre écoute)"
+          />
+        </div>
+      ) : null;
 
     const theaterHero = canUseYoutubeEmbed && youtubeTrackId ? (
       <SalonYouTubePlayer
@@ -750,10 +791,13 @@ export function SalonPlaybackPanel({
         showYoutubeLinkInControls={false}
         playbackActive={playbackActive}
         isHost={canControlPlayback}
+        salonVolume={theaterYoutubeVolume}
+        salonMuted={theaterYoutubeMuted}
         onHostProgressReport={canControlPlayback ? reportHostProgress : undefined}
         onHostLocalPause={canControlPlayback ? handleHostPause : undefined}
         onHostLocalPlay={canControlPlayback ? handleHostPlay : undefined}
         onVideoEnd={handleVideoEnd}
+        participantSyncTrigger={participantSyncTrigger}
       />
     ) : (
       <div
@@ -798,7 +842,9 @@ export function SalonPlaybackPanel({
           <div className="flex flex-wrap items-center gap-2">
             {theaterTimeLabel}
             {theaterSyncPlayControls}
+            {theaterParticipantSyncButton}
             {canControlPlayback ? theaterVideoToggle : null}
+            {theaterVolumeControl}
             <span className="ml-auto flex shrink-0">{playbackStatusBadge}</span>
           </div>
           {playbackProgressInput}
@@ -903,6 +949,10 @@ export function SalonPlaybackPanel({
           onHostLocalPause={canControlPlayback ? handleHostPause : undefined}
           onHostLocalPlay={canControlPlayback ? handleHostPlay : undefined}
           onVideoEnd={handleVideoEnd}
+          participantSyncTrigger={participantSyncTrigger}
+          controlsTrailing={renderParticipantSyncButton(
+            'px-2.5 py-1 rounded-full border border-white/10 bg-[#131318] text-xs font-medium text-[#8b8baf] hover:bg-white/5 hover:text-white transition shrink-0'
+          )}
         />
       </div>
     )}
@@ -1062,16 +1112,12 @@ export function SalonPlaybackPanel({
                 playbackState.trackId !== 'demo' && (
                   <OpenOnYoutubeButton trackId={playbackState.trackId} positionMs={displayPositionMs} />
                 )}
-              <button
-                type="button"
-                onClick={handleForceSync}
-                className={`${mapInline ? 'px-2 py-1 text-xs' : 'px-3 py-2 text-sm'} rounded-xl border border-[#2a2a3a] text-gray-400 hover:text-white transition`}
-                title="Forcer la synchronisation de tous les participants"
-              >
-                ↺ Synchroniser
-              </button>
             </div>
           )}
+          {(!mapInline || !canUseYoutubeEmbed || !youtubeTrackId) &&
+            renderParticipantSyncButton(
+              `${mapInline ? 'px-2 py-1 text-xs' : 'px-3 py-2 text-sm'} rounded-xl border border-[#2a2a3a] text-gray-400 hover:text-white transition`
+            )}
         </div>
 
         {(isHost && hostLinked) || (salon.platform === 'spotify' && !canControlPlayback)
@@ -1192,6 +1238,7 @@ export function SalonPlaybackPanel({
                 }
                 mapInlineListenSessionKey={mapInline && !isHost ? salon.id : undefined}
                 onMapInlineListenCapReached={onMapInlineListenCapReached}
+                participantSyncTrigger={participantSyncTrigger}
               />
             </div>
 

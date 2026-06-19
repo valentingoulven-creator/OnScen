@@ -12,6 +12,7 @@ import {
   subscribeAppMediaFocus,
 } from '../lib/appMediaFocus';
 import { getMapListenVolume, setMapListenVolume } from '../lib/mapListenVolume';
+import { getSalonYoutubeVolume } from '../lib/salonYoutubeVolume';
 import { getMapInlineListenElapsedMs } from '../lib/mapListenSession';
 import { computePlaybackPositionMs } from '../lib/salonPlayback';
 import { isYoutubeStrictCompliance } from '../lib/youtubeCompliance';
@@ -94,6 +95,12 @@ interface SalonYouTubePlayerProps {
   mapInlineListenSessionKey?: string;
   /** Appelé une fois quand la durée max carte est atteinte. */
   onMapInlineListenCapReached?: () => void;
+  /** Volume local salon (mode théâtre, contrôlé par le parent — non synchronisé). */
+  salonVolume?: number;
+  /** Mute local salon (mode théâtre, contrôlé par le parent — non synchronisé). */
+  salonMuted?: boolean;
+  /** Participant : incrémenté pour forcer l’alignement local sur l’état hôte. */
+  participantSyncTrigger?: number;
 }
 
 function applySync(
@@ -173,6 +180,9 @@ export function SalonYouTubePlayer({
   mapInlineListenCapMs,
   mapInlineListenSessionKey,
   onMapInlineListenCapReached,
+  salonVolume,
+  salonMuted,
+  participantSyncTrigger,
 }: SalonYouTubePlayerProps) {
   const apiReady = useYouTubeIframeApi();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -188,8 +198,13 @@ export function SalonYouTubePlayer({
   const [pageHidden, setPageHidden] = useState(
     () => typeof document !== 'undefined' && document.hidden
   );
-  const [volume, setVolume] = useState(() => (showLocalControls ? getMapListenVolume() : 80));
-  const [muted, setMuted] = useState(false);
+  const [internalVolume, setInternalVolume] = useState(() =>
+    showLocalControls ? getMapListenVolume() : getSalonYoutubeVolume()
+  );
+  const [internalMuted, setInternalMuted] = useState(false);
+  const salonVolumeControlled = salonVolume !== undefined;
+  const volume = salonVolumeControlled ? salonVolume : internalVolume;
+  const muted = salonVolumeControlled ? (salonMuted ?? false) : internalMuted;
   const [localPaused, setLocalPaused] = useState(false);
   const [embedError, setEmbedError] = useState(false);
   const volumeRef = useRef(volume);
@@ -230,6 +245,7 @@ export function SalonYouTubePlayer({
     `${playbackState.trackId}|${playbackState.updatedAt}|${playbackState.isPlaying}`
   );
   const lastSeekAtRef = useRef(0);
+  const lastParticipantSyncTriggerRef = useRef<number | undefined>(undefined);
 
   const pauseAndMutePlayer = useCallback((player: YTPlayerInstance) => {
     try {
@@ -531,6 +547,35 @@ export function SalonYouTubePlayer({
   }, [playerReady, volume, muted, applyVolume, playbackActive, mayDrivePlayback, pauseAndMutePlayer]);
 
   useEffect(() => {
+    if (!participantSyncTrigger) return;
+    if (lastParticipantSyncTriggerRef.current === participantSyncTrigger) return;
+    lastParticipantSyncTriggerRef.current = participantSyncTrigger;
+
+    const player = playerRef.current;
+    if (!player || !playerReady || loadedVideoRef.current !== videoId) return;
+    if (!playbackActive || !mayDrivePlayback()) return;
+
+    const state = stateRef.current;
+    if (!effectiveAutoplayAllowed) {
+      applySilentPositionSync(player, state, true);
+    } else {
+      applyVolume(player, volume, muted);
+      applySync(player, state, true, false, true);
+    }
+    lastSeekAtRef.current = Date.now();
+  }, [
+    participantSyncTrigger,
+    playerReady,
+    videoId,
+    playbackActive,
+    effectiveAutoplayAllowed,
+    mayDrivePlayback,
+    applyVolume,
+    volume,
+    muted,
+  ]);
+
+  useEffect(() => {
     const player = playerRef.current;
     if (!player || !playerReady || loadedVideoRef.current !== videoId) return;
     if (!playbackActive || !mayDrivePlayback()) {
@@ -730,10 +775,11 @@ export function SalonYouTubePlayer({
   };
 
   const toggleMute = () => {
+    if (salonVolumeControlled) return;
     const player = playerRef.current;
     if (!player) return;
     const next = !muted;
-    setMuted(next);
+    setInternalMuted(next);
     applyVolume(player, volume, next);
   };
 
@@ -888,8 +934,8 @@ export function SalonYouTubePlayer({
           value={muted ? 0 : volume}
           onChange={(e) => {
             const v = setMapListenVolume(Number(e.target.value));
-            setVolume(v);
-            if (v > 0) setMuted(false);
+            setInternalVolume(v);
+            if (v > 0) setInternalMuted(false);
             const player = playerRef.current;
             if (player) applyVolume(player, v, v === 0);
           }}

@@ -46,9 +46,12 @@ function countVisibleUnread(notifications: AppNotification[]): number {
   return notifications.filter((n) => isVisibleNotification(n) && !n.read).length;
 }
 
+function opensDmFromNotification(n: AppNotification): boolean {
+  return n.type === 'match';
+}
+
 function opensProfileFromNotification(n: AppNotification): boolean {
   return (
-    n.type === 'match' ||
     n.type === 'heart' ||
     n.type === 'content_heart' ||
     n.type === 'follow' ||
@@ -194,6 +197,12 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
       setOpen(false);
       return;
     }
+    if (opensDmFromNotification(n) && onOpenDm) {
+      onOpenDm(n.peerUserId ?? n.senderId);
+      setToast(null);
+      setOpen(false);
+      return;
+    }
     if (opensProfileFromNotification(n) && onOpenProfile) {
       onOpenProfile(n.peerUserId ?? n.senderId);
       setToast(null);
@@ -234,9 +243,11 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
                 ? isGroupToast
                   ? !onOpenGroup
                   : !onOpenDm
-                : opensProfileFromNotification(toast)
-                  ? !onOpenProfile
-                  : (!isLiveToast && !isDonToast) || !toast.liveId || !onOpenLive
+                : isMatchToast
+                  ? !onOpenDm
+                  : opensProfileFromNotification(toast)
+                    ? !onOpenProfile
+                    : (!isLiveToast && !isDonToast) || !toast.liveId || !onOpenLive
             }
             className={`w-full flex items-center gap-3 p-3 rounded-xl shadow-xl text-left ${
               isMatchToast
@@ -253,6 +264,7 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
             } ${
               (isDmToast && onOpenDm) ||
               (isGroupToast && onOpenGroup) ||
+              (isMatchToast && onOpenDm) ||
               (opensProfileFromNotification(toast) && onOpenProfile) ||
               ((isLiveToast || isDonToast) && toast.liveId && onOpenLive) ||
               (isFavToast && (toast.salonId || toast.liveId || onOpenProfile))
@@ -360,7 +372,7 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
                   disabled={
                     n.type === 'group_message'
                       ? !onOpenGroup
-                      : n.type === 'dm_message'
+                      : n.type === 'dm_message' || n.type === 'match'
                         ? !onOpenDm
                         : opensProfileFromNotification(n)
                           ? !onOpenProfile
@@ -384,6 +396,7 @@ export function NotificationBell({ onOpenLive, onOpenProfile, onOpenSalon, onOpe
                       : ''
                   } ${
                     (n.type === 'dm_message' && onOpenDm) ||
+                    (n.type === 'match' && onOpenDm) ||
                     (n.type === 'group_message' && onOpenGroup) ||
                     (opensProfileFromNotification(n) && onOpenProfile) ||
                     ((n.type === 'live_started' || n.type === 'live_don') && n.liveId && onOpenLive) ||

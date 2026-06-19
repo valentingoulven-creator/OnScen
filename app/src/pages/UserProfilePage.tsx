@@ -14,7 +14,7 @@ interface UserProfilePageProps {
   preview?: NearbyPerson;
   onBack: () => void;
   onOpenReel?: (reelId: string) => void;
-  onSelectSalon?: (salonId: string) => void;
+  onSelectSalon?: (salonId: string, salonTitle?: string, isHost?: boolean) => void;
   onOpenLive?: (liveId: string) => void;
   /** Ouvre l’enregistreur reel sur le profil personnel (propriétaire). */
   onRecordReel?: () => void;
@@ -159,6 +159,7 @@ export function UserProfilePage({
             preview={preview}
             onOpenLive={onOpenLive}
             onSalonInfo={setSalonFromApi}
+            onOpenSalon={onSelectSalon}
             onOpenDm={onOpenDm}
           />
         ) : profileTab === 'reels' ? (
@@ -192,7 +193,9 @@ export function UserProfilePage({
         >
           <button
             type="button"
-            onClick={() => onSelectSalon!(salonInfo!.salonId)}
+            onClick={() =>
+              onSelectSalon!(salonInfo!.salonId, salonInfo!.salonTitle, isSelf)
+            }
             className="w-full py-3 rounded-xl font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-lg shadow-purple-900/40 active:scale-[0.99] transition"
           >
             Rejoindre le salon · {salonInfo!.salonTitle ?? 'Écoute'}

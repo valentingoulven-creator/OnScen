@@ -96,7 +96,7 @@ interface ProfilePageProps {
   onOpenReel?: (reelId: string) => void;
   onOpenLive?: (liveId: string) => void;
   onOpenProfile?: (userId: string) => void;
-  onOpenSalon?: (salonId: string, salonTitle?: string) => void;
+  onOpenSalon?: (salonId: string, salonTitle?: string, isHost?: boolean) => void;
   /** À l’ouverture : Mes reels + enregistreur (ex. depuis profil carte). */
   openRecorderOnMount?: boolean;
   onRecorderMountHandled?: () => void;
@@ -470,7 +470,15 @@ export function ProfilePage({
           className={`max-w-lg mx-auto w-full ${editing ? 'space-y-4' : 'space-y-5'}`}
         >
         {!editing && user.currentListening && (
-          <ProfileCurrentListening listening={user.currentListening} />
+          <ProfileCurrentListening
+            listening={user.currentListening}
+            {...(user.salonId && onOpenSalon
+              ? {
+                  onClick: () => onOpenSalon(user.salonId!, user.salonTitle, true),
+                  clickAriaLabel: 'Ouvrir le salon',
+                }
+              : {})}
+          />
         )}
         {!editing && (
           <ProfileTabBar

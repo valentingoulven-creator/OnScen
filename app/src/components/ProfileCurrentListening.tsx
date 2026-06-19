@@ -6,21 +6,26 @@ interface ProfileCurrentListeningProps {
   /** Affiche « En pause » si la lecture est arrêtée. */
   showPaused?: boolean;
   compact?: boolean;
+  /** Salon actif : ouvre le salon au clic. */
+  onClick?: () => void;
+  clickAriaLabel?: string;
 }
 
 export function ProfileCurrentListening({
   listening,
   showPaused = true,
   compact = false,
+  onClick,
+  clickAriaLabel = 'Ouvrir le salon',
 }: ProfileCurrentListeningProps) {
   const paused = showPaused && listening.isPlaying === false;
 
-  return (
-    <div
-      className={`flex items-center gap-3 rounded-xl border border-purple-500/25 bg-purple-950/30 ${
-        compact ? 'p-2.5' : 'p-3'
-      }`}
-    >
+  const className = `flex items-center gap-3 rounded-xl border border-purple-500/25 bg-purple-950/30 ${
+    compact ? 'p-2.5' : 'p-3'
+  }${onClick ? ' cursor-pointer hover:border-purple-400/45 hover:bg-purple-950/45 transition-colors w-full text-left' : ''}`;
+
+  const content = (
+    <>
       {listening.albumArtUrl ? (
         <img
           src={listening.albumArtUrl}
@@ -51,6 +56,16 @@ export function ProfileCurrentListening({
         </p>
       </div>
       <PlatformListeningIcon platform={listening.platform} size={compact ? 'sm' : 'md'} />
-    </div>
+    </>
   );
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={className} aria-label={clickAriaLabel}>
+        {content}
+      </button>
+    );
+  }
+
+  return <div className={className}>{content}</div>;
 }

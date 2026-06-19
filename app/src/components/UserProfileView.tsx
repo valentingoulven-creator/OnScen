@@ -11,10 +11,10 @@ import { getViewableProfilePhotos, ProfilePhotoViewer } from './ProfilePhotoView
 import { formatCompactCount } from '../lib/formatCount';
 import { resolveProfileLiveId } from '../lib/profileLive';
 import { FollowUserButton } from './FollowUserButton';
-import { CreatorSubscribeSheet } from './CreatorSubscribeSheet';
 import { ProfileCurrentListening } from './ProfileCurrentListening';
 import { CompactTagChips } from './CompactTagChips';
 import { ProfileHeaderSection } from './ProfileHeaderSection';
+import { canJoinSalonAsParticipant, salonParticipantAccessMessageKey } from '../lib/platformConnect';
 import { canSendHeart, heartBlockReasonKeys, heartDisabledReason, type HeartBlockReasonKey } from '../lib/canSendHeart';
 import type {
   CurrentListening,
@@ -30,6 +30,8 @@ interface UserProfileViewProps {
   onOpenLive?: (liveId: string) => void;
   /** Salon actif (preview carte ou profil API) remonté au parent pour le pied de page fixe. */
   onSalonInfo?: (info: { salonId: string; salonTitle?: string } | null) => void;
+  /** Ouvre le salon affiché dans « En écoute ». */
+  onOpenSalon?: (salonId: string, salonTitle?: string, isHost?: boolean) => void;
   /** Ouvrir la conversation DM avec cet utilisateur. */
   onOpenDm?: (userId: string) => void;
 }
@@ -39,6 +41,7 @@ export function UserProfileView({
   preview,
   onOpenLive,
   onSalonInfo,
+  onOpenSalon,
   onOpenDm,
 }: UserProfileViewProps) {
   const { t } = useTranslation();
@@ -51,8 +54,7 @@ export function UserProfileView({
   const [justMatched, setJustMatched] = useState<MusicMatch | null>(null);
   const [heartToast, setHeartToast] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [subscribeOpen, setSubscribeOpen] = useState(false);
-  const [subscribeToast, setSubscribeToast] = useState<string | null>(null);
+  const [salonGateToast, setSalonGateToast] = useState<string | null>(null);
   const [photoViewerIndex, setPhotoViewerIndex] = useState<number | null>(null);
 
   const isSelf = me?.id === userId;
@@ -176,6 +178,33 @@ export function UserProfileView({
     profile?.liveViewersCount ?? preview?.liveViewersCount;
   const currentListening: CurrentListening | undefined =
     profile?.currentListening ?? preview?.currentListening;
+  const activeSalonId = profile?.salonId ?? preview?.salonId;
+  const activeSalonTitle = profile?.salonTitle ?? preview?.salonTitle;
+  const isSalonHost = isSelf;
+
+  const openActiveSalon = useCallback(() => {
+    if (!activeSalonId || !onOpenSalon || !currentListening) return;
+    if (
+      !canJoinSalonAsParticipant(
+        currentListening.platform,
+        me?.connectedPlatforms,
+        isSalonHost
+      )
+    ) {
+      setSalonGateToast(t(salonParticipantAccessMessageKey(currentListening.platform)));
+      window.setTimeout(() => setSalonGateToast(null), 3500);
+      return;
+    }
+    onOpenSalon(activeSalonId, activeSalonTitle, isSalonHost);
+  }, [
+    activeSalonId,
+    activeSalonTitle,
+    currentListening,
+    isSalonHost,
+    me?.connectedPlatforms,
+    onOpenSalon,
+    t,
+  ]);
 
   const heartHint = () => {
     if (isMatched) return null;
@@ -304,7 +333,17 @@ export function UserProfileView({
 
       <div className="px-4 space-y-5 pb-8">
 
-      {currentListening && <ProfileCurrentListening listening={currentListening} />}
+      {currentListening && (
+        <ProfileCurrentListening
+          listening={currentListening}
+          {...(activeSalonId && onOpenSalon
+            ? {
+                onClick: openActiveSalon,
+                clickAriaLabel: 'Rejoindre le salon',
+              }
+            : {})}
+        />
+      )}
 
       {photos.length > 1 && (
         <section>
@@ -369,6 +408,12 @@ export function UserProfileView({
         </p>
       )}
 
+      {salonGateToast && (
+        <p className="text-sm text-center font-semibold text-amber-200 bg-amber-950/40 border border-amber-500/40 rounded-xl px-3 py-2.5">
+          {salonGateToast}
+        </p>
+      )}
+
       {!isSelf && (
         <FollowUserButton
           userId={userId}
@@ -399,44 +444,6 @@ export function UserProfileView({
             {t('profile.messageButtonDisabled')}
           </button>
         )
-      )}
-
-      {!isSelf && token && profile?.monetizationEligible !== false && (
-        <button
-          type="button"
-          onClick={() => setSubscribeOpen(true)}
-          className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition ${
-            profile?.isSupporter
-              ? 'bg-amber-900/40 border border-amber-500/40 text-amber-100'
-              : 'bg-purple-700/80 hover:bg-purple-600 text-white'
-          }`}
-        >
-          <span aria-hidden>⭐</span>
-          {profile?.isSupporter ? 'Abonnement actif — modifier' : 'S’abonner au créateur'}
-        </button>
-      )}
-
-      {subscribeToast && (
-        <p className="text-xs text-center text-amber-200 bg-amber-950/40 border border-amber-500/30 rounded-lg px-3 py-2">
-          {subscribeToast}
-        </p>
-      )}
-
-      {token && profile?.monetizationEligible !== false && (
-        <CreatorSubscribeSheet
-          open={subscribeOpen}
-          onClose={() => setSubscribeOpen(false)}
-          token={token}
-          userAge={me?.age}
-          creatorId={userId}
-          creatorName={displayName}
-          targetType="creator"
-          onSuccess={(msg) => {
-            setSubscribeToast(msg);
-            setProfile((p) => (p ? { ...p, isSupporter: true } : p));
-            window.setTimeout(() => setSubscribeToast(null), 4000);
-          }}
-        />
       )}
 
       {!isSelf && !isMatched && (
