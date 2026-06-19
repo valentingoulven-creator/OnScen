@@ -7,7 +7,7 @@ import {
   MAP_INLINE_LISTEN_MAX_MS,
   startMapInlineListenSession,
 } from '../lib/mapListenSession';
-import { preferredParticipantPlatform } from '../lib/salonPlayback';
+import { preferredParticipantPlatform, resolveSalonYoutubeTrackId } from '../lib/salonPlayback';
 import { useSalonPlaybackSync } from '../hooks/useSalonPlaybackSync';
 import { SalonYouTubePlayer } from './SalonYouTubePlayer';
 import { SpotifySalonDeprecatedNotice } from './SpotifySalonDeprecatedNotice';
@@ -124,13 +124,13 @@ export function MapSalonListenControls({
 
   const youtubeTrackId = useMemo(() => {
     if (salon.platform === 'youtube') {
-      return playbackState.trackId !== 'demo' ? playbackState.trackId : null;
+      return resolveSalonYoutubeTrackId(playbackState);
     }
-    if (participantPlatform === 'youtube' && resolvedTrackId && resolvedTrackId !== 'demo') {
-      return resolvedTrackId;
+    if (participantPlatform === 'youtube' && resolvedTrackId) {
+      return resolveSalonYoutubeTrackId({ trackId: resolvedTrackId, externalUrl: undefined });
     }
-    return null;
-  }, [salon.platform, participantPlatform, playbackState.trackId, resolvedTrackId]);
+    return undefined;
+  }, [salon.platform, participantPlatform, playbackState, resolvedTrackId]);
 
   if (hostLinked) {
     return (

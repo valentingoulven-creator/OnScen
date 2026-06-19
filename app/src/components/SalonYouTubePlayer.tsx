@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import {
   VIDEO_PIP_HEADER_HEIGHT,
   VIDEO_PIP_WIDTH,
@@ -19,7 +20,7 @@ import {
 import { getMapListenVolume, setMapListenVolume } from '../lib/mapListenVolume';
 import { getSalonYoutubeVolume } from '../lib/salonYoutubeVolume';
 import { getMapInlineListenElapsedMs } from '../lib/mapListenSession';
-import { computePlaybackPositionMs } from '../lib/salonPlayback';
+import { computePlaybackPositionMs, isValidYoutubeVideoId } from '../lib/salonPlayback';
 import { isYoutubeStrictCompliance } from '../lib/youtubeCompliance';
 import type { PlaybackState } from '../types';
 
@@ -436,7 +437,7 @@ export function SalonYouTubePlayer({
   }, [playerReady, respectLocalPause, mayDrivePlayback, mayAutoplay, strictCompliance]);
 
   useEffect(() => {
-    if (!apiReady || !containerRef.current || !videoId) return;
+    if (!apiReady || !containerRef.current || !isValidYoutubeVideoId(videoId)) return;
 
     let destroyed = false;
     setPlayerReady(false);
@@ -544,9 +545,8 @@ export function SalonYouTubePlayer({
         containerRef.current.innerHTML = '';
       }
     };
-    // Recreate player only when video changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiReady, videoId]);
+    // Recreate when video changes or mount moves (PiP portal ↔ inline).
+  }, [apiReady, videoId, floatActive]);
 
   useEffect(() => {
     const player = playerRef.current;
@@ -1001,9 +1001,20 @@ export function SalonYouTubePlayer({
     ? 'absolute inset-0 w-full h-full pointer-events-none'
     : outerClass || undefined;
 
+  /** Hors `.salon-page-pip-host` (opacity:0) pour rester visible en salon minimisé. */
+  const floatedPlayer =
+    floatActive && videoFloat && typeof document !== 'undefined'
+      ? createPortal(
+          <div className="pointer-events-auto">{playerSurface}</div>,
+          document.body
+        )
+      : null;
+
   return (
     <div className={rootClass}>
-      <div className={floatActive ? 'pointer-events-auto' : undefined}>{playerChrome}</div>
+      {floatedPlayer ?? (
+        <div className={floatActive ? 'pointer-events-auto' : undefined}>{playerChrome}</div>
+      )}
       {embedError && !hidden && (
         <div className="rounded-xl border border-[#2a2a3a] bg-[#101018]/90 p-3 mt-2 flex flex-col items-center gap-2">
           <p className="text-[11px] text-gray-400">Cette vidéo ne peut pas être lue ici.</p>

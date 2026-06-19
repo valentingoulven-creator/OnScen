@@ -142,6 +142,14 @@ export function playbackStateAtProgressReport(
   return { progressMs: clamped, updatedAt: now };
 }
 
+/** Format ID vidéo YouTube (6–15 car. alphanum / _ -). */
+export const YOUTUBE_VIDEO_ID_RE = /^[a-zA-Z0-9_-]{6,15}$/;
+
+export function isValidYoutubeVideoId(id: string | undefined | null): id is string {
+  const raw = id?.trim();
+  return Boolean(raw && YOUTUBE_VIDEO_ID_RE.test(raw));
+}
+
 /** Extrait un ID vidéo YouTube depuis une URL ou un identifiant brut. */
 export function parseYoutubeVideoId(input: string | undefined | null): string | null {
   const raw = input?.trim();
@@ -149,8 +157,8 @@ export function parseYoutubeVideoId(input: string | undefined | null): string | 
   const fromUrl = raw.match(
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{6,})/
   )?.[1];
-  if (fromUrl) return fromUrl;
-  if (raw.length <= 15 && /^[a-zA-Z0-9_-]+$/.test(raw)) return raw;
+  if (fromUrl && isValidYoutubeVideoId(fromUrl)) return fromUrl;
+  if (isValidYoutubeVideoId(raw)) return raw;
   return null;
 }
 

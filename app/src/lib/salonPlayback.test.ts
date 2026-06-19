@@ -70,6 +70,11 @@ describe('salonPlayback sync', () => {
     expect(parseYoutubeVideoId('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe('dQw4w9WgXcQ');
     expect(parseYoutubeVideoId('dQw4w9WgXcQ')).toBe('dQw4w9WgXcQ');
     expect(parseYoutubeVideoId('demo')).toBeNull();
+    expect(parseYoutubeVideoId('abc')).toBeNull();
+    expect(parseYoutubeVideoId('4NRXx6W78buQNiQ3q5wEkP')).toBeNull();
+    expect(
+      parseYoutubeVideoId('https://www.youtube.com/watch?v=4NRXx6W78buQNiQ3q5wEkP')
+    ).toBeNull();
   });
 
   it('resolveSalonYoutubeTrackId retombe sur externalUrl', () => {

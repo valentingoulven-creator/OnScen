@@ -445,9 +445,9 @@ export function SalonPlaybackPanel({
     effectiveShowYoutubeVideo;
 
   const tryAutoActivateVideoFloat = useCallback(() => {
-    if (!canAutoVideoFloat || !playbackState.isPlaying || floatPipActive) return;
+    if (!canAutoVideoFloat || floatPipActive) return;
     setFloatPipActive(true);
-  }, [canAutoVideoFloat, playbackState.isPlaying, floatPipActive, setFloatPipActive]);
+  }, [canAutoVideoFloat, floatPipActive, setFloatPipActive]);
 
   useEffect(() => {
     if (!theaterMode) return;

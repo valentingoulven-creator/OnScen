@@ -481,6 +481,7 @@ export default function App() {
     (options?: { tab?: 'accounts' | 'access' | 'content' | 'analytics' | 'costs' | 'support' | 'sponsors' | 'reports'; supportMessageId?: string }) => {
       const session = activeSalonSessionRef.current;
       if (session?.viewMode === 'full') {
+        dispatchSalonBeforeMinimize();
         setActiveSalonSession((prev) => (prev ? { ...prev, viewMode: 'minimized' } : prev));
       }
       setAdminInitialTab(options?.tab ?? 'accounts');
@@ -592,6 +593,7 @@ export default function App() {
       if (id === 'map') {
         minimizeSalonToMap(persistedSalonId, session.title);
       } else {
+        dispatchSalonBeforeMinimize();
         clearSalonUrlFromBar();
         setActiveSalonSession((prev) =>
           prev?.id === persistedSalonId
