@@ -148,7 +148,16 @@ export default function App() {
     writePersistedSalonSession(activeSalonSession);
   }, [activeSalonSession]);
 
-  useEffect(() => subscribeSalonVideoFloat(() => setSalonVideoFloatActiveState(getSalonVideoFloatActive())), []);
+  useEffect(
+    () =>
+      subscribeSalonVideoFloat(() => {
+        setSalonVideoFloatActiveState((prev) => {
+          const next = getSalonVideoFloatActive();
+          return prev === next ? prev : next;
+        });
+      }),
+    []
+  );
 
   useEffect(() => {
     if (token !== null) return;

@@ -139,14 +139,17 @@ export function SalonPlaybackPanel({
   const [participantSyncTrigger, setParticipantSyncTrigger] = useState(0);
   /** PiP flottant in-app (vidéo seule détachée, salon inchangé). */
   const [floatPipActive, setFloatPipActiveState] = useState(false);
+  const floatPipActiveRef = useRef(floatPipActive);
+  floatPipActiveRef.current = floatPipActive;
   const [youtubeIsLive, setYoutubeIsLive] = useState(false);
   const [ytLiveSeekTrigger, setYtLiveSeekTrigger] = useState(0);
+  /** Sync global PiP flag outside React updaters — avoids App re-render during child setState (#185). */
   const setFloatPipActive = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
-    setFloatPipActiveState((prev) => {
-      const next = typeof value === 'function' ? value(prev) : value;
-      setSalonVideoFloatActive(next);
-      return next;
-    });
+    const prev = floatPipActiveRef.current;
+    const next = typeof value === 'function' ? value(prev) : value;
+    if (next === prev) return;
+    setSalonVideoFloatActive(next);
+    setFloatPipActiveState(next);
   }, []);
   const hostShowVideoRef = useRef(salon.playbackState.showVideo);
   const prevYoutubeTrackRef = useRef(salon.playbackState.trackId);
@@ -169,6 +172,8 @@ export function SalonPlaybackPanel({
       onStateChange: onPlaybackStateChange,
     });
 
+  const prevFloatResetTrackRef = useRef(playbackState.trackId);
+
   const spotifySyncEnabled =
     salon.platform === 'spotify' && isHost && hostLinked && Boolean(token);
   const { nowPlaying: spotifyNowPlaying, syncError: spotifySyncError, markLocalControl, refreshNow: refreshSpotifySync } =
@@ -183,11 +188,12 @@ export function SalonPlaybackPanel({
 
   useEffect(() => {
     if (salon.platform === 'youtube' && isYoutubeStrictCompliance()) {
-      if (!showYoutubeVideo) {
+      setShowYoutubeVideo((prev) => {
+        if (prev) return prev;
         hostShowVideoRef.current = true;
-        setShowYoutubeVideo(true);
         setSalonShowYoutubeVideo(true);
-      }
+        return true;
+      });
       return;
     }
     if (playbackState.showVideo === undefined) return;
@@ -195,7 +201,7 @@ export function SalonPlaybackPanel({
     hostShowVideoRef.current = playbackState.showVideo;
     setShowYoutubeVideo(playbackState.showVideo);
     setSalonShowYoutubeVideo(playbackState.showVideo);
-  }, [salon.platform, playbackState.showVideo, showYoutubeVideo]);
+  }, [salon.platform, playbackState.showVideo]);
 
   useEffect(() => {
     if (salon.platform !== 'youtube') return;
@@ -455,16 +461,9 @@ export function SalonPlaybackPanel({
     effectiveShowYoutubeVideo;
 
   const tryAutoActivateVideoFloat = useCallback(() => {
-    if (!canAutoVideoFloat || floatPipActive) return;
-    // Call setSalonVideoFloatActive SYNCHRONOUSLY (outside any React updater) so
-    // App.tsx's salonVideoFloatActive subscriber fires in the SAME React batch as
-    // setActiveSalonSession({ viewMode:'minimized' }). Without this, setSalonVideoFloatActive
-    // would run inside setFloatPipActiveState's updater, causing a cascading second render
-    // where salonFullScreen is already false but salonVideoFloatActive is still false —
-    // which triggers showSalonPageShell=false and unmounts SalonPage before PiP can float.
-    setSalonVideoFloatActive(true);
-    setFloatPipActiveState(true);
-  }, [canAutoVideoFloat, floatPipActive]);
+    if (!canAutoVideoFloat || floatPipActiveRef.current) return;
+    setFloatPipActive(true);
+  }, [canAutoVideoFloat, setFloatPipActive]);
 
   useEffect(() => {
     if (!theaterMode) return;
@@ -507,11 +506,13 @@ export function SalonPlaybackPanel({
   useEffect(() => {
     if (effectiveShowYoutubeVideo) return;
     setFloatPipActive(false);
-  }, [effectiveShowYoutubeVideo]);
+  }, [effectiveShowYoutubeVideo, setFloatPipActive]);
 
   useEffect(() => {
+    if (playbackState.trackId === prevFloatResetTrackRef.current) return;
+    prevFloatResetTrackRef.current = playbackState.trackId;
     setFloatPipActive(false);
-  }, [playbackState.trackId]);
+  }, [playbackState.trackId, setFloatPipActive]);
 
   /** Déclenché par SalonYouTubePlayer quand la vidéo se termine → skip auto si file non vide. */
   const handleVideoEnd = useCallback(() => {
