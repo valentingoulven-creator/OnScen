@@ -116,6 +116,7 @@ interface ChatRoomContextValue {
   sendError: string | null;
   reactionError: string | null;
   setReactionError: (error: string | null) => void;
+  messageSending: boolean;
   onOpenDonation?: (amount?: number) => void;
   allowAttachments: boolean;
   banModalTarget: { id: string; name: string } | null;
@@ -576,6 +577,7 @@ function useChatRoom({
     sendError,
     reactionError,
     setReactionError,
+    messageSending,
     onOpenDonation,
     allowAttachments,
     banModalTarget,
@@ -957,6 +959,7 @@ export function ChatInputBar({ className }: { className?: string }) {
     allowAttachments,
     sendError,
     reactionError,
+    messageSending,
   } = useChatRoomContext();
 
   return (

@@ -257,7 +257,7 @@ export function ReelsTabPage({
   isActive = true,
 }: ReelsTabPageProps) {
   const { t } = useTranslation();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [feedReels, setFeedReels] = useState<MusicReel[]>(FALLBACK_REELS);
   const [reelsSponsorAds, setReelsSponsorAds] = useState<ReelsSponsorAd[]>([]);
   const [reelsSponsorConfig, setReelsSponsorConfig] = useState(DEFAULT_REELS_SPONSOR_CONFIG);
