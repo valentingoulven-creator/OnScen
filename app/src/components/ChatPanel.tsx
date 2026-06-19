@@ -260,6 +260,7 @@ function useChatRoom({
   const [reactionSending, setReactionSending] = useState(false);
   const [reactionError, setReactionError] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [messageSending, setMessageSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const reactionMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -457,13 +458,14 @@ function useChatRoom({
     e.preventDefault();
     const hasText = text.trim().length > 0;
     const hasAttachment = allowAttachments && Boolean(pendingAttachment);
-    if ((!hasText && !hasAttachment) || chatBanned) return;
+    if ((!hasText && !hasAttachment) || chatBanned || messageSending) return;
     const socket = getSocket();
     if (!socket || !isSocketConnected()) {
       setSendError('Connexion au chat en cours… Patientez puis réessayez.');
       return;
     }
     setSendError(null);
+    setMessageSending(true);
     const content = text.trim();
     const payload = {
       salonId: roomId,
@@ -482,6 +484,7 @@ function useChatRoom({
     else socket.emit('live_message', payload);
     setText('');
     setPendingAttachment(null);
+    window.setTimeout(() => setMessageSending(false), 500);
   };
 
   const openUserMenu = useCallback((target: { id: string; name: string }, anchor: DOMRect) => {
@@ -1095,7 +1098,7 @@ export function ChatInputBar({ className }: { className?: string }) {
         )}
         <button
           type="submit"
-          disabled={chatBanned}
+          disabled={chatBanned || messageSending}
           className="shrink-0 px-4 py-2 bg-[#3a3a5e] hover:bg-[#48487a] rounded-full text-white font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition"
         >
           →

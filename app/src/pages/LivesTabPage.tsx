@@ -167,6 +167,7 @@ export function LivesTabPage({ onOpenLive, isActive = true }: LivesTabPageProps)
   const [lives, setLives] = useState<Live[]>([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
   const [mediaSetupOpen, setMediaSetupOpen] = useState(false);
   const [stripeGateOpen, setStripeGateOpen] = useState(false);
   const [stripeGatePending, setStripeGatePending] = useState(false);
@@ -371,7 +372,7 @@ export function LivesTabPage({ onOpenLive, isActive = true }: LivesTabPageProps)
       loadLives();
       onOpenLive(live.id);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Impossible de démarrer le live');
+      setStartError(e instanceof Error ? e.message : 'Impossible de démarrer le live');
     } finally {
       setStarting(false);
     }
@@ -441,6 +442,20 @@ export function LivesTabPage({ onOpenLive, isActive = true }: LivesTabPageProps)
         <p className="text-xs text-gray-400 mb-3">
           Sessions en direct avec chat rapide et réactions
         </p>
+
+        {startError && (
+          <p className="mb-3 rounded-lg bg-red-950/60 border border-red-500/30 text-red-200 text-xs px-3 py-2" role="alert">
+            {startError}
+            <button
+              type="button"
+              onClick={() => setStartError(null)}
+              className="ml-2 text-red-400 hover:text-white bg-transparent border-0 p-0 cursor-pointer"
+              aria-label="Fermer"
+            >
+              ×
+            </button>
+          </p>
+        )}
 
         {!settingsOpen && distanceFilterActive && (
           <div className="rounded-xl bg-[#12121a] border border-[#1e1e2f] p-3">

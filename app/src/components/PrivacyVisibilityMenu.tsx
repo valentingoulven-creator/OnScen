@@ -90,6 +90,7 @@ export function PrivacyVisibilityMenu() {
       {open && (
         <div
           role="dialog"
+          aria-modal="true"
           aria-label="Paramètres de confidentialité"
           className="absolute right-0 top-full mt-2 w-[min(18rem,calc(100vw-2rem))] rounded-xl border border-[#2d2d3d] bg-[#12121a] shadow-xl shadow-black/50 z-50 p-3"
         >

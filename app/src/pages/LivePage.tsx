@@ -34,6 +34,7 @@ import { LiveParticipantsPopover } from '../components/LiveParticipantsPopover';
 import { LiveVideoStage } from '../components/LiveVideoStage';
 import { LiveKitVideoStage } from '../components/LiveKitVideoStage';
 import { LiveCloudflareHostPanel } from '../components/LiveCloudflareHostPanel';
+import { ReportContentModal } from '../components/ReportContentModal';
 import type { ChatMessage, DmContact, Live, AppNotification, PlaybackState } from '../types';
 
 const SOUNDY_BASE_URL = 'https://getsoundy.com';
@@ -80,6 +81,7 @@ export function LivePage({
   const [privateTarget, setPrivateTarget] = useState<DmContact | null>(null);
   const [showDonSheet, setShowDonSheet] = useState(false);
   const [showSubscribeSheet, setShowSubscribeSheet] = useState(false);
+  const [reportLiveOpen, setReportLiveOpen] = useState(false);
   const [donInitialAmount, setDonInitialAmount] = useState<number | undefined>();
   const [donToast, setDonToast] = useState<string | null>(null);
   const [subscribeToast, setSubscribeToast] = useState<string | null>(null);
@@ -953,6 +955,18 @@ export function LivePage({
         />
       )}
 
+      {reportLiveOpen && live && (
+        <ReportContentModal
+          context={{
+            targetUserId: live.hostId,
+            targetUsername: live.hostName,
+            roomType: 'live',
+            roomId: live.id,
+          }}
+          onClose={() => setReportLiveOpen(false)}
+        />
+      )}
+
       <header className="shrink-0 flex items-center gap-3 px-3 py-2.5 border-b border-[#1e1e2f] bg-red-950/30">
           <button onClick={onBack} className="text-gray-400 hover:text-white text-xl">
             ←
@@ -1124,6 +1138,19 @@ export function LivePage({
               </button>
             </div>
           )}
+          {!isHost && live && (
+            <button
+              type="button"
+              onClick={() => setReportLiveOpen(true)}
+              className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-red-400 hover:bg-[#2a2a3a] transition"
+              aria-label="Signaler ce live"
+              title="Signaler ce live"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
+              </svg>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => void handleShareLive()}
@@ -1146,8 +1173,8 @@ export function LivePage({
       <ChatRoomProvider
         roomId={liveId}
         roomType="live"
-        userId={user!.id}
-        userName={user!.username}
+        userId={user?.id ?? ''}
+        userName={user?.username ?? ''}
         token={token ?? undefined}
         initialMessages={chatMessages}
         onPrivateMessage={openPrivate}

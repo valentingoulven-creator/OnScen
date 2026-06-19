@@ -480,12 +480,36 @@ export const GlobeView = memo(function GlobeView({
     };
   }, [size.w, flushPovChange, schedulePovChange, reportGlobeUnavailable]);
 
-  // Cleanup pending zoom timer on unmount
+  // Cleanup pending zoom timer and dispose WebGL resources on unmount
   useEffect(() => {
     return () => {
       if (zoomTimerRef.current !== null) clearTimeout(zoomTimerRef.current);
       if (povDebounceRef.current !== null) clearTimeout(povDebounceRef.current);
       if (altitudeRafRef.current !== null) cancelAnimationFrame(altitudeRafRef.current);
+      try {
+        const globe = globeRef.current as unknown as {
+          renderer?: () => { dispose: () => void; forceContextLoss?: () => void };
+          scene?: () => { traverse: (cb: (obj: unknown) => void) => void };
+        } | null;
+        if (globe?.scene) {
+          globe.scene().traverse((obj: unknown) => {
+            const o = obj as { geometry?: { dispose: () => void }; material?: { dispose: () => void } | { dispose: () => void }[] };
+            o.geometry?.dispose();
+            if (Array.isArray(o.material)) {
+              o.material.forEach((m) => m.dispose());
+            } else {
+              o.material?.dispose();
+            }
+          });
+        }
+        if (globe?.renderer) {
+          const r = globe.renderer();
+          r.forceContextLoss?.();
+          r.dispose();
+        }
+      } catch {
+        // Ignore disposal errors — globe may already be unmounted
+      }
     };
   }, []);
 

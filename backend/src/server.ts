@@ -298,9 +298,33 @@ app.use(
           'https://js.stripe.com',
         ],
         'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-        'img-src': ["'self'", 'data:', 'blob:', 'https:', 'http:'],
+        'img-src': [
+          "'self'",
+          'data:',
+          'blob:',
+          'https:',
+          'https://assets.mixkit.co',
+          'https://images.unsplash.com',
+          'https://api.dicebear.com',
+          'https://api.qrserver.com',
+        ],
         'font-src': ["'self'", 'data:', 'https://fonts.gstatic.com'],
-        'connect-src': ["'self'", 'wss:', 'ws:', 'https:', 'http:'],
+        'connect-src': [
+          "'self'",
+          'wss:',
+          'ws:',
+          'https://getsoundy.com',
+          'https://assets.mixkit.co',
+          'https://images.unsplash.com',
+          'https://api.dicebear.com',
+          'https://api.qrserver.com',
+          'https://js.stripe.com',
+          'https://hooks.stripe.com',
+          'https://accounts.google.com',
+          'https://www.googleapis.com',
+          'https://graph.facebook.com',
+          'https://open.spotify.com',
+        ],
         'media-src': ["'self'", 'blob:', 'https:'],
         'frame-src': [
           "'self'",
@@ -314,9 +338,12 @@ app.use(
       },
     },
     crossOriginEmbedderPolicy: false,
-    // HSTS via helmet casse http://IP (navigateur force https + cert auto-signé → JS bloqué).
-    // Caddy gère TLS sur getsoundy.com ; pas de HSTS sur l'accès IP transition.
-    strictTransportSecurity: false,
+    // HSTS activé uniquement en production (Caddy gère TLS sur getsoundy.com).
+    // Désactivé en dev/msdev pour éviter le blocage http://IP.
+    strictTransportSecurity:
+      process.env.APP_ENV === 'production'
+        ? { maxAge: 31536000, includeSubDomains: true }
+        : false,
   })
 );
 app.use(
@@ -336,7 +363,7 @@ app.post(
   (req, res) => void handleStripeSubscriptionWebhook(req, res)
 );
 app.use('/api/reels', express.json({ limit: REEL_UPLOAD_JSON_BODY_LIMIT }));
-app.use(express.json({ limit: '15mb' }));
+app.use(express.json({ limit: '2mb' }));
 
 const publicDir = getPublicDir();
 
@@ -397,6 +424,46 @@ const authLimiter = rateLimit({
   },
 });
 
+/** 3 demandes / heure par IP sur /forgot-password */
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de demandes de réinitialisation. Réessayez dans une heure.' },
+  skip: () => isMsdevRuntime(),
+});
+
+/** 10 tentatives / 15 min par IP sur /reset-password */
+const resetPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives. Réessayez dans quelques minutes.' },
+  skip: () => isMsdevRuntime(),
+});
+
+/** 20 vérifications / 15 min par IP sur /verify-email */
+const verifyEmailLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives. Réessayez dans quelques minutes.' },
+  skip: () => isMsdevRuntime(),
+});
+
+/** 30 vérifications / 15 min par IP sur /check-username */
+const checkUsernameLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de vérifications de pseudo. Réessayez dans quelques minutes.' },
+  skip: () => isMsdevRuntime(),
+});
+
 const reportsLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
@@ -424,6 +491,10 @@ const subscriptionsLimiter = rateLimit({
   skip: () => isMsdevRuntime(),
 });
 
+app.use('/api/auth/forgot-password', forgotPasswordLimiter);
+app.use('/api/auth/reset-password', resetPasswordLimiter);
+app.use('/api/auth/verify-email', verifyEmailLimiter);
+app.use('/api/auth/check-username', checkUsernameLimiter);
 app.use('/api/auth', authLimiter, authRouter);
 // OAuth routes are mounted separately: the auth code exchange is naturally
 // rate-limited by Google/Facebook, and callback URLs must not be blocked.

@@ -1,3 +1,13 @@
+// MIGRATION TODO (CRIT-01): Les tokens JWT sont actuellement stockés dans
+// localStorage/sessionStorage (vulnérables aux attaques XSS).
+// La migration vers des cookies httpOnly/Secure/SameSite=Strict nécessite :
+//   1. Backend : endpoint POST /api/auth/cookie-login qui pose un cookie httpOnly
+//   2. Backend : middleware qui lit le cookie au lieu du header Authorization
+//   3. Frontend : supprimer authStorage + adapter tous les appels API
+//   4. Backend : endpoint POST /api/auth/logout qui efface le cookie
+// Cette refactorisation nécessite une coordination backend+frontend dédiée.
+// Durée token rememberMe réduite de 30j à 7j (paliatif, voir ELEV-02 backend).
+
 const TOKEN_KEY = 'melosong_token';
 const REMEMBER_KEY = 'melosong_remember_me';
 

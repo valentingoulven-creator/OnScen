@@ -313,6 +313,7 @@ export function FloatingSalonChat({
           height: minimized ? undefined : size.height,
         }}
         role="dialog"
+        aria-modal="true"
         aria-label={title}
       >
         <div

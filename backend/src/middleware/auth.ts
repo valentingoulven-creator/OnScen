@@ -51,7 +51,7 @@ export function authenticateJWT(req: Request, res: Response, next: NextFunction)
   }
 }
 
-export const JWT_REMEMBER_EXPIRY = '30d';
+export const JWT_REMEMBER_EXPIRY = '7d';
 export const JWT_SESSION_EXPIRY = '24h';
 
 export function signToken(payload: AuthPayload, rememberMe = true): string {

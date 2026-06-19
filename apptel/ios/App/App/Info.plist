@@ -47,5 +47,13 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Soundy utilise le microphone pour les lives et salons audio.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Soundy utilise la caméra pour les lives vidéo et photos de profil.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Soundy utilise votre position pour afficher les salons et utilisateurs proches.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Soundy accède à vos photos pour les photos de profil et reels.</string>
 </dict>
 </plist>

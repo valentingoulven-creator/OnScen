@@ -69,8 +69,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { user: updated } = await api.completeOnboarding(token);
       setUser(updated);
-    } catch {
-      // Optimistic fallback: don't block the user if the API call fails
+    } catch (err) {
+      console.warn('[AuthContext] completeOnboarding API call failed (optimistic fallback applied):', err);
       setUser((prev) => (prev ? { ...prev, onboardingCompleted: true } : prev));
     }
   };
@@ -94,10 +94,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!token) return;
     let cancelled = false;
     const timeout = window.setTimeout(() => {
+      if (cancelled) return;
       setAuthBootError(
         i18n.t('errors.serverUnreachable')
       );
-      if (cancelled) return;
       clearStoredToken();
       setToken(null);
       setUser(null);

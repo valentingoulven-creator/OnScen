@@ -3,9 +3,30 @@ import crypto from 'crypto';
 const ENC_PREFIX = 'enc:v1:';
 
 function deriveKey(): Buffer {
-  const secret = process.env.ENCRYPTION_KEY?.trim() || process.env.JWT_SECRET?.trim();
+  const isMsdev = process.env.APP_ENV === 'msdev' || process.env.MSENV === 'msdev';
+  const isProd = process.env.APP_ENV === 'production';
+  const encKey = process.env.ENCRYPTION_KEY?.trim();
+  const jwtSecret = process.env.JWT_SECRET?.trim();
+
+  if (isProd) {
+    if (!encKey) {
+      throw new Error(
+        '[SECURITY] ENCRYPTION_KEY est obligatoire en production. ' +
+          'Générez une clé distincte de JWT_SECRET : openssl rand -hex 32'
+      );
+    }
+    if (encKey === jwtSecret) {
+      throw new Error(
+        '[SECURITY] ENCRYPTION_KEY ne doit pas être identique à JWT_SECRET. ' +
+          'Utilisez deux secrets distincts : openssl rand -hex 32'
+      );
+    }
+    return crypto.createHash('sha256').update(encKey).digest();
+  }
+
+  const secret = encKey || jwtSecret;
   if (!secret) {
-    if (process.env.APP_ENV === 'msdev' || process.env.MSENV === 'msdev') {
+    if (isMsdev) {
       return crypto.createHash('sha256').update('msdev-dev-only-token-key').digest();
     }
     throw new Error('ENCRYPTION_KEY or JWT_SECRET required for token encryption');

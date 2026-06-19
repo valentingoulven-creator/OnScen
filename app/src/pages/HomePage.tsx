@@ -901,13 +901,18 @@ export function HomePage({
     }
     api
       .updateGeo(token, lat, lon)
-      .catch(() => {})
+      .catch((err: unknown) => {
+        console.warn('[HomePage] updateGeo failed (silent retry):', err);
+      })
       .finally(runNearby);
   }, [token, applyNearbyResponse]);
 
   const loadNearby = useCallback((lat: number, lon: number) => {
     loadNearbyAt(sanitizeLatLngTuple(lat, lon, DEFAULT_CENTER));
   }, [loadNearbyAt]);
+
+  const loadNearbyAtRef = useRef(loadNearbyAt);
+  loadNearbyAtRef.current = loadNearbyAt;
 
   const loadNearbyFromState = useCallback((
     userPos: [number, number] | null,
@@ -956,23 +961,23 @@ export function HomePage({
 
     // Unified 20s refresh: re-reads the current source and locationSharing on every
     // tick so mode switches (city ↔ GPS) and privacy changes are picked up without
-    // restarting the effect.
+    // restarting the effect. Uses a stable ref to avoid stale-closure issues.
     const startGeoInterval = () => {
       if (geoIntervalRef.current) return;
       geoIntervalRef.current = setInterval(() => {
         const current = getLivesGeo();
         const { locationSharing: sharing } = getPrivacyPreferences();
         if (isFixedMapGeoSource(current.source)) {
-          loadNearbyAt([current.latitude, current.longitude]);
+          loadNearbyAtRef.current([current.latitude, current.longitude]);
           return;
         }
         if (!navigator.geolocation || !sharing) {
-          loadNearbyAt([current.latitude, current.longitude], { updateUserGeo: false });
+          loadNearbyAtRef.current([current.latitude, current.longitude], { updateUserGeo: false });
           return;
         }
         navigator.geolocation.getCurrentPosition(
-          (pos) => loadNearbyAt([pos.coords.latitude, pos.coords.longitude]),
-          () => loadNearbyAt([current.latitude, current.longitude])
+          (pos) => loadNearbyAtRef.current([pos.coords.latitude, pos.coords.longitude]),
+          () => loadNearbyAtRef.current([current.latitude, current.longitude])
         );
       }, GEO_REFRESH_INTERVAL_MS);
     };

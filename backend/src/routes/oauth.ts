@@ -332,7 +332,7 @@ oauthRouter.get('/google', oauthInitLimiter, (_req: Request, res: Response) => {
 });
 
 /** GET /api/auth/google/callback — handles the redirect from Google */
-oauthRouter.get('/google/callback', async (req: Request, res: Response) => {
+oauthRouter.get('/google/callback', oauthInitLimiter, async (req: Request, res: Response) => {
   const origin = appOrigin();
   const { code, state, error } = req.query as Record<string, string>;
 
@@ -404,7 +404,7 @@ oauthRouter.get('/facebook', oauthInitLimiter, (_req: Request, res: Response) =>
 });
 
 /** GET /api/auth/facebook/callback — handles the redirect from Facebook */
-oauthRouter.get('/facebook/callback', async (req: Request, res: Response) => {
+oauthRouter.get('/facebook/callback', oauthInitLimiter, async (req: Request, res: Response) => {
   const origin = appOrigin();
   const { code, state, error } = req.query as Record<string, string>;
 

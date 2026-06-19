@@ -57,6 +57,7 @@ import {
 import type { ReelsSponsorAd } from '../types';
 import { getSocket } from '../lib/socket';
 import type { ReelComment, ReelStats } from '../types';
+import { ReportContentModal } from '../components/ReportContentModal';
 
 const SWIPE_THRESHOLD_PX = 22;
 const SWIPE_VELOCITY_PX_MS = 0.32;
@@ -307,6 +308,7 @@ export function ReelsTabPage({
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [shareToast, setShareToast] = useState<string | null>(null);
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
+  const [reportReelOpen, setReportReelOpen] = useState(false);
   const initialScrollDone = useRef(false);
   const viewedReelsThisSession = useRef(new Set<string>());
   const [algoSheetOpen, setAlgoSheetOpen] = useState(false);
@@ -1142,6 +1144,11 @@ export function ReelsTabPage({
               onHeart={toggleHeart}
               onComment={() => setCommentsOpen(true)}
               onShare={() => setShareMenuOpen(true)}
+              onReport={
+                token && activeReel.authorId && activeReel.authorId !== user?.id
+                  ? () => setReportReelOpen(true)
+                  : undefined
+              }
             />
           )}
 
@@ -1215,6 +1222,18 @@ export function ReelsTabPage({
         />
       )}
 
+      {reportReelOpen && activeReel && (
+        <ReportContentModal
+          context={{
+            targetUserId: activeReel.authorId,
+            targetUsername: activeReel.artist,
+            roomType: 'reel',
+            roomId: activeReel.id,
+          }}
+          onClose={() => setReportReelOpen(false)}
+        />
+      )}
+
       {algoSheetOpen && (
         <ReelsAlgoSheet
           onClose={() => setAlgoSheetOpen(false)}
@@ -1234,12 +1253,14 @@ function ReelActions({
   onHeart,
   onComment,
   onShare,
+  onReport,
 }: {
   stats: ReelStats;
   disabled: boolean;
   onHeart: () => void;
   onComment: () => void;
   onShare: () => void;
+  onReport?: () => void;
 }) {
   const { t } = useTranslation();
   const [heartAnim, setHeartAnim] = useState(false);
@@ -1279,6 +1300,14 @@ function ReelActions({
       >
         <span className={`text-xl leading-none ${stats.sharedByMe ? 'text-emerald-400' : 'text-white'}`}>↗</span>
       </ActionButton>
+      {onReport && (
+        <ActionButton
+          label="Signaler ce reel"
+          onClick={onReport}
+        >
+          <span className="text-xl leading-none text-gray-300">⚑</span>
+        </ActionButton>
+      )}
     </div>
   );
 }

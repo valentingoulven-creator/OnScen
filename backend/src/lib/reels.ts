@@ -422,6 +422,9 @@ function isDataUrl(value: string): boolean {
   return /^data:(video|image)\//i.test(value.trim());
 }
 
+const MAX_PRIVATE_VIDEO_CHARS = MAX_RECORDED_VIDEO_CHARS;
+const MAX_PRIVATE_POSTER_CHARS = MAX_RECORDED_POSTER_CHARS;
+
 function isAllowedPrivateMedia(draft: {
   mediaType: string;
   videoUrl?: string;
@@ -430,9 +433,15 @@ function isAllowedPrivateMedia(draft: {
   const video = draft.videoUrl?.trim() ?? '';
   const poster = draft.posterUrl?.trim() ?? '';
   if (draft.mediaType === 'image' || (!video && poster)) {
-    return isDataUrl(poster) || UNSPLASH_IMAGE_RE.test(poster);
+    if (!isDataUrl(poster) && !UNSPLASH_IMAGE_RE.test(poster)) return false;
+    if (isDataUrl(poster) && poster.length > MAX_PRIVATE_POSTER_CHARS) return false;
+    return true;
   }
-  return isDataUrl(video) && (!poster || isDataUrl(poster) || UNSPLASH_IMAGE_RE.test(poster));
+  if (!isDataUrl(video) || video.length > MAX_PRIVATE_VIDEO_CHARS) return false;
+  if (poster && !UNSPLASH_IMAGE_RE.test(poster)) {
+    if (!isDataUrl(poster) || poster.length > MAX_PRIVATE_POSTER_CHARS) return false;
+  }
+  return true;
 }
 
 function normalizeDurationSec(value: unknown): number | undefined {

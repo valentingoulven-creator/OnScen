@@ -181,6 +181,14 @@ authRouter.post('/login', async (req: Request, res: Response) => {
     });
     return;
   }
+  if (user.emailVerified === false) {
+    res.status(403).json({
+      error: "Votre adresse e-mail n'est pas encore vérifiée. Consultez vos e-mails ou demandez un nouveau lien.",
+      code: 'email_not_verified',
+      email: user.email,
+    });
+    return;
+  }
   applyProfileDefaults(user);
   ensurePlatformAccountsFromLegacy(user);
   migratePlaintextPlatformTokens(user);
@@ -472,7 +480,7 @@ authRouter.get('/check-username', (req: Request, res: Response) => {
   const taken = [...db.users.values()].some(
     (u) => u.username.toLowerCase() === username.toLowerCase()
   );
-  res.json({ available: !taken, reason: taken ? 'Ce pseudo est déjà pris' : null });
+  res.json({ available: !taken, reason: taken ? 'Ce pseudo n\'est pas disponible' : null });
 });
 
 /** Changement de mot de passe */

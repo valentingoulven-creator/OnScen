@@ -420,7 +420,7 @@ export function publicProfile(u: User, isOwner = false, viewerId?: string) {
     isOAuthAccount: isOwner ? snapshot.passwordHash.startsWith('oauth_') : undefined,
     accountStatus: isOwner ? getAccountStatus(snapshot) : undefined,
     isAdmin: isOwner ? isAccessAdmin(snapshot) : undefined,
-    isDev: isAccessAdmin(snapshot) ? true : undefined,
+    isDev: isOwner && isAccessAdmin(snapshot) ? true : undefined,
     stats,
     favoritesCount: snapshot.favoritesCountOverride ?? getFavoriteCount(snapshot.id),
     hostRating,

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+﻿import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from './context/AuthContext';
 import { useWebPushRegistration } from './hooks/useWebPushRegistration';
@@ -89,6 +89,11 @@ export default function App() {
   const { user, token, completeOnboarding, refreshUser, authBootError, clearAuthBootError, setUserFromProfile } = useAuth();
   useWebPushRegistration(token);
   const { unreadCount: dmUnread, incomingToast, dismissToast, setDmTabActive } = useDmUnread();
+  const [appToast, setAppToast] = useState<{ message: string; kind: 'info' | 'error' } | null>(null);
+  const showAppToast = (message: string, kind: 'info' | 'error' = 'info') => {
+    setAppToast({ message, kind });
+    window.setTimeout(() => setAppToast(null), 5000);
+  };
   const [tab, setTab] = useState<Tab>('actualite');
   const tabRef = useRef<Tab>('actualite');
   tabRef.current = tab;
@@ -234,9 +239,9 @@ export default function App() {
     if (oauth === 'error') {
       const reason = params.get('reason');
       if (reason === 'not_configured') {
-        alert('Connexion YouTube indisponible : OAuth Google non configuré sur le serveur.');
+        showAppToast('Connexion YouTube indisponible : OAuth Google non configuré sur le serveur.', 'error');
       } else {
-        alert('Connexion YouTube annulée ou échouée.');
+        showAppToast('Connexion YouTube annulée ou échouée.', 'error');
       }
     }
     params.delete('youtube_oauth');
@@ -253,7 +258,7 @@ export default function App() {
       void refreshUser().then(() => dispatchPlatformStatusRefresh());
     }
     if (oauth === 'error') {
-      alert('Connexion Spotify annulée ou échouée.');
+      showAppToast('Connexion Spotify annulée ou échouée.', 'error');
     }
     params.delete('spotify_oauth');
     params.delete('reason');
@@ -271,13 +276,14 @@ export default function App() {
     if (oauth === 'error') {
       const reason = params.get('reason');
       if (reason === 'not_configured') {
-        alert('Connexion Instagram indisponible : OAuth Meta/Facebook non configuré sur le serveur.');
+        showAppToast('Connexion Instagram indisponible : OAuth Meta/Facebook non configuré sur le serveur.', 'error');
       } else if (reason === 'no_instagram_account') {
-        alert(
-          'Aucun compte Instagram professionnel lié à votre page Facebook. Liez un compte Instagram Business ou Creator à une page Facebook, puis réessayez.'
+        showAppToast(
+          'Aucun compte Instagram professionnel lié à votre page Facebook. Liez un compte Instagram Business ou Creator à une page Facebook, puis réessayez.',
+          'error'
         );
       } else {
-        alert('Connexion Instagram annulée ou échouée.');
+        showAppToast('Connexion Instagram annulée ou échouée.', 'error');
       }
     }
     params.delete('instagram_oauth');
@@ -631,35 +637,55 @@ export default function App() {
       className={`ms-app-shell flex flex-col min-h-dvh max-h-dvh overflow-hidden min-w-0 w-full${!appa2 ? ' ms-app-shell--bottom-tabs' : ''}${appa2 && !profileOpen ? ' ms-app-shell--header-tabs' : ''}${showSalonReturnBar ? ' ms-app-shell--salon-return' : ''}`}
     >
       {incomingToast && (
-        <button
-          type="button"
-          onClick={() =>
-            incomingToast.groupId
-              ? openGroupChat(incomingToast.groupId)
-              : openDmWithUser(incomingToast.senderId)
-          }
-          className="fixed top-[calc(env(safe-area-inset-top)+3.5rem)] left-3 right-3 z-50 mx-auto max-w-md rounded-xl border border-purple-500/40 bg-[#1a1a28] px-4 py-3 shadow-lg flex items-start gap-3 text-left w-[calc(100%-1.5rem)] active:scale-[0.99]"
+        <div
           role="status"
+          aria-live="polite"
+          className="fixed top-[calc(env(safe-area-inset-top)+3.5rem)] left-3 right-3 z-50 mx-auto max-w-md rounded-xl border border-purple-500/40 bg-[#1a1a28] px-4 py-3 shadow-lg flex items-start gap-3 text-left w-[calc(100%-1.5rem)]"
         >
-          <span className="text-xl shrink-0" aria-hidden>
-            ðŸ’¬
-          </span>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-white truncate">{incomingToast.senderName}</p>
-            <p className="text-xs text-gray-400 line-clamp-2">{incomingToast.preview}</p>
-          </div>
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              dismissToast();
-            }}
+            onClick={() =>
+              incomingToast.groupId
+                ? openGroupChat(incomingToast.groupId)
+                : openDmWithUser(incomingToast.senderId)
+            }
+            className="flex-1 min-w-0 flex items-start gap-3 text-left active:scale-[0.99] cursor-pointer bg-transparent border-0 p-0"
+          >
+            <span className="text-xl shrink-0" aria-hidden>
+              💬
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-white truncate">{incomingToast.senderName}</p>
+              <p className="text-xs text-gray-400 line-clamp-2">{incomingToast.preview}</p>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={dismissToast}
             className="text-gray-500 hover:text-white text-lg leading-none shrink-0 cursor-pointer bg-transparent border-0 p-0"
             aria-label="Fermer la notification"
           >
             ×
           </button>
-        </button>
+        </div>
+      )}
+
+      {appToast && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className={`fixed top-[calc(env(safe-area-inset-top)+1rem)] left-3 right-3 z-[60] mx-auto max-w-md rounded-xl border px-4 py-3 shadow-lg text-sm text-center ${appToast.kind === 'error' ? 'bg-red-950/90 border-red-500/40 text-red-100' : 'bg-[#1a1a28] border-purple-500/40 text-white'}`}
+        >
+          <span>{appToast.message}</span>
+          <button
+            type="button"
+            onClick={() => setAppToast(null)}
+            className="ml-3 text-gray-400 hover:text-white bg-transparent border-0 p-0 leading-none cursor-pointer"
+            aria-label="Fermer"
+          >
+            ×
+          </button>
+        </div>
       )}
 
       <header

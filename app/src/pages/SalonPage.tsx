@@ -725,11 +725,13 @@ export function SalonPage({
     </>
   );
 
+  if (!user) return null;
+
   const chatProps = {
     roomId: salon.id,
     roomType: 'salon' as const,
-    userId: user!.id,
-    userName: user!.username,
+    userId: user.id,
+    userName: user.username,
     token: token ?? undefined,
     isHost,
     canModerateChat: canModerateSalonChat,

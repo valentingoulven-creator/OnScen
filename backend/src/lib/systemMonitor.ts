@@ -22,7 +22,10 @@ const CPU_THRESHOLD = parseInt(process.env.CPU_ALERT_THRESHOLD ?? process.env.AL
 const CHECK_INTERVAL_MS = parseInt(process.env.MONITOR_INTERVAL_MS ?? '300000', 10);
 const DEBOUNCE_MS = 60 * 60 * 1000; // 1 hour per metric
 
-const alertEmail = process.env.ALERT_EMAIL ?? process.env.SMTP_ADMIN_EMAIL ?? 'valentin.goulven@gmail.com';
+const alertEmail = process.env.ALERT_EMAIL?.trim() || process.env.SMTP_ADMIN_EMAIL?.trim() || '';
+if (!alertEmail && process.env.APP_ENV === 'production') {
+  console.warn('[systemMonitor] AVERTISSEMENT : ALERT_EMAIL non défini — les alertes RAM/CPU ne seront pas envoyées.');
+}
 
 const lastAlertTime = new Map<'ram' | 'cpu', number>();
 
@@ -105,6 +108,7 @@ async function sendSystemAlert(params: {
   ].join('\n');
 
   try {
+    if (!alertEmail) return;
     await sendEmail({ from: getEmailFrom('Soundy Monitoring'), to: alertEmail, subject, text, html });
     console.info(`[systemMonitor] Alerte ${label} envoyée à ${alertEmail} (${params.value}% > ${params.threshold}%)`);
   } catch (err) {
@@ -142,7 +146,7 @@ export function startSystemMonitor(): void {
 
   console.log(
     `[systemMonitor] Actif — seuils RAM ${RAM_THRESHOLD}%, CPU ${CPU_THRESHOLD}%, ` +
-      `intervalle ${CHECK_INTERVAL_MS / 1000}s, alerte → ${alertEmail}`
+      `intervalle ${CHECK_INTERVAL_MS / 1000}s, alerte → ${alertEmail || '(non configuré)'}`
   );
 }
 
