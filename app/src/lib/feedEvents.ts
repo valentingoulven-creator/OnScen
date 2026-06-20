@@ -163,3 +163,30 @@ export function formatWeekRangeLabel(range = getCurrentWeekRange()): string {
   });
   return `${startStr} – ${endStr}`;
 }
+
+/**
+ * Returns the full formatted date string with optional end-time suffix.
+ * e.g. "samedi 27 juin 2026 à 21:00 – 23:00"
+ */
+export function formatEventDateWithEndTime(isoStart: string, isoEnd?: string | null): string {
+  const base = formatEventDate(isoStart);
+  if (!isoEnd) return base;
+  try {
+    const endD = new Date(isoEnd);
+    if (Number.isNaN(endD.getTime())) return base;
+    const hh = String(endD.getHours()).padStart(2, '0');
+    const mm = String(endD.getMinutes()).padStart(2, '0');
+    return `${base} – ${hh}:${mm}`;
+  } catch {
+    return base;
+  }
+}
+
+/** Returns event date+end-time pairs in chronological order. */
+export function getEventDateEntries(
+  post: Pick<FeedPost, 'eventDate' | 'eventDates' | 'eventEndTimes'>,
+): { start: string; end: string | null }[] {
+  const starts = getEventDates(post);
+  const ends = post.eventEndTimes ?? [];
+  return starts.map((start, i) => ({ start, end: ends[i] ?? null }));
+}

@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+﻿import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  formatEventDate,
   formatEventDateShort,
   getEventDates,
+  getEventDateEntries,
+  formatEventDateWithEndTime,
   getPrimaryEventDate,
   hasUpcomingEventDate,
   resolveEventHeroVisual,
@@ -173,6 +174,17 @@ export function EventCard({
             >
               <CalendarIcon className={`${badgeIconClass} text-purple-300 shrink-0`} />
               {formatEventDateShort(primaryEventDate)}
+              {(() => {
+                const endTime = post.eventEndTimes?.[0];
+                if (!endTime) return null;
+                try {
+                  const d = new Date(endTime);
+                  if (Number.isNaN(d.getTime())) return null;
+                  const hh = String(d.getHours()).padStart(2, '0');
+                  const mm = String(d.getMinutes()).padStart(2, '0');
+                  return <span className="text-purple-200/90 normal-case"> – {hh}:{mm}</span>;
+                } catch { return null; }
+              })()}
               {eventDates.length > 1 ? (
                 <span className="normal-case text-purple-200/90"> · +{eventDates.length - 1}</span>
               ) : null}
@@ -197,11 +209,11 @@ export function EventCard({
 
         {eventDates.length > 0 ? (
           <div className="space-y-1">
-            {eventDates.map((iso) => (
-              <div key={iso} className="flex items-start gap-1.5">
+            {getEventDateEntries(post).map(({ start, end }) => (
+              <div key={start} className="flex items-start gap-1.5">
                 <CalendarIcon className={`${isCompact ? 'w-3 h-3' : 'w-3.5 h-3.5'} text-purple-400 shrink-0 mt-0.5`} />
                 <span className="text-[11px] text-purple-100 capitalize leading-snug line-clamp-1">
-                  {formatEventDate(iso)}
+                  {formatEventDateWithEndTime(start, end)}
                 </span>
               </div>
             ))}

@@ -101,3 +101,30 @@ export function isEventDateInFuture(isoLocal: string): boolean {
   now.setSeconds(0, 0);
   return date.getTime() >= now.getTime();
 }
+
+/**
+ * Formats a confirmed-date chip label.
+ * Returns e.g. "Sam. 27 juin · 21:00" or "Sam. 27 juin · 21:00 – 23:00".
+ */
+export function formatEventDateRangeChip(
+  isoStart: string,
+  isoEnd?: string | null,
+  locale?: string,
+): string {
+  const matchStart = LOCAL_DT_RE.exec(isoStart.trim());
+  if (!matchStart) return formatEventDateInputValue(isoStart, locale);
+  const [, yr, mo, dy, hr, mn] = matchStart;
+  const d = new Date(Number(yr), Number(mo) - 1, Number(dy));
+  const lang = usesEuropeanDateFormat(locale) ? 'fr-FR' : 'en-US';
+  const weekday = d.toLocaleDateString(lang, { weekday: 'short' });
+  const monthName = d.toLocaleDateString(lang, { month: 'short' });
+  let label = `${weekday} ${Number(dy)} ${monthName} · ${hr}:${mn}`;
+  if (isoEnd) {
+    const matchEnd = LOCAL_DT_RE.exec(isoEnd.trim());
+    if (matchEnd) {
+      const [, , , , hr2, mn2] = matchEnd;
+      label += ` – ${hr2}:${mn2}`;
+    }
+  }
+  return label;
+}

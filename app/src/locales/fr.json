@@ -210,10 +210,14 @@
       "tabPlaylist": "Playlist",
       "tabQueue": "File",
       "tabSettings": "Réglages",
+      "tabProfil": "Profil",
       "collapse": "Replier le panneau",
       "expand": "Déplier le panneau",
       "inviteLink": "Lien d'invitation",
-      "manageAccess": "Gérer l'accès"
+      "manageAccess": "Gérer l'accès",
+      "viewFullProfile": "Voir le profil complet",
+      "profilListenerSingular": "auditeur",
+      "profilListenerPlural": "auditeurs"
     },
     "create": {
       "spotifyPremiumRequired": "Spotify Premium requis pour héberger un salon",

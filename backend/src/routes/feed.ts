@@ -64,6 +64,7 @@ feedRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
     isEvent: body.isEvent === true,
     eventDate: body.eventDate != null ? String(body.eventDate) : undefined,
     eventDates: Array.isArray(body.eventDates) ? body.eventDates : undefined,
+    eventEndTimes: Array.isArray(body.eventEndTimes) ? body.eventEndTimes : undefined,
     eventLocation: body.eventLocation != null ? String(body.eventLocation) : undefined,
     eventType: body.eventType != null ? String(body.eventType) : undefined,
   });

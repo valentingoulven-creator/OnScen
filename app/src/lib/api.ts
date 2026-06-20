@@ -1849,6 +1849,7 @@ export const api = {
       isEvent?: boolean;
       eventDate?: string;
       eventDates?: string[];
+      eventEndTimes?: (string | null)[];
       eventLocation?: string;
       eventType?: 'dance' | 'chant' | 'autre';
     }

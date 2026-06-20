@@ -68,6 +68,8 @@ export interface PublicFeedPost {
   isEvent?: boolean;
   eventDate?: string;
   eventDates?: string[];
+  /** Heures de fin parallèles à eventDates (null = pas de fin pour cette date). */
+  eventEndTimes?: (string | null)[];
   eventLocation?: string;
   eventType?: 'dance' | 'chant' | 'autre';
   author: {
@@ -149,28 +151,51 @@ function normalizeEventDate(raw: unknown): string | null {
 
 function normalizeEventDates(
   rawDates: unknown,
-  rawSingle: unknown
-): { eventDate: string; eventDates: string[] } | null {
-  const dates: string[] = [];
+  rawSingle: unknown,
+  rawEndTimes?: unknown
+): { eventDate: string; eventDates: string[]; eventEndTimes: (string | null)[] } | null {
+  // Build (startIso, endIso | null) pairs
+  const pairs: [string, string | null][] = [];
+  const endArr = Array.isArray(rawEndTimes) ? rawEndTimes : [];
 
   if (Array.isArray(rawDates)) {
-    for (const item of rawDates) {
-      const normalized = normalizeEventDate(item);
-      if (normalized) dates.push(normalized);
+    for (let i = 0; i < rawDates.length; i++) {
+      const normalized = normalizeEventDate(rawDates[i]);
+      if (normalized) {
+        const rawEnd = endArr[i] != null ? endArr[i] : null;
+        const end = rawEnd != null ? normalizeEventDate(rawEnd) : null;
+        pairs.push([normalized, end]);
+      }
     }
   }
 
-  if (dates.length === 0) {
+  if (pairs.length === 0) {
     const single = normalizeEventDate(rawSingle);
-    if (single) dates.push(single);
+    if (single) {
+      const rawEnd = endArr[0] != null ? endArr[0] : null;
+      const end = rawEnd != null ? normalizeEventDate(rawEnd) : null;
+      pairs.push([single, end]);
+    }
   }
 
-  if (dates.length === 0) return null;
+  if (pairs.length === 0) return null;
 
-  const unique = [...new Set(dates)].sort(
-    (a, b) => new Date(a).getTime() - new Date(b).getTime()
-  );
-  return { eventDate: unique[0], eventDates: unique };
+  // Deduplicate by start (keep first end time for duplicates)
+  const seen = new Set<string>();
+  const unique: [string, string | null][] = [];
+  for (const [start, end] of pairs) {
+    if (!seen.has(start)) {
+      seen.add(start);
+      unique.push([start, end]);
+    }
+  }
+
+  unique.sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime());
+
+  const eventDates = unique.map((p) => p[0]);
+  const eventEndTimes = unique.map((p) => p[1]);
+
+  return { eventDate: eventDates[0], eventDates, eventEndTimes };
 }
 
 function normalizeEventLocation(raw: unknown): string | null {
@@ -198,6 +223,7 @@ export function createFeedPost(
     isEvent?: boolean;
     eventDate?: string;
     eventDates?: unknown;
+    eventEndTimes?: unknown;
     eventLocation?: string;
     eventType?: string;
   }
@@ -240,10 +266,11 @@ export function createFeedPost(
   // Validation événement
   let eventDate: string | undefined;
   let eventDates: string[] | undefined;
+  let eventEndTimes: (string | null)[] | undefined;
   let eventLocation: string | undefined;
   let eventType: 'dance' | 'chant' | 'autre' | undefined;
   if (input.isEvent) {
-    const normalizedDates = normalizeEventDates(input.eventDates, input.eventDate);
+    const normalizedDates = normalizeEventDates(input.eventDates, input.eventDate, input.eventEndTimes);
     if (!normalizedDates) {
       return { ok: false, error: "Date de l'événement invalide ou manquante." };
     }
@@ -253,6 +280,9 @@ export function createFeedPost(
     }
     eventDate = normalizedDates.eventDate;
     eventDates = normalizedDates.eventDates;
+    eventEndTimes = normalizedDates.eventEndTimes.some((e) => e !== null)
+      ? normalizedDates.eventEndTimes
+      : undefined;
     eventLocation = loc;
     eventType = normalizeEventType(input.eventType);
   }
@@ -264,7 +294,7 @@ export function createFeedPost(
     ...(imageUrl ? { imageUrl } : {}),
     ...(videoUrl ? { videoUrl } : {}),
     ...(input.isEvent
-      ? { isEvent: true, eventDate, eventDates, eventLocation, eventType }
+      ? { isEvent: true, eventDate, eventDates, eventEndTimes, eventLocation, eventType }
       : {}),
     createdAt: Date.now(),
   };
@@ -462,6 +492,9 @@ function toPublicPost(
           isEvent: true,
           eventDate: post.eventDate,
           ...(post.eventDates?.length ? { eventDates: post.eventDates } : {}),
+          ...(post.eventEndTimes?.some((e) => e !== null)
+            ? { eventEndTimes: post.eventEndTimes }
+            : {}),
           eventLocation: post.eventLocation,
           eventType: post.eventType ?? 'autre',
         }

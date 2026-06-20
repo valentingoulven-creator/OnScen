@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { computeAgeFromBirthDate, formatBirthDate } from '../lib/profileAge';
 import { getUserProfilePhotos } from '../lib/profilePhotos';
@@ -302,7 +302,6 @@ export function UserProfileView({
       ]
     : [];
 
-  const hasPhotoGallery = viewerPhotos.length > 1;
 
   const bioText = profile?.bio?.trim() ?? '';
   const BIO_LIMIT = 120;

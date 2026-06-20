@@ -210,10 +210,14 @@
       "tabPlaylist": "Playlist",
       "tabQueue": "Queue",
       "tabSettings": "Settings",
+      "tabProfil": "Profile",
       "collapse": "Collapse panel",
       "expand": "Expand panel",
       "inviteLink": "Invite link",
-      "manageAccess": "Manage access"
+      "manageAccess": "Manage access",
+      "viewFullProfile": "View full profile",
+      "profilListenerSingular": "listener",
+      "profilListenerPlural": "listeners"
     },
     "create": {
       "spotifyPremiumRequired": "Spotify Premium required to host a salon",

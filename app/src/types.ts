@@ -1060,6 +1060,8 @@ export interface FeedPost {
   isEvent?: boolean;
   eventDate?: string;
   eventDates?: string[];
+  /** Heures de fin parallèles à eventDates (null = pas d'heure de fin pour cette date). */
+  eventEndTimes?: (string | null)[];
   eventLocation?: string;
   /** Type d'événement : danse, chant ou autre (défaut autre). */
   eventType?: FeedEventType;
@@ -1073,6 +1075,7 @@ export interface MapEventMarker {
   title: string;
   eventDate?: string;
   eventDates?: string[];
+  eventEndTimes?: (string | null)[];
   eventLocation?: string;
   eventType?: FeedEventType;
   authorId?: string;

@@ -605,6 +605,8 @@ export interface FeedPost {
   eventLocation?: string;
   /** Type : dance (danse), chant, autre (défaut). */
   eventType?: 'dance' | 'chant' | 'autre';
+  /** Heures de fin parallèles à eventDates (null = pas d'heure de fin pour cette date). */
+  eventEndTimes?: (string | null)[];
   /** Masqué par modération admin (fil et carte). */
   adminBlocked?: boolean;
   adminBlockedAt?: number;

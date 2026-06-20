@@ -4,9 +4,11 @@ import { SalonYouTubeSearch } from './SalonYouTubeSearch';
 import { SalonYouTubePlaylist } from './SalonYouTubePlaylist';
 import { SalonQueueSection } from './SalonQueueSection';
 import { SalonProposalsSection } from './SalonProposalsSection';
+import { UserAvatarOnline } from './UserAvatarOnline';
+import { UsernameDisplay } from './UsernameDisplay';
 import type { PlaybackState, Salon, SalonQueueItem, SalonTrackProposal } from '../types';
 
-type HostTab = 'search' | 'playlist' | 'queue' | 'settings';
+type HostTab = 'search' | 'playlist' | 'queue' | 'settings' | 'profil';
 
 const svgBase = {
   xmlns: 'http://www.w3.org/2000/svg',
@@ -54,6 +56,13 @@ function HostTabIcon({ tab }: { tab: HostTab }) {
           <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
         </svg>
       );
+    case 'profil':
+      return (
+        <svg {...svgBase} className={className} aria-hidden="true">
+          <circle cx="12" cy="8" r="4" />
+          <path d="M6 21c0-3.314 2.686-6 6-6s6 2.686 6 6" />
+        </svg>
+      );
     default:
       return null;
   }
@@ -85,9 +94,11 @@ interface SalonYouTubeHostPanelProps {
   vipOnly?: boolean;
   /** Participant — même tiroir, onglets en lecture seule / proposition. */
   participantMode?: boolean;
+  /** Ouvre le profil complet d'un utilisateur (remonté depuis App). */
+  onOpenProfile?: (userId: string) => void;
 }
 
-const TAB_ORDER: HostTab[] = ['search', 'playlist', 'queue', 'settings'];
+const TAB_ORDER: HostTab[] = ['search', 'playlist', 'queue', 'settings', 'profil'];
 
 function readExpanded(): boolean {
   return false;
@@ -113,6 +124,7 @@ export function SalonYouTubeHostPanel({
   onReorder,
   onAccept,
   onReject,
+  onOpenProfile,
 }: SalonYouTubeHostPanelProps) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(readExpanded);
@@ -144,6 +156,10 @@ export function SalonYouTubeHostPanel({
       id: 'settings',
       label: t('salon.youtubeHost.tabSettings', { defaultValue: 'Réglages' }),
       hidden: vipOnly || participantMode || !settingsContent,
+    },
+    {
+      id: 'profil',
+      label: t('salon.youtubeHost.tabProfil', { defaultValue: 'Profil' }),
     },
   ];
 
@@ -253,6 +269,39 @@ export function SalonYouTubeHostPanel({
         );
       case 'settings':
         return settingsContent ?? null;
+      case 'profil':
+        return (
+          <div className="flex flex-col items-center gap-2 py-3">
+            <UserAvatarOnline
+              userId={salon.hostId}
+              avatarUrl={salon.hostAvatarUrl}
+              username={salon.hostName}
+              size="xl"
+            />
+            <UsernameDisplay
+              username={salon.hostName}
+              usernameColor={salon.hostUsernameColor}
+              usernameWaveFrom={salon.hostUsernameWaveFrom}
+              usernameWaveTo={salon.hostUsernameWaveTo}
+              className="text-sm font-semibold leading-tight"
+            />
+            <p className="text-[11px] text-gray-400">
+              {salon.listenersCount}{' '}
+              {salon.listenersCount === 1
+                ? t('salon.youtubeHost.profilListenerSingular', { defaultValue: 'auditeur' })
+                : t('salon.youtubeHost.profilListenerPlural', { defaultValue: 'auditeurs' })}
+            </p>
+            {onOpenProfile ? (
+              <button
+                type="button"
+                onClick={() => onOpenProfile(salon.hostId)}
+                className="mt-1 px-4 py-2 rounded-lg text-xs font-semibold bg-[#42426a] text-white hover:bg-[#52527a] active:scale-95 transition"
+              >
+                {t('salon.youtubeHost.viewFullProfile', { defaultValue: 'Voir le profil complet' })}
+              </button>
+            ) : null}
+          </div>
+        );
       default:
         return null;
     }

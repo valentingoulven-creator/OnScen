@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { isEventDateInFuture } from '../lib/eventDateInput';
 
 const DAY_LABELS = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di'];
@@ -8,9 +8,9 @@ const MONTH_NAMES = [
 ];
 
 interface Props {
-  /** Already-confirmed ISO local strings e.g. "2024-07-15T20:00" — highlighted green. */
+  /** Already-confirmed ISO local start strings e.g. "2024-07-15T20:00" — highlighted green. */
   confirmedDates: string[];
-  onAddDate: (isoLocal: string) => void;
+  onAddDate: (isoStart: string, isoEnd: string | null) => void;
   disabled?: boolean;
 }
 
@@ -23,10 +23,13 @@ export function EventDatePickerInput({ confirmedDates, onAddDate, disabled }: Pr
   const [pickedDay, setPickedDay] = useState<Date | null>(null);
   const [timeValue, setTimeValue] = useState('');
   const [timeError, setTimeError] = useState<string | null>(null);
+  const [endTimeValue, setEndTimeValue] = useState('');
+  const [endTimeError, setEndTimeError] = useState<string | null>(null);
 
   const popoverRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const timeInputRef = useRef<HTMLInputElement>(null);
+  const endTimeInputRef = useRef<HTMLInputElement>(null);
 
   // Close popover on outside click
   useEffect(() => {
@@ -63,12 +66,28 @@ export function EventDatePickerInput({ confirmedDates, onAddDate, disabled }: Pr
     return `${String(year).padStart(4, '0')}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   }
 
+  function buildIsoLocal(day: Date, h: number, m: number): string {
+    return [
+      String(day.getFullYear()).padStart(4, '0'),
+      '-',
+      String(day.getMonth() + 1).padStart(2, '0'),
+      '-',
+      String(day.getDate()).padStart(2, '0'),
+      'T',
+      String(h).padStart(2, '0'),
+      ':',
+      String(m).padStart(2, '0'),
+    ].join('');
+  }
+
   function handlePickDay(day: number) {
     setPickedDay(new Date(year, month, day));
     setTimeError(null);
+    setEndTimeError(null);
     // Default to next round hour
     const h = (new Date().getHours() + 1) % 24;
     setTimeValue(`${String(h).padStart(2, '0')}:00`);
+    setEndTimeValue('');
     setTimeout(() => timeInputRef.current?.focus(), 60);
   }
 
@@ -84,32 +103,42 @@ export function EventDatePickerInput({ confirmedDates, onAddDate, disabled }: Pr
       setTimeError('Heure invalide');
       return;
     }
-    const isoLocal = [
-      String(pickedDay.getFullYear()).padStart(4, '0'),
-      '-',
-      String(pickedDay.getMonth() + 1).padStart(2, '0'),
-      '-',
-      String(pickedDay.getDate()).padStart(2, '0'),
-      'T',
-      String(h).padStart(2, '0'),
-      ':',
-      String(m).padStart(2, '0'),
-    ].join('');
+
+    // Validate optional end time
+    let endIsoLocal: string | null = null;
+    if (endTimeValue.trim()) {
+      const [ehStr, emStr] = endTimeValue.split(':');
+      const eh = Number(ehStr);
+      const em = Number(emStr);
+      if (Number.isNaN(eh) || Number.isNaN(em) || eh > 23 || em > 59) {
+        setEndTimeError('Heure invalide');
+        return;
+      }
+      if (eh < h || (eh === h && em <= m)) {
+        setEndTimeError("L'heure de fin doit être après le début");
+        return;
+      }
+      endIsoLocal = buildIsoLocal(pickedDay, eh, em);
+    }
+
+    const isoLocal = buildIsoLocal(pickedDay, h, m);
     if (!isEventDateInFuture(isoLocal)) {
       setTimeError('La date doit être dans le futur');
       return;
     }
-    onAddDate(isoLocal);
+    onAddDate(isoLocal, endIsoLocal);
     setOpen(false);
     setPickedDay(null);
     setTimeValue('');
+    setEndTimeValue('');
     setTimeError(null);
+    setEndTimeError(null);
   }
 
   const hasConfirmed = confirmedDates.length > 0;
   const cells: (number | null)[] = [
-    ...Array.from<null>({ length: startOffset }, () => null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+    ...Array.from<unknown, null>({ length: startOffset }, () => null),
+    ...Array.from<unknown, number>({ length: daysInMonth }, (_, i) => i + 1),
   ];
 
   return (
@@ -216,38 +245,64 @@ export function EventDatePickerInput({ confirmedDates, onAddDate, disabled }: Pr
             })}
           </div>
 
-          {/* Time picker — appears after a day is chosen */}
+          {/* Time pickers — appear after a day is chosen */}
           {pickedDay !== null && (
-            <div className="mt-3 pt-3 border-t border-purple-500/20 space-y-2">
-              <p className="text-[10px] font-semibold text-purple-300 uppercase tracking-wide">
-                Heure de l&apos;événement
-              </p>
-              <div className="flex gap-2 items-stretch">
-                <input
-                  ref={timeInputRef}
-                  type="time"
-                  value={timeValue}
-                  onChange={(e) => { setTimeValue(e.target.value); setTimeError(null); }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleConfirm(); }}
-                  className={`flex-1 rounded-lg bg-[#0b0b0f] border px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 ${
-                    timeError
-                      ? 'border-red-500/60 focus:ring-red-500/40'
-                      : 'border-[#2a2a3d] focus:ring-purple-500/50'
-                  }`}
-                />
-                <button
-                  type="button"
-                  onClick={handleConfirm}
-                  className="shrink-0 rounded-lg px-3 py-2 text-xs font-semibold bg-purple-600/45 border border-purple-400/50 text-purple-100 hover:bg-purple-600/65 transition"
-                >
-                  Valider
-                </button>
-              </div>
-              {timeError && (
-                <p className="text-[10px] text-red-400" role="alert">
-                  {timeError}
+            <div className="mt-3 pt-3 border-t border-purple-500/20 space-y-2.5">
+              {/* Start time */}
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-semibold text-purple-300 uppercase tracking-wide">
+                  Heure de l&apos;événement
                 </p>
-              )}
+                <div className="flex gap-2 items-stretch">
+                  <input
+                    ref={timeInputRef}
+                    type="time"
+                    value={timeValue}
+                    onChange={(e) => { setTimeValue(e.target.value); setTimeError(null); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') endTimeInputRef.current?.focus(); }}
+                    className={`flex-1 rounded-lg bg-[#0b0b0f] border px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 ${
+                      timeError
+                        ? 'border-red-500/60 focus:ring-red-500/40'
+                        : 'border-[#2a2a3d] focus:ring-purple-500/50'
+                    }`}
+                  />
+                </div>
+                {timeError && (
+                  <p className="text-[10px] text-red-400" role="alert">{timeError}</p>
+                )}
+              </div>
+
+              {/* End time (optional) */}
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
+                  Heure de fin <span className="normal-case font-normal text-gray-600">(optionnel)</span>
+                </p>
+                <div className="flex gap-2 items-stretch">
+                  <input
+                    ref={endTimeInputRef}
+                    type="time"
+                    value={endTimeValue}
+                    placeholder="--:--"
+                    onChange={(e) => { setEndTimeValue(e.target.value); setEndTimeError(null); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleConfirm(); }}
+                    className={`flex-1 rounded-lg bg-[#0b0b0f] border px-3 py-2 text-sm text-white placeholder:text-gray-700 focus:outline-none focus:ring-2 ${
+                      endTimeError
+                        ? 'border-red-500/60 focus:ring-red-500/40'
+                        : 'border-[#2a2a3d] focus:ring-purple-500/50'
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleConfirm}
+                    className="shrink-0 rounded-lg px-3 py-2 text-xs font-semibold bg-purple-600/45 border border-purple-400/50 text-purple-100 hover:bg-purple-600/65 transition"
+                  >
+                    Valider
+                  </button>
+                </div>
+                {endTimeError && (
+                  <p className="text-[10px] text-red-400" role="alert">{endTimeError}</p>
+                )}
+              </div>
             </div>
           )}
         </div>

@@ -1,4 +1,4 @@
-type TagColor = 'cyan' | 'purple' | 'pink';
+﻿type TagColor = 'cyan' | 'purple' | 'pink';
 
 const CHIP_COLORS: Record<TagColor, string> = {
   cyan: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/25',
@@ -60,7 +60,7 @@ export function CompactTagChips({
   if (!hasAny) return null;
 
   return (
-    <div className="space-y-4">
+    <div className={"space-y-4 flex flex-col " + (align === 'start' ? 'items-start' : 'items-center')}>
       <CompactTagSection label="Centres d'intérêt" tags={interests} color="cyan" />
       <CompactTagSection label="Genres favoris" tags={genres} color="purple" />
       <CompactTagSection label="Artistes" tags={artists} color="pink" />

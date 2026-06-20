@@ -42,12 +42,14 @@ import { markFeedPostLinkShared, readFeedPostLinkSharedIds } from '../lib/feedPo
 import { EventsCarousel } from '../components/EventsCarousel';
 import { HorizontalScrollCarousel } from '../components/HorizontalScrollCarousel';
 import { NewsArticleCard } from '../components/NewsArticleCard';
-import { getUpcomingUserEvents, getEventDates, getPrimaryEventDate, hasUpcomingEventDate } from '../lib/feedEvents';
+import { getUpcomingUserEvents, getEventDates, getEventDateEntries, formatEventDateWithEndTime, getPrimaryEventDate, hasUpcomingEventDate } from '../lib/feedEvents';
 import { EventLocationInput } from '../components/EventLocationInput';
 import { readSavedEventLocation, writeSavedEventLocation } from '../lib/savedEventLocation';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { pickRecentUserSounds, type FeaturedUserSoundItem } from '../lib/featuredUserSounds';
-import { formatEventDateInputValue } from '../lib/eventDateInput';
+import {
+  formatEventDateRangeChip,
+} from '../lib/eventDateInput';
 import { EventDatePickerInput } from '../components/EventDatePickerInput';
 
 const PhotoImageEditor = lazy(() =>
@@ -96,23 +98,6 @@ function rankMedal(rank: number): string {
   if (rank === 2) return '🥈';
   if (rank === 3) return '🥉';
   return `#${rank}`;
-}
-
-function formatEventDate(iso: string): string {
-  try {
-    const d = new Date(iso);
-    const locale = i18n.language.startsWith('en') ? 'en-US' : 'fr-FR';
-    return d.toLocaleDateString(locale, {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return iso;
-  }
 }
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -688,6 +673,7 @@ const PostCard = memo(function PostCard({
 
   const upcoming = hasUpcomingEventDate(post);
   const eventDates = getEventDates(post);
+  const eventDateEntries = getEventDateEntries(post);
 
   return (
     <article
@@ -749,10 +735,12 @@ const PostCard = memo(function PostCard({
       {/* Event date & location block */}
       {post.isEvent && (eventDates.length > 0 || post.eventLocation) && (
         <div className="rounded-lg bg-purple-950/40 border border-purple-500/20 px-3 py-2 space-y-1.5">
-          {eventDates.map((iso) => (
-            <div key={iso} className="flex items-start gap-2">
+          {eventDates.map((_iso, i) => (
+            <div key={eventDateEntries[i].start} className="flex items-start gap-2">
               <CalendarIcon className="w-3.5 h-3.5 text-purple-400 shrink-0 mt-0.5" />
-              <span className="text-xs text-purple-100 capitalize">{formatEventDate(iso)}</span>
+              <span className="text-xs text-purple-100 capitalize">
+                {formatEventDateWithEndTime(eventDateEntries[i].start, eventDateEntries[i].end)}
+              </span>
             </div>
           ))}
           {post.eventLocation && (
@@ -991,7 +979,7 @@ export function ActualiteTabPage({
   const [error, setError] = useState<string | null>(null);
   // ── Événement ──
   const [isEvent, setIsEvent] = useState(false);
-  const [confirmedEventDates, setConfirmedEventDates] = useState<string[]>([]);
+  const [confirmedEventDates, setConfirmedEventDates] = useState<{ start: string; end: string | null }[]>([]);
   const [eventLocation, setEventLocation] = useState('');
   const [saveEventLocation, setSaveEventLocation] = useState(true);
   const [eventType, setEventType] = useState<'dance' | 'chant' | 'autre'>('autre');
@@ -1524,8 +1512,8 @@ export function ActualiteTabPage({
     setEventLocation(savedLocation ?? '');
   };
 
-  const removeConfirmedEventDate = (isoLocal: string) => {
-    setConfirmedEventDates((prev) => prev.filter((d) => d !== isoLocal));
+  const removeConfirmedEventDate = (isoStart: string) => {
+    setConfirmedEventDates((prev) => prev.filter((e) => e.start !== isoStart));
   };
   const canPublish = Boolean(draft.trim() || imageUrl.trim() || videoUrl.trim()) && eventFieldsValid;
   const editorOpen = Boolean(editorSource && editorPreviewUrl);
@@ -1543,11 +1531,15 @@ export function ActualiteTabPage({
       if (vid) body.videoUrl = vid;
       if (isEvent) {
         body.isEvent = true;
-        const eventDatesIso = confirmedEventDates.map((d) => new Date(d).toISOString());
+        const eventDatesIso = confirmedEventDates.map((e) => new Date(e.start).toISOString());
         body.eventDates = eventDatesIso;
         body.eventDate = eventDatesIso[0];
         body.eventLocation = eventLocation.trim();
         body.eventType = eventType;
+        const endTimesIso = confirmedEventDates.map((e) =>
+          e.end ? new Date(e.end).toISOString() : null
+        );
+        if (endTimesIso.some(Boolean)) body.eventEndTimes = endTimesIso;
       }
       const r = await api.createFeedPost(token, body);
       if (isEvent && body.eventLocation) {
@@ -1816,9 +1808,9 @@ export function ActualiteTabPage({
                           </label>
                           {confirmedEventDates.length > 0 && (
                             <ul className="mb-2 space-y-1.5">
-                              {confirmedEventDates.map((isoLocal) => (
+                              {confirmedEventDates.map(({ start, end }) => (
                                 <li
-                                  key={isoLocal}
+                                  key={start}
                                   className="flex items-center gap-2 rounded-lg bg-[#0b0b0f] border border-green-500/40 px-2.5 py-1.5"
                                 >
                                   <span
@@ -1830,11 +1822,11 @@ export function ActualiteTabPage({
                                     </svg>
                                   </span>
                                   <span className="flex-1 min-w-0 text-xs text-purple-100 capitalize truncate">
-                                    {formatEventDateInputValue(isoLocal, i18n.language)}
+                                    {formatEventDateRangeChip(start, end, i18n.language)}
                                   </span>
                                   <button
                                     type="button"
-                                    onClick={() => removeConfirmedEventDate(isoLocal)}
+                                    onClick={() => removeConfirmedEventDate(start)}
                                     className="shrink-0 text-[10px] font-semibold text-gray-500 hover:text-red-300 transition"
                                     aria-label={t('feed.eventDateRemove')}
                                   >
@@ -1845,11 +1837,11 @@ export function ActualiteTabPage({
                             </ul>
                           )}
                           <EventDatePickerInput
-                            confirmedDates={confirmedEventDates}
-                            onAddDate={(isoLocal) => {
+                            confirmedDates={confirmedEventDates.map((e) => e.start)}
+                            onAddDate={(isoStart, isoEnd) => {
                               setConfirmedEventDates((prev) =>
-                                [...prev, isoLocal].sort(
-                                  (a, b) => new Date(a).getTime() - new Date(b).getTime()
+                                [...prev, { start: isoStart, end: isoEnd }].sort(
+                                  (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()
                                 )
                               );
                             }}

@@ -25,7 +25,7 @@ import { SalonAccessModeToggle } from '../components/SalonAccessModeToggle';
 import { SalonInviteLinkCopy } from '../components/SalonInviteLinkCopy';
 import { SalonInviteSheet } from '../components/SalonInviteSheet';
 import { SalonInviteUserSearch } from '../components/SalonInviteUserSearch';
-import { SalonParticipantsPopover } from '../components/SalonParticipantsPopover';
+import { SalonParticipantsPanel } from '../components/SalonParticipantsPanel';
 import { useSalonQueueSync } from '../hooks/useSalonQueueSync';
 import { emitOnSocket } from '../lib/socket';
 import { ConfirmModal } from '../components/ConfirmModal';
@@ -73,6 +73,7 @@ export function SalonPage({
   onMinimizeToMap,
   onSalonLoaded,
   onRestoreFullScreen,
+  onOpenProfile,
 }: {
   salonId: string;
   onBack: () => void;
@@ -84,6 +85,8 @@ export function SalonPage({
   onSalonLoaded?: (salonTitle?: string) => void;
   /** Ancrage du PiP vidéo → restaurer le salon plein écran. */
   onRestoreFullScreen?: () => void;
+  /** Ouvre le profil complet d'un utilisateur (remonte depuis App). */
+  onOpenProfile?: (userId: string) => void;
 }) {
 
   const { user, token, setUserFromProfile } = useAuth();
@@ -551,6 +554,7 @@ export function SalonPage({
         contacts={contacts}
         onQueueChanged={applyQueue}
         onTrackChanged={applyPlayback}
+        onOpenProfile={onOpenProfile}
         participantMode
       />
     ) : null;
@@ -614,6 +618,7 @@ export function SalonPage({
           onAccept={handleAccept}
           onReject={rejectProposal}
           settingsContent={youtubeHostSettings}
+          onOpenProfile={onOpenProfile}
         />
       )}
 
@@ -637,6 +642,7 @@ export function SalonPage({
           onReorder={handleReorderQueue}
           onAccept={handleAccept}
           onReject={rejectProposal}
+          onOpenProfile={onOpenProfile}
           vipOnly
         />
       )}
@@ -707,9 +713,9 @@ export function SalonPage({
         : undefined,
   };
 
-  const chatHeaderExtra =
+  const salonParticipantsPanel =
     (isHost || isDevModerator) && token ? (
-      <SalonParticipantsPopover
+      <SalonParticipantsPanel
         salonId={salon.id}
         token={token}
         vipModeratorIds={salon.vipModeratorIds ?? []}
@@ -719,7 +725,7 @@ export function SalonPage({
         }}
         onActionDone={setToastMsg}
       />
-    ) : undefined;
+    ) : null;
 
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f] overflow-hidden">
@@ -859,7 +865,6 @@ export function SalonPage({
             });
           }}
           chatTitle={t('salon.chatTitle', { defaultValue: 'Chat du salon' })}
-          chatHeaderExtra={chatHeaderExtra}
           chatMinimized={chatMinimized}
           onToggleMinimize={() => {
             setChatMinimized((m) => {
@@ -895,7 +900,8 @@ export function SalonPage({
           }
           stageFooter={stageFooter}
           chat={
-            <div className="flex flex-col h-full min-h-0">
+            <div className="flex flex-col h-full min-h-0 overflow-hidden">
+              {salonParticipantsPanel}
               <ChatMessagesView />
             </div>
           }

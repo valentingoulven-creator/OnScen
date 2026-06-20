@@ -472,6 +472,7 @@ export default function App() {
     setSalonVideoFloatActive(false);
     setRestoreSalonOnMapId(null);
     setSalonPipPreview(null);
+    setLivePipPreview(null);
     setProfileOpen(false);
     setProfilePreview(null);
     if (viewRef.current.type === 'profile' && parseProfileIdFromLocation()) {
@@ -512,6 +513,11 @@ export default function App() {
     }));
     setProfileOpen(false);
     setProfilePreview(null);
+    // Dismiss any floating preview PiPs when the salon is minimized.
+    // The tab !== 'map' effect won't fire when the tab was already 'map' (the common
+    // case: user opened the salon from the map tab), so we clear them explicitly here.
+    setSalonPipPreview(null);
+    setLivePipPreview(null);
     setView({ type: 'home' });
     setTab('map');
   }, []);
@@ -935,6 +941,7 @@ export default function App() {
                         activeSalonSession.isHost
                       )
                     }
+                    onOpenProfile={openProfile}
                   />
                 </Suspense>
               </div>
