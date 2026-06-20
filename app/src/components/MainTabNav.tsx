@@ -37,6 +37,48 @@ function isTabActive(id: Tab, tab: Tab, liveViewActive: boolean): boolean {
   return tab === id || (id === 'live' && liveViewActive);
 }
 
+/** Per-tab accent colors — inactive (muted tint) and active (icon + subtle bg). */
+const TAB_ACCENT: Record<
+  Tab,
+  { inactive: string; active: string; headerInactive: string; headerActive: string }
+> = {
+  actualite: {
+    inactive: 'text-purple-400/55 bg-purple-500/10',
+    active: 'text-purple-400 bg-purple-500/18',
+    headerInactive:
+      'text-purple-400/55 bg-[#16161f] ring-1 ring-inset ring-purple-500/15 shadow-sm shadow-black/25 hover:text-purple-300 hover:bg-purple-500/10',
+    headerActive: 'text-purple-400 bg-purple-500/15 ring-1 ring-inset ring-purple-500/30',
+  },
+  map: {
+    inactive: 'text-cyan-400/55 bg-cyan-500/10',
+    active: 'text-cyan-400 bg-cyan-500/18',
+    headerInactive:
+      'text-cyan-400/55 bg-[#16161f] ring-1 ring-inset ring-cyan-500/15 shadow-sm shadow-black/25 hover:text-cyan-300 hover:bg-cyan-500/10',
+    headerActive: 'text-cyan-400 bg-cyan-500/15 ring-1 ring-inset ring-cyan-500/30',
+  },
+  live: {
+    inactive: 'text-red-400/55 bg-red-500/10',
+    active: 'text-red-400 bg-red-500/18',
+    headerInactive:
+      'text-red-400/55 bg-[#16161f] ring-1 ring-inset ring-red-500/15 shadow-sm shadow-black/25 hover:text-red-300 hover:bg-red-500/10',
+    headerActive: 'text-red-400 bg-red-500/15 ring-1 ring-inset ring-red-500/30',
+  },
+  dm: {
+    inactive: 'text-blue-400/55 bg-blue-500/10',
+    active: 'text-blue-400 bg-blue-500/18',
+    headerInactive:
+      'text-blue-400/55 bg-[#16161f] ring-1 ring-inset ring-blue-500/15 shadow-sm shadow-black/25 hover:text-blue-300 hover:bg-blue-500/10',
+    headerActive: 'text-blue-400 bg-blue-500/15 ring-1 ring-inset ring-blue-500/30',
+  },
+  reels: {
+    inactive: 'text-pink-400/55 bg-pink-500/10',
+    active: 'text-pink-400 bg-pink-500/18',
+    headerInactive:
+      'text-pink-400/55 bg-[#16161f] ring-1 ring-inset ring-pink-500/15 shadow-sm shadow-black/25 hover:text-pink-300 hover:bg-pink-500/10',
+    headerActive: 'text-pink-400 bg-pink-500/15 ring-1 ring-inset ring-pink-500/30',
+  },
+};
+
 function tabButtonClass(
   id: Tab,
   active: boolean,
@@ -44,43 +86,18 @@ function tabButtonClass(
   placement: 'bottom' | 'header',
 ): string {
   const width = 'shrink-0';
+  const accent = TAB_ACCENT[id];
 
   if (placement === 'bottom') {
     const vinyl = id === 'live' && elevated ? ' ms-tab-vinyl-hub' : '';
     const pop = elevated ? ' ms-tab-rail-btn--elevated' : '';
     const base =
       `${width} ms-tab-rail-btn flex items-center justify-center w-[var(--tab-nav-btn-size)] h-[var(--tab-nav-btn-size)] rounded-full relative active:opacity-70 touch-manipulation${vinyl}${pop}`;
-    if (!active) {
-      return `${base} text-gray-400 bg-transparent`;
-    }
-    switch (id) {
-      case 'live':
-        return `${base} text-red-400 bg-red-500/15`;
-      case 'reels':
-        return `${base} text-pink-400 bg-pink-500/15`;
-      case 'actualite':
-        return `${base} text-amber-400 bg-amber-500/15`;
-      default:
-        return `${base} text-purple-400 bg-purple-500/15`;
-    }
+    return `${base} ${active ? accent.active : accent.inactive}`;
   }
 
   const base = `${width} flex items-center justify-center whitespace-nowrap rounded-full px-1 sm:px-1.5 py-2 sm:py-2.5 min-h-[44px] text-xs sm:text-sm font-semibold relative transition-colors active:scale-[0.98] touch-manipulation`;
-
-  if (!active) {
-    return `${base} text-gray-400 bg-[#16161f] ring-1 ring-inset ring-white/[0.08] shadow-sm shadow-black/25 hover:text-gray-200 hover:bg-[#1a1a28]`;
-  }
-
-  switch (id) {
-    case 'live':
-      return `${base} text-red-400 bg-red-500/15 ring-1 ring-inset ring-red-500/30`;
-    case 'reels':
-      return `${base} text-pink-400 bg-pink-500/15 ring-1 ring-inset ring-pink-500/30`;
-    case 'actualite':
-      return `${base} text-amber-400 bg-amber-500/15 ring-1 ring-inset ring-amber-500/30`;
-    default:
-      return `${base} text-purple-400 bg-purple-500/15 ring-1 ring-inset ring-purple-500/30`;
-  }
+  return `${base} ${active ? accent.headerActive : accent.headerInactive}`;
 }
 
 function navPlacementClass(placement: 'bottom' | 'header'): string {

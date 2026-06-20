@@ -11,6 +11,7 @@ export type PlatformStatusResponse = {
   }>;
   connectedPlatforms: ('spotify' | 'youtube')[];
   youtubeOAuthAvailable: boolean;
+  youtubeMockConnectAvailable?: boolean;
   spotifyOAuthAvailable: boolean;
   instagramOAuthAvailable: boolean;
   oauthConfigured?: boolean;

@@ -68,6 +68,7 @@ export function PlatformConnectCard({
   const [statusError, setStatusError] = useState<string | null>(null);
   const [statusLoading, setStatusLoading] = useState(true);
   const [youtubeOAuthAvailable, setYoutubeOAuthAvailable] = useState(false);
+  const [youtubeMockConnectAvailable, setYoutubeMockConnectAvailable] = useState(false);
   const [spotifyOAuthAvailable, setSpotifyOAuthAvailable] = useState(false);
   const [instagramOAuthAvailable, setInstagramOAuthAvailable] = useState(false);
   const [platformLink, setPlatformLink] = useState<PlatformLink | undefined>();
@@ -104,6 +105,7 @@ export function PlatformConnectCard({
       .getPlatformStatus(token)
       .then((s) => {
         setYoutubeOAuthAvailable(s.youtubeOAuthAvailable);
+        setYoutubeMockConnectAvailable(Boolean(s.youtubeMockConnectAvailable));
         setSpotifyOAuthAvailable(s.spotifyOAuthAvailable);
         setInstagramOAuthAvailable(s.instagramOAuthAvailable);
         setPlatformLink(s.links.find((l) => l.platform === platform));
@@ -313,6 +315,16 @@ export function PlatformConnectCard({
               {busy ? t('platform.redirecting') : statusLoading ? t('platform.loading') : t(meta.connectKey)}
             </button>
             {!youtubeOAuthAvailable && !statusLoading && (
+              <button
+                type="button"
+                onClick={connectMock}
+                disabled={busy}
+                className="w-full py-2 rounded-lg border border-[#2d2d3d] text-xs text-gray-400 hover:text-white disabled:opacity-50"
+              >
+                {t('platform.demoConnectYoutube')}
+              </button>
+            )}
+            {youtubeOAuthAvailable && youtubeMockConnectAvailable && !statusLoading && (
               <button
                 type="button"
                 onClick={connectMock}

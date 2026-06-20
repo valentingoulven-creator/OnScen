@@ -32,6 +32,7 @@ import {
   createInstagramOAuthUrl,
   isInstagramOAuthConfigured,
 } from '../lib/instagramOAuth';
+import { canUseMockPlatformConnect } from '../lib/platformMockConnect';
 import { listHostYoutubePlaylists } from '../lib/youtubePlaylists';
 import {
   isRealSpotifyAccount,
@@ -83,10 +84,13 @@ platformsRouter.get('/status', authenticateJWT, async (req: Request, res: Respon
     }
   }
 
+  const youtubeMockConnectAvailable = canUseMockPlatformConnect(user);
+
   res.json({
     links: publicPlatformLinks(user),
     connectedPlatforms: user.connectedPlatforms ?? [],
     youtubeOAuthAvailable,
+    youtubeMockConnectAvailable,
     spotifyOAuthAvailable,
     instagramOAuthAvailable,
     oauthConfigured,
@@ -298,8 +302,9 @@ platformsRouter.post('/:platform/connect', authenticateJWT, (req: Request, res: 
   }
 
   const isProduction = process.env.APP_ENV === 'production';
+  const mockConnectAllowed = canUseMockPlatformConnect(user);
 
-  if (platform === 'youtube' && isYoutubeOAuthConfigured()) {
+  if (platform === 'youtube' && isYoutubeOAuthConfigured() && !mockConnectAllowed) {
     res.json({ ok: false, oauthUrl: createYoutubeOAuthUrl(userId), code: 'USE_OAUTH_URL' });
     return;
   }
@@ -326,7 +331,7 @@ platformsRouter.post('/:platform/connect', authenticateJWT, (req: Request, res: 
     return;
   }
 
-  if (isProduction) {
+  if (isProduction && !mockConnectAllowed) {
     res.status(403).json({
       error: 'Connexion plateforme simulée désactivée en production. Configurez OAuth.',
       code: 'MOCK_CONNECT_DISABLED',

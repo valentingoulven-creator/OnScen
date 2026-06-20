@@ -10,7 +10,7 @@
 | Client ID OAuth | `522947046161-l5bvl70k83jd1k98rc675k6nk8vravhb.apps.googleusercontent.com` |
 | Numéro de projet GCP | `522947046161` (préfixe du Client ID) |
 | Callback YouTube | `https://getsoundy.com/api/auth/youtube/callback` |
-| Compte à autoriser | `valentin.goulven@gmail.com` |
+| Compte à autoriser | `valentin.goulven@gmail.com`, `kev.sainto@hotmail.fr` (Dye) |
 
 Symptôme typique : Google affiche *« Access blocked »* ou renvoie `error=access_denied` après le consentement OAuth, car l'app n'est pas en production vérifiée et l'utilisateur n'est pas dans la liste des **test users**.
 
@@ -28,11 +28,14 @@ Symptôme typique : Google affiche *« Access blocked »* ou renvoie `error=acce
 
 3. Vérifier que le **User type** est **External** et le statut de publication **Testing** (pas « In production » sans vérification).
 
-4. Section **Test users** → **Add users** → saisir :
+4. Section **Test users** → **Add users** → saisir (un par ligne ou séparés) :
    ```
    valentin.goulven@gmail.com
+   kev.sainto@hotmail.fr
    ```
    → **Save**.
+
+   Compte Soundy associé : **Dye** (`user_1781987745291_b2b1b`, pseudo `Dye`).
 
 5. (Recommandé) Vérifier les redirect URIs du client OAuth :
    - [Credentials — projet 522947046161](https://console.cloud.google.com/apis/credentials?project=522947046161)
@@ -61,6 +64,18 @@ GOOGLE_CLIENT_ID=522947046161-l5bvl70k83jd1k98rc675k6nk8vravhb.apps.googleuserco
 GOOGLE_CLIENT_SECRET=<secret>
 YOUTUBE_CALLBACK_URL=https://getsoundy.com/api/auth/youtube/callback
 ```
+
+## Connexion démo (secours testeurs)
+
+Si l’OAuth Google n’est pas encore autorisé pour un testeur, vous pouvez activer la **connexion YouTube simulée** (playlists publiques de démo) pour des pseudos précis :
+
+```env
+MOCK_PLATFORM_CONNECT_USERNAMES=dye
+```
+
+Sur le VPS : ajouter la ligne dans `/opt/soundly/.env`, puis `pm2 reload melosong-backend --update-env`.
+
+Le compte **Dye** verra alors le bouton « Connexion démo (sans Google) » sous « Connecter YouTube ».
 
 ## Références
 
