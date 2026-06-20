@@ -404,32 +404,46 @@ export function DmPage({
     });
   };
 
-  const loadConversations = () => {
+  const loadConversations = useCallback(() => {
     if (!token) return;
     api.getConversations(token).then((r) => {
       setConversations(r.conversations);
       refreshUnread();
+      // Bail out when no new online user was found to avoid a spurious re-render
+      // cascade: every new Set identity forces all downstream effects to re-run (#185).
       setOnlineIds((prev) => {
+        const toAdd = r.conversations.filter(
+          (c) => !isGroupConversation(c) && c.isOnline && c.userId && !prev.has(c.userId!)
+        );
+        if (toAdd.length === 0) return prev;
         const next = new Set(prev);
-        r.conversations.forEach((c) => {
-          if (!isGroupConversation(c) && c.isOnline && c.userId) next.add(c.userId);
-        });
+        toAdd.forEach((c) => next.add(c.userId!));
         return next;
       });
     });
-  };
+  }, [token, refreshUnread]);
 
-  useMatchCreated(() => {
+  // Stable callback so useMatchCreated's internal effect doesn't re-register the
+  // socket listener on every DmPage render (which would happen with an inline
+  // arrow function). This was the primary driver of the React #185 cascade when
+  // clicking a chat.
+  const handleMatchCreated = useCallback(() => {
     loadMatches();
     loadConversations();
-  }, Boolean(token));
+  }, [loadMatches, loadConversations]);
+  useMatchCreated(handleMatchCreated, Boolean(token));
 
   const loadBlocked = () => {
     if (!token) return;
     api.getBlockedUsers(token).then((r) => setBlockedUsers(r.blocked));
   };
 
-  const clearSelection = () => setSelectedIds(new Set());
+  // Use a bail-out functional update so React doesn't schedule a re-render when
+  // the selection was already empty (avoids the spurious render that effect [view]
+  // used to trigger on every navigation, contributing to the #185 cascade).
+  const clearSelection = useCallback(() => {
+    setSelectedIds((prev) => (prev.size === 0 ? prev : new Set()));
+  }, []);
 
   const toggleSelect = (userId: string) => {
     setSelectedIds((prev) => {

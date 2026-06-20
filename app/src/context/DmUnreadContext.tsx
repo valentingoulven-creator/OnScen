@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -60,7 +61,12 @@ export function DmUnreadProvider({ children }: { children: ReactNode }) {
     api.getMutedUserIds(token).then((r) => {
       const next = new Set(r.mutedUserIds);
       mutedPeerIdsRef.current = next;
-      setMutedPeerIds(next);
+      // Bail out when the muted-IDs set is identical to avoid a spurious context
+      // re-render that would cascade to all useDmUnread() consumers (#185).
+      setMutedPeerIds((prev) => {
+        if (prev.size === next.size && r.mutedUserIds.every((id) => prev.has(id))) return prev;
+        return next;
+      });
     });
   }, [token]);
 
@@ -190,21 +196,37 @@ export function DmUnreadProvider({ children }: { children: ReactNode }) {
     };
   }, [token, user, refreshUnread]);
 
+  // Memoize the context value so that consumers only re-render when a value they
+  // actually care about changes, not on every DmUnreadProvider render (#185).
+  const contextValue = useMemo<DmUnreadContextValue>(
+    () => ({
+      unreadCount,
+      incomingToast,
+      mutedPeerIds,
+      refreshUnread,
+      refreshMuted,
+      isPeerMuted,
+      setActivePeer,
+      setActiveGroup,
+      setDmTabActive,
+      dismissToast,
+    }),
+    [
+      unreadCount,
+      incomingToast,
+      mutedPeerIds,
+      refreshUnread,
+      refreshMuted,
+      isPeerMuted,
+      setActivePeer,
+      setActiveGroup,
+      setDmTabActive,
+      dismissToast,
+    ]
+  );
+
   return (
-    <DmUnreadContext.Provider
-      value={{
-        unreadCount,
-        incomingToast,
-        mutedPeerIds,
-        refreshUnread,
-        refreshMuted,
-        isPeerMuted,
-        setActivePeer,
-        setActiveGroup,
-        setDmTabActive,
-        dismissToast,
-      }}
-    >
+    <DmUnreadContext.Provider value={contextValue}>
       {children}
     </DmUnreadContext.Provider>
   );
