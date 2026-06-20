@@ -421,6 +421,8 @@
     "tabReelsOther": "Reels",
     "tabLives": "Redif",
     "tabLivesOther": "Redif",
+    "tabEvents": "Événements",
+    "noUpcomingEvents": "Aucun évènement à venir",
     "tabCompositions": "Composition",
     "compositions": {
       "empty": "Aucune composition — uploade ta première création",

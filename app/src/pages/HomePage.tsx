@@ -245,6 +245,7 @@ export function HomePage({
   const [mapGeo, setMapGeo] = useState<LivesGeoPrefs>(() => getLivesGeo());
   const salonSheetRef = useRef<HTMLDivElement>(null);
   const mapViewRef = useRef<MapViewHandle>(null);
+  const flyToEventsAfterLoadRef = useRef(false);
   const [salonSheetExpanded, setSalonSheetExpanded] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [showEventMarkers, setShowEventMarkers] = useState(false);
@@ -760,11 +761,40 @@ export function HomePage({
     }
   }, []);
 
+  const flyToEventMarkersBounds = useCallback((markers: MapEventMarker[]) => {
+    const valid = markers.filter((m) => isValidLatLng(m.latitude, m.longitude));
+    if (valid.length === 0) return;
+
+    if (valid.length === 1) {
+      mapViewRef.current?.flyToCityBounds(valid[0].latitude, valid[0].longitude, 5);
+      return;
+    }
+
+    let minLat = Infinity, maxLat = -Infinity;
+    let minLng = Infinity, maxLng = -Infinity;
+    for (const m of valid) {
+      if (m.latitude < minLat) minLat = m.latitude;
+      if (m.latitude > maxLat) maxLat = m.latitude;
+      if (m.longitude < minLng) minLng = m.longitude;
+      if (m.longitude > maxLng) maxLng = m.longitude;
+    }
+
+    const centerLat = (minLat + maxLat) / 2;
+    const centerLng = (minLng + maxLng) / 2;
+    let maxDistKm = 0;
+    for (const m of valid) {
+      const d = getDistanceKm(centerLat, centerLng, m.latitude, m.longitude);
+      if (d > maxDistKm) maxDistKm = d;
+    }
+    mapViewRef.current?.flyToCityBounds(centerLat, centerLng, Math.max(maxDistKm * 1.4, 10));
+  }, []);
+
   const applyEventFilter = useCallback((criteria: MapEventFilterCriteria) => {
     setEventFilterCriteria(criteria);
     setShowEventMarkers(true);
     setShowEventFilterSheet(false);
     flyToEventFilterBounds(criteria);
+    flyToEventsAfterLoadRef.current = true;
   }, [flyToEventFilterBounds]);
 
   const toggleEventsFilter = useCallback(() => {
@@ -810,7 +840,13 @@ export function HomePage({
 
     loadMapEventMarkers(token, { signal: { cancelled } })
       .then((markers) => {
-        if (!cancelled) setMapEvents(markers);
+        if (!cancelled) {
+          setMapEvents(markers);
+          if (flyToEventsAfterLoadRef.current && markers.length > 0) {
+            flyToEventsAfterLoadRef.current = false;
+            flyToEventMarkersBounds(markers);
+          }
+        }
       })
       .catch(() => {
         if (!cancelled) {

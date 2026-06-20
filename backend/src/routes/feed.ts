@@ -38,6 +38,8 @@ feedRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
       : undefined;
   const useAlgo = q.algo === 'true' || q.algo === '1' ? true : undefined;
   const followingOnly = q.followingOnly === 'true' || q.followingOnly === '1' ? true : undefined;
+  const authorId =
+    typeof q.authorId === 'string' && q.authorId ? q.authorId : undefined;
   res.json({
     posts: listFeedPosts(me, {
       limit,
@@ -50,6 +52,7 @@ feedRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
       eventType,
       useAlgo,
       followingOnly,
+      authorId,
     }),
   });
 });

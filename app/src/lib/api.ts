@@ -1819,6 +1819,8 @@ export const api = {
       algo?: boolean;
       /** Fil d'accueil : publications et événements des comptes suivis + les vôtres. */
       followingOnly?: boolean;
+      /** Filtre par auteur : seuls les posts de cet utilisateur sont retournés. */
+      authorId?: string;
     }
   ) => {
     const params = new URLSearchParams();
@@ -1832,6 +1834,7 @@ export const api = {
     if (opts?.eventType) params.set('eventType', opts.eventType);
     if (opts?.algo) params.set('algo', 'true');
     if (opts?.followingOnly) params.set('followingOnly', 'true');
+    if (opts?.authorId) params.set('authorId', opts.authorId);
     const qs = params.toString();
     return request<{ posts: import('../types').FeedPost[] }>(
       `/feed${qs ? `?${qs}` : ''}`,

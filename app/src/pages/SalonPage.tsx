@@ -25,7 +25,7 @@ import { SalonAccessModeToggle } from '../components/SalonAccessModeToggle';
 import { SalonInviteLinkCopy } from '../components/SalonInviteLinkCopy';
 import { SalonInviteSheet } from '../components/SalonInviteSheet';
 import { SalonInviteUserSearch } from '../components/SalonInviteUserSearch';
-import { SalonParticipantsPanel } from '../components/SalonParticipantsPanel';
+import { SalonParticipantsPopover } from '../components/SalonParticipantsPopover';
 import { useSalonQueueSync } from '../hooks/useSalonQueueSync';
 import { emitOnSocket } from '../lib/socket';
 import { ConfirmModal } from '../components/ConfirmModal';
@@ -338,7 +338,7 @@ export function SalonPage({
   const handleShareSalon = useCallback(async () => {
     const url = `${SOUNDY_BASE_URL}/salon/${salonId}`;
     const title = salon?.title ?? 'Salon Soundy';
-    const text = `Rejoins ce salon d'écoute musicale sur Soundy !`;
+    const text = `Rejoins le salon "${title}" sur Soundy`;
     try {
       if (navigator.share) {
         await navigator.share({ title, text, url });
@@ -347,10 +347,11 @@ export function SalonPage({
         setShareCopied(true);
         window.setTimeout(() => setShareCopied(false), 2000);
       }
-    } catch {
-      /* share cancelled or not supported */
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
+      setToastMsg(t('common.error', { defaultValue: 'Impossible de partager le salon' }));
     }
-  }, [salonId, salon?.title]);
+  }, [salonId, salon?.title, t]);
 
   const handleEndSalon = useCallback(async () => {
     if (!token || !salon || !onLeaveSalon) return;
@@ -713,9 +714,9 @@ export function SalonPage({
         : undefined,
   };
 
-  const salonParticipantsPanel =
+  const chatHeaderExtra =
     (isHost || isDevModerator) && token ? (
-      <SalonParticipantsPanel
+      <SalonParticipantsPopover
         salonId={salon.id}
         token={token}
         vipModeratorIds={salon.vipModeratorIds ?? []}
@@ -725,7 +726,7 @@ export function SalonPage({
         }}
         onActionDone={setToastMsg}
       />
-    ) : null;
+    ) : undefined;
 
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f] overflow-hidden">
@@ -865,6 +866,7 @@ export function SalonPage({
             });
           }}
           chatTitle={t('salon.chatTitle', { defaultValue: 'Chat du salon' })}
+          chatHeaderExtra={chatHeaderExtra}
           chatMinimized={chatMinimized}
           onToggleMinimize={() => {
             setChatMinimized((m) => {
@@ -900,8 +902,7 @@ export function SalonPage({
           }
           stageFooter={stageFooter}
           chat={
-            <div className="flex flex-col h-full min-h-0 overflow-hidden">
-              {salonParticipantsPanel}
+            <div className="flex flex-col h-full min-h-0">
               <ChatMessagesView />
             </div>
           }

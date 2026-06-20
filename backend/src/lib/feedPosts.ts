@@ -517,6 +517,8 @@ export interface EventFilterOpts {
   eventLocationSearch?: string;
   eventCountry?: string;
   eventType?: 'dance' | 'chant' | 'autre';
+  /** Filtre par auteur : seuls les posts de cet utilisateur sont retournés. */
+  authorId?: string;
 }
 
 const COUNTRY_NAMES: Record<string, string> = {
@@ -526,6 +528,7 @@ const COUNTRY_NAMES: Record<string, string> = {
 };
 
 function matchesEventFilters(post: FeedPost, f: EventFilterOpts): boolean {
+  if (f.authorId && post.userId !== f.authorId) return false;
   if (!f.eventsOnly) return true;
   if (!post.isEvent) return false;
   if (f.userEventsOnly && post.id.startsWith(EVENT_POST_ID_PREFIX)) return false;
@@ -621,6 +624,8 @@ export function listFeedPosts(
     useAlgo?: boolean;
     /** Fil d'accueil : publications et événements des comptes suivis + les vôtres, par createdAt. */
     followingOnly?: boolean;
+    /** Filtre par auteur : seuls les posts de cet utilisateur sont retournés. */
+    authorId?: string;
   }
 ): PublicFeedPost[] {
   const eventsOnly = Boolean(opts?.eventsOnly);
@@ -644,6 +649,7 @@ export function listFeedPosts(
     eventLocationSearch: opts?.eventLocationSearch,
     eventCountry: opts?.eventCountry,
     eventType: opts?.eventType,
+    authorId: opts?.authorId,
   };
 
   const followingOnly = opts?.followingOnly === true;

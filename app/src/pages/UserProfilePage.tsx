@@ -4,10 +4,11 @@ import { useAuth } from '../context/AuthContext';
 import { UserProfileView } from '../components/UserProfileView';
 import { UserReelsSection } from '../components/UserReelsSection';
 import { UserLivesSection } from '../components/UserLivesSection';
+import { UserEventsSection } from '../components/UserEventsSection';
 import { ReportContentButton } from '../components/ReportContentModal';
 import { ShareProfileLink } from '../components/ShareProfileLink';
 import { UsernameDisplay } from '../components/UsernameDisplay';
-import type { NearbyPerson } from '../types';
+import type { FeedPost, NearbyPerson } from '../types';
 
 interface UserProfilePageProps {
   userId: string;
@@ -22,6 +23,8 @@ interface UserProfilePageProps {
   mapOverlay?: boolean;
   /** Ouvre la conversation DM avec cet utilisateur. */
   onOpenDm?: (userId: string) => void;
+  /** Ouvre le détail d'une publication événement. */
+  onOpenFeedPost?: (post: FeedPost) => void;
 }
 
 export function UserProfilePage({
@@ -34,11 +37,12 @@ export function UserProfilePage({
   onRecordReel,
   mapOverlay = false,
   onOpenDm,
+  onOpenFeedPost,
 }: UserProfilePageProps) {
   const { user: me } = useAuth();
   const { t } = useTranslation();
   const isSelf = me?.id === userId;
-  const [profileTab, setProfileTab] = useState<'profil' | 'reels' | 'lives'>('profil');
+  const [profileTab, setProfileTab] = useState<'profil' | 'reels' | 'lives' | 'events'>('profil');
   const reelsTabLabel = isSelf ? t('profile.tabReels') : t('profile.tabReelsOther');
   const livesTabLabel = isSelf ? t('profile.tabLives') : t('profile.tabLivesOther');
   const displayName = preview?.username ?? 'Profil';
@@ -73,9 +77,10 @@ export function UserProfilePage({
     ['profil', t('profile.tabProfil')],
     ...(onOpenReel ? ([['reels', reelsTabLabel]] as const) : []),
     ...(onOpenLive ? ([['lives', livesTabLabel]] as const) : []),
+    ['events', t('profile.tabEvents')],
   ] as const;
 
-  const hasTabs = onOpenReel || onOpenLive;
+  const hasTabs = true;
 
   const profileContent = (
     <>
@@ -130,7 +135,7 @@ export function UserProfilePage({
               <button
                 key={id}
                 type="button"
-                onClick={() => setProfileTab(id as 'profil' | 'reels' | 'lives')}
+                onClick={() => setProfileTab(id as 'profil' | 'reels' | 'lives' | 'events')}
                 className={`relative flex-1 py-3 text-xs font-bold uppercase tracking-wider transition ${
                   profileTab === id
                     ? 'text-white'
@@ -173,12 +178,17 @@ export function UserProfilePage({
               onRecordReel={isSelf ? onRecordReel : undefined}
             />
           )
-        ) : (
+        ) : profileTab === 'lives' ? (
           <UserLivesSection
             userId={userId}
             isOwner={isSelf}
             hideSectionTitle
             onOpenLive={onOpenLive}
+          />
+        ) : (
+          <UserEventsSection
+            userId={userId}
+            onOpenPost={onOpenFeedPost}
           />
         )}
       </main>
@@ -186,7 +196,7 @@ export function UserProfilePage({
       {showSalonFooter && (
         <div
           className={`shrink-0 px-4 py-3 border-t border-[#1e1e2f] bg-[#12121a]/95 backdrop-blur-sm ${
-            mapOverlay ? '' : 'pb-[max(0.75rem,env(safe-area-inset-bottom))]'
+            mapOverlay ? '' : 'pb-[var(--tab-nav-total-h,0.75rem)]'
           }`}
         >
           <button

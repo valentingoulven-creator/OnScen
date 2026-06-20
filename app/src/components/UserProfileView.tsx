@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { computeAgeFromBirthDate, formatBirthDate } from '../lib/profileAge';
 import { getUserProfilePhotos } from '../lib/profilePhotos';
@@ -23,7 +23,7 @@ import { ProfileIdentityLines } from './ProfileIdentityLines';
 import { UsernameDisplay } from './UsernameDisplay';
 import { UserAvatarOnline } from './UserAvatarOnline';
 import { canJoinSalonAsParticipant, salonParticipantAccessMessageKey } from '../lib/platformConnect';
-import { canSendHeart, heartBlockReasonKeys, heartDisabledReason, isSingleForHeart, userMeetsHeartAge, type HeartBlockReasonKey } from '../lib/canSendHeart';
+import { canSendHeart, heartDisabledReason, isSingleForHeart, userMeetsHeartAge } from '../lib/canSendHeart';
 import type {
   CurrentListening,
   MatchStatus,
@@ -78,18 +78,6 @@ export function UserProfileView({
   const heartBlockReason = heartDisabledReason(me, profile);
   const profileIsSingle = isSingleForHeart(profile);
   const profileMeetsAge = userMeetsHeartAge(profile);
-  const heartBlockMessages = useMemo(() => {
-    const keyToI18n: Record<HeartBlockReasonKey, string> = {
-      login: 'profile.heartBlockedLogin',
-      viewerNotValidated: 'profile.heartBlockedViewerNotValidated',
-      profileNotValidated: 'profile.heartBlockedProfileNotValidated',
-      viewerUnderAge: 'profile.heartBlockedViewerUnderAge',
-      profileUnderAge: 'profile.heartBlockedProfileUnderAge',
-      viewerNotSingle: 'profile.heartBlockedViewerNotSingle',
-      profileNotSingle: 'profile.heartBlockedProfileNotSingle',
-    };
-    return heartBlockReasonKeys(me, profile).map((key) => t(keyToI18n[key]));
-  }, [me, profile, t]);
   const isMutualFollow = Boolean(profile?.isFollowing && profile?.isFollowingMe);
 
   useEffect(() => {
@@ -246,7 +234,7 @@ export function UserProfileView({
     return (
       <div className="w-full bg-[#0b0b0f]">
         {/* Skeleton banner */}
-        <div className="h-52 sm:h-60 w-full bg-gradient-to-br from-purple-950/60 via-[#12121a] to-pink-950/40 animate-pulse" />
+        <div className="h-32 sm:h-40 w-full bg-gradient-to-br from-purple-950/60 via-[#12121a] to-pink-950/40 animate-pulse" />
         <div className="px-4 -mt-14 relative z-10">
           <div className="flex justify-between items-end">
             <div className="w-20 h-20 rounded-full bg-[#1e1e2f] ring-4 ring-[#0b0b0f] animate-pulse" />
@@ -298,7 +286,6 @@ export function UserProfileView({
     ? [
         { value: formatCompactCount(profile.favoritesCount ?? 0), label: 'Favoris' },
         { value: formatCompactCount(profile.subscriberCount ?? 0), label: 'Abonnés' },
-        { value: formatCompactCount(profile.stats?.salonsHosted ?? 0), label: 'Salons' },
       ]
     : [];
 
@@ -479,17 +466,17 @@ export function UserProfileView({
 
       {/* ── STATS ROW ── */}
       {statsItems.length > 0 && (
-        <div className="mt-5 mx-4 flex rounded-2xl bg-[#12121a] border border-[#1e1e2f] overflow-hidden">
+        <div className="mt-3 mx-4 flex rounded-xl bg-[#12121a] border border-[#1e1e2f] overflow-hidden">
           {statsItems.map((item, i) => (
             <div key={item.label} className="flex-1 relative">
               {i > 0 && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-px h-8 bg-[#1e1e2f]" />
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-px h-6 bg-[#1e1e2f]" />
               )}
               <button
                 type="button"
-                className="w-full py-3.5 flex flex-col items-center gap-0.5 active:bg-[#1e1e2f]/50 transition"
+                className="w-full py-2 flex flex-col items-center gap-0.5 active:bg-[#1e1e2f]/50 transition"
               >
-                <span className="text-xl font-extrabold text-white tabular-nums leading-none">
+                <span className="text-base font-extrabold text-white tabular-nums leading-none">
                   {item.value}
                 </span>
                 <span className="text-[9px] font-semibold text-gray-500 uppercase tracking-widest mt-0.5">
@@ -612,33 +599,19 @@ export function UserProfileView({
         )}
 
         {/* ── PRIMARY SOCIAL ACTIONS ── */}
-        {(showMessageButton || showHeartButton) && (
+        {((showMessageButton && isMutualFollow) || showHeartButton) && (
           <div className="flex gap-2.5 pt-1">
-            {showMessageButton && (
-              isMutualFollow ? (
-                <button
-                  type="button"
-                  onClick={() => onOpenDm!(userId)}
-                  className="flex-1 py-3 rounded-2xl text-sm font-bold border border-purple-500/40 bg-purple-600/15 hover:bg-purple-600/25 text-purple-200 transition flex items-center justify-center gap-2"
-                >
-                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                  {t('profile.messageButton')}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  disabled
-                  title={t('profile.messageButtonDisabledTitle')}
-                  className="flex-1 py-3 rounded-2xl text-sm font-bold border border-[#2d2d3d] bg-[#1a1a26]/80 text-gray-600 cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                  {t('profile.messageButtonDisabled')}
-                </button>
-              )
+            {showMessageButton && isMutualFollow && (
+              <button
+                type="button"
+                onClick={() => onOpenDm!(userId)}
+                className="flex-1 py-3 rounded-2xl text-sm font-bold border border-purple-500/40 bg-purple-600/15 hover:bg-purple-600/25 text-purple-200 transition flex items-center justify-center gap-2"
+              >
+                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                {t('profile.messageButton')}
+              </button>
             )}
 
             {showHeartButton && (
@@ -667,16 +640,6 @@ export function UserProfileView({
                 </span>
               </button>
             )}
-          </div>
-        )}
-
-        {!isSelf && !isMatched && heartBlockMessages.length > 0 && !heartSent && (
-          <div className="space-y-0.5 px-1 -mt-2">
-            {heartBlockMessages.map((message) => (
-              <p key={message} className="text-[10px] text-gray-500 leading-snug">
-                {message}
-              </p>
-            ))}
           </div>
         )}
 
