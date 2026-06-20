@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
@@ -11,6 +11,13 @@ function formatDateTime(ts: number, locale: string): string {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function formatTime(ts: number, locale: string): string {
+  return new Date(ts).toLocaleString(locale, {
     hour: '2-digit',
     minute: '2-digit',
   });
@@ -60,6 +67,17 @@ function statusBadgeClass(status: SupportContactStatus): string {
   return 'bg-gray-500/20 text-gray-300';
 }
 
+function upsertMessage(
+  messages: SupportContactMessage[],
+  updated: SupportContactMessage
+): SupportContactMessage[] {
+  const idx = messages.findIndex((m) => m.id === updated.id);
+  if (idx === -1) return [updated, ...messages];
+  const next = [...messages];
+  next[idx] = updated;
+  return next;
+}
+
 interface AdminSupportTabProps {
   highlightMessageId?: string;
 }
@@ -74,6 +92,8 @@ export function AdminSupportTab({ highlightMessageId }: AdminSupportTabProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [replyDraft, setReplyDraft] = useState('');
   const [replying, setReplying] = useState(false);
+  const [resolving, setResolving] = useState(false);
+  const threadEndRef = useRef<HTMLDivElement | null>(null);
 
   const reload = useCallback(async () => {
     if (!token) return;
@@ -104,6 +124,12 @@ export function AdminSupportTab({ highlightMessageId }: AdminSupportTabProps) {
 
   const selected = messages.find((m) => m.id === selectedId) ?? null;
   const canReply = selected && selected.status === 'open';
+  const canResolve = selected && selected.status === 'replied';
+  const isResolved = selected?.status === 'resolved';
+
+  useEffect(() => {
+    threadEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [selectedId, selected?.thread?.length, selected?.adminReply, selected?.userReply]);
 
   const sendReply = async () => {
     if (!token || !selected || !canReply) return;
@@ -112,13 +138,27 @@ export function AdminSupportTab({ highlightMessageId }: AdminSupportTabProps) {
     setReplying(true);
     setError(null);
     try {
-      await api.replyAdminSupportMessage(token, selected.id, reply);
+      const res = await api.replyAdminSupportMessage(token, selected.id, reply);
       setReplyDraft('');
-      await reload();
+      setMessages((prev) => upsertMessage(prev, res.message));
     } catch (e) {
       setError(e instanceof Error ? e.message : t('admin.support.replyError'));
     } finally {
       setReplying(false);
+    }
+  };
+
+  const markResolved = async () => {
+    if (!token || !selected || !canResolve) return;
+    setResolving(true);
+    setError(null);
+    try {
+      const res = await api.resolveAdminSupportMessage(token, selected.id);
+      setMessages((prev) => upsertMessage(prev, res.message));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('admin.support.resolveError'));
+    } finally {
+      setResolving(false);
     }
   };
 
@@ -177,7 +217,7 @@ export function AdminSupportTab({ highlightMessageId }: AdminSupportTabProps) {
                 </span>
               </div>
               <p className="text-xs text-gray-300 mt-2 line-clamp-2 whitespace-pre-wrap">{msg.body}</p>
-              {msg.userReply && (
+              {msg.userReply && msg.status === 'open' && (
                 <p className="text-[10px] text-amber-300/80 mt-1">{t('admin.support.userFollowUp')}</p>
               )}
             </button>
@@ -186,56 +226,97 @@ export function AdminSupportTab({ highlightMessageId }: AdminSupportTabProps) {
       )}
 
       {selected && (
-        <div className="rounded-xl border border-[#2d2d3d] bg-[#12121a] p-4 space-y-3">
-          <div>
-            <p className="text-xs text-gray-500">{t('admin.support.from')}</p>
-            <p className="text-sm font-semibold">{selected.fromUsername}</p>
-            <p className="text-[10px] text-gray-500">{formatDateTime(selected.createdAt, i18n.language)}</p>
+        <div className="rounded-xl border border-[#2d2d3d] bg-[#12121a] flex flex-col max-h-[min(70vh,32rem)] overflow-hidden">
+          <div className="shrink-0 px-4 py-3 border-b border-[#2d2d3d] flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white truncate">{selected.fromUsername}</p>
+              <p className="text-[10px] text-gray-500 mt-0.5">
+                {formatDateTime(selected.createdAt, i18n.language)}
+              </p>
+            </div>
+            <span
+              className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${statusBadgeClass(selected.status)}`}
+            >
+              {isResolved ? t('admin.support.resolvedBadge') : t(statusLabelKey(selected.status))}
+            </span>
           </div>
 
-          <div className="space-y-3">
-            {getThread(selected).map((entry) => (
-              <div
-                key={entry.id}
-                className={entry.role === 'admin' ? 'pt-2 border-t border-[#2d2d3d]' : undefined}
-              >
-                <p className="text-xs font-semibold text-purple-300">
-                  {entry.role === 'admin' ? t('admin.support.yourReply') : t('admin.support.userMessage')}
-                </p>
-                <p className="text-[10px] text-gray-500">
-                  {formatDateTime(entry.createdAt, i18n.language)}
-                </p>
-                <p className="text-sm text-gray-200 whitespace-pre-wrap mt-1">{entry.body}</p>
-              </div>
-            ))}
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-3">
+            <div className="space-y-3">
+              {getThread(selected).map((entry) => {
+                const isAdmin = entry.role === 'admin';
+                return (
+                  <div
+                    key={entry.id}
+                    className={`flex items-end gap-1.5 ${isAdmin ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div className={`max-w-[85%] ${isAdmin ? 'items-end' : 'items-start'} flex flex-col`}>
+                      <div
+                        className={`rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${
+                          isAdmin
+                            ? 'bg-gradient-to-br from-purple-600 to-purple-700 text-white rounded-br-sm shadow-sm shadow-purple-900/30'
+                            : 'bg-[#1a1a26] border border-[#2d2d3d] text-gray-100 rounded-bl-sm'
+                        }`}
+                      >
+                        {entry.body}
+                      </div>
+                      <p
+                        className={`text-[9px] text-gray-500 mt-1 px-1 ${isAdmin ? 'text-right' : 'text-left'}`}
+                      >
+                        {formatTime(entry.createdAt, i18n.language)}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={threadEndRef} />
+            </div>
           </div>
 
-          {canReply ? (
-            <>
-              <label className="block">
-                <span className="text-xs text-gray-400">{t('admin.support.replyPlaceholder')}</span>
+          <div className="shrink-0 border-t border-[#2d2d3d] px-3 py-3 space-y-2 bg-[#0f0f16]/80">
+            {isResolved ? (
+              <p className="text-xs text-center text-gray-400 py-1">{t('admin.support.ticketResolved')}</p>
+            ) : canResolve ? (
+              <>
+                <p className="text-[10px] text-center text-gray-500">{t('admin.support.awaitingUser')}</p>
+                <button
+                  type="button"
+                  onClick={() => void markResolved()}
+                  disabled={resolving}
+                  className="w-full py-2.5 rounded-xl bg-green-700 hover:bg-green-600 text-white font-bold text-sm disabled:opacity-50"
+                >
+                  {resolving ? t('admin.support.markingResolved') : t('admin.support.markResolved')}
+                </button>
+              </>
+            ) : canReply ? (
+              <div className="flex items-end gap-2">
                 <textarea
                   value={replyDraft}
                   onChange={(e) => setReplyDraft(e.target.value)}
-                  rows={4}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      void sendReply();
+                    }
+                  }}
+                  rows={2}
                   maxLength={4000}
-                  className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-white text-sm"
+                  placeholder={t('admin.support.replyInputPlaceholder')}
+                  className="flex-1 bg-[#1a1a26] border border-[#2d2d3d] rounded-2xl px-3 py-2 text-white text-sm resize-none focus:border-purple-500/60 outline-none"
                 />
-              </label>
-              <button
-                type="button"
-                onClick={() => void sendReply()}
-                disabled={replying || replyDraft.trim().length < 1}
-                className="w-full py-2.5 rounded-xl bg-purple-600 text-white font-bold text-sm disabled:opacity-50"
-              >
-                {replying ? t('admin.support.replying') : t('admin.support.sendReply')}
-              </button>
-            </>
-          ) : selected.status === 'resolved' ? (
-            <p className="text-xs text-gray-400">{t('admin.support.ticketResolved')}</p>
-          ) : (
-            <p className="text-xs text-gray-400">{t('admin.support.awaitingUser')}</p>
-          )}
+                <button
+                  type="button"
+                  onClick={() => void sendReply()}
+                  disabled={replying || replyDraft.trim().length < 1}
+                  className="shrink-0 px-4 py-2.5 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm disabled:opacity-50"
+                >
+                  {replying ? t('admin.support.replying') : t('admin.support.sendReply')}
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs text-center text-gray-400 py-1">{t('admin.support.awaitingUser')}</p>
+            )}
+          </div>
         </div>
       )}
     </div>

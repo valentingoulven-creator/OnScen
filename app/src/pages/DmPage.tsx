@@ -13,6 +13,13 @@ import { UserAvatarOnline } from '../components/UserAvatarOnline';
 import { UsernameDisplay } from '../components/UsernameDisplay';
 import { LinkifiedText } from '../components/LinkifiedText';
 import { ConfirmModal } from '../components/ConfirmModal';
+import {
+  getSupportLastPreview,
+  getSupportLastTimestamp,
+  getSupportThread,
+  isSupportUnread,
+  markSupportSeen,
+} from '../lib/supportThread';
 import type {
   Conversation,
   DirectMessage,
@@ -22,6 +29,7 @@ import type {
   MessageGroupDetail,
   MusicMatch,
   Salon,
+  SupportContactMessage,
   UserSearchHit,
 } from '../types';
 
@@ -41,6 +49,18 @@ function GroupAvatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' |
   );
 }
 
+function SupportAvatar({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
+  const sizes = { sm: 'w-8 h-8 text-xs', md: 'w-10 h-10 text-sm', lg: 'w-12 h-12 text-base' };
+  return (
+    <div
+      className={`${sizes[size]} rounded-full bg-purple-600/40 border border-purple-500/50 flex items-center justify-center font-bold text-purple-100 shrink-0`}
+      aria-hidden
+    >
+      S
+    </div>
+  );
+}
+
 function formatTime(ts: number): string {
   const d = new Date(ts);
   const now = new Date();
@@ -51,7 +71,7 @@ function formatTime(ts: number): string {
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }
 
-type View = 'list' | 'thread' | 'groupThread' | 'new' | 'createGroup' | 'blocked';
+type View = 'list' | 'thread' | 'groupThread' | 'supportThread' | 'new' | 'createGroup' | 'blocked';
 
 const DM_MATCHES_ONLY_KEY = 'melosong_dm_matches_only';
 
@@ -225,8 +245,10 @@ type NewDmPick = {
 export function DmPage({
   openPeerId = null,
   openGroupId = null,
+  openSupportMessageId = null,
   onOpenPeerConsumed,
   onOpenGroupConsumed,
+  onOpenSupportConsumed,
   onOpenProfile,
   onOpenSalon,
   onOpenFeedPost,
@@ -234,15 +256,17 @@ export function DmPage({
 }: {
   openPeerId?: string | null;
   openGroupId?: string | null;
+  openSupportMessageId?: string | null;
   onOpenPeerConsumed?: () => void;
   onOpenGroupConsumed?: () => void;
+  onOpenSupportConsumed?: () => void;
   onOpenProfile?: (userId: string) => void;
   onOpenSalon?: (salonId: string) => void;
   onOpenFeedPost?: (postId: string) => void;
   isActive?: boolean;
 } = {}) {
   const { user, token, setUserFromProfile } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { refreshUnread, refreshMuted, setActivePeer, setActiveGroup } = useDmUnread();
   const [view, setView] = useState<View>('list');
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -311,6 +335,12 @@ export function DmPage({
   } | null>(null);
   const lastTapByMsgRef = useRef<Map<string, number>>(new Map());
   const newDmInputRef = useRef<HTMLInputElement>(null);
+  const supportThreadEndRef = useRef<HTMLDivElement | null>(null);
+  const [activeSupportTicket, setActiveSupportTicket] = useState<SupportContactMessage | null>(null);
+  const [supportDraft, setSupportDraft] = useState('');
+  const [supportSending, setSupportSending] = useState(false);
+  const [supportResolving, setSupportResolving] = useState(false);
+  const [supportError, setSupportError] = useState<string | null>(null);
 
   const filteredContacts = useMemo(
     () => contacts.filter((c) => contactMatchesQuery(c, contactSearch)),
@@ -432,6 +462,71 @@ export function DmPage({
       });
     });
   }, [token, refreshUnread]);
+
+  const loadActiveSupport = useCallback(async (): Promise<SupportContactMessage | null> => {
+    if (!token) return null;
+    try {
+      const res = await api.getMySupportMessages(token);
+      const ticket = res.messages[0] ?? null;
+      setActiveSupportTicket(ticket);
+      return ticket;
+    } catch {
+      return null;
+    }
+  }, [token]);
+
+  const openSupportThread = useCallback(
+    (ticket?: SupportContactMessage | null) => {
+      const target = ticket ?? activeSupportTicket;
+      if (!target) return;
+      setActiveUser(null);
+      setActiveGroupState(null);
+      setActivePeer(null);
+      setActiveGroup(null);
+      setMessages([]);
+      setGroupMessages([]);
+      setActiveSupportTicket(target);
+      markSupportSeen(target.id);
+      setSupportError(null);
+      setView('supportThread');
+    },
+    [activeSupportTicket, setActivePeer, setActiveGroup]
+  );
+
+  const sendSupportReply = async () => {
+    if (!token || !activeSupportTicket) return;
+    const text = supportDraft.trim();
+    if (text.length < 3) return;
+    setSupportSending(true);
+    setSupportError(null);
+    try {
+      const res = await api.replySupportContact(token, activeSupportTicket.id, text);
+      setSupportDraft('');
+      setActiveSupportTicket(res.message);
+      await loadActiveSupport();
+    } catch (e) {
+      setSupportError(e instanceof Error ? e.message : t('dm.support.replyError'));
+    } finally {
+      setSupportSending(false);
+    }
+  };
+
+  const resolveSupportTicket = async () => {
+    if (!token || !activeSupportTicket) return;
+    setSupportResolving(true);
+    setSupportError(null);
+    try {
+      await api.resolveSupportContact(token, activeSupportTicket.id);
+      setActiveSupportTicket(null);
+      setSupportDraft('');
+      setView('list');
+      await loadActiveSupport();
+    } catch (e) {
+      setSupportError(e instanceof Error ? e.message : t('dm.support.resolveError'));
+    } finally {
+      setSupportResolving(false);
+    }
+  };
 
   // Stable callback so useMatchCreated's internal effect doesn't re-register the
   // socket listener on every DmPage render (which would happen with an inline
@@ -634,11 +729,31 @@ export function DmPage({
     setLoading(true);
     loadPresence();
     loadConversations();
+    void loadActiveSupport();
     loadBlocked();
     loadMatches();
     loadPendingRequests();
     setLoading(false);
   }, [isActive, token]);
+
+  useEffect(() => {
+    if (!isActive || !token) return;
+    const timer = window.setInterval(() => {
+      void loadActiveSupport();
+    }, 15_000);
+    return () => window.clearInterval(timer);
+  }, [isActive, token, loadActiveSupport]);
+
+  useEffect(() => {
+    if (!isActive || !token) return;
+    const refreshSupport = () => void loadActiveSupport();
+    window.addEventListener('focus', refreshSupport);
+    document.addEventListener('visibilitychange', refreshSupport);
+    return () => {
+      window.removeEventListener('focus', refreshSupport);
+      document.removeEventListener('visibilitychange', refreshSupport);
+    };
+  }, [isActive, token, loadActiveSupport]);
 
   useEffect(() => {
     if (!openPeerId || !token || loading) return;
@@ -683,6 +798,31 @@ export function DmPage({
   }, [openGroupId, token, loading]);
 
   useEffect(() => {
+    if (view === 'supportThread' && !activeSupportTicket) {
+      setView('list');
+      setSupportDraft('');
+      setSupportError(null);
+    }
+  }, [view, activeSupportTicket]);
+
+  useEffect(() => {
+    if (!openSupportMessageId || !token || loading) return;
+    void (async () => {
+      try {
+        const res = await api.getMySupportMessages(token);
+        const match =
+          openSupportMessageId === 'latest'
+            ? (res.messages[0] ?? null)
+            : (res.messages.find((m) => m.id === openSupportMessageId) ?? res.messages[0] ?? null);
+        if (match) openSupportThread(match);
+      } catch {
+        /* ignore */
+      }
+      onOpenSupportConsumed?.();
+    })();
+  }, [openSupportMessageId, token, loading]);
+
+  useEffect(() => {
     if (!isActive || !token) return;
     const timer = window.setInterval(() => loadPresence(), 30_000);
     return () => window.clearInterval(timer);
@@ -708,6 +848,13 @@ export function DmPage({
     if (view !== 'thread') setActivePeer(null);
     if (view !== 'groupThread') setActiveGroup(null);
   }, [view, setActivePeer, setActiveGroup]);
+
+  useEffect(() => {
+    if (view === 'supportThread' && activeSupportTicket) {
+      markSupportSeen(activeSupportTicket.id);
+      supportThreadEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [view, activeSupportTicket?.id, activeSupportTicket?.thread?.length, activeSupportTicket?.adminReply]);
 
   useEffect(() => {
     if (!isActive || !token || !user) return;
@@ -1833,6 +1980,120 @@ export function DmPage({
     );
   }
 
+  if (view === 'supportThread' && activeSupportTicket) {
+    const supportThread = getSupportThread(activeSupportTicket);
+    const canReplySupport = activeSupportTicket.status === 'replied';
+    const isWaitingSupport = activeSupportTicket.status === 'open';
+
+    return (
+      <div className="dm-thread-root relative flex flex-col flex-1 min-h-0 bg-[#0b0b0f] overflow-hidden">
+        <header className="shrink-0 flex items-center gap-3 p-3 border-b border-[#1e1e2f] bg-[#12121a] relative z-10">
+          <button
+            type="button"
+            onClick={() => {
+              setView('list');
+              void loadActiveSupport();
+            }}
+            className="text-gray-400 hover:text-white text-3xl w-10 h-10 flex items-center justify-center shrink-0"
+          >
+            ←
+          </button>
+          <SupportAvatar size="sm" />
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-white truncate">{t('dm.support.title')}</p>
+            <p className="text-xs text-gray-500">{t('dm.support.subtitle')}</p>
+          </div>
+        </header>
+
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-3">
+          <div className="space-y-3">
+            {supportThread.map((entry) => {
+              const isMe = entry.role === 'user';
+              return (
+                <div
+                  key={entry.id}
+                  className={`flex items-end gap-1.5 ${isMe ? 'justify-end' : 'justify-start'}`}
+                >
+                  {!isMe && <SupportAvatar size="sm" />}
+                  <div className={`max-w-[85%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                    {!isMe && (
+                      <p className="text-[10px] font-semibold text-purple-300 mb-0.5 px-1">
+                        {t('dm.support.teamLabel')}
+                      </p>
+                    )}
+                    <div
+                      className={`rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${
+                        isMe
+                          ? 'bg-gradient-to-br from-purple-600 to-purple-700 text-white rounded-br-sm shadow-sm shadow-purple-900/30'
+                          : 'bg-[#1a1a26] border border-[#2d2d3d] text-gray-100 rounded-bl-sm'
+                      }`}
+                    >
+                      {entry.body}
+                    </div>
+                    <p className={`text-[9px] text-gray-500 mt-1 px-1 ${isMe ? 'text-right' : 'text-left'}`}>
+                      {new Date(entry.createdAt).toLocaleString(i18n.language, {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={supportThreadEndRef} />
+          </div>
+        </div>
+
+        <div className="shrink-0 border-t border-[#1e1e2f] px-3 py-3 space-y-2 bg-[#12121a] safe-area-pb">
+          {supportError && <p className="text-xs text-red-400 text-center">{supportError}</p>}
+          {canReplySupport ? (
+            <>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void sendSupportReply();
+                }}
+                className="flex items-end gap-2"
+              >
+                <textarea
+                  value={supportDraft}
+                  onChange={(e) => setSupportDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      void sendSupportReply();
+                    }
+                  }}
+                  rows={2}
+                  maxLength={4000}
+                  placeholder={t('dm.support.replyPlaceholder')}
+                  className="flex-1 bg-[#1a1a26] border border-[#2d2d3d] rounded-2xl px-3 py-2 text-white text-sm resize-none focus:border-purple-500/60 outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={supportSending || supportDraft.trim().length < 3}
+                  className="shrink-0 px-4 py-2.5 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm disabled:opacity-50"
+                >
+                  {supportSending ? t('dm.support.sending') : t('dm.send')}
+                </button>
+              </form>
+              <button
+                type="button"
+                onClick={() => void resolveSupportTicket()}
+                disabled={supportResolving}
+                className="w-full py-2 rounded-xl bg-green-700/80 hover:bg-green-600 text-white font-semibold text-xs disabled:opacity-50"
+              >
+                {supportResolving ? t('dm.support.resolving') : t('dm.support.markResolved')}
+              </button>
+            </>
+          ) : isWaitingSupport ? (
+            <p className="text-xs text-center text-amber-400/90 py-1">{t('dm.support.pending')}</p>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
   if (view === 'thread' && activeUser) {
     const online = isOnline(activeUser.id);
     const live = isLive(activeUser.id);
@@ -2655,7 +2916,7 @@ export function DmPage({
         </div>
       )}
 
-      {!loading && !showMatchesOnly && conversations.length === 0 && pendingRequests.length === 0 && (
+      {!loading && !showMatchesOnly && conversations.length === 0 && pendingRequests.length === 0 && !activeSupportTicket && (
         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
           <p className="text-gray-400 text-sm mb-4">Aucune conversation pour le moment</p>
           <button
@@ -2678,6 +2939,36 @@ export function DmPage({
       )}
 
       <ul className="flex-1 min-h-0 overflow-y-auto">
+        {!loading && !showMatchesOnly && activeSupportTicket && (
+          <li key="support">
+            <button
+              type="button"
+              onClick={() => openSupportThread(activeSupportTicket)}
+              className="w-full flex items-center gap-3 p-4 border-b border-[#1e1e2f]/50 hover:bg-[#12121a] text-left"
+            >
+              <SupportAvatar size="lg" />
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-baseline gap-2">
+                  <p className="font-semibold text-white truncate">{t('dm.support.title')}</p>
+                  <span className="text-[10px] text-gray-500 shrink-0">
+                    {formatTime(getSupportLastTimestamp(activeSupportTicket))}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-400 truncate">
+                  {getSupportLastPreview(activeSupportTicket)}
+                </p>
+              </div>
+              {isSupportUnread(activeSupportTicket) && (
+                <span
+                  className="shrink-0 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-purple-600 text-white text-[10px] font-bold flex items-center justify-center"
+                  aria-label={t('dm.support.unread')}
+                >
+                  1
+                </span>
+              )}
+            </button>
+          </li>
+        )}
         {displayedConversations.map((c) => {
           const isGroup = isGroupConversation(c);
           const rowKey = isGroup ? c.groupId! : c.userId!;

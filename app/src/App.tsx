@@ -135,6 +135,7 @@ export default function App() {
   const [appLayout, setAppLayoutState] = useState(getAppLayout);
   const [dmPeerToOpen, setDmPeerToOpen] = useState<string | null>(null);
   const [dmGroupToOpen, setDmGroupToOpen] = useState<string | null>(null);
+  const [dmSupportToOpen, setDmSupportToOpen] = useState<string | null>(null);
   const [msdevRebuilding, setMsdevRebuilding] = useState(false);
   const [msdevRebuildError, setMsdevRebuildError] = useState<string | null>(null);
   /** Après réduction du grand salon : rouvrir la fiche carte sur l'onglet Carte. */
@@ -659,6 +660,7 @@ export default function App() {
     setProfilePreview(null);
     setView({ type: 'home' });
     setDmGroupToOpen(null);
+    setDmSupportToOpen(null);
     setDmPeerToOpen(userId);
     setTab('dm');
     dismissToast();
@@ -671,7 +673,23 @@ export default function App() {
     setProfilePreview(null);
     setView({ type: 'home' });
     setDmPeerToOpen(null);
+    setDmSupportToOpen(null);
     setDmGroupToOpen(groupId);
+    setTab('dm');
+    dismissToast();
+  }, [dismissToast]);
+
+  const openSupportChat = useCallback((supportMessageId?: string) => {
+    if (tabRef.current === 'reels') pauseAllReelsMediaInDom({ resetPosition: true });
+    pauseMediaElements();
+    setProfileOpen(false);
+    setProfileOpenContact(false);
+    setProfileHighlightSupportMessageId(undefined);
+    setProfilePreview(null);
+    setView({ type: 'home' });
+    setDmPeerToOpen(null);
+    setDmGroupToOpen(null);
+    setDmSupportToOpen(supportMessageId ?? 'latest');
     setTab('dm');
     dismissToast();
   }, [dismissToast]);
@@ -870,9 +888,7 @@ export default function App() {
                   openAdminPanel({ tab: 'support', supportMessageId });
                 }}
                 onOpenContactSupport={(supportMessageId) => {
-                  setProfileHighlightSupportMessageId(supportMessageId);
-                  setProfileOpenContact(true);
-                  setProfileOpen(true);
+                  openSupportChat(supportMessageId);
                 }}
               />
               <button
@@ -1058,8 +1074,10 @@ export default function App() {
                   <DmPage
                     openPeerId={dmPeerToOpen}
                     openGroupId={dmGroupToOpen}
+                    openSupportMessageId={dmSupportToOpen}
                     onOpenPeerConsumed={consumeDmPeer}
                     onOpenGroupConsumed={consumeDmGroup}
+                    onOpenSupportConsumed={() => setDmSupportToOpen(null)}
                     onOpenProfile={openProfileFromDm}
                     onOpenSalon={openSalonPage}
                     onOpenFeedPost={openFeedPostFromMap}

@@ -361,7 +361,20 @@
     "createPrivateYoutubeSalon": "Create a private YouTube room",
     "createPrivateSpotifySalon": "Create a private Spotify room",
     "privateSalonTitle": "Private room — {{name}}",
-    "privateSalonInviteMessage": "🎵 Join my private {{platform}} room on Soundy: {{url}}"
+    "privateSalonInviteMessage": "🎵 Join my private {{platform}} room on Soundy: {{url}}",
+    "support": {
+      "title": "Support",
+      "subtitle": "Soundy team",
+      "teamLabel": "Soundy Support",
+      "pending": "Waiting for a reply from the Soundy team",
+      "replyPlaceholder": "Your message…",
+      "sending": "Sending…",
+      "replyError": "Could not send reply",
+      "markResolved": "Mark as resolved",
+      "resolving": "…",
+      "resolveError": "Could not mark as resolved",
+      "unread": "New support reply"
+    }
   },
   "profile": {
     "minAge": "Minimum age 13 (Terms)",
@@ -725,8 +738,15 @@
       "sendReply": "Send reply",
       "replying": "Sending…",
       "userFollowUp": "User follow-up pending",
-      "ticketResolved": "Ticket resolved by user",
-      "awaitingUser": "Awaiting user (reply or resolution)"
+      "ticketResolved": "Ticket resolved",
+      "ticketResolvedByUser": "Resolved by user",
+      "ticketResolvedByAdmin": "Resolved by team",
+      "awaitingUser": "Awaiting user (reply or resolution)",
+      "markResolved": "Mark as resolved",
+      "markingResolved": "…",
+      "resolveError": "Could not mark as resolved",
+      "resolvedBadge": "Resolved",
+      "replyInputPlaceholder": "Write a reply…"
     },
     "content": {
       "title": "Content moderation",

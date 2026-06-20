@@ -361,7 +361,20 @@
     "createPrivateYoutubeSalon": "Créer un salon YouTube privé",
     "createPrivateSpotifySalon": "Créer un salon Spotify privé",
     "privateSalonTitle": "Salon privé — {{name}}",
-    "privateSalonInviteMessage": "🎵 Rejoins mon salon {{platform}} privé sur Soundy : {{url}}"
+    "privateSalonInviteMessage": "🎵 Rejoins mon salon {{platform}} privé sur Soundy : {{url}}",
+    "support": {
+      "title": "Support",
+      "subtitle": "Équipe Soundy",
+      "teamLabel": "Support Soundy",
+      "pending": "En attente de réponse de l'équipe Soundy",
+      "replyPlaceholder": "Votre message…",
+      "sending": "Envoi…",
+      "replyError": "Impossible d'envoyer la réponse",
+      "markResolved": "Marquer comme résolu",
+      "resolving": "…",
+      "resolveError": "Impossible de marquer comme résolu",
+      "unread": "Nouvelle réponse support"
+    }
   },
   "profile": {
     "minAge": "Minimum 13 ans (CGU)",
@@ -725,8 +738,15 @@
       "sendReply": "Envoyer la réponse",
       "replying": "Envoi…",
       "userFollowUp": "Réponse utilisateur en attente",
-      "ticketResolved": "Ticket résolu par l'utilisateur",
-      "awaitingUser": "En attente de l'utilisateur (réponse ou résolution)"
+      "ticketResolved": "Ticket résolu",
+      "ticketResolvedByUser": "Résolu par l'utilisateur",
+      "ticketResolvedByAdmin": "Résolu par l'équipe",
+      "awaitingUser": "En attente de l'utilisateur (réponse ou résolution)",
+      "markResolved": "Marquer comme résolu",
+      "markingResolved": "…",
+      "resolveError": "Impossible de marquer comme résolu",
+      "resolvedBadge": "Résolu",
+      "replyInputPlaceholder": "Écrire une réponse…"
     },
     "content": {
       "title": "Modération contenu",

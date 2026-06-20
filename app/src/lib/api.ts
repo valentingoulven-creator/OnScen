@@ -422,6 +422,13 @@ export const api = {
       token
     ),
 
+  resolveAdminSupportMessage: (token: string, messageId: string) =>
+    request<{ message: import('../types').SupportContactMessage }>(
+      `/access/admin/support/${messageId}/status`,
+      { method: 'PATCH', body: JSON.stringify({ status: 'resolved' }) },
+      token
+    ),
+
   replySupportContact: (token: string, messageId: string, body: string) =>
     request<{ message: import('../types').SupportContactMessage }>(
       `/support/contact/${messageId}/reply`,

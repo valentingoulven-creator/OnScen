@@ -163,7 +163,7 @@ supportRouter.post('/contact', authenticateJWT, (req: Request, res: Response) =>
 supportRouter.get('/my', authenticateJWT, (req: Request, res: Response) => {
   const userId = (req as Request & { user: { id: string } }).user.id;
   const messages = db.supportContactMessages
-    .filter((m) => m.fromUserId === userId)
+    .filter((m) => m.fromUserId === userId && m.status !== 'resolved')
     .sort((a, b) => b.createdAt - a.createdAt)
     .map(mapSupportMessage);
   res.json({ messages });
@@ -311,5 +311,32 @@ supportAdminRouter.post('/:id/reply', authenticateJWT, (req: Request, res: Respo
     });
   }
 
+  res.json({ message: mapSupportMessage(msg) });
+});
+
+supportAdminRouter.patch('/:id/status', authenticateJWT, (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const msg = db.supportContactMessages.find((m) => m.id === req.params.id);
+  if (!msg) {
+    res.status(404).json({ error: 'Message introuvable' });
+    return;
+  }
+
+  const status = req.body?.status;
+  if (status !== 'resolved') {
+    res.status(400).json({ error: 'Statut invalide' });
+    return;
+  }
+  if (msg.status === 'resolved') {
+    res.status(400).json({ error: 'Ticket déjà résolu' });
+    return;
+  }
+  if (msg.status !== 'replied') {
+    res.status(400).json({ error: 'Marquage résolu possible uniquement après une réponse admin' });
+    return;
+  }
+
+  msg.status = 'resolved';
+  schedulePersist();
   res.json({ message: mapSupportMessage(msg) });
 });
