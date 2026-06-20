@@ -13,7 +13,7 @@ interface UserProfilePageProps {
   preview?: NearbyPerson;
   onBack: () => void;
   onOpenReel?: (reelId: string) => void;
-  onSelectSalon?: (salonId: string) => void;
+  onSelectSalon?: (salonId: string, salonTitle?: string, isHost?: boolean) => void;
   onOpenLive?: (liveId: string) => void;
   /** Ouvre l’enregistreur reel sur le profil personnel (propriétaire). */
   onRecordReel?: () => void;
@@ -39,16 +39,8 @@ export function UserProfilePage({
   const livesTabLabel = isSelf ? t('profile.tabLives') : t('profile.tabLivesOther');
   const displayName = preview?.username ?? 'Profil';
   const [shareCopied, setShareCopied] = useState(false);
-  const [salonFromApi, setSalonFromApi] = useState<{ salonId: string; salonTitle?: string } | null>(
-    null
-  );
-
-  const salonInfo =
-    salonFromApi ??
-    (preview?.salonId ? { salonId: preview.salonId, salonTitle: preview.salonTitle } : null);
 
   useEffect(() => {
-    setSalonFromApi(null);
     setProfileTab('profil');
   }, [userId]);
 
@@ -78,8 +70,6 @@ export function UserProfilePage({
   const headerClass = mapOverlay
     ? 'shrink-0 flex items-center gap-3 px-3 sm:px-4 py-3 border-b border-[#1e1e2f] bg-[#12121a]'
     : 'shrink-0 flex items-center gap-3 px-3 sm:px-4 py-3 border-b border-[#1e1e2f] bg-[#12121a] pt-[max(0.75rem,env(safe-area-inset-top))]';
-
-  const showSalonFooter = Boolean(salonInfo?.salonId && onSelectSalon);
 
   const profileContent = (
     <>
@@ -147,7 +137,7 @@ export function UserProfilePage({
             userId={userId}
             preview={preview}
             onOpenLive={onOpenLive}
-            onSalonInfo={setSalonFromApi}
+            onOpenSalon={onSelectSalon}
           />
         ) : profileTab === 'reels' ? (
           onOpenReel && (
@@ -171,21 +161,6 @@ export function UserProfilePage({
         )}
       </main>
 
-      {showSalonFooter && (
-        <div
-          className={`shrink-0 px-4 py-3 border-t border-[#1e1e2f] bg-[#12121a]/95 backdrop-blur-sm ${
-            mapOverlay ? '' : 'pb-[max(0.75rem,env(safe-area-inset-bottom))]'
-          }`}
-        >
-          <button
-            type="button"
-            onClick={() => onSelectSalon!(salonInfo!.salonId)}
-            className="w-full py-3 rounded-xl font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-lg shadow-purple-900/40 active:scale-[0.99] transition"
-          >
-            Rejoindre le salon · {salonInfo!.salonTitle ?? 'Écoute'}
-          </button>
-        </div>
-      )}
 
     </>
   );
