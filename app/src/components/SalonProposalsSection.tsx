@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ConfirmModal } from './ConfirmModal';
+import { sortSalonProposals } from '../lib/salonProposals';
 import type { SalonTrackProposal } from '../types';
 
 interface SalonProposalsSectionProps {
@@ -7,6 +8,7 @@ interface SalonProposalsSectionProps {
   allowQueue: boolean;
   proposals: SalonTrackProposal[];
   loadingProposals?: boolean;
+  currentUserId?: string;
   onPropose?: (body: {
     title: string;
     artist: string;
@@ -15,9 +17,62 @@ interface SalonProposalsSectionProps {
   }) => Promise<void>;
   onAccept?: (proposalId: string, playNow: boolean) => Promise<void>;
   onReject?: (proposalId: string) => Promise<void>;
+  onUpvote?: (proposalId: string) => Promise<void>;
   compact?: boolean;
   /** Affiche un lien "Ouvrir sur Spotify" pour les propositions avec spotifyUrl. */
   showSpotifyLink?: boolean;
+}
+
+function ProposalUpvoteButton({
+  proposal,
+  currentUserId,
+  onUpvote,
+  disabled,
+  hostView,
+}: {
+  proposal: SalonTrackProposal;
+  currentUserId?: string;
+  onUpvote?: (proposalId: string) => Promise<void>;
+  disabled?: boolean;
+  hostView?: boolean;
+}) {
+  const [upvoting, setUpvoting] = useState(false);
+  const count = proposal.upvotes?.length ?? 0;
+  const hasUpvoted = Boolean(currentUserId && proposal.upvotes?.includes(currentUserId));
+
+  if (!onUpvote) return null;
+
+  return (
+    <button
+      type="button"
+      disabled={disabled || upvoting}
+      onClick={async () => {
+        setUpvoting(true);
+        try {
+          await onUpvote(proposal.id);
+        } finally {
+          setUpvoting(false);
+        }
+      }}
+      className={`shrink-0 flex flex-col items-center justify-center min-w-[2rem] px-1 py-0.5 rounded-lg border transition disabled:opacity-50 ${
+        hasUpvoted
+          ? hostView
+            ? 'border-amber-400/50 bg-amber-500/15 text-amber-300'
+            : 'border-purple-400/50 bg-purple-500/15 text-purple-300'
+          : hostView
+            ? 'border-amber-500/20 text-gray-500 hover:border-amber-400/40 hover:text-amber-300 hover:bg-amber-500/10'
+            : 'border-[#2a2a3a] text-gray-500 hover:border-purple-400/40 hover:text-purple-300 hover:bg-purple-500/10'
+      }`}
+      aria-pressed={hasUpvoted}
+      aria-label={hasUpvoted ? 'Retirer votre vote' : 'Voter pour cette proposition'}
+      title={hasUpvoted ? 'Retirer votre vote' : 'Voter pour cette proposition'}
+    >
+      <span className="text-[10px] leading-none" aria-hidden="true">
+        ▲
+      </span>
+      <span className="text-[10px] font-bold leading-tight tabular-nums">{count}</span>
+    </button>
+  );
 }
 
 export function SalonProposalsSection({
@@ -25,9 +80,11 @@ export function SalonProposalsSection({
   allowQueue,
   proposals,
   loadingProposals,
+  currentUserId,
   onPropose,
   onAccept,
   onReject,
+  onUpvote,
   compact,
   showSpotifyLink = false,
 }: SalonProposalsSectionProps) {
@@ -40,6 +97,8 @@ export function SalonProposalsSection({
   const [confirmRejectId, setConfirmRejectId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const sortedProposals = useMemo(() => sortSalonProposals(proposals), [proposals]);
 
   useEffect(() => {
     if (!successMsg) return;
@@ -86,37 +145,48 @@ export function SalonProposalsSection({
         )}
         <h4 className="text-[11px] font-semibold text-amber-400/90 uppercase tracking-wide flex items-center gap-2">
           Propositions
-          {proposals.length > 0 && (
+          {sortedProposals.length > 0 && (
             <span className="bg-amber-500/15 text-amber-300 px-1.5 py-0.5 rounded-full text-[10px] font-bold">
-              {proposals.length}
+              {sortedProposals.length}
             </span>
           )}
         </h4>
         {loadingProposals ? (
           <p className="text-xs text-gray-500">Chargement…</p>
-        ) : proposals.length === 0 ? (
+        ) : sortedProposals.length === 0 ? (
           <p className={`text-gray-600 text-center ${compact ? 'text-[10px] py-1' : 'text-xs py-2'}`}>
             Aucune proposition
           </p>
         ) : (
           <ul className={`space-y-1.5 overflow-y-auto ${compact ? 'max-h-36' : 'max-h-48'}`}>
-            {proposals.map((p) => (
+            {sortedProposals.map((p) => (
               <li key={p.id} className="p-2.5 rounded-xl bg-[#0b0b0f] border border-amber-500/15">
-                <p className="text-xs text-white font-medium truncate">{p.title}</p>
-                <p className="text-[10px] text-gray-500 truncate">
-                  {p.artist} · {p.proposerName}
-                </p>
-                {showSpotifyLink && p.spotifyUrl && (
-                  <a
-                    href={p.spotifyUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-block mt-1 text-[9px] font-semibold text-[#1DB954]/80 hover:text-[#1DB954] transition"
-                    title="Ouvrir sur Spotify"
-                  >
-                    ↗ Ouvrir sur Spotify
-                  </a>
-                )}
+                <div className="flex items-start gap-2 min-w-0">
+                  <ProposalUpvoteButton
+                    proposal={p}
+                    currentUserId={currentUserId}
+                    onUpvote={onUpvote}
+                    disabled={actionId === p.id}
+                    hostView
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-white font-medium truncate">{p.title}</p>
+                    <p className="text-[10px] text-gray-500 truncate">
+                      {p.artist} · {p.proposerName}
+                    </p>
+                    {showSpotifyLink && p.spotifyUrl && (
+                      <a
+                        href={p.spotifyUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-block mt-1 text-[9px] font-semibold text-[#1DB954]/80 hover:text-[#1DB954] transition"
+                        title="Ouvrir sur Spotify"
+                      >
+                        ↗ Ouvrir sur Spotify
+                      </a>
+                    )}
+                  </div>
+                </div>
                 <div className="flex gap-1.5 mt-2">
                   <button
                     type="button"
@@ -192,17 +262,22 @@ export function SalonProposalsSection({
 
   return (
     <div className="space-y-2">
-      {proposals.length > 0 && (
+      {sortedProposals.length > 0 && (
         <>
           <h4 className="text-[11px] font-semibold text-purple-400/80 uppercase tracking-wide">
             Propositions en attente
             <span className="ml-1.5 text-gray-500 normal-case tracking-normal font-medium">
-              ({proposals.length})
+              ({sortedProposals.length})
             </span>
           </h4>
           <ul className={`space-y-1.5 overflow-y-auto ${compact ? 'max-h-32' : 'max-h-40'}`}>
-            {proposals.map((p) => (
+            {sortedProposals.map((p) => (
               <li key={p.id} className="px-2.5 py-1.5 rounded-xl bg-[#0b0b0f] border border-[#222233] flex items-center gap-2 min-w-0">
+                <ProposalUpvoteButton
+                  proposal={p}
+                  currentUserId={currentUserId}
+                  onUpvote={onUpvote}
+                />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-white truncate">{p.title}</p>
                   <p className="text-[10px] text-gray-500 truncate">
@@ -269,7 +344,7 @@ export function SalonProposalsSection({
             {submitting ? 'Envoi…' : 'Envoyer au host'}
           </button>
         </form>
-      ) : proposals.length === 0 ? (
+      ) : sortedProposals.length === 0 ? (
         allowQueue ? (
           <p className={`text-gray-600 text-center ${compact ? 'text-[10px] py-1' : 'text-xs py-2'}`}>
             Aucune proposition

@@ -31,8 +31,17 @@ function persistQueue(salonId: string): void {
   persistSalonQueueAsync(salonId);
 }
 
+export function sortPendingProposals(proposals: SalonTrackProposal[]): SalonTrackProposal[] {
+  return [...proposals].sort((a, b) => {
+    const upvoteDiff = (b.upvotes?.length ?? 0) - (a.upvotes?.length ?? 0);
+    if (upvoteDiff !== 0) return upvoteDiff;
+    return b.createdAt - a.createdAt;
+  });
+}
+
 export function getPendingProposals(salonId: string): SalonTrackProposal[] {
-  return ensureSalonProposals(salonId).filter((p) => p.status === 'pending');
+  const pending = ensureSalonProposals(salonId).filter((p) => p.status === 'pending');
+  return sortPendingProposals(pending);
 }
 
 export function albumArtForTrack(platform: MusicPlatform, trackId?: string): string | undefined {

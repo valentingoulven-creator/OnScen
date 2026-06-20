@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiRequestError } from '../lib/api';
+import { sortSalonProposals } from '../lib/salonProposals';
 import { getSocket } from '../lib/socket';
 import type { SalonQueueItem, SalonTrackProposal } from '../types';
 
@@ -30,7 +31,7 @@ export function useSalonQueueSync(
     setLoadingProposals(true);
     api
       .getSalonProposals(token, salonId)
-      .then((r) => setProposals(r.proposals))
+      .then((r) => setProposals(sortSalonProposals(r.proposals)))
       .catch(() => setProposals([]))
       .finally(() => setLoadingProposals(false));
   }, [token, salonId, isHost]);
@@ -43,7 +44,7 @@ export function useSalonQueueSync(
       if (payload.salonId === salonId) setQueue(payload.queue);
     };
     const onProposals = (payload: { salonId: string; proposals: SalonTrackProposal[] }) => {
-      if (payload.salonId === salonId) setProposals(payload.proposals);
+      if (payload.salonId === salonId) setProposals(sortSalonProposals(payload.proposals));
     };
     socket.on('salon_queue_updated', onQueue);
     socket.on('salon_proposals_updated', onProposals);
@@ -114,6 +115,17 @@ export function useSalonQueueSync(
     [token, salonId]
   );
 
+  const upvoteProposal = useCallback(
+    async (proposalId: string) => {
+      if (!token) return;
+      const r = await api.upvoteSalonProposal(token, salonId, proposalId);
+      setProposals((prev) =>
+        sortSalonProposals(prev.map((p) => (p.id === proposalId ? r.proposal : p)))
+      );
+    },
+    [token, salonId]
+  );
+
   const reorderQueue = useCallback(
     async (orderedIds: string[]) => {
       if (!token) return null;
@@ -141,6 +153,7 @@ export function useSalonQueueSync(
     playQueueItem,
     acceptProposal,
     rejectProposal,
+    upvoteProposal,
     proposeTrack,
     reorderQueue,
     applyQueue: setQueue,

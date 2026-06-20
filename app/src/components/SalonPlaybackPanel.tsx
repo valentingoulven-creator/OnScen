@@ -67,6 +67,8 @@ interface SalonPlaybackPanelProps {
   reordering?: boolean;
   onAcceptProposal?: (proposalId: string, playNow: boolean) => Promise<void>;
   onRejectProposal?: (proposalId: string) => Promise<void>;
+  onUpvoteProposal?: (proposalId: string) => Promise<void>;
+  currentUserId?: string;
   onProposeTrack?: (body: {
     title: string;
     artist: string;
@@ -119,6 +121,8 @@ export function SalonPlaybackPanel({
   reordering,
   onAcceptProposal,
   onRejectProposal,
+  onUpvoteProposal,
+  currentUserId,
   onProposeTrack,
   mapInline = false,
   theaterMode = false,
@@ -1561,8 +1565,10 @@ export function SalonPlaybackPanel({
                   allowQueue={salon.allowQueue}
                   proposals={proposals}
                   loadingProposals={loadingProposals}
+                  currentUserId={currentUserId}
                   onAccept={onAcceptProposal}
                   onReject={onRejectProposal}
+                  onUpvote={onUpvoteProposal}
                   compact
                 />
               </>
@@ -1572,6 +1578,8 @@ export function SalonPlaybackPanel({
                 isHost={false}
                 allowQueue={salon.allowQueue}
                 proposals={proposals}
+                currentUserId={currentUserId}
+                onUpvote={onUpvoteProposal}
                 onPropose={onProposeTrack}
               />
             )}

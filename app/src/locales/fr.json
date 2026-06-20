@@ -137,6 +137,11 @@
     "endSalon": "Arrêter le salon",
     "endSalonConfirm": "Arrêter le salon pour tous les auditeurs ?",
     "chatTitle": "Chat du salon",
+    "chatDock": {
+      "tabChat": "Chat",
+      "tabQueue": "File d'attente",
+      "titleQueue": "File d'attente"
+    },
     "participants": {
       "open": "Participants",
       "title": "Participants",

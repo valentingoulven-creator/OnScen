@@ -282,6 +282,7 @@ function TheaterChatDockAside({
 
 function DockedChatHeader({
   chatTitle,
+  chatTitleIcon = '💬',
   chatHeaderExtra,
   dockMode,
   onToggleDock,
@@ -291,6 +292,7 @@ function DockedChatHeader({
   showDockToggle = true,
 }: {
   chatTitle: string;
+  chatTitleIcon?: ReactNode;
   chatHeaderExtra?: ReactNode;
   dockMode: 'floating' | 'right';
   onToggleDock: () => void;
@@ -302,7 +304,7 @@ function DockedChatHeader({
   return (
     <div className="shrink-0 flex items-center gap-1.5 px-3 py-2 border-b border-[#1e1e2f] bg-[#14141c]/80">
       <span className="text-purple-400 text-[10px]" aria-hidden>
-        💬
+        {chatTitleIcon}
       </span>
       <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest flex-1 truncate min-w-0">
         {chatTitle}
@@ -361,6 +363,8 @@ export interface RoomTheaterLayoutProps {
   /** Contenu défilable sous la scène vidéo (file, réglages host…). */
   stageFooter?: ReactNode;
   chatTitle?: string;
+  /** Emoji or icon shown before the dock title (default 💬). */
+  chatTitleIcon?: ReactNode;
   /** Actions hôte dans l'en-tête du chat ancré (ex. participants). */
   chatHeaderExtra?: ReactNode;
   /** Chat réduit au bandeau d'en-tête uniquement (contenu masqué). */
@@ -403,6 +407,7 @@ export function RoomTheaterLayout({
   onToggleChat,
   stageFooter,
   chatTitle = 'Chat',
+  chatTitleIcon,
   chatHeaderExtra,
   chatMinimized = false,
   onToggleMinimize,
@@ -490,6 +495,7 @@ export function RoomTheaterLayout({
             >
               <DockedChatHeader
                 chatTitle={chatTitle}
+                chatTitleIcon={chatTitleIcon}
                 chatHeaderExtra={chatHeaderExtra}
                 dockMode="right"
                 onToggleDock={() => {}}
@@ -562,6 +568,7 @@ export function RoomTheaterLayout({
       {useVideoStack ? (
         <DockedChatHeader
           chatTitle={chatTitle}
+          chatTitleIcon={chatTitleIcon}
           chatHeaderExtra={chatHeaderExtra}
           dockMode="right"
           onToggleDock={() => {}}
@@ -573,7 +580,7 @@ export function RoomTheaterLayout({
       ) : (
         <div className="shrink-0 flex items-center gap-1.5 px-3 py-2 border-b border-[#1e1e2f] bg-[#14141c]/80">
           <span className="text-purple-400 text-[10px]" aria-hidden>
-            💬
+            {chatTitleIcon ?? '💬'}
           </span>
           <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest flex-1 truncate min-w-0">
             {chatTitle}
@@ -696,6 +703,7 @@ export function RoomTheaterLayout({
             >
               <DockedChatHeader
                 chatTitle={chatTitle}
+                chatTitleIcon={chatTitleIcon}
                 chatHeaderExtra={chatHeaderExtra}
                 dockMode="right"
                 onToggleDock={() => {}}
@@ -719,6 +727,7 @@ export function RoomTheaterLayout({
             >
               <DockedChatHeader
                 chatTitle={chatTitle}
+                chatTitleIcon={chatTitleIcon}
                 chatHeaderExtra={chatHeaderExtra}
                 dockMode="right"
                 onToggleDock={allowFloatingChat ? toggleDockMode : () => {}}
@@ -736,6 +745,7 @@ export function RoomTheaterLayout({
           <div className="room-theater-mobile-chat-sheet sm:hidden shrink-0 flex flex-col border-t border-[#1e1e2f] bg-[#101018] pb-[env(safe-area-inset-bottom)]">
             <DockedChatHeader
               chatTitle={chatTitle}
+              chatTitleIcon={chatTitleIcon}
               chatHeaderExtra={chatHeaderExtra}
               dockMode="right"
               onToggleDock={allowFloatingChat ? toggleDockMode : () => {}}

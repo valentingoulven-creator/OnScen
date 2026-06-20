@@ -446,6 +446,7 @@ salonsRouter.post('/:id/proposals', authenticateJWT, (req: Request, res: Respons
     youtubeUrl: youtubeUrl ? String(youtubeUrl).slice(0, 500) : undefined,
     status: 'pending',
     createdAt: Date.now(),
+    upvotes: [],
   };
   const list = ensureSalonProposals(salon.id);
   list.push(proposal);
@@ -527,6 +528,32 @@ salonsRouter.post('/:id/proposals/:proposalId/reject', authenticateJWT, (req: Re
   }
   proposal.status = 'rejected';
   broadcastSalonProposals(salon.id);
+  res.json({ proposal });
+});
+
+salonsRouter.post('/:id/proposals/:proposalId/upvote', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const salon = db.salons.get(req.params.id);
+  if (!salonMemberOr403(salon, me, res)) return;
+  if (!salon!.allowQueue) {
+    res.status(400).json({ error: 'File désactivée dans ce salon' });
+    return;
+  }
+  const list = ensureSalonProposals(salon!.id);
+  const proposal = list.find((p) => p.id === req.params.proposalId && p.status === 'pending');
+  if (!proposal) {
+    res.status(404).json({ error: 'Proposition introuvable' });
+    return;
+  }
+  if (!proposal.upvotes) proposal.upvotes = [];
+  const voterIdx = proposal.upvotes.indexOf(me);
+  if (voterIdx >= 0) {
+    proposal.upvotes.splice(voterIdx, 1);
+  } else {
+    proposal.upvotes.push(me);
+  }
+  db.salonProposals.set(salon!.id, list);
+  broadcastSalonProposals(salon!.id);
   res.json({ proposal });
 });
 

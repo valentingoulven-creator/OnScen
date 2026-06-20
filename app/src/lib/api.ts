@@ -991,6 +991,13 @@ export const api = {
       token
     ),
 
+  upvoteSalonProposal: (token: string, salonId: string, proposalId: string) =>
+    request<{ proposal: import('../types').SalonTrackProposal }>(
+      `/salons/${salonId}/proposals/${proposalId}/upvote`,
+      { method: 'POST' },
+      token
+    ),
+
   salonPlaybackSkip: (token: string, salonId: string) =>
     request<{ playbackState: import('../types').PlaybackState; queue: import('../types').SalonQueueItem[] }>(
       `/salons/${salonId}/playback/skip`,

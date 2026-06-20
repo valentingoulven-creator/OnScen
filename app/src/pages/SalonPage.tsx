@@ -12,7 +12,8 @@ import { mergeRemotePlaybackState } from '../lib/salonPlayback';
 import { api, ApiRequestError } from '../lib/api';
 import { getSocket } from '../lib/socket';
 
-import { ChatRoomProvider, ChatMessagesView, ChatInputBar, ChatModals } from '../components/ChatPanel';
+import { ChatRoomProvider, ChatInputBar, ChatModals } from '../components/ChatPanel';
+import { SalonChatDockBody, type SalonChatDockTab } from '../components/SalonChatDockBody';
 import { UsernameDisplay } from '../components/UsernameDisplay';
 
 import { HostRatingBlock } from '../components/HostRatingBlock';
@@ -106,6 +107,7 @@ export function SalonPage({
   const [reordering, setReordering] = useState(false);
   const [chatHidden, setChatHidden] = useState(readSalonChatHidden);
   const [chatMinimized, setChatMinimized] = useState(readSalonChatMinimized);
+  const [chatDockTab, setChatDockTab] = useState<SalonChatDockTab>('chat');
   const [shareCopied, setShareCopied] = useState(false);
 
   const [sessionEnded, setSessionEnded] = useState(false);
@@ -317,6 +319,7 @@ export function SalonPage({
     playQueueItem,
     acceptProposal,
     rejectProposal,
+    upvoteProposal,
     reorderQueue,
     applyQueue,
   } = useSalonQueueSync(salon?.id ?? salonId, token, isHost || isDevModerator, salon?.queue);
@@ -528,6 +531,14 @@ export function SalonPage({
     }
   };
 
+  const handleUpvote = async (proposalId: string) => {
+    try {
+      await upvoteProposal(proposalId);
+    } catch (e) {
+      setToastMsg(e instanceof Error ? e.message : 'Erreur');
+    }
+  };
+
 
 
   const participantProposeSearch =
@@ -556,6 +567,8 @@ export function SalonPage({
         onQueueChanged={applyQueue}
         onTrackChanged={applyPlayback}
         onOpenProfile={onOpenProfile}
+        currentUserId={user?.id}
+        onUpvote={handleUpvote}
         participantMode
       />
     ) : null;
@@ -618,6 +631,8 @@ export function SalonPage({
           onReorder={handleReorderQueue}
           onAccept={handleAccept}
           onReject={rejectProposal}
+          currentUserId={user?.id}
+          onUpvote={handleUpvote}
           settingsContent={youtubeHostSettings}
           onOpenProfile={onOpenProfile}
         />
@@ -643,6 +658,8 @@ export function SalonPage({
           onReorder={handleReorderQueue}
           onAccept={handleAccept}
           onReject={rejectProposal}
+          currentUserId={user?.id}
+          onUpvote={handleUpvote}
           onOpenProfile={onOpenProfile}
           vipOnly
         />
@@ -727,6 +744,12 @@ export function SalonPage({
         onActionDone={setToastMsg}
       />
     ) : undefined;
+
+  const chatTitle =
+    chatDockTab === 'queue'
+      ? t('salon.chatDock.titleQueue', { defaultValue: "File d'attente" })
+      : t('salon.chatTitle', { defaultValue: 'Chat du salon' });
+  const chatTitleIcon = chatDockTab === 'queue' ? '📋' : '💬';
 
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f] overflow-hidden">
@@ -865,7 +888,8 @@ export function SalonPage({
               return next;
             });
           }}
-          chatTitle={t('salon.chatTitle', { defaultValue: 'Chat du salon' })}
+          chatTitle={chatTitle}
+          chatTitleIcon={chatTitleIcon}
           chatHeaderExtra={chatHeaderExtra}
           chatMinimized={chatMinimized}
           onToggleMinimize={() => {
@@ -902,11 +926,27 @@ export function SalonPage({
           }
           stageFooter={stageFooter}
           chat={
-            <div className="flex flex-col h-full min-h-0">
-              <ChatMessagesView />
-            </div>
+            <SalonChatDockBody
+              salon={salon}
+              queue={queue}
+              proposals={proposals}
+              loadingProposals={loadingProposals}
+              hostCanControl={canControlPlayback}
+              participantMode={!canControlPlayback}
+              skipping={skipping}
+              reordering={reordering}
+              onSkip={canControlPlayback ? handleSkip : undefined}
+              onPlayItem={canControlPlayback ? handlePlayQueue : undefined}
+              onReorder={canControlPlayback ? handleReorderQueue : undefined}
+              onAccept={canControlPlayback ? handleAccept : undefined}
+              onReject={canControlPlayback ? rejectProposal : undefined}
+              currentUserId={user?.id}
+              onUpvote={handleUpvote}
+              proposeSearch={participantProposeSearch}
+              chatInput={<ChatInputBar />}
+              onDockTabChange={setChatDockTab}
+            />
           }
-          chatInput={<ChatInputBar />}
         />
         <ChatModals />
       </ChatRoomProvider>

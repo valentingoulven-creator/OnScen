@@ -735,6 +735,7 @@ export interface SalonTrackProposal {
   youtubeUrl?: string;
   status: SalonProposalStatus;
   createdAt: number;
+  upvotes?: string[];
 }
 
 export interface Salon {

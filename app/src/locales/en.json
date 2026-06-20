@@ -137,6 +137,11 @@
     "endSalon": "End room",
     "endSalonConfirm": "End the room for all listeners?",
     "chatTitle": "Room chat",
+    "chatDock": {
+      "tabChat": "Chat",
+      "tabQueue": "Queue",
+      "titleQueue": "Queue"
+    },
     "participants": {
       "open": "Participants",
       "title": "Participants",

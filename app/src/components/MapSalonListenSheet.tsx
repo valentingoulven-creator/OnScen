@@ -161,6 +161,7 @@ export function MapSalonListenSheet({
     playQueueItem,
     acceptProposal,
     rejectProposal,
+    upvoteProposal,
     proposeTrack,
     reorderQueue,
   } = useSalonQueueSync(salon.id, token, isHost, salon.queue);
@@ -468,6 +469,10 @@ export function MapSalonListenSheet({
                   : undefined
               }
               onRejectProposal={hostCanControl ? rejectProposal : undefined}
+              onUpvoteProposal={async (proposalId) => {
+                await upvoteProposal(proposalId);
+              }}
+              currentUserId={user?.id}
               onProposeTrack={!isHost ? proposeTrack : undefined}
               mapInline
               playbackActive={mapPlaybackActive}

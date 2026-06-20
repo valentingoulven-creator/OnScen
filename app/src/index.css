@@ -320,7 +320,6 @@ body {
   z-index: 60;
   isolation: isolate;
   --salon-host-drawer-viewport-bottom: 0px;
-  --salon-host-drawer-chrome-h: 3.5rem;
 }
 
 /* Shell classique : réserve la barre d'onglets flottante (Reels, DM…) sous le salon */
@@ -1807,6 +1806,92 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   min-height: 0;
 }
 
+/* Salon — onglets flottants Chat / File d'attente dans le dock gauche */
+.salon-chat-dock-tabs {
+  position: relative;
+  min-height: 0;
+}
+
+.salon-chat-dock-tabs__tabs {
+  position: absolute;
+  left: 0.5rem;
+  top: 0.5rem;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  pointer-events: none;
+}
+
+.salon-chat-dock-tabs__content {
+  width: 100%;
+}
+
+.salon-chat-dock-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.375rem;
+  height: 2.375rem;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 9999px;
+  background: rgb(12 12 20 / 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #5a5a7a;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow:
+    0 2px 8px rgb(0 0 0 / 0.35),
+    0 1px 2px rgb(0 0 0 / 0.25);
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.salon-chat-dock-tab:hover {
+  color: #9898b0;
+  background: rgb(18 18 28 / 0.85);
+  border-color: rgb(255 255 255 / 0.14);
+}
+
+.salon-chat-dock-tab--active {
+  color: #c084fc;
+  background: rgb(147 51 234 / 0.28);
+  border-color: rgb(147 51 234 / 0.5);
+  box-shadow:
+    0 0 0 1px rgb(147 51 234 / 0.4),
+    0 0 14px rgb(147 51 234 / 0.35),
+    0 2px 8px rgb(0 0 0 / 0.35);
+}
+
+.salon-chat-dock-tab__icon {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+}
+
+.salon-chat-dock-tab__badge {
+  position: absolute;
+  top: 0.125rem;
+  right: 0.125rem;
+  min-width: 0.875rem;
+  height: 0.875rem;
+  padding: 0 0.1875rem;
+  border-radius: 9999px;
+  background: rgb(147 51 234 / 0.9);
+  color: #fff;
+  font-size: 0.5rem;
+  font-weight: 700;
+  line-height: 0.875rem;
+  text-align: center;
+  pointer-events: none;
+}
+
 /* Live — panneau chat ancré en bas (chatDock=bottom) */
 /* Live — scène vidéo prioritaire (majorité de l'écran) */
 .room-theater-video-stage {
@@ -2128,7 +2213,7 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   height: 100% !important;
 }
 
-/* Salon YouTube — tiroir hôte repliable (Recherche | Playlist | File) */
+/* Salon YouTube — panneau profil hôte */
 .salon-youtube-host-drawer-wrap {
   position: relative;
   z-index: 25;
@@ -2140,21 +2225,6 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   position: relative;
   display: flex;
   flex-direction: column;
-}
-
-.salon-youtube-host-drawer__chrome {
-  position: relative;
-  z-index: 2;
-  flex-shrink: 0;
-  min-height: var(--salon-host-drawer-chrome-h);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.375rem 0.625rem;
-  border-top: 1px solid #1e1e2f;
-  background: rgba(11, 11, 15, 0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
 }
 
 .salon-youtube-host-drawer__tab-rail {
@@ -2286,45 +2356,8 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   box-shadow: 0 0 0 1.5px rgba(11, 11, 15, 0.9);
 }
 
-.salon-youtube-host-drawer__toggle {
-  flex-shrink: 0;
-  width: 2.75rem;
-  height: 2.75rem;
-  min-width: 2.75rem;
-  min-height: 2.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.04);
-  color: #6b6b8a;
-  cursor: pointer;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  transition:
-    color 0.2s ease,
-    background 0.2s ease,
-    border-color 0.2s ease;
-}
-
-.salon-youtube-host-drawer__toggle:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.12);
-}
-
-.salon-youtube-host-drawer__toggle-icon {
-  transition: transform 0.28s cubic-bezier(0.34, 1.2, 0.64, 1);
-}
-
-.salon-youtube-host-drawer__toggle-icon--collapsed {
-  transform: rotate(180deg);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .salon-youtube-host-drawer__tab-indicator,
-  .salon-youtube-host-drawer__toggle-icon,
   .salon-youtube-host-drawer__tab-icon {
     transition-duration: 0.01ms;
   }
@@ -2343,17 +2376,13 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   pointer-events: auto;
 }
 
-.salon-youtube-host-drawer__content[hidden] {
-  display: none;
-}
-
-/* Grand salon YouTube — vidéo prioritaire, tiroir compact replié */
+/* Grand salon YouTube — vidéo prioritaire, panneau profil hôte */
 .ms-salon-fullscreen-overlay .room-theater-video-stage {
   flex: 1 1 auto;
   min-height: min(52dvh, 52vh);
 }
 
-.ms-salon-fullscreen-overlay .salon-youtube-host-drawer-wrap:has([data-expanded='true']) {
+.ms-salon-fullscreen-overlay .salon-youtube-host-drawer-wrap {
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45);
 }
 
