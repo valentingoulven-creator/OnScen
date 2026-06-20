@@ -1,25 +1,33 @@
 /** Floating PiP preview — shows the YouTube video for a salon without joining it. */
 
 import { createPortal } from 'react-dom';
-import { computePlaybackPositionMs, buildYouTubeEmbedUrl, isValidYoutubeVideoId } from '../lib/salonPlayback';
+import {
+  computePlaybackPositionMs,
+  buildYouTubeEmbedUrl,
+  resolveSalonYoutubeTrackId,
+} from '../lib/salonPlayback';
 import { useDraggableVideoPip, VIDEO_PIP_WIDTH, VIDEO_PIP_HEADER_HEIGHT } from './DraggableVideoPip';
 import type { Salon } from '../types';
 
 function SalonPipPreviewFloatInner({
   salon,
-  trackId,
+  videoId,
   onJoin,
   onClose,
 }: {
   salon: Salon;
-  trackId: string;
+  videoId: string | undefined;
   onJoin: () => void;
   onClose: () => void;
 }) {
   const pip = useDraggableVideoPip(true, onJoin);
-  const positionSec = computePlaybackPositionMs(salon.playbackState) / 1000;
   const videoH = Math.round((VIDEO_PIP_WIDTH * 9) / 16);
-  const src = buildYouTubeEmbedUrl(trackId, positionSec, true);
+  const positionSec = videoId
+    ? computePlaybackPositionMs(salon.playbackState) / 1000
+    : 0;
+  const src = videoId
+    ? buildYouTubeEmbedUrl(videoId, positionSec, true, { controls: true, mute: false })
+    : null;
 
   return createPortal(
     <div
@@ -39,7 +47,7 @@ function SalonPipPreviewFloatInner({
           type="button"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={onJoin}
-          className="shrink-0 px-2 py-0.5 rounded text-[9px] text-purple-200 hover:bg-purple-600/30 transition"
+          className="shrink-0 px-2 py-0.5 rounded text-[9px] bg-red-600 hover:bg-red-500 text-white transition"
           title="Rejoindre le salon"
         >
           Rejoindre
@@ -54,12 +62,21 @@ function SalonPipPreviewFloatInner({
           ×
         </button>
       </div>
-      <iframe
-        src={src}
-        allow="autoplay; encrypted-media"
-        style={{ width: VIDEO_PIP_WIDTH, height: videoH, border: 'none', display: 'block' }}
-        title={salon.title}
-      />
+      {src ? (
+        <iframe
+          src={src}
+          allow="autoplay; encrypted-media; picture-in-picture"
+          style={{ width: VIDEO_PIP_WIDTH, height: videoH, border: 'none', display: 'block' }}
+          title={salon.title}
+        />
+      ) : (
+        <div
+          className="flex items-center justify-center text-[11px] text-gray-500 bg-black"
+          style={{ width: VIDEO_PIP_WIDTH, height: videoH }}
+        >
+          Chargement…
+        </div>
+      )}
     </div>,
     document.body
   );
@@ -74,13 +91,11 @@ export function SalonPipPreviewFloat({
   onJoin: () => void;
   onClose: () => void;
 }) {
-  if (salon.platform !== 'youtube') return null;
-  const trackId = salon.playbackState.trackId;
-  if (!isValidYoutubeVideoId(trackId)) return null;
+  const videoId = resolveSalonYoutubeTrackId(salon.playbackState);
   return (
     <SalonPipPreviewFloatInner
       salon={salon}
-      trackId={trackId}
+      videoId={videoId}
       onJoin={onJoin}
       onClose={onClose}
     />

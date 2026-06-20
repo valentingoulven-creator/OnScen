@@ -93,13 +93,20 @@ export function buildTrackUrlAtPosition(
   return base;
 }
 
-export function buildYouTubeEmbedUrl(trackId: string, startSec = 0, autoplay = false): string {
+export function buildYouTubeEmbedUrl(
+  trackId: string,
+  startSec = 0,
+  autoplay = false,
+  options?: { controls?: boolean; mute?: boolean }
+): string {
   const params = new URLSearchParams({
     enablejsapi: '1',
     start: String(Math.max(0, Math.floor(startSec))),
     rel: '0',
   });
   if (autoplay) params.set('autoplay', '1');
+  if (options?.controls !== undefined) params.set('controls', options.controls ? '1' : '0');
+  if (options?.mute !== undefined) params.set('mute', options.mute ? '1' : '0');
   return `https://www.youtube.com/embed/${trackId}?${params.toString()}`;
 }
 

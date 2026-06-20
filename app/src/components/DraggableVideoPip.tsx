@@ -24,15 +24,9 @@ function readPosition(): { x: number; y: number } | null {
   return null;
 }
 
-function defaultBottomRight(): { x: number; y: number } {
-  const w = typeof window !== 'undefined' ? window.innerWidth : 800;
-  const h = typeof window !== 'undefined' ? window.innerHeight : 600;
-  const videoH = Math.round((VIDEO_PIP_WIDTH * 9) / 16);
-  const totalH = VIDEO_PIP_HEADER_HEIGHT + videoH;
-  return {
-    x: clamp(w - VIDEO_PIP_WIDTH - MARGIN, MARGIN, w - VIDEO_PIP_WIDTH),
-    y: clamp(h - totalH - MARGIN, MARGIN, h - totalH),
-  };
+/** Default to just below the map filter chips (top-left, ~80 px from top). */
+function defaultBelowFilters(): { x: number; y: number } {
+  return { x: MARGIN, y: 80 };
 }
 
 export interface VideoPipFloatApi {
@@ -42,7 +36,7 @@ export interface VideoPipFloatApi {
 }
 
 export function useDraggableVideoPip(active: boolean, onClose: () => void): VideoPipFloatApi {
-  const [pos, setPos] = useState<{ x: number; y: number }>(() => readPosition() ?? defaultBottomRight());
+  const [pos, setPos] = useState<{ x: number; y: number }>(() => readPosition() ?? defaultBelowFilters());
   const dragRef = useRef<{
     active: boolean;
     pointerId: number;
