@@ -35,6 +35,7 @@ import { LiveVideoStage } from '../components/LiveVideoStage';
 import { LiveKitVideoStage } from '../components/LiveKitVideoStage';
 import { LiveCloudflareHostPanel } from '../components/LiveCloudflareHostPanel';
 import { ReportContentModal } from '../components/ReportContentModal';
+import { useDraggableVideoPip } from '../components/DraggableVideoPip';
 import type { ChatMessage, DmContact, Live, AppNotification, PlaybackState } from '../types';
 
 const SOUNDY_BASE_URL = 'https://getsoundy.com';
@@ -104,6 +105,8 @@ export function LivePage({
   const [archivedPlaybackUrl, setArchivedPlaybackUrl] = useState<string | null>(null);
   const [durationWarning, setDurationWarning] = useState(false);
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
+  const [livePipActive, setLivePipActive] = useState(false);
+  const livePip = useDraggableVideoPip(livePipActive, () => setLivePipActive(false));
   const {
     videoRef,
     active: cameraLocalActive,
@@ -1292,6 +1295,8 @@ export function LivePage({
             streamEnded={viewerStreamEnded}
             streamEndedTitle={streamEndedTitle}
             streamEndedHint={streamEndedHint}
+            videoFloat={livePipActive ? livePip : undefined}
+            onPipOpen={!isHost ? () => setLivePipActive(true) : undefined}
             overlay={
               <>
                 {isHost && isCloudflareStream && token ? (

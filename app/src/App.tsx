@@ -30,6 +30,7 @@ import {
 import { OnboardingPage } from './pages/OnboardingPage';
 import { GenreOnboardingPrompt, shouldShowGenrePrompt } from './components/GenreOnboardingPrompt';
 import { SalonPipPreviewFloat } from './components/SalonPipPreviewFloat';
+import { LivePipPreviewFloat } from './components/LivePipPreviewFloat';
 import { NotificationBell } from './components/NotificationBell';
 import { AdminHeaderButton } from './components/AdminHeaderButton';
 import { PrivacyVisibilityMenu } from './components/PrivacyVisibilityMenu';
@@ -66,7 +67,7 @@ import {
   useSalonSocketMembership,
   type SalonForcedEndReason,
 } from './hooks/useSalonSocketMembership';
-import type { NearbyPerson, Salon } from './types';
+import type { NearbyPerson, Salon, Live } from './types';
 
 // Heavy pages are lazy-loaded to defer bundle parsing of Leaflet, react-globe.gl,
 // and other large media deps until the user first visits each tab.
@@ -140,6 +141,8 @@ export default function App() {
   const [restoreSalonOnMapId, setRestoreSalonOnMapId] = useState<string | null>(null);
   /** Prévisualisation PiP sans rejoindre (clic sidebar carte). */
   const [salonPipPreview, setSalonPipPreview] = useState<Salon | null>(null);
+  /** Prévisualisation live PiP sans rejoindre (clic sidebar carte / marqueur live). */
+  const [livePipPreview, setLivePipPreview] = useState<Live | null>(null);
   const [showGenrePrompt, setShowGenrePrompt] = useState(false);
   /** Publication du fil à mettre en avant (depuis la carte). */
   const [focusFeedPostId, setFocusFeedPostId] = useState<string | null>(null);
@@ -175,7 +178,16 @@ export default function App() {
     setActiveSalonSession(null);
     setRestoreSalonOnMapId(null);
     setMapSalonActiveId(null);
+    setSalonPipPreview(null);
+    setLivePipPreview(null);
   }, [token]);
+
+  useEffect(() => {
+    if (tab !== 'map') {
+      setSalonPipPreview(null);
+      setLivePipPreview(null);
+    }
+  }, [tab]);
 
   useEffect(() => {
     if (user?.onboardingCompleted && shouldShowGenrePrompt(user.favoriteGenres)) {
@@ -480,6 +492,11 @@ export default function App() {
   /** Clic sidebar carte : aperçu YouTube sans rejoindre le salon. */
   const openSalonPipPreview = useCallback((salon: Salon) => {
     setSalonPipPreview(salon);
+  }, []);
+
+  /** Clic sidebar carte : aperçu live sans rejoindre (HLS/WebRTC). */
+  const openLivePipPreview = useCallback((live: Live) => {
+    setLivePipPreview(live);
   }, []);
 
   const minimizeSalonToMap = useCallback((salonId: string, salonTitle?: string) => {
@@ -997,6 +1014,7 @@ export default function App() {
                     onOpenSalon={openSalonPage}
                     onOpenSalonPip={openSalonPip}
                     onOpenSalonPipPreview={openSalonPipPreview}
+                    onOpenLivePipPreview={openLivePipPreview}
                     onOpenLive={openLive}
                     onOpenProfile={openProfileFromPerson}
                     onOpenReel={openReelInTab}
@@ -1126,6 +1144,17 @@ export default function App() {
             openSalonPage(s.id, s.title);
           }}
           onClose={() => setSalonPipPreview(null)}
+        />
+      )}
+      {livePipPreview && (
+        <LivePipPreviewFloat
+          live={livePipPreview}
+          onJoin={() => {
+            const liveId = livePipPreview.id;
+            setLivePipPreview(null);
+            openLive(liveId);
+          }}
+          onClose={() => setLivePipPreview(null)}
         />
       )}
     </div>

@@ -1,12 +1,15 @@
 /** Floating PiP preview — shows the YouTube video for a salon without joining it. */
 
 import { createPortal } from 'react-dom';
+import { useEffect, useState } from 'react';
 import {
   computePlaybackPositionMs,
   buildYouTubeEmbedUrl,
   resolveSalonYoutubeTrackId,
 } from '../lib/salonPlayback';
 import { useDraggableVideoPip, VIDEO_PIP_WIDTH, VIDEO_PIP_HEADER_HEIGHT } from './DraggableVideoPip';
+import { useAuth } from '../context/AuthContext';
+import { api } from '../lib/api';
 import type { Salon } from '../types';
 
 function SalonPipPreviewFloatInner({
@@ -91,7 +94,27 @@ export function SalonPipPreviewFloat({
   onJoin: () => void;
   onClose: () => void;
 }) {
-  const videoId = resolveSalonYoutubeTrackId(salon.playbackState);
+  const { token } = useAuth();
+  const [videoId, setVideoId] = useState<string | undefined>(
+    () => resolveSalonYoutubeTrackId(salon.playbackState)
+  );
+
+  useEffect(() => {
+    const id = resolveSalonYoutubeTrackId(salon.playbackState);
+    if (id) {
+      setVideoId(id);
+      return;
+    }
+    if (!token) return;
+    let cancelled = false;
+    api.getSalon(token, salon.id).then(({ salon: fetched }) => {
+      if (cancelled) return;
+      const resolved = resolveSalonYoutubeTrackId(fetched.playbackState);
+      if (resolved) setVideoId(resolved);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [salon.id, salon.playbackState, token]);
+
   return (
     <SalonPipPreviewFloatInner
       salon={salon}

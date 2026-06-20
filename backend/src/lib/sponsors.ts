@@ -91,10 +91,7 @@ const DEFAULT_SPONSORS: Omit<Sponsor, 'createdAt' | 'updatedAt'>[] = [
     kind: 'promo',
     displayDurationSec: 10,
     endsAt: 1783224000000,
-    mapVisibilityScope: 'region',
-    mapTargetRegionName: 'Le Crès',
-    mapTargetLat: 43.6489,
-    mapTargetLng: 3.8567,
+    mapVisibilityScope: 'france',
   },
   {
     id: 'les-deferlantes-2026',
@@ -643,6 +640,31 @@ export function reorderSponsors(ids: string[]): Sponsor[] {
     s.updatedAt = now();
   });
   return listSponsors();
+}
+
+/**
+ * Met à jour mapVisibilityScope des sponsors existants selon les valeurs par défaut.
+ * Utile après un changement de ciblage dans DEFAULT_SPONSORS (ex. 'region' → 'france').
+ * Retourne le nombre de sponsors mis à jour.
+ */
+export function syncDefaultSponsorScopes(): number {
+  const ts = now();
+  let updated = 0;
+  for (const seed of DEFAULT_SPONSORS) {
+    if (seed.mapVisibilityScope == null) continue;
+    const sponsor = db.sponsors.find((s) => s.id === seed.id);
+    if (!sponsor) continue;
+    if (sponsor.mapVisibilityScope === seed.mapVisibilityScope) continue;
+    sponsor.mapVisibilityScope = seed.mapVisibilityScope;
+    if (seed.mapVisibilityScope === 'france') {
+      sponsor.mapTargetRegionName = undefined;
+      sponsor.mapTargetLat = undefined;
+      sponsor.mapTargetLng = undefined;
+    }
+    sponsor.updatedAt = ts;
+    updated++;
+  }
+  return updated;
 }
 
 /** Insère les sponsors par défaut manquants (upsert par id). Retourne le nombre ajouté. */

@@ -73,7 +73,7 @@ import { releaseAppMediaFocus, requestAppMediaFocus } from '../lib/appMediaFocus
 import { clearMapInlineListenSession } from '../lib/mapListenSession';
 import { clearSalonUrlFromBar } from '../lib/salonDeepLink';
 import { USERNAME_WAVE_CLASS } from '../lib/usernameColor';
-import { mergeRemotePlaybackState } from '../lib/salonPlayback';
+import { mergeRemotePlaybackState, resolveSalonYoutubeTrackId } from '../lib/salonPlayback';
 import {
   nearbyCacheKey,
   clearNearbyCache,
@@ -154,6 +154,8 @@ interface HomePageProps {
   onOpenSalonPip?: (salonId: string, salonTitle?: string, isHost?: boolean) => void;
   /** Aperçu PiP sans rejoindre — clic sidebar carte. Remplace onOpenSalonPip pour le flux prévisualisation. */
   onOpenSalonPipPreview?: (salon: Salon) => void;
+  /** Aperçu live PiP sans rejoindre (HLS/WebRTC) — persiste toutes les pages via App root. */
+  onOpenLivePipPreview?: (live: Live) => void;
   onOpenLive: (liveId: string) => void;
   onOpenLiveTab?: () => void;
   onOpenProfile: (person: NearbyPerson) => void;
@@ -189,6 +191,7 @@ export function HomePage({
   onOpenSalon,
   onOpenSalonPip,
   onOpenSalonPipPreview,
+  onOpenLivePipPreview,
   onOpenLive,
   onOpenLiveTab,
   onOpenProfile,
@@ -248,7 +251,6 @@ export function HomePage({
   const [eventFilterCriteria, setEventFilterCriteria] =
     useState<MapEventFilterCriteria>(createDefaultEventFilter);
   const [showEventFilterSheet, setShowEventFilterSheet] = useState(false);
-
   useEffect(() => {
     const location = resolveDefaultUserCityLabel(user?.city);
     if (!location) return;
@@ -1429,14 +1431,6 @@ export function HomePage({
     }
   }, [lives, token]);
 
-  /** Sélectionne un salon par id dans la bottom sheet carte (ne navigue PAS vers SalonPage). */
-  const openSalonOnMap = useCallback(async (salonId: string): Promise<boolean> => {
-    const salon = await resolveSalonById(salonId);
-    if (!salon) return false;
-    flyMapTo(salon.latitude, salon.longitude);
-    return trySelectSalon(salon, { closeMapProfile: true });
-  }, [resolveSalonById, trySelectSalon, flyMapTo]);
-
   const isOwnActiveHostedSalon = useCallback(
     (salon: Salon) =>
       Boolean(
@@ -1511,50 +1505,55 @@ export function HomePage({
     [onCloseMapProfile, onOpenSalonPipPreview, onOpenSalonPip, user?.id]
   );
 
-  const openLiveOnMap = useCallback((live: Live) => {
-    void (async () => {
-      flyMapTo(live.latitude, live.longitude);
-
-      const salon = await resolveSalonForLive(live);
-      if (salon) {
-        await trySelectSalon(salon, { closeMapProfile: true });
-        return;
-      }
-
+  const openLivePipFromMapSidebar = useCallback(
+    (live: Live) => {
       onCloseMapProfile?.();
       setSelected(null);
       setSalonSheetExpanded(false);
-      onOpenLive(live.id);
-    })();
-  }, [
-    resolveSalonForLive,
-    trySelectSalon,
-    flyMapTo,
-    onCloseMapProfile,
-    onOpenLive,
-  ]);
+      onOpenLivePipPreview?.(live);
+    },
+    [onCloseMapProfile, onOpenLivePipPreview]
+  );
 
-  /** Clic personne (carte ou liste) : salon replié en priorité, sinon live (jamais profil). */
-  const openNearbyPerson = useCallback((person: NearbyPerson) => {
+  /** Clic marqueur personne sur la carte : PiP uniquement (même chemin que la sidebar). */
+  const handleMapPersonClick = useCallback((person: NearbyPerson) => {
     void (async () => {
       onCloseMapProfile?.();
 
       const salonId = await resolveSalonIdForPerson(person);
       if (salonId) {
-        await openSalonOnMap(salonId);
-        return;
+        const salon = await resolveSalonById(salonId);
+        if (salon) {
+          flyMapTo(salon.latitude, salon.longitude);
+          openSalonPipFromMapSidebar(salon);
+          return;
+        }
       }
 
       if (person.isLive && person.liveId) {
         const live = await resolveLiveForPerson(person);
-        if (live) openLiveOnMap(live);
+        if (!live) return;
+        flyMapTo(live.latitude, live.longitude);
+
+        const salon = await resolveSalonForLive(live);
+        if (salon && resolveSalonYoutubeTrackId(salon.playbackState)) {
+          openSalonPipFromMapSidebar(salon);
+          return;
+        }
+
+        openLivePipFromMapSidebar(live);
       }
     })();
-  }, [resolveLiveForPerson, resolveSalonIdForPerson, openLiveOnMap, openSalonOnMap, onCloseMapProfile]);
-
-  const handleMapPersonClick = useCallback((person: NearbyPerson) => {
-    openNearbyPerson(person);
-  }, [openNearbyPerson]);
+  }, [
+    resolveSalonIdForPerson,
+    resolveSalonById,
+    resolveLiveForPerson,
+    resolveSalonForLive,
+    openSalonPipFromMapSidebar,
+    openLivePipFromMapSidebar,
+    flyMapTo,
+    onCloseMapProfile,
+  ]);
 
   /** Clic salon sidebar : PiP vidéo uniquement, carte reste visible. */
   const handleSidebarSalonClick = useCallback((salon: Salon) => {
@@ -1568,22 +1567,19 @@ export function HomePage({
       flyMapTo(l.latitude, l.longitude);
 
       const salon = await resolveSalonForLive(l);
-      if (salon) {
+      if (salon && resolveSalonYoutubeTrackId(salon.playbackState)) {
         openSalonPipFromMapSidebar(salon);
         return;
       }
 
-      onCloseMapProfile?.();
-      setSelected(null);
-      setSalonSheetExpanded(false);
-      onOpenLive(l.id);
+      // True HLS/WebRTC live (no linked YouTube salon) → preview PiP, no socket join
+      openLivePipFromMapSidebar(l);
     })();
   }, [
     resolveSalonForLive,
     openSalonPipFromMapSidebar,
+    openLivePipFromMapSidebar,
     flyMapTo,
-    onCloseMapProfile,
-    onOpenLive,
   ]);
 
   /** Clic personne sidebar (En direct) : salon/live → PiP, pas de bottom sheet. */
@@ -1607,14 +1603,13 @@ export function HomePage({
         flyMapTo(live.latitude, live.longitude);
 
         const salon = await resolveSalonForLive(live);
-        if (salon) {
+        if (salon && resolveSalonYoutubeTrackId(salon.playbackState)) {
           openSalonPipFromMapSidebar(salon);
           return;
         }
 
-        setSelected(null);
-        setSalonSheetExpanded(false);
-        onOpenLive(live.id);
+        // True HLS/WebRTC live → preview PiP, no socket join
+        openLivePipFromMapSidebar(live);
       }
     })();
   }, [
@@ -1623,33 +1618,29 @@ export function HomePage({
     resolveLiveForPerson,
     resolveSalonForLive,
     openSalonPipFromMapSidebar,
+    openLivePipFromMapSidebar,
     flyMapTo,
     onCloseMapProfile,
-    onOpenLive,
   ]);
 
-  /** Clic marqueur live sur la carte : fiche salon repliée (pas plein écran). */
+  /** Clic marqueur live sur la carte : PiP uniquement, pas de bottom sheet. */
   const handleMapLiveClick = useCallback((l: Live) => {
     void (async () => {
       flyMapTo(l.latitude, l.longitude);
 
       const salon = await resolveSalonForLive(l);
       if (salon) {
-        await trySelectSalon(salon, { closeMapProfile: true });
+        openSalonPipFromMapSidebar(salon);
         return;
       }
 
-      onCloseMapProfile?.();
-      setSelected(null);
-      setSalonSheetExpanded(false);
-      onOpenLive(l.id);
+      openLivePipFromMapSidebar(l);
     })();
   }, [
     resolveSalonForLive,
-    trySelectSalon,
+    openSalonPipFromMapSidebar,
+    openLivePipFromMapSidebar,
     flyMapTo,
-    onCloseMapProfile,
-    onOpenLive,
   ]);
 
   const handleMapBackgroundClick = useCallback(() => {
@@ -1663,8 +1654,8 @@ export function HomePage({
       onOpenSalon?.(salon.id, salon.title, true);
       return;
     }
-    void trySelectSalon(salon, { closeMapProfile: true });
-  }, [trySelectSalon, flyMapTo, isOwnActiveHostedSalon, onOpenSalon]);
+    openSalonPipFromMapSidebar(salon);
+  }, [openSalonPipFromMapSidebar, flyMapTo, isOwnActiveHostedSalon, onOpenSalon]);
 
   const closeSalonSheet = useCallback(() => {
     dismissSalonSheetOnly();
@@ -2196,6 +2187,7 @@ export function HomePage({
             </button>
           ))}
       </div>
+
     </div>
   );
 }

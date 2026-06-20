@@ -32,7 +32,7 @@ import {
   ensureMsdevListenerFollowersCount,
 } from './lib/msdevDemoAccounts';
 import { ensureAccessAdmins, isAccessControlEnabled, loadAccessControlFromPersist } from './lib/accessControl';
-import { ensureDefaultSponsors, migrateSponsorMapVisibility } from './lib/sponsors';
+import { ensureDefaultSponsors, migrateSponsorMapVisibility, syncDefaultSponsorScopes } from './lib/sponsors';
 import { ensureDefaultSponsorPlatformConfig } from './lib/sponsorPlatformConfig';
 import { repairInvalidGeoInDb } from './lib/mapCoords';
 import { loadSalonsLivesFromPostgres } from './lib/pgSalonsLives';
@@ -347,6 +347,11 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
   const sponsorGeoMigrated = migrateSponsorMapVisibility();
   if (sponsorGeoMigrated > 0) {
     console.log(`[melosong] Ciblage géo sponsors migré : ${sponsorGeoMigrated} entrée(s)`);
+    schedulePersist();
+  }
+  const sponsorScopesSynced = syncDefaultSponsorScopes();
+  if (sponsorScopesSynced > 0) {
+    console.log(`[melosong] Portée carte sponsors synchronisée : ${sponsorScopesSynced} entrée(s)`);
     schedulePersist();
   }
 

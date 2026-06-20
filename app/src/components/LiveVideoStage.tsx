@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { VIDEO_PIP_WIDTH, VIDEO_PIP_HEADER_HEIGHT, type VideoPipFloatApi } from './DraggableVideoPip';
 import {
   LIVE_CAMERA_HOST_CLOUDFLARE_OBS_REQUIRED,
   LIVE_CAMERA_VIEWER_AUDIO_BLOCKED,
@@ -73,6 +74,15 @@ function LiveVideoExpandIcon() {
   return (
     <svg aria-hidden className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3" />
+    </svg>
+  );
+}
+
+function LiveVideoPipIcon() {
+  return (
+    <svg aria-hidden className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="2" y="3" width="20" height="14" rx="2" />
+      <rect x="12" y="10" width="8" height="5" rx="1" fill="currentColor" stroke="none" opacity="0.7" />
     </svg>
   );
 }
@@ -189,8 +199,8 @@ function statusLabel(
     case 'loading':
     default:
       if (viewerHasVideoTrack) return LIVE_CAMERA_VIEWER_VIDEO_PENDING;
-      if (viewerRelayPhase === 'connecting') return 'Connexion WebRTC…';
-      if (viewerRelayPhase === 'waiting') return 'En attente du host…';
+      if (viewerRelayPhase === 'connecting') return 'Connexion WebRTC\u2026';
+      if (viewerRelayPhase === 'waiting') return 'En attente du host\u2026';
       return LIVE_CAMERA_VIEWER_NOTE;
   }
 }
@@ -232,6 +242,10 @@ export type LiveVideoStageProps = {
   streamEnded?: boolean;
   streamEndedTitle?: string;
   streamEndedHint?: string;
+  /** PiP flottant in-app : vid\u00e9o seule d\u00e9plaçable, toujours au premier plan. */
+  videoFloat?: VideoPipFloatApi;
+  /** Appel\u00e9 quand l\u2019utilisateur clique sur \u29c9 pour activer le PiP. */
+  onPipOpen?: () => void;
 };
 
 export function LiveVideoStage({
@@ -267,8 +281,10 @@ export function LiveVideoStage({
   overlay,
   enabled = true,
   streamEnded = false,
-  streamEndedTitle = 'Stream terminé',
+  streamEndedTitle = 'Stream termin\u00e9',
   streamEndedHint,
+  videoFloat,
+  onPipOpen,
 }: LiveVideoStageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isVideoFullscreen, setIsVideoFullscreen] = useState(false);
@@ -306,18 +322,18 @@ export function LiveVideoStage({
 
   const playOverlayHint = (() => {
     if (isHost) {
-      return 'Appuyez pour démarrer l’aperçu caméra';
+      return 'Appuyez pour d\u00e9marrer l\u2019aper\u00e7u cam\u00e9ra';
     }
     if (!viewerHasVideoTrack) {
       return LIVE_CAMERA_VIEWER_VIDEO_PENDING;
     }
     if (viewerPlaybackBlocked) {
-      return 'Appuyez pour démarrer la lecture vidéo';
+      return 'Appuyez pour d\u00e9marrer la lecture vid\u00e9o';
     }
     return LIVE_CAMERA_VIEWER_AUDIO_BLOCKED;
   })();
 
-  const playOverlayLabel = isHost || viewerPlaybackBlocked ? 'Lancer la vidéo' : 'Activer le son';
+  const playOverlayLabel = isHost || viewerPlaybackBlocked ? 'Lancer la vid\u00e9o' : 'Activer le son';
   const status = streamEnded
     ? streamEndedTitle
     : statusLabel(stageState, {
@@ -380,7 +396,7 @@ export function LiveVideoStage({
         enterTheaterFallback();
         return;
       }
-      onFullscreenError?.('Impossible d\'activer le plein écran sur cet appareil.');
+      onFullscreenError?.('Impossible d\'activer le plein \u00e9cran sur cet appareil.');
     });
   }, [enterTheaterFallback, onFullscreenError]);
 
@@ -499,13 +515,81 @@ export function LiveVideoStage({
 
   const videoRef = isHost ? hostVideoRef : viewerVideoRef;
 
+  const VIDEO_PIP_VIDEO_HEIGHT = Math.round(VIDEO_PIP_WIDTH * 9 / 16);
+  const pipContainerStyle: CSSProperties | undefined = videoFloat
+    ? {
+        position: 'fixed',
+        zIndex: 99999,
+        left: videoFloat.position.x,
+        top: videoFloat.position.y,
+        width: VIDEO_PIP_WIDTH,
+        height: VIDEO_PIP_HEADER_HEIGHT + VIDEO_PIP_VIDEO_HEIGHT,
+        borderRadius: 8,
+        border: '1px solid rgba(255,255,255,0.15)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
+        overflow: 'hidden',
+      }
+    : undefined;
+
   return (
+    <>
+      {/* Ghost placeholder — maintains layout space while the container is position:fixed in PiP mode */}
+      {videoFloat && (
+        <div
+          className="flex-1 min-h-0 w-full flex flex-col items-center justify-center gap-3 bg-black"
+          aria-hidden
+        >
+          {albumArtUrl ? (
+            <img
+              src={albumArtUrl}
+              alt=""
+              className="w-16 h-16 rounded-xl object-cover shadow-lg opacity-60"
+            />
+          ) : (
+            <div className="w-16 h-16 rounded-xl bg-[#1a1a26] flex items-center justify-center text-2xl">
+              🎵
+            </div>
+          )}
+          <div className="text-center max-w-[12rem] px-2">
+            <p className="text-xs font-bold text-white truncate">{playbackTitle}</p>
+            <p className="text-[11px] text-gray-400 truncate">{playbackArtist}</p>
+          </div>
+          <p className="text-[10px] text-gray-600 mt-0.5">📺 Vid\u00e9o en mode PiP</p>
+        </div>
+      )}
     <div
       ref={containerRef}
       className={`live-video-container relative w-full h-full min-h-0 flex flex-col bg-black overflow-hidden${
         isLandscapeTheater ? ' live-video-container--landscape-theater' : ''
       }`}
+      style={pipContainerStyle}
     >
+      {/* Draggable PiP header — shown only when floating */}
+      {videoFloat && (
+        <div
+          className="live-video-pip__header shrink-0 flex items-center gap-1.5 px-2 border-b border-[#2a2a36] bg-[#14141c]/95 cursor-grab active:cursor-grabbing select-none touch-none"
+          style={{ height: VIDEO_PIP_HEADER_HEIGHT }}
+          onPointerDown={videoFloat.onHeaderPointerDown}
+        >
+          <span className="text-[10px] text-purple-400/80 leading-none shrink-0" aria-hidden>
+            ⠿
+          </span>
+          <p className="text-[9px] font-bold text-purple-400 uppercase tracking-widest flex-1 truncate min-w-0">
+            {playbackTitle}
+          </p>
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={videoFloat.onClose}
+            className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 transition text-sm"
+            title="Ancrer la vid\u00e9o"
+            aria-label="Ancrer la vid\u00e9o"
+          >
+            &#x2199;
+          </button>
+        </div>
+      )}
+
       {/* Video layer — single element, always mounted when role known */}
       <div className="live-video-stage-area">
         <video
@@ -517,7 +601,7 @@ export function LiveVideoStage({
             showVideo ? '' : ' opacity-0 pointer-events-none'
           }`}
           aria-hidden={!showVideo}
-          aria-label={isHost ? 'Aperçu caméra' : 'Flux vidéo du host'}
+          aria-label={isHost ? 'Aper\u00e7u cam\u00e9ra' : 'Flux vid\u00e9o du host'}
         />
 
         {/* Placeholder — album art only when no live video */}
@@ -549,7 +633,7 @@ export function LiveVideoStage({
                     onClick={() => onRetryHlsPlayback()}
                     className="px-4 py-2 rounded-full text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white"
                   >
-                    Réessayer
+                    R\u00e9essayer
                   </button>
                 ) : onRetryViewerRelay ? (
                   <button
@@ -557,7 +641,7 @@ export function LiveVideoStage({
                     onClick={() => onRetryViewerRelay()}
                     className="px-4 py-2 rounded-full text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white"
                   >
-                    Réessayer
+                    R\u00e9essayer
                   </button>
                 ) : null}
                 <button
@@ -565,7 +649,7 @@ export function LiveVideoStage({
                   onClick={() => window.location.reload()}
                   className="px-4 py-2 rounded-full text-xs font-bold bg-[#1a1a26] border border-white/15 text-gray-200 hover:text-white"
                 >
-                  Rafraîchir la page
+                  Rafra\u00eechir la page
                 </button>
               </div>
             )}
@@ -584,9 +668,9 @@ export function LiveVideoStage({
               data-live-play-unlock
               onClick={handleUnlockPlayback}
               className="flex flex-col items-center gap-3 px-8 py-6 rounded-2xl bg-purple-600 hover:bg-purple-500 active:scale-95 transition shadow-xl"
-              aria-label={isHost ? 'Lancer l’aperçu caméra' : 'Lancer la vidéo et le son du live'}
+              aria-label={isHost ? 'Lancer l\u2019aper\u00e7u cam\u00e9ra' : 'Lancer la vid\u00e9o et le son du live'}
             >
-              <span className="text-4xl">▶</span>
+              <span className="text-4xl">&#9654;</span>
               <span className="text-base font-bold text-white">{playOverlayLabel}</span>
               <span className="text-xs text-purple-200 max-w-[14rem] text-center">
                 {playOverlayHint}
@@ -597,50 +681,67 @@ export function LiveVideoStage({
 
         {overlay}
 
-        {/* Fullscreen control */}
-        <div className="absolute top-2 left-2 z-30 pointer-events-auto">
-          {isVideoExpanded ? (
-            <button
-              type="button"
-              onClick={exitVideoFullscreen}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/70 border border-white/20 text-white text-[11px] font-bold backdrop-blur hover:bg-black/85 active:scale-95 transition"
-              aria-label="Quitter le plein écran"
-            >
-              <LiveVideoShrinkIcon />
-              <span className="hidden sm:inline">Quitter le plein écran</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={enterVideoFullscreen}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/70 border border-white/20 text-white text-[11px] font-bold backdrop-blur hover:bg-black/85 active:scale-95 transition"
-              aria-label="Plein écran"
-            >
-              <LiveVideoExpandIcon />
-              <span className="hidden sm:inline">Plein écran</span>
-            </button>
-          )}
-        </div>
+        {/* Fullscreen + PiP controls — hidden when container is already floating */}
+        {!videoFloat && (
+          <div className="absolute top-2 left-2 z-30 pointer-events-auto flex items-center gap-1.5">
+            {isVideoExpanded ? (
+              <button
+                type="button"
+                onClick={exitVideoFullscreen}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/70 border border-white/20 text-white text-[11px] font-bold backdrop-blur hover:bg-black/85 active:scale-95 transition"
+                aria-label="Quitter le plein \u00e9cran"
+              >
+                <LiveVideoShrinkIcon />
+                <span className="hidden sm:inline">Quitter le plein \u00e9cran</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={enterVideoFullscreen}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/70 border border-white/20 text-white text-[11px] font-bold backdrop-blur hover:bg-black/85 active:scale-95 transition"
+                aria-label="Plein \u00e9cran"
+              >
+                <LiveVideoExpandIcon />
+                <span className="hidden sm:inline">Plein \u00e9cran</span>
+              </button>
+            )}
+            {onPipOpen && !isVideoExpanded && (
+              <button
+                type="button"
+                onClick={onPipOpen}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/70 border border-white/20 text-white text-[11px] font-bold backdrop-blur hover:bg-black/85 active:scale-95 transition"
+                aria-label="D\u00e9tacher en PiP"
+                title="D\u00e9tacher la vid\u00e9o (PiP)"
+              >
+                <LiveVideoPipIcon />
+                <span className="hidden sm:inline">PiP</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Status bar — below video, never over it */}
-      <div
-        className={`shrink-0 px-3 py-2 border-t border-white/10 bg-[#0a0a0f] text-center text-[11px] leading-relaxed ${
-          stageState === 'error'
-            ? 'text-red-300'
-            : stageState === 'live'
-              ? 'text-emerald-300'
-              : stageState === 'loading'
-                ? 'text-gray-400'
-                : 'text-gray-500'
-        }`}
-        aria-live="polite"
-      >
-        {status}
-        {import.meta.env.DEV && !isHost && viewerDebugInfo ? (
-          <span className="block text-[9px] text-gray-600 mt-0.5 font-mono">{viewerDebugInfo}</span>
-        ) : null}
-      </div>
+      {/* Status bar — below video, never over it; hidden in PiP mode */}
+      {!videoFloat && (
+        <div
+          className={`shrink-0 px-3 py-2 border-t border-white/10 bg-[#0a0a0f] text-center text-[11px] leading-relaxed ${
+            stageState === 'error'
+              ? 'text-red-300'
+              : stageState === 'live'
+                ? 'text-emerald-300'
+                : stageState === 'loading'
+                  ? 'text-gray-400'
+                  : 'text-gray-500'
+          }`}
+          aria-live="polite"
+        >
+          {status}
+          {import.meta.env.DEV && !isHost && viewerDebugInfo ? (
+            <span className="block text-[9px] text-gray-600 mt-0.5 font-mono">{viewerDebugInfo}</span>
+          ) : null}
+        </div>
+      )}
     </div>
+    </>
   );
 }

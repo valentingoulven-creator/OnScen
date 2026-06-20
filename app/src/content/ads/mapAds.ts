@@ -39,12 +39,14 @@ export const MAP_ADS: MapAd[] = [
   {
     id: 'solar-festival-cres',
     title: 'Solar Festival au Crès',
-    subtitle: '5e édition — électro en bord de lac, 4 juillet 2026 · Petit Biscuit, KAS:ST & plus',
-    cta: 'Billetterie',
+    subtitle: '5e édition · 4 juillet 2026 · Lac du Crès, Montpellier · Petit Biscuit, KAS:ST & plus',
+    cta: 'Billetterie →',
     href: 'https://solarfestival.fr/billetterie',
-    accent: 'amber',
+    accent: 'cyan',
     sponsor: 'Solar Festival',
-    kind: 'promo',
+    kind: 'sponsored',
+    bannerImageUrl:
+      'https://images.unsplash.com/photo-1506157786151-b8491531f063?w=1280&h=192&fit=crop&q=80',
     logoUrl:
       'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=80&h=80&fit=crop',
     displayDurationSec: 10,

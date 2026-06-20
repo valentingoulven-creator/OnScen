@@ -147,6 +147,7 @@ export default defineConfig(({ mode }) => {
     proxy: {
       '/api': msdevProxy,
       '/uploads': msdevProxy,
+      '/tiles': msdevProxy,
       '/socket.io': { ...msdevProxy, ws: true },
     },
   },

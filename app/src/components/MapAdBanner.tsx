@@ -132,6 +132,22 @@ function MapAdBannerImageOnly({
   );
 }
 
+const ACCENT_BADGE_CLASS: Partial<Record<NonNullable<MapAd['accent']>, string>> = {
+  amber: 'bg-amber-500/15 text-amber-300 border-amber-400/25',
+  cyan: 'bg-cyan-500/15 text-cyan-200 border-cyan-400/30',
+  purple: 'bg-purple-500/15 text-purple-300 border-purple-400/25',
+  pink: 'bg-pink-500/15 text-pink-300 border-pink-400/25',
+  rose: 'bg-rose-500/15 text-rose-300 border-rose-400/25',
+};
+
+const ACCENT_CTA_CLASS: Partial<Record<NonNullable<MapAd['accent']>, string>> = {
+  amber: 'bg-amber-500/20 hover:bg-amber-400/30 border-amber-400/35 text-white',
+  cyan: 'bg-cyan-500/25 hover:bg-cyan-400/40 border-cyan-300/45 text-white',
+  purple: 'bg-purple-500/20 hover:bg-purple-400/30 border-purple-400/35 text-white',
+  pink: 'bg-pink-500/20 hover:bg-pink-400/30 border-pink-400/35 text-white',
+  rose: 'bg-rose-500/20 hover:bg-rose-400/30 border-rose-400/35 text-white',
+};
+
 function MapAdBannerFull({
   ad,
   bannerSrc,
@@ -146,12 +162,20 @@ function MapAdBannerFull({
   const badgeLabel = ad.kind === 'sponsored' ? 'Sponsorisé' : 'Promo';
   const accentGradient = resolveAccentGradientClass(ad.accent);
   const bgClass = bannerSrc
-    ? accentGradient
-      ? ''
-      : ''
+    ? ''
     : accentGradient
       ? `bg-gradient-to-r ${accentGradient}`
       : `bg-gradient-to-r ${SPONSOR_NEUTRAL_BANNER_BG}`;
+
+  const badgeColorClass =
+    ad.accent
+      ? (ACCENT_BADGE_CLASS[ad.accent] ?? 'bg-amber-500/15 text-amber-300 border-amber-400/25')
+      : 'bg-white/10 text-white/60 border-white/20';
+
+  const ctaColorClass =
+    ad.accent
+      ? (ACCENT_CTA_CLASS[ad.accent] ?? 'bg-white/15 hover:bg-white/25 border-white/20 text-white')
+      : 'bg-white/15 hover:bg-white/25 border-white/20 text-white';
 
   return (
     <div
@@ -162,19 +186,19 @@ function MapAdBannerFull({
           <img src={bannerSrc} alt="" className="absolute inset-0 w-full h-full object-cover" />
           {accentGradient ? (
             <div
-              className={`absolute inset-0 bg-gradient-to-r ${accentGradient} opacity-75`}
+              className={`absolute inset-0 bg-gradient-to-r ${accentGradient} opacity-70`}
               aria-hidden
             />
           ) : null}
-          <div className="absolute inset-0 bg-black/35" aria-hidden />
+          <div className="absolute inset-0 bg-black/30" aria-hidden />
         </>
       ) : null}
       <div className="absolute top-2 left-3 z-10 flex items-center gap-2">
-        <span className="text-[13.5px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-300 px-2 py-0.5 rounded-full border border-amber-400/25">
+        <span className={`text-[13.5px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${badgeColorClass}`}>
           {badgeLabel}
         </span>
         {ad.sponsor && (
-          <span className="text-[13.5px] font-semibold text-white/55 truncate max-w-[9rem] sm:max-w-[12rem]">
+          <span className="text-[13.5px] font-semibold text-white/60 truncate max-w-[9rem] sm:max-w-[12rem]">
             {ad.sponsor}
           </span>
         )}
@@ -193,7 +217,7 @@ function MapAdBannerFull({
         <button
           type="button"
           onClick={onCta}
-          className="shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-white/15 hover:bg-white/25 border border-white/20 text-[15px] sm:text-[16.5px] font-bold text-white whitespace-nowrap"
+          className={`shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border text-[15px] sm:text-[16.5px] font-bold whitespace-nowrap ${ctaColorClass}`}
         >
           {ad.cta}
         </button>
