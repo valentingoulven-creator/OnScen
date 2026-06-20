@@ -883,6 +883,7 @@ export function SalonPage({
               onUserUpdated={setUserFromProfile}
               onPlaybackStateChange={applyPlayback}
               theaterMode
+              salonFullScreen
               theaterSideDock
               salonQueueLayout={false}
               hostCanControl={hostCanControl}

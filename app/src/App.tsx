@@ -48,8 +48,14 @@ import {
   type ActiveSalonSession,
 } from './lib/activeSalonSession';
 import {
+  clearOpenSalonPipIntent,
+  consumeSalonOpenIntent,
+  dispatchOpenSalonPip,
   dispatchSalonBeforeMinimize,
   getSalonVideoFloatActive,
+  peekSalonOpenIntent,
+  setOpenSalonPipIntent,
+  setSalonOpenIntent,
   setSalonVideoFloatActive,
   subscribeSalonVideoFloat,
 } from './lib/salonVideoFloat';
@@ -446,6 +452,9 @@ export default function App() {
   );
 
   const openSalonPage = useCallback((salonId: string, salonTitle?: string, isHost?: boolean) => {
+    setSalonOpenIntent('full');
+    clearOpenSalonPipIntent();
+    setSalonVideoFloatActive(false);
     setRestoreSalonOnMapId(null);
     setProfileOpen(false);
     setProfilePreview(null);
@@ -477,6 +486,30 @@ export default function App() {
     setProfilePreview(null);
     setView({ type: 'home' });
     setTab('map');
+  }, []);
+
+  /** Clic sidebar carte : salon minimisé + PiP vidéo, carte reste visible. */
+  const openSalonPip = useCallback((salonId: string, salonTitle?: string, isHost?: boolean) => {
+    consumeSalonOpenIntent();
+    clearSalonUrlFromBar();
+    setRestoreSalonOnMapId(null);
+    setProfileOpen(false);
+    setProfilePreview(null);
+    if (viewRef.current.type === 'profile' && parseProfileIdFromLocation()) {
+      clearProfileUrlFromBar();
+    }
+    setActiveSalonSession((prev) => ({
+      id: salonId,
+      title: salonTitle ?? (prev?.id === salonId ? prev.title : undefined),
+      viewMode: 'minimized',
+      isHost: isHost ?? (prev?.id === salonId ? prev.isHost : undefined),
+    }));
+    if (viewRef.current.type !== 'home') {
+      setView({ type: 'home' });
+    }
+    setTab('map');
+    setOpenSalonPipIntent(salonId);
+    dispatchOpenSalonPip();
   }, []);
 
   const handleSalonPageBack = useCallback(() => {
@@ -519,6 +552,12 @@ export default function App() {
   const handleMapSalonActive = useCallback((session: { id: string; title?: string; isHost?: boolean } | null) => {
     setMapSalonActiveId(session?.id ?? null);
     if (session) {
+      if (peekSalonOpenIntent() === 'full') {
+        return;
+      }
+      if (activeSalonSessionRef.current && activeSalonSessionRef.current.id !== session.id) {
+        setSalonVideoFloatActive(false);
+      }
       setActiveSalonSession((prev) => {
         if (prev?.id === session.id) {
           const nextTitle = session.title ?? prev.title;
@@ -560,6 +599,7 @@ export default function App() {
   const handleSearchSelectUser = useCallback((id: string, preview?: NearbyPerson) => openProfile(id, preview), [openProfile]);
 
   const openLive = useCallback((id: string) => {
+    setSalonVideoFloatActive(false);
     if (tabRef.current === 'reels') pauseAllReelsMediaInDom({ resetPosition: true });
     pauseMediaElements(document, { exceptLiveStage: true });
     setProfileOpen(false);
@@ -946,6 +986,7 @@ export default function App() {
                   <HomePage
                     appLayout={appLayout}
                     onOpenSalon={openSalonPage}
+                    onOpenSalonPip={openSalonPip}
                     onOpenLive={openLive}
                     onOpenProfile={openProfileFromPerson}
                     onOpenReel={openReelInTab}

@@ -8,7 +8,6 @@ import { NearbyPeoplePanel } from '../components/NearbyPeoplePanel';
 import { MapCityEventsPanel } from '../components/MapCityEventsPanel';
 import { MapEventFilterSheet } from '../components/MapEventFilterSheet';
 import { MapSalonListenSheet } from '../components/MapSalonListenSheet';
-import { MapLiveListenSheet } from '../components/MapLiveListenSheet';
 import { CreateSalonModal } from '../components/CreateSalonModal';
 import { canJoinSalonAsParticipant, salonParticipantAccessMessageKey } from '../lib/platformConnect';
 import { MapAdBanner, type MapSponsorViewport } from '../components/MapAdBanner';
@@ -151,6 +150,8 @@ interface HomePageProps {
   appLayout?: AppLayoutId;
   /** Ouvre la page plein écran du salon (bouton Salon de la fiche carte). */
   onOpenSalon?: (salonId: string, salonTitle?: string, isHost?: boolean) => void;
+  /** Ouvre le salon minimisé + PiP vidéo (clic live sidebar carte). */
+  onOpenSalonPip?: (salonId: string, salonTitle?: string, isHost?: boolean) => void;
   onOpenLive: (liveId: string) => void;
   onOpenLiveTab?: () => void;
   onOpenProfile: (person: NearbyPerson) => void;
@@ -184,6 +185,7 @@ interface HomePageProps {
 export function HomePage({
   appLayout = 'default',
   onOpenSalon,
+  onOpenSalonPip,
   onOpenLive,
   onOpenLiveTab,
   onOpenProfile,
@@ -210,7 +212,6 @@ export function HomePage({
   const [lives, setLives] = useState<Live[]>([]);
   const [nearbyPeople, setNearbyPeople] = useState<NearbyPerson[]>([]);
   const [selected, setSelected] = useState<Salon | null>(null);
-  const [selectedLive, setSelectedLive] = useState<Live | null>(null);
   const [center, setCenter] = useState<[number, number]>(() => [...DEFAULT_CENTER]);
   const setSafeCenter = useCallback((coords: [number, number]) => {
     if (!isValidLatLng(coords[0], coords[1])) {
@@ -237,7 +238,6 @@ export function HomePage({
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
   const [mapGeo, setMapGeo] = useState<LivesGeoPrefs>(() => getLivesGeo());
   const salonSheetRef = useRef<HTMLDivElement>(null);
-  const liveSheetRef = useRef<HTMLDivElement>(null);
   const mapViewRef = useRef<MapViewHandle>(null);
   const [salonSheetExpanded, setSalonSheetExpanded] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -1310,10 +1310,6 @@ export function HomePage({
     clearSalonUrlFromBar();
   }, []);
 
-  const dismissLiveSheetOnly = useCallback(() => {
-    setSelectedLive(null);
-  }, []);
-
   const flyMapTo = useCallback((lat: number, lng: number) => {
     if (isValidLatLng(lat, lng)) {
       mapViewRef.current?.flyTo(lat, lng, MAP_LIVE_ZOOM);
@@ -1352,7 +1348,7 @@ export function HomePage({
 
   const trySelectSalon = useCallback(async (
     salon: Salon,
-    opts?: { closeMapProfile?: boolean }
+    opts?: { closeMapProfile?: boolean; pipOnly?: boolean }
   ): Promise<boolean> => {
     if (salon.canJoin === false && salon.hostId !== user?.id) {
       setToastMsg('Salon sur invitation uniquement — le host doit vous autoriser');
@@ -1361,9 +1357,10 @@ export function HomePage({
     if (opts?.closeMapProfile) {
       onCloseMapProfile?.();
     }
-    setSelectedLive(null);
-    setSelected(salon);
-    setSalonSheetExpanded(false);
+    if (!opts?.pipOnly) {
+      setSelected(salon);
+      setSalonSheetExpanded(false);
+    }
     const isHost = salon.hostId === user?.id;
     const platformLinked = canJoinSalonAsParticipant(
       salon.platform,
@@ -1470,13 +1467,11 @@ export function HomePage({
       return;
     }
     flyMapTo(salon.latitude, salon.longitude);
-    dismissLiveSheetOnly();
     if (isOwnActiveHostedSalon(salon)) return;
     await trySelectSalon(salon, { closeMapProfile: true });
   }, [
     resolveSalonById,
     flyMapTo,
-    dismissLiveSheetOnly,
     trySelectSalon,
     onSalonRestoreFailed,
     isOwnActiveHostedSalon,
@@ -1487,31 +1482,57 @@ export function HomePage({
     void restoreSalonOnMap(restoreSalonId).finally(() => onSalonMapRestored?.());
   }, [restoreSalonId, restoreSalonOnMap, onSalonMapRestored]);
 
+  const resolveSalonForLive = useCallback(async (live: Live): Promise<Salon | undefined> => {
+    let salon = findSalonForLive(live, salons);
+    if (!salon && live.salonId) {
+      salon = (await resolveSalonById(live.salonId)) ?? undefined;
+    }
+    if (!salon) {
+      salon = (await resolveSalonById(live.id)) ?? undefined;
+    }
+    return salon;
+  }, [salons, resolveSalonById]);
+
+  /** Clic sidebar carte (live, salon, profil en direct) : PiP vidéo uniquement. */
+  const openSalonPipFromMapSidebar = useCallback(
+    async (salon: Salon) => {
+      const ok = await trySelectSalon(salon, { closeMapProfile: true, pipOnly: true });
+      if (!ok) return;
+      onCloseMapProfile?.();
+      setSelected(null);
+      setSalonSheetExpanded(false);
+      onOpenSalonPip?.(salon.id, salon.title, salon.hostId === user?.id);
+    },
+    [trySelectSalon, onCloseMapProfile, onOpenSalonPip, user?.id]
+  );
+
   const openLiveOnMap = useCallback((live: Live) => {
     void (async () => {
       flyMapTo(live.latitude, live.longitude);
 
-      let salon = findSalonForLive(live, salons);
-      if (!salon && live.salonId) {
-        salon = (await resolveSalonById(live.salonId)) ?? undefined;
-      }
+      const salon = await resolveSalonForLive(live);
       if (salon) {
-        const opened = await trySelectSalon(salon, { closeMapProfile: true });
-        if (opened) return;
+        await trySelectSalon(salon, { closeMapProfile: true });
+        return;
       }
 
       onCloseMapProfile?.();
       setSelected(null);
       setSalonSheetExpanded(false);
-      setSelectedLive(live);
+      onOpenLive(live.id);
     })();
-  }, [salons, resolveSalonById, trySelectSalon, flyMapTo, onCloseMapProfile]);
+  }, [
+    resolveSalonForLive,
+    trySelectSalon,
+    flyMapTo,
+    onCloseMapProfile,
+    onOpenLive,
+  ]);
 
   /** Clic personne (carte ou liste) : salon replié en priorité, sinon live (jamais profil). */
   const openNearbyPerson = useCallback((person: NearbyPerson) => {
     void (async () => {
       onCloseMapProfile?.();
-      setSelectedLive(null);
 
       const salonId = await resolveSalonIdForPerson(person);
       if (salonId) {
@@ -1530,9 +1551,103 @@ export function HomePage({
     openNearbyPerson(person);
   }, [openNearbyPerson]);
 
+  /** Clic salon sidebar : PiP vidéo uniquement, carte reste visible. */
+  const handleSidebarSalonClick = useCallback((salon: Salon) => {
+    void (async () => {
+      flyMapTo(salon.latitude, salon.longitude);
+      await openSalonPipFromMapSidebar(salon);
+    })();
+  }, [flyMapTo, openSalonPipFromMapSidebar]);
+
+  /** Clic live sidebar : PiP vidéo uniquement, carte reste visible. */
+  const handleSidebarLiveClick = useCallback((l: Live) => {
+    void (async () => {
+      flyMapTo(l.latitude, l.longitude);
+
+      const salon = await resolveSalonForLive(l);
+      if (salon) {
+        await openSalonPipFromMapSidebar(salon);
+        return;
+      }
+
+      onCloseMapProfile?.();
+      setSelected(null);
+      setSalonSheetExpanded(false);
+      onOpenLive(l.id);
+    })();
+  }, [
+    resolveSalonForLive,
+    openSalonPipFromMapSidebar,
+    flyMapTo,
+    onCloseMapProfile,
+    onOpenLive,
+  ]);
+
+  /** Clic personne sidebar (En direct) : salon/live → PiP, pas de bottom sheet. */
+  const handleSidebarPersonClick = useCallback((person: NearbyPerson) => {
+    void (async () => {
+      onCloseMapProfile?.();
+
+      const salonId = await resolveSalonIdForPerson(person);
+      if (salonId) {
+        const salon = await resolveSalonById(salonId);
+        if (salon) {
+          flyMapTo(salon.latitude, salon.longitude);
+          await openSalonPipFromMapSidebar(salon);
+          return;
+        }
+      }
+
+      if (person.isLive && person.liveId) {
+        const live = await resolveLiveForPerson(person);
+        if (!live) return;
+        flyMapTo(live.latitude, live.longitude);
+
+        const salon = await resolveSalonForLive(live);
+        if (salon) {
+          await openSalonPipFromMapSidebar(salon);
+          return;
+        }
+
+        setSelected(null);
+        setSalonSheetExpanded(false);
+        onOpenLive(live.id);
+      }
+    })();
+  }, [
+    resolveSalonIdForPerson,
+    resolveSalonById,
+    resolveLiveForPerson,
+    resolveSalonForLive,
+    openSalonPipFromMapSidebar,
+    flyMapTo,
+    onCloseMapProfile,
+    onOpenLive,
+  ]);
+
+  /** Clic marqueur live sur la carte : fiche salon repliée (pas plein écran). */
   const handleMapLiveClick = useCallback((l: Live) => {
-    openLiveOnMap(l);
-  }, [openLiveOnMap]);
+    void (async () => {
+      flyMapTo(l.latitude, l.longitude);
+
+      const salon = await resolveSalonForLive(l);
+      if (salon) {
+        await trySelectSalon(salon, { closeMapProfile: true });
+        return;
+      }
+
+      onCloseMapProfile?.();
+      setSelected(null);
+      setSalonSheetExpanded(false);
+      onOpenLive(l.id);
+    })();
+  }, [
+    resolveSalonForLive,
+    trySelectSalon,
+    flyMapTo,
+    onCloseMapProfile,
+    onOpenLive,
+  ]);
 
   const handleMapBackgroundClick = useCallback(() => {
     if (selectedEventCluster) setSelectedEventCluster(null);
@@ -1541,13 +1656,12 @@ export function HomePage({
 
   const handleMapSalonClick = useCallback((salon: Salon) => {
     flyMapTo(salon.latitude, salon.longitude);
-    dismissLiveSheetOnly();
     if (isOwnActiveHostedSalon(salon)) {
       onOpenSalon?.(salon.id, salon.title, true);
       return;
     }
     void trySelectSalon(salon, { closeMapProfile: true });
-  }, [trySelectSalon, flyMapTo, dismissLiveSheetOnly, isOwnActiveHostedSalon, onOpenSalon]);
+  }, [trySelectSalon, flyMapTo, isOwnActiveHostedSalon, onOpenSalon]);
 
   const closeSalonSheet = useCallback(() => {
     dismissSalonSheetOnly();
@@ -1560,15 +1674,9 @@ export function HomePage({
     onLeaveSalon?.();
   }, [dismissSalonSheetOnly, onCloseMapProfile, onLeaveSalon]);
 
-  const closeLiveSheet = useCallback(() => {
-    dismissLiveSheetOnly();
-    onCloseMapProfile?.();
-  }, [dismissLiveSheetOnly, onCloseMapProfile]);
-
   const closeMapSheet = useCallback(() => {
-    if (selectedLive) closeLiveSheet();
-    else closeSalonSheet();
-  }, [selectedLive, closeLiveSheet, closeSalonSheet]);
+    closeSalonSheet();
+  }, [closeSalonSheet]);
 
   const onSalonCreated = useCallback((salon: Salon, lat: number, lon: number) => {
     setShowCreateSalon(false);
@@ -1667,24 +1775,7 @@ export function HomePage({
     );
   }, [selected, nearbyPeople, onOpenProfile]);
 
-  const openHostProfileFromLiveSheet = useCallback(() => {
-    if (!selectedLive) return;
-    const person = nearbyPeople.find((p) => p.id === selectedLive.hostId);
-    onOpenProfile(
-      person ?? {
-        id: selectedLive.hostId,
-        username: selectedLive.hostName,
-        isLive: true,
-        liveId: selectedLive.id,
-        liveViewersCount: selectedLive.viewersCount,
-        listeningPlatform: selectedLive.platform,
-        salonId: selectedLive.salonId,
-        salonTitle: selectedLive.title,
-      }
-    );
-  }, [selectedLive, nearbyPeople, onOpenProfile]);
-
-  const mapSheetOpen = Boolean(selected || selectedLive);
+  const mapSheetOpen = Boolean(selected);
 
   return (
     <div className={`ms-map-page relative flex-1 flex min-h-0 ${appa2 ? 'flex-col' : 'flex-row'}`}>
@@ -1733,9 +1824,9 @@ export function HomePage({
             loading={loadingNearby}
             eventsLoading={showEventMarkers && loadingMapEvents}
             selectedSalonId={selected?.id}
-            onPersonClick={openNearbyPerson}
-            onSalonClick={handleMapSalonClick}
-            onLiveClick={openLiveOnMap}
+            onPersonClick={handleSidebarPersonClick}
+            onSalonClick={handleSidebarSalonClick}
+            onLiveClick={handleSidebarLiveClick}
             onHide={() => setNearbyPeopleVisible(false)}
             onEventClick={handleCityEventClick}
             onEventClusterClick={handleMapEventClusterClick}
@@ -2049,15 +2140,6 @@ export function HomePage({
           />
         )}
 
-        {selectedLive && (
-          <MapLiveListenSheet
-            live={selectedLive}
-            sheetRef={liveSheetRef}
-            onClose={closeLiveSheet}
-            onOpenFullExperience={() => onOpenLive(selectedLive.id)}
-            onOpenHostProfile={openHostProfileFromLiveSheet}
-          />
-        )}
         </div>
 
         {appa2 &&
@@ -2080,9 +2162,9 @@ export function HomePage({
                 loading={loadingNearby}
                 eventsLoading={showEventMarkers && loadingMapEvents}
                 selectedSalonId={selected?.id}
-                onPersonClick={openNearbyPerson}
-                onSalonClick={handleMapSalonClick}
-                onLiveClick={openLiveOnMap}
+                onPersonClick={handleSidebarPersonClick}
+                onSalonClick={handleSidebarSalonClick}
+                onLiveClick={handleSidebarLiveClick}
                 onHide={() => setNearbyPeopleVisible(false)}
                 onEventClick={handleCityEventClick}
                 onEventClusterClick={handleMapEventClusterClick}

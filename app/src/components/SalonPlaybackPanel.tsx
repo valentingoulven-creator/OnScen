@@ -31,8 +31,15 @@ import { getSalonYoutubeVolume, setSalonYoutubeVolume } from '../lib/salonYoutub
 import { isYoutubeStrictCompliance } from '../lib/youtubeCompliance';
 import { useBackgroundPlayback } from '../hooks/useBackgroundPlayback';
 import {
+  clearOpenSalonPipIntent,
+  consumeSalonOpenIntent,
+  getOpenSalonPipIntent,
+  getSalonVideoFloatActive,
+  peekSalonOpenIntent,
   SALON_BEFORE_MINIMIZE_EVENT,
+  SALON_OPEN_PIP_EVENT,
   setSalonVideoFloatActive,
+  subscribeSalonVideoFloat,
 } from '../lib/salonVideoFloat';
 import { PlatformConnectCard } from './PlatformConnectCard';
 import type { User } from '../types';
@@ -76,6 +83,8 @@ interface SalonPlaybackPanelProps {
   salonQueueLayout?: boolean;
   /** false = coupe le lecteur (onglet carte masqué, autre audio actif). */
   playbackActive?: boolean;
+  /** Grand salon plein écran — jamais de PiP auto au montage. */
+  salonFullScreen?: boolean;
   onMapInlineListenCapReached?: () => void;
   /** Appelé quand l'utilisateur ancre la vidéo PiP (↙) — permet d'ouvrir le salon plein écran. */
   onAnchorVideoFloat?: () => void;
@@ -116,6 +125,7 @@ export function SalonPlaybackPanel({
   theaterSideDock = false,
   salonQueueLayout = false,
   playbackActive = true,
+  salonFullScreen = false,
   onMapInlineListenCapReached,
   onAnchorVideoFloat,
 }: SalonPlaybackPanelProps) {
@@ -151,6 +161,26 @@ export function SalonPlaybackPanel({
     setSalonVideoFloatActive(next);
     setFloatPipActiveState(next);
   }, []);
+
+  useEffect(
+    () =>
+      subscribeSalonVideoFloat(() => {
+        const next = getSalonVideoFloatActive();
+        setFloatPipActiveState((prev) => (prev === next ? prev : next));
+      }),
+    []
+  );
+
+  const isFullScreenSalon = salonFullScreen || theaterMode;
+
+  useEffect(() => {
+    if (!isFullScreenSalon) return;
+    setFloatPipActive(false);
+    if (peekSalonOpenIntent() === 'full') {
+      consumeSalonOpenIntent();
+    }
+  }, [salon.id, isFullScreenSalon, setFloatPipActive]);
+
   const hostShowVideoRef = useRef(salon.playbackState.showVideo);
   const prevYoutubeTrackRef = useRef(salon.playbackState.trackId);
 
@@ -462,8 +492,29 @@ export function SalonPlaybackPanel({
 
   const tryAutoActivateVideoFloat = useCallback(() => {
     if (!canAutoVideoFloat || floatPipActiveRef.current) return;
+    if (isFullScreenSalon || peekSalonOpenIntent() === 'full') return;
     setFloatPipActive(true);
-  }, [canAutoVideoFloat, setFloatPipActive]);
+  }, [canAutoVideoFloat, isFullScreenSalon, setFloatPipActive]);
+
+  const tryOpenPipFromIntent = useCallback(() => {
+    if (isFullScreenSalon || peekSalonOpenIntent() === 'full') {
+      clearOpenSalonPipIntent();
+      return;
+    }
+    const intentSalonId = getOpenSalonPipIntent();
+    if (!intentSalonId || intentSalonId !== salon.id) return;
+    if (!canAutoVideoFloat || floatPipActiveRef.current) return;
+    clearOpenSalonPipIntent();
+    setFloatPipActive(true);
+  }, [salon.id, canAutoVideoFloat, isFullScreenSalon, setFloatPipActive]);
+
+  useEffect(() => {
+    if (!theaterMode) return;
+    tryOpenPipFromIntent();
+    const onOpenPip = () => tryOpenPipFromIntent();
+    window.addEventListener(SALON_OPEN_PIP_EVENT, onOpenPip);
+    return () => window.removeEventListener(SALON_OPEN_PIP_EVENT, onOpenPip);
+  }, [theaterMode, tryOpenPipFromIntent]);
 
   useEffect(() => {
     if (!theaterMode) return;
