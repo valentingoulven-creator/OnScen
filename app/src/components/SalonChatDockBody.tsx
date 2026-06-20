@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { ChatMessagesView } from './ChatPanel';
 import { SalonQueueSection } from './SalonQueueSection';
 import { SalonProposalsSection } from './SalonProposalsSection';
-import type { Salon, SalonQueueItem, SalonTrackProposal } from '../types';
+import { SalonYouTubeSearch } from './SalonYouTubeSearch';
+import type { PlaybackState, Salon, SalonQueueItem, SalonTrackProposal } from '../types';
 
 export type SalonChatDockTab = 'chat' | 'queue';
 type DockTab = SalonChatDockTab;
@@ -52,8 +53,15 @@ interface SalonChatDockBodyProps {
   onReject?: (proposalId: string) => Promise<void>;
   onUpvote?: (proposalId: string) => Promise<void>;
   currentUserId?: string;
-  /** YouTube search for participants (propose mode). */
-  proposeSearch?: ReactNode;
+  /** YouTube search in queue tab (host/VIP queue mode or participant propose mode). */
+  youtubeSearch?: {
+    token: string;
+    submitMode: 'queue' | 'propose';
+    currentTitle: string;
+    currentArtist: string;
+    onTrackChanged?: (state: PlaybackState) => void;
+    onQueueChanged?: (queue: SalonQueueItem[]) => void;
+  };
   chatInput?: ReactNode;
   onDockTabChange?: (tab: SalonChatDockTab) => void;
 }
@@ -108,12 +116,13 @@ export function SalonChatDockBody({
   onReject,
   onUpvote,
   currentUserId,
-  proposeSearch,
+  youtubeSearch,
   chatInput,
   onDockTabChange,
 }: SalonChatDockBodyProps) {
   const { t } = useTranslation();
   const [dockTab, setDockTab] = useState<DockTab>('chat');
+  const [youtubeSearchActive, setYoutubeSearchActive] = useState(false);
 
   const selectDockTab = useCallback(
     (tab: DockTab) => {
@@ -154,43 +163,60 @@ export function SalonChatDockBody({
             ) : null}
           </>
         ) : (
-          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-2.5 space-y-4">
-            <SalonQueueSection
-              queue={queue}
-              isHost={hostCanControl}
-              allowQueue={salon.allowQueue}
-              salonId={salon.id}
-              onSkip={hostCanControl ? onSkip : undefined}
-              onPlayItem={hostCanControl ? onPlayItem : undefined}
-              onReorder={hostCanControl ? onReorder : undefined}
-              skipping={skipping}
-              reordering={reordering}
-              compact
-              collapsible={false}
-            />
-            {!participantMode ? (
-              <SalonProposalsSection
-                isHost={hostCanControl}
-                allowQueue={salon.allowQueue}
-                proposals={proposals}
-                loadingProposals={loadingProposals}
-                currentUserId={currentUserId}
-                onAccept={onAccept}
-                onReject={onReject}
-                onUpvote={onUpvote}
-                compact
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-2.5 flex flex-col gap-4">
+            {youtubeSearch ? (
+              <SalonYouTubeSearch
+                salonId={salon.id}
+                token={youtubeSearch.token}
+                currentTitle={youtubeSearch.currentTitle}
+                currentArtist={youtubeSearch.currentArtist}
+                submitMode={youtubeSearch.submitMode}
+                onTrackChanged={youtubeSearch.onTrackChanged}
+                onQueueChanged={youtubeSearch.onQueueChanged}
+                embedded
+                layout="inline"
+                onSearchActiveChange={setYoutubeSearchActive}
               />
-            ) : (
-              <SalonProposalsSection
-                isHost={false}
-                allowQueue={salon.allowQueue}
-                proposals={proposals}
-                currentUserId={currentUserId}
-                onUpvote={onUpvote}
-                compact
-              />
-            )}
-            {proposeSearch ? <div className="pt-1 border-t border-[#1e1e2f]">{proposeSearch}</div> : null}
+            ) : null}
+            {!youtubeSearchActive ? (
+              <>
+                <SalonQueueSection
+                  queue={queue}
+                  isHost={hostCanControl}
+                  allowQueue={salon.allowQueue}
+                  salonId={salon.id}
+                  onSkip={hostCanControl ? onSkip : undefined}
+                  onPlayItem={hostCanControl ? onPlayItem : undefined}
+                  onReorder={hostCanControl ? onReorder : undefined}
+                  skipping={skipping}
+                  reordering={reordering}
+                  compact
+                  collapsible={false}
+                />
+                {!participantMode ? (
+                  <SalonProposalsSection
+                    isHost={hostCanControl}
+                    allowQueue={salon.allowQueue}
+                    proposals={proposals}
+                    loadingProposals={loadingProposals}
+                    currentUserId={currentUserId}
+                    onAccept={onAccept}
+                    onReject={onReject}
+                    onUpvote={onUpvote}
+                    compact
+                  />
+                ) : (
+                  <SalonProposalsSection
+                    isHost={false}
+                    allowQueue={salon.allowQueue}
+                    proposals={proposals}
+                    currentUserId={currentUserId}
+                    onUpvote={onUpvote}
+                    compact
+                  />
+                )}
+              </>
+            ) : null}
           </div>
         )}
       </div>

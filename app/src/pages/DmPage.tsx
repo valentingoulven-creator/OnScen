@@ -2977,6 +2977,27 @@ export function DmPage({
           return (
             <li key={rowKey}>
               <div className="relative flex items-center gap-3 p-4 border-b border-[#1e1e2f]/50 hover:bg-[#12121a]">
+                {!isGroup && c.userId && onOpenProfile ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenProfile(c.userId!);
+                    }}
+                    className="shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+                    title="Voir le profil"
+                    aria-label={`Voir le profil de ${c.username}`}
+                  >
+                    <UserAvatarOnline
+                      userId={c.userId}
+                      avatarUrl={c.avatarUrl}
+                      size="lg"
+                      isOnline={c.isOnline ?? isOnline(c.userId)}
+                      isLive={isLive(c.userId)}
+                      liveViewersCount={liveViewersFor(c.userId)}
+                    />
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => {
@@ -3000,7 +3021,8 @@ export function DmPage({
                   {isGroup ? (
                     <GroupAvatar name={c.username} size="lg" />
                   ) : (
-                    c.userId && (
+                    c.userId &&
+                    !onOpenProfile && (
                       <UserAvatarOnline
                         userId={c.userId}
                         avatarUrl={c.avatarUrl}

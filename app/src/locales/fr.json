@@ -312,6 +312,9 @@
       "proposeError": "Impossible d'envoyer la proposition",
       "proposeHint": "Envoi au panneau PROPOSITIONS de l'hôte — pas de lecture tant qu'il n'accepte pas.",
       "play": "Lire",
+      "playNow": "Lire maintenant",
+      "dockPlaceholder": "Rechercher sur YouTube...",
+      "addToQueueShort": "Ajouter à la file",
       "playSuccess": "Lecture lancée",
       "defaultTrackTitle": "Vidéo YouTube",
       "errorGeneric": "Recherche impossible"

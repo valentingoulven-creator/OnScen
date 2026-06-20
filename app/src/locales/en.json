@@ -312,6 +312,9 @@
       "proposeError": "Could not send suggestion",
       "proposeHint": "Sent to the host PROPOSALS panel — no playback until they accept.",
       "play": "Play",
+      "playNow": "Play now",
+      "dockPlaceholder": "Search YouTube...",
+      "addToQueueShort": "Add to queue",
       "playSuccess": "Now playing",
       "defaultTrackTitle": "YouTube video",
       "errorGeneric": "Search unavailable"

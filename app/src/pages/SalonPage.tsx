@@ -21,7 +21,6 @@ import { HostRatingBlock } from '../components/HostRatingBlock';
 import { RoomTheaterLayout } from '../components/RoomTheaterLayout';
 import { SalonPlaybackPanel } from '../components/SalonPlaybackPanel';
 import { SalonYouTubeHostPanel } from '../components/SalonYouTubeHostPanel';
-import { SalonYouTubeSearch } from '../components/SalonYouTubeSearch';
 import { SalonAccessModeToggle } from '../components/SalonAccessModeToggle';
 import { SalonInviteLinkCopy } from '../components/SalonInviteLinkCopy';
 import { SalonInviteSheet } from '../components/SalonInviteSheet';
@@ -541,16 +540,17 @@ export function SalonPage({
 
 
 
-  const participantProposeSearch =
-    !canControlPlayback && salon.allowQueue && token ? (
-      <SalonYouTubeSearch
-        salonId={salon.id}
-        token={token}
-        currentTitle={playback.title}
-        currentArtist={playback.artist}
-        submitMode="propose"
-      />
-    ) : null;
+  const queueYoutubeSearch =
+    salon.allowQueue && token && salon.platform === 'youtube'
+      ? {
+          token,
+          submitMode: (canControlPlayback ? 'queue' : 'propose') as 'queue' | 'propose',
+          currentTitle: playback.title,
+          currentArtist: playback.artist,
+          onTrackChanged: canControlPlayback ? applyPlayback : undefined,
+          onQueueChanged: canControlPlayback ? applyQueue : undefined,
+        }
+      : undefined;
 
   const youtubeParticipantDrawer =
     !canControlPlayback && token ? (
@@ -676,10 +676,6 @@ export function SalonPage({
 
       {/* YouTube: participants — même tiroir, lecture seule */}
       {youtubeParticipantDrawer}
-
-      {!canControlPlayback && participantProposeSearch ? (
-        <div className="p-3">{participantProposeSearch}</div>
-      ) : null}
     </>
   );
 
@@ -942,7 +938,7 @@ export function SalonPage({
               onReject={canControlPlayback ? rejectProposal : undefined}
               currentUserId={user?.id}
               onUpvote={handleUpvote}
-              proposeSearch={participantProposeSearch}
+              youtubeSearch={queueYoutubeSearch}
               chatInput={<ChatInputBar />}
               onDockTabChange={setChatDockTab}
             />
