@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 const POS_KEY = 'salon_video_pip_pos';
-// 240 px wide → 240×135 video (16:9). YouTube TOS minimum is 200×113; 240 gives a
-// comfortable margin while keeping the PiP as small as possible.
-export const VIDEO_PIP_WIDTH = 240;
+// 200 px wide → 200×113 video (16:9) — YouTube TOS minimum embed size.
+export const VIDEO_PIP_WIDTH = 200;
 export const VIDEO_PIP_HEADER_HEIGHT = 24;
 const MARGIN = 12;
 

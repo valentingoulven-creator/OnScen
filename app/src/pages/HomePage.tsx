@@ -152,6 +152,8 @@ interface HomePageProps {
   onOpenSalon?: (salonId: string, salonTitle?: string, isHost?: boolean) => void;
   /** Ouvre le salon minimisé + PiP vidéo (clic live sidebar carte). */
   onOpenSalonPip?: (salonId: string, salonTitle?: string, isHost?: boolean) => void;
+  /** Aperçu PiP sans rejoindre — clic sidebar carte. Remplace onOpenSalonPip pour le flux prévisualisation. */
+  onOpenSalonPipPreview?: (salon: Salon) => void;
   onOpenLive: (liveId: string) => void;
   onOpenLiveTab?: () => void;
   onOpenProfile: (person: NearbyPerson) => void;
@@ -186,6 +188,7 @@ export function HomePage({
   appLayout = 'default',
   onOpenSalon,
   onOpenSalonPip,
+  onOpenSalonPipPreview,
   onOpenLive,
   onOpenLiveTab,
   onOpenProfile,
@@ -1493,17 +1496,19 @@ export function HomePage({
     return salon;
   }, [salons, resolveSalonById]);
 
-  /** Clic sidebar carte (live, salon, profil en direct) : PiP vidéo uniquement. */
+  /** Clic sidebar carte (live, salon, profil en direct) : PiP prévisualisation uniquement — sans rejoindre. */
   const openSalonPipFromMapSidebar = useCallback(
-    async (salon: Salon) => {
-      const ok = await trySelectSalon(salon, { closeMapProfile: true, pipOnly: true });
-      if (!ok) return;
+    (salon: Salon) => {
       onCloseMapProfile?.();
       setSelected(null);
       setSalonSheetExpanded(false);
-      onOpenSalonPip?.(salon.id, salon.title, salon.hostId === user?.id);
+      if (onOpenSalonPipPreview) {
+        onOpenSalonPipPreview(salon);
+      } else {
+        onOpenSalonPip?.(salon.id, salon.title, salon.hostId === user?.id);
+      }
     },
-    [trySelectSalon, onCloseMapProfile, onOpenSalonPip, user?.id]
+    [onCloseMapProfile, onOpenSalonPipPreview, onOpenSalonPip, user?.id]
   );
 
   const openLiveOnMap = useCallback((live: Live) => {
@@ -1553,10 +1558,8 @@ export function HomePage({
 
   /** Clic salon sidebar : PiP vidéo uniquement, carte reste visible. */
   const handleSidebarSalonClick = useCallback((salon: Salon) => {
-    void (async () => {
-      flyMapTo(salon.latitude, salon.longitude);
-      await openSalonPipFromMapSidebar(salon);
-    })();
+    flyMapTo(salon.latitude, salon.longitude);
+    openSalonPipFromMapSidebar(salon);
   }, [flyMapTo, openSalonPipFromMapSidebar]);
 
   /** Clic live sidebar : PiP vidéo uniquement, carte reste visible. */
@@ -1566,7 +1569,7 @@ export function HomePage({
 
       const salon = await resolveSalonForLive(l);
       if (salon) {
-        await openSalonPipFromMapSidebar(salon);
+        openSalonPipFromMapSidebar(salon);
         return;
       }
 
@@ -1593,7 +1596,7 @@ export function HomePage({
         const salon = await resolveSalonById(salonId);
         if (salon) {
           flyMapTo(salon.latitude, salon.longitude);
-          await openSalonPipFromMapSidebar(salon);
+          openSalonPipFromMapSidebar(salon);
           return;
         }
       }
@@ -1605,7 +1608,7 @@ export function HomePage({
 
         const salon = await resolveSalonForLive(live);
         if (salon) {
-          await openSalonPipFromMapSidebar(salon);
+          openSalonPipFromMapSidebar(salon);
           return;
         }
 

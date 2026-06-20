@@ -29,6 +29,7 @@ import {
 } from './lib/forgotPasswordRoute';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { GenreOnboardingPrompt, shouldShowGenrePrompt } from './components/GenreOnboardingPrompt';
+import { SalonPipPreviewFloat } from './components/SalonPipPreviewFloat';
 import { NotificationBell } from './components/NotificationBell';
 import { AdminHeaderButton } from './components/AdminHeaderButton';
 import { PrivacyVisibilityMenu } from './components/PrivacyVisibilityMenu';
@@ -65,7 +66,7 @@ import {
   useSalonSocketMembership,
   type SalonForcedEndReason,
 } from './hooks/useSalonSocketMembership';
-import type { NearbyPerson } from './types';
+import type { NearbyPerson, Salon } from './types';
 
 // Heavy pages are lazy-loaded to defer bundle parsing of Leaflet, react-globe.gl,
 // and other large media deps until the user first visits each tab.
@@ -137,6 +138,8 @@ export default function App() {
   const [msdevRebuildError, setMsdevRebuildError] = useState<string | null>(null);
   /** Après réduction du grand salon : rouvrir la fiche carte sur l'onglet Carte. */
   const [restoreSalonOnMapId, setRestoreSalonOnMapId] = useState<string | null>(null);
+  /** Prévisualisation PiP sans rejoindre (clic sidebar carte). */
+  const [salonPipPreview, setSalonPipPreview] = useState<Salon | null>(null);
   const [showGenrePrompt, setShowGenrePrompt] = useState(false);
   /** Publication du fil à mettre en avant (depuis la carte). */
   const [focusFeedPostId, setFocusFeedPostId] = useState<string | null>(null);
@@ -456,6 +459,7 @@ export default function App() {
     clearOpenSalonPipIntent();
     setSalonVideoFloatActive(false);
     setRestoreSalonOnMapId(null);
+    setSalonPipPreview(null);
     setProfileOpen(false);
     setProfilePreview(null);
     if (viewRef.current.type === 'profile' && parseProfileIdFromLocation()) {
@@ -471,6 +475,11 @@ export default function App() {
       setView({ type: 'home' });
     }
     syncSalonUrlInBar(salonId);
+  }, []);
+
+  /** Clic sidebar carte : aperçu YouTube sans rejoindre le salon. */
+  const openSalonPipPreview = useCallback((salon: Salon) => {
+    setSalonPipPreview(salon);
   }, []);
 
   const minimizeSalonToMap = useCallback((salonId: string, salonTitle?: string) => {
@@ -987,6 +996,7 @@ export default function App() {
                     appLayout={appLayout}
                     onOpenSalon={openSalonPage}
                     onOpenSalonPip={openSalonPip}
+                    onOpenSalonPipPreview={openSalonPipPreview}
                     onOpenLive={openLive}
                     onOpenProfile={openProfileFromPerson}
                     onOpenReel={openReelInTab}
@@ -1105,6 +1115,18 @@ export default function App() {
 
       {showGenrePrompt && (
         <GenreOnboardingPrompt onDismiss={() => setShowGenrePrompt(false)} />
+      )}
+
+      {salonPipPreview && (
+        <SalonPipPreviewFloat
+          salon={salonPipPreview}
+          onJoin={() => {
+            const s = salonPipPreview;
+            setSalonPipPreview(null);
+            openSalonPage(s.id, s.title);
+          }}
+          onClose={() => setSalonPipPreview(null)}
+        />
       )}
     </div>
   );
