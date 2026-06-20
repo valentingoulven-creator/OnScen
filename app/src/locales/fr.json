@@ -1293,6 +1293,7 @@
     "stripeGateProfileHint": "Vous pouvez aussi le faire depuis votre profil → Recevoir des pourboires",
     "stripeGateNotReady": "Votre compte Stripe Connect est en cours de configuration (validation en attente).",
     "stripeGateNotReadyCta": "Continuer la configuration Stripe",
+    "stripeGateSkip": "Passer sans se connecter",
     "legalTitle": "Règles de diffusion Soundy",
     "legalSubtitle": "Avant de lancer votre premier live, lisez et acceptez les règles ci-dessous.",
     "legalContentTitle": "Règles de contenu",

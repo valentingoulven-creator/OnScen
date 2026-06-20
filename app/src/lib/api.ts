@@ -1105,7 +1105,7 @@ export const api = {
   startLive: (
     token: string,
     title?: string,
-    opts?: { latitude?: number; longitude?: number }
+    opts?: { latitude?: number; longitude?: number; stripeConnectSkipped?: boolean }
   ) =>
     request<{ live: import('../types').Live }>(
       '/lives/start',
@@ -1115,6 +1115,7 @@ export const api = {
           title,
           latitude: opts?.latitude,
           longitude: opts?.longitude,
+          stripeConnectSkipped: opts?.stripeConnectSkipped,
         }),
       },
       token

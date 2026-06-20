@@ -1293,6 +1293,7 @@
     "stripeGateProfileHint": "You can also do this from your profile → Receive tips",
     "stripeGateNotReady": "Your Stripe Connect account is being reviewed (validation pending).",
     "stripeGateNotReadyCta": "Continue Stripe setup",
+    "stripeGateSkip": "Continue without connecting",
     "legalTitle": "Soundy Broadcast Rules",
     "legalSubtitle": "Before starting your first live, please read and accept the rules below.",
     "legalContentTitle": "Content Rules",

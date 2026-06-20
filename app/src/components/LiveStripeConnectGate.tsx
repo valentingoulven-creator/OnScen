@@ -6,6 +6,7 @@ interface LiveStripeConnectGateProps {
   token: string;
   isPending: boolean;
   onClose: () => void;
+  onSkip?: () => void;
 }
 
 /**
@@ -13,7 +14,7 @@ interface LiveStripeConnectGateProps {
  * Affiché si le créateur n'a pas de compte Stripe Connect actif (charges_enabled).
  * isPending = true → le compte existe mais n'est pas encore validé par Stripe.
  */
-export function LiveStripeConnectGate({ token, isPending, onClose }: LiveStripeConnectGateProps) {
+export function LiveStripeConnectGate({ token, isPending, onClose, onSkip }: LiveStripeConnectGateProps) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,6 +100,17 @@ export function LiveStripeConnectGate({ token, isPending, onClose }: LiveStripeC
               ? t('live.stripeGateNotReadyCta')
               : t('live.stripeGateCta')}
         </button>
+
+        {onSkip && (
+          <button
+            type="button"
+            onClick={onSkip}
+            disabled={busy}
+            className="w-full py-2 text-xs text-gray-500 hover:text-gray-300 disabled:opacity-50 transition"
+          >
+            {t('live.stripeGateSkip')}
+          </button>
+        )}
 
         <p className="text-[10px] text-gray-600 text-center">{t('live.stripeGateProfileHint')}</p>
       </div>

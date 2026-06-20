@@ -194,7 +194,8 @@ livesRouter.post('/start', authenticateJWT, async (req: Request, res: Response) 
     return;
   }
 
-  if (!user.stripeConnectAccountId) {
+  const stripeConnectSkipped = req.body.stripeConnectSkipped === true;
+  if (!user.stripeConnectAccountId && !stripeConnectSkipped) {
     res.status(403).json({
       error: 'Configurez Stripe Connect pour pouvoir lancer un live et recevoir des pourboires.',
       code: 'STRIPE_CONNECT_REQUIRED',

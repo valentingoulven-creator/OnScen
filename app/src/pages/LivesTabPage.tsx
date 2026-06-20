@@ -43,6 +43,7 @@ import type { Live } from '../types';
 import { StartLiveMediaSetupModal } from '../components/StartLiveMediaSetupModal';
 import { LiveStripeConnectGate } from '../components/LiveStripeConnectGate';
 import { LiveLegalAcceptanceModal } from '../components/LiveLegalAcceptanceModal';
+import { isStripeConnectSkipped, setStripeConnectSkipped } from '../lib/stripeConnectSkip';
 
 function LiveGridSkeleton() {
   return (
@@ -365,9 +366,11 @@ export function LivesTabPage({ onOpenLive, isActive = true }: LivesTabPageProps)
     if (!token) return;
     setStarting(true);
     try {
+      const skipped = isStripeConnectSkipped();
       const { live } = await api.startLive(token, `Live — ${user?.username}`, {
         latitude: geo.latitude,
         longitude: geo.longitude,
+        stripeConnectSkipped: skipped || undefined,
       });
       loadLives();
       onOpenLive(live.id);
@@ -376,6 +379,20 @@ export function LivesTabPage({ onOpenLive, isActive = true }: LivesTabPageProps)
     } finally {
       setStarting(false);
     }
+  };
+
+  const continueLiveStartAfterStripe = () => {
+    if (!user?.liveTermsAcceptedAt) {
+      setLegalGateOpen(true);
+      return;
+    }
+    setMediaSetupOpen(true);
+  };
+
+  const handleStripeConnectSkip = () => {
+    setStripeConnectSkipped();
+    setStripeGateOpen(false);
+    continueLiveStartAfterStripe();
   };
 
   const proceedToMediaSetup = () => {
@@ -387,8 +404,8 @@ export function LivesTabPage({ onOpenLive, isActive = true }: LivesTabPageProps)
   const startMyLive = () => {
     if (!token || starting) return;
 
-    // Gate 1 — Stripe Connect (ignoré en mode simulation)
-    if (!stripeSimulation) {
+    // Gate 1 — Stripe Connect (ignoré en mode simulation ou si l'utilisateur a choisi de passer)
+    if (!stripeSimulation && !isStripeConnectSkipped()) {
       if (!user?.stripeConnectAccountId) {
         setStripeGatePending(false);
         setStripeGateOpen(true);
@@ -585,6 +602,7 @@ export function LivesTabPage({ onOpenLive, isActive = true }: LivesTabPageProps)
           token={token}
           isPending={stripeGatePending}
           onClose={() => setStripeGateOpen(false)}
+          onSkip={handleStripeConnectSkip}
         />
       )}
 
