@@ -214,7 +214,7 @@ $deployFiles = @(
     "verify-backup.sh", "verify-prod.sh", "verify-scaleway-backup.sh", "setup-scaleway-object-storage.sh", "snapshot-vps-reminder.sh",
     "install-backup-cron.sh", "install-uploads-backup-cron.sh", "install-offsite-backup-cron.sh",
     "install-health-cron.sh", "setup-legal-publisher.sh", "ecosystem.config.cjs",
-    "monitor-alerts.sh", "install-monitor-cron.sh"
+    "monitor-alerts.sh", "install-monitor-cron.sh", "pm2-reload-intentional.sh"
 )
 foreach ($f in $deployFiles) {
     $local = Join-Path $DeployDir $f
@@ -246,6 +246,9 @@ $deployCommitEnv = ""
 if ($gitCommit) {
     $deployCommitEnv = "DEPLOY_COMMIT=$gitCommit "
 }
+
+$markIntentionalFlag = 'printf ''%s\n%s\n'' "$(date +%s)" "deploy" > /tmp/soundy-pm2-reload-intentional'
+Invoke-Remote $markIntentionalFlag | Out-Null
 
 $reloadCmd = 'cd ' + $REMOTE + '; ' + $deployCommitEnv + 'pm2 reload ' + $PM2_APP + ' --update-env 2>&1; echo PM2_RELOAD_OK'
 $reloadOut = Invoke-Remote $reloadCmd

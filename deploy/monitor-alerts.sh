@@ -10,12 +10,20 @@
 #
 # Usage manuel :
 #   sudo bash /opt/soundly/deploy/monitor-alerts.sh
+#
+# Redémarrages PM2 intentionnels (deploy Cursor, reload manuel) :
+#   Le flag /tmp/soundy-pm2-reload-intentional supprime l'alerte pour CE redémarrage
+#   (consommé à la prochaine détection d'incrément restart_time, pas de fenêtre 15 min).
+#   Deploy : deploy_zero_downtime.ps1 pose le flag automatiquement.
+#   Manuel : bash /opt/soundly/deploy/pm2-reload-intentional.sh [reload|restart]
 set -euo pipefail
 
 ROOT="${SOUNDLY_ROOT:-/opt/soundly}"
 ENV_FILE="${ROOT}/.env"
 LOG_FILE="${ROOT}/logs/monitor-alerts.log"
 PREV_RESTART_FILE="/tmp/soundly_pm2_restarts"
+INTENTIONAL_RELOAD_FLAG="/tmp/soundy-pm2-reload-intentional"
+PM2_RELOAD_FLAG_STALE_SECS="${PM2_RELOAD_FLAG_STALE_SECS:-86400}"   # 24h — nettoyage flags orphelins
 PM2_APP="${PM2_APP:-melosong-backend}"
 
 DISK_THRESHOLD="${ALERT_DISK_PERCENT:-80}"
@@ -72,6 +80,26 @@ fi
 
 MAIL_ENABLED="false"
 [[ "$RESEND_ENABLED" == "true" || "$SMTP_ENABLED" == "true" ]] && MAIL_ENABLED="true"
+
+# ── Redémarrages PM2 intentionnels (deploy / manuel) ─────────────────────────
+# Flag valide jusqu'à consommation (incrément restart_time détecté) ; pas d'expiration courte.
+is_intentional_pm2_reload() {
+  [[ -f "$INTENTIONAL_RELOAD_FLAG" ]] || return 1
+  local file_ts now elapsed
+  file_ts=$(head -1 "$INTENTIONAL_RELOAD_FLAG" 2>/dev/null || echo 0)
+  [[ "$file_ts" =~ ^[0-9]+$ ]] || { rm -f "$INTENTIONAL_RELOAD_FLAG" 2>/dev/null || true; return 1; }
+  now=$(date +%s)
+  elapsed=$(( now - file_ts ))
+  if [[ "$elapsed" -gt "$PM2_RELOAD_FLAG_STALE_SECS" ]]; then
+    rm -f "$INTENTIONAL_RELOAD_FLAG" 2>/dev/null || true
+    return 1
+  fi
+  return 0
+}
+
+intentional_pm2_reload_reason() {
+  sed -n '2p' "$INTENTIONAL_RELOAD_FLAG" 2>/dev/null || echo "intentional"
+}
 
 # ── Cooldown (évite le spam d'alertes) ───────────────────────────────────────
 is_coolingdown() {
@@ -293,12 +321,17 @@ except Exception as e:
     # Alerte seulement si le compteur a augmenté (et n'est pas la première lecture)
     if [[ "$PM2_RESTARTS" -gt "$PREV" && "$PREV" != "0" ]]; then
       DIFF=$(( PM2_RESTARTS - PREV ))
-      PM2_LOGS=$(pm2 logs "${PM2_APP}" --lines 30 --nostream 2>/dev/null || echo "(logs indisponibles)")
-      # PM2 crash = forcer l'envoi (bypass cooldown)
-      rm -f "/tmp/soundly_alert_pm2_crash" 2>/dev/null || true
-      send_alert_email \
-        "💥 [Soundy CRITIQUE] Redémarrage PM2 détecté (+${DIFF})" \
-        "Crash PM2 détecté sur getsoundy.com
+      if is_intentional_pm2_reload; then
+        RELOAD_REASON=$(intentional_pm2_reload_reason)
+        rm -f "$INTENTIONAL_RELOAD_FLAG" 2>/dev/null || true
+        echo "$(date '+%Y-%m-%d %H:%M:%S'): PM2 restart +${DIFF} intentionnel (${RELOAD_REASON}) — alerte ignorée" >> "$LOG_FILE"
+      else
+        PM2_LOGS=$(pm2 logs "${PM2_APP}" --lines 30 --nostream 2>/dev/null || echo "(logs indisponibles)")
+        # PM2 crash = forcer l'envoi (bypass cooldown)
+        rm -f "/tmp/soundly_alert_pm2_crash" 2>/dev/null || true
+        send_alert_email \
+          "💥 [Soundy CRITIQUE] Redémarrage PM2 détecté (+${DIFF})" \
+          "Crash PM2 détecté sur getsoundy.com
 
 ${SERVER_LINE}
 Heure          : $(date '+%Y-%m-%d %H:%M:%S %Z')
@@ -309,6 +342,7 @@ Derniers logs PM2 :
 ${PM2_LOGS}
 
 Voir : ${ADMIN_URL}"
+      fi
     fi
   fi
 fi
