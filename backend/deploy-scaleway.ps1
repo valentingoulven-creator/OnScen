@@ -101,7 +101,7 @@ if ("$caddyOut" -notmatch "Caddy guard install") {
 # ── 5. PM2 restart ──────────────────────────────────────────
 Write-Host "`n[5/7] Redémarrage PM2..." -ForegroundColor Yellow
 
-$restartCmd = "cd $REMOTE && (pm2 restart $PM2_APP --update-env 2>/dev/null || pm2 start dist/index.js --name $PM2_APP --min-uptime 10000 --max-restarts 20) && echo PM2_STARTED"
+$restartCmd = "cd $REMOTE && printf '%s\n%s\n' `$(date +%s) deploy > /tmp/soundy-pm2-reload-intentional && (pm2 restart $PM2_APP --update-env 2>/dev/null || pm2 start dist/index.js --name $PM2_APP --min-uptime 10000 --max-restarts 20) && echo PM2_STARTED"
 $restartOut = & ssh @sshOpts $VPS $restartCmd 2>&1
 Write-Host $restartOut
 if ("$restartOut" -notmatch "PM2_STARTED") {

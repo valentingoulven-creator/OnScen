@@ -43,9 +43,13 @@ export function PublicProfilePhotoHero({ photos, isLive, onPhotoClick }: PublicP
   if (viewable.length === 0) {
     return (
       <div
-        className="relative h-36 sm:h-40 w-full bg-gradient-to-br from-purple-900/70 via-[#1a1035] to-pink-900/50"
+        className="relative h-44 sm:h-52 w-full overflow-hidden"
         aria-hidden
-      />
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-950 via-[#1a1035] to-pink-950" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(147,51,234,0.35),transparent_60%),radial-gradient(ellipse_at_bottom-left,rgba(236,72,153,0.25),transparent_60%)]" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#0b0b0f] via-[#0b0b0f]/60 to-transparent" />
+      </div>
     );
   }
 
@@ -55,9 +59,9 @@ export function PublicProfilePhotoHero({ photos, isLive, onPhotoClick }: PublicP
 
   if (viewable.length === 1) {
     return (
-      <div className={`relative h-44 sm:h-52 w-full ${liveRing}`}>
+      <div className={`relative h-52 sm:h-60 w-full ${liveRing}`}>
         <HeroCell url={viewable[0]!} index={0} className="absolute inset-0" onPhotoClick={onPhotoClick} />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0b0b0f] via-transparent to-black/20" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0b0b0f] via-[#0b0b0f]/20 to-black/30" />
         {isLive ? (
           <span className="absolute top-3 left-3 z-10 rounded-full bg-red-600/90 px-2.5 py-0.5 text-[10px] font-bold text-white shadow-lg">
             🔴 LIVE
@@ -70,7 +74,7 @@ export function PublicProfilePhotoHero({ photos, isLive, onPhotoClick }: PublicP
   const secondary = viewable.slice(1, 4);
 
   return (
-    <div className={`relative grid grid-cols-3 grid-rows-2 gap-0.5 h-44 sm:h-52 w-full ${liveRing}`}>
+    <div className={`relative grid grid-cols-3 grid-rows-2 gap-0.5 h-52 sm:h-60 w-full ${liveRing}`}>
       <HeroCell
         url={viewable[0]!}
         index={0}
@@ -89,7 +93,7 @@ export function PublicProfilePhotoHero({ photos, isLive, onPhotoClick }: PublicP
             />
           ))
         : null}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0b0b0f]/80 via-transparent to-transparent" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0b0b0f] via-[#0b0b0f]/30 to-transparent" />
       {isLive ? (
         <span className="absolute top-3 left-3 z-10 rounded-full bg-red-600/90 px-2.5 py-0.5 text-[10px] font-bold text-white shadow-lg">
           🔴 LIVE

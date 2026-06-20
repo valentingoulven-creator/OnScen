@@ -1,4 +1,5 @@
 import type { FeedPost } from '../types';
+import { getEventDates } from './feedEvents';
 import { resolveShareOrigin } from './shareLink';
 
 export function getFeedPostPath(postId: string): string {
@@ -36,7 +37,7 @@ export type FeedPostSharePayload = {
 
 /** Titre + texte pour partage externe (publication ou événement). */
 export function buildFeedPostSharePayload(
-  post: Pick<FeedPost, 'content' | 'isEvent' | 'eventDate' | 'eventLocation'>,
+  post: Pick<FeedPost, 'content' | 'isEvent' | 'eventDate' | 'eventDates' | 'eventLocation'>,
   lang: string,
   labels: {
     feedPostTitle: string;
@@ -57,8 +58,8 @@ export function buildFeedPostSharePayload(
 
   const parts: string[] = [];
   if (excerpt) parts.push(excerpt);
-  if (post.eventDate) {
-    parts.push(labels.eventDate.replace('{{date}}', formatShareEventDate(post.eventDate, lang)));
+  for (const iso of getEventDates(post)) {
+    parts.push(labels.eventDate.replace('{{date}}', formatShareEventDate(iso, lang)));
   }
   if (post.eventLocation?.trim()) {
     parts.push(labels.eventLocation.replace('{{location}}', post.eventLocation.trim()));

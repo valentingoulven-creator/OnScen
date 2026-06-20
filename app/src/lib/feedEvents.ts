@@ -41,6 +41,26 @@ export function isUpcomingEvent(iso?: string): boolean {
   return new Date(iso).getTime() > Date.now();
 }
 
+export function getEventDates(post: Pick<FeedPost, 'eventDate' | 'eventDates'>): string[] {
+  if (post.eventDates?.length) {
+    return [...post.eventDates].sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+  }
+  if (post.eventDate) return [post.eventDate];
+  return [];
+}
+
+export function hasUpcomingEventDate(post: Pick<FeedPost, 'eventDate' | 'eventDates'>): boolean {
+  return getEventDates(post).some((iso) => isUpcomingEvent(iso));
+}
+
+export function getPrimaryEventDate(
+  post: Pick<FeedPost, 'eventDate' | 'eventDates'>
+): string | undefined {
+  const dates = getEventDates(post);
+  const upcoming = dates.filter((iso) => isUpcomingEvent(iso));
+  return upcoming[0] ?? dates[0];
+}
+
 /** Préfixe des publications événement seed (backend seed-feed-events). */
 export const SEED_EVENT_POST_ID_PREFIX = 'feed-event-';
 
@@ -56,14 +76,16 @@ export function getUpcomingUserEvents(
   const fav = opts?.favoriteAuthorIds;
 
   return posts
-    .filter((p) => isUserCreatedEvent(p) && isUpcomingEvent(p.eventDate))
+    .filter((p) => isUserCreatedEvent(p) && hasUpcomingEventDate(p))
     .sort((a, b) => {
       if (fav?.size) {
         const aFollowed = fav.has(a.author.id) ? 0 : 1;
         const bFollowed = fav.has(b.author.id) ? 0 : 1;
         if (aFollowed !== bFollowed) return aFollowed - bFollowed;
       }
-      return new Date(a.eventDate!).getTime() - new Date(b.eventDate!).getTime();
+      const aDate = getPrimaryEventDate(a);
+      const bDate = getPrimaryEventDate(b);
+      return new Date(aDate!).getTime() - new Date(bDate!).getTime();
     })
     .slice(0, limit);
 }

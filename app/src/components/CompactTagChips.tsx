@@ -6,29 +6,36 @@ const CHIP_COLORS: Record<TagColor, string> = {
   pink: 'bg-pink-500/10 text-pink-300 border-pink-500/25',
 };
 
+const LABEL_COLORS: Record<TagColor, string> = {
+  cyan: 'text-cyan-400/70',
+  purple: 'text-purple-400/70',
+  pink: 'text-pink-400/70',
+};
+
 function CompactTagSection({
   label,
   tags,
   color,
-  align = 'center',
 }: {
   label: string;
   tags: string[];
   color: TagColor;
-  align?: 'center' | 'start';
 }) {
   if (!tags.length) return null;
 
   return (
-    <section className={align === 'start' ? 'text-left' : 'text-center'}>
-      <p className="text-xs uppercase text-gray-500 tracking-wide mb-1.5">{label}</p>
+    <section>
+      <p className={`text-[10px] uppercase tracking-widest font-semibold mb-2 ${LABEL_COLORS[color]}`}>
+        {label}
+      </p>
       <div
-        className={`flex flex-wrap gap-1.5 ${align === 'start' ? 'justify-start' : 'justify-center'}`}
+        className="flex gap-2 overflow-x-auto pb-1"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
       >
         {tags.map((t) => (
           <span
             key={`${color}-${t}`}
-            className={`px-2.5 py-1 rounded-full text-[11px] border ${CHIP_COLORS[color]}`}
+            className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-medium border whitespace-nowrap ${CHIP_COLORS[color]}`}
           >
             {t}
           </span>
@@ -54,9 +61,9 @@ export function CompactTagChips({
 
   return (
     <div className="space-y-4">
-      <CompactTagSection label="Centres d'intérêt" tags={interests} color="cyan" align={align} />
-      <CompactTagSection label="Genres favoris" tags={genres} color="purple" align={align} />
-      <CompactTagSection label="Artistes" tags={artists} color="pink" align={align} />
+      <CompactTagSection label="Centres d'intérêt" tags={interests} color="cyan" />
+      <CompactTagSection label="Genres favoris" tags={genres} color="purple" />
+      <CompactTagSection label="Artistes" tags={artists} color="pink" />
     </div>
   );
 }

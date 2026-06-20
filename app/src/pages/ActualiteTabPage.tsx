@@ -42,15 +42,13 @@ import { markFeedPostLinkShared, readFeedPostLinkSharedIds } from '../lib/feedPo
 import { EventsCarousel } from '../components/EventsCarousel';
 import { HorizontalScrollCarousel } from '../components/HorizontalScrollCarousel';
 import { NewsArticleCard } from '../components/NewsArticleCard';
-import { getUpcomingUserEvents, isUpcomingEvent } from '../lib/feedEvents';
+import { getUpcomingUserEvents, getEventDates, getPrimaryEventDate, hasUpcomingEventDate } from '../lib/feedEvents';
 import { EventLocationInput } from '../components/EventLocationInput';
+import { readSavedEventLocation, writeSavedEventLocation } from '../lib/savedEventLocation';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { pickRecentUserSounds, type FeaturedUserSoundItem } from '../lib/featuredUserSounds';
-import {
-  formatEventDateInputValue,
-  isEventDateInFuture,
-  parseEventDateInputValue,
-} from '../lib/eventDateInput';
+import { formatEventDateInputValue } from '../lib/eventDateInput';
+import { EventDatePickerInput } from '../components/EventDatePickerInput';
 
 const PhotoImageEditor = lazy(() =>
   import('../components/PhotoImageEditor').then((m) => ({ default: m.PhotoImageEditor }))
@@ -444,8 +442,11 @@ function ActualitesContent({
   const userCreatedEvents = communityEvents;
   // MODIF 159 – country events (replaces static promo news items)
   const countryUpcoming = countryEventPosts
-    .filter((p) => p.isEvent && isUpcomingEvent(p.eventDate))
-    .sort((a, b) => new Date(a.eventDate!).getTime() - new Date(b.eventDate!).getTime());
+    .filter((p) => p.isEvent && hasUpcomingEventDate(p))
+    .sort(
+      (a, b) =>
+        new Date(getPrimaryEventDate(a)!).getTime() - new Date(getPrimaryEventDate(b)!).getTime()
+    );
   // MODIF 159/167 – remplace Promotions ; titre = pays (géoloc, profil ou France)
   const displayCountryName = countryName ?? EVENTS_COUNTRY_FALLBACK.name;
   const countrySectionLabel = t('feed.eventsCountryLabel', {
@@ -685,7 +686,8 @@ const PostCard = memo(function PostCard({
   const authorStory = latestStory(storiesByUser.get(post.author.id) ?? []);
   const authorHasStory = !!post.authorHasActiveStory;
 
-  const upcoming = isUpcomingEvent(post.eventDate);
+  const upcoming = hasUpcomingEventDate(post);
+  const eventDates = getEventDates(post);
 
   return (
     <article
@@ -745,14 +747,14 @@ const PostCard = memo(function PostCard({
       </button>
 
       {/* Event date & location block */}
-      {post.isEvent && (post.eventDate || post.eventLocation) && (
+      {post.isEvent && (eventDates.length > 0 || post.eventLocation) && (
         <div className="rounded-lg bg-purple-950/40 border border-purple-500/20 px-3 py-2 space-y-1.5">
-          {post.eventDate && (
-            <div className="flex items-start gap-2">
+          {eventDates.map((iso) => (
+            <div key={iso} className="flex items-start gap-2">
               <CalendarIcon className="w-3.5 h-3.5 text-purple-400 shrink-0 mt-0.5" />
-              <span className="text-xs text-purple-100 capitalize">{formatEventDate(post.eventDate)}</span>
+              <span className="text-xs text-purple-100 capitalize">{formatEventDate(iso)}</span>
             </div>
-          )}
+          ))}
           {post.eventLocation && (
             <div className="flex items-start gap-2">
               <MapPinIcon className="w-3.5 h-3.5 text-pink-400 shrink-0 mt-0.5" />
@@ -989,11 +991,9 @@ export function ActualiteTabPage({
   const [error, setError] = useState<string | null>(null);
   // ── Événement ──
   const [isEvent, setIsEvent] = useState(false);
-  const [eventDate, setEventDate] = useState('');
-  const [eventDateDraft, setEventDateDraft] = useState('');
-  const [eventDateError, setEventDateError] = useState<string | null>(null);
-  const eventDateInputRef = useRef<HTMLInputElement>(null);
+  const [confirmedEventDates, setConfirmedEventDates] = useState<string[]>([]);
   const [eventLocation, setEventLocation] = useState('');
+  const [saveEventLocation, setSaveEventLocation] = useState(true);
   const [eventType, setEventType] = useState<'dance' | 'chant' | 'autre'>('autre');
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
 
@@ -1514,29 +1514,18 @@ export function ActualiteTabPage({
     await attachImageFromFile(file);
   };
 
-  const parsedEventDateDraft = parseEventDateInputValue(eventDateDraft, i18n.language);
-  const isEventDateConfirmed =
-    Boolean(eventDate.trim()) && parsedEventDateDraft === eventDate;
-  const showEventDateValidate = Boolean(eventDateDraft.trim()) && !isEventDateConfirmed;
   const eventFieldsValid =
-    !isEvent || (isEventDateConfirmed && Boolean(eventLocation.trim()));
+    !isEvent || (confirmedEventDates.length >= 1 && Boolean(eventLocation.trim()));
 
-  const confirmEventDate = () => {
-    const value = eventDateDraft.trim();
-    if (!value) return;
-    const parsed = parseEventDateInputValue(value, i18n.language);
-    if (!parsed) {
-      setEventDateError(t('feed.eventDateInvalid'));
-      return;
-    }
-    if (!isEventDateInFuture(parsed)) {
-      setEventDateError(t('feed.eventDatePast'));
-      return;
-    }
-    setEventDateError(null);
-    setEventDate(parsed);
-    setEventDateDraft(formatEventDateInputValue(parsed, i18n.language));
-    eventDateInputRef.current?.blur();
+  const resetEventForm = () => {
+    setConfirmedEventDates([]);
+    setEventType('autre');
+    const savedLocation = readSavedEventLocation();
+    setEventLocation(savedLocation ?? '');
+  };
+
+  const removeConfirmedEventDate = (isoLocal: string) => {
+    setConfirmedEventDates((prev) => prev.filter((d) => d !== isoLocal));
   };
   const canPublish = Boolean(draft.trim() || imageUrl.trim() || videoUrl.trim()) && eventFieldsValid;
   const editorOpen = Boolean(editorSource && editorPreviewUrl);
@@ -1554,7 +1543,9 @@ export function ActualiteTabPage({
       if (vid) body.videoUrl = vid;
       if (isEvent) {
         body.isEvent = true;
-        body.eventDate = new Date(eventDate).toISOString();
+        const eventDatesIso = confirmedEventDates.map((d) => new Date(d).toISOString());
+        body.eventDates = eventDatesIso;
+        body.eventDate = eventDatesIso[0];
         body.eventLocation = eventLocation.trim();
         body.eventType = eventType;
       }
@@ -1562,17 +1553,16 @@ export function ActualiteTabPage({
       if (isEvent && body.eventLocation) {
         await resolveEventCoords(body.eventLocation);
       }
+      if (isEvent && saveEventLocation && eventLocation.trim()) {
+        writeSavedEventLocation(eventLocation);
+      }
       setPosts((prev) => [r.post, ...prev]);
       dispatchMapEventsRefresh();
       setDraft('');
       setImageUrl('');
       setVideoUrl('');
       setIsEvent(false);
-      setEventDate('');
-      setEventDateDraft('');
-      setEventDateError(null);
-      setEventLocation('');
-      setEventType('autre');
+      resetEventForm();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Publication impossible.');
     } finally {
@@ -1767,12 +1757,11 @@ export function ActualiteTabPage({
                         checked={isEvent}
                         onChange={(e) => {
                           setIsEvent(e.target.checked);
-                          if (!e.target.checked) {
-                            setEventDate('');
-                            setEventDateDraft('');
-                            setEventDateError(null);
-                            setEventLocation('');
-                            setEventType('autre');
+                          if (e.target.checked) {
+                            const savedLocation = readSavedEventLocation();
+                            if (savedLocation) setEventLocation(savedLocation);
+                          } else {
+                            resetEventForm();
                           }
                         }}
                         className="melosong-checkbox"
@@ -1822,57 +1811,49 @@ export function ActualiteTabPage({
                           </div>
                         </div>
                         <div>
-                          <label className="block text-[10px] text-gray-300 mb-1">{t('feed.eventDate')} *</label>
-                          <div className="flex gap-2 items-stretch">
-                            <div className="relative flex-1 min-w-0">
-                              <input
-                                ref={eventDateInputRef}
-                                type="text"
-                                inputMode="numeric"
-                                autoComplete="off"
-                                placeholder={t('feed.eventDatePlaceholder')}
-                                aria-label={t('feed.eventDate')}
-                                value={eventDateDraft}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  setEventDateDraft(value);
-                                  setEventDateError(null);
-                                  if (!value.trim()) setEventDate('');
-                                }}
-                                className={`w-full rounded-lg bg-[#0b0b0f] border px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 ${
-                                  eventDateError
-                                    ? 'border-red-500/60 focus:ring-red-500/40'
-                                    : isEventDateConfirmed
-                                      ? 'border-green-500/60 focus:ring-green-500/40 pr-9'
-                                      : 'border-[#2a2a3d] focus:ring-purple-500/50'
-                                }`}
-                              />
-                              {isEventDateConfirmed && (
-                                <span
-                                  className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-green-400"
-                                  aria-hidden
+                          <label className="block text-[10px] text-gray-300 mb-1">
+                            {confirmedEventDates.length > 0 ? t('feed.eventDates') : t('feed.eventDate')} *
+                          </label>
+                          {confirmedEventDates.length > 0 && (
+                            <ul className="mb-2 space-y-1.5">
+                              {confirmedEventDates.map((isoLocal) => (
+                                <li
+                                  key={isoLocal}
+                                  className="flex items-center gap-2 rounded-lg bg-[#0b0b0f] border border-green-500/40 px-2.5 py-1.5"
                                 >
-                                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                  </svg>
-                                </span>
-                              )}
-                            </div>
-                            {showEventDateValidate && (
-                              <button
-                                type="button"
-                                onClick={confirmEventDate}
-                                className="shrink-0 rounded-lg px-3 py-2 text-xs font-semibold bg-purple-600/45 border border-purple-400/50 text-purple-100 hover:bg-purple-600/65 transition"
-                              >
-                                {t('feed.eventDateValidate')}
-                              </button>
-                            )}
-                          </div>
-                          {eventDateError && (
-                            <p className="mt-1 text-[10px] text-red-400" role="alert">
-                              {eventDateError}
-                            </p>
+                                  <span
+                                    className="pointer-events-none text-green-400 shrink-0"
+                                    aria-hidden
+                                  >
+                                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  </span>
+                                  <span className="flex-1 min-w-0 text-xs text-purple-100 capitalize truncate">
+                                    {formatEventDateInputValue(isoLocal, i18n.language)}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeConfirmedEventDate(isoLocal)}
+                                    className="shrink-0 text-[10px] font-semibold text-gray-500 hover:text-red-300 transition"
+                                    aria-label={t('feed.eventDateRemove')}
+                                  >
+                                    ✕
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
                           )}
+                          <EventDatePickerInput
+                            confirmedDates={confirmedEventDates}
+                            onAddDate={(isoLocal) => {
+                              setConfirmedEventDates((prev) =>
+                                [...prev, isoLocal].sort(
+                                  (a, b) => new Date(a).getTime() - new Date(b).getTime()
+                                )
+                              );
+                            }}
+                          />
                         </div>
                         <div>
                           <label className="block text-[10px] text-gray-300 mb-1">{t('feed.eventLocation')} *</label>
@@ -1881,6 +1862,16 @@ export function ActualiteTabPage({
                             onChange={setEventLocation}
                             profileCity={user?.city}
                           />
+                          <label className="mt-2 flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={saveEventLocation}
+                              onChange={(e) => setSaveEventLocation(e.target.checked)}
+                              className="melosong-checkbox"
+                              aria-label={t('feed.eventLocationSave')}
+                            />
+                            <span className="text-[10px] text-gray-400">{t('feed.eventLocationSave')}</span>
+                          </label>
                         </div>
                       </div>
                     )}

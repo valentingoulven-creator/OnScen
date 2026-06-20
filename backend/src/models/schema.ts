@@ -597,8 +597,10 @@ export interface FeedPost {
   resharedFromId?: string;
   /** Si true, la publication est un événement. */
   isEvent?: boolean;
-  /** Date ISO 8601 de l'événement (ex: "2026-06-14T20:00:00.000Z"). */
+  /** Date ISO 8601 de l'événement (ex: "2026-06-14T20:00:00.000Z"). Première date si plusieurs. */
   eventDate?: string;
+  /** Dates ISO 8601 de l'événement (plusieurs séances). */
+  eventDates?: string[];
   /** Lieu de l'événement (texte libre). */
   eventLocation?: string;
   /** Type : dance (danse), chant, autre (défaut). */
@@ -709,6 +711,8 @@ export const db = {
   dmPendingPairs: new Map<string, 'pending' | 'accepted' | 'refused'>(),
   supportContactMessages: [] as SupportContactMessage[],
   sponsors: [] as Sponsor[],
+  /** IDs of DEFAULT_SPONSORS explicitly deleted by an admin — skipped by ensureDefaultSponsors(). */
+  deletedDefaultSponsorIds: new Set<string>(),
   sponsorPlatformConfig: {
     reelsSponsorEnabled: true,
     reelsSponsorEveryN: 5,

@@ -361,6 +361,30 @@ dmRouter.get('/thread/:userId', authenticateJWT, (req: Request, res: Response) =
   });
 });
 
+/** Masquer une conversation DM (tous les messages visibles du fil pour moi). */
+dmRouter.delete('/thread/:userId', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const other = req.params.userId;
+
+  let hiddenCount = 0;
+  for (const msg of db.directMessages) {
+    if (
+      ((msg.senderId === me && msg.receiverId === other) ||
+        (msg.senderId === other && msg.receiverId === me)) &&
+      isDmVisibleToUser(msg, me)
+    ) {
+      hideDmForUser(msg, me);
+      hiddenCount++;
+    }
+  }
+
+  markDmThreadRead(me, other, Date.now());
+  schedulePersist();
+  emitDmUnreadToUser(me);
+
+  res.json({ ok: true, hiddenCount });
+});
+
 dmRouter.post('/thread/:userId', authenticateJWT, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const receiverId = req.params.userId;

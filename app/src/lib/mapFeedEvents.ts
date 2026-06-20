@@ -1,5 +1,5 @@
 import { api } from './api';
-import { isUpcomingEvent } from './feedEvents';
+import { hasUpcomingEventDate, getPrimaryEventDate } from './feedEvents';
 import { resolveEventCoords } from './mapEventCoords';
 import { isValidLatLng } from './mapCoords';
 import type { FeedPost, MapEventMarker } from '../types';
@@ -9,9 +9,9 @@ export function filterPostsForMapEvents(posts: FeedPost[]): FeedPost[] {
   return posts.filter(
     (p) =>
       p.isEvent &&
-      p.eventDate &&
+      getPrimaryEventDate(p) &&
       p.eventLocation?.trim() &&
-      isUpcomingEvent(p.eventDate)
+      hasUpcomingEventDate(p)
   );
 }
 
@@ -34,7 +34,8 @@ export async function buildMapEventMarkersFromPosts(
       latitude: coords.latitude,
       longitude: coords.longitude,
       title: post.content.trim() || 'Événement',
-      eventDate: post.eventDate,
+      eventDate: getPrimaryEventDate(post),
+      eventDates: post.eventDates,
       eventLocation: post.eventLocation,
       eventType: post.eventType,
       authorId: post.author.id,

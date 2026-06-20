@@ -63,6 +63,7 @@ feedRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
     videoUrl: body.videoUrl != null ? String(body.videoUrl) : undefined,
     isEvent: body.isEvent === true,
     eventDate: body.eventDate != null ? String(body.eventDate) : undefined,
+    eventDates: Array.isArray(body.eventDates) ? body.eventDates : undefined,
     eventLocation: body.eventLocation != null ? String(body.eventLocation) : undefined,
     eventType: body.eventType != null ? String(body.eventType) : undefined,
   });

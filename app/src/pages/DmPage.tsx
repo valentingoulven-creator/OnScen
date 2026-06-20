@@ -213,6 +213,15 @@ function UserCheckbox({
   );
 }
 
+type NewDmPick = {
+  id: string;
+  username: string;
+  avatarUrl?: string;
+  usernameColor?: string;
+  usernameWaveFrom?: string;
+  usernameWaveTo?: string;
+};
+
 export function DmPage({
   openPeerId = null,
   openGroupId = null,
@@ -286,6 +295,7 @@ export function DmPage({
   const [newDmQuery, setNewDmQuery] = useState('');
   const [newDmResults, setNewDmResults] = useState<UserSearchHit[]>([]);
   const [newDmSearching, setNewDmSearching] = useState(false);
+  const [followingFriends, setFollowingFriends] = useState<NewDmPick[]>([]);
   const [createSalonOpen, setCreateSalonOpen] = useState(false);
   const [createSalonPreset, setCreateSalonPreset] = useState<CreateSalonModalPreset | null>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
@@ -495,11 +505,8 @@ export function DmPage({
 
   const blockSelected = () => {
     const ids = [...selectedIds];
-    const names = conversations
-      .filter((c) => c.userId && selectedIds.has(c.userId))
-      .map((c) => c.username);
-    const contactNames = contacts.filter((c) => selectedIds.has(c.id)).map((c) => c.username);
-    blockUsers(ids, [...names, ...contactNames]);
+    const names = contacts.filter((c) => selectedIds.has(c.id)).map((c) => c.username);
+    blockUsers(ids, names);
   };
 
   const openThread = async (contact: DmContact) => {
@@ -1119,22 +1126,33 @@ export function DmPage({
   useEffect(() => {
     if (showNewDmSheet) {
       loadContacts();
+      if (token) {
+        api
+          .getMyFollowing(token)
+          .then((r) =>
+            setFollowingFriends(
+              r.following.map((u) => ({
+                id: u.id,
+                username: u.username,
+                avatarUrl: u.avatarUrl,
+                usernameColor: u.usernameColor,
+                usernameWaveFrom: u.usernameWaveFrom,
+                usernameWaveTo: u.usernameWaveTo,
+              }))
+            )
+          )
+          .catch(() => setFollowingFriends([]));
+      }
       window.setTimeout(() => newDmInputRef.current?.focus(), 100);
     } else {
       setNewDmQuery('');
       setNewDmResults([]);
       setNewDmSearching(false);
+      setFollowingFriends([]);
     }
-  }, [showNewDmSheet]);
+  }, [showNewDmSheet, token]);
 
-  type NewDmPick = {
-    id: string;
-    username: string;
-    avatarUrl?: string;
-    usernameColor?: string;
-    usernameWaveFrom?: string;
-    usernameWaveTo?: string;
-  };
+  const blockedUserIds = useMemo(() => new Set(blockedUsers.map((b) => b.id)), [blockedUsers]);
 
   const newDmQueryTrimmed = newDmQuery.trim();
   const newDmIsSearchMode = newDmQueryTrimmed.length >= 2;
@@ -1181,31 +1199,47 @@ export function DmPage({
       .slice(0, 8);
   }, [showNewDmSheet, matches, newDmRecentUsers, newDmQueryTrimmed]);
 
-  const newDmContactUsers = useMemo(() => {
+  const newDmFriendUsers = useMemo(() => {
     if (!showNewDmSheet) return [] as NewDmPick[];
     const seen = new Set([
       ...newDmRecentUsers.map((u) => u.id),
       ...newDmMatchUsers.map((u) => u.id),
     ]);
-    return contacts
-      .filter((c) => !seen.has(c.id))
-      .filter((c) => contactMatchesQuery(c, newDmQueryTrimmed))
-      .map((c) => ({
+    const byId = new Map<string, NewDmPick>();
+    for (const u of followingFriends) {
+      if (seen.has(u.id) || blockedUserIds.has(u.id)) continue;
+      byId.set(u.id, u);
+    }
+    for (const c of contacts) {
+      if (seen.has(c.id) || blockedUserIds.has(c.id) || byId.has(c.id)) continue;
+      byId.set(c.id, {
         id: c.id,
         username: c.username,
         avatarUrl: c.avatarUrl,
         usernameColor: c.usernameColor,
         usernameWaveFrom: c.usernameWaveFrom,
         usernameWaveTo: c.usernameWaveTo,
-      }));
-  }, [showNewDmSheet, contacts, newDmRecentUsers, newDmMatchUsers, newDmQueryTrimmed]);
+      });
+    }
+    return [...byId.values()]
+      .filter((u) => contactMatchesQuery(u as DmContact, newDmQueryTrimmed))
+      .sort((a, b) => a.username.localeCompare(b.username, 'fr'));
+  }, [
+    showNewDmSheet,
+    followingFriends,
+    contacts,
+    blockedUserIds,
+    newDmRecentUsers,
+    newDmMatchUsers,
+    newDmQueryTrimmed,
+  ]);
 
   const newDmSearchUsers = useMemo(() => {
     if (!showNewDmSheet || !newDmIsSearchMode) return [] as NewDmPick[];
     const seen = new Set([
       ...newDmRecentUsers.map((u) => u.id),
       ...newDmMatchUsers.map((u) => u.id),
-      ...newDmContactUsers.map((u) => u.id),
+      ...newDmFriendUsers.map((u) => u.id),
     ]);
     return newDmResults
       .filter((hit) => !seen.has(hit.id))
@@ -1223,7 +1257,7 @@ export function DmPage({
     newDmResults,
     newDmRecentUsers,
     newDmMatchUsers,
-    newDmContactUsers,
+    newDmFriendUsers,
   ]);
 
   const openNewDmPick = useCallback(
@@ -1288,6 +1322,28 @@ export function DmPage({
   const blockActiveUser = () => {
     if (!activeUser) return;
     blockUsers([activeUser.id], [activeUser.username]);
+  };
+
+  const hideConversationFromList = (userId: string, username: string) => {
+    if (!token) return;
+    setConversationMenuOpen(null);
+    setPendingConfirm({
+      title: 'Supprimer cette conversation ?',
+      description: `La conversation avec ${username} sera masquée de votre liste. Si vous recevez un nouveau message, elle réapparaîtra.`,
+      confirmLabel: 'Supprimer',
+      onConfirm: async () => {
+        await api.hideDmConversation(token, userId);
+        if (activeUser?.id === userId) {
+          setActiveUser(null);
+          setActivePeer(null);
+          setMessages([]);
+          setView('list');
+        }
+        loadConversations();
+        refreshUnread();
+        setPendingConfirm(null);
+      },
+    });
   };
 
   const setActiveUserMuted = (muted: boolean) => {
@@ -2625,24 +2681,14 @@ export function DmPage({
         {displayedConversations.map((c) => {
           const isGroup = isGroupConversation(c);
           const rowKey = isGroup ? c.groupId! : c.userId!;
-          const selected = !isGroup && c.userId ? selectedIds.has(c.userId) : false;
           const isConvMenuOpen = !isGroup && c.userId ? conversationMenuOpen === c.userId : false;
           const isMuted = !isGroup && c.isMuted;
           return (
             <li key={rowKey}>
-              <div
-                className={`relative flex items-center gap-3 p-4 border-b border-[#1e1e2f]/50 ${
-                  selected ? 'bg-purple-900/25' : 'hover:bg-[#12121a]'
-                }`}
-              >
-                {!isGroup && c.userId && (
-                  <UserCheckbox checked={selected} onChange={() => toggleSelect(c.userId!)} />
-                )}
-                {isGroup && <span className="w-5 shrink-0" aria-hidden />}
+              <div className="relative flex items-center gap-3 p-4 border-b border-[#1e1e2f]/50 hover:bg-[#12121a]">
                 <button
                   type="button"
                   onClick={() => {
-                    if (selectionCount > 0) return;
                     if (isConvMenuOpen) { setConversationMenuOpen(null); return; }
                     if (isGroup && c.groupId) void openGroupThread(c.groupId);
                     else if (c.userId) {
@@ -2736,7 +2782,7 @@ export function DmPage({
 
                 {/* Menu ··· sourdine par conversation (DM seulement) */}
                 {!isGroup && c.userId && (
-                  <div className="relative shrink-0">
+                  <div className="relative shrink-0" data-conv-menu>
                     <button
                       type="button"
                       onClick={(e) => {
@@ -2749,7 +2795,10 @@ export function DmPage({
                       ⋯
                     </button>
                     {isConvMenuOpen && (
-                      <div className="absolute right-0 top-full mt-1 z-30 bg-[#1a1a26] border border-[#2d2d3d] rounded-xl shadow-xl overflow-hidden min-w-[14rem]">
+                      <div
+                        className="absolute right-0 top-full mt-1 z-30 bg-[#1a1a26] border border-[#2d2d3d] rounded-xl shadow-xl overflow-hidden min-w-[14rem]"
+                        data-conv-menu
+                      >
                         <button
                           type="button"
                           disabled={muting}
@@ -2776,6 +2825,24 @@ export function DmPage({
                         >
                           {isMuted ? 'Réactiver les notifications' : 'Mettre en sourdine'}
                         </button>
+                        <button
+                          type="button"
+                          disabled={blocking}
+                          onClick={() => {
+                            setConversationMenuOpen(null);
+                            blockUsers([c.userId!], [c.username]);
+                          }}
+                          className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-red-500/10 border-t border-[#2d2d3d] disabled:opacity-50"
+                        >
+                          {blocking ? '...' : 'Bloquer'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => hideConversationFromList(c.userId!, c.username)}
+                          className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-red-500/10 border-t border-[#2d2d3d]"
+                        >
+                          Supprimer
+                        </button>
                       </div>
                     )}
                   </div>
@@ -2785,8 +2852,6 @@ export function DmPage({
           );
         })}
       </ul>
-
-      <SelectionBar />
 
       {showNewDmSheet && (
         <div
@@ -2925,13 +2990,13 @@ export function DmPage({
                 </div>
               )}
 
-              {!newDmSearching && newDmContactUsers.length > 0 && (
+              {!newDmSearching && newDmFriendUsers.length > 0 && (
                 <div className="mb-2">
                   <p className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
-                    Abonnements mutuels
+                    Amis
                   </p>
                   <ul>
-                    {newDmContactUsers.map((user) => (
+                    {newDmFriendUsers.map((user) => (
                       <li key={`contact-${user.id}`}>
                         <button
                           type="button"
@@ -2998,12 +3063,12 @@ export function DmPage({
               {!newDmSearching &&
                 newDmRecentUsers.length === 0 &&
                 newDmMatchUsers.length === 0 &&
-                newDmContactUsers.length === 0 &&
+                newDmFriendUsers.length === 0 &&
                 (!newDmIsSearchMode || newDmSearchUsers.length === 0) && (
                   <p className="text-center text-gray-500 text-sm py-6 px-4">
                     {newDmIsSearchMode
                       ? `Aucun utilisateur trouvé pour « ${newDmQueryTrimmed} »`
-                      : 'Recherchez un utilisateur pour démarrer une conversation'}
+                      : 'Aucun ami pour le moment — recherchez un utilisateur pour démarrer une conversation'}
                   </p>
                 )}
             </div>

@@ -8,6 +8,8 @@ interface FollowUserButtonProps {
   initialFollowing?: boolean;
   compact?: boolean;
   iconOnly?: boolean;
+  /** 'pill' renders a larger rounded-full gradient button for profile pages */
+  variant?: 'default' | 'pill';
   className?: string;
   onFollowingChange?: (following: boolean) => void;
 }
@@ -18,6 +20,7 @@ export const FollowUserButton = memo(function FollowUserButton({
   initialFollowing = false,
   compact = false,
   iconOnly = false,
+  variant = 'default',
   className = '',
   onFollowingChange,
 }: FollowUserButtonProps) {
@@ -86,11 +89,21 @@ export const FollowUserButton = memo(function FollowUserButton({
 
   const base = iconOnly
     ? 'p-1 rounded-full border transition disabled:opacity-50'
-    : compact
-      ? 'px-2.5 py-1 rounded-full text-[10px] font-bold border transition disabled:opacity-50'
-      : 'w-full py-2.5 rounded-xl text-sm font-bold border transition disabled:opacity-50';
+    : variant === 'pill'
+      ? 'px-5 py-2 rounded-full text-sm font-bold transition disabled:opacity-50 active:scale-[0.97]'
+      : compact
+        ? 'px-2.5 py-1 rounded-full text-[10px] font-bold border transition disabled:opacity-50'
+        : 'w-full py-2.5 rounded-xl text-sm font-bold border transition disabled:opacity-50';
 
-  const label = loading ? '…' : following ? 'Ne plus suivre' : 'Suivre';
+  const label = loading ? '…' : following ? 'Abonné(e)' : 'Suivre';
+
+  const pillColors = variant === 'pill'
+    ? following
+      ? 'bg-[#1e1e2f] border border-[#2d2d3d] text-gray-300 hover:border-gray-500'
+      : 'bg-gradient-to-r from-purple-600 to-pink-500 text-white shadow-lg shadow-purple-900/30 hover:from-purple-500 hover:to-pink-400'
+    : following
+      ? 'bg-[#1a1a26]/90 border-[#2d2d3d] text-gray-300 hover:border-gray-500'
+      : 'bg-purple-600/80 border-purple-500/50 text-white hover:bg-purple-600';
 
   return (
     <div className={className}>
@@ -100,11 +113,7 @@ export const FollowUserButton = memo(function FollowUserButton({
         disabled={loading}
         title={label}
         aria-label={label}
-        className={`${base} ${
-          following
-            ? 'bg-[#1a1a26]/90 border-[#2d2d3d] text-gray-300 hover:border-gray-500'
-            : 'bg-purple-600/80 border-purple-500/50 text-white hover:bg-purple-600'
-        }`}
+        className={`${base} ${pillColors}`}
       >
         {iconOnly ? (
           loading ? (

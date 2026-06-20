@@ -139,6 +139,7 @@ export function mapAdminEventRow(p: FeedPost) {
     id: p.id,
     content: p.content,
     eventDate: p.eventDate,
+    eventDates: p.eventDates,
     eventLocation: p.eventLocation,
     eventType: p.eventType,
     createdAt: p.createdAt,

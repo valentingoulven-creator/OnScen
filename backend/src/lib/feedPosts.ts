@@ -67,6 +67,7 @@ export interface PublicFeedPost {
   /** Champs événement (présents si isEvent === true). */
   isEvent?: boolean;
   eventDate?: string;
+  eventDates?: string[];
   eventLocation?: string;
   eventType?: 'dance' | 'chant' | 'autre';
   author: {
@@ -146,6 +147,32 @@ function normalizeEventDate(raw: unknown): string | null {
   return d.toISOString();
 }
 
+function normalizeEventDates(
+  rawDates: unknown,
+  rawSingle: unknown
+): { eventDate: string; eventDates: string[] } | null {
+  const dates: string[] = [];
+
+  if (Array.isArray(rawDates)) {
+    for (const item of rawDates) {
+      const normalized = normalizeEventDate(item);
+      if (normalized) dates.push(normalized);
+    }
+  }
+
+  if (dates.length === 0) {
+    const single = normalizeEventDate(rawSingle);
+    if (single) dates.push(single);
+  }
+
+  if (dates.length === 0) return null;
+
+  const unique = [...new Set(dates)].sort(
+    (a, b) => new Date(a).getTime() - new Date(b).getTime()
+  );
+  return { eventDate: unique[0], eventDates: unique };
+}
+
 function normalizeEventLocation(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
   const v = raw.trim();
@@ -170,6 +197,7 @@ export function createFeedPost(
     videoUrl?: string;
     isEvent?: boolean;
     eventDate?: string;
+    eventDates?: unknown;
     eventLocation?: string;
     eventType?: string;
   }
@@ -211,18 +239,20 @@ export function createFeedPost(
 
   // Validation événement
   let eventDate: string | undefined;
+  let eventDates: string[] | undefined;
   let eventLocation: string | undefined;
   let eventType: 'dance' | 'chant' | 'autre' | undefined;
   if (input.isEvent) {
-    const date = normalizeEventDate(input.eventDate);
-    if (!date) {
+    const normalizedDates = normalizeEventDates(input.eventDates, input.eventDate);
+    if (!normalizedDates) {
       return { ok: false, error: "Date de l'événement invalide ou manquante." };
     }
     const loc = normalizeEventLocation(input.eventLocation);
     if (!loc) {
       return { ok: false, error: "Lieu de l'événement requis (max 300 caractères)." };
     }
-    eventDate = date;
+    eventDate = normalizedDates.eventDate;
+    eventDates = normalizedDates.eventDates;
     eventLocation = loc;
     eventType = normalizeEventType(input.eventType);
   }
@@ -233,7 +263,9 @@ export function createFeedPost(
     content,
     ...(imageUrl ? { imageUrl } : {}),
     ...(videoUrl ? { videoUrl } : {}),
-    ...(input.isEvent ? { isEvent: true, eventDate, eventLocation, eventType } : {}),
+    ...(input.isEvent
+      ? { isEvent: true, eventDate, eventDates, eventLocation, eventType }
+      : {}),
     createdAt: Date.now(),
   };
   db.feedPosts.push(post);
@@ -429,6 +461,7 @@ function toPublicPost(
       ? {
           isEvent: true,
           eventDate: post.eventDate,
+          ...(post.eventDates?.length ? { eventDates: post.eventDates } : {}),
           eventLocation: post.eventLocation,
           eventType: post.eventType ?? 'autre',
         }

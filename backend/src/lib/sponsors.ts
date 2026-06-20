@@ -618,6 +618,11 @@ export function updateSponsor(id: string, input: SponsorInput): Sponsor {
 export function deleteSponsor(id: string): void {
   const idx = db.sponsors.findIndex((s) => s.id === id);
   if (idx < 0) throw new Error('Sponsor introuvable');
+  // Remember that this default sponsor was explicitly deleted so ensureDefaultSponsors()
+  // won't resurrect it on the next server restart.
+  if (DEFAULT_SPONSORS.some((s) => s.id === id)) {
+    db.deletedDefaultSponsorIds.add(id);
+  }
   db.sponsors.splice(idx, 1);
 }
 
@@ -676,7 +681,8 @@ export function ensureDefaultSponsors(): number {
   const existingIds = new Set(db.sponsors.map((s) => s.id));
   let added = 0;
 
-  if (db.sponsors.length === 0) {
+  // First-ever run: no sponsors exist yet and none have ever been admin-deleted.
+  if (db.sponsors.length === 0 && db.deletedDefaultSponsorIds.size === 0) {
     for (const seed of DEFAULT_SPONSORS) {
       db.sponsors.push({ ...seed, createdAt: ts, updatedAt: ts });
     }
@@ -685,6 +691,8 @@ export function ensureDefaultSponsors(): number {
 
   for (const seed of DEFAULT_SPONSORS) {
     if (existingIds.has(seed.id)) continue;
+    // Skip sponsors that were explicitly deleted by an admin — respect the deletion.
+    if (db.deletedDefaultSponsorIds.has(seed.id)) continue;
     db.sponsors.push({ ...seed, createdAt: ts, updatedAt: ts });
     added += 1;
   }

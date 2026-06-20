@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next';
 import {
   formatEventDate,
   formatEventDateShort,
-  isUpcomingEvent,
+  getEventDates,
+  getPrimaryEventDate,
+  hasUpcomingEventDate,
   resolveEventHeroVisual,
 } from '../lib/feedEvents';
 import type { FeedPost } from '../types';
@@ -75,7 +77,9 @@ export function EventCard({
   }, [post.id, hero.type === 'image' ? hero.url : '']);
 
   const showHeroImage = hero.type === 'image' && !heroImageFailed;
-  const upcoming = showUpcomingBadge && isUpcomingEvent(post.eventDate);
+  const eventDates = getEventDates(post);
+  const primaryEventDate = getPrimaryEventDate(post);
+  const upcoming = showUpcomingBadge && hasUpcomingEventDate(post);
   const title = post.content.trim();
   const isCarousel = layout === 'carousel';
   const isCompact = compact ?? !isCarousel;
@@ -158,7 +162,7 @@ export function EventCard({
           ) : null}
         </div>
 
-        {post.eventDate ? (
+        {primaryEventDate ? (
           <div
             className={`absolute ${
               isCompact ? 'bottom-1.5 left-1.5 right-1.5' : 'bottom-2 left-2 right-2'
@@ -168,7 +172,10 @@ export function EventCard({
               className={`inline-flex items-center gap-0.5 font-semibold text-white/95 bg-black/45 rounded-lg backdrop-blur-sm capitalize ${dateOverlayClass}`}
             >
               <CalendarIcon className={`${badgeIconClass} text-purple-300 shrink-0`} />
-              {formatEventDateShort(post.eventDate)}
+              {formatEventDateShort(primaryEventDate)}
+              {eventDates.length > 1 ? (
+                <span className="normal-case text-purple-200/90"> · +{eventDates.length - 1}</span>
+              ) : null}
             </span>
           </div>
         ) : null}
@@ -188,12 +195,16 @@ export function EventCard({
           </div>
         ) : null}
 
-        {post.eventDate ? (
-          <div className="flex items-start gap-1.5">
-            <CalendarIcon className={`${isCompact ? 'w-3 h-3' : 'w-3.5 h-3.5'} text-purple-400 shrink-0 mt-0.5`} />
-            <span className="text-[11px] text-purple-100 capitalize leading-snug line-clamp-1">
-              {formatEventDate(post.eventDate)}
-            </span>
+        {eventDates.length > 0 ? (
+          <div className="space-y-1">
+            {eventDates.map((iso) => (
+              <div key={iso} className="flex items-start gap-1.5">
+                <CalendarIcon className={`${isCompact ? 'w-3 h-3' : 'w-3.5 h-3.5'} text-purple-400 shrink-0 mt-0.5`} />
+                <span className="text-[11px] text-purple-100 capitalize leading-snug line-clamp-1">
+                  {formatEventDate(iso)}
+                </span>
+              </div>
+            ))}
           </div>
         ) : null}
 

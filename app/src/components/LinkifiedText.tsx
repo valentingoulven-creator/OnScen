@@ -10,29 +10,43 @@ type LinkifiedTextProps = {
   onOpenSalon?: (salonId: string) => void;
 };
 
-function handleInternalLink(
+/**
+ * Pure predicate: returns true if we can render this target as an in-app link.
+ * Must NOT call any handler — safe to use during render.
+ */
+function canHandleInternally(
   target: InternalLinkTarget,
   handlers: Pick<LinkifiedTextProps, 'onOpenFeedPost' | 'onOpenProfile' | 'onOpenSalon'>
 ): boolean {
+  if (target.kind === 'post') return true; // always handled (hash fallback exists)
+  if (target.kind === 'profile') return Boolean(handlers.onOpenProfile);
+  if (target.kind === 'salon') return Boolean(handlers.onOpenSalon);
+  return false;
+}
+
+/**
+ * Imperative: actually invokes the appropriate handler. Call only from event
+ * handlers (onClick), never during render.
+ */
+function handleInternalLink(
+  target: InternalLinkTarget,
+  handlers: Pick<LinkifiedTextProps, 'onOpenFeedPost' | 'onOpenProfile' | 'onOpenSalon'>
+): void {
   if (target.kind === 'post') {
     if (handlers.onOpenFeedPost) {
       handlers.onOpenFeedPost(target.postId);
-      return true;
-    }
-    if (typeof window !== 'undefined') {
+    } else if (typeof window !== 'undefined') {
       window.location.hash = `#/post/${encodeURIComponent(target.postId)}`;
     }
-    return true;
+    return;
   }
   if (target.kind === 'profile' && handlers.onOpenProfile) {
     handlers.onOpenProfile(target.userId);
-    return true;
+    return;
   }
   if (target.kind === 'salon' && handlers.onOpenSalon) {
     handlers.onOpenSalon(target.salonId);
-    return true;
   }
-  return false;
 }
 
 export function LinkifiedText({
@@ -59,24 +73,21 @@ export function LinkifiedText({
         }
 
         const internal = seg.internal;
-        if (internal) {
-          const handledInApp = handleInternalLink(internal, handlers);
-          if (handledInApp) {
-            return (
-              <a
-                key={i}
-                href={seg.href}
-                className={LINK_CLASS}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleInternalLink(internal, handlers);
-                }}
-              >
-                {seg.display}
-              </a>
-            );
-          }
+        if (internal && canHandleInternally(internal, handlers)) {
+          return (
+            <a
+              key={i}
+              href={seg.href}
+              className={LINK_CLASS}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleInternalLink(internal, handlers);
+              }}
+            >
+              {seg.display}
+            </a>
+          );
         }
 
         return (

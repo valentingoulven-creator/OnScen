@@ -1228,6 +1228,9 @@ export const api = {
       isBlockedByThem?: boolean;
     }>(`/dm/thread/${userId}`, {}, token),
 
+  hideDmConversation: (token: string, userId: string) =>
+    request<{ ok: boolean; hiddenCount: number }>(`/dm/thread/${userId}`, { method: 'DELETE' }, token),
+
   sendDm: (
     token: string,
     userId: string,
@@ -1845,6 +1848,7 @@ export const api = {
       videoUrl?: string;
       isEvent?: boolean;
       eventDate?: string;
+      eventDates?: string[];
       eventLocation?: string;
       eventType?: 'dance' | 'chant' | 'autre';
     }

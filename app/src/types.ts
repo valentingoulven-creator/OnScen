@@ -251,6 +251,7 @@ export interface AdminEventRow {
   id: string;
   content: string;
   eventDate?: string;
+  eventDates?: string[];
   eventLocation?: string;
   eventType?: FeedEventType;
   createdAt: number;
@@ -1058,6 +1059,7 @@ export interface FeedPost {
   /** Champs événement */
   isEvent?: boolean;
   eventDate?: string;
+  eventDates?: string[];
   eventLocation?: string;
   /** Type d'événement : danse, chant ou autre (défaut autre). */
   eventType?: FeedEventType;
@@ -1070,6 +1072,7 @@ export interface MapEventMarker {
   longitude: number;
   title: string;
   eventDate?: string;
+  eventDates?: string[];
   eventLocation?: string;
   eventType?: FeedEventType;
   authorId?: string;

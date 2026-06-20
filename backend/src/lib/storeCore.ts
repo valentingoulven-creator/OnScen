@@ -67,6 +67,8 @@ export interface PersistedStore {
   archivedLives?: Live[];
   supportContactMessages?: SupportContactMessage[];
   sponsors?: Sponsor[];
+  /** IDs of default sponsors explicitly deleted by an admin — prevents re-seeding on restart. */
+  deletedDefaultSponsorIds?: string[];
   sponsorPlatformConfig?: SponsorPlatformConfig;
 }
 
@@ -150,6 +152,7 @@ export function snapshotStore(): PersistedStore {
     archivedLives: [...db.lives.values()].filter((l) => !l.isActive),
     supportContactMessages: [...db.supportContactMessages],
     sponsors: [...db.sponsors],
+    deletedDefaultSponsorIds: [...db.deletedDefaultSponsorIds],
     sponsorPlatformConfig: { ...db.sponsorPlatformConfig },
   };
 }
@@ -255,6 +258,10 @@ export function restoreStore(data: PersistedStore): void {
 
   db.sponsors.length = 0;
   db.sponsors.push(...(data.sponsors ?? []));
+  db.deletedDefaultSponsorIds.clear();
+  for (const id of data.deletedDefaultSponsorIds ?? []) {
+    db.deletedDefaultSponsorIds.add(id);
+  }
   if (data.sponsorPlatformConfig) {
     db.sponsorPlatformConfig = { ...data.sponsorPlatformConfig };
   }
