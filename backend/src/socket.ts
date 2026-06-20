@@ -48,6 +48,7 @@ import {
 import { isAllowedChatAttachmentUrl } from './lib/chatAttachmentUrl';
 import { checkChatRateLimit } from './lib/chatRateLimit';
 import { computePlaybackPositionMs } from './lib/playbackClock';
+import { isAccessAdmin } from './lib/accessControl';
 
 // Debounce presence broadcasts per user: prevents rapid-fire storms when a user
 // reconnects multiple times in quick succession (e.g., mobile network hiccup).
@@ -682,6 +683,23 @@ export function setupSockets(io: Server): void {
 
     socket.on('leave_reel', ({ reelId }: { reelId: string }) => {
       if (reelId) socket.leave(`reel_${reelId}`);
+    });
+
+    socket.on('join_support_ticket', ({ ticketId }: { ticketId: string }) => {
+      const userId = (socket.data as { userId?: string }).userId;
+      if (!userId || !ticketId || typeof ticketId !== 'string') return;
+      const ticket = db.supportContactMessages.find((m) => m.id === ticketId);
+      if (!ticket) return;
+      const user = db.users.get(userId);
+      if (!user) return;
+      if (ticket.fromUserId !== userId && !isAccessAdmin(user)) return;
+      socket.join(`support_ticket_${ticketId}`);
+    });
+
+    socket.on('leave_support_ticket', ({ ticketId }: { ticketId: string }) => {
+      if (ticketId && typeof ticketId === 'string') {
+        socket.leave(`support_ticket_${ticketId}`);
+      }
     });
 
     socket.on('sync_playback', ({ salonId, playbackState }: { salonId: string; playbackState: object }) => {

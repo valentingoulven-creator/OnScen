@@ -23,7 +23,8 @@ function isVisibleNotification(n: AppNotification): boolean {
     n.type === 'event_created' ||
     n.type === 'mention' ||
     n.type === 'support_contact' ||
-    n.type === 'support_reply'
+    n.type === 'support_reply' ||
+    n.type === 'support_resolved'
   );
 }
 
@@ -41,7 +42,8 @@ function shouldShowToast(n: AppNotification): boolean {
     n.type === 'event_created' ||
     n.type === 'mention' ||
     n.type === 'support_contact' ||
-    n.type === 'support_reply'
+    n.type === 'support_reply' ||
+    n.type === 'support_resolved'
   );
 }
 
@@ -64,7 +66,11 @@ function isSalonRelatedNotification(n: AppNotification): boolean {
 }
 
 function isSupportNotification(n: AppNotification): boolean {
-  return n.type === 'support_contact' || n.type === 'support_reply';
+  return (
+    n.type === 'support_contact' ||
+    n.type === 'support_reply' ||
+    n.type === 'support_resolved'
+  );
 }
 
 function canOpenSupportNotification(
@@ -73,7 +79,7 @@ function canOpenSupportNotification(
   onOpenContactSupport?: (supportMessageId?: string) => void
 ): boolean {
   if (n.type === 'support_contact') return !!onOpenAdminSupport;
-  if (n.type === 'support_reply') return !!onOpenContactSupport;
+  if (n.type === 'support_reply' || n.type === 'support_resolved') return !!onOpenContactSupport;
   return false;
 }
 
@@ -119,6 +125,8 @@ function notificationEmoji(n: AppNotification): string {
       return '📩';
     case 'support_reply':
       return '✉️';
+    case 'support_resolved':
+      return '✅';
     default:
       return '♥';
   }
@@ -230,7 +238,10 @@ export function NotificationBell({
       setItems((prev) => [n, ...prev.filter((x) => x.id !== n.id)].slice(0, 50));
       setUnread((c) => c + 1);
       const skipDonToast = n.type === 'live_don' && n.liveId === getActiveHostLiveId();
-      const showSupportToast = n.type === 'support_contact' || n.type === 'support_reply';
+      const showSupportToast =
+        n.type === 'support_contact' ||
+        n.type === 'support_reply' ||
+        n.type === 'support_resolved';
       if ((shouldShowToast(n) || showSupportToast) && !skipDonToast) {
         setToast(n);
         if (n.type === 'match') {
@@ -280,6 +291,7 @@ export function NotificationBell({
   const isSupportToast = toast ? isSupportNotification(toast) : false;
   const isSupportContactToast = toast?.type === 'support_contact';
   const isSupportReplyToast = toast?.type === 'support_reply';
+  const isSupportResolvedToast = toast?.type === 'support_resolved';
   const isMessageToast = isDmToast || isGroupToast;
 
   const openFromNotif = (n: AppNotification) => {
@@ -290,6 +302,12 @@ export function NotificationBell({
       return;
     }
     if (n.type === 'support_reply' && onOpenContactSupport) {
+      onOpenContactSupport(n.supportMessageId);
+      setToast(null);
+      setOpen(false);
+      return;
+    }
+    if (n.type === 'support_resolved' && onOpenContactSupport) {
       onOpenContactSupport(n.supportMessageId);
       setToast(null);
       setOpen(false);
@@ -452,6 +470,8 @@ export function NotificationBell({
                                     ? 'Nouveau message support'
                                     : isSupportReplyToast
                                       ? 'Réponse Soundy'
+                                      : isSupportResolvedToast
+                                        ? 'Ticket résolu'
                                   : isMessageToast
                                     ? isGroupToast
                                       ? 'Message de groupe'
@@ -485,6 +505,8 @@ export function NotificationBell({
                                   ? '📩'
                                   : isSupportReplyToast
                                     ? '✉️'
+                                    : isSupportResolvedToast
+                                      ? '✅'
                                 : isGroupToast
                                   ? '👥'
                                   : isDmToast

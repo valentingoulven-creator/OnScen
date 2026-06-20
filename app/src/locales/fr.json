@@ -378,7 +378,9 @@
       "markResolved": "Marquer comme résolu",
       "resolving": "…",
       "resolveError": "Impossible de marquer comme résolu",
-      "unread": "Nouvelle réponse support"
+      "unread": "Nouvelle réponse support",
+      "ticketResolved": "Ticket résolu — merci pour votre retour.",
+      "resolvedByAdmin": "Votre ticket a été résolu par l'équipe Soundy."
     }
   },
   "profile": {
@@ -485,7 +487,18 @@
       "deleteConfirm": "Supprimer ce morceau ? Cette action est irréversible.",
       "deleteFailed": "Impossible de supprimer",
       "play": "Lire",
-      "pause": "Pause"
+      "pause": "Pause",
+      "shareAlbum": "Partager l'album",
+      "shareAlbumText": "Découvre l'album « {{title}} » de {{username}} sur Soundy",
+      "createPost": "Créer une publication",
+      "createPostTitle": "Publier l'album",
+      "createPostHint": "Partage cet album dans le fil Actualités.",
+      "createPostDefault": "🎵 Nouvel album : {{title}}",
+      "createPostPlaceholder": "Écris un message…",
+      "createPostSubmit": "Publier",
+      "createPostPublishing": "Publication…",
+      "createPostSuccess": "Publication créée dans Actualités",
+      "createPostFailed": "Impossible de publier"
     },
     "lives": {
       "title": "Lives passés",
@@ -534,9 +547,7 @@
     "premiumManage": "Gérer",
     "premiumSoon": "Bientôt disponible",
     "contactSupport": "Contacter le support",
-    "adminSection": "Administration",
     "adminPanel": "Espace administrateur",
-    "adminPanelHint": "Comptes, accès, analytics",
     "currentPasswordHint": "Mot de passe actuel requis",
     "currentPassword": "Mot de passe actuel",
     "newPassword": "Nouveau mot de passe",
@@ -551,8 +562,6 @@
     "pushDisabled": "Notifications push désactivées",
     "pushEnabled": "Notifications push activées ✓",
     "pushDenied": "Permission refusée dans le navigateur",
-    "shareLocation": "Partager ma position",
-    "shareLocationHint": "Afficher les salons, lives et personnes près de toi",
     "disablePrivateMessages": "Ne pas recevoir de messages privés",
     "disablePrivateMessagesHint": "Les autres utilisateurs ne pourront plus vous écrire en message privé",
     "disablePrivateMessagesToggleAria": "Activer ou désactiver la réception des messages privés",
@@ -630,6 +639,7 @@
     "resolvedButton": "Résolu",
     "resolving": "…",
     "resolved": "Ticket marqué comme résolu",
+    "resolvedByAdmin": "Votre ticket a été résolu par l'équipe Soundy.",
     "resolveError": "Impossible de marquer comme résolu"
   },
   "profileSearch": {
@@ -747,6 +757,9 @@
       "modeClosed": "Fermées"
     },
     "support": {
+      "subTabMessages": "Messages",
+      "subTabReports": "Signalements",
+      "subTabsAria": "Sections support",
       "filter": {
         "open": "Ouverts",
         "replied": "Répondus",

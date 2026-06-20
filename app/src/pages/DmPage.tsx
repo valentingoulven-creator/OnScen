@@ -7,6 +7,7 @@ import { ACCEPTED_IMAGE_FORMATS, validateImageFile, resizeImageInstagram } from 
 import { getLivesGeo } from '../lib/livesGeo';
 import { getSalonShareUrl } from '../lib/shareLink';
 import { getSocket } from '../lib/socket';
+import { useSupportTicketRoom, useSupportTicketUpdates } from '../hooks/useSupportTicketRealtime';
 import { useMatchCreated } from '../lib/useMatchCreated';
 import { CreateSalonModal, type CreateSalonModalPreset } from '../components/CreateSalonModal';
 import { UserAvatarOnline } from '../components/UserAvatarOnline';
@@ -341,6 +342,8 @@ export function DmPage({
   const [supportSending, setSupportSending] = useState(false);
   const [supportResolving, setSupportResolving] = useState(false);
   const [supportError, setSupportError] = useState<string | null>(null);
+  const [supportToast, setSupportToast] = useState<string | null>(null);
+  const supportToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const filteredContacts = useMemo(
     () => contacts.filter((c) => contactMatchesQuery(c, contactSearch)),
@@ -474,6 +477,28 @@ export function DmPage({
       return null;
     }
   }, [token]);
+
+  const handleSupportRealtime = useCallback(
+    (updated: SupportContactMessage) => {
+      setActiveSupportTicket((prev) => {
+        if (prev?.id === updated.id) return updated;
+        if (!prev && updated.status !== 'resolved') return updated;
+        return prev;
+      });
+      if (updated.status === 'resolved') {
+        setSupportToast(t('dm.support.resolvedByAdmin'));
+        if (supportToastTimer.current) clearTimeout(supportToastTimer.current);
+        supportToastTimer.current = setTimeout(() => setSupportToast(null), 2500);
+      }
+    },
+    [t]
+  );
+
+  useSupportTicketUpdates(handleSupportRealtime, Boolean(isActive && token));
+  useSupportTicketRoom(
+    view === 'supportThread' ? (activeSupportTicket?.id ?? null) : null,
+    Boolean(isActive && token)
+  );
 
   const openSupportThread = useCallback(
     (ticket?: SupportContactMessage | null) => {
@@ -735,14 +760,6 @@ export function DmPage({
     loadPendingRequests();
     setLoading(false);
   }, [isActive, token]);
-
-  useEffect(() => {
-    if (!isActive || !token) return;
-    const timer = window.setInterval(() => {
-      void loadActiveSupport();
-    }, 15_000);
-    return () => window.clearInterval(timer);
-  }, [isActive, token, loadActiveSupport]);
 
   useEffect(() => {
     if (!isActive || !token) return;
@@ -1984,6 +2001,7 @@ export function DmPage({
     const supportThread = getSupportThread(activeSupportTicket);
     const canReplySupport = activeSupportTicket.status === 'replied';
     const isWaitingSupport = activeSupportTicket.status === 'open';
+    const isResolvedSupport = activeSupportTicket.status === 'resolved';
 
     return (
       <div className="dm-thread-root relative flex flex-col flex-1 min-h-0 bg-[#0b0b0f] overflow-hidden">
@@ -2088,8 +2106,17 @@ export function DmPage({
             </>
           ) : isWaitingSupport ? (
             <p className="text-xs text-center text-amber-400/90 py-1">{t('dm.support.pending')}</p>
+          ) : isResolvedSupport ? (
+            <p className="text-xs text-center text-green-400/90 py-1">{t('dm.support.ticketResolved')}</p>
           ) : null}
         </div>
+        {supportToast && (
+          <div className="absolute bottom-24 left-4 right-4 z-[80] mx-auto max-w-sm pointer-events-none">
+            <div className="rounded-xl bg-green-900/90 border border-green-500/40 px-4 py-3 text-center text-sm text-green-100 shadow-xl">
+              {supportToast}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -2916,7 +2943,7 @@ export function DmPage({
         </div>
       )}
 
-      {!loading && !showMatchesOnly && conversations.length === 0 && pendingRequests.length === 0 && !activeSupportTicket && (
+      {!loading && !showMatchesOnly && conversations.length === 0 && pendingRequests.length === 0 && (!activeSupportTicket || activeSupportTicket.status === 'resolved') && (
         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
           <p className="text-gray-400 text-sm mb-4">Aucune conversation pour le moment</p>
           <button
@@ -2939,7 +2966,7 @@ export function DmPage({
       )}
 
       <ul className="flex-1 min-h-0 overflow-y-auto">
-        {!loading && !showMatchesOnly && activeSupportTicket && (
+        {!loading && !showMatchesOnly && activeSupportTicket && activeSupportTicket.status !== 'resolved' && (
           <li key="support">
             <button
               type="button"

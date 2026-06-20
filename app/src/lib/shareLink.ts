@@ -47,6 +47,16 @@ export async function getProfileShareUrl(userId: string): Promise<string> {
   return `${base}${getProfilePath(userId)}`;
 }
 
+export function getAlbumPath(userId: string, albumId: string): string {
+  const params = new URLSearchParams({ tab: 'compositions', album: albumId });
+  return `${getProfilePath(userId)}?${params.toString()}`;
+}
+
+export async function getAlbumShareUrl(userId: string, albumId: string): Promise<string> {
+  const base = await resolveShareOrigin();
+  return `${base}${getAlbumPath(userId, albumId)}`;
+}
+
 /** Public URL for sharing the Soundy app (origin from config / LAN on msdev). */
 export async function getAppShareUrl(): Promise<string> {
   return resolveShareOrigin();

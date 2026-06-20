@@ -620,7 +620,8 @@ export interface AppNotification {
     | 'event_created'
     | 'mention'
     | 'support_contact'
-    | 'support_reply';
+    | 'support_reply'
+    | 'support_resolved';
   senderId: string;
   senderName: string;
   senderAvatarUrl?: string;

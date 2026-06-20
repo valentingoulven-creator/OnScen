@@ -542,7 +542,8 @@ export interface AppNotification {
     | 'event_created'
     | 'mention'
     | 'support_contact'
-    | 'support_reply';
+    | 'support_reply'
+    | 'support_resolved';
   message: string;
   read: boolean;
   createdAt: number;

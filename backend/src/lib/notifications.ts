@@ -294,6 +294,22 @@ export function notifySupportReply(params: {
   });
 }
 
+export function notifySupportResolved(params: {
+  message: { id: string; fromUserId: string };
+  admin: { id: string; username: string; avatarUrl?: string };
+}): void {
+  if (params.message.fromUserId === params.admin.id) return;
+  pushNotification({
+    recipientId: params.message.fromUserId,
+    senderId: params.admin.id,
+    senderName: params.admin.username,
+    senderAvatarUrl: params.admin.avatarUrl,
+    type: 'support_resolved',
+    message: 'Votre ticket a été résolu ✅',
+    supportMessageId: params.message.id,
+  });
+}
+
 export function notifySupportUserReply(params: {
   message: { id: string; body: string };
   sender: { id: string; username: string; avatarUrl?: string };

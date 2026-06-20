@@ -29,7 +29,6 @@ import {
   ProfilePhotoViewer,
 } from '../components/ProfilePhotoViewer';
 import { SettingsPage, SettingsGearButton } from './SettingsPage';
-import { AdminPage } from './AdminPage';
 import { ContactSoundyPage } from './ContactSoundyPage';
 import { PlatformSubscriptionPage } from './PlatformSubscriptionPage';
 import { SupportMeloSongTeaser } from '../components/SupportMeloSongSection';
@@ -92,7 +91,6 @@ function profileToForm(user: User | null) {
 type ProfileTab = 'profil' | 'reels' | 'compositions' | 'lives';
 
 interface ProfilePageProps {
-  onBack?: () => void;
   onOpenReel?: (reelId: string) => void;
   onOpenLive?: (liveId: string) => void;
   onOpenProfile?: (userId: string) => void;
@@ -108,7 +106,6 @@ interface ProfilePageProps {
 }
 
 export function ProfilePage({
-  onBack,
   onOpenReel,
   onOpenLive,
   onOpenProfile,
@@ -121,7 +118,13 @@ export function ProfilePage({
 }: ProfilePageProps) {
   const { user, token, logout, setUserFromProfile, refreshUser } = useAuth();
   const { t } = useTranslation();
-  const [profileTab, setProfileTab] = useState<ProfileTab>('profil');
+  const [profileTab, setProfileTab] = useState<ProfileTab>(() => {
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    if (tab === 'compositions' || tab === 'reels' || tab === 'lives' || tab === 'profil') {
+      return tab;
+    }
+    return 'profil';
+  });
   const [showReelRecorder, setShowReelRecorder] = useState(false);
   const [reelsRefreshKey, setReelsRefreshKey] = useState(0);
   const [compositionsRefreshKey, setCompositionsRefreshKey] = useState(0);
@@ -129,7 +132,6 @@ export function ProfilePage({
   const [showSettings, setShowSettings] = useState(false);
   const [showSubscription, setShowSubscription] = useState(false);
   const [showContactSoundy, setShowContactSoundy] = useState(false);
-  const [showAdmin, setShowAdmin] = useState(false);
   const [showFavoritesSheet, setShowFavoritesSheet] = useState(false);
   const [showDonationSheet, setShowDonationSheet] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -301,32 +303,8 @@ export function ProfilePage({
     return <PlatformSubscriptionPage onBack={() => setShowSubscription(false)} />;
   }
 
-  if (showAdmin) {
-    return (
-      <AdminPage
-        onBack={() => setShowAdmin(false)}
-        onOpenSalon={(salonId, salonTitle) => {
-          setShowAdmin(false);
-          onOpenSalon?.(salonId, salonTitle);
-        }}
-      />
-    );
-  }
-
   if (showSettings) {
-    return (
-      <SettingsPage
-        onBack={() => setShowSettings(false)}
-        onOpenAdmin={
-          user.isAdmin
-            ? () => {
-                setShowSettings(false);
-                setShowAdmin(true);
-              }
-            : undefined
-        }
-      />
-    );
+    return <SettingsPage onBack={() => setShowSettings(false)} />;
   }
 
   const memberDate = user.memberSince
@@ -369,26 +347,24 @@ export function ProfilePage({
   return (
     <div className="flex flex-col h-full overflow-y-auto bg-[#0b0b0f]">
       <div className="relative shrink-0 max-w-lg mx-auto w-full overflow-visible">
-        <div className="absolute top-3 left-3 z-10">
-          {onBack && (
-            <button
-              type="button"
-              onClick={onBack}
-              className="w-9 h-9 flex items-center justify-center rounded-full bg-black/40 backdrop-blur border border-white/20 text-white text-lg hover:bg-black/60"
-              aria-label="Fermer le profil"
-            >
-              ←
-            </button>
-          )}
-        </div>
-        <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
-          {savedMsg && (
-            <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-1 rounded-full font-bold">
+        {!editing && (
+          <div
+            className="absolute right-3 z-30"
+            style={{ top: 'max(0.75rem, calc(var(--app-header-total-h, 3.5rem) + 0.5rem))' }}
+          >
+            <SettingsGearButton onClick={() => setShowSettings(true)} />
+          </div>
+        )}
+        {savedMsg && (
+          <div
+            className="absolute left-1/2 -translate-x-1/2 z-20"
+            style={{ top: 'max(0.75rem, calc(var(--app-header-total-h, 3.5rem) + 0.5rem))' }}
+          >
+            <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-1 rounded-full font-bold border border-green-500/30">
               {savedMsg}
             </span>
-          )}
-          {!editing && <SettingsGearButton onClick={() => setShowSettings(true)} />}
-        </div>
+          </div>
+        )}
         <ProfileHeaderSection
           variant="compact"
           userId={user.id}

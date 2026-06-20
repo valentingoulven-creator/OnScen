@@ -5,16 +5,22 @@ import { AdminAccountsTab } from './AdminAccountsTab';
 import { AdminAccessTab } from './AdminAccessTab';
 import { AdminContentTab } from './AdminContentTab';
 import { AdminCostsTab } from './AdminCostsTab';
-import { AdminSupportTab } from './AdminSupportTab';
+import { AdminSupportTab, type SupportSubTab } from './AdminSupportTab';
 import { AdminSponsorsTab } from './AdminSponsorsTab';
-import { AdminReportsTab } from './AdminReportsTab';
 import { AnalyticsPage } from './AnalyticsPage';
 
-type AdminTab = 'accounts' | 'access' | 'content' | 'analytics' | 'costs' | 'support' | 'sponsors' | 'reports';
+type AdminTab = 'accounts' | 'access' | 'content' | 'analytics' | 'costs' | 'support' | 'sponsors';
+/** Legacy alias — opens Support → Signalements sub-tab */
+type AdminInitialTab = AdminTab | 'reports';
+
+function resolveInitialTab(initialTab: AdminInitialTab): { tab: AdminTab; supportSubTab: SupportSubTab } {
+  if (initialTab === 'reports') return { tab: 'support', supportSubTab: 'reports' };
+  return { tab: initialTab, supportSubTab: 'messages' };
+}
 
 interface AdminPageProps {
   onBack?: () => void;
-  initialTab?: AdminTab;
+  initialTab?: AdminInitialTab;
   highlightSupportMessageId?: string;
   onOpenSalon?: (salonId: string, salonTitle?: string) => void;
 }
@@ -27,10 +33,14 @@ export function AdminPage({
   onOpenSalon,
 }: AdminPageProps) {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<AdminTab>(initialTab);
+  const resolved = resolveInitialTab(initialTab);
+  const [tab, setTab] = useState<AdminTab>(resolved.tab);
+  const [supportSubTab, setSupportSubTab] = useState<SupportSubTab>(resolved.supportSubTab);
 
   useEffect(() => {
-    setTab(initialTab);
+    const next = resolveInitialTab(initialTab);
+    setTab(next.tab);
+    setSupportSubTab(next.supportSubTab);
   }, [initialTab]);
 
   const tabs: { id: AdminTab; label: string }[] = [
@@ -41,7 +51,6 @@ export function AdminPage({
     { id: 'costs', label: t('admin.tabs.costs') },
     { id: 'support', label: t('admin.tabs.support') },
     { id: 'sponsors', label: t('admin.tabs.sponsors') },
-    { id: 'reports', label: 'Signalements' },
   ];
 
   return (
@@ -79,9 +88,13 @@ export function AdminPage({
         {tab === 'content' && <AdminContentTab onOpenSalon={onOpenSalon} />}
         {tab === 'analytics' && <AnalyticsPage embedded />}
         {tab === 'costs' && <AdminCostsTab />}
-        {tab === 'support' && <AdminSupportTab highlightMessageId={highlightSupportMessageId} />}
+        {tab === 'support' && (
+          <AdminSupportTab
+            highlightMessageId={highlightSupportMessageId}
+            initialSubTab={supportSubTab}
+          />
+        )}
         {tab === 'sponsors' && <AdminSponsorsTab />}
-        {tab === 'reports' && <AdminReportsTab />}
       </div>
     </div>
   );

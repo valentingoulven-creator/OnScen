@@ -1,14 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { type LegalKey } from '../content/legal';
+import { LEGAL, type LegalKey } from '../content/legal';
 import { LegalDocumentView } from '../components/LegalDocumentView';
 import {
   getAppLanguage,
   setAppLanguage,
-  getPrivacyPreferences,
-  setPrivacyPreferences,
   type AppLanguage,
-  type PrivacyPreferences,
 } from '../lib/settings';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
@@ -74,24 +71,6 @@ async function unsubscribePush(token: string): Promise<void> {
 }
 interface SettingsPageProps {
   onBack: () => void;
-  onOpenAdmin?: () => void;
-}
-
-function GearIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
-      />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"
-      />
-    </svg>
-  );
 }
 
 export function SettingsGearButton({ onClick }: { onClick: () => void }) {
@@ -102,9 +81,9 @@ export function SettingsGearButton({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       title={t('settings.title')}
       aria-label={t('settings.settingsAria')}
-      className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur border border-white/20 text-gray-200 hover:text-white transition"
+      className="w-9 h-9 rounded-full bg-black/50 border border-white/20 backdrop-blur-sm flex items-center justify-center text-base hover:bg-black/70 transition-colors"
     >
-      <GearIcon className="w-5 h-5" />
+      ⚙️
     </button>
   );
 }
@@ -138,11 +117,10 @@ function SettingsRow({
   );
 }
 
-export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
+export function SettingsPage({ onBack }: SettingsPageProps) {
   const { t } = useTranslation();
   const { token, logout, user, setUserFromProfile } = useAuth();
   const [language, setLanguage] = useState<AppLanguage>(getAppLanguage);
-  const [privacy, setPrivacy] = useState<PrivacyPreferences>(getPrivacyPreferences);
   const [legal, setLegal] = useState<LegalKey | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [showContact, setShowContact] = useState(false);
@@ -343,12 +321,6 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
     flash(lang === 'fr' ? t('settings.languageSavedFr') : t('settings.languageSavedEn'));
   };
 
-  const applyPrivacy = (next: PrivacyPreferences) => {
-    setPrivacy(next);
-    setPrivacyPreferences(next);
-    flash(t('settings.prefsSaved'));
-  };
-
   const handleTogglePrivateMessages = async () => {
     if (!token || dmSaving) return;
     const nextDisabled = !dmDisabled;
@@ -389,27 +361,37 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
     }
   };
 
-  if (showContact) {
-    return <ContactSoundyPage onBack={() => setShowContact(false)} />;
-  }
+  const handleHeaderBack = () => {
+    if (showContact) {
+      setShowContact(false);
+      return;
+    }
+    if (legal) {
+      setLegal(null);
+      return;
+    }
+    onBack();
+  };
 
-  if (legal) {
-    return <LegalDocumentView docKey={legal} onBack={() => setLegal(null)} />;
-  }
+  const headerTitle = showContact
+    ? t('support.title')
+    : legal
+      ? LEGAL[legal].title
+      : t('settings.title');
 
   return (
     <div className="flex flex-col h-full min-h-0 bg-[#0b0b0f]">
       <header className="sticky top-0 z-10 shrink-0 bg-[#0b0b0f]/95 backdrop-blur border-b border-[#1e1e2f] px-4 py-3 flex items-center gap-3">
         <button
           type="button"
-          onClick={onBack}
+          onClick={handleHeaderBack}
           className="text-purple-400 hover:text-purple-300 text-sm font-medium shrink-0"
           aria-label={t('common.back')}
         >
           ← {t('common.back')}
         </button>
         <h1 className="flex-1 min-w-0 text-center text-sm font-semibold text-white truncate">
-          {t('settings.title')}
+          {headerTitle}
         </h1>
         {saved ? (
           <span className="shrink-0 text-[10px] text-green-400 bg-green-500/10 px-2 py-1 rounded-full">{saved}</span>
@@ -418,7 +400,13 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
         )}
       </header>
 
-      <div className="flex-1 overflow-y-auto pb-8">
+      <div className="flex-1 overflow-y-auto pb-8 min-h-0">
+        {showContact ? (
+          <ContactSoundyPage embedded onBack={() => setShowContact(false)} />
+        ) : legal ? (
+          <LegalDocumentView docKey={legal} embedded />
+        ) : (
+          <>
         {/* ── Sécurité ── */}
         <section className="border-b border-[#1e1e2f]">
           <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('settings.security')}</p>
@@ -712,21 +700,7 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
           <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
             Confidentialité
           </p>
-          <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
-            <div>
-              <p className="text-sm font-semibold text-white">{t('settings.shareLocation')}</p>
-              <p className="text-xs text-gray-500">{t('settings.shareLocationHint')}</p>
-            </div>
-            <input
-              type="checkbox"
-              checked={privacy.locationSharing}
-              onChange={(e) =>
-                applyPrivacy({ ...privacy, locationSharing: e.target.checked })
-              }
-              className="w-5 h-5 accent-purple-500"
-            />
-          </label>
-          <p className="px-4 pb-3 text-[10px] text-gray-500">
+          <p className="px-4 py-3 text-[10px] text-gray-500">
             Visibilité sur la carte : icône œil barré en haut de l&apos;écran.
           </p>
 
@@ -811,20 +785,9 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
           </SettingsRow>
         </section>
 
-        {onOpenAdmin && (
-          <section className="border-t border-[#1e1e2f] mt-4">
-            <p className="px-4 pt-5 pb-1 text-[10px] font-semibold text-gray-600 uppercase tracking-wider">
-              {t('settings.adminSection')}
-            </p>
-            <SettingsRow
-              label={t('settings.adminPanel')}
-              hint={t('settings.adminPanelHint')}
-              onClick={onOpenAdmin}
-            />
-          </section>
-        )}
-
         <p className="px-4 pt-6 text-center text-[10px] text-gray-600">{t('app.versionFooter')}</p>
+          </>
+        )}
       </div>
 
 

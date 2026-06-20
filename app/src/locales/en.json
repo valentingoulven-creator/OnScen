@@ -378,7 +378,9 @@
       "markResolved": "Mark as resolved",
       "resolving": "…",
       "resolveError": "Could not mark as resolved",
-      "unread": "New support reply"
+      "unread": "New support reply",
+      "ticketResolved": "Ticket resolved — thank you for your feedback.",
+      "resolvedByAdmin": "Your ticket has been resolved by the Soundy team."
     }
   },
   "profile": {
@@ -485,7 +487,18 @@
       "deleteConfirm": "Delete this track? This cannot be undone.",
       "deleteFailed": "Could not delete",
       "play": "Play",
-      "pause": "Pause"
+      "pause": "Pause",
+      "shareAlbum": "Share album",
+      "shareAlbumText": "Check out « {{title}} » by {{username}} on Soundy",
+      "createPost": "Create post",
+      "createPostTitle": "Publish album",
+      "createPostHint": "Share this album to the feed.",
+      "createPostDefault": "🎵 New album: {{title}}",
+      "createPostPlaceholder": "Write a message…",
+      "createPostSubmit": "Publish",
+      "createPostPublishing": "Publishing…",
+      "createPostSuccess": "Post published to feed",
+      "createPostFailed": "Could not publish"
     },
     "lives": {
       "title": "Past lives",
@@ -534,9 +547,7 @@
     "premiumManage": "Manage",
     "premiumSoon": "Coming soon",
     "contactSupport": "Contact support",
-    "adminSection": "Administration",
     "adminPanel": "Admin panel",
-    "adminPanelHint": "Accounts, access, analytics",
     "currentPasswordHint": "Current password required",
     "currentPassword": "Current password",
     "newPassword": "New password",
@@ -551,8 +562,6 @@
     "pushDisabled": "Push notifications disabled",
     "pushEnabled": "Push notifications enabled ✓",
     "pushDenied": "Permission denied in browser",
-    "shareLocation": "Share my location",
-    "shareLocationHint": "Show rooms, lives and people near you",
     "disablePrivateMessages": "Disable private messages",
     "disablePrivateMessagesHint": "Other users will not be able to send you private messages",
     "disablePrivateMessagesToggleAria": "Enable or disable receiving private messages",
@@ -630,6 +639,7 @@
     "resolvedButton": "Resolved",
     "resolving": "…",
     "resolved": "Ticket marked as resolved",
+    "resolvedByAdmin": "Your ticket has been resolved by the Soundy team.",
     "resolveError": "Could not mark as resolved"
   },
   "profileSearch": {
@@ -747,6 +757,9 @@
       "modeClosed": "Closed"
     },
     "support": {
+      "subTabMessages": "Messages",
+      "subTabReports": "Reports",
+      "subTabsAria": "Support sections",
       "filter": {
         "open": "Open",
         "replied": "Replied",

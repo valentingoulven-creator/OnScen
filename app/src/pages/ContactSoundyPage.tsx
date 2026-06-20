@@ -2,11 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
+import { useSupportTicketUpdates } from '../hooks/useSupportTicketRealtime';
 import type { SupportContactMessage, SupportThreadMessage } from '../types';
 
 interface ContactSoundyPageProps {
   onBack: () => void;
   highlightMessageId?: string;
+  /** Renders content only (no header/scroll shell) for embedding in SettingsPage. */
+  embedded?: boolean;
 }
 
 function formatDateTime(ts: number, locale: string): string {
@@ -51,7 +54,7 @@ function getThread(msg: SupportContactMessage): SupportThreadMessage[] {
   return thread;
 }
 
-export function ContactSoundyPage({ onBack, highlightMessageId }: ContactSoundyPageProps) {
+export function ContactSoundyPage({ onBack, highlightMessageId, embedded }: ContactSoundyPageProps) {
   const { token } = useAuth();
   const { t, i18n } = useTranslation();
   const [body, setBody] = useState('');
@@ -88,6 +91,27 @@ export function ContactSoundyPage({ onBack, highlightMessageId }: ContactSoundyP
   useEffect(() => {
     void loadHistory();
   }, [loadHistory]);
+
+  const handleRealtimeUpdate = useCallback(
+    (updated: SupportContactMessage) => {
+      setHistory((prev) => {
+        const idx = prev.findIndex((m) => m.id === updated.id);
+        if (idx === -1) {
+          if (updated.status === 'resolved') return prev;
+          return [updated, ...prev];
+        }
+        const next = [...prev];
+        next[idx] = updated;
+        return next;
+      });
+      if (updated.status === 'resolved') {
+        showToast(t('support.resolvedByAdmin'));
+      }
+    },
+    [showToast, t]
+  );
+
+  useSupportTicketUpdates(handleRealtimeUpdate, Boolean(token));
 
   useEffect(() => {
     if (!highlightMessageId || loadingHistory) return;
@@ -145,18 +169,8 @@ export function ContactSoundyPage({ onBack, highlightMessageId }: ContactSoundyP
     }
   };
 
-  return (
-    <div className="flex flex-col h-full overflow-y-auto bg-[#0b0b0f] text-white">
-      <header className="shrink-0 z-10 bg-[#0b0b0f]/95 border-b border-[#1e1e2f] px-4 py-3">
-        <div className="flex items-center gap-3 max-w-lg mx-auto">
-          <button type="button" onClick={onBack} className="text-purple-400 text-sm shrink-0">
-            ←
-          </button>
-          <h1 className="text-lg font-bold flex-1">{t('support.title')}</h1>
-        </div>
-      </header>
-
-      <div className="flex-1 p-4 max-w-lg mx-auto w-full space-y-4">
+  const content = (
+    <div className={`${embedded ? '' : 'flex-1 '}p-4 max-w-lg mx-auto w-full space-y-4`}>
         <p className="text-sm text-gray-400">{t('support.intro')}</p>
 
         <label className="block">
@@ -204,7 +218,10 @@ export function ContactSoundyPage({ onBack, highlightMessageId }: ContactSoundyP
                     }`}
                   >
                     {msg.status === 'resolved' && (
-                      <p className="text-[10px] font-bold text-green-400/90">{t('support.statusResolved')}</p>
+                      <div className="rounded-lg bg-green-950/30 border border-green-500/30 px-3 py-2 space-y-1">
+                        <p className="text-[10px] font-bold text-green-400/90">{t('support.statusResolved')}</p>
+                        <p className="text-xs text-green-200/90">{t('support.resolvedByAdmin')}</p>
+                      </div>
                     )}
                     <div className="space-y-3">
                       {thread.map((entry) => (
@@ -274,14 +291,37 @@ export function ContactSoundyPage({ onBack, highlightMessageId }: ContactSoundyP
           </section>
         )}
       </div>
+  );
 
-      {toast && (
-        <div className="fixed bottom-24 left-4 right-4 z-[80] mx-auto max-w-sm pointer-events-none">
-          <div className="rounded-xl bg-green-900/90 border border-green-500/40 px-4 py-3 text-center text-sm text-green-100 shadow-xl">
-            {toast}
-          </div>
+  const toastEl = toast && (
+    <div className="fixed bottom-24 left-4 right-4 z-[80] mx-auto max-w-sm pointer-events-none">
+      <div className="rounded-xl bg-green-900/90 border border-green-500/40 px-4 py-3 text-center text-sm text-green-100 shadow-xl">
+        {toast}
+      </div>
+    </div>
+  );
+
+  if (embedded) {
+    return (
+      <>
+        {content}
+        {toastEl}
+      </>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full overflow-y-auto bg-[#0b0b0f] text-white">
+      <header className="shrink-0 z-10 bg-[#0b0b0f]/95 border-b border-[#1e1e2f] px-4 py-3">
+        <div className="flex items-center gap-3 max-w-lg mx-auto">
+          <button type="button" onClick={onBack} className="text-purple-400 text-sm shrink-0">
+            ←
+          </button>
+          <h1 className="text-lg font-bold flex-1">{t('support.title')}</h1>
         </div>
-      )}
+      </header>
+      {content}
+      {toastEl}
     </div>
   );
 }

@@ -1122,11 +1122,6 @@ export default function App() {
           <div className="ms-app-profile-overlay flex flex-col min-h-0 bg-[#0b0b0f]">
             <Suspense fallback={<PageFallback />}>
               <ProfilePage
-                onBack={() => {
-                  setProfileOpen(false);
-                  setProfileOpenContact(false);
-                  setProfileHighlightSupportMessageId(undefined);
-                }}
                 onOpenReel={openReelInTab}
                 onOpenLive={openLive}
                 onOpenProfile={openProfile}

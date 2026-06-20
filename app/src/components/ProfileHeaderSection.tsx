@@ -92,6 +92,9 @@ interface ProfileHeaderSectionProps {
   /** Badge note host (★ + moyenne) à côté du pseudo */
   hostRatingSlot?: ReactNode;
 
+  /** Action en haut à droite (ex. engrenage paramètres) */
+  topRightAction?: ReactNode;
+
 }
 
 
@@ -151,6 +154,8 @@ export const ProfileHeaderSection = memo(function ProfileHeaderSection({
   extraMeta,
 
   hostRatingSlot,
+
+  topRightAction,
 
 }: ProfileHeaderSectionProps) {
 
@@ -285,6 +290,15 @@ export const ProfileHeaderSection = memo(function ProfileHeaderSection({
 
       <div className="relative shrink-0 bg-[#0b0b0f] overflow-visible">
 
+        {topRightAction ? (
+          <div
+            className="absolute right-3 z-30"
+            style={{ top: 'max(0.75rem, calc(var(--app-header-total-h, 3.5rem) + 0.5rem))' }}
+          >
+            {topRightAction}
+          </div>
+        ) : null}
+
         <div className="px-4 pt-16 pb-3 flex flex-col items-center text-center overflow-visible">
 
           {onAvatarClick ? (
@@ -392,7 +406,16 @@ export const ProfileHeaderSection = memo(function ProfileHeaderSection({
 
   return (
 
-    <div className="relative shrink-0">
+    <div className="relative shrink-0 overflow-visible">
+
+      {topRightAction ? (
+        <div
+          className="absolute right-3 z-30"
+          style={{ top: 'max(0.75rem, calc(var(--app-header-total-h, 3.5rem) + 0.5rem))' }}
+        >
+          {topRightAction}
+        </div>
+      ) : null}
 
       <div className="h-24 sm:h-28 bg-gradient-to-br from-purple-900/80 via-[#1a1035] to-pink-900/40" />
 

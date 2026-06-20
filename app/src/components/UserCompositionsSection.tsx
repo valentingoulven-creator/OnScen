@@ -20,6 +20,68 @@ import {
 
 import { ConfirmModal } from './ConfirmModal';
 
+import { ShareLinkMenu } from './ShareLinkMenu';
+
+import { getAlbumShareUrl } from '../lib/shareLink';
+
+
+
+const MAX_FEED_IMAGE_DATA_CHARS = 1_200_000;
+
+
+
+function albumCoverForFeed(coverUrl?: string): string | undefined {
+
+  if (!coverUrl?.trim()) return undefined;
+
+  const url = coverUrl.trim();
+
+  if (url.startsWith('https://')) return url;
+
+  if (url.startsWith('data:image/') && url.length <= MAX_FEED_IMAGE_DATA_CHARS) return url;
+
+  return undefined;
+
+}
+
+
+
+function ShareIcon({ className }: { className?: string }) {
+
+  return (
+
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+
+      <polyline strokeLinecap="round" strokeLinejoin="round" points="16 6 12 2 8 6" />
+
+      <line x1="12" y1="2" x2="12" y2="15" strokeLinecap="round" />
+
+    </svg>
+
+  );
+
+}
+
+
+
+function PostIcon({ className }: { className?: string }) {
+
+  return (
+
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9" />
+
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+
+    </svg>
+
+  );
+
+}
+
 
 
 export interface UserCompositionItem {
@@ -301,6 +363,22 @@ export function UserCompositionsSection({
   const [albumCoverName, setAlbumCoverName] = useState('');
 
   const [creatingAlbum, setCreatingAlbum] = useState(false);
+
+
+
+  const [shareAlbum, setShareAlbum] = useState<UserAlbumItem | null>(null);
+
+  const [shareAlbumUrl, setShareAlbumUrl] = useState('');
+
+  const [postAlbum, setPostAlbum] = useState<UserAlbumItem | null>(null);
+
+  const [postDraft, setPostDraft] = useState('');
+
+  const [postPublishing, setPostPublishing] = useState(false);
+
+  const [postError, setPostError] = useState<string | null>(null);
+
+  const albumDeepLinkHandledRef = useRef(false);
 
   const [createAlbumError, setCreateAlbumError] = useState<string | null>(null);
 
@@ -1045,6 +1123,192 @@ export function UserCompositionsSection({
 
 
 
+  useEffect(() => {
+
+    if (loading || albums.length === 0 || albumDeepLinkHandledRef.current) return;
+
+    const albumId = new URLSearchParams(window.location.search).get('album');
+
+    if (!albumId) return;
+
+    const album = albums.find((a) => a.id === albumId);
+
+    if (!album) return;
+
+    albumDeepLinkHandledRef.current = true;
+
+    setSelectedAlbum(album);
+
+    setViewMode('album');
+
+  }, [loading, albums]);
+
+
+
+  const shareDisplayName = defaultArtist || me?.username || 'Soundy';
+
+
+
+  const buildDefaultPostContent = (album: UserAlbumItem) => {
+
+    const lines = [t('profile.compositions.createPostDefault', { title: album.title })];
+
+    if (album.description?.trim()) lines.push(album.description.trim());
+
+    return lines.join('\n\n');
+
+  };
+
+
+
+  const openShareForAlbum = (album: UserAlbumItem) => {
+
+    setShareAlbum(album);
+
+    setShareAlbumUrl('');
+
+    void getAlbumShareUrl(ownerId, album.id).then((url) => setShareAlbumUrl(url));
+
+  };
+
+
+
+  const openPostForAlbum = (album: UserAlbumItem) => {
+
+    setPostAlbum(album);
+
+    setPostDraft(buildDefaultPostContent(album));
+
+    setPostError(null);
+
+  };
+
+
+
+  const closePostAlbum = () => {
+
+    if (postPublishing) return;
+
+    setPostAlbum(null);
+
+    setPostDraft('');
+
+    setPostError(null);
+
+  };
+
+
+
+  const publishAlbumPost = async () => {
+
+    if (!token || !postAlbum || postPublishing) return;
+
+    const content = postDraft.trim();
+
+    if (!content) return;
+
+    setPostPublishing(true);
+
+    setPostError(null);
+
+    try {
+
+      const body: { content: string; imageUrl?: string } = { content };
+
+      const cover = albumCoverForFeed(postAlbum.coverUrl);
+
+      if (cover) body.imageUrl = cover;
+
+      await api.createFeedPost(token, body);
+
+      setPostAlbum(null);
+
+      setPostDraft('');
+
+      setToastMsg(t('profile.compositions.createPostSuccess'));
+
+    } catch (e) {
+
+      setPostError(
+
+        e instanceof Error ? e.message : t('profile.compositions.createPostFailed')
+
+      );
+
+    } finally {
+
+      setPostPublishing(false);
+
+    }
+
+  };
+
+
+
+  const renderAlbumActionButtons = (album: UserAlbumItem, size: 'sm' | 'md' = 'sm') => {
+
+    const btnClass =
+
+      size === 'md'
+
+        ? 'w-8 h-8'
+
+        : 'w-7 h-7';
+
+    const iconClass = size === 'md' ? 'w-4 h-4' : 'w-3.5 h-3.5';
+
+    return (
+
+      <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+
+        <button
+
+          type="button"
+
+          onClick={() => openShareForAlbum(album)}
+
+          className={`${btnClass} flex items-center justify-center rounded-full border border-[#2d2d3d] bg-[#1a1a26] text-gray-400 hover:text-white hover:border-purple-500/40 transition active:scale-95`}
+
+          title={t('profile.compositions.shareAlbum')}
+
+          aria-label={t('profile.compositions.shareAlbum')}
+
+        >
+
+          <ShareIcon className={iconClass} />
+
+        </button>
+
+        {isOwner && (
+
+          <button
+
+            type="button"
+
+            onClick={() => openPostForAlbum(album)}
+
+            className={`${btnClass} flex items-center justify-center rounded-full border border-[#2d2d3d] bg-[#1a1a26] text-gray-400 hover:text-purple-300 hover:border-purple-500/40 transition active:scale-95`}
+
+            title={t('profile.compositions.createPost')}
+
+            aria-label={t('profile.compositions.createPost')}
+
+          >
+
+            <PostIcon className={iconClass} />
+
+          </button>
+
+        )}
+
+      </div>
+
+    );
+
+  };
+
+
+
   const hasContent = albums.length > 0 || looseTrackCount > 0;
 
   const detailTitle =
@@ -1189,49 +1453,63 @@ export function UserCompositionsSection({
 
   const renderAlbumCard = (album: UserAlbumItem) => (
 
-    <button
+    <div
 
       key={album.id}
-
-      type="button"
-
-      onClick={() => openAlbum(album)}
 
       className="text-left rounded-xl border border-[#2d2d3d] bg-[#12121a] overflow-hidden hover:border-purple-500/50 transition group"
 
     >
 
-      <div className="aspect-square bg-[#1a1a26] flex items-center justify-center overflow-hidden">
+      <button
 
-        {album.coverUrl ? (
+        type="button"
 
-          <img src={album.coverUrl} alt="" className="w-full h-full object-cover" />
+        onClick={() => openAlbum(album)}
 
-        ) : (
+        className="w-full text-left"
 
-          <span className="text-4xl text-purple-400/60 group-hover:text-purple-300 transition" aria-hidden>
+      >
 
-            💿
+        <div className="aspect-square bg-[#1a1a26] flex items-center justify-center overflow-hidden">
 
-          </span>
+          {album.coverUrl ? (
 
-        )}
+            <img src={album.coverUrl} alt="" className="w-full h-full object-cover" />
 
-      </div>
+          ) : (
+
+            <span className="text-4xl text-purple-400/60 group-hover:text-purple-300 transition" aria-hidden>
+
+              💿
+
+            </span>
+
+          )}
+
+        </div>
+
+      </button>
 
       <div className="p-3 space-y-0.5">
 
         <p className="text-sm font-bold text-white truncate">{album.title}</p>
 
-        <p className="text-[11px] text-gray-500">
+        <div className="flex items-center justify-between gap-2 min-w-0">
 
-          {t('profile.compositions.trackCount', { count: album.trackCount })}
+          <p className="text-[11px] text-gray-500 truncate">
 
-        </p>
+            {t('profile.compositions.trackCount', { count: album.trackCount })}
+
+          </p>
+
+          {renderAlbumActionButtons(album)}
+
+        </div>
 
       </div>
 
-    </button>
+    </div>
 
   );
 
@@ -1304,6 +1582,8 @@ export function UserCompositionsSection({
               )}
 
             </div>
+
+            {viewMode === 'album' && selectedAlbum && renderAlbumActionButtons(selectedAlbum, 'md')}
 
             {isOwner && viewMode === 'album' && selectedAlbum && (
 
@@ -1924,6 +2204,178 @@ export function UserCompositionsSection({
         onConfirm={() => void confirmDeleteAlbum()}
 
       />
+
+
+
+      {shareAlbum && shareAlbumUrl && (
+
+        <ShareLinkMenu
+
+          open
+
+          onClose={() => {
+
+            setShareAlbum(null);
+
+            setShareAlbumUrl('');
+
+          }}
+
+          url={shareAlbumUrl}
+
+          title={`${shareAlbum.title} — Soundy`}
+
+          text={t('profile.compositions.shareAlbumText', {
+
+            title: shareAlbum.title,
+
+            username: shareDisplayName,
+
+          })}
+
+          onToast={setToastMsg}
+
+        />
+
+      )}
+
+
+
+      {postAlbum && (
+
+        <div
+
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 p-4"
+
+          role="dialog"
+
+          aria-modal="true"
+
+          aria-labelledby="album-post-title"
+
+        >
+
+          <form
+
+            onSubmit={(e) => {
+
+              e.preventDefault();
+
+              void publishAlbumPost();
+
+            }}
+
+            className="w-full max-w-sm rounded-2xl bg-[#12121a] border border-[#2d2d3d] p-4 space-y-3 shadow-xl"
+
+          >
+
+            <h4 id="album-post-title" className="text-sm font-bold text-white">
+
+              {t('profile.compositions.createPostTitle')}
+
+            </h4>
+
+            <p className="text-[11px] text-gray-500">{t('profile.compositions.createPostHint')}</p>
+
+            <div className="flex items-center gap-3">
+
+              <div className="shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-[#1a1a26] flex items-center justify-center border border-[#2d2d3d]">
+
+                {postAlbum.coverUrl ? (
+
+                  <img src={postAlbum.coverUrl} alt="" className="w-full h-full object-cover" />
+
+                ) : (
+
+                  <span className="text-xl text-purple-400/60" aria-hidden>💿</span>
+
+                )}
+
+              </div>
+
+              <div className="min-w-0">
+
+                <p className="text-sm font-bold text-white truncate">{postAlbum.title}</p>
+
+                <p className="text-[11px] text-gray-500">
+
+                  {t('profile.compositions.trackCount', { count: postAlbum.trackCount })}
+
+                </p>
+
+              </div>
+
+            </div>
+
+            <label className="block">
+
+              <textarea
+
+                value={postDraft}
+
+                onChange={(e) => setPostDraft(e.target.value)}
+
+                placeholder={t('profile.compositions.createPostPlaceholder')}
+
+                rows={4}
+
+                maxLength={2000}
+
+                className="mt-0.5 w-full rounded-lg bg-[#1a1a28] border border-[#2d2d3d] px-2.5 py-1.5 text-sm text-white resize-none"
+
+              />
+
+            </label>
+
+            {postError && (
+
+              <p className="text-xs text-red-400">{postError}</p>
+
+            )}
+
+            <div className="flex gap-2">
+
+              <button
+
+                type="button"
+
+                onClick={closePostAlbum}
+
+                disabled={postPublishing}
+
+                className="flex-1 py-2.5 rounded-xl border border-[#2d2d3d] text-gray-300 text-sm font-semibold hover:bg-[#1a1a28] disabled:opacity-40"
+
+              >
+
+                {t('common.cancel')}
+
+              </button>
+
+              <button
+
+                type="submit"
+
+                disabled={postPublishing || !postDraft.trim()}
+
+                className="flex-[2] py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 font-bold text-white text-sm disabled:opacity-40"
+
+              >
+
+                {postPublishing
+
+                  ? t('profile.compositions.createPostPublishing')
+
+                  : t('profile.compositions.createPostSubmit')}
+
+              </button>
+
+            </div>
+
+          </form>
+
+        </div>
+
+      )}
 
 
 

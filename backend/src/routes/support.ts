@@ -10,8 +10,10 @@ import { isAccessAdmin } from '../lib/accessControl';
 import {
   notifySupportContact,
   notifySupportReply,
+  notifySupportResolved,
   notifySupportUserReply,
 } from '../lib/notifications';
+import { broadcastSupportTicketUpdated } from '../lib/supportBroadcast';
 
 export const supportRouter = Router();
 export const supportAdminRouter = Router();
@@ -157,6 +159,7 @@ supportRouter.post('/contact', authenticateJWT, (req: Request, res: Response) =>
     message: msg,
     sender: { id: user.id, username: user.username, avatarUrl: user.avatarUrl },
   });
+  broadcastSupportTicketUpdated(msg);
   res.status(201).json({ message: mapSupportMessage(msg) });
 });
 
@@ -221,6 +224,7 @@ supportRouter.post('/contact/:id/reply', authenticateJWT, (req: Request, res: Re
     sender: { id: user.id, username: user.username, avatarUrl: user.avatarUrl },
     replyPreview: body,
   });
+  broadcastSupportTicketUpdated(msg);
 
   res.json({ message: mapSupportMessage(msg) });
 });
@@ -249,6 +253,7 @@ supportRouter.patch('/contact/:id/status', authenticateJWT, (req: Request, res: 
 
   msg.status = 'resolved';
   schedulePersist();
+  broadcastSupportTicketUpdated(msg);
   res.json({ message: mapSupportMessage(msg) });
 });
 
@@ -310,12 +315,15 @@ supportAdminRouter.post('/:id/reply', authenticateJWT, (req: Request, res: Respo
       replyPreview: reply,
     });
   }
+  broadcastSupportTicketUpdated(msg);
 
   res.json({ message: mapSupportMessage(msg) });
 });
 
 supportAdminRouter.patch('/:id/status', authenticateJWT, (req: Request, res: Response) => {
   if (!requireAdmin(req, res)) return;
+  const adminId = (req as Request & { user: { id: string } }).user.id;
+  const admin = db.users.get(adminId);
   const msg = db.supportContactMessages.find((m) => m.id === req.params.id);
   if (!msg) {
     res.status(404).json({ error: 'Message introuvable' });
@@ -338,5 +346,12 @@ supportAdminRouter.patch('/:id/status', authenticateJWT, (req: Request, res: Res
 
   msg.status = 'resolved';
   schedulePersist();
+  if (admin) {
+    notifySupportResolved({
+      message: msg,
+      admin: { id: admin.id, username: admin.username, avatarUrl: admin.avatarUrl },
+    });
+  }
+  broadcastSupportTicketUpdated(msg);
   res.json({ message: mapSupportMessage(msg) });
 });
