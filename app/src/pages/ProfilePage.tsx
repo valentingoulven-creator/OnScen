@@ -91,6 +91,7 @@ function profileToForm(user: User | null) {
 type ProfileTab = 'profil' | 'reels' | 'compositions' | 'lives';
 
 interface ProfilePageProps {
+  onBack?: () => void;
   onOpenReel?: (reelId: string) => void;
   onOpenLive?: (liveId: string) => void;
   onOpenProfile?: (userId: string) => void;
@@ -106,6 +107,7 @@ interface ProfilePageProps {
 }
 
 export function ProfilePage({
+  onBack,
   onOpenReel,
   onOpenLive,
   onOpenProfile,
@@ -347,6 +349,18 @@ export function ProfilePage({
   return (
     <div className="flex flex-col h-full overflow-y-auto bg-[#0b0b0f]">
       <div className="relative shrink-0 max-w-lg mx-auto w-full overflow-visible">
+        <div className="absolute top-3 left-3 z-10">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="w-9 h-9 flex items-center justify-center rounded-full bg-black/40 backdrop-blur border border-white/20 text-white text-lg hover:bg-black/60"
+              aria-label="Fermer le profil"
+            >
+              ?
+            </button>
+          )}
+        </div>
         {!editing && (
           <div
             className="absolute right-3 z-30"
