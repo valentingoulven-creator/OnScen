@@ -8,6 +8,8 @@ import {
   mapLiveCameraError,
 } from '../lib/liveCameraSupport';
 import {
+  getLiveMediaDraft,
+  setLiveMediaDraft,
   setLiveMediaPrefs,
   setPendingLiveCameraStart,
   type LiveMediaPrefs,
@@ -109,16 +111,16 @@ export function StartLiveMediaSetupModal({
     });
   }, []);
 
+  const persistDraft = useCallback((video: string, audio: string) => {
+    setLiveMediaDraft({
+      videoDeviceId: video || undefined,
+      audioDeviceId: audio || undefined,
+    });
+  }, []);
+
   useEffect(() => {
     if (!open) {
       stopStream();
-      setPhase('loading');
-      setError(null);
-      setHints([]);
-      setCameras([]);
-      setMics([]);
-      setVideoDeviceId('');
-      setAudioDeviceId('');
       return;
     }
 
@@ -138,9 +140,14 @@ export function StartLiveMediaSetupModal({
         return;
       }
 
+      const draft = getLiveMediaDraft();
+
       try {
         stopStream();
-        const stream = await openStream();
+        const stream = await openStream(
+          draft?.videoDeviceId,
+          draft?.audioDeviceId
+        );
         if (cancelled) {
           stream.getTracks().forEach((t) => t.stop());
           return;
@@ -150,8 +157,11 @@ export function StartLiveMediaSetupModal({
 
         const vTrack = stream.getVideoTracks()[0];
         const aTrack = stream.getAudioTracks()[0];
-        setVideoDeviceId(vTrack?.getSettings().deviceId ?? '');
-        setAudioDeviceId(aTrack?.getSettings().deviceId ?? '');
+        const nextVideoId = vTrack?.getSettings().deviceId ?? draft?.videoDeviceId ?? '';
+        const nextAudioId = aTrack?.getSettings().deviceId ?? draft?.audioDeviceId ?? '';
+        setVideoDeviceId(nextVideoId);
+        setAudioDeviceId(nextAudioId);
+        persistDraft(nextVideoId, nextAudioId);
         setPhase('config');
       } catch (e) {
         if (!cancelled) {
@@ -166,7 +176,7 @@ export function StartLiveMediaSetupModal({
     return () => {
       cancelled = true;
     };
-  }, [open, stopStream, openStream, refreshDeviceLists]);
+  }, [open, stopStream, openStream, refreshDeviceLists, persistDraft]);
 
   useEffect(() => {
     if (phase !== 'config' || !streamRef.current) return;
@@ -175,6 +185,7 @@ export function StartLiveMediaSetupModal({
 
   const handleVideoChange = async (nextId: string) => {
     setVideoDeviceId(nextId);
+    persistDraft(nextId, audioDeviceId);
     setSwitching(true);
     setError(null);
     try {
@@ -192,6 +203,7 @@ export function StartLiveMediaSetupModal({
 
   const handleAudioChange = async (nextId: string) => {
     setAudioDeviceId(nextId);
+    persistDraft(videoDeviceId, nextId);
     setSwitching(true);
     setError(null);
     try {
@@ -219,6 +231,9 @@ export function StartLiveMediaSetupModal({
   };
 
   const handleClose = () => {
+    if (phase === 'config') {
+      persistDraft(videoDeviceId, audioDeviceId);
+    }
     stopStream();
     onClose();
   };
@@ -231,6 +246,9 @@ export function StartLiveMediaSetupModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="live-media-setup-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) handleClose();
+      }}
     >
       <div className="w-full max-w-sm bg-[#12121a] border border-[#2d2d3d] rounded-2xl shadow-2xl overflow-hidden max-h-[min(92vh,36rem)] flex flex-col">
         <div className="h-1 bg-gradient-to-r from-red-600 via-rose-500 to-red-600 shrink-0" />
@@ -323,25 +341,8 @@ export function StartLiveMediaSetupModal({
           )}
         </div>
 
-        <div className="flex gap-2 p-4 border-t border-[#1e1e2f] bg-[#0b0b0f]/50 shrink-0">
-          <button
-            type="button"
-            onClick={handleClose}
-            className="flex-1 py-3 rounded-xl border border-[#2d2d3d] text-gray-300 text-sm font-semibold hover:text-white"
-          >
-            Annuler
-          </button>
-          {phase === 'config' && (
-            <button
-              type="button"
-              onClick={handleConfirm}
-              disabled={switching}
-              className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-bold disabled:opacity-50"
-            >
-              {confirmLabel}
-            </button>
-          )}
-          {phase === 'error' && (
+        {(phase === 'config' || phase === 'error') && (
+          <div className="flex gap-2 p-4 border-t border-[#1e1e2f] bg-[#0b0b0f]/50 shrink-0">
             <button
               type="button"
               onClick={handleClose}
@@ -349,8 +350,18 @@ export function StartLiveMediaSetupModal({
             >
               Fermer
             </button>
-          )}
-        </div>
+            {phase === 'config' && (
+              <button
+                type="button"
+                onClick={handleConfirm}
+                disabled={switching}
+                className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-bold disabled:opacity-50"
+              >
+                {confirmLabel}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

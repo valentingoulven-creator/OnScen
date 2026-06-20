@@ -90,6 +90,8 @@ export interface User {
   blurredLongitude?: number;
   /** Partager la distance (km) avec les autres utilisateurs. Défaut : true. */
   shareDistance?: boolean;
+  /** Accepter les messages privés de tout utilisateur. Défaut : true. */
+  allowPrivateMessages?: boolean;
   /** précis = position floutée ~50 m ; city = centre-ville uniquement pour les autres. */
   locationPrecision?: 'precise' | 'city';
   /** Dernière position GPS envoyée via POST /geo/update (distinct du backfill ville). */
@@ -178,6 +180,40 @@ export interface SalonTrackProposal {
   status: SalonProposalStatus;
   createdAt: number;
   upvotes?: string[];
+}
+
+/**
+ * One entry per (proposalId × voterId) pair for the current week.
+ * Keyed by `${proposalId}__${voterId}` so a voter can only count once per song.
+ * Old entries (votedAt < current week Monday 00:00) are ignored at query time and
+ * cleaned up lazily on each new recording.
+ */
+export interface WeeklySongVote {
+  /** `${proposalId}__${voterId}` — one active record per voter per proposal */
+  id: string;
+  votedAt: number;
+  /** Monday 00:00 (UTC-local) timestamp of the week this vote was cast. */
+  weekStart: number;
+  voterId: string;
+  salonId: string;
+  proposalId: string;
+  songTitle: string;
+  songArtist: string;
+  youtubeUrl?: string;
+  spotifyUrl?: string;
+  proposerName: string;
+  /** Discographie — absent for salon proposal votes. */
+  sourceType?: 'salon' | 'composition';
+  compositionId?: string;
+  compositionOwnerId?: string;
+  fileUrl?: string;
+}
+
+/** Upvote on a user composition (Discographie track). */
+export interface CompositionUpvote {
+  compositionId: string;
+  userId: string;
+  votedAt: number;
 }
 
 export interface Salon {
@@ -497,6 +533,7 @@ export interface AppNotification {
     | 'live_don'
     | 'favorite_online'
     | 'salon_invite'
+    | 'salon_created'
     | 'dm_message'
     | 'group_message'
     | 'heart'
@@ -575,10 +612,23 @@ export interface UserReel {
   adminBlockedAt?: number;
 }
 
-/** Morceau original uploadé par l'utilisateur (onglet Composition du profil). */
+/** Album de compositions uploadées par l'utilisateur (onglet Discographie). */
+export interface UserAlbum {
+  id: string;
+  userId: string;
+  title: string;
+  description?: string;
+  coverUrl?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Morceau original uploadé par l'utilisateur (onglet Discographie du profil). */
 export interface UserComposition {
   id: string;
   userId: string;
+  /** Album parent ; absent = morceau sans album. */
+  albumId?: string;
   title: string;
   artist?: string;
   fileUrl: string;
@@ -665,6 +715,8 @@ export const db = {
   salonChats: new Map<string, ChatMessage[]>(),
   salonQueues: new Map<string, SalonQueueItem[]>(),
   salonProposals: new Map<string, SalonTrackProposal[]>(),
+  /** Weekly upvote ledger — one entry per (proposalId × voterId). */
+  weeklyVotes: [] as WeeklySongVote[],
   liveChats: new Map<string, ChatMessage[]>(),
   /** liveId → userId → ban */
   liveBans: new Map<string, Map<string, LiveBan>>(),
@@ -693,7 +745,9 @@ export const db = {
   /** Spectateurs uniques par reel */
   reelViews: new Map<string, Set<string>>(),
   userReels: [] as UserReel[],
+  albums: [] as UserAlbum[],
   compositions: [] as UserComposition[],
+  compositionUpvotes: [] as CompositionUpvote[],
   feedPosts: [] as FeedPost[],
   /** postId → Set<userId> ayant liké */
   feedPostLikes: new Map<string, Set<string>>(),

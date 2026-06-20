@@ -140,13 +140,15 @@ function SettingsRow({
 
 export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
   const { t } = useTranslation();
-  const { token, logout, user } = useAuth();
+  const { token, logout, user, setUserFromProfile } = useAuth();
   const [language, setLanguage] = useState<AppLanguage>(getAppLanguage);
   const [privacy, setPrivacy] = useState<PrivacyPreferences>(getPrivacyPreferences);
   const [legal, setLegal] = useState<LegalKey | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [showContact, setShowContact] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
+  const [dmDisabled, setDmDisabled] = useState(() => user?.allowPrivateMessages === false);
+  const [dmSaving, setDmSaving] = useState(false);
 
   const pushSupported =
     typeof window !== 'undefined' &&
@@ -163,6 +165,10 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
     if (!pushSupported) return;
     setPushPermission(Notification.permission as PushPermissionState);
   }, [pushSupported]);
+
+  useEffect(() => {
+    setDmDisabled(user?.allowPrivateMessages === false);
+  }, [user?.allowPrivateMessages]);
 
   const handleTogglePush = async () => {
     if (!token || pushLoading) return;
@@ -341,6 +347,24 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
     setPrivacy(next);
     setPrivacyPreferences(next);
     flash(t('settings.prefsSaved'));
+  };
+
+  const handleTogglePrivateMessages = async () => {
+    if (!token || dmSaving) return;
+    const nextDisabled = !dmDisabled;
+    setDmSaving(true);
+    try {
+      const { user: updated } = await api.updatePrivacySettings(token, {
+        allowPrivateMessages: !nextDisabled,
+      });
+      setDmDisabled(nextDisabled);
+      setUserFromProfile(updated);
+      flash(t('settings.prefsSaved'));
+    } catch (err) {
+      flash(err instanceof Error ? err.message : t('settings.exportError'));
+    } finally {
+      setDmSaving(false);
+    }
   };
 
   const handleExportData = async () => {
@@ -705,6 +729,24 @@ export function SettingsPage({ onBack, onOpenAdmin }: SettingsPageProps) {
           <p className="px-4 pb-3 text-[10px] text-gray-500">
             Visibilité sur la carte : icône œil barré en haut de l&apos;écran.
           </p>
+
+          <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white">{t('settings.disablePrivateMessages')}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{t('settings.disablePrivateMessagesHint')}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleTogglePrivateMessages()}
+              disabled={dmSaving || !token}
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${dmDisabled ? 'bg-purple-600' : 'bg-gray-600'}`}
+              aria-label={t('settings.disablePrivateMessagesToggleAria')}
+            >
+              <span
+                className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${dmDisabled ? 'translate-x-6' : 'translate-x-1'}`}
+              />
+            </button>
+          </label>
 
           {pushSupported && (
             <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">

@@ -51,10 +51,24 @@ export function subscribeSalonVideoFloat(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
+/** Réduction imminente — activer le PiP vidéo dès que l'overlay plein écran se ferme. */
+let minimizePipPending = false;
+
+export function setSalonMinimizePipPending(pending: boolean): void {
+  minimizePipPending = pending;
+}
+
+export function consumeSalonMinimizePipPending(): boolean {
+  const pending = minimizePipPending;
+  minimizePipPending = false;
+  return pending;
+}
+
 /** Déclenché avant réduction du salon plein écran (SalonPage → auto float). */
 export const SALON_BEFORE_MINIMIZE_EVENT = 'soundy:salon-before-minimize';
 
 export function dispatchSalonBeforeMinimize(): void {
+  setSalonMinimizePipPending(true);
   window.dispatchEvent(new CustomEvent(SALON_BEFORE_MINIMIZE_EVENT));
 }
 

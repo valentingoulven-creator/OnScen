@@ -103,10 +103,10 @@ export default function App() {
   useWebPushRegistration(token);
   const { unreadCount: dmUnread, incomingToast, dismissToast, setDmTabActive } = useDmUnread();
   const [appToast, setAppToast] = useState<{ message: string; kind: 'info' | 'error' } | null>(null);
-  const showAppToast = (message: string, kind: 'info' | 'error' = 'info') => {
+  const showAppToast = useCallback((message: string, kind: 'info' | 'error' = 'info') => {
     setAppToast({ message, kind });
     window.setTimeout(() => setAppToast(null), 5000);
-  };
+  }, []);
   const [tab, setTab] = useState<Tab>('actualite');
   const tabRef = useRef<Tab>('actualite');
   tabRef.current = tab;
@@ -412,6 +412,14 @@ export default function App() {
   }, []);
 
   const openProfile = useCallback((userId: string, preview?: NearbyPerson) => {
+    const session = activeSalonSessionRef.current;
+    if (session?.viewMode === 'full') {
+      dispatchSalonBeforeMinimize();
+      clearSalonUrlFromBar();
+      setActiveSalonSession((prev) =>
+        prev?.id === session.id ? { ...prev, viewMode: 'minimized' } : prev
+      );
+    }
     setProfileReturnView(viewRef.current);
     setProfilePreview(preview ?? null);
     setProfileOpen(false);
@@ -468,6 +476,10 @@ export default function App() {
   );
 
   const openSalonPage = useCallback((salonId: string, salonTitle?: string, isHost?: boolean) => {
+    if (viewRef.current.type === 'live') {
+      showAppToast("Tu es déjà en live. Arrête le live pour rejoindre un salon.", 'info');
+      return;
+    }
     setSalonOpenIntent('full');
     clearOpenSalonPipIntent();
     setSalonVideoFloatActive(false);
@@ -489,7 +501,7 @@ export default function App() {
       setView({ type: 'home' });
     }
     syncSalonUrlInBar(salonId);
-  }, []);
+  }, [showAppToast]);
 
   /** Clic sidebar carte : aperçu YouTube sans rejoindre le salon. */
   const openSalonPipPreview = useCallback((salon: Salon) => {
@@ -525,6 +537,10 @@ export default function App() {
 
   /** Clic sidebar carte : salon minimisé + PiP vidéo, carte reste visible. */
   const openSalonPip = useCallback((salonId: string, salonTitle?: string, isHost?: boolean) => {
+    if (viewRef.current.type === 'live') {
+      showAppToast("Tu es déjà en live. Arrête le live pour rejoindre un salon.", 'info');
+      return;
+    }
     consumeSalonOpenIntent();
     clearSalonUrlFromBar();
     setRestoreSalonOnMapId(null);
@@ -545,7 +561,7 @@ export default function App() {
     setTab('map');
     setOpenSalonPipIntent(salonId);
     dispatchOpenSalonPip();
-  }, []);
+  }, [showAppToast]);
 
   const handleSalonPageBack = useCallback(() => {
     const session = activeSalonSessionRef.current;
@@ -634,13 +650,17 @@ export default function App() {
   const handleSearchSelectUser = useCallback((id: string, preview?: NearbyPerson) => openProfile(id, preview), [openProfile]);
 
   const openLive = useCallback((id: string) => {
+    if (activeSalonSessionRef.current) {
+      showAppToast("Tu es déjà dans un salon. Quitte le salon pour démarrer un live.", 'info');
+      return;
+    }
     setSalonVideoFloatActive(false);
     if (tabRef.current === 'reels') pauseAllReelsMediaInDom({ resetPosition: true });
     pauseMediaElements(document, { exceptLiveStage: true });
     setProfileOpen(false);
     setTab('live');
     setView({ type: 'live', id });
-  }, []);
+  }, [showAppToast]);
 
   const closeLive = useCallback(() => {
     setView({ type: 'home' });
@@ -939,13 +959,14 @@ export default function App() {
               <div
                 className={
                   salonFullScreen
-                    ? 'ms-salon-fullscreen-overlay flex flex-col min-h-0 bg-[#0b0b0f]'
+                    ? 'ms-salon-fullscreen-overlay flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f]'
                     : 'salon-page-pip-host'
                 }
               >
                 <Suspense fallback={<PageFallback />}>
                   <SalonPage
                     salonId={activeSalonSession.id}
+                    salonFullScreen={salonFullScreen}
                     onBack={handleSalonPageBack}
                     onLeaveSalon={leaveActiveSalonSession}
                     onMinimizeToMap={handleSalonMinimizeToMap}
@@ -990,8 +1011,7 @@ export default function App() {
                   onOpenLive={(liveId) => {
                     clearProfileUrlFromBar();
                     setProfilePreview(null);
-                    setTab('live');
-                    setView({ type: 'live', id: liveId });
+                    openLive(liveId);
                   }}
                 />
               </Suspense>
@@ -1065,7 +1085,7 @@ export default function App() {
             )}
             {liveTabMounted && (
               <Suspense fallback={<PageFallback />}>
-                <LivesTabPage onOpenLive={openLive} isActive />
+                <LivesTabPage onOpenLive={openLive} hasActiveSalon={activeSalonSession !== null} isActive />
               </Suspense>
             )}
             {dmTabMounted && (

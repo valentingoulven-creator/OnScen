@@ -15,6 +15,7 @@ import {
   listUserCreatedReels,
   listReelsByAuthor,
   listPrivateReelsByAuthor,
+  listAccessiblePrivateReelsByAuthor,
   buildReelsFeed,
   createUserReel,
   deleteUserReel,
@@ -54,6 +55,24 @@ reelsRouter.get('/user/:userId', authenticateJWT, (req: Request, res: Response) 
     return;
   }
   res.json({ reels: listReelsByAuthor(userId, me) });
+});
+
+reelsRouter.get('/user/:userId/private', authenticateJWT, (req: Request, res: Response) => {
+  const userId = req.params.userId;
+  const me = (req as Request & { user: { id: string } }).user.id;
+  if (!db.users.has(userId)) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+  const result = listAccessiblePrivateReelsByAuthor(userId, me);
+  if ('error' in result) {
+    res.status(403).json({
+      error: 'Vous devez vous suivre mutuellement pour voir les reels privés',
+      code: 'reels_mutual_follow_required',
+    });
+    return;
+  }
+  res.json({ reels: result });
 });
 
 reelsRouter.get('/user-created', authenticateJWT, (req: Request, res: Response) => {

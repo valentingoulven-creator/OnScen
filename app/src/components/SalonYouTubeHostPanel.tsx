@@ -52,7 +52,7 @@ function HostProfilTab({
           <div className="h-3 w-16 bg-[#1e1e2f] rounded" />
         </div>
         <div className="flex rounded-2xl bg-[#12121a] border border-[#1e1e2f] overflow-hidden">
-          {[0, 1, 2].map((i) => (
+          {[0, 1].map((i) => (
             <div key={i} className="flex-1 py-3 flex flex-col items-center gap-1.5">
               <div className="h-5 w-10 bg-[#1e1e2f] rounded" />
               <div className="h-2 w-8 bg-[#1e1e2f] rounded mt-0.5" />
@@ -104,31 +104,50 @@ function HostProfilTab({
   const statsItems = [
     { value: formatCompactCount(profile?.favoritesCount ?? 0), label: 'Favoris' },
     { value: formatCompactCount(profile?.subscriberCount ?? 0), label: 'Abonnés' },
-    { value: formatCompactCount(profile?.stats?.salonsHosted ?? 0), label: 'Salons' },
   ];
 
   return (
-    <div className="flex flex-col gap-4 py-3">
+    <div className="salon-youtube-host-drawer__profil salon-youtube-host-drawer__profil--compact flex flex-col">
       {/* Avatar + username + listener count */}
-      <div className="flex flex-col items-center gap-1.5">
-        <div className="rounded-full p-[2px] bg-gradient-to-tr from-purple-600 via-pink-500 to-purple-400 shadow-[0_0_18px_rgba(168,85,247,0.4)]">
-          <div className="rounded-full bg-[#0d0d15] p-0.5">
-            <UserAvatarOnline
-              userId={salon.hostId}
-              avatarUrl={avatarUrl}
-              username={username}
-              size="xl"
-            />
+      <div className="flex flex-col items-center gap-1">
+        {onOpenProfile ? (
+          <button
+            type="button"
+            onClick={() => onOpenProfile(salon.hostId)}
+            className="rounded-full cursor-pointer transition-transform hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0d0d15]"
+            aria-label={`Voir le profil de ${username}`}
+          >
+            <div className="salon-youtube-host-drawer__avatar-ring rounded-full p-[2px] bg-gradient-to-tr from-purple-600 via-pink-500 to-purple-400">
+              <div className="rounded-full bg-[#0d0d15] p-0.5">
+                <UserAvatarOnline
+                  userId={salon.hostId}
+                  avatarUrl={avatarUrl}
+                  username={username}
+                  size="lg"
+                />
+              </div>
+            </div>
+          </button>
+        ) : (
+          <div className="salon-youtube-host-drawer__avatar-ring rounded-full p-[2px] bg-gradient-to-tr from-purple-600 via-pink-500 to-purple-400">
+            <div className="rounded-full bg-[#0d0d15] p-0.5">
+              <UserAvatarOnline
+                userId={salon.hostId}
+                avatarUrl={avatarUrl}
+                username={username}
+                size="lg"
+              />
+            </div>
           </div>
-        </div>
+        )}
         <UsernameDisplay
           username={username}
           usernameColor={usernameColor}
           usernameWaveFrom={usernameWaveFrom}
           usernameWaveTo={usernameWaveTo}
-          className="text-sm font-semibold leading-tight"
+          className="text-[13px] font-semibold leading-tight"
         />
-        <p className="text-[11px] text-gray-400">
+        <p className="text-[10px] text-gray-400 leading-none">
           {salon.listenersCount}{' '}
           {salon.listenersCount === 1
             ? t('salon.youtubeHost.profilListenerSingular', { defaultValue: 'auditeur' })
@@ -137,17 +156,17 @@ function HostProfilTab({
       </div>
 
       {/* Stats row */}
-      <div className="flex rounded-2xl bg-[#12121a] border border-[#1e1e2f] overflow-hidden">
+      <div className="salon-youtube-host-drawer__stats flex rounded-2xl bg-[#12121a] border border-[#1e1e2f] overflow-hidden">
         {statsItems.map((item, i) => (
           <div key={item.label} className="flex-1 relative">
             {i > 0 && (
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-px h-7 bg-[#1e1e2f]" />
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-px h-6 bg-[#1e1e2f]" />
             )}
-            <div className="w-full py-3 flex flex-col items-center gap-0.5">
-              <span className="text-base font-extrabold text-white tabular-nums leading-none">
+            <div className="salon-youtube-host-drawer__stat-cell w-full flex flex-col items-center gap-0.5">
+              <span className="salon-youtube-host-drawer__stat-value text-base font-extrabold text-white tabular-nums leading-none">
                 {item.value}
               </span>
-              <span className="text-[9px] font-semibold text-gray-500 uppercase tracking-widest mt-0.5">
+              <span className="salon-youtube-host-drawer__stat-label text-[9px] font-semibold text-gray-500 uppercase tracking-widest">
                 {item.label}
               </span>
             </div>
@@ -158,7 +177,7 @@ function HostProfilTab({
       {/* Bio */}
       {bioText ? (
         <div>
-          <p className="text-[12px] text-gray-300 leading-relaxed whitespace-pre-wrap break-words">
+          <p className="salon-youtube-host-drawer__bio text-[12px] text-gray-300 leading-snug whitespace-pre-wrap break-words">
             {bioIsTruncatable && !showFullBio
               ? bioText.slice(0, BIO_LIMIT) + '…'
               : bioText}
@@ -167,7 +186,7 @@ function HostProfilTab({
             <button
               type="button"
               onClick={() => setShowFullBio((v) => !v)}
-              className="mt-1 text-[11px] font-semibold text-purple-400 hover:text-purple-300 transition"
+              className="mt-0.5 text-[10px] font-semibold text-purple-400 hover:text-purple-300 transition"
             >
               {showFullBio ? 'voir moins' : 'voir plus'}
             </button>
@@ -181,22 +200,8 @@ function HostProfilTab({
         genres={profile?.favoriteGenres ?? []}
         artists={[]}
         align="start"
+        compact
       />
-
-      {/* Voir le profil complet */}
-      {onOpenProfile ? (
-        <button
-          type="button"
-          onClick={() => onOpenProfile(salon.hostId)}
-          className="w-full px-4 py-2.5 rounded-xl text-xs font-semibold bg-[#1a1a28] border border-[#2d2d42] text-purple-300 hover:bg-[#22223a] hover:border-purple-500/40 hover:text-purple-200 active:scale-[0.98] transition flex items-center justify-center gap-1.5"
-        >
-          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="8" r="4" />
-            <path d="M6 21c0-3.314 2.686-6 6-6s6 2.686 6 6" />
-          </svg>
-          {t('salon.youtubeHost.viewFullProfile', { defaultValue: 'Voir le profil complet' })}
-        </button>
-      ) : null}
     </div>
   );
 }
@@ -242,7 +247,7 @@ export function SalonYouTubeHostPanel({
 }: SalonYouTubeHostPanelProps) {
   return (
     <div className="salon-youtube-host-drawer">
-      <div className="salon-youtube-host-drawer__content px-3 pt-3 pb-2">
+      <div className="salon-youtube-host-drawer__content salon-youtube-host-drawer__content--compact px-3">
         <HostProfilTab
           salon={salon}
           token={token}

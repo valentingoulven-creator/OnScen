@@ -41,6 +41,7 @@ import {
 } from '../lib/liveCountry';
 import type { Live } from '../types';
 import { StartLiveMediaSetupModal } from '../components/StartLiveMediaSetupModal';
+import { clearLiveMediaDraft } from '../lib/liveMediaPrefs';
 import { LiveStripeConnectGate } from '../components/LiveStripeConnectGate';
 import { LiveLegalAcceptanceModal } from '../components/LiveLegalAcceptanceModal';
 import { isStripeConnectSkipped, setStripeConnectSkipped } from '../lib/stripeConnectSkip';
@@ -76,6 +77,7 @@ function formatLiveViewersLabel(count: number): string {
 interface LivesTabPageProps {
   onOpenLive: (liveId: string) => void;
   isActive?: boolean;
+  hasActiveSalon?: boolean;
 }
 
 interface LiveGridCardProps {
@@ -163,13 +165,14 @@ const LiveGridCard = memo(function LiveGridCard({
   );
 });
 
-export function LivesTabPage({ onOpenLive, isActive = true }: LivesTabPageProps) {
+export function LivesTabPage({ onOpenLive, isActive = true, hasActiveSalon = false }: LivesTabPageProps) {
   const { token, user, setUserFromProfile } = useAuth();
   const [lives, setLives] = useState<Live[]>([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [mediaSetupOpen, setMediaSetupOpen] = useState(false);
+  const [mediaSetupGeneration, setMediaSetupGeneration] = useState(0);
   const [stripeGateOpen, setStripeGateOpen] = useState(false);
   const [stripeGatePending, setStripeGatePending] = useState(false);
   const [legalGateOpen, setLegalGateOpen] = useState(false);
@@ -372,6 +375,8 @@ export function LivesTabPage({ onOpenLive, isActive = true }: LivesTabPageProps)
         longitude: geo.longitude,
         stripeConnectSkipped: skipped || undefined,
       });
+      clearLiveMediaDraft();
+      setMediaSetupGeneration((g) => g + 1);
       loadLives();
       onOpenLive(live.id);
     } catch (e) {
@@ -403,6 +408,12 @@ export function LivesTabPage({ onOpenLive, isActive = true }: LivesTabPageProps)
 
   const startMyLive = () => {
     if (!token || starting) return;
+
+    // Guard: cannot start a live while already in an active salon session
+    if (hasActiveSalon) {
+      setStartError("Tu es déjà dans un salon. Quitte le salon pour démarrer un live.");
+      return;
+    }
 
     // Gate 1 — Stripe Connect (ignoré en mode simulation ou si l'utilisateur a choisi de passer)
     if (!stripeSimulation && !isStripeConnectSkipped()) {
@@ -589,6 +600,7 @@ export function LivesTabPage({ onOpenLive, isActive = true }: LivesTabPageProps)
       </ul>
 
       <StartLiveMediaSetupModal
+        key={mediaSetupGeneration}
         open={mediaSetupOpen}
         onClose={() => setMediaSetupOpen(false)}
         onReady={() => {

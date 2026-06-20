@@ -65,6 +65,9 @@ async function parseApiError(res: Response): Promise<ApiRequestError> {
         if (json.error === 'Token manquant' || json.error === 'Token invalide') {
           return new ApiRequestError(i18n.t('errors.sessionExpired'), json.code, res.status);
         }
+        if (json.code === 'dm_disabled') {
+          return new ApiRequestError(i18n.t('dm.privateMessagesDisabled'), json.code, res.status);
+        }
         if (json.code === 'dm_mutual_follow_required') {
           return new ApiRequestError(i18n.t('dm.mutualFollowRequired'), json.code, res.status);
         }
@@ -1564,7 +1567,11 @@ export const api = {
 
   updatePrivacySettings: (
     token: string,
-    body: { shareDistance?: boolean; locationPrecision?: 'precise' | 'city' }
+    body: {
+      shareDistance?: boolean;
+      locationPrecision?: 'precise' | 'city';
+      allowPrivateMessages?: boolean;
+    }
   ) =>
     request<{ user: import('../types').User }>(
       '/users/me/settings',
@@ -1698,6 +1705,13 @@ export const api = {
   getUserReels: (token: string, userId: string) =>
     request<{ reels: import('../content/reels').MusicReel[] }>(`/reels/user/${userId}`, {}, token),
 
+  getUserPrivateReels: (token: string, userId: string) =>
+    request<{ reels: import('../content/reels').MusicReel[] }>(
+      `/reels/user/${userId}/private`,
+      {},
+      token
+    ),
+
   getUserLives: (token: string, userId: string) =>
     request<{ lives: import('../components/UserLivesSection').ArchivedLive[] }>(
       `/lives/user/${userId}`,
@@ -1792,6 +1806,76 @@ export const api = {
 
   deleteComposition: (token: string, compositionId: string) =>
     request<{ ok: boolean }>(`/compositions/${compositionId}`, { method: 'DELETE' }, token),
+
+  toggleCompositionUpvote: (token: string, compositionId: string) =>
+    request<{ upvoteCount: number; userHasUpvoted: boolean }>(
+      `/compositions/${compositionId}/upvote`,
+      { method: 'POST' },
+      token
+    ),
+
+  getMyAlbums: (token: string) =>
+    request<{
+      albums: import('../components/UserCompositionsSection').UserAlbumItem[];
+      looseTrackCount: number;
+    }>('/users/me/albums', {}, token),
+
+  getUserAlbums: (token: string, userId: string) =>
+    request<{
+      albums: import('../components/UserCompositionsSection').UserAlbumItem[];
+      looseTrackCount: number;
+    }>(`/users/${userId}/albums`, {}, token),
+
+  createAlbum: (
+    token: string,
+    body: { title: string; description?: string; coverUrl?: string }
+  ) =>
+    request<{ album: import('../components/UserCompositionsSection').UserAlbumItem }>(
+      '/users/me/albums',
+      { method: 'POST', body: JSON.stringify(body) },
+      token
+    ),
+
+  deleteAlbum: (token: string, albumId: string) =>
+    request<{ ok: boolean }>(`/users/me/albums/${albumId}`, { method: 'DELETE' }, token),
+
+  uploadTrackToAlbum: (
+    token: string,
+    albumId: string,
+    body: {
+      title: string;
+      artist?: string;
+      fileUrl: string;
+      durationSec?: number;
+    }
+  ) =>
+    request<{ track: import('../components/UserCompositionsSection').UserCompositionItem }>(
+      `/users/me/albums/${albumId}/tracks`,
+      { method: 'POST', body: JSON.stringify(body) },
+      token
+    ),
+
+  uploadLooseTrack: (
+    token: string,
+    body: {
+      title: string;
+      artist?: string;
+      fileUrl: string;
+      durationSec?: number;
+    }
+  ) =>
+    request<{ track: import('../components/UserCompositionsSection').UserCompositionItem }>(
+      '/users/me/loose-tracks',
+      { method: 'POST', body: JSON.stringify(body) },
+      token
+    ),
+
+  getAlbumTracks: (token: string, userId: string, albumId: string) =>
+    request<{ tracks: import('../components/UserCompositionsSection').UserCompositionItem[] }>(
+      `/users/${userId}/albums/${albumId}/tracks`,
+      {},
+      token
+    ),
 
   publishReel: (token: string, reelId: string) =>
     request<{ reel: import('../content/reels').MusicReel }>(`/reels/${reelId}/publish`, { method: 'POST' }, token),
@@ -1929,6 +2013,26 @@ export const api = {
 
   getFavoritedFeedPosts: (token: string) =>
     request<{ posts: import('../types').FeedPost[] }>('/feed/favorites', {}, token),
+
+  getWeeklyTopSongs: (token: string, limit = 10) =>
+    request<{
+      songs: Array<{
+        rank: number;
+        proposalId: string;
+        salonId: string;
+        title: string;
+        artist: string;
+        youtubeUrl?: string;
+        spotifyUrl?: string;
+        fileUrl?: string;
+        proposerName: string;
+        voteCount: number;
+        weekStart: number;
+        sourceType: 'salon' | 'composition';
+        compositionId?: string;
+        compositionOwnerId?: string;
+      }>;
+    }>(`/feed/weekly-top-songs?limit=${limit}`, {}, token),
 
   getStories: (
     token: string,

@@ -64,6 +64,7 @@ export interface UserDataExport {
     isGhostMode: boolean;
     shareDistance?: boolean;
     locationPrecision?: string;
+    allowPrivateMessages?: boolean;
     showAge?: boolean;
     hideBirthDateOnProfile?: boolean;
     birthDate?: string;
@@ -160,6 +161,7 @@ export function buildUserDataExport(user: User): UserDataExport {
       isGhostMode: user.isGhostMode,
       shareDistance: user.shareDistance,
       locationPrecision: user.locationPrecision,
+      allowPrivateMessages: user.allowPrivateMessages,
       showAge: user.showAge,
       hideBirthDateOnProfile: user.hideBirthDateOnProfile,
       birthDate: user.birthDate,

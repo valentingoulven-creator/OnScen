@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
+import { getSocket, isSocketConnected } from '../lib/socket';
 import { applyFeedPreferences, boostPostsByGenreAffinity, sortFeedPostsByPublicationDate } from '../lib/feedFilter';
 import { HOME_FEED_DISPLAY_PREFS } from '../lib/feedUserPrefs';
 import { UsernameDisplay } from '../components/UsernameDisplay';
@@ -47,6 +48,24 @@ import { EventLocationInput } from '../components/EventLocationInput';
 import { readSavedEventLocation, writeSavedEventLocation } from '../lib/savedEventLocation';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { pickRecentUserSounds, type FeaturedUserSoundItem } from '../lib/featuredUserSounds';
+
+// ─── Weekly top songs ─────────────────────────────────────────────────────────
+
+interface WeeklyTopSong {
+  rank: number;
+  proposalId: string;
+  salonId: string;
+  title: string;
+  artist: string;
+  youtubeUrl?: string;
+  spotifyUrl?: string;
+  fileUrl?: string;
+  proposerName: string;
+  voteCount: number;
+  weekStart: number;
+  sourceType?: 'salon' | 'composition';
+}
+
 import {
   formatEventDateRangeChip,
 } from '../lib/eventDateInput';
@@ -71,6 +90,19 @@ interface ActualiteTabPageProps {
 
 /** Pays affiché / filtré quand la géoloc est refusée ou indisponible (MODIF 167). */
 const EVENTS_COUNTRY_FALLBACK = { code: 'FR', name: 'France' } as const;
+
+const NEARBY_EVENTS_RADIUS_KM = 30;
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const toRad = (d: number) => d * (Math.PI / 180);
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 function countryCodeToFlag(code: string): string {
   const cc = code.toUpperCase();
@@ -399,6 +431,8 @@ function ActualitesContent({
   featuredUserSoundsLoading = false,
   onOpenReel,
   onOpenSalon,
+  weeklyTopSongs = [],
+  weeklyTopSongsLoading = false,
 }: {
   newsItems: MusicNewsItem[];
   newsLoading: boolean;
@@ -421,6 +455,8 @@ function ActualitesContent({
   featuredUserSoundsLoading?: boolean;
   onOpenReel?: (reelId: string) => void;
   onOpenSalon?: (salonId: string, salonTitle?: string) => void;
+  weeklyTopSongs?: WeeklyTopSong[];
+  weeklyTopSongsLoading?: boolean;
 }) {
   const { t } = useTranslation();
   const displayCountryCode = countryCode ?? EVENTS_COUNTRY_FALLBACK.code;
@@ -514,6 +550,67 @@ function ActualitesContent({
       </div>
 
       <div className="mt-4 space-y-4 min-w-0">
+
+      {/* 🏆 Top de la semaine — sons les plus upvotés sur les salons */}
+      <div className="space-y-2.5">
+        <SectionHeader
+          label={t('feed.weeklyTop')}
+          emoji="🏆"
+          subtitle={t('feed.weeklyTopSubtitle')}
+        />
+        {weeklyTopSongsLoading && weeklyTopSongs.length === 0 ? (
+          <p className="text-[11px] text-gray-500 px-0.5">{t('feed.weeklyTopLoading')}</p>
+        ) : weeklyTopSongs.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-5 text-center">
+            <p className="text-xs text-gray-500">{t('feed.weeklyTopEmpty')}</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {weeklyTopSongs.map((song) => {
+              const playUrl = song.youtubeUrl ?? song.spotifyUrl ?? song.fileUrl;
+              return (
+                <div
+                  key={song.proposalId}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[#12121a] border border-[#2a2a3d]"
+                >
+                  {/* Rank */}
+                  <span className="text-sm font-bold text-amber-400 w-6 shrink-0 text-center">
+                    #{song.rank}
+                  </span>
+                  {/* Song info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">{song.title}</p>
+                    <p className="text-xs text-gray-400 truncate">{song.artist}</p>
+                    <p className="text-[11px] text-gray-500 truncate">
+                      {t('feed.weeklyTopProposedBy')} {song.proposerName}
+                    </p>
+                  </div>
+                  {/* Vote count */}
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 font-semibold">
+                      ▲ {t('feed.weeklyTopVotes', { count: song.voteCount })}
+                    </span>
+                    {playUrl ? (
+                      <a
+                        href={playUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] font-semibold text-purple-400 hover:text-purple-300 transition"
+                      >
+                        {t('feed.weeklyTopPlay')}
+                      </a>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+            <p className="text-[10px] text-gray-600 text-center pt-1">
+              {t('feed.weeklyTopResetNote')}
+            </p>
+          </div>
+        )}
+      </div>
+
       {/* Les nouveautés — sons publiés par la communauté (salons + reels) */}
       <div className="space-y-2.5">
         <SectionHeader
@@ -1003,8 +1100,14 @@ export function ActualiteTabPage({
   const [countryEventsLoading, setCountryEventsLoading] = useState(false);
   const [communityEventPosts, setCommunityEventPosts] = useState<FeedPost[]>([]);
   const [communityEventsLoading, setCommunityEventsLoading] = useState(false);
+  /** Raw GPS position used for 30 km proximity checks on socket events. */
+  const [userPos, setUserPos] = useState<[number, number] | null>(null);
   const [featuredUserSounds, setFeaturedUserSounds] = useState<FeaturedUserSoundItem[]>([]);
   const [featuredUserSoundsLoading, setFeaturedUserSoundsLoading] = useState(false);
+
+  // ── Weekly top songs (top upvotés de la semaine, reset chaque lundi) ──
+  const [weeklyTopSongs, setWeeklyTopSongs] = useState<WeeklyTopSong[]>([]);
+  const [weeklyTopSongsLoading, setWeeklyTopSongsLoading] = useState(false);
 
   // ── Post interactions ──
   const [commentOpenPostId, setCommentOpenPostId] = useState<string | null>(null);
@@ -1304,6 +1407,50 @@ export function ActualiteTabPage({
     void loadCommunityEvents();
   }, [isActive, token, showNews, loadCommunityEvents]);
 
+  // ── Socket listener: auto-refresh "ÉVÉNEMENTS AUTOUR" when a nearby event is created ──
+  useEffect(() => {
+    if (!isActive || !token || !showNews) return;
+    const socket = getSocket();
+    if (!socket) return;
+
+    const handler = (data: {
+      postId: string;
+      eventLocation: string | null;
+      lat: number | null;
+      lng: number | null;
+    }) => {
+      // If both user position and event creator position are known, check 30 km radius.
+      if (
+        userPos &&
+        data.lat != null &&
+        data.lng != null &&
+        Number.isFinite(data.lat) &&
+        Number.isFinite(data.lng)
+      ) {
+        const distKm = haversineKm(userPos[0], userPos[1], data.lat, data.lng);
+        if (distKm > NEARBY_EVENTS_RADIUS_KM) return;
+      }
+      // Event is within range (or position unknown) — refresh the section.
+      void loadCommunityEvents();
+    };
+
+    socket.on('event_created', handler);
+    return () => {
+      socket.off('event_created', handler);
+    };
+  }, [isActive, token, showNews, userPos, loadCommunityEvents]);
+
+  // ── Polling fallback: refresh every 60 s when socket is unavailable ──
+  useEffect(() => {
+    if (!isActive || !token || !showNews) return;
+    const timer = setInterval(() => {
+      if (!isSocketConnected()) {
+        void loadCommunityEvents();
+      }
+    }, 60_000);
+    return () => clearInterval(timer);
+  }, [isActive, token, showNews, loadCommunityEvents]);
+
   const loadFeaturedUserSounds = useCallback(async () => {
     if (!token) return;
     setFeaturedUserSoundsLoading(true);
@@ -1324,6 +1471,28 @@ export function ActualiteTabPage({
     if (!isActive || !token || !showNews) return;
     void loadFeaturedUserSounds();
   }, [isActive, token, showNews, loadFeaturedUserSounds]);
+
+  const loadWeeklyTopSongs = useCallback(async () => {
+    if (!token) return;
+    setWeeklyTopSongsLoading(true);
+    try {
+      const r = await api.getWeeklyTopSongs(token, 10);
+      setWeeklyTopSongs(r.songs);
+    } catch {
+      // silently ignore — section shows empty state
+    } finally {
+      setWeeklyTopSongsLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (!isActive || !token || !showNews) return;
+    // Always fetch on mount / when Actualités opens so the section is never stale.
+    void loadWeeklyTopSongs();
+    // Refresh every 5 minutes so live upvote activity is reflected promptly.
+    const timer = setInterval(() => void loadWeeklyTopSongs(), 5 * 60 * 1000);
+    return () => clearInterval(timer);
+  }, [isActive, token, showNews, loadWeeklyTopSongs]);
 
   // ── MODIF 159 – Load events filtered by user's country ──
   const loadCountryEvents = useCallback(async () => {
@@ -1387,6 +1556,7 @@ export function ActualiteTabPage({
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
+        if (!cancelled) setUserPos([latitude, longitude]);
         fetch(
           `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
           { headers: { 'Accept-Language': 'fr', 'User-Agent': 'MeloSong/1.0' } }
@@ -2053,6 +2223,7 @@ export function ActualiteTabPage({
               void loadCountryEvents();
               void loadTrendingUsers();
               void loadFeaturedUserSounds();
+              void loadWeeklyTopSongs();
             }}
             refreshing={newsRefreshing}
             onBack={() => setShowNews(false)}
@@ -2071,6 +2242,8 @@ export function ActualiteTabPage({
             featuredUserSoundsLoading={featuredUserSoundsLoading}
             onOpenReel={onOpenReel}
             onOpenSalon={onOpenSalon}
+            weeklyTopSongs={weeklyTopSongs}
+            weeklyTopSongsLoading={weeklyTopSongsLoading}
           />
         )}
 

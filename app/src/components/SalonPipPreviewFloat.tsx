@@ -12,6 +12,11 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import type { Salon } from '../types';
 
+/** Default position: just below the Lives filter button (≈120 px from left, 192 px from top). */
+function defaultSalonPreviewPos(): { x: number; y: number } {
+  return { x: 120, y: 192 };
+}
+
 function SalonPipPreviewFloatInner({
   salon,
   videoId,
@@ -23,7 +28,7 @@ function SalonPipPreviewFloatInner({
   onJoin: () => void;
   onClose: () => void;
 }) {
-  const pip = useDraggableVideoPip(true, onJoin);
+  const pip = useDraggableVideoPip(true, onJoin, defaultSalonPreviewPos);
   const videoH = Math.round((VIDEO_PIP_WIDTH * 9) / 16);
   const positionSec = videoId
     ? computePlaybackPositionMs(salon.playbackState) / 1000

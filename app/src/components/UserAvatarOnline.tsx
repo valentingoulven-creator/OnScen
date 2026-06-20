@@ -87,7 +87,7 @@ export const UserAvatarOnline = memo(function UserAvatarOnline({
 
   return (
     <div
-      className={`flex items-center gap-1 shrink-0 ${className}`}
+      className={`relative shrink-0 ${className}`}
       title={
         isLive
           ? showViewers
@@ -98,15 +98,15 @@ export const UserAvatarOnline = memo(function UserAvatarOnline({
             : undefined
       }
     >
-      {showViewers && (
-        <span
-          className={`${VIEWER_COUNT[size]} font-extrabold text-red-400 tabular-nums leading-none text-right`}
-          aria-label={`${liveViewersCount} spectateurs`}
-        >
-          {viewerLabel}
-        </span>
-      )}
       <div className="relative shrink-0">
+        {showViewers && (
+          <span
+            className={`absolute right-full top-1/2 -translate-y-1/2 mr-0.5 ${VIEWER_COUNT[size]} font-extrabold text-red-400 tabular-nums leading-none text-right pointer-events-none`}
+            aria-label={`${liveViewersCount} spectateurs`}
+          >
+            {viewerLabel}
+          </span>
+        )}
         <div
           className={`rounded-full ${
             isLive

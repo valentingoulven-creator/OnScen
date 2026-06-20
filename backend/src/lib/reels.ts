@@ -5,7 +5,7 @@ import {
   type ReelFeedAlgorithmPreferences,
 } from './reelFeedRanking';
 import { REEL_CATALOG_ENTRIES } from './reelsDemoCatalog';
-import { getFollowingIds } from './follows';
+import { getFollowingIds, isMutualFollow } from './follows';
 import { isDevUser } from './accessControl';
 import {
   MAX_RECORDED_REEL_VIDEO_DATA_CHARS,
@@ -245,14 +245,23 @@ function sortAuthorReels(reels: UserReel[]): UserReel[] {
   return reels.slice().sort((a, b) => b.createdAt - a.createdAt);
 }
 
-/** Profil : publics pour tous ; privés uniquement pour le propriétaire (viewerId). */
+/** Owner or mutual follow required to view another user's private reels. */
+export function canViewPrivateReels(viewerId: string | undefined, authorId: string): boolean {
+  if (!viewerId) return false;
+  if (viewerId === authorId) return true;
+  return isMutualFollow(viewerId, authorId);
+}
+
+/** Profil : publics pour tous ; privés pour le propriétaire ou en follow mutuel. */
 export function listReelsByAuthor(
   authorId: string,
   viewerId?: string
 ): ReturnType<typeof publicUserReel>[] {
-  const isOwner = viewerId != null && viewerId === authorId;
+  const canSeePrivate = canViewPrivateReels(viewerId, authorId);
   return sortAuthorReels(db.userReels.filter((r) => r.authorId === authorId))
-    .filter((r) => (isOwner || !isPrivateReel(r)) && reelVisibleToViewer(r, viewerId))
+    .filter(
+      (r) => (canSeePrivate || !isPrivateReel(r)) && reelVisibleToViewer(r, viewerId)
+    )
     .map(publicUserReel);
 }
 
@@ -260,6 +269,16 @@ export function listPrivateReelsByAuthor(authorId: string): ReturnType<typeof pu
   return sortAuthorReels(db.userReels.filter((r) => r.authorId === authorId && isPrivateReel(r))).map(
     publicUserReel
   );
+}
+
+export function listAccessiblePrivateReelsByAuthor(
+  authorId: string,
+  viewerId: string
+): ReturnType<typeof publicUserReel>[] | { error: 'mutual_follow_required' } {
+  if (!canViewPrivateReels(viewerId, authorId)) {
+    return { error: 'mutual_follow_required' };
+  }
+  return listPrivateReelsByAuthor(authorId);
 }
 
 export function listPublishedReelsByAuthor(authorId: string): ReturnType<typeof publicUserReel>[] {
@@ -279,8 +298,7 @@ export function getAccessibleUserReel(
 ): ReturnType<typeof publicUserReel> | null {
   const owned = getUserReel(reelId);
   if (owned) {
-    const isOwner = viewerId != null && viewerId === owned.authorId;
-    if (!isOwner && isPrivateReel(owned)) return null;
+    if (isPrivateReel(owned) && !canViewPrivateReels(viewerId, owned.authorId)) return null;
     if (!reelVisibleToViewer(owned, viewerId)) return null;
     return publicUserReel(owned);
   }

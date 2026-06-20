@@ -227,7 +227,8 @@ export function SalonYouTubePlayer({
   const volume = salonVolumeControlled ? salonVolume : internalVolume;
   const muted = salonVolumeControlled ? (salonMuted ?? false) : internalMuted;
   const [localPaused, setLocalPaused] = useState(false);
-  const [embedError, setEmbedError] = useState(false);
+  const [embedErrorCode, setEmbedErrorCode] = useState<number | null>(null);
+  const embedError = embedErrorCode !== null;
   const volumeRef = useRef(volume);
   const mutedRef = useRef(muted);
   volumeRef.current = volume;
@@ -481,7 +482,7 @@ export function SalonYouTubePlayer({
     const startSec = Math.floor(resumeSec);
     lastMountedVideoRef.current = videoId;
 
-    setEmbedError(false);
+    setEmbedErrorCode(null);
     const sizeEl = sizeRef.current;
     const initialW = Math.max(1, Math.round(sizeEl?.clientWidth ?? 640));
     const initialH = Math.max(1, Math.round(sizeEl?.clientHeight ?? 360));
@@ -554,8 +555,12 @@ export function SalonYouTubePlayer({
           }
         },
         onError: (e: { data: number }) => {
-          if (e.data === 150 || e.data === 101 || e.data === 2 || e.data === 100) {
-            setEmbedError(true);
+          if (e.data === 100 || e.data === 101 || e.data === 150 || e.data === 2) {
+            setEmbedErrorCode(e.data);
+          }
+          // onEmbedError only fires for embedding-restriction errors (101 / 150),
+          // not for "video unavailable" (100) or bad params (2).
+          if (e.data === 101 || e.data === 150) {
             onEmbedErrorRef.current?.();
           }
         },
@@ -687,7 +692,9 @@ export function SalonYouTubePlayer({
     }
     // Transition silencieux → audible : restaurer le volume avant de lancer la lecture.
     // applySilentPositionSync appelle player.mute() ; applySync seul ne démute pas.
-    applyVolume(player, volume, muted);
+    // Use refs (not the reactive values) so that volume-slider drags do NOT retrigger
+    // this effect — which calls applySync(forceSeek=true) and would seekTo on every frame.
+    applyVolume(player, volumeRef.current, mutedRef.current);
     applySync(player, playbackState, true, respectLocalPause, true);
     lastSeekAtRef.current = Date.now();
   }, [
@@ -702,8 +709,6 @@ export function SalonYouTubePlayer({
     mayDrivePlayback,
     respectLocalPause,
     applyVolume,
-    volume,
-    muted,
   ]);
 
   useEffect(() => {
@@ -954,11 +959,25 @@ export function SalonYouTubePlayer({
             Chargement du lecteur…
           </div>
         )}
-        {embedError && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/90 text-center px-3">
-            <span className="text-2xl">⚠️</span>
-            <p className="text-xs text-gray-300">Vidéo indisponible</p>
-            <p className="text-[10px] text-gray-500">Cette vidéo ne peut pas être lue ici.</p>
+        {embedErrorCode !== null && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-black text-center px-3">
+            {embedErrorCode === 100 || embedErrorCode === 2 ? (
+              <>
+                <span className="text-2xl" aria-hidden>🔒</span>
+                <p className="text-xs text-gray-300">Vidéo introuvable ou privée</p>
+              </>
+            ) : (
+              <>
+                <span className="text-2xl" aria-hidden>⚠️</span>
+                <p className="text-xs text-gray-300">Lecture impossible ici</p>
+                <OpenOnYoutubeButton
+                  trackId={videoId}
+                  positionMs={positionMs}
+                  variant="youtube-red"
+                  label="Ouvrir sur YouTube →"
+                />
+              </>
+            )}
           </div>
         )}
       </div>
@@ -1071,7 +1090,7 @@ export function SalonYouTubePlayer({
       {floatedPlayer ?? (
         <div className={floatActive ? 'pointer-events-auto' : undefined}>{playerChrome}</div>
       )}
-      {embedError && !hidden && (
+      {hidden && (embedErrorCode === 101 || embedErrorCode === 150) && (
         <div className="rounded-xl border border-[#2a2a3a] bg-[#101018]/90 p-3 mt-2 flex flex-col items-center gap-2">
           <p className="text-[11px] text-gray-400">Cette vidéo ne peut pas être lue ici.</p>
           <OpenOnYoutubeButton

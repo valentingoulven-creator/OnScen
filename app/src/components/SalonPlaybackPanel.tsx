@@ -32,11 +32,11 @@ import { isYoutubeStrictCompliance } from '../lib/youtubeCompliance';
 import { useBackgroundPlayback } from '../hooks/useBackgroundPlayback';
 import {
   clearOpenSalonPipIntent,
+  consumeSalonMinimizePipPending,
   consumeSalonOpenIntent,
   getOpenSalonPipIntent,
   getSalonVideoFloatActive,
   peekSalonOpenIntent,
-  SALON_BEFORE_MINIMIZE_EVENT,
   SALON_OPEN_PIP_EVENT,
   setSalonVideoFloatActive,
   subscribeSalonVideoFloat,
@@ -175,7 +175,7 @@ export function SalonPlaybackPanel({
     []
   );
 
-  const isFullScreenSalon = salonFullScreen || theaterMode;
+  const isFullScreenSalon = salonFullScreen;
 
   useEffect(() => {
     if (!isFullScreenSalon) return;
@@ -494,6 +494,18 @@ export function SalonPlaybackPanel({
     Boolean(youtubeTrackId) &&
     effectiveShowYoutubeVideo;
 
+  const activateVideoFloatForMinimize = useCallback(() => {
+    if (!canAutoVideoFloat || floatPipActiveRef.current) return;
+    setFloatPipActive(true);
+  }, [canAutoVideoFloat, setFloatPipActive]);
+
+  /** Réduction salon plein écran → PiP vidéo persistant jusqu'à fermeture du salon. */
+  useEffect(() => {
+    if (isFullScreenSalon) return;
+    if (!consumeSalonMinimizePipPending()) return;
+    activateVideoFloatForMinimize();
+  }, [isFullScreenSalon, activateVideoFloatForMinimize]);
+
   const tryAutoActivateVideoFloat = useCallback(() => {
     if (!canAutoVideoFloat || floatPipActiveRef.current) return;
     if (isFullScreenSalon || peekSalonOpenIntent() === 'full') return;
@@ -527,13 +539,6 @@ export function SalonPlaybackPanel({
     };
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, [theaterMode, tryAutoActivateVideoFloat]);
-
-  useEffect(() => {
-    if (!theaterMode) return;
-    const onBeforeMinimize = () => tryAutoActivateVideoFloat();
-    window.addEventListener(SALON_BEFORE_MINIMIZE_EVENT, onBeforeMinimize);
-    return () => window.removeEventListener(SALON_BEFORE_MINIMIZE_EVENT, onBeforeMinimize);
   }, [theaterMode, tryAutoActivateVideoFloat]);
 
   useBackgroundPlayback(
@@ -857,14 +862,6 @@ export function SalonPlaybackPanel({
         >
           {isPlaying ? 'Pause' : 'Lecture'}
         </button>
-        <button
-          type="button"
-          onClick={handleHostStop}
-          className={theaterControlBtnClass}
-          title="Stop (retour au début)"
-        >
-          ⏹
-        </button>
         {salon.platform === 'spotify' && (
           <button
             type="button"
@@ -874,9 +871,6 @@ export function SalonPlaybackPanel({
           >
             ⏭
           </button>
-        )}
-        {salon.platform === 'youtube' && playbackState.trackId && playbackState.trackId !== 'demo' && (
-          <OpenOnYoutubeButton trackId={playbackState.trackId} positionMs={displayPositionMs} />
         )}
       </>
     ) : null;

@@ -218,6 +218,10 @@ export function userSharesDistance(user: User): boolean {
   return user.shareDistance !== false;
 }
 
+export function userAllowsPrivateMessages(user: User): boolean {
+  return user.allowPrivateMessages !== false;
+}
+
 export function userCityOnlyLocation(user: User): boolean {
   return user.locationPrecision === 'city';
 }
@@ -301,13 +305,16 @@ export function getUserPublicCoords(user: User, viewerId?: string): { lat: numbe
 
 export function applyPrivacySettings(
   user: User,
-  body: { shareDistance?: boolean; locationPrecision?: string }
+  body: { shareDistance?: boolean; locationPrecision?: string; allowPrivateMessages?: boolean }
 ): void {
   if (body.shareDistance !== undefined) {
     user.shareDistance = Boolean(body.shareDistance);
   }
   if (body.locationPrecision === 'precise' || body.locationPrecision === 'city') {
     user.locationPrecision = body.locationPrecision;
+  }
+  if (body.allowPrivateMessages !== undefined) {
+    user.allowPrivateMessages = Boolean(body.allowPrivateMessages);
   }
   refreshUserPublicCoords(user);
 }

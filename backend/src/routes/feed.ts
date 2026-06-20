@@ -14,6 +14,8 @@ import {
 import { notifyMentions } from '../lib/mentions';
 import { notifyContentHeartReceived, notifyEventCreated } from '../lib/notifications';
 import { db } from '../models/schema';
+import { getIo } from '../lib/ioInstance';
+import { getWeeklyTopSongs } from '../lib/weeklyVotes';
 
 export const feedRouter = Router();
 
@@ -87,8 +89,23 @@ feedRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
       postId: result.post.id,
       eventLocation: result.post.eventLocation,
     });
+    // Broadcast to all connected clients so nearby viewers can auto-refresh.
+    const creator = db.users.get(me);
+    getIo()?.emit('event_created', {
+      postId: result.post.id,
+      eventLocation: result.post.eventLocation ?? null,
+      lat: creator?.latitude ?? null,
+      lng: creator?.longitude ?? null,
+    });
   }
   res.status(201).json({ post: result.post });
+});
+
+// ── Top songs de la semaine (Monday 00:00 → Sunday 23:59, salons + discographie) ─
+
+feedRouter.get('/weekly-top-songs', authenticateJWT, (req: Request, res: Response) => {
+  const limit = req.query.limit != null ? Math.min(Number(req.query.limit), 20) : 10;
+  res.json({ songs: getWeeklyTopSongs(limit) });
 });
 
 // ── Favoris (bookmarked posts) ────────────────────────────────────────────────

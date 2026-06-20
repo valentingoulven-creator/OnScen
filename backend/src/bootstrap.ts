@@ -306,6 +306,15 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
         console.warn('[soundly] Échec chargement compositions PostgreSQL:', e);
       }
       try {
+        const { loadAlbumsFromPg } = await import('./lib/pgAlbums');
+        const albumStats = await loadAlbumsFromPg();
+        if (albumStats.albums > 0) {
+          console.log(`[soundly] Albums restaurés depuis PostgreSQL (${albumStats.albums})`);
+        }
+      } catch (e) {
+        console.warn('[soundly] Échec chargement albums PostgreSQL:', e);
+      }
+      try {
         const donationStats = await loadDonationsFromPg();
         if (donationStats.gifts > 0 || donationStats.payments > 0) {
           console.log(

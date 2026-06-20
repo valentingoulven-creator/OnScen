@@ -15,8 +15,8 @@ import {
   getMutedIds,
 } from '../lib/mutes';
 import { isUserOnline, getOnlineUserIds } from '../lib/presence';
-import { isMutualFollow } from '../lib/follows';
 import { getActiveLiveHosts } from '../lib/liveStatus';
+import { userAllowsPrivateMessages } from '../lib/locationPrivacy';
 import { getIo } from '../lib/ioInstance';
 import { hideDmForUser, isDmVisibleToUser } from '../lib/dmVisibility';
 import { schedulePersist } from '../lib/persist';
@@ -300,7 +300,6 @@ dmRouter.get('/contacts/list', authenticateJWT, (req: Request, res: Response) =>
   const contacts = [...db.users.values()]
     .filter((u) => {
       if (u.id === me || hasBlocked(me, u.id)) return false;
-      if (!isMutualFollow(me, u.id)) return false;
       if (q) return u.username.toLowerCase().includes(q);
       return true;
     })
@@ -344,7 +343,7 @@ dmRouter.get('/thread/:userId', authenticateJWT, (req: Request, res: Response) =
           isBlockedByMe: hasBlocked(me, other),
           isMutedByMe: hasMuted(me, other),
           isMatch: Boolean(findMatch(me, other)),
-          isMutualFollow: isMutualFollow(me, other),
+          acceptsPrivateMessages: userAllowsPrivateMessages(otherUser),
         }
       : {
           id: other,
@@ -353,7 +352,7 @@ dmRouter.get('/thread/:userId', authenticateJWT, (req: Request, res: Response) =
           isOnline: false,
           isMatch: Boolean(findMatch(me, other)),
           isMutedByMe: hasMuted(me, other),
-          isMutualFollow: isMutualFollow(me, other),
+          acceptsPrivateMessages: true,
         },
     isBlockedByMe: hasBlocked(me, other),
     isBlockedByThem: hasBlocked(other, me),
@@ -412,11 +411,11 @@ dmRouter.post('/thread/:userId', authenticateJWT, (req: Request, res: Response) 
     return;
   }
 
-  const mutualMatch = !!findMatch(me, receiverId);
-  if (!isMutualFollow(me, receiverId) && !mutualMatch) {
+  const recipient = db.users.get(receiverId);
+  if (recipient && !userAllowsPrivateMessages(recipient)) {
     res.status(403).json({
-      error: 'Vous devez vous suivre mutuellement ou avoir un match pour envoyer un message.',
-      code: 'dm_mutual_follow_required',
+      error: 'Cet utilisateur n\'accepte pas les messages privés.',
+      code: 'dm_disabled',
     });
     return;
   }

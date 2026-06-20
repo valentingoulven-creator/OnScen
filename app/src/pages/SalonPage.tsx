@@ -13,18 +13,13 @@ import { api, ApiRequestError } from '../lib/api';
 import { getSocket } from '../lib/socket';
 
 import { ChatRoomProvider, ChatInputBar, ChatModals } from '../components/ChatPanel';
-import { SalonChatDockBody, type SalonChatDockTab } from '../components/SalonChatDockBody';
+import { SalonChatDockBody, SalonChatDockTabButtons, type SalonChatDockTab } from '../components/SalonChatDockBody';
 import { UsernameDisplay } from '../components/UsernameDisplay';
-
-import { HostRatingBlock } from '../components/HostRatingBlock';
 
 import { RoomTheaterLayout } from '../components/RoomTheaterLayout';
 import { SalonPlaybackPanel } from '../components/SalonPlaybackPanel';
-import { SalonYouTubeHostPanel } from '../components/SalonYouTubeHostPanel';
 import { SalonAccessModeToggle } from '../components/SalonAccessModeToggle';
-import { SalonInviteLinkCopy } from '../components/SalonInviteLinkCopy';
 import { SalonInviteSheet } from '../components/SalonInviteSheet';
-import { SalonInviteUserSearch } from '../components/SalonInviteUserSearch';
 import { SalonParticipantsPopover } from '../components/SalonParticipantsPopover';
 import { useSalonQueueSync } from '../hooks/useSalonQueueSync';
 import { emitOnSocket } from '../lib/socket';
@@ -74,6 +69,7 @@ export function SalonPage({
   onSalonLoaded,
   onRestoreFullScreen,
   onOpenProfile,
+  salonFullScreen = true,
 }: {
   salonId: string;
   onBack: () => void;
@@ -87,6 +83,8 @@ export function SalonPage({
   onRestoreFullScreen?: () => void;
   /** Ouvre le profil complet d'un utilisateur (remonte depuis App). */
   onOpenProfile?: (userId: string) => void;
+  /** Overlay plein écran actif (false = salon minimisé, PiP vidéo). */
+  salonFullScreen?: boolean;
 }) {
 
   const { user, token, setUserFromProfile } = useAuth();
@@ -552,132 +550,6 @@ export function SalonPage({
         }
       : undefined;
 
-  const youtubeParticipantDrawer =
-    !canControlPlayback && token ? (
-      <SalonYouTubeHostPanel
-        salon={salon}
-        token={token}
-        playback={playback}
-        queue={queue}
-        proposals={proposals}
-        loadingProposals={loadingProposals}
-        hostCanControl={false}
-        pendingGuestIds={pendingGuestIds}
-        contacts={contacts}
-        onQueueChanged={applyQueue}
-        onTrackChanged={applyPlayback}
-        onOpenProfile={onOpenProfile}
-        currentUserId={user?.id}
-        onUpvote={handleUpvote}
-        participantMode
-      />
-    ) : null;
-
-  const youtubeHostSettings =
-    isHost && salon.accessMode === 'invite' ? (
-      <div className="space-y-4">
-        <section className="space-y-3">
-          <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
-            {t('salon.youtubeHost.inviteLink', { defaultValue: "Lien d'invitation" })}
-          </h3>
-          <SalonInviteLinkCopy salonId={salon.id} />
-        </section>
-        {hostCanControl && token ? (
-          <section className="space-y-3">
-            <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
-              {t('salon.youtubeHost.manageAccess', { defaultValue: "Gérer l'accès" })}
-            </h3>
-            <SalonInviteUserSearch
-              token={token}
-              contacts={contacts}
-              allowedUserIds={pendingGuestIds}
-              onToggle={togglePendingGuest}
-            />
-            <button
-              type="button"
-              disabled={validatingGuests || accessSaving}
-              onClick={() => void validateGuests()}
-              className="w-full py-2.5 rounded-lg text-xs font-bold bg-[#42426a] text-white hover:bg-[#52527a] disabled:opacity-50 transition"
-            >
-              {validatingGuests
-                ? 'Envoi…'
-                : t('salon.youtubeHost.sendInvites', { defaultValue: 'Envoyer les invitations' })}
-            </button>
-          </section>
-        ) : null}
-      </div>
-    ) : undefined;
-
-  const stageFooter = (
-    <>
-      {/* YouTube: contrôles hôte */}
-      {isHost && hostCanControl && token && (
-        <SalonYouTubeHostPanel
-          salon={salon}
-          token={token}
-          playback={playback}
-          queue={queue}
-          proposals={proposals}
-          loadingProposals={loadingProposals}
-          hostCanControl={hostCanControl}
-          skipping={skipping}
-          reordering={reordering}
-          pendingGuestIds={pendingGuestIds}
-          contacts={contacts}
-          onQueueChanged={applyQueue}
-          onTrackChanged={applyPlayback}
-          onSkip={handleSkip}
-          onPlayItem={handlePlayQueue}
-          onReorder={handleReorderQueue}
-          onAccept={handleAccept}
-          onReject={rejectProposal}
-          currentUserId={user?.id}
-          onUpvote={handleUpvote}
-          settingsContent={youtubeHostSettings}
-          onOpenProfile={onOpenProfile}
-        />
-      )}
-
-      {(isVipModerator || isDevModerator) && !isHost && token && (
-        <SalonYouTubeHostPanel
-          salon={salon}
-          token={token}
-          playback={playback}
-          queue={queue}
-          proposals={proposals}
-          loadingProposals={loadingProposals}
-          hostCanControl={canControlPlayback}
-          skipping={skipping}
-          reordering={reordering}
-          pendingGuestIds={pendingGuestIds}
-          contacts={contacts}
-          onQueueChanged={applyQueue}
-          onTrackChanged={applyPlayback}
-          onSkip={handleSkip}
-          onPlayItem={handlePlayQueue}
-          onReorder={handleReorderQueue}
-          onAccept={handleAccept}
-          onReject={rejectProposal}
-          currentUserId={user?.id}
-          onUpvote={handleUpvote}
-          onOpenProfile={onOpenProfile}
-          vipOnly
-        />
-      )}
-
-      {isHost && !hostCanControl && token && (
-        <div className="p-3">
-          <p className="text-xs text-amber-400/90 text-center mb-3">
-            Connectez YouTube pour contrôler la lecture de ce salon.
-          </p>
-          {youtubeHostSettings}
-        </div>
-      )}
-
-      {/* YouTube: participants — même tiroir, lecture seule */}
-      {youtubeParticipantDrawer}
-    </>
-  );
 
   if (!user) return null;
 
@@ -745,131 +617,153 @@ export function SalonPage({
     chatDockTab === 'queue'
       ? t('salon.chatDock.titleQueue', { defaultValue: "File d'attente" })
       : t('salon.chatTitle', { defaultValue: 'Chat du salon' });
-  const chatTitleIcon = chatDockTab === 'queue' ? '📋' : '💬';
+  const queueBadge = queue.length > 0 ? queue.length : undefined;
+  const chatHeaderLeading = (
+    <SalonChatDockTabButtons
+      activeTab={chatDockTab}
+      onSelect={setChatDockTab}
+      queueBadge={queueBadge}
+    />
+  );
+
+  const salonTopBarStart = (
+    <>
+      {minimizeSalonButton}
+      {onOpenProfile ? (
+        <button
+          type="button"
+          onClick={() => onOpenProfile(salon.hostId)}
+          className="rounded-lg shrink-0 cursor-pointer hover:ring-2 hover:ring-white/30 hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+        >
+          <img
+            src={salon.hostAvatarUrl ?? ''}
+            alt={salon.hostName}
+            className="w-8 h-8 rounded-lg object-cover bg-[#1a1a26] block"
+            onError={(e) => { (e.currentTarget.parentElement ?? e.currentTarget).style.display = 'none'; }}
+          />
+        </button>
+      ) : (
+        <img
+          src={salon.hostAvatarUrl ?? ''}
+          alt={salon.hostName}
+          className="w-8 h-8 rounded-lg object-cover shrink-0 bg-[#1a1a26]"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+      )}
+      <div className="min-w-0 max-w-[10rem] sm:max-w-[14rem] md:max-w-none">
+        <h1 className="font-bold text-white truncate text-sm leading-tight">{salon.title}</h1>
+        <p className="hidden md:block text-[11px] text-gray-400 truncate">
+          <UsernameDisplay
+            username={salon.hostName}
+            usernameColor={salon.hostUsernameColor}
+            usernameWaveFrom={salon.hostUsernameWaveFrom}
+            usernameWaveTo={salon.hostUsernameWaveTo}
+            className="truncate"
+          />
+          <span className="text-[#6b6b8a]"> · ▶️ YouTube</span>
+        </p>
+      </div>
+      <span className="hidden lg:inline text-[10px] text-[#6b6b8a] tabular-nums shrink-0">
+        {formatSalonAudienceLabel(salon.listenersCount, t)}
+      </span>
+      {remainingMs !== null && remainingMs > 0 && (
+        <span
+          className={`hidden lg:inline text-[10px] tabular-nums shrink-0 ${
+            remainingMs <= 15 * 60 * 1000 ? 'text-amber-400' : 'text-[#5a5a7a]'
+          }`}
+        >
+          ⏱ {formatRemaining(remainingMs)}
+        </span>
+      )}
+    </>
+  );
+
+  const salonTopBarEnd = (
+    <>
+      {isHost && hostCanControl && (
+        <SalonAccessModeToggle
+          accessMode={salon.accessMode ?? 'public'}
+          disabled={accessSaving}
+          onChange={(mode) => void setAccessMode(mode)}
+        />
+      )}
+      {isHost && salon.accessMode === 'invite' && token && (
+        <SalonInviteSheet
+          salonId={salon.id}
+          salonTitle={salon.title}
+          hostName={salon.hostName}
+          token={token}
+          contacts={contacts}
+          pendingGuestIds={pendingGuestIds}
+          validating={validatingGuests}
+          onToggleGuest={togglePendingGuest}
+          onValidate={validateGuests}
+        />
+      )}
+      {onLeaveSalon && isHost && (
+        <button
+          type="button"
+          onClick={() => setShowEndSalonConfirm(true)}
+          disabled={endingSalon}
+          className="shrink-0 px-2 py-1 rounded-full text-[10px] font-semibold text-red-300 border border-red-500/50 hover:text-white hover:bg-red-600/25 hover:border-red-400 transition disabled:opacity-50"
+        >
+          {endingSalon
+            ? t('common.loading', { defaultValue: 'Chargement…' })
+            : t('salon.endSalon', { defaultValue: 'Arrêter le salon' })}
+        </button>
+      )}
+      {onLeaveSalon && !isHost && (
+        <button
+          type="button"
+          onClick={onLeaveSalon}
+          className="shrink-0 px-2 py-1 rounded-full text-[10px] font-semibold text-gray-400 border border-[#2a2a3a] hover:text-white hover:border-gray-500 transition"
+        >
+          {t('salon.leaveSalon')}
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => void handleShareSalon()}
+        title={shareCopied ? 'Lien copié !' : 'Partager ce salon'}
+        className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-[#2a2a3a] transition"
+        aria-label="Partager le salon"
+      >
+        {shareCopied ? (
+          <svg className="w-4 h-4 text-green-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 00-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z" clipRule="evenodd" />
+          </svg>
+        ) : (
+          <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+          </svg>
+        )}
+      </button>
+    </>
+  );
 
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f] overflow-hidden">
       {durationWarning && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] max-w-[90vw] px-4 py-2.5 rounded-full bg-amber-950/90 border border-amber-500/40 text-sm text-amber-100 font-bold shadow-lg backdrop-blur text-center">
+        <div className="fixed top-14 left-1/2 -translate-x-1/2 z-[60] max-w-[90vw] px-4 py-2.5 rounded-full bg-amber-950/90 border border-amber-500/40 text-sm text-amber-100 font-bold shadow-lg backdrop-blur text-center">
           ⚠ Session se terminera dans 15 min
         </div>
       )}
       {toastMsg && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[70] pointer-events-none max-w-[90vw]">
+        <div className="fixed top-12 left-1/2 -translate-x-1/2 z-[70] pointer-events-none max-w-[90vw]">
           <div className="px-4 py-2.5 rounded-full bg-[#1a1a26]/95 border border-white/15 text-sm text-white shadow-lg backdrop-blur-md text-center">
             {toastMsg}
           </div>
         </div>
       )}
-      <header className="relative z-30 shrink-0 flex items-center gap-2 sm:gap-3 px-3 py-2.5 border-b border-[#1e1e2f] min-w-0">
-        {minimizeSalonButton}
-        <img
-          src={salon.hostAvatarUrl ?? ''}
-          alt={salon.hostName}
-          className="w-9 h-9 rounded-lg object-cover shrink-0 bg-[#1a1a26]"
-          onError={(e) => { e.currentTarget.style.display = 'none'; }}
-        />
-        <div className="flex-1 min-w-0">
-          <h1 className="font-bold text-white truncate text-sm">{salon.title}</h1>
-          <p className="text-[11px] text-gray-400 truncate flex items-center gap-2 min-w-0">
-            <span className="truncate inline-flex items-center gap-1 min-w-0">
-              <UsernameDisplay
-                username={salon.hostName}
-                usernameColor={salon.hostUsernameColor}
-                usernameWaveFrom={salon.hostUsernameWaveFrom}
-                usernameWaveTo={salon.hostUsernameWaveTo}
-                className="truncate"
-              />
-              <span className="shrink-0 text-[#6b6b8a]">· ▶️ YouTube</span>
-            </span>
-            <HostRatingBlock
-              hostId={salon.hostId}
-              hostName={salon.hostName}
-              isBot={salon.isBot}
-              salonId={salon.id}
-              inline
-              hideLabel
-              compact
-            />
-          </p>
-          <p className="text-[10px] mt-0.5 text-[#6b6b8a] tabular-nums">
-            {formatSalonAudienceLabel(salon.listenersCount, t)}
-          </p>
-          {remainingMs !== null && remainingMs > 0 && (
-            <p className={`text-[10px] mt-0.5 ${remainingMs <= 15 * 60 * 1000 ? 'text-amber-400' : 'text-[#5a5a7a]'}`}>
-              ⏱ {formatRemaining(remainingMs)} restantes
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {isHost && hostCanControl && (
-            <SalonAccessModeToggle
-              accessMode={salon.accessMode ?? 'public'}
-              disabled={accessSaving}
-              onChange={(mode) => void setAccessMode(mode)}
-            />
-          )}
-          {isHost && salon.accessMode === 'invite' && token && (
-            <SalonInviteSheet
-              salonId={salon.id}
-              salonTitle={salon.title}
-              hostName={salon.hostName}
-              token={token}
-              contacts={contacts}
-              pendingGuestIds={pendingGuestIds}
-              validating={validatingGuests}
-              onToggleGuest={togglePendingGuest}
-              onValidate={validateGuests}
-            />
-          )}
-          {onLeaveSalon && isHost && (
-            <button
-              type="button"
-              onClick={() => setShowEndSalonConfirm(true)}
-              disabled={endingSalon}
-              className="shrink-0 px-2.5 py-1.5 rounded-full text-[10px] font-semibold text-red-300 border border-red-500/50 hover:text-white hover:bg-red-600/25 hover:border-red-400 transition disabled:opacity-50"
-            >
-              {endingSalon
-                ? t('common.loading', { defaultValue: 'Chargement…' })
-                : t('salon.endSalon', { defaultValue: 'Arrêter le salon' })}
-            </button>
-          )}
-          {onLeaveSalon && !isHost && (
-            <button
-              type="button"
-              onClick={onLeaveSalon}
-              className="shrink-0 px-2.5 py-1.5 rounded-full text-[10px] font-semibold text-gray-400 border border-[#2a2a3a] hover:text-white hover:border-gray-500 transition"
-            >
-              {t('salon.leaveSalon')}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => void handleShareSalon()}
-            title={shareCopied ? 'Lien copié !' : 'Partager ce salon'}
-            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-[#2a2a3a] transition"
-            aria-label="Partager le salon"
-          >
-            {shareCopied ? (
-              <svg className="w-4 h-4 text-green-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 00-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z" clipRule="evenodd" />
-              </svg>
-            ) : (
-              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
-              </svg>
-            )}
-          </button>
-        </div>
-      </header>
-
       <ChatRoomProvider {...chatProps}>
         <RoomTheaterLayout
           variant="theater"
           chatDock="left"
-          stageFooterMode="drawer"
           allowFloatingChat={false}
           sideDockMatchHero
+          headerLayout="full-width"
+          topBarStart={salonTopBarStart}
+          topBarEnd={salonTopBarEnd}
           chatHidden={chatHidden}
           onToggleChat={() => {
             setChatHidden((h) => {
@@ -885,7 +779,7 @@ export function SalonPage({
             });
           }}
           chatTitle={chatTitle}
-          chatTitleIcon={chatTitleIcon}
+          chatHeaderLeading={chatHeaderLeading}
           chatHeaderExtra={chatHeaderExtra}
           chatMinimized={chatMinimized}
           onToggleMinimize={() => {
@@ -910,7 +804,7 @@ export function SalonPage({
               onUserUpdated={setUserFromProfile}
               onPlaybackStateChange={applyPlayback}
               theaterMode
-              salonFullScreen
+              salonFullScreen={salonFullScreen}
               theaterSideDock
               salonQueueLayout={false}
               hostCanControl={hostCanControl}
@@ -920,9 +814,9 @@ export function SalonPage({
               onAnchorVideoFloat={onRestoreFullScreen}
             />
           }
-          stageFooter={stageFooter}
           chat={
             <SalonChatDockBody
+              activeTab={chatDockTab}
               salon={salon}
               queue={queue}
               proposals={proposals}
@@ -940,7 +834,6 @@ export function SalonPage({
               onUpvote={handleUpvote}
               youtubeSearch={queueYoutubeSearch}
               chatInput={<ChatInputBar />}
-              onDockTabChange={setChatDockTab}
             />
           }
         />

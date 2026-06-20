@@ -10,7 +10,6 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { useMatchCreated } from '../lib/useMatchCreated';
-import { HostRatingBlock } from './HostRatingBlock';
 import { ProfilePhotoGallery } from './ProfilePhotoGallery';
 import { getViewableProfilePhotos, ProfilePhotoViewer } from './ProfilePhotoViewer';
 import { PublicProfilePhotoHero } from './PublicProfilePhotoHero';
@@ -36,8 +35,6 @@ interface UserProfileViewProps {
   userId: string;
   preview?: NearbyPerson;
   onOpenLive?: (liveId: string) => void;
-  /** Salon actif (preview carte ou profil API) remonté au parent pour le pied de page fixe. */
-  onSalonInfo?: (info: { salonId: string; salonTitle?: string } | null) => void;
   /** Ouvre le salon affiché dans « En écoute ». */
   onOpenSalon?: (salonId: string, salonTitle?: string, isHost?: boolean) => void;
   /** Ouvrir la conversation DM avec cet utilisateur. */
@@ -48,7 +45,6 @@ export function UserProfileView({
   userId,
   preview,
   onOpenLive,
-  onSalonInfo,
   onOpenSalon,
   onOpenDm,
 }: UserProfileViewProps) {
@@ -64,7 +60,6 @@ export function UserProfileView({
   const [error, setError] = useState<string | null>(null);
   const [salonGateToast, setSalonGateToast] = useState<string | null>(null);
   const [photoViewerIndex, setPhotoViewerIndex] = useState<number | null>(null);
-  const [showFullBio, setShowFullBio] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -78,7 +73,6 @@ export function UserProfileView({
   const heartBlockReason = heartDisabledReason(me, profile);
   const profileIsSingle = isSingleForHeart(profile);
   const profileMeetsAge = userMeetsHeartAge(profile);
-  const isMutualFollow = Boolean(profile?.isFollowing && profile?.isFollowingMe);
 
   useEffect(() => {
     if (!token) return;
@@ -118,23 +112,6 @@ export function UserProfileView({
     },
     Boolean(token && !isSelf && !isMatched)
   );
-
-  useEffect(() => {
-    if (!onSalonInfo) return;
-    const salonId = profile?.salonId ?? preview?.salonId;
-    if (!salonId) {
-      onSalonInfo(null);
-      return;
-    }
-    const salonTitle = profile?.salonTitle ?? preview?.salonTitle;
-    onSalonInfo({ salonId, salonTitle });
-  }, [
-    onSalonInfo,
-    preview?.salonId,
-    preview?.salonTitle,
-    profile?.salonId,
-    profile?.salonTitle,
-  ]);
 
   const photos = profile
     ? getUserProfilePhotos(profile)
@@ -234,18 +211,16 @@ export function UserProfileView({
     return (
       <div className="w-full bg-[#0b0b0f]">
         {/* Skeleton banner */}
-        <div className="h-32 sm:h-40 w-full bg-gradient-to-br from-purple-950/60 via-[#12121a] to-pink-950/40 animate-pulse" />
-        <div className="px-4 -mt-14 relative z-10">
-          <div className="flex justify-between items-end">
-            <div className="w-20 h-20 rounded-full bg-[#1e1e2f] ring-4 ring-[#0b0b0f] animate-pulse" />
-            <div className="mb-1 flex gap-2">
-              <div className="w-20 h-8 rounded-full bg-[#1e1e2f] animate-pulse" />
-              <div className="w-9 h-8 rounded-full bg-[#1e1e2f] animate-pulse" />
-            </div>
+        <div className="h-24 sm:h-28 w-full bg-gradient-to-br from-purple-950/60 via-[#12121a] to-pink-950/40 animate-pulse" />
+        <div className="px-4 -mt-12 sm:-mt-14 relative z-10 flex flex-col items-center">
+          <div className="w-20 h-20 rounded-full bg-[#1e1e2f] ring-4 ring-[#0b0b0f] animate-pulse" />
+          <div className="mt-3 flex justify-center gap-2">
+            <div className="w-20 h-8 rounded-full bg-[#1e1e2f] animate-pulse" />
+            <div className="w-9 h-8 rounded-full bg-[#1e1e2f] animate-pulse" />
           </div>
           <div className="mt-3 h-5 w-36 bg-[#1e1e2f] rounded-lg animate-pulse" />
           <div className="mt-2 h-3.5 w-24 bg-[#1e1e2f] rounded animate-pulse" />
-          <div className="mt-4 flex gap-4">
+          <div className="mt-4 flex justify-center gap-4">
             <div className="h-3.5 w-16 bg-[#1e1e2f] rounded animate-pulse" />
             <div className="h-3.5 w-16 bg-[#1e1e2f] rounded animate-pulse" />
             <div className="h-3.5 w-16 bg-[#1e1e2f] rounded animate-pulse" />
@@ -262,13 +237,6 @@ export function UserProfileView({
   if (!profile && !preview) {
     return null;
   }
-
-  const showHostRating = Boolean(
-    profile &&
-      (profile.listeningRole === 'host' ||
-        profile.listeningRole === 'les_deux' ||
-        (profile.stats?.salonsHosted ?? 0) > 0)
-  );
 
   const birthDateTrimmed = profile?.birthDate?.trim() ?? '';
   const resolvedAge =
@@ -291,8 +259,6 @@ export function UserProfileView({
 
 
   const bioText = profile?.bio?.trim() ?? '';
-  const BIO_LIMIT = 120;
-  const bioIsTruncatable = bioText.length > BIO_LIMIT;
 
   const fadeStyle: React.CSSProperties = {
     opacity: mounted ? 1 : 0,
@@ -329,10 +295,8 @@ export function UserProfileView({
       {/* ── IDENTITY BLOCK ── */}
       <div className="px-4 relative z-10">
 
-        {/* Avatar row: avatar left, action buttons right */}
-        <div className="flex justify-between items-end -mt-14 sm:-mt-16">
-
-          {/* Avatar with gradient ring */}
+        {/* Avatar — centered */}
+        <div className="flex flex-col items-center -mt-12 sm:-mt-14">
           {viewerPhotos.length > 0 ? (
             <button
               type="button"
@@ -366,9 +330,9 @@ export function UserProfileView({
             </div>
           )}
 
-          {/* Action buttons — shown only for other users */}
+          {/* Action buttons — centered below avatar */}
           {!isSelf && (
-            <div className="flex items-center gap-2 mb-1">
+            <div className="mt-3 flex items-center justify-center gap-2">
               <FollowUserButton
                 userId={userId}
                 username={displayName}
@@ -378,18 +342,12 @@ export function UserProfileView({
                   setProfile((p) => (p ? { ...p, isFollowing: following } : p))
                 }
               />
-              {/* Message icon button */}
               {onOpenDm && (
                 <button
                   type="button"
-                  onClick={() => isMutualFollow ? onOpenDm(userId) : undefined}
-                  disabled={!isMutualFollow}
-                  title={isMutualFollow ? t('profile.messageButton') : t('profile.messageButtonDisabledTitle')}
-                  className={`w-9 h-9 rounded-full border flex items-center justify-center transition ${
-                    isMutualFollow
-                      ? 'border-[#3d3d50] text-gray-300 hover:border-purple-500/60 hover:text-purple-300'
-                      : 'border-[#2a2a38] text-gray-600 cursor-not-allowed'
-                  }`}
+                  onClick={() => onOpenDm(userId)}
+                  title={t('profile.messageButton')}
+                  className="w-9 h-9 rounded-full border flex items-center justify-center transition border-[#3d3d50] text-gray-300 hover:border-purple-500/60 hover:text-purple-300"
                   aria-label={t('profile.messageButton')}
                 >
                   <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
@@ -402,7 +360,7 @@ export function UserProfileView({
         </div>
 
         {/* Username + rating */}
-        <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-center">
           <UsernameDisplay
             as="h2"
             username={displayName}
@@ -416,20 +374,12 @@ export function UserProfileView({
               ⭐{profile.supporterTier ? ` ${profile.supporterTier}` : ''}
             </span>
           )}
-          {showHostRating && profile ? (
-            <HostRatingBlock
-              hostId={userId}
-              hostName={displayName}
-              averageOnly
-              initialRating={profile.hostRating}
-            />
-          ) : null}
         </div>
 
-        <ProfileIdentityLines profileType={profile?.profileType} className="mt-0.5" />
+        <ProfileIdentityLines profileType={profile?.profileType} className="mt-0.5 text-center" />
 
         {/* Meta chips: location, age, relationship, proximity */}
-        <div className="mt-2.5 flex flex-wrap gap-x-2 gap-y-1.5">
+        <div className="mt-2.5 flex flex-wrap justify-center gap-x-2 gap-y-1.5">
           {profile?.city?.trim() ? (
             <span className="inline-flex items-center gap-1 text-[11px] text-gray-400 bg-[#1a1a26] border border-[#2d2d3d] rounded-full px-2.5 py-1">
               📍 {profile.city.trim()}
@@ -492,19 +442,8 @@ export function UserProfileView({
       {bioText ? (
         <div className="px-4 mt-4">
           <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap break-words">
-            {bioIsTruncatable && !showFullBio
-              ? bioText.slice(0, BIO_LIMIT) + '…'
-              : bioText}
+            {bioText}
           </p>
-          {bioIsTruncatable && (
-            <button
-              type="button"
-              onClick={() => setShowFullBio((v) => !v)}
-              className="mt-1 text-xs font-semibold text-purple-400 hover:text-purple-300 transition"
-            >
-              {showFullBio ? 'voir moins' : 'voir plus'}
-            </button>
-          )}
         </div>
       ) : null}
 
@@ -544,14 +483,9 @@ export function UserProfileView({
         {/* Photo gallery */}
         {viewablePhotos.length > 0 && (
           <section className="space-y-2.5">
-            <div className="flex items-center justify-between">
-              <h3 className="text-[10px] font-semibold text-purple-400/70 uppercase tracking-widest">
-                Photos
-              </h3>
-              <span className="text-[11px] text-gray-500 font-medium tabular-nums">
-                {viewablePhotos.length}
-              </span>
-            </div>
+            <h3 className="text-[10px] font-semibold text-purple-400/70 uppercase tracking-widest">
+              Photos
+            </h3>
             <div
               className={
                 isLiveHost
@@ -599,9 +533,9 @@ export function UserProfileView({
         )}
 
         {/* ── PRIMARY SOCIAL ACTIONS ── */}
-        {((showMessageButton && isMutualFollow) || showHeartButton) && (
+        {(showMessageButton || showHeartButton) && (
           <div className="flex gap-2.5 pt-1">
-            {showMessageButton && isMutualFollow && (
+            {showMessageButton && (
               <button
                 type="button"
                 onClick={() => onOpenDm!(userId)}

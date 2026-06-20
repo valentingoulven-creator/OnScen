@@ -416,6 +416,7 @@ export function publicProfile(u: User, isOwner = false, viewerId?: string) {
     isGhostMode: isOwner ? snapshot.isGhostMode : undefined,
     shareDistance: isOwner ? snapshot.shareDistance !== false : undefined,
     locationPrecision: isOwner ? (snapshot.locationPrecision ?? 'precise') : undefined,
+    allowPrivateMessages: isOwner ? snapshot.allowPrivateMessages !== false : undefined,
     email: isOwner ? snapshot.email : undefined,
     isOAuthAccount: isOwner ? snapshot.passwordHash.startsWith('oauth_') : undefined,
     accountStatus: isOwner ? getAccountStatus(snapshot) : undefined,

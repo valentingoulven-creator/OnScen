@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../lib/api';
 import { UserProfileView } from '../components/UserProfileView';
 import { UserReelsSection } from '../components/UserReelsSection';
 import { UserLivesSection } from '../components/UserLivesSection';
+import { UserCompositionsSection } from '../components/UserCompositionsSection';
 import { UserEventsSection } from '../components/UserEventsSection';
 import { ReportContentButton } from '../components/ReportContentModal';
 import { ShareProfileLink } from '../components/ShareProfileLink';
@@ -39,25 +41,43 @@ export function UserProfilePage({
   onOpenDm,
   onOpenFeedPost,
 }: UserProfilePageProps) {
-  const { user: me } = useAuth();
+  const { user: me, token } = useAuth();
   const { t } = useTranslation();
   const isSelf = me?.id === userId;
-  const [profileTab, setProfileTab] = useState<'profil' | 'reels' | 'lives' | 'events'>('profil');
+  const [profileTab, setProfileTab] = useState<'profil' | 'reels' | 'lives' | 'events' | 'compositions'>('profil');
+  const [compositionsRefreshKey, setCompositionsRefreshKey] = useState(0);
+  const [canViewPrivateReels, setCanViewPrivateReels] = useState(isSelf);
   const reelsTabLabel = isSelf ? t('profile.tabReels') : t('profile.tabReelsOther');
   const livesTabLabel = isSelf ? t('profile.tabLives') : t('profile.tabLivesOther');
   const displayName = preview?.username ?? 'Profil';
-  const [salonFromApi, setSalonFromApi] = useState<{ salonId: string; salonTitle?: string } | null>(
-    null
-  );
-
-  const salonInfo =
-    salonFromApi ??
-    (preview?.salonId ? { salonId: preview.salonId, salonTitle: preview.salonTitle } : null);
 
   useEffect(() => {
-    setSalonFromApi(null);
     setProfileTab('profil');
   }, [userId]);
+
+  useEffect(() => {
+    if (isSelf) {
+      setCanViewPrivateReels(true);
+      return;
+    }
+    if (!token) {
+      setCanViewPrivateReels(false);
+      return;
+    }
+    let cancelled = false;
+    api
+      .getUserProfile(token, userId)
+      .then((res) => {
+        if (cancelled) return;
+        setCanViewPrivateReels(Boolean(res.user.isFollowing && res.user.isFollowingMe));
+      })
+      .catch(() => {
+        if (!cancelled) setCanViewPrivateReels(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, userId, isSelf, profileTab]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -71,11 +91,10 @@ export function UserProfilePage({
     ? 'absolute inset-x-0 bottom-0 top-[10%] flex flex-col min-h-0 max-h-none overflow-hidden bg-[#0b0b0f] rounded-t-2xl border-t border-[#1e1e2f] shadow-[0_-8px_40px_rgba(0,0,0,0.55)] pointer-events-auto'
     : 'flex flex-col flex-1 min-h-0 h-full overflow-hidden bg-[#0b0b0f]';
 
-  const showSalonFooter = Boolean(salonInfo?.salonId && onSelectSalon);
-
   const tabs = [
     ['profil', t('profile.tabProfil')],
     ...(onOpenReel ? ([['reels', reelsTabLabel]] as const) : []),
+    ['compositions', t('profile.tabCompositions')],
     ...(onOpenLive ? ([['lives', livesTabLabel]] as const) : []),
     ['events', t('profile.tabEvents')],
   ] as const;
@@ -135,7 +154,11 @@ export function UserProfilePage({
               <button
                 key={id}
                 type="button"
-                onClick={() => setProfileTab(id as 'profil' | 'reels' | 'lives' | 'events')}
+                onClick={() => {
+                  const tab = id as 'profil' | 'reels' | 'lives' | 'events' | 'compositions';
+                  setProfileTab(tab);
+                  if (tab === 'compositions') setCompositionsRefreshKey((k) => k + 1);
+                }}
                 className={`relative flex-1 py-3 text-xs font-bold uppercase tracking-wider transition ${
                   profileTab === id
                     ? 'text-white'
@@ -161,7 +184,6 @@ export function UserProfilePage({
             userId={userId}
             preview={preview}
             onOpenLive={onOpenLive}
-            onSalonInfo={setSalonFromApi}
             onOpenSalon={onSelectSalon}
             onOpenDm={onOpenDm}
           />
@@ -170,6 +192,7 @@ export function UserProfilePage({
             <UserReelsSection
               userId={userId}
               isOwner={isSelf}
+              canViewPrivateReels={canViewPrivateReels}
               layout="grid"
               hideSectionTitle
               defaultOwnerTab="published"
@@ -178,6 +201,13 @@ export function UserProfilePage({
               onRecordReel={isSelf ? onRecordReel : undefined}
             />
           )
+        ) : profileTab === 'compositions' ? (
+          <UserCompositionsSection
+            userId={userId}
+            readOnly={!isSelf}
+            defaultArtist={isSelf ? (me?.username ?? '') : displayName}
+            refreshKey={compositionsRefreshKey}
+          />
         ) : profileTab === 'lives' ? (
           <UserLivesSection
             userId={userId}
@@ -192,24 +222,6 @@ export function UserProfilePage({
           />
         )}
       </main>
-
-      {showSalonFooter && (
-        <div
-          className={`shrink-0 px-4 py-3 border-t border-[#1e1e2f] bg-[#12121a]/95 backdrop-blur-sm ${
-            mapOverlay ? '' : 'pb-[var(--tab-nav-total-h,0.75rem)]'
-          }`}
-        >
-          <button
-            type="button"
-            onClick={() =>
-              onSelectSalon!(salonInfo!.salonId, salonInfo!.salonTitle, isSelf)
-            }
-            className="w-full py-3 rounded-2xl font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-lg shadow-purple-900/40 active:scale-[0.99] transition"
-          >
-            Rejoindre le salon · {salonInfo!.salonTitle ?? 'Écoute'}
-          </button>
-        </div>
-      )}
 
     </>
   );

@@ -124,6 +124,7 @@ export function ProfilePage({
   const [profileTab, setProfileTab] = useState<ProfileTab>('profil');
   const [showReelRecorder, setShowReelRecorder] = useState(false);
   const [reelsRefreshKey, setReelsRefreshKey] = useState(0);
+  const [compositionsRefreshKey, setCompositionsRefreshKey] = useState(0);
   const [editing, setEditing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showSubscription, setShowSubscription] = useState(false);
@@ -485,6 +486,7 @@ export function ProfilePage({
             active={profileTab}
             onChange={(id) => {
               setProfileTab(id);
+              if (id === 'compositions') setCompositionsRefreshKey((k) => k + 1);
               if (id !== 'reels') setShowReelRecorder(false);
             }}
             showReels={!!onOpenReel}
@@ -540,7 +542,10 @@ export function ProfilePage({
         )}
 
         {profileTab === 'compositions' && !editing && user && (
-          <UserCompositionsSection defaultArtist={user.username} />
+          <UserCompositionsSection
+            defaultArtist={user.username}
+            refreshKey={compositionsRefreshKey}
+          />
         )}
 
         {(profileTab === 'profil' || editing) && (
@@ -629,16 +634,6 @@ export function ProfilePage({
                 />
               )}
 
-              <button
-                type="button"
-                onClick={() => setShowSettings(true)}
-                className="relative w-full py-2.5 rounded-lg border border-[#2d2d3d] text-gray-300 font-semibold text-sm text-center hover:bg-[#1a1a26] transition"
-              >
-                ⚙️ {t('profile.settings')}
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" aria-hidden>
-                  ›
-                </span>
-              </button>
               <SupportMeloSongTeaser onOpen={() => setShowDonationSheet(true)} />
               <button
                 type="button"

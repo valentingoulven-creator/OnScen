@@ -1005,7 +1005,7 @@ export function ChatInputBar({ className }: { className?: string }) {
       )}
       <form
         onSubmit={send}
-        className="border-t border-[#1e1e2f] flex gap-2 items-center p-3 bg-[#0b0b0f]/95 backdrop-blur-sm"
+        className="border-t border-b border-[#1e1e2f] flex gap-2 items-center p-3 bg-[#0b0b0f]/95 backdrop-blur-sm"
       >
         {liveReactionsEnabled && (
           <div className="relative shrink-0" ref={reactionMenuRef}>

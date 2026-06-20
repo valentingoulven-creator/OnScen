@@ -11,6 +11,7 @@ const WEB_PUSH_TYPES = new Set<AppNotification['type']>([
   'live_started',
   'live_don',
   'salon_invite',
+  'salon_created',
   'favorite_online',
   'follow',
   'mention',

@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChatMessagesView } from './ChatPanel';
 import { SalonQueueSection } from './SalonQueueSection';
@@ -63,7 +63,40 @@ interface SalonChatDockBodyProps {
     onQueueChanged?: (queue: SalonQueueItem[]) => void;
   };
   chatInput?: ReactNode;
-  onDockTabChange?: (tab: SalonChatDockTab) => void;
+  /** Controlled active tab (defaults to internal state when omitted). */
+  activeTab?: SalonChatDockTab;
+}
+
+export interface SalonChatDockTabButtonsProps {
+  activeTab: SalonChatDockTab;
+  onSelect: (tab: SalonChatDockTab) => void;
+  queueBadge?: number;
+}
+
+export function SalonChatDockTabButtons({
+  activeTab,
+  onSelect,
+  queueBadge,
+}: SalonChatDockTabButtonsProps) {
+  const { t } = useTranslation();
+
+  return (
+    <div className="salon-chat-dock-tabs__tabs" role="tablist">
+      <DockTabButton
+        tab="chat"
+        activeTab={activeTab}
+        label={t('salon.chatDock.tabChat', { defaultValue: 'Chat' })}
+        onSelect={onSelect}
+      />
+      <DockTabButton
+        tab="queue"
+        activeTab={activeTab}
+        label={t('salon.chatDock.tabQueue', { defaultValue: "File d'attente" })}
+        badge={queueBadge}
+        onSelect={onSelect}
+      />
+    </div>
+  );
 }
 
 function DockTabButton({
@@ -118,40 +151,14 @@ export function SalonChatDockBody({
   currentUserId,
   youtubeSearch,
   chatInput,
-  onDockTabChange,
+  activeTab: activeTabProp,
 }: SalonChatDockBodyProps) {
-  const { t } = useTranslation();
-  const [dockTab, setDockTab] = useState<DockTab>('chat');
+  const [internalTab] = useState<DockTab>('chat');
   const [youtubeSearchActive, setYoutubeSearchActive] = useState(false);
-
-  const selectDockTab = useCallback(
-    (tab: DockTab) => {
-      setDockTab(tab);
-      onDockTabChange?.(tab);
-    },
-    [onDockTabChange],
-  );
-
-  const queueBadge = queue.length > 0 ? queue.length : undefined;
+  const dockTab = activeTabProp ?? internalTab;
 
   return (
     <div className="salon-chat-dock-tabs flex flex-1 min-h-0 h-full">
-      <div className="salon-chat-dock-tabs__tabs" role="tablist">
-        <DockTabButton
-          tab="chat"
-          activeTab={dockTab}
-          label={t('salon.chatDock.tabChat', { defaultValue: 'Chat' })}
-          onSelect={selectDockTab}
-        />
-        <DockTabButton
-          tab="queue"
-          activeTab={dockTab}
-          label={t('salon.chatDock.tabQueue', { defaultValue: "File d'attente" })}
-          badge={queueBadge}
-          onSelect={selectDockTab}
-        />
-      </div>
-
       <div className="salon-chat-dock-tabs__content flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
         {dockTab === 'chat' ? (
           <>
@@ -163,36 +170,40 @@ export function SalonChatDockBody({
             ) : null}
           </>
         ) : (
-          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-2.5 flex flex-col gap-4">
+          <div className="flex-1 min-h-0 overflow-hidden p-2.5 flex flex-col gap-4">
             {youtubeSearch ? (
-              <SalonYouTubeSearch
-                salonId={salon.id}
-                token={youtubeSearch.token}
-                currentTitle={youtubeSearch.currentTitle}
-                currentArtist={youtubeSearch.currentArtist}
-                submitMode={youtubeSearch.submitMode}
-                onTrackChanged={youtubeSearch.onTrackChanged}
-                onQueueChanged={youtubeSearch.onQueueChanged}
-                embedded
-                layout="inline"
-                onSearchActiveChange={setYoutubeSearchActive}
-              />
+              <div className="shrink-0">
+                <SalonYouTubeSearch
+                  salonId={salon.id}
+                  token={youtubeSearch.token}
+                  currentTitle={youtubeSearch.currentTitle}
+                  currentArtist={youtubeSearch.currentArtist}
+                  submitMode={youtubeSearch.submitMode}
+                  onTrackChanged={youtubeSearch.onTrackChanged}
+                  onQueueChanged={youtubeSearch.onQueueChanged}
+                  embedded
+                  layout="inline"
+                  onSearchActiveChange={setYoutubeSearchActive}
+                />
+              </div>
             ) : null}
             {!youtubeSearchActive ? (
               <>
-                <SalonQueueSection
-                  queue={queue}
-                  isHost={hostCanControl}
-                  allowQueue={salon.allowQueue}
-                  salonId={salon.id}
-                  onSkip={hostCanControl ? onSkip : undefined}
-                  onPlayItem={hostCanControl ? onPlayItem : undefined}
-                  onReorder={hostCanControl ? onReorder : undefined}
-                  skipping={skipping}
-                  reordering={reordering}
-                  compact
-                  collapsible={false}
-                />
+                <div className="shrink-0">
+                  <SalonQueueSection
+                    queue={queue}
+                    isHost={hostCanControl}
+                    allowQueue={salon.allowQueue}
+                    salonId={salon.id}
+                    onSkip={hostCanControl ? onSkip : undefined}
+                    onPlayItem={hostCanControl ? onPlayItem : undefined}
+                    onReorder={hostCanControl ? onReorder : undefined}
+                    skipping={skipping}
+                    reordering={reordering}
+                    compact
+                    collapsible={false}
+                  />
+                </div>
                 {!participantMode ? (
                   <SalonProposalsSection
                     isHost={hostCanControl}
@@ -204,6 +215,7 @@ export function SalonChatDockBody({
                     onReject={onReject}
                     onUpvote={onUpvote}
                     compact
+                    fillHeight
                   />
                 ) : (
                   <SalonProposalsSection
@@ -213,6 +225,7 @@ export function SalonChatDockBody({
                     currentUserId={currentUserId}
                     onUpvote={onUpvote}
                     compact
+                    fillHeight
                   />
                 )}
               </>

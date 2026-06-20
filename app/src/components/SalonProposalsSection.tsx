@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ConfirmModal } from './ConfirmModal';
-import { sortSalonProposals } from '../lib/salonProposals';
+import { decodeProposalDisplayText, sortSalonProposals } from '../lib/salonProposals';
 import type { SalonTrackProposal } from '../types';
 
 interface SalonProposalsSectionProps {
@@ -19,6 +19,8 @@ interface SalonProposalsSectionProps {
   onReject?: (proposalId: string) => Promise<void>;
   onUpvote?: (proposalId: string) => Promise<void>;
   compact?: boolean;
+  /** Remplit l'espace vertical restant (dock file d'attente) avec défilement interne. */
+  fillHeight?: boolean;
   /** Affiche un lien "Ouvrir sur Spotify" pour les propositions avec spotifyUrl. */
   showSpotifyLink?: boolean;
 }
@@ -86,6 +88,7 @@ export function SalonProposalsSection({
   onReject,
   onUpvote,
   compact,
+  fillHeight = false,
   showSpotifyLink = false,
 }: SalonProposalsSectionProps) {
   const [title, setTitle] = useState('');
@@ -137,13 +140,20 @@ export function SalonProposalsSection({
     }
   };
 
+  const rootClassName = fillHeight
+    ? 'flex flex-col flex-1 min-h-0 gap-2'
+    : 'space-y-2';
+  const listClassName = fillHeight
+    ? 'flex-1 min-h-0 space-y-1.5 overflow-y-auto overscroll-contain'
+    : `space-y-1.5 overflow-y-auto ${compact ? 'max-h-36' : 'max-h-48'}`;
+
   if (isHost) {
     return (
-      <div className="space-y-2">
+      <div className={rootClassName}>
         {errorMsg && (
-          <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-2.5 py-1.5">{errorMsg}</p>
+          <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-2.5 py-1.5 shrink-0">{errorMsg}</p>
         )}
-        <h4 className="text-[11px] font-semibold text-amber-400/90 uppercase tracking-wide flex items-center gap-2">
+        <h4 className="text-[11px] font-semibold text-amber-400/90 uppercase tracking-wide flex items-center gap-2 shrink-0">
           Propositions
           {sortedProposals.length > 0 && (
             <span className="bg-amber-500/15 text-amber-300 px-1.5 py-0.5 rounded-full text-[10px] font-bold">
@@ -152,13 +162,13 @@ export function SalonProposalsSection({
           )}
         </h4>
         {loadingProposals ? (
-          <p className="text-xs text-gray-500">Chargement…</p>
+          <p className="text-xs text-gray-500 shrink-0">Chargement…</p>
         ) : sortedProposals.length === 0 ? (
-          <p className={`text-gray-600 text-center ${compact ? 'text-[10px] py-1' : 'text-xs py-2'}`}>
+          <p className={`text-gray-600 text-center shrink-0 ${compact ? 'text-[10px] py-1' : 'text-xs py-2'}`}>
             Aucune proposition
           </p>
         ) : (
-          <ul className={`space-y-1.5 overflow-y-auto ${compact ? 'max-h-36' : 'max-h-48'}`}>
+          <ul className={listClassName}>
             {sortedProposals.map((p) => (
               <li key={p.id} className="p-2.5 rounded-xl bg-[#0b0b0f] border border-amber-500/15">
                 <div className="flex items-start gap-2 min-w-0">
@@ -170,9 +180,11 @@ export function SalonProposalsSection({
                     hostView
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-white font-medium truncate">{p.title}</p>
-                    <p className="text-[10px] text-gray-500 truncate">
-                      {p.artist} · {p.proposerName}
+                    <p className="text-xs text-white font-medium break-words leading-snug">
+                      {decodeProposalDisplayText(p.title)}
+                    </p>
+                    <p className="text-[10px] text-gray-500 break-words leading-snug">
+                      {decodeProposalDisplayText(p.artist)} · {p.proposerName}
                     </p>
                     {showSpotifyLink && p.spotifyUrl && (
                       <a
@@ -187,7 +199,7 @@ export function SalonProposalsSection({
                     )}
                   </div>
                 </div>
-                <div className="flex gap-1.5 mt-2">
+                <div className="flex flex-wrap gap-1.5 mt-2">
                   <button
                     type="button"
                     disabled={actionId === p.id}
@@ -260,28 +272,34 @@ export function SalonProposalsSection({
     );
   }
 
+  const participantListClassName = fillHeight
+    ? 'flex-1 min-h-0 space-y-1.5 overflow-y-auto overscroll-contain'
+    : `space-y-1.5 overflow-y-auto ${compact ? 'max-h-32' : 'max-h-40'}`;
+
   return (
-    <div className="space-y-2">
+    <div className={rootClassName}>
       {sortedProposals.length > 0 && (
         <>
-          <h4 className="text-[11px] font-semibold text-purple-400/80 uppercase tracking-wide">
+          <h4 className="text-[11px] font-semibold text-purple-400/80 uppercase tracking-wide shrink-0">
             Propositions en attente
             <span className="ml-1.5 text-gray-500 normal-case tracking-normal font-medium">
               ({sortedProposals.length})
             </span>
           </h4>
-          <ul className={`space-y-1.5 overflow-y-auto ${compact ? 'max-h-32' : 'max-h-40'}`}>
+          <ul className={participantListClassName}>
             {sortedProposals.map((p) => (
-              <li key={p.id} className="px-2.5 py-1.5 rounded-xl bg-[#0b0b0f] border border-[#222233] flex items-center gap-2 min-w-0">
+              <li key={p.id} className="px-2.5 py-1.5 rounded-xl bg-[#0b0b0f] border border-[#222233] flex items-start gap-2 min-w-0">
                 <ProposalUpvoteButton
                   proposal={p}
                   currentUserId={currentUserId}
                   onUpvote={onUpvote}
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-white truncate">{p.title}</p>
-                  <p className="text-[10px] text-gray-500 truncate">
-                    {p.artist} · {p.proposerName}
+                  <p className="text-xs text-white break-words leading-snug">
+                    {decodeProposalDisplayText(p.title)}
+                  </p>
+                  <p className="text-[10px] text-gray-500 break-words leading-snug">
+                    {decodeProposalDisplayText(p.artist)} · {p.proposerName}
                   </p>
                 </div>
                 {showSpotifyLink && p.spotifyUrl && (
@@ -302,7 +320,7 @@ export function SalonProposalsSection({
       )}
 
       {onPropose ? (
-        <form onSubmit={submitProposal} className="space-y-2">
+        <form onSubmit={submitProposal} className="space-y-2 shrink-0">
           <h4 className="text-[11px] font-semibold text-purple-400 uppercase tracking-wide">Proposer un morceau</h4>
           <input
             value={title}

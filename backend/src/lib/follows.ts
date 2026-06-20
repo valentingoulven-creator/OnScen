@@ -1,4 +1,4 @@
-import { db, Live, User } from '../models/schema';
+import { db, Live, Salon, User } from '../models/schema';
 import { pushNotification } from './notifications';
 
 function followingSet(followerId: string): Set<string> {
@@ -53,6 +53,24 @@ export function notifyFollowersLiveStarted(live: Live, host: User): void {
       type: 'live_started',
       message,
       liveId: live.id,
+    });
+  }
+}
+
+export function notifyFollowersSalonCreated(host: User, salon: Salon): void {
+  const followerIds = getFollowerIds(host.id);
+  const message = `${host.username} a ouvert un salon « ${salon.title} » 🎵`;
+  for (const recipientId of followerIds) {
+    if (recipientId === host.id) continue;
+    pushNotification({
+      recipientId,
+      senderId: host.id,
+      senderName: host.username,
+      senderAvatarUrl: host.avatarUrl,
+      type: 'salon_created',
+      message,
+      salonId: salon.id,
+      peerUserId: host.id,
     });
   }
 }

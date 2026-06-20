@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import { useTranslation } from 'react-i18next';
 
@@ -16,6 +17,21 @@ import { UsernameDisplay } from './UsernameDisplay';
 import { UserDevBadge } from './UserDevBadge';
 
 
+
+const POPOVER_ESTIMATED_WIDTH = 288;
+const VIEWPORT_PAD = 8;
+
+function clampPopoverPosition(anchor: DOMRect, menuWidth: number, menuHeight: number) {
+  const gap = 4;
+  let left = anchor.left;
+  left = Math.max(VIEWPORT_PAD, Math.min(left, window.innerWidth - menuWidth - VIEWPORT_PAD));
+  let top = anchor.bottom + gap;
+  if (top + menuHeight > window.innerHeight - VIEWPORT_PAD) {
+    top = anchor.top - menuHeight - gap;
+  }
+  top = Math.max(VIEWPORT_PAD, top);
+  return { top, left };
+}
 
 interface SalonParticipantsPopoverProps {
 
@@ -64,6 +80,8 @@ export function SalonParticipantsPopover({
   const panelRef = useRef<HTMLDivElement>(null);
 
   const buttonRef = useRef<HTMLButtonElement>(null);
+
+  const [panelPos, setPanelPos] = useState<{ top: number; left: number } | null>(null);
 
 
 
@@ -281,6 +299,35 @@ export function SalonParticipantsPopover({
 
 
 
+  useLayoutEffect(() => {
+    if (!open) {
+      setPanelPos(null);
+      return;
+    }
+
+    const update = () => {
+      const btn = buttonRef.current;
+      if (!btn) return;
+      const anchor = btn.getBoundingClientRect();
+      const panel = panelRef.current;
+      const w = panel?.offsetWidth ?? POPOVER_ESTIMATED_WIDTH;
+      const h = panel?.offsetHeight ?? 240;
+      setPanelPos(clampPopoverPosition(anchor, w, h));
+    };
+
+    update();
+    const raf = requestAnimationFrame(update);
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [open, loading, participants.length, vipCount]);
+
+
+
   return (
 
     <div className="relative shrink-0">
@@ -317,13 +364,20 @@ export function SalonParticipantsPopover({
 
 
 
-      {open && (
-
+      {open &&
+        typeof document !== 'undefined' &&
+        createPortal(
         <div
 
           ref={panelRef}
 
-          className="absolute right-0 top-full mt-1 z-[60] w-[min(18rem,calc(100vw-2rem))] rounded-xl border border-[#2a2a3a] bg-[#12121a] shadow-2xl overflow-hidden"
+          className="fixed z-[60] w-[min(18rem,calc(100vw-2rem))] rounded-xl border border-[#2a2a3a] bg-[#12121a] shadow-2xl overflow-hidden"
+
+          style={{
+            top: panelPos?.top ?? (buttonRef.current?.getBoundingClientRect().bottom ?? 0) + 4,
+            left: panelPos?.left ?? VIEWPORT_PAD,
+            visibility: panelPos ? 'visible' : 'hidden',
+          }}
 
         >
 
@@ -486,8 +540,8 @@ export function SalonParticipantsPopover({
 
           )}
 
-        </div>
-
+        </div>,
+        document.body,
       )}
 
 

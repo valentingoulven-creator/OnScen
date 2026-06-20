@@ -12,10 +12,14 @@ import {
   scheduleDeleteCompositionsByUserFromPg,
   schedulePersistCompositionToPg,
 } from './pgCompositions';
+import { schedulePersistAlbumToPg } from './pgAlbums';
+import { deleteCompositionUpvotes } from './compositionUpvotes';
+import { schedulePersist } from './persist';
 
 export type PublicComposition = {
   id: string;
   userId: string;
+  albumId?: string;
   title: string;
   artist?: string;
   fileUrl: string;
@@ -32,6 +36,7 @@ export function publicComposition(c: UserComposition): PublicComposition {
   return {
     id: c.id,
     userId: c.userId,
+    ...(c.albumId ? { albumId: c.albumId } : {}),
     title: c.title,
     ...(c.artist?.trim() ? { artist: c.artist.trim() } : {}),
     fileUrl: c.fileUrl,
@@ -52,6 +57,7 @@ export interface CreateCompositionInput {
   artist?: string;
   fileUrl: string;
   durationSec?: number;
+  albumId?: string;
 }
 
 export function createUserComposition(
@@ -77,6 +83,14 @@ export function createUserComposition(
     return { error: 'Fichier audio invalide (mp3, wav, m4a, ogg — max 30 Mo)' };
   }
 
+  const albumId = input.albumId?.trim();
+  if (albumId) {
+    const album = db.albums.find((a) => a.id === albumId && a.userId === userId);
+    if (!album) {
+      return { error: 'Album introuvable' };
+    }
+  }
+
   let fileUrl: string;
   try {
     fileUrl = resolveCompositionFileUrl(rawFileUrl);
@@ -84,20 +98,30 @@ export function createUserComposition(
     return { error: e instanceof Error ? e.message : 'Impossible d\'enregistrer le fichier audio' };
   }
 
+  const now = Date.now();
   const composition: UserComposition = {
-    id: `comp-${userId}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`,
+    id: `comp-${userId}-${now}-${crypto.randomBytes(4).toString('hex')}`,
     userId,
+    ...(albumId ? { albumId } : {}),
     title: title.slice(0, 120),
     ...(artist ? { artist: artist.slice(0, 120) } : {}),
     fileUrl,
-    createdAt: Date.now(),
+    createdAt: now,
     ...(normalizeDurationSec(input.durationSec) != null
       ? { durationSec: normalizeDurationSec(input.durationSec) }
       : {}),
   };
 
   db.compositions.push(composition);
+  if (albumId) {
+    const album = db.albums.find((a) => a.id === albumId && a.userId === userId);
+    if (album) {
+      album.updatedAt = now;
+      schedulePersistAlbumToPg(album);
+    }
+  }
   schedulePersistCompositionToPg(composition);
+  schedulePersist();
   return publicComposition(composition);
 }
 
@@ -105,8 +129,17 @@ export function deleteUserComposition(compositionId: string, userId: string): bo
   const index = db.compositions.findIndex((c) => c.id === compositionId && c.userId === userId);
   if (index < 0) return false;
   const [removed] = db.compositions.splice(index, 1);
+  deleteCompositionUpvotes(compositionId);
   deleteCompositionFileIfLocal(removed.fileUrl);
   scheduleDeleteCompositionFromPg(compositionId);
+  if (removed.albumId) {
+    const album = db.albums.find((a) => a.id === removed.albumId && a.userId === userId);
+    if (album) {
+      album.updatedAt = Date.now();
+      schedulePersistAlbumToPg(album);
+    }
+  }
+  schedulePersist();
   return true;
 }
 
@@ -117,4 +150,5 @@ export function deleteCompositionsByUser(userId: string): void {
     deleteCompositionFileIfLocal(c.fileUrl);
   }
   scheduleDeleteCompositionsByUserFromPg(userId);
+  schedulePersist();
 }

@@ -280,19 +280,68 @@ function TheaterChatDockAside({
   );
 }
 
+function IntegratedTheaterTopBar({
+  topBarStart,
+  topBarEnd,
+  chatHeaderLeading,
+  chatHeaderExtra,
+  chatHidden,
+  onToggleChat,
+  showDockToggle,
+  dockMode,
+  onToggleDock,
+}: {
+  topBarStart?: ReactNode;
+  topBarEnd?: ReactNode;
+  chatHeaderLeading?: ReactNode;
+  chatHeaderExtra?: ReactNode;
+  chatHidden: boolean;
+  onToggleChat: () => void;
+  showDockToggle?: boolean;
+  dockMode: 'floating' | 'right';
+  onToggleDock: () => void;
+}) {
+  return (
+    <div className="room-theater-unified-topbar relative z-30 shrink-0 flex items-center gap-2 sm:gap-2.5 px-3 py-2 border-b border-[#1e1e2f] bg-[#0b0b0f] min-w-0">
+      {topBarStart}
+      {chatHeaderLeading ? (
+        <>
+          <div className="w-px h-6 bg-[#2a2a3a] shrink-0" aria-hidden />
+          {chatHeaderLeading}
+        </>
+      ) : null}
+      <div className="flex-1 min-w-0" />
+      {topBarEnd ? <div className="flex items-center gap-1.5 shrink-0">{topBarEnd}</div> : null}
+      {chatHeaderExtra}
+      {showDockToggle ? <ChatLayoutToggle dockMode={dockMode} onToggle={onToggleDock} /> : null}
+      {!chatHidden ? (
+        <button
+          type="button"
+          onClick={onToggleChat}
+          className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-white hover:bg-white/10 transition text-lg leading-none"
+          aria-label="Masquer le chat"
+        >
+          ×
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function DockedChatHeader({
   chatTitle,
   chatTitleIcon = '💬',
+  chatHeaderLeading,
   chatHeaderExtra,
   dockMode,
   onToggleDock,
   onToggleChat,
-  onToggleMinimize,
-  chatMinimized,
   showDockToggle = true,
+  integratedFullWidth = false,
 }: {
   chatTitle: string;
   chatTitleIcon?: ReactNode;
+  chatHeaderLeading?: ReactNode;
   chatHeaderExtra?: ReactNode;
   dockMode: 'floating' | 'right';
   onToggleDock: () => void;
@@ -300,7 +349,36 @@ function DockedChatHeader({
   onToggleMinimize?: () => void;
   chatMinimized?: boolean;
   showDockToggle?: boolean;
+  integratedFullWidth?: boolean;
 }) {
+  if (integratedFullWidth) {
+    return null;
+  }
+
+  if (chatHeaderLeading) {
+    return (
+      <div className="shrink-0 flex flex-col border-b border-[#1e1e2f] bg-[#14141c]/80">
+        <div className="flex items-center gap-1.5 px-3 pt-2 pb-1.5">
+          {chatHeaderLeading}
+          <div className="flex-1" />
+          {chatHeaderExtra}
+          {showDockToggle ? <ChatLayoutToggle dockMode={dockMode} onToggle={onToggleDock} /> : null}
+          <button
+            type="button"
+            onClick={onToggleChat}
+            className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-white hover:bg-white/10 transition text-lg leading-none"
+            aria-label="Masquer le chat"
+          >
+            ×
+          </button>
+        </div>
+        <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest px-3 pb-2">
+          {chatTitle}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="shrink-0 flex items-center gap-1.5 px-3 py-2 border-b border-[#1e1e2f] bg-[#14141c]/80">
       <span className="text-purple-400 text-[10px]" aria-hidden>
@@ -311,36 +389,6 @@ function DockedChatHeader({
       </p>
       {chatHeaderExtra}
       {showDockToggle ? <ChatLayoutToggle dockMode={dockMode} onToggle={onToggleDock} /> : null}
-      {onToggleMinimize && (
-        <button
-          type="button"
-          onClick={onToggleMinimize}
-          title={chatMinimized ? 'Agrandir' : 'Réduire'}
-          className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-white hover:bg-white/10 transition"
-          aria-label={chatMinimized ? 'Agrandir le chat' : 'Réduire le chat'}
-          aria-expanded={!chatMinimized}
-        >
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
-            {chatMinimized ? (
-              <polyline
-                points="1,7 5,3 9,7"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            ) : (
-              <polyline
-                points="1,3 5,7 9,3"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            )}
-          </svg>
-        </button>
-      )}
       <button
         type="button"
         onClick={onToggleChat}
@@ -367,6 +415,17 @@ export interface RoomTheaterLayoutProps {
   chatTitleIcon?: ReactNode;
   /** Actions hôte dans l'en-tête du chat ancré (ex. participants). */
   chatHeaderExtra?: ReactNode;
+  /** Contenu avant le titre (ex. onglets salon Chat / File). */
+  chatHeaderLeading?: ReactNode;
+  /** Bloc identité salon / salle, fusionné avec les onglets dans la barre pleine largeur. */
+  topBarStart?: ReactNode;
+  /** Actions salon à droite (quitter, partager…) dans la barre pleine largeur. */
+  topBarEnd?: ReactNode;
+  /**
+   * dock — onglets dans l'en-tête du panneau chat (défaut).
+   * full-width — une seule barre pleine largeur (salon + onglets).
+   */
+  headerLayout?: 'dock' | 'full-width';
   /** Chat réduit au bandeau d'en-tête uniquement (contenu masqué). */
   chatMinimized?: boolean;
   onToggleMinimize?: () => void;
@@ -409,6 +468,10 @@ export function RoomTheaterLayout({
   chatTitle = 'Chat',
   chatTitleIcon,
   chatHeaderExtra,
+  chatHeaderLeading,
+  topBarStart,
+  topBarEnd,
+  headerLayout = 'dock',
   chatMinimized = false,
   onToggleMinimize,
   variant = 'theater',
@@ -465,6 +528,34 @@ export function RoomTheaterLayout({
       <ChatLayoutToggle dockMode={theaterDock === 'floating' ? 'floating' : 'right'} onToggle={toggleDockMode} />
     ) : null;
 
+  const useFullWidthHeader = headerLayout === 'full-width' && Boolean(topBarStart || chatHeaderLeading);
+  const dockHeaderIntegrated = useFullWidthHeader;
+
+  const integratedTopBar = useFullWidthHeader ? (
+    <IntegratedTheaterTopBar
+      topBarStart={topBarStart}
+      topBarEnd={topBarEnd}
+      chatHeaderLeading={chatHeaderLeading}
+      chatHeaderExtra={chatHeaderExtra}
+      chatHidden={chatHidden}
+      onToggleChat={onToggleChat}
+      showDockToggle={allowFloatingChat && theaterDock !== 'bottom' && theaterDock !== 'left'}
+      dockMode={theaterDock === 'floating' ? 'floating' : 'right'}
+      onToggleDock={toggleDockMode}
+    />
+  ) : null;
+
+  const dockedChatHeaderProps = {
+    chatTitle,
+    chatTitleIcon,
+    chatHeaderLeading: useFullWidthHeader ? undefined : chatHeaderLeading,
+    chatHeaderExtra: useFullWidthHeader ? undefined : chatHeaderExtra,
+    integratedFullWidth: dockHeaderIntegrated,
+    onToggleChat,
+    onToggleMinimize,
+    chatMinimized,
+  };
+
   const chatDockAsideProps = {
     width: chatDockWidth,
     setWidth: setChatDockWidth,
@@ -476,6 +567,7 @@ export function RoomTheaterLayout({
   if (variant === 'queue-chat') {
     return (
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
+        {integratedTopBar}
         <div className="relative flex-1 min-h-0 flex flex-col sm:flex-row overflow-hidden bg-[#0b0b0f]">
           <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
             {stage ? <div className="shrink-0">{stage}</div> : null}
@@ -494,14 +586,9 @@ export function RoomTheaterLayout({
               className="room-theater-chat-dock shrink-0 flex flex-col min-h-0 border-t sm:border-t-0 sm:border-l border-[#1e1e2f] bg-[#101018]"
             >
               <DockedChatHeader
-                chatTitle={chatTitle}
-                chatTitleIcon={chatTitleIcon}
-                chatHeaderExtra={chatHeaderExtra}
+                {...dockedChatHeaderProps}
                 dockMode="right"
                 onToggleDock={() => {}}
-                onToggleChat={onToggleChat}
-                onToggleMinimize={onToggleMinimize}
-                chatMinimized={chatMinimized}
                 showDockToggle={false}
               />
               {!chatMinimized && <DockChatBody chat={chat} chatInput={chatInput} />}
@@ -567,14 +654,9 @@ export function RoomTheaterLayout({
     >
       {useVideoStack ? (
         <DockedChatHeader
-          chatTitle={chatTitle}
-          chatTitleIcon={chatTitleIcon}
-          chatHeaderExtra={chatHeaderExtra}
+          {...dockedChatHeaderProps}
           dockMode="right"
           onToggleDock={() => {}}
-          onToggleChat={onToggleChat}
-          onToggleMinimize={onToggleMinimize}
-          chatMinimized={chatMinimized}
           showDockToggle={false}
         />
       ) : (
@@ -606,7 +688,7 @@ export function RoomTheaterLayout({
     <div
       className={
         stageFooterMode === 'drawer'
-          ? 'shrink-0 salon-youtube-host-drawer-wrap pb-[env(safe-area-inset-bottom)]'
+          ? 'shrink-0 salon-youtube-host-drawer-wrap'
           : 'shrink-0 max-h-[38dvh] overflow-y-auto border-t border-[#1e1e2f] bg-[#0b0b0f]/95 backdrop-blur-sm pb-[env(safe-area-inset-bottom)]'
       }
     >
@@ -676,6 +758,7 @@ export function RoomTheaterLayout({
   if (useVideoStack) {
     return (
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
+        {integratedTopBar}
         <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden bg-[#0b0b0f]">
           <div className="room-theater-stack-column flex flex-col flex-1 min-h-0">
             {videoStage}
@@ -689,6 +772,7 @@ export function RoomTheaterLayout({
 
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
+      {integratedTopBar}
       <div className="flex-1 min-w-0 flex flex-col min-h-0">
         <div
           className={`${sideRowFlex} min-h-0 flex flex-col overflow-hidden${sideRowClass || ' sm:flex-row'}`}
@@ -702,14 +786,9 @@ export function RoomTheaterLayout({
               className="room-theater-chat-dock room-theater-chat-dock--theater room-theater-chat-dock--left hidden sm:flex flex-col min-h-0 min-w-0 border-r border-[#1e1e2f] bg-[#101018]"
             >
               <DockedChatHeader
-                chatTitle={chatTitle}
-                chatTitleIcon={chatTitleIcon}
-                chatHeaderExtra={chatHeaderExtra}
+                {...dockedChatHeaderProps}
                 dockMode="right"
                 onToggleDock={() => {}}
-                onToggleChat={onToggleChat}
-                onToggleMinimize={onToggleMinimize}
-                chatMinimized={chatMinimized}
                 showDockToggle={false}
               />
               {!chatMinimized && <DockChatBody chat={chat} chatInput={chatInput} />}
@@ -726,15 +805,10 @@ export function RoomTheaterLayout({
               className="room-theater-chat-dock room-theater-chat-dock--theater hidden sm:flex flex-col min-h-0 min-w-0 border-l border-[#1e1e2f] bg-[#101018]"
             >
               <DockedChatHeader
-                chatTitle={chatTitle}
-                chatTitleIcon={chatTitleIcon}
-                chatHeaderExtra={chatHeaderExtra}
+                {...dockedChatHeaderProps}
                 dockMode="right"
                 onToggleDock={allowFloatingChat ? toggleDockMode : () => {}}
-                onToggleChat={onToggleChat}
-                onToggleMinimize={onToggleMinimize}
-                chatMinimized={chatMinimized}
-                showDockToggle={allowFloatingChat}
+                showDockToggle={allowFloatingChat && !useFullWidthHeader}
               />
               {!chatMinimized && <DockChatBody chat={chat} chatInput={chatInput} />}
             </TheaterChatDockAside>
@@ -744,15 +818,10 @@ export function RoomTheaterLayout({
         {showSideDock && (
           <div className="room-theater-mobile-chat-sheet sm:hidden shrink-0 flex flex-col border-t border-[#1e1e2f] bg-[#101018] pb-[env(safe-area-inset-bottom)]">
             <DockedChatHeader
-              chatTitle={chatTitle}
-              chatTitleIcon={chatTitleIcon}
-              chatHeaderExtra={chatHeaderExtra}
+              {...dockedChatHeaderProps}
               dockMode="right"
               onToggleDock={allowFloatingChat ? toggleDockMode : () => {}}
-              onToggleChat={onToggleChat}
-              onToggleMinimize={onToggleMinimize}
-              chatMinimized={chatMinimized}
-              showDockToggle={allowFloatingChat && !showLeftDock}
+              showDockToggle={allowFloatingChat && !showLeftDock && !useFullWidthHeader}
             />
             {!chatMinimized && <DockChatBody chat={chat} chatInput={chatInput} />}
           </div>

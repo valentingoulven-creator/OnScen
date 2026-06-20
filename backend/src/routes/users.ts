@@ -88,8 +88,8 @@ usersRouter.patch('/me/settings', authenticateJWT, (req: Request, res: Response)
     res.status(404).json({ error: 'Utilisateur introuvable' });
     return;
   }
-  const { shareDistance, locationPrecision } = req.body;
-  applyPrivacySettings(user, { shareDistance, locationPrecision });
+  const { shareDistance, locationPrecision, allowPrivateMessages } = req.body;
+  applyPrivacySettings(user, { shareDistance, locationPrecision, allowPrivateMessages });
   db.users.set(me, user);
   schedulePersist();
   res.json({ user: publicProfile(user, true, me) });

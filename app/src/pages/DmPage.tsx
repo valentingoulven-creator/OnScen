@@ -1070,8 +1070,8 @@ export function DmPage({
     const hasText = draft.trim().length > 0;
     const hasAttachment = Boolean(pendingAttachment);
     if (!token || !activeUser || (!hasText && !hasAttachment) || sending) return;
-    if (activeUser.isMutualFollow === false) {
-      alert(t('dm.mutualFollowRequired'));
+    if (activeUser.acceptsPrivateMessages === false) {
+      alert(t('dm.privateMessagesDisabled'));
       return;
     }
     setSending(true);
@@ -2100,7 +2100,7 @@ export function DmPage({
     const isPendingReceived = conversations.find((c) => c.userId === activeUser.id)?.isPendingRequest ?? false;
     const isPendingMySent = pendingStatus === 'pending_sent' ||
       (conversations.find((c) => c.userId === activeUser.id)?.isPendingSent ?? false);
-    const canSendDm = activeUser.isMutualFollow !== false;
+    const canSendDm = activeUser.acceptsPrivateMessages !== false;
     const iBlockedThem = blockedUsers.some((b) => b.id === activeUser.id);
     return (
       <div className="dm-thread-root relative flex flex-col flex-1 min-h-0 bg-[#0b0b0f] overflow-hidden">
@@ -2218,7 +2218,7 @@ export function DmPage({
 
         {!canSendDm && (
           <div className="shrink-0 px-4 py-3 bg-[#1a1a26] border-b border-[#2d2d3d]">
-            <p className="text-xs text-gray-400 text-center">{t('dm.mutualFollowHint')}</p>
+            <p className="text-xs text-gray-400 text-center">{t('dm.privateMessagesDisabledHint')}</p>
           </div>
         )}
 
@@ -2478,7 +2478,7 @@ export function DmPage({
                 type="text"
                 value={draft}
                 onChange={(e) => { setDraft(e.target.value); if (dmSendError) setDmSendError(null); }}
-                placeholder={canSendDm ? 'Écrire un message privé...' : t('dm.mutualFollowHint')}
+                placeholder={canSendDm ? 'Écrire un message privé...' : t('dm.privateMessagesDisabledHint')}
                 disabled={!canSendDm}
                 className="flex-1 bg-[#1a1a26] border border-[#2d2d3d] rounded-full px-4 py-2.5 text-sm text-white disabled:opacity-50"
               />

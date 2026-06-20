@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { normalizeProfileReelFromApi } from '../content/reelsFeed';
@@ -20,6 +21,8 @@ interface UserReelsSectionProps {
   title?: string;
   /** Profil personnel : onglets publiés / privés */
   isOwner?: boolean;
+  /** Follow mutuel avec le propriétaire du profil (reels privés d'un autre utilisateur). */
+  canViewPrivateReels?: boolean;
   refreshKey?: number;
   onOpenReel: (reelId: string) => void;
   /** Carrousel horizontal (profil inline) ou grille (onglet Mes reels). */
@@ -201,6 +204,7 @@ export function UserReelsSection({
   userId,
   title,
   isOwner,
+  canViewPrivateReels = false,
   refreshKey = 0,
   onOpenReel,
   layout = 'carousel',
@@ -209,10 +213,13 @@ export function UserReelsSection({
   onRecordReel,
   defaultArtist = '',
 }: UserReelsSectionProps) {
+  const { t } = useTranslation();
   const { token } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [ownerTab, setOwnerTab] = useState<OwnerTab>(defaultOwnerTab);
-  const reelScope = isOwner ? ownerTab : 'published';
+  const showReelTabs = Boolean(isOwner || canViewPrivateReels);
+  const reelScope =
+    showReelTabs && ownerTab === 'private' ? 'private' : 'published';
   const canManage = Boolean(isOwner && token);
 
   const [reels, setReels] = useState<MusicReel[]>([]);
@@ -233,6 +240,12 @@ export function UserReelsSection({
   useEffect(() => {
     setOwnerTab(defaultOwnerTab);
   }, [defaultOwnerTab, userId]);
+
+  useEffect(() => {
+    if (!showReelTabs && ownerTab === 'private') {
+      setOwnerTab('published');
+    }
+  }, [showReelTabs, ownerTab]);
 
   useEffect(() => {
     setUploadArtist((a) => a || defaultArtist);
@@ -314,7 +327,11 @@ export function UserReelsSection({
     setLoading(true);
     const fetcher =
       reelScope === 'private'
-        ? api.getMyPrivateReels(token)
+        ? isOwner
+          ? api.getMyPrivateReels(token)
+          : canViewPrivateReels
+            ? api.getUserPrivateReels(token, userId)
+            : Promise.resolve({ reels: [] })
         : api.getUserReels(token, userId).then((r) => ({
             reels: normalizeReelsList(r.reels).filter(
               (reel) => reel.visibility !== 'private' && !reel.isPrivate
@@ -325,7 +342,7 @@ export function UserReelsSection({
       .then((r) => setReels(normalizeReelsList(r.reels)))
       .catch(() => setReels([]))
       .finally(() => setLoading(false));
-  }, [token, userId, reelScope]);
+  }, [token, userId, reelScope, isOwner, canViewPrivateReels]);
 
   useEffect(() => {
     void loadReels();
@@ -375,9 +392,19 @@ export function UserReelsSection({
   };
 
   const sectionTitle =
-    title ?? (isOwner ? (ownerTab === 'private' ? 'Mes reels privés' : 'Reels publiés') : 'Reels');
+    title ??
+    (isOwner
+      ? ownerTab === 'private'
+        ? 'Mes reels privés'
+        : 'Reels publiés'
+      : reelScope === 'private'
+        ? t('profile.privateReelsTabOther')
+        : 'Reels');
   const emptyMessage =
     reelScope === 'published' ? 'Aucun reel pour le moment' : 'Aucun reel privé pour le moment';
+  const privateScopeHint = isOwner
+    ? 'Visible uniquement sur votre profil'
+    : t('profile.privateReelsMutualHint');
 
   const sectionClass =
     layout === 'grid'
@@ -387,7 +414,7 @@ export function UserReelsSection({
   return (
     <>
       <section className={sectionClass}>
-        {isOwner && (
+        {showReelTabs && (
           <div className="flex gap-1 p-1 mb-3 bg-[#0b0b0f] border border-[#2d2d3d] rounded-lg">
             {(
               [
@@ -413,7 +440,7 @@ export function UserReelsSection({
           <div className="mb-3">
             <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider">{sectionTitle}</h3>
             {reelScope === 'private' && (
-              <p className="text-[10px] text-gray-500 mt-0.5">Visible uniquement sur votre profil</p>
+              <p className="text-[10px] text-gray-500 mt-0.5">{privateScopeHint}</p>
             )}
           </div>
         )}

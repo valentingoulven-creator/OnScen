@@ -513,6 +513,8 @@ export interface User {
   /** Propriétaire du profil uniquement */
   shareDistance?: boolean;
   locationPrecision?: 'precise' | 'city';
+  /** Accepter les messages privés (propriétaire uniquement). Défaut : true. */
+  allowPrivateMessages?: boolean;
   /** Réseaux sociaux publics (optionnels) */
   instagramHandle?: string;
   youtubeChannel?: string;
@@ -609,6 +611,7 @@ export interface AppNotification {
     | 'live_don'
     | 'favorite_online'
     | 'salon_invite'
+    | 'salon_created'
     | 'dm_message'
     | 'group_message'
     | 'heart'
@@ -990,7 +993,8 @@ export interface DmContact {
   isBlockedByThem?: boolean;
   isMutedByMe?: boolean;
   isMatch?: boolean;
-  isMutualFollow?: boolean;
+  /** Le destinataire accepte les messages privés (fil DM). */
+  acceptsPrivateMessages?: boolean;
 }
 
 export interface ReelStats {

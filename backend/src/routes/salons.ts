@@ -1,5 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { db, Salon, MusicPlatform, SalonTrackProposal } from '../models/schema';
+import { recordWeeklyVote } from '../lib/weeklyVotes';
+import { schedulePersist } from '../lib/persist';
 import { authenticateJWT } from '../middleware/auth';
 import { blurCoordinate } from '../lib/geo';
 import { getPublicMapCoords } from '../lib/locationPrivacy';
@@ -63,6 +65,7 @@ import { resolveSpotifyPlaylistTracks, SpotifyPlaylistError, probeSpotifyHostSes
 import { spotifyPremiumRequiredMessage } from '../lib/spotifyApi';
 import { respondSpotifySessionAuthFailure } from '../lib/spotifySession';
 import { notifyFavoritesSalonStarted } from '../lib/favorites';
+import { notifyFollowersSalonCreated } from '../lib/follows';
 import { notifySalonInvite } from '../lib/notifications';
 import { normalizeSpotifyJamUrl } from '../lib/spotifyJam';
 import { getIo } from '../lib/ioInstance';
@@ -547,12 +550,15 @@ salonsRouter.post('/:id/proposals/:proposalId/upvote', authenticateJWT, (req: Re
   }
   if (!proposal.upvotes) proposal.upvotes = [];
   const voterIdx = proposal.upvotes.indexOf(me);
+  const isAdding = voterIdx < 0;
   if (voterIdx >= 0) {
     proposal.upvotes.splice(voterIdx, 1);
   } else {
     proposal.upvotes.push(me);
   }
   db.salonProposals.set(salon!.id, list);
+  recordWeeklyVote(proposal, salon!, me, isAdding);
+  schedulePersist();
   broadcastSalonProposals(salon!.id);
   res.json({ proposal });
 });
@@ -1324,6 +1330,7 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
   upsertSalonToPgAsync(salon);
 
   notifyFavoritesSalonStarted(user, salon);
+  notifyFollowersSalonCreated(user, salon);
 
   res.status(201).json({ salon: publicSalon(salon, userId) });
 });

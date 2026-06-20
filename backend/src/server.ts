@@ -22,6 +22,9 @@ import { ratingsRouter } from './routes/ratings';
 import { notificationsRouter } from './routes/notifications';
 import { reelsRouter } from './routes/reels';
 import { compositionsRouter } from './routes/compositions';
+import {
+  userAlbumsRouter,
+} from './routes/userAlbums';
 import { feedRouter } from './routes/feed';
 import { storiesRouter } from './routes/stories';
 import { usersRouter } from './routes/users';
@@ -340,6 +343,12 @@ app.post(
 );
 app.use('/api/reels', express.json({ limit: REEL_UPLOAD_JSON_BODY_LIMIT }));
 app.use('/api/compositions', express.json({ limit: COMPOSITION_UPLOAD_JSON_BODY_LIMIT }));
+app.use(
+  '/api/users/me/albums',
+  express.json({ limit: COMPOSITION_UPLOAD_JSON_BODY_LIMIT })
+);
+app.use('/api/users/me/loose-tracks', express.json({ limit: COMPOSITION_UPLOAD_JSON_BODY_LIMIT }));
+app.use('/api/users', express.json({ limit: '4mb' }));
 app.use(express.json({ limit: '15mb' }));
 
 const publicDir = getPublicDir();
@@ -460,6 +469,7 @@ app.use('/api/reels', reelsRouter);
 app.use('/api/compositions', compositionsRouter);
 app.use('/api/feed', feedRouter);
 app.use('/api/stories', storiesRouter);
+app.use('/api/users', userAlbumsRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/platforms', platformsRouter);
 app.use('/api/msdev', msdevRouter);

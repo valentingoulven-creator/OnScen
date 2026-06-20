@@ -1,10 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { authenticateJWT } from '../middleware/auth';
+import { toggleCompositionUpvote } from '../lib/compositionUpvotes';
 import {
   createUserComposition,
   deleteUserComposition,
   listUserCompositions,
 } from '../lib/compositions';
+import { schedulePersist } from '../lib/persist';
 
 export const compositionsRouter = Router();
 
@@ -24,12 +26,24 @@ compositionsRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
       typeof body.durationSec === 'number' && Number.isFinite(body.durationSec)
         ? body.durationSec
         : undefined,
+    albumId: body.albumId != null ? String(body.albumId) : undefined,
   });
   if ('error' in result) {
     res.status(400).json({ error: result.error });
     return;
   }
   res.status(201).json({ composition: result });
+});
+
+compositionsRouter.post('/:id/upvote', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const result = toggleCompositionUpvote(req.params.id, me);
+  if ('error' in result) {
+    res.status(404).json({ error: result.error });
+    return;
+  }
+  schedulePersist();
+  res.json(result);
 });
 
 compositionsRouter.delete('/:id', authenticateJWT, (req: Request, res: Response) => {

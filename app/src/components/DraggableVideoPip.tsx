@@ -1,32 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-const POS_KEY = 'salon_video_pip_pos';
 // 200 px wide → 200×113 video (16:9) — YouTube TOS minimum embed size.
 export const VIDEO_PIP_WIDTH = 200;
 export const VIDEO_PIP_HEADER_HEIGHT = 24;
-const MARGIN = 12;
+const MARGIN = 16;
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
 }
 
-function readPosition(): { x: number; y: number } | null {
-  try {
-    const raw = sessionStorage.getItem(POS_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { x?: number; y?: number };
-    if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
-      return { x: parsed.x, y: parsed.y };
-    }
-  } catch {
-    /* ignore */
-  }
-  return null;
-}
-
-/** Default to just below the map filter chips (top-left, ~80 px from top). */
-function defaultBelowFilters(): { x: number; y: number } {
-  return { x: MARGIN, y: 80 };
+/** Default: below the Lives button on the map, matching SalonPipPreviewFloat's position. */
+function defaultVideoPipPos(): { x: number; y: number } {
+  return { x: 120, y: 192 };
 }
 
 export interface VideoPipFloatApi {
@@ -35,22 +20,19 @@ export interface VideoPipFloatApi {
   onClose: () => void;
 }
 
-export function useDraggableVideoPip(active: boolean, onClose: () => void): VideoPipFloatApi {
-  const [pos, setPos] = useState<{ x: number; y: number }>(() => readPosition() ?? defaultBelowFilters());
+export function useDraggableVideoPip(
+  active: boolean,
+  onClose: () => void,
+  initialPosition?: () => { x: number; y: number },
+): VideoPipFloatApi {
+  const initialPositionRef = useRef(initialPosition ?? defaultVideoPipPos);
+  const [pos, setPos] = useState<{ x: number; y: number }>(() => initialPositionRef.current());
   const dragRef = useRef<{
     active: boolean;
     pointerId: number;
     offsetX: number;
     offsetY: number;
   } | null>(null);
-
-  const persistPos = useCallback((p: { x: number; y: number }) => {
-    try {
-      sessionStorage.setItem(POS_KEY, JSON.stringify(p));
-    } catch {
-      /* ignore */
-    }
-  }, []);
 
   const clampToViewport = useCallback((x: number, y: number) => {
     const videoH = Math.round((VIDEO_PIP_WIDTH * 9) / 16);
@@ -63,16 +45,15 @@ export function useDraggableVideoPip(active: boolean, onClose: () => void): Vide
     };
   }, []);
 
+  // Reset to the default position each time PiP is newly activated (false → true).
+  const prevActiveRef = useRef(active);
   useEffect(() => {
-    if (!active) return;
-    setPos((current) => {
-      const next = clampToViewport(current.x, current.y);
-      // Return same reference when coords are unchanged to avoid a gratuitous re-render (#185)
-      if (next.x === current.x && next.y === current.y) return current;
-      persistPos(next);
-      return next;
-    });
-  }, [active, clampToViewport, persistPos]);
+    const wasActive = prevActiveRef.current;
+    prevActiveRef.current = active;
+    if (active && !wasActive) {
+      setPos(initialPositionRef.current());
+    }
+  }, [active]);
 
   useEffect(() => {
     const onResize = () => {
@@ -80,13 +61,12 @@ export function useDraggableVideoPip(active: boolean, onClose: () => void): Vide
         const next = clampToViewport(current.x, current.y);
         // Return same reference when coords are unchanged to avoid a gratuitous re-render (#185)
         if (next.x === current.x && next.y === current.y) return current;
-        persistPos(next);
         return next;
       });
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [clampToViewport, persistPos]);
+  }, [clampToViewport]);
 
   const onPointerMove = useCallback(
     (e: PointerEvent) => {
@@ -97,18 +77,11 @@ export function useDraggableVideoPip(active: boolean, onClose: () => void): Vide
     [clampToViewport]
   );
 
-  const endPointer = useCallback(
-    (e: PointerEvent) => {
-      const drag = dragRef.current;
-      if (!drag?.active || e.pointerId !== drag.pointerId) return;
-      dragRef.current = null;
-      setPos((current) => {
-        persistPos(current);
-        return current;
-      });
-    },
-    [persistPos]
-  );
+  const endPointer = useCallback((e: PointerEvent) => {
+    const drag = dragRef.current;
+    if (!drag?.active || e.pointerId !== drag.pointerId) return;
+    dragRef.current = null;
+  }, []);
 
   useEffect(() => {
     window.addEventListener('pointermove', onPointerMove);

@@ -8,6 +8,7 @@ import {
   scheduleDeleteReelsByAuthorFromPg,
 } from './pgReels';
 import { deleteCompositionsByUser } from './compositions';
+import { deleteAlbumsByUser } from './albums';
 
 const DELETED_LABEL = '[Compte supprimé]';
 
@@ -83,6 +84,7 @@ export function deleteUserAccountCascade(userId: string): void {
   scheduleDeleteReelsByAuthorFromPg(userId);
   scheduleDeleteReelEngagementByUserFromPg(userId);
 
+  deleteAlbumsByUser(userId);
   deleteCompositionsByUser(userId);
 
   for (const [reelId, comments] of db.reelComments) {

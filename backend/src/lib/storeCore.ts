@@ -17,6 +17,9 @@ import {
   type SupportContactMessage,
   type Sponsor,
   type SponsorPlatformConfig,
+  type UserAlbum,
+  type UserComposition,
+  type CompositionUpvote,
 } from '../models/schema';
 import { ensureDefaultSponsorPlatformConfig } from './sponsorPlatformConfig';
 import { isValidLatLng } from './mapCoords';
@@ -70,6 +73,11 @@ export interface PersistedStore {
   /** IDs of default sponsors explicitly deleted by an admin — prevents re-seeding on restart. */
   deletedDefaultSponsorIds?: string[];
   sponsorPlatformConfig?: SponsorPlatformConfig;
+  /** Albums Discographie (dev / store.json ; prod utilise aussi user_albums PostgreSQL). */
+  albums?: UserAlbum[];
+  /** Morceaux Discographie (dev / store.json ; prod utilise aussi user_compositions PostgreSQL). */
+  compositions?: UserComposition[];
+  compositionUpvotes?: CompositionUpvote[];
 }
 
 function setsToRecord(map: Map<string, Set<string>>): MapOfSets {
@@ -154,6 +162,9 @@ export function snapshotStore(): PersistedStore {
     sponsors: [...db.sponsors],
     deletedDefaultSponsorIds: [...db.deletedDefaultSponsorIds],
     sponsorPlatformConfig: { ...db.sponsorPlatformConfig },
+    albums: [...db.albums],
+    compositions: [...db.compositions],
+    compositionUpvotes: [...db.compositionUpvotes],
   };
 }
 
@@ -266,6 +277,15 @@ export function restoreStore(data: PersistedStore): void {
     db.sponsorPlatformConfig = { ...data.sponsorPlatformConfig };
   }
   ensureDefaultSponsorPlatformConfig();
+
+  db.albums.length = 0;
+  db.albums.push(...(data.albums ?? []));
+
+  db.compositions.length = 0;
+  db.compositions.push(...(data.compositions ?? []));
+
+  db.compositionUpvotes.length = 0;
+  db.compositionUpvotes.push(...(data.compositionUpvotes ?? []));
 }
 
 function isNonEmptyString(v: unknown): v is string {

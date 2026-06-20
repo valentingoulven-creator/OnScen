@@ -328,6 +328,12 @@ body {
   --salon-host-drawer-viewport-bottom: var(--tab-nav-total-h);
 }
 
+/* Quick wins — dock flottant : overlay edge-to-edge, padding interne sur le tiroir hôte */
+[data-design-quick-wins="1"] .ms-app-shell--bottom-tabs .ms-salon-fullscreen-overlay {
+  bottom: 0;
+  --salon-host-drawer-viewport-bottom: var(--tab-nav-total-h);
+}
+
 /* Salon Spotify plein écran — search / playlist / file scrollables au-dessus des onglets */
 .ms-salon-fullscreen-overlay .room-theater-stage-footer {
   padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
@@ -1813,14 +1819,11 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 }
 
 .salon-chat-dock-tabs__tabs {
-  position: absolute;
-  left: 0.5rem;
-  top: 0.5rem;
-  z-index: 10;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
   gap: 0.375rem;
-  pointer-events: none;
+  flex-shrink: 0;
 }
 
 .salon-chat-dock-tabs__content {
@@ -2367,32 +2370,114 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   position: relative;
   z-index: 1;
   flex-shrink: 0;
-  max-height: min(42dvh, 22rem);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
+  overflow: visible;
   background: #0b0b0f;
   border-top: 1px solid #1e1e2f;
   pointer-events: auto;
 }
 
-/* Grand salon YouTube — vidéo prioritaire, panneau profil hôte */
+/* Grand salon YouTube — vidéo rétrécit ; tiroir hôte hauteur naturelle sans scroll interne */
+.ms-salon-fullscreen-overlay .room-theater-side-row--match-hero {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
 .ms-salon-fullscreen-overlay .room-theater-video-stage {
-  flex: 1 1 auto;
-  min-height: min(52dvh, 52vh);
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 .ms-salon-fullscreen-overlay .salon-youtube-host-drawer-wrap {
+  flex: 0 0 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45);
+  padding-bottom: calc(
+    env(safe-area-inset-bottom, 0px) + var(--salon-host-drawer-viewport-bottom, 0px)
+  );
+}
+
+.ms-salon-fullscreen-overlay .salon-youtube-host-drawer {
+  flex: 0 0 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ms-salon-fullscreen-overlay .salon-youtube-host-drawer__content {
+  flex: 0 0 auto;
+  max-height: none;
+  overflow: visible;
+}
+
+.ms-salon-fullscreen-overlay .room-theater-mobile-chat-sheet {
+  flex: 0 1 auto;
+  min-height: 0;
+}
+
+/* Tiroir salon — profil hôte compact (pas de scroll interne) */
+.salon-youtube-host-drawer__content--compact {
+  padding-top: 0.5rem;
+  padding-bottom: 0.375rem;
+}
+
+.salon-youtube-host-drawer__profil--compact {
+  gap: 0.5rem;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.salon-youtube-host-drawer__profil--compact .salon-youtube-host-drawer__avatar-ring {
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.32);
+}
+
+.salon-youtube-host-drawer__profil--compact .salon-youtube-host-drawer__stats {
+  border-radius: 1rem;
+}
+
+.salon-youtube-host-drawer__profil--compact .salon-youtube-host-drawer__stat-cell {
+  padding-top: 0.375rem;
+  padding-bottom: 0.375rem;
+}
+
+.salon-youtube-host-drawer__profil--compact .salon-youtube-host-drawer__stat-value {
+  font-size: 0.875rem;
+}
+
+.salon-youtube-host-drawer__profil--compact .salon-youtube-host-drawer__stat-label {
+  font-size: 0.5rem;
+  letter-spacing: 0.08em;
+  margin-top: 0.125rem;
+}
+
+.salon-youtube-host-drawer__profil--compact .salon-youtube-host-drawer__bio {
+  font-size: 0.6875rem;
+  line-height: 1.35;
+}
+
+.salon-youtube-host-drawer__profil--compact .salon-youtube-host-drawer__profile-btn {
+  padding-top: 0.4375rem;
+  padding-bottom: 0.4375rem;
+  border-radius: 0.625rem;
+}
+
+@media (min-width: 640px) {
+  .ms-salon-fullscreen-overlay .room-theater-side-row--match-hero {
+    flex: 2 1 0;
+    min-height: 0;
+    align-content: stretch;
+  }
 }
 
 @media (max-width: 639px) {
   .ms-salon-fullscreen-overlay .room-theater-video-stage {
-    min-height: min(58dvh, 58vh);
+    min-height: 0;
   }
 
-  .salon-youtube-host-drawer__content {
-    max-height: min(38dvh, 18rem);
+  .ms-salon-fullscreen-overlay .room-theater-mobile-chat-sheet {
+    max-height: min(28dvh, 200px);
   }
 }
 
@@ -2585,10 +2670,13 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
     min-height: 0;
   }
 
-  /* Vidéo YouTube : hauteur min réduite sur mobile pour laisser de la place
-     au chat sheet et au chrome du tiroir (depuis 58dvh → 40dvh) */
-  .ms-salon-fullscreen-overlay .room-theater-video-stage {
+  /* Vidéo YouTube : hauteur min réduite sur mobile (hors overlay plein écran — voir .ms-salon-fullscreen-overlay) */
+  .room-theater-side-row--match-hero .room-theater-video-stage {
     min-height: min(40dvh, 40vh);
+  }
+
+  .ms-salon-fullscreen-overlay .room-theater-video-stage {
+    min-height: 0;
   }
 
   /* Chat sheet en mode match-hero (YouTube salon) — hauteur réduite pour

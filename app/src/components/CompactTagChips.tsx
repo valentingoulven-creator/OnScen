@@ -16,26 +16,34 @@ function CompactTagSection({
   label,
   tags,
   color,
+  compact = false,
 }: {
   label: string;
   tags: string[];
   color: TagColor;
+  compact?: boolean;
 }) {
   if (!tags.length) return null;
 
   return (
     <section>
-      <p className={`text-[10px] uppercase tracking-widest font-semibold mb-2 ${LABEL_COLORS[color]}`}>
+      <p
+        className={`uppercase tracking-widest font-semibold ${LABEL_COLORS[color]} ${
+          compact ? 'text-[9px] mb-1' : 'text-[10px] mb-2'
+        }`}
+      >
         {label}
       </p>
       <div
-        className="flex gap-2 overflow-x-auto pb-1"
+        className={`flex overflow-x-auto ${compact ? 'gap-1.5 pb-0.5' : 'gap-2 pb-1'}`}
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
       >
         {tags.map((t) => (
           <span
             key={`${color}-${t}`}
-            className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-medium border whitespace-nowrap ${CHIP_COLORS[color]}`}
+            className={`shrink-0 rounded-full font-medium border whitespace-nowrap ${CHIP_COLORS[color]} ${
+              compact ? 'px-2 py-0.5 text-[10px]' : 'px-3 py-1.5 text-[11px]'
+            }`}
           >
             {t}
           </span>
@@ -50,20 +58,26 @@ export function CompactTagChips({
   genres,
   artists,
   align = 'center',
+  compact = false,
 }: {
   interests: string[];
   genres: string[];
   artists: string[];
   align?: 'center' | 'start';
+  compact?: boolean;
 }) {
   const hasAny = interests.length > 0 || genres.length > 0 || artists.length > 0;
   if (!hasAny) return null;
 
   return (
-    <div className={"space-y-4 flex flex-col " + (align === 'start' ? 'items-start' : 'items-center')}>
-      <CompactTagSection label="Centres d'intérêt" tags={interests} color="cyan" />
-      <CompactTagSection label="Genres favoris" tags={genres} color="purple" />
-      <CompactTagSection label="Artistes" tags={artists} color="pink" />
+    <div
+      className={`flex flex-col ${compact ? 'space-y-1.5' : 'space-y-4'} ${
+        align === 'start' ? 'items-start' : 'items-center'
+      }`}
+    >
+      <CompactTagSection label="Centres d'intérêt" tags={interests} color="cyan" compact={compact} />
+      <CompactTagSection label="Genres favoris" tags={genres} color="purple" compact={compact} />
+      <CompactTagSection label="Artistes" tags={artists} color="pink" compact={compact} />
     </div>
   );
 }

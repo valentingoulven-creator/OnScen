@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, User } from '../models/schema';
-import { followUser } from './follows';
+import { followUser, notifyFollowersSalonCreated } from './follows';
 import { addFavorite } from './favorites';
 import {
   hasUnreadDmFromSender,
@@ -103,5 +103,50 @@ describe('notifications', () => {
     expect(db.notifications[0].type).toBe('event_created');
     expect(db.notifications[0].message).toContain('Bob a créé un événement');
     expect(db.notifications[0].message).toContain('Paris');
+  });
+
+  it('notifyFollowersSalonCreated notifie les abonnés sans inclure le host', () => {
+    followUser('alice', 'bob');
+    followUser('carol', 'bob');
+
+    notifyFollowersSalonCreated(
+      { id: 'bob', username: 'Bob', email: 'bob@test.local', passwordHash: 'x', meloCoins: 0, isGhostMode: false, lastSeenAt: Date.now() },
+      {
+        id: 'salon_1',
+        hostId: 'bob',
+        hostName: 'Bob',
+        title: 'Session Jazz',
+        platform: 'youtube',
+        playbackState: {
+          platform: 'youtube',
+          trackId: 'demo',
+          title: 'Track',
+          artist: 'Artist',
+          isPlaying: true,
+          progressMs: 0,
+          updatedAt: Date.now(),
+        },
+        latitude: 48.8,
+        longitude: 2.3,
+        blurredLatitude: 48.8,
+        blurredLongitude: 2.3,
+        listenersCount: 0,
+        isGhostMode: false,
+        accessMode: 'public',
+        isPublic: true,
+        allowedUserIds: ['bob'],
+        allowQueue: true,
+        createdAt: Date.now(),
+      }
+    );
+
+    const recipients = db.notifications.map((n) => n.recipientId).sort();
+    expect(recipients).toEqual(['alice', 'carol']);
+    expect(db.notifications[0]).toMatchObject({
+      type: 'salon_created',
+      salonId: 'salon_1',
+      senderId: 'bob',
+    });
+    expect(db.notifications[0].message).toContain('Session Jazz');
   });
 });

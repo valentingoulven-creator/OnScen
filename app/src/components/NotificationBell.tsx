@@ -14,6 +14,7 @@ function isVisibleNotification(n: AppNotification): boolean {
     n.type === 'live_don' ||
     n.type === 'favorite_online' ||
     n.type === 'salon_invite' ||
+    n.type === 'salon_created' ||
     n.type === 'dm_message' ||
     n.type === 'group_message' ||
     n.type === 'heart' ||
@@ -33,6 +34,7 @@ function shouldShowToast(n: AppNotification): boolean {
     n.type === 'live_don' ||
     n.type === 'favorite_online' ||
     n.type === 'salon_invite' ||
+    n.type === 'salon_created' ||
     n.type === 'heart' ||
     n.type === 'content_heart' ||
     n.type === 'follow' ||
@@ -58,7 +60,7 @@ function opensProfileFromNotification(n: AppNotification): boolean {
 }
 
 function isSalonRelatedNotification(n: AppNotification): boolean {
-  return n.type === 'favorite_online' || n.type === 'salon_invite';
+  return n.type === 'favorite_online' || n.type === 'salon_invite' || n.type === 'salon_created';
 }
 
 function isSupportNotification(n: AppNotification): boolean {
@@ -104,6 +106,8 @@ function notificationEmoji(n: AppNotification): string {
     case 'favorite_online':
       return '⭐';
     case 'salon_invite':
+      return '🎵';
+    case 'salon_created':
       return '🎵';
     case 'mention':
       return '📣';
@@ -264,6 +268,8 @@ export function NotificationBell({
   const isLiveToast = toast?.type === 'live_started';
   const isDonToast = toast?.type === 'live_don';
   const isSalonToast = toast ? isSalonRelatedNotification(toast) : false;
+  const isSalonCreatedToast = toast?.type === 'salon_created';
+  const isSalonInviteToast = toast?.type === 'salon_invite';
   const isDmToast = toast?.type === 'dm_message';
   const isGroupToast = toast?.type === 'group_message';
   const isHeartToast = toast?.type === 'heart';
@@ -434,8 +440,12 @@ export function NotificationBell({
                             ? 'En live !'
                             : isDonToast
                               ? 'Don reçu !'
-                              : isSalonToast
-                                ? 'Favori en ligne !'
+                              : isSalonCreatedToast
+                                ? 'Nouveau salon !'
+                                : isSalonInviteToast
+                                  ? 'Invitation salon !'
+                                : isSalonToast
+                                  ? 'Favori en ligne !'
                                 : isMentionToast
                                   ? 'Vous avez été mentionné !'
                                   : isSupportContactToast
@@ -465,6 +475,8 @@ export function NotificationBell({
                           ? '🔴'
                           : isDonToast
                             ? '💝'
+                            : isSalonCreatedToast || isSalonInviteToast
+                              ? '🎵'
                             : isSalonToast
                               ? '⭐'
                               : isMentionToast

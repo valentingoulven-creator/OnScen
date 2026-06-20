@@ -118,6 +118,19 @@ export function useSalonPlaybackSync({
     return () => window.clearInterval(id);
   }, []);
 
+  // Periodic force-sync: every 15 s the host re-anchors all participants to prevent clock drift.
+  // The server resets startedAt to server-now so latency is naturally compensated.
+  useEffect(() => {
+    if (!isHost) return;
+    const id = window.setInterval(() => {
+      const s = stateRef.current;
+      if (!s.isPlaying) return;
+      const progressMs = computePlaybackPositionMs(s);
+      emitOnSocket('salon_force_sync', { salonId, progressMs });
+    }, 15_000);
+    return () => window.clearInterval(id);
+  }, [isHost, salonId]);
+
   const emitForceSync = useCallback(() => {
     if (!isHost) return;
     const currentProgressMs = computePlaybackPositionMs(stateRef.current);
