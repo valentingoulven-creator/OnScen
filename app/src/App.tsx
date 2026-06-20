@@ -491,11 +491,13 @@ export default function App() {
 
   /** Clic sidebar carte : aperçu YouTube sans rejoindre le salon. */
   const openSalonPipPreview = useCallback((salon: Salon) => {
+    setLivePipPreview(null);
     setSalonPipPreview(salon);
   }, []);
 
   /** Clic sidebar carte : aperçu live sans rejoindre (HLS/WebRTC). */
   const openLivePipPreview = useCallback((live: Live) => {
+    setSalonPipPreview(null);
     setLivePipPreview(live);
   }, []);
 
