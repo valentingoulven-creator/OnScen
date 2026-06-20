@@ -19,6 +19,7 @@ on:
     branches: [main, master]
     paths:
       - 'apptel/**'
+      - 'app/**'
       - '.github/workflows/ios-capacitor.yml'
 
 jobs:
