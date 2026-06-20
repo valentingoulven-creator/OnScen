@@ -91,7 +91,10 @@ const DEFAULT_SPONSORS: Omit<Sponsor, 'createdAt' | 'updatedAt'>[] = [
     kind: 'promo',
     displayDurationSec: 10,
     endsAt: 1783224000000,
-    mapVisibilityScope: 'france',
+    mapVisibilityScope: 'region',
+    mapTargetRegionName: 'Le Crès',
+    mapTargetLat: 43.6489,
+    mapTargetLng: 3.8567,
   },
   {
     id: 'les-deferlantes-2026',
