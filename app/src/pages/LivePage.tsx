@@ -1145,7 +1145,7 @@ export function LivePage({
             <button
               type="button"
               onClick={() => setReportLiveOpen(true)}
-              className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-red-400 hover:bg-[#2a2a3a] transition"
+              className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full text-gray-400 hover:text-red-400 hover:bg-[#2a2a3a] transition"
               aria-label="Signaler ce live"
               title="Signaler ce live"
             >
@@ -1158,7 +1158,7 @@ export function LivePage({
             type="button"
             onClick={() => void handleShareLive()}
             title={shareCopied ? t('live.shareLiveCopied') : t('live.shareLiveTitle')}
-            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-[#2a2a3a] transition"
+            className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-[#2a2a3a] transition"
             aria-label={t('live.shareLive')}
           >
             {shareCopied ? (

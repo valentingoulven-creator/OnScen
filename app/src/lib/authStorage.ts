@@ -1,18 +1,46 @@
-// MIGRATION TODO (CRIT-01): Les tokens JWT sont actuellement stockés dans
-// localStorage/sessionStorage (vulnérables aux attaques XSS).
-// La migration vers des cookies httpOnly/Secure/SameSite=Strict nécessite :
-//   1. Backend : endpoint POST /api/auth/cookie-login qui pose un cookie httpOnly
-//   2. Backend : middleware qui lit le cookie au lieu du header Authorization
-//   3. Frontend : supprimer authStorage + adapter tous les appels API
-//   4. Backend : endpoint POST /api/auth/logout qui efface le cookie
-// Cette refactorisation nécessite une coordination backend+frontend dédiée.
-// Durée token rememberMe réduite de 30j à 7j (paliatif, voir ELEV-02 backend).
+/**
+ * Auth token storage — platform-aware.
+ *
+ * WEB (browser):
+ *   JWT is stored in an httpOnly Secure SameSite=Strict cookie set by the backend.
+ *   JavaScript has no access to the cookie value, so get/persist are no-ops here.
+ *   Authentication state is derived from GET /api/auth/me (cookie sent automatically).
+ *   Logout calls POST /api/auth/logout to clear the server-side cookie.
+ *
+ *   CSRF mitigation: SameSite=Strict prevents the cookie from being sent on any
+ *   cross-site request (form submissions, cross-origin XHR/fetch). No CSRF token
+ *   is required as long as SameSite=Strict is enforced. Reviewed 2026-06-21.
+ *
+ * NATIVE (Capacitor / apptel):
+ *   Cookies are not reliably shared in native WebViews for cross-origin calls, so
+ *   the JWT is kept in localStorage (same as before). The backend auth middleware
+ *   accepts both the httpOnly cookie AND the X-Auth-Token header, so native clients
+ *   continue to work unchanged.
+ */
 
 const TOKEN_KEY = 'melosong_token';
 const REMEMBER_KEY = 'melosong_remember_me';
 
-/** Jeton au démarrage : sessionStorage prioritaire, sinon localStorage si « rester connecté » ou jeton legacy. */
+/** True when running inside a Capacitor native wrapper (iOS / Android). */
+function isNativePlatform(): boolean {
+  try {
+    return !!(
+      (window as Window & { Capacitor?: { isNativePlatform?: () => boolean } })
+        .Capacitor?.isNativePlatform?.()
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Returns the stored JWT token.
+ *   - Native: reads from sessionStorage / localStorage.
+ *   - Web: always returns null (token lives in httpOnly cookie, inaccessible to JS).
+ */
 export function getStoredToken(): string | null {
+  if (!isNativePlatform()) return null;
+
   const session = sessionStorage.getItem(TOKEN_KEY);
   if (session) return session;
 
@@ -23,7 +51,14 @@ export function getStoredToken(): string | null {
   return null;
 }
 
+/**
+ * Persists the JWT token.
+ *   - Native: stores in sessionStorage (session) or localStorage (rememberMe).
+ *   - Web: no-op (backend sets the httpOnly cookie directly).
+ */
 export function persistToken(token: string, rememberMe: boolean): void {
+  if (!isNativePlatform()) return;
+
   sessionStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(REMEMBER_KEY);
@@ -37,8 +72,18 @@ export function persistToken(token: string, rememberMe: boolean): void {
   }
 }
 
+/**
+ * Clears the stored JWT token.
+ *   - Native: removes from sessionStorage / localStorage.
+ *   - Web: no-op (cookie is cleared by POST /api/auth/logout on the backend).
+ */
 export function clearStoredToken(): void {
+  if (!isNativePlatform()) return;
+
   sessionStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(REMEMBER_KEY);
 }
+
+/** Exposed for use in AuthContext to determine whether to attempt a cookie-based boot. */
+export { isNativePlatform };

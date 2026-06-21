@@ -53,6 +53,7 @@ export function AuthPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [username, setUsername] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [confirmAge, setConfirmAge] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [inviteCode, setInviteCode] = useState('');
   const [accessConfig, setAccessConfig] = useState<PublicAccessConfig | null>(null);
@@ -70,6 +71,7 @@ export function AuthPage() {
   const [googleOAuthAvailable, setGoogleOAuthAvailable] = useState(false);
   const [oauthTermsCode, setOauthTermsCode] = useState<string | null>(null);
   const [oauthAcceptTerms, setOauthAcceptTerms] = useState(false);
+  const [oauthConfirmAge, setOauthConfirmAge] = useState(false);
   const [oauthTermsBusy, setOauthTermsBusy] = useState(false);
 
   // ── Biometric / Face ID ───────────────────────────────────────────────────
@@ -192,7 +194,11 @@ export function AuthPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const completeOAuthTerms = async () => {
-    if (!oauthTermsCode || !oauthAcceptTerms) {
+    if (!oauthTermsCode || !oauthConfirmAge) {
+      setError("Vous devez confirmer que vous avez au moins 13 ans");
+      return;
+    }
+    if (!oauthAcceptTerms) {
       setError('Vous devez accepter les CGU et la Politique de confidentialité');
       return;
     }
@@ -259,6 +265,10 @@ export function AuthPage() {
     if (mode === 'register') {
       if (accessConfig?.registrationClosed && accessConfig.registrationMode === 'closed') {
         setError('Les inscriptions sont fermées. Demandez une invitation à l’administrateur.');
+        return;
+      }
+      if (!confirmAge) {
+        setError("Vous devez confirmer que vous avez au moins 13 ans");
         return;
       }
       if (!acceptTerms) {
@@ -437,6 +447,15 @@ export function AuthPage() {
           <label className="flex items-start gap-2 cursor-pointer text-xs text-gray-400 leading-snug">
             <input
               type="checkbox"
+              checked={oauthConfirmAge}
+              onChange={(e) => setOauthConfirmAge(e.target.checked)}
+              className="melosong-checkbox mt-0.5 shrink-0"
+            />
+            <span>{t('auth.ageConfirmCheckbox')}</span>
+          </label>
+          <label className="flex items-start gap-2 cursor-pointer text-xs text-gray-400 leading-snug">
+            <input
+              type="checkbox"
               checked={oauthAcceptTerms}
               onChange={(e) => setOauthAcceptTerms(e.target.checked)}
               className="melosong-checkbox mt-0.5 shrink-0"
@@ -456,7 +475,7 @@ export function AuthPage() {
           {error && <p className="text-sm text-red-400">{error}</p>}
           <button
             type="button"
-            disabled={oauthTermsBusy || !oauthAcceptTerms}
+            disabled={oauthTermsBusy || !oauthAcceptTerms || !oauthConfirmAge}
             onClick={() => void completeOAuthTerms()}
             className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 font-bold text-white disabled:opacity-50 transition"
           >
@@ -624,6 +643,19 @@ export function AuthPage() {
             <label className="flex items-start gap-2 cursor-pointer text-xs text-gray-400 leading-snug">
               <input
                 type="checkbox"
+                checked={confirmAge}
+                onChange={(e) => setConfirmAge(e.target.checked)}
+                className="melosong-checkbox mt-0.5 shrink-0"
+                required
+              />
+              <span>{t('auth.ageConfirmCheckbox')}</span>
+            </label>
+          )}
+
+          {mode === 'register' && (
+            <label className="flex items-start gap-2 cursor-pointer text-xs text-gray-400 leading-snug">
+              <input
+                type="checkbox"
                 checked={acceptTerms}
                 onChange={(e) => setAcceptTerms(e.target.checked)}
                 className="melosong-checkbox mt-0.5 shrink-0"
@@ -667,7 +699,7 @@ export function AuthPage() {
 
           <button
             type="submit"
-            disabled={loading || (mode === 'register' && !acceptTerms)}
+            disabled={loading || (mode === 'register' && (!acceptTerms || !confirmAge))}
             className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 font-bold text-white disabled:opacity-50 transition"
           >
             {loading ? (
@@ -762,6 +794,7 @@ export function AuthPage() {
             setConfirmPassword('');
             setUsernameStatus('idle');
             setUsernameMessage('');
+            setConfirmAge(false);
           }}
         >
           {mode === 'login'

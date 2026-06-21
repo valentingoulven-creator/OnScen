@@ -40,6 +40,7 @@
     "registrationClosed": "Inscriptions fermées",
     "inviteCode": "Code d'invitation",
     "minAgeNotice": "Vous devez avoir au moins 13 ans pour utiliser Soundy.",
+    "ageConfirmCheckbox": "Je confirme avoir au moins 13 ans (obligatoire)",
     "spotifyHostPremiumNotice": "Pour héberger un salon Spotify, un abonnement Spotify Premium est requis.",
     "passwordMismatch": "Les mots de passe ne correspondent pas",
     "pendingSalon": "Connectez-vous pour rejoindre le salon partagé.",
@@ -343,7 +344,8 @@
     "headerSubscribe": "S'abonner",
     "headerSubscribeShort": "S'abonner",
     "leaveLive": "Quitter le live",
-    "leaveLiveShort": "Quitter"
+    "leaveLiveShort": "Quitter",
+    "iosIapDonation": "Les dons ne sont pas disponibles dans l'app iOS. Utilisez la version web sur getsoundy.com pour envoyer des dons."
   },
   "dm": {
     "title": "Messages",
@@ -572,7 +574,13 @@
     "pushDefaultHint": "Recevoir des alertes même app fermée",
     "pushBlocked": "Bloqué",
     "pushToggleAria": "Activer ou désactiver les notifications push",
-    "legalSection": "Légal",
+    "legalSection": "Légal & RGPD",
+    "dsaReportContent": "Signaler un contenu illicite (DSA)",
+    "dsaReportContentHint": "Loi sur les services numériques — art. 16",
+    "dataRightsSection": "Vos droits (RGPD)",
+    "dataRightsHint": "Accès, rectification, suppression, portabilité",
+    "contactPrivacy": "Exercer vos droits RGPD",
+    "contactPrivacyHint": "privacy@getsoundy.com",
     "legalMentions": "Mentions légales",
     "legalTerms": "Conditions générales d'utilisation",
     "legalPrivacy": "Politique de confidentialité (RGPD)",
@@ -612,7 +620,8 @@
     "manageBilling": "Gérer la facturation (Stripe)",
     "ageConfirm": "Je certifie avoir 18 ans ou plus et être autorisé à utiliser un moyen de paiement.",
     "simulationNotice": "Simulation — aucun paiement réel en mode développement.",
-    "renewsOn": "Renouvellement le {{date}}"
+    "renewsOn": "Renouvellement le {{date}}",
+    "iosIapNotice": "Les abonnements ne sont pas disponibles dans l'app iOS. Utilisez la version web sur getsoundy.com pour gérer votre abonnement."
   },
   "support": {
     "title": "Contacter Soundy",

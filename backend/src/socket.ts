@@ -648,18 +648,21 @@ export function setupSockets(io: Server): void {
 
     socket.on('dm', (msg: { id: string; senderId: string; receiverId: string; content: string; timestamp?: number }) => {
       const authUserId = (socket.data as { userId?: string }).userId;
-      if (!msg?.id || !msg.senderId || !msg.receiverId) return;
+      if (!msg?.senderId || !msg.receiverId) return;
       if (!authUserId || authUserId !== msg.senderId) return;
       if (!checkChatRateLimit(authUserId)) return;
       // Block if sender has blocked recipient or recipient has blocked sender.
       if (hasBlocked(msg.senderId, msg.receiverId)) return;
       if (hasBlocked(msg.receiverId, msg.senderId)) return;
+      const content = typeof msg.content === 'string' ? msg.content.slice(0, 2000) : '';
+      if (!content.trim()) return;
+      // Use server-generated ID to prevent ID spoofing by clients.
       const full = {
-        id: msg.id,
+        id: `dm_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         senderId: msg.senderId,
         receiverId: msg.receiverId,
-        content: msg.content,
-        timestamp: msg.timestamp ?? Date.now(),
+        content,
+        timestamp: Date.now(),
         accepted: true,
       };
       if (shouldDeliverToReceiver(full.senderId, full.receiverId)) {
@@ -669,10 +672,24 @@ export function setupSockets(io: Server): void {
 
     socket.on('gift_sent', (gift: { liveId: string; senderName: string; giftType: string; amount: number }) => {
       const authUserId = (socket.data as { userId?: string }).userId;
-      if (!authUserId || !gift?.liveId) return;
+      if (!authUserId || !gift?.liveId || typeof gift.liveId !== 'string') return;
+      // Whitelist allowed gift types to prevent UI deception via arbitrary type strings.
+      const ALLOWED_GIFT_TYPES = ['rose', 'coeur', 'etoile', 'diamant', 'couronne', 'feu', 'like'];
+      const giftType =
+        typeof gift.giftType === 'string' && ALLOWED_GIFT_TYPES.includes(gift.giftType)
+          ? gift.giftType
+          : 'like';
+      // Amount displayed in the animation must match a real Stripe donation or simulation;
+      // cap to 500 to prevent misleading UI for fake gift animations.
+      const amount =
+        typeof gift.amount === 'number' && Number.isFinite(gift.amount)
+          ? Math.min(Math.max(Math.floor(gift.amount), 1), 500)
+          : 1;
       const sender = db.users.get(authUserId);
       io.to(`live_${gift.liveId}`).emit('gift_animation', {
-        ...gift,
+        liveId: gift.liveId,
+        giftType,
+        amount,
         senderName: sender?.username ?? 'Utilisateur',
       });
     });

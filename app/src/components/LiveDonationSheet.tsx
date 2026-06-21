@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { api } from '../lib/api';
+import { isNativeIos } from '../lib/nativePlatform';
 import {
   computeDonationFeeBreakdown,
   DONATION_PAYMENT_TERMS_DOC_KEY,
@@ -153,6 +154,24 @@ export function LiveDonationSheet({
   }, [open, token, initialAmount]);
 
   if (!open) return null;
+
+  // App Store Guideline 3.1.1 — Stripe payments must not be offered on native iOS.
+  if (isNativeIos()) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60" onClick={onClose}>
+        <div
+          className="bg-[#12121a] rounded-t-2xl border-t border-[#2d2d3d] shadow-2xl p-6 pb-8"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <p className="font-bold text-white">{t('live.donationSheetTitle')}</p>
+            <button type="button" onClick={onClose} className="text-gray-400 hover:text-white text-xl px-2">✕</button>
+          </div>
+          <p className="text-sm text-gray-400 text-center">{t('live.iosIapDonation')}</p>
+        </div>
+      </div>
+    );
+  }
 
   const resolvedAmount = (): number | null => {
     if (selectedAmount != null) return selectedAmount;

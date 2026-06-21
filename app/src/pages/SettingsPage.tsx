@@ -127,6 +127,11 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
   const [exportLoading, setExportLoading] = useState(false);
   const [dmDisabled, setDmDisabled] = useState(() => user?.allowPrivateMessages === false);
   const [dmSaving, setDmSaving] = useState(false);
+  const [legalIncomplete, setLegalIncomplete] = useState(false);
+
+  useEffect(() => {
+    void api.getLegalPublisher().then((r) => setLegalIncomplete(!r.complete)).catch(() => {});
+  }, []);
 
   const pushSupported =
     typeof window !== 'undefined' &&
@@ -505,7 +510,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
         {/* ── Modal 2FA : scan QR code ── */}
         {twoFAModal === 'setup_qr' && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <div className="w-full max-w-sm bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-6 space-y-4">
+            <div className="w-full max-w-sm bg-[#12121a] border border-[#1e1e2f] rounded-t-2xl sm:rounded-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
               <div className="text-center space-y-1">
                 <p className="text-2xl">🔐</p>
                 <h2 className="text-lg font-bold text-white">Activer la 2FA</h2>
@@ -551,7 +556,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
         {/* ── Modal 2FA : codes de secours ── */}
         {twoFAModal === 'setup_backup' && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <div className="w-full max-w-sm bg-[#12121a] border border-green-500/30 rounded-2xl p-6 space-y-4">
+            <div className="w-full max-w-sm bg-[#12121a] border border-green-500/30 rounded-t-2xl sm:rounded-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
               <div className="text-center space-y-1">
                 <p className="text-2xl">✅</p>
                 <h2 className="text-lg font-bold text-white">2FA activée !</h2>
@@ -581,7 +586,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
         {/* ── Modal 2FA : désactiver ── */}
         {twoFAModal === 'disable' && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <div className="w-full max-w-sm bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-6 space-y-4">
+            <div className="w-full max-w-sm bg-[#12121a] border border-[#1e1e2f] rounded-t-2xl sm:rounded-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
               <div className="text-center space-y-1">
                 <p className="text-2xl">🔓</p>
                 <h2 className="text-lg font-bold text-white">Désactiver la 2FA</h2>
@@ -623,7 +628,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
             <form
               onSubmit={handleDeleteAccount}
-              className="w-full max-w-sm bg-[#12121a] border border-red-500/30 rounded-2xl p-6 space-y-4"
+              className="w-full max-w-sm bg-[#12121a] border border-red-500/30 rounded-t-2xl sm:rounded-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto"
             >
               <div className="text-center space-y-1">
                 <p className="text-2xl">⚠️</p>
@@ -754,7 +759,27 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 
         <section>
           <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('settings.legalSection')}</p>
-          <SettingsRow label={t('settings.legalMentions')} onClick={() => setLegal('mentions')} />
+          {legalIncomplete && (
+            <div className="mx-4 mb-2 flex items-start gap-2 bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2.5">
+              <span className="text-amber-400 text-sm shrink-0 mt-px">⚠</span>
+              <p className="text-[11px] text-amber-200/80 leading-relaxed">
+                Les <span className="font-semibold text-amber-300">Mentions légales</span> contiennent des champs non renseignés.{' '}
+                Complétez <code className="text-amber-200 bg-amber-500/10 rounded px-0.5">msdev/legal-publisher.json</code> avant mise en production (LCEN).
+              </p>
+            </div>
+          )}
+          <SettingsRow
+            label={t('settings.legalMentions')}
+            onClick={() => setLegal('mentions')}
+          >
+            {legalIncomplete ? (
+              <span className="text-[10px] font-bold text-amber-400 bg-amber-500/15 border border-amber-500/30 rounded-full px-2 py-0.5 shrink-0">
+                À compléter
+              </span>
+            ) : (
+              <span className="text-gray-500 shrink-0">›</span>
+            )}
+          </SettingsRow>
           <SettingsRow label={t('settings.legalTerms')} onClick={() => setLegal('terms')} />
           <SettingsRow label={t('settings.legalPrivacy')} onClick={() => setLegal('privacy')} />
           <SettingsRow label={t('settings.legalRgpd')} onClick={() => setLegal('rgpd')} />
@@ -770,6 +795,11 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
           />
           <SettingsRow label={t('settings.legalLicenses')} onClick={() => setLegal('licenses')} />
           <SettingsRow
+            label={t('settings.dsaReportContent')}
+            hint={t('settings.dsaReportContentHint')}
+            onClick={() => setShowContact(true)}
+          />
+          <SettingsRow
             label={t('settings.contactSupport')}
             hint="Envoie un message à l'équipe Soundy"
             onClick={() => setShowContact(true)}
@@ -783,6 +813,18 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
               {exportLoading ? '…' : t('settings.exportJson')}
             </span>
           </SettingsRow>
+          <div className="px-4 py-3 border-t border-[#1e1e2f]">
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">{t('settings.dataRightsSection')}</p>
+            <p className="text-[11px] text-gray-400 leading-relaxed">
+              {t('settings.dataRightsHint')} :{' '}
+              <a
+                href="mailto:privacy@getsoundy.com"
+                className="text-purple-400 underline"
+              >
+                privacy@getsoundy.com
+              </a>
+            </p>
+          </div>
         </section>
 
         <p className="px-4 pt-6 text-center text-[10px] text-gray-600">{t('app.versionFooter')}</p>

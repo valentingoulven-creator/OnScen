@@ -890,9 +890,9 @@ export default function App() {
             <ProfileSearchBar
               token={token}
               onSelectUser={handleSearchSelectUser}
-              className="justify-self-center w-[min(18rem,calc(100vw-7.5rem))] sm:w-[min(22rem,calc(100vw-9rem))]"
+              className="justify-self-center w-[min(18rem,calc(100vw-13rem))] sm:w-[min(22rem,calc(100vw-9rem))]"
             />
-            <div className="flex items-center gap-1 justify-self-end shrink-0">
+            <div className="relative z-10 flex items-center gap-1 justify-self-end shrink-0">
               <AdminHeaderButton
                 onClick={() => openAdminPanel()}
                 active={adminOpen}

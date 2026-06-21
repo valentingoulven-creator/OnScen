@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { db, User, ListeningRole } from '../models/schema';
-import { authenticateJWT, signToken } from '../middleware/auth';
+import { authenticateJWT, signToken, setAuthCookie, clearAuthCookie } from '../middleware/auth';
 import { getJwtSecret } from '../lib/jwtSecret';
 import {
   applyAgeSettings,
@@ -71,10 +71,41 @@ export function invalidateProfileCache(userId: string) {
   }
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const USERNAME_RE = /^[a-zA-Z0-9_\-\.àâäéèêëîïôùûüç]+$/i;
+const PASSWORD_MIN = 8;
+const PASSWORD_MAX = 128;
+const USERNAME_MIN = 2;
+const USERNAME_MAX = 30;
+
 authRouter.post('/register', async (req: Request, res: Response) => {
   const { username, email, password, acceptTerms, termsVersion, inviteCode } = req.body;
   if (!username || !email || !password) {
     res.status(400).json({ error: 'Champs requis manquants' });
+    return;
+  }
+  if (typeof username !== 'string' || username.trim().length < USERNAME_MIN) {
+    res.status(400).json({ error: `Le pseudo doit faire au moins ${USERNAME_MIN} caractères` });
+    return;
+  }
+  if (username.trim().length > USERNAME_MAX) {
+    res.status(400).json({ error: `Le pseudo ne peut pas dépasser ${USERNAME_MAX} caractères` });
+    return;
+  }
+  if (!USERNAME_RE.test(username.trim())) {
+    res.status(400).json({ error: 'Le pseudo contient des caractères non autorisés' });
+    return;
+  }
+  if (typeof email !== 'string' || !EMAIL_RE.test(email.trim())) {
+    res.status(400).json({ error: 'Adresse e-mail invalide' });
+    return;
+  }
+  if (typeof password !== 'string' || password.length < PASSWORD_MIN) {
+    res.status(400).json({ error: `Le mot de passe doit contenir au moins ${PASSWORD_MIN} caractères` });
+    return;
+  }
+  if (password.length > PASSWORD_MAX) {
+    res.status(400).json({ error: `Le mot de passe ne peut pas dépasser ${PASSWORD_MAX} caractères` });
     return;
   }
   const regCheck = assertRegistrationAllowed({ inviteCode });
@@ -84,19 +115,19 @@ authRouter.post('/register', async (req: Request, res: Response) => {
   }
   if (!acceptTerms) {
     res.status(400).json({
-      error: 'Vous devez accepter les CGU et la Politique de confidentialit?',
+      error: 'Vous devez accepter les CGU et la Politique de confidentialité',
     });
     return;
   }
   if (termsVersion && termsVersion !== CURRENT_TERMS_VERSION) {
     res.status(400).json({
-      error: 'Les conditions ont ?t? mises ? jour. Rechargez la page et acceptez la nouvelle version.',
+      error: 'Les conditions ont été mises à jour. Rechargez la page et acceptez la nouvelle version.',
     });
     return;
   }
   const exists = [...db.users.values()].some((u) => u.email === email || u.username === username);
   if (exists) {
-    res.status(409).json({ error: 'Utilisateur d?j? existant' });
+    res.status(409).json({ error: 'Utilisateur déjà existant' });
     return;
   }
   const accountStatus = resolveInitialAccountStatus();
@@ -104,7 +135,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
   try {
     passwordHash = await bcrypt.hash(password, 10);
   } catch {
-    res.status(500).json({ error: 'Erreur interne lors de la cr?ation du compte' });
+    res.status(500).json({ error: 'Erreur interne lors de la création du compte' });
     return;
   }
   // Bypass email verification for test accounts or when explicitly disabled in env.
@@ -157,13 +188,14 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     res.status(202).json({
       pending: true,
       message:
-        'Inscription enregistr?e. Un administrateur doit valider votre compte avant la premi?re connexion.',
+        'Inscription enregistrée. Un administrateur doit valider votre compte avant la première connexion.',
       user: publicProfile(user, true, user.id),
     });
     return;
   }
 
   const token = signToken({ id: user.id, username: user.username });
+  setAuthCookie(res, token, true);
   res.status(201).json({
     token,
     user: publicProfile(user, true, user.id),
@@ -200,7 +232,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
   }
   if (user.emailVerified === false) {
     res.status(403).json({
-      error: "Votre adresse e-mail n'est pas encore v?rifi?e. Consultez vos e-mails ou demandez un nouveau lien.",
+      error: "Votre adresse e-mail n'est pas encore vérifiée. Consultez vos e-mails ou demandez un nouveau lien.",
       code: 'email_not_verified',
       email: user.email,
     });
@@ -224,9 +256,16 @@ authRouter.post('/login', async (req: Request, res: Response) => {
   migratePlaintextPlatformTokens(user);
   db.users.set(user.id, user);
   const token = signToken({ id: user.id, username: user.username }, stayLoggedIn);
+  setAuthCookie(res, token, stayLoggedIn);
   trackEvent('user_login', user.id);
   trackUserActive(user.id);
   res.json({ token, user: publicProfile(user, true, user.id), rememberMe: stayLoggedIn });
+});
+
+/** Logout: clears the httpOnly auth cookie. Token header clients simply discard their token. */
+authRouter.post('/logout', (_req: Request, res: Response) => {
+  clearAuthCookie(res);
+  res.json({ ok: true });
 });
 
 authRouter.get('/me', authenticateJWT, (req: Request, res: Response) => {
@@ -317,12 +356,12 @@ authRouter.patch('/profile', authenticateJWT, (req: Request, res: Response) => {
   if (username && typeof username === 'string') {
     const name = username.trim();
     if (name.length < 2) {
-      res.status(400).json({ error: 'Le pseudo doit faire au moins 2 caract?res' });
+      res.status(400).json({ error: 'Le pseudo doit faire au moins 2 caractères' });
       return;
     }
     const taken = [...db.users.values()].some((u) => u.id !== userId && u.username === name);
     if (taken) {
-      res.status(400).json({ error: 'Ce pseudo est d?j? pris' });
+      res.status(400).json({ error: 'Ce pseudo est déjà pris' });
       return;
     }
     user.username = name;
@@ -411,12 +450,12 @@ authRouter.patch('/profile', authenticateJWT, (req: Request, res: Response) => {
   }
 
   if (Array.isArray(profilePhotos)) {
-    /** Base64 d'une photo compress?e max 2 Mo ? 2,8 M de caract?res (facteur 4/3). */
+    /** Base64 d'une photo compressée max 2 Mo → 2,8 M de caractères (facteur 4/3). */
     const MAX_PHOTO_CHARS = Math.ceil(2 * 1024 * 1024 * (4 / 3)) + 64;
     const incoming = profilePhotos.map(String);
     const oversized = incoming.find((p) => p.startsWith('data:image/') && p.length > MAX_PHOTO_CHARS);
     if (oversized) {
-      res.status(413).json({ error: 'Chaque photo ne peut pas d?passer 2 Mo.' });
+      res.status(413).json({ error: 'Chaque photo ne peut pas dépasser 2 Mo.' });
       return;
     }
     const intendedCount = countPersistableProfilePhotos(incoming);
@@ -425,14 +464,14 @@ authRouter.patch('/profile', authenticateJWT, (req: Request, res: Response) => {
     if (intendedCount > 0 && savedCount === 0) {
       res.status(400).json({
         error:
-          'Les photos du profil n\'ont pas pu ?tre enregistr?es. R?essayez ou utilisez des images plus l?g?res.',
+          'Les photos du profil n\'ont pas pu être enregistrées. Réessayez ou utilisez des images plus légères.',
       });
       return;
     }
     if (intendedCount > savedCount) {
       res.status(400).json({
         error:
-          'Certaines photos n\'ont pas pu ?tre enregistr?es. R?duisez le nombre ou la taille des images.',
+          'Certaines photos n\'ont pas pu être enregistrées. Réduisez le nombre ou la taille des images.',
       });
       return;
     }
@@ -491,19 +530,19 @@ authRouter.patch('/ghost-mode', authenticateJWT, (req: Request, res: Response) =
   res.json({ isGhostMode: user.isGhostMode });
 });
 
-/** V?rification disponibilit? du pseudo (sans auth) */
+/** Vérification disponibilité du pseudo (sans auth) */
 authRouter.get('/check-username', (req: Request, res: Response) => {
   const username = String(req.query.username || '').trim();
   if (username.length < 2) {
-    res.json({ available: false, reason: 'Pseudo trop court (min. 2 caract?res)' });
+    res.json({ available: false, reason: 'Pseudo trop court (min. 2 caractères)' });
     return;
   }
   if (username.length > 30) {
-    res.json({ available: false, reason: 'Pseudo trop long (max. 30 caract?res)' });
+    res.json({ available: false, reason: 'Pseudo trop long (max. 30 caractères)' });
     return;
   }
-  if (!/^[a-zA-Z0-9_\-\.??????????????]+$/i.test(username)) {
-    res.json({ available: false, reason: 'Caract?res non autoris?s dans le pseudo' });
+  if (!/^[a-zA-Z0-9_\-\.àâäéèêëîïôùûüç]+$/i.test(username)) {
+    res.json({ available: false, reason: 'Caractères non autorisés dans le pseudo' });
     return;
   }
   const taken = [...db.users.values()].some(

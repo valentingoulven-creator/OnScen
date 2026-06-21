@@ -179,7 +179,9 @@ async function request<T>(path: string, opts: RequestInit = {}, token?: string |
   let res: Response;
   try {
     res = await fetch(`${API}${path}`, {
-      credentials: 'same-origin',
+      // 'include' sends the httpOnly auth cookie on every request (web).
+      // Header token (X-Auth-Token) is still attached when available for mobile / API clients.
+      credentials: 'include',
       ...opts,
       headers: { ...headers(token), ...opts.headers },
     });
@@ -214,7 +216,7 @@ export const api = {
     try {
       res = await fetch(`${API}/auth/register`, {
         method: 'POST',
-        credentials: 'same-origin',
+        credentials: 'include',
         headers: headers(),
         body: JSON.stringify({
           username,
@@ -715,7 +717,11 @@ export const api = {
       body: JSON.stringify(body),
     }, token),
 
-  me: (token: string) => request<{ user: import('../types').User }>('/auth/me', {}, token),
+  /** Fetches the current user. Passes token header if available; also relies on the httpOnly cookie. */
+  me: (token: string | null) => request<{ user: import('../types').User }>('/auth/me', {}, token),
+
+  /** Clears the server-side httpOnly cookie (web). Native clients discard their in-memory token. */
+  logout: () => request<{ ok: boolean }>('/auth/logout', { method: 'POST' }),
 
   updateGeo: (token: string, latitude: number, longitude: number) =>
     request<{ blurredLatitude: number; blurredLongitude: number }>(
@@ -1072,7 +1078,7 @@ export const api = {
   getLive: async (token: string, id: string) => {
     let res: Response;
     try {
-      res = await fetch(`${API}/lives/${id}`, { headers: headers(token) });
+      res = await fetch(`${API}/lives/${id}`, { credentials: 'include', headers: headers(token) });
     } catch (e) {
       normalizeFetchNetworkError(e);
     }
@@ -1527,6 +1533,7 @@ export const api = {
 
   exportMyData: async (token: string): Promise<unknown> => {
     const res = await fetch(`${API}/auth/me/export`, {
+      credentials: 'include',
       headers: headers(token),
     });
     if (!res.ok) {

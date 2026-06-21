@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import crypto from 'node:crypto';
 import rateLimit from 'express-rate-limit';
 import { db, type User } from '../models/schema';
-import { signToken } from '../middleware/auth';
+import { signToken, setAuthCookie } from '../middleware/auth';
 import { applyProfileDefaults, publicProfile } from '../lib/profile';
 import { schedulePersist } from '../lib/persist';
 import { trackEvent, trackUserActive } from '../lib/analytics';
@@ -298,6 +298,7 @@ oauthRouter.post('/oauth/exchange', oauthInitLimiter, (req: Request, res: Respon
   applyProfileDefaults(user);
   db.users.set(user.id, user);
   const token = signToken({ id: user.id, username: user.username });
+  setAuthCookie(res, token, true);
   trackEvent('user_login_oauth', user.id);
   trackUserActive(user.id);
   res.json({

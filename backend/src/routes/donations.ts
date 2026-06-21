@@ -1,9 +1,7 @@
 import { Router, Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
 import Stripe from 'stripe';
 import { db } from '../models/schema';
-import { authenticateJWT } from '../middleware/auth';
-import { getJwtSecret } from '../lib/jwtSecret';
+import { authenticateJWT, verifyAuthToken } from '../middleware/auth';
 import {
   DONATION_CURRENCY,
   DON_AMOUNT_MAX,
@@ -48,16 +46,16 @@ function getAppBaseUrl(): string {
 donationsRouter.get('/config', (req: Request, res: Response) => {
   const simulation = isDonationSimulationMode();
   const enabled = isDonationsEnabled();
+  // Optionally identify the caller using any supported token source (cookie or header).
+  // We use verifyAuthToken directly since this endpoint is intentionally public.
   const authHeader = req.headers.authorization;
-  let userId: string | undefined;
-  if (authHeader?.startsWith('Bearer ')) {
-    try {
-      const decoded = jwt.verify(authHeader.slice(7), getJwtSecret()) as { id: string };
-      userId = decoded.id;
-    } catch {
-      /* config publique sans plafond perso */
-    }
-  }
+  const cookieToken = (req as Request & { cookies?: Record<string, string> }).cookies?.['soundy_auth'];
+  const rawToken =
+    cookieToken ||
+    (authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined) ||
+    (req.headers['x-auth-token'] as string | undefined);
+  const decoded = rawToken ? verifyAuthToken(rawToken) : null;
+  const userId = decoded?.id;
 
   res.json({
     enabled,

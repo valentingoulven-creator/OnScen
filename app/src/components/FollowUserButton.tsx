@@ -148,7 +148,7 @@ export const FollowUserButton = memo(function FollowUserButton({
           }}
         >
           <div
-            className="w-full max-w-sm bg-[#12121a] border border-[#2d2d3d] rounded-2xl shadow-2xl overflow-hidden"
+            className="w-full max-w-sm bg-[#12121a] border border-[#2d2d3d] rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-5">

@@ -1867,7 +1867,7 @@ export function UserCompositionsSection({
 
             onSubmit={(e) => void submitUpload(e)}
 
-            className="w-full max-w-sm rounded-2xl bg-[#12121a] border border-[#2d2d3d] p-4 space-y-3 shadow-xl"
+            className="w-full max-w-sm rounded-t-2xl sm:rounded-2xl bg-[#12121a] border border-[#2d2d3d] p-4 space-y-3 shadow-xl"
 
           >
 
@@ -1999,7 +1999,7 @@ export function UserCompositionsSection({
 
             onSubmit={(e) => void submitCreateAlbum(e)}
 
-            className="w-full max-w-sm rounded-2xl bg-[#12121a] border border-[#2d2d3d] p-4 space-y-3 shadow-xl"
+            className="w-full max-w-sm rounded-t-2xl sm:rounded-2xl bg-[#12121a] border border-[#2d2d3d] p-4 space-y-3 shadow-xl"
 
           >
 
@@ -2265,7 +2265,7 @@ export function UserCompositionsSection({
 
             }}
 
-            className="w-full max-w-sm rounded-2xl bg-[#12121a] border border-[#2d2d3d] p-4 space-y-3 shadow-xl"
+            className="w-full max-w-sm rounded-t-2xl sm:rounded-2xl bg-[#12121a] border border-[#2d2d3d] p-4 space-y-3 shadow-xl"
 
           >
 

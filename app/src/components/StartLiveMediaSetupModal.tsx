@@ -250,7 +250,7 @@ export function StartLiveMediaSetupModal({
         if (e.target === e.currentTarget) handleClose();
       }}
     >
-      <div className="w-full max-w-sm bg-[#12121a] border border-[#2d2d3d] rounded-2xl shadow-2xl overflow-hidden max-h-[min(92vh,36rem)] flex flex-col">
+      <div className="w-full max-w-sm bg-[#12121a] border border-[#2d2d3d] rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[min(92dvh,36rem)] flex flex-col">
         <div className="h-1 bg-gradient-to-r from-red-600 via-rose-500 to-red-600 shrink-0" />
 
         <div className="p-5 overflow-y-auto flex-1 min-h-0">

@@ -725,7 +725,7 @@ export function SalonPage({
         type="button"
         onClick={() => void handleShareSalon()}
         title={shareCopied ? 'Lien copié !' : 'Partager ce salon'}
-        className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-[#2a2a3a] transition"
+        className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-[#2a2a3a] transition"
         aria-label="Partager le salon"
       >
         {shareCopied ? (

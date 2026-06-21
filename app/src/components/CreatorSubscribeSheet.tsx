@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api';
+import { isNativeIos } from '../lib/nativePlatform';
 import {
   formatTierPrice,
   SUBSCRIPTION_LEGAL_NOTICE,
@@ -31,6 +33,7 @@ export function CreatorSubscribeSheet({
   targetType = 'creator',
   onSuccess,
 }: CreatorSubscribeSheetProps) {
+  const { t } = useTranslation();
   const [config, setConfig] = useState<SubscriptionsConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,13 +45,16 @@ export function CreatorSubscribeSheet({
   const needsAgeCheckbox = userAge == null || userAge < 18;
   const canProceedAge = userCanSubscribeByAge(userAge, ageConfirmed);
 
+  // App Store Guideline 3.1.1 — Stripe subscriptions must not be offered on native iOS.
+  const nativeIos = isNativeIos();
+
   const title =
     targetType === 'platform'
       ? 'Soundy+'
       : `Soutenir ${creatorName ?? 'ce créateur'}`;
 
   const tiers =
-    config?.tiers.filter((t) => t.targetType === targetType) ?? [];
+    config?.tiers.filter((tier) => tier.targetType === targetType) ?? [];
 
   useEffect(() => {
     if (!open) return;
@@ -62,7 +68,7 @@ export function CreatorSubscribeSheet({
       .getSubscriptionsConfig(token)
       .then((c) => {
         setConfig(c);
-        const first = c.tiers.find((t) => t.targetType === targetType);
+        const first = c.tiers.find((tier) => tier.targetType === targetType);
         if (first) setSelectedTierId(first.id);
       })
       .catch(() => setConfig(null))
@@ -70,6 +76,23 @@ export function CreatorSubscribeSheet({
   }, [open, token, targetType]);
 
   if (!open) return null;
+
+  if (nativeIos) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60" onClick={onClose}>
+        <div
+          className="bg-[#12121a] rounded-t-2xl border-t border-[#2d2d3d] shadow-2xl p-6 pb-8"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <p className="font-bold text-white">{title}</p>
+            <button type="button" onClick={onClose} className="text-gray-400 hover:text-white text-xl px-2">✕</button>
+          </div>
+          <p className="text-sm text-gray-400 text-center">{t('subscription.iosIapNotice')}</p>
+        </div>
+      </div>
+    );
+  }
 
   const validate = (): string | null => {
     if (!config?.enabled) return 'Les abonnements sont temporairement désactivés';

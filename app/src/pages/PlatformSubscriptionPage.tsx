@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
+import { isNativeIos } from '../lib/nativePlatform';
 import {
   formatTierPrice,
   SUBSCRIPTION_LEGAL_NOTICE,
@@ -124,6 +125,24 @@ export function PlatformSubscriptionPage({ onBack }: PlatformSubscriptionPagePro
   const plans = status?.plans ?? config?.platformPlans ?? [];
   // Le bouton est actif seulement quand l'âge et le consentement sont confirmés
   const canSubscribeNow = canProceedAge && consentChecked;
+
+  // App Store Guideline 3.1.1 — Stripe subscriptions must not be offered on native iOS.
+  if (isNativeIos()) {
+    return (
+      <div className="flex flex-col h-full min-h-0 bg-[#0b0b0f] text-white">
+        <header className="sticky top-0 z-10 shrink-0 bg-[#0b0b0f]/95 backdrop-blur border-b border-[#1e1e2f] px-4 py-3 flex items-center gap-3">
+          <button type="button" onClick={onBack} className="text-purple-400 hover:text-purple-300 text-sm font-medium shrink-0">
+            ← {t('common.back')}
+          </button>
+          <h1 className="flex-1 text-center text-sm font-semibold truncate">{t('subscription.title')}</h1>
+          <span className="w-10 shrink-0" aria-hidden />
+        </header>
+        <div className="flex-1 flex items-center justify-center p-6">
+          <p className="text-sm text-gray-400 text-center max-w-xs">{t('subscription.iosIapNotice')}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full min-h-0 bg-[#0b0b0f] text-white">

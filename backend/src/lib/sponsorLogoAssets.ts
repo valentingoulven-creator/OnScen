@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 
 import { getPublicDir } from '../paths';
+import { validateImageMagicBytes, extForImageMime } from './imageValidation';
 
 const SPONSOR_LOGO_DATA_RE =
   /^data:image\/(jpeg|png|webp|gif)(?:;[^;,]+)*;base64,([A-Za-z0-9+/=]+)$/i;
@@ -38,14 +39,6 @@ function uploadsDir(): string {
   return path.join(getPublicDir(), 'uploads', 'sponsors');
 }
 
-function extForMime(mime: string): string {
-  const m = mime.toLowerCase();
-  if (m === 'png' || m === 'image/png') return 'png';
-  if (m === 'webp' || m === 'image/webp') return 'webp';
-  if (m === 'gif' || m === 'image/gif') return 'gif';
-  return 'jpg';
-}
-
 /** Décode une data URL image et l'enregistre sous public/uploads/sponsors/. */
 export function saveSponsorLogoFromDataUrl(dataUrl: string): string {
   const trimmed = String(dataUrl).trim();
@@ -64,11 +57,15 @@ export function saveSponsorLogoFromDataUrl(dataUrl: string): string {
     throw new Error('Logo trop volumineux');
   }
 
+  if (!validateImageMagicBytes(buffer, mime)) {
+    throw new Error('Format d\'image non reconnu ou corrompu');
+  }
+
   const dir = uploadsDir();
   fs.mkdirSync(dir, { recursive: true });
 
   const id = crypto.randomBytes(12).toString('hex');
-  const ext = extForMime(mime);
+  const ext = extForImageMime(mime);
   const filename = `${id}.${ext}`;
   fs.writeFileSync(path.join(dir, filename), buffer);
 

@@ -25,6 +25,24 @@ export interface LegalPublisherConfig {
 
 const PLACEHOLDER = (label: string) => `[À compléter : ${label} — voir acompleter.txt]`;
 
+/**
+ * Patterns indicateurs d'une valeur non remplie (issue du fichier exemple ou de acompleter.txt).
+ * Permet de détecter les valeurs placeholder qui ne sont pas vides mais non significatives.
+ */
+const PLACEHOLDER_PATTERNS = [
+  'à renseigner',
+  'acompleter',
+  'à compléter',
+  '[à compléter',
+  'adresse postale complète à renseigner',
+];
+
+function isValueUnset(v: string | undefined): boolean {
+  if (!v || !v.trim()) return true;
+  const lower = v.toLowerCase();
+  return PLACEHOLDER_PATTERNS.some((p) => lower.includes(p.toLowerCase()));
+}
+
 function publisherJsonPath(): string {
   const envDir = path.dirname(getMsdevEnvPath());
   return path.join(envDir, 'legal-publisher.json');
@@ -64,7 +82,7 @@ export function loadLegalPublisherConfig(): LegalPublisherConfig {
 
 function val(config: LegalPublisherConfig, key: keyof LegalPublisherConfig): string {
   const v = config[key]?.trim();
-  return v || PLACEHOLDER(String(key));
+  return !v || isValueUnset(v) ? PLACEHOLDER(String(key)) : v;
 }
 
 export function applyPublisherTemplate(text: string, config?: LegalPublisherConfig): string {
@@ -96,14 +114,28 @@ export function applyPublisherTemplate(text: string, config?: LegalPublisherConf
   return out;
 }
 
+/**
+ * Vérifie si la configuration éditeur est complète au sens LCEN minimal.
+ *
+ * Champs requis par la loi (LCEN art. 6) :
+ *   publisherName, legalForm, address, siren, publicationDirector,
+ *   hostName, hostAddress, hostPhone
+ *
+ * Cette fonction détecte également les valeurs placeholder non remplacées
+ * (ex. "adresse postale complète à renseigner") qui ne sont pas vides
+ * mais ne constituent pas des informations légalement valables.
+ */
 export function isPublisherConfigComplete(): boolean {
   const c = loadLegalPublisherConfig();
   const required: (keyof LegalPublisherConfig)[] = [
     'publisherName',
+    'legalForm',
     'address',
+    'siren',
     'publicationDirector',
     'hostName',
     'hostAddress',
+    'hostPhone',
   ];
-  return required.every((k) => Boolean(c[k]?.trim()));
+  return required.every((k) => !isValueUnset(c[k]));
 }

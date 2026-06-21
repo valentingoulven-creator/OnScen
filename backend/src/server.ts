@@ -2,6 +2,7 @@ import express from 'express';
 import compression from 'compression';
 import cors from 'cors';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import crypto from 'node:crypto';
 import fs from 'fs';
 import path from 'path';
@@ -278,6 +279,7 @@ const PHONE_PREVIEW_HTML = `<!DOCTYPE html>
 
 app.set('trust proxy', 1);
 app.use(compression());
+app.use(cookieParser());
 app.use(latencyMonitorMiddleware);
 // Génère un nonce CSP aléatoire par requête (doit tourner avant helmet).
 app.use((_req, res, next) => {
@@ -320,9 +322,13 @@ app.use(
       },
     },
     crossOriginEmbedderPolicy: false,
-    // HSTS via helmet casse http://IP (navigateur force https + cert auto-signé → JS bloqué).
-    // Caddy gère TLS sur getsoundy.com ; pas de HSTS sur l'accès IP transition.
-    strictTransportSecurity: false,
+    // HSTS : activé en production (Caddy assure TLS sur getsoundy.com).
+    // Désactivé hors production pour permettre http://IP et les certs auto-signés msdev.
+    // Note : HSTS est scope-hostname (ne s'applique pas aux adresses IP), donc inoffensif
+    // pour les accès directs http://IP en prod si Caddy est le seul point d'entrée public.
+    strictTransportSecurity: process.env.APP_ENV === 'production'
+      ? { maxAge: 31536000, includeSubDomains: true }
+      : false,
   })
 );
 app.use(
@@ -395,12 +401,23 @@ app.use(
   })
 );
 
-/** Login, register, change-password only — not /me, /profile, check-username (normal use). */
-const AUTH_RATE_LIMIT_SENSITIVE_PATHS = new Set(['/login', '/register', '/change-password']);
+/**
+ * Endpoints d'authentification sensibles limités en débit.
+ *
+ * Inclut forgot-password et reset-password pour prévenir l'énumération d'emails
+ * et le brute-force de tokens de réinitialisation.
+ */
+const AUTH_RATE_LIMIT_SENSITIVE_PATHS = new Set([
+  '/login',
+  '/register',
+  '/change-password',
+  '/forgot-password',
+  '/reset-password',
+]);
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 20,  // 20 req / 15 min — résistant au brute-force, confortable pour l'usage légitime
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de tentatives. Réessayez plus tard.' },
@@ -664,15 +681,26 @@ function isStaticAssetPath(urlPath: string): boolean {
   return /\.(js|mjs|css|map|woff2?|ttf|eot|png|jpe?g|gif|webp|svg|ico|json|webmanifest|txt|wasm)$/i.test(urlPath);
 }
 
+/**
+ * Resolves the public base URL for OG meta tag injection.
+ * Env vars take strict precedence; x-forwarded-* headers are only used as a
+ * fallback and only when `trust proxy` is enabled (app.set('trust proxy', 1)).
+ * A strict allowlist prevents Host Header Injection attacks in OG meta output.
+ */
 function getShareOgBaseUrl(req: express.Request): string {
   const env =
     process.env.WEB_APP_URL?.trim() ||
     process.env.APP_URL?.trim() ||
     process.env.PUBLIC_APP_URL?.trim();
   if (env) return env.replace(/\/$/, '');
+
+  // Build a candidate from forwarded headers (trusted because trust proxy = 1).
   const proto = (req.get('x-forwarded-proto') || req.protocol || 'https').split(',')[0].trim();
-  const host = (req.get('x-forwarded-host') || req.get('host') || 'getsoundy.com').split(',')[0].trim();
-  return `${proto}://${host}`;
+  const rawHost = (req.get('x-forwarded-host') || req.get('host') || '').split(',')[0].trim();
+
+  // Allow only safe hostname characters to prevent header injection into HTML.
+  const safeHost = /^[a-zA-Z0-9.\-:[\]]+$/.test(rawHost) ? rawHost : 'getsoundy.com';
+  return `${proto}://${safeHost}`;
 }
 
 function sendSpaIndex(req: express.Request, res: express.Response, indexPath: string): void {
@@ -727,13 +755,18 @@ app.get('*', (req, res, next) => {
   }
 });
 
-app.use((err: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
-  const e = err as { type?: string; status?: number };
+app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const e = err as { type?: string; status?: number; message?: string };
   if (e?.type === 'entity.too.large' || e?.status === 413) {
     res.status(413).json({
       error: 'Profil trop volumineux (photos). Retirez une photo ou utilisez des images plus légères.',
     });
     return;
   }
-  next(err);
+  // Generic catch-all: never expose internal stack traces or error messages to clients.
+  const status = typeof e?.status === 'number' && e.status >= 400 && e.status < 600 ? e.status : 500;
+  if (process.env.NODE_ENV !== 'production') {
+    console.error('[server] unhandled error:', err);
+  }
+  res.status(status).json({ error: 'Une erreur interne est survenue.' });
 });

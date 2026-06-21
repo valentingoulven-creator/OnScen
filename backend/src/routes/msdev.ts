@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { db } from '../models/schema';
-import { authenticateJWT, signToken } from '../middleware/auth';
+import { authenticateJWT, signToken, setAuthCookie } from '../middleware/auth';
 import { runAppBuild } from '../lib/msdevRebuild';
 import { publicProfile } from '../lib/profile';
 import { applyProfileDefaults } from '../lib/profile';
@@ -168,6 +168,7 @@ msdevRouter.post('/login-by-ip', async (req: Request, res: Response) => {
   user.lastSeenAt = Date.now();
   db.users.set(user.id, user);
   const token = signToken({ id: user.id, username: user.username });
+  setAuthCookie(res, token, true);
   const dual = buildMsdevDualIpConfig(port, clientIp);
 
   res.json({

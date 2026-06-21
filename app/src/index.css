@@ -1176,6 +1176,8 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   align-items: stretch;
   flex-direction: column;
   box-sizing: border-box;
+  will-change: scroll-position;
+  transform: translateZ(0);
 }
 
 .reel-slide {
@@ -1188,6 +1190,7 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   position: relative;
   overflow: hidden;
   box-sizing: border-box;
+  contain: layout style paint;
 }
 
 .reels-track::-webkit-scrollbar {

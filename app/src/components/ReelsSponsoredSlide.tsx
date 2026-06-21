@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ReelsSponsorAd } from '../types';
 import { SPONSOR_ACCENT_GRADIENTS, sponsorKindBadgeLabel } from '../lib/sponsorDisplaySpec';
@@ -14,7 +14,7 @@ type ReelsSponsoredSlideProps = {
   resolveMuted?: () => boolean;
 };
 
-export function ReelsSponsoredSlide({
+export const ReelsSponsoredSlide = memo(function ReelsSponsoredSlide({
   ad,
   isActive,
   muted,
@@ -78,7 +78,9 @@ export function ReelsSponsoredSlide({
           src={ad.videoUrl}
           poster={posterSrc}
           playsInline
+          autoPlay={false}
           loop
+          preload={isActive ? 'auto' : 'none'}
           muted={resolveMuted?.() ?? muted}
           onError={() => setVideoFailed(true)}
         />
@@ -144,4 +146,4 @@ export function ReelsSponsoredSlide({
       </div>
     </section>
   );
-}
+});

@@ -2652,3 +2652,420 @@ playlist) : OAuth avec `show_dialog=true` pour r?-accorder
 ================================================================================
 Fin MODIF 478 - 2026-06-13
 ================================================================================
+
+================================================================================
+MODIF 479 � Correctif localhost vs production (processus depuis iCloud) � Soundly Dev
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL�ME
+----
+ La production (getsoundy.com) �tait sur la bonne version incluant l'auth httpOnly
+ cookie, tandis que localhost affichait une version ancienne. Cause racine : le
+ backend (ts-node-dev) et le frontend (Vite) tournaient depuis l'ancienne copie
+ iCloud Drive (C:\Users\valen\iCloudDrive\Application\MeloSong\MeloSongv2\) au lieu
+ du d�p�t actif (C:\Dev\Soundy\).
+
+CHANGEMENTS / FIX
+-----
+ Diagnostic
+ ----------
+ � Port 4080 (backend) occup� par PID 10940 ? commande ts-node-dev depuis
+   C:\Users\valen\iCloudDrive\Application\MeloSong\MeloSongv2\backend\ (ancienne copie iCloud).
+ � Port 5173 (Vite) occup� par PID 37828 ? Vite depuis la m�me copie iCloud.
+ � La copie iCloud n'avait pas les changements actifs en cours de dev
+   (auth httpOnly cookies, legal docs, nativePlatform.ts, etc.).
+
+ Correctif
+ ---------
+ � Arr�t des deux anciens processus (PIDs 10940 et 37828).
+ � Red�marrage backend depuis C:\Dev\Soundy\backend\ via dev-start.ps1.
+ � Red�marrage Vite depuis C:\Dev\Soundy\app\ ? port 5173.
+ � D�pendance cookie-parser d�j� install�e, TypeScript compil� sans erreur.
+
+FICHIERS MODIFI�S
+-----
+ Aucun fichier source modifi� � correctif purement op�rationnel (processus tu�s et
+ relanc�s depuis le bon r�pertoire).
+
+BUILD (si v�rifi�)
+-----
+ app/ ? tsc --noEmit ? ? (0 erreur)
+ backend/ ? tsc --noEmit ? ? (0 erreur)
+ Vite dev ? localhost:5173 ? ?
+ Backend msdev ? localhost:4080 ? ?
+
+================================================================================
+Fin MODIF 479 � 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 480 � Audit s�curit� & qualit� (CTO / SecExpert / QA) � Soundy Dev
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL�ME
+----
+ Audit complet du codebase (frontend + backend) par une �quipe simul�e CTO /
+ Senior Security Expert / QA. Correction de toutes les failles identifi�es.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/routes/auth.ts
+ --------------------------
+ � SEC-001 [Critical] � Validation mot de passe manquante en /register :
+   ajout contr�le longueur min (8) et max (128 chars, limite bcrypt).
+ � SEC-002 [High] � Pas de validation e-mail en /register :
+   ajout regex EMAIL_RE de base.
+ � SEC-003 [High] � Pas de validation pseudo en /register :
+   ajout longueur (2�30), caract�res autoris�s (USERNAME_RE).
+
+ backend/src/socket.ts
+ ---------------------
+ � SEC-004 [High] � �v�nement gift_sent : giftType non valid� (injection
+   d'animations fictives, d�ception UI) ; amount non born�.
+   Fix : whitelist ALLOWED_GIFT_TYPES, clamp amount 1�500, nettoyage du
+   spread (seuls les champs sanitis�s sont �mis).
+ � SEC-005 [Medium] � �v�nement dm : ID de message contr�l� c�t� client
+   (risque de spoofing d'ID, replay).
+   Fix : g�n�ration c�t� serveur (dm_<timestamp>_<rand>).
+ � CODE-001 [Medium] � Ajout validation du contenu DM (slice 2000 chars,
+   rejet des messages vides) coh�rent avec salon_message/live_message.
+
+ backend/src/server.ts
+ ---------------------
+ � SEC-006 [High] � Handler d'erreur g�n�rique absent : les exceptions non
+   g�r�es pouvaient exposer des stack traces Node.js.
+   Fix : catch-all qui r�pond { error: "Une erreur interne�" } sans d�tails.
+ � SEC-007 [Medium] � Host Header Injection dans getShareOgBaseUrl :
+   x-forwarded-host non nettoy� inject� en URL OG meta.
+   Fix : regex /^[a-zA-Z0-9.\-:[\]]+$/ sur le host avant usage.
+
+ backend/src/lib/imageValidation.ts  [NOUVEAU]
+ ---------------------------------------------
+ � CODE-002 [Medium] � Fonction validateImageMagicBytes dupliqu�e 3� :
+   sponsorBannerAssets, sponsorLogoAssets, albumCoverAssets.
+   Fix : extraction dans imageValidation.ts (DRY), + extForImageMime.
+
+ backend/src/lib/albumCoverAssets.ts
+ backend/src/lib/sponsorBannerAssets.ts
+ backend/src/lib/sponsorLogoAssets.ts
+ --------------------------------------
+ � Refactor : import depuis imageValidation.ts, suppression code dupliqu�.
+
+ backend/src/routes/donations.ts
+ --------------------------------
+ � CODE-003 [Medium] � Parsing JWT inline dans /config (divergence avec le
+   middleware authenticateJWT, import jwt/getJwtSecret non n�cessaires).
+   Fix : remplacement par verifyAuthToken() du middleware partag� +
+   lecture du cookie soundy_auth pour coh�rence avec les autres routes.
+
+FICHIERS MODIFI�S
+-----
+ backend/src/routes/auth.ts          ? validation register (mot de passe, e-mail, pseudo)
+ backend/src/socket.ts               ? gift_sent validation + dm ID serveur
+ backend/src/server.ts               ? error handler g�n�rique + host header fix
+ backend/src/lib/imageValidation.ts  ? NOUVEAU � utilitaire partag� magic bytes
+ backend/src/lib/albumCoverAssets.ts ? DRY refactor vers imageValidation
+ backend/src/lib/sponsorBannerAssets.ts ? DRY refactor vers imageValidation
+ backend/src/lib/sponsorLogoAssets.ts   ? DRY refactor vers imageValidation
+ backend/src/routes/donations.ts     ? refactor JWT optionnel dans /config
+
+BUILD (si v�rifi�)
+-----
+ backend/ ? tsc --noEmit ? ? (0 erreur)
+ app/     ? tsc --noEmit ? ? (0 erreur)
+
+================================================================================
+Fin MODIF 480 � 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 481 — Audit conformité GDPR / YouTube / Spotify / App Store — Soundy Dev
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Audit de conformité complet (GDPR, DSA, YouTube API ToS, Spotify Developer Policy,
+ App Store Guidelines). Correction de tous les écarts détectés en code.
+
+CHANGEMENTS / FIX
+-----
+ app/src/content/legal/types.ts
+ ─────────────────────────────
+ • GDPR-FIX-001 : Correction domaine e-mail légal — melosong.app → getsoundy.com
+   (LEGAL_CONTACT_EMAIL et LEGAL_PRIVACY_EMAIL). Les anciens e-mails n'étaient pas
+   opérationnels, rendant les droits RGPD (art. 7/17/20) non exerçables.
+
+ app/src/pages/AuthPage.tsx
+ ──────────────────────────
+ • GDPR-FIX-002 : Ajout case à cocher « Je confirme avoir au moins 13 ans »
+   (obligatoire, bloque l'inscription si non cochée) — conformité GDPR art. 8,
+   DSA et App Store Guidelines 1.3 (mineurs).
+   Appliqué aussi au flux OAuth (finalisation d'inscription via Google).
+
+ app/src/content/legal/rgpd.ts
+ ──────────────────────────────
+ • Mise à jour de la checklist production :
+   - Éléments implémentés marqués ☑ (export données, suppression compte,
+     email privacy, DSA art. 16, confirmation d'âge inscription).
+   - Nouveau §9a : article DSA art. 16 documenté.
+ • Date mise à jour : 21 juin 2026.
+
+ app/src/content/legal/privacy.ts
+ ─────────────────────────────────
+ • §9 Mineurs : précision que la confirmation d'âge est active (case à cocher
+   à l'inscription) et que les paiements sont réservés aux 18 ans+.
+ • §7 Vos droits : ajout des raccourcis directs dans l'app (export, suppression).
+ • Date mise à jour : 21 juin 2026.
+
+ app/src/locales/fr.json + en.json
+ ──────────────────────────────────
+ • auth.ageConfirmCheckbox : libellé de la case de confirmation d'âge.
+ • settings.legalSection renommé « Légal & RGPD ».
+ • settings.dsaReportContent : libellé DSA art. 16.
+ • settings.dsaReportContentHint : sous-titre DSA.
+ • settings.dataRightsSection + dataRightsHint + contactPrivacy + contactPrivacyHint.
+
+ app/src/pages/SettingsPage.tsx
+ ─────────────────────────────
+ • DSA-FIX-001 : Ajout entrée « Signaler un contenu illicite (DSA) » dans la
+   section légale — pointe vers le support (art. 16 DSA).
+ • GDPR-FIX-003 : Ajout bloc « Vos droits (RGPD) » avec l'e-mail
+   privacy@getsoundy.com en lien mailto: cliquable.
+
+ backend/src/routes/auth.ts
+ ──────────────────────────
+ • ENC-FIX-001 : Correction des caractères encodés incorrectement (? → é, à, è)
+   dans les messages d'erreur en français (register, login, profile update,
+   check-username). Ces erreurs corrompaient les réponses JSON lues par les clients.
+ • Regex check-username : restauration des caractères français (àâäéèêëîïôùûüç)
+   dans le pattern de validation.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/content/legal/types.ts          → domaine e-mail getsoundy.com
+ app/src/pages/AuthPage.tsx              → case confirmation âge inscription
+ app/src/content/legal/rgpd.ts          → checklist + §DSA
+ app/src/content/legal/privacy.ts       → §9 mineurs + §7 droits RGPD
+ app/src/locales/fr.json                → clés i18n DSA + âge
+ app/src/locales/en.json                → clés i18n DSA + âge
+ app/src/pages/SettingsPage.tsx         → entrée DSA + bloc droits RGPD
+ backend/src/routes/auth.ts             → correction encodage UTF-8
+
+BUILD (si vérifié)
+-----
+ app/ → tsc --noEmit → ✅ (0 erreur, ReadLints : 0 erreur)
+ backend/ → tsc --noEmit → ✅ (0 erreur, ReadLints : 0 erreur)
+
+================================================================================
+Fin MODIF 481 - 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 482 � Soundy Dev
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL�ME
+----
+ Audit complet de responsivit� mobile � alignement sur les standards
+ mobile-first du projet (390px iPhone 14, 768px iPad, 1024px+ desktop).
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/ConfirmModal.tsx
+ -----------------------------------
+ � Panneau interne : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
+   (bottom-sheet correct sur mobile)
+
+ app/src/components/ReportContentModal.tsx
+ -----------------------------------------
+ � Panneau interne : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
+
+ app/src/components/FollowUserButton.tsx
+ ---------------------------------------
+ � Panneau de confirmation "Ne plus suivre" : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
+
+ app/src/components/MyFavoritesSheet.tsx
+ ---------------------------------------
+ � Panneau interne : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
+
+ app/src/components/GenreOnboardingPrompt.tsx
+ --------------------------------------------
+ � Panneau interne : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
+ � Ajout max-h-[90dvh] overflow-y-auto pour �viter l'overflow vertical
+
+ app/src/components/SalonUserBanModal.tsx
+ ----------------------------------------
+ � Panneau interne : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
+
+ app/src/components/LiveUserBanModal.tsx
+ ---------------------------------------
+ � Panneau interne : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
+
+ app/src/components/StartLiveMediaSetupModal.tsx
+ -----------------------------------------------
+ � Panneau interne : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
+ � max-h-[min(92vh,36rem)] ? max-h-[min(92dvh,36rem)] (viewport unit)
+
+ app/src/components/LiveLegalAcceptanceModal.tsx
+ -----------------------------------------------
+ � max-h-[90vh] ? max-h-[90dvh] (viewport unit corrig�)
+
+ app/src/components/UserReelsSection.tsx
+ ---------------------------------------
+ � Modal upload reel : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
+
+ app/src/components/UserCompositionsSection.tsx
+ ----------------------------------------------
+ � 3 modals (upload, cr�er album, publier album) : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
+
+ app/src/components/StoryViewer.tsx
+ ----------------------------------
+ � Modal suppression story : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
+
+ app/src/pages/SettingsPage.tsx
+ ------------------------------
+ � 4 modals (2FA setup, 2FA backup, 2FA disable, suppression compte) :
+   rounded-2xl ? rounded-t-2xl sm:rounded-2xl + max-h-[90dvh] overflow-y-auto
+
+ app/src/pages/OnboardingPage.tsx
+ --------------------------------
+ � Boutons suppression photos (avatar + galerie) : w-6 h-6 ? w-8 h-8
+   (cible tactile trop petite < 44px corrig�e)
+
+ app/src/pages/DmPage.tsx
+ ------------------------
+ � Bouton retrait pi�ce jointe : w-6 h-6 ? w-8 h-8
+ � Boutons options message : w-7 h-7 ? w-9 h-9
+
+ app/src/pages/LivePage.tsx
+ --------------------------
+ � Bouton "Signaler le live" : w-7 h-7 ? w-9 h-9
+ � Bouton "Partager le live" : w-7 h-7 ? w-9 h-9
+
+ app/src/pages/SalonPage.tsx
+ ---------------------------
+ � Bouton "Partager le salon" : w-7 h-7 ? w-9 h-9
+
+FICHIERS MODIFI�S
+-----
+ app/src/components/ConfirmModal.tsx            ? rounded-t-2xl sm:rounded-2xl
+ app/src/components/ReportContentModal.tsx      ? rounded-t-2xl sm:rounded-2xl
+ app/src/components/FollowUserButton.tsx        ? rounded-t-2xl sm:rounded-2xl
+ app/src/components/MyFavoritesSheet.tsx        ? rounded-t-2xl sm:rounded-2xl
+ app/src/components/GenreOnboardingPrompt.tsx   ? rounded-t-2xl + max-h-dvh
+ app/src/components/SalonUserBanModal.tsx       ? rounded-t-2xl sm:rounded-2xl
+ app/src/components/LiveUserBanModal.tsx        ? rounded-t-2xl sm:rounded-2xl
+ app/src/components/StartLiveMediaSetupModal.tsx ? rounded-t-2xl + max-h-dvh
+ app/src/components/LiveLegalAcceptanceModal.tsx ? max-h-dvh
+ app/src/components/UserReelsSection.tsx        ? rounded-t-2xl sm:rounded-2xl
+ app/src/components/UserCompositionsSection.tsx ? 3� rounded-t-2xl sm:rounded-2xl
+ app/src/components/StoryViewer.tsx             ? rounded-t-2xl sm:rounded-2xl
+ app/src/pages/SettingsPage.tsx                 ? 4� rounded-t-2xl + max-h-dvh
+ app/src/pages/OnboardingPage.tsx               ? boutons photo w-8 h-8
+ app/src/pages/DmPage.tsx                       ? cibles tactiles w-8/w-9
+ app/src/pages/LivePage.tsx                     ? boutons header w-9 h-9
+ app/src/pages/SalonPage.tsx                    ? bouton partage w-9 h-9
+
+BUILD (si v�rifi�)
+-----
+ app/ ? tsc --noEmit ? ? (0 erreur, ReadLints : 0 erreur)
+
+================================================================================
+Fin MODIF 482 � 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 483 — Reels : optimisations perf mobile (lag / stuttering)
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Lag et stuttering visibles lors du scroll des Reels sur smartphone.
+ Plusieurs causes identifiées : re-renders inutiles sur chaque événement scroll,
+ vidéos sponsors chargées en preload auto, absence d'isolation CSS de chaque slide.
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/ReelsTabPage.tsx
+ ──────────────────────────────
+ • ReelSlide : wrappé dans memo() avec comparateur personnalisé
+   (reel ===, isActive, muted, showPlaybackPaused) — les slides inactifs ne
+   re-rendent plus lors des changements d'activeIndex pendant le scroll.
+ • ReelAuthorStack, ReelActions, ActionButton : wrappés dans memo().
+ • syncIndexFromScroll : setActiveIndex(clamped) déplacé dans le bloc
+   if (clamped !== activeIndexRef.current) — empêche les setState inutiles
+   sur chaque événement onScroll quand l'index n'a pas changé.
+ • useEffect resize handler : utilise activeIndexRef.current — supprime la
+   re-registration du listener à chaque changement d'index.
+ • Avatars commentaires : ajout loading=lazy decoding=async.
+
+ app/src/components/ReelsSponsoredSlide.tsx
+ ──────────────────────────────────────────
+ • Vidéo sponsor : ajout preload={isActive ? 'auto' : 'none'}.
+ • Ajout autoPlay={false}.
+ • Composant wrappé dans memo().
+
+ app/src/index.css
+ ─────────────────
+ • .reels-track : will-change: scroll-position + transform: translateZ(0).
+ • .reel-slide : contain: layout style paint.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/pages/ReelsTabPage.tsx            -> memo + scroll fixes + lazy avatars
+ app/src/components/ReelsSponsoredSlide.tsx -> preload + memo
+ app/src/index.css                         -> will-change + contain
+
+BUILD (si vérifié)
+-----
+ app/ -> npx tsc --noEmit -> OK (0 erreur, 0 lint)
+
+================================================================================
+Fin MODIF 483  2026-06-21
+================================================================================
+
+================================================================================
+MODIF 484 ? Header : avatar profil invisible sur mobile (fix stacking + search bar)
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL�ME
+----
+ L'avatar de profil (bouton en haut � droite du header) n'�tait pas visible sur
+ mobile (390px). Deux causes identifi�es :
+ 1. Bug de stacking CSS : ProfileSearchBar a `position: relative` sur son div
+    racine, ce qui le place dans la couche 6 du stacking order (�l�ments
+    positionn�s), tandis que le div de droite (non positionn�) est en couche 3.
+    Le fond opaque du SearchBar (#1a1a26/90) couvrait donc les boutons qui
+    d�bordaient dans sa zone.
+ 2. Formule trop large : `calc(100vw-7.5rem)` r�servait seulement 120px pour les
+    deux colonnes lat�rales (60px chacune), alors que la colonne de droite avait
+    besoin de ~112px pour ses 3 boutons ? 70px de d�bordement sous le SearchBar.
+
+CHANGEMENTS / FIX
+-----
+ app/src/App.tsx
+ ???????????????
+ ? ProfileSearchBar className (mobile) : `calc(100vw-7.5rem)` ? `calc(100vw-13rem)`
+   Sur 390px : 270px ? 182px pour la barre de recherche ; chaque colonne lat�rale
+   passe de 42px � 86px. Le d�bordement tombe de 70px � ~26px.
+ ? Div de droite (boutons) : ajout de `relative z-10` ? la div est d�sormais
+   positionn�e (couche 6) avec z-index:10, elle se peint AU-DESSUS du SearchBar
+   (z-auto) dans le stacking context du header. L'avatar est clairement visible.
+
+FICHIERS MODIFI�S
+-----
+ app/src/App.tsx ? formule search bar mobile + z-10 relative sur div boutons
+
+BUILD (si v�rifi�)
+-----
+ app/ ? npx tsc --noEmit ? ? (0 erreur)
+
+================================================================================
+Fin MODIF 484  2026-06-21
+================================================================================

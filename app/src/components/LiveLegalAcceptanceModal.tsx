@@ -46,7 +46,7 @@ export function LiveLegalAcceptanceModal({ token, onAccepted, onClose }: LiveLeg
         role="dialog"
         aria-modal="true"
         aria-labelledby="live-legal-title"
-        className="w-full max-w-md bg-[#0f0f1a] border border-[#2a2a3f] rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-y-auto max-h-[90vh]"
+        className="w-full max-w-md bg-[#0f0f1a] border border-[#2a2a3f] rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-y-auto max-h-[90dvh]"
       >
         {/* Header */}
         <div className="sticky top-0 bg-[#0f0f1a] border-b border-[#1e1e2f] px-5 pt-5 pb-4 flex items-start justify-between gap-3">

@@ -46,7 +46,7 @@ export function LiveUserBanModal({ username, open, onClose, onConfirm }: LiveUse
   return (
     <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-sm rounded-2xl border border-[#2d2d3d] bg-[#12121a] shadow-2xl p-4"
+        className="w-full max-w-sm rounded-t-2xl sm:rounded-2xl border border-[#2d2d3d] bg-[#12121a] shadow-2xl p-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-3">

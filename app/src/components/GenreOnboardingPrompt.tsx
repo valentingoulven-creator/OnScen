@@ -75,7 +75,7 @@ export function GenreOnboardingPrompt({ onDismiss }: Props) {
 
   return (
     <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm px-4 pb-4 sm:pb-0">
-      <div className="w-full max-w-sm bg-[#12121a] border border-[#2d2d3d] rounded-2xl p-5 space-y-4 shadow-2xl">
+      <div className="w-full max-w-sm bg-[#12121a] border border-[#2d2d3d] rounded-t-2xl sm:rounded-2xl p-5 space-y-4 shadow-2xl max-h-[90dvh] overflow-y-auto">
         <div className="text-center space-y-1">
           <div className="inline-flex w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 items-center justify-center text-xl mb-1">
             🎵

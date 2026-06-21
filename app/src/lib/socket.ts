@@ -13,6 +13,9 @@ function createSocket(token: string): Socket {
     path: '/socket.io',
     transports: ['websocket', 'polling'],
     autoConnect: false,
+    // withCredentials sends the httpOnly auth cookie on the HTTP upgrade handshake (web).
+    // Mobile clients (Capacitor) also pass the token explicitly via auth / extraHeaders.
+    withCredentials: true,
     auth: { token },
     extraHeaders: { [AUTH_TOKEN_HEADER]: token },
   });

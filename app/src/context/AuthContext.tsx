@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import i18n from '../i18n';
 import { api, ApiRequestError } from '../lib/api';
-import { clearStoredToken, getStoredToken, persistToken } from '../lib/authStorage';
+import { clearStoredToken, getStoredToken, isNativePlatform, persistToken } from '../lib/authStorage';
 import { clearPersistedSalonSession } from '../lib/activeSalonSession';
 import { clearSocketUser, registerUser, setSocketAuthToken } from '../lib/socket';
 import type { User } from '../types';
@@ -35,7 +35,7 @@ function isInvalidSessionError(message: string | undefined, status?: number): bo
   if (status === 404) return true;
   if (!message) return false;
   return (
-    message.includes('Session expirÃ©e') ||
+    message.includes('Session expirée') ||
     message.includes('Token invalide') ||
     message.includes('Token manquant') ||
     message.includes('Utilisateur introuvable')
@@ -53,6 +53,14 @@ function sessionErrorFromUnknown(e: unknown): { message: string; status?: number
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  /**
+   * WEB: token starts null; auth state is bootstrapped via the httpOnly cookie
+   * (see boot effect below). The token is stored in memory after login for
+   * in-session use (socket.io auth) but never persisted to localStorage.
+   *
+   * NATIVE: token is read from localStorage (Capacitor can't rely on cookies
+   * across native WebView origins the same way browsers do).
+   */
   const [token, setToken] = useState<string | null>(() => getStoredToken());
   const [user, setUser] = useState<User | null>(null);
   const [authBootError, setAuthBootError] = useState<string | null>(null);
@@ -77,6 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logoutRef = useRef<() => void>(null!);
 
   const logout = () => {
+    // Clear server-side httpOnly cookie (web). Noop on failure — cookie expires anyway.
+    api.logout().catch(() => undefined);
     clearStoredToken();
     clearPersistedSalonSession();
     clearSocketUser();
@@ -90,19 +100,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSocketAuthToken(token);
   }, [token]);
 
+  /**
+   * Boot: authenticate the session on startup.
+   *
+   * WEB: even with a null in-memory token, the httpOnly cookie is sent automatically
+   * with credentials:'include'. If the cookie is valid, /api/auth/me returns the user.
+   *
+   * NATIVE: falls back to the stored token from localStorage. If no token, skip.
+   */
   useEffect(() => {
-    if (!token) return;
+    const native = isNativePlatform();
+    // On native without a stored token, there's nothing to restore.
+    if (native && !token) return;
+
     let cancelled = false;
     const timeout = window.setTimeout(() => {
       if (cancelled) return;
-      setAuthBootError(
-        i18n.t('errors.serverUnreachable')
-      );
+      setAuthBootError(i18n.t('errors.serverUnreachable'));
       clearStoredToken();
       setToken(null);
       setUser(null);
     }, 20000);
 
+    // token may be null on web; the cookie handles auth in that case.
     api.me(token)
       .then((r) => {
         if (cancelled) return;
@@ -118,10 +138,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         setAuthBootError(
           message ||
-            'Erreur lors du chargement de la session. DÃ©connectez-vous ou actualisez la page (Ctrl+Shift+R).'
+            'Erreur lors du chargement de la session. Déconnectez-vous ou actualisez la page (Ctrl+Shift+R).'
         );
-        // Erreur rÃ©seau (serveur arrÃªtÃ©, cert, etc.) : on conserve le token.
-        // L'authBootError guide l'utilisateur ; le timeout de 20 s dÃ©connecte si nÃ©cessaire.
+        // Network error (server down, cert issue, etc.): keep token for retry.
+        // The 20 s timeout above will force-logout if the server stays unreachable.
       })
       .finally(() => {
         window.clearTimeout(timeout);
@@ -131,6 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       window.clearTimeout(timeout);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const login = async (email: string, password: string, rememberMe = true) => {
@@ -138,6 +159,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!r.token || !r.user) {
       throw new Error('Réponse de connexion invalide');
     }
+    // WEB: backend already set the httpOnly cookie — keep token only in memory.
+    // NATIVE: persist to localStorage for cross-session use.
     persistToken(r.token, rememberMe);
     setToken(r.token);
     setUser(r.user);
@@ -156,12 +179,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (r.pending) {
       throw new Error(
         r.message ||
-          'Inscription enregistrÃ©e. Un administrateur doit valider votre compte avant la premiÃ¨re connexion.'
+          'Inscription enregistrée. Un administrateur doit valider votre compte avant la première connexion.'
       );
     }
     if (!r.token || !r.user) {
-      throw new Error('RÃ©ponse dâ€™inscription invalide');
+      throw new Error('Réponse d\'inscription invalide');
     }
+    // WEB: backend already set the httpOnly cookie — keep token only in memory.
+    // NATIVE: persist to localStorage.
     persistToken(r.token, true);
     setToken(r.token);
     setUser(r.user);
@@ -170,7 +195,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshUser = useCallback(async () => {
-    if (!token) return;
+    const native = isNativePlatform();
+    if (native && !token) return;
     try {
       const r = await api.me(token);
       setUser(r.user);
@@ -184,7 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const setUserFromProfile = (u: User) =>
     setUser((prev) => {
-      // API uses null to signal "field cleared" â€” JSON cannot represent undefined.
+      // API uses null to signal "field cleared" — JSON cannot represent undefined.
       // Convert null back to undefined to keep state consistent with the User type.
       const raw = u as unknown as Record<string, unknown>;
       const next: User = {

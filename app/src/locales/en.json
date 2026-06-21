@@ -40,6 +40,7 @@
     "registrationClosed": "Registration closed",
     "inviteCode": "Invite code",
     "minAgeNotice": "You must be at least 13 years old to use Soundy.",
+    "ageConfirmCheckbox": "I confirm I am at least 13 years old (required)",
     "spotifyHostPremiumNotice": "To host a Spotify room, a Spotify Premium subscription is required.",
     "passwordMismatch": "Passwords do not match",
     "pendingSalon": "Sign in to join the shared room.",
@@ -343,7 +344,8 @@
     "headerSubscribe": "Subscribe",
     "headerSubscribeShort": "Subscribe",
     "leaveLive": "Leave live",
-    "leaveLiveShort": "Leave"
+    "leaveLiveShort": "Leave",
+    "iosIapDonation": "Tips are not available in the iOS app. Please use the web version at getsoundy.com to send tips."
   },
   "dm": {
     "title": "Messages",
@@ -572,7 +574,13 @@
     "pushDefaultHint": "Get alerts even when the app is closed",
     "pushBlocked": "Blocked",
     "pushToggleAria": "Toggle push notifications",
-    "legalSection": "Legal",
+    "legalSection": "Legal & GDPR",
+    "dsaReportContent": "Report illegal content (DSA)",
+    "dsaReportContentHint": "Digital Services Act — art. 16",
+    "dataRightsSection": "Your rights (GDPR)",
+    "dataRightsHint": "Access, correction, deletion, portability",
+    "contactPrivacy": "Exercise your GDPR rights",
+    "contactPrivacyHint": "privacy@getsoundy.com",
     "legalMentions": "Legal notice",
     "legalTerms": "Terms of service",
     "legalPrivacy": "Privacy policy (GDPR)",
@@ -612,7 +620,8 @@
     "manageBilling": "Manage billing (Stripe)",
     "ageConfirm": "I confirm I am 18 or older and authorized to use a payment method.",
     "simulationNotice": "Simulation — no real payment in development mode.",
-    "renewsOn": "Renews on {{date}}"
+    "renewsOn": "Renews on {{date}}",
+    "iosIapNotice": "Subscriptions are not available in the iOS app. Please use the web version at getsoundy.com to manage your subscription."
   },
   "support": {
     "title": "Contact Soundy",

@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePauseMediaOnPageHidden } from '../hooks/usePauseMediaOnPageHidden';
 import { type MusicReel } from '../content/reels';
@@ -531,8 +531,8 @@ export function ReelsTabPage({
       const nextItem = reelsRef.current[clamped];
       const nextReelId = nextItem?.key;
       if (nextReelId) pauseInactiveReelsMediaInDom(nextReelId);
+      setActiveIndex(clamped);
     }
-    setActiveIndex(clamped);
     if (scrollSettleTimerRef.current) clearTimeout(scrollSettleTimerRef.current);
     scrollSettleTimerRef.current = window.setTimeout(() => {
       scrollSettleTimerRef.current = null;
@@ -971,10 +971,10 @@ export function ReelsTabPage({
   const resolveMuted = useCallback(() => mutedRef.current, []);
 
   useEffect(() => {
-    const onResize = () => goToIndex(activeIndex);
+    const onResize = () => goToIndex(activeIndexRef.current);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [activeIndex, goToIndex]);
+  }, [goToIndex]);
 
   useEffect(() => {
     if (!shareToast) return;
@@ -1251,7 +1251,7 @@ export function ReelsTabPage({
   );
 }
 
-function ReelActions({
+const ReelActions = memo(function ReelActions({
   stats,
   disabled,
   onHeart,
@@ -1314,9 +1314,9 @@ function ReelActions({
       )}
     </div>
   );
-}
+});
 
-function ActionButton({
+const ActionButton = memo(function ActionButton({
   label,
   count,
   disabled,
@@ -1349,7 +1349,7 @@ function ActionButton({
       )}
     </button>
   );
-}
+});
 
 function formatCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -1450,6 +1450,8 @@ function ReelCommentsSheet({
                     src={c.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${c.userId}`}
                     alt=""
                     className="w-8 h-8 rounded-full shrink-0 bg-[#1e1e2f]"
+                    loading="lazy"
+                    decoding="async"
                   />
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-pink-300">{c.username}</p>
@@ -1483,7 +1485,7 @@ function ReelCommentsSheet({
   );
 }
 
-function ReelAuthorStack({
+const ReelAuthorStack = memo(function ReelAuthorStack({
   reel,
   onOpenAuthor,
 }: {
@@ -1548,33 +1550,34 @@ function ReelAuthorStack({
       {card}
     </button>
   );
-}
+});
 
-function ReelSlide({
-  reel,
-  isActive,
-  muted,
-  videoRef,
-  audioRef,
-  onTapForSound,
-  onTapCenter,
-  onDoubleTapLike,
-  showPlaybackPaused,
-  resolveMuted,
-  onOpenAuthor,
-}: {
-  reel: MusicReel;
-  isActive: boolean;
-  muted: boolean;
-  videoRef: (el: HTMLVideoElement | null) => void;
-  audioRef: (el: HTMLAudioElement | null) => void;
-  onTapForSound?: () => void;
-  onTapCenter?: () => void;
-  onDoubleTapLike?: () => void;
-  showPlaybackPaused?: boolean;
-  resolveMuted?: () => boolean;
-  onOpenAuthor?: (userId: string) => void;
-}) {
+const ReelSlide = memo(
+  function ReelSlide({
+    reel,
+    isActive,
+    muted,
+    videoRef,
+    audioRef,
+    onTapForSound,
+    onTapCenter,
+    onDoubleTapLike,
+    showPlaybackPaused,
+    resolveMuted,
+    onOpenAuthor,
+  }: {
+    reel: MusicReel;
+    isActive: boolean;
+    muted: boolean;
+    videoRef: (el: HTMLVideoElement | null) => void;
+    audioRef: (el: HTMLAudioElement | null) => void;
+    onTapForSound?: () => void;
+    onTapCenter?: () => void;
+    onDoubleTapLike?: () => void;
+    showPlaybackPaused?: boolean;
+    resolveMuted?: () => boolean;
+    onOpenAuthor?: (userId: string) => void;
+  }) {
   const { t } = useTranslation();
   const separateAudio = !!reel.audioUrl?.trim();
   const wantMuted = () => resolveMuted?.() ?? muted;
@@ -1950,7 +1953,13 @@ function ReelSlide({
       </div>
     </section>
   );
-}
+  },
+  (prev, next) =>
+    prev.reel === next.reel &&
+    prev.isActive === next.isActive &&
+    prev.muted === next.muted &&
+    prev.showPlaybackPaused === next.showPlaybackPaused
+);
 
 function ReelsAlgoSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const [prefs, setPrefs] = useState<ReelsUserPrefs>(() => readReelsUserPrefs());

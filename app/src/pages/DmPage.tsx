@@ -2429,7 +2429,7 @@ export function DmPage({
                 <button
                   type="button"
                   onClick={() => setOpenMsgMenuId((id) => (id === m.id ? null : m.id))}
-                  className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-gray-500 hover:text-white hover:bg-[#1a1a26] text-sm"
+                  className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:text-white hover:bg-[#1a1a26] text-sm"
                   aria-label="Options du message"
                 >
                   ⋮
@@ -2460,7 +2460,7 @@ export function DmPage({
               <button
                 type="button"
                 onClick={() => setPendingAttachment(null)}
-                className="shrink-0 w-6 h-6 flex items-center justify-center text-gray-500 hover:text-white text-sm rounded-full hover:bg-white/10"
+                className="shrink-0 w-8 h-8 flex items-center justify-center text-gray-500 hover:text-white text-sm rounded-full hover:bg-white/10"
                 aria-label="Retirer la pièce jointe"
               >
                 ✕
@@ -2801,7 +2801,7 @@ export function DmPage({
                     <button
                       type="button"
                       onClick={() => setOpenMsgMenuId((id) => (id === m.id ? null : m.id))}
-                      className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-gray-500 hover:text-white hover:bg-[#1a1a26] text-sm"
+                      className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:text-white hover:bg-[#1a1a26] text-sm"
                       aria-label="Options du message"
                     >
                       ⋮

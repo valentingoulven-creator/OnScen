@@ -728,7 +728,7 @@ export function OnboardingPage({ onDone }: Props) {
                     <button
                       type="button"
                       onClick={() => requestRemoveOnboardingPhoto(0)}
-                      className="absolute top-0 left-0 z-10 w-6 h-6 rounded-full bg-black/75 border border-white/20 text-white text-xs flex items-center justify-center hover:bg-red-600/90 transition"
+                      className="absolute top-0 left-0 z-10 w-8 h-8 rounded-full bg-black/75 border border-white/20 text-white text-sm flex items-center justify-center hover:bg-red-600/90 transition"
                       aria-label="Supprimer l'avatar"
                     >
                       ×
@@ -759,7 +759,7 @@ export function OnboardingPage({ onDone }: Props) {
                         <button
                           type="button"
                           onClick={() => requestRemoveOnboardingPhoto(idx)}
-                          className="absolute top-0 left-0 z-10 w-6 h-6 rounded-full bg-black/75 border border-white/20 text-white text-xs flex items-center justify-center hover:bg-red-600/90 transition"
+                          className="absolute top-0 left-0 z-10 w-8 h-8 rounded-full bg-black/75 border border-white/20 text-white text-sm flex items-center justify-center hover:bg-red-600/90 transition"
                           aria-label="Supprimer la photo"
                         >
                           ×

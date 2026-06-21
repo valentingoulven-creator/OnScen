@@ -83,7 +83,7 @@ export function MyFavoritesSheet({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md max-h-[min(85dvh,32rem)] flex flex-col bg-[#12121a] border border-[#2d2d3d] rounded-2xl shadow-2xl overflow-hidden"
+        className="w-full max-w-md max-h-[min(85dvh,32rem)] flex flex-col bg-[#12121a] border border-[#2d2d3d] rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="shrink-0 p-4 border-b border-[#1e1e2f] flex items-center justify-between">
