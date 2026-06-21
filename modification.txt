@@ -3069,3 +3069,69 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 484  2026-06-21
 ================================================================================
+
+================================================================================
+MODIF 541 ? Safari iOS/macOS : affichage layout + viewport
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L'app ne s'affichait pas correctement sur Safari (priorité iOS). Causes identifiées :
+ 1. `overflow: hidden` / `overflow-x: clip` sur `#root` et `.ms-app-shell` ? iOS Safari
+    ancre mal `position: fixed` (header, onglets bas, toasts) dans un ancêtre non visible.
+ 2. Règle globale `.fixed { transform: translateZ(0); will-change: transform }` ? layers
+    GPU excessives et conflits de stacking sur WebKit.
+ 3. `100dvh` sans fallback ? anciens Safari iOS (barre d'adresse dynamique).
+ 4. Inputs header/recherche en `text-xs` (12px) ? zoom automatique au focus iOS.
+ 5. `calc(100vw - 13rem)` sur la barre de recherche ? `100vw` inclut parfois la scrollbar
+    sur Safari, débordement horizontal.
+ 6. `contain: paint` sur `.reel-slide` ? peut couper/masquer les vidéos Reels sur Safari.
+
+CHANGEMENTS / FIX
+-----
+ app/src/index.css
+ ?????????????????
+ ? Suppression règle globale transform/will-change sur `.fixed` / `.sticky`.
+ ? Chaîne hauteur viewport : `100vh` ? `100dvh` ? `-webkit-fill-available` sur html, body,
+   #root, .ms-app-shell, .ms-story-editor-shell.
+ ? `#root` : retrait overflow (fixed header/tabs).
+ ? `.ms-app-shell` : overflow-x clip seulement, overflow-y visible ; max/min-height fallbacks.
+ ? header.ms-app-header + nav.ms-tab-bar-bottom : backface-visibility (GPU ciblé).
+ ? Safari mobile : inputs/select/textarea font-size 16px (anti-zoom iOS).
+ ? overflow-x: hidden fallback avant clip (Safari < 16).
+ ? .reel-slide : `contain: layout style` (sans paint).
+
+ app/src/App.tsx
+ ???????????????
+ ? Shell : retrait `overflow-hidden` (confinement scroll sur `main.ms-app-main` uniquement).
+ ? Header grid : colonne centrale `minmax(0,18rem)` / `minmax(0,22rem)` au lieu de
+   `calc(100vw-13rem)` ? plus de dépendance à 100vw.
+
+ app/index.html
+ ??????????????
+ ? Boot loader `#melosong-boot` : fallbacks min-height vh/dvh/-webkit-fill-available.
+ ? Viewport meta `viewport-fit=cover` déjà présent ? inchangé.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/index.css  ? fallbacks viewport, fixed Safari, anti-zoom, reels contain
+ app/src/App.tsx    ? shell overflow + grid search bar
+ app/index.html     ? boot loader height fallback
+ modification.txt   ? cette entrée
+
+BUILD (si vérifié)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+TESTS MANUELS RECOMMANDÉS (appareil réel)
+-----
+ ? iPhone Safari : header fixe + onglets bas visibles au scroll / rubber-band.
+ ? Reels : snap vertical, vidéo plein écran sans bande noire.
+ ? Barre recherche header : pas de zoom au focus, pas de débordement horizontal 390px.
+ ? PWA standalone (icône écran d'accueil) : safe-area notch + home indicator.
+ ? macOS Safari : layout desktop appweb (sidebar 1024px+).
+
+================================================================================
+Fin MODIF 541  2026-06-21
+================================================================================

@@ -806,7 +806,7 @@ export default function App() {
 
   return (
     <div
-      className={`ms-app-shell flex flex-col min-h-dvh max-h-dvh overflow-hidden min-w-0 w-full${!appa2 ? ' ms-app-shell--bottom-tabs' : ''}${appa2 && !profileOpen ? ' ms-app-shell--header-tabs' : ''}`}
+      className={`ms-app-shell flex flex-col min-h-dvh max-h-dvh min-w-0 w-full${!appa2 ? ' ms-app-shell--bottom-tabs' : ''}${appa2 && !profileOpen ? ' ms-app-shell--header-tabs' : ''}`}
     >
       {incomingToast && (
         <div
@@ -864,7 +864,7 @@ export default function App() {
         className={`ms-app-header${appa2 && !profileOpen ? ' ms-app-header--with-tabs' : ''}`}
       >
           <div className="px-3 sm:px-4 pb-2 ms-safe-area-top">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-1.5 sm:gap-x-2 min-w-0">
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,18rem)_minmax(0,1fr)] sm:grid-cols-[minmax(0,1fr)_minmax(0,22rem)_minmax(0,1fr)] items-center gap-x-1.5 sm:gap-x-2 min-w-0">
             <div className="flex items-center gap-1.5 sm:gap-2 justify-self-start min-w-0 overflow-hidden">
               <button
                 type="button"
@@ -890,7 +890,7 @@ export default function App() {
             <ProfileSearchBar
               token={token}
               onSelectUser={handleSearchSelectUser}
-              className="justify-self-center w-[min(18rem,calc(100vw-13rem))] sm:w-[min(22rem,calc(100vw-9rem))]"
+              className="justify-self-stretch w-full min-w-0 max-w-full"
             />
             <div className="relative z-10 flex items-center gap-1 justify-self-end shrink-0">
               <AdminHeaderButton

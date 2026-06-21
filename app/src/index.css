@@ -114,13 +114,6 @@ body {
   height: 0;
 }
 
-/* Évite les repaints sur les éléments fixed/sticky — layer GPU dédié */
-.fixed, .sticky,
-[class*="fixed"] {
-  transform: translateZ(0);
-  will-change: transform;
-}
-
 /* Empêche le pull-to-refresh du navigateur (conflit avec les gestes dans-app) */
 html, body {
   overscroll-behavior: none;
@@ -129,6 +122,8 @@ html, body {
 /* Désactive le smooth scroll natif — peut bloquer ou ralentir les animations JS */
 html {
   scroll-behavior: auto;
+  /* Safari iOS — chaîne hauteur viewport (barre d’adresse dynamique) */
+  height: -webkit-fill-available;
 }
 
 :root,
@@ -261,16 +256,29 @@ body {
   margin: 0;
   width: 100%;
   max-width: 100%;
+  /* hidden = fallback Safari < 16 ; clip = pas de scroll chaining horizontal */
+  overflow-x: hidden;
   overflow-x: clip;
 }
 
 body {
+  min-height: 100vh;
   min-height: 100dvh;
+  min-height: -webkit-fill-available;
   background: var(--ms-bg);
   color: var(--ms-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeSpeed;
+}
+
+/* Safari iOS — inputs < 16px déclenchent un zoom au focus */
+@media screen and (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 
 /** Dégradé pseudo « wave » (identique au logo Soundly dans le header). */
@@ -282,11 +290,15 @@ body {
 }
 
 #root {
+  min-height: 100vh;
   min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  height: 100vh;
   height: 100dvh;
+  height: -webkit-fill-available;
   width: 100%;
   max-width: 100%;
-  overflow-x: clip;
+  /* Pas d’overflow ici — iOS Safari ancre mal position:fixed dans un ancêtre clip/hidden */
 }
 
 /* Shell principal — chaîne flex + pas de débordement horizontal */
@@ -294,7 +306,15 @@ body {
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  max-height: 100vh;
+  max-height: 100dvh;
+  max-height: -webkit-fill-available;
+  overflow-x: hidden;
   overflow-x: clip;
+  /* overflow-y visible volontaire — header/onglets fixed ne doivent pas être clippés (Safari iOS) */
   /* Recalculé ici (pas sur :root) pour que --app-header-tabs-h des modificateurs shell soit pris en compte dans le padding du main. */
   --app-header-total-h: calc(
     max(0.75rem, env(safe-area-inset-top, 0px))
@@ -349,6 +369,9 @@ header.ms-app-header {
   background: var(--ms-bg);
   border-bottom: 1px solid var(--ms-border);
   pointer-events: none;
+  /* Couche GPU ciblée — pas de transform global sur .fixed (casse l’ancrage viewport Safari) */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 header.ms-app-header :is(a, button, input, select, textarea, label, [role='tablist']) {
@@ -426,6 +449,8 @@ nav.ms-tab-bar-bottom {
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--tab-nav-float-gap));
   min-height: 0;
   pointer-events: none;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 nav.ms-tab-bar-bottom > div:not(.ms-tab-rail) {
@@ -1104,6 +1129,12 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 /* Éditeur photo/story — remonte le dock quand le clavier virtuel est ouvert */
 .ms-story-editor-shell {
   --keyboard-inset: 0px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  max-height: 100vh;
+  max-height: 100dvh;
+  max-height: -webkit-fill-available;
 }
 
 .ms-story-editor-dock {
@@ -1190,7 +1221,8 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   position: relative;
   overflow: hidden;
   box-sizing: border-box;
-  contain: layout style paint;
+  /* paint omis — Safari iOS peut masquer/couper les vidéos dans un contain:paint */
+  contain: layout style;
 }
 
 .reels-track::-webkit-scrollbar {
