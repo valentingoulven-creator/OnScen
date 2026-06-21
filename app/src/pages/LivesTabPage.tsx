@@ -4,7 +4,6 @@ import { api } from '../lib/api';
 import {
   getLivesGeo,
   setLivesGeo,
-  setLivesGeoRadiusKm,
   MAP_GEO_CHANGED_EVENT,
   type LivesGeoPrefs,
 } from '../lib/livesGeo';
