@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import { getActiveHostLiveId } from '../lib/liveHostContext';
-import { showMatchSystemNotification } from '../lib/dmNotifications';
+import { NOTIFICATIONS_MUTED_LS_KEY, showMatchSystemNotification } from '../lib/dmNotifications';
 import { UsernameDisplay } from './UsernameDisplay';
 import type { AppNotification, MusicMatch } from '../types';
 
@@ -158,6 +158,26 @@ export function NotificationBell({
   const [unread, setUnread] = useState(0);
   const [toast, setToast] = useState<AppNotification | null>(null);
   const markedReadRef = useRef(false);
+
+  const [isMuted, setIsMuted] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(NOTIFICATIONS_MUTED_LS_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleMute = useCallback(() => {
+    setIsMuted((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(NOTIFICATIONS_MUTED_LS_KEY, next ? 'true' : 'false');
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
 
   const clearViewedLocalFlag = useCallback(() => {
     if (!user?.id) return;
@@ -521,10 +541,10 @@ export function NotificationBell({
         <button
           type="button"
           onClick={openPanel}
-          className="relative w-9 h-9 flex items-center justify-center rounded-full bg-[#1a1a26] border border-[#2d2d3d] text-gray-300 hover:text-white"
+          className="relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full bg-[#1a1a26] border border-[#2d2d3d] text-gray-300 hover:text-white shrink-0"
           aria-label="Notifications"
         >
-          <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg viewBox="0 0 24 24" className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="2">
             <path
               d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5M9 17v1a3 3 0 0 0 6 0v-1"
               strokeLinecap="round"
@@ -573,9 +593,36 @@ export function NotificationBell({
                 </div>
               )}
 
-              <p className="px-3 py-2 text-xs font-bold text-gray-400 border-b border-[#1e1e2f]">
-                Notifications
-              </p>
+              <div className="flex items-center justify-between px-3 py-1.5 border-b border-[#1e1e2f]">
+                <p className="text-xs font-bold text-gray-400">Notifications</p>
+                <button
+                  type="button"
+                  onClick={toggleMute}
+                  aria-label={isMuted ? 'Réactiver les notifications' : 'Couper les notifications'}
+                  aria-pressed={isMuted}
+                  title={isMuted ? 'Réactiver les notifications' : 'Couper les notifications'}
+                  className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
+                    isMuted
+                      ? 'bg-purple-600/80 text-white hover:bg-purple-500'
+                      : 'text-gray-400 hover:bg-[#2d2d3d] hover:text-gray-200'
+                  }`}
+                >
+                  {isMuted ? (
+                    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                      <path d="M18.63 13A17.89 17.89 0 0 1 18 8" />
+                      <path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14" />
+                      <path d="M18 8a6 6 0 0 0-9.33-5" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5" />
+                      <path d="M9 17v1a3 3 0 0 0 6 0v-1" />
+                    </svg>
+                  )}
+                </button>
+              </div>
               {items.length === 0 && (
                 <p className="p-4 text-center text-xs text-gray-500">Aucune notification</p>
               )}

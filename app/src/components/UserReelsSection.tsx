@@ -517,14 +517,14 @@ export function UserReelsSection({
 
       {pendingUpload && (
         <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="reel-upload-title"
         >
           <form
             onSubmit={(e) => void publishUploadedReel(e)}
-            className="w-full max-w-sm rounded-t-2xl sm:rounded-2xl bg-[#12121a] border border-[#2d2d3d] p-4 space-y-3 shadow-xl"
+            className="w-full max-w-sm rounded-2xl bg-[#12121a] border border-[#2d2d3d] p-4 space-y-3 shadow-xl"
           >
             <h4 id="reel-upload-title" className="text-sm font-bold text-white">
               Publier sur votre profil

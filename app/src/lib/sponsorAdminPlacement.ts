@@ -7,6 +7,7 @@ export const SPONSOR_PLACEMENT_TABS: SponsorPlacementTab[] = [
   'feed_inline',
   'stories_banner',
   'reels_sponsored',
+  'salon_theater',
   'all',
 ];
 

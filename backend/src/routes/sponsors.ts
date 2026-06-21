@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { listActiveFeedAds, listActiveMapAds, listActiveReelsAds, listActiveStoriesAds, type MapViewportQuery } from '../lib/sponsors';
+import { listActiveFeedAds, listActiveMapAds, listActiveReelsAds, listActiveSalonAds, listActiveStoriesAds, type MapViewportQuery } from '../lib/sponsors';
 import { getPublicReelsSponsorConfig } from '../lib/sponsorPlatformConfig';
 
 export const sponsorsRouter = Router();
@@ -69,4 +69,9 @@ sponsorsRouter.get('/reels', (_req: Request, res: Response) => {
     items: listActiveReelsAds(),
     config: getPublicReelsSponsorConfig(),
   });
+});
+
+/** Bandeaux actifs pour le salon théâtre (public, sans auth). */
+sponsorsRouter.get('/salon', (_req: Request, res: Response) => {
+  sendActiveSponsors(res, listActiveSalonAds());
 });

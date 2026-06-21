@@ -42,6 +42,7 @@ import {
   subscribeSalonVideoFloat,
 } from '../lib/salonVideoFloat';
 import { PlatformConnectCard } from './PlatformConnectCard';
+import { SalonAdBanner } from './SalonAdBanner';
 import type { User } from '../types';
 import type { PlaybackState, ResolvedSalonTrack, Salon, SalonQueueItem, SalonTrackProposal } from '../types';
 
@@ -1016,6 +1017,8 @@ export function SalonPlaybackPanel({
           </div>
           {playbackProgressInput}
         </div>
+
+        <SalonAdBanner />
 
         <div
           className={`salon-theater-panel-extra min-h-0 overflow-y-auto${

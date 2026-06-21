@@ -97,7 +97,7 @@ export interface AdminCreatorInfo {
 
 export type AdminContentFilter = 'all' | 'blocked' | 'active';
 
-export type SponsorPlacement = 'map_banner' | 'feed_inline' | 'stories_banner' | 'reels_sponsored';
+export type SponsorPlacement = 'map_banner' | 'feed_inline' | 'stories_banner' | 'reels_sponsored' | 'salon_theater';
 export type SponsorAccent = 'purple' | 'pink' | 'amber' | 'cyan' | 'rose';
 export type SponsorKind = 'promo' | 'sponsored';
 export type SponsorFilter = 'all' | 'active' | 'inactive';

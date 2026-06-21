@@ -634,17 +634,18 @@ export function RoomTheaterLayout({
   const chevronCollapse = showLeftDock ? '6,1 2,7 6,13' : '2,1 6,7 2,13';
   const chevronExpand = showLeftDock ? '2,1 6,7 2,13' : '6,1 2,7 6,13';
 
-  const chatHiddenButton = chatHidden ? (
+  const chatHiddenButton = (
     <button
       type="button"
       onClick={onToggleChat}
-      className="absolute top-2 right-2 z-[25] flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1a1a26]/90 border border-purple-500/40 text-[10px] font-bold text-purple-300 backdrop-blur hover:border-purple-400 transition pointer-events-auto"
-      aria-label="Afficher le chat"
+      className={`absolute top-2 right-2 z-[25] flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1a1a26]/90 border border-purple-500/40 text-[10px] font-bold text-purple-300 backdrop-blur hover:border-purple-400 transition pointer-events-auto${!chatHidden ? ' sm:hidden' : ''}`}
+      aria-label={chatHidden ? 'Afficher le chat' : 'Masquer le chat'}
+      aria-pressed={!chatHidden}
     >
       <span aria-hidden>💬</span>
-      Chat
+      {chatHidden ? 'Chat' : 'Masquer'}
     </button>
-  ) : null;
+  );
 
   const bottomChatDock = showBottomDock ? (
     <div

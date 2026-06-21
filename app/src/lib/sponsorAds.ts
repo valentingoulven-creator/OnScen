@@ -3,7 +3,7 @@ import { isInMapBounds, type MapBounds } from './mapMarkerVisibility';
 
 import type { MapAdItem } from '../types';
 
-export type SponsorPlacementFetch = 'map' | 'feed' | 'stories';
+export type SponsorPlacementFetch = 'map' | 'feed' | 'stories' | 'salon';
 
 export type MapSponsorViewport = {
   lat?: number;

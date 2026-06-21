@@ -1853,7 +1853,7 @@ export function UserCompositionsSection({
 
         <div
 
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
 
           role="dialog"
 
@@ -1867,7 +1867,7 @@ export function UserCompositionsSection({
 
             onSubmit={(e) => void submitUpload(e)}
 
-            className="w-full max-w-sm rounded-t-2xl sm:rounded-2xl bg-[#12121a] border border-[#2d2d3d] p-4 space-y-3 shadow-xl"
+            className="w-full max-w-sm rounded-2xl bg-[#12121a] border border-[#2d2d3d] p-4 space-y-3 shadow-xl"
 
           >
 
@@ -1985,7 +1985,7 @@ export function UserCompositionsSection({
 
         <div
 
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
 
           role="dialog"
 
@@ -1999,7 +1999,7 @@ export function UserCompositionsSection({
 
             onSubmit={(e) => void submitCreateAlbum(e)}
 
-            className="w-full max-w-sm rounded-t-2xl sm:rounded-2xl bg-[#12121a] border border-[#2d2d3d] p-4 space-y-3 shadow-xl"
+            className="w-full max-w-sm rounded-2xl bg-[#12121a] border border-[#2d2d3d] p-4 space-y-3 shadow-xl"
 
           >
 
@@ -2245,7 +2245,7 @@ export function UserCompositionsSection({
 
         <div
 
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
 
           role="dialog"
 
@@ -2265,7 +2265,7 @@ export function UserCompositionsSection({
 
             }}
 
-            className="w-full max-w-sm rounded-t-2xl sm:rounded-2xl bg-[#12121a] border border-[#2d2d3d] p-4 space-y-3 shadow-xl"
+            className="w-full max-w-sm rounded-2xl bg-[#12121a] border border-[#2d2d3d] p-4 space-y-3 shadow-xl"
 
           >
 

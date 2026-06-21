@@ -86,13 +86,13 @@ export function PrivacyVisibilityMenu() {
         title="Confidentialité et visibilité"
         aria-label="Confidentialité et visibilité"
         aria-expanded={open}
-        className={`p-2 rounded-full transition ${
+        className={`p-1.5 sm:p-2 rounded-full transition shrink-0 ${
           activePrivacy
             ? 'text-purple-400/90 bg-purple-500/10 hover:bg-purple-500/20'
             : 'text-gray-500/70 hover:text-gray-400 hover:bg-[#1a1a26] opacity-60 hover:opacity-100'
         }`}
       >
-        <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.75">
+        <svg viewBox="0 0 24 24" className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="1.75">
           <path
             d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49M14.084 14.158a3 3 0 0 1-4.242-4.242"
             strokeLinecap="round"

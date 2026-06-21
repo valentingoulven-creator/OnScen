@@ -20,6 +20,98 @@ import { SalonInviteLinkCopy } from './SalonInviteLinkCopy';
 import { SalonInviteUserSearch } from './SalonInviteUserSearch';
 import type { DmContact, Salon, User } from '../types';
 
+// ── Inline SVG icon helpers ────────────────────────────────────────────────────
+
+function IcoX() {
+  return (
+    <svg
+      className="w-4 h-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
+function IcoCheck({ sm }: { sm?: boolean }) {
+  return (
+    <svg
+      className={sm ? 'w-3 h-3' : 'w-3.5 h-3.5'}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
+function IcoYouTube({ sm }: { sm?: boolean }) {
+  return (
+    <svg className={sm ? 'w-4 h-4' : 'w-6 h-6'} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z" />
+    </svg>
+  );
+}
+
+function IcoGlobe({ sm }: { sm?: boolean }) {
+  return (
+    <svg
+      className={sm ? 'w-4 h-4' : 'w-5 h-5'}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+    </svg>
+  );
+}
+
+function IcoLock({ sm }: { sm?: boolean }) {
+  return (
+    <svg
+      className={sm ? 'w-4 h-4' : 'w-5 h-5'}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
+}
+
+// ── Shared style constants ─────────────────────────────────────────────────────
+
+const inputCls =
+  'mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-lg px-3 py-2 text-sm text-white ' +
+  'placeholder:text-gray-600 focus:outline-none focus:border-purple-500/60 ' +
+  'focus:ring-1 focus:ring-purple-500/30 transition-colors';
+
+const labelCls = 'block text-[11px] font-medium text-gray-400';
+
+const sectionTitleCls =
+  'text-[9px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5';
+
+// ── Types & exports ────────────────────────────────────────────────────────────
+
 export interface CreateSalonForm {
   title: string;
   platform: 'youtube';
@@ -55,6 +147,8 @@ interface CreateSalonModalProps {
   onDeferredError?: (message: string) => void;
 }
 
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export function CreateSalonModal({
   token,
   username,
@@ -70,25 +164,25 @@ export function CreateSalonModal({
   onDeferredError,
 }: CreateSalonModalProps) {
   const { t } = useTranslation();
-  const [step, setStep] = useState(1);
   const [contacts, setContacts] = useState<DmContact[]>([]);
   const [saving, setSaving] = useState(false);
   const [draftSalonId, setDraftSalonId] = useState(() => generateSalonId());
   const [toast, setToast] = useState<string | null>(null);
+  const [showOptions, setShowOptions] = useState(false);
   const openedAtRef = useRef(0);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [form, setForm] = useState<CreateSalonForm>({
-    title: `Salon de ${username}`,
+    title: '',
     platform: 'youtube',
     accessMode: 'public',
     allowedUserIds: [],
-    trackTitle: 'Ma session Soundy',
+    trackTitle: '',
     artist: username,
     youtubePlaylist: null,
     allowQueue: true,
   });
 
-  const skipAccessStep = preset?.accessMode === 'invite';
+  const skipAccessSection = preset?.accessMode === 'invite';
 
   const showToast = (message: string) => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -99,21 +193,21 @@ export function CreateSalonModal({
   useEffect(() => {
     if (!open || !token) return;
     openedAtRef.current = Date.now();
-    setStep(1);
     setToast(null);
+    setShowOptions(false);
     setDraftSalonId(generateSalonId());
     setForm({
-      title: preset?.title?.trim() || `Salon de ${username}`,
+      title: preset?.title?.trim() || t('salon.create.defaultSalonTitle', { username }),
       platform: 'youtube',
       accessMode: preset?.accessMode ?? 'public',
       allowedUserIds: preset?.allowedUserIds ?? [],
-      trackTitle: 'Ma session Soundy',
+      trackTitle: t('salon.create.defaultSessionTitle'),
       artist: username,
       youtubePlaylist: null,
       allowQueue: true,
     });
     api.getDmContacts(token).then((r) => setContacts(r.contacts));
-  }, [open, token, username, preset]);
+  }, [open, token, username, preset, t]);
 
   useEffect(
     () => () => {
@@ -140,7 +234,6 @@ export function CreateSalonModal({
   const resolvePosition = () => resolveSalonCreatePosition(fallbackLatitude, fallbackLongitude);
 
   const platformLinked = isMusicPlatformLinkedForSalon('youtube', connectedPlatforms, platformLinks);
-  const canAdvanceFromStep1 = platformLinked;
   const canSubmitSalon = platformLinked;
 
   const submitBlockedReason = !canSubmitSalon
@@ -213,247 +306,289 @@ export function CreateSalonModal({
     onClose();
   };
 
+  const youtubeSyncTooltip = `${t('salon.playbackMode.youtubeSync')} ${t('salon.playbackMode.youtubeSyncEmphasis')} ${t('salon.playbackMode.youtubeSyncSuffix')}`;
+
+  const inviteSection = (
+    <div className="space-y-2 bg-[#1a1a26] border border-[#2d2d3d] rounded-lg p-2.5">
+      <SalonInviteLinkCopy salonId={draftSalonId} />
+      <div>
+        <p className="text-[10px] font-medium text-gray-400 mb-1">
+          {t('salon.create.inviteUsersLabel')}
+        </p>
+        <SalonInviteUserSearch
+          token={token}
+          contacts={contacts}
+          allowedUserIds={allowedUserIdsSet}
+          onToggle={toggleGuest}
+        />
+      </div>
+    </div>
+  );
+
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/70 p-0 sm:p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-[2px]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="create-salon-title"
       onClick={handleBackdropClose}
     >
       <div
-        className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-[#12121a] rounded-t-2xl sm:rounded-2xl border border-[#2d2d3d] shadow-2xl"
+        className="w-full max-w-md flex flex-col bg-[#12121a] rounded-2xl border border-[#2d2d3d] overflow-visible"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 bg-[#12121a] border-b border-[#1e1e2f] px-4 py-3 flex items-center justify-between">
-          <h2 id="create-salon-title" className="font-bold text-white">
-            Créer un salon
-          </h2>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-white text-xl">
-            ✕
-          </button>
+        {/* ── Header ──────────────────────────────────────────────────────── */}
+        <div className="flex-shrink-0 px-4 pt-3 pb-2 border-b border-[#1e1e2f]">
+          <div className="flex items-center justify-between gap-2">
+            <h2
+              id="create-salon-title"
+              className="text-sm font-bold text-white tracking-tight"
+            >
+              {t('salon.create.modalTitle')}
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={t('salon.create.close')}
+              className="w-11 h-11 -mr-2 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-[#1a1a26] transition-colors"
+            >
+              <IcoX />
+            </button>
+          </div>
         </div>
 
-        <div className="p-4 space-y-4">
-          <div className="flex gap-1 text-[10px] text-gray-500">
-            <span className={step >= 1 ? 'text-purple-400' : ''}>1. Musique</span>
-            {!skipAccessStep && (
-              <>
-                <span>·</span>
-                <span className={step >= 2 ? 'text-purple-400' : ''}>2. Accès</span>
-              </>
-            )}
-            <span>·</span>
-            <span className={step >= 3 ? 'text-purple-400' : ''}>
-              {skipAccessStep ? '2. Détails' : '3. Détails'}
-            </span>
-          </div>
+        {/* ── Single-page form (no internal scroll) ───────────────────────── */}
+        <div className="px-4 py-2.5 space-y-2.5 overflow-visible">
+          {/* Platform */}
+          <section>
+            <p className={sectionTitleCls}>{t('salon.create.sectionPlatform')}</p>
 
-          {step === 1 && (
-            <>
-              <p className="text-sm text-gray-400">Salon YouTube — lecture synchronisée dans Soundy</p>
-              <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-2.5 text-[11px] text-purple-100 leading-snug">
-                <strong className="text-white">YouTube</strong> — {t('salon.playbackMode.youtubeSync')}{' '}
-                <strong className="text-white">{t('salon.playbackMode.youtubeSyncEmphasis')}</strong>{' '}
-                {t('salon.playbackMode.youtubeSyncSuffix')}
+            <div
+              className="rounded-lg border border-purple-500/50 bg-purple-500/10 px-2.5 py-2 flex items-center gap-2"
+              title={youtubeSyncTooltip}
+            >
+              <div className="w-8 h-8 rounded-lg bg-red-600/15 flex items-center justify-center text-red-500 flex-shrink-0">
+                <IcoYouTube sm />
               </div>
-              <div className="p-4 rounded-2xl border border-red-500 bg-red-500/10 text-left">
-                <span className="text-2xl block mb-2">▶️</span>
-                <span className="font-bold text-white">YouTube</span>
-                <p className="text-[10px] text-gray-500 mt-1">Lecture vidéo YouTube synchronisée</p>
+              <p className="text-sm font-semibold text-white flex-1 min-w-0 truncate">YouTube</p>
+              <div className="flex-shrink-0 w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center text-white">
+                <IcoCheck sm />
               </div>
-              {!platformLinked && (
-                <div className="space-y-2">
-                  <p className="text-xs text-amber-400/90">
-                    Liez votre compte YouTube pour héberger ce salon.
-                  </p>
-                  <PlatformConnectCard
-                    token={token}
-                    platform="youtube"
-                    connectedPlatforms={connectedPlatforms}
-                    platformLinks={platformLinks}
-                    onUserUpdated={onUserUpdated}
-                  />
-                </div>
-              )}
-              {platformLinked && (
-                <p className="text-[10px] text-green-400/80">
-                  ✓ Compte YouTube connecté — vous pouvez héberger ce salon.
+            </div>
+
+            {!platformLinked ? (
+              <div className="mt-1.5 space-y-1.5">
+                <p className="text-[10px] font-medium text-amber-300 leading-snug px-0.5">
+                  {t('salon.create.youtubeConnectHint')}
                 </p>
-              )}
-              <label className="block">
-                <span className="text-xs text-gray-400">Artiste</span>
-                <input
-                  value={form.artist}
-                  onChange={(e) => setForm((f) => ({ ...f, artist: e.target.value }))}
-                  placeholder="Nom de l'artiste"
-                  className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs text-gray-400">Titre du salon</span>
-                <input
-                  value={form.trackTitle}
-                  onChange={(e) => setForm((f) => ({ ...f, trackTitle: e.target.value }))}
-                  placeholder="Ex. Midnight City"
-                  className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
-                />
-              </label>
-              {platformLinked && (
-                <CreateSalonPlaylistPicker
+                <PlatformConnectCard
                   token={token}
-                  value={form.youtubePlaylist}
-                  onChange={(youtubePlaylist) => setForm((f) => ({ ...f, youtubePlaylist }))}
+                  platform="youtube"
+                  connectedPlatforms={connectedPlatforms}
+                  platformLinks={platformLinks}
+                  onUserUpdated={onUserUpdated}
                 />
-              )}
-            </>
-          )}
+              </div>
+            ) : (
+              <div
+                className="mt-1.5 inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-green-500/10 border border-green-500/25 text-green-300"
+                title={t('salon.create.youtubeConnected')}
+              >
+                <span className="text-green-400 flex-shrink-0">
+                  <IcoCheck sm />
+                </span>
+                <span className="text-[10px] font-semibold">{t('salon.create.youtubeConnectedShort')}</span>
+              </div>
+            )}
+          </section>
 
-          {step === 2 && (
-            <>
-              <p className="text-sm text-gray-400">Qui peut rejoindre votre salon ?</p>
-              <div className="space-y-2">
+          {/* Access — hidden when preset is invite-only (DM private salon) */}
+          {!skipAccessSection && (
+            <section>
+              <p className={sectionTitleCls}>{t('salon.create.sectionAccess')}</p>
+
+              <div className="flex gap-1.5">
                 <button
                   type="button"
+                  title={t('salon.create.accessPublicHint')}
                   onClick={() => setForm((f) => ({ ...f, accessMode: 'public' }))}
-                  className={`w-full p-4 rounded-xl border text-left ${
+                  className={`flex-1 min-h-[40px] px-2 py-1.5 rounded-lg border text-center flex items-center justify-center gap-1.5 transition-colors ${
                     form.accessMode === 'public'
-                      ? 'border-purple-500 bg-purple-500/10'
-                      : 'border-[#2d2d3d] bg-[#1a1a26]'
+                      ? 'border-purple-500/60 bg-purple-500/10 text-white'
+                      : 'border-[#2d2d3d] bg-[#1a1a26] text-gray-400 hover:border-[#3d3d4d]'
                   }`}
                 >
-                  <p className="font-bold text-white">🌍 Public</p>
-                  <p className="text-xs text-gray-500 mt-1">Visible sur la carte, tout le monde peut rejoindre</p>
+                  <IcoGlobe sm />
+                  <span className="text-xs font-semibold truncate">{t('salon.public')}</span>
+                  {form.accessMode === 'public' && (
+                    <span className="w-3.5 h-3.5 rounded-full bg-purple-500 flex items-center justify-center text-white flex-shrink-0">
+                      <IcoCheck sm />
+                    </span>
+                  )}
                 </button>
+
                 <button
                   type="button"
+                  title={t('salon.create.accessInviteHint')}
                   onClick={() => setForm((f) => ({ ...f, accessMode: 'invite' }))}
-                  className={`w-full p-4 rounded-xl border text-left ${
+                  className={`flex-1 min-h-[40px] px-2 py-1.5 rounded-lg border text-center flex items-center justify-center gap-1.5 transition-colors ${
                     form.accessMode === 'invite'
-                      ? 'border-purple-500 bg-purple-500/10'
-                      : 'border-[#2d2d3d] bg-[#1a1a26]'
+                      ? 'border-purple-500/60 bg-purple-500/10 text-white'
+                      : 'border-[#2d2d3d] bg-[#1a1a26] text-gray-400 hover:border-[#3d3d4d]'
                   }`}
                 >
-                  <p className="font-bold text-white">🔒 Sur invitation</p>
-                  <p className="text-xs text-gray-500 mt-1">Seules les personnes autorisées peuvent entrer</p>
+                  <IcoLock sm />
+                  <span className="text-xs font-semibold truncate">{t('salon.inviteOnly')}</span>
+                  {form.accessMode === 'invite' && (
+                    <span className="w-3.5 h-3.5 rounded-full bg-purple-500 flex items-center justify-center text-white flex-shrink-0">
+                      <IcoCheck sm />
+                    </span>
+                  )}
                 </button>
               </div>
 
-              {form.accessMode === 'invite' && (
-                <div className="space-y-3 border border-[#2d2d3d] rounded-xl p-3">
-                  <SalonInviteLinkCopy salonId={draftSalonId} />
-                  <div>
-                    <p className="text-xs text-gray-400 mb-2">Inviter des utilisateurs :</p>
-                    <SalonInviteUserSearch
-                      token={token}
-                      contacts={contacts}
-                      allowedUserIds={allowedUserIdsSet}
-                      onToggle={toggleGuest}
-                    />
-                  </div>
-                </div>
-              )}
-            </>
+              {form.accessMode === 'invite' && <div className="mt-1.5">{inviteSection}</div>}
+            </section>
           )}
 
-          {step === 3 && (
-            <>
-              <label className="block">
-                <span className="text-xs text-gray-400">Titre du salon</span>
+          {skipAccessSection && form.accessMode === 'invite' && inviteSection}
+
+          {/* Details */}
+          <section>
+            <p className={sectionTitleCls}>{t('salon.create.sectionDetails')}</p>
+
+            <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
+              <label className="block col-span-2">
+                <span className={labelCls}>{t('salon.create.fieldSalonName')}</span>
                 <input
                   value={form.title}
                   onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                  className="mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
+                  placeholder={t('salon.create.fieldSalonNamePlaceholder')}
+                  className={inputCls}
                 />
               </label>
-              <label className="flex items-center gap-2">
+
+              <label className="block">
+                <span className={labelCls}>{t('salon.create.fieldArtist')}</span>
                 <input
-                  type="checkbox"
-                  checked={form.allowQueue}
-                  onChange={(e) => setForm((f) => ({ ...f, allowQueue: e.target.checked }))}
+                  value={form.artist}
+                  onChange={(e) => setForm((f) => ({ ...f, artist: e.target.value }))}
+                  placeholder={t('salon.create.fieldArtistPlaceholder')}
+                  className={inputCls}
                 />
-                <span className="text-sm text-gray-300">Autoriser les suggestions de morceaux</span>
               </label>
-              {skipAccessStep && form.accessMode === 'invite' && (
-                <div className="space-y-3 border border-[#2d2d3d] rounded-xl p-3">
-                  <SalonInviteLinkCopy salonId={draftSalonId} />
-                  <div>
-                    <p className="text-xs text-gray-400 mb-2">Inviter des utilisateurs :</p>
-                    <SalonInviteUserSearch
+
+              <label className="block">
+                <span className={labelCls}>{t('salon.create.fieldSessionTitle')}</span>
+                <input
+                  value={form.trackTitle}
+                  onChange={(e) => setForm((f) => ({ ...f, trackTitle: e.target.value }))}
+                  placeholder={t('salon.create.fieldSessionTitlePlaceholder')}
+                  className={inputCls}
+                />
+              </label>
+            </div>
+
+            {platformLinked && (
+              <div className="mt-1.5">
+                <button
+                  type="button"
+                  onClick={() => setShowOptions((v) => !v)}
+                  className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400 hover:text-gray-200 transition-colors min-h-[32px]"
+                  aria-expanded={showOptions}
+                >
+                  <svg
+                    className={`w-3 h-3 transition-transform ${showOptions ? 'rotate-90' : ''}`}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                  {t('salon.create.optionsToggle')}
+                  {form.youtubePlaylist && !showOptions && (
+                    <span className="text-[10px] text-purple-400 truncate max-w-[10rem]">
+                      · {form.youtubePlaylist.title}
+                    </span>
+                  )}
+                </button>
+                {showOptions && (
+                  <div className="mt-0.5">
+                    <CreateSalonPlaylistPicker
                       token={token}
-                      contacts={contacts}
-                      allowedUserIds={allowedUserIdsSet}
-                      onToggle={toggleGuest}
+                      compact
+                      value={form.youtubePlaylist}
+                      onChange={(youtubePlaylist) => setForm((f) => ({ ...f, youtubePlaylist }))}
                     />
                   </div>
-                </div>
-              )}
-              <div className="bg-[#1a1a26] rounded-xl p-3 text-xs text-gray-500 space-y-1">
-                <p>
-                  <span className="text-purple-400">Playlist :</span>{' '}
-                  {form.youtubePlaylist ? form.youtubePlaylist.title : 'Aucune (optionnel)'}
-                </p>
-                <p>
-                  <span className="text-purple-400">Session :</span> {form.trackTitle} — {form.artist}
-                </p>
-                <p>
-                  <span className="text-purple-400">Plateforme :</span> YouTube
-                </p>
-                <p>
-                  <span className="text-purple-400">Accès :</span>{' '}
-                  {form.accessMode === 'public' ? 'Public' : `Invitation (${form.allowedUserIds.length} invité(s))`}
-                </p>
+                )}
               </div>
-            </>
-          )}
+            )}
+
+            <div
+              className="mt-1.5 flex items-center justify-between gap-3 min-h-[36px]"
+              title={t('salon.create.allowQueueHint')}
+            >
+              <p className="text-xs font-medium text-white truncate">{t('salon.create.allowQueueTitle')}</p>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.allowQueue}
+                aria-label={t('salon.create.allowQueueTitle')}
+                onClick={() => setForm((f) => ({ ...f, allowQueue: !f.allowQueue }))}
+                className={`relative inline-flex w-9 h-5 rounded-full flex-shrink-0 transition-colors ${
+                  form.allowQueue ? 'bg-purple-600' : 'bg-[#2d2d3d]'
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                    form.allowQueue ? 'translate-x-4' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          </section>
         </div>
 
-        <div className="sticky bottom-0 bg-[#12121a] border-t border-[#1e1e2f] p-4 flex gap-2">
-          {step > 1 ? (
-            <button
-              type="button"
-              onClick={() => setStep((s) => (s === 3 && skipAccessStep ? 1 : s - 1))}
-              className="flex-1 py-3 rounded-xl border border-[#2d2d3d] text-gray-300"
-            >
-              Retour
-            </button>
-          ) : (
-            <button type="button" onClick={onClose} className="flex-1 py-3 rounded-xl border border-[#2d2d3d] text-gray-300">
-              Annuler
-            </button>
+        {/* ── Footer ──────────────────────────────────────────────────────── */}
+        <div className="flex-shrink-0 border-t border-[#1e1e2f] px-4 py-2 space-y-1.5">
+          {submitBlockedReason && (
+            <p className="text-[11px] text-red-400/90 text-center leading-snug">
+              {submitBlockedReason}
+            </p>
           )}
-          {step < 3 ? (
+          <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => setStep((s) => (s === 1 && skipAccessStep ? 3 : s + 1))}
-              disabled={step === 1 && !canAdvanceFromStep1}
-              className="flex-1 py-3 rounded-xl bg-purple-600 font-bold text-white disabled:opacity-50"
+              onClick={onClose}
+              className="flex-1 py-2 min-h-[44px] rounded-lg border border-[#2d2d3d] text-sm text-gray-300 hover:border-[#3d3d4d] hover:text-white transition-colors"
             >
-              Suivant
+              {t('salon.create.cancel')}
             </button>
-          ) : (
             <button
               type="button"
               onClick={submit}
               disabled={saving || !canSubmitSalon}
-              className="flex-1 py-3 rounded-xl bg-purple-600 font-bold text-white disabled:opacity-50"
+              className="flex-1 py-2 min-h-[44px] rounded-lg bg-purple-600 text-sm font-bold text-white hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              {saving ? 'Création...' : 'Créer le salon'}
+              {saving ? t('salon.create.submitting') : t('salon.create.submit')}
             </button>
-          )}
-        </div>
-        {step === 3 && submitBlockedReason && (
-          <p className="px-4 pb-3 text-[11px] text-red-400/90 leading-snug">{submitBlockedReason}</p>
-        )}
-        {toast && (
-          <div
-            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[110] max-w-[min(90vw,22rem)] px-4 py-2.5 rounded-xl bg-[#1a1a28] border border-purple-500/40 text-sm text-white shadow-lg text-center"
-            role="status"
-          >
-            {toast}
           </div>
-        )}
+        </div>
       </div>
+
+      {toast && (
+        <div
+          className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[110] max-w-[min(90vw,22rem)] px-4 py-2.5 rounded-xl bg-[#1a1a28] border border-purple-500/40 text-sm text-white text-center"
+          role="status"
+        >
+          {toast}
+        </div>
+      )}
     </div>,
     document.body
   );

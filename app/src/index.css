@@ -265,6 +265,9 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   min-height: -webkit-fill-available;
+  height: 100vh;
+  height: 100dvh;
+  height: -webkit-fill-available;
   background: var(--ms-bg);
   color: var(--ms-text);
   -webkit-font-smoothing: antialiased;
@@ -290,6 +293,8 @@ body {
 }
 
 #root {
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
   min-height: 100dvh;
   min-height: -webkit-fill-available;
@@ -298,17 +303,36 @@ body {
   height: -webkit-fill-available;
   width: 100%;
   max-width: 100%;
+  min-width: 0;
   /* Pas d’overflow ici — iOS Safari ancre mal position:fixed dans un ancêtre clip/hidden */
+}
+
+/* Providers React sans wrapper — le shell doit s’étirer sur toute la hauteur #root */
+#root > * {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+#root > .fixed {
+  flex: none;
+  display: block;
 }
 
 /* Shell principal — chaîne flex + pas de débordement horizontal */
 .ms-app-shell {
+  flex: 1 1 auto;
   width: 100%;
   max-width: 100%;
   min-width: 0;
   min-height: 100vh;
   min-height: 100dvh;
   min-height: -webkit-fill-available;
+  height: 100vh;
+  height: 100dvh;
+  height: -webkit-fill-available;
   max-height: 100vh;
   max-height: 100dvh;
   max-height: -webkit-fill-available;
@@ -387,6 +411,11 @@ header.ms-app-header :is(a, button, input, select, textarea, label, [role='tabli
 }
 
 main.ms-app-main {
+  flex: 1 1 auto;
+  flex-basis: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   padding-top: var(--app-header-total-h);
 }
 
@@ -424,7 +453,11 @@ main.ms-app-main {
 }
 
 /* Carte edge-to-edge — pas de réserve noire sous le dock flottant (quick wins ou classique) */
-.ms-app-shell--bottom-tabs main.ms-app-main:has(.ms-map-page) {
+.ms-app-shell--bottom-tabs main.ms-app-main:has(.ms-map-page),
+.ms-app-shell--header-tabs main.ms-app-main:has(.ms-map-page) {
+  flex: 1 1 auto;
+  flex-basis: 0;
+  min-height: 0;
   padding-bottom: 0;
 }
 
@@ -1151,16 +1184,26 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 /* Carte — conteneur flex sans débordement horizontal (320–430px) */
 .ms-map-page {
   flex: 1 1 auto;
+  flex-basis: 0;
   min-height: 0;
   min-width: 0;
   width: 100%;
   max-width: 100%;
+  height: 100%;
   overflow: hidden;
+}
+
+.ms-map-main-column {
+  flex: 1 1 auto;
+  flex-basis: 0;
+  min-height: 0;
+  min-width: 0;
 }
 
 .ms-map-viewport {
   position: relative;
   flex: 1 1 auto;
+  flex-basis: 0;
   min-height: min(280px, 52dvh);
   min-width: 0;
   width: 100%;

@@ -259,13 +259,13 @@ export function ShareLinkMenu({
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-end bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="share-link-menu-title"
     >
       <button type="button" className="absolute inset-0" aria-label={t('common.close')} onClick={onClose} />
-      <div className="relative w-full bg-[#12121a] border-t border-[#2d2d3d] rounded-t-2xl mb-[var(--tab-nav-total-h)] max-h-[85vh] overflow-y-auto">
+      <div className="relative w-full max-w-md bg-[#12121a] border border-[#2d2d3d] rounded-2xl max-h-[85dvh] overflow-y-auto">
         <div className="flex items-center justify-between px-4 py-3 border-b border-[#1e1e2f] sticky top-0 bg-[#12121a] z-10">
           <h2 id="share-link-menu-title" className="font-bold text-white text-sm">
             {t('share.title')}

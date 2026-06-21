@@ -311,16 +311,23 @@ export function ContactSoundyPage({ onBack, highlightMessageId, embedded }: Cont
   }
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto bg-[#0b0b0f] text-white">
-      <header className="shrink-0 z-10 bg-[#0b0b0f]/95 border-b border-[#1e1e2f] px-4 py-3">
-        <div className="flex items-center gap-3 max-w-lg mx-auto">
-          <button type="button" onClick={onBack} className="text-purple-400 text-sm shrink-0">
-            ←
-          </button>
-          <h1 className="text-lg font-bold flex-1">{t('support.title')}</h1>
-        </div>
+    <div className="flex flex-col h-full min-h-0 bg-[#0b0b0f] text-white">
+      <header className="sticky top-0 z-10 shrink-0 flex items-center gap-3 px-4 py-3 border-b border-[#1e1e2f] bg-[#0b0b0f]/95 backdrop-blur ms-safe-area-top">
+        <button
+          type="button"
+          onClick={onBack}
+          className="shrink-0 w-11 h-11 flex items-center justify-center rounded-full bg-[#1a1a26]/80 border border-[#2d2d3d] text-gray-400 hover:text-white hover:border-[#3d3d50] transition active:scale-95"
+          aria-label={t('common.back')}
+        >
+          <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <h1 className="flex-1 min-w-0 text-lg font-bold truncate">{t('support.title')}</h1>
       </header>
-      {content}
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+        {content}
+      </div>
       {toastEl}
     </div>
   );

@@ -806,7 +806,7 @@ export default function App() {
 
   return (
     <div
-      className={`ms-app-shell flex flex-col min-h-dvh max-h-dvh min-w-0 w-full${!appa2 ? ' ms-app-shell--bottom-tabs' : ''}${appa2 && !profileOpen ? ' ms-app-shell--header-tabs' : ''}`}
+      className={`ms-app-shell flex flex-col flex-1 min-h-0 h-dvh max-h-dvh min-w-0 w-full${!appa2 ? ' ms-app-shell--bottom-tabs' : ''}${appa2 && !profileOpen ? ' ms-app-shell--header-tabs' : ''}`}
     >
       {incomingToast && (
         <div
@@ -864,12 +864,12 @@ export default function App() {
         className={`ms-app-header${appa2 && !profileOpen ? ' ms-app-header--with-tabs' : ''}`}
       >
           <div className="px-3 sm:px-4 pb-2 ms-safe-area-top">
-          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,18rem)_minmax(0,1fr)] sm:grid-cols-[minmax(0,1fr)_minmax(0,22rem)_minmax(0,1fr)] items-center gap-x-1.5 sm:gap-x-2 min-w-0">
-            <div className="flex items-center gap-1.5 sm:gap-2 justify-self-start min-w-0 overflow-hidden">
+          <div className="grid grid-cols-[auto_minmax(0,11rem)_auto] sm:grid-cols-[minmax(0,1fr)_minmax(0,15rem)_minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)_minmax(0,1fr)] items-center gap-x-1 sm:gap-x-2 min-w-0">
+            <div className="flex items-center gap-1 sm:gap-2 justify-self-start min-w-0 overflow-hidden">
               <button
                 type="button"
                 onClick={() => selectTab('actualite')}
-                className="text-lg font-extrabold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent shrink-0 cursor-pointer hover:opacity-75 active:scale-95 transition"
+                className="text-base sm:text-lg font-extrabold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent shrink-0 cursor-pointer hover:opacity-75 active:scale-95 transition"
                 title={t('nav.home')}
                 aria-label={t('nav.home')}
               >
@@ -890,9 +890,9 @@ export default function App() {
             <ProfileSearchBar
               token={token}
               onSelectUser={handleSearchSelectUser}
-              className="justify-self-stretch w-full min-w-0 max-w-full"
+              className="justify-self-center sm:justify-self-stretch w-full min-w-0"
             />
-            <div className="relative z-10 flex items-center gap-1 justify-self-end shrink-0">
+            <div className="relative z-10 flex items-center gap-0.5 sm:gap-1 justify-self-end shrink-0">
               <AdminHeaderButton
                 onClick={() => openAdminPanel()}
                 active={adminOpen}
@@ -914,7 +914,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={openOwnProfile}
-                className="rounded-full ring-2 ring-purple-500/40 hover:ring-purple-400 active:scale-95 transition"
+                className="rounded-full ring-1 sm:ring-2 ring-purple-500/40 hover:ring-purple-400 active:scale-95 transition shrink-0"
                 title="Mon profil"
                 aria-label="Ouvrir mon profil"
               >
@@ -1046,7 +1046,7 @@ export default function App() {
                   className={
                     mapTabHiddenUnderSalon || mapTabHiddenUnderProfile || mapTabHiddenOffTab
                       ? 'hidden pointer-events-none inert'
-                      : 'flex flex-col flex-1 min-h-0 min-w-0'
+                      : 'flex flex-col flex-1 min-h-0 min-w-0 h-full'
                   }
                   aria-hidden={
                     mapTabHiddenUnderSalon || mapTabHiddenUnderProfile || mapTabHiddenOffTab

@@ -13,7 +13,7 @@ import { api, ApiRequestError } from '../lib/api';
 import { getSocket } from '../lib/socket';
 
 import { ChatRoomProvider, ChatInputBar, ChatModals } from '../components/ChatPanel';
-import { SalonChatDockBody, SalonChatDockTabButtons, type SalonChatDockTab } from '../components/SalonChatDockBody';
+import { SalonChatDockBody, type SalonChatDockTab } from '../components/SalonChatDockBody';
 import { UsernameDisplay } from '../components/UsernameDisplay';
 
 import { RoomTheaterLayout } from '../components/RoomTheaterLayout';
@@ -24,8 +24,10 @@ import { SalonParticipantsPopover } from '../components/SalonParticipantsPopover
 import { useSalonQueueSync } from '../hooks/useSalonQueueSync';
 import { emitOnSocket } from '../lib/socket';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { ShareLinkMenu } from '../components/ShareLinkMenu';
 
 import { formatSalonAudienceLabel } from '../lib/salonAudience';
+import { getSalonShareUrl } from '../lib/shareLink';
 import type { DmContact, PlaybackState, Salon } from '../types';
 
 const SALON_MAX_DURATION_MS = 2 * 60 * 60 * 1000;
@@ -105,7 +107,8 @@ export function SalonPage({
   const [chatHidden, setChatHidden] = useState(readSalonChatHidden);
   const [chatMinimized, setChatMinimized] = useState(readSalonChatMinimized);
   const [chatDockTab, setChatDockTab] = useState<SalonChatDockTab>('chat');
-  const [shareCopied, setShareCopied] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [shareMenuUrl, setShareMenuUrl] = useState('');
 
   const [sessionEnded, setSessionEnded] = useState(false);
   const [durationWarning, setDurationWarning] = useState(false);
@@ -327,6 +330,16 @@ export function SalonPage({
     );
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    void getSalonShareUrl(salonId).then((url) => {
+      if (!cancelled) setShareMenuUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [salonId]);
+
   const handleMinimizeSalon = useCallback(() => {
     if (onMinimizeToMap) {
       onMinimizeToMap(salon?.title);
@@ -336,22 +349,20 @@ export function SalonPage({
   }, [onMinimizeToMap, onBack, salon?.title]);
 
   const handleShareSalon = useCallback(async () => {
-    const url = `${SOUNDY_BASE_URL}/salon/${salonId}`;
+    const url = shareMenuUrl || `${SOUNDY_BASE_URL}/salon/${salonId}`;
     const title = salon?.title ?? 'Salon Soundy';
     const text = `Rejoins le salon "${title}" sur Soundy`;
-    try {
-      if (navigator.share) {
+    if (navigator.share) {
+      try {
         await navigator.share({ title, text, url });
-      } else {
-        await navigator.clipboard.writeText(url);
-        setShareCopied(true);
-        window.setTimeout(() => setShareCopied(false), 2000);
+        return;
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        // native share failed — fall through to share menu
       }
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return;
-      setToastMsg(t('common.error', { defaultValue: 'Impossible de partager le salon' }));
     }
-  }, [salonId, salon?.title, t]);
+    setShowShareMenu(true);
+  }, [salonId, salon?.title, shareMenuUrl]);
 
   const handleEndSalon = useCallback(async () => {
     if (!token || !salon || !onLeaveSalon) return;
@@ -617,15 +628,6 @@ export function SalonPage({
     chatDockTab === 'queue'
       ? t('salon.chatDock.titleQueue', { defaultValue: "File d'attente" })
       : t('salon.chatTitle', { defaultValue: 'Chat du salon' });
-  const queueBadge = queue.length > 0 ? queue.length : undefined;
-  const chatHeaderLeading = (
-    <SalonChatDockTabButtons
-      activeTab={chatDockTab}
-      onSelect={setChatDockTab}
-      queueBadge={queueBadge}
-    />
-  );
-
   const salonTopBarStart = (
     <>
       {minimizeSalonButton}
@@ -724,19 +726,13 @@ export function SalonPage({
       <button
         type="button"
         onClick={() => void handleShareSalon()}
-        title={shareCopied ? 'Lien copié !' : 'Partager ce salon'}
+        title="Partager ce salon"
         className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-[#2a2a3a] transition"
         aria-label="Partager le salon"
       >
-        {shareCopied ? (
-          <svg className="w-4 h-4 text-green-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 00-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z" clipRule="evenodd" />
-          </svg>
-        ) : (
-          <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
-          </svg>
-        )}
+        <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+        </svg>
       </button>
     </>
   );
@@ -779,7 +775,6 @@ export function SalonPage({
             });
           }}
           chatTitle={chatTitle}
-          chatHeaderLeading={chatHeaderLeading}
           chatHeaderExtra={chatHeaderExtra}
           chatMinimized={chatMinimized}
           onToggleMinimize={() => {
@@ -817,6 +812,7 @@ export function SalonPage({
           chat={
             <SalonChatDockBody
               activeTab={chatDockTab}
+              onSelectTab={setChatDockTab}
               salon={salon}
               queue={queue}
               proposals={proposals}
@@ -851,6 +847,14 @@ export function SalonPage({
         loadingLabel="Arrêt…"
         onCancel={() => setShowEndSalonConfirm(false)}
         onConfirm={() => void handleEndSalon()}
+      />
+      <ShareLinkMenu
+        open={showShareMenu}
+        onClose={() => setShowShareMenu(false)}
+        url={shareMenuUrl || `${SOUNDY_BASE_URL}/salon/${salonId}`}
+        title={salon?.title ?? 'Salon Soundy'}
+        text={`Rejoins le salon "${salon?.title ?? 'Soundy'}" sur Soundy`}
+        onToast={setToastMsg}
       />
     </div>
   );

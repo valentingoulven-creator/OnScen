@@ -12,9 +12,9 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import type { Salon } from '../types';
 
-/** Default position: just below the Lives filter button (≈120 px from left, 192 px from top). */
+/** Default position: left sidebar area on map (≈17 px from left, 228 px from top). */
 function defaultSalonPreviewPos(): { x: number; y: number } {
-  return { x: 120, y: 192 };
+  return { x: 17, y: 228 };
 }
 
 function SalonPipPreviewFloatInner({

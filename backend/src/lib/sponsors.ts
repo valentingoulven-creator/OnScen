@@ -21,7 +21,7 @@ export type MapAdPublic = {
 };
 
 const ACCENTS: SponsorAccent[] = ['purple', 'pink', 'amber', 'cyan', 'rose'];
-const PLACEMENTS: SponsorPlacement[] = ['map_banner', 'feed_inline', 'stories_banner', 'reels_sponsored'];
+const PLACEMENTS: SponsorPlacement[] = ['map_banner', 'feed_inline', 'stories_banner', 'reels_sponsored', 'salon_theater'];
 const KINDS: SponsorKind[] = ['promo', 'sponsored'];
 const DEFAULT_DISPLAY_DURATION_SEC = 8;
 const DISPLAY_DURATION_MIN_SEC = 3;
@@ -318,6 +318,10 @@ export function listActiveStoriesAds(at = now()): MapAdPublic[] {
 
 export function listActiveReelsAds(at = now()): MapAdPublic[] {
   return listActiveAdsByPlacement('reels_sponsored', at);
+}
+
+export function listActiveSalonAds(at = now()): MapAdPublic[] {
+  return listActiveAdsByPlacement('salon_theater', at);
 }
 
 /** Filtre les sponsors carte par viewport (France toujours + région si zoom/portée OK). */

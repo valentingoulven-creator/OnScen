@@ -36,8 +36,17 @@ export function ProfileSearchBar({ token, onSelectUser, className }: ProfileSear
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [compactPlaceholder, setCompactPlaceholder] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)');
+    const sync = () => setCompactPlaceholder(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
 
   const fetchUsers = useCallback(
     (q: string, signal: AbortSignal) =>
@@ -96,9 +105,9 @@ export function ProfileSearchBar({ token, onSelectUser, className }: ProfileSear
 
   return (
     <div ref={rootRef} className={`relative w-full min-w-0${className ? ` ${className}` : ''}`}>
-      <div className="relative flex items-center h-9 rounded-full bg-[#1a1a26]/90 border border-[#2d2d3d]/90 shadow-sm shadow-black/20 transition-[border-color,box-shadow] focus-within:border-purple-500/50 focus-within:ring-2 focus-within:ring-purple-500/25 focus-within:shadow-purple-500/10">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" aria-hidden>
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <div className="relative flex items-center h-7 sm:h-8 lg:h-9 rounded-full bg-[#1a1a26]/90 border border-[#2d2d3d]/90 shadow-sm shadow-black/20 transition-[border-color,box-shadow] focus-within:border-purple-500/50 focus-within:ring-2 focus-within:ring-purple-500/25 focus-within:shadow-purple-500/10">
+        <span className="absolute left-2 sm:left-2.5 lg:left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" aria-hidden>
+          <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="7" />
             <path d="m20 20-3.5-3.5" />
           </svg>
@@ -113,12 +122,12 @@ export function ProfileSearchBar({ token, onSelectUser, className }: ProfileSear
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
-          placeholder={t('profileSearch.placeholder')}
+          placeholder={t(compactPlaceholder ? 'profileSearch.placeholderShort' : 'profileSearch.placeholder')}
           autoComplete="off"
           aria-label={t('profileSearch.label')}
           aria-expanded={showDropdown}
           aria-controls="profile-search-results"
-          className="w-full h-full pl-9 pr-8 text-xs rounded-full bg-transparent text-white placeholder:text-gray-500/90 outline-none [&::-webkit-search-cancel-button]:hidden"
+          className="w-full h-full pl-7 sm:pl-8 lg:pl-9 pr-6 sm:pr-7 lg:pr-8 text-[11px] sm:text-xs rounded-full bg-transparent text-white placeholder:text-gray-500/90 outline-none [&::-webkit-search-cancel-button]:hidden"
         />
         {query && (
           <button

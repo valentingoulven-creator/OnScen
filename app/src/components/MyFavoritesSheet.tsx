@@ -76,14 +76,14 @@ export function MyFavoritesSheet({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="my-favorites-title"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md max-h-[min(85dvh,32rem)] flex flex-col bg-[#12121a] border border-[#2d2d3d] rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden"
+        className="w-full max-w-md max-h-[min(85dvh,32rem)] flex flex-col bg-[#12121a] border border-[#2d2d3d] rounded-2xl shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="shrink-0 p-4 border-b border-[#1e1e2f] flex items-center justify-between">

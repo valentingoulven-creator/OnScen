@@ -677,6 +677,9 @@ export const api = {
   getReelsSponsors: () =>
     request<import('../types').ReelsSponsorsResponse>('/sponsors/reels', { cache: 'no-store' }),
 
+  getSalonSponsors: () =>
+    request<{ items: import('../types').MapAdItem[] }>('/sponsors/salon', { cache: 'no-store' }),
+
   getAdminSponsorsConfig: (token: string) =>
     request<{ config: import('../types').SponsorPlatformConfig }>(
       '/access/admin/sponsors/config',
@@ -1558,12 +1561,28 @@ export const api = {
   updateProfile: (token: string, body: object) =>
     request<{ user: import('../types').User }>('/auth/profile', { method: 'PATCH', body: JSON.stringify(body) }, token),
 
-  connectPlatform: (token: string, platform: 'spotify' | 'youtube' | 'instagram') =>
-    request<{ ok: boolean; user: import('../types').User }>(
-      `/platforms/${platform}/connect`,
-      { method: 'POST' },
-      token
-    ),
+  connectPlatform: async (token: string, platform: 'spotify' | 'youtube' | 'instagram') => {
+    const r = await request<{
+      ok: boolean;
+      user?: import('../types').User;
+      code?: string;
+      error?: string;
+      oauthUrl?: string;
+    }>(`/platforms/${platform}/connect`, { method: 'POST' }, token);
+    if (r.ok === false) {
+      if (r.code === 'USE_OAUTH_URL') {
+        throw new ApiRequestError(i18n.t('platform.demoUseOAuth'), r.code);
+      }
+      if (r.code === 'MOCK_CONNECT_DISABLED') {
+        throw new ApiRequestError(i18n.t('platform.demoDisabledProd'), r.code);
+      }
+      throw new ApiRequestError(r.error || i18n.t('platform.connectError'), r.code);
+    }
+    if (!r.user) {
+      throw new ApiRequestError(i18n.t('platform.connectError'));
+    }
+    return r as { ok: boolean; user: import('../types').User };
+  },
 
   disconnectPlatform: (token: string, platform: 'spotify' | 'youtube' | 'instagram') =>
     request<{ ok: boolean; user: import('../types').User }>(

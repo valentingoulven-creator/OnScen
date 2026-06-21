@@ -509,8 +509,8 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 
         {/* ── Modal 2FA : scan QR code ── */}
         {twoFAModal === 'setup_qr' && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <div className="w-full max-w-sm bg-[#12121a] border border-[#1e1e2f] rounded-t-2xl sm:rounded-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <div className="w-full max-w-sm bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
               <div className="text-center space-y-1">
                 <p className="text-2xl">🔐</p>
                 <h2 className="text-lg font-bold text-white">Activer la 2FA</h2>
@@ -555,8 +555,8 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 
         {/* ── Modal 2FA : codes de secours ── */}
         {twoFAModal === 'setup_backup' && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <div className="w-full max-w-sm bg-[#12121a] border border-green-500/30 rounded-t-2xl sm:rounded-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <div className="w-full max-w-sm bg-[#12121a] border border-green-500/30 rounded-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
               <div className="text-center space-y-1">
                 <p className="text-2xl">✅</p>
                 <h2 className="text-lg font-bold text-white">2FA activée !</h2>
@@ -585,8 +585,8 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 
         {/* ── Modal 2FA : désactiver ── */}
         {twoFAModal === 'disable' && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <div className="w-full max-w-sm bg-[#12121a] border border-[#1e1e2f] rounded-t-2xl sm:rounded-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <div className="w-full max-w-sm bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
               <div className="text-center space-y-1">
                 <p className="text-2xl">🔓</p>
                 <h2 className="text-lg font-bold text-white">Désactiver la 2FA</h2>
@@ -625,10 +625,10 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 
         {/* ── Modal suppression de compte ── */}
         {deleteModal && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
             <form
               onSubmit={handleDeleteAccount}
-              className="w-full max-w-sm bg-[#12121a] border border-red-500/30 rounded-t-2xl sm:rounded-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto"
+              className="w-full max-w-sm bg-[#12121a] border border-red-500/30 rounded-2xl p-6 space-y-4 max-h-[90dvh] overflow-y-auto"
             >
               <div className="text-center space-y-1">
                 <p className="text-2xl">⚠️</p>

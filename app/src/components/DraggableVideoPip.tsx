@@ -9,9 +9,9 @@ function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
 }
 
-/** Default: below the Lives button on the map, matching SalonPipPreviewFloat's position. */
+/** Default: left sidebar area on map, matching SalonPipPreviewFloat's position. */
 function defaultVideoPipPos(): { x: number; y: number } {
-  return { x: 120, y: 192 };
+  return { x: 17, y: 228 };
 }
 
 export interface VideoPipFloatApi {

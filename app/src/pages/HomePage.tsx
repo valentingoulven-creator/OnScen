@@ -212,7 +212,11 @@ export function HomePage({
 }: HomePageProps) {
   const { t } = useTranslation();
   const appa2 = isAppa2Layout(appLayout);
-  const nearbyLayout = appa2 ? ('bottom' as const) : ('side' as const);
+  const [compactMapLayout, setCompactMapLayout] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches
+  );
+  const bottomMapList = appa2 || compactMapLayout;
+  const nearbyLayout = bottomMapList ? ('bottom' as const) : ('side' as const);
   const { user, token, setUserFromProfile } = useAuth();
   const [salons, setSalons] = useState<Salon[]>([]);
   const [lives, setLives] = useState<Live[]>([]);
@@ -230,9 +234,7 @@ export function HomePage({
   const [showCreateSalon, setShowCreateSalon] = useState(false);
   const [locating, setLocating] = useState(false);
   const [loadingNearby, setLoadingNearby] = useState(true);
-  const [showNearbyPeople, setShowNearbyPeople] = useState(
-    () => localStorage.getItem(NEARBY_PEOPLE_STORAGE_KEY) !== 'false'
-  );
+  const [showNearbyPeople, setShowNearbyPeople] = useState(true);
   const [mapStyle, setMapStyle] = useState<MapStyle>(() => {
     const saved = localStorage.getItem(MAP_STYLE_KEY) as MapStyle | null;
     if (shouldForceFlatMap() || (saved === 'globe' && !canUseGlobeView())) {
@@ -342,6 +344,22 @@ export function HomePage({
       window.removeEventListener(MAP_GEO_CHANGED_EVENT, onMapGeoChanged);
       window.removeEventListener(MAP_OPEN_CREATE_SALON_EVENT, onOpenCreateSalon);
     };
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.removeItem(NEARBY_PEOPLE_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)');
+    const sync = () => setCompactMapLayout(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
   }, []);
 
   useEffect(() => {
@@ -709,7 +727,11 @@ export function HomePage({
 
   const setNearbyPeopleVisible = useCallback((visible: boolean) => {
     setShowNearbyPeople(visible);
-    localStorage.setItem(NEARBY_PEOPLE_STORAGE_KEY, visible ? 'true' : 'false');
+    try {
+      localStorage.removeItem(NEARBY_PEOPLE_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const toggleMapStyle = useCallback(() => {
@@ -1808,7 +1830,9 @@ export function HomePage({
   const mapSheetOpen = Boolean(selected);
 
   return (
-    <div className={`ms-map-page relative flex-1 flex min-h-0 ${appa2 ? 'flex-col' : 'flex-row'}`}>
+    <div
+      className={`ms-map-page relative flex-1 flex min-h-0 h-full w-full ${bottomMapList ? 'flex-col' : 'flex-row'}`}
+    >
       {token && (
         <MapEventFilterSheet
           open={showEventFilterSheet}
@@ -1835,7 +1859,7 @@ export function HomePage({
         />
       )}
 
-      {!appa2 && showNearbyPeople ? (
+      {!bottomMapList && showNearbyPeople ? (
         showEventMarkers && selectedEventCluster && !livesFilterOn ? (
           <MapCityEventsPanel
             layout="side"
@@ -1865,13 +1889,13 @@ export function HomePage({
             salonFilterOn={salonFilterOn}
           />
         )
-      ) : !appa2 ? (
+      ) : !bottomMapList ? (
         <button
           type="button"
           onClick={() => setNearbyPeopleVisible(true)}
           title="Afficher la liste carte"
           aria-label="Afficher la liste carte"
-          className="shrink-0 z-20 flex flex-col items-center justify-center gap-1 w-10 sm:w-11 bg-[var(--ms-surface)]/95 border-r border-[var(--ms-border)] text-purple-400 hover:text-purple-300 hover:bg-[var(--ms-surface-elevated)] transition"
+          className="shrink-0 z-20 flex flex-col items-center justify-center gap-1 w-11 min-h-[44px] self-stretch bg-[var(--ms-surface)]/95 border-r border-[var(--ms-border)] text-purple-400 hover:text-purple-300 hover:bg-[var(--ms-surface-elevated)] transition"
         >
           <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" strokeLinecap="round" />
@@ -1885,7 +1909,7 @@ export function HomePage({
         </button>
       ) : null}
 
-      <div className="relative flex-1 min-w-0 flex flex-col min-h-0">
+      <div className="ms-map-main-column relative flex-1 min-w-0 flex flex-col min-h-0">
         {!appa2 && !mapProfileOpen && (
           <MapAdBanner
             viewport={mapSponsorViewport}
@@ -2172,7 +2196,7 @@ export function HomePage({
 
         </div>
 
-        {appa2 &&
+        {bottomMapList &&
           (showNearbyPeople ? (
             showEventMarkers && selectedEventCluster && !livesFilterOn ? (
               <MapCityEventsPanel
@@ -2209,7 +2233,7 @@ export function HomePage({
               onClick={() => setNearbyPeopleVisible(true)}
               title="Afficher la liste carte"
               aria-label="Afficher la liste carte"
-              className="shrink-0 z-20 flex items-center justify-center gap-2 w-full py-2.5 bg-[var(--ms-surface)]/95 border-t border-[var(--ms-border)] text-purple-400 hover:text-purple-300 hover:bg-[var(--ms-surface-elevated)] transition"
+              className="shrink-0 z-20 flex items-center justify-center gap-2 w-full min-h-[44px] py-2.5 bg-[var(--ms-surface)]/95 border-t border-[var(--ms-border)] text-purple-400 hover:text-purple-300 hover:bg-[var(--ms-surface-elevated)] transition"
             >
               <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" strokeLinecap="round" />

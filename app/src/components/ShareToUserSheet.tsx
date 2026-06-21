@@ -221,13 +221,13 @@ export function ShareToUserSheet({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="share-to-user-title"
     >
       <button type="button" className="absolute inset-0" aria-label={t('common.close')} onClick={onClose} />
-      <div className="relative w-full bg-[#12121a] border-t border-[#2d2d3d] rounded-t-2xl mb-[var(--tab-nav-total-h)] max-h-[85vh] flex flex-col">
+      <div className="relative w-full max-w-md bg-[#12121a] border border-[#2d2d3d] rounded-2xl max-h-[85dvh] flex flex-col">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-[#1e1e2f] shrink-0">
           <button
             type="button"

@@ -1,64 +1,370 @@
 ================================================================================
-MODIF 540 - Mobile responsiveness — correctifs critiques + règle Cursor
+MODIF 559 ? CreateSalonModal : popup compact sans ascenseur
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ Le formulaire single-page (MODIF 550) d?passait ~642 px et imposait un scroll
+ interne (`overflow-y-auto`) sur mobile 390?844. L'utilisateur veut tout visible
+ dans un seul popup sans barre de d?filement.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/CreateSalonModal.tsx
+ ???????????????????????????????????????
+ ? Suppression `max-h-[90dvh]`, `flex-1 overflow-y-auto` ? modal `h-auto`,
+   contenu `overflow-visible`.
+ ? Espacement r?duit : sections `space-y-2.5`, padding header/footer/contenu.
+ ? Plateforme : ligne compacte (ic?ne + YouTube + check) ; description longue
+   en `title` ; badge vert ? YouTube connect? ? au lieu du paragraphe.
+ ? Acc?s : pills horizontales Public / Sur invitation (hints en `title`).
+ ? D?tails : grille 2 colonnes (artiste + titre session), inputs `py-2`.
+ ? Playlist repliable ? Options (playlist) ? par d?faut ferm?e.
+ ? Toggle suggestions : une ligne (hint en `title`).
+ ? Section invite compact?e (padding r?duit).
+
+ app/src/components/CreateSalonPlaylistPicker.tsx
+ ?????????????????????????????????????????????????
+ ? Prop `compact` : moins de texte d'aide, champs plus petits.
+
+ app/src/locales/fr.json, app/src/locales/en.json
+ ??????????????????????????????????????????????????
+ ? `salon.create.youtubeConnectedShort`, `salon.create.optionsToggle`.
+
+FICHIERS MODIFI?S
+-----
+ app/src/components/CreateSalonModal.tsx ? layout compact, sans scroll interne
+ app/src/components/CreateSalonPlaylistPicker.tsx ? mode compact
+ app/src/locales/fr.json, en.json ? i18n badge + options
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin MODIF 559 ? 2026-06-21
+================================================================================
+================================================================================
+MODIF 550 ? CreateSalonModal : formulaire single-page (moins de clics)
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ Le flux cr?ation salon en 3 ?tapes (Musique ? Acc?s ? D?tails) imposait 2 clics
+ ? Suivant ? avant ? Cr?er le salon ?. Trop de friction pour un cas courant
+ (YouTube d?j? connect?, salon public, champs pr?remplis).
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/CreateSalonModal.tsx
+ ---------------------------------------
+ ? Fusion des 3 ?tapes en un seul formulaire scrollable (Option A).
+ ? Suppression : indicateur d'?tapes, boutons Suivant/Retour, r?capitulatif.
+ ? Sections visibles d'un coup : Plateforme (YouTube + connexion), Acc?s
+   (Public / Sur invitation, masqu? si preset invite DM), D?tails (nom, artiste,
+   session, playlist optionnelle, suggestions de morceaux).
+ ? Footer : Annuler + Cr?er le salon uniquement ; create d?sactiv? si YouTube non li?.
+ ? Pr?remplissage conserv? : artiste = username, acc?s = public, titres par d?faut.
+ ? Cha?nes i18n `salon.create.*` pour les libell?s du modal.
+
+ app/src/locales/fr.json, app/src/locales/en.json
+ --------------------------------------------------
+ ? Nouvelles cl?s `salon.create.modalTitle`, `section*`, champs, hints, boutons.
+
+FICHIERS MODIFI?S
+-----
+ app/src/components/CreateSalonModal.tsx ? single-page, ?2 clics navigation
+ app/src/locales/fr.json ? i18n modal cr?ation salon
+ app/src/locales/en.json ? i18n modal cr?ation salon
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin MODIF 550 ? 2026-06-21
+================================================================================
+================================================================================
+MODIF 549 ? SalonPage : bouton Partager ? sheet native + ShareLinkMenu
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBLEME
+----
+ Le bouton "Partager ce salon" dans l'IntegratedTheaterTopBar copiait simplement
+ le lien dans le presse-papiers (fallback) ou ouvrait le share natif OS.
+ Souhait : ouvrir le ShareLinkMenu complet (WhatsApp, Messenger, Instagram, X,
+ Facebook, SMS, email, copier) quand navigator.share n'est pas disponible, et
+ conserver le share natif comme voie principale sur mobile/PWA.
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/SalonPage.tsx
+ ----------------------------
+ ? Imports : ajout ShareLinkMenu + getSalonShareUrl.
+ ? State : remplace `shareCopied` (inutilis?) par `showShareMenu` (boolean) et
+   `shareMenuUrl` (string pr?-charg?e via useEffect ? getSalonShareUrl).
+ ? useEffect : pr?-charge l'URL de partage correcte (g?re env msdev LAN + prod).
+ ? handleShareSalon :
+     1. Si navigator.share disponible ? tente share natif ; si succ?s ? retour ;
+        si AbortError (annul?) ? retour ; si autre erreur ? fallback menu.
+     2. Si navigator.share absent ? ouvre ShareLinkMenu directement.
+ ? Bouton topbar : supprime la logique shareCopied (ic?ne checkmark / tooltip
+   "Lien copi? !") ; ic?ne partage fixe, title statique "Partager ce salon".
+ ? JSX : <ShareLinkMenu> ajout? en fin de rendu (open={showShareMenu}, ferme
+   via setShowShareMenu(false), url = shareMenuUrl || URL prod de fallback).
+
+FICHIERS MODIFIES
+-----
+ app/src/pages/SalonPage.tsx ? share natif + ShareLinkMenu fallback
+
+BUILD (si verifie)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin MODIF 549 - 2026-06-21
+================================================================================
+
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBLEME
+----
+ La popup creation salon (`CreateSalonModal`) s'ouvrait en bottom sheet sur mobile
+ (items-end, coins arrondis haut seulement). Souhait : popup centree a l'ecran sur tous breakpoints.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/CreateSalonModal.tsx
+ ---------------------------------------
+ - Overlay : `items-end sm:items-center p-0 sm:p-4` -> `items-center justify-center p-4`.
+ - Panel : `rounded-t-2xl sm:rounded-2xl` -> `rounded-2xl` ; conserve `max-w-md`, `max-h-[90dvh]`, `overflow-y-auto`.
+
+FICHIERS MODIFIES
+-----
+ app/src/components/CreateSalonModal.tsx -> popup centree, plus bottom sheet mobile
+
+BUILD (si verifie)
+-----
+ app/ -> npx tsc --noEmit -> OK
+
+================================================================================
+Fin MODIF 548 - 2026-06-21
+================================================================================
+================================================================================
+MODIF 547 ? MapEventFilterSheet : popup centr?e (mobile + desktop)
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ La popup filtres ?v?nements carte (`MapEventFilterSheet`) s'ouvrait en bottom sheet sur mobile
+ (items-end, coins arrondis haut seulement). Souhait : popup centr?e ? l'?cran sur tous breakpoints.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/MapEventFilterSheet.tsx
+ ???????????????????????????????????????????
+ ? Overlay : `items-end sm:items-center p-0 sm:p-4` ? `items-center justify-center p-4`.
+ ? Panel : `rounded-t-2xl sm:rounded-2xl` ? `rounded-2xl` ; `sm:max-w-md` ? `max-w-md`.
+ ? Zone contenu : `overflow-y-auto flex-1 min-h-0` pour scroll si contenu > 90dvh.
+
+FICHIERS MODIFI?S
+-----
+ app/src/components/MapEventFilterSheet.tsx ? popup centr?e, plus bottom sheet mobile
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin MODIF 547 ? 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 546 ? PiP salon : position par d?faut (SalonPipPreviewFloat)
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ L'aper?u PiP salon (`SalonPipPreviewFloatInner`) s'ouvrait par d?faut trop ? droite / trop haut
+ (120?192 px). Position souhait?e : coin gauche carte, sous les filtres (~17?228 px).
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/SalonPipPreviewFloat.tsx
+ ???????????????????????????????????????????
+ ? `defaultSalonPreviewPos()` : `{ x: 120, y: 192 }` ? `{ x: 17, y: 228 }`.
+
+ app/src/components/DraggableVideoPip.tsx
+ ????????????????????????????????????????
+ ? `defaultVideoPipPos()` align? (Live PiP preview + PiP salon minimis? sans position custom).
+ ? Pas de localStorage : position r?initialis?e ? chaque ouverture PiP ; drag inchang?.
+
+FICHIERS MODIFI?S
+-----
+ app/src/components/SalonPipPreviewFloat.tsx ? default left/top PiP preview
+ app/src/components/DraggableVideoPip.tsx ? default partag? align?
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin MODIF 546 ? 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 542 - Header : barre recherche profil r?duite (mobile/tablette)
+================================================================================
+Date : 2026-06-21
+
+## Objectif / Probl?me
+La barre de recherche profil dans le header prenait encore trop de place sur mobile/tablette (~382px ? 598px viewport), au d?triment du logo et des boutons lat?raux.
+
+## Changements / Fix
+- `app/src/App.tsx`
+  ?????????????????
+  ? Grille mobile : colonne centre plafonn?e ? `11rem` (au lieu de `1fr` pleine largeur).
+  ? Tablette (`sm:`) : centre `15rem` ; desktop (`lg:`) : `22rem` inchang?.
+  ? Search bar : `justify-self-center` mobile, `stretch` ? partir de `sm:`.
+
+- `app/src/components/ProfileSearchBar.tsx`
+  ?????????????????
+  ? Hauteur `h-7 sm:h-8 lg:h-9`, ic?ne/padding/texte compacts sur mobile.
+  ? Placeholder court (`Profil?` / `Profile?`) via `matchMedia (max-width: 639px)`.
+
+- `app/src/locales/fr.json`, `app/src/locales/en.json`
+  ?????????????????
+  ? Cl? `profileSearch.placeholderShort`.
+
+## Fichiers modifi?s
+- app/src/App.tsx ? grille header, cap largeur centre
+- app/src/components/ProfileSearchBar.tsx ? taille/placeholder mobile
+- app/src/locales/fr.json, en.json ? placeholderShort
+- modification.txt
+
+## Build (si v?rifi?)
+- app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin ? 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 541 - Header mobile : avatar profil + barre recherche
+================================================================================
+Date : 2026-06-21
+
+## Objectif / Probl?me
+Sur mobile (~297?390px), l?avatar profil, les boutons header (admin, confidentialit?,
+notifications) et la barre de recherche se chevauchaient ? colonnes lat?rales en `1fr`
+prenaient trop d?espace au d?triment du centre.
+
+## Changements / Fix
+- `app/src/App.tsx`
+  ?????????????????
+  ? Grille mobile : `auto_minmax(0,1fr)_auto` (centre prend l?espace restant) ;
+    desktop inchang? (`sm:` ? `1fr / 22rem / 1fr`).
+  ? Logo `text-base sm:text-lg`, gaps r?duits (`gap-x-1`, `gap-0.5`).
+  ? Bouton profil : `ring-1 sm:ring-2`, `shrink-0`.
+
+- `app/src/components/UserAvatarOnline.tsx`
+  ?????????????????
+  ? Taille `xs` : `w-7 h-7 sm:w-8 sm:h-8` (header uniquement).
+
+- `app/src/components/AdminHeaderButton.tsx`
+- `app/src/components/PrivacyVisibilityMenu.tsx`
+- `app/src/components/NotificationBell.tsx`
+  ?????????????????
+  ? Boutons header compacts sur mobile : `p-1.5 sm:p-2`, ic?nes `w-4 sm:w-5`,
+    cloche `w-8 h-8 sm:w-9 sm:h-9`.
+
+- `app/src/components/ProfileSearchBar.tsx`
+  ?????????????????
+  ? Hauteur `h-8 sm:h-9`, padding ic?ne/texte ajust?.
+
+## Fichiers modifi?s
+- app/src/App.tsx ? grille header mobile-first, avatar profil r?duit
+- app/src/components/UserAvatarOnline.tsx ? xs responsive
+- app/src/components/AdminHeaderButton.tsx ? compact mobile
+- app/src/components/PrivacyVisibilityMenu.tsx ? compact mobile
+- app/src/components/NotificationBell.tsx ? compact mobile
+- app/src/components/ProfileSearchBar.tsx ? hauteur/padding mobile
+- modification.txt
+
+## Build (si v?rifi?)
+- app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin ? 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 540 - Mobile responsiveness ? correctifs critiques + r?gle Cursor
 ================================================================================
 Date : 2026-06-18
 
 ## Objectif
 Rendre toute l'application Soundy compatible mobile (390px iPhone 14 en cible).
 
-## Règle Cursor créée
+## R?gle Cursor cr??e
 - `.cursor/rules/mobile-responsive.mdc` (alwaysApply: true)
   Enforce : mobile-first Tailwind, dvh/dvw, touch targets 44px, bottom-sheet modals,
   no horizontal overflow, apptel/ pour overrides Capacitor.
 
 ## Correctifs CSS (index.css)
-1. **Salon YouTube mobile** — quand le chat est ouvert sur < 640px :
+1. **Salon YouTube mobile** ? quand le chat est ouvert sur < 640px :
    - `.room-theater-side-row--match-hero` redevient `flex: 1 1 0` (non shrink-0)
-     → la vidéo partage l'espace vertical avec le chat sheet et le chrome du tiroir
-   - `.ms-salon-fullscreen-overlay .room-theater-video-stage` : min-height réduit à
+     ? la vid?o partage l'espace vertical avec le chat sheet et le chrome du tiroir
+   - `.ms-salon-fullscreen-overlay .room-theater-video-stage` : min-height r?duit ?
      `min(40dvh, 40vh)` (depuis 58dvh) pour que tout tienne dans les 672px disponibles
    - `.room-theater-side-row--match-hero ~ .room-theater-mobile-chat-sheet` :
-     max-height réduit à `min(30dvh, 200px)` (depuis 42dvh/320px) en mode YouTube salon
-2. **Touch targets** — `.salon-header-icon-btn` agrandi à 2.75rem (44px) sur mobile ;
+     max-height r?duit ? `min(30dvh, 200px)` (depuis 42dvh/320px) en mode YouTube salon
+2. **Touch targets** ? `.salon-header-icon-btn` agrandi ? 2.75rem (44px) sur mobile ;
    `.room-theater-toggle` agrandi en hauteur.
-3. **Mobile chat sheet** — min-height: 6rem pour garantir la visibilité du contenu.
-4. **scrollbar-none** — utilitaire CSS ajouté pour masquer la scrollbar des tabs.
+3. **Mobile chat sheet** ? min-height: 6rem pour garantir la visibilit? du contenu.
+4. **scrollbar-none** ? utilitaire CSS ajout? pour masquer la scrollbar des tabs.
 
 ## Correctifs composants
-- `LivePage.tsx` : boutons viewer (don/subscribe/quitter) — `flex-wrap` + `max-w-[13rem]`
-  pour éviter l'overflow sur 390px quand les 3 boutons sont affichés.
-- `ProfilePage.tsx` : barre d'onglets (Profil/Reels/Lives) — padding réduit `px-4 sm:px-8`
-  et wrapper `overflow-x-auto` pour éviter l'overflow avec 3 onglets.
+- `LivePage.tsx` : boutons viewer (don/subscribe/quitter) ? `flex-wrap` + `max-w-[13rem]`
+  pour ?viter l'overflow sur 390px quand les 3 boutons sont affich?s.
+- `ProfilePage.tsx` : barre d'onglets (Profil/Reels/Lives) ? padding r?duit `px-4 sm:px-8`
+  et wrapper `overflow-x-auto` pour ?viter l'overflow avec 3 onglets.
 
-## Ce qui est desktop-only par conception (pas modifié)
-- Panel admin (AdminPage, toutes les tabs) : fonctionnalités de gestion pensées pour
-  desktop, pas de responsive prévu (desktop-only acceptable).
-- Colonnes chat latérales (gauche/droite) dans RoomTheaterLayout : `hidden sm:flex`
-  — remplacées par le bottom chat sheet sur mobile.
+## Ce qui est desktop-only par conception (pas modifi?)
+- Panel admin (AdminPage, toutes les tabs) : fonctionnalit?s de gestion pens?es pour
+  desktop, pas de responsive pr?vu (desktop-only acceptable).
+- Colonnes chat lat?rales (gauche/droite) dans RoomTheaterLayout : `hidden sm:flex`
+  ? remplac?es par le bottom chat sheet sur mobile.
 - Analytiques VPS (graphes, tables) : contenu dense, desktop seulement.
 
-## Fichiers modifiés
-- .cursor/rules/mobile-responsive.mdc (créé)
+## Fichiers modifi?s
+- .cursor/rules/mobile-responsive.mdc (cr??)
 - app/src/index.css
 - app/src/pages/LivePage.tsx
 - app/src/pages/ProfilePage.tsx
 - modification.txt
 
 ================================================================================
-MODIF 539 - Admin : barre d'onglets centrée horizontalement
+MODIF 539 - Admin : barre d'onglets centr?e horizontalement
 ================================================================================
 Date : 2026-06-15
 
-## Symptôme
-Dans l'en-tête admin, les pills d'onglets (Comptes, Accès, Contenu, Analytics,
-Coût, Support, Sponsors) étaient alignées à gauche.
+## Sympt?me
+Dans l'en-t?te admin, les pills d'onglets (Comptes, Acc?s, Contenu, Analytics,
+Co?t, Support, Sponsors) ?taient align?es ? gauche.
 
 ## Correctif
 - `AdminScrollTabBar` : wrapper interne `.ms-admin-tab-bar__inner` avec
   `justify-content: center`, `min-width: 100%` et `width: max-content`.
-- Si tous les onglets tiennent : pills centrées dans la barre.
-- Si débordement : scroll horizontal inchangé (snap, dégradés latéraux).
-- S'applique aussi aux sous-onglets Sponsors (même composant).
+- Si tous les onglets tiennent : pills centr?es dans la barre.
+- Si d?bordement : scroll horizontal inchang? (snap, d?grad?s lat?raux).
+- S'applique aussi aux sous-onglets Sponsors (m?me composant).
 
 ## Fichiers
 - app/src/components/AdminScrollTabBar.tsx
@@ -68,38 +374,38 @@ Coût, Support, Sponsors) étaient alignées à gauche.
 ## Test
   cd app && npm run build
 
-## Déploiement
-**Non** — en attente validation utilisateur.
+## D?ploiement
+**Non** ? en attente validation utilisateur.
 
 ================================================================================
-MODIF 538 - Reels sponsorisés (admin + feed Reels)
+MODIF 538 - Reels sponsoris?s (admin + feed Reels)
 ================================================================================
 Date : 2026-06-15
 
 ## Contexte
-MODIF 533–537 : sponsors carte, fil et stories opérationnels. Les reels n'avaient
-pas encore d'emplacement sponsor ni de configuration globale de fréquence.
+MODIF 533?537 : sponsors carte, fil et stories op?rationnels. Les reels n'avaient
+pas encore d'emplacement sponsor ni de configuration globale de fr?quence.
 
-## Modèle & config globale
-- Nouveau placement `reels_sponsored` sur le modèle `Sponsor`.
+## Mod?le & config globale
+- Nouveau placement `reels_sponsored` sur le mod?le `Sponsor`.
 - Champs optionnels `videoUrl` et `posterUrl` (reel vertical 9:16).
-- Config plateforme persistée : `db.sponsorPlatformConfig` / `PersistedStore.sponsorPlatformConfig`
-  - `reelsSponsorEnabled` (bool, défaut true)
-  - `reelsSponsorEveryN` (int, défaut 5, min 1, max 50)
+- Config plateforme persist?e : `db.sponsorPlatformConfig` / `PersistedStore.sponsorPlatformConfig`
+  - `reelsSponsorEnabled` (bool, d?faut true)
+  - `reelsSponsorEveryN` (int, d?faut 5, min 1, max 50)
 
 ## Backend
-- `listActiveReelsAds()` + `GET /api/sponsors/reels` → `{ items, config }` (public, cache 60 s).
+- `listActiveReelsAds()` + `GET /api/sponsors/reels` ? `{ items, config }` (public, cache 60 s).
 - `GET/PATCH /api/access/admin/sponsors/config` pour l'admin.
-- Validation : reel sponsorisé requiert `videoUrl` ou `posterUrl`.
+- Validation : reel sponsoris? requiert `videoUrl` ou `posterUrl`.
 
 ## Admin
 - Sous-onglet **Reels** dans Sponsors (`AdminScrollTabBar`).
-- Section **Configuration** : toggle activation + « Afficher un reel sponsorisé tous les ___ reels ».
-- Formulaire : URL vidéo, vignette, aperçu vertical `SponsorAdPreview`.
+- Section **Configuration** : toggle activation + ? Afficher un reel sponsoris? tous les ___ reels ?.
+- Formulaire : URL vid?o, vignette, aper?u vertical `SponsorAdPreview`.
 
 ## Consommateur (ReelsTabPage)
 - `interleaveReelsSponsors()` : insertion tous les N reels organiques (round-robin).
-- `ReelsSponsoredSlide` : badge « Sponsorisé », lecture vidéo, CTA lien externe.
+- `ReelsSponsoredSlide` : badge ? Sponsoris? ?, lecture vid?o, CTA lien externe.
 - Pas d'injection pendant la recherche ; pas de `recordReelView` sur les slides sponsor.
 
 ## Fichiers
@@ -119,31 +425,31 @@ pas encore d'emplacement sponsor ni de configuration globale de fréquence.
   cd backend && npm test -- sponsors && npm run build
   cd app && npm test -- reelsSponsorFeed sponsorAdminPlacement && npm run build
 
-## Déploiement
-**Non** — en attente validation utilisateur.
+## D?ploiement
+**Non** ? en attente validation utilisateur.
 
 ================================================================================
-MODIF 537 - Sponsors fil d'actualité et stories (UI consommateur)
+MODIF 537 - Sponsors fil d'actualit? et stories (UI consommateur)
 ================================================================================
 Date : 2026-06-15
 
 ## Contexte
-MODIF 533–535 : CRUD admin et bandeau carte opérationnels ; `feed_inline` et
-`stories_banner` étaient en maquette admin seulement.
+MODIF 533?535 : CRUD admin et bandeau carte op?rationnels ; `feed_inline` et
+`stories_banner` ?taient en maquette admin seulement.
 
 ## Backend
-- `GET /api/sponsors/feed` — sponsors actifs `feed_inline` (public, cache 60 s).
-- `GET /api/sponsors/stories` — sponsors actifs `stories_banner` (public, cache 60 s).
+- `GET /api/sponsors/feed` ? sponsors actifs `feed_inline` (public, cache 60 s).
+- `GET /api/sponsors/stories` ? sponsors actifs `stories_banner` (public, cache 60 s).
 - `listActiveFeedAds()` / `listActiveStoriesAds()` dans `backend/src/lib/sponsors.ts`.
 
 ## Frontend
-- **Fil d'accueil (ActualiteTabPage)** : `FeedInlineAdBanner` injecté après le 1er post
-  (ou seul si fil vide) — style `SponsorAdPreview` / 343×120, badge « Sponsorisé »,
+- **Fil d'accueil (ActualiteTabPage)** : `FeedInlineAdBanner` inject? apr?s le 1er post
+  (ou seul si fil vide) ? style `SponsorAdPreview` / 343?120, badge ? Sponsoris? ?,
   carrousel avec `displayDurationSec`.
 - **Stories (StoriesInlineBar)** : `StoriesAdBanner` au-dessus du carrousel anneaux
-  (390×56), rotation multi-sponsors, CTA cliquable.
-- Hook partagé `useSponsorAdsRotation` + `handleSponsorCta` (`useSponsorAdsRotation.ts`, `sponsorAds.ts`).
-- Admin : libellés FR/EN mis à jour (plus « à venir »).
+  (390?56), rotation multi-sponsors, CTA cliquable.
+- Hook partag? `useSponsorAdsRotation` + `handleSponsorCta` (`useSponsorAdsRotation.ts`, `sponsorAds.ts`).
+- Admin : libell?s FR/EN mis ? jour (plus ? ? venir ?).
 
 ## Fichiers
 - backend/src/lib/sponsors.ts + sponsors.test.ts
@@ -163,27 +469,27 @@ MODIF 533–535 : CRUD admin et bandeau carte opérationnels ; `feed_inline` et
   cd backend && npm test && npm run build
   cd app && npm test && npm run build
 
-## Déploiement
-**Non** — en attente validation utilisateur.
+## D?ploiement
+**Non** ? en attente validation utilisateur.
 
 ================================================================================
-MODIF 536 - Admin : barre d'onglets entièrement visible (scroll + snap)
+MODIF 536 - Admin : barre d'onglets enti?rement visible (scroll + snap)
 ================================================================================
 Date : 2026-06-15
 
-## Symptôme
-Dans l'en-tête admin (~924 px), l'onglet **Sponsors** était coupé à droite.
-La barre était limitée à `max-w-lg` (512 px) sans scroll fiable ; les pills
-flex pouvaient être tronquées.
+## Sympt?me
+Dans l'en-t?te admin (~924 px), l'onglet **Sponsors** ?tait coup? ? droite.
+La barre ?tait limit?e ? `max-w-lg` (512 px) sans scroll fiable ; les pills
+flex pouvaient ?tre tronqu?es.
 
 ## Correctif
 - Nouveau composant `AdminScrollTabBar` : scroll horizontal (`overflow-x-auto`),
-  `flex-nowrap`, `shrink-0` / snap sur chaque pill, dégradés latéraux optionnels
-  (`ms-hscroll-fade-wrap`) quand le contenu déborde.
-- Classe CSS `.ms-admin-tab-bar` (touch scroll, scrollbar masquée, snap proximity).
+  `flex-nowrap`, `shrink-0` / snap sur chaque pill, d?grad?s lat?raux optionnels
+  (`ms-hscroll-fade-wrap`) quand le contenu d?borde.
+- Classe CSS `.ms-admin-tab-bar` (touch scroll, scrollbar masqu?e, snap proximity).
 - **AdminPage** : barre d'onglets pleine largeur (`-mx-4 px-4`), retrait de
   `max-w-lg` sur la nav ; `ms-safe-area-top` sur le header.
-- **AdminSponsorsTab** : sous-onglets placement via le même composant.
+- **AdminSponsorsTab** : sous-onglets placement via le m?me composant.
 
 ## Fichiers
 - app/src/components/AdminScrollTabBar.tsx (nouveau)
@@ -195,34 +501,34 @@ flex pouvaient être tronquées.
 ## Test
   cd app && npm test && npm run build
 
-## Déploiement
-**Non** — en attente validation utilisateur.
+## D?ploiement
+**Non** ? en attente validation utilisateur.
 
 ================================================================================
-MODIF 534 - Admin sponsors : aperçu, tailles image, durée d'affichage
+MODIF 534 - Admin sponsors : aper?u, tailles image, dur?e d'affichage
 ================================================================================
 Date : 2026-06-15
 
 ## Contexte
-Complément MODIF 533 : dans l'admin Sponsors, ajout d'un aperçu live à la création/
-édition, recommandations de dimensions d'image par emplacement, et durée d'affichage
+Compl?ment MODIF 533 : dans l'admin Sponsors, ajout d'un aper?u live ? la cr?ation/
+?dition, recommandations de dimensions d'image par emplacement, et dur?e d'affichage
 configurable (carrousel bandeau carte).
 
-## Partie 1 — Aperçu admin
-- `SponsorAdPreview` : rendu fidèle à `MapAdBanner` pour `map_banner` ; maquettes
-  pour `feed_inline` et `stories_banner` (UI consommateur à venir).
-- Aperçu mis à jour en direct dans le formulaire création/édition.
+## Partie 1 ? Aper?u admin
+- `SponsorAdPreview` : rendu fid?le ? `MapAdBanner` pour `map_banner` ; maquettes
+  pour `feed_inline` et `stories_banner` (UI consommateur ? venir).
+- Aper?u mis ? jour en direct dans le formulaire cr?ation/?dition.
 
-## Partie 2 — Recommandations image (UI FR)
-- **map_banner** : logo 80×80 px ; zone bandeau ~360×90 px (mobile) / 640×96 px (≥640 px) ;
-  ratio ~4:1 ; pas d'image de fond (texte + dégradé).
-- **feed_inline** (à venir) : logo 48×48 px ; bannière 343×120 px (~2,9:1).
-- **stories_banner** (à venir) : logo 32×32 px ; bande 390×56 px (~7:1).
+## Partie 2 ? Recommandations image (UI FR)
+- **map_banner** : logo 80?80 px ; zone bandeau ~360?90 px (mobile) / 640?96 px (?640 px) ;
+  ratio ~4:1 ; pas d'image de fond (texte + d?grad?).
+- **feed_inline** (? venir) : logo 48?48 px ; banni?re 343?120 px (~2,9:1).
+- **stories_banner** (? venir) : logo 32?32 px ; bande 390?56 px (~7:1).
 
-## Partie 3 — Durée d'affichage
-- Nouveau champ `displayDurationSec` (optionnel, défaut **8 s**, min 3 / max 60).
-- Exposé dans l'API admin + `GET /api/sponsors/map` via `MapAdPublic`.
-- `MapAdBanner` : carrousel avec durée par slide selon le sponsor affiché (plus de
+## Partie 3 ? Dur?e d'affichage
+- Nouveau champ `displayDurationSec` (optionnel, d?faut **8 s**, min 3 / max 60).
+- Expos? dans l'API admin + `GET /api/sponsors/map` via `MapAdPublic`.
+- `MapAdBanner` : carrousel avec dur?e par slide selon le sponsor affich? (plus de
   intervalle fixe global 8 s pour tous).
 
 ## Fichiers
@@ -246,8 +552,8 @@ configurable (carrousel bandeau carte).
   cd backend && npm run build
   cd app && npm run build
 
-## Déploiement
-**Non** — en attente validation utilisateur.
+## D?ploiement
+**Non** ? en attente validation utilisateur.
 
 ================================================================================
 MODIF 535 - Admin sponsors : sous-onglets par emplacement (+ MODIF 534)
@@ -255,30 +561,30 @@ MODIF 535 - Admin sponsors : sous-onglets par emplacement (+ MODIF 534)
 Date : 2026-06-15
 
 ## Contexte
-Demande utilisateur : sous-onglets par localisation du sponsor dans l’admin.
-Fusion avec MODIF 534 (aperçu, dimensions image, durée d’affichage) partiellement
-préparée (SponsorAdPreview, sponsorDisplaySpec, displayDurationSec backend).
+Demande utilisateur : sous-onglets par localisation du sponsor dans l?admin.
+Fusion avec MODIF 534 (aper?u, dimensions image, dur?e d?affichage) partiellement
+pr?par?e (SponsorAdPreview, sponsorDisplaySpec, displayDurationSec backend).
 
-## Partie 1 — Sous-onglets par placement
-- Barre de navigation (style AdminCostsTab) : **Carte**, **Fil / Actualités**,
+## Partie 1 ? Sous-onglets par placement
+- Barre de navigation (style AdminCostsTab) : **Carte**, **Fil / Actualit?s**,
   **Stories**, **Tous**.
-- Filtre API `placement` selon l’onglet actif ; stats recalculées pour l’onglet.
-- Création : placement par défaut = emplacement de l’onglet actif.
-- Réordonnancement : permutation intra-placement sans perturber les autres emplacements.
-- Badge emplacement masqué quand un sous-onglet spécifique est actif.
+- Filtre API `placement` selon l?onglet actif ; stats recalcul?es pour l?onglet.
+- Cr?ation : placement par d?faut = emplacement de l?onglet actif.
+- R?ordonnancement : permutation intra-placement sans perturber les autres emplacements.
+- Badge emplacement masqu? quand un sous-onglet sp?cifique est actif.
 
-## Partie 2 — Aperçu & specs (MODIF 534 intégrée)
-- `SponsorAdPreview` dans le formulaire création / édition (live preview).
+## Partie 2 ? Aper?u & specs (MODIF 534 int?gr?e)
+- `SponsorAdPreview` dans le formulaire cr?ation / ?dition (live preview).
 - Aide dimensions : logo, bandeau, ratio par placement (`SPONSOR_IMAGE_SPECS`).
-- Champ **Durée d’affichage** (3–60 s, défaut 8 s) — persisté via API existante.
-- `MapAdBanner` utilise déjà `displayDurationSec` par sponsor.
+- Champ **Dur?e d?affichage** (3?60 s, d?faut 8 s) ? persist? via API existante.
+- `MapAdBanner` utilise d?j? `displayDurationSec` par sponsor.
 
-## Dimensions recommandées
+## Dimensions recommand?es
 | Emplacement | Logo | Bandeau |
 |-------------|------|---------|
-| map_banner | 80×80 px | 360×90 min. mobile, 640×96 min. desktop |
-| feed_inline | 48×48 px | 343×120 px |
-| stories_banner | 32×32 px | 390×56 px |
+| map_banner | 80?80 px | 360?90 min. mobile, 640?96 min. desktop |
+| feed_inline | 48?48 px | 343?120 px |
+| stories_banner | 32?32 px | 390?56 px |
 
 ## Fichiers
 - app/src/pages/AdminSponsorsTab.tsx
@@ -293,8 +599,8 @@ préparée (SponsorAdPreview, sponsorDisplaySpec, displayDurationSec backend).
   cd app && npm test -- sponsorAdminPlacement sponsorDisplaySpec && npm run build
   cd backend && npm test -- sponsors
 
-## Déploiement
-**Non** — en attente validation utilisateur.
+## D?ploiement
+**Non** ? en attente validation utilisateur.
 
 ================================================================================
 MODIF 533 - Administration : gestion des sponsors
@@ -302,27 +608,27 @@ MODIF 533 - Administration : gestion des sponsors
 Date : 2026-06-15
 
 ## Contexte
-Ajout d’un module complet de gestion des sponsors dans l’administration Soundy :
-modèle persisté, API admin CRUD, onglet « Sponsors », bandeau carte alimenté par l’API.
+Ajout d?un module complet de gestion des sponsors dans l?administration Soundy :
+mod?le persist?, API admin CRUD, onglet ? Sponsors ?, bandeau carte aliment? par l?API.
 
-## Partie 1 — Modèle & persistance
+## Partie 1 ? Mod?le & persistance
 - `Sponsor` : id, name, logoUrl, linkUrl, placement, active, priority, dates, contenu bandeau.
 - Emplacements : `map_banner`, `feed_inline`, `stories_banner`.
 - Migration PostgreSQL `008_sponsors.sql` + snapshot/restore JSONB (`storeCore`, `pgStore`).
-- Seed par défaut (anciens `MAP_ADS`) au démarrage si liste vide.
+- Seed par d?faut (anciens `MAP_ADS`) au d?marrage si liste vide.
 
-## Partie 2 — Backend API
+## Partie 2 ? Backend API
 - Admin (JWT + isAccessAdmin) : `/api/access/admin/sponsors`
   GET list, GET :id, POST create, PATCH :id, POST :id/toggle, POST /reorder, DELETE :id
-- Public : `GET /api/sponsors/map` — bandeaux actifs carte (cache 60s).
+- Public : `GET /api/sponsors/map` ? bandeaux actifs carte (cache 60s).
 
-## Partie 3 — Frontend admin
-- Onglet « Sponsors » dans `AdminPage` (thème sombre, labels FR).
-- `AdminSponsorsTab` : liste, filtres, recherche, création, édition, activation, réordonnancement, suppression.
+## Partie 3 ? Frontend admin
+- Onglet ? Sponsors ? dans `AdminPage` (th?me sombre, labels FR).
+- `AdminSponsorsTab` : liste, filtres, recherche, cr?ation, ?dition, activation, r?ordonnancement, suppression.
 
-## Partie 4 — Affichage app
+## Partie 4 ? Affichage app
 - `MapAdBanner` charge `/api/sponsors/map` avec repli sur `MAP_ADS` statiques.
-- Placements `feed_inline` et `stories_banner` prêts côté modèle (affichage à brancher ultérieurement).
+- Placements `feed_inline` et `stories_banner` pr?ts c?t? mod?le (affichage ? brancher ult?rieurement).
 
 ## Fichiers
 - backend/src/models/schema.ts
@@ -352,12 +658,12 @@ modèle persisté, API admin CRUD, onglet « Sponsors », bandeau carte aliment�
   cd backend && npm run build
   cd app && npm run build
 
-## Déploiement
-**Non** — en attente validation utilisateur.
+## D?ploiement
+**Non** ? en attente validation utilisateur.
 
 ## Limitations
-- Seul `map_banner` est branché à l’affichage (carte Home).
-- `feed_inline` et `stories_banner` : CRUD admin + API prêts, UI consommateur à venir.
+- Seul `map_banner` est branch? ? l?affichage (carte Home).
+- `feed_inline` et `stories_banner` : CRUD admin + API pr?ts, UI consommateur ? venir.
 
 ================================================================================
 MODIF 532 - Mobile total + perf (compat MODIF 531, latence)
@@ -365,30 +671,30 @@ MODIF 532 - Mobile total + perf (compat MODIF 531, latence)
 Date : 2026-06-15
 
 ## Contexte
-Compléter MODIF 531 : StoryLivePreviewViewer, éditeur story/clavier, carte Leaflet,
+Compl?ter MODIF 531 : StoryLivePreviewViewer, ?diteur story/clavier, carte Leaflet,
 Reels, apptel ; optimisations latence sans refactor massif.
 
-## Partie 1 — Mobile
-- StoryLivePreviewViewer : plein écran mobile (comme StoryViewer), safe-area top/bottom.
-- PhotoImageEditor : hook visualViewport, `--keyboard-inset`, dock remonté, preview
-  recalculée ; classes `.ms-story-editor-shell` / `-dock`.
+## Partie 1 ? Mobile
+- StoryLivePreviewViewer : plein ?cran mobile (comme StoryViewer), safe-area top/bottom.
+- PhotoImageEditor : hook visualViewport, `--keyboard-inset`, dock remont?, preview
+  recalcul?e ; classes `.ms-story-editor-shell` / `-dock`.
 - Carte : `.ms-map-page` + `.ms-map-viewport` (min-height, overflow, Leaflet 100%).
 - Reels : `.ms-reels-root`, safe-area bas sur viewport.
 - apptel : shell `ms-app-shell min-w-0`, tokens safe-area/map/reels dans index.css.
-- PWA : meta `format-detection=telephone=no` (index.html déjà viewport-fit=cover).
-- Breakpoints consolidés ≤374px, ≤359px, ≤430px dans index.css.
+- PWA : meta `format-detection=telephone=no` (index.html d?j? viewport-fit=cover).
+- Breakpoints consolid?s ?374px, ?359px, ?430px dans index.css.
 
-## Partie 2 — Code
-- Utilitaires `.ms-safe-area-top` / `.ms-safe-area-bottom` (remplace inline répétés).
+## Partie 2 ? Code
+- Utilitaires `.ms-safe-area-top` / `.ms-safe-area-bottom` (remplace inline r?p?t?s).
 - StoryViewer / App header : migration vers utilitaires safe-area.
 
-## Partie 3 — Perf / latence
-- `storiesApiCache.ts` : déduplication getStories+getMyStory (TTL 4s, in-flight).
+## Partie 3 ? Perf / latence
+- `storiesApiCache.ts` : d?duplication getStories+getMyStory (TTL 4s, in-flight).
   ActualiteTabPage + StoriesInlineBar partagent le cache au mount.
 - PhotoImageEditor : React.lazy dans ActualiteTabPage + chunk Vite `photo-editor`.
 - MapStoryRing : React.memo sur anneaux du carrousel.
-- StoryViewer : barre progression throttlée ~20 fps (50 ms) vs rAF chaque frame.
-- Feed PostCard : `decoding="async"` + lazy sur images repartagées.
+- StoryViewer : barre progression throttl?e ~20 fps (50 ms) vs rAF chaque frame.
+- Feed PostCard : `decoding="async"` + lazy sur images repartag?es.
 
 ## Fichiers
 - app/src/index.css
@@ -412,14 +718,14 @@ Reels, apptel ; optimisations latence sans refactor massif.
 ## Test
   cd app && npm test && npm run build
 
-## Déploiement
-**Non** — en attente validation utilisateur.
+## D?ploiement
+**Non** ? en attente validation utilisateur.
 
 ## Limitations
-- Cache stories : clés distinctes feed (sans geo) vs barre (avec geo) — pas de fusion.
+- Cache stories : cl?s distinctes feed (sans geo) vs barre (avec geo) ? pas de fusion.
 - Clavier Android : visualViewport parfois absent sur vieux WebViews.
 - PhotoImageEditor encore import statique depuis MapStorySheet / profil (chunk lazy feed seulement).
-- Tests visuels 320–414px : validation manuelle recommandée.
+- Tests visuels 320?414px : validation manuelle recommand?e.
 
 ================================================================================
 MODIF 531 - Mobile : viewport, safe-area, feed, modales story
@@ -427,26 +733,26 @@ MODIF 531 - Mobile : viewport, safe-area, feed, modales story
 Date : 2026-06-15
 
 ## Contexte
-Demande utilisateur : affichage compatible téléphones (iOS/Android navigateur + PWA).
+Demande utilisateur : affichage compatible t?l?phones (iOS/Android navigateur + PWA).
 
-## Audit — constats
-1. `index.html` : viewport-fit=cover déjà OK ; shell sans `min-w-0` → risque overflow horizontal feed.
-2. Safe-area : header/onglets/MapStorySheet/PhotoImageEditor déjà partiels ; StoryViewer sans inset top/bottom plein écran.
-3. StoryViewer : modale centrée `max-h-[70vh]` peu immersive sur mobile (390×844, 375×667).
-4. PullToRefresh : indicateur en flux (`height: pullY`) décalait le scroll du feed.
-5. Onglets bas : 5×50px + gaps serrés sur 320px.
-6. PhotoImageEditor story : aperçu 9:16 ne maximisait pas la hauteur dispo (dock + safe-area).
-7. z-index : modales story (120–200) > onglets (70) > header (100 overlay toast seulement) — OK.
+## Audit ? constats
+1. `index.html` : viewport-fit=cover d?j? OK ; shell sans `min-w-0` ? risque overflow horizontal feed.
+2. Safe-area : header/onglets/MapStorySheet/PhotoImageEditor d?j? partiels ; StoryViewer sans inset top/bottom plein ?cran.
+3. StoryViewer : modale centr?e `max-h-[70vh]` peu immersive sur mobile (390?844, 375?667).
+4. PullToRefresh : indicateur en flux (`height: pullY`) d?calait le scroll du feed.
+5. Onglets bas : 5?50px + gaps serr?s sur 320px.
+6. PhotoImageEditor story : aper?u 9:16 ne maximisait pas la hauteur dispo (dock + safe-area).
+7. z-index : modales story (120?200) > onglets (70) > header (100 overlay toast seulement) ? OK.
 
 ## Correctifs
 - `index.css` : overflow-x clip html/body/#root ; `.ms-app-shell` ; feed-scroll `position:relative` + width 100% ;
-  media ≤374px/≤359px (onglets compacts, textes feed 11px) ; `.ms-story-editor-preview(-frame)` pour éditeur.
+  media ?374px/?359px (onglets compacts, textes feed 11px) ; `.ms-story-editor-preview(-frame)` pour ?diteur.
 - `App.tsx` : classe `ms-app-shell`, `min-w-0 w-full` sur shell et main.
-- `ActualiteTabPage` : `min-w-0` chaîne flex ; PullToRefresh indicateur en overlay absolu (scroll intact).
-- `StoryViewer` : plein écran mobile, safe-area, `dvh` desktop.
+- `ActualiteTabPage` : `min-w-0` cha?ne flex ; PullToRefresh indicateur en overlay absolu (scroll intact).
+- `StoryViewer` : plein ?cran mobile, safe-area, `dvh` desktop.
 - `MapStorySheet` : `max-h` en `dvh` + safe-area bottom.
-- `PhotoImageEditor` : `h-dvh max-h-dvh`, aperçu story via classes CSS dédiées.
-- `MainTabNav` : gaps réduits ≤374px.
+- `PhotoImageEditor` : `h-dvh max-h-dvh`, aper?u story via classes CSS d?di?es.
+- `MainTabNav` : gaps r?duits ?374px.
 
 ## Fichiers
 - app/src/index.css
@@ -460,36 +766,36 @@ Demande utilisateur : affichage compatible téléphones (iOS/Android navigateur 
 
 ## Test
   cd app && npm test && npm run build
-  Vérifier manuellement : 390×844 et 375×667 — feed scroll, pull-refresh, story viewer plein écran,
-  éditeur story hauteur max, onglets accessibles, pas de scroll horizontal.
+  V?rifier manuellement : 390?844 et 375?667 ? feed scroll, pull-refresh, story viewer plein ?cran,
+  ?diteur story hauteur max, onglets accessibles, pas de scroll horizontal.
 
-## Déploiement
-**Non** — en attente validation utilisateur.
+## D?ploiement
+**Non** ? en attente validation utilisateur.
 
 ## Limitations restantes
-- Carte Leaflet / Reels : non audités en profondeur dans cette MODIF.
-- StoryLivePreviewViewer : layout desktop-like conservé (hors scope viewer principal).
-- Clavier virtuel éditeur story : hauteur preview recalculée au resize mais pas de `visualViewport` dédié.
-- apptel (layout téléphone natif) : tokens partagés via index.css, pas de changement structurel.
+- Carte Leaflet / Reels : non audit?s en profondeur dans cette MODIF.
+- StoryLivePreviewViewer : layout desktop-like conserv? (hors scope viewer principal).
+- Clavier virtuel ?diteur story : hauteur preview recalcul?e au resize mais pas de `visualViewport` d?di?.
+- apptel (layout t?l?phone natif) : tokens partag?s via index.css, pas de changement structurel.
 
 ================================================================================
-MODIF 530 - Story : aperçu éditeur 9:16 cover + overlays alignés
+MODIF 530 - Story : aper?u ?diteur 9:16 cover + overlays align?s
 ================================================================================
 Date : 2026-06-15
 
 ## Contexte
-Bug utilisateur : dans PhotoImageEditor (story), l'aperçu 9:16 n'était pas rempli
-(image décalée à gauche, bande noire ~40 % à droite) et les overlays texte/tag/lien
-étaient mal positionnés par rapport au cadre visible.
+Bug utilisateur : dans PhotoImageEditor (story), l'aper?u 9:16 n'?tait pas rempli
+(image d?cal?e ? gauche, bande noire ~40 % ? droite) et les overlays texte/tag/lien
+?taient mal positionn?s par rapport au cadre visible.
 
 ## Cause racine
-1. PhotoInlineCrop initialisait le zoom/pan avec `STORY_VIEWPORT_W/H` (280×498) par
-   défaut avant mesure réelle du conteneur preview — scale « cover » trop faible pour
-   le cadre affiché → bandes noires et image non centrée.
-2. L'image rognage était positionnée en px depuis le coin (left/top) au lieu du
-   centre du conteneur, amplifiant l'écart si viewSize ≠ taille DOM.
+1. PhotoInlineCrop initialisait le zoom/pan avec `STORY_VIEWPORT_W/H` (280?498) par
+   d?faut avant mesure r?elle du conteneur preview ? scale ? cover ? trop faible pour
+   le cadre affich? ? bandes noires et image non centr?e.
+2. L'image rognage ?tait positionn?e en px depuis le coin (left/top) au lieu du
+   centre du conteneur, amplifiant l'?cart si viewSize ? taille DOM.
 3. PhotoImageEditor : `<img>` en flux (sans `absolute inset-0`) dans un cadre
-   `h-full w-auto aspect-[9/16]` — remplissage object-cover fragile ; overlays en
+   `h-full w-auto aspect-[9/16]` ? remplissage object-cover fragile ; overlays en
    % du conteneur alors que l'image visible ne couvrait pas tout le cadre.
 
 ## Correctifs
@@ -497,8 +803,8 @@ Bug utilisateur : dans PhotoImageEditor (story), l'aperçu 9:16 n'était pas rem
   image `absolute inset-0 object-cover object-center`, couche crop/overlays `inset-0`.
 - PhotoInlineCrop : mesure DOM (`getBoundingClientRect`) avant init scale, resync au
   resize, recentrage `left-1/2 top-1/2` + `translate(calc(-50% + offset))`.
-- MapStorySheet : même pattern `absolute inset-0 object-cover` sur l'aperçu 9:16.
-- Test : couverture viewport avec scale calculé sur taille réelle vs défauts stale.
+- MapStorySheet : m?me pattern `absolute inset-0 object-cover` sur l'aper?u 9:16.
+- Test : couverture viewport avec scale calcul? sur taille r?elle vs d?fauts stale.
 
 ## Fichiers
 - app/src/components/PhotoImageEditor.tsx
@@ -510,46 +816,46 @@ Bug utilisateur : dans PhotoImageEditor (story), l'aperçu 9:16 n'était pas rem
 ## Test
   cd app && npm test && npm run build
 
-## Déploiement
+## D?ploiement
 **Non** - en attente validation utilisateur.
 
 
 ================================================================================
-MODIF 529 - UI mass-market : accessibilité, tokens, empty states, stories
+MODIF 529 - UI mass-market : accessibilit?, tokens, empty states, stories
 ================================================================================
 Date : 2026-06-15
 
 ## Contexte
-Lot graphique / UX pour l'app Soundy/MeloSong (fil d'accueil, stories, création
-story) : contraste, touch targets, tokens CSS, états vides, aperçu 9:16, carrousel.
+Lot graphique / UX pour l'app Soundy/MeloSong (fil d'accueil, stories, cr?ation
+story) : contraste, touch targets, tokens CSS, ?tats vides, aper?u 9:16, carrousel.
 
-## P1 — Accessibilité & touch
-- Labels secondaires gray-400 → gray-300 / --ms-text-muted sur fond sombre
+## P1 ? Accessibilit? & touch
+- Labels secondaires gray-400 ? gray-300 / --ms-text-muted sur fond sombre
 - min-h-11 / min-w-11 sur onglets story dock, CTAs MapStorySheet, filtre stories,
   boutons publication fil, bouton + story
-- prefers-reduced-motion étendu (live, reels, pulse carte, carrousels)
+- prefers-reduced-motion ?tendu (live, reels, pulse carte, carrousels)
 
-## P2 — Tokens CSS (--ms-*)
+## P2 ? Tokens CSS (--ms-*)
 - index.css : --ms-surface-2, --ms-accent (+ alias existants)
 - Migration partielle MapStorySheet, StoriesInlineBar header, ActualiteTabPage
   (compose + fond page)
 
-## P3 — Empty states
+## P3 ? Empty states
 - StoriesInlineBar : message abonnements vides + hint CTA (carte / profils)
 - ActualiteTabPage fil : message abonnements + hint suivre des artistes
 
-## P4 — Aperçu story 9:16
-- MapStorySheet : preview aspect-[9/16] centré (plus bandeau max-h-52)
+## P4 ? Aper?u story 9:16
+- MapStorySheet : preview aspect-[9/16] centr? (plus bandeau max-h-52)
 
-## P5 — Carrousel stories
-- HorizontalScrollCarousel : dégradés latéraux ms-hscroll-fade-wrap quand scrollable
+## P5 ? Carrousel stories
+- HorizontalScrollCarousel : d?grad?s lat?raux ms-hscroll-fade-wrap quand scrollable
 
-## P6 — Mini-player
-- **Non implémenté** : pas de PlayerContext / lecteur global persistant dans app/
+## P6 ? Mini-player
+- **Non impl?ment?** : pas de PlayerContext / lecteur global persistant dans app/
 
-## P7 — Visibilité story
-- MapStorySheet : aide « Visible par vos abonnés uniquement » / « Visible par tous »
-  (SVG Abonnés/Public déjà en place, MODIF 527)
+## P7 ? Visibilit? story
+- MapStorySheet : aide ? Visible par vos abonn?s uniquement ? / ? Visible par tous ?
+  (SVG Abonn?s/Public d?j? en place, MODIF 527)
 
 ## Fichiers
 - app/src/index.css
@@ -564,8 +870,8 @@ story) : contraste, touch targets, tokens CSS, états vides, aperçu 9:16, carro
 ## Test
   cd app && npm test && npm run build
 
-## Déploiement
-**Non** — en attente validation utilisateur (tests doivent passer).
+## D?ploiement
+**Non** ? en attente validation utilisateur (tests doivent passer).
 
 
 ================================================================================
@@ -574,19 +880,19 @@ MODIF 528 - Script bootstrap second Cursor (VPS, GitHub, secrets)
 Date : 2026-06-15
 
 ## Contexte
-Besoin d’un script Windows PowerShell pour configurer un **second poste / second
-compte Cursor** avec les mêmes accès dev local et deploy prod que la machine 1
+Besoin d?un script Windows PowerShell pour configurer un **second poste / second
+compte Cursor** avec les m?mes acc?s dev local et deploy prod que la machine 1
 (VPS 51.159.164.100, GitHub MeloSong, msdev, deploy_zero_downtime.ps1).
 
 ## Livrables
-- `scripts/setup-second-cursor.ps1` — prérequis, clone C:\Dev\MeloSongv2, GitHub,
-  SSH, .env depuis .example, npm install, vérifs health/SSH/git
-- `scripts/SETUP-SECOND-CURSOR.md` — checklist courte
-- `scripts/secrets-checklist.template.txt` — placeholders secrets (machine 1 / VPS)
+- `scripts/setup-second-cursor.ps1` ? pr?requis, clone C:\Dev\MeloSongv2, GitHub,
+  SSH, .env depuis .example, npm install, v?rifs health/SSH/git
+- `scripts/SETUP-SECOND-CURSOR.md` ? checklist courte
+- `scripts/secrets-checklist.template.txt` ? placeholders secrets (machine 1 / VPS)
 
-## Sécurité
-- Aucun mot de passe réel dans les scripts (pas de vps-setup.sh ni liveVideoRelay)
-- Transfert clé SSH documenté (USB/SCP/nouvelle clé sur VPS) — jamais dans Git
+## S?curit?
+- Aucun mot de passe r?el dans les scripts (pas de vps-setup.sh ni liveVideoRelay)
+- Transfert cl? SSH document? (USB/SCP/nouvelle cl? sur VPS) ? jamais dans Git
 
 ## Fichiers
 - scripts/setup-second-cursor.ps1 (nouveau)
@@ -597,32 +903,32 @@ compte Cursor** avec les mêmes accès dev local et deploy prod que la machine 1
 ## Test
   powershell -ExecutionPolicy Bypass -File scripts/setup-second-cursor.ps1 -SkipClone -SkipNpmInstall
 
-## Déploiement
-**Non** — pas de commit demandé par l’utilisateur.
+## D?ploiement
+**Non** ? pas de commit demand? par l?utilisateur.
 
 
 ================================================================================
-MODIF 527 - Story : aperçu modale = photo composée (filtres / texte / tags)
+MODIF 527 - Story : aper?u modale = photo compos?e (filtres / texte / tags)
 ================================================================================
 Date : 2026-06-15
 
 ## Contexte
-Après édition dans PhotoImageEditor (filtres, texte, @, lien) et clic Suivant,
-l'aperçu de MapStorySheet (« Nouvelle story ») affichait la photo brute : `imageUrl`
-était renseigné dès la sélection fichier, avant composition canvas.
+Apr?s ?dition dans PhotoImageEditor (filtres, texte, @, lien) et clic Suivant,
+l'aper?u de MapStorySheet (? Nouvelle story ?) affichait la photo brute : `imageUrl`
+?tait renseign? d?s la s?lection fichier, avant composition canvas.
 
 ## Cause
-`openEditorWithImage` appelait `setImageUrl(url)` avec le dataUrl brut ; l'aperçu
-et le bouton Publier étaient actifs avant validation éditeur. Même après Suivant,
-l'utilisateur voyait l'image non composée.
+`openEditorWithImage` appelait `setImageUrl(url)` avec le dataUrl brut ; l'aper?u
+et le bouton Publier ?taient actifs avant validation ?diteur. M?me apr?s Suivant,
+l'utilisateur voyait l'image non compos?e.
 
 ## Correctif
-- `editorDraftUrl` : brouillon brut uniquement pour l'éditeur (sélection / changer photo).
-- `imageUrl` : rempli uniquement dans `handleEditorConfirm` avec le JPEG composé
+- `editorDraftUrl` : brouillon brut uniquement pour l'?diteur (s?lection / changer photo).
+- `imageUrl` : rempli uniquement dans `handleEditorConfirm` avec le JPEG compos?
   (`composeStoryImageWithOverlays` via PhotoImageEditor).
-- `imageSource` synchronisé sur l'image composée pour ré-édition cohérente.
-- Annuler éditeur : purge `editorDraftUrl` sans toucher l'aperçu existant.
-- Publication : même `imageUrl` composé ; badges musique / tags / lien inchangés.
+- `imageSource` synchronis? sur l'image compos?e pour r?-?dition coh?rente.
+- Annuler ?diteur : purge `editorDraftUrl` sans toucher l'aper?u existant.
+- Publication : m?me `imageUrl` compos? ; badges musique / tags / lien inchang?s.
 
 ## Fichiers
 - app/src/components/MapStorySheet.tsx
@@ -632,36 +938,36 @@ l'utilisateur voyait l'image non composée.
 ## Test
   cd app && npm test -- mapStorySheetPreview storyImageCompose && npm run build
 
-## Déploiement
-**Non** — en attente validation utilisateur.
+## D?ploiement
+**Non** ? en attente validation utilisateur.
 
 
 ================================================================================
-MODIF 525 - Story : déplacer et redimensionner texte / tags sur la photo
+MODIF 525 - Story : d?placer et redimensionner texte / tags sur la photo
 ================================================================================
 Date : 2026-06-15
 
 ## Contexte
-MODIF 524 : tap-to-text et mentions @. L'utilisateur souhaite déplacer et
-réduire/agrandir les calques texte et stickers @ directement sur l'aperçu photo
+MODIF 524 : tap-to-text et mentions @. L'utilisateur souhaite d?placer et
+r?duire/agrandir les calques texte et stickers @ directement sur l'aper?u photo
 (style Instagram).
 
-## Modèle d'interaction
-1. **Déplacer** : glisser un texte (seuil ~10 px avant drag, tap = édition) ou
-   un tag @ (drag immédiat). Les handlers pointer move/up sont sur le calque ET
+## Mod?le d'interaction
+1. **D?placer** : glisser un texte (seuil ~10 px avant drag, tap = ?dition) ou
+   un tag @ (drag imm?diat). Les handlers pointer move/up sont sur le calque ET
    le conteneur preview (corrige pointer capture).
-2. **Redimensionner** (calque sélectionné) :
-   - Pincement à deux doigts sur le calque
-   - Poignée violette coin bas-droit (desktop / tactile)
-3. **Slider Taille** (panneau Texte / Taguer) : synchronisé avec la taille
-   effective (fontSize × scale).
-4. **Export** : scale intégré dans drawTextOverlays / drawUserTagOverlays.
-5. Bornes scale : 0,5× – 2×.
+2. **Redimensionner** (calque s?lectionn?) :
+   - Pincement ? deux doigts sur le calque
+   - Poign?e violette coin bas-droit (desktop / tactile)
+3. **Slider Taille** (panneau Texte / Taguer) : synchronis? avec la taille
+   effective (fontSize ? scale).
+4. **Export** : scale int?gr? dans drawTextOverlays / drawUserTagOverlays.
+5. Bornes scale : 0,5? ? 2?.
 
-## Champs d'état
-- `StoryTextOverlay.scale?: number` (défaut 1)
-- `StoryTaggedUser.scale?: number` (défaut 1)
-- `isScaling` (UI éditeur, non persisté)
+## Champs d'?tat
+- `StoryTextOverlay.scale?: number` (d?faut 1)
+- `StoryTaggedUser.scale?: number` (d?faut 1)
+- `isScaling` (UI ?diteur, non persist?)
 
 ## Fichiers
 - app/src/lib/storyOverlayTransform.ts (nouveau)
@@ -675,8 +981,8 @@ réduire/agrandir les calques texte et stickers @ directement sur l'aperçu phot
 ## Test
   cd app && npm test -- storyOverlayTransform storyImageCompose && npm run build
 
-## Déploiement
-**Non** — en attente validation utilisateur.
+## D?ploiement
+**Non** ? en attente validation utilisateur.
 
 ================================================================================
 MODIF 526 - Story : @ inline dans le texte (sans sticker duplique)
@@ -689,12 +995,12 @@ dans un calque texte. Comportement attendu type Instagram : le @username reste
 dans le texte, sans pastille blanche en double.
 
 ## Modele de donnees
-- **StoryTextOverlay.mentionRefs** : `{ id, username }[]` — utilisateurs tagues
+- **StoryTextOverlay.mentionRefs** : `{ id, username }[]` ? utilisateurs tagues
   inline via autocomplete @ dans ce calque (pas de position x/y).
-- **StoryTaggedUser** (stickers) : inchangé — tags ajoutes via l'outil Taguer,
+- **StoryTaggedUser** (stickers) : inchang? ? tags ajoutes via l'outil Taguer,
   avec position (et scale MODIF move/scale).
 - **Export API** : `mergeTaggedUsersForExport(stickers, overlays)` fusionne
-  stickers + mentionRefs actives (dedupe par id) → `taggedUserIds` a la publication.
+  stickers + mentionRefs actives (dedupe par id) ? `taggedUserIds` a la publication.
 - **Canvas JPEG** : texte dessine en un bloc (`drawTextOverlays`, @ inclus) ;
   stickers seulement pour `filterStickerTagsNotInText` (exclut ceux deja dans le texte).
 
@@ -767,7 +1073,7 @@ carrousels evenements / nouveautes, MODIF 504).
 - `HorizontalScrollCarousel` : prop `scrollStepCount` (defaut 1) pour defiler
   plusieurs items par clic.
 - Nouveau `StoriesRingsCarousel` : reutilise le pattern MODIF 504, scroll ~3,5
-  anneaux, aria-labels FR « Precédent » / « Suivant », theme sombre #12121a /
+  anneaux, aria-labels FR ? Prec?dent ? / ? Suivant ?, theme sombre #12121a /
   accents violet ; fleches masquees aux extremites et si un seul anneau.
 - `StoriesInlineBar` et `MapStoriesAccordion` utilisent ce composant.
 
@@ -784,7 +1090,7 @@ carrousels evenements / nouveautes, MODIF 504).
   cd app && npm run build
 
 ## Deploiement
-**Non** — modification locale uniquement.
+**Non** ? modification locale uniquement.
 
 ================================================================================
 MODIF 522 - Carrousel Stories : suppression limite 24 entrees
@@ -813,7 +1119,7 @@ entrees a 24 via MAX_STORIES dans mapStoriesFeed.ts.
   cd app && npm run build
 
 ## Deploiement
-**Non** — modification locale uniquement.
+**Non** ? modification locale uniquement.
 
 ================================================================================
 MODIF 521 - msdev : stories aleatoires des favoris suivis
@@ -828,7 +1134,7 @@ n'avait aucune story d'autres utilisateurs suivis.
 ## Correctif
 - Module `seed-msdev-stories.ts` : stories aleatoires (texte FR, images
   picsum / unsplash / avatar dicebear) pour les favoris seedes de l'auditeur
-  demo (DJ Melody, BassHunter, bots carte…).
+  demo (DJ Melody, BassHunter, bots carte?).
 - Regeneration auto au demarrage msdev si moins de 4 auteurs favoris ont une
   story active ; `MSDEV_FORCE_SEED=1` force la regen.
 - Endpoint msdev `POST /api/msdev/seed-stories` (?force=1).
@@ -848,13 +1154,13 @@ n'avait aucune story d'autres utilisateurs suivis.
   cd backend && npm run msdev:seed-stories
 
 ## Utilisation
-1. Demarrer msdev (Lancer-msdev.ps1) — seed auto si fil stories vide.
+1. Demarrer msdev (Lancer-msdev.ps1) ? seed auto si fil stories vide.
 2. Ou : `cd backend && npm run msdev:seed-stories` (store.json charge).
 3. Ou API (JWT) : `POST /api/msdev/seed-stories` body `{ "force": true }`.
-4. Se connecter listener@msdev.local / msdev123 → Accueil → carrousel Stories.
+4. Se connecter listener@msdev.local / msdev123 ? Accueil ? carrousel Stories.
 
 ## Deploiement
-**Non** — dev msdev uniquement.
+**Non** ? dev msdev uniquement.
 
 ================================================================================
 MODIF 520 - StoryViewer : timer auto-avance stable 5 s
@@ -901,11 +1207,11 @@ pas relecture depuis le debut.
 ## Comportement
 - Tap anneau story : ouvre toujours StoryViewer depuis la **premiere** story de la pile
   (chronologique), meme si deja vue.
-- Indicateur « vu » conserve : anneau gris / segments gris (MapStoryRings), tri
-  non-vues en premier dans le carrousel — indicatif uniquement, ne bloque plus.
-- `markStoryAsSeen` + localStorage : toujours actifs pour le style « vu ».
+- Indicateur ? vu ? conserve : anneau gris / segments gris (MapStoryRings), tri
+  non-vues en premier dans le carrousel ? indicatif uniquement, ne bloque plus.
+- `markStoryAsSeen` + localStorage : toujours actifs pour le style ? vu ?.
 - Purge des IDs expires du localStorage au chargement du feed.
-- StoryViewer : auto-avance 5 s (`STORY_VIEW_DURATION_MS`) — inchange, confirme.
+- StoryViewer : auto-avance 5 s (`STORY_VIEW_DURATION_MS`) ? inchange, confirme.
 
 ## Fichiers
 - app/src/lib/storyViewerNav.ts
@@ -979,26 +1285,26 @@ MODIF 516 - Story : presets IA Instagram-class (libre de droit)
 Date : 2026-06-15
 
 ## Contexte
-Section « IA · libre de droit » (PhotoImageEditor) : 6 presets generiques
+Section ? IA ? libre de droit ? (PhotoImageEditor) : 6 presets generiques
 (Amelioration IA, Portrait eclat, etc.). L'utilisateur souhaite des looks
 reconnus, style presets Instagram-class, 100 % CSS client-side (libre de droit).
 
-## Verification flux story (MapStorySheet → StoryImageEditor → export)
+## Verification flux story (MapStorySheet ? StoryImageEditor ? export)
 - Preview live : style CSS `filter` sur l'image utilisateur (pas de vignette fixe).
 - Suivant : `composeStoryImageWithOverlays(..., filterId, ...)` via ctx.filter canvas.
 - Publier : JPEG deja compose (filtre incruste) envoye tel quel a l'API.
 - Aucune regression detectee sur le pipeline ; tests export canvas ajoutes.
 
 ## Presets IA (labels FR + nom familier)
-- Clarendon · punch — contraste + saturation (punchy)
-- Valencia · chaleur — fade chaud lumineux
-- Lark · lumineux — clair, legerement desature
-- X-Pro · retro — cross-process vintage
-- Lo-fi · graine — contraste eleve, fade
-- Gingham · pastel — vintage pastel doux
-- Juno · doux — tons chauds adoucis
-- Aden · froid — teinte froide desaturee
-- Hudson · bleu — fade bleu retro
+- Clarendon ? punch ? contraste + saturation (punchy)
+- Valencia ? chaleur ? fade chaud lumineux
+- Lark ? lumineux ? clair, legerement desature
+- X-Pro ? retro ? cross-process vintage
+- Lo-fi ? graine ? contraste eleve, fade
+- Gingham ? pastel ? vintage pastel doux
+- Juno ? doux ? tons chauds adoucis
+- Aden ? froid ? teinte froide desaturee
+- Hudson ? bleu ? fade bleu retro
 
 Distincts des classiques (Vif, Chaud, Sepia, etc.) : calibrage CSS separe.
 Carrousel horizontal snap sur la photo de l'utilisateur.
@@ -1094,12 +1400,12 @@ bleue) et un panneau bas (slider zoom, bouton Appliquer, instructions).
 - Gestes : glisser (pan), molette / trackpad (zoom), pincement (mobile).
 - Plus de poignees de redimensionnement ni panneau bas Rogner.
 - Rognage applique automatiquement en quittant l'outil ou via Suivant/Utiliser.
-- Indication discrete overlay : « Pincez ou glissez » (masquee apres 1ere interaction).
+- Indication discrete overlay : ? Pincez ou glissez ? (masquee apres 1ere interaction).
 
 ## Modele d'etat (PhotoInlineCrop)
 - `scale` : facteur zoom (min = cover viewport, max = 4x cover)
 - `offsetX`, `offsetY` : decalage pan en px viewport (0 = centre)
-- Export via `computeStoryCropRect` / `computeCropRectFromViewport` inchangé
+- Export via `computeStoryCropRect` / `computeCropRectFromViewport` inchang?
 
 ## Fichiers
 - app/src/components/PhotoInlineCrop.tsx (refonte pan/zoom)
@@ -1136,7 +1442,7 @@ Filtre, Musique et Taguer, mais pas de lien cliquable type sticker Instagram.
 
 ## Modele de donnees (StoryLink)
 - `url` : string (http/https, max 2048, normalise via URL parser)
-- `label` : string optionnel (max 80 ; defaut affichage = domaine ou � Voir plus �)
+- `label` : string optionnel (max 80 ; defaut affichage = domaine ou ? Voir plus ?)
 - `x`, `y` : position relative 0?1 sur l'image
 - **Limite : 1 lien maximum par story** (comme Instagram)
 
@@ -2654,41 +2960,41 @@ Fin MODIF 478 - 2026-06-13
 ================================================================================
 
 ================================================================================
-MODIF 479 � Correctif localhost vs production (processus depuis iCloud) � Soundly Dev
+MODIF 479 ? Correctif localhost vs production (processus depuis iCloud) ? Soundly Dev
 Date : 2026-06-21
 ================================================================================
 
-OBJECTIF / PROBL�ME
+OBJECTIF / PROBL?ME
 ----
- La production (getsoundy.com) �tait sur la bonne version incluant l'auth httpOnly
+ La production (getsoundy.com) ?tait sur la bonne version incluant l'auth httpOnly
  cookie, tandis que localhost affichait une version ancienne. Cause racine : le
  backend (ts-node-dev) et le frontend (Vite) tournaient depuis l'ancienne copie
  iCloud Drive (C:\Users\valen\iCloudDrive\Application\MeloSong\MeloSongv2\) au lieu
- du d�p�t actif (C:\Dev\Soundy\).
+ du d?p?t actif (C:\Dev\Soundy\).
 
 CHANGEMENTS / FIX
 -----
  Diagnostic
  ----------
- � Port 4080 (backend) occup� par PID 10940 ? commande ts-node-dev depuis
+ ? Port 4080 (backend) occup? par PID 10940 ? commande ts-node-dev depuis
    C:\Users\valen\iCloudDrive\Application\MeloSong\MeloSongv2\backend\ (ancienne copie iCloud).
- � Port 5173 (Vite) occup� par PID 37828 ? Vite depuis la m�me copie iCloud.
- � La copie iCloud n'avait pas les changements actifs en cours de dev
+ ? Port 5173 (Vite) occup? par PID 37828 ? Vite depuis la m?me copie iCloud.
+ ? La copie iCloud n'avait pas les changements actifs en cours de dev
    (auth httpOnly cookies, legal docs, nativePlatform.ts, etc.).
 
  Correctif
  ---------
- � Arr�t des deux anciens processus (PIDs 10940 et 37828).
- � Red�marrage backend depuis C:\Dev\Soundy\backend\ via dev-start.ps1.
- � Red�marrage Vite depuis C:\Dev\Soundy\app\ ? port 5173.
- � D�pendance cookie-parser d�j� install�e, TypeScript compil� sans erreur.
+ ? Arr?t des deux anciens processus (PIDs 10940 et 37828).
+ ? Red?marrage backend depuis C:\Dev\Soundy\backend\ via dev-start.ps1.
+ ? Red?marrage Vite depuis C:\Dev\Soundy\app\ ? port 5173.
+ ? D?pendance cookie-parser d?j? install?e, TypeScript compil? sans erreur.
 
-FICHIERS MODIFI�S
+FICHIERS MODIFI?S
 -----
- Aucun fichier source modifi� � correctif purement op�rationnel (processus tu�s et
- relanc�s depuis le bon r�pertoire).
+ Aucun fichier source modifi? ? correctif purement op?rationnel (processus tu?s et
+ relanc?s depuis le bon r?pertoire).
 
-BUILD (si v�rifi�)
+BUILD (si v?rifi?)
 -----
  app/ ? tsc --noEmit ? ? (0 erreur)
  backend/ ? tsc --noEmit ? ? (0 erreur)
@@ -2696,54 +3002,54 @@ BUILD (si v�rifi�)
  Backend msdev ? localhost:4080 ? ?
 
 ================================================================================
-Fin MODIF 479 � 2026-06-21
+Fin MODIF 479 ? 2026-06-21
 ================================================================================
 
 ================================================================================
-MODIF 480 � Audit s�curit� & qualit� (CTO / SecExpert / QA) � Soundy Dev
+MODIF 480 ? Audit s?curit? & qualit? (CTO / SecExpert / QA) ? Soundy Dev
 Date : 2026-06-21
 ================================================================================
 
-OBJECTIF / PROBL�ME
+OBJECTIF / PROBL?ME
 ----
- Audit complet du codebase (frontend + backend) par une �quipe simul�e CTO /
- Senior Security Expert / QA. Correction de toutes les failles identifi�es.
+ Audit complet du codebase (frontend + backend) par une ?quipe simul?e CTO /
+ Senior Security Expert / QA. Correction de toutes les failles identifi?es.
 
 CHANGEMENTS / FIX
 -----
  backend/src/routes/auth.ts
  --------------------------
- � SEC-001 [Critical] � Validation mot de passe manquante en /register :
-   ajout contr�le longueur min (8) et max (128 chars, limite bcrypt).
- � SEC-002 [High] � Pas de validation e-mail en /register :
+ ? SEC-001 [Critical] ? Validation mot de passe manquante en /register :
+   ajout contr?le longueur min (8) et max (128 chars, limite bcrypt).
+ ? SEC-002 [High] ? Pas de validation e-mail en /register :
    ajout regex EMAIL_RE de base.
- � SEC-003 [High] � Pas de validation pseudo en /register :
-   ajout longueur (2�30), caract�res autoris�s (USERNAME_RE).
+ ? SEC-003 [High] ? Pas de validation pseudo en /register :
+   ajout longueur (2?30), caract?res autoris?s (USERNAME_RE).
 
  backend/src/socket.ts
  ---------------------
- � SEC-004 [High] � �v�nement gift_sent : giftType non valid� (injection
-   d'animations fictives, d�ception UI) ; amount non born�.
-   Fix : whitelist ALLOWED_GIFT_TYPES, clamp amount 1�500, nettoyage du
-   spread (seuls les champs sanitis�s sont �mis).
- � SEC-005 [Medium] � �v�nement dm : ID de message contr�l� c�t� client
+ ? SEC-004 [High] ? ?v?nement gift_sent : giftType non valid? (injection
+   d'animations fictives, d?ception UI) ; amount non born?.
+   Fix : whitelist ALLOWED_GIFT_TYPES, clamp amount 1?500, nettoyage du
+   spread (seuls les champs sanitis?s sont ?mis).
+ ? SEC-005 [Medium] ? ?v?nement dm : ID de message contr?l? c?t? client
    (risque de spoofing d'ID, replay).
-   Fix : g�n�ration c�t� serveur (dm_<timestamp>_<rand>).
- � CODE-001 [Medium] � Ajout validation du contenu DM (slice 2000 chars,
-   rejet des messages vides) coh�rent avec salon_message/live_message.
+   Fix : g?n?ration c?t? serveur (dm_<timestamp>_<rand>).
+ ? CODE-001 [Medium] ? Ajout validation du contenu DM (slice 2000 chars,
+   rejet des messages vides) coh?rent avec salon_message/live_message.
 
  backend/src/server.ts
  ---------------------
- � SEC-006 [High] � Handler d'erreur g�n�rique absent : les exceptions non
-   g�r�es pouvaient exposer des stack traces Node.js.
-   Fix : catch-all qui r�pond { error: "Une erreur interne�" } sans d�tails.
- � SEC-007 [Medium] � Host Header Injection dans getShareOgBaseUrl :
-   x-forwarded-host non nettoy� inject� en URL OG meta.
+ ? SEC-006 [High] ? Handler d'erreur g?n?rique absent : les exceptions non
+   g?r?es pouvaient exposer des stack traces Node.js.
+   Fix : catch-all qui r?pond { error: "Une erreur interne?" } sans d?tails.
+ ? SEC-007 [Medium] ? Host Header Injection dans getShareOgBaseUrl :
+   x-forwarded-host non nettoy? inject? en URL OG meta.
    Fix : regex /^[a-zA-Z0-9.\-:[\]]+$/ sur le host avant usage.
 
  backend/src/lib/imageValidation.ts  [NOUVEAU]
  ---------------------------------------------
- � CODE-002 [Medium] � Fonction validateImageMagicBytes dupliqu�e 3� :
+ ? CODE-002 [Medium] ? Fonction validateImageMagicBytes dupliqu?e 3? :
    sponsorBannerAssets, sponsorLogoAssets, albumCoverAssets.
    Fix : extraction dans imageValidation.ts (DRY), + extForImageMime.
 
@@ -2751,206 +3057,206 @@ CHANGEMENTS / FIX
  backend/src/lib/sponsorBannerAssets.ts
  backend/src/lib/sponsorLogoAssets.ts
  --------------------------------------
- � Refactor : import depuis imageValidation.ts, suppression code dupliqu�.
+ ? Refactor : import depuis imageValidation.ts, suppression code dupliqu?.
 
  backend/src/routes/donations.ts
  --------------------------------
- � CODE-003 [Medium] � Parsing JWT inline dans /config (divergence avec le
-   middleware authenticateJWT, import jwt/getJwtSecret non n�cessaires).
-   Fix : remplacement par verifyAuthToken() du middleware partag� +
-   lecture du cookie soundy_auth pour coh�rence avec les autres routes.
+ ? CODE-003 [Medium] ? Parsing JWT inline dans /config (divergence avec le
+   middleware authenticateJWT, import jwt/getJwtSecret non n?cessaires).
+   Fix : remplacement par verifyAuthToken() du middleware partag? +
+   lecture du cookie soundy_auth pour coh?rence avec les autres routes.
 
-FICHIERS MODIFI�S
+FICHIERS MODIFI?S
 -----
  backend/src/routes/auth.ts          ? validation register (mot de passe, e-mail, pseudo)
  backend/src/socket.ts               ? gift_sent validation + dm ID serveur
- backend/src/server.ts               ? error handler g�n�rique + host header fix
- backend/src/lib/imageValidation.ts  ? NOUVEAU � utilitaire partag� magic bytes
+ backend/src/server.ts               ? error handler g?n?rique + host header fix
+ backend/src/lib/imageValidation.ts  ? NOUVEAU ? utilitaire partag? magic bytes
  backend/src/lib/albumCoverAssets.ts ? DRY refactor vers imageValidation
  backend/src/lib/sponsorBannerAssets.ts ? DRY refactor vers imageValidation
  backend/src/lib/sponsorLogoAssets.ts   ? DRY refactor vers imageValidation
  backend/src/routes/donations.ts     ? refactor JWT optionnel dans /config
 
-BUILD (si v�rifi�)
+BUILD (si v?rifi?)
 -----
  backend/ ? tsc --noEmit ? ? (0 erreur)
  app/     ? tsc --noEmit ? ? (0 erreur)
 
 ================================================================================
-Fin MODIF 480 � 2026-06-21
+Fin MODIF 480 ? 2026-06-21
 ================================================================================
 
 ================================================================================
-MODIF 481 — Audit conformité GDPR / YouTube / Spotify / App Store — Soundy Dev
+MODIF 481 ? Audit conformit? GDPR / YouTube / Spotify / App Store ? Soundy Dev
 Date : 2026-06-21
 ================================================================================
 
-OBJECTIF / PROBLÈME
+OBJECTIF / PROBL?ME
 ----
- Audit de conformité complet (GDPR, DSA, YouTube API ToS, Spotify Developer Policy,
- App Store Guidelines). Correction de tous les écarts détectés en code.
+ Audit de conformit? complet (GDPR, DSA, YouTube API ToS, Spotify Developer Policy,
+ App Store Guidelines). Correction de tous les ?carts d?tect?s en code.
 
 CHANGEMENTS / FIX
 -----
  app/src/content/legal/types.ts
- ─────────────────────────────
- • GDPR-FIX-001 : Correction domaine e-mail légal — melosong.app → getsoundy.com
-   (LEGAL_CONTACT_EMAIL et LEGAL_PRIVACY_EMAIL). Les anciens e-mails n'étaient pas
-   opérationnels, rendant les droits RGPD (art. 7/17/20) non exerçables.
+ ?????????????????????????????
+ ? GDPR-FIX-001 : Correction domaine e-mail l?gal ? melosong.app ? getsoundy.com
+   (LEGAL_CONTACT_EMAIL et LEGAL_PRIVACY_EMAIL). Les anciens e-mails n'?taient pas
+   op?rationnels, rendant les droits RGPD (art. 7/17/20) non exer?ables.
 
  app/src/pages/AuthPage.tsx
- ──────────────────────────
- • GDPR-FIX-002 : Ajout case à cocher « Je confirme avoir au moins 13 ans »
-   (obligatoire, bloque l'inscription si non cochée) — conformité GDPR art. 8,
+ ??????????????????????????
+ ? GDPR-FIX-002 : Ajout case ? cocher ? Je confirme avoir au moins 13 ans ?
+   (obligatoire, bloque l'inscription si non coch?e) ? conformit? GDPR art. 8,
    DSA et App Store Guidelines 1.3 (mineurs).
-   Appliqué aussi au flux OAuth (finalisation d'inscription via Google).
+   Appliqu? aussi au flux OAuth (finalisation d'inscription via Google).
 
  app/src/content/legal/rgpd.ts
- ──────────────────────────────
- • Mise à jour de la checklist production :
-   - Éléments implémentés marqués ☑ (export données, suppression compte,
-     email privacy, DSA art. 16, confirmation d'âge inscription).
-   - Nouveau §9a : article DSA art. 16 documenté.
- • Date mise à jour : 21 juin 2026.
+ ??????????????????????????????
+ ? Mise ? jour de la checklist production :
+   - ?l?ments impl?ment?s marqu?s ? (export donn?es, suppression compte,
+     email privacy, DSA art. 16, confirmation d'?ge inscription).
+   - Nouveau ?9a : article DSA art. 16 document?.
+ ? Date mise ? jour : 21 juin 2026.
 
  app/src/content/legal/privacy.ts
- ─────────────────────────────────
- • §9 Mineurs : précision que la confirmation d'âge est active (case à cocher
-   à l'inscription) et que les paiements sont réservés aux 18 ans+.
- • §7 Vos droits : ajout des raccourcis directs dans l'app (export, suppression).
- • Date mise à jour : 21 juin 2026.
+ ?????????????????????????????????
+ ? ?9 Mineurs : pr?cision que la confirmation d'?ge est active (case ? cocher
+   ? l'inscription) et que les paiements sont r?serv?s aux 18 ans+.
+ ? ?7 Vos droits : ajout des raccourcis directs dans l'app (export, suppression).
+ ? Date mise ? jour : 21 juin 2026.
 
  app/src/locales/fr.json + en.json
- ──────────────────────────────────
- • auth.ageConfirmCheckbox : libellé de la case de confirmation d'âge.
- • settings.legalSection renommé « Légal & RGPD ».
- • settings.dsaReportContent : libellé DSA art. 16.
- • settings.dsaReportContentHint : sous-titre DSA.
- • settings.dataRightsSection + dataRightsHint + contactPrivacy + contactPrivacyHint.
+ ??????????????????????????????????
+ ? auth.ageConfirmCheckbox : libell? de la case de confirmation d'?ge.
+ ? settings.legalSection renomm? ? L?gal & RGPD ?.
+ ? settings.dsaReportContent : libell? DSA art. 16.
+ ? settings.dsaReportContentHint : sous-titre DSA.
+ ? settings.dataRightsSection + dataRightsHint + contactPrivacy + contactPrivacyHint.
 
  app/src/pages/SettingsPage.tsx
- ─────────────────────────────
- • DSA-FIX-001 : Ajout entrée « Signaler un contenu illicite (DSA) » dans la
-   section légale — pointe vers le support (art. 16 DSA).
- • GDPR-FIX-003 : Ajout bloc « Vos droits (RGPD) » avec l'e-mail
+ ?????????????????????????????
+ ? DSA-FIX-001 : Ajout entr?e ? Signaler un contenu illicite (DSA) ? dans la
+   section l?gale ? pointe vers le support (art. 16 DSA).
+ ? GDPR-FIX-003 : Ajout bloc ? Vos droits (RGPD) ? avec l'e-mail
    privacy@getsoundy.com en lien mailto: cliquable.
 
  backend/src/routes/auth.ts
- ──────────────────────────
- • ENC-FIX-001 : Correction des caractères encodés incorrectement (? → é, à, è)
-   dans les messages d'erreur en français (register, login, profile update,
-   check-username). Ces erreurs corrompaient les réponses JSON lues par les clients.
- • Regex check-username : restauration des caractères français (àâäéèêëîïôùûüç)
+ ??????????????????????????
+ ? ENC-FIX-001 : Correction des caract?res encod?s incorrectement (? ? ?, ?, ?)
+   dans les messages d'erreur en fran?ais (register, login, profile update,
+   check-username). Ces erreurs corrompaient les r?ponses JSON lues par les clients.
+ ? Regex check-username : restauration des caract?res fran?ais (??????????????)
    dans le pattern de validation.
 
-FICHIERS MODIFIÉS
+FICHIERS MODIFI?S
 -----
- app/src/content/legal/types.ts          → domaine e-mail getsoundy.com
- app/src/pages/AuthPage.tsx              → case confirmation âge inscription
- app/src/content/legal/rgpd.ts          → checklist + §DSA
- app/src/content/legal/privacy.ts       → §9 mineurs + §7 droits RGPD
- app/src/locales/fr.json                → clés i18n DSA + âge
- app/src/locales/en.json                → clés i18n DSA + âge
- app/src/pages/SettingsPage.tsx         → entrée DSA + bloc droits RGPD
- backend/src/routes/auth.ts             → correction encodage UTF-8
+ app/src/content/legal/types.ts          ? domaine e-mail getsoundy.com
+ app/src/pages/AuthPage.tsx              ? case confirmation ?ge inscription
+ app/src/content/legal/rgpd.ts          ? checklist + ?DSA
+ app/src/content/legal/privacy.ts       ? ?9 mineurs + ?7 droits RGPD
+ app/src/locales/fr.json                ? cl?s i18n DSA + ?ge
+ app/src/locales/en.json                ? cl?s i18n DSA + ?ge
+ app/src/pages/SettingsPage.tsx         ? entr?e DSA + bloc droits RGPD
+ backend/src/routes/auth.ts             ? correction encodage UTF-8
 
-BUILD (si vérifié)
+BUILD (si v?rifi?)
 -----
- app/ → tsc --noEmit → ✅ (0 erreur, ReadLints : 0 erreur)
- backend/ → tsc --noEmit → ✅ (0 erreur, ReadLints : 0 erreur)
+ app/ ? tsc --noEmit ? ? (0 erreur, ReadLints : 0 erreur)
+ backend/ ? tsc --noEmit ? ? (0 erreur, ReadLints : 0 erreur)
 
 ================================================================================
 Fin MODIF 481 - 2026-06-21
 ================================================================================
 
 ================================================================================
-MODIF 482 � Soundy Dev
+MODIF 482 ? Soundy Dev
 Date : 2026-06-21
 ================================================================================
 
-OBJECTIF / PROBL�ME
+OBJECTIF / PROBL?ME
 ----
- Audit complet de responsivit� mobile � alignement sur les standards
+ Audit complet de responsivit? mobile ? alignement sur les standards
  mobile-first du projet (390px iPhone 14, 768px iPad, 1024px+ desktop).
 
 CHANGEMENTS / FIX
 -----
  app/src/components/ConfirmModal.tsx
  -----------------------------------
- � Panneau interne : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
+ ? Panneau interne : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
    (bottom-sheet correct sur mobile)
 
  app/src/components/ReportContentModal.tsx
  -----------------------------------------
- � Panneau interne : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
+ ? Panneau interne : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
 
  app/src/components/FollowUserButton.tsx
  ---------------------------------------
- � Panneau de confirmation "Ne plus suivre" : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
+ ? Panneau de confirmation "Ne plus suivre" : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
 
  app/src/components/MyFavoritesSheet.tsx
  ---------------------------------------
- � Panneau interne : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
+ ? Panneau interne : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
 
  app/src/components/GenreOnboardingPrompt.tsx
  --------------------------------------------
- � Panneau interne : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
- � Ajout max-h-[90dvh] overflow-y-auto pour �viter l'overflow vertical
+ ? Panneau interne : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
+ ? Ajout max-h-[90dvh] overflow-y-auto pour ?viter l'overflow vertical
 
  app/src/components/SalonUserBanModal.tsx
  ----------------------------------------
- � Panneau interne : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
+ ? Panneau interne : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
 
  app/src/components/LiveUserBanModal.tsx
  ---------------------------------------
- � Panneau interne : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
+ ? Panneau interne : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
 
  app/src/components/StartLiveMediaSetupModal.tsx
  -----------------------------------------------
- � Panneau interne : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
- � max-h-[min(92vh,36rem)] ? max-h-[min(92dvh,36rem)] (viewport unit)
+ ? Panneau interne : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
+ ? max-h-[min(92vh,36rem)] ? max-h-[min(92dvh,36rem)] (viewport unit)
 
  app/src/components/LiveLegalAcceptanceModal.tsx
  -----------------------------------------------
- � max-h-[90vh] ? max-h-[90dvh] (viewport unit corrig�)
+ ? max-h-[90vh] ? max-h-[90dvh] (viewport unit corrig?)
 
  app/src/components/UserReelsSection.tsx
  ---------------------------------------
- � Modal upload reel : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
+ ? Modal upload reel : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
 
  app/src/components/UserCompositionsSection.tsx
  ----------------------------------------------
- � 3 modals (upload, cr�er album, publier album) : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
+ ? 3 modals (upload, cr?er album, publier album) : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
 
  app/src/components/StoryViewer.tsx
  ----------------------------------
- � Modal suppression story : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
+ ? Modal suppression story : rounded-2xl ? rounded-t-2xl sm:rounded-2xl
 
  app/src/pages/SettingsPage.tsx
  ------------------------------
- � 4 modals (2FA setup, 2FA backup, 2FA disable, suppression compte) :
+ ? 4 modals (2FA setup, 2FA backup, 2FA disable, suppression compte) :
    rounded-2xl ? rounded-t-2xl sm:rounded-2xl + max-h-[90dvh] overflow-y-auto
 
  app/src/pages/OnboardingPage.tsx
  --------------------------------
- � Boutons suppression photos (avatar + galerie) : w-6 h-6 ? w-8 h-8
-   (cible tactile trop petite < 44px corrig�e)
+ ? Boutons suppression photos (avatar + galerie) : w-6 h-6 ? w-8 h-8
+   (cible tactile trop petite < 44px corrig?e)
 
  app/src/pages/DmPage.tsx
  ------------------------
- � Bouton retrait pi�ce jointe : w-6 h-6 ? w-8 h-8
- � Boutons options message : w-7 h-7 ? w-9 h-9
+ ? Bouton retrait pi?ce jointe : w-6 h-6 ? w-8 h-8
+ ? Boutons options message : w-7 h-7 ? w-9 h-9
 
  app/src/pages/LivePage.tsx
  --------------------------
- � Bouton "Signaler le live" : w-7 h-7 ? w-9 h-9
- � Bouton "Partager le live" : w-7 h-7 ? w-9 h-9
+ ? Bouton "Signaler le live" : w-7 h-7 ? w-9 h-9
+ ? Bouton "Partager le live" : w-7 h-7 ? w-9 h-9
 
  app/src/pages/SalonPage.tsx
  ---------------------------
- � Bouton "Partager le salon" : w-7 h-7 ? w-9 h-9
+ ? Bouton "Partager le salon" : w-7 h-7 ? w-9 h-9
 
-FICHIERS MODIFI�S
+FICHIERS MODIFI?S
 -----
  app/src/components/ConfirmModal.tsx            ? rounded-t-2xl sm:rounded-2xl
  app/src/components/ReportContentModal.tsx      ? rounded-t-2xl sm:rounded-2xl
@@ -2962,66 +3268,66 @@ FICHIERS MODIFI�S
  app/src/components/StartLiveMediaSetupModal.tsx ? rounded-t-2xl + max-h-dvh
  app/src/components/LiveLegalAcceptanceModal.tsx ? max-h-dvh
  app/src/components/UserReelsSection.tsx        ? rounded-t-2xl sm:rounded-2xl
- app/src/components/UserCompositionsSection.tsx ? 3� rounded-t-2xl sm:rounded-2xl
+ app/src/components/UserCompositionsSection.tsx ? 3? rounded-t-2xl sm:rounded-2xl
  app/src/components/StoryViewer.tsx             ? rounded-t-2xl sm:rounded-2xl
- app/src/pages/SettingsPage.tsx                 ? 4� rounded-t-2xl + max-h-dvh
+ app/src/pages/SettingsPage.tsx                 ? 4? rounded-t-2xl + max-h-dvh
  app/src/pages/OnboardingPage.tsx               ? boutons photo w-8 h-8
  app/src/pages/DmPage.tsx                       ? cibles tactiles w-8/w-9
  app/src/pages/LivePage.tsx                     ? boutons header w-9 h-9
  app/src/pages/SalonPage.tsx                    ? bouton partage w-9 h-9
 
-BUILD (si v�rifi�)
+BUILD (si v?rifi?)
 -----
  app/ ? tsc --noEmit ? ? (0 erreur, ReadLints : 0 erreur)
 
 ================================================================================
-Fin MODIF 482 � 2026-06-21
+Fin MODIF 482 ? 2026-06-21
 ================================================================================
 
 ================================================================================
-MODIF 483 — Reels : optimisations perf mobile (lag / stuttering)
+MODIF 483 ? Reels : optimisations perf mobile (lag / stuttering)
 Date : 2026-06-21
 ================================================================================
 
-OBJECTIF / PROBLÈME
+OBJECTIF / PROBL?ME
 ----
  Lag et stuttering visibles lors du scroll des Reels sur smartphone.
- Plusieurs causes identifiées : re-renders inutiles sur chaque événement scroll,
- vidéos sponsors chargées en preload auto, absence d'isolation CSS de chaque slide.
+ Plusieurs causes identifi?es : re-renders inutiles sur chaque ?v?nement scroll,
+ vid?os sponsors charg?es en preload auto, absence d'isolation CSS de chaque slide.
 
 CHANGEMENTS / FIX
 -----
  app/src/pages/ReelsTabPage.tsx
- ──────────────────────────────
- • ReelSlide : wrappé dans memo() avec comparateur personnalisé
-   (reel ===, isActive, muted, showPlaybackPaused) — les slides inactifs ne
+ ??????????????????????????????
+ ? ReelSlide : wrapp? dans memo() avec comparateur personnalis?
+   (reel ===, isActive, muted, showPlaybackPaused) ? les slides inactifs ne
    re-rendent plus lors des changements d'activeIndex pendant le scroll.
- • ReelAuthorStack, ReelActions, ActionButton : wrappés dans memo().
- • syncIndexFromScroll : setActiveIndex(clamped) déplacé dans le bloc
-   if (clamped !== activeIndexRef.current) — empêche les setState inutiles
-   sur chaque événement onScroll quand l'index n'a pas changé.
- • useEffect resize handler : utilise activeIndexRef.current — supprime la
-   re-registration du listener à chaque changement d'index.
- • Avatars commentaires : ajout loading=lazy decoding=async.
+ ? ReelAuthorStack, ReelActions, ActionButton : wrapp?s dans memo().
+ ? syncIndexFromScroll : setActiveIndex(clamped) d?plac? dans le bloc
+   if (clamped !== activeIndexRef.current) ? emp?che les setState inutiles
+   sur chaque ?v?nement onScroll quand l'index n'a pas chang?.
+ ? useEffect resize handler : utilise activeIndexRef.current ? supprime la
+   re-registration du listener ? chaque changement d'index.
+ ? Avatars commentaires : ajout loading=lazy decoding=async.
 
  app/src/components/ReelsSponsoredSlide.tsx
- ──────────────────────────────────────────
- • Vidéo sponsor : ajout preload={isActive ? 'auto' : 'none'}.
- • Ajout autoPlay={false}.
- • Composant wrappé dans memo().
+ ??????????????????????????????????????????
+ ? Vid?o sponsor : ajout preload={isActive ? 'auto' : 'none'}.
+ ? Ajout autoPlay={false}.
+ ? Composant wrapp? dans memo().
 
  app/src/index.css
- ─────────────────
- • .reels-track : will-change: scroll-position + transform: translateZ(0).
- • .reel-slide : contain: layout style paint.
+ ?????????????????
+ ? .reels-track : will-change: scroll-position + transform: translateZ(0).
+ ? .reel-slide : contain: layout style paint.
 
-FICHIERS MODIFIÉS
+FICHIERS MODIFI?S
 -----
  app/src/pages/ReelsTabPage.tsx            -> memo + scroll fixes + lazy avatars
  app/src/components/ReelsSponsoredSlide.tsx -> preload + memo
  app/src/index.css                         -> will-change + contain
 
-BUILD (si vérifié)
+BUILD (si v?rifi?)
 -----
  app/ -> npx tsc --noEmit -> OK (0 erreur, 0 lint)
 
@@ -3034,35 +3340,35 @@ MODIF 484 ? Header : avatar profil invisible sur mobile (fix stacking + search b
 Date : 2026-06-21
 ================================================================================
 
-OBJECTIF / PROBL�ME
+OBJECTIF / PROBL?ME
 ----
- L'avatar de profil (bouton en haut � droite du header) n'�tait pas visible sur
- mobile (390px). Deux causes identifi�es :
+ L'avatar de profil (bouton en haut ? droite du header) n'?tait pas visible sur
+ mobile (390px). Deux causes identifi?es :
  1. Bug de stacking CSS : ProfileSearchBar a `position: relative` sur son div
-    racine, ce qui le place dans la couche 6 du stacking order (�l�ments
-    positionn�s), tandis que le div de droite (non positionn�) est en couche 3.
+    racine, ce qui le place dans la couche 6 du stacking order (?l?ments
+    positionn?s), tandis que le div de droite (non positionn?) est en couche 3.
     Le fond opaque du SearchBar (#1a1a26/90) couvrait donc les boutons qui
-    d�bordaient dans sa zone.
- 2. Formule trop large : `calc(100vw-7.5rem)` r�servait seulement 120px pour les
-    deux colonnes lat�rales (60px chacune), alors que la colonne de droite avait
-    besoin de ~112px pour ses 3 boutons ? 70px de d�bordement sous le SearchBar.
+    d?bordaient dans sa zone.
+ 2. Formule trop large : `calc(100vw-7.5rem)` r?servait seulement 120px pour les
+    deux colonnes lat?rales (60px chacune), alors que la colonne de droite avait
+    besoin de ~112px pour ses 3 boutons ? 70px de d?bordement sous le SearchBar.
 
 CHANGEMENTS / FIX
 -----
  app/src/App.tsx
  ???????????????
  ? ProfileSearchBar className (mobile) : `calc(100vw-7.5rem)` ? `calc(100vw-13rem)`
-   Sur 390px : 270px ? 182px pour la barre de recherche ; chaque colonne lat�rale
-   passe de 42px � 86px. Le d�bordement tombe de 70px � ~26px.
- ? Div de droite (boutons) : ajout de `relative z-10` ? la div est d�sormais
-   positionn�e (couche 6) avec z-index:10, elle se peint AU-DESSUS du SearchBar
+   Sur 390px : 270px ? 182px pour la barre de recherche ; chaque colonne lat?rale
+   passe de 42px ? 86px. Le d?bordement tombe de 70px ? ~26px.
+ ? Div de droite (boutons) : ajout de `relative z-10` ? la div est d?sormais
+   positionn?e (couche 6) avec z-index:10, elle se peint AU-DESSUS du SearchBar
    (z-auto) dans le stacking context du header. L'avatar est clairement visible.
 
-FICHIERS MODIFI�S
+FICHIERS MODIFI?S
 -----
  app/src/App.tsx ? formule search bar mobile + z-10 relative sur div boutons
 
-BUILD (si v�rifi�)
+BUILD (si v?rifi?)
 -----
  app/ ? npx tsc --noEmit ? ? (0 erreur)
 
@@ -3075,29 +3381,29 @@ MODIF 541 ? Safari iOS/macOS : affichage layout + viewport
 Date : 2026-06-21
 ================================================================================
 
-OBJECTIF / PROBL�ME
+OBJECTIF / PROBL?ME
 ----
- L'app ne s'affichait pas correctement sur Safari (priorit� iOS). Causes identifi�es :
+ L'app ne s'affichait pas correctement sur Safari (priorit? iOS). Causes identifi?es :
  1. `overflow: hidden` / `overflow-x: clip` sur `#root` et `.ms-app-shell` ? iOS Safari
-    ancre mal `position: fixed` (header, onglets bas, toasts) dans un anc�tre non visible.
- 2. R�gle globale `.fixed { transform: translateZ(0); will-change: transform }` ? layers
+    ancre mal `position: fixed` (header, onglets bas, toasts) dans un anc?tre non visible.
+ 2. R?gle globale `.fixed { transform: translateZ(0); will-change: transform }` ? layers
     GPU excessives et conflits de stacking sur WebKit.
  3. `100dvh` sans fallback ? anciens Safari iOS (barre d'adresse dynamique).
  4. Inputs header/recherche en `text-xs` (12px) ? zoom automatique au focus iOS.
  5. `calc(100vw - 13rem)` sur la barre de recherche ? `100vw` inclut parfois la scrollbar
-    sur Safari, d�bordement horizontal.
- 6. `contain: paint` sur `.reel-slide` ? peut couper/masquer les vid�os Reels sur Safari.
+    sur Safari, d?bordement horizontal.
+ 6. `contain: paint` sur `.reel-slide` ? peut couper/masquer les vid?os Reels sur Safari.
 
 CHANGEMENTS / FIX
 -----
  app/src/index.css
  ?????????????????
- ? Suppression r�gle globale transform/will-change sur `.fixed` / `.sticky`.
- ? Cha�ne hauteur viewport : `100vh` ? `100dvh` ? `-webkit-fill-available` sur html, body,
+ ? Suppression r?gle globale transform/will-change sur `.fixed` / `.sticky`.
+ ? Cha?ne hauteur viewport : `100vh` ? `100dvh` ? `-webkit-fill-available` sur html, body,
    #root, .ms-app-shell, .ms-story-editor-shell.
  ? `#root` : retrait overflow (fixed header/tabs).
  ? `.ms-app-shell` : overflow-x clip seulement, overflow-y visible ; max/min-height fallbacks.
- ? header.ms-app-header + nav.ms-tab-bar-bottom : backface-visibility (GPU cibl�).
+ ? header.ms-app-header + nav.ms-tab-bar-bottom : backface-visibility (GPU cibl?).
  ? Safari mobile : inputs/select/textarea font-size 16px (anti-zoom iOS).
  ? overflow-x: hidden fallback avant clip (Safari < 16).
  ? .reel-slide : `contain: layout style` (sans paint).
@@ -3106,32 +3412,787 @@ CHANGEMENTS / FIX
  ???????????????
  ? Shell : retrait `overflow-hidden` (confinement scroll sur `main.ms-app-main` uniquement).
  ? Header grid : colonne centrale `minmax(0,18rem)` / `minmax(0,22rem)` au lieu de
-   `calc(100vw-13rem)` ? plus de d�pendance � 100vw.
+   `calc(100vw-13rem)` ? plus de d?pendance ? 100vw.
 
  app/index.html
  ??????????????
  ? Boot loader `#melosong-boot` : fallbacks min-height vh/dvh/-webkit-fill-available.
- ? Viewport meta `viewport-fit=cover` d�j� pr�sent ? inchang�.
+ ? Viewport meta `viewport-fit=cover` d?j? pr?sent ? inchang?.
 
-FICHIERS MODIFI�S
+FICHIERS MODIFI?S
 -----
  app/src/index.css  ? fallbacks viewport, fixed Safari, anti-zoom, reels contain
  app/src/App.tsx    ? shell overflow + grid search bar
  app/index.html     ? boot loader height fallback
- modification.txt   ? cette entr�e
+ modification.txt   ? cette entr?e
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+TESTS MANUELS RECOMMAND?S (appareil r?el)
+-----
+ ? iPhone Safari : header fixe + onglets bas visibles au scroll / rubber-band.
+ ? Reels : snap vertical, vid?o plein ?cran sans bande noire.
+ ? Barre recherche header : pas de zoom au focus, pas de d?bordement horizontal 390px.
+ ? PWA standalone (ic?ne ?cran d'accueil) : safe-area notch + home indicator.
+ ? macOS Safari : layout desktop appweb (sidebar 1024px+).
+
+================================================================================
+Fin MODIF 541  2026-06-21
+================================================================================
+
+================================================================================
+MODIF 542 ? Shell app : remplissage hauteur viewport (gap bas)
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ Sur mobile/tablet (~598?873px) et Safari iOS, l'app s'arr?tait avant le bas de
+ l'?cran (bande vide sous la carte / contenu). MODIF 541 avait pos? min/max-height
+ sur html/body/#root/.ms-app-shell sans hauteur explicite ni flex sur #root : le
+ shell se dimensionnait au contenu (header + main en position fixed hors flux),
+ laissant un gap entre le bas du shell et le viewport.
+
+CHANGEMENTS / FIX
+-----
+ app/src/index.css
+ ?????????????????
+ ? body : ajout cha?ne height (100vh ? 100dvh ? -webkit-fill-available).
+ ? #root : display flex column + min-width 0 pour que l'enfant shell s'?tire.
+ ? .ms-app-shell : flex 1 1 auto + height explicite (m?me cha?ne viewport).
+
+ app/src/App.tsx
+ ???????????????
+ ? Shell : flex-1 min-h-0 h-dvh (remplace min-h-dvh seul) pour remplir #root.
+
+FICHIERS MODIFI?S
+-----
+ app/src/index.css ? cha?ne hauteur viewport compl?te, #root flex column
+ app/src/App.tsx ? ms-app-shell flex-1 min-h-0 h-dvh
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+MODIF 543 ? Carte mobile : hauteur viewport + liste visible par d?faut
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ 1. Gap bas sous la carte (~297?598?873px) : MODIF 541/542 avaient pos? la cha?ne
+    hauteur sur html/body/#root/.ms-app-shell mais les enfants React sous #root et
+    main.ms-app-main / .ms-map-page ne s'?tiraient pas (flex-basis manquant).
+ 2. Panneau liste carte (NearbyPeoplePanel) masqu? au chargement sur mobile :
+    localStorage `melosong_show_nearby_people=false` persistait ; layout lat?ral
+    ?troit (~297px) peu lisible.
+
+CHANGEMENTS / FIX
+-----
+ app/src/index.css
+ ?????????????????
+ ? #root > * : flex column stretch ; badge msdev `.fixed` exclu.
+ ? main.ms-app-main : flex 1 1 auto + flex-basis 0.
+ ? R?gle carte : shell header-tabs + bottom-tabs, .ms-map-page / .ms-map-main-column /
+   .ms-map-viewport avec flex-basis 0 et height 100%.
+
+ app/src/App.tsx
+ ???????????????
+ ? Wrapper onglet Carte : h-full pour cha?ne flex.
+
+ app/src/pages/HomePage.tsx
+ ??????????????????????????
+ ? Liste carte visible par d?faut (useState true) ; purge cl? localStorage legacy au mount.
+ ? ?639px : panneau liste en bas (bottomMapList) m?me hors layout appa2.
+ ? ms-map-main-column + h-full sur .ms-map-page.
+ ? Boutons Afficher la liste : cibles tactiles 44px.
+
+ app/src/components/NearbyPeoplePanel.tsx
+ app/src/components/MapCityEventsPanel.tsx
+ ?????????????????????????????????????????
+ ? Largeurs responsives (min 7.5rem / 38vw) ; bouton Masquer 44?44px.
+
+ app/src/lib/nearbyPanelSettings.ts
+ ?????????????????????????????????
+ ? Export MAP_SIDEBAR_LIST_STORAGE_KEY (legacy, purge au mount).
+
+FICHIERS MODIFI?S
+-----
+ app/src/index.css ? cha?ne hauteur carte compl?te
+ app/src/App.tsx ? wrapper map h-full
+ app/src/pages/HomePage.tsx ? liste visible + layout bottom mobile
+ app/src/components/NearbyPeoplePanel.tsx ? responsive + touch
+ app/src/components/MapCityEventsPanel.tsx ? responsive + touch
+ app/src/lib/nearbyPanelSettings.ts ? cl? legacy export?e
+ modification.txt ? cette entr?e
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin MODIF 543 ? 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 543 ? StartLiveMediaSetupModal : popup centr?e (plus bottom-sheet)
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ La modale ? Cam?ra et micro ? (d?marrage live) s'affichait en bottom-sheet sur
+ mobile (`items-end`), ancr?e en bas de l'?cran. L'utilisateur souhaite la popup
+ centr?e verticalement sur tous les breakpoints.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/StartLiveMediaSetupModal.tsx
+ ???????????????????????????????????????????????
+ ? Overlay : `items-end sm:items-center` ? `items-center` (centrage vertical).
+ ? Panel : `rounded-t-2xl sm:rounded-2xl` ? `rounded-2xl` (dialog, pas sheet).
+ ? Conserv? : `p-4` overlay, `max-w-sm`, `max-h-[min(92dvh,36rem)]`, scroll interne.
+
+FICHIERS MODIFI?S
+-----
+ app/src/components/StartLiveMediaSetupModal.tsx ? modale live media centr?e
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin MODIF 543  2026-06-21
+================================================================================
+
+================================================================================
+MODIF 544 ? Connexion d?mo YouTube + liste carte visible par d?faut
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ 1. ? Connexion d?mo (sans Google) ? : clic sans effet ? mock YouTube non reconnu
+    c?t? UI/salon ; en msdev avec OAuth Google configur? le backend renvoyait
+    USE_OAUTH_URL (200) sans erreur affich?e.
+ 2. Panneau lat?ral carte (NearbyPeoplePanel) : liste masqu?e au chargement si
+    localStorage `melosong_show_nearby_people=false` (pr?f?rence persist?e).
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/platformMockConnect.ts
+ ???????????????????????????????????????
+ ? canUseMockPlatformConnect : autoris? hors APP_ENV=production (msdev/dev).
+
+ backend/src/routes/platforms.ts
+ ????????????????????????????????
+ ? USE_OAUTH_URL ? HTTP 403 + message explicite (prod, OAuth requis).
+
+ app/src/lib/platformConnect.ts
+ ???????????????????????????????
+ ? YouTube mock (isRealOAuth=false) compte comme ? connect? ? profil + salon.
+
+ app/src/lib/api.ts
+ ??????????????????
+ ? connectPlatform : erreur si ok:false (USE_OAUTH_URL, MOCK_CONNECT_DISABLED).
+
+ app/src/pages/HomePage.tsx + apptel/src/pages/HomePage.tsx
+ ???????????????????????????????????????????????????????????
+ ? showNearbyPeople initialis? ? true ; suppression persistance localStorage.
+
+ app/src/locales/fr.json, en.json
+ ????????????????????????????????
+ ? platform.demoUseOAuth, platform.demoDisabledProd.
+
+FICHIERS MODIFI?S
+-----
+ backend/src/lib/platformMockConnect.ts ? mock connect msdev
+ backend/src/lib/platformMockConnect.test.ts ? tests msdev/prod
+ backend/src/routes/platforms.ts ? erreur USE_OAUTH_URL
+ app/src/lib/platformConnect.ts ? lien YouTube mock
+ app/src/lib/api.ts ? validation r?ponse connect
+ app/src/pages/HomePage.tsx ? liste carte visible par d?faut
+ apptel/src/pages/HomePage.tsx ? idem mobile
+ app/src/locales/fr.json, en.json ? messages d?mo
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+ backend/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin MODIF 544  2026-06-21
+================================================================================
+
+================================================================================
+MODIF 545 ? Modales live centr?es (LiveLegalAcceptanceModal)
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ Les modales li?es au d?marrage live doivent s'afficher centr?es ? l'?cran (dialog),
+ pas en bottom-sheet mobile. StartLiveMediaSetupModal ?tait d?j? corrig?e (MODIF 543) ;
+ LiveLegalAcceptanceModal (? R?gles de contenu ?) utilisait encore `items-end sm:items-center`
+ et `rounded-t-3xl sm:rounded-2xl`.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/LiveLegalAcceptanceModal.tsx
+ ???????????????????????????????????????????????
+ ? Overlay : `items-end sm:items-center` ? `items-center` + `p-4`.
+ ? Panel : `rounded-t-3xl sm:rounded-2xl` ? `rounded-2xl`.
+ ? Conserv? : `max-w-md`, `max-h-[90dvh]`, scroll interne.
+
+ app/src/components/StartLiveMediaSetupModal.tsx
+ ???????????????????????????????????????????????
+ ? V?rifi? : d?j? centr? (`items-center`, `rounded-2xl`) ? aucun changement.
+
+FICHIERS MODIFI?S
+-----
+ app/src/components/LiveLegalAcceptanceModal.tsx ? popup centr?e
+ app/src/components/StartLiveMediaSetupModal.tsx ? v?rifi? (d?j? OK)
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin MODIF 545 ? 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 549 ? Lives tab : refonte header banner
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBLEME
+----
+ Le header de l'onglet Lives avait un fond rouge-degrade peu elegant, un CTA
+ compact en coin, et une section rayon integree dans la banniere.
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/LivesTabPage.tsx
+ ??????????????????????????????
+ ? Suppression du degrade rom-red-950/30 -> fond plat (pas de bg).
+ ? Titre "Lives" agrandi (text-xl, bold) avec badge "X en cours" violet si
+   des lives sont actifs (lives.length).
+ ? Sous-titre simplifie : "Sessions en direct avec chat et reactions".
+ ? CTA "Demarrer mon Live" full-width sous le sous-titre :
+   
+ounded-xl bg-purple-600 hover:bg-purple-500, min-h-[44px], icone SVG play.
+ ? Suppression du bloc rayon standalone dans la banniere
+   ({!settingsOpen && distanceFilterActive && <radiusControls>}).
+   Le rayon reste accessible dans le panneau filtres (settingsOpen).
+ ? Alerte erreur deplacee apres le CTA (mt-3).
+
+FICHIERS MODIFIES
+-----
+ app/src/pages/LivesTabPage.tsx -> refonte banniere hero Lives
+
+BUILD (si verifie)
+-----
+ app/ -> npx tsc --noEmit -> OK
+
+================================================================================
+Fin MODIF 549 - 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 550 ? Lives : remplacement slider rayon par onglets Suivi/Suggestions
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ La section "Rayon" (slider km + bouton Illimit?) en haut de la page Lives
+ ?tait remplac?e par deux onglets cat?gorie : "Suggestions" (tous les lives)
+ et "Suivi" (uniquement les lives des personnes suivies).
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/LivesTabPage.tsx
+ ??????????????????????????????
+ ? Suppression : radiusControls, changeRadius, changeRadiusInput,
+   distanceFilterActive, imports clampNearbyRadiusKm / formatRadiusKm /
+   NEARBY_RADIUS_MIN/MAX/HARD_MAX.
+ ? Ajout : ?tat activeCategory ('suggestions' | 'suivi', d?faut 'suggestions').
+ ? Ajout : useMemo categorizedLives ? filtre sortedLives par followingIds
+   quand activeCategory === 'suivi'.
+ ? Nouveau bloc UI : deux pill-buttons full-width (min-h-[44px], bg-purple-600
+   actif) rendus via tablist/role="tab" juste sous le bouton "D?marrer mon Live".
+ ? Mise ? jour empty-state : messages adapt?s ? la cat?gorie active.
+ ? Rendu liste switch?e sur categorizedLives.
+ ? {distanceFilterActive && radiusControls} retir? du panneau settingsOpen.
+
+FICHIERS MODIFI?S
+-----
+ app/src/pages/LivesTabPage.tsx ? onglets Suivi/Suggestions + filtrage par suivi
+
+BUILD (si verifie)
+-----
+ app/ -> npx tsc --noEmit -> OK
+
+================================================================================
+Fin MODIF 550 - 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 550 ? CreateSalonModal : refonte UI dark flat design
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ Refonte visuelle compl?te du modal de cr?ation de salon. Design plat/sombre
+ modernis? avec indicateur de progression visuel, cartes plateforme et acc?s,
+ inputs coh?rents, toggle personnalis? et footer sticky.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/CreateSalonModal.tsx
+ ???????????????????????????????????????
+ ? Step indicator : remplacement du texte "1. Musique ? 2. Acc?s ? 3. D?tails"
+   par des points num?rot?s connect?s (cercle plein purple si actif/fait)
+ ? Ic?nes SVG inline (IcoX, IcoCheck, IcoYouTube, IcoGlobe, IcoLock) ?
+   suppression de tous les emojis d?coratifs (??, ??, ??, ?, ?)
+ ? Carte plateforme YouTube : ic?ne SVG + badge s?lection purple + description
+ ? Statut connexion YouTube : bandeau vert (connect?) / orange (non li?)
+ ? Step 2 Acc?s : cartes Public/Invitation avec ic?ne + ?tat actif purple
+   (border + fill + check circle), hover state sur non-s?lectionn?
+ ? Step 3 D?tails : toggle switch personnalis? (pill purple) pour allowQueue
+ ? R?capitulatif step 3 : SummaryRow align? label/valeur (composant d?di?)
+ ? Layout modal : flex-col + flex-1 overflow-y-auto min-h-0 pour scrollabilit?
+   correcte sans shadow-2xl (design flat)
+ ? Inputs : focus:border-purple-500/60 + ring, placeholder coh?rent
+ ? Footer sticky : min-h-[44px] touch targets, hover states sur boutons
+
+FICHIERS MODIFI?S
+-----
+ app/src/components/CreateSalonModal.tsx ? refonte UI compl?te (fonctionnalit? inchang?e)
+
+BUILD (si verifie)
+-----
+ app/ -> npx tsc --noEmit -> OK
+
+================================================================================
+Fin MODIF 550 - 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 551 ? Salon theater : onglets Chat/Queue d?plac?s au-dessus du chat
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ Les boutons d'onglets Chat et File d'attente se trouvaient dans la topbar unifi?e
+ (room-theater-unified-topbar), m?lang?s avec le bouton retour, l'avatar et le titre
+ du salon. L'utilisateur demande ? les repositionner directement AU-DESSUS de la zone
+ des messages du chat, pas dans la barre principale.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/SalonChatDockBody.tsx
+ ?????????????????????????????????????????
+ ? Ajout prop onSelectTab?: (tab: SalonChatDockTab) => void.
+ ? Ajout setter setInternalTab pour le mode non-contr?l?.
+ ? handleSelectTab = onSelectTab ?? setInternalTab.
+ ? Calcul de queueBadge d?plac? ici (queue.length > 0 ? queue.length : undefined).
+ ? Rendu d'une barre d'onglets d?di?e (shrink-0, min-h-[44px], border-b,
+   bg-[#0b0b0f]) avec <SalonChatDockTabButtons> en t?te du composant,
+   avant le contenu chat/queue.
+ ? Outer div : flex-col ajout? pour empiler barre + contenu verticalement.
+
+ app/src/pages/SalonPage.tsx
+ ????????????????????????????
+ ? Suppression de chatHeaderLeading (plus besoin des onglets dans la topbar).
+ ? Suppression import SalonChatDockTabButtons (inutilis?).
+ ? Suppression variable queueBadge (calcul?e dans SalonChatDockBody).
+ ? Retrait chatHeaderLeading={chatHeaderLeading} dans <RoomTheaterLayout>.
+ ? Ajout onSelectTab={setChatDockTab} sur <SalonChatDockBody>.
+
+FICHIERS MODIFI?S
+-----
+ app/src/components/SalonChatDockBody.tsx ? barre d'onglets int?gr?e au-dessus du chat
+ app/src/pages/SalonPage.tsx             ? onglets retir?s de la topbar
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin MODIF 551 - 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 552 ? LivesTabPage : correction libell? empty-state onglet Suivi
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ Le message d'?tat vide de l'onglet "Suivi" mentionnait "tes abonnements"
+ alors que le contexte est celui des lives suivis explicitement.
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/LivesTabPage.tsx
+ ?????????????????????????????
+ ? Ligne 513 : "Aucun live en cours parmi tes abonnements"
+   ? "Aucun live en cours parmi tes lives suivis"
+ ? Ligne secondaire "Abonne-toi ? des streameurs pour les voir ici" conserv?e.
+
+FICHIERS MODIFI?S
+-----
+ app/src/pages/LivesTabPage.tsx ? texte empty-state onglet Suivi
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin MODIF 552 - 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 553 ? SalonAdBanner : bandeau sponsor sous les contr?les du th??tre salon
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ Ajouter un bandeau sponsoris? compact directement sous la section des contr?les
+ de lecture (salon-theater-controls) dans le panneau th??tre du salon.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/models/schema.ts
+ ????????????????????????????
+ ? Ajout de 'salon_theater' dans le type SponsorPlacement.
+
+ backend/src/lib/sponsors.ts
+ ????????????????????????????
+ ? Ajout de 'salon_theater' dans le tableau PLACEMENTS.
+ ? Nouvelle fonction export?e listActiveSalonAds() ? listActiveAdsByPlacement('salon_theater').
+
+ backend/src/routes/sponsors.ts
+ ???????????????????????????????
+ ? Import de listActiveSalonAds.
+ ? Nouveau endpoint GET /sponsors/salon ? retourne les bandeaux actifs pour le th??tre.
+
+ app/src/types.ts
+ ?????????????????
+ ? 'salon_theater' ajout? au type SponsorPlacement.
+
+ app/src/lib/api.ts
+ ???????????????????
+ ? Nouvelle m?thode api.getSalonSponsors() ? GET /sponsors/salon.
+
+ app/src/lib/sponsorAds.ts
+ ??????????????????????????
+ ? 'salon' ajout? au type SponsorPlacementFetch.
+
+ app/src/lib/useSponsorAdsRotation.ts
+ ?????????????????????????????????????
+ ? 'salon' ajout? dans SPONSOR_FETCHERS ? appelle api.getSalonSponsors().
+
+ app/src/lib/sponsorDisplaySpec.ts
+ ??????????????????????????????????
+ ? Entr?e 'salon_theater' ajout?e dans SPONSOR_IMAGE_SPECS (logo 40?40 px, texte).
+
+ app/src/lib/sponsorAdminPlacement.ts
+ ?????????????????????????????????????
+ ? 'salon_theater' ajout? dans SPONSOR_PLACEMENT_TABS pour l'admin.
+
+ app/src/components/SalonAdBanner.tsx (nouveau)
+ ???????????????????????????????????????????????
+ ? Composant compact (~60 px) : logo + badge SPONSORIS? + titre + tagline + CTA.
+ ? Design : bg-[#12121a], border-t border-[#1e1e2f], flat dark, min-h-[44px] sur le CTA.
+ ? Rendu conditionnel via useSponsorAdsRotation('salon') ? invisible si aucune pub active.
+ ? Carrousel multi-spots avec pagination dots si plusieurs annonces.
+
+ app/src/components/SalonPlaybackPanel.tsx
+ ??????????????????????????????????????????
+ ? Import de SalonAdBanner.
+ ? <SalonAdBanner /> ins?r? imm?diatement apr?s le div salon-theater-controls.
+
+FICHIERS MODIFI?S
+-----
+ backend/src/models/schema.ts           ? SponsorPlacement + 'salon_theater'
+ backend/src/lib/sponsors.ts            ? PLACEMENTS + listActiveSalonAds()
+ backend/src/routes/sponsors.ts         ? GET /sponsors/salon
+ app/src/types.ts                       ? SponsorPlacement + 'salon_theater'
+ app/src/lib/api.ts                     ? getSalonSponsors()
+ app/src/lib/sponsorAds.ts              ? SponsorPlacementFetch + 'salon'
+ app/src/lib/useSponsorAdsRotation.ts   ? SPONSOR_FETCHERS + salon
+ app/src/lib/sponsorDisplaySpec.ts      ? SPONSOR_IMAGE_SPECS + salon_theater
+ app/src/lib/sponsorAdminPlacement.ts   ? SPONSOR_PLACEMENT_TABS + salon_theater
+ app/src/components/SalonAdBanner.tsx   ? nouveau composant bandeau
+ app/src/components/SalonPlaybackPanel.tsx ? insertion du bandeau
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin MODIF 553 - 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 554 ? LivesTabPage : remplacement onglets Suivi/Suggestions par deux sections empil?es ? Soundy Dev
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ L'utilisateur voulait supprimer les boutons onglets "Suivi / Suggestions" et
+ afficher les deux cat?gories comme deux sections visuelles l'une sous l'autre,
+ avec "Suivi" en premier et "Suggestions" en dessous.
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/LivesTabPage.tsx
+ ??????????????????????????????
+ ? Suppression de l'?tat activeCategory et de la logique de tab switching.
+ ? Suppression du bloc role="tablist" avec les deux boutons onglets.
+ ? Remplacement du memo categorizedLives par deux memos :
+   - suiviLives  : lives dont l'h?te est dans followingIds
+   - suggestionsLives : si followingIds vide ? tous les lives ; sinon ? lives hors suivi
+ ? Rendu remplac? par deux sections h2 empil?es :
+   - Section "Suivi" (visible seulement si followingIds.size > 0) avec grille ou
+     message "Aucun live en cours parmi tes lives suivis".
+   - Section "Suggestions" (toujours visible) s?par?e par border-t, avec grille ou
+     message "Aucun live en cours pour le moment".
+ ? Si followingIds est vide, seule la section Suggestions est affich?e (tous les lives).
+
+FICHIERS MODIFI?S
+-----
+ app/src/pages/LivesTabPage.tsx ? refonte affichage Suivi/Suggestions en sections
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin MODIF 554 - 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 555 ? Bouton Mute dans le panneau NotificationBell ? Soundy Dev
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ Permettre ? l'utilisateur de couper les sons/push alerts de notifications
+ sans perdre la liste des notifications (qui continue d'?tre aliment?e).
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/dmNotifications.ts
+ ??????????????????????????????
+ ? Export de la constante NOTIFICATIONS_MUTED_LS_KEY = 'soundy_notifications_muted'.
+ ? Ajout de la fonction interne isNotificationsMuted() qui lit localStorage.
+ ? Guard ajout? en t?te de showDmSystemNotification() et showMatchSystemNotification() :
+   si la cl? vaut 'true', on retourne imm?diatement sans envoyer la notification OS.
+
+ app/src/components/NotificationBell.tsx
+ ????????????????????????????????????????
+ ? Import de NOTIFICATIONS_MUTED_LS_KEY depuis dmNotifications.
+ ? ?tat isMuted initialis? depuis localStorage (d?faut false).
+ ? Callback toggleMute : bascule l'?tat et persiste dans localStorage.
+ ? Remplacement du <p>Notifications</p> dans le header du panneau par un
+   <div flex> contenant le titre + un bouton ic?ne w-8 h-8 rounded-full :
+   - SVG cloche barr?e (bell-slash) quand muted, SVG cloche normale sinon.
+   - aria-label / aria-pressed / title refl?tent l'?tat courant.
+   - Style : bg-purple-600/80 quand muted, transparent+hover sinon.
+
+FICHIERS MODIFI?S
+-----
+ app/src/lib/dmNotifications.ts       ? export cl? LS + guard mute
+ app/src/components/NotificationBell.tsx ? ?tat isMuted + bouton toggle
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin MODIF 555 - 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 556 ? Popups/modals centr?s (plus de bottom sheets) ? Soundy Dev
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ L'utilisateur voulait que TOUS les popups/modals de l'app soient centr?s ?
+ l'?cran (mobile + desktop), et non plus affich?s en bottom sheet
+ (items-end, rounded-t-2xl, mb tab-nav, etc.).
+
+CHANGEMENTS / FIX
+-----
+ Overlay : items-end sm:items-center ? items-center ; p-0 sm:p-4 ? p-4 ;
+           flex-col justify-end ? items-center justify-center p-4
+ Panel  : rounded-t-2xl sm:rounded-2xl ? rounded-2xl ;
+           rounded-t-3xl sm:rounded-2xl ? rounded-2xl ;
+           border-t + mb-[var(--tab-nav-total-h)] ? border + max-w-md centr?
+
+ app/src/components/ConfirmModal.tsx
+ app/src/components/ReportContentModal.tsx
+ app/src/components/FollowUserButton.tsx
+ app/src/components/MyFavoritesSheet.tsx
+ app/src/components/GenreOnboardingPrompt.tsx
+ app/src/components/SalonUserBanModal.tsx
+ app/src/components/LiveUserBanModal.tsx
+ app/src/components/UserReelsSection.tsx
+ app/src/components/UserCompositionsSection.tsx (3 modals)
+ app/src/components/StoryViewer.tsx (modal de confirmation interne)
+ app/src/components/LiveStripeConnectGate.tsx
+ app/src/components/MapStorySheet.tsx
+ app/src/components/ShareLinkMenu.tsx
+ app/src/components/ShareToUserSheet.tsx
+ app/src/components/LiveDonationSheet.tsx (2 variantes)
+ app/src/components/CreatorSubscribeSheet.tsx (2 variantes)
+ app/src/components/DonationSheet.tsx
+ app/src/components/LivePrivateSheet.tsx
+ app/src/pages/SettingsPage.tsx (4 modals 2FA / suppression compte)
+ app/src/pages/ReelsTabPage.tsx (commentaires + algo feed)
+ app/src/pages/DmPage.tsx (nouvelle conversation)
+
+ Non modifi?s (exp?rience plein ?cran intentionnelle) :
+ - StoryViewer overlay principal, StoryLivePreviewViewer
+ - UserProfilePage panneau profil carte
+
+FICHIERS MODIFI?S
+-----
+ 21 fichiers ? modals/sheets recentr?s
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin MODIF 556 - 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 557 ? Admin Co?t & Analytics fusion + ConfirmModal centr? ? Soundy Dev
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ 1. ConfirmModal encore per?u en bottom sheet (items-end) ? v?rification source.
+ 2. Regrouper les onglets admin ? Co?t ? et ? Analytics ? en un seul onglet.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/ConfirmModal.tsx
+ ?????????????????
+ ? D?j? centr? (items-center justify-center p-4, rounded-2xl) ? aucune modif requise.
+ ? Grep app/src/ : plus de items-end sm:items-center ni rounded-t-2xl sm:rounded-2xl
+   sur les modals (MODIF 556).
+
+ app/src/pages/AdminPage.tsx
+ app/src/pages/AnalyticsPage.tsx
+ app/src/locales/fr.json
+ app/src/locales/en.json
+ ?????????????????
+ ? Suppression de l'onglet ? Co?t ? de la barre admin.
+ ? Onglet unique ? Co?t & Analytics ? (id analytics) avec sous-onglets :
+   Vue d'ensemble | VPS | Co?ts (AdminCostsTab int?gr?).
+ ? Alias legacy initialTab=costs ? analytics + sous-onglet Co?ts.
+
+FICHIERS MODIFI?S
+-----
+ app/src/pages/AdminPage.tsx ? fusion onglets admin
+ app/src/pages/AnalyticsPage.tsx ? sous-onglet Co?ts + initialSubTab
+ app/src/locales/fr.json ? libell?s Co?t & Analytics / subTabCosts
+ app/src/locales/en.json ? idem EN
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin MODIF 557 - 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 558 ? ContactSoundyPage : bouton retour header ? Soundy Dev
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ Depuis l'overlay profil, la page ? Contacter Soundy ? n'avait qu'une fl?che texte
+ difficile ? toucher ? pas de vraie sortie visible sur mobile.
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/ContactSoundyPage.tsx
+ ?????????????????
+ ? Header sticky avec safe area (`ms-safe-area-top`), bordure basse coh?rente.
+ ? Bouton retour 44?44 px (`w-11 h-11`), rond, ic?ne SVG chevron (plus d'emoji).
+ ? `aria-label` via `t('common.back')` ; titre `t('support.title')`.
+ ? Contenu scrollable s?par? du header (`flex-1 overflow-y-auto`).
+ ? `onBack` inchang? : parent ProfilePage (`setShowContactSoundy(false`).
+
+FICHIERS MODIFI?S
+-----
+ app/src/pages/ContactSoundyPage.tsx ? header retour overlay profil
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin MODIF 558 - 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 559 ? RoomTheaterLayout : correction bouton Chat toggle (salon th��tre)
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL�ME
+----
+ Le bouton "?? Chat" (absolute top-2 right-2 z-[25]) dans la zone vid�o du salon
+ th��tre ne fonctionnait pas correctement comme bascule.
+ Cause racine : `chatHiddenButton` �tait d�fini avec `chatHidden ? <button> : null`,
+ donc il disparaissait d�s le premier clic (chat visible). Sur mobile, le chevron
+ `room-theater-toggle` est `display: none` par d�faut (visible seulement � sm: 640px+),
+ laissant l'utilisateur sans aucun bouton visible pour masquer le chat. L'utilisateur
+ percevait cela comme "le bouton ne fonctionne pas".
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/RoomTheaterLayout.tsx
+ ?????????????????????????????????????????
+ ? `chatHiddenButton` passe de `chatHidden ? <button> : null` � un rendu permanent.
+ ? Quand `chatHidden=true` : label "Chat", aria-label "Afficher le chat", aria-pressed=false.
+ ? Quand `chatHidden=false` : label "Masquer", aria-label "Masquer le chat",
+   aria-pressed=true, classe `sm:hidden` ajout�e (cach� sur desktop ? 640px
+   o� le chevron `room-theater-toggle` prend le relais).
+ ? Sur mobile (< 640px) : le bouton reste visible dans les deux �tats, permettant
+   d'afficher ET masquer le chat sans toucher � la topbar unifi�e.
+ ? Aucun impact sur le layout desktop ni sur le variant `queue-chat` (bouton distinct).
+
+FICHIERS MODIFI�S
+-----
+ app/src/components/RoomTheaterLayout.tsx ? chatHiddenButton toujours rendu, toggle complet
 
 BUILD (si v�rifi�)
 -----
  app/ ? npx tsc --noEmit ? ?
 
-TESTS MANUELS RECOMMAND�S (appareil r�el)
------
- ? iPhone Safari : header fixe + onglets bas visibles au scroll / rubber-band.
- ? Reels : snap vertical, vid�o plein �cran sans bande noire.
- ? Barre recherche header : pas de zoom au focus, pas de d�bordement horizontal 390px.
- ? PWA standalone (ic�ne �cran d'accueil) : safe-area notch + home indicator.
- ? macOS Safari : layout desktop appweb (sidebar 1024px+).
-
 ================================================================================
-Fin MODIF 541  2026-06-21
+Fin MODIF 559 - 2026-06-21
 ================================================================================

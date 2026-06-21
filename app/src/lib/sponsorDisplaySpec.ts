@@ -72,6 +72,11 @@ export const SPONSOR_IMAGE_SPECS: Record<SponsorPlacement, SponsorImageSpec> = {
     ratio: '9:16 plein écran',
     noteKey: 'admin.sponsors.helpImageReelsSponsored',
   },
+  salon_theater: {
+    logoPx: '40 × 40 px',
+    bannerPx: '— (bandeau texte compact)',
+    noteKey: 'admin.sponsors.helpImageSalonTheater',
+  },
 };
 
 export function normalizeDisplayDurationSec(raw: unknown, fallback = DEFAULT_DISPLAY_DURATION_SEC): number {

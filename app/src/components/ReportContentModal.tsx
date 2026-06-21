@@ -68,12 +68,12 @@ export function ReportContentModal({ context, onClose, onUserBlocked }: ReportCo
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="report-title"
     >
-      <div className="w-full max-w-md bg-[#12121a] border border-[#2d2d3d] rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
+      <div className="w-full max-w-md bg-[#12121a] border border-[#2d2d3d] rounded-2xl shadow-2xl overflow-hidden">
         <div className="p-4 border-b border-[#1e1e2f] flex items-center justify-between">
           <h2 id="report-title" className="font-bold text-white">
             Signaler un contenu

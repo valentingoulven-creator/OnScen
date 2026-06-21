@@ -46,11 +46,11 @@ export function DonationSheet({ onClose }: DonationSheetProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex flex-col justify-end bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="bg-[#12121a] border-t border-[#1e1e2f] rounded-t-2xl shadow-2xl p-5 pb-8 max-h-[92vh] overflow-y-auto"
+        className="w-full max-w-md bg-[#12121a] border border-[#1e1e2f] rounded-2xl shadow-2xl p-5 pb-8 max-h-[90dvh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Handle bar */}

@@ -86,9 +86,7 @@ export function HomePage({
   const [showCreateSalon, setShowCreateSalon] = useState(false);
   const [locating, setLocating] = useState(false);
   const [loadingNearby, setLoadingNearby] = useState(true);
-  const [showNearbyPeople, setShowNearbyPeople] = useState(
-    () => localStorage.getItem(NEARBY_PEOPLE_STORAGE_KEY) !== 'false'
-  );
+  const [showNearbyPeople, setShowNearbyPeople] = useState(true);
   const [nearbyPanelPrefs, setNearbyPanelPrefs] = useState(getNearbyPanelPreferences);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
   const [mapGeo, setMapGeo] = useState<LivesGeoPrefs>(() => getLivesGeo());
@@ -213,7 +211,11 @@ export function HomePage({
 
   const setNearbyPeopleVisible = (visible: boolean) => {
     setShowNearbyPeople(visible);
-    localStorage.setItem(NEARBY_PEOPLE_STORAGE_KEY, visible ? 'true' : 'false');
+    try {
+      localStorage.removeItem(NEARBY_PEOPLE_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
   };
 
   const loadNearbyAt = (coords: [number, number]) => {

@@ -33,12 +33,12 @@ export function LiveStripeConnectGate({ token, isPending, onClose, onSkip }: Liv
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-md bg-[#0f0f1a] border border-[#2a2a3f] rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl space-y-5">
+      <div className="w-full max-w-md bg-[#0f0f1a] border border-[#2a2a3f] rounded-2xl p-6 shadow-2xl space-y-5">
         {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div className="w-10 h-10 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center shrink-0">

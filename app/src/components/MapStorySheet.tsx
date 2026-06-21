@@ -211,14 +211,14 @@ export function MapStorySheet({
   return (
     <>
       <div
-        className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-0 sm:p-4"
+        className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
         role="dialog"
         aria-modal="true"
         aria-label="Créer une story"
         onClick={onClose}
       >
         <div
-          className="w-full max-w-md max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-bottom,0px)))] overflow-hidden flex flex-col rounded-t-2xl sm:rounded-2xl bg-[var(--ms-surface)] border border-[var(--ms-border)] shadow-[0_24px_80px_rgba(0,0,0,0.55)]"
+          className="w-full max-w-md max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-bottom,0px)))] overflow-hidden flex flex-col rounded-2xl bg-[var(--ms-surface)] border border-[var(--ms-border)] shadow-[0_24px_80px_rgba(0,0,0,0.55)]"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--ms-border)]/80 shrink-0">

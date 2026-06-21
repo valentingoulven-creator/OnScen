@@ -1,5 +1,15 @@
 let permissionAsked = false;
 
+export const NOTIFICATIONS_MUTED_LS_KEY = 'soundy_notifications_muted';
+
+function isNotificationsMuted(): boolean {
+  try {
+    return localStorage.getItem(NOTIFICATIONS_MUTED_LS_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
 export function requestDmNotificationPermission(): void {
   if (permissionAsked || typeof Notification === 'undefined') return;
   permissionAsked = true;
@@ -9,6 +19,7 @@ export function requestDmNotificationPermission(): void {
 }
 
 export function showDmSystemNotification(senderName: string, preview: string): void {
+  if (isNotificationsMuted()) return;
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
   if (document.visibilityState === 'visible') return;
   try {
@@ -20,6 +31,7 @@ export function showDmSystemNotification(senderName: string, preview: string): v
 }
 
 export function showMatchSystemNotification(partnerName: string): void {
+  if (isNotificationsMuted()) return;
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
   if (document.visibilityState === 'visible') return;
   try {

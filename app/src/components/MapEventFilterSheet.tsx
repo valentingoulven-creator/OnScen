@@ -106,14 +106,14 @@ export function MapEventFilterSheet({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="map-event-filter-title"
       onClick={onClose}
     >
       <div
-        className="w-full sm:max-w-md max-h-[90dvh] flex flex-col bg-[#12121a] border border-purple-500/40 rounded-t-2xl sm:rounded-2xl shadow-2xl shadow-purple-950/40 overflow-hidden"
+        className="w-full max-w-md max-h-[90dvh] flex flex-col bg-[#12121a] border border-purple-500/40 rounded-2xl shadow-2xl shadow-purple-950/40 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="shrink-0 px-3 pt-3 pb-2.5 border-b border-purple-500/20 flex items-center justify-between gap-3 bg-purple-950/30">
@@ -134,7 +134,7 @@ export function MapEventFilterSheet({
           </button>
         </div>
 
-        <div className="px-3 py-3 space-y-3 overflow-visible">
+        <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-3">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
               {t('map.eventFilterDateLabel')}

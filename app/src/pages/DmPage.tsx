@@ -3195,13 +3195,13 @@ export function DmPage({
 
       {showNewDmSheet && (
         <div
-          className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="new-dm-sheet-title"
           onClick={(e) => { if (e.target === e.currentTarget) setShowNewDmSheet(false); }}
         >
-          <div className="bg-[#12121a] rounded-t-2xl border-t border-[#2d2d3d] max-h-[85vh] flex flex-col shadow-2xl mb-[var(--tab-nav-total-h,0px)]">
+          <div className="w-full max-w-md bg-[#12121a] rounded-2xl border border-[#2d2d3d] max-h-[85dvh] flex flex-col shadow-2xl">
             <div className="shrink-0 flex items-center justify-between p-4 border-b border-[#1e1e2f]">
               <h2 id="new-dm-sheet-title" className="font-bold text-white text-base">
                 Nouvelle conversation

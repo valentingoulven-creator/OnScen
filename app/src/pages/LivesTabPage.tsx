@@ -9,13 +9,6 @@ import {
   type LivesGeoPrefs,
 } from '../lib/livesGeo';
 import { MapLocationPicker } from '../components/MapLocationPicker';
-import {
-  clampNearbyRadiusKm,
-  formatRadiusKm,
-  NEARBY_RADIUS_HARD_MAX,
-  NEARBY_RADIUS_MAX,
-  NEARBY_RADIUS_MIN,
-} from '../lib/settings';
 import { FilterIcon } from '../components/FilterIcon';
 import { FollowUserButton } from '../components/FollowUserButton';
 import { UsernameDisplay } from '../components/UsernameDisplay';
@@ -249,8 +242,6 @@ export function LivesTabPage({ onOpenLive, isActive = true, hasActiveSalon = fal
     });
   }, []);
 
-  const distanceFilterActive = isNearbyDistanceFilterActive(panelPrefs);
-
   const loadLives = useCallback(() => {
     if (!token) return;
     setLoading(true);
@@ -294,22 +285,19 @@ export function LivesTabPage({ onOpenLive, isActive = true, hasActiveSalon = fal
     [filteredLives, panelPrefs.sortBy]
   );
 
+  const suiviLives = useMemo(
+    () => sortedLives.filter((l) => followingIds.has(l.hostId)),
+    [sortedLives, followingIds]
+  );
+
+  const suggestionsLives = useMemo(
+    () => followingIds.size === 0 ? sortedLives : sortedLives.filter((l) => !followingIds.has(l.hostId)),
+    [sortedLives, followingIds]
+  );
+
   const updateCountryFilter = useCallback((code: string) => {
     setCountryFilter(setLivesCountryFilter(code));
   }, []);
-
-  const changeRadius = (km: number) => {
-    if (!Number.isFinite(km)) return;
-    const radiusKm = clampNearbyRadiusKm(km);
-    setGeo((prev) => ({ ...prev, radiusKm }));
-    setLivesGeoRadiusKm(radiusKm);
-  };
-
-  const changeRadiusInput = (raw: string) => {
-    const n = Number(raw);
-    if (!raw.trim() || !Number.isFinite(n)) return;
-    changeRadius(n);
-  };
 
   const filterChipClass = (active: boolean) =>
     `min-w-[4.25rem] flex-1 px-1.5 py-1 rounded-lg text-[9px] sm:text-[10px] font-semibold border transition whitespace-nowrap ${
@@ -317,53 +305,6 @@ export function LivesTabPage({ onOpenLive, isActive = true, hasActiveSalon = fal
         ? 'border-red-500/50 bg-red-500/15 text-red-300'
         : 'border-[#2d2d3d] text-gray-500 hover:text-gray-300'
     }`;
-
-  const radiusControls = (
-    <div>
-      <div className="flex justify-between text-[10px] mb-1">
-        <span className="text-gray-400">Rayon</span>
-        <span className="text-red-400 font-bold">{formatRadiusKm(geo.radiusKm)}</span>
-      </div>
-      <input
-        type="range"
-        min={NEARBY_RADIUS_MIN}
-        max={NEARBY_RADIUS_MAX}
-        step={1}
-        value={Math.min(geo.radiusKm, NEARBY_RADIUS_MAX)}
-        onChange={(e) => changeRadius(Number(e.target.value))}
-        className="w-full accent-red-500 h-1.5"
-      />
-      <div className="flex items-center gap-1.5 mt-1.5">
-        <input
-          type="number"
-          min={NEARBY_RADIUS_MIN}
-          step={1}
-          value={geo.radiusKm >= NEARBY_RADIUS_HARD_MAX ? '' : geo.radiusKm}
-          placeholder="ex : 1000"
-          onChange={(e) => changeRadiusInput(e.target.value)}
-          onBlur={(e) => changeRadiusInput(e.target.value)}
-          className="w-16 px-1.5 py-1 rounded-lg bg-[#0b0b0f] border border-[#2a2a3f] text-[10px] text-white text-center"
-          aria-label="Distance en kilomètres"
-        />
-        <span className="text-[10px] text-gray-500">km</span>
-        <button
-          type="button"
-          onClick={() => changeRadius(NEARBY_RADIUS_HARD_MAX)}
-          className={`text-[9px] px-1.5 py-0.5 rounded border transition ${
-            geo.radiusKm >= NEARBY_RADIUS_HARD_MAX
-              ? 'border-red-500/50 bg-red-500/15 text-red-300'
-              : 'border-[#2d2d3d] text-gray-500 hover:text-gray-300'
-          }`}
-          title="Rayon illimité (20 000 km)"
-        >
-          Illimité
-        </button>
-      </div>
-      <p className="text-[9px] text-gray-600 mt-1">
-        Curseur : 1–500 km · Saisie manuelle : ex. 1 000, 5 000 km
-      </p>
-    </div>
-  );
 
   const launchLiveAfterSetup = async () => {
     if (!token) return;
@@ -440,39 +381,41 @@ export function LivesTabPage({ onOpenLive, isActive = true, hasActiveSalon = fal
 
   return (
     <div className="flex flex-col h-full overflow-y-auto bg-[#0b0b0f]">
-      <div className="p-4 border-b border-[#1e1e2f] bg-gradient-to-b from-red-950/30 to-transparent">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            Lives
-          </h2>
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={startMyLive}
-              disabled={starting || mediaSetupOpen}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded-full text-xs font-bold text-white disabled:opacity-50"
-            >
-              {starting ? (
-                '...'
-              ) : (
-                <>
-                  <span
-                    className="w-1.5 h-1.5 shrink-0 rounded-full bg-white animate-pulse"
-                    aria-hidden="true"
-                  />
-                  <span className="leading-none">Démarrer mon Live</span>
-                </>
-              )}
-            </button>
-          </div>
+      <div className="px-4 pt-4 pb-3 border-b border-[#1e1e2f]">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" aria-hidden="true" />
+          <h2 className="text-xl font-bold text-white leading-tight">Lives</h2>
+          {lives.length > 0 && (
+            <span className="px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/30 text-[10px] font-semibold text-purple-300 tabular-nums">
+              {lives.length} en cours
+            </span>
+          )}
         </div>
-        <p className="text-xs text-gray-400 mb-3">
-          Sessions en direct avec chat rapide et réactions
+
+        <p className="text-xs text-gray-500 mb-3 leading-snug">
+          Sessions en direct avec chat et réactions
         </p>
 
+        <button
+          type="button"
+          onClick={startMyLive}
+          disabled={starting || mediaSetupOpen}
+          className="w-full flex items-center justify-center gap-2 min-h-[44px] px-4 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-sm font-bold text-white transition-colors"
+        >
+          {starting ? (
+            <span>Démarrage…</span>
+          ) : (
+            <>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 shrink-0" aria-hidden="true">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              <span>Démarrer mon Live</span>
+            </>
+          )}
+        </button>
+
         {startError && (
-          <p className="mb-3 rounded-lg bg-red-950/60 border border-red-500/30 text-red-200 text-xs px-3 py-2" role="alert">
+          <p className="mt-3 rounded-lg bg-red-950/60 border border-red-500/30 text-red-200 text-xs px-3 py-2" role="alert">
             {startError}
             <button
               type="button"
@@ -485,14 +428,8 @@ export function LivesTabPage({ onOpenLive, isActive = true, hasActiveSalon = fal
           </p>
         )}
 
-        {!settingsOpen && distanceFilterActive && (
-          <div className="rounded-xl bg-[#12121a] border border-[#1e1e2f] p-3">
-            {radiusControls}
-          </div>
-        )}
-
         {settingsOpen && (
-          <div className="rounded-xl bg-[#12121a] border border-[#1e1e2f] p-3 space-y-3 max-h-[min(52vh,18rem)] overflow-y-auto overscroll-contain">
+          <div className="mt-3 rounded-xl bg-[#12121a] border border-[#1e1e2f] p-3 space-y-3 max-h-[min(52vh,18rem)] overflow-y-auto overscroll-contain">
             <MapLocationPicker
               mapGeo={geo}
               onPersist={persistGeo}
@@ -544,32 +481,11 @@ export function LivesTabPage({ onOpenLive, isActive = true, hasActiveSalon = fal
                 ))}
               </div>
             </div>
-
-            {distanceFilterActive && radiusControls}
           </div>
         )}
       </div>
 
       {loading && lives.length === 0 && <LiveGridSkeleton />}
-
-      {!loading && sortedLives.length === 0 && (
-        <div className="p-8 text-center">
-          <p className="text-gray-400 text-sm">
-            {showCountryFilter && countryFilter !== LIVES_COUNTRY_FILTER_ALL
-              ? 'Aucun live en cours dans ce pays'
-              : distanceFilterActive
-                ? `Aucun live en cours dans un rayon de ${geo.radiusKm} km`
-                : 'Aucun live en cours pour le moment'}
-          </p>
-          <p className="text-gray-500 text-xs mt-2">
-            {showCountryFilter && countryFilter !== LIVES_COUNTRY_FILTER_ALL
-              ? 'Choisissez un autre pays ou affichez tous les lives'
-              : distanceFilterActive
-                ? 'Élargissez le rayon, changez de ville ou désactivez le tri par distance'
-                : 'Revenez plus tard ou lancez votre propre session'}
-          </p>
-        </div>
-      )}
 
       <div className="px-3 pt-2 flex justify-end">
         <button
@@ -586,18 +502,63 @@ export function LivesTabPage({ onOpenLive, isActive = true, hasActiveSalon = fal
         </button>
       </div>
 
-      <ul className="px-3 pb-3 pt-1 grid grid-cols-2 gap-x-2 gap-y-4">
-        {sortedLives.map((live) => (
-          <LiveGridCard
-            key={live.id}
-            live={live}
-            currentUserId={user?.id}
-            isFollowing={followingIds.has(live.hostId)}
-            onOpenLive={onOpenLive}
-            onFollowingChange={handleFollowingChange}
-          />
-        ))}
-      </ul>
+      {!loading && followingIds.size > 0 && (
+        <div className="px-3 pt-2">
+          <h2 className="text-sm font-semibold text-gray-300 px-1 mb-2">Suivi</h2>
+          {suiviLives.length === 0 ? (
+            <div className="py-5 text-center">
+              <p className="text-gray-400 text-sm">Aucun live en cours parmi tes lives suivis</p>
+              <p className="text-gray-500 text-xs mt-1">Abonne-toi à des streameurs pour les voir ici</p>
+            </div>
+          ) : (
+            <ul className="grid grid-cols-2 gap-x-2 gap-y-4 pb-2">
+              {suiviLives.map((live) => (
+                <LiveGridCard
+                  key={live.id}
+                  live={live}
+                  currentUserId={user?.id}
+                  isFollowing={followingIds.has(live.hostId)}
+                  onOpenLive={onOpenLive}
+                  onFollowingChange={handleFollowingChange}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {!loading && (
+        <div className={`px-3 pb-3 ${followingIds.size > 0 ? 'pt-3 border-t border-[#1e1e2f]' : 'pt-2'}`}>
+          <h2 className="text-sm font-semibold text-gray-300 px-1 mb-2">Suggestions</h2>
+          {suggestionsLives.length === 0 ? (
+            <div className="py-5 text-center">
+              <p className="text-gray-400 text-sm">
+                {showCountryFilter && countryFilter !== LIVES_COUNTRY_FILTER_ALL
+                  ? 'Aucun live en cours dans ce pays'
+                  : 'Aucun live en cours pour le moment'}
+              </p>
+              <p className="text-gray-500 text-xs mt-1">
+                {showCountryFilter && countryFilter !== LIVES_COUNTRY_FILTER_ALL
+                  ? 'Choisissez un autre pays ou affichez tous les lives'
+                  : 'Reviens plus tard ou lance ta propre session'}
+              </p>
+            </div>
+          ) : (
+            <ul className="grid grid-cols-2 gap-x-2 gap-y-4">
+              {suggestionsLives.map((live) => (
+                <LiveGridCard
+                  key={live.id}
+                  live={live}
+                  currentUserId={user?.id}
+                  isFollowing={followingIds.has(live.hostId)}
+                  onOpenLive={onOpenLive}
+                  onFollowingChange={handleFollowingChange}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       <StartLiveMediaSetupModal
         key={mediaSetupGeneration}

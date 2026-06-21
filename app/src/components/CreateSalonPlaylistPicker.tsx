@@ -12,9 +12,15 @@ interface CreateSalonPlaylistPickerProps {
   token: string;
   value: CreateSalonPlaylistSelection | null;
   onChange: (selection: CreateSalonPlaylistSelection | null) => void;
+  compact?: boolean;
 }
 
-export function CreateSalonPlaylistPicker({ token, value, onChange }: CreateSalonPlaylistPickerProps) {
+export function CreateSalonPlaylistPicker({
+  token,
+  value,
+  onChange,
+  compact,
+}: CreateSalonPlaylistPickerProps) {
   const [playlists, setPlaylists] = useState<YoutubePlaylistSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRealAccount, setIsRealAccount] = useState(false);
@@ -57,19 +63,21 @@ export function CreateSalonPlaylistPicker({ token, value, onChange }: CreateSalo
   };
 
   return (
-    <div className="space-y-2">
-      <span className="text-xs text-gray-400">Playlist YouTube (optionnel)</span>
+    <div className={compact ? 'space-y-1' : 'space-y-2'}>
+      {!compact && <span className="text-xs text-gray-400">Playlist YouTube (optionnel)</span>}
 
       {value ? (
-        <div className="flex items-center gap-2 rounded-xl bg-[#0b0b0f] border border-[#2d2d3d] px-3 py-2">
-          <span className="text-lg" aria-hidden>
+        <div className="flex items-center gap-2 rounded-lg bg-[#0b0b0f] border border-[#2d2d3d] px-2.5 py-1.5">
+          <span className="text-base" aria-hidden>
             📋
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-xs text-white font-medium truncate">{value.title}</p>
-            <p className="text-[10px] text-gray-500 truncate">
-              {value.playlistId || value.playlistUrl || 'Lien playlist'}
-            </p>
+            <p className="text-[11px] text-white font-medium truncate">{value.title}</p>
+            {!compact && (
+              <p className="text-[10px] text-gray-500 truncate">
+                {value.playlistId || value.playlistUrl || 'Lien playlist'}
+              </p>
+            )}
           </div>
           <button
             type="button"
@@ -77,28 +85,30 @@ export function CreateSalonPlaylistPicker({ token, value, onChange }: CreateSalo
               setPlaylistUrl('');
               onChange(null);
             }}
-            className="text-[10px] text-gray-400 hover:text-white px-2 py-1"
+            className="text-[10px] text-gray-400 hover:text-white px-1.5 py-0.5"
           >
             Retirer
           </button>
         </div>
       ) : (
         <>
-          <p className="text-[10px] text-gray-500 leading-snug">
-            {isRealAccount
-              ? 'Vos playlists YouTube (compte connecté).'
-              : 'Playlists démo — connectez Google pour les vôtres.'}
-          </p>
+          {!compact && (
+            <p className="text-[10px] text-gray-500 leading-snug">
+              {isRealAccount
+                ? 'Vos playlists YouTube (compte connecté).'
+                : 'Playlists démo — connectez Google pour les vôtres.'}
+            </p>
+          )}
 
           {loading ? (
-            <p className="text-xs text-gray-500">Chargement des playlists…</p>
+            <p className="text-[10px] text-gray-500">Chargement…</p>
           ) : playlists.length > 0 ? (
             <select
               defaultValue=""
               onChange={(e) => {
                 if (e.target.value) pickFromList(e.target.value);
               }}
-              className="w-full px-3 py-2 rounded-xl bg-[#1a1a26] border border-[#2d2d3d] text-sm text-white"
+              className="w-full px-2.5 py-1.5 rounded-lg bg-[#1a1a26] border border-[#2d2d3d] text-xs text-white"
               aria-label="Choisir une playlist YouTube"
             >
               <option value="" disabled>
@@ -124,15 +134,17 @@ export function CreateSalonPlaylistPicker({ token, value, onChange }: CreateSalo
                 pickFromUrl();
               }
             }}
-            placeholder="Ou lien playlist youtube.com/playlist?list=PL…"
-            className="w-full px-3 py-2 rounded-xl bg-[#1a1a26] border border-[#2d2d3d] text-xs text-white placeholder:text-gray-500"
+            placeholder="Lien playlist youtube.com/playlist?list=PL…"
+            className="w-full px-2.5 py-1.5 rounded-lg bg-[#1a1a26] border border-[#2d2d3d] text-[11px] text-white placeholder:text-gray-500"
           />
 
           {error && <p className="text-[10px] text-red-400">{error}</p>}
 
-          <p className="text-[10px] text-gray-600">
-            La file d&apos;attente sera remplie au lancement du salon.
-          </p>
+          {!compact && (
+            <p className="text-[10px] text-gray-600">
+              La file d&apos;attente sera remplie au lancement du salon.
+            </p>
+          )}
         </>
       )}
     </div>

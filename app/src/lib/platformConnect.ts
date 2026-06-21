@@ -29,13 +29,16 @@ export function isRealMusicPlatformConnected(
   return Boolean(links?.some((l) => l.platform === platform && l.isRealOAuth));
 }
 
-/** État « Connecté » profil / bannière — OAuth réel pour Spotify/YouTube, lien Instagram sinon. */
+/** État « Connecté » profil / bannière — OAuth réel pour Spotify, lien YouTube mock ou réel, Instagram sinon. */
 export function isProfilePlatformConnected(
   platform: ConnectPlatform,
   platformLinks: Array<PlatformLinkSummary> | undefined
 ): boolean {
   if (platform === 'instagram') {
     return Boolean(platformLinks?.some((l) => l.platform === 'instagram'));
+  }
+  if (platform === 'youtube') {
+    return Boolean(platformLinks?.some((l) => l.platform === 'youtube'));
   }
   return isRealMusicPlatformConnected(platform, platformLinks);
 }
@@ -59,6 +62,10 @@ export function isMusicPlatformLinkedForSalon(
   connectedPlatforms: MusicPlatform[] | undefined,
   platformLinks: Array<PlatformLinkSummary> | undefined
 ): boolean {
+  if (platform === 'youtube') {
+    if (platformLinks?.some((l) => l.platform === 'youtube')) return true;
+    return isPlatformConnected(connectedPlatforms, platform);
+  }
   if (platformLinks?.length) {
     return isProfilePlatformConnected(platform, platformLinks);
   }

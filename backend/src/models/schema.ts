@@ -446,7 +446,7 @@ export interface SupportThreadMessage {
 }
 
 /** Emplacement d'affichage d'un sponsor dans l'application. */
-export type SponsorPlacement = 'map_banner' | 'feed_inline' | 'stories_banner' | 'reels_sponsored';
+export type SponsorPlacement = 'map_banner' | 'feed_inline' | 'stories_banner' | 'reels_sponsored' | 'salon_theater';
 
 /** Configuration globale des sponsors (admin). */
 export interface SponsorPlatformConfig {

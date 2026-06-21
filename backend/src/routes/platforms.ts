@@ -305,7 +305,12 @@ platformsRouter.post('/:platform/connect', authenticateJWT, (req: Request, res: 
   const mockConnectAllowed = canUseMockPlatformConnect(user);
 
   if (platform === 'youtube' && isYoutubeOAuthConfigured() && !mockConnectAllowed) {
-    res.json({ ok: false, oauthUrl: createYoutubeOAuthUrl(userId), code: 'USE_OAUTH_URL' });
+    res.status(403).json({
+      ok: false,
+      error: 'Connexion démo indisponible — utilisez Google OAuth ou contactez un administrateur.',
+      code: 'USE_OAUTH_URL',
+      oauthUrl: createYoutubeOAuthUrl(userId),
+    });
     return;
   }
 

@@ -1422,13 +1422,13 @@ function ReelCommentsSheet({
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-end bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="reel-comments-title"
     >
       <button type="button" className="absolute inset-0" aria-label="Fermer" onClick={onClose} />
-      <div className="relative w-full max-h-[70dvh] bg-[#12121a] border-t border-[#2d2d3d] rounded-t-2xl flex flex-col mb-[var(--tab-nav-total-h)]">
+      <div className="relative w-full max-w-md max-h-[70dvh] bg-[#12121a] border border-[#2d2d3d] rounded-2xl flex flex-col">
         <div className="flex items-center justify-between px-4 py-3 border-b border-[#1e1e2f]">
           <h2 id="reel-comments-title" className="font-bold text-white text-sm">
             Commentaires · {reelTitle}
@@ -1988,13 +1988,13 @@ function ReelsAlgoSheet({ onClose, onSaved }: { onClose: () => void; onSaved: ()
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="reels-algo-title"
     >
       <button type="button" className="absolute inset-0" aria-label="Fermer" onClick={onClose} />
-      <div className="relative w-full max-h-[80dvh] bg-[#12121a] border-t border-[#2d2d3d] rounded-t-2xl flex flex-col mb-[var(--tab-nav-total-h)]">
+      <div className="relative w-full max-w-md max-h-[80dvh] bg-[#12121a] border border-[#2d2d3d] rounded-2xl flex flex-col">
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 rounded-full bg-[#3d3d55]" />
         </div>

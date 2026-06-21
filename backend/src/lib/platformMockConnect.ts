@@ -12,8 +12,13 @@ function parseMockPlatformConnectUsernames(): Set<string> {
   );
 }
 
+function isProductionAppEnv(): boolean {
+  return process.env.APP_ENV?.trim().toLowerCase() === 'production';
+}
+
 export function canUseMockPlatformConnect(user: User | undefined): boolean {
   if (!user) return false;
+  if (!isProductionAppEnv()) return true;
   const allow = parseMockPlatformConnectUsernames();
   if (!allow.size) return false;
   return allow.has(user.username.trim().toLowerCase());

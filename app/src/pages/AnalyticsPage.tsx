@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
+import { AdminCostsTab } from './AdminCostsTab';
 import { AnalyticsVpsTab } from './AnalyticsVpsTab';
 
 export type AnalyticsPeriod = 'day' | 'week' | 'month' | 'year';
-type AnalyticsSubTab = 'overview' | 'vps';
+export type AnalyticsSubTab = 'overview' | 'vps' | 'costs';
 
 type AnalyticsSummary = Awaited<ReturnType<typeof api.getAnalyticsSummary>>;
 
@@ -137,6 +138,7 @@ function AnalyticsSubTabBar({
   const items: { id: AnalyticsSubTab; label: string }[] = [
     { id: 'overview', label: t('admin.analytics.subTabOverview') },
     { id: 'vps', label: t('admin.analytics.subTabVps') },
+    { id: 'costs', label: t('admin.analytics.subTabCosts') },
   ];
 
   return (
@@ -162,10 +164,18 @@ function AnalyticsSubTabBar({
   );
 }
 
-export function AnalyticsPage({ onBack, embedded = false }: { onBack?: () => void; embedded?: boolean }) {
+export function AnalyticsPage({
+  onBack,
+  embedded = false,
+  initialSubTab = 'overview',
+}: {
+  onBack?: () => void;
+  embedded?: boolean;
+  initialSubTab?: AnalyticsSubTab;
+}) {
   const { token } = useAuth();
   const { t, i18n } = useTranslation();
-  const [subTab, setSubTab] = useState<AnalyticsSubTab>('overview');
+  const [subTab, setSubTab] = useState<AnalyticsSubTab>(initialSubTab);
   const [period, setPeriod] = useState<AnalyticsPeriod>('week');
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -187,6 +197,10 @@ export function AnalyticsPage({ onBack, embedded = false }: { onBack?: () => voi
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    setSubTab(initialSubTab);
+  }, [initialSubTab]);
 
   const periodTotal = periodTotalLabel(period, t);
 
@@ -236,6 +250,8 @@ export function AnalyticsPage({ onBack, embedded = false }: { onBack?: () => voi
         <AnalyticsSubTabBar subTab={subTab} onChange={setSubTab} t={t} />
 
         {subTab === 'vps' && <AnalyticsVpsTab />}
+
+        {subTab === 'costs' && <AdminCostsTab />}
 
         {subTab === 'overview' && (
           <>
