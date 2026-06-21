@@ -1,4 +1,4 @@
-# scripts/deploy-prod.ps1 — Deploiement PRODUCTION canonique (getsoundy.com)
+# scripts/deploy-prod.ps1 - Deploiement PRODUCTION canonique (getsoundy.com)
 # Usage : powershell -ExecutionPolicy Bypass -File scripts/deploy-prod.ps1
 #         ou double-clic deploy-prod.bat
 param(
@@ -50,11 +50,11 @@ if ($gitExe) {
         $branch = (& git rev-parse --abbrev-ref HEAD 2>$null)
         $commit = (& git rev-parse --short HEAD 2>$null)
         if ($branch -and $commit) {
-            Write-Host "[OK] Depot propre — branche $branch @ $commit" -ForegroundColor Green
+            Write-Host "[OK] Depot propre - branche $branch @ $commit" -ForegroundColor Green
         }
     }
 } else {
-    Write-Host '[!] git introuvable — verification des commits ignoree' -ForegroundColor Yellow
+    Write-Host '[!] git introuvable - verification des commits ignoree' -ForegroundColor Yellow
 }
 
 $deployScript = Join-Path $root 'deploy_zero_downtime.ps1'
