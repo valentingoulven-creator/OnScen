@@ -1,6 +1,7 @@
 import { TabIcon, type TabId } from './TabNavIcons';
 
-type Tab = TabId;
+/** Apptel : pas d’onglet Musique dans la barre. */
+type Tab = Exclude<TabId, 'music'>;
 
 interface MainTabNavProps {
   tab: Tab;
