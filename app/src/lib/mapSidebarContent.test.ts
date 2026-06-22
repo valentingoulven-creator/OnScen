@@ -367,6 +367,35 @@ describe('buildMapSidebarContent', () => {
     expect(content.salons.map((s) => s.id).sort()).toEqual(['s-live', 's-off']);
   });
 
+  it('shows salons at overview even outside viewport bounds (no viewport clip)', () => {
+    const content = buildMapSidebarContent({
+      detail: {
+        tier: 'overview',
+        flatZoom: 5,
+        globeAltitude: null,
+        bounds: { north: 48.9, south: 48.8, east: 2.4, west: 2.3 },
+        mapStyle: 'flat',
+      },
+      eventsFilterOn: false,
+      livesFilterOn: false,
+      salonFilterOn: true,
+      eventsOnly: false,
+      showAllSalonsAtCityZoom: true,
+      mapEvents: [],
+      eventClusters: [],
+      lives: [],
+      salons: [
+        { ...salon('in-view'), latitude: 48.85, longitude: 2.35 },
+        { ...salon('out-view'), latitude: 43.61, longitude: 3.87 },
+      ],
+      people: [],
+      favoriteIds: new Set(),
+      nearbyFetchCenter: [48.85, 2.35],
+    });
+    expect(content.salons.map((s) => s.id).sort()).toEqual(['in-view', 'out-view']);
+    expect(content.salonsSuggestions).toHaveLength(0);
+  });
+
   it('skips salon viewport clip during flyTo when fetch anchor is outside bounds', () => {
     const content = buildMapSidebarContent({
       detail: {
@@ -423,5 +452,126 @@ describe('buildMapSidebarContent', () => {
     expect(content.eventClusters).toHaveLength(1);
     expect(content.eventClusters[0]!.cityKey).toBe('paris');
     expect(content.zoomTooWide).toBe(false);
+  });
+
+  it('splits lives into following, viewport and suggestions', () => {
+    const followed = live('l-follow');
+    followed.hostId = 'host-followed';
+    followed.viewersCount = 5;
+    const inView = live('l-view');
+    inView.hostId = 'host-view';
+    inView.viewersCount = 38;
+    const popular = live('l-pop');
+    popular.hostId = 'host-pop';
+    popular.viewersCount = 100;
+    popular.latitude = 43.6;
+    popular.longitude = 3.87;
+
+    const content = buildMapSidebarContent({
+      detail: {
+        tier: 'street',
+        flatZoom: 14,
+        globeAltitude: null,
+        bounds: { north: 48.9, south: 48.8, east: 2.4, west: 2.3 },
+        mapStyle: 'flat',
+      },
+      eventsFilterOn: false,
+      livesFilterOn: true,
+      salonFilterOn: false,
+      eventsOnly: false,
+      showAllSalonsAtCityZoom: false,
+      mapEvents: [],
+      eventClusters: [],
+      lives: [followed, inView, popular],
+      salons: [],
+      people: [],
+      favoriteIds: new Set(),
+      followingIds: new Set(['host-followed']),
+      nearbyFetchCenter: [48.85, 2.35],
+    });
+
+    expect(content.livesFollowing.map((l) => l.id)).toEqual(['l-follow']);
+    expect(content.lives.map((l) => l.id)).toContain('l-view');
+    expect(content.livesSuggestions.map((l) => l.id)).toEqual(['l-pop']);
+    expect(countMapSidebarItems(content)).toBe(3);
+  });
+
+  it('splits salons into following, viewport and suggestions', () => {
+    const followed = salon('s-follow');
+    followed.hostId = 'host-followed';
+    followed.listenersCount = 5;
+    const inView = salon('s-view');
+    inView.hostId = 'host-view';
+    inView.listenersCount = 12;
+    const popular = salon('s-pop');
+    popular.hostId = 'host-pop';
+    popular.listenersCount = 40;
+    popular.latitude = 43.6;
+    popular.longitude = 3.87;
+
+    const content = buildMapSidebarContent({
+      detail: {
+        tier: 'street',
+        flatZoom: 14,
+        globeAltitude: null,
+        bounds: { north: 48.9, south: 48.8, east: 2.4, west: 2.3 },
+        mapStyle: 'flat',
+      },
+      eventsFilterOn: false,
+      livesFilterOn: false,
+      salonFilterOn: true,
+      eventsOnly: false,
+      showAllSalonsAtCityZoom: true,
+      mapEvents: [],
+      eventClusters: [],
+      lives: [],
+      salons: [followed, inView, popular],
+      people: [],
+      favoriteIds: new Set(),
+      followingIds: new Set(['host-followed']),
+      nearbyFetchCenter: [48.85, 2.35],
+    });
+
+    expect(content.salonsFollowing.map((s) => s.id)).toEqual(['s-follow']);
+    expect(content.salons.map((s) => s.id)).toContain('s-view');
+    expect(content.salonsSuggestions.map((s) => s.id)).toEqual(['s-pop']);
+  });
+
+  it('splits events into following, viewport and suggestions', () => {
+    const followed = eventMarker('e-follow');
+    followed.authorId = 'author-followed';
+    const inView = eventMarker('e-view');
+    inView.authorId = 'author-view';
+    const other = eventMarker('e-other');
+    other.authorId = 'author-other';
+    other.latitude = 43.6;
+    other.longitude = 3.87;
+
+    const content = buildMapSidebarContent({
+      detail: {
+        tier: 'street',
+        flatZoom: 14,
+        globeAltitude: null,
+        bounds: { north: 48.9, south: 48.8, east: 2.4, west: 2.3 },
+        mapStyle: 'flat',
+      },
+      eventsFilterOn: true,
+      livesFilterOn: false,
+      salonFilterOn: false,
+      eventsOnly: false,
+      showAllSalonsAtCityZoom: false,
+      mapEvents: [followed, inView, other],
+      eventClusters: [],
+      lives: [],
+      salons: [],
+      people: [],
+      favoriteIds: new Set(),
+      followingIds: new Set(['author-followed']),
+      nearbyFetchCenter: [48.85, 2.35],
+    });
+
+    expect(content.eventsFollowing.map((e) => e.id)).toEqual(['e-follow']);
+    expect(content.events.map((e) => e.id)).toContain('e-view');
+    expect(content.eventsSuggestions.map((e) => e.id)).toEqual(['e-other']);
   });
 });

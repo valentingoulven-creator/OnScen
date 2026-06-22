@@ -799,6 +799,12 @@ export interface LiveChatConfig {
   subscribersOnly?: boolean;
 }
 
+export interface LiveDonationOption {
+  id: string;
+  label: string;
+  amount: number;
+}
+
 export interface Live {
   id: string;
   salonId?: string;
@@ -833,6 +839,8 @@ export interface Live {
   /** URL manifest HLS Cloudflare (spectateurs). */
   cloudflarePlaybackUrl?: string;
   cloudflareLiveInputId?: string;
+  /** Menu pourboires personnalisé par l'hôte (si configuré). */
+  donationOptions?: LiveDonationOption[];
 }
 
 export interface ChatMessage {

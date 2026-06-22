@@ -16,6 +16,7 @@ import { notifyContentHeartReceived, notifyEventCreated } from '../lib/notificat
 import { db } from '../models/schema';
 import { getIo } from '../lib/ioInstance';
 import { getWeeklyTopSongs } from '../lib/weeklyVotes';
+import { listFeaturedCommunitySounds } from '../lib/featuredCommunitySounds';
 
 export const feedRouter = Router();
 
@@ -99,6 +100,13 @@ feedRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
     });
   }
   res.status(201).json({ post: result.post });
+});
+
+// ── Nouveautés communauté (sons + albums, sans reels) ─────────────────────────
+
+feedRouter.get('/featured-sounds', authenticateJWT, (req: Request, res: Response) => {
+  const limit = req.query.limit != null ? Math.min(Number(req.query.limit), 20) : 5;
+  res.json({ items: listFeaturedCommunitySounds(limit) });
 });
 
 // ── Top songs de la semaine (Monday 00:00 → Sunday 23:59, salons + discographie) ─

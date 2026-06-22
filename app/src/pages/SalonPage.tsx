@@ -90,7 +90,7 @@ export function SalonPage({
   salonFullScreen?: boolean;
 }) {
 
-  const { user, token, setUserFromProfile } = useAuth();
+  const { user, token, setUserFromProfile, refreshUser } = useAuth();
   const { t } = useTranslation();
 
   const [salon, setSalon] = useState<Salon | null>(null);
@@ -363,6 +363,10 @@ export function SalonPage({
         await api.spotifySalonPlaybackControl(token, salon.id, 'pause').catch(() => {});
       }
       await api.deleteSalon(token, salon.id);
+      if (user) {
+        setUserFromProfile({ ...user, salonId: undefined, salonTitle: undefined });
+      }
+      await refreshUser().catch(() => {});
       setShowEndSalonConfirm(false);
       onLeaveSalon();
     } catch (e) {
@@ -370,7 +374,7 @@ export function SalonPage({
     } finally {
       setEndingSalon(false);
     }
-  }, [token, salon, onLeaveSalon, t]);
+  }, [token, salon, onLeaveSalon, t, user, setUserFromProfile, refreshUser]);
 
   const banSalonUser = useCallback(
     (targetUserId: string, opts: { permanent: boolean; durationMs?: number }) => {
@@ -765,7 +769,6 @@ export function SalonPage({
             });
           }}
           chatTitle={chatTitle}
-          chatHeaderExtra={chatHeaderExtra}
           chatMinimized={chatMinimized}
           onToggleMinimize={() => {
             setChatMinimized((m) => {
@@ -797,12 +800,14 @@ export function SalonPage({
               skipping={skipping}
               onSkip={canControlPlayback ? handleSkip : undefined}
               onAnchorVideoFloat={onRestoreFullScreen}
+              onLeaveSalon={onLeaveSalon}
             />
           }
           chat={
             <SalonChatDockBody
               activeTab={chatDockTab}
               onSelectTab={setChatDockTab}
+              chatHeaderExtra={chatHeaderExtra}
               salon={salon}
               queue={queue}
               proposals={proposals}

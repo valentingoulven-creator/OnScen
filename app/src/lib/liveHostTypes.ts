@@ -53,6 +53,21 @@ export interface RewardQueueItem {
   status: 'pending' | 'accepted' | 'refused' | 'done';
 }
 
+export const DEFAULT_LIVE_REWARDS: LiveReward[] = [
+  { id: 'r1', type: 'music_request', label: 'Demande de musique', price: 10, enabled: true },
+  { id: 'r2', type: 'dedication', label: 'Dédicace', price: 5, enabled: true },
+  { id: 'r3', type: 'dance', label: 'Danse spécifique', price: 15, enabled: true },
+  {
+    id: 'r4',
+    type: 'backstage',
+    label: 'Accès backstage',
+    price: 20,
+    enabled: true,
+    limitPerLive: 3,
+    remainingCount: 3,
+  },
+];
+
 export interface LiveStats {
   viewers: number;
   newSubscribers: number;

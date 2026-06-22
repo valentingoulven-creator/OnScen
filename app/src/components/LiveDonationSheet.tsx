@@ -14,6 +14,7 @@ import {
 import { donAmountValidationMessage, donTierEmoji, parseDonAmount } from '../lib/liveReactions';
 import { LegalDocumentView } from './LegalDocumentView';
 import type { LegalKey } from '../content/legal';
+import type { LiveDonationOption } from '../types';
 
 interface LiveDonationSheetProps {
   open: boolean;
@@ -23,6 +24,8 @@ interface LiveDonationSheetProps {
   token: string;
   userAge?: number;
   initialAmount?: number;
+  /** Menu personnalisé par l'hôte (catalogue récompenses). */
+  hostDonationOptions?: LiveDonationOption[];
   onSuccess: (message: string) => void;
 }
 
@@ -107,6 +110,7 @@ export function LiveDonationSheet({
   token,
   userAge,
   initialAmount,
+  hostDonationOptions,
   onSuccess,
 }: LiveDonationSheetProps) {
   const { t } = useTranslation();
@@ -125,7 +129,11 @@ export function LiveDonationSheet({
   const needsAgeCheckbox = userAge == null || userAge < 18;
   const canProceedAge = userCanDonateByAge(userAge, ageConfirmed);
 
-  const tiers = config?.tiers?.length ? config.tiers : [1, 2, 5];
+  const hostOptions =
+    hostDonationOptions?.filter((o) => o.label.trim() && o.amount >= 1 && o.amount <= 100) ?? [];
+  const useHostMenu = hostOptions.length > 0;
+
+  const tiers = useHostMenu ? hostOptions.map((o) => o.amount) : config?.tiers?.length ? config.tiers : [1, 2, 5];
   const minAmount = config?.minAmount ?? 1;
   const maxAmount = config?.maxAmount ?? 100;
   const platformFeePercent = config?.platformFeePercent ?? 30;
@@ -267,26 +275,57 @@ export function LiveDonationSheet({
           <>
             <p className="text-xs text-gray-400 mb-4">{t('live.donationSupportHint', { hostName })}</p>
 
-            <div className="grid grid-cols-3 gap-2 mb-4">
-              {tiers.map((tier) => (
-                <button
-                  key={tier}
-                  type="button"
-                  disabled={submitting}
-                  onClick={() => {
-                    setSelectedAmount(tier);
-                    setCustomAmount('');
-                  }}
-                  className={`flex flex-col items-center py-4 rounded-xl border active:scale-95 transition disabled:opacity-50 ${
-                    selectedAmount === tier
-                      ? 'bg-pink-900/50 border-pink-400'
-                      : 'bg-pink-950/40 border-pink-500/40 hover:border-pink-400'
-                  }`}
-                >
-                  <span className="text-2xl">{donTierEmoji(tier)}</span>
-                  <span className="text-sm font-bold text-pink-200 mt-1">{tier} €</span>
-                </button>
-              ))}
+            <div
+              className={`grid gap-2 mb-4 ${
+                useHostMenu
+                  ? hostOptions.length >= 3
+                    ? 'grid-cols-2 sm:grid-cols-3'
+                    : 'grid-cols-2'
+                  : 'grid-cols-3'
+              }`}
+            >
+              {useHostMenu
+                ? hostOptions.map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => {
+                        setSelectedAmount(opt.amount);
+                        setCustomAmount('');
+                      }}
+                      className={`flex flex-col items-center justify-center min-h-[5.5rem] py-3 px-2 rounded-xl border active:scale-95 transition disabled:opacity-50 ${
+                        selectedAmount === opt.amount
+                          ? 'bg-pink-900/50 border-pink-400'
+                          : 'bg-pink-950/40 border-pink-500/40 hover:border-pink-400'
+                      }`}
+                    >
+                      <span className="text-xl leading-none">{donTierEmoji(opt.amount)}</span>
+                      <span className="text-[11px] font-semibold text-pink-100 mt-1.5 text-center line-clamp-2 leading-tight">
+                        {opt.label}
+                      </span>
+                      <span className="text-sm font-bold text-pink-200 mt-1">{opt.amount} €</span>
+                    </button>
+                  ))
+                : tiers.map((tier) => (
+                    <button
+                      key={tier}
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => {
+                        setSelectedAmount(tier);
+                        setCustomAmount('');
+                      }}
+                      className={`flex flex-col items-center py-4 rounded-xl border active:scale-95 transition disabled:opacity-50 ${
+                        selectedAmount === tier
+                          ? 'bg-pink-900/50 border-pink-400'
+                          : 'bg-pink-950/40 border-pink-500/40 hover:border-pink-400'
+                      }`}
+                    >
+                      <span className="text-2xl">{donTierEmoji(tier)}</span>
+                      <span className="text-sm font-bold text-pink-200 mt-1">{tier} €</span>
+                    </button>
+                  ))}
             </div>
 
             <div className="rounded-xl border border-pink-500/30 bg-pink-950/20 p-3 mb-4">

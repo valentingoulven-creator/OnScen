@@ -1,5 +1,4 @@
-﻿import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from './context/AuthContext';
 import { useWebPushRegistration } from './hooks/useWebPushRegistration';
 import {
@@ -36,8 +35,11 @@ import { AdminHeaderButton } from './components/AdminHeaderButton';
 import { PrivacyVisibilityMenu } from './components/PrivacyVisibilityMenu';
 import { useDmUnread } from './context/DmUnreadContext';
 import { ProfileSearchBar } from './components/ProfileSearchBar';
+import { SoundyLogoButton } from './components/SoundyLogo';
 import { MainTabNav } from './components/MainTabNav';
 import { PlatformConnectPrompt } from './components/PlatformConnectPrompt';
+import { ActiveSalonSessionBanner } from './components/ActiveSalonSessionBanner';
+import { ActiveLiveBanner } from './components/ActiveLiveBanner';
 import { APP_LAYOUT_CHANGED_EVENT, getAppLayout, isAppa2Layout } from './lib/appLayout';
 import { UserAvatarOnline } from './components/UserAvatarOnline';
 import { resolveAvatarUrl } from './lib/profilePhotos';
@@ -50,6 +52,12 @@ import {
   type ActiveSalonSession,
 } from './lib/activeSalonSession';
 import {
+  clearPersistedLiveViewerSession,
+  readPersistedLiveViewerSession,
+  writePersistedLiveViewerSession,
+  type ActiveLiveViewerSession,
+} from './lib/activeLiveViewerSession';
+import {
   clearOpenSalonPipIntent,
   consumeSalonOpenIntent,
   dispatchOpenSalonPip,
@@ -61,6 +69,11 @@ import {
   setSalonVideoFloatActive,
   subscribeSalonVideoFloat,
 } from './lib/salonVideoFloat';
+import {
+  dispatchLiveBeforeMinimize,
+  setLiveVideoFloatActive,
+} from './lib/liveVideoFloat';
+import { emitOnSocket } from './lib/socket';
 import { dispatchPlatformStatusRefresh } from './lib/platformStatusEvents';
 import {
   emitLeaveSalon,
@@ -78,8 +91,8 @@ const SalonPage = lazy(() => import('./pages/SalonPage').then((m) => ({ default:
 const UserProfilePage = lazy(() => import('./pages/UserProfilePage').then((m) => ({ default: m.UserProfilePage })));
 const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
-const LivesTabPage = lazy(() => import('./pages/LivesTabPage').then((m) => ({ default: m.LivesTabPage })));
 const ReelsTabPage = lazy(() => import('./pages/ReelsTabPage').then((m) => ({ default: m.ReelsTabPage })));
+const MusicTabPage = lazy(() => import('./pages/MusicTabPage').then((m) => ({ default: m.MusicTabPage })));
 const AdminPage = lazy(() => import('./pages/AdminPage').then((m) => ({ default: m.AdminPage })));
 
 function PageFallback() {
@@ -90,7 +103,7 @@ function PageFallback() {
   );
 }
 
-type Tab = 'actualite' | 'map' | 'live' | 'dm' | 'reels';
+type Tab = 'actualite' | 'map' | 'live' | 'dm' | 'music' | 'reels';
 type View =
   | { type: 'home' }
   | { type: 'salon'; id: string }
@@ -98,7 +111,6 @@ type View =
   | { type: 'profile'; id: string };
 
 export default function App() {
-  const { t } = useTranslation();
   const { user, token, completeOnboarding, refreshUser, authBootError, clearAuthBootError, setUserFromProfile } = useAuth();
   useWebPushRegistration(token);
   const { unreadCount: dmUnread, incomingToast, dismissToast, setDmTabActive } = useDmUnread();
@@ -130,6 +142,7 @@ export default function App() {
   profileReturnViewRef.current = profileReturnView;
   /** Incrémenté à chaque ouverture profil carte → chat salon replié à nouveau. */
   const [reelsInitialId, setReelsInitialId] = useState<string | undefined>();
+  const [reelsNavigateKey, setReelsNavigateKey] = useState(0);
   const salonDeepLinkHandled = useRef(false);
   const profileDeepLinkHandled = useRef(false);
   const [appLayout, setAppLayoutState] = useState(getAppLayout);
@@ -144,6 +157,8 @@ export default function App() {
   const [salonPipPreview, setSalonPipPreview] = useState<Salon | null>(null);
   /** Prévisualisation live PiP sans rejoindre (clic sidebar carte / marqueur live). */
   const [livePipPreview, setLivePipPreview] = useState<Live | null>(null);
+  /** Incrémenté à chaque ouverture PiP live → remount + position par défaut. */
+  const [livePipOpenSeq, setLivePipOpenSeq] = useState(0);
   const [showGenrePrompt, setShowGenrePrompt] = useState(false);
   /** Publication du fil à mettre en avant (depuis la carte). */
   const [focusFeedPostId, setFocusFeedPostId] = useState<string | null>(null);
@@ -154,12 +169,21 @@ export default function App() {
   const [salonVideoFloatActive, setSalonVideoFloatActiveState] = useState(getSalonVideoFloatActive);
   const activeSalonSessionRef = useRef<ActiveSalonSession | null>(activeSalonSession);
   activeSalonSessionRef.current = activeSalonSession;
+  /** Live regardé ou diffusé — persiste en PiP hors page live plein écran. */
+  const [activeLiveViewerSession, setActiveLiveViewerSession] =
+    useState<ActiveLiveViewerSession | null>(() => readPersistedLiveViewerSession());
+  const activeLiveViewerSessionRef = useRef<ActiveLiveViewerSession | null>(activeLiveViewerSession);
+  activeLiveViewerSessionRef.current = activeLiveViewerSession;
   /** Salon actif sur la fiche carte (petit salon) — sync session, pas masquage barre retour. */
   const [, setMapSalonActiveId] = useState<string | null>(null);
 
   useEffect(() => {
     writePersistedSalonSession(activeSalonSession);
   }, [activeSalonSession]);
+
+  useEffect(() => {
+    writePersistedLiveViewerSession(activeLiveViewerSession);
+  }, [activeLiveViewerSession]);
 
   useEffect(
     () =>
@@ -175,8 +199,11 @@ export default function App() {
   useEffect(() => {
     if (token !== null) return;
     setSalonVideoFloatActive(false);
+    setLiveVideoFloatActive(false);
     clearPersistedSalonSession();
+    clearPersistedLiveViewerSession();
     setActiveSalonSession(null);
+    setActiveLiveViewerSession(null);
     setRestoreSalonOnMapId(null);
     setMapSalonActiveId(null);
     setSalonPipPreview(null);
@@ -204,8 +231,7 @@ export default function App() {
     if (!hostedSalonId || !token) return;
     const hostedSalonTitle = user.salonTitle;
     setActiveSalonSession((prev) => {
-      if (prev && prev.id !== hostedSalonId && !prev.isHost) return prev;
-      if (prev && prev.id === hostedSalonId) {
+      if (prev?.id === hostedSalonId) {
         return {
           ...prev,
           isHost: true,
@@ -235,6 +261,16 @@ export default function App() {
     if (viewRef.current.type !== 'home') return;
     setTab('map');
   }, [user, token, activeSalonSession]);
+
+  const liveRestoredOnBootRef = useRef(false);
+  useEffect(() => {
+    if (!user || !token || !activeLiveViewerSession || liveRestoredOnBootRef.current) return;
+    liveRestoredOnBootRef.current = true;
+    if (activeLiveViewerSession.viewMode === 'full') {
+      setView({ type: 'live', id: activeLiveViewerSession.id });
+      setTab('map');
+    }
+  }, [user, token, activeLiveViewerSession]);
 
   const handleMsdevRebuild = useCallback(async () => {
     if (!token || msdevRebuilding) return;
@@ -395,13 +431,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [adminOpen]);
 
-  const openReelInTab = useCallback((reelId: string) => {
-    setProfileOpen(false);
-    setReelsInitialId(reelId);
-    setTab('reels');
-    setView({ type: 'home' });
-  }, []);
-
   const openOwnProfileRecorder = useCallback(() => {
     setProfileOpenRecorder(true);
     setProfileOpen(true);
@@ -454,14 +483,16 @@ export default function App() {
 
   const handleSalonForcedEnd = useCallback(
     (_reason: SalonForcedEndReason) => {
+      const wasHost = activeSalonSessionRef.current?.isHost;
       const salonId = activeSalonSessionRef.current?.id;
       if (salonId) emitLeaveSalon(salonId);
       clearSalonUrlFromBar();
       closeActiveSalonSession();
       setView({ type: 'home' });
       setTab('map');
+      if (wasHost) void refreshUser();
     },
-    [closeActiveSalonSession]
+    [closeActiveSalonSession, refreshUser]
   );
 
   const handleOwnSalonEnded = useCallback(() => {
@@ -476,7 +507,11 @@ export default function App() {
   );
 
   const openSalonPage = useCallback((salonId: string, salonTitle?: string, isHost?: boolean) => {
-    if (viewRef.current.type === 'live') {
+    if (activeLiveViewerSessionRef.current || viewRef.current.type === 'live') {
+      showAppToast("Tu regardes un live. Quitte le live pour rejoindre un salon.", 'info');
+      return;
+    }
+    if (user?.isLive && user.liveId) {
       showAppToast("Tu es déjà en live. Arrête le live pour rejoindre un salon.", 'info');
       return;
     }
@@ -501,7 +536,7 @@ export default function App() {
       setView({ type: 'home' });
     }
     syncSalonUrlInBar(salonId);
-  }, [showAppToast]);
+  }, [showAppToast, user?.isLive, user?.liveId]);
 
   /** Clic sidebar carte : aperçu YouTube sans rejoindre le salon. */
   const openSalonPipPreview = useCallback((salon: Salon) => {
@@ -513,6 +548,7 @@ export default function App() {
   const openLivePipPreview = useCallback((live: Live) => {
     setSalonPipPreview(null);
     setLivePipPreview(live);
+    setLivePipOpenSeq((n) => n + 1);
   }, []);
 
   const minimizeSalonToMap = useCallback((salonId: string, salonTitle?: string) => {
@@ -537,7 +573,11 @@ export default function App() {
 
   /** Clic sidebar carte : salon minimisé + PiP vidéo, carte reste visible. */
   const openSalonPip = useCallback((salonId: string, salonTitle?: string, isHost?: boolean) => {
-    if (viewRef.current.type === 'live') {
+    if (activeLiveViewerSessionRef.current || viewRef.current.type === 'live') {
+      showAppToast("Tu regardes un live. Quitte le live pour rejoindre un salon.", 'info');
+      return;
+    }
+    if (user?.isLive && user.liveId) {
       showAppToast("Tu es déjà en live. Arrête le live pour rejoindre un salon.", 'info');
       return;
     }
@@ -561,7 +601,7 @@ export default function App() {
     setTab('map');
     setOpenSalonPipIntent(salonId);
     dispatchOpenSalonPip();
-  }, [showAppToast]);
+  }, [showAppToast, user?.isLive, user?.liveId]);
 
   const handleSalonPageBack = useCallback(() => {
     const session = activeSalonSessionRef.current;
@@ -655,16 +695,76 @@ export default function App() {
       return;
     }
     setSalonVideoFloatActive(false);
+    const prevLive = activeLiveViewerSessionRef.current;
+    if (prevLive && prevLive.id !== id) {
+      emitOnSocket('leave_live', { liveId: prevLive.id });
+      setLiveVideoFloatActive(false);
+    }
     if (tabRef.current === 'reels') pauseAllReelsMediaInDom({ resetPosition: true });
     pauseMediaElements(document, { exceptLiveStage: true });
     setProfileOpen(false);
-    setTab('live');
+    setSalonPipPreview(null);
+    setLivePipPreview(null);
+    setActiveLiveViewerSession((prev) => ({
+      id,
+      title: prev?.id === id ? prev.title : undefined,
+      viewMode: 'full',
+      isHost: user?.isLive && user.liveId === id ? true : prev?.id === id ? prev.isHost : undefined,
+    }));
+    setTab('map');
     setView({ type: 'live', id });
-  }, [showAppToast]);
+  }, [showAppToast, user?.isLive, user?.liveId]);
 
-  const closeLive = useCallback(() => {
+  const closeActiveLiveViewerSession = useCallback(() => {
+    setLiveVideoFloatActive(false);
+    clearPersistedLiveViewerSession();
+    setActiveLiveViewerSession(null);
+  }, []);
+
+  const leaveActiveLiveViewerSession = useCallback(() => {
+    const liveId = activeLiveViewerSessionRef.current?.id;
+    if (liveId) emitOnSocket('leave_live', { liveId });
+    closeActiveLiveViewerSession();
     setView({ type: 'home' });
-    setTab('live');
+    setTab('map');
+  }, [closeActiveLiveViewerSession]);
+
+  const minimizeLiveViewer = useCallback(() => {
+    dispatchLiveBeforeMinimize();
+    setLiveVideoFloatActive(true);
+    setProfileOpen(false);
+    setProfilePreview(null);
+    setLivePipPreview(null);
+    setActiveLiveViewerSession((prev) => (prev ? { ...prev, viewMode: 'minimized' } : prev));
+    setView({ type: 'home' });
+  }, []);
+
+  const restoreLiveFullScreen = useCallback(() => {
+    const session = activeLiveViewerSessionRef.current;
+    if (!session) return;
+    setLiveVideoFloatActive(false);
+    setActiveLiveViewerSession((prev) => (prev ? { ...prev, viewMode: 'full' } : prev));
+    setProfileOpen(false);
+    setTab('map');
+    setView({ type: 'live', id: session.id });
+  }, []);
+
+  const handleLivePageBack = useCallback(() => {
+    if (!activeLiveViewerSessionRef.current) {
+      setView({ type: 'home' });
+      setTab('map');
+      return;
+    }
+    minimizeLiveViewer();
+  }, [minimizeLiveViewer]);
+
+  const handleLiveTitleLoaded = useCallback((title?: string) => {
+    setActiveLiveViewerSession((prev) => {
+      if (!prev) return prev;
+      const nextTitle = title ?? prev.title;
+      if (nextTitle === prev.title) return prev;
+      return { ...prev, title: nextTitle };
+    });
   }, []);
 
   const openFeedPostFromMap = useCallback((postId: string) => {
@@ -715,14 +815,28 @@ export default function App() {
   }, [dismissToast]);
 
   const selectTab = useCallback((id: Tab) => {
+    const nextTab = id === 'live' ? 'map' : id;
     if (id !== 'reels') pauseMediaElements(document, { exceptLiveStage: true });
+    if (id !== 'reels' && tabRef.current === 'reels') pauseAllReelsMediaInDom({ resetPosition: true });
     setProfileOpen(false);
     setAdminOpen(false);
+    const liveSession = activeLiveViewerSessionRef.current;
+    const liveFullScreenActive = liveSession?.viewMode === 'full';
+    if (liveFullScreenActive && liveSession) {
+      dispatchLiveBeforeMinimize();
+      setLiveVideoFloatActive(true);
+      setActiveLiveViewerSession((prev) =>
+        prev?.id === liveSession.id ? { ...prev, viewMode: 'minimized' } : prev
+      );
+      setView({ type: 'home' });
+      setTab(nextTab);
+      return;
+    }
     const session = activeSalonSessionRef.current;
     const persistedSalonId = session?.id;
     const salonFullScreen = session?.viewMode === 'full';
     if (salonFullScreen && persistedSalonId) {
-      if (id === 'map') {
+      if (nextTab === 'map') {
         minimizeSalonToMap(persistedSalonId, session.title);
       } else {
         dispatchSalonBeforeMinimize();
@@ -737,8 +851,21 @@ export default function App() {
     } else {
       setView({ type: 'home' });
     }
-    setTab(id);
+    setTab(nextTab);
   }, [minimizeSalonToMap]);
+
+  const openReelInTab = useCallback(
+    (reelId: string) => {
+      if (viewRef.current.type === 'profile') {
+        setProfilePreview(null);
+        if (parseProfileIdFromLocation()) clearProfileUrlFromBar();
+      }
+      setReelsInitialId(reelId);
+      setReelsNavigateKey((k) => k + 1);
+      selectTab('reels');
+    },
+    [selectTab]
+  );
 
   if (authBootError) {
     return (
@@ -777,17 +904,31 @@ export default function App() {
   if (!user.onboardingCompleted) return <OnboardingPage onDone={completeOnboarding} />;
 
   const salonFullScreen = activeSalonSession?.viewMode === 'full';
-  /** Salon hébergé actif — bandeau carte (sessionStorage + /auth/me). */
-  const ownSalonSession =
-    activeSalonSession?.isHost && activeSalonSession
-      ? { id: activeSalonSession.id, title: activeSalonSession.title }
-      : null;
+  const liveFullScreen = activeLiveViewerSession?.viewMode === 'full';
+  const activeSalonIsHost = Boolean(
+    activeSalonSession?.isHost ||
+      (user?.salonId != null && user.salonId === activeSalonSession?.id)
+  );
+  const showActiveSalonBanner = Boolean(
+    activeSalonSession && !salonFullScreen && view.type !== 'live' && token && user
+  );
+  const activeLiveSessionId =
+    activeLiveViewerSession?.id ?? (user?.isLive && user.liveId ? user.liveId : null);
+  const activeLiveIsHost = Boolean(
+    activeLiveViewerSession?.isHost || (user?.isLive && user.liveId === activeLiveSessionId)
+  );
+  const showActiveLiveBanner = Boolean(
+    activeLiveSessionId && !liveFullScreen && !salonFullScreen && token && user
+  );
   const showSalonPageShell = Boolean(
     activeSalonSession && (salonFullScreen || salonVideoFloatActive)
   );
+  /** LivePage monté tant que la session live est active (PiP ou plein écran). */
+  const showLivePageShell = Boolean(activeLiveViewerSession);
   /** Onglets montés sous le grand salon (overlay) ou en navigation normale. */
   const tabContentBase = view.type === 'home' || salonFullScreen;
-  const reelsActive = tab === 'reels' && !profileOpen && tabContentBase;
+  const reelsActive = tab === 'reels' && !profileOpen && !adminOpen && tabContentBase;
+  const musicTabMounted = tab === 'music' && tabContentBase && !profileOpen;
   /** Carte visible : lecture petit salon même si overlay « Mon profil » ouvert. */
   const mapPlaybackActive = tab === 'map' && view.type === 'home' && !salonFullScreen;
   /** Montage conditionnel : un seul onglet à la fois (perf). Carte reste montée sous overlay profil (audio salon). */
@@ -798,11 +939,11 @@ export default function App() {
   const mapTabHiddenUnderSalon = tab === 'map' && salonFullScreen;
   const mapTabHiddenUnderProfile = tab === 'map' && view.type === 'profile';
   const mapTabHiddenOffTab = Boolean(activeSalonSession) && tab !== 'map';
-  const liveTabMounted = tab === 'live' && tabContentBase;
+  const liveViewActive = view.type === 'live';
   const dmTabMounted = tab === 'dm' && tabContentBase && !profileOpen;
-  const reelsTabMounted = tab === 'reels' && tabContentBase && !profileOpen;
+  const reelsTabMounted = tab === 'reels' && tabContentBase;
+  const reelsTabHiddenUnderOverlay = profileOpen || adminOpen;
   const appa2 = isAppa2Layout(appLayout);
-  const liveViewActive = tab === 'live' || view.type === 'live';
 
   return (
     <div
@@ -866,15 +1007,7 @@ export default function App() {
           <div className="px-3 sm:px-4 pb-2 ms-safe-area-top">
           <div className="grid grid-cols-[auto_minmax(0,11rem)_auto] sm:grid-cols-[minmax(0,1fr)_minmax(0,15rem)_minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)_minmax(0,1fr)] items-center gap-x-1 sm:gap-x-2 min-w-0">
             <div className="flex items-center gap-1 sm:gap-2 justify-self-start min-w-0 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => selectTab('actualite')}
-                className="text-base sm:text-lg font-extrabold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent shrink-0 cursor-pointer hover:opacity-75 active:scale-95 transition"
-                title={t('nav.home')}
-                aria-label={t('nav.home')}
-              >
-                {t('app.name')}
-              </button>
+              <SoundyLogoButton onClick={() => selectTab('actualite')} />
               {isMsdevEnvironment() && (
                 <button
                   type="button"
@@ -944,6 +1077,41 @@ export default function App() {
         )}
       </header>
 
+      {showActiveSalonBanner && activeSalonSession && token && user ? (
+        <ActiveSalonSessionBanner
+          salonId={activeSalonSession.id}
+          fallbackTitle={activeSalonSession.title}
+          isHost={activeSalonIsHost}
+          token={token}
+          user={user}
+          onReturn={() =>
+            openSalonPage(
+              activeSalonSession.id,
+              activeSalonSession.title,
+              activeSalonIsHost
+            )
+          }
+          onSalonEnded={
+            activeSalonIsHost ? handleOwnSalonEnded : () => handleSalonForcedEnd('ended')
+          }
+        />
+      ) : null}
+
+      {showActiveLiveBanner && activeLiveSessionId && token && user ? (
+        <ActiveLiveBanner
+          liveId={activeLiveSessionId}
+          token={token}
+          isHost={activeLiveIsHost}
+          onReturn={() => {
+            if (activeLiveViewerSession) {
+              restoreLiveFullScreen();
+            } else if (user.liveId) {
+              openLive(user.liveId);
+            }
+          }}
+        />
+      ) : null}
+
       <main
         className="ms-app-main flex-1 min-h-0 min-w-0 w-full overflow-hidden flex flex-col relative"
       >
@@ -989,10 +1157,7 @@ export default function App() {
                   userId={view.id}
                   preview={profilePreview ?? undefined}
                   onBack={closeProfile}
-                  onOpenReel={(reelId) => {
-                    closeProfile();
-                    openReelInTab(reelId);
-                  }}
+                  onOpenReel={openReelInTab}
                   onRecordReel={
                     view.id === user.id
                       ? () => {
@@ -1016,12 +1181,22 @@ export default function App() {
                 />
               </Suspense>
             )}
-            {view.type === 'live' && (
-              <div className="ms-salon-fullscreen-overlay flex flex-col min-h-0 bg-[#0b0b0f]">
+            {showLivePageShell && activeLiveViewerSession && (
+              <div
+                className={
+                  liveFullScreen
+                    ? 'ms-salon-fullscreen-overlay flex flex-col min-h-0 bg-[#0b0b0f]'
+                    : 'salon-page-pip-host'
+                }
+              >
                 <Suspense fallback={<PageFallback />}>
                   <LivePage
-                    liveId={view.id}
-                    onBack={closeLive}
+                    liveId={activeLiveViewerSession.id}
+                    liveFullScreen={liveFullScreen}
+                    onBack={handleLivePageBack}
+                    onMinimize={minimizeLiveViewer}
+                    onLeaveLive={leaveActiveLiveViewerSession}
+                    onLiveTitleLoaded={handleLiveTitleLoaded}
                     onOpenProfile={(id) => openProfile(id)}
                   />
                 </Suspense>
@@ -1073,19 +1248,8 @@ export default function App() {
                     onMapSalonActive={handleMapSalonActive}
                     onLeaveSalon={leaveActiveSalonSession}
                     onSalonRestoreFailed={() => handleSalonForcedEnd('ended')}
-                    ownSalonSession={ownSalonSession}
-                    onReturnToOwnSalon={() => {
-                      if (!ownSalonSession) return;
-                      openSalonPage(ownSalonSession.id, ownSalonSession.title, true);
-                    }}
-                    onOwnSalonEnded={handleOwnSalonEnded}
                   />
                 </div>
-              </Suspense>
-            )}
-            {liveTabMounted && (
-              <Suspense fallback={<PageFallback />}>
-                <LivesTabPage onOpenLive={openLive} hasActiveSalon={activeSalonSession !== null} isActive />
               </Suspense>
             )}
             {dmTabMounted && (
@@ -1106,16 +1270,37 @@ export default function App() {
                 </div>
               </Suspense>
             )}
-            {reelsTabMounted && (
+            {musicTabMounted && (
               <Suspense fallback={<PageFallback />}>
-                <ReelsTabPage
+                <MusicTabPage
+                  isActive={!profileOpen}
+                  onOpenMap={() => selectTab('map')}
                   onOpenLive={openLive}
+                  onOpenSalon={openSalonPage}
                   onOpenProfile={openProfile}
-                  initialReelId={reelsInitialId}
-                  onIntentHandled={clearReelsIntent}
-                  isActive={reelsActive}
                 />
               </Suspense>
+            )}
+            {reelsTabMounted && (
+              <div
+                className={
+                  reelsTabHiddenUnderOverlay
+                    ? 'hidden pointer-events-none inert'
+                    : 'flex flex-col flex-1 min-h-0 min-w-0'
+                }
+                aria-hidden={reelsTabHiddenUnderOverlay ? true : undefined}
+              >
+                <Suspense fallback={<PageFallback />}>
+                  <ReelsTabPage
+                    navigateKey={reelsNavigateKey}
+                    onOpenLive={openLive}
+                    onOpenProfile={openProfile}
+                    initialReelId={reelsInitialId}
+                    onIntentHandled={clearReelsIntent}
+                    isActive={reelsActive}
+                  />
+                </Suspense>
+              </div>
             )}
 
         {profileOpen && (
@@ -1190,6 +1375,7 @@ export default function App() {
       )}
       {livePipPreview && (
         <LivePipPreviewFloat
+          key={`${livePipPreview.id}-${livePipOpenSeq}`}
           live={livePipPreview}
           onJoin={() => {
             const liveId = livePipPreview.id;

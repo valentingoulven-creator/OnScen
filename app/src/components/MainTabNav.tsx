@@ -1,5 +1,10 @@
 import { memo } from 'react';
-import { TabIcon, type TabId } from './TabNavIcons';
+import { TabIcon, SOUNDY_TAB_WAVE_GRADIENT_ID, type TabId } from './TabNavIcons';
+import {
+  DEFAULT_USERNAME_WAVE_FROM,
+  DEFAULT_USERNAME_WAVE_TO,
+  USERNAME_WAVE_CLASS,
+} from '../lib/usernameColor';
 
 type Tab = TabId;
 
@@ -16,66 +21,72 @@ interface MainTabNavProps {
 const TABS: ReadonlyArray<readonly [Tab, string]> = [
   ['actualite', 'Accueil'],
   ['map', 'Carte'],
-  ['live', 'Direct'],
   ['dm', 'Messages'],
+  ['music', 'Musique'],
   ['reels', 'Reels'],
 ];
 
-const LEFT_TABS: ReadonlyArray<readonly [Tab, string]> = [
-  ['actualite', 'Accueil'],
-  ['map', 'Carte'],
-];
+const LEFT_TABS: ReadonlyArray<readonly [Tab, string]> = [['actualite', 'Accueil']];
 
-const CENTER_TAB: readonly [Tab, string] = ['live', 'Direct'];
+const CENTER_TAB: readonly [Tab, string] = ['map', 'Carte'];
 
 const RIGHT_TABS: ReadonlyArray<readonly [Tab, string]> = [
   ['dm', 'Messages'],
+  ['music', 'Musique'],
   ['reels', 'Reels'],
 ];
 
 function isTabActive(id: Tab, tab: Tab, liveViewActive: boolean): boolean {
-  return tab === id || (id === 'live' && liveViewActive);
+  if (id === 'map') return tab === 'map' || liveViewActive;
+  return tab === id;
 }
 
-/** Per-tab accent colors — inactive (muted tint) and active (icon + subtle bg). */
+/** Per-tab accent — icon color only; glass background via CSS (.ms-tab-rail-btn-glass). */
 const TAB_ACCENT: Record<
   Tab,
   { inactive: string; active: string; headerInactive: string; headerActive: string }
 > = {
   actualite: {
-    inactive: 'text-purple-400/55 bg-purple-500/10',
-    active: 'text-purple-400 bg-purple-500/18',
+    inactive: 'text-purple-400/65',
+    active: 'text-purple-300',
     headerInactive:
       'text-purple-400/55 bg-[#16161f] ring-1 ring-inset ring-purple-500/15 shadow-sm shadow-black/25 hover:text-purple-300 hover:bg-purple-500/10',
     headerActive: 'text-purple-400 bg-purple-500/15 ring-1 ring-inset ring-purple-500/30',
   },
   map: {
-    inactive: 'text-cyan-400/55 bg-cyan-500/10',
-    active: 'text-cyan-400 bg-cyan-500/18',
+    inactive: 'text-red-400/65',
+    active: 'text-red-300',
     headerInactive:
-      'text-cyan-400/55 bg-[#16161f] ring-1 ring-inset ring-cyan-500/15 shadow-sm shadow-black/25 hover:text-cyan-300 hover:bg-cyan-500/10',
-    headerActive: 'text-cyan-400 bg-cyan-500/15 ring-1 ring-inset ring-cyan-500/30',
+      'text-red-400/55 bg-[#16161f] ring-1 ring-inset ring-red-500/15 shadow-sm shadow-black/25 hover:text-red-300 hover:bg-red-500/10',
+    headerActive: 'text-red-400 bg-red-500/15 ring-1 ring-inset ring-red-500/30',
   },
   live: {
-    inactive: 'text-red-400/55 bg-red-500/10',
-    active: 'text-red-400 bg-red-500/18',
+    inactive: 'text-red-400/65',
+    active: 'text-red-300',
     headerInactive:
       'text-red-400/55 bg-[#16161f] ring-1 ring-inset ring-red-500/15 shadow-sm shadow-black/25 hover:text-red-300 hover:bg-red-500/10',
     headerActive: 'text-red-400 bg-red-500/15 ring-1 ring-inset ring-red-500/30',
   },
   dm: {
-    inactive: 'text-blue-400/55 bg-blue-500/10',
-    active: 'text-blue-400 bg-blue-500/18',
+    inactive: 'text-blue-400/65',
+    active: 'text-blue-300',
     headerInactive:
       'text-blue-400/55 bg-[#16161f] ring-1 ring-inset ring-blue-500/15 shadow-sm shadow-black/25 hover:text-blue-300 hover:bg-blue-500/10',
     headerActive: 'text-blue-400 bg-blue-500/15 ring-1 ring-inset ring-blue-500/30',
   },
   reels: {
-    inactive: 'text-pink-400/55 bg-pink-500/10',
-    active: 'text-pink-400 bg-pink-500/18',
+    inactive: 'text-pink-400/65',
+    active: 'text-pink-300',
     headerInactive:
       'text-pink-400/55 bg-[#16161f] ring-1 ring-inset ring-pink-500/15 shadow-sm shadow-black/25 hover:text-pink-300 hover:bg-pink-500/10',
     headerActive: 'text-pink-400 bg-pink-500/15 ring-1 ring-inset ring-pink-500/30',
+  },
+  music: {
+    inactive: 'text-amber-400/65',
+    active: 'text-amber-300',
+    headerInactive:
+      'text-amber-400/55 bg-[#16161f] ring-1 ring-inset ring-amber-500/15 shadow-sm shadow-black/25 hover:text-amber-300 hover:bg-amber-500/10',
+    headerActive: 'text-amber-400 bg-amber-500/15 ring-1 ring-inset ring-amber-500/30',
   },
 };
 
@@ -89,11 +100,12 @@ function tabButtonClass(
   const accent = TAB_ACCENT[id];
 
   if (placement === 'bottom') {
-    const vinyl = id === 'live' && elevated ? ' ms-tab-vinyl-hub' : '';
-    const pop = elevated ? ' ms-tab-rail-btn--elevated' : '';
+    const vinyl = id === 'map' && elevated ? ' ms-tab-vinyl-hub' : '';
+    const pop = elevated ? ' ms-tab-rail-btn--elevated ms-tab-rail-btn--wave' : '';
     const base =
-      `${width} ms-tab-rail-btn flex items-center justify-center w-[var(--tab-nav-btn-size)] h-[var(--tab-nav-btn-size)] rounded-full relative active:opacity-70 touch-manipulation${vinyl}${pop}`;
-    return `${base} ${active ? accent.active : accent.inactive}`;
+      `${width} ms-tab-rail-btn ms-tab-rail-btn-glass flex items-center justify-center w-[var(--tab-nav-btn-size)] h-[var(--tab-nav-btn-size)] rounded-full relative active:opacity-70 touch-manipulation${vinyl}${pop}`;
+    const tone = elevated ? '' : 'text-white/45';
+    return `${base} ${tone}`;
   }
 
   const base = `${width} flex items-center justify-center whitespace-nowrap rounded-full px-1 sm:px-1.5 py-2 sm:py-2.5 min-h-[44px] text-xs sm:text-sm font-semibold relative transition-colors active:scale-[0.98] touch-manipulation`;
@@ -125,12 +137,22 @@ interface TabButtonProps {
   label: string;
   active: boolean;
   elevated: boolean;
+  liveViewActive: boolean;
   placement: 'bottom' | 'header';
   dmUnread: number;
   onSelectTab: (id: Tab) => void;
 }
 
-function TabButton({ id, label, active, elevated, placement, dmUnread, onSelectTab }: TabButtonProps) {
+function TabButton({
+  id,
+  label,
+  active,
+  elevated,
+  liveViewActive,
+  placement,
+  dmUnread,
+  onSelectTab,
+}: TabButtonProps) {
   return (
     <button
       type="button"
@@ -140,13 +162,14 @@ function TabButton({ id, label, active, elevated, placement, dmUnread, onSelectT
       aria-current={active ? 'page' : undefined}
       data-tab={id}
     >
-      {id === 'live' && active && (
+      {id === 'map' && liveViewActive && (
         <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
       )}
       <span className="relative inline-flex items-center justify-center">
         <TabIcon
           tab={id}
-          className={placement === 'bottom' && id === 'live' && elevated ? 'w-8 h-8 shrink-0' : undefined}
+          wave={placement === 'bottom' && elevated}
+          className={placement === 'bottom' && id === 'map' && elevated ? 'w-8 h-8 shrink-0' : undefined}
         />
         <span className="sr-only">{tabAriaLabel(id, label, dmUnread)}</span>
         {id === 'dm' && dmUnread > 0 && (
@@ -158,8 +181,8 @@ function TabButton({ id, label, active, elevated, placement, dmUnread, onSelectT
           </span>
         )}
       </span>
-      {placement === 'bottom' && elevated && (
-        <span className="ms-tab-rail-label" aria-hidden="true">
+      {placement === 'bottom' && elevated && id !== 'map' && (
+        <span className={`ms-tab-rail-label ${USERNAME_WAVE_CLASS}`} aria-hidden="true">
           {label}
         </span>
       )}
@@ -181,7 +204,8 @@ export const MainTabNav = memo(function MainTabNav({
       id={id}
       label={label}
       active={isTabActive(id, tab, liveViewActive)}
-      elevated={placement === 'bottom' && tab === id}
+      elevated={placement === 'bottom' && isTabActive(id, tab, liveViewActive)}
+      liveViewActive={liveViewActive}
       placement={placement}
       dmUnread={dmUnread}
       onSelectTab={onSelectTab}
@@ -193,6 +217,16 @@ export const MainTabNav = memo(function MainTabNav({
       className={`${placement === 'header' ? 'shrink-0 flex w-full justify-center' : ''} ${navPlacementClass(placement)} ${className}`}
       aria-label="Navigation principale"
     >
+      {placement === 'bottom' ? (
+        <svg width="0" height="0" className="absolute" aria-hidden="true" focusable="false">
+          <defs>
+            <linearGradient id={SOUNDY_TAB_WAVE_GRADIENT_ID} x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor={DEFAULT_USERNAME_WAVE_FROM} />
+              <stop offset="100%" stopColor={DEFAULT_USERNAME_WAVE_TO} />
+            </linearGradient>
+          </defs>
+        </svg>
+      ) : null}
       {placement === 'header' ? (
         <div className={navInnerClass(placement)}>{TABS.map(renderTab)}</div>
       ) : (

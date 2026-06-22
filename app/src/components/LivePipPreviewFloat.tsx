@@ -1,8 +1,17 @@
 /** Floating PiP preview for a live stream (HLS/WebRTC) — no join, no socket. */
 
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useDraggableVideoPip, VIDEO_PIP_WIDTH, VIDEO_PIP_HEADER_HEIGHT } from './DraggableVideoPip';
+import {
+  useDraggableVideoPip,
+  defaultVideoPipPos,
+  VIDEO_PIP_WIDTH,
+  VIDEO_PIP_HEADER_HEIGHT,
+} from './DraggableVideoPip';
+import { FollowUserButton } from './FollowUserButton';
+import { useAuth } from '../context/AuthContext';
 import { useCloudflareHlsPlayback } from '../hooks/useCloudflareHlsPlayback';
+import { api } from '../lib/api';
 import type { Live } from '../types';
 
 function LivePipPreviewFloatInner({
@@ -14,8 +23,21 @@ function LivePipPreviewFloatInner({
   onJoin: () => void;
   onClose: () => void;
 }) {
-  const pip = useDraggableVideoPip(true, onClose);
+  const { token } = useAuth();
+  const pip = useDraggableVideoPip(true, onClose, defaultVideoPipPos, live.id);
   const videoH = Math.round((VIDEO_PIP_WIDTH * 9) / 16);
+  const [hostFollowing, setHostFollowing] = useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    void api.getMyFollowing(token).then((r) => {
+      if (!cancelled) setHostFollowing(r.followingIds.includes(live.hostId));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, live.hostId]);
 
   const isCloudflare = live.streamMode === 'cloudflare';
   const hls = useCloudflareHlsPlayback({
@@ -40,6 +62,19 @@ function LivePipPreviewFloatInner({
         <p className="flex-1 truncate min-w-0 text-[9px] font-bold text-red-400 uppercase tracking-widest">
           {live.title}
         </p>
+        <div
+          className="shrink-0"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <FollowUserButton
+            userId={live.hostId}
+            username={live.hostName}
+            initialFollowing={hostFollowing}
+            iconOnly
+            iconStyle="heart"
+            onFollowingChange={setHostFollowing}
+          />
+        </div>
         <button
           type="button"
           onPointerDown={(e) => e.stopPropagation()}

@@ -7,15 +7,15 @@ import {
   buildYouTubeEmbedUrl,
   resolveSalonYoutubeTrackId,
 } from '../lib/salonPlayback';
-import { useDraggableVideoPip, VIDEO_PIP_WIDTH, VIDEO_PIP_HEADER_HEIGHT } from './DraggableVideoPip';
+import {
+  useDraggableVideoPip,
+  defaultVideoPipPos,
+  VIDEO_PIP_WIDTH,
+  VIDEO_PIP_HEADER_HEIGHT,
+} from './DraggableVideoPip';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import type { Salon } from '../types';
-
-/** Default position: left sidebar area on map (≈17 px from left, 228 px from top). */
-function defaultSalonPreviewPos(): { x: number; y: number } {
-  return { x: 17, y: 228 };
-}
 
 function SalonPipPreviewFloatInner({
   salon,
@@ -28,7 +28,7 @@ function SalonPipPreviewFloatInner({
   onJoin: () => void;
   onClose: () => void;
 }) {
-  const pip = useDraggableVideoPip(true, onJoin, defaultSalonPreviewPos);
+  const pip = useDraggableVideoPip(true, onJoin, defaultVideoPipPos);
   const videoH = Math.round((VIDEO_PIP_WIDTH * 9) / 16);
   const positionSec = videoId
     ? computePlaybackPositionMs(salon.playbackState) / 1000

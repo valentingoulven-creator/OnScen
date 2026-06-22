@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { REELS_UPDATED_EVENT } from '../lib/reelsRefresh';
 import { useTranslation } from 'react-i18next';
 import {
   MAX_PROFILE_PAYLOAD_CHARS,
@@ -175,6 +176,12 @@ export function ProfilePage({
       cancelled = true;
     };
   }, [token, editing]);
+
+  useEffect(() => {
+    const onReelsUpdated = () => setReelsRefreshKey((k) => k + 1);
+    window.addEventListener(REELS_UPDATED_EVENT, onReelsUpdated);
+    return () => window.removeEventListener(REELS_UPDATED_EVENT, onReelsUpdated);
+  }, []);
 
   useEffect(() => {
     if (!openRecorderOnMount) return;
@@ -523,7 +530,7 @@ export function ProfilePage({
             isOwner
             layout="grid"
             hideSectionTitle
-            defaultOwnerTab="published"
+            defaultOwnerTab="private"
             defaultArtist={user.username}
             onOpenReel={onOpenReel}
             refreshKey={reelsRefreshKey}

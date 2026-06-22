@@ -1,5 +1,6 @@
 import { sortMapEventsForPanel } from './mapEventClusters';
 import {
+  clipSalonsForMapView,
   filterLivesInViewport,
   filterMarkersInViewport,
   filterPeopleForZoom,
@@ -20,20 +21,122 @@ export interface MapSidebarContent {
   noFilters: boolean;
   /** Lives/Salon actifs mais zoom trop large (niveau overview). */
   zoomTooWide: boolean;
+  /** Clusters événements — comptes suivis. */
+  eventClustersFollowing: MapEventCityCluster[];
+  /** Clusters événements dans la zone visible. */
   eventClusters: MapEventCityCluster[];
+  /** Clusters événements populaires hors suivi et hors zone. */
+  eventClustersSuggestions: MapEventCityCluster[];
+  /** Événements des comptes suivis. */
+  eventsFollowing: MapEventMarker[];
+  /** Événements dans la zone visible. */
   events: MapEventMarker[];
+  /** Événements à venir hors suivi et hors zone visible. */
+  eventsSuggestions: MapEventMarker[];
+  /** Lives des comptes suivis (tous les directs en ligne). */
+  livesFollowing: Live[];
+  /** Lives dans la zone visible selon le zoom carte. */
   lives: Live[];
+  /** Lives populaires (viewers), hors suivi et hors zone visible. */
+  livesSuggestions: Live[];
+  /** Salons des comptes suivis. */
+  salonsFollowing: Salon[];
+  /** Salons dans la zone visible. */
   salons: Salon[];
+  /** Salons populaires (auditeurs), hors suivi et hors zone visible. */
+  salonsSuggestions: Salon[];
   people: NearbyPerson[];
+}
+
+const MAP_SIDEBAR_SUGGESTIONS_MAX = 20;
+
+function uniqueLiveCount(lists: Live[][]): number {
+  const ids = new Set<string>();
+  for (const list of lists) {
+    for (const live of list) ids.add(live.id);
+  }
+  return ids.size;
+}
+
+function uniqueSalonCount(lists: Salon[][]): number {
+  const ids = new Set<string>();
+  for (const list of lists) {
+    for (const salon of list) ids.add(salon.id);
+  }
+  return ids.size;
+}
+
+function uniqueEventCount(lists: MapEventMarker[][]): number {
+  const ids = new Set<string>();
+  for (const list of lists) {
+    for (const event of list) ids.add(event.id);
+  }
+  return ids.size;
+}
+
+function uniqueClusterCount(lists: MapEventCityCluster[][]): number {
+  const keys = new Set<string>();
+  for (const list of lists) {
+    for (const cluster of list) keys.add(cluster.cityKey);
+  }
+  return keys.size;
+}
+
+function sortLivesByViewersDesc(lives: Live[]): Live[] {
+  return [...lives].sort(
+    (a, b) => (b.viewersCount ?? 0) - (a.viewersCount ?? 0) || a.title.localeCompare(b.title)
+  );
+}
+
+function sortSalonsByListenersDesc(salons: Salon[]): Salon[] {
+  return [...salons].sort(
+    (a, b) => (b.listenersCount ?? 0) - (a.listenersCount ?? 0) || a.title.localeCompare(b.title)
+  );
+}
+
+function sortClustersByCountDesc(clusters: MapEventCityCluster[]): MapEventCityCluster[] {
+  return [...clusters].sort(
+    (a, b) => b.count - a.count || a.cityLabel.localeCompare(b.cityLabel)
+  );
+}
+
+function clusterHasFollowedAuthor(
+  cluster: MapEventCityCluster,
+  followingIds: Set<string>
+): boolean {
+  return cluster.events.some((e) => e.authorId != null && followingIds.has(e.authorId));
 }
 
 export function countMapSidebarItems(content: MapSidebarContent): number {
   return (
-    content.eventClusters.length +
-    content.events.length +
-    content.lives.length +
-    content.salons.length +
+    uniqueClusterCount([
+      content.eventClustersFollowing,
+      content.eventClusters,
+      content.eventClustersSuggestions,
+    ]) +
+    uniqueEventCount([content.eventsFollowing, content.events, content.eventsSuggestions]) +
+    uniqueLiveCount([content.livesFollowing, content.lives, content.livesSuggestions]) +
+    uniqueSalonCount([content.salonsFollowing, content.salons, content.salonsSuggestions]) +
     content.people.length
+  );
+}
+
+export function countSalonsSidebarItems(content: MapSidebarContent): number {
+  return uniqueSalonCount([
+    content.salonsFollowing,
+    content.salons,
+    content.salonsSuggestions,
+  ]);
+}
+
+export function countEventsSidebarItems(content: MapSidebarContent): number {
+  return (
+    uniqueClusterCount([
+      content.eventClustersFollowing,
+      content.eventClusters,
+      content.eventClustersSuggestions,
+    ]) +
+    uniqueEventCount([content.eventsFollowing, content.events, content.eventsSuggestions])
   );
 }
 
@@ -44,8 +147,11 @@ export function countLivesFilterBadge(
   content: MapSidebarContent,
   liveSalonCount: number
 ): number {
-  if (!livesFilterOn || content.zoomTooWide) return 0;
-  let count = content.lives.length + content.people.length;
+  if (!livesFilterOn) return 0;
+  let count =
+    uniqueLiveCount([content.livesFollowing, content.lives, content.livesSuggestions]) +
+    content.people.length;
+  if (content.zoomTooWide) return count;
   if (!salonFilterOn) count += liveSalonCount;
   return count;
 }
@@ -75,6 +181,8 @@ export function buildMapSidebarContent(opts: {
   salons: Salon[];
   people: NearbyPerson[];
   favoriteIds: Set<string>;
+  /** Comptes suivis (follow) — section Suivi du panneau lives. */
+  followingIds?: Set<string>;
   /** Centre de la dernière requête nearby ; si absent, centre des bounds (tests). */
   nearbyFetchCenter?: [number, number] | null;
 }): MapSidebarContent {
@@ -91,6 +199,7 @@ export function buildMapSidebarContent(opts: {
     salons,
     people,
     favoriteIds,
+    followingIds = new Set(),
     nearbyFetchCenter,
   } = opts;
 
@@ -99,10 +208,18 @@ export function buildMapSidebarContent(opts: {
     return {
       noFilters: true,
       zoomTooWide: false,
+      eventClustersFollowing: [],
       eventClusters: [],
+      eventClustersSuggestions: [],
+      eventsFollowing: [],
       events: [],
+      eventsSuggestions: [],
+      livesFollowing: [],
       lives: [],
+      livesSuggestions: [],
+      salonsFollowing: [],
       salons: [],
+      salonsSuggestions: [],
       people: [],
     };
   }
@@ -143,9 +260,10 @@ export function buildMapSidebarContent(opts: {
     fetchAnchor != null &&
     shouldClipMapMarkersToViewport(detail, fetchAnchor);
   const salonPool = salonFilterOn ? salons.filter(isPublicSalon) : salons;
+  /** Overview : pas de clip viewport (points simplifiés, comme les clusters événements). */
   const salonsInView =
-    salonFilterOn && bounds && salonClipGeo
-      ? filterMarkersInViewport(salonPool, bounds)
+    salonFilterOn && tier !== 'overview' && salonClipGeo && fetchAnchor
+      ? clipSalonsForMapView(salonPool, detail, fetchAnchor)
       : salonPool;
   const visibleSalons = filterSalonsForZoom(
     salonsInView,
@@ -185,6 +303,77 @@ export function buildMapSidebarContent(opts: {
     favoriteIds,
     true
   );
+
+  const MAP_LIVE_SUGGESTIONS_MAX = MAP_SIDEBAR_SUGGESTIONS_MAX;
+  const activeLives = lives.filter((l) => l.isActive !== false);
+  const livesFollowing =
+    livesFilterOn && followingIds.size > 0
+      ? sortLivesByViewersDesc(activeLives.filter((l) => followingIds.has(l.hostId)))
+      : [];
+  const inViewLiveIds = new Set(sortedLives.map((l) => l.id));
+  const livesSuggestions =
+    livesFilterOn
+      ? sortLivesByViewersDesc(
+          activeLives.filter(
+            (l) => !followingIds.has(l.hostId) && !inViewLiveIds.has(l.id)
+          )
+        ).slice(0, MAP_LIVE_SUGGESTIONS_MAX)
+      : [];
+
+  const salonsFollowing =
+    salonFilterOn && followingIds.size > 0
+      ? sortSalonsByListenersDesc(
+          salonPool.filter((s) => followingIds.has(s.hostId))
+        )
+      : [];
+  const inViewSalonIds = new Set(sortedSalons.map((s) => s.id));
+  const salonsSuggestions =
+    salonFilterOn
+      ? sortSalonsByListenersDesc(
+          salonPool.filter(
+            (s) => !followingIds.has(s.hostId) && !inViewSalonIds.has(s.id)
+          )
+        ).slice(0, MAP_SIDEBAR_SUGGESTIONS_MAX)
+      : [];
+
+  const sortedAllEvents = sortMapEventsForPanel(mapEvents, favoriteIds);
+  const eventsFollowing =
+    eventsFilterOn && followingIds.size > 0
+      ? sortedAllEvents.filter((e) => e.authorId != null && followingIds.has(e.authorId))
+      : [];
+  const inViewEventIds = new Set(sidebarEvents.map((e) => e.id));
+  const eventsSuggestions =
+    eventsFilterOn
+      ? sortMapEventsForPanel(
+          mapEvents.filter(
+            (e) =>
+              !(e.authorId != null && followingIds.has(e.authorId)) &&
+              !inViewEventIds.has(e.id)
+          ),
+          favoriteIds
+        ).slice(0, MAP_SIDEBAR_SUGGESTIONS_MAX)
+      : [];
+
+  const inViewClusterKeys = new Set(sidebarClusters.map((c) => c.cityKey));
+  const useEventClusters =
+    eventsFilterOn && tier === 'overview' && visibility.eventClusters;
+  const eventClustersFollowing =
+    useEventClusters && followingIds.size > 0
+      ? sortClustersByCountDesc(
+          eventClusters.filter((c) => clusterHasFollowedAuthor(c, followingIds))
+        )
+      : [];
+  const eventClustersSuggestions =
+    useEventClusters
+      ? sortClustersByCountDesc(
+          eventClusters.filter(
+            (c) =>
+              !inViewClusterKeys.has(c.cityKey) &&
+              !clusterHasFollowedAuthor(c, followingIds)
+          )
+        ).slice(0, MAP_SIDEBAR_SUGGESTIONS_MAX)
+      : [];
+
   const sortedPeople = applyFavoritesFirst(
     sidebarPeople,
     (p) => p.id,
@@ -195,10 +384,18 @@ export function buildMapSidebarContent(opts: {
   return {
     noFilters: false,
     zoomTooWide,
+    eventClustersFollowing,
     eventClusters: sidebarClusters,
+    eventClustersSuggestions,
+    eventsFollowing,
     events: sidebarEvents,
+    eventsSuggestions,
+    livesFollowing,
     lives: sortedLives,
+    livesSuggestions,
+    salonsFollowing,
     salons: sortedSalons,
+    salonsSuggestions,
     people: sortedPeople,
   };
 }

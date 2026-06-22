@@ -16,6 +16,9 @@ export function serializePublicLive(l: Live, distanceKm?: number, viewerId?: str
   const viewer = viewerId ? db.users.get(viewerId) : undefined;
   const isDevModerator =
     viewerId != null && viewerId !== l.hostId && isDevUser(viewer);
+  const donationOptions = l.donationOptions
+    ?.filter((o) => o.label?.trim() && o.amount >= 1 && o.amount <= 100)
+    .map(({ id, label, amount }) => ({ id, label: label.trim(), amount: Math.round(amount) }));
   const base = {
     id: l.id,
     salonId: l.salonId,
@@ -44,6 +47,7 @@ export function serializePublicLive(l: Live, distanceKm?: number, viewerId?: str
     hostMonetizationEligible: creatorMeetsMonetizationAge(host?.age),
     countryCode: country?.code,
     countryName: country?.name,
+    ...(donationOptions?.length ? { donationOptions } : {}),
   };
   if (distanceKm !== undefined) {
     return { ...base, distanceKm: Math.round(distanceKm * 10) / 10 };

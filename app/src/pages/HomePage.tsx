@@ -9,9 +9,11 @@ import { MapCityEventsPanel } from '../components/MapCityEventsPanel';
 import { MapEventFilterSheet } from '../components/MapEventFilterSheet';
 import { MapSalonListenSheet } from '../components/MapSalonListenSheet';
 import { CreateSalonModal } from '../components/CreateSalonModal';
+import { StartLiveFlowModals } from '../components/StartLiveFlowModals';
+import { useStartLiveFlow } from '../hooks/useStartLiveFlow';
 import { canJoinSalonAsParticipant, salonParticipantAccessMessageKey } from '../lib/platformConnect';
 import { MapAdBanner, type MapSponsorViewport } from '../components/MapAdBanner';
-import { MapHostedSalonBanner } from '../components/MapHostedSalonBanner';
+import { LivesBrowseGrid } from '../components/LivesBrowseGrid';
 import { MAP_EVENTS_REFRESH_EVENT, MAP_OPEN_CREATE_SALON_EVENT } from '../lib/mapUiEvents';
 import { isAppa2Layout, type AppLayoutId } from '../lib/appLayout';
 import {
@@ -27,6 +29,8 @@ import {
   buildMapSidebarContent,
   countLivesFilterBadge,
   countMapSidebarItems,
+  countEventsSidebarItems,
+  countSalonsSidebarItems,
 } from '../lib/mapSidebarContent';
 import {
   clipLivesForMapView,
@@ -34,11 +38,11 @@ import {
   clipSalonsForMapView,
   filterEventClustersInViewport,
   filterMarkersInViewport,
-  filterSalonsForSalonMapFilter,
   getDistanceKm,
   getFlatMapDetailTier,
   getMapBoundsCenter,
   GLOBE_ALTITUDE_CITY_MAX,
+  isPublicSalon,
   mapSidebarDetailEqual,
   shouldClipMapMarkersToViewport,
   shouldShowAllSalonsAtCityZoom,
@@ -105,6 +109,14 @@ const MAP_RECENTER_ZOOM_CITY = 12;
 /** Boutons Lives / Évènement (pile haut-gauche carte) — padding, typo et hauteur alignés. */
 const MAP_STACK_FILTER_BTN =
   'w-full min-h-[2rem] px-3 py-2 rounded-full border shadow-lg active:scale-95 transition shrink-0 text-[10px] sm:text-[11px] font-bold leading-none whitespace-nowrap flex items-center justify-center gap-1.5';
+
+/** Boutons icône (grille lives / globe) — même hauteur que MAP_STACK_FILTER_BTN. */
+const MAP_STACK_ICON_BTN =
+  'w-8 h-8 min-h-[2rem] shrink-0 flex items-center justify-center rounded-full border shadow-lg active:scale-95 transition select-none';
+
+/** FAB carte : créer salon / live (bas-gauche). */
+const MAP_CREATE_FAB_BTN =
+  'px-5 py-2.5 sm:py-3 rounded-full bg-[#12121a] border border-[#2d2d3d] hover:border-purple-500/60 font-extrabold text-sm sm:text-base shadow-lg shadow-black/30 whitespace-nowrap active:scale-95 transition shrink-0 min-w-[5.5rem] sm:min-w-[6.5rem]';
 
 function findSalonForLive(live: Live, salons: Salon[]): Salon | undefined {
   return salons.find(
@@ -181,10 +193,6 @@ interface HomePageProps {
   onLeaveSalon?: () => void;
   /** Salon introuvable côté API (supprimé / expiré) pendant restore carte. */
   onSalonRestoreFailed?: (salonId: string) => void;
-  /** Salon hébergé actif — bandeau persistant sur la carte. */
-  ownSalonSession?: { id: string; title?: string } | null;
-  onReturnToOwnSalon?: () => void;
-  onOwnSalonEnded?: () => void;
 }
 
 export function HomePage({
@@ -207,9 +215,6 @@ export function HomePage({
   onMapSalonActive,
   onLeaveSalon,
   onSalonRestoreFailed,
-  ownSalonSession = null,
-  onReturnToOwnSalon,
-  onOwnSalonEnded,
 }: HomePageProps) {
   const { t } = useTranslation();
   const appa2 = isAppa2Layout(appLayout);
@@ -233,6 +238,8 @@ export function HomePage({
   }, []);
   const [userPosition, setUserPosition] = useState<[number, number] | null>(null);
   const [showCreateSalon, setShowCreateSalon] = useState(false);
+  /** Vue grille lives à la place de la carte (toggle logo). */
+  const [mapLivesBrowseOpen, setMapLivesBrowseOpen] = useState(false);
   const [locating, setLocating] = useState(false);
   const [loadingNearby, setLoadingNearby] = useState(true);
   const [showNearbyPeople, setShowNearbyPeople] = useState(getMapSidebarListVisible);
@@ -245,6 +252,7 @@ export function HomePage({
   });
   const [nearbyPanelPrefs, setNearbyPanelPrefs] = useState(getNearbyPanelPreferences);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
+  const [followingIds, setFollowingIds] = useState<Set<string>>(() => new Set());
   const [mapGeo, setMapGeo] = useState<LivesGeoPrefs>(() => getLivesGeo());
   const salonSheetRef = useRef<HTMLDivElement>(null);
   const mapViewRef = useRef<MapViewHandle>(null);
@@ -357,13 +365,20 @@ export function HomePage({
 
   useEffect(() => {
     if (!isActive || !token) {
-      if (!token) setFavoriteIds(new Set());
+      if (!token) {
+        setFavoriteIds(new Set());
+        setFollowingIds(new Set());
+      }
       return;
     }
     api
       .getMyFavorites(token)
       .then((r) => setFavoriteIds(new Set(r.favorites.map((f) => f.id))))
       .catch(() => setFavoriteIds(new Set()));
+    api
+      .getMyFollowing(token)
+      .then((r) => setFollowingIds(new Set(r.followingIds)))
+      .catch(() => setFollowingIds(new Set()));
   }, [isActive, token]);
 
   const viewerTastes = useMemo(
@@ -525,8 +540,18 @@ export function HomePage({
     };
 
     if (salonFilterOn) {
-      // Salon filter: public salons in the visible viewport (map-browsing mode).
-      addSalons(filterSalonsForSalonMapFilter(salons, mapDetailBounds));
+      const publicSalons = salons.filter(isPublicSalon);
+      if (mapDetailTier === 'overview') {
+        addSalons(publicSalons);
+      } else {
+        addSalons(
+          clipSalonsForMapView(
+            publicSalons,
+            { bounds: mapDetailBounds, mapStyle: mapDetailMapStyle },
+            nearbyFetchCenter
+          )
+        );
+      }
     } else if (livesFilterOn) {
       addSalons(
         clipSalonsForMapView(
@@ -546,6 +571,7 @@ export function HomePage({
     mapSalons,
     mapDetailBounds,
     mapDetailMapStyle,
+    mapDetailTier,
     nearbyFetchCenter,
     nearbyPanelPrefs.sortBy,
     nearbySortOptions,
@@ -617,9 +643,10 @@ export function HomePage({
         mapEvents: filteredMapEvents,
         eventClusters: mapEventClusters,
         lives: mapLives,
-        salons: mapSalonsForView,
+        salons: salonFilterOn ? salons : mapSalonsForView,
         people: mapPeople,
         favoriteIds,
+        followingIds,
         nearbyFetchCenter,
       }),
     [
@@ -637,6 +664,7 @@ export function HomePage({
       mapSalonsForView,
       mapPeople,
       favoriteIds,
+      followingIds,
       nearbyFetchCenter,
     ]
   );
@@ -646,12 +674,12 @@ export function HomePage({
     [mapSidebarContent]
   );
 
-  /** Badge filtre Salon : salons publics visibles (zone + zoom), pas le total global. */
-  const salonFilterBadgeCount = salonFilterOn ? mapSidebarContent.salons.length : 0;
+  /** Badge filtre Salon : salons uniques (suivi + zone + suggestions). */
+  const salonFilterBadgeCount = salonFilterOn ? countSalonsSidebarItems(mapSidebarContent) : 0;
 
-  /** Badge filtre Évènement : clusters ou événements individuels dans la zone visible. */
+  /** Badge filtre Évènement : événements/clusters uniques dans la sidebar. */
   const eventsFilterBadgeCount = eventsFilterOn
-    ? mapSidebarContent.eventClusters.length + mapSidebarContent.events.length
+    ? countEventsSidebarItems(mapSidebarContent)
     : 0;
 
   const liveSalonMarkerCount = useMemo(
@@ -718,6 +746,29 @@ export function HomePage({
     [userPosition, center, mapGeo.latitude, mapGeo.longitude, mapGeo.source]
   );
 
+  const mapLiveStartGeo = useMemo(
+    (): LivesGeoPrefs => ({
+      ...mapGeo,
+      latitude: nearbyQueryCenter[0],
+      longitude: nearbyQueryCenter[1],
+    }),
+    [mapGeo, nearbyQueryCenter]
+  );
+
+  const liveStartFlow = useStartLiveFlow({
+    onOpenLive,
+    hasActiveSalon: activeSalonSessionId != null,
+    isActive,
+    initialGeo: mapLiveStartGeo,
+  });
+  const { startError: liveStartError, dismissStartError: dismissLiveStartError } = liveStartFlow;
+
+  useEffect(() => {
+    if (!liveStartError) return;
+    setToastMsg(liveStartError);
+    dismissLiveStartError();
+  }, [liveStartError, dismissLiveStartError]);
+
   const setNearbyPeopleVisible = useCallback((visible: boolean) => {
     setShowNearbyPeople(visible);
     setMapSidebarListVisible(visible);
@@ -740,6 +791,17 @@ export function HomePage({
   /** Filtres carte haut-gauche : Lives, Salon et Évènement — toggles indépendants. */
   const toggleLivesFilter = useCallback(() => {
     setNearbyPanelPreferences({ livesOnly: !nearbyPanelPrefs.livesOnly });
+  }, [nearbyPanelPrefs.livesOnly]);
+
+  /** Logo carte → bascule carte / grille lives (sans changer d'onglet). */
+  const toggleMapLivesBrowse = useCallback(() => {
+    setMapLivesBrowseOpen((open) => {
+      const next = !open;
+      if (next && nearbyPanelPrefs.livesOnly) {
+        setNearbyPanelPreferences({ livesOnly: false });
+      }
+      return next;
+    });
   }, [nearbyPanelPrefs.livesOnly]);
 
   const toggleSalonFilter = useCallback(() => {
@@ -1488,22 +1550,6 @@ export function HomePage({
     [activeSalonSessionId, user?.id]
   );
 
-  const ownHostedSalonDetails = useMemo(() => {
-    if (!ownSalonSession || !user) return null;
-    const fromList = salons.find((s) => s.id === ownSalonSession.id);
-    return {
-      salonTitle: fromList?.title ?? ownSalonSession.title,
-      hostName: fromList?.hostName ?? user.username,
-      hostUsernameColor: fromList?.hostUsernameColor ?? user.usernameColor,
-      hostUsernameWaveFrom: fromList?.hostUsernameWaveFrom ?? user.usernameWaveFrom,
-      hostUsernameWaveTo: fromList?.hostUsernameWaveTo ?? user.usernameWaveTo,
-      hostAvatarUrl: fromList?.hostAvatarUrl,
-      albumArtUrl: fromList?.playbackState?.albumArtUrl,
-      platform: fromList?.platform,
-      listenersCount: fromList?.listenersCount ?? 0,
-    };
-  }, [ownSalonSession, salons, user]);
-
   const restoreSalonOnMap = useCallback(async (salonId: string) => {
     const salon = await resolveSalonById(salonId);
     if (!salon) {
@@ -1848,6 +1894,8 @@ export function HomePage({
         />
       )}
 
+      {token && user && <StartLiveFlowModals flow={liveStartFlow} />}
+
       {!bottomMapList && showNearbyPeople ? (
         showEventMarkers && selectedEventCluster && !livesFilterOn ? (
           <MapCityEventsPanel
@@ -1908,23 +1956,6 @@ export function HomePage({
           />
         )}
 
-        {ownSalonSession && onReturnToOwnSalon && ownHostedSalonDetails && !mapProfileOpen && (
-          <MapHostedSalonBanner
-            salonId={ownSalonSession.id}
-            salonTitle={ownHostedSalonDetails.salonTitle}
-            hostName={ownHostedSalonDetails.hostName}
-            hostUsernameColor={ownHostedSalonDetails.hostUsernameColor}
-            hostUsernameWaveFrom={ownHostedSalonDetails.hostUsernameWaveFrom}
-            hostUsernameWaveTo={ownHostedSalonDetails.hostUsernameWaveTo}
-            hostAvatarUrl={ownHostedSalonDetails.hostAvatarUrl}
-            albumArtUrl={ownHostedSalonDetails.albumArtUrl}
-            platform={ownHostedSalonDetails.platform}
-            listenersCount={ownHostedSalonDetails.listenersCount}
-            onReturn={onReturnToOwnSalon}
-            onSalonEnded={onOwnSalonEnded}
-          />
-        )}
-
         <div className="ms-map-viewport relative flex-1 min-h-0">
         {toastMsg && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
@@ -1944,6 +1975,12 @@ export function HomePage({
             </div>
           </div>
         )}
+        <div
+          className={
+            mapLivesBrowseOpen ? 'absolute inset-0 z-0 hidden pointer-events-none inert' : 'absolute inset-0 z-0'
+          }
+          aria-hidden={mapLivesBrowseOpen ? true : undefined}
+        >
         <MapView
           ref={mapViewRef}
           salons={mapSalonsForView}
@@ -1970,6 +2007,16 @@ export function HomePage({
           salonFilterOn={salonFilterOn}
           eventsFilterOn={eventsFilterOn}
         />
+        </div>
+        {mapLivesBrowseOpen && (
+          <div className="absolute inset-0 z-[5] flex flex-col min-h-0 bg-[#0b0b0f]">
+            <LivesBrowseGrid
+              className="flex-1 min-h-0 h-full"
+              onOpenLive={onOpenLive}
+              isActive={isActive && mapLivesBrowseOpen}
+            />
+          </div>
+        )}
         {mapStyle === 'globe' && (
           <div
             className="absolute inset-0 z-[1] pointer-events-none"
@@ -1987,12 +2034,21 @@ export function HomePage({
         )}
 
         {token && !mapProfileOpen && (
-          <div className="ms-map-salon-fab absolute bottom-4 left-3 z-30 pointer-events-auto">
+          <div className="ms-map-salon-fab absolute bottom-4 left-3 z-30 pointer-events-auto flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={liveStartFlow.startLive}
+              disabled={liveStartFlow.starting || liveStartFlow.mediaSetupOpen}
+              aria-label={t('map.createLiveFabAria', { defaultValue: 'Créer un live' })}
+              className={`${MAP_CREATE_FAB_BTN} disabled:opacity-50`}
+            >
+              <span className={USERNAME_WAVE_CLASS}>+ Lives</span>
+            </button>
             <button
               type="button"
               onClick={() => setShowCreateSalon(true)}
-              aria-label="Créer un salon musical"
-              className="px-5 py-2.5 sm:py-3 rounded-full bg-[#12121a] border border-[#2d2d3d] hover:border-purple-500/60 font-extrabold text-sm sm:text-base shadow-lg shadow-black/30 whitespace-nowrap active:scale-95 transition shrink-0 min-w-[5.5rem] sm:min-w-[6.5rem]"
+              aria-label={t('home.createSalon', { defaultValue: 'Créer un salon musical' })}
+              className={MAP_CREATE_FAB_BTN}
             >
               <span className={USERNAME_WAVE_CLASS}>+ Salon</span>
             </button>
@@ -2139,15 +2195,66 @@ export function HomePage({
               )}
             </div>
           )}
-          <button
-            type="button"
-            onClick={toggleMapStyle}
-            title={mapStyle === 'flat' ? 'Vue globe satellite' : 'Vue carte sombre'}
-            aria-label={mapStyle === 'flat' ? 'Vue globe satellite' : 'Vue carte sombre'}
-            className={`self-center w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center rounded-full bg-[var(--ms-surface)] border shadow-lg active:scale-95 transition shrink-0 text-lg ${mapStyle === 'globe' ? 'border-indigo-500 text-indigo-300' : 'border-[var(--ms-border)] hover:border-indigo-500/60 text-white/70 hover:text-white'}`}
-          >
-            {mapStyle === 'globe' ? '🗺️' : '🌐'}
-          </button>
+          <div className="ms-map-globe-row flex items-center gap-1.5 w-full shrink-0">
+            <button
+              type="button"
+              onClick={toggleMapLivesBrowse}
+              title={
+                mapLivesBrowseOpen
+                  ? t('map.showMap', { defaultValue: 'Afficher la carte' })
+                  : t('map.showLivesGrid', { defaultValue: 'Afficher les lives' })
+              }
+              aria-label={
+                mapLivesBrowseOpen
+                  ? t('map.showMap', { defaultValue: 'Afficher la carte' })
+                  : t('map.showLivesGrid', { defaultValue: 'Afficher les lives' })
+              }
+              aria-pressed={mapLivesBrowseOpen}
+              className={`${MAP_STACK_ICON_BTN} ${
+                mapLivesBrowseOpen
+                  ? 'bg-[var(--ms-surface)] border-purple-500 ring-2 ring-purple-500/40'
+                  : 'border-[#232330] bg-[#131318] text-gray-400 hover:border-white/15 hover:text-white'
+              }`}
+            >
+              {mapLivesBrowseOpen ? (
+                <svg
+                  viewBox="0 0 24 24"
+                  className="w-3.5 h-3.5 text-indigo-300"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" />
+                  <path d="M9 3v15M15 6v15" />
+                </svg>
+              ) : (
+                <svg
+                  className="w-3.5 h-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  aria-hidden
+                >
+                  <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" />
+                </svg>
+              )}
+            </button>
+            {!mapLivesBrowseOpen && (
+            <button
+              type="button"
+              onClick={toggleMapStyle}
+              title={mapStyle === 'flat' ? 'Vue globe satellite' : 'Vue carte sombre'}
+              aria-label={mapStyle === 'flat' ? 'Vue globe satellite' : 'Vue carte sombre'}
+              className={`${MAP_STACK_ICON_BTN} bg-[var(--ms-surface)] text-sm leading-none ${mapStyle === 'globe' ? 'border-indigo-500 text-indigo-300' : 'border-[var(--ms-border)] hover:border-indigo-500/60 text-white/70 hover:text-white'}`}
+            >
+              {mapStyle === 'globe' ? '🗺️' : '🌐'}
+            </button>
+            )}
+          </div>
         </div>
 
         {selected && !isOwnActiveHostedSalon(selected) && (

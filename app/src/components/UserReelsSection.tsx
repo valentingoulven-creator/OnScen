@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { normalizeProfileReelFromApi } from '../content/reelsFeed';
 import { formatCompactCount } from '../lib/formatCount';
+import { notifyReelsUpdated } from '../lib/reelsRefresh';
 import {
   REEL_RECORD_MAX_SEC,
   estimateCreateReelPayloadBytes,
@@ -311,6 +312,7 @@ export function UserReelsSection({
       await api.createReel(token, body);
       resetUploadForm();
       await loadReels();
+      notifyReelsUpdated();
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Publication impossible');
     } finally {
@@ -348,11 +350,13 @@ export function UserReelsSection({
     void loadReels();
   }, [loadReels, refreshKey]);
 
-  const handleReelClick = (reel: MusicReel) => {
-    const isPrivate = reel.visibility === 'private' || reel.isPrivate;
-    if (isPrivate) setPreviewReel(reel);
-    else onOpenReel(reel.id);
-  };
+  const handleReelClick = useCallback(
+    (reel: MusicReel) => {
+      if (!reel?.id) return;
+      onOpenReel(reel.id);
+    },
+    [onOpenReel]
+  );
 
   const requestDeleteReel = (reelId: string, e: React.MouseEvent) => {
     e.stopPropagation();

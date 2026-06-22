@@ -22,9 +22,11 @@ interface MapCityEventsPanelProps {
 export function MapEventRow({
   event,
   onSelect,
+  compact = false,
 }: {
   event: MapEventMarker;
   onSelect: () => void;
+  compact?: boolean;
 }) {
   const title = event.title.trim() || 'Événement';
   return (
@@ -32,18 +34,20 @@ export function MapEventRow({
       <button
         type="button"
         onClick={onSelect}
-        className="w-full text-left px-2 sm:px-2.5 py-2 hover:bg-[var(--ms-surface-elevated)] border-l-2 border-transparent hover:border-purple-500/40 transition"
+        className={`w-full text-left px-2 hover:bg-[var(--ms-surface-elevated)] border-l-2 border-transparent hover:border-purple-500/40 transition ${
+          compact ? 'py-1' : 'sm:px-2.5 py-2'
+        }`}
       >
-        <div className="flex items-start gap-2">
+        <div className={`flex items-start ${compact ? 'gap-1.5' : 'gap-2'}`}>
           {event.authorId && event.authorUsername ? (
             <UserAvatarOnline
               userId={event.authorId}
               avatarUrl={event.authorAvatarUrl}
               username={event.authorUsername}
-              size="sm"
+              size={compact ? 'xs' : 'sm'}
             />
           ) : (
-            <span className="text-lg shrink-0" aria-hidden>
+            <span className={`shrink-0 ${compact ? 'text-sm leading-none' : 'text-lg'}`} aria-hidden>
               {getEventTypeIcon(event.eventType)}
             </span>
           )}
@@ -54,10 +58,18 @@ export function MapEventRow({
                 usernameColor={event.authorUsernameColor}
                 usernameWaveFrom={event.authorUsernameWaveFrom}
                 usernameWaveTo={event.authorUsernameWaveTo}
-                className="text-[11px] font-semibold truncate block"
+                className={
+                  compact
+                    ? 'text-[10px] font-semibold truncate block leading-tight'
+                    : 'text-[11px] font-semibold truncate block'
+                }
               />
             )}
-            <p className="text-xs text-gray-100 line-clamp-2 leading-snug">
+            <p
+              className={`text-gray-100 leading-snug ${
+                compact ? 'text-[10px] line-clamp-1' : 'text-xs line-clamp-2'
+              }`}
+            >
               {event.authorId && event.authorUsername ? (
                 <span className="mr-1" aria-hidden>
                   {getEventTypeIcon(event.eventType)}
@@ -66,12 +78,14 @@ export function MapEventRow({
               {title}
             </p>
             {event.eventDate && (
-              <p className="text-[10px] text-purple-300/90 capitalize">
+              <p className={`text-purple-300/90 capitalize ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
                 {formatEventDateShort(event.eventDate)}
               </p>
             )}
             {event.eventLocation && (
-              <p className="text-[10px] text-gray-500 line-clamp-1">{event.eventLocation}</p>
+              <p className={`text-gray-500 line-clamp-1 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
+                {event.eventLocation}
+              </p>
             )}
           </div>
         </div>

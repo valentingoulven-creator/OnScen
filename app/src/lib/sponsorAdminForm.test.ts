@@ -1,47 +1,43 @@
 import { describe, expect, it } from 'vitest';
 
-import { validateSponsorAdminForm, type SponsorAdminFormState } from './sponsorAdminForm';
+import {
+  buildSponsorPayloadFromAdminForm,
+  computeDisplayDays,
+  validateSponsorAdminForm,
+  type SponsorAdminFormState,
+} from './sponsorAdminForm';
 
 const t = (key: string) => key;
 
 function baseForm(overrides: Partial<SponsorAdminFormState> = {}): SponsorAdminFormState {
   return {
     name: 'Partner',
-    bannerImageUrl: '',
-    linkUrl: '',
+    description: 'Description du partenaire',
+    bannerImageUrl: '/uploads/sponsors/banners/test.png',
+    linkUrl: 'https://example.com',
     placement: 'map_banner',
-    title: 'Title',
-    subtitle: 'Subtitle',
-    cta: 'Go',
-    bannerDisplayMode: 'full',
-    kind: 'promo',
-    actionId: '',
-    startsAt: '',
-    endsAt: '',
-    videoUrl: '',
-    posterUrl: '',
+    displayDays: '7',
+    displayDurationSec: '8',
     mapVisibilityScope: 'france',
     mapTargetRegionName: '',
     mapTargetLat: '',
     mapTargetLng: '',
+    startsAt: '2026-06-22T10:00',
+    videoUrl: '',
+    posterUrl: '',
     ...overrides,
   };
 }
 
 describe('validateSponsorAdminForm', () => {
-  it('accepts map_banner france full mode with required copy', () => {
+  it('accepts map_banner france with link and banner', () => {
     expect(validateSponsorAdminForm(baseForm(), t)).toBeNull();
   });
 
-  it('accepts map_banner region + image_only with banner and link', () => {
+  it('accepts map_banner region with autocomplete coords', () => {
     expect(
       validateSponsorAdminForm(
         baseForm({
-          bannerDisplayMode: 'image_only',
-          bannerImageUrl: '/uploads/sponsors/banners/test.png',
-          linkUrl: 'https://example.com',
-          subtitle: '',
-          cta: '',
           mapVisibilityScope: 'region',
           mapTargetRegionName: 'Le Crès',
           mapTargetLat: '43.6489',
@@ -52,33 +48,16 @@ describe('validateSponsorAdminForm', () => {
     ).toBeNull();
   });
 
-  it('allows empty optional schedule fields', () => {
-    expect(validateSponsorAdminForm(baseForm({ startsAt: '', endsAt: '' }), t)).toBeNull();
+  it('rejects missing link', () => {
+    expect(validateSponsorAdminForm(baseForm({ linkUrl: '' }), t)).toBe(
+      'admin.sponsors.validationLinkRequired'
+    );
   });
 
-  it('rejects image_only without banner or link', () => {
-    expect(
-      validateSponsorAdminForm(
-        baseForm({
-          bannerDisplayMode: 'image_only',
-          subtitle: '',
-          cta: '',
-        }),
-        t
-      )
-    ).toBe('admin.sponsors.validationImageOnlyLinkRequired');
-
-    expect(
-      validateSponsorAdminForm(
-        baseForm({
-          bannerDisplayMode: 'image_only',
-          linkUrl: 'https://example.com',
-          subtitle: '',
-          cta: '',
-        }),
-        t
-      )
-    ).toBe('admin.sponsors.validationBannerRequired');
+  it('rejects map_banner without banner image', () => {
+    expect(validateSponsorAdminForm(baseForm({ bannerImageUrl: '' }), t)).toBe(
+      'admin.sponsors.validationBannerRequired'
+    );
   });
 
   it('rejects region scope without coordinates', () => {
@@ -91,5 +70,27 @@ describe('validateSponsorAdminForm', () => {
         t
       )
     ).toBe('admin.sponsors.validationRegionCoordsRequired');
+  });
+});
+
+describe('buildSponsorPayloadFromAdminForm', () => {
+  it('sets image-only map banner defaults and campaign end from display days', () => {
+    const payload = buildSponsorPayloadFromAdminForm(baseForm({ displayDays: '14', displayDurationSec: '12' }));
+    expect(payload.title).toBe('Partner');
+    expect(payload.subtitle).toBe('Description du partenaire');
+    expect(payload.bannerDisplayMode).toBe('image_only');
+    expect(payload.displayDurationSec).toBe(12);
+    expect(payload.linkUrl).toBe('https://example.com');
+    expect(payload.startsAt).toBeDefined();
+    expect(payload.endsAt).toBeDefined();
+    expect(payload.endsAt! - payload.startsAt!).toBe(14 * 86_400_000);
+  });
+});
+
+describe('computeDisplayDays', () => {
+  it('derives days from start and end timestamps', () => {
+    const start = Date.parse('2026-06-01T00:00:00');
+    const end = start + 10 * 86_400_000;
+    expect(computeDisplayDays(start, end)).toBe(10);
   });
 });

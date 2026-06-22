@@ -67,6 +67,8 @@ interface SalonChatDockBodyProps {
   activeTab?: SalonChatDockTab;
   /** Called when the user clicks a tab — required in controlled mode. */
   onSelectTab?: (tab: SalonChatDockTab) => void;
+  /** Actions dans la barre d’onglets (ex. participants) — visible onglet Chat uniquement. */
+  chatHeaderExtra?: ReactNode;
 }
 
 export interface SalonChatDockTabButtonsProps {
@@ -155,6 +157,7 @@ export function SalonChatDockBody({
   chatInput,
   activeTab: activeTabProp,
   onSelectTab,
+  chatHeaderExtra,
 }: SalonChatDockBodyProps) {
   const [internalTab, setInternalTab] = useState<DockTab>('chat');
   const [youtubeSearchActive, setYoutubeSearchActive] = useState(false);
@@ -165,11 +168,16 @@ export function SalonChatDockBody({
   return (
     <div className="salon-chat-dock-tabs flex flex-col flex-1 min-h-0">
       <div className="shrink-0 flex items-center gap-2 px-3 min-h-[44px] border-b border-[#1e1e2f] bg-[#0b0b0f]">
-        <SalonChatDockTabButtons
-          activeTab={dockTab}
-          onSelect={handleSelectTab}
-          queueBadge={queueBadge}
-        />
+        <div className="flex-1 min-w-0">
+          <SalonChatDockTabButtons
+            activeTab={dockTab}
+            onSelect={handleSelectTab}
+            queueBadge={queueBadge}
+          />
+        </div>
+        {dockTab === 'chat' && chatHeaderExtra ? (
+          <div className="shrink-0">{chatHeaderExtra}</div>
+        ) : null}
       </div>
       <div className="salon-chat-dock-tabs__content flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
         {dockTab === 'chat' ? (

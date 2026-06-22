@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { isMsdevRuntime } from '../lib/msdevGuard';
 import { db } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
@@ -101,7 +101,7 @@ const nearbyAuthLimiter = rateLimit({
   max: 20,
   keyGenerator: (req) => {
     const userId = (req as Request & { user?: { id: string } }).user?.id;
-    return userId ? `user:${userId}` : (req.ip ?? 'unknown');
+    return userId ? `user:${userId}` : ipKeyGenerator(req.ip ?? '127.0.0.1');
   },
   standardHeaders: true,
   legacyHeaders: false,

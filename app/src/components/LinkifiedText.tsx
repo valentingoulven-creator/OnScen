@@ -8,6 +8,8 @@ type LinkifiedTextProps = {
   onOpenFeedPost?: (postId: string) => void;
   onOpenProfile?: (userId: string) => void;
   onOpenSalon?: (salonId: string) => void;
+  /** Si false est retourné, la navigation in-app est annulée (ex. lien mort). */
+  onBeforeInternalLink?: (target: InternalLinkTarget) => boolean | Promise<boolean>;
 };
 
 /**
@@ -55,6 +57,7 @@ export function LinkifiedText({
   onOpenFeedPost,
   onOpenProfile,
   onOpenSalon,
+  onBeforeInternalLink,
 }: LinkifiedTextProps) {
   const segments = splitTextWithLinks(text);
   const hasLinks = segments.some((s) => s.type === 'link');
@@ -82,7 +85,13 @@ export function LinkifiedText({
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                handleInternalLink(internal, handlers);
+                void (async () => {
+                  if (onBeforeInternalLink) {
+                    const proceed = await onBeforeInternalLink(internal);
+                    if (!proceed) return;
+                  }
+                  handleInternalLink(internal, handlers);
+                })();
               }}
             >
               {seg.display}

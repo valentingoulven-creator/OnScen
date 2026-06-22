@@ -247,14 +247,8 @@ export function SalonYouTubeSearch({
     };
   }, [showResultsPanel, query, searching, results.length, error, isInline]);
 
-  const addLabel = isProposeMode
-    ? t('salon.youtubeSearch.propose')
-    : isInline
-      ? t('salon.youtubeSearch.addToQueueShort', { defaultValue: 'Ajouter à la file' })
-      : t('salon.youtubeSearch.add');
-  const playLabel = isInline
-    ? t('salon.youtubeSearch.playNow', { defaultValue: 'Lire maintenant' })
-    : t('salon.youtubeSearch.play');
+  const addLabel = isProposeMode ? t('salon.youtubeSearch.propose') : t('salon.youtubeSearch.add');
+  const playLabel = t('salon.youtubeSearch.play');
 
   const resultsList = (
     <>
@@ -274,27 +268,39 @@ export function SalonYouTubeSearch({
           {results.map((item) => (
             <li key={item.videoId} role="option" aria-selected={false}>
               <div
-                className={`flex items-center gap-2.5 px-2.5 py-2 transition ${
+                className={
                   isInline
-                    ? 'rounded-lg bg-[#0b0b0f] border border-[#222233]'
-                    : 'hover:bg-[#1a1a26]'
-                }`}
+                    ? 'flex flex-col gap-2 px-2.5 py-2 rounded-lg bg-[#0b0b0f] border border-[#222233]'
+                    : 'flex items-center gap-2.5 px-2.5 py-2 transition hover:bg-[#1a1a26]'
+                }
               >
-                <div className="relative shrink-0">
-                  <img
-                    src={item.thumbnailUrl}
-                    alt=""
-                    className="w-14 h-10 rounded-md object-cover bg-[#1e1e2f]"
-                  />
-                  <span className="absolute bottom-0.5 right-0.5 bg-[#e62117] rounded px-1 text-[7px] font-bold text-white leading-none py-px tracking-tight">
-                    YouTube
-                  </span>
+                <div className={`flex gap-2.5 min-w-0 ${isInline ? 'items-start w-full' : 'items-center flex-1'}`}>
+                  <div className="relative shrink-0">
+                    <img
+                      src={item.thumbnailUrl}
+                      alt=""
+                      className="w-14 h-10 rounded-md object-cover bg-[#1e1e2f]"
+                    />
+                    <span className="absolute bottom-0.5 right-0.5 bg-[#e62117] rounded px-1 text-[7px] font-bold text-white leading-none py-px tracking-tight">
+                      YouTube
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={`text-xs text-white font-medium leading-snug ${
+                        isInline ? 'line-clamp-2 break-words' : 'truncate'
+                      }`}
+                    >
+                      {item.title}
+                    </p>
+                    <p className="text-[10px] text-gray-500 truncate mt-0.5">{item.artist}</p>
+                  </div>
                 </div>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-xs text-white font-medium truncate">{item.title}</span>
-                  <span className="block text-[10px] text-gray-500 truncate">{item.artist}</span>
-                </span>
-                <div className="flex items-center gap-1 shrink-0">
+                <div
+                  className={`flex items-center gap-1 shrink-0 ${
+                    isInline ? 'w-full justify-end' : ''
+                  }`}
+                >
                   {!(isProposeMode && isInline) ? (
                     <button
                       type="button"
@@ -303,11 +309,7 @@ export function SalonYouTubeSearch({
                       className={`${actionBtnClass} border-white/20 text-white hover:bg-white/10`}
                       aria-label={`${playLabel} — ${item.title}`}
                     >
-                      {playingId === item.videoId
-                        ? '…'
-                        : isInline
-                          ? `▶ ${playLabel}`
-                          : playLabel}
+                      {playingId === item.videoId ? '…' : isInline ? `▶ ${playLabel}` : playLabel}
                     </button>
                   ) : null}
                   <button

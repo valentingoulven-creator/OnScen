@@ -259,6 +259,13 @@ export interface LiveChatConfig {
   subscribersOnly?: boolean;
 }
 
+/** Option de pourboire configurée par l'hôte (catalogue récompenses). */
+export interface LiveDonationOption {
+  id: string;
+  label: string;
+  amount: number;
+}
+
 export interface Live {
   id: string;
   /** Lié à un salon d'écoute si présent ; absent pour un live autonome. */
@@ -300,6 +307,8 @@ export interface Live {
   cloudflareVodPlaybackUrl?: string;
   /** Pic de spectateurs simultanés pendant le live. */
   peakViewersCount?: number;
+  /** Menu pourboires personnalisé par l'hôte (catalogue récompenses). */
+  donationOptions?: LiveDonationOption[];
 }
 
 export type LiveBanScope = 'chat' | 'live';

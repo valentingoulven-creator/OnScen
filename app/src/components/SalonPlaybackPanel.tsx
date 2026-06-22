@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, ApiRequestError } from '../lib/api';
 import { useSalonPlaybackSync } from '../hooks/useSalonPlaybackSync';
@@ -91,6 +91,8 @@ interface SalonPlaybackPanelProps {
   onMapInlineListenCapReached?: () => void;
   /** Appelé quand l'utilisateur ancre la vidéo PiP (↙) — permet d'ouvrir le salon plein écran. */
   onAnchorVideoFloat?: () => void;
+  /** Quitter le salon depuis le PiP (salon minimisé / changement d'onglet). */
+  onLeaveSalon?: () => void;
 }
 
 const PLATFORM_META: Record<MusicPlatform, { label: string; emoji: string; accent: string }> = {
@@ -133,6 +135,7 @@ export function SalonPlaybackPanel({
   salonFullScreen = false,
   onMapInlineListenCapReached,
   onAnchorVideoFloat,
+  onLeaveSalon,
 }: SalonPlaybackPanelProps) {
   const { t } = useTranslation();
   const hostLinked = isHost && isMusicPlatformLinkedForSalon(salon.platform, userPlatforms, userPlatformLinks);
@@ -156,6 +159,7 @@ export function SalonPlaybackPanel({
   const [floatPipActive, setFloatPipActiveState] = useState(false);
   const floatPipActiveRef = useRef(floatPipActive);
   floatPipActiveRef.current = floatPipActive;
+  const theaterHeroWrapRef = useRef<HTMLDivElement>(null);
   const [youtubeIsLive, setYoutubeIsLive] = useState(false);
   const [ytLiveSeekTrigger, setYtLiveSeekTrigger] = useState(0);
   /** Sync global PiP flag outside React updaters — avoids App re-render during child setState (#185). */
@@ -481,6 +485,37 @@ export function SalonPlaybackPanel({
 
   const effectiveShowYoutubeVideo =
     salon.platform === 'youtube' && isYoutubeStrictCompliance() ? true : showYoutubeVideo;
+
+  /** Sync colonne chat gauche (match-hero) sur la hauteur réelle du hero vidéo 16:9. */
+  useLayoutEffect(() => {
+    if (!theaterMode || !theaterSideDock || salon.platform !== 'youtube') return;
+    const el = theaterHeroWrapRef.current;
+    if (!el) return;
+
+    const syncHeroHeight = () => {
+      const h = Math.round(el.getBoundingClientRect().height);
+      if (h <= 0) return;
+      const grid = el.closest<HTMLElement>('.room-theater-side-row--match-hero');
+      grid?.style.setProperty('--salon-theater-hero-h', `${h}px`);
+    };
+
+    syncHeroHeight();
+    const ro = new ResizeObserver(syncHeroHeight);
+    ro.observe(el);
+    window.addEventListener('resize', syncHeroHeight);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', syncHeroHeight);
+      el.closest<HTMLElement>('.room-theater-side-row--match-hero')?.style.removeProperty('--salon-theater-hero-h');
+    };
+  }, [
+    theaterMode,
+    theaterSideDock,
+    salon.platform,
+    playbackState.trackId,
+    effectiveShowYoutubeVideo,
+    floatPipActive,
+  ]);
 
   const theaterVideoFloatActive =
     theaterMode && floatPipActive && effectiveShowYoutubeVideo;
@@ -981,6 +1016,7 @@ export function SalonPlaybackPanel({
           participantSyncTrigger={participantSyncTrigger}
           videoFloat={theaterVideoFloatActive ? videoPip : undefined}
           videoFloatTitle={playbackState.title}
+          onLeaveSalon={!salonFullScreen ? onLeaveSalon : undefined}
           onIsLiveChange={setYoutubeIsLive}
           liveSeekTrigger={ytLiveSeekTrigger}
         />
@@ -996,7 +1032,7 @@ export function SalonPlaybackPanel({
           theaterSideDock ? '' : ' h-full'
         }`}
       >
-        <div className="salon-theater-hero-wrap relative w-full shrink-0 bg-black">
+        <div ref={theaterHeroWrapRef} className="salon-theater-hero-wrap relative w-full shrink-0 bg-black">
           <div className="salon-theater-hero shrink-0 w-full relative bg-black">
             <div className="w-full aspect-video relative overflow-hidden">
               {theaterHero}

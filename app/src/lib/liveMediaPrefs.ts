@@ -3,6 +3,11 @@ export interface LiveMediaPrefs {
   audioDeviceId?: string;
   /** msdev/dev — entrer en live hôte sans getUserMedia (UI salon / théâtre). */
   demoNoMedia?: boolean;
+  /** Position du live au démarrage (carte). */
+  startLatitude?: number;
+  startLongitude?: number;
+  startLocationLabel?: string;
+  startLocationSource?: 'my_position' | 'city' | 'address';
 }
 
 const STORAGE_KEY = 'melosong_live_media_prefs';

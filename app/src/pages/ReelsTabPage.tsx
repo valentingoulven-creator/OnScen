@@ -4,6 +4,7 @@ import { usePauseMediaOnPageHidden } from '../hooks/usePauseMediaOnPageHidden';
 import { type MusicReel } from '../content/reels';
 import { isMsdevEnvironment } from '../lib/liveCameraSupport';
 import { formatReelDuration } from '../lib/reelDuration';
+import { notifyReelsUpdated } from '../lib/reelsRefresh';
 import {
   buildReelsFeed,
   fallbackPosterForReel,
@@ -59,6 +60,8 @@ import type { ReelsSponsorAd } from '../types';
 import { getSocket } from '../lib/socket';
 import type { ReelComment, ReelStats } from '../types';
 import { ReportContentModal } from '../components/ReportContentModal';
+import { CreateReelSheet } from '../components/CreateReelSheet';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 const SWIPE_THRESHOLD_PX = 22;
 const SWIPE_VELOCITY_PX_MS = 0.32;
@@ -224,8 +227,7 @@ async function playActiveReelMedia(
 const FALLBACK_REELS = buildReelsFeed([]);
 
 function findReelIndex(feed: ReelsFeedDisplayItem[], reelId: string): number {
-  const i = feed.findIndex((item) => item.kind === 'reel' && item.reel.id === reelId);
-  return i >= 0 ? i : 0;
+  return feed.findIndex((item) => item.kind === 'reel' && item.reel.id === reelId);
 }
 
 function displayItemOrganicReel(item: ReelsFeedDisplayItem | undefined): MusicReel | undefined {
@@ -245,6 +247,8 @@ interface ReelsTabPageProps {
   onOpenLive?: (liveId: string) => void;
   onOpenProfile?: (userId: string) => void;
   initialReelId?: string;
+  /** Incrémenté à chaque navigation ciblée vers un reel (profil, feed, etc.). */
+  navigateKey?: number;
   onIntentHandled?: () => void;
   /** False when leaving the Reels tab or opening profile — stops all media. */
   isActive?: boolean;
@@ -254,6 +258,7 @@ export function ReelsTabPage({
   onOpenLive: _onOpenLive,
   onOpenProfile,
   initialReelId,
+  navigateKey = 0,
   onIntentHandled,
   isActive = true,
 }: ReelsTabPageProps) {
@@ -312,8 +317,14 @@ export function ReelsTabPage({
   const [shareToUserOpen, setShareToUserOpen] = useState(false);
   const [reportReelOpen, setReportReelOpen] = useState(false);
   const initialScrollDone = useRef(false);
+  const pendingReelFetchRef = useRef(false);
   const viewedReelsThisSession = useRef(new Set<string>());
   const [algoSheetOpen, setAlgoSheetOpen] = useState(false);
+  const [createReelOpen, setCreateReelOpen] = useState(false);
+  const [pendingPublishReel, setPendingPublishReel] = useState<MusicReel | null>(null);
+  const [publishingReel, setPublishingReel] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [reelSaveToast, setReelSaveToast] = useState<string | null>(null);
 
   const activeItem = displayItems[activeIndex];
   const activeReel = displayItemOrganicReel(activeItem);
@@ -346,34 +357,43 @@ export function ReelsTabPage({
 
   useEffect(() => {
     initialScrollDone.current = false;
-  }, [initialReelId]);
+    pendingReelFetchRef.current = false;
+  }, [initialReelId, navigateKey]);
 
   useEffect(() => {
     if (!initialReelId || initialScrollDone.current || displayItems.length === 0) return;
     const found = displayItems.some((item) => item.kind === 'reel' && item.reel.id === initialReelId);
-    if (!found && token) {
-      api
-        .getReel(token, initialReelId)
-        .then((r) => {
-          const extra = normalizeProfileReelFromApi(r.reel);
-          if (!extra) return;
-          setFeedReels((prev) => {
-            if (prev.some((reel) => reel.id === extra.id)) return prev;
-            return [extra, ...prev];
+    if (!found) {
+      if (token && !pendingReelFetchRef.current) {
+        pendingReelFetchRef.current = true;
+        api
+          .getReel(token, initialReelId)
+          .then((r) => {
+            const extra = normalizeProfileReelFromApi(r.reel);
+            if (!extra) return;
+            setFeedReels((prev) => {
+              if (prev.some((reel) => reel.id === extra.id)) return prev;
+              return [extra, ...prev];
+            });
+          })
+          .catch(() => undefined)
+          .finally(() => {
+            pendingReelFetchRef.current = false;
           });
-        })
-        .catch(() => undefined);
+      }
       return;
     }
     const index = findReelIndex(displayItems, initialReelId);
+    if (index < 0) return;
     initialScrollDone.current = true;
     setActiveIndex(index);
+    activeIndexRef.current = index;
     const el = scrollRef.current;
     if (el && el.clientHeight > 0) {
       el.scrollTo({ top: index * el.clientHeight, behavior: 'auto' });
     }
     onIntentHandled?.();
-  }, [initialReelId, displayItems, onIntentHandled, token]);
+  }, [initialReelId, navigateKey, displayItems, onIntentHandled, token]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -1063,6 +1083,64 @@ export function ReelsTabPage({
     setStats((s) => ({ ...s, commentCount, commentedByMe: true }));
   };
 
+  useEffect(() => {
+    if (createReelOpen || pendingPublishReel != null) {
+      pauseAllReelsMediaInDom();
+      playbackPausedRef.current = true;
+      setPlaybackPaused(true);
+      return;
+    }
+    if (!isActive) return;
+    playbackPausedRef.current = false;
+    setPlaybackPaused(false);
+    playActiveReel(activeIndexRef.current, mutedRef.current);
+  }, [createReelOpen, pendingPublishReel, isActive, playActiveReel]);
+
+  useEffect(() => {
+    if (!reelSaveToast) return;
+    const timer = window.setTimeout(() => setReelSaveToast(null), 3200);
+    return () => window.clearTimeout(timer);
+  }, [reelSaveToast]);
+
+  const handleReelCreated = useCallback((reel: MusicReel) => {
+    setCreateReelOpen(false);
+    setPendingPublishReel(reel);
+    setPublishError(null);
+    notifyReelsUpdated();
+  }, []);
+
+  const skipPublishReel = useCallback(() => {
+    setPendingPublishReel(null);
+    setPublishError(null);
+    notifyReelsUpdated();
+    setReelSaveToast(
+      t('reels.createSavedPrivate', {
+        defaultValue: 'Reel enregistré en privé sur ton profil.',
+      })
+    );
+  }, [t]);
+
+  const confirmPublishReel = useCallback(async () => {
+    if (!token || !pendingPublishReel || publishingReel) return;
+    setPublishingReel(true);
+    setPublishError(null);
+    try {
+      await api.publishReel(token, pendingPublishReel.id);
+      setPendingPublishReel(null);
+      notifyReelsUpdated();
+      setReelSaveToast(
+        t('reels.createPublished', {
+          defaultValue: 'Reel publié dans le flux !',
+        })
+      );
+      void refreshFeedWithStart({ skipStartIndex: false, silent: true });
+    } catch (err) {
+      setPublishError(err instanceof Error ? err.message : t('reels.createPublishFailed', { defaultValue: 'Publication impossible' }));
+    } finally {
+      setPublishingReel(false);
+    }
+  }, [token, pendingPublishReel, publishingReel, refreshFeedWithStart, t]);
+
   return (
     <div
       data-reels-root
@@ -1082,7 +1160,9 @@ export function ReelsTabPage({
           <ReelsSearchBar
             value={searchQuery}
             onChange={setSearchQuery}
-            className="absolute top-3 left-3 right-14 z-20"
+            className={`absolute top-3 left-3 z-20 ${
+              token && activeReel ? 'right-[7.25rem]' : token ? 'right-14' : 'right-14'
+            }`}
           />
 
           {searchEmpty && (
@@ -1158,6 +1238,23 @@ export function ReelsTabPage({
             />
           )}
 
+          {token && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setCreateReelOpen(true);
+              }}
+              className={`absolute top-4 z-20 w-11 h-11 rounded-full bg-pink-600/90 border-2 border-pink-400/80 backdrop-blur-sm flex items-center justify-center text-xl font-light text-white hover:bg-pink-500 transition-colors shadow-lg shadow-pink-900/40 ${
+                activeReel ? 'right-14' : 'right-3'
+              }`}
+              aria-label={t('reels.createButton', { defaultValue: 'Ajouter un reel' })}
+              title={t('reels.createButton', { defaultValue: 'Ajouter un reel' })}
+            >
+              +
+            </button>
+          )}
+
           {activeReel && (
             <button
               type="button"
@@ -1203,8 +1300,40 @@ export function ReelsTabPage({
               {shareToast}
             </div>
           )}
+          {reelSaveToast && (
+            <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full bg-black/80 border border-pink-500/30 text-sm text-white backdrop-blur max-w-[min(100%,20rem)] text-center">
+              {reelSaveToast}
+            </div>
+          )}
         </div>
       </div>
+
+      {token && (
+        <CreateReelSheet
+          open={createReelOpen}
+          token={token}
+          defaultArtist={user?.username ?? ''}
+          onClose={() => setCreateReelOpen(false)}
+          onCreated={handleReelCreated}
+        />
+      )}
+
+      <ConfirmModal
+        open={pendingPublishReel != null}
+        title={t('reels.createPublishTitle', { defaultValue: 'Publier ce reel ?' })}
+        description={t('reels.createPublishDescription', {
+          defaultValue:
+            'Le reel sera visible dans le flux public Reels. Tu pourras le retirer depuis ton profil.',
+        })}
+        cancelLabel={t('reels.createPublishLater', { defaultValue: 'Plus tard' })}
+        confirmLabel={t('reels.createPublishConfirm', { defaultValue: 'Publier' })}
+        destructive={false}
+        loading={publishingReel}
+        loadingLabel={t('reels.createPublishing', { defaultValue: 'Publication…' })}
+        error={publishError}
+        onCancel={skipPublishReel}
+        onConfirm={() => void confirmPublishReel()}
+      />
 
       {shareMenuOpen && activeReel && !shareToUserOpen && (
         <ShareLinkMenu

@@ -9,7 +9,7 @@ import dotenv from 'dotenv';
 import { app } from './server';
 import { setupSockets } from './socket';
 import { setIo, clearIo } from './lib/ioInstance';
-import { seedMsdevData, ensureMsdevDemoAccounts, ensureMsdevDemoLives } from './seed-msdev';
+import { seedMsdevData, ensureMsdevDemoAccounts, ensureMsdevDemoLives, ensureMsdevFranceSalonLives } from './seed-msdev';
 import { seedProductionAdmin } from './seed-production';
 import { seedBotsAtStartup } from './seed-bots';
 import { seedOccitanieSpotifyAtStartup } from './seed-occitanie-spotify';
@@ -243,6 +243,7 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
       console.log(`[msdev] ${demoAdded} compte(s) démo ajouté(s) au store restauré`);
     }
     ensureMsdevDemoLives();
+    ensureMsdevFranceSalonLives();
     await ensureMsdevDemoCredentials();
     ensureMsdevDemoMonetizationAges();
     ensureMsdevListenerFollowersCount();

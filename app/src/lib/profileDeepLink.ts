@@ -28,13 +28,27 @@ export function consumePendingProfileView(): string | null {
   }
 }
 
-/** Keep shareable `/profile/:id` in the address bar after navigation. */
-export function syncProfileUrlInBar(userId: string): void {
+/** Garde tab / album dans l’URL profil (ex. nouveautés → compositions). */
+export function syncProfileUrlInBar(
+  userId: string,
+  options?: { tab?: string; album?: string }
+): void {
   const path = getProfilePath(userId);
-  if (window.location.pathname === path) return;
   const params = new URLSearchParams(window.location.search);
+  if (options) {
+    if (options.tab) params.set('tab', options.tab);
+    else params.delete('tab');
+    if (options.album) params.set('album', options.album);
+    else params.delete('album');
+  }
   const q = params.toString();
-  window.history.replaceState({}, '', `${path}${q ? `?${q}` : ''}`);
+  const next = `${path}${q ? `?${q}` : ''}`;
+  if (window.location.pathname === path && window.location.search === (q ? `?${q}` : '')) return;
+  window.history.replaceState({}, '', next);
+}
+
+export function parseProfileTabFromLocation(loc: Location = window.location): string | null {
+  return new URLSearchParams(loc.search).get('tab');
 }
 
 export function clearProfileUrlFromBar(): void {

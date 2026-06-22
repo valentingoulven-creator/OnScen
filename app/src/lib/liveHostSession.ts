@@ -1,19 +1,8 @@
 import type { LiveGoal, LiveReward, RewardQueueItem } from './liveHostTypes';
+import { DEFAULT_LIVE_REWARDS } from './liveHostTypes';
+import { syncLiveDonationOptions } from './liveDonationOptions';
 
-export const DEFAULT_LIVE_REWARDS: LiveReward[] = [
-  { id: 'r1', type: 'music_request', label: 'Demande de musique', price: 10, enabled: true },
-  { id: 'r2', type: 'dedication', label: 'Dédicace', price: 5, enabled: true },
-  { id: 'r3', type: 'dance', label: 'Danse spécifique', price: 15, enabled: true },
-  {
-    id: 'r4',
-    type: 'backstage',
-    label: 'Accès backstage',
-    price: 20,
-    enabled: true,
-    limitPerLive: 3,
-    remainingCount: 3,
-  },
-];
+export { DEFAULT_LIVE_REWARDS } from './liveHostTypes';
 
 export interface LiveHostSession {
   goals: LiveGoal[];
@@ -82,6 +71,9 @@ export function patchLiveHostSession(
     rewardQueue: delta.rewardQueue ?? prev.rewardQueue,
   };
   setLiveHostSession(liveId, next);
+  if (delta.rewards) {
+    syncLiveDonationOptions(liveId, next.rewards);
+  }
   return next;
 }
 

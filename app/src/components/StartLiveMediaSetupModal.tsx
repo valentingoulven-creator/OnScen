@@ -15,6 +15,8 @@ import {
   setPendingLiveCameraStart,
   type LiveMediaPrefs,
 } from '../lib/liveMediaPrefs';
+import { getLivesGeo, type LivesGeoPrefs } from '../lib/livesGeo';
+import { LiveStartLocationPicker } from './LiveStartLocationPicker';
 
 type Phase = 'loading' | 'config' | 'error';
 
@@ -28,6 +30,43 @@ export interface StartLiveMediaSetupModalProps {
   onClose: () => void;
   onReady: (prefs: LiveMediaPrefs) => void;
   confirmLabel?: string;
+  /** Centre carte / repli si aucune position en brouillon. */
+  initialGeo?: LivesGeoPrefs;
+}
+
+function locationFromDraft(draft: LiveMediaPrefs | null, fallback: LivesGeoPrefs): LivesGeoPrefs {
+  const lat = draft?.startLatitude;
+  const lon = draft?.startLongitude;
+  if (Number.isFinite(lat) && Number.isFinite(lon)) {
+    return {
+      ...fallback,
+      latitude: lat!,
+      longitude: lon!,
+      label: draft?.startLocationLabel ?? fallback.label,
+      source:
+        draft?.startLocationSource === 'city'
+          ? 'city'
+          : draft?.startLocationSource === 'address'
+            ? 'address'
+            : draft?.startLocationSource === 'my_position'
+              ? 'my_position'
+              : fallback.source,
+    };
+  }
+  return { ...fallback };
+}
+
+function prefsWithLocation(
+  base: LiveMediaPrefs,
+  location: LivesGeoPrefs
+): LiveMediaPrefs {
+  return {
+    ...base,
+    startLatitude: location.latitude,
+    startLongitude: location.longitude,
+    startLocationLabel: location.label,
+    startLocationSource: location.source,
+  };
 }
 
 function deviceSelectClass(disabled: boolean): string {
@@ -41,6 +80,7 @@ export function StartLiveMediaSetupModal({
   onClose,
   onReady,
   confirmLabel = 'Démarrer le live',
+  initialGeo,
 }: StartLiveMediaSetupModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -52,6 +92,9 @@ export function StartLiveMediaSetupModal({
   const [videoDeviceId, setVideoDeviceId] = useState('');
   const [audioDeviceId, setAudioDeviceId] = useState('');
   const [switching, setSwitching] = useState(false);
+  const [liveLocation, setLiveLocation] = useState<LivesGeoPrefs>(() =>
+    locationFromDraft(getLiveMediaDraft(), initialGeo ?? getLivesGeo())
+  );
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -112,18 +155,36 @@ export function StartLiveMediaSetupModal({
     });
   }, []);
 
-  const persistDraft = useCallback((video: string, audio: string) => {
-    setLiveMediaDraft({
-      videoDeviceId: video || undefined,
-      audioDeviceId: audio || undefined,
-    });
-  }, []);
+  const persistDraft = useCallback(
+    (video: string, audio: string, location: LivesGeoPrefs = liveLocation) => {
+      setLiveMediaDraft(
+        prefsWithLocation(
+          {
+            videoDeviceId: video || undefined,
+            audioDeviceId: audio || undefined,
+          },
+          location
+        )
+      );
+    },
+    [liveLocation]
+  );
+
+  const handleLocationChange = useCallback(
+    (next: LivesGeoPrefs) => {
+      setLiveLocation(next);
+      persistDraft(videoDeviceId, audioDeviceId, next);
+    },
+    [persistDraft, videoDeviceId, audioDeviceId]
+  );
 
   useEffect(() => {
     if (!open) {
       stopStream();
       return;
     }
+
+    setLiveLocation(locationFromDraft(getLiveMediaDraft(), initialGeo ?? getLivesGeo()));
 
     let cancelled = false;
 
@@ -177,7 +238,7 @@ export function StartLiveMediaSetupModal({
     return () => {
       cancelled = true;
     };
-  }, [open, stopStream, openStream, refreshDeviceLists, persistDraft]);
+  }, [open, stopStream, openStream, refreshDeviceLists, persistDraft, initialGeo]);
 
   useEffect(() => {
     if (phase !== 'config' || !streamRef.current) return;
@@ -221,10 +282,13 @@ export function StartLiveMediaSetupModal({
   };
 
   const handleConfirm = () => {
-    const prefs: LiveMediaPrefs = {
-      videoDeviceId: videoDeviceId || undefined,
-      audioDeviceId: audioDeviceId || undefined,
-    };
+    const prefs = prefsWithLocation(
+      {
+        videoDeviceId: videoDeviceId || undefined,
+        audioDeviceId: audioDeviceId || undefined,
+      },
+      liveLocation
+    );
     setLiveMediaPrefs(prefs);
     setPendingLiveCameraStart();
     stopStream();
@@ -232,7 +296,7 @@ export function StartLiveMediaSetupModal({
   };
 
   const handleDemoBypass = () => {
-    const prefs: LiveMediaPrefs = { demoNoMedia: true };
+    const prefs = prefsWithLocation({ demoNoMedia: true }, liveLocation);
     setLiveMediaPrefs(prefs);
     stopStream();
     onReady(prefs);
@@ -241,9 +305,7 @@ export function StartLiveMediaSetupModal({
   const showDevBypass = canBypassLiveMediaSetup();
 
   const handleClose = () => {
-    if (phase === 'config') {
-      persistDraft(videoDeviceId, audioDeviceId);
-    }
+    persistDraft(videoDeviceId, audioDeviceId, liveLocation);
     stopStream();
     onClose();
   };
@@ -260,7 +322,7 @@ export function StartLiveMediaSetupModal({
         if (e.target === e.currentTarget) handleClose();
       }}
     >
-      <div className="w-full max-w-sm bg-[#12121a] border border-[#2d2d3d] rounded-2xl shadow-2xl overflow-hidden max-h-[min(92dvh,36rem)] flex flex-col">
+      <div className="w-full max-w-sm bg-[#12121a] border border-[#2d2d3d] rounded-2xl shadow-2xl overflow-hidden max-h-[min(92dvh,42rem)] flex flex-col">
         <div className="h-1 bg-gradient-to-r from-red-600 via-rose-500 to-red-600 shrink-0" />
 
         <div className="p-5 overflow-y-auto flex-1 min-h-0">
@@ -269,17 +331,38 @@ export function StartLiveMediaSetupModal({
           </p>
 
           {phase === 'loading' && (
-            <p className="text-sm text-gray-400 mt-3">Demande d&apos;accès à la caméra et au micro…</p>
+            <div className="mt-3 space-y-3">
+              <p className="text-sm text-gray-400 leading-relaxed">
+                Demande d&apos;accès à la caméra et au micro…
+              </p>
+              {showDevBypass && (
+                <>
+                  <p className="text-[11px] text-amber-400/80 leading-relaxed">
+                    Mode dev : vous pouvez continuer sans caméra ni micro pour tester l&apos;UI live.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleDemoBypass}
+                    className="w-full min-h-[44px] py-3 rounded-xl border border-amber-500/40 bg-amber-950/30 hover:bg-amber-950/50 text-amber-200 text-sm font-semibold"
+                  >
+                    Mode démo (sans caméra/micro)
+                  </button>
+                </>
+              )}
+            </div>
           )}
 
           {phase === 'error' && error && (
-            <div className="mt-3 space-y-2">
-              <p className="text-sm text-red-300 leading-relaxed">{error}</p>
-              {hints.map((hint) => (
-                <p key={hint} className="text-xs text-gray-500 leading-relaxed">
-                  {hint}
-                </p>
-              ))}
+            <div className="mt-3 space-y-3">
+              <div className="space-y-2">
+                <p className="text-sm text-red-300 leading-relaxed">{error}</p>
+                {hints.map((hint) => (
+                  <p key={hint} className="text-xs text-gray-500 leading-relaxed">
+                    {hint}
+                  </p>
+                ))}
+              </div>
+              <LiveStartLocationPicker value={liveLocation} onChange={handleLocationChange} />
             </div>
           )}
 
@@ -354,13 +437,15 @@ export function StartLiveMediaSetupModal({
                   salon.
                 </p>
               )}
+
+              <LiveStartLocationPicker value={liveLocation} onChange={handleLocationChange} />
             </div>
           )}
         </div>
 
-        {(phase === 'config' || phase === 'error') && (
+        {(phase === 'config' || phase === 'error' || (phase === 'loading' && showDevBypass)) && (
           <div className="flex flex-col gap-2 p-4 border-t border-[#1e1e2f] bg-[#0b0b0f]/50 shrink-0">
-            {showDevBypass && (
+            {showDevBypass && phase !== 'loading' && (
               <button
                 type="button"
                 onClick={handleDemoBypass}
@@ -375,7 +460,7 @@ export function StartLiveMediaSetupModal({
                 onClick={handleClose}
                 className="flex-1 min-h-[44px] py-3 rounded-xl bg-[#2d2d3d] text-white text-sm font-semibold"
               >
-                Fermer
+                {phase === 'loading' ? 'Annuler' : 'Fermer'}
               </button>
               {phase === 'config' && (
                 <button

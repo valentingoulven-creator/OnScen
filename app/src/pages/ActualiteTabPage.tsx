@@ -47,7 +47,8 @@ import { getUpcomingUserEvents, getEventDates, getEventDateEntries, formatEventD
 import { EventLocationInput } from '../components/EventLocationInput';
 import { readSavedEventLocation, writeSavedEventLocation } from '../lib/savedEventLocation';
 import { ConfirmModal } from '../components/ConfirmModal';
-import { pickRecentUserSounds, type FeaturedUserSoundItem } from '../lib/featuredUserSounds';
+import { mapFeaturedSoundFromApi, type FeaturedUserSoundItem } from '../lib/featuredUserSounds';
+import { syncProfileUrlInBar } from '../lib/profileDeepLink';
 
 // ─── Weekly top songs ─────────────────────────────────────────────────────────
 
@@ -429,8 +430,6 @@ function ActualitesContent({
   countryEventsLoading = false,
   featuredUserSounds = [],
   featuredUserSoundsLoading = false,
-  onOpenReel,
-  onOpenSalon,
   weeklyTopSongs = [],
   weeklyTopSongsLoading = false,
 }: {
@@ -453,8 +452,6 @@ function ActualitesContent({
   countryEventsLoading?: boolean;
   featuredUserSounds?: FeaturedUserSoundItem[];
   featuredUserSoundsLoading?: boolean;
-  onOpenReel?: (reelId: string) => void;
-  onOpenSalon?: (salonId: string, salonTitle?: string) => void;
   weeklyTopSongs?: WeeklyTopSong[];
   weeklyTopSongsLoading?: boolean;
 }) {
@@ -611,7 +608,7 @@ function ActualitesContent({
         )}
       </div>
 
-      {/* Les nouveautés — sons publiés par la communauté (salons + reels) */}
+      {/* Les nouveautés — sons et albums publiés par la communauté */}
       <div className="space-y-2.5">
         <SectionHeader
           label={t('feed.featured')}
@@ -645,7 +642,7 @@ function ActualitesContent({
             itemCount={featuredUserSounds.length}
             ariaPrevLabel={t('feed.featuredCarouselPrev')}
             ariaNextLabel={t('feed.featuredCarouselNext')}
-            scrollClassName="ms-hscroll-track overflow-x-auto flex w-max gap-3 pb-1 snap-x snap-mandatory"
+            scrollClassName="featured-sounds-carousel ms-hscroll-track flex flex-nowrap gap-3 pb-1"
           >
             {featuredUserSounds.map((item) => (
               <NewsArticleCard
@@ -660,11 +657,11 @@ function ActualitesContent({
                 genres={item.genres}
                 readMoreLabel={t('feed.featuredReadMore')}
                 onReadMoreClick={() => {
-                  if (item.kind === 'salon') {
-                    onOpenSalon?.(item.id, item.title);
-                  } else {
-                    onOpenReel?.(item.id);
-                  }
+                  syncProfileUrlInBar(item.userId, {
+                    tab: 'compositions',
+                    ...(item.kind === 'album' ? { album: item.id } : {}),
+                  });
+                  onOpenProfile(item.userId);
                 }}
               />
             ))}
@@ -1049,7 +1046,6 @@ const PostCard = memo(function PostCard({
 export function ActualiteTabPage({
   onOpenProfile,
   onOpenReel,
-  onOpenSalon,
   onOpenLive,
   isActive,
   focusPostId,
@@ -1455,11 +1451,8 @@ export function ActualiteTabPage({
     if (!token) return;
     setFeaturedUserSoundsLoading(true);
     try {
-      const [salonsRes, reelsRes] = await Promise.all([
-        api.listSalons(token),
-        api.getReelsFeed(token),
-      ]);
-      setFeaturedUserSounds(pickRecentUserSounds(salonsRes.salons, reelsRes.reels, 5));
+      const res = await api.getFeaturedSounds(token, 5);
+      setFeaturedUserSounds(res.items.map(mapFeaturedSoundFromApi));
     } catch {
       setFeaturedUserSounds([]);
     } finally {
@@ -2240,8 +2233,6 @@ export function ActualiteTabPage({
             countryEventsLoading={countryEventsLoading}
             featuredUserSounds={featuredUserSounds}
             featuredUserSoundsLoading={featuredUserSoundsLoading}
-            onOpenReel={onOpenReel}
-            onOpenSalon={onOpenSalon}
             weeklyTopSongs={weeklyTopSongs}
             weeklyTopSongsLoading={weeklyTopSongsLoading}
           />

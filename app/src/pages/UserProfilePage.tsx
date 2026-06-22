@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { parseProfileTabFromLocation } from '../lib/profileDeepLink';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
@@ -29,6 +30,16 @@ interface UserProfilePageProps {
   onOpenFeedPost?: (post: FeedPost) => void;
 }
 
+type UserProfileTab = 'profil' | 'reels' | 'lives' | 'events' | 'compositions';
+
+function initialProfileTab(): UserProfileTab {
+  const tab = parseProfileTabFromLocation();
+  if (tab === 'compositions' || tab === 'reels' || tab === 'lives' || tab === 'events' || tab === 'profil') {
+    return tab;
+  }
+  return 'profil';
+}
+
 export function UserProfilePage({
   userId,
   preview,
@@ -44,7 +55,7 @@ export function UserProfilePage({
   const { user: me, token } = useAuth();
   const { t } = useTranslation();
   const isSelf = me?.id === userId;
-  const [profileTab, setProfileTab] = useState<'profil' | 'reels' | 'lives' | 'events' | 'compositions'>('profil');
+  const [profileTab, setProfileTab] = useState<UserProfileTab>(initialProfileTab);
   const [compositionsRefreshKey, setCompositionsRefreshKey] = useState(0);
   const [canViewPrivateReels, setCanViewPrivateReels] = useState(isSelf);
   const reelsTabLabel = isSelf ? t('profile.tabReels') : t('profile.tabReelsOther');
@@ -52,7 +63,7 @@ export function UserProfilePage({
   const displayName = preview?.username ?? 'Profil';
 
   useEffect(() => {
-    setProfileTab('profil');
+    setProfileTab(initialProfileTab());
   }, [userId]);
 
   useEffect(() => {

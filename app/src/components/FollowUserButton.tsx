@@ -8,6 +8,8 @@ interface FollowUserButtonProps {
   initialFollowing?: boolean;
   compact?: boolean;
   iconOnly?: boolean;
+  /** Icône en mode iconOnly : plus (défaut) ou cœur (suivre). */
+  iconStyle?: 'plus' | 'heart';
   /** 'pill' renders a larger rounded-full gradient button for profile pages */
   variant?: 'default' | 'pill';
   className?: string;
@@ -20,6 +22,7 @@ export const FollowUserButton = memo(function FollowUserButton({
   initialFollowing = false,
   compact = false,
   iconOnly = false,
+  iconStyle = 'plus',
   variant = 'default',
   className = '',
   onFollowingChange,
@@ -105,6 +108,15 @@ export const FollowUserButton = memo(function FollowUserButton({
       ? 'bg-[#1a1a26]/90 border-[#2d2d3d] text-gray-300 hover:border-gray-500'
       : 'bg-purple-600/80 border-purple-500/50 text-white hover:bg-purple-600';
 
+  const iconColors =
+    iconOnly && iconStyle === 'heart'
+      ? following
+        ? 'border-pink-500/60 text-pink-400 bg-pink-950/40 hover:border-pink-400'
+        : 'border-[#3d3d4d]/80 text-gray-400 hover:border-pink-500/50 hover:text-pink-300 bg-transparent'
+      : pillColors;
+
+  const buttonColors = iconOnly ? iconColors : pillColors;
+
   return (
     <div className={className}>
       <button
@@ -113,11 +125,26 @@ export const FollowUserButton = memo(function FollowUserButton({
         disabled={loading}
         title={label}
         aria-label={label}
-        className={`${base} ${pillColors}`}
+        className={`${base} ${buttonColors}`}
       >
         {iconOnly ? (
           loading ? (
             <span className="block w-3.5 h-3.5 text-[10px] leading-[14px] text-center">…</span>
+          ) : iconStyle === 'heart' ? (
+            <svg
+              viewBox="0 0 24 24"
+              className="w-3.5 h-3.5"
+              fill={following ? 'currentColor' : 'none'}
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+              />
+            </svg>
           ) : following ? (
             <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -138,7 +165,7 @@ export const FollowUserButton = memo(function FollowUserButton({
 
       {confirmUnfollow && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-[100001] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="unfollow-confirm-title"

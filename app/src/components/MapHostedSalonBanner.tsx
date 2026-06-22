@@ -48,6 +48,8 @@ export interface MapHostedSalonBannerProps {
   albumArtUrl?: string;
   platform?: Salon['platform'];
   listenersCount?: number;
+  /** Libellé du bouton d'action (défaut : Rejoindre). */
+  ctaLabel?: string;
   onReturn: () => void;
   /** Salon terminé côté serveur (socket ou API). */
   onSalonEnded?: () => void;
@@ -65,6 +67,7 @@ export function MapHostedSalonBanner({
   albumArtUrl,
   platform,
   listenersCount = 0,
+  ctaLabel,
   onReturn,
   onSalonEnded,
 }: MapHostedSalonBannerProps) {
@@ -108,6 +111,7 @@ export function MapHostedSalonBanner({
   const audienceLabel = formatSalonAudienceLabel(liveListenersCount, t).replace(/^👥\s*/, '');
   const platformBadge = platform ? PLATFORM_BADGE[platform] : null;
   const thumbnailUrl = albumArtUrl?.trim() || hostAvatarUrl?.trim() || null;
+  const actionLabel = ctaLabel ?? t('map.hostedSalonBannerJoin');
 
   return (
     <button
@@ -154,7 +158,7 @@ export function MapHostedSalonBanner({
           <span>{audienceLabel}</span>
         </span>
 
-        <span className="map-hosted-salon-banner__cta">{t('map.hostedSalonBannerJoin')}</span>
+        <span className="map-hosted-salon-banner__cta">{actionLabel}</span>
       </span>
     </button>
   );

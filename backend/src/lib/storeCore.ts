@@ -20,6 +20,7 @@ import {
   type UserAlbum,
   type UserComposition,
   type CompositionUpvote,
+  type UserReel,
 } from '../models/schema';
 import { ensureDefaultSponsorPlatformConfig } from './sponsorPlatformConfig';
 import { isValidLatLng } from './mapCoords';
@@ -78,6 +79,8 @@ export interface PersistedStore {
   /** Morceaux Discographie (dev / store.json ; prod utilise aussi user_compositions PostgreSQL). */
   compositions?: UserComposition[];
   compositionUpvotes?: CompositionUpvote[];
+  /** Reels utilisateur (dev / store.json ; prod utilise aussi user_reels PostgreSQL). */
+  userReels?: UserReel[];
 }
 
 function setsToRecord(map: Map<string, Set<string>>): MapOfSets {
@@ -165,6 +168,7 @@ export function snapshotStore(): PersistedStore {
     albums: [...db.albums],
     compositions: [...db.compositions],
     compositionUpvotes: [...db.compositionUpvotes],
+    userReels: [...db.userReels],
   };
 }
 
@@ -286,6 +290,9 @@ export function restoreStore(data: PersistedStore): void {
 
   db.compositionUpvotes.length = 0;
   db.compositionUpvotes.push(...(data.compositionUpvotes ?? []));
+
+  db.userReels.length = 0;
+  db.userReels.push(...(data.userReels ?? []));
 }
 
 function isNonEmptyString(v: unknown): v is string {

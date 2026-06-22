@@ -54,11 +54,30 @@ export function NewsArticleCard({
 }: NewsArticleCardProps) {
   const [imgOk, setImgOk] = useState(true);
 
+  const openInApp = onReadMoreClick;
+
   return (
     <article
       className={`overflow-hidden rounded-xl border border-[#2a2a3d] bg-[#12121a] shadow-lg${className ? ` ${className}` : ''}`}
     >
-      <div className={`relative aspect-video w-full overflow-hidden bg-gradient-to-br ${genreGradient(genres)}`}>
+      <div
+        className={`relative aspect-video w-full overflow-hidden bg-gradient-to-br ${genreGradient(genres)}${
+          openInApp ? ' cursor-pointer' : ''
+        }`}
+        role={openInApp ? 'button' : undefined}
+        tabIndex={openInApp ? 0 : undefined}
+        onClick={openInApp ? () => openInApp() : undefined}
+        onKeyDown={
+          openInApp
+            ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  openInApp();
+                }
+              }
+            : undefined
+        }
+      >
         {imageUrl && imgOk ? (
           <img
             src={imageUrl}

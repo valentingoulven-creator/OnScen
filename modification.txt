@@ -1,4 +1,1439 @@
 ================================================================================
+MODIF 635 — Logo Soundy SVG 3D diamant (wordmark)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Refaire le logo « Soundy » en texte 3D style diamant, dégradé wave uniquement,
+ sans image PNG ni élément décoratif.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/SoundyLogo.tsx
+ ─────────────────
+ • SVG inline : extrusion 3D, facettes, brillance, contour cristal
+ • Couleurs DEFAULT_USERNAME_WAVE_FROM / TO (#c084fc → #f472b6)
+
+ app/src/pages/AuthPage.tsx — w-auto (plus aspect PNG)
+
+================================================================================
+Fin MODIF 635 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 634 — Logo Soundy teinté dégradé wave
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Appliquer au logo les couleurs wave par défaut (purple-400 → pink-400),
+ cohérentes avec les onglets actifs et les pseudos.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/SoundyLogo.tsx
+ ─────────────────
+ • PNG en masque CSS + fond dégradé wave au lieu de <img> couleur d’origine
+
+ app/src/lib/usernameColor.ts
+ ─────────────────
+ • SOUNDY_WAVE_BG_CLASS exporté (gradient sans bg-clip-text)
+
+ app/src/pages/AuthPage.tsx — classes aspect ratio logo
+
+================================================================================
+Fin MODIF 634 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 633 — Logo Soundy image (fond transparent)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Remplacer le texte dégradé « Soundy » dans le header par le logo fourni,
+ fond blanc rendu transparent.
+
+CHANGEMENTS / FIX
+-----
+ app/public/soundy-logo.png — PNG traité (fond blanc + reflet retirés)
+ app/src/components/SoundyLogo.tsx — SoundyLogo + SoundyLogoButton
+ App.tsx, AuthPage.tsx — logo image à la place du texte
+
+================================================================================
+Fin MODIF 633 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 632 — Tab bar : onglet actif en dégradé wave Soundy
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Onglet surélevé (ex. Musique) : remplacer teinte ambre/bleu/etc. par le dégradé
+ wave Soundy (#c084fc → #f472b6) sur icône, libellé et bordure glass.
+
+CHANGEMENTS / FIX
+-----
+ TabNavIcons.tsx — prop wave + gradient SVG partagé
+ MainTabNav.tsx — onglet actif dock : ms-tab-rail-btn--wave + USERNAME_WAVE_CLASS
+ index.css — halo violet/rose sur bouton actif
+
+================================================================================
+Fin MODIF 632 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 631 — Tab bar : fonds boutons glass neutre (sans teinte)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Boutons dock (Accueil, Lives, Messages, Musique, Reels) : fonds colorés
+ (bg-purple/10, etc.) → fond transparent flou neutre, couleur sur l'icône seule.
+
+CHANGEMENTS / FIX
+-----
+ MainTabNav.tsx — TAB_ACCENT bottom : text-* uniquement + ms-tab-rail-btn-glass
+ index.css — backdrop-filter blur, bordure blanche légère, ombres neutres ;
+   hub vinyl LIVE aligné sur le même glass.
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 631 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 630 — Admin sponsors : description + rotation carrousel (secondes)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Compléter le formulaire simplifié : champ description + durée de rotation en
+ secondes quand plusieurs sponsors actifs (carrousel carte).
+
+CHANGEMENTS / FIX
+-----
+ sponsorAdminForm.ts, AdminSponsorsTab.tsx, fr.json, en.json
+ • description → subtitle API
+ • displayDurationSec éditable (3–60 s) avec hint rotation carrousel
+ • Liste admin : affiche description + « X s / slide »
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 630 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 629 — Admin sponsors : formulaire simplifié
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Formulaire admin « Nouveau sponsor » trop long (titre, CTA, accent, dates…).
+ L'utilisateur veut : emplacement, ciblage, bandeau (+ taille), lien, durée en jours.
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/AdminSponsorsTab.tsx
+ ───────────────────────────────────
+ • Formulaire réduit : nom, emplacement, ciblage carte, bandeau, lien, durée (j).
+ • Ciblage région : autocomplete seule (plus lat/lng manuels).
+ • Suppression aperçu, logo, accent, type, action interne, dates/heures, durée carrousel.
+
+ app/src/lib/sponsorAdminForm.ts
+ ───────────────────────────────
+ • Valeurs par défaut auto (titre=nom, bandeau image seule carte, fin = début + jours).
+
+ app/src/locales/fr.json + en.json
+ ─────────────────────────────────
+ • fieldDisplayDays, validationLinkRequired, listDisplayDays.
+
+FICHIERS MODIFIÉS
+-----
+ AdminSponsorsTab.tsx, sponsorAdminForm.ts, sponsorAdminForm.test.ts, fr.json, en.json
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+ vitest sponsorAdminForm → ✅
+
+================================================================================
+Fin MODIF 629 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 628 — Sidebar carte : salons visibles en vue overview (petites icônes)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Filtre Salon actif en vue globale (petites icônes) : la carte affiche des
+ points salon mais le panneau latéral reste vide (Suivi / Salons / Suggestions).
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/HomePage.tsx
+ ─────────────────────────
+ • mapSalonsForView : en overview, tous les salons publics (sans clip viewport) ;
+   sinon clipSalonsForMapView avec garde-fou anti-blackout.
+ • Sidebar : salons bruts API (pas mapSalonsForView pré-clippé).
+
+ app/src/lib/mapSidebarContent.ts
+ ────────────────────────────────
+ • Overview : pas de clip viewport pour les salons (aligné clusters événements).
+ • City/street : clipSalonsForMapView avec anti-blackout.
+
+FICHIERS MODIFIÉS
+-----
+ HomePage.tsx, mapSidebarContent.ts, mapSidebarContent.test.ts
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+ vitest mapSidebarContent + mapMarkerVisibility → ✅
+
+================================================================================
+Fin MODIF 628 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 627 — Reels : persistance + visibilité après création
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Reels créés (+ ou profil) invisibles (onglet Publiés par défaut) et perdus au
+ redémarrage serveur (base64 non persistés, absents de store.json).
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/reelAssets.ts
+ ─────────────────────────────
+ • Vidéo/poster enregistrés sous public/uploads/reels/ (URLs légères).
+
+ backend/src/lib/reels.ts
+ ────────────────────────
+ • createUserReel : résolution fichiers + schedulePersist() (store.json dev).
+
+ backend/src/lib/storeCore.ts
+ ────────────────────────────
+ • userReels dans snapshot/restore store.json.
+
+ app/src/lib/reelsRefresh.ts
+ ───────────────────────────
+ • Événement soundy:reels-updated pour rafraîchir le profil.
+
+ app ProfilePage, ProfileReelRecorder, ReelsTabPage, UserReelsSection
+ ───────────────────────────────────────────────────────────────────
+ • Rafraîchissement grille profil ; onglet Reels profil → Privés par défaut.
+
+FICHIERS MODIFIÉS
+-----
+ reelAssets, reels.ts, storeCore, reelsRefresh, ProfilePage, ReelsTabPage, etc.
+
+BUILD (si vérifié)
+-----
+ backend/ → npx tsc --noEmit → ✅
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 627 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 626 — Actualité : nouveautés sans reels (sons + albums)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La section « Les nouveautés » listait reels et salons ; l’utilisateur veut
+ uniquement les sons (compositions) et albums publiés par la communauté.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/featuredCommunitySounds.ts
+ ───────────────────────────────────────────
+ • listFeaturedCommunitySounds : compositions + albums récents.
+
+ backend/src/routes/feed.ts
+ ─────────────────────────
+ • GET /api/feed/featured-sounds
+
+ app/src/lib/featuredUserSounds.ts
+ ─────────────────────────────────
+ • Types composition | album (reels/salons retirés).
+
+ app/src/pages/ActualiteTabPage.tsx
+ ──────────────────────────────────
+ • Charge featured-sounds ; clic → profil onglet Compositions.
+
+ app/src/lib/profileDeepLink.ts, UserProfilePage.tsx
+ ───────────────────────────────────────────────────
+ • URL ?tab=compositions&album=… pour ouvrir l’album ciblé.
+
+ app/src/locales/fr.json, en.json
+ ────────────────────────────────
+ • Badges Son / Album.
+
+FICHIERS MODIFIÉS
+-----
+ featuredCommunitySounds, feed route, featuredUserSounds, ActualiteTabPage,
+ profileDeepLink, UserProfilePage, api.ts, locales
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 626 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 625 — Reels profil : navigation overlay → lecteur
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic sur un reel dans « Mon profil » (overlay UserReelsSection) ne basculait pas
+ vers l’onglet Reels : l’onglet était démonté tant que le profil était ouvert,
+ openReelInTab contournait selectTab, scroll pouvait retomber sur le reel 0.
+
+CHANGEMENTS / FIX
+-----
+ app/src/App.tsx
+ ────────────────
+ • openReelInTab → selectTab('reels') + navigateKey (fermeture profil cohérente).
+ • Reels monté sous overlay profil (masqué) quand tab=reels.
+ • Wrapper flex-1 pour le lecteur Reels.
+
+ app/src/pages/ReelsTabPage.tsx
+ ──────────────────────────────
+ • Prop navigateKey ; fetch reel ciblé sans fallback index 0.
+
+ app/src/components/UserReelsSection.tsx
+ ───────────────────────────────────────
+ • handleReelClick en useCallback.
+
+FICHIERS MODIFIÉS
+-----
+ App.tsx, ReelsTabPage, UserReelsSection
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 625 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 624 — Reels : ouverture au clic (profil, feed, lecture)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic sur un reel (grille profil, à la une Actualité, après création) n’ouvrait pas
+ le lecteur Reels : reels privés restaient en preview, navigation bloquée depuis
+ profil/live, lecture figée après fermeture du sheet « + ».
+
+CHANGEMENTS / FIX
+-----
+ app/src/App.tsx
+ ────────────────
+ • openReelInTab : ferme profil/admin, force view home, incrémente reelsNavigateKey.
+ • key sur ReelsTabPage pour remonter à chaque navigation ciblée.
+ • useEffect : onglet Reels toujours sur view home.
+
+ app/src/components/UserReelsSection.tsx
+ ───────────────────────────────────────
+ • Clic reel → onOpenReel (privé ou publié) au lieu de ProfileReelPreview seul.
+
+ app/src/pages/ReelsTabPage.tsx
+ ──────────────────────────────
+ • Reprise lecture quand CreateReelSheet / modale publication se ferment.
+
+ app/src/components/NewsArticleCard.tsx
+ ─────────────────────────────────────
+ • Hero cliquable quand onReadMoreClick (reels / salons à la une).
+
+FICHIERS MODIFIÉS
+-----
+ App.tsx, UserReelsSection, ReelsTabPage, NewsArticleCard
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 624 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 623 — Reels : bouton « + » pour ajouter un reel
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Depuis l’onglet Reels, impossible d’ajouter un reel sans passer par le profil.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/CreateReelSheet.tsx
+ ─────────────────────────────────────
+ • Bottom sheet : enregistrement caméra ou import vidéo (ProfileReelRecorder).
+
+ app/src/components/ProfileReelRecorder.tsx
+ ───────────────────────────────────────────
+ • Prop embedded ; onSaved renvoie le reel créé.
+
+ app/src/pages/ReelsTabPage.tsx
+ ──────────────────────────────
+ • Bouton + (rose) en haut à droite ; modale création ; proposition de publication.
+
+ app/src/locales/fr.json, en.json
+ ────────────────────────────────
+ • Traductions createButton, createPublish*, etc.
+
+FICHIERS MODIFIÉS
+-----
+ CreateReelSheet, ProfileReelRecorder, ReelsTabPage, locales
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 623 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 622 — Onglet Musique : contenu réel (API + UI)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L’onglet Musique affichait des placeholders ; implémenter agrégation backend et UI
+ (découverte geo, likes, suggestions, nouveautés, classements, recherche YouTube/Spotify).
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/musicHome.ts, backend/src/routes/music.ts
+ ───────────────────────────────────────────────────────────
+ • buildMusicHome : nearby, likes, suggestions, catalog, charts.
+ • GET /api/music/home (lat/lon/radius/label).
+
+ backend/src/server.ts
+ ─────────────────────
+ • Enregistrement musicRouter.
+
+ app/src/lib/musicTypes.ts, app/src/lib/api.ts
+ ─────────────────────────────────────────────
+ • Types MusicHomePayload ; api.getMusicHome().
+
+ app/src/hooks/useMusicHome.ts
+ ────────────────────────────
+ • Fetch + sync geo (MAP_GEO_CHANGED_EVENT).
+
+ app/src/components/MusicHomeContent.tsx, app/src/pages/MusicTabPage.tsx
+ ──────────────────────────────────────────────────────────────────────
+ • Sections carrousels/listes ; recherche debounced YouTube + Spotify.
+ • Navigation live / salon / profil / carte.
+
+ app/src/App.tsx, locales fr/en
+ ──────────────────────────────
+ • Props onOpenLive, onOpenSalon, onOpenProfile ; traductions vides/erreurs.
+
+FICHIERS MODIFIÉS
+-----
+ backend musicHome, music route, server ; app MusicTabPage, MusicHomeContent,
+ useMusicHome, musicTypes, api, App, locales
+
+BUILD (si vérifié)
+-----
+ backend/ → npm run build → ✅
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 622 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 621 — Onglet Musique à côté de Reels
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Nouveau bouton « Musique » dans la barre du bas, à côté de Reels (sans le remplacer).
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/MainTabNav.tsx, TabNavIcons.tsx
+ ────────────────────────────────────────────────
+ • Tab music (ambre) : Messages · Musique · Reels à droite.
+
+ app/src/pages/MusicTabPage.tsx
+ ─────────────────────────────
+ • Shell : recherche + sections (likes, suggestions, nouveautés, geo).
+
+ app/src/App.tsx
+ ───────────────
+ • Montage lazy MusicTabPage ; lien « Voir la carte ».
+
+FICHIERS MODIFIÉS
+-----
+ MainTabNav, TabNavIcons, MusicTabPage, App.tsx, index.css, locales
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 621 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 620 — Nav : supprimer onglet Direct, icône LIVE sur Carte
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retirer le bouton « Direct » de la barre du bas ; l’icône vinyle LIVE devient
+ le hub central « Carte ». Les lives restent accessibles via la carte (+ Lives).
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/MainTabNav.tsx
+ ────────────────────────────────
+ • Hub central = Carte (plus de slot live).
+ • Carte active aussi pendant un live (liveViewActive).
+
+ app/src/components/TabNavIcons.tsx
+ ─────────────────────────────────
+ • Icône map = LiveBrandIcon (vinyle LIVE).
+
+ app/src/App.tsx
+ ───────────────
+ • setTab('map') à la place de 'live' ; LivesTabPage retiré du montage onglet.
+
+FICHIERS MODIFIÉS
+-----
+ MainTabNav.tsx, TabNavIcons.tsx, App.tsx
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 620 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 619 — Sidebar carte : profils plus compacts
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les lignes live/salon/personne dans le panneau latéral carte prenaient trop de place.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/NearbyPeoplePanel.tsx
+ ────────────────────────────────────────
+ • Avatar xs (28px), py-1, typo 10px/9px sur lives, salons, personnes, clusters.
+
+ app/src/components/MapCityEventsPanel.tsx
+ ─────────────────────────────────────────
+ • MapEventRow compact pour la sidebar carte.
+
+FICHIERS MODIFIÉS
+-----
+ NearbyPeoplePanel.tsx, MapCityEventsPanel.tsx
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 619 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 618 — Sidebar carte : « Afficher plus » + « Afficher moins » par catégorie
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Chaque catégorie (Suivi / Zone / Suggestions) doit afficher les deux contrôles
+ de pagination lorsqu'elle dépasse 5 items.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/NearbyPeoplePanel.tsx
+ ────────────────────────────────────────
+ • SectionPaginationControls : les deux boutons en bas de chaque catégorie (>5 items).
+ • « Afficher plus » désactivé si tout est visible ; « Afficher moins » si ≤5 items.
+
+FICHIERS MODIFIÉS
+-----
+ NearbyPeoplePanel.tsx
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 618 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 617 — Sidebar carte : replier / déplier les catégories
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L'utilisateur souhaite pouvoir rétracter (replier) chaque catégorie Suivi / Zone /
+ Suggestions dans le panneau latéral carte.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/NearbyPeoplePanel.tsx
+ ────────────────────────────────────────
+ • En-tête cliquable avec chevron + badge count.
+ • État retractedSections par section ; contenu masqué quand replié.
+
+ app/src/locales/fr.json, en.json
+ ────────────────────────────────
+ • sidebarCollapseCategory, sidebarExpandCategory
+
+FICHIERS MODIFIÉS
+-----
+ NearbyPeoplePanel.tsx, locales fr/en
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 617 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 616 — Sidebar carte : toujours afficher les 3 catégories
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les sections Suivi / Zone / Suggestions n'apparaissaient que si elles contenaient
+ des items. L'utilisateur veut les 3 en-têtes visibles pour Lives, Salon et
+ Événement, même vides.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/NearbyPeoplePanel.tsx
+ ────────────────────────────────────────
+ • CollapsibleSidebarSection : label + texte vide si items.length === 0.
+ • Lives / Salon / Événement : 3 sections toujours rendues quand le filtre est actif.
+ • Événements : clusters (overview) ou items (ville/rue), 3 sections chacun.
+
+ app/src/locales/fr.json, en.json
+ ────────────────────────────────
+ • sidebarFollowingEmpty, sidebarSuggestionsEmpty, sidebarEventsLoading
+
+FICHIERS MODIFIÉS
+-----
+ NearbyPeoplePanel.tsx, locales fr/en
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 616 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 615 — Carte : bouton « + Lives » pour créer un live
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Depuis la carte, seul « + Salon » permettait de créer une session. L'utilisateur
+ souhaite un bouton « + Lives » au-dessus pour lancer un live.
+
+CHANGEMENTS / FIX
+-----
+ app/src/hooks/useStartLiveFlow.ts
+ ────────────────────────────────
+ • Hook partagé : Stripe, CGU, modal média, api.startLive.
+
+ app/src/components/StartLiveFlowModals.tsx
+ ─────────────────────────────────────────
+ • Modales réutilisables (média, Stripe, légal).
+
+ app/src/pages/HomePage.tsx
+ ──────────────────────────
+ • FAB bas-gauche : pile « + Lives » puis « + Salon ».
+ • Geo live = centre carte (nearbyQueryCenter).
+
+ app/src/pages/LivesTabPage.tsx
+ ──────────────────────────────
+ • Refactor sur useStartLiveFlow (comportement inchangé).
+
+ app/src/locales/fr.json, en.json
+ ────────────────────────────────
+ • map.createLiveFabAria
+
+FICHIERS MODIFIÉS
+-----
+ useStartLiveFlow.ts, StartLiveFlowModals.tsx, HomePage.tsx, LivesTabPage.tsx, locales
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 615 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 614 — Sidebar carte : « Afficher plus » par paliers de 5
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ « Afficher plus » déployait toute la section d'un coup. L'utilisateur souhaite
+ +5 items à chaque clic ; « Afficher moins » revient aux 5 premiers.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/NearbyPeoplePanel.tsx
+ ────────────────────────────────────────
+ • sectionVisibleCounts + showMoreInSection (+5, plafonné au total).
+ • collapseSection : retour au défaut (5 items).
+ • CollapsibleSidebarSection : visibleCount / onShowMore / onCollapse.
+ • sectionPageProps helper pour toutes les sections (lives, salons, events, people).
+
+FICHIERS MODIFIÉS
+-----
+ app/src/components/NearbyPeoplePanel.tsx → pagination incrémentale
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 614 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 613 — Sidebar carte : 3 catégories aussi pour Salons et Événements
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Seuls les Lives avaient les sections Suivi / Zone / Suggestions dans le panneau
+ latéral carte.
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/mapSidebarContent.ts
+ ────────────────────────────────
+ • salonsFollowing / salons / salonsSuggestions
+ • eventsFollowing / events / eventsSuggestions
+ • eventClustersFollowing / eventClusters / eventClustersSuggestions (overview)
+
+ app/src/components/NearbyPeoplePanel.tsx
+ ────────────────────────────────────────
+ • Rendu 3 sections par filtre Salon et Évènement + pagination 5 items.
+
+ app/src/pages/HomePage.tsx, locales fr/en
+ ─────────────────────────────────────────
+ • Badges filtres : comptage unique sur les 3 sections.
+
+FICHIERS MODIFIÉS
+-----
+ mapSidebarContent.ts, NearbyPeoplePanel.tsx, HomePage.tsx, locales, tests
+
+BUILD (si vérifié)
+-----
+ vitest mapSidebarContent → ✅
+
+================================================================================
+Fin MODIF 613 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 612 — PiP preview : position par défaut (237, 224) + reset à chaque ouverture
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le PiP live preview ne revenait pas systématiquement à la position par défaut
+ (juste à droite de la sidebar carte) : anciennes coords (47, 215) et position
+ conservée lors d'un changement de live sans fermeture.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/DraggableVideoPip.tsx
+ ────────────────────────────────────────
+ • defaultVideoPipPos() → { x: 237, y: 224 }.
+ • Paramètre resetKey : réinitialise la position quand il change.
+
+ app/src/components/LivePipPreviewFloat.tsx
+ ─────────────────────────────────────────
+ • resetKey = live.id.
+
+ app/src/App.tsx
+ ─────────────
+ • livePipOpenSeq : remount du PiP à chaque openLivePipPreview (même live).
+
+FICHIERS MODIFIÉS
+-----
+ DraggableVideoPip.tsx, LivePipPreviewFloat.tsx, App.tsx
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 612 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 611 — PiP live preview : cœur « Suivre » sur la bande
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Depuis le PiP flottant de prévisualisation live (carte), impossible de suivre
+ l'hôte sans rejoindre le live.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/LivePipPreviewFloat.tsx
+ ───────────────────────────────────────────
+ • Bouton cœur (FollowUserButton iconStyle heart) sur la bande draggable.
+ • État initial via getMyFollowing.
+
+ app/src/components/FollowUserButton.tsx
+ ──────────────────────────────────────
+ • Prop iconStyle: 'plus' | 'heart' pour mode iconOnly.
+ • Modal désabonnement z-index 100001 (au-dessus du PiP).
+
+FICHIERS MODIFIÉS
+-----
+ app/src/components/LivePipPreviewFloat.tsx, FollowUserButton.tsx
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 611 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 610 — Sidebar carte : 5 items par catégorie + « Afficher plus »
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La liste latérale carte (Lives, Suggestions, etc.) affichait toutes les
+ entrées d'un coup — liste trop longue à parcourir.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/NearbyPeoplePanel.tsx
+ ─────────────────────────────────────────
+ • CollapsibleSidebarSection : 5 items visibles par défaut par section.
+ • Bouton « Afficher plus (N) » / « Afficher moins » par catégorie.
+
+ app/src/locales/fr.json, en.json
+ ────────────────────────────────
+ • map.sidebarShowMore, map.sidebarShowLess
+
+FICHIERS MODIFIÉS
+-----
+ app/src/components/NearbyPeoplePanel.tsx → pagination sidebar
+ app/src/locales/fr.json, en.json → traductions
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 610 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 609 — Fix PiP live : session démontée avant activation du float
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retour / changement d'onglet depuis un live : le PiP ne restait pas (LivePage
+ démonté car liveVideoFloatActive encore false au re-render).
+
+CHANGEMENTS / FIX
+-----
+ App.tsx
+ ───────
+ • showLivePageShell tant que activeLiveViewerSession existe.
+ • minimizeLiveViewer / selectTab → setLiveVideoFloatActive(true) immédiat.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/App.tsx
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 609 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 608 — Sidebar carte : lives en 3 catégories (Suivi / Lives / Suggestions)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Panneau latéral carte (filtre Lives) : afficher Suivi (lives des comptes
+ suivis), Lives (zone visible selon zoom), Suggestions (plus de viewers).
+
+CHANGEMENTS / FIX
+-----
+ mapSidebarContent.ts
+ ────────────────────
+ • livesFollowing, livesSuggestions + tri viewers ; dédoublonnage sections.
+
+ NearbyPeoplePanel.tsx + HomePage.tsx
+ ───────────────────────────────────
+ • 3 sections libellées ; fetch getMyFollowing pour Suivi.
+
+ locales fr/en → clés map.sidebarLives*
+
+FICHIERS MODIFIÉS
+-----
+ app/src/lib/mapSidebarContent.ts
+ app/src/lib/mapSidebarContent.test.ts
+ app/src/components/NearbyPeoplePanel.tsx
+ app/src/pages/HomePage.tsx
+ app/src/locales/fr.json, en.json
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 608 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 607 — Live : PiP persistant en quittant la page (sans « Quitter le live »)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic Retour ou changement d'onglet pendant un live : le flux doit continuer en
+ PiP flottant au premier plan jusqu'au bouton « Quitter le live » (pattern salon).
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/activeLiveViewerSession.ts
+ ──────────────────────────────────────
+ • Session client live (full / minimized) + persistance sessionStorage.
+
+ app/src/lib/liveVideoFloat.ts
+ ─────────────────────────────
+ • État global PiP live (float active, pending minimize, dispatch event).
+
+ app/src/App.tsx
+ ──────────────
+ • activeLiveViewerSession, showLivePageShell, minimize / leave / restore.
+ • selectTab et Retour → minimize + PiP ; montage LivePage hors overlay (pip-host).
+
+ app/src/pages/LivePage.tsx
+ ────────────────────────
+ • liveFullScreen, onMinimize, onLeaveLive ; PiP auto à la réduction.
+ • leave_live uniquement sur « Quitter » (plus au démontage).
+
+ app/src/components/ActiveLiveBanner.tsx + locales
+ ────────────────────────────────────────────────
+ • Bandeau auditeur/hôte minimisé ; sous-titre viewer distinct.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/lib/activeLiveViewerSession.ts → session live persistante
+ app/src/lib/liveVideoFloat.ts → PiP global
+ app/src/App.tsx → routing session + shell PiP
+ app/src/pages/LivePage.tsx → minimize vs leave
+ app/src/components/ActiveLiveBanner.tsx → bandeau viewer
+ app/src/locales/fr.json, en.json → activeBannerSubtitleViewer
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 607 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 606 — Live : bouton Suivre l'hôte (remplace S'abonner)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Bandeau auditeur live : le bouton « S'abonner » (abonnement payant) doit être
+ remplacé par un follow gratuit de l'hôte.
+
+CHANGEMENTS / FIX
+-----
+ LivePage.tsx
+ ────────────
+ • FollowUserButton à la place du bouton subscribe ; fetch getMyFollowing.
+ • Retrait CreatorSubscribeSheet de cette barre.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/pages/LivePage.tsx
+
+================================================================================
+Fin MODIF 606 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 605 — LiveDonationSheet : menu dons personnalisé hôte
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Afficher dans le sheet pourboires le catalogue récompenses configuré par l'hôte
+ (panel Rewards), sinon conserver les paliers par défaut (1 / 2 / 5 €).
+
+CHANGEMENTS / FIX
+-----
+ liveDonationOptions.ts (nouveau)
+ ────────────────────────────────
+ • Sync socket live_update_donation_options si catalogue ≠ défaut.
+
+ backend : Live.donationOptions, socket, serializePublicLive.
+
+ LiveDonationSheet.tsx
+ ─────────────────────
+ • Grille libellé + montant si hostDonationOptions présent.
+
+ LivePage.tsx, liveHostSession.ts
+ ────────────────────────────────
+ • Publication auto à la modification du catalogue ; resync hôte au mount.
+
+FICHIERS MODIFIÉS
+-----
+ liveDonationOptions.ts, LiveDonationSheet.tsx, LivePage.tsx, liveHostSession.ts,
+ liveHostTypes.ts, types.ts, schema.ts, livePublic.ts, socket.ts
+
+BUILD (si vérifié)
+-----
+ app/ + backend/ → ✅
+
+================================================================================
+Fin MODIF 605 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 604 — Onglet Lives : vignettes plus compactes
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Grille Suggestions/Suivi : miniatures trop grandes sur desktop (~2 colonnes pleine largeur).
+
+CHANGEMENTS / FIX
+-----
+ LivesTabPage.tsx
+ ────────────────
+ • Grille responsive : 2 → 3 → 4 → 5 colonnes (sm/lg/xl).
+ • Vignette h-[5.75rem] mobile, aspect-video à partir de sm.
+ • Avatar et titres légèrement réduits.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/pages/LivesTabPage.tsx
+
+================================================================================
+Fin MODIF 604 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 603 — Modal live : géoloc ou ville pour la position sur la carte
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Au démarrage d'un live (notamment mode démo sans caméra), impossible de choisir
+ où le live apparaît sur la carte — repli sur le centre carte des filtres.
+
+CHANGEMENTS / FIX
+-----
+ LiveStartLocationPicker.tsx (nouveau)
+ ────────────────────────────────────
+ • Bouton « Ma position » (géolocalisation) + liste de villes (PRESET_CITIES).
+
+ StartLiveMediaSetupModal.tsx
+ ────────────────────────────
+ • Section position visible en phase config et erreur ; coords persistées en brouillon.
+
+ liveMediaPrefs.ts
+ ─────────────────
+ • startLatitude, startLongitude, startLocationLabel, startLocationSource.
+
+ LivesTabPage.tsx
+ ────────────────
+ • startLive utilise la position choisie dans le modal.
+
+FICHIERS MODIFIÉS
+-----
+ LiveStartLocationPicker.tsx, StartLiveMediaSetupModal.tsx, liveMediaPrefs.ts, LivesTabPage.tsx
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 603 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 602 — PiP preview : position par défaut (47, 215)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Position par défaut des PiP preview (live + salon) à réajuster sous le bandeau.
+
+CHANGEMENTS / FIX
+-----
+ DraggableVideoPip.tsx
+ ─────────────────────
+ • defaultVideoPipPos() : { x: 47, y: 215 } (était 46, 312).
+
+FICHIERS MODIFIÉS
+-----
+ app/src/components/DraggableVideoPip.tsx
+
+================================================================================
+Fin MODIF 602 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 601 — msdev : lives France (Montpellier, Occitanie) toujours visibles
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Pas de live visible en France sur la carte msdev (hors Paris) — besoin de
+ lives de démo en Occitanie / Montpellier pour tester le PiP live.
+
+CHANGEMENTS / FIX
+-----
+ seed-msdev.ts
+ ─────────────
+ • ensureMsdevFranceSalonLives() : seed idempotent seedProductionSalonsLives
+   + réactivation des 5 lives France inactifs.
+
+ bootstrap.ts
+ ────────────
+ • Appel ensureMsdevFranceSalonLives() au démarrage msdev.
+
+FICHIERS MODIFIÉS
+-----
+ backend/src/seed-msdev.ts, backend/src/bootstrap.ts
+
+BUILD (si vérifié)
+-----
+ backend/ → npx tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 601 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 600 — PiP preview salon : position par défaut (46, 312)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le PiP preview salon (SalonPipPreviewFloat) s'affichait trop haut à gauche
+ (17, 228) au lieu de la zone sous le bandeau salon sur la carte.
+
+CHANGEMENTS / FIX
+-----
+ DraggableVideoPip.tsx
+ ─────────────────────
+ • defaultVideoPipPos() exportée : { x: 46, y: 312 }.
+
+ SalonPipPreviewFloat.tsx
+ ────────────────────────
+ • Réutilise defaultVideoPipPos() (plus de doublon local).
+
+FICHIERS MODIFIÉS
+-----
+ DraggableVideoPip.tsx, SalonPipPreviewFloat.tsx
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 600 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 599 — Bandeau salon/live : visibilité tous onglets + bandeau live hôte
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Bandeau salon invisible sur vue profil (view.type=profile) et aucun bandeau
+ pour les lives actifs côté hôte.
+
+CHANGEMENTS / FIX
+-----
+ App.tsx
+ ───────
+ • showActiveSalonBanner : view.type !== 'live' (au lieu de === 'home').
+ • showActiveLiveBanner : user.isLive && user.liveId hors page live plein écran.
+ • Import ActiveLiveBanner.
+
+ ActiveLiveBanner.tsx (nouveau)
+ ──────────────────────────────
+ • Bandeau rouge « EN DIRECT » avec titre, nombre spectateurs, bouton Reprendre.
+
+ locales/fr.json, en.json
+ ─────────────────────────
+ • returnToLive, returnToLiveHost, returnToLiveBtn, liveBadge.
+
+FICHIERS MODIFIÉS
+-----
+ App.tsx, ActiveLiveBanner.tsx, fr.json, en.json
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 599 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 598 — Bandeau salon actif visible sur tous les onglets
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Bandeau salon hébergé (MapHostedSalonBanner) invisible : limité à l'onglet
+ Carte (map cachée hors map) et aux hôtes avec isHost strict.
+
+CHANGEMENTS / FIX
+-----
+ ActiveSalonSessionBanner.tsx (nouveau)
+ ────────────────────────────────────
+ • Bandeau global sous le header, fetch salon API.
+
+ App.tsx
+ ───────
+ • Affichage si session active + salon non plein écran.
+ • isHost : fallback user.salonId ; restauration session hôte prioritaire.
+
+ HomePage.tsx — retrait du bandeau local (doublon).
+
+ MapHostedSalonBanner.tsx — prop ctaLabel optionnelle.
+
+FICHIERS MODIFIÉS
+-----
+ ActiveSalonSessionBanner, App, HomePage, MapHostedSalonBanner
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 598 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 597 — Chat salon aligné sur hauteur hero vidéo (sync dynamique)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Colonne chat plus haute que la vidéo hero (grid étiré par flex overlay +
+ align-content: stretch). Chat ne suivait pas la hauteur réelle 16:9.
+
+CHANGEMENTS / FIX
+-----
+ SalonPlaybackPanel.tsx
+ ────────────────────
+ • ResizeObserver sur `.salon-theater-hero-wrap` → CSS var --salon-theater-hero-h.
+
+ app/src/index.css, apptel/src/index.css
+ ───────────────────────────────────────
+ • Dock chat match-hero : height/max-height = var(--salon-theater-hero-h).
+ • Hero + chat align-self: start ; overlay align-content: start.
+ • Scroll messages match-hero : height: 0 (flex).
+
+FICHIERS MODIFIÉS
+-----
+ SalonPlaybackPanel.tsx, index.css (app + apptel)
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 597 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 596 — PiP salon minimisé : bouton Quitter
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Après réduction du salon ou changement d'onglet, le PiP vidéo flottant ne
+ proposait pas de quitter la session (seulement ↙ rouvrir le salon).
+
+CHANGEMENTS / FIX
+-----
+ SalonYouTubePlayer.tsx, SalonPlaybackPanel.tsx, SalonPage.tsx
+ ─────────────────────────────────────────────────────────────
+ • Bouton « Quitter » dans l'en-tête PiP quand salonFullScreen=false.
+ • ↙ libellé « Rouvrir le salon » en mode minimisé.
+
+ app/src/locales/fr.json, en.json
+ ────────────────────────────────
+ • leaveSalonPip, restoreSalonPip, anchorVideoPip.
+
+FICHIERS MODIFIÉS
+-----
+ SalonYouTubePlayer, SalonPlaybackPanel, SalonPage, locales
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 596 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 595 — Recherche YouTube dock : titres vidéo lisibles
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Dans l'onglet File du dock chat (layout inline étroit), titre + boutons
+ « Lire maintenant / Ajouter à la file » étaient sur une seule ligne — titres
+ tronqués ou illisibles.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/SalonYouTubeSearch.tsx
+ ────────────────────────────────────────
+ • Résultats inline : carte 2 lignes (miniature+titre, boutons en dessous).
+ • Titre : line-clamp-2 au lieu de truncate.
+ • Boutons courts : « Lire » / « Ajouter ».
+
+FICHIERS MODIFIÉS
+-----
+ SalonYouTubeSearch.tsx
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 595 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 594 — Salon théâtre : chat aligné sur la vidéo hero
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En layout match-hero (salon YouTube), le dock chat dépassait la hauteur de la
+ vidéo (550px fixe + grid-row 1/3 incluant les contrôles).
+
+CHANGEMENTS / FIX
+-----
+ app/src/index.css
+ ─────────────────
+ • `.chat-messages-scroll` : flex 1 au lieu de 550px fixe.
+ • `.room-theater-chat-dock--theater` match-hero : grid-row 1/2 (hauteur hero).
+
+ apptel/src/index.css
+ ────────────────────
+ • Même grid-row 1/2 pour Capacitor.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/index.css, apptel/src/index.css
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 594 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 593 — Fix arrêt salon hôte + modale confirmation
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ « Arrêter le salon » ne fermait pas la session : user.salonId restait en cache
+ dans AuthContext, l'effet App.tsx recréait activeSalonSession immédiatement.
+ La modale de confirmation pouvait passer sous l'overlay salon (z-index).
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/SalonPage.tsx
+ ────────────────────────────
+ • handleEndSalon : clear salonId/salonTitle + refreshUser() avant onLeaveSalon.
+
+ app/src/App.tsx
+ ───────────────
+ • handleSalonForcedEnd : refreshUser() si session hôte.
+
+ app/src/components/ConfirmModal.tsx
+ ──────────────────────────────────
+ • Portal document.body, z-[110], bottom-sheet mobile.
+
+FICHIERS MODIFIÉS
+-----
+ SalonPage.tsx, App.tsx, ConfirmModal.tsx
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 593 — 2026-06-22
+================================================================================
+================================================================================
 MODIF 592 — Live host : goals, rewards et barre de progression dons
 Date : 2026-06-22
 ================================================================================

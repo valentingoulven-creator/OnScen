@@ -39,6 +39,7 @@ import { adminSponsorsRouter } from './routes/adminSponsors';
 import { adminCloudflareRouter } from './routes/adminCloudflare';
 import { newsRouter } from './routes/news';
 import { sponsorsRouter } from './routes/sponsors';
+import { musicRouter } from './routes/music';
 import { trendingRouter } from './routes/trending';
 import { supportRouter, supportAdminRouter } from './routes/support';
 import { pushRouter } from './routes/push';
@@ -502,6 +503,7 @@ app.use('/api/analytics', analyticsRouter);
 app.use('/api/news', newsRouter);
 app.use('/api/sponsors', sponsorsRouter);
 app.use('/api/trending', trendingRouter);
+app.use('/api/music', musicRouter);
 app.use('/api/push', pushRouter);
 
 app.get('/api/config', (_req, res) => {

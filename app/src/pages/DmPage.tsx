@@ -13,6 +13,8 @@ import { CreateSalonModal, type CreateSalonModalPreset } from '../components/Cre
 import { UserAvatarOnline } from '../components/UserAvatarOnline';
 import { UsernameDisplay } from '../components/UsernameDisplay';
 import { LinkifiedText } from '../components/LinkifiedText';
+import { verifyInternalLink } from '../lib/internalLinkCheck';
+import type { InternalLinkTarget } from '../lib/linkifyText';
 import { ConfirmModal } from '../components/ConfirmModal';
 import {
   getSupportLastPreview,
@@ -334,6 +336,7 @@ export function DmPage({
     confirmLabel?: string;
     onConfirm: () => void | Promise<void>;
   } | null>(null);
+  const [linkUnavailableMsg, setLinkUnavailableMsg] = useState<string | null>(null);
   const lastTapByMsgRef = useRef<Map<string, number>>(new Map());
   const newDmInputRef = useRef<HTMLInputElement>(null);
   const supportThreadEndRef = useRef<HTMLDivElement | null>(null);
@@ -348,6 +351,19 @@ export function DmPage({
   const filteredContacts = useMemo(
     () => contacts.filter((c) => contactMatchesQuery(c, contactSearch)),
     [contacts, contactSearch]
+  );
+
+  const onBeforeInternalLink = useCallback(
+    async (target: InternalLinkTarget) => {
+      if (!token) return true;
+      const result = await verifyInternalLink(token, target, t);
+      if (!result.ok) {
+        setLinkUnavailableMsg(result.message);
+        return false;
+      }
+      return true;
+    },
+    [token, t]
   );
 
   const filteredBlockedUsers = useMemo(
@@ -1229,19 +1245,31 @@ export function DmPage({
   };
 
   const renderConfirmModal = () => (
-    <ConfirmModal
-      open={pendingConfirm !== null}
-      title={pendingConfirm?.title ?? ''}
-      description={pendingConfirm?.description}
-      confirmLabel={pendingConfirm?.confirmLabel ?? 'Supprimer'}
-      onCancel={() => setPendingConfirm(null)}
-      onConfirm={() => {
-        if (!pendingConfirm) return;
-        void Promise.resolve(pendingConfirm.onConfirm()).catch((e: unknown) => {
-          alert(e instanceof Error ? e.message : 'Impossible de supprimer');
-        });
-      }}
-    />
+    <>
+      <ConfirmModal
+        open={pendingConfirm !== null}
+        title={pendingConfirm?.title ?? ''}
+        description={pendingConfirm?.description}
+        confirmLabel={pendingConfirm?.confirmLabel ?? 'Supprimer'}
+        onCancel={() => setPendingConfirm(null)}
+        onConfirm={() => {
+          if (!pendingConfirm) return;
+          void Promise.resolve(pendingConfirm.onConfirm()).catch((e: unknown) => {
+            alert(e instanceof Error ? e.message : 'Impossible de supprimer');
+          });
+        }}
+      />
+      <ConfirmModal
+        open={linkUnavailableMsg !== null}
+        title={t('dm.linkUnavailableTitle')}
+        description={linkUnavailableMsg ?? undefined}
+        confirmLabel={t('common.close')}
+        alertOnly
+        destructive={false}
+        onCancel={() => setLinkUnavailableMsg(null)}
+        onConfirm={() => setLinkUnavailableMsg(null)}
+      />
+    </>
   );
 
   const memberIdsSet = useMemo(
@@ -2365,6 +2393,7 @@ export function DmPage({
                         onOpenProfile={onOpenProfile}
                         onOpenSalon={onOpenSalon}
                         onOpenFeedPost={onOpenFeedPost}
+                        onBeforeInternalLink={onBeforeInternalLink}
                       />
                     )}
                     {m.attachmentUrl && (
@@ -2777,6 +2806,7 @@ export function DmPage({
                           onOpenProfile={onOpenProfile}
                           onOpenSalon={onOpenSalon}
                           onOpenFeedPost={onOpenFeedPost}
+                          onBeforeInternalLink={onBeforeInternalLink}
                         />
                         <p className={`text-[10px] mt-1 ${isMe ? 'text-purple-200' : 'text-gray-500'}`}>
                           {formatTime(m.timestamp)}

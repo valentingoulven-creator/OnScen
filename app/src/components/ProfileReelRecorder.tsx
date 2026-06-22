@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { notifyReelsUpdated } from '../lib/reelsRefresh';
 import { api } from '../lib/api';
+import type { MusicReel } from '../content/reels';
 import {
   REEL_RECORD_MAX_SEC,
   REEL_RECORD_AUDIO_BITS_PER_SEC,
@@ -17,12 +19,19 @@ import {
 interface ProfileReelRecorderProps {
   token: string;
   defaultArtist?: string;
-  onSaved: () => void;
+  onSaved: (reel?: MusicReel) => void;
+  /** Dans une modale (sans carte section externe). */
+  embedded?: boolean;
 }
 
 type Phase = 'idle' | 'camera' | 'recording' | 'review' | 'imported';
 
-export function ProfileReelRecorder({ token, defaultArtist = '', onSaved }: ProfileReelRecorderProps) {
+export function ProfileReelRecorder({
+  token,
+  defaultArtist = '',
+  onSaved,
+  embedded = false,
+}: ProfileReelRecorderProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -227,9 +236,10 @@ export function ProfileReelRecorder({ token, defaultArtist = '', onSaved }: Prof
         );
         return;
       }
-      await api.createReel(token, body);
+      const res = await api.createReel(token, body);
       resetToIdle();
-      onSaved();
+      notifyReelsUpdated();
+      onSaved(res.reel);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Enregistrement impossible');
     } finally {
@@ -266,14 +276,22 @@ export function ProfileReelRecorder({ token, defaultArtist = '', onSaved }: Prof
 
   const showReviewForm = phase === 'review' || phase === 'imported';
 
-  return (
-    <section className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4 space-y-4">
-      <div>
-        <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider">Enregistrer</h3>
-        <p className="text-[11px] text-gray-500 mt-1">
-          Vos reels enregistrés restent privés sur votre profil. Ils n’apparaissent pas dans l’onglet Reels public.
+  const content = (
+    <>
+      {!embedded && (
+        <div>
+          <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider">Enregistrer</h3>
+          <p className="text-[11px] text-gray-500 mt-1">
+            Vos reels enregistrés restent privés sur votre profil. Ils n’apparaissent pas dans l’onglet Reels public.
+          </p>
+        </div>
+      )}
+
+      {embedded && (
+        <p className="text-[11px] text-gray-500 leading-snug">
+          Enregistrez ou importez une vidéo. Le reel est d’abord privé — vous pourrez le publier dans le flux ensuite.
         </p>
-      </div>
+      )}
 
       {(cameraError || error) && (
         <p className="text-sm text-red-400 bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2">
@@ -415,6 +433,16 @@ export function ProfileReelRecorder({ token, defaultArtist = '', onSaved }: Prof
           </div>
         </form>
       )}
+    </>
+  );
+
+  if (embedded) {
+    return <div className="space-y-4">{content}</div>;
+  }
+
+  return (
+    <section className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-4 space-y-4">
+      {content}
     </section>
   );
 }

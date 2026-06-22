@@ -7,6 +7,7 @@ import { CURRENT_TERMS_VERSION, type LegalKey } from '../content/legal';
 import { peekPendingSalonJoin } from '../lib/salonDeepLink';
 import { forgotPasswordHref } from '../lib/forgotPasswordRoute';
 import { api } from '../lib/api';
+import { SoundyLogo } from '../components/SoundyLogo';
 import { PasswordStrengthBar } from '../components/PasswordStrengthBar';
 import { getPasswordStrength } from '../lib/passwordStrength';
 import type { PublicAccessConfig, User } from '../types';
@@ -490,12 +491,7 @@ export function AuthPage() {
     <div className="min-h-dvh flex flex-col items-center justify-center p-6 bg-[#0b0b0f]">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 items-center justify-center text-2xl mb-4">
-            ♪
-          </div>
-          <h1 className="text-3xl font-extrabold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-            {t('app.name')}
-          </h1>
+          <SoundyLogo className="h-12 sm:h-14 w-auto mx-auto mb-4" />
           <p className="text-gray-400 text-sm mt-2">{t('app.tagline')}</p>
         </div>
 

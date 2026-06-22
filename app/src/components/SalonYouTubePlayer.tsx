@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import {
   VIDEO_PIP_HEADER_HEIGHT,
   VIDEO_PIP_WIDTH,
@@ -118,6 +119,8 @@ interface SalonYouTubePlayerProps {
   videoFloat?: VideoPipFloatApi;
   /** Titre affiché dans la barre de drag du PiP flottant. */
   videoFloatTitle?: string;
+  /** Salon minimisé / navigation — quitter la session depuis le PiP. */
+  onLeaveSalon?: () => void;
 }
 
 function applySync(
@@ -204,7 +207,9 @@ export function SalonYouTubePlayer({
   participantSyncTrigger,
   videoFloat,
   videoFloatTitle = 'Vidéo',
+  onLeaveSalon,
 }: SalonYouTubePlayerProps) {
+  const { t } = useTranslation();
   const apiReady = useYouTubeIframeApi();
   const containerRef = useRef<HTMLDivElement>(null);
   /** Boîte 16:9 réelle (stage théâtre ou surface aspect-video). */
@@ -937,13 +942,25 @@ export function SalonYouTubePlayer({
           <p className="text-[9px] font-bold text-purple-400 uppercase tracking-widest flex-1 truncate min-w-0">
             {videoFloatTitle}
           </p>
+          {onLeaveSalon ? (
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={onLeaveSalon}
+              className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-semibold text-red-300 hover:text-white hover:bg-red-600/30 transition"
+              title={t('salon.leaveSalon')}
+              aria-label={t('salon.leaveSalon')}
+            >
+              {t('salon.leaveSalonPip', { defaultValue: 'Quitter' })}
+            </button>
+          ) : null}
           <button
             type="button"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={videoFloat.onClose}
             className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 transition text-sm"
-            title="Ancrer la vidéo"
-            aria-label="Ancrer la vidéo"
+            title={onLeaveSalon ? t('salon.restoreSalonPip', { defaultValue: 'Rouvrir le salon' }) : t('salon.anchorVideoPip', { defaultValue: 'Ancrer la vidéo' })}
+            aria-label={onLeaveSalon ? t('salon.restoreSalonPip', { defaultValue: 'Rouvrir le salon' }) : t('salon.anchorVideoPip', { defaultValue: 'Ancrer la vidéo' })}
           >
             ↙
           </button>

@@ -21,6 +21,7 @@ import { emitOnSocket, getSocket, onSocketConnect } from '../lib/socket';
 import { setActiveHostLiveId } from '../lib/liveHostContext';
 import {
   clearPendingLiveCameraStart,
+  getLiveMediaPrefs,
   hasPendingLiveCameraStart,
 } from '../lib/liveMediaPrefs';
 import { ChatRoomProvider, ChatMessagesView, ChatInputBar, ChatModals } from '../components/ChatPanel';
@@ -34,9 +35,10 @@ import { LiveRewardRequestsStrip } from '../components/LiveRewardRequestsStrip';
 import { LiveVideoGoalOverlay } from '../components/LiveVideoGoalOverlay';
 import { useLiveHostSession } from '../hooks/useLiveHostSession';
 import { firstActiveGoal, withGoalProgress, type GoalProgressStats } from '../lib/liveGoalProgress';
-import { enqueueRewardFromGift, patchLiveHostSession } from '../lib/liveHostSession';
+import { enqueueRewardFromGift, getLiveHostSession, patchLiveHostSession } from '../lib/liveHostSession';
+import { rewardsMenuIsCustomized, syncLiveDonationOptions } from '../lib/liveDonationOptions';
 import { LiveDonationSheet } from '../components/LiveDonationSheet';
-import { CreatorSubscribeSheet } from '../components/CreatorSubscribeSheet';
+import { FollowUserButton } from '../components/FollowUserButton';
 import { LiveGiftOverlay } from '../components/LiveGiftOverlay';
 import { LiveParticipantsPopover } from '../components/LiveParticipantsPopover';
 import { ShareLinkMenu } from '../components/ShareLinkMenu';
@@ -45,7 +47,13 @@ import { LiveVideoStage } from '../components/LiveVideoStage';
 import { LiveKitVideoStage } from '../components/LiveKitVideoStage';
 import { LiveCloudflareHostPanel } from '../components/LiveCloudflareHostPanel';
 import { ReportContentModal } from '../components/ReportContentModal';
-import { useDraggableVideoPip } from '../components/DraggableVideoPip';
+import { useDraggableVideoPip, defaultVideoPipPos } from '../components/DraggableVideoPip';
+import {
+  consumeLiveMinimizePipPending,
+  getLiveVideoFloatActive,
+  setLiveVideoFloatActive,
+  subscribeLiveVideoFloat,
+} from '../lib/liveVideoFloat';
 import type { ChatMessage, DmContact, Live, AppNotification, PlaybackState } from '../types';
 
 const SOUNDY_BASE_URL = 'https://getsoundy.com';
@@ -56,12 +64,23 @@ const LIVE_CHAT_HIDDEN_KEY = 'melosong_live_chat_hidden';
 export function LivePage({
   liveId,
   onBack,
+  onMinimize,
+  onLeaveLive,
+  onLiveTitleLoaded,
   onOpenProfile,
+  liveFullScreen = true,
   initialTheater = false,
 }: {
   liveId: string;
   onBack: () => void;
+  /** Retour / changement d'onglet sans quitter le live (PiP persistant). */
+  onMinimize?: () => void;
+  /** Quitter définitivement le live (leave_live + fin de session). */
+  onLeaveLive?: () => void;
+  onLiveTitleLoaded?: (title?: string) => void;
   onOpenProfile?: (userId: string) => void;
+  /** Grand live plein écran vs session minimisée (PiP flottant). */
+  liveFullScreen?: boolean;
   /** Ouvre directement en mode plein écran CSS (theater) dès le premier rendu. */
   initialTheater?: boolean;
 }) {
@@ -74,11 +93,9 @@ export function LivePage({
   const [chatMinimized, setChatMinimized] = useState(false);
   const [privateTarget, setPrivateTarget] = useState<DmContact | null>(null);
   const [showDonSheet, setShowDonSheet] = useState(false);
-  const [showSubscribeSheet, setShowSubscribeSheet] = useState(false);
   const [reportLiveOpen, setReportLiveOpen] = useState(false);
   const [donInitialAmount, setDonInitialAmount] = useState<number | undefined>();
   const [donToast, setDonToast] = useState<string | null>(null);
-  const [subscribeToast, setSubscribeToast] = useState<string | null>(null);
   const [hostDonToast, setHostDonToast] = useState<string | null>(null);
   const [cameraToast, setCameraToast] = useState<string | null>(null);
   const [cameraToggling, setCameraToggling] = useState(false);
@@ -90,6 +107,7 @@ export function LivePage({
   const [hostDonationCount, setHostDonationCount] = useState(0);
   const [micMuted, setMicMuted] = useState(false);
   const [goalTick, setGoalTick] = useState(() => Date.now());
+  const [hostFollowing, setHostFollowing] = useState(false);
   const { session: hostSession } = useLiveHostSession(liveId);
   const [showCfHostPanel, setShowCfHostPanel] = useState(true);
   const [cfProvisioning, setCfProvisioning] = useState(false);
@@ -108,8 +126,51 @@ export function LivePage({
   const [archivedPlaybackUrl, setArchivedPlaybackUrl] = useState<string | null>(null);
   const [durationWarning, setDurationWarning] = useState(false);
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
-  const [livePipActive, setLivePipActive] = useState(false);
-  const livePip = useDraggableVideoPip(livePipActive, () => setLivePipActive(false));
+  const [livePipActive, setLivePipActiveState] = useState(getLiveVideoFloatActive);
+  const livePipActiveRef = useRef(livePipActive);
+  livePipActiveRef.current = livePipActive;
+  const setLivePipActive = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
+    const prev = livePipActiveRef.current;
+    const next = typeof value === 'function' ? value(prev) : value;
+    if (next === prev) return;
+    setLiveVideoFloatActive(next);
+    setLivePipActiveState(next);
+  }, []);
+  const livePip = useDraggableVideoPip(livePipActive, () => setLivePipActive(false), defaultVideoPipPos);
+  const leavingLiveRef = useRef(false);
+
+  useEffect(
+    () =>
+      subscribeLiveVideoFloat(() => {
+        const next = getLiveVideoFloatActive();
+        setLivePipActiveState((prev) => (prev === next ? prev : next));
+      }),
+    []
+  );
+
+  useEffect(() => {
+    if (liveFullScreen) {
+      setLivePipActive(false);
+    }
+  }, [liveId, liveFullScreen, setLivePipActive]);
+
+  /** Réduction live plein écran → PiP vidéo persistant jusqu'à « Quitter le live ». */
+  useEffect(() => {
+    if (liveFullScreen) return;
+    if (!consumeLiveMinimizePipPending()) return;
+    setLivePipActive(true);
+  }, [liveFullScreen, setLivePipActive]);
+
+  const handleMinimize = onMinimize ?? onBack;
+  const handleLeaveLive = useCallback(() => {
+    leavingLiveRef.current = true;
+    emitOnSocket('leave_live', { liveId });
+    if (onLeaveLive) {
+      onLeaveLive();
+    } else {
+      onBack();
+    }
+  }, [liveId, onBack, onLeaveLive]);
   const {
     videoRef,
     active: cameraLocalActive,
@@ -171,6 +232,7 @@ export function LivePage({
       .then(async (r) => {
         setLive(r.live);
         setViewers(r.live.viewersCount);
+        onLiveTitleLoaded?.(r.live.title);
         if (!r.live.isActive) {
           if (r.live.streamMode === 'cloudflare') {
             try {
@@ -194,7 +256,7 @@ export function LivePage({
         }
       });
     api.liveChat(token, liveId).then((r) => setChatMessages(r.messages));
-  }, [liveId, token, user?.id]);
+  }, [liveId, token, user?.id, onLiveTitleLoaded]);
 
   useEffect(() => {
     if (!user) return;
@@ -247,7 +309,6 @@ export function LivePage({
     socket.on('live_join_denied', onJoinDenied);
     return () => {
       offReconnect();
-      socket.emit('leave_live', { liveId });
       socket.off('live_updated', onUpdate);
       socket.off('playback_sync', onPlayback);
       socket.off('salon_playback', onPlayback);
@@ -359,6 +420,7 @@ export function LivePage({
       if (scope === 'live') {
         setLiveViewBanned(true);
         setLiveViewBanMessage(payload.message);
+        leavingLiveRef.current = true;
         emitOnSocket('leave_live', { liveId });
         return;
       }
@@ -385,6 +447,47 @@ export function LivePage({
 
   const isHost = live?.hostId === user?.id;
   isHostRef.current = isHost;
+
+  const viewerDonationOptions = useMemo(
+    () => live?.donationOptions?.filter((o) => o.label?.trim() && o.amount >= 1 && o.amount <= 100) ?? [],
+    [live?.donationOptions]
+  );
+
+  const giftOverlayTiers = useMemo(
+    () =>
+      viewerDonationOptions.length > 0
+        ? [...new Set(viewerDonationOptions.map((o) => o.amount))].sort((a, b) => a - b)
+        : undefined,
+    [viewerDonationOptions]
+  );
+
+  useEffect(() => {
+    if (!token || !live?.hostId || isHost) {
+      setHostFollowing(false);
+      return;
+    }
+    let cancelled = false;
+    api
+      .getMyFollowing(token)
+      .then((r) => {
+        if (!cancelled) setHostFollowing(r.followingIds.includes(live.hostId));
+      })
+      .catch(() => {
+        if (!cancelled) setHostFollowing(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, live?.hostId, isHost]);
+
+  useEffect(() => {
+    if (!isHost || !liveId || !live?.isActive) return;
+    const session = getLiveHostSession(liveId);
+    if (rewardsMenuIsCustomized(session.rewards)) {
+      syncLiveDonationOptions(liveId, session.rewards);
+    }
+  }, [isHost, liveId, live?.isActive]);
+
   const viewerStreamEnded = !isHost && streamEndedReason !== null && live?.isActive === false;
   const streamEndedTitle = t('live.streamEnded');
   const streamEndedHint = streamEndedReason
@@ -633,6 +736,10 @@ export function LivePage({
   useEffect(() => {
     if (!live || !isHost || cameraLocalActive) return;
     if (!hasPendingLiveCameraStart()) return;
+    if (getLiveMediaPrefs()?.demoNoMedia) {
+      clearPendingLiveCameraStart();
+      return;
+    }
     if (isLiveKitStream) {
       emitCameraState(true, 'camera');
       setLive((prev) => (prev ? { ...prev, cameraActive: true, cameraMode: 'camera' } : prev));
@@ -774,17 +881,18 @@ export function LivePage({
   const stopLive = async () => {
     if (!token || live?.hostId !== user?.id) return;
     releaseHostLiveMedia();
+    leavingLiveRef.current = true;
     emitOnSocket('leave_live', { liveId });
     try {
       await api.stopLive(token);
     } finally {
-      onBack();
+      if (onLeaveLive) onLeaveLive();
+      else onBack();
     }
   };
 
   const leaveLive = () => {
-    emitOnSocket('leave_live', { liveId });
-    onBack();
+    handleLeaveLive();
   };
 
   const toggleHostCamera = async () => {
@@ -966,7 +1074,7 @@ export function LivePage({
         <p className="text-gray-400 text-sm max-w-md">{liveViewBanMessage ?? t('live.accessDeniedDefault')}</p>
         <button
           type="button"
-          onClick={onBack}
+          onClick={handleLeaveLive}
           className="px-5 py-2.5 rounded-full bg-purple-600 text-white font-bold text-sm hover:bg-purple-500"
         >
           Retour
@@ -983,7 +1091,7 @@ export function LivePage({
         <p className="text-gray-400 text-sm max-w-sm">{t('live.streamEndedDuration')}</p>
         <button
           type="button"
-          onClick={onBack}
+          onClick={handleLeaveLive}
           className="px-5 py-2.5 rounded-full bg-purple-600 text-white font-bold text-sm hover:bg-purple-500"
         >
           {t('live.streamEndedBack')}
@@ -1138,33 +1246,12 @@ export function LivePage({
           token={token}
           userAge={user?.age}
           initialAmount={donInitialAmount}
+          hostDonationOptions={viewerDonationOptions.length > 0 ? viewerDonationOptions : undefined}
           onSuccess={(message) => {
             setDonToast(message);
             window.setTimeout(() => setDonToast(null), 2500);
           }}
         />
-      )}
-
-      {showSubscribeSheet && !isHost && hostCanReceiveDonations && token && live && (
-        <CreatorSubscribeSheet
-          open={showSubscribeSheet}
-          onClose={() => setShowSubscribeSheet(false)}
-          token={token}
-          userAge={user?.age}
-          creatorId={live.hostId}
-          creatorName={live.hostName}
-          targetType="creator"
-          onSuccess={(message) => {
-            setSubscribeToast(message);
-            window.setTimeout(() => setSubscribeToast(null), 4000);
-          }}
-        />
-      )}
-
-      {subscribeToast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] max-w-[90vw] px-4 py-2.5 rounded-xl bg-purple-950/90 border border-purple-500/40 text-sm text-purple-100 font-medium shadow-lg backdrop-blur text-center">
-          {subscribeToast}
-        </div>
       )}
 
       {privateTarget && (
@@ -1192,7 +1279,7 @@ export function LivePage({
         title={live.title}
         viewers={viewers}
         remainingMs={remainingMs}
-        onBack={onBack}
+        onBack={handleMinimize}
         onShare={handleShareLive}
         centerControls={
           isHost ? <StopLiveButton compact onStop={() => void stopLive()} /> : undefined
@@ -1230,16 +1317,15 @@ export function LivePage({
               <span className="hidden sm:inline">{t('live.headerDonate')}</span>
             </button>
           )}
-          {hostCanReceiveDonations && token && (
-            <button
-              type="button"
-              onClick={() => setShowSubscribeSheet(true)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold border border-purple-500/35 bg-purple-950/50 text-purple-200 hover:bg-purple-900/60 transition min-h-[36px]"
-            >
-              <span aria-hidden>⭐</span>
-              <span className="sm:hidden">{t('live.headerSubscribeShort')}</span>
-              <span className="hidden sm:inline">{t('live.headerSubscribe')}</span>
-            </button>
+          {token && live && (
+            <FollowUserButton
+              userId={live.hostId}
+              username={live.hostName}
+              initialFollowing={hostFollowing}
+              compact
+              className="shrink-0"
+              onFollowingChange={setHostFollowing}
+            />
           )}
           <button
             type="button"
@@ -1409,7 +1495,12 @@ export function LivePage({
                 !isHost && !viewerStreamEnded ? (
                   <>
                     {hostCanReceiveDonations && (
-                      <LiveGiftOverlay liveId={liveId} visible onOpenGiftSheet={openDonSheet} />
+                      <LiveGiftOverlay
+                        liveId={liveId}
+                        visible
+                        tiers={giftOverlayTiers}
+                        onOpenGiftSheet={openDonSheet}
+                      />
                     )}
                   </>
                 ) : (
@@ -1470,7 +1561,12 @@ export function LivePage({
                 ) : null}
                 {hostVideoOverlay}
                 {!isHost && hostCanReceiveDonations && !viewerStreamEnded ? (
-                  <LiveGiftOverlay liveId={liveId} visible onOpenGiftSheet={openDonSheet} />
+                  <LiveGiftOverlay
+                    liveId={liveId}
+                    visible
+                    tiers={giftOverlayTiers}
+                    onOpenGiftSheet={openDonSheet}
+                  />
                 ) : null}
               </>
             }

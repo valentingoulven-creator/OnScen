@@ -14,18 +14,20 @@ alwaysApply: true
 
 ## Quand l'utilisateur dit « deploy prod »
 
-Expressions declenchantes : **deploy prod**, **deploy production**, **deploie en prod**, **zero down** (contexte production), **mise en prod**.
+Expressions declenchantes : **deploy prod**, **deploy production**, **deploie en prod**, **zero down** (contexte production), **mise en prod**, **deploy** (contexte mise en production).
 
-**Action obligatoire** (depuis la racine `MeloSongv2/`) :
+**Workflow obligatoire** (dans cet ordre, depuis la racine du repo) :
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/deploy-prod.ps1
-```
+1. **Vérifier** — build app + backend, tests si pertinent ; ne pas deployer si bug bloquant.
+2. **Commit local** — `git add` (sources + assets buildés, jamais secrets) puis `git commit` avec message clair.
+3. **Push GitHub** — `git push -u origin HEAD` (ou branche courante).
+4. **Deploy VPS** — `powershell -ExecutionPolicy Bypass -File scripts/deploy-prod.ps1`
 
 Ce script appelle `deploy_zero_downtime.ps1 -VerifyProd`. Ne pas inventer d'autre chemin de deploy.
 
 - **Ne jamais** deployer en prod sans demande **explicite** de l'utilisateur.
 - Ne pas confondre `npm run msdev` (ancien flux build+backend seul) avec `npm run dev` (flux dev recommande : Vite HMR + backend).
+- Le deploy VPS **ne remplace pas** le push GitHub : les deux sont requis quand l'utilisateur demande un deploy.
 
 ## Quand l'utilisateur dit « dev » / « lancer dev »
 

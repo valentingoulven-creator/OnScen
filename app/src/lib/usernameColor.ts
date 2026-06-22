@@ -7,8 +7,9 @@ export const USERNAME_COLOR_WAVE = 'wave';
 export const DEFAULT_USERNAME_WAVE_FROM = '#c084fc';
 export const DEFAULT_USERNAME_WAVE_TO = '#f472b6';
 
-export const USERNAME_WAVE_CLASS =
-  'bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent';
+export const SOUNDY_WAVE_BG_CLASS = 'bg-gradient-to-r from-purple-400 to-pink-400';
+
+export const USERNAME_WAVE_CLASS = `${SOUNDY_WAVE_BG_CLASS} bg-clip-text text-transparent`;
 
 export type UsernameWaveTint = {
   from?: string | null;

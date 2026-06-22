@@ -3,6 +3,11 @@ import { db, Salon, Live, MusicPlatform, User } from './models/schema';
 import { blurCoordinate } from './lib/geo';
 import { refreshUserPublicCoords } from './lib/locationPrivacy';
 import { seedWorldMapBots, seedBotPosts } from './seed-bots';
+import {
+  seedProductionSalonsLives,
+  SALON_LIVE_BOT_SEEDS,
+  SALON_LIVE_ID_PREFIX,
+} from './seed-salons-lives';
 import { followUser } from './lib/follows';
 import { ensureSalonQueue, ensureSalonProposals, enqueueItem } from './lib/salonPlaybackOps';
 import { MSDEV_DEMO_AGE } from './lib/msdevDemoAccounts';
@@ -63,6 +68,37 @@ export function ensureMsdevDemoLives(): void {
   }
 
   if (changed) schedulePersist();
+}
+
+/** Salons + lives France (Occitanie, Montpellier…) — idempotent, réactive les lives inactifs. */
+export function ensureMsdevFranceSalonLives(): void {
+  if (process.env.APP_ENV !== 'msdev' && process.env.MSENV !== 'msdev') return;
+
+  const result = seedProductionSalonsLives();
+  let reactivated = 0;
+
+  for (const seed of SALON_LIVE_BOT_SEEDS) {
+    if (!seed.withLive || !seed.liveTitle) continue;
+    const liveId = `${SALON_LIVE_ID_PREFIX}live-${seed.userId.replace(SALON_LIVE_ID_PREFIX, '')}`;
+    const existing = db.lives.get(liveId);
+    if (!existing?.isActive) {
+      if (!existing) continue;
+      existing.isActive = true;
+      if (!existing.startedAt) existing.startedAt = Date.now() - 600_000;
+      db.lives.set(liveId, existing);
+      reactivated++;
+      console.log(`[msdev] Live France réactivé : ${existing.title}`);
+    }
+  }
+
+  if (result.livesCreated > 0 || result.salonsCreated > 0 || reactivated > 0) {
+    schedulePersist();
+  }
+  if (result.salonsCreated > 0 || result.livesCreated > 0) {
+    console.log(
+      `[msdev] France : +${result.salonsCreated} salon(s), +${result.livesCreated} live(s)`
+    );
+  }
 }
 
 const PARIS_LAT = 48.8566;

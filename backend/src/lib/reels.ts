@@ -12,6 +12,13 @@ import {
   REEL_UPLOAD_MAX_FILE_BYTES,
 } from './reelUploadLimits';
 import {
+  deleteReelMediaFiles,
+  isUploadedReelPosterUrl,
+  isUploadedReelVideoUrl,
+  resolveReelPosterUrl,
+  resolveReelVideoUrl,
+} from './reelAssets';
+import {
   scheduleDeleteReelFromPg,
   schedulePersistReelComment,
   schedulePersistReelLike,
@@ -19,6 +26,7 @@ import {
   schedulePersistReelToPg,
   schedulePersistReelView,
 } from './pgReels';
+import { schedulePersist } from './persist';
 
 /** Durées approximatives Mixkit — alignées sur app/src/content/reels.ts */
 const MIXKIT_DURATION_SEC: Record<number, number> = {
@@ -390,11 +398,11 @@ export function isRecordedReelPosterUrl(url: string): boolean {
 }
 
 function isAllowedMediaUrl(value: string): boolean {
-  return isHttpUrl(value) || isRecordedReelVideoUrl(value);
+  return isHttpUrl(value) || isRecordedReelVideoUrl(value) || isUploadedReelVideoUrl(value);
 }
 
 function isAllowedPosterUrl(value: string): boolean {
-  return isHttpUrl(value) || isRecordedReelPosterUrl(value);
+  return isHttpUrl(value) || isRecordedReelPosterUrl(value) || isUploadedReelPosterUrl(value);
 }
 
 export function isRecordedReelMedia(reel: {
@@ -403,9 +411,11 @@ export function isRecordedReelMedia(reel: {
   posterUrl?: string;
 }): boolean {
   const video = reel.videoUrl?.trim() ?? '';
-  if (!video || !isRecordedReelVideoUrl(video)) return false;
+  if (!video) return false;
   const poster = reel.posterUrl?.trim() ?? '';
-  if (poster && !isRecordedReelPosterUrl(poster)) return false;
+  const videoOk = isRecordedReelVideoUrl(video) || isUploadedReelVideoUrl(video);
+  if (!videoOk) return false;
+  if (poster && !isRecordedReelPosterUrl(poster) && !isUploadedReelPosterUrl(poster)) return false;
   return reel.mediaType !== 'image';
 }
 
@@ -451,13 +461,32 @@ function isAllowedPrivateMedia(draft: {
   const video = draft.videoUrl?.trim() ?? '';
   const poster = draft.posterUrl?.trim() ?? '';
   if (draft.mediaType === 'image' || (!video && poster)) {
-    if (!isDataUrl(poster) && !UNSPLASH_IMAGE_RE.test(poster)) return false;
+    if (
+      !isDataUrl(poster) &&
+      !UNSPLASH_IMAGE_RE.test(poster) &&
+      !isUploadedReelPosterUrl(poster)
+    ) {
+      return false;
+    }
     if (isDataUrl(poster) && poster.length > MAX_PRIVATE_POSTER_CHARS) return false;
     return true;
   }
-  if (!isDataUrl(video) || video.length > MAX_PRIVATE_VIDEO_CHARS) return false;
+  if (
+    !isDataUrl(video) &&
+    !isUploadedReelVideoUrl(video) &&
+    (video.length > MAX_PRIVATE_VIDEO_CHARS || !isDataUrl(video))
+  ) {
+    return false;
+  }
+  if (isDataUrl(video) && video.length > MAX_PRIVATE_VIDEO_CHARS) return false;
   if (poster && !UNSPLASH_IMAGE_RE.test(poster)) {
-    if (!isDataUrl(poster) || poster.length > MAX_PRIVATE_POSTER_CHARS) return false;
+    if (
+      !isDataUrl(poster) &&
+      !isUploadedReelPosterUrl(poster) &&
+      (!isDataUrl(poster) || poster.length > MAX_PRIVATE_POSTER_CHARS)
+    ) {
+      return false;
+    }
   }
   return true;
 }
@@ -471,23 +500,40 @@ export function createUserReel(authorId: string, input: CreateUserReelInput): Us
   const title = input.title.trim();
   const artist = input.artist.trim();
   const genre = input.genre.trim();
-  const mediaUrl = input.mediaUrl.trim();
-  const posterUrl = input.posterUrl?.trim();
+  const rawMediaUrl = input.mediaUrl.trim();
+  const rawPosterUrl = input.posterUrl?.trim();
 
   if (!title || !artist || !genre) {
     return { error: 'Champs requis manquants: title, artist, genre' };
   }
+
+  const mediaType = input.mediaType === 'image' ? 'image' : 'video';
+  let mediaUrl = rawMediaUrl;
+  let posterUrl = rawPosterUrl;
+  try {
+    if (mediaType === 'video') {
+      mediaUrl = resolveReelVideoUrl(rawMediaUrl);
+      if (rawPosterUrl) posterUrl = resolveReelPosterUrl(rawPosterUrl);
+    } else {
+      mediaUrl = resolveReelPosterUrl(rawMediaUrl);
+    }
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Média invalide' };
+  }
+
   if (!isAllowedMediaUrl(mediaUrl)) {
     return { error: 'URL média invalide' };
   }
   if (posterUrl && !isAllowedPosterUrl(posterUrl)) {
     return { error: 'URL poster invalide' };
   }
-  if (input.mediaType === 'image' && isRecordedReelVideoUrl(mediaUrl)) {
+  if (
+    mediaType === 'image' &&
+    (isRecordedReelVideoUrl(rawMediaUrl) || isUploadedReelVideoUrl(rawMediaUrl))
+  ) {
     return { error: 'Les enregistrements caméra doivent être publiés en vidéo' };
   }
 
-  const mediaType = input.mediaType === 'image' ? 'image' : 'video';
   const visibility = resolveReelVisibility(input);
   const draft = {
     mediaType,
@@ -536,6 +582,7 @@ export function createUserReel(authorId: string, input: CreateUserReelInput): Us
 
   db.userReels.push(reel);
   schedulePersistReelToPg(reel);
+  schedulePersist();
   return reel;
 }
 
@@ -561,18 +608,21 @@ export function publishUserReel(reelId: string, userId: string): UserReel | { er
   }
   reel.visibility = 'public';
   schedulePersistReelToPg(reel);
+  schedulePersist();
   return reel;
 }
 
 export function purgeReelById(reelId: string): boolean {
   const index = db.userReels.findIndex((r) => r.id === reelId);
   if (index < 0) return false;
-  db.userReels.splice(index, 1);
+  const [removed] = db.userReels.splice(index, 1);
+  deleteReelMediaFiles(removed);
   db.reelLikes.delete(reelId);
   db.reelComments.delete(reelId);
   db.reelShares.delete(reelId);
   db.reelViews.delete(reelId);
   scheduleDeleteReelFromPg(reelId);
+  schedulePersist();
   return true;
 }
 

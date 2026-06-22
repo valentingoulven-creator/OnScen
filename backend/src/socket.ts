@@ -481,6 +481,46 @@ export function setupSockets(io: Server): void {
     );
 
     socket.on(
+      'live_update_donation_options',
+      ({
+        liveId,
+        options,
+      }: {
+        liveId: string;
+        options: Array<{ id: string; label: string; amount: number }> | null;
+      }) => {
+        const actorId = (socket.data as { userId?: string }).userId;
+        if (!actorId || !liveId) return;
+        const live = db.lives.get(liveId);
+        if (!live || !live.isActive) return;
+        const actor = db.users.get(actorId);
+        if (live.hostId !== actorId && !isDevUser(actor)) return;
+
+        const sanitized = Array.isArray(options)
+          ? options
+              .filter(
+                (o) =>
+                  o &&
+                  typeof o.id === 'string' &&
+                  typeof o.label === 'string' &&
+                  o.label.trim().length > 0 &&
+                  Number.isFinite(o.amount)
+              )
+              .map((o) => ({
+                id: o.id,
+                label: o.label.trim().slice(0, 120),
+                amount: Math.min(100, Math.max(1, Math.round(o.amount))),
+              }))
+              .slice(0, 12)
+          : [];
+
+        live.donationOptions = sanitized.length > 0 ? sanitized : undefined;
+        db.lives.set(liveId, live);
+        io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live));
+      }
+    );
+
+    socket.on(
       'live_ban',
       ({
         liveId,

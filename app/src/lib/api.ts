@@ -1,4 +1,4 @@
-﻿import i18n from '../i18n';
+import i18n from '../i18n';
 import {
   readCachedPlatformStatus,
   writeCachedPlatformStatus,
@@ -761,6 +761,19 @@ export const api = {
       lives: import('../types').Live[];
       people: import('../types').NearbyPerson[];
     }>(`/geo/nearby?${params}`, {}, token);
+  },
+
+  getMusicHome: (
+    token: string,
+    opts: { latitude: number; longitude: number; radiusKm: number; label: string }
+  ) => {
+    const params = new URLSearchParams({
+      latitude: String(opts.latitude),
+      longitude: String(opts.longitude),
+      radiusKm: String(opts.radiusKm),
+      label: opts.label,
+    });
+    return request<import('./musicTypes').MusicHomePayload>(`/music/home?${params}`, {}, token);
   },
 
   listSalons: (token: string) =>
@@ -2039,6 +2052,13 @@ export const api = {
 
   getFavoritedFeedPosts: (token: string) =>
     request<{ posts: import('../types').FeedPost[] }>('/feed/favorites', {}, token),
+
+  getFeaturedSounds: (token: string, limit = 5) =>
+    request<{ items: import('./featuredUserSounds').FeaturedUserSoundItem[] }>(
+      `/feed/featured-sounds?limit=${limit}`,
+      {},
+      token
+    ),
 
   getWeeklyTopSongs: (token: string, limit = 10) =>
     request<{

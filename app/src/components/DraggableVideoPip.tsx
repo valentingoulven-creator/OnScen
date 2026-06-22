@@ -9,9 +9,9 @@ function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
 }
 
-/** Default: left sidebar area on map, matching SalonPipPreviewFloat's position. */
-function defaultVideoPipPos(): { x: number; y: number } {
-  return { x: 17, y: 228 };
+/** Default PiP position — right of map sidebar, below header. */
+export function defaultVideoPipPos(): { x: number; y: number } {
+  return { x: 237, y: 224 };
 }
 
 export interface VideoPipFloatApi {
@@ -24,6 +24,8 @@ export function useDraggableVideoPip(
   active: boolean,
   onClose: () => void,
   initialPosition?: () => { x: number; y: number },
+  /** When this value changes, position resets to initial (e.g. live id). */
+  resetKey?: string | number,
 ): VideoPipFloatApi {
   const initialPositionRef = useRef(initialPosition ?? defaultVideoPipPos);
   const [pos, setPos] = useState<{ x: number; y: number }>(() => initialPositionRef.current());
@@ -45,8 +47,8 @@ export function useDraggableVideoPip(
     };
   }, []);
 
-  // Reset to the default position each time PiP is newly activated (false → true).
-  const prevActiveRef = useRef(active);
+  // Reset to default on each activation (false → true) and on first mount when already active.
+  const prevActiveRef = useRef(false);
   useEffect(() => {
     const wasActive = prevActiveRef.current;
     prevActiveRef.current = active;
@@ -54,6 +56,11 @@ export function useDraggableVideoPip(
       setPos(initialPositionRef.current());
     }
   }, [active]);
+
+  useEffect(() => {
+    if (resetKey === undefined) return;
+    setPos(initialPositionRef.current());
+  }, [resetKey]);
 
   useEffect(() => {
     const onResize = () => {
