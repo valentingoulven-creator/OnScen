@@ -309,7 +309,7 @@ export function LivesTabPage({ onOpenLive, isActive = true, hasActiveSalon = fal
     if (!token) return;
     setStarting(true);
     try {
-      const skipped = isStripeConnectSkipped();
+      const skipped = isStripeConnectSkipped() || stripeSimulation;
       const { live } = await api.startLive(token, `Live — ${user?.username}`, {
         latitude: geo.latitude,
         longitude: geo.longitude,

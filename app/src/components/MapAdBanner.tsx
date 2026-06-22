@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { type MapAd } from '../content/ads';
 import { api } from '../lib/api';
 import {
@@ -43,33 +43,6 @@ function viewportQueryKey(viewport?: MapSponsorViewport | null): string {
 function isBannerClickable(ad: MapAd): boolean {
   const action = ad.actionId ?? (ad.id === 'salon' ? 'salon' : ad.id === 'live' ? 'live' : undefined);
   return Boolean(action || ad.href);
-}
-
-function MapAdCarouselDots({
-  ads,
-  index,
-  onSelect,
-}: {
-  ads: MapAd[];
-  index: number;
-  onSelect: (i: number) => void;
-}) {
-  if (ads.length <= 1) return null;
-  return (
-    <div className="flex justify-center gap-1.5 pb-2">
-      {ads.map((item, i) => (
-        <button
-          key={item.id}
-          type="button"
-          onClick={() => onSelect(i)}
-          className={`h-1.5 rounded-full transition-all ${
-            i === index % ads.length ? 'w-6 bg-white/90' : 'w-2.5 bg-white/35 hover:bg-white/55'
-          }`}
-          aria-label={`Publicité ${i + 1} sur ${ads.length}`}
-        />
-      ))}
-    </div>
-  );
 }
 
 function MapAdBannerImageOnly({
@@ -296,14 +269,6 @@ export function MapAdBanner({ viewport, isActive = true, onCtaSalon, onCtaLive }
     };
   }, [viewportQueryKey(viewport), isActive]);
 
-  const goTo = useCallback((nextIndex: number) => {
-    setFading(true);
-    window.setTimeout(() => {
-      setIndex(nextIndex);
-      setFading(false);
-    }, 180);
-  }, []);
-
   useEffect(() => {
     if (ads.length <= 1) return;
     let cancelled = false;
@@ -348,22 +313,14 @@ export function MapAdBanner({ viewport, isActive = true, onCtaSalon, onCtaLive }
       aria-label="Bandeau publicitaire"
     >
       {isImageOnly ? (
-        <div className="relative">
-          <MapAdBannerImageOnly
-            ad={ad}
-            bannerSrc={bannerSrc}
-            fading={fading}
-            onActivate={handleActivate}
-          />
-          <div className="absolute bottom-0 left-0 right-0">
-            <MapAdCarouselDots ads={ads} index={index} onSelect={goTo} />
-          </div>
-        </div>
+        <MapAdBannerImageOnly
+          ad={ad}
+          bannerSrc={bannerSrc}
+          fading={fading}
+          onActivate={handleActivate}
+        />
       ) : (
-        <div className="relative">
-          <MapAdBannerFull ad={ad} bannerSrc={bannerSrc} fading={fading} onCta={handleActivate} />
-          <MapAdCarouselDots ads={ads} index={index} onSelect={goTo} />
-        </div>
+        <MapAdBannerFull ad={ad} bannerSrc={bannerSrc} fading={fading} onCta={handleActivate} />
       )}
     </div>
   );

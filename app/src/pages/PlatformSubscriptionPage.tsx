@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
-import { isNativeIos } from '../lib/nativePlatform';
+import { isNativeApp } from '../lib/nativePlatform';
 import {
   formatTierPrice,
   SUBSCRIPTION_LEGAL_NOTICE,
@@ -126,8 +126,9 @@ export function PlatformSubscriptionPage({ onBack }: PlatformSubscriptionPagePro
   // Le bouton est actif seulement quand l'âge et le consentement sont confirmés
   const canSubscribeNow = canProceedAge && consentChecked;
 
-  // App Store Guideline 3.1.1 — Stripe subscriptions must not be offered on native iOS.
-  if (isNativeIos()) {
+  // App Store Guideline 3.1.1 + Google Play Billing Policy:
+  // Stripe subscriptions must not be offered on native iOS or Android.
+  if (isNativeApp()) {
     return (
       <div className="flex flex-col h-full min-h-0 bg-[#0b0b0f] text-white">
         <header className="sticky top-0 z-10 shrink-0 bg-[#0b0b0f]/95 backdrop-blur border-b border-[#1e1e2f] px-4 py-3 flex items-center gap-3">

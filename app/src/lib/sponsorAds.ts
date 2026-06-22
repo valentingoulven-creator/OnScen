@@ -1,4 +1,4 @@
-import { MAP_ADS, type MapAd } from '../content/ads';
+import { MAP_ADS, SALON_THEATER_ADS, type MapAd } from '../content/ads';
 import { isInMapBounds, type MapBounds } from './mapMarkerVisibility';
 
 import type { MapAdItem } from '../types';
@@ -123,7 +123,9 @@ export function resolvePlacementAds(
   if (items && items.length > 0) return items;
   if (Array.isArray(items) && items.length === 0) return [];
   if (!allowStaticMapAdsFallback()) return [];
-  return placement === 'map' ? filterMapAdsByViewport(MAP_ADS, viewport) : [];
+  if (placement === 'map') return filterMapAdsByViewport(MAP_ADS, viewport);
+  if (placement === 'salon') return SALON_THEATER_ADS;
+  return [];
 }
 
 export function handleSponsorCta(

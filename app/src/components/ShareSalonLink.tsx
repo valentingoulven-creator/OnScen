@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { ShareLinkMenu } from './ShareLinkMenu';
+import { ShareToUserSheet } from './ShareToUserSheet';
 import { getSalonShareUrl } from '../lib/shareLink';
 
 export interface ShareSalonLinkProps {
@@ -17,9 +19,12 @@ export function ShareSalonLink({
   className = '',
   variant = 'button',
 }: ShareSalonLinkProps) {
+  const { token } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [toUserOpen, setToUserOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [toast, setToast] = useState<string | null>(null);
+  const shareText = `Rejoins le salon de ${hostName} sur Soundly`;
 
   useEffect(() => {
     let cancelled = false;
@@ -56,13 +61,29 @@ export function ShareSalonLink({
         {variant === 'compact' ? '🔗 Partager' : `🔗 ${label}`}
       </button>
 
-      {menuOpen && shareUrl && (
+      {menuOpen && shareUrl && !toUserOpen && (
         <ShareLinkMenu
           open
           onClose={() => setMenuOpen(false)}
           url={shareUrl}
           title={salonTitle}
-          text={`Rejoins le salon de ${hostName} sur Soundly`}
+          text={shareText}
+          onToast={setToast}
+          onSendToUser={token ? () => setToUserOpen(true) : undefined}
+        />
+      )}
+
+      {menuOpen && toUserOpen && shareUrl && token && (
+        <ShareToUserSheet
+          open
+          onBack={() => setToUserOpen(false)}
+          onClose={() => {
+            setToUserOpen(false);
+            setMenuOpen(false);
+          }}
+          token={token}
+          shareUrl={shareUrl}
+          shareText={shareText}
           onToast={setToast}
         />
       )}

@@ -128,6 +128,12 @@ describe('sponsorAds', () => {
     expect(resolvePlacementAds('map', []).some((ad) => ad.id === 'solar-festival-cres')).toBe(false);
   });
 
+  it('retombe sur SALON_THEATER_ADS en msdev quand aucune pub salon_theater active', () => {
+    const salon = resolvePlacementAds('salon', undefined);
+    expect(salon.some((ad) => ad.id === 'salon-theater-demo')).toBe(true);
+    expect(resolvePlacementAds('salon', [])).toEqual([]);
+  });
+
   it('ne retombe pas sur MAP_ADS en build production', async () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_APP_ENV', 'production');

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
 import { ShareLinkMenu } from './ShareLinkMenu';
+import { ShareToUserSheet } from './ShareToUserSheet';
 import { getProfileShareUrl } from '../lib/shareLink';
 
 export interface ShareProfileLinkProps {
@@ -11,9 +13,12 @@ export interface ShareProfileLinkProps {
 
 export function ShareProfileLink({ userId, username, className }: ShareProfileLinkProps) {
   const { t } = useTranslation();
+  const { token } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [toUserOpen, setToUserOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [toast, setToast] = useState<string | null>(null);
+  const shareText = `Découvre le profil de ${username} sur Soundy`;
 
   useEffect(() => {
     let cancelled = false;
@@ -49,13 +54,29 @@ export function ShareProfileLink({ userId, username, className }: ShareProfileLi
         {label}
       </button>
 
-      {menuOpen && shareUrl && (
+      {menuOpen && shareUrl && !toUserOpen && (
         <ShareLinkMenu
           open
           onClose={() => setMenuOpen(false)}
           url={shareUrl}
           title={`${username} — Soundy`}
-          text={`Découvre le profil de ${username} sur Soundy`}
+          text={shareText}
+          onToast={setToast}
+          onSendToUser={token ? () => setToUserOpen(true) : undefined}
+        />
+      )}
+
+      {menuOpen && toUserOpen && shareUrl && token && (
+        <ShareToUserSheet
+          open
+          onBack={() => setToUserOpen(false)}
+          onClose={() => {
+            setToUserOpen(false);
+            setMenuOpen(false);
+          }}
+          token={token}
+          shareUrl={shareUrl}
+          shareText={shareText}
           onToast={setToast}
         />
       )}

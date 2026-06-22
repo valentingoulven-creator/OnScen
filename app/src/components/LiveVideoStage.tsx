@@ -60,10 +60,8 @@ function isLandscapeOrientation(): boolean {
 
 function isMobileNarrowViewport(): boolean {
   if (typeof window === 'undefined') return false;
-  return (
-    window.matchMedia('(max-width: 896px)').matches ||
-    window.matchMedia('(pointer: coarse)').matches
-  );
+  // Seuil abaissé à 640px (breakpoint Tailwind sm:) pour ne pas déclencher sur bureau
+  return window.matchMedia('(max-width: 640px)').matches && window.matchMedia('(pointer: coarse)').matches;
 }
 
 function shouldAutoLandscapeVideo(): boolean {
@@ -692,7 +690,6 @@ export function LiveVideoStage({
                 aria-label="Quitter le plein \u00e9cran"
               >
                 <LiveVideoShrinkIcon />
-                <span className="hidden sm:inline">Quitter le plein \u00e9cran</span>
               </button>
             ) : (
               <button
@@ -702,7 +699,6 @@ export function LiveVideoStage({
                 aria-label="Plein \u00e9cran"
               >
                 <LiveVideoExpandIcon />
-                <span className="hidden sm:inline">Plein \u00e9cran</span>
               </button>
             )}
             {onPipOpen && !isVideoExpanded && (

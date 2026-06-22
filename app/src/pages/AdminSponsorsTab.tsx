@@ -405,7 +405,7 @@ function SponsorsSubTabBar({
 
           onClick={() => onChange(tab)}
 
-          className={`shrink-0 snap-start px-3 py-2 text-xs font-semibold whitespace-nowrap transition border-b-2 -mb-px ${
+          className={`shrink-0 px-2 py-1.5 min-h-8 sm:px-3 sm:py-2 sm:min-h-0 text-[11px] sm:text-xs font-semibold whitespace-nowrap transition border-b-2 -mb-px ${
 
             subTab === tab
 

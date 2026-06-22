@@ -101,14 +101,11 @@ function IcoLock({ sm }: { sm?: boolean }) {
 // ── Shared style constants ─────────────────────────────────────────────────────
 
 const inputCls =
-  'mt-1 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-lg px-3 py-2 text-sm text-white ' +
+  'mt-0.5 w-full bg-[#1a1a26] border border-[#2d2d3d] rounded-lg px-3 py-1.5 text-sm text-white ' +
   'placeholder:text-gray-600 focus:outline-none focus:border-purple-500/60 ' +
   'focus:ring-1 focus:ring-purple-500/30 transition-colors';
 
-const labelCls = 'block text-[11px] font-medium text-gray-400';
-
-const sectionTitleCls =
-  'text-[9px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5';
+const labelCls = 'block text-[10px] font-medium text-gray-400';
 
 // ── Types & exports ────────────────────────────────────────────────────────────
 
@@ -338,49 +335,57 @@ export function CreateSalonModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── Header ──────────────────────────────────────────────────────── */}
-        <div className="flex-shrink-0 px-4 pt-3 pb-2 border-b border-[#1e1e2f]">
-          <div className="flex items-center justify-between gap-2">
-            <h2
-              id="create-salon-title"
-              className="text-sm font-bold text-white tracking-tight"
-            >
-              {t('salon.create.modalTitle')}
-            </h2>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label={t('salon.create.close')}
-              className="w-11 h-11 -mr-2 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-[#1a1a26] transition-colors"
-            >
-              <IcoX />
-            </button>
-          </div>
+        <div className="flex-shrink-0 flex items-center justify-between gap-2 px-4 py-2 border-b border-[#1e1e2f]">
+          <h2
+            id="create-salon-title"
+            className="text-sm font-bold text-white tracking-tight"
+          >
+            {t('salon.create.modalTitle')}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t('salon.create.close')}
+            className="w-8 h-8 -mr-1 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-[#1a1a26] transition-colors"
+          >
+            <IcoX />
+          </button>
         </div>
 
         {/* ── Single-page form (no internal scroll) ───────────────────────── */}
-        <div className="px-4 py-2.5 space-y-2.5 overflow-visible">
-          {/* Platform */}
-          <section>
-            <p className={sectionTitleCls}>{t('salon.create.sectionPlatform')}</p>
+        <div className="px-4 py-3 space-y-2.5 overflow-visible">
 
+          {/* Platform — single inline row */}
+          <div>
             <div
-              className="rounded-lg border border-purple-500/50 bg-purple-500/10 px-2.5 py-2 flex items-center gap-2"
+              className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-[#1a1a26] border border-[#2d2d3d]"
               title={youtubeSyncTooltip}
             >
-              <div className="w-8 h-8 rounded-lg bg-red-600/15 flex items-center justify-center text-red-500 flex-shrink-0">
+              <div className="w-7 h-7 rounded-md bg-red-600/15 flex items-center justify-center text-red-500 flex-shrink-0">
                 <IcoYouTube sm />
               </div>
-              <p className="text-sm font-semibold text-white flex-1 min-w-0 truncate">YouTube</p>
-              <div className="flex-shrink-0 w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center text-white">
-                <IcoCheck sm />
-              </div>
+              <span className="text-sm font-semibold text-white flex-1 min-w-0 truncate">
+                YouTube
+              </span>
+              {platformLinked ? (
+                <div
+                  className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/25 flex-shrink-0"
+                  title={t('salon.create.youtubeConnected')}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
+                  <span className="text-[10px] font-semibold text-green-300">
+                    {t('salon.create.youtubeConnectedShort')}
+                  </span>
+                </div>
+              ) : (
+                <span className="text-[10px] font-semibold text-amber-400/90 flex-shrink-0 max-w-[8rem] truncate">
+                  {t('salon.create.youtubeConnectHint')}
+                </span>
+              )}
             </div>
 
-            {!platformLinked ? (
-              <div className="mt-1.5 space-y-1.5">
-                <p className="text-[10px] font-medium text-amber-300 leading-snug px-0.5">
-                  {t('salon.create.youtubeConnectHint')}
-                </p>
+            {!platformLinked && (
+              <div className="mt-1.5">
                 <PlatformConnectCard
                   token={token}
                   platform="youtube"
@@ -389,24 +394,12 @@ export function CreateSalonModal({
                   onUserUpdated={onUserUpdated}
                 />
               </div>
-            ) : (
-              <div
-                className="mt-1.5 inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-green-500/10 border border-green-500/25 text-green-300"
-                title={t('salon.create.youtubeConnected')}
-              >
-                <span className="text-green-400 flex-shrink-0">
-                  <IcoCheck sm />
-                </span>
-                <span className="text-[10px] font-semibold">{t('salon.create.youtubeConnectedShort')}</span>
-              </div>
             )}
-          </section>
+          </div>
 
-          {/* Access — hidden when preset is invite-only (DM private salon) */}
+          {/* Access — two compact pill buttons */}
           {!skipAccessSection && (
-            <section>
-              <p className={sectionTitleCls}>{t('salon.create.sectionAccess')}</p>
-
+            <div>
               <div className="flex gap-1.5">
                 <button
                   type="button"
@@ -448,26 +441,24 @@ export function CreateSalonModal({
               </div>
 
               {form.accessMode === 'invite' && <div className="mt-1.5">{inviteSection}</div>}
-            </section>
+            </div>
           )}
 
           {skipAccessSection && form.accessMode === 'invite' && inviteSection}
 
-          {/* Details */}
-          <section>
-            <p className={sectionTitleCls}>{t('salon.create.sectionDetails')}</p>
+          {/* Details — name full-width, artist + session 2-col */}
+          <div className="space-y-1.5">
+            <label className="block">
+              <span className={labelCls}>{t('salon.create.fieldSalonName')}</span>
+              <input
+                value={form.title}
+                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                placeholder={t('salon.create.fieldSalonNamePlaceholder')}
+                className={inputCls}
+              />
+            </label>
 
-            <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
-              <label className="block col-span-2">
-                <span className={labelCls}>{t('salon.create.fieldSalonName')}</span>
-                <input
-                  value={form.title}
-                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                  placeholder={t('salon.create.fieldSalonNamePlaceholder')}
-                  className={inputCls}
-                />
-              </label>
-
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
               <label className="block">
                 <span className={labelCls}>{t('salon.create.fieldArtist')}</span>
                 <input
@@ -489,12 +480,13 @@ export function CreateSalonModal({
               </label>
             </div>
 
+            {/* ▶ Options collapsible (playlist) — closed by default */}
             {platformLinked && (
-              <div className="mt-1.5">
+              <div>
                 <button
                   type="button"
                   onClick={() => setShowOptions((v) => !v)}
-                  className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400 hover:text-gray-200 transition-colors min-h-[32px]"
+                  className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400 hover:text-gray-200 transition-colors min-h-[28px]"
                   aria-expanded={showOptions}
                 >
                   <svg
@@ -516,6 +508,7 @@ export function CreateSalonModal({
                     </span>
                   )}
                 </button>
+
                 {showOptions && (
                   <div className="mt-0.5">
                     <CreateSalonPlaylistPicker
@@ -529,11 +522,14 @@ export function CreateSalonModal({
               </div>
             )}
 
+            {/* Suggestions toggle */}
             <div
-              className="mt-1.5 flex items-center justify-between gap-3 min-h-[36px]"
+              className="flex items-center justify-between gap-3 min-h-[32px]"
               title={t('salon.create.allowQueueHint')}
             >
-              <p className="text-xs font-medium text-white truncate">{t('salon.create.allowQueueTitle')}</p>
+              <p className="text-xs font-medium text-white truncate">
+                {t('salon.create.allowQueueTitle')}
+              </p>
               <button
                 type="button"
                 role="switch"
@@ -551,33 +547,24 @@ export function CreateSalonModal({
                 />
               </button>
             </div>
-          </section>
+          </div>
         </div>
 
         {/* ── Footer ──────────────────────────────────────────────────────── */}
-        <div className="flex-shrink-0 border-t border-[#1e1e2f] px-4 py-2 space-y-1.5">
+        <div className="flex-shrink-0 border-t border-[#1e1e2f] px-4 py-2.5 space-y-1.5">
           {submitBlockedReason && (
-            <p className="text-[11px] text-red-400/90 text-center leading-snug">
+            <p className="text-[10px] text-red-400/90 text-center leading-snug">
               {submitBlockedReason}
             </p>
           )}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-2 min-h-[44px] rounded-lg border border-[#2d2d3d] text-sm text-gray-300 hover:border-[#3d3d4d] hover:text-white transition-colors"
-            >
-              {t('salon.create.cancel')}
-            </button>
-            <button
-              type="button"
-              onClick={submit}
-              disabled={saving || !canSubmitSalon}
-              className="flex-1 py-2 min-h-[44px] rounded-lg bg-purple-600 text-sm font-bold text-white hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              {saving ? t('salon.create.submitting') : t('salon.create.submit')}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={saving || !canSubmitSalon}
+            className="w-full min-h-[44px] rounded-xl bg-purple-600 text-sm font-bold text-white hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {saving ? t('salon.create.submitting') : t('salon.create.submit')}
+          </button>
         </div>
       </div>
 

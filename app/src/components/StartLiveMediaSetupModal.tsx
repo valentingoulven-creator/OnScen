@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   acquireLiveCameraStream,
   attachLiveCameraStream,
+  canBypassLiveMediaSetup,
   ensureMediaDevices,
   getLiveCameraContextHints,
   getLiveCameraPreflightError,
@@ -230,6 +231,15 @@ export function StartLiveMediaSetupModal({
     onReady(prefs);
   };
 
+  const handleDemoBypass = () => {
+    const prefs: LiveMediaPrefs = { demoNoMedia: true };
+    setLiveMediaPrefs(prefs);
+    stopStream();
+    onReady(prefs);
+  };
+
+  const showDevBypass = canBypassLiveMediaSetup();
+
   const handleClose = () => {
     if (phase === 'config') {
       persistDraft(videoDeviceId, audioDeviceId);
@@ -337,29 +347,47 @@ export function StartLiveMediaSetupModal({
               )}
 
               {error && <p className="text-xs text-red-300">{error}</p>}
+
+              {showDevBypass && (
+                <p className="text-[11px] text-amber-400/80 leading-relaxed">
+                  Mode dev : vous pouvez ouvrir le live sans caméra pour travailler sur l&apos;UI
+                  salon.
+                </p>
+              )}
             </div>
           )}
         </div>
 
         {(phase === 'config' || phase === 'error') && (
-          <div className="flex gap-2 p-4 border-t border-[#1e1e2f] bg-[#0b0b0f]/50 shrink-0">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="flex-1 py-3 rounded-xl bg-[#2d2d3d] text-white text-sm font-semibold"
-            >
-              Fermer
-            </button>
-            {phase === 'config' && (
+          <div className="flex flex-col gap-2 p-4 border-t border-[#1e1e2f] bg-[#0b0b0f]/50 shrink-0">
+            {showDevBypass && (
               <button
                 type="button"
-                onClick={handleConfirm}
-                disabled={switching}
-                className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-bold disabled:opacity-50"
+                onClick={handleDemoBypass}
+                className="w-full min-h-[44px] py-3 rounded-xl border border-amber-500/40 bg-amber-950/30 hover:bg-amber-950/50 text-amber-200 text-sm font-semibold"
               >
-                {confirmLabel}
+                Mode démo (sans caméra/micro)
               </button>
             )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="flex-1 min-h-[44px] py-3 rounded-xl bg-[#2d2d3d] text-white text-sm font-semibold"
+              >
+                Fermer
+              </button>
+              {phase === 'config' && (
+                <button
+                  type="button"
+                  onClick={handleConfirm}
+                  disabled={switching}
+                  className="flex-1 min-h-[44px] py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-bold disabled:opacity-50"
+                >
+                  {confirmLabel}
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>

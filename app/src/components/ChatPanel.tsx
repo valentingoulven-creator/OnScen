@@ -674,7 +674,7 @@ export function ChatMessagesView() {
   return (
     <>
       <div
-        className={`flex-1 overflow-y-auto min-h-0 space-y-3 ${
+        className={`chat-messages-scroll flex-1 min-h-0 h-0 overflow-y-auto space-y-3 ${
           roomType === 'live' ? 'live-chat-messages p-2' : 'p-3'
         }`}
       >
@@ -938,7 +938,7 @@ export function ChatMessagesView() {
       )}
 
       {chatBanned && chatBanMessage && (
-        <p className="px-3 py-2 text-xs text-red-400 text-center border-t border-red-500/20 bg-red-950/20" role="alert">
+        <p className="shrink-0 px-3 py-2 text-xs text-red-400 text-center border-t border-red-500/20 bg-red-950/20" role="alert">
           {chatBanMessage}
         </p>
       )}
@@ -1099,16 +1099,6 @@ export function ChatInputBar({ className }: { className?: string }) {
           disabled={chatBanned}
           className="flex-1 min-w-0 bg-[#0e0e16] border border-[#1e1e2a] rounded-full px-4 py-2 text-sm text-white placeholder:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:border-[#3a3a5a]"
         />
-        {!chatBanned && allowAttachments && (
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-white/5 border border-[#1e1e2a] text-base"
-            aria-label="Joindre un fichier"
-          >
-            📎
-          </button>
-        )}
         <button
           type="submit"
           disabled={chatBanned || messageSending}

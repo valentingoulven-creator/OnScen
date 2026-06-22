@@ -64,8 +64,27 @@ const STORAGE_KEY = NEARBY_PANEL_PREFS_STORAGE_KEY;
 
 export const NEARBY_PANEL_CHANGED_EVENT = 'melosong-nearby-panel-changed';
 
-/** @deprecated Liste carte toujours visible au chargement — clé conservée pour purge legacy. */
+/** Visibilité panneau liste carte (sidebar / bottom). Défaut : masqué. */
 export const MAP_SIDEBAR_LIST_STORAGE_KEY = 'melosong_show_nearby_people';
+
+export function getMapSidebarListVisible(): boolean {
+  try {
+    const raw = localStorage.getItem(MAP_SIDEBAR_LIST_STORAGE_KEY);
+    if (raw === 'true') return true;
+    if (raw === 'false') return false;
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
+export function setMapSidebarListVisible(visible: boolean): void {
+  try {
+    localStorage.setItem(MAP_SIDEBAR_LIST_STORAGE_KEY, visible ? 'true' : 'false');
+  } catch {
+    /* ignore */
+  }
+}
 
 const DEFAULT_PREFS: Omit<NearbyPanelPreferences, 'radiusKm' | 'filterByDistance'> = {
   platformFilter: 'all',

@@ -8,6 +8,7 @@ import { useBackgroundPlayback } from '../hooks/useBackgroundPlayback';
 import { releaseAppMediaFocus, requestAppMediaFocus } from '../lib/appMediaFocus';
 import { api, ApiRequestError } from '../lib/api';
 import {
+  LIVE_CAMERA_CAM_SWITCHING,
   LIVE_CAMERA_MIC_SWITCHING,
   liveStreamEndedHintKey,
   type LiveStreamEndedReason,
@@ -23,14 +24,23 @@ import {
   hasPendingLiveCameraStart,
 } from '../lib/liveMediaPrefs';
 import { ChatRoomProvider, ChatMessagesView, ChatInputBar, ChatModals } from '../components/ChatPanel';
-import { UsernameDisplay } from '../components/UsernameDisplay';
 import { RoomTheaterLayout } from '../components/RoomTheaterLayout';
 import { LivePrivateSheet } from '../components/LivePrivateSheet';
-import { HostRatingBlock } from '../components/HostRatingBlock';
+import { LiveHostPanel, type LiveHostPanelTab } from '../components/LiveHostPanel';
+import { LiveHostTopBar } from '../components/LiveHostTopBar';
+import { LiveHostQuickBar, StopLiveButton } from '../components/LiveHostQuickBar';
+import { LiveHostGoalStrip } from '../components/LiveHostGoalStrip';
+import { LiveRewardRequestsStrip } from '../components/LiveRewardRequestsStrip';
+import { LiveVideoGoalOverlay } from '../components/LiveVideoGoalOverlay';
+import { useLiveHostSession } from '../hooks/useLiveHostSession';
+import { firstActiveGoal, withGoalProgress, type GoalProgressStats } from '../lib/liveGoalProgress';
+import { enqueueRewardFromGift, patchLiveHostSession } from '../lib/liveHostSession';
 import { LiveDonationSheet } from '../components/LiveDonationSheet';
 import { CreatorSubscribeSheet } from '../components/CreatorSubscribeSheet';
 import { LiveGiftOverlay } from '../components/LiveGiftOverlay';
 import { LiveParticipantsPopover } from '../components/LiveParticipantsPopover';
+import { ShareLinkMenu } from '../components/ShareLinkMenu';
+import { ShareToUserSheet } from '../components/ShareToUserSheet';
 import { LiveVideoStage } from '../components/LiveVideoStage';
 import { LiveKitVideoStage } from '../components/LiveKitVideoStage';
 import { LiveCloudflareHostPanel } from '../components/LiveCloudflareHostPanel';
@@ -41,24 +51,7 @@ import type { ChatMessage, DmContact, Live, AppNotification, PlaybackState } fro
 const SOUNDY_BASE_URL = 'https://getsoundy.com';
 const LIVE_MAX_DURATION_MS = 8 * 60 * 60 * 1000;
 
-function formatRemaining(ms: number): string {
-  if (ms <= 0) return '0 min';
-  const totalMin = Math.ceil(ms / 60000);
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  if (h > 0 && m > 0) return `${h}h ${m} min`;
-  if (h > 0) return `${h}h`;
-  return `${m} min`;
-}
-
 const LIVE_CHAT_HIDDEN_KEY = 'melosong_live_chat_hidden';
-function readLiveChatHidden(): boolean {
-  try {
-    return localStorage.getItem(LIVE_CHAT_HIDDEN_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
 
 export function LivePage({
   liveId,
@@ -77,7 +70,7 @@ export function LivePage({
   const [live, setLive] = useState<Live | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [viewers, setViewers] = useState(0);
-  const [chatHidden, setChatHidden] = useState(readLiveChatHidden);
+  const [chatHidden, setChatHidden] = useState(false);
   const [chatMinimized, setChatMinimized] = useState(false);
   const [privateTarget, setPrivateTarget] = useState<DmContact | null>(null);
   const [showDonSheet, setShowDonSheet] = useState(false);
@@ -90,6 +83,14 @@ export function LivePage({
   const [cameraToast, setCameraToast] = useState<string | null>(null);
   const [cameraToggling, setCameraToggling] = useState(false);
   const [showVipPanel, setShowVipPanel] = useState(false);
+  const [showHostPanel, setShowHostPanel] = useState(false);
+  const [hostPanelTab, setHostPanelTab] = useState<LiveHostPanelTab>('dashboard');
+  const [liveStartedAt] = useState(() => Date.now());
+  const [hostTotalDonations, setHostTotalDonations] = useState(0);
+  const [hostDonationCount, setHostDonationCount] = useState(0);
+  const [micMuted, setMicMuted] = useState(false);
+  const [goalTick, setGoalTick] = useState(() => Date.now());
+  const { session: hostSession } = useLiveHostSession(liveId);
   const [showCfHostPanel, setShowCfHostPanel] = useState(true);
   const [cfProvisioning, setCfProvisioning] = useState(false);
   const [cloudflareAvailable, setCloudflareAvailable] = useState<boolean | null>(null);
@@ -100,7 +101,9 @@ export function LivePage({
   const [liveViewBanned, setLiveViewBanned] = useState(false);
   const [liveViewBanMessage, setLiveViewBanMessage] = useState<string | null>(null);
   const [liveEnded, setLiveEnded] = useState(false);
-  const [shareCopied, setShareCopied] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [shareToUserOpen, setShareToUserOpen] = useState(false);
+  const [shareToast, setShareToast] = useState<string | null>(null);
   const [streamEndedReason, setStreamEndedReason] = useState<LiveStreamEndedReason | null>(null);
   const [archivedPlaybackUrl, setArchivedPlaybackUrl] = useState<string | null>(null);
   const [durationWarning, setDurationWarning] = useState(false);
@@ -118,13 +121,20 @@ export function LivePage({
     stop: stopCamera,
     broadcastStream,
     audioDevices,
+    videoDevices,
     audioDeviceId,
+    videoDeviceId,
     micSwitching,
+    camSwitching,
     switchMicrophone,
+    switchCamera,
+    refreshMediaDevices,
+    updateMediaDevicePrefs,
     previewBlocked: hostPreviewBlocked,
     enableHostPreview,
   } = useLiveCamera();
   const videoFileInputRef = useRef<HTMLInputElement>(null);
+  const vipPanelRef = useRef<HTMLDivElement>(null);
   const [videoFileLoading, setVideoFileLoading] = useState(false);
   const chatHiddenBeforeExpandRef = useRef<boolean | null>(null);
   const chatHiddenRef = useRef(chatHidden);
@@ -146,6 +156,12 @@ export function LivePage({
   useEffect(() => {
     hostCameraBroadcastRef.current = !!(live?.hostId === user?.id && cameraLocalActive);
   }, [live?.hostId, user?.id, cameraLocalActive]);
+
+  useEffect(() => {
+    if (!shareToast) return;
+    const id = window.setTimeout(() => setShareToast(null), 2500);
+    return () => window.clearTimeout(id);
+  }, [shareToast]);
 
   useEffect(() => {
     if (!token) return;
@@ -243,6 +259,12 @@ export function LivePage({
     setStreamEndedReason(null);
     setLiveEnded(false);
   }, [liveId]);
+
+  useEffect(() => {
+    if (!shareToast) return;
+    const id = window.setTimeout(() => setShareToast(null), 2500);
+    return () => window.clearTimeout(id);
+  }, [shareToast]);
 
   useEffect(() => {
     setChatBanned(false);
@@ -380,6 +402,45 @@ export function LivePage({
   );
   const showConfigureObsButton =
     canSwitchToCloudflare && cloudflareAvailable === true && obsAllowed !== false;
+
+  const goalStats: GoalProgressStats = useMemo(
+    () => ({
+      totalDonations: hostTotalDonations,
+      donationCount: hostDonationCount,
+      viewers,
+      startedAt: live?.startedAt ?? liveStartedAt,
+      now: goalTick,
+    }),
+    [hostTotalDonations, hostDonationCount, viewers, live?.startedAt, liveStartedAt, goalTick],
+  );
+
+  const activeGoal = useMemo(
+    () => (isHost ? firstActiveGoal(hostSession.goals, goalStats, liveId) : null),
+    [isHost, hostSession.goals, goalStats, liveId],
+  );
+
+  useEffect(() => {
+    const id = window.setInterval(() => setGoalTick(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (!isHost || hostSession.goals.length === 0) return;
+    let changed = false;
+    const nextGoals = hostSession.goals.map((g) => {
+      const progressed = withGoalProgress(g, goalStats);
+      if (
+        progressed.completedAt !== g.completedAt ||
+        Math.abs(progressed.current - g.current) > 0.001
+      ) {
+        changed = true;
+        return progressed;
+      }
+      return g;
+    });
+    if (changed) patchLiveHostSession(liveId, { goals: nextGoals });
+  }, [isHost, hostSession.goals, goalStats, liveId]);
+
   useEffect(() => {
     if (!token || !isHost) return;
     let cancelled = false;
@@ -536,9 +597,23 @@ export function LivePage({
       setHostDonToast(n.message);
       window.setTimeout(() => setHostDonToast(null), 5000);
     };
+    const onGift = (gift: {
+      liveId: string;
+      senderName: string;
+      senderId?: string;
+      amount?: number;
+      note?: string;
+    }) => {
+      if (gift.liveId !== liveId || !gift.amount) return;
+      setHostTotalDonations((prev) => prev + gift.amount!);
+      setHostDonationCount((prev) => prev + 1);
+      enqueueRewardFromGift(liveId, gift);
+    };
     socket.on('notification', onNotif);
+    socket.on('gift_animation', onGift);
     return () => {
       socket.off('notification', onNotif);
+      socket.off('gift_animation', onGift);
     };
   }, [liveId, user?.id, isHost]);
 
@@ -659,10 +734,9 @@ export function LivePage({
       }
       return;
     }
-    if (chatHiddenBeforeExpandRef.current === null) return;
-    const prev = chatHiddenBeforeExpandRef.current;
     chatHiddenBeforeExpandRef.current = null;
-    setChatHidden(prev);
+    // Toujours montrer le chat à la sortie du plein écran
+    setChatHidden(false);
   }, []);
 
   const openDonSheet = (amount?: number) => {
@@ -670,22 +744,15 @@ export function LivePage({
     setShowDonSheet(true);
   };
 
-  const handleShareLive = async () => {
-    const url = `${SOUNDY_BASE_URL}/live/${liveId}`;
-    const title = live?.title ?? 'Live Soundy';
-    const text = `Rejoins ce live musical sur Soundy !`;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title, text, url });
-      } else {
-        await navigator.clipboard.writeText(url);
-        setShareCopied(true);
-        window.setTimeout(() => setShareCopied(false), 2000);
-      }
-    } catch {
-      /* share cancelled or not supported */
-    }
+  const handleShareLive = () => {
+    setShowShareMenu(true);
   };
+
+  const liveShareUrl = `${SOUNDY_BASE_URL}/live/${liveId}`;
+  const liveShareTitle = live?.title ?? t('live.shareLiveTitle', { defaultValue: 'Live Soundy' });
+  const liveShareText = t('live.shareLiveText', {
+    defaultValue: 'Rejoins ce live musical sur Soundy !',
+  });
 
   const openPrivate = (target: { id: string; name: string }) => {
     if (target.id === user?.id) return;
@@ -780,10 +847,31 @@ export function LivePage({
   };
 
   const onHostMicChange = async (nextDeviceId: string) => {
-    if (!isHost || cameraMode !== 'camera' || !cameraLocalActive || micSwitching) return;
+    if (!isHost || micSwitching) return;
+    if (cameraMode !== 'camera' || !cameraLocalActive) {
+      updateMediaDevicePrefs({ audioDeviceId: nextDeviceId });
+      return;
+    }
     const track = await switchMicrophone(nextDeviceId);
     if (track) await replaceHostTrack(track);
   };
+
+  const onHostCameraChange = async (nextDeviceId: string) => {
+    if (!isHost || camSwitching) return;
+    if (cameraMode !== 'camera' || !cameraLocalActive) {
+      updateMediaDevicePrefs({ videoDeviceId: nextDeviceId });
+      return;
+    }
+    const track = await switchCamera(nextDeviceId);
+    if (track) await replaceHostTrack(track);
+  };
+
+  const onBoardMenuOpen = useCallback(() => {
+    void refreshMediaDevices().catch(() => {
+      // Permission refusée ou périphériques non disponibles — l'interface
+      // affiche déjà un message "Autorisez caméra et micro" si les listes sont vides.
+    });
+  }, [refreshMediaDevices]);
 
   const isVipModerator = (live?.vipModeratorIds ?? []).includes(user?.id ?? '');
   const isDevModerator = Boolean(user?.isAdmin || live?.isDev);
@@ -845,6 +933,32 @@ export function LivePage({
     [token, liveId]
   );
 
+  const openHostPanel = useCallback((tab: LiveHostPanelTab = 'dashboard') => {
+    setHostPanelTab(tab);
+    setShowHostPanel(true);
+  }, []);
+
+  const hostVideoOverlay =
+    isHost && !viewerStreamEnded ? (
+      <>
+        {activeGoal ? <LiveVideoGoalOverlay goal={activeGoal} /> : null}
+        <LiveRewardRequestsStrip
+          items={hostSession.rewardQueue}
+          onOpenPanel={() => openHostPanel('rewards')}
+        />
+      </>
+    ) : null;
+
+  useEffect(() => {
+    if (!showVipPanel) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (vipPanelRef.current?.contains(e.target as Node)) return;
+      setShowVipPanel(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [showVipPanel]);
+
   if (liveViewBanned) {
     return (
       <div className="h-full flex flex-col items-center justify-center gap-4 px-6 text-center bg-[#0b0b0f]">
@@ -885,6 +999,109 @@ export function LivePage({
       </div>
     );
   }
+
+  const hostMediaSelectSlot =
+    isHost && (videoDevices.length > 0 || audioDevices.length > 0) ? (
+      <div className="space-y-2">
+        {cameraMode === 'file' && (
+          <p className="text-[10px] text-gray-500 px-0.5">
+            Mode fichier — activez la caméra pour changer de périphérique.
+          </p>
+        )}
+        {videoDevices.length > 0 && (
+          <div className="space-y-1">
+            <label
+              htmlFor="live-host-cam-select"
+              className="text-[10px] font-medium text-gray-500 px-0.5"
+            >
+              Caméra
+            </label>
+            <select
+              id="live-host-cam-select"
+              value={videoDeviceId || videoDevices[0]?.deviceId || ''}
+              disabled={
+                cameraMode === 'file' || camSwitching || cameraToggling || micSwitching
+              }
+              onChange={(e) => void onHostCameraChange(e.target.value)}
+              className="w-full px-2.5 py-2 min-h-[44px] rounded-lg bg-[#131318] border border-[#232330] text-gray-300 text-[11px] hover:border-white/15 disabled:opacity-50 truncate"
+              aria-label="Caméra du live"
+            >
+              {videoDevices.map((c) => (
+                <option key={c.deviceId} value={c.deviceId}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {audioDevices.length > 0 && (
+          <div className="space-y-1">
+            <label
+              htmlFor="live-host-mic-select2"
+              className="text-[10px] font-medium text-gray-500 px-0.5"
+            >
+              Microphone
+            </label>
+            <select
+              id="live-host-mic-select2"
+              value={audioDeviceId || audioDevices[0]?.deviceId || ''}
+              disabled={
+                cameraMode === 'file' || micSwitching || camSwitching || cameraToggling
+              }
+              onChange={(e) => void onHostMicChange(e.target.value)}
+              className="w-full px-2.5 py-2 min-h-[44px] rounded-lg bg-[#131318] border border-[#232330] text-gray-300 text-[11px] hover:border-white/15 disabled:opacity-50 truncate"
+              aria-label="Microphone du live"
+            >
+              {audioDevices.map((m) => (
+                <option key={m.deviceId} value={m.deviceId}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {(camSwitching || micSwitching) && (
+          <p className="text-[10px] text-gray-500 px-0.5">
+            {camSwitching ? LIVE_CAMERA_CAM_SWITCHING : LIVE_CAMERA_MIC_SWITCHING}
+          </p>
+        )}
+        {!cameraLocalActive && cameraMode !== 'file' && (
+          <p className="text-[10px] text-gray-500 px-0.5">
+            Le choix sera appliqué à l&apos;activation de la caméra.
+          </p>
+        )}
+      </div>
+    ) : isHost ? (
+      <p className="text-[11px] text-gray-500 px-0.5">
+        Ouvrez ce menu après avoir autorisé caméra et micro.
+      </p>
+    ) : undefined;
+
+  const hostQuickBarProps = {
+    cameraActive: isLiveKitStream
+      ? !!(live.cameraActive && live.cameraMode === 'camera')
+      : cameraLocalActive && cameraMode === 'camera',
+    cameraToggling,
+    videoFileLoading,
+    onToggleCamera: toggleHostCamera,
+    onPickVideo: () => videoFileInputRef.current?.click(),
+    micMuted,
+    onToggleMic: () => setMicMuted((m) => !m),
+    showObs: showConfigureObsButton,
+    cfProvisioning,
+    onConfigureObs: () => void configureObs(),
+    obsUltraOnly: !!(canSwitchToCloudflare && obsAllowed === false && cloudflareAvailable),
+    queueCount: 0,
+    onOpenRewards: () => openHostPanel('rewards'),
+    goalPercent: activeGoal
+      ? Math.min(100, Math.round((activeGoal.current / activeGoal.target) * 100))
+      : null,
+    onOpenGoals: () => openHostPanel('goals'),
+    onStop: () => void stopLive(),
+    onOpenDashboard: () => openHostPanel('dashboard'),
+    micSelectSlot: hostMediaSelectSlot,
+    onBoardMenuOpen,
+  };
 
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f] overflow-hidden">
@@ -970,208 +1187,70 @@ export function LivePage({
         />
       )}
 
-      <header className="shrink-0 flex items-center gap-3 px-3 py-2.5 border-b border-[#1e1e2f] bg-red-950/30">
-          <button onClick={onBack} className="text-gray-400 hover:text-white text-xl">
-            ←
-          </button>
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-white truncate">{live.title}</p>
-            <p className="text-xs text-red-400 flex items-center gap-1.5 flex-wrap min-w-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />
-              <span className="shrink-0">{t('live.liveBadge')}</span>
-              <UsernameDisplay
-                username={live.hostName}
-                usernameColor={live.hostUsernameColor}
-                usernameWaveFrom={live.hostUsernameWaveFrom}
-                usernameWaveTo={live.hostUsernameWaveTo}
-                className="truncate max-w-[8rem] sm:max-w-none"
-              />
-              {!isHost && (
-                <HostRatingBlock
-                  hostId={live.hostId}
-                  hostName={live.hostName}
-                  liveId={live.id}
-                  inline
-                  hideLabel
-                  compact
-                />
-              )}
-              <span className="shrink-0">· {t('live.viewersCount', { count: viewers })}</span>
-              {!isHost && isDevModerator && (
-                <span className="shrink-0 text-[10px] font-bold text-cyan-300">· {t('live.devBadge')}</span>
-              )}
-              {!isHost && isVipModerator && !isDevModerator && (
-                <span className="shrink-0 text-[10px] font-bold text-amber-300">· {t('live.vipModBadge')}</span>
-              )}
-            </p>
-            {remainingMs !== null && remainingMs > 0 && (
-              <p className={`text-[10px] mt-0.5 ${remainingMs <= 15 * 60 * 1000 ? 'text-amber-400' : 'text-[#5a5a7a]'}`}>
-                ⏱ {formatRemaining(remainingMs)} restants
-              </p>
-            )}
-          </div>
-          {!isHost && (
-            <div className="shrink-0 flex items-center flex-wrap gap-1 sm:gap-1.5 max-w-[min(100%,13rem)] sm:max-w-none justify-end">
-              {hostCanReceiveDonations && token && (
-                <button
-                  type="button"
-                  onClick={() => openDonSheet()}
-                  className="shrink-0 px-2 sm:px-2.5 py-1.5 rounded-full text-[10px] sm:text-xs font-bold border border-amber-500/35 bg-amber-950/50 text-amber-200 hover:bg-amber-900/60 hover:border-amber-400/50 transition"
-                  title={t('live.headerDonate')}
-                >
-                  <span aria-hidden>🎁</span>
-                  <span className="ml-0.5 sm:hidden">{t('live.headerDonateShort')}</span>
-                  <span className="ml-0.5 hidden sm:inline">{t('live.headerDonate')}</span>
-                </button>
-              )}
-              {hostCanReceiveDonations && token && (
-                <button
-                  type="button"
-                  onClick={() => setShowSubscribeSheet(true)}
-                  className="shrink-0 px-2 sm:px-2.5 py-1.5 rounded-full text-[10px] sm:text-xs font-bold border border-purple-500/35 bg-purple-950/50 text-purple-200 hover:bg-purple-900/60 hover:border-purple-400/50 transition"
-                  title={t('live.headerSubscribe')}
-                >
-                  <span aria-hidden>⭐</span>
-                  <span className="ml-0.5 sm:hidden">{t('live.headerSubscribeShort')}</span>
-                  <span className="ml-0.5 hidden sm:inline">{t('live.headerSubscribe')}</span>
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={leaveLive}
-                className="shrink-0 px-2 sm:px-3 py-1.5 bg-[#1a1a26] border border-[#232330] rounded-full text-[10px] sm:text-xs text-gray-300 font-bold hover:text-white hover:border-white/15 transition"
-              >
-                <span className="sm:hidden">{t('live.leaveLiveShort')}</span>
-                <span className="hidden sm:inline">{t('live.leaveLive')}</span>
-              </button>
-            </div>
-          )}
-          {isHost && (
-            <div className="shrink-0 flex items-center gap-1.5 flex-wrap justify-end max-w-[min(100%,14rem)]">
-              <input
-                ref={videoFileInputRef}
-                type="file"
-                accept="video/*,.mp4,.webm,.mov,.m4v"
-                className="sr-only"
-                aria-hidden
-                onChange={(e) => void onPickVideoFile(e)}
-              />
-              {showConfigureObsButton && (
-                <button
-                  type="button"
-                  onClick={() => void configureObs()}
-                  disabled={cfProvisioning}
-                  className="px-2.5 py-1.5 rounded-full text-[10px] font-bold border border-orange-500/40 bg-orange-950/60 text-orange-200 hover:bg-orange-900/70 hover:border-orange-400/50 transition disabled:opacity-50"
-                  title="Passer en diffusion OBS via Cloudflare Stream (SoundyUltra)"
-                >
-                  {cfProvisioning ? '…' : '📡 Configurer OBS'}
-                </button>
-              )}
-              {canSwitchToCloudflare && obsAllowed === false && cloudflareAvailable && (
-                <span
-                  className="px-2 py-1 rounded-full text-[9px] text-gray-500 border border-[#2d2d3d]"
-                  title="Réservé à SoundyUltra"
-                >
-                  OBS · Ultra
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={toggleHostCamera}
-                disabled={cameraToggling}
-                className={`px-2.5 py-1.5 rounded-full text-[10px] font-medium border transition disabled:opacity-50 ${
-                  (isLiveKitStream
-                    ? live.cameraActive && live.cameraMode === 'camera'
-                    : cameraLocalActive && cameraMode === 'camera')
-                    ? 'bg-[#0f2018] border-[#1e4030] text-[#70aa88]'
-                    : 'bg-[#131318] border-[#232330] text-gray-400 hover:border-white/15'
-                }`}
-              >
-                {cameraToggling
-                  ? '…'
-                  : (isLiveKitStream
-                      ? live.cameraActive && live.cameraMode === 'camera'
-                      : cameraLocalActive && cameraMode === 'camera')
-                    ? '📹 Caméra on'
-                    : '📷 Activer la caméra'}
-              </button>
-              {cameraLocalActive && cameraMode === 'camera' && audioDevices.length > 0 && (
-                <label className="sr-only" htmlFor="live-host-mic-select">
-                  Microphone
-                </label>
-              )}
-              {cameraLocalActive && cameraMode === 'camera' && audioDevices.length > 0 && (
-                <select
-                  id="live-host-mic-select"
-                  value={audioDeviceId}
-                  disabled={micSwitching || cameraToggling}
-                  onChange={(e) => void onHostMicChange(e.target.value)}
-                  className="max-w-[7.5rem] px-2 py-1.5 rounded-full text-[10px] font-medium border bg-[#131318] border-[#232330] text-gray-300 hover:border-white/15 disabled:opacity-50 truncate"
-                  title="Changer de micro"
-                  aria-label="Microphone du live"
-                >
-                  {audioDevices.map((m) => (
-                    <option key={m.deviceId} value={m.deviceId}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {micSwitching && (
-                <span className="text-[9px] text-gray-500 shrink-0">{LIVE_CAMERA_MIC_SWITCHING}</span>
-              )}
-              <button
-                type="button"
-                onClick={() => videoFileInputRef.current?.click()}
-                disabled={cameraToggling || videoFileLoading}
-                className={`px-2.5 py-1.5 rounded-full text-[10px] font-medium border transition disabled:opacity-50 ${
-                  cameraLocalActive && cameraMode === 'file'
-                    ? 'bg-[#0f2018] border-[#1e4030] text-[#70aa88]'
-                    : 'bg-[#131318] border-[#232330] text-gray-400 hover:border-white/15'
-                }`}
-                title="Aperçu vidéo sans caméra (fichier local)"
-              >
-                {videoFileLoading ? '…' : cameraLocalActive && cameraMode === 'file' ? '🎬 Vidéo on' : 'Choisir une vidéo'}
-              </button>
-              <button
-                onClick={stopLive}
-                className="px-3 py-1.5 bg-[#1a1a26] border border-red-500/50 rounded-full text-xs text-red-400 font-bold"
-              >
-                Arrêter
-              </button>
-            </div>
-          )}
-          {!isHost && live && (
+      {/* ── Header redesigné ── */}
+      <LiveHostTopBar
+        title={live.title}
+        viewers={viewers}
+        remainingMs={remainingMs}
+        onBack={onBack}
+        onShare={handleShareLive}
+        centerControls={
+          isHost ? <StopLiveButton compact onStop={() => void stopLive()} /> : undefined
+        }
+        hostControls={
+          isHost ? <LiveHostQuickBar {...hostQuickBarProps} variant="header" /> : undefined
+        }
+        trailing={
+          !isHost && live ? (
             <button
               type="button"
               onClick={() => setReportLiveOpen(true)}
-              className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full text-gray-400 hover:text-red-400 hover:bg-[#2a2a3a] transition"
+              className="w-9 h-9 flex items-center justify-center rounded-full text-gray-400 hover:text-red-400 hover:bg-[#1a1a26] transition"
               aria-label="Signaler ce live"
-              title="Signaler ce live"
             >
-              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
                 <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
               </svg>
+            </button>
+          ) : undefined
+        }
+      />
+
+      {/* Bande 2 : Actions auditeur (non-hôte) */}
+      {!isHost && (hostCanReceiveDonations || true) && (
+        <div className="shrink-0 flex items-center gap-1.5 px-3 py-2 border-b border-[#1e1e2f] bg-[#0b0b0f]">
+          {hostCanReceiveDonations && token && (
+            <button
+              type="button"
+              onClick={() => openDonSheet()}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold border border-amber-500/35 bg-amber-950/50 text-amber-200 hover:bg-amber-900/60 transition min-h-[36px]"
+            >
+              <span aria-hidden>🎁</span>
+              <span className="sm:hidden">{t('live.headerDonateShort')}</span>
+              <span className="hidden sm:inline">{t('live.headerDonate')}</span>
+            </button>
+          )}
+          {hostCanReceiveDonations && token && (
+            <button
+              type="button"
+              onClick={() => setShowSubscribeSheet(true)}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold border border-purple-500/35 bg-purple-950/50 text-purple-200 hover:bg-purple-900/60 transition min-h-[36px]"
+            >
+              <span aria-hidden>⭐</span>
+              <span className="sm:hidden">{t('live.headerSubscribeShort')}</span>
+              <span className="hidden sm:inline">{t('live.headerSubscribe')}</span>
             </button>
           )}
           <button
             type="button"
-            onClick={() => void handleShareLive()}
-            title={shareCopied ? t('live.shareLiveCopied') : t('live.shareLiveTitle')}
-            className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-[#2a2a3a] transition"
-            aria-label={t('live.shareLive')}
+            onClick={leaveLive}
+            className="ml-auto flex items-center px-3 py-1.5 bg-[#1a1a26] border border-[#232330] rounded-full text-xs text-gray-300 font-bold hover:text-white transition min-h-[36px]"
           >
-            {shareCopied ? (
-              <svg className="w-4 h-4 text-green-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 00-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z" clipRule="evenodd" />
-              </svg>
-            ) : (
-              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
-              </svg>
-            )}
+            <span className="sm:hidden">{t('live.leaveLiveShort')}</span>
+            <span className="hidden sm:inline">{t('live.leaveLive')}</span>
           </button>
-      </header>
+        </div>
+      )}
 
       <ChatRoomProvider
         roomId={liveId}
@@ -1201,6 +1280,24 @@ export function LivePage({
         chatTitle={t('live.publicChat')}
         chatMinimized={chatMinimized}
         onToggleMinimize={() => setChatMinimized((m) => !m)}
+        stageFooter={isHost ? (
+          <>
+            {activeGoal && (
+              <LiveHostGoalStrip
+                goal={activeGoal}
+                onClick={() => openHostPanel('goals')}
+              />
+            )}
+            <input
+              ref={videoFileInputRef}
+              type="file"
+              accept="video/*,.mp4,.webm,.mov,.m4v"
+              className="sr-only"
+              aria-hidden
+              onChange={(e) => void onPickVideoFile(e)}
+            />
+          </>
+        ) : undefined}
         chatHeaderExtra={
           <>
             {token ? (
@@ -1212,23 +1309,81 @@ export function LivePage({
                 hostUsernameColor={live.hostUsernameColor}
                 vipModeratorIds={live.vipModeratorIds ?? []}
                 viewersCount={viewers}
-                panelAbove
+                panelAbove={false}
               />
             ) : null}
             {(isHost || isDevModerator) ? (
-              <button
-                type="button"
-                onClick={() => setShowVipPanel((v) => !v)}
-                className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-medium border transition ${
-                  showVipPanel
-                    ? 'bg-[#2a2010] border-[#3a3010] text-[#c8a850]'
-                    : 'bg-[#131318] border-[#232330] text-gray-400 hover:border-white/15'
-                }`}
-                title="Modérateurs VIP"
-                aria-expanded={showVipPanel}
-              >
-                ⭐ VIP
-              </button>
+              <div ref={vipPanelRef} className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowVipPanel((v) => !v)}
+                  className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-medium border transition ${
+                    showVipPanel
+                      ? 'bg-[#2a2010] border-[#3a3010] text-[#c8a850]'
+                      : 'bg-[#131318] border-[#232330] text-gray-400 hover:border-white/15'
+                  }`}
+                  title="Modérateurs VIP"
+                  aria-expanded={showVipPanel}
+                >
+                  ⭐ VIP
+                </button>
+
+                {showVipPanel && (
+                  <div className="absolute right-0 top-full mt-1 z-[60] w-[min(15rem,calc(100vw-2rem))] rounded-xl border border-amber-500/30 bg-[#12100a] shadow-2xl overflow-hidden">
+                    <div className="px-2.5 py-2 border-b border-amber-500/20 bg-[#1a1200]/80">
+                      <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">
+                        {t('live.vipModerators')}
+                      </p>
+                    </div>
+                    <div className="p-2 space-y-1 max-h-48 overflow-y-auto">
+                      {vipEntries.length === 0 ? (
+                        <p className="text-[11px] text-gray-500 px-1 py-1">{t('live.noVipModerators')}</p>
+                      ) : (
+                        <ul className="space-y-1">
+                          {vipEntries.map((v) => (
+                            <li key={v.id} className="flex items-center justify-between gap-2 rounded-lg border border-[#2a2010] bg-[#1a1200] px-2 py-1.5">
+                              <span className="text-[11px] text-gray-200 truncate flex-1 min-w-0">
+                                <span className="text-amber-400 font-bold text-[10px]">VIP</span> {v.name}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!window.confirm(`Retirer le statut VIP de ${v.name} ?`)) return;
+                                  setVipModerator(v.id, false);
+                                }}
+                                className="shrink-0 text-[10px] font-bold text-red-400 hover:text-red-300 transition"
+                              >
+                                ✕
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {chatParticipants.length > 0 && (
+                        <div className="pt-1 border-t border-amber-500/15 mt-1">
+                          <p className="text-[9px] text-gray-500 px-1 mb-1 uppercase tracking-wide">Ajouter</p>
+                          <ul className="flex flex-wrap gap-1">
+                            {chatParticipants.map((p) => (
+                              <li key={p.id}>
+                                <button
+                                  type="button"
+                                  onClick={() => setVipModerator(p.id, true)}
+                                  className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#1a1200] border border-amber-500/30 text-amber-200 hover:bg-amber-950/40 transition"
+                                >
+                                  + {p.name}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {chatParticipants.length === 0 && vipEntries.length === 0 && (
+                        <p className="text-[11px] text-gray-500 px-1">{t('live.addModeratorFromChat')}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : null}
           </>
         }
@@ -1251,9 +1406,15 @@ export function LivePage({
               streamEndedTitle={streamEndedTitle}
               streamEndedHint={streamEndedHint}
               overlay={
-                !isHost && hostCanReceiveDonations && !viewerStreamEnded ? (
-                  <LiveGiftOverlay liveId={liveId} visible onOpenGiftSheet={openDonSheet} />
-                ) : null
+                !isHost && !viewerStreamEnded ? (
+                  <>
+                    {hostCanReceiveDonations && (
+                      <LiveGiftOverlay liveId={liveId} visible onOpenGiftSheet={openDonSheet} />
+                    )}
+                  </>
+                ) : (
+                  hostVideoOverlay
+                )
               }
             />
           ) : (
@@ -1307,6 +1468,7 @@ export function LivePage({
                     onToggle={() => setShowCfHostPanel((v) => !v)}
                   />
                 ) : null}
+                {hostVideoOverlay}
                 {!isHost && hostCanReceiveDonations && !viewerStreamEnded ? (
                   <LiveGiftOverlay liveId={liveId} visible onOpenGiftSheet={openDonSheet} />
                 ) : null}
@@ -1317,51 +1479,6 @@ export function LivePage({
         }
         chat={
           <div className="flex flex-col h-full min-h-0">
-            {(isHost || isDevModerator) && showVipPanel && (
-              <div className="shrink-0 rounded-lg border border-amber-500/30 bg-amber-950/20 p-2.5 mx-2 mt-2">
-                <p className="text-xs font-bold text-amber-300 mb-2">{t('live.vipModerators')}</p>
-                {vipEntries.length === 0 ? (
-                  <p className="text-[11px] text-gray-500 mb-2">{t('live.noVipModerators')}</p>
-                ) : (
-                  <ul className="space-y-1.5 mb-3">
-                    {vipEntries.map((v) => (
-                      <li key={v.id} className="flex items-center justify-between gap-2 text-sm">
-                        <span className="text-gray-200 truncate">
-                          <span className="text-amber-400 font-bold">VIP</span> · {v.name}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!window.confirm(`Retirer le statut VIP de ${v.name} ?`)) return;
-                            setVipModerator(v.id, false);
-                          }}
-                          className="shrink-0 px-2 py-1 rounded-lg text-[10px] font-bold text-red-300 border border-red-500/30 hover:bg-red-500/10"
-                        >
-                          {t('live.removeVip')} VIP
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {chatParticipants.length > 0 ? (
-                  <ul className="flex flex-wrap gap-1.5">
-                    {chatParticipants.map((p) => (
-                      <li key={p.id}>
-                        <button
-                          type="button"
-                          onClick={() => setVipModerator(p.id, true)}
-                          className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#1a1a26] border border-amber-500/30 text-amber-100"
-                        >
-                          + {p.name}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-[11px] text-gray-500">{t('live.addModeratorFromChat')}</p>
-                )}
-              </div>
-            )}
             <ChatMessagesView />
           </div>
         }
@@ -1369,6 +1486,54 @@ export function LivePage({
       />
         <ChatModals />
       </ChatRoomProvider>
+
+      {isHost && showHostPanel && (
+        <LiveHostPanel
+          liveId={liveId}
+          viewers={viewers}
+          totalDonations={hostTotalDonations}
+          donationCount={hostDonationCount}
+          liveStartedAt={liveStartedAt}
+          initialTab={hostPanelTab}
+          chatConfig={live?.chatConfig}
+          onClose={() => setShowHostPanel(false)}
+        />
+      )}
+
+      {showShareMenu && !shareToUserOpen && (
+        <ShareLinkMenu
+          open
+          onClose={() => setShowShareMenu(false)}
+          url={liveShareUrl}
+          title={liveShareTitle}
+          text={liveShareText}
+          onToast={setShareToast}
+          onSendToUser={token ? () => setShareToUserOpen(true) : undefined}
+        />
+      )}
+
+      {showShareMenu && shareToUserOpen && token && (
+        <ShareToUserSheet
+          open
+          onBack={() => setShareToUserOpen(false)}
+          onClose={() => {
+            setShareToUserOpen(false);
+            setShowShareMenu(false);
+          }}
+          token={token}
+          shareUrl={liveShareUrl}
+          shareText={liveShareText}
+          onToast={setShareToast}
+        />
+      )}
+
+      {shareToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[60] pointer-events-none">
+          <div className="bg-[#1e1e2f]/95 border border-[#2d2d3d] text-white text-xs font-semibold px-4 py-2 rounded-full shadow-xl backdrop-blur-sm whitespace-nowrap">
+            {shareToast}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -22,6 +22,8 @@ import { ConfirmModal } from './ConfirmModal';
 
 import { ShareLinkMenu } from './ShareLinkMenu';
 
+import { ShareToUserSheet } from './ShareToUserSheet';
+
 import { getAlbumShareUrl } from '../lib/shareLink';
 
 
@@ -369,6 +371,8 @@ export function UserCompositionsSection({
   const [shareAlbum, setShareAlbum] = useState<UserAlbumItem | null>(null);
 
   const [shareAlbumUrl, setShareAlbumUrl] = useState('');
+
+  const [shareToUserOpen, setShareToUserOpen] = useState(false);
 
   const [postAlbum, setPostAlbum] = useState<UserAlbumItem | null>(null);
 
@@ -2207,7 +2211,7 @@ export function UserCompositionsSection({
 
 
 
-      {shareAlbum && shareAlbumUrl && (
+      {shareAlbum && shareAlbumUrl && !shareToUserOpen && (
 
         <ShareLinkMenu
 
@@ -2226,6 +2230,46 @@ export function UserCompositionsSection({
           title={`${shareAlbum.title} — Soundy`}
 
           text={t('profile.compositions.shareAlbumText', {
+
+            title: shareAlbum.title,
+
+            username: shareDisplayName,
+
+          })}
+
+          onToast={setToastMsg}
+
+          onSendToUser={token ? () => setShareToUserOpen(true) : undefined}
+
+        />
+
+      )}
+
+
+
+      {shareAlbum && shareAlbumUrl && shareToUserOpen && token && (
+
+        <ShareToUserSheet
+
+          open
+
+          onBack={() => setShareToUserOpen(false)}
+
+          onClose={() => {
+
+            setShareToUserOpen(false);
+
+            setShareAlbum(null);
+
+            setShareAlbumUrl('');
+
+          }}
+
+          token={token}
+
+          shareUrl={shareAlbumUrl}
+
+          shareText={t('profile.compositions.shareAlbumText', {
 
             title: shareAlbum.title,
 

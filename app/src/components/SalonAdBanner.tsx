@@ -36,7 +36,7 @@ export function SalonAdBanner({ onCtaSalon, onCtaLive }: SalonAdBannerProps) {
 
   return (
     <div
-      className="shrink-0 border-t border-[#1e1e2f] bg-[#12121a]"
+      className="salon-theater-ad-banner shrink-0 w-full min-w-0 border-t border-[#1e1e2f] bg-[#12121a]"
       role="region"
       aria-label="Bandeau sponsorisé"
     >

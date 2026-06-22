@@ -25,6 +25,7 @@ import { useSalonQueueSync } from '../hooks/useSalonQueueSync';
 import { emitOnSocket } from '../lib/socket';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { ShareLinkMenu } from '../components/ShareLinkMenu';
+import { ShareToUserSheet } from '../components/ShareToUserSheet';
 
 import { formatSalonAudienceLabel } from '../lib/salonAudience';
 import { getSalonShareUrl } from '../lib/shareLink';
@@ -108,6 +109,7 @@ export function SalonPage({
   const [chatMinimized, setChatMinimized] = useState(readSalonChatMinimized);
   const [chatDockTab, setChatDockTab] = useState<SalonChatDockTab>('chat');
   const [showShareMenu, setShowShareMenu] = useState(false);
+  const [shareToUserOpen, setShareToUserOpen] = useState(false);
   const [shareMenuUrl, setShareMenuUrl] = useState('');
 
   const [sessionEnded, setSessionEnded] = useState(false);
@@ -348,21 +350,9 @@ export function SalonPage({
     }
   }, [onMinimizeToMap, onBack, salon?.title]);
 
-  const handleShareSalon = useCallback(async () => {
-    const url = shareMenuUrl || `${SOUNDY_BASE_URL}/salon/${salonId}`;
-    const title = salon?.title ?? 'Salon Soundy';
-    const text = `Rejoins le salon "${title}" sur Soundy`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title, text, url });
-        return;
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') return;
-        // native share failed — fall through to share menu
-      }
-    }
+  const handleShareSalon = useCallback(() => {
     setShowShareMenu(true);
-  }, [salonId, salon?.title, shareMenuUrl]);
+  }, []);
 
   const handleEndSalon = useCallback(async () => {
     if (!token || !salon || !onLeaveSalon) return;
@@ -725,7 +715,7 @@ export function SalonPage({
       )}
       <button
         type="button"
-        onClick={() => void handleShareSalon()}
+        onClick={handleShareSalon}
         title="Partager ce salon"
         className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full text-gray-400 hover:text-white hover:bg-[#2a2a3a] transition"
         aria-label="Partager le salon"
@@ -849,13 +839,28 @@ export function SalonPage({
         onConfirm={() => void handleEndSalon()}
       />
       <ShareLinkMenu
-        open={showShareMenu}
+        open={showShareMenu && !shareToUserOpen}
         onClose={() => setShowShareMenu(false)}
         url={shareMenuUrl || `${SOUNDY_BASE_URL}/salon/${salonId}`}
         title={salon?.title ?? 'Salon Soundy'}
         text={`Rejoins le salon "${salon?.title ?? 'Soundy'}" sur Soundy`}
         onToast={setToastMsg}
+        onSendToUser={token ? () => setShareToUserOpen(true) : undefined}
       />
+      {showShareMenu && shareToUserOpen && token && (
+        <ShareToUserSheet
+          open
+          onBack={() => setShareToUserOpen(false)}
+          onClose={() => {
+            setShareToUserOpen(false);
+            setShowShareMenu(false);
+          }}
+          token={token}
+          shareUrl={shareMenuUrl || `${SOUNDY_BASE_URL}/salon/${salonId}`}
+          shareText={`Rejoins le salon "${salon?.title ?? 'Soundy'}" sur Soundy`}
+          onToast={setToastMsg}
+        />
+      )}
     </div>
   );
 

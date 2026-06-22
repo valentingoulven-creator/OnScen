@@ -157,6 +157,9 @@ export function formatDailyLimitHours(minutes: number): string {
 }
 
 export function assertCanStartLive(hostId: string, now = Date.now()): void {
+  const user = db.users.get(hostId);
+  // Les comptes admin n'ont aucune limite de diffusion
+  if (user?.isAdmin) return;
   const plan = getUserPlatformPlan(hostId, now);
   const limit = plan.limits.maxLiveMinutesPerDay;
   if (limit == null) return;
@@ -176,6 +179,9 @@ export function assertCanJoinLiveAsViewer(
   viewerId?: string
 ): void {
   if (viewerId && viewerId === hostId) return;
+  // L'admin peut toujours rejoindre
+  const viewer = viewerId ? db.users.get(viewerId) : undefined;
+  if (viewer?.isAdmin) return;
   const plan = getUserPlatformPlan(hostId);
   const max = plan.limits.maxViewers;
   if (max == null) return;
@@ -188,6 +194,8 @@ export function assertCanJoinLiveAsViewer(
 }
 
 export function assertCanUseCloudflareObs(hostId: string): void {
+  const user = db.users.get(hostId);
+  if (user?.isAdmin) return;
   const plan = getUserPlatformPlan(hostId);
   if (!plan.limits.allowCloudflare || !plan.limits.allowObs) {
     throw new PlatformPlanError(

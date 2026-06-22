@@ -69,9 +69,11 @@ export function resolveInternalLink(raw: string): InternalLinkTarget | null {
 }
 
 function normalizeHref(raw: string): string {
-  if (raw.startsWith('http') || raw.startsWith('/')) return raw;
-  if (raw.startsWith('#/')) return raw;
-  return raw;
+  // Only allow safe URL schemes to prevent javascript: XSS vectors
+  if (raw.startsWith('https://') || raw.startsWith('http://')) return raw;
+  if (raw.startsWith('/') || raw.startsWith('#/')) return raw;
+  // Fallback: treat as relative path but never render javascript: / data: / vbscript:
+  return '#';
 }
 
 /** Split plain text into text and link segments (http(s), hash routes, profile/salon paths). */

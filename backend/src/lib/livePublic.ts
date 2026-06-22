@@ -39,6 +39,7 @@ export function serializePublicLive(l: Live, distanceKm?: number, viewerId?: str
     cloudflareVodPlaybackUrl: l.cloudflareVodPlaybackUrl,
     cloudflareLiveInputId: l.cloudflareLiveInputId,
     vipModeratorIds: l.vipModeratorIds ?? [],
+    chatConfig: l.chatConfig ?? {},
     isDev: isDevModerator ? true : undefined,
     hostMonetizationEligible: creatorMeetsMonetizationAge(host?.age),
     countryCode: country?.code,

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { ShareLinkMenu } from './ShareLinkMenu';
+import { ShareToUserSheet } from './ShareToUserSheet';
 import { SUPPORT } from '../content/support';
 import { getAppShareUrl } from '../lib/shareLink';
 import { getSupportClickCount, incrementSupportClick } from '../lib/support';
@@ -12,8 +14,10 @@ interface SupportMeloSongSectionProps {
 }
 
 export function SupportMeloSongSection({ onToast }: SupportMeloSongSectionProps) {
+  const { token } = useAuth();
   const [clickCount, setClickCount] = useState(getSupportClickCount);
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
+  const [shareToUserOpen, setShareToUserOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
 
   useEffect(() => {
@@ -86,7 +90,7 @@ export function SupportMeloSongSection({ onToast }: SupportMeloSongSectionProps)
         )}
       </div>
 
-      {shareMenuOpen && shareUrl && (
+      {shareMenuOpen && shareUrl && !shareToUserOpen && (
         <ShareLinkMenu
           open={shareMenuOpen}
           onClose={() => setShareMenuOpen(false)}
@@ -95,6 +99,23 @@ export function SupportMeloSongSection({ onToast }: SupportMeloSongSectionProps)
           text={APP_SHARE_TEXT}
           onToast={toast}
           onShared={handleShared}
+          onSendToUser={token ? () => setShareToUserOpen(true) : undefined}
+        />
+      )}
+
+      {shareMenuOpen && shareToUserOpen && shareUrl && token && (
+        <ShareToUserSheet
+          open
+          onBack={() => setShareToUserOpen(false)}
+          onClose={() => {
+            setShareToUserOpen(false);
+            setShareMenuOpen(false);
+          }}
+          token={token}
+          shareUrl={shareUrl}
+          shareText={APP_SHARE_TEXT}
+          onToast={toast}
+          onSent={handleShared}
         />
       )}
     </div>

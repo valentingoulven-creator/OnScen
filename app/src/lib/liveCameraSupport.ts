@@ -50,6 +50,11 @@ export function isMsdevEnvironment(): boolean {
   return import.meta.env.VITE_APP_ENV === 'msdev';
 }
 
+/** Dev/msdev only — bypass caméra/micro pour tester l’UI live/salon sans périphérique. */
+export function canBypassLiveMediaSetup(): boolean {
+  return import.meta.env.DEV || isMsdevEnvironment();
+}
+
 function isWindows(): boolean {
   return typeof navigator !== 'undefined' && /Windows/i.test(navigator.userAgent);
 }
@@ -427,6 +432,15 @@ export async function listLiveAudioInputDevices(): Promise<LiveMediaDeviceOption
     .map((d, i) => ({ deviceId: d.deviceId, label: d.label || `Micro ${i + 1}` }));
 }
 
+export async function listLiveVideoInputDevices(): Promise<LiveMediaDeviceOption[]> {
+  const md = ensureMediaDevices();
+  if (!md?.enumerateDevices) return [];
+  const all = await md.enumerateDevices();
+  return all
+    .filter((d) => d.kind === 'videoinput')
+    .map((d, i) => ({ deviceId: d.deviceId, label: d.label || `Caméra ${i + 1}` }));
+}
+
 /** Remplace la piste audio d'un flux live sans couper la vidéo. */
 export async function replaceLiveAudioTrack(
   stream: MediaStream,
@@ -449,6 +463,33 @@ export async function replaceLiveAudioTrack(
   }
   stream.addTrack(newTrack);
   audioStream.getTracks().forEach((t) => {
+    if (t !== newTrack) t.stop();
+  });
+  return newTrack;
+}
+
+/** Remplace la piste vidéo d'un flux live sans couper l'audio. */
+export async function replaceLiveVideoTrack(
+  stream: MediaStream,
+  getUserMedia: (c: MediaStreamConstraints) => Promise<MediaStream>,
+  videoDeviceId: string
+): Promise<MediaStreamTrack> {
+  const videoStream = await getUserMedia({
+    video: { deviceId: { ideal: videoDeviceId } },
+    audio: false,
+  });
+  const newTrack = videoStream.getVideoTracks()[0];
+  if (!newTrack) {
+    videoStream.getTracks().forEach((t) => t.stop());
+    throw new DOMException('No video track', 'NotFoundError');
+  }
+  const oldTrack = stream.getVideoTracks()[0];
+  if (oldTrack) {
+    stream.removeTrack(oldTrack);
+    oldTrack.stop();
+  }
+  stream.addTrack(newTrack);
+  videoStream.getTracks().forEach((t) => {
     if (t !== newTrack) t.stop();
   });
   return newTrack;

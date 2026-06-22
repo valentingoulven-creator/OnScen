@@ -209,7 +209,7 @@ html {
   opacity: 1;
 }
 
-/* Admin — barre d'onglets scrollable (header + sous-onglets) */
+/* Admin — barre d'onglets : retour à la ligne (tous visibles, pas de scroll/fade) */
 .ms-admin-tab-bar-wrap {
   min-width: 0;
   width: 100%;
@@ -219,36 +219,23 @@ html {
 .ms-admin-tab-bar {
   min-width: 0;
   width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
-  scroll-snap-type: x proximity;
-  overscroll-behavior-x: contain;
-  touch-action: pan-x;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  overflow: visible;
   padding-bottom: 0.125rem;
 }
 
-.ms-admin-tab-bar::-webkit-scrollbar {
-  display: none;
-}
-
-/* Centré si tout tient ; scroll horizontal si débordement (width: max-content) */
 .ms-admin-tab-bar__inner {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   justify-content: center;
-  gap: 0.25rem;
-  width: max-content;
-  min-width: 100%;
+  align-items: center;
+  gap: 0.375rem;
+  width: 100%;
+  min-width: 0;
   box-sizing: border-box;
 }
 
 .ms-admin-tab-bar__inner > * {
   flex-shrink: 0;
-  scroll-snap-align: start;
 }
 
 html,
@@ -1087,6 +1074,14 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   animation: live-blink 1.2s ease-in-out infinite;
 }
 
+@keyframes live-goal-pulse-anim {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.live-goal-pulse {
+  animation: live-goal-pulse-anim 1.5s ease-in-out infinite;
+}
+
 /* ── User position marker (bonhomme bleu) ────────────────────────────── */
 @keyframes user-pos-pulse {
   0%   { transform: scale(0.4); opacity: 0.9; }
@@ -1658,7 +1653,7 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   .room-theater-side-row--match-hero {
     display: grid;
     grid-template-columns: minmax(240px, 0.3fr) minmax(0, 1fr);
-    grid-template-rows: auto auto auto;
+    grid-template-rows: auto auto auto auto;
     flex: 0 0 auto;
     align-items: stretch;
     align-content: start;
@@ -1696,8 +1691,14 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
     min-width: 0;
   }
 
-  .room-theater-side-row--match-hero .salon-theater-panel-extra {
+  .room-theater-side-row--match-hero .salon-theater-ad-banner {
     grid-row: 3;
+    grid-column: 2;
+    min-width: 0;
+  }
+
+  .room-theater-side-row--match-hero .salon-theater-panel-extra {
+    grid-row: 4;
     grid-column: 2;
     min-width: 0;
   }
@@ -1716,6 +1717,7 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   .room-theater-side-row--match-hero.room-theater-side-row--right .salon-theater-hero-wrap,
   .room-theater-side-row--match-hero.room-theater-side-row--right .salon-theater-hero,
   .room-theater-side-row--match-hero.room-theater-side-row--right .salon-theater-controls,
+  .room-theater-side-row--match-hero.room-theater-side-row--right .salon-theater-ad-banner,
   .room-theater-side-row--match-hero.room-theater-side-row--right .salon-theater-panel-extra,
   .room-theater-side-row--match-hero.room-theater-side-row--right .room-theater-toggle {
     grid-column: 1;
@@ -1908,6 +1910,21 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   width: 100%;
 }
 
+/* Salon théâtre — chaîne flex scroll (évite ~18px de débordement vs barre saisie) */
+.room-theater-chat-dock .salon-chat-dock-tabs__content {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.room-theater-chat-dock .chat-messages-scroll {
+  flex: 0 0 550px;
+  min-height: 0;
+  height: 550px;
+}
+
 .salon-chat-dock-tab {
   position: relative;
   display: flex;
@@ -2028,16 +2045,60 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 }
 
 .room-theater-bottom-chat-dock {
-  flex: 0 1 auto;
+  flex: 0 0 auto;
+  height: min(36dvh, 360px);
+  min-height: 11rem;
   max-height: 38dvh;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.room-theater-layout--bottom-chat > .min-h-0.flex.flex-col.overflow-hidden,
+.room-theater-layout--bottom-chat > .min-h-0.flex.flex-col.overflow-hidden.sm\:flex-row {
+  flex: 1 1 0;
   min-height: 0;
-  flex-shrink: 0;
+}
+
+.room-theater-layout--bottom-chat .room-theater-video-stage {
+  min-height: 0;
+  flex: 1 1 0;
+}
+
+.ms-salon-fullscreen-overlay .room-theater-layout--bottom-chat .room-theater-video-stage {
+  min-height: 0;
+  flex: 1 1 0;
+}
+
+.room-theater-bottom-chat-dock .room-theater-chat-dock__body {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.room-theater-bottom-chat-dock .chat-messages-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  height: auto;
 }
 
 .room-theater-bottom-chat-dock .live-chat-messages {
   max-height: none;
   flex: 1 1 auto;
   min-height: 0;
+}
+
+/* Live / salon plein écran — saisie chat au-dessus du dock d'accueil flottant */
+[data-design-quick-wins="1"] .ms-app-shell--bottom-tabs .ms-salon-fullscreen-overlay .room-theater-bottom-chat-dock {
+  padding-bottom: var(--tab-nav-total-h);
+}
+
+[data-design-quick-wins="1"]
+  .ms-app-shell--bottom-tabs
+  .ms-salon-fullscreen-overlay
+  .room-theater-bottom-chat-dock
+  .room-theater-chat-dock__input {
+  position: relative;
+  z-index: 65;
 }
 
 /* Salon YouTube — colonne centrée : vidéo 16:9, chat et tiroir hôte à la même largeur */
@@ -2051,6 +2112,12 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 .room-theater-stack-column .room-theater-video-stage {
   flex: 0 0 auto;
   min-height: 0;
+}
+
+/* Live page — hauteur vidéo dans le layout empilé */
+.room-theater-stack-column .live-video-container {
+  height: min(42dvh, 42vh);
+  max-height: min(42dvh, 42vh);
 }
 
 .room-theater-stack-column .salon-theater-hero .aspect-video {

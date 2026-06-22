@@ -793,6 +793,12 @@ export interface SalonBan {
   bannedAt: number;
 }
 
+export interface LiveChatConfig {
+  noLinksForParticipants?: boolean;
+  slowModeSeconds?: number;
+  subscribersOnly?: boolean;
+}
+
 export interface Live {
   id: string;
   salonId?: string;
@@ -815,6 +821,7 @@ export interface Live {
   cameraMode?: 'camera' | 'file';
   vipModeratorIds?: string[];
   isDev?: boolean;
+  chatConfig?: LiveChatConfig;
   /** L'hôte du live peut recevoir des dons (18+). */
   hostMonetizationEligible?: boolean;
   /** Code ISO pays du live (dérivé coords / ville hôte). */

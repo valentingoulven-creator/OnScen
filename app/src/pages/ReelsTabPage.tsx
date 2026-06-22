@@ -14,6 +14,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { ReelsSearchBar } from '../components/ReelsSearchBar';
 import { ShareLinkMenu } from '../components/ShareLinkMenu';
+import { ShareToUserSheet } from '../components/ShareToUserSheet';
 import { UserAvatarOnline } from '../components/UserAvatarOnline';
 import { UsernameDisplay } from '../components/UsernameDisplay';
 import { api } from '../lib/api';
@@ -308,6 +309,7 @@ export function ReelsTabPage({
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [shareToast, setShareToast] = useState<string | null>(null);
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
+  const [shareToUserOpen, setShareToUserOpen] = useState(false);
   const [reportReelOpen, setReportReelOpen] = useState(false);
   const initialScrollDone = useRef(false);
   const viewedReelsThisSession = useRef(new Set<string>());
@@ -1204,7 +1206,7 @@ export function ReelsTabPage({
         </div>
       </div>
 
-      {shareMenuOpen && activeReel && (
+      {shareMenuOpen && activeReel && !shareToUserOpen && (
         <ShareLinkMenu
           open
           onClose={() => setShareMenuOpen(false)}
@@ -1213,6 +1215,23 @@ export function ReelsTabPage({
           text={reelShareText}
           onToast={setShareToast}
           onShared={recordReelShare}
+          onSendToUser={token ? () => setShareToUserOpen(true) : undefined}
+        />
+      )}
+
+      {shareMenuOpen && shareToUserOpen && activeReel && token && (
+        <ShareToUserSheet
+          open
+          onBack={() => setShareToUserOpen(false)}
+          onClose={() => {
+            setShareToUserOpen(false);
+            setShareMenuOpen(false);
+          }}
+          token={token}
+          shareUrl={reelShareUrl}
+          shareText={reelShareText}
+          onToast={setShareToast}
+          onSent={recordReelShare}
         />
       )}
 

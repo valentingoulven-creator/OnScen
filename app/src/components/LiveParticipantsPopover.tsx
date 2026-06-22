@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { api } from '../lib/api';
 import type { LiveParticipant } from '../types';
@@ -32,8 +32,10 @@ export function LiveParticipantsPopover({
   const [loading, setLoading] = useState(false);
   const [participants, setParticipants] = useState<LiveParticipant[]>([]);
   const [viewersCountApi, setViewersCountApi] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const viewersCount = viewersCountProp ?? viewersCountApi;
 
@@ -51,9 +53,13 @@ export function LiveParticipantsPopover({
   }, [token, liveId]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setSearchQuery('');
+      return;
+    }
     void loadParticipants();
     const id = window.setInterval(() => void loadParticipants(), 12_000);
+    searchInputRef.current?.focus();
     return () => window.clearInterval(id);
   }, [open, loadParticipants]);
 
@@ -86,6 +92,15 @@ export function LiveParticipantsPopover({
   const spectatorLabel =
     viewersCount === 1 ? '1 spectateur' : `${viewersCount} spectateurs`;
 
+  const searchTrimmed = searchQuery.trim().toLowerCase();
+  const filteredParticipants = useMemo(() => {
+    if (!searchTrimmed) return participants;
+    return participants.filter((p) => p.username.toLowerCase().includes(searchTrimmed));
+  }, [participants, searchTrimmed]);
+
+  const showHost =
+    !searchTrimmed || hostName.toLowerCase().includes(searchTrimmed);
+
   return (
     <div className="relative shrink-0">
       <button
@@ -111,35 +126,72 @@ export function LiveParticipantsPopover({
             panelAbove ? 'bottom-full mb-1' : 'top-full mt-1'
           }`}
         >
-          <div className="px-3 py-2 border-b border-[#1e1e2f] bg-[#14141c]/90">
-            <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest">
-              Participants
-            </p>
-            <p className="text-[10px] text-gray-500 mt-0.5 tabular-nums">
-              {loading ? 'Chargement…' : spectatorLabel}
-            </p>
+          <div className="px-3 py-2 border-b border-[#1e1e2f] bg-[#14141c]/90 space-y-2">
+            <div>
+              <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest">
+                Participants
+              </p>
+              <p className="text-[10px] text-gray-500 mt-0.5 tabular-nums">
+                {loading ? 'Chargement…' : spectatorLabel}
+              </p>
+            </div>
+            <div className="relative">
+              <span
+                className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs pointer-events-none"
+                aria-hidden
+              >
+                🔍
+              </span>
+              <input
+                ref={searchInputRef}
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Rechercher un participant…"
+                autoComplete="off"
+                aria-label="Rechercher un participant"
+                className="w-full h-8 pl-7 pr-7 text-xs rounded-lg bg-[#1a1a26] border border-[#2a2a3a] text-white placeholder:text-gray-500 focus:border-purple-500/60 focus:outline-none"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    searchInputRef.current?.focus();
+                  }}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white text-base leading-none px-0.5 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                  aria-label="Effacer la recherche"
+                >
+                  ×
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="max-h-56 overflow-y-auto p-2 space-y-1.5">
-            <div className="rounded-lg border border-[#1e1e2f] bg-[#0f0f16] px-2 py-1.5">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="shrink-0 text-[9px] font-bold text-red-400">Hôte</span>
-                <UsernameDisplay
-                  username={hostName}
-                  usernameColor={hostUsernameColor}
-                  className="text-xs text-gray-200 truncate flex-1 min-w-0"
-                />
+            {showHost && (
+              <div className="rounded-lg border border-[#1e1e2f] bg-[#0f0f16] px-2 py-1.5">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="shrink-0 text-[9px] font-bold text-red-400">Hôte</span>
+                  <UsernameDisplay
+                    username={hostName}
+                    usernameColor={hostUsernameColor}
+                    className="text-xs text-gray-200 truncate flex-1 min-w-0"
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             {loading && participants.length === 0 ? (
               <p className="text-[11px] text-gray-500 px-1 py-2">Chargement…</p>
-            ) : participants.length === 0 ? (
+            ) : filteredParticipants.length === 0 ? (
               <p className="text-[11px] text-gray-500 px-1 py-2">
-                Aucun spectateur connecté pour l&apos;instant.
+                {searchTrimmed
+                  ? 'Aucun participant ne correspond à votre recherche.'
+                  : 'Aucun spectateur connecté pour l\u2019instant.'}
               </p>
             ) : (
-              participants.map((p) => (
+              filteredParticipants.map((p) => (
                 <div
                   key={p.id}
                   className="rounded-lg border border-[#1e1e2f] bg-[#0f0f16] px-2 py-1.5"

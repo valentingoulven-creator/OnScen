@@ -59,9 +59,11 @@ import {
   filterLivesForMap,
   filterNearbyPeople,
   filterSalonsForMap,
+  getMapSidebarListVisible,
   getNearbyPanelPreferences,
   resolveNearbyDistanceFilterForMap,
   NEARBY_PANEL_CHANGED_EVENT,
+  setMapSidebarListVisible,
   peopleMarkersOnMap,
   setNearbyPanelPreferences,
   sortLivesForNearby,
@@ -95,7 +97,6 @@ const MAP_DETAIL_BOUNDS_DEBOUNCE_MS = 250;
 /** GPS / geo refresh when tab visible (was 20s — reduced API churn). */
 const GEO_REFRESH_INTERVAL_MS = 30_000;
 
-const NEARBY_PEOPLE_STORAGE_KEY = 'melosong_show_nearby_people';
 const MAP_STYLE_KEY = MAP_STYLE_STORAGE_KEY;
 const MAP_LIVE_ZOOM = 15;
 /** Recentrer : quartier (GPS) vs ville (profil). */
@@ -234,7 +235,7 @@ export function HomePage({
   const [showCreateSalon, setShowCreateSalon] = useState(false);
   const [locating, setLocating] = useState(false);
   const [loadingNearby, setLoadingNearby] = useState(true);
-  const [showNearbyPeople, setShowNearbyPeople] = useState(true);
+  const [showNearbyPeople, setShowNearbyPeople] = useState(getMapSidebarListVisible);
   const [mapStyle, setMapStyle] = useState<MapStyle>(() => {
     const saved = localStorage.getItem(MAP_STYLE_KEY) as MapStyle | null;
     if (shouldForceFlatMap() || (saved === 'globe' && !canUseGlobeView())) {
@@ -344,14 +345,6 @@ export function HomePage({
       window.removeEventListener(MAP_GEO_CHANGED_EVENT, onMapGeoChanged);
       window.removeEventListener(MAP_OPEN_CREATE_SALON_EVENT, onOpenCreateSalon);
     };
-  }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.removeItem(NEARBY_PEOPLE_STORAGE_KEY);
-    } catch {
-      /* ignore */
-    }
   }, []);
 
   useEffect(() => {
@@ -727,11 +720,7 @@ export function HomePage({
 
   const setNearbyPeopleVisible = useCallback((visible: boolean) => {
     setShowNearbyPeople(visible);
-    try {
-      localStorage.removeItem(NEARBY_PEOPLE_STORAGE_KEY);
-    } catch {
-      /* ignore */
-    }
+    setMapSidebarListVisible(visible);
   }, []);
 
   const toggleMapStyle = useCallback(() => {

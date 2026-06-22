@@ -1,4 +1,1270 @@
 ================================================================================
+MODIF 592 — Live host : goals, rewards et barre de progression dons
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les goals et rewards du panel host étaient en state React local (perdus à la
+ fermeture du panel). La barre de goal ne reflétait pas les dons reçus. Les
+ demandes de récompense n'apparaissaient pas sur la vidéo live.
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/liveHostSession.ts
+ ───────────────────────────────
+ • Session host par liveId (sessionStorage) : goals, rewards, file d'attente.
+ • enqueueRewardFromGift : ajout automatique à la queue quand un don correspond
+   au catalogue de récompenses.
+
+ app/src/lib/liveGoalProgress.ts
+ ────────────────────────────────
+ • Calcul live de goal.current selon type (montant €, nb dons, spectateurs, durée).
+
+ app/src/hooks/useLiveHostSession.ts
+ ──────────────────────────────────
+ • Hook partagé + événement CustomEvent pour sync entre composants.
+
+ app/src/components/LiveHostPanel.tsx
+ ──────────────────────────────────
+ • GoalsTab / RewardsTab / DashboardTab branchés sur la session partagée.
+ • Barres de progression alimentées par totalDonations / donationCount / viewers.
+ • chatConfig resynchronisé depuis live.chatConfig à la réouverture.
+
+ app/src/pages/LivePage.tsx
+ ─────────────────────────
+ • Premier goal actif → LiveHostGoalStrip (footer) + LiveVideoGoalOverlay.
+ • LiveRewardRequestsStrip sur la vidéo (demandes en attente / acceptées).
+ • gift_animation → enqueueRewardFromGift + mise à jour auto completedAt des goals.
+
+ app/src/components/LiveRewardRequestsStrip.tsx
+ app/src/components/LiveVideoGoalOverlay.tsx
+ ─────────────────────────────────────────────
+ • Nouveaux overlays vidéo host.
+
+FICHIERS MODIFIÉS
+-----
+ liveHostSession.ts, liveGoalProgress.ts, useLiveHostSession.ts (nouveau),
+ LiveHostPanel.tsx, LivePage.tsx, LiveRewardRequestsStrip.tsx (nouveau),
+ LiveVideoGoalOverlay.tsx (nouveau)
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 592 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 591 — Correctifs audit : sécurité, légal, performance
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Application d'un ensemble de correctifs issus de l'audit complet (MODIF 590)
+ couvrant la sécurité, la conformité légale (YouTube TOS, DSA, App Store),
+ et la robustesse du code.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/msdevGuard.ts
+ ─────────────────────────────
+ • Hard-block des routes /api/msdev/* en production :
+   double vérification NODE_ENV === 'production' || APP_ENV === 'production'
+   indépendamment des valeurs MSENV/APP_ENV (SEC-PRIV-002).
+
+ app/src/lib/linkifyText.ts
+ ─────────────────────────
+ • normalizeHref : n'autorise que https:// / http:// / / / #/
+   → empêche les vecteurs javascript: / data: / vbscript: (SEC-XSS-001).
+
+ backend/src/server.ts
+ ─────────────────────
+ • authLimiter : max 20 → 10 req/15 min (SEC-AUTH-003).
+ • setHeaders : Content-Disposition: attachment + X-Content-Type-Options: nosniff
+   sur /uploads/* pour empêcher l'exécution de fichiers uploadés (SEC-UPL-003).
+
+ backend/src/bootstrap.ts
+ ────────────────────────
+ • maxHttpBufferSize: 1e6 (1 MB) explicite dans la config Socket.io (SEC-WS-003).
+
+ backend/src/socket.ts
+ ─────────────────────
+ • Rate limiting applicatif sur sync_playback (20/10s) et salon_force_sync (5/10s)
+   pour empêcher les floods broadcast (SEC-WS-002).
+
+ app/src/components/SalonPlaybackPanel.tsx
+ ─────────────────────────────────────────
+ • SalonAdBanner masqué dans les salons YouTube — conforme YouTube API TOS §4.B
+   (interdiction de revenus publicitaires aux côtés du contenu YouTube) (LEG-YT-002).
+
+ app/src/pages/PlatformSubscriptionPage.tsx
+ ──────────────────────────────────────────
+ • isNativeIos() → isNativeApp() : masquage des achats Stripe aussi sur Android
+   (Google Play Billing Policy) (LEG-AS-001).
+
+ app/src/content/legal/mentions.ts
+ ──────────────────────────────────
+ • Ajout section "Point de contact DSA" (Règlement UE 2022/2065, Art. 11) (LEG-DSA-001).
+ • Date mise à jour : 22 juin 2026.
+
+ app/src/pages/LivePage.tsx
+ ─────────────────────────
+ • onBoardMenuOpen : try/catch sur refreshMediaDevices (permission refusée silencieuse).
+
+ app/ dépendances
+ ────────────────
+ • Suppression de react-router-dom (dépendance installée mais non utilisée).
+
+FICHIERS MODIFIÉS
+-----
+ msdevGuard.ts, linkifyText.ts, server.ts, bootstrap.ts, socket.ts,
+ SalonPlaybackPanel.tsx, PlatformSubscriptionPage.tsx, mentions.ts,
+ LivePage.tsx, app/package.json
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+ backend/ → lints → ✅
+
+================================================================================
+Fin MODIF 591 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 590 — Live top bar : bouton « Arrêter le live » centré
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Bouton stop dans la barre hôte : libellé « Arrêter » trop court ; positionné
+ à droite avec MIC/CAM au lieu du centre de la barre.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/LiveHostTopBar.tsx
+ ────────────────────────────────────
+ • Prop centerControls + positionnement absolu centré.
+
+ app/src/components/LiveHostQuickBar.tsx
+ ──────────────────────────────────────
+ • StopLiveButton exporté ; retiré du groupe header (MIC/CAM/Board).
+ • Libellé compact : « Arrêter le live ».
+
+ app/src/pages/LivePage.tsx
+ ─────────────────────────
+ • centerControls → StopLiveButton centré dans LiveHostTopBar.
+
+FICHIERS MODIFIÉS
+-----
+ LiveHostTopBar.tsx, LiveHostQuickBar.tsx, LivePage.tsx
+
+================================================================================
+Fin MODIF 590 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 589 — Board menu live : sélection micro et caméra
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Menu Board (Micro & caméra) n'affichait le micro que si la caméra était active ;
+ pas de sélecteur de caméra pendant le live.
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/liveCameraSupport.ts
+ ────────────────────────────────
+ • listLiveVideoInputDevices, replaceLiveVideoTrack.
+
+ app/src/hooks/useLiveCamera.ts
+ ─────────────────────────────
+ • videoDevices, switchCamera, refreshMediaDevices, updateMediaDevicePrefs.
+
+ app/src/pages/LivePage.tsx
+ ─────────────────────────
+ • hostMediaSelectSlot : listes caméra + micro ; changement live ou prefs.
+
+ app/src/components/LiveHostQuickBar.tsx
+ ─────────────────────────────────────
+ • onBoardMenuOpen : rafraîchit les périphériques à l'ouverture du menu.
+
+FICHIERS MODIFIÉS
+-----
+ liveCameraSupport.ts, useLiveCamera.ts, LivePage.tsx, LiveHostQuickBar.tsx,
+ liveCameraMessages.ts
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 589 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 588 — LivePage : fix hooks « Rendered more hooks than previous render »
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Crash au chargement du live : openHostPanel (useCallback) était déclaré après
+ le return « if (!live) », violant les règles des hooks React.
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/LivePage.tsx
+ ─────────────────────────
+ • openHostPanel déplacé avant les returns conditionnels.
+
+FICHIERS MODIFIÉS
+-----
+ LivePage.tsx
+
+BUILD (si vérifié)
+-----
+ app/ → npx tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 588 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 587 — Live chat : saisie au-dessus du dock d'accueil
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La barre de saisie du chat live (ChatInputBar) était masquée par les boutons
+ d'accueil flottants (design quick-wins, z-index 70).
+
+CHANGEMENTS / FIX
+-----
+ app/src/index.css
+ ────────────────
+ • padding-bottom: var(--tab-nav-total-h) sur .room-theater-bottom-chat-dock
+   dans l'overlay plein écran live/salon.
+
+ app/src/components/RoomTheaterLayout.tsx
+ ─────────────────────────────────────────
+ • Retrait du pb safe-area redondant sur le dock bas (géré via CSS).
+
+FICHIERS MODIFIÉS
+-----
+ index.css, RoomTheaterLayout.tsx
+
+BUILD (si vérifié)
+-----
+ —
+
+================================================================================
+Fin MODIF 587 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 586 — Board menu live : portal visible + raccourcis Goals/Rewards
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le menu Board (paramètres live) était invisible : coupé par overflow-x-auto
+ de la top bar. Le dashboard Goals/Rewards inaccessible.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/LiveHostQuickBar.tsx
+ ───────────────────────────────────────
+ • BoardMenuButton rendu via createPortal (position fixed z-100).
+ • Entrées Goals et Récompenses & file dans le menu.
+
+ app/src/components/LiveHostPanel.tsx
+ ───────────────────────────────────
+ • initialTab + z-index 90/91 pour passer au-dessus de l'overlay live.
+
+ app/src/pages/LivePage.tsx
+ ─────────────────────────
+ • openHostPanel(tab) ouvre le bon onglet (dashboard, goals, rewards).
+
+FICHIERS MODIFIÉS
+-----
+ LiveHostQuickBar.tsx, LiveHostPanel.tsx, LivePage.tsx
+
+BUILD (si vérifié)
+-----
+ app/ → npx tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 586 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 585 — Live : chat bottom dock visible (hauteur réservée)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur la page live, seul l'en-tête « CHAT PUBLIC » apparaissait ; la zone
+ messages/saisie avait une hauteur nulle (vidéo monopolisait le flex).
+
+CHANGEMENTS / FIX
+-----
+ app/src/index.css
+ ────────────────
+ • room-theater-bottom-chat-dock : hauteur min 11rem / max 38dvh.
+ • room-theater-layout--bottom-chat : vidéo min-height 0, body chat flex 1.
+
+ app/src/components/RoomTheaterLayout.tsx
+ ─────────────────────────────────────────
+ • Classe room-theater-layout--bottom-chat quand chatDock=bottom.
+
+ app/src/pages/LivePage.tsx
+ ─────────────────────────
+ • chatHidden false par défaut (visible à l'ouverture du live).
+
+FICHIERS MODIFIÉS
+-----
+ index.css, RoomTheaterLayout.tsx, LivePage.tsx
+
+BUILD (si vérifié)
+-----
+ app/ → npx tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 585 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 584 — LiveHostQuickBar : bouton Arrêter texte + confirmation
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton stop en header n'était qu'une icône ; l'hôte demande le libellé
+ complet et une validation avant d'arrêter le live.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/LiveHostQuickBar.tsx
+ ───────────────────────────────────────
+ • StopLiveButton : pill « Arrêter » en header, ConfirmModal avant onStop.
+
+FICHIERS MODIFIÉS
+-----
+ LiveHostQuickBar.tsx
+
+BUILD (si vérifié)
+-----
+ app/ → npx tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 584 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 583 — LiveHostQuickBar : FILE/GOALS retirés, menu Board enrichi
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Simplifier la barre hôte en header : retirer File et Goals ; regrouper
+ dashboard, réglages micro/caméra et OBS dans le bouton Board.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/LiveHostQuickBar.tsx
+ ───────────────────────────────────────
+ • Header : MIC · CAM · STOP · BOARD uniquement.
+ • BoardMenuButton : popover Dashboard, micro/caméra, vidéo fichier, OBS.
+
+ app/src/pages/LivePage.tsx
+ ─────────────────────────
+ • Suppression du bandeau extrasOnly sous la vidéo (config via Board).
+
+FICHIERS MODIFIÉS
+-----
+ LiveHostQuickBar.tsx, LivePage.tsx
+
+BUILD (si vérifié)
+-----
+ app/ → npx tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 583 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 582 — LiveHostQuickBar : contrôles hôte dans la top bar
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les boutons MIC/CAM/FILE/GOALS/STOP/BOARD étaient en bas de la scène ;
+ l'hôte souhaitait les avoir à gauche du bouton Partager en haut.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/LiveHostQuickBar.tsx
+ ───────────────────────────────────────
+ • variant header : icônes compactes (36×36), scroll horizontal mobile.
+ • extrasOnly : micro/OBS restent sous la vidéo si nécessaire.
+
+ app/src/components/LiveHostTopBar.tsx
+ ────────────────────────────────────
+ • Prop hostControls insérée à gauche du bouton partager.
+
+ app/src/pages/LivePage.tsx
+ ─────────────────────────
+ • QuickBar en header pour l'hôte ; goal strip + extras en stageFooter.
+
+FICHIERS MODIFIÉS
+-----
+ LiveHostQuickBar.tsx, LiveHostTopBar.tsx, LivePage.tsx
+
+BUILD (si vérifié)
+-----
+ app/ → npx tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 582 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 581 — Partage unifié : ShareLinkMenu + DM sur tous les boutons
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les boutons Partager (live, salon, etc.) appelaient navigator.share ou copiaient
+ directement le lien au lieu d'ouvrir le popup de partage (apps externes + DM).
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/LivePage.tsx
+ ─────────────────────────
+ • Bouton partage → ShareLinkMenu + ShareToUserSheet (DM in-app).
+
+ app/src/pages/SalonPage.tsx
+ ───────────────────────────
+ • Suppression du raccourci navigator.share ; menu partage + DM.
+
+ app/src/pages/ReelsTabPage.tsx, ShareSalonLink, ShareProfileLink,
+ UserCompositionsSection, SupportMeloSongSection, SalonInviteSheet
+ ─────────────────────────────────────────────────────────────────
+ • onSendToUser + ShareToUserSheet là où token disponible.
+
+ app/src/components/LiveHostTopBar.tsx
+ ────────────────────────────────────
+ • Retrait de l'état shareCopied (toast géré par ShareLinkMenu).
+
+FICHIERS MODIFIÉS
+-----
+ LivePage, SalonPage, ReelsTabPage, LiveHostTopBar, ShareSalonLink,
+ ShareProfileLink, UserCompositionsSection, SupportMeloSongSection, SalonInviteSheet
+
+BUILD (si vérifié)
+-----
+ app/ → npx tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 581 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 580 — LiveParticipantsPopover : barre de recherche participants
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Dans le popover participants du live, impossible de filtrer rapidement un
+ spectateur parmi la liste.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/LiveParticipantsPopover.tsx
+ ───────────────────────────────────────────────
+ • Champ de recherche sous l'en-tête (style aligné SalonInviteUserSearch).
+ • Filtrage local par pseudo (hôte inclus si correspondance).
+ • Reset de la recherche à la fermeture du popover ; focus auto à l'ouverture.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/components/LiveParticipantsPopover.tsx
+
+BUILD (si vérifié)
+-----
+ —
+
+================================================================================
+Fin MODIF 580 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 579 — ensureMsdevDemoLives : feed lives toujours peuplé au démarrage
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Après un redémarrage backend avec store.json restauré, les lives démo (DJ Melody,
+ BassHunter) étaient inactifs → "Aucun live en cours pour le moment" dans le feed.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/seed-msdev.ts
+ ─────────────────────────
+ • ensureMsdevDemoLives() : pour chaque live démo, si isActive=false ou absent,
+   le recrée actif. Appelé à chaque démarrage msdev après loadPersistedStore.
+
+ backend/src/bootstrap.ts
+ ─────────────────────────
+ • Import ensureMsdevDemoLives.
+ • Appel après ensureMsdevDemoAccounts().
+
+FICHIERS MODIFIÉS
+-----
+ backend/src/seed-msdev.ts, backend/src/bootstrap.ts
+
+BUILD (si vérifié)
+-----
+ backend/ → npx tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 579 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 578 — platformPlans : comptes admin sans limite de diffusion
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les comptes admin (`isAdmin: true`) déclenchaient l'erreur "limite de diffusion
+ live (2h)" comme n'importe quel compte free.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/platformPlans.ts
+ ────────────────────────────────
+ • assertCanStartLive     : retour immédiat si user.isAdmin.
+ • assertCanJoinLiveAsViewer : retour immédiat si viewer.isAdmin.
+ • assertCanUseCloudflareObs : retour immédiat si user.isAdmin.
+
+FICHIERS MODIFIÉS
+-----
+ backend/src/lib/platformPlans.ts
+
+BUILD (si vérifié)
+-----
+ backend/ → npx tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 578 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 577 — Redesign Live Host : TopBar + QuickBar + GoalStrip
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Redesign complet de l'interface hôte live : 3 bandes header surchargées →
+ architecture modulaire inspirée Apple / Spotify / TikTok 2026. Spec produit
+ complète (analyse artistes, wireframes, composants, animations).
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/LiveHostTopBar.tsx  [NEW]
+ ─────────────────────────────────────────────
+ • Barre top compacte 44px : ← | titre + badge LIVE rouge + viewers + chrono | [↗]
+ • Badges compacts, chrono en amber si < 15min restants.
+
+ app/src/components/LiveHostQuickBar.tsx  [NEW]
+ ──────────────────────────────────────────────
+ • 6 boutons 56px au bas de la zone live : MIC · CAM · FILE · GOALS · STOP · BOARD
+ • QuickBtn : états visuels (vert/rouge/gris) + long-press + badge count
+ • GoalIcon SVG circulaire avec % calculé inline
+ • Long-press CAM → sélection vidéo fichier
+
+ app/src/components/LiveHostGoalStrip.tsx  [NEW]
+ ──────────────────────────────────────────────
+ • Bande goal actif (entre vidéo et chat) : label + barre progress + valeurs
+ • 3 états visuels : normal (violet) · near (amber pulsant) · done (vert)
+ • Tap → ouvre le panel host
+
+ app/src/index.css
+ ─────────────────
+ • Animation live-goal-pulse pour barre à 90%.
+
+ app/src/pages/LivePage.tsx
+ ──────────────────────────
+ • Imports LiveHostTopBar, LiveHostQuickBar, LiveHostGoalStrip, LiveGoal
+ • State micMuted + activeGoal
+ • Header entier remplacé par LiveHostTopBar (compacte 44px) + bande viewer CTA
+ • QuickBar + GoalStrip injectés dans stageFooter de RoomTheaterLayout
+ • Suppression des anciens blocs header 3 bandes verbeux
+
+ canvases/live-host-redesign.canvas.tsx  [NEW]
+ ─────────────────────────────────────────────
+ • Spec produit : analyse artistes · wireframes · composants · animations ·
+   interactions · différenciation concurrents · état impl.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/components/LiveHostTopBar.tsx (NEW)
+ app/src/components/LiveHostQuickBar.tsx (NEW)
+ app/src/components/LiveHostGoalStrip.tsx (NEW)
+ app/src/index.css, app/src/pages/LivePage.tsx
+ canvases/live-host-redesign.canvas.tsx (NEW)
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 577 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 576 — LiveHostPanel : dashboard host complet (Goals, Rewards, Triggers)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Implémenter l'interface host live complète : dashboard temps réel, goals
+ artistiques, file de récompenses et actions automatiques liées aux dons.
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/liveHostTypes.ts  [NEW]
+ ───────────────────────────────────
+ • Types : LiveGoal, TriggerRule, TriggerAction, LiveReward,
+   RewardQueueItem, LiveStats, GoalType, RewardType.
+
+ app/src/components/LiveHostPanel.tsx  [NEW]
+ ──────────────────────────────────────────
+ • Bottom sheet z-56 avec swipe-to-close (60px drag).
+ • 4 onglets : Dashboard · Goals · Rewards · Auto.
+ • DashboardTab  : strip stats (viewers/abo/dons/timer), goals actifs,
+   top donateurs (classement live socket gift_animation).
+ • GoalsTab      : GoalProgressBar, créer/compléter/supprimer,
+   5 types (amount/dons/likes/viewers/duration), formulaire inline.
+ • RewardsTab    : file d'attente (pending/acceptée/faite/refusée)
+   + catalogue ON/OFF + créer récompense. Socket gift_animation.
+ • TriggersTab   : 5 règles IF palier THEN actions, toggle ON/OFF,
+   édition actions cumulables (6 actions disponibles).
+
+ app/src/pages/LivePage.tsx
+ ──────────────────────────
+ • Import LiveHostPanel.
+ • State showHostPanel, liveStartedAt, hostTotalDonations, hostDonationCount.
+ • Socket gift_animation → accumule montant total + nb dons hôte.
+ • Bouton ⚙ (icône engrenage) dans la bande 3 host (header), à droite de "Arrêter".
+ • Rendu conditionnel LiveHostPanel si isHost && showHostPanel.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/lib/liveHostTypes.ts (NEW)
+ app/src/components/LiveHostPanel.tsx (NEW)
+ app/src/pages/LivePage.tsx
+
+BUILD (si vérifié)
+-----
+ app/ → npx tsc --noEmit → ✅
+ app/ → npm run build    → ✅
+
+================================================================================
+Fin MODIF 576 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 575 — LivePage : fix chat invisible (landscape-theater + seuil mobile)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En ouvrant un live sur une fenêtre de 736px, le mode landscape-theater se
+ déclenchait (seuil 896px trop large), cachait le chat et le rendait inaccessible
+ (video position:fixed z-index:50 devant tout). Même après sortie du plein écran,
+ l'état chatHidden=true (depuis localStorage) était restauré.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/LiveVideoStage.tsx
+ ─────────────────────────────────────
+ • isMobileNarrowViewport() : seuil 896px → 640px ET pointer:coarse obligatoire
+   (les deux conditions requises, pas l'un ou l'autre).
+   → Le landscape-theater auto ne se déclenche plus sur bureau.
+
+ app/src/pages/LivePage.tsx
+ ──────────────────────────
+ • handleVideoExpandedChange : à la sortie, toujours setChatHidden(false).
+   (auparavant restaurait l'état précédent, possiblement caché)
+
+FICHIERS MODIFIÉS
+-----
+ app/src/components/LiveVideoStage.tsx, app/src/pages/LivePage.tsx
+
+BUILD (si vérifié)
+-----
+ app/ → npx tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 575 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 574 — REVERT MODIFs 570–573 (layout live, UX overlays, hearts, discovery)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Annulation des 4 dernières demandes : problèmes d'affichage non résolus,
+ l'utilisateur souhaite repartir de l'état d'avant (après MODIF 569 — header 3 bandes).
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/LivePage.tsx
+ ──────────────────────────
+ • Restaure chatHidden via readLiveChatHidden (+ restaure la fonction).
+ • Supprime stackBelowVideo sur RoomTheaterLayout.
+ • Supprime ChatOverlay, LiveHeartOverlay des imports et usages.
+ • Supprime stackLayout sur LiveVideoStage.
+ • Supprime CTA pourboire/abonnement au bas du chat.
+
+ app/src/components/RoomTheaterLayout.tsx
+ ─────────────────────────────────────────
+ • Supprime inline style sur videoStage.
+ • Supprime classe room-theater-stack-column--live.
+ • Restaure chatHiddenButton sans condition.
+
+ app/src/components/LiveVideoStage.tsx
+ ────────────────────────────────────
+ • Supprime prop stackLayout et tout son code.
+ • Restaure h-full sur live-video-container.
+ • Restaure status bar inconditionnelle.
+
+ app/src/components/ChatPanel.tsx
+ ─────────────────────────────────
+ • Supprime export ChatOverlay.
+
+ app/src/components/LiveHeartOverlay.tsx
+ ────────────────────────────────────────
+ • Fichier supprimé.
+
+ app/src/index.css
+ ─────────────────
+ • Supprime live-heart-* CSS.
+ • Supprime live-chat-overlay-* CSS.
+ • Supprime room-theater-stack-column--live CSS.
+ • Restaure room-theater-bottom-chat-dock--stacked min-height 10rem.
+ • Restaure live-video-container rule avec dvh.
+
+ app/src/pages/LivesTabPage.tsx
+ ───────────────────────────────
+ • Restaure section "Suivi" (grille, pas bande avatars).
+
+FICHIERS MODIFIÉS
+-----
+ Tous les fichiers des MODIFs 570–573 restaurés à l'état MODIF 569.
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 574 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 573 — Live layout empilé : inline style sur video stage (annule cascade CSS)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ `.ms-salon-fullscreen-overlay .room-theater-video-stage { flex: 1 }` (salon YouTube,
+ ligne 2545) avait la même spécificité que l'override live → la règle la plus basse
+ dans le fichier gagnait → vidéo = 713px, chat écrasé.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/RoomTheaterLayout.tsx
+ ─────────────────────────────────────────
+ • videoStage div : inline style `height/flexBasis: min(38dvh, 380px)` quand
+   useVideoStack=true. Les inline styles battent tout CSS externe sans exception.
+
+ app/src/index.css
+ ─────────────────
+ • `.room-theater-stack-column .live-video-container` : height 100%
+   (suit le stage qui a maintenant une hauteur fixe en inline style).
+ • Suppression des règles dvh redondantes remplacées par l'inline style.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/components/RoomTheaterLayout.tsx, app/src/index.css
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 573 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 572 — Live stack layout : fix vidéo qui écrase le chat (overlay plein écran)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ LivePage en layout empilé (stackBelowVideo) : `.ms-salon-fullscreen-overlay
+ .room-theater-video-stage { flex: 1 }` (salon YouTube) écrasait le shrink-0 live ;
+ zone vidéo ~713px, chat invisible ou écrasé. Bouton « 💬 Chat » redondant.
+
+CHANGEMENTS / FIX
+-----
+ app/src/index.css
+ ─────────────────
+ • `.room-theater-stack-column--live` : largeur 100%.
+ • Override spécifique overlay : vidéo max `min(36dvh, 400px)`, chat flex-1.
+
+ app/src/components/RoomTheaterLayout.tsx
+ ───────────────────────────────────────
+ • Classe `room-theater-stack-column--live` si stackBelowVideo.
+ • Masquer bouton flottant « Chat » quand dock bas visible.
+
+ app/src/components/LiveVideoStage.tsx
+ ────────────────────────────────────
+ • Prop `stackLayout` : sans h-full, masque barre statut redondante.
+
+ app/src/pages/LivePage.tsx → stackLayout sur LiveVideoStage.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/index.css, RoomTheaterLayout.tsx, LiveVideoStage.tsx, LivePage.tsx
+
+BUILD (si vérifié)
+-----
+ app/ → npx tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 572 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 571 — Live MVP UX : overlays, hearts, discovery feed, CTA chat
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Mise en place de l'architecture UX/UI live MVP (canvas live-ux-architecture).
+ 5 features : chat overlay vidéo, heart reactions, discovery feed, CTA monétisation.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/ChatPanel.tsx
+ ─────────────────────────────────
+ • Export ChatOverlay : 3 derniers messages flottants sur la vidéo (viewer uniquement).
+   Position bottom-left, pill semi-transparente, fade-in CSS, pointer-events:none.
+
+ app/src/components/LiveHeartOverlay.tsx  [NEW]
+ ──────────────────────────────────────────────
+ • Bouton like (♥) positionné sur la vidéo.
+ • Cœurs CSS flottants (animation live-heart-rise).
+ • Système de combo : tap rapide → burst 4-8 cœurs + badge ×N.
+
+ app/src/pages/LivePage.tsx
+ ──────────────────────────
+ • Import ChatOverlay + LiveHeartOverlay.
+ • Branché dans overlay de LiveVideoStage et LiveKitVideoStage (viewer uniquement).
+ • CTA sticky 🎁 Pourboire + ⭐ Abonnement en bas du dock chat (viewer uniquement).
+
+ app/src/pages/LivesTabPage.tsx
+ ──────────────────────────────
+ • Section "En direct" avec bande d'avatars scrollable horizontal (anneau rouge LIVE).
+ • Section "Suggestions" renommée, avec compteur.
+
+ app/src/index.css
+ ─────────────────
+ • Keyframes live-heart-rise, live-heart-combo-pop.
+ • Classes live-heart-particle, live-heart-btn, live-heart-combo.
+ • Classes live-chat-overlay-msg + keyframe live-chat-overlay-in.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/components/ChatPanel.tsx → +ChatOverlay
+ app/src/components/LiveHeartOverlay.tsx → nouveau
+ app/src/pages/LivePage.tsx → overlays + CTA chat
+ app/src/pages/LivesTabPage.tsx → section En direct
+ app/src/index.css → animations hearts + chat overlay
+
+BUILD (si vérifié)
+-----
+ app/ → npx tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 571 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 570 — LivePage : chat toujours visible + layout empilé vidéo/chat
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le chat n'était pas visible :
+ 1. chatHidden persistait en `true` depuis localStorage — dock chat non rendu.
+ 2. Sans stackBelowVideo, la vidéo prenait tout flex-1 écrasant le dock.
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/LivePage.tsx
+ ──────────────────────────
+ • chatHidden initialisé à false (chat visible au démarrage, sans restauration).
+ • RoomTheaterLayout : ajout stackBelowVideo (vidéo au-dessus, chat en dessous).
+
+ app/src/index.css
+ ─────────────────
+ • .room-theater-stack-column .live-video-container { height/max-height: 42dvh }
+   (contrainte de hauteur vidéo dans le layout empilé, manquait pour LivePage).
+ • .room-theater-bottom-chat-dock--stacked : min-height 10rem → 14rem.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/pages/LivePage.tsx, app/src/index.css
+
+BUILD (si vérifié)
+-----
+ app/ → npx tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 570 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 569 — LivePage : header restructuré en 3 bandes
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le header Live était une seule ligne qui écrasait navigation, infos de statut,
+ contrôles hôte (caméra/vidéo/OBS/arrêter) et actions auditeur — illisible sur
+ toutes tailles d'écran.
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/LivePage.tsx — header réécrit en 3 bandes :
+ ──────────────────────────────────────────────────────────
+ • Bande 1 (navigation) : ← | titre + LIVE · hôte · viewers · timer · badges | 🚩 ↗
+ • Bande 2 (auditeur)   : 🎁 Pourboire | ⭐ Abonnement | Quitter  (non-hôte uniquement)
+ • Bande 3 (hôte)       : 📷 Caméra | micro select | 🎬 Vidéo | 📡 OBS | Arrêter  (hôte uniquement)
+
+FICHIERS MODIFIÉS
+-----
+ app/src/pages/LivePage.tsx → header <3 bandes
+
+BUILD (si vérifié)
+-----
+ app/ → npx tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 569 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 568 — LivesTabPage : bypass Stripe Connect en dev/msdev
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En local, « Démarrer mon Live » échouait avec l’alerte Stripe Connect : le frontend
+ ignorait la gate en mode simulation mais n’envoyait pas `stripeConnectSkipped` au backend.
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/stripeConnectSkip.ts
+ ────────────────────────────────
+ • `canBypassStripeConnect()` — true si DEV ou VITE_APP_ENV=msdev.
+ • `isStripeConnectSkipped()` inclut ce bypass (plus sessionStorage en prod).
+
+ app/src/pages/LivesTabPage.tsx
+ ─────────────────────────────
+ • `launchLiveAfterSetup` : `stripeConnectSkipped` si bypass ou simulation.
+
+ backend/src/routes/lives.ts
+ ───────────────────────────
+ • POST /start : skip Stripe si `isDonationSimulationMode()` (msdev).
+
+ app/src/lib/stripeConnectSkip.test.ts
+ ────────────────────────────────────
+ • Tests bypass msdev.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/lib/stripeConnectSkip.ts, LivesTabPage.tsx, stripeConnectSkip.test.ts
+ backend/src/routes/lives.ts
+
+BUILD (si vérifié)
+-----
+ app/ → vitest stripeConnectSkip.test.ts → ✅
+
+================================================================================
+Fin MODIF 568 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 567 — ChatMessagesView : hauteur zone scroll théâtre 550px
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Preview navigateur : zone messages chat salon théâtre (~734px) → hauteur fixe 550px.
+
+CHANGEMENTS / FIX
+-----
+ app/src/index.css
+ ────────────────
+ • `.room-theater-chat-dock .chat-messages-scroll { height: 550px; flex: 0 0 550px; }`
+   (flex: 0 0 550px pour que flex-1 / h-0 Tailwind du JSX ne reprennent pas la main)
+
+FICHIERS MODIFIÉS
+-----
+ app/src/index.css → height scroll théâtre 550px
+
+BUILD (si vérifié)
+-----
+ app/ → npx tsc --noEmit → ✅
+ app/ → npm run build → ✅ (règle présente dans index-jgvNTcxo.css)
+ dev → http://localhost:5173/src/index.css → règle 550px servie par Vite ✅
+
+================================================================================
+Fin MODIF 567 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 566 — ChatMessagesView : retrait height 650px (flex MODIF 564)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ MODIF 565 imposait `height: 650px` sur `.chat-messages-scroll` — hauteur arbitraire,
+ non responsive ; remplacé par la chaîne flex de MODIF 564.
+
+CHANGEMENTS / FIX
+-----
+ app/src/index.css → suppression `height: 650px`, règles flex théâtre
+
+FICHIERS MODIFIÉS
+-----
+ app/src/index.css, app/src/components/ChatPanel.tsx, SalonChatDockBody.tsx,
+ RoomTheaterLayout.tsx → voir MODIF 564
+
+BUILD (si vérifié)
+-----
+ app/ → npx tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 566 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 565 — ChatMessagesView : hauteur zone scroll théâtre 650px (ANNULÉ → MODIF 564/566)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Preview navigateur : zone messages chat salon théâtre (~818px) → hauteur fixe 650px.
+
+CHANGEMENTS / FIX
+-----
+ app/src/index.css
+ ────────────────
+ • `.room-theater-chat-dock .chat-messages-scroll { height: 650px; }` (remplace max-height 600px).
+
+FICHIERS MODIFIÉS
+-----
+ app/src/index.css → height scroll théâtre 650px
+
+================================================================================
+Fin MODIF 565 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 564 — ChatMessagesView : zone scroll théâtre (flex, sans hauteur fixe)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Zone messages chat salon théâtre trop haute (~818px calculé) — déborde légèrement
+ sur la barre de saisie ; preview navigateur ciblait ~800px.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/ChatPanel.tsx
+ ────────────────────────────────
+ • Conteneur messages : `h-0 flex-1 min-h-0` (flex scroll trick).
+ • Classe `chat-messages-scroll` conservée pour ciblage CSS théâtre.
+ • Bannière ban chat : `shrink-0` pour ne pas voler la hauteur flex.
+
+ app/src/components/SalonChatDockBody.tsx
+ ───────────────────────────────────────
+ • Retrait `h-full` sur `.salon-chat-dock-tabs` (conflit flex).
+ • Wrapper messages : `h-0` en plus de `flex-1 min-h-0`.
+
+ app/src/components/RoomTheaterLayout.tsx
+ ────────────────────────────────────────
+ • `DockChatBody` : wrapper chat `h-0 flex-1 min-h-0`.
+
+ app/src/index.css
+ ────────────────
+ • Suppression `height: 650px` sur `.chat-messages-scroll`.
+ • Chaîne flex `.salon-chat-dock-tabs__content` + scroll dans `.room-theater-chat-dock`.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/components/ChatPanel.tsx → flex scroll messages
+ app/src/components/SalonChatDockBody.tsx → chaîne flex dock salon
+ app/src/components/RoomTheaterLayout.tsx → DockChatBody h-0
+ app/src/index.css → CSS théâtre flex (plus de hauteur fixe)
+
+BUILD (si vérifié)
+-----
+ app/ → npx tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 564 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 562 ? SalonAdBanner : visibilit? dev + grille th??tre side-dock
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ MODIF 553 avait ajout? SalonAdBanner sous salon-theater-controls, mais le bandeau
+ restait invisible en dev (aucun repli msdev) et mal positionn? dans la grille
+ room-theater-side-row--match-hero (display: contents sans slot d?di?).
+
+CHANGEMENTS / FIX
+-----
+ app/src/content/ads/salonTheaterAds.ts (nouveau)
+ ???????????????????????????????????????????????
+ ? SALON_THEATER_ADS : placeholder Solar Festival pour pr?visualisation msdev.
+
+ app/src/content/ads/index.ts
+ ???????????????????????????????
+ ? Export SALON_THEATER_ADS.
+
+ app/src/lib/sponsorAds.ts
+ ??????????????????????????
+ ? resolvePlacementAds('salon') retombe sur SALON_THEATER_ADS en dev/msdev.
+
+ app/src/lib/sponsorAds.test.ts
+ ??????????????????????????????????
+ ? Test repli salon + liste API vide inchang?e.
+
+ app/src/components/SalonAdBanner.tsx
+ ???????????????????????????????????????????????
+ ? Classe salon-theater-ad-banner + w-full min-w-0 pour la grille CSS.
+
+ app/src/index.css + apptel/src/index.css
+ ???????????????????????????????????????????????
+ ? Grille match-hero : 4 rang?es (vid?o / contr?les / pub / extra).
+ ? .salon-theater-ad-banner en row 3, panel-extra en row 4.
+ ? Chat dock reste rows 1?2 (hauteur = sc?ne 16:9 + contr?les).
+
+FICHIERS MODIFI?S
+-----
+ app/src/content/ads/salonTheaterAds.ts ? placeholder msdev
+ app/src/content/ads/index.ts ? export
+ app/src/lib/sponsorAds.ts ? repli salon
+ app/src/lib/sponsorAds.test.ts ? test repli
+ app/src/components/SalonAdBanner.tsx ? classe grille
+ app/src/index.css ? grille th??tre
+ apptel/src/index.css ? idem Capacitor
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+ app/ ? vitest sponsorAds.test.ts ? ?
+
+================================================================================
+Fin MODIF 562 ? 2026-06-22
+================================================================================
+================================================================================
+MODIF 561 ? Admin : barre d'onglets enti�rement visible (wrap, sans scroll)
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL�ME
+----
+ Sur mobile/tablette (~390px), la barre d'onglets admin (`AdminScrollTabBar`) tronquait
+ les onglets avec scroll horizontal et d�grad�s lat�raux ? l'utilisateur voulait tous
+ les onglets visibles sans fade ni scroll.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/AdminScrollTabBar.tsx
+ ?????????????????
+ ? Suppression scroll horizontal + �tat fade (`ms-hscroll-fade-wrap`).
+ ? Barre statique avec retour � la ligne via CSS.
+
+ app/src/index.css
+ ?????????????????
+ ? `.ms-admin-tab-bar__inner` : `flex-wrap: wrap`, `width: 100%` (plus de `max-content`).
+ ? `.ms-admin-tab-bar` : `overflow: visible` (plus de scroll/snap).
+
+ app/src/pages/AdminPage.tsx
+ ?????????????????
+ ? Pills plus compactes sur mobile : `text-[11px] px-2.5 py-1.5 min-h-8`.
+
+ app/src/pages/AdminSponsorsTab.tsx
+ ?????????????????
+ ? Sous-onglets sponsors : m�me compactage mobile + `min-h-8`.
+
+FICHIERS MODIFI�S
+-----
+ app/src/components/AdminScrollTabBar.tsx ? wrap, sans fade/scroll
+ app/src/index.css ? styles admin tab bar wrap
+ app/src/pages/AdminPage.tsx ? pills compactes mobile
+ app/src/pages/AdminSponsorsTab.tsx ? idem sous-onglets
+
+BUILD (si v�rifi�)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin MODIF 561 ? 2026-06-21
+================================================================================
+================================================================================
+MODIF 560 ? MapAdBanner : suppression barre points carousel
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ Sur la page carte, la barre de points (`MapAdCarouselDots`) sous le bandeau
+ publicitaire ?tait visible et l'utilisateur souhaitait la retirer.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/MapAdBanner.tsx
+ ?????????????????????????????????
+ ? Suppression du composant `MapAdCarouselDots` et de ses usages.
+ ? Carousel auto (rotation des pubs) conserv? ; `goTo` manuel supprim?.
+
+FICHIERS MODIFI?S
+-----
+ app/src/components/MapAdBanner.tsx ? plus de barre de points sous le bandeau
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin MODIF 560 ? 2026-06-21
+================================================================================
+================================================================================
 MODIF 559 ? CreateSalonModal : popup compact sans ascenseur
 Date : 2026-06-21
 ================================================================================
@@ -4158,17 +5424,17 @@ Fin MODIF 558 - 2026-06-21
 ================================================================================
 
 ================================================================================
-MODIF 559 ? RoomTheaterLayout : correction bouton Chat toggle (salon th��tre)
+MODIF 559 ? RoomTheaterLayout : correction bouton Chat toggle (salon th??tre)
 Date : 2026-06-21
 ================================================================================
 
-OBJECTIF / PROBL�ME
+OBJECTIF / PROBL?ME
 ----
- Le bouton "?? Chat" (absolute top-2 right-2 z-[25]) dans la zone vid�o du salon
- th��tre ne fonctionnait pas correctement comme bascule.
- Cause racine : `chatHiddenButton` �tait d�fini avec `chatHidden ? <button> : null`,
- donc il disparaissait d�s le premier clic (chat visible). Sur mobile, le chevron
- `room-theater-toggle` est `display: none` par d�faut (visible seulement � sm: 640px+),
+ Le bouton "?? Chat" (absolute top-2 right-2 z-[25]) dans la zone vid?o du salon
+ th??tre ne fonctionnait pas correctement comme bascule.
+ Cause racine : `chatHiddenButton` ?tait d?fini avec `chatHidden ? <button> : null`,
+ donc il disparaissait d?s le premier clic (chat visible). Sur mobile, le chevron
+ `room-theater-toggle` est `display: none` par d?faut (visible seulement ? sm: 640px+),
  laissant l'utilisateur sans aucun bouton visible pour masquer le chat. L'utilisateur
  percevait cela comme "le bouton ne fonctionne pas".
 
@@ -4176,23 +5442,194 @@ CHANGEMENTS / FIX
 -----
  app/src/components/RoomTheaterLayout.tsx
  ?????????????????????????????????????????
- ? `chatHiddenButton` passe de `chatHidden ? <button> : null` � un rendu permanent.
+ ? `chatHiddenButton` passe de `chatHidden ? <button> : null` ? un rendu permanent.
  ? Quand `chatHidden=true` : label "Chat", aria-label "Afficher le chat", aria-pressed=false.
  ? Quand `chatHidden=false` : label "Masquer", aria-label "Masquer le chat",
-   aria-pressed=true, classe `sm:hidden` ajout�e (cach� sur desktop ? 640px
-   o� le chevron `room-theater-toggle` prend le relais).
- ? Sur mobile (< 640px) : le bouton reste visible dans les deux �tats, permettant
-   d'afficher ET masquer le chat sans toucher � la topbar unifi�e.
+   aria-pressed=true, classe `sm:hidden` ajout?e (cach? sur desktop ? 640px
+   o? le chevron `room-theater-toggle` prend le relais).
+ ? Sur mobile (< 640px) : le bouton reste visible dans les deux ?tats, permettant
+   d'afficher ET masquer le chat sans toucher ? la topbar unifi?e.
  ? Aucun impact sur le layout desktop ni sur le variant `queue-chat` (bouton distinct).
 
-FICHIERS MODIFI�S
+FICHIERS MODIFI?S
 -----
  app/src/components/RoomTheaterLayout.tsx ? chatHiddenButton toujours rendu, toggle complet
 
-BUILD (si v�rifi�)
+BUILD (si v?rifi?)
 -----
  app/ ? npx tsc --noEmit ? ?
 
 ================================================================================
 Fin MODIF 559 - 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 560 ? Refonte visuelle CreateSalonModal ? Soundy Dev
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ Redesign complet de CreateSalonModal : une seule carte compacte sans scrollbar,
+ design dark flat moderne, hauteur cible < 400px sur ?cran 390px.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/CreateSalonModal.tsx
+ ????????????????????????????????????????
+ ? Suppression des titres de section uppercase (PLATEFORME, ACC?S, D?TAILS)
+   et de la constante sectionTitleCls.
+ ? Plateforme : redesign en ligne unique ? ic?ne YouTube (28px), label "YouTube",
+   badge vert "Connect?" (green dot) OU texte amber tronqu? si non connect? ;
+   PlatformConnectCard toujours affich? en dessous si non li?.
+ ? Inputs l?g?rement plus compacts : py-1.5 (au lieu de py-2), mt-0.5, label 10px.
+ ? Header : flex row direct (px-4 py-2), bouton ? r?duit ? w-8 h-8.
+ ? Footer : suppression du bouton "Annuler" ; bouton "Cr?er le salon" pleine
+   largeur, rounded-xl, min-h-[44px], disabled si YouTube non connect?.
+ ? Grille d?tails : grid-cols-1 sm:grid-cols-2 pour Artiste + Titre session.
+ ? Toggle Options (playlist) : min-h r?duit ? 28px.
+ ? Toggle Suggestions (allowQueue) : min-h r?duit ? 32px.
+ ? Toute la logique, les props, les appels API et les cl?s i18n conserv?s ? l'identique.
+
+FICHIERS MODIFI?S
+-----
+ app/src/components/CreateSalonModal.tsx ? refonte visuelle compl?te
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+HAUTEUR ESTIM?E (connect?, mode public)
+-----
+ Header 36px + plateforme 38px + acc?s 40px + d?tails (nom 48px + 2-col 48px
+ + toggle options 28px + toggle queue 32px) + espacements 40px + footer 56px
+ ? 366px ? (< 400px sur 390px)
+
+================================================================================
+Fin MODIF 560 - 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 561 ? DmPage : header mobile (onglets + actions) ? Soundy Dev
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ Sur mobile (~390px), le header DmPage affichait titre ? Messages ?, filtres
+ ? Matchs / Bloqu?s et boutons + Groupe / + Nouveau sur une seule ligne
+ (`justify-between`), provoquant d?bordement horizontal et cibles tactiles
+ trop petites.
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/DmPage.tsx
+ ?????????????????????????
+ ? Header refondu en layout mobile-first ? deux rang?es (< sm) :
+   - Ligne 1 : titre tronqu? + boutons action ic?ne seule (44?44 px).
+   - Ligne 2 : pilules scrollables horizontalement (Messages | Matchs | Bloqu?s).
+ ? Desktop (sm+) : une seule ligne inchang?e visuellement (titre ? gauche,
+   onglets + boutons texte ? droite).
+ ? Padding r?duit mobile `p-3`, desktop `sm:p-4` ; texte onglets `text-xs sm:text-sm`.
+ ? `min-w-0`, `overflow-hidden`, `scrollbar-none` sur la rang?e d'onglets.
+
+FICHIERS MODIFI?S
+-----
+ app/src/pages/DmPage.tsx ? header liste DM responsive
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin MODIF 561 - 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 562 ? Carte : panneau liste masqu? par d?faut ? Soundy Dev
+Date : 2026-06-21
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ Le panneau lat?ral / bottom NearbyPeoplePanel s'ouvrait visible au chargement
+ (MODIF 544). L'utilisateur veut l'inverse : liste masqu?e par d?faut, avec
+ bouton ? Afficher la liste ? pour l'ouvrir.
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/nearbyPanelSettings.ts
+ ?????????????????????????????????
+ ? getMapSidebarListVisible() : d?faut false (cl? absente ou invalide).
+ ? setMapSidebarListVisible(visible) : persistance localStorage.
+
+ app/src/pages/HomePage.tsx
+ ?????????????????????????
+ ? showNearbyPeople initialis? via getMapSidebarListVisible().
+ ? Suppression du useEffect qui purgeait localStorage au mount.
+ ? setNearbyPeopleVisible persiste la pr?f?rence utilisateur.
+
+ apptel/src/pages/HomePage.tsx
+ ??????????????????????????????
+ ? M?me comportement pour le build mobile Capacitor.
+
+FICHIERS MODIFI?S
+-----
+ app/src/lib/nearbyPanelSettings.ts ? helpers visibilit? liste carte
+ app/src/pages/HomePage.tsx ? d?faut masqu? + persistance
+ apptel/src/pages/HomePage.tsx ? idem mobile
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin MODIF 562 ? 2026-06-21
+================================================================================
+
+================================================================================
+MODIF 563 ? Live dev : bypass cam?ra/micro (msdev) ? Soundy Dev
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBL?ME
+----
+ En dev (msdev / Vite), impossible de d?marrer un live sans cam?ra ni micro ?
+ le modal ? Cam?ra et micro ? bloquait sur ? Aucune cam?ra d?tect?e ? et
+ emp?chait de travailler sur l?UI salon / th??tre (RoomTheaterLayout).
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/liveCameraSupport.ts
+ ?????????????????????????????????
+ ? canBypassLiveMediaSetup() : true si import.meta.env.DEV ou VITE_APP_ENV=msdev.
+
+ app/src/lib/liveMediaPrefs.ts
+ ?????????????????????????????
+ ? LiveMediaPrefs.demoNoMedia ? flag session pour live h?te sans getUserMedia.
+
+ app/src/components/StartLiveMediaSetupModal.tsx
+ ??????????????????????????????????????????
+ ? Bouton ? Mode d?mo (sans cam?ra/micro) ? visible uniquement en dev/msdev
+   (phases erreur et config).
+ ? Bypass : pas de setPendingLiveCameraStart ? LivePage n?appelle pas getUserMedia.
+ ? Flux cam?ra r?el inchang? quand l?utilisateur confirme avec p?riph?riques.
+
+ app/src/lib/liveCameraSupport.test.ts
+ ????????????????????????????????????
+ ? Test canBypassLiveMediaSetup en msdev.
+
+FICHIERS MODIFI?S
+-----
+ app/src/lib/liveCameraSupport.ts ? helper bypass dev
+ app/src/lib/liveMediaPrefs.ts ? demoNoMedia
+ app/src/components/StartLiveMediaSetupModal.tsx ? bouton mode d?mo
+ app/src/lib/liveCameraSupport.test.ts ? test unitaire
+
+BUILD (si v?rifi?)
+-----
+ app/ ? npx tsc --noEmit ? ?
+
+================================================================================
+Fin MODIF 563 ? 2026-06-22
 ================================================================================

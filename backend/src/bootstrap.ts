@@ -9,7 +9,7 @@ import dotenv from 'dotenv';
 import { app } from './server';
 import { setupSockets } from './socket';
 import { setIo, clearIo } from './lib/ioInstance';
-import { seedMsdevData, ensureMsdevDemoAccounts } from './seed-msdev';
+import { seedMsdevData, ensureMsdevDemoAccounts, ensureMsdevDemoLives } from './seed-msdev';
 import { seedProductionAdmin } from './seed-production';
 import { seedBotsAtStartup } from './seed-bots';
 import { seedOccitanieSpotifyAtStartup } from './seed-occitanie-spotify';
@@ -212,6 +212,9 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
       methods: ['GET', 'POST'],
       allowedHeaders: ['X-Auth-Token', 'Content-Type'],
     },
+    // Explicitly cap payload size to 1 MB (default is 1 MB but set it explicitly
+    // so any future Socket.io upgrade cannot silently raise the limit).
+    maxHttpBufferSize: 1e6,
     perMessageDeflate: {
       threshold: 1024,
     },
@@ -239,6 +242,7 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
     if (demoAdded > 0) {
       console.log(`[msdev] ${demoAdded} compte(s) démo ajouté(s) au store restauré`);
     }
+    ensureMsdevDemoLives();
     await ensureMsdevDemoCredentials();
     ensureMsdevDemoMonetizationAges();
     ensureMsdevListenerFollowersCount();

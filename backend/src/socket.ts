@@ -461,6 +461,26 @@ export function setupSockets(io: Server): void {
     );
 
     socket.on(
+      'live_update_config',
+      ({ liveId, config }: { liveId: string; config: { noLinksForParticipants?: boolean; slowModeSeconds?: number; subscribersOnly?: boolean } }) => {
+        const actorId = (socket.data as { userId?: string }).userId;
+        if (!actorId || !liveId) return;
+        const live = db.lives.get(liveId);
+        if (!live || !live.isActive) return;
+        const actor = db.users.get(actorId);
+        if (live.hostId !== actorId && !isDevUser(actor)) return;
+        live.chatConfig = {
+          ...live.chatConfig,
+          ...(config.noLinksForParticipants !== undefined && { noLinksForParticipants: config.noLinksForParticipants }),
+          ...(config.slowModeSeconds !== undefined && { slowModeSeconds: Math.max(0, Math.min(120, config.slowModeSeconds)) }),
+          ...(config.subscribersOnly !== undefined && { subscribersOnly: config.subscribersOnly }),
+        };
+        db.lives.set(liveId, live);
+        io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live));
+      }
+    );
+
+    socket.on(
       'live_ban',
       ({
         liveId,
@@ -618,6 +638,42 @@ export function setupSockets(io: Server): void {
         const liveContent = typeof payload.content === 'string' ? payload.content.slice(0, 2000) : '';
         if (!liveContent.trim() && !payload.attachmentUrl) return;
         if (payload.attachmentUrl && !isAllowedChatAttachmentUrl(payload.attachmentUrl)) return;
+        const live = db.lives.get(payload.liveId)!;
+        const isVipMod = (live.vipModeratorIds ?? []).includes(authUserId);
+        const isHost = live.hostId === authUserId;
+        // Appliquer les règles de config chat
+        let filteredContent = liveContent;
+        if (live.chatConfig?.noLinksForParticipants && !isHost && !isVipMod) {
+          // Retirer les URLs (http/https/www) du message
+          filteredContent = filteredContent
+            .replace(/https?:\/\/[^\s]+/gi, '')
+            .replace(/\bwww\.[^\s]+/gi, '')
+            .trim();
+          if (!filteredContent && !payload.attachmentUrl) {
+            socket.emit('live_chat_denied', {
+              liveId: payload.liveId,
+              reason: 'no_links',
+              message: 'Les liens sont désactivés dans ce live.',
+            });
+            return;
+          }
+        }
+        // Mode lent : vérifier le délai minimum
+        if (live.chatConfig?.slowModeSeconds && live.chatConfig.slowModeSeconds > 0 && !isHost && !isVipMod) {
+          const key = `slow_${payload.liveId}_${authUserId}`;
+          const last = (db as unknown as Record<string, unknown>)[key] as number | undefined;
+          const now = Date.now();
+          if (last && now - last < live.chatConfig.slowModeSeconds * 1000) {
+            const waitSec = Math.ceil((live.chatConfig.slowModeSeconds * 1000 - (now - last)) / 1000);
+            socket.emit('live_chat_denied', {
+              liveId: payload.liveId,
+              reason: 'slow_mode',
+              message: `Mode lent activé. Attendez ${waitSec}s avant le prochain message.`,
+            });
+            return;
+          }
+          (db as unknown as Record<string, unknown>)[key] = now;
+        }
         const liveSender = db.users.get(authUserId);
         const msg: ChatMessage = {
           id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -629,7 +685,7 @@ export function setupSockets(io: Server): void {
           senderUsernameWaveFrom: liveSender?.usernameWaveFrom,
           senderUsernameWaveTo: liveSender?.usernameWaveTo,
           senderIsDev: isDevUser(liveSender) ? true : undefined,
-          content: liveContent,
+          content: filteredContent,
           timestamp: Date.now(),
           ...(payload.attachmentUrl ? {
             attachmentUrl: payload.attachmentUrl,
@@ -719,7 +775,32 @@ export function setupSockets(io: Server): void {
       }
     });
 
+// Per-socket rate limiter for broadcast-heavy events.
+// Prevents a malicious or buggy client from flooding rooms with force-sync requests.
+const _socketEventCounters = new Map<string, { count: number; windowStart: number }>();
+const SOCKET_EVENT_WINDOW_MS = 10_000; // 10 seconds
+const SOCKET_EVENT_MAX: Record<string, number> = {
+  sync_playback: 20,
+  salon_force_sync: 5,
+};
+
+function checkSocketEventRate(socketId: string, event: string): boolean {
+  const max = SOCKET_EVENT_MAX[event];
+  if (!max) return true;
+  const key = `${socketId}:${event}`;
+  const now = Date.now();
+  const entry = _socketEventCounters.get(key);
+  if (!entry || now - entry.windowStart > SOCKET_EVENT_WINDOW_MS) {
+    _socketEventCounters.set(key, { count: 1, windowStart: now });
+    return true;
+  }
+  entry.count++;
+  if (entry.count > max) return false;
+  return true;
+}
+
     socket.on('sync_playback', ({ salonId, playbackState }: { salonId: string; playbackState: object }) => {
+      if (!checkSocketEventRate(socket.id, 'sync_playback')) return;
       const userId = (socket.data as { userId?: string }).userId;
       const salon = db.salons.get(salonId);
       if (!salon || !userId || !canControlSalonPlayback(salon, userId)) return;
@@ -782,6 +863,7 @@ export function setupSockets(io: Server): void {
     });
 
     socket.on('salon_force_sync', ({ salonId, progressMs: clientProgressMs }: { salonId: string; progressMs?: number }) => {
+      if (!checkSocketEventRate(socket.id, 'salon_force_sync')) return;
       const userId = (socket.data as { userId?: string }).userId;
       const salon = db.salons.get(salonId);
       if (!salon || !userId || salon.hostId !== userId) return;

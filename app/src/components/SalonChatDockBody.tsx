@@ -163,7 +163,7 @@ export function SalonChatDockBody({
   const queueBadge = queue.length > 0 ? queue.length : undefined;
 
   return (
-    <div className="salon-chat-dock-tabs flex flex-col flex-1 min-h-0 h-full">
+    <div className="salon-chat-dock-tabs flex flex-col flex-1 min-h-0">
       <div className="shrink-0 flex items-center gap-2 px-3 min-h-[44px] border-b border-[#1e1e2f] bg-[#0b0b0f]">
         <SalonChatDockTabButtons
           activeTab={dockTab}
@@ -174,7 +174,7 @@ export function SalonChatDockBody({
       <div className="salon-chat-dock-tabs__content flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
         {dockTab === 'chat' ? (
           <>
-            <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+            <div className="flex-1 min-h-0 h-0 overflow-hidden flex flex-col">
               <ChatMessagesView />
             </div>
             {chatInput ? (

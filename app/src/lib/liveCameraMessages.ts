@@ -76,6 +76,9 @@ export const LIVE_CAMERA_VIEWER_VIDEO_PENDING =
 /** Hôte : changement de micro en cours. */
 export const LIVE_CAMERA_MIC_SWITCHING = 'Changement de micro…';
 
+/** Hôte : changement de caméra en cours. */
+export const LIVE_CAMERA_CAM_SWITCHING = 'Changement de caméra…';
+
 /** Spectateur (Cloudflare CDN) : en attente du flux RTMP/OBS de l'hôte. */
 export const LIVE_CAMERA_VIEWER_CLOUDFLARE_WAITING_OBS =
   'En attente de la vidéo de l’hôte — il doit diffuser via OBS pour que vous voyiez l’image.';

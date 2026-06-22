@@ -1,6 +1,8 @@
 export interface LiveMediaPrefs {
   videoDeviceId?: string;
   audioDeviceId?: string;
+  /** msdev/dev — entrer en live hôte sans getUserMedia (UI salon / théâtre). */
+  demoNoMedia?: boolean;
 }
 
 const STORAGE_KEY = 'melosong_live_media_prefs';

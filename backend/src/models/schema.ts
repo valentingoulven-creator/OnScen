@@ -250,6 +250,15 @@ export interface SalonBan {
   bannedAt: number;
 }
 
+export interface LiveChatConfig {
+  /** Supprime automatiquement les liens des non-modérateurs. */
+  noLinksForParticipants?: boolean;
+  /** Mode lent : délai minimum en secondes entre deux messages d'un même participant. */
+  slowModeSeconds?: number;
+  /** Réserve le chat aux abonnés du créateur uniquement. */
+  subscribersOnly?: boolean;
+}
+
 export interface Live {
   id: string;
   /** Lié à un salon d'écoute si présent ; absent pour un live autonome. */
@@ -274,6 +283,8 @@ export interface Live {
   cameraMode?: 'camera' | 'file';
   /** Utilisateurs VIP pouvant modérer le chat public du live. */
   vipModeratorIds?: string[];
+  /** Configuration du chat live (modération auto). */
+  chatConfig?: LiveChatConfig;
   /** Masqué par modération admin (carte et listes publiques). */
   adminBlocked?: boolean;
   adminBlockedAt?: number;

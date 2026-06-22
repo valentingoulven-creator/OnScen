@@ -397,6 +397,12 @@ app.use(
       ) {
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
       }
+      // Prevent uploaded files from being rendered as HTML or executed as scripts
+      // when served from the /uploads/ path (SEC-UPL-003).
+      if (filePath.includes(`${path.sep}uploads${path.sep}`)) {
+        res.setHeader('Content-Disposition', 'attachment');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+      }
     },
   })
 );
@@ -417,7 +423,7 @@ const AUTH_RATE_LIMIT_SENSITIVE_PATHS = new Set([
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,  // 20 req / 15 min — résistant au brute-force, confortable pour l'usage légitime
+  max: 10,  // 10 req / 15 min — résistant au brute-force
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de tentatives. Réessayez plus tard.' },

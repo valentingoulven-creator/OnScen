@@ -2840,53 +2840,130 @@ export function DmPage({
 
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f]">
-      <div className="shrink-0 flex items-center justify-between p-4 border-b border-[#1e1e2f]">
-        <h2 className="text-lg font-bold text-white">{t('dm.title')}</h2>
-        <div className="flex gap-2 flex-wrap justify-end">
-          <button
-            type="button"
-            onClick={toggleMatchesOnly}
-            className={`px-3 py-2 text-xs rounded-full border font-semibold ${
-              showMatchesOnly
-                ? 'bg-pink-600/20 border-pink-500/50 text-pink-300'
-                : 'border-[#2d2d3d] text-gray-400 hover:text-white'
-            }`}
-            aria-pressed={showMatchesOnly}
-          >
-            ♥ Matchs
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              loadBlocked();
-              setBlockedSearch('');
-              setView('blocked');
-            }}
-            className="px-3 py-2 text-xs text-gray-400 border border-[#2d2d3d] rounded-full hover:text-white"
-            title="Utilisateurs bloqués"
-          >
-            Bloqués
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              loadContacts();
-              clearSelection();
-              setView('createGroup');
-            }}
-            className="px-3 py-2 text-xs text-purple-300 border border-purple-500/40 rounded-full hover:bg-purple-900/20 font-semibold"
-          >
-            + Groupe
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowNewDmSheet(true)}
-            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-full text-sm font-bold text-white"
-          >
-            + Nouveau
-          </button>
+      <header className="shrink-0 border-b border-[#1e1e2f] min-w-0 overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 sm:p-4 min-w-0">
+          <div className="flex items-center justify-between gap-2 min-w-0 sm:contents">
+            <h2 className="text-base sm:text-lg font-bold text-white truncate min-w-0">
+              {t('dm.title')}
+            </h2>
+            <div className="flex items-center gap-1.5 shrink-0 sm:hidden">
+              <button
+                type="button"
+                onClick={() => {
+                  loadContacts();
+                  clearSelection();
+                  setView('createGroup');
+                }}
+                className="flex items-center justify-center w-11 h-11 text-purple-300 border border-purple-500/40 rounded-full hover:bg-purple-900/20"
+                title={t('dm.newGroup')}
+                aria-label={t('dm.newGroup')}
+              >
+                <svg
+                  className="w-5 h-5 shrink-0"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M19 8v6" />
+                  <path d="M22 11h-6" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowNewDmSheet(true)}
+                className="flex items-center justify-center w-11 h-11 bg-purple-600 hover:bg-purple-500 rounded-full text-white"
+                title={t('dm.newMessage')}
+                aria-label={t('dm.newMessage')}
+              >
+                <svg
+                  className="w-5 h-5 shrink-0"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M12 5v14" />
+                  <path d="M5 12h14" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 min-w-0 sm:shrink-0">
+            <div className="flex-1 min-w-0 overflow-x-auto scrollbar-none -mx-1 px-1 sm:overflow-visible sm:mx-0 sm:px-0 sm:flex-initial">
+              <div className="flex gap-2 w-max sm:w-auto flex-nowrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (showMatchesOnly) toggleMatchesOnly();
+                  }}
+                  className={`sm:hidden flex items-center px-3 py-2.5 min-h-[44px] text-xs rounded-full border font-semibold whitespace-nowrap shrink-0 ${
+                    !showMatchesOnly
+                      ? 'bg-purple-600/20 border-purple-500/50 text-purple-200'
+                      : 'border-[#2d2d3d] text-gray-400 hover:text-white'
+                  }`}
+                  aria-pressed={!showMatchesOnly}
+                >
+                  {t('dm.title')}
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleMatchesOnly}
+                  className={`flex items-center px-3 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 text-xs sm:text-sm rounded-full border font-semibold whitespace-nowrap shrink-0 ${
+                    showMatchesOnly
+                      ? 'bg-pink-600/20 border-pink-500/50 text-pink-300'
+                      : 'border-[#2d2d3d] text-gray-400 hover:text-white'
+                  }`}
+                  aria-pressed={showMatchesOnly}
+                >
+                  ♥ Matchs
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    loadBlocked();
+                    setBlockedSearch('');
+                    setView('blocked');
+                  }}
+                  className="flex items-center px-3 py-2.5 sm:py-2 min-h-[44px] sm:min-h-0 text-xs sm:text-sm text-gray-400 border border-[#2d2d3d] rounded-full hover:text-white whitespace-nowrap shrink-0"
+                  title={t('dm.blocked')}
+                >
+                  Bloqués
+                </button>
+              </div>
+            </div>
+            <div className="hidden sm:flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  loadContacts();
+                  clearSelection();
+                  setView('createGroup');
+                }}
+                className="px-3 py-2 text-xs text-purple-300 border border-purple-500/40 rounded-full hover:bg-purple-900/20 font-semibold whitespace-nowrap"
+              >
+                + Groupe
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowNewDmSheet(true)}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-full text-sm font-bold text-white whitespace-nowrap"
+              >
+                + Nouveau
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      </header>
 
       {loading && <p className="p-6 text-center text-gray-500 text-sm">Chargement...</p>}
 

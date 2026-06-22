@@ -9,6 +9,62 @@ import { MSDEV_DEMO_AGE } from './lib/msdevDemoAccounts';
 import { FRANCE_COUNTRY_CODE, resolveLiveCountry } from './lib/liveCountry';
 import { schedulePersist } from './lib/persist';
 
+/** Assure que les lives démo msdev (DJ Melody, BassHunter) sont actifs au démarrage.
+ *  Appelé après loadPersistedStore() pour éviter un feed vide. */
+export function ensureMsdevDemoLives(): void {
+  if (process.env.APP_ENV !== 'msdev' && process.env.MSENV !== 'msdev') return;
+
+  const DEMO_LIVES: Array<{ id: string; hostId: string; hostName: string; title: string; lat: number; lon: number; viewers: number }> = [
+    { id: 'salon_dj',  hostId: 'user_dj',   hostName: 'DJ Melody',  title: 'Live DJ Melody — Deep House',   lat: 48.8570, lon: 2.3525, viewers: 24 },
+    { id: 'live_demo_bass', hostId: 'user_bass', hostName: 'BassHunter', title: 'Live BassHunter — YouTube Vibes', lat: 48.8561, lon: 2.3524, viewers: 7 },
+  ];
+
+  let changed = false;
+
+  for (const def of DEMO_LIVES) {
+    const host = db.users.get(def.hostId);
+    if (!host) continue; // comptes démo pas encore créés
+
+    const existing = db.lives.get(def.id);
+    if (existing?.isActive) continue; // déjà actif, rien à faire
+
+    const live: Live = {
+      id: def.id,
+      salonId: def.id === 'salon_dj' ? 'salon_dj' : undefined,
+      hostId: def.hostId,
+      hostName: def.hostName,
+      title: def.title,
+      platform: 'spotify',
+      playbackState: {
+        platform: 'spotify',
+        trackId: def.id === 'salon_dj' ? '2P91MQbaiQKBR4c9sEgqsl' : 'dQw4w9WgXcQ',
+        title: def.id === 'salon_dj' ? 'Midnight City' : 'Never Gonna Give You Up',
+        artist: def.id === 'salon_dj' ? 'M83' : 'Rick Astley',
+        albumArtUrl: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=400',
+        isPlaying: true,
+        progressMs: Math.floor(Math.random() * 120000),
+        updatedAt: Date.now(),
+        startedAt: Date.now() - 300000,
+      },
+      latitude: def.lat,
+      longitude: def.lon,
+      blurredLatitude: blurCoordinate(def.lat),
+      blurredLongitude: blurCoordinate(def.lon),
+      viewersCount: def.viewers,
+      isActive: true,
+      startedAt: Date.now() - 300000,
+    };
+
+    db.lives.set(live.id, live);
+    if (!db.liveChats.has(live.id)) db.liveChats.set(live.id, []);
+    if (!db.liveBans.has(live.id))  db.liveBans.set(live.id, new Map());
+    changed = true;
+    console.log(`[msdev] Live démo activé : ${live.title}`);
+  }
+
+  if (changed) schedulePersist();
+}
+
 const PARIS_LAT = 48.8566;
 const PARIS_LON = 2.3522;
 

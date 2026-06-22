@@ -1018,7 +1018,8 @@ export function SalonPlaybackPanel({
           {playbackProgressInput}
         </div>
 
-        <SalonAdBanner />
+        {/* YouTube TOS §4.B: no advertising revenue alongside YouTube API services */}
+        {salon.platform !== 'youtube' && <SalonAdBanner />}
 
         <div
           className={`salon-theater-panel-extra min-h-0 overflow-y-auto${

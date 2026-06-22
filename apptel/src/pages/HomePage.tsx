@@ -25,8 +25,10 @@ import {
   filterLivesForMap,
   filterNearbyPeople,
   filterSalonsForMap,
+  getMapSidebarListVisible,
   getNearbyPanelPreferences,
   NEARBY_PANEL_CHANGED_EVENT,
+  setMapSidebarListVisible,
   peopleMarkersOnMap,
   sortLivesForNearby,
   sortNearbyPeople,
@@ -38,8 +40,6 @@ import { clearSalonUrlFromBar } from '../lib/salonDeepLink';
 import { mergeRemotePlaybackState } from '../lib/salonPlayback';
 import { USERNAME_WAVE_CLASS } from '../lib/usernameColor';
 import type { PlaybackState } from '../types';
-
-const NEARBY_PEOPLE_STORAGE_KEY = 'melosong_show_nearby_people';
 
 interface HomePageProps {
   appLayout?: AppLayoutId;
@@ -86,7 +86,7 @@ export function HomePage({
   const [showCreateSalon, setShowCreateSalon] = useState(false);
   const [locating, setLocating] = useState(false);
   const [loadingNearby, setLoadingNearby] = useState(true);
-  const [showNearbyPeople, setShowNearbyPeople] = useState(true);
+  const [showNearbyPeople, setShowNearbyPeople] = useState(getMapSidebarListVisible);
   const [nearbyPanelPrefs, setNearbyPanelPrefs] = useState(getNearbyPanelPreferences);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
   const [mapGeo, setMapGeo] = useState<LivesGeoPrefs>(() => getLivesGeo());
@@ -211,11 +211,7 @@ export function HomePage({
 
   const setNearbyPeopleVisible = (visible: boolean) => {
     setShowNearbyPeople(visible);
-    try {
-      localStorage.removeItem(NEARBY_PEOPLE_STORAGE_KEY);
-    } catch {
-      /* ignore */
-    }
+    setMapSidebarListVisible(visible);
   };
 
   const loadNearbyAt = (coords: [number, number]) => {

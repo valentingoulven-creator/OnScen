@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { DmContact } from '../types';
 import { SalonInviteUserSearch } from './SalonInviteUserSearch';
+import { ShareLinkMenu } from './ShareLinkMenu';
+import { ShareToUserSheet } from './ShareToUserSheet';
 import { getSalonShareUrl } from '../lib/shareLink';
 
 interface SalonInviteSheetProps {
@@ -29,8 +31,12 @@ export function SalonInviteSheet({
   const [open, setOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [copied, setCopied] = useState(false);
+  const [shareMenuOpen, setShareMenuOpen] = useState(false);
+  const [shareToUserOpen, setShareToUserOpen] = useState(false);
+  const [shareToast, setShareToast] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const shareText = `Rejoins le salon de ${hostName} sur Soundy`;
 
   useEffect(() => {
     let cancelled = false;
@@ -59,6 +65,12 @@ export function SalonInviteSheet({
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
+  useEffect(() => {
+    if (!shareToast) return;
+    const id = window.setTimeout(() => setShareToast(null), 2500);
+    return () => window.clearTimeout(id);
+  }, [shareToast]);
+
   const handleCopy = async () => {
     if (!shareUrl) return;
     try {
@@ -66,19 +78,6 @@ export function SalonInviteSheet({
       setCopied(true);
     } catch {
       // clipboard may be restricted in some contexts
-    }
-  };
-
-  const handleNativeShare = async () => {
-    if (!navigator.share || !shareUrl) return;
-    try {
-      await navigator.share({
-        title: salonTitle,
-        text: `Rejoins le salon de ${hostName} sur Soundy`,
-        url: shareUrl,
-      });
-    } catch {
-      // user cancelled or API unsupported
     }
   };
 
@@ -91,9 +90,6 @@ export function SalonInviteSheet({
       setSubmitting(false);
     }
   };
-
-  const hasNativeShare =
-    typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 
   return (
     <div ref={containerRef} className="relative shrink-0">
@@ -150,12 +146,12 @@ export function SalonInviteSheet({
                 >
                   {copied ? '✓ Lien copié !' : '🔗 Copier le lien'}
                 </button>
-                {hasNativeShare && shareUrl && (
+                {shareUrl && (
                   <button
                     type="button"
-                    onClick={() => void handleNativeShare()}
+                    onClick={() => setShareMenuOpen(true)}
                     title="Partager via une autre application"
-                    className="px-3 py-2 rounded-xl text-gray-300 border border-[#2a2a3a] bg-[#1a1a26] hover:bg-[#242434] transition"
+                    className="px-3 py-2 rounded-xl text-gray-300 border border-[#2a2a3a] bg-[#1a1a26] hover:bg-[#242434] transition min-h-[44px] min-w-[44px] flex items-center justify-center"
                     aria-label="Partager via une autre application"
                   >
                     <svg
@@ -197,6 +193,42 @@ export function SalonInviteSheet({
               </button>
             </section>
           </div>
+        </div>
+      )}
+
+      {shareMenuOpen && shareUrl && !shareToUserOpen && (
+        <ShareLinkMenu
+          open
+          onClose={() => setShareMenuOpen(false)}
+          url={shareUrl}
+          title={salonTitle}
+          text={shareText}
+          onToast={setShareToast}
+          onSendToUser={() => setShareToUserOpen(true)}
+        />
+      )}
+
+      {shareMenuOpen && shareToUserOpen && shareUrl && (
+        <ShareToUserSheet
+          open
+          onBack={() => setShareToUserOpen(false)}
+          onClose={() => {
+            setShareToUserOpen(false);
+            setShareMenuOpen(false);
+          }}
+          token={token}
+          shareUrl={shareUrl}
+          shareText={shareText}
+          onToast={setShareToast}
+        />
+      )}
+
+      {shareToast && (
+        <div
+          className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[70] px-4 py-2 rounded-full bg-[#1a1a28] border border-purple-500/40 text-sm text-white shadow-lg"
+          role="status"
+        >
+          {shareToast}
         </div>
       )}
     </div>

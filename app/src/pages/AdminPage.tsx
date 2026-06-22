@@ -79,7 +79,7 @@ export function AdminPage({
               key={item.id}
               type="button"
               onClick={() => setTab(item.id)}
-              className={`shrink-0 snap-start px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition ${
+              className={`shrink-0 px-2.5 py-1.5 min-h-8 sm:px-4 sm:py-2 sm:min-h-0 rounded-full text-[11px] sm:text-xs font-semibold whitespace-nowrap transition ${
                 tab === item.id
                   ? 'bg-purple-600 text-white'
                   : 'bg-[#1a1a26] text-gray-400 hover:text-white'

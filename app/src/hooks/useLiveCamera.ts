@@ -9,9 +9,11 @@ import {
   ensureMediaDevices,
   hasGetUserMediaCapability,
   listLiveAudioInputDevices,
+  listLiveVideoInputDevices,
   mapLiveCameraError,
   playLiveVideo,
   replaceLiveAudioTrack,
+  replaceLiveVideoTrack,
   validateLiveVideoFile,
   waitForVideoFileMetadata,
   type LiveMediaDeviceOption,
@@ -32,8 +34,11 @@ export function useLiveCamera() {
     typeof window === 'undefined' ? true : hasGetUserMediaCapability()
   );
   const [audioDevices, setAudioDevices] = useState<LiveMediaDeviceOption[]>([]);
+  const [videoDevices, setVideoDevices] = useState<LiveMediaDeviceOption[]>([]);
   const [audioDeviceId, setAudioDeviceId] = useState('');
+  const [videoDeviceId, setVideoDeviceId] = useState('');
   const [micSwitching, setMicSwitching] = useState(false);
+  const [camSwitching, setCamSwitching] = useState(false);
   const [previewBlocked, setPreviewBlocked] = useState(false);
 
   useEffect(() => {
@@ -56,8 +61,9 @@ export function useLiveCamera() {
     setActive(false);
     setMode(null);
     setPreviewBlocked(false);
-    setAudioDevices([]);
-    setAudioDeviceId('');
+    const prefs = getLiveMediaPrefs();
+    setAudioDeviceId(prefs?.audioDeviceId ?? '');
+    setVideoDeviceId(prefs?.videoDeviceId ?? '');
   }, []);
 
   const attachPreview = useCallback(async () => {
@@ -165,10 +171,16 @@ export function useLiveCamera() {
         previewEl.srcObject = stream;
       }
 
-      const mics = await listLiveAudioInputDevices();
+      const [mics, cams] = await Promise.all([
+        listLiveAudioInputDevices(),
+        listLiveVideoInputDevices(),
+      ]);
       setAudioDevices(mics);
+      setVideoDevices(cams);
       const activeMic = stream.getAudioTracks()[0]?.getSettings().deviceId ?? '';
+      const activeCam = stream.getVideoTracks()[0]?.getSettings().deviceId ?? '';
       setAudioDeviceId(activeMic);
+      setVideoDeviceId(activeCam);
       const el = previewEl ?? (await waitForVideoElement());
       if (el) await attachPreview();
       return true;
@@ -238,6 +250,37 @@ export function useLiveCamera() {
 
   const getStream = useCallback((): MediaStream | null => streamRef.current, []);
 
+  const refreshMediaDevices = useCallback(async () => {
+    const [mics, cams] = await Promise.all([
+      listLiveAudioInputDevices(),
+      listLiveVideoInputDevices(),
+    ]);
+    setAudioDevices(mics);
+    setVideoDevices(cams);
+    const stream = streamRef.current;
+    if (stream && mode === 'camera') {
+      setAudioDeviceId(stream.getAudioTracks()[0]?.getSettings().deviceId ?? '');
+      setVideoDeviceId(stream.getVideoTracks()[0]?.getSettings().deviceId ?? '');
+      return;
+    }
+    const prefs = getLiveMediaPrefs();
+    if (prefs?.audioDeviceId) setAudioDeviceId(prefs.audioDeviceId);
+    if (prefs?.videoDeviceId) setVideoDeviceId(prefs.videoDeviceId);
+  }, [mode]);
+
+  const updateMediaDevicePrefs = useCallback(
+    (next: { videoDeviceId?: string; audioDeviceId?: string }) => {
+      const prefs = getLiveMediaPrefs();
+      setLiveMediaPrefs({
+        videoDeviceId: next.videoDeviceId ?? prefs?.videoDeviceId,
+        audioDeviceId: next.audioDeviceId ?? prefs?.audioDeviceId,
+      });
+      if (next.audioDeviceId !== undefined) setAudioDeviceId(next.audioDeviceId);
+      if (next.videoDeviceId !== undefined) setVideoDeviceId(next.videoDeviceId);
+    },
+    []
+  );
+
   const switchMicrophone = useCallback(
     async (nextDeviceId: string): Promise<MediaStreamTrack | null> => {
       const stream = streamRef.current;
@@ -265,6 +308,37 @@ export function useLiveCamera() {
     [audioDeviceId, mode]
   );
 
+  const switchCamera = useCallback(
+    async (nextDeviceId: string): Promise<MediaStreamTrack | null> => {
+      const stream = streamRef.current;
+      const md = ensureMediaDevices();
+      if (!stream || !md?.getUserMedia || mode !== 'camera' || !nextDeviceId) return null;
+      if (nextDeviceId === videoDeviceId) return stream.getVideoTracks()[0] ?? null;
+
+      setCamSwitching(true);
+      setError(null);
+      try {
+        const track = await replaceLiveVideoTrack(stream, (c) => md.getUserMedia(c), nextDeviceId);
+        setVideoDeviceId(nextDeviceId);
+        setLiveMediaPrefs({
+          videoDeviceId: nextDeviceId,
+          audioDeviceId: stream.getAudioTracks()[0]?.getSettings().deviceId ?? audioDeviceId,
+        });
+        const el = videoRef.current;
+        if (el && el.srcObject === stream) {
+          void attachPreview();
+        }
+        return track;
+      } catch (e) {
+        setError(mapLiveCameraError(e));
+        return null;
+      } finally {
+        setCamSwitching(false);
+      }
+    },
+    [audioDeviceId, attachPreview, mode, videoDeviceId]
+  );
+
   return {
     videoRef: setVideoRef,
     active,
@@ -273,14 +347,20 @@ export function useLiveCamera() {
     setError,
     cameraUsable,
     audioDevices,
+    videoDevices,
     audioDeviceId,
+    videoDeviceId,
     micSwitching,
+    camSwitching,
     start,
     startFromFile,
     stop,
     getStream,
     broadcastStream,
     switchMicrophone,
+    switchCamera,
+    refreshMediaDevices,
+    updateMediaDevicePrefs,
     previewBlocked,
     enableHostPreview,
   };

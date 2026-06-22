@@ -1,6 +1,12 @@
 const STRIPE_CONNECT_SKIP_KEY = 'soundy_stripe_connect_skipped';
 
+/** Dev/msdev only — lancer un live sans Stripe Connect configuré. */
+export function canBypassStripeConnect(): boolean {
+  return import.meta.env.DEV || import.meta.env.VITE_APP_ENV === 'msdev';
+}
+
 export function isStripeConnectSkipped(): boolean {
+  if (canBypassStripeConnect()) return true;
   try {
     return sessionStorage.getItem(STRIPE_CONNECT_SKIP_KEY) === '1';
   } catch {

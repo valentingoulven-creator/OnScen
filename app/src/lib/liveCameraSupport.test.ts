@@ -1,12 +1,21 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   buildLiveCameraConstraintAttempts,
+  canBypassLiveMediaSetup,
   getLiveCameraPreflightIssue,
   isLocalNetworkHost,
   liveCameraPreflightMessage,
   mapLiveCameraError,
   validateLiveVideoFile,
 } from './liveCameraSupport';
+
+describe('canBypassLiveMediaSetup', () => {
+  it('autorise le contournement en msdev ou Vite dev', () => {
+    vi.stubEnv('VITE_APP_ENV', 'msdev');
+    expect(canBypassLiveMediaSetup()).toBe(true);
+    vi.unstubAllEnvs();
+  });
+});
 
 describe('isLocalNetworkHost', () => {
   it('accepte localhost et LAN privé', () => {

@@ -80,7 +80,7 @@ function ChatLayoutToggle({
 function DockChatBody({ chat, chatInput }: { chat: ReactNode; chatInput?: ReactNode }) {
   return (
     <div className="room-theater-chat-dock__body flex-1 min-h-0 flex flex-col overflow-hidden">
-      <div className="flex-1 min-h-0 overflow-hidden flex flex-col">{chat}</div>
+      <div className="flex-1 min-h-0 h-0 overflow-hidden flex flex-col">{chat}</div>
       {chatInput ? <div className="room-theater-chat-dock__input shrink-0">{chatInput}</div> : null}
     </div>
   );
@@ -649,7 +649,7 @@ export function RoomTheaterLayout({
 
   const bottomChatDock = showBottomDock ? (
     <div
-      className={`room-theater-bottom-chat-dock shrink-0 flex flex-col border-t border-[#1e1e2f] bg-[#0b0b0f]/95 backdrop-blur-sm pb-[env(safe-area-inset-bottom)]${
+      className={`room-theater-bottom-chat-dock shrink-0 flex flex-col border-t border-[#1e1e2f] bg-[#0b0b0f]/95 backdrop-blur-sm${
         useVideoStack ? ' room-theater-bottom-chat-dock--stacked' : ''
       }`}
     >
@@ -774,7 +774,7 @@ export function RoomTheaterLayout({
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
       {integratedTopBar}
-      <div className="flex-1 min-w-0 flex flex-col min-h-0">
+      <div className={`flex-1 min-w-0 flex flex-col min-h-0${showBottomDock ? ' room-theater-layout--bottom-chat' : ''}`}>
         <div
           className={`${sideRowFlex} min-h-0 flex flex-col overflow-hidden${sideRowClass || ' sm:flex-row'}`}
           style={sideRowStyle}
