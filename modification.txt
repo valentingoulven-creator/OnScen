@@ -1,4 +1,29 @@
 ================================================================================
+MODIF 636 — Sponsors prod réalistes (reels, fil, carte, bandeau)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En production : reels sponsorisés, publications fil, événements carte et bandeau
+ avec marques réalistes et hyperliens billetterie / offres.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/sponsors.ts
+ ─────────────────
+ • DEFAULT_SPONSORS : feed_inline, reels_sponsored, map_banner Ticketmaster
+ • syncDefaultSponsorFields — complète linkUrl / médias vides sans écraser l’admin
+
+ backend/src/seed-production-sponsors.ts — événements prod-sponso-evt-* (URLs)
+ backend/src/scripts/seed-production-sponsors.ts — seed manuel VPS
+ backend/src/bootstrap.ts — ensureProductionSponsorContent en prod
+ app/src/lib/mapEventCoords.ts — venues Solar, Déferlantes, Rock en Seine…
+
+================================================================================
+Fin MODIF 636 — 2026-06-22
+================================================================================
+================================================================================
 MODIF 635 — Logo Soundy SVG 3D diamant (wordmark)
 Date : 2026-06-22
 ================================================================================

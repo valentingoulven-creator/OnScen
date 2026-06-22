@@ -32,7 +32,8 @@ import {
   ensureMsdevListenerFollowersCount,
 } from './lib/msdevDemoAccounts';
 import { ensureAccessAdmins, isAccessControlEnabled, loadAccessControlFromPersist } from './lib/accessControl';
-import { ensureDefaultSponsors, migrateSponsorMapVisibility, syncDefaultSponsorScopes } from './lib/sponsors';
+import { ensureDefaultSponsors, migrateSponsorMapVisibility, syncDefaultSponsorFields, syncDefaultSponsorScopes } from './lib/sponsors';
+import { ensureProductionSponsorContent } from './seed-production-sponsors';
 import { ensureDefaultSponsorPlatformConfig } from './lib/sponsorPlatformConfig';
 import { repairInvalidGeoInDb } from './lib/mapCoords';
 import { loadSalonsLivesFromPostgres } from './lib/pgSalonsLives';
@@ -357,6 +358,11 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
     console.log(`[melosong] Sponsors par défaut ajoutés : ${sponsorsAdded} entrée(s)`);
     schedulePersist();
   }
+  const sponsorsSynced = syncDefaultSponsorFields();
+  if (sponsorsSynced > 0) {
+    console.log(`[melosong] Champs sponsors par défaut complétés : ${sponsorsSynced} entrée(s)`);
+    schedulePersist();
+  }
   ensureDefaultSponsorPlatformConfig();
   const sponsorGeoMigrated = migrateSponsorMapVisibility();
   if (sponsorGeoMigrated > 0) {
@@ -367,6 +373,10 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
   if (sponsorScopesSynced > 0) {
     console.log(`[melosong] Portée carte sponsors synchronisée : ${sponsorScopesSynced} entrée(s)`);
     schedulePersist();
+  }
+
+  if (APP_ENV === 'production') {
+    ensureProductionSponsorContent();
   }
 
   seedBotsAtStartup();

@@ -10,6 +10,10 @@ const VENUE_LOOKUP: Array<{ match: RegExp; latitude: number; longitude: number }
   { match: /olympia/i, latitude: 48.8699, longitude: 2.3282 },
   { match: /place du peyrou|peyrou/i, latitude: 43.6112, longitude: 3.8703 },
   { match: /corum|opéra berlioz|opera berlioz/i, latitude: 43.612, longitude: 3.8805 },
+  { match: /solar festival/i, latitude: 43.6489, longitude: 3.8567 },
+  { match: /d[eé]ferlantes|argel[eè]s-sur-mer/i, latitude: 42.5467, longitude: 3.0222 },
+  { match: /rock en seine|saint-cloud/i, latitude: 48.8422, longitude: 2.2183 },
+  { match: /nuits sonores/i, latitude: 45.764, longitude: 4.8357 },
   { match: /bar musical/i, latitude: 45.764, longitude: 4.8357 },
   { match: /café des arts|cafe des arts/i, latitude: 44.8378, longitude: -0.5792 },
 ];

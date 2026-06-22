@@ -155,9 +155,13 @@ const DEFAULT_SPONSORS: Omit<Sponsor, 'createdAt' | 'updatedAt'>[] = [
     subtitle: 'HiFi, paroles synchronisées et playlists sans pub pendant 3 mois',
     cta: 'En savoir plus',
     linkUrl: 'https://www.deezer.com/fr/offers',
+    logoUrl: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=80&h=80&fit=crop',
+    bannerImageUrl:
+      'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=1280&h=192&fit=crop',
     accent: 'cyan',
     kind: 'sponsored',
     mapVisibilityScope: 'france',
+    displayDurationSec: 10,
   },
   {
     id: 'fnac-demo',
@@ -166,11 +170,14 @@ const DEFAULT_SPONSORS: Omit<Sponsor, 'createdAt' | 'updatedAt'>[] = [
     active: true,
     priority: 6,
     title: 'Fnac Musique',
-    subtitle: '−20 % sur les vinyles et CD près de chez toi — offre démo msdev',
+    subtitle: 'Vinyles, CD et concerts — −20 % sur une sélection avec le code SOUNDY',
     cta: 'Voir l’offre',
+    linkUrl: 'https://www.fnac.com/Musique',
+    logoUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=80&h=80&fit=crop',
     accent: 'rose',
     kind: 'sponsored',
     mapVisibilityScope: 'france',
+    displayDurationSec: 10,
   },
   {
     id: 'discover',
@@ -184,6 +191,104 @@ const DEFAULT_SPONSORS: Omit<Sponsor, 'createdAt' | 'updatedAt'>[] = [
     accent: 'purple',
     kind: 'promo',
     mapVisibilityScope: 'france',
+  },
+  {
+    id: 'spotify-feed-sponso',
+    name: 'Spotify',
+    placement: 'feed_inline',
+    active: true,
+    priority: 0,
+    title: 'Spotify Premium — 3 mois à prix réduit',
+    subtitle: 'Écoute sans pub, téléchargement offline et qualité maximale pour les nouveaux abonnés.',
+    cta: 'Profiter de l’offre',
+    linkUrl: 'https://www.spotify.com/fr/premium/',
+    logoUrl:
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Spotify_icon.svg/120px-Spotify_icon.svg.png',
+    accent: 'cyan',
+    kind: 'sponsored',
+    displayDurationSec: 12,
+  },
+  {
+    id: 'fnac-feed-sponso',
+    name: 'Fnac',
+    placement: 'feed_inline',
+    active: true,
+    priority: 1,
+    title: 'Fnac — vinyles & éditions limitées',
+    subtitle: 'Parcourez les nouveautés et précommandes album sur fnac.com.',
+    cta: 'Découvrir',
+    linkUrl: 'https://www.fnac.com/Musique',
+    logoUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=80&h=80&fit=crop',
+    accent: 'rose',
+    kind: 'sponsored',
+    displayDurationSec: 10,
+  },
+  {
+    id: 'ticketmaster-feed-sponso',
+    name: 'Ticketmaster',
+    placement: 'feed_inline',
+    active: true,
+    priority: 2,
+    title: 'Concerts près de chez toi',
+    subtitle: 'Réservez vos places pour les tournées 2026 — billetterie officielle.',
+    cta: 'Voir les dates',
+    linkUrl: 'https://www.ticketmaster.fr/',
+    logoUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=80&h=80&fit=crop',
+    accent: 'amber',
+    kind: 'sponsored',
+    displayDurationSec: 10,
+  },
+  {
+    id: 'deezer-reel-sponso',
+    name: 'Deezer',
+    placement: 'reels_sponsored',
+    active: true,
+    priority: 0,
+    title: 'Deezer — son lossless',
+    subtitle: 'HiFi, paroles synchronisées et Flow personnalisé.',
+    cta: 'Essayer gratuitement',
+    linkUrl: 'https://www.deezer.com/fr/offers',
+    logoUrl: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=80&h=80&fit=crop',
+    videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    posterUrl: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=720&h=1280&fit=crop',
+    accent: 'cyan',
+    kind: 'sponsored',
+    displayDurationSec: 15,
+  },
+  {
+    id: 'solar-reel-sponso',
+    name: 'Solar Festival',
+    placement: 'reels_sponsored',
+    active: true,
+    priority: 1,
+    title: 'Solar Festival 2026',
+    subtitle: '4 juillet au Crès — Petit Biscuit, KAS:ST et plus encore.',
+    cta: 'Billetterie',
+    linkUrl: 'https://solarfestival.fr/billetterie',
+    logoUrl: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=80&h=80&fit=crop',
+    videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    posterUrl: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=720&h=1280&fit=crop',
+    accent: 'amber',
+    kind: 'sponsored',
+    displayDurationSec: 12,
+  },
+  {
+    id: 'ticketmaster-map-sponso',
+    name: 'Ticketmaster',
+    placement: 'map_banner',
+    active: true,
+    priority: 8,
+    title: 'Ticketmaster',
+    subtitle: 'Festivals et concerts partout en France — billetterie officielle',
+    cta: 'Réserver',
+    linkUrl: 'https://www.ticketmaster.fr/',
+    logoUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=80&h=80&fit=crop',
+    bannerImageUrl:
+      'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1280&h=192&fit=crop',
+    accent: 'amber',
+    kind: 'sponsored',
+    mapVisibilityScope: 'france',
+    displayDurationSec: 10,
   },
 ];
 
@@ -675,6 +780,73 @@ export function syncDefaultSponsorScopes(): number {
     }
     sponsor.updatedAt = ts;
     updated++;
+  }
+  return updated;
+}
+
+/** Complète les champs vides des sponsors par défaut déjà en base (sans écraser l’admin). */
+export function syncDefaultSponsorFields(): number {
+  const ts = now();
+  let updated = 0;
+  const fields = [
+    'linkUrl',
+    'logoUrl',
+    'bannerImageUrl',
+    'videoUrl',
+    'posterUrl',
+    'title',
+    'subtitle',
+    'cta',
+    'displayDurationSec',
+  ] as const;
+
+  for (const seed of DEFAULT_SPONSORS) {
+    const sponsor = db.sponsors.find((s) => s.id === seed.id);
+    if (!sponsor) continue;
+    let changed = false;
+    for (const field of fields) {
+      const seedVal = seed[field];
+      if (seedVal == null || seedVal === '') continue;
+      const current = sponsor[field];
+      if (current == null || current === '') {
+        switch (field) {
+          case 'linkUrl':
+            sponsor.linkUrl = seed.linkUrl;
+            break;
+          case 'logoUrl':
+            sponsor.logoUrl = seed.logoUrl;
+            break;
+          case 'bannerImageUrl':
+            sponsor.bannerImageUrl = seed.bannerImageUrl;
+            break;
+          case 'videoUrl':
+            sponsor.videoUrl = seed.videoUrl;
+            break;
+          case 'posterUrl':
+            sponsor.posterUrl = seed.posterUrl;
+            break;
+          case 'title':
+            sponsor.title = seed.title;
+            break;
+          case 'subtitle':
+            sponsor.subtitle = seed.subtitle;
+            break;
+          case 'cta':
+            sponsor.cta = seed.cta;
+            break;
+          case 'displayDurationSec':
+            sponsor.displayDurationSec = seed.displayDurationSec;
+            break;
+          default:
+            break;
+        }
+        changed = true;
+      }
+    }
+    if (changed) {
+      sponsor.updatedAt = ts;
+      updated += 1;
+    }
   }
   return updated;
 }
