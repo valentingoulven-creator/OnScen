@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from './context/AuthContext';
 import {
   consumePendingProfileView,
@@ -27,7 +27,8 @@ import { ReelsTabPage } from './pages/ReelsTabPage';
 import { NotificationBell } from './components/NotificationBell';
 import { PrivacyVisibilityMenu } from './components/PrivacyVisibilityMenu';
 import { useDmUnread } from './context/DmUnreadContext';
-import { ProfileSearchBar } from './components/ProfileSearchBar';
+import { ProfileSearchBar, nearbyPreviewFromSearchItem } from './components/ProfileSearchBar';
+import type { GlobalSearchResultItem } from './components/ProfileSearchBar';
 import { MainTabNav } from './components/MainTabNav';
 import type { NearbyPerson } from './types';
 
@@ -267,6 +268,30 @@ export default function App() {
     setTab(id);
   };
 
+  const handleGlobalSearchSelect = useCallback(
+    (item: GlobalSearchResultItem) => {
+      switch (item.kind) {
+        case 'user':
+          openProfile(item.id, nearbyPreviewFromSearchItem(item));
+          return;
+        case 'city':
+        case 'country':
+          selectTab('map');
+          return;
+        case 'event':
+          openFeedPost(item.id);
+          return;
+        case 'album':
+        case 'song':
+          openProfile(item.userId);
+          return;
+        default:
+          return;
+      }
+    },
+    [openProfile, openFeedPost, selectTab]
+  );
+
   return (
     <div className="ms-phone-shell ms-app-shell flex flex-col min-h-dvh max-h-dvh overflow-hidden min-w-0 w-full">
       {incomingToast && (
@@ -325,7 +350,7 @@ export default function App() {
             <div className="justify-self-center w-[min(100%,17.5rem)] min-w-[8.5rem] px-0.5">
               <ProfileSearchBar
                 token={token}
-                onSelectUser={(id, preview) => openProfile(id, preview)}
+                onSelectResult={handleGlobalSearchSelect}
               />
             </div>
             <div className="flex items-center gap-1 justify-self-end shrink-0">
