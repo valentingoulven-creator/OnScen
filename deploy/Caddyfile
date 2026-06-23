@@ -15,7 +15,7 @@
 (soundy_handlers) {
 	@allowed_ips client_ip 195.36.171.84/32
 
-	@api path /api/* /health /socket.io/* /privacy /terms /legal/mentions
+	@api path /api/* /health /health/db /socket.io/* /privacy /terms /legal/mentions
 	@static path /assets/* /sw.js /workbox-* /manifest.webmanifest /icon.svg /favicon.svg /pwa-* /clear-pwa
 
 	handle @api {
