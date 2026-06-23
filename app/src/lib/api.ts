@@ -210,7 +210,8 @@ export const api = {
     password: string,
     acceptTerms: boolean,
     termsVersion: string,
-    inviteCode?: string
+    inviteCode?: string,
+    confirmAge?: boolean
   ) => {
     let res: Response;
     try {
@@ -225,6 +226,7 @@ export const api = {
           acceptTerms,
           termsVersion,
           inviteCode: inviteCode?.trim() || undefined,
+          confirmAge: confirmAge === true,
         }),
       });
     } catch (e) {
@@ -251,7 +253,7 @@ export const api = {
 
   exchangeOAuthCode: (
     code: string,
-    opts?: { acceptTerms?: boolean; termsVersion?: string }
+    opts?: { acceptTerms?: boolean; termsVersion?: string; confirmAge?: boolean }
   ) =>
     request<{
       token?: string;
@@ -266,6 +268,7 @@ export const api = {
         code,
         acceptTerms: opts?.acceptTerms,
         termsVersion: opts?.termsVersion,
+        confirmAge: opts?.confirmAge === true,
       }),
     }),
 

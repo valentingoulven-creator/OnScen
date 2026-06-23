@@ -140,14 +140,26 @@ describe('contentModeration with mocked Sightengine', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('skip si Sightengine non configuré', async () => {
+  it('skip si Sightengine non configuré (hors production)', async () => {
     delete process.env.SIGHTENGINE_API_USER;
+    process.env.APP_ENV = 'msdev';
     const result = await moderateImageSource(
       'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
       'story',
     );
     expect(result.allowed).toBe(true);
     expect(result.skipped).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('refuse les uploads en production si Sightengine absent', async () => {
+    delete process.env.SIGHTENGINE_API_USER;
+    delete process.env.SIGHTENGINE_API_SECRET;
+    process.env.APP_ENV = 'production';
+    const tinyPng =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    const result = await moderateImageSource(tinyPng, 'story');
+    expect(result.allowed).toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });

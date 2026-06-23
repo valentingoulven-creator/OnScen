@@ -80,7 +80,7 @@ const USERNAME_MIN = 2;
 const USERNAME_MAX = 30;
 
 authRouter.post('/register', async (req: Request, res: Response) => {
-  const { username, email, password, acceptTerms, termsVersion, inviteCode } = req.body;
+  const { username, email, password, acceptTerms, termsVersion, inviteCode, confirmAge } = req.body;
   if (!username || !email || !password) {
     res.status(400).json({ error: 'Champs requis manquants' });
     return;
@@ -117,6 +117,13 @@ authRouter.post('/register', async (req: Request, res: Response) => {
   if (!acceptTerms) {
     res.status(400).json({
       error: 'Vous devez accepter les CGU et la Politique de confidentialité',
+    });
+    return;
+  }
+  if (confirmAge !== true) {
+    res.status(400).json({
+      error: 'Vous devez confirmer avoir au moins 13 ans pour créer un compte',
+      code: 'age_not_confirmed',
     });
     return;
   }
@@ -164,6 +171,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     memberSince: Date.now(),
     acceptedTermsAt: Date.now(),
     acceptedTermsVersion: CURRENT_TERMS_VERSION,
+    ageConfirmedAt: Date.now(),
     accountStatus,
     onboardingCompleted: false,
     emailVerified: skipVerification,
@@ -291,7 +299,7 @@ authRouter.get('/me/export', authenticateJWT, (req: Request, res: Response) => {
   }
   applyProfileDefaults(user);
   const exportData = buildUserDataExport(user);
-  const filename = `melosong-export-${user.username.replace(/[^a-zA-Z0-9_-]/g, '_')}-${Date.now()}.json`;
+  const filename = `soundy-export-${user.username.replace(/[^a-zA-Z0-9_-]/g, '_')}-${Date.now()}.json`;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.json(exportData);

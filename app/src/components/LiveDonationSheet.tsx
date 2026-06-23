@@ -12,6 +12,7 @@ import {
   type DonationsConfig,
 } from '../lib/donations';
 import { donAmountValidationMessage, donTierEmoji, parseDonAmount } from '../lib/liveReactions';
+import { hasThirdPartyCookieConsent } from '../lib/cookieConsent';
 import { LegalDocumentView } from './LegalDocumentView';
 import type { LegalKey } from '../content/legal';
 import type { LiveDonationOption } from '../types';
@@ -139,7 +140,8 @@ export function LiveDonationSheet({
   const platformFeePercent = config?.platformFeePercent ?? 30;
 
   const stripePromise = useMemo(
-    () => (publishableKey ? loadStripe(publishableKey) : null),
+    () =>
+      publishableKey && hasThirdPartyCookieConsent() ? loadStripe(publishableKey) : null,
     [publishableKey]
   );
 

@@ -10,6 +10,7 @@ import {
   PlaybackState,
 } from '../models/schema';
 import { clearSalonQueueFromPgAsync, persistSalonQueueAsync } from './pgSalonQueues';
+import { stampYoutubePlaybackMetadata, stampYoutubeQueueItemMetadata, youtubeMetadataNow } from './youtubeMetadata';
 
 export function ensureSalonQueue(salonId: string): SalonQueueItem[] {
   if (!db.salonQueues.has(salonId)) db.salonQueues.set(salonId, []);
@@ -87,7 +88,7 @@ export function buildPlaybackFromQueueItem(salon: Salon, item: SalonQueueItem, n
     updatedAt: now,
     startedAt: now,
     externalUrl,
-    ...(salon.platform === 'youtube' ? { showVideo: true } : {}),
+    ...(salon.platform === 'youtube' ? { showVideo: true, metadataFetchedAt: item.metadataFetchedAt ?? youtubeMetadataNow() } : {}),
   };
 }
 
@@ -154,11 +155,12 @@ export function hostPlayQueueItem(salon: Salon, queueItemId: string): PlaybackSt
 
 export function enqueueItem(salonId: string, item: Omit<SalonQueueItem, 'id' | 'addedAt'>): SalonQueueItem {
   const queue = ensureSalonQueue(salonId);
-  const full: SalonQueueItem = {
+  const salon = db.salons.get(salonId);
+  const full: SalonQueueItem = stampYoutubeQueueItemMetadata(salon?.platform ?? 'spotify', {
     ...item,
     id: `q_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     addedAt: Date.now(),
-  };
+  });
   queue.push(full);
   db.salonQueues.set(salonId, queue);
   persistQueue(salonId);
@@ -204,14 +206,16 @@ export function hostLoadYoutubePlaylist(
 ): PlaybackState | null {
   if (items.length === 0) return null;
   const now = Date.now();
-  const built: SalonQueueItem[] = items.map((item, i) => ({
-    ...item,
-    id: `q_${now}_${i}_${Math.random().toString(36).slice(2, 7)}`,
-    addedAt: now + i,
-    addedById: hostId,
-    addedByName: hostName,
-    source: 'host' as const,
-  }));
+  const built: SalonQueueItem[] = items.map((item, i) =>
+    stampYoutubeQueueItemMetadata(salon.platform, {
+      ...item,
+      id: `q_${now}_${i}_${Math.random().toString(36).slice(2, 7)}`,
+      addedAt: now + i,
+      addedById: hostId,
+      addedByName: hostName,
+      source: 'host' as const,
+    })
+  );
   const [first, ...rest] = built;
   db.salonQueues.set(salon.id, rest);
   persistQueue(salon.id);
@@ -256,7 +260,7 @@ export function hostChangePlaybackTrack(
   const externalUrl =
     track.externalUrl ||
     (trackId !== 'demo' ? buildPlatformTrackUrl(salon.platform, trackId) : undefined);
-  salon.playbackState = {
+  salon.playbackState = stampYoutubePlaybackMetadata(salon.platform, {
     platform: salon.platform,
     trackId,
     title: track.title.slice(0, 120),
@@ -268,7 +272,7 @@ export function hostChangePlaybackTrack(
     startedAt: now,
     externalUrl,
     ...(salon.platform === 'youtube' ? { showVideo: true } : {}),
-  };
+  });
   db.salons.set(salon.id, salon);
   broadcastSalonPlayback(salon.id, salon.playbackState);
   return salon.playbackState;

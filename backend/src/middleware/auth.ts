@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { db } from '../models/schema';
 import { canUserUseApp } from '../lib/accessControl';
-import { getJwtSecret } from '../lib/jwtSecret';
+import { getJwtSecret, isProductionEnv } from '../lib/jwtSecret';
 
 const JWT_SECRET = getJwtSecret();
 
@@ -28,7 +28,7 @@ export const AUTH_COOKIE_NAME = 'soundy_auth';
 
 const COOKIE_BASE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
+  secure: isProductionEnv(),
   sameSite: 'strict' as const,
   path: '/',
 };

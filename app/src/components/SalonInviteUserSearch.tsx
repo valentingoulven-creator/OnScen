@@ -52,13 +52,18 @@ export function SalonInviteUserSearch({
     return () => window.clearTimeout(timer);
   }, [trimmed, token, isSearching]);
 
+  const selectedRows: InviteRow[] = [...allowedUserIds]
+    .map((id) => contacts.find((c) => c.id === id))
+    .filter((c): c is DmContact => Boolean(c))
+    .map(contactToRow);
+
   const rows: InviteRow[] = isSearching
     ? searchResults.map(hitToRow)
     : trimmed.length === 1
       ? contacts
           .filter((c) => c.username.toLowerCase().includes(trimmed.toLowerCase()))
           .map(contactToRow)
-      : contacts.map(contactToRow);
+      : selectedRows;
 
   return (
     <div className="space-y-2">
@@ -95,18 +100,19 @@ export function SalonInviteUserSearch({
         )}
       </div>
 
-      <div className="max-h-32 overflow-y-auto space-y-1 rounded-xl bg-[#0b0b0f] border border-[#2a2a3a] p-2">
+      {(isSearching || trimmed.length === 1 || rows.length > 0) && (
+      <div className="space-y-1 rounded-xl bg-[#0b0b0f] border border-[#2a2a3a] p-2">
         <p className="text-[10px] text-gray-600 mb-1 px-1">
-          {isSearching ? 'Résultats de recherche' : 'Personnes autorisées'}
+          {isSearching || trimmed.length === 1
+            ? 'Résultats de recherche'
+            : 'Personnes autorisées'}
         </p>
         {loading && <p className="text-xs text-gray-500 px-1 py-1">Recherche…</p>}
         {!loading && rows.length === 0 && (
           <p className="text-xs text-gray-500 px-1 py-1">
-            {isSearching
+            {isSearching || trimmed.length === 1
               ? 'Aucun utilisateur trouvé'
-              : contacts.length === 0
-                ? 'Aucun contact — recherchez un utilisateur ci-dessus'
-                : 'Aucun contact correspondant'}
+              : 'Aucun contact — recherchez un utilisateur ci-dessus'}
           </p>
         )}
         {!loading &&
@@ -125,6 +131,12 @@ export function SalonInviteUserSearch({
             </label>
           ))}
       </div>
+      )}
+      {!isSearching && trimmed.length === 0 && rows.length === 0 && (
+        <p className="text-[10px] text-gray-500 px-0.5 leading-snug">
+          Recherchez un utilisateur pour l&apos;ajouter au salon.
+        </p>
+      )}
     </div>
   );
 }

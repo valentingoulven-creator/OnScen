@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { resolveYoutubePlaylistId } from './musicLinks';
 import type { RemoteVideoHit } from './youtubeRemote';
+import { parseYoutubeApiResponse, YoutubeDataApiError } from './youtubeApiErrors';
 
 /** TTL 1 h — conforme YouTube API Services (stockage max 24 h) et texte légal Soundy. */
 export const YOUTUBE_DATA_API_CACHE_TTL_MS = 60 * 60 * 1000;
@@ -62,12 +63,16 @@ async function fetchSearchHits(
     headers: options.accessToken ? { Authorization: `Bearer ${options.accessToken}` } : undefined,
     signal: AbortSignal.timeout(8000),
   });
-  if (!res.ok) return [];
+  await parseYoutubeApiResponse(res);
 
   const data = (await res.json()) as {
     items?: Array<{
       id?: { videoId?: string };
-      snippet?: { title?: string; channelTitle?: string; thumbnails?: { medium?: { url?: string }; high?: { url?: string }; default?: { url?: string } } };
+      snippet?: {
+        title?: string;
+        channelTitle?: string;
+        thumbnails?: { medium?: { url?: string }; high?: { url?: string }; default?: { url?: string } };
+      };
     }>;
   };
   if (!data.items?.length) return [];
@@ -99,18 +104,37 @@ export async function searchVideosViaDataApi(
   const normalized = query.trim().toLowerCase();
   if (normalized.length < 2) return [];
 
-  const cacheKey = `search:${normalized}`;
+  const cacheKey = `search:${normalized}:${tokenCacheKey(accessToken)}`;
   const cached = getYtDataCached<RemoteVideoHit[]>(cacheKey);
   if (cached) return cached;
 
   const key = apiKey();
   let out: RemoteVideoHit[] = [];
+  let lastError: YoutubeDataApiError | undefined;
 
   if (key) {
-    out = await fetchSearchHits(query, { apiKey: key });
+    try {
+      out = await fetchSearchHits(query, { apiKey: key });
+    } catch (e) {
+      if (e instanceof YoutubeDataApiError) {
+        if (e.isQuotaExceeded) throw e;
+        lastError = e;
+      } else {
+        throw e;
+      }
+    }
   }
   if (!out.length && accessToken) {
-    out = await fetchSearchHits(query, { accessToken });
+    try {
+      out = await fetchSearchHits(query, { accessToken });
+    } catch (e) {
+      if (e instanceof YoutubeDataApiError) throw e;
+      lastError = e instanceof YoutubeDataApiError ? e : lastError;
+    }
+  }
+
+  if (!out.length && lastError && !key && !accessToken) {
+    throw lastError;
   }
 
   if (out.length) setYtDataCached(cacheKey, out);
@@ -142,7 +166,7 @@ export async function listMyPlaylists(accessToken: string): Promise<YoutubePlayl
       headers: { Authorization: `Bearer ${accessToken}` },
       signal: AbortSignal.timeout(10000),
     });
-    if (!res.ok) break;
+    await parseYoutubeApiResponse(res);
     const data = (await res.json()) as {
       items?: Array<{
         id?: string;
@@ -196,7 +220,7 @@ export async function fetchPlaylistItems(
       headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
       signal: AbortSignal.timeout(12000),
     });
-    if (!res.ok) break;
+    await parseYoutubeApiResponse(res);
     const data = (await res.json()) as {
       items?: Array<{
         snippet?: {
@@ -231,3 +255,63 @@ export async function fetchPlaylistItems(
   if (out.length) setYtDataCached(cacheKey, out);
   return out;
 }
+
+export interface YoutubeVideoSnippet {
+  title: string;
+  artist: string;
+}
+
+/** Métadonnées snippet pour une liste de videoIds (videos.list). */
+export async function fetchVideoSnippetsViaDataApi(
+  videoIds: string[],
+  accessToken?: string
+): Promise<Map<string, YoutubeVideoSnippet>> {
+  const out = new Map<string, YoutubeVideoSnippet>();
+  const unique = [...new Set(videoIds.filter((id) => id && id !== 'demo'))].slice(0, 50);
+  if (unique.length === 0) return out;
+
+  const key = apiKey();
+  if (!key && !accessToken) return out;
+
+  const cacheKey = `snippets:${unique.sort().join(',')}:${tokenCacheKey(accessToken)}`;
+  const cached = getYtDataCached<Record<string, YoutubeVideoSnippet>>(cacheKey);
+  if (cached) {
+    for (const [id, meta] of Object.entries(cached)) out.set(id, meta);
+    return out;
+  }
+
+  const params = new URLSearchParams({
+    part: 'snippet',
+    id: unique.join(','),
+  });
+  if (key) params.set('key', key);
+
+  const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?${params}`, {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+    signal: AbortSignal.timeout(10000),
+  });
+  await parseYoutubeApiResponse(res);
+
+  const data = (await res.json()) as {
+    items?: Array<{
+      id?: string;
+      snippet?: { title?: string; channelTitle?: string };
+    }>;
+  };
+
+  const cachePayload: Record<string, YoutubeVideoSnippet> = {};
+  for (const item of data.items ?? []) {
+    if (!item.id || !item.snippet?.title) continue;
+    const meta = {
+      title: item.snippet.title.slice(0, 120),
+      artist: (item.snippet.channelTitle ?? 'YouTube').slice(0, 80),
+    };
+    out.set(item.id, meta);
+    cachePayload[item.id] = meta;
+  }
+
+  if (Object.keys(cachePayload).length) setYtDataCached(cacheKey, cachePayload);
+  return out;
+}
+
+export { YoutubeDataApiError };

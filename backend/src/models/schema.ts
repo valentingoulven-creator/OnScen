@@ -115,6 +115,8 @@ export interface User {
   stripeConnectAccountId?: string;
   /** Horodatage d'acceptation des règles de diffusion live Soundy (UNIX ms). */
   liveTermsAcceptedAt?: number;
+  /** Attestation utilisateur d'avoir au moins 13 ans à l'inscription (UNIX ms). */
+  ageConfirmedAt?: number;
   /** Vérification e-mail (inscription). */
   emailVerified?: boolean;
   verificationToken?: string;
@@ -150,6 +152,8 @@ export interface PlaybackState {
   externalUrl?: string;
   /** Préférence d'affichage imposée par le host : true = vidéo, false = audio seul. */
   showVideo?: boolean;
+  /** Horodatage ms de la dernière récupération métadonnées YouTube Data API (conformité ToS 24 h). */
+  metadataFetchedAt?: number;
 }
 
 export interface SalonQueueItem {
@@ -164,6 +168,8 @@ export interface SalonQueueItem {
   source: 'host' | 'proposal';
   proposalId?: string;
   addedAt: number;
+  /** Horodatage ms de la dernière récupération métadonnées YouTube Data API. */
+  metadataFetchedAt?: number;
 }
 
 export type SalonProposalStatus = 'pending' | 'accepted' | 'rejected';

@@ -77,6 +77,7 @@ import {
   setLiveVideoFloatActive,
 } from './lib/liveVideoFloat';
 import { emitOnSocket } from './lib/socket';
+import { CookieConsentBanner } from './components/CookieConsentBanner';
 import { dispatchPlatformStatusRefresh } from './lib/platformStatusEvents';
 import {
   emitLeaveSalon,
@@ -927,10 +928,36 @@ export default function App() {
   }
 
   if (!user || !token) {
-    if (isForgotPasswordRoute()) return <ForgotPasswordPage />;
-    if (isResetPasswordRoute()) return <ResetPasswordPage />;
-    if (isVerifyEmailRoute()) return <EmailVerificationPage />;
-    return <AuthPage />;
+    if (isForgotPasswordRoute()) {
+      return (
+        <>
+          <ForgotPasswordPage />
+          <CookieConsentBanner />
+        </>
+      );
+    }
+    if (isResetPasswordRoute()) {
+      return (
+        <>
+          <ResetPasswordPage />
+          <CookieConsentBanner />
+        </>
+      );
+    }
+    if (isVerifyEmailRoute()) {
+      return (
+        <>
+          <EmailVerificationPage />
+          <CookieConsentBanner />
+        </>
+      );
+    }
+    return (
+      <>
+        <AuthPage />
+        <CookieConsentBanner />
+      </>
+    );
   }
 
   if (!user.onboardingCompleted) return <OnboardingPage onDone={completeOnboarding} />;
@@ -1419,6 +1446,7 @@ export default function App() {
           onClose={() => setLivePipPreview(null)}
         />
       )}
+      <CookieConsentBanner />
     </div>
   );
 }

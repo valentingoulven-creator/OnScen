@@ -2,10 +2,12 @@ import crypto from 'crypto';
 import { User } from '../models/schema';
 import {
   connectPlatformAccount,
+  disconnectPlatformAccount,
   getPlatformAccounts,
   getYoutubeAccessToken,
 } from './platformConnect';
 import { decryptPlatformTokens, decryptToken, encryptPlatformTokens } from './tokenEncryption';
+import { schedulePersist, savePersistedStore } from './persist';
 
 const YOUTUBE_SCOPE = 'https://www.googleapis.com/auth/youtube.readonly';
 
@@ -169,45 +171,71 @@ export function applyYoutubeOAuthToUser(
   }
 }
 
-/** Returns a valid YouTube access token, refreshing via refresh_token when needed.
- *
- * Refresh logic:
- * - If `accessTokenExpiresAt` is set and the token is still fresh → return it as-is.
- * - If `accessTokenExpiresAt` is missing (legacy account) or the token is expired → attempt
- *   a token refresh using the stored refresh_token. This handles both newly-expired tokens
- *   and legacy accounts that were connected before expiry tracking was introduced.
- * - If the refresh fails (network error, invalid grant, etc.) → fall back to the stored
- *   token so the caller can still attempt the API call (token may still be valid).
- */
-export async function ensureYoutubeAccessToken(user: User): Promise<string | undefined> {
+export type YoutubeRefreshFailureReason =
+  | 'not_connected'
+  | 'invalid_refresh'
+  | 'not_configured'
+  | 'network';
+
+export type YoutubeRefreshResult =
+  | { ok: true; accessToken: string }
+  | { ok: false; reason: YoutubeRefreshFailureReason };
+
+export function disconnectYoutubeOnAuthFailure(user: User, reason: string): void {
+  const accounts = getPlatformAccounts(user);
+  if (!accounts.some((a) => a.platform === 'youtube')) return;
+  disconnectPlatformAccount(user, 'youtube');
+  schedulePersist();
+  try {
+    savePersistedStore();
+  } catch {
+    /* ignore */
+  }
+  console.warn('[youtube-oauth] auto-disconnect YouTube', { userId: user.id, reason });
+}
+
+async function revokeGoogleToken(token: string): Promise<void> {
+  try {
+    await fetch('https://oauth2.googleapis.com/revoke', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ token }),
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch {
+    /* best effort */
+  }
+}
+
+/** Révoque le jeton Google puis déconnecte localement. */
+export async function revokeAndDisconnectYoutube(user: User): Promise<void> {
+  const accounts = getPlatformAccounts(user);
+  const account = accounts.find((a) => a.platform === 'youtube');
+  const refresh = account ? decryptToken(decryptPlatformTokens(account).refreshToken) : undefined;
+  const access = account ? decryptToken(decryptPlatformTokens(account).accessToken) : undefined;
+  if (refresh) await revokeGoogleToken(refresh);
+  else if (access) await revokeGoogleToken(access);
+  disconnectPlatformAccount(user, 'youtube');
+  schedulePersist();
+}
+
+async function refreshYoutubeAccessToken(user: User): Promise<YoutubeRefreshResult> {
   const accounts = getPlatformAccounts(user);
   const idx = accounts.findIndex((a) => a.platform === 'youtube');
-  if (idx < 0) return undefined;
+  if (idx < 0) return { ok: false, reason: 'not_connected' };
 
   const decrypted = decryptPlatformTokens(accounts[idx]);
   const existingToken = decrypted.accessToken;
   const isMockOrLegacy =
     !existingToken || existingToken.startsWith('mock_') || existingToken.startsWith('legacy_');
-
-  if (!isMockOrLegacy) {
-    const expiresAt = decrypted.accessTokenExpiresAt;
-    // Token is fresh and we know the expiry → return it without refreshing.
-    if (expiresAt != null && Date.now() < expiresAt) return existingToken;
-    // expiresAt == null means legacy account (no expiry tracked yet) → fall through to refresh.
-    // expiresAt in the past means expired → fall through to refresh.
-  }
+  if (isMockOrLegacy) return { ok: false, reason: 'not_connected' };
 
   const refreshToken = decryptToken(decrypted.refreshToken);
-  if (!refreshToken) {
-    // No refresh token available. For a real (non-mock) account return the existing token as a
-    // last resort — it might still be valid (e.g. expiry timestamp was slightly off, server clock
-    // skew, or the token is actually fresh but we had no expiry info).
-    return isMockOrLegacy ? undefined : existingToken;
-  }
+  if (!refreshToken) return { ok: false, reason: 'invalid_refresh' };
 
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
-  if (!clientId || !clientSecret) return isMockOrLegacy ? undefined : existingToken;
+  if (!clientId || !clientSecret) return { ok: false, reason: 'not_configured' };
 
   let tokenRes: Response;
   try {
@@ -223,16 +251,28 @@ export async function ensureYoutubeAccessToken(user: User): Promise<string | und
       signal: AbortSignal.timeout(10_000),
     });
   } catch {
-    return isMockOrLegacy ? undefined : existingToken;
+    return { ok: false, reason: 'network' };
   }
 
-  if (!tokenRes.ok) return isMockOrLegacy ? undefined : existingToken;
+  if (!tokenRes.ok) {
+    let reason: YoutubeRefreshFailureReason = 'network';
+    try {
+      const body = (await tokenRes.json()) as { error?: string };
+      if (tokenRes.status === 400 && body.error === 'invalid_grant') {
+        reason = 'invalid_refresh';
+      }
+    } catch {
+      /* ignore */
+    }
+    return { ok: false, reason };
+  }
+
   const tokens = (await tokenRes.json()) as {
     access_token?: string;
     refresh_token?: string;
     expires_in?: number;
   };
-  if (!tokens.access_token) return isMockOrLegacy ? undefined : existingToken;
+  if (!tokens.access_token) return { ok: false, reason: 'network' };
 
   accounts[idx] = encryptPlatformTokens({
     ...decrypted,
@@ -244,5 +284,63 @@ export async function ensureYoutubeAccessToken(user: User): Promise<string | und
         : decrypted.accessTokenExpiresAt,
   });
   user.platformAccounts = accounts;
-  return tokens.access_token;
+  schedulePersist();
+  try {
+    savePersistedStore();
+  } catch (e) {
+    console.warn('[youtube-oauth] persist immédiat échoué après refresh:', e);
+  }
+
+  return { ok: true, accessToken: tokens.access_token };
+}
+
+export type YoutubeHostTokenResult =
+  | { ok: true; accessToken: string }
+  | { ok: false; reason: YoutubeRefreshFailureReason; disconnected?: boolean };
+
+export async function getValidYoutubeHostToken(user: User): Promise<YoutubeHostTokenResult> {
+  const token = getYoutubeAccessToken(user);
+  const accounts = getPlatformAccounts(user);
+  const account = accounts.find((a) => a.platform === 'youtube');
+  const decrypted = account ? decryptPlatformTokens(account) : undefined;
+  const expiresAt = decrypted?.accessTokenExpiresAt;
+
+  if (token && expiresAt != null && Date.now() < expiresAt) {
+    return { ok: true, accessToken: token };
+  }
+
+  const refreshed = await refreshYoutubeAccessToken(user);
+  if (refreshed.ok) return refreshed;
+
+  if (refreshed.reason === 'invalid_refresh') {
+    disconnectYoutubeOnAuthFailure(user, refreshed.reason);
+    return { ok: false, reason: refreshed.reason, disconnected: true };
+  }
+
+  if (token) return { ok: true, accessToken: token };
+  return { ok: false, reason: refreshed.reason };
+}
+
+export async function probeYoutubeHostSession(
+  user: User
+): Promise<{ ok: true } | { ok: false; code: string }> {
+  const accounts = getPlatformAccounts(user);
+  if (!accounts.some((a) => a.platform === 'youtube')) {
+    return { ok: false, code: 'youtube_not_connected' };
+  }
+  const result = await getValidYoutubeHostToken(user);
+  if (result.ok) return { ok: true };
+  if (result.reason === 'invalid_refresh' || result.disconnected) {
+    return { ok: false, code: 'youtube_token_expired' };
+  }
+  if (result.reason === 'not_connected') {
+    return { ok: false, code: 'youtube_not_connected' };
+  }
+  return { ok: false, code: 'youtube_network_error' };
+}
+
+/** Returns a valid YouTube access token, refreshing via refresh_token when needed. */
+export async function ensureYoutubeAccessToken(user: User): Promise<string | undefined> {
+  const result = await getValidYoutubeHostToken(user);
+  return result.ok ? result.accessToken : undefined;
 }

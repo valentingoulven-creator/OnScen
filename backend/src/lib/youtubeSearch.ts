@@ -1,6 +1,6 @@
 import { parseMusicLink, buildPlatformTrackUrl } from './musicLinks';
 import { searchCatalogYoutube } from './musicCatalog';
-import { searchVideosViaDataApi } from './youtubeDataApi';
+import { searchVideosViaDataApi, YoutubeDataApiError } from './youtubeDataApi';
 import { searchVideosViaInvidious, searchVideosViaPiped } from './youtubeRemote';
 import { isYoutubeRemoteFallbackAllowed } from './youtubeCompliance';
 
@@ -90,7 +90,10 @@ export async function searchYoutube(
 
   const remoteHits: YoutubeSearchResult[] = [];
 
-  const apiHits = await searchVideosViaDataApi(q, accessToken);
+  const apiHits = await searchVideosViaDataApi(q, accessToken).catch((e) => {
+    if (e instanceof YoutubeDataApiError) throw e;
+    return [] as Awaited<ReturnType<typeof searchVideosViaDataApi>>;
+  });
   for (const h of apiHits) {
     remoteHits.push(toResult(h.videoId, h.title, h.artist, h.thumbnailUrl));
   }

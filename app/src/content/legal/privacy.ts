@@ -44,7 +44,7 @@ export const politiqueConfidentialite: LegalDocument = {
     },
     {
       heading: '10. Cookies et stockage local',
-      body: 'L\'Application utilise le localStorage du navigateur pour : le jeton de connexion (melosong_token), le rayon de recherche sur la carte, la langue, les préférences de confidentialité locales, certains réglages d\'interface (ex. chat live masqué).\n\nVous pouvez effacer ces données via les paramètres de votre navigateur ; cela vous déconnectera et réinitialisera certaines préférences.',
+      body: 'Soundy utilise :\n\n• Un cookie httpOnly sécurisé (soundy_auth) pour la session web — inaccessible au JavaScript, protégé contre le vol par XSS.\n• Sur l’application mobile native (Capacitor), un jeton peut être conservé en localStorage.\n• localStorage pour les préférences non sensibles : langue, rayon carte, consentement cookies, réglages d’interface.\n• Des services tiers (YouTube lecteur intégré, Stripe paiements) uniquement après votre consentement via la bannière cookies.\n\nVous pouvez effacer le stockage local via les paramètres du navigateur ; cela réinitialisera vos préférences et vous déconnectera sur le web.',
     },
     {
       heading: '11. Autorisations OAuth Spotify et YouTube',

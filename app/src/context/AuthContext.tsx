@@ -173,9 +173,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     acceptTerms: boolean,
     termsVersion: string,
-    inviteCode?: string
+    inviteCode?: string,
+    confirmAge?: boolean
   ) => {
-    const r = await api.register(username, email, password, acceptTerms, termsVersion, inviteCode);
+    const r = await api.register(
+      username,
+      email,
+      password,
+      acceptTerms,
+      termsVersion,
+      inviteCode,
+      confirmAge
+    );
     if (r.pending) {
       throw new Error(
         r.message ||

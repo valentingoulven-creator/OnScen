@@ -1,4 +1,5 @@
 import { isSightengineConfigured } from './sightengineConfig';
+import { isProductionEnv } from './jwtSecret';
 import {
   checkImageWithSightengine,
   checkVideoWithSightengine,
@@ -90,6 +91,13 @@ export async function moderateImageSource(
   }
 
   if (!isSightengineConfigured()) {
+    if (isProductionEnv()) {
+      return {
+        allowed: false,
+        error:
+          'Modération automatique indisponible. Réessayez plus tard ou contactez le support.',
+      };
+    }
     return { allowed: true, skipped: true };
   }
 
@@ -111,6 +119,13 @@ export async function moderateVideoSource(
   }
 
   if (!isSightengineConfigured()) {
+    if (isProductionEnv()) {
+      return {
+        allowed: false,
+        error:
+          'Modération automatique indisponible. Réessayez plus tard ou contactez le support.',
+      };
+    }
     return { allowed: true, skipped: true };
   }
 

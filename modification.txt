@@ -7787,3 +7787,39 @@ BUILD (si v?rifi?)
 ================================================================================
 Fin MODIF 563 ? 2026-06-22
 ================================================================================
+
+================================================================================
+MODIF 658 — Audit pre-prod : correctifs YouTube, sécurité, RGPD cookies
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Audit pre-production (68 %) : blockers YouTube ToS, sécurité startup, modération
+ UGC fail-open, âge non persisté, absence de CMP cookies tiers.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/youtubeApiErrors.ts (nouveau)
+ backend/src/lib/youtubeMetadata.ts (nouveau)
+ backend/src/lib/youtubeDataApi.ts, youtubeOAuth.ts
+ backend/src/routes/salons.ts, platforms.ts
+ backend/src/lib/productionStartup.ts, contentModeration.ts
+ backend/src/middleware/auth.ts, routes/auth.ts, oauth.ts
+ app/src/components/CookieConsentBanner.tsx (nouveau)
+ app/src/lib/cookieConsent.ts (nouveau)
+ app/src/hooks/useYouTubeIframeApi.ts, LiveDonationSheet.tsx
+ docs/audit-pre-prod-2026.md (nouveau)
+
+FICHIERS MODIFIÉS
+-----
+ backend + app (YouTube, OAuth, CMP, ageConfirmedAt, startup guards)
+ docs/audit-pre-prod-2026.md → re-audit 76 %
+
+BUILD (si vérifié)
+-----
+ backend/ → npm test → ✅ 246 tests
+
+================================================================================
+Fin — 2026-06-22
+================================================================================

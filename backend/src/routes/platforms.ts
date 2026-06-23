@@ -16,7 +16,10 @@ import {
   completeYoutubeOAuth,
   createYoutubeOAuthUrl,
   isYoutubeOAuthConfigured,
+  probeYoutubeHostSession,
+  revokeAndDisconnectYoutube,
 } from '../lib/youtubeOAuth';
+import { schedulePersist } from '../lib/persist';
 import {
   isSpotifyOAuthConfigured,
   createSpotifyOAuthUrl,
@@ -86,6 +89,14 @@ platformsRouter.get('/status', authenticateJWT, async (req: Request, res: Respon
 
   const youtubeMockConnectAvailable = canUseMockPlatformConnect(user);
 
+  let youtubeSessionValid: boolean | undefined;
+  let youtubeSessionCode: string | undefined;
+  if (isPlatformConnected(user, 'youtube')) {
+    const session = await probeYoutubeHostSession(user);
+    youtubeSessionValid = session.ok;
+    if (!session.ok) youtubeSessionCode = session.code;
+  }
+
   res.json({
     links: publicPlatformLinks(user),
     connectedPlatforms: user.connectedPlatforms ?? [],
@@ -101,6 +112,8 @@ platformsRouter.get('/status', authenticateJWT, async (req: Request, res: Respon
     spotifyProduct,
     spotifyPremium,
     spotifyNeedsScopeReconnect: userNeedsSpotifyScopeReconnect(user),
+    youtubeSessionValid,
+    youtubeSessionCode,
   });
 });
 
@@ -167,6 +180,7 @@ platformsRouter.get('/youtube/oauth/callback', async (req: Request, res: Respons
   if (user) {
     applyYoutubeOAuthToUser(user, result);
     db.users.set(user.id, user);
+    schedulePersist();
   }
   res.redirect(`${appUrl}/?youtube_oauth=ok`);
 });
@@ -361,7 +375,7 @@ platformsRouter.post('/:platform/connect', authenticateJWT, (req: Request, res: 
   });
 });
 
-platformsRouter.delete('/:platform/disconnect', authenticateJWT, (req: Request, res: Response) => {
+platformsRouter.delete('/:platform/disconnect', authenticateJWT, async (req: Request, res: Response) => {
   const userId = (req as Request & { user: { id: string } }).user.id;
   const platform = parsePlatform(req.params.platform);
   if (!platform) {
@@ -377,7 +391,12 @@ platformsRouter.delete('/:platform/disconnect', authenticateJWT, (req: Request, 
     res.status(400).json({ error: 'Compte non connecté' });
     return;
   }
-  disconnectPlatformAccount(user, platform);
+  if (platform === 'youtube') {
+    await revokeAndDisconnectYoutube(user);
+  } else {
+    disconnectPlatformAccount(user, platform);
+  }
   db.users.set(userId, user);
+  schedulePersist();
   res.json({ ok: true, user: publicProfile(user, true, user.id) });
 });

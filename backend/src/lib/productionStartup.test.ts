@@ -21,6 +21,8 @@ describe('assertProductionStartup', () => {
     process.env.APP_ENV = 'production';
     delete process.env.JWT_SECRET;
     process.env.CORS_ORIGIN = 'https://getsoundy.com';
+    process.env.ENCRYPTION_KEY = 'test-key';
+    process.env.DATABASE_URL = 'postgres://localhost/test';
     expect(() => assertProductionStartup()).toThrow(/JWT_SECRET/);
   });
 
@@ -28,16 +30,36 @@ describe('assertProductionStartup', () => {
     process.env.APP_ENV = 'production';
     process.env.JWT_SECRET = 'prod-secret';
     delete process.env.CORS_ORIGIN;
+    process.env.ENCRYPTION_KEY = 'test-key';
+    process.env.DATABASE_URL = 'postgres://localhost/test';
     expect(() => assertProductionStartup()).toThrow(/CORS_ORIGIN/);
   });
 
-  it('warns when DATABASE_URL is missing in production', () => {
+  it('throws when SKIP_EMAIL_VERIFICATION is enabled in production', () => {
     process.env.APP_ENV = 'production';
     process.env.JWT_SECRET = 'prod-secret';
     process.env.CORS_ORIGIN = 'https://getsoundy.com';
+    process.env.ENCRYPTION_KEY = 'test-key';
+    process.env.DATABASE_URL = 'postgres://localhost/test';
+    process.env.SKIP_EMAIL_VERIFICATION = 'true';
+    expect(() => assertProductionStartup()).toThrow(/SKIP_EMAIL_VERIFICATION/);
+  });
+
+  it('throws when ENCRYPTION_KEY is missing in production', () => {
+    process.env.APP_ENV = 'production';
+    process.env.JWT_SECRET = 'prod-secret';
+    process.env.CORS_ORIGIN = 'https://getsoundy.com';
+    process.env.DATABASE_URL = 'postgres://localhost/test';
+    delete process.env.ENCRYPTION_KEY;
+    expect(() => assertProductionStartup()).toThrow(/ENCRYPTION_KEY/);
+  });
+
+  it('throws when DATABASE_URL is missing in production', () => {
+    process.env.APP_ENV = 'production';
+    process.env.JWT_SECRET = 'prod-secret';
+    process.env.CORS_ORIGIN = 'https://getsoundy.com';
+    process.env.ENCRYPTION_KEY = 'test-key';
     delete process.env.DATABASE_URL;
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    assertProductionStartup();
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('DATABASE_URL'));
+    expect(() => assertProductionStartup()).toThrow(/DATABASE_URL/);
   });
 });

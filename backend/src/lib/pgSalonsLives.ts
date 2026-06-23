@@ -3,7 +3,8 @@ import { getPool, isPostgresEnabled } from '../db/pool';
 
 type DbExec = Pick<Pool, 'query'> | Pick<PoolClient, 'query'>;
 import { db, type Live, type Salon } from '../models/schema';
-import { ensureSalonProposals } from './salonPlaybackOps';
+import { ensureSalonProposals, ensureSalonQueue } from './salonPlaybackOps';
+import { purgeStaleYoutubeMetadataForStorage } from './youtubeMetadata';
 import { OCCITANIE_SALON_ID_PREFIX } from '../seed-occitanie-spotify';
 import { SALON_LIVE_ID_PREFIX } from '../seed-salons-lives';
 import { WORLD_LIVE_ID_PREFIX, WORLD_SALON_ID_PREFIX } from '../seed-world-random';
@@ -132,6 +133,8 @@ function logPgLiveError(label: string, err: unknown): void {
 
 /** Upsert d'un salon utilisateur — persistance immédiate pour récupérer après redémarrage. */
 export async function upsertSalonToPg(salon: Salon): Promise<void> {
+  const queue = ensureSalonQueue(salon.id);
+  purgeStaleYoutubeMetadataForStorage(salon, queue);
   await upsertSalon(getPool(), salon);
 }
 

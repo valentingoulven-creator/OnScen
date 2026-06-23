@@ -234,6 +234,7 @@ oauthRouter.get('/providers', (_req: Request, res: Response) => {
 oauthRouter.post('/oauth/exchange', oauthInitLimiter, (req: Request, res: Response) => {
   const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
   const acceptTerms = req.body?.acceptTerms === true;
+  const confirmAge = req.body?.confirmAge === true;
   const termsVersion = typeof req.body?.termsVersion === 'string' ? req.body.termsVersion : undefined;
 
   if (!code) {
@@ -262,6 +263,14 @@ oauthRouter.post('/oauth/exchange', oauthInitLimiter, (req: Request, res: Respon
       });
       return;
     }
+    if (!confirmAge) {
+      res.status(400).json({
+        needsTermsAcceptance: true,
+        error: 'Vous devez confirmer avoir au moins 13 ans pour créer un compte',
+        code: 'age_not_confirmed',
+      });
+      return;
+    }
     if (termsVersion && termsVersion !== CURRENT_TERMS_VERSION) {
       res.status(400).json({
         error: 'Les conditions ont été mises à jour. Rechargez la page et acceptez la nouvelle version.',
@@ -270,6 +279,7 @@ oauthRouter.post('/oauth/exchange', oauthInitLimiter, (req: Request, res: Respon
     }
     user.acceptedTermsAt = Date.now();
     user.acceptedTermsVersion = CURRENT_TERMS_VERSION;
+    user.ageConfirmedAt = Date.now();
     db.users.set(user.id, user);
     schedulePersist();
   }

@@ -45,8 +45,8 @@ import {
   reorderSalonQueue,
 } from '../lib/salonPlaybackOps';
 import { searchYoutube } from '../lib/youtubeSearch';
-import { youtubeDataApiKey } from '../lib/youtubeDataApi';
-import { ensureYoutubeAccessToken } from '../lib/youtubeOAuth';
+import { youtubeDataApiKey, YoutubeDataApiError } from '../lib/youtubeDataApi';
+import { ensureYoutubeAccessToken, getValidYoutubeHostToken } from '../lib/youtubeOAuth';
 import {
   normalizeSpotifySearchLimit,
   searchSpotifyTracks,
@@ -76,6 +76,10 @@ import {
   setSalonVipModerator,
 } from '../lib/salonModeration';
 import { upsertSalonToPgAsync, markSalonInactivePgAsync } from '../lib/pgSalonsLives';
+import {
+  purgeStaleYoutubeMetadataForStorage,
+  refreshStaleYoutubeSalonMetadata,
+} from '../lib/youtubeMetadata';
 
 export const salonsRouter = Router();
 
@@ -227,13 +231,16 @@ salonsRouter.get('/youtube-search', authenticateJWT, async (req: Request, res: R
   const me = (req as Request & { user: { id: string } }).user.id;
   const user = db.users.get(me);
   if (user) ensurePlatformAccountsFromLegacy(user);
-  const accessToken = user ? await ensureYoutubeAccessToken(user) : undefined;
+  let accessToken: string | undefined;
+  if (user) {
+    const tokenResult = await getValidYoutubeHostToken(user);
+    accessToken = tokenResult.ok ? tokenResult.accessToken : undefined;
+  }
   const canSearch = Boolean(youtubeDataApiKey() || accessToken);
 
   const cacheKey = q.toLowerCase();
   const cached = getYtSearchCached(cacheKey);
   if (cached) {
-    // TTL 1 hour — compliant with YouTube API ToS (max 24h)
     res.setHeader('Cache-Control', 'private, max-age=3600');
     res.json({ results: cached, fromCache: true });
     return;
@@ -248,10 +255,35 @@ salonsRouter.get('/youtube-search', authenticateJWT, async (req: Request, res: R
       });
       return;
     }
-    setYtSearchCached(cacheKey, results);
-    res.setHeader('Cache-Control', 'private, max-age=3600');
+    if (results.length > 0) {
+      setYtSearchCached(cacheKey, results);
+      res.setHeader('Cache-Control', 'private, max-age=3600');
+    } else {
+      res.setHeader('Cache-Control', 'private, no-store');
+    }
     res.json({ results });
-  } catch {
+  } catch (e) {
+    if (e instanceof YoutubeDataApiError) {
+      if (e.isQuotaExceeded) {
+        res.status(503).json({
+          error: 'Quota YouTube API dépassé. Réessayez plus tard.',
+          code: 'youtube_quota_exceeded',
+        });
+        return;
+      }
+      if (e.code === 'auth_failed') {
+        res.status(401).json({
+          error: 'Session YouTube expirée. Reconnectez votre compte.',
+          code: 'youtube_token_expired',
+        });
+        return;
+      }
+      res.status(502).json({
+        error: 'Recherche YouTube indisponible',
+        code: 'youtube_api_error',
+      });
+      return;
+    }
     res.status(502).json({ error: 'Recherche YouTube indisponible' });
   }
 });
@@ -286,7 +318,7 @@ salonsRouter.get('/spotify-search', authenticateJWT, async (req: Request, res: R
   }
 });
 
-salonsRouter.get('/:id', authenticateJWT, (req: Request, res: Response) => {
+salonsRouter.get('/:id', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const salon = db.salons.get(req.params.id);
   if (!salon) {
@@ -298,6 +330,16 @@ salonsRouter.get('/:id', authenticateJWT, (req: Request, res: Response) => {
     return;
   }
   if (!salonMemberOr403(salon, me, res)) return;
+  if (salon.platform === 'youtube') {
+    const queue = ensureSalonQueue(salon.id);
+    const host = db.users.get(salon.hostId);
+    let hostToken: string | undefined;
+    if (host) {
+      const tokenResult = await getValidYoutubeHostToken(host);
+      hostToken = tokenResult.ok ? tokenResult.accessToken : undefined;
+    }
+    await refreshStaleYoutubeSalonMetadata(salon, queue, hostToken);
+  }
   res.json({ salon: publicSalon(salon, me) });
 });
 

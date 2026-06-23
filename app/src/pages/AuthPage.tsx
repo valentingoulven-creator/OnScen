@@ -209,6 +209,7 @@ export function AuthPage() {
       const r = await api.exchangeOAuthCode(oauthTermsCode, {
         acceptTerms: true,
         termsVersion: CURRENT_TERMS_VERSION,
+        confirmAge: true,
       });
       if (r.pending) {
         setRegisterSuccess(
@@ -318,7 +319,15 @@ export function AuthPage() {
           setSession(r.token, r.user, rememberMe);
         }
       } else {
-        await register(username.trim(), email, password, true, CURRENT_TERMS_VERSION, inviteCode.trim());
+        await register(
+          username.trim(),
+          email,
+          password,
+          true,
+          CURRENT_TERMS_VERSION,
+          inviteCode.trim(),
+          confirmAge
+        );
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erreur inconnue';

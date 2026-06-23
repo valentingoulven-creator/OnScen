@@ -1,7 +1,7 @@
 {
   "publisherName": "Valentin Goulven (Soundy)",
   "legalForm": "Entrepreneur individuel",
-  "address": "France — adresse postale complète à renseigner (voir acompleter.txt)",
+  "address": "France — adresse postale complète à renseigner sur le VPS (msdev/legal-publisher.json)",
   "siren": "106548464",
   "rcs": "",
   "capital": "",
@@ -10,10 +10,10 @@
   "hostAddress": "8 rue de la Ville l'Évêque, 75008 Paris, France",
   "hostPhone": "+33 1 84 13 00 00",
   "hostCountry": "France",
-  "mediatorName": "",
+  "mediatorName": "À renseigner — médiateur de la consommation (CECMC) si paiements B2C actifs",
   "mediatorUrl": "",
-  "dpoEmail": "",
-  "contactEmail": "valentin.goulven@gmail.com",
-  "privacyEmail": "valentin.goulven@gmail.com",
+  "dpoEmail": "privacy@getsoundy.com",
+  "contactEmail": "contact@getsoundy.com",
+  "privacyEmail": "privacy@getsoundy.com",
   "productionDomain": "https://getsoundy.com"
 }

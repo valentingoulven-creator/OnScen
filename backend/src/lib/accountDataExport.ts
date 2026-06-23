@@ -69,7 +69,40 @@ export interface UserDataExport {
     hideBirthDateOnProfile?: boolean;
     birthDate?: string;
     language?: string;
+    ageConfirmedAt?: number;
   };
+  social: {
+    following: string[];
+    followers: string[];
+    blockedUserIds: string[];
+    mutedUserIds: string[];
+    matches: Array<{ id: string; userAId: string; userBId: string; createdAt: number }>;
+    heartsSent: Array<{ toUserId: string; at: number }>;
+    heartsReceived: Array<{ fromUserId: string; at: number }>;
+  };
+  payments: {
+    donations: Array<{
+      id: string;
+      liveId: string;
+      amountCents: number;
+      status: string;
+      createdAt: number;
+    }>;
+    creatorSubscriptions: Array<{
+      id: string;
+      creatorId: string;
+      tierId: string;
+      status: string;
+      createdAt: number;
+    }>;
+  };
+  feedPostFavorites: string[];
+  compositions: Array<{
+    id: string;
+    title: string;
+    artist?: string;
+    createdAt: number;
+  }>;
 }
 
 export function buildUserDataExport(user: User): UserDataExport {
@@ -100,6 +133,12 @@ export function buildUserDataExport(user: User): UserDataExport {
       content: m.content,
       timestamp: m.timestamp,
     }));
+
+  const following = [...(db.userFollows.get(userId) ?? new Set<string>())];
+  const followers: string[] = [];
+  for (const [followerId, set] of db.userFollows) {
+    if (set.has(userId)) followers.push(followerId);
+  }
 
   return {
     exportedAt: new Date().toISOString(),
@@ -165,6 +204,56 @@ export function buildUserDataExport(user: User): UserDataExport {
       showAge: user.showAge,
       hideBirthDateOnProfile: user.hideBirthDateOnProfile,
       birthDate: user.birthDate,
+      ageConfirmedAt: user.ageConfirmedAt,
     },
+    social: {
+      following,
+      followers,
+      blockedUserIds: db.userBlocks.filter((b) => b.blockerId === userId).map((b) => b.blockedId),
+      mutedUserIds: db.userMutes.filter((m) => m.muterId === userId).map((m) => m.mutedId),
+      matches: db.matches
+        .filter((m) => m.userIdA === userId || m.userIdB === userId)
+        .map(({ id, userIdA, userIdB, createdAt }) => ({
+          id,
+          userAId: userIdA,
+          userBId: userIdB,
+          createdAt,
+        })),
+      heartsSent: db.heartEvents
+        .filter((h) => h.fromId === userId)
+        .map(({ toId, createdAt }) => ({ toUserId: toId, at: createdAt })),
+      heartsReceived: db.heartEvents
+        .filter((h) => h.toId === userId)
+        .map(({ fromId, createdAt }) => ({ fromUserId: fromId, at: createdAt })),
+    },
+    payments: {
+      donations: db.donationPayments
+        .filter((d) => d.senderId === userId || d.hostId === userId)
+        .map(({ id, liveId, amountCents, status, createdAt }) => ({
+          id,
+          liveId,
+          amountCents,
+          status,
+          createdAt,
+        })),
+      creatorSubscriptions: db.creatorSubscriptions
+        .filter((s) => s.subscriberId === userId || s.creatorId === userId)
+        .map(({ id, creatorId, tierId, status, createdAt }) => ({
+          id,
+          creatorId,
+          tierId,
+          status,
+          createdAt,
+        })),
+    },
+    feedPostFavorites: [...(db.feedPostFavorites.get(userId) ?? new Set<string>())],
+    compositions: db.compositions
+      .filter((c) => c.userId === userId)
+      .map(({ id, title, artist, createdAt }) => ({
+        id,
+        title,
+        artist,
+        createdAt,
+      })),
   };
 }

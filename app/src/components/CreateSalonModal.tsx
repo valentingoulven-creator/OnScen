@@ -341,14 +341,14 @@ export function CreateSalonModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/70 p-4 backdrop-blur-[2px]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="create-salon-title"
       onClick={handleBackdropClose}
     >
       <div
-        className="w-full max-w-md flex flex-col bg-[#12121a] rounded-2xl border border-[#2d2d3d] overflow-visible"
+        className="w-full max-w-md max-h-[min(90dvh,calc(100dvh-2rem))] flex flex-col bg-[#12121a] rounded-t-2xl sm:rounded-2xl border border-[#2d2d3d] overflow-visible"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── Header ──────────────────────────────────────────────────────── */}
@@ -370,7 +370,7 @@ export function CreateSalonModal({
         </div>
 
         {/* ── Single-page form (no internal scroll) ───────────────────────── */}
-        <div className="px-4 py-3 space-y-2.5 overflow-y-auto max-h-[min(58dvh,28rem)]">
+        <div className="px-4 py-2.5 space-y-2 overflow-visible">
 
           {/* Platform — single inline row */}
           <div>

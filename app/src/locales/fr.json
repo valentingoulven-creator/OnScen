@@ -16,6 +16,12 @@
     "music": "Musique",
     "goToMap": "Aller à la carte"
   },
+  "cookies": {
+    "bannerTitle": "Cookies et services tiers",
+    "bannerBody": "Soundy utilise des cookies essentiels pour la connexion et, avec votre accord, charge Stripe (paiements) et YouTube (lecteur intégré).",
+    "essentialOnly": "Essentiels uniquement",
+    "acceptAll": "Tout accepter"
+  },
   "music": {
     "tabTitle": "Musique",
     "tabSubtitle": "Découverte, likes et lives autour de toi.",
