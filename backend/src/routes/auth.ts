@@ -287,7 +287,11 @@ authRouter.get('/me', authenticateJWT, (req: Request, res: Response) => {
   ensurePlatformAccountsFromLegacy(user);
   migratePlaintextPlatformTokens(user);
   db.users.set(user.id, user);
-  res.json({ user: publicProfile(user, true, user.id) });
+  const authToken = (req as Request & { authToken?: string }).authToken;
+  res.json({
+    user: publicProfile(user, true, user.id),
+    ...(authToken ? { token: authToken } : {}),
+  });
 });
 
 authRouter.get('/me/export', authenticateJWT, (req: Request, res: Response) => {

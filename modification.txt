@@ -7823,3 +7823,51 @@ BUILD (si vérifié)
 ================================================================================
 Fin — 2026-06-22
 ================================================================================
+
+================================================================================
+MODIF 659 — Fix « Rester connecté » : restauration session cookie web
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Après rechargement, l'utilisateur web était renvoyé à la page de connexion malgré
+ « Rester connecté » : le JWT httpOnly (cookie) était valide mais token en mémoire
+ restait null → App.tsx exigeait user ET token.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/middleware/auth.ts
+ ─────────────────────────────
+ • authToken attaché à req pour /auth/me.
+
+ backend/src/routes/auth.ts
+ ─────────────────────────
+ • GET /auth/me renvoie aussi le token (bootstrap session en mémoire).
+
+ app/src/context/AuthContext.tsx
+ ────────────────────────────────
+ • authBootPending : spinner pendant restauration cookie/storage.
+ • setToken depuis /auth/me après reload.
+
+ app/src/App.tsx
+ ───────────────
+ • Écran chargement session pendant authBootPending.
+
+ app/src/lib/api.ts
+ ─────────────────
+ • Type me() inclut token optionnel.
+
+FICHIERS MODIFIÉS
+-----
+ backend/src/middleware/auth.ts, routes/auth.ts
+ app/src/context/AuthContext.tsx, App.tsx, lib/api.ts
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+ backend/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 659 — 2026-06-23
+================================================================================

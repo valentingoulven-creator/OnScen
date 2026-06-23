@@ -1,1 +1,0 @@
-import{r as e}from"./rolldown-runtime-QTnfLwEv.js";import{Kt as t}from"./photo-editor-pIa-zti9.js";import{Gt as n}from"./index-BiD9qa1v.js";var r=e(t(),1);function i(e,t=!0){(0,r.useEffect)(()=>{if(!t)return;let r=n();if(!r)return;let i=t=>e(t);return r.on(`match_created`,i),()=>{r.off(`match_created`,i)}},[e,t])}export{i as t};

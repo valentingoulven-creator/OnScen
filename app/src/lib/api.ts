@@ -727,7 +727,8 @@ export const api = {
     }, token),
 
   /** Fetches the current user. Passes token header if available; also relies on the httpOnly cookie. */
-  me: (token: string | null) => request<{ user: import('../types').User }>('/auth/me', {}, token),
+  me: (token: string | null) =>
+    request<{ user: import('../types').User; token?: string }>('/auth/me', {}, token),
 
   /** Clears the server-side httpOnly cookie (web). Native clients discard their in-memory token. */
   logout: () => request<{ ok: boolean }>('/auth/logout', { method: 'POST' }),

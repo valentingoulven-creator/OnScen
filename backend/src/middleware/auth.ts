@@ -101,7 +101,8 @@ export function authenticateJWT(req: Request, res: Response, next: NextFunction)
       res.status(403).json({ error: message, code: status });
       return;
     }
-    (req as Request & { user: AuthPayload }).user = decoded;
+    (req as Request & { user: AuthPayload; authToken?: string }).user = decoded;
+    (req as Request & { authToken?: string }).authToken = token;
     next();
   } catch {
     res.status(401).json({ error: 'Token invalide ou expiré' });

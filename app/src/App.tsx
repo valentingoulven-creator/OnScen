@@ -115,7 +115,7 @@ type View =
   | { type: 'profile'; id: string };
 
 export default function App() {
-  const { user, token, completeOnboarding, refreshUser, authBootError, clearAuthBootError, setUserFromProfile } = useAuth();
+  const { user, token, completeOnboarding, refreshUser, authBootPending, authBootError, clearAuthBootError, setUserFromProfile } = useAuth();
   useWebPushRegistration(token);
   const { unreadCount: dmUnread, incomingToast, dismissToast, setDmTabActive } = useDmUnread();
   const [appToast, setAppToast] = useState<{ message: string; kind: 'info' | 'error' } | null>(null);
@@ -918,7 +918,7 @@ export default function App() {
     );
   }
 
-  if (token && !user) {
+  if (authBootPending) {
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center gap-3 bg-[#0b0b0f] text-gray-400">
         <span className="w-8 h-8 border-2 border-purple-500/30 border-t-purple-400 rounded-full animate-spin" />

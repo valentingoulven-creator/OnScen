@@ -7,6 +7,7 @@ import { clearSocketUser, registerUser, setSocketAuthToken } from '../lib/socket
 import type { User } from '../types';
 
 interface AuthCtx {
+  authBootPending: boolean;
   authBootError: string | null;
   clearAuthBootError: () => void;
   user: User | null;
@@ -64,6 +65,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    */
   const [token, setToken] = useState<string | null>(() => getStoredToken());
   const [user, setUser] = useState<User | null>(null);
+  /** True until the first session restore attempt finishes (cookie on web, storage on native). */
+  const [authBootPending, setAuthBootPending] = useState(() => {
+    if (isNativePlatform()) return !!getStoredToken();
+    return true;
+  });
   const [authBootError, setAuthBootError] = useState<string | null>(null);
   const clearAuthBootError = () => setAuthBootError(null);
   const [isNewUser, setIsNewUser] = useState(false);
@@ -93,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearSocketUser();
     setToken(null);
     setUser(null);
+    setAuthBootPending(false);
   };
   logoutRef.current = logout;
 
@@ -112,7 +119,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const native = isNativePlatform();
     // On native without a stored token, there's nothing to restore.
-    if (native && !token) return;
+    if (native && !token) {
+      setAuthBootPending(false);
+      return;
+    }
 
     let cancelled = false;
     const timeout = window.setTimeout(() => {
@@ -127,8 +137,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     api.me(token)
       .then((r) => {
         if (cancelled) return;
+        const sessionToken = r.token ?? token;
+        if (sessionToken) setToken(sessionToken);
         setUser(r.user);
-        registerUser(r.user.id, token);
+        registerUser(r.user.id, sessionToken);
       })
       .catch((e: unknown) => {
         if (cancelled) return;
@@ -145,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // The 20 s timeout above will force-logout if the server stays unreachable.
       })
       .finally(() => {
+        if (!cancelled) setAuthBootPending(false);
         window.clearTimeout(timeout);
       });
 
@@ -210,6 +223,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const r = await api.me(token);
       setUser(r.user);
+      if (r.token) setToken(r.token);
     } catch (e: unknown) {
       const { message, status } = sessionErrorFromUnknown(e);
       if (isInvalidSessionError(message, status)) {
@@ -244,7 +258,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, isNewUser, clearNewUser, completeOnboarding, login, register, logout, refreshUser, setUserFromProfile, setSession, authBootError, clearAuthBootError }}
+      value={{ user, token, isNewUser, clearNewUser, completeOnboarding, login, register, logout, refreshUser, setUserFromProfile, setSession, authBootPending, authBootError, clearAuthBootError }}
     >
       {children}
     </AuthContext.Provider>
