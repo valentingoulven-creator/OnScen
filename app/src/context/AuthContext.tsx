@@ -21,7 +21,8 @@ interface AuthCtx {
     password: string,
     acceptTerms: boolean,
     termsVersion: string,
-    inviteCode?: string
+    inviteCode?: string,
+    confirmAge?: boolean
   ) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
