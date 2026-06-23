@@ -92,9 +92,9 @@ describe('platformPlans', () => {
       hostId: 'host1',
       hostName: 'Host',
       title: 'Test',
-      platform: 'spotify',
+      platform: 'youtube',
       playbackState: {
-        platform: 'spotify',
+        platform: 'youtube',
         trackId: 'x',
         title: 'T',
         artist: 'A',

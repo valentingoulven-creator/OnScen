@@ -14,9 +14,9 @@ function live(code: string, name: string): Live {
     hostId: 'host',
     hostName: 'Host',
     title: 'Test',
-    platform: 'spotify',
+    platform: 'youtube',
     playbackState: {
-      platform: 'spotify',
+      platform: 'youtube',
       trackId: 't',
       title: 'Track',
       artist: 'Artist',

@@ -37,11 +37,11 @@ const mentionsLegales: LegalDocument = {
     },
     {
       heading: 'Activité du service',
-      body: `Soundy est une application sociale autour de la musique : salons d’écoute géolocalisés, lives, messagerie, carte des utilisateurs et contenus musicaux via des liens vers Spotify et YouTube. Soundy n’est pas un service de rencontre sentimental.\n\nDomaine de production : {{productionDomain}}`,
+      body: `Soundy est une application sociale autour de la musique : salons d’écoute géolocalisés, lives, messagerie, carte des utilisateurs et contenus musicaux via YouTube. Soundy n’est pas un service de rencontre sentimental.\n\nDomaine de production : {{productionDomain}}`,
     },
     {
       heading: 'Propriété intellectuelle',
-      body: `L’ensemble des éléments composant Soundy (textes, interface, logo, charte, code source, sauf composants open source) est protégé par le droit d’auteur.\n\nLes marques Spotify, YouTube, Google appartiennent à leurs propriétaires. Soundy n’est pas affilié, sponsorisé ou approuvé par ces sociétés, sauf accord écrit contraire.`,
+      body: `L’ensemble des éléments composant Soundy (textes, interface, logo, charte, code source, sauf composants open source) est protégé par le droit d’auteur.\n\nLes marques YouTube, Google, Instagram appartiennent à leurs propriétaires. Soundy n’est pas affilié, sponsorisé ou approuvé par ces sociétés, sauf accord écrit contraire.`,
     },
     {
       heading: 'Données personnelles et cookies',
@@ -68,7 +68,7 @@ const politiqueConfidentialite: LegalDocument = {
     },
     {
       heading: '2. Données traitées',
-      body: `Selon votre utilisation, nous pouvons traiter :\n\n• Données de compte : pseudo, e-mail, mot de passe (stocké de manière hachée), photo(s) de profil, bio, centres d’intérêt, genres et artistes favoris, rôle (auditeur/host).\n• Données de localisation : coordonnées GPS fournies par votre appareil, position floutée affichée sur la carte, préférences de précision (ville / ~50 m), mode fantôme.\n• Données d’usage : salons créés ou rejoints, lives, file d’attente musicale, état de lecture synchronisé.\n• Communications : messages de chat (salon, live), messages privés, commentaires sur reels.\n• Données sociales : abonnements, cœurs/matchs, notifications, blocages, notes aux hosts.\n• Données techniques : jeton de session, identifiants socket, logs techniques, adresse IP lors des connexions au serveur.\n• Connexions plateformes : indicateur de liaison Spotify/YouTube (jetons OAuth le cas échéant).`,
+      body: `Selon votre utilisation, nous pouvons traiter :\n\n• Données de compte : pseudo, e-mail, mot de passe (stocké de manière hachée), photo(s) de profil, bio, centres d’intérêt, genres et artistes favoris, rôle (auditeur/host).\n• Données de localisation : coordonnées GPS fournies par votre appareil, position floutée affichée sur la carte, préférences de précision (ville / ~50 m), mode fantôme.\n• Données d’usage : salons créés ou rejoints, lives, file d’attente musicale, état de lecture synchronisé.\n• Communications : messages de chat (salon, live), messages privés, commentaires sur reels.\n• Données sociales : abonnements, cœurs/matchs, notifications, blocages, notes aux hosts.\n• Données techniques : jeton de session, identifiants socket, logs techniques, adresse IP lors des connexions au serveur.\n• Connexions plateformes : indicateur de liaison YouTube / Instagram (jetons OAuth le cas échéant).`,
     },
     {
       heading: '3. Finalités et bases légales',
@@ -76,7 +76,7 @@ const politiqueConfidentialite: LegalDocument = {
     },
     {
       heading: '4. Destinataires et sous-traitants',
-      body: `Les données peuvent être accessibles :\n• aux autres utilisateurs, selon vos paramètres (profil public, carte, messages) ;\n• à l’éditeur et aux personnes habilitées pour l’exploitation et la maintenance ;\n• à des prestataires techniques (hébergement) ;\n• aux plateformes Spotify et YouTube lorsque vous connectez votre compte ou ouvrez un lien de lecture (politiques propres à ces services).\n\nCartographie : tuiles CARTO / OpenStreetMap. Avatars : service DiceBear (URLs d’images).`,
+      body: `Les données peuvent être accessibles :\n• aux autres utilisateurs, selon vos paramètres (profil public, carte, messages) ;\n• à l’éditeur et aux personnes habilitées pour l’exploitation et la maintenance ;\n• à des prestataires techniques (hébergement) ;\n• aux plateformes YouTube et Instagram lorsque vous connectez votre compte ou ouvrez un lien de lecture (politiques propres à ces services).\n\nCartographie : tuiles CARTO / OpenStreetMap. Avatars : service DiceBear (URLs d’images).`,
     },
     {
       heading: '5. Durées de conservation',
@@ -92,7 +92,7 @@ const politiqueConfidentialite: LegalDocument = {
     },
     {
       heading: '8. Transferts hors UE',
-      body: `Certains prestataires (ex. Google/YouTube, Spotify) peuvent traiter des données hors UE. Des garanties appropriées (clauses contractuelles types, décision d’adéquation) seront mises en place conformément au RGPD.`,
+      body: `Certains prestataires (ex. Google/YouTube) peuvent traiter des données hors UE. Des garanties appropriées (clauses contractuelles types, décision d’adéquation) seront mises en place conformément au RGPD.`,
     },
     {
       heading: '9. Mineurs',
@@ -103,8 +103,8 @@ const politiqueConfidentialite: LegalDocument = {
       body: `L’Application utilise le localStorage du navigateur pour le jeton de connexion, les préférences et certains réglages d’interface. Vous pouvez effacer ces données via les paramètres de votre navigateur.`,
     },
     {
-      heading: '11. Autorisations OAuth Spotify et YouTube',
-      body: `Lorsque vous connectez Spotify ou YouTube, Soundy demande uniquement les autorisations nécessaires aux fonctionnalités visibles (lecture de playlists, état de lecture, contrôle Spotify Connect). Vous pouvez révoquer ces autorisations à tout moment dans Soundy ou depuis votre compte Spotify/Google.`,
+      heading: '11. Autorisations OAuth YouTube et Instagram',
+      body: `Lorsque vous connectez YouTube ou Instagram, Soundy demande uniquement les autorisations nécessaires aux fonctionnalités visibles (lecture de playlists YouTube, profil Instagram). Vous pouvez révoquer ces autorisations à tout moment dans Soundy ou depuis votre compte Google/Meta.`,
     },
     {
       heading: '12. Modifications',
@@ -119,11 +119,11 @@ const cgu: LegalDocument = {
   sections: [
     {
       heading: '1. Objet et acceptation',
-      body: `Les présentes Conditions générales d’utilisation (« CGU ») régissent l’accès et l’utilisation de l’application Soundy (« l’Application », « le Service »), accessible via navigateur web ou PWA.\n\nEn créant un compte ou en utilisant le Service, vous acceptez sans réserve les CGU, la Politique de confidentialité, les Mentions légales et, le cas échéant, les Conditions relatives aux API Spotify et YouTube.`,
+      body: `Les présentes Conditions générales d’utilisation (« CGU ») régissent l’accès et l’utilisation de l’application Soundy (« l’Application », « le Service »), accessible via navigateur web ou PWA.\n\nEn créant un compte ou en utilisant le Service, vous acceptez sans réserve les CGU, la Politique de confidentialité, les Mentions légales et, le cas échéant, les Conditions relatives aux API YouTube.`,
     },
     {
       heading: '2. Description du Service',
-      body: `Soundy permet notamment de visualiser sur une carte des salons d’écoute musicale et des lives, de créer ou rejoindre des salons (Spotify ou YouTube), d’échanger via chat et messages privés, et de publier ou consulter des contenus sociaux autour de la musique.\n\nLe Service est une plateforme sociale musicale. Il ne constitue pas un service de rencontre.`,
+      body: `Soundy permet notamment de visualiser sur une carte des salons d’écoute musicale et des lives, de créer ou rejoindre des salons YouTube, d’échanger via chat et messages privés, et de publier ou consulter des contenus sociaux autour de la musique.\n\nLe Service est une plateforme sociale musicale. Il ne constitue pas un service de rencontre.`,
     },
     {
       heading: '3. Éligibilité et compte',
@@ -135,7 +135,7 @@ const cgu: LegalDocument = {
     },
     {
       heading: '5. Contenus et musique',
-      body: `La lecture musicale s’effectue via Spotify ou YouTube : vous devez disposer des droits et abonnements nécessaires. Soundy ne fournit pas de licence musicale propre.\n\nSalons Spotify : l’hôte doit disposer de Spotify Premium et maintenir l’application Spotify ouverte (Spotify Connect). L’audio est lu dans Spotify, pas dans le navigateur Soundy.`,
+      body: `La lecture musicale s’effectue via YouTube : vous devez respecter les conditions d’utilisation de YouTube et de Google. Soundy ne fournit pas de licence musicale propre.\n\nLes salons YouTube utilisent le lecteur intégré IFrame API ; le consentement cookies tiers peut être requis.`,
     },
     {
       heading: '6. Géolocalisation et visibilité',

@@ -11,14 +11,7 @@ import { UsernameDisplay } from './UsernameDisplay';
 import { useSalonQueueSync } from '../hooks/useSalonQueueSync';
 import type { PlaybackState, Salon } from '../types';
 
-const PLATFORM_BADGE: Record<
-  'spotify' | 'youtube',
-  { label: string; className: string }
-> = {
-  spotify: {
-    label: 'Spotify',
-    className: 'text-[#8b8baf] border-white/10 bg-[#131318]',
-  },
+const PLATFORM_BADGE: Record<'youtube', { label: string; className: string }> = {
   youtube: {
     label: 'YouTube',
     className: 'text-[#8b8baf] border-white/10 bg-[#131318]',

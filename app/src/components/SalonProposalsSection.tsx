@@ -12,7 +12,6 @@ interface SalonProposalsSectionProps {
   onPropose?: (body: {
     title: string;
     artist: string;
-    spotifyUrl?: string;
     youtubeUrl?: string;
   }) => Promise<void>;
   onAccept?: (proposalId: string, playNow: boolean) => Promise<void>;
@@ -21,8 +20,6 @@ interface SalonProposalsSectionProps {
   compact?: boolean;
   /** Remplit l'espace vertical restant (dock file d'attente) avec défilement interne. */
   fillHeight?: boolean;
-  /** Affiche un lien "Ouvrir sur Spotify" pour les propositions avec spotifyUrl. */
-  showSpotifyLink?: boolean;
 }
 
 function ProposalUpvoteButton({
@@ -89,11 +86,9 @@ export function SalonProposalsSection({
   onUpvote,
   compact,
   fillHeight = false,
-  showSpotifyLink = false,
 }: SalonProposalsSectionProps) {
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
-  const [spotifyUrl, setSpotifyUrl] = useState('');
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
@@ -125,12 +120,10 @@ export function SalonProposalsSection({
       await onPropose({
         title: title.trim(),
         artist: artist.trim(),
-        spotifyUrl: spotifyUrl.trim() || undefined,
         youtubeUrl: youtubeUrl.trim() || undefined,
       });
       setTitle('');
       setArtist('');
-      setSpotifyUrl('');
       setYoutubeUrl('');
       setSuccessMsg('Proposition envoyée');
     } catch (err) {
@@ -186,17 +179,6 @@ export function SalonProposalsSection({
                     <p className="text-[10px] text-gray-500 break-words leading-snug">
                       {decodeProposalDisplayText(p.artist)} · {p.proposerName}
                     </p>
-                    {showSpotifyLink && p.spotifyUrl && (
-                      <a
-                        href={p.spotifyUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-block mt-1 text-[9px] font-semibold text-[#1DB954]/80 hover:text-[#1DB954] transition"
-                        title="Ouvrir sur Spotify"
-                      >
-                        ↗ Ouvrir sur Spotify
-                      </a>
-                    )}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1.5 mt-2">
@@ -302,17 +284,6 @@ export function SalonProposalsSection({
                     {decodeProposalDisplayText(p.artist)} · {p.proposerName}
                   </p>
                 </div>
-                {showSpotifyLink && p.spotifyUrl && (
-                  <a
-                    href={p.spotifyUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="shrink-0 text-[9px] font-semibold text-[#1DB954]/80 hover:text-[#1DB954] transition"
-                    title="Ouvrir sur Spotify"
-                  >
-                    ↗ Spotify
-                  </a>
-                )}
               </li>
             ))}
           </ul>
@@ -335,12 +306,6 @@ export function SalonProposalsSection({
             placeholder="Artiste"
             className="w-full px-3 py-2 rounded-xl bg-[#0b0b0f] border border-[#2a2a3a] text-sm text-white"
             required
-          />
-          <input
-            value={spotifyUrl}
-            onChange={(e) => setSpotifyUrl(e.target.value)}
-            placeholder="Lien Spotify (optionnel)"
-            className="w-full px-3 py-2 rounded-xl bg-[#0b0b0f] border border-[#2a2a3a] text-xs text-white"
           />
           <input
             value={youtubeUrl}

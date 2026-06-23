@@ -21,7 +21,7 @@ export function isPlatformConnected(
   return (connectedPlatforms ?? []).includes(platform);
 }
 
-/** OAuth réel pour une plateforme musicale (Spotify ou YouTube). */
+/** OAuth réel pour YouTube. */
 export function isRealMusicPlatformConnected(
   platform: MusicPlatform,
   links: Array<PlatformLinkSummary> | undefined
@@ -29,7 +29,7 @@ export function isRealMusicPlatformConnected(
   return Boolean(links?.some((l) => l.platform === platform && l.isRealOAuth));
 }
 
-/** État « Connecté » profil / bannière — OAuth réel pour Spotify, lien YouTube mock ou réel, Instagram sinon. */
+/** État « Connecté » profil / bannière — OAuth réel ou lien YouTube mock. */
 export function isProfilePlatformConnected(
   platform: ConnectPlatform,
   platformLinks: Array<PlatformLinkSummary> | undefined
@@ -52,11 +52,7 @@ export function hasRealMusicPlatformLink(
   );
 }
 
-export function isSpotifyPremiumProduct(product?: string): boolean {
-  return product?.trim().toLowerCase() === 'premium';
-}
-
-/** OAuth réel requis pour créer / héberger / rejoindre un salon sur cette plateforme. */
+/** OAuth réel requis pour créer / héberger / rejoindre un salon YouTube. */
 export function isMusicPlatformLinkedForSalon(
   platform: MusicPlatform,
   connectedPlatforms: MusicPlatform[] | undefined,
@@ -87,22 +83,20 @@ export function canJoinSalonAsParticipant(
   isHost?: boolean
 ): boolean {
   if (isHost) return true;
-  if (salonPlatform === 'spotify') return true;
   if (salonPlatform !== 'youtube') return true;
   return isPlatformConnected(connectedPlatforms, salonPlatform);
 }
 
 export function salonParticipantAccessMessageKey(
-  platform: MusicPlatform
-): 'salon.accessSpotifyRequired' | 'salon.accessYoutubeRequired' {
-  return platform === 'spotify' ? 'salon.accessSpotifyRequired' : 'salon.accessYoutubeRequired';
+  _platform: MusicPlatform
+): 'salon.accessYoutubeRequired' {
+  return 'salon.accessYoutubeRequired';
 }
 
 export const PLATFORM_LABELS: Record<
   ConnectPlatform,
   { label: string; emoji: string; connectKey: string }
 > = {
-  spotify: { label: 'Spotify', emoji: '🎧', connectKey: 'platform.connectSpotify' },
   youtube: { label: 'YouTube', emoji: '▶️', connectKey: 'platform.connectYoutube' },
   instagram: { label: 'Instagram', emoji: '📸', connectKey: 'platform.connectInstagram' },
 };

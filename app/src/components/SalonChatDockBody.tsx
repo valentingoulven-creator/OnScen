@@ -4,6 +4,7 @@ import { ChatMessagesView } from './ChatPanel';
 import { SalonQueueSection } from './SalonQueueSection';
 import { SalonProposalsSection } from './SalonProposalsSection';
 import { SalonYouTubeSearch } from './SalonYouTubeSearch';
+import { SalonChatDockPlaylistPicker } from './SalonChatDockPlaylistPicker';
 import type { PlaybackState, Salon, SalonQueueItem, SalonTrackProposal } from '../types';
 
 export type SalonChatDockTab = 'chat' | 'queue';
@@ -69,18 +70,32 @@ interface SalonChatDockBodyProps {
   onSelectTab?: (tab: SalonChatDockTab) => void;
   /** Actions dans la barre d’onglets (ex. participants) — visible onglet Chat uniquement. */
   chatHeaderExtra?: ReactNode;
+  /** Charger une playlist depuis le compte connecté (hôte / modérateur). */
+  playlist?: {
+    token: string;
+    userId: string;
+    platform: 'youtube';
+    onTrackChanged: (state: PlaybackState) => void;
+    onQueueChanged: (queue: SalonQueueItem[]) => void;
+  };
 }
 
 export interface SalonChatDockTabButtonsProps {
   activeTab: SalonChatDockTab;
   onSelect: (tab: SalonChatDockTab) => void;
   queueBadge?: number;
+  showPlaylistButton?: boolean;
+  playlistPanelOpen?: boolean;
+  onTogglePlaylist?: () => void;
 }
 
 export function SalonChatDockTabButtons({
   activeTab,
   onSelect,
   queueBadge,
+  showPlaylistButton,
+  playlistPanelOpen,
+  onTogglePlaylist,
 }: SalonChatDockTabButtonsProps) {
   const { t } = useTranslation();
 
@@ -99,6 +114,29 @@ export function SalonChatDockTabButtons({
         badge={queueBadge}
         onSelect={onSelect}
       />
+      {showPlaylistButton && onTogglePlaylist ? (
+        <button
+          type="button"
+          role="tab"
+          aria-selected={playlistPanelOpen}
+          aria-label={t('salon.chatDock.playlistButton', { defaultValue: 'Ajouter une playlist' })}
+          title={t('salon.chatDock.playlistButton', { defaultValue: 'Ajouter une playlist' })}
+          onClick={onTogglePlaylist}
+          className={`salon-chat-dock-tab${playlistPanelOpen ? ' salon-chat-dock-tab--active' : ''}`}
+        >
+          <svg
+            {...dockTabSvgBase}
+            className="salon-chat-dock-tab__icon"
+            aria-hidden="true"
+          >
+            <path d="M21 15V6" />
+            <path d="M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
+            <path d="M12 12H3" />
+            <path d="M16 6H3" />
+            <path d="M12 18H3" />
+          </svg>
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -158,12 +196,22 @@ export function SalonChatDockBody({
   activeTab: activeTabProp,
   onSelectTab,
   chatHeaderExtra,
+  playlist,
 }: SalonChatDockBodyProps) {
   const [internalTab, setInternalTab] = useState<DockTab>('chat');
   const [youtubeSearchActive, setYoutubeSearchActive] = useState(false);
+  const [playlistPanelOpen, setPlaylistPanelOpen] = useState(false);
   const dockTab = activeTabProp ?? internalTab;
   const handleSelectTab = onSelectTab ?? setInternalTab;
   const queueBadge = queue.length > 0 ? queue.length : undefined;
+
+  const handleTogglePlaylist = () => {
+    setPlaylistPanelOpen((open) => {
+      const next = !open;
+      if (next) handleSelectTab('queue');
+      return next;
+    });
+  };
 
   return (
     <div className="salon-chat-dock-tabs flex flex-col flex-1 min-h-0">
@@ -171,8 +219,14 @@ export function SalonChatDockBody({
         <div className="flex-1 min-w-0">
           <SalonChatDockTabButtons
             activeTab={dockTab}
-            onSelect={handleSelectTab}
+            onSelect={(tab) => {
+              handleSelectTab(tab);
+              if (tab === 'chat') setPlaylistPanelOpen(false);
+            }}
             queueBadge={queueBadge}
+            showPlaylistButton={Boolean(playlist)}
+            playlistPanelOpen={playlistPanelOpen}
+            onTogglePlaylist={playlist ? handleTogglePlaylist : undefined}
           />
         </div>
         {dockTab === 'chat' && chatHeaderExtra ? (
@@ -190,7 +244,17 @@ export function SalonChatDockBody({
             ) : null}
           </>
         ) : (
-          <div className="flex-1 min-h-0 overflow-hidden p-2.5 flex flex-col gap-4">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-2.5 flex flex-col gap-4">
+            {playlist && playlistPanelOpen ? (
+              <SalonChatDockPlaylistPicker
+                salonId={salon.id}
+                token={playlist.token}
+                userId={playlist.userId}
+                onTrackChanged={playlist.onTrackChanged}
+                onQueueChanged={playlist.onQueueChanged}
+                onLoaded={() => setPlaylistPanelOpen(false)}
+              />
+            ) : null}
             {youtubeSearch ? (
               <div className="shrink-0">
                 <SalonYouTubeSearch

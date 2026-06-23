@@ -12,7 +12,7 @@ import {
   setNearbyRadiusKm,
 } from './settings';
 
-export type NearbyPlatformFilter = 'all' | 'spotify' | 'youtube';
+export type NearbyPlatformFilter = 'all' | 'youtube';
 export type NearbySortBy = 'distance' | 'audience' | 'audience_asc' | 'none';
 
 export interface NearbyPanelPreferences {

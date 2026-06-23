@@ -18,7 +18,6 @@ export type AgentRole =
   | 'new_user'
   | 'listener'
   | 'youtube_host'
-  | 'spotify_host'
   | 'live_streamer'
   | 'donor'
   | 'power_user'

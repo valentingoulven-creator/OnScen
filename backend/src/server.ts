@@ -316,7 +316,6 @@ app.use(
           "'self'",
           'https://www.youtube.com',
           'https://www.youtube-nocookie.com',
-          'https://open.spotify.com',
           'https://js.stripe.com',
           'https://hooks.stripe.com',
         ],

@@ -1,4 +1,4 @@
-export type MusicPlatform = 'spotify' | 'youtube';
+export type MusicPlatform = 'youtube';
 
 /** Plateformes liées au profil (streaming + réseaux sociaux). */
 export type ConnectPlatform = MusicPlatform | 'instagram';
@@ -134,6 +134,8 @@ export interface User {
   totpSecret?: string;
   /** Codes de secours bcrypt-hachés (usage unique). */
   twoFactorBackupCodes?: string[];
+  /** Incrémenté à chaque changement de mot de passe — invalide les JWT antérieurs. */
+  tokenVersion?: number;
 }
 
 export interface PlaybackState {

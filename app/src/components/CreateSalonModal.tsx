@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { api, ApiRequestError } from '../lib/api';
-import { translateSalonCreateError } from '../lib/spotifyPlaylistSession';
 import { isMusicPlatformLinkedForSalon } from '../lib/platformConnect';
 import { generateSalonId } from '../lib/salonDeepLink';
 import { copyShareLink, getSalonShareUrl } from '../lib/shareLink';
@@ -10,6 +9,7 @@ import {
   buildPlaylistLoadBody,
   deferSalonPlaylistLoad,
   initialSalonCreateLocation,
+  translateSalonCreateError,
 } from '../lib/salonCreateFlow';
 import { SessionLocationPicker } from './SessionLocationPicker';
 import type { LivesGeoPrefs } from '../lib/livesGeo';
@@ -281,7 +281,7 @@ export function CreateSalonModal({
       });
 
       const playlistLoadBody = useYoutubePlaylist
-        ? buildPlaylistLoadBody('youtube', form.youtubePlaylist, null)
+        ? buildPlaylistLoadBody(form.youtubePlaylist)
         : null;
 
       if (form.accessMode === 'invite') {

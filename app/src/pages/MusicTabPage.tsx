@@ -51,34 +51,18 @@ export function MusicTabPage({
     cacheNamespace: 'music-search',
     fetcher: async (q, signal) => {
       if (!token) return [];
-      const [yt, sp] = await Promise.allSettled([
-        api.searchYoutube(token, q),
-        api.searchSpotify(token, q, signal, 8),
-      ]);
+      const yt = await api.searchYoutube(token, q);
+      void signal;
       const hits: MusicSearchHit[] = [];
-      if (yt.status === 'fulfilled') {
-        for (const r of yt.value.results.slice(0, 6)) {
-          hits.push({
-            kind: 'youtube',
-            id: r.videoId,
-            title: r.title,
-            artist: r.artist,
-            albumArtUrl: r.thumbnailUrl,
-            externalUrl: r.externalUrl,
-          });
-        }
-      }
-      if (sp.status === 'fulfilled') {
-        for (const r of sp.value.results.slice(0, 6)) {
-          hits.push({
-            kind: 'spotify',
-            id: r.id,
-            title: r.name,
-            artist: r.artist,
-            albumArtUrl: r.albumArtUrl,
-            externalUrl: r.externalUrl,
-          });
-        }
+      for (const r of yt.results.slice(0, 12)) {
+        hits.push({
+          kind: 'youtube',
+          id: r.videoId,
+          title: r.title,
+          artist: r.artist,
+          albumArtUrl: r.thumbnailUrl,
+          externalUrl: r.externalUrl,
+        });
       }
       return hits;
     },

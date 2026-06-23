@@ -8,7 +8,6 @@ export interface ShareOgMeta {
 }
 
 const PLATFORM_LABELS: Record<string, string> = {
-  spotify: 'Spotify',
   youtube: 'YouTube',
   instagram: 'Instagram',
 };

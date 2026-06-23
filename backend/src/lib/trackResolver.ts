@@ -19,17 +19,11 @@ export function buildSearchQuery(title: string, artist: string): string {
 
 export function buildPlatformSearchUrl(platform: MusicPlatform, title: string, artist: string): string {
   const q = encodeURIComponent(buildSearchQuery(title, artist));
-  if (platform === 'youtube') {
-    return `https://www.youtube.com/results?search_query=${q}`;
-  }
-  return `https://open.spotify.com/search/${q}`;
+  return `https://www.youtube.com/results?search_query=${q}`;
 }
 
-export function buildPlatformTrackUrl(platform: MusicPlatform, trackId: string): string {
-  if (platform === 'youtube') {
-    return `https://www.youtube.com/watch?v=${trackId}`;
-  }
-  return `https://open.spotify.com/track/${trackId}`;
+export function buildPlatformTrackUrl(_platform: MusicPlatform, trackId: string): string {
+  return `https://www.youtube.com/watch?v=${trackId}`;
 }
 
 export function resolveTrackForPlatform(

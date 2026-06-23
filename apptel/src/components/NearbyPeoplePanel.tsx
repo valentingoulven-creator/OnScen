@@ -69,7 +69,6 @@ interface NearbyPeoplePanelProps {
 
 const PLATFORM_OPTIONS: { id: NearbyPlatformFilter; label: string }[] = [
   { id: 'all', label: 'Toutes' },
-  { id: 'spotify', label: 'Spotify' },
   { id: 'youtube', label: 'YouTube' },
 ];
 
@@ -180,14 +179,12 @@ export function NearbyPeoplePanel({
   const mapCount =
     mapMarkerCount != null && Number.isFinite(mapMarkerCount) ? mapMarkerCount : null;
 
-  const filterChipClass = (active: boolean, accent?: 'spotify' | 'youtube') =>
+  const filterChipClass = (active: boolean, accent?: 'youtube') =>
     `min-w-[4.25rem] flex-1 px-1.5 py-1 rounded-lg text-[9px] sm:text-[10px] font-semibold border transition whitespace-nowrap ${
       active
-        ? accent === 'spotify'
-          ? 'border-green-500/50 bg-green-500/15 text-green-300'
-          : accent === 'youtube'
-            ? 'border-red-500/50 bg-red-500/15 text-red-300'
-            : 'border-purple-500/50 bg-purple-500/15 text-purple-300'
+        ? accent === 'youtube'
+          ? 'border-red-500/50 bg-red-500/15 text-red-300'
+          : 'border-purple-500/50 bg-purple-500/15 text-purple-300'
         : 'border-[#2d2d3d] text-gray-500 hover:text-gray-300'
     }`;
 

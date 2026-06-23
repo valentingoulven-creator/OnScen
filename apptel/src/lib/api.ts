@@ -250,7 +250,7 @@ export const api = {
   getSalon: (token: string, id: string) =>
     request<{ salon: import('../types').Salon }>(`/salons/${id}`, {}, token),
 
-  resolveSalonTrack: (token: string, salonId: string, platform: 'spotify' | 'youtube') =>
+  resolveSalonTrack: (token: string, salonId: string, platform: 'youtube' = 'youtube') =>
     request<{ track: import('../types').ResolvedSalonTrack }>(
       `/salons/${salonId}/resolve-track?platform=${platform}`,
       {},
@@ -765,14 +765,14 @@ export const api = {
   updateProfile: (token: string, body: object) =>
     request<{ user: import('../types').User }>('/auth/profile', { method: 'PATCH', body: JSON.stringify(body) }, token),
 
-  connectPlatform: (token: string, platform: 'spotify' | 'youtube') =>
+  connectPlatform: (token: string, platform: 'youtube') =>
     request<{ ok: boolean; user: import('../types').User }>(
       `/platforms/${platform}/connect`,
       { method: 'POST' },
       token
     ),
 
-  disconnectPlatform: (token: string, platform: 'spotify' | 'youtube') =>
+  disconnectPlatform: (token: string, platform: 'youtube') =>
     request<{ ok: boolean; user: import('../types').User }>(
       `/platforms/${platform}/disconnect`,
       { method: 'DELETE' },

@@ -143,12 +143,12 @@ export function worldEventPostId(index: number): string {
   return `${WORLD_EVENT_POST_ID_PREFIX}${pad2(index)}`;
 }
 
-function pickPlatform(slot: number): MusicPlatform {
-  return slot % 2 === 0 ? 'spotify' : 'youtube';
+function pickPlatform(_slot: number): MusicPlatform {
+  return 'youtube';
 }
 
-function pickTrack(platform: MusicPlatform, slot: number) {
-  const pool = platform === 'spotify' ? SPOTIFY_TRACKS : YOUTUBE_TRACKS;
+function pickTrack(_platform: MusicPlatform, slot: number) {
+  const pool = YOUTUBE_TRACKS;
   return pool[stableHash(`track-${slot}`) % pool.length]!;
 }
 

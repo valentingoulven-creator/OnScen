@@ -1,6 +1,6 @@
 export type PlatformStatusResponse = {
   links: Array<{
-    platform: 'spotify' | 'youtube' | 'instagram';
+    platform: 'youtube' | 'instagram';
     externalUserId: string;
     connectedAt: number;
     displayName?: string;
@@ -9,19 +9,15 @@ export type PlatformStatusResponse = {
     topArtists?: string[];
     isRealOAuth?: boolean;
   }>;
-  connectedPlatforms: ('spotify' | 'youtube')[];
+  connectedPlatforms: ('youtube')[];
   youtubeOAuthAvailable: boolean;
   youtubeMockConnectAvailable?: boolean;
-  spotifyOAuthAvailable: boolean;
   instagramOAuthAvailable: boolean;
   oauthConfigured?: boolean;
   platformConnectionRequired?: boolean;
   hasRealPlatformConnection?: boolean;
-  spotifySessionValid?: boolean;
-  spotifySessionCode?: string;
-  spotifyProduct?: string;
-  spotifyPremium?: boolean;
-  spotifyNeedsScopeReconnect?: boolean;
+  youtubeSessionValid?: boolean;
+  youtubeSessionCode?: string;
 };
 
 const TTL_MS = 25_000;

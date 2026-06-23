@@ -2,7 +2,7 @@ import type { FeedEventType } from './lib/eventType';
 
 export type { FeedEventType };
 
-export type MusicPlatform = 'spotify' | 'youtube';
+export type MusicPlatform = 'youtube';
 export type ConnectPlatform = MusicPlatform | 'instagram';
 
 export type AccountStatus = 'active' | 'pending' | 'blocked';
@@ -65,11 +65,6 @@ export interface AccessManagedUser {
 
 export type AdminUserSort = 'lastSeen' | 'memberSince' | 'username' | 'status';
 
-export interface AdminSpotifyConnectionCounts {
-  premium: number;
-  basic: number;
-}
-
 export interface AccessAdminUsersResponse {
   users: AccessManagedUser[];
   total: number;
@@ -78,7 +73,6 @@ export interface AccessAdminUsersResponse {
     active: number;
     pending: number;
     blocked: number;
-    spotify: AdminSpotifyConnectionCounts;
   };
   limit: number;
   offset: number;
@@ -428,7 +422,7 @@ export interface CurrentListening {
   title: string;
   artist: string;
   albumArtUrl?: string;
-  platform: 'spotify' | 'youtube';
+  platform: 'youtube';
   isPlaying?: boolean;
 }
 
@@ -463,7 +457,7 @@ export interface User {
   interests?: string[];
   favoriteGenres?: string[];
   favoriteArtists?: string[];
-  connectedPlatforms?: ('spotify' | 'youtube')[];
+  connectedPlatforms?: MusicPlatform[];
   platformLinks?: {
     platform: ConnectPlatform;
     externalUserId: string;
@@ -527,7 +521,11 @@ export interface User {
   /** Réseaux sociaux publics (optionnels) */
   instagramHandle?: string;
   youtubeChannel?: string;
-  spotifyUrl?: string;
+  /** Version CGU acceptée (propriétaire uniquement). */
+  acceptedTermsVersion?: string;
+  /** true si les CGU courantes doivent être réacceptées (propriétaire). */
+  termsReacceptanceRequired?: boolean;
+  currentTermsVersion?: string;
   /** Compte Stripe Connect (acct_…) pour recevoir les pourboires live. */
   stripeConnectAccountId?: string;
   /** Horodatage d'acceptation des règles de diffusion live Soundy (UNIX ms). */
@@ -537,7 +535,7 @@ export interface User {
 }
 
 export interface PlaybackState {
-  platform: 'spotify' | 'youtube';
+  platform: 'youtube';
   trackId: string;
   title: string;
   artist: string;
@@ -552,14 +550,14 @@ export interface PlaybackState {
 }
 
 export interface ResolvedSalonTrack {
-  platform: 'spotify' | 'youtube';
+  platform: 'youtube';
   title: string;
   artist: string;
   trackId?: string;
   externalUrl: string;
   searchUrl: string;
   matchType: 'exact' | 'mock' | 'search';
-  hostPlatform: 'spotify' | 'youtube';
+  hostPlatform: 'youtube';
   playbackPositionMs: number;
 }
 
@@ -571,15 +569,6 @@ export interface YoutubeSearchResult {
   externalUrl: string;
 }
 
-export interface SpotifySearchResult {
-  id: string;
-  uri: string;
-  name: string;
-  artist: string;
-  albumArtUrl: string;
-  externalUrl: string;
-}
-
 export interface YoutubePlaylistSummary {
   playlistId: string;
   title: string;
@@ -587,12 +576,6 @@ export interface YoutubePlaylistSummary {
   thumbnailUrl?: string;
 }
 
-export interface SpotifyPlaylistSummary {
-  playlistId: string;
-  title: string;
-  itemCount?: number;
-  thumbnailUrl?: string;
-}
 
 export interface MsdevDualUserSlot {
   slot: 'A' | 'B';
@@ -712,7 +695,7 @@ export interface NearbyPerson {
   listenersCount?: number;
   hostRatingAverage?: number;
   hostRatingCount?: number;
-  listeningPlatform?: 'spotify' | 'youtube';
+  listeningPlatform?: 'youtube';
   currentListening?: CurrentListening;
   latitude?: number;
   longitude?: number;
@@ -760,7 +743,7 @@ export interface Salon {
   hostUsernameWaveTo?: string;
   hostAvatarUrl?: string;
   title: string;
-  platform: 'spotify' | 'youtube';
+  platform: 'youtube';
   playbackState: PlaybackState;
   latitude: number;
   longitude: number;
@@ -781,8 +764,6 @@ export interface Salon {
   pendingProposalsCount?: number;
   /** Horodatage de création du salon (ms). Utilisé pour la limite de durée (2 h). */
   createdAt?: number;
-  /** Lien Jam Spotify (spotify.link ou open.spotify.com/socialsession/…) si l'hôte l'a partagé. */
-  spotifyJamUrl?: string;
 }
 
 export interface SalonParticipant {
@@ -823,7 +804,7 @@ export interface Live {
   hostUsernameWaveFrom?: string;
   hostUsernameWaveTo?: string;
   title: string;
-  platform: 'spotify' | 'youtube';
+  platform: 'youtube';
   playbackState: PlaybackState;
   latitude: number;
   longitude: number;

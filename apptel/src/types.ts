@@ -63,7 +63,7 @@ export interface CurrentListening {
   title: string;
   artist: string;
   albumArtUrl?: string;
-  platform: 'spotify' | 'youtube';
+  platform: 'youtube';
   isPlaying?: boolean;
 }
 
@@ -93,9 +93,9 @@ export interface User {
   interests?: string[];
   favoriteGenres?: string[];
   favoriteArtists?: string[];
-  connectedPlatforms?: ('spotify' | 'youtube')[];
+  connectedPlatforms?: ('youtube')[];
   platformLinks?: {
-    platform: 'spotify' | 'youtube';
+    platform: 'youtube';
     externalUserId: string;
     connectedAt: number;
     displayName?: string;
@@ -127,7 +127,7 @@ export interface User {
 }
 
 export interface PlaybackState {
-  platform: 'spotify' | 'youtube';
+  platform: 'youtube';
   trackId: string;
   title: string;
   artist: string;
@@ -142,14 +142,14 @@ export interface PlaybackState {
 }
 
 export interface ResolvedSalonTrack {
-  platform: 'spotify' | 'youtube';
+  platform: 'youtube';
   title: string;
   artist: string;
   trackId?: string;
   externalUrl: string;
   searchUrl: string;
   matchType: 'exact' | 'mock' | 'search';
-  hostPlatform: 'spotify' | 'youtube';
+  hostPlatform: 'youtube';
   playbackPositionMs: number;
 }
 
@@ -255,7 +255,7 @@ export interface NearbyPerson {
   listenersCount?: number;
   hostRatingAverage?: number;
   hostRatingCount?: number;
-  listeningPlatform?: 'spotify' | 'youtube';
+  listeningPlatform?: 'youtube';
   currentListening?: CurrentListening;
   latitude?: number;
   longitude?: number;
@@ -302,7 +302,7 @@ export interface Salon {
   hostUsernameWaveTo?: string;
   hostAvatarUrl?: string;
   title: string;
-  platform: 'spotify' | 'youtube';
+  platform: 'youtube';
   playbackState: PlaybackState;
   latitude: number;
   longitude: number;
@@ -322,8 +322,6 @@ export interface Salon {
   pendingProposalsCount?: number;
   /** Horodatage de création du salon (ms). Utilisé pour la limite de durée (2 h). */
   createdAt?: number;
-  /** Lien Jam Spotify (open.spotify.com/socialsession/…) si l'hôte l'a partagé. */
-  spotifyJamUrl?: string;
 }
 
 export interface SalonBan {
@@ -341,7 +339,7 @@ export interface Live {
   hostUsernameWaveFrom?: string;
   hostUsernameWaveTo?: string;
   title: string;
-  platform: 'spotify' | 'youtube';
+  platform: 'youtube';
   playbackState: PlaybackState;
   latitude: number;
   longitude: number;

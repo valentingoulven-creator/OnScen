@@ -92,9 +92,9 @@ describe('donations validation', () => {
       hostId: 'minor_host',
       hostName: 'TeenDJ',
       title: 'Live test',
-      platform: 'spotify',
+      platform: 'youtube',
       playbackState: {
-        platform: 'spotify',
+        platform: 'youtube',
         trackId: 't1',
         title: 'Track',
         artist: 'Artist',

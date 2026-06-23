@@ -122,7 +122,7 @@ describe('nearbyPanelSettings favorites', () => {
 
   it('filterLivesForMap filtre par proximité seulement si tri distance', () => {
     const lives: Pick<Live, 'hostId' | 'platform'>[] = [
-      { hostId: 'h1', platform: 'spotify' },
+      { hostId: 'h1', platform: 'youtube' },
       { hostId: 'h2', platform: 'youtube' },
     ];
     const people: NearbyPerson[] = [

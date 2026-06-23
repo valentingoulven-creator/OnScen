@@ -10,7 +10,7 @@ export interface MusicTrackItem {
   title: string;
   artist: string;
   albumArtUrl?: string;
-  platform?: 'youtube' | 'spotify';
+  platform?: 'youtube';
   trackId?: string;
   source: 'catalog' | 'composition' | 'live' | 'salon';
   liveId?: string;
@@ -117,8 +117,8 @@ function trackFromPlayback(
 }
 
 function catalogTrack(entry: (typeof MUSIC_CATALOG)[number], index: number): MusicTrackItem {
-  const trackId = entry.youtube?.trackId ?? entry.spotify?.trackId;
-  const platform = entry.youtube ? 'youtube' : entry.spotify ? 'spotify' : undefined;
+  const trackId = entry.youtube?.trackId;
+  const platform = entry.youtube ? 'youtube' as const : undefined;
   const albumArtUrl =
     entry.youtube?.trackId != null
       ? `https://i.ytimg.com/vi/${entry.youtube.trackId}/hqdefault.jpg`

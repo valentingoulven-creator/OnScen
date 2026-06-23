@@ -44,7 +44,7 @@ describe('shareOgMeta', () => {
       hostId: 'host1',
       hostName: 'Host',
       title: 'Hidden',
-      platform: 'spotify',
+      platform: 'youtube',
       playbackState: { isPlaying: false, positionMs: 0, updatedAt: Date.now() },
       latitude: 0,
       longitude: 0,

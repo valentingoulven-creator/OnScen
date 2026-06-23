@@ -31,7 +31,7 @@ interface BotTemplate {
   id: string;
   username: string;
   title: string;
-  platform: 'spotify' | 'youtube';
+  platform: 'youtube';
   trackTitle: string;
   artist: string;
   albumArtUrl: string;
@@ -48,7 +48,7 @@ const MAP_BOTS: BotTemplate[] = [
     id: 'luna',
     username: 'Luna Beats',
     title: 'Chill Electro',
-    platform: 'spotify',
+    platform: 'youtube',
     trackTitle: 'Blinding Lights',
     artist: 'The Weeknd',
     albumArtUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400',
@@ -61,7 +61,7 @@ const MAP_BOTS: BotTemplate[] = [
     id: 'nova',
     username: 'Nova Sound',
     title: 'Indie Discovery',
-    platform: 'spotify',
+    platform: 'youtube',
     trackTitle: 'Take On Me',
     artist: 'a-ha',
     albumArtUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400',
@@ -88,7 +88,7 @@ const MAP_BOTS: BotTemplate[] = [
     id: 'echo',
     username: 'Echo Park',
     title: 'Rock Classics',
-    platform: 'spotify',
+    platform: 'youtube',
     trackTitle: 'Smells Like Teen Spirit',
     artist: 'Nirvana',
     albumArtUrl: 'https://images.unsplash.com/photo-1459742915495-5b3c976c1ea8?w=400',
@@ -114,7 +114,7 @@ const MAP_BOTS: BotTemplate[] = [
     id: 'pixel',
     username: 'Pixel DJ',
     title: 'Synthwave Night',
-    platform: 'spotify',
+    platform: 'youtube',
     trackTitle: 'Nightcall',
     artist: 'Kavinsky',
     albumArtUrl: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=400',
@@ -127,7 +127,7 @@ const MAP_BOTS: BotTemplate[] = [
     id: 'milo',
     username: 'Milo Groove',
     title: 'Funk & Soul',
-    platform: 'spotify',
+    platform: 'youtube',
     trackTitle: 'Uptown Funk',
     artist: 'Bruno Mars',
     albumArtUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400',

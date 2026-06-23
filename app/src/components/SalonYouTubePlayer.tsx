@@ -8,8 +8,9 @@ import {
 } from './DraggableVideoPip';
 import { AccelerateBadge } from './AccelerateBadge';
 import { OpenOnYoutubeButton } from './OpenOnYoutubeButton';
+import { PoweredByYouTube } from './PoweredByYouTube';
 import { useHoldToAccelerate, HOLD_ACCELERATE_RATE } from '../hooks/useHoldToAccelerate';
-import { useYouTubeIframeApi } from '../hooks/useYouTubeIframeApi';
+import { useYouTubeIframeApi, useYoutubeConsentBlocked } from '../hooks/useYouTubeIframeApi';
 import { useBackgroundPlayback } from '../hooks/useBackgroundPlayback';
 import { setMediaSessionHandlers } from '../lib/mediaSessionControl';
 import {
@@ -22,6 +23,7 @@ import { getMapListenVolume, setMapListenVolume } from '../lib/mapListenVolume';
 import { getSalonYoutubeVolume } from '../lib/salonYoutubeVolume';
 import { getMapInlineListenElapsedMs } from '../lib/mapListenSession';
 import { computePlaybackPositionMs, isValidYoutubeVideoId } from '../lib/salonPlayback';
+import { setCookieConsent } from '../lib/cookieConsent';
 import { isYoutubeStrictCompliance } from '../lib/youtubeCompliance';
 import type { PlaybackState } from '../types';
 
@@ -210,6 +212,7 @@ export function SalonYouTubePlayer({
   onLeaveSalon,
 }: SalonYouTubePlayerProps) {
   const { t } = useTranslation();
+  const consentBlocked = useYoutubeConsentBlocked();
   const apiReady = useYouTubeIframeApi();
   const containerRef = useRef<HTMLDivElement>(null);
   /** Boîte 16:9 réelle (stage théâtre ou surface aspect-video). */
@@ -971,9 +974,28 @@ export function SalonYouTubePlayer({
           <div ref={containerRef} className="absolute inset-0 w-full h-full" />
         </div>
         <AccelerateBadge visible={holdAccelerate.accelerating && showVideo && !hidden} rate={HOLD_ACCELERATE_RATE} />
-        {!apiReady && showVideo && !hidden && (
-          <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-400 bg-black/80">
-            Chargement du lecteur…
+        {consentBlocked && showVideo && !hidden && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-black/90 px-4 text-center">
+            <PoweredByYouTube />
+            <p className="text-xs text-gray-300 leading-relaxed max-w-xs">
+              {t(
+                'salon.youtubeConsent.body',
+                'Le lecteur YouTube nécessite votre accord aux cookies tiers. Acceptez-les pour écouter dans Soundy.'
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={() => setCookieConsent('all')}
+              className="min-h-[44px] px-4 rounded-xl bg-red-600 text-sm font-semibold text-white hover:bg-red-500"
+            >
+              {t('salon.youtubeConsent.accept', 'Activer YouTube')}
+            </button>
+          </div>
+        )}
+        {!consentBlocked && !apiReady && showVideo && !hidden && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-xs text-gray-400 bg-black/80">
+            <PoweredByYouTube />
+            <span>{t('salon.youtubeConsent.loading', 'Chargement du lecteur…')}</span>
           </div>
         )}
         {embedErrorCode !== null && (
@@ -1130,8 +1152,9 @@ export function SalonYouTubePlayer({
       )}
       {localControlsRow}
       {!showLocalControls && showYoutubeLinkInControls && (
-        <div className="flex justify-center mt-1.5">
+        <div className="flex flex-col items-center gap-1 mt-1.5">
           <OpenOnYoutubeButton trackId={videoId} positionMs={positionMs} />
+          <PoweredByYouTube compact />
         </div>
       )}
     </div>

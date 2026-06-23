@@ -20,7 +20,14 @@
     "bannerTitle": "Cookies et services tiers",
     "bannerBody": "Soundy utilise des cookies essentiels pour la connexion et, avec votre accord, charge Stripe (paiements) et YouTube (lecteur intégré).",
     "essentialOnly": "Essentiels uniquement",
-    "acceptAll": "Tout accepter"
+    "acceptAll": "Tout accepter",
+    "privacyLink": "Politique de confidentialité"
+  },
+  "legal": {
+    "termsUpdatedTitle": "Conditions mises à jour",
+    "termsUpdatedBody": "Nos conditions d'utilisation ont évolué. Acceptez-les pour continuer à utiliser Soundy.",
+    "acceptTermsContinue": "Accepter et continuer",
+    "termsAcceptError": "Impossible d'enregistrer votre acceptation."
   },
   "music": {
     "tabTitle": "Musique",
@@ -229,7 +236,13 @@
     "chatDock": {
       "tabChat": "Chat",
       "tabQueue": "File d'attente",
-      "titleQueue": "File d'attente"
+      "titleQueue": "File d'attente",
+      "playlistButton": "Ajouter une playlist",
+      "playlistTitle": "Playlist",
+      "playlistYoutubeHint": "Vos playlists YouTube (compte Google connecté).",
+      "playlistYoutubeReconnect": "Reconnectez Google dans les réglages pour accéder à vos playlists.",
+      "playlistYoutubePublic": "Collez un lien public ou connectez YouTube pour vos playlists.",
+      "playlistYoutubeUrl": "Lien youtube.com/playlist?list=PL…"
     },
     "participants": {
       "open": "Participants",
@@ -434,7 +447,14 @@
       "addToQueueShort": "Ajouter à la file",
       "playSuccess": "Lecture lancée",
       "defaultTrackTitle": "Vidéo YouTube",
-      "errorGeneric": "Recherche impossible"
+      "errorGeneric": "Recherche impossible",
+      "poweredBy": "Powered by YouTube",
+      "poweredByHint": "Lecture via YouTube IFrame API"
+    },
+    "youtubeConsent": {
+      "body": "Le lecteur YouTube nécessite votre accord aux cookies tiers. Acceptez-les pour écouter dans Soundy.",
+      "accept": "Activer YouTube",
+      "loading": "Chargement du lecteur…"
     }
   },
   "live": {

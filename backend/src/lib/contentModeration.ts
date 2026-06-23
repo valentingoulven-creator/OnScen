@@ -18,7 +18,9 @@ export type ModerationContext =
   | 'avatar'
   | 'reel'
   | 'reel_poster'
-  | 'dm_attachment';
+  | 'dm_attachment'
+  | 'salon_chat'
+  | 'live_chat';
 
 export interface ModerationResult {
   allowed: boolean;
@@ -42,7 +44,7 @@ export function getModerationCoverage(): ModerationCoverageEntry[] {
     { surface: 'Reels', images: true, videos: true, route: 'POST /api/reels' },
     { surface: 'Photos profil', images: true, videos: false, route: 'PATCH /api/auth/profile' },
     { surface: 'Messages privés (image)', images: true, videos: false, route: 'POST /api/dm/thread/:userId' },
-    { surface: 'Chat salon / live (socket)', images: false, videos: false, route: 'socket message' },
+    { surface: 'Chat salon / live (socket)', images: true, videos: false, route: 'socket salon_message / live_message' },
   ];
 }
 
@@ -167,15 +169,23 @@ export function isImageAttachmentMime(mimeType: unknown): boolean {
   return mimeType.trim().toLowerCase().startsWith('image/');
 }
 
-export async function moderateDmAttachment(
+export async function moderateChatAttachment(
   attachmentUrl: string | undefined,
   attachmentMimeType?: unknown,
+  context: 'salon_chat' | 'live_chat' | 'dm_attachment' = 'salon_chat',
 ): Promise<ModerationResult> {
   if (!attachmentUrl?.trim()) return { allowed: true };
   if (!isImageAttachmentMime(attachmentMimeType)) {
     return { allowed: true, skipped: true };
   }
-  return moderateImageSource(attachmentUrl, 'dm_attachment');
+  return moderateImageSource(attachmentUrl, context);
+}
+
+export async function moderateDmAttachment(
+  attachmentUrl: string | undefined,
+  attachmentMimeType?: unknown,
+): Promise<ModerationResult> {
+  return moderateChatAttachment(attachmentUrl, attachmentMimeType, 'dm_attachment');
 }
 
 export async function moderateFeedPostMedia(input: {

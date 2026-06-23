@@ -42,7 +42,17 @@ function mapGoogleReason(reason: string | undefined, status: number): YoutubeApi
   }
   if (status === 429) return 'rate_limited';
   if (status === 401) return 'auth_failed';
-  if (status === 403) return r ? 'quota_exceeded' : 'forbidden';
+  if (status === 403) {
+    if (
+      r.includes('quota') ||
+      r.includes('dailylimit') ||
+      r.includes('userratelimit') ||
+      r.includes('quotaexceeded')
+    ) {
+      return 'quota_exceeded';
+    }
+    return 'forbidden';
+  }
   if (status === 404) return 'not_found';
   return 'unknown';
 }

@@ -54,20 +54,16 @@ export function albumArtForTrack(platform: MusicPlatform, trackId?: string): str
 
 export function resolveTrackFromProposal(
   salon: Salon,
-  proposal: Pick<SalonTrackProposal, 'title' | 'artist' | 'spotifyUrl' | 'youtubeUrl'>
+  proposal: Pick<SalonTrackProposal, 'title' | 'artist' | 'youtubeUrl'>
 ): { trackId?: string; externalUrl?: string } {
-  const plat = salon.platform;
-  const link = plat === 'youtube' ? proposal.youtubeUrl : proposal.spotifyUrl;
-  const altLink = plat === 'youtube' ? proposal.spotifyUrl : proposal.youtubeUrl;
-  for (const candidate of [link, altLink]) {
-    if (!candidate) continue;
-    const parsed = parseMusicLink(plat, candidate);
-    if (parsed) {
-      return {
-        trackId: parsed.trackId,
-        externalUrl: buildPlatformTrackUrl(plat, parsed.trackId),
-      };
-    }
+  const candidate = proposal.youtubeUrl;
+  if (!candidate) return {};
+  const parsed = parseMusicLink(salon.platform, candidate);
+  if (parsed) {
+    return {
+      trackId: parsed.trackId,
+      externalUrl: buildPlatformTrackUrl(salon.platform, parsed.trackId),
+    };
   }
   return {};
 }
@@ -156,7 +152,7 @@ export function hostPlayQueueItem(salon: Salon, queueItemId: string): PlaybackSt
 export function enqueueItem(salonId: string, item: Omit<SalonQueueItem, 'id' | 'addedAt'>): SalonQueueItem {
   const queue = ensureSalonQueue(salonId);
   const salon = db.salons.get(salonId);
-  const full: SalonQueueItem = stampYoutubeQueueItemMetadata(salon?.platform ?? 'spotify', {
+  const full: SalonQueueItem = stampYoutubeQueueItemMetadata(salon?.platform ?? 'youtube', {
     ...item,
     id: `q_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     addedAt: Date.now(),

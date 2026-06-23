@@ -2,9 +2,20 @@ import { db, User } from '../models/schema';
 import { publicProfile } from './profile';
 import { publicPlatformLinks } from './platformConnect';
 
+export interface ChatExportMessage {
+  id: string;
+  roomId: string;
+  roomType: 'salon' | 'live';
+  direction: 'sent' | 'received';
+  senderId: string;
+  senderName: string;
+  content: string;
+  timestamp: number;
+}
+
 export interface UserDataExport {
   exportedAt: string;
-  formatVersion: 1;
+  formatVersion: 2;
   profile: ReturnType<typeof publicProfile>;
   platformLinks: ReturnType<typeof publicPlatformLinks>;
   feedPosts: Array<{
@@ -39,6 +50,7 @@ export interface UserDataExport {
     timestamp: number;
     accepted: boolean;
   }>;
+  /** Messages envoyés dans les groupes dont l'utilisateur est membre. */
   groupMessages: Array<{
     id: string;
     groupId: string;
@@ -46,6 +58,19 @@ export interface UserDataExport {
     content: string;
     timestamp: number;
   }>;
+  /** Messages reçus dans les groupes dont l'utilisateur est membre. */
+  groupMessagesReceived: Array<{
+    id: string;
+    groupId: string;
+    groupName: string;
+    senderId: string;
+    content: string;
+    timestamp: number;
+  }>;
+  /** Messages de chat salon (envoyés + reçus dans les salons participés). */
+  salonChatMessages: ChatExportMessage[];
+  /** Messages de chat live (envoyés + reçus dans les lives participés). */
+  liveChatMessages: ChatExportMessage[];
   salonsHosted: Array<{
     id: string;
     title: string;
@@ -105,6 +130,53 @@ export interface UserDataExport {
   }>;
 }
 
+function collectParticipatedSalonIds(userId: string): Set<string> {
+  const ids = new Set<string>();
+  for (const salon of db.salons.values()) {
+    if (salon.hostId === userId) ids.add(salon.id);
+  }
+  for (const [salonId, messages] of db.salonChats) {
+    if (messages.some((m) => m.senderId === userId)) ids.add(salonId);
+  }
+  return ids;
+}
+
+function collectParticipatedLiveIds(userId: string): Set<string> {
+  const ids = new Set<string>();
+  for (const live of db.lives.values()) {
+    if (live.hostId === userId) ids.add(live.id);
+  }
+  for (const [liveId, messages] of db.liveChats) {
+    if (messages.some((m) => m.senderId === userId)) ids.add(liveId);
+  }
+  return ids;
+}
+
+function exportRoomChatMessages(
+  userId: string,
+  roomIds: Set<string>,
+  roomType: 'salon' | 'live',
+  store: Map<string, import('../models/schema').ChatMessage[]>
+): ChatExportMessage[] {
+  const out: ChatExportMessage[] = [];
+  for (const roomId of roomIds) {
+    const messages = store.get(roomId) ?? [];
+    for (const m of messages) {
+      out.push({
+        id: m.id,
+        roomId: m.roomId || roomId,
+        roomType,
+        direction: m.senderId === userId ? 'sent' : 'received',
+        senderId: m.senderId,
+        senderName: m.senderName,
+        content: m.content,
+        timestamp: m.timestamp,
+      });
+    }
+  }
+  return out.sort((a, b) => a.timestamp - b.timestamp);
+}
+
 export function buildUserDataExport(user: User): UserDataExport {
   const userId = user.id;
 
@@ -134,6 +206,22 @@ export function buildUserDataExport(user: User): UserDataExport {
       timestamp: m.timestamp,
     }));
 
+  const groupMessagesReceived = db.groupMessages
+    .filter((m) => m.senderId !== userId && memberGroupIds.has(m.groupId))
+    .map((m) => ({
+      id: m.id,
+      groupId: m.groupId,
+      groupName: groupNameById.get(m.groupId) ?? m.groupId,
+      senderId: m.senderId,
+      content: m.content,
+      timestamp: m.timestamp,
+    }));
+
+  const salonIds = collectParticipatedSalonIds(userId);
+  const liveIds = collectParticipatedLiveIds(userId);
+  const salonChatMessages = exportRoomChatMessages(userId, salonIds, 'salon', db.salonChats);
+  const liveChatMessages = exportRoomChatMessages(userId, liveIds, 'live', db.liveChats);
+
   const following = [...(db.userFollows.get(userId) ?? new Set<string>())];
   const followers: string[] = [];
   for (const [followerId, set] of db.userFollows) {
@@ -142,7 +230,7 @@ export function buildUserDataExport(user: User): UserDataExport {
 
   return {
     exportedAt: new Date().toISOString(),
-    formatVersion: 1,
+    formatVersion: 2,
     profile: publicProfile(user, true, userId),
     platformLinks: publicPlatformLinks(user),
     feedPosts: db.feedPosts
@@ -178,6 +266,9 @@ export function buildUserDataExport(user: User): UserDataExport {
       })),
     directMessages,
     groupMessages,
+    groupMessagesReceived,
+    salonChatMessages,
+    liveChatMessages,
     salonsHosted: [...db.salons.values()]
       .filter((s) => s.hostId === userId)
       .map(({ id, title, platform, createdAt, isPublic }) => ({

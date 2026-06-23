@@ -13,7 +13,6 @@ import { trackEvent } from '../lib/analytics';
 import {
   parseMusicLink,
   resolveYoutubePlaylistId,
-  parseSpotifyPlaylistId,
   buildPlatformTrackUrl,
 } from '../lib/musicLinks';
 import { computePlaybackPositionMs } from '../lib/playbackClock';
@@ -47,27 +46,10 @@ import {
 import { searchYoutube } from '../lib/youtubeSearch';
 import { youtubeDataApiKey, YoutubeDataApiError } from '../lib/youtubeDataApi';
 import { ensureYoutubeAccessToken, getValidYoutubeHostToken } from '../lib/youtubeOAuth';
-import {
-  normalizeSpotifySearchLimit,
-  searchSpotifyTracks,
-  SpotifySearchError,
-} from '../lib/spotifySearch';
-import { isRealSpotifyAccount } from '../lib/spotifyOAuth';
-import {
-  addSpotifyTrackToQueue,
-  controlSpotifyPlayback,
-  getSpotifyNowPlaying,
-  playSpotifyTrackNow,
-  SpotifyPlaybackError,
-} from '../lib/spotifyPlayback';
 import { resolvePlaylistVideos } from '../lib/youtubePlaylists';
-import { resolveSpotifyPlaylistTracks, SpotifyPlaylistError, probeSpotifyHostSession } from '../lib/spotifyPlaylists';
-import { spotifyPremiumRequiredMessage } from '../lib/spotifyApi';
-import { respondSpotifySessionAuthFailure } from '../lib/spotifySession';
 import { notifyFavoritesSalonStarted } from '../lib/favorites';
 import { notifyFollowersSalonCreated } from '../lib/follows';
 import { notifySalonInvite } from '../lib/notifications';
-import { normalizeSpotifyJamUrl } from '../lib/spotifyJam';
 import { getIo } from '../lib/ioInstance';
 import { getSalonConnectedParticipants } from '../lib/salonParticipants';
 import {
@@ -128,24 +110,32 @@ function requireHostPlatform(
   return true;
 }
 
-/** Salon Spotify : hôte avec OAuth réel (pas mock/legacy) pour recherche et playlists. */
-function requireRealSpotifyHost(
+/** Salons YouTube : auditeur avec compte plateforme lié (hôte exempté). */
+function requireSalonParticipantPlatform(
   user: import('../models/schema').User | undefined,
+  salon: Salon,
+  viewerId: string,
   res: Response
 ): user is import('../models/schema').User {
-  if (!requireHostPlatform(user, 'spotify', res)) return false;
-  if (!isRealSpotifyAccount(user)) {
+  if (salon.hostId === viewerId) return true;
+  if (salon.platform !== 'youtube') return true;
+  if (!user) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return false;
+  }
+  ensurePlatformAccountsFromLegacy(user);
+  if (!isPlatformConnected(user, salon.platform)) {
     res.status(403).json({
-      error: 'Reconnectez votre compte Spotify (connexion OAuth requise pour la recherche).',
-      code: 'spotify_not_connected',
-      platform: 'spotify',
+      error: participantPlatformLinkMessage(salon.platform),
+      code: PARTICIPANT_PLATFORM_NOT_LINKED,
+      platform: salon.platform,
     });
     return false;
   }
   return true;
 }
 
-/** Hôte ou VIP autorisé à piloter la lecture ; le jeton Spotify/YouTube reste celui de l'hôte. */
+/** Hôte ou VIP autorisé à piloter la lecture ; le jeton YouTube reste celui de l'hôte. */
 function requireSalonPlaybackController(
   salon: Salon | undefined,
   actorId: string,
@@ -169,49 +159,6 @@ function getSalonHostUser(salon: Salon, res: Response): import('../models/schema
     return undefined;
   }
   return hostUser;
-}
-
-/** Salons YouTube/Spotify : auditeur avec compte plateforme lié (hôte exempté). */
-function requireSalonParticipantPlatform(
-  user: import('../models/schema').User | undefined,
-  salon: Salon,
-  viewerId: string,
-  res: Response
-): user is import('../models/schema').User {
-  if (salon.hostId === viewerId) return true;
-  if (salon.platform !== 'youtube' && salon.platform !== 'spotify') return true;
-  if (!user) {
-    res.status(404).json({ error: 'Utilisateur introuvable' });
-    return false;
-  }
-  ensurePlatformAccountsFromLegacy(user);
-  if (!isPlatformConnected(user, salon.platform)) {
-    res.status(403).json({
-      error: participantPlatformLinkMessage(salon.platform),
-      code: PARTICIPANT_PLATFORM_NOT_LINKED,
-      platform: salon.platform,
-    });
-    return false;
-  }
-  return true;
-}
-
-/** Lance un morceau sur Spotify Connect (hôte) avant mise à jour file Soundy. */
-async function tryPlaySpotifyTrackForSalon(
-  hostUser: import('../models/schema').User,
-  salon: Salon,
-  trackId: string | undefined
-): Promise<SpotifyPlaybackError | null> {
-  if (salon.platform !== 'spotify') return null;
-  const safeId = trackId?.trim();
-  if (!safeId || safeId === 'demo') return null;
-  try {
-    await playSpotifyTrackNow(hostUser, safeId);
-    return null;
-  } catch (e) {
-    if (e instanceof SpotifyPlaybackError) return e;
-    throw e;
-  }
 }
 
 salonsRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
@@ -288,36 +235,6 @@ salonsRouter.get('/youtube-search', authenticateJWT, async (req: Request, res: R
   }
 });
 
-salonsRouter.get('/spotify-search', authenticateJWT, async (req: Request, res: Response) => {
-  const me = (req as Request & { user: { id: string } }).user.id;
-  const user = db.users.get(me);
-  if (!requireRealSpotifyHost(user, res)) return;
-
-  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
-  if (q.length < 2) {
-    res.json({ results: [] });
-    return;
-  }
-
-  const limit = normalizeSpotifySearchLimit(req.query.limit);
-
-  try {
-    const results = await searchSpotifyTracks(user, q, { limit });
-    res.setHeader('Cache-Control', 'private, no-store');
-    res.json({ results });
-  } catch (e) {
-    if (e instanceof SpotifySearchError) {
-      res.status(e.status).json({ error: e.message, code: e.code });
-      return;
-    }
-    console.warn('[spotify-search]', e);
-    res.status(502).json({
-      error: 'Recherche Spotify indisponible (erreur serveur).',
-      code: 'spotify_search_failed',
-    });
-  }
-});
-
 salonsRouter.get('/:id', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const salon = db.salons.get(req.params.id);
@@ -358,8 +275,7 @@ salonsRouter.get('/:id/resolve-track', authenticateJWT, (req: Request, res: Resp
   const viewer = db.users.get(me);
   if (!requireSalonParticipantPlatform(viewer, salon, me, res)) return;
 
-  const platformParam = String(req.query.platform ?? '');
-  const targetPlatform: MusicPlatform = platformParam === 'youtube' ? 'youtube' : 'spotify';
+  const targetPlatform: MusicPlatform = 'youtube';
   const ps = salon.playbackState;
   const resolved = resolveTrackForPlatform(
     ps.title,
@@ -475,7 +391,7 @@ salonsRouter.post('/:id/proposals', authenticateJWT, (req: Request, res: Respons
     res.status(400).json({ error: 'File désactivée dans ce salon' });
     return;
   }
-  const { title, artist, spotifyUrl, youtubeUrl } = req.body;
+  const { title, artist, youtubeUrl } = req.body;
   if (!title || !artist) {
     res.status(400).json({ error: 'Titre et artiste requis' });
     return;
@@ -487,7 +403,6 @@ salonsRouter.post('/:id/proposals', authenticateJWT, (req: Request, res: Respons
     proposerName: me.username,
     title: String(title).slice(0, 120),
     artist: String(artist).slice(0, 80),
-    spotifyUrl: spotifyUrl ? String(spotifyUrl).slice(0, 500) : undefined,
     youtubeUrl: youtubeUrl ? String(youtubeUrl).slice(0, 500) : undefined,
     status: 'pending',
     createdAt: Date.now(),
@@ -523,31 +438,8 @@ salonsRouter.post('/:id/proposals/:proposalId/accept', authenticateJWT, async (r
   const playNow = req.body?.playNow === true;
   let playbackState = salon.playbackState;
   if (playNow) {
-    if (salon.platform === 'spotify') {
-      if (!requireRealSpotifyHost(hostUser, res)) return;
-      const spotifyErr = await tryPlaySpotifyTrackForSalon(hostUser, salon, item.trackId);
-      if (spotifyErr && spotifyErr.code !== 'no_active_device') {
-        res.status(spotifyErr.status).json({ error: spotifyErr.message, code: spotifyErr.code });
-        return;
-      }
-      const played = hostPlayQueueItem(salon, item.id);
-      if (played) playbackState = played;
-      if (spotifyErr?.code === 'no_active_device' && played) {
-        broadcastSalonProposals(salon.id);
-        res.status(spotifyErr.status).json({
-          error: spotifyErr.message,
-          code: spotifyErr.code,
-          proposal,
-          queueItem: item,
-          queue: ensureSalonQueue(salon.id),
-          playbackState,
-        });
-        return;
-      }
-    } else {
-      const played = hostPlayQueueItem(salon, item.id);
-      if (played) playbackState = played;
-    }
+    const played = hostPlayQueueItem(salon, item.id);
+    if (played) playbackState = played;
   }
   broadcastSalonProposals(salon.id);
   res.json({
@@ -618,27 +510,9 @@ salonsRouter.post('/:id/playback/skip', authenticateJWT, async (req: Request, re
     return;
   }
 
-  if (salon.platform === 'spotify' && !requireRealSpotifyHost(hostUser, res)) return;
-
-  const spotifyErr = await tryPlaySpotifyTrackForSalon(hostUser, salon, queue[0]?.trackId);
-  if (spotifyErr && spotifyErr.code !== 'no_active_device') {
-    res.status(spotifyErr.status).json({ error: spotifyErr.message, code: spotifyErr.code });
-    return;
-  }
-
   const state = hostSkipNext(salon);
   if (!state) {
     res.status(400).json({ error: 'File vide' });
-    return;
-  }
-
-  if (spotifyErr?.code === 'no_active_device') {
-    res.status(spotifyErr.status).json({
-      error: spotifyErr.message,
-      code: spotifyErr.code,
-      playbackState: state,
-      queue: ensureSalonQueue(salon.id),
-    });
     return;
   }
 
@@ -664,27 +538,9 @@ salonsRouter.post('/:id/playback/play-queue', authenticateJWT, async (req: Reque
     return;
   }
 
-  if (salon.platform === 'spotify' && !requireRealSpotifyHost(hostUser, res)) return;
-
-  const spotifyErr = await tryPlaySpotifyTrackForSalon(hostUser, salon, item.trackId);
-  if (spotifyErr && spotifyErr.code !== 'no_active_device') {
-    res.status(spotifyErr.status).json({ error: spotifyErr.message, code: spotifyErr.code });
-    return;
-  }
-
   const state = hostPlayQueueItem(salon, String(queueItemId));
   if (!state) {
     res.status(404).json({ error: 'Morceau introuvable dans la file' });
-    return;
-  }
-
-  if (spotifyErr?.code === 'no_active_device') {
-    res.status(spotifyErr.status).json({
-      error: spotifyErr.message,
-      code: spotifyErr.code,
-      playbackState: state,
-      queue: ensureSalonQueue(salon.id),
-    });
     return;
   }
 
@@ -695,7 +551,7 @@ salonsRouter.post('/:id/playback/change-track', authenticateJWT, async (req: Req
   const me = (req as Request & { user: { id: string } }).user.id;
   const salon = db.salons.get(req.params.id);
   if (!requireSalonPlaybackController(salon, me, res)) return;
-  if (salon.platform !== 'youtube' && salon.platform !== 'spotify') {
+  if (salon.platform !== 'youtube') {
     res.status(400).json({ error: 'Changement de morceau non supporté pour cette plateforme' });
     return;
   }
@@ -709,56 +565,17 @@ salonsRouter.post('/:id/playback/change-track', authenticateJWT, async (req: Req
     if (parsed) resolvedId = parsed.trackId;
   }
   if (!resolvedId || resolvedId === 'demo') {
-    res.status(400).json({
-      error:
-        salon.platform === 'spotify'
-          ? 'trackId ou lien Spotify requis'
-          : 'trackId ou lien YouTube requis',
-    });
+    res.status(400).json({ error: 'trackId ou lien YouTube requis' });
     return;
   }
 
-  if (salon.platform === 'youtube') {
-    const state = hostChangePlaybackTrack(salon, {
-      trackId: resolvedId,
-      title: typeof title === 'string' && title.trim() ? title.trim() : 'Morceau YouTube',
-      artist: typeof artist === 'string' && artist.trim() ? artist.trim() : 'YouTube',
-      externalUrl: buildPlatformTrackUrl('youtube', resolvedId),
-      albumArtUrl: `https://img.youtube.com/vi/${resolvedId}/hqdefault.jpg`,
-    });
-    res.json({ playbackState: state });
-    return;
-  }
-
-  if (!requireRealSpotifyHost(hostUser, res)) return;
-
-  const trackPayload = {
+  const state = hostChangePlaybackTrack(salon, {
     trackId: resolvedId,
-    title: typeof title === 'string' && title.trim() ? title.trim() : 'Morceau Spotify',
-    artist: typeof artist === 'string' && artist.trim() ? artist.trim() : 'Spotify',
-    externalUrl: buildPlatformTrackUrl('spotify', resolvedId),
-    albumArtUrl: typeof albumArtUrl === 'string' && albumArtUrl.trim() ? albumArtUrl.trim() : undefined,
-  };
-
-  try {
-    await playSpotifyTrackNow(hostUser, resolvedId);
-  } catch (e) {
-    if (e instanceof SpotifyPlaybackError) {
-      if (e.code === 'no_active_device') {
-        const state = hostChangePlaybackTrack(salon, trackPayload);
-        removeTrackFromSalonQueue(salon.id, resolvedId);
-        res.status(e.status).json({ error: e.message, code: e.code, playbackState: state });
-        return;
-      }
-      res.status(e.status).json({ error: e.message, code: e.code });
-      return;
-    }
-    res.status(502).json({ error: 'Lecture Spotify indisponible' });
-    return;
-  }
-
-  const state = hostChangePlaybackTrack(salon, trackPayload);
-  removeTrackFromSalonQueue(salon.id, resolvedId);
+    title: typeof title === 'string' && title.trim() ? title.trim() : 'Morceau YouTube',
+    artist: typeof artist === 'string' && artist.trim() ? artist.trim() : 'YouTube',
+    externalUrl: buildPlatformTrackUrl('youtube', resolvedId),
+    albumArtUrl: `https://img.youtube.com/vi/${resolvedId}/hqdefault.jpg`,
+  });
   res.json({ playbackState: state });
 });
 
@@ -766,7 +583,7 @@ salonsRouter.post('/:id/playback/add-to-queue', authenticateJWT, async (req: Req
   const me = (req as Request & { user: { id: string; username: string } }).user;
   const salon = db.salons.get(req.params.id);
   if (!requireSalonPlaybackController(salon, me.id, res)) return;
-  if (salon.platform !== 'spotify' && salon.platform !== 'youtube') {
+  if (salon.platform !== 'youtube') {
     res.status(400).json({ error: 'Ajout à la file non supporté pour cette plateforme' });
     return;
   }
@@ -778,28 +595,14 @@ salonsRouter.post('/:id/playback/add-to-queue', authenticateJWT, async (req: Req
     if (parsed) resolvedId = parsed.trackId;
   }
   if (!resolvedId || resolvedId === 'demo') {
-    res.status(400).json({
-      error:
-        salon.platform === 'spotify'
-          ? 'trackId ou lien Spotify requis'
-          : 'trackId ou lien YouTube requis',
-    });
+    res.status(400).json({ error: 'trackId ou lien YouTube requis' });
     return;
   }
 
   const queueItem = enqueueItem(salon.id, {
     title:
-      typeof title === 'string' && title.trim()
-        ? title.trim().slice(0, 120)
-        : salon.platform === 'spotify'
-          ? 'Morceau Spotify'
-          : 'Morceau YouTube',
-    artist:
-      typeof artist === 'string' && artist.trim()
-        ? artist.trim().slice(0, 80)
-        : salon.platform === 'spotify'
-          ? 'Spotify'
-          : 'YouTube',
+      typeof title === 'string' && title.trim() ? title.trim().slice(0, 120) : 'Morceau YouTube',
+    artist: typeof artist === 'string' && artist.trim() ? artist.trim().slice(0, 80) : 'YouTube',
     trackId: resolvedId,
     externalUrl: buildPlatformTrackUrl(salon.platform, resolvedId),
     albumArtUrl:
@@ -811,109 +614,11 @@ salonsRouter.post('/:id/playback/add-to-queue', authenticateJWT, async (req: Req
     source: 'host',
   });
 
-  if (salon.platform === 'youtube') {
-    res.json({
-      queueItem,
-      queue: ensureSalonQueue(salon.id),
-      playbackState: salon.playbackState,
-    });
-    return;
-  }
-
-  const hostUser = getSalonHostUser(salon, res);
-  if (!hostUser || !requireHostPlatform(hostUser, salon.platform, res)) return;
-  if (!requireRealSpotifyHost(hostUser, res)) return;
-
-  try {
-    await addSpotifyTrackToQueue(hostUser, resolvedId);
-  } catch (e) {
-    if (e instanceof SpotifyPlaybackError) {
-      if (e.code === 'no_active_device') {
-        res.status(e.status).json({
-          error: e.message,
-          code: e.code,
-          queueItem,
-          queue: ensureSalonQueue(salon.id),
-          playbackState: salon.playbackState,
-        });
-        return;
-      }
-      res.status(e.status).json({ error: e.message, code: e.code });
-      return;
-    }
-    res.status(502).json({ error: 'File Spotify indisponible' });
-    return;
-  }
-
   res.json({
     queueItem,
     queue: ensureSalonQueue(salon.id),
     playbackState: salon.playbackState,
   });
-});
-
-salonsRouter.get('/:id/playback/spotify-now-playing', authenticateJWT, async (req: Request, res: Response) => {
-  const me = (req as Request & { user: { id: string } }).user.id;
-  const salon = db.salons.get(req.params.id);
-  if (!salon || salon.hostId !== me) {
-    res.status(403).json({ error: 'Non autorisé' });
-    return;
-  }
-  if (salon.platform !== 'spotify') {
-    res.status(400).json({ error: 'Lecture Spotify disponible uniquement dans un salon Spotify' });
-    return;
-  }
-  const hostUser = db.users.get(me);
-  if (!hostUser || !requireHostPlatform(hostUser, salon.platform, res)) return;
-
-  try {
-    const nowPlaying = await getSpotifyNowPlaying(hostUser);
-    res.json({ nowPlaying });
-  } catch (e) {
-    if (e instanceof SpotifyPlaybackError) {
-      res.status(e.status).json({ error: e.message, code: e.code });
-      return;
-    }
-    res.status(502).json({ error: 'État Spotify indisponible' });
-  }
-});
-
-salonsRouter.post('/:id/playback/spotify-control', authenticateJWT, async (req: Request, res: Response) => {
-  const me = (req as Request & { user: { id: string } }).user.id;
-  const salon = db.salons.get(req.params.id);
-  if (!requireSalonPlaybackController(salon, me, res)) return;
-  if (salon.platform !== 'spotify') {
-    res.status(400).json({ error: 'Contrôle Spotify disponible uniquement dans un salon Spotify' });
-    return;
-  }
-  const hostUser = getSalonHostUser(salon, res);
-  if (!hostUser || !requireHostPlatform(hostUser, salon.platform, res)) return;
-
-  const action = req.body?.action;
-  if (action !== 'pause' && action !== 'play' && action !== 'stop' && action !== 'seek' && action !== 'next') {
-    res.status(400).json({ error: 'action requise : pause, play, stop, seek ou next' });
-    return;
-  }
-
-  const positionMs =
-    action === 'seek' && typeof req.body?.positionMs === 'number' && Number.isFinite(req.body.positionMs)
-      ? req.body.positionMs
-      : undefined;
-  if (action === 'seek' && positionMs === undefined) {
-    res.status(400).json({ error: 'positionMs requis pour seek' });
-    return;
-  }
-
-  try {
-    await controlSpotifyPlayback(hostUser, action, positionMs);
-    res.json({ ok: true, action, ...(action === 'seek' ? { positionMs } : {}) });
-  } catch (e) {
-    if (e instanceof SpotifyPlaybackError) {
-      res.status(e.status).json({ error: e.message, code: e.code });
-      return;
-    }
-    res.status(502).json({ error: 'Contrôle Spotify indisponible' });
-  }
 });
 
 salonsRouter.post('/:id/playback/load-playlist', authenticateJWT, async (req: Request, res: Response) => {
@@ -923,8 +628,8 @@ salonsRouter.post('/:id/playback/load-playlist', authenticateJWT, async (req: Re
     res.status(403).json({ error: 'Non autorisé' });
     return;
   }
-  if (salon.platform !== 'youtube' && salon.platform !== 'spotify') {
-    res.status(400).json({ error: 'Playlists disponibles uniquement dans un salon YouTube ou Spotify' });
+  if (salon.platform !== 'youtube') {
+    res.status(400).json({ error: 'Playlists disponibles uniquement dans un salon YouTube' });
     return;
   }
   const hostUser = db.users.get(me);
@@ -932,11 +637,7 @@ salonsRouter.post('/:id/playback/load-playlist', authenticateJWT, async (req: Re
     res.status(404).json({ error: 'Utilisateur introuvable' });
     return;
   }
-  if (salon.platform === 'spotify') {
-    if (!requireRealSpotifyHost(hostUser, res)) return;
-  } else if (!requireHostPlatform(hostUser, salon.platform, res)) {
-    return;
-  }
+  if (!requireHostPlatform(hostUser, salon.platform, res)) return;
 
   const { playlistId, playlistUrl } = req.body;
   const rawPlaylistRef =
@@ -944,99 +645,41 @@ salonsRouter.post('/:id/playback/load-playlist', authenticateJWT, async (req: Re
     (typeof playlistUrl === 'string' ? playlistUrl.trim() : '') ||
     '';
 
-  if (salon.platform === 'youtube') {
-    const resolvedPlaylistId = resolveYoutubePlaylistId(rawPlaylistRef) ?? '';
-    if (!resolvedPlaylistId) {
-      res.status(400).json({
-        error: rawPlaylistRef
-          ? 'Lien playlist invalide — utilisez youtube.com/playlist?list=PL… ou un ID PL…'
-          : 'playlistId ou lien playlist requis',
-      });
-      return;
-    }
-
-    const accessToken = getYoutubeAccessToken(hostUser);
-    let videos: Awaited<ReturnType<typeof resolvePlaylistVideos>>;
-    try {
-      videos = await resolvePlaylistVideos(resolvedPlaylistId, accessToken);
-    } catch {
-      res.status(502).json({ error: 'Erreur lors du chargement de la playlist YouTube' });
-      return;
-    }
-    if (!videos.length) {
-      const hasKey = Boolean(youtubeDataApiKey());
-      const hasToken = Boolean(accessToken);
-      const error =
-        !hasKey && !hasToken
-          ? 'Playlist introuvable ou vide. Ajoutez YOUTUBE_API_KEY côté serveur ou connectez YouTube.'
-          : 'Playlist introuvable, privée ou vide.';
-      res.status(400).json({ error });
-      return;
-    }
-
-    const items = videos.map((v) => ({
-      title: v.title,
-      artist: v.artist,
-      trackId: v.videoId,
-      externalUrl: v.externalUrl,
-      albumArtUrl: v.thumbnailUrl,
-      addedById: me,
-      addedByName: hostUser.username,
-      source: 'host' as const,
-    }));
-
-    const state = hostLoadYoutubePlaylist(salon, items, me, hostUser.username);
-    if (!state) {
-      res.status(400).json({ error: 'Impossible de charger la playlist' });
-      return;
-    }
-    res.json({ playbackState: state, queue: ensureSalonQueue(salon.id) });
+  const resolvedPlaylistId = resolveYoutubePlaylistId(rawPlaylistRef) ?? '';
+  if (!resolvedPlaylistId) {
+    res.status(400).json({
+      error: rawPlaylistRef
+        ? 'Lien playlist invalide — utilisez youtube.com/playlist?list=PL… ou un ID PL…'
+        : 'playlistId ou lien playlist requis',
+    });
     return;
   }
 
-  const resolvedSpotifyPlaylistId = parseSpotifyPlaylistId(rawPlaylistRef) ?? rawPlaylistRef;
-  if (!resolvedSpotifyPlaylistId) {
-    res.status(400).json({ error: 'playlistId ou lien playlist Spotify requis' });
-    return;
-  }
-
-  const session = await probeSpotifyHostSession(hostUser);
-  if (!session.ok && respondSpotifySessionAuthFailure(res, session.code)) {
-    db.users.set(me, hostUser);
-    return;
-  }
-
-  let tracks: Awaited<ReturnType<typeof resolveSpotifyPlaylistTracks>>;
+  const accessToken = getYoutubeAccessToken(hostUser);
+  let videos: Awaited<ReturnType<typeof resolvePlaylistVideos>>;
   try {
-    tracks = await resolveSpotifyPlaylistTracks(hostUser, resolvedSpotifyPlaylistId);
-  } catch (e) {
-    if (e instanceof SpotifyPlaylistError) {
-      console.warn('[load-playlist] spotify error', {
-        salonId: salon.id,
-        userId: me,
-        playlistId: resolvedSpotifyPlaylistId,
-        status: e.status,
-        code: e.code,
-        message: e.message,
-      });
-      db.users.set(me, hostUser);
-      res.status(e.status).json({ error: e.message, code: e.code });
-      return;
-    }
-    res.status(502).json({ error: 'Erreur lors du chargement de la playlist Spotify' });
+    videos = await resolvePlaylistVideos(resolvedPlaylistId, accessToken);
+  } catch {
+    res.status(502).json({ error: 'Erreur lors du chargement de la playlist YouTube' });
     return;
   }
-  if (!tracks.length) {
-    res.status(400).json({ error: 'Playlist Spotify introuvable ou vide.' });
+  if (!videos.length) {
+    const hasKey = Boolean(youtubeDataApiKey());
+    const hasToken = Boolean(accessToken);
+    const error =
+      !hasKey && !hasToken
+        ? 'Playlist introuvable ou vide. Ajoutez YOUTUBE_API_KEY côté serveur ou connectez YouTube.'
+        : 'Playlist introuvable, privée ou vide.';
+    res.status(400).json({ error });
     return;
   }
 
-  const items = tracks.map((t) => ({
-    title: t.title,
-    artist: t.artist,
-    trackId: t.trackId,
-    externalUrl: t.externalUrl,
-    albumArtUrl: t.albumArtUrl,
+  const items = videos.map((v) => ({
+    title: v.title,
+    artist: v.artist,
+    trackId: v.videoId,
+    externalUrl: v.externalUrl,
+    albumArtUrl: v.thumbnailUrl,
     addedById: me,
     addedByName: hostUser.username,
     source: 'host' as const,
@@ -1088,7 +731,6 @@ salonsRouter.patch('/:id/settings', authenticateJWT, (req: Request, res: Respons
     trackLink,
     trackTitle,
     artist,
-    spotifyJamUrl,
   } = req.body;
 
   if (accessMode === 'public' || accessMode === 'invite') {
@@ -1112,7 +754,7 @@ salonsRouter.patch('/:id/settings', authenticateJWT, (req: Request, res: Respons
   if (title && typeof title === 'string') salon.title = title.trim().slice(0, 80);
   if (allowQueue !== undefined) salon.allowQueue = Boolean(allowQueue);
 
-  if (platform === 'spotify' || platform === 'youtube') {
+  if (platform === 'youtube') {
     if (!requireHostPlatform(hostUser, platform, res)) return;
     salon.platform = platform;
     salon.playbackState.platform = platform;
@@ -1131,21 +773,7 @@ salonsRouter.patch('/:id/settings', authenticateJWT, (req: Request, res: Respons
   if (trackTitle) salon.playbackState.title = String(trackTitle).slice(0, 120);
   if (artist) salon.playbackState.artist = String(artist).slice(0, 80);
 
-  if (spotifyJamUrl !== undefined && salon.platform === 'spotify') {
-    if (spotifyJamUrl === null || spotifyJamUrl === '') {
-      salon.spotifyJamUrl = undefined;
-    } else if (typeof spotifyJamUrl === 'string') {
-      const normalized = normalizeSpotifyJamUrl(spotifyJamUrl);
-      if (!normalized) {
-        res.status(400).json({ error: 'Lien Jam Spotify invalide (spotify.link ou socialsession attendu)' });
-        return;
-      }
-      salon.spotifyJamUrl = normalized;
-    }
-  }
-
   const playbackClockTouched =
-    platform === 'spotify' ||
     platform === 'youtube' ||
     (trackLink && typeof trackLink === 'string') ||
     trackTitle ||
@@ -1156,9 +784,6 @@ salonsRouter.patch('/:id/settings', authenticateJWT, (req: Request, res: Respons
 
   normalizeSalonAccess(salon);
   db.salons.set(salon.id, salon);
-  if (spotifyJamUrl !== undefined && salon.platform === 'spotify') {
-    broadcastSalonUpdated(salon);
-  }
   res.json({ salon: publicSalon(salon, me) });
 });
 
@@ -1277,19 +902,10 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
     accessMode,
     allowedUserIds,
     isPublic,
-    spotifyJamUrl,
   } = req.body;
 
   if (latitude === undefined || longitude === undefined) {
     res.status(400).json({ error: 'Géolocalisation requise' });
-    return;
-  }
-
-  if (platform === 'spotify') {
-    res.status(400).json({
-      error: 'Les salons Spotify ne sont plus disponibles. Utilisez YouTube.',
-      code: 'SPOTIFY_SALON_DEPRECATED',
-    });
     return;
   }
 
@@ -1445,6 +1061,5 @@ export function publicSalon(s: Salon, viewerId?: string) {
     queue: ensureSalonQueue(s.id),
     pendingProposalsCount: isHost ? getPendingProposals(s.id).length : undefined,
     createdAt: s.createdAt,
-    spotifyJamUrl: s.platform === 'spotify' ? s.spotifyJamUrl : undefined,
   };
 }

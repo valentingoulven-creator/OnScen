@@ -5,7 +5,6 @@ import { api } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import { isMusicPlatformLinkedForSalon, canJoinSalonAsParticipant, salonParticipantAccessMessageKey } from '../lib/platformConnect';
 import { SalonPlatformAccessGate } from './SalonPlatformAccessGate';
-import { SpotifySalonDeprecatedNotice } from './SpotifySalonDeprecatedNotice';
 import { HostRatingBlock } from './HostRatingBlock';
 import { ShareSalonLink } from './ShareSalonLink';
 import { SalonPlaybackPanel } from './SalonPlaybackPanel';
@@ -18,13 +17,9 @@ import { formatSalonAudienceLabel } from '../lib/salonAudience';
 import type { PlaybackState, Salon } from '../types';
 
 const PLATFORM_BADGE: Record<
-  'spotify' | 'youtube',
+  'youtube',
   { label: string; className: string }
 > = {
-  spotify: {
-    label: 'Spotify',
-    className: 'text-[#8b8baf] border-white/10 bg-[#131318]',
-  },
   youtube: {
     label: 'YouTube',
     className: 'text-[#8b8baf] border-white/10 bg-[#131318]',
@@ -422,11 +417,7 @@ export function MapSalonListenSheet({
 
       {expanded && (
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
-          {salon.platform === 'spotify' ? (
-            <div className="p-3">
-              <SpotifySalonDeprecatedNotice variant="compact" onBack={onClose} />
-            </div>
-          ) : participantSalonBlocked ? (
+          {participantSalonBlocked ? (
             <div className="p-3">
               <SalonPlatformAccessGate
                 salonPlatform={salon.platform}

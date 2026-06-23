@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import crypto from 'node:crypto';
 import rateLimit from 'express-rate-limit';
 import { db, type User } from '../models/schema';
-import { signToken, setAuthCookie } from '../middleware/auth';
+import { signTokenForUser, setAuthCookie } from '../middleware/auth';
 import { applyProfileDefaults, publicProfile } from '../lib/profile';
 import { schedulePersist } from '../lib/persist';
 import { trackEvent, trackUserActive } from '../lib/analytics';
@@ -18,12 +18,6 @@ import {
   completeYoutubeOAuth,
   isYoutubeOAuthConfigured,
 } from '../lib/youtubeOAuth';
-import {
-  isSpotifyOAuthConfigured,
-  completeSpotifyOAuth,
-  applySpotifyOAuthToUser,
-  resolveSpotifyOAuthScopesAfterConnect,
-} from '../lib/spotifyOAuth';
 import {
   applyInstagramOAuthToUser,
   completeInstagramOAuth,
@@ -222,7 +216,6 @@ oauthRouter.get('/providers', (_req: Request, res: Response) => {
         process.env.FACEBOOK_CALLBACK_URL,
     ),
     youtube: isYoutubeOAuthConfigured(),
-    spotify: isSpotifyOAuthConfigured(),
     instagram: isInstagramOAuthConfigured(),
   });
 });
@@ -307,7 +300,7 @@ oauthRouter.post('/oauth/exchange', oauthInitLimiter, (req: Request, res: Respon
   consumeOAuthExchangeCode(code);
   applyProfileDefaults(user);
   db.users.set(user.id, user);
-  const token = signToken({ id: user.id, username: user.username });
+  const token = signTokenForUser(user);
   setAuthCookie(res, token, true);
   trackEvent('user_login_oauth', user.id);
   trackUserActive(user.id);
@@ -505,46 +498,6 @@ oauthRouter.get('/youtube/callback', async (req: Request, res: Response) => {
   } catch (err) {
     console.error('[oauth] YouTube callback error:', err);
     res.redirect(`${origin}/?youtube_oauth=error`);
-  }
-});
-
-// ─── Spotify OAuth (platform linking) ────────────────────────────────────────
-
-/** GET /api/auth/spotify — déprécié : utiliser GET /api/platforms/spotify/oauth/url avec JWT en en-tête. */
-oauthRouter.get('/spotify', oauthInitLimiter, (_req: Request, res: Response) => {
-  const origin = appOrigin();
-  res.redirect(`${origin}/?spotify_oauth=error&reason=use_platform_api`);
-});
-
-/** GET /api/auth/spotify/callback — handles the redirect from Spotify */oauthRouter.get('/spotify/callback', async (req: Request, res: Response) => {
-  const origin = appOrigin();
-  const { code, state, error } = req.query as Record<string, string>;
-
-  if (error || !code || !state) {
-    res.redirect(`${origin}/?spotify_oauth=error`);
-    return;
-  }
-
-  try {
-    const result = await completeSpotifyOAuth(code, state);
-    if (!result) {
-      res.redirect(`${origin}/?spotify_oauth=error`);
-      return;
-    }
-    const user = db.users.get(result.userId);
-    if (user) {
-      const oauthScopes = await resolveSpotifyOAuthScopesAfterConnect(
-        result.accessToken,
-        result.oauthScopes
-      );
-      applySpotifyOAuthToUser(user, { ...result, oauthScopes });
-      db.users.set(user.id, user);
-      schedulePersist();
-    }
-    res.redirect(`${origin}/?spotify_oauth=ok`);
-  } catch (err) {
-    console.error('[oauth] Spotify callback error:', err);
-    res.redirect(`${origin}/?spotify_oauth=error`);
   }
 });
 

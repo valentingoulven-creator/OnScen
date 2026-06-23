@@ -1,14 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getCookieConsent, setCookieConsent } from '../lib/cookieConsent';
+import { LegalDocumentView } from './LegalDocumentView';
 
 export function CookieConsentBanner() {
   const { t } = useTranslation();
   const [visible, setVisible] = useState(() => getCookieConsent() == null);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
 
   useEffect(() => {
     if (getCookieConsent() != null) setVisible(false);
   }, []);
+
+  if (privacyOpen) {
+    return (
+      <LegalDocumentView docKey="privacy" onBack={() => setPrivacyOpen(false)} />
+    );
+  }
 
   if (!visible) return null;
 
@@ -27,7 +35,14 @@ export function CookieConsentBanner() {
           {t(
             'cookies.bannerBody',
             'Soundy utilise des cookies essentiels pour la connexion et, avec votre accord, charge Stripe (paiements) et YouTube (lecteur intégré).'
-          )}
+          )}{' '}
+          <button
+            type="button"
+            onClick={() => setPrivacyOpen(true)}
+            className="text-purple-400 hover:text-purple-300 underline underline-offset-2"
+          >
+            {t('cookies.privacyLink', 'Politique de confidentialité')}
+          </button>
         </p>
         <div className="flex flex-col sm:flex-row gap-2">
           <button

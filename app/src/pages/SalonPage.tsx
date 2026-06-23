@@ -5,7 +5,6 @@ const SOUNDY_BASE_URL = 'https://getsoundy.com';
 
 import { useAuth } from '../context/AuthContext';
 import { canJoinSalonAsParticipant, isMusicPlatformLinkedForSalon } from '../lib/platformConnect';
-import { SpotifySalonDeprecatedNotice } from '../components/SpotifySalonDeprecatedNotice';
 import { SalonPlatformAccessGate } from '../components/SalonPlatformAccessGate';
 import { mergeRemotePlaybackState } from '../lib/salonPlayback';
 
@@ -359,9 +358,6 @@ export function SalonPage({
 
     setEndingSalon(true);
     try {
-      if (salon.platform === 'spotify' && salon.playbackState.isPlaying) {
-        await api.spotifySalonPlaybackControl(token, salon.id, 'pause').catch(() => {});
-      }
       await api.deleteSalon(token, salon.id);
       if (user) {
         setUserFromProfile({ ...user, salonId: undefined, salonTitle: undefined });
@@ -459,23 +455,6 @@ export function SalonPage({
     );
   }
 
-  if (salon.platform === 'spotify') {
-    return (
-      <div className="flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f] overflow-hidden">
-        <header className="relative z-30 shrink-0 flex items-center gap-2 px-3 py-2.5 border-b border-[#1e1e2f]">
-          {minimizeSalonButton}
-          <p className="flex-1 min-w-0 text-sm text-gray-400 truncate">{salon.title}</p>
-        </header>
-        <div className="flex-1 flex items-center justify-center min-h-0 overflow-y-auto">
-          <SpotifySalonDeprecatedNotice
-            salonTitle={salon.title}
-            onBack={onMinimizeToMap ? () => onMinimizeToMap(salon.title) : onBack}
-          />
-        </div>
-      </div>
-    );
-  }
-
   const playback = salon.playbackState;
 
   const handleSkip = async () => {
@@ -552,6 +531,17 @@ export function SalonPage({
           currentArtist: playback.artist,
           onTrackChanged: canControlPlayback ? applyPlayback : undefined,
           onQueueChanged: canControlPlayback ? applyQueue : undefined,
+        }
+      : undefined;
+
+  const chatDockPlaylist =
+    canControlPlayback && token && user && salon.platform === 'youtube'
+      ? {
+          token,
+          userId: user.id,
+          platform: 'youtube' as const,
+          onTrackChanged: applyPlayback,
+          onQueueChanged: applyQueue,
         }
       : undefined;
 
@@ -824,6 +814,7 @@ export function SalonPage({
               currentUserId={user?.id}
               onUpvote={handleUpvote}
               youtubeSearch={queueYoutubeSearch}
+              playlist={chatDockPlaylist}
               chatInput={<ChatInputBar />}
             />
           }

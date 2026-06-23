@@ -21,18 +21,11 @@ export function parseMusicLink(
     )?.[1];
     if (idFromUrl && isValidYoutubeVideoId(idFromUrl)) return { trackId: idFromUrl };
     if (isValidYoutubeVideoId(raw)) return { trackId: raw };
-    return null;
   }
-
-  const spotifyId =
-    raw.match(/spotify\.com\/track\/([a-zA-Z0-9]+)/)?.[1] ||
-    raw.match(/^spotify:track:([a-zA-Z0-9]+)$/)?.[1] ||
-    (raw.length <= 30 && /^[a-zA-Z0-9]+$/.test(raw) ? raw : null);
-  return spotifyId ? { trackId: spotifyId } : null;
+  return null;
 }
 
 export const PLATFORM_LABELS: Record<MusicPlatform, string> = {
-  spotify: 'Spotify',
   youtube: 'YouTube',
 };
 
@@ -51,19 +44,6 @@ export function resolveYoutubePlaylistId(urlOrId: string): string | null {
   return parseYoutubePlaylistId(raw);
 }
 
-export function parseSpotifyPlaylistId(urlOrId: string): string | null {
-  const raw = urlOrId.trim();
-  const fromUrl =
-    raw.match(/spotify\.com\/(?:embed\/|intl-[a-z]{2}\/)?playlist\/([a-zA-Z0-9]+)/)?.[1] ||
-    raw.match(/^spotify:playlist:([a-zA-Z0-9]+)$/)?.[1];
-  if (fromUrl) return fromUrl;
-  if (/^[a-zA-Z0-9]{10,}$/.test(raw) && !raw.startsWith('spotify:track:')) return raw;
-  return null;
-}
-
 export function buildPlatformTrackUrl(platform: MusicPlatform, trackId: string): string {
-  if (platform === 'youtube') {
-    return `https://www.youtube.com/watch?v=${trackId}`;
-  }
-  return `https://open.spotify.com/track/${trackId}`;
+  return `https://www.youtube.com/watch?v=${trackId}`;
 }

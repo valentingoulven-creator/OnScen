@@ -1,6 +1,6 @@
 import type { PlaybackState } from '../types';
 
-export type MusicPlatform = 'spotify' | 'youtube';
+export type MusicPlatform = 'youtube';
 export type TrackMatchType = 'exact' | 'mock' | 'search';
 
 export interface ResolvedTrack {
@@ -63,19 +63,13 @@ export function formatPlaybackTime(ms: number): string {
   return `${min}:${sec.toString().padStart(2, '0')}`;
 }
 
-export function buildPlatformSearchUrl(platform: MusicPlatform, title: string, artist: string): string {
+export function buildPlatformSearchUrl(_platform: MusicPlatform, title: string, artist: string): string {
   const q = encodeURIComponent(`${title} ${artist}`.trim());
-  if (platform === 'youtube') {
-    return `https://www.youtube.com/results?search_query=${q}`;
-  }
-  return `https://open.spotify.com/search/${q}`;
+  return `https://www.youtube.com/results?search_query=${q}`;
 }
 
-export function buildPlatformTrackUrl(platform: MusicPlatform, trackId: string): string {
-  if (platform === 'youtube') {
-    return `https://www.youtube.com/watch?v=${trackId}`;
-  }
-  return `https://open.spotify.com/track/${trackId}`;
+export function buildPlatformTrackUrl(_platform: MusicPlatform, trackId: string): string {
+  return `https://www.youtube.com/watch?v=${trackId}`;
 }
 
 /** Lien plateforme avec position (YouTube `t=` ; Spotify sans offset fiable). */
@@ -189,10 +183,6 @@ export function preferredParticipantPlatform(
 ): MusicPlatform {
   const connected = connectedPlatforms ?? [];
   if (connected.includes(hostPlatform)) return hostPlatform;
-  if (connected.includes('spotify')) return 'spotify';
   if (connected.includes('youtube')) return 'youtube';
-  // Aucune plateforme connectée : YouTube est le mode natif navigateur par défaut.
-  // - Salon YouTube : lecture directe YouTube ✓
-  // - Salon Spotify : écoute croisée YouTube ✓
   return 'youtube';
 }

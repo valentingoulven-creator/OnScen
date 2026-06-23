@@ -1,6 +1,6 @@
 import { ConnectPlatform, MusicPlatform, User } from '../models/schema';
 
-const MUSIC_PLATFORMS = new Set<MusicPlatform>(['spotify', 'youtube']);
+const MUSIC_PLATFORMS = new Set<MusicPlatform>(['youtube']);
 
 function isMusicPlatform(platform: ConnectPlatform): platform is MusicPlatform {
   return MUSIC_PLATFORMS.has(platform as MusicPlatform);
@@ -55,16 +55,12 @@ export function isPlatformConnected(user: User | undefined, platform: ConnectPla
   return (user.connectedPlatforms ?? []).includes(platform);
 }
 
-export function hostPlatformLinkMessage(platform: MusicPlatform): string {
-  return platform === 'spotify'
-    ? 'Connectez votre compte Spotify pour héberger ce salon'
-    : 'Connectez votre compte YouTube pour héberger ce salon';
+export function hostPlatformLinkMessage(_platform: MusicPlatform): string {
+  return 'Connectez votre compte YouTube pour héberger ce salon';
 }
 
-export function participantPlatformLinkMessage(platform: MusicPlatform): string {
-  return platform === 'spotify'
-    ? 'Connectez votre compte Spotify pour rejoindre ce salon'
-    : 'Connectez votre compte YouTube pour rejoindre ce salon';
+export function participantPlatformLinkMessage(_platform: MusicPlatform): string {
+  return 'Connectez votre compte YouTube pour rejoindre ce salon';
 }
 
 export function connectPlatformAccount(user: User, platform: ConnectPlatform): PlatformAccount {

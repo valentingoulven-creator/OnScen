@@ -13,7 +13,6 @@
     "test": "vitest run --config vitest.config.ts",
     "seed:production": "npm run build && node dist/scripts/seed-production-testdata.js",
     "seed:sponsors": "npm run build && node dist/scripts/seed-production-sponsors.js",
-    "seed:occitanie": "npm run build && node dist/scripts/seed-production-occitanie-spotify.js",
     "seed:world": "npm run build && node dist/scripts/seed-production-world-random.js",
     "msdev:seed-stories": "npm run build && node dist/scripts/seed-msdev-stories.js"
   },

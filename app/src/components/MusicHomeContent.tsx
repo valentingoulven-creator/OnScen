@@ -15,7 +15,6 @@ import type {
 function trackExternalUrl(track: MusicTrackItem): string | null {
   if (!track.trackId) return null;
   if (track.platform === 'youtube') return `https://www.youtube.com/watch?v=${track.trackId}`;
-  if (track.platform === 'spotify') return `https://open.spotify.com/track/${track.trackId}`;
   return null;
 }
 

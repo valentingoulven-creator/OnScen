@@ -9,10 +9,10 @@ import dotenv from 'dotenv';
 import { app } from './server';
 import { setupSockets } from './socket';
 import { setIo, clearIo } from './lib/ioInstance';
+import { attachSocketClusterAdapter } from './lib/socketCluster';
 import { seedMsdevData, ensureMsdevDemoAccounts, ensureMsdevDemoLives, ensureMsdevFranceSalonLives } from './seed-msdev';
 import { seedProductionAdmin } from './seed-production';
 import { seedBotsAtStartup } from './seed-bots';
-import { seedOccitanieSpotifyAtStartup } from './seed-occitanie-spotify';
 import { seedWorldRandomAtStartup } from './seed-world-random';
 import { seedHomeFeed } from './seed-home-feed';
 import { seedMsdevStories } from './seed-msdev-stories';
@@ -45,6 +45,7 @@ import { loadCreatorSubscriptionsFromPg } from './lib/pgSubscriptions';
 import { migrateAllUsersRelationshipStatus } from './lib/profile';
 import { getMsdevEnvPath } from './paths';
 import { startSessionLimitScheduler, stopSessionLimitScheduler } from './lib/sessionLimits';
+import { startDataRetentionScheduler, stopDataRetentionScheduler } from './lib/dataRetention';
 import { assertProductionStartup } from './lib/productionStartup';
 import { resolveCorsOrigin } from './lib/corsConfig';
 import { startServerMonitor, stopServerMonitor } from './lib/serverMonitor';
@@ -108,6 +109,7 @@ function shutdown(): Promise<void> {
         .then(() => closePool())
         .finally(() => {
           stopSessionLimitScheduler();
+          stopDataRetentionScheduler();
           stopServerMonitor();
           httpServer = null;
           ioServer = null;
@@ -226,8 +228,10 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
   ioServer = io;
 
   setIo(io);
+  await attachSocketClusterAdapter(io);
   setupSockets(io);
   startSessionLimitScheduler(io);
+  startDataRetentionScheduler();
   registerShutdownHooks();
   registerCriticalEventHandlers();
 
@@ -380,7 +384,6 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
   }
 
   seedBotsAtStartup();
-  seedOccitanieSpotifyAtStartup();
   seedWorldRandomAtStartup();
   if (APP_ENV === 'msdev') {
     seedHomeFeed({ forceRepair: process.env.MSDEV_FORCE_SEED === '1' });

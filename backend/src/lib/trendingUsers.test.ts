@@ -26,9 +26,9 @@ function seedLive(host: User, viewers: number, lat: number, lon: number): Live {
     hostId: host.id,
     hostName: host.username,
     title: 'Test live',
-    platform: 'spotify',
+    platform: 'youtube',
     playbackState: {
-      platform: 'spotify',
+      platform: 'youtube',
       trackId: 'x',
       title: 'Track',
       artist: 'Artist',
@@ -54,9 +54,9 @@ function seedSalon(host: User, listeners: number, lat: number, lon: number): Sal
     hostId: host.id,
     hostName: host.username,
     title: 'Test salon',
-    platform: 'spotify',
+    platform: 'youtube',
     playbackState: {
-      platform: 'spotify',
+      platform: 'youtube',
       trackId: 'x',
       title: 'Track',
       artist: 'Artist',

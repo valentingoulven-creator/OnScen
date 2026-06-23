@@ -71,95 +71,8 @@ async function parseApiError(res: Response): Promise<ApiRequestError> {
         if (json.code === 'dm_mutual_follow_required') {
           return new ApiRequestError(i18n.t('dm.mutualFollowRequired'), json.code, res.status);
         }
-        if (json.code === 'spotify_not_connected') {
-          return new ApiRequestError(
-            json.error || i18n.t('salon.spotifySearch.errorNotConnected'),
-            json.code,
-            res.status
-          );
-        }
-        if (json.code === 'spotify_token_expired') {
-          return new ApiRequestError(
-            json.error || i18n.t('salon.spotifySearch.errorTokenExpired'),
-            json.code,
-            res.status
-          );
-        }
-        if (json.code === 'spotify_scope_missing') {
-          return new ApiRequestError(
-            json.error || i18n.t('salon.spotifySearch.errorPlaylistScopeMissing'),
-            json.code,
-            res.status
-          );
-        }
-        if (json.code === 'spotify_playlist_forbidden') {
-          return new ApiRequestError(
-            json.error || i18n.t('salon.spotifySearch.errorPlaylistPrivate'),
-            json.code,
-            res.status
-          );
-        }
-        if (json.code === 'spotify_playlist_private') {
-          return new ApiRequestError(
-            json.error || i18n.t('salon.spotifySearch.errorPlaylistPrivate'),
-            json.code,
-            res.status
-          );
-        }
-        if (json.code === 'spotify_playlist_not_found') {
-          return new ApiRequestError(
-            json.error || i18n.t('salon.spotifySearch.errorPlaylistNotFound'),
-            json.code,
-            res.status
-          );
-        }
-        if (json.code === 'spotify_premium_required') {
-          return new ApiRequestError(
-            json.error || i18n.t('salon.spotifySearch.errorPremiumRequired'),
-            json.code,
-            res.status
-          );
-        }
         if (json.code === 'HOST_PLATFORM_NOT_LINKED') {
           return new ApiRequestError(json.error || i18n.t('errors.forbidden'), json.code, res.status);
-        }
-        if (json.code === 'spotify_rate_limited') {
-          return new ApiRequestError(
-            json.error || i18n.t('salon.spotifySearch.errorRateLimited'),
-            json.code,
-            res.status
-          );
-        }
-        if (json.code === 'spotify_oauth_not_configured') {
-          return new ApiRequestError(
-            json.error || i18n.t('salon.spotifySearch.errorServerConfig'),
-            json.code,
-            res.status
-          );
-        }
-        if (json.code === 'spotify_network_error') {
-          return new ApiRequestError(
-            json.error || i18n.t('salon.spotifySearch.errorNetwork'),
-            json.code,
-            res.status
-          );
-        }
-        if (json.code === 'spotify_dev_user_not_allowed') {
-          return new ApiRequestError(
-            json.error || i18n.t('salon.spotifySearch.errorDevUser'),
-            json.code,
-            res.status,
-            playbackState
-          );
-        }
-        if (json.code === 'no_active_device') {
-          return new ApiRequestError(
-            i18n.t('salon.playbackMode.spotifyLaunchingApp'),
-            json.code,
-            res.status,
-            playbackState,
-            queue
-          );
         }
         return new ApiRequestError(json.error, json.code, res.status, playbackState, queue);
       }
@@ -249,7 +162,7 @@ export const api = {
     request<{ user: import('../types').User }>('/auth/complete-onboarding', { method: 'POST' }, token),
 
   getOAuthProviders: () =>
-    request<{ google: boolean; facebook: boolean; youtube: boolean; spotify: boolean; instagram: boolean }>('/auth/providers', {}),
+    request<{ google: boolean; facebook: boolean; youtube: boolean; instagram: boolean }>('/auth/providers', {}),
 
   exchangeOAuthCode: (
     code: string,
@@ -291,7 +204,6 @@ export const api = {
         active: number;
         pending: number;
         blocked: number;
-        spotify: import('../types').AdminSpotifyConnectionCounts;
       };
       inviteCodes: import('../types').AccessInviteCode[];
     }>('/access/admin/overview', {}, token),
@@ -728,7 +640,19 @@ export const api = {
 
   /** Fetches the current user. Passes token header if available; also relies on the httpOnly cookie. */
   me: (token: string | null) =>
-    request<{ user: import('../types').User; token?: string }>('/auth/me', {}, token),
+    request<{
+      user: import('../types').User;
+      token?: string;
+      currentTermsVersion?: string;
+      termsReacceptanceRequired?: boolean;
+    }>('/auth/me', {}, token),
+
+  acceptTerms: (token: string, termsVersion: string) =>
+    request<{ ok: boolean; user: import('../types').User; termsReacceptanceRequired: boolean }>(
+      '/auth/accept-terms',
+      { method: 'POST', body: JSON.stringify({ termsVersion }) },
+      token
+    ),
 
   /** Clears the server-side httpOnly cookie (web). Native clients discard their in-memory token. */
   logout: () => request<{ ok: boolean }>('/auth/logout', { method: 'POST' }),
@@ -789,7 +713,7 @@ export const api = {
   getSalon: (token: string, id: string) =>
     request<{ salon: import('../types').Salon }>(`/salons/${id}`, {}, token),
 
-  resolveSalonTrack: (token: string, salonId: string, platform: 'spotify' | 'youtube') =>
+  resolveSalonTrack: (token: string, salonId: string, platform: 'youtube' = 'youtube') =>
     request<{ track: import('../types').ResolvedSalonTrack }>(
       `/salons/${salonId}/resolve-track?platform=${platform}`,
       {},
@@ -802,23 +726,6 @@ export const api = {
       {},
       token
     ),
-
-  searchSpotify: (
-    token: string,
-    query: string,
-    signal?: AbortSignal,
-    limit?: number
-  ) => {
-    const params = new URLSearchParams({ q: query });
-    if (limit != null && Number.isFinite(limit)) {
-      params.set('limit', String(Math.floor(limit)));
-    }
-    return request<{ results: import('../types').SpotifySearchResult[] }>(
-      `/salons/spotify-search?${params}`,
-      { signal },
-      token
-    );
-  },
 
   salonChangeTrack: (
     token: string,
@@ -884,34 +791,8 @@ export const api = {
       token
     ),
 
-  getSpotifyPlaylists: (token: string) =>
-    request<{
-      playlists: import('../types').SpotifyPlaylistSummary[];
-      isRealAccount: boolean;
-      spotifySessionValid?: boolean;
-      spotifySessionCode?: string;
-      spotifyLibraryValid?: boolean;
-      spotifyLibraryCode?: string;
-    }>('/platforms/spotify/playlists', {}, token),
-
-  verifySpotifyPlaylistAccess: (
-    token: string,
-    body: { playlistId?: string; playlistUrl?: string }
-  ) =>
-    request<{ ok: boolean }>('/platforms/spotify/playlists/verify-access', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }, token),
-
   getYoutubeOAuthUrl: (token: string) =>
     request<{ url: string }>('/platforms/youtube/oauth/url', {}, token),
-
-  getSpotifyOAuthUrl: (token: string, options?: { reconnect?: boolean }) =>
-    request<{ url: string }>(
-      `/platforms/spotify/oauth/url${options?.reconnect ? '?reconnect=1' : ''}`,
-      {},
-      token
-    ),
 
   getInstagramOAuthUrl: (token: string) =>
     request<{ url: string }>('/platforms/instagram/oauth/url', {}, token),
@@ -1050,39 +931,6 @@ export const api = {
       { method: 'POST', body: JSON.stringify({ queueItemId }) },
       token
     ),
-
-  spotifySalonPlaybackControl: (
-    token: string,
-    salonId: string,
-    action: 'pause' | 'play' | 'stop' | 'next'
-  ) =>
-    request<{ ok: boolean; action: string }>(
-      `/salons/${salonId}/playback/spotify-control`,
-      { method: 'POST', body: JSON.stringify({ action }) },
-      token
-    ),
-
-  spotifySalonSeek: (token: string, salonId: string, positionMs: number) =>
-    request<{ ok: boolean; action: string; positionMs: number }>(
-      `/salons/${salonId}/playback/spotify-control`,
-      { method: 'POST', body: JSON.stringify({ action: 'seek', positionMs }) },
-      token
-    ),
-
-  getSpotifySalonNowPlaying: (token: string, salonId: string) =>
-    request<{
-      nowPlaying: {
-        active: boolean;
-        isPlaying: boolean;
-        progressMs: number;
-        durationMs?: number;
-        trackId?: string;
-        title?: string;
-        artist?: string;
-        albumArtUrl?: string;
-        externalUrl?: string;
-      };
-    }>(`/salons/${salonId}/playback/spotify-now-playing`, {}, token),
 
   getLives: (
     token: string,
@@ -1581,7 +1429,7 @@ export const api = {
   updateProfile: (token: string, body: object) =>
     request<{ user: import('../types').User }>('/auth/profile', { method: 'PATCH', body: JSON.stringify(body) }, token),
 
-  connectPlatform: async (token: string, platform: 'spotify' | 'youtube' | 'instagram') => {
+  connectPlatform: async (token: string, platform: 'youtube' | 'instagram') => {
     const r = await request<{
       ok: boolean;
       user?: import('../types').User;
@@ -1604,7 +1452,7 @@ export const api = {
     return r as { ok: boolean; user: import('../types').User };
   },
 
-  disconnectPlatform: (token: string, platform: 'spotify' | 'youtube' | 'instagram') =>
+  disconnectPlatform: (token: string, platform: 'youtube' | 'instagram') =>
     request<{ ok: boolean; user: import('../types').User }>(
       `/platforms/${platform}/disconnect`,
       { method: 'DELETE' },

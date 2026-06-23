@@ -121,7 +121,7 @@ export function OnboardingPage({ onDone }: Props) {
     api
       .getPlatformStatus(token)
       .then((s) => {
-        setOauthConfigured(s.oauthConfigured ?? (s.spotifyOAuthAvailable || s.youtubeOAuthAvailable));
+        setOauthConfigured(s.oauthConfigured ?? s.youtubeOAuthAvailable);
         setHasRealPlatformConnection(s.hasRealPlatformConnection ?? false);
         setInstagramOAuthAvailable(s.instagramOAuthAvailable ?? false);
       })

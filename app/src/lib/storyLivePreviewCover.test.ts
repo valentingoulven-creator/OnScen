@@ -7,9 +7,9 @@ const baseLive = (albumArtUrl?: string): Live => ({
   hostId: 'u1',
   hostName: 'Alice',
   title: 'Mon live',
-  platform: 'spotify',
+  platform: 'youtube',
   playbackState: {
-    platform: 'spotify',
+    platform: 'youtube',
     trackId: 't1',
     title: 'Track',
     artist: 'Artist',

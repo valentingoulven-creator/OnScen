@@ -2,7 +2,6 @@ import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import { canJoinSalonAsParticipant, salonParticipantAccessMessageKey } from '../lib/platformConnect';
 import { PlatformConnectCard } from './PlatformConnectCard';
-import { SpotifySalonDeprecatedNotice } from './SpotifySalonDeprecatedNotice';
 import type { MusicPlatform } from '../lib/salonPlayback';
 import type { User } from '../types';
 
@@ -30,10 +29,6 @@ export function SalonPlatformAccessGate({
   children,
 }: SalonPlatformAccessGateProps) {
   const { t } = useTranslation();
-
-  if (salonPlatform === 'spotify') {
-    return <SpotifySalonDeprecatedNotice variant={variant} />;
-  }
 
   if (canJoinSalonAsParticipant(salonPlatform, connectedPlatforms, isHost)) {
     return <>{children}</>;

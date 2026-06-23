@@ -47,6 +47,7 @@ import {
 } from './lib/salonModeration';
 import { isAllowedChatAttachmentUrl } from './lib/chatAttachmentUrl';
 import { checkChatRateLimit } from './lib/chatRateLimit';
+import { moderateChatAttachment } from './lib/contentModeration';
 import { computePlaybackPositionMs } from './lib/playbackClock';
 import { isAccessAdmin } from './lib/accessControl';
 
@@ -601,40 +602,50 @@ export function setupSockets(io: Server): void {
         attachmentSize?: number;
         attachmentMimeType?: string;
       }) => {
-        const authUserId = (socket.data as { userId?: string }).userId;
-        if (!authUserId || authUserId !== payload.senderId) return;
-        if (!checkChatRateLimit(authUserId)) return;
-        // Require the sender to be in the salon room (prevents non-members flooding the chat).
-        if (!socket.rooms.has(`salon_${payload.salonId}`)) return;
-        // Limit message content length to avoid storing oversized data.
-        const content = typeof payload.content === 'string' ? payload.content.slice(0, 2000) : '';
-        if (!content.trim() && !payload.attachmentUrl) return;
-        if (payload.attachmentUrl && !isAllowedChatAttachmentUrl(payload.attachmentUrl)) return;
-        const sender = db.users.get(authUserId);
-        const msg: ChatMessage = {
-          id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-          roomId: payload.salonId,
-          roomType: 'salon',
-          senderId: authUserId,
-          senderName: sender?.username ?? 'Utilisateur',
-          senderUsernameColor: sender?.usernameColor,
-          senderUsernameWaveFrom: sender?.usernameWaveFrom,
-          senderUsernameWaveTo: sender?.usernameWaveTo,
-          senderIsDev: isDevUser(sender) ? true : undefined,
-          content,
-          timestamp: Date.now(),
-          ...(payload.attachmentUrl ? {
-            attachmentUrl: payload.attachmentUrl,
-            attachmentName: payload.attachmentName,
-            attachmentSize: payload.attachmentSize,
-            attachmentMimeType: payload.attachmentMimeType,
-          } : {}),
-        };
-        const list = db.salonChats.get(payload.salonId) || [];
-        list.push(msg);
-        db.salonChats.set(payload.salonId, list);
-        schedulePersist();
-        io.to(`salon_${payload.salonId}`).emit('salon_message', msg);
+        void (async () => {
+          const authUserId = (socket.data as { userId?: string }).userId;
+          if (!authUserId || authUserId !== payload.senderId) return;
+          if (!checkChatRateLimit(authUserId)) return;
+          if (!socket.rooms.has(`salon_${payload.salonId}`)) return;
+          const content = typeof payload.content === 'string' ? payload.content.slice(0, 2000) : '';
+          if (!content.trim() && !payload.attachmentUrl) return;
+          if (payload.attachmentUrl && !isAllowedChatAttachmentUrl(payload.attachmentUrl)) return;
+          if (payload.attachmentUrl) {
+            const moderation = await moderateChatAttachment(
+              payload.attachmentUrl,
+              payload.attachmentMimeType,
+              'salon_chat'
+            );
+            if (!moderation.allowed) return;
+          }
+          const sender = db.users.get(authUserId);
+          const msg: ChatMessage = {
+            id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            roomId: payload.salonId,
+            roomType: 'salon',
+            senderId: authUserId,
+            senderName: sender?.username ?? 'Utilisateur',
+            senderUsernameColor: sender?.usernameColor,
+            senderUsernameWaveFrom: sender?.usernameWaveFrom,
+            senderUsernameWaveTo: sender?.usernameWaveTo,
+            senderIsDev: isDevUser(sender) ? true : undefined,
+            content,
+            timestamp: Date.now(),
+            ...(payload.attachmentUrl
+              ? {
+                  attachmentUrl: payload.attachmentUrl,
+                  attachmentName: payload.attachmentName,
+                  attachmentSize: payload.attachmentSize,
+                  attachmentMimeType: payload.attachmentMimeType,
+                }
+              : {}),
+          };
+          const list = db.salonChats.get(payload.salonId) || [];
+          list.push(msg);
+          db.salonChats.set(payload.salonId, list);
+          schedulePersist();
+          io.to(`salon_${payload.salonId}`).emit('salon_message', msg);
+        })();
       }
     );
 
@@ -650,95 +661,103 @@ export function setupSockets(io: Server): void {
         attachmentSize?: number;
         attachmentMimeType?: string;
       }) => {
-        const authUserId = (socket.data as { userId?: string }).userId;
-        if (!authUserId || authUserId !== payload.senderId) return;
-        if (!checkChatRateLimit(authUserId)) return;
-        // Require the sender to be in the live room (prevents non-members flooding the chat).
-        if (!socket.rooms.has(`live_${payload.liveId}`)) return;
-        if (isLiveChatBanned(payload.liveId, authUserId)) {
-          const ban = getLiveBan(payload.liveId, authUserId);
-          socket.emit('live_chat_denied', {
-            liveId: payload.liveId,
-            reason: 'banned',
-            message: ban ? liveBanMessage(ban) : 'Vous êtes banni du chat de ce live.',
-          });
-          return;
-        }
-        if (isLiveViewBanned(payload.liveId, authUserId)) {
-          const ban = getLiveBan(payload.liveId, authUserId);
-          socket.emit('live_user_banned', {
-            liveId: payload.liveId,
-            scope: 'live',
-            permanent: ban?.permanent,
-            until: ban?.until,
-            message: ban ? liveBanMessage(ban) : 'Vous êtes banni de ce live.',
-          });
-          return;
-        }
-        const liveContent = typeof payload.content === 'string' ? payload.content.slice(0, 2000) : '';
-        if (!liveContent.trim() && !payload.attachmentUrl) return;
-        if (payload.attachmentUrl && !isAllowedChatAttachmentUrl(payload.attachmentUrl)) return;
-        const live = db.lives.get(payload.liveId)!;
-        const isVipMod = (live.vipModeratorIds ?? []).includes(authUserId);
-        const isHost = live.hostId === authUserId;
-        // Appliquer les règles de config chat
-        let filteredContent = liveContent;
-        if (live.chatConfig?.noLinksForParticipants && !isHost && !isVipMod) {
-          // Retirer les URLs (http/https/www) du message
-          filteredContent = filteredContent
-            .replace(/https?:\/\/[^\s]+/gi, '')
-            .replace(/\bwww\.[^\s]+/gi, '')
-            .trim();
-          if (!filteredContent && !payload.attachmentUrl) {
+        void (async () => {
+          const authUserId = (socket.data as { userId?: string }).userId;
+          if (!authUserId || authUserId !== payload.senderId) return;
+          if (!checkChatRateLimit(authUserId)) return;
+          if (!socket.rooms.has(`live_${payload.liveId}`)) return;
+          if (isLiveChatBanned(payload.liveId, authUserId)) {
+            const ban = getLiveBan(payload.liveId, authUserId);
             socket.emit('live_chat_denied', {
               liveId: payload.liveId,
-              reason: 'no_links',
-              message: 'Les liens sont désactivés dans ce live.',
+              reason: 'banned',
+              message: ban ? liveBanMessage(ban) : 'Vous êtes banni du chat de ce live.',
             });
             return;
           }
-        }
-        // Mode lent : vérifier le délai minimum
-        if (live.chatConfig?.slowModeSeconds && live.chatConfig.slowModeSeconds > 0 && !isHost && !isVipMod) {
-          const key = `slow_${payload.liveId}_${authUserId}`;
-          const last = (db as unknown as Record<string, unknown>)[key] as number | undefined;
-          const now = Date.now();
-          if (last && now - last < live.chatConfig.slowModeSeconds * 1000) {
-            const waitSec = Math.ceil((live.chatConfig.slowModeSeconds * 1000 - (now - last)) / 1000);
-            socket.emit('live_chat_denied', {
+          if (isLiveViewBanned(payload.liveId, authUserId)) {
+            const ban = getLiveBan(payload.liveId, authUserId);
+            socket.emit('live_user_banned', {
               liveId: payload.liveId,
-              reason: 'slow_mode',
-              message: `Mode lent activé. Attendez ${waitSec}s avant le prochain message.`,
+              scope: 'live',
+              permanent: ban?.permanent,
+              until: ban?.until,
+              message: ban ? liveBanMessage(ban) : 'Vous êtes banni de ce live.',
             });
             return;
           }
-          (db as unknown as Record<string, unknown>)[key] = now;
-        }
-        const liveSender = db.users.get(authUserId);
-        const msg: ChatMessage = {
-          id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-          roomId: payload.liveId,
-          roomType: 'live',
-          senderId: authUserId,
-          senderName: liveSender?.username ?? 'Utilisateur',
-          senderUsernameColor: liveSender?.usernameColor,
-          senderUsernameWaveFrom: liveSender?.usernameWaveFrom,
-          senderUsernameWaveTo: liveSender?.usernameWaveTo,
-          senderIsDev: isDevUser(liveSender) ? true : undefined,
-          content: filteredContent,
-          timestamp: Date.now(),
-          ...(payload.attachmentUrl ? {
-            attachmentUrl: payload.attachmentUrl,
-            attachmentName: payload.attachmentName,
-            attachmentSize: payload.attachmentSize,
-            attachmentMimeType: payload.attachmentMimeType,
-          } : {}),
-        };
-        const list = db.liveChats.get(payload.liveId) || [];
-        list.push(msg);
-        db.liveChats.set(payload.liveId, list);
-        schedulePersist();
-        io.to(`live_${payload.liveId}`).emit('live_message', msg);
+          const liveContent = typeof payload.content === 'string' ? payload.content.slice(0, 2000) : '';
+          if (!liveContent.trim() && !payload.attachmentUrl) return;
+          if (payload.attachmentUrl && !isAllowedChatAttachmentUrl(payload.attachmentUrl)) return;
+          if (payload.attachmentUrl) {
+            const moderation = await moderateChatAttachment(
+              payload.attachmentUrl,
+              payload.attachmentMimeType,
+              'live_chat'
+            );
+            if (!moderation.allowed) return;
+          }
+          const live = db.lives.get(payload.liveId)!;
+          const isVipMod = (live.vipModeratorIds ?? []).includes(authUserId);
+          const isHost = live.hostId === authUserId;
+          let filteredContent = liveContent;
+          if (live.chatConfig?.noLinksForParticipants && !isHost && !isVipMod) {
+            filteredContent = filteredContent
+              .replace(/https?:\/\/[^\s]+/gi, '')
+              .replace(/\bwww\.[^\s]+/gi, '')
+              .trim();
+            if (!filteredContent && !payload.attachmentUrl) {
+              socket.emit('live_chat_denied', {
+                liveId: payload.liveId,
+                reason: 'no_links',
+                message: 'Les liens sont désactivés dans ce live.',
+              });
+              return;
+            }
+          }
+          if (live.chatConfig?.slowModeSeconds && live.chatConfig.slowModeSeconds > 0 && !isHost && !isVipMod) {
+            const key = `slow_${payload.liveId}_${authUserId}`;
+            const last = (db as unknown as Record<string, unknown>)[key] as number | undefined;
+            const now = Date.now();
+            if (last && now - last < live.chatConfig.slowModeSeconds * 1000) {
+              const waitSec = Math.ceil((live.chatConfig.slowModeSeconds * 1000 - (now - last)) / 1000);
+              socket.emit('live_chat_denied', {
+                liveId: payload.liveId,
+                reason: 'slow_mode',
+                message: `Mode lent activé. Attendez ${waitSec}s avant le prochain message.`,
+              });
+              return;
+            }
+            (db as unknown as Record<string, unknown>)[key] = now;
+          }
+          const liveSender = db.users.get(authUserId);
+          const msg: ChatMessage = {
+            id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            roomId: payload.liveId,
+            roomType: 'live',
+            senderId: authUserId,
+            senderName: liveSender?.username ?? 'Utilisateur',
+            senderUsernameColor: liveSender?.usernameColor,
+            senderUsernameWaveFrom: liveSender?.usernameWaveFrom,
+            senderUsernameWaveTo: liveSender?.usernameWaveTo,
+            senderIsDev: isDevUser(liveSender) ? true : undefined,
+            content: filteredContent,
+            timestamp: Date.now(),
+            ...(payload.attachmentUrl
+              ? {
+                  attachmentUrl: payload.attachmentUrl,
+                  attachmentName: payload.attachmentName,
+                  attachmentSize: payload.attachmentSize,
+                  attachmentMimeType: payload.attachmentMimeType,
+                }
+              : {}),
+          };
+          const list = db.liveChats.get(payload.liveId) || [];
+          list.push(msg);
+          db.liveChats.set(payload.liveId, list);
+          schedulePersist();
+          io.to(`live_${payload.liveId}`).emit('live_message', msg);
+        })();
       }
     );
 

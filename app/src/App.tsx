@@ -78,6 +78,7 @@ import {
 } from './lib/liveVideoFloat';
 import { emitOnSocket } from './lib/socket';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
+import { TermsReacceptanceModal } from './components/TermsReacceptanceModal';
 import { dispatchPlatformStatusRefresh } from './lib/platformStatusEvents';
 import {
   emitLeaveSalon,
@@ -115,7 +116,7 @@ type View =
   | { type: 'profile'; id: string };
 
 export default function App() {
-  const { user, token, completeOnboarding, refreshUser, authBootPending, authBootError, clearAuthBootError, setUserFromProfile } = useAuth();
+  const { user, token, completeOnboarding, refreshUser, authBootPending, authBootError, clearAuthBootError, setUserFromProfile, logout } = useAuth();
   useWebPushRegistration(token);
   const { unreadCount: dmUnread, incomingToast, dismissToast, setDmTabActive } = useDmUnread();
   const [appToast, setAppToast] = useState<{ message: string; kind: 'info' | 'error' } | null>(null);
@@ -348,22 +349,6 @@ export default function App() {
       }
     }
     params.delete('youtube_oauth');
-    params.delete('reason');
-    const q = params.toString();
-    window.history.replaceState({}, '', `${window.location.pathname}${q ? `?${q}` : ''}`);
-  }, [token, refreshUser]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const oauth = params.get('spotify_oauth');
-    if (!oauth) return;
-    if (oauth === 'ok' && token) {
-      void refreshUser().then(() => dispatchPlatformStatusRefresh());
-    }
-    if (oauth === 'error') {
-      showAppToast('Connexion Spotify annulée ou échouée.', 'error');
-    }
-    params.delete('spotify_oauth');
     params.delete('reason');
     const q = params.toString();
     window.history.replaceState({}, '', `${window.location.pathname}${q ? `?${q}` : ''}`);
@@ -961,6 +946,19 @@ export default function App() {
   }
 
   if (!user.onboardingCompleted) return <OnboardingPage onDone={completeOnboarding} />;
+
+  if (user.termsReacceptanceRequired) {
+    return (
+      <>
+        <TermsReacceptanceModal
+          token={token}
+          onAccepted={() => void refreshUser()}
+          onLogout={logout}
+        />
+        <CookieConsentBanner />
+      </>
+    );
+  }
 
   const salonFullScreen = activeSalonSession?.viewMode === 'full';
   const liveFullScreen = activeLiveViewerSession?.viewMode === 'full';

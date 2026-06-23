@@ -18,7 +18,7 @@ function baseLive(overrides: Partial<Live> = {}): Live {
     blurredLatitude: 48.85,
     blurredLongitude: 2.35,
     title: 'Test live',
-    platform: 'spotify',
+    platform: 'youtube',
     createdAt: Date.now(),
     ...overrides,
   } as Live;

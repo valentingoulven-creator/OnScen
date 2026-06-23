@@ -3,12 +3,16 @@ import jwt from 'jsonwebtoken';
 import { db } from '../models/schema';
 import { canUserUseApp } from '../lib/accessControl';
 import { getJwtSecret, isProductionEnv } from '../lib/jwtSecret';
+import { getUserTokenVersion } from '../lib/tokenVersion';
+import type { User } from '../models/schema';
 
 const JWT_SECRET = getJwtSecret();
 
 export interface AuthPayload {
   id: string;
   username: string;
+  /** JWT session version — must match user.tokenVersion in DB. */
+  tv?: number;
 }
 
 /** Header JWT dédié — évite d'écraser Authorization: Basic (Caddy) côté navigateur. */
@@ -83,6 +87,13 @@ function extractToken(req: Request): string | null {
   return extractCookieToken(req) ?? extractHeaderToken(req);
 }
 
+function tokenVersionMatches(user: User | undefined, decoded: AuthPayload): boolean {
+  if (!user) return false;
+  const expected = getUserTokenVersion(user);
+  const tokenTv = decoded.tv ?? 0;
+  return tokenTv === expected;
+}
+
 export function authenticateJWT(req: Request, res: Response, next: NextFunction): void {
   const token = extractToken(req);
   if (!token) {
@@ -92,7 +103,15 @@ export function authenticateJWT(req: Request, res: Response, next: NextFunction)
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as AuthPayload;
     const user = db.users.get(decoded.id);
-    if (user && !canUserUseApp(user)) {
+    if (!user) {
+      res.status(401).json({ error: 'Token invalide ou expiré' });
+      return;
+    }
+    if (!tokenVersionMatches(user, decoded)) {
+      res.status(401).json({ error: 'Session expirée — reconnectez-vous' });
+      return;
+    }
+    if (!canUserUseApp(user)) {
       const status = user.accountStatus === 'blocked' ? 'account_blocked' : 'account_pending';
       const message =
         status === 'account_blocked'
@@ -113,14 +132,26 @@ export const JWT_REMEMBER_EXPIRY = '7d';
 export const JWT_SESSION_EXPIRY = '24h';
 
 export function signToken(payload: AuthPayload, rememberMe = true): string {
-  return jwt.sign(payload, JWT_SECRET, {
+  const tv = payload.tv ?? 0;
+  return jwt.sign({ ...payload, tv }, JWT_SECRET, {
     expiresIn: rememberMe ? JWT_REMEMBER_EXPIRY : JWT_SESSION_EXPIRY,
   });
 }
 
+/** Signs a JWT including the user's current tokenVersion. */
+export function signTokenForUser(user: User, rememberMe = true): string {
+  return signToken(
+    { id: user.id, username: user.username, tv: getUserTokenVersion(user) },
+    rememberMe
+  );
+}
+
 export function verifyAuthToken(token: string): AuthPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as AuthPayload;
+    const decoded = jwt.verify(token, JWT_SECRET) as AuthPayload;
+    const user = db.users.get(decoded.id);
+    if (!user || !tokenVersionMatches(user, decoded)) return null;
+    return decoded;
   } catch {
     return null;
   }

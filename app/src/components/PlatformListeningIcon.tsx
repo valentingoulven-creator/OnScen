@@ -7,17 +7,6 @@ interface PlatformListeningIconProps {
   className?: string;
 }
 
-function SpotifyMark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden>
-      <path
-        fill="currentColor"
-        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 14.36c-.2.32-.62.42-.94.22-2.58-1.58-5.84-1.94-9.68-1.06-.37.08-.74-.15-.82-.52-.08-.37.15-.74.52-.82 4.18-.95 7.82-.55 10.72 1.18.32.2.42.62.2.94zm1.2-2.66c-.24.39-.75.51-1.14.27-2.95-1.81-7.45-2.34-10.94-1.28-.45.14-.93-.12-1.07-.57-.14-.45.12-.93.57-1.07 3.98-1.21 9.05-.62 12.45 1.45.39.24.51.75.13 1.2zm.1-2.77C14.85 8.1 8.84 7.58 5.16 8.86c-.54.16-1.12-.14-1.28-.68-.16-.54.14-1.12.68-1.28 4.28-1.3 11-.74 15.1 1.62.49.3.64.94.34 1.43-.3.49-.94.64-1.43.34z"
-      />
-    </svg>
-  );
-}
-
 function YoutubeMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden>
@@ -29,20 +18,18 @@ function YoutubeMark({ className }: { className?: string }) {
   );
 }
 
-export function PlatformListeningIcon({ platform, size = 'sm', className = '' }: PlatformListeningIconProps) {
+export function PlatformListeningIcon({ platform: _platform, size = 'sm', className = '' }: PlatformListeningIconProps) {
   const box = size === 'md' ? 'h-5 w-5' : 'h-4 w-4';
   const icon = size === 'md' ? 'h-3 w-3' : 'h-2.5 w-2.5';
-  const label = platform === 'spotify' ? 'Écoute sur Spotify' : 'Écoute sur YouTube';
+  const label = 'Écoute sur YouTube';
 
   return (
     <span
-      className={`inline-flex shrink-0 items-center justify-center rounded-full border border-[#12121a] text-white ${box} ${
-        platform === 'spotify' ? 'bg-[#1DB954]' : 'bg-[#FF0000]'
-      } ${className}`}
+      className={`inline-flex shrink-0 items-center justify-center rounded-full border border-[#12121a] text-white bg-[#FF0000] ${box} ${className}`}
       title={label}
       aria-label={label}
     >
-      {platform === 'spotify' ? <SpotifyMark className={icon} /> : <YoutubeMark className={icon} />}
+      <YoutubeMark className={icon} />
     </span>
   );
 }

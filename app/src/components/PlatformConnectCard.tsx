@@ -32,22 +32,17 @@ interface PlatformConnectCardProps {
 
 function platformCardClasses(platform: ConnectPlatform, linked: boolean): string {
   if (!linked) return 'border-[#2d2d3d] bg-[#1a1a26]';
-  if (platform === 'spotify') return 'border-green-500/40 bg-green-500/5';
   if (platform === 'instagram') return 'border-pink-500/40 bg-gradient-to-br from-pink-500/10 via-purple-500/5 to-[#1a1a26]';
   return 'border-red-500/40 bg-red-500/5';
 }
 
 function platformCompactClasses(platform: ConnectPlatform): string {
-  if (platform === 'spotify') return 'text-green-400 border-green-500/40 bg-green-500/10';
-  if (platform === 'instagram') return 'text-pink-400 border-pink-500/40 bg-gradient-to-r from-pink-500/15 to-purple-500/15';
+  if (platform === 'instagram') return 'text-pink-400 border-pink-500/40 bg-pink-500/10';
   return 'text-red-400 border-red-500/40 bg-red-500/10';
 }
 
 function platformConnectButtonClasses(platform: ConnectPlatform, available: boolean): string {
   const base = 'w-full py-2.5 rounded-lg text-xs font-bold text-white transition-colors disabled:opacity-50';
-  if (platform === 'spotify') {
-    return `${base} ${available ? 'bg-green-600 hover:bg-green-500' : 'bg-green-600 opacity-40 cursor-not-allowed'}`;
-  }
   if (platform === 'instagram') {
     return `${base} ${available ? 'bg-gradient-to-r from-pink-500 via-purple-500 to-orange-400 hover:from-pink-400 hover:via-purple-400 hover:to-orange-300' : 'bg-gradient-to-r from-pink-500 via-purple-500 to-orange-400 opacity-40 cursor-not-allowed'}`;
   }
@@ -69,14 +64,8 @@ export function PlatformConnectCard({
   const [statusLoading, setStatusLoading] = useState(true);
   const [youtubeOAuthAvailable, setYoutubeOAuthAvailable] = useState(false);
   const [youtubeMockConnectAvailable, setYoutubeMockConnectAvailable] = useState(false);
-  const [spotifyOAuthAvailable, setSpotifyOAuthAvailable] = useState(false);
   const [instagramOAuthAvailable, setInstagramOAuthAvailable] = useState(false);
   const [platformLink, setPlatformLink] = useState<PlatformLink | undefined>();
-  const [spotifySessionValid, setSpotifySessionValid] = useState<boolean | undefined>();
-  const [spotifySessionCode, setSpotifySessionCode] = useState<string | undefined>();
-  const [spotifyNeedsScopeReconnect, setSpotifyNeedsScopeReconnect] = useState(false);
-  const [spotifyProduct, setSpotifyProduct] = useState<string | undefined>();
-  const [spotifyPremium, setSpotifyPremium] = useState<boolean | undefined>();
 
   const mergedPlatformLinks: PlatformLinkSummary[] = [
     ...(platformLinks ?? []),
@@ -86,16 +75,6 @@ export function PlatformConnectCard({
     platform,
     mergedPlatformLinks.length ? mergedPlatformLinks : undefined
   );
-  const spotifyNeedsReconnect =
-    platform === 'spotify' && linked && spotifySessionValid === false;
-  const spotifyPremiumRequired =
-    platform === 'spotify' &&
-    linked &&
-    (spotifySessionCode === 'spotify_premium_required' || spotifyPremium === false);
-  const spotifyScopeMissing =
-    platform === 'spotify' &&
-    linked &&
-    (spotifySessionCode === 'spotify_scope_missing' || spotifyNeedsScopeReconnect);
   const meta = PLATFORM_LABELS[platform];
 
   const loadStatus = useCallback(() => {
@@ -106,14 +85,8 @@ export function PlatformConnectCard({
       .then((s) => {
         setYoutubeOAuthAvailable(s.youtubeOAuthAvailable);
         setYoutubeMockConnectAvailable(Boolean(s.youtubeMockConnectAvailable));
-        setSpotifyOAuthAvailable(s.spotifyOAuthAvailable);
         setInstagramOAuthAvailable(s.instagramOAuthAvailable);
         setPlatformLink(s.links.find((l) => l.platform === platform));
-        setSpotifySessionValid(s.spotifySessionValid);
-        setSpotifySessionCode(s.spotifySessionCode);
-        setSpotifyNeedsScopeReconnect(Boolean(s.spotifyNeedsScopeReconnect));
-        setSpotifyProduct(s.spotifyProduct);
-        setSpotifyPremium(s.spotifyPremium);
       })
       .catch((e) => {
         setStatusError(e instanceof Error ? e.message : t('errors.network'));
@@ -157,18 +130,6 @@ export function PlatformConnectCard({
     }
   };
 
-  const connectSpotify = async (options?: { reconnect?: boolean }) => {
-    setBusy(true);
-    setError(null);
-    try {
-      const { url } = await api.getSpotifyOAuthUrl(token, { reconnect: options?.reconnect });
-      window.location.href = url;
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('platform.connectError'));
-      setBusy(false);
-    }
-  };
-
   const connectInstagram = async () => {
     setBusy(true);
     setError(null);
@@ -203,25 +164,18 @@ export function PlatformConnectCard({
   const linkedDisplayName = linked ? platformLink?.displayName?.trim() : undefined;
   const displayName = linked
     ? linkedDisplayName ??
-      (platform === 'spotify'
-        ? t('platform.linkedSpotify')
-        : platform === 'youtube'
-          ? t('platform.linkedYoutube')
-          : platform === 'instagram'
-            ? t('platform.linkedInstagram')
-            : t('platform.linkedGeneric'))
+      (platform === 'youtube'
+        ? t('platform.linkedYoutube')
+        : platform === 'instagram'
+          ? t('platform.linkedInstagram')
+          : t('platform.linkedGeneric'))
     : platform === 'instagram'
       ? t('platform.instagramHint')
       : t('platform.hostRequired');
   const accountSubtitle =
     linked && linkedDisplayName ? t('platform.connectedAccount', { name: linkedDisplayName }) : displayName;
-  const accountSecondary =
-    linked && platform === 'spotify'
-      ? platformLink?.email?.trim() || platformLink?.externalUserId?.trim() || undefined
-      : undefined;
 
   const avatarUrl = linked ? platformLink?.avatarUrl : undefined;
-  const topArtists = linked && platform === 'spotify' ? platformLink?.topArtists : undefined;
 
   if (compact && linked) {
     return (
@@ -261,35 +215,11 @@ export function PlatformConnectCard({
             >
               {accountSubtitle}
             </p>
-            {accountSecondary ? (
-              <p className="text-[9px] text-gray-600 mt-0.5 truncate" title={accountSecondary}>
-                {accountSecondary}
-              </p>
-            ) : null}
-            {topArtists?.length ? (
-              <p className="text-[10px] text-gray-600 mt-0.5 truncate">
-                {t('platform.topArtists', { artists: topArtists.slice(0, 3).join(', ') })}
-              </p>
-            ) : null}
           </div>
         </div>
         {linked ? (
-          <span
-            className={`text-[10px] px-2 py-0.5 rounded-full bg-[#12121a] border shrink-0 ${
-              spotifyPremiumRequired
-                ? 'border-red-500/40 text-red-400'
-                : spotifyNeedsReconnect
-                  ? 'border-amber-500/40 text-amber-400'
-                  : 'border-[#2d2d3d] text-green-400'
-            }`}
-          >
-            {spotifyPremiumRequired
-              ? t('platform.spotifyPremiumBadge')
-              : platform === 'spotify' && spotifyPremium === true
-                ? t('platform.spotifyPremiumOk')
-                : spotifyNeedsReconnect
-                  ? t('platform.sessionExpired')
-                  : t('platform.connected')}
+          <span className="text-[10px] px-2 py-0.5 rounded-full border shrink-0 border-[#2d2d3d] text-green-400">
+            {t('platform.connected')}
           </span>
         ) : null}
       </div>
@@ -335,16 +265,6 @@ export function PlatformConnectCard({
               </button>
             )}
           </>
-        ) : platform === 'spotify' ? (
-          <button
-            type="button"
-            onClick={spotifyOAuthAvailable ? () => connectSpotify({ reconnect: true }) : undefined}
-            disabled={busy || !spotifyOAuthAvailable || statusLoading}
-            title={!spotifyOAuthAvailable ? t('platform.configureSpotifyServer') : undefined}
-            className={platformConnectButtonClasses('spotify', spotifyOAuthAvailable)}
-          >
-            {busy ? t('platform.redirecting') : statusLoading ? t('platform.loading') : t(meta.connectKey)}
-          </button>
         ) : platform === 'instagram' ? (
           <button
             type="button"
@@ -379,56 +299,6 @@ export function PlatformConnectCard({
             {t('platform.retryStatus')}
           </button>
         </p>
-      )}
-      {platform === 'spotify' && spotifyPremiumRequired && !statusLoading && !statusError && (
-        <p className="text-[10px] text-red-400 mt-2 leading-snug">
-          {spotifyProduct === 'free' || spotifyProduct === 'open'
-            ? t('platform.spotifyFreeNoHost')
-            : t('platform.spotifyPremiumRequiredHint')}
-        </p>
-      )}
-      {platform === 'spotify' && spotifyScopeMissing && !spotifyPremiumRequired && !statusLoading && !statusError && (
-        <p className="text-[10px] text-amber-400 mt-2 leading-snug">
-          {t('platform.spotifyScopeReconnectHint')}{' '}
-          <button
-            type="button"
-            onClick={() => connectSpotify({ reconnect: true })}
-            disabled={busy || !spotifyOAuthAvailable}
-            className="underline hover:text-amber-300 disabled:opacity-50"
-          >
-            {t('salon.spotifySearch.playlistReconnectSpotify')}
-          </button>
-        </p>
-      )}
-      {platform === 'spotify' &&
-        spotifyNeedsReconnect &&
-        !spotifyScopeMissing &&
-        !spotifyPremiumRequired &&
-        !statusLoading &&
-        !statusError && (
-        <p className="text-[10px] text-amber-400 mt-2 leading-snug">
-          {t('platform.spotifySessionExpiredHint')}{' '}
-          <button
-            type="button"
-            onClick={() => connectSpotify({ reconnect: true })}
-            disabled={busy || !spotifyOAuthAvailable}
-            className="underline hover:text-amber-300 disabled:opacity-50"
-          >
-            {t('salon.spotifySearch.playlistReconnectSpotify')}
-          </button>
-        </p>
-      )}
-      {platform === 'spotify' && !statusLoading && !statusError && (
-        <p className="text-[10px] text-gray-500 mt-2 leading-snug">{t('platform.spotifyScopesHint')}</p>
-      )}
-      {platform === 'spotify' && !statusLoading && !statusError && (
-        <p className="text-[10px] text-green-400/70 mt-1 leading-snug">{t('platform.spotifyPremiumHostHint')}</p>
-      )}
-      {platform === 'spotify' && !linked && !spotifyOAuthAvailable && !statusLoading && !statusError && (
-        <p className="text-[10px] text-gray-500 mt-1 leading-snug">{t('platform.spotifyEnvHint')}</p>
-      )}
-      {platform === 'spotify' && !linked && spotifyOAuthAvailable && !statusLoading && !statusError && (
-        <p className="text-[10px] text-amber-400/80 mt-1 leading-snug">{t('platform.spotifyDevQuotaHint')}</p>
       )}
       {platform === 'youtube' && !linked && !statusLoading && !statusError && (
         <p className="text-[10px] text-gray-500 mt-2 leading-snug">{t('platform.youtubeScopesHint')}</p>

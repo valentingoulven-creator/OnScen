@@ -14,6 +14,18 @@ describe('parseYoutubeApiResponse', () => {
     } satisfies Partial<YoutubeDataApiError>);
   });
 
+  it('throws forbidden on 403 without quota reason', async () => {
+    const res = new Response(
+      JSON.stringify({
+        error: { errors: [{ reason: 'accessNotConfigured', message: 'Forbidden' }] },
+      }),
+      { status: 403 }
+    );
+    await expect(parseYoutubeApiResponse(res)).rejects.toMatchObject({
+      code: 'forbidden',
+    } satisfies Partial<YoutubeDataApiError>);
+  });
+
   it('no-op on ok response', async () => {
     const res = new Response('{}', { status: 200 });
     await expect(parseYoutubeApiResponse(res)).resolves.toBeUndefined();

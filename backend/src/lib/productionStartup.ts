@@ -36,8 +36,8 @@ export function assertProductionStartup(): void {
   }
 
   if (!process.env.SIGHTENGINE_API_USER?.trim() || !process.env.SIGHTENGINE_API_SECRET?.trim()) {
-    console.warn(
-      '[startup] Sightengine not configured — UGC image/video uploads will be rejected in production.'
+    throw new Error(
+      '[startup] SIGHTENGINE_API_USER and SIGHTENGINE_API_SECRET must be set in production — UGC moderation is mandatory.'
     );
   }
 }

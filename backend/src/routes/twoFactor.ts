@@ -6,7 +6,7 @@ import * as otplib from 'otplib';
 import QRCode from 'qrcode';
 import rateLimit from 'express-rate-limit';
 import { db } from '../models/schema';
-import { authenticateJWT, signToken, setAuthCookie } from '../middleware/auth';
+import { authenticateJWT, signTokenForUser, setAuthCookie } from '../middleware/auth';
 import { getJwtSecret } from '../lib/jwtSecret';
 import { schedulePersistUserToPg } from '../lib/pgUsers';
 import { schedulePersist } from '../lib/persist';
@@ -305,7 +305,7 @@ twoFactorRouter.post('/validate', twoFAValidateLimiter, async (req: Request, res
     return;
   }
 
-  const token = signToken({ id: user.id, username: user.username }, decoded.rememberMe);
+  const token = signTokenForUser(user, decoded.rememberMe);
   setAuthCookie(res, token, decoded.rememberMe ?? true);
   res.json({ token, user: publicProfile(user, true, user.id) });
 });

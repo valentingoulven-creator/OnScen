@@ -66,12 +66,6 @@ export const CONFIG = {
     'YQHsXMglC9A',
   ],
 
-  // Musiques de test Spotify (IDs publics)
-  SPOTIFY_TRACK_IDS: [
-    '4cOdK2wGLETKBW3PvgPWqT',
-    '7qiZfU4dY1lWllzX7mPBI3',
-    '0VjIjW4GlUZAMYd2vXMi3b',
-  ],
 
   // Termes de recherche YouTube pour tests variés
   YOUTUBE_SEARCH_QUERIES: [

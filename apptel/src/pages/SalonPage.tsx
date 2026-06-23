@@ -522,7 +522,7 @@ export function SalonPage({ salonId, onBack }: { salonId: string; onBack: () => 
                 className="truncate"
               />
               <span className="shrink-0 text-[#6b6b8a]">
-                · {salon.platform === 'spotify' ? '🎧 Spotify' : '▶️ YouTube'}
+                · ▶️ YouTube
               </span>
             </span>
             <HostRatingBlock
@@ -555,7 +555,7 @@ export function SalonPage({ salonId, onBack }: { salonId: string; onBack: () => 
 
       <ChatRoomProvider {...chatProps}>
         <RoomTheaterLayout
-          variant={salon.platform === 'spotify' ? 'queue-chat' : 'theater'}
+          variant="theater"
           chatDock={salon.platform === 'youtube' ? 'left' : 'right'}
           stageFooterMode={salon.platform === 'youtube' ? 'drawer' : 'scroll'}
           allowFloatingChat={salon.platform !== 'youtube'}

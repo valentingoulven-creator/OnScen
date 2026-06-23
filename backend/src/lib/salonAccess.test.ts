@@ -30,9 +30,9 @@ function seedSalon(
     hostId,
     hostName: 'Host',
     title: 'Salon test',
-    platform: 'spotify',
+    platform: 'youtube',
     playbackState: {
-      platform: 'spotify',
+      platform: 'youtube',
       trackId: 'x',
       title: 'Track',
       artist: 'Artist',

@@ -7871,3 +7871,180 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 659 — 2026-06-23
 ================================================================================
+
+================================================================================
+MODIF 660 — Re-audit pre-prod post MODIF 659 (session cookie)
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Re-audit demandé après déploiement fix « Rester connecté » (MODIF 659).
+
+CHANGEMENTS / FIX
+-----
+ docs/audit-pre-prod-2026.md
+ ────────────────────────────
+ • Score global 78 % → 79 % (Go avec risques).
+ • Piliers : sécurité 87 %, conformité 81 %, YouTube 80 %.
+ • Blockers mis à jour (legal-publisher OK prod VPS).
+
+FICHIERS MODIFIÉS
+-----
+ docs/audit-pre-prod-2026.md → re-audit 2026-06-23
+
+BUILD (si vérifié)
+-----
+ backend/ → npm test → ✅ 246 tests
+
+================================================================================
+Fin MODIF 660 — 2026-06-23
+================================================================================
+
+================================================================================
+MODIF 661 — Salon dock chat : bouton playlist synchronisé utilisateur
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En mode théâtre (dock chat gauche), pas d’accès playlist YouTube — uniquement
+ recherche dans l’onglet file d’attente.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/SalonChatDockBody.tsx
+ app/src/components/SalonChatDockPlaylistPicker.tsx (nouveau)
+ app/src/lib/salonUserPlaylistPref.ts (nouveau)
+ app/src/pages/SalonPage.tsx
+ app/src/hooks/useSpotifyPlaylistLibrary.ts
+ app/src/locales/fr.json, en.json
+ ─────────────────────────────────────
+ • Bouton playlist dans la barre d’onglets (icône liste).
+ • Liste les playlists du compte Google connecté + lien public.
+ • Mémorise le dernier choix par userId + plateforme (localStorage).
+ • Charge la file via salonLoadPlaylist.
+
+FICHIERS MODIFIÉS
+-----
+ app/ → SalonChatDock*, salonUserPlaylistPref, SalonPage, i18n
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 661 — 2026-06-23
+================================================================================
+
+================================================================================
+MODIF 662 — Suppression intégration Spotify (YouTube seul) — Soundly Dev
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retirer toute l'intégration Spotify (OAuth, playback, recherche, playlists,
+ salons, UI) et ne conserver que YouTube + Instagram pour les connexions profil.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/spotify*.ts, seed-occitanie-spotify.ts (supprimés)
+ backend/src/routes/oauth.ts, platforms.ts, salons.ts, access.ts
+ backend/src/models/schema.ts → MusicPlatform = 'youtube'
+ backend/src/lib/pgSalonsLives.ts → OCCITANIE_SALON_ID_PREFIX local
+ backend/src/bootstrap.ts, server.ts (CSP)
+ app/src/components/Spotify*, PoweredBySpotify, SalonSpotify* (supprimés)
+ app/src/hooks/useSpotify*, lib/spotify* (supprimés)
+ app/src/components/SalonPlaybackPanel, PlatformConnectCard, SalonPage
+ app/src/lib/api.ts, platformConnect.ts, types.ts
+ apptel/src/types.ts, api.ts, NearbyPeoplePanel, SalonPage
+ tests/agents/scenarios/spotifyHost.scenario.ts (supprimé)
+
+FICHIERS MODIFIÉS
+-----
+ ~80 fichiers touchés ; 27 fichiers Spotify-only supprimés
+
+BUILD (si vérifié)
+-----
+ backend/ → npm run build && npm test → ✅ (231 tests)
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 662 — 2026-06-23
+================================================================================
+
+================================================================================
+MODIF 663 — Audit ≥ 85 % : tokenVersion, RGPD v2, YouTube, CMP, archi, Spotify out
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Roadmap audit pre-prod : sécurité sessions, conformité RGPD/CMP, branding YouTube,
+ fondations scale (object storage, Redis socket), retrait complet Spotify.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/tokenVersion.ts, tokenVersion.test.ts
+ backend/src/middleware/auth.ts → tv dans JWT, signTokenForUser
+ backend/src/routes/auth.ts, oauth.ts, twoFactor.ts, webauthn.ts, msdev.ts
+ backend/src/lib/accountDataExport.ts → formatVersion 2 (salon/live chats, groupes reçus)
+ backend/src/lib/objectStorage.ts, socketCluster.ts (nouveaux)
+ backend/src/bootstrap.ts → attachSocketClusterAdapter
+ app/src/components/PoweredByYouTube.tsx (nouveau)
+ app/src/components/SalonYouTubePlayer.tsx → consentement + badge
+ app/src/components/CookieConsentBanner.tsx → lien privacy
+ app/src/components/SalonProposalsSection.tsx, SalonQueueSection.tsx
+ Suppression résiduelle Spotify (backend spotify*, seed occitanie, docs checklist)
+ docs/audit-pre-prod-2026.md → score 85 %
+
+FICHIERS MODIFIÉS
+-----
+ backend/ auth, export RGPD, archi, retrait Spotify
+ app/ YouTube UX, CMP, propositions/file salon
+ docs/ audit-pre-prod-2026.md
+
+BUILD (si vérifié)
+-----
+ backend/ → npm run build && npm test → ✅ (235 tests)
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 663 — 2026-06-23
+================================================================================
+
+================================================================================
+MODIF 664 — Greenlight audit ≥ 90 % : CGU gate, purge, modération chat, légal
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Fermer les écarts restants de l'audit pre-prod (85 % → ≥ 90 %) côté code.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/termsAcceptance.ts + TermsReacceptanceModal (app)
+ backend/src/routes/auth.ts → POST /accept-terms, /me meta CGU
+ backend/src/lib/dataRetention.ts + scheduler bootstrap
+ backend/src/socket.ts → modération Sightengine pièces jointes chat
+ backend/src/lib/productionStartup.ts → Sightengine obligatoire en prod
+ backend/src/lib/youtubeApiErrors.ts → 403 forbidden vs quota
+ backend/src/lib/legalDocuments.ts, deploy/legal-publisher.template.json
+ app/src/content/legal/rgpd.ts
+ docs/audit-pre-prod-2026.md → 91 %
+
+FICHIERS MODIFIÉS
+-----
+ backend/ terms, retention, socket, startup, youtube errors, legal
+ app/ TermsReacceptanceModal, App, api, types, i18n, rgpd
+
+BUILD (si vérifié)
+-----
+ backend/ → npm run build && npm test → ✅ (242 tests)
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 664 — 2026-06-23
+================================================================================

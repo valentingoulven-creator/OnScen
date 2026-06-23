@@ -48,7 +48,7 @@ export async function resolveSalonCreatePosition(
 }
 
 /** Playlists bibliothèque (/me/playlists) : verify-access redondant au submit. */
-export function shouldVerifySpotifyPlaylistOnCreate(
+export function shouldVerifyYoutubePlaylistOnCreate(
   selection: CreateSalonPlaylistSelection | null
 ): boolean {
   if (!selection) return false;
@@ -56,21 +56,21 @@ export function shouldVerifySpotifyPlaylistOnCreate(
 }
 
 export function buildPlaylistLoadBody(
-  platform: 'spotify' | 'youtube',
-  youtubePlaylist: CreateSalonPlaylistSelection | null,
-  spotifyPlaylist: CreateSalonPlaylistSelection | null
+  youtubePlaylist: CreateSalonPlaylistSelection | null
 ): { playlistId?: string; playlistUrl?: string } | null {
-  if (platform === 'youtube' && youtubePlaylist) {
-    if (youtubePlaylist.playlistUrl) return { playlistUrl: youtubePlaylist.playlistUrl };
-    if (youtubePlaylist.playlistId) return { playlistId: youtubePlaylist.playlistId };
-    return null;
-  }
-  if (platform === 'spotify' && spotifyPlaylist) {
-    if (spotifyPlaylist.playlistId) return { playlistId: spotifyPlaylist.playlistId };
-    if (spotifyPlaylist.playlistUrl) return { playlistUrl: spotifyPlaylist.playlistUrl };
-    return null;
-  }
+  if (!youtubePlaylist) return null;
+  if (youtubePlaylist.playlistUrl) return { playlistUrl: youtubePlaylist.playlistUrl };
+  if (youtubePlaylist.playlistId) return { playlistId: youtubePlaylist.playlistId };
   return null;
+}
+
+export function translateSalonCreateError(
+  t: (key: string, options?: Record<string, unknown>) => string,
+  e: unknown,
+  _platform: 'youtube' = 'youtube'
+): string {
+  if (e instanceof Error && e.message) return e.message;
+  return t('salon.create.errorGeneric', { defaultValue: 'Impossible de créer le salon.' });
 }
 
 /** Charge la playlist après entrée salon (socket `salon_updated`). */

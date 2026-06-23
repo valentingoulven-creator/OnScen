@@ -255,7 +255,7 @@ livesRouter.post('/start', authenticateJWT, async (req: Request, res: Response) 
     };
   } else {
     const { latitude, longitude } = resolveStartCoordinates(user, req.body);
-    const platform: MusicPlatform = req.body.platform === 'youtube' ? 'youtube' : 'spotify';
+    const platform: MusicPlatform = 'youtube';
     live = {
       id: `live_${Date.now()}`,
       hostId: userId,

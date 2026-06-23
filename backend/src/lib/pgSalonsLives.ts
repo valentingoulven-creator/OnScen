@@ -5,7 +5,8 @@ type DbExec = Pick<Pool, 'query'> | Pick<PoolClient, 'query'>;
 import { db, type Live, type Salon } from '../models/schema';
 import { ensureSalonProposals, ensureSalonQueue } from './salonPlaybackOps';
 import { purgeStaleYoutubeMetadataForStorage } from './youtubeMetadata';
-import { OCCITANIE_SALON_ID_PREFIX } from '../seed-occitanie-spotify';
+/** Préfixe IDs salons Occitanie (persistés PostgreSQL). */
+export const OCCITANIE_SALON_ID_PREFIX = 'salon_soundy_occitanie_';
 import { SALON_LIVE_ID_PREFIX } from '../seed-salons-lives';
 import { WORLD_LIVE_ID_PREFIX, WORLD_SALON_ID_PREFIX } from '../seed-world-random';
 

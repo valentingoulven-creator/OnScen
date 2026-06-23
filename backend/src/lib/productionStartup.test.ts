@@ -23,6 +23,8 @@ describe('assertProductionStartup', () => {
     process.env.CORS_ORIGIN = 'https://getsoundy.com';
     process.env.ENCRYPTION_KEY = 'test-key';
     process.env.DATABASE_URL = 'postgres://localhost/test';
+    process.env.SIGHTENGINE_API_USER = 'se-user';
+    process.env.SIGHTENGINE_API_SECRET = 'se-secret';
     expect(() => assertProductionStartup()).toThrow(/JWT_SECRET/);
   });
 
@@ -32,6 +34,8 @@ describe('assertProductionStartup', () => {
     delete process.env.CORS_ORIGIN;
     process.env.ENCRYPTION_KEY = 'test-key';
     process.env.DATABASE_URL = 'postgres://localhost/test';
+    process.env.SIGHTENGINE_API_USER = 'se-user';
+    process.env.SIGHTENGINE_API_SECRET = 'se-secret';
     expect(() => assertProductionStartup()).toThrow(/CORS_ORIGIN/);
   });
 
@@ -54,12 +58,14 @@ describe('assertProductionStartup', () => {
     expect(() => assertProductionStartup()).toThrow(/ENCRYPTION_KEY/);
   });
 
-  it('throws when DATABASE_URL is missing in production', () => {
+  it('throws when Sightengine is missing in production', () => {
     process.env.APP_ENV = 'production';
     process.env.JWT_SECRET = 'prod-secret';
     process.env.CORS_ORIGIN = 'https://getsoundy.com';
     process.env.ENCRYPTION_KEY = 'test-key';
-    delete process.env.DATABASE_URL;
-    expect(() => assertProductionStartup()).toThrow(/DATABASE_URL/);
+    process.env.DATABASE_URL = 'postgres://localhost/test';
+    delete process.env.SIGHTENGINE_API_USER;
+    delete process.env.SIGHTENGINE_API_SECRET;
+    expect(() => assertProductionStartup()).toThrow(/SIGHTENGINE/);
   });
 });

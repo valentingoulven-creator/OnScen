@@ -12,7 +12,7 @@ import type {
   AuthenticationResponseJSON,
 } from '@simplewebauthn/server';
 import rateLimit from 'express-rate-limit';
-import { authenticateJWT, signToken, setAuthCookie } from '../middleware/auth';
+import { authenticateJWT, signTokenForUser, setAuthCookie } from '../middleware/auth';
 import { db } from '../models/schema';
 import { publicProfile } from '../lib/profile';
 import { loginAccessDeniedReason } from '../lib/accessControl';
@@ -301,7 +301,7 @@ webauthnRouter.post(
       trackEvent('user_login_biometric', user.id);
       trackUserActive(user.id);
 
-      const token = signToken({ id: user.id, username: user.username });
+      const token = signTokenForUser(user);
       setAuthCookie(res, token, true);
       res.json({ token, user: publicProfile(user, true, user.id) });
     } catch (err) {

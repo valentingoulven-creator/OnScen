@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { db, User, ListeningRole } from '../models/schema';
-import { authenticateJWT, signToken, setAuthCookie, clearAuthCookie } from '../middleware/auth';
+import { authenticateJWT, signTokenForUser, setAuthCookie, clearAuthCookie } from '../middleware/auth';
 import { getJwtSecret } from '../lib/jwtSecret';
 import {
   applyAgeSettings,
@@ -28,9 +28,11 @@ import {
 } from '../lib/platformConnect';
 import { schedulePersist } from '../lib/persist';
 import { schedulePersistUserToPg } from '../lib/pgUsers';
+import { bumpUserTokenVersion } from '../lib/tokenVersion';
 import { buildUserDataExport } from '../lib/accountDataExport';
 import { deleteUserAccountCascade } from '../lib/accountDeletion';
 import { CURRENT_TERMS_VERSION } from '../lib/legalConstants';
+import { acceptCurrentTerms, userNeedsTermsReacceptance } from '../lib/termsAcceptance';
 import { isValidProfileType } from '../lib/profileTypes';
 import { moderateImageSources, moderationRejectionMessage } from '../lib/contentModeration';
 import {
@@ -203,7 +205,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     return;
   }
 
-  const token = signToken({ id: user.id, username: user.username });
+  const token = signTokenForUser(user);
   setAuthCookie(res, token, true);
   res.status(201).json({
     token,
@@ -264,7 +266,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
   ensurePlatformAccountsFromLegacy(user);
   migratePlaintextPlatformTokens(user);
   db.users.set(user.id, user);
-  const token = signToken({ id: user.id, username: user.username }, stayLoggedIn);
+  const token = signTokenForUser(user, stayLoggedIn);
   setAuthCookie(res, token, stayLoggedIn);
   trackEvent('user_login', user.id);
   trackUserActive(user.id);
@@ -290,7 +292,33 @@ authRouter.get('/me', authenticateJWT, (req: Request, res: Response) => {
   const authToken = (req as Request & { authToken?: string }).authToken;
   res.json({
     user: publicProfile(user, true, user.id),
+    currentTermsVersion: CURRENT_TERMS_VERSION,
+    termsReacceptanceRequired: userNeedsTermsReacceptance(user),
     ...(authToken ? { token: authToken } : {}),
+  });
+});
+
+authRouter.post('/accept-terms', authenticateJWT, (req: Request, res: Response) => {
+  const userId = (req as Request & { user: { id: string } }).user.id;
+  const user = db.users.get(userId);
+  if (!user) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+  const { termsVersion } = req.body ?? {};
+  if (termsVersion && termsVersion !== CURRENT_TERMS_VERSION) {
+    res.status(400).json({ error: 'Version des CGU obsolète — rechargez la page.' });
+    return;
+  }
+  acceptCurrentTerms(user);
+  db.users.set(user.id, user);
+  schedulePersistUserToPg(user);
+  schedulePersist();
+  res.json({
+    ok: true,
+    user: publicProfile(user, true, user.id),
+    currentTermsVersion: CURRENT_TERMS_VERSION,
+    termsReacceptanceRequired: false,
   });
 });
 
@@ -363,7 +391,6 @@ authRouter.patch('/profile', authenticateJWT, async (req: Request, res: Response
     usernameWaveTo,
     instagramHandle,
     youtubeChannel,
-    spotifyUrl,
   } = req.body;
 
   if (username && typeof username === 'string') {
@@ -519,11 +546,6 @@ authRouter.patch('/profile', authenticateJWT, async (req: Request, res: Response
     if (ch) user.youtubeChannel = ch;
     else delete user.youtubeChannel;
   }
-  if (spotifyUrl !== undefined) {
-    const url = String(spotifyUrl).trim().slice(0, 500);
-    if (url) user.spotifyUrl = url;
-    else delete user.spotifyUrl;
-  }
 
   const saved: User = {
     ...user,
@@ -604,6 +626,7 @@ authRouter.post('/change-password', authenticateJWT, async (req: Request, res: R
   }
   try {
     user.passwordHash = await bcrypt.hash(newPassword, 10);
+    bumpUserTokenVersion(user);
   } catch {
     res.status(500).json({ error: 'Erreur interne lors de la mise ? jour du mot de passe' });
     return;
@@ -751,6 +774,7 @@ authRouter.post('/reset-password', async (req: Request, res: Response) => {
     return;
   }
   user.passwordHash = passwordHash;
+  bumpUserTokenVersion(user);
   delete user.resetToken;
   delete user.resetTokenExpiry;
   db.users.set(user.id, user);

@@ -10,7 +10,6 @@ import {
 import { preferredParticipantPlatform, resolveSalonYoutubeTrackId } from '../lib/salonPlayback';
 import { useSalonPlaybackSync } from '../hooks/useSalonPlaybackSync';
 import { SalonYouTubePlayer } from './SalonYouTubePlayer';
-import { SpotifySalonDeprecatedNotice } from './SpotifySalonDeprecatedNotice';
 import type { PlaybackState, Salon } from '../types';
 
 interface MapSalonListenControlsProps {
@@ -71,14 +70,6 @@ export function MapSalonListenControls({
   const { t } = useTranslation();
   const { user, token } = useAuth();
   const isHost = Boolean(salon.isHost ?? (salon.hostId && salon.hostId === user?.id));
-
-  if (salon.platform === 'spotify') {
-    return (
-      <div className={className}>
-        <SpotifySalonDeprecatedNotice variant="compact" />
-      </div>
-    );
-  }
 
   const hostLinked = Boolean(
     isHost && isMusicPlatformLinkedForSalon(salon.platform, user?.connectedPlatforms, user?.platformLinks)
