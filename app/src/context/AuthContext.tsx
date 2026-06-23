@@ -3,6 +3,7 @@ import i18n from '../i18n';
 import { api, ApiRequestError } from '../lib/api';
 import { clearStoredToken, getStoredToken, isNativePlatform, persistToken } from '../lib/authStorage';
 import { clearPersistedSalonSession } from '../lib/activeSalonSession';
+import { setDiagnosticLogUser, flushDiagnosticLogsToServer } from '../lib/diagnosticLogs';
 import { clearSocketUser, registerUser, setSocketAuthToken } from '../lib/socket';
 import type { User } from '../types';
 
@@ -107,6 +108,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useLayoutEffect(() => {
     setSocketAuthToken(token);
   }, [token]);
+
+  useEffect(() => {
+    setDiagnosticLogUser(user?.id ?? null, user?.username ?? null);
+    if (user) void flushDiagnosticLogsToServer(token);
+  }, [user?.id, user?.username, token]);
 
   /**
    * Boot: authenticate the session on startup.

@@ -390,6 +390,31 @@ export interface SyslogResponse {
   fetchedAt: string;
 }
 
+export interface AppDiagnosticLog {
+  id: string;
+  createdAt: string;
+  level: 'error' | 'warn' | 'info' | 'debug';
+  source: string;
+  message: string;
+  stack?: string;
+  context?: Record<string, unknown>;
+  userId?: string;
+  username?: string;
+  url?: string;
+  userAgent?: string;
+  clientId?: string;
+  origin?: 'server' | 'local';
+}
+
+export interface AppDiagnosticLogsResponse {
+  logs: AppDiagnosticLog[];
+  count: number;
+  total: number;
+  persisted: boolean;
+  retentionMonths: number;
+  fetchedAt: string;
+}
+
 export type ListeningRole = 'auditeur' | 'host' | 'les_deux';
 
 export type RelationshipStatus = 'celibataire' | 'en_couple' | 'autre';

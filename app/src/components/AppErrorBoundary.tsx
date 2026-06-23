@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { DEFAULT_CENTER } from '../lib/livesGeo';
 import { isMsdevEnvironment } from '../lib/liveCameraSupport';
+import { logDiagnosticError } from '../lib/diagnosticLogs';
 import { disableGlobeView, isWebGLError } from '../lib/webglSupport';
 
 interface Props {
@@ -92,6 +93,18 @@ export class AppErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: unknown, info: ErrorInfo): void {
     console.error('[MeloSong]', error, info.componentStack);
+
+    if (
+      !isSocketAuthError(error) &&
+      !isLatLngError(error) &&
+      !isYouTubePlayerError(error) &&
+      !isWebGLError(error)
+    ) {
+      logDiagnosticError(error, {
+        source: 'error-boundary',
+        context: { componentStack: info.componentStack },
+      });
+    }
 
     if (isSocketAuthError(error)) {
       this.setState({ recovering: true });

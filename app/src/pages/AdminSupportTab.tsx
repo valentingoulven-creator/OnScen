@@ -5,8 +5,9 @@ import { api } from '../lib/api';
 import { useSupportTicketRoom, useSupportTicketUpdates } from '../hooks/useSupportTicketRealtime';
 import type { SupportContactMessage, SupportContactStatus, SupportThreadMessage } from '../types';
 import { AdminReportsTab } from './AdminReportsTab';
+import { AdminSupportLogsPanel } from './AdminSupportLogsPanel';
 
-export type SupportSubTab = 'messages' | 'reports';
+export type SupportSubTab = 'messages' | 'reports' | 'logs';
 
 type StatusFilter = 'all' | SupportContactStatus;
 
@@ -94,6 +95,7 @@ function SupportSubTabBar({
   const items: { id: SupportSubTab; label: string }[] = [
     { id: 'messages', label: t('admin.support.subTabMessages') },
     { id: 'reports', label: t('admin.support.subTabReports') },
+    { id: 'logs', label: t('admin.support.subTabLogs') },
   ];
 
   return (
@@ -396,6 +398,7 @@ export function AdminSupportTab({ highlightMessageId, initialSubTab = 'messages'
       <SupportSubTabBar subTab={subTab} onChange={setSubTab} t={t} />
       {subTab === 'messages' && <AdminSupportMessagesPanel highlightMessageId={highlightMessageId} />}
       {subTab === 'reports' && <AdminReportsTab />}
+      {subTab === 'logs' && <AdminSupportLogsPanel />}
     </div>
   );
 }

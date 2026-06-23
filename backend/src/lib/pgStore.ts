@@ -26,6 +26,12 @@ let pgSaveTail: Promise<void> = Promise.resolve();
 export async function initPostgresPersistence(): Promise<void> {
   if (initialized) return;
   await runMigrations();
+  const { pruneOldDiagnosticLogs, canPersistDiagnosticLogs } = await import('./appDiagnosticLogs');
+  if (canPersistDiagnosticLogs()) {
+    void pruneOldDiagnosticLogs().catch((err) => {
+      console.error('[diagnostic-logs] startup prune failed:', err);
+    });
+  }
   initialized = true;
 }
 

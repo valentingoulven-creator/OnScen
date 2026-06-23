@@ -4,6 +4,7 @@ import { registerSW } from 'virtual:pwa-register';
 import './i18n';
 import './index.css';
 import { initAppTheme } from './lib/appTheme';
+import { initDiagnosticLogs } from './lib/diagnosticLogs';
 import App from './App.tsx';
 import { AppErrorBoundary } from './components/AppErrorBoundary.tsx';
 import { MsdevEnvIndicator } from './components/MsdevEnvBadge.tsx';
@@ -11,6 +12,7 @@ import { AuthProvider } from './context/AuthContext.tsx';
 import { DmUnreadProvider } from './context/DmUnreadContext.tsx';
 
 initAppTheme();
+initDiagnosticLogs();
 
 /** Design quick wins locaux — activer via VITE_DESIGN_QUICK_WINS=1 (.env.development.local). */
 if (import.meta.env.VITE_DESIGN_QUICK_WINS === '1') {

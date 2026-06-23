@@ -196,5 +196,30 @@ export const adminApi = {
       token,
     ),
 
+  getAppDiagnosticLogs: (
+    token: string,
+    opts: {
+      limit?: number;
+      level?: import('../../types').AppDiagnosticLog['level'] | 'all';
+      userId?: string;
+      clientId?: string;
+      since?: string;
+      q?: string;
+    } = {}
+  ) => {
+    const params = new URLSearchParams();
+    params.set('limit', String(opts.limit ?? 200));
+    params.set('level', opts.level ?? 'all');
+    if (opts.userId) params.set('userId', opts.userId);
+    if (opts.clientId) params.set('clientId', opts.clientId);
+    if (opts.since) params.set('since', opts.since);
+    if (opts.q) params.set('q', opts.q);
+    return request<import('../../types').AppDiagnosticLogsResponse>(
+      `/admin/diagnostic-logs?${params.toString()}`,
+      {},
+      token
+    );
+  },
+
   // ── WebAuthn / Passkeys (Face ID, Touch ID, empreinte Android, Windows Hello) ──
 } as const;

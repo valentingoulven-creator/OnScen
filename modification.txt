@@ -8265,3 +8265,74 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 668 — 2026-06-23
 ================================================================================
+
+================================================================================
+MODIF 669 — Admin Support : onglet Logs app (persistance 5 mois)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Besoin d'un outil admin pour diagnostiquer les erreurs client (ex. crash UI,
+ Cannot read properties of undefined) avec historique persistant sur 5 mois.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/db/migrations/018_app_diagnostic_logs.sql (nouveau)
+ backend/src/lib/appDiagnosticLogs.ts (nouveau)
+ backend/src/routes/diagnosticLogs.ts (nouveau)
+ ─────────────────
+ • Table PG app_diagnostic_logs, rétention 5 mois (prune auto)
+ • POST /api/diagnostic-logs (ingestion client, rate-limit)
+ • GET /api/admin/diagnostic-logs (admin)
+
+ app/src/lib/diagnosticLogs.ts (nouveau)
+ app/src/lib/api/diagnosticLogs.ts (nouveau)
+ app/src/pages/AdminSupportLogsPanel.tsx (nouveau)
+ app/src/pages/AdminSupportTab.tsx
+ app/src/components/AppErrorBoundary.tsx
+ app/src/context/AuthContext.tsx
+ app/src/main.tsx
+ ─────────────────
+ • Capture window.onerror, unhandledrejection, console.error/warn, error boundary
+ • Cache localStorage 5 mois + sync serveur périodique
+ • Onglet Support « Logs app » : filtres, recherche, copie, export
+
+FICHIERS MODIFIÉS
+-----
+ backend migration + lib + route + pgStore (prune au démarrage)
+ app diagnostic logs client + panel admin Support + i18n fr/en
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+ backend/ → npm test → ✅ (256 tests)
+
+================================================================================
+Fin MODIF 669 — 2026-06-22
+================================================================================
+
+================================================================================
+MODIF 670 — Fix admin Comptes : counts.spotify + optional chaining
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Crash admin « Cannot read properties of undefined (reading 'premium') » quand
+ l'API ne renvoyait pas counts.spotify (bundle ou backend incomplet).
+
+CHANGEMENTS / FIX
+-----
+ backend/src/routes/access.ts
+ ─────────────────
+ • Restauration countSpotifyConnectionTiers + backfill OAuth produit Spotify
+ • counts.spotify.premium / basic sur /admin/overview et /admin/users
+
+ app/src/pages/AdminAccountsTab.tsx
+ ─────────────────
+ • Section stats Spotify avec counts?.spotify?.premium (safe access)
+
+================================================================================
+Fin MODIF 670 — 2026-06-22
+================================================================================
