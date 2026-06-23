@@ -30,6 +30,7 @@ import { countGroupUnreadForUser, countGroupUnreadInGroup } from '../lib/groupRe
 import { isGroupMessageVisibleToUser } from '../lib/groupVisibility';
 import { notifyDmReceived } from '../lib/notifications';
 import { trackEvent, trackUserActive } from '../lib/analytics';
+import { moderateDmAttachment, moderationRejectionMessage } from '../lib/contentModeration';
 
 export const dmRouter = Router();
 
@@ -384,7 +385,7 @@ dmRouter.delete('/thread/:userId', authenticateJWT, (req: Request, res: Response
   res.json({ ok: true, hiddenCount });
 });
 
-dmRouter.post('/thread/:userId', authenticateJWT, (req: Request, res: Response) => {
+dmRouter.post('/thread/:userId', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const receiverId = req.params.userId;
   const { content, attachmentUrl, attachmentName, attachmentSize, attachmentMimeType } = req.body;
@@ -398,6 +399,18 @@ dmRouter.post('/thread/:userId', authenticateJWT, (req: Request, res: Response) 
     res.status(413).json({ error: 'Fichier trop volumineux (max 10 Mo)' });
     return;
   }
+
+  if (attachmentUrl) {
+    const moderation = await moderateDmAttachment(
+      String(attachmentUrl),
+      attachmentMimeType,
+    );
+    if (!moderation.allowed) {
+      res.status(422).json({ error: moderationRejectionMessage(moderation) });
+      return;
+    }
+  }
+
   if (!db.users.has(receiverId)) {
     res.status(404).json({ error: 'Utilisateur introuvable' });
     return;

@@ -677,6 +677,9 @@ export const api = {
   getReelsSponsors: () =>
     request<import('../types').ReelsSponsorsResponse>('/sponsors/reels', { cache: 'no-store' }),
 
+  getStoriesViewerSponsors: () =>
+    request<import('../types').StoriesSponsorsResponse>('/sponsors/stories-viewer', { cache: 'no-store' }),
+
   getSalonSponsors: () =>
     request<{ items: import('../types').MapAdItem[] }>('/sponsors/salon', { cache: 'no-store' }),
 
@@ -1649,6 +1652,13 @@ export const api = {
   searchUsers: (token: string, query: string, signal?: AbortSignal) =>
     request<{ users: import('../types').UserSearchHit[] }>(
       `/users/search?q=${encodeURIComponent(query)}`,
+      { signal },
+      token
+    ),
+
+  globalSearch: (token: string, query: string, signal?: AbortSignal) =>
+    request<import('./globalSearchTypes').GlobalSearchApiResult>(
+      `/search?q=${encodeURIComponent(query)}`,
       { signal },
       token
     ),

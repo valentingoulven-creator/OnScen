@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { db, Salon, User } from '../models/schema';
-import { canJoinSalon, isSalonPublic, isSalonVisibleOnMap } from './salonAccess';
+import { canJoinSalon, isSalonPublic, isSalonVisibleOnMap, isSalonVisibleOnProfile } from './salonAccess';
 
 function seedUser(id: string, opts?: Partial<User>): User {
   const user: User = {
@@ -64,6 +64,25 @@ describe('isSalonPublic', () => {
   });
 });
 
+describe('isSalonVisibleOnProfile', () => {
+  beforeEach(() => {
+    db.users.clear();
+    db.salons.clear();
+  });
+
+  it('affiche un salon public aux visiteurs', () => {
+    const salon = seedSalon('host', { accessMode: 'public', isPublic: true });
+    expect(isSalonVisibleOnProfile(salon, { isOwner: false })).toBe(true);
+    expect(isSalonVisibleOnProfile(salon, { isOwner: true })).toBe(true);
+  });
+
+  it('masque un salon invite aux visiteurs du profil', () => {
+    const salon = seedSalon('host', { accessMode: 'invite', isPublic: false });
+    expect(isSalonVisibleOnProfile(salon, { isOwner: false })).toBe(false);
+    expect(isSalonVisibleOnProfile(salon, { isOwner: true })).toBe(true);
+  });
+});
+
 describe('isSalonVisibleOnMap', () => {
   beforeEach(() => {
     db.users.clear();
@@ -78,7 +97,7 @@ describe('isSalonVisibleOnMap', () => {
     expect(isSalonVisibleOnMap(salon, 'host')).toBe(true);
   });
 
-  it('masque un salon invite aux non-invités', () => {
+  it('masque un salon invite sur la carte (même hôte et invités)', () => {
     seedUser('host');
     seedUser('viewer');
     seedUser('guest');
@@ -87,8 +106,11 @@ describe('isSalonVisibleOnMap', () => {
       isPublic: false,
       allowedUserIds: ['host', 'guest'],
     });
-    expect(isSalonVisibleOnMap(salon, 'guest')).toBe(true);
+    expect(isSalonVisibleOnMap(salon, 'guest')).toBe(false);
+    expect(isSalonVisibleOnMap(salon, 'host')).toBe(false);
     expect(isSalonVisibleOnMap(salon, 'viewer')).toBe(false);
+    expect(canJoinSalon(salon, 'guest')).toBe(true);
+    expect(canJoinSalon(salon, 'viewer')).toBe(false);
   });
 
   it('masque ghost et adminBlocked pour le public', () => {

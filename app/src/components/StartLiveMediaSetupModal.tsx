@@ -16,7 +16,7 @@ import {
   type LiveMediaPrefs,
 } from '../lib/liveMediaPrefs';
 import { getLivesGeo, type LivesGeoPrefs } from '../lib/livesGeo';
-import { LiveStartLocationPicker } from './LiveStartLocationPicker';
+import { SessionLocationPicker } from './SessionLocationPicker';
 
 type Phase = 'loading' | 'config' | 'error';
 
@@ -362,7 +362,7 @@ export function StartLiveMediaSetupModal({
                   </p>
                 ))}
               </div>
-              <LiveStartLocationPicker value={liveLocation} onChange={handleLocationChange} />
+              <SessionLocationPicker value={liveLocation} onChange={handleLocationChange} variant="live" />
             </div>
           )}
 
@@ -438,7 +438,7 @@ export function StartLiveMediaSetupModal({
                 </p>
               )}
 
-              <LiveStartLocationPicker value={liveLocation} onChange={handleLocationChange} />
+              <SessionLocationPicker value={liveLocation} onChange={handleLocationChange} variant="live" />
             </div>
           )}
         </div>

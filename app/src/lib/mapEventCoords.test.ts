@@ -6,6 +6,8 @@ import {
   resolveEventCoords,
   resolveEventCoordsSync,
   resolveEventVenueCoordsSync,
+  resolveManyEventCoordsRemaining,
+  resolveManyEventCoordsSync,
 } from './mapEventCoords';
 import * as geocodeAddress from './geocodeAddress';
 
@@ -76,5 +78,35 @@ describe('resolveEventCoords', () => {
     const coords = await resolveEventCoords('Salle Pleyel, Paris, France');
     expect(coords).toEqual({ latitude: 48.8802, longitude: 2.3007 });
     expect(geocodeQuery).not.toHaveBeenCalled();
+  });
+});
+
+describe('resolveManyEventCoords', () => {
+  it('resolveManyEventCoordsSync deduplicates and uses venue lookup', () => {
+    const map = resolveManyEventCoordsSync([
+      'Accor Arena, Paris, France',
+      'Accor Arena, Paris, France',
+      'Lyon, France',
+    ]);
+    expect(map.size).toBe(2);
+    expect(map.get('Accor Arena, Paris, France')).toEqual({
+      latitude: 48.8387,
+      longitude: 2.3786,
+    });
+  });
+
+  it('resolveManyEventCoordsRemaining geocodes each unique location once', async () => {
+    geocodeQuery.mockResolvedValue({
+      latitude: 10,
+      longitude: 20,
+      label: 'Unknown',
+    });
+
+    const sync = resolveManyEventCoordsSync(['Lieu X', 'Lieu X']);
+    expect(sync.size).toBe(0);
+
+    const full = await resolveManyEventCoordsRemaining(['Lieu X', 'Lieu X'], sync);
+    expect(full.size).toBe(1);
+    expect(geocodeQuery).toHaveBeenCalledTimes(1);
   });
 });

@@ -10,31 +10,13 @@ import {
   latestStory,
   pickInitialStory,
   pruneSeenStoryIds,
-  resolveNextStory,
-  resolvePrevStory,
   resolveAfterStoryDeleted,
-  stackIndexForStory,
 } from '../lib/storyViewerNav';
 import {
   getNearbyPanelPreferences,
   NEARBY_PANEL_CHANGED_EVENT,
-  setNearbyPanelPreferences,
-  setNearbyPanelRadiusKm,
   type NearbyPanelPreferences,
 } from '../lib/nearbyPanelSettings';
-import {
-  clampNearbyRadiusKm,
-  getNearbyRadiusKm,
-  NEARBY_RADIUS_MAX,
-  NEARBY_RADIUS_MIN,
-  SETTINGS_CHANGED_EVENT,
-} from '../lib/settings';
-import {
-  getLivesGeo,
-  MAP_GEO_CHANGED_EVENT,
-  setLivesGeoRadiusKm,
-  type LivesGeoPrefs,
-} from '../lib/livesGeo';
 import { isMapStoriesCollapsed, setMapStoriesCollapsed } from '../lib/mapStoriesPrefs';
 import { fetchStoriesBundle, invalidateStoriesCache } from '../lib/storiesApiCache';
 import { normalizeProfileReelFromApi } from '../content/reelsFeed';
@@ -45,7 +27,7 @@ import { MapStorySheet } from './MapStorySheet';
 import { MapStoryRing, MyMapStoryRing } from './MapStoryRings';
 import { StoryLivePreviewViewer } from './StoryLivePreviewViewer';
 import { StoryViewer } from './StoryViewer';
-import { FilterIcon } from './FilterIcon';
+import { useStoryViewerWithSponsors } from '../hooks/useStoryViewerWithSponsors';
 import { StoriesRingsCarousel } from './StoriesRingsCarousel';
 import { StoriesAdBanner } from './StoriesAdBanner';
 import { dispatchMapOpenCreateSalon } from '../lib/mapUiEvents';
@@ -68,7 +50,8 @@ function saveSeenStoryIds(userId: string, ids: Set<string>): void {
 export type StorySheetState =
   | { kind: 'closed' }
   | { kind: 'create' }
-  | { kind: 'view'; story: MapStory; isOwn: boolean };
+  | { kind: 'view'; story: MapStory; isOwn: boolean }
+  | { kind: 'view_sponsor'; ad: import('../types').ReelsSponsorAd; sponsorKey: string };
 
 export type LivePreviewState =
   | { kind: 'closed' }
@@ -95,10 +78,7 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
   const [livePreview, setLivePreview] = useState<LivePreviewState>({ kind: 'closed' });
   const [loading, setLoading] = useState(false);
   const [collapsed, setCollapsed] = useState(isMapStoriesCollapsed);
-  const [filterOpen, setFilterOpen] = useState(false);
   const [prefs, setPrefs] = useState<NearbyPanelPreferences>(() => getNearbyPanelPreferences());
-  const [mapGeo, setMapGeo] = useState<LivesGeoPrefs>(() => getLivesGeo());
-  const [radiusKm, setRadiusKm] = useState(() => getNearbyRadiusKm());
   const [seenStoryIds, setSeenStoryIds] = useState<Set<string>>(() =>
     user?.id ? loadSeenStoryIds(user.id) : new Set()
   );
@@ -117,37 +97,13 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
     [user?.id]
   );
 
-  const updatePrefs = useCallback(
-    (patch: Partial<Pick<NearbyPanelPreferences, 'favoritesFirst' | 'filterByDistance'>>) => {
-      setPrefs(setNearbyPanelPreferences(patch));
-    },
-    []
-  );
-
-  const applyRadius = (km: number) => {
-    const clamped = clampNearbyRadiusKm(km);
-    const v = setNearbyPanelRadiusKm(clamped);
-    setRadiusKm(v);
-    setLivesGeoRadiusKm(v);
-  };
-
   useEffect(() => {
     const syncPrefs = () => setPrefs(getNearbyPanelPreferences());
-    const syncGeo = () => setMapGeo(getLivesGeo());
-    const syncRadius = () => setRadiusKm(getNearbyRadiusKm());
     window.addEventListener(NEARBY_PANEL_CHANGED_EVENT, syncPrefs);
-    window.addEventListener(NEARBY_PANEL_CHANGED_EVENT, syncRadius);
-    window.addEventListener(MAP_GEO_CHANGED_EVENT, syncGeo);
-    window.addEventListener(SETTINGS_CHANGED_EVENT, syncRadius);
     return () => {
       window.removeEventListener(NEARBY_PANEL_CHANGED_EVENT, syncPrefs);
-      window.removeEventListener(NEARBY_PANEL_CHANGED_EVENT, syncRadius);
-      window.removeEventListener(MAP_GEO_CHANGED_EVENT, syncGeo);
-      window.removeEventListener(SETTINGS_CHANGED_EVENT, syncRadius);
     };
   }, []);
-
-  const filterActive = prefs.favoritesFirst || prefs.filterByDistance;
 
   const countLabel = useMemo(() => {
     if (loading) return '…';
@@ -163,16 +119,11 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
     }
     setLoading(true);
     try {
-      const storyRadius = prefs.filterByDistance ? radiusKm : undefined;
-      const storyQuery =
-        storyRadius != null
-          ? { latitude: mapGeo.latitude, longitude: mapGeo.longitude, radius: storyRadius }
-          : undefined;
       const [favRes, feedRes, livesOrNull, storiesBundle] = await Promise.all([
         api.getMyFavorites(token),
         api.getReelsFeed(token),
         api.getLives(token, { distanceFilter: false }).catch(() => null),
-        fetchStoriesBundle(token, storyQuery),
+        fetchStoriesBundle(token),
       ]);
       const favoriteIds = new Set(favRes.favorites.map((f) => f.id));
       const isFollowed = (userId: string) => favoriteIds.has(userId);
@@ -250,7 +201,7 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
     } finally {
       setLoading(false);
     }
-  }, [token, prefs.favoritesFirst, prefs.filterByDistance, radiusKm, mapGeo.latitude, mapGeo.longitude, user?.id]);
+  }, [token, prefs.favoritesFirst, user?.id]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -325,35 +276,24 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
   );
 
   const storyStacks = useMemo(
-    () => buildStoryUserStacks(sortedEntries, storiesByUser, myStories),
-    [sortedEntries, storiesByUser, myStories]
+    () => buildStoryUserStacks(entries, storiesByUser, myStories),
+    [entries, storiesByUser, myStories]
   );
 
   const viewerStack =
     sheet.kind === 'view' ? findStackForStory(storyStacks, sheet.story) : undefined;
-  const viewerStackIndex =
-    sheet.kind === 'view' && viewerStack ? stackIndexForStory(viewerStack, sheet.story) : 0;
 
-  const goNextStory = useCallback(() => {
-    if (sheet.kind !== 'view') return;
-    const next = resolveNextStory(storyStacks, sheet.story, user?.id);
-    if (!next) return;
-    markStoryAsSeen(next.story.id);
-    setSheet({ kind: 'view', story: next.story, isOwn: next.isOwn });
-  }, [sheet, storyStacks, user?.id, markStoryAsSeen]);
+  const {
+    goNextStory,
+    goPrevStory,
+    canNextStory,
+    canPrevStory,
+    viewerStack: hookViewerStack,
+    viewerStackIndex,
+    sponsorAd,
+  } = useStoryViewerWithSponsors(storyStacks, user?.id, sheet, setSheet, markStoryAsSeen);
 
-  const goPrevStory = useCallback(() => {
-    if (sheet.kind !== 'view') return;
-    const prev = resolvePrevStory(storyStacks, sheet.story, user?.id);
-    if (!prev) return;
-    markStoryAsSeen(prev.story.id);
-    setSheet({ kind: 'view', story: prev.story, isOwn: prev.isOwn });
-  }, [sheet, storyStacks, user?.id, markStoryAsSeen]);
-
-  const canNextStory =
-    sheet.kind === 'view' && resolveNextStory(storyStacks, sheet.story, user?.id) != null;
-  const canPrevStory =
-    sheet.kind === 'view' && resolvePrevStory(storyStacks, sheet.story, user?.id) != null;
+  const activeViewerStack = sheet.kind === 'view' ? viewerStack : hookViewerStack;
 
   const handleStoryDeleted = useCallback(
     (deleted: MapStory) => {
@@ -403,69 +343,7 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
                 <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
-            <button
-              type="button"
-              onClick={() => setFilterOpen((v) => !v)}
-              title="Filtrer les stories (favoris et distance)"
-              aria-label="Filtrer les stories par favoris et distance"
-              aria-expanded={filterOpen}
-              className={`min-w-11 min-h-11 flex items-center justify-center p-1 rounded-lg shrink-0 transition ${
-                filterOpen || filterActive
-                  ? 'text-purple-300 bg-purple-900/30 hover:bg-purple-900/40'
-                  : 'text-[var(--ms-text-muted)] hover:text-gray-200 hover:bg-[var(--ms-surface-2)]'
-              }`}
-            >
-              <FilterIcon className="w-5 h-5" />
-            </button>
           </div>
-
-          {filterOpen && (
-            <div className="px-2.5 pb-2.5 pt-0 border-b border-[var(--ms-border)]/80 space-y-2 max-h-[min(52vh,20rem)] overflow-y-auto overscroll-contain">
-              <label className="flex items-center justify-between gap-2 cursor-pointer">
-                <span className="text-[10px] text-gray-300">Favoris en premier</span>
-                <input
-                  type="checkbox"
-                  checked={prefs.favoritesFirst}
-                  onChange={(e) => updatePrefs({ favoritesFirst: e.target.checked })}
-                  className="melosong-checkbox scale-90"
-                  aria-label="Afficher les favoris en premier dans les stories"
-                />
-              </label>
-
-              <label className="flex items-center justify-between gap-2 cursor-pointer">
-                <span className="text-[10px] text-gray-300">Voir autour de moi</span>
-                <input
-                  type="checkbox"
-                  checked={prefs.filterByDistance}
-                  onChange={(e) => updatePrefs({ filterByDistance: e.target.checked })}
-                  className="melosong-checkbox scale-90"
-                  aria-label="Voir les stories autour de moi"
-                />
-              </label>
-
-              {prefs.filterByDistance && (
-                <div>
-                  <div className="flex justify-between text-[10px] mb-1">
-                    <span className="text-gray-300">Rayon</span>
-                    <span className="text-purple-400 font-bold">{radiusKm} km</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={NEARBY_RADIUS_MIN}
-                    max={NEARBY_RADIUS_MAX}
-                    step={1}
-                    value={radiusKm}
-                    onChange={(e) => applyRadius(Number(e.target.value))}
-                    className="w-full accent-purple-500 h-1.5"
-                    aria-label="Rayon en kilomètres pour les stories"
-                  />
-                  <p className="text-[9px] text-gray-600 mt-1">
-                    Stories des personnes dans ~{radiusKm} km autour de {mapGeo.label}.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
 
           {!collapsed && (
             <div className="min-w-0">
@@ -535,19 +413,20 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
         />
       ) : null}
 
-      {sheet.kind === 'view' && viewerStack ? (
+      {(sheet.kind === 'view' || sheet.kind === 'view_sponsor') ? (
         <StoryViewer
-          story={sheet.story}
-          stack={viewerStack.stories}
+          story={sheet.kind === 'view' ? sheet.story : undefined}
+          stack={activeViewerStack?.stories}
           stackIndex={viewerStackIndex}
+          sponsorAd={sponsorAd}
           onClose={() => setSheet({ kind: 'closed' })}
           onNext={goNextStory}
           onPrev={goPrevStory}
           canNext={canNextStory}
           canPrev={canPrevStory}
-          isOwn={sheet.isOwn}
+          isOwn={sheet.kind === 'view' ? sheet.isOwn : false}
           token={token ?? undefined}
-          onDeleted={handleStoryDeleted}
+          onDeleted={sheet.kind === 'view' ? handleStoryDeleted : undefined}
         />
       ) : null}
 

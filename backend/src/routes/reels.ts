@@ -25,6 +25,7 @@ import {
   isUserOwnedReel,
 } from '../lib/reels';
 import { parseFeedAlgoQuery } from '../lib/reelFeedRanking';
+import { moderateReelUpload, moderationRejectionMessage } from '../lib/contentModeration';
 
 export const reelsRouter = Router();
 
@@ -80,7 +81,7 @@ reelsRouter.get('/user-created', authenticateJWT, (req: Request, res: Response) 
   res.json({ reels: listUserCreatedReels(me) });
 });
 
-reelsRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
+reelsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const body = req.body ?? {};
   const mediaType = body.mediaType === 'image' ? 'image' : 'video';
@@ -96,13 +97,26 @@ reelsRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
         ? 'public'
         : undefined;
 
+  const mediaUrl = String(body.mediaUrl ?? '');
+  const posterUrl = body.posterUrl != null ? String(body.posterUrl) : undefined;
+  const moderation = await moderateReelUpload({
+    mediaType,
+    mediaUrl,
+    posterUrl,
+    durationSec,
+  });
+  if (!moderation.allowed) {
+    res.status(422).json({ error: moderationRejectionMessage(moderation) });
+    return;
+  }
+
   const result = createUserReel(me, {
     title: String(body.title ?? ''),
     artist: String(body.artist ?? ''),
     genre: String(body.genre ?? ''),
     mediaType,
-    mediaUrl: String(body.mediaUrl ?? ''),
-    posterUrl: body.posterUrl != null ? String(body.posterUrl) : undefined,
+    mediaUrl,
+    posterUrl,
     durationSec,
     visibility,
   });

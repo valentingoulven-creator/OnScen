@@ -17,6 +17,7 @@ import { db } from '../models/schema';
 import { getIo } from '../lib/ioInstance';
 import { getWeeklyTopSongs } from '../lib/weeklyVotes';
 import { listFeaturedCommunitySounds } from '../lib/featuredCommunitySounds';
+import { moderateFeedPostMedia, moderationRejectionMessage } from '../lib/contentModeration';
 
 export const feedRouter = Router();
 
@@ -60,13 +61,20 @@ feedRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
   });
 });
 
-feedRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
+feedRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const body = req.body ?? {};
+  const imageUrl = body.imageUrl != null ? String(body.imageUrl) : undefined;
+  const videoUrl = body.videoUrl != null ? String(body.videoUrl) : undefined;
+  const moderation = await moderateFeedPostMedia({ imageUrl, videoUrl });
+  if (!moderation.allowed) {
+    res.status(422).json({ error: moderationRejectionMessage(moderation) });
+    return;
+  }
   const result = createFeedPost(me, {
     content: String(body.content ?? ''),
-    imageUrl: body.imageUrl != null ? String(body.imageUrl) : undefined,
-    videoUrl: body.videoUrl != null ? String(body.videoUrl) : undefined,
+    imageUrl,
+    videoUrl,
     isEvent: body.isEvent === true,
     eventDate: body.eventDate != null ? String(body.eventDate) : undefined,
     eventDates: Array.isArray(body.eventDates) ? body.eventDates : undefined,

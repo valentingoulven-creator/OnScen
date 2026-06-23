@@ -319,6 +319,18 @@ export function SponsorAdPreview({
           posterUrl={posterUrl || videoUrl}
         />
       )}
+      {placement === 'stories_sponsored' && (
+        <ReelsSponsoredPreview
+          name={name}
+          title={title}
+          subtitle={subtitle}
+          cta={cta}
+          accent={accent}
+          kind={kind}
+          logoUrl={logoUrl}
+          posterUrl={posterUrl || videoUrl}
+        />
+      )}
       <p className="text-[10px] text-gray-500 mt-2 text-center">
         {t('admin.sponsors.previewDurationNote', {
           sec: displayDurationSec,
@@ -329,7 +341,9 @@ export function SponsorAdPreview({
                 ? t('admin.sponsors.previewDurationFeed')
                 : placement === 'stories_banner'
                   ? t('admin.sponsors.previewDurationStories')
-                  : t('admin.sponsors.previewDurationReels'),
+                  : placement === 'stories_sponsored'
+                    ? t('admin.sponsors.previewDurationStoriesViewer')
+                    : t('admin.sponsors.previewDurationReels'),
         })}
       </p>
     </div>

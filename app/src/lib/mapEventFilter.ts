@@ -1,6 +1,8 @@
 import { normalizeCityLabel } from './eventLocationPresets';
 import type { FeedEventType } from './eventType';
 import { getLivesGeo } from './livesGeo';
+import { extractCityFromLocation, getCityMapView } from './mapEventClusters';
+import { isValidLatLng } from './mapCoords';
 import { getDistanceKm } from './mapMarkerVisibility';
 import type { MapEventMarker } from '../types';
 
@@ -65,6 +67,21 @@ export function applyEventFilterDraftDefaults(
     location: criteria.location.trim() || resolveDefaultUserCityLabel(profileCity),
     radiusKm: criteria.radiusKm || DEFAULT_EVENT_FILTER_RADIUS_KM,
   };
+}
+
+/** Rayon de cadrage carte pour une ville du filtre événement (pas le rayon de recherche). */
+export function getEventFilterCityMapRadiusKm(locationLabel: string): number {
+  const { key } = extractCityFromLocation(locationLabel);
+  return getCityMapView(key).radiusKm;
+}
+
+export function hasEventFilterCityLocation(criteria: MapEventFilterCriteria): boolean {
+  return Boolean(
+    criteria.location.trim() &&
+      criteria.latitude != null &&
+      criteria.longitude != null &&
+      isValidLatLng(criteria.latitude, criteria.longitude)
+  );
 }
 
 export function hasActiveEventFilterCriteria(criteria: MapEventFilterCriteria): boolean {

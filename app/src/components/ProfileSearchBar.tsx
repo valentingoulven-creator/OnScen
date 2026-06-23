@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useDebouncedApiSearch } from '../hooks/useDebouncedApiSearch';
-import { api } from '../lib/api';
+import { searchGlobal, type GlobalSearchResultItem } from '../lib/globalSearch';
 import { UserAvatarOnline } from './UserAvatarOnline';
 import { UsernameDisplay } from './UsernameDisplay';
 import { SearchInlineSpinner } from './SearchInlineSpinner';
 import type { NearbyPerson, UserSearchHit } from '../types';
 
+export type { GlobalSearchResultItem };
+
 interface ProfileSearchBarProps {
   token: string;
-  onSelectUser: (userId: string, preview?: NearbyPerson) => void;
+  onSelectResult: (item: GlobalSearchResultItem) => void;
   className?: string;
 }
 
@@ -31,14 +32,46 @@ function searchHitToPreview(hit: UserSearchHit): NearbyPerson {
   };
 }
 
-export function ProfileSearchBar({ token, onSelectUser, className }: ProfileSearchBarProps) {
+export function userSearchHitFromItem(item: GlobalSearchResultItem): UserSearchHit | null {
+  if (item.kind !== 'user') return null;
+  return item;
+}
+
+export function nearbyPreviewFromSearchItem(item: GlobalSearchResultItem): NearbyPerson | undefined {
+  if (item.kind !== 'user') return undefined;
+  return searchHitToPreview(item);
+}
+
+function itemKey(item: GlobalSearchResultItem, index: number): string {
+  switch (item.kind) {
+    case 'user':
+      return `user-${item.id}`;
+    case 'event':
+      return `event-${item.id}`;
+    case 'album':
+      return `album-${item.id}`;
+    case 'song':
+      return `song-${item.id}`;
+    case 'city':
+      return `city-${item.label}-${index}`;
+    case 'country':
+      return `country-${item.label}`;
+    default:
+      return `item-${index}`;
+  }
+}
+
+export function ProfileSearchBar({ token, onSelectResult, className }: ProfileSearchBarProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [compactPlaceholder, setCompactPlaceholder] = useState(false);
+  const [results, setResults] = useState<GlobalSearchResultItem[]>([]);
+  const [loading, setLoading] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const cacheRef = useRef<Map<string, GlobalSearchResultItem[]>>(new Map());
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 639px)');
@@ -48,19 +81,42 @@ export function ProfileSearchBar({ token, onSelectUser, className }: ProfileSear
     return () => mq.removeEventListener('change', sync);
   }, []);
 
-  const fetchUsers = useCallback(
-    (q: string, signal: AbortSignal) =>
-      api.searchUsers(token, q, signal).then((r) => r.users),
-    [token]
-  );
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setResults([]);
+      setLoading(false);
+      return;
+    }
 
-  const { results, loading, setResults } = useDebouncedApiSearch<UserSearchHit>({
-    query,
-    fetcher: fetchUsers,
-    cacheNamespace: 'profile-users',
-    debounceMs: 320,
-    minLength: 2,
-  });
+    const cached = cacheRef.current.get(q.toLowerCase());
+    if (cached) {
+      setResults(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      searchGlobal(token, q, controller.signal)
+        .then((grouped) => {
+          cacheRef.current.set(q.toLowerCase(), grouped.flat);
+          setResults(grouped.flat);
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) setResults([]);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setLoading(false);
+        });
+    }, 320);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [query, token]);
 
   useEffect(() => {
     setActiveIndex(-1);
@@ -74,12 +130,15 @@ export function ProfileSearchBar({ token, onSelectUser, className }: ProfileSear
     return () => document.removeEventListener('mousedown', onDocClick);
   }, []);
 
-  const pick = (hit: UserSearchHit) => {
-    setQuery('');
-    setResults([]);
-    setOpen(false);
-    onSelectUser(hit.id, searchHitToPreview(hit));
-  };
+  const pick = useCallback(
+    (item: GlobalSearchResultItem) => {
+      setQuery('');
+      setResults([]);
+      setOpen(false);
+      onSelectResult(item);
+    },
+    [onSelectResult]
+  );
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (!open || results.length === 0) {
@@ -94,7 +153,7 @@ export function ProfileSearchBar({ token, onSelectUser, className }: ProfileSear
       setActiveIndex((i) => (i <= 0 ? results.length - 1 : i - 1));
     } else if (e.key === 'Enter' && activeIndex >= 0) {
       e.preventDefault();
-      pick(results[activeIndex]);
+      pick(results[activeIndex]!);
     } else if (e.key === 'Escape') {
       setOpen(false);
     }
@@ -102,6 +161,26 @@ export function ProfileSearchBar({ token, onSelectUser, className }: ProfileSear
 
   const showDropdown = open && query.trim().length >= 2;
   const showEmpty = !loading && results.length === 0;
+
+  const sectionLabel = (item: GlobalSearchResultItem): string | null => {
+    switch (item.kind) {
+      case 'city':
+      case 'country':
+        return t('globalSearch.sectionPlace');
+      case 'event':
+        return t('globalSearch.sectionEvent');
+      case 'user':
+        return t('globalSearch.sectionProfile');
+      case 'album':
+        return t('globalSearch.sectionAlbum');
+      case 'song':
+        return t('globalSearch.sectionSong');
+      default:
+        return null;
+    }
+  };
+
+  let lastSection: string | null = null;
 
   return (
     <div ref={rootRef} className={`relative w-full min-w-0${className ? ` ${className}` : ''}`}>
@@ -122,9 +201,9 @@ export function ProfileSearchBar({ token, onSelectUser, className }: ProfileSear
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
-          placeholder={t(compactPlaceholder ? 'profileSearch.placeholderShort' : 'profileSearch.placeholder')}
+          placeholder={t(compactPlaceholder ? 'globalSearch.placeholderShort' : 'globalSearch.placeholder')}
           autoComplete="off"
-          aria-label={t('profileSearch.label')}
+          aria-label={t('globalSearch.label')}
           aria-expanded={showDropdown}
           aria-controls="profile-search-results"
           className="w-full h-full pl-7 sm:pl-8 lg:pl-9 pr-6 sm:pr-7 lg:pr-8 text-[11px] sm:text-xs rounded-full bg-transparent text-white placeholder:text-gray-500/90 outline-none [&::-webkit-search-cancel-button]:hidden"
@@ -138,7 +217,7 @@ export function ProfileSearchBar({ token, onSelectUser, className }: ProfileSear
               inputRef.current?.focus();
             }}
             className="absolute right-2 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full text-gray-500 hover:text-white hover:bg-white/10 text-sm leading-none transition-colors"
-            aria-label={t('profileSearch.clear')}
+            aria-label={t('globalSearch.clear')}
           >
             ×
           </button>
@@ -149,59 +228,93 @@ export function ProfileSearchBar({ token, onSelectUser, className }: ProfileSear
         <ul
           id="profile-search-results"
           role="listbox"
-          className="absolute left-0 right-0 top-[calc(100%+0.25rem)] z-50 max-h-56 overflow-y-auto rounded-xl border border-[#2d2d3d] bg-[#12121a]/98 backdrop-blur-sm shadow-xl shadow-black/40 py-0.5"
+          className="absolute left-0 right-0 top-[calc(100%+0.25rem)] z-50 max-h-72 overflow-y-auto rounded-xl border border-[#2d2d3d] bg-[#12121a]/98 backdrop-blur-sm shadow-xl shadow-black/40 py-0.5"
         >
           {loading && results.length === 0 ? (
             <li>
-              <SearchInlineSpinner label={t('profileSearch.searching')} />
+              <SearchInlineSpinner label={t('globalSearch.searching')} />
             </li>
           ) : null}
           {showEmpty ? (
-            <li className="px-3 py-2 text-xs text-gray-500">{t('profileSearch.noResults')}</li>
+            <li className="px-3 py-2 text-xs text-gray-500">{t('globalSearch.noResults')}</li>
           ) : null}
-          {results.map((u, i) => (
-            <li key={u.id} role="option" aria-selected={i === activeIndex}>
-              <button
-                type="button"
-                onClick={() => pick(u)}
-                className={`w-full flex items-center gap-2 px-2 py-1.5 text-left hover:bg-purple-900/30 ${
-                  i === activeIndex ? 'bg-purple-900/40' : ''
-                }`}
-              >
-                <UserAvatarOnline
-                  userId={u.id}
-                  avatarUrl={u.avatarUrl}
-                  size="sm"
-                  isLive={u.isLive}
-                  liveViewersCount={u.isLive ? u.liveViewersCount : undefined}
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1 min-w-0">
-                    <UsernameDisplay
-                      as="p"
-                      username={u.username}
-                      usernameColor={u.usernameColor}
-                      usernameWaveFrom={u.usernameWaveFrom}
-                      usernameWaveTo={u.usernameWaveTo}
-                      className="text-xs font-semibold truncate min-w-0"
-                    />
-                    {u.isLive && (
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-600 text-white uppercase tracking-wide shrink-0">
-                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                        LIVE
+          {results.map((item, i) => {
+            const section = sectionLabel(item);
+            const showHeader = section && section !== lastSection;
+            if (showHeader) lastSection = section;
+            return (
+              <li key={itemKey(item, i)}>
+                {showHeader && (
+                  <p className="px-2.5 pt-1.5 pb-0.5 text-[9px] font-semibold uppercase tracking-wide text-gray-500">
+                    {section}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={i === activeIndex}
+                  onClick={() => pick(item)}
+                  className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-purple-900/30 ${
+                    i === activeIndex ? 'bg-purple-900/40' : ''
+                  }`}
+                >
+                  {item.kind === 'user' ? (
+                    <>
+                      <UserAvatarOnline
+                        userId={item.id}
+                        avatarUrl={item.avatarUrl}
+                        size="sm"
+                        isLive={item.isLive}
+                        liveViewersCount={item.isLive ? item.liveViewersCount : undefined}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <UsernameDisplay
+                          as="p"
+                          username={item.username}
+                          usernameColor={item.usernameColor}
+                          usernameWaveFrom={item.usernameWaveFrom}
+                          usernameWaveTo={item.usernameWaveTo}
+                          className="text-xs font-semibold truncate"
+                        />
+                        {item.city && (
+                          <p className="text-[9px] text-gray-500 truncate">📍 {item.city}</p>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <span className="w-7 h-7 shrink-0 flex items-center justify-center rounded-full bg-[#1a1a26] text-sm" aria-hidden>
+                        {item.kind === 'city' || item.kind === 'country' ? '📍' : null}
+                        {item.kind === 'event' ? '📅' : null}
+                        {item.kind === 'album' ? '💿' : null}
+                        {item.kind === 'song' ? '🎵' : null}
                       </span>
-                    )}
-                    {!u.isLive && u.salonId && (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-800/80 text-purple-200 uppercase tracking-wide shrink-0">
-                        SALON
-                      </span>
-                    )}
-                  </div>
-                  {u.city && <p className="text-[9px] text-gray-500 truncate">📍 {u.city}</p>}
-                </div>
-              </button>
-            </li>
-          ))}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-white truncate">
+                          {item.kind === 'event'
+                            ? item.title
+                            : item.kind === 'album' || item.kind === 'song'
+                              ? item.title
+                              : item.label}
+                        </p>
+                        <p className="text-[9px] text-gray-500 truncate">
+                          {item.kind === 'event' &&
+                            [item.eventLocation, item.authorUsername].filter(Boolean).join(' · ')}
+                          {item.kind === 'album' && item.authorUsername}
+                          {item.kind === 'song' &&
+                            [item.artist ?? item.authorUsername, item.authorUsername]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          {item.kind === 'city' && t('globalSearch.openOnMap')}
+                          {item.kind === 'country' && t('globalSearch.openCountryOnMap')}
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

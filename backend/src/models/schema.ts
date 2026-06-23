@@ -466,12 +466,14 @@ export interface SupportThreadMessage {
 }
 
 /** Emplacement d'affichage d'un sponsor dans l'application. */
-export type SponsorPlacement = 'map_banner' | 'feed_inline' | 'stories_banner' | 'reels_sponsored' | 'salon_theater';
+export type SponsorPlacement = 'map_banner' | 'feed_inline' | 'stories_banner' | 'stories_sponsored' | 'reels_sponsored' | 'salon_theater';
 
 /** Configuration globale des sponsors (admin). */
 export interface SponsorPlatformConfig {
   reelsSponsorEnabled: boolean;
   reelsSponsorEveryN: number;
+  storiesSponsorEnabled: boolean;
+  storiesSponsorEveryN: number;
 }
 
 export type SponsorAccent = 'purple' | 'pink' | 'amber' | 'cyan' | 'rose';
@@ -794,5 +796,7 @@ export const db = {
   sponsorPlatformConfig: {
     reelsSponsorEnabled: true,
     reelsSponsorEveryN: 5,
+    storiesSponsorEnabled: true,
+    storiesSponsorEveryN: 4,
   } as SponsorPlatformConfig,
 };

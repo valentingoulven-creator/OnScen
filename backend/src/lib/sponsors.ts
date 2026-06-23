@@ -21,7 +21,7 @@ export type MapAdPublic = {
 };
 
 const ACCENTS: SponsorAccent[] = ['purple', 'pink', 'amber', 'cyan', 'rose'];
-const PLACEMENTS: SponsorPlacement[] = ['map_banner', 'feed_inline', 'stories_banner', 'reels_sponsored', 'salon_theater'];
+const PLACEMENTS: SponsorPlacement[] = ['map_banner', 'feed_inline', 'stories_banner', 'stories_sponsored', 'reels_sponsored', 'salon_theater'];
 const KINDS: SponsorKind[] = ['promo', 'sponsored'];
 const DEFAULT_DISPLAY_DURATION_SEC = 8;
 const DISPLAY_DURATION_MIN_SEC = 3;
@@ -273,6 +273,22 @@ const DEFAULT_SPONSORS: Omit<Sponsor, 'createdAt' | 'updatedAt'>[] = [
     displayDurationSec: 12,
   },
   {
+    id: 'fnac-stories-sponso',
+    name: 'Fnac',
+    placement: 'stories_sponsored',
+    active: true,
+    priority: 0,
+    title: 'Fnac Musique — vinyles du moment',
+    subtitle: 'Précommandes et éditions limitées sur fnac.com.',
+    cta: 'Découvrir',
+    linkUrl: 'https://www.fnac.com/Musique',
+    logoUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=80&h=80&fit=crop',
+    posterUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=720&h=1280&fit=crop',
+    accent: 'rose',
+    kind: 'sponsored',
+    displayDurationSec: 8,
+  },
+  {
     id: 'ticketmaster-map-sponso',
     name: 'Ticketmaster',
     placement: 'map_banner',
@@ -419,6 +435,10 @@ export function listActiveFeedAds(at = now()): MapAdPublic[] {
 
 export function listActiveStoriesAds(at = now()): MapAdPublic[] {
   return listActiveAdsByPlacement('stories_banner', at);
+}
+
+export function listActiveStoriesSponsoredAds(at = now()): MapAdPublic[] {
+  return listActiveAdsByPlacement('stories_sponsored', at);
 }
 
 export function listActiveReelsAds(at = now()): MapAdPublic[] {
@@ -621,7 +641,7 @@ function normalizeInput(input: SponsorInput, existing?: Sponsor): Sponsor {
     throw new Error('Image du bandeau requise en mode image seule');
   }
 
-  if (placement === 'reels_sponsored' && !videoUrl && !posterUrl) {
+  if ((placement === 'reels_sponsored' || placement === 'stories_sponsored') && !videoUrl && !posterUrl) {
     throw new Error('URL vidéo ou vignette requise pour un reel sponsorisé');
   }
 

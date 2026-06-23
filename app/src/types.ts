@@ -97,7 +97,7 @@ export interface AdminCreatorInfo {
 
 export type AdminContentFilter = 'all' | 'blocked' | 'active';
 
-export type SponsorPlacement = 'map_banner' | 'feed_inline' | 'stories_banner' | 'reels_sponsored' | 'salon_theater';
+export type SponsorPlacement = 'map_banner' | 'feed_inline' | 'stories_banner' | 'stories_sponsored' | 'reels_sponsored' | 'salon_theater';
 export type SponsorAccent = 'purple' | 'pink' | 'amber' | 'cyan' | 'rose';
 export type SponsorKind = 'promo' | 'sponsored';
 export type SponsorFilter = 'all' | 'active' | 'inactive';
@@ -142,11 +142,18 @@ export interface Sponsor {
 export interface SponsorPlatformConfig {
   reelsSponsorEnabled: boolean;
   reelsSponsorEveryN: number;
+  storiesSponsorEnabled: boolean;
+  storiesSponsorEveryN: number;
 }
 
 export interface ReelsSponsorsResponse {
   items: ReelsSponsorAd[];
   config: Pick<SponsorPlatformConfig, 'reelsSponsorEnabled' | 'reelsSponsorEveryN'>;
+}
+
+export interface StoriesSponsorsResponse {
+  items: ReelsSponsorAd[];
+  config: Pick<SponsorPlatformConfig, 'storiesSponsorEnabled' | 'storiesSponsorEveryN'>;
 }
 
 export interface ReelsSponsorAd {
@@ -485,6 +492,8 @@ export interface User {
   stats?: UserProfileStats;
   /** Nombre d'utilisateurs ayant mis ce profil en favoris (public). */
   favoritesCount?: number;
+  /** Le visiteur a liké (favori) ce profil. */
+  isFavorite?: boolean;
   hostRating?: HostRatingSummary;
   isFollowing?: boolean;
   /** Le profil visité suit le visiteur (follow inverse) */

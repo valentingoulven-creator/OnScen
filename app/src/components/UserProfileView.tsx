@@ -16,6 +16,7 @@ import { PublicProfilePhotoHero } from './PublicProfilePhotoHero';
 import { formatCompactCount } from '../lib/formatCount';
 import { resolveProfileLiveId } from '../lib/profileLive';
 import { FollowUserButton } from './FollowUserButton';
+import { UserLikeButton } from './UserLikeButton';
 import { ProfileCurrentListening } from './ProfileCurrentListening';
 import { CompactTagChips } from './CompactTagChips';
 import { ProfileIdentityLines } from './ProfileIdentityLines';
@@ -252,8 +253,8 @@ export function UserProfileView({
 
   const statsItems = profile
     ? [
-        { value: formatCompactCount(profile.favoritesCount ?? 0), label: 'Favoris' },
-        { value: formatCompactCount(profile.subscriberCount ?? 0), label: 'Abonnés' },
+        { value: formatCompactCount(profile.favoritesCount ?? 0), label: t('profile.likesStat') },
+        { value: formatCompactCount(profile.subscriberCount ?? 0), label: t('profile.subscribersStat') },
       ]
     : [];
 
@@ -332,7 +333,7 @@ export function UserProfileView({
 
           {/* Action buttons — centered below avatar */}
           {!isSelf && (
-            <div className="mt-3 flex items-center justify-center gap-2">
+            <div className="mt-3 flex items-center justify-center gap-2 flex-wrap">
               <FollowUserButton
                 userId={userId}
                 username={displayName}
@@ -340,6 +341,17 @@ export function UserProfileView({
                 variant="pill"
                 onFollowingChange={(following) =>
                   setProfile((p) => (p ? { ...p, isFollowing: following } : p))
+                }
+              />
+              <UserLikeButton
+                userId={userId}
+                username={displayName}
+                initialLiked={profile?.isFavorite}
+                initialCount={profile?.favoritesCount ?? 0}
+                compact
+                showCount
+                onLikeChange={(liked, count) =>
+                  setProfile((p) => (p ? { ...p, isFavorite: liked, favoritesCount: count } : p))
                 }
               />
               {onOpenDm && (

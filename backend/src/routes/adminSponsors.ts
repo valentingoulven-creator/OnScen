@@ -53,6 +53,7 @@ function parsePlacement(raw: unknown): SponsorPlacement | undefined {
     v === 'map_banner' ||
     v === 'feed_inline' ||
     v === 'stories_banner' ||
+    v === 'stories_sponsored' ||
     v === 'reels_sponsored'
   ) {
     return v;
@@ -151,6 +152,10 @@ adminSponsorsRouter.patch('/config', authenticateJWT, (req: Request, res: Respon
         body.reelsSponsorEnabled != null ? Boolean(body.reelsSponsorEnabled) : undefined,
       reelsSponsorEveryN:
         body.reelsSponsorEveryN != null ? Number(body.reelsSponsorEveryN) : undefined,
+      storiesSponsorEnabled:
+        body.storiesSponsorEnabled != null ? Boolean(body.storiesSponsorEnabled) : undefined,
+      storiesSponsorEveryN:
+        body.storiesSponsorEveryN != null ? Number(body.storiesSponsorEveryN) : undefined,
     });
     schedulePersist();
     res.json({ config });

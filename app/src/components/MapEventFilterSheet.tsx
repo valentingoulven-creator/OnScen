@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { EventLocationInput } from './EventLocationInput';
 import {
@@ -7,7 +7,7 @@ import {
   DEFAULT_EVENT_FILTER_RADIUS_KM,
   type MapEventFilterCriteria,
 } from '../lib/mapEventFilter';
-import { resolveEventCoords } from '../lib/mapEventCoords';
+import { resolveEventCoords, resolveEventCityCoordsSync, resolveEventCoordsSync } from '../lib/mapEventCoords';
 
 interface MapEventFilterSheetProps {
   open: boolean;
@@ -15,6 +15,8 @@ interface MapEventFilterSheetProps {
   profileCity?: string;
   onClose: () => void;
   onApply: (criteria: MapEventFilterCriteria) => void;
+  /** Vol carte vers la ville sélectionnée (aperçu avant Appliquer). */
+  onPreviewCity?: (latitude: number, longitude: number, location: string) => void;
 }
 
 export function MapEventFilterSheet({
@@ -23,19 +25,47 @@ export function MapEventFilterSheet({
   profileCity,
   onClose,
   onApply,
+  onPreviewCity,
 }: MapEventFilterSheetProps) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState<MapEventFilterCriteria>(initialCriteria);
   const [applying, setApplying] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const lastPreviewLocationRef = useRef<string | null>(null);
+
+  const previewMapCity = useCallback(
+    (latitude: number, longitude: number, location: string) => {
+      const key = location.trim().toLowerCase();
+      if (!key || lastPreviewLocationRef.current === key) return;
+      lastPreviewLocationRef.current = key;
+      onPreviewCity?.(latitude, longitude, location);
+    },
+    [onPreviewCity]
+  );
 
   useEffect(() => {
-    if (open) {
-      setDraft(applyEventFilterDraftDefaults(initialCriteria, profileCity));
-      setLocationError(null);
-      setApplying(false);
+    if (!open) {
+      lastPreviewLocationRef.current = null;
+      return;
     }
-  }, [open, initialCriteria, profileCity]);
+
+    const next = applyEventFilterDraftDefaults(initialCriteria, profileCity);
+    const location = next.location.trim();
+    let withCoords = next;
+
+    if (location) {
+      const sync =
+        resolveEventCoordsSync(location) ?? resolveEventCityCoordsSync(location);
+      if (sync) {
+        withCoords = { ...next, latitude: sync.latitude, longitude: sync.longitude };
+        previewMapCity(sync.latitude, sync.longitude, location);
+      }
+    }
+
+    setDraft(withCoords);
+    setLocationError(null);
+    setApplying(false);
+  }, [open, initialCriteria, profileCity, previewMapCity]);
 
   useEffect(() => {
     if (!open) return;
@@ -50,11 +80,12 @@ export function MapEventFilterSheet({
           ? { ...current, latitude: coords.latitude, longitude: coords.longitude }
           : current
       );
+      previewMapCity(coords.latitude, coords.longitude, location);
     });
     return () => {
       cancelled = true;
     };
-  }, [open, draft.location, draft.latitude, draft.longitude]);
+  }, [open, draft.location, draft.latitude, draft.longitude, previewMapCity]);
 
   useEffect(() => {
     if (!open) return;
@@ -66,9 +97,24 @@ export function MapEventFilterSheet({
   }, [open, onClose]);
 
   const handleReset = useCallback(() => {
-    setDraft(createDefaultEventFilter(profileCity));
+    const next = createDefaultEventFilter(profileCity);
+    const location = next.location.trim();
+    lastPreviewLocationRef.current = null;
+
+    if (location) {
+      const sync =
+        resolveEventCoordsSync(location) ?? resolveEventCityCoordsSync(location);
+      if (sync) {
+        setDraft({ ...next, latitude: sync.latitude, longitude: sync.longitude });
+        previewMapCity(sync.latitude, sync.longitude, location);
+        setLocationError(null);
+        return;
+      }
+    }
+
+    setDraft(next);
     setLocationError(null);
-  }, [profileCity]);
+  }, [profileCity, previewMapCity]);
 
   const handleApply = useCallback(async () => {
     setApplying(true);
@@ -209,6 +255,17 @@ export function MapEventFilterSheet({
             </label>
             <EventLocationInput
               value={draft.location}
+              cityPickMode
+              onCityPicked={({ label, latitude, longitude }) => {
+                lastPreviewLocationRef.current = null;
+                setDraft((d) => ({
+                  ...d,
+                  location: label,
+                  latitude,
+                  longitude,
+                }));
+                previewMapCity(latitude, longitude, label);
+              }}
               onChange={(value) =>
                 setDraft((d) => ({
                   ...d,

@@ -6,6 +6,7 @@ import { getSocket } from '../lib/socket';
 import { MapView, type MapViewHandle, type MapStyle } from '../components/MapView';
 import { NearbyPeoplePanel } from '../components/NearbyPeoplePanel';
 import { MapCityEventsPanel } from '../components/MapCityEventsPanel';
+import { MapEventDetailModal } from '../components/MapEventDetailModal';
 import { MapEventFilterSheet } from '../components/MapEventFilterSheet';
 import { MapSalonListenSheet } from '../components/MapSalonListenSheet';
 import { CreateSalonModal } from '../components/CreateSalonModal';
@@ -19,10 +20,14 @@ import { isAppa2Layout, type AppLayoutId } from '../lib/appLayout';
 import {
   createDefaultEventFilter,
   filterMapEventsByCriteria,
+  getEventFilterCityMapRadiusKm,
+  getTodayDateInputValue,
+  hasEventFilterCityLocation,
   resolveDefaultUserCityLabel,
+  DEFAULT_EVENT_FILTER_RADIUS_KM,
   type MapEventFilterCriteria,
 } from '../lib/mapEventFilter';
-import { loadMapEventMarkers } from '../lib/mapFeedEvents';
+import { applySavedEventFavoriteState, feedPostFromMapEventMarker, loadMapEventMarkers } from '../lib/mapFeedEvents';
 import { resolveEventCoords } from '../lib/mapEventCoords';
 import { clusterMapEventsByCity, getCityMapView } from '../lib/mapEventClusters';
 import {
@@ -48,7 +53,7 @@ import {
   shouldShowAllSalonsAtCityZoom,
   type MapViewDetailState,
 } from '../lib/mapMarkerVisibility';
-import type { NearbyPerson, Salon, Live, MapEventMarker, MapEventCityCluster, PlaybackState } from '../types';
+import type { NearbyPerson, Salon, Live, MapEventMarker, MapEventCityCluster, PlaybackState, FeedPost } from '../types';
 import { getNearbyRadiusKm, getPrivacyPreferences, SETTINGS_CHANGED_EVENT } from '../lib/settings';
 import {
   DEFAULT_CENTER,
@@ -193,6 +198,9 @@ interface HomePageProps {
   onLeaveSalon?: () => void;
   /** Salon introuvable côté API (supprimé / expiré) pendant restore carte. */
   onSalonRestoreFailed?: (salonId: string) => void;
+  /** Recherche globale → carte (ville / pays). */
+  mapSearchIntent?: import('../lib/mapSearchIntent').MapSearchSearchIntent | null;
+  onMapSearchIntentConsumed?: () => void;
 }
 
 export function HomePage({
@@ -215,6 +223,8 @@ export function HomePage({
   onMapSalonActive,
   onLeaveSalon,
   onSalonRestoreFailed,
+  mapSearchIntent = null,
+  onMapSearchIntentConsumed,
 }: HomePageProps) {
   const { t } = useTranslation();
   const appa2 = isAppa2Layout(appLayout);
@@ -253,16 +263,23 @@ export function HomePage({
   const [nearbyPanelPrefs, setNearbyPanelPrefs] = useState(getNearbyPanelPreferences);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
   const [followingIds, setFollowingIds] = useState<Set<string>>(() => new Set());
+  const [savedEventPostIds, setSavedEventPostIds] = useState<Set<string>>(() => new Set());
   const [mapGeo, setMapGeo] = useState<LivesGeoPrefs>(() => getLivesGeo());
   const salonSheetRef = useRef<HTMLDivElement>(null);
   const mapViewRef = useRef<MapViewHandle>(null);
-  const flyToEventsAfterLoadRef = useRef(false);
+  const eventFilterFlyPendingRef = useRef<MapEventFilterCriteria | null>(null);
+  const lastEventFilterCityFlyRef = useRef<string | null>(null);
+  const mapEventsRef = useRef<MapEventMarker[]>([]);
+  const mapEventPostsRef = useRef<Map<string, FeedPost>>(new Map());
   const [salonSheetExpanded, setSalonSheetExpanded] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [showEventMarkers, setShowEventMarkers] = useState(false);
   const [eventFilterCriteria, setEventFilterCriteria] =
     useState<MapEventFilterCriteria>(createDefaultEventFilter);
   const [showEventFilterSheet, setShowEventFilterSheet] = useState(false);
+  useEffect(() => {
+    if (!showEventFilterSheet) lastEventFilterCityFlyRef.current = null;
+  }, [showEventFilterSheet]);
   useEffect(() => {
     const location = resolveDefaultUserCityLabel(user?.city);
     if (!location) return;
@@ -311,11 +328,16 @@ export function HomePage({
     showSalonMarkersRef.current = showSalonMarkers;
   }, [showSalonMarkers]);
   const [mapEvents, setMapEvents] = useState<MapEventMarker[]>([]);
+  useEffect(() => {
+    mapEventsRef.current = mapEvents;
+  }, [mapEvents]);
   const [mapEventsRefreshKey, setMapEventsRefreshKey] = useState(0);
   const eventFilterLongPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const eventFilterLongPressTriggeredRef = useRef(false);
   const [loadingMapEvents, setLoadingMapEvents] = useState(false);
   const [selectedEventCluster, setSelectedEventCluster] = useState<MapEventCityCluster | null>(null);
+  const [selectedMapEvent, setSelectedMapEvent] = useState<MapEventMarker | null>(null);
+  const [mapEventPostVersion, setMapEventPostVersion] = useState(0);
   /** Centre de la dernière requête api.nearby (pour clip viewport stable). */
   const [nearbyFetchCenter, setNearbyFetchCenter] = useState<[number, number]>(() => [
     ...DEFAULT_CENTER,
@@ -368,6 +390,7 @@ export function HomePage({
       if (!token) {
         setFavoriteIds(new Set());
         setFollowingIds(new Set());
+        setSavedEventPostIds(new Set());
       }
       return;
     }
@@ -379,7 +402,36 @@ export function HomePage({
       .getMyFollowing(token)
       .then((r) => setFollowingIds(new Set(r.followingIds)))
       .catch(() => setFollowingIds(new Set()));
+    api
+      .getFavoritedFeedPosts(token)
+      .then((r) =>
+        setSavedEventPostIds(
+          new Set(r.posts.filter((p) => p.isEvent).map((p) => p.id))
+        )
+      )
+      .catch(() => setSavedEventPostIds(new Set()));
   }, [isActive, token]);
+
+  useEffect(() => {
+    if (!savedEventPostIds.size) return;
+    let changed = false;
+    for (const id of savedEventPostIds) {
+      const cached = mapEventPostsRef.current.get(id);
+      if (cached && !cached.favoriteByMe) {
+        mapEventPostsRef.current.set(id, { ...cached, favoriteByMe: true });
+        changed = true;
+      }
+    }
+    if (changed) setMapEventPostVersion((v) => v + 1);
+  }, [savedEventPostIds]);
+
+  const selectedMapEventPost = useMemo(() => {
+    if (!selectedMapEvent) return null;
+    void mapEventPostVersion;
+    const cached = mapEventPostsRef.current.get(selectedMapEvent.id);
+    if (!cached) return null;
+    return applySavedEventFavoriteState(cached, savedEventPostIds);
+  }, [selectedMapEvent, savedEventPostIds, mapEventPostVersion]);
 
   const viewerTastes = useMemo(
     () => ({
@@ -455,19 +507,6 @@ export function HomePage({
     nearbySortOptions,
   ]);
 
-  const mapEventAuthorIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const event of mapEvents) {
-      if (event.authorId) ids.add(event.authorId);
-    }
-    return ids;
-  }, [mapEvents]);
-
-  const mapPeople = useMemo(
-    () => peopleMarkersOnMap(filteredNearbyPeople, mapEventAuthorIds),
-    [filteredNearbyPeople, mapEventAuthorIds]
-  );
-
   const mapSalons = useMemo(() => {
     const filtered = filterSalonsForMap(salons, filteredNearbyPeople, nearbyPanelPrefs).filter((s) =>
       isValidLatLng(s.latitude, s.longitude)
@@ -502,6 +541,20 @@ export function HomePage({
   /** Rechargement nearby au centre viewport (carte / globe). */
   const mapFilterViewportOn = livesFilterOn || salonFilterOn;
 
+  const mapEventAuthorIds = useMemo(() => {
+    if (!eventsFilterOn) return undefined;
+    const ids = new Set<string>();
+    for (const event of mapEvents) {
+      if (event.authorId) ids.add(event.authorId);
+    }
+    return ids;
+  }, [mapEvents, eventsFilterOn]);
+
+  const mapPeople = useMemo(
+    () => peopleMarkersOnMap(filteredNearbyPeople, mapEventAuthorIds),
+    [filteredNearbyPeople, mapEventAuthorIds]
+  );
+
   /**
    * Quand un filtre est actif, forcer l'affichage du point de géolocalisation
    * utilisateur même si le GPS n'est pas disponible (mode ville ou permission refusée).
@@ -529,7 +582,7 @@ export function HomePage({
   const mapDetailFlatZoom = mapDetailState.flatZoom;
 
   const mapSalonsForView = useMemo(() => {
-    if (!anyMapFilterActive) return mapSalons;
+    if (!anyMapFilterActive) return [];
 
     const merged = new Map<string, Salon>();
     const addSalons = (list: Salon[]) => {
@@ -578,7 +631,7 @@ export function HomePage({
   ]);
 
   const mapLivesForView = useMemo(() => {
-    if (!anyMapFilterActive) return mapLives;
+    if (!anyMapFilterActive) return [];
     if (!livesFilterOn) return [];
     return clipLivesForMapView(
       mapLives,
@@ -588,7 +641,7 @@ export function HomePage({
   }, [anyMapFilterActive, livesFilterOn, mapLives, mapDetailBounds, mapDetailMapStyle, nearbyFetchCenter]);
 
   const mapPeopleForView = useMemo(() => {
-    if (!anyMapFilterActive) return mapPeople;
+    if (!anyMapFilterActive) return [];
     if (!livesFilterOn) return [];
     return clipPeopleForMapView(
       mapPeople,
@@ -647,6 +700,7 @@ export function HomePage({
         people: mapPeople,
         favoriteIds,
         followingIds,
+        savedEventPostIds,
         nearbyFetchCenter,
       }),
     [
@@ -665,6 +719,7 @@ export function HomePage({
       mapPeople,
       favoriteIds,
       followingIds,
+      savedEventPostIds,
       nearbyFetchCenter,
     ]
   );
@@ -788,10 +843,39 @@ export function HomePage({
     disableGlobeView();
   }, []);
 
-  /** Filtres carte haut-gauche : Lives, Salon et Évènement — toggles indépendants. */
+  const disableEventsFilter = useCallback(() => {
+    setSelectedEventCluster(null);
+    setShowEventMarkers(false);
+    setShowEventFilterSheet(false);
+  }, []);
+
+  /** Un seul filtre carte actif à la fois : Lives, Salon ou Évènement. */
+  const deactivateMapContentFiltersExcept = useCallback(
+    (except: 'lives' | 'salon' | 'events' | null) => {
+      if (except !== 'lives' && nearbyPanelPrefs.livesOnly) {
+        setNearbyPanelPreferences({ livesOnly: false });
+      }
+      if (except !== 'salon' && showSalonMarkers) {
+        pendingMapFilterNearbyReloadRef.current = true;
+        clearNearbyCache();
+        setShowSalonMarkers(false);
+      }
+      if (except !== 'events' && showEventMarkers) {
+        disableEventsFilter();
+      }
+    },
+    [nearbyPanelPrefs.livesOnly, showSalonMarkers, showEventMarkers, disableEventsFilter]
+  );
+
+  /** Filtres carte haut-gauche : Lives, Salon et Évènement — un seul actif à la fois. */
   const toggleLivesFilter = useCallback(() => {
-    setNearbyPanelPreferences({ livesOnly: !nearbyPanelPrefs.livesOnly });
-  }, [nearbyPanelPrefs.livesOnly]);
+    if (nearbyPanelPrefs.livesOnly) {
+      setNearbyPanelPreferences({ livesOnly: false });
+      return;
+    }
+    deactivateMapContentFiltersExcept('lives');
+    setNearbyPanelPreferences({ livesOnly: true });
+  }, [nearbyPanelPrefs.livesOnly, deactivateMapContentFiltersExcept]);
 
   /** Logo carte → bascule carte / grille lives (sans changer d'onglet). */
   const toggleMapLivesBrowse = useCallback(() => {
@@ -805,34 +889,58 @@ export function HomePage({
   }, [nearbyPanelPrefs.livesOnly]);
 
   const toggleSalonFilter = useCallback(() => {
-    setShowSalonMarkers((on) => {
-      if (!on) {
-        pendingMapFilterNearbyReloadRef.current = true;
-        clearNearbyCache();
-      }
-      return !on;
-    });
-  }, []);
-
-  const disableEventsFilter = useCallback(() => {
-    setSelectedEventCluster(null);
-    setShowEventMarkers(false);
-    setShowEventFilterSheet(false);
-  }, []);
+    if (showSalonMarkers) {
+      setShowSalonMarkers(false);
+      return;
+    }
+    deactivateMapContentFiltersExcept('salon');
+    pendingMapFilterNearbyReloadRef.current = true;
+    clearNearbyCache();
+    setShowSalonMarkers(true);
+  }, [showSalonMarkers, deactivateMapContentFiltersExcept]);
 
   const openEventFilterSheet = useCallback(() => {
-    setShowEventFilterSheet(true);
-  }, []);
-
-  const flyToEventFilterBounds = useCallback((criteria: MapEventFilterCriteria) => {
-    if (criteria.location.trim() && criteria.latitude != null && criteria.longitude != null) {
-      mapViewRef.current?.flyToCityBounds(
-        criteria.latitude,
-        criteria.longitude,
-        criteria.radiusKm
-      );
+    if (!showEventMarkers) {
+      deactivateMapContentFiltersExcept(null);
     }
-  }, []);
+    setShowEventFilterSheet(true);
+  }, [showEventMarkers, deactivateMapContentFiltersExcept]);
+
+  const flyMapToEventFilterCity = useCallback(
+    (lat: number, lng: number, locationLabel: string, opts?: { force?: boolean }) => {
+      if (!isValidLatLng(lat, lng)) return;
+      const radiusKm = getEventFilterCityMapRadiusKm(locationLabel);
+      const flyKey = `${locationLabel.trim().toLowerCase()}|${lat.toFixed(5)}|${lng.toFixed(5)}|${radiusKm}`;
+      if (!opts?.force && lastEventFilterCityFlyRef.current === flyKey) return;
+      lastEventFilterCityFlyRef.current = flyKey;
+
+      if (mapStyle === 'globe') {
+        mapViewRef.current?.jumpToCityBounds(lat, lng, radiusKm);
+        setMapStyle('flat');
+        localStorage.setItem(MAP_STYLE_KEY, 'flat');
+      } else {
+        mapViewRef.current?.flyToCityBounds(lat, lng, radiusKm);
+      }
+      // Ne pas setCenter ici : MapView réagit au prop center par un flyTo(zoom 13)
+      // qui entre en conflit avec flyToCityBounds (double animation dézoom/rezoom).
+    },
+    [mapStyle]
+  );
+
+  const flyToEventFilterBounds = useCallback(
+    (criteria: MapEventFilterCriteria, force = false) => {
+      if (!hasEventFilterCityLocation(criteria)) return;
+      flyMapToEventFilterCity(criteria.latitude!, criteria.longitude!, criteria.location, { force });
+    },
+    [flyMapToEventFilterCity]
+  );
+
+  const previewEventFilterCity = useCallback(
+    (lat: number, lng: number, location: string) => {
+      flyMapToEventFilterCity(lat, lng, location);
+    },
+    [flyMapToEventFilterCity]
+  );
 
   const flyToEventMarkersBounds = useCallback((markers: MapEventMarker[]) => {
     const valid = markers.filter((m) => isValidLatLng(m.latitude, m.longitude));
@@ -862,13 +970,57 @@ export function HomePage({
     mapViewRef.current?.flyToCityBounds(centerLat, centerLng, Math.max(maxDistKm * 1.4, 10));
   }, []);
 
-  const applyEventFilter = useCallback((criteria: MapEventFilterCriteria) => {
+  const applyEventFilter = useCallback(
+    (criteria: MapEventFilterCriteria) => {
+      deactivateMapContentFiltersExcept('events');
+      setEventFilterCriteria(criteria);
+      setShowEventMarkers(true);
+      setShowEventFilterSheet(false);
+
+      if (hasEventFilterCityLocation(criteria)) {
+        eventFilterFlyPendingRef.current = null;
+        // Toujours cadrer à l'Appliquer (l'utilisateur peut avoir déplacé la carte pendant le sheet).
+        requestAnimationFrame(() => flyToEventFilterBounds(criteria, true));
+        return;
+      }
+
+      const markers = mapEventsRef.current;
+      if (markers.length > 0) {
+        eventFilterFlyPendingRef.current = null;
+        const filtered = filterMapEventsByCriteria(markers, criteria, { viewerId: user?.id });
+        flyToEventMarkersBounds(filtered.length > 0 ? filtered : markers);
+        return;
+      }
+
+      eventFilterFlyPendingRef.current = criteria;
+    },
+    [flyToEventFilterBounds, flyToEventMarkersBounds, user?.id, deactivateMapContentFiltersExcept]
+  );
+
+  useEffect(() => {
+    if (!mapSearchIntent || !isActive) return;
+    deactivateMapContentFiltersExcept('events');
+    const criteria = {
+      ...createDefaultEventFilter(user?.city),
+      dateFrom: getTodayDateInputValue(),
+      location: mapSearchIntent.location,
+      latitude: mapSearchIntent.latitude,
+      longitude: mapSearchIntent.longitude,
+      radiusKm: DEFAULT_EVENT_FILTER_RADIUS_KM,
+      eventType: 'all' as const,
+    };
     setEventFilterCriteria(criteria);
     setShowEventMarkers(true);
-    setShowEventFilterSheet(false);
-    flyToEventFilterBounds(criteria);
-    flyToEventsAfterLoadRef.current = true;
-  }, [flyToEventFilterBounds]);
+    requestAnimationFrame(() => flyToEventFilterBounds(criteria, true));
+    onMapSearchIntentConsumed?.();
+  }, [
+    mapSearchIntent,
+    isActive,
+    user?.city,
+    flyToEventFilterBounds,
+    onMapSearchIntentConsumed,
+    deactivateMapContentFiltersExcept,
+  ]);
 
   const toggleEventsFilter = useCallback(() => {
     if (showEventMarkers) {
@@ -903,26 +1055,34 @@ export function HomePage({
   }, [toggleEventsFilter]);
 
   useEffect(() => {
-    if (!isActive || !showEventMarkers || !token) {
-      if (!showEventMarkers) setMapEvents([]);
-      return;
-    }
+    if (!isActive || !token) return;
 
     let cancelled = false;
-    setLoadingMapEvents(true);
+    const hadMarkers = mapEventsRef.current.length > 0;
+    if (showEventMarkers && !hadMarkers) setLoadingMapEvents(true);
 
-    loadMapEventMarkers(token, { signal: { cancelled } })
-      .then((markers) => {
+    loadMapEventMarkers(token, {
+      signal: { cancelled },
+      onProgress: (partial) => {
+        if (cancelled || partial.length === 0) return;
+        setMapEvents(partial);
+        if (showEventMarkers) setLoadingMapEvents(false);
+      },
+    })
+      .then(({ markers, postsById }) => {
         if (!cancelled) {
+          mapEventPostsRef.current = postsById;
           setMapEvents(markers);
-          if (flyToEventsAfterLoadRef.current && markers.length > 0) {
-            flyToEventsAfterLoadRef.current = false;
-            flyToEventMarkersBounds(markers);
+          const pendingFly = eventFilterFlyPendingRef.current;
+          if (pendingFly && !hasEventFilterCityLocation(pendingFly) && markers.length > 0) {
+            eventFilterFlyPendingRef.current = null;
+            const filtered = filterMapEventsByCriteria(markers, pendingFly, { viewerId: user?.id });
+            flyToEventMarkersBounds(filtered.length > 0 ? filtered : markers);
           }
         }
       })
       .catch(() => {
-        if (!cancelled) {
+        if (!cancelled && showEventMarkers) {
           setMapEvents([]);
           setToastMsg('Impossible de charger les événements sur la carte');
         }
@@ -934,7 +1094,7 @@ export function HomePage({
     return () => {
       cancelled = true;
     };
-  }, [isActive, showEventMarkers, token, mapEventsRefreshKey]);
+  }, [isActive, token, mapEventsRefreshKey, showEventMarkers, user?.id, flyToEventMarkersBounds]);
 
   const handleGlobeZoomToFlat = useCallback(
     (
@@ -1449,12 +1609,9 @@ export function HomePage({
     [flyMapToCity, setNearbyPeopleVisible, nearbyPanelPrefs.livesOnly, loadNearbyAt]
   );
 
-  const handleCityEventClick = useCallback(
-    (event: MapEventMarker) => {
-      onOpenFeedPost?.(event.id);
-    },
-    [onOpenFeedPost]
-  );
+  const handleCityEventClick = useCallback((event: MapEventMarker) => {
+    setSelectedMapEvent(event);
+  }, []);
 
   const clearEventClusterSelection = useCallback(() => {
     setSelectedEventCluster(null);
@@ -1875,6 +2032,7 @@ export function HomePage({
           profileCity={user?.city}
           onClose={() => setShowEventFilterSheet(false)}
           onApply={applyEventFilter}
+          onPreviewCity={previewEventFilterCity}
         />
       )}
 
@@ -2158,7 +2316,6 @@ export function HomePage({
                 onPointerUp={onEventFilterPointerUp}
                 onPointerLeave={onEventFilterPointerUp}
                 onPointerCancel={onEventFilterPointerUp}
-                disabled={loadingMapEvents}
                 title={
                   showEventMarkers
                     ? t('map.eventFilterDisableTitle')
@@ -2170,13 +2327,13 @@ export function HomePage({
                     : t('map.eventFilterEnableTitle')
                 }
                 aria-pressed={showEventMarkers}
-                className={`${MAP_STACK_FILTER_BTN} disabled:opacity-60 ${
+                className={`${MAP_STACK_FILTER_BTN} ${
                   showEventMarkers
                     ? 'bg-purple-950/80 border-purple-500 text-purple-200'
                     : 'bg-[#12121a] border-[#2d2d3d] hover:border-purple-500/60 text-white/70 hover:text-purple-200'
                 }`}
               >
-                {loadingMapEvents ? (
+                {showEventMarkers && loadingMapEvents && mapEvents.length === 0 ? (
                   <span className="h-2.5 w-2.5 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin shrink-0" />
                 ) : (
                   <span aria-hidden className="shrink-0 flex h-2.5 w-2.5 items-center justify-center text-[10px] leading-none">
@@ -2343,6 +2500,50 @@ export function HomePage({
             </button>
           ))}
       </div>
+
+      <MapEventDetailModal
+        open={!!selectedMapEvent}
+        marker={selectedMapEvent}
+        post={selectedMapEventPost}
+        savedEventPostIds={savedEventPostIds}
+        onClose={() => setSelectedMapEvent(null)}
+        onOpenInFeed={onOpenFeedPost}
+        onPostUpdated={(postId, patch) => {
+          const cached = mapEventPostsRef.current.get(postId);
+          const next = cached
+            ? { ...cached, ...patch }
+            : selectedMapEvent?.id === postId
+              ? ({
+                  ...feedPostFromMapEventMarker(selectedMapEvent, null, savedEventPostIds),
+                  ...patch,
+                } as FeedPost)
+              : null;
+          if (next) {
+            mapEventPostsRef.current.set(postId, next);
+            setMapEventPostVersion((v) => v + 1);
+          }
+          if (patch.favoriteByMe !== undefined) {
+            setSavedEventPostIds((prev) => {
+              const next = new Set(prev);
+              if (patch.favoriteByMe) next.add(postId);
+              else next.delete(postId);
+              return next;
+            });
+          }
+        }}
+        onOpenAuthor={(userId) => {
+          if (!selectedMapEvent) return;
+          const cached = mapEventPostsRef.current.get(selectedMapEvent.id);
+          onOpenProfile({
+            id: userId,
+            username: cached?.author.username ?? selectedMapEvent.authorUsername ?? '',
+            avatarUrl: cached?.author.avatarUrl ?? selectedMapEvent.authorAvatarUrl,
+            usernameColor: cached?.author.usernameColor ?? selectedMapEvent.authorUsernameColor,
+            usernameWaveFrom: cached?.author.usernameWaveFrom ?? selectedMapEvent.authorUsernameWaveFrom,
+            usernameWaveTo: cached?.author.usernameWaveTo ?? selectedMapEvent.authorUsernameWaveTo,
+          });
+        }}
+      />
 
     </div>
   );

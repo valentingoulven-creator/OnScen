@@ -3,17 +3,20 @@ import { useHorizontalSwipe } from '../hooks/useHorizontalSwipe';
 import { useVerticalSwipe } from '../hooks/useVerticalSwipe';
 import { api } from '../lib/api';
 import { STORY_VIEW_DURATION_MS, formatStoryTimeAgo } from '../lib/storyViewerNav';
-import type { MapStory } from '../types';
+import { getDisplayDurationMs } from '../lib/sponsorDisplaySpec';
+import { handleSponsorCta } from '../lib/sponsorAds';
+import { SPONSOR_ACCENT_GRADIENTS, sponsorKindBadgeLabel } from '../lib/sponsorDisplaySpec';
+import type { MapStory, ReelsSponsorAd } from '../types';
 import { OpenOnYoutubeButton } from './OpenOnYoutubeButton';
 import { StoryLinkOverlay } from './StoryLinkSticker';
 import { UsernameDisplay } from './UsernameDisplay';
 import { UserAvatarOnline } from './UserAvatarOnline';
 
 export interface StoryViewerProps {
-  story: MapStory;
+  story?: MapStory;
   /** Stories de l'utilisateur courant (pile), du plus ancien au plus récent. */
-  stack: MapStory[];
-  stackIndex: number;
+  stack?: MapStory[];
+  stackIndex?: number;
   onClose: () => void;
   onNext: () => void;
   onPrev: () => void;
@@ -23,6 +26,8 @@ export interface StoryViewerProps {
   isOwn?: boolean;
   token?: string;
   onDeleted?: (story: MapStory) => void;
+  /** Plein écran sponsorisé (visionneuse stories). */
+  sponsorAd?: ReelsSponsorAd;
 }
 
 export function StoryViewer({
@@ -37,7 +42,15 @@ export function StoryViewer({
   isOwn = false,
   token,
   onDeleted,
+  sponsorAd,
 }: StoryViewerProps) {
+  const isSponsorSlide = Boolean(sponsorAd);
+  const activeStory = story;
+  const activeStack = stack ?? [];
+  const activeStackIndex = stackIndex ?? 0;
+  const segmentDurationMs = isSponsorSlide
+    ? getDisplayDurationMs(sponsorAd?.displayDurationSec)
+    : STORY_VIEW_DURATION_MS;
   const [paused, setPaused] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -71,7 +84,7 @@ export function StoryViewer({
     setPaused(false);
     setShowDeleteConfirm(false);
     setDeleteError(null);
-  }, [story.id]);
+  }, [activeStory?.id, sponsorAd?.id]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -90,7 +103,7 @@ export function StoryViewer({
     let lastPaint = 0;
     const tick = (now: number) => {
       const elapsed = Date.now() - segmentStartRef.current;
-      const p = Math.min(1, elapsed / STORY_VIEW_DURATION_MS);
+      const p = Math.min(1, elapsed / segmentDurationMs);
       if (now - lastPaint >= 50 || p >= 1) {
         setProgress(p);
         progressRef.current = p;
@@ -105,17 +118,17 @@ export function StoryViewer({
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [story.id, paused]);
+  }, [activeStory?.id, sponsorAd?.id, paused, segmentDurationMs]);
 
   const pause = useCallback(() => {
     setPaused(true);
   }, []);
 
   const resume = useCallback(() => {
-    const elapsed = progressRef.current * STORY_VIEW_DURATION_MS;
+    const elapsed = progressRef.current * segmentDurationMs;
     segmentStartRef.current = Date.now() - elapsed;
     setPaused(false);
-  }, []);
+  }, [segmentDurationMs]);
 
   const horizontalSwipe = useHorizontalSwipe({
     enabled: true,
@@ -158,29 +171,29 @@ export function StoryViewer({
     onClose();
   };
 
-  const canDelete = isOwn && Boolean(token) && Boolean(onDeleted);
+  const canDelete = !isSponsorSlide && isOwn && Boolean(token) && Boolean(onDeleted);
 
   const confirmDelete = useCallback(async () => {
-    if (!token || !onDeleted) return;
+    if (!token || !onDeleted || !activeStory) return;
     setDeleting(true);
     setDeleteError(null);
     try {
-      await api.deleteStory(token, story.id);
+      await api.deleteStory(token, activeStory.id);
       setShowDeleteConfirm(false);
-      onDeleted(story);
+      onDeleted(activeStory);
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Suppression impossible');
     } finally {
       setDeleting(false);
     }
-  }, [token, onDeleted, story]);
+  }, [token, onDeleted, activeStory]);
 
   return (
     <div
       className="fixed inset-0 z-[200] flex items-stretch sm:items-center justify-center bg-black sm:bg-black/70 sm:backdrop-blur-sm p-0 sm:p-4 select-none"
       role="dialog"
       aria-modal="true"
-      aria-label={`Story de ${story.author.username}`}
+      aria-label={isSponsorSlide ? `Publicité ${sponsorAd?.title ?? ''}` : `Story de ${activeStory?.author.username ?? ''}`}
       onClick={handleBackdropClose}
       {...mergeTouch}
     >
@@ -190,46 +203,80 @@ export function StoryViewer({
       >
         {/* Barres de progression */}
         <div className="flex gap-1 px-3 ms-safe-area-top sm:pt-3 shrink-0">
-          {stack.map((seg, i) => {
-            let fill = 0;
-            if (i < stackIndex) fill = 1;
-            else if (i === stackIndex) fill = progress;
-            return (
-              <div key={seg.id} className="flex-1 h-[3px] rounded-full bg-white/20 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-white transition-none"
-                  style={{ width: `${fill * 100}%` }}
-                />
-              </div>
-            );
-          })}
+          {isSponsorSlide ? (
+            <div className="flex-1 h-[3px] rounded-full bg-white/20 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-amber-300 transition-none"
+                style={{ width: `${progress * 100}%` }}
+              />
+            </div>
+          ) : (
+            activeStack.map((seg, i) => {
+              let fill = 0;
+              if (i < activeStackIndex) fill = 1;
+              else if (i === activeStackIndex) fill = progress;
+              return (
+                <div key={seg.id} className="flex-1 h-[3px] rounded-full bg-white/20 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-white transition-none"
+                    style={{ width: `${fill * 100}%` }}
+                  />
+                </div>
+              );
+            })
+          )}
         </div>
 
-        {/* En-tête */}
         <div className="flex items-center justify-between gap-2 px-3 py-2 shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <UserAvatarOnline
-              userId={story.author.id}
-              username={story.author.username}
-              avatarUrl={story.author.avatarUrl}
-              size="sm"
-            />
-            <div className="min-w-0">
-              <UsernameDisplay
-                username={story.author.username}
-                usernameColor={story.author.usernameColor}
-                usernameWaveFrom={story.author.usernameWaveFrom}
-                usernameWaveTo={story.author.usernameWaveTo}
-                className="text-sm font-semibold truncate block text-white"
-              />
-              <p className="text-[11px] text-gray-400">{formatStoryTimeAgo(story.createdAt)}</p>
+          {isSponsorSlide && sponsorAd ? (
+            <div className="flex items-center gap-2 min-w-0">
+              {sponsorAd.logoUrl?.trim() ? (
+                <img
+                  src={sponsorAd.logoUrl.trim()}
+                  alt=""
+                  className="w-8 h-8 rounded-lg object-cover bg-[#1a1a26] shrink-0"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-lg bg-[#1a1a26] flex items-center justify-center text-[9px] text-gray-500 shrink-0">
+                  AD
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-amber-300">
+                  {sponsorKindBadgeLabel(sponsorAd.kind ?? 'sponsored')}
+                </p>
+                <p className="text-sm font-semibold text-white truncate">
+                  {sponsorAd.sponsor?.trim() || sponsorAd.title}
+                </p>
+              </div>
             </div>
-            {story.visibility ? (
-              <span className="text-xs shrink-0" title={story.visibility === 'public' ? 'Public' : 'Abonnés'}>
-                {story.visibility === 'public' ? '🌍' : '👥'}
-              </span>
-            ) : null}
-          </div>
+          ) : activeStory ? (
+            <div className="flex items-center gap-2 min-w-0">
+              <UserAvatarOnline
+                userId={activeStory.author.id}
+                username={activeStory.author.username}
+                avatarUrl={activeStory.author.avatarUrl}
+                size="sm"
+              />
+              <div className="min-w-0">
+                <UsernameDisplay
+                  username={activeStory.author.username}
+                  usernameColor={activeStory.author.usernameColor}
+                  usernameWaveFrom={activeStory.author.usernameWaveFrom}
+                  usernameWaveTo={activeStory.author.usernameWaveTo}
+                  className="text-sm font-semibold truncate block text-white"
+                />
+                <p className="text-[11px] text-gray-400">{formatStoryTimeAgo(activeStory.createdAt)}</p>
+              </div>
+              {activeStory.visibility ? (
+                <span className="text-xs shrink-0" title={activeStory.visibility === 'public' ? 'Public' : 'Abonnés'}>
+                  {activeStory.visibility === 'public' ? '🌍' : '👥'}
+                </span>
+              ) : null}
+            </div>
+          ) : (
+            <div />
+          )}
           <div className="flex items-center gap-0.5 shrink-0">
             {canDelete ? (
               <button
@@ -262,10 +309,63 @@ export function StoryViewer({
 
         {/* Media ajusté (object-contain, plein écran sur mobile) */}
         <div className="relative flex-1 min-h-0 sm:min-h-[200px] sm:max-h-[55dvh] flex items-center justify-center bg-[#0b0b0f]">
-          <div className="relative max-w-full max-h-full">
-            {story.imageUrl ? (
+          <div className="relative w-full h-full max-w-full max-h-full flex items-center justify-center">
+            {isSponsorSlide && sponsorAd ? (
+              <>
+                {sponsorAd.videoUrl?.trim() ? (
+                  <video
+                    key={sponsorAd.id}
+                    src={sponsorAd.videoUrl}
+                    poster={sponsorAd.posterUrl?.trim() || sponsorAd.logoUrl?.trim()}
+                    className="max-w-full max-h-full object-contain block"
+                    playsInline
+                    autoPlay
+                    muted
+                    loop
+                  />
+                ) : sponsorAd.posterUrl?.trim() || sponsorAd.logoUrl?.trim() ? (
+                  <img
+                    src={(sponsorAd.posterUrl || sponsorAd.logoUrl)!.trim()}
+                    alt=""
+                    className="max-w-full max-h-full object-contain block"
+                    draggable={false}
+                  />
+                ) : (
+                  <div
+                    className={`w-full h-full min-h-[200px] bg-gradient-to-b ${SPONSOR_ACCENT_GRADIENTS[sponsorAd.accent ?? 'purple']}`}
+                  />
+                )}
+                <div className="absolute inset-x-0 bottom-0 z-20 p-4 pb-6 bg-gradient-to-t from-black/85 via-black/40 to-transparent pointer-events-none">
+                  <div className="pointer-events-auto">
+                    <p className="text-lg font-bold text-white leading-tight">{sponsorAd.title}</p>
+                    <p className="text-sm text-white/85 mt-1 line-clamp-3">{sponsorAd.subtitle}</p>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSponsorCta({
+                          id: sponsorAd.id,
+                          title: sponsorAd.title,
+                          subtitle: sponsorAd.subtitle,
+                          cta: sponsorAd.cta,
+                          href: sponsorAd.href,
+                          accent: sponsorAd.accent,
+                          sponsor: sponsorAd.sponsor,
+                          kind: sponsorAd.kind,
+                          logoUrl: sponsorAd.logoUrl,
+                          displayDurationSec: sponsorAd.displayDurationSec,
+                        });
+                      }}
+                      className="mt-3 px-4 py-2.5 min-h-[44px] rounded-xl bg-white/15 border border-white/25 text-sm font-bold text-white backdrop-blur-sm hover:bg-white/25 transition-colors"
+                    >
+                      {sponsorAd.cta}
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : activeStory?.imageUrl ? (
               <img
-                src={story.imageUrl}
+                src={activeStory.imageUrl}
                 alt=""
                 className="max-w-full max-h-full object-contain block"
                 draggable={false}
@@ -307,38 +407,39 @@ export function StoryViewer({
               />
             </div>
 
-            {story.link?.url ? (
-              <StoryLinkOverlay link={story.link} interactive="open" />
+            {!isSponsorSlide && activeStory?.link?.url ? (
+              <StoryLinkOverlay link={activeStory.link} interactive="open" />
             ) : null}
           </div>
         </div>
 
-        {/* Contenu bas (texte, musique, tags) */}
-        {(story.content ||
-          story.musicTrack ||
-          story.link?.url ||
-          (story.taggedUsers && story.taggedUsers.length > 0)) && (
+        {!isSponsorSlide &&
+        activeStory &&
+        (activeStory.content ||
+          activeStory.musicTrack ||
+          activeStory.link?.url ||
+          (activeStory.taggedUsers && activeStory.taggedUsers.length > 0)) && (
           <div className="shrink-0 px-4 py-3 ms-safe-area-bottom pb-[max(0.75rem,env(safe-area-inset-bottom))] space-y-2 overflow-y-auto max-h-[22dvh] sm:max-h-[22vh] border-t border-[#1e1e2f]">
-            {story.content ? (
-              <p className="text-sm text-gray-200 whitespace-pre-wrap break-words">{story.content}</p>
+            {activeStory.content ? (
+              <p className="text-sm text-gray-200 whitespace-pre-wrap break-words">{activeStory.content}</p>
             ) : null}
 
-            {story.musicTrack ? (
+            {activeStory.musicTrack ? (
               <div className="flex items-center gap-2 rounded-xl bg-[#1a1a28] border border-[#2d2d3d] px-3 py-2 max-w-sm">
                 <span className="text-lg" aria-hidden>
                   🎵
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs text-white font-medium truncate">{story.musicTrack.title}</p>
-                  {story.musicTrack.artist ? (
-                    <p className="text-[10px] text-gray-500 truncate">{story.musicTrack.artist}</p>
+                  <p className="text-xs text-white font-medium truncate">{activeStory.musicTrack.title}</p>
+                  {activeStory.musicTrack.artist ? (
+                    <p className="text-[10px] text-gray-500 truncate">{activeStory.musicTrack.artist}</p>
                   ) : null}
                 </div>
-                {story.musicTrack.videoId ? (
-                  <OpenOnYoutubeButton trackId={story.musicTrack.videoId} variant="youtube-red" label="Écouter" />
-                ) : story.musicTrack.url ? (
+                {activeStory.musicTrack.videoId ? (
+                  <OpenOnYoutubeButton trackId={activeStory.musicTrack.videoId} variant="youtube-red" label="Écouter" />
+                ) : activeStory.musicTrack.url ? (
                   <a
-                    href={story.musicTrack.url}
+                    href={activeStory.musicTrack.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[10px] text-red-400 hover:text-red-300 shrink-0"
@@ -349,22 +450,22 @@ export function StoryViewer({
               </div>
             ) : null}
 
-            {story.link?.url ? (
+            {activeStory.link?.url ? (
               <a
-                href={story.link.url}
+                href={activeStory.link.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-xl bg-[#1a1a28] border border-[#2d2d3d] px-3 py-2 text-xs text-purple-300 hover:text-purple-200 max-w-sm"
                 onClick={(e) => e.stopPropagation()}
               >
                 <span aria-hidden>🔗</span>
-                <span className="truncate">{story.link.label?.trim() || story.link.url}</span>
+                <span className="truncate">{activeStory.link.label?.trim() || activeStory.link.url}</span>
               </a>
             ) : null}
 
-            {story.taggedUsers && story.taggedUsers.length > 0 ? (
+            {activeStory.taggedUsers && activeStory.taggedUsers.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
-                {story.taggedUsers.map((t) => (
+                {activeStory.taggedUsers.map((t) => (
                   <span
                     key={t.id}
                     className="inline-flex items-center gap-1 rounded-full bg-[#1a1a28] border border-[#2d2d3d] pl-1 pr-2 py-0.5"

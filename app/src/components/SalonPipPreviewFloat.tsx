@@ -15,6 +15,7 @@ import {
 } from './DraggableVideoPip';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
+import { UserLikeButton } from './UserLikeButton';
 import type { Salon } from '../types';
 
 function SalonPipPreviewFloatInner({
@@ -28,6 +29,7 @@ function SalonPipPreviewFloatInner({
   onJoin: () => void;
   onClose: () => void;
 }) {
+  const { token, user } = useAuth();
   const pip = useDraggableVideoPip(true, onJoin, defaultVideoPipPos);
   const videoH = Math.round((VIDEO_PIP_WIDTH * 9) / 16);
   const positionSec = videoId
@@ -51,6 +53,11 @@ function SalonPipPreviewFloatInner({
         <p className="flex-1 truncate min-w-0 text-[9px] font-bold text-purple-400 uppercase tracking-widest">
           {salon.title}
         </p>
+        {token && user?.id !== salon.hostId && (
+          <div className="shrink-0" onPointerDown={(e) => e.stopPropagation()}>
+            <UserLikeButton userId={salon.hostId} username={salon.hostName} iconOnly showCount />
+          </div>
+        )}
         <button
           type="button"
           onPointerDown={(e) => e.stopPropagation()}

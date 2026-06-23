@@ -1,4 +1,698 @@
 ================================================================================
+MODIF 657 — Carte : un seul filtre actif (Lives / Salon / Évènement)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les filtres carte Lives, Salon et Évènement pouvaient être actifs simultanément.
+ L'utilisateur souhaite un seul filtre sélectionnable à la fois.
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/HomePage.tsx
+ ──────────────────────────
+ • deactivateMapContentFiltersExcept() : désactive les autres filtres.
+ • toggleLivesFilter / toggleSalonFilter / toggleEventsFilter / applyEventFilter
+   et recherche globale → un seul filtre actif.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/pages/HomePage.tsx → exclusivité filtres carte
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 657 — 2026-06-22
+================================================================================
+
+================================================================================
+MODIF 656 — Modal événement : couleurs actions persistantes (like, commentaire)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Après like / commentaire dans le modal événement carte, le compteur restait
+ affiché mais la couleur revenait au gris (état réinitialisé).
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/MapEventDetailModal.tsx
+ ───────────────────────────────────────────
+ • Fusion activePost : conserve likedByMe, likeCount, commentCount en session.
+
+ app/src/components/FeedPostInteractions.tsx
+ ───────────────────────────────────────────
+ • Fond persistant like (rouge) et commentaire (violet).
+
+ app/src/pages/HomePage.tsx
+ ──────────────────────────
+ • Cache carte créé/mis à jour même sans entrée préalable.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/components/MapEventDetailModal.tsx → sync état interactions
+ app/src/components/FeedPostInteractions.tsx → styles persistants
+ app/src/pages/HomePage.tsx → cache onPostUpdated
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 656 — 2026-06-22
+================================================================================
+
+================================================================================
+MODIF 655 — Modal événement : lieu cliquable (Google Maps, Waze, Plans)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Dans le modal détail événement carte, le lieu n'était pas cliquable pour
+ ouvrir un itinéraire dans une app de navigation.
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/openExternalMap.ts
+ ──────────────────────────────
+ • URLs Google Maps, Waze, Apple Maps (coords ou libellé).
+
+ app/src/components/OpenLocationMenu.tsx
+ ──────────────────────────────────────
+ • Menu bottom-sheet : choix de l'app de navigation.
+
+ app/src/components/EventCard.tsx
+ ───────────────────────────────
+ • Prop locationNavigable + lieu cliquable avec soulignement.
+
+ app/src/components/MapEventDetailModal.tsx
+ ───────────────────────────────────────────
+ • locationNavigable + coords du marqueur carte.
+
+ app/src/locales/fr.json, en.json
+ ────────────────────────────────
+ • openLocation.* (titre, apps, aria-label).
+
+ app/src/lib/openExternalMap.test.ts
+ ──────────────────────────────────
+ • Tests URLs.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/lib/openExternalMap.ts → helper URLs navigation
+ app/src/components/OpenLocationMenu.tsx → menu choix app
+ app/src/components/EventCard.tsx → lieu cliquable
+ app/src/components/MapEventDetailModal.tsx → activation modal
+ app/src/locales/fr.json, en.json → traductions
+ app/src/lib/openExternalMap.test.ts → tests
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 655 — 2026-06-22
+================================================================================
+
+================================================================================
+MODIF 654 — Modal événement carte : bouton favori persistant
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Bouton « Enregistrer » du modal événement carte : pas de couleur ambre persistante
+ quand l'événement est déjà en favori (ou après enregistrement).
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/mapFeedEvents.ts
+ ─────────────────────────────
+ • applySavedEventFavoriteState + feedPostFromMapEventMarker enrichi.
+
+ app/src/pages/HomePage.tsx
+ ──────────────────────────
+ • Sync cache carte avec savedEventPostIds ; selectedMapEventPost mémorisé.
+
+ app/src/components/MapEventDetailModal.tsx
+ ───────────────────────────────────────────
+ • favoriteByMe depuis favoris enregistrés ; ne réinitialise pas likes/commentaires.
+
+ app/src/components/FeedPostInteractions.tsx
+ ───────────────────────────────────────────
+ • Style ambre + fond persistant quand favoriteByMe.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/lib/mapFeedEvents.ts → helper favori enregistré
+ app/src/pages/HomePage.tsx → sync cache + prop modal
+ app/src/components/MapEventDetailModal.tsx → état favori fiable
+ app/src/components/FeedPostInteractions.tsx → style bouton favori
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 654 — 2026-06-22
+================================================================================
+
+================================================================================
+MODIF 653 — Carte sidebar Suivi : événements enregistrés (favoris)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La section « Suivi » du panneau latéral carte (filtre Événement) n'affichait
+ que les événements des comptes suivis, pas ceux enregistrés en favori.
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/mapSidebarContent.ts
+ ─────────────────────────────────
+ • savedEventPostIds : événements suivis OU enregistrés ; clusters idem.
+ • Enregistrés en tête de la section Suivi.
+
+ app/src/pages/HomePage.tsx
+ ──────────────────────────
+ • Chargement getFavoritedFeedPosts (isEvent) ; sync au toggle favori modal.
+
+ app/src/components/NearbyPeoplePanel.tsx
+ ───────────────────────────────────────
+ • Libellé « Suivi / Enregistré » pour événements et clusters (pas lives).
+
+ app/src/locales/fr.json, en.json
+ ────────────────────────────────
+ • map.sidebarEventsFollowing, sidebarEventsFollowingEmpty.
+
+ app/src/lib/mapSidebarContent.test.ts
+ ────────────────────────────────────
+ • Test événement enregistré dans section Suivi.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/lib/mapSidebarContent.ts → logique Suivi + favoris posts
+ app/src/pages/HomePage.tsx → state savedEventPostIds
+ app/src/components/NearbyPeoplePanel.tsx → libellés section événements
+ app/src/locales/fr.json, en.json → traductions
+ app/src/lib/mapSidebarContent.test.ts → test
+
+BUILD (si vérifié)
+-----
+ app/ → npm test mapSidebarContent → ✅
+
+================================================================================
+Fin MODIF 653 — 2026-06-22
+================================================================================
+
+================================================================================
+MODIF 652 — Modal événement carte : like, commentaire, partage, favori
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Popup détail événement sur la carte : ajouter les interactions fil (liker,
+ commenter, partager, enregistrer en favori) sans quitter la carte.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/FeedPostInteractions.tsx
+ ───────────────────────────────────────────
+ • Barre like / commentaires / partage / favori + liste commentaires + partage DM.
+
+ app/src/components/MapEventDetailModal.tsx
+ ───────────────────────────────────────────
+ • Intègre FeedPostInteractions ; état post mutable + sync cache carte.
+
+ app/src/components/ShareLinkMenu.tsx, ShareToUserSheet.tsx
+ ───────────────────────────────────────────────────────────
+ • Prop overlayZClass (z-[120] au-dessus du modal carte).
+
+FICHIERS MODIFIÉS
+-----
+ app/src/components/FeedPostInteractions.tsx → nouveau
+ app/src/components/MapEventDetailModal.tsx → interactions
+ app/src/pages/HomePage.tsx → onPostUpdated cache
+ app/src/components/ShareLinkMenu.tsx, ShareToUserSheet.tsx → z-index
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 652 — 2026-06-22
+================================================================================
+
+================================================================================
+MODIF 651 — Carte : popup détail événement au clic sidebar
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic sur une ligne événement (MapEventRow) dans la sidebar carte : ouvrir un
+ popup centré avec les infos de la publication, sans quitter la carte.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/MapEventDetailModal.tsx
+ ─────────────────────────────────────────
+ • Modal centré (bottom-sheet mobile) : EventCard, vidéo, actions fil / profil.
+
+ app/src/pages/HomePage.tsx
+ ─────────────────────────
+ • Clic sidebar → modal ; cache FeedPost au chargement des marqueurs carte.
+
+ app/src/lib/mapFeedEvents.ts
+ ────────────────────────────
+ • loadMapEventMarkers retourne postsById ; helpers feedPostFromMapEventMarker.
+
+ app/src/locales/fr.json, en.json
+ ────────────────────────────────
+ • map.eventModalOpenInFeed, map.eventModalOpenAuthor.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/components/MapEventDetailModal.tsx → nouveau modal
+ app/src/pages/HomePage.tsx → état + handler clic
+ app/src/lib/mapFeedEvents.ts → cache publications
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 651 — 2026-06-22
+================================================================================
+
+================================================================================
+MODIF 650 — Recherche globale header (profil, lieu, événement, album, son)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La barre de recherche du header ne proposait que des profils. L'utilisateur doit
+ pouvoir trouver et ouvrir : ville, pays, album, son, profil, nom d'événement.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/globalSearch.ts
+ ────────────────────────────────
+ • Recherche users, événements à venir, albums, compositions (API interne).
+
+ backend/src/routes/search.ts + backend/src/server.ts
+ ────────────────────────────────────────────────────
+ • GET /api/search?q= (JWT).
+
+ app/src/lib/globalSearch.ts, globalSearchTypes.ts, placeSearch.ts
+ ────────────────────────────────────────────────────────────────
+ • Agrégation API + villes/pays côté client.
+
+ app/src/components/ProfileSearchBar.tsx
+ ───────────────────────────────────────
+ • Résultats groupés (Lieux, Événements, Profils, Albums, Sons).
+
+ app/src/App.tsx, app/src/pages/HomePage.tsx
+ ───────────────────────────────────────────
+ • Navigation selon le type ; intent carte pour ville/pays (filtre événement + vol).
+
+ app/src/locales/fr.json, en.json
+ ────────────────────────────────
+ • Clés globalSearch.*
+
+FICHIERS MODIFIÉS
+-----
+ backend/src/lib/globalSearch.ts → moteur recherche
+ backend/src/routes/search.ts → route API
+ app/src/components/ProfileSearchBar.tsx → UI recherche globale
+ app/src/App.tsx → handlers navigation
+ app/src/pages/HomePage.tsx → intent carte recherche
+ app/src/locales/fr.json, en.json → traductions
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+ backend/ → vitest globalSearch → ✅
+
+================================================================================
+Fin MODIF 650 — 2026-06-22
+================================================================================
+
+================================================================================
+MODIF 649 — Filtre Évènement : suggestions villes (Lyon, Paris…)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Saisie « lyon » dans le filtre Évènement : pas de suggestions (recherche adresse
+ Nominatim seule, inadaptée aux noms de ville).
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/EventLocationInput.tsx — cityPickMode : presets + searchCities (≥2 car.)
+
+================================================================================
+Fin MODIF 649 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 648 — Filtre Évènement : vol carte garanti à l'Appliquer
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Après « Appliquer », la carte ne se déplaçait pas toujours vers le lieu choisi
+ (dédup aperçu, ou carte déplacée manuellement pendant le sheet).
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/HomePage.tsx — flyToEventFilterBounds(force) à l'application du filtre
+
+================================================================================
+Fin MODIF 648 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 647 — Filtre Évènement : un seul zoom fluide vers la ville
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sélection d'une ville dans le filtre Évènement : double animation (dézoom puis
+ rezoom) — flyToCityBounds puis setCenter déclenchait un flyTo(zoom 13) dans MapView.
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/HomePage.tsx — retrait setCenter après flyToCityBounds + dédup vol
+
+================================================================================
+Fin MODIF 647 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 646 — Filtre Évènement : centrage carte à l'ouverture / sélection ville
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La carte ne centrait pas sur la ville du filtre Évènement (ex. « Paris, France » par
+ défaut) — le vol caméra n'était déclenché qu'au clic dans la liste de suggestions.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/MapEventFilterSheet.tsx
+ ─────────────────
+ • previewMapCity à l'ouverture (coords sync), après géocodage async et au reset
+
+================================================================================
+Fin MODIF 646 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 645 — Filtre Évènement : chargement carte instantané
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le filtre Évènement mettait plusieurs secondes à afficher les marqueurs : géocodage
+ séquentiel (1 req Nominatim / 1,1 s par événement), chargement uniquement à l'activation,
+ bouton désactivé pendant le load.
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/mapFeedEvents.ts — géocodage dédupliqué, sync d'abord, onProgress
+ app/src/lib/mapEventCoords.ts — resolveManyEventCoordsSync / Remaining
+ app/src/pages/HomePage.tsx — préchargement en arrière-plan à l'ouverture carte
+
+BUILD (si vérifié)
+-----
+ app/ → mapFeedEvents.test.ts → ✅
+
+================================================================================
+Fin MODIF 645 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 644 — Filtre Évènement : vol caméra vers la ville sélectionnée
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sélectionner une ville dans le filtre Évènement ne cadrait pas la carte (rechargement
+ des marqueurs écrasait le vol, mini-carte de confirmation bloquante).
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/HomePage.tsx — flyToCity avec rayon ville (getCityMapView), pas d'écrasement après load
+ app/src/components/MapEventFilterSheet.tsx — cityPickMode + aperçu caméra à la sélection
+ app/src/components/EventLocationInput.tsx — prop cityPickMode (sélection directe)
+ app/src/lib/mapEventFilter.ts — getEventFilterCityMapRadiusKm, hasEventFilterCityLocation
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 644 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 643 — Carte : masquer salons/lives sans filtre actif
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Au zoom ville/rue, les marqueurs salon, live et personnes s'affichaient même
+ sans filtre Lives/Salon/Événements activé (getMapMarkerVisibility ignorait les
+ toggles en dehors du tier overview).
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/mapMarkerVisibility.ts
+ ─────────────────
+ • city/street : salons/lives/people conditionnés aux filtres carte (comme overview)
+ app/src/pages/HomePage.tsx
+ ─────────────────
+ • mapSalonsForView / mapLivesForView / mapPeopleForView → [] si aucun filtre actif
+ app/src/lib/mapMarkerVisibility.test.ts
+ ─────────────────
+ • tests city/street mis à jour + cas « sans filtre »
+
+FICHIERS MODIFIÉS
+-----
+ mapMarkerVisibility.ts, HomePage.tsx, mapMarkerVisibility.test.ts
+
+BUILD (si vérifié)
+-----
+ app/ → mapMarkerVisibility.test.ts → ✅ (29 tests)
+
+================================================================================
+Fin MODIF 643 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 642 — Localisation salon / live à la création (GPS ou ville)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Lors de la création d'un salon ou d'un live, permettre de choisir explicitement
+ la position sur la carte : géolocalisation ou nom de ville.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/SessionLocationPicker.tsx — composant partagé (GPS, liste, saisie ville)
+ app/src/components/CreateSalonModal.tsx — sélecteur position avant création
+ app/src/components/StartLiveMediaSetupModal.tsx — picker enrichi (i18n + ville libre)
+ app/src/lib/salonCreateFlow.ts — initialSalonCreateLocation + fix coords ville
+ app/src/locales/fr.json, en.json — clés sessionLocation.*
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 642 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 641 — Sightengine étendu (reels, vidéos fil, DM) + tests
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Vérifier et compléter la modération Sightengine sur toutes les surfaces UGC
+ (reels, stories, publications, profil, DM).
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/videoDataUrl.ts — décodage data:video/
+ backend/src/lib/sightengineModeration.ts — API vidéo check-sync + frames
+ backend/src/lib/contentModeration.ts — moderateReelUpload, moderateFeedPostMedia, DM
+ backend/src/routes/reels.ts — modération avant createUserReel
+ backend/src/routes/feed.ts — image + vidéo
+ backend/src/routes/dm.ts — pièces jointes image
+ backend/src/lib/contentModeration.test.ts — tests mock fetch + couverture
+ Test live API (example7) → PASS
+
+SURFACES COUVERTES
+-----
+ Stories, fil (image+vidéo), reels (image+vidéo≤60s+poster), profil, DM image
+ Non couvert : chat salon/live (socket HTTPS)
+
+BUILD (si vérifié)
+-----
+ backend/ → npm run build → ✅
+ backend/ → vitest contentModeration + sightengineModeration → ✅ (13 tests)
+
+================================================================================
+Fin MODIF 641 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 640 — Modération NSFW Sightengine (images UGC)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Scanner automatiquement les images uploadées (stories, fil, photos profil) via
+ l'API Sightengine avant enregistrement, pour bloquer nudité explicite et contenus
+ choquants.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/sightengineConfig.ts — variables d'environnement et seuils
+ backend/src/lib/imageDataUrl.ts — décodage data:image/ → buffer
+ backend/src/lib/sightengineModeration.ts — client API + évaluation scores
+ backend/src/lib/contentModeration.ts — wrapper moderateImageSource(s)
+ backend/src/routes/stories.ts — modération avant createStory
+ backend/src/routes/feed.ts — modération image avant createFeedPost
+ backend/src/routes/auth.ts — modération photos profil / avatar
+ backend/src/lib/sightengineModeration.test.ts — tests seuils
+ msdev/.env.example, backend/.env.production.example — doc SIGHTENGINE_*
+
+FICHIERS MODIFIÉS
+-----
+ routes stories/feed/auth → appel modération (422 si refus)
+ nouveaux modules sightengine* + contentModeration
+
+BUILD (si vérifié)
+-----
+ backend/ → npm run build → ✅
+ backend/ → vitest sightengineModeration.test.ts → ✅
+
+================================================================================
+Fin MODIF 640 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 639 — Like utilisateur (salon PiP + profil public)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Permettre de liker un hôte depuis l’aperçu PiP salon et depuis un profil public,
+ avec affichage du nombre de likes.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/UserLikeButton.tsx — cœur + favoris API + compteur
+ app/src/components/SalonPipPreviewFloat.tsx — bouton like hôte (comme live PiP)
+ app/src/components/UserProfileView.tsx — bouton like + stats « J'aime »
+ backend/src/lib/profile.ts — isFavorite dans publicProfile
+ app/src/types.ts — isFavorite sur User
+ app/src/locales/fr.json, en.json — libellés like profil
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+ backend/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 639 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 638 — Fix navigation visionneur stories (défilement toutes les stories)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Au clic sur une story dans le carrousel du fil, le visionneur ne passait pas aux
+ stories suivantes (utilisateur suivant ou segment suivant) : la story courante
+ se retrouvait en fin de timeline après marquage « vu ».
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/StoriesInlineBar.tsx
+ ─────────────────
+ • Piles navigation : buildStoryUserStacks(entries) au lieu de sortedEntries
+   (sortedEntries ne sert qu’à l’ordre d’affichage des anneaux)
+
+ app/src/hooks/useStoryViewerWithSponsors.ts
+ ─────────────────
+ • Figement des piles à l’ouverture du visionneur (frozenStacksRef)
+ • Fallback resolveNextStory / resolvePrevStory si index timeline invalide
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 638 — 2026-06-22
+================================================================================
+================================================================================
+MODIF 637 — Pubs sponsorisées dans le visionneur stories
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Insérer des publicités sponsorisées pendant la lecture des stories (comme les
+ reels), configurables depuis l’admin (placement, fréquence, actif/inactif).
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/sponsors.ts
+ ─────────────────
+ • Placement stories_sponsored + listActiveStoriesSponsoredAds()
+ • DEFAULT_SPONSORS : exemple Fnac (poster 9:16)
+ • Validation vidéo/poster (miroir reels_sponsored)
+
+ backend/src/routes/sponsors.ts — GET /api/sponsors/stories-viewer
+ backend/src/routes/adminSponsors.ts — config storiesSponsorEnabled / EveryN
+ backend/src/lib/sponsorPlatformConfig.ts — config publique visionneur
+
+ app/src/lib/storiesSponsorFeed.ts — timeline intercalée tous les N segments
+ app/src/hooks/useStoryViewerWithSponsors.ts — fetch + navigation pub/story
+ app/src/components/StoryViewer.tsx — slide sponsor plein écran + CTA
+ app/src/components/StoriesInlineBar.tsx, MapStoriesAccordion.tsx, ActualiteTabPage.tsx
+ app/src/pages/AdminSponsorsTab.tsx — onglet « Stories pub » + réglages
+ app/src/types.ts, api.ts, sponsorAdminForm, sponsorDisplaySpec, locales fr/en
+
+FICHIERS MODIFIÉS
+-----
+ backend + app (sponsors stories visionneur) → placement stories_sponsored
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+ backend/ → npm run build → ✅
+ vitest storiesSponsorFeed.test.ts → ✅
+
+================================================================================
+Fin MODIF 637 — 2026-06-22
+================================================================================
+================================================================================
 MODIF 636 — Sponsors prod réalistes (reels, fil, carte, bandeau)
 Date : 2026-06-22
 ================================================================================

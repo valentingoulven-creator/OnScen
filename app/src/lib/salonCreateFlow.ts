@@ -1,15 +1,34 @@
 import { api } from './api';
-import { getLivesGeo, isFixedMapGeoSource } from './livesGeo';
+import { getLivesGeo, isFixedMapGeoSource, type LivesGeoPrefs } from './livesGeo';
 import type { CreateSalonPlaylistSelection } from '../components/CreateSalonPlaylistPicker';
 
-/** Position salon : GPS rapide (cache 2 min) ou centre carte fixe. */
+/** Position initiale du modal création salon (carte / préférences utilisateur). */
+export function initialSalonCreateLocation(
+  fallbackLatitude: number,
+  fallbackLongitude: number
+): LivesGeoPrefs {
+  const geo = getLivesGeo();
+  const useGeoCoords =
+    Number.isFinite(geo.latitude) &&
+    Number.isFinite(geo.longitude) &&
+    (isFixedMapGeoSource(geo.source) || geo.source === 'my_position');
+  return {
+    ...geo,
+    latitude: useGeoCoords ? geo.latitude : fallbackLatitude,
+    longitude: useGeoCoords ? geo.longitude : fallbackLongitude,
+    label: useGeoCoords ? geo.label : geo.label || 'Carte',
+    source: useGeoCoords ? geo.source : geo.source,
+  };
+}
+
+/** @deprecated Préférer le choix explicite dans CreateSalonModal (SessionLocationPicker). */
 export async function resolveSalonCreatePosition(
   fallbackLatitude: number,
   fallbackLongitude: number
 ): Promise<{ latitude: number; longitude: number }> {
   const geo = getLivesGeo();
   if (isFixedMapGeoSource(geo.source)) {
-    return { latitude: fallbackLatitude, longitude: fallbackLongitude };
+    return { latitude: geo.latitude, longitude: geo.longitude };
   }
   if (typeof navigator === 'undefined' || !navigator.geolocation) {
     return { latitude: fallbackLatitude, longitude: fallbackLongitude };

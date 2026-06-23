@@ -66,6 +66,12 @@ export const SPONSOR_IMAGE_SPECS: Record<SponsorPlacement, SponsorImageSpec> = {
     ratio: '≈ 7:1',
     noteKey: 'admin.sponsors.helpImageStoriesBanner',
   },
+  stories_sponsored: {
+    logoPx: '64 × 64 px',
+    bannerPx: '1080 × 1920 px (9:16)',
+    ratio: '9:16 plein écran',
+    noteKey: 'admin.sponsors.helpImageStoriesSponsored',
+  },
   reels_sponsored: {
     logoPx: '64 × 64 px',
     bannerPx: '1080 × 1920 px (9:16)',

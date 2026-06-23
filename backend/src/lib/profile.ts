@@ -4,7 +4,7 @@ import { getHostRatingSummary } from './ratings';
 import { migrateUserProfileType } from './profileTypes';
 import { VALID_RELATIONSHIP_STATUSES } from './relationshipStatus';
 import { isFollowing } from './follows';
-import { getFavoriteCount } from './favorites';
+import { getFavoriteCount, isFavorite } from './favorites';
 import {
   getActiveLiveIdForHost,
   getLiveViewersCountForHost,
@@ -19,6 +19,7 @@ import {
   resolveUserAge,
 } from './ageGates';
 import { isAccountValidated, userMeetsHeartAge } from './canSendHeart';
+import { isSalonPublic, isSalonVisibleOnProfile } from './salonAccess';
 
 export { MIN_PROFILE_AGE, MAX_PROFILE_AGE, MIN_LIVE_AGE, CREATOR_MONETIZATION_MIN_AGE } from './ageGates';
 export { userMeetsLiveAge, creatorMeetsMonetizationAge } from './ageGates';
@@ -340,7 +341,11 @@ function listeningFromPlayback(ps: PlaybackState): PublicCurrentListening | unde
 }
 
 /** Morceau diffusé en salon ou live actif animé par cet utilisateur. */
-export function getCurrentListeningForUser(userId: string): PublicCurrentListening | undefined {
+export function getCurrentListeningForUser(
+  userId: string,
+  opts?: { viewerId?: string; isOwner?: boolean }
+): PublicCurrentListening | undefined {
+  const isOwner = opts?.isOwner ?? (opts?.viewerId != null && opts.viewerId === userId);
   let bestLive: PublicCurrentListening | undefined;
   let bestViewers = -1;
   for (const live of db.lives.values()) {
@@ -355,7 +360,10 @@ export function getCurrentListeningForUser(userId: string): PublicCurrentListeni
   if (bestLive) return bestLive;
 
   const salon = getActiveSalonForHost(userId);
-  if (salon) return listeningFromPlayback(salon.playbackState);
+  if (salon) {
+    if (!isSalonPublic(salon) && !isOwner) return undefined;
+    return listeningFromPlayback(salon.playbackState);
+  }
   return undefined;
 }
 
@@ -382,6 +390,8 @@ export function publicProfile(u: User, isOwner = false, viewerId?: string) {
   const followingMe =
     viewerId && viewerId !== snapshot.id && !isOwner ? isFollowing(snapshot.id, viewerId) : undefined;
   const activeSalon = getActiveSalonForHost(snapshot.id);
+  const exposeSalon =
+    activeSalon != null && isSalonVisibleOnProfile(activeSalon, { isOwner });
   const isLive = isUserHostingLive(snapshot.id);
   const activeSub =
     viewerId && viewerId !== snapshot.id
@@ -424,6 +434,10 @@ export function publicProfile(u: User, isOwner = false, viewerId?: string) {
     isDev: isOwner && isAccessAdmin(snapshot) ? true : undefined,
     stats,
     favoritesCount: snapshot.favoritesCountOverride ?? getFavoriteCount(snapshot.id),
+    isFavorite:
+      viewerId && viewerId !== snapshot.id && !isOwner
+        ? isFavorite(viewerId, snapshot.id)
+        : undefined,
     hostRating,
     isFollowing: following,
     isFollowingMe: followingMe,
@@ -436,9 +450,11 @@ export function publicProfile(u: User, isOwner = false, viewerId?: string) {
     isLive,
     liveId: isLive ? getActiveLiveIdForHost(snapshot.id) : undefined,
     liveViewersCount: isLive ? getLiveViewersCountForHost(snapshot.id) : undefined,
-    salonId: activeSalon?.id,
-    salonTitle: activeSalon?.title || activeSalon?.playbackState?.title || undefined,
-    currentListening: getCurrentListeningForUser(snapshot.id),
+    salonId: exposeSalon ? activeSalon!.id : undefined,
+    salonTitle: exposeSalon
+      ? activeSalon!.title || activeSalon!.playbackState?.title || undefined
+      : undefined,
+    currentListening: getCurrentListeningForUser(snapshot.id, { viewerId, isOwner }),
     instagramHandle: snapshot.instagramHandle,
     youtubeChannel: snapshot.youtubeChannel,
     spotifyUrl: snapshot.spotifyUrl,

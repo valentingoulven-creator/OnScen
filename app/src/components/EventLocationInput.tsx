@@ -7,6 +7,12 @@ import {
   type AddressPrecision,
 } from '../lib/geocodeAddress';
 import { buildEventLocationPresets, type EventLocationPreset } from '../lib/eventLocationPresets';
+import { searchCities } from '../lib/citySearch';
+import {
+  filterPresetCitySuggestions,
+  PRESET_CITIES,
+  presetCityToSuggestion,
+} from '../lib/livesGeo';
 import {
   cacheEventCoords,
   resolveEventCityCoordsSync,
@@ -17,7 +23,14 @@ import type { LivesGeoPrefs } from '../lib/livesGeo';
 
 const DEBOUNCE_MS = 300;
 const MIN_SEARCH_CHARS = 3;
+const MIN_CITY_SEARCH_CHARS = 2;
 const MAX_SUGGESTIONS = 6;
+
+export interface EventLocationPickPayload {
+  label: string;
+  latitude: number;
+  longitude: number;
+}
 
 interface EventLocationInputProps {
   value: string;
@@ -26,6 +39,9 @@ interface EventLocationInputProps {
   placeholder?: string;
   className?: string;
   inputClassName?: string;
+  /** Filtre carte : sélection ville/lieu directe sans mini-carte de confirmation. */
+  cityPickMode?: boolean;
+  onCityPicked?: (payload: EventLocationPickPayload) => void;
 }
 
 type DropdownItem =
@@ -41,6 +57,23 @@ type DropdownItem =
   | { kind: 'use_typed'; query: string }
   | { kind: 'my_position' };
 
+function citySuggestionToSearchItem(s: {
+  label: string;
+  postalCode?: string;
+  subtitle?: string;
+  latitude: number;
+  longitude: number;
+}): Extract<DropdownItem, { kind: 'search' }> {
+  return {
+    kind: 'search',
+    label: s.label,
+    subtitle: s.subtitle ?? s.postalCode,
+    latitude: s.latitude,
+    longitude: s.longitude,
+    precision: 'city',
+  };
+}
+
 export function EventLocationInput({
   value,
   onChange,
@@ -48,6 +81,8 @@ export function EventLocationInput({
   placeholder,
   className = '',
   inputClassName = 'w-full rounded-lg bg-[#0b0b0f] border border-[#2a2a3d] px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50',
+  cityPickMode = false,
+  onCityPicked,
 }: EventLocationInputProps) {
   const { t } = useTranslation();
   const listId = useId();
@@ -76,7 +111,8 @@ export function EventLocationInput({
   );
 
   const trimmed = value.trim();
-  const isSearching = trimmed.length >= MIN_SEARCH_CHARS;
+  const minSearchChars = cityPickMode ? MIN_CITY_SEARCH_CHARS : MIN_SEARCH_CHARS;
+  const isSearching = trimmed.length >= minSearchChars;
 
   const onSingleChange = (next: string) => {
     setConfirmedCoords(null);
@@ -91,8 +127,52 @@ export function EventLocationInput({
       return;
     }
 
-    setLoading(true);
     let cancelled = false;
+
+    if (cityPickMode) {
+      const presetItems = filterPresetCitySuggestions(trimmed, MAX_SUGGESTIONS).map((c) =>
+        citySuggestionToSearchItem(presetCityToSuggestion(c))
+      );
+      setSearchResults(presetItems);
+      setLoading(true);
+
+      const timer = window.setTimeout(() => {
+        searchCities(trimmed)
+          .then((results) => {
+            if (cancelled) return;
+            setSearchResults(
+              results
+                .flatMap((r) => {
+                  if (r.latitude == null || r.longitude == null) return [];
+                  return [
+                    citySuggestionToSearchItem({
+                      label: r.label,
+                      postalCode: r.postalCode,
+                      subtitle: r.subtitle,
+                      latitude: r.latitude,
+                      longitude: r.longitude,
+                    }),
+                  ];
+                })
+                .slice(0, MAX_SUGGESTIONS)
+            );
+            setLoading(false);
+          })
+          .catch(() => {
+            if (!cancelled) {
+              setSearchResults(presetItems);
+              setLoading(false);
+            }
+          });
+      }, DEBOUNCE_MS);
+
+      return () => {
+        cancelled = true;
+        window.clearTimeout(timer);
+      };
+    }
+
+    setLoading(true);
     const timer = window.setTimeout(() => {
       searchAddressSuggestions(trimmed)
         .then((results) => {
@@ -121,7 +201,7 @@ export function EventLocationInput({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [trimmed, isSearching]);
+  }, [trimmed, isSearching, cityPickMode]);
 
   useEffect(() => {
     const onDocPointerDown = (e: PointerEvent) => {
@@ -130,6 +210,13 @@ export function EventLocationInput({
     document.addEventListener('pointerdown', onDocPointerDown);
     return () => document.removeEventListener('pointerdown', onDocPointerDown);
   }, []);
+
+  const cityPopularItems = useMemo((): DropdownItem[] => {
+    if (!cityPickMode || trimmed.length > 0) return [];
+    return PRESET_CITIES.slice(0, MAX_SUGGESTIONS).map((c) =>
+      citySuggestionToSearchItem(presetCityToSuggestion(c))
+    );
+  }, [cityPickMode, trimmed]);
 
   const presetItems: DropdownItem[] = presets.map((preset) => ({
     kind: 'preset',
@@ -142,14 +229,16 @@ export function EventLocationInput({
 
   const actionItems: DropdownItem[] = isSearching
     ? [
-        ...(geoAvailable ? [{ kind: 'my_position' as const }] : []),
-        { kind: 'use_typed' as const, query: trimmed },
+        ...(geoAvailable && !cityPickMode ? [{ kind: 'my_position' as const }] : []),
+        ...(cityPickMode ? [] : [{ kind: 'use_typed' as const, query: trimmed }]),
       ]
     : [];
 
   const items: DropdownItem[] = isSearching
     ? [...searchResults, ...actionItems]
-    : presetItems;
+    : cityPickMode
+      ? cityPopularItems
+      : presetItems;
 
   const showDropdown =
     focused &&
@@ -157,7 +246,7 @@ export function EventLocationInput({
       items.length > 0 ||
       usingTyped ||
       locating ||
-      (isSearching && trimmed.length >= MIN_SEARCH_CHARS));
+      (isSearching && trimmed.length >= minSearchChars));
 
   useEffect(() => {
     setActiveIndex(-1);
@@ -168,8 +257,16 @@ export function EventLocationInput({
     setActiveIndex(-1);
   };
 
+  const emitCityPick = (label: string, coords: { latitude: number; longitude: number }) => {
+    cacheEventCoords(label, coords);
+    onCityPicked?.({ label, latitude: coords.latitude, longitude: coords.longitude });
+  };
+
   const pickLabel = (label: string, coords?: { latitude: number; longitude: number }) => {
-    if (coords) cacheEventCoords(label, coords);
+    if (coords) {
+      cacheEventCoords(label, coords);
+      if (cityPickMode) emitCityPick(label, coords);
+    }
     lastEmittedRef.current = label;
     onChange(label);
     closeDropdown();
@@ -198,6 +295,10 @@ export function EventLocationInput({
 
   const pickLabelWithMap = async (label: string) => {
     const coords = await resolveCoordsForLabel(label);
+    if (coords && cityPickMode) {
+      pickLabel(label, coords);
+      return;
+    }
     if (coords) {
       showMapPicker(label, coords.latitude, coords.longitude);
       return;
@@ -215,13 +316,24 @@ export function EventLocationInput({
             pos.coords.latitude,
             pos.coords.longitude
           );
-          showMapPicker(label, pos.coords.latitude, pos.coords.longitude);
+          if (cityPickMode) {
+            pickLabel(label, { latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+          } else {
+            showMapPicker(label, pos.coords.latitude, pos.coords.longitude);
+          }
         } catch {
-          showMapPicker(
-            t('feed.eventLocationMyPosition'),
-            pos.coords.latitude,
-            pos.coords.longitude
-          );
+          if (cityPickMode) {
+            pickLabel(t('feed.eventLocationMyPosition'), {
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+            });
+          } else {
+            showMapPicker(
+              t('feed.eventLocationMyPosition'),
+              pos.coords.latitude,
+              pos.coords.longitude
+            );
+          }
         } finally {
           setLocating(false);
         }
@@ -240,7 +352,9 @@ export function EventLocationInput({
     const label = query.trim();
     try {
       const coords = await resolveCoordsForLabel(label);
-      if (coords) {
+      if (coords && cityPickMode) {
+        pickLabel(label, coords);
+      } else if (coords) {
         showMapPicker(label, coords.latitude, coords.longitude);
       } else {
         pickLabel(label);
@@ -261,6 +375,10 @@ export function EventLocationInput({
       return;
     }
     if (item.kind === 'search') {
+      if (cityPickMode) {
+        pickLabel(item.label, { latitude: item.latitude, longitude: item.longitude });
+        return;
+      }
       showMapPicker(item.label, item.latitude, item.longitude);
       return;
     }

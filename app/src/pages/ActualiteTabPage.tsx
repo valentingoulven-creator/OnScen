@@ -25,15 +25,13 @@ import { StoryAvatarRing } from '../components/MapStoryRings';
 import { StoriesInlineBar, type StorySheetState } from '../components/StoriesInlineBar';
 import { FeedInlineAdBanner } from '../components/FeedInlineAdBanner';
 import { StoryViewer } from '../components/StoryViewer';
+import { useStoryViewerWithSponsors } from '../hooks/useStoryViewerWithSponsors';
 import {
   findStackForStory,
   groupStoriesByUser,
   latestStory,
   pickInitialStory,
-  resolveNextStory,
-  resolvePrevStory,
   resolveAfterStoryDeleted,
-  stackIndexForStory,
   type StoryUserStack,
 } from '../lib/storyViewerNav';
 import { ShareLinkMenu } from '../components/ShareLinkMenu';
@@ -1275,31 +1273,25 @@ export function ActualiteTabPage({
     feedStorySheet.kind === 'view'
       ? findStackForStory(feedStoryStacks, feedStorySheet.story)
       : undefined;
-  const feedViewerStackIndex =
-    feedStorySheet.kind === 'view' && feedViewerStack
-      ? stackIndexForStory(feedViewerStack, feedStorySheet.story)
-      : 0;
 
-  const goNextFeedStory = useCallback(() => {
-    if (feedStorySheet.kind !== 'view') return;
-    const next = resolveNextStory(feedStoryStacks, feedStorySheet.story, user?.id);
-    if (!next) return;
-    setFeedStorySheet({ kind: 'view', story: next.story, isOwn: next.isOwn });
-  }, [feedStorySheet, feedStoryStacks, user?.id]);
+  const {
+    goNextStory: goNextFeedStory,
+    goPrevStory: goPrevFeedStory,
+    canNextStory: canNextFeedStory,
+    canPrevStory: canPrevFeedStory,
+    viewerStack: hookFeedViewerStack,
+    viewerStackIndex: feedViewerStackIndex,
+    sponsorAd: feedSponsorAd,
+  } = useStoryViewerWithSponsors(
+    feedStoryStacks,
+    user?.id,
+    feedStorySheet,
+    setFeedStorySheet,
+    () => {}
+  );
 
-  const goPrevFeedStory = useCallback(() => {
-    if (feedStorySheet.kind !== 'view') return;
-    const prev = resolvePrevStory(feedStoryStacks, feedStorySheet.story, user?.id);
-    if (!prev) return;
-    setFeedStorySheet({ kind: 'view', story: prev.story, isOwn: prev.isOwn });
-  }, [feedStorySheet, feedStoryStacks, user?.id]);
-
-  const canNextFeedStory =
-    feedStorySheet.kind === 'view' &&
-    resolveNextStory(feedStoryStacks, feedStorySheet.story, user?.id) != null;
-  const canPrevFeedStory =
-    feedStorySheet.kind === 'view' &&
-    resolvePrevStory(feedStoryStacks, feedStorySheet.story, user?.id) != null;
+  const activeFeedViewerStack =
+    feedStorySheet.kind === 'view' ? feedViewerStack : hookFeedViewerStack;
 
   const handleFeedStoryDeleted = useCallback(
     (deleted: MapStory) => {
@@ -2291,19 +2283,20 @@ export function ActualiteTabPage({
         </div>
       )}
 
-      {feedStorySheet.kind === 'view' && feedViewerStack ? (
+      {(feedStorySheet.kind === 'view' || feedStorySheet.kind === 'view_sponsor') ? (
         <StoryViewer
-          story={feedStorySheet.story}
-          stack={feedViewerStack.stories}
+          story={feedStorySheet.kind === 'view' ? feedStorySheet.story : undefined}
+          stack={activeFeedViewerStack?.stories}
           stackIndex={feedViewerStackIndex}
+          sponsorAd={feedSponsorAd}
           onClose={() => setFeedStorySheet({ kind: 'closed' })}
           onNext={goNextFeedStory}
           onPrev={goPrevFeedStory}
           canNext={canNextFeedStory}
           canPrev={canPrevFeedStory}
-          isOwn={feedStorySheet.isOwn}
+          isOwn={feedStorySheet.kind === 'view' ? feedStorySheet.isOwn : false}
           token={token ?? undefined}
-          onDeleted={handleFeedStoryDeleted}
+          onDeleted={feedStorySheet.kind === 'view' ? handleFeedStoryDeleted : undefined}
         />
       ) : null}
 

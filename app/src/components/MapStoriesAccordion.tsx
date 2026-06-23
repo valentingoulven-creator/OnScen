@@ -9,10 +9,7 @@ import {
   groupStoriesByUser,
   latestStory,
   pickInitialStory,
-  resolveNextStory,
-  resolvePrevStory,
   resolveAfterStoryDeleted,
-  stackIndexForStory,
 } from '../lib/storyViewerNav';
 import {
   getLivesGeo,
@@ -48,6 +45,7 @@ import { MapStorySheet } from './MapStorySheet';
 import { MapStoryRing, MyMapStoryRing } from './MapStoryRings';
 import { StoryLivePreviewViewer } from './StoryLivePreviewViewer';
 import { StoryViewer } from './StoryViewer';
+import { useStoryViewerWithSponsors } from '../hooks/useStoryViewerWithSponsors';
 import { StoriesRingsCarousel } from './StoriesRingsCarousel';
 import { invalidateStoriesCache } from '../lib/storiesApiCache';
 import { USERNAME_WAVE_CLASS } from '../lib/usernameColor';
@@ -64,7 +62,8 @@ interface MapStoriesAccordionProps {
 type SheetState =
   | { kind: 'closed' }
   | { kind: 'create' }
-  | { kind: 'view'; story: MapStory; isOwn: boolean };
+  | { kind: 'view'; story: MapStory; isOwn: boolean }
+  | { kind: 'view_sponsor'; ad: import('../types').ReelsSponsorAd; sponsorKey: string };
 
 type LivePreviewState =
   | { kind: 'closed' }
@@ -207,27 +206,18 @@ export function MapStoriesAccordion({
 
   const viewerStack =
     sheet.kind === 'view' ? findStackForStory(storyStacks, sheet.story) : undefined;
-  const viewerStackIndex =
-    sheet.kind === 'view' && viewerStack ? stackIndexForStory(viewerStack, sheet.story) : 0;
 
-  const goNextStory = useCallback(() => {
-    if (sheet.kind !== 'view') return;
-    const next = resolveNextStory(storyStacks, sheet.story, user?.id);
-    if (!next) return;
-    setSheet({ kind: 'view', story: next.story, isOwn: next.isOwn });
-  }, [sheet, storyStacks, user?.id]);
+  const {
+    goNextStory,
+    goPrevStory,
+    canNextStory,
+    canPrevStory,
+    viewerStack: hookViewerStack,
+    viewerStackIndex,
+    sponsorAd,
+  } = useStoryViewerWithSponsors(storyStacks, user?.id, sheet, setSheet, () => {});
 
-  const goPrevStory = useCallback(() => {
-    if (sheet.kind !== 'view') return;
-    const prev = resolvePrevStory(storyStacks, sheet.story, user?.id);
-    if (!prev) return;
-    setSheet({ kind: 'view', story: prev.story, isOwn: prev.isOwn });
-  }, [sheet, storyStacks, user?.id]);
-
-  const canNextStory =
-    sheet.kind === 'view' && resolveNextStory(storyStacks, sheet.story, user?.id) != null;
-  const canPrevStory =
-    sheet.kind === 'view' && resolvePrevStory(storyStacks, sheet.story, user?.id) != null;
+  const activeViewerStack = sheet.kind === 'view' ? viewerStack : hookViewerStack;
 
   const handleStoryDeleted = useCallback(
     (deleted: MapStory) => {
@@ -481,19 +471,20 @@ export function MapStoriesAccordion({
         />
       ) : null}
 
-      {sheet.kind === 'view' && viewerStack ? (
+      {(sheet.kind === 'view' || sheet.kind === 'view_sponsor') ? (
         <StoryViewer
-          story={sheet.story}
-          stack={viewerStack.stories}
+          story={sheet.kind === 'view' ? sheet.story : undefined}
+          stack={activeViewerStack?.stories}
           stackIndex={viewerStackIndex}
+          sponsorAd={sponsorAd}
           onClose={() => setSheet({ kind: 'closed' })}
           onNext={goNextStory}
           onPrev={goPrevStory}
           canNext={canNextStory}
           canPrev={canPrevStory}
-          isOwn={sheet.isOwn}
+          isOwn={sheet.kind === 'view' ? sheet.isOwn : false}
           token={token ?? undefined}
-          onDeleted={handleStoryDeleted}
+          onDeleted={sheet.kind === 'view' ? handleStoryDeleted : undefined}
         />
       ) : null}
 

@@ -9,8 +9,10 @@ import { copyShareLink, getSalonShareUrl } from '../lib/shareLink';
 import {
   buildPlaylistLoadBody,
   deferSalonPlaylistLoad,
-  resolveSalonCreatePosition,
+  initialSalonCreateLocation,
 } from '../lib/salonCreateFlow';
+import { SessionLocationPicker } from './SessionLocationPicker';
+import type { LivesGeoPrefs } from '../lib/livesGeo';
 import { PlatformConnectCard } from './PlatformConnectCard';
 import {
   CreateSalonPlaylistPicker,
@@ -166,6 +168,9 @@ export function CreateSalonModal({
   const [draftSalonId, setDraftSalonId] = useState(() => generateSalonId());
   const [toast, setToast] = useState<string | null>(null);
   const [showOptions, setShowOptions] = useState(false);
+  const [salonLocation, setSalonLocation] = useState<LivesGeoPrefs>(() =>
+    initialSalonCreateLocation(fallbackLatitude, fallbackLongitude)
+  );
   const openedAtRef = useRef(0);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [form, setForm] = useState<CreateSalonForm>({
@@ -192,6 +197,7 @@ export function CreateSalonModal({
     openedAtRef.current = Date.now();
     setToast(null);
     setShowOptions(false);
+    setSalonLocation(initialSalonCreateLocation(fallbackLatitude, fallbackLongitude));
     setDraftSalonId(generateSalonId());
     setForm({
       title: preset?.title?.trim() || t('salon.create.defaultSalonTitle', { username }),
@@ -204,7 +210,7 @@ export function CreateSalonModal({
       allowQueue: true,
     });
     api.getDmContacts(token).then((r) => setContacts(r.contacts));
-  }, [open, token, username, preset, t]);
+  }, [open, token, username, preset, t, fallbackLatitude, fallbackLongitude]);
 
   useEffect(
     () => () => {
@@ -228,7 +234,18 @@ export function CreateSalonModal({
     }));
   };
 
-  const resolvePosition = () => resolveSalonCreatePosition(fallbackLatitude, fallbackLongitude);
+  const resolvePosition = () => {
+    if (form.accessMode === 'invite') {
+      return Promise.resolve({
+        latitude: fallbackLatitude,
+        longitude: fallbackLongitude,
+      });
+    }
+    return Promise.resolve({
+      latitude: salonLocation.latitude,
+      longitude: salonLocation.longitude,
+    });
+  };
 
   const platformLinked = isMusicPlatformLinkedForSalon('youtube', connectedPlatforms, platformLinks);
   const canSubmitSalon = platformLinked;
@@ -353,7 +370,7 @@ export function CreateSalonModal({
         </div>
 
         {/* ── Single-page form (no internal scroll) ───────────────────────── */}
-        <div className="px-4 py-3 space-y-2.5 overflow-visible">
+        <div className="px-4 py-3 space-y-2.5 overflow-y-auto max-h-[min(58dvh,28rem)]">
 
           {/* Platform — single inline row */}
           <div>
@@ -441,10 +458,23 @@ export function CreateSalonModal({
               </div>
 
               {form.accessMode === 'invite' && <div className="mt-1.5">{inviteSection}</div>}
+              {form.accessMode === 'invite' && (
+                <p className="mt-1.5 text-[10px] text-gray-500 leading-snug">
+                  {t('salon.create.accessInviteDetail')}
+                </p>
+              )}
             </div>
           )}
 
           {skipAccessSection && form.accessMode === 'invite' && inviteSection}
+
+          {form.accessMode === 'public' && (
+            <SessionLocationPicker
+              value={salonLocation}
+              onChange={setSalonLocation}
+              variant="salon"
+            />
+          )}
 
           {/* Details — name full-width, artist + session 2-col */}
           <div className="space-y-1.5">

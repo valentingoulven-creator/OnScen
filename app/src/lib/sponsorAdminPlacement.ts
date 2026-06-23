@@ -6,6 +6,7 @@ export const SPONSOR_PLACEMENT_TABS: SponsorPlacementTab[] = [
   'map_banner',
   'feed_inline',
   'stories_banner',
+  'stories_sponsored',
   'reels_sponsored',
   'salon_theater',
   'all',

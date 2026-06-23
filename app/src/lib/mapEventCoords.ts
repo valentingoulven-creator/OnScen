@@ -91,6 +91,49 @@ export function resolveEventCoordsSync(
   return cached ?? null;
 }
 
+/** Résolution synchrone groupée (venues, cache, centre-ville) — sans réseau. */
+export function resolveManyEventCoordsSync(
+  locations: readonly string[]
+): Map<string, { latitude: number; longitude: number }> {
+  const out = new Map<string, { latitude: number; longitude: number }>();
+  for (const raw of locations) {
+    const loc = raw.trim();
+    if (!loc || out.has(loc)) continue;
+
+    const cached = geocodeCache.get(cacheKey(loc));
+    if (cached) {
+      out.set(loc, cached);
+      continue;
+    }
+
+    const coords = resolveEventCoordsSync(loc) ?? resolveEventCityCoordsSync(loc);
+    if (coords) {
+      geocodeCache.set(cacheKey(loc), coords);
+      out.set(loc, coords);
+    }
+  }
+  return out;
+}
+
+/** Géocode async les lieux non résolus (dédupliqués, rate-limit Nominatim). */
+export async function resolveManyEventCoordsRemaining(
+  locations: readonly string[],
+  resolved: ReadonlyMap<string, { latitude: number; longitude: number }>,
+  opts?: { signal?: { cancelled: boolean } }
+): Promise<Map<string, { latitude: number; longitude: number }>> {
+  const out = new Map(resolved);
+  const pending = [
+    ...new Set(locations.map((l) => l.trim()).filter((l) => l && !out.has(l))),
+  ];
+
+  for (const loc of pending) {
+    if (opts?.signal?.cancelled) break;
+    const coords = await resolveEventCoords(loc);
+    if (coords) out.set(loc, coords);
+  }
+  return out;
+}
+
 /**
  * Résolution complète : venue → cache → Nominatim → centre-ville.
  * La ville n'est utilisée qu'en dernier recours pour ne pas masquer l'adresse réelle.

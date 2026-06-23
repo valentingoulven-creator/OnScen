@@ -50,7 +50,7 @@ import type { Sponsor, SponsorFilter, SponsorPlacement, SponsorPlatformConfig } 
 
 const FILTER_OPTIONS: SponsorFilter[] = ['all', 'active', 'inactive'];
 
-const PLACEMENT_OPTIONS: SponsorPlacement[] = ['map_banner', 'feed_inline', 'stories_banner', 'reels_sponsored'];
+const PLACEMENT_OPTIONS: SponsorPlacement[] = ['map_banner', 'feed_inline', 'stories_banner', 'stories_sponsored', 'reels_sponsored'];
 
 
 
@@ -68,6 +68,7 @@ function SponsorsSubTabBar({
     if (tab === 'map_banner') return t('admin.sponsors.subTabMap');
     if (tab === 'feed_inline') return t('admin.sponsors.subTabFeed');
     if (tab === 'stories_banner') return t('admin.sponsors.subTabStories');
+    if (tab === 'stories_sponsored') return t('admin.sponsors.subTabStoriesViewer');
     if (tab === 'reels_sponsored') return t('admin.sponsors.subTabReels');
     return t('admin.sponsors.subTabStories');
   };
@@ -128,6 +129,8 @@ export function AdminSponsorsTab() {
   const [platformConfig, setPlatformConfig] = useState<SponsorPlatformConfig>({
     reelsSponsorEnabled: true,
     reelsSponsorEveryN: 5,
+    storiesSponsorEnabled: true,
+    storiesSponsorEveryN: 4,
   });
 
   const [configBusy, setConfigBusy] = useState(false);
@@ -204,7 +207,7 @@ export function AdminSponsorsTab() {
 
   useEffect(() => {
 
-    if (!token || placementTab !== 'reels_sponsored') return;
+    if (!token || (placementTab !== 'reels_sponsored' && placementTab !== 'stories_sponsored')) return;
 
     api
 
@@ -660,7 +663,7 @@ export function AdminSponsorsTab() {
           </div>
         )}
 
-        {form.placement === 'reels_sponsored' && (
+        {(form.placement === 'reels_sponsored' || form.placement === 'stories_sponsored') && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="block text-xs text-gray-400">
               {t('admin.sponsors.fieldVideoUrl')}
@@ -772,6 +775,84 @@ export function AdminSponsorsTab() {
 
 
       <SponsorsSubTabBar subTab={placementTab} onChange={handlePlacementTabChange} t={t} />
+
+
+
+      {placementTab === 'stories_sponsored' && (
+
+        <div className="rounded-xl border border-purple-500/30 bg-[#12121a] p-4 space-y-3">
+
+          <p className="text-sm font-semibold text-purple-300">{t('admin.sponsors.storiesViewerConfigTitle')}</p>
+
+          <label className="flex items-center gap-3 text-sm text-gray-300">
+
+            <input
+
+              type="checkbox"
+
+              checked={platformConfig.storiesSponsorEnabled}
+
+              disabled={configBusy}
+
+              onChange={(e) => void savePlatformConfig({ storiesSponsorEnabled: e.target.checked })}
+
+              className="rounded border-[#2d2d3d]"
+
+            />
+
+            {t('admin.sponsors.storiesViewerConfigEnabled')}
+
+          </label>
+
+          <label className="block text-xs text-gray-400">
+
+            {t('admin.sponsors.storiesViewerConfigEveryN')}
+
+            <input
+
+              type="number"
+
+              min={1}
+
+              max={50}
+
+              disabled={configBusy || !platformConfig.storiesSponsorEnabled}
+
+              className="mt-1 w-full max-w-[8rem] bg-[#1a1a26] border border-[#2d2d3d] rounded-xl px-3 py-2 text-sm text-white"
+
+              value={platformConfig.storiesSponsorEveryN}
+
+              onChange={(e) =>
+
+                setPlatformConfig((c) => ({
+
+                  ...c,
+
+                  storiesSponsorEveryN: Number(e.target.value) || c.storiesSponsorEveryN,
+
+                }))
+
+              }
+
+              onBlur={() =>
+
+                void savePlatformConfig({ storiesSponsorEveryN: platformConfig.storiesSponsorEveryN })
+
+              }
+
+            />
+
+            <span className="text-[10px] text-gray-500 mt-0.5 block">
+
+              {t('admin.sponsors.storiesViewerConfigEveryNHint')}
+
+            </span>
+
+          </label>
+
+        </div>
+
+      )}
 
 
 

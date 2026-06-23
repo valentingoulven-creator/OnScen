@@ -35,6 +35,9 @@ import { AdminHeaderButton } from './components/AdminHeaderButton';
 import { PrivacyVisibilityMenu } from './components/PrivacyVisibilityMenu';
 import { useDmUnread } from './context/DmUnreadContext';
 import { ProfileSearchBar } from './components/ProfileSearchBar';
+import type { GlobalSearchResultItem } from './lib/globalSearch';
+import { nearbyPreviewFromSearchItem } from './components/ProfileSearchBar';
+import type { MapSearchSearchIntent } from './lib/mapSearchIntent';
 import { SoundyLogoButton } from './components/SoundyLogo';
 import { MainTabNav } from './components/MainTabNav';
 import { PlatformConnectPrompt } from './components/PlatformConnectPrompt';
@@ -162,6 +165,7 @@ export default function App() {
   const [showGenrePrompt, setShowGenrePrompt] = useState(false);
   /** Publication du fil à mettre en avant (depuis la carte). */
   const [focusFeedPostId, setFocusFeedPostId] = useState<string | null>(null);
+  const [mapSearchIntent, setMapSearchIntent] = useState<MapSearchSearchIntent | null>(null);
   /** Salon ouvert (grand écran ou minimisé) — persiste hors vue salon pour la barre retour. */
   const [activeSalonSession, setActiveSalonSession] = useState<ActiveSalonSession | null>(
     () => readPersistedSalonSession()
@@ -687,8 +691,6 @@ export default function App() {
     setProfileOpen(true);
   }, [stopReelsMedia]);
 
-  const handleSearchSelectUser = useCallback((id: string, preview?: NearbyPerson) => openProfile(id, preview), [openProfile]);
-
   const openLive = useCallback((id: string) => {
     if (activeSalonSessionRef.current) {
       showAppToast("Tu es déjà dans un salon. Quitte le salon pour démarrer un live.", 'info');
@@ -853,6 +855,36 @@ export default function App() {
     }
     setTab(nextTab);
   }, [minimizeSalonToMap]);
+
+  const handleGlobalSearchSelect = useCallback(
+    (item: GlobalSearchResultItem) => {
+      switch (item.kind) {
+        case 'user':
+          openProfile(item.id, nearbyPreviewFromSearchItem(item));
+          return;
+        case 'city':
+        case 'country':
+          setMapSearchIntent({
+            location: item.label,
+            latitude: item.latitude,
+            longitude: item.longitude,
+          });
+          selectTab('map');
+          return;
+        case 'event':
+          openFeedPostFromMap(item.id);
+          return;
+        case 'album':
+        case 'song':
+          openProfile(item.userId);
+          selectTab('music');
+          return;
+        default:
+          return;
+      }
+    },
+    [openProfile, openFeedPostFromMap, selectTab]
+  );
 
   const openReelInTab = useCallback(
     (reelId: string) => {
@@ -1022,7 +1054,7 @@ export default function App() {
             </div>
             <ProfileSearchBar
               token={token}
-              onSelectUser={handleSearchSelectUser}
+              onSelectResult={handleGlobalSearchSelect}
               className="justify-self-center sm:justify-self-stretch w-full min-w-0"
             />
             <div className="relative z-10 flex items-center gap-0.5 sm:gap-1 justify-self-end shrink-0">
@@ -1248,6 +1280,8 @@ export default function App() {
                     onMapSalonActive={handleMapSalonActive}
                     onLeaveSalon={leaveActiveSalonSession}
                     onSalonRestoreFailed={() => handleSalonForcedEnd('ended')}
+                    mapSearchIntent={mapSearchIntent}
+                    onMapSearchIntentConsumed={() => setMapSearchIntent(null)}
                   />
                 </div>
               </Suspense>

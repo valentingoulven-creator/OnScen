@@ -100,11 +100,26 @@ function sortClustersByCountDesc(clusters: MapEventCityCluster[]): MapEventCityC
   );
 }
 
-function clusterHasFollowedAuthor(
-  cluster: MapEventCityCluster,
-  followingIds: Set<string>
+
+function isSidebarFollowingEvent(
+  e: MapEventMarker,
+  followingIds: Set<string>,
+  savedEventPostIds: Set<string>
 ): boolean {
-  return cluster.events.some((e) => e.authorId != null && followingIds.has(e.authorId));
+  return (
+    savedEventPostIds.has(e.id) ||
+    (e.authorId != null && followingIds.has(e.authorId))
+  );
+}
+
+function clusterHasFollowingOrSavedEvent(
+  cluster: MapEventCityCluster,
+  followingIds: Set<string>,
+  savedEventPostIds: Set<string>
+): boolean {
+  return cluster.events.some((e) =>
+    isSidebarFollowingEvent(e, followingIds, savedEventPostIds)
+  );
 }
 
 export function countMapSidebarItems(content: MapSidebarContent): number {
@@ -183,6 +198,8 @@ export function buildMapSidebarContent(opts: {
   favoriteIds: Set<string>;
   /** Comptes suivis (follow) — section Suivi du panneau lives. */
   followingIds?: Set<string>;
+  /** Publications événement enregistrées (favori post) — section Suivi événements. */
+  savedEventPostIds?: Set<string>;
   /** Centre de la dernière requête nearby ; si absent, centre des bounds (tests). */
   nearbyFetchCenter?: [number, number] | null;
 }): MapSidebarContent {
@@ -200,6 +217,7 @@ export function buildMapSidebarContent(opts: {
     people,
     favoriteIds,
     followingIds = new Set(),
+    savedEventPostIds = new Set(),
     nearbyFetchCenter,
   } = opts;
 
@@ -337,9 +355,18 @@ export function buildMapSidebarContent(opts: {
       : [];
 
   const sortedAllEvents = sortMapEventsForPanel(mapEvents, favoriteIds);
+  const hasEventsFollowingSources =
+    followingIds.size > 0 || savedEventPostIds.size > 0;
   const eventsFollowing =
-    eventsFilterOn && followingIds.size > 0
-      ? sortedAllEvents.filter((e) => e.authorId != null && followingIds.has(e.authorId))
+    eventsFilterOn && hasEventsFollowingSources
+      ? applyFavoritesFirst(
+          sortedAllEvents.filter((e) =>
+            isSidebarFollowingEvent(e, followingIds, savedEventPostIds)
+          ),
+          (e) => e.id,
+          savedEventPostIds,
+          true
+        )
       : [];
   const inViewEventIds = new Set(sidebarEvents.map((e) => e.id));
   const eventsSuggestions =
@@ -347,7 +374,7 @@ export function buildMapSidebarContent(opts: {
       ? sortMapEventsForPanel(
           mapEvents.filter(
             (e) =>
-              !(e.authorId != null && followingIds.has(e.authorId)) &&
+              !isSidebarFollowingEvent(e, followingIds, savedEventPostIds) &&
               !inViewEventIds.has(e.id)
           ),
           favoriteIds
@@ -358,9 +385,11 @@ export function buildMapSidebarContent(opts: {
   const useEventClusters =
     eventsFilterOn && tier === 'overview' && visibility.eventClusters;
   const eventClustersFollowing =
-    useEventClusters && followingIds.size > 0
+    useEventClusters && hasEventsFollowingSources
       ? sortClustersByCountDesc(
-          eventClusters.filter((c) => clusterHasFollowedAuthor(c, followingIds))
+          eventClusters.filter((c) =>
+            clusterHasFollowingOrSavedEvent(c, followingIds, savedEventPostIds)
+          )
         )
       : [];
   const eventClustersSuggestions =
@@ -369,7 +398,7 @@ export function buildMapSidebarContent(opts: {
           eventClusters.filter(
             (c) =>
               !inViewClusterKeys.has(c.cityKey) &&
-              !clusterHasFollowedAuthor(c, followingIds)
+              !clusterHasFollowingOrSavedEvent(c, followingIds, savedEventPostIds)
           )
         ).slice(0, MAP_SIDEBAR_SUGGESTIONS_MAX)
       : [];

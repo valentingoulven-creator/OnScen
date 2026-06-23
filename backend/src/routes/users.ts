@@ -12,6 +12,7 @@ import {
   getFavoriteEntry,
 } from '../lib/favorites';
 import { getActiveSalonForHost, publicProfile } from '../lib/profile';
+import { isSalonPublic } from '../lib/salonAccess';
 import { invalidateProfileCache } from './auth';
 import {
   getActiveLiveIdForHost,
@@ -73,8 +74,11 @@ usersRouter.get('/search', authenticateJWT, (req: Request, res: Response) => {
         isLive: live,
         liveId: live ? getActiveLiveIdForHost(u.id) : undefined,
         liveViewersCount: live ? getLiveViewersCountForHost(u.id) : undefined,
-        salonId: salon?.id,
-        salonTitle: salon?.title || salon?.playbackState?.title || undefined,
+        salonId: salon && isSalonPublic(salon) ? salon.id : undefined,
+        salonTitle:
+          salon && isSalonPublic(salon)
+            ? salon.title || salon.playbackState?.title || undefined
+            : undefined,
       };
     });
 

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { listActiveFeedAds, listActiveMapAds, listActiveReelsAds, listActiveSalonAds, listActiveStoriesAds, type MapViewportQuery } from '../lib/sponsors';
-import { getPublicReelsSponsorConfig } from '../lib/sponsorPlatformConfig';
+import { listActiveFeedAds, listActiveMapAds, listActiveReelsAds, listActiveSalonAds, listActiveStoriesAds, listActiveStoriesSponsoredAds, type MapViewportQuery } from '../lib/sponsors';
+import { getPublicReelsSponsorConfig, getPublicStoriesSponsorConfig } from '../lib/sponsorPlatformConfig';
 
 export const sponsorsRouter = Router();
 
@@ -68,6 +68,15 @@ sponsorsRouter.get('/reels', (_req: Request, res: Response) => {
   res.json({
     items: listActiveReelsAds(),
     config: getPublicReelsSponsorConfig(),
+  });
+});
+
+/** Stories sponsorisées (visionneur plein écran) + configuration (public, sans auth). */
+sponsorsRouter.get('/stories-viewer', (_req: Request, res: Response) => {
+  res.setHeader('Cache-Control', 'public, max-age=15, must-revalidate');
+  res.json({
+    items: listActiveStoriesSponsoredAds(),
+    config: getPublicStoriesSponsorConfig(),
   });
 });
 

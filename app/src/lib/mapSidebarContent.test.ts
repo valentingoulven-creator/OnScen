@@ -574,4 +574,42 @@ describe('buildMapSidebarContent', () => {
     expect(content.events.map((e) => e.id)).toContain('e-view');
     expect(content.eventsSuggestions.map((e) => e.id)).toEqual(['e-other']);
   });
+
+  it('includes saved (favorited) events in following section', () => {
+    const saved = eventMarker('e-saved');
+    saved.authorId = 'author-other';
+    const inView = eventMarker('e-view');
+    inView.authorId = 'author-view';
+    const other = eventMarker('e-other');
+    other.authorId = 'author-other';
+    other.latitude = 43.6;
+    other.longitude = 3.87;
+
+    const content = buildMapSidebarContent({
+      detail: {
+        tier: 'street',
+        flatZoom: 14,
+        globeAltitude: null,
+        bounds: { north: 48.9, south: 48.8, east: 2.4, west: 2.3 },
+        mapStyle: 'flat',
+      },
+      eventsFilterOn: true,
+      livesFilterOn: false,
+      salonFilterOn: false,
+      eventsOnly: false,
+      showAllSalonsAtCityZoom: false,
+      mapEvents: [saved, inView, other],
+      eventClusters: [],
+      lives: [],
+      salons: [],
+      people: [],
+      favoriteIds: new Set(),
+      followingIds: new Set(),
+      savedEventPostIds: new Set(['e-saved']),
+      nearbyFetchCenter: [48.85, 2.35],
+    });
+
+    expect(content.eventsFollowing.map((e) => e.id)).toEqual(['e-saved']);
+    expect(content.eventsSuggestions.map((e) => e.id)).toEqual(['e-other']);
+  });
 });

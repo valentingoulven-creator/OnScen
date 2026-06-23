@@ -89,12 +89,47 @@ describe('buildMapEventMarkersFromPosts', () => {
     expect(markers).toHaveLength(1);
     expect(markers[0]).toMatchObject({
       id: 'feed-user_listener-99',
-      latitude: 43.649,
-      longitude: 3.939,
       title: 'Set electro',
       eventLocation: '2 Rue François Mitterrand, Le Crès',
     });
-    expect(resolveEventCoords).toHaveBeenCalledWith('2 Rue François Mitterrand, Le Crès');
+    expect(markers[0]!.latitude).toBeCloseTo(43.649, 2);
+    expect(markers[0]!.longitude).toBeCloseTo(3.939, 2);
+  });
+
+  it('builds two markers for duplicate known venues without network', async () => {
+    const future = new Date(Date.now() + 3_600_000).toISOString();
+    const location = 'Accor Arena, Paris, France';
+
+    const markers = await buildMapEventMarkersFromPosts([
+      post({ id: 'a', isEvent: true, eventDate: future, eventLocation: location }),
+      post({ id: 'b', isEvent: true, eventDate: future, eventLocation: location }),
+    ]);
+
+    expect(markers).toHaveLength(2);
+    expect(resolveEventCoords).not.toHaveBeenCalled();
+  });
+
+  it('calls onProgress with sync-resolved markers before async completes', async () => {
+    const future = new Date(Date.now() + 3_600_000).toISOString();
+    const progress: string[][] = [];
+
+    await buildMapEventMarkersFromPosts(
+      [
+        post({
+          id: 'paris-event',
+          isEvent: true,
+          eventDate: future,
+          eventLocation: 'Accor Arena, Paris, France',
+        }),
+      ],
+      {
+        onProgress: (markers) => progress.push(markers.map((m) => m.id)),
+      }
+    );
+
+    expect(progress.length).toBeGreaterThanOrEqual(1);
+    expect(progress[0]).toEqual(['paris-event']);
+    expect(resolveEventCoords).not.toHaveBeenCalled();
   });
 
   it('skips posts when geocoding fails', async () => {

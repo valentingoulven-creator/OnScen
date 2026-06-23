@@ -233,7 +233,7 @@ describe('getMapMarkerVisibility lives at globe tiers', () => {
     expect(visibility.capitals).toBe(false);
   });
 
-  it('shows lives at globe city and street altitude', () => {
+  it('shows lives at globe city and street altitude when Lives filter is on', () => {
     const cityAlt = GLOBE_ALTITUDE_CITY_MAX - 0.1;
     const streetAlt = GLOBE_ALTITUDE_STREET_MAX - 0.05;
     for (const altitude of [cityAlt, streetAlt]) {
@@ -246,6 +246,19 @@ describe('getMapMarkerVisibility lives at globe tiers', () => {
       });
       expect(visibility.lives).toBe(true);
       expect(visibility.density).toBe('full');
+    }
+  });
+
+  it('hides salons, lives and people at city zoom when no map filter is on', () => {
+    for (const tier of ['city', 'street'] as const) {
+      const visibility = getMapMarkerVisibility({
+        tier,
+        eventsOnly: false,
+        hasEventClusters: false,
+      });
+      expect(visibility.salons).toBe(false);
+      expect(visibility.lives).toBe(false);
+      expect(visibility.people).toBe(false);
     }
   });
 });
@@ -312,7 +325,8 @@ describe('filterSalonsForZoom with combined filters', () => {
       tier: 'city',
       eventsOnly: false,
       hasEventClusters: false,
-      showAllSalonsAtCityZoom: true,
+      salonFilterOn: true,
+      livesFilterOn: true,
     });
     const visible = filterSalonsForZoom(salons, visibility, true, 'city');
     expect(visible.map((s) => s.id).sort()).toEqual(['live', 'off']);
@@ -323,7 +337,7 @@ describe('filterSalonsForZoom with combined filters', () => {
       tier: 'city',
       eventsOnly: false,
       hasEventClusters: false,
-      showAllSalonsAtCityZoom: false,
+      livesFilterOn: true,
     });
     const visible = filterSalonsForZoom(salons, visibility, false, 'city');
     expect(visible.map((s) => s.id)).toEqual(['live']);

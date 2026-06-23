@@ -193,7 +193,11 @@ export function validateSponsorAdminForm(
     }
   }
 
-  if (form.placement === 'reels_sponsored' && !form.videoUrl.trim() && !form.posterUrl.trim()) {
+  if (
+    (form.placement === 'reels_sponsored' || form.placement === 'stories_sponsored') &&
+    !form.videoUrl.trim() &&
+    !form.posterUrl.trim()
+  ) {
     return t('admin.sponsors.validationReelsMediaRequired');
   }
 

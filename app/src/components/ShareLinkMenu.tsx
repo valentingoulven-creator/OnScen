@@ -23,6 +23,8 @@ export interface ShareLinkMenuProps {
   onShared?: () => void | Promise<void>;
   /** Ouvre le sélecteur d'utilisateur Soundy (DM). */
   onSendToUser?: () => void;
+  /** Classe z-index pour l'overlay (ex. z-[120] au-dessus d'un modal). */
+  overlayZClass?: string;
 }
 
 type ShareAction =
@@ -164,6 +166,7 @@ export function ShareLinkMenu({
   onToast,
   onShared,
   onSendToUser,
+  overlayZClass = 'z-40',
 }: ShareLinkMenuProps) {
   const { t } = useTranslation();
 
@@ -259,7 +262,7 @@ export function ShareLinkMenu({
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      className={`fixed inset-0 ${overlayZClass} flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm`}
       role="dialog"
       aria-modal="true"
       aria-labelledby="share-link-menu-title"

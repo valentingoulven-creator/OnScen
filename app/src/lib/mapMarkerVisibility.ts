@@ -7,8 +7,8 @@ import type { MapEventCityCluster } from '../types';
  * Flat map (Leaflet zoom):
  *   overview  z < 8   — capitals, event city clusters (no viewport clip),
  *     simplified dots for lives/salons when their filter is ON
- *   city      8 ≤ z < 12 — capitals, events, live salons/lives/people
- *   street    z ≥ 12  — all passed markers
+ *   city      8 ≤ z < 12 — capitals, events ; salons/lives/people si filtre actif
+ *   street    z ≥ 12  — idem (marqueurs passés filtrés par filtre carte)
  *
  * Globe (pointOfView altitude — lower = closer):
  *   overview  alt ≥ 0.6
@@ -338,21 +338,13 @@ export function getMapMarkerVisibility(opts: MapMarkerVisibilityOptions): MapMar
         density: 'overview',
       };
     case 'city':
-      return {
-        capitals,
-        eventClusters,
-        salons: true,
-        lives: true,
-        people: true,
-        density: 'full',
-      };
     case 'street':
       return {
         capitals,
         eventClusters,
-        salons: true,
-        lives: true,
-        people: true,
+        salons: salonFilterOn || livesFilterOn,
+        lives: livesFilterOn,
+        people: livesFilterOn,
         density: 'full',
       };
   }

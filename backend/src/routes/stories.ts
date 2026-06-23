@@ -4,6 +4,7 @@ import { schedulePersist } from '../lib/persist';
 import { createStory, deleteStory, getMyActiveStory, getUserActiveStories, listStoriesForViewer } from '../lib/stories';
 import { notifyMentions } from '../lib/mentions';
 import { db } from '../models/schema';
+import { moderateImageSource, moderationRejectionMessage } from '../lib/contentModeration';
 
 export const storiesRouter = Router();
 
@@ -28,12 +29,20 @@ storiesRouter.get('/mine', authenticateJWT, (req: Request, res: Response) => {
   res.json({ stories, story: stories.length ? stories[stories.length - 1]! : null });
 });
 
-storiesRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
+storiesRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const body = req.body ?? {};
+  const imageUrl = body.imageUrl != null ? String(body.imageUrl) : undefined;
+  if (imageUrl) {
+    const moderation = await moderateImageSource(imageUrl, 'story');
+    if (!moderation.allowed) {
+      res.status(422).json({ error: moderationRejectionMessage(moderation) });
+      return;
+    }
+  }
   const result = createStory(me, {
     content: body.content != null ? String(body.content) : undefined,
-    imageUrl: body.imageUrl != null ? String(body.imageUrl) : undefined,
+    imageUrl,
     musicTrack: body.musicTrack,
     taggedUserIds: body.taggedUserIds,
     link: body.link,

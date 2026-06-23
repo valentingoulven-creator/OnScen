@@ -32,6 +32,7 @@ import { buildUserDataExport } from '../lib/accountDataExport';
 import { deleteUserAccountCascade } from '../lib/accountDeletion';
 import { CURRENT_TERMS_VERSION } from '../lib/legalConstants';
 import { isValidProfileType } from '../lib/profileTypes';
+import { moderateImageSources, moderationRejectionMessage } from '../lib/contentModeration';
 import {
   assertRegistrationAllowed,
   consumeInviteCode,
@@ -318,7 +319,7 @@ authRouter.get('/profile/:userId', authenticateJWT, (req: Request, res: Response
   res.json(result);
 });
 
-authRouter.patch('/profile', authenticateJWT, (req: Request, res: Response) => {
+authRouter.patch('/profile', authenticateJWT, async (req: Request, res: Response) => {
   const userId = (req as Request & { user: { id: string } }).user.id;
   const user = db.users.get(userId);
   if (!user) {
@@ -458,6 +459,11 @@ authRouter.patch('/profile', authenticateJWT, (req: Request, res: Response) => {
       res.status(413).json({ error: 'Chaque photo ne peut pas dépasser 2 Mo.' });
       return;
     }
+    const moderation = await moderateImageSources(incoming, 'profile_photo');
+    if (!moderation.allowed) {
+      res.status(422).json({ error: moderationRejectionMessage(moderation) });
+      return;
+    }
     const intendedCount = countPersistableProfilePhotos(incoming);
     syncProfilePhotos(user, sanitizeIncomingProfilePhotos(incoming));
     const savedCount = countPersistableProfilePhotos(user.profilePhotos ?? []);
@@ -477,6 +483,11 @@ authRouter.patch('/profile', authenticateJWT, (req: Request, res: Response) => {
     }
   } else if (avatarUrl && typeof avatarUrl === 'string') {
     const url = avatarUrl.trim().slice(0, 2000);
+    const moderation = await moderateImageSources([url], 'avatar');
+    if (!moderation.allowed) {
+      res.status(422).json({ error: moderationRejectionMessage(moderation) });
+      return;
+    }
     const existing = user.profilePhotos?.length ? [...user.profilePhotos] : [];
     if (existing.length === 0) {
       syncProfilePhotos(user, [url]);

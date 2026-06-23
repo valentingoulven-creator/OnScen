@@ -104,7 +104,9 @@ function ShowMoreRow({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="w-full min-h-[44px] text-left text-[10px] font-semibold text-purple-400/90 hover:text-purple-300 py-1.5 transition disabled:opacity-35 disabled:pointer-events-none"
+      className={`min-h-[44px] text-[10px] font-semibold text-purple-400/90 hover:text-purple-300 py-1.5 px-1 transition disabled:opacity-35 disabled:pointer-events-none ${
+        mode === 'less' ? 'text-right shrink-0' : 'text-left min-w-0'
+      }`}
     >
       {mode === 'less'
         ? t('map.sidebarShowLess', { defaultValue: 'Afficher moins' })
@@ -133,7 +135,7 @@ function SectionPaginationControls({
   const canCollapse = clampedVisible > SIDEBAR_SECTION_PAGE_SIZE;
 
   return (
-    <li className="px-2 sm:px-2.5 py-0.5 flex flex-col border-t border-[var(--ms-border)]/40 mt-0.5">
+    <li className="px-2 sm:px-2.5 py-0.5 flex flex-row items-center justify-between gap-2 border-t border-[var(--ms-border)]/40 mt-0.5">
       <ShowMoreRow
         mode="more"
         hiddenCount={hiddenCount}
@@ -541,9 +543,11 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
           <>
             {showEventClusterSections && (
               <CollapsibleSidebarSection
-                label={t('map.sidebarLivesFollowing', { defaultValue: 'Suivi' })}
+                label={t('map.sidebarEventsFollowing', { defaultValue: 'Suivi / Enregistré' })}
                 items={content.eventClustersFollowing}
-                emptyText={followingEmptyText}
+                emptyText={t('map.sidebarEventsFollowingEmpty', {
+                  defaultValue: 'Aucun événement suivi ou enregistré.',
+                })}
                 {...sectionProps('eventClustersFollowing', content.eventClustersFollowing.length)}
                 renderItem={(cluster) => (
                   <CityClusterRow
@@ -589,9 +593,11 @@ export const NearbyPeoplePanel = memo(function NearbyPeoplePanel({
 
             {showEventItemSections && (
               <CollapsibleSidebarSection
-                label={t('map.sidebarLivesFollowing', { defaultValue: 'Suivi' })}
+                label={t('map.sidebarEventsFollowing', { defaultValue: 'Suivi / Enregistré' })}
                 items={content.eventsFollowing}
-                emptyText={followingEmptyText}
+                emptyText={t('map.sidebarEventsFollowingEmpty', {
+                  defaultValue: 'Aucun événement suivi ou enregistré.',
+                })}
                 {...sectionProps('eventsFollowing', content.eventsFollowing.length)}
                 renderItem={(event) => (
                   <MapEventRow

@@ -60,6 +60,7 @@ import { adminSyslogRouter } from './routes/adminSyslog';
 import { adminReportsRouter } from './routes/adminReports';
 import { startServerMonitor } from './lib/serverMonitor';
 import { startSystemMonitor } from './lib/systemMonitor';
+import { searchRouter } from './routes/search';
 import { webauthnRouter } from './routes/webauthn';
 import { twoFactorRouter } from './routes/twoFactor';
 
@@ -495,6 +496,7 @@ app.use('/api/feed', feedRouter);
 app.use('/api/stories', storiesRouter);
 app.use('/api/users', userAlbumsRouter);
 app.use('/api/users', usersRouter);
+app.use('/api/search', searchRouter);
 app.use('/api/platforms', platformsRouter);
 app.use('/api/msdev', msdevRouter);
 app.use('/api/legal/reports', reportsLimiter);
