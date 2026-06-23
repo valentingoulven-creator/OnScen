@@ -19,6 +19,11 @@ msdev/data/*.json
 !msdev/data/.gitignore
 msdev/legal-publisher.json
 
+# Mobile store secrets (keystore, Team ID)
+mobile-store.env
+apptel/android/soundy-release.jks
+apptel/android/keystore.properties
+
 # Built Windows executable (regenerate with npm run build:exe)
 msdev/release/
 

@@ -88,7 +88,7 @@ export function CreatorSubscribeSheet({
             <p className="font-bold text-white">{title}</p>
             <button type="button" onClick={onClose} className="text-gray-400 hover:text-white text-xl px-2">✕</button>
           </div>
-          <p className="text-sm text-gray-400 text-center">{t('subscription.iosIapNotice')}</p>
+          <p className="text-sm text-gray-400 text-center">{t('subscription.nativeIapNotice')}</p>
         </div>
       </div>
     );

@@ -55,5 +55,7 @@
 	<string>Soundy utilise votre position pour afficher les salons et utilisateurs proches.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Soundy accède à vos photos pour les photos de profil et reels.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Soundy peut enregistrer des images dans votre photothèque lorsque vous exportez ou partagez du contenu.</string>
 </dict>
 </plist>

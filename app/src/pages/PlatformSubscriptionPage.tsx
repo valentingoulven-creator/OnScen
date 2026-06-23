@@ -139,7 +139,7 @@ export function PlatformSubscriptionPage({ onBack }: PlatformSubscriptionPagePro
           <span className="w-10 shrink-0" aria-hidden />
         </header>
         <div className="flex-1 flex items-center justify-center p-6">
-          <p className="text-sm text-gray-400 text-center max-w-xs">{t('subscription.iosIapNotice')}</p>
+          <p className="text-sm text-gray-400 text-center max-w-xs">{t('subscription.nativeIapNotice')}</p>
         </div>
       </div>
     );

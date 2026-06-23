@@ -3,7 +3,7 @@
     "name": "Soundy",
     "loading": "Chargement de Soundy…",
     "tagline": "Salons musicaux · Lives · Actu",
-    "versionFooter": "Soundy · msdev · v1.0",
+    "versionFooter": "Soundy · v{{version}}",
     "loadError": "Soundy — erreur de chargement"
   },
   "nav": {
@@ -487,6 +487,7 @@
     "liveBadge": "EN DIRECT",
     "activeBannerSubtitle": "Votre live est en cours",
     "activeBannerSubtitleViewer": "Le direct continue en arrière-plan",
+    "nativeIapDonation": "Les dons ne sont pas disponibles dans l'app mobile. Utilisez getsoundy.com dans votre navigateur pour envoyer des dons.",
     "iosIapDonation": "Les dons ne sont pas disponibles dans l'app iOS. Utilisez la version web sur getsoundy.com pour envoyer des dons."
   },
   "dm": {
@@ -774,6 +775,7 @@
     "ageConfirm": "Je certifie avoir 18 ans ou plus et être autorisé à utiliser un moyen de paiement.",
     "simulationNotice": "Simulation — aucun paiement réel en mode développement.",
     "renewsOn": "Renouvellement le {{date}}",
+    "nativeIapNotice": "Les abonnements ne sont pas disponibles dans l'app mobile. Utilisez getsoundy.com dans votre navigateur pour gérer votre abonnement.",
     "iosIapNotice": "Les abonnements ne sont pas disponibles dans l'app iOS. Utilisez la version web sur getsoundy.com pour gérer votre abonnement."
   },
   "support": {

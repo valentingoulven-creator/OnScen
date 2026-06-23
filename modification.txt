@@ -1,4 +1,43 @@
 ================================================================================
+MODIF 658 — Projet Cursor « Soundy CEO IA » (repo complet attaché)
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Créer un projet nommé « Soundy CEO IA » avec tout le repo Soundy en contexte,
+ pour un agent exécutif virtuel (style Tang Yu) : stratégie, finances, croissance.
+
+CHANGEMENTS / FIX
+-----
+ Soundy-CEO-IA.code-workspace
+ ────────────────────────────
+ • Workspace Cursor nommé, racine = repo complet.
+
+ .cursor/rules/soundy-ceo-ia.mdc
+ ────────────────────────────────
+ • Règle agent CEO IA (RACI, brief exécutif, docs stratégiques).
+
+ docs/SOUNDY-CEO-IA-PROMPT.md
+ ──────────────────────────────
+ • Prompt projet complet + annexe fichiers pour Claude Project.
+
+ AGENTS.md
+ ─────────
+ • Pointeurs projet CEO IA + instructions Cloud agents.
+
+FICHIERS MODIFIÉS
+-----
+ Soundy-CEO-IA.code-workspace → workspace projet CEO IA
+ .cursor/rules/soundy-ceo-ia.mdc → persona CEO
+ docs/SOUNDY-CEO-IA-PROMPT.md → prompt Tang Yu
+ AGENTS.md → index agents / CEO IA
+
+================================================================================
+Fin MODIF 658 — 2026-06-23
+================================================================================
+
+================================================================================
 MODIF 657 — Carte : un seul filtre actif (Lives / Salon / Évènement)
 Date : 2026-06-22
 ================================================================================
@@ -8331,4 +8370,141 @@ CHANGEMENTS / FIX
 
 ================================================================================
 Fin MODIF 670 — 2026-06-22
+================================================================================
+
+================================================================================
+MODIF 671 — Bundles iOS/Android prod (Capacitor 2.0.0, getsoundy.com)
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Mettre à jour les bundles natifs iOS/Android et PWA /tel/ sur la prod
+ getsoundy.com (commit fe29add), avec scripts build prod dédiés.
+
+CHANGEMENTS / FIX
+-----
+ apptel/scripts/capacitor-build-prod.mjs, apptel-build-prod.mjs (nouveaux)
+ apptel/.env.production, apptel/src/main.tsx (@vite-ignore PWA natif)
+ package.json, apptel/package.json — capacitor:build:prod, apptel:build:prod
+ apptel/android/app/build.gradle — v2.0.0 (200)
+ apptel/ios/App/App.xcodeproj — MARKETING_VERSION 2.0
+
+FICHIERS MODIFIÉS
+-----
+ Scripts build prod + sync Capacitor ios/android + export MeloSong-Mobile/www
+
+BUILD (si vérifié)
+-----
+ npm run capacitor:sync:prod → ✅ (ios + android assets)
+ npm run apptel:build:prod + mobile:export → ✅
+ android APK → ❌ ANDROID_HOME manquant sur cette machine
+
+================================================================================
+Fin MODIF 671 — 2026-06-23
+================================================================================
+
+================================================================================
+MODIF 672 — Audit mobile : sécurité, permissions, hardening store
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Correctifs P0/P1 issus de l'audit pré-production mobile (Capacitor) :
+ permissions Android, JWT sécurisé, hardening réseau/backup, Privacy Manifest iOS.
+
+CHANGEMENTS / FIX
+-----
+ apptel/src/lib/authStorage.ts (nouveau override)
+ ─────────────────
+ • JWT en Keychain iOS / Keystore Android (@aparajita/capacitor-secure-storage)
+ • Migration automatique depuis localStorage legacy
+
+ app/src/context/AuthContext.tsx
+ ─────────────────
+ • Boot auth async (initAuthStorage) sur natif
+
+ apptel/android/app/src/main/AndroidManifest.xml
+ ─────────────────
+ • CAMERA, RECORD_AUDIO, LOCATION, READ_MEDIA_IMAGES, POST_NOTIFICATIONS
+ • allowBackup=false, networkSecurityConfig HTTPS strict
+
+ apptel/capacitor.config.prod.json + scripts/capacitor-build-prod.mjs
+ ─────────────────
+ • cleartext=false, allowMixedContent=false en prod
+
+ Plugins Capacitor : camera, geolocation, preferences, secure-storage
+ apptel/ios/App/App/PrivacyInfo.xcprivacy + Info.plist (NSPhotoLibraryAdd)
+ apptel/android release : R8 minify + shrinkResources + signingConfig keystore
+ scripts/build-android-aab-prod.ps1, android:apk:prod / android:aab:prod
+
+ app/src/lib/webglSupport.ts — globe 3D désactivé sur natif
+ app/src/components/CookieConsentBanner.tsx — masqué sur natif
+ app/src/locales, SettingsPage — versionFooter v2.0.0 (plus msdev)
+ app/src/content/legal/privacy.ts — stockage sécurisé natif documenté
+
+FICHIERS MODIFIÉS
+-----
+ apptel/ (plugins, manifest, gradle, iOS privacy, nativeBoot, authStorage)
+ app/ (AuthContext, webgl, cookies, i18n, privacy, SettingsPage)
+ scripts/build-android-*.ps1, package.json
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+ apptel/ → npm run build:capacitor:prod → ✅
+ npm run android:apk:prod → ✅ (APK ~11,3 Mo avec plugins natifs)
+
+RESTE À FAIRE (hors scope code)
+-----
+ • legal-publisher.json LCEN (données éditeur réelles)
+ • Keystore release + npm run android:aab:prod
+ • Build IPA TestFlight (Mac)
+ • SSL pinning, stratégie IAP Apple/Google (Stripe)
+
+================================================================================
+Fin MODIF 672 — 2026-06-23
+================================================================================
+
+================================================================================
+MODIF 673 — Mobile store : AAB, SSL pinning, deep links, assetlinks, IAP natif
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Finaliser le reste à faire post-audit mobile : AAB release signé, pinning HTTPS,
+ App Links / Universal Links, assetlinks.json, conformité IAP natif, scripts iOS.
+
+CHANGEMENTS / FIX
+-----
+ scripts/fetch-cert-pins.mjs, update-well-known-mobile.mjs, generate-android-keystore.ps1
+ scripts/build-android-aab-prod.ps1, build-ios-ipa-prod.sh (Mac)
+ apptel/android — keystore release, SSL pin getsoundy.com, App Links intent-filters
+ apptel/src/lib/nativeDeepLink.ts + @capacitor/app
+ apptel/ios/App.entitlements (Associated Domains)
+ app/public + backend/public/.well-known/assetlinks.json (SHA256 release)
+ deploy/legal-publisher.template.json + msdev/legal-publisher.example.json (SIREN 106548464)
+ LiveDonationSheet, CreatorSubscribeSheet, PlatformSubscriptionPage — IAP natif iOS+Android
+ apptel/vite.config.ts — stub react-globe.gl (bundle natif allégé)
+
+FICHIERS MODIFIÉS
+-----
+ Scripts mobile store + well-known + legal template
+ apptel/ (deep links, pinning, entitlements, stub globe)
+ app/ (IAP guards, i18n nativeIap*)
+
+BUILD (si vérifié)
+-----
+ npm run build:capacitor:prod → ✅
+ npm run android:aab:prod → ✅ (AAB ~4,86 Mo → MeloSong-Mobile/Soundy-release-prod.aab)
+
+MANUEL (1 action utilisateur)
+-----
+ • Renseigner adresse postale dans /opt/soundy/legal-publisher.json (VPS) — LCEN
+ • Renseigner APPLE_TEAM_ID dans mobile-store.env puis npm run mobile:well-known
+
+================================================================================
+Fin MODIF 673 — 2026-06-23
 ================================================================================

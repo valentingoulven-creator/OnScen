@@ -10,6 +10,10 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+android/local.properties
+android/keystore.properties
+android/*.jks
+android/*.keystore
 android
 *.local
 

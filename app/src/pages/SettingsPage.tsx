@@ -827,7 +827,9 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
           </div>
         </section>
 
-        <p className="px-4 pt-6 text-center text-[10px] text-gray-600">{t('app.versionFooter')}</p>
+        <p className="px-4 pt-6 text-center text-[10px] text-gray-600">
+          {t('app.versionFooter', { version: '2.0.0' })}
+        </p>
           </>
         )}
       </div>

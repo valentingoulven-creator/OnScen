@@ -11,19 +11,23 @@
     <meta name="theme-color" content="#7c3aed" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="MeloSong" />
+    <meta name="apple-mobile-web-app-title" content="Soundy" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="format-detection" content="telephone=no" />
-    <title>MeloSong</title>
-    <script type="module" crossorigin src="/tel/assets/index-B6m8Qrs-.js"></script>
+    <title>Soundy</title>
+    <script type="module" crossorigin src="/tel/assets/index-DEyf3t7s.js"></script>
     <link rel="modulepreload" crossorigin href="/tel/assets/rolldown-runtime-b3L32Ng1.js">
-    <link rel="modulepreload" crossorigin href="/tel/assets/vendor-misc-C7oK_JLH.js">
-    <link rel="modulepreload" crossorigin href="/tel/assets/i18n-B-3tBt4i.js">
-    <link rel="modulepreload" crossorigin href="/tel/assets/vendor-react-DrGvLvWC.js">
-    <link rel="modulepreload" crossorigin href="/tel/assets/vendor-socketio-oQwqPXI-.js">
-    <link rel="modulepreload" crossorigin href="/tel/assets/usernameColor-DDlG4F6H.js">
-    <link rel="modulepreload" crossorigin href="/tel/assets/vendor-map-BnSVLoJL.js">
-    <link rel="stylesheet" crossorigin href="/tel/assets/index-BkNPM4gf.css">
+    <link rel="modulepreload" crossorigin href="/tel/assets/preload-helper-Q6raMljS.js">
+    <link rel="modulepreload" crossorigin href="/tel/assets/vendor-misc-B7dfFRMm.js">
+    <link rel="modulepreload" crossorigin href="/tel/assets/vendor-livekit-ClSLlWSu.js">
+    <link rel="modulepreload" crossorigin href="/tel/assets/vendor-react-BCmUZEwV.js">
+    <link rel="modulepreload" crossorigin href="/tel/assets/vendor-map-BNivx4H2.js">
+    <link rel="modulepreload" crossorigin href="/tel/assets/i18n-uu2rjXTW.js">
+    <link rel="modulepreload" crossorigin href="/tel/assets/usernameColor-BJbVOc_1.js">
+    <link rel="modulepreload" crossorigin href="/tel/assets/vendor-socketio-CjioBEUl.js">
+    <link rel="modulepreload" crossorigin href="/tel/assets/AuthContext-DjYivAR2.js">
+    <link rel="modulepreload" crossorigin href="/tel/assets/profileImageProcessing-CJUwAoeW.js">
+    <link rel="stylesheet" crossorigin href="/tel/assets/index-l6NoB4D4.css">
   <link rel="manifest" href="/tel/manifest.webmanifest"></head>
   <body>
     <div id="root">
@@ -53,7 +57,7 @@
             animation: melosong-spin 0.8s linear infinite;
           "
         ></div>
-        <p style="margin: 0; font-size: 0.95rem">Chargement de Soundly…</p>
+        <p style="margin: 0; font-size: 0.95rem">Chargement de Soundy…</p>
         <p id="melosong-boot-hint" style="margin: 0; font-size: 0.75rem; color: #6b7280; max-width: 20rem">
           Si l’écran reste noir : <strong style="color: #c4b5fd">Ctrl+Shift+R</strong> (actualisation forcée)
         </p>
@@ -68,7 +72,7 @@
     </style>
     <script>
       (function () {
-        var SW_CLEAR_KEY = 'melosong_sw_purge_mq40gwcm';
+        var SW_CLEAR_KEY = 'melosong_sw_purge_mqr3vmiv';
         function purgePwaCaches() {
           if (!('serviceWorker' in navigator)) return Promise.resolve();
           return navigator.serviceWorker

@@ -13,9 +13,9 @@
  *
  * NATIVE (Capacitor / apptel):
  *   Cookies are not reliably shared in native WebViews for cross-origin calls, so
- *   the JWT is kept in localStorage (same as before). The backend auth middleware
- *   accepts both the httpOnly cookie AND the X-Auth-Token header, so native clients
- *   continue to work unchanged.
+ *   the JWT is kept in secure native storage (Keychain / Keystore) via apptel override.
+ *   The backend auth middleware accepts both the httpOnly cookie AND the X-Auth-Token
+ *   header, so native clients continue to work unchanged.
  */
 
 const TOKEN_KEY = 'melosong_token';
@@ -83,6 +83,11 @@ export function clearStoredToken(): void {
   sessionStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(REMEMBER_KEY);
+}
+
+/** No-op on web; apptel override loads secure storage on native. */
+export async function initAuthStorage(): Promise<string | null> {
+  return null;
 }
 
 /** Exposed for use in AuthContext to determine whether to attempt a cookie-based boot. */

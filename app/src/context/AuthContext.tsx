@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import i18n from '../i18n';
 import { api, ApiRequestError } from '../lib/api';
-import { clearStoredToken, getStoredToken, isNativePlatform, persistToken } from '../lib/authStorage';
+import { clearStoredToken, getStoredToken, initAuthStorage, isNativePlatform, persistToken } from '../lib/authStorage';
 import { clearPersistedSalonSession } from '../lib/activeSalonSession';
 import { setDiagnosticLogUser, flushDiagnosticLogsToServer } from '../lib/diagnosticLogs';
 import { clearSocketUser, registerUser, setSocketAuthToken } from '../lib/socket';
@@ -61,16 +61,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * (see boot effect below). The token is stored in memory after login for
    * in-session use (socket.io auth) but never persisted to localStorage.
    *
-   * NATIVE: token is read from localStorage (Capacitor can't rely on cookies
-   * across native WebView origins the same way browsers do).
+   * NATIVE: token is loaded asynchronously from secure storage (Keychain / Keystore).
    */
-  const [token, setToken] = useState<string | null>(() => getStoredToken());
+  const [token, setToken] = useState<string | null>(() =>
+    isNativePlatform() ? null : getStoredToken()
+  );
   const [user, setUser] = useState<User | null>(null);
-  /** True until the first session restore attempt finishes (cookie on web, storage on native). */
-  const [authBootPending, setAuthBootPending] = useState(() => {
-    if (isNativePlatform()) return !!getStoredToken();
-    return true;
-  });
+  /** True until the first session restore attempt finishes (cookie on web, secure storage on native). */
+  const [authBootPending, setAuthBootPending] = useState(true);
   const [authBootError, setAuthBootError] = useState<string | null>(null);
   const clearAuthBootError = () => setAuthBootError(null);
   const [isNewUser, setIsNewUser] = useState(false);
@@ -95,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     // Clear server-side httpOnly cookie (web). Noop on failure — cookie expires anyway.
     api.logout().catch(() => undefined);
-    clearStoredToken();
+    void clearStoredToken();
     clearPersistedSalonSession();
     clearSocketUser();
     setToken(null);
@@ -120,35 +118,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * WEB: even with a null in-memory token, the httpOnly cookie is sent automatically
    * with credentials:'include'. If the cookie is valid, /api/auth/me returns the user.
    *
-   * NATIVE: falls back to the stored token from localStorage. If no token, skip.
+   * NATIVE: loads token from secure storage, then validates via /api/auth/me.
    */
   useEffect(() => {
-    const native = isNativePlatform();
-    // On native without a stored token, there's nothing to restore.
-    if (native && !token) {
-      setAuthBootPending(false);
-      return;
-    }
-
     let cancelled = false;
     const timeout = window.setTimeout(() => {
       if (cancelled) return;
       setAuthBootError(i18n.t('errors.serverUnreachable'));
-      clearStoredToken();
+      void clearStoredToken();
       setToken(null);
       setUser(null);
+      setAuthBootPending(false);
     }, 20000);
 
-    // token may be null on web; the cookie handles auth in that case.
-    api.me(token)
-      .then((r) => {
+    void (async () => {
+      let sessionToken: string | null = null;
+      if (isNativePlatform()) {
+        sessionToken = await initAuthStorage();
         if (cancelled) return;
-        const sessionToken = r.token ?? token;
-        if (sessionToken) setToken(sessionToken);
+        setToken(sessionToken);
+        if (!sessionToken) {
+          setAuthBootPending(false);
+          window.clearTimeout(timeout);
+          return;
+        }
+      }
+
+      try {
+        const r = await api.me(sessionToken);
+        if (cancelled) return;
+        const validatedToken = r.token ?? sessionToken;
+        if (validatedToken) setToken(validatedToken);
         setUser(r.user);
-        registerUser(r.user.id, sessionToken);
-      })
-      .catch((e: unknown) => {
+        registerUser(r.user.id, validatedToken);
+      } catch (e: unknown) {
         if (cancelled) return;
         const { message, status } = sessionErrorFromUnknown(e);
         if (isInvalidSessionError(message, status)) {
@@ -159,20 +162,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           message ||
             'Erreur lors du chargement de la session. Déconnectez-vous ou actualisez la page (Ctrl+Shift+R).'
         );
-        // Network error (server down, cert issue, etc.): keep token for retry.
-        // The 20 s timeout above will force-logout if the server stays unreachable.
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setAuthBootPending(false);
         window.clearTimeout(timeout);
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;
       window.clearTimeout(timeout);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, []);
 
   const login = async (email: string, password: string, rememberMe = true) => {
     const r = await api.login(email, password, rememberMe);
@@ -180,8 +181,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Réponse de connexion invalide');
     }
     // WEB: backend already set the httpOnly cookie — keep token only in memory.
-    // NATIVE: persist to localStorage for cross-session use.
-    persistToken(r.token, rememberMe);
+    // NATIVE: persist to secure storage for cross-session use.
+    await persistToken(r.token, rememberMe);
     setToken(r.token);
     setUser(r.user);
     registerUser(r.user.id, r.token);
@@ -215,8 +216,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Réponse d\'inscription invalide');
     }
     // WEB: backend already set the httpOnly cookie — keep token only in memory.
-    // NATIVE: persist to localStorage.
-    persistToken(r.token, true);
+    // NATIVE: persist to secure storage.
+    await persistToken(r.token, true);
     setToken(r.token);
     setUser(r.user);
     setIsNewUser(true);
@@ -255,7 +256,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
   const setSession = (t: string, u: User, rememberMe = true, isNew = false) => {
-    persistToken(t, rememberMe);
+    void persistToken(t, rememberMe);
     setToken(t);
     setUser(u);
     if (isNew) setIsNewUser(true);

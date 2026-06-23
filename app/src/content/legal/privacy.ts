@@ -44,7 +44,7 @@ export const politiqueConfidentialite: LegalDocument = {
     },
     {
       heading: '10. Cookies et stockage local',
-      body: 'Soundy utilise :\n\n• Un cookie httpOnly sécurisé (soundy_auth) pour la session web — inaccessible au JavaScript, protégé contre le vol par XSS.\n• Sur l’application mobile native (Capacitor), un jeton peut être conservé en localStorage.\n• localStorage pour les préférences non sensibles : langue, rayon carte, consentement cookies, réglages d’interface.\n• Des services tiers (YouTube lecteur intégré, Stripe paiements) uniquement après votre consentement via la bannière cookies.\n\nVous pouvez effacer le stockage local via les paramètres du navigateur ; cela réinitialisera vos préférences et vous déconnectera sur le web.',
+      body: 'Soundy utilise :\n\n• Un cookie httpOnly sécurisé (soundy_auth) pour la session web — inaccessible au JavaScript, protégé contre le vol par XSS.\n• Sur l’application mobile native (Capacitor), le jeton de session est conservé dans le stockage sécurisé de l’appareil (Keychain iOS / Keystore Android), et non dans le stockage WebView.\n• localStorage pour les préférences non sensibles : langue, rayon carte, réglages d’interface.\n• Des services tiers (YouTube lecteur intégré, Stripe paiements sur web) — sur mobile natif, les lecteurs et paiements suivent les règles de la plateforme.\n\nVous pouvez effacer le stockage local via les paramètres du navigateur (web) ou en vous déconnectant / supprimant l’application (mobile).',
     },
     {
       heading: '11. Autorisations OAuth Spotify et YouTube',

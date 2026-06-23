@@ -1,16 +1,23 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getCookieConsent, setCookieConsent } from '../lib/cookieConsent';
+import { isNativeApp } from '../lib/nativePlatform';
 import { LegalDocumentView } from './LegalDocumentView';
 
 export function CookieConsentBanner() {
   const { t } = useTranslation();
-  const [visible, setVisible] = useState(() => getCookieConsent() == null);
+  const [visible, setVisible] = useState(() => !isNativeApp() && getCookieConsent() == null);
   const [privacyOpen, setPrivacyOpen] = useState(false);
 
   useEffect(() => {
+    if (isNativeApp()) {
+      setVisible(false);
+      return;
+    }
     if (getCookieConsent() != null) setVisible(false);
   }, []);
+
+  if (isNativeApp()) return null;
 
   if (privacyOpen) {
     return (

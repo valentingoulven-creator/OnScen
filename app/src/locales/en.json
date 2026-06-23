@@ -3,7 +3,7 @@
     "name": "Soundy",
     "loading": "Loading Soundy…",
     "tagline": "Music rooms · Live · Map",
-    "versionFooter": "Soundy · msdev · v1.0",
+    "versionFooter": "Soundy · v{{version}}",
     "loadError": "Soundy — loading error"
   },
   "nav": {
@@ -487,6 +487,7 @@
     "liveBadge": "LIVE",
     "activeBannerSubtitle": "Your live is still running",
     "activeBannerSubtitleViewer": "The stream continues in the background",
+    "nativeIapDonation": "Tips are not available in the mobile app. Please use getsoundy.com in your browser to send tips.",
     "iosIapDonation": "Tips are not available in the iOS app. Please use the web version at getsoundy.com to send tips."
   },
   "dm": {
@@ -774,6 +775,7 @@
     "ageConfirm": "I confirm I am 18 or older and authorized to use a payment method.",
     "simulationNotice": "Simulation — no real payment in development mode.",
     "renewsOn": "Renews on {{date}}",
+    "nativeIapNotice": "Subscriptions are not available in the mobile app. Please use getsoundy.com in your browser to manage your subscription.",
     "iosIapNotice": "Subscriptions are not available in the iOS app. Please use the web version at getsoundy.com to manage your subscription."
   },
   "support": {
