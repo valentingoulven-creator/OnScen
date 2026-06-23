@@ -16,8 +16,8 @@ describe('sponsorLogoAssets', () => {
     expect(isValidSponsorLogoUrl('http://insecure.example/logo.png')).toBe(false);
   });
 
-  it('saves data URL to uploads path', () => {
-    const url = saveSponsorLogoFromDataUrl(TINY_PNG);
+  it('saves data URL to uploads path', async () => {
+    const url = await saveSponsorLogoFromDataUrl(TINY_PNG);
     expect(url).toMatch(/^\/uploads\/sponsors\/[a-f0-9]+\.png$/);
     expect(isValidSponsorLogoUrl(url)).toBe(true);
   });

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ACCEPTED_IMAGE_FORMATS,
@@ -12,7 +12,10 @@ import {
   isDisplayableProfilePhotoUrl,
 } from '../lib/profilePhotos';
 import { ConfirmModal } from './ConfirmModal';
-import { PhotoImageEditor } from './PhotoImageEditor';
+
+const PhotoImageEditor = lazy(() =>
+  import('./PhotoImageEditor').then((m) => ({ default: m.PhotoImageEditor }))
+);
 
 const MAX_PHOTOS = 5;
 const GALLERY_SLOTS = MAX_PHOTOS - 1;
@@ -229,13 +232,15 @@ export function ProfilePhotoGallery({
 
     const editorOverlay =
       editorFile && editorPreviewUrl ? (
-        <PhotoImageEditor
-          mode="profile"
-          initialImage={editorPreviewUrl}
-          initialSource={editorFile}
-          onConfirm={(result) => void onEditorConfirm(result.imageUrl)}
-          onCancel={onEditorCancel}
-        />
+        <Suspense fallback={null}>
+          <PhotoImageEditor
+            mode="profile"
+            initialImage={editorPreviewUrl}
+            initialSource={editorFile}
+            onConfirm={(result) => void onEditorConfirm(result.imageUrl)}
+            onCancel={onEditorCancel}
+          />
+        </Suspense>
       ) : null;
 
     return (

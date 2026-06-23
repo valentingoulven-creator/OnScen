@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useDmUnread } from '../context/DmUnreadContext';
@@ -16,6 +16,8 @@ import { LinkifiedText } from '../components/LinkifiedText';
 import { verifyInternalLink } from '../lib/internalLinkCheck';
 import type { InternalLinkTarget } from '../lib/linkifyText';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { VirtualList } from '../components/VirtualList';
+import { DmDirectMessageRow } from '../components/DmDirectMessageRow';
 import {
   getSupportLastPreview,
   getSupportLastTimestamp,
@@ -326,6 +328,7 @@ export function DmPage({
   const [createSalonOpen, setCreateSalonOpen] = useState(false);
   const [createSalonPreset, setCreateSalonPreset] = useState<CreateSalonModalPreset | null>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
+  const [msgScrollEl, setMsgScrollEl] = useState<HTMLElement | null>(null);
   const isNearBottomRef = useRef(true);
   const prevMessageCountRef = useRef(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -418,6 +421,23 @@ export function DmPage({
     },
     [token]
   );
+
+  const handleMsgTouchEnd = useCallback(
+    (messageId: string, e: TouchEvent) => {
+      const now = Date.now();
+      const last = lastTapByMsgRef.current.get(messageId) ?? 0;
+      if (now - last < 300) {
+        e.preventDefault();
+        void handleMsgDoubleTap(messageId);
+      }
+      lastTapByMsgRef.current.set(messageId, now);
+    },
+    [handleMsgDoubleTap]
+  );
+
+  const toggleMsgMenu = useCallback((messageId: string) => {
+    setOpenMsgMenuId((id) => (id === messageId ? null : messageId));
+  }, []);
 
   const handleFileSelect = useCallback((file: File) => {
     if (isImageMime(file.type)) {
@@ -2349,7 +2369,10 @@ export function DmPage({
 
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
           <div
-            ref={messagesScrollRef}
+            ref={(el) => {
+              messagesScrollRef.current = el;
+              setMsgScrollEl(el);
+            }}
             onScroll={handleMessagesScroll}
             className="dm-messages-scroll flex-1 min-h-0 p-3"
           >
@@ -2357,115 +2380,62 @@ export function DmPage({
           {messages.length === 0 && (
             <p className="text-center text-gray-500 text-sm py-4">Aucun message. Envoyez le premier !</p>
           )}
-          {messages.map((m) => {
+          {messages.length > 40 && msgScrollEl ? (
+            <VirtualList
+              items={messages}
+              customScrollParent={msgScrollEl}
+              followOutput="auto"
+              initialTopMostItemIndex={Math.max(0, messages.length - 1)}
+              renderItem={(m) => {
+                const isMe = m.senderId === user?.id;
+                const menuOpen = openMsgMenuId === m.id;
+                const heartReactions = m.reactions?.['❤️'] ?? [];
+                const heartCount = heartReactions.length;
+                return (
+                  <DmDirectMessageRow
+                    key={m.id}
+                    message={m}
+                    isMe={isMe}
+                    menuOpen={menuOpen}
+                    heartCount={heartCount}
+                    listSpacer
+                    onDoubleTap={handleMsgDoubleTap}
+                    onTouchEnd={handleMsgTouchEnd}
+                    onToggleMenu={toggleMsgMenu}
+                    onDelete={deleteMessage}
+                    onOpenProfile={onOpenProfile}
+                    onOpenSalon={onOpenSalon}
+                    onOpenFeedPost={onOpenFeedPost}
+                    onBeforeInternalLink={onBeforeInternalLink}
+                  />
+                );
+              }}
+            />
+          ) : (
+          messages.map((m) => {
             const isMe = m.senderId === user?.id;
             const menuOpen = openMsgMenuId === m.id;
             const heartReactions = m.reactions?.['❤️'] ?? [];
             const heartCount = heartReactions.length;
             return (
-              <div
+              <DmDirectMessageRow
                 key={m.id}
-                data-dm-msg-menu
-                className={`flex items-end gap-1 ${isMe ? 'justify-end' : 'justify-start'}`}
-              >
-                <div className={`relative max-w-[80%] ${isMe ? 'order-1' : ''}`}>
-                  <div
-                    className={`rounded-2xl px-3 py-2 cursor-pointer select-none ${
-                      isMe
-                        ? 'bg-purple-600/80 text-white rounded-br-sm'
-                        : 'bg-[#1a1a26] border border-[#2d2d3d] text-gray-100 rounded-bl-sm'
-                    }`}
-                    onDoubleClick={() => void handleMsgDoubleTap(m.id)}
-                    onTouchEnd={(e) => {
-                      const now = Date.now();
-                      const last = lastTapByMsgRef.current.get(m.id) ?? 0;
-                      if (now - last < 300) {
-                        e.preventDefault();
-                        void handleMsgDoubleTap(m.id);
-                      }
-                      lastTapByMsgRef.current.set(m.id, now);
-                    }}
-                  >
-                    {m.content && (
-                      <LinkifiedText
-                        text={m.content}
-                        className="text-sm whitespace-pre-wrap break-words"
-                        onOpenProfile={onOpenProfile}
-                        onOpenSalon={onOpenSalon}
-                        onOpenFeedPost={onOpenFeedPost}
-                        onBeforeInternalLink={onBeforeInternalLink}
-                      />
-                    )}
-                    {m.attachmentUrl && (
-                      <div className={m.content ? 'mt-1.5' : ''}>
-                        {isImageMime(m.attachmentMimeType) ? (
-                          <img
-                            src={m.attachmentUrl}
-                            alt={m.attachmentName ?? 'Image'}
-                            className="max-w-full rounded-xl max-h-52 object-cover"
-                          />
-                        ) : (
-                          <a
-                            href={m.attachmentUrl}
-                            download={m.attachmentName ?? 'fichier'}
-                            onClick={(e) => e.stopPropagation()}
-                            className={`flex items-center gap-2 px-2 py-1.5 rounded-xl border ${
-                              isMe
-                                ? 'bg-purple-700/50 border-purple-400/30 hover:bg-purple-700/70'
-                                : 'bg-[#12121a] border-[#2d2d3d] hover:border-purple-500/40'
-                            }`}
-                          >
-                            <span className="text-lg shrink-0">📎</span>
-                            <div className="min-w-0">
-                              <p className="text-xs text-white truncate max-w-[140px]">{m.attachmentName ?? 'Fichier'}</p>
-                              {m.attachmentSize != null && (
-                                <p className={`text-[10px] ${isMe ? 'text-purple-200' : 'text-gray-500'}`}>
-                                  {formatFileSize(m.attachmentSize)}
-                                </p>
-                              )}
-                            </div>
-                            <span className={`ml-auto text-sm shrink-0 ${isMe ? 'text-purple-200' : 'text-gray-400'}`}>⬇</span>
-                          </a>
-                        )}
-                      </div>
-                    )}
-                    <p className={`text-[10px] mt-1 ${isMe ? 'text-purple-200' : 'text-gray-500'}`}>
-                      {formatTime(m.timestamp)}
-                    </p>
-                  </div>
-                  {heartCount > 0 && (
-                    <div className={`flex items-center gap-0.5 mt-1 w-fit rounded-full bg-[#12121a] border border-[#2d2d3d] px-1.5 py-0.5 ${isMe ? 'ml-auto' : ''}`}>
-                      <span className="text-[13px] leading-none" role="img" aria-label="réaction coeur">❤️</span>
-                      {heartCount > 1 && <span className="text-[10px] text-gray-300 font-medium">{heartCount}</span>}
-                    </div>
-                  )}
-                  {menuOpen && (
-                    <div
-                      className={`absolute z-20 mt-1 min-w-[10rem] rounded-xl border border-[#2d2d3d] bg-[#1a1a26] shadow-xl overflow-hidden ${
-                        isMe ? 'right-0' : 'left-0'
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => deleteMessage(m.id, isMe)}
-                        className="w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-red-500/10"
-                      >
-                        {isMe ? 'Supprimer pour tous' : 'Masquer pour moi'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setOpenMsgMenuId((id) => (id === m.id ? null : m.id))}
-                  className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:text-white hover:bg-[#1a1a26] text-sm"
-                  aria-label="Options du message"
-                >
-                  ⋮
-                </button>
-              </div>
+                message={m}
+                isMe={isMe}
+                menuOpen={menuOpen}
+                heartCount={heartCount}
+                onDoubleTap={handleMsgDoubleTap}
+                onTouchEnd={handleMsgTouchEnd}
+                onToggleMenu={toggleMsgMenu}
+                onDelete={deleteMessage}
+                onOpenProfile={onOpenProfile}
+                onOpenSalon={onOpenSalon}
+                onOpenFeedPost={onOpenFeedPost}
+                onBeforeInternalLink={onBeforeInternalLink}
+              />
             );
-          })}
+          })
+          )}
             </div>
           </div>
 

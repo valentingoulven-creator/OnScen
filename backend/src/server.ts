@@ -54,6 +54,7 @@ import { injectOgMetaIntoHtml, resolveShareOgMeta } from './lib/shareOgMeta';
 import { renderPublicLegalHtml, resolvePublicLegalDocKey } from './lib/publicLegalHtml';
 import { parseRequestLocale } from './lib/requestLocale';
 import { checkPoolHealth, isPostgresEnabled } from './db/pool';
+import { getDbContentHealthReport } from './lib/dbContentHealth';
 import { latencyMonitorMiddleware } from './middleware/latencyMonitor';
 import { adminMonitorRouter } from './routes/adminMonitor';
 import { adminSyslogRouter } from './routes/adminSyslog';
@@ -543,6 +544,20 @@ app.get('/health', (_req, res) => {
   void checkPoolHealth()
     .then((ok) => respond(ok ? 'ok' : 'error'))
     .catch(() => respond('error'));
+});
+
+/** Santé contenu PostgreSQL (comptes tables + drift mémoire). Réservé ops / monitoring interne. */
+app.get('/health/db', (_req, res) => {
+  void getDbContentHealthReport()
+    .then((report) => {
+      res.status(report.ok ? 200 : 503).json(report);
+    })
+    .catch((e) => {
+      res.status(503).json({
+        ok: false,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    });
 });
 
 /** Pages légales publiques (sans auth, requises LCEN / Spotify / Google OAuth). */

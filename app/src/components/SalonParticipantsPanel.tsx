@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useVisibleInterval } from '../hooks/usePageVisible';
 import { api } from '../lib/api';
 import { emitOnSocket } from '../lib/socket';
 import type { SalonParticipant } from '../types';
@@ -48,9 +49,9 @@ export function SalonParticipantsPanel({
 
   useEffect(() => {
     void loadParticipants();
-    const id = window.setInterval(() => void loadParticipants(), 12_000);
-    return () => window.clearInterval(id);
   }, [loadParticipants]);
+
+  useVisibleInterval(() => void loadParticipants(), 12_000);
 
   useEffect(() => {
     const vipSet = new Set(vipModeratorIds);

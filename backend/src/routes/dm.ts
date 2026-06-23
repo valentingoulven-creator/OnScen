@@ -20,6 +20,10 @@ import { userAllowsPrivateMessages } from '../lib/locationPrivacy';
 import { getIo } from '../lib/ioInstance';
 import { hideDmForUser, isDmVisibleToUser } from '../lib/dmVisibility';
 import { schedulePersist } from '../lib/persist';
+import {
+  scheduleDeleteDirectMessageFromPg,
+  schedulePersistDirectMessageToPg,
+} from '../lib/pgDirectMessages';
 import { findMatch } from '../lib/matches';
 import {
   countDmUnreadForUser,
@@ -374,6 +378,7 @@ dmRouter.delete('/thread/:userId', authenticateJWT, (req: Request, res: Response
       isDmVisibleToUser(msg, me)
     ) {
       hideDmForUser(msg, me);
+      schedulePersistDirectMessageToPg(msg);
       hiddenCount++;
     }
   }
@@ -440,6 +445,7 @@ dmRouter.post('/thread/:userId', authenticateJWT, async (req: Request, res: Resp
     for (const m of db.directMessages) {
       if (m.senderId === me && m.receiverId === receiverId && !m.accepted) {
         m.accepted = true;
+        schedulePersistDirectMessageToPg(m);
       }
     }
     invalidateLegacyAcceptedCache();
@@ -461,6 +467,7 @@ dmRouter.post('/thread/:userId', authenticateJWT, async (req: Request, res: Resp
     ...(attachmentUrl ? { attachmentUrl, attachmentName, attachmentSize, attachmentMimeType } : {}),
   };
   db.directMessages.push(msg);
+  schedulePersistDirectMessageToPg(msg);
 
   if (status === 'none') {
     db.dmPendingPairs.set(dmPairKey(me, receiverId), 'accepted');
@@ -542,6 +549,7 @@ dmRouter.post('/requests/:senderId/accept', authenticateJWT, (req: Request, res:
   for (const m of db.directMessages) {
     if (m.senderId === senderId && m.receiverId === me && !m.accepted) {
       m.accepted = true;
+      schedulePersistDirectMessageToPg(m);
     }
   }
   invalidateLegacyAcceptedCache();
@@ -574,6 +582,7 @@ dmRouter.post('/requests/:senderId/refuse', authenticateJWT, (req: Request, res:
       if (!m.hiddenFor) m.hiddenFor = [];
       if (!m.hiddenFor.includes(me)) m.hiddenFor.push(me);
       if (!m.hiddenFor.includes(senderId)) m.hiddenFor.push(senderId);
+      schedulePersistDirectMessageToPg(m);
     }
   }
   invalidateLegacyAcceptedCache();
@@ -623,6 +632,7 @@ dmRouter.post('/messages/:messageId/react', authenticateJWT, (req: Request, res:
   io?.to(`user_${me}`).emit('dm_reaction', payload);
   io?.to(`user_${otherId}`).emit('dm_reaction', payload);
 
+  schedulePersistDirectMessageToPg(msg);
   schedulePersist();
   res.json({ ok: true, added, reactions: msg.reactions });
 });
@@ -647,6 +657,7 @@ dmRouter.delete('/messages/:messageId', authenticateJWT, (req: Request, res: Res
       return;
     }
     db.directMessages.splice(idx, 1);
+    scheduleDeleteDirectMessageFromPg(msg.id);
     const otherId = msg.receiverId;
     getIo()?.to(`user_${otherId}`).emit('dm_deleted', { messageId: msg.id });
     getIo()?.to(`user_${me}`).emit('dm_deleted', { messageId: msg.id });
@@ -656,6 +667,7 @@ dmRouter.delete('/messages/:messageId', authenticateJWT, (req: Request, res: Res
   }
 
   hideDmForUser(msg, me);
+  schedulePersistDirectMessageToPg(msg);
     getIo()?.to(`user_${me}`).emit('dm_hidden', { messageId: msg.id });
   schedulePersist();
   res.json({ ok: true, messageId: msg.id, scope: 'hidden' });

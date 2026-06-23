@@ -38,6 +38,20 @@ LINES="$(gunzip -c "$FILE" | wc -l | tr -d ' ')"
 SIZE="$(du -h "$FILE" | cut -f1)"
 echo "  ✓ ${LINES} lignes, ${SIZE}"
 
+# Tables contenu utilisateur attendues dans le dump
+TABLES=(feed_posts user_reels user_albums user_compositions stories users)
+MISSING=()
+for t in "${TABLES[@]}"; do
+  if ! gunzip -c "$FILE" | grep -q "CREATE TABLE.*${t}\|COPY public\.${t} "; then
+    MISSING+=("$t")
+  fi
+done
+if ((${#MISSING[@]} > 0)); then
+  echo "AVERTISSEMENT — tables absentes ou non détectées dans le dump : ${MISSING[*]}" >&2
+else
+  echo "  ✓ tables contenu détectées (${TABLES[*]})"
+fi
+
 echo ""
 echo "Test de restauration complet (optionnel, base de test) :"
 echo "  createdb soundy_restore_test"

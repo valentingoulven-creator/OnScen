@@ -8048,3 +8048,220 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 664 — 2026-06-23
 ================================================================================
+
+================================================================================
+MODIF 665 — Perf & robustesse : virtualisation, API core, persist dirty, polling
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Roadmap d'amélioration perf/maintenabilité : upload sponsor cookie web, feeds lourds,
+ snapshot PG toutes les 10 s sans changement, polling agressif, recherche O(n).
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/api/core.ts (nouveau)
+ ─────────────────
+ • Couche HTTP partagée (request, ApiRequestError, parseApiError)
+
+ app/src/lib/api/index.ts (nouveau)
+ app/src/lib/api.ts
+ ─────────────────
+ • Import depuis api/core ; upload sponsor accepte token null (cookie httpOnly)
+
+ app/src/components/SponsorBannerUploadField.tsx
+ app/src/components/SponsorLogoUploadField.tsx
+ app/src/lib/sponsorUploadAuth.ts
+ ─────────────────
+ • Upload admin via session user (cookie web), plus de blocage si token mémoire null
+
+ app/src/components/VirtualList.tsx (nouveau)
+ app/src/pages/ActualiteTabPage.tsx
+ app/src/pages/DmPage.tsx
+ ─────────────────
+ • react-virtuoso : fil actu virtualisé ; DM virtualisé au-delà de 40 messages
+
+ app/src/hooks/usePageVisible.ts (nouveau)
+ app/src/components/LivesBrowseGrid.tsx
+ app/src/components/SalonParticipantsPanel.tsx
+ app/src/components/LiveParticipantsPopover.tsx
+ ─────────────────
+ • Polling pause quand l'onglet est hidden ; lives 12 s (ex-8 s)
+
+ backend/src/lib/persist.ts
+ backend/src/lib/persist.test.ts
+ ─────────────────
+ • Flag storeDirty : intervalle 10 s ne flush PG que si mutations
+
+ backend/src/lib/globalSearchIndex.ts (nouveau)
+ backend/src/lib/globalSearch.ts
+ backend/src/routes/auth.ts
+ ─────────────────
+ • Index usernames pour recherche globale ; invalidation au changement de pseudo
+
+ app/src/components/ProfilePhotoGallery.tsx
+ app/src/lib/documentMeta.ts
+ deploy/healthcheck.sh
+ scripts/api-stability-check.ps1
+ ─────────────────
+ • PhotoImageEditor lazy ; SEO YouTube-only ; healthcheck PM2 path ; script smoke test
+
+FICHIERS MODIFIÉS
+-----
+ app/package.json → react-virtuoso
+ +15 fichiers app/backend listés ci-dessus
+
+BUILD (si vérifié)
+-----
+ backend/ → npm test → ✅ (246 tests)
+ app/ → npm test → ✅ (316 tests)
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 665 — 2026-06-23
+================================================================================
+
+================================================================================
+MODIF 666 — Split API, upserts PG feed, refactor pages, S3 sponsors
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Compléter la roadmap MODIF 665 : split api.ts monolithique, sync PG ciblée feed/notifications,
+ extraction composants/hooks mega-pages, uploads sponsors S3 + doc Redis socket cluster.
+
+CHANGEMENTS / FIX
+-----
+ scripts/split-api.mjs (nouveau)
+ app/src/lib/api/*.ts (21 modules domaine)
+ app/src/lib/api.ts
+ ─────────────────
+ • 252 méthodes réparties en auth, access, admin, sponsors, salons, lives, dm, feed, etc.
+ • api.ts devient un barrel mince
+
+ backend/src/lib/pgStoreFeedSync.ts (nouveau)
+ backend/src/lib/pgStore.ts
+ ─────────────────
+ • feed_posts/likes/comments/favorites + notifications : upsert ON CONFLICT + prune
+ • Plus de DELETE global avant INSERT sur ces tables
+
+ app/src/components/DmDirectMessageRow.tsx (nouveau)
+ app/src/pages/DmPage.tsx
+ app/src/hooks/useHomeGeoRefresh.ts (nouveau)
+ app/src/pages/HomePage.tsx
+ app/src/hooks/useActualiteFeedLoader.ts (nouveau)
+ app/src/pages/ActualiteTabPage.tsx
+ ─────────────────
+ • Bulle DM factorisée ; geo refresh 30 s extrait ; loader fil actu extrait
+
+ backend/src/lib/sponsorBannerAssets.ts
+ backend/src/lib/sponsorLogoAssets.ts
+ backend/src/routes/adminSponsors.ts
+ backend/.env.production.example
+ ─────────────────
+ • uploadObject() S3-compatible (fallback local) ; doc REDIS_URL + S3_*
+
+FICHIERS MODIFIÉS
+-----
+ ~35 fichiers app/backend + scripts/split-api.mjs
+
+BUILD (si vérifié)
+-----
+ backend/ → npm test → ✅ (248 tests)
+ app/ → npm test → ✅ (316 tests)
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 666 — 2026-06-23
+================================================================================
+
+================================================================================
+MODIF 667 — Persistance contenu PG + verification DB/backups
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Publications (feed) dependaient du flush differe (800 ms / 10 s) sans upsert immediat
+ (contrairement aux reels/albums/compositions). Stories en DELETE+INSERT global.
+ Besoin d'un audit DB, protection des donnees utilisateur et verification backups.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/pgFeedPosts.ts (nouveau)
+ backend/src/lib/feedPosts.ts
+ ─────────────────
+ • Upsert PostgreSQL immediat a chaque publication, like, commentaire, favori
+
+ backend/src/lib/pgStories.ts (nouveau)
+ backend/src/lib/stories.ts
+ backend/src/lib/pgStore.ts
+ backend/src/lib/adminContentModeration.ts
+ ─────────────────
+ • Upsert immediat stories ; syncStoriesToPg (upsert+prune) dans writeStore
+ • Suppression PG lors adminDeleteEvent
+
+ backend/src/lib/dbContentHealth.ts (nouveau)
+ backend/src/server.ts
+ ─────────────────
+ • GET /health/db : comptes tables + drift memoire/PG
+
+ deploy/db-health-check.sh (nouveau)
+ deploy/verify-backup.sh
+ scripts/db-health-check.ps1 (nouveau)
+ ─────────────────
+ • Verification backups (age, gzip, tables contenu dans le dump)
+
+FICHIERS MODIFIÉS
+-----
+ backend/src/lib/pgFeedPosts.ts, pgStories.ts, dbContentHealth.ts + tests
+ backend/src/lib/feedPosts.ts, stories.ts, pgStore.ts, adminContentModeration.ts, server.ts
+ deploy/db-health-check.sh, deploy/verify-backup.sh, scripts/db-health-check.ps1
+
+BUILD (si vérifié)
+-----
+ backend/ → npm test → ✅ (252 tests)
+
+================================================================================
+Fin MODIF 667 — 2026-06-23
+================================================================================
+
+================================================================================
+MODIF 668 — Upsert PG social/DM + refactor writeStore
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ writeStore utilisait encore ~14 DELETE FROM globaux (DM, groupes, chats, follows,
+ blocks, sponsors, etc.) avec risque de perte de donnees en cas de crash concurrent.
+ Les DMs n'avaient pas d'upsert immediat (contrairement feed/reels/stories).
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/pgDirectMessages.ts (nouveau)
+ backend/src/lib/pgStoreSocialSync.ts (nouveau)
+ backend/src/routes/dm.ts
+ ─────────────────
+ • Upsert immediat DM a l'envoi, reaction, masquage, suppression
+ • sync*ToPg (upsert+prune) pour toutes les tables sociales/DM/chats
+
+ backend/src/lib/pgStore.ts
+ ─────────────────
+ • writeStore : suppression des DELETE globaux, appels syncSocialTablesFromStore
+
+FICHIERS MODIFIÉS
+-----
+ backend/src/lib/pgDirectMessages.ts, pgStoreSocialSync.ts + tests
+ backend/src/lib/pgStore.ts, backend/src/routes/dm.ts
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+ backend/ → npm test → ✅ (256 tests)
+
+================================================================================
+Fin MODIF 668 — 2026-06-23
+================================================================================

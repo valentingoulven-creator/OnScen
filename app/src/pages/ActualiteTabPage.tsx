@@ -6,7 +6,7 @@ import { getSocket, isSocketConnected } from '../lib/socket';
 import { applyFeedPreferences, boostPostsByGenreAffinity, sortFeedPostsByPublicationDate } from '../lib/feedFilter';
 import { HOME_FEED_DISPLAY_PREFS } from '../lib/feedUserPrefs';
 import { UsernameDisplay } from '../components/UsernameDisplay';
-import { fetchStoriesBundle, invalidateStoriesCache } from '../lib/storiesApiCache';
+import { invalidateStoriesCache } from '../lib/storiesApiCache';
 import {
   clipboardItemsToImageFile,
   dataUrlToFeedImageDataUrl,
@@ -24,11 +24,12 @@ import type { CommentAlign, FeedPost, FeedPostComment, MapStory, MusicNewsItem, 
 import { StoryAvatarRing } from '../components/MapStoryRings';
 import { StoriesInlineBar, type StorySheetState } from '../components/StoriesInlineBar';
 import { FeedInlineAdBanner } from '../components/FeedInlineAdBanner';
+import { VirtualList } from '../components/VirtualList';
 import { StoryViewer } from '../components/StoryViewer';
 import { useStoryViewerWithSponsors } from '../hooks/useStoryViewerWithSponsors';
+import { useActualiteFeedLoader } from '../hooks/useActualiteFeedLoader';
 import {
   findStackForStory,
-  groupStoriesByUser,
   latestStory,
   pickInitialStory,
   resolveAfterStoryDeleted,
@@ -1052,9 +1053,21 @@ export function ActualiteTabPage({
   const { token, user } = useAuth();
   const { t, i18n } = useTranslation();
 
-  // ── Fil state ──
-  const [posts, setPosts] = useState<FeedPost[]>([]);
-  const [loading, setLoading] = useState(true);
+  // ── News panel (toggle depuis Accueil) ──
+  const [showNews, setShowNews] = useState(false);
+  const {
+    posts,
+    setPosts,
+    loading,
+    refreshing,
+    error,
+    setError,
+    loadFeed,
+    loadFeedStories,
+    feedStoriesByUser,
+    setFeedStoriesByUser,
+  } = useActualiteFeedLoader(token, isActive, showNews);
+
   const [publishing, setPublishing] = useState(false);
   const [draft, setDraft] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -1066,8 +1079,6 @@ export function ActualiteTabPage({
   const [editorPreviewUrl, setEditorPreviewUrl] = useState<string | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
   const videoFileInputRef = useRef<HTMLInputElement>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   // ── Événement ──
   const [isEvent, setIsEvent] = useState(false);
   const [confirmedEventDates, setConfirmedEventDates] = useState<{ start: string; end: string | null }[]>([]);
@@ -1076,8 +1087,6 @@ export function ActualiteTabPage({
   const [eventType, setEventType] = useState<'dance' | 'chant' | 'autre'>('autre');
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
 
-  // ── News panel (toggle depuis Accueil) ──
-  const [showNews, setShowNews] = useState(false);
   const [newsItems, setNewsItems] = useState<MusicNewsItem[]>([]);
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsRefreshing, setNewsRefreshing] = useState(false);
@@ -1119,8 +1128,6 @@ export function ActualiteTabPage({
   const [confirmRemoveFavoritePost, setConfirmRemoveFavoritePost] = useState<FeedPost | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Stories pour anneaux / ouverture depuis les publications ──
-  const [feedStoriesByUser, setFeedStoriesByUser] = useState<Map<string, MapStory[]>>(new Map());
   const [feedStorySheet, setFeedStorySheet] = useState<StorySheetState>({ kind: 'closed' });
 
   const showToast = useCallback((msg: string) => {
@@ -1199,54 +1206,6 @@ export function ActualiteTabPage({
     }, 350);
     return () => window.clearTimeout(timer);
   }, [focusPostId, isActive, loading, visiblePosts.length, onFocusPostConsumed]);
-
-  const loadFeedStories = useCallback(async () => {
-    if (!token) {
-      setFeedStoriesByUser(new Map());
-      return;
-    }
-    try {
-      const bundle = await fetchStoriesBundle(token);
-      const allStories = [...bundle.stories];
-      for (const s of bundle.mine) {
-        if (!allStories.some((x) => x.id === s.id)) allStories.push(s);
-      }
-      setFeedStoriesByUser(groupStoriesByUser(allStories));
-    } catch {
-      setFeedStoriesByUser(new Map());
-    }
-  }, [token]);
-
-  // ── Load feed posts (GET /api/feed) ──
-  const loadFeed = useCallback(
-    async (silent = false) => {
-      if (!token) return;
-      if (silent) setRefreshing(true);
-      else setLoading(true);
-      setError(null);
-      try {
-        const [feedRes] = await Promise.all([
-          api.getFeedPosts(token, {
-            limit: 50,
-            followingOnly: true,
-          }),
-          loadFeedStories(),
-        ]);
-        setPosts(feedRes.posts);
-      } catch {
-        setError('Impossible de charger le fil.');
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [token, loadFeedStories]
-  );
-
-  useEffect(() => {
-    if (!isActive || !token || showNews) return;
-    void loadFeed();
-  }, [isActive, token, showNews, loadFeed]);
 
   useEffect(() => {
     if (!isActive || !token) return;
@@ -2155,36 +2114,44 @@ export function ActualiteTabPage({
                   ) : null}
                 </div>
               )}
-              {visiblePosts.map((post, postIndex) => (
-                <div key={post.id} className="space-y-3">
-                  <PostCard
-                    post={{
-                      ...post,
-                      resharedByMe: !!post.resharedByMe || linkSharedPostIds.has(post.id),
-                    }}
-                    onOpenAuthor={handlePostAuthorClick}
-                    storiesByUser={feedStoriesByUser}
-                    commentOpenPostId={commentOpenPostId}
-                    commentDraft={commentDrafts[post.id] ?? ''}
-                    onCommentDraftChange={(v: string) => setCommentDrafts((p) => ({ ...p, [post.id]: v }))}
-                    fullComments={fullComments[post.id]}
-                    commentsLoading={commentsLoading[post.id] ?? false}
-                    commentPosting={commentPosting[post.id] ?? false}
-                    onToggleLike={() => void handleLike(post)}
-                    onToggleComments={() => void handleToggleComments(post)}
-                    onPostComment={() => void handlePostComment(post.id)}
-                    onReshare={() => void handleReshare(post)}
-                    onShare={() => setSharePost(post)}
-                    onToggleFavorite={() => void handleToggleFavorite(post)}
-                  />
-                  {postIndex === 0 ? (
-                    <FeedInlineAdBanner
-                      onCtaSalon={() => dispatchMapOpenCreateSalon()}
-                      onCtaLive={onOpenLive ? () => onOpenLive('') : undefined}
-                    />
-                  ) : null}
-                </div>
-              ))}
+              {visiblePosts.length > 0 ? (
+                <VirtualList
+                  items={visiblePosts}
+                  useWindowScroll
+                  renderItem={(post, postIndex) => (
+                    <div key={post.id} className="space-y-3">
+                      <PostCard
+                        post={{
+                          ...post,
+                          resharedByMe: !!post.resharedByMe || linkSharedPostIds.has(post.id),
+                        }}
+                        onOpenAuthor={handlePostAuthorClick}
+                        storiesByUser={feedStoriesByUser}
+                        commentOpenPostId={commentOpenPostId}
+                        commentDraft={commentDrafts[post.id] ?? ''}
+                        onCommentDraftChange={(v: string) =>
+                          setCommentDrafts((p) => ({ ...p, [post.id]: v }))
+                        }
+                        fullComments={fullComments[post.id]}
+                        commentsLoading={commentsLoading[post.id] ?? false}
+                        commentPosting={commentPosting[post.id] ?? false}
+                        onToggleLike={() => void handleLike(post)}
+                        onToggleComments={() => void handleToggleComments(post)}
+                        onPostComment={() => void handlePostComment(post.id)}
+                        onReshare={() => void handleReshare(post)}
+                        onShare={() => setSharePost(post)}
+                        onToggleFavorite={() => void handleToggleFavorite(post)}
+                      />
+                      {postIndex === 0 ? (
+                        <FeedInlineAdBanner
+                          onCtaSalon={() => dispatchMapOpenCreateSalon()}
+                          onCtaLive={onOpenLive ? () => onOpenLive('') : undefined}
+                        />
+                      ) : null}
+                    </div>
+                  )}
+                />
+              ) : null}
               {!loading && visiblePosts.length === 0 ? (
                 <FeedInlineAdBanner
                   onCtaSalon={() => dispatchMapOpenCreateSalon()}

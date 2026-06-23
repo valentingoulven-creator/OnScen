@@ -12,6 +12,7 @@ import { MapSalonListenSheet } from '../components/MapSalonListenSheet';
 import { CreateSalonModal } from '../components/CreateSalonModal';
 import { StartLiveFlowModals } from '../components/StartLiveFlowModals';
 import { useStartLiveFlow } from '../hooks/useStartLiveFlow';
+import { useHomeGeoRefresh } from '../hooks/useHomeGeoRefresh';
 import { canJoinSalonAsParticipant, salonParticipantAccessMessageKey } from '../lib/platformConnect';
 import { MapAdBanner, type MapSponsorViewport } from '../components/MapAdBanner';
 import { LivesBrowseGrid } from '../components/LivesBrowseGrid';
@@ -54,7 +55,7 @@ import {
   type MapViewDetailState,
 } from '../lib/mapMarkerVisibility';
 import type { NearbyPerson, Salon, Live, MapEventMarker, MapEventCityCluster, PlaybackState, FeedPost } from '../types';
-import { getNearbyRadiusKm, getPrivacyPreferences, SETTINGS_CHANGED_EVENT } from '../lib/settings';
+import { getNearbyRadiusKm, SETTINGS_CHANGED_EVENT } from '../lib/settings';
 import {
   DEFAULT_CENTER,
   getLivesGeo,
@@ -103,8 +104,6 @@ import {
 const LIVES_VIEWPORT_NEARBY_DEBOUNCE_MS = 400;
 /** Bounds-only sidebar updates while panning the flat map. */
 const MAP_DETAIL_BOUNDS_DEBOUNCE_MS = 250;
-/** GPS / geo refresh when tab visible (was 20s — reduced API churn). */
-const GEO_REFRESH_INTERVAL_MS = 30_000;
 
 const MAP_STYLE_KEY = MAP_STYLE_STORAGE_KEY;
 const MAP_LIVE_ZOOM = 15;
@@ -1198,9 +1197,6 @@ export function HomePage({
     loadNearbyAt(sanitizeLatLngTuple(lat, lon, DEFAULT_CENTER));
   }, [loadNearbyAt]);
 
-  const loadNearbyAtRef = useRef(loadNearbyAt);
-  loadNearbyAtRef.current = loadNearbyAt;
-
   const loadNearbyFromState = useCallback((
     userPos: [number, number] | null,
     mapCenter: [number, number]
@@ -1220,84 +1216,17 @@ export function HomePage({
     }, 500);
   }, [loadNearbyAt]);
 
-  useEffect(() => {
-    if (!isActive || !token) return;
-
-    const geo = getLivesGeo();
-    const { locationSharing } = getPrivacyPreferences();
-
-    if (isFixedMapGeoSource(geo.source)) {
-      const coords: [number, number] = [geo.latitude, geo.longitude];
-      setSafeCenter(coords);
-      loadNearbyAt(coords);
-    } else if (!navigator.geolocation || !locationSharing) {
-      loadNearbyFromState(null, center);
-    } else {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lon = pos.coords.longitude;
-          const coords: [number, number] = [lat, lon];
-          setSafeCenter(coords);
-          setUserPosition(sanitizeLatLngTuple(coords[0], coords[1], DEFAULT_CENTER));
-          loadNearbyAt(coords);
-        },
-        () => loadNearbyFromState(null, center)
-      );
-    }
-
-    // Unified 20s refresh: re-reads the current source and locationSharing on every
-    // tick so mode switches (city ↔ GPS) and privacy changes are picked up without
-    // restarting the effect. Uses a stable ref to avoid stale-closure issues.
-    const startGeoInterval = () => {
-      if (geoIntervalRef.current) return;
-      geoIntervalRef.current = setInterval(() => {
-        const current = getLivesGeo();
-        const { locationSharing: sharing } = getPrivacyPreferences();
-        if (isFixedMapGeoSource(current.source)) {
-          loadNearbyAtRef.current([current.latitude, current.longitude]);
-          return;
-        }
-        if (!navigator.geolocation || !sharing) {
-          loadNearbyAtRef.current([current.latitude, current.longitude], { updateUserGeo: false });
-          return;
-        }
-        navigator.geolocation.getCurrentPosition(
-          (pos) => loadNearbyAtRef.current([pos.coords.latitude, pos.coords.longitude]),
-          () => loadNearbyAtRef.current([current.latitude, current.longitude])
-        );
-      }, GEO_REFRESH_INTERVAL_MS);
-    };
-
-    const stopGeoInterval = () => {
-      if (geoIntervalRef.current) {
-        clearInterval(geoIntervalRef.current);
-        geoIntervalRef.current = null;
-      }
-    };
-
-    startGeoInterval();
-
-    // Stop tracking when the tab/window is closed.
-    const handleBeforeUnload = () => stopGeoInterval();
-    // Pause tracking when the tab is hidden, resume when it becomes visible again.
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        stopGeoInterval();
-      } else {
-        startGeoInterval();
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      stopGeoInterval();
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [isActive, token]);
+  useHomeGeoRefresh({
+    isActive,
+    token,
+    center,
+    defaultCenter: DEFAULT_CENTER,
+    loadNearbyAt,
+    loadNearbyFromState,
+    setSafeCenter,
+    setUserPosition,
+    geoIntervalRef,
+  });
 
   useEffect(() => {
     if (!isActive) return;

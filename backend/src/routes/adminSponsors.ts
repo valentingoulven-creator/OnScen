@@ -188,7 +188,7 @@ adminSponsorsRouter.post('/reorder', authenticateJWT, (req: Request, res: Respon
   res.json({ items });
 });
 
-adminSponsorsRouter.post('/upload-logo', authenticateJWT, (req: Request, res: Response) => {
+adminSponsorsRouter.post('/upload-logo', authenticateJWT, async (req: Request, res: Response) => {
   if (!requireAdmin(req, res)) return;
   try {
     const image = String(req.body?.image ?? '').trim();
@@ -196,14 +196,14 @@ adminSponsorsRouter.post('/upload-logo', authenticateJWT, (req: Request, res: Re
       res.status(400).json({ error: 'Image requise' });
       return;
     }
-    const url = saveSponsorLogoFromDataUrl(image);
+    const url = await saveSponsorLogoFromDataUrl(image);
     res.json({ url });
   } catch (err) {
     res.status(400).json({ error: err instanceof Error ? err.message : 'Upload impossible' });
   }
 });
 
-adminSponsorsRouter.post('/upload-banner', authenticateJWT, (req: Request, res: Response) => {
+adminSponsorsRouter.post('/upload-banner', authenticateJWT, async (req: Request, res: Response) => {
   if (!requireAdmin(req, res)) return;
   try {
     const image = String(req.body?.image ?? '').trim();
@@ -211,7 +211,7 @@ adminSponsorsRouter.post('/upload-banner', authenticateJWT, (req: Request, res: 
       res.status(400).json({ error: 'Image requise' });
       return;
     }
-    const url = saveSponsorBannerFromDataUrl(image);
+    const url = await saveSponsorBannerFromDataUrl(image);
     res.json({ url });
   } catch (err) {
     res.status(400).json({ error: err instanceof Error ? err.message : 'Upload impossible' });

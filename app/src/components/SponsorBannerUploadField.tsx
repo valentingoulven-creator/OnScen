@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
+import { canUploadSponsorAsset } from '../lib/sponsorUploadAuth';
 import {
   resolveSponsorBannerSrc,
   SPONSOR_BANNER_ACCEPT,
@@ -12,26 +14,26 @@ import {
 import { SponsorBannerCropModal } from './SponsorBannerCropModal';
 
 type SponsorBannerUploadFieldProps = {
-  token: string | null;
   bannerImageUrl: string;
   onBannerImageUrlChange: (url: string) => void;
   inputId: string;
 };
 
 export function SponsorBannerUploadField({
-  token,
   bannerImageUrl,
   onBannerImageUrlChange,
   inputId,
 }: SponsorBannerUploadFieldProps) {
   const { t } = useTranslation();
+  const { token, user } = useAuth();
+  const sessionReady = Boolean(user);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [pendingFile, setPendingFile] = useState<File | null>(null);
 
   const uploadDataUrl = async (dataUrl: string) => {
-    if (!token) return;
+    if (!sessionReady) return;
     setUploading(true);
     setError('');
     try {
@@ -45,7 +47,7 @@ export function SponsorBannerUploadField({
   };
 
   const handleFile = (file: File | undefined) => {
-    if (!file || !token) return;
+    if (!file || !sessionReady) return;
     const validationError = validateSponsorBannerFile(file);
     if (validationError) {
       setError(validationError);
@@ -68,6 +70,7 @@ export function SponsorBannerUploadField({
   };
 
   const previewSrc = resolveSponsorBannerSrc(bannerImageUrl) || undefined;
+  const canUpload = canUploadSponsorAsset(sessionReady, uploading);
 
   return (
     <>
@@ -93,12 +96,12 @@ export function SponsorBannerUploadField({
               type="file"
               accept={SPONSOR_BANNER_ACCEPT}
               className="hidden"
-              disabled={uploading || !token}
+              disabled={!canUpload}
               onChange={(e) => handleFile(e.target.files?.[0])}
             />
             <button
               type="button"
-              disabled={uploading || !token}
+              disabled={!canUpload}
               onClick={() => fileInputRef.current?.click()}
               className="px-3 py-2 rounded-xl bg-purple-600/20 border border-purple-500/35 text-purple-200 text-xs font-semibold hover:bg-purple-600/30 disabled:opacity-50 transition"
             >

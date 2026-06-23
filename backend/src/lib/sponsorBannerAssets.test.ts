@@ -17,8 +17,8 @@ describe('sponsorBannerAssets', () => {
     expect(isValidSponsorBannerUrl('http://insecure.example/banner.png')).toBe(false);
   });
 
-  it('saves data URL to banners uploads path', () => {
-    const url = saveSponsorBannerFromDataUrl(TINY_PNG);
+  it('saves data URL to banners uploads path', async () => {
+    const url = await saveSponsorBannerFromDataUrl(TINY_PNG);
     expect(url).toMatch(/^\/uploads\/sponsors\/banners\/[a-f0-9]+\.png$/);
     expect(isValidSponsorBannerUrl(url)).toBe(true);
   });

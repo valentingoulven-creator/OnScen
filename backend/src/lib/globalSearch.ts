@@ -1,4 +1,5 @@
 import { db } from '../models/schema';
+import { searchUsernamesInIndex } from './globalSearchIndex';
 import { getActiveSalonForHost, publicProfile } from './profile';
 import { isSalonPublic } from './salonAccess';
 import {
@@ -110,38 +111,40 @@ export function globalSearch(viewerId: string, rawQuery: string): GlobalSearchRe
     return { users: [], events: [], albums: [], songs: [] };
   }
 
-  const users: GlobalSearchUserHit[] = [...db.users.values()]
-    .filter((u) => u.id !== viewerId && !u.isGhostMode)
-    .filter((u) => normalizeGlobalSearchQuery(u.username).includes(q))
+  const indexedHits = searchUsernamesInIndex(viewerId, q, PER_SECTION);
+  const users: GlobalSearchUserHit[] = indexedHits
     .sort((a, b) => {
       const ra = searchRank(a.username, q);
       const rb = searchRank(b.username, q);
       if (ra !== rb) return ra - rb;
       return a.username.localeCompare(b.username, 'fr');
     })
-    .slice(0, PER_SECTION)
-    .map((u) => {
+    .flatMap((row) => {
+      const u = db.users.get(row.id);
+      if (!u) return [];
       const salon = getActiveSalonForHost(u.id);
       const live = isUserHostingLive(u.id);
-      return {
-        kind: 'user' as const,
-        id: u.id,
-        username: u.username,
-        usernameColor: u.usernameColor,
-        usernameWaveFrom: u.usernameWaveFrom,
-        usernameWaveTo: u.usernameWaveTo,
-        avatarUrl: u.avatarUrl,
-        city: u.city || undefined,
-        listeningRole: u.listeningRole,
-        isLive: live,
-        liveId: live ? getActiveLiveIdForHost(u.id) : undefined,
-        liveViewersCount: live ? getLiveViewersCountForHost(u.id) : undefined,
-        salonId: salon && isSalonPublic(salon) ? salon.id : undefined,
-        salonTitle:
-          salon && isSalonPublic(salon)
-            ? salon.title || salon.playbackState?.title || undefined
-            : undefined,
-      };
+      return [
+        {
+          kind: 'user' as const,
+          id: u.id,
+          username: u.username,
+          usernameColor: u.usernameColor,
+          usernameWaveFrom: u.usernameWaveFrom,
+          usernameWaveTo: u.usernameWaveTo,
+          avatarUrl: u.avatarUrl,
+          city: u.city || undefined,
+          listeningRole: u.listeningRole,
+          isLive: live,
+          liveId: live ? getActiveLiveIdForHost(u.id) : undefined,
+          liveViewersCount: live ? getLiveViewersCountForHost(u.id) : undefined,
+          salonId: salon && isSalonPublic(salon) ? salon.id : undefined,
+          salonTitle:
+            salon && isSalonPublic(salon)
+              ? salon.title || salon.playbackState?.title || undefined
+              : undefined,
+        },
+      ];
     });
 
   const events: GlobalSearchEventHit[] = [...db.feedPosts.values()]

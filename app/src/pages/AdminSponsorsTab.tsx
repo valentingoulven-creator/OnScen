@@ -647,7 +647,6 @@ export function AdminSponsorsTab() {
         {(showMapBanner || showStoriesBanner) && (
           <div className="space-y-1">
             <SponsorBannerUploadField
-              token={token}
               bannerImageUrl={form.bannerImageUrl}
               onBannerImageUrlChange={(url) => setForm((f) => ({ ...f, bannerImageUrl: url }))}
               inputId={`${formId}-banner`}

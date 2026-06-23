@@ -11,6 +11,12 @@ import {
 } from './storeCore';
 import { countUsersInPg, upsertUser } from './pgUsers';
 import type { AccessPolicy } from './accessControl';
+import { syncFeedTablesToPg, syncNotificationsToPg } from './pgStoreFeedSync';
+import { syncStoriesToPg } from './pgStories';
+import {
+  syncHeartEventsToPg,
+  syncSocialTablesFromStore,
+} from './pgStoreSocialSync';
 
 let initialized = false;
 
@@ -369,29 +375,6 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
 async function writeStore(client: PoolClient, data: PersistedStore): Promise<void> {
   await client.query('BEGIN');
   try {
-    await client.query('DELETE FROM feed_post_favorites');
-    await client.query('DELETE FROM feed_post_comments');
-    await client.query('DELETE FROM feed_post_likes');
-    await client.query('DELETE FROM feed_posts');
-    await client.query('DELETE FROM stories');
-    await client.query('DELETE FROM host_ratings');
-    await client.query('DELETE FROM heart_events');
-    await client.query('DELETE FROM notifications');
-    await client.query('DELETE FROM support_contact_messages');
-    await client.query('DELETE FROM sponsors');
-    await client.query('DELETE FROM user_favorites');
-    await client.query('DELETE FROM user_follows');
-    await client.query('DELETE FROM user_mutes');
-    await client.query('DELETE FROM user_blocks');
-    await client.query('DELETE FROM live_bans');
-    await client.query('DELETE FROM live_chats');
-    await client.query('DELETE FROM salon_chats');
-    await client.query('DELETE FROM dm_read_cursors');
-    await client.query('DELETE FROM group_read_cursors');
-    await client.query('DELETE FROM group_messages');
-    await client.query('DELETE FROM message_groups');
-    await client.query('DELETE FROM direct_messages');
-    await client.query('DELETE FROM access_invite_codes');
     // users: jamais DELETE FROM users — upsert individuel uniquement (voir writeUsersToPg)
 
     if (data.accessPolicy) {
@@ -403,215 +386,13 @@ async function writeStore(client: PoolClient, data: PersistedStore): Promise<voi
       );
     }
 
-    for (const code of data.accessInviteCodes ?? []) {
-      await client.query('INSERT INTO access_invite_codes (id, payload) VALUES ($1, $2::jsonb)', [
-        code.id,
-        JSON.stringify(code),
-      ]);
-    }
-
     await writeUsersToPg(client, data.users);
+    await syncSocialTablesFromStore(client, data);
 
-    for (const dm of data.directMessages) {
-      await client.query('INSERT INTO direct_messages (id, payload) VALUES ($1, $2::jsonb)', [
-        dm.id,
-        JSON.stringify(dm),
-      ]);
-    }
-
-    for (const group of data.messageGroups ?? []) {
-      await client.query('INSERT INTO message_groups (id, payload) VALUES ($1, $2::jsonb)', [
-        group.id,
-        JSON.stringify(group),
-      ]);
-    }
-
-    for (const msg of data.groupMessages ?? []) {
-      await client.query('INSERT INTO group_messages (id, payload) VALUES ($1, $2::jsonb)', [
-        msg.id,
-        JSON.stringify(msg),
-      ]);
-    }
-
-    for (const [userId, groups] of Object.entries(data.groupReadCursors ?? {})) {
-      for (const [groupId, lastReadAt] of Object.entries(groups)) {
-        await client.query(
-          'INSERT INTO group_read_cursors (user_id, group_id, last_read_at) VALUES ($1, $2, $3)',
-          [userId, groupId, lastReadAt]
-        );
-      }
-    }
-
-    for (const [userId, peers] of Object.entries(data.dmReadCursors ?? {})) {
-      for (const [peerId, lastReadAt] of Object.entries(peers)) {
-        await client.query(
-          'INSERT INTO dm_read_cursors (user_id, peer_id, last_read_at) VALUES ($1, $2, $3)',
-          [userId, peerId, lastReadAt]
-        );
-      }
-    }
-
-    for (const [salonId, messages] of Object.entries(data.salonChats ?? {})) {
-      await client.query('INSERT INTO salon_chats (salon_id, messages) VALUES ($1, $2::jsonb)', [
-        salonId,
-        JSON.stringify(messages),
-      ]);
-    }
-
-    for (const [liveId, messages] of Object.entries(data.liveChats ?? {})) {
-      await client.query('INSERT INTO live_chats (live_id, messages) VALUES ($1, $2::jsonb)', [
-        liveId,
-        JSON.stringify(messages),
-      ]);
-    }
-
-    for (const { liveId, userId, ban } of data.liveBans ?? []) {
-      await client.query('INSERT INTO live_bans (live_id, user_id, payload) VALUES ($1, $2, $3::jsonb)', [
-        liveId,
-        userId,
-        JSON.stringify(ban),
-      ]);
-    }
-
-    for (const block of data.userBlocks ?? []) {
-      await client.query(
-        'INSERT INTO user_blocks (blocker_id, blocked_id, payload) VALUES ($1, $2, $3::jsonb)',
-        [block.blockerId, block.blockedId, JSON.stringify(block)]
-      );
-    }
-
-    for (const mute of data.userMutes ?? []) {
-      await client.query('INSERT INTO user_mutes (muter_id, muted_id, payload) VALUES ($1, $2, $3::jsonb)', [
-        mute.muterId,
-        mute.mutedId,
-        JSON.stringify(mute),
-      ]);
-    }
-
-    for (const [followerId, followedIds] of Object.entries(data.userFollows ?? {})) {
-      for (const followedId of followedIds) {
-        await client.query('INSERT INTO user_follows (follower_id, followed_id) VALUES ($1, $2)', [
-          followerId,
-          followedId,
-        ]);
-      }
-    }
-
-    for (const { fanId, hostId, entry } of data.userFavorites ?? []) {
-      await client.query('INSERT INTO user_favorites (fan_id, host_id, payload) VALUES ($1, $2, $3::jsonb)', [
-        fanId,
-        hostId,
-        JSON.stringify(entry),
-      ]);
-    }
-
-    for (const post of data.feedPosts ?? []) {
-      await client.query('INSERT INTO feed_posts (id, user_id, payload) VALUES ($1, $2, $3::jsonb)', [
-        post.id,
-        post.userId,
-        JSON.stringify(post),
-      ]);
-    }
-
-    for (const [postId, userIds] of Object.entries(data.feedPostLikes ?? {})) {
-      for (const userId of userIds) {
-        await client.query('INSERT INTO feed_post_likes (post_id, user_id) VALUES ($1, $2)', [postId, userId]);
-      }
-    }
-
-    const commentsById = new Map<
-      string,
-      NonNullable<PersistedStore['feedPostComments']>[string][number]
-    >();
-    for (const comments of Object.values(data.feedPostComments ?? {})) {
-      for (const comment of comments) {
-        if (comment?.id) commentsById.set(comment.id, comment);
-      }
-    }
-    for (const comment of commentsById.values()) {
-      await client.query(
-        `INSERT INTO feed_post_comments (id, post_id, payload) VALUES ($1, $2, $3::jsonb)
-         ON CONFLICT (id) DO UPDATE SET post_id = EXCLUDED.post_id, payload = EXCLUDED.payload`,
-        [comment.id, comment.postId, JSON.stringify(comment)]
-      );
-    }
-
-    for (const [userId, postIds] of Object.entries(data.feedPostFavorites ?? {})) {
-      for (const postId of postIds) {
-        await client.query('INSERT INTO feed_post_favorites (user_id, post_id) VALUES ($1, $2)', [userId, postId]);
-      }
-    }
-
-    for (const story of data.stories ?? []) {
-      await client.query('INSERT INTO stories (id, user_id, payload) VALUES ($1, $2, $3::jsonb)', [
-        story.id,
-        story.userId,
-        JSON.stringify(story),
-      ]);
-    }
-
-    for (const heart of db.heartEvents) {
-      await client.query(
-        'INSERT INTO heart_events (from_id, to_id, created_at) VALUES ($1, $2, $3)',
-        [heart.fromId, heart.toId, heart.createdAt]
-      );
-    }
-
-    for (const rating of db.hostRatings) {
-      await client.query(
-        `INSERT INTO host_ratings (id, host_id, rater_id, stars, timestamp, payload)
-         VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
-        [
-          rating.id,
-          rating.hostId,
-          rating.raterId,
-          rating.stars,
-          rating.timestamp,
-          JSON.stringify({ salonId: rating.salonId, liveId: rating.liveId }),
-        ]
-      );
-    }
-
-    for (const n of db.notifications) {
-      const payload: AppNotification = {
-        id: n.id,
-        recipientId: n.recipientId,
-        senderId: n.senderId,
-        senderName: n.senderName,
-        senderAvatarUrl: n.senderAvatarUrl,
-        type: n.type,
-        message: n.message,
-        read: n.read,
-        createdAt: n.createdAt,
-        matchId: n.matchId,
-        liveId: n.liveId,
-        salonId: n.salonId,
-        peerUserId: n.peerUserId,
-        groupId: n.groupId,
-        postId: n.postId,
-        reelId: n.reelId,
-        supportMessageId: n.supportMessageId,
-      };
-      await client.query(
-        `INSERT INTO notifications (id, recipient_id, sender_id, type, read, created_at, payload)
-         VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)`,
-        [n.id, n.recipientId, n.senderId, n.type, n.read, n.createdAt, JSON.stringify(payload)]
-      );
-    }
-
-    for (const msg of data.supportContactMessages ?? []) {
-      await client.query('INSERT INTO support_contact_messages (id, payload) VALUES ($1, $2::jsonb)', [
-        msg.id,
-        JSON.stringify(msg),
-      ]);
-    }
-
-    for (const sponsor of data.sponsors ?? []) {
-      await client.query('INSERT INTO sponsors (id, payload) VALUES ($1, $2::jsonb)', [
-        sponsor.id,
-        JSON.stringify(sponsor),
-      ]);
-    }
+    await syncFeedTablesToPg(client, data);
+    await syncStoriesToPg(client, data.stories ?? []);
+    await syncHeartEventsToPg(client, db.heartEvents);
+    await syncNotificationsToPg(client, db.notifications);
 
     await client.query(
       `INSERT INTO store_meta (id, version, saved_at, analytics_buckets)

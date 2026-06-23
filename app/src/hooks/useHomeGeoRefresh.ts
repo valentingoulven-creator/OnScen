@@ -1,0 +1,114 @@
+import { useEffect, useRef, type MutableRefObject } from 'react';
+import { getLivesGeo, isFixedMapGeoSource } from '../lib/livesGeo';
+import { getPrivacyPreferences } from '../lib/settings';
+import { sanitizeLatLngTuple } from '../lib/mapCoords';
+
+export const HOME_GEO_REFRESH_INTERVAL_MS = 30_000;
+
+type Coords = [number, number];
+
+export function useHomeGeoRefresh(options: {
+  isActive: boolean;
+  token: string | null;
+  center: Coords;
+  defaultCenter: Coords;
+  loadNearbyAt: (coords: Coords, opts?: { updateUserGeo?: boolean }) => void;
+  loadNearbyFromState: (userPos: Coords | null, mapCenter: Coords) => void;
+  setSafeCenter: (coords: Coords) => void;
+  setUserPosition: (pos: Coords | null) => void;
+  geoIntervalRef: MutableRefObject<ReturnType<typeof setInterval> | null>;
+}): void {
+  const {
+    isActive,
+    token,
+    center,
+    defaultCenter,
+    loadNearbyAt,
+    loadNearbyFromState,
+    setSafeCenter,
+    setUserPosition,
+    geoIntervalRef,
+  } = options;
+
+  const loadNearbyAtRef = useRef(loadNearbyAt);
+  loadNearbyAtRef.current = loadNearbyAt;
+
+  useEffect(() => {
+    if (!isActive || !token) return;
+
+    const geo = getLivesGeo();
+    const { locationSharing } = getPrivacyPreferences();
+
+    if (isFixedMapGeoSource(geo.source)) {
+      const coords: Coords = [geo.latitude, geo.longitude];
+      setSafeCenter(coords);
+      loadNearbyAt(coords);
+    } else if (!navigator.geolocation || !locationSharing) {
+      loadNearbyFromState(null, center);
+    } else {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const coords: Coords = [pos.coords.latitude, pos.coords.longitude];
+          setSafeCenter(coords);
+          setUserPosition(sanitizeLatLngTuple(coords[0], coords[1], defaultCenter));
+          loadNearbyAt(coords);
+        },
+        () => loadNearbyFromState(null, center)
+      );
+    }
+
+    const startGeoInterval = () => {
+      if (geoIntervalRef.current) return;
+      geoIntervalRef.current = setInterval(() => {
+        const current = getLivesGeo();
+        const { locationSharing: sharing } = getPrivacyPreferences();
+        if (isFixedMapGeoSource(current.source)) {
+          loadNearbyAtRef.current([current.latitude, current.longitude]);
+          return;
+        }
+        if (!navigator.geolocation || !sharing) {
+          loadNearbyAtRef.current([current.latitude, current.longitude], { updateUserGeo: false });
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          (pos) => loadNearbyAtRef.current([pos.coords.latitude, pos.coords.longitude]),
+          () => loadNearbyAtRef.current([current.latitude, current.longitude])
+        );
+      }, HOME_GEO_REFRESH_INTERVAL_MS);
+    };
+
+    const stopGeoInterval = () => {
+      if (geoIntervalRef.current) {
+        clearInterval(geoIntervalRef.current);
+        geoIntervalRef.current = null;
+      }
+    };
+
+    startGeoInterval();
+
+    const handleBeforeUnload = () => stopGeoInterval();
+    const handleVisibilityChange = () => {
+      if (document.hidden) stopGeoInterval();
+      else startGeoInterval();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      stopGeoInterval();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [
+    isActive,
+    token,
+    center,
+    defaultCenter,
+    loadNearbyAt,
+    loadNearbyFromState,
+    setSafeCenter,
+    setUserPosition,
+    geoIntervalRef,
+  ]);
+}

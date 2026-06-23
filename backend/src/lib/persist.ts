@@ -84,25 +84,35 @@ export function savePersistedStore(): void {
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let persistInterval: ReturnType<typeof setInterval> | null = null;
+let storeDirty = false;
+
+export function isStoreDirty(): boolean {
+  return storeDirty;
+}
 
 export function schedulePersist(): void {
+  storeDirty = true;
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     saveTimer = null;
-    try {
-      savePersistedStore();
-    } catch (e) {
-      console.error('[melosong] Échec sauvegarde planifiée:', e);
-    }
+    flushPersistIfDirty();
   }, 800);
 }
 
-// Fix #5: réduit de 30 s à 10 s pour limiter la perte de données (DMs, notifications).
-// RISQUE DOCUMENTÉ : pgStore utilise encore DELETE+INSERT complet sur ~20 tables.
-// Une refactorisation vers UPSERT par table est recommandée pour éliminer ce risque.
+function flushPersistIfDirty(force = false): void {
+  if (!force && !storeDirty) return;
+  try {
+    savePersistedStore();
+    storeDirty = false;
+  } catch (e) {
+    console.error('[melosong] Échec sauvegarde planifiée:', e);
+  }
+}
+
+// Fix #5: intervalle 10 s — ne flush que si le store a changé (évite DELETE+INSERT PG inutiles).
 export function startPersistLoop(): void {
   if (persistInterval) return;
-  persistInterval = setInterval(() => schedulePersist(), 10_000);
+  persistInterval = setInterval(() => flushPersistIfDirty(), 10_000);
 }
 
 export async function stopPersistLoop(): Promise<void> {
@@ -110,12 +120,14 @@ export async function stopPersistLoop(): Promise<void> {
   persistInterval = null;
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = null;
+  storeDirty = true;
   try {
     if (usesPostgresPersistence()) {
       await savePersistedStoreToPostgres();
     } else {
       savePersistedStoreToFile();
     }
+    storeDirty = false;
   } catch (e) {
     console.error('[melosong] Échec sauvegarde finale à l’arrêt:', e);
   }

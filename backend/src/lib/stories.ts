@@ -5,6 +5,7 @@ import { getDistanceKm } from './geo';
 import { getUserPublicCoords } from './locationPrivacy';
 import { isFeedImageDataUrl } from './feedPosts';
 import { clampNearbyRadiusKm } from './geoLimits';
+import { scheduleDeleteStoryFromPg, schedulePersistStoryToPg } from './pgStories';
 
 const STORY_TTL_MS = 24 * 60 * 60 * 1000;
 /** Limite style Instagram : plusieurs stories actives par utilisateur (24 h chacune). */
@@ -250,6 +251,7 @@ export function createStory(
     visibility,
   };
   db.stories.push(story);
+  schedulePersistStoryToPg(story);
 
   const pub = toPublicStory(story);
   if (!pub) return { ok: false, error: 'Erreur interne' };
@@ -285,6 +287,7 @@ export function deleteStory(storyId: string, userId: string): boolean {
   const idx = db.stories.findIndex((s) => s.id === storyId && s.userId === userId && isActive(s));
   if (idx < 0) return false;
   db.stories.splice(idx, 1);
+  scheduleDeleteStoryFromPg(storyId);
   return true;
 }
 

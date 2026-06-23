@@ -5,6 +5,7 @@ import { clearSalonPlaybackData } from './salonPlaybackOps';
 import { endLiveSession } from './liveArchive';
 import { schedulePersist } from './persist';
 import { schedulePersistReelToPg } from './pgReels';
+import { scheduleDeleteFeedPostFromPg } from './pgFeedPosts';
 import {
   isAdminBlockedReel,
   isPrivateReel,
@@ -281,6 +282,7 @@ export function adminUnblockEvent(postId: string): FeedPost | null {
 export function adminDeleteEvent(postId: string): boolean {
   const idx = db.feedPosts.findIndex((p) => p.id === postId && p.isEvent);
   if (idx === -1) return false;
+  const resharedIds = db.feedPosts.filter((p) => p.resharedFromId === postId).map((p) => p.id);
   db.feedPosts.splice(idx, 1);
   db.feedPosts = db.feedPosts.filter((p) => p.resharedFromId !== postId);
   db.feedPostLikes.delete(postId);
@@ -289,6 +291,10 @@ export function adminDeleteEvent(postId: string): boolean {
     favs.delete(postId);
   }
   db.notifications = db.notifications.filter((n) => n.postId !== postId);
+  scheduleDeleteFeedPostFromPg(postId);
+  for (const id of resharedIds) {
+    scheduleDeleteFeedPostFromPg(id);
+  }
   return true;
 }
 

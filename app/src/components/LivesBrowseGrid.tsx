@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useVisibleInterval } from '../hooks/usePageVisible';
 import { api } from '../lib/api';
 import { dicebearAdventurerAvatar } from '../lib/avatarUrl';
 import { formatCompactCount } from '../lib/formatCount';
@@ -235,12 +236,7 @@ export function LivesBrowseGrid({
       .finally(() => setLoading(false));
   }, [token, geo.latitude, geo.longitude, geo.radiusKm, panelPrefs.sortBy, onLivesChange]);
 
-  useEffect(() => {
-    if (!isActive) return;
-    loadLives();
-    const interval = setInterval(loadLives, 8000);
-    return () => clearInterval(interval);
-  }, [isActive, loadLives]);
+  useVisibleInterval(loadLives, 12_000, isActive);
 
   const showCountryFilter = useMemo(() => hasLivesOutsideFrance(lives), [lives]);
   const countryOptions = useMemo(() => collectLiveCountryOptions(lives), [lives]);

@@ -5,6 +5,12 @@ import { hasBlocked } from './blocks';
 import { getFollowingIds } from './follows';
 import { getUserActiveStory } from './stories';
 import { getAlgoFeed } from './algoFeed';
+import {
+  schedulePersistFeedPostComment,
+  schedulePersistFeedPostFavorite,
+  schedulePersistFeedPostLike,
+  schedulePersistFeedPostToPg,
+} from './pgFeedPosts';
 
 const MAX_CONTENT_LEN = 2000;
 const MIN_CONTENT_LEN = 1;
@@ -299,6 +305,7 @@ export function createFeedPost(
     createdAt: Date.now(),
   };
   db.feedPosts.push(post);
+  schedulePersistFeedPostToPg(post);
   return { ok: true, post: toPublicPost(post, user, userId) };
 }
 
@@ -327,6 +334,7 @@ export function resharePost(
     createdAt: Date.now(),
   };
   db.feedPosts.push(post);
+  schedulePersistFeedPostToPg(post);
   return { ok: true, post: toPublicPost(post, user, userId) };
 }
 
@@ -343,6 +351,7 @@ export function toggleFeedPostLike(
   const liked = !likes.has(userId);
   if (liked) likes.add(userId);
   else likes.delete(userId);
+  schedulePersistFeedPostLike(postId, userId, liked);
   return { ok: true, liked, likeCount: likes.size };
 }
 
@@ -371,6 +380,7 @@ export function addFeedPostComment(
   if (!db.feedPostComments.has(postId)) db.feedPostComments.set(postId, []);
   db.feedPostComments.get(postId)!.push(comment);
   const count = db.feedPostComments.get(postId)!.length;
+  schedulePersistFeedPostComment(comment);
   return { ok: true, comment, commentCount: count };
 }
 
@@ -398,6 +408,7 @@ export function toggleFeedPostFavorite(
   const favorited = !favs.has(postId);
   if (favorited) favs.add(postId);
   else favs.delete(postId);
+  schedulePersistFeedPostFavorite(userId, postId, favorited);
   return { ok: true, favorited };
 }
 

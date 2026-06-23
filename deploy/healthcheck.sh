@@ -36,4 +36,7 @@ fi
 log "FAIL — /health KO, restart $APP (uptime ${UPTIME}s)"
 # Résoudre /usr/bin/pm2 ou /usr/local/bin/pm2 selon la distribution
 PM2_BIN="$(command -v pm2 2>/dev/null || echo /usr/bin/pm2)"
+if [ ! -x "$PM2_BIN" ]; then
+  PM2_BIN="/usr/bin/pm2"
+fi
 "$PM2_BIN" restart "$APP" --update-env >> "$LOG" 2>&1 || true

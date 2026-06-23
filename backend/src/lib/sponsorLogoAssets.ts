@@ -1,9 +1,7 @@
 import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
 
-import { getPublicDir } from '../paths';
 import { validateImageMagicBytes, extForImageMime } from './imageValidation';
+import { uploadObject } from './objectStorage';
 
 const SPONSOR_LOGO_DATA_RE =
   /^data:image\/(jpeg|png|webp|gif)(?:;[^;,]+)*;base64,([A-Za-z0-9+/=]+)$/i;
@@ -35,12 +33,8 @@ export function assertValidSponsorLogoUrl(raw: string | undefined): string | und
   return url;
 }
 
-function uploadsDir(): string {
-  return path.join(getPublicDir(), 'uploads', 'sponsors');
-}
-
-/** Décode une data URL image et l'enregistre sous public/uploads/sponsors/. */
-export function saveSponsorLogoFromDataUrl(dataUrl: string): string {
+/** Décode une data URL image et l'enregistre (S3 si configuré, sinon disque local). */
+export async function saveSponsorLogoFromDataUrl(dataUrl: string): Promise<string> {
   const trimmed = String(dataUrl).trim();
   const match = SPONSOR_LOGO_DATA_RE.exec(trimmed);
   if (!match) {
@@ -61,15 +55,17 @@ export function saveSponsorLogoFromDataUrl(dataUrl: string): string {
     throw new Error('Format d\'image non reconnu ou corrompu');
   }
 
-  const dir = uploadsDir();
-  fs.mkdirSync(dir, { recursive: true });
-
   const id = crypto.randomBytes(12).toString('hex');
   const ext = extForImageMime(mime);
   const filename = `${id}.${ext}`;
-  fs.writeFileSync(path.join(dir, filename), buffer);
+  const stored = await uploadObject(buffer, {
+    prefix: 'sponsors',
+    filename,
+    extension: ext,
+    contentType: `image/${mime}`,
+  });
 
-  return `/uploads/sponsors/${filename}`;
+  return stored.url;
 }
 
 export const SPONSOR_LOGO_MAX_FILE_BYTES = 2 * 1024 * 1024;

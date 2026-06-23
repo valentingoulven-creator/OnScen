@@ -27,6 +27,7 @@ import {
   migratePlaintextPlatformTokens,
 } from '../lib/platformConnect';
 import { schedulePersist } from '../lib/persist';
+import { invalidateGlobalSearchIndex } from '../lib/globalSearchIndex';
 import { schedulePersistUserToPg } from '../lib/pgUsers';
 import { bumpUserTokenVersion } from '../lib/tokenVersion';
 import { buildUserDataExport } from '../lib/accountDataExport';
@@ -405,6 +406,7 @@ authRouter.patch('/profile', authenticateJWT, async (req: Request, res: Response
       return;
     }
     user.username = name;
+    invalidateGlobalSearchIndex();
   }
   if (bio !== undefined) user.bio = String(bio).slice(0, 500);
   if (Array.isArray(interests)) user.interests = interests.map(String).slice(0, 12);

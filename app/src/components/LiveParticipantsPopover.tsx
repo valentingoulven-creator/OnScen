@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { useVisibleInterval } from '../hooks/usePageVisible';
 import { api } from '../lib/api';
 import type { LiveParticipant } from '../types';
 import { UsernameDisplay } from './UsernameDisplay';
@@ -58,10 +59,10 @@ export function LiveParticipantsPopover({
       return;
     }
     void loadParticipants();
-    const id = window.setInterval(() => void loadParticipants(), 12_000);
     searchInputRef.current?.focus();
-    return () => window.clearInterval(id);
   }, [open, loadParticipants]);
+
+  useVisibleInterval(() => void loadParticipants(), 12_000, open);
 
   useEffect(() => {
     const vipSet = new Set(vipModeratorIds);
