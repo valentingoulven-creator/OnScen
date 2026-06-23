@@ -8326,12 +8326,8 @@ CHANGEMENTS / FIX
 -----
  backend/src/routes/access.ts
  ─────────────────
- • Restauration countSpotifyConnectionTiers + backfill OAuth produit Spotify
- • counts.spotify.premium / basic sur /admin/overview et /admin/users
-
- app/src/pages/AdminAccountsTab.tsx
- ─────────────────
- • Section stats Spotify avec counts?.spotify?.premium (safe access)
+ • counts.spotify depuis données legacy platformAccounts (sans OAuth Spotify)
+ • counts?.spotify?.premium côté frontend (safe access)
 
 ================================================================================
 Fin MODIF 670 — 2026-06-22
