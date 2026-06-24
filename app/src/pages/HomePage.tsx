@@ -15,6 +15,7 @@ import { useStartLiveFlow } from '../hooks/useStartLiveFlow';
 import { useHomeGeoRefresh } from '../hooks/useHomeGeoRefresh';
 import { canJoinSalonAsParticipant, salonParticipantAccessMessageKey } from '../lib/platformConnect';
 import { MapAdBanner, type MapSponsorViewport } from '../components/MapAdBanner';
+import { MapActiveSessionOverlay } from '../components/MapActiveSessionOverlay';
 import { LivesBrowseGrid } from '../components/LivesBrowseGrid';
 import { MAP_EVENTS_REFRESH_EVENT, MAP_OPEN_CREATE_SALON_EVENT } from '../lib/mapUiEvents';
 import { isAppa2Layout, type AppLayoutId } from '../lib/appLayout';
@@ -201,6 +202,11 @@ interface HomePageProps {
   /** Recherche globale → carte (ville / pays). */
   mapSearchIntent?: import('../lib/mapSearchIntent').MapSearchSearchIntent | null;
   onMapSearchIntentConsumed?: () => void;
+  /** Session salon / live active — chip haut-droit carte (masque bandeau header). */
+  mapActiveSalonSession?: { id: string; title?: string; isHost?: boolean } | null;
+  mapActiveLiveSession?: { id: string; isHost?: boolean } | null;
+  onMapReturnToSalon?: () => void;
+  onMapReturnToLive?: () => void;
 }
 
 export function HomePage({
@@ -225,6 +231,10 @@ export function HomePage({
   onSalonRestoreFailed,
   mapSearchIntent = null,
   onMapSearchIntentConsumed,
+  mapActiveSalonSession = null,
+  mapActiveLiveSession = null,
+  onMapReturnToSalon,
+  onMapReturnToLive,
 }: HomePageProps) {
   const { t } = useTranslation();
   const appa2 = isAppa2Layout(appLayout);
@@ -2040,6 +2050,22 @@ export function HomePage({
             </div>
           </div>
         )}
+        {token &&
+          user &&
+          !mapProfileOpen &&
+          !mapLivesBrowseOpen &&
+          (mapActiveSalonSession || mapActiveLiveSession) &&
+          onMapReturnToSalon &&
+          onMapReturnToLive && (
+            <MapActiveSessionOverlay
+              token={token}
+              user={user}
+              salonSession={mapActiveSalonSession}
+              liveSession={mapActiveLiveSession}
+              onOpenSalon={onMapReturnToSalon}
+              onOpenLive={onMapReturnToLive}
+            />
+          )}
         {loadingMapEvents && (
           <div className="absolute bottom-4 right-4 z-40 pointer-events-none">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1a1a26]/90 border border-white/10 text-xs text-gray-300 shadow-lg backdrop-blur-sm">

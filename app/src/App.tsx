@@ -979,6 +979,9 @@ export default function App() {
   const showActiveLiveBanner = Boolean(
     activeLiveSessionId && !liveFullScreen && !salonFullScreen && token && user
   );
+  const mapTabActiveForOverlay = tab === 'map' && !profileOpen && view.type === 'home';
+  const showActiveSalonBannerInHeader = showActiveSalonBanner && !mapTabActiveForOverlay;
+  const showActiveLiveBannerInHeader = showActiveLiveBanner && !mapTabActiveForOverlay;
   const showSalonPageShell = Boolean(
     activeSalonSession && (salonFullScreen || salonVideoFloatActive)
   );
@@ -1136,7 +1139,7 @@ export default function App() {
         )}
       </header>
 
-      {showActiveSalonBanner && activeSalonSession && token && user ? (
+      {showActiveSalonBannerInHeader && activeSalonSession && token && user ? (
         <ActiveSalonSessionBanner
           salonId={activeSalonSession.id}
           fallbackTitle={activeSalonSession.title}
@@ -1156,7 +1159,7 @@ export default function App() {
         />
       ) : null}
 
-      {showActiveLiveBanner && activeLiveSessionId && token && user ? (
+      {showActiveLiveBannerInHeader && activeLiveSessionId && token && user ? (
         <ActiveLiveBanner
           liveId={activeLiveSessionId}
           token={token}
@@ -1309,6 +1312,35 @@ export default function App() {
                     onSalonRestoreFailed={() => handleSalonForcedEnd('ended')}
                     mapSearchIntent={mapSearchIntent}
                     onMapSearchIntentConsumed={() => setMapSearchIntent(null)}
+                    mapActiveSalonSession={
+                      showActiveSalonBanner && activeSalonSession
+                        ? {
+                            id: activeSalonSession.id,
+                            title: activeSalonSession.title,
+                            isHost: activeSalonIsHost,
+                          }
+                        : null
+                    }
+                    mapActiveLiveSession={
+                      showActiveLiveBanner && activeLiveSessionId
+                        ? { id: activeLiveSessionId, isHost: activeLiveIsHost }
+                        : null
+                    }
+                    onMapReturnToSalon={() => {
+                      if (!activeSalonSession) return;
+                      openSalonPage(
+                        activeSalonSession.id,
+                        activeSalonSession.title,
+                        activeSalonIsHost
+                      );
+                    }}
+                    onMapReturnToLive={() => {
+                      if (activeLiveViewerSession) {
+                        restoreLiveFullScreen();
+                      } else if (user?.liveId) {
+                        openLive(user.liveId);
+                      }
+                    }}
                   />
                 </div>
               </Suspense>

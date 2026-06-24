@@ -9,6 +9,10 @@ interface ProfileCurrentListeningProps {
   /** Salon actif : ouvre le salon au clic. */
   onClick?: () => void;
   clickAriaLabel?: string;
+  /** Remplace « En écoute » / « En pause » (ex. live : « En direct »). */
+  statusActiveLabel?: string;
+  statusPausedLabel?: string;
+  statusLabelClassName?: string;
 }
 
 export function ProfileCurrentListening({
@@ -17,6 +21,9 @@ export function ProfileCurrentListening({
   compact = false,
   onClick,
   clickAriaLabel = 'Ouvrir le salon',
+  statusActiveLabel = 'En écoute',
+  statusPausedLabel = 'En pause',
+  statusLabelClassName = 'text-purple-400',
 }: ProfileCurrentListeningProps) {
   const paused = showPaused && listening.isPlaying === false;
 
@@ -45,8 +52,8 @@ export function ProfileCurrentListening({
         </div>
       )}
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-bold text-purple-400 uppercase tracking-wider">
-          {paused ? 'En pause' : 'En écoute'}
+        <p className={`text-[10px] font-bold uppercase tracking-wider ${statusLabelClassName}`}>
+          {paused ? statusPausedLabel : statusActiveLabel}
         </p>
         <p className={`font-semibold text-white truncate ${compact ? 'text-sm' : 'text-base'}`}>
           {listening.title}
