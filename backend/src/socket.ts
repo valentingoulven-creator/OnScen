@@ -157,7 +157,6 @@ export function setupSockets(io: Server): void {
         db.salons.set(salonId, salon);
         io.to(roomName).emit('salon_updated', salon);
       }
-      socket.emit('playback_sync', salon.playbackState);
       socket.emit('salon_playback', salon.playbackState);
       socket.emit('salon_queue_updated', { salonId, queue: ensureSalonQueue(salonId) });
       socket.emit('salon_proposals_updated', {

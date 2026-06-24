@@ -1,5 +1,10 @@
+import { lazy, Suspense } from 'react';
 import type { StoryLink, StoryMusicTrack, StoryTaggedUser } from '../types';
-import { PhotoImageEditor, type PhotoEditorResult } from './PhotoImageEditor';
+import type { PhotoEditorResult } from './PhotoImageEditor';
+
+const PhotoImageEditor = lazy(() =>
+  import('./PhotoImageEditor').then((m) => ({ default: m.PhotoImageEditor }))
+);
 
 export type StoryEditorResult = PhotoEditorResult;
 
@@ -14,6 +19,18 @@ interface StoryImageEditorProps {
   onCancel: () => void;
 }
 
+function EditorFallback() {
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80">
+      <span className="w-8 h-8 border-2 border-purple-500/30 border-t-purple-400 rounded-full animate-spin" />
+    </div>
+  );
+}
+
 export function StoryImageEditor(props: StoryImageEditorProps) {
-  return <PhotoImageEditor mode="story" {...props} />;
+  return (
+    <Suspense fallback={<EditorFallback />}>
+      <PhotoImageEditor mode="story" {...props} />
+    </Suspense>
+  );
 }

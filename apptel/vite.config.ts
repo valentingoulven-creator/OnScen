@@ -165,15 +165,18 @@ export default defineConfig({
          * Clé de cache versionnée : changer manuellement si un conflit de cache
          * majeur survient et que la purge automatique (index.html) ne suffit pas.
          */
-        cacheId: 'melosong-msdev-v7',
+        cacheId: 'melosong-msdev-v8',
         skipWaiting: true,
         clientsClaim: true,
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
-        /**
-         * Exclure les icônes déjà listées dans includeAssets pour éviter les
-         * doublons dans le manifeste de précache du service worker.
-         */
-        globPatterns: ['**/*.{js,css,html,ico,woff2}'],
+        globPatterns: [
+          'index.html',
+          'assets/index-*.js',
+          'assets/index-*.css',
+          'assets/vendor-react-*.js',
+          'assets/rolldown-runtime-*.js',
+          'assets/plus-jakarta-sans-*.woff2',
+        ],
         globIgnores: [
           '**/icon*.svg',
           '**/favicon*.svg',
@@ -181,6 +184,14 @@ export default defineConfig({
           '**/pwa-512x512.png',
           '**/workbox-*.js',
           '**/sw.js',
+          '**/vendor-heic2any*.js',
+          '**/vendor-globe*.js',
+          '**/vendor-livekit*.js',
+          '**/vendor-map*.js',
+          '**/vendor-socketio*.js',
+          '**/vendor-zxcvbn*.js',
+          '**/vendor-hls*.js',
+          '**/photo-editor*.js',
         ],
         navigateFallback: '/tel/index.html',
         navigateFallbackDenylist: [/^\/api/, /^\/socket\.io/, /^\/msdev-mobile$/, /^\/clear-pwa/],
@@ -192,6 +203,17 @@ export default defineConfig({
           {
             urlPattern: /\/socket\.io/,
             handler: 'NetworkOnly',
+          },
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/assets/') || url.pathname.startsWith('/tel/assets/'),
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'melosong-tel-assets',
+              expiration: {
+                maxEntries: 256,
+                maxAgeSeconds: 60 * 60 * 24 * 30,
+              },
+            },
           },
         ],
       },
@@ -228,7 +250,7 @@ export default defineConfig({
     cssMinify: true,
     sourcemap: false,
     chunkSizeWarningLimit: 600,
-    modulePreload: { polyfill: true },
+    modulePreload: false,
     rollupOptions: {
       output: {
         manualChunks(id) {

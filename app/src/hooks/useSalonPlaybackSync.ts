@@ -101,11 +101,9 @@ export function useSalonPlaybackSync({
       onStateChangeRef.current?.(state);
       onForceSyncRef.current?.(state);
     };
-    socket.on('playback_sync', onSync);
     socket.on('salon_playback', onSync);
     socket.on('salon_force_sync', forceSyncListener);
     return () => {
-      socket.off('playback_sync', onSync);
       socket.off('salon_playback', onSync);
       socket.off('salon_force_sync', forceSyncListener);
     };

@@ -16,6 +16,7 @@ import {
   subscribePhoneWebViewport,
   syncPhoneWebViewportClass,
 } from './lib/phoneViewport';
+import { isNativeApp } from './lib/nativePlatform';
 
 initAppTheme();
 initDiagnosticLogs();
@@ -25,16 +26,16 @@ subscribePhoneWebViewport(() => {
   syncPhoneWebViewportClass();
 });
 
-/** Design quick wins — build prod ou navigateur mobile (getsoundy.com). */
+/** Design quick wins — build prod ou navigateur mobile (getsoundy.com). Pas de Google Fonts en natif Capacitor. */
 const enableDesignQuickWins =
-  import.meta.env.VITE_DESIGN_QUICK_WINS === '1' || isPhoneWebViewport();
+  !isNativeApp() &&
+  (import.meta.env.VITE_DESIGN_QUICK_WINS === '1' || isPhoneWebViewport());
 if (enableDesignQuickWins) {
   document.documentElement.setAttribute('data-design-quick-wins', '1');
-  const fontLink = document.createElement('link');
-  fontLink.rel = 'stylesheet';
-  fontLink.href =
-    'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap';
-  document.head.appendChild(fontLink);
+  void import('@fontsource/plus-jakarta-sans/400.css');
+  void import('@fontsource/plus-jakarta-sans/500.css');
+  void import('@fontsource/plus-jakarta-sans/600.css');
+  void import('@fontsource/plus-jakarta-sans/700.css');
 }
 
 const isMsdevBuild = import.meta.env.VITE_APP_ENV === 'msdev';

@@ -1,4 +1,85 @@
 ================================================================================
+MODIF 659 — Quick wins perf S1 (bundle, geo, cache, infra)
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Implémenter les quick wins de l'audit performance : réduire le JS initial,
+ alléger le trafic WebSocket salon, accélérer /geo/nearby, infra Caddy/PM2.
+
+CHANGEMENTS / FIX
+-----
+ app/vite.config.ts
+ ────────────────
+ • modulePreload: false (plus de preload LiveKit/Socket.io/photo-editor).
+ • SW : globIgnores vendor-livekit, vendor-socketio, photo-editor (déjà partiel).
+
+ apptel/vite.config.ts
+ ────────────────────
+ • modulePreload: false.
+
+ app/src/main.tsx
+ ────────────────
+ • Fonts Plus Jakarta Sans self-host (@fontsource) ; pas de Google Fonts en Capacitor natif.
+
+ app/src/hooks/useHomeGeoRefresh.ts
+ ──────────────────────────────────
+ • Intervalle adaptatif : 30 s foreground, 60 s background (visibilitychange).
+
+ backend/src/lib/nearbyResponseCache.ts
+ ──────────────────────────────────────
+ • TTL 20 s, max 500 entrées (était 3 s / 400).
+
+ backend/src/routes/geo.ts
+ ─────────────────────────
+ • Cache-Control max-age=15 sur réponses /nearby.
+
+ backend/src/lib/salonPlaybackOps.ts, backend/src/socket.ts
+ ────────────────────────────────────────────────────────
+ • Un seul emit salon_playback (suppression playback_sync doublon).
+
+ app + apptel (HomePage, LivePage, useSalonPlaybackSync)
+ ───────────────────────────────────────────────────────
+ • Clients : écoute salon_playback uniquement.
+
+ deploy/Caddyfile
+ ───────────────
+ • encode zstd gzip.
+
+ deploy/ecosystem.config.cjs
+ ──────────────────────────
+ • max_memory_restart 768M.
+
+ docs/CLOUDFLARE-PROXY.md
+ ───────────────────────
+ • Cache Rules /assets/* documentées.
+
+ app/package.json
+ ────────────────
+ • @fontsource/plus-jakarta-sans.
+
+FICHIERS MODIFIÉS
+-----
+ app/vite.config.ts, apptel/vite.config.ts, app/src/main.tsx,
+ app/src/hooks/useHomeGeoRefresh.ts, app/src/hooks/useSalonPlaybackSync.ts,
+ app/src/pages/HomePage.tsx, app/src/pages/LivePage.tsx,
+ apptel/src/pages/HomePage.tsx, apptel/src/pages/LivePage.tsx,
+ backend/src/lib/nearbyResponseCache.ts, backend/src/routes/geo.ts,
+ backend/src/lib/salonPlaybackOps.ts, backend/src/socket.ts,
+ deploy/Caddyfile, deploy/ecosystem.config.cjs, docs/CLOUDFLARE-PROXY.md,
+ app/package.json, app/package-lock.json
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅ (index.html sans modulepreload lourds ; vendor-misc ~130 Ko)
+ backend/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 659 — 2026-06-23
+================================================================================
+
+================================================================================
 MODIF 658 — Projet Cursor « Soundy CEO IA » (repo complet attaché)
 Date : 2026-06-23
 ================================================================================
@@ -8848,4 +8929,89 @@ BUILD (si vérifié)
 
 ================================================================================
 Fin MODIF 683 — 2026-06-24
+================================================================================
+
+================================================================================
+MODIF 684 — Perf P0 : bundle d'entrée, nearby cache, feed trié
+Date : 2026-06-24
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Réduire la latence cold start (desktop + mobile) et les API lentes carte/feed.
+
+CHANGEMENTS / FIX
+-----
+ app/ — frontend
+ ──────────────
+ • photo-editor, hls.js, zxcvbn lazy (StoryImageEditor, LivePip, Auth).
+ • vendor-misc 1,4 MB → ~130 KB ; precache PWA ~4,3 MB → ~2,1 MB.
+ • Workbox : exclure livekit, map, photo-editor, zxcvbn, hls du precache.
+ • modulePreload : pas de preload chunks lourds optionnels.
+
+ backend/
+ ────────
+ • GET /api/geo/nearby : cache 3 s par viewport + caps 200/100/150.
+ • Feed chronologique : cache tri (invalidé à l'ajout de post).
+
+FICHIERS MODIFIÉS
+-----
+ app/src/components/StoryImageEditor.tsx, PasswordStrengthBar.tsx
+ app/src/lib/passwordStrength.ts, hooks/useCloudflareHlsPlayback.ts
+ app/src/App.tsx, pages/AuthPage.tsx, pages/SettingsPage.tsx, vite.config.ts
+ backend/src/lib/nearbyResponseCache.ts, routes/geo.ts, lib/feedPosts.ts
+
+BUILD (si vérifié)
+-----
+ app/ + backend/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 684 — 2026-06-24
+================================================================================
+
+================================================================================
+MODIF 685 — Perf S2 : socket lazy, app-shell SW, LiveKit adaptatif
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Enchaîner les optimisations S2 (30 j) : retirer socket.io du chemin critique,
+ réduire le precache PWA au shell, améliorer LiveKit viewers (bandwidth).
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/socket.ts, apptel/src/lib/socket.ts
+ ────────────────────────────────────────────────
+ • import dynamique socket.io-client après auth (chunk vendor-socketio).
+ • ensureSocketClientLoaded() ; AuthContext await avant setUser / registerUser.
+
+ app/vite.config.ts, apptel/vite.config.ts
+ ─────────────────────────────────────────
+ • Precache app-shell uniquement (index, vendor-react, runtime, fonts).
+ • vendor-socketio exclu du precache ; runtime StaleWhileRevalidate /assets/*.
+ • cacheId SW v13 (web) / v8 (tel).
+
+ app/src/components/LiveKitVideoStage.tsx
+ ───────────────────────────────────────
+ • RoomOptions : adaptiveStream + dynacast.
+
+ (+ S1 déjà en cours : fonts self-host, geo 30/60s, nearby cache 20s,
+   salon_playback unique, Caddy zstd, PM2 768M, modulePreload false)
+
+FICHIERS MODIFIÉS
+-----
+ app/src/lib/socket.ts → lazy socket.io
+ app/src/context/AuthContext.tsx → await socket avant UI auth
+ app/vite.config.ts, apptel/vite.config.ts → app-shell SW
+ app/src/components/LiveKitVideoStage.tsx → LiveKit adaptatif
+ backend/public/* → build prod
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅ (precache ~922 KB)
+ backend/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 685 — 2026-06-23
 ================================================================================

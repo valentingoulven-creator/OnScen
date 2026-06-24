@@ -4,7 +4,7 @@ import { api, ApiRequestError } from '../lib/api';
 import { clearStoredToken, getStoredToken, initAuthStorage, isNativePlatform, persistToken } from '../lib/authStorage';
 import { clearPersistedSalonSession } from '../lib/activeSalonSession';
 import { setDiagnosticLogUser, flushDiagnosticLogsToServer } from '../lib/diagnosticLogs';
-import { clearSocketUser, registerUser, setSocketAuthToken } from '../lib/socket';
+import { clearSocketUser, ensureSocketClientLoaded, registerUser, setSocketAuthToken } from '../lib/socket';
 import type { User } from '../types';
 
 interface AuthCtx {
@@ -149,6 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         const validatedToken = r.token ?? sessionToken;
         if (validatedToken) setToken(validatedToken);
+        await ensureSocketClientLoaded();
         setUser(r.user);
         registerUser(r.user.id, validatedToken);
       } catch (e: unknown) {
@@ -184,6 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // NATIVE: persist to secure storage for cross-session use.
     await persistToken(r.token, rememberMe);
     setToken(r.token);
+    await ensureSocketClientLoaded();
     setUser(r.user);
     registerUser(r.user.id, r.token);
   };
@@ -219,6 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // NATIVE: persist to secure storage.
     await persistToken(r.token, true);
     setToken(r.token);
+    await ensureSocketClientLoaded();
     setUser(r.user);
     setIsNewUser(true);
     registerUser(r.user.id, r.token);

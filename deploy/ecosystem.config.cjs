@@ -20,7 +20,7 @@ module.exports = {
       watch: false,
       max_restarts: 20,
       min_uptime: '10s',
-      max_memory_restart: '512M',
+      max_memory_restart: '768M',
       env: {
         NODE_ENV: 'production',
       },

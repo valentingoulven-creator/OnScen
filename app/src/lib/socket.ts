@@ -1,6 +1,11 @@
-import { io, Socket } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
 
 const AUTH_TOKEN_HEADER = 'X-Auth-Token';
+
+type IoFn = typeof import('socket.io-client').io;
+
+let ioFn: IoFn | null = null;
+let ioLoadPromise: Promise<void> | null = null;
 
 let socket: Socket | null = null;
 let registeredUserId: string | null = null;
@@ -8,8 +13,22 @@ let authToken: string | null = null;
 const onConnectHandlers = new Set<() => void>();
 const pendingConnectHandlers = new Set<() => void>();
 
+/** Lazy-load socket.io-client (chunk vendor-socketio) after auth. */
+export function ensureSocketClientLoaded(): Promise<void> {
+  if (ioFn) return Promise.resolve();
+  if (!ioLoadPromise) {
+    ioLoadPromise = import('socket.io-client').then((mod) => {
+      ioFn = mod.io;
+    });
+  }
+  return ioLoadPromise;
+}
+
 function createSocket(token: string): Socket {
-  const s = io({
+  if (!ioFn) {
+    throw new Error('socket.io-client not loaded');
+  }
+  const s = ioFn({
     path: '/socket.io',
     transports: ['websocket', 'polling'],
     autoConnect: false,
@@ -45,8 +64,36 @@ function migratePendingConnectHandlers(): void {
   pendingConnectHandlers.clear();
 }
 
+function connectIfRegistered(): void {
+  if (!registeredUserId || !authToken) return;
+  const s = ensureSocket();
+  if (!s) return;
+  migratePendingConnectHandlers();
+  if (s.connected) {
+    s.emit('register', registeredUserId);
+    onConnectHandlers.forEach((fn) => {
+      try {
+        fn();
+      } catch {
+        /* ignore listener errors */
+      }
+    });
+  } else {
+    s.connect();
+  }
+}
+
 function ensureSocket(): Socket | null {
   if (!authToken) return null;
+  if (!ioFn) {
+    void ensureSocketClientLoaded().then(() => {
+      if (!authToken || socket) return;
+      socket = createSocket(authToken);
+      migratePendingConnectHandlers();
+      connectIfRegistered();
+    });
+    return null;
+  }
   if (!socket) {
     socket = createSocket(authToken);
   }
@@ -65,8 +112,21 @@ export function setSocketAuthToken(token: string | null): void {
     socket.disconnect();
     socket = null;
   }
-  ensureSocket();
-  migratePendingConnectHandlers();
+  if (ioFn) {
+    ensureSocket();
+    migratePendingConnectHandlers();
+  } else {
+    void ensureSocketClientLoaded().then(() => {
+      if (!authToken) return;
+      if (tokenChanged && socket) {
+        socket.disconnect();
+        socket = null;
+      }
+      ensureSocket();
+      migratePendingConnectHandlers();
+      connectIfRegistered();
+    });
+  }
 }
 
 export function isSocketAuthReady(): boolean {
@@ -83,21 +143,7 @@ export function registerUser(userId: string, token?: string | null): void {
     setSocketAuthToken(token);
   }
   if (!authToken) return;
-  const s = ensureSocket();
-  if (!s) return;
-  migratePendingConnectHandlers();
-  if (s.connected) {
-    s.emit('register', userId);
-    onConnectHandlers.forEach((fn) => {
-      try {
-        fn();
-      } catch {
-        /* ignore listener errors */
-      }
-    });
-  } else {
-    s.connect();
-  }
+  connectIfRegistered();
 }
 
 export function clearSocketUser(): void {

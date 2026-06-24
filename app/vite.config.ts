@@ -104,15 +104,21 @@ export default defineConfig(({ mode }) => {
          * Clé de cache versionnée : changer manuellement si un conflit de cache
          * majeur survient et que la purge automatique (index.html) ne suffit pas.
          */
-        cacheId: 'melosong-soundy-v12',
+        cacheId: 'melosong-soundy-v13',
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         skipWaiting: true,
         clientsClaim: true,
         /**
-         * Exclure les icônes déjà listées dans includeAssets pour éviter les
-         * doublons dans le manifeste de précache du service worker.
+         * App-shell precache only — route chunks load on demand (runtime cache below).
          */
-        globPatterns: ['**/*.{js,css,html,ico,woff2}'],
+        globPatterns: [
+          'index.html',
+          'assets/index-*.js',
+          'assets/index-*.css',
+          'assets/vendor-react-*.js',
+          'assets/rolldown-runtime-*.js',
+          'assets/plus-jakarta-sans-*.woff2',
+        ],
         globIgnores: [
           '**/icon*.svg',
           '**/favicon*.svg',
@@ -122,6 +128,12 @@ export default defineConfig(({ mode }) => {
           '**/sw.js',
           '**/vendor-heic2any*.js',
           '**/vendor-globe*.js',
+          '**/vendor-livekit*.js',
+          '**/vendor-map*.js',
+          '**/vendor-socketio*.js',
+          '**/vendor-zxcvbn*.js',
+          '**/vendor-hls*.js',
+          '**/photo-editor*.js',
         ],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/, /^\/socket\.io/, /^\/msdev-mobile$/, /^\/clear-pwa/, /^\/phone-preview/, /^\/tel\//],
@@ -133,6 +145,17 @@ export default defineConfig(({ mode }) => {
           {
             urlPattern: /\/socket\.io/,
             handler: 'NetworkOnly',
+          },
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/assets/'),
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'melosong-assets',
+              expiration: {
+                maxEntries: 256,
+                maxAgeSeconds: 60 * 60 * 24 * 30,
+              },
+            },
           },
         ],
         importScripts: ['push-sw.js'],
@@ -155,7 +178,7 @@ export default defineConfig(({ mode }) => {
     outDir: '../backend/public',
     emptyOutDir: true,
     chunkSizeWarningLimit: 1000,
-    modulePreload: { polyfill: true },
+    modulePreload: false,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -167,6 +190,8 @@ export default defineConfig(({ mode }) => {
           }
           // heic2any : chunk isolé (worker libheif ; ne pas fusionner dans vendor-misc)
           if (id.includes('heic2any')) return 'vendor-heic2any';
+          if (id.includes('zxcvbn')) return 'vendor-zxcvbn';
+          if (id.includes('hls.js')) return 'vendor-hls';
           if (id.includes('react-dom') || id.includes('react/')) return 'vendor-react';
           if (id.includes('socket.io-client')) return 'vendor-socketio';
           if (id.includes('livekit-client') || id.includes('@livekit/')) return 'vendor-livekit';

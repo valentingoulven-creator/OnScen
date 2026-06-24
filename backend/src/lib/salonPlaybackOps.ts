@@ -98,14 +98,12 @@ export function applyQueueItemToSalon(salon: Salon, item: SalonQueueItem): Playb
 export function broadcastSalonPlayback(salonId: string, playbackState: PlaybackState): void {
   const io = getIo();
   if (!io) return;
-  io.to(`salon_${salonId}`).emit('playback_sync', playbackState);
   io.to(`salon_${salonId}`).emit('salon_playback', playbackState);
 
   const live = db.lives.get(salonId);
   if (live?.isActive) {
     live.playbackState = playbackState;
     db.lives.set(salonId, live);
-    io.to(`live_${salonId}`).emit('playback_sync', playbackState);
     io.to(`live_${salonId}`).emit('salon_playback', playbackState);
   }
 }

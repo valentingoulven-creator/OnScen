@@ -17,6 +17,14 @@ import {
 } from '../lib/geoLimits';
 import { isValidLatLng } from '../lib/mapCoords';
 import { geoError, parseRequestLocale } from '../lib/requestLocale';
+import {
+  buildNearbyCacheKey,
+  getNearbyCached,
+  MAX_NEARBY_LIVES,
+  MAX_NEARBY_PEOPLE,
+  MAX_NEARBY_SALONS,
+  setNearbyCached,
+} from '../lib/nearbyResponseCache';
 
 export const geoRouter = Router();
 
@@ -161,6 +169,22 @@ geoRouter.get('/nearby', nearbyAnonLimiter, authenticateJWT, nearbyAuthLimiter, 
     ensureMapBotsForNearby(lat, lon);
   }
 
+  const cacheKey = buildNearbyCacheKey({
+    userId: me,
+    lat,
+    lon,
+    maxRadiusKm,
+    distanceFilter,
+    bounds,
+  });
+  const cached = getNearbyCached(cacheKey);
+  if (cached) {
+    res.setHeader('Cache-Control', 'private, max-age=15');
+    res.setHeader('X-Nearby-Cache', 'HIT');
+    res.json(cached);
+    return;
+  }
+
   const salons = [...db.salons.values()]
     .filter((s) => isSalonVisibleOnMap(s, me))
     .map((s) => {
@@ -182,6 +206,7 @@ geoRouter.get('/nearby', nearbyAnonLimiter, authenticateJWT, nearbyAuthLimiter, 
         : withinRadius(distanceKm)
     )
     .sort((a, b) => a.distanceKm - b.distanceKm)
+    .slice(0, MAX_NEARBY_SALONS)
     .map(({ salon: s }) => publicSalon(s, me));
 
   const lives = [...db.lives.values()]
@@ -205,6 +230,7 @@ geoRouter.get('/nearby', nearbyAnonLimiter, authenticateJWT, nearbyAuthLimiter, 
         : withinRadius(distanceKm)
     )
     .sort((a, b) => a.distanceKm - b.distanceKm)
+    .slice(0, MAX_NEARBY_LIVES)
     .map(({ live: l, coords }) => {
       const host = db.users.get(l.hostId);
       return {
@@ -224,9 +250,16 @@ geoRouter.get('/nearby', nearbyAnonLimiter, authenticateJWT, nearbyAuthLimiter, 
       };
     });
 
-  const people = getNearbyPeople(me, lat, lon, radiusKm, distanceFilter);
+  const people = getNearbyPeople(me, lat, lon, radiusKm, distanceFilter).slice(
+    0,
+    MAX_NEARBY_PEOPLE
+  );
 
-  res.json({ salons, lives, people });
+  const body = { salons, lives, people };
+  setNearbyCached(cacheKey, body);
+  res.setHeader('Cache-Control', 'private, max-age=15');
+  res.setHeader('X-Nearby-Cache', 'MISS');
+  res.json(body);
 });
 
 interface GouvCommune {

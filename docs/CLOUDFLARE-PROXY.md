@@ -17,6 +17,10 @@ Guide pour activer le proxy Cloudflare devant le VPS Scaleway **sans accès comp
 4. SSL/TLS → mode **Full (strict)** si certificat valide sur le VPS, sinon **Full** le temps de corriger le cert.
 5. SSL/TLS → Edge Certificates → **Always Use HTTPS** : ON
 6. Speed → Optimization → activer compression (Brotli) si disponible sur le plan.
+7. **Caching → Cache Rules** :
+   - `/assets/*` → Cache Everything, Edge TTL 1 an (fichiers hashés immutables)
+   - `/api/*`, `/socket.io/*` → Bypass
+   - `/index.html`, `/sw.js` → Bypass
 
 ## WebSockets (Socket.io + LiveKit)
 

@@ -17,6 +17,32 @@ const MIN_CONTENT_LEN = 1;
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
+/** Cache tri chronologique — invalidé quand la taille ou le post le plus récent change. */
+let feedSortCache: FeedPost[] | null = null;
+let feedSortFingerprint = '';
+
+function feedSortCacheKey(): string {
+  let maxCreatedAt = 0;
+  for (const p of db.feedPosts) {
+    if (p.createdAt > maxCreatedAt) maxCreatedAt = p.createdAt;
+  }
+  return `${db.feedPosts.length}:${maxCreatedAt}`;
+}
+
+function getFeedPostsSortedDesc(): FeedPost[] {
+  const fp = feedSortCacheKey();
+  if (feedSortCache && feedSortFingerprint === fp) return feedSortCache;
+  feedSortCache = [...db.feedPosts].sort((a, b) => b.createdAt - a.createdAt);
+  feedSortFingerprint = fp;
+  return feedSortCache;
+}
+
+/** Force le recalcul au prochain listFeedPosts (tests). */
+export function invalidateFeedSortCache(): void {
+  feedSortCache = null;
+  feedSortFingerprint = '';
+}
+
 const HTTPS_IMAGE_RE = /^https:\/\//i;
 const BLOCKED_MEDIA_RE =
   /picsum\.photos|commondatastorage|sample-videos|w3schools|mdn\.sample|placeholder\.com|loremflickr/i;
@@ -305,6 +331,7 @@ export function createFeedPost(
     createdAt: Date.now(),
   };
   db.feedPosts.push(post);
+  invalidateFeedSortCache();
   schedulePersistFeedPostToPg(post);
   return { ok: true, post: toPublicPost(post, user, userId) };
 }
@@ -334,6 +361,7 @@ export function resharePost(
     createdAt: Date.now(),
   };
   db.feedPosts.push(post);
+  invalidateFeedSortCache();
   schedulePersistFeedPostToPg(post);
   return { ok: true, post: toPublicPost(post, user, userId) };
 }
@@ -596,7 +624,7 @@ function listFeedPostsChronological(
     }
   }
 
-  const sorted = [...db.feedPosts].sort((a, b) => b.createdAt - a.createdAt);
+  const sorted = getFeedPostsSortedDesc();
   const out: PublicFeedPost[] = [];
 
   for (const post of sorted) {

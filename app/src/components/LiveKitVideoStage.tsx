@@ -9,7 +9,7 @@ import {
   useRoomContext,
   useTracks,
 } from '@livekit/components-react';
-import { ConnectionState, RoomEvent, Track } from 'livekit-client';
+import { ConnectionState, RoomEvent, Track, type RoomOptions } from 'livekit-client';
 import { api } from '../lib/api';
 import { LiveStreamEndedOverlay } from './LiveStreamEndedOverlay';
 import { LiveVideoUnavailableOverlay } from './LiveVideoUnavailableOverlay';
@@ -23,6 +23,11 @@ import {
 } from '../lib/liveCameraMessages';
 
 const LIVEKIT_VIDEO_WAIT_TIMEOUT_MS = 30_000;
+
+const LIVEKIT_ROOM_OPTIONS: RoomOptions = {
+  adaptiveStream: true,
+  dynacast: true,
+};
 
 function getFullscreenElement(): Element | null {
   return (
@@ -629,6 +634,7 @@ export function LiveKitVideoStage({
             connect={roomEnabled}
             audio={false}
             video={false}
+            options={LIVEKIT_ROOM_OPTIONS}
             onError={handleRoomError}
             className="absolute inset-0 w-full h-full"
           >

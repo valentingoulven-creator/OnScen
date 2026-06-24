@@ -547,7 +547,6 @@ export function HomePage({
     socket.on('salon_kicked', onKicked);
     socket.on('salon_banned', onBanned);
     socket.on('salon_updated', onSalonUpdated);
-    socket.on('playback_sync', onPlaybackSync);
     socket.on('salon_playback', onPlaybackSync);
     return () => {
       offReconnect();
@@ -556,7 +555,6 @@ export function HomePage({
       socket.off('salon_kicked', onKicked);
       socket.off('salon_banned', onBanned);
       socket.off('salon_updated', onSalonUpdated);
-      socket.off('playback_sync', onPlaybackSync);
       socket.off('salon_playback', onPlaybackSync);
     };
   }, [selected?.id, selected?.canJoin, user?.id, user?.username, token]);

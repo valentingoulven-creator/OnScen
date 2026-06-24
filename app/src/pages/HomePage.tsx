@@ -1120,7 +1120,7 @@ export function HomePage({
 
   // Ref holding the debounce timer for settings-triggered reloads.
   const nearbyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Debounce playback_sync socket events (fires ~every second) to limit re-renders.
+  // Debounce salon_playback socket events (fires ~every second) to limit re-renders.
   const playbackSyncDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Ref for the 20s geo-refresh interval — allows explicit pause/resume on visibility change.
   const geoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -1884,12 +1884,10 @@ export function HomePage({
       }, 80);
     };
     socket.on('salon_updated', onSalonUpdated);
-    socket.on('playback_sync', onPlaybackSync);
     socket.on('salon_playback', onPlaybackSync);
     return () => {
       if (playbackSyncDebounceRef.current) clearTimeout(playbackSyncDebounceRef.current);
       socket.off('salon_updated', onSalonUpdated);
-      socket.off('playback_sync', onPlaybackSync);
       socket.off('salon_playback', onPlaybackSync);
     };
   }, [selected?.id, selected?.canJoin, user?.id, token]);

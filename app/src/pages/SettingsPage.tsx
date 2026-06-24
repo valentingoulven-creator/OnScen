@@ -10,7 +10,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { PasswordStrengthBar } from '../components/PasswordStrengthBar';
-import { getPasswordStrength } from '../lib/passwordStrength';
+import { getPasswordStrengthAsync } from '../lib/passwordStrength';
 import { ContactSoundyPage } from './ContactSoundyPage';
 
 // ─── 2FA setup modal states ───────────────────────────────────────────────────
@@ -270,7 +270,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
       setPwError(t('settings.passwordMismatch'));
       return;
     }
-    if (getPasswordStrength(newPwd) === 'faible') {
+    if ((await getPasswordStrengthAsync(newPwd)) === 'faible') {
       setPwError(t('settings.passwordTooWeak'));
       return;
     }

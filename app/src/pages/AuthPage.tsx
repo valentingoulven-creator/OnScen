@@ -9,7 +9,7 @@ import { forgotPasswordHref } from '../lib/forgotPasswordRoute';
 import { api } from '../lib/api';
 import { SoundyLogo } from '../components/SoundyLogo';
 import { PasswordStrengthBar } from '../components/PasswordStrengthBar';
-import { getPasswordStrength } from '../lib/passwordStrength';
+import { getPasswordStrengthAsync, preloadPasswordStrength } from '../lib/passwordStrength';
 import type { PublicAccessConfig, User } from '../types';
 import { startAuthentication } from '@simplewebauthn/browser';
 
@@ -119,6 +119,10 @@ export function AuthPage() {
         .catch(() => setBiometricSupported(false));
     }
   }, []);
+
+  useEffect(() => {
+    if (mode === 'register') void preloadPasswordStrength();
+  }, [mode]);
 
   // Handle OAuth callback: backend redirects to /?oauth_code=… after Google auth.
   useEffect(() => {
@@ -297,7 +301,7 @@ export function AuthPage() {
         setError('Les mots de passe ne correspondent pas');
         return;
       }
-      if (getPasswordStrength(password) === 'faible') {
+      if ((await getPasswordStrengthAsync(password)) === 'faible') {
         setError('Mot de passe trop faible. Ajoutez des chiffres, majuscules ou symboles');
         return;
       }

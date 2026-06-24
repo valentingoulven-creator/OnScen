@@ -47,7 +47,7 @@
 		Referrer-Policy "strict-origin-when-cross-origin"
 	}
 
-	encode gzip
+	encode zstd gzip
 }
 
 # Production — domaine principal (HTTPS automatique Let's Encrypt)

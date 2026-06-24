@@ -1,7 +1,29 @@
-import { getPasswordStrength, STRENGTH_CONFIG, TOTAL_BARS } from '../lib/passwordStrength';
+import { useEffect, useState } from 'react';
+import {
+  getPasswordStrength,
+  preloadPasswordStrength,
+  STRENGTH_CONFIG,
+  TOTAL_BARS,
+} from '../lib/passwordStrength';
 
 export function PasswordStrengthBar({ password }: { password: string }) {
-  const strength = getPasswordStrength(password);
+  const [strength, setStrength] = useState(() => getPasswordStrength(password));
+
+  useEffect(() => {
+    void preloadPasswordStrength();
+  }, []);
+
+  useEffect(() => {
+    setStrength(getPasswordStrength(password));
+    let cancelled = false;
+    void preloadPasswordStrength().then(() => {
+      if (!cancelled) setStrength(getPasswordStrength(password));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [password]);
+
   const cfg = STRENGTH_CONFIG[strength];
   if (!password) return null;
   return (

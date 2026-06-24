@@ -29,7 +29,9 @@ import {
 import { OnboardingPage } from './pages/OnboardingPage';
 import { GenreOnboardingPrompt, shouldShowGenrePrompt } from './components/GenreOnboardingPrompt';
 import { SalonPipPreviewFloat } from './components/SalonPipPreviewFloat';
-import { LivePipPreviewFloat } from './components/LivePipPreviewFloat';
+const LivePipPreviewFloat = lazy(() =>
+  import('./components/LivePipPreviewFloat').then((m) => ({ default: m.LivePipPreviewFloat }))
+);
 import { NotificationBell } from './components/NotificationBell';
 import { AdminHeaderButton } from './components/AdminHeaderButton';
 import { PrivacyVisibilityMenu } from './components/PrivacyVisibilityMenu';
@@ -1433,16 +1435,18 @@ export default function App() {
         />
       )}
       {livePipPreview && (
-        <LivePipPreviewFloat
-          key={`${livePipPreview.id}-${livePipOpenSeq}`}
-          live={livePipPreview}
-          onJoin={() => {
-            const liveId = livePipPreview.id;
-            setLivePipPreview(null);
-            openLive(liveId);
-          }}
-          onClose={() => setLivePipPreview(null)}
-        />
+        <Suspense fallback={null}>
+          <LivePipPreviewFloat
+            key={`${livePipPreview.id}-${livePipOpenSeq}`}
+            live={livePipPreview}
+            onJoin={() => {
+              const liveId = livePipPreview.id;
+              setLivePipPreview(null);
+              openLive(liveId);
+            }}
+            onClose={() => setLivePipPreview(null)}
+          />
+        </Suspense>
       )}
       <CookieConsentBanner />
     </div>

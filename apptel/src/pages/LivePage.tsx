@@ -204,14 +204,12 @@ export function LivePage({
       setLiveViewBanMessage(payload.message ?? 'Impossible de rejoindre ce live.');
     };
     socket.on('live_updated', onUpdate);
-    socket.on('playback_sync', onPlayback);
     socket.on('salon_playback', onPlayback);
     socket.on('live_join_denied', onJoinDenied);
     return () => {
       offReconnect();
       socket.emit('leave_live', { liveId });
       socket.off('live_updated', onUpdate);
-      socket.off('playback_sync', onPlayback);
       socket.off('salon_playback', onPlayback);
       socket.off('live_join_denied', onJoinDenied);
     };

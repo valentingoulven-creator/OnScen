@@ -4,8 +4,15 @@ import { getPrivacyPreferences } from '../lib/settings';
 import { sanitizeLatLngTuple } from '../lib/mapCoords';
 
 export const HOME_GEO_REFRESH_INTERVAL_MS = 30_000;
+export const HOME_GEO_REFRESH_BACKGROUND_MS = 60_000;
 
 type Coords = [number, number];
+
+function geoRefreshIntervalMs(): number {
+  return typeof document !== 'undefined' && document.hidden
+    ? HOME_GEO_REFRESH_BACKGROUND_MS
+    : HOME_GEO_REFRESH_INTERVAL_MS;
+}
 
 export function useHomeGeoRefresh(options: {
   isActive: boolean;
@@ -57,46 +64,52 @@ export function useHomeGeoRefresh(options: {
       );
     }
 
-    const startGeoInterval = () => {
-      if (geoIntervalRef.current) return;
-      geoIntervalRef.current = setInterval(() => {
-        const current = getLivesGeo();
-        const { locationSharing: sharing } = getPrivacyPreferences();
-        if (isFixedMapGeoSource(current.source)) {
-          loadNearbyAtRef.current([current.latitude, current.longitude]);
-          return;
-        }
-        if (!navigator.geolocation || !sharing) {
-          loadNearbyAtRef.current([current.latitude, current.longitude], { updateUserGeo: false });
-          return;
-        }
-        navigator.geolocation.getCurrentPosition(
-          (pos) => loadNearbyAtRef.current([pos.coords.latitude, pos.coords.longitude]),
-          () => loadNearbyAtRef.current([current.latitude, current.longitude])
-        );
-      }, HOME_GEO_REFRESH_INTERVAL_MS);
+    const tickGeo = () => {
+      const current = getLivesGeo();
+      const { locationSharing: sharing } = getPrivacyPreferences();
+      if (isFixedMapGeoSource(current.source)) {
+        loadNearbyAtRef.current([current.latitude, current.longitude]);
+        return;
+      }
+      if (!navigator.geolocation || !sharing) {
+        loadNearbyAtRef.current([current.latitude, current.longitude], { updateUserGeo: false });
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => loadNearbyAtRef.current([pos.coords.latitude, pos.coords.longitude]),
+        () => loadNearbyAtRef.current([current.latitude, current.longitude])
+      );
     };
 
-    const stopGeoInterval = () => {
+    const restartGeoInterval = () => {
+      if (geoIntervalRef.current) {
+        clearInterval(geoIntervalRef.current);
+        geoIntervalRef.current = null;
+      }
+      geoIntervalRef.current = setInterval(tickGeo, geoRefreshIntervalMs());
+    };
+
+    restartGeoInterval();
+
+    const handleBeforeUnload = () => {
       if (geoIntervalRef.current) {
         clearInterval(geoIntervalRef.current);
         geoIntervalRef.current = null;
       }
     };
 
-    startGeoInterval();
-
-    const handleBeforeUnload = () => stopGeoInterval();
     const handleVisibilityChange = () => {
-      if (document.hidden) stopGeoInterval();
-      else startGeoInterval();
+      restartGeoInterval();
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      stopGeoInterval();
+      if (geoIntervalRef.current) {
+        clearInterval(geoIntervalRef.current);
+        geoIntervalRef.current = null;
+      }
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
