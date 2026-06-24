@@ -75,7 +75,7 @@ function navInnerClass(placement: 'bottom' | 'header'): string {
   if (placement === 'header') {
     return 'flex items-center justify-center flex-wrap gap-1.5 sm:gap-2 max-w-full';
   }
-  return 'flex items-center justify-center gap-3 sm:gap-4';
+  return 'flex items-center justify-center w-full max-w-full gap-[clamp(0.25rem,2.5vw,0.75rem)]';
 }
 
 function tabAriaLabel(id: Tab, label: string, dmUnread: number): string {

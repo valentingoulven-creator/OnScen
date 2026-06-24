@@ -35,11 +35,30 @@ function apptelSrcFallback() {
     return undefined;
   }
 
+  /** Une seule instance AuthContext dans le bundle tel (évite « useAuth outside provider »). */
+  function authContextCanonical(importer: string, source: string): string | undefined {
+    if (!source.startsWith('.')) return undefined;
+    const resolved = path.resolve(path.dirname(importer), source);
+    const relToApp = path.relative(appSrc, resolved).replace(/\\/g, '/');
+    const relToApptel = path.relative(apptelSrc, resolved).replace(/\\/g, '/');
+    const isAuth =
+      relToApp === 'context/AuthContext' ||
+      relToApp === 'context/AuthContext.tsx' ||
+      relToApptel === 'context/AuthContext' ||
+      relToApptel === 'context/AuthContext.tsx';
+    if (!isAuth) return undefined;
+    const canonical = path.join(appSrc, 'context/AuthContext.tsx');
+    return fs.existsSync(canonical) ? canonical : undefined;
+  }
+
   return {
     name: 'apptel-src-fallback',
     enforce: 'pre' as const,
     resolveId(id: string, importer: string | undefined): string | undefined {
       if (!importer || !id.startsWith('.')) return undefined;
+
+      const authCanonical = authContextCanonical(importer, id);
+      if (authCanonical) return authCanonical;
 
       const importerDir = path.dirname(importer);
       const resolved = path.resolve(importerDir, id);
@@ -91,13 +110,16 @@ const isCapacitorBuild = process.env.CAPACITOR_BUILD === '1';
 
 export default defineConfig({
   base: isCapacitorBuild ? './' : '/tel/',
-  resolve: isCapacitorBuild
-    ? {
-        alias: {
-          'react-globe.gl': path.resolve(__dirname, 'src/stubs/react-globe.gl.tsx'),
-        },
-      }
-    : undefined,
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+    ...(isCapacitorBuild
+      ? {
+          alias: {
+            'react-globe.gl': path.resolve(__dirname, 'src/stubs/react-globe.gl.tsx'),
+          },
+        }
+      : {}),
+  },
   define: {
     'import.meta.env.VITE_APP_ENV': JSON.stringify(process.env.VITE_APP_ENV || 'msdev'),
     'import.meta.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL || ''),
@@ -165,7 +187,7 @@ export default defineConfig({
          * Clé de cache versionnée : changer manuellement si un conflit de cache
          * majeur survient et que la purge automatique (index.html) ne suffit pas.
          */
-        cacheId: 'melosong-msdev-v8',
+        cacheId: 'melosong-msdev-v10',
         skipWaiting: true,
         clientsClaim: true,
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
@@ -174,6 +196,7 @@ export default defineConfig({
           'assets/index-*.js',
           'assets/index-*.css',
           'assets/vendor-react-*.js',
+          'assets/auth-context-*.js',
           'assets/rolldown-runtime-*.js',
           'assets/plus-jakarta-sans-*.woff2',
         ],
@@ -254,6 +277,8 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          const norm = id.replace(/\\/g, '/');
+          if (norm.includes('/context/AuthContext')) return 'auth-context';
           if (!id.includes('node_modules')) return undefined;
           if (id.includes('react-dom') || id.includes('react/')) return 'vendor-react';
           if (id.includes('socket.io-client')) return 'vendor-socketio';

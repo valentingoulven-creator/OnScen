@@ -193,13 +193,18 @@ export interface AppNotification {
     | 'live_started'
     | 'live_don'
     | 'favorite_online'
+    | 'salon_invite'
+    | 'salon_created'
     | 'dm_message'
     | 'group_message'
     | 'heart'
     | 'content_heart'
     | 'follow'
     | 'event_created'
-    | 'mention';
+    | 'mention'
+    | 'support_contact'
+    | 'support_reply'
+    | 'support_resolved';
   senderId: string;
   senderName: string;
   senderAvatarUrl?: string;
@@ -213,6 +218,7 @@ export interface AppNotification {
   groupId?: string;
   postId?: string;
   reelId?: string;
+  supportMessageId?: string;
 }
 
 export interface MusicMatch {

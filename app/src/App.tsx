@@ -1006,10 +1006,11 @@ export default function App() {
   const reelsTabMounted = tab === 'reels' && tabContentBase;
   const reelsTabHiddenUnderOverlay = profileOpen || adminOpen;
   const appa2 = isAppa2Layout(appLayout);
+  const showHeaderSessionBanner = showActiveSalonBannerInHeader || showActiveLiveBannerInHeader;
 
   return (
     <div
-      className={`ms-app-shell flex flex-col flex-1 min-h-0 h-dvh max-h-dvh min-w-0 w-full${!appa2 ? ' ms-app-shell--bottom-tabs' : ''}${appa2 && !profileOpen ? ' ms-app-shell--header-tabs' : ''}`}
+      className={`ms-app-shell flex flex-col flex-1 min-h-0 h-dvh max-h-dvh min-w-0 w-full${!appa2 ? ' ms-app-shell--bottom-tabs' : ''}${appa2 && !profileOpen ? ' ms-app-shell--header-tabs' : ''}${showHeaderSessionBanner ? ' ms-app-shell--active-session-banner' : ''}`}
     >
       {incomingToast && (
         <div
@@ -1139,39 +1140,42 @@ export default function App() {
         )}
       </header>
 
-      {showActiveSalonBannerInHeader && activeSalonSession && token && user ? (
-        <ActiveSalonSessionBanner
-          salonId={activeSalonSession.id}
-          fallbackTitle={activeSalonSession.title}
-          isHost={activeSalonIsHost}
-          token={token}
-          user={user}
-          onReturn={() =>
-            openSalonPage(
-              activeSalonSession.id,
-              activeSalonSession.title,
-              activeSalonIsHost
-            )
-          }
-          onSalonEnded={
-            activeSalonIsHost ? handleOwnSalonEnded : () => handleSalonForcedEnd('ended')
-          }
-        />
-      ) : null}
-
-      {showActiveLiveBannerInHeader && activeLiveSessionId && token && user ? (
-        <ActiveLiveBanner
-          liveId={activeLiveSessionId}
-          token={token}
-          isHost={activeLiveIsHost}
-          onReturn={() => {
-            if (activeLiveViewerSession) {
-              restoreLiveFullScreen();
-            } else if (user.liveId) {
-              openLive(user.liveId);
-            }
-          }}
-        />
+      {showHeaderSessionBanner ? (
+        <div className="ms-active-session-banner-slot">
+          {showActiveSalonBannerInHeader && activeSalonSession && token && user ? (
+            <ActiveSalonSessionBanner
+              salonId={activeSalonSession.id}
+              fallbackTitle={activeSalonSession.title}
+              isHost={activeSalonIsHost}
+              token={token}
+              user={user}
+              onReturn={() =>
+                openSalonPage(
+                  activeSalonSession.id,
+                  activeSalonSession.title,
+                  activeSalonIsHost
+                )
+              }
+              onSalonEnded={
+                activeSalonIsHost ? handleOwnSalonEnded : () => handleSalonForcedEnd('ended')
+              }
+            />
+          ) : null}
+          {showActiveLiveBannerInHeader && activeLiveSessionId && token && user ? (
+            <ActiveLiveBanner
+              liveId={activeLiveSessionId}
+              token={token}
+              isHost={activeLiveIsHost}
+              onReturn={() => {
+                if (activeLiveViewerSession) {
+                  restoreLiveFullScreen();
+                } else if (user.liveId) {
+                  openLive(user.liveId);
+                }
+              }}
+            />
+          ) : null}
+        </div>
       ) : null}
 
       <main

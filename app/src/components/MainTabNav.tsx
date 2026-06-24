@@ -26,16 +26,6 @@ const TABS: ReadonlyArray<readonly [Tab, string]> = [
   ['reels', 'Reels'],
 ];
 
-const LEFT_TABS: ReadonlyArray<readonly [Tab, string]> = [['actualite', 'Accueil']];
-
-const CENTER_TAB: readonly [Tab, string] = ['map', 'Carte'];
-
-const RIGHT_TABS: ReadonlyArray<readonly [Tab, string]> = [
-  ['dm', 'Messages'],
-  ['music', 'Musique'],
-  ['reels', 'Reels'],
-];
-
 function isTabActive(id: Tab, tab: Tab, liveViewActive: boolean): boolean {
   if (id === 'map') return tab === 'map' || liveViewActive;
   return tab === id;
@@ -232,9 +222,7 @@ export const MainTabNav = memo(function MainTabNav({
       ) : (
         <div className={navInnerClass(placement)} data-active-tab={tab}>
           <div className="ms-tab-rail__wave" aria-hidden="true" />
-          <div className="ms-tab-rail__cluster ms-tab-rail__left">{LEFT_TABS.map(renderTab)}</div>
-          <div className="ms-tab-rail__hub">{renderTab(CENTER_TAB)}</div>
-          <div className="ms-tab-rail__cluster ms-tab-rail__right">{RIGHT_TABS.map(renderTab)}</div>
+          {TABS.map(renderTab)}
         </div>
       )}
     </nav>

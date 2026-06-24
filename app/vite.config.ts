@@ -35,8 +35,17 @@ export default defineConfig(({ mode }) => {
   define: {
     'import.meta.env.VITE_APP_ENV': JSON.stringify(appEnv),
   },
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+    // Vite 8 / Rolldown résout parfois react/jsx-runtime → react/index.js/jsx-runtime (bug).
+    alias: {
+      'react/jsx-runtime': path.resolve(__dirname, 'node_modules/react/jsx-runtime.js'),
+      'react/jsx-dev-runtime': path.resolve(__dirname, 'node_modules/react/jsx-dev-runtime.js'),
+    },
+  },
   optimizeDeps: {
     exclude: ['heic2any'],
+    include: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
   },
   plugins: [
     react(),
@@ -104,7 +113,7 @@ export default defineConfig(({ mode }) => {
          * Clé de cache versionnée : changer manuellement si un conflit de cache
          * majeur survient et que la purge automatique (index.html) ne suffit pas.
          */
-        cacheId: 'melosong-soundy-v13',
+        cacheId: 'melosong-soundy-v15',
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         skipWaiting: true,
         clientsClaim: true,
@@ -116,6 +125,7 @@ export default defineConfig(({ mode }) => {
           'assets/index-*.js',
           'assets/index-*.css',
           'assets/vendor-react-*.js',
+          'assets/auth-context-*.js',
           'assets/rolldown-runtime-*.js',
           'assets/plus-jakarta-sans-*.woff2',
         ],
@@ -182,10 +192,9 @@ export default defineConfig(({ mode }) => {
     rollupOptions: {
       output: {
         manualChunks(id) {
+          const norm = id.replace(/\\/g, '/');
+          if (norm.includes('/context/AuthContext')) return 'auth-context';
           if (!id.includes('node_modules')) {
-            if (id.includes('PhotoImageEditor') || id.includes('PhotoInlineCrop')) {
-              return 'photo-editor';
-            }
             return undefined;
           }
           // heic2any : chunk isolé (worker libheif ; ne pas fusionner dans vendor-misc)

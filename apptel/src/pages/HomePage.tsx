@@ -2,7 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { getSocket, onSocketConnect } from '../lib/socket';
-import { MapView } from '../components/MapView';
+import { MapView, type MapStyle, type MapViewHandle } from '../components/MapView';
+import {
+  canUseGlobeView,
+  disableGlobeView,
+  GLOBE_UNAVAILABLE_EVENT,
+  MAP_STYLE_STORAGE_KEY,
+  shouldForceFlatMap,
+} from '../lib/webglSupport';
 import { MapStoriesAccordion } from '../components/MapStoriesAccordion';
 import { NearbyPeoplePanel } from '../components/NearbyPeoplePanel';
 import { MapSalonListenSheet } from '../components/MapSalonListenSheet';
@@ -87,10 +94,18 @@ export function HomePage({
   const [locating, setLocating] = useState(false);
   const [loadingNearby, setLoadingNearby] = useState(true);
   const [showNearbyPeople, setShowNearbyPeople] = useState(getMapSidebarListVisible);
+  const [mapStyle, setMapStyle] = useState<MapStyle>(() => {
+    const saved = localStorage.getItem(MAP_STYLE_STORAGE_KEY) as MapStyle | null;
+    if (shouldForceFlatMap() || (saved === 'globe' && !canUseGlobeView())) {
+      return 'flat';
+    }
+    return saved === 'globe' ? 'globe' : 'flat';
+  });
   const [nearbyPanelPrefs, setNearbyPanelPrefs] = useState(getNearbyPanelPreferences);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
   const [mapGeo, setMapGeo] = useState<LivesGeoPrefs>(() => getLivesGeo());
   const salonSheetRef = useRef<HTMLDivElement>(null);
+  const mapViewRef = useRef<MapViewHandle>(null);
   const [salonSheetExpanded, setSalonSheetExpanded] = useState(false);
 
   useEffect(() => {
@@ -111,6 +126,12 @@ export function HomePage({
       window.removeEventListener(MAP_GEO_CHANGED_EVENT, onMapGeoChanged);
       window.removeEventListener(MAP_OPEN_CREATE_SALON_EVENT, onOpenCreateSalon);
     };
+  }, []);
+
+  useEffect(() => {
+    const onGlobeDisabled = () => setMapStyle('flat');
+    window.addEventListener(GLOBE_UNAVAILABLE_EVENT, onGlobeDisabled);
+    return () => window.removeEventListener(GLOBE_UNAVAILABLE_EVENT, onGlobeDisabled);
   }, []);
 
   useEffect(() => {
@@ -559,6 +580,48 @@ export function HomePage({
     };
   }, [selected?.id, selected?.canJoin, user?.id, user?.username, token]);
 
+  const toggleMapStyle = useCallback(() => {
+    const next: MapStyle = mapStyle === 'flat' ? 'globe' : 'flat';
+    if (next === 'globe' && !canUseGlobeView()) return;
+    setMapStyle(next);
+    localStorage.setItem(MAP_STYLE_STORAGE_KEY, next);
+  }, [mapStyle]);
+
+  const handleGlobeUnavailable = useCallback(() => {
+    disableGlobeView();
+    setMapStyle('flat');
+  }, []);
+
+  const handleGlobeZoomToFlat = useCallback(
+    (
+      lat: number,
+      lng: number,
+      doSelect: () => void,
+      zoom?: number,
+      radiusKm?: number,
+      animated?: boolean
+    ) => {
+      if (radiusKm != null && radiusKm > 0) {
+        mapViewRef.current?.jumpToCityBounds(lat, lng, radiusKm);
+      } else if (animated) {
+        mapViewRef.current?.flyTo(lat, lng, zoom ?? 13);
+      } else {
+        mapViewRef.current?.jumpTo(lat, lng, zoom ?? 14);
+      }
+      setMapStyle('flat');
+      localStorage.setItem(MAP_STYLE_STORAGE_KEY, 'flat');
+      setSafeCenter([lat, lng]);
+      setTimeout(doSelect, 560);
+    },
+    []
+  );
+
+  const handleAutoSwitchToGlobe = useCallback(() => {
+    if (!canUseGlobeView()) return;
+    setMapStyle('globe');
+    localStorage.setItem(MAP_STYLE_STORAGE_KEY, 'globe');
+  }, []);
+
   const openHostProfileFromSheet = useCallback(() => {
     if (!selected) return;
     const person = nearbyPeople.find((p) => p.id === selected.hostId);
@@ -629,8 +692,9 @@ export function HomePage({
           <MapAdBanner onCtaSalon={() => setShowCreateSalon(true)} onCtaLive={onOpenLiveTab} />
         )}
 
-        <div className="relative flex-1 min-h-0">
+        <div className="relative flex-1 min-h-0 ms-map-viewport">
         <MapView
+          ref={mapViewRef}
           salons={mapSalons}
           lives={mapLives}
           people={mapPeople}
@@ -642,7 +706,19 @@ export function HomePage({
           onMapBackgroundClick={() => {
             if (mapProfileOpen) onCloseMapProfile?.();
           }}
+          mapStyle={mapStyle}
+          onGlobeZoomToFlat={handleGlobeZoomToFlat}
+          onAutoSwitchToGlobe={handleAutoSwitchToGlobe}
+          onGlobeUnavailable={handleGlobeUnavailable}
+          livesFilterOn={nearbyPanelPrefs.livesOnly}
         />
+
+        {mapStyle === 'globe' && (
+          <div
+            className="absolute inset-0 z-[1] pointer-events-none"
+            style={{ background: 'radial-gradient(ellipse at center, transparent 55%, rgba(0,0,15,0.65) 100%)' }}
+          />
+        )}
 
         {mapPlaybackActive && !mapProfileOpen && token && (
           <div className="absolute top-2 left-2 right-2 z-[35] pointer-events-none max-w-[calc(100%-1rem)]">
@@ -675,6 +751,22 @@ export function HomePage({
               </svg>
             )}
           </button>
+
+          {canUseGlobeView() && (
+            <button
+              type="button"
+              onClick={toggleMapStyle}
+              title={mapStyle === 'flat' ? 'Vue globe satellite' : 'Vue carte sombre'}
+              aria-label={mapStyle === 'flat' ? 'Vue globe satellite' : 'Vue carte sombre'}
+              className={`w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center rounded-full border shadow-lg active:scale-95 transition shrink-0 text-sm leading-none ${
+                mapStyle === 'globe'
+                  ? 'bg-[#12121a] border-indigo-500 text-indigo-300'
+                  : 'bg-[#12121a] border-[#2d2d3d] hover:border-indigo-500/60 text-white/70 hover:text-white'
+              }`}
+            >
+              {mapStyle === 'globe' ? '🗺️' : '🌐'}
+            </button>
+          )}
 
           <button
             type="button"

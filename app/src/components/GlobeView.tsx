@@ -468,19 +468,25 @@ export const GlobeView = memo(function GlobeView({
     if (!globeRef.current || size.w === 0) return;
     let cleanupListener: (() => void) | undefined;
     let cleanupRendererListeners: (() => void) | undefined;
+    let controlsRafId = 0;
     try {
       const controls = globeRef.current.controls() as {
         autoRotate: boolean;
         autoRotateSpeed: number;
+        enableRotate: boolean;
+        enablePan: boolean;
         enableZoom: boolean;
         enableDamping: boolean;
         dampingFactor: number;
         zoomSpeed: number;
         maxDistance: number;
+        update: () => void;
         addEventListener: (event: string, cb: () => void) => void;
         removeEventListener: (event: string, cb: () => void) => void;
       };
       controls.autoRotate = false;
+      controls.enableRotate = true;
+      controls.enablePan = true;
       controls.enableZoom = true;
       controls.enableDamping = true;
       // Damping plus réactif : inertie courte = zoom/pan qui répond sans traîner
@@ -544,7 +550,19 @@ export const GlobeView = memo(function GlobeView({
       controls.addEventListener('start', handleInteractionStart);
       controls.addEventListener('end', handleInteractionEnd);
       controls.addEventListener('change', handleControlsChange);
+
+      const tickControls = () => {
+        try {
+          controls.update();
+        } catch {
+          /* OrbitControls may be disposed */
+        }
+        controlsRafId = requestAnimationFrame(tickControls);
+      };
+      controlsRafId = requestAnimationFrame(tickControls);
+
       cleanupListener = () => {
+        cancelAnimationFrame(controlsRafId);
         controls.removeEventListener('start', handleInteractionStart);
         controls.removeEventListener('end', handleInteractionEnd);
         controls.removeEventListener('change', handleControlsChange);

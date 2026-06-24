@@ -9015,3 +9015,251 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 685 — 2026-06-23
 ================================================================================
+
+================================================================================
+MODIF 686 — Fix React duplicate (useState null crash)
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En prod / phone-preview : « Cannot read properties of null (reading 'useState') ».
+ Le chunk manuel `photo-editor` embarquait une 2ᵉ copie de React ; le bundle
+ principal importait les hooks depuis ce chunk tandis que le JSX utilisait
+ vendor-react → deux instances React, dispatcher null.
+
+CHANGEMENTS / FIX
+-----
+ app/vite.config.ts
+ ────────────────
+ • Suppression du manualChunks `photo-editor` (PhotoImageEditor reste lazy).
+ • resolve.dedupe react + react-dom.
+ • cacheId SW v14.
+
+ apptel/vite.config.ts
+ ────────────────────
+ • resolve.dedupe react + react-dom (alias Capacitor fusionné).
+ • cacheId SW tel v9.
+
+FICHIERS MODIFIÉS
+-----
+ app/vite.config.ts, apptel/vite.config.ts → découpage + dedupe
+ backend/public/* → rebuild prod (index sans import photo-editor au boot)
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+ apptel/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 686 — 2026-06-23
+================================================================================
+
+================================================================================
+MODIF 687 — Tab rail : boutons toujours centrés
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Accueil / Live / Messages / Son / Reels doivent rester alignés sur une même
+ ligne et centrés, quel que soit l’onglet actif (plus de décalage vertical ou
+ asymétrie gauche/droite).
+
+CHANGEMENTS / FIX
+-----
+ app/src/index.css
+ ────────────────
+ • Rail en flex row (plus grid 1fr-auto-1fr) ; clusters/hub en display:contents.
+ • gap uniforme ; nav align-items: center.
+ • Onglet actif : ombre seule (plus de scale/translateY).
+
+FICHIERS MODIFIÉS
+-----
+ app/src/index.css → Sound Rail quick-wins
+
+================================================================================
+Fin MODIF 687 — 2026-06-23
+================================================================================
+
+================================================================================
+MODIF 688 — Session active visible sur tel (position + taille)
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur /tel/, la session active (salon/live) était partiellement masquée : bandeau
+ sous le header fixe, chip carte trop haut et trop large.
+
+CHANGEMENTS / FIX
+-----
+ app/src/App.tsx
+ ───────────────
+ • Bandeau session fixé sous le header ; padding main ajusté.
+
+ app/src/components/MapActiveSessionOverlay.tsx
+ app/src/components/ProfileCurrentListening.tsx
+ ───────────────────────────────────────────────
+ • Variant mapChip (compact) pour le chip carte.
+
+ app/src/index.css
+ ────────────────
+ • .ms-active-session-banner-slot, .ms-map-active-session (top + max-width mobile).
+
+FICHIERS MODIFIÉS
+-----
+ app/src/App.tsx, MapActiveSessionOverlay, ProfileCurrentListening, index.css
+
+================================================================================
+Fin MODIF 688 — 2026-06-23
+================================================================================
+
+================================================================================
+MODIF 689 — Salon : suppression bande noire (layout plein écran)
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Dans un salon, bande noire visible (haut et/ou bas) : double offset header sur
+ l’overlay, colonne mobile qui ne remplissait pas la hauteur, /tel/ avec padding
+ onglets sous le contenu salon.
+
+CHANGEMENTS / FIX
+-----
+ app/src/index.css
+ ────────────────
+ • .ms-salon-fullscreen-overlay : inset 0 (main a déjà padding-top header).
+ • Règles stack-column dans l’overlay salon (mobile).
+
+ apptel/src/App.tsx, apptel/src/index.css
+ ────────────────────────────────────────
+ • Salon en overlay inset-0 ; onglets bas masqués en vue salon.
+ • ms-app-main--salon sans padding-bottom onglets.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/index.css, apptel/src/App.tsx, apptel/src/index.css
+
+================================================================================
+Fin MODIF 689 — 2026-06-23
+================================================================================
+
+================================================================================
+MODIF 690 — Fix « useAuth outside provider » (/tel/ + web)
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Crash « useAuth outside provider » sur /tel/ (phone-preview) : le bundle Rolldown
+ dupliquait AuthContext — Provider dans un chunk, useAuth inline dans index avec
+ un second createContext(null).
+
+CHANGEMENTS / FIX
+-----
+ apptel/vite.config.ts
+ ────────────────────
+ • resolveId : chemin canonique unique vers app/src/context/AuthContext.tsx.
+ • manualChunks : chunk auth-context dédié.
+ • SW cacheId v10 + precache auth-context-*.js.
+
+ app/vite.config.ts
+ ─────────────────
+ • manualChunks auth-context ; SW cacheId v15 + precache auth-context-*.js.
+
+ apptel/src/main.tsx
+ ──────────────────
+ • Import AuthProvider sans suffixe .tsx (aligné sur le reste du graphe).
+
+FICHIERS MODIFIÉS
+-----
+ apptel/vite.config.ts, app/vite.config.ts, apptel/src/main.tsx
+
+BUILD (si vérifié)
+-----
+ apptel/ → npm run build → ✅ (1 seul « useAuth outside provider » dans auth-context-*.js)
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 690 — 2026-06-23
+================================================================================
+
+================================================================================
+MODIF 691 — Apptel : api.getOAuthProviders (API obsolète)
+Date : 2026-06-24
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur http://localhost:4082/tel/ : « api.getOAuthProviders is not a function ».
+ apptel/src/lib/api.ts était une copie monolithique figée sans les méthodes OAuth
+ (getOAuthProviders, exchangeOAuthCode, completeOnboarding, logout, etc.).
+
+CHANGEMENTS / FIX
+-----
+ apptel/src/lib/api.ts
+ ────────────────────
+ • Re-export de app/src/lib/api/index (API modulaire à jour).
+
+ apptel/src/lib/api/core.ts (nouveau)
+ ───────────────────────────────────
+ • Seul override apptel : API_BASE via nativeServer (Capacitor / VITE_API_URL).
+
+FICHIERS MODIFIÉS
+-----
+ apptel/src/lib/api.ts, apptel/src/lib/api/core.ts (ajout)
+
+BUILD (si vérifié)
+-----
+ apptel/ → npx vite build → ✅
+
+================================================================================
+Fin MODIF 691 — 2026-06-24
+================================================================================
+
+================================================================================
+MODIF 692 — Globe /tel/ : rotation + MapView partagée
+Date : 2026-06-24
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur l'application /tel/ : le globe 3D ne répond plus au toucher / ne tourne plus.
+ Causes : (1) apptel/src/components/MapView.tsx (Leaflet seul) écrasait la MapView
+ app via le plugin apptel-src-fallback ; (2) useCallback après early return dans
+ apptel App.tsx cassait React après login ; (3) OrbitControls sans enableRotate explicite
+ ni boucle update() pour le damping.
+
+CHANGEMENTS / FIX
+-----
+ apptel/src/components/MapView.tsx
+ ────────────────────────────────
+ • Supprimé (fallback vers app/src/components/MapView avec globe 3D).
+
+ apptel/src/pages/HomePage.tsx
+ ────────────────────────────
+ • mapStyle flat/globe, toggle 🌐, handlers globe, ms-map-viewport.
+
+ apptel/src/App.tsx
+ ─────────────────
+ • handleGlobalSearchSelect : fonction simple (plus de hook après return).
+
+ app/src/components/GlobeView.tsx
+ ─────────────────────────────
+ • enableRotate / enablePan ; requestAnimationFrame → controls.update().
+
+FICHIERS MODIFIÉS
+-----
+ apptel/src/pages/HomePage.tsx, apptel/src/App.tsx → hooks + globe tel
+ apptel/src/components/MapView.tsx → supprimé
+ app/src/components/GlobeView.tsx → OrbitControls
+
+BUILD (si vérifié)
+-----
+ apptel/ → npx vite build → ✅ (vendor-globe-*.js présent)
+
+================================================================================
+Fin MODIF 692 — 2026-06-24
+================================================================================

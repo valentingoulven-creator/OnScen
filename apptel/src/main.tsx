@@ -14,7 +14,7 @@ if (IS_NATIVE_BUILD) {
   initNativeDeepLinks();
 }
 import { AppErrorBoundary } from './components/AppErrorBoundary.tsx';
-import { AuthProvider } from './context/AuthContext.tsx';
+import { AuthProvider } from './context/AuthContext';
 import { DmUnreadProvider } from './context/DmUnreadContext.tsx';
 
 const isMsdevBuild = import.meta.env.VITE_APP_ENV === 'msdev';

@@ -88,6 +88,16 @@ main.ms-app-main.ms-app-main--no-header {
   padding-top: 0;
 }
 
+/* Salon plein écran — pas de réserve onglets bas (overlay edge-to-edge) */
+main.ms-app-main.ms-app-main--salon {
+  padding-bottom: 0;
+}
+
+.ms-salon-page-overlay {
+  position: absolute;
+  inset: 0;
+}
+
 /* Contenu principal : réserve la hauteur de la barre d'onglets fixe */
 .ms-phone-main {
   flex: 1 1 auto;
@@ -104,7 +114,7 @@ nav.ms-tab-bar-instagram {
   z-index: 50;
   display: flex;
   justify-content: center;
-  align-items: flex-end;
+  align-items: center;
   background: none;
   border: none;
   box-shadow: none;
@@ -114,16 +124,44 @@ nav.ms-tab-bar-instagram {
   pointer-events: none;
 }
 
+/* Aligné sur la colonne téléphone (430px), pas sur tout le viewport iPad/desktop */
+.ms-phone-shell nav.ms-tab-bar-instagram {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--phone-max-w);
+}
+
 nav.ms-tab-bar-instagram > div {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
+  gap: clamp(0.25rem, 2.5vw, 0.75rem);
+  width: 100%;
+  max-width: 100%;
   min-height: 0;
   background: none;
   border: none;
   box-shadow: none;
   pointer-events: auto;
+}
+
+@media (max-width: 374px) {
+  nav.ms-tab-bar-instagram > div {
+    gap: 0.25rem;
+  }
+}
+
+@media (max-width: 359px) {
+  nav.ms-tab-bar-instagram > div {
+    gap: 0.125rem;
+  }
+
+  nav.ms-tab-bar-instagram button {
+    width: 2.625rem !important;
+    height: 2.625rem !important;
+  }
 }
 
 /* Stories plein écran : ratio 9:16 */

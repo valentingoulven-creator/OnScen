@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useAuth } from './context/AuthContext';
 import {
   consumePendingProfileView,
@@ -268,29 +268,26 @@ export default function App() {
     setTab(id);
   };
 
-  const handleGlobalSearchSelect = useCallback(
-    (item: GlobalSearchResultItem) => {
-      switch (item.kind) {
-        case 'user':
-          openProfile(item.id, nearbyPreviewFromSearchItem(item));
-          return;
-        case 'city':
-        case 'country':
-          selectTab('map');
-          return;
-        case 'event':
-          openFeedPost(item.id);
-          return;
-        case 'album':
-        case 'song':
-          openProfile(item.userId);
-          return;
-        default:
-          return;
-      }
-    },
-    [openProfile, openFeedPost, selectTab]
-  );
+  const handleGlobalSearchSelect = (item: GlobalSearchResultItem) => {
+    switch (item.kind) {
+      case 'user':
+        openProfile(item.id, nearbyPreviewFromSearchItem(item));
+        return;
+      case 'city':
+      case 'country':
+        selectTab('map');
+        return;
+      case 'event':
+        openFeedPost(item.id);
+        return;
+      case 'album':
+      case 'song':
+        openProfile(item.userId);
+        return;
+      default:
+        return;
+    }
+  };
 
   return (
     <div className="ms-phone-shell ms-app-shell flex flex-col min-h-dvh max-h-dvh overflow-hidden min-w-0 w-full">
@@ -379,19 +376,21 @@ export default function App() {
       </header>
 
       <main
-        className="ms-app-main ms-phone-main flex-1 min-h-0 overflow-hidden flex flex-col relative"
+        className={`ms-app-main ms-phone-main flex-1 min-h-0 overflow-hidden flex flex-col relative${view.type === 'salon' ? ' ms-app-main--salon' : ''}`}
       >
         {view.type === 'salon' && (
-          <Suspense fallback={<PageFallback />}>
-            <SalonPage
-              salonId={view.id}
-              onBack={() => {
-                clearSalonUrlFromBar();
-                setView({ type: 'home' });
-                setTab('map');
-              }}
-            />
-          </Suspense>
+          <div className="ms-salon-page-overlay flex flex-col flex-1 min-h-0 absolute inset-0 z-40 bg-[#0b0b0f] overflow-hidden">
+            <Suspense fallback={<PageFallback />}>
+              <SalonPage
+                salonId={view.id}
+                onBack={() => {
+                  clearSalonUrlFromBar();
+                  setView({ type: 'home' });
+                  setTab('map');
+                }}
+              />
+            </Suspense>
+          </div>
         )}
         {view.type === 'profile' && (
           <Suspense fallback={<PageFallback />}>
@@ -519,6 +518,7 @@ export default function App() {
 
       </main>
 
+      {view.type !== 'salon' && (
       <MainTabNav
         tab={tab}
         liveViewActive={liveViewActive}
@@ -526,6 +526,7 @@ export default function App() {
         onSelectTab={selectTab}
         placement="bottom"
       />
+      )}
     </div>
   );
 }

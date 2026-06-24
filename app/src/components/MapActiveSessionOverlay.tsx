@@ -137,10 +137,11 @@ export function MapActiveSessionOverlay({
     if (!listening) return null;
 
     return (
-      <div className="ms-map-active-session absolute top-3 right-3 z-30 pointer-events-auto max-w-[min(calc(100%-1.5rem),18rem)] w-full">
+      <div className="ms-map-active-session">
         <ProfileCurrentListening
           listening={listening}
           compact
+          mapChip
           statusActiveLabel={t('live.liveBadge', { defaultValue: 'En direct' })}
           statusPausedLabel={t('live.liveBadge', { defaultValue: 'En direct' })}
           statusLabelClassName="text-red-400"
@@ -163,10 +164,11 @@ export function MapActiveSessionOverlay({
 
     const isHost = salonSession?.isHost ?? user.salonId === salonId;
     return (
-      <div className="ms-map-active-session absolute top-3 right-3 z-30 pointer-events-auto max-w-[min(calc(100%-1.5rem),18rem)] w-full">
+      <div className="ms-map-active-session">
         <ProfileCurrentListening
           listening={listening}
           compact
+          mapChip
           onClick={onOpenSalon}
           clickAriaLabel={
             isHost
