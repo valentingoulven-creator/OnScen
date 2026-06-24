@@ -59,7 +59,7 @@ else
     ACCT_JSON=$(stripe_post https://api.stripe.com/v1/accounts \
       -d type=express \
       -d country=FR \
-      -d email=valentin.goulven@gmail.com \
+      -d email=admin@getsoundy.com \
       -d "capabilities[card_payments][requested]=true" \
       -d "capabilities[transfers][requested]=true" \
       -d "metadata[melosongUserId]=${TARGET_USER_ID}")

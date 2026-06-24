@@ -18,6 +18,7 @@ import { MapAdBanner, type MapSponsorViewport } from '../components/MapAdBanner'
 import { LivesBrowseGrid } from '../components/LivesBrowseGrid';
 import { MAP_EVENTS_REFRESH_EVENT, MAP_OPEN_CREATE_SALON_EVENT } from '../lib/mapUiEvents';
 import { isAppa2Layout, type AppLayoutId } from '../lib/appLayout';
+import { useCompactMapViewport } from '../hooks/usePhoneWebViewport';
 import {
   createDefaultEventFilter,
   filterMapEventsByCriteria,
@@ -227,9 +228,7 @@ export function HomePage({
 }: HomePageProps) {
   const { t } = useTranslation();
   const appa2 = isAppa2Layout(appLayout);
-  const [compactMapLayout, setCompactMapLayout] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches
-  );
+  const compactMapLayout = useCompactMapViewport();
   const bottomMapList = appa2 || compactMapLayout;
   const nearbyLayout = bottomMapList ? ('bottom' as const) : ('side' as const);
   const { user, token, setUserFromProfile } = useAuth();
@@ -374,14 +373,6 @@ export function HomePage({
       window.removeEventListener(MAP_GEO_CHANGED_EVENT, onMapGeoChanged);
       window.removeEventListener(MAP_OPEN_CREATE_SALON_EVENT, onOpenCreateSalon);
     };
-  }, []);
-
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 639px)');
-    const sync = () => setCompactMapLayout(mq.matches);
-    sync();
-    mq.addEventListener('change', sync);
-    return () => mq.removeEventListener('change', sync);
   }, []);
 
   useEffect(() => {

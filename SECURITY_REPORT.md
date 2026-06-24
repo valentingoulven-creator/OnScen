@@ -252,7 +252,7 @@ helmet() configure :
 | Secret | Localisation | Criticité |
 |--------|-------------|----------|
 | `msdev123` (password démo) | `msdevDemoAccounts.ts` | ⚠️ Faible — dev only |
-| `valentin.goulven@gmail.com` (alerte) | `systemMonitor.ts` | ℹ️ Info exposure |
+| `admin@getsoundy.com` (alerte) | `systemMonitor.ts` | ℹ️ Info exposure |
 | `getsoundy.com` (WebAuthn RP ID) | `webauthn.ts` defaults | ✅ Public de toute façon |
 | Aucune clé API production en dur | — | ✅ Conforme |
 

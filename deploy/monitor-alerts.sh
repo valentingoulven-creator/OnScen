@@ -52,7 +52,7 @@ SMTP_USER=$(get_env SMTP_USER "")
 SMTP_PASS=$(get_env SMTP_PASS "")
 SMTP_FROM_RAW=$(get_env SMTP_FROM "")
 SMTP_FROM="${SMTP_FROM_RAW:-Soundy Monitoring <${SMTP_USER}>}"
-SMTP_ADMIN_EMAIL=$(get_env SMTP_ADMIN_EMAIL "valentin.goulven@gmail.com")
+SMTP_ADMIN_EMAIL=$(get_env SMTP_ADMIN_EMAIL "admin@getsoundy.com")
 ALERT_EXTRA_EMAILS=$(get_env ALERT_EXTRA_EMAILS "")
 
 RESEND_API_KEY=$(get_env RESEND_API_KEY "")
@@ -135,9 +135,9 @@ send_alert_email() {
   if [[ -n "$ALERT_EXTRA_EMAILS" ]]; then
     recipients="${recipients},${ALERT_EXTRA_EMAILS}"
   fi
-  # Toujours inclure valentin.goulven@gmail.com
-  if [[ "$recipients" != *"valentin.goulven@gmail.com"* ]]; then
-    recipients="${recipients},valentin.goulven@gmail.com"
+  # Toujours inclure admin@getsoundy.com
+  if [[ "$recipients" != *"admin@getsoundy.com"* ]]; then
+    recipients="${recipients},admin@getsoundy.com"
   fi
 
   if [[ "$RESEND_ENABLED" == "true" ]]; then

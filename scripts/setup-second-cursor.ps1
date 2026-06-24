@@ -359,9 +359,9 @@ if ($createdEnvFiles.Count -gt 0) {
     }
     Write-Info 'Recuperer prod : ssh root@51.159.164.100 puis cat /opt/soundly/.env (sans committer)'
     Write-Info 'PostgreSQL prod = Scaleway Managed (51.15.132.229:14440) — DATABASE_URL dans .env VPS, pas sur le VPS lui-meme'
-    Write-Info 'Admin prod : PROD_ADMIN_EMAIL=valentin.goulven@gmail.com ; msdev : ACCESS_ADMIN_EMAILS (pas dev@soundy.local)'
+    Write-Info 'Admin prod : PROD_ADMIN_EMAIL=admin@getsoundy.com ; msdev : ACCESS_ADMIN_EMAILS (pas dev@soundy.local)'
     Write-Info '(Ne copiez que les variables necessaires - jamais dans Git)'
-    $manualActions.Add('Remplir msdev/.env (ACCESS_ADMIN_EMAILS) et backend/.env.production (PROD_ADMIN_EMAIL=valentin.goulven@gmail.com) depuis machine 1 ou VPS /opt/soundly/.env')
+    $manualActions.Add('Remplir msdev/.env (ACCESS_ADMIN_EMAILS) et backend/.env.production (PROD_ADMIN_EMAIL=admin@getsoundy.com) depuis machine 1 ou VPS /opt/soundly/.env')
 }
 
 # --- 6. npm install --------------------------------------------------------

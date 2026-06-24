@@ -8508,3 +8508,301 @@ MANUEL (1 action utilisateur)
 ================================================================================
 Fin MODIF 673 — 2026-06-23
 ================================================================================
+
+================================================================================
+MODIF 674 — Fix crash fil d'accueil « reading 'index' » + santé logs admin
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Écran « Soundy — erreur de chargement » + logs admin :
+ Cannot read properties of undefined (reading 'index') (window.onerror + error-boundary).
+ Cause : react-virtuoso recevait initialTopMostItemIndex/customScrollParent/followOutput à
+ undefined → scroll initial du fil (VirtualList / ActualiteTabPage) plantait.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/VirtualList.tsx
+ ─────────────────────────────────
+ • Ne passer à Virtuoso que les props optionnelles définies (plus de undefined explicite).
+
+ app/src/pages/AdminSupportLogsPanel.tsx
+ ───────────────────────────────────────
+ • Bandeau santé : check vert si aucune erreur sur 10 min, alerte rouge sinon.
+ • Affichage du context JSON (componentStack error-boundary) dans le détail d'une ligne.
+
+ app/src/locales/fr.json, en.json
+ ────────────────────────────────
+ • Clés admin.support.logsHealthOk / logsHealthError / logsHealthWindow.
+
+FICHIERS MODIFIÉS
+-----
+ VirtualList.tsx → fix Virtuoso props
+ AdminSupportLogsPanel.tsx → indicateur santé + context logs
+ fr.json, en.json → i18n santé logs
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 674 — 2026-06-23
+================================================================================
+
+================================================================================
+MODIF 675 — Globe carte : netteté + relief réaliste (desktop)
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Globe 3D (react-globe.gl) flou sur desktop : antialias désactivé sur écrans
+ Retina, DPR plafonné à 1.5, pas de bump map relief, filtres texture basiques.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/GlobeView.tsx
+ ─────────────────────────────────
+ • Profil rendu adaptatif desktop vs mobile (antialias, DPR 2, curvature 8).
+ • bumpImageUrl earth-topology.png + configureGlobeVisualQuality (anisotropie,
+   mipmaps, tone mapping ACES, specular léger).
+ • Atmosphère un peu plus fine pour laisser voir le relief.
+
+ app/public/globe/earth-topology.png
+ ────────────────────────────────────
+ • Carte de relief NASA (three-globe / MIT) pour bump mapping.
+
+FICHIERS MODIFIÉS
+-----
+ GlobeView.tsx → qualité rendu WebGL
+ app/public/globe/earth-topology.png → texture relief (nouveau)
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 675 — 2026-06-23
+================================================================================
+
+================================================================================
+MODIF 676 — Globe : espace étoilé plus réaliste (desktop)
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Fond spatial du globe trop plat / violet : ciel peu contrasté, halo atmosphère
+ trop brandé, éclairage uniforme peu crédible.
+
+CHANGEMENTS / FIX
+-----
+ app/public/globe/stars-enhanced.jpg
+ ───────────────────────────────────
+ • Texture ciel dérivée de night-sky (contraste, netteté, Voie lactée).
+
+ app/src/components/GlobeView.tsx
+ ─────────────────────────────────
+ • Ciel desktop stars-enhanced + fond #000000.
+ • Atmosphère bleue fine (style vue ISS), éclairage espace (ambient sombre +
+   soleil chaud), luminosité étoiles renforcée.
+
+FICHIERS MODIFIÉS
+-----
+ GlobeView.tsx → profil espace desktop
+ stars-enhanced.jpg → texture ciel (nouveau)
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 676 — 2026-06-23
+================================================================================
+
+================================================================================
+MODIF 677 — Admin coûts : Gmail Pro 16,90 €/mois
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Refléter le coût Gmail Pro (Google Workspace) dans l'onglet Admin → Coût.
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/AdminCostsTab.tsx
+ ─────────────────────────────────
+ • Ligne Gmail Pro 16,90 € dans les coûts fixes ; total ~41–45 €/mois.
+
+ docs/COUT-APPLICATION.md
+ ────────────────────────
+ • Poste Gmail Pro + total MVP prod mis à jour.
+
+FICHIERS MODIFIÉS
+-----
+ AdminCostsTab.tsx → coût fixe Gmail Pro
+ COUT-APPLICATION.md → doc coûts alignée
+
+================================================================================
+Fin MODIF 677 — 2026-06-23
+================================================================================
+
+================================================================================
+MODIF 678 — E-mail admin : admin@getsoundy.com (remplace valentin.goulven@gmail.com)
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Uniformiser l'adresse admin / alertes / SMTP sur admin@getsoundy.com.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/mailer.ts, alertNotifier.ts, systemMonitor.ts
+ deploy/monitor-alerts.sh, backend/.env.production.example, scripts/, docs/
+ ─────────────────────────────────────────────────────────────────────────
+ • Remplacement global valentin.goulven@gmail.com → admin@getsoundy.com.
+
+FICHIERS MODIFIÉS
+-----
+ 15 fichiers (code, deploy, docs, exemples .env)
+
+================================================================================
+Fin MODIF 678 — 2026-06-23
+================================================================================
+
+================================================================================
+MODIF 679 — Appliquer admin@getsoundy.com (msdev + VPS prod + compte admin DB)
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Remplacement repo fait (MODIF 678) ; restait msdev/.env, VPS /opt/soundly/.env,
+ compte admin PostgreSQL et scripts deploy sur le serveur.
+
+CHANGEMENTS / FIX
+-----
+ msdev/.env
+ ──────────
+ • ACCESS_ADMIN_EMAILS=admin@getsoundy.com
+
+ msdev/.env.example, backend/.env.production (local)
+ ───────────────────────────────────────────────────
+ • Variables admin / alertes alignées.
+
+ VPS 51.159.164.100 (/opt/soundly/.env)
+ ──────────────────────────────────────
+ • sed valentin.goulven@gmail.com → admin@getsoundy.com
+ • SMTP_ADMIN_EMAIL, ALERT_EMAIL, PROD_ADMIN_EMAIL ajoutés
+ • deploy/monitor-alerts.sh patché sur le serveur
+ • UPDATE users SET email admin@getsoundy.com (compte isAdmin)
+ • pm2 reload melosong-backend
+
+FICHIERS MODIFIÉS
+-----
+ msdev/.env, msdev/.env.example, backend/.env.production (hors Git si ignoré)
+
+================================================================================
+Fin MODIF 679 — 2026-06-23
+================================================================================
+
+================================================================================
+MODIF 680 — Rotation clé YouTube Data API v3
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Nouvelle clé YouTube Data API v3 pour recherche salon et playlists.
+
+CHANGEMENTS / FIX
+-----
+ msdev/.env, backend/.env.production (local)
+ VPS /opt/soundly/.env
+ ─────────────────────
+ • YOUTUBE_API_KEY mise à jour ; pm2 reload prod.
+
+FICHIERS MODIFIÉS
+-----
+ msdev/.env, backend/.env.production (hors Git)
+
+================================================================================
+Fin MODIF 680 — 2026-06-23
+================================================================================
+
+================================================================================
+MODIF 681 — Gmail Pro admin@getsoundy.com : mentions légales prod alignées
+Date : 2026-06-23
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Finaliser l'usage de admin@getsoundy.com (Gmail Pro) : emails légaux prod
+ encore sur valentin.goulven@gmail.com dans legal-publisher.json.
+
+CHANGEMENTS / FIX
+-----
+ VPS /opt/soundly/legal-publisher.json
+ ─────────────────────────────────────
+ • contactEmail / privacyEmail / dpoEmail → @getsoundy.com
+
+FICHIERS MODIFIÉS
+-----
+ legal-publisher.json (VPS prod uniquement)
+
+================================================================================
+Fin MODIF 681 — 2026-06-23
+================================================================================
+
+================================================================================
+MODIF 682 — Affichage mobile web getsoundy.com (coque téléphone)
+Date : 2026-06-22
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur téléphone (navigateur Safari/Chrome, pas l'app Capacitor), getsoundy.com
+ utilisait le layout desktop : pas de coque ms-phone-shell, carte en panneau
+ latéral, quick wins uniquement via flag build.
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/phoneViewport.ts
+ ────────────────────────────
+ • Détection viewport mobile web (≤430px ou ≤767px + touch), exclusion apptel.
+
+ app/src/hooks/usePhoneWebViewport.ts, app/src/components/PhoneWebShell.tsx
+ ───────────────────────────────────────────────────────────────────────────
+ • Hook React + wrapper ms-phone-shell autour de toute l'app.
+
+ app/src/main.tsx
+ ────────────────
+ • sync data-phone-viewport sur <html> ; quick wins auto sur mobile web.
+
+ app/src/pages/HomePage.tsx
+ ──────────────────────────
+ • Carte en panneau bas (compact) via useCompactMapViewport.
+
+ app/src/index.css
+ ─────────────────
+ • Styles ms-phone-shell, tab bar et header centrés, fond letterbox.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/lib/phoneViewport.ts → détection mobile web
+ app/src/hooks/usePhoneWebViewport.ts → hooks viewport
+ app/src/components/PhoneWebShell.tsx → coque téléphone
+ app/src/main.tsx → attribut html + PhoneWebShell
+ app/src/pages/HomePage.tsx → layout carte compact
+ app/src/index.css → styles coque mobile
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 682 — 2026-06-22
+================================================================================

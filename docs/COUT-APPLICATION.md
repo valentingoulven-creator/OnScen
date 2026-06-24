@@ -86,6 +86,7 @@ Coûts récurrents indépendants du volume de spectateurs live (hors bande passa
 | **VPS Scaleway** | ~8–12 € | Instance type DEV1-S ou équivalent (Paris `fr-par`) — Node, Caddy, PM2, Coturn, backups locaux. Réf. deploy : DEV1-S ~1,9 Go RAM suffisant pour app seule ; Postgres sur le même VPS déconseillé en prod. |
 | **PostgreSQL Managed Scaleway** | ~15 € | Plan **DB-DEV-S** (1 vCPU, 2 Go RAM, 10 Go SSD) — instance `soundy-prod`, région Paris. Whitelist IP VPS `51.159.164.100/32`. |
 | **Domaine getsoundy.com** | ~1 € | Renouvellement annuel ~10–15 €/an (registrar variable). DNS géré côté registrar / Cloudflare selon config. |
+| **Gmail Pro (Google Workspace)** | **16,90 €** | Messagerie professionnelle équipe `@getsoundy.com` (forfait Google Workspace). |
 | **Coturn (TURN WebRTC)** | **Inclus** | Service Coturn sur le même VPS (`51.159.164.100:3478`) — pas de coût SaaS séparé ; consomme CPU/bande passante VPS. |
 | **Cloudflare Stream** | **0 € fixe** | Pay-as-you-go à la consommation (voir §3.2). |
 | **LiveKit Cloud Build** | **0 € fixe** | Quota gratuit (voir §3.3) ; Ship ~50 $/mois si dépassement. |
@@ -95,7 +96,7 @@ Coûts récurrents indépendants du volume de spectateurs live (hors bande passa
 
 | Scénario | Mensuel |
 |----------|---------|
-| **MVP prod** (VPS + DB + domaine) | **~24–28 €/mois** |
+| **MVP prod** (VPS + DB + domaine + Gmail Pro) | **~41–45 €/mois** |
 | **+ LiveKit Ship** (si quota dépassé) | **+ ~46 €/mois** (~50 $) |
 | **+ outils dev optionnels** | variable |
 
@@ -107,7 +108,7 @@ Dans l’interface **Administration** (compte admin), l’onglet **Coût** (`app
 
 - Les **coûts fixes** et grilles tarifaires LiveKit / Cloudflare (résumé de ce document)
 - Les **coûts Cloudflare en temps réel** via `GET /api/admin/cloudflare-usage` (minutes livrées GraphQL, stockage, live inputs actifs, estimation USD/EUR du mois en cours)
-- Une **estimation mensuelle totale** : infra fixe (~24–28 €) + variable Cloudflare
+- Une **estimation mensuelle totale** : infra fixe (~41–45 €) + variable Cloudflare
 
 > LiveKit n’expose pas d’API billing publique dans l’app : surveiller le [dashboard LiveKit](https://cloud.livekit.io) pour les quotas Build / Ship.
 

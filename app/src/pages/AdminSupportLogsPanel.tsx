@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
@@ -13,6 +13,9 @@ import type { AppDiagnosticLog, AppDiagnosticLogsResponse } from '../types';
 type LevelFilter = 'all' | 'error' | 'warn' | 'info';
 type LineCount = 50 | 100 | 200;
 type LogSource = 'server' | 'local' | 'both';
+
+/** Fenêtre « santé app » : aucune erreur = check vert. */
+const LOG_HEALTH_WINDOW_MS = 10 * 60 * 1000;
 
 function levelTextColor(level: AppDiagnosticLog['level']): string {
   if (level === 'error') return 'text-red-400';
@@ -139,6 +142,18 @@ export function AdminSupportLogsPanel() {
 
   const filteredLines = merged.filter((l) => levelFilter === 'all' || l.level === levelFilter);
 
+  const recentErrors = useMemo(
+    () =>
+      merged.filter((l) => {
+        if (l.level !== 'error') return false;
+        const age = Date.now() - new Date(l.createdAt).getTime();
+        return age >= 0 && age < LOG_HEALTH_WINDOW_MS;
+      }),
+    [merged]
+  );
+
+  const logsHealthOk = !loading && recentErrors.length === 0;
+
   function handleCopy() {
     const text = filteredLines
       .map(
@@ -173,6 +188,32 @@ export function AdminSupportLogsPanel() {
 
   return (
     <div className="space-y-3">
+      <div
+        className={`flex items-start gap-2.5 rounded-xl border px-3 py-2.5 ${
+          logsHealthOk
+            ? 'border-emerald-500/35 bg-emerald-500/10'
+            : 'border-red-500/35 bg-red-500/10'
+        }`}
+        role="status"
+      >
+        <span
+          className={`shrink-0 mt-0.5 flex items-center justify-center w-6 h-6 rounded-full text-sm font-bold ${
+            logsHealthOk ? 'bg-emerald-500/25 text-emerald-300' : 'bg-red-500/25 text-red-300'
+          }`}
+          aria-hidden
+        >
+          {logsHealthOk ? '✓' : '!'}
+        </span>
+        <div className="min-w-0 text-left">
+          <p className={`text-xs font-semibold ${logsHealthOk ? 'text-emerald-200' : 'text-red-200'}`}>
+            {logsHealthOk
+              ? t('admin.support.logsHealthOk')
+              : t('admin.support.logsHealthError', { count: recentErrors.length })}
+          </p>
+          <p className="text-[10px] text-gray-500 mt-0.5">{t('admin.support.logsHealthWindow')}</p>
+        </div>
+      </div>
+
       <p className="text-xs text-gray-500">{t('admin.support.logsHint')}</p>
 
       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -299,6 +340,11 @@ export function AdminSupportLogsPanel() {
                 {line.url && <p className="break-all">URL: {line.url}</p>}
                 {line.clientId && <p>Client: {line.clientId}</p>}
                 {line.stack && <pre className="whitespace-pre-wrap break-all text-red-300/80">{line.stack}</pre>}
+                {line.context && Object.keys(line.context).length > 0 && (
+                  <pre className="whitespace-pre-wrap break-all text-gray-400/90">
+                    {JSON.stringify(line.context, null, 2)}
+                  </pre>
+                )}
               </div>
             </details>
           ))

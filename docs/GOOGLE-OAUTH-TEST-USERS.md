@@ -10,7 +10,7 @@
 | Client ID OAuth | `522947046161-l5bvl70k83jd1k98rc675k6nk8vravhb.apps.googleusercontent.com` |
 | Numéro de projet GCP | `522947046161` (préfixe du Client ID) |
 | Callback YouTube | `https://getsoundy.com/api/auth/youtube/callback` |
-| Compte à autoriser | `valentin.goulven@gmail.com`, `kev.sainto@hotmail.fr` (Dye) |
+| Compte à autoriser | `admin@getsoundy.com`, `kev.sainto@hotmail.fr` (Dye) |
 
 Symptôme typique : Google affiche *« Access blocked »* ou renvoie `error=access_denied` après le consentement OAuth, car l'app n'est pas en production vérifiée et l'utilisateur n'est pas dans la liste des **test users**.
 
@@ -30,7 +30,7 @@ Symptôme typique : Google affiche *« Access blocked »* ou renvoie `error=acce
 
 4. Section **Test users** → **Add users** → saisir (un par ligne ou séparés) :
    ```
-   valentin.goulven@gmail.com
+   admin@getsoundy.com
    kev.sainto@hotmail.fr
    ```
    → **Save**.

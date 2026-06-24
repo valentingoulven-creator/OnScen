@@ -22,16 +22,20 @@ export function VirtualList<T>({
   followOutput,
   initialTopMostItemIndex,
 }: VirtualListProps<T>) {
+  // Ne pas passer undefined à Virtuoso : initialTopMostItemIndex undefined provoque
+  // « Cannot read properties of undefined (reading 'index') » au scroll initial (fil).
   return (
     <Virtuoso
       className={className}
       useWindowScroll={useWindowScroll}
-      customScrollParent={customScrollParent ?? undefined}
       data={items}
       overscan={300}
-      followOutput={followOutput}
-      initialTopMostItemIndex={initialTopMostItemIndex}
       itemContent={(index, item) => renderItem(item, index)}
+      {...(customScrollParent != null ? { customScrollParent } : {})}
+      {...(followOutput !== undefined ? { followOutput } : {})}
+      {...(typeof initialTopMostItemIndex === 'number' && Number.isFinite(initialTopMostItemIndex)
+        ? { initialTopMostItemIndex }
+        : {})}
     />
   );
 }

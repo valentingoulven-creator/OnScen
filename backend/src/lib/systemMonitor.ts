@@ -5,7 +5,7 @@
  *   RAM_ALERT_THRESHOLD   – RAM % that triggers a warning alert (default 85)
  *   CPU_ALERT_THRESHOLD   – CPU load % (1-min avg / cores) that triggers a warning (default 90)
  *   DISK_ALERT_THRESHOLD  – disk used % that triggers a warning alert (default 80)
- *   ALERT_EMAIL           – primary recipient for system alerts (default valentin.goulven@gmail.com)
+ *   ALERT_EMAIL           – primary recipient for system alerts (default admin@getsoundy.com)
  *
  * Debounce: at most one alert email per metric per hour.
  * Checks are run every 5 minutes (same as serverMonitor.ts).
@@ -24,7 +24,7 @@ const DISK_THRESHOLD = parseInt(process.env.DISK_ALERT_THRESHOLD ?? process.env.
 const CHECK_INTERVAL_MS = parseInt(process.env.MONITOR_INTERVAL_MS ?? '300000', 10);
 const DEBOUNCE_MS = 60 * 60 * 1000; // 1 hour per metric
 
-const alertEmail = process.env.ALERT_EMAIL ?? process.env.SMTP_ADMIN_EMAIL ?? 'valentin.goulven@gmail.com';
+const alertEmail = process.env.ALERT_EMAIL ?? process.env.SMTP_ADMIN_EMAIL ?? 'admin@getsoundy.com';
 
 const lastAlertTime = new Map<'ram' | 'cpu' | 'disk', number>();
 

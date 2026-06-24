@@ -1,7 +1,7 @@
 /**
  * Monitoring alert notifier.
  * Sends email alerts via Resend HTTP API (RESEND_API_KEY) or SMTP (nodemailer fallback).
- * Recipients: SMTP_ADMIN_EMAIL (default valentin.goulven@gmail.com) + ALERT_EXTRA_EMAILS (comma-sep).
+ * Recipients: SMTP_ADMIN_EMAIL (default admin@getsoundy.com) + ALERT_EXTRA_EMAILS (comma-sep).
  * Cooldown: same alert type cannot be emailed more than once per 30 min (configurable).
  */
 
@@ -39,7 +39,7 @@ const COOLDOWN_MS = parseInt(process.env.ALERT_COOLDOWN_MS ?? '1800000', 10); //
 
 function getRecipients(): string[] {
   const recipients = new Set<string>();
-  recipients.add('valentin.goulven@gmail.com');
+  recipients.add('admin@getsoundy.com');
   const adminEmail = process.env.SMTP_ADMIN_EMAIL;
   if (adminEmail) recipients.add(adminEmail);
   const extra = process.env.ALERT_EXTRA_EMAILS ?? '';

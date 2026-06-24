@@ -410,6 +410,44 @@ body {
   padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
 }
 
+/* ── Coque téléphone web (getsoundy.com mobile) ─────────────────── */
+.ms-phone-shell {
+  width: 100%;
+  max-width: var(--phone-max-w);
+  min-height: 100dvh;
+  height: 100dvh;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  background: var(--ms-bg);
+}
+
+html[data-phone-viewport='1'] {
+  background: #000;
+}
+
+html[data-phone-viewport='1'] body {
+  background: #000;
+  overflow-x: hidden;
+  overscroll-behavior-y: none;
+}
+
+html[data-phone-viewport='1'] #root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.ms-phone-shell nav.ms-tab-bar-bottom {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--phone-max-w);
+}
+
 /* ── Header Soundly fixe (toujours visible au scroll) ─────────────── */
 header.ms-app-header {
   position: fixed;

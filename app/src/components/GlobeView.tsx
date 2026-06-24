@@ -36,16 +36,6 @@ interface GlobeRing {
 /** Altitude en dessous de laquelle le globe bascule automatiquement vers la carte plate. */
 const ALTITUDE_AUTO_SWITCH = 0.03;
 
-/** Cap pixel ratio — évite le surcoût GPU sur mobile (DPR 2–3). */
-const GLOBE_MAX_PIXEL_RATIO = 1.5;
-
-/**
- * Désactive l'antialiasing WebGL sur mobile/écrans haute densité (DPR > 1).
- * Sur ces devices le DPR élevé donne déjà un rendu lissé nativement ;
- * activer l'antialias alourdit le fragment shader inutilement.
- */
-const GLOBE_USE_ANTIALIAS = typeof window !== 'undefined' && window.devicePixelRatio <= 1;
-
 /**
  * Appareil à faible puissance GPU : mobile, petit DPR, ou peu de cœurs CPU.
  * Sur ces devices un nombre élevé de markers risque l'OOM / crash WebGL.
@@ -63,9 +53,168 @@ const GLOBE_OVERVIEW_CAP = IS_LOW_POWER_DEVICE ? 400 : 5000;
 /** Debounce POV pour rechargement nearby (filtre Lives). */
 const POV_DEBOUNCE_MS = 600;
 
+/** Profil rendu adaptatif — netteté desktop vs perf mobile. */
+const GLOBE_RENDER_PROFILE = (() => {
+  const base = {
+    skyTexture: '/globe/night-sky.png',
+    backgroundColor: '#000004',
+    atmosphereColor: 'rgba(120, 90, 255, 0.72)',
+    atmosphereAltitude: 0.18,
+    toneExposure: 1.04,
+    spaceLighting: false,
+    skyBrightness: 1,
+  };
+  if (typeof window === 'undefined') {
+    return {
+      maxPixelRatio: 1.5,
+      antialias: false,
+      curvatureResolution: 4,
+      bumpTexture: null as string | null,
+      bumpScale: 0,
+      labelResolution: 3,
+      ...base,
+    };
+  }
+  if (IS_LOW_POWER_DEVICE) {
+    return {
+      maxPixelRatio: Math.min(window.devicePixelRatio, 1.5),
+      antialias: false,
+      curvatureResolution: 4,
+      bumpTexture: null,
+      bumpScale: 0,
+      labelResolution: 3,
+      ...base,
+    };
+  }
+  return {
+    maxPixelRatio: Math.min(window.devicePixelRatio, 2),
+    antialias: true,
+    curvatureResolution: 8,
+    bumpTexture: '/globe/earth-topology.png',
+    bumpScale: 0.32,
+    labelResolution: 5,
+    skyTexture: '/globe/stars-enhanced.jpg',
+    backgroundColor: '#000000',
+    /** Halo atmosphérique bleu (vue ISS) avec légère teinte Soundy. */
+    atmosphereColor: 'rgba(52, 118, 198, 0.48)',
+    atmosphereAltitude: 0.12,
+    toneExposure: 0.98,
+    spaceLighting: true,
+    skyBrightness: 1.12,
+  };
+})();
+
 /** Textures globe servies localement (app/public/globe → backend/public/globe). */
 const GLOBE_EARTH_TEXTURE = '/globe/earth-night.jpg';
-const GLOBE_SKY_TEXTURE = '/globe/night-sky.png';
+
+/** Améliore netteté textures + rendu HDR (desktop). Constantes Three.js (transitif via react-globe.gl). */
+const THREE_LINEAR_FILTER = 1006;
+const THREE_LINEAR_MIPMAP_LINEAR = 1008;
+const THREE_SRGB_COLOR_SPACE = 'srgb';
+const THREE_ACES_FILMIC = 4;
+
+type GlobeTexture = {
+  anisotropy: number;
+  minFilter: number;
+  magFilter: number;
+  generateMipmaps?: boolean;
+  needsUpdate: boolean;
+};
+
+type GlobePhongMaterial = {
+  map?: GlobeTexture;
+  bumpMap?: GlobeTexture;
+  bumpScale?: number;
+  shininess?: number;
+  specular?: { setHex: (hex: number) => void };
+  color?: { setRGB: (r: number, g: number, b: number) => void };
+  needsUpdate?: boolean;
+};
+
+function configureGlobeSpaceLighting(globe: GlobeMethods): void {
+  globe.scene().traverse((obj: unknown) => {
+    const light = obj as {
+      isAmbientLight?: boolean;
+      isDirectionalLight?: boolean;
+      intensity?: number;
+      color?: { setHex: (hex: number) => void };
+    };
+    if (light.isAmbientLight && typeof light.intensity === 'number') {
+      light.intensity = 0.2;
+      light.color?.setHex(0x080c18);
+    }
+    if (light.isDirectionalLight && typeof light.intensity === 'number') {
+      light.intensity = 0.9;
+      light.color?.setHex(0xfff0e0);
+    }
+  });
+}
+
+function applyGlobeVisualProfile(globe: GlobeMethods): void {
+  configureGlobeVisualQuality(globe, GLOBE_RENDER_PROFILE.bumpScale, {
+    toneExposure: GLOBE_RENDER_PROFILE.toneExposure,
+    spaceLighting: GLOBE_RENDER_PROFILE.spaceLighting,
+    skyBrightness: GLOBE_RENDER_PROFILE.skyBrightness,
+  });
+}
+
+function configureGlobeVisualQuality(
+  globe: GlobeMethods,
+  bumpScale: number,
+  opts: { toneExposure: number; spaceLighting: boolean; skyBrightness: number }
+): void {
+  try {
+    const renderer = globe.renderer() as {
+      outputColorSpace: string;
+      toneMapping: number;
+      toneMappingExposure: number;
+      capabilities: { getMaxAnisotropy: () => number };
+    };
+    renderer.outputColorSpace = THREE_SRGB_COLOR_SPACE;
+    renderer.toneMapping = THREE_ACES_FILMIC;
+    renderer.toneMappingExposure = opts.toneExposure;
+
+    const maxAniso = renderer.capabilities.getMaxAnisotropy();
+
+    globe.scene().traverse((obj: unknown) => {
+      const mesh = obj as { isMesh?: boolean; material?: GlobePhongMaterial | GlobePhongMaterial[] };
+      if (!mesh.isMesh || !mesh.material) return;
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      for (const m of materials) {
+        const isSkyMaterial = m.map && !m.bumpMap && typeof m.shininess !== 'number';
+        if (m.map) {
+          m.map.anisotropy = maxAniso;
+          m.map.minFilter = THREE_LINEAR_MIPMAP_LINEAR;
+          m.map.magFilter = THREE_LINEAR_FILTER;
+          m.map.generateMipmaps = true;
+          m.map.needsUpdate = true;
+        }
+        if (m.bumpMap) {
+          m.bumpMap.anisotropy = maxAniso;
+          m.bumpMap.minFilter = THREE_LINEAR_MIPMAP_LINEAR;
+          m.bumpMap.magFilter = THREE_LINEAR_FILTER;
+          m.bumpMap.needsUpdate = true;
+          if (bumpScale > 0) m.bumpScale = bumpScale;
+        }
+        if (typeof m.shininess === 'number') {
+          m.shininess = 18;
+          m.specular?.setHex(0x2a2840);
+        }
+        if (isSkyMaterial && m.color && opts.skyBrightness !== 1) {
+          const b = opts.skyBrightness;
+          m.color.setRGB(b, b, b * 1.04);
+        }
+        m.needsUpdate = true;
+      }
+    });
+
+    if (opts.spaceLighting) {
+      configureGlobeSpaceLighting(globe);
+    }
+  } catch {
+    /* mesh / textures pas encore prêts */
+  }
+}
 
 /**
  * Stable empty arrays — passed as globe layer props when the layer has no data.
@@ -94,7 +243,7 @@ const EMPTY_CAPITAL_LABELS: GlobeCapitalLabel[] = [];
  *     not take globe screenshots, so the flag is unnecessary.
  */
 const GLOBE_RENDERER_CONFIG = {
-  antialias: GLOBE_USE_ANTIALIAS,
+  antialias: GLOBE_RENDER_PROFILE.antialias,
   alpha: true,
   powerPreference: 'default' as WebGLPowerPreference,
   failIfMajorPerformanceCaveat: false,
@@ -406,7 +555,8 @@ export const GlobeView = memo(function GlobeView({
     }
     try {
       const renderer = (globeRef.current as unknown as { renderer: () => { domElement: HTMLCanvasElement; setPixelRatio: (r: number) => void } }).renderer();
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, GLOBE_MAX_PIXEL_RATIO));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, GLOBE_RENDER_PROFILE.maxPixelRatio));
+      applyGlobeVisualProfile(globeRef.current);
 
       // Ensure the canvas captures all touch gestures so OrbitControls handles
       // drag/rotation everywhere on mobile without browser interference.
@@ -751,6 +901,13 @@ export const GlobeView = memo(function GlobeView({
 
   const overviewDots = markerVisibility.density === 'overview';
   const pointResolution = isInteracting ? 3 : overviewDots ? 4 : 8;
+  const labelResolution = isInteracting ? 3 : GLOBE_RENDER_PROFILE.labelResolution;
+
+  const handleGlobeReady = useCallback(() => {
+    if (globeRef.current) {
+      applyGlobeVisualProfile(globeRef.current);
+    }
+  }, []);
 
   const handlePointClick = useCallback(
     (pointObj: object) => {
@@ -817,7 +974,7 @@ export const GlobeView = memo(function GlobeView({
   );
 
   return (
-    <div ref={containerRef} className="absolute inset-0 bg-[#010112] overflow-hidden touch-none">
+    <div ref={containerRef} className="absolute inset-0 bg-black overflow-hidden touch-none">
       {size.w > 0 && (
         <Globe
           ref={globeRef}
@@ -826,12 +983,15 @@ export const GlobeView = memo(function GlobeView({
           animateIn={false}
           waitForGlobeReady={false}
           rendererConfig={GLOBE_RENDERER_CONFIG}
+          onGlobeReady={handleGlobeReady}
+          globeCurvatureResolution={GLOBE_RENDER_PROFILE.curvatureResolution}
+          backgroundColor={GLOBE_RENDER_PROFILE.backgroundColor}
           // Earth-at-night texture: dark continents + city lights (bundled locally)
           globeImageUrl={GLOBE_EARTH_TEXTURE}
-          backgroundImageUrl={GLOBE_SKY_TEXTURE}
-          // Purple-indigo atmosphere matching app palette
-          atmosphereColor="rgba(120, 90, 255, 0.85)"
-          atmosphereAltitude={0.22}
+          bumpImageUrl={GLOBE_RENDER_PROFILE.bumpTexture}
+          backgroundImageUrl={GLOBE_RENDER_PROFILE.skyTexture}
+          atmosphereColor={GLOBE_RENDER_PROFILE.atmosphereColor}
+          atmosphereAltitude={GLOBE_RENDER_PROFILE.atmosphereAltitude}
           pointsTransitionDuration={0}
           labelsTransitionDuration={0}
           // Salon / live / person markers
@@ -861,7 +1021,7 @@ export const GlobeView = memo(function GlobeView({
           labelColor={getLabelColor}
           labelDotRadius={0.3}
           labelAltitude={0.003}
-          labelResolution={3}
+          labelResolution={labelResolution}
         />
       )}
     </div>

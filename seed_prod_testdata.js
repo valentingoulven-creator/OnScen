@@ -10,7 +10,7 @@ dotenv.config({ path: '/opt/soundly/.env' });
 
 const ID_PREFIX = 'prod-seed-';
 const LE_CRES = { lat: 43.6489, lon: 3.9394 };
-const TARGET_EMAIL = (process.env.SEED_TARGET_EMAIL || 'valentin.goulven@gmail.com').toLowerCase();
+const TARGET_EMAIL = (process.env.SEED_TARGET_EMAIL || 'admin@getsoundy.com').toLowerCase();
 
 const FOLLOWER_USERNAMES = [
   'soundy_user1',

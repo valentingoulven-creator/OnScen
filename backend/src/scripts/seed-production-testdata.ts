@@ -4,7 +4,7 @@
  *   cd /opt/soundly && APP_ENV=production node dist/scripts/seed-production-testdata.js
  *
  * Variables optionnelles :
- *   SEED_TARGET_EMAIL — email du compte cible (défaut : valentin.goulven@gmail.com)
+ *   SEED_TARGET_EMAIL — email du compte cible (défaut : admin@getsoundy.com)
  *   SEED_TARGET_USERNAME — pseudo alternatif (défaut : Val)
  */
 import dotenv from 'dotenv';

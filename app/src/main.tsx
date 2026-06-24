@@ -10,12 +10,25 @@ import { AppErrorBoundary } from './components/AppErrorBoundary.tsx';
 import { MsdevEnvIndicator } from './components/MsdevEnvBadge.tsx';
 import { AuthProvider } from './context/AuthContext.tsx';
 import { DmUnreadProvider } from './context/DmUnreadContext.tsx';
+import { PhoneWebShell } from './components/PhoneWebShell.tsx';
+import {
+  isPhoneWebViewport,
+  subscribePhoneWebViewport,
+  syncPhoneWebViewportClass,
+} from './lib/phoneViewport';
 
 initAppTheme();
 initDiagnosticLogs();
 
-/** Design quick wins locaux — activer via VITE_DESIGN_QUICK_WINS=1 (.env.development.local). */
-if (import.meta.env.VITE_DESIGN_QUICK_WINS === '1') {
+syncPhoneWebViewportClass();
+subscribePhoneWebViewport(() => {
+  syncPhoneWebViewportClass();
+});
+
+/** Design quick wins — build prod ou navigateur mobile (getsoundy.com). */
+const enableDesignQuickWins =
+  import.meta.env.VITE_DESIGN_QUICK_WINS === '1' || isPhoneWebViewport();
+if (enableDesignQuickWins) {
   document.documentElement.setAttribute('data-design-quick-wins', '1');
   const fontLink = document.createElement('link');
   fontLink.rel = 'stylesheet';
@@ -76,14 +89,16 @@ if (import.meta.env.PROD && !isMsdevBuild) {
 const rootEl = document.getElementById('root')!;
 createRoot(rootEl).render(
   <StrictMode>
-    <AppErrorBoundary>
-      <AuthProvider>
-        <DmUnreadProvider>
-          <MsdevEnvIndicator />
-          <App />
-        </DmUnreadProvider>
-      </AuthProvider>
-    </AppErrorBoundary>
+    <PhoneWebShell>
+      <AppErrorBoundary>
+        <AuthProvider>
+          <DmUnreadProvider>
+            <MsdevEnvIndicator />
+            <App />
+          </DmUnreadProvider>
+        </AuthProvider>
+      </AppErrorBoundary>
+    </PhoneWebShell>
   </StrictMode>
 );
 

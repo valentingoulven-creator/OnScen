@@ -12,6 +12,7 @@ type CostsSubTab = 'summary' | 'pricing';
 const FIXED_COSTS = [
   { label: 'VPS Scaleway (DEV1-S)', amount: '~8–12 €', note: '51.159.164.100 — /opt/soundly' },
   { label: 'PostgreSQL Scaleway (DB-DEV-S)', amount: '~15 €', note: 'Base managée Paris, sslmode=require' },
+  { label: 'Gmail Pro (Google Workspace)', amount: '16,90 €', note: 'Messagerie équipe @getsoundy.com' },
   { label: 'Domaine getsoundy.com', amount: '~1 €', note: 'Renouvellement annuel ~10–15 €' },
   { label: 'Coturn TURN', amount: '0 €', note: 'Sur le même VPS (port 3478)' },
   { label: 'Caddy + PM2', amount: '0 €', note: 'Inclus VPS' },
@@ -254,8 +255,8 @@ export function AdminCostsTab() {
   }, [load]);
 
   const locale = i18n.language.startsWith('en') ? 'en-GB' : 'fr-FR';
-  const fixedTotalMidEur = 26;
-  const fixedTotal = '~24–28 €/mois';
+  const fixedTotalMidEur = 42.9;
+  const fixedTotal = '~41–45 €/mois';
   const platformFeePercent = donations?.platformFeePercent ?? 30;
 
   const monthlyEstimateEur =

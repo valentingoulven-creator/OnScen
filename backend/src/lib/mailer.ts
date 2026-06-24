@@ -14,7 +14,7 @@ export async function sendSupportAlertEmail(params: {
     return;
   }
 
-  const adminEmail = process.env.SMTP_ADMIN_EMAIL ?? 'valentin.goulven@gmail.com';
+  const adminEmail = process.env.SMTP_ADMIN_EMAIL ?? 'admin@getsoundy.com';
   const from = getEmailFrom('Soundy');
   const adminUrl = `${process.env.WEB_APP_URL ?? 'https://getsoundy.com'}/admin?tab=support`;
 
