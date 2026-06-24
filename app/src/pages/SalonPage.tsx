@@ -21,6 +21,7 @@ import { SalonAccessModeToggle } from '../components/SalonAccessModeToggle';
 import { SalonInviteSheet } from '../components/SalonInviteSheet';
 import { SalonParticipantsPopover } from '../components/SalonParticipantsPopover';
 import { useSalonQueueSync } from '../hooks/useSalonQueueSync';
+import { useCompactMapViewport } from '../hooks/usePhoneWebViewport';
 import { emitOnSocket } from '../lib/socket';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { ShareLinkMenu } from '../components/ShareLinkMenu';
@@ -35,7 +36,7 @@ const SALON_CHAT_HIDDEN_KEY = 'soundly_salon_chat_hidden';
 const SALON_CHAT_MINIMIZED_KEY = 'soundly_salon_chat_minimized';
 
 function readSalonChatHidden(): boolean {
-  if (window.innerWidth < 640) return true;
+  if (window.innerWidth < 640) return false;
   try {
     return localStorage.getItem(SALON_CHAT_HIDDEN_KEY) === '1';
   } catch {
@@ -91,6 +92,7 @@ export function SalonPage({
 
   const { user, token, setUserFromProfile, refreshUser } = useAuth();
   const { t } = useTranslation();
+  const mobileRoom = useCompactMapViewport();
 
   const [salon, setSalon] = useState<Salon | null>(null);
 
@@ -738,9 +740,10 @@ export function SalonPage({
       <ChatRoomProvider {...chatProps}>
         <RoomTheaterLayout
           variant="theater"
-          chatDock="left"
+          chatDock={mobileRoom ? 'bottom' : 'left'}
+          stackBelowVideo={mobileRoom}
           allowFloatingChat={false}
-          sideDockMatchHero
+          sideDockMatchHero={!mobileRoom}
           headerLayout="full-width"
           topBarStart={salonTopBarStart}
           topBarEnd={salonTopBarEnd}
@@ -783,7 +786,7 @@ export function SalonPage({
               onPlaybackStateChange={applyPlayback}
               theaterMode
               salonFullScreen={salonFullScreen}
-              theaterSideDock
+              theaterSideDock={!mobileRoom}
               salonQueueLayout={false}
               hostCanControl={hostCanControl}
               queue={queue}

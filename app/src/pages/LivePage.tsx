@@ -24,6 +24,7 @@ import {
   getLiveMediaPrefs,
   hasPendingLiveCameraStart,
 } from '../lib/liveMediaPrefs';
+import { releaseLiveCameraHandoff } from '../lib/liveCameraHandoff';
 import { ChatRoomProvider, ChatMessagesView, ChatInputBar, ChatModals } from '../components/ChatPanel';
 import { RoomTheaterLayout } from '../components/RoomTheaterLayout';
 import { LivePrivateSheet } from '../components/LivePrivateSheet';
@@ -725,6 +726,7 @@ export function LivePage({
   const releaseHostLiveMedia = useCallback(() => {
     pendingCameraStartGenRef.current += 1;
     clearPendingLiveCameraStart();
+    releaseLiveCameraHandoff();
     if (hostCameraBroadcastRef.current) {
       emitCameraState(false);
     }

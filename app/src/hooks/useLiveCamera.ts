@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { LIVE_CAMERA_FILE_LOAD_ERROR } from '../lib/liveCameraMessages';
-import { getLiveMediaPrefs } from '../lib/liveMediaPrefs';
+import { getLiveMediaPrefs, setLiveMediaPrefs } from '../lib/liveMediaPrefs';
+import { takeLiveCameraHandoff } from '../lib/liveCameraHandoff';
 import {
   acquireLiveCameraStream,
   attachLiveCameraStream,
@@ -18,7 +19,6 @@ import {
   waitForVideoFileMetadata,
   type LiveMediaDeviceOption,
 } from '../lib/liveCameraSupport';
-import { setLiveMediaPrefs } from '../lib/liveMediaPrefs';
 
 export type LiveCameraMode = 'camera' | 'file' | null;
 
@@ -150,6 +150,40 @@ export function useLiveCamera() {
 
     try {
       stop();
+
+      const handedOff = takeLiveCameraHandoff();
+      if (handedOff) {
+        for (const track of handedOff.getTracks()) {
+          track.enabled = true;
+        }
+        streamRef.current = handedOff;
+        setBroadcastStream(handedOff);
+        setMode('camera');
+        setActive(true);
+        setCameraUsable(true);
+
+        const previewEl = videoRef.current;
+        if (previewEl) {
+          configureLiveVideoElement(previewEl);
+          if (previewEl.src) previewEl.removeAttribute('src');
+          previewEl.srcObject = handedOff;
+        }
+
+        const [mics, cams] = await Promise.all([
+          listLiveAudioInputDevices(),
+          listLiveVideoInputDevices(),
+        ]);
+        setAudioDevices(mics);
+        setVideoDevices(cams);
+        const activeMic = handedOff.getAudioTracks()[0]?.getSettings().deviceId ?? '';
+        const activeCam = handedOff.getVideoTracks()[0]?.getSettings().deviceId ?? '';
+        setAudioDeviceId(activeMic);
+        setVideoDeviceId(activeCam);
+        const el = previewEl ?? (await waitForVideoElement());
+        if (el) await attachPreview();
+        return true;
+      }
+
       const prefs = getLiveMediaPrefs();
       const stream = await acquireLiveCameraStream(
         (c) => mediaDevices.getUserMedia(c),

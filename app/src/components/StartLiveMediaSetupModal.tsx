@@ -15,6 +15,7 @@ import {
   setPendingLiveCameraStart,
   type LiveMediaPrefs,
 } from '../lib/liveMediaPrefs';
+import { stashLiveCameraStream } from '../lib/liveCameraHandoff';
 import { getLivesGeo, type LivesGeoPrefs } from '../lib/livesGeo';
 import { SessionLocationPicker } from './SessionLocationPicker';
 
@@ -291,7 +292,14 @@ export function StartLiveMediaSetupModal({
     );
     setLiveMediaPrefs(prefs);
     setPendingLiveCameraStart();
-    stopStream();
+    if (streamRef.current) {
+      stashLiveCameraStream(streamRef.current);
+      streamRef.current = null;
+      const el = videoRef.current;
+      if (el) el.srcObject = null;
+    } else {
+      stopStream();
+    }
     onReady(prefs);
   };
 

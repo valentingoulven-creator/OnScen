@@ -3234,6 +3234,12 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   On agrandit à 2.75rem (44px) sur mobile uniquement pour le tap.
 */
 @media (max-width: 639px) {
+  .room-theater-side-row .room-theater-toggle {
+    display: flex;
+  }
+}
+
+@media (max-width: 639px) {
   .salon-header-icon-btn {
     width: 2.75rem;
     height: 2.75rem;

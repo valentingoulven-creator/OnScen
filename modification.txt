@@ -8806,3 +8806,46 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 682 — 2026-06-22
 ================================================================================
+
+================================================================================
+MODIF 683 — Mobile web : chat salon visible + live caméra iOS
+Date : 2026-06-24
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur téléphone (getsoundy.com) : après création d'un salon, le chat était masqué
+ par défaut (<640px) avec panneau latéral desktop invisible ; au lancement d'un
+ live, autorisation caméra/micro OK mais le flux ne démarrait pas (iOS Safari
+ bloque getUserMedia hors geste utilisateur).
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/SalonPage.tsx
+ ──────────────────────────
+ • Chat visible par défaut sur mobile ; dock bas (comme le live) au lieu de gauche.
+
+ app/src/lib/liveCameraHandoff.ts, useLiveCamera.ts, StartLiveMediaSetupModal.tsx
+ ───────────────────────────────────────────────────────────────────────────────
+ • Transfert du flux caméra du modal pré-live vers LivePage (sans recréer le flux).
+
+ app/src/pages/LivePage.tsx, app/src/index.css
+ ─────────────────────────────────────────────
+ • Nettoyage handoff ; languette chat salon visible sur mobile en secours.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/pages/SalonPage.tsx → layout chat mobile
+ app/src/lib/liveCameraHandoff.ts → handoff flux MediaStream
+ app/src/hooks/useLiveCamera.ts → adoption handoff
+ app/src/components/StartLiveMediaSetupModal.tsx → stash flux au confirm
+ app/src/pages/LivePage.tsx → release handoff
+ app/src/index.css → toggle chat mobile
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 683 — 2026-06-24
+================================================================================
