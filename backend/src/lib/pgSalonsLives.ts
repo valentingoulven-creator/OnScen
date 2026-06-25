@@ -166,3 +166,15 @@ export function persistLiveToPgAsync(live: Live): void {
   if (!isPostgresEnabled()) return;
   void upsertLiveToPg(live).catch((err) => logPgLiveError(`upsert live ${live.id}`, err));
 }
+
+/** Supprime un live de PostgreSQL (modération admin — ne pas restaurer au redémarrage). */
+export async function deleteLiveFromPg(liveId: string): Promise<void> {
+  await getPool().query('DELETE FROM lives WHERE id = $1', [liveId]);
+}
+
+export function deleteLiveFromPgAsync(liveId: string): void {
+  if (!isPostgresEnabled()) return;
+  void deleteLiveFromPg(liveId).catch((err) =>
+    logPgLiveError(`delete live ${liveId}`, err)
+  );
+}

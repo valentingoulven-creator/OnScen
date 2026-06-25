@@ -5,7 +5,13 @@ import { clearSalonPlaybackData } from './salonPlaybackOps';
 import { endLiveSession } from './liveArchive';
 import { schedulePersist } from './persist';
 import { schedulePersistReelToPg } from './pgReels';
-import { scheduleDeleteFeedPostFromPg } from './pgFeedPosts';
+import { scheduleDeleteFeedPostFromPg, schedulePersistFeedPostToPg } from './pgFeedPosts';
+import {
+  deleteLiveFromPgAsync,
+  markSalonInactivePgAsync,
+  persistLiveToPgAsync,
+  upsertSalonToPgAsync,
+} from './pgSalonsLives';
 import {
   isAdminBlockedReel,
   isPrivateReel,
@@ -42,6 +48,20 @@ export function mapAdminCreator(userId: string): AdminCreatorInfo | null {
 export function canViewAdminBlockedContent(viewerId: string | undefined): boolean {
   if (!viewerId) return false;
   return isDevUser(db.users.get(viewerId));
+}
+
+function persistSalonModerationToPg(salon: Salon): void {
+  upsertSalonToPgAsync(salon);
+}
+
+function persistLiveModerationToPg(live: Live): void {
+  persistLiveToPgAsync(live);
+}
+
+function persistLinkedSalonForLive(live: Live): void {
+  if (!live.salonId) return;
+  const salon = db.salons.get(live.salonId);
+  if (salon) persistSalonModerationToPg(salon);
 }
 
 export function isAdminBlockedSalon(salon: Salon): boolean {
@@ -171,6 +191,9 @@ export function adminBlockSalon(salonId: string): Salon | null {
   }
 
   getIo()?.to(`salon_${salonId}`).emit('salon_ended', { salonId, reason: 'admin_blocked' });
+  persistSalonModerationToPg(salon);
+  const blockedLive = db.lives.get(salonId);
+  if (blockedLive) persistLiveModerationToPg(blockedLive);
   return salon;
 }
 
@@ -187,6 +210,8 @@ export function adminUnblockSalon(salonId: string): Salon | null {
     live.adminBlockedAt = undefined;
     db.lives.set(salonId, live);
   }
+  persistSalonModerationToPg(salon);
+  if (live) persistLiveModerationToPg(live);
   return salon;
 }
 
@@ -207,6 +232,8 @@ export function adminDeleteSalon(salonId: string): boolean {
     db.liveChats.delete(salonId);
     db.liveBans.delete(salonId);
   }
+  markSalonInactivePgAsync(salonId);
+  deleteLiveFromPgAsync(salonId);
   return true;
 }
 
@@ -232,6 +259,8 @@ export function adminBlockLive(liveId: string): Live | null {
       getIo()?.to(`salon_${live.salonId}`).emit('salon_ended', { salonId: live.salonId, reason: 'admin_blocked' });
     }
   }
+  persistLiveModerationToPg(live);
+  persistLinkedSalonForLive(live);
   return live;
 }
 
@@ -250,6 +279,8 @@ export function adminUnblockLive(liveId: string): Live | null {
       db.salons.set(live.salonId, salon);
     }
   }
+  persistLiveModerationToPg(live);
+  persistLinkedSalonForLive(live);
   return live;
 }
 
@@ -260,6 +291,7 @@ export function adminDeleteLive(liveId: string): boolean {
   db.lives.delete(liveId);
   db.liveChats.delete(liveId);
   db.liveBans.delete(liveId);
+  deleteLiveFromPgAsync(liveId);
   return true;
 }
 
@@ -268,6 +300,7 @@ export function adminBlockEvent(postId: string): FeedPost | null {
   if (!post) return null;
   post.adminBlocked = true;
   post.adminBlockedAt = Date.now();
+  schedulePersistFeedPostToPg(post);
   return post;
 }
 
@@ -276,6 +309,7 @@ export function adminUnblockEvent(postId: string): FeedPost | null {
   if (!post) return null;
   post.adminBlocked = false;
   post.adminBlockedAt = undefined;
+  schedulePersistFeedPostToPg(post);
   return post;
 }
 

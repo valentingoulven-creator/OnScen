@@ -5,6 +5,7 @@ import { countPersistableProfilePhotos, normalizeProfilePhotos, publicProfile } 
 import { getFavoriteCount } from '../lib/favorites';
 import { isPrivateReel } from '../lib/reels';
 import { schedulePersist } from '../lib/persist';
+import { schedulePersistUserToPg } from '../lib/pgUsers';
 import {
   createInviteCode,
   deleteInviteCode,
@@ -237,6 +238,7 @@ accessRouter.post('/admin/users/:userId/approve', authenticateJWT, (req: Request
     res.status(404).json({ error: 'Utilisateur introuvable' });
     return;
   }
+  schedulePersistUserToPg(user);
   schedulePersist();
   res.json({ user: publicProfile(user, true, user.id) });
 });
@@ -253,6 +255,7 @@ accessRouter.post('/admin/users/:userId/block', authenticateJWT, (req: Request, 
     return;
   }
   const user = setUserAccountStatus(req.params.userId, 'blocked');
+  schedulePersistUserToPg(user!);
   schedulePersist();
   res.json({ user: publicProfile(user!, true, user!.id) });
 });
@@ -264,6 +267,7 @@ accessRouter.post('/admin/users/:userId/unblock', authenticateJWT, (req: Request
     res.status(404).json({ error: 'Utilisateur introuvable' });
     return;
   }
+  schedulePersistUserToPg(user);
   schedulePersist();
   res.json({ user: publicProfile(user, true, user.id) });
 });
@@ -275,6 +279,7 @@ accessRouter.post('/admin/users/:userId/promote', authenticateJWT, (req: Request
     res.status(result.status).json({ error: result.error });
     return;
   }
+  schedulePersistUserToPg(result);
   schedulePersist();
   res.json({ user: mapAdminManagedUser(result) });
 });
@@ -286,6 +291,7 @@ accessRouter.post('/admin/users/:userId/demote', authenticateJWT, (req: Request,
     res.status(result.status).json({ error: result.error });
     return;
   }
+  schedulePersistUserToPg(result);
   schedulePersist();
   res.json({ user: mapAdminManagedUser(result) });
 });

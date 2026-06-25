@@ -1,4 +1,54 @@
 ================================================================================
+MODIF 660 — Architecture 3 environnements Dev / Pré-prod / Prod
+Date : 2026-06-25
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Mettre en place une tierce environnement de pré-production (staging) entre le dev
+ local et la prod, avec base PostgreSQL isolée, VPS dédié et deploy paramétré.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/jwtSecret.ts
+ ─────────────────
+ • isPreproductionEnv(), isDeployedEnv() ; isProductionEnv() strict APP_ENV=production
+
+ backend/src/bootstrap.ts, productionStartup.ts, corsConfig.ts, pgStore.ts, accessControl.ts
+ ─────────────────
+ • Support APP_ENV=preproduction (PG, CORS, cookies, modération, garde-fous prod)
+
+ deploy/environments.ps1, deploy_zero_downtime.ps1
+ ─────────────────
+ • Deploy paramétré -Environment prod|preprod ; health fallback IP staging
+
+ deploy/Caddyfile.staging, ecosystem.staging.config.cjs, bootstrap-staging-vps.sh
+ ─────────────────
+ • Infra VPS staging 51.159.170.181 (soundly-staging, fr-par-2)
+
+ scripts/deploy-preprod.ps1, setup-staging-env.ps1, setup-staging-infra.ps1
+ ─────────────────
+ • Workflow deploy et bootstrap staging
+
+ docs/ENVIRONNEMENTS.md, .cursor/rules/deploy-prod.mdc, infra-access.mdc
+ ─────────────────
+ • Documentation et règles agent 3 tiers
+
+FICHIERS MODIFIÉS
+-----
+ Infra Scaleway → VPS soundly-staging DEV1-S, PG soundy_staging, ACL 51.159.170.181/32
+ Deploy → scripts/deploy-preprod.ps1, npm run deploy:preprod / app:build:preprod
+
+BUILD (si vérifié)
+-----
+ backend/ → npm test jwtSecret → ✅
+ deploy-preprod (SkipBuild) → http://51.159.170.181/health env=preproduction → ✅
+
+================================================================================
+Fin — 2026-06-25
+================================================================================
+
+================================================================================
 MODIF 659 — Quick wins perf S1 (bundle, geo, cache, infra)
 Date : 2026-06-23
 ================================================================================
@@ -9262,4 +9312,88 @@ BUILD (si vérifié)
 
 ================================================================================
 Fin MODIF 692 — 2026-06-24
+================================================================================
+
+================================================================================
+MODIF 693 — Admin : persistance PostgreSQL des actions de modération
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les actions admin (bloquer/débloquer/supprimer salon, live, événement) n'étaient
+ pas écrites dans les tables PostgreSQL dédiées (salons, lives, feed_posts) : au
+ redémarrage serveur, le contenu modéré réapparaissait sans blocage.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/adminContentModeration.ts
+ ────────────────────────────────────────
+ • upsert salon/live PG après block/unblock ; markSalonInactive + deleteLive PG
+   après suppression admin ; schedulePersistFeedPostToPg pour événements.
+
+ backend/src/lib/pgSalonsLives.ts
+ ───────────────────────────────
+ • deleteLiveFromPg / deleteLiveFromPgAsync pour suppression admin.
+
+ backend/src/routes/access.ts
+ ───────────────────────────
+ • schedulePersistUserToPg sur approve/block/unblock/promote/demote (comptes).
+
+FICHIERS MODIFIÉS
+-----
+ backend/src/lib/adminContentModeration.ts → persistance modération PG
+ backend/src/lib/pgSalonsLives.ts → delete live PG
+ backend/src/routes/access.ts → persistance immédiate comptes admin
+
+BUILD (si vérifié)
+-----
+ backend/ → npm test salonAccess → ✅
+
+================================================================================
+Fin MODIF 693 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 694 — Globe / carte : fluidité interaction (perf GPU + re-renders)
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Rotation globe et pan/zoom carte pouvaient saccader : boucle RAF OrbitControls
+ permanente, re-renders React pendant le drag (tier/POV nearby, zoom Leaflet),
+ recalcul marqueurs globe à chaque bounds debounce parent.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/GlobeView.tsx
+ ─────────────────────────────
+ • Loop damping OrbitControls à la demande (idle 320 ms) au lieu de RAF infini.
+ • Tier + POV nearby différés pendant le geste ; sync à la fin du drag.
+ • DPR GPU réduit pendant interaction ; powerPreference high-performance desktop.
+ • Cache points globe par clé de contenu (buildSalonLivePeopleKey + events).
+ • startTransition pour restaurer rings/labels après interaction.
+
+ app/src/components/MapView.tsx
+ ────────────────────────────
+ • setFlatMapZoom uniquement si tier marqueurs ou labels capitales changent.
+ • Crossfade globe ↔ flat : will-change + translateZ(0) (couche compositor GPU).
+
+ app/src/lib/mapMarkersKey.ts (nouveau)
+ ────────────────────────────────────
+ • buildSalonLivePeopleKey / buildEventClusterKey partagés globe + flat.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/components/GlobeView.tsx → perf interaction globe
+ app/src/components/MapView.tsx → zoom state + crossfade GPU
+ app/src/lib/mapMarkersKey.ts → clés marqueurs partagées
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 694 — 2026-06-26
 ================================================================================
