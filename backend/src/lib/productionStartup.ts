@@ -1,9 +1,9 @@
-import { getJwtSecret, isProductionEnv } from './jwtSecret';
+import { getJwtSecret, isDeployedEnv } from './jwtSecret';
 import { resolveCorsOrigin } from './corsConfig';
 
 /** Fail fast when critical production env vars are missing. */
 export function assertProductionStartup(): void {
-  if (!isProductionEnv()) return;
+  if (!isDeployedEnv()) return;
 
   getJwtSecret();
 

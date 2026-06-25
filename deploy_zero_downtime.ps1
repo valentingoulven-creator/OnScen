@@ -1,13 +1,17 @@
-﻿# ============================================================
-# deploy_zero_downtime.ps1 - Soundy production (zero-downtime)
-# Executer depuis MeloSongv2/ :
+# ============================================================
+# deploy_zero_downtime.ps1 - Soundy deploy (prod / preprod)
+# Executer depuis la racine du repo :
 #   powershell -ExecutionPolicy Bypass -File deploy_zero_downtime.ps1
+#   powershell -ExecutionPolicy Bypass -File deploy_zero_downtime.ps1 -Environment preprod
 # Options :
+#   -Environment    prod (defaut) | preprod
 #   -SkipBuild      Ignore le build backend (dist/ existant)
 #   -SkipFrontend   Ignore le build + deploiement frontend
-#   -VerifyProd      Lance verify-prod.sh sur le VPS apres deploy
+#   -VerifyProd      Lance verify-prod.sh sur le VPS apres deploy (prod uniquement)
 # ============================================================
 param(
+    [ValidateSet('prod', 'preprod')]
+    [string]$Environment = 'prod',
     [switch]$SkipBuild,
     [switch]$SkipFrontend,
     [switch]$VerifyProd
@@ -16,16 +20,23 @@ param(
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
-$VPS     = "root@51.159.164.100"
-$KEY     = "$env:USERPROFILE\.ssh\id_ed25519"
-$REMOTE  = "/opt/soundly"
-$PM2_APP = "melosong-backend"
-$HEALTH  = "https://getsoundy.com/health"
+. (Join-Path $PSScriptRoot "deploy\environments.ps1")
+$cfg = Get-SoundyDeployEnvironment $Environment
+
+$VPS     = $cfg.Vps
+$SSH_HOST = $cfg.SshHost
+$REMOTE  = $cfg.Remote
+$PM2_APP = $cfg.Pm2App
+$HEALTH  = $cfg.Health
+$SITE    = $cfg.SiteUrl
+$ENV_LABEL = $cfg.Label
 
 $BackendDir = Join-Path $PSScriptRoot "backend"
 $DeployDir  = Join-Path $PSScriptRoot "deploy"
 $PublicDir  = Join-Path $BackendDir "public"
 
+$KEY = "$env:USERPROFILE\.ssh\id_ed25519"
+$sshTarget = if ($SSH_HOST -and (Test-Path (Join-Path $env:USERPROFILE ".ssh\config"))) { $SSH_HOST } else { $VPS }
 $sshOpts = @("-i", $KEY, "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=20")
 
 function Fail([string]$msg) {
@@ -33,7 +44,7 @@ function Fail([string]$msg) {
 }
 
 function Invoke-Remote([string]$cmd) {
-    $result = & ssh.exe @sshOpts $VPS "$cmd" 2>&1
+    $result = & ssh.exe @sshOpts $sshTarget "$cmd" 2>&1
     if ($LASTEXITCODE -ne 0) {
         Fail "Commande SSH echouee (code $LASTEXITCODE) : $cmd`nDetail : $($result -join '`n')"
     }
@@ -54,33 +65,37 @@ function FileHash([string]$path) {
 
 Write-Host ""
 Write-Host "==============================================" -ForegroundColor Cyan
-Write-Host "  Soundy - Deploiement zero-downtime (prod)" -ForegroundColor Cyan
+Write-Host "  Soundy - Deploiement zero-downtime ($ENV_LABEL)" -ForegroundColor Cyan
 Write-Host "==============================================" -ForegroundColor Cyan
-Write-Host "  VPS    : 51.159.164.100"
+Write-Host "  Env    : $Environment ($ENV_LABEL)"
+Write-Host "  VPS    : $VPS"
+Write-Host "  SSH    : $sshTarget"
 Write-Host "  Remote : $REMOTE"
 Write-Host ("  PM2    : " + $PM2_APP + " (reload, pas stop/start)")
 if ($SkipBuild)    { Write-Host "  [!] Build backend ignore (-SkipBuild)" -ForegroundColor Yellow }
 if ($SkipFrontend) { Write-Host "  [!] Frontend ignore (-SkipFrontend)" -ForegroundColor Yellow }
 if ($VerifyProd)   { Write-Host "  [+] Verify-prod actif (-VerifyProd)" -ForegroundColor Cyan }
 Write-Host ""
-Write-Host "  [!] RAPPEL : creer un snapshot VPS Scaleway avant upgrade majeur" -ForegroundColor Yellow
-Write-Host "      Console â†’ Instances â†’ Snapshots (voir deploy/snapshot-vps-reminder.sh)" -ForegroundColor Yellow
-Write-Host ""
+if ($Environment -eq 'prod') {
+    Write-Host "  [!] RAPPEL : creer un snapshot VPS Scaleway avant upgrade majeur" -ForegroundColor Yellow
+    Write-Host "      Console -> Instances -> Snapshots (voir deploy/snapshot-vps-reminder.sh)" -ForegroundColor Yellow
+    Write-Host ""
+}
 
 
 # -- 1. Connexion VPS ---------------------------------------------------------
 Write-Host "[1/9] Connexion VPS..." -ForegroundColor Yellow
-$ping = & ssh.exe @sshOpts $VPS "echo PING_OK" 2>&1
+$ping = & ssh.exe @sshOpts $sshTarget "echo PING_OK" 2>&1
 if ("$ping" -notmatch "PING_OK") {
-    Fail "VPS inaccessible. Verifiez la cle SSH (~/.ssh/id_ed25519, soundly-scaleway).`nDetail : $ping"
+    Fail "VPS inaccessible ($sshTarget). Verifiez la cle SSH (~/.ssh/id_ed25519).`nDetail : $ping"
 }
 Write-Host "  [OK] VPS accessible" -ForegroundColor Green
 
 $snapshotReminder = Join-Path $DeployDir "snapshot-vps-reminder.sh"
-if (Test-Path $snapshotReminder) {
+if ($Environment -eq 'prod' -and (Test-Path $snapshotReminder)) {
     Write-Host "  -> Rappel snapshot VPS (non bloquant)..." -ForegroundColor DarkGray
     try {
-        Invoke-Scp @($snapshotReminder, "${VPS}:${REMOTE}/deploy/snapshot-vps-reminder.sh")
+        Invoke-Scp @($snapshotReminder, "${sshTarget}:${REMOTE}/deploy/snapshot-vps-reminder.sh")
         Invoke-Remote "sed -i 's/\r$//' ${REMOTE}/deploy/snapshot-vps-reminder.sh 2>/dev/null; chmod +x ${REMOTE}/deploy/snapshot-vps-reminder.sh 2>/dev/null; bash ${REMOTE}/deploy/snapshot-vps-reminder.sh" | Out-Null
     } catch {
         Write-Host "  [!] snapshot-vps-reminder ignore (non bloquant)" -ForegroundColor DarkGray
@@ -94,12 +109,19 @@ if (-not $SkipBuild) {
     Push-Location $BackendDir
     try {
         Write-Host "  -> npm install..."
-        & npm install 2>&1 | Where-Object { $_ -notmatch "^npm warn" }
-        if ($LASTEXITCODE -ne 0) { Fail "npm install backend echoue (code $LASTEXITCODE)." }
+        $prevEap = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        & npm install 2>&1 | Where-Object { "$_" -notmatch '^npm warn' }
+        $npmCode = $LASTEXITCODE
+        $ErrorActionPreference = $prevEap
+        if ($npmCode -ne 0) { Fail "npm install backend echoue (code $npmCode)." }
 
         Write-Host "  -> npm run build..."
+        $ErrorActionPreference = 'Continue'
         & npm run build 2>&1
-        if ($LASTEXITCODE -ne 0) { Fail "Build TypeScript echoue (code $LASTEXITCODE)." }
+        $buildCode = $LASTEXITCODE
+        $ErrorActionPreference = $prevEap
+        if ($buildCode -ne 0) { Fail "Build TypeScript echoue (code $buildCode)." }
     } finally {
         Pop-Location
     }
@@ -119,13 +141,38 @@ if (-not $SkipBuild) {
 # -- 3. Build frontend --------------------------------------------------------
 if (-not $SkipFrontend) {
     Write-Host "`n[3/9] Build frontend (Vite -> backend/public)..." -ForegroundColor Yellow
-    Write-Host "  -> npm run app:build..."
-    & npm run app:build 2>&1
-    if ($LASTEXITCODE -ne 0) { Fail "Build frontend echoue (code $LASTEXITCODE)." }
+    $viteEnvFile = Join-Path $PSScriptRoot $cfg.ViteEnvFile
+    if (-not (Test-Path $viteEnvFile)) {
+        $example = "$viteEnvFile.example"
+        if (Test-Path $example) {
+            Write-Host "  -> Copie $example -> $viteEnvFile" -ForegroundColor DarkGray
+            Copy-Item $example $viteEnvFile
+        } else {
+            Fail "Fichier Vite manquant : $viteEnvFile (voir $($cfg.ViteEnvFile).example)"
+        }
+    }
+
+    if ($Environment -eq 'preprod') {
+        Write-Host "  -> npm run app:build:preprod..."
+        $ErrorActionPreference = 'Continue'
+        & npm run app:build:preprod 2>&1
+        $feCode = $LASTEXITCODE
+        $ErrorActionPreference = 'Stop'
+    } else {
+        Write-Host "  -> npm run app:build..."
+        $ErrorActionPreference = 'Continue'
+        & npm run app:build 2>&1
+        $feCode = $LASTEXITCODE
+        $ErrorActionPreference = 'Stop'
+    }
+    if ($feCode -ne 0) { Fail "Build frontend echoue (code $feCode)." }
 
     Write-Host "  -> npm run apptel:build..."
+    $ErrorActionPreference = 'Continue'
     & npm run apptel:build 2>&1
-    if ($LASTEXITCODE -ne 0) { Fail "Build apptel echoue (code $LASTEXITCODE)." }
+    $telCode = $LASTEXITCODE
+    $ErrorActionPreference = 'Stop'
+    if ($telCode -ne 0) { Fail "Build apptel echoue (code $telCode)." }
 
     if (-not (Test-Path (Join-Path $PublicDir "index.html"))) {
         Fail "backend/public/index.html absent apres build frontend."
@@ -142,7 +189,7 @@ Write-Host "`n[4/9] Deploiement backend -> VPS..." -ForegroundColor Yellow
 Invoke-Remote "mkdir -p $REMOTE/dist $REMOTE/deploy"
 
 Write-Host "  -> dist/..."
-Invoke-Scp @("-r", (Join-Path $BackendDir "dist/."), "${VPS}:${REMOTE}/dist/")
+Invoke-Scp @("-r", (Join-Path $BackendDir "dist/."), "${sshTarget}:${REMOTE}/dist/")
 Write-Host "  [OK] dist/ synchronise" -ForegroundColor Green
 
 $localPkgHash = FileHash (Join-Path $BackendDir "package.json")
@@ -150,12 +197,12 @@ $remotePkgCmd = 'test -f ' + $REMOTE + '/package.json; if [ $? -eq 0 ]; then sha
 $remotePkgHash = Invoke-Remote $remotePkgCmd
 
 Write-Host "  -> package.json..."
-Invoke-Scp @((Join-Path $BackendDir "package.json"), "${VPS}:${REMOTE}/package.json")
+Invoke-Scp @((Join-Path $BackendDir "package.json"), "${sshTarget}:${REMOTE}/package.json")
 
 $lockFile = Join-Path $BackendDir "package-lock.json"
 if (Test-Path $lockFile) {
     Write-Host "  -> package-lock.json..."
-    Invoke-Scp @($lockFile, "${VPS}:${REMOTE}/package-lock.json")
+    Invoke-Scp @($lockFile, "${sshTarget}:${REMOTE}/package-lock.json")
 }
 
 $pkgChanged = ($localPkgHash -ne $remotePkgHash) -or ($remotePkgHash -match "MISSING")
@@ -174,10 +221,10 @@ if (-not $SkipFrontend) {
     Invoke-Remote $prepPublicCmd
 
     Write-Host "  -> backend/public -> public.new..."
-    Invoke-Scp @("-r", (Join-Path $PublicDir "/."), "${VPS}:${REMOTE}/public.new/")
+    Invoke-Scp @("-r", (Join-Path $PublicDir "/."), "${sshTarget}:${REMOTE}/public.new/")
 
-    # Fusion dans public/ : conserve les anciens chunks hashés (clients avec bundle stale)
-    # tout en mettant à jour index.html, sw.js et les nouveaux assets.
+    # Fusion dans public/ : conserve les anciens chunks hash?s (clients avec bundle stale)
+    # tout en mettant ? jour index.html, sw.js et les nouveaux assets.
     $mergeCmd = 'cd ' + $REMOTE + '; mkdir -p public/uploads; if [ -d public ]; then cp -a public.new/. public/; else mv public.new public; fi; rm -rf public.new; echo MERGE_OK'
     $mergeOut = Invoke-Remote $mergeCmd
     if ("$mergeOut" -notmatch "MERGE_OK") {
@@ -209,17 +256,19 @@ if ($pkgChanged) {
 Write-Host "`n[7/9] Migrations PostgreSQL..." -ForegroundColor Yellow
 
 $deployFiles = @(
-    "Caddyfile", "sync-caddy.sh", "caddy-watchdog.sh", "install-caddy-guard.sh", "healthcheck.sh",
+    "Caddyfile", "Caddyfile.staging", "sync-caddy.sh", "sync-caddy-staging.sh",
+    "caddy-watchdog.sh", "install-caddy-guard.sh", "healthcheck.sh",
     "postgres-setup.sh", "migrate-remote.sh", "backup-db.sh", "backup-uploads.sh", "backup-offsite.sh",
     "verify-backup.sh", "verify-prod.sh", "verify-scaleway-backup.sh", "setup-scaleway-object-storage.sh", "snapshot-vps-reminder.sh",
     "install-backup-cron.sh", "install-uploads-backup-cron.sh", "install-offsite-backup-cron.sh",
-    "install-health-cron.sh", "setup-legal-publisher.sh", "ecosystem.config.cjs",
+    "install-health-cron.sh", "setup-legal-publisher.sh", "ecosystem.config.cjs", "ecosystem.staging.config.cjs",
+    "bootstrap-staging-vps.sh", "setup-staging-db.sh",
     "monitor-alerts.sh", "install-monitor-cron.sh", "pm2-reload-intentional.sh"
 )
 foreach ($f in $deployFiles) {
     $local = Join-Path $DeployDir $f
     if (Test-Path $local) {
-        Invoke-Scp @($local, "${VPS}:${REMOTE}/deploy/$f")
+        Invoke-Scp @($local, "${sshTarget}:${REMOTE}/deploy/$f")
     }
 }
 
@@ -250,19 +299,37 @@ if ($gitCommit) {
 $markIntentionalFlag = 'printf ''%s\n%s\n'' "$(date +%s)" "deploy" > /tmp/soundy-pm2-reload-intentional'
 Invoke-Remote $markIntentionalFlag | Out-Null
 
-$reloadCmd = 'cd ' + $REMOTE + '; ' + $deployCommitEnv + 'pm2 reload ' + $PM2_APP + ' --update-env 2>&1; echo PM2_RELOAD_OK'
-$reloadOut = Invoke-Remote $reloadCmd
-Write-Host $reloadOut
-if ("$reloadOut" -notmatch "PM2_RELOAD_OK") {
-    Fail "pm2 reload $PM2_APP echoue. Verifiez : ssh $VPS pm2 logs $PM2_APP --lines 30"
+$pm2Exists = Invoke-Remote "pm2 describe $PM2_APP >/dev/null 2>&1 && echo PM2_EXISTS || echo PM2_MISSING"
+if ("$pm2Exists" -match "PM2_MISSING") {
+    Write-Host "  -> Premier demarrage PM2 ($PM2_APP)..." -ForegroundColor Cyan
+    $ecoFile = Split-Path -Leaf $cfg.EcosystemFile
+    $startCmd = 'cd ' + $REMOTE + '; mkdir -p logs; set -a; . ./.env; set +a; pm2 delete ' + $PM2_APP + ' 2>/dev/null; pm2 start deploy/' + $ecoFile + ' 2>&1; pm2 save 2>&1; echo PM2_START_OK'
+    $startOut = Invoke-Remote $startCmd
+    Write-Host $startOut
+    if ("$startOut" -notmatch "PM2_START_OK") {
+        Fail "pm2 start $PM2_APP echoue. Verifiez .env et : ssh $sshTarget pm2 logs $PM2_APP --lines 30"
+    }
+    Write-Host "  [OK] PM2 demarre" -ForegroundColor Green
+} else {
+    $reloadCmd = 'cd ' + $REMOTE + '; ' + $deployCommitEnv + 'pm2 reload ' + $PM2_APP + ' --update-env 2>&1; echo PM2_RELOAD_OK'
+    $reloadOut = Invoke-Remote $reloadCmd
+    Write-Host $reloadOut
+    if ("$reloadOut" -notmatch "PM2_RELOAD_OK") {
+        Fail "pm2 reload $PM2_APP echoue. Verifiez : ssh $sshTarget pm2 logs $PM2_APP --lines 30"
+    }
+    Write-Host "  [OK] PM2 recharge (zero-downtime)" -ForegroundColor Green
 }
-Write-Host "  [OK] PM2 recharge (zero-downtime)" -ForegroundColor Green
 
-Write-Host "  -> Synchronisation Caddy (getsoundy.com + HTTPS)..."
-$caddyCmd = 'sed -i ''s/\r$//'' ' + $REMOTE + '/deploy/*.sh 2>/dev/null; chmod +x ' + $REMOTE + '/deploy/*.sh 2>/dev/null; bash ' + $REMOTE + '/deploy/install-caddy-guard.sh 2>&1; rc=$?; if [ $rc -ne 0 ]; then bash ' + $REMOTE + '/deploy/sync-caddy.sh 2>&1; fi'
+if ($Environment -eq 'preprod') {
+    Write-Host "  -> Synchronisation Caddy (staging.getsoundy.com)..."
+    $caddyCmd = 'sed -i ''s/\r$//'' ' + $REMOTE + '/deploy/*.sh 2>/dev/null; chmod +x ' + $REMOTE + '/deploy/*.sh 2>/dev/null; bash ' + $REMOTE + '/deploy/sync-caddy-staging.sh 2>&1'
+} else {
+    Write-Host "  -> Synchronisation Caddy (getsoundy.com + HTTPS)..."
+    $caddyCmd = 'sed -i ''s/\r$//'' ' + $REMOTE + '/deploy/*.sh 2>/dev/null; chmod +x ' + $REMOTE + '/deploy/*.sh 2>/dev/null; bash ' + $REMOTE + '/deploy/install-caddy-guard.sh 2>&1; rc=$?; if [ $rc -ne 0 ]; then bash ' + $REMOTE + '/deploy/sync-caddy.sh 2>&1; fi'
+}
 $caddyOut = Invoke-Remote $caddyCmd
 Write-Host $caddyOut
-if ("$caddyOut" -match "guard install|Caddyfile synchronis") {
+if ("$caddyOut" -match "guard install|Caddyfile synchronis|staging synchronis") {
     Write-Host "  [OK] Caddy synchronise" -ForegroundColor Green
 } else {
     Write-Host "  [!] Caddy - verifiez /etc/caddy/Caddyfile manuellement" -ForegroundColor Yellow
@@ -276,21 +343,51 @@ Start-Sleep -Seconds 5
 Write-Host "`n[9/9] Verification sante..." -ForegroundColor Yellow
 
 $healthLocal = $null
-try {
-    $healthLocal = Invoke-WebRequest -Uri $HEALTH -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop
-} catch {
-    Fail "Health check public echoue : $HEALTH`nDetail : $($_.Exception.Message)"
+$healthTried = $HEALTH
+if ($Environment -eq 'preprod') {
+    $healthCandidates = @('http://51.159.170.181/health', $HEALTH, 'https://51.159.170.181/health')
+} else {
+    $healthCandidates = @($HEALTH)
+}
+$healthErr = $null
+foreach ($candidate in $healthCandidates) {
+    try {
+        if ($candidate -like 'https://*') {
+            if ($PSVersionTable.PSVersion.Major -ge 7) {
+                $healthLocal = Invoke-WebRequest -Uri $candidate -UseBasicParsing -TimeoutSec 25 -SkipCertificateCheck -ErrorAction Stop
+            } else {
+                $curlOut = & curl.exe -sk -w "`n%{http_code}" $candidate 2>$null
+                if ($curlOut -match '(\d{3})$') {
+                    $code = [int]$Matches[1]
+                    if ($code -eq 200) {
+                        $healthLocal = [PSCustomObject]@{ StatusCode = 200; Content = ($curlOut -replace '\d{3}$','').Trim() }
+                    }
+                }
+                if ($healthLocal) { $healthTried = $candidate; break }
+                continue
+            }
+        } else {
+            $healthLocal = Invoke-WebRequest -Uri $candidate -UseBasicParsing -TimeoutSec 25 -ErrorAction Stop
+        }
+        $healthTried = $candidate
+        break
+    } catch {
+        $healthErr = $_.Exception.Message
+    }
+}
+if (-not $healthLocal) {
+    Fail "Health check public echoue ($($healthCandidates -join ', '))`nDetail : $healthErr"
 }
 
 if ($healthLocal.StatusCode -ne 200) {
     Fail "Health check retourne HTTP $($healthLocal.StatusCode) - attendu 200."
 }
 
-Write-Host "  [OK] $HEALTH -> HTTP $($healthLocal.StatusCode)" -ForegroundColor Green
+Write-Host "  [OK] $healthTried -> HTTP $($healthLocal.StatusCode)" -ForegroundColor Green
 $contentPreview = $healthLocal.Content.Substring(0, [Math]::Min(120, $healthLocal.Content.Length))
 Write-Host "  -> Corps : $contentPreview"
 
-if ($VerifyProd) {
+if ($VerifyProd -and $Environment -eq 'prod') {
     Write-Host "`n  -> verify-prod.sh sur le VPS..." -ForegroundColor Cyan
     $verifyCmd = 'sed -i ''s/\r$//'' ' + $REMOTE + '/deploy/verify-prod.sh 2>/dev/null; chmod +x ' + $REMOTE + '/deploy/verify-prod.sh 2>/dev/null; bash ' + $REMOTE + '/deploy/verify-prod.sh 2>&1; echo VERIFY_PROD_EXIT=$?'
     $verifyOut = Invoke-Remote $verifyCmd
@@ -309,12 +406,14 @@ Write-Host ""
 Write-Host "==============================================" -ForegroundColor Green
 Write-Host "  DEPLOIEMENT ZERO-DOWNTIME TERMINE" -ForegroundColor Green
 Write-Host "==============================================" -ForegroundColor Green
-Write-Host "  Site   : https://getsoundy.com"
+Write-Host "  Site   : $SITE"
 Write-Host "  Health : $HEALTH"
 Write-Host "  PM2    : pm2 reload $PM2_APP (sans coupure)"
 Write-Host ""
 Write-Host "  Diagnostic :"
-Write-Host "  ssh $VPS pm2 logs $PM2_APP --lines 50"
-Write-Host "  ssh $VPS bash $REMOTE/deploy/verify-prod.sh   # ou -VerifyProd au prochain deploy"
+Write-Host "  ssh $sshTarget pm2 logs $PM2_APP --lines 50"
+if ($Environment -eq 'prod') {
+    Write-Host "  ssh $sshTarget bash $REMOTE/deploy/verify-prod.sh   # ou -VerifyProd au prochain deploy"
+}
 Write-Host "==============================================" -ForegroundColor Green
 

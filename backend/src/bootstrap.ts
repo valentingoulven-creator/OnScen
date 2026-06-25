@@ -262,7 +262,7 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
       );
     }
     startPersistLoop();
-  } else if (APP_ENV === 'production') {
+  } else if (APP_ENV === 'production' || APP_ENV === 'preproduction') {
     if (usesPostgresPersistence()) {
       console.log('[soundly] Persistance PostgreSQL (DATABASE_URL)');
     } else {
@@ -379,7 +379,7 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
     schedulePersist();
   }
 
-  if (APP_ENV === 'production') {
+  if (APP_ENV === 'production' || APP_ENV === 'preproduction') {
     ensureProductionSponsorContent();
   }
 
@@ -416,13 +416,13 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
       reject(err);
     });
     server.listen(PORT, HOST, () => {
-      if (APP_ENV === 'production') {
+      if (APP_ENV === 'production' || APP_ENV === 'preproduction') {
         logProductionStartup(PORT);
         startServerMonitor();
       }
       console.log('');
       console.log('  ╔══════════════════════════════════════╗');
-      console.log(`  ║  Soundy   [${APP_ENV.padEnd(6)}]  local dev       ║`);
+      console.log(`  ║  Soundy   [${APP_ENV.padEnd(14)}]  server          ║`);
       console.log('  ╚══════════════════════════════════════╝');
       console.log(`  → ${scheme}://localhost:${PORT}`);
       console.log(`  → API  ${scheme}://localhost:${PORT}/api`);

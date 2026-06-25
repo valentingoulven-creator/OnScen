@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { db } from '../models/schema';
 import { canUserUseApp } from '../lib/accessControl';
-import { getJwtSecret, isProductionEnv } from '../lib/jwtSecret';
+import { getJwtSecret, isDeployedEnv } from '../lib/jwtSecret';
 import { getUserTokenVersion } from '../lib/tokenVersion';
 import type { User } from '../models/schema';
 
@@ -32,7 +32,7 @@ export const AUTH_COOKIE_NAME = 'soundy_auth';
 
 const COOKIE_BASE_OPTIONS = {
   httpOnly: true,
-  secure: isProductionEnv(),
+  secure: isDeployedEnv(),
   sameSite: 'strict' as const,
   path: '/',
 };

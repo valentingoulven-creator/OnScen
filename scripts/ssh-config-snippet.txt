@@ -1,0 +1,7 @@
+Host soundy-prod
+    HostName 51.159.164.100
+    User root
+    IdentityFile ~/.ssh/id_ed25519
+    IdentitiesOnly yes
+    StrictHostKeyChecking accept-new
+    ConnectTimeout 20

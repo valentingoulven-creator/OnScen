@@ -1,22 +1,23 @@
 # Infra Soundy — MeloSongv2
 
 > Document d'infrastructure : architecture, RPO/RTO, ressources, coûts et risques.  
-> **Dernière mise à jour :** juin 2026 · **Production :** [getsoundy.com](https://getsoundy.com)
+> **Dernière mise à jour :** juin 2026 · **Production :** [getsoundy.com](https://getsoundy.com) · **Pré-prod :** [staging.getsoundy.com](https://staging.getsoundy.com) (DNS OVH à configurer — voir `docs/ENVIRONNEMENTS.md`)
 
-Pour une vue interactive riche, ouvrir le canvas Cursor :  
-`~/.cursor/projects/c-Users-valen-iCloudDrive-Application-MeloSong-MeloSongv2/canvases/infra-soundy.canvas.tsx`
+**Environnements (dev / preprod / prod)** : voir [`docs/ENVIRONNEMENTS.md`](./ENVIRONNEMENTS.md).
 
 ---
 
 ## Vue d'ensemble
 
-| Élément | Valeur |
-|---------|--------|
-| VPS | `51.159.164.100` · Scaleway DEV1-S · Paris `fr-par` |
-| Chemin app | `/opt/soundly` |
-| PostgreSQL | `51.15.132.229:14440` · DB-DEV-S · instance `soundy-prod` |
-| Utilisateurs actuels | ~10 |
-| Cible scaling | 10 000 (DB-PRD-S recommandé) |
+| Élément | Prod | Pré-prod (staging) |
+|---------|------|---------------------|
+| VPS | `51.159.164.100` · `soundly` | `51.159.170.181` · `soundly-staging` |
+| Zone | Scaleway `fr-par-2` DEV1-S | Scaleway `fr-par-2` DEV1-S |
+| Chemin app | `/opt/soundly` | `/opt/soundly` |
+| PostgreSQL | `soundy-prod` | `soundy_staging` (même instance `51.15.132.229:14440`) |
+| PM2 | `melosong-backend` | `melosong-backend-staging` |
+| Utilisateurs actuels | ~10 | QA interne |
+| Cible scaling | 10 000 (DB-PRD-S) | partage PG prod |
 
 ---
 

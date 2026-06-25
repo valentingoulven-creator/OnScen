@@ -12,6 +12,8 @@
     "dev": "powershell -ExecutionPolicy Bypass -File scripts/dev-start.ps1",
     "app:dev:full": "powershell -ExecutionPolicy Bypass -File scripts/dev-start.ps1",
     "deploy:prod": "powershell -ExecutionPolicy Bypass -File scripts/deploy-prod.ps1",
+    "deploy:preprod": "powershell -ExecutionPolicy Bypass -File scripts/deploy-preprod.ps1",
+    "app:build:preprod": "npm run build:preprod --prefix app",
     "msdev": "npm run msdev:sync-lan && npm run app:build && npm run dev:msdev --prefix backend",
     "msdev:app": "npm run dev --prefix app",
     "msdev:server": "npm run dev:msdev --prefix backend",

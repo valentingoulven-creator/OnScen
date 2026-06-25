@@ -21,6 +21,7 @@ module.exports = {
       max_restarts: 20,
       min_uptime: '10s',
       max_memory_restart: '768M',
+      env_file: '/opt/soundly/.env',
       env: {
         NODE_ENV: 'production',
       },

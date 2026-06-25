@@ -3,8 +3,9 @@ import { Pool, type PoolConfig } from 'pg';
 let pool: Pool | null = null;
 
 export function isPostgresEnabled(): boolean {
+  const env = process.env.APP_ENV;
   return (
-    process.env.APP_ENV === 'production' &&
+    (env === 'production' || env === 'preproduction') &&
     Boolean(process.env.DATABASE_URL?.trim())
   );
 }

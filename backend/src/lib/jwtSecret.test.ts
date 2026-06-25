@@ -23,14 +23,27 @@ describe('jwtSecret', () => {
     expect(() => getJwtSecret()).toThrow(/JWT_SECRET/);
   });
 
+  it('throws in preproduction when JWT_SECRET is missing', () => {
+    delete process.env.JWT_SECRET;
+    process.env.APP_ENV = 'preproduction';
+    expect(() => getJwtSecret()).toThrow(/JWT_SECRET/);
+  });
+
   it('uses dev fallback outside production', () => {
     delete process.env.JWT_SECRET;
     process.env.APP_ENV = 'msdev';
     expect(getJwtSecret()).toBe('melosong_secret_dev_fallback');
   });
 
-  it('detects production via NODE_ENV', () => {
+  it('detects production via APP_ENV only (not NODE_ENV on staging)', () => {
+    process.env.APP_ENV = 'production';
     process.env.NODE_ENV = 'production';
     expect(isProductionEnv()).toBe(true);
+  });
+
+  it('preproduction is not production strict', () => {
+    process.env.APP_ENV = 'preproduction';
+    process.env.NODE_ENV = 'production';
+    expect(isProductionEnv()).toBe(false);
   });
 });

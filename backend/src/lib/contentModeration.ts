@@ -1,5 +1,5 @@
 import { isSightengineConfigured } from './sightengineConfig';
-import { isProductionEnv } from './jwtSecret';
+import { isDeployedEnv } from './jwtSecret';
 import {
   checkImageWithSightengine,
   checkVideoWithSightengine,
@@ -93,7 +93,7 @@ export async function moderateImageSource(
   }
 
   if (!isSightengineConfigured()) {
-    if (isProductionEnv()) {
+    if (isDeployedEnv()) {
       return {
         allowed: false,
         error:
@@ -121,7 +121,7 @@ export async function moderateVideoSource(
   }
 
   if (!isSightengineConfigured()) {
-    if (isProductionEnv()) {
+    if (isDeployedEnv()) {
       return {
         allowed: false,
         error:

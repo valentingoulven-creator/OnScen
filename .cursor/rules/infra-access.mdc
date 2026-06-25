@@ -1,0 +1,66 @@
+---
+description: Acces infra Soundy complet - VPS prod/staging, DB, Sightengine, Scaleway, deploy
+alwaysApply: true
+---
+
+# Infra Soundy — acces agent (complet)
+
+Etat cible : `scripts/verify-full-access.ps1` → 20+/22 checks OK.
+
+## Acces operationnels
+
+| Domaine | Acces | Detail |
+|---------|-------|--------|
+| Code | OK | Repo `C:\Dev\Soundy` |
+| Dev local | OK | `npm run dev` → :5173, API msdev :4080 |
+| SSH VPS prod | OK | `ssh soundy-prod` → 51.159.164.100, zone fr-par-2 |
+| SSH VPS staging | OK | `ssh soundy-staging` → 51.159.170.181, zone fr-par-2 |
+| Secrets prod | OK | `/opt/soundly/.env` + `backend/.env.production` |
+| Secrets staging | OK | VPS staging `/opt/soundly/.env` + `backend/.env.preproduction` |
+| msdev secrets | OK | `msdev/.env` sync prod (DB, LiveKit, Stripe, Sightengine, SCW…) |
+| PostgreSQL prod | OK | base `soundy-prod` — 51.15.132.229:14440 |
+| PostgreSQL staging | OK | base `soundy_staging` (meme instance PG) |
+| NSFW | OK | Sightengine `SIGHTENGINE_*` |
+| Lives | OK | LiveKit + Cloudflare Stream |
+| Paiements | OK | Stripe Connect + webhooks |
+| OAuth | OK | Google, YouTube (Facebook si configure prod) |
+| Backups S3 | OK | `SCW_*` dans msdev/.env |
+| Scaleway CLI | OK | `~/.config/scw/config.yaml` |
+| Deploy prod | OK | `scripts/deploy-prod.ps1` (demande explicite) |
+| Deploy preprod | OK | `scripts/deploy-preprod.ps1` |
+| Health prod | OK | https://getsoundy.com/health |
+| Health staging | OK | http://51.159.170.181/health (`env: preproduction`) |
+
+## Scripts
+
+```powershell
+scripts/verify-full-access.ps1
+scripts/setup-staging-infra.ps1       # bootstrap VPS staging + DB
+scripts/setup-staging-env.ps1         # .env preprod local + push VPS
+scripts/deploy-preprod.ps1            # deploy staging
+scripts/deploy-prod.ps1               # prod uniquement si demande
+scripts/setup-infra-access.ps1 -PullProdEnv
+```
+
+## Ops VPS
+
+```powershell
+# Prod
+ssh soundy-prod "pm2 status"
+ssh soundy-prod "pm2 logs melosong-backend --lines 50"
+
+# Staging
+ssh soundy-staging "pm2 status"
+ssh soundy-staging "pm2 logs melosong-backend-staging --lines 50"
+ssh soundy-staging "curl -s http://127.0.0.1:3000/health"
+```
+
+## Limites connues
+
+- **DNS staging** : ajouter `staging.getsoundy.com` A → 51.159.170.181 (voir `docs/ENVIRONNEMENTS.md`).
+- **psql local** : optionnel ; DB accessible via SSH VPS.
+- **Deploy prod** : demande explicite utilisateur uniquement.
+
+## Doc
+
+`docs/ENVIRONNEMENTS.md` · `docs/INFRA-SOUNDY.md` · `deploy/RUNBOOK-PROD.md`

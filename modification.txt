@@ -9397,3 +9397,83 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 694 — 2026-06-26
 ================================================================================
+
+================================================================================
+MODIF 695 — Globe → carte : crossfade plus rapide + préchargement tuiles
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Transition globe → carte plate lente : délai 700 ms avant bascule, flyTo Leaflet
+ bloquant le chargement tuiles (updateWhenIdle), warmup tuiles qui démarrait le
+ crossfade avant que les tuiles ne soient demandées (carte grise longtemps).
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/GlobeView.tsx
+ ─────────────────────────────
+ • Animation zoom marqueur 520 ms ; bascule flat à 280 ms (parallèle avec tuiles).
+ • onPrepareFlatMap : pré-positionne la carte cachée dès le début du zoom.
+ • Auto-switch altitude et double-clic : jumpTo instantané (plus de flyTo).
+
+ app/src/components/MapView.tsx
+ ────────────────────────────
+ • prepareFlatAt + refreshFlatTileLayer (redraw tuiles après setView).
+ • Warmup : crossfade au premier tileload (min 60 ms, max 380 ms).
+ • Crossfade 300 ms ease-out (ex-500 ms).
+
+ app/src/pages/HomePage.tsx
+ ────────────────────────
+ • handlePrepareFlatMap → mapViewRef.prepareFlatAt.
+ • handleGlobeZoomToFlat : toujours jumpTo (plus flyTo animé).
+
+FICHIERS MODIFIÉS
+-----
+ app/src/components/GlobeView.tsx, MapView.tsx, HomePage.tsx
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 695 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 696 — Carte : zoom non bloqué sur la localisation GPS
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Après zoom globe → carte ou exploration, la vue revenait sur la position GPS :
+ useHomeGeoRefresh relançait getCurrentPosition à chaque changement de center
+ (setCenter après transition globe), et MapView forçait flyTo zoom 13.
+
+CHANGEMENTS / FIX
+-----
+ app/src/hooks/useHomeGeoRefresh.ts
+ ─────────────────────────────────
+ • Bootstrap GPS séparé de l'intervalle ; center retiré des deps (ref stable).
+ • L'intervalle 30 s recharge nearby sans recentrer la carte.
+
+ app/src/components/MapView.tsx
+ ────────────────────────────
+ • flyTo center prop : conserve le zoom courant, ignore si déjà à ~80 m.
+
+ app/src/components/GlobeView.tsx
+ ─────────────────────────────
+ • Sync center prop ignorée pendant interaction ou si POV déjà proche (~150 m).
+
+FICHIERS MODIFIÉS
+-----
+ app/src/hooks/useHomeGeoRefresh.ts, MapView.tsx, GlobeView.tsx
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 696 — 2026-06-26
+================================================================================

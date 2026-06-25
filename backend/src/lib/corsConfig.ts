@@ -1,5 +1,5 @@
 import type cors from 'cors';
-import { isProductionEnv } from './jwtSecret';
+import { isDeployedEnv } from './jwtSecret';
 import { isMsdevRuntime } from './msdevGuard';
 
 export function resolveCorsOrigin(): cors.CorsOptions['origin'] {
@@ -7,7 +7,7 @@ export function resolveCorsOrigin(): cors.CorsOptions['origin'] {
 
   if (isMsdevRuntime()) return '*';
 
-  if (isProductionEnv()) {
+  if (isDeployedEnv()) {
     if (!configured) {
       throw new Error(
         '[cors] CORS_ORIGIN must be set in production — refusing to start with origin "*".'

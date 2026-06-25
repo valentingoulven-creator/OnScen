@@ -63,7 +63,7 @@ if (-not (Test-Path $deployScript)) {
     exit 1
 }
 
-$deployArgs = @('-ExecutionPolicy', 'Bypass', '-File', $deployScript)
+$deployArgs = @('-ExecutionPolicy', 'Bypass', '-File', $deployScript, '-Environment', 'prod')
 if ($SkipBuild)    { $deployArgs += '-SkipBuild' }
 if ($SkipFrontend) { $deployArgs += '-SkipFrontend' }
 if (-not $SkipVerify) { $deployArgs += '-VerifyProd' }

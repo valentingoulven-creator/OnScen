@@ -1,3 +1,4 @@
+import { isDeployedEnv } from './jwtSecret';
 import type { Pool, PoolClient } from 'pg';
 import { getPool } from '../db/pool';
 import { runMigrations } from '../db/migrate';
@@ -66,8 +67,8 @@ async function savePersistedStoreToPostgresOnce(): Promise<void> {
   }
 }
 
-function isProductionEnv(): boolean {
-  return process.env.APP_ENV === 'production' || process.env.NODE_ENV === 'production';
+function isProductionStrictEnv(): boolean {
+  return process.env.APP_ENV === 'production';
 }
 
 /** Bloque toute écriture qui effacerait les comptes en production (store vide en mémoire). */
@@ -80,7 +81,7 @@ async function assertSafeUserSnapshot(client: PoolClient, data: PersistedStore):
       `[pgStore] Refus d'écrire un store sans utilisateurs alors que PostgreSQL en contient ${pgUserCount} — aucune suppression en masse`
     );
   }
-  if (isProductionEnv()) {
+  if (isProductionStrictEnv()) {
     throw new Error(
       '[pgStore] Refus de persister un store sans utilisateurs en production'
     );

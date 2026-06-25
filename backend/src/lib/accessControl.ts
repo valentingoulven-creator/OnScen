@@ -99,7 +99,7 @@ function isMsdevAccessEnv(): boolean {
 }
 
 function isProductionAccessEnv(): boolean {
-  return process.env.APP_ENV === 'production' || process.env.NODE_ENV === 'production';
+  return process.env.APP_ENV === 'production';
 }
 
 function parseAdminEmails(): Set<string> {
