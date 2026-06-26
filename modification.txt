@@ -9613,3 +9613,85 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 697 — 2026-06-26
 ================================================================================
+
+================================================================================
+MODIF 698 — Blocants prod 90 % (LCEN, rate limits, âge gates)
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Corriger les blocants identifiés par l'audit prod (82 %) : adresse LCEN,
+ rate limit API global + DM/groupes, cohérence resolveUserAge, Redis rate store,
+ monitoring optionnel Sentry.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/rateLimitStore.ts
+ ─────────────────
+ • Store Redis hybride pour express-rate-limit (multi-workers PM2)
+
+ backend/src/server.ts
+ ─────────────────
+ • Limiteur global /api 300 req/min ; stores Redis sur auth/donations/reports
+
+ backend/src/routes/dm.ts, groups.ts
+ ─────────────────
+ • checkChatRateLimit sur envoi HTTP (anti-flood)
+
+ backend/src/lib/ageGates.ts + routes lives/donations/subscriptions
+ ─────────────────
+ • userMeets*FromProfile via birthDate (resolveUserAge)
+
+ backend/src/lib/legalPublisher.ts + productionStartup.ts
+ ─────────────────
+ • LEGAL_PUBLISHER_ADDRESS (.env) ; refus boot si LCEN incomplet
+
+ backend/src/lib/errorMonitoring.ts + bootstrap.ts
+ ─────────────────
+ • Sentry optionnel (SENTRY_DSN)
+
+ scripts/setup-legal-prod.ps1
+ ─────────────────
+ • Injection adresse LCEN sur VPS sans commit Git
+
+FICHIERS MODIFIÉS
+-----
+ backend/src/lib/*, routes/*, server.ts, bootstrap.ts, .env.production.example,
+ scripts/setup-legal-prod.ps1
+
+BUILD (si vérifié)
+-----
+ backend/ → npm test → (à vérifier)
+
+================================================================================
+Fin MODIF 698 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 699 — Fix GitHub Actions Deploy Preprod (SSH agent)
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Deploy Preprod échouait sur le runner Windows : « UNPROTECTED PRIVATE KEY FILE »
+ (permissions icacls insuffisantes pour OpenSSH). LCEN strict bloquait aussi le boot staging.
+
+CHANGEMENTS / FIX
+-----
+ .github/workflows/deploy-preprod.yml
+ ─────────────────
+ • webfactory/ssh-agent@v0.9.0 (plus de fichier clé sur le runner)
+
+ deploy_zero_downtime.ps1
+ ─────────────────
+ • ssh/scp cross-platform ; préfère SSH_AUTH_SOCK si agent actif
+
+ backend/src/lib/productionStartup.ts
+ ─────────────────
+ • LCEN bloquant uniquement APP_ENV=production (warning en preprod)
+
+================================================================================
+Fin MODIF 699 — 2026-06-26
+================================================================================

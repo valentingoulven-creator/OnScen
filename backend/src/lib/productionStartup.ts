@@ -1,5 +1,6 @@
-import { getJwtSecret, isDeployedEnv } from './jwtSecret';
+import { getJwtSecret, isDeployedEnv, isProductionEnv } from './jwtSecret';
 import { resolveCorsOrigin } from './corsConfig';
+import { isPublisherConfigComplete } from './legalPublisher';
 
 /** Fail fast when critical production env vars are missing. */
 export function assertProductionStartup(): void {
@@ -49,5 +50,24 @@ export function assertProductionStartup(): void {
 
   if (process.env.S3_BUCKET?.trim()) {
     console.log(`[startup] S3 uploads actifs — bucket ${process.env.S3_BUCKET.trim()}`);
+  }
+
+  if (!isPublisherConfigComplete()) {
+    if (isProductionEnv()) {
+      throw new Error(
+        '[startup] legal-publisher.json incomplet (LCEN art. 6) — renseignez l\'adresse postale ' +
+          'dans legal-publisher.json ou LEGAL_PUBLISHER_ADDRESS dans .env avant mise en production.'
+      );
+    }
+    console.warn(
+      '[startup] legal-publisher.json incomplet — mentions LCEN non conformes (preprod uniquement, OK pour tests)'
+    );
+  }
+
+  const pm2Instances = Number(process.env.PM2_INSTANCES || process.env.NODE_APP_INSTANCE);
+  if (!process.env.REDIS_URL?.trim() && pm2Instances > 1) {
+    console.warn(
+      '[startup] PM2 multi-instances sans REDIS_URL — Socket.io et rate limits peuvent diverger entre workers.'
+    );
   }
 }

@@ -21,7 +21,7 @@ import {
   isStripeConfigured,
   assertCreatorCanReceiveDonation,
   recordLiveDonation,
-  userMeetsDonationAge,
+  userMeetsDonationAgeFromProfile,
 } from '../lib/donations';
 import { CREATOR_MONETIZATION_MIN_AGE } from '../lib/ageGates';
 import { schedulePersist } from '../lib/persist';
@@ -200,7 +200,7 @@ donationsRouter.post('/simulate', authenticateJWT, (req: Request, res: Response)
     return;
   }
 
-  if (!ageConfirmed && !userMeetsDonationAge(user.age)) {
+  if (!ageConfirmed && !userMeetsDonationAgeFromProfile(user)) {
     res.status(403).json({
       error: 'Vous devez avoir 18 ans ou plus pour effectuer un don',
       code: 'DONATION_AGE_REQUIRED',
@@ -277,7 +277,7 @@ donationsRouter.post('/create-intent', authenticateJWT, async (req: Request, res
     return;
   }
 
-  if (!ageConfirmed && !userMeetsDonationAge(user.age)) {
+  if (!ageConfirmed && !userMeetsDonationAgeFromProfile(user)) {
     res.status(403).json({
       error: 'Vous devez avoir 18 ans ou plus pour effectuer un don',
       code: 'DONATION_AGE_REQUIRED',

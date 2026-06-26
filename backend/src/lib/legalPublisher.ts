@@ -48,6 +48,20 @@ function publisherJsonPath(): string {
   return path.join(envDir, 'legal-publisher.json');
 }
 
+/** Overrides depuis .env (secrets / adresse non versionnée en Git). */
+function applyLegalPublisherEnvOverrides(config: LegalPublisherConfig): LegalPublisherConfig {
+  const address = process.env.LEGAL_PUBLISHER_ADDRESS?.trim();
+  if (address) config.address = address;
+
+  const publisherName = process.env.LEGAL_PUBLISHER_NAME?.trim();
+  if (publisherName) config.publisherName = publisherName;
+
+  const siren = process.env.LEGAL_PUBLISHER_SIREN?.trim();
+  if (siren) config.siren = siren;
+
+  return config;
+}
+
 export function loadLegalPublisherConfig(): LegalPublisherConfig {
   const defaults: LegalPublisherConfig = {
     publisherName: '',
@@ -70,13 +84,13 @@ export function loadLegalPublisherConfig(): LegalPublisherConfig {
   };
 
   const file = publisherJsonPath();
-  if (!fs.existsSync(file)) return defaults;
+  if (!fs.existsSync(file)) return applyLegalPublisherEnvOverrides(defaults);
 
   try {
     const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as Partial<LegalPublisherConfig>;
-    return { ...defaults, ...raw };
+    return applyLegalPublisherEnvOverrides({ ...defaults, ...raw });
   } catch {
-    return defaults;
+    return applyLegalPublisherEnvOverrides(defaults);
   }
 }
 

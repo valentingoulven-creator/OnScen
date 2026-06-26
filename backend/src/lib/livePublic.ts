@@ -1,6 +1,6 @@
 import type { Live } from '../models/schema';
 import { db } from '../models/schema';
-import { creatorMeetsMonetizationAge } from './ageGates';
+import { creatorMeetsMonetizationAgeFromProfile } from './ageGates';
 import { isDevUser } from './accessControl';
 import { getPublicMapCoords } from './locationPrivacy';
 import { resolveLiveCountry } from './liveCountry';
@@ -44,7 +44,7 @@ export function serializePublicLive(l: Live, distanceKm?: number, viewerId?: str
     vipModeratorIds: l.vipModeratorIds ?? [],
     chatConfig: l.chatConfig ?? {},
     isDev: isDevModerator ? true : undefined,
-    hostMonetizationEligible: creatorMeetsMonetizationAge(host?.age),
+    hostMonetizationEligible: creatorMeetsMonetizationAgeFromProfile(host),
     countryCode: country?.code,
     countryName: country?.name,
     ...(donationOptions?.length ? { donationOptions } : {}),

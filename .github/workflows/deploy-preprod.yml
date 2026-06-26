@@ -2,6 +2,7 @@
 #
 # Secrets GitHub requis (Settings → Secrets and variables → Actions) :
 #   STAGING_SSH_PRIVATE_KEY — cle privee SSH (ed25519) autorisee sur 51.159.170.181
+#   (injectee via webfactory/ssh-agent — pas de fichier cle sur le runner)
 #
 # Declenchement :
 #   - automatique quand le workflow "CI" reussit sur main/master
@@ -59,16 +60,10 @@ jobs:
           Copy-Item app/.env.preproduction.example app/.env.preproduction -Force
           Write-Host "app/.env.preproduction ready (from example)"
 
-      - name: Configure SSH key
-        shell: pwsh
-        env:
-          SSH_KEY: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
-        run: |
-          $path = Join-Path $env:RUNNER_TEMP 'soundy_staging_ed25519'
-          [IO.File]::WriteAllText($path, ($env:SSH_KEY.Trim() + "`n"))
-          icacls $path /inheritance:r | Out-Null
-          icacls $path /grant:r "$($env:USERNAME):(R)" | Out-Null
-          echo "DEPLOY_SSH_KEY=$path" >> $env:GITHUB_ENV
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
 
       - name: Deploy preprod (zero-downtime)
         shell: pwsh

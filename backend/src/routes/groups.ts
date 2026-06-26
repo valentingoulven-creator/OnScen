@@ -16,6 +16,7 @@ import { countDmUnreadForUser } from '../lib/dmRead';
 import { notifyGroupMessageReceived } from '../lib/notifications';
 import { hasMuted } from '../lib/mutes';
 import { canAddGroupMember, canRemoveGroupMember } from '../lib/groupMembers';
+import { checkChatRateLimit } from '../lib/chatRateLimit';
 
 export const groupsRouter = Router();
 
@@ -293,6 +294,12 @@ groupsRouter.post('/:groupId/read', authenticateJWT, (req: Request, res: Respons
 
 groupsRouter.post('/:groupId/messages', authenticateJWT, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
+
+  if (!checkChatRateLimit(me)) {
+    res.status(429).json({ error: 'Trop de messages. Réessayez dans quelques secondes.' });
+    return;
+  }
+
   const { groupId } = req.params;
   const { content } = req.body;
 

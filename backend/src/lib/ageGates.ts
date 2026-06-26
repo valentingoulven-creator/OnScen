@@ -14,6 +14,21 @@ export function creatorMeetsMonetizationAge(age: number | undefined): boolean {
   return typeof age === 'number' && age >= CREATOR_MONETIZATION_MIN_AGE;
 }
 
+type AgeProfile = { age?: number; birthDate?: string } | null | undefined;
+
+export function userMeetsLiveAgeFromProfile(user: AgeProfile): boolean {
+  return userMeetsLiveAge(resolveUserAge(user));
+}
+
+export function creatorMeetsMonetizationAgeFromProfile(user: AgeProfile): boolean {
+  return creatorMeetsMonetizationAge(resolveUserAge(user));
+}
+
+export function userMeetsMonetizationAgeFromProfile(user: AgeProfile): boolean {
+  const age = resolveUserAge(user);
+  return typeof age === 'number' && age >= CREATOR_MONETIZATION_MIN_AGE;
+}
+
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Âge dérivé de birthDate (AAAA-MM-JJ) si présent, sinon champ age stocké. */

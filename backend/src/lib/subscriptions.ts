@@ -1,6 +1,6 @@
 import { db, type CreatorSubscription } from '../models/schema';
-import { isMsdevRuntime, isStripeConfigured, userMeetsDonationAge } from './donations';
-import { CREATOR_MONETIZATION_MIN_AGE, creatorMeetsMonetizationAge } from './ageGates';
+import { isMsdevRuntime, isStripeConfigured, userMeetsDonationAge, userMeetsDonationAgeFromProfile } from './donations';
+import { CREATOR_MONETIZATION_MIN_AGE, creatorMeetsMonetizationAgeFromProfile } from './ageGates';
 import { persistCreatorSubscriptionToPgAsync } from './pgSubscriptions';
 
 export const SUBSCRIPTION_MIN_AGE = 18;
@@ -30,10 +30,16 @@ export function userMeetsSubscriptionAge(age: number | undefined): boolean {
   return userMeetsDonationAge(age);
 }
 
+export function userMeetsSubscriptionAgeFromProfile(
+  user: { age?: number; birthDate?: string } | null | undefined
+): boolean {
+  return userMeetsDonationAgeFromProfile(user);
+}
+
 export function assertCreatorCanReceiveSubscription(creatorId: string): void {
   if (creatorId === PLATFORM_CREATOR_ID) return;
   const creator = db.users.get(creatorId);
-  if (!creator || !creatorMeetsMonetizationAge(creator.age)) {
+  if (!creator || !creatorMeetsMonetizationAgeFromProfile(creator)) {
     throw new Error(
       `Ce créateur ne peut pas recevoir d'abonnements (monétisation disponible à partir de ${CREATOR_MONETIZATION_MIN_AGE} ans).`
     );

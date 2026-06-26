@@ -3,7 +3,11 @@ import {
   CREATOR_MONETIZATION_MIN_AGE,
   MIN_LIVE_AGE,
   creatorMeetsMonetizationAge,
+  creatorMeetsMonetizationAgeFromProfile,
+  resolveUserAge,
   userMeetsLiveAge,
+  userMeetsLiveAgeFromProfile,
+  userMeetsMonetizationAgeFromProfile,
 } from './ageGates';
 
 describe('ageGates', () => {
@@ -17,5 +21,16 @@ describe('ageGates', () => {
     expect(creatorMeetsMonetizationAge(17)).toBe(false);
     expect(creatorMeetsMonetizationAge(CREATOR_MONETIZATION_MIN_AGE)).toBe(true);
     expect(creatorMeetsMonetizationAge(undefined)).toBe(false);
+  });
+
+  it('dérive l\'âge depuis birthDate pour les gates live et monétisation', () => {
+    const ref = new Date(2026, 5, 26);
+    const user17 = { birthDate: '2008-06-27' };
+    const user18 = { birthDate: '2008-06-25' };
+    expect(resolveUserAge(user17, ref)).toBe(17);
+    expect(userMeetsLiveAgeFromProfile(user17)).toBe(true);
+    expect(userMeetsMonetizationAgeFromProfile(user17)).toBe(false);
+    expect(userMeetsMonetizationAgeFromProfile(user18)).toBe(true);
+    expect(creatorMeetsMonetizationAgeFromProfile({ age: 16, birthDate: '2000-01-01' })).toBe(true);
   });
 });

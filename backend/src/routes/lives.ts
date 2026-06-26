@@ -10,7 +10,7 @@ import { publicSalon } from './salons';
 import { isLiveViewBanned, liveBanMessage, getLiveBan } from '../lib/liveBans';
 import { parseDistanceFilterQuery, resolveNearbyRadiusKm } from '../lib/geoLimits';
 import { DEFAULT_MAP_LAT, DEFAULT_MAP_LON, isValidLatLng } from '../lib/mapCoords';
-import { MIN_LIVE_AGE, userMeetsLiveAge } from '../lib/ageGates';
+import { MIN_LIVE_AGE, userMeetsLiveAgeFromProfile } from '../lib/ageGates';
 import { isDonationSimulationMode } from '../lib/donations';
 import { serializePublicLive } from '../lib/livePublic';
 import { assertLiveAccessible } from '../lib/adminContentModeration';
@@ -187,7 +187,7 @@ livesRouter.post('/start', authenticateJWT, async (req: Request, res: Response) 
     return;
   }
 
-  if (!userMeetsLiveAge(user.age)) {
+  if (!userMeetsLiveAgeFromProfile(user)) {
     res.status(403).json({
       error: `Vous devez avoir au moins ${MIN_LIVE_AGE} ans pour lancer un live.`,
       code: 'LIVE_AGE_REQUIRED',

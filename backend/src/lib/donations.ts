@@ -3,7 +3,7 @@ import { db } from '../models/schema';
 import { getIo } from './ioInstance';
 import { notifyHostLiveDon } from './notifications';
 import { persistGiftToPgAsync } from './pgDonations';
-import { CREATOR_MONETIZATION_MIN_AGE, creatorMeetsMonetizationAge } from './ageGates';
+import { CREATOR_MONETIZATION_MIN_AGE, creatorMeetsMonetizationAgeFromProfile } from './ageGates';
 
 export {
   computeDonationFeeBreakdown,
@@ -55,9 +55,15 @@ export function userMeetsDonationAge(age: number | undefined): boolean {
   return typeof age === 'number' && age >= DONATION_MIN_AGE;
 }
 
+export function userMeetsDonationAgeFromProfile(
+  user: { age?: number; birthDate?: string } | null | undefined
+): boolean {
+  return creatorMeetsMonetizationAgeFromProfile(user);
+}
+
 export function assertCreatorCanReceiveDonation(hostId: string): void {
   const host = db.users.get(hostId);
-  if (!host || !creatorMeetsMonetizationAge(host.age)) {
+  if (!host || !creatorMeetsMonetizationAgeFromProfile(host)) {
     throw new Error(
       `Ce live ne peut pas recevoir de dons (monétisation disponible à partir de ${CREATOR_MONETIZATION_MIN_AGE} ans).`
     );

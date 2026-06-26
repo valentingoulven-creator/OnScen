@@ -37,7 +37,7 @@ $PublicDir  = Join-Path $BackendDir "public"
 
 $KEY = if ($env:DEPLOY_SSH_KEY -and (Test-Path $env:DEPLOY_SSH_KEY)) {
     $env:DEPLOY_SSH_KEY
-} elseif (Test-Path "$env:USERPROFILE\.ssh\id_ed25519") {
+} elseif (-not $env:SSH_AUTH_SOCK -and (Test-Path "$env:USERPROFILE\.ssh\id_ed25519")) {
     "$env:USERPROFILE\.ssh\id_ed25519"
 } else {
     $null
@@ -58,10 +58,25 @@ function Fail([string]$msg) {
     throw $msg
 }
 
+function Get-SshExecutable() {
+    if (Get-Command ssh.exe -ErrorAction SilentlyContinue) { return 'ssh.exe' }
+    if (Get-Command ssh -ErrorAction SilentlyContinue) { return 'ssh' }
+    Fail 'ssh introuvable (OpenSSH requis).'
+}
+
+function Get-ScpExecutable() {
+    if (Get-Command scp.exe -ErrorAction SilentlyContinue) { return 'scp.exe' }
+    if (Get-Command scp -ErrorAction SilentlyContinue) { return 'scp' }
+    Fail 'scp introuvable (OpenSSH requis).'
+}
+
+$sshExe = Get-SshExecutable
+$scpExe = Get-ScpExecutable
+
 function Invoke-Remote([string]$cmd) {
     $prev = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
-    $result = & ssh.exe @sshOpts $sshTarget "$cmd" 2>&1
+    $result = & $sshExe @sshOpts $sshTarget "$cmd" 2>&1
     $code = $LASTEXITCODE
     $ErrorActionPreference = $prev
     if ($code -ne 0) {
@@ -73,7 +88,7 @@ function Invoke-Remote([string]$cmd) {
 function Invoke-Scp([string[]]$ScpArgs) {
     $prev = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
-    & scp.exe @sshOpts @ScpArgs 2>&1 | ForEach-Object { Write-Host $_ }
+    & $scpExe @sshOpts @ScpArgs 2>&1 | ForEach-Object { Write-Host $_ }
     $code = $LASTEXITCODE
     $ErrorActionPreference = $prev
     if ($code -ne 0) {
@@ -110,7 +125,7 @@ if ($Environment -eq 'prod') {
 Write-Host "[1/9] Connexion VPS..." -ForegroundColor Yellow
 $prevEap = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'
-$ping = & ssh.exe @sshOpts $sshTarget "echo PING_OK" 2>&1
+$ping = & $sshExe @sshOpts $sshTarget "echo PING_OK" 2>&1
 $pingCode = $LASTEXITCODE
 $ErrorActionPreference = $prevEap
 if ("$ping" -notmatch "PING_OK") {

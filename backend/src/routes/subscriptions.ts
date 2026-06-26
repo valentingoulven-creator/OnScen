@@ -21,7 +21,7 @@ import {
   recordCreatorSubscription,
   renewSubscriptionFromInvoice,
   resolveCreatorId,
-  userMeetsSubscriptionAge,
+  userMeetsSubscriptionAgeFromProfile,
   type SubscriptionTargetType,
 } from '../lib/subscriptions';
 import { isStripeConfigured } from '../lib/donations';
@@ -156,7 +156,7 @@ subscriptionsRouter.post('/simulate', authenticateJWT, (req: Request, res: Respo
     return;
   }
 
-  if (!ageConfirmed && !userMeetsSubscriptionAge(user.age)) {
+  if (!ageConfirmed && !userMeetsSubscriptionAgeFromProfile(user)) {
     res.status(403).json({
       error: 'Vous devez avoir 18 ans ou plus pour vous abonner',
       code: 'SUBSCRIPTION_AGE_REQUIRED',
@@ -250,7 +250,7 @@ subscriptionsRouter.post('/create-checkout', authenticateJWT, async (req: Reques
     return;
   }
 
-  if (!ageConfirmed && !userMeetsSubscriptionAge(user.age)) {
+  if (!ageConfirmed && !userMeetsSubscriptionAgeFromProfile(user)) {
     res.status(403).json({
       error: 'Vous devez avoir 18 ans ou plus pour vous abonner',
       code: 'SUBSCRIPTION_AGE_REQUIRED',

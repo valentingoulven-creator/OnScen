@@ -6,7 +6,6 @@ import path from 'path';
 import { exec } from 'child_process';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
-import { app } from './server';
 import { setupSockets } from './socket';
 import { setIo, clearIo } from './lib/ioInstance';
 import { attachSocketClusterAdapter } from './lib/socketCluster';
@@ -47,6 +46,8 @@ import { getMsdevEnvPath } from './paths';
 import { startSessionLimitScheduler, stopSessionLimitScheduler } from './lib/sessionLimits';
 import { startDataRetentionScheduler, stopDataRetentionScheduler } from './lib/dataRetention';
 import { assertProductionStartup } from './lib/productionStartup';
+import { initRateLimitStore } from './lib/rateLimitStore';
+import { initErrorMonitoring } from './lib/errorMonitoring';
 import { resolveCorsOrigin } from './lib/corsConfig';
 import { startServerMonitor, stopServerMonitor } from './lib/serverMonitor';
 import { sendMonitoringAlert } from './lib/alertNotifier';
@@ -187,6 +188,10 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
   }
 
   assertProductionStartup();
+  await initRateLimitStore();
+  await initErrorMonitoring();
+
+  const { app } = await import('./server');
 
   const PORT = Number(process.env.PORT) || (forceMsdev ? 4080 : 3000);
   const APP_ENV = process.env.APP_ENV || (forceMsdev ? 'msdev' : 'development');

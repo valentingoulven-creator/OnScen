@@ -35,6 +35,7 @@ import { isGroupMessageVisibleToUser } from '../lib/groupVisibility';
 import { notifyDmReceived } from '../lib/notifications';
 import { trackEvent, trackUserActive } from '../lib/analytics';
 import { moderateDmAttachment, moderationRejectionMessage } from '../lib/contentModeration';
+import { checkChatRateLimit } from '../lib/chatRateLimit';
 
 export const dmRouter = Router();
 
@@ -392,6 +393,12 @@ dmRouter.delete('/thread/:userId', authenticateJWT, (req: Request, res: Response
 
 dmRouter.post('/thread/:userId', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
+
+  if (!checkChatRateLimit(me)) {
+    res.status(429).json({ error: 'Trop de messages. Réessayez dans quelques secondes.' });
+    return;
+  }
+
   const receiverId = req.params.userId;
   const { content, attachmentUrl, attachmentName, attachmentSize, attachmentMimeType } = req.body;
 

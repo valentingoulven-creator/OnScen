@@ -50,6 +50,7 @@ import { COMPOSITION_UPLOAD_JSON_BODY_LIMIT } from './lib/compositionUploadLimit
 import { startTileCacheEviction } from './lib/tileCacheEviction';
 import { resolveCorsOrigin } from './lib/corsConfig';
 import { isMsdevRuntime } from './lib/msdevGuard';
+import { createRateLimitStore } from './lib/rateLimitStore';
 import { injectOgMetaIntoHtml, resolveShareOgMeta } from './lib/shareOgMeta';
 import { renderPublicLegalHtml, resolvePublicLegalDocKey } from './lib/publicLegalHtml';
 import { parseRequestLocale } from './lib/requestLocale';
@@ -434,6 +435,7 @@ const authLimiter = rateLimit({
     if (isMsdevRuntime()) return true;
     return !AUTH_RATE_LIMIT_SENSITIVE_PATHS.has(req.path);
   },
+  store: createRateLimitStore('auth'),
 });
 
 const reportsLimiter = rateLimit({
@@ -443,6 +445,7 @@ const reportsLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Trop de signalements. Réessayez plus tard.' },
   skip: () => isMsdevRuntime(),
+  store: createRateLimitStore('reports'),
 });
 
 const donationsLimiter = rateLimit({
@@ -452,6 +455,7 @@ const donationsLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Trop de tentatives de don. Réessayez plus tard.' },
   skip: () => isMsdevRuntime(),
+  store: createRateLimitStore('donations'),
 });
 
 const subscriptionsLimiter = rateLimit({
@@ -461,7 +465,26 @@ const subscriptionsLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Trop de tentatives d’abonnement. Réessayez plus tard.' },
   skip: () => isMsdevRuntime(),
+  store: createRateLimitStore('subscriptions'),
 });
+
+/** Plafond global API — protection DDoS / scraping (hors health, webhooks). */
+const globalApiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de requêtes. Réessayez dans un instant.' },
+  skip: (req) => {
+    if (isMsdevRuntime()) return true;
+    if (req.path === '/health' || req.path === '/health/db') return true;
+    if (req.path.endsWith('/webhook')) return true;
+    return false;
+  },
+  store: createRateLimitStore('api-global'),
+});
+
+app.use('/api', globalApiLimiter);
 
 app.use('/api/auth', authLimiter, authRouter);
 // OAuth routes are mounted separately: the auth code exchange is naturally
