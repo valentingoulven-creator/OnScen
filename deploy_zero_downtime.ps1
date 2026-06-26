@@ -35,9 +35,22 @@ $BackendDir = Join-Path $PSScriptRoot "backend"
 $DeployDir  = Join-Path $PSScriptRoot "deploy"
 $PublicDir  = Join-Path $BackendDir "public"
 
-$KEY = "$env:USERPROFILE\.ssh\id_ed25519"
-$sshTarget = if ($SSH_HOST -and (Test-Path (Join-Path $env:USERPROFILE ".ssh\config"))) { $SSH_HOST } else { $VPS }
-$sshOpts = @("-i", $KEY, "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=20")
+$KEY = if ($env:DEPLOY_SSH_KEY -and (Test-Path $env:DEPLOY_SSH_KEY)) {
+    $env:DEPLOY_SSH_KEY
+} else {
+    "$env:USERPROFILE\.ssh\id_ed25519"
+}
+$sshTarget = if ($env:DEPLOY_SSH_HOST) {
+    $env:DEPLOY_SSH_HOST
+} elseif ($SSH_HOST -and (Test-Path (Join-Path $env:USERPROFILE ".ssh\config"))) {
+    $SSH_HOST
+} else {
+    $VPS
+}
+$sshOpts = @("-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=20")
+if ($KEY -and (Test-Path $KEY)) {
+    $sshOpts = @("-i", $KEY) + $sshOpts
+}
 
 function Fail([string]$msg) {
     throw $msg
@@ -284,7 +297,7 @@ if ("$migrateOut" -match "MIGRATE_OK") {
 }
 
 
-# -- 7b. Phase 0 scale (Redis + env S3) — prod uniquement ----------------------
+# -- 7b. Phase 0 scale (Redis + env S3) - prod uniquement ----------------------
 if ($Environment -eq 'prod') {
     Write-Host "`n[7b/9] Phase 0 scale (Redis + S3 env)..." -ForegroundColor Yellow
     $phase0Cmd = 'sed -i ''s/\r$//'' ' + $REMOTE + '/deploy/setup-phase0-prod.sh 2>/dev/null; chmod +x ' + $REMOTE + '/deploy/setup-phase0-prod.sh 2>/dev/null; bash ' + $REMOTE + '/deploy/setup-phase0-prod.sh 2>&1; echo PHASE0_OK'
@@ -293,7 +306,7 @@ if ($Environment -eq 'prod') {
     if ("$phase0Out" -match "PHASE0_OK") {
         Write-Host "  [OK] Phase 0 infra (Redis / env)" -ForegroundColor Green
     } else {
-        Write-Host "  [!] Phase 0 — verifiez Redis manuellement" -ForegroundColor Yellow
+        Write-Host "  [!] Phase 0 - verifiez Redis manuellement" -ForegroundColor Yellow
     }
 }
 
@@ -313,7 +326,8 @@ if ($gitCommit) {
 $markIntentionalFlag = 'printf ''%s\n%s\n'' "$(date +%s)" "deploy" > /tmp/soundy-pm2-reload-intentional'
 Invoke-Remote $markIntentionalFlag | Out-Null
 
-$pm2Exists = Invoke-Remote "pm2 describe $PM2_APP >/dev/null 2>&1 && echo PM2_EXISTS || echo PM2_MISSING"
+$pm2ExistsCmd = 'pm2 describe ' + $PM2_APP + ' >/dev/null 2>&1 && echo PM2_EXISTS || echo PM2_MISSING'
+$pm2Exists = Invoke-Remote $pm2ExistsCmd
 if ("$pm2Exists" -match "PM2_MISSING") {
     Write-Host "  -> Premier demarrage PM2 ($PM2_APP)..." -ForegroundColor Cyan
     $ecoFile = Split-Path -Leaf $cfg.EcosystemFile

@@ -1,0 +1,96 @@
+# Deploy preprod — staging.getsoundy.com apres CI verte sur main/master
+#
+# Secrets GitHub requis (Settings → Secrets and variables → Actions) :
+#   STAGING_SSH_PRIVATE_KEY — cle privee SSH (ed25519) autorisee sur 51.159.170.181
+#
+# Declenchement :
+#   - automatique quand le workflow "CI" reussit sur main/master
+#   - manuel via Actions → Deploy Preprod → Run workflow
+#
+# Doc : docs/ENVIRONNEMENTS.md
+
+name: Deploy Preprod
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [master, main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-preprod
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to staging
+    runs-on: windows-latest
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            app/package-lock.json
+            apptel/package-lock.json
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          npm ci --prefix backend
+          npm ci --prefix app
+          npm ci --prefix apptel
+
+      - name: Prepare Vite preproduction env
+        shell: pwsh
+        run: |
+          Copy-Item app/.env.preproduction.example app/.env.preproduction -Force
+          Write-Host "app/.env.preproduction ready (from example)"
+
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+
+      - name: Deploy preprod (zero-downtime)
+        shell: pwsh
+        env:
+          DEPLOY_SSH_HOST: root@51.159.170.181
+        run: |
+          # ssh-agent fourni par webfactory — pas de -i fichier
+          powershell -ExecutionPolicy Bypass -File scripts/deploy-preprod.ps1
+
+      - name: Verify staging health
+        shell: pwsh
+        run: |
+          $urls = @(
+            'http://51.159.170.181/health',
+            'https://staging.getsoundy.com/health'
+          )
+          $ok = $false
+          foreach ($u in $urls) {
+            try {
+              $r = Invoke-WebRequest -Uri $u -UseBasicParsing -TimeoutSec 30
+              if ($r.StatusCode -eq 200 -and $r.Content -match 'preproduction') {
+                Write-Host "OK $u"
+                Write-Host $r.Content
+                $ok = $true
+                break
+              }
+            } catch {
+              Write-Host "Skip $u : $($_.Exception.Message)"
+            }
+          }
+          if (-not $ok) { throw 'Health staging echoue (preproduction attendu)' }

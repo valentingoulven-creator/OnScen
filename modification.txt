@@ -1,4 +1,38 @@
 ================================================================================
+MODIF 661 — GitHub Actions deploy preprod automatique
+Date : 2026-06-25
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Déployer staging automatiquement après chaque push réussi sur main/master,
+ sans deploy prod automatique.
+
+CHANGEMENTS / FIX
+-----
+ .github/workflows/deploy-preprod.yml
+ ─────────────────
+ • Workflow après CI verte (workflow_run) + workflow_dispatch manuel
+ • npm ci, build preprod, deploy_zero_downtime -Environment preprod, health check
+
+ deploy_zero_downtime.ps1
+ ─────────────────
+ • DEPLOY_SSH_KEY / DEPLOY_SSH_HOST pour CI (ssh-agent sans fichier -i local)
+
+ docs/GITHUB-ACTIONS-PREPROD.md, docs/ENVIRONNEMENTS.md, deploy-prod.mdc
+ ─────────────────
+ • Doc secret STAGING_SSH_PRIVATE_KEY et déclenchement
+
+FICHIERS MODIFIÉS
+-----
+ .github/workflows/deploy-preprod.yml (nouveau)
+ docs/GITHUB-ACTIONS-PREPROD.md (nouveau)
+
+================================================================================
+Fin — 2026-06-25
+================================================================================
+
+================================================================================
 MODIF 660 — Architecture 3 environnements Dev / Pré-prod / Prod
 Date : 2026-06-25
 ================================================================================

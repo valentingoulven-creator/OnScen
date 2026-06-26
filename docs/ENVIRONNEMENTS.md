@@ -5,7 +5,7 @@
 | Env | Cible | `APP_ENV` | Données | URL | Deploy |
 |-----|-------|-----------|---------|-----|--------|
 | **Dev** | PC local | `msdev` | `msdev/data/store.json` | `http://localhost:5173` | `npm run dev` |
-| **Pré-prod** | VPS `soundly-staging` | `preproduction` | PostgreSQL `soundy_staging` | `https://staging.getsoundy.com` | `scripts/deploy-preprod.ps1` |
+| **Pré-prod** | VPS `soundly-staging` | `preproduction` | PostgreSQL `soundy_staging` | `https://staging.getsoundy.com` | `scripts/deploy-preprod.ps1` ou **GitHub Actions** (auto) |
 | **Prod** | VPS `soundly` | `production` | PostgreSQL `soundy-prod` | `https://getsoundy.com` | `scripts/deploy-prod.ps1` |
 
 ## Infra
@@ -53,6 +53,9 @@ scripts/setup-staging-env.ps1        # génère .env preprod + push VPS
 # Deploy pré-prod (QA avant prod)
 scripts/deploy-preprod.ps1
 npm run deploy:preprod
+
+# Preprod automatique : push sur main/master → CI verte → workflow "Deploy Preprod"
+# Secret GitHub : STAGING_SSH_PRIVATE_KEY — voir docs/GITHUB-ACTIONS-PREPROD.md
 
 # Deploy prod (demande explicite uniquement)
 scripts/deploy-prod.ps1

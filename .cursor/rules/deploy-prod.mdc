@@ -10,7 +10,7 @@ alwaysApply: true
 | Contexte | Cible | Commande canonique |
 |----------|-------|-------------------|
 | **DEV** | `localhost:5173` (Vite) + API `localhost:4080` (msdev) | `npm run dev` ou `scripts/dev-start.ps1` |
-| **PREPROD** | VPS staging `staging.getsoundy.com` | `scripts/deploy-preprod.ps1` |
+| **PREPROD** | VPS staging `staging.getsoundy.com` | `scripts/deploy-preprod.ps1` ou **GitHub Actions** (auto apres CI) |
 | **PROD** | VPS `getsoundy.com` | `scripts/deploy-prod.ps1` |
 
 ## Quand l'utilisateur dit « deploy preprod » / « deploy staging »
@@ -24,6 +24,7 @@ powershell -ExecutionPolicy Bypass -File scripts/deploy-preprod.ps1
 ```
 
 - Appelle `deploy_zero_downtime.ps1 -Environment preprod`.
+- **Automatique** : workflow GitHub `Deploy Preprod` apres CI verte sur `main`/`master` (secret `STAGING_SSH_PRIVATE_KEY`).
 - **Ne jamais** confondre avec prod.
 - Première fois : `scripts/setup-staging-infra.ps1` puis `scripts/setup-staging-env.ps1`.
 
