@@ -10190,3 +10190,187 @@ CHANGEMENTS / FIX
 ================================================================================
 Fin MODIF 711 — 2026-06-26
 ================================================================================
+
+================================================================================
+MODIF 712 — Salon théâtre : bouton Arrêter / Quitter dans les contrôles
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En vue salon plein écran (théâtre), l'hôte ne voyait pas un bouton clair pour
+ arrêter le salon à côté de Pause/Lecture.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/SalonPlaybackPanel.tsx
+ ─────────────────────────────
+ • Bouton « Arrêter le salon » (hôte) ou « Quitter » (auditeur) dans salon-theater-controls.
+
+ app/src/pages/SalonPage.tsx
+ ───────────────────────────
+ • onRequestEndSalon → modal confirmation existante.
+
+FICHIERS MODIFIÉS
+-----
+ SalonPlaybackPanel.tsx, SalonPage.tsx
+
+================================================================================
+Fin MODIF 712 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 713 — Filtre événements : vol carte animé vers le lieu appliqué
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ À l'application d'un lieu (filtre événements), la caméra doit voler vers la
+ ville avec une transition visible.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/MapView.tsx
+ ─────────────────────────────
+ • flyToCityBounds durée 1,15 s (MAP_CITY_FLY_DURATION_S).
+
+ app/src/pages/HomePage.tsx
+ ───────────────────────────
+ • Vol après fermeture du sheet ; globe → flat puis animation.
+
+FICHIERS MODIFIÉS
+-----
+ MapView.tsx, HomePage.tsx
+
+================================================================================
+Fin MODIF 713 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 714 — Filtre Salon : popup configuration (alignée filtre Évènement)
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic sur 🎵 Salon activait le filtre sans popup. Première version (tri seul)
+ incomplet vs attente utilisateur (même UX que filtre Évènement).
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/MapSalonFilterSheet.tsx
+ ─────────────────────────────────────────
+ • Lieu (EventLocationInput), rayon, tri, plateforme, affinités.
+ • Aperçu caméra à la sélection ville ; Appliquer / Annuler / Réinitialiser.
+
+ app/src/pages/HomePage.tsx
+ ───────────────────────────
+ • Premier clic → sheet ; re-clic désactive ; appui long modifie.
+ • Appliquer : prefs + setLivesGeo + vol carte + liste salons.
+
+ app/src/locales/fr.json, en.json — clés map.salonFilter*
+
+FICHIERS MODIFIÉS
+-----
+ MapSalonFilterSheet.tsx, HomePage.tsx, fr.json, en.json
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 714 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 715 — Carte / globe mobile Safari : libre navigation + tuiles
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur iPhone Safari : globe 3D « bloqué » (retour automatique sur la géoloc après
+ rotation) ; carte plate grise et collée à la position GPS (flyTo + GPS tardif).
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/HomePage.tsx
+ ───────────────────────────
+ • mapRecenterToken : recentrage explicite uniquement (bouton GPS, changement ville).
+ • mapExploredRef : ignore le GPS tardif si l'utilisateur a déjà bougé la carte/globe.
+ • setMapViewportCenter : met à jour le centre sans flyTo.
+
+ app/src/components/GlobeView.tsx
+ ─────────────────────────────
+ • Sync POV globe sur recenterToken (plus de snap-back GPS à la fin du geste).
+ • Boucle RAF OrbitControls pendant le touch (mobile) ; damping idle 900 ms mobile.
+
+ app/src/components/MapView.tsx
+ ─────────────────────────────
+ • flyTo carte sur recenterToken seulement ; onFlatMapViewportCenter au pan.
+ • Mobile : updateWhenIdle off, updateWhenZooming on (tuiles pendant le pan).
+ • invalidateSize + redraw tuiles au retour onglet (visibilitychange).
+
+ app/src/hooks/useHomeGeoRefresh.ts
+ ─────────────────────────────────
+ • setSafeCenter GPS bootstrap seulement si carte pas encore explorée.
+
+ app/src/lib/webglSupport.ts
+ ───────────────────────────
+ • Probe WebGL aligné sur GlobeView (preserveDrawingBuffer: false).
+
+ app/src/lib/phoneViewport.ts
+ ────────────────────────────
+ • isTouchCoarseViewport() pour profil tuiles mobile.
+
+FICHIERS MODIFIÉS
+-----
+ HomePage.tsx, GlobeView.tsx, MapView.tsx, useHomeGeoRefresh.ts, webglSupport.ts, phoneViewport.ts
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 715 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 716 — Filtre Salon : sans rayon fixe + vol caméra à l'application
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Popup filtre Salon : retrait du slider « rayon de recherche » (salons selon zoom
+ carte). À l'application avec une ville : transition caméra vers la ville (comme
+ filtre Évènement).
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/MapSalonFilterSheet.tsx
+ ─────────────────────────────────────────
+ • Suppression rayon UI et radiusKm du critère.
+ • hasSalonFilterCityLocation() exporté.
+
+ app/src/pages/HomePage.tsx
+ ───────────────────────────
+ • flyMapToSalonFilterCity / flyToSalonFilterBounds (cadrage ville via getEventFilterCityMapRadiusKm).
+ • Appliquer : vol forcé vers la ville ; plus setLivesGeo / setNearbyPanelRadiusKm.
+
+ app/src/locales/fr.json, en.json
+ ────────────────────────────────
+ • Hint zoom carte ; suppression clé salonFilterRadiusLabel.
+
+FICHIERS MODIFIÉS
+-----
+ MapSalonFilterSheet.tsx, HomePage.tsx, fr.json, en.json
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 716 — 2026-06-26
+================================================================================

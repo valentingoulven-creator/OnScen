@@ -12,7 +12,6 @@ import { clusterLiveMapMarkers, type MapLiveLocationCluster } from '../lib/mapLi
 import {
   filterPeopleForZoom,
   filterSalonsForZoom,
-  getDistanceKm,
   getGlobeDetailTier,
   getMapMarkerVisibility,
   type MapDetailTier,
@@ -67,7 +66,7 @@ const POV_DEBOUNCE_MS = 600;
 const GLOBE_INTERACTION_MAX_DPR = IS_LOW_POWER_DEVICE ? 1 : 1.5;
 
 /** Fenêtre après dernier mouvement OrbitControls avant arrêt du loop damping. */
-const DAMPING_IDLE_MS = 320;
+const DAMPING_IDLE_MS = IS_LOW_POWER_DEVICE ? 900 : 320;
 
 /** Profil rendu adaptatif — netteté desktop vs perf mobile. */
 const GLOBE_RENDER_PROFILE = (() => {
@@ -337,6 +336,8 @@ export interface GlobeViewProps {
   /** Au zoom ville, afficher tous les salons (filtre Salon sans Lives). */
   showAllSalonsAtCityZoom?: boolean;
   center: [number, number];
+  /** Incrémenté uniquement sur recentrage explicite (bouton GPS, changement ville). */
+  recenterToken?: number;
   userPosition?: [number, number];
   onSelectSalon: (s: Salon) => void;
   onSelectLive: (l: Live) => void;
@@ -373,6 +374,8 @@ export interface GlobeViewProps {
    * avant le basculement mapStyle → flat.
    */
   onPrepareFlatMap?: (lat: number, lng: number, zoom?: number, radiusKm?: number) => void;
+  /** L'utilisateur a commencé à tourner/zoomer le globe (libère le recentrage GPS). */
+  onMapExplored?: () => void;
 }
 
 function buildEventClusterGlobeLabel(cluster: MapEventCityCluster): string {
@@ -404,6 +407,7 @@ export const GlobeView = memo(function GlobeView({
   eventsOnly = false,
   showAllSalonsAtCityZoom = false,
   center,
+  recenterToken = 0,
   userPosition,
   onSelectSalon,
   onSelectLive,
@@ -418,6 +422,7 @@ export const GlobeView = memo(function GlobeView({
   eventsFilterOn = false,
   onGlobeUnavailable,
   onPrepareFlatMap,
+  onMapExplored,
 }: GlobeViewProps) {
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -454,6 +459,9 @@ export const GlobeView = memo(function GlobeView({
   onGlobeUnavailableRef.current = onGlobeUnavailable;
   const onPrepareFlatMapRef = useRef(onPrepareFlatMap);
   onPrepareFlatMapRef.current = onPrepareFlatMap;
+  const onMapExploredRef = useRef(onMapExplored);
+  onMapExploredRef.current = onMapExplored;
+  const lastRecenterTokenRef = useRef(recenterToken);
   const globeUnavailableReportedRef = useRef(false);
   // Empêche la transition auto de se déclencher plusieurs fois
   const autoSwitchedRef = useRef(false);
@@ -560,6 +568,7 @@ export const GlobeView = memo(function GlobeView({
     let cleanupListener: (() => void) | undefined;
     let cleanupRendererListeners: (() => void) | undefined;
     let dampingRafId = 0;
+    let interactionRafId = 0;
     let lastDampingAt = 0;
     try {
       const controls = globeRef.current.controls() as {
@@ -609,12 +618,33 @@ export const GlobeView = memo(function GlobeView({
 
       const handleInteractionStart = () => {
         isInteractingRef.current = true;
+        onMapExploredRef.current?.();
         setIsInteracting(true);
         setGlobeInteractionDpr(true);
         bumpDampingLoop();
+        if (!interactionRafId) {
+          const runInteractionLoop = () => {
+            if (!isInteractingRef.current) {
+              interactionRafId = 0;
+              return;
+            }
+            try {
+              controls.update();
+            } catch {
+              interactionRafId = 0;
+              return;
+            }
+            interactionRafId = requestAnimationFrame(runInteractionLoop);
+          };
+          interactionRafId = requestAnimationFrame(runInteractionLoop);
+        }
       };
       const handleInteractionEnd = () => {
         isInteractingRef.current = false;
+        if (interactionRafId) {
+          cancelAnimationFrame(interactionRafId);
+          interactionRafId = 0;
+        }
         startTransition(() => setIsInteracting(false));
         setGlobeInteractionDpr(false);
         syncTierAndPovFromGlobe(true);
@@ -668,6 +698,7 @@ export const GlobeView = memo(function GlobeView({
 
       cleanupListener = () => {
         if (dampingRafId) cancelAnimationFrame(dampingRafId);
+        if (interactionRafId) cancelAnimationFrame(interactionRafId);
         controls.removeEventListener('start', handleInteractionStart);
         controls.removeEventListener('end', handleInteractionEnd);
         controls.removeEventListener('change', handleControlsChange);
@@ -786,19 +817,17 @@ export const GlobeView = memo(function GlobeView({
     };
   }, []);
 
-  // Sync globe vers center prop (recenter explicite) — pas pendant interaction ni si déjà proche.
+  // Recentrage explicite uniquement — pas de retour GPS après rotation libre.
   useEffect(() => {
     if (!globeRef.current || !isValidLatLng(center[0], center[1])) return;
+    if (recenterToken === lastRecenterTokenRef.current && povSetRef.current) return;
+    lastRecenterTokenRef.current = recenterToken;
     if (isInteractingRef.current) return;
     try {
       const pov = globeRef.current.pointOfView() as
         | { lat: number; lng: number; altitude: number }
         | undefined;
-      if (pov && isValidLatLng(pov.lat, pov.lng)) {
-        const distKm = getDistanceKm(center[0], center[1], pov.lat, pov.lng);
-        if (distKm < 0.15) return;
-      }
-      const duration = povSetRef.current ? 1200 : 0;
+      const duration = povSetRef.current ? 900 : 0;
       povSetRef.current = true;
       let altitude = 1.0;
       if (pov && typeof pov.altitude === 'number') {
@@ -808,7 +837,7 @@ export const GlobeView = memo(function GlobeView({
     } catch {
       // Globe may not be ready yet
     }
-  }, [center[0], center[1]]);
+  }, [recenterToken, center]);
 
   const salonIds = useMemo(() => new Set(salons.map((s) => s.id)), [salons]);
 

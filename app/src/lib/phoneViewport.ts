@@ -18,6 +18,19 @@ export function isPhoneWebViewport(): boolean {
   }
 }
 
+/** Touch-first device (phone Safari, Android browser, coarse pointer). */
+export function isTouchCoarseViewport(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return (
+      window.matchMedia('(pointer: coarse)').matches ||
+      /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+    );
+  } catch {
+    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  }
+}
+
 /** Bottom map panel + side list hidden (phone / narrow). */
 export function isCompactMapViewport(): boolean {
   if (typeof window === 'undefined') return false;

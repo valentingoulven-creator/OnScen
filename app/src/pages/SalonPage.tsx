@@ -794,6 +794,10 @@ export function SalonPage({
               onSkip={canControlPlayback ? handleSkip : undefined}
               onAnchorVideoFloat={onRestoreFullScreen}
               onLeaveSalon={onLeaveSalon}
+              onRequestEndSalon={
+                onLeaveSalon && isHost ? () => setShowEndSalonConfirm(true) : undefined
+              }
+              endingSalon={endingSalon}
             />
           }
           chat={

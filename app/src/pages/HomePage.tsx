@@ -9,6 +9,12 @@ import { MapCityEventsPanel } from '../components/MapCityEventsPanel';
 import { MapLiveClusterSheet } from '../components/MapLiveClusterSheet';
 import { MapEventDetailModal } from '../components/MapEventDetailModal';
 import { MapEventFilterSheet } from '../components/MapEventFilterSheet';
+import {
+  MapSalonFilterSheet,
+  getDefaultSalonFilterCriteria,
+  hasSalonFilterCityLocation,
+  type MapSalonFilterCriteria,
+} from '../components/MapSalonFilterSheet';
 import { MapSalonListenSheet } from '../components/MapSalonListenSheet';
 import { CreateSalonModal } from '../components/CreateSalonModal';
 import { StartLiveFlowModals } from '../components/StartLiveFlowModals';
@@ -249,12 +255,28 @@ export function HomePage({
   const [nearbyPeople, setNearbyPeople] = useState<NearbyPerson[]>([]);
   const [selected, setSelected] = useState<Salon | null>(null);
   const [center, setCenter] = useState<[number, number]>(() => [...DEFAULT_CENTER]);
+  const mapRecenterTokenRef = useRef(0);
+  const [mapRecenterToken, setMapRecenterToken] = useState(0);
+  /** Après pan carte ou rotation globe — ne pas ramener le viewport sur le GPS tardif. */
+  const mapExploredRef = useRef(false);
   const setSafeCenter = useCallback((coords: [number, number]) => {
     if (!isValidLatLng(coords[0], coords[1])) {
+      mapRecenterTokenRef.current += 1;
+      setMapRecenterToken(mapRecenterTokenRef.current);
       setCenter([...DEFAULT_CENTER]);
       return;
     }
+    mapRecenterTokenRef.current += 1;
+    setMapRecenterToken(mapRecenterTokenRef.current);
     setCenter(sanitizeLatLngTuple(coords[0], coords[1], DEFAULT_CENTER));
+  }, []);
+  const setMapViewportCenter = useCallback((coords: [number, number]) => {
+    if (!isValidLatLng(coords[0], coords[1])) return;
+    mapExploredRef.current = true;
+    setCenter(sanitizeLatLngTuple(coords[0], coords[1], DEFAULT_CENTER));
+  }, []);
+  const noteMapExplored = useCallback(() => {
+    mapExploredRef.current = true;
   }, []);
   const [userPosition, setUserPosition] = useState<[number, number] | null>(null);
   const [showCreateSalon, setShowCreateSalon] = useState(false);
@@ -279,6 +301,7 @@ export function HomePage({
   const mapViewRef = useRef<MapViewHandle>(null);
   const eventFilterFlyPendingRef = useRef<MapEventFilterCriteria | null>(null);
   const lastEventFilterCityFlyRef = useRef<string | null>(null);
+  const lastSalonFilterCityFlyRef = useRef<string | null>(null);
   const mapEventsRef = useRef<MapEventMarker[]>([]);
   const mapEventPostsRef = useRef<Map<string, FeedPost>>(new Map());
   const [salonSheetExpanded, setSalonSheetExpanded] = useState(false);
@@ -287,9 +310,16 @@ export function HomePage({
   const [eventFilterCriteria, setEventFilterCriteria] =
     useState<MapEventFilterCriteria>(createDefaultEventFilter);
   const [showEventFilterSheet, setShowEventFilterSheet] = useState(false);
+  const [showSalonFilterSheet, setShowSalonFilterSheet] = useState(false);
+  const [salonFilterCriteria, setSalonFilterCriteria] = useState<MapSalonFilterCriteria>(() =>
+    getDefaultSalonFilterCriteria(getLivesGeo())
+  );
   useEffect(() => {
     if (!showEventFilterSheet) lastEventFilterCityFlyRef.current = null;
   }, [showEventFilterSheet]);
+  useEffect(() => {
+    if (!showSalonFilterSheet) lastSalonFilterCityFlyRef.current = null;
+  }, [showSalonFilterSheet]);
   useEffect(() => {
     const location = resolveDefaultUserCityLabel(user?.city);
     if (!location) return;
@@ -344,6 +374,8 @@ export function HomePage({
   const [mapEventsRefreshKey, setMapEventsRefreshKey] = useState(0);
   const eventFilterLongPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const eventFilterLongPressTriggeredRef = useRef(false);
+  const salonFilterLongPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const salonFilterLongPressTriggeredRef = useRef(false);
   const [loadingMapEvents, setLoadingMapEvents] = useState(false);
   const [selectedEventCluster, setSelectedEventCluster] = useState<MapEventCityCluster | null>(null);
   const [selectedLiveCluster, setSelectedLiveCluster] = useState<MapLiveLocationCluster | null>(null);
@@ -882,6 +914,7 @@ export function HomePage({
         pendingMapFilterNearbyReloadRef.current = true;
         clearNearbyCache();
         setShowSalonMarkers(false);
+        setShowSalonFilterSheet(false);
       }
       if (except !== 'events' && showEventMarkers) {
         disableEventsFilter();
@@ -911,16 +944,107 @@ export function HomePage({
     });
   }, [nearbyPanelPrefs.livesOnly]);
 
-  const toggleSalonFilter = useCallback(() => {
-    if (showSalonMarkers) {
-      setShowSalonMarkers(false);
-      return;
-    }
-    deactivateMapContentFiltersExcept('salon');
+  const disableSalonFilter = useCallback(() => {
     pendingMapFilterNearbyReloadRef.current = true;
     clearNearbyCache();
-    setShowSalonMarkers(true);
-  }, [showSalonMarkers, deactivateMapContentFiltersExcept]);
+    setShowSalonMarkers(false);
+    setShowSalonFilterSheet(false);
+  }, []);
+
+  const openSalonFilterSheet = useCallback(() => {
+    if (!showSalonMarkers) {
+      deactivateMapContentFiltersExcept(null);
+    }
+    setSalonFilterCriteria(getDefaultSalonFilterCriteria(mapGeo));
+    setShowSalonFilterSheet(true);
+  }, [showSalonMarkers, deactivateMapContentFiltersExcept, mapGeo]);
+
+  const flyMapToSalonFilterCity = useCallback(
+    (lat: number, lng: number, locationLabel: string, opts?: { force?: boolean }) => {
+      if (!isValidLatLng(lat, lng)) return;
+      const radiusKm = getEventFilterCityMapRadiusKm(locationLabel);
+      const flyKey = `${locationLabel.trim().toLowerCase()}|${lat.toFixed(5)}|${lng.toFixed(5)}|${radiusKm}`;
+      if (!opts?.force && lastSalonFilterCityFlyRef.current === flyKey) return;
+      lastSalonFilterCityFlyRef.current = flyKey;
+
+      if (mapStyle === 'globe') {
+        mapViewRef.current?.jumpToCityBounds(lat, lng, radiusKm);
+        setMapStyle('flat');
+        localStorage.setItem(MAP_STYLE_KEY, 'flat');
+      } else {
+        mapViewRef.current?.flyToCityBounds(lat, lng, radiusKm);
+      }
+    },
+    [mapStyle]
+  );
+
+  const flyToSalonFilterBounds = useCallback(
+    (criteria: MapSalonFilterCriteria, force = false) => {
+      if (!hasSalonFilterCityLocation(criteria)) return;
+      flyMapToSalonFilterCity(criteria.latitude!, criteria.longitude!, criteria.location, { force });
+    },
+    [flyMapToSalonFilterCity]
+  );
+
+  const previewSalonFilterCity = useCallback(
+    (lat: number, lng: number, location: string) => {
+      flyMapToSalonFilterCity(lat, lng, location);
+    },
+    [flyMapToSalonFilterCity]
+  );
+
+  const toggleSalonFilter = useCallback(() => {
+    if (showSalonMarkers) {
+      disableSalonFilter();
+      return;
+    }
+    openSalonFilterSheet();
+  }, [showSalonMarkers, disableSalonFilter, openSalonFilterSheet]);
+
+  const applySalonFilter = useCallback(
+    (criteria: MapSalonFilterCriteria) => {
+      deactivateMapContentFiltersExcept('salon');
+      setSalonFilterCriteria(criteria);
+      setNearbyPanelPreferences({
+        sortBy: criteria.sortBy,
+        musicalAffinitiesOnly: criteria.musicalAffinitiesOnly,
+      });
+      setShowSalonFilterSheet(false);
+      pendingMapFilterNearbyReloadRef.current = true;
+      clearNearbyCache();
+      setShowSalonMarkers(true);
+      setNearbyPeopleVisible(true);
+
+      if (hasSalonFilterCityLocation(criteria)) {
+        requestAnimationFrame(() => flyToSalonFilterBounds(criteria, true));
+      }
+    },
+    [deactivateMapContentFiltersExcept, flyToSalonFilterBounds]
+  );
+
+  const onSalonFilterPointerDown = useCallback(() => {
+    salonFilterLongPressTriggeredRef.current = false;
+    if (salonFilterLongPressRef.current) clearTimeout(salonFilterLongPressRef.current);
+    salonFilterLongPressRef.current = setTimeout(() => {
+      salonFilterLongPressTriggeredRef.current = true;
+      openSalonFilterSheet();
+    }, 600);
+  }, [openSalonFilterSheet]);
+
+  const onSalonFilterPointerUp = useCallback(() => {
+    if (salonFilterLongPressRef.current) {
+      clearTimeout(salonFilterLongPressRef.current);
+      salonFilterLongPressRef.current = null;
+    }
+  }, []);
+
+  const onSalonFilterClick = useCallback(() => {
+    if (salonFilterLongPressTriggeredRef.current) {
+      salonFilterLongPressTriggeredRef.current = false;
+      return;
+    }
+    toggleSalonFilter();
+  }, [toggleSalonFilter]);
 
   const openEventFilterSheet = useCallback(() => {
     if (!showEventMarkers) {
@@ -1143,7 +1267,7 @@ export function HomePage({
       }
       setMapStyle('flat');
       localStorage.setItem(MAP_STYLE_KEY, 'flat');
-      setCenter(sanitizeLatLngTuple(lat, lng, DEFAULT_CENTER));
+      setMapViewportCenter(sanitizeLatLngTuple(lat, lng, DEFAULT_CENTER));
       setTimeout(doSelect, 340);
     },
     []
@@ -1253,12 +1377,14 @@ export function HomePage({
     loadNearbyFromState,
     setSafeCenter,
     setUserPosition,
+    mapExploredRef,
     geoIntervalRef,
   });
 
   useEffect(() => {
     if (!isActive) return;
     const onMapGeo = () => {
+      mapExploredRef.current = false;
       const geo = getLivesGeo();
       if (isFixedMapGeoSource(geo.source)) {
         setSafeCenter([geo.latitude, geo.longitude]);
@@ -1274,8 +1400,8 @@ export function HomePage({
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const coords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
-          setSafeCenter(coords);
           setUserPosition(sanitizeLatLngTuple(coords[0], coords[1]));
+          setSafeCenter(coords);
           loadNearby(coords[0], coords[1]);
           setLocating(false);
         },
@@ -1405,6 +1531,9 @@ export function HomePage({
       if (!isValidLatLng(lat, lng)) return;
       if (Date.now() < programmaticMapMoveUntilRef.current) return;
 
+      mapExploredRef.current = true;
+      setMapViewportCenter([lat, lng]);
+
       const atOverview = altitude >= GLOBE_ALTITUDE_CITY_MAX;
       const ambientGlobe = atOverview && !mapFilterViewportOn;
 
@@ -1426,7 +1555,7 @@ export function HomePage({
       lastGlobeNearbyRef.current = { lat, lon: lng };
       loadNearbyViewportDebounced([lat, lng]);
     },
-    [mapFilterViewportOn, salonFilterOn, token, loadNearbyViewportDebounced]
+    [mapFilterViewportOn, salonFilterOn, token, loadNearbyViewportDebounced, setMapViewportCenter]
   );
 
   /** Désactivation filtre Lives : revenir aux données GPS / centre carte. */
@@ -2005,6 +2134,17 @@ export function HomePage({
         />
       )}
 
+      {token && (
+        <MapSalonFilterSheet
+          open={showSalonFilterSheet}
+          initialCriteria={salonFilterCriteria}
+          profileCity={user?.city}
+          onClose={() => setShowSalonFilterSheet(false)}
+          onApply={applySalonFilter}
+          onPreviewCity={previewSalonFilterCity}
+        />
+      )}
+
       {token && user && (
         <CreateSalonModal
           token={token}
@@ -2148,6 +2288,7 @@ export function HomePage({
           eventsOnly={mapEventsOnly}
           showAllSalonsAtCityZoom={showAllSalonsAtCityZoom}
           center={center}
+          recenterToken={mapRecenterToken}
           userPosition={mapUserPosition ?? undefined}
           onSelectSalon={handleMapSalonClick}
           onSelectLive={handleMapLiveClick}
@@ -2162,6 +2303,8 @@ export function HomePage({
           onGlobeUnavailable={handleGlobeUnavailable}
           onMapDetailStateChange={handleMapDetailStateChange}
           onGlobePovChange={handleGlobePovChange}
+          onFlatMapViewportCenter={(lat, lng) => setMapViewportCenter([lat, lng])}
+          onMapExplored={noteMapExplored}
           livesFilterOn={livesFilterOn}
           salonFilterOn={salonFilterOn}
           eventsFilterOn={eventsFilterOn}
@@ -2276,16 +2419,20 @@ export function HomePage({
           <div className="relative w-full">
             <button
               type="button"
-              onClick={toggleSalonFilter}
+              onClick={onSalonFilterClick}
+              onPointerDown={onSalonFilterPointerDown}
+              onPointerUp={onSalonFilterPointerUp}
+              onPointerLeave={onSalonFilterPointerUp}
+              onPointerCancel={onSalonFilterPointerUp}
               title={
                 showSalonMarkers
-                  ? 'Désactiver le filtre Salon'
-                  : 'Afficher les salons sur la carte'
+                  ? t('map.salonFilterDisableTitle')
+                  : t('map.salonFilterEnableTitle')
               }
               aria-label={
                 showSalonMarkers
-                  ? 'Désactiver le filtre Salon'
-                  : 'Afficher les salons sur la carte'
+                  ? t('map.salonFilterDisableTitle')
+                  : t('map.salonFilterEnableTitle')
               }
               aria-pressed={showSalonMarkers}
               className={`${MAP_STACK_FILTER_BTN} ${

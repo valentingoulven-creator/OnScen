@@ -86,6 +86,9 @@ interface SalonPlaybackPanelProps {
   onAnchorVideoFloat?: () => void;
   /** Quitter le salon depuis le PiP (salon minimisé / changement d'onglet). */
   onLeaveSalon?: () => void;
+  /** Hôte : ouvre la confirmation d'arrêt du salon pour tous. */
+  onRequestEndSalon?: () => void;
+  endingSalon?: boolean;
 }
 
 const PLATFORM_META = {
@@ -128,6 +131,8 @@ export function SalonPlaybackPanel({
   onMapInlineListenCapReached,
   onAnchorVideoFloat,
   onLeaveSalon,
+  onRequestEndSalon,
+  endingSalon = false,
 }: SalonPlaybackPanelProps) {
   const { t } = useTranslation();
   const hostLinked = isHost && isMusicPlatformLinkedForSalon(salon.platform, userPlatforms, userPlatformLinks);
@@ -516,6 +521,42 @@ export function SalonPlaybackPanel({
     </span>
   );
 
+  const renderSalonSessionButton = (className: string, hostClassName?: string) => {
+    if (isHost && onRequestEndSalon) {
+      return (
+        <button
+          type="button"
+          onClick={onRequestEndSalon}
+          disabled={endingSalon}
+          className={
+            hostClassName ??
+            `${className} border-red-500/50 bg-red-950/30 text-red-300 hover:bg-red-600/25 hover:text-white disabled:opacity-50`
+          }
+          title={t('salon.endSalon')}
+          aria-label={t('salon.endSalon')}
+        >
+          {endingSalon
+            ? t('common.loading', { defaultValue: 'Chargement…' })
+            : t('salon.endSalon', { defaultValue: 'Arrêter le salon' })}
+        </button>
+      );
+    }
+    if (onLeaveSalon) {
+      return (
+        <button
+          type="button"
+          onClick={onLeaveSalon}
+          className={className}
+          title={t('salon.leaveSalon')}
+          aria-label={t('salon.leaveSalon')}
+        >
+          {t('salon.leaveSalon', { defaultValue: 'Quitter le salon' })}
+        </button>
+      );
+    }
+    return null;
+  };
+
   const playbackProgressInput = (
     <input
       type="range"
@@ -607,6 +648,11 @@ export function SalonPlaybackPanel({
 
           {renderParticipantSyncButton(
             'px-2.5 py-1.5 rounded-xl border border-[#2a2a3a] text-xs text-gray-400 hover:text-white transition'
+          )}
+
+          {renderSalonSessionButton(
+            'min-h-11 px-3 py-1.5 rounded-xl border border-[#2a2a3a] text-xs font-semibold text-gray-400 hover:text-white hover:border-gray-500 transition shrink-0',
+            'min-h-11 px-3 py-1.5 rounded-xl border border-red-500/50 bg-red-950/30 text-xs font-semibold text-red-300 hover:bg-red-600/25 hover:text-white transition shrink-0 disabled:opacity-50'
           )}
 
           {playbackProgressInput}
@@ -767,7 +813,7 @@ export function SalonPlaybackPanel({
           participantSyncTrigger={participantSyncTrigger}
           videoFloat={theaterVideoFloatActive ? videoPip : undefined}
           videoFloatTitle={playbackState.title}
-          onLeaveSalon={!salonFullScreen ? onLeaveSalon : undefined}
+          onLeaveSalon={onLeaveSalon}
           onIsLiveChange={setYoutubeIsLive}
           liveSeekTrigger={ytLiveSeekTrigger}
         />
@@ -800,7 +846,13 @@ export function SalonPlaybackPanel({
             {canControlPlayback ? theaterVideoToggle : null}
             {theaterFloatPipButton}
             {theaterVolumeControl}
-            <span className="ml-auto flex shrink-0">{playbackStatusBadge}</span>
+            <div className="ml-auto flex items-center gap-2 shrink-0">
+              {renderSalonSessionButton(
+                'min-h-11 px-3 py-1.5 rounded-full border border-[#2a2a3a] text-xs font-semibold text-gray-400 hover:text-white hover:border-gray-500 transition',
+                'min-h-11 px-3 py-1.5 rounded-full border border-red-500/50 bg-red-950/30 text-xs font-semibold text-red-300 hover:bg-red-600/25 hover:text-white transition disabled:opacity-50'
+              )}
+              {playbackStatusBadge}
+            </div>
           </div>
           {playbackProgressInput}
         </div>

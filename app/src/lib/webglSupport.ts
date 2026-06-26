@@ -61,9 +61,10 @@ export function detectWebGLSupport(force = false): WebGLSupportResult {
   // Match GlobeView / Three.js rendererConfig (antialias only on low-DPR screens).
   const antialias =
     typeof window !== 'undefined' && window.devicePixelRatio <= 1;
+  // Match GlobeView GLOBE_RENDERER_CONFIG (preserveDrawingBuffer: false).
   const attrs: WebGLContextAttributes = {
     failIfMajorPerformanceCaveat: false,
-    preserveDrawingBuffer: true,
+    preserveDrawingBuffer: false,
     alpha: true,
     antialias,
     powerPreference: 'default',

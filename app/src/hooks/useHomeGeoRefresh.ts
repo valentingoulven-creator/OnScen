@@ -1,4 +1,4 @@
-import { useEffect, useRef, type MutableRefObject } from 'react';
+import { useEffect, useRef, type MutableRefObject, type RefObject } from 'react';
 import { getLivesGeo, isFixedMapGeoSource } from '../lib/livesGeo';
 import { getPrivacyPreferences } from '../lib/settings';
 import { sanitizeLatLngTuple } from '../lib/mapCoords';
@@ -23,6 +23,8 @@ export function useHomeGeoRefresh(options: {
   loadNearbyFromState: (userPos: Coords | null, mapCenter: Coords) => void;
   setSafeCenter: (coords: Coords) => void;
   setUserPosition: (pos: Coords | null) => void;
+  /** True après pan/zoom carte ou rotation globe — ne pas recentrer sur GPS tardif. */
+  mapExploredRef: RefObject<boolean>;
   geoIntervalRef: MutableRefObject<ReturnType<typeof setInterval> | null>;
 }): void {
   const {
@@ -34,6 +36,7 @@ export function useHomeGeoRefresh(options: {
     loadNearbyFromState,
     setSafeCenter,
     setUserPosition,
+    mapExploredRef,
     geoIntervalRef,
   } = options;
 
@@ -61,8 +64,10 @@ export function useHomeGeoRefresh(options: {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const coords: Coords = [pos.coords.latitude, pos.coords.longitude];
-          setSafeCenter(coords);
           setUserPosition(sanitizeLatLngTuple(coords[0], coords[1], defaultCenter));
+          if (!mapExploredRef.current) {
+            setSafeCenter(coords);
+          }
           loadNearbyAt(coords);
         },
         () => loadNearbyFromStateRef.current(null, centerRef.current)

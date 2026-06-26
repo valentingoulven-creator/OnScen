@@ -15,7 +15,6 @@ import { getUsernameStyle, usernameMapLabelHtml } from '../lib/usernameColor';
 import {
   filterPeopleForZoom,
   filterSalonsForZoom,
-  getDistanceKm,
   getFlatMapDetailTier,
   getGlobeDetailTier,
   getMapMarkerVisibility,
@@ -23,6 +22,7 @@ import {
   type MapViewDetailState,
 } from '../lib/mapMarkerVisibility';
 import { canUseGlobeView } from '../lib/webglSupport';
+import { isTouchCoarseViewport } from '../lib/phoneViewport';
 import { GlobeErrorBoundary } from './GlobeErrorBoundary';
 
 // Lazy-load the 3D globe (large Three.js bundle) only when needed.
@@ -41,13 +41,21 @@ export interface MapViewHandle {
   /** Cadre instantanément une zone urbaine (rayon km autour du centre). */
   jumpToCityBounds: (lat: number, lng: number, radiusKm: number) => void;
   /** Anime vers le cadrage d'une ville entière. */
-  flyToCityBounds: (lat: number, lng: number, radiusKm: number) => void;
+  flyToCityBounds: (
+    lat: number,
+    lng: number,
+    radiusKm: number,
+    opts?: { durationSec?: number }
+  ) => void;
   /** Pré-positionne la carte plate (cachée) et lance le chargement tuiles avant le crossfade. */
   prepareFlatAt: (lat: number, lng: number, zoom?: number, radiusKm?: number) => void;
 }
 
 /** Globe ↔ flat crossfade duration (ms) — keep in sync with CSS transition. */
 const MAP_CROSSFADE_MS = 300;
+
+/** Vol carte vers une ville (filtre événement, etc.) — plus lisible que le crossfade. */
+export const MAP_CITY_FLY_DURATION_S = 1.15;
 
 /** Min wait before crossfade (ms) — laisse le globe amorcer le zoom. */
 const TILE_WARMUP_MIN_MS = 60;
@@ -94,6 +102,8 @@ interface MapViewProps {
   /** Au zoom ville, afficher tous les salons (filtre Salon sans Lives). */
   showAllSalonsAtCityZoom?: boolean;
   center: [number, number];
+  /** Incrémenté uniquement sur recentrage explicite — évite flyTo après pan utilisateur. */
+  recenterToken?: number;
   userPosition?: [number, number];
   onSelectSalon: (s: Salon) => void;
   onSelectLive: (l: Live) => void;
@@ -126,6 +136,10 @@ interface MapViewProps {
   onGlobePovChange?: (lat: number, lng: number, altitude: number) => void;
   /** Pré-charge tuiles carte plate pendant zoom globe. */
   onPrepareFlatMap?: (lat: number, lng: number, zoom?: number, radiusKm?: number) => void;
+  /** Centre viewport carte plate après pan/zoom utilisateur (sans recentrage). */
+  onFlatMapViewportCenter?: (lat: number, lng: number) => void;
+  /** L'utilisateur a commencé à déplacer la carte plate. */
+  onMapExplored?: () => void;
   /** Filtre Lives actif — marqueurs live (points simplifiés en vue globale). */
   livesFilterOn?: boolean;
   salonFilterOn?: boolean;
@@ -156,6 +170,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   eventsOnly = false,
   showAllSalonsAtCityZoom = false,
   center,
+  recenterToken = 0,
   userPosition,
   onSelectSalon,
   onSelectLive,
@@ -170,6 +185,8 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   onMapDetailStateChange,
   onGlobePovChange,
   onPrepareFlatMap,
+  onFlatMapViewportCenter,
+  onMapExplored,
   livesFilterOn = false,
   salonFilterOn = false,
   eventsFilterOn = false,
@@ -224,6 +241,12 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   const detailEmitRafRef = useRef<number | null>(null);
   const salonLivePeopleKeyRef = useRef<string | null>(null);
   const eventClusterKeyRef = useRef<string | null>(null);
+  const lastRecenterTokenRef = useRef(recenterToken);
+  const onFlatMapViewportCenterRef = useRef(onFlatMapViewportCenter);
+  onFlatMapViewportCenterRef.current = onFlatMapViewportCenter;
+  const onMapExploredRef = useRef(onMapExplored);
+  onMapExploredRef.current = onMapExplored;
+  const userMapPanRef = useRef(false);
 
   const flatDetailTier = useMemo(() => getFlatMapDetailTier(flatMapZoom), [flatMapZoom]);
   const eventClustersActive = hasEventClusters ?? eventClusters.length > 0;
@@ -432,14 +455,15 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
         // Map may not be ready
       }
     },
-    flyToCityBounds(lat: number, lng: number, radiusKm: number) {
+    flyToCityBounds(lat: number, lng: number, radiusKm: number, opts?: { durationSec?: number }) {
       if (!mapInstance.current || !isValidLatLng(lat, lng) || radiusKm <= 0) return;
       skipCenterFlyRef.current = true;
+      const duration = opts?.durationSec ?? MAP_CITY_FLY_DURATION_S;
       try {
         const bounds = L.circle(sanitizeLatLngTuple(lat, lng), { radius: radiusKm * 1000 }).getBounds();
         mapInstance.current.flyToBounds(bounds, {
           padding: [48, 48],
-          duration: MAP_CROSSFADE_MS / 1000,
+          duration,
           maxZoom: 14,
         });
       } catch {
@@ -632,14 +656,16 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     // Flat Carto tiles always mounted (hidden via container opacity in globe mode)
     // so they can warm up before the crossfade reveals the flat map.
     const flatCfg = TILE_LAYERS.flat;
+    const touchCoarse = isTouchCoarseViewport();
     tileLayerRef.current = L.tileLayer(flatCfg.url, {
       attribution: flatCfg.attribution,
       maxZoom: flatCfg.maxZoom,
       noWrap: true,
-      // Fewer tile fetches while panning — but globe→flat preload uses redraw().
-      updateWhenIdle: true,
-      updateWhenZooming: false,
-      keepBuffer: 3,
+      // Mobile Safari : charger les tuiles pendant le pan (updateWhenIdle laisse la carte grise).
+      updateWhenIdle: !touchCoarse,
+      updateWhenZooming: touchCoarse,
+      keepBuffer: touchCoarse ? 4 : 3,
+      crossOrigin: touchCoarse,
     }).addTo(map);
 
     const onMapClick = () => onMapBackgroundClickRef.current?.();
@@ -659,8 +685,21 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
         onAutoSwitchToGlobeRef.current?.();
       }
     };
+    const onMapMoveEnd = () => {
+      onViewChange();
+      if (skipCenterFlyRef.current) return;
+      try {
+        const c = map.getCenter();
+        if (!isValidLatLng(c.lat, c.lng)) return;
+        userMapPanRef.current = true;
+        onMapExploredRef.current?.();
+        onFlatMapViewportCenterRef.current?.(c.lat, c.lng);
+      } catch {
+        /* map may not be ready */
+      }
+    };
     map.on('zoomend', onViewChange);
-    map.on('moveend', onViewChange);
+    map.on('moveend', onMapMoveEnd);
     lastFlatZoomRef.current = map.getZoom();
     setFlatMapZoom(map.getZoom());
 
@@ -677,7 +716,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       ro.disconnect();
       map.off('click', onMapClick);
       map.off('zoomend', onViewChange);
-      map.off('moveend', onViewChange);
+      map.off('moveend', onMapMoveEnd);
       map.remove();
       mapInstance.current = null;
       salonLiveLayerRef.current = null;
@@ -687,25 +726,42 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Fly to new center (recenter explicite uniquement — pas de reset zoom) ─
+  // iOS Safari : recalcule taille + tuiles au retour onglet (carte grise / globe figé).
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      const map = mapInstance.current;
+      if (!map) return;
+      try {
+        map.invalidateSize();
+        tileLayerRef.current?.redraw();
+      } catch {
+        /* map may not be ready */
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
+
+  // ── Fly to center on explicit recenter only (not after user pan) ─────────
   useEffect(() => {
     const map = mapInstance.current;
     if (!map) return;
     if (!isValidLatLng(center[0], center[1])) return;
+    if (recenterToken === lastRecenterTokenRef.current && userMapPanRef.current) return;
+    lastRecenterTokenRef.current = recenterToken;
     if (skipCenterFlyRef.current) {
       skipCenterFlyRef.current = false;
       return;
     }
+    userMapPanRef.current = false;
     try {
-      const mapCenter = map.getCenter();
-      const distKm = getDistanceKm(center[0], center[1], mapCenter.lat, mapCenter.lng);
-      if (distKm < 0.08) return;
       const zoom = map.getZoom();
       map.flyTo(sanitizeLatLngTuple(center[0], center[1]), zoom, { duration: 0.6 });
     } catch (err) {
       console.error('[MapView] flyTo error:', err);
     }
-  }, [center]);
+  }, [recenterToken, center]);
 
   // ── User position marker (bonhomme bleu) ────────────────────────────────
   useEffect(() => {
@@ -1151,6 +1207,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
               eventsOnly={eventsOnly}
               showAllSalonsAtCityZoom={showAllSalonsAtCityZoom}
               center={center}
+              recenterToken={recenterToken}
               userPosition={userPosition}
               onSelectSalon={onSelectSalon}
               onSelectLive={onSelectLive}
@@ -1161,6 +1218,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
               onGlobeAltitudeChange={handleGlobeAltitudeChange}
               onGlobePovChange={onGlobePovChange}
               onPrepareFlatMap={onPrepareFlatMap}
+              onMapExplored={onMapExplored}
               onGlobeUnavailable={requestGlobeFallback}
               livesFilterOn={livesFilterOn}
               salonFilterOn={salonFilterOn}
