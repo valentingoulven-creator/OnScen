@@ -59,10 +59,14 @@ jobs:
           Copy-Item app/.env.preproduction.example app/.env.preproduction -Force
           Write-Host "app/.env.preproduction ready (from example)"
 
-      - name: Setup SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+      - name: Configure SSH key
+        shell: pwsh
+        env:
+          SSH_KEY: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+        run: |
+          $path = Join-Path $env:RUNNER_TEMP 'soundy_staging_ed25519'
+          [IO.File]::WriteAllText($path, ($env:SSH_KEY.Trim() + "`n"))
+          echo "DEPLOY_SSH_KEY=$path" >> $env:GITHUB_ENV
 
       - name: Deploy preprod (zero-downtime)
         shell: pwsh

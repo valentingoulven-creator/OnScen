@@ -8,10 +8,9 @@ Dans le repo GitHub : **Settings → Secrets and variables → Actions → New r
 
 | Nom | Valeur |
 |-----|--------|
-| `STAGING_SSH_PRIVATE_KEY` | Contenu complet de votre cle privee SSH (`~/.ssh/id_ed25519`) |
+| `STAGING_SSH_PRIVATE_KEY` | Contenu complet de votre cle privee SSH (`~/.ssh/id_ed25519`, format OpenSSH) |
 
-La cle publique correspondante doit etre autorisee sur le VPS staging (`51.159.170.181`).  
-En local, `ssh root@51.159.170.181` ou `ssh soundy-staging` doit fonctionner avec cette paire de cles.
+La cle publique (`id_ed25519.pub`) doit etre presente dans `/root/.ssh/authorized_keys` sur le VPS staging.
 
 **Ne jamais** committer la cle privee dans le repo.
 

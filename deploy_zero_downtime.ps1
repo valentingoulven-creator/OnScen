@@ -37,8 +37,10 @@ $PublicDir  = Join-Path $BackendDir "public"
 
 $KEY = if ($env:DEPLOY_SSH_KEY -and (Test-Path $env:DEPLOY_SSH_KEY)) {
     $env:DEPLOY_SSH_KEY
-} else {
+} elseif (Test-Path "$env:USERPROFILE\.ssh\id_ed25519") {
     "$env:USERPROFILE\.ssh\id_ed25519"
+} else {
+    $null
 }
 $sshTarget = if ($env:DEPLOY_SSH_HOST) {
     $env:DEPLOY_SSH_HOST
@@ -48,8 +50,8 @@ $sshTarget = if ($env:DEPLOY_SSH_HOST) {
     $VPS
 }
 $sshOpts = @("-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=20", "-o", "LogLevel=ERROR")
-if ($KEY -and (Test-Path $KEY) -and -not $env:SSH_AUTH_SOCK) {
-    $sshOpts = @("-i", $KEY) + $sshOpts
+if ($KEY -and (Test-Path $KEY)) {
+    $sshOpts = @("-i", $KEY, "-o", "IdentitiesOnly=yes") + $sshOpts
 }
 
 function Fail([string]$msg) {
