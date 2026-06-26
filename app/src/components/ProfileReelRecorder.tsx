@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { notifyReelsUpdated } from '../lib/reelsRefresh';
 import { api } from '../lib/api';
 import type { MusicReel } from '../content/reels';
@@ -32,6 +33,7 @@ export function ProfileReelRecorder({
   onSaved,
   embedded = false,
 }: ProfileReelRecorderProps) {
+  const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -52,6 +54,7 @@ export function ProfileReelRecorder({
   const [genre, setGenre] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rightsConfirmed, setRightsConfirmed] = useState(false);
 
   const stopCamera = useCallback(() => {
     if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
@@ -183,6 +186,7 @@ export function ProfileReelRecorder({
     setRecordSec(0);
     setDurationSec(0);
     setError(null);
+    setRightsConfirmed(false);
     stopCamera();
     setPhase('idle');
   };
@@ -190,6 +194,10 @@ export function ProfileReelRecorder({
   const savePrivateReel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
+    if (!rightsConfirmed) {
+      setError(t('profile.compositions.rightsConfirmRequired'));
+      return;
+    }
     if (!importedMediaUrl && !previewUrl) return;
     setError(null);
     setSubmitting(true);
@@ -228,6 +236,7 @@ export function ProfileReelRecorder({
         durationSec: dur,
         visibility: 'private' as const,
         isPrivate: true,
+        rightsConfirmed: true,
       };
       const payloadBytes = estimateCreateReelPayloadBytes(body);
       if (payloadTooLargeForMsdev(payloadBytes)) {
@@ -415,6 +424,17 @@ export function ProfileReelRecorder({
               className="mt-1 w-full rounded-xl bg-[#1a1a28] border border-[#2d2d3d] px-3 py-2 text-sm text-white"
             />
           </label>
+          <label className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              checked={rightsConfirmed}
+              onChange={(e) => setRightsConfirmed(e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded border-gray-600 accent-purple-600"
+            />
+            <span className="text-[11px] text-gray-400 leading-snug">
+              {t('profile.compositions.rightsConfirmLabel')}
+            </span>
+          </label>
           <div className="flex gap-2">
             <button
               type="button"
@@ -425,7 +445,7 @@ export function ProfileReelRecorder({
             </button>
             <button
               type="submit"
-              disabled={submitting || !title.trim() || !artist.trim() || !genre.trim()}
+              disabled={submitting || !title.trim() || !artist.trim() || !genre.trim() || !rightsConfirmed}
               className="flex-[2] py-3 rounded-xl bg-purple-600 hover:bg-purple-500 font-bold text-white disabled:opacity-40"
             >
               {submitting ? 'Sauvegarde…' : 'Sauvegarder'}

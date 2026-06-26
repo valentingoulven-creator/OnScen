@@ -9719,3 +9719,42 @@ CHANGEMENTS / FIX
 ================================================================================
 Fin MODIF 699 — 2026-06-26
 ================================================================================
+
+================================================================================
+MODIF 704 — ACRCloud : scan copyright uploads + checkbox droits
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Empêcher la publication de morceaux du catalogue commercial (uploads non
+ autorisés) : empreinte ACRCloud, confirmation explicite des droits, CGU.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/acrCloudConfig.ts, acrCloud.ts, acrCloud.test.ts (nouveau)
+ backend/src/lib/uploadSample.ts (nouveau)
+ backend/src/lib/compositions.ts, reels.ts — scan avant sauvegarde, rightsConfirmed
+ backend/src/routes/compositions.ts, userAlbums.ts, reels.ts
+ backend/src/lib/legalConstants.ts — LEGAL_COPYRIGHT_EMAIL
+ backend/src/lib/productionStartup.ts — warning si ACRCloud absent en prod
+ backend/.env.production.example — variables ACRCLOUD_*
+ app/src/content/legal/terms.ts — section 5 droits / ACRCloud
+ app/src/locales/fr.json, en.json — rightsConfirmLabel / Required
+ app/src/lib/api/compositions.ts, reels.ts
+ app/src/components/UserCompositionsSection.tsx, ProfileReelRecorder.tsx,
+ UserReelsSection.tsx — checkbox obligatoire + rightsConfirmed: true
+
+FICHIERS MODIFIÉS
+-----
+ backend (acrCloud*, uploadSample, compositions, reels, routes, legal, startup)
+ app (terms, locales, api, 3 composants upload)
+
+BUILD (si vérifié)
+-----
+ backend/ → npm test → ✅ (270 tests)
+ app/ → npm run build → ❌ (erreur préexistante GlobeView.tsx TS, hors scope)
+
+================================================================================
+Fin MODIF 704 — 2026-06-26
+================================================================================

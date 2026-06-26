@@ -110,7 +110,7 @@ reelsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
     return;
   }
 
-  const result = createUserReel(me, {
+  const result = await createUserReel(me, {
     title: String(body.title ?? ''),
     artist: String(body.artist ?? ''),
     genre: String(body.genre ?? ''),
@@ -119,6 +119,7 @@ reelsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
     posterUrl,
     durationSec,
     visibility,
+    rightsConfirmed: body.rightsConfirmed === true,
   });
   if ('error' in result) {
     res.status(400).json({ error: result.error });

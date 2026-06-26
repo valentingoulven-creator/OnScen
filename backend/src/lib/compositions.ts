@@ -4,9 +4,14 @@ import { db, type UserComposition } from '../models/schema';
 const MAX_COMPOSITIONS_PER_USER = parseInt(process.env.MAX_COMPOSITIONS_PER_USER ?? '50', 10) || 50;
 import {
   deleteCompositionFileIfLocal,
+  decodeCompositionDataUrl,
   isValidCompositionFileUrl,
-  resolveCompositionFileUrl,
+  saveCompositionBuffer,
+  COMPOSITION_AUDIO_DATA_RE,
+  UPLOADS_FILE_RE,
 } from './compositionAssets';
+import { checkUploadedAudioCopyright } from './acrCloud';
+import { getAcrCloudMaxSampleBytes } from './acrCloudConfig';
 import {
   scheduleDeleteCompositionFromPg,
   scheduleDeleteCompositionsByUserFromPg,
@@ -58,12 +63,19 @@ export interface CreateCompositionInput {
   fileUrl: string;
   durationSec?: number;
   albumId?: string;
+  rightsConfirmed?: boolean;
 }
 
-export function createUserComposition(
+export async function createUserComposition(
   userId: string,
   input: CreateCompositionInput
-): PublicComposition | { error: string } {
+): Promise<PublicComposition | { error: string }> {
+  if (input.rightsConfirmed !== true) {
+    return {
+      error:
+        'Vous devez confirmer être l\'auteur de ce morceau ou disposer des droits nécessaires pour le publier.',
+    };
+  }
   const title = input.title.trim();
   const artist = input.artist?.trim();
   const rawFileUrl = input.fileUrl.trim();
@@ -93,7 +105,21 @@ export function createUserComposition(
 
   let fileUrl: string;
   try {
-    fileUrl = resolveCompositionFileUrl(rawFileUrl);
+    const trimmed = rawFileUrl.trim();
+    if (COMPOSITION_AUDIO_DATA_RE.test(trimmed)) {
+      const decoded = decodeCompositionDataUrl(trimmed);
+      const copyrightError = await checkUploadedAudioCopyright(
+        decoded.buffer.subarray(0, getAcrCloudMaxSampleBytes())
+      );
+      if (copyrightError) {
+        return { error: copyrightError };
+      }
+      fileUrl = saveCompositionBuffer(decoded.buffer, decoded.mime);
+    } else if (UPLOADS_FILE_RE.test(trimmed)) {
+      fileUrl = trimmed;
+    } else {
+      throw new Error('Fichier audio invalide (mp3, wav, m4a, ogg — max 30 Mo)');
+    }
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Impossible d\'enregistrer le fichier audio' };
   }

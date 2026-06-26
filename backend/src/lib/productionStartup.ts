@@ -1,6 +1,7 @@
 import { getJwtSecret, isDeployedEnv, isProductionEnv } from './jwtSecret';
 import { resolveCorsOrigin } from './corsConfig';
 import { isPublisherConfigComplete } from './legalPublisher';
+import { isAcrCloudConfigured } from './acrCloudConfig';
 
 /** Fail fast when critical production env vars are missing. */
 export function assertProductionStartup(): void {
@@ -57,6 +58,15 @@ export function assertProductionStartup(): void {
       '[startup] legal-publisher.json incomplet (LCEN art. 6) — renseignez l\'adresse postale ' +
         'dans legal-publisher.json ou LEGAL_PUBLISHER_ADDRESS dans .env (mentions non conformes tant que absent).'
     );
+  }
+
+  if (isProductionEnv() && !isAcrCloudConfigured()) {
+    console.warn(
+      '[startup] ACRCloud non configuré — uploads audio/vidéo sans scan empreinte catalogue commercial. ' +
+        'Définissez ACRCLOUD_ACCESS_KEY et ACRCLOUD_ACCESS_SECRET (voir backend/.env.production.example).'
+    );
+  } else if (isAcrCloudConfigured()) {
+    console.log('[startup] ACRCloud actif — scan copyright sur uploads compositions/reels');
   }
 
   const pm2Instances = Number(process.env.PM2_INSTANCES || process.env.NODE_APP_INSTANCE);

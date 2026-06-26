@@ -15,10 +15,10 @@ compositionsRouter.get('/mine', authenticateJWT, (req: Request, res: Response) =
   res.json({ compositions: listUserCompositions(me) });
 });
 
-compositionsRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
+compositionsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const body = req.body ?? {};
-  const result = createUserComposition(me, {
+  const result = await createUserComposition(me, {
     title: String(body.title ?? ''),
     artist: body.artist != null ? String(body.artist) : undefined,
     fileUrl: String(body.fileUrl ?? body.audioUrl ?? ''),
@@ -27,6 +27,7 @@ compositionsRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
         ? body.durationSec
         : undefined,
     albumId: body.albumId != null ? String(body.albumId) : undefined,
+    rightsConfirmed: body.rightsConfirmed === true,
   });
   if ('error' in result) {
     res.status(400).json({ error: result.error });

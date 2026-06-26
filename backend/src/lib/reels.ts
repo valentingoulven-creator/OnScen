@@ -27,6 +27,9 @@ import {
   schedulePersistReelView,
 } from './pgReels';
 import { schedulePersist } from './persist';
+import { checkUploadedAudioCopyright } from './acrCloud';
+import { getAcrCloudMaxSampleBytes } from './acrCloudConfig';
+import { readPublicUploadSample } from './uploadSample';
 
 /** Durées approximatives Mixkit — alignées sur app/src/content/reels.ts */
 const MIXKIT_DURATION_SEC: Record<number, number> = {
@@ -438,6 +441,7 @@ export interface CreateUserReelInput {
   visibility?: ReelVisibility;
   /** Alias pratique : true = reel privé (profil uniquement) */
   isPrivate?: boolean;
+  rightsConfirmed?: boolean;
 }
 
 function resolveReelVisibility(input: CreateUserReelInput): ReelVisibility {
@@ -496,7 +500,17 @@ function normalizeDurationSec(value: unknown): number | undefined {
   return Math.min(Math.round(value), 24 * 60 * 60);
 }
 
-export function createUserReel(authorId: string, input: CreateUserReelInput): UserReel | { error: string } {
+export async function createUserReel(
+  authorId: string,
+  input: CreateUserReelInput
+): Promise<UserReel | { error: string }> {
+  if (input.rightsConfirmed !== true) {
+    return {
+      error:
+        'Vous devez confirmer être l\'auteur de ce contenu ou disposer des droits nécessaires pour le publier.',
+    };
+  }
+
   const title = input.title.trim();
   const artist = input.artist.trim();
   const genre = input.genre.trim();
@@ -532,6 +546,17 @@ export function createUserReel(authorId: string, input: CreateUserReelInput): Us
     (isRecordedReelVideoUrl(rawMediaUrl) || isUploadedReelVideoUrl(rawMediaUrl))
   ) {
     return { error: 'Les enregistrements caméra doivent être publiés en vidéo' };
+  }
+
+  if (mediaType === 'video' && isUploadedReelVideoUrl(mediaUrl)) {
+    const sample = readPublicUploadSample(mediaUrl, getAcrCloudMaxSampleBytes());
+    if (sample) {
+      const copyrightError = await checkUploadedAudioCopyright(sample);
+      if (copyrightError) {
+        deleteReelMediaFiles({ videoUrl: mediaUrl, posterUrl });
+        return { error: copyrightError };
+      }
+    }
   }
 
   const visibility = resolveReelVisibility(input);

@@ -352,7 +352,7 @@ export function UserCompositionsSection({
 
   const [uploadArtist, setUploadArtist] = useState(defaultArtist);
 
-
+  const [uploadRightsConfirmed, setUploadRightsConfirmed] = useState(false);
 
   const [showCreateAlbum, setShowCreateAlbum] = useState(false);
 
@@ -532,6 +532,8 @@ export function UserCompositionsSection({
 
     setUploadError(null);
 
+    setUploadRightsConfirmed(false);
+
   };
 
 
@@ -583,6 +585,8 @@ export function UserCompositionsSection({
       fileUrl: string;
 
       durationSec?: number;
+
+      rightsConfirmed?: boolean;
 
     },
 
@@ -666,6 +670,14 @@ export function UserCompositionsSection({
 
     if (!token || uploading) return;
 
+    if (!uploadRightsConfirmed) {
+
+      setUploadError(t('profile.compositions.rightsConfirmRequired'));
+
+      return;
+
+    }
+
     setUploadError(null);
 
     const validFiles: File[] = [];
@@ -727,6 +739,8 @@ export function UserCompositionsSection({
               fileUrl: dataUrl,
 
               durationSec,
+
+              rightsConfirmed: true,
 
             },
 
@@ -800,6 +814,14 @@ export function UserCompositionsSection({
 
     if (!token || !pendingUpload || uploading) return;
 
+    if (!uploadRightsConfirmed) {
+
+      setUploadError(t('profile.compositions.rightsConfirmRequired'));
+
+      return;
+
+    }
+
     setUploadError(null);
 
     setUploading(true);
@@ -815,6 +837,8 @@ export function UserCompositionsSection({
         fileUrl: pendingUpload.dataUrl,
 
         durationSec: pendingUpload.durationSec,
+
+        rightsConfirmed: true,
 
       };
 
@@ -1639,6 +1663,34 @@ export function UserCompositionsSection({
 
         {viewMode !== 'grid' && isOwner && (
 
+          <label className="flex items-start gap-2 text-left px-1">
+
+            <input
+
+              type="checkbox"
+
+              checked={uploadRightsConfirmed}
+
+              onChange={(e) => setUploadRightsConfirmed(e.target.checked)}
+
+              className="mt-0.5 w-4 h-4 rounded border-gray-600 accent-purple-600"
+
+            />
+
+            <span className="text-[11px] text-gray-400 leading-snug">
+
+              {t('profile.compositions.rightsConfirmLabel')}
+
+            </span>
+
+          </label>
+
+        )}
+
+
+
+        {viewMode !== 'grid' && isOwner && (
+
           <button
 
             type="button"
@@ -1933,6 +1985,28 @@ export function UserCompositionsSection({
 
             </label>
 
+            <label className="flex items-start gap-2">
+
+              <input
+
+                type="checkbox"
+
+                checked={uploadRightsConfirmed}
+
+                onChange={(e) => setUploadRightsConfirmed(e.target.checked)}
+
+                className="mt-0.5 w-4 h-4 rounded border-gray-600 accent-purple-600"
+
+              />
+
+              <span className="text-[11px] text-gray-400 leading-snug">
+
+                {t('profile.compositions.rightsConfirmLabel')}
+
+              </span>
+
+            </label>
+
             {uploadError && (
 
               <p className="text-xs text-red-400 bg-red-950/40 border border-red-900/50 rounded-lg px-2 py-1.5">
@@ -1965,7 +2039,7 @@ export function UserCompositionsSection({
 
                 type="submit"
 
-                disabled={uploading || !uploadTitle.trim()}
+                disabled={uploading || !uploadTitle.trim() || !uploadRightsConfirmed}
 
                 className="flex-[2] py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 font-bold text-white text-sm disabled:opacity-40"
 

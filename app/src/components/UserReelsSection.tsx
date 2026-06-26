@@ -237,6 +237,7 @@ export function UserReelsSection({
   const [uploadTitle, setUploadTitle] = useState('');
   const [uploadArtist, setUploadArtist] = useState(defaultArtist);
   const [uploadGenre, setUploadGenre] = useState('');
+  const [uploadRightsConfirmed, setUploadRightsConfirmed] = useState(false);
 
   useEffect(() => {
     setOwnerTab(defaultOwnerTab);
@@ -256,6 +257,7 @@ export function UserReelsSection({
     setPendingUpload(null);
     setUploadTitle('');
     setUploadGenre('');
+    setUploadRightsConfirmed(false);
     setUploadError(null);
   };
 
@@ -288,6 +290,10 @@ export function UserReelsSection({
   const publishUploadedReel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token || !pendingUpload || uploading) return;
+    if (!uploadRightsConfirmed) {
+      setUploadError(t('profile.compositions.rightsConfirmRequired'));
+      return;
+    }
     setUploadError(null);
     setUploading(true);
     try {
@@ -301,6 +307,7 @@ export function UserReelsSection({
         durationSec: pendingUpload.durationSec,
         visibility: 'private' as const,
         isPrivate: true,
+        rightsConfirmed: true,
       };
       const payloadBytes = estimateCreateReelPayloadBytes(body);
       if (payloadTooLargeForMsdev(payloadBytes)) {
@@ -576,6 +583,17 @@ export function UserReelsSection({
                 </label>
               </div>
             </div>
+            <label className="flex items-start gap-2 px-1">
+              <input
+                type="checkbox"
+                checked={uploadRightsConfirmed}
+                onChange={(e) => setUploadRightsConfirmed(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-gray-600 accent-purple-600 shrink-0"
+              />
+              <span className="text-[11px] text-gray-400 leading-snug">
+                {t('profile.compositions.rightsConfirmLabel')}
+              </span>
+            </label>
             {uploadError && (
               <p className="text-xs text-red-400 bg-red-950/40 border border-red-900/50 rounded-lg px-2 py-1.5">
                 {uploadError}
@@ -593,7 +611,11 @@ export function UserReelsSection({
               <button
                 type="submit"
                 disabled={
-                  uploading || !uploadTitle.trim() || !uploadArtist.trim() || !uploadGenre.trim()
+                  uploading ||
+                  !uploadTitle.trim() ||
+                  !uploadArtist.trim() ||
+                  !uploadGenre.trim() ||
+                  !uploadRightsConfirmed
                 }
                 className="flex-[2] py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 font-bold text-white text-sm disabled:opacity-40"
               >

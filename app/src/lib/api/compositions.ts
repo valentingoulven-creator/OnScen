@@ -15,6 +15,7 @@ export const compositionsApi = {
       artist?: string;
       fileUrl: string;
       durationSec?: number;
+      rightsConfirmed?: boolean;
     }
   ) =>
     request<{ composition: import('../../components/UserCompositionsSection').UserCompositionItem }>(
@@ -66,6 +67,7 @@ export const compositionsApi = {
       artist?: string;
       fileUrl: string;
       durationSec?: number;
+      rightsConfirmed?: boolean;
     }
   ) =>
     request<{ track: import('../../components/UserCompositionsSection').UserCompositionItem }>(
@@ -81,6 +83,7 @@ export const compositionsApi = {
       artist?: string;
       fileUrl: string;
       durationSec?: number;
+      rightsConfirmed?: boolean;
     }
   ) =>
     request<{ track: import('../../components/UserCompositionsSection').UserCompositionItem }>(

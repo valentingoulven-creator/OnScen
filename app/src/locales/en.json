@@ -639,6 +639,8 @@
       "uploading": "Uploading…",
       "uploadSubmit": "Save",
       "uploadFailed": "Could not upload track",
+      "rightsConfirmLabel": "I confirm I own this track or have the rights to publish it on Soundy.",
+      "rightsConfirmRequired": "Confirm your rights on the track before uploading.",
       "delete": "Delete",
       "deleteConfirm": "Delete this track? This cannot be undone.",
       "deleteFailed": "Could not delete",
@@ -838,7 +840,23 @@
       "analytics": "Cost & Analytics",
       "costs": "Costs",
       "support": "Support",
-      "sponsors": "Sponsors"
+      "sponsors": "Sponsors",
+      "agents": "AI Agents"
+    },
+    "agents": {
+      "loading": "Loading agents…",
+      "loadError": "Could not load AI agents",
+      "notConfigured": "Missing API key — set ANTHROPIC_API_KEY or OPENAI_API_KEY in msdev/.env",
+      "sendError": "Failed to send message",
+      "empty": "Ask the selected agent a question.",
+      "inputPlaceholder": "Your message… (Enter to send)",
+      "send": "Send",
+      "thinking": "Thinking…",
+      "clearChat": "Clear conversation",
+      "suggestCeoBrief": "Weekly executive brief",
+      "suggestCeoPriorities": "What are this week's priorities?",
+      "suggestDevCrit01": "Plan for CRIT-01 JWT httpOnly",
+      "suggestDevApple": "Sign in with Apple checklist"
     },
     "accounts": {
       "searchPlaceholder": "Search username, email or city…",
