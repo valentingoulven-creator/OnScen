@@ -66,6 +66,8 @@ jobs:
         run: |
           $path = Join-Path $env:RUNNER_TEMP 'soundy_staging_ed25519'
           [IO.File]::WriteAllText($path, ($env:SSH_KEY.Trim() + "`n"))
+          icacls $path /inheritance:r | Out-Null
+          icacls $path /grant:r "$($env:USERNAME):(R)" | Out-Null
           echo "DEPLOY_SSH_KEY=$path" >> $env:GITHUB_ENV
 
       - name: Deploy preprod (zero-downtime)
