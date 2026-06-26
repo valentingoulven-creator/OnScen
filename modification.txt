@@ -1,4 +1,30 @@
 ================================================================================
+MODIF 662 — GitHub Actions preprod : corrections SSH Windows (CI verte)
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Rendre le workflow Deploy Preprod fonctionnel sur runner Windows (SSH stderr,
+ ssh-agent, permissions clé, authorized_keys staging).
+
+CHANGEMENTS / FIX
+-----
+ .github/workflows/deploy-preprod.yml
+ deploy_zero_downtime.ps1, scripts/deploy-preprod.ps1
+ ─────────────────
+ • Clé SSH fichier + icacls ; DEPLOY_SSH_KEY / DEPLOY_SSH_HOST
+ • Secret STAGING_SSH_PRIVATE_KEY configuré sur GitHub
+
+BUILD (si vérifié)
+-----
+ GitHub Actions Deploy Preprod run 28221875639 → ✅ (~10 min, health preproduction)
+
+================================================================================
+Fin — 2026-06-26
+================================================================================
+
+================================================================================
 MODIF 661 — GitHub Actions deploy preprod automatique
 Date : 2026-06-25
 ================================================================================
