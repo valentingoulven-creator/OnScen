@@ -31,12 +31,14 @@ if (-not (Test-Path $deployScript)) {
     exit 1
 }
 
-$deployArgs = @('-ExecutionPolicy', 'Bypass', '-File', $deployScript, '-Environment', 'preprod')
-if ($SkipBuild)    { $deployArgs += '-SkipBuild' }
-if ($SkipFrontend) { $deployArgs += '-SkipFrontend' }
+$deployArgs = @{
+    Environment = 'preprod'
+}
+if ($SkipBuild)    { $deployArgs.SkipBuild = $true }
+if ($SkipFrontend) { $deployArgs.SkipFrontend = $true }
 
 Write-Host 'Lancement deploy preprod...' -ForegroundColor Cyan
 Write-Host ''
 
-& powershell.exe @deployArgs
+& $deployScript @deployArgs
 exit $LASTEXITCODE

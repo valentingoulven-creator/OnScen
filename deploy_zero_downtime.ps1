@@ -48,7 +48,7 @@ $sshTarget = if ($env:DEPLOY_SSH_HOST) {
     $VPS
 }
 $sshOpts = @("-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=20", "-o", "LogLevel=ERROR")
-if ($KEY -and (Test-Path $KEY)) {
+if ($KEY -and (Test-Path $KEY) -and -not $env:SSH_AUTH_SOCK) {
     $sshOpts = @("-i", $KEY) + $sshOpts
 }
 

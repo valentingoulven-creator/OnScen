@@ -68,8 +68,7 @@ jobs:
         shell: pwsh
         env:
           DEPLOY_SSH_HOST: root@51.159.170.181
-        run: |
-          powershell -ExecutionPolicy Bypass -File scripts/deploy-preprod.ps1
+        run: ./scripts/deploy-preprod.ps1
 
       - name: Verify staging health
         shell: pwsh
