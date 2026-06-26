@@ -9758,3 +9758,35 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 704 — 2026-06-26
 ================================================================================
+
+================================================================================
+MODIF 706 — Agents IA : modèle Anthropic retiré (claude-sonnet-4-6)
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Erreur API admin Agents IA : model claude-sonnet-4-20250514 retiré par
+ Anthropic le 2026-06-15.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/aiAgents/llmClient.ts
+ ────────────────────────────────────
+ • Défaut claude-sonnet-4-6 ; remap automatique des IDs retirés (20250514).
+
+ msdev/.env.example, backend/.env.production.example
+ ────────────────────────────────────────────────────
+ • AI_AGENTS_MODEL=claude-sonnet-4-6
+
+FICHIERS MODIFIÉS
+-----
+ backend/src/lib/aiAgents/*, routes/adminAiAgents.ts, server.ts, env examples
+
+BUILD (si vérifié)
+-----
+ backend/ → npm test aiAgents → ✅
+
+================================================================================
+Fin MODIF 706 — 2026-06-26
+================================================================================

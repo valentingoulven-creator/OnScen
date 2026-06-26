@@ -22,6 +22,21 @@ function reportsPath(): string {
   return path.join(dir, 'content-reports.jsonl');
 }
 
+export function readAllContentReports(): ContentReport[] {
+  const file = reportsPath();
+  if (!fs.existsSync(file)) return [];
+  const reports: ContentReport[] = [];
+  for (const line of fs.readFileSync(file, 'utf8').split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      reports.push(JSON.parse(line) as ContentReport);
+    } catch {
+      /* ignore corrupt line */
+    }
+  }
+  return reports;
+}
+
 export function appendContentReport(report: Omit<ContentReport, 'id' | 'createdAt'>): ContentReport {
   const full: ContentReport = {
     ...report,
