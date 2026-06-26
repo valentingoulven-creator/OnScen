@@ -65,6 +65,21 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
 
+      - name: Prepare staging SSH key file (OpenSSH Windows)
+        shell: pwsh
+        env:
+          STAGING_SSH_PRIVATE_KEY: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+        run: |
+          if (-not $env:STAGING_SSH_PRIVATE_KEY) {
+            throw 'STAGING_SSH_PRIVATE_KEY secret manquant'
+          }
+          $keyPath = Join-Path $env:RUNNER_TEMP 'staging_deploy_ed25519'
+          $keyText = $env:STAGING_SSH_PRIVATE_KEY.TrimEnd() + "`n"
+          [System.IO.File]::WriteAllText($keyPath, $keyText, [System.Text.UTF8Encoding]::new($false))
+          icacls $keyPath /inheritance:r /grant:r "$($env:USERNAME):(R)" | Out-Null
+          "DEPLOY_SSH_KEY=$keyPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Cle staging materialisee : $keyPath"
+
       - name: Deploy preprod (zero-downtime)
         shell: pwsh
         env:

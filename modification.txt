@@ -9721,6 +9721,146 @@ Fin MODIF 699 — 2026-06-26
 ================================================================================
 
 ================================================================================
+MODIF 700 — Globe : éclaircissement visuel (texture nuit trop sombre)
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le globe 3D paraissait trop sombre (texture earth-night, éclairage faible,
+ fond noir pur).
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/GlobeView.tsx
+ ─────────────────────────────
+ • toneMappingExposure relevé (mobile + desktop) ; fond espace #0a1220 / #0c1628.
+ • Lumière ambiante + directionnelle renforcées ; lift couleur matériau Terre.
+ • Atmosphère plus lumineuse ; spaceLighting actif aussi sur mobile.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/components/GlobeView.tsx → globe plus clair
+
+================================================================================
+Fin MODIF 700 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 701 — Globe : frontières des pays (traits)
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande utilisateur : délimiter les pays par un trait sur le globe 3D.
+
+CHANGEMENTS / FIX
+-----
+ app/public/globe/countries-110m.geojson (Natural Earth 110m)
+ backend/public/globe/countries-110m.geojson
+ ─────────────────
+ • GeoJSON frontières administratives (~180 pays, sans Antarctique).
+
+ app/src/lib/globeCountries.ts (nouveau)
+ ────────────────────────────────────
+ • Chargement lazy + cache du GeoJSON.
+
+ app/src/components/GlobeView.tsx
+ ─────────────────────────────
+ • Couche polygonsData : remplissage transparent, polygonStrokeColor bleu clair.
+
+FICHIERS MODIFIÉS
+-----
+ app/src/lib/globeCountries.ts, GlobeView.tsx, public/globe/countries-110m.geojson
+
+================================================================================
+Fin MODIF 701 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 702 — Agent Dev Cursor + rapports de session
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Besoin d'un agent Dev dédié (implémentation) avec traçabilité : rapport
+ obligatoire à chaque session significative, distinct du CEO IA stratégique.
+
+CHANGEMENTS / FIX
+-----
+ .cursor/rules/soundy-dev-agent.mdc
+ ─────────────────────────────────
+ • Règle @soundy-dev-agent : workflow, RACI, priorités TODO-MANUAL, format rapport.
+
+ docs/SOUNDY-DEV-AGENT.md, docs/dev-agent/
+ ───────────────────────────────────────────
+ • Guide utilisation, template rapport, INDEX chronologique.
+
+ AGENTS.md
+ ─────────
+ • Section Agent Dev + liens rapports.
+
+FICHIERS MODIFIÉS
+-----
+ .cursor/rules/soundy-dev-agent.mdc, docs/SOUNDY-DEV-AGENT.md,
+ docs/dev-agent/INDEX.md, docs/dev-agent/rapports/_TEMPLATE.md,
+ docs/dev-agent/rapports/2026-06-26-setup-agent-dev.md, AGENTS.md
+
+================================================================================
+Fin MODIF 702 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 703 — Admin : onglet Agents IA (chat CEO + Dev)
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Créer les agents CEO IA et Dev Agent avec interface chat dans le panneau admin
+ de l'application (getsoundy.com).
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/aiAgents/
+ ────────────────────────
+ • Prompts, contexte données live (analytics, donations, modération), client LLM
+   (Anthropic ou OpenAI via fetch).
+
+ backend/src/routes/adminAiAgents.ts
+ ───────────────────────────────────
+ • GET /api/admin/ai-agents · POST /api/admin/ai-agents/:agentId/chat (admin only).
+
+ app/src/pages/AdminAgentsTab.tsx
+ ────────────────────────────────
+ • Chat mobile-first, sélecteur CEO / Dev, suggestions, historique sessionStorage.
+
+ app/src/pages/AdminPage.tsx · locales · types · api/admin.ts
+ ─────────────────────────────────────────────────────────────
+ • Onglet « Agents IA ».
+
+ msdev/.env.example · backend/.env.production.example
+ ────────────────────────────────────────────────────
+ • ANTHROPIC_API_KEY / OPENAI_API_KEY / AI_AGENTS_*.
+
+FICHIERS MODIFIÉS
+-----
+ backend/src/lib/aiAgents/*, adminAiAgents.ts, server.ts, contentReports.ts,
+ AdminAgentsTab.tsx, AdminPage.tsx, api/admin.ts, types.ts, fr.json, en.json,
+ msdev/.env.example, backend/.env.production.example
+
+BUILD (si vérifié)
+-----
+ backend/ → npm test → (à vérifier)
+ app/ → npm run build → (à vérifier)
+
+================================================================================
+Fin MODIF 703 — 2026-06-26
+================================================================================
+
+================================================================================
 MODIF 704 — ACRCloud : scan copyright uploads + checkbox droits
 Date : 2026-06-26
 ================================================================================
@@ -9760,13 +9900,84 @@ Fin MODIF 704 — 2026-06-26
 ================================================================================
 
 ================================================================================
+MODIF 705 — Admin Agents IA : affichage coût Anthropic (tokens → €)
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Afficher dans l’onglet Admin « Agents IA » le coût estimé de consommation
+ Anthropic (dernier message, session, cumul mensuel serveur).
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/aiAgents/llmPricing.ts — tarifs publics USD/MTok + conversion EUR
+ backend/src/lib/aiAgents/usageTracker.ts — cumul mensuel en mémoire
+ backend/src/routes/adminAiAgents.ts — cost + monthUsage dans les réponses
+ app/src/pages/AdminAgentsTab.tsx — badges coût + lien console facturation
+ app/src/types.ts, locales fr/en
+
+FICHIERS MODIFIÉS
+-----
+ backend/src/lib/aiAgents/*, routes/adminAiAgents.ts
+ app/src/pages/AdminAgentsTab.tsx, types.ts, locales
+
+BUILD (si vérifié)
+-----
+ backend/ → npm test aiAgents → ✅
+
+================================================================================
+Fin MODIF 705 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 706 — CEO IA Tang Yu : contexte complet + data gaps fondateur
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ CEO IA incomplet vs modèle Tang Yu (NetDragon) : manque données stratégiques,
+ finances fondateur, questions proactives, plan d'évolution entreprise.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/aiAgents/ceoDataContext.ts
+ ─────────────────
+ • Contexte CEO async : analytics, revenus, sponsors, CF, scale stack, modifs récentes
+
+ backend/src/lib/aiAgents/ceoFounderContext.ts + ceoStrategicKnowledge.ts
+ ─────────────────
+ • Lacunes dataGaps · chargement msdev/ceo-founder-context.json
+
+ backend/src/lib/aiAgents/systemPrompts.ts
+ ─────────────────
+ • Persona Tang Yu · format brief · questions si dataGaps
+
+ msdev/ceo-founder-context.example.json
+ app/src/pages/AdminAgentsTab.tsx — bandeau infos manquantes CEO
+
+FICHIERS MODIFIÉS
+-----
+ backend/src/lib/aiAgents/*, routes/adminAiAgents.ts
+ app AdminAgentsTab, types, locales
+
+BUILD (si vérifié)
+-----
+ backend/ → npm test aiAgents → ✅ (10 tests)
+
+================================================================================
+Fin MODIF 706 — 2026-06-26
+================================================================================
+
+================================================================================
 MODIF 706 — Agents IA : modèle Anthropic retiré (claude-sonnet-4-6)
 Date : 2026-06-26
 ================================================================================
 
 OBJECTIF / PROBLÈME
 ----
- Erreur API admin Agents IA : model claude-sonnet-4-20250514 retiré par
+ Erreur API admin Agents IA : `model: claude-sonnet-4-20250514` retiré par
  Anthropic le 2026-06-15.
 
 CHANGEMENTS / FIX
@@ -9789,4 +10000,193 @@ BUILD (si vérifié)
 
 ================================================================================
 Fin MODIF 706 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 707 — CEO IA : contexte fondateur renseigné (juin 2026)
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF
+----
+ Alimenter msdev/ceo-founder-context.json avec les réponses fondateur.
+
+CHANGEMENTS
+-----
+ msdev/ceo-founder-context.json (gitignore) · .gitignore · example mis à jour
+
+DONNÉES FONDATEUR
+-----
+ Trésorerie 10 000 € · burn estimé 85 €/mois · GTM Paris + Lyon/Marseille/Montpellier
+ Créateurs pilotes actifs oui · sponsors 0 · LCEN domiciliation en cours
+
+================================================================================
+Fin MODIF 707 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 708 — CEO IA peut proposer recrutement agents IA dans l'équipe
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le CEO IA (style Tang Yu) doit pouvoir recommander la création de nouveaux agents
+ spécialisés (CMO, Sales, Legal, CFO…) quand la situation métier le justifie.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/aiAgents/ceoStrategicKnowledge.ts
+ ─────────────────
+ • Bloc aiTeam : candidateAgents, howToCreateNewAgent, note coût
+
+ backend/src/lib/aiAgents/ceoDataContext.ts
+ ─────────────────
+ • Injection aiTeamRoster depuis AI_AGENTS
+
+ backend/src/lib/aiAgents/systemPrompts.ts
+ ─────────────────
+ • Section « Équipe IA Soundy » + format « Recrutement équipe IA » dans le brief
+
+ app/src/pages/AdminAgentsTab.tsx · locales fr/en
+ ─────────────────
+ • Hint CEO + suggestion rapide « Quels agents IA recruter ? »
+
+ .cursor/rules/soundy-ceo-ia.mdc
+ ─────────────────
+ • Point 9 brief + section recrutement
+
+FICHIERS MODIFIÉS
+-----
+ ceoStrategicKnowledge, ceoDataContext, systemPrompts, AdminAgentsTab, locales, règle CEO IA, test aiAgents
+
+================================================================================
+Fin MODIF 708 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 709 — Recrutement équipe IA ultra complet (scores + raisons détaillées)
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le fondateur veut que le CEO IA propose des agents avec un dossier complet :
+ pourquoi recruter, limites du CEO seul, gains, coût de l'attente, livrables.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/aiAgents/ceoAiTeamRecommendations.ts (nouveau)
+ ─────────────────
+ • Moteur scores 6 agents · whyNow · costOfWaiting · deliverables · 30j · etc.
+
+ backend/src/lib/aiAgents/ceoDataContext.ts · ceoStrategicKnowledge.ts · systemPrompts.ts
+ ─────────────────
+ • aiTeamRecommendations injecté dans contexte CEO · prompt format OBLIGATOIRE
+
+ app/src/pages/AdminAgentsTab.tsx · types · locales
+ ─────────────────
+ • Panneau analyse live (top 4 recs) · suggestion chat dossier complet
+
+FICHIERS MODIFIÉS
+-----
+ ceoAiTeamRecommendations (new), ceoDataContext, ceoStrategicKnowledge, systemPrompts,
+ AdminAgentsTab, types, locales, tests, soundy-ceo-ia.mdc
+
+BUILD (si vérifié)
+-----
+ backend/ → npm run build + vitest aiAgents → ✅
+
+================================================================================
+Fin MODIF 709 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 709 — Dev Agent : prompt ultra-complet + contexte innovation
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L'agent Dev admin était trop passif — besoin d'une force de proposition,
+ innovation produit et plans d'implémentation exhaustifs.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/aiAgents/devTechnicalKnowledge.ts (nouveau)
+ backend/src/lib/aiAgents/devDataContext.ts (nouveau)
+ ─────────────────
+ • Catalogue innovation, architecture, gaps concurrents, TODO-MANUAL + STACK-CIBLE.
+
+ backend/src/lib/aiAgents/systemPrompts.ts
+ ─────────────────
+ • Prompt Dev : format structuré, min. 3 pistes, section innovation obligatoire.
+
+ backend/src/routes/adminAiAgents.ts
+ ─────────────────
+ • buildDevDataContext() async pour l'agent dev.
+
+ app/src/pages/AdminAgentsTab.tsx · locales
+ ─────────────────
+ • Suggestions rapides sprint / innovation / scale.
+
+FICHIERS MODIFIÉS
+-----
+ devTechnicalKnowledge, devDataContext, systemPrompts, agents.ts,
+ adminAiAgents.ts, AdminAgentsTab, fr.json, en.json, aiAgents.test.ts
+
+BUILD (si vérifié)
+-----
+ backend/ → npm test aiAgents → ✅
+
+================================================================================
+Fin MODIF 709 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 710 — Globe : sonars live visibles overview, taille réduite, cluster + popup
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les sonars live n'étaient pas visibles sur la vue globe (filtre Lives requis).
+ Trop de marqueurs au même endroit · sonars trop grands (ringMaxRadius 3.5).
+
+CHANGEMENTS / FIX
+-----
+ mapMarkerVisibility · mapLiveClusters · GlobeView · MapLiveClusterSheet · HomePage · MapView
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build + vitest → ✅
+
+================================================================================
+Fin MODIF 710 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 711 — Fix Deploy Preprod CI : SSH Permission denied (Windows runner)
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ GitHub Actions Deploy Preprod echouait etape [1/9] : Permission denied (publickey)
+ sur root@51.159.170.181 (ssh-agent seul instable sur runner Windows).
+
+CHANGEMENTS / FIX
+-----
+ .github/workflows/deploy-preprod.yml
+ ─────────────────
+ • Materialisation STAGING_SSH_PRIVATE_KEY → DEPLOY_SSH_KEY (icacls)
+
+ deploy_zero_downtime.ps1
+ ─────────────────
+ • BatchMode + IdentityAgent fallback
+
+ Secret GitHub STAGING_SSH_PRIVATE_KEY resynchronise avec cle locale (id_ed25519).
+
+================================================================================
+Fin MODIF 711 — 2026-06-26
 ================================================================================

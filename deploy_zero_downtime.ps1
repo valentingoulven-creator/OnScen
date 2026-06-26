@@ -49,9 +49,11 @@ $sshTarget = if ($env:DEPLOY_SSH_HOST) {
 } else {
     $VPS
 }
-$sshOpts = @("-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=20", "-o", "LogLevel=ERROR")
+$sshOpts = @("-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=20", "-o", "LogLevel=ERROR", "-o", "BatchMode=yes")
 if ($KEY -and (Test-Path $KEY)) {
     $sshOpts = @("-i", $KEY, "-o", "IdentitiesOnly=yes") + $sshOpts
+} elseif ($env:SSH_AUTH_SOCK) {
+    $sshOpts = @("-o", "IdentityAgent=$($env:SSH_AUTH_SOCK)") + $sshOpts
 }
 
 function Fail([string]$msg) {
