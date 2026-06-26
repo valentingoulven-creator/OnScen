@@ -7,39 +7,7 @@ import { dicebearAdventurerAvatar } from '../lib/avatarUrl';
 import { formatEventDateShort } from '../lib/feedEvents';
 import { getEventTypeIcon } from '../lib/eventType';
 import type { Salon, Live, NearbyPerson, MapEventCityCluster, MapEventMarker } from '../types';
-
-function buildSalonLivePeopleKey(
-  salons: Salon[],
-  lives: Live[],
-  people: NearbyPerson[]
-): string {
-  const s = salons
-    .map((x) => `${x.id}:${x.isLive ? 1 : 0}:${x.latitude},${x.longitude}`)
-    .join('|');
-  const l = lives.map((x) => `${x.id}:${x.latitude},${x.longitude}`).join('|');
-  const p = people
-    .map((x) => `${x.id}:${x.isLive ? 1 : 0}:${x.latitude},${x.longitude}`)
-    .join('|');
-  return `${s}#${l}#${p}`;
-}
-
-function buildEventClusterKey(
-  clusters: MapEventCityCluster[],
-  tier: MapDetailTier
-): string {
-  const clusterPart = clusters
-    .map((c) => `${c.cityKey}:${c.count}:${c.latitude},${c.longitude}`)
-    .join('|');
-  if (tier === 'overview') return `c:${clusterPart}`;
-  const eventPart = clusters
-    .flatMap((c) =>
-      c.events.map(
-        (e) => `${e.id}:${e.eventType ?? 'autre'}:${e.latitude},${e.longitude}`
-      )
-    )
-    .join('|');
-  return `s:${clusterPart}#${eventPart}`;
-}
+import { buildEventClusterKey, buildSalonLivePeopleKey } from '../lib/mapMarkersKey';
 import { isValidLatLng, sanitizeLatLngTuple } from '../lib/mapCoords';
 import { DEFAULT_CENTER } from '../lib/livesGeo';
 import { WORLD_CAPITALS } from '../lib/worldCapitals';
@@ -47,11 +15,11 @@ import { getUsernameStyle, usernameMapLabelHtml } from '../lib/usernameColor';
 import {
   filterPeopleForZoom,
   filterSalonsForZoom,
+  getDistanceKm,
   getFlatMapDetailTier,
   getGlobeDetailTier,
   getMapMarkerVisibility,
   type MapBounds,
-  type MapDetailTier,
   type MapViewDetailState,
 } from '../lib/mapMarkerVisibility';
 import { canUseGlobeView } from '../lib/webglSupport';
@@ -74,16 +42,29 @@ export interface MapViewHandle {
   jumpToCityBounds: (lat: number, lng: number, radiusKm: number) => void;
   /** Anime vers le cadrage d'une ville entière. */
   flyToCityBounds: (lat: number, lng: number, radiusKm: number) => void;
+  /** Pré-positionne la carte plate (cachée) et lance le chargement tuiles avant le crossfade. */
+  prepareFlatAt: (lat: number, lng: number, zoom?: number, radiusKm?: number) => void;
 }
 
 /** Globe ↔ flat crossfade duration (ms) — keep in sync with CSS transition. */
-const MAP_CROSSFADE_MS = 500;
+const MAP_CROSSFADE_MS = 300;
 
-/** Max wait for Carto tiles before starting crossfade (ms). */
-const TILE_WARMUP_MAX_MS = 280;
+/** Min wait before crossfade (ms) — laisse le globe amorcer le zoom. */
+const TILE_WARMUP_MIN_MS = 60;
+
+/** Max wait for first Carto tiles before crossfade anyway (ms). */
+const TILE_WARMUP_MAX_MS = 380;
 
 /** Zoom level at which capital names become permanently visible on the flat map. */
 const CAPITAL_LABEL_MIN_ZOOM = 5;
+
+/** Only bump React zoom state when marker tier or capital labels would change. */
+function shouldCommitFlatMapZoom(prevZoom: number, nextZoom: number): boolean {
+  if (getFlatMapDetailTier(prevZoom) !== getFlatMapDetailTier(nextZoom)) return true;
+  const prevCapitals = prevZoom >= CAPITAL_LABEL_MIN_ZOOM;
+  const nextCapitals = nextZoom >= CAPITAL_LABEL_MIN_ZOOM;
+  return prevCapitals !== nextCapitals;
+}
 
 const TILE_LAYERS: Record<MapStyle, { url: string; attribution: string; maxZoom: number }> = {
   flat: {
@@ -142,6 +123,8 @@ interface MapViewProps {
   onMapDetailStateChange?: (state: MapViewDetailState) => void;
   /** POV globe (centre visible + altitude) — rechargement nearby. */
   onGlobePovChange?: (lat: number, lng: number, altitude: number) => void;
+  /** Pré-charge tuiles carte plate pendant zoom globe. */
+  onPrepareFlatMap?: (lat: number, lng: number, zoom?: number, radiusKm?: number) => void;
   /** Filtre Lives actif — marqueurs live (points simplifiés en vue globale). */
   livesFilterOn?: boolean;
   salonFilterOn?: boolean;
@@ -184,6 +167,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   onGlobeUnavailable,
   onMapDetailStateChange,
   onGlobePovChange,
+  onPrepareFlatMap,
   livesFilterOn = false,
   salonFilterOn = false,
   eventsFilterOn = false,
@@ -351,6 +335,25 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   const emitMapDetailStateFnRef = useRef(emitMapDetailState);
   emitMapDetailStateFnRef.current = emitMapDetailState;
 
+  /** Force le chargement tuiles à la vue courante (carte cachée sous le globe). */
+  const refreshFlatTileLayer = useCallback(() => {
+    const map = mapInstance.current;
+    const layer = tileLayerRef.current;
+    if (!map || !layer) return;
+    try {
+      layer.redraw();
+      map.once('moveend', () => {
+        try {
+          layer.redraw();
+        } catch {
+          /* layer may be removed */
+        }
+      });
+    } catch {
+      /* map may not be ready */
+    }
+  }, []);
+
   const scheduleDetailEmit = useCallback(() => {
     if (detailEmitRafRef.current !== null) return;
     detailEmitRafRef.current = requestAnimationFrame(() => {
@@ -379,11 +382,28 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   }, [flatMapZoom, globeAltitude, mapStyle, scheduleDetailEmit]);
 
   useImperativeHandle(ref, () => ({
+    prepareFlatAt(lat: number, lng: number, zoom = 14, radiusKm?: number) {
+      if (!mapInstance.current || !isValidLatLng(lat, lng)) return;
+      skipCenterFlyRef.current = true;
+      try {
+        if (radiusKm != null && radiusKm > 0) {
+          const bounds = L.circle(sanitizeLatLngTuple(lat, lng), { radius: radiusKm * 1000 }).getBounds();
+          mapInstance.current.fitBounds(bounds, { animate: false, padding: [48, 48], maxZoom: 14 });
+        } else {
+          mapInstance.current.setView(sanitizeLatLngTuple(lat, lng), zoom, { animate: false });
+        }
+        mapInstance.current.invalidateSize();
+        refreshFlatTileLayer();
+      } catch {
+        // Map may not be ready
+      }
+    },
     jumpTo(lat: number, lng: number, zoom = 14) {
       if (!mapInstance.current || !isValidLatLng(lat, lng)) return;
       skipCenterFlyRef.current = true;
       try {
         mapInstance.current.setView(sanitizeLatLngTuple(lat, lng), zoom, { animate: false });
+        refreshFlatTileLayer();
       } catch {
         // Map may not be ready
       }
@@ -405,6 +425,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       try {
         const bounds = L.circle(sanitizeLatLngTuple(lat, lng), { radius: radiusKm * 1000 }).getBounds();
         mapInstance.current.fitBounds(bounds, { animate: false, padding: [48, 48], maxZoom: 14 });
+        refreshFlatTileLayer();
       } catch {
         // Map may not be ready
       }
@@ -423,7 +444,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
         // Map may not be ready
       }
     },
-  }));
+  }), [refreshFlatTileLayer]);
 
   // Skip globe when WebGL is unavailable (GPU off, context limit, low power mode, etc.)
   useEffect(() => {
@@ -476,17 +497,14 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
 
     const startCrossfade = () => {
       if (cancelled) return;
-      // Double rAF: paint opacity 0 before transitioning to 1
       crossfadeRafRef.current = requestAnimationFrame(() => {
-        crossfadeRafRef.current = requestAnimationFrame(() => {
-          crossfadeRafRef.current = null;
-          if (!cancelled) setFlatReveal(1);
-        });
+        crossfadeRafRef.current = null;
+        if (!cancelled) setFlatReveal(1);
       });
       globeTimerRef.current = setTimeout(() => {
         if (!cancelled) setShowGlobe(false);
         globeTimerRef.current = null;
-      }, MAP_CROSSFADE_MS + 60);
+      }, MAP_CROSSFADE_MS + 40);
     };
 
     const warmupTiles = () => {
@@ -495,18 +513,28 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
         startCrossfade();
         return;
       }
+
+      refreshFlatTileLayer();
+
       let done = false;
       const finish = () => {
         if (done || cancelled) return;
         done = true;
-        layer.off('load', finish);
-        clearTimeout(fallback);
+        layer.off('tileload', onTileLoad);
+        layer.off('load', onLayerLoad);
+        clearTimeout(minTimer);
+        clearTimeout(maxTimer);
         startCrossfade();
       };
-      const fallback = setTimeout(finish, TILE_WARMUP_MAX_MS);
-      layer.once('load', finish);
-      // Tile layer may already have tiles for the current view
-      if (!layer.isLoading()) finish();
+
+      const onTileLoad = () => finish();
+      const onLayerLoad = () => finish();
+
+      layer.on('tileload', onTileLoad);
+      layer.once('load', onLayerLoad);
+
+      const minTimer = setTimeout(finish, TILE_WARMUP_MIN_MS);
+      const maxTimer = setTimeout(finish, TILE_WARMUP_MAX_MS);
     };
 
     warmupTiles();
@@ -606,10 +634,10 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       attribution: flatCfg.attribution,
       maxZoom: flatCfg.maxZoom,
       noWrap: true,
-      // Fewer tile fetches while panning/zooming — smoother map interaction.
+      // Fewer tile fetches while panning — but globe→flat preload uses redraw().
       updateWhenIdle: true,
       updateWhenZooming: false,
-      keepBuffer: 2,
+      keepBuffer: 3,
     }).addTo(map);
 
     const onMapClick = () => onMapBackgroundClickRef.current?.();
@@ -619,9 +647,10 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     // Guard on mapStyleRef to avoid re-triggering when we're already on globe.
     const onViewChange = () => {
       const zoom = map.getZoom();
+      flatMapZoomRef.current = zoom;
       if (zoom !== lastFlatZoomRef.current) {
         lastFlatZoomRef.current = zoom;
-        setFlatMapZoom(zoom);
+        setFlatMapZoom((prev) => (shouldCommitFlatMapZoom(prev, zoom) ? zoom : prev));
       }
       scheduleDetailEmit();
       if (zoom <= 2 && mapStyleRef.current === 'flat' && webglSupportedRef.current) {
@@ -656,16 +685,21 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Fly to new center ───────────────────────────────────────────────────
+  // ── Fly to new center (recenter explicite uniquement — pas de reset zoom) ─
   useEffect(() => {
-    if (!mapInstance.current) return;
+    const map = mapInstance.current;
+    if (!map) return;
     if (!isValidLatLng(center[0], center[1])) return;
     if (skipCenterFlyRef.current) {
       skipCenterFlyRef.current = false;
       return;
     }
     try {
-      mapInstance.current.flyTo(sanitizeLatLngTuple(center[0], center[1]), 13, { duration: 0.6 });
+      const mapCenter = map.getCenter();
+      const distKm = getDistanceKm(center[0], center[1], mapCenter.lat, mapCenter.lng);
+      if (distKm < 0.08) return;
+      const zoom = map.getZoom();
+      map.flyTo(sanitizeLatLngTuple(center[0], center[1]), zoom, { duration: 0.6 });
     } catch (err) {
       console.error('[MapView] flyTo error:', err);
     }
@@ -1090,8 +1124,10 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
           className="absolute inset-0"
           style={{
             opacity: 1 - flatReveal,
-            transition: `opacity ${MAP_CROSSFADE_MS}ms ease-in-out`,
+            transition: `opacity ${MAP_CROSSFADE_MS}ms ease-out`,
             pointerEvents: flatReveal > 0.5 ? 'none' : undefined,
+            willChange: flatReveal > 0 && flatReveal < 1 ? 'opacity' : undefined,
+            transform: 'translateZ(0)',
           }}
         >
         <Suspense
@@ -1121,6 +1157,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
               onZoomToFlat={onGlobeZoomToFlat}
               onGlobeAltitudeChange={handleGlobeAltitudeChange}
               onGlobePovChange={onGlobePovChange}
+              onPrepareFlatMap={onPrepareFlatMap}
               onGlobeUnavailable={requestGlobeFallback}
               livesFilterOn={livesFilterOn}
               salonFilterOn={salonFilterOn}
@@ -1137,8 +1174,10 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
         className="absolute inset-0"
         style={{
           opacity: flatReveal,
-          transition: `opacity ${MAP_CROSSFADE_MS}ms ease-in-out`,
+          transition: `opacity ${MAP_CROSSFADE_MS}ms ease-out`,
           pointerEvents: flatReveal > 0.5 ? undefined : 'none',
+          willChange: flatReveal > 0 && flatReveal < 1 ? 'opacity' : undefined,
+          transform: 'translateZ(0)',
         }}
         data-map-style={mapStyle}
       />

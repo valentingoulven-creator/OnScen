@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Globe from 'react-globe.gl';
 import type { GlobeMethods } from 'react-globe.gl';
 import { formatEventDateShort } from '../lib/feedEvents';
@@ -6,9 +6,11 @@ import { getEventTypeIcon } from '../lib/eventType';
 import { isValidLatLng } from '../lib/mapCoords';
 import { isWebGLError } from '../lib/webglSupport';
 import { getCityMapView } from '../lib/mapEventClusters';
+import { buildEventClusterKey, buildSalonLivePeopleKey } from '../lib/mapMarkersKey';
 import {
   filterPeopleForZoom,
   filterSalonsForZoom,
+  getDistanceKm,
   getGlobeDetailTier,
   getMapMarkerVisibility,
   type MapDetailTier,
@@ -36,6 +38,12 @@ interface GlobeRing {
 /** Altitude en dessous de laquelle le globe bascule automatiquement vers la carte plate. */
 const ALTITUDE_AUTO_SWITCH = 0.03;
 
+/** Durée animation zoom globe → marqueur (ms). */
+const GLOBE_MARKER_ZOOM_MS = 520;
+
+/** Délai avant bascule carte plate pendant l'animation globe (ms). */
+const GLOBE_FLAT_TRIGGER_MS = 280;
+
 /**
  * Appareil à faible puissance GPU : mobile, petit DPR, ou peu de cœurs CPU.
  * Sur ces devices un nombre élevé de markers risque l'OOM / crash WebGL.
@@ -52,6 +60,12 @@ const GLOBE_OVERVIEW_CAP = IS_LOW_POWER_DEVICE ? 400 : 5000;
 
 /** Debounce POV pour rechargement nearby (filtre Lives). */
 const POV_DEBOUNCE_MS = 600;
+
+/** DPR réduit pendant drag/zoom globe — moins de fill-rate GPU. */
+const GLOBE_INTERACTION_MAX_DPR = IS_LOW_POWER_DEVICE ? 1 : 1.5;
+
+/** Fenêtre après dernier mouvement OrbitControls avant arrêt du loop damping. */
+const DAMPING_IDLE_MS = 320;
 
 /** Profil rendu adaptatif — netteté desktop vs perf mobile. */
 const GLOBE_RENDER_PROFILE = (() => {
@@ -245,7 +259,7 @@ const EMPTY_CAPITAL_LABELS: GlobeCapitalLabel[] = [];
 const GLOBE_RENDERER_CONFIG = {
   antialias: GLOBE_RENDER_PROFILE.antialias,
   alpha: true,
-  powerPreference: 'default' as WebGLPowerPreference,
+  powerPreference: (IS_LOW_POWER_DEVICE ? 'default' : 'high-performance') as WebGLPowerPreference,
   failIfMajorPerformanceCaveat: false,
   preserveDrawingBuffer: false,
 };
@@ -338,6 +352,11 @@ export interface GlobeViewProps {
   eventsFilterOn?: boolean;
   /** WebGL / Three.js init failed — parent should fall back to flat map. */
   onGlobeUnavailable?: () => void;
+  /**
+   * Pré-charge la carte plate (position + tuiles) pendant l'animation globe,
+   * avant le basculement mapStyle → flat.
+   */
+  onPrepareFlatMap?: (lat: number, lng: number, zoom?: number, radiusKm?: number) => void;
 }
 
 function buildEventClusterGlobeLabel(cluster: MapEventCityCluster): string {
@@ -381,6 +400,7 @@ export const GlobeView = memo(function GlobeView({
   salonFilterOn = false,
   eventsFilterOn = false,
   onGlobeUnavailable,
+  onPrepareFlatMap,
 }: GlobeViewProps) {
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -388,6 +408,7 @@ export const GlobeView = memo(function GlobeView({
   /** Tier seul en state — évite re-renders lourds à chaque frame d'altitude. */
   const [globeDetailTier, setGlobeDetailTier] = useState<MapDetailTier>('overview');
   const [isInteracting, setIsInteracting] = useState(false);
+  const isInteractingRef = useRef(false);
   const globeAltitudeRef = useRef(1.0);
   const altitudeRafRef = useRef<number | null>(null);
   const povDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -411,6 +432,8 @@ export const GlobeView = memo(function GlobeView({
   onGlobePovChangeRef.current = onGlobePovChange;
   const onGlobeUnavailableRef = useRef(onGlobeUnavailable);
   onGlobeUnavailableRef.current = onGlobeUnavailable;
+  const onPrepareFlatMapRef = useRef(onPrepareFlatMap);
+  onPrepareFlatMapRef.current = onPrepareFlatMap;
   const globeUnavailableReportedRef = useRef(false);
   // Empêche la transition auto de se déclencher plusieurs fois
   const autoSwitchedRef = useRef(false);
@@ -447,6 +470,44 @@ export const GlobeView = memo(function GlobeView({
     [flushPovChange]
   );
 
+  const syncTierAndPovFromGlobe = useCallback(
+    (scheduleNearby: boolean) => {
+      try {
+        const pov = globeRef.current?.pointOfView() as
+          | { lat: number; lng: number; altitude: number }
+          | undefined;
+        if (!pov || typeof pov.altitude !== 'number') return;
+        globeAltitudeRef.current = pov.altitude;
+        const tier = getGlobeDetailTier(pov.altitude);
+        const tierChanged = tier !== lastReportedTierRef.current;
+        if (tierChanged) {
+          lastReportedTierRef.current = tier;
+          setGlobeDetailTier(tier);
+          onGlobeAltitudeChangeRef.current?.(pov.altitude);
+        }
+        if (scheduleNearby && isValidLatLng(pov.lat, pov.lng)) {
+          schedulePovChange(pov.lat, pov.lng, pov.altitude);
+        }
+      } catch {
+        // pointOfView peut ne pas être disponible
+      }
+    },
+    [schedulePovChange]
+  );
+
+  const setGlobeInteractionDpr = useCallback((interacting: boolean) => {
+    try {
+      const renderer = globeRef.current?.renderer() as { setPixelRatio: (r: number) => void } | undefined;
+      if (!renderer) return;
+      const ratio = interacting
+        ? Math.min(window.devicePixelRatio, GLOBE_INTERACTION_MAX_DPR)
+        : Math.min(window.devicePixelRatio, GLOBE_RENDER_PROFILE.maxPixelRatio);
+      renderer.setPixelRatio(ratio);
+    } catch {
+      /* renderer may not be ready */
+    }
+  }, []);
+
   // Track container dimensions for the canvas
   useEffect(() => {
     const el = containerRef.current;
@@ -468,7 +529,8 @@ export const GlobeView = memo(function GlobeView({
     if (!globeRef.current || size.w === 0) return;
     let cleanupListener: (() => void) | undefined;
     let cleanupRendererListeners: (() => void) | undefined;
-    let controlsRafId = 0;
+    let dampingRafId = 0;
+    let lastDampingAt = 0;
     try {
       const controls = globeRef.current.controls() as {
         autoRotate: boolean;
@@ -496,36 +558,60 @@ export const GlobeView = memo(function GlobeView({
       // Globe radius ≈ 100 units; 400 = altitude ~3× — prevents the globe from shrinking to a dot
       controls.maxDistance = 400;
 
-      const handleInteractionStart = () => setIsInteracting(true);
+      const tickDamping = () => {
+        dampingRafId = 0;
+        try {
+          controls.update();
+        } catch {
+          return;
+        }
+        if (performance.now() - lastDampingAt < DAMPING_IDLE_MS) {
+          dampingRafId = requestAnimationFrame(tickDamping);
+        }
+      };
+
+      const bumpDampingLoop = () => {
+        lastDampingAt = performance.now();
+        if (!dampingRafId) {
+          dampingRafId = requestAnimationFrame(tickDamping);
+        }
+      };
+
+      const handleInteractionStart = () => {
+        isInteractingRef.current = true;
+        setIsInteracting(true);
+        setGlobeInteractionDpr(true);
+        bumpDampingLoop();
+      };
       const handleInteractionEnd = () => {
-        setIsInteracting(false);
+        isInteractingRef.current = false;
+        startTransition(() => setIsInteracting(false));
+        setGlobeInteractionDpr(false);
+        syncTierAndPovFromGlobe(true);
         flushPovChange();
+        bumpDampingLoop();
       };
 
       const handleControlsChange = () => {
-        // Mise à jour tier (rAF) — setState uniquement au changement de tier
+        bumpDampingLoop();
+
+        // Tier / POV nearby : différés pendant le geste pour éviter re-renders HomePage.
         if (altitudeRafRef.current === null) {
           altitudeRafRef.current = requestAnimationFrame(() => {
             altitudeRafRef.current = null;
-            try {
-              const pov = globeRef.current?.pointOfView() as
-                | { lat: number; lng: number; altitude: number }
-                | undefined;
-              if (pov && typeof pov.altitude === 'number') {
-                globeAltitudeRef.current = pov.altitude;
-                const tier = getGlobeDetailTier(pov.altitude);
-                const tierChanged = tier !== lastReportedTierRef.current;
-                if (tierChanged) {
-                  lastReportedTierRef.current = tier;
-                  setGlobeDetailTier(tier);
-                  onGlobeAltitudeChangeRef.current?.(pov.altitude);
+            if (isInteractingRef.current) {
+              try {
+                const pov = globeRef.current?.pointOfView() as
+                  | { lat: number; lng: number; altitude: number }
+                  | undefined;
+                if (pov && typeof pov.altitude === 'number') {
+                  globeAltitudeRef.current = pov.altitude;
                 }
-                if (isValidLatLng(pov.lat, pov.lng)) {
-                  schedulePovChange(pov.lat, pov.lng, pov.altitude);
-                }
+              } catch {
+                /* ignore */
               }
-            } catch {
-              // pointOfView peut ne pas être disponible
+            } else {
+              syncTierAndPovFromGlobe(true);
             }
           });
         }
@@ -538,11 +624,10 @@ export const GlobeView = memo(function GlobeView({
             | undefined;
           if (!pov || pov.altitude >= ALTITUDE_AUTO_SWITCH) return;
           autoSwitchedRef.current = true;
-          // Convertit l'altitude globe en zoom Leaflet équivalent (même étendue visuelle)
-          // Formule : zoom ≈ log2(40075 / (altitude_km * 2)) + 1, clampé entre 6 et 10
           const altKm = pov.altitude * 6371;
           const leafletZoom = Math.round(Math.max(6, Math.min(10, Math.log2(40075 / (altKm * 2)) + 1)));
-          onZoomToFlatRef.current(pov.lat, pov.lng, () => {}, leafletZoom, undefined, true);
+          onPrepareFlatMapRef.current?.(pov.lat, pov.lng, leafletZoom);
+          onZoomToFlatRef.current(pov.lat, pov.lng, () => {}, leafletZoom, undefined, false);
         } catch {
           // pointOfView peut ne pas être disponible
         }
@@ -551,18 +636,8 @@ export const GlobeView = memo(function GlobeView({
       controls.addEventListener('end', handleInteractionEnd);
       controls.addEventListener('change', handleControlsChange);
 
-      const tickControls = () => {
-        try {
-          controls.update();
-        } catch {
-          /* OrbitControls may be disposed */
-        }
-        controlsRafId = requestAnimationFrame(tickControls);
-      };
-      controlsRafId = requestAnimationFrame(tickControls);
-
       cleanupListener = () => {
-        cancelAnimationFrame(controlsRafId);
+        if (dampingRafId) cancelAnimationFrame(dampingRafId);
         controls.removeEventListener('start', handleInteractionStart);
         controls.removeEventListener('end', handleInteractionEnd);
         controls.removeEventListener('change', handleControlsChange);
@@ -616,15 +691,15 @@ export const GlobeView = memo(function GlobeView({
             clearTimeout(zoomTimerRef.current);
             zoomTimerRef.current = null;
           }
-          // Spin globe toward the clicked point for natural visual feedback.
+          // Start crossfade while spin animation is still playing.
+          onPrepareFlatMapRef.current?.(coords.lat, coords.lng, 12);
           try {
-            globeRef.current?.pointOfView({ lat: coords.lat, lng: coords.lng, altitude: 0.5 }, 350);
+            globeRef.current?.pointOfView({ lat: coords.lat, lng: coords.lng, altitude: 0.5 }, 280);
           } catch { /* Globe may not be ready */ }
-          // Start crossfade after 300 ms (while the spin animation is still playing).
           zoomTimerRef.current = setTimeout(() => {
             zoomTimerRef.current = null;
             onZoomToFlatRef.current?.(coords.lat, coords.lng, () => {}, 12, undefined, false);
-          }, 300);
+          }, 160);
         } catch { /* toGlobeCoords may not be available */ }
       };
       renderer.domElement.addEventListener('dblclick', handleDblClick);
@@ -646,7 +721,7 @@ export const GlobeView = memo(function GlobeView({
         altitudeRafRef.current = null;
       }
     };
-  }, [size.w, flushPovChange, schedulePovChange, reportGlobeUnavailable]);
+  }, [size.w, flushPovChange, syncTierAndPovFromGlobe, setGlobeInteractionDpr, reportGlobeUnavailable]);
 
   // Cleanup pending zoom timer and dispose WebGL resources on unmount
   useEffect(() => {
@@ -681,16 +756,21 @@ export const GlobeView = memo(function GlobeView({
     };
   }, []);
 
-  // Fly to user center when it changes — preserve altitude (évite reset overview qui masque les lives).
+  // Sync globe vers center prop (recenter explicite) — pas pendant interaction ni si déjà proche.
   useEffect(() => {
     if (!globeRef.current || !isValidLatLng(center[0], center[1])) return;
-    const duration = povSetRef.current ? 1200 : 0;
-    povSetRef.current = true;
+    if (isInteractingRef.current) return;
     try {
-      let altitude = 1.0;
       const pov = globeRef.current.pointOfView() as
         | { lat: number; lng: number; altitude: number }
         | undefined;
+      if (pov && isValidLatLng(pov.lat, pov.lng)) {
+        const distKm = getDistanceKm(center[0], center[1], pov.lat, pov.lng);
+        if (distKm < 0.15) return;
+      }
+      const duration = povSetRef.current ? 1200 : 0;
+      povSetRef.current = true;
+      let altitude = 1.0;
       if (pov && typeof pov.altitude === 'number') {
         altitude = pov.altitude;
       }
@@ -753,7 +833,37 @@ export const GlobeView = memo(function GlobeView({
     [eventClusters, markerVisibility.eventClusters]
   );
 
+  const globeMarkersContentKey = useMemo(() => {
+    const userKey = userPosition
+      ? `${userPosition[0]},${userPosition[1]}`
+      : '';
+    return [
+      globeDetailTier,
+      markerVisibility.density,
+      buildSalonLivePeopleKey(cappedSalonsForGlobe, cappedLivesForGlobe, visiblePeople),
+      buildEventClusterKey(visibleEventClusters, globeDetailTier),
+      userKey,
+    ].join('::');
+  }, [
+    globeDetailTier,
+    markerVisibility.density,
+    cappedSalonsForGlobe,
+    cappedLivesForGlobe,
+    visiblePeople,
+    visibleEventClusters,
+    userPosition,
+  ]);
+
+  const cachedGlobePointsRef = useRef<{ key: string; points: GlobePoint[] }>({
+    key: '',
+    points: [],
+  });
+
   const rawPoints = useMemo<GlobePoint[]>(() => {
+    if (cachedGlobePointsRef.current.key === globeMarkersContentKey) {
+      return cachedGlobePointsRef.current.points;
+    }
+
     const pts: GlobePoint[] = [];
     const overviewDots = markerVisibility.density === 'overview';
 
@@ -851,8 +961,10 @@ export const GlobeView = memo(function GlobeView({
       });
     }
 
+    cachedGlobePointsRef.current = { key: globeMarkersContentKey, points: pts };
     return pts;
   }, [
+    globeMarkersContentKey,
     cappedSalonsForGlobe,
     cappedLivesForGlobe,
     visiblePeople,
@@ -939,16 +1051,17 @@ export const GlobeView = memo(function GlobeView({
 
         if (onZoomToFlatRef.current && isValidLatLng(p.lat, p.lng)) {
           const cityView = getCityMapView(cluster?.cityKey ?? '');
+          onPrepareFlatMapRef.current?.(p.lat, p.lng, cityView.zoom, cityView.radiusKm);
           try {
-            globeRef.current?.pointOfView({ lat: p.lat, lng: p.lng, altitude: 0.05 }, 1000);
+            globeRef.current?.pointOfView({ lat: p.lat, lng: p.lng, altitude: 0.05 }, GLOBE_MARKER_ZOOM_MS);
           } catch {
             // Globe may not be ready
           }
           if (zoomTimerRef.current !== null) clearTimeout(zoomTimerRef.current);
           zoomTimerRef.current = setTimeout(() => {
             zoomTimerRef.current = null;
-            onZoomToFlatRef.current?.(p.lat, p.lng, doSelect, cityView.zoom, cityView.radiusKm);
-          }, 700);
+            onZoomToFlatRef.current?.(p.lat, p.lng, doSelect, cityView.zoom, cityView.radiusKm, false);
+          }, GLOBE_FLAT_TRIGGER_MS);
           return;
         }
 
@@ -971,18 +1084,17 @@ export const GlobeView = memo(function GlobeView({
       };
 
       if (onZoomToFlatRef.current && isValidLatLng(p.lat, p.lng)) {
-        // Zoom in on the marker (~1 s animation: altitude 1.0 → 0.05)
+        onPrepareFlatMapRef.current?.(p.lat, p.lng, 14);
         try {
-          globeRef.current?.pointOfView({ lat: p.lat, lng: p.lng, altitude: 0.05 }, 1000);
+          globeRef.current?.pointOfView({ lat: p.lat, lng: p.lng, altitude: 0.05 }, GLOBE_MARKER_ZOOM_MS);
         } catch {
           // Globe may not be ready
         }
-        // Trigger map transition at 700 ms (≈70% of zoom animation) to start crossfade
         if (zoomTimerRef.current !== null) clearTimeout(zoomTimerRef.current);
         zoomTimerRef.current = setTimeout(() => {
           zoomTimerRef.current = null;
-          onZoomToFlatRef.current?.(p.lat, p.lng, doSelect);
-        }, 700);
+          onZoomToFlatRef.current?.(p.lat, p.lng, doSelect, 14, undefined, false);
+        }, GLOBE_FLAT_TRIGGER_MS);
         return;
       }
 

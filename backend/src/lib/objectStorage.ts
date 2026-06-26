@@ -67,14 +67,22 @@ export async function saveObjectS3(
           : undefined,
       forcePathStyle: process.env.S3_FORCE_PATH_STYLE === '1',
     });
-    await client.send(
-      new PutObjectCommand({
-        Bucket: bucket,
-        Key: key,
-        Body: buffer,
-        ContentType: options.contentType,
-      })
-    );
+    const putInput: {
+      Bucket: string;
+      Key: string;
+      Body: Buffer;
+      ContentType?: string;
+      ACL?: string;
+    } = {
+      Bucket: bucket,
+      Key: key,
+      Body: buffer,
+      ContentType: options.contentType,
+    };
+    if (process.env.S3_PUBLIC_READ === '1') {
+      putInput.ACL = 'public-read';
+    }
+    await client.send(new PutObjectCommand(putInput));
     const publicBase = process.env.S3_PUBLIC_BASE_URL?.trim();
     const url = publicBase ? `${publicBase.replace(/\/$/, '')}/${key}` : `s3://${bucket}/${key}`;
     return { url, key, backend: 's3' };

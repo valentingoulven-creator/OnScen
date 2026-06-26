@@ -40,4 +40,14 @@ export function assertProductionStartup(): void {
       '[startup] SIGHTENGINE_API_USER and SIGHTENGINE_API_SECRET must be set in production — UGC moderation is mandatory.'
     );
   }
+
+  if (process.env.REDIS_URL?.trim()) {
+    console.log('[startup] REDIS_URL configuré — adapter Socket.io cluster actif si deps présentes');
+  } else {
+    console.warn('[startup] REDIS_URL absent — Socket.io mono-processus (OK pour 1 worker PM2)');
+  }
+
+  if (process.env.S3_BUCKET?.trim()) {
+    console.log(`[startup] S3 uploads actifs — bucket ${process.env.S3_BUCKET.trim()}`);
+  }
 }

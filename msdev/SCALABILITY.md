@@ -1,6 +1,7 @@
 # Soundly — Scalabilité vers 500 000 utilisateurs simultanés
 
 > **Document de référence** — juin 2026  
+> **Stack cible détaillée (Scaleway, phases, infra) :** [`docs/STACK-CIBLE.md`](../docs/STACK-CIBLE.md)  
 > Ce document distingue ce qui est **implémenté** (améliorations frontend/backend compatibles msdev)
 > de ce qui nécessite une **infrastructure de production** pour atteindre 500 000 utilisateurs simultanés.
 

@@ -14,13 +14,14 @@ module.exports = {
       name: 'melosong-backend',
       script: 'dist/index.js',
       cwd: '/opt/soundly',
-      instances: 1,
-      exec_mode: 'fork',
+      // Phase 0 scale : 2 workers (DEV1-S 2 vCPU / ~2 Go RAM) + Redis adapter Socket.io
+      instances: 2,
+      exec_mode: 'cluster',
       autorestart: true,
       watch: false,
       max_restarts: 20,
       min_uptime: '10s',
-      max_memory_restart: '768M',
+      max_memory_restart: '512M',
       env_file: '/opt/soundly/.env',
       env: {
         NODE_ENV: 'production',

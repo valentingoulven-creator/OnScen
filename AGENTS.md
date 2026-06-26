@@ -8,6 +8,7 @@
 - Prod : **ne jamais** déployer sans demande explicite → `scripts/deploy-prod.ps1`
 - Source frontend : `app/src/` · mobile overrides : `apptel/src/` uniquement
 - Changelog significatif : entrée en fin de `modification.txt`
+- **Stack scale :** [`docs/STACK-CIBLE.md`](./docs/STACK-CIBLE.md) · checklist 500k : `msdev/SCALABILITY.md`
 
 ## Projet Soundy CEO IA
 

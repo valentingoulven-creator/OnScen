@@ -259,7 +259,7 @@ $deployFiles = @(
     "Caddyfile", "Caddyfile.staging", "sync-caddy.sh", "sync-caddy-staging.sh",
     "caddy-watchdog.sh", "install-caddy-guard.sh", "healthcheck.sh",
     "postgres-setup.sh", "migrate-remote.sh", "backup-db.sh", "backup-uploads.sh", "backup-offsite.sh",
-    "verify-backup.sh", "verify-prod.sh", "verify-scaleway-backup.sh", "setup-scaleway-object-storage.sh", "snapshot-vps-reminder.sh",
+    "verify-backup.sh", "verify-prod.sh", "verify-scaleway-backup.sh", "setup-scaleway-object-storage.sh", "setup-phase0-prod.sh", "snapshot-vps-reminder.sh",
     "install-backup-cron.sh", "install-uploads-backup-cron.sh", "install-offsite-backup-cron.sh",
     "install-health-cron.sh", "setup-legal-publisher.sh", "ecosystem.config.cjs", "ecosystem.staging.config.cjs",
     "bootstrap-staging-vps.sh", "setup-staging-db.sh",
@@ -281,6 +281,20 @@ if ("$migrateOut" -match "MIGRATE_OK") {
     Write-Host "  [OK] Migrations au demarrage PM2 (script absent)" -ForegroundColor Green
 } else {
     Fail "Migrations PostgreSQL echouees. Verifiez DATABASE_URL dans /opt/soundly/.env et les logs ci-dessus."
+}
+
+
+# -- 7b. Phase 0 scale (Redis + env S3) — prod uniquement ----------------------
+if ($Environment -eq 'prod') {
+    Write-Host "`n[7b/9] Phase 0 scale (Redis + S3 env)..." -ForegroundColor Yellow
+    $phase0Cmd = 'sed -i ''s/\r$//'' ' + $REMOTE + '/deploy/setup-phase0-prod.sh 2>/dev/null; chmod +x ' + $REMOTE + '/deploy/setup-phase0-prod.sh 2>/dev/null; bash ' + $REMOTE + '/deploy/setup-phase0-prod.sh 2>&1; echo PHASE0_OK'
+    $phase0Out = Invoke-Remote $phase0Cmd
+    Write-Host $phase0Out
+    if ("$phase0Out" -match "PHASE0_OK") {
+        Write-Host "  [OK] Phase 0 infra (Redis / env)" -ForegroundColor Green
+    } else {
+        Write-Host "  [!] Phase 0 — verifiez Redis manuellement" -ForegroundColor Yellow
+    }
 }
 
 
@@ -311,7 +325,8 @@ if ("$pm2Exists" -match "PM2_MISSING") {
     }
     Write-Host "  [OK] PM2 demarre" -ForegroundColor Green
 } else {
-    $reloadCmd = 'cd ' + $REMOTE + '; ' + $deployCommitEnv + 'pm2 reload ' + $PM2_APP + ' --update-env 2>&1; echo PM2_RELOAD_OK'
+    $ecoFile = Split-Path -Leaf $cfg.EcosystemFile
+    $reloadCmd = 'cd ' + $REMOTE + '; set -a; . ./.env; set +a; ' + $deployCommitEnv + 'pm2 startOrReload deploy/' + $ecoFile + ' --update-env 2>&1; pm2 save 2>&1; echo PM2_RELOAD_OK'
     $reloadOut = Invoke-Remote $reloadCmd
     Write-Host $reloadOut
     if ("$reloadOut" -notmatch "PM2_RELOAD_OK") {

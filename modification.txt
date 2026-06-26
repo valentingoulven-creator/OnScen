@@ -9477,3 +9477,79 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 696 — 2026-06-26
 ================================================================================
+
+================================================================================
+Stack cible scale rapide — Soundy
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF
+----
+ Documenter la stack optimale pour montée en charge rapide (évolution, pas réécriture).
+
+LIVRABLE
+-----
+ docs/STACK-CIBLE.md — architecture cible Scaleway, phases 0–3, paliers infra
+ msdev/SCALABILITY.md — lien vers STACK-CIBLE
+ AGENTS.md — référence stack scale
+
+DÉCISIONS CLÉS
+-----
+ • Garder React/Vite/Capacitor + Express + TS
+ • Priorité #1 : PostGIS nearby (remplace scan RAM O(n))
+ • Phase 0 : Redis + PM2 cluster + S3 uploads + CDN
+ • Pas de migration Next/RN/Supabase
+
+================================================================================
+Fin — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 697 — Phase 0 scale prod + déploiement (Redis, PM2 cluster, S3)
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Activer la phase 0 de montée en charge (STACK-CIBLE) en production : Redis pour
+ Socket.io multi-workers, PM2 cluster ×2, préparation S3 uploads publics.
+
+CHANGEMENTS / FIX
+-----
+ deploy/ecosystem.config.cjs
+ ─────────────────
+ • mode cluster, 2 instances, max_memory_restart 512M
+
+ deploy/setup-phase0-prod.sh
+ ─────────────────
+ • installe Redis sur VPS prod, injecte REDIS_URL + S3_* depuis SCW_*
+
+ deploy_zero_downtime.ps1
+ ─────────────────
+ • étape 7b setup-phase0-prod.sh ; PM2 startOrReload ecosystem.config.cjs
+
+ backend/package.json
+ ─────────────────
+ • redis, @socket.io/redis-adapter, @aws-sdk/client-s3
+
+ backend/src/lib/objectStorage.ts
+ ─────────────────
+ • S3_PUBLIC_READ=1 → ACL public-read
+
+ backend/src/lib/productionStartup.ts
+ ─────────────────
+ • logs Redis / S3 au démarrage
+
+FICHIERS MODIFIÉS
+-----
+ deploy/*, backend/*, docs/STACK-CIBLE.md, globe/map (694–696)
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+ backend/ → npm run build → ✅
+ apptel/ → npm run apptel:build → ✅
+
+================================================================================
+Fin MODIF 697 — 2026-06-26
+================================================================================

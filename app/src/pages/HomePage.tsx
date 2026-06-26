@@ -1096,6 +1096,13 @@ export function HomePage({
     };
   }, [isActive, token, mapEventsRefreshKey, showEventMarkers, user?.id, flyToEventMarkersBounds]);
 
+  const handlePrepareFlatMap = useCallback(
+    (lat: number, lng: number, zoom?: number, radiusKm?: number) => {
+      mapViewRef.current?.prepareFlatAt(lat, lng, zoom ?? 14, radiusKm);
+    },
+    []
+  );
+
   const handleGlobeZoomToFlat = useCallback(
     (
       lat: number,
@@ -1103,21 +1110,18 @@ export function HomePage({
       doSelect: () => void,
       zoom?: number,
       radiusKm?: number,
-      animated?: boolean
+      _animated?: boolean
     ) => {
-      // Repositionne la carte Leaflet (cachée) avant le crossfade
+      // Repositionne la carte (prepareFlatAt déjà appelé pendant l'anim globe).
       if (radiusKm != null && radiusKm > 0) {
         mapViewRef.current?.jumpToCityBounds(lat, lng, radiusKm);
-      } else if (animated) {
-        mapViewRef.current?.flyTo(lat, lng, zoom ?? 13);
       } else {
         mapViewRef.current?.jumpTo(lat, lng, zoom ?? 14);
       }
       setMapStyle('flat');
       localStorage.setItem(MAP_STYLE_KEY, 'flat');
       setCenter(sanitizeLatLngTuple(lat, lng, DEFAULT_CENTER));
-      // Délai aligné sur le crossfade MapView (500 ms)
-      setTimeout(doSelect, 560);
+      setTimeout(doSelect, 340);
     },
     []
   );
@@ -2101,6 +2105,7 @@ export function HomePage({
           onMapBackgroundClick={handleMapBackgroundClick}
           mapStyle={mapStyle}
           onGlobeZoomToFlat={handleGlobeZoomToFlat}
+          onPrepareFlatMap={handlePrepareFlatMap}
           onAutoSwitchToGlobe={handleAutoSwitchToGlobe}
           onGlobeUnavailable={handleGlobeUnavailable}
           onMapDetailStateChange={handleMapDetailStateChange}

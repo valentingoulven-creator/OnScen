@@ -39,7 +39,12 @@ export function useHomeGeoRefresh(options: {
 
   const loadNearbyAtRef = useRef(loadNearbyAt);
   loadNearbyAtRef.current = loadNearbyAt;
+  const loadNearbyFromStateRef = useRef(loadNearbyFromState);
+  loadNearbyFromStateRef.current = loadNearbyFromState;
+  const centerRef = useRef(center);
+  centerRef.current = center;
 
+  /** Bootstrap GPS / ville — une seule fois à l'activation, pas à chaque pan/zoom carte. */
   useEffect(() => {
     if (!isActive || !token) return;
 
@@ -51,7 +56,7 @@ export function useHomeGeoRefresh(options: {
       setSafeCenter(coords);
       loadNearbyAt(coords);
     } else if (!navigator.geolocation || !locationSharing) {
-      loadNearbyFromState(null, center);
+      loadNearbyFromStateRef.current(null, centerRef.current);
     } else {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -60,9 +65,20 @@ export function useHomeGeoRefresh(options: {
           setUserPosition(sanitizeLatLngTuple(coords[0], coords[1], defaultCenter));
           loadNearbyAt(coords);
         },
-        () => loadNearbyFromState(null, center)
+        () => loadNearbyFromStateRef.current(null, centerRef.current)
       );
     }
+  }, [
+    isActive,
+    token,
+    defaultCenter,
+    loadNearbyAt,
+    setSafeCenter,
+    setUserPosition,
+  ]);
+
+  useEffect(() => {
+    if (!isActive || !token) return;
 
     const tickGeo = () => {
       const current = getLivesGeo();
@@ -113,15 +129,5 @@ export function useHomeGeoRefresh(options: {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [
-    isActive,
-    token,
-    center,
-    defaultCenter,
-    loadNearbyAt,
-    loadNearbyFromState,
-    setSafeCenter,
-    setUserPosition,
-    geoIntervalRef,
-  ]);
+  }, [isActive, token, geoIntervalRef]);
 }
