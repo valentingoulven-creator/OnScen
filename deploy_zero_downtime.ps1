@@ -47,7 +47,7 @@ $sshTarget = if ($env:DEPLOY_SSH_HOST) {
 } else {
     $VPS
 }
-$sshOpts = @("-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=20")
+$sshOpts = @("-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=20", "-o", "LogLevel=ERROR")
 if ($KEY -and (Test-Path $KEY)) {
     $sshOpts = @("-i", $KEY) + $sshOpts
 }
@@ -57,17 +57,25 @@ function Fail([string]$msg) {
 }
 
 function Invoke-Remote([string]$cmd) {
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
     $result = & ssh.exe @sshOpts $sshTarget "$cmd" 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        Fail "Commande SSH echouee (code $LASTEXITCODE) : $cmd`nDetail : $($result -join '`n')"
+    $code = $LASTEXITCODE
+    $ErrorActionPreference = $prev
+    if ($code -ne 0) {
+        Fail "Commande SSH echouee (code $code) : $cmd`nDetail : $($result -join '`n')"
     }
     return ($result -join "`n")
 }
 
 function Invoke-Scp([string[]]$ScpArgs) {
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
     & scp.exe @sshOpts @ScpArgs 2>&1 | ForEach-Object { Write-Host $_ }
-    if ($LASTEXITCODE -ne 0) {
-        Fail "Transfert SCP echoue (code $LASTEXITCODE)."
+    $code = $LASTEXITCODE
+    $ErrorActionPreference = $prev
+    if ($code -ne 0) {
+        Fail "Transfert SCP echoue (code $code)."
     }
 }
 
@@ -98,7 +106,11 @@ if ($Environment -eq 'prod') {
 
 # -- 1. Connexion VPS ---------------------------------------------------------
 Write-Host "[1/9] Connexion VPS..." -ForegroundColor Yellow
+$prevEap = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
 $ping = & ssh.exe @sshOpts $sshTarget "echo PING_OK" 2>&1
+$pingCode = $LASTEXITCODE
+$ErrorActionPreference = $prevEap
 if ("$ping" -notmatch "PING_OK") {
     Fail "VPS inaccessible ($sshTarget). Verifiez la cle SSH (~/.ssh/id_ed25519).`nDetail : $ping"
 }

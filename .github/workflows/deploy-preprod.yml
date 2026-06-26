@@ -69,7 +69,6 @@ jobs:
         env:
           DEPLOY_SSH_HOST: root@51.159.170.181
         run: |
-          # ssh-agent fourni par webfactory — pas de -i fichier
           powershell -ExecutionPolicy Bypass -File scripts/deploy-preprod.ps1
 
       - name: Verify staging health
