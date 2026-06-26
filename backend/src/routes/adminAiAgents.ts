@@ -4,7 +4,8 @@ import { authenticateJWT } from '../middleware/auth';
 import { db } from '../models/schema';
 import { isAccessAdmin } from '../lib/accessControl';
 import { AI_AGENTS, getAgentDefinition, isValidAgentId } from '../lib/aiAgents/agents';
-import { buildAiDataContext } from '../lib/aiAgents/dataContext';
+import { buildCeoContextMeta, buildCeoDataContext } from '../lib/aiAgents/ceoDataContext';
+import { buildDevDataContext } from '../lib/aiAgents/devDataContext';
 import { completeChat, getLlmConfig } from '../lib/aiAgents/llmClient';
 import { estimateLlmCostEur, estimateLlmCostUsd } from '../lib/aiAgents/llmPricing';
 import { getAiUsageTotals, recordAiUsage } from '../lib/aiAgents/usageTracker';
@@ -64,6 +65,7 @@ adminAiAgentsRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
     model: config.model,
     agents: AI_AGENTS,
     usage: getAiUsageTotals(),
+    ceo: buildCeoContextMeta(),
   });
 });
 
@@ -88,7 +90,8 @@ adminAiAgentsRouter.post(
     }
 
     try {
-      const dataContext = buildAiDataContext();
+      const dataContext =
+        agentId === 'ceo' ? await buildCeoDataContext() : await buildDevDataContext();
       const system = getSystemPrompt(agentId, dataContext);
       const result = await completeChat(system, messages);
       const inputTokens = result.usage?.inputTokens ?? 0;

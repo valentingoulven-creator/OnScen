@@ -99,6 +99,7 @@ interface MapViewProps {
   onSelectLive: (l: Live) => void;
   onSelectPerson?: (person: NearbyPerson) => void;
   onSelectEventCluster?: (cluster: MapEventCityCluster) => void;
+  onSelectLiveCluster?: (cluster: import('../lib/mapLiveClusters').MapLiveLocationCluster) => void;
   /** Clic sur le fond de carte (pas un marqueur) — Leaflet n'émet pas click après un drag. */
   onMapBackgroundClick?: () => void;
   /** Style du fond de carte : 'flat' = carte sombre (défaut), 'globe' = satellite. */
@@ -160,6 +161,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   onSelectLive,
   onSelectPerson,
   onSelectEventCluster,
+  onSelectLiveCluster,
   onMapBackgroundClick,
   mapStyle = 'flat',
   onGlobeZoomToFlat,
@@ -1154,6 +1156,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
               onSelectLive={onSelectLive}
               onSelectPerson={onSelectPerson}
               onSelectEventCluster={onSelectEventCluster}
+              onSelectLiveCluster={onSelectLiveCluster}
               onZoomToFlat={onGlobeZoomToFlat}
               onGlobeAltitudeChange={handleGlobeAltitudeChange}
               onGlobePovChange={onGlobePovChange}

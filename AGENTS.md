@@ -10,6 +10,14 @@
 - Changelog significatif : entrée en fin de `modification.txt`
 - **Stack scale :** [`docs/STACK-CIBLE.md`](./docs/STACK-CIBLE.md) · checklist 500k : `msdev/SCALABILITY.md`
 
+## Agent Dev (implémentation)
+
+- Règle : `@soundy-dev-agent` (`.cursor/rules/soundy-dev-agent.mdc`)
+- Guide : [`docs/SOUNDY-DEV-AGENT.md`](./docs/SOUNDY-DEV-AGENT.md)
+- Rapports : [`docs/dev-agent/INDEX.md`](./docs/dev-agent/INDEX.md) — un rapport par session significative
+
+Usage : bugs, features, refactors, tests. **Rapport obligatoire** en fin de session (fichier + résumé chat).
+
 ## Projet Soundy CEO IA
 
 Workspace dédié : [`Soundy-CEO-IA.code-workspace`](./Soundy-CEO-IA.code-workspace)  

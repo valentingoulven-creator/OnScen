@@ -1230,3 +1230,101 @@ export interface ContentReport {
   status?: 'pending' | 'reviewed' | 'dismissed';
   reviewedAt?: number;
 }
+
+export type AiAgentId = 'ceo' | 'dev';
+
+export interface AiAgentDefinition {
+  id: AiAgentId;
+  name: string;
+  description: string;
+  emoji: string;
+  accentColor: string;
+}
+
+export interface AiChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface CeoDataGap {
+  id: string;
+  category: string;
+  severity: 'critical' | 'high' | 'medium';
+  question: string;
+  whyItMatters: string;
+  suggestedField: string;
+}
+
+export interface CeoContextMeta {
+  dataGaps: CeoDataGap[];
+  founderContextLoaded: boolean;
+  founderContextPath: string | null;
+  founderContextExample: string;
+  aiTeam?: AiTeamRecruitmentAnalysis;
+}
+
+export type AiTeamRecPriority = 'critical' | 'high' | 'medium' | 'low' | 'not_now';
+
+export interface AiTeamRecommendation {
+  agentId: string;
+  name: string;
+  suggestedEmoji: string;
+  priority: AiTeamRecPriority;
+  urgencyScore: number;
+  alreadyExists: boolean;
+  headline: string;
+  whyNow: string[];
+  whyCeoAloneIsInsufficient: string[];
+  whatYouGain: string[];
+  costOfWaiting: string[];
+  expectedDeliverables: string[];
+  successMetrics30d: string[];
+  prerequisites: string[];
+  whenNotToHire: string[];
+  estimatedApiCostEurMonth: string;
+  firstWeekActions: string[];
+  exampleQuestions: string[];
+}
+
+export interface AiTeamRecruitmentAnalysis {
+  philosophy: string;
+  currentRoster: { id: string; name: string; emoji: string }[];
+  missingRolesCount: number;
+  topRecommendation: string | null;
+  summaryForFounder: string;
+  recommendations: AiTeamRecommendation[];
+}
+
+export interface AiAgentsStatus {
+  enabled: boolean;
+  configured: boolean;
+  provider: 'anthropic' | 'openai' | null;
+  model: string | null;
+  agents: AiAgentDefinition[];
+  usage?: AiUsageTotals;
+  ceo?: CeoContextMeta;
+}
+
+export interface AiUsageTotals {
+  month: string;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  costEur: number;
+  requestCount: number;
+  usdToEurRate?: number;
+}
+
+export interface AiChatResponse {
+  agentId: AiAgentId;
+  message: AiChatMessage;
+  model: string;
+  usage?: { inputTokens: number; outputTokens: number };
+  cost?: {
+    inputTokens: number;
+    outputTokens: number;
+    costUsd: number;
+    costEur: number;
+  };
+  monthUsage?: AiUsageTotals;
+}

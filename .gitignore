@@ -18,6 +18,7 @@ msdev/data/*.json
 !msdev/data/.nosync
 !msdev/data/.gitignore
 msdev/legal-publisher.json
+msdev/ceo-founder-context.json
 
 # Mobile store secrets (keystore, Team ID)
 mobile-store.env

@@ -7,6 +7,8 @@ import { isValidLatLng } from '../lib/mapCoords';
 import { isWebGLError } from '../lib/webglSupport';
 import { getCityMapView } from '../lib/mapEventClusters';
 import { buildEventClusterKey, buildSalonLivePeopleKey } from '../lib/mapMarkersKey';
+import { loadGlobeCountryFeatures, type CountryGeoFeature } from '../lib/globeCountries';
+import { clusterLiveMapMarkers, type MapLiveLocationCluster } from '../lib/mapLiveClusters';
 import {
   filterPeopleForZoom,
   filterSalonsForZoom,
@@ -23,11 +25,11 @@ const GLOBE_CAPITAL_LABELS = toGlobeCapitalLabels();
 interface GlobePoint {
   lat: number;
   lng: number;
-  type: 'salon' | 'live' | 'person' | 'user' | 'event';
+  type: 'salon' | 'live' | 'person' | 'user' | 'event' | 'live-cluster';
   color: string;
   radius: number;
   label: string;
-  entity?: Salon | Live | NearbyPerson | MapEventCityCluster;
+  entity?: Salon | Live | NearbyPerson | MapEventCityCluster | MapLiveLocationCluster;
 }
 
 interface GlobeRing {
@@ -71,12 +73,12 @@ const DAMPING_IDLE_MS = 320;
 const GLOBE_RENDER_PROFILE = (() => {
   const base = {
     skyTexture: '/globe/night-sky.png',
-    backgroundColor: '#000004',
-    atmosphereColor: 'rgba(120, 90, 255, 0.72)',
-    atmosphereAltitude: 0.18,
-    toneExposure: 1.04,
-    spaceLighting: false,
-    skyBrightness: 1,
+    backgroundColor: '#0a1220',
+    atmosphereColor: 'rgba(140, 170, 255, 0.55)',
+    atmosphereAltitude: 0.2,
+    toneExposure: 1.38,
+    spaceLighting: true,
+    skyBrightness: 1.28,
   };
   if (typeof window === 'undefined') {
     return {
@@ -108,13 +110,13 @@ const GLOBE_RENDER_PROFILE = (() => {
     bumpScale: 0.32,
     labelResolution: 5,
     skyTexture: '/globe/stars-enhanced.jpg',
-    backgroundColor: '#000000',
+    backgroundColor: '#0c1628',
     /** Halo atmosphérique bleu (vue ISS) avec légère teinte Soundy. */
-    atmosphereColor: 'rgba(52, 118, 198, 0.48)',
-    atmosphereAltitude: 0.12,
-    toneExposure: 0.98,
+    atmosphereColor: 'rgba(88, 148, 220, 0.52)',
+    atmosphereAltitude: 0.14,
+    toneExposure: 1.52,
     spaceLighting: true,
-    skyBrightness: 1.12,
+    skyBrightness: 1.38,
   };
 })();
 
@@ -154,12 +156,12 @@ function configureGlobeSpaceLighting(globe: GlobeMethods): void {
       color?: { setHex: (hex: number) => void };
     };
     if (light.isAmbientLight && typeof light.intensity === 'number') {
-      light.intensity = 0.2;
-      light.color?.setHex(0x080c18);
+      light.intensity = 0.62;
+      light.color?.setHex(0x304060);
     }
     if (light.isDirectionalLight && typeof light.intensity === 'number') {
-      light.intensity = 0.9;
-      light.color?.setHex(0xfff0e0);
+      light.intensity = 1.28;
+      light.color?.setHex(0xfff6ea);
     }
   });
 }
@@ -211,8 +213,10 @@ function configureGlobeVisualQuality(
           if (bumpScale > 0) m.bumpScale = bumpScale;
         }
         if (typeof m.shininess === 'number') {
-          m.shininess = 18;
-          m.specular?.setHex(0x2a2840);
+          m.shininess = 14;
+          m.specular?.setHex(0x4a5878);
+          // Relève la texture earth-night sans la blanchir
+          m.color?.setRGB(1.42, 1.38, 1.32);
         }
         if (isSkyMaterial && m.color && opts.skyBrightness !== 1) {
           const b = opts.skyBrightness;
@@ -238,6 +242,16 @@ function configureGlobeVisualQuality(
  */
 const EMPTY_RINGS: GlobeRing[] = [];
 const EMPTY_CAPITAL_LABELS: GlobeCapitalLabel[] = [];
+const EMPTY_COUNTRY_POLYGONS: CountryGeoFeature[] = [];
+
+/** Frontières pays — remplissage transparent, trait très discret. */
+const GLOBE_COUNTRY_BORDER_ALTITUDE = 0.004;
+const GLOBE_COUNTRY_BORDER_CURVATURE = IS_LOW_POWER_DEVICE ? 2 : 3;
+const getPolygonGeoJsonGeometry = (d: object) =>
+  (d as CountryGeoFeature).geometry as unknown as { type: string; coordinates: number[] };
+const getPolygonCapColor = () => 'rgba(0, 0, 0, 0)';
+const getPolygonSideColor = () => 'rgba(0, 0, 0, 0)';
+const getPolygonStrokeColor = () => 'rgba(130, 150, 180, 0.14)';
 
 /**
  * Stable WebGL renderer configuration.
@@ -283,7 +297,7 @@ const getPointLabel  = (d: object) => (d as GlobePoint).label;
 
 const getRingLat   = (d: object) => (d as GlobeRing).lat;
 const getRingLng   = (d: object) => (d as GlobeRing).lng;
-const getRingColor = () => 'rgba(248, 113, 113, 0.5)';
+const getRingColor = () => 'rgba(248, 113, 113, 0.72)';
 
 const getLabelLat   = (d: object) => (d as GlobeCapitalLabel).lat;
 const getLabelLng   = (d: object) => (d as GlobeCapitalLabel).lng;
@@ -328,6 +342,8 @@ export interface GlobeViewProps {
   onSelectLive: (l: Live) => void;
   onSelectPerson?: (person: NearbyPerson) => void;
   onSelectEventCluster?: (cluster: MapEventCityCluster) => void;
+  /** Plusieurs lives au même endroit — popup liste (vue globe overview). */
+  onSelectLiveCluster?: (cluster: MapLiveLocationCluster) => void;
   /**
    * Appelé après l'animation de zoom sur un marqueur (~900 ms) **ou** quand
    * l'utilisateur zoome manuellement en dessous de `ALTITUDE_AUTO_SWITCH`.
@@ -393,6 +409,7 @@ export const GlobeView = memo(function GlobeView({
   onSelectLive,
   onSelectPerson,
   onSelectEventCluster,
+  onSelectLiveCluster,
   onZoomToFlat,
   onGlobeAltitudeChange,
   onGlobePovChange,
@@ -407,6 +424,7 @@ export const GlobeView = memo(function GlobeView({
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   /** Tier seul en state — évite re-renders lourds à chaque frame d'altitude. */
   const [globeDetailTier, setGlobeDetailTier] = useState<MapDetailTier>('overview');
+  const [countryPolygons, setCountryPolygons] = useState<CountryGeoFeature[]>(EMPTY_COUNTRY_POLYGONS);
   const [isInteracting, setIsInteracting] = useState(false);
   const isInteractingRef = useRef(false);
   const globeAltitudeRef = useRef(1.0);
@@ -426,6 +444,8 @@ export const GlobeView = memo(function GlobeView({
   onSelectPersonRef.current = onSelectPerson;
   const onSelectEventClusterRef = useRef(onSelectEventCluster);
   onSelectEventClusterRef.current = onSelectEventCluster;
+  const onSelectLiveClusterRef = useRef(onSelectLiveCluster);
+  onSelectLiveClusterRef.current = onSelectLiveCluster;
   const onGlobeAltitudeChangeRef = useRef(onGlobeAltitudeChange);
   onGlobeAltitudeChangeRef.current = onGlobeAltitudeChange;
   const onGlobePovChangeRef = useRef(onGlobePovChange);
@@ -509,6 +529,16 @@ export const GlobeView = memo(function GlobeView({
   }, []);
 
   // Track container dimensions for the canvas
+  useEffect(() => {
+    let cancelled = false;
+    void loadGlobeCountryFeatures().then((features) => {
+      if (!cancelled && features.length) setCountryPolygons(features);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -828,6 +858,24 @@ export const GlobeView = memo(function GlobeView({
     () => visibleLives.slice(0, GLOBE_OVERVIEW_CAP),
     [visibleLives]
   );
+  const liveLocationClusters = useMemo(
+    () =>
+      globeDetailTier === 'overview' && markerVisibility.lives
+        ? clusterLiveMapMarkers(
+            cappedSalonsForGlobe.filter((s) => s.isLive),
+            cappedLivesForGlobe,
+            salonIds
+          )
+        : [],
+    [
+      globeDetailTier,
+      markerVisibility.lives,
+      cappedSalonsForGlobe,
+      cappedLivesForGlobe,
+      salonIds,
+    ]
+  );
+  const useLiveClusters = globeDetailTier === 'overview' && liveLocationClusters.length > 0;
   const visibleEventClusters = useMemo(
     () => (markerVisibility.eventClusters ? eventClusters : []),
     [eventClusters, markerVisibility.eventClusters]
@@ -841,6 +889,9 @@ export const GlobeView = memo(function GlobeView({
       globeDetailTier,
       markerVisibility.density,
       buildSalonLivePeopleKey(cappedSalonsForGlobe, cappedLivesForGlobe, visiblePeople),
+      useLiveClusters
+        ? liveLocationClusters.map((c) => `${c.id}:${c.count}`).join('|')
+        : '',
       buildEventClusterKey(visibleEventClusters, globeDetailTier),
       userKey,
     ].join('::');
@@ -852,6 +903,8 @@ export const GlobeView = memo(function GlobeView({
     visiblePeople,
     visibleEventClusters,
     userPosition,
+    useLiveClusters,
+    liveLocationClusters,
   ]);
 
   const cachedGlobePointsRef = useRef<{ key: string; points: GlobePoint[] }>({
@@ -867,39 +920,57 @@ export const GlobeView = memo(function GlobeView({
     const pts: GlobePoint[] = [];
     const overviewDots = markerVisibility.density === 'overview';
 
-    cappedSalonsForGlobe.forEach((s) => {
-      const lat = Number(s.latitude);
-      const lng = Number(s.longitude);
-      if (!isValidLatLng(lat, lng)) return;
-      const liveSuffix = s.isLive ? ' · LIVE' : '';
-      pts.push({
-        lat,
-        lng,
-        type: 'salon',
-        color: s.isLive ? '#f87171' : '#c084fc',
-        radius: overviewDots ? (s.isLive ? 0.34 : 0.3) : s.isLive ? 0.52 : 0.48,
-        label: overviewDots
-          ? `${s.isLive ? '🔴' : '🎵'} ${s.hostName}${liveSuffix}`
-          : `🎵 ${s.hostName}${liveSuffix}`,
-        entity: s,
+    if (useLiveClusters) {
+      liveLocationClusters.forEach((cluster) => {
+        const lat = cluster.latitude;
+        const lng = cluster.longitude;
+        if (!isValidLatLng(lat, lng)) return;
+        const multi = cluster.count > 1;
+        pts.push({
+          lat,
+          lng,
+          type: 'live-cluster',
+          color: '#f87171',
+          radius: multi ? 0.28 : 0.22,
+          label: multi ? `🔴 ${cluster.count} LIVE` : `🔴 LIVE`,
+          entity: cluster,
+        });
       });
-    });
+    } else {
+      cappedSalonsForGlobe.forEach((s) => {
+        const lat = Number(s.latitude);
+        const lng = Number(s.longitude);
+        if (!isValidLatLng(lat, lng)) return;
+        const liveSuffix = s.isLive ? ' · LIVE' : '';
+        pts.push({
+          lat,
+          lng,
+          type: 'salon',
+          color: s.isLive ? '#f87171' : '#c084fc',
+          radius: overviewDots ? (s.isLive ? 0.34 : 0.3) : s.isLive ? 0.52 : 0.48,
+          label: overviewDots
+            ? `${s.isLive ? '🔴' : '🎵'} ${s.hostName}${liveSuffix}`
+            : `🎵 ${s.hostName}${liveSuffix}`,
+          entity: s,
+        });
+      });
 
-    cappedLivesForGlobe.forEach((l) => {
-      if (salonIds.has(l.id)) return;
-      const lat = Number(l.latitude);
-      const lng = Number(l.longitude);
-      if (!isValidLatLng(lat, lng)) return;
-      pts.push({
-        lat,
-        lng,
-        type: 'live',
-        color: '#f87171',
-        radius: overviewDots ? 0.34 : 0.52,
-        label: `🔴 ${l.hostName} · LIVE`,
-        entity: l,
+      cappedLivesForGlobe.forEach((l) => {
+        if (salonIds.has(l.id)) return;
+        const lat = Number(l.latitude);
+        const lng = Number(l.longitude);
+        if (!isValidLatLng(lat, lng)) return;
+        pts.push({
+          lat,
+          lng,
+          type: 'live',
+          color: '#f87171',
+          radius: overviewDots ? 0.34 : 0.52,
+          label: `🔴 ${l.hostName} · LIVE`,
+          entity: l,
+        });
       });
-    });
+    }
 
     visiblePeople.forEach((p) => {
       const lat = Number(p.latitude);
@@ -973,6 +1044,8 @@ export const GlobeView = memo(function GlobeView({
     salonIds,
     globeDetailTier,
     markerVisibility.density,
+    useLiveClusters,
+    liveLocationClusters,
   ]);
 
   /**
@@ -997,9 +1070,15 @@ export const GlobeView = memo(function GlobeView({
   }
   const points = stablePointsRef.current;
 
-  // Pulsing rings on live sessions (ville + rue uniquement) — off pendant drag
+  // Pulsing rings — 1 sonar par cluster (overview) ou par live (zoom ville)
   const liveRings = useMemo<GlobeRing[]>(() => {
     if (!markerVisibility.lives || isInteracting) return EMPTY_RINGS;
+    if (useLiveClusters) {
+      return liveLocationClusters.map((c) => ({
+        lat: c.latitude,
+        lng: c.longitude,
+      }));
+    }
     const rings: GlobeRing[] = [];
     cappedSalonsForGlobe.forEach((s) => {
       if (!s.isLive) return;
@@ -1016,7 +1095,15 @@ export const GlobeView = memo(function GlobeView({
       rings.push({ lat, lng });
     });
     return rings;
-  }, [cappedSalonsForGlobe, cappedLivesForGlobe, salonIds, markerVisibility.lives, isInteracting]);
+  }, [
+    cappedSalonsForGlobe,
+    cappedLivesForGlobe,
+    salonIds,
+    markerVisibility.lives,
+    isInteracting,
+    useLiveClusters,
+    liveLocationClusters,
+  ]);
 
   // useMemo keeps the reference stable — GLOBE_CAPITAL_LABELS and EMPTY_CAPITAL_LABELS
   // are module-level constants, so labelsData never gets a fresh array object unless
@@ -1030,6 +1117,9 @@ export const GlobeView = memo(function GlobeView({
   );
 
   const overviewDots = markerVisibility.density === 'overview';
+  const ringMaxRadius = overviewDots ? 0.85 : 1.35;
+  const ringPropagationSpeed = overviewDots ? 0.65 : 1.1;
+  const ringRepeatPeriod = overviewDots ? 1100 : 900;
   const pointResolution = isInteracting ? 3 : overviewDots ? 4 : 8;
   const labelResolution = isInteracting ? 3 : GLOBE_RENDER_PROFILE.labelResolution;
 
@@ -1042,6 +1132,20 @@ export const GlobeView = memo(function GlobeView({
   const handlePointClick = useCallback(
     (pointObj: object) => {
       const p = pointObj as GlobePoint;
+
+      if (p.type === 'live-cluster') {
+        const cluster = p.entity as MapLiveLocationCluster | undefined;
+        if (!cluster) return;
+        if (cluster.count === 1) {
+          const salon = cluster.salons[0];
+          const live = cluster.lives[0];
+          if (salon) onSelectSalonRef.current(salon);
+          else if (live) onSelectLiveRef.current(live);
+          return;
+        }
+        onSelectLiveClusterRef.current?.(cluster);
+        return;
+      }
 
       if (p.type === 'event') {
         const cluster = p.entity as MapEventCityCluster | undefined;
@@ -1104,7 +1208,7 @@ export const GlobeView = memo(function GlobeView({
   );
 
   return (
-    <div ref={containerRef} className="absolute inset-0 bg-black overflow-hidden touch-none">
+    <div ref={containerRef} className="absolute inset-0 bg-[#0a1220] overflow-hidden touch-none">
       {size.w > 0 && (
         <Globe
           ref={globeRef}
@@ -1122,6 +1226,15 @@ export const GlobeView = memo(function GlobeView({
           backgroundImageUrl={GLOBE_RENDER_PROFILE.skyTexture}
           atmosphereColor={GLOBE_RENDER_PROFILE.atmosphereColor}
           atmosphereAltitude={GLOBE_RENDER_PROFILE.atmosphereAltitude}
+          // Country borders (Natural Earth 110m — stroke only)
+          polygonsData={countryPolygons}
+          polygonGeoJsonGeometry={getPolygonGeoJsonGeometry}
+          polygonCapColor={getPolygonCapColor}
+          polygonSideColor={getPolygonSideColor}
+          polygonStrokeColor={getPolygonStrokeColor}
+          polygonAltitude={GLOBE_COUNTRY_BORDER_ALTITUDE}
+          polygonCapCurvatureResolution={GLOBE_COUNTRY_BORDER_CURVATURE}
+          polygonsTransitionDuration={0}
           pointsTransitionDuration={0}
           labelsTransitionDuration={0}
           // Salon / live / person markers
@@ -1139,9 +1252,9 @@ export const GlobeView = memo(function GlobeView({
           ringLat={getRingLat}
           ringLng={getRingLng}
           ringColor={getRingColor}
-          ringMaxRadius={3.5}
-          ringPropagationSpeed={2}
-          ringRepeatPeriod={800}
+          ringMaxRadius={ringMaxRadius}
+          ringPropagationSpeed={ringPropagationSpeed}
+          ringRepeatPeriod={ringRepeatPeriod}
           // Capital city labels (hidden in events-only mode)
           labelsData={capitalLabels}
           labelLat={getLabelLat}

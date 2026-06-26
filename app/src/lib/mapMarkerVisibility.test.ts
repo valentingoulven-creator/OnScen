@@ -185,7 +185,7 @@ describe('filterEventClustersInViewport', () => {
 });
 
 describe('getMapMarkerVisibility lives at globe tiers', () => {
-  it('hides lives at globe overview when Lives filter is off', () => {
+  it('shows live sonars at globe overview even when Lives filter is off', () => {
     const tier = getGlobeDetailTier(1.0);
     expect(tier).toBe('overview');
     const visibility = getMapMarkerVisibility({
@@ -194,7 +194,9 @@ describe('getMapMarkerVisibility lives at globe tiers', () => {
       hasEventClusters: false,
       livesFilterOn: false,
     });
-    expect(visibility.lives).toBe(false);
+    expect(visibility.lives).toBe(true);
+    expect(visibility.salons).toBe(true);
+    expect(visibility.people).toBe(false);
     expect(visibility.density).toBe('overview');
   });
 

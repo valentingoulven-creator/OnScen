@@ -4,14 +4,14 @@ export const AI_AGENTS: AiAgentDefinition[] = [
   {
     id: 'ceo',
     name: 'CEO IA',
-    description: 'Stratégie, finances, priorités, brief exécutif',
+    description: 'Tang Yu — stratégie, finances, évolution entreprise, brief exécutif',
     emoji: '🎯',
     accentColor: '#9333ea',
   },
   {
     id: 'dev',
     name: 'Dev Agent',
-    description: 'Implémentation, debug, dette technique, TODO-MANUAL',
+    description: 'Staff engineer — plans d’implémentation, innovation, scale, dette technique',
     emoji: '⚙️',
     accentColor: '#2563eb',
   },

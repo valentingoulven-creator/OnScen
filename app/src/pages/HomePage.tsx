@@ -6,6 +6,7 @@ import { getSocket } from '../lib/socket';
 import { MapView, type MapViewHandle, type MapStyle } from '../components/MapView';
 import { NearbyPeoplePanel } from '../components/NearbyPeoplePanel';
 import { MapCityEventsPanel } from '../components/MapCityEventsPanel';
+import { MapLiveClusterSheet } from '../components/MapLiveClusterSheet';
 import { MapEventDetailModal } from '../components/MapEventDetailModal';
 import { MapEventFilterSheet } from '../components/MapEventFilterSheet';
 import { MapSalonListenSheet } from '../components/MapSalonListenSheet';
@@ -33,6 +34,7 @@ import {
 import { applySavedEventFavoriteState, feedPostFromMapEventMarker, loadMapEventMarkers } from '../lib/mapFeedEvents';
 import { resolveEventCoords } from '../lib/mapEventCoords';
 import { clusterMapEventsByCity, getCityMapView } from '../lib/mapEventClusters';
+import type { MapLiveLocationCluster } from '../lib/mapLiveClusters';
 import {
   buildMapSidebarContent,
   countLivesFilterBadge,
@@ -344,6 +346,7 @@ export function HomePage({
   const eventFilterLongPressTriggeredRef = useRef(false);
   const [loadingMapEvents, setLoadingMapEvents] = useState(false);
   const [selectedEventCluster, setSelectedEventCluster] = useState<MapEventCityCluster | null>(null);
+  const [selectedLiveCluster, setSelectedLiveCluster] = useState<MapLiveLocationCluster | null>(null);
   const [selectedMapEvent, setSelectedMapEvent] = useState<MapEventMarker | null>(null);
   const [mapEventPostVersion, setMapEventPostVersion] = useState(0);
   /** Centre de la dernière requête api.nearby (pour clip viewport stable). */
@@ -581,8 +584,12 @@ export function HomePage({
   const mapDetailTier     = mapDetailState.tier;
   const mapDetailFlatZoom = mapDetailState.flatZoom;
 
+  /** Vue globe overview : sonars live visibles sans activer le filtre Lives. */
+  const globeLiveAmbientOn =
+    mapDetailMapStyle === 'globe' && mapDetailTier === 'overview';
+
   const mapSalonsForView = useMemo(() => {
-    if (!anyMapFilterActive) return [];
+    if (!anyMapFilterActive && !globeLiveAmbientOn) return [];
 
     const merged = new Map<string, Salon>();
     const addSalons = (list: Salon[]) => {
@@ -605,19 +612,23 @@ export function HomePage({
           )
         );
       }
-    } else if (livesFilterOn) {
+    } else if (livesFilterOn || globeLiveAmbientOn) {
+      const source = livesFilterOn ? mapSalons : mapSalons.filter((s) => s.isLive);
       addSalons(
-        clipSalonsForMapView(
-          mapSalons,
-          { bounds: mapDetailBounds, mapStyle: mapDetailMapStyle },
-          nearbyFetchCenter
-        )
+        mapDetailTier === 'overview' && (livesFilterOn || globeLiveAmbientOn)
+          ? source
+          : clipSalonsForMapView(
+              source,
+              { bounds: mapDetailBounds, mapStyle: mapDetailMapStyle },
+              nearbyFetchCenter
+            )
       );
     }
 
     return sortSalonsForNearby([...merged.values()], nearbyPanelPrefs.sortBy, nearbySortOptions);
   }, [
     anyMapFilterActive,
+    globeLiveAmbientOn,
     salonFilterOn,
     livesFilterOn,
     salons,
@@ -631,14 +642,26 @@ export function HomePage({
   ]);
 
   const mapLivesForView = useMemo(() => {
-    if (!anyMapFilterActive) return [];
-    if (!livesFilterOn) return [];
+    if (!anyMapFilterActive && !globeLiveAmbientOn) return [];
+    if (!livesFilterOn && !globeLiveAmbientOn) return [];
+    if (globeLiveAmbientOn && mapDetailTier === 'overview' && !livesFilterOn) {
+      return mapLives;
+    }
     return clipLivesForMapView(
       mapLives,
       { bounds: mapDetailBounds, mapStyle: mapDetailMapStyle },
       nearbyFetchCenter
     );
-  }, [anyMapFilterActive, livesFilterOn, mapLives, mapDetailBounds, mapDetailMapStyle, nearbyFetchCenter]);
+  }, [
+    anyMapFilterActive,
+    globeLiveAmbientOn,
+    livesFilterOn,
+    mapLives,
+    mapDetailBounds,
+    mapDetailMapStyle,
+    mapDetailTier,
+    nearbyFetchCenter,
+  ]);
 
   const mapPeopleForView = useMemo(() => {
     if (!anyMapFilterActive) return [];
@@ -1378,16 +1401,23 @@ export function HomePage({
   /** Filtre Lives/Salon + globe : recharger nearby quand l'utilisateur tourne/zoom le globe. */
   const handleGlobePovChange = useCallback(
     (lat: number, lng: number, altitude: number) => {
-      if (!mapFilterViewportOn || !token) return;
+      if (!token) return;
       if (!isValidLatLng(lat, lng)) return;
       if (Date.now() < programmaticMapMoveUntilRef.current) return;
 
       const atOverview = altitude >= GLOBE_ALTITUDE_CITY_MAX;
-      if (atOverview && !salonFilterOn) return;
+      const ambientGlobe = atOverview && !mapFilterViewportOn;
+
+      if (!mapFilterViewportOn && !ambientGlobe) return;
+      if (atOverview && !salonFilterOn && mapFilterViewportOn) return;
 
       const prev = lastGlobeNearbyRef.current;
       const radiusKm = getNearbyRadiusKm();
-      const minDeltaKm = salonFilterOn ? 2 : Math.max(5, radiusKm * 0.3);
+      const minDeltaKm = ambientGlobe
+        ? 600
+        : salonFilterOn
+          ? 2
+          : Math.max(5, radiusKm * 0.3);
       if (prev) {
         const movedKm = getDistanceKm(lat, lng, prev.lat, prev.lon);
         if (movedKm < minDeltaKm) return;
@@ -1827,10 +1857,17 @@ export function HomePage({
     flyMapTo,
   ]);
 
+  const handleMapLiveClusterClick = useCallback((cluster: MapLiveLocationCluster) => {
+    setSelectedLiveCluster(cluster);
+    setSelectedEventCluster(null);
+    flyMapTo(cluster.latitude, cluster.longitude);
+  }, [flyMapTo]);
+
   const handleMapBackgroundClick = useCallback(() => {
     if (selectedEventCluster) setSelectedEventCluster(null);
+    if (selectedLiveCluster) setSelectedLiveCluster(null);
     if (mapProfileOpen) onCloseMapProfile?.();
-  }, [mapProfileOpen, onCloseMapProfile, selectedEventCluster]);
+  }, [mapProfileOpen, onCloseMapProfile, selectedEventCluster, selectedLiveCluster]);
 
   const handleMapSalonClick = useCallback((salon: Salon) => {
     flyMapTo(salon.latitude, salon.longitude);
@@ -2081,6 +2118,20 @@ export function HomePage({
             </div>
           </div>
         )}
+        {selectedLiveCluster && (
+          <MapLiveClusterSheet
+            cluster={selectedLiveCluster}
+            onClose={() => setSelectedLiveCluster(null)}
+            onLiveClick={(live) => {
+              setSelectedLiveCluster(null);
+              handleMapLiveClick(live);
+            }}
+            onSalonClick={(salon) => {
+              setSelectedLiveCluster(null);
+              handleMapSalonClick(salon);
+            }}
+          />
+        )}
         <div
           className={
             mapLivesBrowseOpen ? 'absolute inset-0 z-0 hidden pointer-events-none inert' : 'absolute inset-0 z-0'
@@ -2102,6 +2153,7 @@ export function HomePage({
           onSelectLive={handleMapLiveClick}
           onSelectPerson={handleMapPersonClick}
           onSelectEventCluster={handleMapEventClusterClick}
+          onSelectLiveCluster={handleMapLiveClusterClick}
           onMapBackgroundClick={handleMapBackgroundClick}
           mapStyle={mapStyle}
           onGlobeZoomToFlat={handleGlobeZoomToFlat}

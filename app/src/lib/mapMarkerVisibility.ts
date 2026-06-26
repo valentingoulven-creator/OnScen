@@ -332,8 +332,10 @@ export function getMapMarkerVisibility(opts: MapMarkerVisibilityOptions): MapMar
       return {
         capitals,
         eventClusters,
-        salons: salonFilterOn === true,
-        lives: livesFilterOn === true,
+        /** Live salons visibles dès la vue globe (filtrés isLive dans filterSalonsForZoom). */
+        salons: salonFilterOn || true,
+        /** Sonars live toujours visibles sur la première page globe. */
+        lives: true,
         people: livesFilterOn === true,
         density: 'overview',
       };

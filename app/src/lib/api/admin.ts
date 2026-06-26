@@ -196,6 +196,19 @@ export const adminApi = {
       token,
     ),
 
+  getAiAgentsStatus: (token: string) =>
+    request<import('../../types').AiAgentsStatus>('/admin/ai-agents', {}, token),
+
+  sendAiAgentChat: (
+    token: string,
+    agentId: 'ceo' | 'dev',
+    messages: import('../../types').AiChatMessage[]
+  ) =>
+    request<import('../../types').AiChatResponse>(`/admin/ai-agents/${agentId}/chat`, {
+      method: 'POST',
+      body: JSON.stringify({ messages }),
+    }, token),
+
   getAppDiagnosticLogs: (
     token: string,
     opts: {

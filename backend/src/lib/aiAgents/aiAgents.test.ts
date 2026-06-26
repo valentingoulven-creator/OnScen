@@ -21,10 +21,42 @@ describe('aiAgents', () => {
   });
 
   describe('getSystemPrompt', () => {
-    it('includes data context and agent role', () => {
+    it('includes CEO Tang Yu role', () => {
       const prompt = getSystemPrompt('ceo', '{"totalUsers":1}');
-      expect(prompt).toContain('CEO IA');
+      expect(prompt).toContain('Tang Yu');
       expect(prompt).toContain('{"totalUsers":1}');
+    });
+
+    it('includes Dev Agent staff engineer role for dev', () => {
+      const prompt = getSystemPrompt('dev', '{"totalUsers":1}');
+      expect(prompt).toContain('Dev Agent Soundy');
+      expect(prompt).toContain('force de proposition');
+      expect(prompt).toContain('{"totalUsers":1}');
+    });
+  });
+
+  describe('buildDevDataContext', () => {
+    it('returns rich dev context with tech debt and innovation catalog', async () => {
+      const { buildDevDataContext } = await import('./devDataContext');
+      const ctx = await buildDevDataContext();
+      const parsed = JSON.parse(ctx) as {
+        technicalKnowledge: { innovationCatalog: unknown[] };
+        techDebtSignals: unknown[];
+        todoManualExcerpt: string | null;
+      };
+      expect(parsed.technicalKnowledge.innovationCatalog.length).toBeGreaterThan(3);
+      expect(parsed.techDebtSignals.length).toBeGreaterThan(0);
+      expect(parsed.todoManualExcerpt).toBeTruthy();
+    });
+  });
+
+  describe('getDevTechnicalKnowledge', () => {
+    it('includes architecture and proposal framework', async () => {
+      const { getDevTechnicalKnowledge } = await import('./devTechnicalKnowledge');
+      const k = getDevTechnicalKnowledge();
+      expect(k.architecture.keyDomains.length).toBeGreaterThan(5);
+      expect(k.innovationCatalog.length).toBeGreaterThan(5);
+      expect(k.proposalFramework.alwaysInclude.length).toBeGreaterThan(3);
     });
   });
 
@@ -89,6 +121,88 @@ describe('aiAgents', () => {
       const totals = getAiUsageTotals();
       expect(totals.requestCount).toBeGreaterThanOrEqual(1);
       expect(totals.costEur).toBeGreaterThan(0);
+    });
+  });
+
+  describe('ceoFounderContext', () => {
+    it('lists critical gaps when founder file missing', async () => {
+      const { computeCeoDataGaps } = await import('./ceoFounderContext');
+      const gaps = computeCeoDataGaps(null, {
+        legalPublisherComplete: false,
+        totalUsers: 10,
+        simulationDonations: true,
+      });
+      expect(gaps.some((g) => g.id === 'founder_context_file')).toBe(true);
+      expect(gaps.some((g) => g.severity === 'critical')).toBe(true);
+    });
+  });
+
+  describe('ceoStrategicKnowledge', () => {
+    it('includes AI team recruitment catalog', async () => {
+      const { getCeoStrategicKnowledge } = await import('./ceoStrategicKnowledge');
+      const k = getCeoStrategicKnowledge();
+      expect(k.aiTeam.candidateAgents.length).toBeGreaterThan(3);
+      expect(k.aiTeam.howToCreateNewAgent.length).toBeGreaterThan(0);
+      expect(k.aiTeam.recruitmentPrinciples.length).toBeGreaterThan(2);
+    });
+  });
+
+  describe('ceoAiTeamRecommendations', () => {
+    it('scores sales high when no sponsors', async () => {
+      const { computeAiTeamRecommendations } = await import('./ceoAiTeamRecommendations');
+      const analysis = computeAiTeamRecommendations(
+        {
+          goToMarket: { founderSponsorsTarget: 2, founderSponsorsSigned: 0, creatorPilotsActive: 1 },
+          financials: { sponsorPipelineEur: 0, revenueActualMrrEur: 0 },
+        },
+        {
+          totalUsers: 50,
+          activeSponsorCampaigns: 0,
+          totalSponsors: 0,
+          legalPublisherComplete: false,
+          simulationDonations: true,
+          creatorSubscriptionsActive: 0,
+          pendingReports: 0,
+          openSupportTickets: 0,
+          activeLives: 0,
+          totalSalons: 2,
+          cloudflareCostEur: null,
+          redisConfigured: true,
+          dataGaps: [],
+        }
+      );
+      expect(analysis.recommendations.length).toBeGreaterThan(0);
+      const sales = analysis.recommendations.find((r) => r.agentId === 'sales');
+      expect(sales).toBeDefined();
+      expect(sales!.urgencyScore).toBeGreaterThan(50);
+      expect(sales!.whyNow.length).toBeGreaterThan(2);
+      expect(sales!.costOfWaiting.length).toBeGreaterThan(1);
+      expect(analysis.topRecommendation).toBeTruthy();
+    });
+
+    it('includes full reason fields on each recommendation', async () => {
+      const { computeAiTeamRecommendations } = await import('./ceoAiTeamRecommendations');
+      const analysis = computeAiTeamRecommendations(null, {
+        totalUsers: 10,
+        activeSponsorCampaigns: 0,
+        totalSponsors: 0,
+        legalPublisherComplete: false,
+        simulationDonations: true,
+        creatorSubscriptionsActive: 0,
+        pendingReports: 0,
+        openSupportTickets: 0,
+        activeLives: 0,
+        totalSalons: 0,
+        cloudflareCostEur: null,
+        redisConfigured: false,
+        dataGaps: [],
+      });
+      for (const rec of analysis.recommendations) {
+        expect(rec.whyCeoAloneIsInsufficient.length).toBeGreaterThan(1);
+        expect(rec.whatYouGain.length).toBeGreaterThan(2);
+        expect(rec.expectedDeliverables.length).toBeGreaterThan(2);
+        expect(rec.firstWeekActions.length).toBeGreaterThan(2);
+      }
     });
   });
 });

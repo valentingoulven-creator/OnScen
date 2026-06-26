@@ -1,0 +1,42 @@
+{
+  "updatedAt": "2026-06-26",
+  "company": {
+    "legalName": "Valentin Goulven (Soundy)",
+    "legalForm": "Entrepreneur individuel",
+    "siren": "106548464",
+    "professionalAddress": "12 rue Example, 75001 Paris, France",
+    "foundingDate": "2024-01-01",
+    "pitchOneLiner": "Le réseau social de la musique live et de l'écoute partagée"
+  },
+  "financials": {
+    "monthlyBurnEur": 85,
+    "cashOnHandEur": 10000,
+    "personalRunwayMonths": 117,
+    "revenueActualMrrEur": 0,
+    "sponsorContractsSigned": 0,
+    "sponsorPipelineEur": 0,
+    "fundraisingStatus": "Bootstrap — pas de levée en cours"
+  },
+  "strategy": {
+    "primaryCity": "Paris",
+    "targetCities": ["Paris", "Lyon", "Marseille", "Montpellier"],
+    "northStarMetric": "Salons actifs par semaine",
+    "northStarCurrentValue": 0,
+    "currentFocusQuarter": "Q2 2026 — densité Paris + 2 sponsors fondateurs + 30 créateurs pilotes",
+    "ambitionHorizon": "Leader FR musique sociale, puis diaspora francophone",
+    "competitorsToWatch": ["Instagram", "Discord", "Shotgun", "Spotify"]
+  },
+  "goToMarket": {
+    "creatorPilotsTarget": 50,
+    "creatorPilotsActive": 0,
+    "founderSponsorsTarget": 2,
+    "founderSponsorsSigned": 0,
+    "activePartnerships": []
+  },
+  "team": {
+    "headcount": 1,
+    "rolesCovered": ["founder", "product", "dev", "ops"],
+    "hiringNext": []
+  },
+  "founderNotes": "Burn indicatif : voir docs/COUT-APPLICATION.md (~45 € infra + variable). Remplir trésorerie et GTM réels."
+}

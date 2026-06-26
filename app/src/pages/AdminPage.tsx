@@ -6,9 +6,10 @@ import { AdminAccessTab } from './AdminAccessTab';
 import { AdminContentTab } from './AdminContentTab';
 import { AdminSupportTab, type SupportSubTab } from './AdminSupportTab';
 import { AdminSponsorsTab } from './AdminSponsorsTab';
+import { AdminAgentsTab } from './AdminAgentsTab';
 import { AnalyticsPage, type AnalyticsSubTab } from './AnalyticsPage';
 
-type AdminTab = 'accounts' | 'access' | 'content' | 'analytics' | 'support' | 'sponsors';
+type AdminTab = 'accounts' | 'access' | 'content' | 'analytics' | 'support' | 'sponsors' | 'agents';
 /** Legacy aliases — reports → Support ; costs → Analytics → Coûts */
 type AdminInitialTab = AdminTab | 'reports' | 'costs';
 
@@ -60,6 +61,7 @@ export function AdminPage({
     { id: 'analytics', label: t('admin.tabs.analytics') },
     { id: 'support', label: t('admin.tabs.support') },
     { id: 'sponsors', label: t('admin.tabs.sponsors') },
+    { id: 'agents', label: t('admin.tabs.agents') },
   ];
 
   return (
@@ -103,6 +105,7 @@ export function AdminPage({
           />
         )}
         {tab === 'sponsors' && <AdminSponsorsTab />}
+        {tab === 'agents' && <AdminAgentsTab />}
       </div>
     </div>
   );
