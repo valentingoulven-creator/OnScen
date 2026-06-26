@@ -9669,6 +9669,30 @@ Fin MODIF 698 — 2026-06-26
 ================================================================================
 
 ================================================================================
+MODIF 699 — Hotfix prod : boot LCEN non bloquant (adresse manquante)
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Deploy prod 107b3a90 a fait crasher PM2 : adresse LCEN placeholder sur VPS.
+ Restauration service immédiate en attendant LEGAL_PUBLISHER_ADDRESS réelle.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/productionStartup.ts
+ ─────────────────
+ • LCEN incomplet → warn (plus throw en prod) jusqu'à adresse configurée
+
+FICHIERS MODIFIÉS
+-----
+ backend/src/lib/productionStartup.ts
+
+================================================================================
+Fin MODIF 699 — 2026-06-26
+================================================================================
+
+================================================================================
 MODIF 699 — Fix GitHub Actions Deploy Preprod (SSH agent)
 Date : 2026-06-26
 ================================================================================

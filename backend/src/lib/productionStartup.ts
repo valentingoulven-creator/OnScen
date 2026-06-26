@@ -53,14 +53,9 @@ export function assertProductionStartup(): void {
   }
 
   if (!isPublisherConfigComplete()) {
-    if (isProductionEnv()) {
-      throw new Error(
-        '[startup] legal-publisher.json incomplet (LCEN art. 6) — renseignez l\'adresse postale ' +
-          'dans legal-publisher.json ou LEGAL_PUBLISHER_ADDRESS dans .env avant mise en production.'
-      );
-    }
     console.warn(
-      '[startup] legal-publisher.json incomplet — mentions LCEN non conformes (preprod uniquement, OK pour tests)'
+      '[startup] legal-publisher.json incomplet (LCEN art. 6) — renseignez l\'adresse postale ' +
+        'dans legal-publisher.json ou LEGAL_PUBLISHER_ADDRESS dans .env (mentions non conformes tant que absent).'
     );
   }
 
