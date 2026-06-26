@@ -354,7 +354,14 @@ if ("$pm2Exists" -match "PM2_MISSING") {
     Write-Host "  [OK] PM2 demarre" -ForegroundColor Green
 } else {
     $ecoFile = Split-Path -Leaf $cfg.EcosystemFile
-    $reloadCmd = 'cd ' + $REMOTE + '; set -a; . ./.env; set +a; ' + $deployCommitEnv + 'pm2 startOrReload deploy/' + $ecoFile + ' --update-env 2>&1; pm2 save 2>&1; echo PM2_RELOAD_OK'
+    $pm2ModeCmd = 'pm2 show ' + $PM2_APP + ' 2>/dev/null | grep "exec mode" || echo PM2_FORK'
+    $pm2Mode = Invoke-Remote $pm2ModeCmd
+    if ("$pm2Mode" -match "fork_mode|fork mode|PM2_FORK") {
+        Write-Host "  -> Migration PM2 fork -> cluster (ecosystem)..." -ForegroundColor Cyan
+        $reloadCmd = 'cd ' + $REMOTE + '; set -a; . ./.env; set +a; ' + $deployCommitEnv + 'pm2 delete ' + $PM2_APP + ' 2>/dev/null; pm2 start deploy/' + $ecoFile + ' --update-env 2>&1; pm2 save 2>&1; echo PM2_RELOAD_OK'
+    } else {
+        $reloadCmd = 'cd ' + $REMOTE + '; set -a; . ./.env; set +a; ' + $deployCommitEnv + 'pm2 startOrReload deploy/' + $ecoFile + ' --update-env 2>&1; pm2 save 2>&1; echo PM2_RELOAD_OK'
+    }
     $reloadOut = Invoke-Remote $reloadCmd
     Write-Host $reloadOut
     if ("$reloadOut" -notmatch "PM2_RELOAD_OK") {
@@ -396,22 +403,21 @@ $healthErr = $null
 foreach ($candidate in $healthCandidates) {
     try {
         if ($candidate -like 'https://*') {
-            if ($PSVersionTable.PSVersion.Major -ge 7) {
-                $healthLocal = Invoke-WebRequest -Uri $candidate -UseBasicParsing -TimeoutSec 25 -SkipCertificateCheck -ErrorAction Stop
-            } else {
-                $curlOut = & curl.exe -sk -w "`n%{http_code}" $candidate 2>$null
-                if ($curlOut -match '(\d{3})$') {
-                    $code = [int]$Matches[1]
-                    if ($code -eq 200) {
-                        $healthLocal = [PSCustomObject]@{ StatusCode = 200; Content = ($curlOut -replace '\d{3}$','').Trim() }
-                    }
+            $curlOut = & curl.exe -sk -w "`n%{http_code}" $candidate 2>$null
+            if ($curlOut -match '(\d{3})$') {
+                $code = [int]$Matches[1]
+                if ($code -eq 200) {
+                    $healthLocal = [PSCustomObject]@{ StatusCode = 200; Content = ($curlOut -replace '\d{3}$','').Trim() }
+                    $healthTried = $candidate
+                    break
                 }
-                if ($healthLocal) { $healthTried = $candidate; break }
-                continue
+                $healthErr = "HTTP $code"
+            } else {
+                $healthErr = "curl sans code HTTP"
             }
-        } else {
-            $healthLocal = Invoke-WebRequest -Uri $candidate -UseBasicParsing -TimeoutSec 25 -ErrorAction Stop
+            continue
         }
+        $healthLocal = Invoke-WebRequest -Uri $candidate -UseBasicParsing -TimeoutSec 25 -ErrorAction Stop
         $healthTried = $candidate
         break
     } catch {
