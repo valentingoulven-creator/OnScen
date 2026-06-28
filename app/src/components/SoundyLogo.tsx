@@ -7,19 +7,24 @@ type SoundyLogoProps = {
   className?: string;
 } & Omit<ImgHTMLAttributes<HTMLImageElement>, 'src' | 'alt'>;
 
-/** Logo Soundy (PNG fond transparent). */
+/** Logo Soundy — silhouette PNG + wave cyan → violet → rose (tokens --soundy-logo-wave-*). */
 export function SoundyLogo({ className = 'h-7 sm:h-8 w-auto shrink-0', ...props }: SoundyLogoProps) {
   const { t } = useTranslation();
+  const alt = t('app.name', { defaultValue: 'Soundy' });
+  const { draggable, decoding } = props;
 
   return (
-    <img
-      src={LOGO_SRC}
-      alt={t('app.name', { defaultValue: 'Soundy' })}
-      className={className}
-      draggable={false}
-      decoding="async"
-      {...props}
-    />
+    <span className={`ms-soundy-logo ${className}`} role="img" aria-label={alt}>
+      <img
+        src={LOGO_SRC}
+        alt=""
+        aria-hidden
+        className="ms-soundy-logo__sizer"
+        draggable={draggable ?? false}
+        decoding={decoding ?? 'async'}
+      />
+      <span className="ms-soundy-logo__wave" aria-hidden />
+    </span>
   );
 }
 

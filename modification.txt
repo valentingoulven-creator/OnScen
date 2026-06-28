@@ -11927,5 +11927,47 @@ BUILD (si vérifié)
  backend/ → npm test (majorCities) · app/ → npm run build → ✅
 
 ================================================================================
-Fin MODIF 784 — 2026-06-28
+MODIF 786 — Logo header : revert teinte purple-pink (asset natif)
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ MODIF 785 appliquait le dégradé pseudo wave UI (#c084fc → #f472b6) — pas les
+ couleurs du logo S+waveform (bleu électrique → magenta).
+
+CHANGEMENTS / FIX
+-----
+ SoundyLogo.tsx — retour <img PNG> couleurs d’origine
+ index.css — suppression .ms-soundy-logo*
+
+================================================================================
+MODIF 787 — Logo header : wave noir → rose → violet
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Logo header avec dégradé wave noir, rose (#f472b6), violet (#a855f7).
+
+CHANGEMENTS / FIX
+-----
+ SoundyLogo.tsx — masque PNG + .ms-soundy-logo__wave
+ index.css — linear-gradient(105deg, #000 → #f472b6 → #a855f7)
+
+================================================================================
+MODIF 788 — Logo : wave internationale cyan → violet → rose
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Trouver un dégradé logo lisible à l’international (header sombre) — le noir disparaissait sur #0b0b0f.
+
+CHANGEMENTS / FIX
+-----
+ index.css — --soundy-logo-wave-from/mid/to (dark + light) · gradient cyan #22d3ee → violet #a855f7 → rose #f472b6
+
+================================================================================
+Fin MODIF 788 — 2026-06-28
 ================================================================================

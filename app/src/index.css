@@ -163,6 +163,10 @@ html {
   --ms-accent: #9333ea;
   --ms-text: #f3f4f6;
   --ms-text-muted: #9ca3af;
+  /** Logo wave — cyan (énergie) → violet (marque) → rose (social), lisible sur fond #0b0b0f */
+  --soundy-logo-wave-from: #22d3ee;
+  --soundy-logo-wave-mid: #a855f7;
+  --soundy-logo-wave-to: #f472b6;
   /* Tokens mobile Instagram (fallback desktop — apptel les surcharge) */
   --phone-max-w: 430px;
   --tab-nav-btn-size: 50px;
@@ -191,6 +195,9 @@ html {
   --ms-accent: #7c3aed;
   --ms-text: #111827;
   --ms-text-muted: #6b7280;
+  --soundy-logo-wave-from: #0891b2;
+  --soundy-logo-wave-mid: #7c3aed;
+  --soundy-logo-wave-to: #db2777;
 }
 
 /* Carrousel horizontal — dégradés latéraux quand le contenu défile */
@@ -303,6 +310,42 @@ body {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+
+/** Logo header — silhouette PNG + wave internationale (cyan → violet → rose). */
+.ms-soundy-logo {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+  vertical-align: middle;
+}
+
+.ms-soundy-logo__sizer {
+  display: block;
+  height: 100%;
+  width: auto;
+  max-width: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ms-soundy-logo__wave {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(
+    105deg,
+    var(--soundy-logo-wave-from) 0%,
+    var(--soundy-logo-wave-mid) 52%,
+    var(--soundy-logo-wave-to) 100%
+  );
+  -webkit-mask-image: url(/soundy-logo.png);
+  mask-image: url(/soundy-logo.png);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
 }
 
 /** Bouton CTA — fond dégradé wave Soundy */
