@@ -1,4 +1,60 @@
 ================================================================================
+MODIF 664 — CI : test ageGates déterministe (fake timers)
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ CI échouait sur ageGates.test.ts : user17 passait la gate monétisation
+ car resolveUserAgeFromProfile utilise new Date() (aujourd'hui) alors que
+ le test supposait le 2026-06-26.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/ageGates.test.ts
+ ─────────────────
+ • vi.useFakeTimers() + setSystemTime(ref) pour figer la date du test
+
+BUILD (si vérifié)
+-----
+ backend/ → npm test → ✅ (288 tests)
+
+================================================================================
+Fin — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 663 — Stripe test msdev : prices, webhooks, scripts setup
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Configurer le compte Stripe test (clés sk_test/pk_test) pour msdev : paliers
+ d'abonnement, secrets webhook locaux, forwarding CLI.
+
+CHANGEMENTS / FIX
+-----
+ msdev/.env
+ scripts/setup-stripe-msdev.ps1
+ scripts/stripe-listen-msdev.ps1
+ ─────────────────
+ • STRIPE_SECRET_KEY / STRIPE_PUBLISHABLE_KEY (compte test)
+ • 4 prices récurrents EUR (Supporter, Super fan, Soundy+, SoundyUltra)
+ • STRIPE_WEBHOOK_SECRET + STRIPE_SUBSCRIPTION_WEBHOOK_SECRET (stripe listen)
+ • Stripe CLI installé (winget Stripe.StripeCli)
+
+FICHIERS MODIFIÉS
+-----
+ msdev/.env → clés Stripe test, price IDs, webhook secrets
+ scripts/setup-stripe-msdev.ps1 → bootstrap prices + whsec (idempotent si prices existent)
+ scripts/stripe-listen-msdev.ps1 → forward webhooks → :4080
+
+================================================================================
+Fin — 2026-06-28
+================================================================================
+
+================================================================================
 MODIF 662 — GitHub Actions preprod : corrections SSH Windows (CI verte)
 Date : 2026-06-26
 ================================================================================
@@ -11970,4 +12026,136 @@ CHANGEMENTS / FIX
 
 ================================================================================
 Fin MODIF 788 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 789 — Globe : capitales au premier plan + globe éclairci
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les noms de capitales sur le globe 3D passaient derrière la sphère / les marqueurs ;
+ le globe restait trop sombre (texture earth-night).
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/GlobeView.tsx
+ ─────────────────────────────
+ • Capitales via htmlElementsData (CSS2DRenderer) au lieu de labelsData 3D.
+ • Éclairage renforcé (ambient, directionnel, tone mapping, lift matériau Terre).
+ • Atmosphère légèrement plus lumineuse.
+
+ app/src/index.css
+ ─────────────────
+ • Classe .globe-capital-label (contraste, ombre portée, non interactif).
+
+FICHIERS MODIFIÉS
+-----
+ GlobeView.tsx → labels HTML premier plan + globe plus clair
+ index.css → style labels capitales globe
+
+================================================================================
+Fin MODIF 789 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 790 — Globe : capitales plus discrètes (HTML, pas derrière sphère)
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Labels capitales trop visibles après passage CSS2D ; conserver le premier plan
+ sans l’effet « gros titres ».
+
+CHANGEMENTS / FIX
+-----
+ app/src/index.css — .globe-capital-label : couleur/opacité d’origine (210,210,255,0.88),
+ taille 8px, ombre légère.
+
+================================================================================
+Fin MODIF 790 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 791 — Carte / globe : barre zoom verticale à droite
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande utilisateur : contrôle zoom vertical sur le bord droit de la carte.
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/mapZoomControl.ts — conversion norm ↔ zoom Leaflet / altitude globe
+ app/src/components/MapZoomSlider.tsx — slider vertical + boutons +/−
+ app/src/components/MapView.tsx — API setZoomControlNorm, sync molette/pinch
+ app/src/components/GlobeView.tsx — ref setAltitude + onGlobeAltitudeLive
+ app/src/pages/HomePage.tsx — overlay droite au-dessus du bouton recentrage
+ app/src/index.css — styles .ms-map-zoom-slider
+
+================================================================================
+Fin MODIF 791 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 792 — Capitales : uniquement au zoom pays (viewport)
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Toutes les capitales s'affichaient dès la vue globale ; demande : labels seulement
+ en zoomant sur un pays / la zone visible.
+
+CHANGEMENTS / FIX
+-----
+ mapMarkerVisibility.ts — capitals=false en overview ; rayon région globe + filtre
+ GlobeView.tsx — capitales filtrées autour du POV (altitude ville)
+ MapView.tsx — capitales carte plate filtrées par bounds (zoom ≥ 8)
+
+================================================================================
+Fin MODIF 792 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 793 — Audit fixes (perf, apptel, backend health)
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Suite audit infra/produit : corriger latence carte/globe, health check prod,
+ warning PM2 Redis, dette apptel (onglets toujours montés, handlers carte obsolètes,
+ routes auth manquantes). Hors scope : Stripe live, ACRCloud, légal.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/GlobeView.tsx — debounce POV capitales 600→400 ms
+ app/src/components/MapView.tsx — debounce rebuild capitales 200 ms ; export MAP_GLOBE_FLAT_DO_SELECT_MS=150
+ app/src/pages/HomePage.tsx — globe→flat jumpTo + doSelect 150 ms (crossfade 300 ms)
+ backend/src/server.ts — /health HTTP 503 si db: error (load balancer)
+ backend/src/lib/productionStartup.ts — PM2_INSTANCES au lieu de NODE_APP_INSTANCE (warning Redis)
+ app/src/components/MainTabNav.tsx — i18n nav + aria dmUnread
+ app/src/locales/fr.json · en.json — clés nav.dmUnreadOne / dmUnreadMany
+ apptel/src/App.tsx — lazy HomePage/Profile/Lives/Reels ; unmount onglets inactifs ;
+   routes reset-password + verify-email ; emoji toast 💬
+ apptel/src/pages/HomePage.tsx — handlePrepareFlatMap, jumpTo globe→flat 150 ms, debounce salon_playback 80 ms
+ apptel/src/components/MainTabNav.tsx — i18n (aligné app)
+ apptel/src/components/AppErrorBoundary.tsx — supprimé (fallback app/src, évite re-export circulaire)
+
+FICHIERS MODIFIÉS
+-----
+ app/, apptel/, backend/ — voir ci-dessus
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+ apptel/ → npm run build → ✅
+ backend/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 793 — 2026-06-26
 ================================================================================

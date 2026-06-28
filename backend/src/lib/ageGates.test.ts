@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   CREATOR_MONETIZATION_MIN_AGE,
   MIN_LIVE_AGE,
@@ -25,6 +25,8 @@ describe('ageGates', () => {
 
   it('dérive l\'âge depuis birthDate pour les gates live et monétisation', () => {
     const ref = new Date(2026, 5, 26);
+    vi.useFakeTimers();
+    vi.setSystemTime(ref);
     const user17 = { birthDate: '2008-06-27' };
     const user18 = { birthDate: '2008-06-25' };
     expect(resolveUserAge(user17, ref)).toBe(17);
@@ -32,5 +34,6 @@ describe('ageGates', () => {
     expect(userMeetsMonetizationAgeFromProfile(user17)).toBe(false);
     expect(userMeetsMonetizationAgeFromProfile(user18)).toBe(true);
     expect(creatorMeetsMonetizationAgeFromProfile({ age: 16, birthDate: '2000-01-01' })).toBe(true);
+    vi.useRealTimers();
   });
 });
