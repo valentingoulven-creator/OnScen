@@ -1,54 +1,18 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { searchCities } from '../lib/citySearch';
+import { api } from '../lib/api';
+import type { MajorCityDto } from '../lib/api/geo';
 import {
-  coordsForCityName,
-  filterPresetCitySuggestions,
-  presetCityToSuggestion,
+  findNearestMajorCities,
+  matchesPresetCityCoords,
+  resolveLocationAnchorCoords,
   type LivesGeoPrefs,
+  type PresetCity,
 } from '../lib/livesGeo';
 
 export type SessionLocationVariant = 'live' | 'salon';
 
 type LocationMode = 'gps' | 'city';
-
-interface CitySuggestion {
-  label: string;
-  postalCode?: string;
-  latitude: number;
-  longitude: number;
-}
-
-function mapPresetSuggestions(query: string): CitySuggestion[] {
-  return filterPresetCitySuggestions(query).map((c) => presetCityToSuggestion(c));
-}
-
-function mapRemoteSuggestions(items: Awaited<ReturnType<typeof searchCities>>): CitySuggestion[] {
-  return items.flatMap((item) => {
-    if (item.latitude == null || item.longitude == null) return [];
-    return [
-      {
-        label: item.label,
-        postalCode: item.postalCode,
-        latitude: item.latitude,
-        longitude: item.longitude,
-      },
-    ];
-  });
-}
-
-function mergeCitySuggestions(preset: CitySuggestion[], remote: CitySuggestion[]): CitySuggestion[] {
-  const out = [...preset];
-  const seen = new Set(preset.map((s) => `${s.label.toLowerCase()}|${s.postalCode ?? ''}`));
-  for (const item of remote) {
-    const key = `${item.label.toLowerCase()}|${item.postalCode ?? ''}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(item);
-    if (out.length >= 8) break;
-  }
-  return out;
-}
 
 function segmentClass(active: boolean, variant: SessionLocationVariant): string {
   const base =
@@ -61,8 +25,43 @@ function segmentClass(active: boolean, variant: SessionLocationVariant): string 
   return `${base} border-[#2d2d3d] bg-[#1a1a26] text-gray-400 hover:border-[#3d3d4d] hover:text-gray-200`;
 }
 
-function fieldCls(): string {
-  return 'w-full px-3 py-2 rounded-lg bg-[#1a1a26] border border-[#2d2d3d] text-sm text-white focus:outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/30';
+function cityChipClass(active: boolean, variant: SessionLocationVariant): string {
+  const base =
+    'w-full min-h-[44px] px-3 py-2 rounded-lg border text-left transition-colors flex flex-col gap-0.5';
+  if (active) {
+    return variant === 'salon'
+      ? `${base} border-purple-500/60 bg-purple-500/15 text-white`
+      : `${base} border-red-500/60 bg-red-500/15 text-white`;
+  }
+  return `${base} border-[#2d2d3d] bg-[#12121a] text-gray-200 hover:border-[#3d3d4d]`;
+}
+
+function formatDistanceKm(km: number): string {
+  if (km < 1) return '< 1';
+  return String(Math.round(km));
+}
+
+function toPresetLike(city: MajorCityDto): PresetCity {
+  return {
+    id: city.id,
+    label: city.label,
+    latitude: city.latitude,
+    longitude: city.longitude,
+    postalCode: city.postalCode ?? undefined,
+  };
+}
+
+function localFallbackCities(lat: number, lon: number, limit: number): MajorCityDto[] {
+  return findNearestMajorCities(lat, lon, limit).map((city) => ({
+    id: city.id,
+    name: city.label.split(',')[0]?.trim() || city.label,
+    countryCode: city.label.includes('France') ? 'FR' : '',
+    label: city.label,
+    latitude: city.latitude,
+    longitude: city.longitude,
+    postalCode: city.postalCode ?? null,
+    distanceKm: city.distanceKm,
+  }));
 }
 
 function IcoPin({ className }: { className?: string }) {
@@ -107,83 +106,100 @@ export interface SessionLocationPickerProps {
   value: LivesGeoPrefs;
   onChange: (next: LivesGeoPrefs) => void;
   variant?: SessionLocationVariant;
+  profileCity?: string;
+  anchorLatitude?: number;
+  anchorLongitude?: number;
+  token?: string | null;
 }
 
 export function SessionLocationPicker({
   value,
   onChange,
   variant = 'live',
+  profileCity,
+  anchorLatitude,
+  anchorLongitude,
+  token,
 }: SessionLocationPickerProps) {
   const { t } = useTranslation();
-  const listId = useId();
-  const cityRootRef = useRef<HTMLDivElement>(null);
+  const cityModeInitializedRef = useRef(false);
   const [mode, setMode] = useState<LocationMode>(() =>
     value.source === 'my_position' ? 'gps' : 'city'
   );
   const [locating, setLocating] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
-  const [customCity, setCustomCity] = useState('');
-  const [suggestions, setSuggestions] = useState<CitySuggestion[]>([]);
-  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
-  const [suggestOpen, setSuggestOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(-1);
+  const [nearestCities, setNearestCities] = useState<MajorCityDto[]>([]);
+  const [citiesLoading, setCitiesLoading] = useState(false);
   const geoAvailable = typeof navigator !== 'undefined' && Boolean(navigator.geolocation);
+
+  const anchor = useMemo(
+    () =>
+      resolveLocationAnchorCoords({
+        profileCity,
+        anchorLatitude,
+        anchorLongitude,
+      }),
+    [profileCity, anchorLatitude, anchorLongitude]
+  );
+
+  useEffect(() => {
+    if (mode !== 'city') return;
+    let cancelled = false;
+    setCitiesLoading(true);
+    void api
+      .nearestMajorCities(anchor.latitude, anchor.longitude, 3, token)
+      .then((res) => {
+        if (!cancelled) setNearestCities(res.cities);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setNearestCities(localFallbackCities(anchor.latitude, anchor.longitude, 3));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setCitiesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, anchor.latitude, anchor.longitude, token]);
+
+  const pickMajorCity = useCallback(
+    (city: MajorCityDto) => {
+      setGeoError(null);
+      onChange({
+        ...value,
+        latitude: city.latitude,
+        longitude: city.longitude,
+        label: city.label,
+        source: 'city',
+      });
+    },
+    [onChange, value]
+  );
+
+  const isCitySelected = useCallback(
+    (city: MajorCityDto) =>
+      value.source === 'city' && matchesPresetCityCoords(value.latitude, value.longitude, toPresetLike(city)),
+    [value.latitude, value.longitude, value.source]
+  );
 
   useEffect(() => {
     setMode(value.source === 'my_position' ? 'gps' : 'city');
-    if (value.source === 'city' && value.label) {
-      setCustomCity(value.label);
-    }
-  }, [value.source, value.label]);
+  }, [value.source]);
 
   useEffect(() => {
     if (mode !== 'city') {
-      setSuggestions([]);
+      cityModeInitializedRef.current = false;
       return;
     }
-    const q = customCity.trim();
-    if (q.length < 2) {
-      setSuggestions([]);
-      setLoadingSuggestions(false);
-      return;
+    if (cityModeInitializedRef.current || citiesLoading || nearestCities.length === 0) return;
+    cityModeInitializedRef.current = true;
+    const alreadySelected = nearestCities.some((city) => isCitySelected(city));
+    if (!alreadySelected) {
+      pickMajorCity(nearestCities[0]!);
     }
-
-    const preset = mapPresetSuggestions(q);
-    setSuggestions(preset);
-    setActiveIndex(-1);
-
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      setLoadingSuggestions(true);
-      searchCities(q)
-        .then((remote) => {
-          if (cancelled) return;
-          setSuggestions(mergeCitySuggestions(preset, mapRemoteSuggestions(remote)));
-        })
-        .catch(() => {
-          if (!cancelled) setSuggestions(preset);
-        })
-        .finally(() => {
-          if (!cancelled) setLoadingSuggestions(false);
-        });
-    }, 300);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [customCity, mode]);
-
-  useEffect(() => {
-    if (!suggestOpen) return;
-    const onDocDown = (e: MouseEvent) => {
-      if (cityRootRef.current && !cityRootRef.current.contains(e.target as Node)) {
-        setSuggestOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', onDocDown);
-    return () => document.removeEventListener('mousedown', onDocDown);
-  }, [suggestOpen]);
+  }, [mode, nearestCities, citiesLoading, isCitySelected, pickMajorCity]);
 
   const useMyPosition = async () => {
     if (!geoAvailable) {
@@ -209,50 +225,16 @@ export function SessionLocationPicker({
       });
     } catch {
       setGeoError(t('sessionLocation.geoFailed'));
+      setMode('city');
     } finally {
       setLocating(false);
     }
-  };
-
-  const pickSuggestion = (suggestion: CitySuggestion) => {
-    setCustomCity(suggestion.label);
-    setGeoError(null);
-    setSuggestOpen(false);
-    setSuggestions([]);
-    onChange({
-      ...value,
-      latitude: suggestion.latitude,
-      longitude: suggestion.longitude,
-      label: suggestion.label,
-      source: 'city',
-    });
-  };
-
-  const applyCustomCity = () => {
-    const query = customCity.trim();
-    if (!query) return;
-    if (activeIndex >= 0 && suggestions[activeIndex]) {
-      pickSuggestion(suggestions[activeIndex]!);
-      return;
-    }
-    const coords = coordsForCityName(query);
-    setGeoError(null);
-    setSuggestOpen(false);
-    onChange({
-      ...value,
-      latitude: coords.latitude,
-      longitude: coords.longitude,
-      label: coords.label,
-      source: 'city',
-    });
   };
 
   const accentBadge =
     variant === 'salon'
       ? 'bg-purple-500/10 border-purple-500/30 text-purple-200'
       : 'bg-red-500/10 border-red-500/30 text-red-200';
-
-  const showSuggestions = suggestOpen && customCity.trim().length >= 2 && (suggestions.length > 0 || loadingSuggestions);
 
   return (
     <div className="rounded-xl border border-[#2d2d3d] bg-[#1a1a26]/80 p-2.5 space-y-2">
@@ -274,7 +256,6 @@ export function SessionLocationPicker({
           onClick={() => {
             setMode('gps');
             setGeoError(null);
-            setSuggestOpen(false);
             if (value.source !== 'my_position') void useMyPosition();
           }}
           className={segmentClass(mode === 'gps', variant)}
@@ -316,104 +297,44 @@ export function SessionLocationPicker({
           )}
         </div>
       ) : (
-        <div className="flex gap-1.5 items-start">
-          <div ref={cityRootRef} className="relative flex-1 min-w-0">
-            <input
-              type="text"
-              value={customCity}
-              role="combobox"
-              aria-expanded={showSuggestions}
-              aria-controls={listId}
-              aria-autocomplete="list"
-              onFocus={() => setSuggestOpen(true)}
-              onChange={(e) => {
-                setCustomCity(e.target.value);
-                setSuggestOpen(true);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'ArrowDown') {
-                  e.preventDefault();
-                  if (suggestions.length > 0) {
-                    setSuggestOpen(true);
-                    setActiveIndex((i) => (i + 1) % suggestions.length);
-                  }
-                  return;
-                }
-                if (e.key === 'ArrowUp') {
-                  e.preventDefault();
-                  if (suggestions.length > 0) {
-                    setSuggestOpen(true);
-                    setActiveIndex((i) => (i <= 0 ? suggestions.length - 1 : i - 1));
-                  }
-                  return;
-                }
-                if (e.key === 'Escape') {
-                  setSuggestOpen(false);
-                  setActiveIndex(-1);
-                  return;
-                }
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  applyCustomCity();
-                }
-              }}
-              placeholder={t('sessionLocation.customCityPlaceholder')}
-              aria-label={t('sessionLocation.customCityLabel')}
-              className={`${fieldCls()} py-1.5`}
-            />
-
-            {showSuggestions && (
-              <ul
-                id={listId}
-                role="listbox"
-                className="absolute z-20 left-0 right-0 top-full mt-1 max-h-40 overflow-y-auto rounded-lg border border-[#2d2d3d] bg-[#12121a] shadow-xl py-1"
-              >
-                {loadingSuggestions && suggestions.length === 0 && (
-                  <li className="px-3 py-2 text-[11px] text-gray-500">
-                    {t('sessionLocation.suggestionsLoading')}
-                  </li>
-                )}
-                {suggestions.map((s, index) => (
-                  <li key={`${s.label}-${s.postalCode ?? ''}-${s.latitude}`} role="option" aria-selected={activeIndex === index}>
-                    <button
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => pickSuggestion(s)}
-                      className={`w-full text-left px-3 py-2 transition-colors flex items-center justify-between gap-2 min-w-0 ${
-                        activeIndex === index
-                          ? variant === 'salon'
-                            ? 'bg-purple-500/15 text-white'
-                            : 'bg-red-500/15 text-white'
-                          : 'text-gray-200 hover:bg-[#1a1a26]'
-                      }`}
-                    >
-                      <span className="truncate text-sm">{s.label}</span>
-                      {s.postalCode && !s.label.includes(s.postalCode) && (
-                        <span className="shrink-0 text-[10px] font-semibold text-gray-500 tabular-nums">
-                          {s.postalCode}
-                        </span>
-                      )}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+        <div className="space-y-1.5">
+          <p className="text-[10px] text-gray-500 leading-snug">
+            {t('sessionLocation.nearbyMajorCitiesHint')}
+          </p>
+          {citiesLoading && nearestCities.length === 0 && (
+            <p className="text-[11px] text-gray-500 animate-pulse">
+              {t('sessionLocation.suggestionsLoading')}
+            </p>
+          )}
+          <div className="space-y-1.5" role="listbox" aria-label={t('sessionLocation.citySelectLabel')}>
+            {nearestCities.map((city, index) => {
+              const active = isCitySelected(city);
+              return (
+                <button
+                  key={city.id}
+                  type="button"
+                  role="option"
+                  aria-selected={active}
+                  onClick={() => pickMajorCity(city)}
+                  className={cityChipClass(active, variant)}
+                >
+                  <span className="flex items-center justify-between gap-2 min-w-0 w-full">
+                    <span className="truncate text-sm font-semibold">{city.name}</span>
+                    <span className="shrink-0 text-[10px] text-gray-500 tabular-nums">
+                      {t('sessionLocation.majorCityDistance', {
+                        distance: formatDistanceKm(city.distanceKm),
+                      })}
+                    </span>
+                  </span>
+                  {index === 0 && (
+                    <span className="text-[9px] font-medium text-gray-500">
+                      {t('sessionLocation.majorCitySuggested')}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
-
-          <button
-            type="button"
-            onClick={applyCustomCity}
-            disabled={!customCity.trim()}
-            title={t('sessionLocation.customCityApply')}
-            aria-label={t('sessionLocation.customCityApply')}
-            className={`shrink-0 w-11 h-11 flex items-center justify-center rounded-lg border text-sm font-bold transition disabled:opacity-40 ${
-              variant === 'salon'
-                ? 'border-purple-500/40 text-purple-200 hover:bg-purple-500/10'
-                : 'border-red-500/40 text-red-200 hover:bg-red-500/10'
-            }`}
-          >
-            →
-          </button>
         </div>
       )}
 

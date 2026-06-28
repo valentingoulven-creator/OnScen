@@ -22,6 +22,18 @@ import {
 import { applyPrivacySettings } from '../lib/locationPrivacy';
 import { schedulePersist } from '../lib/persist';
 import { getCreatorDashboardStats } from '../lib/creatorStats';
+import {
+  assertCanUseCloudflareObs,
+  PlatformPlanError,
+} from '../lib/platformPlans';
+import { getCloudflareStreamIngestQuota, isCloudflareStreamConfigured } from '../lib/cloudflareStream';
+import { fetchUserObsIngest, repairUserObsStreamInput, rotateUserObsStreamKey } from '../lib/userObsStream';
+import {
+  getUserLiveMediaSetup,
+  isLiveMediaSetupConfigured,
+  saveUserLiveMediaSetup,
+} from '../lib/liveMediaSetup';
+import { schedulePersistUserToPg } from '../lib/pgUsers';
 
 export const usersRouter = Router();
 
@@ -119,6 +131,116 @@ usersRouter.patch('/me/live-terms', authenticateJWT, (req: Request, res: Respons
   db.users.set(me, user);
   schedulePersist();
   res.json({ liveTermsAcceptedAt: user.liveTermsAcceptedAt });
+});
+
+/** Préférences de configuration live persistées (chat setup). */
+usersRouter.get('/me/live-setup', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const user = db.users.get(me);
+  if (!user) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+  const setup = getUserLiveMediaSetup(user);
+  res.json({ setup, configured: isLiveMediaSetupConfigured(user) });
+});
+
+usersRouter.put('/me/live-setup', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const user = db.users.get(me);
+  if (!user) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+  const setup = saveUserLiveMediaSetup(user, req.body?.setup ?? req.body);
+  db.users.set(me, user);
+  schedulePersist();
+  schedulePersistUserToPg(user);
+  res.json({ setup, configured: true });
+});
+
+/** Identifiants RTMP/OBS persistants (clé unique par compte). */
+usersRouter.get('/me/obs-ingest', authenticateJWT, async (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  if (!isCloudflareStreamConfigured()) {
+    res.status(503).json({
+      error: 'Cloudflare Stream non configuré sur le serveur.',
+      code: 'cloudflare_not_configured',
+    });
+    return;
+  }
+  try {
+    assertCanUseCloudflareObs(me);
+    const [ingest, quota] = await Promise.all([
+      fetchUserObsIngest(me),
+      getCloudflareStreamIngestQuota().catch(() => null),
+    ]);
+    res.json({
+      ...ingest,
+      streamQuotaOk: quota?.ingestAllowed ?? true,
+      streamQuotaLimitMinutes: quota?.totalStorageMinutesLimit,
+    });
+  } catch (e) {
+    if (e instanceof PlatformPlanError) {
+      res.status(403).json({ error: e.message, code: e.code });
+      return;
+    }
+    const message = e instanceof Error ? e.message : 'Erreur Cloudflare Stream';
+    res.status(502).json({ error: message, code: 'cloudflare_error' });
+  }
+});
+
+/** Régénère la clé RTMP OBS (nouveau live input Cloudflare). */
+usersRouter.post('/me/obs-stream-key/rotate', authenticateJWT, async (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  if (!isCloudflareStreamConfigured()) {
+    res.status(503).json({
+      error: 'Cloudflare Stream non configuré sur le serveur.',
+      code: 'cloudflare_not_configured',
+    });
+    return;
+  }
+  try {
+    assertCanUseCloudflareObs(me);
+    const ingest = await rotateUserObsStreamKey(me);
+    res.json(ingest);
+  } catch (e) {
+    if (e instanceof PlatformPlanError) {
+      res.status(403).json({ error: e.message, code: e.code });
+      return;
+    }
+    const message = e instanceof Error ? e.message : 'Erreur Cloudflare Stream';
+    res.status(502).json({ error: message, code: 'cloudflare_error' });
+  }
+});
+
+/** Corrige le live input Cloudflare (désactive LL-HLS) sans régénérer la clé. */
+usersRouter.post('/me/obs-stream-repair', authenticateJWT, async (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  if (!isCloudflareStreamConfigured()) {
+    res.status(503).json({
+      error: 'Cloudflare Stream non configuré sur le serveur.',
+      code: 'cloudflare_not_configured',
+    });
+    return;
+  }
+  try {
+    assertCanUseCloudflareObs(me);
+    const ingest = await repairUserObsStreamInput(me);
+    res.json(ingest);
+  } catch (e) {
+    if (e instanceof PlatformPlanError) {
+      res.status(403).json({ error: e.message, code: e.code });
+      return;
+    }
+    const err = e as Error & { code?: string };
+    if (err.code === 'obs_stream_active') {
+      res.status(409).json({ error: err.message, code: err.code });
+      return;
+    }
+    const message = e instanceof Error ? e.message : 'Erreur Cloudflare Stream';
+    res.status(502).json({ error: message, code: 'cloudflare_error' });
+  }
 });
 
 usersRouter.post('/:id/follow', authenticateJWT, (req: Request, res: Response) => {

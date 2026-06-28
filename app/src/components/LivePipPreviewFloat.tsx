@@ -104,7 +104,7 @@ function LivePipPreviewFloatInner({
             autoPlay
             playsInline
             muted
-            className="absolute inset-0 w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full live-cloudflare-stage-video"
             style={{ opacity: hls.hlsStreamActive ? 1 : 0 }}
           />
           {!hls.hlsStreamActive && (

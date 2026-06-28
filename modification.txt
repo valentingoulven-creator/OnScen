@@ -10374,3 +10374,1558 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 716 — 2026-06-26
 ================================================================================
+
+================================================================================
+MODIF 717 — Filtre Salon : sélection multi-genres + persistance
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Remplacer la case « affinités musicales » par une sélection multi-genres (ou
+ « Tous »), mémorisée pour les prochaines ouvertures du filtre Salon.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/MapSalonFilterSheet.tsx
+ ─────────────────────────────────────────
+ • Chips genres (profil ou POPULAR_GENRES) + bouton Tous.
+
+ app/src/lib/musicAffinities.ts, nearbyPanelSettings.ts
+ ──────────────────────────────────────────────────────
+ • salonAffinityGenres / salonAffinityGenreOptions persistés (localStorage).
+ • personMatchesSalonGenreFilter() pour filtrer les hôtes par genres.
+
+ app/src/pages/HomePage.tsx — applySalonFilter + profileGenres prop.
+
+FICHIERS MODIFIÉS
+-----
+ MapSalonFilterSheet.tsx, musicAffinities.ts, nearbyPanelSettings.ts, HomePage.tsx, fr.json, en.json, tests
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅ · vitest affinités → ✅
+
+================================================================================
+Fin MODIF 717 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 718 — Création salon : genres musicaux multi-sélection
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Modal « Créer un salon » : choix multi-genres (+ Tous), mémorisé pour les
+ prochaines créations ; genres stockés sur le salon pour le filtre carte.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/CreateSalonModal.tsx
+ ───────────────────────────────────────
+ • Chips genres + bouton Tous ; persistance localStorage à la création.
+
+ app/src/lib/createSalonGenres.ts
+ ────────────────────────────────
+ • Options (profil ou POPULAR_GENRES), lecture/écriture prefs.
+
+ backend/src/routes/salons.ts, models/schema.ts, lib/nearbyPeople.ts
+ ───────────────────────────────────────────────────────────────────
+ • Salon.genres (max 10) ; nearby utilise les genres du salon pour affinités.
+
+FICHIERS MODIFIÉS
+-----
+ CreateSalonModal.tsx, createSalonGenres.ts, HomePage.tsx, DmPage.tsx, types.ts, salons.ts, nearbyPeople.ts, fr.json, en.json
+
+BUILD (si vérifié)
+-----
+ app/ + backend/ → à vérifier
+
+================================================================================
+Fin MODIF 718 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 719 — Carte : point GPS réel + masqué en mode invisible
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le point « ma position » sur la carte devait refléter la géolocalisation GPS
+ (pas le centre carte / ville en fallback filtre) et disparaître en mode
+ invisible (fantôme) via Confidentialité et visibilité.
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/HomePage.tsx
+ ───────────────────────────
+ • mapUserPosition = GPS uniquement ; null si isGhostMode ou pas de GPS.
+
+ app/src/components/MapView.tsx
+ ─────────────────────────────
+ • Suppression du marqueur utilisateur quand userPosition absent.
+
+ app/src/hooks/useHomeGeoRefresh.ts
+ ─────────────────────────────────
+ • Rafraîchissement périodique de userPosition sur tick GPS.
+
+FICHIERS MODIFIÉS
+-----
+ HomePage.tsx, MapView.tsx, useHomeGeoRefresh.ts
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 719 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 720 — CreateSalonModal : formulaire en ascenseur (scroll)
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Modal « Créer un salon » : contenu trop long sans défilement fluide ; ascenseur
+ unique sur tout le formulaire (header + footer fixes).
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/CreateSalonModal.tsx
+ ───────────────────────────────────────
+ • Grille header / corps scroll / footer ; min-h-0 + overflow-y-auto.
+ • Liste genres sans scroll imbriqué (max-h-36 retiré).
+ • Safe area bas footer ; backdrop overflow-hidden.
+
+FICHIERS MODIFIÉS
+-----
+ CreateSalonModal.tsx
+
+BUILD (si vérifié)
+-----
+ app/ → à vérifier
+
+================================================================================
+Fin MODIF 720 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 721 — CreateSalonModal : annulation scroll (popup tout visible)
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Annuler MODIF 720 : pas d'ascenseur dans la popup ; formulaire affiché en une
+ seule page sans zone scroll interne.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/CreateSalonModal.tsx
+ ───────────────────────────────────────
+ • Retrait grille / overflow-y-auto / max-h sur le panneau.
+ • overflow-visible ; hauteur naturelle du contenu.
+
+FICHIERS MODIFIÉS
+-----
+ CreateSalonModal.tsx
+
+================================================================================
+Fin MODIF 721 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 722 — CreateSalonModal : popup visible (hauteur + genres compacts)
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Popup « Créer un salon » dépassait l'écran (top négatif, ~1021 px) : liste
+ complète des genres + overflow-visible. Contenu tronqué, bouton Créer invisible.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/CreateSalonModal.tsx
+ ───────────────────────────────────────
+ • max-h 90dvh, header/footer fixes, corps scroll si besoin.
+ • Genres : suggestions uniquement après recherche (zone max-h-32) ; sinon message.
+
+ app/src/locales/fr.json, en.json
+ ────────────────────────────────
+ • fieldGenresSearchPrompt
+
+FICHIERS MODIFIÉS
+-----
+ CreateSalonModal.tsx, fr.json, en.json
+
+================================================================================
+Fin MODIF 722 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 723 — CreateSalonModal : création bloquée (salon déjà actif)
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ « Créer le salon » ne créait rien : API 409 SALON_ALREADY_ACTIVE (un salon par
+ hôte) ; modal se fermait sans ouvrir le salon existant ; erreurs peu visibles.
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/api/core.ts
+ ─────────────────────
+ • ApiRequestError.salonId (réponse 409).
+
+ app/src/lib/salonCreateFlow.ts
+ ───────────────────────────────
+ • translateSalonCreateError : codes SALON_ALREADY_ACTIVE, HOST_PLATFORM_NOT_LINKED.
+
+ app/src/components/CreateSalonModal.tsx
+ ───────────────────────────────────────
+ • activeSalonId + onOpenExistingSalon ; erreurs via onDeferredError.
+ • 409 → ouverture du salon existant + toast.
+
+ app/src/pages/HomePage.tsx, DmPage.tsx
+ ────────────────────────────────────
+ • Branchement onOpenExistingSalon / activeSalonId.
+
+FICHIERS MODIFIÉS
+-----
+ core.ts, salonCreateFlow.ts, CreateSalonModal.tsx, HomePage.tsx, DmPage.tsx
+
+================================================================================
+Fin MODIF 723 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 724 — CreateSalonModal : bouton grisé pendant un live hôte
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ « Créer le salon » doit être désactivé tant que l'utilisateur anime un live.
+
+CHANGEMENTS / FIX
+-----
+ CreateSalonModal.tsx — prop hostIsLive, canSubmitSalon, message footer.
+ HomePage.tsx, DmPage.tsx — hostIsLive={user.isLive && user.liveId}.
+ fr.json, en.json — errorHostLiveActive.
+
+================================================================================
+Fin MODIF 724 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 725 — Salon dock playlist : retrait bouton « Lancer »
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retirer le bouton orange « Lancer la playlist » (clé i18n visible) dans le dock
+ salon ; chargement au changement de sélection dans la liste.
+
+CHANGEMENTS / FIX
+-----
+ SalonChatDockPlaylistPicker.tsx — bouton supprimé ; select → loadPlaylist.
+
+================================================================================
+Fin MODIF 725 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 726 — Live hôte : barre actions sous le chat (stop, réglages, dons)
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Hôte live : contrôles (arrêter, config, dons) peu visibles — seulement en haut
+ de page ; ajout d'une barre sous « Chat public ».
+
+CHANGEMENTS / FIX
+-----
+ RoomTheaterLayout.tsx — prop chatHostToolbar sous titre chat bas.
+ LivePage.tsx — Arrêter, Réglages live, Dons & rewards, Dashboard.
+ fr.json, en.json — hostDockSettings, hostDockDonations, hostDockDashboard.
+
+================================================================================
+Fin MODIF 726 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 727 — Live dock hôte : retrait Dons & Dashboard
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Barre chat hôte : retirer « Dons & rewards » et « Dashboard ».
+
+CHANGEMENTS / FIX
+-----
+ LivePage.tsx — chatHostToolbar : Arrêter + Réglages live uniquement.
+
+================================================================================
+Fin MODIF 727 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 728 — Live hôte : réglages ⚙ en haut à droite (icône seule)
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Déplacer « Réglages live » du dock chat vers la barre haute, bouton engrenage
+ seul à droite (avant partager).
+
+CHANGEMENTS / FIX
+-----
+ LivePage.tsx — bouton ⚙ dans LiveHostTopBar hostControls ; retiré du chatHostToolbar
+ (dock chat = Arrêter le live uniquement).
+
+================================================================================
+Fin MODIF 728 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 729 — Live hôte : Arrêter le live à gauche du ⚙ (barre haute)
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Bouton « Arrêter le live » encore dans le dock chat ; le placer en haut à droite,
+ immédiatement à gauche de l’engrenage réglages.
+
+CHANGEMENTS / FIX
+-----
+ LivePage.tsx — StopLiveButton dans hostControls (avant ⚙) ; retiré du centre
+ et du chatHostToolbar.
+
+================================================================================
+Fin MODIF 729 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 730 — Logo Soundy : nouvelle image S + waveform (fond transparent)
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Remplacer le wordmark SVG « Soundy » par le nouveau logo fourni (S 3D +
+ waveform), fond blanc rendu transparent.
+
+CHANGEMENTS / FIX
+-----
+ app/public/soundy-logo.png — PNG traité (fond blanc retiré)
+ backend/public/soundy-logo.png — même asset
+ app/src/components/SoundyLogo.tsx — img PNG à la place du SVG texte
+ app/scripts/process-soundy-logo.mjs — script de traitement (sharp)
+
+================================================================================
+Fin MODIF 730 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 731 — Live hôte : bouton ⚙ réglages sur la scène vidéo
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Bouton « Réglages live » introuvable : uniquement en barre haute, l’hôte
+ cherchait près de la vidéo.
+
+CHANGEMENTS / FIX
+-----
+ LivePage.tsx — ⚙ en haut à droite de la scène vidéo (hostVideoOverlay) ;
+ retiré le doublon « Arrêter » du dock chat.
+
+================================================================================
+Fin MODIF 731 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 732 — Live hôte : Arrêter + ⚙ groupés en haut à droite vidéo
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ « Arrêter le live » encore dans le dock chat ; le placer à gauche du ⚙ config
+ sur la scène vidéo.
+
+CHANGEMENTS / FIX
+-----
+ LivePage.tsx — hostVideoOverlay : StopLiveButton + ⚙ côte à côte top-right ;
+ retirés du header hostControls (micro/cam/board seulement).
+
+================================================================================
+Fin MODIF 732 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 733 — Logo header : nouvelle image S + waveform (497×347)
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Remplacer le logo header par le visuel fourni (S 3D + waveform), fond blanc
+ retiré.
+
+CHANGEMENTS / FIX
+-----
+ app/public/soundy-logo.png — PNG traité 339×275 (trim)
+ backend/public/soundy-logo.png — même asset
+ app/scripts/process-soundy-logo.mjs — source par défaut mise à jour
+
+================================================================================
+Fin MODIF 733 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 734 — LiveLegalAcceptanceModal : layout adapté écran (scroll + pied fixe)
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Popup règles live : contenu trop long, pas adapté au viewport (390px / desktop).
+
+CHANGEMENTS / FIX
+-----
+ LiveLegalAcceptanceModal.tsx — bottom-sheet mobile, corps scrollable, pied fixe
+ (case + CTA), safe-area, touch targets 44px, max-h 92dvh.
+
+================================================================================
+Fin MODIF 734 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 735 — StartLiveMediaSetupModal : configuration complète avant le live
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Écran pré-live limité à « Caméra et micro » + chargement bloquant ; l'hôte doit
+ configurer titre, localisation, modération chat et infos pourboires avant démarrage.
+
+CHANGEMENTS / FIX
+-----
+ StartLiveMediaSetupModal.tsx
+ ─────────────────────────────
+ • Titre « Configuration du live », formulaire scrollable (bottom-sheet mobile).
+ • Sections : titre, cam/micro (aperçu inline), localisation, modération chat,
+   note pourboires ; mode démo dev conservé.
+ • Brouillon sessionStorage (liveTitle, chatConfig, geo, devices).
+
+ StartLiveFlowModals.tsx / useStartLiveFlow.ts
+ ─────────────────────────────────────────────
+ • defaultLiveTitle, donationsEnabled/Simulation passés au modal.
+ • api.startLive utilise prefs.liveTitle.
+
+ LivePage.tsx
+ ────────────
+ • Application chatConfig au démarrage hôte via live_update_config.
+
+ fr.json / en.json — clés live.setup*
+
+FICHIERS MODIFIÉS
+-----
+ StartLiveMediaSetupModal.tsx → config complète pré-live
+ StartLiveFlowModals.tsx → props titre/dons
+ useStartLiveFlow.ts → titre depuis prefs
+ LivePage.tsx → chatConfig post-start
+ fr.json / en.json → i18n setup
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 735 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 736 — Pré-live : configuration goals et menu récompenses / pourboires
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Section « Pourboires » du modal pré-live = simple note informative ; l'hôte doit
+ pouvoir configurer goals artistiques et catalogue récompenses avant démarrage.
+
+CHANGEMENTS / FIX
+-----
+ LiveDonationsSetupFields.tsx (nouveau)
+ ───────────────────────────────────────
+ • Goals : type, cible, label, ajout/suppression.
+ • Récompenses : catalogue ON/OFF + création personnalisée.
+
+ liveMediaPrefs.ts — hostSessionDraft + clearHostSessionDraftFromPrefs
+ StartLiveMediaSetupModal.tsx — section pourboires interactive
+ LivePage.tsx — application du brouillon via patchLiveHostSession au start hôte
+ fr.json / en.json — clés live.setupGoals* / setupRewards*
+
+FICHIERS MODIFIÉS
+-----
+ LiveDonationsSetupFields.tsx → UI goals + récompenses
+ liveMediaPrefs.ts → brouillon hostSessionDraft
+ StartLiveMediaSetupModal.tsx → intégration
+ LivePage.tsx → apply au démarrage
+ fr.json / en.json → i18n
+
+================================================================================
+Fin MODIF 736 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 737 — Test micro pré-live + modal règles live viewport
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ • Config live : pas de test micro (VU + écoute locale).
+ • LiveLegalAcceptanceModal : contenu/pied coupés, mauvaise adaptation mobile.
+
+CHANGEMENTS / FIX
+-----
+ LiveMicTestPanel.tsx — jauge niveau + bouton écoute locale (casque recommandé)
+ StartLiveMediaSetupModal.tsx — sélecteur micro toujours visible, panneau test
+ LiveLegalAcceptanceModal.tsx — max-h 92dvh, safe-area, bottom-sheet mobile, z-60
+ fr.json / en.json — clés live.setupMic*
+
+================================================================================
+Fin MODIF 737 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 738 — Live : retrait bande goal chat + overlay vidéo compact
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Bande LiveHostGoalStrip (48px) au-dessus du chat trop encombrante ; goal trop large
+ sur la vidéo.
+
+CHANGEMENTS / FIX
+-----
+ LivePage.tsx — retrait LiveHostGoalStrip du stageFooter
+ LiveVideoGoalOverlay.tsx — chip compact coin bas-gauche (max ~13rem, barre fine)
+
+================================================================================
+Fin MODIF 738 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 739 — Live hôte : boutons micro + caméra sur overlay vidéo
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Contrôles micro/caméra absents de la scène vidéo ; seuls Arrêter + ⚙ visibles.
+
+CHANGEMENTS / FIX
+-----
+ LiveHostQuickBar.tsx — LiveHostMicToggleButton, LiveHostCamToggleButton (style overlay)
+ LivePage.tsx — micro + cam à gauche de « Arrêter le live » ; toggleHostMic (WebRTC + LiveKit)
+ LiveKitVideoStage.tsx — micEnabled séparé de publishActive (setMicrophoneEnabled)
+
+================================================================================
+Fin MODIF 739 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 740 — Pré-live : choix diffusion OBS (SoundyUltra)
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Pas de configuration OBS avant le live ; bascule Cloudflare uniquement après
+ ouverture via le menu Board.
+
+CHANGEMENTS / FIX
+-----
+ LiveObsSetupFields.tsx — choix caméra navigateur vs OBS + instructions RTMP
+ StartLiveMediaSetupModal.tsx — section Diffusion, prefs useObs, démarrage sans caméra auto
+ liveMediaPrefs.ts — useObs + clearUseObsFromPrefs()
+ useStartLiveFlow.ts / api/lives.ts — useObs envoyé à POST /lives/start
+ backend/routes/lives.ts — streamMode cloudflare si useObs (assertCanUseCloudflareObs)
+ LivePage.tsx — panneau RTMP ouvert si mode OBS ; pas de caméra auto au démarrage
+ fr.json / en.json — clés setupObs*
+
+FICHIERS MODIFIÉS
+-----
+ app/src/components/LiveObsSetupFields.tsx → nouveau
+ app/src/components/StartLiveMediaSetupModal.tsx → section OBS
+ backend/src/routes/lives.ts → useObs au start
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 740 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 741 — OBS ouvert à tous les comptes (phase test)
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ OBS / Cloudflare Stream réservés SoundyUltra — ouverture temporaire à tous.
+
+CHANGEMENTS / FIX
+-----
+ backend/lib/platformPlans.ts — OBS_OPEN_TO_ALL = true ; isObsAllowedForUser /
+   isCloudflareStreamAllowedForUser ; assertCanUseCloudflareObs assoupli
+ backend/routes/lives.ts — stream-capabilities via helpers
+ LiveObsSetupFields / LiveHostQuickBar / locales — retrait mentions SoundyUltra
+
+FICHIERS MODIFIÉS
+-----
+ backend/src/lib/platformPlans.ts → flag + helpers
+ backend/src/routes/lives.ts → capabilities
+
+================================================================================
+Fin MODIF 741 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 742 — OBS setup : diagnostic Cloudflare (message + cloudflareConfigured)
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Message « indisponible sur ce compte » trompeur — cause réelle : backend pas
+ redémarré (ancien code forfait) ou CLOUDFLARE_* absents du serveur.
+
+CHANGEMENTS / FIX
+-----
+ stream-capabilities → cloudflareConfigured (infra serveur)
+ LiveObsSetupFields → messages distincts (API / serveur / forfait)
+
+================================================================================
+Fin MODIF 742 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 743 — OBS : secours RTMP + réactivation live input Cloudflare
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ OBS « impossible de se connecter au serveur » (RTMPS TLS, clé mal collée,
+ live input désactivé après arrêt d’un live).
+
+CHANGEMENTS / FIX
+-----
+ cloudflareStream.ts — normalizeCloudflareIngestForObs, enableCloudflareLiveInput,
+   URL RTMP secours :1935
+ lives.ts cloudflare-ingest — réactive l’input si live actif
+ LiveCloudflareHostPanel — instructions OBS + case RTMP secours
+
+================================================================================
+Fin MODIF 743 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 744 — OBS : identifiants dans Réglages live (⚙) au lieu de l’overlay vidéo
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Panneau OBS sur la scène vidéo — déplacer URL/clé dans ⚙ → Config.
+
+CHANGEMENTS / FIX
+-----
+ LiveObsIngestSettings — composant inline (LiveCloudflareHostPanel.tsx)
+ LiveHostPanel — onglet Config : section OBS + modération chat
+ LivePage — retrait overlay ; ouverture auto Config si mode OBS
+
+================================================================================
+Fin MODIF 744 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 745 — Live hôte OBS : aperçu HLS CDN sur la scène vidéo
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Hôte mode Cloudflare/OBS : overlay « Soundly Session » au lieu de la vidéo OBS
+ (HLS désactivé pour l’hôte).
+
+CHANGEMENTS / FIX
+-----
+ LivePage — useCloudflareHlsPlayback actif pour hôte + spectateurs
+ LiveVideoStage — état live basé sur hlsStreamActive ; ref vidéo CDN ; overlay 📡
+
+================================================================================
+Fin MODIF 745 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 746 — OBS : boucle déconnexion / reconnexion ~5 s (Cloudflare RTMP)
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ OBS se déconnecte et reconnecte toutes les ~5 s pendant un live Soundy.
+
+CHANGEMENTS / FIX
+-----
+ cloudflareStream.ts — ensureCloudflareLiveInputEnabled (PUT enabled uniquement si
+   disabled) ; create avec enabled:true, preferLowLatency:false
+ lives.ts — retrait enableCloudflareLiveInput sur GET cloudflare-ingest (PUT répété
+   coupait le flux RTMP) ; réactivation seulement au provisionnement
+ LivePage — pas d’auto-start caméra navigateur en mode Cloudflare/OBS
+ LiveObsIngestSettings — fetch ingest une fois (pas sur changement i18n)
+ fr/en — obsConnectTrouble (GOP 2 s, débit, ne pas rouvrir Config)
+
+================================================================================
+Fin MODIF 746 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 747 — OBS : clé RTMP persistante par utilisateur + régénération
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clé de stream unique à l’utilisateur (réutilisable entre lives) avec possibilité
+ de la changer sur demande.
+
+CHANGEMENTS / FIX
+-----
+ User.cloudflareObsLiveInputId — live input Cloudflare persistant par compte
+ userObsStream.ts — getOrCreate, fetchUserObsIngest, rotateUserObsStreamKey
+ users.ts — GET /me/obs-ingest, POST /me/obs-stream-key/rotate
+ lives.ts — provision/archive via input utilisateur ; VOD par enregistrement session
+ LiveObsIngestSettings — bouton « Changer la clé » + i18n fr/en
+
+================================================================================
+Fin MODIF 747 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 748 — Live OBS : diagnostic connexion + reprise lecteur HLS
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Stream OBS configuré mais vidéo absente sur Soundy (souvent OBS non connecté à
+ Cloudflare, ou lecteur HLS bloqué).
+
+CHANGEMENTS / FIX
+-----
+ cloudflareStream.ts — getCloudflareLiveInputLifecycle
+ lives.ts — GET /cloudflare-stream-status
+ useCloudflareHlsPlayback — lowLatencyMode false, reload quand OBS connecté
+ LivePage / LiveVideoStage — statut OBS, overlay lecture sur écran d’attente
+ LiveObsIngestSettings — indicateur OBS connecté / non connecté
+
+================================================================================
+Fin MODIF 748 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 749 — OBS : déconnexions RTMP (clé stable + RTMP par défaut)
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ OBS Studio : erreurs de déconnexion / reconnexion en boucle.
+
+CHANGEMENTS / FIX
+-----
+ userObsStream.ts — lecture ingest sans ensureCloudflare (GET seul) ; plus de
+   recréation silencieuse de clé sur erreur API
+ LiveHostPanel — panneau OBS monté une fois (pas de re-fetch onglet Config)
+ LiveObsIngestSettings — RTMP secours coché par défaut ; guide encodage Sortie
+ fr/en — obsOutputFields, obsConnectTrouble
+
+================================================================================
+Fin MODIF 749 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 750 — OBS : désactivation LL-HLS/LTX sur live inputs existants
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ OBS « Déconnecté — perte de connexion totale » : live input Cloudflare encore en
+ mode LL-HLS (ltxEnabled) incompatible encodage OBS par défaut.
+
+CHANGEMENTS / FIX
+-----
+ cloudflareStream.ts — stabilizeCloudflareLiveInputForObs (preferLowLatency:false)
+ userObsStream.ts — repairUserObsStreamInput
+ users.ts — POST /me/obs-stream-repair
+ LiveObsIngestSettings — réparation auto au chargement + bouton Réparer connexion
+
+================================================================================
+Fin MODIF 750 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 751 — OBS : Config Soundy ne doit plus couper le flux RTMP
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Déconnexion OBS (vert puis rouge) : ouverture ⚙ Config appelait repairObsStreamInput
+ (PUT Cloudflare) à chaque chargement → coupure du flux en cours.
+
+CHANGEMENTS / FIX
+-----
+ LiveObsIngestSettings — loadIngest en lecture seule (getObsIngest)
+ repair — uniquement sur bouton, interdit si OBS connecté (409 backend + UI)
+ userObsStream.ts — guard lifecycle.live sur repair
+
+================================================================================
+Fin MODIF 751 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 752 — OBS : stabilize Cloudflare sans couper RTMP actif
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Déconnexion OBS persistante : stabilize PUT si preferLowLatency undefined ; PUT au
+ démarrage live alors qu’OBS envoie déjà ; panneau Config monté en hidden (reload ingest).
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/cloudflareStream.ts
+ ─────────────────
+ • stabilize — needsUpdate si preferLowLatency === true uniquement
+ • skip PUT si lifecycle.live (flux RTMP actif)
+
+ backend/src/lib/userObsStream.ts
+ ─────────────────
+ • getOrCreateUserObsLiveInput — passe customerSubdomain à stabilize
+
+ app/src/components/LiveCloudflareHostPanel.tsx
+ ─────────────────
+ • repairStreamInput — callback réparé (régression MODIF 751)
+
+ app/src/components/LiveHostPanel.tsx
+ ─────────────────
+ • LiveObsIngestSettings monté uniquement onglet Config (pas en hidden)
+
+ app/src/locales/fr.json · en.json
+ ─────────────────
+ • Consignes OBS : baseline, x264 bframes=0 keyint=60
+
+================================================================================
+Fin MODIF 752 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 753 — OBS : plus aucun PUT Cloudflare au démarrage du live
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Log OBS : RTMPS connect OK puis WriteN 10054 (~2 s) — reset côté Cloudflare.
+ getOrCreateUserObsLiveInput faisait encore stabilize (PUT) au POST /lives/start.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/userObsStream.ts
+ ─────────────────
+ • getOrCreateUserObsLiveInput — GET seul si input existant (zéro PUT au live start)
+ • stabilize réservé à obs-stream-repair (OBS arrêté)
+
+ app/src/locales/fr.json · en.json
+ ─────────────────
+ • obsConnectTrouble — diagnostic 10054 / IPv6 / clé RTMP
+
+================================================================================
+Fin MODIF 753 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 754 — OBS : diagnostic IPv6 + suffixe clé RTMP dans Config
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Log OBS : RTMP secours OK mais connexion toujours en IPv6 → reset 10053 ~2 s.
+
+CHANGEMENTS / FIX
+-----
+ LiveCloudflareHostPanel — affiche suffixe clé attendu (k + liveInputId)
+ fr.json · en.json — obsConnectTrouble / obsKeySuffixHint (IPv6, Killer NIC)
+
+================================================================================
+Fin MODIF 754 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 755 — OBS / Cloudflare : cause racine quota Stream 0 + config OBS optimisée
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Déconnexion OBS 10053 malgré clé/IPv4 corrects. Tests ffmpeg identiques en local
+ et VPS staging → Cloudflare storage-usage totalStorageMinutesLimit=0 (0 vidéo).
+
+CHANGEMENTS / FIX
+-----
+ backend — getCloudflareStreamIngestQuota + alerte obs-ingest streamQuotaOk
+ LiveCloudflareHostPanel — bannière quota Stream 0
+ Config OBS (Roaming) — IPv4, RetryDelay 5, QuickSync QSV, keyint 4 s, 2000 kbps
+
+FICHIERS OBS (machine utilisateur)
+-----
+ basic/profiles/Sans_nom/basic.ini · streamEncoder.json · service.json (déjà OK)
+
+CAUSE RACINE
+-----
+ Compte Cloudflare 0eec9dd9… : abonnement Stream Live non actif (quota 0 min).
+ L’API crée des live inputs mais live.cloudflare.com rejette tout flux RTMP/SRT.
+
+ACTION REQUISE (hors code)
+-----
+ Dashboard Cloudflare → Stream → activer facturation Stream Live, puis retester OBS.
+
+================================================================================
+Fin MODIF 755 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 756 — OBS Cloudflare : vidéo HLS invisible malgré flux RTMP reçu
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Message « Flux OBS reçu — chargement de la vidéo… » sans image : lifecycle RTMP OK
+ mais lecteur HLS jamais initialisé (race <video> ref) ou URL playback périmée après
+ rotation de clé OBS.
+
+CHANGEMENTS / FIX
+-----
+ app/src/hooks/useCloudflareHlsPlayback.ts
+ ─────────────────
+ • Attendre montage <video> (videoReady) avant init Hls.js
+ • retry() incrémente initGeneration pour relancer l’effet HLS
+
+ app/src/pages/LivePage.tsx · app/src/lib/api/lives.ts
+ ─────────────────
+ • Poll cloudflare-stream-status → sync cloudflarePlaybackUrl si drift
+
+ backend/src/routes/lives.ts
+ ─────────────────
+ • GET cloudflare-stream-status — resync input persistant hôte + playbackUrl dans JSON
+
+================================================================================
+Fin MODIF 756 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 757 — OBS Cloudflare : écran noir HLS natif Chrome/Edge
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ <video src="…/manifest/video.m3u8"> visible mais écran noir : Chrome/Edge
+ annoncent HLS natif (canPlayType) mais ne décodent pas le live Cloudflare.
+
+CHANGEMENTS / FIX
+-----
+ app/src/hooks/useCloudflareHlsPlayback.ts
+ ─────────────────
+ • hls.js par défaut sur desktop (Safari/iOS seulement en natif)
+ • Fallback hls.js si natif en erreur ou sans frames après 5 s
+ • streamActive uniquement si videoWidth/Height > 0
+
+================================================================================
+Fin MODIF 757 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 758 — OBS Cloudflare : scène complète visible (object-contain)
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Flux HLS OK (blob MSE) mais scène OBS rognée : object-cover dans un conteneur
+ large (~3:1) ne montre qu’une bande centrale du canvas 16:9.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/LiveVideoStage.tsx · LivePipPreviewFloat.tsx
+ app/src/index.css
+ ─────────────────
+ • Classe live-cloudflare-stage-video → object-fit: contain (comme LiveKit)
+ • Letterbox / pillarbox : canvas OBS entier visible
+
+================================================================================
+Fin MODIF 758 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 759 — OBS arrêté : couper la vidéo HLS, live Soundy reste ouvert
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Arrêter OBS ne termine pas le live Soundy (chat, viewers). De plus le lecteur
+ HLS continuait (buffer / enregistrement Cloudflare) alors que lifecycle RTMP
+ est coupé.
+
+CHANGEMENTS / FIX
+-----
+ useCloudflareHlsPlayback — teardown HLS quand obsIngestLive passe à false
+ LiveVideoStage — état « live » vidéo seulement si OBS connecté
+ LivePage — poll lifecycle toutes les 2 s
+ liveCameraMessages — LIVE_CAMERA_HOST_OBS_STOPPED
+
+================================================================================
+Fin MODIF 759 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 760 — Auto-stop live Soundy quand OBS coupe le flux RTMP
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L’utilisateur veut que l’arrêt du streaming OBS termine aussi le live Soundy
+ (pas seulement masquer la vidéo).
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/LivePage.tsx
+ ─────────────────
+ • Après au moins une connexion OBS (lifecycle live), 2 polls RTMP off (~4 s)
+   → stopLive() automatique (hôte, mode cloudflare)
+
+ app/src/lib/liveCameraMessages.ts
+ ─────────────────
+ • LIVE_CAMERA_HOST_OBS_STOPPED — message pendant la coupure auto
+
+================================================================================
+Fin MODIF 760 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 761 — Latence OBS → Soundy : lecteur HLS low-latency
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Délai important entre OBS et aperçu Soundy sans « délai stream » OBS activé :
+ chaîne RTMP → encodage Cloudflare → segments HLS → buffer hls.js (30 s).
+
+CHANGEMENTS / FIX
+-----
+ app/src/hooks/useCloudflareHlsPlayback.ts
+ ─────────────────
+ • Manifest ?protocol=llhls · lowLatencyMode · buffers réduits (cible ~5–15 s)
+
+ LiveCloudflareHostPanel + fr/en.json — obsLatencyHint (explication + keyint 2 s OBS)
+
+================================================================================
+Fin MODIF 761 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 762 — Configuration live en chat + persistance DB
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Remplacer la popup formulaire par un assistant chat : 1ère config guidée,
+ configs suivantes « reprendre ou modifier » avec boutons par section.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/liveMediaSetup.ts · routes GET/PUT /users/me/live-setup
+ backend/src/models/schema.ts — User.liveMediaSetup (payload JSONB)
+ app/src/components/StartLiveSetupChatModal.tsx — UI chat
+ app/src/lib/liveSetupChatFlow.ts · liveMediaPrefs session + API users
+ fr.json · en.json — clés live.setupChat*
+
+================================================================================
+Fin MODIF 762 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 763 — Assistant live : modale centrée, étroite, visible en entier
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Chat setup trop large / haut — dépassait l'écran (max-w-md + 42rem).
+
+CHANGEMENTS / FIX
+-----
+ StartLiveSetupChatModal.tsx
+ ─────────────────
+ • Centré sur tous viewports · max-w ~19–21rem · max-h 80dvh avec safe-area
+ • Bulles et header/footer compacts
+
+================================================================================
+Fin MODIF 763 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 764 — Assistant live : aide niveaux modération chat (!)
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Étape « Quel niveau de modération ? » — pas d'explication Ouvert / Standard / Modéré / Abonnés.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/StartLiveSetupChatModal.tsx
+ ─────────────────
+ • Bouton ! à côté de la bulle bot · panneau dépliable avec détail de chaque preset
+ app/src/locales/fr.json · en.json — live.setupChatModHelp*
+
+================================================================================
+Fin MODIF 764 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 765 — Assistant live : modération chat retirée, Standard par défaut
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Étape « modération chat » inutile dans l'assistant — appliquer Standard (liens bloqués) sans question.
+
+CHANGEMENTS / FIX
+-----
+ StartLiveSetupChatModal.tsx — skip phase chatMod · chip « Chat » retiré du retour
+ liveSetupChatFlow.ts — STANDARD_CHAT_CONFIG · défaut noLinks=true
+
+================================================================================
+Fin MODIF 765 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 766 — Assistant live : goals et récompenses en 2 étapes
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Une seule étape « pourboires » mélangeait goals et menu récompenses.
+
+CHANGEMENTS / FIX
+-----
+ StartLiveSetupChatModal.tsx — phases goals puis rewards · chips séparés au retour
+ LiveDonationsSetupFields.tsx — prop section goals | rewards | all
+ liveSetupChatFlow.ts · fr.json · en.json — clés setupChatAskGoals / AskRewards
+
+================================================================================
+Fin MODIF 766 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 767 — Assistant live : question + réponse visibles à chaque étape
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ À chaque étape, la question bot et la réponse user doivent rester dans le fil (y compris en édition).
+
+CHANGEMENTS / FIX
+-----
+ liveSetupChatFlow.ts — SETUP_PHASE_BOT_QUESTION
+ StartLiveSetupChatModal.tsx — useEffect pousse la question à l'entrée de chaque phase
+
+================================================================================
+Fin MODIF 767 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 768 — Assistant live : réponse + question épinglées (sans scroll)
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ À l'étape goals (et autres), la réponse précédente et la question courante sortaient de l'écran.
+
+CHANGEMENTS / FIX
+-----
+ liveSetupChatFlow.ts — splitSetupChatMessages (historique vs échange actif)
+ StartLiveSetupChatModal.tsx — historique compact scrollable · dernière réponse + question fixées · formulaire seul scrollable
+
+================================================================================
+Fin MODIF 768 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 769 — Modale règles live : affichage complet viewport
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ LiveLegalAcceptanceModal dépassait l'écran — header ou pied (case + CTA) hors vue.
+
+CHANGEMENTS / FIX
+-----
+ LiveLegalAcceptanceModal.tsx
+ ─────────────────
+ • max-h avec safe-area · overlay paddé · bottom-sheet mobile / centrée desktop
+ • grid rows auto / 1fr / auto — corps scrollable fiable · header/footer compacts
+
+================================================================================
+Fin MODIF 769 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 770 — Modale règles live : tout visible sans ascenseur
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Corps des règles scrollable — l'utilisateur veut tout voir d'un coup sans ascenseur.
+
+CHANGEMENTS / FIX
+-----
+ LiveLegalAcceptanceModal.tsx
+ ─────────────────
+ • Suppression overflow-y-auto · layout compact (11px, espacements réduits)
+ • Grille 2 colonnes dès 22rem (contenu + monétisation côte à côte)
+ • Modale centrée · hauteur naturelle
+
+================================================================================
+Fin MODIF 770 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 771 — Assistant live : prénom Lya
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L'assistant chat setup live doit s'appeler Lya.
+
+CHANGEMENTS / FIX
+-----
+ app/src/locales/fr.json · en.json — setupChatTitle, setupChatSubtitle, setupChatHello
+
+================================================================================
+Fin MODIF 771 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 772 — Lya : échange actif + config visibles sans scroll
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Historique scrollable masquait question, réponse et configuration de l'étape courante.
+
+CHANGEMENTS / FIX
+-----
+ liveSetupChatFlow.ts — getVisibleSetupExchange (intro + dernière réponse + question)
+ StartLiveSetupChatModal.tsx — suppression historique scroll · layout fixe sans overflow
+ LiveDonationsSetupFields · LiveMicTestPanel — prop compact
+
+================================================================================
+Fin MODIF 772 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 773 — Lya goals : bouton Continuer toujours visible
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Formulaire goals trop haut — bouton Continuer coupé, impossible de valider.
+
+CHANGEMENTS / FIX
+-----
+ StartLiveSetupChatModal.tsx — pied d'étape fixe (Continuer / Lancer) · formulaire scrollable
+
+================================================================================
+Fin MODIF 773 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 774 — Nouveau goal compact (Lya, sans scroll)
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Formulaire « Nouveau goal » trop haut dans la modale Lya — scroll obligatoire.
+
+CHANGEMENTS / FIX
+-----
+ LiveDonationsSetupFields.tsx — mode compact : select type · cible+label sur une ligne · masque hint/titre
+
+================================================================================
+Fin MODIF 774 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 775 — Live/salon : scène caméra LiveKit (cover + ratio)
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Vidéo LiveKit letterboxée / trop basse en layout bottom-chat — mauvais rendu scène.
+
+CHANGEMENTS / FIX
+-----
+ index.css — object-cover LiveKit · miroir hôte local · min-height 16:9 bottom-chat
+ LiveKitVideoStage.tsx — classe vidéo object-cover
+
+================================================================================
+Fin MODIF 775 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 776 — Création salon : assistant chat Lya
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Formulaire CreateSalonModal trop dense — même UX guidée que le live avec Lya.
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/salonSetupChatFlow.ts
+ ─────────────────
+ • Phases chat salon · getVisibleSalonSetupExchange · résumé config
+
+ app/src/components/CreateSalonSetupChatModal.tsx
+ ─────────────────
+ • Modale chat Lya (accent violet) : YouTube · nom · accès · invite · lieu · genres · file · playlist · confirmation
+ • Pied d'étape fixe Continuer / Créer le salon · même API createSalon
+
+ app/src/components/CreateSalonModal.tsx
+ ─────────────────
+ • Réexport vers CreateSalonSetupChatModal (props inchangées)
+
+ app/src/locales/fr.json · en.json
+ ─────────────────
+ • salon.create.setupChat* (hello Lya, questions par étape, chips)
+
+FICHIERS MODIFIÉS
+-----
+ salonSetupChatFlow.ts · CreateSalonSetupChatModal.tsx · CreateSalonModal.tsx · fr.json · en.json
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 776 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 777 — Live Lya : étape Stripe Connect dans le chat
+Date : 2026-06-27
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Configuration Stripe affichée dans une modale séparée avant le chat Lya — UX fragmentée.
+
+CHANGEMENTS / FIX
+-----
+ liveSetupChatFlow.ts — phase stripe · setupChatAskStripe · intro visible
+ StartLiveSetupChatModal.tsx — panneau Stripe inline (onboard · skip · refresh) · pied Continuer si prêt
+ StartLiveMediaSetupModal.types.ts — props stripeStepRequired · stripeReady · onStripeSkip · onStripeRefresh
+ useStartLiveFlow.ts · StartLiveFlowModals.tsx — suppression LiveStripeConnectGate · Stripe dans le chat
+ fr.json · en.json — setupChatAskStripe · setupChatStripeOk · chip/change Stripe
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 777 — 2026-06-27
+================================================================================
+
+================================================================================
+MODIF 778 — Live Lya OBS : serveur + clé stream dans le chat
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Choix OBS dans le chat — l'utilisateur doit voir URL serveur et clé stream avant de continuer.
+
+CHANGEMENTS / FIX
+-----
+ liveSetupChatFlow.ts — phase obs_ingest · setupChatAskObsIngest
+ LiveCloudflareHostPanel.tsx — LiveObsIngestChatPanel (compact, getObsIngest, copier)
+ StartLiveSetupChatModal.tsx — OBS → étape ingest · pied Continuer → lieu
+ fr.json · en.json — setupChatAskObsIngest · setupChatObsIngestOk · setupObsInstructions
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 778 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 780 — Annulation MODIF 779 (YouTube salon Lya)
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande utilisateur : annuler la dernière modif (MODIF 779).
+
+CHANGEMENTS / FIX
+-----
+ Revert helpers needsSalonYoutubeSetupStep · garde-fous · auto-avance OAuth · setupChatYoutubeAlreadyOk
+
+================================================================================
+Fin MODIF 780 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 781 — Salon Lya : fil chat sans questions empilées
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En-tête chat salon : intro + plusieurs questions Lya empilées (YouTube + titre).
+
+CHANGEMENTS / FIX
+-----
+ salonSetupChatFlow.ts — intro = hello uniquement (pas tout l'historique bot)
+ CreateSalonSetupChatModal.tsx — init hello seul · chatReady · anti-doublon questions
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+MODIF 782 — Live Lya : vérification Stripe Connect fiable
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Dans le chat création live, s'assurer que le compte Stripe est bien vérifié (API connect-status) avant de proposer ou sauter l'étape ; éviter les messages Lya empilés.
+
+CHANGEMENTS / FIX
+-----
+ useStartLiveFlow.ts — verifyStripeForLiveSetup (config + connect-status + refreshUser) · re-vérif à l'ouverture du modal · stripeConnectReady
+ StartLiveFlowModals.tsx — stripeReady basé sur l'API (ready), pas seulement le profil user
+ StartLiveSetupChatModal.tsx — init hello seul · chatReady · deps stripeStatusReady/stripeStepRequired · anti-doublon questions
+ liveSetupChatFlow.ts — intro visible = hello uniquement (stripe/title)
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+MODIF 783 — Live / salon : 3 grandes villes les plus proches (sans GPS)
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sans géolocalisation, éviter la saisie libre de ville au hasard lors de la création live/salon.
+
+CHANGEMENTS / FIX
+-----
+ livesGeo.ts — findNearestMajorCities · resolveLocationAnchorCoords · matchesPresetCityCoords · suppression fallback hash coordsForCityName
+ SessionLocationPicker.tsx — mode ville = 3 chips métropoles proches (auto-sélection la plus proche) · plus de texte libre
+ CreateSalonSetupChatModal · StartLiveSetupChatModal · HomePage · DmPage · StartLiveFlowModals — profileCity + anchor carte
+ fr.json · en.json — nearbyMajorCitiesHint · majorCitySuggested · majorCityDistance
+ livesGeo.test.ts — tests distance / tri Montpellier
+
+BUILD (si vérifié)
+-----
+ app/ → npm run test (livesGeo) + npm run build → ✅
+
+================================================================================
+MODIF 784 — Grandes villes en DB + API nearest (live / salon)
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Référentiel des grandes villes en PostgreSQL ; proposer les 3 plus proches via API lors de la création live/salon.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/db/migrations/021_major_cities.sql — table major_cities
+ backend/src/lib/majorCitiesSeed.ts — ~60 métropoles FR + international
+ backend/src/lib/majorCities.ts — seed PG · cache · findNearestMajorCities
+ backend/src/routes/geo.ts — GET /geo/major-cities/nearest
+ backend/src/lib/pgStore.ts — ensureMajorCitiesSeeded au démarrage PG
+ app SessionLocationPicker — fetch API + repli local
+ app/lib/api/geo.ts — nearestMajorCities
+
+BUILD (si vérifié)
+-----
+ backend/ → npm test (majorCities) · app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 784 — 2026-06-28
+================================================================================

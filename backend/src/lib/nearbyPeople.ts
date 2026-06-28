@@ -130,6 +130,7 @@ export function getNearbyPeople(
       listenersCount?: number;
       platform?: MusicPlatform;
       currentListening?: PublicCurrentListening;
+      salonGenres?: string[];
     }
   ) => {
     if (u.id === viewerId || u.isGhostMode) return;
@@ -163,6 +164,9 @@ export function getNearbyPeople(
             platform: extra.platform ?? prev.listeningPlatform,
           }),
           currentListening: mergedListening,
+          favoriteGenres: extra.salonGenres?.length
+            ? [...extra.salonGenres]
+            : prev.favoriteGenres,
           ...(coords ? { latitude: coords.latitude, longitude: coords.longitude } : {}),
         });
       }
@@ -209,7 +213,11 @@ export function getNearbyPeople(
       }),
       currentListening,
       interests: u.interests?.length ? [...u.interests] : undefined,
-      favoriteGenres: u.favoriteGenres?.length ? [...u.favoriteGenres] : undefined,
+      favoriteGenres: extra?.salonGenres?.length
+        ? [...extra.salonGenres]
+        : u.favoriteGenres?.length
+          ? [...u.favoriteGenres]
+          : undefined,
       favoriteArtists: u.favoriteArtists?.length ? [...u.favoriteArtists] : undefined,
       ...(coords ? { latitude: coords.latitude, longitude: coords.longitude } : {}),
     });
@@ -239,6 +247,7 @@ export function getNearbyPeople(
       listenersCount: s.listenersCount,
       platform: s.platform,
       currentListening: listeningFromSalon(s.id),
+      ...(s.genres?.length ? { salonGenres: s.genres } : {}),
     });
   }
 

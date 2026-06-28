@@ -11,6 +11,8 @@ import type {
   TriggerAction,
   RewardType,
 } from '../lib/liveHostTypes';
+import { LiveChatConfigFields } from './LiveChatConfigFields';
+import { LiveObsIngestSettings } from './LiveCloudflareHostPanel';
 
 /* ────────────────────────────────────────────────────────────────────────── */
 /*  Helpers                                                                   */
@@ -557,6 +559,9 @@ interface LiveHostPanelProps {
   liveStartedAt: number;
   initialTab?: LiveHostPanelTab;
   chatConfig?: { noLinksForParticipants?: boolean; slowModeSeconds?: number; subscribersOnly?: boolean };
+  token?: string | null;
+  isCloudflareStream?: boolean;
+  obsIngestLive?: boolean;
   onClose: () => void;
 }
 
@@ -568,6 +573,9 @@ export function LiveHostPanel({
   liveStartedAt,
   initialTab = 'dashboard',
   chatConfig: initialChatConfig,
+  token,
+  isCloudflareStream = false,
+  obsIngestLive = false,
   onClose,
 }: LiveHostPanelProps) {
   const [activeTab, setActiveTab] = useState<PanelTab>(initialTab);
@@ -710,6 +718,9 @@ export function LiveHostPanel({
 
           {/* Content */}
           <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
+            {activeTab === 'config' && token && isCloudflareStream ? (
+              <LiveObsIngestSettings token={token} liveId={liveId} obsIngestLive={obsIngestLive} />
+            ) : null}
             {activeTab === 'dashboard' && (
               <DashboardTab stats={stats} goals={goalsWithProgress} liveId={liveId} />
             )}
@@ -717,93 +728,14 @@ export function LiveHostPanel({
             {activeTab === 'rewards' && <RewardsTab liveId={liveId} />}
             {activeTab === 'triggers' && <TriggersTab />}
             {activeTab === 'config' && (
-              <div className="flex flex-col gap-3">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
-                  Modération du chat
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  Modération chat
                 </p>
-
-                {/* Liens interdits */}
-                <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-[#1e1e2f] bg-[#12121a] p-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-white">Liens interdits</p>
-                    <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">
-                      Supprime automatiquement les liens (http, www…) des messages des participants non modérateurs.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={chatConfig.noLinksForParticipants}
-                    onClick={() => emitConfigUpdate({ noLinksForParticipants: !chatConfig.noLinksForParticipants })}
-                    className={`shrink-0 w-11 h-6 rounded-full border transition-colors ${
-                      chatConfig.noLinksForParticipants
-                        ? 'bg-purple-600 border-purple-500'
-                        : 'bg-[#1e1e2f] border-[#2a2a3a]'
-                    }`}
-                  >
-                    <span
-                      className={`block w-4 h-4 rounded-full bg-white shadow transition-transform mx-1 ${
-                        chatConfig.noLinksForParticipants ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </label>
-
-                {/* Mode lent */}
-                <div className="rounded-xl border border-[#1e1e2f] bg-[#12121a] p-3 space-y-2">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white">Mode lent</p>
-                      <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">
-                        Délai minimum entre deux messages d&apos;un même participant (0 = désactivé).
-                      </p>
-                    </div>
-                    <div className="shrink-0 flex items-center gap-1.5">
-                      <input
-                        type="number"
-                        min={0}
-                        max={120}
-                        step={5}
-                        value={chatConfig.slowModeSeconds}
-                        onChange={(e) => emitConfigUpdate({ slowModeSeconds: Math.max(0, Math.min(120, Number(e.target.value) || 0)) })}
-                        className="w-16 px-2 py-1 rounded-lg bg-[#0b0b0f] border border-[#2a2a3a] text-white text-sm text-center focus:border-purple-500/60 focus:outline-none"
-                      />
-                      <span className="text-[11px] text-gray-500">s</span>
-                    </div>
-                  </div>
-                  {chatConfig.slowModeSeconds > 0 && (
-                    <p className="text-[11px] text-purple-400">
-                      ⏱ Mode lent actif : {chatConfig.slowModeSeconds}s entre chaque message
-                    </p>
-                  )}
-                </div>
-
-                {/* Abonnés uniquement */}
-                <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-[#1e1e2f] bg-[#12121a] p-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-white">Abonnés uniquement</p>
-                    <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">
-                      Réserve le chat aux abonnés de votre profil.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={chatConfig.subscribersOnly}
-                    onClick={() => emitConfigUpdate({ subscribersOnly: !chatConfig.subscribersOnly })}
-                    className={`shrink-0 w-11 h-6 rounded-full border transition-colors ${
-                      chatConfig.subscribersOnly
-                        ? 'bg-purple-600 border-purple-500'
-                        : 'bg-[#1e1e2f] border-[#2a2a3a]'
-                    }`}
-                  >
-                    <span
-                      className={`block w-4 h-4 rounded-full bg-white shadow transition-transform mx-1 ${
-                        chatConfig.subscribersOnly ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </label>
+                <LiveChatConfigFields
+                  value={chatConfig}
+                  onChange={(patch) => emitConfigUpdate(patch)}
+                />
               </div>
             )}
           </div>

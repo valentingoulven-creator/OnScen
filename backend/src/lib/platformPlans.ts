@@ -4,6 +4,12 @@ import { isCloudflareStreamConfigured } from './cloudflareStream';
 import { isLiveKitConfigured } from './livekit';
 import { getActiveSubscription, PLATFORM_CREATOR_ID } from './subscriptions';
 
+/**
+ * Phase test produit : OBS / Cloudflare Stream ouverts à tous les comptes.
+ * Repasser à `false` pour réactiver la restriction SoundyUltra.
+ */
+export const OBS_OPEN_TO_ALL = true;
+
 export type PlatformPlanId = 'free' | 'soundy_plus' | 'soundy_ultra';
 
 export interface PlatformPlanLimits {
@@ -196,6 +202,7 @@ export function assertCanJoinLiveAsViewer(
 export function assertCanUseCloudflareObs(hostId: string): void {
   const user = db.users.get(hostId);
   if (user?.isAdmin) return;
+  if (OBS_OPEN_TO_ALL) return;
   const plan = getUserPlatformPlan(hostId);
   if (!plan.limits.allowCloudflare || !plan.limits.allowObs) {
     throw new PlatformPlanError(
@@ -203,6 +210,17 @@ export function assertCanUseCloudflareObs(hostId: string): void {
       'La diffusion OBS (Cloudflare Stream) est réservée à l’abonnement SoundyUltra.'
     );
   }
+}
+
+export function isObsAllowedForUser(_userId: string): boolean {
+  if (OBS_OPEN_TO_ALL) return isCloudflareStreamConfigured();
+  return getUserPlatformPlan(_userId).limits.allowObs;
+}
+
+export function isCloudflareStreamAllowedForUser(_userId: string): boolean {
+  if (OBS_OPEN_TO_ALL) return isCloudflareStreamConfigured();
+  const plan = getUserPlatformPlan(_userId);
+  return plan.limits.allowCloudflare && isCloudflareStreamConfigured();
 }
 
 export function resolveStreamModeForHost(hostId: string): LiveStreamMode {

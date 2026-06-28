@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api, ApiRequestError } from './api';
 import { getLivesGeo, isFixedMapGeoSource, type LivesGeoPrefs } from './livesGeo';
 import type { CreateSalonPlaylistSelection } from '../components/CreateSalonPlaylistPicker';
 
@@ -69,8 +69,17 @@ export function translateSalonCreateError(
   e: unknown,
   _platform: 'youtube' = 'youtube'
 ): string {
+  if (e instanceof ApiRequestError) {
+    if (e.code === 'SALON_ALREADY_ACTIVE') {
+      return t('salon.create.errorAlreadyActive');
+    }
+    if (e.code === 'HOST_PLATFORM_NOT_LINKED') {
+      return t('salon.create.errorPlatformNotLinkedYoutube');
+    }
+    if (e.message) return e.message;
+  }
   if (e instanceof Error && e.message) return e.message;
-  return t('salon.create.errorGeneric', { defaultValue: 'Impossible de créer le salon.' });
+  return t('salon.create.errorFailed', { defaultValue: 'Impossible de créer le salon.' });
 }
 
 /** Charge la playlist après entrée salon (socket `salon_updated`). */

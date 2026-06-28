@@ -105,6 +105,17 @@ describe('nearbyPanelSettings favorites', () => {
     expect(getNearbyPanelPreferences().musicalAffinitiesOnly).toBe(true);
   });
 
+  it('persiste salonAffinityGenres', () => {
+    setNearbyPanelPreferences({
+      musicalAffinitiesOnly: true,
+      salonAffinityGenres: ['Jazz', 'Rock'],
+      salonAffinityGenreOptions: ['Jazz', 'Rock', 'Pop'],
+    });
+    const prefs = getNearbyPanelPreferences();
+    expect(prefs.salonAffinityGenres).toEqual(['Jazz', 'Rock']);
+    expect(prefs.salonAffinityGenreOptions).toEqual(['Jazz', 'Rock', 'Pop']);
+  });
+
   it('applyFavoritesFirst place les favoris en tête', () => {
     const items = ['a', 'b', 'c', 'd'];
     const fav = new Set(['b', 'd']);

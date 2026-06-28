@@ -27,18 +27,17 @@ export function useStartLiveFlow({
   isActive = true,
   initialGeo,
 }: UseStartLiveFlowOptions) {
-  const { token, user, setUserFromProfile } = useAuth();
+  const { token, user, setUserFromProfile, refreshUser } = useAuth();
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [mediaSetupOpen, setMediaSetupOpen] = useState(false);
   const [mediaSetupGeneration, setMediaSetupGeneration] = useState(0);
-  const [stripeGateOpen, setStripeGateOpen] = useState(false);
-  const [stripeGatePending, setStripeGatePending] = useState(false);
   const [legalGateOpen, setLegalGateOpen] = useState(false);
   const [geo, setGeo] = useState<LivesGeoPrefs>(() => initialGeo ?? getLivesGeo());
 
   const [stripeChecked, setStripeChecked] = useState(false);
   const [stripeSimulation, setStripeSimulation] = useState(false);
+  const [stripeConnectReady, setStripeConnectReady] = useState(false);
   const [stripeChargesEnabled, setStripeChargesEnabled] = useState<boolean | null>(null);
 
   const resolvedGeo = useMemo(
@@ -50,28 +49,33 @@ export function useStartLiveFlow({
     if (initialGeo) setGeo(initialGeo);
   }, [initialGeo?.latitude, initialGeo?.longitude, initialGeo?.label, initialGeo?.source]);
 
+  const verifyStripeForLiveSetup = useCallback(async () => {
+    if (!token) return;
+    setStripeChecked(false);
+    try {
+      const config = await api.getDonationsConfig(token);
+      setStripeSimulation(config.simulation ?? false);
+      if (config.simulation) {
+        setStripeConnectReady(true);
+        setStripeChargesEnabled(true);
+        return;
+      }
+      const status = await api.getStripeConnectStatus(token);
+      setStripeConnectReady(status.ready === true);
+      setStripeChargesEnabled(status.chargesEnabled ?? null);
+      await refreshUser();
+    } catch {
+      setStripeConnectReady(false);
+      setStripeChargesEnabled(null);
+    } finally {
+      setStripeChecked(true);
+    }
+  }, [refreshUser, token]);
+
   useEffect(() => {
-    if (!isActive || !token || stripeChecked) return;
-    api
-      .getDonationsConfig(token)
-      .then((config) => {
-        setStripeSimulation(config.simulation ?? false);
-        if (config.simulation) {
-          setStripeChecked(true);
-          return;
-        }
-        if (user?.stripeConnectAccountId) {
-          api
-            .getStripeConnectStatus(token)
-            .then((s) => setStripeChargesEnabled(s.chargesEnabled ?? false))
-            .catch(() => setStripeChargesEnabled(null))
-            .finally(() => setStripeChecked(true));
-        } else {
-          setStripeChecked(true);
-        }
-      })
-      .catch(() => setStripeChecked(true));
-  }, [isActive, token, user?.stripeConnectAccountId, stripeChecked]);
+    if (!isActive || !token) return;
+    void verifyStripeForLiveSetup();
+  }, [isActive, token, mediaSetupOpen, verifyStripeForLiveSetup]);
 
   useEffect(() => {
     const syncGeo = () => setGeo(getLivesGeo());
@@ -87,10 +91,13 @@ export function useStartLiveFlow({
       const lat = prefs?.startLatitude ?? resolvedGeo.latitude;
       const lon = prefs?.startLongitude ?? resolvedGeo.longitude;
       const skipped = isStripeConnectSkipped() || stripeSimulation;
-      const { live } = await api.startLive(token, `Live — ${user?.username}`, {
+      const title =
+        prefs?.liveTitle?.trim() || `Live — ${user?.username ?? 'Live'}`;
+      const { live } = await api.startLive(token, title, {
         latitude: lat,
         longitude: lon,
         stripeConnectSkipped: skipped || undefined,
+        useObs: prefs?.useObs || undefined,
       });
       clearLiveMediaDraft();
       setMediaSetupGeneration((g) => g + 1);
@@ -102,24 +109,17 @@ export function useStartLiveFlow({
     }
   }, [onOpenLive, resolvedGeo.latitude, resolvedGeo.longitude, stripeSimulation, token, user?.username]);
 
-  const continueLiveStartAfterStripe = useCallback(() => {
-    if (!user?.liveTermsAcceptedAt) {
-      setLegalGateOpen(true);
-      return;
-    }
+  const proceedToMediaSetup = useCallback(() => {
+    setLegalGateOpen(false);
     setMediaSetupOpen(true);
-  }, [user?.liveTermsAcceptedAt]);
+  }, []);
+
+  const refreshStripeStatus = useCallback(async () => {
+    await verifyStripeForLiveSetup();
+  }, [verifyStripeForLiveSetup]);
 
   const handleStripeConnectSkip = useCallback(() => {
     setStripeConnectSkipped();
-    setStripeGateOpen(false);
-    continueLiveStartAfterStripe();
-  }, [continueLiveStartAfterStripe]);
-
-  const proceedToMediaSetup = useCallback(() => {
-    setStripeGateOpen(false);
-    setLegalGateOpen(false);
-    setMediaSetupOpen(true);
   }, []);
 
   const startLive = useCallback(() => {
@@ -130,34 +130,13 @@ export function useStartLiveFlow({
       return;
     }
 
-    if (!stripeSimulation && !isStripeConnectSkipped()) {
-      if (!user?.stripeConnectAccountId) {
-        setStripeGatePending(false);
-        setStripeGateOpen(true);
-        return;
-      }
-      if (stripeChargesEnabled === false) {
-        setStripeGatePending(true);
-        setStripeGateOpen(true);
-        return;
-      }
-    }
-
     if (!user?.liveTermsAcceptedAt) {
       setLegalGateOpen(true);
       return;
     }
 
     setMediaSetupOpen(true);
-  }, [
-    hasActiveSalon,
-    starting,
-    stripeChargesEnabled,
-    stripeSimulation,
-    token,
-    user?.liveTermsAcceptedAt,
-    user?.stripeConnectAccountId,
-  ]);
+  }, [hasActiveSalon, starting, token, user?.liveTermsAcceptedAt]);
 
   const dismissStartError = useCallback(() => setStartError(null), []);
 
@@ -174,12 +153,14 @@ export function useStartLiveFlow({
     mediaSetupGeneration,
     launchLiveAfterSetup,
     geo: resolvedGeo,
-    stripeGateOpen,
-    setStripeGateOpen,
-    stripeGatePending,
     handleStripeConnectSkip,
+    refreshStripeStatus,
     legalGateOpen,
     setLegalGateOpen,
     proceedToMediaSetup,
+    stripeSimulation,
+    stripeConnectReady,
+    stripeChargesEnabled,
+    stripeChecked,
   };
 }

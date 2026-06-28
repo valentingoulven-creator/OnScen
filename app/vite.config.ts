@@ -177,6 +177,9 @@ export default defineConfig(({ mode }) => {
   ],
   server: {
     port: 5173,
+    // Windows : sans host explicite, Vite peut n’écouter que sur [::1] → localhost (127.0.0.1) bloqué.
+    host: '127.0.0.1',
+    strictPort: true,
     proxy: {
       '/api': msdevProxy,
       '/uploads': msdevProxy,

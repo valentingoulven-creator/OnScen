@@ -765,8 +765,18 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
 
   // ── User position marker (bonhomme bleu) ────────────────────────────────
   useEffect(() => {
-    if (!mapInstance.current || !userPosition) return;
-    if (!isValidLatLng(userPosition[0], userPosition[1])) return;
+    if (!mapInstance.current) return;
+    if (!userPosition || !isValidLatLng(userPosition[0], userPosition[1])) {
+      if (userMarkerRef.current) {
+        try {
+          userMarkerRef.current.remove();
+        } catch {
+          /* map may be torn down */
+        }
+        userMarkerRef.current = null;
+      }
+      return;
+    }
     const safe = sanitizeLatLngTuple(userPosition[0], userPosition[1]);
     try {
       if (!userMarkerRef.current) {

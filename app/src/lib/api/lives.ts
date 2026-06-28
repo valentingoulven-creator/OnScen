@@ -54,7 +54,12 @@ export const livesApi = {
   startLive: (
     token: string,
     title?: string,
-    opts?: { latitude?: number; longitude?: number; stripeConnectSkipped?: boolean }
+    opts?: {
+      latitude?: number;
+      longitude?: number;
+      stripeConnectSkipped?: boolean;
+      useObs?: boolean;
+    }
   ) =>
     request<{ live: import('../../types').Live }>(
       '/lives/start',
@@ -65,6 +70,7 @@ export const livesApi = {
           latitude: opts?.latitude,
           longitude: opts?.longitude,
           stripeConnectSkipped: opts?.stripeConnectSkipped,
+          useObs: opts?.useObs,
         }),
       },
       token
@@ -90,6 +96,7 @@ export const livesApi = {
   getLiveStreamCapabilities: (token: string) =>
     request<{
       cloudflareStreamAvailable: boolean;
+      cloudflareConfigured?: boolean;
       livekitAvailable: boolean;
       obsAllowed?: boolean;
       platformPlanId?: string;
@@ -105,11 +112,21 @@ export const livesApi = {
   getCloudflareIngest: (token: string, liveId: string) =>
     request<{
       rtmpsUrl: string;
+      rtmpUrl?: string;
       streamKey: string;
       playbackUrl: string;
       whipUrl?: string;
       liveInputId: string;
     }>(`/lives/${liveId}/cloudflare-ingest`, {}, token),
+
+  getCloudflareStreamStatus: (token: string, liveId: string) =>
+    request<{
+      live: boolean;
+      videoUid: string | null;
+      status?: string;
+      liveInputId: string;
+      playbackUrl?: string;
+    }>(`/lives/${liveId}/cloudflare-stream-status`, {}, token),
 
   getLiveKitToken: (token: string, liveId: string) =>
     request<{

@@ -1,5 +1,16 @@
 import { request } from './core';
 
+export interface MajorCityDto {
+  id: string;
+  name: string;
+  countryCode: string;
+  label: string;
+  latitude: number;
+  longitude: number;
+  postalCode?: string | null;
+  distanceKm: number;
+}
+
 export const geoApi = {
   updateGeo: (token: string, latitude: number, longitude: number) =>
     request<{ blurredLatitude: number; blurredLongitude: number }>(
@@ -36,5 +47,14 @@ export const geoApi = {
       lives: import('../../types').Live[];
       people: import('../../types').NearbyPerson[];
     }>(`/geo/nearby?${params}`, {}, token);
-  }
+  },
+
+  nearestMajorCities: (latitude: number, longitude: number, limit = 3, token?: string | null) => {
+    const params = new URLSearchParams({
+      latitude: String(latitude),
+      longitude: String(longitude),
+      limit: String(limit),
+    });
+    return request<{ cities: MajorCityDto[] }>(`/geo/major-cities/nearest?${params}`, {}, token);
+  },
 } as const;

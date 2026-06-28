@@ -2511,6 +2511,13 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   grid-template-columns: 1fr;
 }
 
+.live-video-stage-area > .absolute.inset-0,
+.live-video-stage-area .lk-room-container {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
 .live-video-stage-overlay {
   grid-area: 1 / 1;
   display: flex;
@@ -2535,9 +2542,19 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   object-fit: cover;
 }
 
-/* LiveKit — cadre entier visible (letterbox / pillarbox) */
+/* LiveKit caméra — remplir la scène (OBS/Cloudflare restent en contain) */
 .live-video-container .live-video-stage-area .lk-participant-media-video,
 .live-video-container .live-video-stage-area video.lk-live-stage-video {
+  object-fit: cover;
+  object-position: center;
+}
+
+.live-video-container .live-video-stage-area video.lk-live-stage-video[data-lk-local-participant='true'] {
+  transform: scaleX(-1);
+}
+
+/* OBS / Cloudflare Stream — scène complète (pas de crop object-cover) */
+.live-video-container .live-video-stage-area video.live-cloudflare-stage-video {
   object-fit: contain;
 }
 
@@ -2558,13 +2575,12 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 }
 
 .room-theater-layout--bottom-chat .room-theater-video-stage {
-  min-height: 0;
   flex: 1 1 0;
+  min-height: min(38dvh, calc(100vw * 9 / 16));
 }
 
 .ms-salon-fullscreen-overlay .room-theater-layout--bottom-chat .room-theater-video-stage {
-  min-height: 0;
-  flex: 1 1 0;
+  min-height: min(36dvh, calc(100vw * 9 / 16));
 }
 
 .room-theater-bottom-chat-dock .room-theater-chat-dock__body {
@@ -3197,7 +3213,8 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   width: 100%;
   height: 100%;
   max-height: none;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center;
 }
 
 /* Live — mode cinéma paysage (fallback PWA / iOS sans Fullscreen API) */
@@ -3244,7 +3261,8 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   width: 100%;
   height: 100%;
   max-height: none;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center;
 }
 
 /* ── APPWEB — Desktop / large-screen layout ─────────────────────────── */

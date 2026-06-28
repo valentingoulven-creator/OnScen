@@ -538,6 +538,8 @@ export function HomePage({
     nearbyPanelPrefs.livesOnly,
     nearbyPanelPrefs.sortBy,
     nearbyPanelPrefs.musicalAffinitiesOnly,
+    nearbyPanelPrefs.salonAffinityGenres,
+    nearbyPanelPrefs.salonAffinityGenreOptions,
     viewerTastes,
     nearbySortOptions,
   ]);
@@ -591,14 +593,10 @@ export function HomePage({
   );
 
   /**
-   * Quand un filtre est actif, forcer l'affichage du point de géolocalisation
-   * utilisateur même si le GPS n'est pas disponible (mode ville ou permission refusée).
-   * Fallback sur `center` (= position GPS ou centre ville choisie).
+   * Point « ma position » : GPS réel uniquement ; masqué en mode invisible (fantôme).
    */
-  const forceShowDot = anyMapFilterActive;
-  const mapUserPosition: [number, number] | null = forceShowDot
-    ? (userPosition ?? center)
-    : userPosition;
+  const mapUserPosition: [number, number] | null =
+    user?.isGhostMode === true || !userPosition ? null : userPosition;
 
   /** Masque capitales globe/carte plate quand seul le filtre Évènement est actif. */
   const mapEventsOnly = eventsFilterOn && !livesFilterOn && !salonFilterOn;
@@ -1007,7 +1005,9 @@ export function HomePage({
       setSalonFilterCriteria(criteria);
       setNearbyPanelPreferences({
         sortBy: criteria.sortBy,
-        musicalAffinitiesOnly: criteria.musicalAffinitiesOnly,
+        musicalAffinitiesOnly: criteria.affinityGenres != null,
+        salonAffinityGenres: criteria.affinityGenres,
+        salonAffinityGenreOptions: criteria.affinityGenreOptions,
       });
       setShowSalonFilterSheet(false);
       pendingMapFilterNearbyReloadRef.current = true;
@@ -2032,6 +2032,14 @@ export function HomePage({
     setSelected(null);
   }, [loadNearby, onOpenSalon, setSafeCenter]);
 
+  const openExistingHostedSalon = useCallback(
+    (salonId: string) => {
+      setShowCreateSalon(false);
+      onOpenSalon?.(salonId, user?.salonTitle, true);
+    },
+    [onOpenSalon, user?.salonTitle]
+  );
+
   useEffect(() => {
     if (!selected || !token || !user) return;
     if (selected.canJoin === false && selected.hostId !== user.id) return;
@@ -2139,6 +2147,7 @@ export function HomePage({
           open={showSalonFilterSheet}
           initialCriteria={salonFilterCriteria}
           profileCity={user?.city}
+          profileGenres={user?.favoriteGenres}
           onClose={() => setShowSalonFilterSheet(false)}
           onApply={applySalonFilter}
           onPreviewCity={previewSalonFilterCity}
@@ -2151,11 +2160,16 @@ export function HomePage({
           username={user.username}
           connectedPlatforms={user.connectedPlatforms}
           platformLinks={user.platformLinks}
+          profileGenres={user.favoriteGenres}
+          activeSalonId={user.salonId ?? null}
+          hostIsLive={Boolean(user.isLive && user.liveId)}
           open={showCreateSalon}
           fallbackLatitude={nearbyQueryCenter[0]}
           fallbackLongitude={nearbyQueryCenter[1]}
+          profileCity={user.city}
           onClose={() => setShowCreateSalon(false)}
           onCreated={onSalonCreated}
+          onOpenExistingSalon={openExistingHostedSalon}
           onUserUpdated={setUserFromProfile}
           onDeferredError={setToastMsg}
         />

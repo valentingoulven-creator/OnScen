@@ -7,6 +7,7 @@ import {
   canAccessArchivedLives,
   getHostDailyLiveMinutesUsed,
   getUserPlatformPlan,
+  OBS_OPEN_TO_ALL,
   PlatformPlanError,
 } from './platformPlans';
 import { recordCreatorSubscription } from './subscriptions';
@@ -81,7 +82,11 @@ describe('platformPlans', () => {
     expect(() => assertCanUseCloudflareObs('host1')).not.toThrow();
   });
 
-  it('free refuse OBS', () => {
+  it('free refuse OBS when OBS_OPEN_TO_ALL est false', () => {
+    if (OBS_OPEN_TO_ALL) {
+      expect(() => assertCanUseCloudflareObs('host1')).not.toThrow();
+      return;
+    }
     expect(() => assertCanUseCloudflareObs('host1')).toThrow(PlatformPlanError);
   });
 

@@ -902,6 +902,7 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
     accessMode,
     allowedUserIds,
     isPublic,
+    genres,
   } = req.body;
 
   if (latitude === undefined || longitude === undefined) {
@@ -931,6 +932,14 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
 
   const guestIds = Array.isArray(allowedUserIds)
     ? allowedUserIds.map(String).filter((id: string) => id !== userId && db.users.has(id))
+    : [];
+
+  const salonGenres = Array.isArray(genres)
+    ? genres
+        .map(String)
+        .map((g) => g.trim())
+        .filter(Boolean)
+        .slice(0, 10)
     : [];
 
   const salonId =
@@ -975,6 +984,7 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
     allowedUserIds: [userId, ...guestIds],
     allowQueue: allowQueue ?? true,
     createdAt: Date.now(),
+    ...(salonGenres.length > 0 ? { genres: salonGenres } : {}),
   };
 
   normalizeSalonAccess(salon);
@@ -1061,5 +1071,6 @@ export function publicSalon(s: Salon, viewerId?: string) {
     queue: ensureSalonQueue(s.id),
     pendingProposalsCount: isHost ? getPendingProposals(s.id).length : undefined,
     createdAt: s.createdAt,
+    genres: s.genres?.length ? [...s.genres] : undefined,
   };
 }

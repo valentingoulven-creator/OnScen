@@ -415,6 +415,8 @@ export interface RoomTheaterLayoutProps {
   chatTitleIcon?: ReactNode;
   /** Actions hôte dans l'en-tête du chat ancré (ex. participants). */
   chatHeaderExtra?: ReactNode;
+  /** Barre hôte sous le titre du chat bas (arrêter live, réglages, dons). */
+  chatHostToolbar?: ReactNode;
   /** Contenu avant le titre (ex. onglets salon Chat / File). */
   chatHeaderLeading?: ReactNode;
   /** Bloc identité salon / salle, fusionné avec les onglets dans la barre pleine largeur. */
@@ -468,6 +470,7 @@ export function RoomTheaterLayout({
   chatTitle = 'Chat',
   chatTitleIcon,
   chatHeaderExtra,
+  chatHostToolbar,
   chatHeaderLeading,
   topBarStart,
   topBarEnd,
@@ -679,6 +682,11 @@ export function RoomTheaterLayout({
           </button>
         </div>
       )}
+      {chatHostToolbar ? (
+        <div className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 border-b border-[#1e1e2f] bg-[#0f0f14]/95 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {chatHostToolbar}
+        </div>
+      ) : null}
       {(!useVideoStack || !chatMinimized) && (
         <DockChatBody chat={chat} chatInput={chatInput ? <div className="pointer-events-auto">{chatInput}</div> : undefined} />
       )}

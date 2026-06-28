@@ -25,6 +25,7 @@ import {
   MAX_NEARBY_SALONS,
   setNearbyCached,
 } from '../lib/nearbyResponseCache';
+import { findNearestMajorCities } from '../lib/majorCities';
 
 export const geoRouter = Router();
 
@@ -362,6 +363,28 @@ async function searchNominatim(q: string, limit: number, acceptLanguage: string)
     };
   });
 }
+
+/** Grandes villes les plus proches (création live / salon sans GPS). */
+geoRouter.get('/major-cities/nearest', geocodeLimiter, async (req: Request, res: Response) => {
+  const locale = parseRequestLocale(req.headers['accept-language']);
+  const lat = parseFloat(String(req.query.latitude ?? ''));
+  const lon = parseFloat(String(req.query.longitude ?? ''));
+  const limitRaw = parseInt(String(req.query.limit ?? '3'), 10);
+  const limit = Number.isFinite(limitRaw) ? limitRaw : 3;
+
+  if (!isValidLatLng(lat, lon)) {
+    res.status(400).json({ error: geoError('invalidCoords', locale) });
+    return;
+  }
+
+  try {
+    const cities = await findNearestMajorCities(lat, lon, limit);
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.json({ cities });
+  } catch {
+    res.status(500).json({ error: geoError('geocodeUnavailable', locale) });
+  }
+});
 
 geoRouter.get('/geocode', geocodeLimiter, async (req: Request, res: Response) => {
   const locale = parseRequestLocale(req.headers['accept-language']);

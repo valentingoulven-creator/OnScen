@@ -2,7 +2,9 @@ import type { Live, NearbyPerson, Salon } from '../types';
 import {
   countMusicalAffinityMatches,
   hasMusicalAffinity,
+  personMatchesSalonGenreFilter,
   type ProfileTastes,
+  type SalonAffinityGenreFilter,
   viewerHasTasteProfile,
 } from './musicAffinities';
 import { isValidLatLng } from './mapCoords';
@@ -29,6 +31,10 @@ export interface NearbyPanelPreferences {
   favoritesFirst: boolean;
   /** Afficher uniquement les personnes avec au moins une affinité musicale (profil). */
   musicalAffinitiesOnly: boolean;
+  /** Filtre genres carte Salon (null = désactivé). */
+  salonAffinityGenres: SalonAffinityGenreFilter | null;
+  /** Genres proposés lors du dernier réglage filtre Salon (référence pour « Tous »). */
+  salonAffinityGenreOptions: string[];
 }
 
 /** Filtre par rayon actif lorsque le tri est « distance ». */
@@ -92,6 +98,8 @@ const DEFAULT_PREFS: Omit<NearbyPanelPreferences, 'radiusKm' | 'filterByDistance
   sortBy: 'distance',
   favoritesFirst: true,
   musicalAffinitiesOnly: false,
+  salonAffinityGenres: null,
+  salonAffinityGenreOptions: [],
 };
 
 /** Réordonne en plaçant les favoris en tête (ordre relatif conservé). */
@@ -118,15 +126,33 @@ export function getNearbyPanelPreferences(): NearbyPanelPreferences {
   /** OFF par défaut : on montre favoris + suivis. Activé = filtre par rayon. */
   let storiesFilterByDistance = false;
   let musicalAffinitiesOnly = DEFAULT_PREFS.musicalAffinitiesOnly;
+  let salonAffinityGenres: SalonAffinityGenreFilter | null = DEFAULT_PREFS.salonAffinityGenres;
+  let salonAffinityGenreOptions = DEFAULT_PREFS.salonAffinityGenreOptions;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as Partial<NearbyPanelPreferences>;
+      const parsed = JSON.parse(raw) as Partial<NearbyPanelPreferences> & {
+        salonAffinityGenres?: SalonAffinityGenreFilter | null;
+        salonAffinityGenreOptions?: string[];
+      };
       if (typeof parsed.filterByDistance === 'boolean') {
         storiesFilterByDistance = parsed.filterByDistance;
       }
       if (typeof parsed.musicalAffinitiesOnly === 'boolean') {
         musicalAffinitiesOnly = parsed.musicalAffinitiesOnly;
+      }
+      if (parsed.salonAffinityGenres === 'all') {
+        salonAffinityGenres = 'all';
+      } else if (Array.isArray(parsed.salonAffinityGenres)) {
+        salonAffinityGenres =
+          parsed.salonAffinityGenres.length > 0 ? parsed.salonAffinityGenres : null;
+      } else if (musicalAffinitiesOnly && parsed.salonAffinityGenres === undefined) {
+        salonAffinityGenres = 'all';
+      }
+      if (Array.isArray(parsed.salonAffinityGenreOptions)) {
+        salonAffinityGenreOptions = parsed.salonAffinityGenreOptions.filter(
+          (g): g is string => typeof g === 'string' && g.trim().length > 0
+        );
       }
       if (parsed.platformFilter === 'youtube' || parsed.platformFilter === 'all') {
         platformFilter = parsed.platformFilter;
@@ -158,6 +184,8 @@ export function getNearbyPanelPreferences(): NearbyPanelPreferences {
     sortBy,
     favoritesFirst: true,
     musicalAffinitiesOnly,
+    salonAffinityGenres,
+    salonAffinityGenreOptions,
   };
 }
 
@@ -170,6 +198,8 @@ export function setNearbyPanelPreferences(
       | 'sortBy'
       | 'filterByDistance'
       | 'musicalAffinitiesOnly'
+      | 'salonAffinityGenres'
+      | 'salonAffinityGenreOptions'
     >
   >
 ): NearbyPanelPreferences {
@@ -194,6 +224,8 @@ export function setNearbyPanelPreferences(
       livesOnly: next.livesOnly,
       sortBy: next.sortBy,
       musicalAffinitiesOnly: next.musicalAffinitiesOnly,
+      salonAffinityGenres: next.salonAffinityGenres,
+      salonAffinityGenreOptions: next.salonAffinityGenreOptions,
     })
   );
   window.dispatchEvent(new Event(NEARBY_PANEL_CHANGED_EVENT));
@@ -303,19 +335,46 @@ export function filterNearbySalonEntries(
 
 export function filterNearbyPeople(
   people: NearbyPerson[],
-  prefs: Pick<NearbyPanelPreferences, 'platformFilter' | 'livesOnly' | 'musicalAffinitiesOnly'>,
+  prefs: Pick<
+    NearbyPanelPreferences,
+    | 'platformFilter'
+    | 'livesOnly'
+    | 'musicalAffinitiesOnly'
+    | 'salonAffinityGenres'
+    | 'salonAffinityGenreOptions'
+  >,
   viewerTastes?: ProfileTastes
 ): NearbyPerson[] {
+  const salonGenreFilter =
+    prefs.musicalAffinitiesOnly && prefs.salonAffinityGenres != null
+      ? prefs.salonAffinityGenres
+      : null;
   const affinityFilter =
-    prefs.musicalAffinitiesOnly && viewerTastes && viewerHasTasteProfile(viewerTastes);
+    prefs.musicalAffinitiesOnly &&
+    !salonGenreFilter &&
+    viewerTastes &&
+    viewerHasTasteProfile(viewerTastes);
+  const genreOptions =
+    prefs.salonAffinityGenreOptions.length > 0
+      ? prefs.salonAffinityGenreOptions
+      : (viewerTastes?.favoriteGenres ?? []);
 
   return people.filter((p) => {
     if (prefs.livesOnly && !p.isLive) return false;
     if (prefs.platformFilter !== 'all') {
       if (p.listeningPlatform !== prefs.platformFilter) return false;
     }
-    if (affinityFilter && !hasMusicalAffinity(viewerTastes!, p)) return false;
-    if (prefs.musicalAffinitiesOnly && viewerTastes && !viewerHasTasteProfile(viewerTastes)) {
+    if (salonGenreFilter) {
+      if (genreOptions.length === 0) return false;
+      if (!personMatchesSalonGenreFilter(p, salonGenreFilter, genreOptions)) return false;
+    } else if (affinityFilter && !hasMusicalAffinity(viewerTastes!, p)) {
+      return false;
+    } else if (
+      prefs.musicalAffinitiesOnly &&
+      !salonGenreFilter &&
+      viewerTastes &&
+      !viewerHasTasteProfile(viewerTastes)
+    ) {
       return false;
     }
     return true;

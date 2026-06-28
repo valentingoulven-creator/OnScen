@@ -101,7 +101,7 @@ function LiveVideoShrinkIcon() {
 }
 
 const LIVEKIT_VIDEO_CLASS =
-  'lk-live-stage-video absolute inset-0 w-full h-full object-contain bg-black z-10';
+  'lk-live-stage-video absolute inset-0 w-full h-full object-cover object-center bg-black z-10';
 
 type LiveKitSession = {
   token: string;
@@ -112,10 +112,12 @@ type LiveKitSession = {
 
 function LiveKitHostPublisher({
   publishActive,
+  micEnabled,
   onPublishChange,
   onError,
 }: {
   publishActive: boolean;
+  micEnabled: boolean;
   onPublishChange: (active: boolean) => void;
   onError: (message: string) => void;
 }) {
@@ -126,15 +128,10 @@ function LiveKitHostPublisher({
     (t) => t.participant.identity === localParticipant.identity && t.source === Track.Source.Camera
   );
 
-  const publishTracks = useCallback(async () => {
-    await localParticipant.setCameraEnabled(true);
-    await localParticipant.setMicrophoneEnabled(true);
-  }, [localParticipant]);
-
-  const unpublishTracks = useCallback(async () => {
-    await localParticipant.setCameraEnabled(false);
-    await localParticipant.setMicrophoneEnabled(false);
-  }, [localParticipant]);
+  const syncMedia = useCallback(async () => {
+    await localParticipant.setCameraEnabled(publishActive);
+    await localParticipant.setMicrophoneEnabled(micEnabled);
+  }, [localParticipant, publishActive, micEnabled]);
 
   useEffect(() => {
     if (!room || room.state !== ConnectionState.Connected) return;
@@ -142,13 +139,8 @@ function LiveKitHostPublisher({
 
     const runPublish = async () => {
       try {
-        if (publishActive) {
-          await publishTracks();
-          if (!cancelled) onPublishChange(true);
-        } else {
-          await unpublishTracks();
-          if (!cancelled) onPublishChange(false);
-        }
+        await syncMedia();
+        if (!cancelled) onPublishChange(publishActive);
       } catch (err) {
         if (!cancelled) {
           onError(err instanceof Error ? err.message : 'Impossible d’activer la caméra.');
@@ -160,7 +152,7 @@ function LiveKitHostPublisher({
     void runPublish();
 
     const onSignalConnected = () => {
-      if (!publishActive || cancelled) return;
+      if (cancelled) return;
       void runPublish();
     };
     room.on(RoomEvent.SignalConnected, onSignalConnected);
@@ -169,7 +161,7 @@ function LiveKitHostPublisher({
       cancelled = true;
       room.off(RoomEvent.SignalConnected, onSignalConnected);
     };
-  }, [publishActive, room, publishTracks, unpublishTracks, onPublishChange, onError]);
+  }, [publishActive, micEnabled, room, syncMedia, onPublishChange, onError]);
 
   if (!localCamera?.publication?.track) return null;
   return (
@@ -224,6 +216,7 @@ function LiveKitViewerSubscriber({
 function LiveKitRoomInner({
   isHost,
   publishActive,
+  micEnabled,
   liveCameraActive,
   liveCameraMode,
   onHostStreamActive,
@@ -232,6 +225,7 @@ function LiveKitRoomInner({
 }: {
   isHost: boolean;
   publishActive: boolean;
+  micEnabled: boolean;
   liveCameraActive: boolean;
   liveCameraMode?: 'camera' | 'file';
   onHostStreamActive: (active: boolean) => void;
@@ -255,6 +249,7 @@ function LiveKitRoomInner({
     return (
       <LiveKitHostPublisher
         publishActive={publishActive}
+        micEnabled={micEnabled}
         onPublishChange={onHostStreamActive}
         onError={onError}
       />
@@ -275,6 +270,8 @@ export type LiveKitVideoStageProps = {
   authToken: string;
   isHost: boolean;
   publishActive: boolean;
+  /** Micro hôte activé (LiveKit setMicrophoneEnabled). */
+  micEnabled?: boolean;
   liveCameraActive: boolean;
   liveCameraMode?: 'camera' | 'file';
   playbackTitle: string;
@@ -296,6 +293,7 @@ export function LiveKitVideoStage({
   authToken,
   isHost,
   publishActive,
+  micEnabled = true,
   liveCameraActive,
   liveCameraMode,
   playbackTitle,
@@ -641,6 +639,7 @@ export function LiveKitVideoStage({
             <LiveKitRoomInner
               isHost={isHost}
               publishActive={publishActive}
+              micEnabled={micEnabled}
               liveCameraActive={liveCameraActive}
               liveCameraMode={liveCameraMode}
               onHostStreamActive={setHostStreamActive}

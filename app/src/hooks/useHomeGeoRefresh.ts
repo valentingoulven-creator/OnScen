@@ -46,6 +46,10 @@ export function useHomeGeoRefresh(options: {
   loadNearbyFromStateRef.current = loadNearbyFromState;
   const centerRef = useRef(center);
   centerRef.current = center;
+  const setUserPositionRef = useRef(setUserPosition);
+  setUserPositionRef.current = setUserPosition;
+  const defaultCenterRef = useRef(defaultCenter);
+  defaultCenterRef.current = defaultCenter;
 
   /** Bootstrap GPS / ville — une seule fois à l'activation, pas à chaque pan/zoom carte. */
   useEffect(() => {
@@ -97,7 +101,11 @@ export function useHomeGeoRefresh(options: {
         return;
       }
       navigator.geolocation.getCurrentPosition(
-        (pos) => loadNearbyAtRef.current([pos.coords.latitude, pos.coords.longitude]),
+        (pos) => {
+          const coords: Coords = [pos.coords.latitude, pos.coords.longitude];
+          setUserPositionRef.current(sanitizeLatLngTuple(coords[0], coords[1], defaultCenterRef.current));
+          loadNearbyAtRef.current(coords);
+        },
         () => loadNearbyAtRef.current([current.latitude, current.longitude])
       );
     };

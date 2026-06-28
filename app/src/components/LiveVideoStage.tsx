@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { VIDEO_PIP_WIDTH, VIDEO_PIP_HEADER_HEIGHT, type VideoPipFloatApi } from './DraggableVideoPip';
 import {
-  LIVE_CAMERA_HOST_CLOUDFLARE_OBS_REQUIRED,
+  LIVE_CAMERA_HOST_OBS_STOPPED,
   LIVE_CAMERA_VIEWER_AUDIO_BLOCKED,
   LIVE_CAMERA_VIEWER_CLOUDFLARE_WAITING_OBS,
   LIVE_CAMERA_VIEWER_FILE_NOTE,
@@ -104,6 +104,7 @@ function resolveStageState(opts: {
   liveCameraMode?: 'camera' | 'file';
   viewerRelayPhase: ViewerRelayPhase;
   viewerHasVideoTrack?: boolean;
+  cloudflareObsConnected?: boolean;
 }): LiveVideoStageState {
   const {
     isHost,
@@ -116,18 +117,22 @@ function resolveStageState(opts: {
     liveCameraMode,
     viewerRelayPhase,
     viewerHasVideoTrack,
+    cloudflareObsConnected,
   } = opts;
 
   if (isHost) {
     if (streamMode === 'cloudflare') {
-      return hostStreamActive ? 'live' : 'no-camera';
+      if (hlsPhase === 'error') return 'error';
+      if (hlsStreamActive && cloudflareObsConnected !== false) return 'live';
+      if (hlsPhase === 'loading' || hlsPhase === 'waiting' || hlsPhase === 'idle') return 'loading';
+      return 'loading';
     }
     return hostStreamActive ? 'live' : 'no-camera';
   }
 
   if (streamMode === 'cloudflare') {
     if (hlsPhase === 'error') return 'error';
-    if (hlsStreamActive) return 'live';
+    if (hlsStreamActive && cloudflareObsConnected !== false) return 'live';
     if (hlsPhase === 'loading' || hlsPhase === 'waiting' || hlsPhase === 'idle') return 'loading';
     return 'loading';
   }
@@ -152,6 +157,7 @@ function statusLabel(
     hlsError?: string | null;
     liveCameraMode?: 'camera' | 'file';
     viewerHasVideoTrack?: boolean;
+    cloudflareObsConnected?: boolean;
   }
 ): string {
   const {
@@ -162,13 +168,23 @@ function statusLabel(
     hlsError,
     liveCameraMode,
     viewerHasVideoTrack,
+    cloudflareObsConnected,
   } = opts;
 
   if (isHost) {
     if (streamMode === 'cloudflare') {
-      return state === 'live'
-        ? 'Aperçu local — diffusez via OBS pour les spectateurs'
-        : LIVE_CAMERA_HOST_CLOUDFLARE_OBS_REQUIRED;
+      switch (state) {
+        case 'live':
+          return 'Aperçu OBS (CDN)';
+        case 'error':
+          return hlsError ?? 'Flux OBS indisponible';
+        case 'loading':
+        default:
+          if (cloudflareObsConnected === false) {
+            return LIVE_CAMERA_HOST_OBS_STOPPED;
+          }
+          return 'Flux OBS reçu — chargement de la vidéo…';
+      }
     }
     return state === 'live' ? 'Caméra active' : 'Activez la caméra ou choisissez une vidéo';
   }
@@ -181,6 +197,9 @@ function statusLabel(
         return hlsError ?? 'Flux CDN indisponible';
       case 'loading':
       default:
+        if (cloudflareObsConnected === false) {
+          return 'En attente de la diffusion OBS…';
+        }
         return LIVE_CAMERA_VIEWER_CLOUDFLARE_WAITING_OBS;
     }
   }
@@ -223,6 +242,8 @@ export type LiveVideoStageProps = {
   hlsPhase?: HlsPlaybackPhase;
   hlsError?: string | null;
   hlsPlaybackBlocked?: boolean;
+  /** Cloudflare lifecycle : RTMP OBS actif. */
+  cloudflareObsConnected?: boolean;
   enableViewerPlayback: () => Promise<boolean>;
   onRetryViewerRelay?: () => void;
   onRetryHlsPlayback?: () => void;
@@ -265,6 +286,7 @@ export function LiveVideoStage({
   hlsPhase = 'idle',
   hlsError = null,
   hlsPlaybackBlocked = false,
+  cloudflareObsConnected,
   enableViewerPlayback,
   onRetryViewerRelay,
   onRetryHlsPlayback,
@@ -306,21 +328,31 @@ export function LiveVideoStage({
         liveCameraMode,
         viewerRelayPhase,
         viewerHasVideoTrack,
+        cloudflareObsConnected,
       });
 
   const showVideo = stageState === 'live';
-  const isCloudflareViewer = !isHost && streamMode === 'cloudflare';
-  const playbackUnlockNeeded = isHost
-    ? hostPreviewBlocked
-    : isCloudflareViewer
-      ? hlsPlaybackBlocked
+  const isCloudflareCdn = streamMode === 'cloudflare';
+  const playbackUnlockNeeded = isCloudflareCdn
+    ? hlsPlaybackBlocked
+    : isHost
+      ? hostPreviewBlocked
       : viewerPlaybackBlocked || viewerAudioBlocked;
-  const showPlayOverlay = showVideo && playbackUnlockNeeded;
-  const unlockPlayback = isHost ? enableHostPreview ?? enableViewerPlayback : enableViewerPlayback;
+  const showPlayOverlay =
+    !streamEnded &&
+    (isCloudflareCdn ? hlsPlaybackBlocked : showVideo && playbackUnlockNeeded);
+  const unlockPlayback = isCloudflareCdn
+    ? enableViewerPlayback
+    : isHost
+      ? enableHostPreview ?? enableViewerPlayback
+      : enableViewerPlayback;
 
   const playOverlayHint = (() => {
+    if (isHost && isCloudflareCdn) {
+      return 'Appuyez pour lancer l’aperçu OBS';
+    }
     if (isHost) {
-      return 'Appuyez pour d\u00e9marrer l\u2019aper\u00e7u cam\u00e9ra';
+      return 'Appuyez pour démarrer l’aperçu caméra';
     }
     if (!viewerHasVideoTrack) {
       return LIVE_CAMERA_VIEWER_VIDEO_PENDING;
@@ -343,6 +375,7 @@ export function LiveVideoStage({
     hlsError,
     liveCameraMode,
     viewerHasVideoTrack,
+    cloudflareObsConnected,
   });
 
   useEffect(() => {
@@ -511,7 +544,7 @@ export function LiveVideoStage({
     return () => root.removeEventListener('pointerdown', onStageInteraction, { capture: true });
   }, [showPlayOverlay, unlockPlayback]);
 
-  const videoRef = isHost ? hostVideoRef : viewerVideoRef;
+  const videoRef = isCloudflareCdn ? viewerVideoRef : isHost ? hostVideoRef : viewerVideoRef;
 
   const VIDEO_PIP_VIDEO_HEIGHT = Math.round(VIDEO_PIP_WIDTH * 9 / 16);
   const pipContainerStyle: CSSProperties | undefined = videoFloat
@@ -595,31 +628,50 @@ export function LiveVideoStage({
           autoPlay
           playsInline
           {...(isHost ? { muted: true } : {})}
-          className={`absolute inset-0 w-full h-full object-cover bg-black z-10${
-            showVideo ? '' : ' opacity-0 pointer-events-none'
-          }`}
+          className={`absolute inset-0 w-full h-full bg-black z-10${
+            isCloudflareCdn ? ' live-cloudflare-stage-video' : ' object-cover'
+          }${showVideo ? '' : ' opacity-0 pointer-events-none'}`}
           aria-hidden={!showVideo}
-          aria-label={isHost ? 'Aper\u00e7u cam\u00e9ra' : 'Flux vid\u00e9o du host'}
+          aria-label={
+            isCloudflareCdn
+              ? isHost
+                ? 'Aperçu OBS (CDN)'
+                : 'Flux vidéo du host'
+              : isHost
+                ? 'Aperçu caméra'
+                : 'Flux vidéo du host'
+          }
         />
 
         {/* Placeholder — album art only when no live video */}
         {!showVideo && !streamEnded && (
           <div className="live-video-stage-overlay z-0 bg-black">
-            {albumArtUrl ? (
-              <img
-                src={albumArtUrl}
-                alt=""
-                className="w-24 h-24 rounded-xl object-cover shadow-lg opacity-80"
-              />
+            {isCloudflareCdn ? (
+              <>
+                <div className="w-24 h-24 rounded-xl bg-orange-950/40 border border-orange-500/30 flex items-center justify-center text-3xl">
+                  📡
+                </div>
+                <p className="text-sm font-bold text-white text-center max-w-xs px-4">{status}</p>
+              </>
             ) : (
-              <div className="w-24 h-24 rounded-xl bg-[#1a1a26] flex items-center justify-center text-3xl">
-                🎵
-              </div>
+              <>
+                {albumArtUrl ? (
+                  <img
+                    src={albumArtUrl}
+                    alt=""
+                    className="w-24 h-24 rounded-xl object-cover shadow-lg opacity-80"
+                  />
+                ) : (
+                  <div className="w-24 h-24 rounded-xl bg-[#1a1a26] flex items-center justify-center text-3xl">
+                    🎵
+                  </div>
+                )}
+                <div className="max-w-xs">
+                  <p className="text-sm font-bold text-white truncate">{playbackTitle}</p>
+                  <p className="text-xs text-gray-400 truncate">{playbackArtist}</p>
+                </div>
+              </>
             )}
-            <div className="max-w-xs">
-              <p className="text-sm font-bold text-white truncate">{playbackTitle}</p>
-              <p className="text-xs text-gray-400 truncate">{playbackArtist}</p>
-            </div>
             {stageState === 'loading' && (
               <div className="mt-2 w-8 h-8 border-2 border-white/20 border-t-purple-400 rounded-full animate-spin" />
             )}
@@ -660,17 +712,29 @@ export function LiveVideoStage({
 
         {/* Autoplay blocked — big obvious button covering video */}
         {showPlayOverlay && !streamEnded && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60">
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 pointer-events-none">
             <button
               type="button"
               data-live-play-unlock
               onClick={handleUnlockPlayback}
-              className="flex flex-col items-center gap-3 px-8 py-6 rounded-2xl bg-purple-600 hover:bg-purple-500 active:scale-95 transition shadow-xl"
-              aria-label={isHost ? 'Lancer l\u2019aper\u00e7u cam\u00e9ra' : 'Lancer la vid\u00e9o et le son du live'}
+              className="pointer-events-auto flex flex-col items-center gap-1 px-4 py-2.5 min-h-[44px] max-w-[min(100%,11rem)] rounded-xl bg-purple-600/95 hover:bg-purple-500 active:scale-95 transition shadow-lg"
+              aria-label={
+                isCloudflareCdn
+                  ? isHost
+                    ? 'Lancer l’aperçu OBS'
+                    : 'Lancer la vidéo du live'
+                  : isHost
+                    ? 'Lancer l’aperçu caméra'
+                    : 'Lancer la vidéo et le son du live'
+              }
             >
-              <span className="text-4xl">&#9654;</span>
-              <span className="text-base font-bold text-white">{playOverlayLabel}</span>
-              <span className="text-xs text-purple-200 max-w-[14rem] text-center">
+              <span className="flex items-center gap-1.5">
+                <span className="text-lg leading-none" aria-hidden>
+                  &#9654;
+                </span>
+                <span className="text-xs font-bold text-white">{playOverlayLabel}</span>
+              </span>
+              <span className="text-[10px] text-purple-200 text-center leading-snug">
                 {playOverlayHint}
               </span>
             </button>

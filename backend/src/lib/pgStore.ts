@@ -27,6 +27,10 @@ let pgSaveTail: Promise<void> = Promise.resolve();
 export async function initPostgresPersistence(): Promise<void> {
   if (initialized) return;
   await runMigrations();
+  const { ensureMajorCitiesSeeded } = await import('./majorCities');
+  await ensureMajorCitiesSeeded().catch((err) => {
+    console.error('[major-cities] startup seed skipped:', err);
+  });
   const { pruneOldDiagnosticLogs, canPersistDiagnosticLogs } = await import('./appDiagnosticLogs');
   if (canPersistDiagnosticLogs()) {
     void pruneOldDiagnosticLogs().catch((err) => {

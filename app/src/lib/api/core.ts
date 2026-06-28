@@ -24,6 +24,7 @@ export function normalizeFetchNetworkError(e: unknown): never {
 export class ApiRequestError extends Error {
   code?: string;
   status?: number;
+  salonId?: string;
   playbackState?: import('../../types').PlaybackState;
   queue?: import('../../types').SalonQueueItem[];
 
@@ -32,7 +33,8 @@ export class ApiRequestError extends Error {
     code?: string,
     status?: number,
     playbackState?: import('../../types').PlaybackState,
-    queue?: import('../../types').SalonQueueItem[]
+    queue?: import('../../types').SalonQueueItem[],
+    salonId?: string
   ) {
     super(message);
     this.name = 'ApiRequestError';
@@ -40,6 +42,7 @@ export class ApiRequestError extends Error {
     this.status = status;
     this.playbackState = playbackState;
     this.queue = queue;
+    this.salonId = salonId;
   }
 }
 
@@ -50,6 +53,7 @@ export async function parseApiError(res: Response): Promise<ApiRequestError> {
       const json = JSON.parse(text) as {
         error?: string;
         code?: string;
+        salonId?: string;
         playbackState?: import('../../types').PlaybackState;
         queue?: import('../../types').SalonQueueItem[];
       };
@@ -68,7 +72,14 @@ export async function parseApiError(res: Response): Promise<ApiRequestError> {
         if (json.code === 'HOST_PLATFORM_NOT_LINKED') {
           return new ApiRequestError(json.error || i18n.t('errors.forbidden'), json.code, res.status);
         }
-        return new ApiRequestError(json.error, json.code, res.status, playbackState, queue);
+        return new ApiRequestError(
+          json.error,
+          json.code,
+          res.status,
+          playbackState,
+          queue,
+          typeof json.salonId === 'string' ? json.salonId : undefined
+        );
       }
     } catch {
       if (text.length < 200) return new ApiRequestError(text, undefined, res.status);

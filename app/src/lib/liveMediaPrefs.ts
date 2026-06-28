@@ -1,3 +1,15 @@
+import type { GoalType, LiveReward } from './liveHostTypes';
+
+export interface LiveHostSessionDraft {
+  goals: Array<{
+    id: string;
+    type: GoalType;
+    target: number;
+    label: string;
+  }>;
+  rewards: LiveReward[];
+}
+
 export interface LiveMediaPrefs {
   videoDeviceId?: string;
   audioDeviceId?: string;
@@ -8,6 +20,18 @@ export interface LiveMediaPrefs {
   startLongitude?: number;
   startLocationLabel?: string;
   startLocationSource?: 'my_position' | 'city' | 'address';
+  /** Titre affiché du live au démarrage. */
+  liveTitle?: string;
+  /** Modération chat appliquée dès l'ouverture du live. */
+  chatConfig?: {
+    noLinksForParticipants?: boolean;
+    slowModeSeconds?: number;
+    subscribersOnly?: boolean;
+  };
+  /** Goals et menu récompenses configurés avant le live. */
+  hostSessionDraft?: LiveHostSessionDraft;
+  /** Diffusion OBS (RTMP Cloudflare) — pas de caméra navigateur au démarrage. */
+  useObs?: boolean;
 }
 
 const STORAGE_KEY = 'melosong_live_media_prefs';
@@ -103,4 +127,28 @@ export function clearPendingLiveCameraStart(): void {
   } catch {
     /* ignore */
   }
+}
+
+/** Retire chatConfig des prefs après application sur le live ouvert. */
+export function clearLiveChatConfigFromPrefs(): void {
+  const prefs = getLiveMediaPrefs();
+  if (!prefs?.chatConfig) return;
+  const { chatConfig: _removed, ...rest } = prefs;
+  setLiveMediaPrefs(rest);
+}
+
+/** Retire hostSessionDraft des prefs après application sur le live ouvert. */
+export function clearHostSessionDraftFromPrefs(): void {
+  const prefs = getLiveMediaPrefs();
+  if (!prefs?.hostSessionDraft) return;
+  const { hostSessionDraft: _removed, ...rest } = prefs;
+  setLiveMediaPrefs(rest);
+}
+
+/** Retire useObs des prefs après ouverture du live en mode OBS. */
+export function clearUseObsFromPrefs(): void {
+  const prefs = getLiveMediaPrefs();
+  if (!prefs?.useObs) return;
+  const { useObs: _removed, ...rest } = prefs;
+  setLiveMediaPrefs(rest);
 }

@@ -22,6 +22,20 @@ export const usersApi = {
       token
     ),
 
+  getLiveSetup: (token: string) =>
+    request<{ setup: import('../liveMediaPrefs').LiveMediaPrefs | null; configured: boolean }>(
+      '/users/me/live-setup',
+      {},
+      token
+    ),
+
+  putLiveSetup: (token: string, setup: import('../liveMediaPrefs').LiveMediaPrefs) =>
+    request<{ setup: import('../liveMediaPrefs').LiveMediaPrefs; configured: boolean }>(
+      '/users/me/live-setup',
+      { method: 'PUT', body: JSON.stringify({ setup }) },
+      token
+    ),
+
   getHostRating: (token: string, hostId: string) =>
     request<{ rating: import('../../types').HostRatingSummary }>(`/ratings/host/${hostId}`, {}, token),
 
@@ -112,6 +126,41 @@ export const usersApi = {
       {},
       token
     ),
+
+  getObsIngest: (token: string) =>
+    request<{
+      rtmpsUrl: string;
+      rtmpUrl?: string;
+      streamKey: string;
+      playbackUrl: string;
+      whipUrl?: string;
+      liveInputId: string;
+      persistent: true;
+      streamQuotaOk?: boolean;
+      streamQuotaLimitMinutes?: number;
+    }>('/users/me/obs-ingest', {}, token),
+
+  rotateObsStreamKey: (token: string) =>
+    request<{
+      rtmpsUrl: string;
+      rtmpUrl?: string;
+      streamKey: string;
+      playbackUrl: string;
+      whipUrl?: string;
+      liveInputId: string;
+      persistent: true;
+    }>('/users/me/obs-stream-key/rotate', { method: 'POST' }, token),
+
+  repairObsStreamInput: (token: string) =>
+    request<{
+      rtmpsUrl: string;
+      rtmpUrl?: string;
+      streamKey: string;
+      playbackUrl: string;
+      whipUrl?: string;
+      liveInputId: string;
+      persistent: true;
+    }>('/users/me/obs-stream-repair', { method: 'POST' }, token),
 
   getPushVapidPublicKey: (token: string) =>
     request<{ publicKey: string | null; configured?: boolean }>(

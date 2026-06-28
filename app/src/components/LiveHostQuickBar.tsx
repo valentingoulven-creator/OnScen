@@ -209,6 +209,62 @@ function StopIcon({ compact }: { compact?: boolean }) {
   );
 }
 
+function videoStageControlClass(active: boolean, danger?: boolean, disabled?: boolean): string {
+  return `flex items-center justify-center w-11 h-11 rounded-lg border backdrop-blur transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${
+    danger
+      ? 'border-red-500/50 bg-red-950/60 text-red-300 hover:bg-red-950/80'
+      : active
+        ? 'border-emerald-500/40 bg-black/70 text-emerald-400 hover:bg-black/85'
+        : 'border-white/20 bg-black/70 text-gray-300 hover:text-white hover:bg-black/85'
+  }${disabled ? '' : ''}`;
+}
+
+export function LiveHostMicToggleButton({
+  muted,
+  disabled,
+  onToggle,
+}: {
+  muted: boolean;
+  disabled?: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={disabled}
+      className={videoStageControlClass(!muted, muted, disabled)}
+      aria-label={muted ? 'Activer le micro' : 'Couper le micro'}
+      title={muted ? 'Activer le micro' : 'Couper le micro'}
+    >
+      <MicIcon muted={muted} compact />
+    </button>
+  );
+}
+
+export function LiveHostCamToggleButton({
+  active,
+  disabled,
+  onToggle,
+}: {
+  active: boolean;
+  disabled?: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={disabled}
+      className={videoStageControlClass(active, false, disabled)}
+      aria-label={active ? 'Couper la caméra' : 'Activer la caméra'}
+      title={active ? 'Couper la caméra' : 'Activer la caméra'}
+    >
+      <CamIcon active={active} compact />
+    </button>
+  );
+}
+
 export function StopLiveButton({
   compact,
   onStop,
@@ -421,11 +477,11 @@ function BoardMenuButton({
                 }}
                 className="w-full px-3 py-2 rounded-lg text-xs font-bold border border-orange-500/40 bg-orange-950/60 text-orange-200 hover:bg-orange-900/70 transition disabled:opacity-50"
               >
-                {cfProvisioning ? 'Configuration…' : 'Configurer OBS (SoundyUltra)'}
+                {cfProvisioning ? 'Configuration…' : 'Configurer OBS'}
               </button>
             ) : (
               <p className="text-[11px] text-gray-500 text-center py-1">
-                OBS · Réservé SoundyUltra
+                OBS · Cloudflare requis
               </p>
             )}
           </div>
@@ -635,13 +691,13 @@ export function LiveHostQuickBar({
               disabled={cfProvisioning}
               className="flex-1 py-1.5 rounded-xl text-[10px] font-bold border border-orange-500/40 bg-orange-950/60 text-orange-200 hover:bg-orange-900/70 transition disabled:opacity-50"
             >
-              {cfProvisioning ? '…' : 'Configurer OBS (SoundyUltra)'}
+              {cfProvisioning ? '…' : 'Configurer OBS'}
             </button>
           </div>
         )}
         {obsUltraOnly && (
           <div className="px-3 pb-2">
-            <p className="text-[9px] text-gray-600 text-center">OBS · Réservé SoundyUltra</p>
+            <p className="text-[9px] text-gray-600 text-center">OBS · Cloudflare requis</p>
           </div>
         )}
       </div>
@@ -676,13 +732,13 @@ export function LiveHostQuickBar({
             disabled={cfProvisioning}
             className="flex-1 py-1.5 rounded-xl text-[10px] font-bold border border-orange-500/40 bg-orange-950/60 text-orange-200 hover:bg-orange-900/70 transition disabled:opacity-50"
           >
-            {cfProvisioning ? '…' : 'Configurer OBS (SoundyUltra)'}
+            {cfProvisioning ? '…' : 'Configurer OBS'}
           </button>
         </div>
       )}
       {obsUltraOnly && (
         <div className="px-3 pb-2">
-          <p className="text-[9px] text-gray-600 text-center">OBS · Réservé SoundyUltra</p>
+          <p className="text-[9px] text-gray-600 text-center">OBS · Cloudflare requis</p>
         </div>
       )}
     </div>

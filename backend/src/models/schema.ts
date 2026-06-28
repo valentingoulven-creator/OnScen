@@ -136,6 +136,29 @@ export interface User {
   twoFactorBackupCodes?: string[];
   /** Incrémenté à chaque changement de mot de passe — invalide les JWT antérieurs. */
   tokenVersion?: number;
+  /** Live input Cloudflare Stream persistant pour OBS (clé RTMP unique par compte). */
+  cloudflareObsLiveInputId?: string;
+  /** Préférences de démarrage live — voir lib/liveMediaSetup.ts */
+  liveMediaSetup?: {
+    videoDeviceId?: string;
+    audioDeviceId?: string;
+    startLatitude?: number;
+    startLongitude?: number;
+    startLocationLabel?: string;
+    startLocationSource?: 'my_position' | 'city' | 'address';
+    liveTitle?: string;
+    chatConfig?: {
+      noLinksForParticipants?: boolean;
+      slowModeSeconds?: number;
+      subscribersOnly?: boolean;
+    };
+    hostSessionDraft?: {
+      goals: Array<{ id: string; type: string; target: number; label: string }>;
+      rewards: Array<Record<string, unknown>>;
+    };
+    useObs?: boolean;
+    configuredAt?: number;
+  };
 }
 
 export interface PlaybackState {
@@ -243,6 +266,8 @@ export interface Salon {
   allowedUserIds: string[];
   allowQueue: boolean;
   createdAt: number;
+  /** Genres musicaux du salon (filtre carte / affinités). */
+  genres?: string[];
   /** Lien d'invitation Spotify Jam (socialsession) — saisi manuellement, pas d'API publique. */
   spotifyJamUrl?: string;
   /** Utilisateurs VIP pouvant modérer le chat du salon. */

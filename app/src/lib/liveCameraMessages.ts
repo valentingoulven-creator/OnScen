@@ -1,3 +1,7 @@
+/** Host OBS Cloudflare : RTMP coupé — le live Soundy se termine automatiquement. */
+export const LIVE_CAMERA_HOST_OBS_STOPPED =
+  'Diffusion OBS arrêtée — fin du live Soundy…';
+
 /** Note affichée aux spectateurs quand la caméra est active mais le flux WebRTC n’est pas encore reçu. */
 export const LIVE_CAMERA_VIEWER_NOTE =
   'Le host diffuse en caméra. Connexion au flux vidéo en cours…';

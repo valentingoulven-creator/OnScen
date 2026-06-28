@@ -28,14 +28,23 @@ import {
   createCloudflareLiveInput,
   disableCloudflareLiveInput,
   getCloudflareLiveInput,
+  getCloudflareLiveInputLifecycle,
   isCloudflareStreamConfigured,
+  resolveLatestRecordingHlsUrl,
 } from '../lib/cloudflareStream';
+import {
+  fetchUserObsIngest,
+  getOrCreateUserObsLiveInput,
+  isUserPersistentObsLiveInput,
+} from '../lib/userObsStream';
 import { persistLiveToPgAsync } from '../lib/pgSalonsLives';
 import {
   assertCanStartLive,
   assertCanUseCloudflareObs,
   canAccessArchivedLives,
   getUserPlatformPlan,
+  isCloudflareStreamAllowedForUser,
+  isObsAllowedForUser,
   PlatformPlanError,
   resolveStreamModeForHost,
 } from '../lib/platformPlans';
@@ -152,9 +161,7 @@ async function provisionCloudflareStreamForLive(live: Live): Promise<void> {
   if (!isCloudflareStreamConfigured()) return;
   live.streamMode = 'cloudflare';
   try {
-    const creds = await createCloudflareLiveInput({
-      name: `Soundy — ${live.title} (${live.id})`,
-    });
+    const creds = await getOrCreateUserObsLiveInput(live.hostId);
     live.cloudflareLiveInputId = creds.uid;
     live.cloudflarePlaybackUrl = creds.playbackHlsUrl;
     live.cloudflareCustomerSubdomain = creds.customerSubdomain;
@@ -166,16 +173,25 @@ async function provisionCloudflareStreamForLive(live: Live): Promise<void> {
 
 async function archiveCloudflareStreamForLive(live: Live): Promise<void> {
   const inputId = live.cloudflareLiveInputId;
-  const playbackUrl = live.cloudflarePlaybackUrl;
   if (!inputId || !isCloudflareStreamConfigured()) return;
-  try {
-    await disableCloudflareLiveInput(inputId);
-  } catch (err) {
-    console.warn('[cloudflare-stream] disable live input:', err);
+
+  if (!isUserPersistentObsLiveInput(live.hostId, inputId)) {
+    try {
+      await disableCloudflareLiveInput(inputId);
+    } catch (err) {
+      console.warn('[cloudflare-stream] disable live input:', err);
+    }
   }
-  // Conserver l'URL HLS pour la rediff VOD — ne pas supprimer le live input Cloudflare.
-  if (playbackUrl) {
-    live.cloudflareVodPlaybackUrl = playbackUrl;
+
+  let vodUrl = live.cloudflarePlaybackUrl;
+  try {
+    const recording = await resolveLatestRecordingHlsUrl(inputId, live.startedAt);
+    if (recording) vodUrl = recording;
+  } catch (err) {
+    console.warn('[cloudflare-stream] enregistrement VOD:', err);
+  }
+  if (vodUrl) {
+    live.cloudflareVodPlaybackUrl = vodUrl;
   }
 }
 
@@ -231,7 +247,27 @@ livesRouter.post('/start', authenticateJWT, async (req: Request, res: Response) 
 
   const salon = [...db.salons.values()].find((s) => s.hostId === userId);
   let live: Live;
-  const streamMode = resolveStreamModeForHost(userId);
+  const useObs = req.body.useObs === true;
+  let streamMode = resolveStreamModeForHost(userId);
+  if (useObs) {
+    if (!isCloudflareStreamConfigured()) {
+      res.status(503).json({
+        error: 'Cloudflare Stream non configuré sur le serveur.',
+        code: 'cloudflare_not_configured',
+      });
+      return;
+    }
+    try {
+      assertCanUseCloudflareObs(userId);
+    } catch (e) {
+      if (e instanceof PlatformPlanError) {
+        res.status(403).json({ error: e.message, code: e.code });
+        return;
+      }
+      throw e;
+    }
+    streamMode = 'cloudflare';
+  }
 
   if (salon) {
     /** playbackState reprend le salon (métadonnées morceau) ; la vidéo YouTube reste côté SalonPage, pas LivePage. */
@@ -316,9 +352,10 @@ livesRouter.get('/stream-capabilities', authenticateJWT, (req: Request, res: Res
   const userId = (req as Request & { user: { id: string } }).user.id;
   const plan = getUserPlatformPlan(userId);
   res.json({
-    cloudflareStreamAvailable: isCloudflareStreamConfigured() && plan.limits.allowCloudflare,
+    cloudflareStreamAvailable: isCloudflareStreamAllowedForUser(userId),
+    cloudflareConfigured: isCloudflareStreamConfigured(),
     livekitAvailable: isLiveKitConfigured() && plan.limits.allowLiveKit,
-    obsAllowed: plan.limits.allowObs,
+    obsAllowed: isObsAllowedForUser(userId),
     platformPlanId: plan.id,
   });
 });
@@ -578,18 +615,86 @@ livesRouter.get('/:id/cloudflare-ingest', authenticateJWT, async (req: Request, 
     throw e;
   }
   if (!live.cloudflareLiveInputId) {
+    try {
+      await provisionCloudflareStreamForLive(live);
+      db.lives.set(live.id, live);
+    } catch {
+      /* provisionCloudflareStreamForLive gère les erreurs */
+    }
+  }
+  if (!live.cloudflareLiveInputId) {
     res.status(404).json({ error: 'Aucun flux Cloudflare pour ce live.', code: 'no_cloudflare_input' });
     return;
   }
 
   try {
-    const creds = await getCloudflareLiveInput(live.cloudflareLiveInputId);
+    const ingest = await fetchUserObsIngest(userId);
+    if (live.cloudflareLiveInputId !== ingest.liveInputId || !live.cloudflarePlaybackUrl) {
+      live.cloudflareLiveInputId = ingest.liveInputId;
+      live.cloudflarePlaybackUrl = ingest.playbackUrl;
+      db.lives.set(live.id, live);
+      persistLiveToPgAsync(live);
+      getIo()?.to(`live_${live.id}`).emit('live_updated', serializePublicLive(live));
+    }
+    res.json(ingest);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Erreur Cloudflare Stream';
+    res.status(502).json({ error: message, code: 'cloudflare_error' });
+  }
+});
+
+/** État connexion OBS → Cloudflare (lifecycle RTMP). Hôte + spectateurs du live. */
+livesRouter.get('/:id/cloudflare-stream-status', authenticateJWT, async (req: Request, res: Response) => {
+  const userId = (req as Request & { user: { id: string } }).user.id;
+  const live = db.lives.get(req.params.id);
+  if (!live) {
+    res.status(404).json({ error: 'Live introuvable' });
+    return;
+  }
+  if (live.hostId !== userId) {
+    if (!live.isActive) {
+      res.status(403).json({ error: 'Live terminé.' });
+      return;
+    }
+    try {
+      assertViewerCanAccessLive(live, userId);
+    } catch (e) {
+      if (e instanceof PlatformPlanError) {
+        res.status(403).json({ error: e.message, code: e.code });
+        return;
+      }
+      throw e;
+    }
+  }
+  if (live.streamMode !== 'cloudflare' || !live.cloudflareLiveInputId) {
+    res.status(404).json({ error: 'Flux Cloudflare indisponible.', code: 'no_cloudflare_input' });
+    return;
+  }
+  try {
+    if (live.hostId === userId) {
+      try {
+        const ingest = await fetchUserObsIngest(live.hostId);
+        if (live.cloudflareLiveInputId !== ingest.liveInputId || !live.cloudflarePlaybackUrl) {
+          live.cloudflareLiveInputId = ingest.liveInputId;
+          live.cloudflarePlaybackUrl = ingest.playbackUrl;
+          db.lives.set(live.id, live);
+          persistLiveToPgAsync(live);
+          getIo()?.to(`live_${live.id}`).emit('live_updated', serializePublicLive(live));
+        }
+      } catch {
+        /* best effort — lifecycle sur l’input courant */
+      }
+    }
+    const lifecycle = await getCloudflareLiveInputLifecycle(
+      live.cloudflareLiveInputId,
+      live.cloudflareCustomerSubdomain
+    );
     res.json({
-      rtmpsUrl: creds.rtmpsUrl,
-      streamKey: creds.rtmpsStreamKey,
-      playbackUrl: creds.playbackHlsUrl,
-      whipUrl: creds.whipUrl,
-      liveInputId: creds.uid,
+      live: lifecycle.live,
+      videoUid: lifecycle.videoUid,
+      status: lifecycle.status,
+      liveInputId: live.cloudflareLiveInputId,
+      playbackUrl: live.cloudflarePlaybackUrl,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur Cloudflare Stream';

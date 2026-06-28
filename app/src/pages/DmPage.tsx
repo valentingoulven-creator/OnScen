@@ -1250,15 +1250,20 @@ export function DmPage({
         username={user.username}
         connectedPlatforms={user.connectedPlatforms}
         platformLinks={user.platformLinks}
+        profileGenres={user.favoriteGenres}
+        activeSalonId={user.salonId ?? null}
+        hostIsLive={Boolean(user.isLive && user.liveId)}
         open={createSalonOpen}
         preset={createSalonPreset}
         fallbackLatitude={salonGeo.latitude}
         fallbackLongitude={salonGeo.longitude}
+        profileCity={user.city}
         onClose={() => {
           setCreateSalonOpen(false);
           setCreateSalonPreset(null);
         }}
         onCreated={onDmSalonCreated}
+        onOpenExistingSalon={(salonId) => onOpenSalon?.(salonId)}
         onUserUpdated={setUserFromProfile}
       />
     );

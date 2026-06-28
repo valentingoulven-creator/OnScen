@@ -3,6 +3,9 @@ import {
   getLivesGeo,
   isFixedMapGeoSource,
   setLivesGeo,
+  findNearestMajorCities,
+  haversineKm,
+  presetCityMainLabel,
   type LivesGeoPrefs,
 } from './livesGeo';
 
@@ -82,6 +85,29 @@ describe('livesGeo', () => {
       expect(loaded.addressLine).toBe(prefs.addressLine);
       expect(loaded.latitude).toBeCloseTo(43.61);
       expect(STORAGE_KEY).toBe('melosong_lives_geo');
+    });
+  });
+
+  describe('findNearestMajorCities', () => {
+    it('retourne Montpellier en tête près de Béziers', () => {
+      const nearest = findNearestMajorCities(43.3411, 3.214, 3);
+      expect(nearest.length).toBe(3);
+      expect(presetCityMainLabel(nearest[0]!)).toBe('Montpellier');
+    });
+
+    it('trie par distance croissante', () => {
+      const nearest = findNearestMajorCities(48.8566, 2.3522, 3);
+      expect(presetCityMainLabel(nearest[0]!)).toBe('Paris');
+      expect(nearest[0]!.distanceKm).toBeLessThan(5);
+      for (let i = 1; i < nearest.length; i++) {
+        expect(nearest[i]!.distanceKm).toBeGreaterThanOrEqual(nearest[i - 1]!.distanceKm);
+      }
+    });
+
+    it('haversineKm calcule une distance plausible Paris–Lyon', () => {
+      const d = haversineKm(48.8566, 2.3522, 45.764, 4.8357);
+      expect(d).toBeGreaterThan(350);
+      expect(d).toBeLessThan(450);
     });
   });
 });

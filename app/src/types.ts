@@ -789,6 +789,8 @@ export interface Salon {
   pendingProposalsCount?: number;
   /** Horodatage de création du salon (ms). Utilisé pour la limite de durée (2 h). */
   createdAt?: number;
+  /** Genres musicaux associés au salon. */
+  genres?: string[];
 }
 
 export interface SalonParticipant {

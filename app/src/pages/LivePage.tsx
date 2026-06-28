@@ -20,6 +20,9 @@ import { mergeRemotePlaybackState } from '../lib/salonPlayback';
 import { emitOnSocket, getSocket, onSocketConnect } from '../lib/socket';
 import { setActiveHostLiveId } from '../lib/liveHostContext';
 import {
+  clearHostSessionDraftFromPrefs,
+  clearUseObsFromPrefs,
+  clearLiveChatConfigFromPrefs,
   clearPendingLiveCameraStart,
   getLiveMediaPrefs,
   hasPendingLiveCameraStart,
@@ -30,8 +33,12 @@ import { RoomTheaterLayout } from '../components/RoomTheaterLayout';
 import { LivePrivateSheet } from '../components/LivePrivateSheet';
 import { LiveHostPanel, type LiveHostPanelTab } from '../components/LiveHostPanel';
 import { LiveHostTopBar } from '../components/LiveHostTopBar';
-import { LiveHostQuickBar, StopLiveButton } from '../components/LiveHostQuickBar';
-import { LiveHostGoalStrip } from '../components/LiveHostGoalStrip';
+import {
+  LiveHostCamToggleButton,
+  LiveHostMicToggleButton,
+  LiveHostQuickBar,
+  StopLiveButton,
+} from '../components/LiveHostQuickBar';
 import { LiveRewardRequestsStrip } from '../components/LiveRewardRequestsStrip';
 import { LiveVideoGoalOverlay } from '../components/LiveVideoGoalOverlay';
 import { useLiveHostSession } from '../hooks/useLiveHostSession';
@@ -46,7 +53,6 @@ import { ShareLinkMenu } from '../components/ShareLinkMenu';
 import { ShareToUserSheet } from '../components/ShareToUserSheet';
 import { LiveVideoStage } from '../components/LiveVideoStage';
 import { LiveKitVideoStage } from '../components/LiveKitVideoStage';
-import { LiveCloudflareHostPanel } from '../components/LiveCloudflareHostPanel';
 import { ReportContentModal } from '../components/ReportContentModal';
 import { useDraggableVideoPip, defaultVideoPipPos } from '../components/DraggableVideoPip';
 import {
@@ -110,10 +116,10 @@ export function LivePage({
   const [goalTick, setGoalTick] = useState(() => Date.now());
   const [hostFollowing, setHostFollowing] = useState(false);
   const { session: hostSession } = useLiveHostSession(liveId);
-  const [showCfHostPanel, setShowCfHostPanel] = useState(true);
   const [cfProvisioning, setCfProvisioning] = useState(false);
   const [cloudflareAvailable, setCloudflareAvailable] = useState<boolean | null>(null);
   const [obsAllowed, setObsAllowed] = useState<boolean | null>(null);
+  const [obsIngestLive, setObsIngestLive] = useState(false);
   const [chatBanned, setChatBanned] = useState(false);
   const [chatBanMessage, setChatBanMessage] = useState<string | null>(null);
   const [chatBanUntil, setChatBanUntil] = useState<number | null>(null);
@@ -139,6 +145,11 @@ export function LivePage({
   }, []);
   const livePip = useDraggableVideoPip(livePipActive, () => setLivePipActive(false), defaultVideoPipPos);
   const leavingLiveRef = useRef(false);
+  /** OBS a déjà diffusé au moins une fois durant ce live (auto-stop Soundy si RTMP coupé). */
+  const obsWasLiveRef = useRef(false);
+  const obsDisconnectPollsRef = useRef(0);
+  const obsAutoStopTriggeredRef = useRef(false);
+  const stopLiveRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   useEffect(
     () =>
@@ -318,6 +329,9 @@ export function LivePage({
   useEffect(() => {
     setStreamEndedReason(null);
     setLiveEnded(false);
+    obsWasLiveRef.current = false;
+    obsDisconnectPollsRef.current = 0;
+    obsAutoStopTriggeredRef.current = false;
   }, [liveId]);
 
   useEffect(() => {
@@ -565,6 +579,64 @@ export function LivePage({
     };
   }, [token, isHost]);
 
+  useEffect(() => {
+    if (!token || !liveId || !isCloudflareStream || !live?.isActive) {
+      setObsIngestLive(false);
+      return;
+    }
+    let cancelled = false;
+    const poll = () => {
+      api
+        .getCloudflareStreamStatus(token, liveId)
+        .then((status) => {
+          if (cancelled) return;
+          setObsIngestLive(status.live);
+          if (isHost) {
+            if (status.live) {
+              obsWasLiveRef.current = true;
+              obsDisconnectPollsRef.current = 0;
+            } else if (
+              obsWasLiveRef.current &&
+              !obsAutoStopTriggeredRef.current &&
+              !leavingLiveRef.current
+            ) {
+              obsDisconnectPollsRef.current += 1;
+              // 2 polls consécutifs (~4 s) pour éviter un faux positif réseau.
+              if (obsDisconnectPollsRef.current >= 2) {
+                obsAutoStopTriggeredRef.current = true;
+                void stopLiveRef.current();
+              }
+            }
+          }
+          if (status.playbackUrl) {
+            setLive((prev) => {
+              if (!prev || prev.id !== liveId) return prev;
+              if (
+                prev.cloudflarePlaybackUrl === status.playbackUrl &&
+                prev.cloudflareLiveInputId === status.liveInputId
+              ) {
+                return prev;
+              }
+              return {
+                ...prev,
+                cloudflarePlaybackUrl: status.playbackUrl,
+                cloudflareLiveInputId: status.liveInputId,
+              };
+            });
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setObsIngestLive(false);
+        });
+    };
+    poll();
+    const id = window.setInterval(poll, 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [token, liveId, isCloudflareStream, live?.isActive, isHost]);
+
   const configureObs = useCallback(async () => {
     if (!token || !live || cfProvisioning || !canSwitchToCloudflare) return;
     setCfProvisioning(true);
@@ -589,7 +661,8 @@ export function LivePage({
         hostMonetizationEligible:
           res.live.hostMonetizationEligible ?? prev?.hostMonetizationEligible,
       }));
-      setShowCfHostPanel(true);
+      setShowHostPanel(true);
+      setHostPanelTab('config');
     } catch (e) {
       const message =
         e instanceof ApiRequestError
@@ -663,8 +736,9 @@ export function LivePage({
     retryHlsPlayback,
   } = useCloudflareHlsPlayback({
     playbackUrl: archivedPlaybackUrl ?? live?.cloudflarePlaybackUrl,
-    // Cloudflare HLS does not depend on browser cameraActive (OBS/RTMP ingest).
-    active: !isHost && isCloudflareStream,
+    // HLS CDN : hôte OBS + spectateurs (pas de caméra navigateur requise).
+    active: isCloudflareStream,
+    obsIngestLive,
   });
 
   /** Re-emit camera state after socket connect (emitOnSocket is no-op when disconnected). */
@@ -734,7 +808,56 @@ export function LivePage({
   }, [emitCameraState, liveId, releaseRelayConnections, stopCamera]);
 
   useEffect(() => {
+    if (!live || !isHost || !live.isActive) return;
+    const chatConfig = getLiveMediaPrefs()?.chatConfig;
+    if (!chatConfig) return;
+
+    const applyChatConfig = () => {
+      emitOnSocket('live_update_config', { liveId: live.id, config: chatConfig });
+      clearLiveChatConfigFromPrefs();
+    };
+
+    const socket = getSocket();
+    if (socket?.connected) {
+      applyChatConfig();
+    } else {
+      return onSocketConnect(applyChatConfig);
+    }
+  }, [live?.id, live?.isActive, isHost]);
+
+  useEffect(() => {
+    if (!live || !isHost || !live.isActive) return;
+    const sessionDraft = getLiveMediaPrefs()?.hostSessionDraft;
+    if (!sessionDraft) return;
+
+    patchLiveHostSession(live.id, {
+      goals: sessionDraft.goals.map((g) => ({
+        ...g,
+        liveId: live.id,
+        current: 0,
+        createdAt: Date.now(),
+      })),
+      rewards: sessionDraft.rewards,
+    });
+    clearHostSessionDraftFromPrefs();
+  }, [live?.id, live?.isActive, isHost]);
+
+  useEffect(() => {
+    if (!live || !isHost || !live.isActive) return;
+    if (!getLiveMediaPrefs()?.useObs) return;
+    if (live.streamMode === 'cloudflare') {
+      setShowHostPanel(true);
+      setHostPanelTab('config');
+    }
+    clearUseObsFromPrefs();
+  }, [live?.id, live?.isActive, live?.streamMode, isHost]);
+
+  useEffect(() => {
     if (!live || !isHost || cameraLocalActive) return;
+    if (isCloudflareStream) {
+      clearPendingLiveCameraStart();
+      return;
+    }
     if (!hasPendingLiveCameraStart()) return;
     if (getLiveMediaPrefs()?.demoNoMedia) {
       clearPendingLiveCameraStart();
@@ -770,7 +893,7 @@ export function LivePage({
     return () => {
       pendingCameraStartGenRef.current += 1;
     };
-  }, [live?.id, isHost, cameraLocalActive, startCamera, emitCameraState, isLiveKitStream]);
+  }, [live?.id, isHost, cameraLocalActive, startCamera, emitCameraState, isLiveKitStream, isCloudflareStream]);
 
   useEffect(() => {
     return () => {
@@ -890,10 +1013,21 @@ export function LivePage({
       else onBack();
     }
   };
+  stopLiveRef.current = stopLive;
 
   const leaveLive = () => {
     handleLeaveLive();
   };
+
+  const toggleHostMic = useCallback(() => {
+    setMicMuted((prev) => {
+      const next = !prev;
+      broadcastStream?.getAudioTracks().forEach((track) => {
+        track.enabled = !next;
+      });
+      return next;
+    });
+  }, [broadcastStream]);
 
   const toggleHostCamera = async () => {
     if (!live || live.hostId !== user?.id || cameraToggling) return;
@@ -1054,6 +1188,30 @@ export function LivePage({
           items={hostSession.rewardQueue}
           onOpenPanel={() => openHostPanel('rewards')}
         />
+        <div className="absolute top-2 right-2 z-30 flex items-center gap-1.5 pointer-events-auto">
+          <LiveHostMicToggleButton muted={micMuted} onToggle={toggleHostMic} />
+          <LiveHostCamToggleButton
+            active={
+              live
+                ? isLiveKitStream
+                  ? !!(live.cameraActive && live.cameraMode === 'camera')
+                  : cameraLocalActive && cameraMode === 'camera'
+                : false
+            }
+            disabled={cameraToggling || videoFileLoading}
+            onToggle={() => void toggleHostCamera()}
+          />
+          <StopLiveButton compact onStop={() => void stopLive()} />
+          <button
+            type="button"
+            onClick={() => openHostPanel('config')}
+            className="flex items-center justify-center w-11 h-11 rounded-lg bg-black/70 border border-white/20 text-white text-lg backdrop-blur hover:bg-black/85 hover:border-purple-500/40 active:scale-95 transition"
+            aria-label={t('live.hostDockSettings')}
+            title={t('live.hostDockSettings')}
+          >
+            <span aria-hidden>⚙</span>
+          </button>
+        </div>
       </>
     ) : null;
 
@@ -1194,7 +1352,7 @@ export function LivePage({
     onToggleCamera: toggleHostCamera,
     onPickVideo: () => videoFileInputRef.current?.click(),
     micMuted,
-    onToggleMic: () => setMicMuted((m) => !m),
+    onToggleMic: toggleHostMic,
     showObs: showConfigureObsButton,
     cfProvisioning,
     onConfigureObs: () => void configureObs(),
@@ -1281,9 +1439,6 @@ export function LivePage({
         remainingMs={remainingMs}
         onBack={handleMinimize}
         onShare={handleShareLive}
-        centerControls={
-          isHost ? <StopLiveButton compact onStop={() => void stopLive()} /> : undefined
-        }
         hostControls={
           isHost ? <LiveHostQuickBar {...hostQuickBarProps} variant="header" /> : undefined
         }
@@ -1368,12 +1523,6 @@ export function LivePage({
         onToggleMinimize={() => setChatMinimized((m) => !m)}
         stageFooter={isHost ? (
           <>
-            {activeGoal && (
-              <LiveHostGoalStrip
-                goal={activeGoal}
-                onClick={() => openHostPanel('goals')}
-              />
-            )}
             <input
               ref={videoFileInputRef}
               type="file"
@@ -1480,6 +1629,7 @@ export function LivePage({
               authToken={token}
               isHost={isHost}
               publishActive={!!(isHost && live.cameraActive && live.cameraMode === 'camera')}
+              micEnabled={!micMuted}
               liveCameraActive={!!live.cameraActive}
               liveCameraMode={live.cameraMode}
               playbackTitle={live.playbackState.title}
@@ -1513,7 +1663,7 @@ export function LivePage({
             isHost={isHost}
             streamMode={live.streamMode === 'cloudflare' ? 'cloudflare' : 'webrtc'}
             hostVideoRef={videoRef}
-            viewerVideoRef={isCloudflareStream && !isHost ? hlsVideoRef : viewerVideoRef}
+            viewerVideoRef={isCloudflareStream ? hlsVideoRef : viewerVideoRef}
             hostStreamActive={cameraLocalActive}
             hostCameraMode={cameraMode}
             liveCameraActive={!!live.cameraActive}
@@ -1531,11 +1681,12 @@ export function LivePage({
             hlsPhase={hlsPhase}
             hlsError={hlsError}
             hlsPlaybackBlocked={hlsPlaybackBlocked}
+            cloudflareObsConnected={obsIngestLive}
             enableViewerPlayback={
-              isCloudflareStream && !isHost ? enableHlsPlayback : enableViewerPlayback
+              isCloudflareStream ? enableHlsPlayback : enableViewerPlayback
             }
             onRetryViewerRelay={!isHost && !isCloudflareStream ? retryViewerRelay : undefined}
-            onRetryHlsPlayback={!isHost && isCloudflareStream ? retryHlsPlayback : undefined}
+            onRetryHlsPlayback={isCloudflareStream ? retryHlsPlayback : undefined}
             hostPreviewBlocked={hostPreviewBlocked}
             enableHostPreview={enableHostPreview}
             playbackTitle={live.playbackState.title}
@@ -1551,14 +1702,6 @@ export function LivePage({
             onPipOpen={!isHost ? () => setLivePipActive(true) : undefined}
             overlay={
               <>
-                {isHost && isCloudflareStream && token ? (
-                  <LiveCloudflareHostPanel
-                    token={token}
-                    liveId={liveId}
-                    expanded={showCfHostPanel}
-                    onToggle={() => setShowCfHostPanel((v) => !v)}
-                  />
-                ) : null}
                 {hostVideoOverlay}
                 {!isHost && hostCanReceiveDonations && !viewerStreamEnded ? (
                   <LiveGiftOverlay
@@ -1592,6 +1735,9 @@ export function LivePage({
           liveStartedAt={liveStartedAt}
           initialTab={hostPanelTab}
           chatConfig={live?.chatConfig}
+          token={token}
+          isCloudflareStream={isCloudflareStream}
+          obsIngestLive={obsIngestLive}
           onClose={() => setShowHostPanel(false)}
         />
       )}

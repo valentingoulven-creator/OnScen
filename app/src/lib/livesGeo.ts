@@ -82,6 +82,83 @@ function coordsFinite(lat: number, lon: number): boolean {
   );
 }
 
+/** Distance approximative en km (haversine). */
+export function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+export interface NearestMajorCity extends PresetCity {
+  distanceKm: number;
+}
+
+/** Les N grandes villes prédéfinies les plus proches d'un point (live / salon sans GPS). */
+export function findNearestMajorCities(
+  lat: number,
+  lon: number,
+  limit = 3
+): NearestMajorCity[] {
+  const anchorLat = coordsFinite(lat, lon) ? lat : DEFAULT_CENTER[0];
+  const anchorLon = coordsFinite(lat, lon) ? lon : DEFAULT_CENTER[1];
+  return PRESET_CITIES.map((city) => ({
+    ...city,
+    distanceKm: haversineKm(anchorLat, anchorLon, city.latitude, city.longitude),
+  }))
+    .sort((a, b) => a.distanceKm - b.distanceKm)
+    .slice(0, limit);
+}
+
+export function presetCityMainLabel(c: PresetCity): string {
+  return c.label.split(',')[0].trim();
+}
+
+function lookupPresetCityByName(name: string): PresetCity | undefined {
+  const q = name.trim().toLowerCase();
+  if (!q) return undefined;
+  return PRESET_CITIES.find((c) => {
+    const main = presetCityMainLabel(c).toLowerCase();
+    return main === q || c.label.toLowerCase().includes(q) || c.id.replace(/-/g, ' ') === q;
+  });
+}
+
+/** Point d'ancrage pour proposer les 3 métropoles les plus proches. */
+export function resolveLocationAnchorCoords(opts: {
+  profileCity?: string;
+  anchorLatitude?: number;
+  anchorLongitude?: number;
+}): { latitude: number; longitude: number } {
+  const anchorLat = opts.anchorLatitude;
+  const anchorLon = opts.anchorLongitude;
+  if (coordsFinite(anchorLat ?? NaN, anchorLon ?? NaN)) {
+    return { latitude: anchorLat!, longitude: anchorLon! };
+  }
+  const geo = getLivesGeo();
+  if (coordsFinite(geo.latitude, geo.longitude)) {
+    return { latitude: geo.latitude, longitude: geo.longitude };
+  }
+  const fromProfile = lookupPresetCityByName(opts.profileCity ?? '');
+  if (fromProfile) {
+    return { latitude: fromProfile.latitude, longitude: fromProfile.longitude };
+  }
+  return { latitude: DEFAULT_CENTER[0], longitude: DEFAULT_CENTER[1] };
+}
+
+/** Ville prédéfinie correspondant aux coords (tolérance ~8 km). */
+export function matchesPresetCityCoords(
+  lat: number,
+  lon: number,
+  city: PresetCity,
+  toleranceKm = 8
+): boolean {
+  return haversineKm(lat, lon, city.latitude, city.longitude) <= toleranceKm;
+}
+
 /** Centre pour appels nearby / geo : ville, position GPS, centre carte, puis Paris. */
 export function getNearbyQueryCenter(
   userPosition: [number, number] | null | undefined,
@@ -173,12 +250,11 @@ export function coordsForCityName(cityName: string): { latitude: number; longitu
   if (preset) {
     return presetCityToSuggestion(preset);
   }
-  let hash = 0;
-  for (let i = 0; i < q.length; i++) hash = (hash * 31 + q.charCodeAt(i)) | 0;
-  const latitude = 48.8566 + ((hash % 1000) / 1000 - 0.5) * 0.08;
-  const longitude = 2.3522 + (((hash >> 10) % 1000) / 1000 - 0.5) * 0.12;
-  const label = cityName.trim();
-  return { latitude, longitude, label };
+  return {
+    latitude: DEFAULT_CENTER[0],
+    longitude: DEFAULT_CENTER[1],
+    label: cityName.trim() || DEFAULT_PREFS.label,
+  };
 }
 
 /** Suggestions locales à partir des villes prédéfinies (≥ 2 caractères). */

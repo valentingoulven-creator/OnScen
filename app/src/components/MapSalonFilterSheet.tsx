@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { EventLocationInput } from './EventLocationInput';
 import {
@@ -9,30 +9,45 @@ import {
 } from '../lib/nearbyPanelSettings';
 import { resolveEventCoords } from '../lib/mapEventCoords';
 import { isValidLatLng } from '../lib/mapCoords';
+import {
+  isSalonGenreSelected,
+  toggleSalonGenreFilter,
+  type SalonAffinityGenreFilter,
+} from '../lib/musicAffinities';
+import { POPULAR_GENRES } from '../lib/popularGenres';
 import type { LivesGeoPrefs } from '../lib/livesGeo';
 
-export type MapSalonFilterCriteria = Pick<
-  NearbyPanelPreferences,
-  'sortBy' | 'musicalAffinitiesOnly'
-> & {
+export type MapSalonFilterCriteria = Pick<NearbyPanelPreferences, 'sortBy'> & {
   location: string;
   latitude: number | null;
   longitude: number | null;
+  affinityGenres: SalonAffinityGenreFilter | null;
+  affinityGenreOptions: string[];
 };
 
 interface MapSalonFilterSheetProps {
   open: boolean;
   initialCriteria: MapSalonFilterCriteria;
   profileCity?: string;
+  profileGenres?: string[];
   onClose: () => void;
   onApply: (criteria: MapSalonFilterCriteria) => void;
   onPreviewCity?: (latitude: number, longitude: number, location: string) => void;
 }
 
-const DEFAULT_SALON_FILTER: Omit<MapSalonFilterCriteria, 'location' | 'latitude' | 'longitude'> = {
+const DEFAULT_SALON_FILTER: Omit<
+  MapSalonFilterCriteria,
+  'location' | 'latitude' | 'longitude' | 'affinityGenreOptions'
+> = {
   sortBy: 'audience',
-  musicalAffinitiesOnly: false,
+  affinityGenres: null,
 };
+
+function resolveSalonGenreOptions(profileGenres?: string[]): string[] {
+  const fromProfile = (profileGenres ?? []).map((g) => g.trim()).filter(Boolean);
+  if (fromProfile.length > 0) return fromProfile;
+  return POPULAR_GENRES.slice(0, 24);
+}
 
 export function hasSalonFilterCityLocation(criteria: MapSalonFilterCriteria): boolean {
   return Boolean(
@@ -47,11 +62,13 @@ export function MapSalonFilterSheet({
   open,
   initialCriteria,
   profileCity,
+  profileGenres,
   onClose,
   onApply,
   onPreviewCity,
 }: MapSalonFilterSheetProps) {
   const { t } = useTranslation();
+  const genreOptions = useMemo(() => resolveSalonGenreOptions(profileGenres), [profileGenres]);
   const [draft, setDraft] = useState<MapSalonFilterCriteria>(initialCriteria);
   const [applying, setApplying] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -72,7 +89,13 @@ export function MapSalonFilterSheet({
       lastPreviewLocationRef.current = null;
       return;
     }
-    setDraft(initialCriteria);
+    setDraft({
+      ...initialCriteria,
+      affinityGenreOptions:
+        initialCriteria.affinityGenreOptions.length > 0
+          ? initialCriteria.affinityGenreOptions
+          : genreOptions,
+    });
     setLocationError(null);
     setApplying(false);
     if (hasSalonFilterCityLocation(initialCriteria)) {
@@ -82,7 +105,7 @@ export function MapSalonFilterSheet({
         initialCriteria.location
       );
     }
-  }, [open, initialCriteria, previewMapCity]);
+  }, [open, initialCriteria, previewMapCity, genreOptions]);
 
   useEffect(() => {
     if (!open) return;
@@ -100,9 +123,10 @@ export function MapSalonFilterSheet({
       location: profileCity?.trim() || '',
       latitude: null,
       longitude: null,
+      affinityGenreOptions: genreOptions,
     });
     setLocationError(null);
-  }, [profileCity]);
+  }, [profileCity, genreOptions]);
 
   const handleApply = useCallback(async () => {
     setApplying(true);
@@ -133,13 +157,31 @@ export function MapSalonFilterSheet({
       location,
       latitude,
       longitude,
+      affinityGenreOptions: genreOptions,
     });
     setApplying(false);
-  }, [draft, onApply, t]);
+  }, [draft, onApply, t, genreOptions]);
 
   const toggleSort = useCallback((id: NearbySortBy) => {
     setDraft((d) => ({ ...d, sortBy: d.sortBy === id ? 'none' : id }));
   }, []);
+
+  const selectAllGenres = useCallback(() => {
+    setDraft((d) => ({ ...d, affinityGenres: 'all', affinityGenreOptions: genreOptions }));
+  }, [genreOptions]);
+
+  const toggleGenre = useCallback(
+    (genre: string) => {
+      setDraft((d) => ({
+        ...d,
+        affinityGenres: toggleSalonGenreFilter(d.affinityGenres, genre, genreOptions),
+        affinityGenreOptions: genreOptions,
+      }));
+    },
+    [genreOptions]
+  );
+
+  const affinityActive = draft.affinityGenres != null;
 
   if (!open) return null;
 
@@ -227,20 +269,54 @@ export function MapSalonFilterSheet({
             </div>
           </div>
 
-          <label className="flex items-start gap-2.5 rounded-xl border border-[#2a2a3d] bg-[#0b0b0f] px-3 py-2.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={draft.musicalAffinitiesOnly}
-              onChange={(e) => setDraft((d) => ({ ...d, musicalAffinitiesOnly: e.target.checked }))}
-              className="mt-0.5 h-4 w-4 rounded border-[#2a2a3d] bg-[#12121a] text-fuchsia-500 focus:ring-fuchsia-500/50"
-            />
-            <span className="min-w-0">
-              <span className="text-sm text-white font-medium">{t('map.salonFilterAffinities')}</span>
-              <span className="block text-[10px] text-gray-500 mt-0.5 leading-snug">
-                {t('map.salonFilterAffinitiesHint')}
-              </span>
-            </span>
-          </label>
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                {t('map.salonFilterAffinities')}
+              </p>
+              <button
+                type="button"
+                onClick={selectAllGenres}
+                className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold border transition ${
+                  draft.affinityGenres === 'all'
+                    ? 'bg-fuchsia-600/40 border-fuchsia-400/60 text-fuchsia-100'
+                    : 'border-[#2a2a3d] text-gray-400 hover:border-fuchsia-500/40 hover:text-fuchsia-200'
+                }`}
+              >
+                {t('map.salonFilterAffinitiesAll')}
+              </button>
+            </div>
+            <p className="text-[10px] text-gray-500 mb-2 leading-snug">
+              {t('map.salonFilterAffinitiesHint')}
+            </p>
+            <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-0.5">
+              {genreOptions.map((genre) => {
+                const selected = isSalonGenreSelected(draft.affinityGenres, genre);
+                return (
+                  <button
+                    key={genre}
+                    type="button"
+                    onClick={() => toggleGenre(genre)}
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-semibold border transition ${
+                      selected
+                        ? 'bg-fuchsia-600/40 border-fuchsia-400/60 text-fuchsia-100'
+                        : 'border-[#2a2a3d] text-gray-400 hover:border-fuchsia-500/40 hover:text-fuchsia-200'
+                    }`}
+                  >
+                    {genre}
+                  </button>
+                );
+              })}
+            </div>
+            {!affinityActive && (
+              <p className="text-[9px] text-gray-600 mt-1.5">{t('map.salonFilterAffinitiesNone')}</p>
+            )}
+            {affinityActive && !(profileGenres?.length ?? 0) && (
+              <p className="text-[9px] text-amber-500/80 mt-1.5">
+                {t('map.salonFilterAffinitiesProfileHint')}
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="shrink-0 px-3 py-3 border-t border-[#1e1e2f] flex flex-wrap gap-2 bg-[#12121a]">
@@ -282,7 +358,8 @@ export function getDefaultSalonFilterCriteria(mapGeo: LivesGeoPrefs): MapSalonFi
   const prefs = getNearbyPanelPreferences();
   return {
     sortBy: prefs.sortBy === 'none' ? 'audience' : prefs.sortBy,
-    musicalAffinitiesOnly: prefs.musicalAffinitiesOnly,
+    affinityGenres: prefs.salonAffinityGenres,
+    affinityGenreOptions: prefs.salonAffinityGenreOptions,
     location: mapGeo.label,
     latitude: mapGeo.latitude,
     longitude: mapGeo.longitude,
