@@ -66,7 +66,6 @@ interface SalonPlaybackPanelProps {
   onProposeTrack?: (body: {
     title: string;
     artist: string;
-    spotifyUrl?: string;
     youtubeUrl?: string;
   }) => Promise<void>;
   /** Lecteur compact sur la carte (audio par défaut, sans file d'attente). */

@@ -30,15 +30,17 @@ localhost:5173       51.159.170.181                 51.159.164.100
 - **Chemin app** : `/opt/soundly`
 - **SSH** : `ssh soundy-staging` (alias → `51.159.170.181`)
 
-### DNS (action manuelle)
+### DNS
 
-Ajouter un enregistrement **A** :
+Enregistrement **A** actif (OVH) :
 
 ```
 staging.getsoundy.com  →  51.159.170.181
 ```
 
-En attendant le DNS, l'app répond sur `http://51.159.170.181` (Basic Auth : user `staging`, mot de passe défini au bootstrap Caddy).
+HTTPS Let's Encrypt via Caddy. Accès web protégé Basic Auth (user `staging`, mot de passe dans `msdev/.env` → `STAGING_BASIC_AUTH_*`).
+
+Script vérif / ajout API : `scripts/add-staging-dns-ovh.ps1`
 
 ## Commandes
 
@@ -86,7 +88,7 @@ npm run deploy:prod
 | Service | Preprod | Prod |
 |---------|---------|------|
 | Stripe | `sk_test_` (clés test) | `sk_live_` |
-| Google / Spotify OAuth | Redirect URIs `staging.getsoundy.com/api/auth/...` | `getsoundy.com` |
+| Google OAuth | Redirect URIs `staging.getsoundy.com/api/auth/...` | `getsoundy.com` |
 | Sightengine | Mêmes clés (modération active) | prod |
 | LiveKit / Cloudflare | Projet partagé ou test | prod |
 

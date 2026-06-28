@@ -15,8 +15,12 @@ export interface StartLiveMediaSetupModalProps {
   /** Statut Stripe vérifié (évite flash titre avant check API). */
   stripeStatusReady?: boolean;
   stripeStepRequired?: boolean;
+  /** Afficher l'étape Lya pour choisir comment recevoir les pourboires. */
+  tipsSetupStepEnabled?: boolean;
   stripePending?: boolean;
   stripeReady?: boolean;
   onStripeSkip?: () => void;
+  /** L'hôte a choisi de recevoir des pourboires (RIB ou simulation). */
+  onTipsAccept?: () => void;
   onStripeRefresh?: () => void | Promise<void>;
 }

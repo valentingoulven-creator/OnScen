@@ -110,21 +110,6 @@ export const SUBPROCESSORS: SubprocessorRecord[] = [
     retentionNote: 'Logs d\'envoi : [À VÉRIFIER selon politique Resend]',
   },
   {
-    name: 'Spotify AB',
-    role: 'API musicale — lecture synchronisée via Spotify Connect, métadonnées',
-    country: 'Suède (UE)',
-    euTransfer: false,
-    transferMechanism: 'UE — pas de transfert hors UE pour l\'entité contractante',
-    dpaUrl: 'https://www.spotify.com/legal/privacy-policy/',
-    dpaStatus: 'not-required',
-    dataCategories: [
-      'Identifiant Spotify de l\'utilisateur (si connexion OAuth)',
-      'Jeton OAuth Spotify (stocké côté serveur Soundy)',
-      'État de lecture (morceau en cours, timestamp)',
-    ],
-    retentionNote: 'Jetons révoqués à la déconnexion — Spotify gère ses propres données',
-  },
-  {
     name: 'Google LLC / YouTube',
     role: 'YouTube Data API v3 — liste des playlists hôte, métadonnées vidéo',
     country: 'États-Unis (hors UE)',
@@ -206,7 +191,7 @@ Finalités autorisées par sous-traitant :
 • Cloudflare, Inc. : Acheminement et protection du trafic réseau vers les serveurs Soundy
 • Stripe : Traitement des paiements initiés par les utilisateurs de Soundy
 • Resend : Envoi des e-mails transactionnels déclenchés par les actions utilisateurs
-• Spotify AB / Google : Fourniture des API musicales intégrées dans le service`,
+• Google (YouTube) : Fourniture de l’API YouTube intégrée dans le service`,
     },
     {
       heading: '4. Transferts hors Union européenne',
@@ -286,7 +271,6 @@ Résumé :
 │ Cloudflare, Inc.             │ USA      │ Oui (CCT)     │ À signer    │
 │ Stripe Payments Europe, Ltd  │ Irlande  │ Partiel (CCT) │ À signer    │
 │ Resend, Inc.                 │ USA      │ Oui (CCT)     │ À signer    │
-│ Spotify AB                   │ Suède    │ Non           │ Non requis  │
 │ Google LLC / YouTube         │ USA      │ Oui (CCT)     │ Non requis  │
 └──────────────────────────────┴──────────┴───────────────┴─────────────┘
 

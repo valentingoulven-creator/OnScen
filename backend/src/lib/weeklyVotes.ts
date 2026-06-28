@@ -57,7 +57,6 @@ export function recordWeeklyVote(
       songTitle: proposal.title,
       songArtist: proposal.artist,
       youtubeUrl: proposal.youtubeUrl,
-      spotifyUrl: proposal.spotifyUrl,
       proposerName: proposal.proposerName,
       sourceType: 'salon',
     };
@@ -126,7 +125,6 @@ export interface WeeklyTopSongResult {
   title: string;
   artist: string;
   youtubeUrl?: string;
-  spotifyUrl?: string;
   fileUrl?: string;
   proposerName: string;
   voteCount: number;
@@ -205,7 +203,6 @@ export function getWeeklyTopSongs(limit = 10): WeeklyTopSongResult[] {
       title: sample.songTitle,
       artist: sample.songArtist,
       youtubeUrl: sample.youtubeUrl,
-      spotifyUrl: sample.spotifyUrl,
       fileUrl: sample.fileUrl,
       proposerName: sample.proposerName,
       voteCount: count,

@@ -1,4 +1,5 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { TabIcon, SOUNDY_TAB_WAVE_GRADIENT_ID, type TabId } from './TabNavIcons';
 import {
   DEFAULT_USERNAME_WAVE_FROM,
@@ -18,13 +19,24 @@ interface MainTabNavProps {
   className?: string;
 }
 
-const TABS: ReadonlyArray<readonly [Tab, string]> = [
-  ['actualite', 'Accueil'],
-  ['map', 'Carte'],
-  ['dm', 'Messages'],
-  ['music', 'Musique'],
-  ['reels', 'Reels'],
-];
+const TAB_IDS: readonly Tab[] = ['actualite', 'map', 'dm', 'music', 'reels'];
+
+function tabLabelKey(id: Tab): string {
+  switch (id) {
+    case 'actualite':
+      return 'nav.home';
+    case 'map':
+      return 'nav.map';
+    case 'dm':
+      return 'nav.messages';
+    case 'music':
+      return 'nav.music';
+    case 'reels':
+      return 'nav.reels';
+    default:
+      return 'nav.home';
+  }
+}
 
 function isTabActive(id: Tab, tab: Tab, liveViewActive: boolean): boolean {
   if (id === 'map') return tab === 'map' || liveViewActive;
@@ -116,10 +128,16 @@ function navInnerClass(placement: 'bottom' | 'header'): string {
   return 'ms-tab-rail';
 }
 
-function tabAriaLabel(id: Tab, label: string, dmUnread: number): string {
+function tabAriaLabel(
+  id: Tab,
+  label: string,
+  dmUnread: number,
+  t: (key: string, opts?: Record<string, unknown>) => string
+): string {
   if (id !== 'dm' || dmUnread <= 0) return label;
   const n = dmUnread > 99 ? 99 : dmUnread;
-  return n === 1 ? 'Messages, 1 non lu' : `Messages, ${n} non lus`;
+  if (n === 1) return t('nav.dmUnreadOne', { defaultValue: 'Messages, 1 non lu' });
+  return t('nav.dmUnreadMany', { count: n, defaultValue: `Messages, ${n} non lus` });
 }
 
 interface TabButtonProps {
@@ -131,6 +149,7 @@ interface TabButtonProps {
   placement: 'bottom' | 'header';
   dmUnread: number;
   onSelectTab: (id: Tab) => void;
+  t: (key: string, opts?: Record<string, unknown>) => string;
 }
 
 function TabButton({
@@ -142,13 +161,14 @@ function TabButton({
   placement,
   dmUnread,
   onSelectTab,
+  t,
 }: TabButtonProps) {
   return (
     <button
       type="button"
       onClick={() => onSelectTab(id)}
       className={tabButtonClass(id, active, elevated, placement)}
-      aria-label={tabAriaLabel(id, label, dmUnread)}
+      aria-label={tabAriaLabel(id, label, dmUnread, t)}
       aria-current={active ? 'page' : undefined}
       data-tab={id}
     >
@@ -161,7 +181,7 @@ function TabButton({
           wave={placement === 'bottom' && elevated}
           className={placement === 'bottom' && id === 'map' && elevated ? 'w-8 h-8 shrink-0' : undefined}
         />
-        <span className="sr-only">{tabAriaLabel(id, label, dmUnread)}</span>
+        <span className="sr-only">{tabAriaLabel(id, label, dmUnread, t)}</span>
         {id === 'dm' && dmUnread > 0 && (
           <span
             className="absolute -top-1 -right-1.5 min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-pink-600 text-white text-[10px] font-bold leading-none flex items-center justify-center shrink-0 ring-2 ring-[var(--ms-bg,#0b0b0f)]"
@@ -188,6 +208,12 @@ export const MainTabNav = memo(function MainTabNav({
   placement = 'bottom',
   className = '',
 }: MainTabNavProps) {
+  const { t } = useTranslation();
+  const tabs = useMemo(
+    () => TAB_IDS.map((id) => [id, t(tabLabelKey(id))] as const),
+    [t]
+  );
+
   const renderTab = ([id, label]: readonly [Tab, string]) => (
     <TabButton
       key={id}
@@ -199,13 +225,14 @@ export const MainTabNav = memo(function MainTabNav({
       placement={placement}
       dmUnread={dmUnread}
       onSelectTab={onSelectTab}
+      t={t}
     />
   );
 
   return (
     <nav
       className={`${placement === 'header' ? 'shrink-0 flex w-full justify-center' : ''} ${navPlacementClass(placement)} ${className}`}
-      aria-label="Navigation principale"
+      aria-label={t('nav.main', { defaultValue: 'Navigation principale' })}
     >
       {placement === 'bottom' ? (
         <svg width="0" height="0" className="absolute" aria-hidden="true" focusable="false">
@@ -218,11 +245,11 @@ export const MainTabNav = memo(function MainTabNav({
         </svg>
       ) : null}
       {placement === 'header' ? (
-        <div className={navInnerClass(placement)}>{TABS.map(renderTab)}</div>
+        <div className={navInnerClass(placement)}>{tabs.map(renderTab)}</div>
       ) : (
         <div className={navInnerClass(placement)} data-active-tab={tab}>
           <div className="ms-tab-rail__wave" aria-hidden="true" />
-          {TABS.map(renderTab)}
+          {tabs.map(renderTab)}
         </div>
       )}
     </nav>

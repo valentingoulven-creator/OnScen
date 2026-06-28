@@ -3,7 +3,7 @@ export interface MusicTrackItem {
   title: string;
   artist: string;
   albumArtUrl?: string;
-  platform?: 'youtube' | 'spotify';
+  platform?: 'youtube';
   trackId?: string;
   source: 'catalog' | 'composition' | 'live' | 'salon';
   liveId?: string;
@@ -75,20 +75,11 @@ export interface MusicHomePayload {
   };
 }
 
-export type MusicSearchHit =
-  | {
-      kind: 'youtube';
-      id: string;
-      title: string;
-      artist: string;
-      albumArtUrl?: string;
-      externalUrl: string;
-    }
-  | {
-      kind: 'spotify';
-      id: string;
-      title: string;
-      artist: string;
-      albumArtUrl?: string;
-      externalUrl: string;
-    };
+export type MusicSearchHit = {
+  kind: 'youtube';
+  id: string;
+  title: string;
+  artist: string;
+  albumArtUrl?: string;
+  externalUrl: string;
+};

@@ -21,21 +21,6 @@ ensure_env_key() {
   fi
 }
 
-install_redis() {
-  if command -v redis-cli >/dev/null 2>&1 && redis-cli ping 2>/dev/null | grep -q PONG; then
-    log "Redis déjà actif"
-    return 0
-  fi
-  export DEBIAN_FRONTEND=noninteractive
-  apt-get update -qq
-  apt-get install -y -qq redis-server
-  sed -i 's/^supervised no/supervised systemd/' /etc/redis/redis.conf 2>/dev/null || true
-  systemctl enable redis-server
-  systemctl restart redis-server
-  redis-cli ping
-  log "Redis installé (127.0.0.1:6379)"
-}
-
 configure_s3_env() {
   if [[ ! -f "$ENV_FILE" ]]; then
     log "WARN: $ENV_FILE absent"
@@ -46,7 +31,6 @@ configure_s3_env() {
   source "$ENV_FILE"
   set +a
 
-  ensure_env_key "REDIS_URL" "redis://127.0.0.1:6379"
   ensure_env_key "PG_POOL_MAX" "15"
 
   if grep -q '^S3_BUCKET=' "$ENV_FILE"; then
@@ -84,7 +68,7 @@ configure_s3_env() {
 
 main() {
   log "Phase 0 prod — Redis + env S3"
-  install_redis
+  bash "$(dirname "$0")/setup-redis-vps.sh"
   configure_s3_env
   log "Terminé. Relancer PM2 : pm2 startOrReload /opt/soundly/deploy/ecosystem.config.cjs --update-env"
 }

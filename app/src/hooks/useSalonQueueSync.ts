@@ -108,7 +108,7 @@ export function useSalonQueueSync(
   );
 
   const proposeTrack = useCallback(
-    async (body: { title: string; artist: string; spotifyUrl?: string; youtubeUrl?: string }) => {
+    async (body: { title: string; artist: string; youtubeUrl?: string }) => {
       if (!token) return;
       await api.proposeSalonTrack(token, salonId, body);
     },

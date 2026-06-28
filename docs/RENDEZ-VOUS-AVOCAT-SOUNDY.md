@@ -10,7 +10,7 @@
 
 ## Contexte produit (30 secondes)
 
-**Soundy** est une plateforme sociale autour de la musique : profils, feed, reels, DMs, **salons audio** (YouTube/Spotify), **lives vidéo** (LiveKit + Cloudflare), **géolocalisation** (« people nearby », carte), modération admin + NSFW automatisée (Sightengine).
+**Soundy** est une plateforme sociale autour de la musique : profils, feed, reels, DMs, **salons audio** (YouTube), **lives vidéo** (LiveKit + Cloudflare), **géolocalisation** (« people nearby », carte), modération admin + NSFW automatisée (Sightengine).
 
 **Monétisation :** pourboires live (commission plateforme ~30 %), abonnements créateurs, Soundy+ — via **Stripe Connect** (web). App mobile Capacitor (iOS/Android) en cours.
 
@@ -54,7 +54,7 @@
 |---|----------|
 | **12** | **DSA** : Soundy est-elle concernée ? Obligations de signalement, transparence modération, contact légal ? |
 | **13** | **Seuils d’âge** actuels (compte 13+, live 16+, paiement 18+) — conformes ? Consentement parental requis ? Signalement PHAROS ? |
-| **14** | **UGC + musique** (YouTube/Spotify, uploads reels/compositions) : CGU de licence utilisateur suffisante ? Procédure droits d’auteur (notice-and-takedown) ? |
+| **14** | **UGC + musique** (YouTube, uploads reels/compositions) : CGU de licence utilisateur suffisante ? Procédure droits d’auteur (notice-and-takedown) ? |
 
 ### E. Clôture (priorité 1)
 

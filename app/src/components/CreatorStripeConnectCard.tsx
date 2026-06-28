@@ -111,7 +111,7 @@ export function CreatorStripeConnectCard({
 
       {!ready && detailsSubmitted === true && chargesEnabled === false && (
         <p className="text-[10px] text-amber-400/80 mt-1">
-          {t('profile.stripeConnect.pendingVerification', 'Vérification Stripe en cours — vous serez notifié(e) quand le compte sera activé.')}
+          {t('profile.stripeConnect.pendingVerification')}
         </p>
       )}
 

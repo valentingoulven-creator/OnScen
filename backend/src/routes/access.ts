@@ -22,7 +22,6 @@ import {
   type AccessRegistrationMode,
   type AccountStatus,
 } from '../lib/accessControl';
-import { ensurePlatformAccountsFromLegacy } from '../lib/platformConnect';
 import {
   getActiveSubscription,
   getTierById,
@@ -32,30 +31,6 @@ import {
 import { getPlatformPlanStatus, getUserPlatformPlan } from '../lib/platformPlans';
 
 export const accessRouter = Router();
-
-export interface AdminSpotifyConnectionCounts {
-  premium: number;
-  basic: number;
-}
-
-function countLegacySpotifyConnectionTiers(users: User[]): AdminSpotifyConnectionCounts {
-  let premium = 0;
-  let basic = 0;
-  for (const u of users) {
-    ensurePlatformAccountsFromLegacy(u);
-    const account = (u.platformAccounts ?? []).find(
-      (a) => (a.platform as string) === 'spotify' || Boolean(a.spotifyProduct)
-    );
-    if (!account) continue;
-    const product = account.spotifyProduct?.toLowerCase();
-    if (product === 'premium') {
-      premium++;
-    } else if (product === 'free' || product === 'open') {
-      basic++;
-    }
-  }
-  return { premium, basic };
-}
 
 /** Config publique (écran inscription / connexion). */
 accessRouter.get('/config', (_req: Request, res: Response) => {
@@ -89,7 +64,6 @@ accessRouter.get('/admin/overview', authenticateJWT, async (req: Request, res: R
       active: users.filter((u) => getAccountStatus(u) === 'active').length,
       pending: pending.length,
       blocked: blocked.length,
-      spotify: countLegacySpotifyConnectionTiers(users),
     },
     inviteCodes: listInviteCodes(),
   });
@@ -181,7 +155,6 @@ accessRouter.get('/admin/users', authenticateJWT, async (req: Request, res: Resp
     active: realUsers.filter((u) => getAccountStatus(u) === 'active').length,
     pending: realUsers.filter((u) => getAccountStatus(u) === 'pending').length,
     blocked: realUsers.filter((u) => getAccountStatus(u) === 'blocked').length,
-    spotify: countLegacySpotifyConnectionTiers(realUsers),
   };
 
   const filtered = sortAdminUsers(

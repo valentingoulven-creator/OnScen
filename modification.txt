@@ -1,4 +1,33 @@
 ================================================================================
+MODIF 665 — Admin : historique dons live temps réel
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Historique admin de tous les pourboires live : payeur, destinataire, montant,
+ mise à jour temps réel via Socket.IO.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/donationsHistory.ts
+ backend/src/lib/donationsAdminBroadcast.ts
+ backend/src/routes/adminCloudflare.ts — GET /api/admin/donations-history
+ backend/src/lib/donations.ts — broadcast après recordLiveDonation
+ app/src/pages/AdminDonationsTab.tsx
+ app/src/pages/AdminPage.tsx — onglet « Dons »
+ app/src/hooks/useAdminDonationsRealtime.ts
+
+BUILD (si vérifié)
+-----
+ backend/ → npm test donationsHistory + build → ✅
+ app/ → tsc → ✅
+
+================================================================================
+Fin — 2026-06-28
+================================================================================
+
+================================================================================
 MODIF 664 — CI : test ageGates déterministe (fake timers)
 Date : 2026-06-28
 ================================================================================
@@ -12158,4 +12187,380 @@ BUILD (si vérifié)
 
 ================================================================================
 Fin MODIF 793 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 794 — Admin : onglet Dons sous Coût & Analytics
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L'onglet principal « Dons » encombrait la barre admin ; regrouper avec Coût & Analytics.
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/AnalyticsPage.tsx
+ ─────────────────
+ • Sous-onglet `donations` dans AnalyticsSubTabBar
+ • Rendu `<AdminDonationsTab />` quand subTab === 'donations'
+
+ app/src/pages/AdminPage.tsx
+ ─────────────────
+ • Retrait de `donations` des onglets principaux
+ • Alias legacy `initialTab === 'donations'` → analytics + subTab donations
+
+ app/src/locales/fr.json · en.json
+ ─────────────────
+ • Clé `admin.analytics.subTabDonations`
+
+BUILD (si vérifié)
+-----
+ app/ → tsc -b --noEmit → ✅
+
+================================================================================
+Fin MODIF 794 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 795 — Admin Coût : SaaS prod + liens externes
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Compléter l'onglet Coût avec statut configuré/absent des SaaS prod (Sightengine,
+ ACRCloud, Stripe, Resend…) et regrouper tous les liens dashboards/API Soundy.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/prodSaasCatalog.ts — catalogue services + liens externes
+ backend/src/lib/prodSaasStatus.ts — détection .env (configured/missing/disabled)
+ backend/src/lib/prodSaasStatus.test.ts — 3 tests
+ backend/src/routes/adminCloudflare.ts — GET /api/admin/prod-saas-status
+ app/src/pages/AdminCostsTab.tsx — sections SaaS prod + liens externes
+ app/src/types.ts · app/src/lib/api/admin.ts — ProdSaasStatusReport
+ app/src/locales/fr.json · en.json — i18n saas + links
+
+BUILD (si vérifié)
+-----
+ backend/ → vitest prodSaasStatus → ✅
+ app/ → tsc -b --noEmit → ✅
+
+================================================================================
+Fin MODIF 795 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 796 — Redis + Web Push : staging + scripts setup
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Mettre en place Redis (Socket.io cluster) et confirmer Web Push sur les VPS ;
+ documenter msdev (VAPID déjà présent, Redis optionnel).
+
+CHANGEMENTS / FIX
+-----
+ deploy/setup-redis-vps.sh — install redis-server + REDIS_URL
+ deploy/setup-phase0-prod.sh — délègue Redis à setup-redis-vps.sh
+ scripts/setup-redis-webpush.ps1 — -Staging | -Prod | -Msdev
+ msdev/.env.example — blocs VAPID + REDIS_URL commenté
+
+OPS (exécuté)
+-----
+ staging 51.159.170.181 — redis-server installé, REDIS_URL ajouté, PM2 reload
+   → [socket] Redis adapter actif · [rate-limit] Redis store actif
+ prod 51.159.164.100 — déjà OK (Redis + VAPID configured:true)
+
+================================================================================
+Fin MODIF 796 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 797 — Audit externe prod : alertes admin + sync env VPS
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Finaliser l'audit « fait tout » : catalogue SaaS enrichi, alertes critiques dans
+ l'admin Coût, sync automatique des clés manquantes prod/staging.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/prodSaasCatalog.ts — Spotify, Sentry, Coturn, S3, YouTube split, geo…
+ backend/src/lib/prodSaasStatus.ts — alertes (Stripe test, ACRCloud, légal, S3 staging…)
+ backend/src/lib/stripeConfig.ts — getStripeKeyMode / isStripeTestMode
+ backend/src/lib/prodSaasStatus.test.ts — 5 tests (alertes + services)
+ app/src/pages/AdminCostsTab.tsx — bannière alertes + flags Stripe/S3
+ app/src/locales/fr.json · en.json — services + alertes i18n
+ scripts/sync-external-env.ps1 — sync msdev/prod -> VPS (Anthropic, Stripe tiers, S3)
+
+OPS (exécuté)
+-----
+ prod — ANTHROPIC_API_KEY, STRIPE_PRICE_ID_TIER1/TIER2 ajoutés, PM2 reload
+ staging — idem + S3_* copiés depuis prod VPS, PM2 reload
+
+MANUEL (reste)
+-----
+ Stripe sk_live_ sur prod · ACRCloud · LEGAL_PUBLISHER_ADDRESS · DNS staging OVH
+
+BUILD
+-----
+ backend/ → vitest prodSaasStatus → ✅
+ app/ → tsc -b → ✅
+
+================================================================================
+Fin MODIF 797 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 798 — DNS staging.getsoundy.com actif (OVH)
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Activer le sous-domaine staging pour la préprod (OAuth, HTTPS, URL canonique).
+
+CHANGEMENTS / FIX
+-----
+ scripts/add-staging-dns-ovh.ps1 — script API OVH + vérification DNS
+ scripts/add-staging-dns-ovh.md — doc option auto / manuelle
+ msdev/.env.example — placeholders OVH_*
+ docs/ENVIRONNEMENTS.md — DNS marqué actif
+
+OPS (exécuté)
+-----
+ OVH — enregistrement A staging → 51.159.170.181 (action manuelle utilisateur)
+ Caddy staging — certificat Let's Encrypt obtenu pour staging.getsoundy.com
+ verify-full-access — Health staging (DNS) ✅ · https://staging.getsoundy.com/health → preproduction
+
+================================================================================
+Fin MODIF 798 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 799 — Staging : reset mot de passe Caddy Basic Auth
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Mot de passe staging inconnu (hash seul dans Caddyfile) — reset pour accès UI preprod.
+
+CHANGEMENTS / FIX
+-----
+ deploy/Caddyfile.staging — nouveau hash bcrypt user staging
+ msdev/.env.example — STAGING_BASIC_AUTH_* (placeholders)
+ docs/ENVIRONNEMENTS.md — référence msdev/.env pour le mot de passe
+
+OPS (exécuté)
+-----
+ VPS staging — sync Caddyfile + reload caddy · auth UI vérifiée ✅
+ msdev/.env local — STAGING_BASIC_AUTH_USER/PASSWORD (non commité)
+
+================================================================================
+Fin MODIF 799 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 800 — Monétisation : parcours créateur simplifié (RIB, sans blocage live)
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Simplifier au maximum l'expérience : pas de compte Stripe visible, live sans
+ étape bancaire obligatoire, RIB optionnel pour encaisser les pourboires.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/routes/lives.ts — suppression gate STRIPE_CONNECT au lancement live
+ backend/src/lib/donations.ts — message créateur « compte bancaire »
+ app/src/hooks/useStartLiveFlow.ts · StartLiveFlowModals.tsx — RIB non bloquant
+ app/src/components/StartLiveSetupChatModal.tsx — démarrage direct sur titre
+ app/src/locales/fr.json · en.json — « Ajouter mon RIB », plus de jargon Stripe
+ app/src/components/CreatorStripeConnectCard.tsx · LiveStripeConnectGate.tsx
+
+================================================================================
+Fin MODIF 800 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 801 — Live setup Lya : choix méthode pourboires (RIB ou sans)
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Lya doit proposer explicitement comment recevoir un don lors de la création live.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/StartLiveSetupChatModal.tsx — étape stripe après titre, 2 cartes
+ app/src/components/StartLiveFlowModals.tsx · useStartLiveFlow.ts — tipsSetupStepEnabled
+ app/src/locales/fr.json · en.json — setupChatTipMethod* (RIB / sans / sim)
+
+================================================================================
+Fin MODIF 801 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 802 — Live sans RIB : pourboires désactivés pour ce live
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Si l'utilisateur lance un live sans RIB (choix explicite « sans pourboires »), les dons
+ doivent être désactivés pour ce live (UI spectateurs + API), pas seulement bloqués au paiement.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/models/schema.ts · app/src/types.ts · apptel/src/types.ts
+ ─────────────────
+ • `tipsEnabled?: boolean` sur le live.
+
+ backend/src/lib/donations.ts
+ ─────────────────
+ • `resolveLiveTipsEnabledAtStart`, `liveAcceptsTips`, `assertLiveAcceptsTips`.
+
+ backend/src/routes/lives.ts
+ ─────────────────
+ • `POST /lives/start` : calcule `tipsEnabled` (skip explicite → false ; sim → true ; prod → Stripe charges_enabled).
+
+ backend/src/lib/livePublic.ts · backend/src/routes/donations.ts
+ ─────────────────
+ • Expose `tipsEnabled` ; refuse simulate/create-intent si live sans pourboires.
+
+ app/src/hooks/useStartLiveFlow.ts · StartLiveFlowModals.tsx · StartLiveSetupChatModal.tsx
+ ─────────────────
+ • `liveTipsSkipped` : envoi `stripeConnectSkipped` uniquement sur choix explicite Lya.
+ • Goals/récompenses masqués après skip ; `onTipsAccept` réactive les pourboires.
+
+ app/src/pages/LivePage.tsx · apptel/src/pages/LivePage.tsx
+ ─────────────────
+ • `hostCanReceiveDonations` inclut `live.tipsEnabled !== false`.
+
+FICHIERS MODIFIÉS
+-----
+ backend (schema, donations, lives, livePublic, routes/donations)
+ app + apptel (types, LivePage, hook start live, modals setup)
+
+================================================================================
+Fin MODIF 802 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 803 — Live setup Lya : connexion compte Stripe
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Lors de la création de live, Lya doit inviter l'utilisateur à se connecter à Stripe
+ (Connect Express) pour recevoir ~70 % des pourboires — plus de double carte RIB / sans.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/StartLiveFlowModals.tsx
+ ─────────────────
+ • Étape Stripe affichée à chaque création live (si pourboires activés plateforme).
+
+ app/src/components/StartLiveSetupChatModal.tsx — LiveStripeSetupChatPanel
+ ─────────────────
+ • UI centrée « Se connecter à Stripe » + bénéfices 70 % ; skip en bouton secondaire.
+
+ app/src/locales/fr.json · en.json
+ ─────────────────
+ • setupChatAskStripe, setupChatStripeConnect*, setupChatStripeConnected*.
+
+================================================================================
+Fin MODIF 803 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 804 — Dev local : panneau Stripe Connect visible dans le chat Lya
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En msdev, le raccourci simulation masquait l’étape « Se connecter à Stripe » (toujours « connecté »).
+
+CHANGEMENTS / FIX
+-----
+ app/.env.development · app/src/lib/liveStripeDevSetup.ts
+ ─────────────────
+ • VITE_LIVE_STRIPE_SETUP_UI=1 — UI prod du panneau Stripe en dev.
+
+ app/src/hooks/useStartLiveFlow.ts · StartLiveFlowModals.tsx · StartLiveSetupChatModal.tsx
+ ─────────────────
+ • stripeConnectUiReady séparé de stripeSimulation ; panneau Connect affiché en dev.
+
+ backend/src/routes/donations.ts
+ ─────────────────
+ • connect-onboard et connect-status autorisés en msdev si STRIPE_* configuré.
+
+================================================================================
+Fin MODIF 804 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 805 — Live setup : pas d’étape Stripe si compte déjà connecté
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Si Stripe Connect est déjà actif (charges_enabled), ne pas afficher l’étape Stripe
+ dans le chat Lya à la création de live.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/StartLiveFlowModals.tsx
+ ─────────────────
+ • tipsSetupStepEnabled = … && !stripeConnectUiReady
+
+ app/src/components/StartLiveSetupChatModal.tsx
+ ─────────────────
+ • Puce « Pourboires » masquée au retour config si Stripe déjà connecté.
+
+================================================================================
+Fin MODIF 805 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 806 — Retrait complet Spotify (code, i18n, légal, admin)
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Spotify n’est plus utilisé sur Soundy (salons YouTube uniquement depuis MODIF 662).
+ Nettoyage des vestiges : UI, i18n, schéma, admin, docs légales, seeds, env.
+
+CHANGEMENTS / FIX
+-----
+ app/ + apptel/ — types, i18n (~100 clés), AuthPage, AdminAccountsTab, MapHostedSalonBanner,
+   musicTypes, legal (apiPlatforms, CGU, privacy, DPA, mentions), index.css, SEO meta.
+
+ backend/ — schema (spotifyUrl, spotifyJamUrl, spotifyProduct), access.ts compteur legacy,
+   prodSaasCatalog/Status, weeklyVotes, seeds, news démo.
+
+ msdev/.env.example · backend/.env.*.example · scripts/ — variables SPOTIFY_* retirées.
+
+FICHIERS MODIFIÉS
+-----
+ ~40 fichiers app/backend/apptel · locales fr/en régénérées sans clés Spotify.
+
+BUILD
+-----
+ backend tsc ✅ · app npm run build ✅
+
+================================================================================
+Fin MODIF 806 — 2026-06-28
 ================================================================================

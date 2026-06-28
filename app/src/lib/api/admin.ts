@@ -183,8 +183,26 @@ export const adminApi = {
   getCloudflareUsage: (token: string) =>
     request<import('../../types').CloudflareUsageReport>('/admin/cloudflare-usage', {}, token),
 
+  getProdSaasStatus: (token: string) =>
+    request<import('../../types').ProdSaasStatusReport>('/admin/prod-saas-status', {}, token),
+
   getDonationsSummary: (token: string) =>
     request<import('../../types').DonationsSummaryReport>('/admin/donations-summary', {}, token),
+
+  getDonationsHistory: (
+    token: string,
+    opts: { limit?: number; offset?: number } = {}
+  ) => {
+    const params = new URLSearchParams();
+    if (opts.limit != null) params.set('limit', String(opts.limit));
+    if (opts.offset != null) params.set('offset', String(opts.offset));
+    const qs = params.toString();
+    return request<import('../../types').AdminDonationsHistoryResponse>(
+      `/admin/donations-history${qs ? `?${qs}` : ''}`,
+      {},
+      token
+    );
+  },
 
   getVpsMetrics: (token: string) =>
     request<import('../../types').VpsMetricsReport>('/admin/vps-metrics', {}, token),

@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { getSocket } from '../lib/socket';
-import { MapView, type MapViewHandle, type MapStyle } from '../components/MapView';
+import { MapView, type MapViewHandle, type MapStyle, MAP_GLOBE_FLAT_DO_SELECT_MS } from '../components/MapView';
+import { MapZoomSlider } from '../components/MapZoomSlider';
 import { NearbyPeoplePanel } from '../components/NearbyPeoplePanel';
 import { MapCityEventsPanel } from '../components/MapCityEventsPanel';
 import { MapLiveClusterSheet } from '../components/MapLiveClusterSheet';
@@ -64,6 +65,7 @@ import {
   shouldShowAllSalonsAtCityZoom,
   type MapViewDetailState,
 } from '../lib/mapMarkerVisibility';
+import { flatZoomToNorm, type MapZoomControlSnapshot } from '../lib/mapZoomControl';
 import type { NearbyPerson, Salon, Live, MapEventMarker, MapEventCityCluster, PlaybackState, FeedPost } from '../types';
 import { getNearbyRadiusKm, SETTINGS_CHANGED_EVENT } from '../lib/settings';
 import {
@@ -398,6 +400,10 @@ export function HomePage({
     globeAltitude: null,
     bounds: null,
     mapStyle: 'flat',
+  }));
+  const [mapZoomControl, setMapZoomControl] = useState<MapZoomControlSnapshot>(() => ({
+    norm: flatZoomToNorm(14),
+    mode: 'flat',
   }));
 
   useEffect(() => {
@@ -1268,7 +1274,7 @@ export function HomePage({
       setMapStyle('flat');
       localStorage.setItem(MAP_STYLE_KEY, 'flat');
       setMapViewportCenter(sanitizeLatLngTuple(lat, lng, DEFAULT_CENTER));
-      setTimeout(doSelect, 340);
+      setTimeout(doSelect, MAP_GLOBE_FLAT_DO_SELECT_MS);
     },
     []
   );
@@ -1277,6 +1283,18 @@ export function HomePage({
     if (!canUseGlobeView()) return;
     setMapStyle('globe');
     localStorage.setItem(MAP_STYLE_KEY, 'globe');
+  }, []);
+
+  const handleMapZoomSliderChange = useCallback((norm: number) => {
+    mapViewRef.current?.setZoomControlNorm(norm);
+  }, []);
+
+  const handleMapZoomSliderDragStart = useCallback(() => {
+    mapViewRef.current?.setZoomSliderDragging(true);
+  }, []);
+
+  const handleMapZoomSliderDragEnd = useCallback(() => {
+    mapViewRef.current?.setZoomSliderDragging(false);
   }, []);
 
   // Ref holding the debounce timer for settings-triggered reloads.
@@ -2319,6 +2337,7 @@ export function HomePage({
           onGlobePovChange={handleGlobePovChange}
           onFlatMapViewportCenter={(lat, lng) => setMapViewportCenter([lat, lng])}
           onMapExplored={noteMapExplored}
+          onZoomControlChange={setMapZoomControl}
           livesFilterOn={livesFilterOn}
           salonFilterOn={salonFilterOn}
           eventsFilterOn={eventsFilterOn}
@@ -2370,6 +2389,16 @@ export function HomePage({
             </button>
           </div>
         )}
+
+        <MapZoomSlider
+          value={mapZoomControl.norm}
+          mode={mapZoomControl.mode}
+          onChange={handleMapZoomSliderChange}
+          onInteractionStart={handleMapZoomSliderDragStart}
+          onInteractionEnd={handleMapZoomSliderDragEnd}
+          disabled={mapLivesBrowseOpen}
+          className="absolute right-3 top-1/2 -translate-y-[calc(50%+1.75rem)] z-30"
+        />
 
         <div className="ms-map-recenter-fab absolute bottom-4 right-3 z-30 flex flex-row items-center gap-2 pointer-events-auto">
           <button

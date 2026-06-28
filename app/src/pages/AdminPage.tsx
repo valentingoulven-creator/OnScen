@@ -10,8 +10,8 @@ import { AdminAgentsTab } from './AdminAgentsTab';
 import { AnalyticsPage, type AnalyticsSubTab } from './AnalyticsPage';
 
 type AdminTab = 'accounts' | 'access' | 'content' | 'analytics' | 'support' | 'sponsors' | 'agents';
-/** Legacy aliases — reports → Support ; costs → Analytics → Coûts */
-type AdminInitialTab = AdminTab | 'reports' | 'costs';
+/** Legacy aliases — reports → Support ; costs / donations → Analytics */
+type AdminInitialTab = AdminTab | 'reports' | 'costs' | 'donations';
 
 function resolveInitialTab(initialTab: AdminInitialTab): {
   tab: AdminTab;
@@ -23,6 +23,9 @@ function resolveInitialTab(initialTab: AdminInitialTab): {
   }
   if (initialTab === 'costs') {
     return { tab: 'analytics', supportSubTab: 'messages', analyticsSubTab: 'costs' };
+  }
+  if (initialTab === 'donations') {
+    return { tab: 'analytics', supportSubTab: 'messages', analyticsSubTab: 'donations' };
   }
   return { tab: initialTab, supportSubTab: 'messages', analyticsSubTab: 'overview' };
 }

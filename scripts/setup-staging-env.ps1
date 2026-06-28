@@ -72,7 +72,7 @@ if (-not $PushOnly) {
             $seen['STRIPE_SECRET_KEY'] = $true
             continue
         }
-        if ($line -match 'getsoundy\.com' -and $line -match '^\s*(GOOGLE_|SPOTIFY_|YOUTUBE_|FACEBOOK_|INSTAGRAM_|WEB_APP|CORS|STRIPE_)') {
+        if ($line -match 'getsoundy\.com' -and $line -match '^\s*(GOOGLE_|YOUTUBE_|FACEBOOK_|INSTAGRAM_|WEB_APP|CORS|STRIPE_)') {
             $out.Add(($line -replace 'getsoundy\.com', 'staging.getsoundy.com'))
             continue
         }

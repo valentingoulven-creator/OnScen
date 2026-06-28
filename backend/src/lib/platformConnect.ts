@@ -22,16 +22,13 @@ export interface PlatformAccount {
   /** msdev: jeton simulé ; prod: OAuth access token (serveur uniquement) */
   accessToken?: string;
   refreshToken?: string;
-  /** Epoch ms — renouvellement proactif avant expiration Spotify. */
+  /** Epoch ms — renouvellement proactif avant expiration du jeton OAuth. */
   accessTokenExpiresAt?: number;
   displayName?: string;
   avatarUrl?: string;
   email?: string;
   topArtists?: string[];
-  /** Scopes OAuth accordés par Spotify (séparés par des espaces). */
   oauthScopes?: string;
-  /** Produit Spotify (premium, free, open) — renseigné à l'OAuth et au refresh. */
-  spotifyProduct?: string;
 }
 
 export function getPlatformAccounts(user: User): PlatformAccount[] {

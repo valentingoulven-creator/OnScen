@@ -20,6 +20,7 @@ import {
   isDonationsEnabled,
   isStripeConfigured,
   assertCreatorCanReceiveDonation,
+  assertLiveAcceptsTips,
   recordLiveDonation,
   userMeetsDonationAgeFromProfile,
 } from '../lib/donations';
@@ -79,9 +80,20 @@ donationsRouter.get('/connect-status', authenticateJWT, async (req: Request, res
   const userId = (req as Request & { user: { id: string } }).user.id;
   const connectId = getCreatorStripeConnectAccountId(userId);
 
-  if (!connectId || isDonationSimulationMode()) {
+  if (!connectId) {
     res.json({
       stripeConfigured: isStripeConfigured(),
+      stripeConnectAccountId: connectId,
+      ready: false,
+      chargesEnabled: false,
+      detailsSubmitted: false,
+    });
+    return;
+  }
+
+  if (isDonationSimulationMode() && !isStripeConfigured()) {
+    res.json({
+      stripeConfigured: false,
       stripeConnectAccountId: connectId,
       ready: false,
       chargesEnabled: false,
@@ -125,8 +137,10 @@ donationsRouter.get('/connect-status', authenticateJWT, async (req: Request, res
 });
 
 donationsRouter.post('/connect-onboard', authenticateJWT, async (req: Request, res: Response) => {
-  if (isDonationSimulationMode()) {
-    res.status(400).json({ error: 'Stripe Connect réservé à la production' });
+  if (isDonationSimulationMode() && !isStripeConfigured()) {
+    res.status(400).json({
+      error: 'Stripe Connect en dev : ajoute STRIPE_SECRET_KEY et STRIPE_PUBLISHABLE_KEY dans msdev/.env',
+    });
     return;
   }
   if (!isStripeConfigured()) {
@@ -216,10 +230,17 @@ donationsRouter.post('/simulate', authenticateJWT, (req: Request, res: Response)
 
   try {
     assertCreatorCanReceiveDonation(live.hostId);
+    assertLiveAcceptsTips(live);
   } catch (e) {
+    const message = e instanceof Error ? e.message : 'Don impossible';
+    const code = message.includes('désactivés')
+      ? 'LIVE_TIPS_DISABLED'
+      : 'CREATOR_MONETIZATION_AGE_REQUIRED';
     res.status(403).json({
-      error: e instanceof Error ? e.message : `Monétisation disponible à partir de ${CREATOR_MONETIZATION_MIN_AGE} ans.`,
-      code: 'CREATOR_MONETIZATION_AGE_REQUIRED',
+      error: message.includes('désactivés')
+        ? message
+        : message || `Monétisation disponible à partir de ${CREATOR_MONETIZATION_MIN_AGE} ans.`,
+      code,
     });
     return;
   }
@@ -293,10 +314,17 @@ donationsRouter.post('/create-intent', authenticateJWT, async (req: Request, res
 
   try {
     assertCreatorCanReceiveDonation(live.hostId);
+    assertLiveAcceptsTips(live);
   } catch (e) {
+    const message = e instanceof Error ? e.message : 'Don impossible';
+    const code = message.includes('désactivés')
+      ? 'LIVE_TIPS_DISABLED'
+      : 'CREATOR_MONETIZATION_AGE_REQUIRED';
     res.status(403).json({
-      error: e instanceof Error ? e.message : `Monétisation disponible à partir de ${CREATOR_MONETIZATION_MIN_AGE} ans.`,
-      code: 'CREATOR_MONETIZATION_AGE_REQUIRED',
+      error: message.includes('désactivés')
+        ? message
+        : message || `Monétisation disponible à partir de ${CREATOR_MONETIZATION_MIN_AGE} ans.`,
+      code,
     });
     return;
   }

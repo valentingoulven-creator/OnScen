@@ -20,7 +20,7 @@ export const INTEREST_CATEGORIES: readonly InterestCategory[] = [
 
       'Live local',
 
-      'Spotify Jam',
+      'Sessions live',
 
       'YouTube',
 

@@ -1,6 +1,6 @@
 # Soundy — Infrastructure de Tests Agents IA
 
-Simule **30 utilisateurs IA** qui testent Soundy pendant **24 heures** en parallèle.
+Simule **27 utilisateurs IA** qui testent Soundy pendant **24 heures** en parallèle.
 
 ---
 
@@ -9,7 +9,7 @@ Simule **30 utilisateurs IA** qui testent Soundy pendant **24 heures** en parall
 ```
 tests/agents/
 ├── run.ts                      # Point d'entrée (à lancer manuellement)
-├── orchestrator.ts             # Gère les 30 agents, collecte résultats
+├── orchestrator.ts             # Gère les agents, collecte résultats
 ├── agent.ts                    # Classe de base (HTTP, Socket.io, métriques)
 ├── report.ts                   # Génère rapports HTML + JSON
 ├── agents.config.ts            # Configuration (URL, durée, délais)
@@ -21,12 +21,11 @@ tests/agents/
     ├── newUser.scenario.ts     # Agents 1–5  : Nouveaux utilisateurs
     ├── listener.scenario.ts    # Agents 6–10 : Auditeurs
     ├── youtubeHost.scenario.ts # Agents 11–15: Hôtes YouTube
-    ├── spotifyHost.scenario.ts # Agents 16–18: Hôtes Spotify
-    ├── liveStreamer.scenario.ts # Agents 19–21: Streamers live
-    ├── donor.scenario.ts       # Agents 22–24: Donateurs
-    ├── powerUser.scenario.ts   # Agents 25–27: Power users
-    ├── moderator.scenario.ts   # Agents 28–29: Modérateurs
-    └── admin.scenario.ts       # Agent 30    : Admin
+    ├── liveStreamer.scenario.ts # Agents 16–18: Streamers live
+    ├── donor.scenario.ts       # Agents 19–21: Donateurs
+    ├── powerUser.scenario.ts   # Agents 22–24: Power users
+    ├── moderator.scenario.ts   # Agents 25–26: Modérateurs
+    └── admin.scenario.ts       # Agent 27    : Admin
 ```
 
 ---
@@ -74,14 +73,14 @@ TARGET_URL=http://localhost:4080 npm run test:agents
 DURATION_MS=3600000 npm run test:agents      # 1 heure
 DURATION_MS=86400000 npm run test:agents     # 24 heures (défaut)
 
-# Agents spécifiques seulement (IDs 1 à 30)
+# Agents spécifiques seulement (IDs 1 à 27)
 AGENT_IDS=1,2,3,6,7 npm run test:agents
 
 # Niveau de log
 LOG_LEVEL=debug npm run test:agents          # Très verbeux
 LOG_LEVEL=warn npm run test:agents           # Silencieux (erreurs seules)
 
-# Compte admin personnalisé (pour l'agent 30)
+# Compte admin personnalisé (pour l'agent 27)
 PROD_ADMIN_EMAIL=admin@example.com PROD_ADMIN_PASSWORD=xxx npm run test:agents
 
 # Dossier de sortie des rapports
@@ -133,19 +132,18 @@ Rapport JSON pour intégration CI/CD :
 
 ---
 
-## Les 30 agents
+## Les 27 agents
 
 | ID | Nom | Rôle | Ce qu'il teste |
 |---|---|---|---|
 | 1–5 | Alice, Théo, Emma… | Nouveaux utilisateurs | Inscription, onboarding, exploration, follow |
 | 6–10 | Hugo, Manon, Nathan… | Auditeurs | Salons, chat, reels, feed, likes |
 | 11–15 | Jules, Sarah, Antoine… | Hôtes YouTube | Création salon, recherche YouTube, playlists, queue |
-| 16–18 | Inès, Bastien, Zoé | Hôtes Spotify | Salon Spotify, synchro lecture, recherche |
-| 19–21 | Tristan, Eva, Clément | Streamers live | Démarrer live (mock), chat, WebRTC, cadeaux |
-| 22–24 | Sophie, Pierre, Marie | Donateurs | Dons Stripe, cadeaux live, abonnements créateurs |
-| 25–27 | Lucas, Jade, Tom | Power users | Reels, posts, DMs, groupes, mentions, edge cases |
-| 28–29 | Audrey, Fabien | Modérateurs | Signalements, support tickets, conformité légale |
-| 30 | Admin Soundy | Admin | Panel admin, analytics, gestion users, modération |
+| 16–18 | Tristan, Eva, Clément | Streamers live | Démarrer live (mock), chat, WebRTC, cadeaux |
+| 19–21 | Sophie, Pierre, Marie | Donateurs | Dons Stripe, cadeaux live, abonnements créateurs |
+| 22–24 | Lucas, Jade, Tom | Power users | Reels, posts, DMs, groupes, mentions, edge cases |
+| 25–26 | Audrey, Fabien | Modérateurs | Signalements, support tickets, conformité légale |
+| 27 | Admin Soundy | Admin | Panel admin, analytics, gestion users, modération |
 
 ---
 
@@ -176,15 +174,7 @@ Rapport JSON pour intégration CI/CD :
 - Skip, réordonnancement de la queue
 - Mise à jour des paramètres du salon
 
-### Agents 16–18 : Hôtes Spotify
-- Créer un salon Spotify (attendu: 403 si non lié → fallback YouTube)
-- Test du flow d'erreur OAuth Spotify
-- Recherche Spotify (attendu: 403 si non connecté)
-- Contrôle lecture (play/pause/next)
-- Test Spotify Jam link
-- Vérification état des plateformes liées
-
-### Agents 19–21 : Streamers live
+### Agents 16–18 : Streamers live
 - Créer un live WebRTC/LiveKit (mock — pas de vrai stream)
 - Obtenir les ICE servers TURN
 - Chat en live
@@ -192,7 +182,7 @@ Rapport JSON pour intégration CI/CD :
 - Terminer le live proprement
 - Cycle lives multiples (5–20 min par session)
 
-### Agents 22–24 : Donateurs
+### Agents 19–21 : Donateurs
 - Initier des dons Stripe (sans paiement réel)
 - Envoyer des cadeaux en live (heart, star, fire…)
 - Initier un checkout abonnement créateur
@@ -200,7 +190,7 @@ Rapport JSON pour intégration CI/CD :
 - Regarder les lives en tant que viewer
 - Tester les inputs invalides (montant 0, négatif, ID inexistant)
 
-### Agents 25–27 : Power users
+### Agents 22–24 : Power users
 - Créer et publier des reels (draft → publié)
 - Poster sur le feed (avec mentions)
 - Envoyer des DMs et créer des groupes de chat
@@ -209,7 +199,7 @@ Rapport JSON pour intégration CI/CD :
 - Supprimer ses propres posts
 - Gérer profil, stories, notifications
 
-### Agents 28–29 : Modérateurs
+### Agents 25–26 : Modérateurs
 - Signaler du contenu (reels, users, salons, lives)
 - Créer des tickets de support
 - Vérifier les pages légales (CGU, confidentialité)
@@ -218,7 +208,7 @@ Rapport JSON pour intégration CI/CD :
 - Bloquer/débloquer des utilisateurs
 - Test des endpoints 404
 
-### Agent 30 : Admin
+### Agent 27 : Admin
 - Connexion avec les credentials admin (env vars)
 - Parcourir les analytics par contexte
 - Gestion des utilisateurs (liste, approbation)
@@ -239,7 +229,7 @@ Rapport JSON pour intégration CI/CD :
 │               Orchestrator (orchestrator.ts)             │
 │   ┌─────────────────────┼──────────────────────────┐    │
 │   │                     │                          │    │
-│ Agent#1             Agent#15               Agent#30 │   │
+│ Agent#1             Agent#15               Agent#27 │   │
 │ (NewUser)        (YouTubeHost)              (Admin)  │   │
 │   │                     │                          │    │
 │ BaseAgent            BaseAgent             BaseAgent │   │
@@ -253,7 +243,7 @@ Rapport JSON pour intégration CI/CD :
 ```
 
 **Flux de données :**
-1. `Orchestrator` instancie 30 agents via `createAgent(persona)`
+1. `Orchestrator` instancie les agents via `createAgent(persona)`
 2. Chaque agent tourne en parallèle dans sa propre `Promise`
 3. Les `sharedUserIds`, `sharedSalonIds`, `sharedLiveIds` permettent aux agents d'interagir entre eux
 4. Chaque action est enregistrée : méthode, endpoint, statut HTTP, latence, erreur
@@ -282,7 +272,7 @@ Rapport JSON pour intégration CI/CD :
 
 2. **Pas de vrais streams** : les agents streamers créent des sessions LiveKit/Cloudflare mais n'envoient pas de flux vidéo réel. Uniquement l'API est testée.
 
-3. **Pas de vrais OAuth** : les agents ne peuvent pas lier Spotify/YouTube via OAuth (nécessite un vrai navigateur). Les erreurs 403 sur ces endpoints sont attendues et documentées.
+3. **Pas de vrais OAuth** : les agents ne peuvent pas lier YouTube via OAuth (nécessite un vrai navigateur). Les erreurs 403 sur ces endpoints sont attendues et documentées.
 
 4. **Comptes de test** : les agents créent de vrais comptes avec des emails `soundy.agent01@test.soundy.local`. En production, utiliser un domaine de test isolé.
 

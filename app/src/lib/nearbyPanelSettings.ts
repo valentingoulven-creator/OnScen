@@ -156,8 +156,6 @@ export function getNearbyPanelPreferences(): NearbyPanelPreferences {
       }
       if (parsed.platformFilter === 'youtube' || parsed.platformFilter === 'all') {
         platformFilter = parsed.platformFilter;
-      } else if (parsed.platformFilter === 'spotify') {
-        platformFilter = 'all';
       }
       if (typeof parsed.livesOnly === 'boolean') livesOnly = parsed.livesOnly;
       if (

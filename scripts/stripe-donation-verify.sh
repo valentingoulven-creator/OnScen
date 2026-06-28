@@ -27,7 +27,7 @@ if [ -z "$LIVE_ID" ]; then
   LIVE_ID="live_stripe_test_$(date +%s)"
   NOW=$(date +%s%3N)
   PAYLOAD=$(cat <<EOF
-{"id":"${LIVE_ID}","hostId":"${HOST_USER_ID}","hostName":"Val","title":"Stripe Connect test live","platform":"spotify","playbackState":"playing","latitude":48.8566,"longitude":2.3522,"blurredLatitude":48.86,"blurredLongitude":2.35,"viewersCount":0,"isActive":true,"startedAt":${NOW}}
+{"id":"${LIVE_ID}","hostId":"${HOST_USER_ID}","hostName":"Val","title":"Stripe Connect test live","platform":"youtube","playbackState":"playing","latitude":48.8566,"longitude":2.3522,"blurredLatitude":48.86,"blurredLongitude":2.35,"viewersCount":0,"isActive":true,"startedAt":${NOW}}
 EOF
 )
   psql "$DATABASE_URL" -c "

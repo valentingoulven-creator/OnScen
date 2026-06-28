@@ -293,7 +293,6 @@ export interface SalonTrackProposal {
   proposerName: string;
   title: string;
   artist: string;
-  spotifyUrl?: string;
   youtubeUrl?: string;
   status: SalonProposalStatus;
   createdAt: number;
@@ -359,6 +358,8 @@ export interface Live {
   vipModeratorIds?: string[];
   /** L'hôte du live peut recevoir des dons (18+). */
   hostMonetizationEligible?: boolean;
+  /** Pourboires activés sur ce live. */
+  tipsEnabled?: boolean;
   /** Mode diffusion : webrtc (mesh), livekit (navigateur) ou cloudflare (HLS/CDN). */
   streamMode?: 'webrtc' | 'cloudflare' | 'livekit';
   /** URL manifest HLS Cloudflare (spectateurs). */

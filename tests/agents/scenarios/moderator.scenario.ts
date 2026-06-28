@@ -108,7 +108,7 @@ export class ModeratorAgent extends BaseAgent {
   private async createSupportTicket(): Promise<void> {
     const subjects = [
       'Impossible de rejoindre un salon',
-      'Problème avec la lecture Spotify',
+      'Problème avec la lecture YouTube',
       'Notification reçue en double',
       'Profil qui ne se met pas à jour',
       'Bug sur le feed — posts dupliqués',

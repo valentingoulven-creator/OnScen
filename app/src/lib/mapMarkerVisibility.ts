@@ -5,14 +5,14 @@ import type { MapEventCityCluster } from '../types';
  * Progressive disclosure of map markers by zoom / globe altitude.
  *
  * Flat map (Leaflet zoom):
- *   overview  z < 8   — capitals, event city clusters (no viewport clip),
+ *   overview  z < 8   — event city clusters (no viewport clip), pas de capitales
  *     simplified dots for lives/salons when their filter is ON
- *   city      8 ≤ z < 12 — capitals, events ; salons/lives/people si filtre actif
+ *   city      8 ≤ z < 12 — capitales (viewport), events ; salons/lives/people si filtre actif
  *   street    z ≥ 12  — idem (marqueurs passés filtrés par filtre carte)
  *
  * Globe (pointOfView altitude — lower = closer):
- *   overview  alt ≥ 0.6
- *   city      0.15 ≤ alt < 0.6
+ *   overview  alt ≥ 0.6 — pas de capitales
+ *   city      0.15 ≤ alt < 0.6 — capitales proches du centre visible
  *   street    alt < 0.15
  */
 
@@ -282,6 +282,27 @@ export function getGlobeDetailTier(altitude: number): MapDetailTier {
   return 'street';
 }
 
+/** Rayon (km) autour du centre globe pour afficher les capitales au zoom pays. */
+export function getGlobeCapitalVisibleRadiusKm(altitude: number): number {
+  if (altitude >= GLOBE_ALTITUDE_CITY_MAX) return 0;
+  if (altitude <= GLOBE_ALTITUDE_STREET_MAX) return 280;
+  const span = GLOBE_ALTITUDE_CITY_MAX - GLOBE_ALTITUDE_STREET_MAX;
+  const t = (GLOBE_ALTITUDE_CITY_MAX - altitude) / span;
+  return 400 + t * 850;
+}
+
+export function filterCapitalsInGlobeRegion<T extends { lat: number; lng: number }>(
+  capitals: T[],
+  centerLat: number,
+  centerLng: number,
+  radiusKm: number
+): T[] {
+  if (!isValidLatLng(centerLat, centerLng) || radiusKm <= 0) return [];
+  return capitals.filter(
+    (cap) => getDistanceKm(centerLat, centerLng, cap.lat, cap.lng) <= radiusKm
+  );
+}
+
 export type MapMarkerDensity = 'full' | 'overview';
 
 export interface MapMarkerVisibility {
@@ -324,7 +345,7 @@ export function getMapMarkerVisibility(opts: MapMarkerVisibilityOptions): MapMar
     eventsFilterOn = false,
   } = opts;
 
-  const capitals = !eventsOnly;
+  const capitals = !eventsOnly && tier !== 'overview';
   const eventClusters = eventsFilterOn || hasEventClusters;
 
   switch (tier) {

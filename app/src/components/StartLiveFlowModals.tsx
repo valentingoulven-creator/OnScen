@@ -15,23 +15,27 @@ export function StartLiveFlowModals({ flow }: { flow: StartLiveFlow }) {
     launchLiveAfterSetup,
     geo,
     handleStripeConnectSkip,
+    handleTipsAccepted,
+    liveTipsSkipped,
     refreshStripeStatus,
     legalGateOpen,
     setLegalGateOpen,
     proceedToMediaSetup,
     stripeSimulation,
+    donationsPlatformEnabled,
     stripeConnectReady,
     stripeChargesEnabled,
     stripeChecked,
   } = flow;
 
   const defaultLiveTitle = user ? `Live — ${user.username}` : 'Live';
-  const stripeReady = stripeSimulation || stripeConnectReady === true;
-  const donationsEnabled = stripeReady;
-  /** Étape chat Lya : uniquement si Stripe pas encore prêt (pas le bypass dev de lancement). */
-  const stripeStepRequired = stripeChecked && !stripeSimulation && !stripeReady;
+  const stripeConnectUiReady = stripeConnectReady === true;
+  const donationsEnabled = (stripeSimulation || stripeConnectUiReady) && !liveTipsSkipped;
+  /** Étape Lya Stripe : uniquement si le compte n’est pas déjà connecté. */
+  const tipsSetupStepEnabled =
+    stripeChecked && donationsPlatformEnabled && !stripeConnectUiReady;
   const stripePending =
-    stripeChecked && !stripeReady && !!user?.stripeConnectAccountId && stripeChargesEnabled === false;
+    stripeChecked && !stripeConnectUiReady && !!user?.stripeConnectAccountId && stripeChargesEnabled === false;
 
   return (
     <>
@@ -45,10 +49,12 @@ export function StartLiveFlowModals({ flow }: { flow: StartLiveFlow }) {
         donationsEnabled={donationsEnabled}
         donationsSimulation={stripeSimulation}
         stripeStatusReady={stripeChecked}
-        stripeStepRequired={stripeStepRequired}
+        stripeStepRequired={false}
+        tipsSetupStepEnabled={tipsSetupStepEnabled}
         stripePending={stripePending}
-        stripeReady={stripeReady}
+        stripeReady={stripeConnectUiReady}
         onStripeSkip={handleStripeConnectSkip}
+        onTipsAccept={handleTipsAccepted}
         onStripeRefresh={refreshStripeStatus}
         onClose={() => setMediaSetupOpen(false)}
         onReady={() => {

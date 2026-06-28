@@ -433,7 +433,7 @@ export interface RoomTheaterLayoutProps {
   onToggleMinimize?: () => void;
   /**
    * theater — scène vidéo + chat (YouTube, Live).
-   * queue-chat — colonne file à gauche, chat ancré à droite (salon Spotify).
+   * queue-chat — colonne file à gauche, chat ancré à droite (salon YouTube).
    */
   variant?: 'theater' | 'queue-chat';
   /**

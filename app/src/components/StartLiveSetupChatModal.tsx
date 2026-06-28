@@ -41,6 +41,7 @@ import {
   type SetupChatPhase,
 } from '../lib/liveSetupChatFlow';
 import type { StartLiveMediaSetupModalProps } from './StartLiveMediaSetupModal.types';
+import { isLiveStripeSetupPreviewMode } from '../lib/liveStripeDevSetup';
 
 type MediaStatus = 'loading' | 'ready' | 'error';
 
@@ -107,13 +108,19 @@ function ActionChip({
 function LiveStripeSetupChatPanel({
   token,
   stripePending,
+  stripeReady,
+  donationsSimulation,
   onSkip,
   onRefresh,
+  onContinue,
 }: {
   token: string;
   stripePending?: boolean;
+  stripeReady?: boolean;
+  donationsSimulation?: boolean;
   onSkip?: () => void;
   onRefresh?: () => void | Promise<void>;
+  onContinue: () => void;
 }) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
@@ -131,54 +138,62 @@ function LiveStripeSetupChatPanel({
     }
   };
 
+  const handleSkip = () => {
+    onSkip?.();
+  };
+
+  if (donationsSimulation && !isLiveStripeSetupPreviewMode()) {
+    return (
+      <div className="pt-0.5 space-y-2 rounded-xl border border-amber-500/25 bg-amber-500/5 p-2.5">
+        <p className="text-[11px] text-amber-200/90 leading-snug">{t('live.setupChatTipSimHint')}</p>
+        <ActionChip variant="primary" className="w-full" onClick={onContinue}>
+          {t('live.setupChatBtnContinue')}
+        </ActionChip>
+      </div>
+    );
+  }
+
+  if (stripeReady) {
+    return (
+      <div className="pt-0.5 space-y-2 rounded-xl border border-green-500/25 bg-green-500/5 p-2.5">
+        <p className="text-[11px] text-green-300/90 leading-snug">{t('live.setupChatStripeConnectedHint')}</p>
+        <ActionChip variant="primary" className="w-full" onClick={onContinue}>
+          {t('live.setupChatBtnContinue')}
+        </ActionChip>
+      </div>
+    );
+  }
+
   return (
-    <div className="pt-0.5 space-y-2 rounded-xl border border-purple-500/30 bg-purple-500/5 p-2.5">
-      {!stripePending && (
-        <ul className="space-y-1.5">
-          {[t('live.stripeGateItem1'), t('live.stripeGateItem2'), t('live.stripeGateItem3')].map(
-            (item) => (
-              <li key={item} className="flex items-start gap-2 text-[10px] text-gray-300 leading-snug">
-                <span className="mt-0.5 shrink-0 w-3.5 h-3.5 rounded-full bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-[8px] text-purple-400 font-bold">
-                  ✓
-                </span>
-                {item}
-              </li>
-            )
-          )}
-        </ul>
+    <div className="pt-0.5 space-y-2.5">
+      {donationsSimulation && isLiveStripeSetupPreviewMode() && (
+        <p className="text-[10px] text-amber-300/90 bg-amber-500/10 border border-amber-500/25 rounded-lg p-2 leading-snug">
+          {t('live.setupChatStripeDevPreviewBanner')}
+        </p>
       )}
+      <p className="text-[11px] text-gray-400 leading-snug px-0.5">{t('live.setupChatStripeConnectIntro')}</p>
+
+      <ul className="text-[10px] text-gray-500 space-y-1 px-0.5 list-none">
+        <li>• {t('live.setupChatStripeConnectItem1')}</li>
+        <li>• {t('live.setupChatStripeConnectItem2')}</li>
+      </ul>
 
       {stripePending && (
         <p className="text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/25 rounded-lg p-2 leading-snug">
-          {t('live.stripeGateNotReady')}
+          {t('live.setupChatStripePendingHint')}
         </p>
       )}
 
-      {error && <p className="text-[10px] text-red-400">{error}</p>}
-
-      <button
-        type="button"
-        onClick={() => void handleOnboard()}
+      <ActionChip
+        variant="primary"
+        className="w-full"
         disabled={busy}
-        className="w-full min-h-[44px] py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold disabled:opacity-50 transition"
+        onClick={() => void handleOnboard()}
       >
-        {busy
-          ? t('profile.stripeConnect.onboarding')
-          : stripePending
-            ? t('live.stripeGateNotReadyCta')
-            : t('live.stripeGateCta')}
-      </button>
+        {busy ? t('profile.stripeConnect.onboarding') : t('live.setupChatStripeConnectCta')}
+      </ActionChip>
 
-      {onSkip && (
-        <button
-          type="button"
-          onClick={onSkip}
-          disabled={busy}
-          className="w-full min-h-[44px] py-2 text-xs text-gray-500 hover:text-gray-300 disabled:opacity-50 transition"
-        >
-          {t('live.stripeGateSkip')}
-        </button>
-      )}
+      {error && <p className="text-[10px] text-red-400">{error}</p>}
 
       {onRefresh && (
         <button
@@ -191,7 +206,9 @@ function LiveStripeSetupChatPanel({
         </button>
       )}
 
-      <p className="text-[9px] text-gray-600 text-center leading-snug">{t('live.stripeGateProfileHint')}</p>
+      <ActionChip variant="ghost" className="w-full" disabled={busy} onClick={handleSkip}>
+        {t('live.setupChatTipMethodSkipTitle')}
+      </ActionChip>
     </div>
   );
 }
@@ -208,10 +225,12 @@ export function StartLiveSetupChatModal({
   token,
   profileCity,
   stripeStepRequired = false,
+  tipsSetupStepEnabled = false,
   stripeStatusReady = true,
   stripePending = false,
   stripeReady = false,
   onStripeSkip,
+  onTipsAccept,
   onStripeRefresh,
 }: StartLiveMediaSetupModalProps) {
   const { t } = useTranslation();
@@ -396,7 +415,7 @@ export function StartLiveSetupChatModal({
           : [{ id: nextChatMessageId(), role: 'bot', text: t('live.setupChatHello') }]
       );
 
-      setPhase(configured ? 'return_ask' : stripeStepRequired ? 'stripe' : 'title');
+      setPhase(configured ? 'return_ask' : 'title');
       setChatReady(true);
     })();
 
@@ -516,10 +535,32 @@ export function StartLiveSetupChatModal({
     (!obsSetup.useObs || (obsAllowed && cloudflareAvailable)) &&
     (obsSetup.useObs || mediaStatus === 'ready' || phase === 'confirm' || phase === 'return_ask');
 
-  const handleStripeSkipInChat = () => {
-    onStripeSkip?.();
-    pushUser(t('live.stripeGateSkip'));
-    setPhase('title');
+  const finishTipsStep = (choice: 'skip' | 'ready' | 'sim') => {
+    if (choice === 'skip') {
+      onStripeSkip?.();
+    } else {
+      onTipsAccept?.();
+    }
+    pushUser(
+      choice === 'ready'
+        ? t('live.setupChatStripeConnectedOk')
+        : choice === 'sim'
+          ? t('live.setupChatTipSimOk')
+          : t('live.setupChatTipMethodSkipLabel')
+    );
+    setPhase('broadcast');
+  };
+
+  const advanceAfterTitle = () => {
+    if (editReturn) {
+      finishAfterEdit();
+      return;
+    }
+    if (tipsSetupStepEnabled) {
+      setPhase('stripe');
+      return;
+    }
+    setPhase('broadcast');
   };
 
   const showStepFooter =
@@ -535,19 +576,23 @@ export function StartLiveSetupChatModal({
   const renderStepPrimaryAction = () => {
     switch (phase) {
       case 'stripe':
-        return (
+        return stripeReady ? (
           <ActionChip
             variant="primary"
             className="w-full"
-            disabled={!stripeReady}
-            onClick={() => {
-              pushUser(t('live.setupChatStripeOk'));
-              setPhase('title');
-            }}
+            onClick={() => finishTipsStep(donationsSimulation ? 'sim' : 'ready')}
           >
             {t('live.setupChatBtnContinue')}
           </ActionChip>
-        );
+        ) : donationsSimulation && !isLiveStripeSetupPreviewMode() ? (
+          <ActionChip
+            variant="primary"
+            className="w-full"
+            onClick={() => finishTipsStep('sim')}
+          >
+            {t('live.setupChatBtnContinue')}
+          </ActionChip>
+        ) : null;
       case 'title':
         return (
           <ActionChip
@@ -558,11 +603,7 @@ export function StartLiveSetupChatModal({
               setLiveTitle(titleDraft.trim());
               pushUser(titleDraft.trim());
               persistDraft();
-              if (editReturn) {
-                finishAfterEdit();
-                return;
-              }
-              setPhase('broadcast');
+              advanceAfterTitle();
             }}
           >
             {t('live.setupChatBtnContinue')}
@@ -738,7 +779,7 @@ export function StartLiveSetupChatModal({
             <div className="flex flex-wrap gap-2 pt-1">
               {(
                 [
-                  ...(!stripeReady && !donationsSimulation
+                  ...(tipsSetupStepEnabled
                     ? ([['stripe', t('live.setupChatChipStripe')]] as const)
                     : []),
                   ['title', t('live.setupChatChipTitle')],
@@ -773,8 +814,13 @@ export function StartLiveSetupChatModal({
             <LiveStripeSetupChatPanel
               token={token}
               stripePending={stripePending}
-              onSkip={handleStripeSkipInChat}
+              stripeReady={stripeReady}
+              donationsSimulation={donationsSimulation}
+              onSkip={() => finishTipsStep('skip')}
               onRefresh={onStripeRefresh}
+              onContinue={() =>
+                finishTipsStep(donationsSimulation ? 'sim' : stripeReady ? 'ready' : 'skip')
+              }
             />
           )}
 

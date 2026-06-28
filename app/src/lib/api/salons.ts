@@ -115,7 +115,7 @@ export const salonsApi = {
   proposeSalonTrack: (
     token: string,
     salonId: string,
-    body: { title: string; artist: string; spotifyUrl?: string; youtubeUrl?: string }
+    body: { title: string; artist: string; youtubeUrl?: string }
   ) =>
     request<{ proposal: import('../../types').SalonTrackProposal }>(
       `/salons/${salonId}/proposals`,

@@ -58,7 +58,6 @@ interface WeeklyTopSong {
   title: string;
   artist: string;
   youtubeUrl?: string;
-  spotifyUrl?: string;
   fileUrl?: string;
   proposerName: string;
   voteCount: number;
@@ -563,7 +562,7 @@ function ActualitesContent({
         ) : (
           <div className="space-y-2">
             {weeklyTopSongs.map((song) => {
-              const playUrl = song.youtubeUrl ?? song.spotifyUrl ?? song.fileUrl;
+              const playUrl = song.youtubeUrl ?? song.fileUrl;
               return (
                 <div
                   key={song.proposalId}

@@ -4,7 +4,9 @@ import { db } from '../models/schema';
 import { isAccessAdmin } from '../lib/accessControl';
 import { getCloudflareUsageReport } from '../lib/cloudflareUsage';
 import { getDonationsSummaryReport } from '../lib/donationsSummary';
+import { getAdminDonationsHistory } from '../lib/donationsHistory';
 import { getVpsMetricsReport } from '../lib/vpsMetrics';
+import { getProdSaasStatusReport } from '../lib/prodSaasStatus';
 
 export const adminCloudflareRouter = Router();
 
@@ -48,6 +50,17 @@ adminCloudflareRouter.get('/donations-summary', authenticateJWT, (req: Request, 
 });
 
 /**
+ * GET /api/admin/donations-history?limit=100&offset=0
+ * Historique des pourboires live (payeur → créateur), admin uniquement.
+ */
+adminCloudflareRouter.get('/donations-history', authenticateJWT, (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const limit = req.query.limit != null ? Number(req.query.limit) : undefined;
+  const offset = req.query.offset != null ? Number(req.query.offset) : undefined;
+  res.json(getAdminDonationsHistory({ limit, offset }));
+});
+
+/**
  * GET /api/admin/vps-metrics
  * Métriques VPS / hôte (RAM, disque, CPU, latence) — admin uniquement.
  */
@@ -61,4 +74,13 @@ adminCloudflareRouter.get('/vps-metrics', authenticateJWT, async (req: Request, 
       error: e instanceof Error ? e.message : 'Erreur métriques VPS',
     });
   }
+});
+
+/**
+ * GET /api/admin/prod-saas-status
+ * Statut configuration SaaS prod + liens dashboards externes.
+ */
+adminCloudflareRouter.get('/prod-saas-status', authenticateJWT, (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  res.json(getProdSaasStatusReport());
 });

@@ -21,3 +21,11 @@ export function setStripeConnectSkipped(): void {
     // ignore quota / private mode
   }
 }
+
+export function clearStripeConnectSkipped(): void {
+  try {
+    sessionStorage.removeItem(STRIPE_CONNECT_SKIP_KEY);
+  } catch {
+    // ignore
+  }
+}

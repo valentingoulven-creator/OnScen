@@ -703,7 +703,7 @@ body {
   border-radius: 0 6px 6px 0;
 }
 
-/* Salon — colonne chat ancrée (Spotify queue-chat + YouTube theater) */
+/* Salon — colonne chat ancrée (YouTube theater) */
 .room-theater-chat-dock {
   width: 100%;
   max-height: 42dvh;

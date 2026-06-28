@@ -11,7 +11,8 @@ import {
   getLiveMediaPrefs,
   clearLiveMediaDraft,
 } from '../lib/liveMediaPrefs';
-import { isStripeConnectSkipped, setStripeConnectSkipped } from '../lib/stripeConnectSkip';
+import { setStripeConnectSkipped, clearStripeConnectSkipped } from '../lib/stripeConnectSkip';
+import { isLiveStripeSetupPreviewMode } from '../lib/liveStripeDevSetup';
 
 export interface UseStartLiveFlowOptions {
   onOpenLive: (liveId: string) => void;
@@ -37,8 +38,11 @@ export function useStartLiveFlow({
 
   const [stripeChecked, setStripeChecked] = useState(false);
   const [stripeSimulation, setStripeSimulation] = useState(false);
+  const [donationsPlatformEnabled, setDonationsPlatformEnabled] = useState(false);
   const [stripeConnectReady, setStripeConnectReady] = useState(false);
   const [stripeChargesEnabled, setStripeChargesEnabled] = useState<boolean | null>(null);
+  /** Choix explicite « live sans pourboires » dans le setup Lya (session courante). */
+  const [liveTipsSkipped, setLiveTipsSkipped] = useState(false);
 
   const resolvedGeo = useMemo(
     () => initialGeo ?? geo,
@@ -55,9 +59,16 @@ export function useStartLiveFlow({
     try {
       const config = await api.getDonationsConfig(token);
       setStripeSimulation(config.simulation ?? false);
-      if (config.simulation) {
+      setDonationsPlatformEnabled(config.enabled === true);
+      const previewStripeSetup = isLiveStripeSetupPreviewMode();
+      if (config.simulation && !previewStripeSetup) {
         setStripeConnectReady(true);
         setStripeChargesEnabled(true);
+        return;
+      }
+      if (config.simulation && previewStripeSetup && !config.stripeConfigured) {
+        setStripeConnectReady(false);
+        setStripeChargesEnabled(null);
         return;
       }
       const status = await api.getStripeConnectStatus(token);
@@ -90,7 +101,7 @@ export function useStartLiveFlow({
       const prefs = getLiveMediaPrefs() ?? getLiveMediaDraft();
       const lat = prefs?.startLatitude ?? resolvedGeo.latitude;
       const lon = prefs?.startLongitude ?? resolvedGeo.longitude;
-      const skipped = isStripeConnectSkipped() || stripeSimulation;
+      const skipped = liveTipsSkipped;
       const title =
         prefs?.liveTitle?.trim() || `Live — ${user?.username ?? 'Live'}`;
       const { live } = await api.startLive(token, title, {
@@ -107,7 +118,7 @@ export function useStartLiveFlow({
     } finally {
       setStarting(false);
     }
-  }, [onOpenLive, resolvedGeo.latitude, resolvedGeo.longitude, stripeSimulation, token, user?.username]);
+  }, [liveTipsSkipped, onOpenLive, resolvedGeo.latitude, resolvedGeo.longitude, token, user?.username]);
 
   const proceedToMediaSetup = useCallback(() => {
     setLegalGateOpen(false);
@@ -119,7 +130,13 @@ export function useStartLiveFlow({
   }, [verifyStripeForLiveSetup]);
 
   const handleStripeConnectSkip = useCallback(() => {
+    setLiveTipsSkipped(true);
     setStripeConnectSkipped();
+  }, []);
+
+  const handleTipsAccepted = useCallback(() => {
+    setLiveTipsSkipped(false);
+    clearStripeConnectSkipped();
   }, []);
 
   const startLive = useCallback(() => {
@@ -135,6 +152,8 @@ export function useStartLiveFlow({
       return;
     }
 
+    setLiveTipsSkipped(false);
+    clearStripeConnectSkipped();
     setMediaSetupOpen(true);
   }, [hasActiveSalon, starting, token, user?.liveTermsAcceptedAt]);
 
@@ -154,11 +173,14 @@ export function useStartLiveFlow({
     launchLiveAfterSetup,
     geo: resolvedGeo,
     handleStripeConnectSkip,
+    handleTipsAccepted,
+    liveTipsSkipped,
     refreshStripeStatus,
     legalGateOpen,
     setLegalGateOpen,
     proceedToMediaSetup,
     stripeSimulation,
+    donationsPlatformEnabled,
     stripeConnectReady,
     stripeChargesEnabled,
     stripeChecked,

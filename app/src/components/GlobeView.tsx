@@ -1,4 +1,4 @@
-import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, startTransition, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, forwardRef } from 'react';
 import Globe from 'react-globe.gl';
 import type { GlobeMethods } from 'react-globe.gl';
 import { formatEventDateShort } from '../lib/feedEvents';
@@ -12,6 +12,8 @@ import { clusterLiveMapMarkers, type MapLiveLocationCluster } from '../lib/mapLi
 import {
   filterPeopleForZoom,
   filterSalonsForZoom,
+  filterCapitalsInGlobeRegion,
+  getGlobeCapitalVisibleRadiusKm,
   getGlobeDetailTier,
   getMapMarkerVisibility,
   type MapDetailTier,
@@ -60,7 +62,7 @@ const GLOBE_PEOPLE_CAP = IS_LOW_POWER_DEVICE ? 800 : 5000;
 const GLOBE_OVERVIEW_CAP = IS_LOW_POWER_DEVICE ? 400 : 5000;
 
 /** Debounce POV pour rechargement nearby (filtre Lives). */
-const POV_DEBOUNCE_MS = 600;
+const POV_DEBOUNCE_MS = 400;
 
 /** DPR réduit pendant drag/zoom globe — moins de fill-rate GPU. */
 const GLOBE_INTERACTION_MAX_DPR = IS_LOW_POWER_DEVICE ? 1 : 1.5;
@@ -73,9 +75,9 @@ const GLOBE_RENDER_PROFILE = (() => {
   const base = {
     skyTexture: '/globe/night-sky.png',
     backgroundColor: '#0a1220',
-    atmosphereColor: 'rgba(140, 170, 255, 0.55)',
-    atmosphereAltitude: 0.2,
-    toneExposure: 1.38,
+    atmosphereColor: 'rgba(150, 190, 255, 0.58)',
+    atmosphereAltitude: 0.16,
+    toneExposure: 1.62,
     spaceLighting: true,
     skyBrightness: 1.28,
   };
@@ -111,9 +113,9 @@ const GLOBE_RENDER_PROFILE = (() => {
     skyTexture: '/globe/stars-enhanced.jpg',
     backgroundColor: '#0c1628',
     /** Halo atmosphérique bleu (vue ISS) avec légère teinte Soundy. */
-    atmosphereColor: 'rgba(88, 148, 220, 0.52)',
-    atmosphereAltitude: 0.14,
-    toneExposure: 1.52,
+    atmosphereColor: 'rgba(120, 178, 240, 0.5)',
+    atmosphereAltitude: 0.12,
+    toneExposure: 1.82,
     spaceLighting: true,
     skyBrightness: 1.38,
   };
@@ -155,12 +157,12 @@ function configureGlobeSpaceLighting(globe: GlobeMethods): void {
       color?: { setHex: (hex: number) => void };
     };
     if (light.isAmbientLight && typeof light.intensity === 'number') {
-      light.intensity = 0.62;
-      light.color?.setHex(0x304060);
+      light.intensity = 0.84;
+      light.color?.setHex(0x486080);
     }
     if (light.isDirectionalLight && typeof light.intensity === 'number') {
-      light.intensity = 1.28;
-      light.color?.setHex(0xfff6ea);
+      light.intensity = 1.52;
+      light.color?.setHex(0xfff8ee);
     }
   });
 }
@@ -215,7 +217,7 @@ function configureGlobeVisualQuality(
           m.shininess = 14;
           m.specular?.setHex(0x4a5878);
           // Relève la texture earth-night sans la blanchir
-          m.color?.setRGB(1.42, 1.38, 1.32);
+          m.color?.setRGB(1.72, 1.65, 1.52);
         }
         if (isSkyMaterial && m.color && opts.skyBrightness !== 1) {
           const b = opts.skyBrightness;
@@ -298,10 +300,28 @@ const getRingLat   = (d: object) => (d as GlobeRing).lat;
 const getRingLng   = (d: object) => (d as GlobeRing).lng;
 const getRingColor = () => 'rgba(248, 113, 113, 0.72)';
 
-const getLabelLat   = (d: object) => (d as GlobeCapitalLabel).lat;
-const getLabelLng   = (d: object) => (d as GlobeCapitalLabel).lng;
-const getLabelText  = (d: object) => (d as GlobeCapitalLabel).text;
-const getLabelColor = () => 'rgba(210, 210, 255, 0.88)';
+/** DOM labels (CSS2D) — toujours au-dessus du globe et des marqueurs. */
+const capitalHtmlElementCache = new Map<string, HTMLSpanElement>();
+
+function getCapitalHtmlElementKey(cap: GlobeCapitalLabel): string {
+  return `${cap.lat},${cap.lng}`;
+}
+
+function getCapitalHtmlElement(cap: GlobeCapitalLabel): HTMLSpanElement {
+  const key = getCapitalHtmlElementKey(cap);
+  let el = capitalHtmlElementCache.get(key);
+  if (!el) {
+    el = document.createElement('span');
+    el.className = 'globe-capital-label';
+    el.textContent = cap.text;
+    capitalHtmlElementCache.set(key, el);
+  }
+  return el;
+}
+
+const getHtmlLat     = (d: object) => (d as GlobeCapitalLabel).lat;
+const getHtmlLng     = (d: object) => (d as GlobeCapitalLabel).lng;
+const getHtmlElement = (d: object) => getCapitalHtmlElement(d as GlobeCapitalLabel);
 
 /**
  * Shallow equality over the fields that drive Three.js geometry / material.
@@ -376,6 +396,13 @@ export interface GlobeViewProps {
   onPrepareFlatMap?: (lat: number, lng: number, zoom?: number, radiusKm?: number) => void;
   /** L'utilisateur a commencé à tourner/zoomer le globe (libère le recentrage GPS). */
   onMapExplored?: () => void;
+  /** Altitude courante (slider / molette) — sans re-render tier à chaque frame. */
+  onGlobeAltitudeLive?: (altitude: number) => void;
+}
+
+export interface GlobeViewHandle {
+  getPointOfView: () => { lat: number; lng: number; altitude: number } | null;
+  setAltitude: (altitude: number, durationMs?: number) => void;
 }
 
 function buildEventClusterGlobeLabel(cluster: MapEventCityCluster): string {
@@ -398,7 +425,7 @@ function buildIndividualEventGlobeLabel(ev: MapEventMarker): string {
   return parts.join(' · ');
 }
 
-export const GlobeView = memo(function GlobeView({
+export const GlobeView = memo(forwardRef<GlobeViewHandle, GlobeViewProps>(function GlobeView({
   salons,
   lives,
   people = [],
@@ -423,12 +450,18 @@ export const GlobeView = memo(function GlobeView({
   onGlobeUnavailable,
   onPrepareFlatMap,
   onMapExplored,
-}: GlobeViewProps) {
+  onGlobeAltitudeLive,
+}: GlobeViewProps, ref) {
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   /** Tier seul en state — évite re-renders lourds à chaque frame d'altitude. */
   const [globeDetailTier, setGlobeDetailTier] = useState<MapDetailTier>('overview');
+  const [globeCapitalRegion, setGlobeCapitalRegion] = useState(() => ({
+    lat: center[0],
+    lng: center[1],
+    altitude: 1,
+  }));
   const [countryPolygons, setCountryPolygons] = useState<CountryGeoFeature[]>(EMPTY_COUNTRY_POLYGONS);
   const [isInteracting, setIsInteracting] = useState(false);
   const isInteractingRef = useRef(false);
@@ -461,6 +494,8 @@ export const GlobeView = memo(function GlobeView({
   onPrepareFlatMapRef.current = onPrepareFlatMap;
   const onMapExploredRef = useRef(onMapExplored);
   onMapExploredRef.current = onMapExplored;
+  const onGlobeAltitudeLiveRef = useRef(onGlobeAltitudeLive);
+  onGlobeAltitudeLiveRef.current = onGlobeAltitudeLive;
   const lastRecenterTokenRef = useRef(recenterToken);
   const globeUnavailableReportedRef = useRef(false);
   // Empêche la transition auto de se déclencher plusieurs fois
@@ -498,6 +533,21 @@ export const GlobeView = memo(function GlobeView({
     [flushPovChange]
   );
 
+  const refreshGlobeCapitalRegion = useCallback((lat: number, lng: number, altitude: number) => {
+    if (getGlobeDetailTier(altitude) === 'overview') return;
+    if (!isValidLatLng(lat, lng)) return;
+    setGlobeCapitalRegion((prev) => {
+      if (
+        prev.lat === lat &&
+        prev.lng === lng &&
+        Math.abs(prev.altitude - altitude) < 0.008
+      ) {
+        return prev;
+      }
+      return { lat, lng, altitude };
+    });
+  }, []);
+
   const syncTierAndPovFromGlobe = useCallback(
     (scheduleNearby: boolean) => {
       try {
@@ -506,12 +556,16 @@ export const GlobeView = memo(function GlobeView({
           | undefined;
         if (!pov || typeof pov.altitude !== 'number') return;
         globeAltitudeRef.current = pov.altitude;
+        onGlobeAltitudeLiveRef.current?.(pov.altitude);
         const tier = getGlobeDetailTier(pov.altitude);
         const tierChanged = tier !== lastReportedTierRef.current;
         if (tierChanged) {
           lastReportedTierRef.current = tier;
           setGlobeDetailTier(tier);
           onGlobeAltitudeChangeRef.current?.(pov.altitude);
+        }
+        if (!isInteractingRef.current) {
+          refreshGlobeCapitalRegion(pov.lat, pov.lng, pov.altitude);
         }
         if (scheduleNearby && isValidLatLng(pov.lat, pov.lng)) {
           schedulePovChange(pov.lat, pov.lng, pov.altitude);
@@ -520,7 +574,7 @@ export const GlobeView = memo(function GlobeView({
         // pointOfView peut ne pas être disponible
       }
     },
-    [schedulePovChange]
+    [schedulePovChange, refreshGlobeCapitalRegion]
   );
 
   const setGlobeInteractionDpr = useCallback((interacting: boolean) => {
@@ -666,6 +720,7 @@ export const GlobeView = memo(function GlobeView({
                   | undefined;
                 if (pov && typeof pov.altitude === 'number') {
                   globeAltitudeRef.current = pov.altitude;
+                  onGlobeAltitudeLiveRef.current?.(pov.altitude);
                 }
               } catch {
                 /* ignore */
@@ -1137,26 +1192,64 @@ export const GlobeView = memo(function GlobeView({
   // useMemo keeps the reference stable — GLOBE_CAPITAL_LABELS and EMPTY_CAPITAL_LABELS
   // are module-level constants, so labelsData never gets a fresh array object unless
   // the visible tier actually changes.
-  const capitalLabels = useMemo(
-    () =>
-      markerVisibility.capitals && !isInteracting
-        ? GLOBE_CAPITAL_LABELS
-        : EMPTY_CAPITAL_LABELS,
-    [markerVisibility.capitals, isInteracting]
-  );
+  const capitalLabels = useMemo(() => {
+    if (!markerVisibility.capitals || isInteracting) return EMPTY_CAPITAL_LABELS;
+    const radiusKm = getGlobeCapitalVisibleRadiusKm(globeCapitalRegion.altitude);
+    return filterCapitalsInGlobeRegion(
+      GLOBE_CAPITAL_LABELS,
+      globeCapitalRegion.lat,
+      globeCapitalRegion.lng,
+      radiusKm
+    );
+  }, [markerVisibility.capitals, isInteracting, globeCapitalRegion]);
 
   const overviewDots = markerVisibility.density === 'overview';
   const ringMaxRadius = overviewDots ? 0.85 : 1.35;
   const ringPropagationSpeed = overviewDots ? 0.65 : 1.1;
   const ringRepeatPeriod = overviewDots ? 1100 : 900;
   const pointResolution = isInteracting ? 3 : overviewDots ? 4 : 8;
-  const labelResolution = isInteracting ? 3 : GLOBE_RENDER_PROFILE.labelResolution;
 
   const handleGlobeReady = useCallback(() => {
     if (globeRef.current) {
       applyGlobeVisualProfile(globeRef.current);
     }
   }, []);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      getPointOfView() {
+        try {
+          const pov = globeRef.current?.pointOfView() as
+            | { lat: number; lng: number; altitude: number }
+            | undefined;
+          if (!pov || typeof pov.altitude !== 'number') return null;
+          return pov;
+        } catch {
+          return null;
+        }
+      },
+      setAltitude(altitude: number, durationMs = 0) {
+        try {
+          const pov = globeRef.current?.pointOfView() as
+            | { lat: number; lng: number; altitude: number }
+            | undefined;
+          if (!pov || !globeRef.current) return;
+          globeRef.current.pointOfView(
+            { lat: pov.lat, lng: pov.lng, altitude },
+            durationMs
+          );
+          globeAltitudeRef.current = altitude;
+          onGlobeAltitudeLiveRef.current?.(altitude);
+          refreshGlobeCapitalRegion(pov.lat, pov.lng, altitude);
+          syncTierAndPovFromGlobe(false);
+        } catch {
+          /* globe may not be ready */
+        }
+      },
+    }),
+    [syncTierAndPovFromGlobe, refreshGlobeCapitalRegion]
+  );
 
   const handlePointClick = useCallback(
     (pointObj: object) => {
@@ -1284,18 +1377,15 @@ export const GlobeView = memo(function GlobeView({
           ringMaxRadius={ringMaxRadius}
           ringPropagationSpeed={ringPropagationSpeed}
           ringRepeatPeriod={ringRepeatPeriod}
-          // Capital city labels (hidden in events-only mode)
-          labelsData={capitalLabels}
-          labelLat={getLabelLat}
-          labelLng={getLabelLng}
-          labelText={getLabelText}
-          labelSize={0.45}
-          labelColor={getLabelColor}
-          labelDotRadius={0.3}
-          labelAltitude={0.003}
-          labelResolution={labelResolution}
+          // Capital city labels — couche HTML (CSS2D) au premier plan
+          htmlElementsData={capitalLabels}
+          htmlLat={getHtmlLat}
+          htmlLng={getHtmlLng}
+          htmlAltitude={0.004}
+          htmlElement={getHtmlElement}
+          htmlTransitionDuration={0}
         />
       )}
     </div>
   );
-});
+}));

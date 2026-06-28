@@ -299,6 +299,7 @@ export function LivePage({
               : {}),
             hostMonetizationEligible:
               l.hostMonetizationEligible ?? prev?.hostMonetizationEligible,
+            tipsEnabled: l.tipsEnabled ?? prev?.tipsEnabled,
           };
         });
         setViewers(l.viewersCount);
@@ -660,6 +661,7 @@ export function LivePage({
         ...res.live,
         hostMonetizationEligible:
           res.live.hostMonetizationEligible ?? prev?.hostMonetizationEligible,
+        tipsEnabled: res.live.tipsEnabled ?? prev?.tipsEnabled,
       }));
       setShowHostPanel(true);
       setHostPanelTab('config');
@@ -753,7 +755,8 @@ export function LivePage({
     });
   }, [isHost, cameraLocalActive, liveId]);
 
-  const hostCanReceiveDonations = live?.hostMonetizationEligible !== false;
+  const hostCanReceiveDonations =
+    live?.hostMonetizationEligible !== false && live?.tipsEnabled !== false;
 
   useEffect(() => {
     if (isHost) {

@@ -66,7 +66,6 @@ export function LiveStripeConnectGate({ token, isPending, onClose, onSkip }: Liv
             {[
               t('live.stripeGateItem1'),
               t('live.stripeGateItem2'),
-              t('live.stripeGateItem3'),
             ].map((item) => (
               <li key={item} className="flex items-start gap-2.5 text-xs text-gray-300">
                 <span className="mt-0.5 shrink-0 w-4 h-4 rounded-full bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-[9px] text-purple-400 font-bold">

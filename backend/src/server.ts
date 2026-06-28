@@ -554,7 +554,8 @@ app.get('/health', (_req, res) => {
 
   const respond = (dbStatus: 'ok' | 'error' | 'disabled') => {
     const status = dbStatus === 'error' ? 'degraded' : 'OK';
-    res.json({
+    const httpStatus = dbStatus === 'error' ? 503 : 200;
+    res.status(httpStatus).json({
       status,
       app: 'Soundy',
       env: process.env.APP_ENV || 'development',
@@ -587,7 +588,7 @@ app.get('/health/db', (_req, res) => {
     });
 });
 
-/** Pages légales publiques (sans auth, requises LCEN / Spotify / Google OAuth). */
+/** Pages légales publiques (sans auth, requises LCEN / Google OAuth). */
 function sendPublicLegalPage(req: express.Request, res: express.Response): void {
   const docKey = resolvePublicLegalDocKey(req.path);
   if (!docKey) {

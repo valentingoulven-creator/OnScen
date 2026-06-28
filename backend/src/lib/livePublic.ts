@@ -45,6 +45,7 @@ export function serializePublicLive(l: Live, distanceKm?: number, viewerId?: str
     chatConfig: l.chatConfig ?? {},
     isDev: isDevModerator ? true : undefined,
     hostMonetizationEligible: creatorMeetsMonetizationAgeFromProfile(host),
+    tipsEnabled: l.tipsEnabled !== false,
     countryCode: country?.code,
     countryName: country?.name,
     ...(donationOptions?.length ? { donationOptions } : {}),

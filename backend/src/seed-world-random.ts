@@ -43,17 +43,6 @@ const GENRES_POOL = [
   ['Metal', 'Punk', 'Alternative'],
 ];
 
-const SPOTIFY_TRACKS = [
-  { title: 'Get Lucky', artist: 'Daft Punk', trackId: '69kOkLUCkxIZYdfIzTdq34' },
-  { title: 'Midnight City', artist: 'M83', trackId: '2P91MQbaiQKBR4c9sEgqsl' },
-  { title: 'Blinding Lights', artist: 'The Weeknd', trackId: '0QpXHJVyTFLB8ulPRhK4Tt' },
-  { title: 'Mr. Brightside', artist: 'The Killers', trackId: '0eGsygTp906u18L0Oimnem' },
-  { title: 'HUMBLE.', artist: 'Kendrick Lamar', trackId: '7KXjTSCq5nL1Lo92L9Awj4' },
-  { title: 'Levitating', artist: 'Dua Lipa', trackId: '463CkNjxzKBI0DhZzGloGD' },
-  { title: 'One More Time', artist: 'Daft Punk', trackId: '0DiWol3u6YyIcAZPd8w7au' },
-  { title: 'Anti-Hero', artist: 'Taylor Swift', trackId: '0V3wPSX9ygBnCm8psDIegu' },
-];
-
 const YOUTUBE_TRACKS = [
   { title: 'Get Lucky', artist: 'Daft Punk', trackId: '5NV6RXX0i0I' },
   { title: 'Strobe', artist: 'deadmau5', trackId: 'jfaD3P3N0v4' },

@@ -12,7 +12,7 @@ export const politiqueConfidentialite: LegalDocument = {
     },
     {
       heading: '2. Données traitées',
-      body: 'Selon votre utilisation, nous pouvons traiter :\n\n• Données de compte : pseudo, e-mail, mot de passe (stocké de manière hachée), photo(s) de profil, bio, centres d\'intérêt, genres et artistes favoris, rôle (auditeur/host).\n• Données de localisation : coordonnées GPS fournies par votre appareil, position floutée affichée sur la carte, préférences de précision (ville / ~50 m), mode fantôme.\n• Données d\'usage : salons créés ou rejoints, lives, file d\'attente musicale, état de lecture synchronisé.\n• Communications : messages de chat (salon, live), messages privés, commentaires sur reels.\n• Données sociales : abonnements, cœurs/matchs, notifications, blocages, notes aux hosts.\n• Données techniques : jeton de session, identifiants socket, logs techniques, adresse IP lors des connexions au serveur.\n• Connexions plateformes : indicateur de liaison Spotify/YouTube (jetons OAuth le cas échéant).',
+      body: 'Selon votre utilisation, nous pouvons traiter :\n\n• Données de compte : pseudo, e-mail, mot de passe (stocké de manière hachée), photo(s) de profil, bio, centres d\'intérêt, genres et artistes favoris, rôle (auditeur/host).\n• Données de localisation : coordonnées GPS fournies par votre appareil, position floutée affichée sur la carte, préférences de précision (ville / ~50 m), mode fantôme.\n• Données d\'usage : salons créés ou rejoints, lives, file d\'attente musicale, état de lecture synchronisé.\n• Communications : messages de chat (salon, live), messages privés, commentaires sur reels.\n• Données sociales : abonnements, cœurs/matchs, notifications, blocages, notes aux hosts.\n• Données techniques : jeton de session, identifiants socket, logs techniques, adresse IP lors des connexions au serveur.\n• Connexions plateformes : indicateur de liaison YouTube (jetons OAuth le cas échéant).',
     },
     {
       heading: '3. Finalités et bases légales',
@@ -20,7 +20,7 @@ export const politiqueConfidentialite: LegalDocument = {
     },
     {
       heading: '4. Destinataires et sous-traitants',
-      body: 'Les données peuvent être accessibles :\n• aux autres utilisateurs, selon vos paramètres (profil public, carte, messages) ;\n• à l\'éditeur et aux personnes habilitées pour l\'exploitation et la maintenance ;\n• à des prestataires techniques (hébergement) ;\n• aux plateformes Spotify et YouTube lorsque vous connectez votre compte ou ouvrez un lien de lecture (politiques propres à ces services).\n\nCartographie : tuiles CARTO / OpenStreetMap (pas de transmission de votre compte Soundy à OSM par défaut, mais requêtes cartographiques depuis votre appareil).\n\nAvatars : service DiceBear (URLs d\'images).',
+      body: 'Les données peuvent être accessibles :\n• aux autres utilisateurs, selon vos paramètres (profil public, carte, messages) ;\n• à l\'éditeur et aux personnes habilitées pour l\'exploitation et la maintenance ;\n• à des prestataires techniques (hébergement) ;\n• à Google/YouTube lorsque vous connectez votre compte ou ouvrez un lien de lecture (politiques propres à ces services).\n\nCartographie : tuiles CARTO / OpenStreetMap (pas de transmission de votre compte Soundy à OSM par défaut, mais requêtes cartographiques depuis votre appareil).\n\nAvatars : service DiceBear (URLs d\'images).',
     },
     {
       heading: '5. Durées de conservation',
@@ -36,7 +36,7 @@ export const politiqueConfidentialite: LegalDocument = {
     },
     {
       heading: '8. Transferts hors UE',
-      body: 'Certains prestataires (ex. Google/YouTube, Spotify) peuvent traiter des données aux États-Unis ou dans d\'autres pays. Le cas échéant, des garanties appropriées (clauses contractuelles types, décision d\'adéquation) seront mises en place conformément au RGPD.',
+      body: 'Certains prestataires (ex. Google/YouTube) peuvent traiter des données aux États-Unis ou dans d\'autres pays. Le cas échéant, des garanties appropriées (clauses contractuelles types, décision d\'adéquation) seront mises en place conformément au RGPD.',
     },
     {
       heading: '9. Mineurs',
@@ -47,8 +47,8 @@ export const politiqueConfidentialite: LegalDocument = {
       body: 'Soundy utilise :\n\n• Un cookie httpOnly sécurisé (soundy_auth) pour la session web — inaccessible au JavaScript, protégé contre le vol par XSS.\n• Sur l’application mobile native (Capacitor), le jeton de session est conservé dans le stockage sécurisé de l’appareil (Keychain iOS / Keystore Android), et non dans le stockage WebView.\n• localStorage pour les préférences non sensibles : langue, rayon carte, réglages d’interface.\n• Des services tiers (YouTube lecteur intégré, Stripe paiements sur web) — sur mobile natif, les lecteurs et paiements suivent les règles de la plateforme.\n\nVous pouvez effacer le stockage local via les paramètres du navigateur (web) ou en vous déconnectant / supprimant l’application (mobile).',
     },
     {
-      heading: '11. Autorisations OAuth Spotify et YouTube',
-      body: 'Lorsque vous connectez Spotify ou YouTube en production, Soundy demande uniquement les autorisations nécessaires aux fonctionnalités visibles :\n\nSpotify (sans scope « streaming » — pas de lecture audio dans le navigateur) :\n• user-read-email, user-read-private : identifier votre compte et afficher votre profil lié.\n• user-library-read, user-top-read : suggestions et affichage de vos artistes favoris.\n• playlist-read-private, playlist-read-collaborative : charger vos playlists pour animer un salon.\n• user-read-currently-playing, user-read-playback-state : afficher le morceau en cours et synchroniser le chrono du salon.\n• user-modify-playback-state : permettre à l\'hôte de contrôler play/pause/seek via Spotify Connect sur son appareil.\n\nYouTube :\n• youtube.readonly : lister vos playlists YouTube privées lorsque vous hébergez un salon.\n\nLes métadonnées YouTube obtenues via la Data API (titres, chaînes, miniatures) sont mises en cache côté serveur au maximum 1 heure, conformément aux YouTube API Services Terms.\n\nVous pouvez révoquer ces autorisations à tout moment en déconnectant la plateforme dans Soundy ou depuis les paramètres de votre compte Spotify/Google.',
+      heading: '11. Autorisations OAuth YouTube',
+      body: 'Lorsque vous connectez YouTube en production, Soundy demande uniquement les autorisations nécessaires aux fonctionnalités visibles :\n\nYouTube :\n• youtube.readonly : lister vos playlists YouTube privées lorsque vous hébergez un salon.\n\nLes métadonnées YouTube obtenues via la Data API (titres, chaînes, miniatures) sont mises en cache côté serveur au maximum 1 heure, conformément aux YouTube API Services Terms.\n\nVous pouvez révoquer ces autorisations à tout moment en déconnectant YouTube dans Soundy ou depuis les paramètres de votre compte Google.',
     },
     {
       heading: '12. Modifications',

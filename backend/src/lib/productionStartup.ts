@@ -69,7 +69,14 @@ export function assertProductionStartup(): void {
     console.log('[startup] ACRCloud actif — scan copyright sur uploads compositions/reels');
   }
 
-  const pm2Instances = Number(process.env.PM2_INSTANCES || process.env.NODE_APP_INSTANCE);
+  if (isProductionEnv() && process.env.STRIPE_SECRET_KEY?.trim().startsWith('sk_test_')) {
+    console.warn(
+      '[startup] STRIPE_SECRET_KEY est en mode TEST (sk_test_) sur APP_ENV=production — ' +
+        'les paiements réels et Stripe Connect live sont désactivés. Passez à sk_live_ avant ouverture publique.'
+    );
+  }
+
+  const pm2Instances = Number(process.env.PM2_INSTANCES?.trim() || '1');
   if (!process.env.REDIS_URL?.trim() && pm2Instances > 1) {
     console.warn(
       '[startup] PM2 multi-instances sans REDIS_URL — Socket.io et rate limits peuvent diverger entre workers.'

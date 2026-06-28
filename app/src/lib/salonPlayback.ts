@@ -72,7 +72,7 @@ export function buildPlatformTrackUrl(_platform: MusicPlatform, trackId: string)
   return `https://www.youtube.com/watch?v=${trackId}`;
 }
 
-/** Lien plateforme avec position (YouTube `t=` ; Spotify sans offset fiable). */
+/** Lien plateforme avec position (YouTube `t=`). */
 export function buildTrackUrlAtPosition(
   platform: MusicPlatform,
   trackId: string,

@@ -73,7 +73,7 @@ export const MAP_ADS: MapAd[] = [
   {
     id: 'salon',
     title: 'Lance ton salon',
-    subtitle: 'Partage Spotify ou YouTube avec les auditeurs autour de toi',
+    subtitle: 'Partage YouTube avec les auditeurs autour de toi',
     cta: 'Créer un salon',
     accent: 'pink',
     sponsor: 'Soundy',

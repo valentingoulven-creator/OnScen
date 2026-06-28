@@ -2,7 +2,7 @@
   "name": "melosong",
   "version": "2.0.0",
   "private": true,
-  "description": "Soundy — salons musicaux géolocalisés (Spotify, YouTube, Lives)",
+  "description": "Soundy — salons musicaux géolocalisés (YouTube, Lives)",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/valentingoulven-creator/Melo.git",

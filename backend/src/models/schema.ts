@@ -38,14 +38,10 @@ export interface PlatformAccount {
   displayName?: string;
   /** Avatar / chaîne (URL publique, renvoyée au propriétaire via platformLinks). */
   avatarUrl?: string;
-  /** E-mail Spotify (scope user-read-email) — jamais exposé aux autres utilisateurs. */
+  /** E-mail (scope OAuth) — jamais exposé aux autres utilisateurs. */
   email?: string;
-  /** Top artistes Spotify au moment de la liaison (noms). */
   topArtists?: string[];
-  /** Scopes OAuth accordés par Spotify (séparés par des espaces). */
   oauthScopes?: string;
-  /** Produit Spotify (premium, free, open) — renseigné à l'OAuth et au refresh. */
-  spotifyProduct?: string;
 }
 
 export interface User {
@@ -110,7 +106,6 @@ export interface User {
   /** Réseaux sociaux publics (optionnels) */
   instagramHandle?: string;
   youtubeChannel?: string;
-  spotifyUrl?: string;
   /** Compte Stripe Connect (acct_…) pour recevoir les pourboires live en production. */
   stripeConnectAccountId?: string;
   /** Horodatage d'acceptation des règles de diffusion live Soundy (UNIX ms). */
@@ -173,7 +168,7 @@ export interface PlaybackState {
   updatedAt: number;
   /** Horodatage wall-clock au moment de la reprise (lecture en cours). */
   startedAt?: number;
-  /** Lien direct du morceau côté hôte (Spotify / YouTube). */
+  /** Lien direct du morceau côté hôte (YouTube). */
   externalUrl?: string;
   /** Préférence d'affichage imposée par le host : true = vidéo, false = audio seul. */
   showVideo?: boolean;
@@ -206,7 +201,6 @@ export interface SalonTrackProposal {
   proposerName: string;
   title: string;
   artist: string;
-  spotifyUrl?: string;
   youtubeUrl?: string;
   status: SalonProposalStatus;
   createdAt: number;
@@ -231,7 +225,6 @@ export interface WeeklySongVote {
   songTitle: string;
   songArtist: string;
   youtubeUrl?: string;
-  spotifyUrl?: string;
   proposerName: string;
   /** Discographie — absent for salon proposal votes. */
   sourceType?: 'salon' | 'composition';
@@ -268,8 +261,6 @@ export interface Salon {
   createdAt: number;
   /** Genres musicaux du salon (filtre carte / affinités). */
   genres?: string[];
-  /** Lien d'invitation Spotify Jam (socialsession) — saisi manuellement, pas d'API publique. */
-  spotifyJamUrl?: string;
   /** Utilisateurs VIP pouvant modérer le chat du salon. */
   vipModeratorIds?: string[];
   /** Masqué par modération admin (carte et listes publiques). */
@@ -342,6 +333,8 @@ export interface Live {
   peakViewersCount?: number;
   /** Menu pourboires personnalisé par l'hôte (catalogue récompenses). */
   donationOptions?: LiveDonationOption[];
+  /** Pourboires activés sur ce live (false si l'hôte a choisi « sans RIB » au lancement). */
+  tipsEnabled?: boolean;
 }
 
 export type LiveBanScope = 'chat' | 'live';

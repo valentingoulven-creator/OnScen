@@ -5,19 +5,10 @@ import { formatSalonAudienceLabel } from '../lib/salonAudience';
 import { UsernameDisplay } from './UsernameDisplay';
 import type { Salon } from '../types';
 
-const PLATFORM_BADGE: Record<
-  'spotify' | 'youtube',
-  { label: string; className: string }
-> = {
-  spotify: {
-    label: 'Spotify',
-    className: 'map-hosted-salon-banner__platform--spotify',
-  },
-  youtube: {
-    label: 'YouTube',
-    className: 'map-hosted-salon-banner__platform--youtube',
-  },
-};
+const PLATFORM_BADGE = {
+  label: 'YouTube',
+  className: 'map-hosted-salon-banner__platform--youtube',
+} as const;
 
 function ViewerEyeIcon() {
   return (
@@ -109,7 +100,7 @@ export function MapHostedSalonBanner({
     ? t('salon.returnToWithTitle', { title: salonTitle })
     : t('salon.returnTo');
   const audienceLabel = formatSalonAudienceLabel(liveListenersCount, t).replace(/^👥\s*/, '');
-  const platformBadge = platform ? PLATFORM_BADGE[platform] : null;
+  const platformBadge = platform === 'youtube' ? PLATFORM_BADGE : null;
   const thumbnailUrl = albumArtUrl?.trim() || hostAvatarUrl?.trim() || null;
   const actionLabel = ctaLabel ?? t('map.hostedSalonBannerJoin');
 

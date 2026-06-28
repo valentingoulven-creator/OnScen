@@ -1,8 +1,10 @@
-import type { Gift } from '../models/schema';
+import Stripe from 'stripe';
+import type { Gift, Live } from '../models/schema';
 import { db } from '../models/schema';
 import { getIo } from './ioInstance';
 import { notifyHostLiveDon } from './notifications';
 import { persistGiftToPgAsync } from './pgDonations';
+import { broadcastAdminDonationRecorded } from './donationsAdminBroadcast';
 import { CREATOR_MONETIZATION_MIN_AGE, creatorMeetsMonetizationAgeFromProfile } from './ageGates';
 
 export {
@@ -81,8 +83,44 @@ export function assertCreatorCanReceiveStripeDonation(hostId: string): void {
   if (isDonationSimulationMode()) return;
   if (!getCreatorStripeConnectAccountId(hostId)) {
     throw new Error(
-      'Ce créateur n’a pas encore configuré la réception des pourboires (Stripe Connect).'
+      'Ce créateur n’a pas encore ajouté son compte bancaire pour recevoir des pourboires.'
     );
+  }
+}
+
+function getStripeClient(): Stripe | null {
+  const key = process.env.STRIPE_SECRET_KEY?.trim();
+  if (!key) return null;
+  return new Stripe(key);
+}
+
+/** Pourboires acceptés sur ce live (spectateurs + API). */
+export function liveAcceptsTips(live: Live | undefined): boolean {
+  return live?.tipsEnabled !== false;
+}
+
+export function assertLiveAcceptsTips(live: Live): void {
+  if (!liveAcceptsTips(live)) {
+    throw new Error('Les pourboires sont désactivés sur ce live.');
+  }
+}
+
+/** État pourboires figé au démarrage du live selon le choix hôte et Stripe Connect. */
+export async function resolveLiveTipsEnabledAtStart(
+  hostId: string,
+  stripeConnectSkipped: boolean
+): Promise<boolean> {
+  if (stripeConnectSkipped) return false;
+  if (isDonationSimulationMode()) return true;
+  const accountId = getCreatorStripeConnectAccountId(hostId);
+  if (!accountId) return false;
+  const stripe = getStripeClient();
+  if (!stripe) return false;
+  try {
+    const account = await stripe.accounts.retrieve(accountId);
+    return account.charges_enabled === true;
+  } catch {
+    return false;
   }
 }
 
@@ -198,6 +236,8 @@ export function recordLiveDonation(params: {
     amount,
     liveId,
   });
+
+  broadcastAdminDonationRecorded(gift);
 
   return gift;
 }

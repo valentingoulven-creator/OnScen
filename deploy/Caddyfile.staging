@@ -15,7 +15,7 @@
 
 	handle {
 		basic_auth {
-			staging $2a$14$k/6HXnyZpL0J/xXVUcLCMeWczDR/f8t8WwkEyruljBNAf9n26KXfG
+			staging $2a$14$hsGpZcDeKPGE4NJGjENyJecl8p/VrwK7jkYXZ6LUdaRSqxHNIGwqa
 		}
 		reverse_proxy localhost:3000
 	}

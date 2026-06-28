@@ -9,6 +9,7 @@ import {
   filterPeopleInViewport,
   filterSalonsForSalonMapFilter,
   filterSalonsForZoom,
+  filterCapitalsInGlobeRegion,
   getGlobeDetailTier,
   getMapBoundsCenter,
   getMapMarkerVisibility,
@@ -197,6 +198,7 @@ describe('getMapMarkerVisibility lives at globe tiers', () => {
     expect(visibility.lives).toBe(true);
     expect(visibility.salons).toBe(true);
     expect(visibility.people).toBe(false);
+    expect(visibility.capitals).toBe(false);
     expect(visibility.density).toBe('overview');
   });
 
@@ -365,5 +367,37 @@ describe('filterSalonsForZoom with combined filters', () => {
     });
     const visible = filterSalonsForZoom(salons, visibility, false, 'overview');
     expect(visible.map((s) => s.id)).toEqual(['live']);
+  });
+});
+
+describe('capitals progressive disclosure', () => {
+  it('hides capitals at overview tier on flat and globe', () => {
+    expect(
+      getMapMarkerVisibility({
+        tier: 'overview',
+        eventsOnly: false,
+        hasEventClusters: false,
+      }).capitals
+    ).toBe(false);
+  });
+
+  it('shows capitals at city tier when not events-only', () => {
+    expect(
+      getMapMarkerVisibility({
+        tier: 'city',
+        eventsOnly: false,
+        hasEventClusters: false,
+      }).capitals
+    ).toBe(true);
+  });
+
+  it('filters globe capitals by distance from center', () => {
+    const caps = [
+      { lat: 48.8566, lng: 2.3522, name: 'Paris' },
+      { lat: 35.6762, lng: 139.6503, name: 'Tokyo' },
+    ];
+    const nearParis = filterCapitalsInGlobeRegion(caps, 48.85, 2.35, 600);
+    expect(nearParis.map((c) => c.name)).toContain('Paris');
+    expect(nearParis.map((c) => c.name)).not.toContain('Tokyo');
   });
 });

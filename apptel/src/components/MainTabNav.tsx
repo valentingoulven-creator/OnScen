@@ -1,3 +1,5 @@
+import { memo, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { TabIcon, type TabId } from './TabNavIcons';
 
 /** Apptel : pas d’onglet Musique dans la barre. */
@@ -13,13 +15,24 @@ interface MainTabNavProps {
   className?: string;
 }
 
-const TABS: ReadonlyArray<readonly [Tab, string]> = [
-  ['map', 'Carte'],
-  ['actualite', 'Actualité'],
-  ['live', 'Direct'],
-  ['dm', 'Messages'],
-  ['reels', 'Reels'],
-];
+const TAB_IDS: readonly Tab[] = ['map', 'actualite', 'live', 'dm', 'reels'];
+
+function tabLabelKey(id: Tab): string {
+  switch (id) {
+    case 'map':
+      return 'nav.map';
+    case 'actualite':
+      return 'nav.home';
+    case 'live':
+      return 'nav.live';
+    case 'dm':
+      return 'nav.messages';
+    case 'reels':
+      return 'nav.reels';
+    default:
+      return 'nav.home';
+  }
+}
 
 function isTabActive(id: Tab, tab: Tab, liveViewActive: boolean): boolean {
   return tab === id || (id === 'live' && liveViewActive);
@@ -78,13 +91,19 @@ function navInnerClass(placement: 'bottom' | 'header'): string {
   return 'flex items-center justify-center w-full max-w-full gap-[clamp(0.25rem,2.5vw,0.75rem)]';
 }
 
-function tabAriaLabel(id: Tab, label: string, dmUnread: number): string {
+function tabAriaLabel(
+  id: Tab,
+  label: string,
+  dmUnread: number,
+  t: (key: string, opts?: Record<string, unknown>) => string
+): string {
   if (id !== 'dm' || dmUnread <= 0) return label;
   const n = dmUnread > 99 ? 99 : dmUnread;
-  return n === 1 ? 'Messages, 1 non lu' : `Messages, ${n} non lus`;
+  if (n === 1) return t('nav.dmUnreadOne', { defaultValue: 'Messages, 1 non lu' });
+  return t('nav.dmUnreadMany', { count: n, defaultValue: `Messages, ${n} non lus` });
 }
 
-export function MainTabNav({
+export const MainTabNav = memo(function MainTabNav({
   tab,
   liveViewActive,
   dmUnread,
@@ -92,13 +111,19 @@ export function MainTabNav({
   placement = 'bottom',
   className = '',
 }: MainTabNavProps) {
+  const { t } = useTranslation();
+  const tabs = useMemo(
+    () => TAB_IDS.map((id) => [id, t(tabLabelKey(id))] as const),
+    [t]
+  );
+
   return (
     <nav
       className={`${placement === 'header' ? 'shrink-0 flex w-full justify-center' : ''} ${navPlacementClass(placement)} ${className}`}
-      aria-label="Navigation principale"
+      aria-label={t('nav.main', { defaultValue: 'Navigation principale' })}
     >
       <div className={navInnerClass(placement)}>
-      {TABS.map(([id, label]) => {
+      {tabs.map(([id, label]) => {
         const active = isTabActive(id, tab, liveViewActive);
         return (
           <button
@@ -106,7 +131,7 @@ export function MainTabNav({
             type="button"
             onClick={() => onSelectTab(id)}
             className={tabButtonClass(id, active, placement)}
-            aria-label={tabAriaLabel(id, label, dmUnread)}
+            aria-label={tabAriaLabel(id, label, dmUnread, t)}
             aria-current={active ? 'page' : undefined}
           >
             {id === 'live' && active && (
@@ -114,7 +139,7 @@ export function MainTabNav({
             )}
             <span className="relative inline-flex items-center justify-center">
               <TabIcon tab={id} />
-              <span className="sr-only">{tabAriaLabel(id, label, dmUnread)}</span>
+              <span className="sr-only">{tabAriaLabel(id, label, dmUnread, t)}</span>
               {id === 'dm' && dmUnread > 0 && (
                 <span
                   className="absolute -top-1 -right-1.5 min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-pink-600 text-white text-[10px] font-bold leading-none flex items-center justify-center shrink-0 ring-2 ring-[var(--ms-bg,#0b0b0f)]"
@@ -130,4 +155,4 @@ export function MainTabNav({
       </div>
     </nav>
   );
-}
+});

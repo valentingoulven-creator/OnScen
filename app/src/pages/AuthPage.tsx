@@ -688,10 +688,6 @@ export function AuthPage() {
             <p className="text-[10px] text-gray-500 leading-snug">{t('auth.minAgeNotice')}</p>
           )}
 
-          {mode === 'register' && (
-            <p className="text-[10px] text-amber-400/80 leading-snug">{t('auth.spotifyHostPremiumNotice')}</p>
-          )}
-
           {error && (
             <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2">
               <span className="text-red-400 shrink-0 mt-0.5">⚠</span>

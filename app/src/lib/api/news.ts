@@ -17,7 +17,6 @@ export const newsApi = {
         title: string;
         artist: string;
         youtubeUrl?: string;
-        spotifyUrl?: string;
         fileUrl?: string;
         proposerName: string;
         voteCount: number;

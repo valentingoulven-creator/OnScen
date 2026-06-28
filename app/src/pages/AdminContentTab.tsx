@@ -41,8 +41,8 @@ function formatEventDate(iso: string | undefined, locale: string): string {
   });
 }
 
-function platformLabel(platform: string): string {
-  return platform === 'youtube' ? 'YouTube' : 'Spotify';
+function platformLabel(_platform: string): string {
+  return 'YouTube';
 }
 
 function filterLabel(filter: AdminContentFilter, t: (key: string) => string): string {

@@ -18,12 +18,14 @@ import { pauseAllReelsMediaInDom } from './lib/reelsMedia';
 import { pauseMediaElements } from './hooks/usePauseMediaOnPageHidden';
 import { AuthPage } from './pages/AuthPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
-import { isForgotPasswordRoute } from './lib/forgotPasswordRoute';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { EmailVerificationPage } from './pages/EmailVerificationPage';
+import {
+  isForgotPasswordRoute,
+  isResetPasswordRoute,
+  isVerifyEmailRoute,
+} from './lib/forgotPasswordRoute';
 import { OnboardingPage } from './pages/OnboardingPage';
-import { HomePage } from './pages/HomePage';
-import { ProfilePage } from './pages/ProfilePage';
-import { LivesTabPage } from './pages/LivesTabPage';
-import { ReelsTabPage } from './pages/ReelsTabPage';
 import { NotificationBell } from './components/NotificationBell';
 import { PrivacyVisibilityMenu } from './components/PrivacyVisibilityMenu';
 import { useDmUnread } from './context/DmUnreadContext';
@@ -40,6 +42,14 @@ const LivePage = lazy(() => import('./pages/LivePage').then((m) => ({ default: m
 const SalonPage = lazy(() => import('./pages/SalonPage').then((m) => ({ default: m.SalonPage })));
 const UserProfilePage = lazy(() =>
   import('./pages/UserProfilePage').then((m) => ({ default: m.UserProfilePage }))
+);
+const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
+const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
+const LivesTabPage = lazy(() =>
+  import('./pages/LivesTabPage').then((m) => ({ default: m.LivesTabPage }))
+);
+const ReelsTabPage = lazy(() =>
+  import('./pages/ReelsTabPage').then((m) => ({ default: m.ReelsTabPage }))
 );
 
 function PageFallback() {
@@ -210,6 +220,8 @@ export default function App() {
 
   if (!user || !token) {
     if (isForgotPasswordRoute()) return <ForgotPasswordPage />;
+    if (isResetPasswordRoute()) return <ResetPasswordPage />;
+    if (isVerifyEmailRoute()) return <EmailVerificationPage />;
     return <AuthPage />;
   }
 
@@ -218,6 +230,12 @@ export default function App() {
   const reelsActive = tab === 'reels' && !profileOpen && view.type === 'home';
   const mapPlaybackActive = tab === 'map' && view.type === 'home' && !profileOpen;
   const liveViewActive = tab === 'live' || view.type === 'live';
+  const tabContentBase = view.type === 'home';
+  const actualiteTabMounted = tab === 'actualite' && tabContentBase && !profileOpen;
+  const mapTabMounted = tab === 'map' && tabContentBase && !profileOpen;
+  const liveTabMounted = tab === 'live' && tabContentBase && !profileOpen;
+  const dmTabMounted = tab === 'dm' && tabContentBase && !profileOpen;
+  const reelsTabMounted = tab === 'reels' && tabContentBase && !profileOpen;
 
   const stopReelsMedia = () => {
     pauseAllReelsMediaInDom({ resetPosition: true });
@@ -303,7 +321,7 @@ export default function App() {
           role="status"
         >
           <span className="text-xl shrink-0" aria-hidden>
-            ðŸ’¬
+            💬
           </span>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-white truncate">{incomingToast.senderName}</p>
@@ -431,45 +449,33 @@ export default function App() {
         )}
         {view.type === 'home' && (
           <>
-            <div
-              className={
-                tab === 'actualite'
-                  ? 'flex flex-col flex-1 min-h-0 overflow-hidden'
-                  : 'hidden'
-              }
-              aria-hidden={tab !== 'actualite'}
-            >
+            {actualiteTabMounted && (
               <Suspense fallback={<PageFallback />}>
                 <ActualiteTabPage
                   onOpenProfile={(id) => openProfile(id)}
-                  isActive={tab === 'actualite' && !profileOpen}
+                  isActive
                 />
               </Suspense>
-            </div>
-            <div
-              className={tab === 'map' ? 'flex flex-col flex-1 min-h-0 overflow-hidden' : 'hidden'}
-              aria-hidden={tab !== 'map'}
-            >
-              <HomePage
-                appLayout={appLayout}
-                onOpenSalon={openSalonPage}
-                onOpenLive={openLive}
-                onOpenProfile={(person) => openProfile(person.id, person)}
-                onOpenReel={openReelInTab}
-                onCloseMapProfile={closeProfile}
-                mapPlaybackActive={mapPlaybackActive}
-              />
-            </div>
-            <div
-              className={tab === 'live' ? 'flex flex-col flex-1 min-h-0 overflow-hidden' : 'hidden'}
-              aria-hidden={tab !== 'live'}
-            >
-              <LivesTabPage onOpenLive={openLive} />
-            </div>
-            <div
-              className={tab === 'dm' ? 'flex flex-col flex-1 min-h-0 overflow-hidden' : 'hidden'}
-              aria-hidden={tab !== 'dm'}
-            >
+            )}
+            {mapTabMounted && (
+              <Suspense fallback={<PageFallback />}>
+                <HomePage
+                  appLayout={appLayout}
+                  onOpenSalon={openSalonPage}
+                  onOpenLive={openLive}
+                  onOpenProfile={(person) => openProfile(person.id, person)}
+                  onOpenReel={openReelInTab}
+                  onCloseMapProfile={closeProfile}
+                  mapPlaybackActive={mapPlaybackActive}
+                />
+              </Suspense>
+            )}
+            {liveTabMounted && (
+              <Suspense fallback={<PageFallback />}>
+                <LivesTabPage onOpenLive={openLive} />
+              </Suspense>
+            )}
+            {dmTabMounted && (
               <Suspense fallback={<PageFallback />}>
                 <DmPage
                   openPeerId={dmPeerToOpen}
@@ -485,34 +491,31 @@ export default function App() {
                   onOpenFeedPost={openFeedPost}
                 />
               </Suspense>
-            </div>
-            <div
-              className={
-                tab === 'reels'
-                  ? 'flex flex-col flex-1 min-h-0 w-full overflow-hidden'
-                  : 'hidden'
-              }
-              aria-hidden={tab !== 'reels'}
-            >
-              <ReelsTabPage
-                onOpenLive={openLive}
-                initialReelId={reelsInitialId}
-                onIntentHandled={clearReelsIntent}
-                isActive={reelsActive}
-              />
-            </div>
+            )}
+            {reelsTabMounted && (
+              <Suspense fallback={<PageFallback />}>
+                <ReelsTabPage
+                  onOpenLive={openLive}
+                  initialReelId={reelsInitialId}
+                  onIntentHandled={clearReelsIntent}
+                  isActive={reelsActive}
+                />
+              </Suspense>
+            )}
           </>
         )}
 
         {profileOpen && (
           <div className="ms-app-profile-overlay flex flex-col min-h-0 bg-[#0b0b0f]">
-            <ProfilePage
-              onBack={() => setProfileOpen(false)}
-              onOpenReel={openReelInTab}
-              onOpenLive={openLive}
-              openRecorderOnMount={profileOpenRecorder}
-              onRecorderMountHandled={() => setProfileOpenRecorder(false)}
-            />
+            <Suspense fallback={<PageFallback />}>
+              <ProfilePage
+                onBack={() => setProfileOpen(false)}
+                onOpenReel={openReelInTab}
+                onOpenLive={openLive}
+                openRecorderOnMount={profileOpenRecorder}
+                onRecorderMountHandled={() => setProfileOpenRecorder(false)}
+              />
+            </Suspense>
           </div>
         )}
 

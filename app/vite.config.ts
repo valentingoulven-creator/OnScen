@@ -69,7 +69,7 @@ export default defineConfig(({ mode }) => {
       manifest: {
         name: 'Soundy',
         short_name: 'Soundy',
-        description: "Salons d'écoute musicale géolocalisés — Spotify & YouTube",
+        description: "Salons d'écoute musicale géolocalisés — YouTube",
         start_url: '/',
         display: 'standalone' as const,
         background_color: '#0b0b0f',

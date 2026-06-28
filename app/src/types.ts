@@ -335,6 +335,73 @@ export interface DonationsSummaryReport {
   thisMonth: DonationsSummaryPeriod;
 }
 
+export type ProdSaasEnvironment = 'production' | 'preproduction' | 'msdev' | 'development';
+export type ProdSaasServiceStatus = 'configured' | 'missing' | 'external' | 'disabled';
+
+export interface ProdSaasExternalLink {
+  label: string;
+  url: string;
+  note?: string;
+}
+
+export interface ProdSaasLinkGroup {
+  id: string;
+  links: ProdSaasExternalLink[];
+}
+
+export type ProdSaasAlertSeverity = 'critical' | 'warning' | 'info';
+
+export interface ProdSaasAlert {
+  id: string;
+  severity: ProdSaasAlertSeverity;
+  messageKey: string;
+}
+
+export interface ProdSaasServiceReport {
+  id: string;
+  category: string;
+  requiredInProd: boolean;
+  status: ProdSaasServiceStatus;
+  configured: boolean;
+  indicativeCost: string;
+  note?: string;
+  dashboardUrl?: string;
+  docsUrl?: string;
+  flags?: Record<string, boolean | string>;
+}
+
+export interface ProdSaasStatusReport {
+  fetchedAt: string;
+  environment: ProdSaasEnvironment;
+  services: ProdSaasServiceReport[];
+  linkGroups: ProdSaasLinkGroup[];
+  alerts: ProdSaasAlert[];
+}
+
+export interface AdminDonationEntry {
+  id: string;
+  liveId: string;
+  liveTitle: string;
+  senderId: string;
+  senderName: string;
+  recipientId: string;
+  recipientName: string;
+  amountEur: number;
+  amountCents: number;
+  platformFeeCents: number;
+  creatorNetCents: number;
+  paymentMode: 'simulation' | 'stripe';
+  timestamp: number;
+}
+
+export interface AdminDonationsHistoryResponse {
+  fetchedAt: string;
+  simulationMode: boolean;
+  platformFeePercent: number;
+  total: number;
+  items: AdminDonationEntry[];
+}
+
 export interface VpsMetricsReport {
   fetchedAt: string;
   platform: string;
@@ -752,7 +819,6 @@ export interface SalonTrackProposal {
   proposerName: string;
   title: string;
   artist: string;
-  spotifyUrl?: string;
   youtubeUrl?: string;
   status: SalonProposalStatus;
   createdAt: number;
@@ -858,6 +924,8 @@ export interface Live {
   cloudflareLiveInputId?: string;
   /** Menu pourboires personnalisé par l'hôte (si configuré). */
   donationOptions?: LiveDonationOption[];
+  /** Pourboires activés sur ce live (false si l'hôte a lancé sans RIB). */
+  tipsEnabled?: boolean;
 }
 
 export interface ChatMessage {

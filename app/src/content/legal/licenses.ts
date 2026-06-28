@@ -18,7 +18,7 @@ export const licences: LegalDocument = {
     },
     {
       heading: 'Musique et médias',
-      body: 'Pochettes et extraits : métadonnées et liens fournis par Spotify, YouTube ou les utilisateurs. Droits sur les enregistrements : titulaires respectifs.',
+      body: 'Pochettes et extraits : métadonnées et liens fournis par YouTube ou les utilisateurs. Droits sur les enregistrements : titulaires respectifs.',
     },
     {
       heading: 'Bibliothèques open source',

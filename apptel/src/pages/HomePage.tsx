@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { getSocket, onSocketConnect } from '../lib/socket';
-import { MapView, type MapStyle, type MapViewHandle } from '../components/MapView';
+import { MapView, type MapStyle, type MapViewHandle, MAP_GLOBE_FLAT_DO_SELECT_MS } from '../components/MapView';
+import { MapZoomSlider } from '../components/MapZoomSlider';
 import {
   canUseGlobeView,
   disableGlobeView,
@@ -10,6 +11,7 @@ import {
   MAP_STYLE_STORAGE_KEY,
   shouldForceFlatMap,
 } from '../lib/webglSupport';
+import { flatZoomToNorm, type MapZoomControlSnapshot } from '../lib/mapZoomControl';
 import { MapStoriesAccordion } from '../components/MapStoriesAccordion';
 import { NearbyPeoplePanel } from '../components/NearbyPeoplePanel';
 import { MapSalonListenSheet } from '../components/MapSalonListenSheet';
@@ -106,6 +108,11 @@ export function HomePage({
   const [mapGeo, setMapGeo] = useState<LivesGeoPrefs>(() => getLivesGeo());
   const salonSheetRef = useRef<HTMLDivElement>(null);
   const mapViewRef = useRef<MapViewHandle>(null);
+  const playbackSyncDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [mapZoomControl, setMapZoomControl] = useState<MapZoomControlSnapshot>(() => ({
+    norm: flatZoomToNorm(14),
+    mode: 'flat',
+  }));
   const [salonSheetExpanded, setSalonSheetExpanded] = useState(false);
 
   useEffect(() => {
@@ -558,11 +565,14 @@ export function HomePage({
       });
     };
     const onPlaybackSync = (state: PlaybackState) => {
-      setSelected((prev) =>
-        prev && prev.id === salonId
-          ? { ...prev, playbackState: mergeRemotePlaybackState(prev.playbackState, state) }
-          : prev
-      );
+      if (playbackSyncDebounceRef.current) clearTimeout(playbackSyncDebounceRef.current);
+      playbackSyncDebounceRef.current = setTimeout(() => {
+        setSelected((prev) =>
+          prev && prev.id === salonId
+            ? { ...prev, playbackState: mergeRemotePlaybackState(prev.playbackState, state) }
+            : prev
+        );
+      }, 80);
     };
     socket.on('salon_join_denied', onDenied);
     socket.on('salon_kicked', onKicked);
@@ -570,6 +580,7 @@ export function HomePage({
     socket.on('salon_updated', onSalonUpdated);
     socket.on('salon_playback', onPlaybackSync);
     return () => {
+      if (playbackSyncDebounceRef.current) clearTimeout(playbackSyncDebounceRef.current);
       offReconnect();
       socket.emit('leave_salon', { salonId });
       socket.off('salon_join_denied', onDenied);
@@ -592,6 +603,13 @@ export function HomePage({
     setMapStyle('flat');
   }, []);
 
+  const handlePrepareFlatMap = useCallback(
+    (lat: number, lng: number, zoom?: number, radiusKm?: number) => {
+      mapViewRef.current?.prepareFlatAt(lat, lng, zoom ?? 14, radiusKm);
+    },
+    []
+  );
+
   const handleGlobeZoomToFlat = useCallback(
     (
       lat: number,
@@ -599,19 +617,17 @@ export function HomePage({
       doSelect: () => void,
       zoom?: number,
       radiusKm?: number,
-      animated?: boolean
+      _animated?: boolean
     ) => {
       if (radiusKm != null && radiusKm > 0) {
         mapViewRef.current?.jumpToCityBounds(lat, lng, radiusKm);
-      } else if (animated) {
-        mapViewRef.current?.flyTo(lat, lng, zoom ?? 13);
       } else {
         mapViewRef.current?.jumpTo(lat, lng, zoom ?? 14);
       }
       setMapStyle('flat');
       localStorage.setItem(MAP_STYLE_STORAGE_KEY, 'flat');
       setSafeCenter([lat, lng]);
-      setTimeout(doSelect, 560);
+      setTimeout(doSelect, MAP_GLOBE_FLAT_DO_SELECT_MS);
     },
     []
   );
@@ -620,6 +636,18 @@ export function HomePage({
     if (!canUseGlobeView()) return;
     setMapStyle('globe');
     localStorage.setItem(MAP_STYLE_STORAGE_KEY, 'globe');
+  }, []);
+
+  const handleMapZoomSliderChange = useCallback((norm: number) => {
+    mapViewRef.current?.setZoomControlNorm(norm);
+  }, []);
+
+  const handleMapZoomSliderDragStart = useCallback(() => {
+    mapViewRef.current?.setZoomSliderDragging(true);
+  }, []);
+
+  const handleMapZoomSliderDragEnd = useCallback(() => {
+    mapViewRef.current?.setZoomSliderDragging(false);
   }, []);
 
   const openHostProfileFromSheet = useCallback(() => {
@@ -708,8 +736,10 @@ export function HomePage({
           }}
           mapStyle={mapStyle}
           onGlobeZoomToFlat={handleGlobeZoomToFlat}
+          onPrepareFlatMap={handlePrepareFlatMap}
           onAutoSwitchToGlobe={handleAutoSwitchToGlobe}
           onGlobeUnavailable={handleGlobeUnavailable}
+          onZoomControlChange={setMapZoomControl}
           livesFilterOn={nearbyPanelPrefs.livesOnly}
         />
 
@@ -732,6 +762,15 @@ export function HomePage({
             </div>
           </div>
         )}
+
+        <MapZoomSlider
+          value={mapZoomControl.norm}
+          mode={mapZoomControl.mode}
+          onChange={handleMapZoomSliderChange}
+          onInteractionStart={handleMapZoomSliderDragStart}
+          onInteractionEnd={handleMapZoomSliderDragEnd}
+          className="absolute right-3 top-1/2 -translate-y-[calc(50%+2.5rem)] z-30"
+        />
 
         <div className="absolute bottom-4 right-3 z-30 flex flex-col items-center gap-2 pointer-events-auto">
           <button

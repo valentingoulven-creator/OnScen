@@ -36,7 +36,7 @@ flowchart TB
   subgraph External["Services externes (optionnels)"]
     CF["Cloudflare Stream — HLS/CDN"]
     LK["LiveKit Cloud — WebRTC SFU"]
-    YT["YouTube / Spotify API"]
+    YT["YouTube API"]
   end
 
   Web --> Caddy
@@ -275,17 +275,17 @@ flowchart LR
 
 ---
 
-## 4. Salons YouTube / Spotify
+## 4. Salons YouTube
 
-Les **salons musicaux synchronisés** (YouTube ou Spotify) sont distincts des lives vidéo caméra.
+Les **salons musicaux synchronisés** (YouTube) sont distincts des lives vidéo caméra.
 
 | Critère | Valeur |
 |---------|--------|
 | **Limite participants** | **Aucune limite codée** — tous les utilisateurs authentifiés peuvent rejoindre |
 | **Durée maximale** | **2 heures** (`SALON_MAX_DURATION_MS = 2 × 60 × 60 × 1000` — `SalonPage.tsx`) |
 | **Fermeture auto** | Message UI + fermeture à expiration |
-| **Coût streaming supplémentaire** | **Aucun** — lecture via API YouTube / Spotify côté client |
-| **Coûts API** | Quotas gratuits YouTube Data API / Spotify Web API (OAuth hôte) |
+| **Coût streaming supplémentaire** | **Aucun** — lecture via iframe YouTube côté client |
+| **Coûts API** | Quotas gratuits YouTube Data API (OAuth hôte) |
 | **Sync playback** | Socket.io — pas de relais média serveur |
 
 > Les salons ne passent **pas** par Cloudflare Stream, LiveKit ou le mesh WebRTC vidéo (sauf si l’hôte démarre un live caméra lié au salon).
@@ -304,7 +304,7 @@ Les **bots carte monde** alimentent la démo msdev (carte, fil, salons simulés)
 | **Lives bots** | Présentation UI (`cameraActive: true`) sans WebRTC ni HLS |
 | **Configuration** | `MSDEV_BOT_COUNT` (défaut 10 000 ; `0` = 8 bots Paris legacy), `MSDEV_BOT_LIVE_PERCENT` (défaut 10 %), `MSDEV_BOT_LIVE_COUNT` (optionnel), cap **80 lives** bots |
 
-Les bots simulent des **salons Spotify/YouTube** et des **marqueurs LIVE** sur la carte pour le développement et les démos locales. Ils n’impactent **pas** les coûts de streaming production.
+Les bots simulent des **salons YouTube** et des **marqueurs LIVE** sur la carte pour le développement et les démos locales. Ils n’impactent **pas** les coûts de streaming production.
 
 ---
 
@@ -314,7 +314,7 @@ Les bots simulent des **salons Spotify/YouTube** et des **marqueurs LIVE** sur l
 
 - Durée moyenne live caméra : **45 minutes**
 - Taux de visionnage moyen : **80 %** de la durée (36 min effectives/spectateur)
-- Lives caméra vidéo uniquement (pas les salons Spotify/YouTube)
+- Lives caméra vidéo uniquement (pas les salons YouTube)
 - Infra fixe : **~25 €/mois** (VPS + PostgreSQL + domaine)
 - Taux de change indicatif : **1 $ ≈ 0,92 €**
 
@@ -418,7 +418,6 @@ Les bots simulent des **salons Spotify/YouTube** et des **marqueurs LIVE** sur l
 
 | Plateforme | Console développeur |
 |------------|---------------------|
-| **Spotify** | https://developer.spotify.com/dashboard |
 | **Google / YouTube** | https://console.cloud.google.com |
 | **Stripe** (dons / abos) | https://dashboard.stripe.com |
 

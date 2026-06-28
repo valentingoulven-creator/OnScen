@@ -45,7 +45,7 @@ flowchart TB
   subgraph External["Services externes"]
     LK["LiveKit Cloud — WebRTC SFU"]
     CF["Cloudflare Stream — HLS/CDN"]
-    YT["YouTube / Spotify API"]
+    YT["YouTube API"]
   end
 
   Web --> Caddy

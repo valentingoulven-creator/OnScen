@@ -3,10 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { AdminCostsTab } from './AdminCostsTab';
+import { AdminDonationsTab } from './AdminDonationsTab';
 import { AnalyticsVpsTab } from './AnalyticsVpsTab';
 
 export type AnalyticsPeriod = 'day' | 'week' | 'month' | 'year';
-export type AnalyticsSubTab = 'overview' | 'vps' | 'costs';
+export type AnalyticsSubTab = 'overview' | 'vps' | 'costs' | 'donations';
 
 type AnalyticsSummary = Awaited<ReturnType<typeof api.getAnalyticsSummary>>;
 
@@ -139,6 +140,7 @@ function AnalyticsSubTabBar({
     { id: 'overview', label: t('admin.analytics.subTabOverview') },
     { id: 'vps', label: t('admin.analytics.subTabVps') },
     { id: 'costs', label: t('admin.analytics.subTabCosts') },
+    { id: 'donations', label: t('admin.analytics.subTabDonations') },
   ];
 
   return (
@@ -252,6 +254,8 @@ export function AnalyticsPage({
         {subTab === 'vps' && <AnalyticsVpsTab />}
 
         {subTab === 'costs' && <AdminCostsTab />}
+
+        {subTab === 'donations' && <AdminDonationsTab />}
 
         {subTab === 'overview' && (
           <>

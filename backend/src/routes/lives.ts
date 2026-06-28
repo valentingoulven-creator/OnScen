@@ -11,7 +11,6 @@ import { isLiveViewBanned, liveBanMessage, getLiveBan } from '../lib/liveBans';
 import { parseDistanceFilterQuery, resolveNearbyRadiusKm } from '../lib/geoLimits';
 import { DEFAULT_MAP_LAT, DEFAULT_MAP_LON, isValidLatLng } from '../lib/mapCoords';
 import { MIN_LIVE_AGE, userMeetsLiveAgeFromProfile } from '../lib/ageGates';
-import { isDonationSimulationMode } from '../lib/donations';
 import { serializePublicLive } from '../lib/livePublic';
 import { assertLiveAccessible } from '../lib/adminContentModeration';
 import {
@@ -38,6 +37,7 @@ import {
   isUserPersistentObsLiveInput,
 } from '../lib/userObsStream';
 import { persistLiveToPgAsync } from '../lib/pgSalonsLives';
+import { resolveLiveTipsEnabledAtStart } from '../lib/donations';
 import {
   assertCanStartLive,
   assertCanUseCloudflareObs,
@@ -211,16 +211,6 @@ livesRouter.post('/start', authenticateJWT, async (req: Request, res: Response) 
     return;
   }
 
-  const stripeConnectSkipped =
-    req.body.stripeConnectSkipped === true || isDonationSimulationMode();
-  if (!user.stripeConnectAccountId && !stripeConnectSkipped) {
-    res.status(403).json({
-      error: 'Configurez Stripe Connect pour pouvoir lancer un live et recevoir des pourboires.',
-      code: 'STRIPE_CONNECT_REQUIRED',
-    });
-    return;
-  }
-
   if (!user.liveTermsAcceptedAt) {
     res.status(403).json({
       error: 'Vous devez accepter les règles de diffusion Soundy avant de lancer un live.',
@@ -314,6 +304,9 @@ livesRouter.post('/start', authenticateJWT, async (req: Request, res: Response) 
   if (streamMode === 'cloudflare') {
     await provisionCloudflareStreamForLive(live);
   }
+
+  const stripeConnectSkipped = req.body.stripeConnectSkipped === true;
+  live.tipsEnabled = await resolveLiveTipsEnabledAtStart(userId, stripeConnectSkipped);
 
   db.lives.set(live.id, live);
   persistLiveToPgAsync(live);
