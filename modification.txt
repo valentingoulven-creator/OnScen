@@ -15693,3 +15693,71 @@ DEPLOIEMENT
 ================================================================================
 Fin MODIF 888 — 2026-06-30
 ================================================================================
+
+================================================================================
+MODIF 889 — Déploiement prod MODIF 888 + fix script deploy + reboot VPS — Soundly Dev
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Déployer en production l'ensemble des correctifs de MODIF 888 (déjà sur
+ staging via le push), puis redémarrer les VPS prod + staging pour
+ appliquer les mises à jour kernel en attente (apt upgrade de MODIF 888).
+
+CHANGEMENTS / FIX
+-----
+ commun/deploy/deploy_zero_downtime.ps1
+ ─────────────────
+ • Bug découvert en prod : le health check final (étape [9/9]) échouait
+   systématiquement juste après le reload Caddy ("HTTP 0" côté machine de
+   déploiement Windows), alors que le service était sain (confirmé par
+   logs PM2 + curl direct + verify-prod.sh). Cause : latence/flakiness
+   réseau local au moment précis du reload TLS Caddy, pas un vrai
+   incident serveur. Le rollback automatique (ajouté en MODIF 888) s'est
+   déclenché 3 fois à tort, restaurant chaque fois proprement l'ancienne
+   version (aucune coupure utilisateur, confirmé par health check public
+   resté à 200 tout du long).
+ • Fix : boucle de 5 tentatives (4s d'intervalle) avant rollback, et
+   fenêtre d'attente post-Caddy passée de 5s à 8s.
+ • Fix : si le check local échoue malgré les tentatives, revalidation
+   automatique depuis le VPS lui-même (curl localhost:3000/health +
+   curl du domaine public) avant de déclencher un rollback — évite
+   d'annuler un déploiement réussi à cause d'un problème réseau côté
+   poste de déploiement.
+
+ Déploiement production
+ ─────────────────
+ • Build + déploiement zero-downtime complet (backend + frontend +
+   migrations + PM2 reload + Caddy) exécuté sur getsoundy.com.
+ • verify-prod.sh : OK (health, .env, DATABASE_URL, legal-publisher,
+   PM2 online, backups DB/uploads/off-site présents et récents).
+ • Health public confirmé avec les nouveaux champs : redis/stripe/smtp/
+   livekit tous "ok".
+ • Point d'attention : espace disque /opt/soundly à 83% (1.4G dispo) —
+   à surveiller, purge old backups si besoin.
+
+ Reboot VPS (kernel)
+ ─────────────────
+ • soundy-staging puis soundy-prod redémarrés (mises à jour kernel
+   appliquées en attente depuis le hardening de MODIF 888).
+ • Validé après reboot sur les deux : pm2-root (systemd) a bien relancé
+   PM2 automatiquement, pm2-logrotate actif, Caddy actif (prod), health
+   check public 200 avec tous les services "ok".
+ • Plus aucun reboot kernel en attente (/var/run/reboot-required absent)
+   sur les deux VPS.
+
+FICHIERS MODIFIÉS
+-----
+ commun/deploy/deploy_zero_downtime.ps1 → retry + fallback health check
+ commun/backend/public/** → rebuild frontend (hash assets) déployé en prod
+
+DEPLOIEMENT
+-----
+ • staging → à jour (déjà depuis MODIF 888) + rebooté
+ • prod → déployé avec succès + rebooté
+ • Site : https://getsoundy.com — health 200, services ok
+
+================================================================================
+Fin MODIF 889 — 2026-06-30
+================================================================================
