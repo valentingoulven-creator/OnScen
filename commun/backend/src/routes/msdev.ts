@@ -9,7 +9,6 @@ import { ensurePlatformAccountsFromLegacy } from '../lib/platformConnect';
 import {
   buildMsdevDualIpConfig,
   getClientIp,
-  isMsdevDualIpEnabled,
   resolveEmailForClientIp,
 } from '../lib/msdevDualIp';
 import { isMsdevShortcutBlocked, loginAccessDeniedReason } from '../lib/accessControl';

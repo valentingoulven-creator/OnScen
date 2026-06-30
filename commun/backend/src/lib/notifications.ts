@@ -5,7 +5,7 @@ import { getIo } from './ioInstance';
 import { isAccessAdmin } from './accessControl';
 import { sendSupportAlertEmail } from './mailer';
 
-export function isDeliverableNotificationType(type: string): boolean {
+export function isDeliverableNotificationType(_type: string): boolean {
   return true;
 }
 

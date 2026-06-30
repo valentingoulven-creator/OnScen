@@ -1,4 +1,4 @@
-# CI — build, tests, E2E smoke (optionnel si flaky)
+# CI — build, lint, tests, E2E smoke contre staging (optionnel si flaky)
 name: CI
 
 on:
@@ -29,6 +29,10 @@ jobs:
         run: |
           npm ci
           npm run build
+
+      - name: Backend — lint
+        working-directory: commun/backend
+        run: npm run lint
 
       - name: Backend — tests
         working-directory: commun/backend
@@ -77,10 +81,10 @@ jobs:
           npm ci
           npx playwright install chromium --with-deps
 
-      - name: E2E smoke (health prod public)
+      - name: E2E smoke (health staging public — pas la prod)
         working-directory: web/app
         env:
           E2E_SKIP_SERVER: '1'
-          E2E_BASE_URL: https://getsoundy.com
-          E2E_API_URL: https://getsoundy.com
+          E2E_BASE_URL: https://staging.getsoundy.com
+          E2E_API_URL: https://staging.getsoundy.com
         run: npm run test:e2e

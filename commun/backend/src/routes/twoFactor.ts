@@ -7,7 +7,7 @@ import QRCode from 'qrcode';
 import rateLimit from 'express-rate-limit';
 import { db } from '../models/schema';
 import { authenticateJWT, signTokenForUser, setAuthCookie } from '../middleware/auth';
-import { getJwtSecret, isDeployedEnv, JWT_VERIFY_OPTIONS, JWT_SIGN_OPTIONS } from '../lib/jwtSecret';
+import { getJwtSecret, isDeployedEnv, JWT_VERIFY_OPTIONS } from '../lib/jwtSecret';
 import { createRateLimitStore } from '../lib/rateLimitStore';
 import { schedulePersistUserToPg } from '../lib/pgUsers';
 import { schedulePersist } from '../lib/persist';

@@ -304,14 +304,12 @@ export function seedProductionSalonsLives(): SeedSalonsLivesResult {
       result.usersUpdated++;
     }
 
-    let salonCreated = false;
     if (!db.salons.has(seed.salonId)) {
       const salon = makeSalon(seed, user);
       db.salons.set(seed.salonId, salon);
       ensureSalonQueue(seed.salonId);
       ensureSalonProposals(seed.salonId);
       if (!db.salonChats.has(seed.salonId)) db.salonChats.set(seed.salonId, []);
-      salonCreated = true;
       result.salonsCreated++;
     }
 

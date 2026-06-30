@@ -165,8 +165,8 @@ export function enqueueItem(salonId: string, item: Omit<SalonQueueItem, 'id' | '
 export function proposalToQueueItem(
   salon: Salon,
   proposal: SalonTrackProposal,
-  hostId: string,
-  hostName: string
+  _hostId: string,
+  _hostName: string
 ): SalonQueueItem {
   const resolved = resolveTrackFromProposal(salon, proposal);
   return {

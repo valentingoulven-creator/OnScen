@@ -1,4 +1,3 @@
-import { isDeployedEnv } from './jwtSecret';
 import type { Pool, PoolClient } from 'pg';
 import { getPool } from '../db/pool';
 import { runMigrations } from '../db/migrate';

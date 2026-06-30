@@ -139,6 +139,60 @@ if ("$ping" -notmatch "PING_OK") {
 }
 Write-Host "  [OK] VPS accessible" -ForegroundColor Green
 
+# -- 1b. Sauvegarde rollback (dist/ + public/ avant modification) ------------
+Write-Host "`n[1b/9] Sauvegarde pre-deploiement (rollback)..." -ForegroundColor Yellow
+$backupCmd = 'cd ' + $REMOTE + '; rm -rf dist.bak public.bak; if [ -d dist ]; then cp -a dist dist.bak; fi; if [ -d public ] && [ ! -L public ]; then cp -a public public.bak; fi; echo BACKUP_OK'
+$backupOut = Invoke-Remote $backupCmd
+if ("$backupOut" -match "BACKUP_OK") {
+    Write-Host "  [OK] dist.bak / public.bak crees sur le VPS (rollback possible)" -ForegroundColor Green
+} else {
+    Write-Host "  [!] Sauvegarde rollback impossible - deploiement sans filet en cas d'echec" -ForegroundColor Yellow
+}
+
+# Rollback automatique : restaure dist.bak/public.bak, recharge PM2, revalide le health
+# check. Utilise si le reload PM2 ou le health check final echoue (cf. modification.txt).
+function Invoke-AutoRollback([string]$reason) {
+    Write-Host ""
+    Write-Host "==============================================" -ForegroundColor Red
+    Write-Host "  ECHEC DEPLOIEMENT - ROLLBACK AUTOMATIQUE" -ForegroundColor Red
+    Write-Host "==============================================" -ForegroundColor Red
+    Write-Host "  Raison : $reason" -ForegroundColor Red
+
+    $restoreCmd = 'cd ' + $REMOTE + '; ok=1; if [ -d dist.bak ]; then rm -rf dist; mv dist.bak dist; else ok=0; fi; if [ -d public.bak ]; then rm -rf public; mv public.bak public; fi; echo RESTORE_DONE=$ok'
+    $restoreOut = ''
+    try { $restoreOut = Invoke-Remote $restoreCmd } catch { Write-Host "  [!] Restauration fichiers echouee : $_" -ForegroundColor Red }
+    Write-Host $restoreOut
+
+    if ("$restoreOut" -notmatch "RESTORE_DONE=1") {
+        Fail "Rollback impossible (pas de dist.bak sur le VPS). Intervention manuelle requise immediatement.`nDiagnostic : ssh $sshTarget pm2 logs $PM2_APP --lines 50"
+    }
+
+    Write-Host "  -> Rechargement PM2 avec la version precedente..." -ForegroundColor Yellow
+    $ecoFile = Split-Path -Leaf $cfg.EcosystemFile
+    $rollbackReloadCmd = 'cd ' + $REMOTE + '; set -a; . ./.env; set +a; pm2 startOrReload deploy/' + $ecoFile + ' --update-env 2>&1; pm2 save 2>&1; echo PM2_ROLLBACK_OK'
+    $rollbackReloadOut = ''
+    try { $rollbackReloadOut = Invoke-Remote $rollbackReloadCmd } catch { Write-Host "  [!] pm2 reload post-rollback echoue : $_" -ForegroundColor Red }
+    Write-Host $rollbackReloadOut
+
+    Start-Sleep -Seconds 5
+    $rollbackHealthOk = $false
+    try {
+        $rb = Invoke-WebRequest -Uri $HEALTH -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop
+        $rollbackHealthOk = ($rb.StatusCode -eq 200)
+    } catch { }
+
+    if ($rollbackHealthOk) {
+        Write-Host ""
+        Write-Host "  [OK] Rollback reussi - version precedente restauree et saine ($HEALTH)" -ForegroundColor Green
+        Write-Host "  Le code defaillant n'a PAS ete deploye. Corrigez puis relancez." -ForegroundColor Yellow
+        Fail "Deploiement annule : $reason (rollback automatique reussi, service restaure)."
+    } else {
+        Write-Host ""
+        Write-Host "  [!!] Rollback applique mais health check toujours en echec." -ForegroundColor Red
+        Fail "Deploiement ET rollback en echec ($reason). INTERVENTION MANUELLE IMMEDIATE REQUISE.`nssh $sshTarget pm2 logs $PM2_APP --lines 50`nssh $sshTarget pm2 status"
+    }
+}
+
 $snapshotReminder = Join-Path $DeployDir "snapshot-vps-reminder.sh"
 if ($Environment -eq 'prod' -and (Test-Path $snapshotReminder)) {
     Write-Host "  -> Rappel snapshot VPS (non bloquant)..." -ForegroundColor DarkGray
@@ -400,7 +454,7 @@ if ("$pm2Exists" -match "PM2_MISSING") {
     $reloadOut = Invoke-Remote $reloadCmd
     Write-Host $reloadOut
     if ("$reloadOut" -notmatch "PM2_RELOAD_OK") {
-        Fail "pm2 reload $PM2_APP echoue. Verifiez : ssh $sshTarget pm2 logs $PM2_APP --lines 30"
+        Invoke-AutoRollback "pm2 reload $PM2_APP echoue"
     }
     Write-Host "  [OK] PM2 recharge (zero-downtime)" -ForegroundColor Green
 }
@@ -460,11 +514,11 @@ foreach ($candidate in $healthCandidates) {
     }
 }
 if (-not $healthLocal) {
-    Fail "Health check public echoue ($($healthCandidates -join ', '))`nDetail : $healthErr"
+    Invoke-AutoRollback "Health check public echoue ($($healthCandidates -join ', ')) - Detail : $healthErr"
 }
 
 if ($healthLocal.StatusCode -ne 200) {
-    Fail "Health check retourne HTTP $($healthLocal.StatusCode) - attendu 200."
+    Invoke-AutoRollback "Health check retourne HTTP $($healthLocal.StatusCode) - attendu 200."
 }
 
 Write-Host "  [OK] $healthTried -> HTTP $($healthLocal.StatusCode)" -ForegroundColor Green

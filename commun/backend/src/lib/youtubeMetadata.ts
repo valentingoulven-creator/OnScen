@@ -13,17 +13,6 @@ export function youtubeMetadataNow(): number {
   return Date.now();
 }
 
-function collectYoutubeVideoIds(salon: Salon, queue: SalonQueueItem[]): string[] {
-  if (salon.platform !== 'youtube') return [];
-  const ids = new Set<string>();
-  const psId = salon.playbackState?.trackId;
-  if (psId && psId !== 'demo') ids.add(psId);
-  for (const item of queue) {
-    if (item.trackId && item.trackId !== 'demo') ids.add(item.trackId);
-  }
-  return [...ids];
-}
-
 /** Purge les métadonnées API expirées avant persistance PostgreSQL (conformité ToS). */
 export function purgeStaleYoutubeMetadataForStorage(
   salon: Salon,

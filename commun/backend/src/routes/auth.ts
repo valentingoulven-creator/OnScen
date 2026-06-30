@@ -104,7 +104,7 @@ export function invalidateProfileCache(userId: string) {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const USERNAME_RE = /^[a-zA-Z0-9_\-\.àâäéèêëîïôùûüç]+$/i;
+const USERNAME_RE = /^[a-zA-Z0-9_\-.àâäéèêëîïôùûüç]+$/i;
 const PASSWORD_MIN = 8;
 const PASSWORD_MAX = 128;
 const USERNAME_MIN = 2;
@@ -646,7 +646,7 @@ authRouter.get('/check-username', (req: Request, res: Response) => {
     res.json({ available: false, reason: 'Pseudo trop long (max. 30 caractères)' });
     return;
   }
-  if (!/^[a-zA-Z0-9_\-\.àâäéèêëîïôùûüç]+$/i.test(username)) {
+  if (!/^[a-zA-Z0-9_\-.àâäéèêëîïôùûüç]+$/i.test(username)) {
     res.json({ available: false, reason: 'Caractères non autorisés dans le pseudo' });
     return;
   }

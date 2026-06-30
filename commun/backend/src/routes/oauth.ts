@@ -98,12 +98,6 @@ async function validateAndConsumeState(state: string, provider: string): Promise
   return !!entry && entry.provider === provider;
 }
 
-async function consumeStateForUser(state: string, provider: string): Promise<string | null> {
-  const entry = await loadState(state);
-  if (!entry || entry.provider !== provider || !entry.userId) return null;
-  return entry.userId;
-}
-
 function redirectOAuthSuccess(res: Response, origin: string, userId: string, isNew: boolean): void {
   const user = db.users.get(userId);
   if (!user) {

@@ -1,4 +1,4 @@
-import { db, type UserComposition } from '../models/schema';
+import { db } from '../models/schema';
 import { recordCompositionWeeklyVote } from './weeklyVotes';
 import { schedulePersist } from './persist';
 export function getCompositionUpvoteCount(compositionId: string): number {
