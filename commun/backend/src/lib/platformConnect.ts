@@ -9,7 +9,6 @@ import {
   decryptPlatformTokens,
   encryptPlatformTokens,
   decryptToken,
-  encryptToken,
 } from './tokenEncryption';
 
 export const HOST_PLATFORM_NOT_LINKED = 'HOST_PLATFORM_NOT_LINKED';

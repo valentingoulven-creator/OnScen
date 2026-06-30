@@ -1,2 +1,0 @@
--- Préférences live persistantes (User.liveMediaSetup dans payload JSONB).
--- Appliqué par la couche application ; pas de colonne SQL dédiée.

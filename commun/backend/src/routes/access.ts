@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authenticateJWT } from '../middleware/auth';
 import { db, type User } from '../models/schema';
-import { countPersistableProfilePhotos, normalizeProfilePhotos, publicProfile } from '../lib/profile';
+import { countPersistableProfilePhotos, normalizeProfilePhotos } from '../lib/profile';
 import { getFavoriteCount, getFanIds, getFavoriteHostIds, getFollowingCount } from '../lib/favorites';
 import { getUserStats } from '../lib/profile';
 import { isPrivateReel } from '../lib/reels';

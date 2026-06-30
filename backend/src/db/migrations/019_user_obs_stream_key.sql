@@ -1,2 +1,0 @@
--- Clé RTMP OBS persistante par utilisateur (User.cloudflareObsLiveInputId dans payload JSONB).
--- Appliqué par la couche application ; pas de colonne SQL dédiée.

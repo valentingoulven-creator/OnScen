@@ -15561,3 +15561,135 @@ RESTE MANUEL
 ================================================================================
 Fin MODIF 887 — 2026-06-30
 ================================================================================
+
+================================================================================
+MODIF 888 — Audit complet : implémentation de toutes les corrections (sécurité, DB, infra, deps, CI) — Soundly Dev
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Suite à l'audit de production en 14 points, implémenter l'intégralité des
+ corrections prioritaires, améliorations recommandées et optimisations
+ identifiées, puis ré-auditer avec un score actualisé.
+
+CHANGEMENTS / FIX
+-----
+ Sécurité backend
+ ─────────────────
+ • /api/network/info restreint à msdev (assertMsdev) — n'exposait plus
+   d'infos réseau publiquement.
+ • Rate limiting dédié sur /api/auth/check-username (30 req / 5 min) contre
+   l'énumération de pseudos.
+ • Nouvel utilitaire commun/backend/src/lib/asyncHandler.ts — toutes les
+   routes POST à risque (feed, dm, compositions, groups, push, reels,
+   stories, userAlbums, platforms) propagent désormais proprement les
+   rejets de promesse vers l'error handler global / Sentry.
+
+ Observabilité
+ ─────────────────
+ • commun/backend/src/lib/healthChecks.ts (nouveau) — /health vérifie
+   désormais Redis, Stripe, SMTP et LiveKit (cache 15 s, pas d'impact sur
+   le code HTTP principal). Déjà déployé en staging.
+ • Sentry backend (@sentry/node) et frontend (@sentry/react) mis à jour
+   9.x → 10.x (aucune API supprimée utilisée — migration sans risque,
+   vérifiée par build + tests).
+
+ Base de données
+ ─────────────────
+ • Migration 026 : contraintes UNIQUE (case-insensitive) sur users.email /
+   users.username + VALIDATE des FK ajoutées NOT VALID en migration 025
+   (donation_payments, creator_subscriptions, subscription_checkouts).
+   Aucun doublon ni orphelin trouvé en prod avant application. Appliquée
+   directement en prod.
+
+ LiveKit
+ ─────────────────
+ • deleteLiveKitRoom() appelé en fin de session live (liveArchive.ts) —
+   les rooms LiveKit ne restent plus ouvertes après la fin d'un live.
+
+ RGPD
+ ─────────────────
+ • objectStorage.ts : deleteObjectByUrl / deleteObjectsByUrls (local +
+   S3) — accountDeletion.ts purge désormais les fichiers physiques
+   (photos, reels, stories, compositions, covers, pièces jointes DM,
+   posts feed) à la suppression de compte, plus seulement les métadonnées.
+
+ Déploiement
+ ─────────────────
+ • commun/deploy/deploy_zero_downtime.ps1 : backup dist/+public/ avant
+   déploiement, rollback automatique (Invoke-AutoRollback) si le reload
+   PM2 ou le health check final échoue.
+
+ Infra VPS (prod + staging)
+ ─────────────────
+ • Swap 2 Go + fail2ban (jail sshd) + apt upgrade sur les deux VPS.
+ • pm2-logrotate installé (max 10 Mo, retain 7, compress) — plus de
+   logs PM2 illimités.
+ • journald plafonné à 200 Mo (SystemMaxUse) — couvre les logs Caddy.
+ • pm2 startup systemd configuré + pm2 save sur staging (manquant) —
+   les apps redémarrent désormais après un reboot.
+ • Mise à jour kernel en attente sur les deux VPS (reboot à effectuer).
+
+ Nettoyage repo
+ ─────────────────
+ • Suppression du dossier racine backend/ (431 fichiers) — duplicata
+   obsolète non référencé par aucun script (le seul backend utilisé est
+   commun/backend/, confirmé via deploy_zero_downtime.ps1 et package.json
+   racine).
+
+ Dépendances
+ ─────────────────
+ • Backend : @sentry/node v10, @aws-sdk/client-s3, @simplewebauthn/server,
+   livekit-server-sdk, nodemailer, pg, resend mis à jour (patch/minor).
+ • Frontend (web/app) + mobile (ios/apptel) : @sentry/react v10, vite,
+   tailwindcss, eslint, i18next, livekit-client, capacitor 8.4.1, etc.
+   mis à jour (patch/minor). Express 5, Stripe SDK majeur, redis v6,
+   bcryptjs v3 volontairement laissés en l'état (breaking changes
+   majeurs nécessitant une migration dédiée et testée séparément).
+
+ Qualité / CI
+ ─────────────────
+ • Nouveau commun/backend/eslint.config.mjs + script `npm run lint` —
+   38 erreurs réelles corrigées (imports/variables mortes, échappements
+   regex inutiles, require() → import, assignations inutiles,
+   cause manquante sur erreur re-throw).
+ • .github/workflows/ci.yml : étape "Backend — lint" ajoutée ; le smoke
+   E2E Playwright pointe désormais vers staging.getsoundy.com au lieu de
+   la prod.
+
+ S3 / stockage
+ ─────────────────
+ • Politique de lifecycle appliquée sur le bucket soundy-prod-uploads :
+   abandon des uploads multipart incomplets après 7 jours (aucune règle
+   d'expiration sur les objets réels — médias utilisateurs conservés).
+ • Nouveaux scripts de maintenance : find-orphaned-s3-uploads.ts (audit
+   dry-run, croise PostgreSQL ↔ bucket S3) et apply-s3-lifecycle-policy.ts.
+   Testés en dry-run contre la prod (bucket actuellement vide, 0 orphelin).
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/{asyncHandler,healthChecks}.ts (nouveaux, MODIF
+ antérieure déjà déployée staging) · commun/backend/src/routes/*.ts
+ (asyncHandler + lint) · commun/backend/src/db/migrations/026_*.sql ·
+ commun/backend/src/lib/{objectStorage,accountDeletion,livekit,liveArchive}.ts ·
+ commun/backend/eslint.config.mjs (nouveau) ·
+ commun/backend/src/scripts/{find-orphaned-s3-uploads,apply-s3-lifecycle-policy}.ts (nouveaux) ·
+ commun/deploy/deploy_zero_downtime.ps1 · .github/workflows/ci.yml ·
+ package.json (backend/web/app/apptel) — deps · backend/ (racine, supprimé)
+
+BUILD (si vérifié)
+-----
+ commun/backend → npm run build / lint / test → ✅ (327/327 tests)
+ web/app → npm run build / lint / test → ✅ (374/374 tests, 0 erreur lint)
+ ios/apptel → npm run build → ✅
+
+DEPLOIEMENT
+-----
+ • staging → déjà à jour (healthChecks visibles sur /health)
+ • prod → à déployer (commit + push + deploy-prod.ps1)
+ • Reboot VPS (kernel) → décision utilisateur
+
+================================================================================
+Fin MODIF 888 — 2026-06-30
+================================================================================

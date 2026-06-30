@@ -33,7 +33,6 @@ import {
   clearSalonPlaybackData,
   getPendingProposals,
   broadcastSalonProposals,
-  broadcastSalonPlayback,
   hostSkipNext,
   hostPlayQueueItem,
   hostChangePlaybackTrack,
@@ -41,12 +40,11 @@ import {
   enqueueItem,
   albumArtForTrack,
   proposalToQueueItem,
-  removeTrackFromSalonQueue,
   reorderSalonQueue,
 } from '../lib/salonPlaybackOps';
 import { searchYoutube } from '../lib/youtubeSearch';
 import { youtubeDataApiKey, YoutubeDataApiError } from '../lib/youtubeDataApi';
-import { ensureYoutubeAccessToken, getValidYoutubeHostToken } from '../lib/youtubeOAuth';
+import { getValidYoutubeHostToken } from '../lib/youtubeOAuth';
 import { resolvePlaylistVideos } from '../lib/youtubePlaylists';
 import { notifyFavoritesSalonStarted } from '../lib/favorites';
 import { notifyFollowersSalonCreated } from '../lib/follows';
@@ -54,16 +52,12 @@ import { notifySalonInvite } from '../lib/notifications';
 import { getIo } from '../lib/ioInstance';
 import { getSalonConnectedParticipants } from '../lib/salonParticipants';
 import {
-  broadcastSalonUpdated,
   canControlSalonPlayback,
   setSalonVipModerator,
 } from '../lib/salonModeration';
 import { getActiveSalonForHost } from '../lib/profile';
 import { upsertSalonToPgAsync, markSalonInactivePgAsync } from '../lib/pgSalonsLives';
-import {
-  purgeStaleYoutubeMetadataForStorage,
-  refreshStaleYoutubeSalonMetadata,
-} from '../lib/youtubeMetadata';
+import { refreshStaleYoutubeSalonMetadata } from '../lib/youtubeMetadata';
 
 export const salonsRouter = Router();
 
@@ -571,7 +565,7 @@ salonsRouter.post('/:id/playback/change-track', authenticateJWT, async (req: Req
   const hostUser = getSalonHostUser(salon, res);
   if (!hostUser || !requireHostPlatform(hostUser, salon.platform, res)) return;
 
-  const { trackId, title, artist, trackLink, albumArtUrl } = req.body;
+  const { trackId, title, artist, trackLink } = req.body;
   let resolvedId = typeof trackId === 'string' ? trackId.trim() : '';
   if (!resolvedId && trackLink && typeof trackLink === 'string') {
     const parsed = parseMusicLink(salon.platform, trackLink);
@@ -898,7 +892,6 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
   const {
     id: requestedSalonId,
     title,
-    platform,
     latitude,
     longitude,
     trackId,

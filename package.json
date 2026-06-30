@@ -52,6 +52,8 @@
     "android:aab:prod": "powershell -ExecutionPolicy Bypass -File android/build-android-aab-prod.ps1",
     "mobile:cert-pins": "node commun/scripts/fetch-cert-pins.mjs --write",
     "mobile:well-known": "node commun/scripts/update-well-known-mobile.mjs --from-keystore",
+    "apple:setup": "powershell -ExecutionPolicy Bypass -File commun/scripts/setup-apple-signin-env.ps1",
+    "apple:setup:preprod": "powershell -ExecutionPolicy Bypass -File commun/scripts/setup-apple-signin-env.ps1 -Environment preprod",
     "mobile:keystore": "powershell -ExecutionPolicy Bypass -File android/generate-android-keystore.ps1",
     "msdev:mobile": "npm run msdev:sync-lan && npm run mobile:build && powershell -ExecutionPolicy Bypass -File commun/msdev/scripts/serve-mobile-tel.ps1",
     "src:status": "node commun/scripts/sync-src.js --status",

@@ -22,8 +22,6 @@ import {
 } from '../lib/youtubeOAuth';
 import { schedulePersist } from '../lib/persist';
 import {
-  applyInstagramOAuthToUser,
-  completeInstagramOAuth,
   createInstagramOAuthUrl,
   isInstagramOAuthConfigured,
 } from '../lib/instagramOAuth';

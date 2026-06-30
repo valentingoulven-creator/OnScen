@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { authenticateJWT } from '../middleware/auth';
 import { asyncHandler } from '../lib/asyncHandler';
 import { schedulePersist } from '../lib/persist';
-import { createStory, deleteStory, getMyActiveStory, getUserActiveStories, listStoriesForViewer } from '../lib/stories';
+import { createStory, deleteStory, getUserActiveStories, listStoriesForViewer } from '../lib/stories';
 import { notifyMentions } from '../lib/mentions';
 import { db } from '../models/schema';
 import { moderateImageSource, moderateVideoSource, moderationRejectionMessage } from '../lib/contentModeration';
