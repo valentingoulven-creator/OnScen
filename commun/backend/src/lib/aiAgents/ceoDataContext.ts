@@ -113,7 +113,7 @@ export async function buildCeoDataContext(): Promise<string> {
   const { context: founderContext, loadedFrom } = loadCeoFounderContext();
   const meta = buildCeoContextMeta();
 
-  let cloudflare: Awaited<ReturnType<typeof getCloudflareUsageReport>> | null = null;
+  let cloudflare: Awaited<ReturnType<typeof getCloudflareUsageReport>> | null;
   try {
     cloudflare = await getCloudflareUsageReport();
   } catch {

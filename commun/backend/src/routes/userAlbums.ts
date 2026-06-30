@@ -11,7 +11,6 @@ import {
 } from '../lib/albums';
 import { createUserComposition } from '../lib/compositions';
 import { enrichCompositionWithUpvotes } from '../lib/compositionUpvotes';
-import { COMPOSITION_UPLOAD_JSON_BODY_LIMIT } from '../lib/compositionUploadLimits';
 
 export const userAlbumsRouter = Router();
 

@@ -538,7 +538,7 @@ export async function createUserReel(
   }
 
   const mediaType = input.mediaType === 'image' ? 'image' : 'video';
-  let mediaUrl = rawMediaUrl;
+  let mediaUrl: string;
   let posterUrl = rawPosterUrl;
   try {
     if (mediaType === 'video') {

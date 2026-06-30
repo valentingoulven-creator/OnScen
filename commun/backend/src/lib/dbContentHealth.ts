@@ -83,7 +83,7 @@ export async function getDbContentHealthReport(): Promise<DbContentHealthReport>
     };
   }
 
-  let connected = false;
+  let connected: boolean;
   let tables: DbTableCounts = {
     users: 0,
     feed_posts: 0,

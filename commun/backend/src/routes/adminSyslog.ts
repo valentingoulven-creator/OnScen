@@ -98,7 +98,7 @@ function parseSystemLine(raw: string): SyslogLine | null {
   let message = trimmed;
 
   // journalctl short-iso: "2024-01-01T12:00:00+0000 hostname process[pid]: msg"
-  const isoJournal = trimmed.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+\-]\d{4})\s+\S+\s+(\S+?)(?:\[\d+\])?\s*:\s*(.*)/);
+  const isoJournal = trimmed.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{4})\s+\S+\s+(\S+?)(?:\[\d+\])?\s*:\s*(.*)/);
   if (isoJournal) {
     try { ts = new Date(isoJournal[1]).toISOString(); } catch { /* keep */ }
     source = isoJournal[2] ?? 'system';

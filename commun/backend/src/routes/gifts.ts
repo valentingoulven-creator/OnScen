@@ -46,7 +46,7 @@ giftsRouter.get('/live/:liveId', authenticateJWT, (req: Request, res: Response) 
 giftsRouter.post('/send', authenticateJWT, (req: Request, res: Response) => {
   const userId = (req as Request & { user: { id: string } }).user.id;
   const user = db.users.get(userId);
-  const { liveId, giftType, amount: rawAmount } = req.body;
+  const { liveId, giftType } = req.body;
 
   if (!user || !liveId || !giftType) {
     res.status(400).json({ error: 'Paramètres invalides' });

@@ -89,13 +89,6 @@ function setsToRecord(map: Map<string, Set<string>>): MapOfSets {
   return out;
 }
 
-function recordToSets(record: MapOfSets | undefined): Map<string, Set<string>> {
-  const map = new Map<string, Set<string>>();
-  if (!record) return map;
-  for (const [k, arr] of Object.entries(record)) map.set(k, new Set(arr));
-  return map;
-}
-
 export function snapshotStore(): PersistedStore {
   purgeUnboundedChatHistory();
 

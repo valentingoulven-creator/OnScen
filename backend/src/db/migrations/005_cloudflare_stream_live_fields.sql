@@ -1,3 +1,0 @@
--- Cloudflare Stream fields on lives are stored in JSONB payload (no column change).
--- New optional keys: streamMode, cloudflareLiveInputId, cloudflarePlaybackUrl,
--- cloudflareCustomerSubdomain. Applied automatically by the application layer.

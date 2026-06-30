@@ -118,7 +118,6 @@ function matchesQuery(text: string | undefined, q: string): boolean {
 export function buildMusicHome(viewerId: string): MusicHomePayload {
   const following = new Set(getFollowingIds(viewerId));
   const everyone = allUserIds();
-  const self = new Set([viewerId]);
 
   const popularTracks = [...db.compositions]
     .map((c) => compositionTrack(c, viewerId))

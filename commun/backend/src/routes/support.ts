@@ -69,7 +69,6 @@ function syncLegacyFields(msg: SupportContactMessage): void {
   msg.thread = thread;
   const firstUser = thread.find((t) => t.role === 'user');
   const lastAdmin = [...thread].reverse().find((t) => t.role === 'admin');
-  const lastUser = [...thread].reverse().find((t) => t.role === 'user');
   if (firstUser) {
     msg.body = firstUser.body;
     msg.createdAt = firstUser.createdAt;

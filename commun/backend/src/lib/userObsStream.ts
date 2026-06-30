@@ -85,7 +85,8 @@ export async function fetchUserObsIngest(userId: string): Promise<UserObsIngestP
     } catch (err) {
       console.error('[obs-stream] lecture live input:', err);
       throw new Error(
-        'Impossible de lire les identifiants RTMP. Utilisez « Changer la clé » si le problème persiste.'
+        'Impossible de lire les identifiants RTMP. Utilisez « Changer la clé » si le problème persiste.',
+        { cause: err }
       );
     }
   }

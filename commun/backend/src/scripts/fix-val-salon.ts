@@ -5,9 +5,10 @@
  *
  * Usage : cd /opt/soundly && node scripts/fix-val-salon.js
  */
-'use strict';
-require('dotenv').config({ path: '/opt/soundly/.env' });
-const { Pool } = require('pg');
+import dotenv from 'dotenv';
+import { Pool } from 'pg';
+
+dotenv.config({ path: '/opt/soundly/.env' });
 
 const VAL_ID = 'user_1781025111633_ipv5l';
 

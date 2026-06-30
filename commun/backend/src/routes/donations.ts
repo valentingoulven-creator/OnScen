@@ -459,7 +459,7 @@ export async function handleStripeDonationWebhook(req: Request, res: Response): 
           paymentMode: 'stripe',
           paymentIntentId: intent.id,
         });
-      } catch (e) {
+      } catch {
         console.error('[donations] webhook credit error');
       }
     }
