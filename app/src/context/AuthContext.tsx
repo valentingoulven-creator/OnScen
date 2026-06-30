@@ -25,7 +25,7 @@ interface AuthCtx {
     termsVersion: string,
     inviteCode?: string,
     confirmAge?: boolean
-  ) => Promise<void>;
+  ) => Promise<{ emailVerificationRequired: true; message: string } | void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   setUserFromProfile: (user: User) => void;
@@ -213,6 +213,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         r.message ||
           'Inscription enregistrée. Un administrateur doit valider votre compte avant la première connexion.'
       );
+    }
+    if (r.emailVerificationRequired) {
+      return {
+        emailVerificationRequired: true as const,
+        message:
+          r.message ||
+          'Compte créé. Consultez vos e-mails pour activer votre compte avant de vous connecter.',
+      };
     }
     if (!r.token || !r.user) {
       throw new Error('Réponse d\'inscription invalide');

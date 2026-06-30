@@ -1,4 +1,4 @@
-import { Router, type Request, type Response } from 'express';
+import express, { Router, type Request, type Response } from 'express';
 import crypto from 'node:crypto';
 import rateLimit from 'express-rate-limit';
 import { db, type User } from '../models/schema';
@@ -23,6 +23,12 @@ import {
   completeInstagramOAuth,
   isInstagramOAuthConfigured,
 } from '../lib/instagramOAuth';
+import {
+  exchangeAppleAuthCode,
+  isAppleOAuthConfigured,
+  parseAppleUserName,
+  verifyAppleIdToken,
+} from '../lib/appleOAuth';
 import { isMsdevRuntime } from '../lib/msdevGuard';
 import { redisGetDelJson, redisSetJsonEx } from '../lib/optionalRedis';
 import { createRateLimitStore } from '../lib/rateLimitStore';
@@ -196,12 +202,74 @@ function findOrCreateOAuthUser(profile: OAuthProfile): { user: User; isNew: bool
     memberSince: Date.now(),
     accountStatus,
     onboardingCompleted: false,
+    emailVerified: true,
   };
   user = applyProfileDefaults(user);
   db.users.set(user.id, user);
   schedulePersist();
   return { user, isNew: true };
 }
+
+function applePasswordHash(sub: string): string {
+  return `oauth_apple_sub_${sub}`;
+}
+
+function findUserByAppleSub(sub: string): User | undefined {
+  return [...db.users.values()].find((u) => u.passwordHash === applePasswordHash(sub));
+}
+
+function findOrCreateAppleUser(
+  sub: string,
+  email: string | undefined,
+  name: string
+): { user: User; isNew: boolean } | { error: string } {
+  const bySub = findUserByAppleSub(sub);
+  if (bySub) {
+    applyProfileDefaults(bySub);
+    db.users.set(bySub.id, bySub);
+    return { user: bySub, isNew: false };
+  }
+
+  if (email) {
+    const byEmail = [...db.users.values()].find((u) => u.email === email);
+    if (byEmail) {
+      applyProfileDefaults(byEmail);
+      db.users.set(byEmail.id, byEmail);
+      return { user: byEmail, isNew: false };
+    }
+  }
+
+  if (!email) {
+    return { error: 'Apple account has no email' };
+  }
+
+  const regCheck = assertRegistrationAllowed({});
+  if (!regCheck.ok) {
+    return { error: regCheck.error };
+  }
+
+  const username = generateUsername(name, email);
+  const accountStatus = resolveInitialAccountStatus();
+  let user: User = {
+    id: `user_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`,
+    username,
+    email,
+    passwordHash: applePasswordHash(sub),
+    avatarUrl: `https://api.dicebear.com/7.x/adventurer/svg?seed=${username}`,
+    meloCoins: 0,
+    isGhostMode: false,
+    lastSeenAt: Date.now(),
+    memberSince: Date.now(),
+    accountStatus,
+    onboardingCompleted: false,
+    emailVerified: true,
+  };
+  user = applyProfileDefaults(user);
+  db.users.set(user.id, user);
+  schedulePersist();
+  return { user, isNew: true };
+}
+
 /** Typed fetch wrapper for JSON GET requests. */
 async function getJson(url: string): Promise<unknown> {
   const res = await fetch(url, { headers: { Accept: 'application/json' } });
@@ -246,6 +314,7 @@ oauthRouter.get('/providers', (_req: Request, res: Response) => {
     ),
     youtube: isYoutubeOAuthConfigured(),
     instagram: isInstagramOAuthConfigured(),
+    apple: isAppleOAuthConfigured(),
   });
 });
 
@@ -409,11 +478,89 @@ oauthRouter.get('/google/callback', oauthInitLimiter, async (req: Request, res: 
     }
     const { user, isNew } = result;
 
-    redirectOAuthSuccess(res, origin, user.id, isNew);  } catch (err) {
+    redirectOAuthSuccess(res, origin, user.id, isNew);
+  } catch (err) {
     console.error('[oauth] Google callback error:', err);
     res.redirect(`${origin}/?oauth_error=server_error&provider=google`);
   }
 });
+
+// ─── Sign in with Apple ──────────────────────────────────────────────────────
+
+const APPLE_AUTH_URL = 'https://appleid.apple.com/auth/authorize';
+
+/** GET /api/auth/apple — initiates Sign in with Apple */
+oauthRouter.get('/apple', oauthInitLimiter, (_req: Request, res: Response) => {
+  if (!isAppleOAuthConfigured()) {
+    res.redirect(`${appOrigin()}/?oauth_error=not_configured&provider=apple`);
+    return;
+  }
+  const state = createState('apple');
+  const params = new URLSearchParams({
+    client_id: process.env.APPLE_CLIENT_ID!.trim(),
+    redirect_uri: process.env.APPLE_CALLBACK_URL!.trim(),
+    response_type: 'code id_token',
+    response_mode: 'form_post',
+    scope: 'name email',
+    state,
+  });
+  res.redirect(`${APPLE_AUTH_URL}?${params}`);
+});
+
+/** POST /api/auth/apple/callback — Apple redirects via form_post */
+oauthRouter.post(
+  '/apple/callback',
+  oauthInitLimiter,
+  express.urlencoded({ extended: true }),
+  async (req: Request, res: Response) => {
+    const origin = appOrigin();
+    const code = typeof req.body?.code === 'string' ? req.body.code : '';
+    const state = typeof req.body?.state === 'string' ? req.body.state : '';
+    const error = typeof req.body?.error === 'string' ? req.body.error : '';
+    const userField = req.body?.user;
+    const idTokenField = typeof req.body?.id_token === 'string' ? req.body.id_token : '';
+
+    if (error || !code) {
+      res.redirect(`${origin}/?oauth_error=cancelled&provider=apple`);
+      return;
+    }
+    if (!(await validateAndConsumeState(state, 'apple'))) {
+      res.redirect(`${origin}/?oauth_error=invalid_state&provider=apple`);
+      return;
+    }
+
+    try {
+      const exchanged = await exchangeAppleAuthCode(code);
+      const nameFromUser = parseAppleUserName(userField);
+      const name = nameFromUser || exchanged.name;
+
+      let sub = exchanged.sub;
+      let email = exchanged.email;
+
+      if (idTokenField) {
+        const verified = await verifyAppleIdToken(idTokenField);
+        sub = verified.sub;
+        if (!email && verified.email) email = verified.email;
+      }
+
+      if (!sub) {
+        res.redirect(`${origin}/?oauth_error=server_error&provider=apple`);
+        return;
+      }
+
+      const result = findOrCreateAppleUser(sub, email, name);
+      if ('error' in result) {
+        res.redirect(`${origin}/?oauth_error=registration_denied&provider=apple`);
+        return;
+      }
+      const { user, isNew } = result;
+      redirectOAuthSuccess(res, origin, user.id, isNew);
+    } catch (err) {
+      console.error('[oauth] Apple callback error:', err);
+      res.redirect(`${origin}/?oauth_error=server_error&provider=apple`);
+    }
+  }
+);
 
 // ─── Facebook OAuth 2.0 ──────────────────────────────────────────────────────
 
@@ -489,7 +636,8 @@ oauthRouter.get('/facebook/callback', oauthInitLimiter, async (req: Request, res
     }
     const { user, isNew } = result;
 
-    redirectOAuthSuccess(res, origin, user.id, isNew);  } catch (err) {
+    redirectOAuthSuccess(res, origin, user.id, isNew);
+  } catch (err) {
     console.error('[oauth] Facebook callback error:', err);
     res.redirect(`${origin}/?oauth_error=server_error&provider=facebook`);
   }

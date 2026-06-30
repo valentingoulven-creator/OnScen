@@ -23,6 +23,11 @@ export function isRestrictedJwtScope(scope: string | undefined): boolean {
   return scope !== undefined && scope !== 'full';
 }
 
+/** Password registration requires verified email; OAuth may leave field undefined. */
+export function isEmailVerificationBlocking(user: User | undefined): boolean {
+  return user?.emailVerified === false;
+}
+
 function assertFullSession(decoded: AuthPayload): boolean {
   return !isRestrictedJwtScope(decoded.scope);
 }
@@ -136,6 +141,15 @@ export function authenticateJWT(req: Request, res: Response, next: NextFunction)
       res.status(403).json({ error: message, code: status });
       return;
     }
+    if (isEmailVerificationBlocking(user)) {
+      res.status(403).json({
+        error:
+          "Votre adresse e-mail n'est pas encore vérifiée. Consultez vos e-mails ou demandez un nouveau lien.",
+        code: 'email_not_verified',
+        email: user.email,
+      });
+      return;
+    }
     (req as Request & { user: AuthPayload; authToken?: string }).user = decoded;
     (req as Request & { authToken?: string }).authToken = token;
     next();
@@ -169,6 +183,7 @@ export function verifyAuthToken(token: string): AuthPayload | null {
     if (!assertFullSession(decoded)) return null;
     const user = db.users.get(decoded.id);
     if (!user || !tokenVersionMatches(user, decoded)) return null;
+    if (isEmailVerificationBlocking(user)) return null;
     return decoded;
   } catch {
     return null;

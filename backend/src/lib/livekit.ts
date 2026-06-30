@@ -90,10 +90,22 @@ export async function startLiveKitEgress(liveId: string, rtmpUrl: string): Promi
 }
 
 /** Stop the active egress for a live (no-op if none). */
-export async function stopLiveKitEgress(liveId: string): Promise<void> {
+export async function stopLiveKitEgressIfActive(liveId: string): Promise<boolean> {
   const egressId = await getLiveKitEgressId(liveId);
-  if (!egressId) throw new Error('Aucun egress actif pour ce live.');
-  const client = buildEgressClient();
-  await client.stopEgress(egressId);
-  await clearLiveKitEgressId(liveId);
+  if (!egressId) return false;
+  try {
+    const client = buildEgressClient();
+    await client.stopEgress(egressId);
+  } catch (err) {
+    console.warn('[livekit] stop egress failed', liveId, err instanceof Error ? err.message : err);
+  } finally {
+    await clearLiveKitEgressId(liveId);
+  }
+  return true;
+}
+
+/** Stop the active egress for a live (throws if none). */
+export async function stopLiveKitEgress(liveId: string): Promise<void> {
+  const stopped = await stopLiveKitEgressIfActive(liveId);
+  if (!stopped) throw new Error('Aucun egress actif pour ce live.');
 }

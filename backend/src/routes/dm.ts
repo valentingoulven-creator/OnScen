@@ -35,6 +35,7 @@ import { isGroupMessageVisibleToUser } from '../lib/groupVisibility';
 import { notifyDmReceived } from '../lib/notifications';
 import { trackEvent, trackUserActive } from '../lib/analytics';
 import { moderateDmAttachment, moderationRejectionMessage } from '../lib/contentModeration';
+import { isAllowedChatAttachmentUrl } from '../lib/chatAttachmentUrl';
 import { checkChatRateLimit } from '../lib/chatRateLimit';
 
 export const dmRouter = Router();
@@ -413,6 +414,10 @@ dmRouter.post('/thread/:userId', authenticateJWT, async (req: Request, res: Resp
   }
 
   if (attachmentUrl) {
+    if (!isAllowedChatAttachmentUrl(String(attachmentUrl))) {
+      res.status(400).json({ error: 'URL de pièce jointe invalide (HTTPS requis).' });
+      return;
+    }
     const moderation = await moderateDmAttachment(
       String(attachmentUrl),
       attachmentMimeType,

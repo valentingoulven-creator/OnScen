@@ -4,13 +4,10 @@
 # ⚠ NE JAMAIS écrire un bloc minimal `:80 { ... }` à la main sur le VPS.
 #    Utiliser : ./deploy/sync-caddy.sh  ou  deploy-scaleway.ps1
 #
-# Basic Auth protège l'UI (index.html) ; les assets hashés, le SW et l'API
-# restent accessibles sans Basic Auth pour éviter les 401 sur les scripts
-# (module + Service Worker n'envoient pas toujours Authorization).
-#
-# IP autorisée (admin/dev) : accès UI sans Basic Auth. Toutes les autres IP
-# doivent s'authentifier sur les routes UI. Mettre à jour si l'IP publique change.
-# IP whitelistée : 195.36.171.84/32 (France, box utilisateur — 2026-06-10)
+# Basic Auth (pré-lancement) — optionnel, fichier VPS uniquement (jamais commité).
+# Copier deploy/caddy-basic-auth.caddy.example → /opt/soundly/deploy/caddy-basic-auth.caddy
+# et décommenter la ligne import ci-dessous pour réactiver la protection UI.
+# import /opt/soundly/deploy/caddy-basic-auth.caddy
 
 (soundy_handlers) {
 	@allowed_ips client_ip 195.36.171.84/32
@@ -31,14 +28,6 @@
 	}
 
 	handle {
-		basic_auth {
-			Mamacc $2b$14$yTDyM/6o5PbshbBPOlFlX.u/RmmZMlnZSnO4EFVD2l8/TQJSRB6KW
-			testeur2 $2a$14$U509RsKDgOcsMB6egwa8a.Nvd/Y850C3HcQnbcTpoPzCDTmosO.EK
-			testeur3 $2a$14$PpD9dQRGiaAum4a8jw6mzOChiyPRo/Ji0pZX2nkm4BmyMRS9XP2bq
-			testeur4 $2a$14$oCOzHBJou/d5K/kJoYIgFeCNMr68GAK0ipaF01t1inL1lf7HsdmXK
-			testeur5 $2a$14$iOFxMXMoqduORGq50ZNhM.VjKd0IJaoUUvgjNh6e9kbi54vM3GmZ6
-			dev $2a$14$3ab9DEpqxIqhLX9GLi0cve8axHjrduVz/r9vg7O6L9LTxjiyZlYjW
-		}
 		reverse_proxy localhost:3000
 	}
 

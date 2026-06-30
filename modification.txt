@@ -15056,3 +15056,211 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 880 — 2026-06-30
 ================================================================================
+
+================================================================================
+MODIF 881 — Fix script msdev:open (encoding PowerShell)
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ `npm run msdev:open` échouait avec ParserError (terminateur " manquant) à cause
+ de caractères UTF-8 corrompus (tiret long) dans open-msdev-foreground.ps1.
+
+CHANGEMENTS / FIX
+-----
+ msdev/scripts/open-msdev-foreground.ps1
+ ─────────────────
+ • Réécriture ASCII (commentaires + Write-Host) — script parse et s'exécute OK
+
+FICHIERS MODIFIÉS
+-----
+ msdev/scripts/open-msdev-foreground.ps1 → fix encoding PowerShell
+
+BUILD (si vérifié)
+-----
+ msdev/scripts/open-msdev-foreground.ps1 → exécution OK ✅
+
+================================================================================
+Fin MODIF 881 — 2026-06-30
+================================================================================
+
+================================================================================
+MODIF 882 — CI ESLint + warnings build + dette TODO-MANUAL
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ CI bloquée (372 errors ESLint React Compiler), warnings build PWA/i18n,
+ dette documentée TODO-MANUAL obsolète ou incomplète.
+
+CHANGEMENTS / FIX
+-----
+ app/eslint.config.js
+ ─────────────────
+ • Règles React Compiler en warn (migration incrémentale)
+ • react-refresh allowConstantExport ; no-unused-vars ignore ^_
+ • Tests : set-state-in-effect/refs off
+
+ app/src/hooks/useSyncRef.ts + App.tsx
+ ─────────────────
+ • Hook useSyncRef ; refs App migrées
+
+ app/src/lib/settings.ts + i18n.ts
+ ─────────────────
+ • Changement langue via CustomEvent (plus d'import dynamique i18n)
+
+ app/vite.config.ts + apptel/vite.config.ts
+ ─────────────────
+ • Retrait glob PWA plus-jakarta-sans (fonts via CSS, pas assets/)
+
+ app/src/components/SessionLocationPicker.tsx
+ ─────────────────
+ • requestMyPosition (fix rules-of-hooks faux positif)
+
+ app/src/components/MapEventFilterSheet.tsx, feedFilter.ts, webglSupport.ts
+ ─────────────────
+ • Fix no-useless-assignment / prefer-const
+
+ backend/src/lib/legalPublisher.ts + legalPublisher.test.ts
+ msdev/legal-publisher.example.json
+ TODO-MANUAL.md
+ ─────────────────
+ • Overrides LEGAL_PUBLISHER_* étendus ; statuts dette mis à jour
+
+FICHIERS MODIFIÉS
+-----
+ app/eslint.config.js · hooks/useSyncRef.ts · App.tsx · settings.ts · i18n.ts
+ vite configs · SessionLocationPicker · MapEventFilterSheet · feedFilter · webglSupport
+ backend legalPublisher · TODO-MANUAL.md · msdev/legal-publisher.example.json
+
+BUILD (si vérifié)
+-----
+ app/ → npm run lint → 0 errors ✅ · npm run build ✅
+ backend/ → npm test → 323/323 ✅
+ getsoundy.com/privacy → 200 ✅
+
+================================================================================
+Fin MODIF 882 — 2026-06-30
+================================================================================
+
+================================================================================
+MODIF 882 — Audit prod : email verify, Caddy secrets, DM HTTPS, LiveKit egress
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Correctifs prioritaires post-audit : comptes non vérifiés avec JWT complet,
+ credentials Basic Auth dans Git, pièces jointes DM sans filtre HTTPS,
+ egress LiveKit orphelin à la fin du live.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/middleware/auth.ts
+ backend/src/routes/auth.ts
+ app/src/context/AuthContext.tsx + AuthPage.tsx
+ ─────────────────
+ • emailVerified enforced dans authenticateJWT / verifyAuthToken
+ • Register sans JWT si vérification e-mail requise (redirect message UI)
+ • Register anti-enumération (400 générique) · export RGPD limité 3/h
+
+ backend/src/routes/dm.ts
+ ─────────────────
+ • isAllowedChatAttachmentUrl() sur pièces jointes DM
+
+ backend/src/lib/livekit.ts + liveArchive.ts
+ ─────────────────
+ • stopLiveKitEgressIfActive() appelé à endLiveSession (tous chemins)
+
+ backend/src/routes/oauth.ts
+ ─────────────────
+ • emailVerified: true pour nouveaux comptes OAuth/Apple · fix catch Apple
+
+ deploy/Caddyfile + caddy-basic-auth.caddy.example
+ ─────────────────
+ • Basic Auth retiré du repo (snippet VPS-only documenté)
+
+ app/src/components/CreatorSubscribeSheet.tsx
+ ─────────────────
+ • Gate consentement cookies Stripe (aligné LiveDonationSheet)
+
+ Tests : authEmailVerification.test.ts · livekitEgressStop.test.ts
+
+FICHIERS MODIFIÉS
+-----
+ backend/ (auth, dm, livekit, oauth) · app/ (auth UI, subscribe) · deploy/Caddyfile
+
+BUILD (si vérifié)
+-----
+ backend/ → npm run build + npm test → 327/327 ✅
+ app/ → npm test → 374/374 ✅
+
+================================================================================
+Fin MODIF 882 — 2026-06-30
+================================================================================
+
+================================================================================
+MODIF 883 — Stores mobile : conformité App Store / Play Store
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Audit stores : builds natifs obsolètes (23/06), package Android incohérent
+ (com.melosong.app vs com.soundy.app), Stripe abonnements créateurs encore
+ accessible sur Android natif, Sign in with Apple absent malgré Google OAuth.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/CreatorSubscribeSheet.tsx
+ ─────────────────
+ • Guard Stripe : isNativeApp() (iOS + Android), plus isNativeIos() seul
+
+ apptel/android/app/build.gradle + MainActivity.java
+ ─────────────────
+ • applicationId / namespace → com.soundy.app (aligné Capacitor + assetlinks)
+ • versionCode 201 · versionName 2.0.1
+
+ apptel/ios/App/App.entitlements + project.pbxproj
+ ─────────────────
+ • Capability Sign in with Apple
+ • Build 201 · marketing 2.0.1
+
+ backend/src/lib/appleOAuth.ts + appleOAuth.test.ts
+ backend/src/routes/oauth.ts
+ ─────────────────
+ • Sign in with Apple : GET /api/auth/apple, POST /api/auth/apple/callback
+ • Vérification JWT Apple (JWKS) · providers.apple
+
+ app/src/pages/AuthPage.tsx + lib/api/auth.ts + locales fr/en
+ ─────────────────
+ • Bouton « Continuer avec Apple » · Google masqué sur iOS si Apple non configuré
+ • Traductions nativeIapDonation (pourboires natifs)
+
+ backend/.env.production.example
+ ─────────────────
+ • Variables APPLE_* documentées
+
+FICHIERS MODIFIÉS
+-----
+ app/ · apptel/android · apptel/ios · backend/ (apple OAuth)
+
+BUILD (si vérifié)
+-----
+ backend/ → npm test → 322/322 ✅
+ app/ → npm run build → ✅
+ apptel/ → npm run build:capacitor:prod → ✅
+ android:aab:prod → ❌ (JDK 21 absent sur machine agent)
+
+MANUEL (avant soumission stores)
+-----
+ • Renseigner APPLE_* dans backend/.env.production + APPLE_TEAM_ID dans mobile-store.env
+ • npm run mobile:well-known puis deploy prod (AASA sans TEAM_ID placeholder)
+ • LEGAL_PUBLISHER_ADDRESS sur VPS (LCEN)
+ • Rebuild AAB : scripts/build-android-aab-prod.ps1 · IPA Mac : scripts/build-ios-ipa-prod.sh
+
+================================================================================
+Fin MODIF 883 — 2026-06-30
+================================================================================

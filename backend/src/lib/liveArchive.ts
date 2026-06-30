@@ -1,6 +1,7 @@
 import { db, type Live } from '../models/schema';
 import { schedulePersist } from './persist';
 import { persistLiveToPgAsync } from './pgSalonsLives';
+import { stopLiveKitEgressIfActive } from './livekit';
 
 export function bumpLivePeakViewers(live: Live): void {
   const peak = live.peakViewersCount ?? 0;
@@ -12,6 +13,7 @@ export function bumpLivePeakViewers(live: Live): void {
 
 /** Marque un live comme terminé et planifie la persistance. */
 export function endLiveSession(live: Live, endedAt = Date.now()): void {
+  void stopLiveKitEgressIfActive(live.id);
   live.isActive = false;
   if (!live.endedAt) live.endedAt = endedAt;
   const peak = live.peakViewersCount ?? 0;

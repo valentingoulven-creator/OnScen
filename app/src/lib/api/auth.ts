@@ -42,6 +42,8 @@ export const authApi = {
       token?: string;
       user?: import('../../types').User;
       pending?: boolean;
+      emailVerificationRequired?: boolean;
+      emailVerificationSent?: boolean;
       message?: string;
       error?: string;
     };
@@ -55,7 +57,7 @@ export const authApi = {
     request<{ user: import('../../types').User }>('/auth/complete-onboarding', { method: 'POST' }, token),
 
   getOAuthProviders: () =>
-    request<{ google: boolean; facebook: boolean; youtube: boolean; instagram: boolean }>('/auth/providers', {}),
+    request<{ google: boolean; facebook: boolean; youtube: boolean; instagram: boolean; apple: boolean }>('/auth/providers', {}),
 
   exchangeOAuthCode: (
     code: string,

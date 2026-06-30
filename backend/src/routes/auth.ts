@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
+import rateLimit from 'express-rate-limit';
 import { db, User, ListeningRole } from '../models/schema';
 import {
   authenticateJWT,
@@ -16,6 +17,8 @@ import {
   isLoginBlocked,
   recordLoginFailure,
 } from '../lib/loginAttemptLimit';
+import { createRateLimitStore } from '../lib/rateLimitStore';
+import { isMsdevRuntime } from '../lib/msdevGuard';
 import {
   applyAgeSettings,
   applyProfileDefaults,
@@ -62,6 +65,19 @@ import {
 } from '../lib/mailer';
 
 export const authRouter = Router();
+
+const exportDataLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Trop d’exports de données. Réessayez dans une heure.',
+    code: 'export_rate_limited',
+  },
+  skip: () => isMsdevRuntime(),
+  store: createRateLimitStore('auth-export'),
+});
 
 const JWT_SECRET = getJwtSecret();
 
@@ -150,7 +166,10 @@ authRouter.post('/register', async (req: Request, res: Response) => {
   }
   const exists = [...db.users.values()].some((u) => u.email === email || u.username === username);
   if (exists) {
-    res.status(409).json({ error: 'Utilisateur déjà existant' });
+    res.status(400).json({
+      error: 'Impossible de créer le compte avec ces identifiants. Vérifiez le pseudo et l’e-mail.',
+      code: 'registration_rejected',
+    });
     return;
   }
   const accountStatus = resolveInitialAccountStatus();
@@ -214,6 +233,17 @@ authRouter.post('/register', async (req: Request, res: Response) => {
       message:
         'Inscription enregistrée. Un administrateur doit valider votre compte avant la première connexion.',
       user: publicProfile(user, true, user.id),
+    });
+    return;
+  }
+
+  if (!skipVerification) {
+    res.status(201).json({
+      emailVerificationRequired: true,
+      emailVerificationSent: true,
+      message:
+        'Compte créé. Consultez vos e-mails pour activer votre compte avant de vous connecter.',
+      email: user.email,
     });
     return;
   }
@@ -351,7 +381,7 @@ authRouter.post('/accept-terms', authenticateJWT, (req: Request, res: Response) 
   });
 });
 
-authRouter.get('/me/export', authenticateJWT, (req: Request, res: Response) => {
+authRouter.get('/me/export', exportDataLimiter, authenticateJWT, (req: Request, res: Response) => {
   const userId = (req as Request & { user: { id: string } }).user.id;
   const user = db.users.get(userId);
   if (!user) {

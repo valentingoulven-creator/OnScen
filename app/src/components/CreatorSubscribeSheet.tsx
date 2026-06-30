@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api';
-import { isNativeIos } from '../lib/nativePlatform';
+import { isNativeApp } from '../lib/nativePlatform';
 import {
   formatTierPrice,
   SUBSCRIPTION_LEGAL_NOTICE,
@@ -45,8 +45,8 @@ export function CreatorSubscribeSheet({
   const needsAgeCheckbox = userAge == null || userAge < 18;
   const canProceedAge = userCanSubscribeByAge(userAge, ageConfirmed);
 
-  // App Store Guideline 3.1.1 — Stripe subscriptions must not be offered on native iOS.
-  const nativeIos = isNativeIos();
+  // App Store 3.1.1 + Play Billing — Stripe subscriptions must not be offered in native apps.
+  const nativeApp = isNativeApp();
 
   const title =
     targetType === 'platform'
@@ -77,7 +77,7 @@ export function CreatorSubscribeSheet({
 
   if (!open) return null;
 
-  if (nativeIos) {
+  if (nativeApp) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={onClose}>
         <div
