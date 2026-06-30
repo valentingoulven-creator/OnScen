@@ -15,7 +15,8 @@
     "seed:production": "npm run build && node dist/commun/scripts/seed-production-testdata.js",
     "seed:sponsors": "npm run build && node dist/commun/scripts/seed-production-sponsors.js",
     "seed:world": "npm run build && node dist/commun/scripts/seed-production-world-random.js",
-    "msdev:seed-stories": "npm run build && node dist/commun/scripts/seed-msdev-stories.js"
+    "msdev:seed-stories": "npm run build && node dist/commun/scripts/seed-msdev-stories.js",
+    "create-admin": "npx ts-node src/scripts/create-admin-user.ts"
   },
   "bin": {
     "msdev": "dist/entry-msdev.js"

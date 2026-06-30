@@ -5,6 +5,7 @@ import { applyProfileDefaults, type PublicCurrentListening } from './profile';
 import { getHostRatingSummary } from './ratings';
 import { isBotHost } from '../seed-bots';
 import { isSalonVisibleOnMap } from './salonAccess';
+import { getActiveSalonForHost } from './profile';
 import { resolveNearbyRadiusKm } from './geoLimits';
 import { isValidLatLng } from './mapCoords';
 import type { NearbyGeoCandidates } from './pgGeoNearby';
@@ -100,7 +101,7 @@ function resolveListeningPlatform(
   }
   const standaloneLive = [...db.lives.values()].find((l) => l.isActive && l.hostId === u.id && !l.salonId);
   if (standaloneLive) return standaloneLive.platform;
-  const hostedSalon = [...db.salons.values()].find((s) => s.hostId === u.id);
+  const hostedSalon = getActiveSalonForHost(u.id);
   if (hostedSalon) return hostedSalon.platform;
   const connected = u.connectedPlatforms ?? [];
   if (connected.length === 1) return connected[0];

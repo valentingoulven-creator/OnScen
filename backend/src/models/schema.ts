@@ -137,6 +137,8 @@ export interface User {
   twoFactorBackupCodes?: string[];
   /** Incrémenté à chaque changement de mot de passe — invalide les JWT antérieurs. */
   tokenVersion?: number;
+  /** true = l'utilisateur doit changer son mot de passe avant d'utiliser l'app (compte admin initial, etc.). */
+  mustChangePassword?: boolean;
   /** Live input Cloudflare Stream persistant pour OBS (clé RTMP unique par compte). */
   cloudflareObsLiveInputId?: string;
   /** Préférences création salon — voir lib/salonCreateSetup.ts */

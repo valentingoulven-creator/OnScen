@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
+import { asyncHandler } from '../lib/asyncHandler';
 import { getIo } from '../lib/ioInstance';
 import { notifyContentHeartReceived } from '../lib/notifications';
 import {
@@ -81,7 +82,7 @@ reelsRouter.get('/user-created', authenticateJWT, (req: Request, res: Response) 
   res.json({ reels: listUserCreatedReels(me) });
 });
 
-reelsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
+reelsRouter.post('/', authenticateJWT, asyncHandler(async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const body = req.body ?? {};
   const mediaType = body.mediaType === 'image' ? 'image' : 'video';
@@ -127,7 +128,7 @@ reelsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
     return;
   }
   res.status(201).json({ reel: publicUserReel(result) });
-});
+}));
 
 reelsRouter.post('/:reelId/publish', authenticateJWT, (req: Request, res: Response) => {
   const reelId = req.params.reelId;

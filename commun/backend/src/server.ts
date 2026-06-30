@@ -56,6 +56,7 @@ import { renderPublicLegalHtml, resolvePublicLegalDocKey } from './lib/publicLeg
 import { parseRequestLocale } from './lib/requestLocale';
 import { checkPoolHealth, isPostgresEnabled } from './db/pool';
 import { getDbContentHealthReport } from './lib/dbContentHealth';
+import { checkExternalServicesHealth } from './lib/healthChecks';
 import { buildCspConnectSrc, buildCspImgSrc } from './lib/cspConfig';
 import { requireOpsHealthToken } from './middleware/opsHealthAuth';
 import { latencyMonitorMiddleware } from './middleware/latencyMonitor';
@@ -442,6 +443,21 @@ const authLimiter = rateLimit({
   store: createRateLimitStore('auth'),
 });
 
+/**
+ * Vérification de disponibilité de pseudo — sans auth, donc utilisable pour
+ * énumérer les comptes existants si non limité. Plafond généreux pour ne pas
+ * casser l'UX de saisie en direct lors de l'inscription.
+ */
+const usernameCheckLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de vérifications. Réessayez plus tard.' },
+  skip: () => isMsdevRuntime(),
+  store: createRateLimitStore('check-username'),
+});
+
 const reportsLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
@@ -490,6 +506,7 @@ const globalApiLimiter = rateLimit({
 
 app.use('/api', globalApiLimiter);
 
+app.use('/api/auth/check-username', usernameCheckLimiter);
 app.use('/api/auth', authLimiter, authRouter);
 // OAuth routes are mounted separately: the auth code exchange is naturally
 // rate-limited by Google/Facebook, and callback URLs must not be blocked.
@@ -555,20 +572,27 @@ app.get('/api/config', (_req, res) => {
 app.get('/health', (_req, res) => {
   const pgEnabled = isPostgresEnabled();
 
-  const respond = (dbStatus: 'ok' | 'error' | 'disabled') => {
+  // Le statut HTTP global reste piloté uniquement par PostgreSQL : c'est le
+  // seul critère utilisé par les watchdogs (PM2/Caddy/healthcheck.ps1) pour
+  // déclencher un restart. Les services tiers (Redis, Stripe, SMTP, LiveKit)
+  // sont vérifiés et exposés à titre d'observabilité dans `services`, sans
+  // provoquer de redémarrage applicatif sur une panne tierce isolée.
+  const respond = async (dbStatus: 'ok' | 'error' | 'disabled') => {
     const status = dbStatus === 'error' ? 'degraded' : 'OK';
     const httpStatus = dbStatus === 'error' ? 503 : 200;
+    const services = await checkExternalServicesHealth().catch(() => null);
     res.status(httpStatus).json({
       status,
       app: 'Soundy',
       env: process.env.APP_ENV || 'development',
       db: dbStatus,
+      services,
       timestamp: new Date(),
     });
   };
 
   if (!pgEnabled) {
-    respond('disabled');
+    void respond('disabled');
     return;
   }
 

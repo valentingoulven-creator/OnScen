@@ -50,11 +50,12 @@ export function isSalonVisibleOnMap(salon: Salon, viewerId: string): boolean {
   return s.accessMode === 'public';
 }
 
-/** Salon affiché sur le profil public d'un hôte (pas les salons sur invitation). */
+/** Salon affiché sur le profil public d'un hôte (pas les salons sur invitation ni fantôme). */
 export function isSalonVisibleOnProfile(
   salon: Salon,
   opts: { isOwner: boolean }
 ): boolean {
   if (opts.isOwner) return true;
+  if (salon.isGhostMode || salon.adminBlocked) return false;
   return isSalonPublic(salon);
 }

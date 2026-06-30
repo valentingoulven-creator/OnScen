@@ -1,8 +1,10 @@
-import { describe, it, expect } from 'vitest';
-import type { User } from '../models/schema';
+import { describe, it, expect, beforeEach } from 'vitest';
+import type { Salon, User } from '../models/schema';
+import { db } from '../models/schema';
 import {
   applyAgeSettings,
   computeAgeFromBirthDate,
+  getActiveSalonForHost,
   isBirthDateHiddenOnProfile,
   parseAgeInput,
   parseBirthDateInput,
@@ -202,5 +204,100 @@ describe('userMeetsLiveAge', () => {
   it('autorise 16 ans et plus', () => {
     expect(userMeetsLiveAge(15)).toBe(false);
     expect(userMeetsLiveAge(16)).toBe(true);
+  });
+});
+
+describe('getActiveSalonForHost', () => {
+  const hostId = 'host_val';
+  const playbackState = {
+    platform: 'youtube' as const,
+    trackId: 'x',
+    title: 'Track',
+    artist: 'Artist',
+    isPlaying: true,
+    progressMs: 0,
+    updatedAt: Date.now(),
+  };
+
+  function seedSalon(id: string, opts: Partial<Salon>): Salon {
+    const salon: Salon = {
+      id,
+      hostId,
+      hostName: 'Val',
+      title: id,
+      platform: 'youtube',
+      playbackState,
+      latitude: 43.65,
+      longitude: 3.94,
+      blurredLatitude: 43.65,
+      blurredLongitude: 3.94,
+      listenersCount: 0,
+      isGhostMode: false,
+      isPublic: true,
+      accessMode: 'public',
+      allowedUserIds: [hostId],
+      allowQueue: true,
+      createdAt: 1000,
+      ...opts,
+    };
+    db.salons.set(id, salon);
+    return salon;
+  }
+
+  beforeEach(() => {
+    db.salons.clear();
+  });
+
+  it('ignore un vieux salon invite si un salon public plus récent existe', () => {
+    seedSalon('salon_invite', {
+      createdAt: 1000,
+      accessMode: 'invite',
+      isPublic: false,
+      title: 'Salon privé',
+    });
+    seedSalon('salon_public', {
+      createdAt: 2000,
+      accessMode: 'public',
+      isPublic: true,
+      title: 'Salon de Val',
+    });
+    expect(getActiveSalonForHost(hostId)?.id).toBe('salon_public');
+  });
+
+  it('expose le salon public non fantôme le plus récent aux visiteurs du profil', () => {
+    seedSalon('salon_invite', {
+      createdAt: 1000,
+      accessMode: 'invite',
+      isPublic: false,
+    });
+    seedSalon('salon_ghost', {
+      createdAt: 3000,
+      accessMode: 'public',
+      isPublic: true,
+      isGhostMode: true,
+      title: 'Ghost récent',
+    });
+    seedSalon('salon_public', {
+      createdAt: 2000,
+      accessMode: 'public',
+      isPublic: true,
+      title: 'Salon visible',
+    });
+    expect(getActiveSalonForHost(hostId)?.id).toBe('salon_public');
+    const host = makeUser({ id: hostId, username: 'Val' });
+    const view = publicProfile(host, false, 'visitor');
+    expect(view.salonId).toBe('salon_public');
+    expect(view.salonTitle).toBe('Salon visible');
+  });
+
+  it('forOwner inclut un salon fantôme récent si aucun public visible', () => {
+    seedSalon('salon_ghost', {
+      createdAt: 3000,
+      accessMode: 'public',
+      isPublic: true,
+      isGhostMode: true,
+    });
+    expect(getActiveSalonForHost(hostId)).toBeUndefined();
+    expect(getActiveSalonForHost(hostId, { forOwner: true })?.id).toBe('salon_ghost');
   });
 });

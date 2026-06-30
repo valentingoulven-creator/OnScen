@@ -1,4 +1,133 @@
 ================================================================================
+MODIF 668 — Salon Val visible (fantôme / inactif / profil)
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Compte Val : 3 salons actifs en mode fantôme (Paris, invisibles carte/profil visiteurs),
+ 25 salons publics au Crès marqués inactifs en PostgreSQL. Profil et carte incohérents.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/profile.ts
+ commun/backend/src/lib/salonAccess.ts
+ commun/backend/src/lib/nearbyPeople.ts
+ commun/backend/src/routes/salons.ts
+ ─────────────────
+ • getActiveSalonForHost : public non fantôme ; forOwner pour hôte
+ • isSalonVisibleOnProfile : masque fantôme aux visiteurs
+ • Création salon : un seul actif (désactive les autres)
+ • fix-val-salon + réactivation salon Le Crès en prod
+
+ web/app/src/components/UserProfileView.tsx
+ web/app/src/pages/ProfilePage.tsx
+ ─────────────────
+ • Carte « Salon actif » si salonId sans piste en cours
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend → profile, salonAccess, nearbyPeople, salons, scripts/fix-val-salon, tests
+ web/app → UserProfileView, ProfilePage
+
+BUILD (si vérifié)
+-----
+ tests profile + salonAccess → ✅ · prod hotfix + salon Le Crès réactivé → ✅
+
+================================================================================
+Fin — 2026-06-30
+================================================================================
+
+================================================================================
+MODIF 667 — Profil hôte : salon actif public (cas Val)
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ getActiveSalonForHost retournait le premier salon en Map (souvent un vieux salon
+ invite) → le profil public de Val n'affichait aucun salon malgré 24 salons publics.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/profile.ts
+ ─────────────────
+ • Sélection du salon le plus récent : public non fantôme > public > fallback invite
+
+ commun/backend/src/lib/profile.test.ts
+ ─────────────────
+ • Tests régression invite + ghost + profil visiteur
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend + backend (miroir) → profile.ts, profile.test.ts
+
+BUILD (si vérifié)
+-----
+ commun/backend → npm test profile.test.ts → ✅ · hotfix prod profile.js + pm2 restart → ✅
+
+================================================================================
+Fin — 2026-06-30
+================================================================================
+
+================================================================================
+MODIF 666 — Compte admin initial + changement mot de passe obligatoire
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Créer le compte admin admin@getsoundy.com avec mot de passe temporaire et forcer
+ le changement à la première connexion (sécurité compte admin initial).
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/models/schema.ts
+ ─────────────────
+ • Champ User.mustChangePassword
+
+ commun/backend/src/lib/profile.ts
+ commun/backend/src/routes/auth.ts
+ ─────────────────
+ • passwordChangeRequired exposé au profil ; effacé après POST /auth/change-password
+
+ commun/backend/src/lib/pgUsers.ts
+ ─────────────────
+ • Cast $5/$6::double precision (upsert user sans coords — fix prod create-admin)
+
+ commun/backend/src/seed-production.ts
+ commun/backend/src/scripts/create-admin-user.ts
+ ─────────────────
+ • Seed prod + script npm run create-admin (msdev store.json ou PostgreSQL prod)
+
+ web/app/src/components/RequiredPasswordChangeModal.tsx
+ web/app/src/App.tsx
+ web/app/src/types.ts
+ web/app/src/lib/api/auth.ts
+ ─────────────────
+ • Modal bloquante après connexion si passwordChangeRequired
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend + backend (miroir) → schema, profile, auth, seed-production, script create-admin
+ web/app → modal, App, types, API auth
+ app/src/lib/api/auth.ts → type réponse change-password
+
+BUILD (si vérifié)
+-----
+ commun/backend → npm run create-admin (msdev) → ✅ compte admin@getsoundy.com créé
+ prod VPS → script create-admin + fix pgUsers (cast double precision) → ✅ compte créé PostgreSQL
+
+NOTE prod
+-----
+ Le modal « changement mot de passe obligatoire » nécessite un deploy prod complet
+ (backend profile/auth + frontend RequiredPasswordChangeModal). Compte utilisable dès maintenant.
+
+================================================================================
+Fin — 2026-06-30
+================================================================================
+
+================================================================================
 MODIF 665 — Admin : historique dons live temps réel
 Date : 2026-06-28
 ================================================================================
@@ -15376,4 +15505,59 @@ BUILD (si vérifié)
 
 ================================================================================
 Fin MODIF 886 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 887 — Stores : AAB 2.0.1 rebuild + deploy preprod/prod + fix scripts apptel
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Exécuter la checklist post-audit stores : well-known, rebuild AAB frais,
+ déploiement staging + prod (assetlinks com.soundy.app).
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/package.json
+ ─────────────────
+ • Chemins scripts build Capacitor corrigés (scripts/ vs commun/scripts/)
+
+ package.json
+ ─────────────────
+ • Scripts npm apple:setup + apple:setup:preprod
+
+ web/app/public + commun/backend/public/.well-known/assetlinks.json
+ ─────────────────
+ • Regénérés (SHA256 release, package com.soundy.app)
+
+ android/MeloSong-Mobile/Soundy-release-prod.aab
+ ─────────────────
+ • Rebuild v2.0.1 (201) ~4,92 Mo — 2026-06-30
+
+ DEPLOIEMENT
+ ─────────────────
+ • preprod → staging.getsoundy.com health 200 ✅
+ • prod → getsoundy.com health 200 ✅ · assetlinks com.soundy.app live
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/package.json · package.json · .well-known/assetlinks.json · AAB
+
+BUILD (si vérifié)
+-----
+ npm run mobile:well-known → ✅
+ npm run android:aab:prod → ✅ (capacitor prod + gradle bundleRelease)
+ deploy:preprod → ✅
+ deploy prod (skip build, sync public) → ✅ health 200
+
+RESTE MANUEL
+-----
+ • Apple Developer Program + apple-oauth.env → npm run apple:setup
+ • APPLE_TEAM_ID → npm run mobile:well-known → redeploy (AASA)
+ • Adresse LCEN (fondateur)
+ • IPA Mac · upload Play Console AAB
+
+================================================================================
+Fin MODIF 887 — 2026-06-30
 ================================================================================

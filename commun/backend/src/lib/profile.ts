@@ -1,4 +1,4 @@
-import { db, User, type MusicPlatform, type PlaybackState } from '../models/schema';
+import { db, User, type MusicPlatform, type PlaybackState, type Salon } from '../models/schema';
 import { ensurePlatformAccountsFromLegacy, publicPlatformLinks } from './platformConnect';
 import { getHostRatingSummary } from './ratings';
 import { migrateUserProfileType } from './profileTypes';
@@ -318,8 +318,24 @@ export function getUserStats(userId: string) {
   return { salonsHosted, livesHosted };
 }
 
-export function getActiveSalonForHost(hostId: string) {
-  return [...db.salons.values()].find((s) => s.hostId === hostId);
+/** Salon « actif » de l'hôte : le plus récent public visible (pas fantôme / invite legacy). */
+export function getActiveSalonForHost(
+  hostId: string,
+  opts?: { forOwner?: boolean }
+): Salon | undefined {
+  const hostSalons = [...db.salons.values()].filter((s) => s.hostId === hostId);
+  if (hostSalons.length === 0) return undefined;
+
+  const byRecency = (a: Salon, b: Salon) => (b.createdAt ?? 0) - (a.createdAt ?? 0);
+  const pick = (pred: (s: Salon) => boolean) => hostSalons.filter(pred).sort(byRecency)[0];
+
+  const visiblePublic = pick((s) => isSalonPublic(s) && !s.isGhostMode && !s.adminBlocked);
+  if (visiblePublic) return visiblePublic;
+
+  if (opts?.forOwner) {
+    return pick((s) => isSalonPublic(s) && !s.adminBlocked) ?? pick(() => true);
+  }
+  return undefined;
 }
 
 export interface PublicCurrentListening {
@@ -361,7 +377,7 @@ export function getCurrentListeningForUser(
   }
   if (bestLive) return bestLive;
 
-  const salon = getActiveSalonForHost(userId);
+  const salon = getActiveSalonForHost(userId, { forOwner: isOwner });
   if (salon) {
     if (!isSalonPublic(salon) && !isOwner) return undefined;
     return listeningFromPlayback(salon.playbackState);
@@ -391,7 +407,7 @@ export function publicProfile(u: User, isOwner = false, viewerId?: string) {
     viewerId && viewerId !== snapshot.id && !isOwner ? isFollowing(viewerId, snapshot.id) : undefined;
   const followingMe =
     viewerId && viewerId !== snapshot.id && !isOwner ? isFollowing(snapshot.id, viewerId) : undefined;
-  const activeSalon = getActiveSalonForHost(snapshot.id);
+  const activeSalon = getActiveSalonForHost(snapshot.id, { forOwner: isOwner });
   const exposeSalon =
     activeSalon != null && isSalonVisibleOnProfile(activeSalon, { isOwner });
   const isLive = isUserHostingLive(snapshot.id);
@@ -462,6 +478,7 @@ export function publicProfile(u: User, isOwner = false, viewerId?: string) {
     acceptedTermsVersion: isOwner ? snapshot.acceptedTermsVersion : undefined,
     termsReacceptanceRequired: isOwner ? userNeedsTermsReacceptance(snapshot) : undefined,
     currentTermsVersion: isOwner ? CURRENT_TERMS_VERSION : undefined,
+    passwordChangeRequired: isOwner ? snapshot.mustChangePassword === true : undefined,
     onboardingCompleted: isOwner ? (snapshot.onboardingCompleted ?? true) : undefined,
   };
 }
