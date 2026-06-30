@@ -1,0 +1,42 @@
+{
+  "updatedAt": "2026-06-26",
+  "company": {
+    "legalName": "Valentin Goulven (Soundy)",
+    "legalForm": "Entrepreneur individuel",
+    "siren": "106548464",
+    "professionalAddress": "",
+    "foundingDate": "2024-01-01",
+    "pitchOneLiner": "Le réseau social de la musique live et de l'écoute partagée"
+  },
+  "financials": {
+    "monthlyBurnEur": 85,
+    "cashOnHandEur": 10000,
+    "personalRunwayMonths": 117,
+    "revenueActualMrrEur": 0,
+    "sponsorContractsSigned": 0,
+    "sponsorPipelineEur": 0,
+    "fundraisingStatus": "Bootstrap — 10 000 € trésorerie, pas de levée en cours"
+  },
+  "strategy": {
+    "primaryCity": "Paris",
+    "targetCities": ["Paris", "Lyon", "Marseille", "Montpellier"],
+    "northStarMetric": "Salons actifs par semaine",
+    "northStarCurrentValue": null,
+    "currentFocusQuarter": "Q2 2026 — densité Paris · 1 créateur pilote actif (cible 50) · 0 sponsor → cible 2 fondateurs",
+    "ambitionHorizon": "Leader FR musique sociale, puis diaspora francophone",
+    "competitorsToWatch": ["Instagram", "Discord", "Shotgun", "Spotify"]
+  },
+  "goToMarket": {
+    "creatorPilotsTarget": 50,
+    "creatorPilotsActive": 1,
+    "founderSponsorsTarget": 2,
+    "founderSponsorsSigned": 0,
+    "activePartnerships": []
+  },
+  "team": {
+    "headcount": 1,
+    "rolesCovered": ["founder", "product", "dev", "ops"],
+    "hiringNext": []
+  },
+  "founderNotes": "Trésorerie 10 000 € (juin 2026). Burn ~85 €/mois estimé. Créateurs pilotes : 1 seul actif pour le moment (cible 50). Sponsors : aucun. Adresse pro LCEN : domiciliation en cours. GTM : Paris puis Lyon, Marseille, Montpellier."
+}

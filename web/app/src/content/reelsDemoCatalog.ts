@@ -1,0 +1,897 @@
+/**
+ * Catalogue reels démo — vidéos Mixkit (licence Mixkit) + musique Mixkit Music.
+ * Généré par commun/msdev/scripts/generate-reels-catalog.mjs — ne pas éditer à la main.
+ * @see https://mixkit.co/free-stock-video/
+ * @see https://mixkit.co/free-stock-music/
+ */
+export interface ReelCatalogEntry {
+  id: string;
+  videoId: number;
+  musicId: number;
+  title: string;
+  artist: string;
+  genre: string;
+}
+
+export const REEL_CATALOG_ENTRIES: ReelCatalogEntry[] = [
+  {
+    "id": "reel-guitar",
+    "videoId": 483,
+    "musicId": 872,
+    "title": "Guitare électrique",
+    "artist": "Electric Soul",
+    "genre": "Rock"
+  },
+  {
+    "id": "reel-dj",
+    "videoId": 830,
+    "musicId": 989,
+    "title": "Platines DJ",
+    "artist": "DJ Melody",
+    "genre": "Électro"
+  },
+  {
+    "id": "reel-drums",
+    "videoId": 427,
+    "musicId": 1140,
+    "title": "Groove batterie",
+    "artist": "Rhythm Crew",
+    "genre": "Batterie live"
+  },
+  {
+    "id": "reel-piano",
+    "videoId": 44147,
+    "musicId": 787,
+    "title": "Piano virtuose",
+    "artist": "Keys & Chill",
+    "genre": "Lo-fi"
+  },
+  {
+    "id": "reel-vinyl",
+    "videoId": 5035,
+    "musicId": 1141,
+    "title": "Platine vinyle",
+    "artist": "RetroWave",
+    "genre": "House"
+  },
+  {
+    "id": "reel-concert",
+    "videoId": 4188,
+    "musicId": 1147,
+    "title": "Scène électro",
+    "artist": "Arena Pulse",
+    "genre": "Concert"
+  },
+  {
+    "id": "reel-guitar-studio",
+    "videoId": 42824,
+    "musicId": 868,
+    "title": "Session studio",
+    "artist": "MeloSession",
+    "genre": "Acoustique"
+  },
+  {
+    "id": "reel-piano-mood",
+    "videoId": 33936,
+    "musicId": 849,
+    "title": "Piano nocturne",
+    "artist": "Blue Note",
+    "genre": "Jazz"
+  },
+  {
+    "id": "reel-tape",
+    "videoId": 425,
+    "musicId": 858,
+    "title": "Cassette rétro",
+    "artist": "Crate Digger",
+    "genre": "Soul"
+  },
+  {
+    "id": "reel-club",
+    "videoId": 4344,
+    "musicId": 1077,
+    "title": "Nightclub lasers",
+    "artist": "NeonVox",
+    "genre": "Électro"
+  },
+  {
+    "id": "reel-dance",
+    "videoId": 344,
+    "musicId": 635,
+    "title": "Piste de danse",
+    "artist": "Street Flow",
+    "genre": "House"
+  },
+  {
+    "id": "reel-mk-11",
+    "videoId": 11,
+    "musicId": 635,
+    "title": "Session nocturne #11",
+    "artist": "MeloVibes",
+    "genre": "Électro"
+  },
+  {
+    "id": "reel-mk-49",
+    "videoId": 49,
+    "musicId": 700,
+    "title": "Groove urbain #49",
+    "artist": "Neon Pulse",
+    "genre": "House"
+  },
+  {
+    "id": "reel-mk-63",
+    "videoId": 63,
+    "musicId": 710,
+    "title": "Lumières strobées #63",
+    "artist": "Urban Echo",
+    "genre": "Lo-fi"
+  },
+  {
+    "id": "reel-mk-64",
+    "videoId": 64,
+    "musicId": 720,
+    "title": "Rythme live #64",
+    "artist": "Crystal Beats",
+    "genre": "Rock"
+  },
+  {
+    "id": "reel-mk-66",
+    "videoId": 66,
+    "musicId": 730,
+    "title": "Vibes du soir #66",
+    "artist": "Night Driver",
+    "genre": "Jazz"
+  },
+  {
+    "id": "reel-mk-72",
+    "videoId": 72,
+    "musicId": 740,
+    "title": "Pulse électrique #72",
+    "artist": "Solar Drift",
+    "genre": "Pop"
+  },
+  {
+    "id": "reel-mk-74",
+    "videoId": 74,
+    "musicId": 750,
+    "title": "Ambiance club #74",
+    "artist": "Deep Grove",
+    "genre": "Hip-hop"
+  },
+  {
+    "id": "reel-mk-86",
+    "videoId": 86,
+    "musicId": 760,
+    "title": "Beat libre #86",
+    "artist": "Velvet Sound",
+    "genre": "Indie"
+  },
+  {
+    "id": "reel-mk-151",
+    "videoId": 151,
+    "musicId": 770,
+    "title": "Flow musical #151",
+    "artist": "Pulse Unit",
+    "genre": "Techno"
+  },
+  {
+    "id": "reel-mk-182",
+    "videoId": 182,
+    "musicId": 780,
+    "title": "Instant live #182",
+    "artist": "Echo Lane",
+    "genre": "Acoustique"
+  },
+  {
+    "id": "reel-mk-206",
+    "videoId": 206,
+    "musicId": 787,
+    "title": "Scène ouverte #206",
+    "artist": "Static Dream",
+    "genre": "Concert"
+  },
+  {
+    "id": "reel-mk-221",
+    "videoId": 221,
+    "musicId": 800,
+    "title": "Backstage #221",
+    "artist": "Wave Theory",
+    "genre": "Soul"
+  },
+  {
+    "id": "reel-mk-231",
+    "videoId": 231,
+    "musicId": 810,
+    "title": "En direct #231",
+    "artist": "Chrome Hearts",
+    "genre": "Funk"
+  },
+  {
+    "id": "reel-mk-236",
+    "videoId": 236,
+    "musicId": 820,
+    "title": "Session libre #236",
+    "artist": "Basement FM",
+    "genre": "Trap"
+  },
+  {
+    "id": "reel-mk-242",
+    "videoId": 242,
+    "musicId": 830,
+    "title": "Mood track #242",
+    "artist": "Skyline Audio",
+    "genre": "Ambient"
+  },
+  {
+    "id": "reel-mk-303",
+    "videoId": 303,
+    "musicId": 840,
+    "title": "Session nocturne #303",
+    "artist": "MeloVibes",
+    "genre": "Électro"
+  },
+  {
+    "id": "reel-mk-308",
+    "videoId": 308,
+    "musicId": 849,
+    "title": "Groove urbain #308",
+    "artist": "Neon Pulse",
+    "genre": "House"
+  },
+  {
+    "id": "reel-mk-332",
+    "videoId": 332,
+    "musicId": 858,
+    "title": "Lumières strobées #332",
+    "artist": "Urban Echo",
+    "genre": "Lo-fi"
+  },
+  {
+    "id": "reel-mk-337",
+    "videoId": 337,
+    "musicId": 868,
+    "title": "Rythme live #337",
+    "artist": "Crystal Beats",
+    "genre": "Rock"
+  },
+  {
+    "id": "reel-mk-348",
+    "videoId": 348,
+    "musicId": 872,
+    "title": "Vibes du soir #348",
+    "artist": "Night Driver",
+    "genre": "Jazz"
+  },
+  {
+    "id": "reel-mk-424",
+    "videoId": 424,
+    "musicId": 880,
+    "title": "Pulse électrique #424",
+    "artist": "Solar Drift",
+    "genre": "Pop"
+  },
+  {
+    "id": "reel-mk-452",
+    "videoId": 452,
+    "musicId": 890,
+    "title": "Ambiance club #452",
+    "artist": "Deep Grove",
+    "genre": "Hip-hop"
+  },
+  {
+    "id": "reel-mk-472",
+    "videoId": 472,
+    "musicId": 900,
+    "title": "Beat libre #472",
+    "artist": "Velvet Sound",
+    "genre": "Indie"
+  },
+  {
+    "id": "reel-mk-486",
+    "videoId": 486,
+    "musicId": 910,
+    "title": "Flow musical #486",
+    "artist": "Pulse Unit",
+    "genre": "Techno"
+  },
+  {
+    "id": "reel-mk-513",
+    "videoId": 513,
+    "musicId": 920,
+    "title": "Instant live #513",
+    "artist": "Echo Lane",
+    "genre": "Acoustique"
+  },
+  {
+    "id": "reel-mk-529",
+    "videoId": 529,
+    "musicId": 930,
+    "title": "Scène ouverte #529",
+    "artist": "Static Dream",
+    "genre": "Concert"
+  },
+  {
+    "id": "reel-mk-570",
+    "videoId": 570,
+    "musicId": 940,
+    "title": "Backstage #570",
+    "artist": "Wave Theory",
+    "genre": "Soul"
+  },
+  {
+    "id": "reel-mk-583",
+    "videoId": 583,
+    "musicId": 950,
+    "title": "En direct #583",
+    "artist": "Chrome Hearts",
+    "genre": "Funk"
+  },
+  {
+    "id": "reel-mk-721",
+    "videoId": 721,
+    "musicId": 960,
+    "title": "Session libre #721",
+    "artist": "Basement FM",
+    "genre": "Trap"
+  },
+  {
+    "id": "reel-mk-744",
+    "videoId": 744,
+    "musicId": 970,
+    "title": "Mood track #744",
+    "artist": "Skyline Audio",
+    "genre": "Ambient"
+  },
+  {
+    "id": "reel-mk-780",
+    "videoId": 780,
+    "musicId": 980,
+    "title": "Session nocturne #780",
+    "artist": "MeloVibes",
+    "genre": "Électro"
+  },
+  {
+    "id": "reel-mk-805",
+    "videoId": 805,
+    "musicId": 989,
+    "title": "Groove urbain #805",
+    "artist": "Neon Pulse",
+    "genre": "House"
+  },
+  {
+    "id": "reel-mk-809",
+    "videoId": 809,
+    "musicId": 1000,
+    "title": "Lumières strobées #809",
+    "artist": "Urban Echo",
+    "genre": "Lo-fi"
+  },
+  {
+    "id": "reel-mk-831",
+    "videoId": 831,
+    "musicId": 1010,
+    "title": "Rythme live #831",
+    "artist": "Crystal Beats",
+    "genre": "Rock"
+  },
+  {
+    "id": "reel-mk-914",
+    "videoId": 914,
+    "musicId": 1020,
+    "title": "Vibes du soir #914",
+    "artist": "Night Driver",
+    "genre": "Jazz"
+  },
+  {
+    "id": "reel-mk-918",
+    "videoId": 918,
+    "musicId": 1030,
+    "title": "Pulse électrique #918",
+    "artist": "Solar Drift",
+    "genre": "Pop"
+  },
+  {
+    "id": "reel-mk-993",
+    "videoId": 993,
+    "musicId": 1040,
+    "title": "Ambiance club #993",
+    "artist": "Deep Grove",
+    "genre": "Hip-hop"
+  },
+  {
+    "id": "reel-mk-1012",
+    "videoId": 1012,
+    "musicId": 1050,
+    "title": "Beat libre #1012",
+    "artist": "Velvet Sound",
+    "genre": "Indie"
+  },
+  {
+    "id": "reel-mk-1038",
+    "videoId": 1038,
+    "musicId": 1060,
+    "title": "Flow musical #1038",
+    "artist": "Pulse Unit",
+    "genre": "Techno"
+  },
+  {
+    "id": "reel-mk-1090",
+    "videoId": 1090,
+    "musicId": 1077,
+    "title": "Instant live #1090",
+    "artist": "Echo Lane",
+    "genre": "Acoustique"
+  },
+  {
+    "id": "reel-mk-1173",
+    "videoId": 1173,
+    "musicId": 1080,
+    "title": "Scène ouverte #1173",
+    "artist": "Static Dream",
+    "genre": "Concert"
+  },
+  {
+    "id": "reel-mk-1186",
+    "videoId": 1186,
+    "musicId": 1090,
+    "title": "Backstage #1186",
+    "artist": "Wave Theory",
+    "genre": "Soul"
+  },
+  {
+    "id": "reel-mk-1243",
+    "videoId": 1243,
+    "musicId": 1100,
+    "title": "En direct #1243",
+    "artist": "Chrome Hearts",
+    "genre": "Funk"
+  },
+  {
+    "id": "reel-mk-1564",
+    "videoId": 1564,
+    "musicId": 1110,
+    "title": "Session libre #1564",
+    "artist": "Basement FM",
+    "genre": "Trap"
+  },
+  {
+    "id": "reel-mk-1606",
+    "videoId": 1606,
+    "musicId": 1120,
+    "title": "Mood track #1606",
+    "artist": "Skyline Audio",
+    "genre": "Ambient"
+  },
+  {
+    "id": "reel-mk-1610",
+    "videoId": 1610,
+    "musicId": 1130,
+    "title": "Session nocturne #1610",
+    "artist": "MeloVibes",
+    "genre": "Électro"
+  },
+  {
+    "id": "reel-mk-1704",
+    "videoId": 1704,
+    "musicId": 1140,
+    "title": "Groove urbain #1704",
+    "artist": "Neon Pulse",
+    "genre": "House"
+  },
+  {
+    "id": "reel-mk-1960",
+    "videoId": 1960,
+    "musicId": 1141,
+    "title": "Lumières strobées #1960",
+    "artist": "Urban Echo",
+    "genre": "Lo-fi"
+  },
+  {
+    "id": "reel-mk-2091",
+    "videoId": 2091,
+    "musicId": 1147,
+    "title": "Rythme live #2091",
+    "artist": "Crystal Beats",
+    "genre": "Rock"
+  },
+  {
+    "id": "reel-mk-2168",
+    "videoId": 2168,
+    "musicId": 1150,
+    "title": "Vibes du soir #2168",
+    "artist": "Night Driver",
+    "genre": "Jazz"
+  },
+  {
+    "id": "reel-mk-2213",
+    "videoId": 2213,
+    "musicId": 1160,
+    "title": "Pulse électrique #2213",
+    "artist": "Solar Drift",
+    "genre": "Pop"
+  },
+  {
+    "id": "reel-mk-2408",
+    "videoId": 2408,
+    "musicId": 1170,
+    "title": "Ambiance club #2408",
+    "artist": "Deep Grove",
+    "genre": "Hip-hop"
+  },
+  {
+    "id": "reel-mk-2893",
+    "videoId": 2893,
+    "musicId": 1180,
+    "title": "Beat libre #2893",
+    "artist": "Velvet Sound",
+    "genre": "Indie"
+  },
+  {
+    "id": "reel-mk-3000",
+    "videoId": 3000,
+    "musicId": 1190,
+    "title": "Flow musical #3000",
+    "artist": "Pulse Unit",
+    "genre": "Techno"
+  },
+  {
+    "id": "reel-mk-3128",
+    "videoId": 3128,
+    "musicId": 1200,
+    "title": "Instant live #3128",
+    "artist": "Echo Lane",
+    "genre": "Acoustique"
+  },
+  {
+    "id": "reel-mk-3206",
+    "videoId": 3206,
+    "musicId": 635,
+    "title": "Scène ouverte #3206",
+    "artist": "Static Dream",
+    "genre": "Concert"
+  },
+  {
+    "id": "reel-mk-3335",
+    "videoId": 3335,
+    "musicId": 700,
+    "title": "Backstage #3335",
+    "artist": "Wave Theory",
+    "genre": "Soul"
+  },
+  {
+    "id": "reel-mk-3371",
+    "videoId": 3371,
+    "musicId": 710,
+    "title": "En direct #3371",
+    "artist": "Chrome Hearts",
+    "genre": "Funk"
+  },
+  {
+    "id": "reel-mk-3428",
+    "videoId": 3428,
+    "musicId": 720,
+    "title": "Session libre #3428",
+    "artist": "Basement FM",
+    "genre": "Trap"
+  },
+  {
+    "id": "reel-mk-3537",
+    "videoId": 3537,
+    "musicId": 730,
+    "title": "Mood track #3537",
+    "artist": "Skyline Audio",
+    "genre": "Ambient"
+  },
+  {
+    "id": "reel-mk-3578",
+    "videoId": 3578,
+    "musicId": 740,
+    "title": "Session nocturne #3578",
+    "artist": "MeloVibes",
+    "genre": "Électro"
+  },
+  {
+    "id": "reel-mk-3613",
+    "videoId": 3613,
+    "musicId": 750,
+    "title": "Groove urbain #3613",
+    "artist": "Neon Pulse",
+    "genre": "House"
+  },
+  {
+    "id": "reel-mk-3637",
+    "videoId": 3637,
+    "musicId": 760,
+    "title": "Lumières strobées #3637",
+    "artist": "Urban Echo",
+    "genre": "Lo-fi"
+  },
+  {
+    "id": "reel-mk-3653",
+    "videoId": 3653,
+    "musicId": 770,
+    "title": "Rythme live #3653",
+    "artist": "Crystal Beats",
+    "genre": "Rock"
+  },
+  {
+    "id": "reel-mk-3757",
+    "videoId": 3757,
+    "musicId": 780,
+    "title": "Vibes du soir #3757",
+    "artist": "Night Driver",
+    "genre": "Jazz"
+  },
+  {
+    "id": "reel-mk-3806",
+    "videoId": 3806,
+    "musicId": 787,
+    "title": "Pulse électrique #3806",
+    "artist": "Solar Drift",
+    "genre": "Pop"
+  },
+  {
+    "id": "reel-mk-4000",
+    "videoId": 4000,
+    "musicId": 800,
+    "title": "Ambiance club #4000",
+    "artist": "Deep Grove",
+    "genre": "Hip-hop"
+  },
+  {
+    "id": "reel-mk-4009",
+    "videoId": 4009,
+    "musicId": 810,
+    "title": "Beat libre #4009",
+    "artist": "Velvet Sound",
+    "genre": "Indie"
+  },
+  {
+    "id": "reel-mk-4026",
+    "videoId": 4026,
+    "musicId": 820,
+    "title": "Flow musical #4026",
+    "artist": "Pulse Unit",
+    "genre": "Techno"
+  },
+  {
+    "id": "reel-mk-4028",
+    "videoId": 4028,
+    "musicId": 830,
+    "title": "Instant live #4028",
+    "artist": "Echo Lane",
+    "genre": "Acoustique"
+  },
+  {
+    "id": "reel-mk-4036",
+    "videoId": 4036,
+    "musicId": 840,
+    "title": "Scène ouverte #4036",
+    "artist": "Static Dream",
+    "genre": "Concert"
+  },
+  {
+    "id": "reel-mk-4038",
+    "videoId": 4038,
+    "musicId": 849,
+    "title": "Backstage #4038",
+    "artist": "Wave Theory",
+    "genre": "Soul"
+  },
+  {
+    "id": "reel-mk-4042",
+    "videoId": 4042,
+    "musicId": 858,
+    "title": "En direct #4042",
+    "artist": "Chrome Hearts",
+    "genre": "Funk"
+  },
+  {
+    "id": "reel-mk-4043",
+    "videoId": 4043,
+    "musicId": 868,
+    "title": "Session libre #4043",
+    "artist": "Basement FM",
+    "genre": "Trap"
+  },
+  {
+    "id": "reel-mk-4064",
+    "videoId": 4064,
+    "musicId": 872,
+    "title": "Mood track #4064",
+    "artist": "Skyline Audio",
+    "genre": "Ambient"
+  },
+  {
+    "id": "reel-mk-4067",
+    "videoId": 4067,
+    "musicId": 880,
+    "title": "Session nocturne #4067",
+    "artist": "MeloVibes",
+    "genre": "Électro"
+  },
+  {
+    "id": "reel-mk-4075",
+    "videoId": 4075,
+    "musicId": 890,
+    "title": "Groove urbain #4075",
+    "artist": "Neon Pulse",
+    "genre": "House"
+  },
+  {
+    "id": "reel-mk-4078",
+    "videoId": 4078,
+    "musicId": 900,
+    "title": "Lumières strobées #4078",
+    "artist": "Urban Echo",
+    "genre": "Lo-fi"
+  },
+  {
+    "id": "reel-mk-4080",
+    "videoId": 4080,
+    "musicId": 910,
+    "title": "Rythme live #4080",
+    "artist": "Crystal Beats",
+    "genre": "Rock"
+  },
+  {
+    "id": "reel-mk-4119",
+    "videoId": 4119,
+    "musicId": 920,
+    "title": "Vibes du soir #4119",
+    "artist": "Night Driver",
+    "genre": "Jazz"
+  },
+  {
+    "id": "reel-mk-4127",
+    "videoId": 4127,
+    "musicId": 930,
+    "title": "Pulse électrique #4127",
+    "artist": "Solar Drift",
+    "genre": "Pop"
+  },
+  {
+    "id": "reel-mk-4148",
+    "videoId": 4148,
+    "musicId": 940,
+    "title": "Ambiance club #4148",
+    "artist": "Deep Grove",
+    "genre": "Hip-hop"
+  },
+  {
+    "id": "reel-mk-4151",
+    "videoId": 4151,
+    "musicId": 950,
+    "title": "Beat libre #4151",
+    "artist": "Velvet Sound",
+    "genre": "Indie"
+  },
+  {
+    "id": "reel-mk-4157",
+    "videoId": 4157,
+    "musicId": 960,
+    "title": "Flow musical #4157",
+    "artist": "Pulse Unit",
+    "genre": "Techno"
+  },
+  {
+    "id": "reel-mk-4174",
+    "videoId": 4174,
+    "musicId": 970,
+    "title": "Instant live #4174",
+    "artist": "Echo Lane",
+    "genre": "Acoustique"
+  },
+  {
+    "id": "reel-mk-4185",
+    "videoId": 4185,
+    "musicId": 980,
+    "title": "Scène ouverte #4185",
+    "artist": "Static Dream",
+    "genre": "Concert"
+  },
+  {
+    "id": "reel-mk-4187",
+    "videoId": 4187,
+    "musicId": 989,
+    "title": "Backstage #4187",
+    "artist": "Wave Theory",
+    "genre": "Soul"
+  },
+  {
+    "id": "reel-mk-4231",
+    "videoId": 4231,
+    "musicId": 1000,
+    "title": "En direct #4231",
+    "artist": "Chrome Hearts",
+    "genre": "Funk"
+  },
+  {
+    "id": "reel-mk-4269",
+    "videoId": 4269,
+    "musicId": 1010,
+    "title": "Session libre #4269",
+    "artist": "Basement FM",
+    "genre": "Trap"
+  },
+  {
+    "id": "reel-mk-4281",
+    "videoId": 4281,
+    "musicId": 1020,
+    "title": "Mood track #4281",
+    "artist": "Skyline Audio",
+    "genre": "Ambient"
+  },
+  {
+    "id": "reel-mk-4283",
+    "videoId": 4283,
+    "musicId": 1030,
+    "title": "Session nocturne #4283",
+    "artist": "MeloVibes",
+    "genre": "Électro"
+  },
+  {
+    "id": "reel-mk-4308",
+    "videoId": 4308,
+    "musicId": 1040,
+    "title": "Groove urbain #4308",
+    "artist": "Neon Pulse",
+    "genre": "House"
+  },
+  {
+    "id": "reel-mk-4332",
+    "videoId": 4332,
+    "musicId": 1050,
+    "title": "Lumières strobées #4332",
+    "artist": "Urban Echo",
+    "genre": "Lo-fi"
+  },
+  {
+    "id": "reel-mk-4333",
+    "videoId": 4333,
+    "musicId": 1060,
+    "title": "Rythme live #4333",
+    "artist": "Crystal Beats",
+    "genre": "Rock"
+  },
+  {
+    "id": "reel-mk-4366",
+    "videoId": 4366,
+    "musicId": 1077,
+    "title": "Vibes du soir #4366",
+    "artist": "Night Driver",
+    "genre": "Jazz"
+  },
+  {
+    "id": "reel-mk-4422",
+    "videoId": 4422,
+    "musicId": 1080,
+    "title": "Pulse électrique #4422",
+    "artist": "Solar Drift",
+    "genre": "Pop"
+  },
+  {
+    "id": "reel-mk-4433",
+    "videoId": 4433,
+    "musicId": 1090,
+    "title": "Ambiance club #4433",
+    "artist": "Deep Grove",
+    "genre": "Hip-hop"
+  },
+  {
+    "id": "reel-mk-4442",
+    "videoId": 4442,
+    "musicId": 1100,
+    "title": "Beat libre #4442",
+    "artist": "Velvet Sound",
+    "genre": "Indie"
+  },
+  {
+    "id": "reel-mk-4451",
+    "videoId": 4451,
+    "musicId": 1110,
+    "title": "Flow musical #4451",
+    "artist": "Pulse Unit",
+    "genre": "Techno"
+  }
+];

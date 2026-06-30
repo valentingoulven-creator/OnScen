@@ -1,0 +1,2 @@
+http://192.168.1.93:4080
+(IP du PC — ouvrir sur le telephone)

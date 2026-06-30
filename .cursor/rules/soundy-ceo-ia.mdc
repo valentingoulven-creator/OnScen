@@ -15,10 +15,10 @@ Ce workspace contient **tout Soundy / MeloSongv2** :
 |---------|------|
 | `app/src/` | Frontend React 19 + Vite (source de vérité) |
 | `backend/src/` | API Express + Socket.io + analytics |
-| `apptel/` | Overrides Capacitor mobile uniquement |
+| `ios/apptel/` | Overrides Capacitor mobile uniquement |
 | `msdev/` | Dev local (store.json, scripts) |
 | `docs/` | Pitch, coûts, infra, sponsoring, audits |
-| `deploy/` | Runbook prod, VPS getsoundy.com |
+| `commun/deploy/` | Runbook prod, VPS getsoundy.com |
 
 ## Documents stratégiques (lire avant de conseiller)
 

@@ -1,0 +1,15 @@
+﻿MeloSong - msdev (Windows)
+==========================
+
+Double-clic : Lancer-msdev.bat  (ou msdev.exe)
+
+- Web : http://localhost:4080  et  https://localhost:4080
+- Compte demo : listener@msdev.local / msdev123
+
+Avec le projet source complet, preferez : msdev\Lancer-MeloSong.bat
+
+Raccourci Bureau : clic droit sur le .bat -> Envoyer vers -> Bureau.
+
+La fenetre CMD reste ouverte si erreur ; lisez le texte avant de fermer.
+
+DEBLOCAGE-WINDOWS.txt dans ce dossier.

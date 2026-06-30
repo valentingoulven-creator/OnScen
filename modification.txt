@@ -15262,5 +15262,118 @@ MANUEL (avant soumission stores)
  • Rebuild AAB : scripts/build-android-aab-prod.ps1 · IPA Mac : scripts/build-ios-ipa-prod.sh
 
 ================================================================================
-Fin MODIF 883 — 2026-06-30
+MODIF 884 — Réorganisation monorepo 4 stacks (web / ios / android / commun)
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Racine encombrée (scripts .bat/.ps1, logs deploy, seeds) · structure peu lisible
+ pour les 3 cibles (web, iOS Capacitor, APK Android).
+
+CHANGEMENTS / FIX
+-----
+ Structure racine
+ ─────────────────
+ • web/app/          ← ancien app/
+ • ios/apptel/       ← ancien apptel/ (Capacitor + overrides mobile)
+ • android/MeloSong-Mobile/ + scripts build APK/AAB
+ • commun/           ← backend, scripts, deploy, docs, msdev, tests
+
+ Fichiers racine rangés / supprimés
+ ─────────────────
+ • deploy_zero_downtime.ps1 → commun/deploy/
+ • Launchers .bat → commun/msdev/launchers/
+ • Seeds / run_seed* → commun/scripts/seed/
+ • Rapports (AUDIT, LEGAL, SECURITY…) → commun/docs/reports/
+ • Logs deploy-*.log, server.exe, split-api.mjs supprimés
+
+ package.json + CI + vite/tsconfig
+ ─────────────────
+ • Chemins --prefix web/app, commun/backend, ios/apptel
+ • GitHub Actions ci.yml / deploy-preprod / ios-capacitor mis à jour
+
+FICHIERS MODIFIÉS
+-----
+ web/, ios/, android/, commun/ · package.json · README.md · AGENTS.md · .github/
+
+BUILD (si vérifié)
+-----
+ sync-src --status → ✅
+
+================================================================================
+MODIF 885 — Fix chemins repoRoot après réorganisation monorepo
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Vérification post-MODIF 884 : test backend `buildDevDataContext` échouait
+ (TODO-MANUAL.md introuvable) car `repoRoot()` pointait sur `commun/` au lieu
+ de la racine du repo.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/paths.ts
+ ─────────────────
+ • `getRepoRoot()` · `getMsdevDir()` — helpers centralisés
+
+ commun/backend/src/lib/aiAgents/devDataContext.ts
+ commun/backend/src/lib/aiAgents/ceoDataContext.ts
+ commun/backend/src/lib/msdevLanConfig.ts
+ commun/backend/src/msdevHttps.ts
+ ─────────────────
+ • Chemins msdev / modification.txt / TODO-MANUAL via getRepoRoot()
+
+BUILD (si vérifié)
+-----
+ commun/backend → npm test → 323/323 ✅
+
+================================================================================
+MODIF 886 — Alignement chemins deploy VPS + scripts infra (post-réorg monorepo)
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Après réorganisation web/ios/android/commun, les scripts deploy et infra
+ pointaient encore vers `/opt/soundy/commun/deploy/` (VPS) ou `backend/`, `app/`,
+ `msdev/` à la racine — provoquant échecs deploy auto et install Caddy/backup.
+
+CHANGEMENTS / FIX
+-----
+ commun/deploy/lib/soundy-root.sh
+ ─────────────────
+ • Variable `DEPLOY_DIR` : VPS `$ROOT/deploy`, repo local `$ROOT/commun/deploy`
+
+ commun/deploy/*.sh
+ ─────────────────
+ • `$DEPLOY_DIR` au lieu de `$ROOT/commun/deploy` · usages `/opt/soundly/deploy/`
+ • caddy-watchdog : fallback `/opt/soundy/deploy/Caddyfile`
+
+ commun/deploy/deploy_zero_downtime.ps1 (déjà partiel)
+ commun/backend/deploy-scaleway.ps1
+ ─────────────────
+ • SCP vers `${REMOTE}/deploy/` · REMOTE `/opt/soundly`
+
+ commun/scripts/*.ps1
+ ─────────────────
+ • `$root` = racine repo (`../..`) · chemins `commun/backend`, `web/app`, `commun/msdev`
+ • setup-infra-access, setup-staging-env, verify-full-access, merge-local-env,
+   setup-redis-webpush, sync-external-env, setup-second-cursor, stripe-msdev
+
+ .cursor/rules/deploy-prod.mdc · infra-access.mdc
+ ─────────────────
+ • Secrets et chemins canoniques mis à jour
+
+FICHIERS MODIFIÉS
+-----
+ commun/deploy/ · commun/scripts/ · commun/backend/deploy-scaleway.ps1 · .cursor/rules/
+
+BUILD (si vérifié)
+-----
+ commun/backend → npm test → 323/323 ✅
+
+================================================================================
+Fin MODIF 886 — 2026-06-26
 ================================================================================

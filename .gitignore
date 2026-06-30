@@ -24,6 +24,7 @@ msdev/ceo-founder-context.json
 
 # Mobile store secrets (keystore, Team ID)
 mobile-store.env
+apple-oauth.env
 apptel/android/soundy-release.jks
 apptel/android/keystore.properties
 
