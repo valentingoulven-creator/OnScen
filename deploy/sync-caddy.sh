@@ -5,7 +5,11 @@
 #   sudo ./deploy/sync-caddy.sh /chemin/vers/Caddyfile
 set -euo pipefail
 
-SOURCE="${1:-/opt/soundy/deploy/Caddyfile}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/soundy-root.sh
+source "$SCRIPT_DIR/lib/soundy-root.sh"
+
+SOURCE="${1:-$ROOT/deploy/Caddyfile}"
 DEST="/etc/caddy/Caddyfile"
 LOG="/var/log/caddy-sync.log"
 
