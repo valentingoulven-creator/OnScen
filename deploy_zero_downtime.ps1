@@ -333,7 +333,7 @@ if (Test-Path $deployLibDir) {
     Invoke-Scp @("-r", (Join-Path $deployLibDir "/."), "${sshTarget}:${REMOTE}/deploy/lib/")
 }
 
-$migrateCmd = 'SOUNDY_ROOT=' + $REMOTE + ' sed -i ''s/\r$//'' ' + $REMOTE + '/deploy/migrate-remote.sh 2>/dev/null; chmod +x ' + $REMOTE + '/deploy/migrate-remote.sh 2>/dev/null; if [ -f ' + $REMOTE + '/deploy/migrate-remote.sh ]; then SOUNDY_ROOT=' + $REMOTE + ' bash ' + $REMOTE + '/deploy/migrate-remote.sh 2>&1; else echo MIGRATE_SKIP=1; fi'
+$migrateCmd = 'sed -i ''s/\r$//'' ' + $REMOTE + '/deploy/migrate-remote.sh ' + $REMOTE + '/deploy/lib/*.sh 2>/dev/null; chmod +x ' + $REMOTE + '/deploy/migrate-remote.sh 2>/dev/null; if [ -f ' + $REMOTE + '/deploy/migrate-remote.sh ]; then SOUNDY_ROOT=' + $REMOTE + ' bash ' + $REMOTE + '/deploy/migrate-remote.sh 2>&1; else echo MIGRATE_SKIP=1; fi'
 $migrateOut = Invoke-Remote $migrateCmd
 Write-Host $migrateOut
 if ("$migrateOut" -match "MIGRATE_OK") {
