@@ -101,3 +101,61 @@ export async function uploadObject(
   if (fromS3) return fromS3;
   return saveObjectLocal(buffer, options);
 }
+
+function extractS3KeyFromUrl(url: string): string | null {
+  const bucket = process.env.S3_BUCKET?.trim();
+  if (!bucket) return null;
+  const publicBase = process.env.S3_PUBLIC_BASE_URL?.trim().replace(/\/$/, '');
+  if (publicBase && url.startsWith(`${publicBase}/`)) {
+    return url.slice(publicBase.length + 1);
+  }
+  const s3Prefix = `s3://${bucket}/`;
+  if (url.startsWith(s3Prefix)) {
+    return url.slice(s3Prefix.length);
+  }
+  return null;
+}
+
+/**
+ * Supprime un objet uploadé (local ou S3) à partir de son URL publique.
+ * No-op silencieux pour les URLs externes (CDN tiers, picsum, etc.) que
+ * l'application ne possède pas — uniquement utilisé pour le nettoyage RGPD
+ * (droit à l'effacement) des médias réellement hébergés par Soundy.
+ */
+export async function deleteObjectByUrl(url: string | null | undefined): Promise<void> {
+  if (!url) return;
+  try {
+    if (url.startsWith('/uploads/')) {
+      const absPath = path.join(getPublicDir(), url.replace(/^\//, ''));
+      if (fs.existsSync(absPath)) fs.unlinkSync(absPath);
+      return;
+    }
+    const s3Key = extractS3KeyFromUrl(url);
+    if (!s3Key) return; // URL externe non gérée par Soundy
+    const bucket = process.env.S3_BUCKET?.trim();
+    if (!bucket) return;
+    const { S3Client, DeleteObjectCommand } = await import(
+      /* webpackIgnore: true */ '@aws-sdk/client-s3'
+    );
+    const client = new S3Client({
+      region: process.env.S3_REGION?.trim() || 'auto',
+      endpoint: process.env.S3_ENDPOINT?.trim() || undefined,
+      credentials:
+        process.env.S3_ACCESS_KEY_ID && process.env.S3_SECRET_ACCESS_KEY
+          ? {
+              accessKeyId: process.env.S3_ACCESS_KEY_ID,
+              secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+            }
+          : undefined,
+      forcePathStyle: process.env.S3_FORCE_PATH_STYLE === '1',
+    });
+    await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: s3Key }));
+  } catch (err) {
+    console.warn('[objectStorage] Échec suppression objet (RGPD cleanup):', url, err);
+  }
+}
+
+/** Supprime plusieurs objets (best-effort, en parallèle). */
+export async function deleteObjectsByUrls(urls: Array<string | null | undefined>): Promise<void> {
+  await Promise.all(urls.filter(Boolean).map((u) => deleteObjectByUrl(u)));
+}

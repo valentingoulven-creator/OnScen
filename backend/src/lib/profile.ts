@@ -1,4 +1,4 @@
-import { db, User, type MusicPlatform, type PlaybackState } from '../models/schema';
+import { db, User, type MusicPlatform, type PlaybackState, type Salon } from '../models/schema';
 import { ensurePlatformAccountsFromLegacy, publicPlatformLinks } from './platformConnect';
 import { getHostRatingSummary } from './ratings';
 import { migrateUserProfileType } from './profileTypes';
@@ -318,8 +318,19 @@ export function getUserStats(userId: string) {
   return { salonsHosted, livesHosted };
 }
 
-export function getActiveSalonForHost(hostId: string) {
-  return [...db.salons.values()].find((s) => s.hostId === hostId);
+/** Salon « actif » de l'hôte : le plus récent public visible, pas le premier de la Map (souvent un vieux salon invite). */
+export function getActiveSalonForHost(hostId: string): Salon | undefined {
+  const hostSalons = [...db.salons.values()].filter((s) => s.hostId === hostId);
+  if (hostSalons.length === 0) return undefined;
+
+  const byRecency = (a: Salon, b: Salon) => (b.createdAt ?? 0) - (a.createdAt ?? 0);
+  const pick = (pred: (s: Salon) => boolean) => hostSalons.filter(pred).sort(byRecency)[0];
+
+  return (
+    pick((s) => isSalonPublic(s) && !s.isGhostMode && !s.adminBlocked) ??
+    pick((s) => isSalonPublic(s)) ??
+    pick(() => true)
+  );
 }
 
 export interface PublicCurrentListening {
@@ -462,6 +473,7 @@ export function publicProfile(u: User, isOwner = false, viewerId?: string) {
     acceptedTermsVersion: isOwner ? snapshot.acceptedTermsVersion : undefined,
     termsReacceptanceRequired: isOwner ? userNeedsTermsReacceptance(snapshot) : undefined,
     currentTermsVersion: isOwner ? CURRENT_TERMS_VERSION : undefined,
+    passwordChangeRequired: isOwner ? snapshot.mustChangePassword === true : undefined,
     onboardingCompleted: isOwner ? (snapshot.onboardingCompleted ?? true) : undefined,
   };
 }

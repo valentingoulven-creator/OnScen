@@ -58,6 +58,7 @@ import {
   canControlSalonPlayback,
   setSalonVipModerator,
 } from '../lib/salonModeration';
+import { getActiveSalonForHost } from '../lib/profile';
 import { upsertSalonToPgAsync, markSalonInactivePgAsync } from '../lib/pgSalonsLives';
 import {
   purgeStaleYoutubeMetadataForStorage,
@@ -65,6 +66,17 @@ import {
 } from '../lib/youtubeMetadata';
 
 export const salonsRouter = Router();
+
+/** Désactive les autres salons du même hôte (un seul salon actif à la fois). */
+function deactivateOtherHostSalons(hostId: string, keepId?: string): void {
+  for (const s of [...db.salons.values()]) {
+    if (s.hostId !== hostId || s.id === keepId) continue;
+    db.salons.delete(s.id);
+    db.salonChats.delete(s.id);
+    clearSalonPlaybackData(s.id);
+    markSalonInactivePgAsync(s.id);
+  }
+}
 
 /**
  * YouTube search result cache — TTL 1 hour (well within the YouTube API ToS 24-hour limit).
@@ -878,14 +890,9 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
     return;
   }
 
-  const existingSalon = [...db.salons.values()].find((s) => s.hostId === userId);
+  const existingSalon = getActiveSalonForHost(userId, { forOwner: true });
   if (existingSalon) {
-    res.status(409).json({
-      error: 'Vous avez déjà un salon actif',
-      code: 'SALON_ALREADY_ACTIVE',
-      salonId: existingSalon.id,
-    });
-    return;
+    deactivateOtherHostSalons(userId);
   }
 
   const {
@@ -989,6 +996,7 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
   };
 
   normalizeSalonAccess(salon);
+  deactivateOtherHostSalons(userId, salon.id);
   db.salons.set(salon.id, salon);
   trackEvent('salon_created', userId);
   db.salonChats.set(salon.id, []);

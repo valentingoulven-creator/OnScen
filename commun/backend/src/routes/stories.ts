@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authenticateJWT } from '../middleware/auth';
+import { asyncHandler } from '../lib/asyncHandler';
 import { schedulePersist } from '../lib/persist';
 import { createStory, deleteStory, getMyActiveStory, getUserActiveStories, listStoriesForViewer } from '../lib/stories';
 import { notifyMentions } from '../lib/mentions';
@@ -29,7 +30,7 @@ storiesRouter.get('/mine', authenticateJWT, (req: Request, res: Response) => {
   res.json({ stories, story: stories.length ? stories[stories.length - 1]! : null });
 });
 
-storiesRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
+storiesRouter.post('/', authenticateJWT, asyncHandler(async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const body = req.body ?? {};
   const imageUrl = body.imageUrl != null ? String(body.imageUrl) : undefined;
@@ -74,7 +75,7 @@ storiesRouter.post('/', authenticateJWT, async (req: Request, res: Response) => 
     notifyMentions(result.story.content, me, storyAuthor.username, 'story', result.story.id, storyAuthor.avatarUrl);
   }
   res.status(201).json({ story: result.story });
-});
+}));
 
 storiesRouter.delete('/:id', authenticateJWT, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;

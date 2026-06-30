@@ -81,6 +81,12 @@ describe('isSalonVisibleOnProfile', () => {
     expect(isSalonVisibleOnProfile(salon, { isOwner: false })).toBe(false);
     expect(isSalonVisibleOnProfile(salon, { isOwner: true })).toBe(true);
   });
+
+  it('masque un salon fantôme aux visiteurs du profil', () => {
+    const salon = seedSalon('host', { accessMode: 'public', isPublic: true, isGhostMode: true });
+    expect(isSalonVisibleOnProfile(salon, { isOwner: false })).toBe(false);
+    expect(isSalonVisibleOnProfile(salon, { isOwner: true })).toBe(true);
+  });
 });
 
 describe('isSalonVisibleOnMap', () => {

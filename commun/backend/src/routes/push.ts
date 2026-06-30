@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authenticateJWT } from '../middleware/auth';
+import { asyncHandler } from '../lib/asyncHandler';
 import { getVapidPublicKey, isWebPushConfigured } from '../lib/webPush';
 import {
   deletePushSubscriptionByEndpoint,
@@ -17,7 +18,7 @@ pushRouter.get('/vapid-public-key', (_req: Request, res: Response) => {
   res.json({ publicKey, configured: isWebPushConfigured() });
 });
 
-pushRouter.post('/subscribe', authenticateJWT, async (req: Request, res: Response) => {
+pushRouter.post('/subscribe', authenticateJWT, asyncHandler(async (req: Request, res: Response) => {
   const userId = (req as Request & { user: { id: string } }).user.id;
   const { subscription } = req.body as {
     subscription?: {
@@ -45,9 +46,9 @@ pushRouter.post('/subscribe', authenticateJWT, async (req: Request, res: Respons
   });
 
   res.json({ ok: true });
-});
+}));
 
-pushRouter.post('/unsubscribe', authenticateJWT, async (req: Request, res: Response) => {
+pushRouter.post('/unsubscribe', authenticateJWT, asyncHandler(async (req: Request, res: Response) => {
   const endpoint = String(req.body?.endpoint ?? '').trim();
   if (!endpoint) {
     res.status(400).json({ error: 'Endpoint requis.' });
@@ -55,4 +56,4 @@ pushRouter.post('/unsubscribe', authenticateJWT, async (req: Request, res: Respo
   }
   await deletePushSubscriptionByEndpoint(endpoint);
   res.json({ ok: true });
-});
+}));

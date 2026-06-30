@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authenticateJWT } from '../middleware/auth';
+import { asyncHandler } from '../lib/asyncHandler';
 import { schedulePersist } from '../lib/persist';
 import {
   createFeedPost,
@@ -61,7 +62,7 @@ feedRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
   });
 });
 
-feedRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
+feedRouter.post('/', authenticateJWT, asyncHandler(async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const body = req.body ?? {};
   const imageUrl = body.imageUrl != null ? String(body.imageUrl) : undefined;
@@ -108,7 +109,7 @@ feedRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
     });
   }
   res.status(201).json({ post: result.post });
-});
+}));
 
 // ── Nouveautés communauté (sons + albums, sans reels) ─────────────────────────
 

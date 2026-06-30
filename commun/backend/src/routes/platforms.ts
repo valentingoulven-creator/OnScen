@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { db, ConnectPlatform } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
+import { asyncHandler } from '../lib/asyncHandler';
 import { publicProfile } from '../lib/profile';
 import {
   connectPlatformAccount,
@@ -35,7 +36,7 @@ function parsePlatform(param: string): ConnectPlatform | null {
   return param === 'youtube' || param === 'instagram' ? param : null;
 }
 
-platformsRouter.get('/status', authenticateJWT, async (req: Request, res: Response) => {
+platformsRouter.get('/status', authenticateJWT, asyncHandler(async (req: Request, res: Response) => {
   const userId = (req as Request & { user: { id: string } }).user.id;
   const user = db.users.get(userId);
   if (!user) {
@@ -70,7 +71,7 @@ platformsRouter.get('/status', authenticateJWT, async (req: Request, res: Respon
     youtubeSessionValid,
     youtubeSessionCode,
   });
-});
+}));
 
 platformsRouter.get('/youtube/oauth/url', authenticateJWT, (req: Request, res: Response) => {
   if (!isYoutubeOAuthConfigured()) {
@@ -107,21 +108,28 @@ platformsRouter.get('/youtube/oauth/callback', async (req: Request, res: Respons
     res.redirect(`${appUrl}/?youtube_oauth=error`);
     return;
   }
-  const result = await completeYoutubeOAuth(String(code), String(state));
-  if (!result) {
+  try {
+    const result = await completeYoutubeOAuth(String(code), String(state));
+    if (!result) {
+      res.redirect(`${appUrl}/?youtube_oauth=error`);
+      return;
+    }
+    const user = db.users.get(result.userId);
+    if (user) {
+      applyYoutubeOAuthToUser(user, result);
+      db.users.set(user.id, user);
+      schedulePersist();
+    }
+    res.redirect(`${appUrl}/?youtube_oauth=ok`);
+  } catch {
+    // Toujours rediriger l'utilisateur plutôt que de laisser un rejet non
+    // catché bloquer la réponse HTTP (callback déclenché par Google, hors
+    // contrôle de l'app).
     res.redirect(`${appUrl}/?youtube_oauth=error`);
-    return;
   }
-  const user = db.users.get(result.userId);
-  if (user) {
-    applyYoutubeOAuthToUser(user, result);
-    db.users.set(user.id, user);
-    schedulePersist();
-  }
-  res.redirect(`${appUrl}/?youtube_oauth=ok`);
 });
 
-platformsRouter.get('/youtube/playlists', authenticateJWT, async (req: Request, res: Response) => {
+platformsRouter.get('/youtube/playlists', authenticateJWT, asyncHandler(async (req: Request, res: Response) => {
   const userId = (req as Request & { user: { id: string } }).user.id;
   const user = db.users.get(userId);
   if (!user) {
@@ -138,7 +146,7 @@ platformsRouter.get('/youtube/playlists', authenticateJWT, async (req: Request, 
     playlists,
     isRealAccount: isRealYoutubeAccount(user),
   });
-});
+}));
 
 platformsRouter.post('/:platform/connect', authenticateJWT, (req: Request, res: Response) => {
   const userId = (req as Request & { user: { id: string } }).user.id;
@@ -204,7 +212,7 @@ platformsRouter.post('/:platform/connect', authenticateJWT, (req: Request, res: 
   });
 });
 
-platformsRouter.delete('/:platform/disconnect', authenticateJWT, async (req: Request, res: Response) => {
+platformsRouter.delete('/:platform/disconnect', authenticateJWT, asyncHandler(async (req: Request, res: Response) => {
   const userId = (req as Request & { user: { id: string } }).user.id;
   const platform = parsePlatform(req.params.platform);
   if (!platform) {
@@ -228,4 +236,4 @@ platformsRouter.delete('/:platform/disconnect', authenticateJWT, async (req: Req
   db.users.set(userId, user);
   schedulePersist();
   res.json({ ok: true, user: publicProfile(user, true, user.id) });
-});
+}));

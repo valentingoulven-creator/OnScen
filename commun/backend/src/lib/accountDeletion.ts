@@ -9,6 +9,7 @@ import {
 } from './pgReels';
 import { deleteCompositionsByUser } from './compositions';
 import { deleteAlbumsByUser } from './albums';
+import { deleteObjectsByUrls } from './objectStorage';
 
 const DELETED_LABEL = '[Compte supprimé]';
 
@@ -18,8 +19,61 @@ function anonymizeChatMessage(msg: { senderId: string; senderName: string; conte
   msg.content = '';
 }
 
+/**
+ * Recense les URLs de médias possédés par l'utilisateur (photos de profil,
+ * reels, stories, discographie, albums, pièces jointes DM/groupe envoyées)
+ * avant la cascade RAM, pour purge effective du stockage (local + S3) — droit
+ * à l'effacement RGPD art. 17. Les URLs externes (CDN tiers) sont ignorées
+ * silencieusement par `deleteObjectsByUrls`.
+ */
+function collectUserOwnedMediaUrls(userId: string): Array<string | undefined> {
+  const user = db.users.get(userId);
+  const urls: Array<string | undefined> = [];
+
+  if (user) {
+    urls.push(user.avatarUrl);
+    if (Array.isArray(user.profilePhotos)) urls.push(...user.profilePhotos);
+  }
+
+  for (const reel of db.userReels) {
+    if (reel.authorId !== userId) continue;
+    urls.push(reel.videoUrl, reel.posterUrl, reel.audioUrl);
+  }
+
+  for (const story of db.stories) {
+    if (story.userId !== userId) continue;
+    urls.push(story.imageUrl, story.videoUrl);
+  }
+
+  for (const album of db.albums) {
+    if (album.userId !== userId) continue;
+    urls.push(album.coverUrl);
+  }
+
+  for (const composition of db.compositions) {
+    if (composition.userId !== userId) continue;
+    urls.push(composition.fileUrl);
+  }
+
+  for (const post of db.feedPosts) {
+    if (post.userId !== userId) continue;
+    urls.push(post.imageUrl, post.videoUrl);
+  }
+
+  for (const dm of db.directMessages) {
+    if (dm.senderId !== userId) continue;
+    urls.push(dm.attachmentUrl);
+  }
+
+  return urls;
+}
+
 /** Suppression en cascade des données liées à un compte utilisateur. */
 export function deleteUserAccountCascade(userId: string): void {
+  // Capturé avant la cascade RAM (qui vide ces structures) pour purger
+  // ensuite le stockage réel (local + S3) — droit à l'effacement RGPD.
+  const ownedMediaUrls = collectUserOwnedMediaUrls(userId);
+
   for (const [salonId, salon] of db.salons) {
     if (salon.hostId === userId) {
       getIo()?.to(`salon_${salonId}`).emit('salon_ended', {
@@ -179,4 +233,8 @@ export function deleteUserAccountCascade(userId: string): void {
   invalidateProfileCache(userId);
   db.users.delete(userId);
   scheduleRemoveUserFromPg(userId);
+
+  void deleteObjectsByUrls(ownedMediaUrls).catch((err) => {
+    console.error('[accountDeletion] Échec purge stockage (RGPD):', userId, err);
+  });
 }

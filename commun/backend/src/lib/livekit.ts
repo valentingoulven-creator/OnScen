@@ -1,4 +1,4 @@
-import { AccessToken, EgressClient } from 'livekit-server-sdk';
+import { AccessToken, EgressClient, RoomServiceClient } from 'livekit-server-sdk';
 import { StreamOutput, StreamProtocol } from '@livekit/protocol';
 import {
   clearLiveKitEgressId,
@@ -65,6 +65,45 @@ function buildEgressClient(): EgressClient {
     throw new Error('LiveKit non configuré (LIVEKIT_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET).');
   }
   return new EgressClient(url, apiKey, apiSecret);
+}
+
+function buildRoomServiceClient(): RoomServiceClient {
+  const url = getLiveKitUrl();
+  const apiKey = getLiveKitApiKey();
+  const apiSecret = getLiveKitApiSecret();
+  if (!url || !apiKey || !apiSecret) {
+    throw new Error('LiveKit non configuré (LIVEKIT_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET).');
+  }
+  return new RoomServiceClient(url, apiKey, apiSecret);
+}
+
+/**
+ * Supprime la room LiveKit d'un live terminé : déconnecte immédiatement tous
+ * les participants encore connectés et invalide la room (un token déjà émis
+ * ne permet plus de rejoindre un live actif — la room sera vide si recréée).
+ * No-op silencieux si LiveKit n'est pas configuré ou si la room n'existe déjà plus.
+ */
+export async function deleteLiveKitRoom(liveId: string): Promise<void> {
+  if (!isLiveKitConfigured()) return;
+  try {
+    const client = buildRoomServiceClient();
+    await client.deleteRoom(liveKitRoomName(liveId));
+  } catch (err) {
+    console.warn('[livekit] deleteRoom failed', liveId, err instanceof Error ? err.message : err);
+  }
+}
+
+/** Vérifie la connectivité au control plane LiveKit (utilisé par /health). */
+export async function pingLiveKit(): Promise<boolean> {
+  if (!isLiveKitConfigured()) return true; // non configuré = non bloquant
+  try {
+    const client = buildRoomServiceClient();
+    await client.listRooms();
+    return true;
+  } catch (err) {
+    console.warn('[livekit] health ping failed', err instanceof Error ? err.message : err);
+    return false;
+  }
 }
 
 /** Returns the active egress ID for a live, or undefined if none. */
