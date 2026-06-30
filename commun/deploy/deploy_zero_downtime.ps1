@@ -474,8 +474,8 @@ if ("$caddyOut" -match "guard install|Caddyfile synchronis|staging synchronis") 
     Write-Host "  [!] Caddy - verifiez /etc/caddy/Caddyfile manuellement" -ForegroundColor Yellow
 }
 
-Write-Host "  -> Attente 5s (graceful reload)..."
-Start-Sleep -Seconds 5
+Write-Host "  -> Attente 8s (graceful reload)..."
+Start-Sleep -Seconds 8
 
 
 # -- 9. Verification ----------------------------------------------------------
@@ -489,32 +489,53 @@ if ($Environment -eq 'preprod') {
     $healthCandidates = @($HEALTH)
 }
 $healthErr = $null
-foreach ($candidate in $healthCandidates) {
-    try {
-        if ($candidate -like 'https://*') {
-            $curlOut = & curl.exe -sk -w "`n%{http_code}" $candidate 2>$null
-            if ($curlOut -match '(\d{3})$') {
-                $code = [int]$Matches[1]
-                if ($code -eq 200) {
-                    $healthLocal = [PSCustomObject]@{ StatusCode = 200; Content = ($curlOut -replace '\d{3}$','').Trim() }
-                    $healthTried = $candidate
-                    break
+$maxAttempts = 5
+for ($attempt = 1; $attempt -le $maxAttempts -and -not $healthLocal; $attempt++) {
+    if ($attempt -gt 1) {
+        Write-Host "  -> Nouvelle tentative ($attempt/$maxAttempts) dans 4s..." -ForegroundColor DarkYellow
+        Start-Sleep -Seconds 4
+    }
+    foreach ($candidate in $healthCandidates) {
+        try {
+            if ($candidate -like 'https://*') {
+                $curlOut = & curl.exe -sk -w "`n%{http_code}" $candidate 2>$null
+                if ($curlOut -match '(\d{3})$') {
+                    $code = [int]$Matches[1]
+                    if ($code -eq 200) {
+                        $healthLocal = [PSCustomObject]@{ StatusCode = 200; Content = ($curlOut -replace '\d{3}$','').Trim() }
+                        $healthTried = $candidate
+                        break
+                    }
+                    $healthErr = "HTTP $code"
+                } else {
+                    $healthErr = "curl sans code HTTP"
                 }
-                $healthErr = "HTTP $code"
-            } else {
-                $healthErr = "curl sans code HTTP"
+                continue
             }
-            continue
+            $healthLocal = Invoke-WebRequest -Uri $candidate -UseBasicParsing -TimeoutSec 25 -ErrorAction Stop
+            $healthTried = $candidate
+            break
+        } catch {
+            $healthErr = $_.Exception.Message
         }
-        $healthLocal = Invoke-WebRequest -Uri $candidate -UseBasicParsing -TimeoutSec 25 -ErrorAction Stop
-        $healthTried = $candidate
-        break
-    } catch {
-        $healthErr = $_.Exception.Message
     }
 }
 if (-not $healthLocal) {
-    Invoke-AutoRollback "Health check public echoue ($($healthCandidates -join ', ')) - Detail : $healthErr"
+    # Filet de securite : la machine locale peut avoir un probleme reseau/DNS
+    # transitoire alors que le service est en realite sain. On revalide depuis
+    # le VPS lui-meme (boucle locale + verification du domaine public) avant
+    # de declencher un rollback qui annulerait un deploiement reussi.
+    Write-Host "  -> Check local en echec, revalidation depuis le VPS..." -ForegroundColor DarkYellow
+    $vpsHealthCmd = 'code=$(curl -sk -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/health); echo "LOCAL_CODE=$code"; code2=$(curl -sk -o /dev/null -w "%{http_code}" ' + $HEALTH + '); echo "PUBLIC_CODE=$code2"'
+    $vpsHealthOut = ''
+    try { $vpsHealthOut = Invoke-Remote $vpsHealthCmd } catch { $vpsHealthOut = "ERREUR : $_" }
+    Write-Host $vpsHealthOut
+    if ("$vpsHealthOut" -match "LOCAL_CODE=200" -and "$vpsHealthOut" -match "PUBLIC_CODE=200") {
+        Write-Host "  [OK] Service confirme sain depuis le VPS (probleme reseau local cote machine de deploiement)." -ForegroundColor Green
+        $healthLocal = [PSCustomObject]@{ StatusCode = 200; Content = "(verifie depuis le VPS, check local indisponible)" }
+    } else {
+        Invoke-AutoRollback "Health check public echoue apres $maxAttempts tentatives ($($healthCandidates -join ', ')) - Detail : $healthErr`nVerification VPS : $vpsHealthOut"
+    }
 }
 
 if ($healthLocal.StatusCode -ne 200) {
