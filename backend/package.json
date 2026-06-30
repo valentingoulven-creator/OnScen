@@ -72,7 +72,7 @@
     "resedit": "^3.0.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.4.5",
-    "vitest": "^3.2.6"
+    "vitest": "^4.1.9"
   },
   "overrides": {
     "ws": "^8.21.0"
