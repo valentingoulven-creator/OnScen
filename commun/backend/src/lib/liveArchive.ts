@@ -1,7 +1,7 @@
 import { db, type Live } from '../models/schema';
 import { schedulePersist } from './persist';
 import { persistLiveToPgAsync } from './pgSalonsLives';
-import { stopLiveKitEgressIfActive } from './livekit';
+import { deleteLiveKitRoom, stopLiveKitEgressIfActive } from './livekit';
 
 export function bumpLivePeakViewers(live: Live): void {
   const peak = live.peakViewersCount ?? 0;
@@ -14,6 +14,9 @@ export function bumpLivePeakViewers(live: Live): void {
 /** Marque un live comme terminé et planifie la persistance. */
 export function endLiveSession(live: Live, endedAt = Date.now()): void {
   void stopLiveKitEgressIfActive(live.id);
+  // Déconnecte immédiatement les participants restants et invalide la room :
+  // un token déjà distribué ne permet plus de rejoindre ce live après sa fin.
+  void deleteLiveKitRoom(live.id);
   live.isActive = false;
   if (!live.endedAt) live.endedAt = endedAt;
   const peak = live.peakViewersCount ?? 0;

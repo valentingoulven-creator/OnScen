@@ -104,7 +104,7 @@ export const authApi = {
     request<{ available: boolean; reason: string | null }>(`/auth/check-username?username=${encodeURIComponent(username)}`),
 
   changePassword: (token: string, currentPassword: string, newPassword: string) =>
-    request<{ ok: boolean }>('/auth/change-password', {
+    request<{ ok: boolean; user?: import('../../types').User }>('/auth/change-password', {
       method: 'POST',
       body: JSON.stringify({ currentPassword, newPassword }),
     }, token),

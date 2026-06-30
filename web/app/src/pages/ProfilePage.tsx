@@ -467,17 +467,33 @@ export function ProfilePage({
               ) : undefined
             }
           />
-          {!editing && user.currentListening && (
+          {!editing && (user.currentListening || user.salonId) && (
             <div className="px-4 pb-2 max-w-lg mx-auto w-full">
-              <ProfileCurrentListening
-                listening={user.currentListening}
-                {...(user.salonId && onOpenSalon
-                  ? {
-                      onClick: () => onOpenSalon(user.salonId!, user.salonTitle, true),
-                      clickAriaLabel: 'Ouvrir le salon',
-                    }
-                  : {})}
-              />
+              {user.currentListening ? (
+                <ProfileCurrentListening
+                  listening={user.currentListening}
+                  {...(user.salonId && onOpenSalon
+                    ? {
+                        onClick: () => onOpenSalon(user.salonId!, user.salonTitle, true),
+                        clickAriaLabel: 'Ouvrir le salon',
+                      }
+                    : {})}
+                />
+              ) : user.salonId && onOpenSalon ? (
+                <button
+                  type="button"
+                  onClick={() => onOpenSalon(user.salonId!, user.salonTitle, true)}
+                  className="w-full min-h-[44px] rounded-xl border border-purple-500/30 bg-purple-950/30 px-4 py-3 text-left hover:bg-purple-950/45 transition-colors"
+                >
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-purple-400">
+                    Salon actif
+                  </p>
+                  <p className="text-sm font-semibold text-white truncate">
+                    {user.salonTitle || 'Salon de musique'}
+                  </p>
+                  <p className="text-xs text-purple-200/80 mt-1">Appuyer pour ouvrir</p>
+                </button>
+              ) : null}
             </div>
           )}
           {!editing && (

@@ -770,6 +770,8 @@ export interface User {
   acceptedTermsVersion?: string;
   /** true si les CGU courantes doivent être réacceptées (propriétaire). */
   termsReacceptanceRequired?: boolean;
+  /** true si un changement de mot de passe est obligatoire (propriétaire, compte admin initial). */
+  passwordChangeRequired?: boolean;
   currentTermsVersion?: string;
   /** Compte Stripe Connect (acct_…) pour recevoir les pourboires live. */
   stripeConnectAccountId?: string;

@@ -686,6 +686,7 @@ authRouter.post('/change-password', authenticateJWT, async (req: Request, res: R
   }
   try {
     user.passwordHash = await bcrypt.hash(newPassword, 10);
+    user.mustChangePassword = false;
     bumpUserTokenVersion(user);
   } catch {
     res.status(500).json({ error: 'Erreur interne lors de la mise ? jour du mot de passe' });
@@ -694,7 +695,7 @@ authRouter.post('/change-password', authenticateJWT, async (req: Request, res: R
   db.users.set(userId, user);
   schedulePersistUserToPg(user);
   schedulePersist();
-  res.json({ ok: true });
+  res.json({ ok: true, user: publicProfile(user, true, user.id) });
 });
 
 /** Suppression du compte */

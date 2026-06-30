@@ -11,9 +11,9 @@ export async function upsertUser(db: DbExec, user: User): Promise<void> {
   await db.query(
     `INSERT INTO users (id, email, username, password_hash, latitude, longitude, geom, payload)
      VALUES (
-       $1, $2, $3, $4, $5, $6,
-       CASE WHEN $5 IS NOT NULL AND $6 IS NOT NULL
-         THEN ST_SetSRID(ST_MakePoint($6, $5), 4326)::geography
+       $1, $2, $3, $4, $5::double precision, $6::double precision,
+       CASE WHEN $5::double precision IS NOT NULL AND $6::double precision IS NOT NULL
+         THEN ST_SetSRID(ST_MakePoint($6::double precision, $5::double precision), 4326)::geography
          ELSE NULL
        END,
        $7::jsonb

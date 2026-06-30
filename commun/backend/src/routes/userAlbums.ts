@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authenticateJWT } from '../middleware/auth';
+import { asyncHandler } from '../lib/asyncHandler';
 import { db } from '../models/schema';
 import {
   createUserAlbum,
@@ -50,7 +51,7 @@ userAlbumsRouter.delete('/me/albums/:albumId', authenticateJWT, (req: Request, r
 userAlbumsRouter.post(
   '/me/albums/:albumId/tracks',
   authenticateJWT,
-  async (req: Request, res: Response) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const me = (req as Request & { user: { id: string } }).user.id;
     const body = req.body ?? {};
     const result = await createUserComposition(me, {
@@ -69,11 +70,11 @@ userAlbumsRouter.post(
       return;
     }
     res.status(201).json({ track: result });
-  }
+  })
 );
 
 /** Morceaux sans album (propriétaire). */
-userAlbumsRouter.post('/me/loose-tracks', authenticateJWT, async (req: Request, res: Response) => {
+userAlbumsRouter.post('/me/loose-tracks', authenticateJWT, asyncHandler(async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const body = req.body ?? {};
   const result = await createUserComposition(me, {
@@ -91,7 +92,7 @@ userAlbumsRouter.post('/me/loose-tracks', authenticateJWT, async (req: Request, 
     return;
   }
   res.status(201).json({ track: result });
-});
+}));
 
 userAlbumsRouter.get('/:userId/albums', authenticateJWT, (req: Request, res: Response) => {
   const userId = req.params.userId;

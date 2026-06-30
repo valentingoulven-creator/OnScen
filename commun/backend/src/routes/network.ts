@@ -5,7 +5,7 @@ import { assertMsdev } from '../lib/msdevGuard';
 
 export const networkRouter = Router();
 
-networkRouter.get('/info', async (_req, res) => {
+networkRouter.get('/info', assertMsdev, async (_req, res) => {
   const port = Number(process.env.PORT) || 4080;
   const lanIps = getPublicLanIps();
   const configuredIp = process.env.MOBILE_HOST_IP;

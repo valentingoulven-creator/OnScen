@@ -86,6 +86,7 @@ import {
 import { emitOnSocket } from './lib/socket';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
 import { TermsReacceptanceModal } from './components/TermsReacceptanceModal';
+import { RequiredPasswordChangeModal } from './components/RequiredPasswordChangeModal';
 import { dispatchPlatformStatusRefresh } from './lib/platformStatusEvents';
 import {
   emitLeaveSalon,
@@ -988,6 +989,19 @@ export default function App() {
   }
 
   if (!user.onboardingCompleted) return <OnboardingPage onDone={completeOnboarding} />;
+
+  if (user.passwordChangeRequired) {
+    return (
+      <>
+        <RequiredPasswordChangeModal
+          token={token!}
+          onChanged={() => void refreshUser()}
+          onLogout={logout}
+        />
+        <CookieConsentBanner />
+      </>
+    );
+  }
 
   if (user.termsReacceptanceRequired) {
     return (

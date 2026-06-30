@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
+import { asyncHandler } from '../lib/asyncHandler';
 import {
   blockUser,
   unblockUser,
@@ -392,7 +393,7 @@ dmRouter.delete('/thread/:userId', authenticateJWT, (req: Request, res: Response
   res.json({ ok: true, hiddenCount });
 });
 
-dmRouter.post('/thread/:userId', authenticateJWT, async (req: Request, res: Response) => {
+dmRouter.post('/thread/:userId', authenticateJWT, asyncHandler(async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
 
   if (!(await checkChatRateLimit(me))) {
@@ -508,7 +509,7 @@ dmRouter.post('/thread/:userId', authenticateJWT, async (req: Request, res: Resp
   trackUserActive(me);
   schedulePersist();
   res.status(201).json({ message: msg, delivered: canDeliver, status: 'accepted' });
-});
+}));
 
 // ── Demandes de conversation (requêtes en attente) ─────────────────────────
 

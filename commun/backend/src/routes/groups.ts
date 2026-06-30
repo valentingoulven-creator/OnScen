@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
+import { asyncHandler } from '../lib/asyncHandler';
 import { hasBlocked } from '../lib/blocks';
 import { isUserOnline } from '../lib/presence';
 import { getIo } from '../lib/ioInstance';
@@ -292,7 +293,7 @@ groupsRouter.post('/:groupId/read', authenticateJWT, (req: Request, res: Respons
   emitMessagesUnreadToUser(me);
 });
 
-groupsRouter.post('/:groupId/messages', authenticateJWT, async (req: Request, res: Response) => {
+groupsRouter.post('/:groupId/messages', authenticateJWT, asyncHandler(async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
 
   if (!(await checkChatRateLimit(me))) {
@@ -353,4 +354,4 @@ groupsRouter.post('/:groupId/messages', authenticateJWT, async (req: Request, re
 
   schedulePersist();
   res.status(201).json({ message: msg });
-});
+}));

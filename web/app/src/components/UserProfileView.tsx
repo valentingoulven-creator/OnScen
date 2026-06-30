@@ -166,15 +166,16 @@ export function UserProfileView({
   const isSalonHost = isSelf;
 
   const openActiveSalon = useCallback(() => {
-    if (!activeSalonId || !onOpenSalon || !currentListening) return;
+    if (!activeSalonId || !onOpenSalon) return;
+    const platform = currentListening?.platform ?? 'youtube';
     if (
       !canJoinSalonAsParticipant(
-        currentListening.platform,
+        platform,
         me?.connectedPlatforms,
         isSalonHost
       )
     ) {
-      setSalonGateToast(t(salonParticipantAccessMessageKey(currentListening.platform)));
+      setSalonGateToast(t(salonParticipantAccessMessageKey(platform)));
       window.setTimeout(() => setSalonGateToast(null), 3500);
       return;
     }
@@ -462,7 +463,7 @@ export function UserProfileView({
       {/* ── CONTENT SECTION ── */}
       <div className="px-4 mt-5 space-y-4 max-w-lg mx-auto w-full">
 
-        {currentListening && (
+        {currentListening ? (
           <ProfileCurrentListening
             listening={currentListening}
             {...(activeSalonId && onOpenSalon
@@ -472,7 +473,21 @@ export function UserProfileView({
                 }
               : {})}
           />
-        )}
+        ) : activeSalonId && onOpenSalon ? (
+          <button
+            type="button"
+            onClick={openActiveSalon}
+            className="w-full min-h-[44px] rounded-xl border border-purple-500/30 bg-purple-950/30 px-4 py-3 text-left hover:bg-purple-950/45 transition-colors"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-wider text-purple-400">
+              Salon actif
+            </p>
+            <p className="text-sm font-semibold text-white truncate">
+              {activeSalonTitle || 'Salon de musique'}
+            </p>
+            <p className="text-xs text-purple-200/80 mt-1">Appuyer pour rejoindre</p>
+          </button>
+        ) : null}
 
         {isLiveHost && liveId && onOpenLive && (
           <button

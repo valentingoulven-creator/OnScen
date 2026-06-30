@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authenticateJWT } from '../middleware/auth';
+import { asyncHandler } from '../lib/asyncHandler';
 import { toggleCompositionUpvote } from '../lib/compositionUpvotes';
 import {
   createUserComposition,
@@ -15,7 +16,7 @@ compositionsRouter.get('/mine', authenticateJWT, (req: Request, res: Response) =
   res.json({ compositions: listUserCompositions(me) });
 });
 
-compositionsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
+compositionsRouter.post('/', authenticateJWT, asyncHandler(async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const body = req.body ?? {};
   const result = await createUserComposition(me, {
@@ -34,7 +35,7 @@ compositionsRouter.post('/', authenticateJWT, async (req: Request, res: Response
     return;
   }
   res.status(201).json({ composition: result });
-});
+}));
 
 compositionsRouter.post('/:id/upvote', authenticateJWT, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
