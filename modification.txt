@@ -15015,3 +15015,44 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 879 — 2026-06-30
 ================================================================================
+
+================================================================================
+MODIF 880 — Deploy prod : hardening + fix chemins /opt/soundly
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Mise en production du hardening pre-prod (MODIF 878–879) : commit, push GitHub,
+ deploy VPS. Échec initial CRLF soundy-root.sh puis PM2/Caddy sur mauvais chemin
+ /opt/soundy (prod utilise /opt/soundly).
+
+CHANGEMENTS / FIX
+-----
+ deploy/lib/soundy-root.sh + deploy_zero_downtime.ps1
+ ─────────────────
+ • LF line endings ; strip CRLF deploy/lib/*.sh avant migrations
+
+ deploy/ecosystem.config.cjs + ecosystem.staging.config.cjs
+ deploy/install-caddy-guard.sh + sync-caddy.sh
+ ─────────────────
+ • Résolution auto ROOT (/opt/soundly prioritaire vs /opt/soundy legacy)
+
+ PROD VPS (2026-06-30)
+ ─────────────────
+ • Migrations 024–025 appliquées (MIGRATE_OK)
+ • PM2 melosong-backend cluster ×2 redémarré sur /opt/soundly
+ • https://getsoundy.com/health → db ok, env production
+ • Commits : c05ce54d, 36cad991, 34d158e0
+
+FICHIERS MODIFIÉS
+-----
+ deploy/ (ecosystem, caddy, soundy-root) · deploy_zero_downtime.ps1
+
+BUILD (si vérifié)
+-----
+ deploy prod → migrations OK · PM2 online · health 200 ✅
+
+================================================================================
+Fin MODIF 880 — 2026-06-30
+================================================================================
