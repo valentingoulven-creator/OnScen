@@ -21,38 +21,38 @@ jobs:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: |
-            backend/package-lock.json
-            app/package-lock.json
+            commun/backend/package-lock.json
+            web/app/package-lock.json
 
       - name: Backend — install & build
-        working-directory: backend
+        working-directory: commun/backend
         run: |
           npm ci
           npm run build
 
       - name: Backend — tests
-        working-directory: backend
+        working-directory: commun/backend
         run: npm test
 
       - name: App — install & typecheck
-        working-directory: app
+        working-directory: web/app
         run: |
           npm ci
           npx tsc -b --noEmit
 
       - name: App — lint
-        working-directory: app
+        working-directory: web/app
         run: npm run lint
 
       - name: App — production build
-        working-directory: app
+        working-directory: web/app
         env:
           VITE_APP_ENV: production
           VITE_WEB_APP_URL: https://getsoundy.com
         run: npm run build
 
       - name: App — unit tests
-        working-directory: app
+        working-directory: web/app
         run: npm test
 
   e2e-smoke:
@@ -69,16 +69,16 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: app/package-lock.json
+          cache-dependency-path: web/app/package-lock.json
 
       - name: Install app + Playwright
-        working-directory: app
+        working-directory: web/app
         run: |
           npm ci
           npx playwright install chromium --with-deps
 
       - name: E2E smoke (health prod public)
-        working-directory: app
+        working-directory: web/app
         env:
           E2E_SKIP_SERVER: '1'
           E2E_BASE_URL: https://getsoundy.com

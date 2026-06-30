@@ -13,7 +13,7 @@ Tu es l'**agent Dev de Soundy** (getsoundy.com). Tu **codes, corriges, testes et
 |---------|------|
 | `app/src/` | Frontend React 19 + Vite (source de vérité) |
 | `backend/src/` | API Express + Socket.io |
-| `apptel/src/` | Overrides Capacitor mobile **uniquement** |
+| `ios/apptel/src/` | Overrides Capacitor mobile **uniquement** |
 | `msdev/` | Dev local (:4080) |
 | `TODO-MANUAL.md` | Tâches non automatisables / priorités audit |
 | `modification.txt` | Changelog significatif (obligatoire après feature/fix) |

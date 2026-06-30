@@ -9,9 +9,9 @@ alwaysApply: true
 
 | Contexte | Cible | Commande canonique |
 |----------|-------|-------------------|
-| **DEV** | `localhost:5173` (Vite) + API `localhost:4080` (msdev) | `npm run dev` ou `scripts/dev-start.ps1` |
-| **PREPROD** | VPS staging `staging.getsoundy.com` | `scripts/deploy-preprod.ps1` ou **GitHub Actions** (auto apres CI) |
-| **PROD** | VPS `getsoundy.com` | `scripts/deploy-prod.ps1` |
+| **DEV** | `localhost:5173` (Vite) + API `localhost:4080` (msdev) | `npm run dev` ou `commun/scripts/dev-start.ps1` |
+| **PREPROD** | VPS staging `staging.getsoundy.com` | `commun/scripts/deploy-preprod.ps1` ou **GitHub Actions** (auto apres CI) |
+| **PROD** | VPS `getsoundy.com` | `commun/scripts/deploy-prod.ps1` |
 
 ## Quand l'utilisateur dit « deploy preprod » / « deploy staging »
 
@@ -20,13 +20,13 @@ Expressions : **deploy preprod**, **deploy staging**, **deploie en staging**, **
 **Action** :
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/deploy-preprod.ps1
+powershell -ExecutionPolicy Bypass -File commun/scripts/deploy-preprod.ps1
 ```
 
-- Appelle `deploy_zero_downtime.ps1 -Environment preprod`.
+- Appelle `commun/deploy/deploy_zero_downtime.ps1 -Environment preprod`.
 - **Automatique** : workflow GitHub `Deploy Preprod` apres CI verte sur `main`/`master` (secret `STAGING_SSH_PRIVATE_KEY`).
 - **Ne jamais** confondre avec prod.
-- Première fois : `scripts/setup-staging-infra.ps1` puis `scripts/setup-staging-env.ps1`.
+- Première fois : `commun/scripts/setup-staging-infra.ps1` puis `commun/scripts/setup-staging-env.ps1`.
 
 ## Quand l'utilisateur dit « deploy prod »
 
@@ -37,9 +37,9 @@ Expressions declenchantes : **deploy prod**, **deploy production**, **deploie en
 1. **Verifier** — build app + backend, tests si pertinent ; ne pas deployer si bug bloquant.
 2. **Commit local** — `git add` (sources + assets buildes, jamais secrets) puis `git commit` avec message clair.
 3. **Push GitHub** — `git push -u origin HEAD` (ou branche courante).
-4. **Deploy VPS** — `powershell -ExecutionPolicy Bypass -File scripts/deploy-prod.ps1`
+4. **Deploy VPS** — `powershell -ExecutionPolicy Bypass -File commun/scripts/deploy-prod.ps1`
 
-Ce script appelle `deploy_zero_downtime.ps1 -Environment prod -VerifyProd`. Ne pas inventer d'autre chemin de deploy.
+Ce script appelle `commun/deploy/deploy_zero_downtime.ps1 -Environment prod -VerifyProd`. Ne pas inventer d'autre chemin de deploy.
 
 - **Ne jamais** deployer en prod sans demande **explicite** de l'utilisateur.
 - Ne pas confondre `npm run msdev` (ancien flux build+backend seul) avec `npm run dev` (flux dev recommande : Vite HMR + backend).
@@ -55,15 +55,15 @@ Expressions : **dev**, **lancer dev**, **mode dev**, **demarrer l'app en local**
 npm run dev
 ```
 
-ou `powershell -ExecutionPolicy Bypass -File scripts/dev-start.ps1` ou `msdev/LANCER-DEV.ps1`.
+ou `powershell -ExecutionPolicy Bypass -File commun/scripts/dev-start.ps1` ou `commun/msdev/LANCER-DEV.ps1`.
 
 - `APP_ENV=msdev` — jamais la prod.
 - Navigateur : `http://localhost:5173`.
 
 ## Secrets
 
-- `msdev/.env`, `backend/.env.production`, `backend/.env.preproduction` : **jamais** dans Git.
-- Fichiers committables : `app/.env.development`, `app/.env.production`, `*.example`.
+- `commun/msdev/.env`, `commun/backend/.env.production`, `commun/backend/.env.preproduction` : **jamais** dans Git.
+- Fichiers committables : `web/app/.env.development`, `web/app/.env.production`, `*.example`.
 
 ## Doc
 

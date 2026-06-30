@@ -1,0 +1,80 @@
+{
+  "name": "melosong-backend",
+  "version": "1.0.0",
+  "license": "UNLICENSED",
+  "description": "Soundy Real-time Geolocation & Music Sharing Backend",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc && node -e \"require('fs').cpSync('src/db/migrations','dist/db/migrations',{recursive:true})\"",
+    "start": "node dist/index.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "dev:msdev": "ts-node-dev --respawn --transpile-only src/index.ts --msdev",
+    "dev:msdev:https": "ts-node-dev --respawn --transpile-only src/index.ts --msdev --https",
+    "build:exe": "npm run build && node ../../commun/msdev/scripts/build-exe.js",
+    "test": "vitest run --config vitest.config.ts",
+    "seed:production": "npm run build && node dist/commun/scripts/seed-production-testdata.js",
+    "seed:sponsors": "npm run build && node dist/commun/scripts/seed-production-sponsors.js",
+    "seed:world": "npm run build && node dist/commun/scripts/seed-production-world-random.js",
+    "msdev:seed-stories": "npm run build && node dist/commun/scripts/seed-msdev-stories.js"
+  },
+  "bin": {
+    "msdev": "dist/entry-msdev.js"
+  },
+  "pkg": {
+    "scripts": [
+      "dist/**/*.js"
+    ],
+    "assets": [
+      "public/**/*"
+    ],
+    "targets": [
+      "node18-win-x64"
+    ],
+    "outputPath": "../../commun/msdev/release"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.888.0",
+    "@sentry/node": "^9.47.1",
+    "@simplewebauthn/server": "^13.3.1",
+    "@socket.io/redis-adapter": "^8.3.0",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/nodemailer": "^8.0.1",
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.8.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.2.0",
+    "jsonwebtoken": "^9.0.2",
+    "livekit-server-sdk": "^2.15.4",
+    "nodemailer": "^9.0.1",
+    "otplib": "^13.4.1",
+    "pg": "^8.16.0",
+    "qrcode": "^1.5.4",
+    "redis": "^4.7.1",
+    "resend": "^6.14.0",
+    "socket.io": "^4.8.3",
+    "stripe": "^17.7.0",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/compression": "^1.8.1",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/node": "^20.12.12",
+    "@types/pg": "^8.15.4",
+    "@types/qrcode": "^1.5.6",
+    "@types/web-push": "^3.6.4",
+    "resedit": "^3.0.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.4.5",
+    "vitest": "^3.2.6"
+  },
+  "overrides": {
+    "ws": "^8.21.0"
+  }
+}

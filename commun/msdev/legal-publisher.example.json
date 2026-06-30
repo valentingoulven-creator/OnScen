@@ -1,0 +1,19 @@
+{
+  "publisherName": "Valentin Goulven (Soundy)",
+  "legalForm": "Entrepreneur individuel",
+  "address": "[À compléter : adresse postale — LEGAL_PUBLISHER_ADDRESS dans .env prod]",
+  "siren": "106548464",
+  "rcs": "",
+  "capital": "",
+  "publicationDirector": "Valentin Goulven",
+  "hostName": "Scaleway SAS",
+  "hostAddress": "8 rue de la Ville l'Évêque, 75008 Paris, France",
+  "hostPhone": "+33 1 84 13 00 00",
+  "hostCountry": "France",
+  "mediatorName": "Plateforme européenne de règlement en ligne des litiges (ODR)",
+  "mediatorUrl": "https://ec.europa.eu/consumers/odr/",
+  "dpoEmail": "privacy@getsoundy.com",
+  "contactEmail": "contact@getsoundy.com",
+  "privacyEmail": "privacy@getsoundy.com",
+  "productionDomain": "https://getsoundy.com"
+}

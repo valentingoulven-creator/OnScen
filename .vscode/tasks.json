@@ -5,7 +5,7 @@
       "label": "msdev: start server",
       "type": "npm",
       "script": "dev:msdev",
-      "path": "backend",
+      "path": "commun/backend",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -19,9 +19,9 @@
     {
       "label": "msdev: open web app",
       "type": "shell",
-      "command": "start http://localhost:4080",
+      "command": "start http://localhost:5173",
       "windows": {
-        "command": "start http://localhost:4080"
+        "command": "start http://localhost:5173"
       },
       "problemMatcher": [],
       "presentation": {

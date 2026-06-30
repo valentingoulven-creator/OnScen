@@ -18,8 +18,8 @@ on:
   push:
     branches: [main, master]
     paths:
-      - 'apptel/**'
-      - 'app/**'
+      - 'ios/apptel/**'
+      - 'web/app/**'
       - '.github/workflows/ios-capacitor.yml'
 
 jobs:
@@ -27,7 +27,7 @@ jobs:
     runs-on: macos-latest
     defaults:
       run:
-        working-directory: apptel
+        working-directory: ios/apptel
 
     steps:
       - name: Checkout
@@ -40,7 +40,7 @@ jobs:
           cache: 'npm'
           cache-dependency-path: |
             package-lock.json
-            apptel/package-lock.json
+            ios/apptel/package-lock.json
 
       - name: Install root dependencies (sync-lan scripts)
         working-directory: .
@@ -49,14 +49,14 @@ jobs:
       - name: Sync LAN env placeholder
         working-directory: .
         run: |
-          mkdir -p msdev
-          if [ ! -f msdev/.env ]; then
-            echo "MOBILE_API_URL=http://127.0.0.1:4080/api" >> msdev/.env
-            echo "MOBILE_SOCKET_URL=http://127.0.0.1:4080" >> msdev/.env
+          mkdir -p commun/msdev
+          if [ ! -f commun/msdev/.env ]; then
+            echo "MOBILE_API_URL=http://127.0.0.1:4080/api" >> commun/msdev/.env
+            echo "MOBILE_SOCKET_URL=http://127.0.0.1:4080" >> commun/msdev/.env
           fi
 
       - name: Install app dependencies (shared source fallbacks)
-        working-directory: app
+        working-directory: web/app
         run: npm ci
 
       - name: Install apptel dependencies
@@ -64,7 +64,7 @@ jobs:
 
       - name: Build Capacitor web assets
         working-directory: .
-        run: npm run build:capacitor --prefix apptel
+        run: npm run build:capacitor --prefix ios/apptel
 
       - name: Sync iOS project
         run: npx cap sync ios
@@ -106,5 +106,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: melosong-ios-workspace
-          path: apptel/ios/
+          path: ios/apptel/ios/
           if-no-files-found: warn
