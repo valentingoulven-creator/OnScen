@@ -1,0 +1,64 @@
+# Soundy — Caddyfile CANONIQUE (source de vérité)
+# Repo : deploy/Caddyfile  →  VPS : /opt/soundy/deploy/Caddyfile  →  /etc/caddy/Caddyfile
+#
+# ⚠ NE JAMAIS écrire un bloc minimal `:80 { ... }` à la main sur le VPS.
+#    Utiliser : ./deploy/sync-caddy.sh  ou  deploy-scaleway.ps1
+#
+# Basic Auth (pré-lancement) — optionnel, fichier VPS uniquement (jamais commité).
+# Copier deploy/caddy-basic-auth.caddy.example → /opt/soundly/deploy/caddy-basic-auth.caddy
+# et décommenter la ligne import ci-dessous pour réactiver la protection UI.
+# import /opt/soundly/deploy/caddy-basic-auth.caddy
+
+(soundy_handlers) {
+	@allowed_ips client_ip 195.36.171.84/32
+
+	@api path /api/* /health /health/db /socket.io/* /privacy /terms /cookies /legal/mentions
+	@static path /assets/* /sw.js /workbox-* /manifest.webmanifest /icon.svg /favicon.svg /pwa-* /clear-pwa
+
+	handle @api {
+		reverse_proxy localhost:3000
+	}
+
+	handle @static {
+		reverse_proxy localhost:3000
+	}
+
+	handle @allowed_ips {
+		reverse_proxy localhost:3000
+	}
+
+	handle {
+		reverse_proxy localhost:3000
+	}
+
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	encode zstd gzip
+}
+
+# Production — domaine principal (HTTPS automatique Let's Encrypt)
+getsoundy.com {
+	import soundy_handlers
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+}
+
+# www → apex
+www.getsoundy.com {
+	redir https://getsoundy.com{uri} permanent
+}
+
+# Accès par IP pendant la transition (HTTP)
+http://51.159.164.100 {
+	import soundy_handlers
+	header -Strict-Transport-Security
+}
+
+# Accès par IP en HTTPS (certificat auto-signé)
+https://51.159.164.100 {
+	tls /etc/caddy/certs/cert.pem /etc/caddy/certs/key.pem
+	import soundy_handlers
+	header -Strict-Transport-Security
+}

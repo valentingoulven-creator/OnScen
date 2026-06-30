@@ -1,0 +1,92 @@
+﻿MeloSong msdev â€” DÃ©bloquer l'exÃ©cutable sous Windows
+===================================================
+
+Windows peut afficher Â« Application dangereuse Â», bloquer msdev.exe ou
+refuser le lancement. Ce n'est pas un virus : l'exe est compilÃ© localement
+avec pkg (runtime Node embarquÃ©), sans certificat de signature Authenticode.
+
+â”€â”€â”€ MÃ©thode la plus rapide AUJOURD'HUI â”€â”€â”€
+
+A) Vous avez Node.js 18+ et le dossier source du projet MeloSong Dev :
+   â†’ Double-cliquez : msdev\Lancer-msdev-node.bat
+   (ou Ã  la racine du projet : npm run msdev:server)
+   Pas d'exe : Smart App Control ne s'applique pas Ã  node.exe (signÃ© Microsoft).
+
+B) Vous n'avez que le dossier msdev\release\ :
+   1. Double-cliquez : Lancer-msdev.bat  (recommandÃ©)
+      Si un .ps1 ne fait rien au double-clic : c'est normal (politique PowerShell).
+      Utilisez toujours Lancer-msdev.bat.
+   2. Si SmartScreen s'affiche : Â« Informations complÃ©mentaires Â»
+      puis Â« ExÃ©cuter quand mÃªme Â».
+   3. Si le message parle de Â« ContrÃ´le des applications Â» / Smart App Control,
+      voir section 3 ci-dessous (l'exe seul peut rester bloquÃ©).
+
+â”€â”€â”€ 1. SmartScreen (fichier tÃ©lÃ©chargÃ© / copiÃ©) â”€â”€â”€
+
+SymptÃ´me : Â« Windows a protÃ©gÃ© votre PC Â», bouton Â« Ne pas exÃ©cuter Â».
+
+1. Clic droit sur msdev.exe â†’ PropriÃ©tÃ©s
+2. Si prÃ©sent : cocher Â« DÃ©bloquer Â» en bas â†’ OK
+3. Ou lancer une fois Lancer-msdev.bat (dÃ©bloque via PowerShell puis lance l'exe)
+
+Ã‰quivalent PowerShell (dossier release) :
+   Unblock-File -LiteralPath .\msdev.exe
+   Get-ChildItem -LiteralPath . -File | Unblock-File
+
+Note : Unblock-File retire le marqueur Â« Zone.Identifier Â» (Internet).
+        Cela aide pour SmartScreen, PAS pour Smart App Control (section 3).
+
+â”€â”€â”€ 2. Exclusion antivirus (optionnel, Ã  votre choix) â”€â”€â”€
+
+Si Windows Defender bloque encore aprÃ¨s SmartScreen :
+
+1. ParamÃ¨tres â†’ ConfidentialitÃ© et sÃ©curitÃ© â†’ SÃ©curitÃ© Windows
+2. Protection contre les virus et menaces â†’ GÃ©rer les paramÃ¨tres
+3. Exclusions â†’ Ajouter une exclusion â†’ Dossier
+4. Choisir le dossier complet :  ...\MeloSong Dev\msdev\release
+
+Ne dÃ©sactivez pas toute la protection du PC : une exclusion de dossier suffit.
+
+â”€â”€â”€ 3. Smart App Control / ContrÃ´le des applications â”€â”€â”€
+
+SymptÃ´me : Â« Cette application a Ã©tÃ© bloquÃ©e Â», Â« appli dangereuse Â»,
+           mÃªme aprÃ¨s Â« ExÃ©cuter quand mÃªme Â» ou Unblock-File.
+
+Smart App Control (SAC) bloque les exÃ©cutables non signÃ©s et peu rÃ©pandus.
+Unblock-File et SmartScreen ne suffisent pas : la politique est distincte.
+
+Options (du plus simple au plus lourd) :
+
+  â€¢ Utiliser Node.js sans exe : msdev\Lancer-msdev-node.bat (voir A ci-dessus).
+
+  â€¢ DÃ©sactiver uniquement Smart App Control (pas tout l'antivirus) :
+    ParamÃ¨tres â†’ ConfidentialitÃ© et sÃ©curitÃ© â†’ SÃ©curitÃ© Windows
+    â†’ ContrÃ´le des applications â†’ paramÃ¨tres Smart App Control
+    â†’ DÃ©sactiver (souvent irrÃ©versible jusqu'Ã  rÃ©installation Windows).
+
+  â€¢ Signer l'exe avec un certificat de code (Authenticode) â€” solution pro,
+    hors scope du build open source actuel.
+
+Test technique (PowerShell) :
+   Unblock-File .\msdev.exe
+   Start-Process .\msdev.exe
+   Si Start-Process Ã©choue ou l'app se ferme sans console, SAC est probable.
+
+â”€â”€â”€ 4. Fichiers fournis dans msdev\release\ â”€â”€â”€
+
+  msdev.exe           â€” serveur + ouverture navigateur (double-clic)
+  Lancer-msdev.bat    â€” lanceur principal (double-clic, messages + pause)
+  Lancer-msdev.ps1    â€” script interne (appelÃ© par le .bat ; double-clic .ps1 souvent inactif)
+  DEBLOCAGE-WINDOWS.txt â€” ce guide
+  LISEZMOI.txt        â€” URLs et compte dÃ©mo
+
+â”€â”€â”€ 5. Recompiler aprÃ¨s mise Ã  jour â”€â”€â”€
+
+Ã€ la racine MeloSong Dev :  npm run build:exe
+
+Le script de build applique Unblock-File et les mÃ©tadonnÃ©es Â« MeloSong Â»
+sur l'exe (remplace l'affichage Â« Node.js Â» dans les propriÃ©tÃ©s du fichier).
+
+Voir aussi : msdev\BUILD-EXE.txt
+
+Fenetre qui se ferme : utilisez msdev\Lancer-MeloSong.bat (dossier parent) ou ce Lancer-msdev.bat — pause en fin de script.

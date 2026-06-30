@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Infra Soundy — acces agent (complet)
 
-Etat cible : `scripts/verify-full-access.ps1` → 20+/22 checks OK.
+Etat cible : `commun/scripts/verify-full-access.ps1` → 20+/22 checks OK.
 
 ## Acces operationnels
 
@@ -15,31 +15,31 @@ Etat cible : `scripts/verify-full-access.ps1` → 20+/22 checks OK.
 | Dev local | OK | `npm run dev` → :5173, API msdev :4080 |
 | SSH VPS prod | OK | `ssh soundy-prod` → 51.159.164.100, zone fr-par-2 |
 | SSH VPS staging | OK | `ssh soundy-staging` → 51.159.170.181, zone fr-par-2 |
-| Secrets prod | OK | `/opt/soundy/.env` + `backend/.env.production` |
-| Secrets staging | OK | VPS staging `/opt/soundy/.env` + `backend/.env.preproduction` |
-| msdev secrets | OK | `msdev/.env` sync prod (DB, LiveKit, Stripe, Sightengine, SCW…) |
+| Secrets prod | OK | `/opt/soundy/.env` + `commun/backend/.env.production` |
+| Secrets staging | OK | VPS staging `/opt/soundly/.env` + `commun/backend/.env.preproduction` |
+| msdev secrets | OK | `commun/msdev/.env` sync prod (DB, LiveKit, Stripe, Sightengine, SCW…) |
 | PostgreSQL prod | OK | base `soundy-prod` — 51.15.132.229:14440 |
 | PostgreSQL staging | OK | base `soundy_staging` (meme instance PG) |
 | NSFW | OK | Sightengine `SIGHTENGINE_*` |
 | Lives | OK | LiveKit + Cloudflare Stream |
 | Paiements | OK | Stripe Connect + webhooks |
 | OAuth | OK | Google, YouTube (Facebook si configure prod) |
-| Backups S3 | OK | `SCW_*` dans msdev/.env |
+| Backups S3 | OK | `SCW_*` dans commun/msdev/.env |
 | Scaleway CLI | OK | `~/.config/scw/config.yaml` |
-| Deploy prod | OK | `scripts/deploy-prod.ps1` (demande explicite) |
-| Deploy preprod | OK | `scripts/deploy-preprod.ps1` |
+| Deploy prod | OK | `commun/scripts/deploy-prod.ps1` (demande explicite) |
+| Deploy preprod | OK | `commun/scripts/deploy-preprod.ps1` |
 | Health prod | OK | https://getsoundy.com/health |
 | Health staging | OK | http://51.159.170.181/health (`env: preproduction`) |
 
 ## Scripts
 
 ```powershell
-scripts/verify-full-access.ps1
-scripts/setup-staging-infra.ps1       # bootstrap VPS staging + DB
-scripts/setup-staging-env.ps1         # .env preprod local + push VPS
-scripts/deploy-preprod.ps1            # deploy staging
-scripts/deploy-prod.ps1               # prod uniquement si demande
-scripts/setup-infra-access.ps1 -PullProdEnv
+commun/scripts/verify-full-access.ps1
+commun/scripts/setup-staging-infra.ps1       # bootstrap VPS staging + DB
+commun/scripts/setup-staging-env.ps1         # .env preprod local + push VPS
+commun/scripts/deploy-preprod.ps1            # deploy staging
+commun/scripts/deploy-prod.ps1               # prod uniquement si demande
+commun/scripts/setup-infra-access.ps1 -PullProdEnv
 ```
 
 ## Ops VPS
@@ -63,4 +63,4 @@ ssh soundy-staging "curl -s http://127.0.0.1:3000/health"
 
 ## Doc
 
-`docs/ENVIRONNEMENTS.md` · `docs/INFRA-SOUNDY.md` · `deploy/RUNBOOK-PROD.md`
+`docs/ENVIRONNEMENTS.md` · `docs/INFRA-SOUNDY.md` · `commun/deploy/RUNBOOK-PROD.md`

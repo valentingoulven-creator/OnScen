@@ -1,0 +1,625 @@
+{
+  "version": 1,
+  "savedAt": 1780493627210,
+  "users": [
+    {
+      "id": "user_dj",
+      "username": "DJ Melody",
+      "email": "dj@msdev.local",
+      "passwordHash": "$2a$10$kwAedtWYvNob39aqYUdP7.rnde2pooaKuOQarT1tsnqBrAUNBT/iS",
+      "avatarUrl": "https://api.dicebear.com/7.x/adventurer/svg?seed=DJMelody",
+      "meloCoins": 500,
+      "isGhostMode": false,
+      "lastSeenAt": 1780471639016,
+      "bio": "Host deep house — je mixe en live sur MeloSong pour faire vibrer le quartier.",
+      "interests": [
+        "Deep house",
+        "Live mixing",
+        "Communauté"
+      ],
+      "favoriteGenres": [
+        "House",
+        "Techno"
+      ],
+      "favoriteArtists": [
+        "M83",
+        "Disclosure"
+      ],
+      "connectedPlatforms": [
+        "spotify"
+      ],
+      "city": "Paris",
+      "listeningRole": "host",
+      "memberSince": 1770103639016,
+      "latitude": 48.857,
+      "longitude": 2.3525,
+      "blurredLatitude": 48.85736034003196,
+      "blurredLongitude": 2.3521769201996037,
+      "platformAccounts": [
+        {
+          "platform": "spotify",
+          "externalUserId": "legacy_spotify_user_dj",
+          "connectedAt": 1770103639016,
+          "accessToken": "legacy_spotify"
+        }
+      ],
+      "profilePhotos": [
+        "https://api.dicebear.com/7.x/adventurer/svg?seed=DJMelody"
+      ]
+    },
+    {
+      "id": "user_bass",
+      "username": "BassHunter",
+      "email": "bass@msdev.local",
+      "passwordHash": "$2a$10$kwAedtWYvNob39aqYUdP7.rnde2pooaKuOQarT1tsnqBrAUNBT/iS",
+      "avatarUrl": "https://api.dicebear.com/7.x/adventurer/svg?seed=BassHunter",
+      "meloCoins": 200,
+      "isGhostMode": false,
+      "lastSeenAt": 1780471639016,
+      "bio": "YouTube & bass music — toujours un morceau à partager.",
+      "interests": [
+        "YouTube",
+        "Bass",
+        "Memes musicaux"
+      ],
+      "favoriteGenres": [
+        "Dubstep",
+        "Pop"
+      ],
+      "favoriteArtists": [
+        "Rick Astley",
+        "Skrillex"
+      ],
+      "connectedPlatforms": [
+        "youtube"
+      ],
+      "city": "Paris",
+      "listeningRole": "host",
+      "memberSince": 1775287639016,
+      "latitude": 48.8561,
+      "longitude": 2.3524,
+      "blurredLatitude": 48.856507356867176,
+      "blurredLongitude": 2.352560484985144,
+      "platformAccounts": [
+        {
+          "platform": "youtube",
+          "externalUserId": "legacy_youtube_user_bass",
+          "connectedAt": 1775287639016,
+          "accessToken": "legacy_youtube"
+        }
+      ],
+      "profilePhotos": [
+        "https://api.dicebear.com/7.x/adventurer/svg?seed=BassHunter"
+      ]
+    },
+    {
+      "id": "user_listener",
+      "username": "Auditeur",
+      "email": "listener@msdev.local",
+      "passwordHash": "$2a$10$kwAedtWYvNob39aqYUdP7.rnde2pooaKuOQarT1tsnqBrAUNBT/iS",
+      "avatarUrl": "https://api.dicebear.com/7.x/adventurer/svg?seed=Listener",
+      "profilePhotos": [
+        "https://api.dicebear.com/7.x/adventurer/svg?seed=Listener",
+        "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400",
+        "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400"
+      ],
+      "meloCoins": 100,
+      "isGhostMode": false,
+      "lastSeenAt": 1780493625189,
+      "memberSince": 1777879639016,
+      "bio": "Curieux·se de tout ce qui sonne autour de moi. J’explore les salons sur la carte et je partage mes découvertes — ici pour la musique, pas pour le dating.",
+      "interests": [
+        "Sessions live",
+        "Carte géoloc",
+        "Spotify Jam",
+        "Rencontres musicales"
+      ],
+      "favoriteGenres": [
+        "Électro",
+        "Indie",
+        "Lo-fi",
+        "French touch"
+      ],
+      "favoriteArtists": [
+        "M83",
+        "Daft Punk",
+        "Lomepal"
+      ],
+      "connectedPlatforms": [
+        "spotify",
+        "youtube"
+      ],
+      "city": "Paris",
+      "listeningRole": "les_deux",
+      "latitude": 48.8566,
+      "longitude": 2.3522,
+      "blurredLatitude": 48.8564778873184,
+      "blurredLongitude": 2.3526371238639228,
+      "platformAccounts": [
+        {
+          "platform": "spotify",
+          "externalUserId": "legacy_spotify_user_listener",
+          "connectedAt": 1777879639016,
+          "accessToken": "legacy_spotify"
+        },
+        {
+          "platform": "youtube",
+          "externalUserId": "legacy_youtube_user_listener",
+          "connectedAt": 1777879639016,
+          "accessToken": "legacy_youtube"
+        }
+      ]
+    },
+    {
+      "id": "bot_luna",
+      "username": "🤖 Luna Beats",
+      "email": "luna@bot.melosong.local",
+      "passwordHash": "bot",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=luna",
+      "meloCoins": 0,
+      "isGhostMode": false,
+      "lastSeenAt": 1780488795207,
+      "bio": "Passionné·e de musique — je partage mes sessions et découvre des sons autour de moi.",
+      "interests": [
+        "Découvertes live",
+        "Écoute partagée",
+        "Nouveaux morceaux"
+      ],
+      "favoriteGenres": [
+        "Électro",
+        "Indie",
+        "Hip-hop"
+      ],
+      "favoriteArtists": [],
+      "city": "",
+      "listeningRole": "auditeur",
+      "memberSince": 1780488795828,
+      "profilePhotos": [
+        "https://api.dicebear.com/7.x/bottts/svg?seed=luna"
+      ]
+    },
+    {
+      "id": "bot_nova",
+      "username": "🤖 Nova Sound",
+      "email": "nova@bot.melosong.local",
+      "passwordHash": "bot",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=nova",
+      "meloCoins": 0,
+      "isGhostMode": false,
+      "lastSeenAt": 1780488795207,
+      "bio": "Passionné·e de musique — je partage mes sessions et découvre des sons autour de moi.",
+      "interests": [
+        "Découvertes live",
+        "Écoute partagée",
+        "Nouveaux morceaux"
+      ],
+      "favoriteGenres": [
+        "Électro",
+        "Indie",
+        "Hip-hop"
+      ],
+      "favoriteArtists": [],
+      "city": "",
+      "listeningRole": "auditeur",
+      "memberSince": 1780488795828,
+      "profilePhotos": [
+        "https://api.dicebear.com/7.x/bottts/svg?seed=nova"
+      ]
+    },
+    {
+      "id": "bot_kira",
+      "username": "🤖 Kira FM",
+      "email": "kira@bot.melosong.local",
+      "passwordHash": "bot",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=kira",
+      "meloCoins": 0,
+      "isGhostMode": false,
+      "lastSeenAt": 1780488795207,
+      "bio": "Passionné·e de musique — je partage mes sessions et découvre des sons autour de moi.",
+      "interests": [
+        "Découvertes live",
+        "Écoute partagée",
+        "Nouveaux morceaux"
+      ],
+      "favoriteGenres": [
+        "Électro",
+        "Indie",
+        "Hip-hop"
+      ],
+      "favoriteArtists": [],
+      "city": "",
+      "listeningRole": "auditeur",
+      "memberSince": 1780488795828,
+      "profilePhotos": [
+        "https://api.dicebear.com/7.x/bottts/svg?seed=kira"
+      ]
+    },
+    {
+      "id": "bot_echo",
+      "username": "🤖 Echo Park",
+      "email": "echo@bot.melosong.local",
+      "passwordHash": "bot",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=echo",
+      "meloCoins": 0,
+      "isGhostMode": false,
+      "lastSeenAt": 1780488795207,
+      "bio": "Passionné·e de musique — je partage mes sessions et découvre des sons autour de moi.",
+      "interests": [
+        "Découvertes live",
+        "Écoute partagée",
+        "Nouveaux morceaux"
+      ],
+      "favoriteGenres": [
+        "Électro",
+        "Indie",
+        "Hip-hop"
+      ],
+      "favoriteArtists": [],
+      "city": "",
+      "listeningRole": "auditeur",
+      "memberSince": 1780488795828,
+      "profilePhotos": [
+        "https://api.dicebear.com/7.x/bottts/svg?seed=echo"
+      ]
+    },
+    {
+      "id": "bot_wave",
+      "username": "🤖 Wave Rider",
+      "email": "wave@bot.melosong.local",
+      "passwordHash": "bot",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=wave",
+      "meloCoins": 0,
+      "isGhostMode": false,
+      "lastSeenAt": 1780488795207,
+      "bio": "Passionné·e de musique — je partage mes sessions et découvre des sons autour de moi.",
+      "interests": [
+        "Découvertes live",
+        "Écoute partagée",
+        "Nouveaux morceaux"
+      ],
+      "favoriteGenres": [
+        "Électro",
+        "Indie",
+        "Hip-hop"
+      ],
+      "favoriteArtists": [],
+      "city": "",
+      "listeningRole": "auditeur",
+      "memberSince": 1780488795828,
+      "profilePhotos": [
+        "https://api.dicebear.com/7.x/bottts/svg?seed=wave"
+      ]
+    },
+    {
+      "id": "bot_pixel",
+      "username": "🤖 Pixel DJ",
+      "email": "pixel@bot.melosong.local",
+      "passwordHash": "bot",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=pixel",
+      "meloCoins": 0,
+      "isGhostMode": false,
+      "lastSeenAt": 1780488795207,
+      "bio": "Passionné·e de musique — je partage mes sessions et découvre des sons autour de moi.",
+      "interests": [
+        "Découvertes live",
+        "Écoute partagée",
+        "Nouveaux morceaux"
+      ],
+      "favoriteGenres": [
+        "Électro",
+        "Indie",
+        "Hip-hop"
+      ],
+      "favoriteArtists": [],
+      "city": "",
+      "listeningRole": "auditeur",
+      "memberSince": 1780488795828,
+      "profilePhotos": [
+        "https://api.dicebear.com/7.x/bottts/svg?seed=pixel"
+      ]
+    },
+    {
+      "id": "bot_milo",
+      "username": "🤖 Milo Groove",
+      "email": "milo@bot.melosong.local",
+      "passwordHash": "bot",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=milo",
+      "meloCoins": 0,
+      "isGhostMode": false,
+      "lastSeenAt": 1780488795207,
+      "bio": "Passionné·e de musique — je partage mes sessions et découvre des sons autour de moi.",
+      "interests": [
+        "Découvertes live",
+        "Écoute partagée",
+        "Nouveaux morceaux"
+      ],
+      "favoriteGenres": [
+        "Électro",
+        "Indie",
+        "Hip-hop"
+      ],
+      "favoriteArtists": [],
+      "city": "",
+      "listeningRole": "auditeur",
+      "memberSince": 1780488795828,
+      "profilePhotos": [
+        "https://api.dicebear.com/7.x/bottts/svg?seed=milo"
+      ]
+    },
+    {
+      "id": "bot_zara",
+      "username": "🤖 Zara Mix",
+      "email": "zara@bot.melosong.local",
+      "passwordHash": "bot",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=zara",
+      "meloCoins": 0,
+      "isGhostMode": false,
+      "lastSeenAt": 1780488795207,
+      "bio": "Passionné·e de musique — je partage mes sessions et découvre des sons autour de moi.",
+      "interests": [
+        "Découvertes live",
+        "Écoute partagée",
+        "Nouveaux morceaux"
+      ],
+      "favoriteGenres": [
+        "Électro",
+        "Indie",
+        "Hip-hop"
+      ],
+      "favoriteArtists": [],
+      "city": "",
+      "listeningRole": "auditeur",
+      "memberSince": 1780488795828,
+      "profilePhotos": [
+        "https://api.dicebear.com/7.x/bottts/svg?seed=zara"
+      ]
+    }
+  ],
+  "directMessages": [
+    {
+      "id": "dm_seed_user_bass_3600000",
+      "senderId": "user_bass",
+      "receiverId": "user_listener",
+      "content": "Hey ! On écoute quoi ce soir ?",
+      "timestamp": 1780468039019,
+      "accepted": true
+    },
+    {
+      "id": "dm_seed_user_listener_3500000",
+      "senderId": "user_listener",
+      "receiverId": "user_bass",
+      "content": "Je suis sur la carte, je te rejoins !",
+      "timestamp": 1780468139019,
+      "accepted": true
+    },
+    {
+      "id": "dm_seed_user_dj_7200000",
+      "senderId": "user_dj",
+      "receiverId": "user_listener",
+      "content": "Bienvenue sur MeloSong 🎵",
+      "timestamp": 1780464439019,
+      "accepted": true
+    },
+    {
+      "id": "dm_seed_user_listener_7000000",
+      "senderId": "user_listener",
+      "receiverId": "user_dj",
+      "content": "Merci DJ Melody, super live !",
+      "timestamp": 1780464639019,
+      "accepted": true
+    },
+    {
+      "id": "dm_seed_user_dj_6800000",
+      "senderId": "user_dj",
+      "receiverId": "user_listener",
+      "content": "Merci d'être passé, à bientôt sur la carte",
+      "timestamp": 1780464839019,
+      "accepted": true
+    }
+  ],
+  "salonChats": {
+    "salon_dj": [
+      {
+        "id": "m1",
+        "roomId": "salon_dj",
+        "roomType": "salon",
+        "senderId": "user_bass",
+        "senderName": "BassHunter",
+        "content": "Super session ! 🔥",
+        "timestamp": 1780471579016
+      }
+    ],
+    "salon_bass": [],
+    "bot_salon_luna": [
+      {
+        "id": "bot_msg_luna_1",
+        "roomId": "bot_salon_luna",
+        "roomType": "salon",
+        "senderId": "bot_luna",
+        "senderName": "🤖 Luna Beats",
+        "content": "Bienvenue dans mon salon test ! 🎧",
+        "timestamp": 1780488675207
+      },
+      {
+        "id": "bot_msg_luna_2",
+        "roomId": "bot_salon_luna",
+        "roomType": "salon",
+        "senderId": "bot_listener",
+        "senderName": "Auditeur Bot",
+        "content": "Trop bien ce morceau 🔥",
+        "timestamp": 1780488735207
+      }
+    ],
+    "bot_salon_nova": [
+      {
+        "id": "bot_msg_nova_1",
+        "roomId": "bot_salon_nova",
+        "roomType": "salon",
+        "senderId": "bot_nova",
+        "senderName": "🤖 Nova Sound",
+        "content": "Bienvenue dans mon salon test ! 🎧",
+        "timestamp": 1780488675207
+      },
+      {
+        "id": "bot_msg_nova_2",
+        "roomId": "bot_salon_nova",
+        "roomType": "salon",
+        "senderId": "bot_listener",
+        "senderName": "Auditeur Bot",
+        "content": "Trop bien ce morceau 🔥",
+        "timestamp": 1780488735207
+      }
+    ],
+    "bot_salon_kira": [
+      {
+        "id": "bot_msg_kira_1",
+        "roomId": "bot_salon_kira",
+        "roomType": "salon",
+        "senderId": "bot_kira",
+        "senderName": "🤖 Kira FM",
+        "content": "Bienvenue dans mon salon test ! 🎧",
+        "timestamp": 1780488675207
+      },
+      {
+        "id": "bot_msg_kira_2",
+        "roomId": "bot_salon_kira",
+        "roomType": "salon",
+        "senderId": "bot_listener",
+        "senderName": "Auditeur Bot",
+        "content": "Trop bien ce morceau 🔥",
+        "timestamp": 1780488735207
+      }
+    ],
+    "bot_salon_echo": [
+      {
+        "id": "bot_msg_echo_1",
+        "roomId": "bot_salon_echo",
+        "roomType": "salon",
+        "senderId": "bot_echo",
+        "senderName": "🤖 Echo Park",
+        "content": "Bienvenue dans mon salon test ! 🎧",
+        "timestamp": 1780488675207
+      },
+      {
+        "id": "bot_msg_echo_2",
+        "roomId": "bot_salon_echo",
+        "roomType": "salon",
+        "senderId": "bot_listener",
+        "senderName": "Auditeur Bot",
+        "content": "Trop bien ce morceau 🔥",
+        "timestamp": 1780488735207
+      }
+    ],
+    "bot_salon_wave": [
+      {
+        "id": "bot_msg_wave_1",
+        "roomId": "bot_salon_wave",
+        "roomType": "salon",
+        "senderId": "bot_wave",
+        "senderName": "🤖 Wave Rider",
+        "content": "Bienvenue dans mon salon test ! 🎧",
+        "timestamp": 1780488675207
+      },
+      {
+        "id": "bot_msg_wave_2",
+        "roomId": "bot_salon_wave",
+        "roomType": "salon",
+        "senderId": "bot_listener",
+        "senderName": "Auditeur Bot",
+        "content": "Trop bien ce morceau 🔥",
+        "timestamp": 1780488735207
+      }
+    ],
+    "bot_salon_pixel": [
+      {
+        "id": "bot_msg_pixel_1",
+        "roomId": "bot_salon_pixel",
+        "roomType": "salon",
+        "senderId": "bot_pixel",
+        "senderName": "🤖 Pixel DJ",
+        "content": "Bienvenue dans mon salon test ! 🎧",
+        "timestamp": 1780488675207
+      },
+      {
+        "id": "bot_msg_pixel_2",
+        "roomId": "bot_salon_pixel",
+        "roomType": "salon",
+        "senderId": "bot_listener",
+        "senderName": "Auditeur Bot",
+        "content": "Trop bien ce morceau 🔥",
+        "timestamp": 1780488735207
+      }
+    ],
+    "bot_salon_milo": [
+      {
+        "id": "bot_msg_milo_1",
+        "roomId": "bot_salon_milo",
+        "roomType": "salon",
+        "senderId": "bot_milo",
+        "senderName": "🤖 Milo Groove",
+        "content": "Bienvenue dans mon salon test ! 🎧",
+        "timestamp": 1780488675207
+      },
+      {
+        "id": "bot_msg_milo_2",
+        "roomId": "bot_salon_milo",
+        "roomType": "salon",
+        "senderId": "bot_listener",
+        "senderName": "Auditeur Bot",
+        "content": "Trop bien ce morceau 🔥",
+        "timestamp": 1780488735207
+      }
+    ],
+    "bot_salon_zara": [
+      {
+        "id": "bot_msg_zara_1",
+        "roomId": "bot_salon_zara",
+        "roomType": "salon",
+        "senderId": "bot_zara",
+        "senderName": "🤖 Zara Mix",
+        "content": "Bienvenue dans mon salon test ! 🎧",
+        "timestamp": 1780488675207
+      },
+      {
+        "id": "bot_msg_zara_2",
+        "roomId": "bot_salon_zara",
+        "roomType": "salon",
+        "senderId": "bot_listener",
+        "senderName": "Auditeur Bot",
+        "content": "Trop bien ce morceau 🔥",
+        "timestamp": 1780488735207
+      }
+    ]
+  },
+  "liveChats": {
+    "salon_dj": [
+      {
+        "id": "lm1",
+        "roomId": "salon_dj",
+        "roomType": "live",
+        "senderId": "user_bass",
+        "senderName": "BassHunter",
+        "content": "Le drop arrive ! 🔥",
+        "timestamp": 1780471519016
+      },
+      {
+        "id": "lm2",
+        "roomId": "salon_dj",
+        "roomType": "live",
+        "senderId": "user_listener",
+        "senderName": "Auditeur",
+        "content": "Incroyable ce morceau",
+        "timestamp": 1780471549016
+      }
+    ],
+    "bot_salon_nova": []
+  },
+  "liveBans": [],
+  "userBlocks": [],
+  "userFollows": {
+    "user_listener": [
+      "user_dj",
+      "user_bass"
+    ]
+  }
+}

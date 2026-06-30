@@ -1,0 +1,2 @@
+-- Préférences création salon (User.salonCreateSetup dans payload JSONB).
+-- Appliqué par la couche application ; pas de colonne SQL dédiée.

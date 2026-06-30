@@ -1,0 +1,290 @@
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import i18n from '../i18n';
+import { api, ApiRequestError } from '../lib/api';
+import { clearStoredToken, getStoredToken, initAuthStorage, isNativePlatform, persistToken } from '../lib/authStorage';
+import { clearPersistedSalonSession } from '../lib/activeSalonSession';
+import { setDiagnosticLogUser, flushDiagnosticLogsToServer } from '../lib/diagnosticLogs';
+import { clearSocketUser, ensureSocketClientLoaded, registerUser, setSocketAuthToken } from '../lib/socket';
+import type { User } from '../types';
+
+interface AuthCtx {
+  authBootPending: boolean;
+  authBootError: string | null;
+  clearAuthBootError: () => void;
+  user: User | null;
+  token: string | null;
+  isNewUser: boolean;
+  clearNewUser: () => void;
+  completeOnboarding: () => Promise<void>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
+  register: (
+    username: string,
+    email: string,
+    password: string,
+    acceptTerms: boolean,
+    termsVersion: string,
+    inviteCode?: string,
+    confirmAge?: boolean
+  ) => Promise<{ emailVerificationRequired: true; message: string } | void>;
+  logout: () => void;
+  refreshUser: () => Promise<void>;
+  setUserFromProfile: (user: User) => void;
+  setSession: (token: string, user: User, rememberMe?: boolean, isNew?: boolean) => void;
+}
+
+const AuthContext = createContext<AuthCtx | null>(null);
+
+function isInvalidSessionError(message: string | undefined, status?: number): boolean {
+  if (status === 404) return true;
+  if (!message) return false;
+  return (
+    message.includes('Session expirée') ||
+    message.includes('Token invalide') ||
+    message.includes('Token manquant') ||
+    message.includes('Utilisateur introuvable')
+  );
+}
+
+function sessionErrorFromUnknown(e: unknown): { message: string; status?: number } {
+  if (e instanceof ApiRequestError) {
+    return { message: e.message, status: e.status };
+  }
+  if (e instanceof Error) {
+    return { message: e.message };
+  }
+  return { message: String(e ?? '') };
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  /**
+   * WEB: token starts null; auth state is bootstrapped via the httpOnly cookie
+   * (see boot effect below). The token is stored in memory after login for
+   * in-session use (socket.io auth) but never persisted to localStorage.
+   *
+   * NATIVE: token is loaded asynchronously from secure storage (Keychain / Keystore).
+   */
+  const [token, setToken] = useState<string | null>(() =>
+    isNativePlatform() ? null : getStoredToken()
+  );
+  const [user, setUser] = useState<User | null>(null);
+  /** True until the first session restore attempt finishes (cookie on web, secure storage on native). */
+  const [authBootPending, setAuthBootPending] = useState(true);
+  const [authBootError, setAuthBootError] = useState<string | null>(null);
+  const clearAuthBootError = () => setAuthBootError(null);
+  const [isNewUser, setIsNewUser] = useState(false);
+  const clearNewUser = () => setIsNewUser(false);
+
+  const completeOnboarding = async () => {
+    setIsNewUser(false);
+    if (!token) {
+      setUser((prev) => (prev ? { ...prev, onboardingCompleted: true } : prev));
+      return;
+    }
+    try {
+      const { user: updated } = await api.completeOnboarding(token);
+      setUser(updated);
+    } catch (err) {
+      console.warn('[AuthContext] completeOnboarding API call failed (optimistic fallback applied):', err);
+      setUser((prev) => (prev ? { ...prev, onboardingCompleted: true } : prev));
+    }
+  };
+  const logoutRef = useRef<() => void>(null!);
+
+  const logout = () => {
+    // Clear server-side httpOnly cookie (web). Noop on failure — cookie expires anyway.
+    api.logout().catch(() => undefined);
+    void clearStoredToken();
+    clearPersistedSalonSession();
+    clearSocketUser();
+    setToken(null);
+    setUser(null);
+    setAuthBootPending(false);
+  };
+  logoutRef.current = logout;
+
+  /** Keep socket JWT in sync with React token before child effects call getSocket(). */
+  useLayoutEffect(() => {
+    setSocketAuthToken(token);
+  }, [token]);
+
+  useEffect(() => {
+    setDiagnosticLogUser(user?.id ?? null, user?.username ?? null);
+    if (user) void flushDiagnosticLogsToServer(token);
+  }, [user?.id, user?.username, token]);
+
+  /**
+   * Boot: authenticate the session on startup.
+   *
+   * WEB: even with a null in-memory token, the httpOnly cookie is sent automatically
+   * with credentials:'include'. If the cookie is valid, /api/auth/me returns the user.
+   *
+   * NATIVE: loads token from secure storage, then validates via /api/auth/me.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    const timeout = window.setTimeout(() => {
+      if (cancelled) return;
+      setAuthBootError(i18n.t('errors.serverUnreachable'));
+      void clearStoredToken();
+      setToken(null);
+      setUser(null);
+      setAuthBootPending(false);
+    }, 20000);
+
+    void (async () => {
+      let sessionToken: string | null = null;
+      if (isNativePlatform()) {
+        sessionToken = await initAuthStorage();
+        if (cancelled) return;
+        setToken(sessionToken);
+        if (!sessionToken) {
+          setAuthBootPending(false);
+          window.clearTimeout(timeout);
+          return;
+        }
+      }
+
+      try {
+        const r = await api.me(sessionToken);
+        if (cancelled) return;
+        const validatedToken = r.token ?? sessionToken;
+        if (validatedToken) setToken(validatedToken);
+        await ensureSocketClientLoaded();
+        setUser(r.user);
+        registerUser(r.user.id, validatedToken);
+      } catch (e: unknown) {
+        if (cancelled) return;
+        const { message, status } = sessionErrorFromUnknown(e);
+        if (isInvalidSessionError(message, status)) {
+          logoutRef.current();
+          return;
+        }
+        setAuthBootError(
+          message ||
+            'Erreur lors du chargement de la session. Déconnectez-vous ou actualisez la page (Ctrl+Shift+R).'
+        );
+      } finally {
+        if (!cancelled) setAuthBootPending(false);
+        window.clearTimeout(timeout);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const login = async (email: string, password: string, rememberMe = true) => {
+    const r = await api.login(email, password, rememberMe);
+    if (!r.token || !r.user) {
+      throw new Error('Réponse de connexion invalide');
+    }
+    // WEB: backend already set the httpOnly cookie — keep token only in memory.
+    // NATIVE: persist to secure storage for cross-session use.
+    await persistToken(r.token, rememberMe);
+    setToken(r.token);
+    await ensureSocketClientLoaded();
+    setUser(r.user);
+    registerUser(r.user.id, r.token);
+  };
+
+  const register = async (
+    username: string,
+    email: string,
+    password: string,
+    acceptTerms: boolean,
+    termsVersion: string,
+    inviteCode?: string,
+    confirmAge?: boolean
+  ) => {
+    const r = await api.register(
+      username,
+      email,
+      password,
+      acceptTerms,
+      termsVersion,
+      inviteCode,
+      confirmAge
+    );
+    if (r.pending) {
+      throw new Error(
+        r.message ||
+          'Inscription enregistrée. Un administrateur doit valider votre compte avant la première connexion.'
+      );
+    }
+    if (r.emailVerificationRequired) {
+      return {
+        emailVerificationRequired: true as const,
+        message:
+          r.message ||
+          'Compte créé. Consultez vos e-mails pour activer votre compte avant de vous connecter.',
+      };
+    }
+    if (!r.token || !r.user) {
+      throw new Error('Réponse d\'inscription invalide');
+    }
+    // WEB: backend already set the httpOnly cookie — keep token only in memory.
+    // NATIVE: persist to secure storage.
+    await persistToken(r.token, true);
+    setToken(r.token);
+    await ensureSocketClientLoaded();
+    setUser(r.user);
+    setIsNewUser(true);
+    registerUser(r.user.id, r.token);
+  };
+
+  const refreshUser = useCallback(async () => {
+    const native = isNativePlatform();
+    if (native && !token) return;
+    try {
+      const r = await api.me(token);
+      setUser(r.user);
+      if (r.token) setToken(r.token);
+    } catch (e: unknown) {
+      const { message, status } = sessionErrorFromUnknown(e);
+      if (isInvalidSessionError(message, status)) {
+        logoutRef.current();
+      }
+    }
+  }, [token]);
+
+  const setUserFromProfile = (u: User) =>
+    setUser((prev) => {
+      // API uses null to signal "field cleared" — JSON cannot represent undefined.
+      // Convert null back to undefined to keep state consistent with the User type.
+      const raw = u as unknown as Record<string, unknown>;
+      const next: User = {
+        ...prev,
+        ...u,
+        isGhostMode: u.isGhostMode ?? prev?.isGhostMode ?? false,
+      } as User;
+      if (raw.usernameColor === null) next.usernameColor = undefined;
+      if (raw.usernameWaveFrom === null) next.usernameWaveFrom = undefined;
+      if (raw.usernameWaveTo === null) next.usernameWaveTo = undefined;
+      return next;
+    });
+
+  const setSession = (t: string, u: User, rememberMe = true, isNew = false) => {
+    void persistToken(t, rememberMe);
+    setToken(t);
+    setUser(u);
+    if (isNew) setIsNewUser(true);
+    registerUser(u.id, t);
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{ user, token, isNewUser, clearNewUser, completeOnboarding, login, register, logout, refreshUser, setUserFromProfile, setSession, authBootPending, authBootError, clearAuthBootError }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth outside provider');
+  return ctx;
+}

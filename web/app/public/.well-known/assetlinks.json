@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.soundy.app",
+      "sha256_cert_fingerprints": [
+        "D2:18:6B:89:06:B5:22:31:F6:2D:09:E8:2D:2A:67:CA:34:CD:1E:0B:8A:15:00:52:24:80:8A:8D:B0:18:FD:7B"
+      ]
+    }
+  }
+]

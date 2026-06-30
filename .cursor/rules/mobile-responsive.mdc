@@ -92,6 +92,6 @@ className="ms-safe-area-top"   // project helper class
 - 768px wide (iPad) — two-column layouts expected
 - Admin panel features are **desktop-only by design** — acceptable
 
-## apptel/ mirrors app/ for mobile Capacitor overrides
+## ios/apptel/ mirrors app/ for mobile Capacitor overrides
 
-Mobile-specific overrides go in `apptel/src/` (Capacitor build). Shared fixes go in `app/src/`.
+Mobile-specific overrides go in `ios/apptel/src/` (Capacitor build). Shared fixes go in `app/src/`.

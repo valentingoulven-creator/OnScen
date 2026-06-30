@@ -7,7 +7,17 @@
       "request": "launch",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev:msdev"],
-      "cwd": "${workspaceFolder}/backend",
+      "cwd": "${workspaceFolder}/commun/backend",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "name": "msdev: Web (Vite)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "${workspaceFolder}/web/app",
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen"
     },
@@ -24,8 +34,7 @@
   "compounds": [
     {
       "name": "msdev: Full Stack",
-      "configurations": ["msdev: Backend"],
-      "preLaunchTask": "msdev: start server"
+      "configurations": ["msdev: Backend", "msdev: Web (Vite)"]
     }
   ]
 }

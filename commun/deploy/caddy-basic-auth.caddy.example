@@ -1,0 +1,18 @@
+# Exemple — protection Basic Auth UI (pré-lancement ou staging privé).
+# NE PAS committer de vrais mots de passe.
+#
+# Sur le VPS :
+#   caddy hash-password
+#   cp deploy/caddy-basic-auth.caddy.example /opt/soundly/deploy/caddy-basic-auth.caddy
+#   éditer les utilisateurs, puis dans Caddyfile :
+#   import /opt/soundly/deploy/caddy-basic-auth.caddy
+#
+# Ce snippet remplace le bloc `handle { reverse_proxy ... }` catch-all.
+
+handle {
+	basic_auth {
+		# username bcrypt_hash
+		# admin $2a$14$REPLACE_WITH_caddy_hash_password_OUTPUT
+	}
+	reverse_proxy localhost:3000
+}
