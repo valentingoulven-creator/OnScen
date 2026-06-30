@@ -7,7 +7,7 @@ export type ListeningRole = 'auditeur' | 'host' | 'les_deux';
 
 export type RelationshipStatus = 'celibataire' | 'en_couple' | 'autre';
 
-/** Type de profil / activité (bar, DJ, compositeur, etc.) — distinct du rôle d'écoute Soundly. */
+/** Type de profil / activité (bar, DJ, compositeur, etc.) — distinct du rôle d'écoute Soundy. */
 export type ProfileType =
   | 'bar'
   | 'restaurant'
@@ -47,7 +47,7 @@ export interface PlatformAccount {
 export interface User {
   id: string;
   username: string;
-  /** Hex (#rrggbb) ou `wave` (dégradé Soundly). */
+  /** Hex (#rrggbb) ou `wave` (dégradé Soundy). */
   usernameColor?: string;
   /** Couleur de départ du dégradé wave (hex, si usernameColor === wave). */
   usernameWaveFrom?: string;
@@ -101,6 +101,12 @@ export interface User {
   onboardingCompleted?: boolean;
   /** Gestion des accès ngrok / tunnel public */
   isAdmin?: boolean;
+  /** Fin de suspension temporaire (UNIX ms) — absent = suspension permanente. */
+  blockedUntil?: number;
+  /** Motif interne admin (non affiché à l'utilisateur). */
+  blockedReason?: string;
+  /** Horodatage de la dernière suspension (UNIX ms). */
+  blockedAt?: number;
   /** Compteur « vous suivent » affiché (msdev démo) — remplace le décompte réel si défini. */
   favoritesCountOverride?: number;
   /** Réseaux sociaux publics (optionnels) */
@@ -133,6 +139,18 @@ export interface User {
   tokenVersion?: number;
   /** Live input Cloudflare Stream persistant pour OBS (clé RTMP unique par compte). */
   cloudflareObsLiveInputId?: string;
+  /** Préférences création salon — voir lib/salonCreateSetup.ts */
+  salonCreateSetup?: {
+    title?: string;
+    accessMode?: 'public' | 'invite';
+    allowQueue?: boolean;
+    genres?: string[];
+    startLatitude?: number;
+    startLongitude?: number;
+    startLocationLabel?: string;
+    startLocationSource?: 'my_position' | 'city' | 'address';
+    configuredAt?: number;
+  };
   /** Préférences de démarrage live — voir lib/liveMediaSetup.ts */
   liveMediaSetup?: {
     videoDeviceId?: string;
@@ -142,6 +160,7 @@ export interface User {
     startLocationLabel?: string;
     startLocationSource?: 'my_position' | 'city' | 'address';
     liveTitle?: string;
+    contentCategory?: 'music' | 'dance' | 'artistic';
     chatConfig?: {
       noLinksForParticipants?: boolean;
       slowModeSeconds?: number;
@@ -335,6 +354,10 @@ export interface Live {
   donationOptions?: LiveDonationOption[];
   /** Pourboires activés sur ce live (false si l'hôte a choisi « sans RIB » au lancement). */
   tipsEnabled?: boolean;
+  /** Catégorie de contenu : musique, danse ou artistique. */
+  contentCategory?: 'music' | 'dance' | 'artistic';
+  /** Délai vidéo pour les spectateurs (secondes). 0 = temps réel. */
+  videoDelaySeconds?: number;
 }
 
 export type LiveBanScope = 'chat' | 'live';
@@ -429,11 +452,11 @@ export interface DonationPayment {
   createdAt: number;
 }
 
-/** Abonnement mensuel à un créateur ou à Soundly+ (plateforme). */
+/** Abonnement mensuel à un créateur ou à Soundy+ (plateforme). */
 export interface CreatorSubscription {
   id: string;
   subscriberId: string;
-  /** userId du créateur, ou `platform` pour Soundly+ */
+  /** userId du créateur, ou `platform` pour Soundy+ */
   creatorId: string;
   tierId: string;
   tierLabel: string;
@@ -656,6 +679,10 @@ export interface UserReel {
   createdAt: number;
   /** private = profil uniquement ; absent = public (rétrocompat) */
   visibility?: ReelVisibility;
+  /** Piste audio séparée (morceau Discographie Soundy) — vidéo muette côté lecteur. */
+  audioUrl?: string;
+  /** Morceau source lorsque le son provient de la discographie utilisateur. */
+  compositionId?: string;
   /** Masqué par modération admin (flux et profils publics). */
   adminBlocked?: boolean;
   adminBlockedAt?: number;
@@ -748,12 +775,16 @@ export interface Story {
   userId: string;
   content?: string;
   imageUrl?: string;
+  /** Vidéo story (data URL ou HTTPS). imageUrl sert de poster / vignette anneau. */
+  videoUrl?: string;
+  /** Durée vidéo en secondes (visionneur). */
+  videoDurationSec?: number;
   musicTrack?: StoryMusicTrack;
   taggedUserIds?: string[];
   link?: StoryLink;
   createdAt: number;
   expiresAt: number;
-  /** 'public' = tout le monde, 'followers' = abonnés mutuels uniquement. Défaut : 'followers'. */
+  /** 'public' = tout le monde, 'followers' = abonnés de l'auteur uniquement. Défaut : 'followers'. */
   visibility?: 'public' | 'followers';
 }
 

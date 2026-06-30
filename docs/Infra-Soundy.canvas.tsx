@@ -38,7 +38,7 @@ import {
  *     Node["Node.js Express"]
  *     SIO["Socket.io temps réel"]
  *     Coturn["Coturn TURN :3478"]
- *     Uploads["/opt/soundly/public/uploads"]
+ *     Uploads["/opt/soundy/public/uploads"]
  *     Dump["pg_dump cron 03:15 · 14j"]
  *   end
  *   subgraph DB["PostgreSQL Managed · 51.15.132.229:14440"]
@@ -91,7 +91,7 @@ const META = {
   vpsPlan: "DEV1-S",
   dbHost: "51.15.132.229:14440",
   dbPlan: "DB-DEV-S",
-  appPath: "/opt/soundly",
+  appPath: "/opt/soundy",
 };
 
 /* ── RPO / RTO par couche ── */
@@ -111,7 +111,7 @@ const RPO_RTO_ROWS: [string, string, string, string, string, string][] = [
     "14 jours",
     "≤ 24 h",
     "30 min – 2 h",
-    "/opt/soundly/backups/soundy-*.sql.gz",
+    "/opt/soundy/backups/soundy-*.sql.gz",
   ],
   [
     "Snapshot mémoire → PostgreSQL",
@@ -130,7 +130,7 @@ const RPO_RTO_ROWS: [string, string, string, string, string, string][] = [
     "/root/Caddyfile.production.backup · sync-caddy.sh",
   ],
   [
-    "Uploads /opt/soundly/public/uploads",
+    "Uploads /opt/soundy/public/uploads",
     "Aucune sauvegarde",
     "—",
     "Perte totale",
@@ -151,7 +151,7 @@ const RPO_RTO_ROWS: [string, string, string, string, string, string][] = [
 
 const RESOURCE_ROWS: [string, string, string, string, string][] = [
   ["VPS DEV1-S", "1 vCPU", "~1,9 Go RAM", "~20 Go SSD", "Node, Caddy, PM2, Coturn, backups"],
-  ["PM2 melosong-backend", "1 process fork", "max 512 Mo", "logs /opt/soundly/logs/", "autorestart · healthcheck */2"],
+  ["PM2 melosong-backend", "1 process fork", "max 512 Mo", "logs /opt/soundy/logs/", "autorestart · healthcheck */2"],
   ["Caddy", "partagé VPS", "~50–100 Mo", "config /etc/caddy/", "HTTPS getsoundy.com"],
   ["Coturn TURN", "partagé VPS", "~50–80 Mo", "—", "port 3478 · mesh WebRTC fallback"],
   ["PostgreSQL DB-DEV-S", "1 vCPU", "2 Go RAM", "10 Go SSD", "max_connections=100 · PG_POOL_MAX=10"],

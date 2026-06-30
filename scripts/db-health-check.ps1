@@ -39,14 +39,14 @@ Write-Host ''
 Write-Host '--- Backups ---'
 
 if (-not $BackupDir) {
-    foreach ($c in @('C:\opt\soundly\backups', '/opt/soundy/backups')) {
+    foreach ($c in @('C:\opt\soundy\backups', '/opt/soundy/backups')) {
         if (Test-Path $c) { $BackupDir = $c; break }
     }
 }
 
 if (-not $BackupDir -or -not (Test-Path $BackupDir)) {
     Write-Host 'INFO: no local backup folder (normal on dev Windows)' -ForegroundColor Yellow
-    Write-Host '      On VPS run: bash /opt/soundly/deploy/db-health-check.sh'
+    Write-Host '      On VPS run: bash /opt/soundy/deploy/db-health-check.sh'
 } else {
     $latest = Get-ChildItem -Path $BackupDir -Filter 'soundy-*.sql.gz' -File |
         Sort-Object LastWriteTime -Descending |

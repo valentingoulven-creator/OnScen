@@ -52,6 +52,11 @@ export function getAlbumPath(userId: string, albumId: string): string {
   return `${getProfilePath(userId)}?${params.toString()}`;
 }
 
+export function getCompositionPath(userId: string, compositionId: string): string {
+  const params = new URLSearchParams({ tab: 'compositions', track: compositionId });
+  return `${getProfilePath(userId)}?${params.toString()}`;
+}
+
 export async function getAlbumShareUrl(userId: string, albumId: string): Promise<string> {
   const base = await resolveShareOrigin();
   return `${base}${getAlbumPath(userId, albumId)}`;

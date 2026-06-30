@@ -85,7 +85,12 @@ export function getAdminDonationsHistory(opts?: {
 
   const donationGifts = db.gifts
     .filter(isLiveDonationGift)
-    .sort((a, b) => b.timestamp - a.timestamp);
+    .sort((a, b) => {
+      const byTime = b.timestamp - a.timestamp;
+      if (byTime !== 0) return byTime;
+      // Même milliseconde : le dernier pushé dans db.gifts gagne
+      return db.gifts.indexOf(b) - db.gifts.indexOf(a);
+    });
 
   const items = donationGifts
     .slice(offset, offset + limit)

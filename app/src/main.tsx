@@ -5,6 +5,8 @@ import './i18n';
 import './index.css';
 import { initAppTheme } from './lib/appTheme';
 import { initDiagnosticLogs } from './lib/diagnosticLogs';
+import { initSentry } from './lib/sentry';
+import { migrateAllLegacyStorageKeys } from './lib/storageKeys';
 import App from './App.tsx';
 import { AppErrorBoundary } from './components/AppErrorBoundary.tsx';
 import { MsdevEnvIndicator } from './components/MsdevEnvBadge.tsx';
@@ -18,6 +20,8 @@ import {
 } from './lib/phoneViewport';
 import { isNativeApp } from './lib/nativePlatform';
 
+migrateAllLegacyStorageKeys();
+initSentry();
 initAppTheme();
 initDiagnosticLogs();
 

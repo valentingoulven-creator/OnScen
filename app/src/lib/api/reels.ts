@@ -46,6 +46,7 @@ export const reelsApi = {
       visibility?: 'public' | 'private';
       isPrivate?: boolean;
       rightsConfirmed?: boolean;
+      compositionId?: string;
     }
   ) =>
     request<{ reel: import('../../content/reels').MusicReel }>(

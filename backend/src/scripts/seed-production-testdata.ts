@@ -1,7 +1,7 @@
 /**
  * Seed données de test production (PostgreSQL).
  * Usage sur le VPS :
- *   cd /opt/soundly && APP_ENV=production node dist/scripts/seed-production-testdata.js
+ *   cd /opt/soundy && APP_ENV=production node dist/scripts/seed-production-testdata.js
  *
  * Variables optionnelles :
  *   SEED_TARGET_EMAIL — email du compte cible (défaut : admin@getsoundy.com)

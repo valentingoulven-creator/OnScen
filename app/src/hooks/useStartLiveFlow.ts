@@ -109,6 +109,7 @@ export function useStartLiveFlow({
         longitude: lon,
         stripeConnectSkipped: skipped || undefined,
         useObs: prefs?.useObs || undefined,
+        contentCategory: prefs?.contentCategory,
       });
       clearLiveMediaDraft();
       setMediaSetupGeneration((g) => g + 1);

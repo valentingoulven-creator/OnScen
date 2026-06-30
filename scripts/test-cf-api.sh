@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-ENV_FILE="${1:-/opt/soundly/.env}"
+ENV_FILE="${1:-/opt/soundy/.env}"
 ACCOUNT=$(grep '^CLOUDFLARE_ACCOUNT_ID=' "$ENV_FILE" | cut -d= -f2-)
 TOKEN=$(grep '^CLOUDFLARE_STREAM_API_TOKEN=' "$ENV_FILE" | cut -d= -f2-)
 SUBDOMAIN=$(grep '^CLOUDFLARE_STREAM_CUSTOMER_SUBDOMAIN=' "$ENV_FILE" | cut -d= -f2-)

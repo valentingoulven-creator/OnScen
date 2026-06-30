@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { buildMapStoryEntries, type MapStoryEntry } from '../lib/mapStoriesFeed';
@@ -17,20 +18,16 @@ import {
   NEARBY_PANEL_CHANGED_EVENT,
   type NearbyPanelPreferences,
 } from '../lib/nearbyPanelSettings';
-import { isMapStoriesCollapsed, setMapStoriesCollapsed } from '../lib/mapStoriesPrefs';
 import { fetchStoriesBundle, invalidateStoriesCache } from '../lib/storiesApiCache';
 import { normalizeProfileReelFromApi } from '../content/reelsFeed';
 import type { MusicReel } from '../content/reels';
-import { USERNAME_WAVE_CLASS } from '../lib/usernameColor';
 import type { MapStory, NearbyPerson } from '../types';
 import { MapStorySheet } from './MapStorySheet';
-import { MapStoryRing, MyMapStoryRing } from './MapStoryRings';
+import { MapStoryRing, MyMapStoryRing, StoryCreateRing } from './MapStoryRings';
 import { StoryLivePreviewViewer } from './StoryLivePreviewViewer';
 import { StoryViewer } from './StoryViewer';
 import { useStoryViewerWithSponsors } from '../hooks/useStoryViewerWithSponsors';
 import { StoriesRingsCarousel } from './StoriesRingsCarousel';
-import { StoriesAdBanner } from './StoriesAdBanner';
-import { dispatchMapOpenCreateSalon } from '../lib/mapUiEvents';
 
 function loadSeenStoryIds(userId: string): Set<string> {
   try {
@@ -70,6 +67,7 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
   onOpenLive,
   isActive,
 }: StoriesInlineBarProps) {
+  const { t } = useTranslation();
   const { token, user } = useAuth();
   const [entries, setEntries] = useState<MapStoryEntry[]>([]);
   const [myStories, setMyStories] = useState<MapStory[]>([]);
@@ -77,7 +75,6 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
   const [sheet, setSheet] = useState<StorySheetState>({ kind: 'closed' });
   const [livePreview, setLivePreview] = useState<LivePreviewState>({ kind: 'closed' });
   const [loading, setLoading] = useState(false);
-  const [collapsed, setCollapsed] = useState(isMapStoriesCollapsed);
   const [prefs, setPrefs] = useState<NearbyPanelPreferences>(() => getNearbyPanelPreferences());
   const [seenStoryIds, setSeenStoryIds] = useState<Set<string>>(() =>
     user?.id ? loadSeenStoryIds(user.id) : new Set()
@@ -104,11 +101,6 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
       window.removeEventListener(NEARBY_PANEL_CHANGED_EVENT, syncPrefs);
     };
   }, []);
-
-  const countLabel = useMemo(() => {
-    if (loading) return '…';
-    return String(entries.length + (user && token ? 1 : 0));
-  }, [entries.length, loading, token, user]);
 
   const loadStories = useCallback(async () => {
     if (!token) {
@@ -169,14 +161,15 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
         syntheticPeople.push({ id: aid, username: info.username, avatarUrl: info.avatarUrl });
       }
 
-      const followedEphemeral = storiesBundle.stories.filter((s) => isFollowed(s.userId));
-      const byUser = groupStoriesByUser(followedEphemeral);
+      // L'API filtre déjà visibilité / blocages ; inclure les stories publiques hors abonnements.
+      const ephemeralStories = storiesBundle.stories;
+      const byUser = groupStoriesByUser(ephemeralStories);
       setStoriesByUser(byUser);
       const mine = storiesBundle.mine;
       setMyStories(mine);
 
       if (user?.id) {
-        const activeIds = [...followedEphemeral, ...mine].map((s) => s.id);
+        const activeIds = [...ephemeralStories, ...mine].map((s) => s.id);
         setSeenStoryIds((prev) => {
           const pruned = pruneSeenStoryIds(prev, activeIds);
           if (pruned === prev) return prev;
@@ -190,9 +183,12 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
         buildMapStoryEntries(filteredPeople, favRes.favorites, reels, {
           favoritesFirst: prefs.favoritesFirst,
           favoriteIds,
-          ephemeralStories: followedEphemeral,
-        })
-          .filter((e) => e.userId !== user?.id && isFollowed(e.userId))
+          ephemeralStories,
+        }).filter(
+          (e) =>
+            e.userId !== user?.id &&
+            (isFollowed(e.userId) || e.hasActiveStory)
+        )
       );
     } catch {
       setEntries([]);
@@ -275,6 +271,8 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
     [sortedEntries.length, token, user]
   );
 
+  const openCreate = useCallback(() => setSheet({ kind: 'create' }), []);
+
   const storyStacks = useMemo(
     () => buildStoryUserStacks(entries, storiesByUser, myStories),
     [entries, storiesByUser, myStories]
@@ -317,91 +315,73 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
   return (
     <>
       <div className="rounded-xl border border-[var(--ms-border)] bg-[var(--ms-surface)] overflow-hidden min-w-0">
-        <div className="w-full min-w-0">
-          <div className="flex items-center gap-1 px-2 py-1.5 border-b border-[var(--ms-border)]/80">
-            <button
-              type="button"
-              onClick={() => {
-                const next = !collapsed;
-                setCollapsed(next);
-                setMapStoriesCollapsed(next);
-              }}
-              className="flex-1 flex items-center gap-1.5 min-w-0 min-h-11 text-left"
-              aria-expanded={!collapsed}
-            >
-              <span className={`text-[10px] font-extrabold uppercase tracking-wider ${USERNAME_WAVE_CLASS}`}>
-                Stories
-              </span>
-              <span className="text-[9px] text-[var(--ms-text-muted)]">({countLabel})</span>
-              <svg
-                viewBox="0 0 24 24"
-                className={`w-3.5 h-3.5 text-gray-300 shrink-0 transition ${collapsed ? '' : 'rotate-180'}`}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-          </div>
-
-          {!collapsed && (
-            <div className="min-w-0">
-              <StoriesAdBanner
-                onCtaSalon={() => dispatchMapOpenCreateSalon()}
-                onCtaLive={onOpenLive ? () => onOpenLive('') : undefined}
-              />
-              {loading && entries.length === 0 && !user ? (
-                <p className="text-[10px] text-[var(--ms-text-muted)] text-center py-2 px-2">Chargement des stories…</p>
-              ) : showEmptyGuest ? (
-                <p className="text-[10px] text-[var(--ms-text-muted)] text-center py-2 px-2 leading-snug">
-                  Aucune story pour le moment.
-                </p>
-              ) : (
-                <>
-                  <StoriesRingsCarousel itemCount={ringCount}>
-                    {user && token ? (
+        <div className="w-full min-w-0 min-h-0">
+          {loading && entries.length === 0 && !user ? (
+              <p className="text-[10px] text-[var(--ms-text-muted)] text-center py-3 px-3">
+                {t('stories.rail.loading')}
+              </p>
+            ) : showEmptyGuest ? (
+              <p className="text-[10px] text-[var(--ms-text-muted)] text-center py-3 px-3 leading-snug">
+                {t('stories.rail.emptyGuest')}
+              </p>
+            ) : (
+              <>
+                <StoriesRingsCarousel itemCount={ringCount}>
+                  {user && token ? (
+                    myStories.length > 0 ? (
                       <MyMapStoryRing
                         userId={user.id}
                         username={user.username}
-                        avatarUrl={user.profilePhotos?.find(p => !!p) ?? user.avatarUrl}
-                        hasActiveStory={myStories.length > 0}
+                        avatarUrl={user.profilePhotos?.find((p) => !!p) ?? user.avatarUrl}
+                        hasActiveStory
                         storyImageUrl={myLatestStory?.imageUrl}
                         storyCount={myStories.length}
+                        viewLabel={t('stories.rail.myStory')}
+                        addLabel={t('stories.rail.addShort')}
                         onClick={openMyStory}
-                        onAddClick={() => setSheet({ kind: 'create' })}
+                        onAddClick={openCreate}
                       />
-                    ) : null}
-                    {sortedEntries.map((entry) => {
-                      const userStoryIds = storiesByUser.get(entry.userId)?.map((s) => s.id);
-                      const stack = storiesByUser.get(entry.userId);
-                      const entrySeen = stack?.length ? areAllStoriesSeen(stack, seenStoryIds) : false;
-                      return (
-                        <MapStoryRing
-                          key={entry.userId}
-                          entry={entry}
-                          onClick={() => openEntry(entry)}
-                          isSeen={entrySeen}
-                          storyIds={userStoryIds}
-                          seenStoryIds={seenStoryIds}
-                        />
-                      );
-                    })}
-                  </StoriesRingsCarousel>
-                  {showEmptyFollowing ? (
-                    <div className="px-3 py-2.5 text-center border-t border-[var(--ms-border)]/60">
-                      <p className="text-[10px] text-gray-300 leading-snug">
-                        Suivez des artistes pour voir leurs stories
-                      </p>
-                      <p className="mt-1 text-[9px] text-[var(--ms-text-muted)]">
-                        Parcourez la carte ou les profils pour vous abonner
-                      </p>
-                    </div>
+                    ) : (
+                      <StoryCreateRing
+                        userId={user.id}
+                        username={user.username}
+                        avatarUrl={user.profilePhotos?.find((p) => !!p) ?? user.avatarUrl}
+                        label={t('stories.rail.create')}
+                        onClick={openCreate}
+                      />
+                    )
                   ) : null}
-                </>
-              )}
-            </div>
-          )}
+                  {sortedEntries.map((entry) => {
+                    const userStoryIds = storiesByUser.get(entry.userId)?.map((s) => s.id);
+                    const stack = storiesByUser.get(entry.userId);
+                    const entrySeen = stack?.length ? areAllStoriesSeen(stack, seenStoryIds) : false;
+                    return (
+                      <MapStoryRing
+                        key={entry.userId}
+                        entry={entry}
+                        onClick={() => openEntry(entry)}
+                        isSeen={entrySeen}
+                        storyIds={userStoryIds}
+                        seenStoryIds={seenStoryIds}
+                      />
+                    );
+                  })}
+                </StoriesRingsCarousel>
+                {showEmptyFollowing ? (
+                  <div className="px-3 py-3 text-center border-t border-[var(--ms-border)]/60 space-y-2">
+                    <p className="text-[10px] text-gray-300 leading-snug">{t('stories.rail.emptyFollowing')}</p>
+                    <p className="text-[9px] text-[var(--ms-text-muted)]">{t('stories.rail.emptyFollowingHint')}</p>
+                    <button
+                      type="button"
+                      onClick={openCreate}
+                      className="min-h-11 px-4 py-2 rounded-full text-xs font-semibold bg-purple-600/90 hover:bg-purple-500 text-white transition"
+                    >
+                      {t('stories.rail.createFirst')}
+                    </button>
+                  </div>
+                ) : null}
+              </>
+            )}
         </div>
       </div>
 

@@ -130,10 +130,10 @@ export function ensureProductionSponsorContent(): {
   const events = seedProductionSponsorEvents();
   if (events.created > 0) {
     console.log(
-      `[soundly] Événements sponsorisés carte : ${events.created} créé(s) (${events.total} au total)`
+      `[soundy] Événements sponsorisés carte : ${events.created} créé(s) (${events.total} au total)`
     );
   } else if (events.skippedNoAuthor) {
-    console.warn('[soundly] Événements sponsorisés carte ignorés — aucun compte admin trouvé');
+    console.warn('[soundy] Événements sponsorisés carte ignorés — aucun compte admin trouvé');
   }
   return { events };
 }

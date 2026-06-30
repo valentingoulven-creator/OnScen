@@ -1,13 +1,14 @@
 import { useCallback, useState, type ReactNode } from 'react';
 import { FloatingSalonChat } from './FloatingSalonChat';
+import { getStorageItem, setStorageItem, STORAGE_KEYS } from '../lib/storageKeys';
 
-const DOCK_MODE_KEY = 'soundly_theater_chat_dock_mode';
+const DOCK_MODE_KEY = STORAGE_KEYS.theaterChatDockMode;
 
 export type TheaterChatDock = 'floating' | 'bottom' | 'right' | 'left';
 
 function readDockMode(): 'floating' | 'right' {
   try {
-    const v = localStorage.getItem(DOCK_MODE_KEY);
+    const v = getStorageItem(DOCK_MODE_KEY);
     if (v === 'floating' || v === 'right') return v;
   } catch {
     /* ignore */
@@ -191,7 +192,7 @@ export function RoomTheaterLayout({
     setDockMode((current) => {
       const next = current === 'right' ? 'floating' : 'right';
       try {
-        localStorage.setItem(DOCK_MODE_KEY, next);
+        setStorageItem(DOCK_MODE_KEY, next);
       } catch {
         /* ignore */
       }

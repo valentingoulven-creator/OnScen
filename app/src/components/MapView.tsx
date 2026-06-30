@@ -47,6 +47,10 @@ export type MapStyle = 'flat' | 'globe';
 
 /** Handle impératif exposé par MapView via forwardRef. */
 export interface MapViewHandle {
+  /** Leaflet prêt (instance initialisée). */
+  isMapReady: () => boolean;
+  /** Recalcule la taille du conteneur (onglet caché → visible). */
+  invalidateSize: () => void;
   /** Repositionne la carte Leaflet instantanément (sans animation). */
   jumpTo: (lat: number, lng: number, zoom?: number) => void;
   /** Anime en douceur la carte vers les coordonnées et le zoom donnés. */
@@ -235,6 +239,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   const globeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const crossfadeRafRef = useRef<number | null>(null);
   const skipCenterFlyRef = useRef(false);
+  const programmaticMapMoveUntilRef = useRef(0);
   const onMapDetailStateChangeRef = useRef(onMapDetailStateChange);
   onMapDetailStateChangeRef.current = onMapDetailStateChange;
 
@@ -518,6 +523,16 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   }, [flatReveal, mapStyle, showGlobe, syncZoomControlFromView]);
 
   useImperativeHandle(ref, () => ({
+    isMapReady() {
+      return mapInstance.current != null;
+    },
+    invalidateSize() {
+      try {
+        mapInstance.current?.invalidateSize();
+      } catch {
+        // Map may not be ready
+      }
+    },
     prepareFlatAt(lat: number, lng: number, zoom = 14, radiusKm?: number) {
       if (!mapInstance.current || !isValidLatLng(lat, lng)) return;
       skipCenterFlyRef.current = true;
@@ -568,9 +583,11 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     },
     flyToCityBounds(lat: number, lng: number, radiusKm: number, opts?: { durationSec?: number }) {
       if (!mapInstance.current || !isValidLatLng(lat, lng) || radiusKm <= 0) return;
-      skipCenterFlyRef.current = true;
       const duration = opts?.durationSec ?? MAP_CITY_FLY_DURATION_S;
+      programmaticMapMoveUntilRef.current = Date.now() + Math.ceil(duration * 1000) + 500;
+      skipCenterFlyRef.current = true;
       try {
+        mapInstance.current.invalidateSize();
         const bounds = L.circle(sanitizeLatLngTuple(lat, lng), { radius: radiusKm * 1000 }).getBounds();
         mapInstance.current.flyToBounds(bounds, {
           padding: [48, 48],
@@ -811,7 +828,10 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     };
     const onMapMoveEnd = () => {
       onViewChange();
-      if (skipCenterFlyRef.current) return;
+      const programmatic = skipCenterFlyRef.current;
+      if (programmatic) {
+        skipCenterFlyRef.current = false;
+      }
       try {
         const c = map.getCenter();
         if (!isValidLatLng(c.lat, c.lng)) return;
@@ -876,6 +896,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     const map = mapInstance.current;
     if (!map) return;
     if (!isValidLatLng(center[0], center[1])) return;
+    if (Date.now() < programmaticMapMoveUntilRef.current) return;
     if (recenterToken === lastRecenterTokenRef.current && userMapPanRef.current) return;
     lastRecenterTokenRef.current = recenterToken;
     if (skipCenterFlyRef.current) {

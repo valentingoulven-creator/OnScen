@@ -30,7 +30,7 @@ create_bucket_with_scw() {
 }
 print_env_template() {
   echo
-  echo "# Add to /opt/soundly/.env (never commit):"
+  echo "# Add to /opt/soundy/.env (never commit):"
   echo "SCW_BUCKET=${BUCKET}"
   echo "SCW_REGION=${REGION}"
   echo "SCW_ACCESS_KEY=<iam-access-key>"
@@ -41,15 +41,15 @@ main() {
   log "Scaleway Object Storage setup (bucket=${BUCKET}, region=${REGION})"
   if [[ "$VPS_ONLY" -eq 1 ]]; then
     install_awscli_vps
-    if [[ -f /opt/soundly/.env ]] && grep -q '^SCW_BUCKET=' /opt/soundly/.env; then
-      set -a; source /opt/soundly/.env; set +a
+    if [[ -f /opt/soundy/.env ]] && grep -q '^SCW_BUCKET=' /opt/soundy/.env; then
+      set -a; source /opt/soundy/.env; set +a
       if [[ -n "${SCW_ACCESS_KEY:-}" && -n "${SCW_SECRET_KEY:-}" ]]; then
-        bash /opt/soundly/deploy/backup-offsite.sh
+        bash /opt/soundy/deploy/backup-offsite.sh
       else
         log "WARN: SCW_BUCKET set but keys missing"
       fi
     else
-      log "SCW_BUCKET not in /opt/soundly/.env"
+      log "SCW_BUCKET not in /opt/soundy/.env"
       print_env_template
     fi
     return 0

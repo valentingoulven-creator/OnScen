@@ -2,7 +2,7 @@
 # Check Stripe Connect state for a host on production VPS.
 set -eu
 set -a
-source /opt/soundly/.env
+source /opt/soundy/.env
 set +a
 
 USER_ID="${1:-user_1781025111633_ipv5l}"

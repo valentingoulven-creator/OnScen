@@ -7,6 +7,7 @@ import { getDonationsSummaryReport } from '../lib/donationsSummary';
 import { getAdminDonationsHistory } from '../lib/donationsHistory';
 import { getVpsMetricsReport } from '../lib/vpsMetrics';
 import { getProdSaasStatusReport } from '../lib/prodSaasStatus';
+import { getAdminDiagnosticsReport } from '../lib/adminDiagnostics';
 
 export const adminCloudflareRouter = Router();
 
@@ -83,4 +84,20 @@ adminCloudflareRouter.get('/vps-metrics', authenticateJWT, async (req: Request, 
 adminCloudflareRouter.get('/prod-saas-status', authenticateJWT, (req: Request, res: Response) => {
   if (!requireAdmin(req, res)) return;
   res.json(getProdSaasStatusReport());
+});
+
+/**
+ * GET /api/admin/diagnostics
+ * Vue d'ensemble infra : Sentry, PostGIS, PostgreSQL, backups, stats logs app.
+ */
+adminCloudflareRouter.get('/diagnostics', authenticateJWT, async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const report = await getAdminDiagnosticsReport();
+    res.json(report);
+  } catch (e) {
+    res.status(502).json({
+      error: e instanceof Error ? e.message : 'Erreur diagnostic admin',
+    });
+  }
 });

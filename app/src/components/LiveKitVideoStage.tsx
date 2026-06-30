@@ -10,9 +10,24 @@ import {
   useTracks,
 } from '@livekit/components-react';
 import { ConnectionState, RoomEvent, Track, type RoomOptions } from 'livekit-client';
+import {
+  buildLiveKitAudioCaptureOptions,
+  buildLiveKitVideoCaptureOptions,
+  getLiveVideoResolutionPreset,
+  type LiveVideoResolutionPreset,
+} from '../lib/liveVideoResolution';
+import {
+  getLiveVideoAspectRatioClass,
+  getLiveVideoAspectRatioCss,
+  getLiveVideoAspectRatioPreset,
+  type LiveVideoAspectRatioPreset,
+} from '../lib/liveVideoAspectRatio';
+import { normalizeBrandText } from '../lib/brandName';
 import { api } from '../lib/api';
 import { LiveStreamEndedOverlay } from './LiveStreamEndedOverlay';
 import { LiveVideoUnavailableOverlay } from './LiveVideoUnavailableOverlay';
+import { LiveTheaterLiveBadge, LiveVideoStagePlaceholder } from './LiveVideoStagePlaceholder';
+import { LiveTheaterStatusBar, LiveVideoChromeButton } from './LiveVideoTheaterChrome';
 import {
   LIVE_CAMERA_HOST_LIVEKIT_START,
   LIVE_CAMERA_VIEWER_FILE_NOTE,
@@ -20,6 +35,7 @@ import {
   LIVE_CAMERA_VIEWER_LIVEKIT_ERROR,
   LIVE_CAMERA_VIEWER_LIVEKIT_NO_HOST_CAMERA,
   LIVE_CAMERA_VIEWER_LIVEKIT_WAITING,
+  isHiddenHostTheaterStatus,
 } from '../lib/liveCameraMessages';
 
 const LIVEKIT_VIDEO_WAIT_TIMEOUT_MS = 30_000;
@@ -113,11 +129,19 @@ type LiveKitSession = {
 function LiveKitHostPublisher({
   publishActive,
   micEnabled,
+  videoDeviceId,
+  audioDeviceId,
+  videoResolution,
+  videoAspectRatio,
   onPublishChange,
   onError,
 }: {
   publishActive: boolean;
   micEnabled: boolean;
+  videoDeviceId?: string;
+  audioDeviceId?: string;
+  videoResolution: LiveVideoResolutionPreset;
+  videoAspectRatio: LiveVideoAspectRatioPreset;
   onPublishChange: (active: boolean) => void;
   onError: (message: string) => void;
 }) {
@@ -129,9 +153,23 @@ function LiveKitHostPublisher({
   );
 
   const syncMedia = useCallback(async () => {
-    await localParticipant.setCameraEnabled(publishActive);
-    await localParticipant.setMicrophoneEnabled(micEnabled);
-  }, [localParticipant, publishActive, micEnabled]);
+    const videoOptions = buildLiveKitVideoCaptureOptions(
+      videoResolution,
+      videoDeviceId,
+      videoAspectRatio
+    );
+    const audioOptions = buildLiveKitAudioCaptureOptions(audioDeviceId);
+    await localParticipant.setCameraEnabled(publishActive, videoOptions);
+    await localParticipant.setMicrophoneEnabled(micEnabled, audioOptions);
+  }, [
+    audioDeviceId,
+    localParticipant,
+    micEnabled,
+    publishActive,
+    videoDeviceId,
+    videoResolution,
+    videoAspectRatio,
+  ]);
 
   useEffect(() => {
     if (!room || room.state !== ConnectionState.Connected) return;
@@ -161,7 +199,7 @@ function LiveKitHostPublisher({
       cancelled = true;
       room.off(RoomEvent.SignalConnected, onSignalConnected);
     };
-  }, [publishActive, micEnabled, room, syncMedia, onPublishChange, onError]);
+  }, [publishActive, micEnabled, videoDeviceId, audioDeviceId, videoResolution, videoAspectRatio, room, syncMedia, onPublishChange, onError]);
 
   if (!localCamera?.publication?.track) return null;
   return (
@@ -217,6 +255,10 @@ function LiveKitRoomInner({
   isHost,
   publishActive,
   micEnabled,
+  videoDeviceId,
+  audioDeviceId,
+  videoResolution,
+  videoAspectRatio,
   liveCameraActive,
   liveCameraMode,
   onHostStreamActive,
@@ -226,6 +268,10 @@ function LiveKitRoomInner({
   isHost: boolean;
   publishActive: boolean;
   micEnabled: boolean;
+  videoDeviceId?: string;
+  audioDeviceId?: string;
+  videoResolution: LiveVideoResolutionPreset;
+  videoAspectRatio: LiveVideoAspectRatioPreset;
   liveCameraActive: boolean;
   liveCameraMode?: 'camera' | 'file';
   onHostStreamActive: (active: boolean) => void;
@@ -250,6 +296,10 @@ function LiveKitRoomInner({
       <LiveKitHostPublisher
         publishActive={publishActive}
         micEnabled={micEnabled}
+        videoDeviceId={videoDeviceId}
+        audioDeviceId={audioDeviceId}
+        videoResolution={videoResolution}
+        videoAspectRatio={videoAspectRatio}
         onPublishChange={onHostStreamActive}
         onError={onError}
       />
@@ -286,6 +336,10 @@ export type LiveKitVideoStageProps = {
   streamEnded?: boolean;
   streamEndedTitle?: string;
   streamEndedHint?: string;
+  videoDeviceId?: string;
+  audioDeviceId?: string;
+  videoResolution?: LiveVideoResolutionPreset;
+  videoAspectRatio?: LiveVideoAspectRatioPreset;
 };
 
 export function LiveKitVideoStage({
@@ -301,13 +355,19 @@ export function LiveKitVideoStage({
   albumArtUrl,
   initialTheater = false,
   onExpandedChange,
-  onFullscreenError,
   overlay,
   enabled = true,
   streamEnded = false,
   streamEndedTitle = 'Stream terminé',
   streamEndedHint,
+  videoDeviceId,
+  audioDeviceId,
+  videoResolution: videoResolutionProp,
+  videoAspectRatio: videoAspectRatioProp,
 }: LiveKitVideoStageProps) {
+  const videoResolution = getLiveVideoResolutionPreset(videoResolutionProp);
+  const videoAspectRatio = getLiveVideoAspectRatioPreset(videoAspectRatioProp);
+  const displayPlaybackTitle = normalizeBrandText(playbackTitle);
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [isVideoFullscreen, setIsVideoFullscreen] = useState(false);
@@ -322,9 +382,6 @@ export function LiveKitVideoStage({
   const [viewerStreamActive, setViewerStreamActive] = useState(false);
   const [roomError, setRoomError] = useState<string | null>(null);
   const [videoTimedOut, setVideoTimedOut] = useState(false);
-  const [egressActive, setEgressActive] = useState(false);
-  const [egressLoading, setEgressLoading] = useState(false);
-  const [egressError, setEgressError] = useState<string | null>(null);
   const fetchGenRef = useRef(0);
 
   useEffect(() => {
@@ -392,24 +449,6 @@ export function LiveKitVideoStage({
     })();
   }, [authToken, liveId]);
 
-  const toggleEgress = useCallback(async () => {
-    setEgressError(null);
-    setEgressLoading(true);
-    try {
-      if (egressActive) {
-        await api.stopEgress(authToken, liveId);
-        setEgressActive(false);
-      } else {
-        await api.startEgress(authToken, liveId);
-        setEgressActive(true);
-      }
-    } catch (err) {
-      setEgressError(err instanceof Error ? err.message : 'Erreur egress CDN');
-    } finally {
-      setEgressLoading(false);
-    }
-  }, [authToken, liveId, egressActive]);
-
   const roomEnabled = enabled && !streamEnded;
 
   const showVideo = !streamEnded && (isHost ? hostStreamActive : viewerStreamActive);
@@ -469,13 +508,9 @@ export function LiveKitVideoStage({
       return;
     }
     void requestElementFullscreen(el).catch(() => {
-      if (isMobileNarrowViewport() || shouldAutoLandscapeVideo()) {
-        enterTheaterFallback();
-        return;
-      }
-      onFullscreenError?.(t('live.fullscreenError'));
+      enterTheaterFallback();
     });
-  }, [enterTheaterFallback, onFullscreenError, t]);
+  }, [enterTheaterFallback]);
 
   const exitVideoFullscreen = useCallback(() => {
     if (isLandscapeTheater) {
@@ -620,11 +655,16 @@ export function LiveKitVideoStage({
   return (
     <div
       ref={containerRef}
-      className={`live-video-container relative w-full h-full min-h-0 flex flex-col bg-black overflow-hidden${
+      className={`live-video-container live-video-container--theater ${getLiveVideoAspectRatioClass(videoAspectRatio)} relative w-full h-full min-h-0 flex flex-col overflow-hidden${
         isLandscapeTheater ? ' live-video-container--landscape-theater' : ''
       }`}
+      style={{ ['--live-aspect-ratio' as string]: getLiveVideoAspectRatioCss(videoAspectRatio) }}
     >
-      <div className="live-video-stage-area">
+      <div className="live-theater-stage-stack flex flex-col flex-1 min-h-0 min-w-0 w-full h-full">
+        <div className="live-theater-hero-wrap flex flex-col min-w-0 w-full h-full min-h-0 shrink-0">
+          <div className="live-theater-hero flex flex-col min-w-0 w-full flex-1 min-h-0">
+            <div className="live-theater-hero__frame relative min-w-0 w-full flex-1 min-h-0">
+              <div className="live-video-stage-area absolute inset-0 w-full h-full">
         {session && roomEnabled ? (
           <LiveKitRoom
             serverUrl={session.serverUrl}
@@ -640,6 +680,10 @@ export function LiveKitVideoStage({
               isHost={isHost}
               publishActive={publishActive}
               micEnabled={micEnabled}
+              videoDeviceId={videoDeviceId}
+              audioDeviceId={audioDeviceId}
+              videoResolution={videoResolution}
+              videoAspectRatio={videoAspectRatio}
               liveCameraActive={liveCameraActive}
               liveCameraMode={liveCameraMode}
               onHostStreamActive={setHostStreamActive}
@@ -654,26 +698,13 @@ export function LiveKitVideoStage({
         ) : null}
 
         {!showVideo && !streamEnded && stageState !== 'error' && (
-          <div className="live-video-stage-overlay z-0 bg-black">
-            {albumArtUrl ? (
-              <img
-                src={albumArtUrl}
-                alt=""
-                className="w-24 h-24 rounded-xl object-cover shadow-lg opacity-80"
-              />
-            ) : (
-              <div className="w-24 h-24 rounded-xl bg-[#1a1a26] flex items-center justify-center text-3xl">
-                🎵
-              </div>
-            )}
-            <div className="max-w-xs">
-              <p className="text-sm font-bold text-white truncate">{playbackTitle}</p>
-              <p className="text-xs text-gray-400 truncate">{playbackArtist}</p>
-            </div>
-            {stageState === 'loading' && (
-              <div className="mt-2 w-8 h-8 border-2 border-white/20 border-t-purple-400 rounded-full animate-spin" />
-            )}
-          </div>
+          <LiveVideoStagePlaceholder
+            title={displayPlaybackTitle}
+            artist={playbackArtist}
+            albumArtUrl={albumArtUrl}
+            loading={stageState === 'loading'}
+            badge={stageState === 'loading' ? <LiveTheaterLiveBadge /> : undefined}
+          />
         )}
 
         {!streamEnded && stageState === 'error' ? (
@@ -688,77 +719,39 @@ export function LiveKitVideoStage({
 
         <div className="absolute top-2 left-2 z-30 pointer-events-auto">
           {isVideoExpanded ? (
-            <button
-              type="button"
-              onClick={exitVideoFullscreen}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/70 border border-white/20 text-white text-[11px] font-bold backdrop-blur hover:bg-black/85 active:scale-95 transition"
-              aria-label={t('live.exitFullscreen')}
-              title={t('live.exitFullscreen')}
-            >
+            <LiveVideoChromeButton onClick={exitVideoFullscreen} ariaLabel={t('live.exitFullscreen')}>
               <LiveVideoShrinkIcon />
               <span className="hidden sm:inline">{t('live.exitFullscreen')}</span>
-            </button>
+            </LiveVideoChromeButton>
           ) : (
-            <button
-              type="button"
-              onClick={enterVideoFullscreen}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/70 border border-white/20 text-white text-[11px] font-bold backdrop-blur hover:bg-black/85 active:scale-95 transition"
-              aria-label={t('live.enterFullscreen')}
-              title={t('live.enterFullscreen')}
-            >
+            <LiveVideoChromeButton onClick={enterVideoFullscreen} ariaLabel={t('live.enterFullscreen')}>
               <LiveVideoExpandIcon />
               <span className="hidden sm:inline">{t('live.enterFullscreen')}</span>
-            </button>
+            </LiveVideoChromeButton>
           )}
         </div>
-      </div>
-
-      {isHost && hostStreamActive && !streamEnded ? (
-        <div className="shrink-0 px-3 py-1.5 border-t border-white/10 bg-[#0a0a0f] flex items-center justify-between gap-2">
-          <span className="text-[10px] text-gray-500">
-            {egressActive ? 'CDN actif — HLS disponible' : 'Diffusion CDN désactivée'}
-          </span>
-          <button
-            type="button"
-            onClick={toggleEgress}
-            disabled={egressLoading}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold transition active:scale-95 ${
-              egressActive
-                ? 'bg-emerald-600/90 hover:bg-emerald-500 text-white'
-                : 'bg-[#1a1a26] border border-white/20 text-gray-200 hover:text-white hover:border-white/40'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
-            title={egressActive ? 'Arrêter la diffusion CDN' : 'Diffuser sur CDN (HLS via Cloudflare)'}
-          >
-            <svg aria-hidden className="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              {egressActive
-                ? <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM9 10h6v4H9z" />
-                : <path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01" />}
-            </svg>
-            {egressLoading ? '…' : egressActive ? 'Arrêter CDN' : 'Diffuser sur CDN'}
-          </button>
-          {egressError ? (
-            <span className="text-[10px] text-red-400 truncate max-w-[160px]" title={egressError}>
-              {egressError}
-            </span>
-          ) : null}
+              </div>
+            </div>
+          </div>
         </div>
-      ) : null}
 
-      <div
-        className={`shrink-0 px-3 py-2 border-t border-white/10 bg-[#0a0a0f] text-center text-[11px] leading-relaxed ${
+      {!(isHost && isHiddenHostTheaterStatus(status)) ? (
+      <LiveTheaterStatusBar
+        tone={
           stageState === 'ended'
-            ? 'text-gray-400'
+            ? 'ended'
             : stageState === 'error'
-              ? 'text-red-300'
+              ? 'error'
               : stageState === 'live'
-                ? 'text-emerald-300'
+                ? 'live'
                 : stageState === 'loading'
-                  ? 'text-gray-400'
-                  : 'text-gray-500'
-        }`}
-        aria-live="polite"
+                  ? 'loading'
+                  : 'idle'
+        }
       >
-        {status}
+        <p className="live-theater-status-bar__text">{status}</p>
+      </LiveTheaterStatusBar>
+      ) : null}
       </div>
     </div>
   );

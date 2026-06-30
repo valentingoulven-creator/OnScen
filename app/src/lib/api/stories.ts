@@ -29,6 +29,8 @@ export const storiesApi = {
     body: {
       content?: string;
       imageUrl?: string;
+      videoUrl?: string;
+      videoDurationSec?: number;
       musicTrack?: import('../../types').StoryMusicTrack;
       taggedUserIds?: string[];
       link?: import('../../types').StoryLink;

@@ -1,4 +1,5 @@
 import type { CSSProperties, MouseEvent, PointerEvent } from 'react';
+import { dispatchStoryAppLink, parseStoryAppLink } from '../lib/storyAppLink';
 import { storyLinkDisplayLabel } from '../lib/storyLink';
 import type { StoryLink } from '../types';
 
@@ -17,6 +18,16 @@ function IconLinkSmall() {
         strokeWidth="2"
         strokeLinecap="round"
       />
+    </svg>
+  );
+}
+
+function IconMusicSmall() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden className="shrink-0">
+      <path d="M9 18V5l12-2v13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="6" cy="18" r="3" stroke="currentColor" strokeWidth="2" />
+      <circle cx="18" cy="16" r="3" stroke="currentColor" strokeWidth="2" />
     </svg>
   );
 }
@@ -51,15 +62,20 @@ export function StoryLinkSticker({
 }: StoryLinkStickerProps) {
   const label = storyLinkDisplayLabel(link);
   const previewOnly = !link.url.trim();
+  const isAppLink = Boolean(link.url.trim() && parseStoryAppLink(link.url));
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-[#111111] shadow-[0_2px_10px_rgba(0,0,0,0.35)] whitespace-nowrap max-w-[min(72vw,240px)] truncate ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold shadow-[0_2px_10px_rgba(0,0,0,0.35)] whitespace-nowrap max-w-[min(72vw,240px)] truncate ${
+        isAppLink
+          ? 'bg-gradient-to-r from-purple-600 to-fuchsia-500 text-white'
+          : 'bg-white/95 text-[#111111]'
+      } ${className}`}
       onPointerDown={onPointerDown}
       onClick={onClick}
       style={isActive ? { boxShadow: '0 0 0 2px rgba(168,85,247,0.9)' } : undefined}
     >
-      <IconLinkSmall />
+      {isAppLink ? <IconMusicSmall /> : <IconLinkSmall />}
       <span className="truncate">{previewOnly ? 'Lien' : label}</span>
       <svg
         width="10"
@@ -105,10 +121,30 @@ export function StoryLinkOverlay({
   const handleOpen = (e: MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    const appTarget = parseStoryAppLink(link.url);
+    if (appTarget) {
+      dispatchStoryAppLink(appTarget);
+      return;
+    }
     window.open(link.url, '_blank', 'noopener,noreferrer');
   };
 
   if (interactive === 'open') {
+    const appTarget = parseStoryAppLink(link.url);
+    if (appTarget) {
+      return (
+        <button
+          type="button"
+          className={`absolute z-20 ${cursor}`}
+          style={style}
+          onClick={handleOpen}
+          onPointerDown={(e) => e.stopPropagation()}
+          aria-label={`Ouvrir : ${storyLinkDisplayLabel(link)}`}
+        >
+          <StoryLinkSticker link={link} />
+        </button>
+      );
+    }
     return (
       <a
         href={link.url}

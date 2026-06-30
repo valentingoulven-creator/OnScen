@@ -252,5 +252,8 @@ export const adminApi = {
     );
   },
 
+  getAdminDiagnostics: (token: string) =>
+    request<import('../../types').AdminDiagnosticsReport>('/admin/diagnostics', {}, token),
+
   // ── WebAuthn / Passkeys (Face ID, Touch ID, empreinte Android, Windows Hello) ──
 } as const;

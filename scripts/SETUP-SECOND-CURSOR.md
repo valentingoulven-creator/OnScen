@@ -27,13 +27,13 @@ powershell -ExecutionPolicy Bypass -File scripts/setup-second-cursor.ps1 -SkipCl
 
 1. **Clé SSH** — copier `~/.ssh/id_ed25519` (+ `.pub`) depuis la machine 1 (USB/SCP), **jamais dans Git**.
 2. **msdev/.env** — coller les secrets OAuth/YouTube/Stripe **dev** depuis la machine 1.
-3. **backend/.env.production** — référence locale uniquement ; la prod réelle est sur le VPS `/opt/soundly/.env`.
+3. **backend/.env.production** — référence locale uniquement ; la prod réelle est sur le VPS `/opt/soundy/.env`.
    - Admin prod : `PROD_ADMIN_EMAIL=admin@getsoundy.com` (pas `dev@soundy.local`).
    - Dev local : `ACCESS_ADMIN_EMAILS` dans `msdev/.env` (même email ou liste séparée par virgules).
 4. **VPS prod** — récupérer les variables critiques :
 
    ```bash
-   ssh root@51.159.164.100 "cat /opt/soundly/.env"
+   ssh root@51.159.164.100 "cat /opt/soundy/.env"
    ```
 
    Variables clés : `JWT_SECRET`, `ENCRYPTION_KEY`, `DATABASE_URL`, `PG_SSL`, Stripe, OAuth, Cloudflare Stream, LiveKit.
@@ -62,7 +62,7 @@ powershell -ExecutionPolicy Bypass -File deploy_zero_downtime.ps1 -VerifyProd
 
 `scripts/deploy-prod.ps1` reste un wrapper valide (appelle `deploy_zero_downtime.ps1 -VerifyProd`).
 
-VPS : `51.159.164.100`, chemin `/opt/soundly`, health `https://getsoundy.com/health`. PostgreSQL : Scaleway Managed `51.15.132.229:14440`.
+VPS : `51.159.164.100`, chemin `/opt/soundy`, health `https://getsoundy.com/health`. PostgreSQL : Scaleway Managed `51.15.132.229:14440`.
 
 ## Références
 

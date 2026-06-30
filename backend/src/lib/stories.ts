@@ -3,7 +3,7 @@ import { db, Story, StoryLink, StoryMusicTrack, User } from '../models/schema';
 import { hasBlocked } from './blocks';
 import { getDistanceKm } from './geo';
 import { getUserPublicCoords } from './locationPrivacy';
-import { isFeedImageDataUrl } from './feedPosts';
+import { isFeedImageDataUrl, isFeedVideoDataUrl } from './feedPosts';
 import { clampNearbyRadiusKm } from './geoLimits';
 import { scheduleDeleteStoryFromPg, schedulePersistStoryToPg } from './pgStories';
 
@@ -27,6 +27,8 @@ export interface PublicStory {
   userId: string;
   content?: string;
   imageUrl?: string;
+  videoUrl?: string;
+  videoDurationSec?: number;
   musicTrack?: StoryMusicTrack;
   taggedUsers?: PublicStoryTaggedUser[];
   link?: StoryLink;
@@ -77,6 +79,20 @@ function normalizeImageUrl(raw: unknown): string | undefined {
   return url;
 }
 
+function normalizeVideoUrl(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const url = raw.trim();
+  if (!url) return undefined;
+  if (isFeedVideoDataUrl(url)) return url;
+  return undefined;
+}
+
+function normalizeVideoDurationSec(raw: unknown): number | undefined {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  return Math.min(60, Math.max(1, Math.round(n)));
+}
+
 function normalizeContent(raw: unknown, opts?: { allowEmpty?: boolean }): string | null {
   if (typeof raw !== 'string') return null;
   const content = raw.trim();
@@ -84,10 +100,9 @@ function normalizeContent(raw: unknown, opts?: { allowEmpty?: boolean }): string
   return content;
 }
 
+/** L'auteur a mis l'histoire en « Abonnés » : seuls ses fans (userFavorites) la voient. */
 function isVisibleByFollowers(viewerId: string, authorId: string): boolean {
-  const viewerFollowsAuthor = db.userFavorites.get(viewerId)?.has(authorId) ?? false;
-  const authorFollowsViewer = db.userFavorites.get(authorId)?.has(viewerId) ?? false;
-  return viewerFollowsAuthor || authorFollowsViewer;
+  return db.userFavorites.get(viewerId)?.has(authorId) ?? false;
 }
 
 function isVisibleToViewer(viewerId: string, authorId: string): boolean {
@@ -184,6 +199,8 @@ function toPublicStory(story: Story): PublicStory | null {
     userId: story.userId,
     content: story.content || undefined,
     imageUrl: story.imageUrl || undefined,
+    videoUrl: story.videoUrl || undefined,
+    videoDurationSec: story.videoDurationSec,
     musicTrack: story.musicTrack,
     taggedUsers: resolveTaggedUsers(story.taggedUserIds),
     link: story.link,
@@ -199,6 +216,8 @@ export function createStory(
   input: {
     content?: string;
     imageUrl?: string;
+    videoUrl?: string;
+    videoDurationSec?: unknown;
     musicTrack?: unknown;
     taggedUserIds?: unknown;
     link?: unknown;
@@ -211,15 +230,21 @@ export function createStory(
   purgeExpiredStories();
 
   const imageUrl = normalizeImageUrl(input.imageUrl);
+  const videoUrl = normalizeVideoUrl(input.videoUrl);
   const hasImageInput = input.imageUrl != null && String(input.imageUrl).trim().length > 0;
-  if (hasImageInput && !imageUrl) {
+  const hasVideoInput = input.videoUrl != null && String(input.videoUrl).trim().length > 0;
+  if (hasImageInput && !imageUrl && !hasVideoInput) {
     return { ok: false, error: 'Image invalide ou trop volumineuse.' };
   }
+  if (hasVideoInput && !videoUrl) {
+    return { ok: false, error: 'Vidéo invalide (MP4, WebM ou MOV, max ~12 Mo).' };
+  }
+  const videoDurationSec = videoUrl ? normalizeVideoDurationSec(input.videoDurationSec) : undefined;
   const content = normalizeContent(input.content ?? '', {
-    allowEmpty: Boolean(imageUrl) || hasImageInput,
+    allowEmpty: Boolean(imageUrl || videoUrl) || hasImageInput || hasVideoInput,
   });
-  if (!content && !imageUrl) {
-    return { ok: false, error: 'Ajoutez du texte ou une image.' };
+  if (!content && !imageUrl && !videoUrl) {
+    return { ok: false, error: 'Ajoutez du texte, une image ou une vidéo.' };
   }
 
   const now = Date.now();
@@ -243,6 +268,8 @@ export function createStory(
     userId,
     content: content || undefined,
     imageUrl,
+    videoUrl,
+    videoDurationSec,
     musicTrack,
     taggedUserIds,
     link,

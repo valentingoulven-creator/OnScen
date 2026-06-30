@@ -45,6 +45,10 @@ export function getFavoriteHostIds(fanId: string): string[] {
   return [...(db.userFavorites.get(fanId)?.keys() ?? [])];
 }
 
+export function getFollowingCount(fanId: string): number {
+  return getFavoriteHostIds(fanId).length;
+}
+
 /** Tous les fans (fanId) d'un hôte donné. */
 export function getFanIds(hostId: string): string[] {
   const ids: string[] = [];

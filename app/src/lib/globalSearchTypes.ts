@@ -33,3 +33,10 @@ export interface GlobalSearchApiResult {
   albums: GlobalSearchAlbumHit[];
   songs: GlobalSearchSongHit[];
 }
+
+export type GlobalSearchResultItem =
+  | ({ kind: 'user' } & import('../types').UserSearchHit)
+  | GlobalSearchEventHit
+  | GlobalSearchAlbumHit
+  | GlobalSearchSongHit
+  | import('./placeSearch').PlaceSearchHit;

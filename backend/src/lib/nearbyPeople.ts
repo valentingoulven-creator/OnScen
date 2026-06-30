@@ -7,6 +7,8 @@ import { isBotHost } from '../seed-bots';
 import { isSalonVisibleOnMap } from './salonAccess';
 import { resolveNearbyRadiusKm } from './geoLimits';
 import { isValidLatLng } from './mapCoords';
+import type { NearbyGeoCandidates } from './pgGeoNearby';
+import { loadNearbyGeoCandidates } from './pgGeoNearby';
 
 export interface NearbyPersonDto {
   id: string;
@@ -106,12 +108,32 @@ function resolveListeningPlatform(
   return undefined;
 }
 
-export function getNearbyPeople(
+export async function getNearbyPeopleAsync(
   viewerId: string,
   lat: number,
   lon: number,
   radiusKm: number,
   distanceFilter = true
+): Promise<NearbyPersonDto[]> {
+  const maxRadiusKm = resolveNearbyRadiusKm(radiusKm, distanceFilter);
+  let candidates: NearbyGeoCandidates | null = null;
+  if (maxRadiusKm != null) {
+    try {
+      candidates = await loadNearbyGeoCandidates(lat, lon, maxRadiusKm);
+    } catch (err) {
+      console.warn('[nearby] PostGIS prefilter failed — fallback scan RAM:', err);
+    }
+  }
+  return getNearbyPeople(viewerId, lat, lon, radiusKm, distanceFilter, candidates);
+}
+
+export function getNearbyPeople(
+  viewerId: string,
+  lat: number,
+  lon: number,
+  radiusKm: number,
+  distanceFilter = true,
+  candidates: NearbyGeoCandidates | null = null
 ): NearbyPersonDto[] {
   const maxRadiusKm = resolveNearbyRadiusKm(radiusKm, distanceFilter);
   const byId = new Map<string, NearbyPersonDto>();
@@ -224,6 +246,7 @@ export function getNearbyPeople(
   };
 
   for (const u of db.users.values()) {
+    if (candidates && !candidates.userIds.has(u.id)) continue;
     const pos = getUserPublicCoords(u, viewerId);
     if (!pos) continue;
     const d = getDistanceKm(lat, lon, pos.lat, pos.lon);
@@ -231,6 +254,7 @@ export function getNearbyPeople(
   }
 
   for (const s of db.salons.values()) {
+    if (candidates && !candidates.salonIds.has(s.id)) continue;
     if (!isSalonVisibleOnMap(s, viewerId)) continue;
     if (!isValidLatLng(s.latitude, s.longitude)) continue;
     const host = db.users.get(s.hostId);
@@ -252,6 +276,7 @@ export function getNearbyPeople(
   }
 
   for (const l of db.lives.values()) {
+    if (candidates && !candidates.liveIds.has(l.id)) continue;
     if (!l.isActive || l.salonId) continue;
     if (!isValidLatLng(l.latitude, l.longitude)) continue;
     const host = db.users.get(l.hostId);

@@ -1,0 +1,135 @@
+body {
+  font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 11pt;
+  line-height: 1.5;
+  color: #1a1a1a;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+h1 {
+  font-size: 22pt;
+  color: #111;
+  border-bottom: 3px solid #6366f1;
+  padding-bottom: 8px;
+  margin-top: 0;
+  page-break-after: avoid;
+}
+
+h2 {
+  font-size: 16pt;
+  color: #312e81;
+  border-bottom: 1px solid #c7d2fe;
+  padding-bottom: 4px;
+  margin-top: 24px;
+  page-break-after: avoid;
+}
+
+h3 {
+  font-size: 13pt;
+  color: #4338ca;
+  margin-top: 18px;
+  page-break-after: avoid;
+}
+
+h4 {
+  font-size: 11pt;
+  color: #374151;
+  margin-top: 14px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 10pt;
+  page-break-inside: avoid;
+}
+
+th {
+  background-color: #eef2ff;
+  color: #312e81;
+  font-weight: 600;
+  text-align: left;
+  padding: 8px 10px;
+  border: 1px solid #c7d2fe;
+}
+
+td {
+  padding: 6px 10px;
+  border: 1px solid #e5e7eb;
+  vertical-align: top;
+}
+
+tr:nth-child(even) td {
+  background-color: #f9fafb;
+}
+
+code {
+  background-color: #f3f4f6;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 9pt;
+  font-family: 'Consolas', 'Courier New', monospace;
+}
+
+pre {
+  background-color: #f3f4f6;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 9pt;
+  line-height: 1.4;
+  overflow-x: auto;
+  page-break-inside: avoid;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+}
+
+blockquote {
+  border-left: 4px solid #6366f1;
+  margin: 12px 0;
+  padding: 8px 16px;
+  background-color: #faf5ff;
+  color: #4c1d95;
+}
+
+hr {
+  border: none;
+  border-top: 2px solid #e5e7eb;
+  margin: 24px 0;
+}
+
+ul, ol {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+li {
+  margin: 4px 0;
+}
+
+strong {
+  color: #111;
+}
+
+@page {
+  margin: 20mm 18mm 25mm 18mm;
+  @bottom-center {
+    content: counter(page);
+    font-size: 9pt;
+    color: #9ca3af;
+  }
+}
+
+@media print {
+  h1, h2, h3 {
+    page-break-after: avoid;
+  }
+  table, pre, blockquote {
+    page-break-inside: avoid;
+  }
+}

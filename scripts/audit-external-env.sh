@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Audit presence of external service env vars (no secret values printed).
 set -euo pipefail
-ENV_FILE="${1:-/opt/soundly/.env}"
+ENV_FILE="${1:-/opt/soundy/.env}"
 if [[ ! -f "$ENV_FILE" ]]; then
   echo "MISS env_file $ENV_FILE"
   exit 1

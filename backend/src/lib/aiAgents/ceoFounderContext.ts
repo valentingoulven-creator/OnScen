@@ -60,6 +60,7 @@ export function getCeoFounderContextPaths(): string[] {
   return [
     path.join(getAppRoot(), 'ceo-founder-context.json'),
     path.join(msdevDir, 'ceo-founder-context.json'),
+    '/opt/soundy/ceo-founder-context.json',
     '/opt/soundly/ceo-founder-context.json',
   ];
 }

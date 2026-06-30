@@ -168,10 +168,32 @@ const cgu: LegalDocument = {
   ],
 };
 
+const politiqueCookies: LegalDocument = {
+  title: 'Politique cookies',
+  updated: '29 juin 2026',
+  sections: [
+    {
+      heading: '1. Cookies nécessaires',
+      body:
+        'Cookie httpOnly soundy_auth (session web). Préférences en localStorage. Sur mobile natif : stockage sécurisé Keychain/Keystore.',
+    },
+    {
+      heading: '2. Services tiers (consentement)',
+      body:
+        'Stripe (paiements web) et YouTube (lecteur intégré) ne sont chargés qu\'avec votre accord via la bannière cookies.',
+    },
+    {
+      heading: '3. Contact',
+      body: 'privacy@getsoundy.com — Paramètres > Préférences cookies pour modifier votre choix.',
+    },
+  ],
+};
+
 const LEGAL_DOCS: Record<string, LegalDocument> = {
   mentions: mentionsLegales,
   privacy: politiqueConfidentialite,
   terms: cgu,
+  cookies: politiqueCookies,
 };
 
 export function getLegalDocument(key: string): LegalDocument | null {

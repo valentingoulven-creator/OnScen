@@ -95,10 +95,37 @@ function trackSummary(platform: Salon['platform'] | Live['platform'], playbackSt
   };
 }
 
+function isDonationGift(gift: { giftType: string; amount: number }): boolean {
+  return gift.giftType === 'don' && Number.isFinite(gift.amount) && gift.amount > 0;
+}
+
+function getLiveDonationStats(liveId: string): { count: number; totalEur: number } {
+  const gifts = db.gifts.filter((g) => g.liveId === liveId && isDonationGift(g));
+  const totalCents = gifts.reduce((sum, g) => sum + Math.trunc(g.amount) * 100, 0);
+  return { count: gifts.length, totalEur: totalCents / 100 };
+}
+
+function getChatMessageCount(roomId: string, kind: 'salon' | 'live'): number {
+  const map = kind === 'salon' ? db.salonChats : db.liveChats;
+  return map.get(roomId)?.length ?? 0;
+}
+
+function getBanCount(roomId: string, kind: 'salon' | 'live'): number {
+  const map = kind === 'salon' ? db.salonBans : db.liveBans;
+  return map.get(roomId)?.size ?? 0;
+}
+
+function liveDurationMs(l: Live, now = Date.now()): number {
+  if (!l.startedAt) return 0;
+  const end = l.isActive ? now : l.endedAt ?? now;
+  return Math.max(0, end - l.startedAt);
+}
+
 export function mapAdminSalonRow(s: Salon) {
   const creator = mapAdminCreator(s.hostId);
   const live = db.lives.get(s.id);
   const host = db.users.get(s.hostId);
+  const linkedDonations = live ? getLiveDonationStats(live.id) : { count: 0, totalEur: 0 };
   return {
     id: s.id,
     title: s.title,
@@ -121,6 +148,16 @@ export function mapAdminSalonRow(s: Salon) {
     allowedCount: s.accessMode === 'invite' ? Math.max(0, (s.allowedUserIds?.length ?? 1) - 1) : undefined,
     currentTrack: trackSummary(s.platform, s.playbackState),
     city: host?.city,
+    genres: s.genres ?? [],
+    chatMessageCount: getChatMessageCount(s.id, 'salon'),
+    queueLength: db.salonQueues.get(s.id)?.length ?? 0,
+    banCount: getBanCount(s.id, 'salon'),
+    vipModeratorCount: s.vipModeratorIds?.length ?? 0,
+    linkedLiveViewers: live?.viewersCount,
+    linkedLivePeakViewers: live?.peakViewersCount,
+    linkedLiveDonationsCount: linkedDonations.count,
+    linkedLiveDonationsTotalEur: linkedDonations.totalEur,
+    linkedLiveDurationMs: live ? liveDurationMs(live) : undefined,
   };
 }
 
@@ -128,15 +165,20 @@ export function mapAdminLiveRow(l: Live) {
   const creator = mapAdminCreator(l.hostId);
   const host = db.users.get(l.hostId);
   const salon = l.salonId ? db.salons.get(l.salonId) : undefined;
+  const donations = getLiveDonationStats(l.id);
   return {
     id: l.id,
     title: l.title,
     platform: l.platform,
     isActive: l.isActive,
     viewersCount: l.viewersCount,
+    peakViewersCount: l.peakViewersCount ?? l.viewersCount,
     startedAt: l.startedAt,
+    endedAt: l.endedAt,
+    durationMs: liveDurationMs(l),
     salonId: l.salonId,
     salonTitle: salon?.title,
+    salonListenersCount: salon?.listenersCount,
     adminBlocked: isAdminBlockedLive(l),
     adminBlockedAt: l.adminBlockedAt,
     hostId: l.hostId,
@@ -149,6 +191,15 @@ export function mapAdminLiveRow(l: Live) {
     longitude: l.longitude,
     city: host?.city,
     currentTrack: trackSummary(l.platform, l.playbackState),
+    chatMessageCount: getChatMessageCount(l.id, 'live'),
+    banCount: getBanCount(l.id, 'live'),
+    vipModeratorCount: l.vipModeratorIds?.length ?? 0,
+    donationsCount: donations.count,
+    donationsTotalEur: donations.totalEur,
+    streamMode: l.streamMode,
+    tipsEnabled: l.tipsEnabled !== false,
+    contentCategory: l.contentCategory,
+    donationOptionsCount: l.donationOptions?.length ?? 0,
   };
 }
 

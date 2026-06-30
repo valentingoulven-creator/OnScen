@@ -84,8 +84,19 @@ export function snapshotAccessControl(): {
 }
 
 export function getAccountStatus(user: User): AccountStatus {
-  if (user.accountStatus === 'pending' || user.accountStatus === 'blocked') {
-    return user.accountStatus;
+  if (user.accountStatus === 'blocked') {
+    if (user.blockedUntil != null && user.blockedUntil <= Date.now()) {
+      user.accountStatus = 'active';
+      user.blockedUntil = undefined;
+      user.blockedReason = undefined;
+      user.blockedAt = undefined;
+      db.users.set(user.id, user);
+      return 'active';
+    }
+    return 'blocked';
+  }
+  if (user.accountStatus === 'pending') {
+    return 'pending';
   }
   return 'active';
 }
@@ -273,6 +284,32 @@ export function setUserAccountStatus(userId: string, status: AccountStatus): Use
   const user = db.users.get(userId);
   if (!user) return null;
   user.accountStatus = status;
+  if (status === 'active') {
+    user.blockedUntil = undefined;
+    user.blockedReason = undefined;
+    user.blockedAt = undefined;
+  }
+  db.users.set(userId, user);
+  return user;
+}
+
+/** Suspendre un compte (jours optionnels — absent ou 0 = permanent). */
+export function blockUserAccount(
+  userId: string,
+  opts: { days?: number | null; reason?: string } = {}
+): User | null {
+  const user = db.users.get(userId);
+  if (!user) return null;
+  user.accountStatus = 'blocked';
+  user.blockedAt = Date.now();
+  const reason = opts.reason?.trim();
+  user.blockedReason = reason || undefined;
+  const days = opts.days;
+  if (days != null && days > 0) {
+    user.blockedUntil = Date.now() + days * 24 * 60 * 60 * 1000;
+  } else {
+    user.blockedUntil = undefined;
+  }
   db.users.set(userId, user);
   return user;
 }

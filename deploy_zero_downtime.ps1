@@ -87,6 +87,9 @@ function Invoke-Remote([string]$cmd) {
     return ($result -join "`n")
 }
 
+# VPS : preferer le repertoire actif (PM2 + .env)
+$REMOTE = (Invoke-Remote "if [ -f /opt/soundly/.env ]; then echo /opt/soundly; elif [ -f /opt/soundy/.env ]; then echo /opt/soundy; elif [ -d /opt/soundly ]; then echo /opt/soundly; else echo /opt/soundy; fi").Trim()
+
 function Invoke-Scp([string[]]$ScpArgs) {
     $prev = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
@@ -185,6 +188,15 @@ if (-not $SkipBuild) {
 # -- 3. Build frontend --------------------------------------------------------
 if (-not $SkipFrontend) {
     Write-Host "`n[3/9] Build frontend (Vite -> backend/public)..." -ForegroundColor Yellow
+    $syncSentryScript = Join-Path $PSScriptRoot 'scripts\sync-app-sentry-env.ps1'
+    $backendEnvName = if ($Environment -eq 'preprod') { 'preproduction' } else { 'production' }
+    $backendEnvPath = Join-Path $PSScriptRoot "backend\.env.$backendEnvName"
+    if ((Test-Path $syncSentryScript) -and (Test-Path $backendEnvPath)) {
+        Write-Host "  -> sync-app-sentry-env.ps1 ($backendEnvName)..." -ForegroundColor DarkGray
+        & powershell -ExecutionPolicy Bypass -File $syncSentryScript -Environment $backendEnvName
+        if ($LASTEXITCODE -ne 0) { Fail "sync-app-sentry-env.ps1 a echoue." }
+    }
+
     $viteEnvFile = Join-Path $PSScriptRoot $cfg.ViteEnvFile
     if (-not (Test-Path $viteEnvFile)) {
         $example = "$viteEnvFile.example"
@@ -315,8 +327,13 @@ foreach ($f in $deployFiles) {
         Invoke-Scp @($local, "${sshTarget}:${REMOTE}/deploy/$f")
     }
 }
+$deployLibDir = Join-Path $DeployDir "lib"
+if (Test-Path $deployLibDir) {
+    Invoke-Remote "mkdir -p ${REMOTE}/deploy/lib"
+    Invoke-Scp @("-r", (Join-Path $deployLibDir "/."), "${sshTarget}:${REMOTE}/deploy/lib/")
+}
 
-$migrateCmd = 'sed -i ''s/\r$//'' ' + $REMOTE + '/deploy/migrate-remote.sh 2>/dev/null; chmod +x ' + $REMOTE + '/deploy/migrate-remote.sh 2>/dev/null; if [ -f ' + $REMOTE + '/deploy/migrate-remote.sh ]; then bash ' + $REMOTE + '/deploy/migrate-remote.sh 2>&1; else echo MIGRATE_SKIP=1; fi'
+$migrateCmd = 'SOUNDY_ROOT=' + $REMOTE + ' sed -i ''s/\r$//'' ' + $REMOTE + '/deploy/migrate-remote.sh 2>/dev/null; chmod +x ' + $REMOTE + '/deploy/migrate-remote.sh 2>/dev/null; if [ -f ' + $REMOTE + '/deploy/migrate-remote.sh ]; then SOUNDY_ROOT=' + $REMOTE + ' bash ' + $REMOTE + '/deploy/migrate-remote.sh 2>&1; else echo MIGRATE_SKIP=1; fi'
 $migrateOut = Invoke-Remote $migrateCmd
 Write-Host $migrateOut
 if ("$migrateOut" -match "MIGRATE_OK") {
@@ -324,7 +341,7 @@ if ("$migrateOut" -match "MIGRATE_OK") {
 } elseif ("$migrateOut" -match "MIGRATE_SKIP=1") {
     Write-Host "  [OK] Migrations au demarrage PM2 (script absent)" -ForegroundColor Green
 } else {
-    Fail "Migrations PostgreSQL echouees. Verifiez DATABASE_URL dans /opt/soundly/.env et les logs ci-dessus."
+    Fail "Migrations PostgreSQL echouees. Verifiez DATABASE_URL dans ${REMOTE}/.env et les logs ci-dessus."
 }
 
 

@@ -7,7 +7,8 @@ import QRCode from 'qrcode';
 import rateLimit from 'express-rate-limit';
 import { db } from '../models/schema';
 import { authenticateJWT, signTokenForUser, setAuthCookie } from '../middleware/auth';
-import { getJwtSecret } from '../lib/jwtSecret';
+import { getJwtSecret, isDeployedEnv, JWT_VERIFY_OPTIONS, JWT_SIGN_OPTIONS } from '../lib/jwtSecret';
+import { createRateLimitStore } from '../lib/rateLimitStore';
 import { schedulePersistUserToPg } from '../lib/pgUsers';
 import { schedulePersist } from '../lib/persist';
 import { publicProfile } from '../lib/profile';
@@ -24,6 +25,7 @@ const twoFAValidateLimiter = rateLimit({
   message: { error: 'Trop de tentatives. Réessayez dans 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
+  store: createRateLimitStore('2fa-validate'),
 });
 
 // ─── TOTP secret encryption (AES-256-GCM) ───────────────────────────────────
@@ -34,6 +36,9 @@ const twoFAValidateLimiter = rateLimit({
  */
 function encryptSecret(plain: string): string {
   const keyHex = process.env.TOTP_ENCRYPTION_KEY ?? '';
+  if (isDeployedEnv() && keyHex.length !== 64) {
+    throw new Error('TOTP_ENCRYPTION_KEY must be configured (64 hex chars).');
+  }
   if (keyHex.length !== 64) return plain;
   const key = Buffer.from(keyHex, 'hex');
   const iv = crypto.randomBytes(12);
@@ -267,7 +272,7 @@ twoFactorRouter.post('/validate', twoFAValidateLimiter, async (req: Request, res
 
   let decoded: TwoFaTempPayload;
   try {
-    decoded = jwt.verify(tempToken, JWT_SECRET) as TwoFaTempPayload;
+    decoded = jwt.verify(tempToken, JWT_SECRET, JWT_VERIFY_OPTIONS) as TwoFaTempPayload;
   } catch {
     res.status(403).json({ error: 'Token temporaire invalide ou expiré. Reconnectez-vous.' });
     return;

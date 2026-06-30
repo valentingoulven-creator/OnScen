@@ -167,24 +167,19 @@ export const ProfileHeaderSection = memo(function ProfileHeaderSection({
 
 
 
+  const metaChipClass =
+    'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#1a1a26]/90 border border-[#2d2d3d] text-gray-400 text-[11px] font-medium';
+
   if (city?.trim()) {
-
     metaItems.push(
-
-      <span
-
-        key="city"
-
-        className="inline-flex items-center gap-0.5 text-gray-400 whitespace-nowrap text-[11px]"
-
-      >
-
-        📍 {city.trim()}
-
+      <span key="city" className={metaChipClass}>
+        <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0 opacity-70" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 11.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 21s7-4.5 7-10a7 7 0 10-14 0c0 5.5 7 10 7 10z" />
+        </svg>
+        {city.trim()}
       </span>
-
     );
-
   }
 
 
@@ -199,20 +194,20 @@ export const ProfileHeaderSection = memo(function ProfileHeaderSection({
       formatBirthDate(birthDateTrimmed, i18n.language) ?? birthDateTrimmed;
 
     metaItems.push(
-      <span
-        key="birth"
-        className="inline-flex items-center gap-0.5 text-gray-400 whitespace-nowrap text-[11px]"
-      >
-        🎂 {formatted}
+      <span key="birth" className={metaChipClass}>
+        <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0 opacity-70" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" />
+        </svg>
+        {formatted}
       </span>
     );
   } else if (resolvedAge != null) {
     metaItems.push(
-      <span
-        key="age"
-        className="inline-flex items-center gap-0.5 text-gray-400 whitespace-nowrap text-[11px]"
-      >
-        🎂 {resolvedAge} ans
+      <span key="age" className={metaChipClass}>
+        <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0 opacity-70" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" />
+        </svg>
+        {t('profile.ageYears', { count: resolvedAge })}
         {showAgeHiddenHint && (
           <span className="text-gray-500"> {t('profile.ageHiddenHint')}</span>
         )}
@@ -233,29 +228,17 @@ export const ProfileHeaderSection = memo(function ProfileHeaderSection({
     } as const;
 
     metaItems.push(
-
       <span
-
         key="rel"
-
-        className="inline-flex items-center gap-0.5 text-pink-300/90 whitespace-nowrap text-[11px]"
-
+        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-pink-500/10 border border-pink-500/25 text-pink-200/90 text-[11px] font-medium whitespace-nowrap"
       >
-
         {getRelationshipEmoji(relationshipStatus)}{' '}
-
         {getRelationshipDisplayLabel(
-
           relationshipStatus,
-
           relationshipStatusCustom,
-
           relationshipLabels
-
         )}
-
       </span>
-
     );
 
   }
@@ -285,22 +268,15 @@ export const ProfileHeaderSection = memo(function ProfileHeaderSection({
 
 
   if (variant === 'compact') {
-
     return (
-
-      <div className="relative shrink-0 bg-[#0b0b0f] overflow-visible">
+      <div className="relative shrink-0 overflow-visible">
+        <div className="h-20 sm:h-24 bg-gradient-to-br from-purple-900/75 via-[#1a1035] to-pink-900/35" />
 
         {topRightAction ? (
-          <div
-            className="absolute right-3 z-30"
-            style={{ top: 'max(0.75rem, calc(var(--app-header-total-h, 3.5rem) + 0.5rem))' }}
-          >
-            {topRightAction}
-          </div>
+          <div className="absolute right-3 top-3 z-30">{topRightAction}</div>
         ) : null}
 
-        <div className="px-4 pt-16 pb-3 flex flex-col items-center text-center overflow-visible">
-
+        <div className="px-4 pb-3 -mt-[3.25rem] sm:-mt-14 flex flex-col items-center text-center overflow-visible">
           {onAvatarClick ? (
             <button
               type="button"
@@ -312,7 +288,7 @@ export const ProfileHeaderSection = memo(function ProfileHeaderSection({
               } cursor-pointer hover:opacity-90 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500`}
               aria-label="Voir les photos du profil"
             >
-              <div className="rounded-full ring-2 ring-[#0b0b0f]">{avatarNode}</div>
+              <div className="rounded-full ring-[3px] ring-[#0b0b0f]">{avatarNode}</div>
             </button>
           ) : (
             <div
@@ -322,84 +298,50 @@ export const ProfileHeaderSection = memo(function ProfileHeaderSection({
                   : 'ring-2 ring-[#1e1e2f]'
               }`}
             >
-              <div className="rounded-full ring-2 ring-[#0b0b0f]">{avatarNode}</div>
+              <div className="rounded-full ring-[3px] ring-[#0b0b0f]">{avatarNode}</div>
             </div>
           )}
-
-
 
           <div className="mt-3 flex items-center justify-center gap-1.5 max-w-full flex-wrap">
-
             <UsernameDisplay
-
               as="h1"
-
               username={username}
-
               usernameColor={usernameColor}
-
               usernameWaveFrom={usernameWaveFrom}
-
               usernameWaveTo={usernameWaveTo}
-
               className="text-lg sm:text-xl font-extrabold leading-tight break-words"
-
             />
-
             {hostRatingSlot}
-
           </div>
 
-
-
-          <ProfileIdentityLines profileType={profileType} className="mt-1" />
-
-
+          <ProfileIdentityLines profileType={profileType} className="mt-1.5" />
 
           {isSupporter && (
-
             <span className="inline-block mt-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/20 text-amber-200 border border-amber-500/40">
-
               ⭐ Supporter{supporterTier ? ` · ${supporterTier}` : ''}
-
             </span>
-
           )}
-
-
 
           {metaItems.length > 0 && (
-
-            <div className="flex flex-wrap justify-center gap-x-2.5 gap-y-1 mt-2 max-w-full">
-
+            <div className="flex flex-wrap justify-center gap-1.5 mt-2.5 max-w-full">
               {metaItems}
-
             </div>
-
           )}
-
-
 
           {statsRow}
 
-
-
-          {bio ? <div className="mt-2.5 w-full max-w-sm text-sm text-gray-300 leading-snug">{bio}</div> : null}
-
-
+          {bio ? (
+            <div className="mt-2.5 w-full max-w-sm text-sm text-gray-300 leading-snug line-clamp-4">
+              {bio}
+            </div>
+          ) : null}
 
           {action ? <div className="mt-3 w-full max-w-xs">{action}</div> : null}
 
-
-
           {extraMeta}
-
         </div>
-
       </div>
-
     );
-
   }
 
 

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { LiveVideoStagePlaceholder } from './LiveVideoStagePlaceholder';
 
 type LiveVideoUnavailableOverlayProps = {
   title: string;
@@ -13,17 +14,22 @@ export function LiveVideoUnavailableOverlay({
   actions,
 }: LiveVideoUnavailableOverlayProps) {
   return (
-    <div
-      className="live-video-stage-overlay z-30 bg-black/90"
-      role="alert"
-      aria-live="assertive"
-    >
-      <p className="text-4xl" aria-hidden>
-        ⚠️
-      </p>
-      <p className="text-white font-bold text-lg">{title}</p>
-      {hint ? <p className="text-gray-400 text-sm max-w-sm">{hint}</p> : null}
-      {actions ? <div className="mt-1 flex flex-col items-center gap-2">{actions}</div> : null}
-    </div>
+    <LiveVideoStagePlaceholder
+      className="z-30"
+      title={title}
+      icon={
+        <span className="text-4xl leading-none" aria-hidden>
+          ⚠️
+        </span>
+      }
+      footer={
+        <>
+          {hint ? (
+            <p className="text-center text-xs text-gray-400 leading-relaxed max-w-xs">{hint}</p>
+          ) : null}
+          {actions ? <div className="flex flex-col items-center gap-2 w-full">{actions}</div> : null}
+        </>
+      }
+    />
   );
 }

@@ -17,4 +17,4 @@ Les fichiers `store*.json` sont **ignorés** par Git (données locales). Ne les 
 
 ## Production
 
-En production (`APP_ENV=production`), la persistance doit passer par **PostgreSQL** (`DATABASE_URL` dans `/opt/soundly/.env`). Le repli `store.json` n'est qu'un fallback d'urgence — voir `deploy/RUNBOOK-PROD.md`.
+En production (`APP_ENV=production`), la persistance doit passer par **PostgreSQL** (`DATABASE_URL` dans `/opt/soundy/.env`). Le repli `store.json` n'est qu'un fallback d'urgence — voir `deploy/RUNBOOK-PROD.md`.

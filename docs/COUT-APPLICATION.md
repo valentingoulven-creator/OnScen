@@ -3,7 +3,7 @@
 Document de référence pour l’infrastructure, les modes de diffusion live et les estimations budgétaires par stade de croissance.
 
 > **Dernière mise à jour :** juin 2026  
-> **Production :** [getsoundy.com](https://getsoundy.com) · VPS `51.159.164.100` · chemin `/opt/soundly`  
+> **Production :** [getsoundy.com](https://getsoundy.com) · VPS `51.159.164.100` · chemin `/opt/soundy`  
 > **Aucun secret** (tokens, mots de passe, clés API) ne figure dans ce document.
 
 ---
@@ -26,7 +26,7 @@ flowchart TB
     PM2["PM2 — melosong-backend"]
     Node["Node.js — backend/"]
     Coturn["Coturn TURN — port 3478"]
-    Data["/opt/soundly/.env + legal-publisher.json"]
+    Data["/opt/soundy/.env + legal-publisher.json"]
   end
 
   subgraph DB["Scaleway Managed Database"]
@@ -150,7 +150,7 @@ Trois modes exclusifs par live, choisis automatiquement à la création selon la
 | **Ingest** | RTMP/RTMPS (OBS, Streamlabs, etc.) — **gratuit** |
 | **Spectateurs** | **Illimités** via HLS/CDN Cloudflare |
 | **Caméra navigateur directe** | Non (OBS requis actuellement ; WHIP phase 2) |
-| **Activation prod** | Variables `.env` sur `/opt/soundly/.env` |
+| **Activation prod** | Variables `.env` sur `/opt/soundy/.env` |
 
 **Variables d'environnement :**
 
@@ -392,7 +392,7 @@ Les bots simulent des **salons YouTube** et des **marqueurs LIVE** sur la carte 
 | Ressource | URL / accès |
 |-----------|-------------|
 | **VPS SSH** | `ssh root@51.159.164.100` (clé `~/.ssh/id_ed25519`) |
-| **Chemin application** | `/opt/soundly` |
+| **Chemin application** | `/opt/soundy` |
 | **Console Scaleway** | https://console.scaleway.com |
 | **Managed Database** | Console → Managed Databases → `soundy-prod` |
 | **GitHub (dépôt)** | https://github.com/valentingoulven-creator/Melo |
@@ -468,7 +468,7 @@ export function defaultLiveStreamMode(): LiveStreamMode {
 
 - **Infra :** VPS DEV1-S + PostgreSQL DB-DEV-S (~25 €/mois).
 - **Live vidéo :** Mesh WebRTC ou LiveKit Build (gratuit, caméra navigateur).
-- **Action :** Configurer LiveKit sur `/opt/soundly/.env` ; tester caméra sans OBS.
+- **Action :** Configurer LiveKit sur `/opt/soundy/.env` ; tester caméra sans OBS.
 - **Éviter :** Postgres sur le même VPS que Node.
 
 ### Phase 1 — Traction (10–50 lives/mois, < 30 spectateurs)

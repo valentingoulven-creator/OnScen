@@ -191,7 +191,7 @@ export function assertDailySimulationSubBudget(userId: string): void {
 
 const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 
-/** Active ou renouvelle un abonnement créateur / Soundly+ (simulation ou Stripe confirmé). */
+/** Active ou renouvelle un abonnement créateur / Soundy+ (simulation ou Stripe confirmé). */
 export function recordCreatorSubscription(params: {
   subscriberId: string;
   creatorId: string;

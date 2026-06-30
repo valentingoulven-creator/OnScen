@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # install-offsite-backup-cron.sh — Cron quotidien backup-offsite.sh (04:00, après pg_dump 03:15)
-# Usage : sudo bash /opt/soundly/deploy/install-offsite-backup-cron.sh
+# Usage : sudo bash /opt/soundy/deploy/install-offsite-backup-cron.sh
 set -euo pipefail
 
-sed -i 's/\r$//' /opt/soundly/deploy/*.sh 2>/dev/null || true
+sed -i 's/\r$//' /opt/soundy/deploy/*.sh 2>/dev/null || true
 
-ROOT="${SOUNDLY_ROOT:-/opt/soundly}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/soundy-root.sh
+source "${SCRIPT_DIR}/lib/soundy-root.sh"
 SCRIPT="${ROOT}/deploy/backup-offsite.sh"
 CRON_LOG="${ROOT}/backups-offsite/offsite-cron.log"
 CRON_MARKER="backup-offsite.sh"

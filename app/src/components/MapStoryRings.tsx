@@ -3,14 +3,53 @@ import { memo, type ReactNode } from 'react';
 import { UserAvatarOnline } from './UserAvatarOnline';
 
 export const STORY_ACTIVE_RING_CLASS =
-  'bg-gradient-to-tr from-fuchsia-500 via-purple-500 to-cyan-400 p-[2px]';
+  'bg-gradient-to-tr from-fuchsia-500 via-purple-500 to-cyan-400 p-[2.5px]';
+
+export const STORY_RING_ITEM_CLASS =
+  'shrink-0 flex flex-col items-center gap-1.5 w-[4.75rem] snap-start touch-manipulation';
 
 const STORY_AVATAR_SIZE = {
-  sm: 'w-6 h-6',
-  md: 'w-9 h-9',
+  sm: 'w-7 h-7',
+  md: 'w-10 h-10',
 } as const;
 
-const STORY_RING_SIZE = 52;
+const STORY_RING_SIZE = 56;
+
+function displayUsername(username: string): string {
+  return username.replace(/^🤖\s*/, '').trim();
+}
+
+export function StoryAvatarRing({
+  hasActiveStory,
+  storyImageUrl,
+  avatarUrl,
+  size = 'md',
+  alt = '',
+}: {
+  hasActiveStory: boolean;
+  storyImageUrl?: string;
+  avatarUrl?: string;
+  size?: keyof typeof STORY_AVATAR_SIZE;
+  alt?: string;
+}) {
+  const sizeClass = STORY_AVATAR_SIZE[size];
+  const avatar = (
+    <img
+      src={storyImageUrl ?? avatarUrl ?? '/icon.svg'}
+      alt={alt}
+      loading="lazy"
+      className={`${sizeClass} rounded-full object-cover bg-[#1e1e2f]`}
+    />
+  );
+
+  if (!hasActiveStory) return avatar;
+
+  return (
+    <div className={`rounded-full shrink-0 ${STORY_ACTIVE_RING_CLASS}`}>
+      <div className="rounded-full bg-[#0b0b0f] p-[2px]">{avatar}</div>
+    </div>
+  );
+}
 
 function segmentRingPath(
   index: number,
@@ -30,6 +69,24 @@ function segmentRingPath(
   const y2 = cy + radius * Math.sin(toRad(end));
   const large = slice - gapDeg > 180 ? 1 : 0;
   return `M ${x1} ${y1} A ${radius} ${radius} 0 ${large} 1 ${x2} ${y2}`;
+}
+
+function StoryRingLabel({
+  children,
+  accent,
+}: {
+  children: ReactNode;
+  accent?: 'live' | 'mine' | 'default';
+}) {
+  const tone =
+    accent === 'live'
+      ? 'text-red-300 font-semibold'
+      : accent === 'mine'
+        ? 'text-purple-300 font-semibold'
+        : 'text-gray-300';
+  return (
+    <span className={`text-[10px] truncate w-full text-center leading-tight ${tone}`}>{children}</span>
+  );
 }
 
 export function StorySegmentRing({
@@ -79,55 +136,26 @@ export function StorySegmentRing({
   );
 }
 
-export function StoryAvatarRing({
-  hasActiveStory,
-  storyImageUrl,
-  avatarUrl,
-  size = 'md',
-  alt = '',
-}: {
-  hasActiveStory: boolean;
-  storyImageUrl?: string;
-  avatarUrl?: string;
-  size?: keyof typeof STORY_AVATAR_SIZE;
-  alt?: string;
-}) {
-  const sizeClass = STORY_AVATAR_SIZE[size];
-  const avatar = (
-    <img
-      src={storyImageUrl ?? avatarUrl ?? '/icon.svg'}
-      alt={alt}
-      loading="lazy"
-      className={`${sizeClass} rounded-full object-cover bg-[#1e1e2f]`}
-    />
-  );
-
-  if (!hasActiveStory) return avatar;
-
-  return (
-    <div className={`rounded-full shrink-0 ${STORY_ACTIVE_RING_CLASS}`}>
-      <div className="rounded-full bg-[#0b0b0f] p-[2px]">{avatar}</div>
-    </div>
-  );
-}
-
 function ringClassForEntry(entry: MapStoryEntry, isSeen?: boolean): string {
   if (entry.isLive) {
-    return 'bg-gradient-to-tr from-red-500 via-pink-500 to-orange-400 p-[2px]';
+    return 'bg-gradient-to-tr from-red-500 via-pink-500 to-orange-400 p-[2.5px]';
   }
   if (entry.hasActiveStory && (entry.storyCount ?? 1) > 1) {
     return '';
   }
   if (entry.hasActiveStory && isSeen) {
-    return 'bg-[#4a4a5a] p-[2px]';
+    return 'bg-[#4a4a5a] p-[2.5px]';
   }
   if (entry.hasActiveStory) {
     return STORY_ACTIVE_RING_CLASS;
   }
   if (entry.reelId) {
-    return 'bg-gradient-to-tr from-purple-500 via-pink-500 to-amber-400 p-[2px]';
+    return 'bg-gradient-to-tr from-purple-500 via-pink-500 to-amber-400 p-[2.5px]';
   }
-  return 'bg-[#2d2d3d] p-[2px]';
+  if (entry.isFavorite) {
+    return 'bg-gradient-to-tr from-amber-400 via-orange-400 to-yellow-300 p-[2.5px]';
+  }
+  return 'bg-[#2d2d3d] p-[2.5px]';
 }
 
 function ringInnerMedia(entry: MapStoryEntry) {
@@ -157,6 +185,121 @@ function countSeenSegments(storyIds: string[] | undefined, seenIds: Set<string>)
   return storyIds.filter((id) => seenIds.has(id)).length;
 }
 
+/** Anneau « Créer ma story » — premier slot quand l'utilisateur n'a pas encore publié. */
+export function StoryCreateRing({
+  avatarUrl,
+  userId,
+  username,
+  label,
+  onClick,
+}: {
+  userId: string;
+  username: string;
+  avatarUrl?: string;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={STORY_RING_ITEM_CLASS}
+      aria-label={label}
+    >
+      <div className="relative w-[3.75rem] h-[3.75rem]">
+        <div className="absolute inset-0 rounded-full bg-[#1a1a26] overflow-hidden opacity-40">
+          <UserAvatarOnline userId={userId} username={username} avatarUrl={avatarUrl} size="md" />
+        </div>
+        <div className="absolute inset-0 rounded-full border-2 border-dashed border-purple-400/60 bg-purple-500/10 flex items-center justify-center">
+          <svg viewBox="0 0 24 24" className="w-7 h-7 text-purple-300" fill="none" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" d="M12 5v14M5 12h14" />
+          </svg>
+        </div>
+      </div>
+      <StoryRingLabel accent="mine">{label}</StoryRingLabel>
+    </button>
+  );
+}
+
+/** Anneau « Ma story » — aperçu + bouton ajouter séparé. */
+export function MyMapStoryRing({
+  username,
+  avatarUrl,
+  userId,
+  hasActiveStory,
+  storyImageUrl,
+  storyCount = 0,
+  viewLabel = 'Ma story',
+  addLabel = 'Publier',
+  onClick,
+  onAddClick,
+}: {
+  userId: string;
+  username: string;
+  avatarUrl?: string;
+  hasActiveStory: boolean;
+  storyImageUrl?: string;
+  storyCount?: number;
+  viewLabel?: string;
+  addLabel?: string;
+  onClick: () => void;
+  onAddClick?: () => void;
+}) {
+  const segmentCount = storyCount > 0 ? storyCount : hasActiveStory ? 1 : 0;
+  const useSegmentRing = hasActiveStory && segmentCount > 1;
+
+  const avatarInner =
+    hasActiveStory && storyImageUrl ? (
+      <img
+        src={storyImageUrl}
+        alt=""
+        className="w-full h-full rounded-full object-cover bg-[#1a1a26]"
+      />
+    ) : (
+      <UserAvatarOnline userId={userId} username={username} avatarUrl={avatarUrl} size="sm" />
+    );
+
+  const ringClass =
+    hasActiveStory && !useSegmentRing ? STORY_ACTIVE_RING_CLASS : 'bg-[#3d3d4d] p-[2.5px]';
+
+  return (
+    <div className={`${STORY_RING_ITEM_CLASS} relative`}>
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex flex-col items-center gap-1.5 w-full"
+        aria-label={viewLabel}
+      >
+        {useSegmentRing ? (
+          <StorySegmentRing segmentCount={segmentCount}>
+            <div className="w-12 h-12">{avatarInner}</div>
+          </StorySegmentRing>
+        ) : (
+          <div className={`rounded-full relative ${ringClass}`}>
+            <div className="rounded-full bg-[#0b0b0f] p-[2.5px] w-[3.75rem] h-[3.75rem] flex items-center justify-center overflow-hidden">
+              {avatarInner}
+            </div>
+          </div>
+        )}
+        <StoryRingLabel accent="mine">{viewLabel}</StoryRingLabel>
+      </button>
+      {onAddClick ? (
+        <button
+          type="button"
+          onClick={onAddClick}
+          className="absolute top-0 right-0 min-w-8 min-h-8 flex items-center justify-center rounded-full bg-purple-600 border-2 border-[var(--ms-bg,#0b0b0f)] text-white shadow-md hover:bg-purple-500 transition z-10"
+          aria-label={addLabel}
+          title={addLabel}
+        >
+          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path strokeLinecap="round" d="M12 5v14M5 12h14" />
+          </svg>
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 export const MapStoryRing = memo(function MapStoryRing({
   entry,
   onClick,
@@ -167,148 +310,56 @@ export const MapStoryRing = memo(function MapStoryRing({
   entry: MapStoryEntry;
   onClick: () => void;
   isSeen?: boolean;
-  /** IDs des stories de l'utilisateur (ordre chronologique) pour segments vus */
   storyIds?: string[];
   seenStoryIds?: Set<string>;
 }) {
-  const visibilityBadge =
-    entry.hasActiveStory && entry.storyVisibility === 'public' ? '🌍' :
-    entry.hasActiveStory && entry.storyVisibility === 'followers' ? '👥' : null;
-
   const segmentCount = entry.storyCount ?? 1;
   const useSegmentRing = entry.hasActiveStory && segmentCount > 1 && !entry.isLive;
-  const seenSegments = useSegmentRing && seenStoryIds
-    ? countSeenSegments(storyIds, seenStoryIds)
-    : 0;
+  const seenSegments =
+    useSegmentRing && seenStoryIds ? countSeenSegments(storyIds, seenStoryIds) : 0;
   const allSeen = useSegmentRing && seenSegments >= segmentCount;
-
   const ringInner = ringInnerMedia(entry);
+  const name = displayUsername(entry.username);
+
+  const visibilityHint =
+    entry.hasActiveStory && entry.storyVisibility === 'public'
+      ? ' · public'
+      : entry.hasActiveStory && entry.storyVisibility === 'followers'
+        ? ' · abonnés'
+        : '';
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className="shrink-0 flex flex-col items-center gap-1 w-[4.5rem] snap-start"
-      title={entry.username}
+      className={STORY_RING_ITEM_CLASS}
+      title={`${name}${visibilityHint}`}
       aria-label={
         entry.isLive
-          ? `Live de ${entry.username}`
-          : `Story de ${entry.username}${segmentCount > 1 ? ` (${segmentCount})` : ''}`
+          ? `Live de ${name}`
+          : `Story de ${name}${segmentCount > 1 ? ` (${segmentCount})` : ''}`
       }
     >
       {useSegmentRing ? (
-        <div className="relative">
-          <StorySegmentRing
-            segmentCount={segmentCount}
-            seenSegmentCount={allSeen ? segmentCount : seenSegments}
-          >
-            <div className="w-11 h-11">{ringInner}</div>
-          </StorySegmentRing>
-          {visibilityBadge ? (
-            <span className="absolute -bottom-0.5 -right-0.5 text-[9px] leading-none" aria-hidden>
-              {visibilityBadge}
-            </span>
-          ) : null}
-        </div>
+        <StorySegmentRing
+          segmentCount={segmentCount}
+          seenSegmentCount={allSeen ? segmentCount : seenSegments}
+        >
+          <div className="w-12 h-12">{ringInner}</div>
+        </StorySegmentRing>
       ) : (
         <div className={`rounded-full relative ${ringClassForEntry(entry, isSeen)}`}>
-          <div className="rounded-full bg-[#0b0b0f] p-[2px] w-12 h-12 flex items-center justify-center overflow-hidden">
+          <div className="rounded-full bg-[#0b0b0f] p-[2.5px] w-[3.75rem] h-[3.75rem] flex items-center justify-center overflow-hidden">
             {ringInner}
           </div>
-          {visibilityBadge ? (
-            <span className="absolute -bottom-0.5 -right-0.5 text-[9px] leading-none" aria-hidden>
-              {visibilityBadge}
+          {entry.isLive ? (
+            <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wide bg-red-600 text-white leading-none">
+              Live
             </span>
           ) : null}
         </div>
       )}
-      <span className="text-[9px] text-gray-300 truncate w-full text-center leading-tight">
-        {entry.isFavorite ? '★ ' : ''}
-        {entry.username}
-      </span>
+      <StoryRingLabel accent={entry.isLive ? 'live' : 'default'}>{name}</StoryRingLabel>
     </button>
   );
 });
-
-export function MyMapStoryRing({
-  username,
-  avatarUrl,
-  userId,
-  hasActiveStory,
-  storyImageUrl,
-  storyCount = 0,
-  onClick,
-  onAddClick,
-}: {
-  userId: string;
-  username: string;
-  avatarUrl?: string;
-  hasActiveStory: boolean;
-  storyImageUrl?: string;
-  storyCount?: number;
-  onClick: () => void;
-  /** Bouton + style IG pour publier une nouvelle story */
-  onAddClick?: () => void;
-}) {
-  const segmentCount = storyCount > 0 ? storyCount : hasActiveStory ? 1 : 0;
-  const useSegmentRing = hasActiveStory && segmentCount > 1;
-
-  const avatarInner = hasActiveStory && storyImageUrl ? (
-    <img
-      src={storyImageUrl}
-      alt=""
-      className="w-full h-full rounded-full object-cover bg-[#1a1a26]"
-    />
-  ) : (
-    <UserAvatarOnline userId={userId} username={username} avatarUrl={avatarUrl} size="sm" />
-  );
-
-  const ringClass = hasActiveStory && !useSegmentRing
-    ? STORY_ACTIVE_RING_CLASS
-    : !hasActiveStory
-      ? 'bg-[#3d3d4d] p-[2px] border border-dashed border-purple-500/40'
-      : '';
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="shrink-0 flex flex-col items-center gap-1 w-[4.5rem] snap-start"
-      title={hasActiveStory ? 'Ma story' : 'Ajouter une story'}
-      aria-label={hasActiveStory ? `Ma story${segmentCount > 1 ? ` (${segmentCount})` : ''}` : 'Créer une story'}
-    >
-      <div className="relative">
-        {useSegmentRing ? (
-          <StorySegmentRing segmentCount={segmentCount}>
-            <div className="w-11 h-11">{avatarInner}</div>
-          </StorySegmentRing>
-        ) : (
-          <div className={`rounded-full relative ${ringClass}`}>
-            <div className="rounded-full bg-[#0b0b0f] p-[2px] w-12 h-12 flex items-center justify-center overflow-hidden">
-              {avatarInner}
-            </div>
-          </div>
-        )}
-        {onAddClick ? (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddClick();
-            }}
-            className="absolute -bottom-2 -right-2 min-w-11 min-h-11 flex items-center justify-center rounded-full z-10"
-            aria-label="Publier une nouvelle story"
-            title="Publier une nouvelle story"
-          >
-            <span className="w-6 h-6 rounded-full bg-purple-600 border-2 border-[var(--ms-bg,#0b0b0f)] flex items-center justify-center text-white text-xs font-bold leading-none hover:bg-purple-500">
-              +
-            </span>
-          </button>
-        ) : null}
-      </div>
-      <span className="text-[9px] text-purple-300 truncate w-full text-center leading-tight font-semibold">
-        Ma story
-      </span>
-    </button>
-  );
-}

@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { DEFAULT_PLAYBACK_SESSION_TITLE } from './lib/brandName';
 import { db, Salon, Live, MusicPlatform, User } from './models/schema';
 import { blurCoordinate } from './lib/geo';
 import { refreshUserPublicCoords } from './lib/locationPrivacy';
@@ -490,7 +491,7 @@ function ensureDemoLivesOutsideFrance(passwordHash: string): void {
       playbackState: {
         platform: 'youtube',
         trackId: 'demo',
-        title: 'Soundly Session',
+        title: DEFAULT_PLAYBACK_SESSION_TITLE,
         artist: user.username,
         albumArtUrl: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=400',
         isPlaying: true,

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
 import { FloatingSalonChat } from './FloatingSalonChat';
+import { getStorageItem, setStorageItem, STORAGE_KEYS } from '../lib/storageKeys';
 
-const DOCK_MODE_KEY = 'soundly_theater_chat_dock_mode';
+const DOCK_MODE_KEY = STORAGE_KEYS.theaterChatDockMode;
 const CHAT_DOCK_WIDTH_KEY = 'salon-theater-chat-width';
 const CHAT_DOCK_MIN_WIDTH = 240;
 const CHAT_DOCK_MAX_WIDTH = 480;
@@ -38,7 +39,7 @@ export type TheaterChatDock = 'floating' | 'bottom' | 'right' | 'left';
 
 function readDockMode(): 'floating' | 'right' {
   try {
-    const v = localStorage.getItem(DOCK_MODE_KEY);
+    const v = getStorageItem(DOCK_MODE_KEY);
     if (v === 'floating' || v === 'right') return v;
   } catch {
     /* ignore */
@@ -458,6 +459,8 @@ export interface RoomTheaterLayoutProps {
    * true — colonne chat alignée sur la scène vidéo 16:9 uniquement (contrôles sous la vidéo).
    */
   sideDockMatchHero?: boolean;
+  /** true — scène live avec chrome théâtre (cadre glass, barre statut, placeholder moderne). */
+  liveTheaterChrome?: boolean;
 }
 
 export function RoomTheaterLayout({
@@ -483,6 +486,7 @@ export function RoomTheaterLayout({
   allowFloatingChat = true,
   stackBelowVideo = false,
   sideDockMatchHero = false,
+  liveTheaterChrome = false,
 }: RoomTheaterLayoutProps) {
   const { width: chatDockWidth, setWidth: setChatDockWidth, commitWidth: commitChatDockWidth } =
     useTheaterChatDockWidth();
@@ -507,7 +511,7 @@ export function RoomTheaterLayout({
     setDockMode((current) => {
       const next = current === 'right' ? 'floating' : 'right';
       try {
-        localStorage.setItem(DOCK_MODE_KEY, next);
+        setStorageItem(DOCK_MODE_KEY, next);
       } catch {
         /* ignore */
       }
@@ -637,18 +641,23 @@ export function RoomTheaterLayout({
   const chevronCollapse = showLeftDock ? '6,1 2,7 6,13' : '2,1 6,7 2,13';
   const chevronExpand = showLeftDock ? '2,1 6,7 2,13' : '6,1 2,7 6,13';
 
-  const chatHiddenButton = (
+  /** Live théâtre + chat bas : le toggle vidéo est inutile si le dock est ouvert (× dans l'en-tête). */
+  const showVideoChatToggle = !(liveTheaterChrome && showBottomDock && !chatHidden);
+
+  const chatHiddenButton = showVideoChatToggle ? (
     <button
       type="button"
       onClick={onToggleChat}
-      className={`absolute top-2 right-2 z-[25] flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1a1a26]/90 border border-purple-500/40 text-[10px] font-bold text-purple-300 backdrop-blur hover:border-purple-400 transition pointer-events-auto${!chatHidden ? ' sm:hidden' : ''}`}
+      className={`room-theater-video-chat-toggle absolute z-40 flex items-center gap-1.5 min-h-11 px-3 py-1.5 rounded-full bg-[#1a1a26]/90 border border-purple-500/40 text-[10px] font-bold text-purple-300 backdrop-blur hover:border-purple-400 transition pointer-events-auto touch-manipulation ${
+        liveTheaterChrome ? 'bottom-2 right-2 room-theater-video-chat-toggle--live-theater' : 'top-2 right-2'
+      }${!chatHidden ? ' sm:hidden' : ''}`}
       aria-label={chatHidden ? 'Afficher le chat' : 'Masquer le chat'}
       aria-pressed={!chatHidden}
     >
       <span aria-hidden>💬</span>
       {chatHidden ? 'Chat' : 'Masquer'}
     </button>
-  );
+  ) : null;
 
   const bottomChatDock = showBottomDock ? (
     <div
@@ -709,7 +718,9 @@ export function RoomTheaterLayout({
     <div
       className={`room-theater-video-stage relative flex flex-col ${
         useVideoStack ? 'shrink-0' : 'flex-1'
-      } min-w-0 min-h-0 overflow-hidden bg-black${useMatchHero ? ' room-theater-video-stage--match-hero' : ''}`}
+      } min-w-0 min-h-0 overflow-hidden bg-black${useMatchHero ? ' room-theater-video-stage--match-hero' : ''}${
+        liveTheaterChrome ? ' room-theater-video-stage--live-theater' : ''
+      }`}
     >
       {stage}
 
@@ -768,8 +779,12 @@ export function RoomTheaterLayout({
     return (
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
         {integratedTopBar}
-        <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden bg-[#0b0b0f]">
-          <div className="room-theater-stack-column flex flex-col flex-1 min-h-0">
+        <div
+          className={`flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden bg-[#0b0b0f]${
+            liveTheaterChrome ? ' room-theater-layout--live-theater' : ''
+          }`}
+        >
+          <div className={`room-theater-stack-column flex flex-col flex-1 min-h-0${liveTheaterChrome ? ' room-theater-stack-column--live-theater' : ''}`}>
             {videoStage}
             {bottomChatDock}
             {stageFooterBlock}
@@ -782,7 +797,11 @@ export function RoomTheaterLayout({
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
       {integratedTopBar}
-      <div className={`flex-1 min-w-0 flex flex-col min-h-0${showBottomDock ? ' room-theater-layout--bottom-chat' : ''}`}>
+      <div
+        className={`flex-1 min-w-0 flex flex-col min-h-0${showBottomDock ? ' room-theater-layout--bottom-chat' : ''}${
+          useMatchHero ? ' room-theater-match-hero-shell' : ''
+        }${liveTheaterChrome ? ' room-theater-layout--live-theater' : ''}`}
+      >
         <div
           className={`${sideRowFlex} min-h-0 flex flex-col overflow-hidden${sideRowClass || ' sm:flex-row'}`}
           style={sideRowStyle}
@@ -792,7 +811,7 @@ export function RoomTheaterLayout({
               dockEdge="left"
               {...chatDockAsideProps}
               onDraggingChange={setChatDockResizing}
-              className="room-theater-chat-dock room-theater-chat-dock--theater room-theater-chat-dock--left hidden sm:flex flex-col min-h-0 min-w-0 border-r border-[#1e1e2f] bg-[#101018]"
+              className="room-theater-chat-dock room-theater-chat-dock--theater room-theater-chat-dock--left room-theater-chat-dock--match-hero hidden sm:flex flex-col min-h-0 min-w-0"
             >
               <DockedChatHeader
                 {...dockedChatHeaderProps}
@@ -811,7 +830,7 @@ export function RoomTheaterLayout({
               dockEdge="right"
               {...chatDockAsideProps}
               onDraggingChange={setChatDockResizing}
-              className="room-theater-chat-dock room-theater-chat-dock--theater hidden sm:flex flex-col min-h-0 min-w-0 border-l border-[#1e1e2f] bg-[#101018]"
+              className="room-theater-chat-dock room-theater-chat-dock--theater room-theater-chat-dock--match-hero hidden sm:flex flex-col min-h-0 min-w-0"
             >
               <DockedChatHeader
                 {...dockedChatHeaderProps}

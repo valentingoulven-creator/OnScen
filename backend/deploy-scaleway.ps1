@@ -8,7 +8,7 @@ Set-Location $PSScriptRoot
 
 $VPS     = "root@51.159.164.100"
 $KEY     = "$env:USERPROFILE\.ssh\id_ed25519"
-$REMOTE  = "/opt/soundly"
+$REMOTE  = "/opt/soundy"
 $PM2_APP = "melosong-backend"
 
 # Paramètres SSH/SCP de base

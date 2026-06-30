@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # pm2-reload-intentional.sh — Reload/restart PM2 sans alerte email monitor
 # Usage :
-#   bash /opt/soundly/deploy/pm2-reload-intentional.sh          # reload (zero-downtime)
-#   bash /opt/soundly/deploy/pm2-reload-intentional.sh restart
+#   bash /opt/soundy/deploy/pm2-reload-intentional.sh          # reload (zero-downtime)
+#   bash /opt/soundy/deploy/pm2-reload-intentional.sh restart
 #
 # Crée /tmp/soundy-pm2-reload-intentional lu par monitor-alerts.sh (consommé au prochain restart détecté).
 set -euo pipefail
 
-ROOT="${SOUNDLY_ROOT:-/opt/soundly}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/soundy-root.sh
+source "${SCRIPT_DIR}/lib/soundy-root.sh"
 PM2_APP="${PM2_APP:-melosong-backend}"
 INTENTIONAL_RELOAD_FLAG="/tmp/soundy-pm2-reload-intentional"
 ACTION="${1:-reload}"

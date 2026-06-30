@@ -8,10 +8,20 @@ import {
   LIVE_CAMERA_VIEWER_NO_HOST_CAMERA,
   LIVE_CAMERA_VIEWER_NOTE,
   LIVE_CAMERA_VIEWER_VIDEO_PENDING,
+  isHiddenHostTheaterStatus,
 } from '../lib/liveCameraMessages';
 import type { ViewerRelayPhase } from '../hooks/useLiveVideoRelay';
 import type { HlsPlaybackPhase } from '../hooks/useCloudflareHlsPlayback';
+import { normalizeBrandText } from '../lib/brandName';
 import { LiveStreamEndedOverlay } from './LiveStreamEndedOverlay';
+import { LiveTheaterLiveBadge, LiveVideoStagePlaceholder } from './LiveVideoStagePlaceholder';
+import { LiveTheaterStatusBar, LiveVideoChromeButton } from './LiveVideoTheaterChrome';
+import {
+  getLiveVideoAspectRatioClass,
+  getLiveVideoAspectRatioCss,
+  getLiveVideoAspectRatioPreset,
+  type LiveVideoAspectRatioPreset,
+} from '../lib/liveVideoAspectRatio';
 
 export type LiveVideoStageState = 'loading' | 'live' | 'no-camera' | 'error' | 'ended';
 
@@ -265,6 +275,7 @@ export type LiveVideoStageProps = {
   videoFloat?: VideoPipFloatApi;
   /** Appel\u00e9 quand l\u2019utilisateur clique sur \u29c9 pour activer le PiP. */
   onPipOpen?: () => void;
+  videoAspectRatio?: LiveVideoAspectRatioPreset;
 };
 
 export function LiveVideoStage({
@@ -305,7 +316,10 @@ export function LiveVideoStage({
   streamEndedHint,
   videoFloat,
   onPipOpen,
+  videoAspectRatio: videoAspectRatioProp,
 }: LiveVideoStageProps) {
+  const videoAspectRatio = getLiveVideoAspectRatioPreset(videoAspectRatioProp);
+  const displayPlaybackTitle = normalizeBrandText(playbackTitle);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isVideoFullscreen, setIsVideoFullscreen] = useState(false);
   const [isLandscapeTheater, setIsLandscapeTheater] = useState(initialTheater);
@@ -423,11 +437,7 @@ export function LiveVideoStage({
       return;
     }
     void requestElementFullscreen(el).catch(() => {
-      if (isMobileNarrowViewport() || shouldAutoLandscapeVideo()) {
-        enterTheaterFallback();
-        return;
-      }
-      onFullscreenError?.('Impossible d\'activer le plein \u00e9cran sur cet appareil.');
+      enterTheaterFallback();
     });
   }, [enterTheaterFallback, onFullscreenError]);
 
@@ -582,7 +592,7 @@ export function LiveVideoStage({
             </div>
           )}
           <div className="text-center max-w-[12rem] px-2">
-            <p className="text-xs font-bold text-white truncate">{playbackTitle}</p>
+            <p className="text-xs font-bold text-white truncate">{displayPlaybackTitle}</p>
             <p className="text-[11px] text-gray-400 truncate">{playbackArtist}</p>
           </div>
           <p className="text-[10px] text-gray-600 mt-0.5">📺 Vid\u00e9o en mode PiP</p>
@@ -590,10 +600,13 @@ export function LiveVideoStage({
       )}
     <div
       ref={containerRef}
-      className={`live-video-container relative w-full h-full min-h-0 flex flex-col bg-black overflow-hidden${
+      className={`live-video-container live-video-container--theater ${getLiveVideoAspectRatioClass(videoAspectRatio)} relative w-full h-full min-h-0 flex flex-col overflow-hidden${
         isLandscapeTheater ? ' live-video-container--landscape-theater' : ''
       }`}
-      style={pipContainerStyle}
+      style={{
+        ...pipContainerStyle,
+        ['--live-aspect-ratio' as string]: getLiveVideoAspectRatioCss(videoAspectRatio),
+      }}
     >
       {/* Draggable PiP header — shown only when floating */}
       {videoFloat && (
@@ -606,7 +619,7 @@ export function LiveVideoStage({
             ⠿
           </span>
           <p className="text-[9px] font-bold text-purple-400 uppercase tracking-widest flex-1 truncate min-w-0">
-            {playbackTitle}
+            {displayPlaybackTitle}
           </p>
           <button
             type="button"
@@ -621,8 +634,12 @@ export function LiveVideoStage({
         </div>
       )}
 
+      <div className="live-theater-stage-stack flex flex-col flex-1 min-h-0 min-w-0 w-full h-full">
+        <div className="live-theater-hero-wrap flex flex-col min-w-0 w-full h-full min-h-0 shrink-0">
+          <div className="live-theater-hero flex flex-col min-w-0 w-full flex-1 min-h-0">
+            <div className="live-theater-hero__frame relative min-w-0 w-full flex-1 min-h-0">
       {/* Video layer — single element, always mounted when role known */}
-      <div className="live-video-stage-area">
+      <div className="live-video-stage-area absolute inset-0 w-full h-full">
         <video
           ref={videoRef}
           autoPlay
@@ -645,65 +662,56 @@ export function LiveVideoStage({
 
         {/* Placeholder — album art only when no live video */}
         {!showVideo && !streamEnded && (
-          <div className="live-video-stage-overlay z-0 bg-black">
-            {isCloudflareCdn ? (
-              <>
-                <div className="w-24 h-24 rounded-xl bg-orange-950/40 border border-orange-500/30 flex items-center justify-center text-3xl">
+          isCloudflareCdn ? (
+            <LiveVideoStagePlaceholder
+              title={status}
+              icon={
+                <span className="text-4xl leading-none" aria-hidden>
                   📡
-                </div>
-                <p className="text-sm font-bold text-white text-center max-w-xs px-4">{status}</p>
-              </>
-            ) : (
-              <>
-                {albumArtUrl ? (
-                  <img
-                    src={albumArtUrl}
-                    alt=""
-                    className="w-24 h-24 rounded-xl object-cover shadow-lg opacity-80"
-                  />
-                ) : (
-                  <div className="w-24 h-24 rounded-xl bg-[#1a1a26] flex items-center justify-center text-3xl">
-                    🎵
+                </span>
+              }
+              loading={stageState === 'loading'}
+              badge={stageState === 'loading' ? <LiveTheaterLiveBadge label="CDN" /> : undefined}
+            />
+          ) : (
+            <LiveVideoStagePlaceholder
+              title={displayPlaybackTitle}
+              artist={playbackArtist}
+              albumArtUrl={albumArtUrl}
+              loading={stageState === 'loading'}
+              badge={stageState === 'loading' ? <LiveTheaterLiveBadge /> : undefined}
+              footer={
+                stageState === 'error' ? (
+                  <div className="flex flex-col items-center gap-2 w-full">
+                    {onRetryHlsPlayback ? (
+                      <button
+                        type="button"
+                        onClick={() => onRetryHlsPlayback()}
+                        className="px-4 py-2 min-h-11 rounded-full text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white touch-manipulation"
+                      >
+                        R\u00e9essayer
+                      </button>
+                    ) : onRetryViewerRelay ? (
+                      <button
+                        type="button"
+                        onClick={() => onRetryViewerRelay()}
+                        className="px-4 py-2 min-h-11 rounded-full text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white touch-manipulation"
+                      >
+                        R\u00e9essayer
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => window.location.reload()}
+                      className="px-4 py-2 min-h-11 rounded-full text-xs font-bold bg-[#1a1a26] border border-white/15 text-gray-200 hover:text-white touch-manipulation"
+                    >
+                      Rafra\u00eechir la page
+                    </button>
                   </div>
-                )}
-                <div className="max-w-xs">
-                  <p className="text-sm font-bold text-white truncate">{playbackTitle}</p>
-                  <p className="text-xs text-gray-400 truncate">{playbackArtist}</p>
-                </div>
-              </>
-            )}
-            {stageState === 'loading' && (
-              <div className="mt-2 w-8 h-8 border-2 border-white/20 border-t-purple-400 rounded-full animate-spin" />
-            )}
-            {stageState === 'error' && (
-              <div className="mt-2 flex flex-col items-center gap-2">
-                {onRetryHlsPlayback ? (
-                  <button
-                    type="button"
-                    onClick={() => onRetryHlsPlayback()}
-                    className="px-4 py-2 rounded-full text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white"
-                  >
-                    R\u00e9essayer
-                  </button>
-                ) : onRetryViewerRelay ? (
-                  <button
-                    type="button"
-                    onClick={() => onRetryViewerRelay()}
-                    className="px-4 py-2 rounded-full text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white"
-                  >
-                    R\u00e9essayer
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() => window.location.reload()}
-                  className="px-4 py-2 rounded-full text-xs font-bold bg-[#1a1a26] border border-white/15 text-gray-200 hover:text-white"
-                >
-                  Rafra\u00eechir la page
-                </button>
-              </div>
-            )}
-          </div>
+                ) : undefined
+              }
+            />
+          )
         )}
 
         {streamEnded ? (
@@ -747,60 +755,47 @@ export function LiveVideoStage({
         {!videoFloat && (
           <div className="absolute top-2 left-2 z-30 pointer-events-auto flex items-center gap-1.5">
             {isVideoExpanded ? (
-              <button
-                type="button"
-                onClick={exitVideoFullscreen}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/70 border border-white/20 text-white text-[11px] font-bold backdrop-blur hover:bg-black/85 active:scale-95 transition"
-                aria-label="Quitter le plein \u00e9cran"
-              >
+              <LiveVideoChromeButton onClick={exitVideoFullscreen} ariaLabel="Quitter le plein \u00e9cran">
                 <LiveVideoShrinkIcon />
-              </button>
+              </LiveVideoChromeButton>
             ) : (
-              <button
-                type="button"
-                onClick={enterVideoFullscreen}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/70 border border-white/20 text-white text-[11px] font-bold backdrop-blur hover:bg-black/85 active:scale-95 transition"
-                aria-label="Plein \u00e9cran"
-              >
+              <LiveVideoChromeButton onClick={enterVideoFullscreen} ariaLabel="Plein \u00e9cran">
                 <LiveVideoExpandIcon />
-              </button>
+              </LiveVideoChromeButton>
             )}
             {onPipOpen && !isVideoExpanded && (
-              <button
-                type="button"
-                onClick={onPipOpen}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/70 border border-white/20 text-white text-[11px] font-bold backdrop-blur hover:bg-black/85 active:scale-95 transition"
-                aria-label="D\u00e9tacher en PiP"
-                title="D\u00e9tacher la vid\u00e9o (PiP)"
-              >
+              <LiveVideoChromeButton onClick={onPipOpen} ariaLabel="D\u00e9tacher en PiP" title="D\u00e9tacher la vid\u00e9o (PiP)">
                 <LiveVideoPipIcon />
                 <span className="hidden sm:inline">PiP</span>
-              </button>
+              </LiveVideoChromeButton>
             )}
           </div>
         )}
       </div>
+            </div>
+          </div>
+        </div>
 
       {/* Status bar — below video, never over it; hidden in PiP mode */}
-      {!videoFloat && (
-        <div
-          className={`shrink-0 px-3 py-2 border-t border-white/10 bg-[#0a0a0f] text-center text-[11px] leading-relaxed ${
+      {!videoFloat && !(isHost && isHiddenHostTheaterStatus(status)) && (
+        <LiveTheaterStatusBar
+          tone={
             stageState === 'error'
-              ? 'text-red-300'
+              ? 'error'
               : stageState === 'live'
-                ? 'text-emerald-300'
+                ? 'live'
                 : stageState === 'loading'
-                  ? 'text-gray-400'
-                  : 'text-gray-500'
-          }`}
-          aria-live="polite"
+                  ? 'loading'
+                  : 'idle'
+          }
         >
-          {status}
+          <p className="live-theater-status-bar__text">{status}</p>
           {import.meta.env.DEV && !isHost && viewerDebugInfo ? (
             <span className="block text-[9px] text-gray-600 mt-0.5 font-mono">{viewerDebugInfo}</span>
           ) : null}
-        </div>
+        </LiveTheaterStatusBar>
       )}
+      </div>
     </div>
     </>
   );

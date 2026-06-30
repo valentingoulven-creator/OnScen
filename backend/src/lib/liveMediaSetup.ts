@@ -1,5 +1,11 @@
 import type { User } from '../models/schema';
 
+export type LiveContentCategory = 'music' | 'dance' | 'artistic';
+
+export function isLiveContentCategory(value: unknown): value is LiveContentCategory {
+  return value === 'music' || value === 'dance' || value === 'artistic';
+}
+
 export type PersistedLiveChatConfig = {
   noLinksForParticipants?: boolean;
   slowModeSeconds?: number;
@@ -20,6 +26,7 @@ export type PersistedLiveMediaSetup = {
   startLocationLabel?: string;
   startLocationSource?: 'my_position' | 'city' | 'address';
   liveTitle?: string;
+  contentCategory?: LiveContentCategory;
   chatConfig?: PersistedLiveChatConfig;
   hostSessionDraft?: PersistedLiveHostSessionDraft;
   useObs?: boolean;
@@ -51,6 +58,9 @@ export function sanitizeLiveMediaSetup(raw: unknown): PersistedLiveMediaSetup | 
   }
   if (typeof o.liveTitle === 'string' && o.liveTitle.trim()) {
     setup.liveTitle = o.liveTitle.trim().slice(0, 120);
+  }
+  if (isLiveContentCategory(o.contentCategory)) {
+    setup.contentCategory = o.contentCategory;
   }
   if (typeof o.useObs === 'boolean') setup.useObs = o.useObs;
 

@@ -13,6 +13,7 @@ export type LegalKey =
   | 'mentions'
   | 'terms'
   | 'privacy'
+  | 'cookies'
   | 'rgpd'
   | 'apiPlatforms'
   | 'licenses'

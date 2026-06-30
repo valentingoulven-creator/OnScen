@@ -2,8 +2,9 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { db } from '../models/schema';
 import { canUserUseApp } from '../lib/accessControl';
-import { getJwtSecret, isDeployedEnv } from '../lib/jwtSecret';
-import { getUserTokenVersion } from '../lib/tokenVersion';
+import { getJwtSecret, isDeployedEnv, JWT_VERIFY_OPTIONS, JWT_SIGN_OPTIONS } from '../lib/jwtSecret';
+import { getUserTokenVersion, bumpUserTokenVersion } from '../lib/tokenVersion';
+import { schedulePersistUserToPg } from '../lib/pgUsers';
 import type { User } from '../models/schema';
 
 const JWT_SECRET = getJwtSecret();
@@ -13,6 +14,17 @@ export interface AuthPayload {
   username: string;
   /** JWT session version — must match user.tokenVersion in DB. */
   tv?: number;
+  /** Restricted scopes (e.g. 2fa_pending) must not access protected routes. */
+  scope?: string;
+}
+
+/** Full session tokens omit scope or use `full`. Any other scope is restricted. */
+export function isRestrictedJwtScope(scope: string | undefined): boolean {
+  return scope !== undefined && scope !== 'full';
+}
+
+function assertFullSession(decoded: AuthPayload): boolean {
+  return !isRestrictedJwtScope(decoded.scope);
 }
 
 /** Header JWT dédié — évite d'écraser Authorization: Basic (Caddy) côté navigateur. */
@@ -101,7 +113,11 @@ export function authenticateJWT(req: Request, res: Response, next: NextFunction)
     return;
   }
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as AuthPayload;
+    const decoded = jwt.verify(token, JWT_SECRET, JWT_VERIFY_OPTIONS) as AuthPayload;
+    if (!assertFullSession(decoded)) {
+      res.status(401).json({ error: 'Authentification incomplète — reconnectez-vous' });
+      return;
+    }
     const user = db.users.get(decoded.id);
     if (!user) {
       res.status(401).json({ error: 'Token invalide ou expiré' });
@@ -134,6 +150,7 @@ export const JWT_SESSION_EXPIRY = '24h';
 export function signToken(payload: AuthPayload, rememberMe = true): string {
   const tv = payload.tv ?? 0;
   return jwt.sign({ ...payload, tv }, JWT_SECRET, {
+    ...JWT_SIGN_OPTIONS,
     expiresIn: rememberMe ? JWT_REMEMBER_EXPIRY : JWT_SESSION_EXPIRY,
   });
 }
@@ -148,13 +165,40 @@ export function signTokenForUser(user: User, rememberMe = true): string {
 
 export function verifyAuthToken(token: string): AuthPayload | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as AuthPayload;
+    const decoded = jwt.verify(token, JWT_SECRET, JWT_VERIFY_OPTIONS) as AuthPayload;
+    if (!assertFullSession(decoded)) return null;
     const user = db.users.get(decoded.id);
     if (!user || !tokenVersionMatches(user, decoded)) return null;
     return decoded;
   } catch {
     return null;
   }
+}
+
+/** Invalide tous les JWT émis avant (logout, révocation session). */
+export function revokeSessionForToken(token: string): boolean {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET, JWT_VERIFY_OPTIONS) as AuthPayload;
+    if (!assertFullSession(decoded)) return false;
+    const user = db.users.get(decoded.id);
+    if (!user) return false;
+    bumpUserTokenVersion(user);
+    db.users.set(user.id, user);
+    schedulePersistUserToPg(user);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function extractTokenFromRequest(req: Request): string | null {
+  return extractToken(req);
+}
+
+/** Logout helper — extrait le token cookie ou header et révoque la session. */
+export function revokeSessionFromRequest(req: Request): void {
+  const token = extractTokenFromRequest(req);
+  if (token) revokeSessionForToken(token);
 }
 
 /**

@@ -16,7 +16,7 @@ interface CreatorSubscribeSheetProps {
   onClose: () => void;
   token: string;
   userAge?: number;
-  /** Créateur ciblé ; absent pour Soundly+ */
+  /** Créateur ciblé ; absent pour Soundy+ */
   creatorId?: string;
   creatorName?: string;
   targetType?: SubscriptionTargetType;

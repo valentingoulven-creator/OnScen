@@ -142,6 +142,15 @@ export async function updateCredentialCounter(credentialId: string, newCounter: 
   );
 }
 
+export async function deleteAllWebAuthnCredentialsForUser(userId: string): Promise<void> {
+  if (!isPostgresEnabled()) {
+    devStore.delete(userId);
+    return;
+  }
+  const pool = getPool();
+  await pool.query('DELETE FROM webauthn_credentials WHERE user_id = $1', [userId]);
+}
+
 export async function deleteCredential(credentialId: string, userId: string): Promise<boolean> {
   if (!isPostgresEnabled()) {
     const creds = devStore.get(userId) ?? [];

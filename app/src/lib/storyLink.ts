@@ -1,3 +1,6 @@
+import type { StoryAppLinkTarget } from './storyAppLink';
+import { parseStoryAppLink, storyAppLinkDefaultLabel } from './storyAppLink';
+
 export interface StoryLinkInput {
   url: string;
   label?: string;
@@ -34,10 +37,20 @@ export function validateStoryLinkUrl(
 export function storyLinkDisplayLabel(link: { url: string; label?: string }): string {
   const custom = link.label?.trim();
   if (custom) return custom;
+  const appTarget = parseStoryAppLink(link.url);
+  if (appTarget) return storyAppLinkDefaultLabel(appTarget);
   try {
     const host = new URL(link.url).hostname.replace(/^www\./i, '');
     return host || 'Voir plus';
   } catch {
     return 'Voir plus';
   }
+}
+
+export function resolveStoryLinkOpenTarget(url: string): StoryAppLinkTarget | 'external' | null {
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  const appTarget = parseStoryAppLink(trimmed);
+  if (appTarget) return appTarget;
+  return 'external';
 }

@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # install-caddy-guard.sh — Installe watchdog, backup immuable, cron (à lancer sur le VPS)
-# Usage : sudo bash /opt/soundly/deploy/install-caddy-guard.sh
+# Usage : sudo bash /opt/soundy/deploy/install-caddy-guard.sh
 set -euo pipefail
 
 # Scripts copiés depuis Windows peuvent avoir des CRLF
-sed -i 's/\r$//' /opt/soundly/deploy/*.sh 2>/dev/null || true
+sed -i 's/\r$//' /opt/soundy/deploy/*.sh 2>/dev/null || true
 
-REPO_CADDY="/opt/soundly/deploy/Caddyfile"
+REPO_CADDY="/opt/soundy/deploy/Caddyfile"
 BACKUP="/root/Caddyfile.production.backup"
 WATCHDOG_DST="/root/caddy-watchdog.sh"
 HEALTH_DST="/root/healthcheck.sh"
-SYNC="/opt/soundly/deploy/sync-caddy.sh"
+SYNC="/opt/soundy/deploy/sync-caddy.sh"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "Exécuter en root (sudo)." >&2
@@ -22,22 +22,22 @@ if [ ! -f "$REPO_CADDY" ]; then
   exit 1
 fi
 
-chmod +x /opt/soundly/deploy/sync-caddy.sh
-chmod +x /opt/soundly/deploy/caddy-watchdog.sh
-chmod +x /opt/soundly/deploy/healthcheck.sh 2>/dev/null || true
-chmod +x /opt/soundly/deploy/backup-db.sh 2>/dev/null || true
-chmod +x /opt/soundly/deploy/verify-backup.sh 2>/dev/null || true
-chmod +x /opt/soundly/deploy/verify-prod.sh 2>/dev/null || true
-chmod +x /opt/soundly/deploy/install-backup-cron.sh 2>/dev/null || true
-chmod +x /opt/soundly/deploy/install-health-cron.sh 2>/dev/null || true
-chmod +x /opt/soundly/deploy/setup-legal-publisher.sh 2>/dev/null || true
-mkdir -p /opt/soundly/backups /opt/soundly/logs
+chmod +x /opt/soundy/deploy/sync-caddy.sh
+chmod +x /opt/soundy/deploy/caddy-watchdog.sh
+chmod +x /opt/soundy/deploy/healthcheck.sh 2>/dev/null || true
+chmod +x /opt/soundy/deploy/backup-db.sh 2>/dev/null || true
+chmod +x /opt/soundy/deploy/verify-backup.sh 2>/dev/null || true
+chmod +x /opt/soundy/deploy/verify-prod.sh 2>/dev/null || true
+chmod +x /opt/soundy/deploy/install-backup-cron.sh 2>/dev/null || true
+chmod +x /opt/soundy/deploy/install-health-cron.sh 2>/dev/null || true
+chmod +x /opt/soundy/deploy/setup-legal-publisher.sh 2>/dev/null || true
+mkdir -p /opt/soundy/backups /opt/soundy/logs
 
-cp /opt/soundly/deploy/caddy-watchdog.sh "$WATCHDOG_DST"
+cp /opt/soundy/deploy/caddy-watchdog.sh "$WATCHDOG_DST"
 chmod +x "$WATCHDOG_DST"
 
-if [ -f /opt/soundly/deploy/healthcheck.sh ]; then
-  cp /opt/soundly/deploy/healthcheck.sh "$HEALTH_DST"
+if [ -f /opt/soundy/deploy/healthcheck.sh ]; then
+  cp /opt/soundy/deploy/healthcheck.sh "$HEALTH_DST"
   chmod +x "$HEALTH_DST"
 fi
 

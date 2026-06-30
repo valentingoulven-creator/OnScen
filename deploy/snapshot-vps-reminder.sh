@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # snapshot-vps-reminder.sh — Rappel snapshot VPS Scaleway avant upgrade majeur
-# Usage : bash /opt/soundly/deploy/snapshot-vps-reminder.sh
+# Usage : bash /opt/soundy/deploy/snapshot-vps-reminder.sh
 # Non bloquant — affiche la checklist console Scaleway.
 set -euo pipefail
 
@@ -15,9 +15,9 @@ echo "  3. Nom suggéré : soundy-pre-deploy-$(date '+%Y%m%d')"
 echo "  4. Attendre statut « available » avant de continuer le deploy"
 echo ""
 echo "  Vérifier aussi :"
-echo "    bash /opt/soundly/deploy/verify-scaleway-backup.sh"
-echo "    bash /opt/soundly/deploy/backup-db.sh"
-echo "    bash /opt/soundly/deploy/backup-uploads.sh"
+echo "    bash /opt/soundy/deploy/verify-scaleway-backup.sh"
+echo "    bash /opt/soundy/deploy/backup-db.sh"
+echo "    bash /opt/soundy/deploy/backup-uploads.sh"
 echo ""
 echo "  Doc : deploy/RUNBOOK-PROD.md § Sauvegardes"
 echo ""

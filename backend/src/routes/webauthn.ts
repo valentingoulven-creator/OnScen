@@ -18,6 +18,13 @@ import { publicProfile } from '../lib/profile';
 import { loginAccessDeniedReason } from '../lib/accessControl';
 import { trackEvent, trackUserActive } from '../lib/analytics';
 import { isMsdevRuntime } from '../lib/msdevGuard';
+import { createRateLimitStore } from '../lib/rateLimitStore';
+import {
+  consumeWebAuthnChallenge,
+  pruneWebAuthnChallengesIfNeeded,
+  storeWebAuthnChallenge,
+  webAuthnChallengeStoreSize,
+} from '../lib/webauthnChallengeStore';
 import {
   listCredentialsForUser,
   findCredentialById,
@@ -45,22 +52,8 @@ const webauthnLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Trop de tentatives biométriques. Réessayez dans quelques minutes.' },
   skip: () => isMsdevRuntime(),
+  store: createRateLimitStore('webauthn'),
 });
-
-// ── In-memory challenge store (TTL 5 min) ────────────────────────────────────
-interface ChallengeEntry {
-  challenge: string;
-  expiresAt: number;
-}
-const challengeStore = new Map<string, ChallengeEntry>();
-const CHALLENGE_TTL_MS = 5 * 60 * 1000;
-
-function pruneExpiredChallenges(): void {
-  const now = Date.now();
-  for (const [key, entry] of challengeStore.entries()) {
-    if (now > entry.expiresAt) challengeStore.delete(key);
-  }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/auth/webauthn/credentials — liste les credentials de l'utilisateur
@@ -123,11 +116,8 @@ webauthnRouter.post(
         supportedAlgorithmIDs: [-7, -257],
       });
 
-      if (challengeStore.size > 5000) pruneExpiredChallenges();
-      challengeStore.set(`reg:${userId}`, {
-        challenge: options.challenge,
-        expiresAt: Date.now() + CHALLENGE_TTL_MS,
-      });
+      if (webAuthnChallengeStoreSize() > 5000) pruneWebAuthnChallengesIfNeeded();
+      await storeWebAuthnChallenge(`reg:${userId}`, options.challenge);
 
       res.json(options);
     } catch (err) {
@@ -148,13 +138,11 @@ webauthnRouter.post(
     const userId = (req as Request & { user: { id: string } }).user.id;
     const body   = req.body as RegistrationResponseJSON;
 
-    const entry = challengeStore.get(`reg:${userId}`);
-    if (!entry || Date.now() > entry.expiresAt) {
-      challengeStore.delete(`reg:${userId}`);
+    const entry = await consumeWebAuthnChallenge(`reg:${userId}`);
+    if (!entry) {
       res.status(400).json({ error: "Session expir\u00e9e. Recommencez l'activation." });
       return;
     }
-    challengeStore.delete(`reg:${userId}`);
 
     try {
       const { verified, registrationInfo } = await verifyRegistrationResponse({
@@ -206,11 +194,8 @@ webauthnRouter.post(
         userVerification: 'preferred',
       });
 
-      if (challengeStore.size > 5000) pruneExpiredChallenges();
-      challengeStore.set(`auth:${sessionId}`, {
-        challenge:  options.challenge,
-        expiresAt:  Date.now() + CHALLENGE_TTL_MS,
-      });
+      if (webAuthnChallengeStoreSize() > 5000) pruneWebAuthnChallengesIfNeeded();
+      await storeWebAuthnChallenge(`auth:${sessionId}`, options.challenge);
 
       res.json({ ...options, sessionId });
     } catch (err) {
@@ -237,13 +222,11 @@ webauthnRouter.post(
       return;
     }
 
-    const entry = challengeStore.get(`auth:${sessionId}`);
-    if (!entry || Date.now() > entry.expiresAt) {
-      challengeStore.delete(`auth:${sessionId}`);
+    const entry = await consumeWebAuthnChallenge(`auth:${sessionId}`);
+    if (!entry) {
       res.status(400).json({ error: 'Session expirée. Recommencez la connexion biométrique.' });
       return;
     }
-    challengeStore.delete(`auth:${sessionId}`);
 
     const credentialId = response?.id;
     if (!credentialId) {

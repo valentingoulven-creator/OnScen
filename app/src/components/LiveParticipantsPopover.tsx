@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
+import { useAnchoredPopoverPosition } from '../hooks/useAnchoredPopoverPosition';
 import { useVisibleInterval } from '../hooks/usePageVisible';
 import { api } from '../lib/api';
 import type { LiveParticipant } from '../types';
@@ -15,7 +17,7 @@ interface LiveParticipantsPopoverProps {
   vipModeratorIds: string[];
   /** Compteur temps réel (socket live_updated), prioritaire sur la réponse API. */
   viewersCount?: number;
-  /** Ouvre le panneau vers le haut (dock chat en bas). */
+  /** @deprecated Prefer auto flip via portal; kept for callers passing panelAbove. */
   panelAbove?: boolean;
 }
 
@@ -102,38 +104,32 @@ export function LiveParticipantsPopover({
   const showHost =
     !searchTrimmed || hostName.toLowerCase().includes(searchTrimmed);
 
-  return (
-    <div className="relative shrink-0">
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className={`w-6 h-6 flex items-center justify-center rounded transition text-sm leading-none ${
-          open
-            ? 'text-purple-300 bg-purple-900/40'
-            : 'text-gray-500 hover:text-white hover:bg-white/10'
-        }`}
-        aria-label="Participants"
-        aria-expanded={open}
-        title="Participants"
-      >
-        <span aria-hidden>👥</span>
-      </button>
+  const panelPos = useAnchoredPopoverPosition(open, buttonRef, panelRef, [
+    loading,
+    participants.length,
+    searchTrimmed,
+    filteredParticipants.length,
+    showHost,
+  ], { estimatedWidth: 288, estimatedHeight: 280, preferAbove: panelAbove });
 
-      {open && (
-        <div
-          ref={panelRef}
-          className={`absolute right-0 z-[60] w-[min(18rem,calc(100vw-2rem))] rounded-xl border border-[#2a2a3a] bg-[#12121a] shadow-2xl overflow-hidden ${
-            panelAbove ? 'bottom-full mb-1' : 'top-full mt-1'
-          }`}
-        >
+  const panel =
+    open && typeof document !== 'undefined' ? (
+      <div
+        ref={panelRef}
+        className="fixed z-[70] w-[min(18rem,calc(100vw-2rem))] rounded-xl border border-[#2a2a3a] bg-[#12121a] shadow-2xl overflow-hidden"
+        style={{
+          top: panelPos?.top ?? (buttonRef.current?.getBoundingClientRect().bottom ?? 0) + 4,
+          left: panelPos?.left ?? 8,
+          visibility: panelPos ? 'visible' : 'hidden',
+        }}
+      >
           <div className="px-3 py-2 border-b border-[#1e1e2f] bg-[#14141c]/90 space-y-2">
-            <div>
-              <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest">
-                Participants
-              </p>
-              <p className="text-[10px] text-gray-500 mt-0.5 tabular-nums">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] text-gray-500 tabular-nums min-w-0 truncate">
                 {loading ? 'Chargement…' : spectatorLabel}
+              </p>
+              <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest shrink-0">
+                Participants
               </p>
             </div>
             <div className="relative">
@@ -217,8 +213,28 @@ export function LiveParticipantsPopover({
               ))
             )}
           </div>
-        </div>
-      )}
+      </div>
+    ) : null;
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`w-11 h-11 flex items-center justify-center rounded-lg transition text-sm leading-none touch-manipulation ${
+          open
+            ? 'text-purple-300 bg-purple-900/40'
+            : 'text-gray-500 hover:text-white hover:bg-white/10'
+        }`}
+        aria-label="Participants"
+        aria-expanded={open}
+        title="Participants"
+      >
+        <span aria-hidden>👥</span>
+      </button>
+
+      {panel ? createPortal(panel, document.body) : null}
     </div>
   );
 }

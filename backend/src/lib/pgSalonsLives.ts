@@ -60,13 +60,21 @@ export async function loadSalonsLivesFromPostgres(): Promise<{ salons: number; l
 
 async function upsertSalon(db: DbExec, salon: Salon): Promise<void> {
   await db.query(
-    `INSERT INTO salons (id, host_id, created_at, latitude, longitude, is_active, payload)
-     VALUES ($1, $2, $3, $4, $5, TRUE, $6::jsonb)
+    `INSERT INTO salons (id, host_id, created_at, latitude, longitude, geom, is_active, payload)
+     VALUES (
+       $1, $2, $3, $4, $5,
+       CASE WHEN $4 IS NOT NULL AND $5 IS NOT NULL
+         THEN ST_SetSRID(ST_MakePoint($5, $4), 4326)::geography
+         ELSE NULL
+       END,
+       TRUE, $6::jsonb
+     )
      ON CONFLICT (id) DO UPDATE SET
        host_id = EXCLUDED.host_id,
        created_at = EXCLUDED.created_at,
        latitude = EXCLUDED.latitude,
        longitude = EXCLUDED.longitude,
+       geom = EXCLUDED.geom,
        is_active = EXCLUDED.is_active,
        payload = EXCLUDED.payload`,
     [salon.id, salon.hostId, salon.createdAt, salon.latitude, salon.longitude, JSON.stringify(salon)]
@@ -75,8 +83,15 @@ async function upsertSalon(db: DbExec, salon: Salon): Promise<void> {
 
 async function upsertLive(db: DbExec, live: Live): Promise<void> {
   await db.query(
-    `INSERT INTO lives (id, host_id, salon_id, started_at, is_active, latitude, longitude, payload)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
+    `INSERT INTO lives (id, host_id, salon_id, started_at, is_active, latitude, longitude, geom, payload)
+     VALUES (
+       $1, $2, $3, $4, $5, $6, $7,
+       CASE WHEN $6 IS NOT NULL AND $7 IS NOT NULL
+         THEN ST_SetSRID(ST_MakePoint($7, $6), 4326)::geography
+         ELSE NULL
+       END,
+       $8::jsonb
+     )
      ON CONFLICT (id) DO UPDATE SET
        host_id = EXCLUDED.host_id,
        salon_id = EXCLUDED.salon_id,
@@ -84,6 +99,7 @@ async function upsertLive(db: DbExec, live: Live): Promise<void> {
        is_active = EXCLUDED.is_active,
        latitude = EXCLUDED.latitude,
        longitude = EXCLUDED.longitude,
+       geom = EXCLUDED.geom,
        payload = EXCLUDED.payload`,
     [
       live.id,

@@ -1,5 +1,6 @@
 import type { Live } from '../models/schema';
 import { db } from '../models/schema';
+import { normalizeBrandText } from './brandName';
 import { creatorMeetsMonetizationAgeFromProfile } from './ageGates';
 import { isDevUser } from './accessControl';
 import { getPublicMapCoords } from './locationPrivacy';
@@ -29,7 +30,10 @@ export function serializePublicLive(l: Live, distanceKm?: number, viewerId?: str
     hostUsernameWaveTo: host?.usernameWaveTo,
     title: l.title,
     platform: l.platform,
-    playbackState: l.playbackState,
+    playbackState: {
+      ...l.playbackState,
+      title: normalizeBrandText(l.playbackState.title),
+    },
     latitude: coords.latitude,
     longitude: coords.longitude,
     viewersCount: l.viewersCount,
@@ -46,6 +50,8 @@ export function serializePublicLive(l: Live, distanceKm?: number, viewerId?: str
     isDev: isDevModerator ? true : undefined,
     hostMonetizationEligible: creatorMeetsMonetizationAgeFromProfile(host),
     tipsEnabled: l.tipsEnabled !== false,
+    contentCategory: l.contentCategory,
+    videoDelaySeconds: l.videoDelaySeconds ?? 0,
     countryCode: country?.code,
     countryName: country?.name,
     ...(donationOptions?.length ? { donationOptions } : {}),

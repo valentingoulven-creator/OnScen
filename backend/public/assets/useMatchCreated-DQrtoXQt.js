@@ -1,1 +1,0 @@
-import{r as e}from"./rolldown-runtime-QTnfLwEv.js";import{a as t,bt as n}from"./auth-context-7UbJOpGe.js";var r=e(n(),1);function i(e,n=!0){(0,r.useEffect)(()=>{if(!n)return;let r=t();if(!r)return;let i=t=>e(t);return r.on(`match_created`,i),()=>{r.off(`match_created`,i)}},[e,n])}export{i as t};

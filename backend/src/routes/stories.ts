@@ -4,7 +4,7 @@ import { schedulePersist } from '../lib/persist';
 import { createStory, deleteStory, getMyActiveStory, getUserActiveStories, listStoriesForViewer } from '../lib/stories';
 import { notifyMentions } from '../lib/mentions';
 import { db } from '../models/schema';
-import { moderateImageSource, moderationRejectionMessage } from '../lib/contentModeration';
+import { moderateImageSource, moderateVideoSource, moderationRejectionMessage } from '../lib/contentModeration';
 
 export const storiesRouter = Router();
 
@@ -33,8 +33,22 @@ storiesRouter.post('/', authenticateJWT, async (req: Request, res: Response) => 
   const me = (req as Request & { user: { id: string } }).user.id;
   const body = req.body ?? {};
   const imageUrl = body.imageUrl != null ? String(body.imageUrl) : undefined;
+  const videoUrl = body.videoUrl != null ? String(body.videoUrl) : undefined;
+  const videoDurationSec =
+    body.videoDurationSec != null ? Number(body.videoDurationSec) : undefined;
   if (imageUrl) {
     const moderation = await moderateImageSource(imageUrl, 'story');
+    if (!moderation.allowed) {
+      res.status(422).json({ error: moderationRejectionMessage(moderation) });
+      return;
+    }
+  }
+  if (videoUrl) {
+    const moderation = await moderateVideoSource(
+      videoUrl,
+      Number.isFinite(videoDurationSec) ? videoDurationSec : undefined,
+      'story'
+    );
     if (!moderation.allowed) {
       res.status(422).json({ error: moderationRejectionMessage(moderation) });
       return;
@@ -43,6 +57,8 @@ storiesRouter.post('/', authenticateJWT, async (req: Request, res: Response) => 
   const result = createStory(me, {
     content: body.content != null ? String(body.content) : undefined,
     imageUrl,
+    videoUrl,
+    videoDurationSec,
     musicTrack: body.musicTrack,
     taggedUserIds: body.taggedUserIds,
     link: body.link,

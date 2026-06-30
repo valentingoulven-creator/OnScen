@@ -1,6 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { LIVE_CAMERA_FILE_LOAD_ERROR } from '../lib/liveCameraMessages';
 import { getLiveMediaPrefs, setLiveMediaPrefs } from '../lib/liveMediaPrefs';
+import {
+  DEFAULT_LIVE_VIDEO_RESOLUTION,
+  getLiveVideoResolutionPreset,
+  type LiveVideoResolutionPreset,
+} from '../lib/liveVideoResolution';
+import {
+  DEFAULT_LIVE_VIDEO_ASPECT_RATIO,
+  getLiveVideoAspectRatioPreset,
+  type LiveVideoAspectRatioPreset,
+} from '../lib/liveVideoAspectRatio';
 import { takeLiveCameraHandoff } from '../lib/liveCameraHandoff';
 import {
   acquireLiveCameraStream,
@@ -37,6 +47,12 @@ export function useLiveCamera() {
   const [videoDevices, setVideoDevices] = useState<LiveMediaDeviceOption[]>([]);
   const [audioDeviceId, setAudioDeviceId] = useState('');
   const [videoDeviceId, setVideoDeviceId] = useState('');
+  const [videoResolution, setVideoResolution] = useState<LiveVideoResolutionPreset>(
+    DEFAULT_LIVE_VIDEO_RESOLUTION
+  );
+  const [videoAspectRatio, setVideoAspectRatio] = useState<LiveVideoAspectRatioPreset>(
+    DEFAULT_LIVE_VIDEO_ASPECT_RATIO
+  );
   const [micSwitching, setMicSwitching] = useState(false);
   const [camSwitching, setCamSwitching] = useState(false);
   const [previewBlocked, setPreviewBlocked] = useState(false);
@@ -64,6 +80,8 @@ export function useLiveCamera() {
     const prefs = getLiveMediaPrefs();
     setAudioDeviceId(prefs?.audioDeviceId ?? '');
     setVideoDeviceId(prefs?.videoDeviceId ?? '');
+    setVideoResolution(getLiveVideoResolutionPreset(prefs?.videoResolution));
+    setVideoAspectRatio(getLiveVideoAspectRatioPreset(prefs?.videoAspectRatio));
   }, []);
 
   const attachPreview = useCallback(async () => {
@@ -300,17 +318,30 @@ export function useLiveCamera() {
     const prefs = getLiveMediaPrefs();
     if (prefs?.audioDeviceId) setAudioDeviceId(prefs.audioDeviceId);
     if (prefs?.videoDeviceId) setVideoDeviceId(prefs.videoDeviceId);
+    if (prefs?.videoResolution) setVideoResolution(getLiveVideoResolutionPreset(prefs.videoResolution));
+    if (prefs?.videoAspectRatio) setVideoAspectRatio(getLiveVideoAspectRatioPreset(prefs.videoAspectRatio));
   }, [mode]);
 
   const updateMediaDevicePrefs = useCallback(
-    (next: { videoDeviceId?: string; audioDeviceId?: string }) => {
+    (next: {
+      videoDeviceId?: string;
+      audioDeviceId?: string;
+      videoResolution?: LiveVideoResolutionPreset;
+      videoAspectRatio?: LiveVideoAspectRatioPreset;
+    }) => {
       const prefs = getLiveMediaPrefs();
       setLiveMediaPrefs({
+        ...prefs,
         videoDeviceId: next.videoDeviceId ?? prefs?.videoDeviceId,
         audioDeviceId: next.audioDeviceId ?? prefs?.audioDeviceId,
+        videoResolution: next.videoResolution ?? prefs?.videoResolution ?? DEFAULT_LIVE_VIDEO_RESOLUTION,
+        videoAspectRatio:
+          next.videoAspectRatio ?? prefs?.videoAspectRatio ?? DEFAULT_LIVE_VIDEO_ASPECT_RATIO,
       });
       if (next.audioDeviceId !== undefined) setAudioDeviceId(next.audioDeviceId);
       if (next.videoDeviceId !== undefined) setVideoDeviceId(next.videoDeviceId);
+      if (next.videoResolution !== undefined) setVideoResolution(next.videoResolution);
+      if (next.videoAspectRatio !== undefined) setVideoAspectRatio(next.videoAspectRatio);
     },
     []
   );
@@ -352,7 +383,13 @@ export function useLiveCamera() {
       setCamSwitching(true);
       setError(null);
       try {
-        const track = await replaceLiveVideoTrack(stream, (c) => md.getUserMedia(c), nextDeviceId);
+        const track = await replaceLiveVideoTrack(
+          stream,
+          (c) => md.getUserMedia(c),
+          nextDeviceId,
+          videoResolution,
+          videoAspectRatio
+        );
         setVideoDeviceId(nextDeviceId);
         setLiveMediaPrefs({
           videoDeviceId: nextDeviceId,
@@ -370,7 +407,7 @@ export function useLiveCamera() {
         setCamSwitching(false);
       }
     },
-    [audioDeviceId, attachPreview, mode, videoDeviceId]
+    [audioDeviceId, attachPreview, mode, videoAspectRatio, videoDeviceId, videoResolution]
   );
 
   return {
@@ -384,6 +421,8 @@ export function useLiveCamera() {
     videoDevices,
     audioDeviceId,
     videoDeviceId,
+    videoResolution,
+    videoAspectRatio,
     micSwitching,
     camSwitching,
     start,

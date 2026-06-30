@@ -58,7 +58,7 @@ describe('subscriptions validation', () => {
     expect(creatorTiers[1]?.amountCents).toBe(999);
   });
 
-  it('résout le créateur plateforme pour Soundly+', () => {
+  it('résout le créateur plateforme pour Soundy+', () => {
     expect(resolveCreatorId('platform')).toBe(PLATFORM_CREATOR_ID);
     expect(resolveCreatorId('creator', 'abc')).toBe('abc');
     expect(() => resolveCreatorId('creator')).toThrow(/Créateur requis/);

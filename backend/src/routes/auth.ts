@@ -3,8 +3,19 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { db, User, ListeningRole } from '../models/schema';
-import { authenticateJWT, signTokenForUser, setAuthCookie, clearAuthCookie } from '../middleware/auth';
-import { getJwtSecret } from '../lib/jwtSecret';
+import {
+  authenticateJWT,
+  clearAuthCookie,
+  revokeSessionFromRequest,
+  setAuthCookie,
+  signTokenForUser,
+} from '../middleware/auth';
+import { getJwtSecret, JWT_SIGN_OPTIONS } from '../lib/jwtSecret';
+import {
+  clearLoginFailures,
+  isLoginBlocked,
+  recordLoginFailure,
+} from '../lib/loginAttemptLimit';
 import {
   applyAgeSettings,
   applyProfileDefaults,
@@ -32,6 +43,7 @@ import { schedulePersistUserToPg } from '../lib/pgUsers';
 import { bumpUserTokenVersion } from '../lib/tokenVersion';
 import { buildUserDataExport } from '../lib/accountDataExport';
 import { deleteUserAccountCascade } from '../lib/accountDeletion';
+import { prepareUserAccountDeletion } from '../lib/accountDeletionPrep';
 import { CURRENT_TERMS_VERSION } from '../lib/legalConstants';
 import { acceptCurrentTerms, userNeedsTermsReacceptance } from '../lib/termsAcceptance';
 import { isValidProfileType } from '../lib/profileTypes';
@@ -218,8 +230,20 @@ authRouter.post('/register', async (req: Request, res: Response) => {
 
 authRouter.post('/login', async (req: Request, res: Response) => {
   const { email, password, rememberMe } = req.body;
+  if (!email || typeof email !== 'string') {
+    res.status(400).json({ error: 'Email requis.' });
+    return;
+  }
+  if (await isLoginBlocked(email)) {
+    res.status(429).json({
+      error: 'Trop de tentatives pour ce compte. Réessayez dans 15 minutes.',
+      code: 'login_rate_limited',
+    });
+    return;
+  }
   const user = [...db.users.values()].find((u) => u.email === email);
   if (!user) {
+    await recordLoginFailure(email);
     res.status(401).json({ error: 'Email ou mot de passe incorrect.' });
     return;
   }
@@ -231,9 +255,11 @@ authRouter.post('/login', async (req: Request, res: Response) => {
     return;
   }
   if (!passwordMatch) {
+    await recordLoginFailure(email);
     res.status(401).json({ error: 'Email ou mot de passe incorrect.' });
     return;
   }
+  await clearLoginFailures(email);
   const denied = loginAccessDeniedReason(user);
   if (denied) {
     res.status(403).json({
@@ -258,7 +284,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
     const tempToken = jwt.sign(
       { id: user.id, username: user.username, scope: '2fa_pending', rememberMe: stayLoggedIn },
       JWT_SECRET,
-      { expiresIn: '5m' }
+      { ...JWT_SIGN_OPTIONS, expiresIn: '5m' }
     );
     res.json({ requires2FA: true, tempToken });
     return;
@@ -274,9 +300,11 @@ authRouter.post('/login', async (req: Request, res: Response) => {
   res.json({ token, user: publicProfile(user, true, user.id), rememberMe: stayLoggedIn });
 });
 
-/** Logout: clears the httpOnly auth cookie. Token header clients simply discard their token. */
-authRouter.post('/logout', (_req: Request, res: Response) => {
+/** Logout: clears cookie and revokes JWT (tokenVersion bump). */
+authRouter.post('/logout', (req: Request, res: Response) => {
+  revokeSessionFromRequest(req);
   clearAuthCookie(res);
+  schedulePersist();
   res.json({ ok: true });
 });
 
@@ -672,6 +700,7 @@ authRouter.delete('/account', authenticateJWT, async (req: Request, res: Respons
       return;
     }
   }
+  await prepareUserAccountDeletion(userId);
   deleteUserAccountCascade(userId);
   schedulePersist();
   res.json({ ok: true });

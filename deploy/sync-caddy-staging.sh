@@ -2,7 +2,7 @@
 # sync-caddy-staging.sh — Deploie Caddyfile.staging vers /etc/caddy/Caddyfile
 set -euo pipefail
 
-SOURCE="${1:-/opt/soundly/deploy/Caddyfile.staging}"
+SOURCE="${1:-/opt/soundy/deploy/Caddyfile.staging}"
 DEST="/etc/caddy/Caddyfile"
 LOG="/var/log/caddy-sync-staging.log"
 

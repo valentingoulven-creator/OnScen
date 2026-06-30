@@ -1,4 +1,14 @@
 import {
+  DEFAULT_LIVE_VIDEO_RESOLUTION,
+  getLiveVideoResolutionPreset,
+  mediaVideoConstraintsForPreset,
+  type LiveVideoResolutionPreset,
+} from './liveVideoResolution';
+import {
+  getLiveVideoAspectRatioPreset,
+  type LiveVideoAspectRatioPreset,
+} from './liveVideoAspectRatio';
+import {
   LIVE_CAMERA_FILE_LOAD_ERROR,
   LIVE_CAMERA_HTTP_LAN_MSDEV_HINT,
   LIVE_CAMERA_HTTPS_HTTP_LAN,
@@ -161,11 +171,7 @@ export function hasGetUserMediaCapability(): boolean {
 
 export const LIVE_CAMERA_CONSTRAINTS_IDEAL: MediaStreamConstraints = {
   audio: true,
-  video: {
-    facingMode: 'user',
-    width: { ideal: 1280 },
-    height: { ideal: 720 },
-  },
+  video: mediaVideoConstraintsForPreset(DEFAULT_LIVE_VIDEO_RESOLUTION),
 };
 
 export const LIVE_CAMERA_CONSTRAINTS_RELAXED: MediaStreamConstraints = {
@@ -218,6 +224,11 @@ export function mapLiveCameraError(err: unknown): string {
 
 export function configureLiveVideoElement(el: HTMLVideoElement): void {
   el.muted = true;
+  configureInlinePlaybackVideo(el);
+}
+
+/** Lecture inline sans forcer le mute (spectateur HLS / live avec son). */
+export function configureInlinePlaybackVideo(el: HTMLVideoElement): void {
   el.playsInline = true;
   el.setAttribute('playsinline', 'true');
   el.setAttribute('webkit-playsinline', 'true');
@@ -472,10 +483,14 @@ export async function replaceLiveAudioTrack(
 export async function replaceLiveVideoTrack(
   stream: MediaStream,
   getUserMedia: (c: MediaStreamConstraints) => Promise<MediaStream>,
-  videoDeviceId: string
+  videoDeviceId: string,
+  videoResolution?: LiveVideoResolutionPreset,
+  videoAspectRatio?: LiveVideoAspectRatioPreset
 ): Promise<MediaStreamTrack> {
+  const preset = getLiveVideoResolutionPreset(videoResolution);
+  const aspect = getLiveVideoAspectRatioPreset(videoAspectRatio);
   const videoStream = await getUserMedia({
-    video: { deviceId: { ideal: videoDeviceId } },
+    video: mediaVideoConstraintsForPreset(preset, videoDeviceId, aspect),
     audio: false,
   });
   const newTrack = videoStream.getVideoTracks()[0];
@@ -498,14 +513,29 @@ export async function replaceLiveVideoTrack(
 export interface LiveCameraDevicePrefs {
   videoDeviceId?: string;
   audioDeviceId?: string;
+  videoResolution?: LiveVideoResolutionPreset;
+  videoAspectRatio?: LiveVideoAspectRatioPreset;
+}
+
+function videoConstraintsFromPrefs(prefs: LiveCameraDevicePrefs, exactDevice = false) {
+  const preset = getLiveVideoResolutionPreset(prefs.videoResolution);
+  const aspect = getLiveVideoAspectRatioPreset(prefs.videoAspectRatio);
+  const base = mediaVideoConstraintsForPreset(preset, prefs.videoDeviceId, aspect);
+  if (!prefs.videoDeviceId) return base;
+  const deviceId = exactDevice
+    ? { exact: prefs.videoDeviceId }
+    : { ideal: prefs.videoDeviceId };
+  return { ...base, deviceId };
 }
 
 export function buildLiveCameraConstraintAttempts(
   prefs?: LiveCameraDevicePrefs | null
 ): MediaStreamConstraints[] {
   if (!prefs?.videoDeviceId && !prefs?.audioDeviceId) {
+    const preset = getLiveVideoResolutionPreset(prefs?.videoResolution);
+    const aspect = getLiveVideoAspectRatioPreset(prefs?.videoAspectRatio);
     return [
-      LIVE_CAMERA_CONSTRAINTS_IDEAL,
+      { audio: true, video: mediaVideoConstraintsForPreset(preset, undefined, aspect) },
       LIVE_CAMERA_CONSTRAINTS_RELAXED,
       LIVE_CAMERA_CONSTRAINTS_MINIMAL,
     ];
@@ -513,20 +543,8 @@ export function buildLiveCameraConstraintAttempts(
 
   const audioExact = prefs.audioDeviceId ? { deviceId: { exact: prefs.audioDeviceId } } : true;
   const audioIdeal = prefs.audioDeviceId ? { deviceId: { ideal: prefs.audioDeviceId } } : true;
-  const videoExact = prefs.videoDeviceId
-    ? {
-        deviceId: { exact: prefs.videoDeviceId },
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-      }
-    : { facingMode: 'user' as const, width: { ideal: 1280 }, height: { ideal: 720 } };
-  const videoIdeal = prefs.videoDeviceId
-    ? {
-        deviceId: { ideal: prefs.videoDeviceId },
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-      }
-    : { facingMode: 'user' as const, width: { ideal: 1280 }, height: { ideal: 720 } };
+  const videoExact = videoConstraintsFromPrefs(prefs, true);
+  const videoIdeal = videoConstraintsFromPrefs(prefs, false);
   const videoRelaxed = prefs.videoDeviceId
     ? { deviceId: { ideal: prefs.videoDeviceId } }
     : { facingMode: 'user' as const };

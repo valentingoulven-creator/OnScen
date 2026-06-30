@@ -33,6 +33,11 @@ import {
   isLiveMediaSetupConfigured,
   saveUserLiveMediaSetup,
 } from '../lib/liveMediaSetup';
+import {
+  getUserSalonCreateSetup,
+  isSalonCreateSetupConfigured,
+  saveUserSalonCreateSetup,
+} from '../lib/salonCreateSetup';
 import { schedulePersistUserToPg } from '../lib/pgUsers';
 
 export const usersRouter = Router();
@@ -117,7 +122,18 @@ usersRouter.get('/me/creator-stats', authenticateJWT, (req: Request, res: Respon
     res.status(404).json({ error: 'Utilisateur introuvable' });
     return;
   }
-  res.json({ stats: getCreatorDashboardStats(me) });
+  const yearRaw = req.query.year;
+  const monthRaw = req.query.month;
+  const year =
+    typeof yearRaw === 'string' && yearRaw.trim() !== '' ? Number(yearRaw) : undefined;
+  const month =
+    typeof monthRaw === 'string' && monthRaw.trim() !== '' ? Number(monthRaw) : undefined;
+  res.json({
+    stats: getCreatorDashboardStats(me, {
+      ...(year !== undefined && Number.isFinite(year) ? { year } : {}),
+      ...(month !== undefined && Number.isFinite(month) ? { month } : {}),
+    }),
+  });
 });
 
 usersRouter.patch('/me/live-terms', authenticateJWT, (req: Request, res: Response) => {
@@ -153,6 +169,32 @@ usersRouter.put('/me/live-setup', authenticateJWT, (req: Request, res: Response)
     return;
   }
   const setup = saveUserLiveMediaSetup(user, req.body?.setup ?? req.body);
+  db.users.set(me, user);
+  schedulePersist();
+  schedulePersistUserToPg(user);
+  res.json({ setup, configured: true });
+});
+
+/** Préférences de configuration salon persistées (chat setup Lya). */
+usersRouter.get('/me/salon-setup', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const user = db.users.get(me);
+  if (!user) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+  const setup = getUserSalonCreateSetup(user);
+  res.json({ setup, configured: isSalonCreateSetupConfigured(user) });
+});
+
+usersRouter.put('/me/salon-setup', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const user = db.users.get(me);
+  if (!user) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+  const setup = saveUserSalonCreateSetup(user, req.body?.setup ?? req.body);
   db.users.set(me, user);
   schedulePersist();
   schedulePersistUserToPg(user);

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LEGAL, type LegalKey } from '../content/legal';
+import { resetCookieConsent } from '../lib/cookieConsent';
 import { LegalDocumentView } from '../components/LegalDocumentView';
 import {
   getAppLanguage,
@@ -81,9 +82,20 @@ export function SettingsGearButton({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       title={t('settings.title')}
       aria-label={t('settings.settingsAria')}
-      className="w-9 h-9 rounded-full bg-black/50 border border-white/20 backdrop-blur-sm flex items-center justify-center text-base hover:bg-black/70 transition-colors"
+      className="w-11 h-11 rounded-full bg-black/45 border border-white/15 backdrop-blur-md flex items-center justify-center text-gray-200 hover:bg-black/65 hover:text-white transition-colors"
     >
-      ⚙️
+      <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"
+        />
+      </svg>
     </button>
   );
 }
@@ -782,13 +794,18 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
           </SettingsRow>
           <SettingsRow label={t('settings.legalTerms')} onClick={() => setLegal('terms')} />
           <SettingsRow label={t('settings.legalPrivacy')} onClick={() => setLegal('privacy')} />
+          <SettingsRow label={t('settings.legalCookies')} onClick={() => setLegal('cookies')} />
           <SettingsRow label={t('settings.legalRgpd')} onClick={() => setLegal('rgpd')} />
           <SettingsRow
             label={t('settings.legalApiPlatforms')}
             hint={t('settings.legalApiPlatformsHint')}
             onClick={() => setLegal('apiPlatforms')}
           />
-          <SettingsRow label={t('settings.legalPrivacyPrefs')} hint={t('settings.legalPrivacyPrefsHint')} />
+          <SettingsRow
+            label={t('settings.legalCookiePrefs')}
+            hint={t('settings.legalCookiePrefsHint')}
+            onClick={() => resetCookieConsent()}
+          />
           <SettingsRow
             label={t('settings.legalMonetization')}
             onClick={() => setLegal('creatorMonetization')}

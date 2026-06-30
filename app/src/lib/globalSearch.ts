@@ -5,21 +5,19 @@ import type { UserSearchHit } from '../types';
 export type {
   GlobalSearchAlbumHit,
   GlobalSearchEventHit,
+  GlobalSearchResultItem,
   GlobalSearchSongHit,
 } from './globalSearchTypes';
+
+export type { GlobalSearchFilter } from './globalSearchFilter';
+export { filterGlobalSearchResults, matchesGlobalSearchFilter } from './globalSearchFilter';
 
 import type {
   GlobalSearchAlbumHit,
   GlobalSearchEventHit,
+  GlobalSearchResultItem,
   GlobalSearchSongHit,
 } from './globalSearchTypes';
-
-export type GlobalSearchResultItem =
-  | ({ kind: 'user' } & UserSearchHit)
-  | GlobalSearchEventHit
-  | GlobalSearchAlbumHit
-  | GlobalSearchSongHit
-  | PlaceSearchHit;
 
 export interface GlobalSearchGroupedResults {
   users: UserSearchHit[];

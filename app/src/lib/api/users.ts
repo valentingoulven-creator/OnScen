@@ -36,6 +36,20 @@ export const usersApi = {
       token
     ),
 
+  getSalonSetup: (token: string) =>
+    request<{ setup: import('../salonCreateSetupPrefs').SalonCreateSetupPrefs | null; configured: boolean }>(
+      '/users/me/salon-setup',
+      {},
+      token
+    ),
+
+  putSalonSetup: (token: string, setup: import('../salonCreateSetupPrefs').SalonCreateSetupPrefs) =>
+    request<{ setup: import('../salonCreateSetupPrefs').SalonCreateSetupPrefs; configured: boolean }>(
+      '/users/me/salon-setup',
+      { method: 'PUT', body: JSON.stringify({ setup }) },
+      token
+    ),
+
   getHostRating: (token: string, hostId: string) =>
     request<{ rating: import('../../types').HostRatingSummary }>(`/ratings/host/${hostId}`, {}, token),
 
@@ -120,12 +134,17 @@ export const usersApi = {
       token
     ),
 
-  getCreatorStats: (token: string) =>
-    request<{ stats: import('../../components/CreatorDashboardCard').CreatorDashboardStats }>(
-      '/users/me/creator-stats',
+  getCreatorStats: (token: string, period?: { year: number; month?: number }) => {
+    const params = new URLSearchParams();
+    if (period?.year !== undefined) params.set('year', String(period.year));
+    if (period?.month !== undefined) params.set('month', String(period.month));
+    const qs = params.toString();
+    return request<{ stats: import('../creatorDashboardStats').CreatorDashboardStats }>(
+      `/users/me/creator-stats${qs ? `?${qs}` : ''}`,
       {},
       token
-    ),
+    );
+  },
 
   getObsIngest: (token: string) =>
     request<{

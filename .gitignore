@@ -2,11 +2,13 @@ node_modules/
 dist/
 .env
 .env.local
+docs/youtube-audit-demo-credentials.local.txt
 .env.production
 .env.development
 .env.*
 !.env*.example
 !**/.env*.example
+.env.sentry-build-plugin
 *.log
 .DS_Store
 

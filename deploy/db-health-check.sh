@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # db-health-check.sh — Vérifie PostgreSQL + contenu critique + sauvegardes récentes
 # Usage (VPS) :
-#   set -a && source /opt/soundly/.env && set +a
-#   bash /opt/soundly/deploy/db-health-check.sh
+#   set -a && source /opt/soundy/.env && set +a
+#   bash /opt/soundy/deploy/db-health-check.sh
 # Usage (local via API prod) :
 #   BASE_URL=https://getsoundy.com bash deploy/db-health-check.sh
 set -euo pipefail
 
-ROOT="${SOUNDLY_ROOT:-/opt/soundly}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/soundy-root.sh
+source "${SCRIPT_DIR}/lib/soundy-root.sh"
 BACKUP_DIR="${BACKUP_DIR:-${ROOT}/backups}"
 BASE_URL="${BASE_URL:-http://127.0.0.1:${PORT:-3000}}"
 MAX_BACKUP_AGE_HOURS="${MAX_BACKUP_AGE_HOURS:-36}"

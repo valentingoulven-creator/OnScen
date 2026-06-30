@@ -18,6 +18,8 @@ export interface MusicReel {
   hasAudio?: boolean;
   /** Propriétaire pour les reels ajoutés par l'utilisateur */
   authorId?: string;
+  /** Morceau Discographie utilisé comme piste audio (vidéo muette). */
+  compositionId?: string;
   authorUsername?: string;
   authorAvatarUrl?: string;
   authorUsernameColor?: string;

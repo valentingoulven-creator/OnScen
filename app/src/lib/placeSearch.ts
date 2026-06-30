@@ -1,4 +1,6 @@
 import { searchCities, type CitySuggestion } from './citySearch';
+import { resolveEventCityCoordsSync } from './mapEventCoords';
+import { dedupePlaceHits } from './placeSearchDedupe';
 import { filterPresetCitySuggestions, PRESET_CITIES, presetCityToSuggestion } from './livesGeo';
 
 export interface PlaceSearchCityHit {
@@ -42,12 +44,23 @@ function normalizePlaceQuery(value: string): string {
 
 function cityFromSuggestion(s: CitySuggestion): PlaceSearchCityHit | null {
   if (s.latitude == null || s.longitude == null) return null;
-  return {
+  const hit: PlaceSearchCityHit = {
     kind: 'city',
     label: s.label,
     latitude: s.latitude,
     longitude: s.longitude,
     postalCode: s.postalCode,
+  };
+  return enrichPlaceCityCoords(hit);
+}
+
+function enrichPlaceCityCoords(hit: PlaceSearchCityHit): PlaceSearchCityHit {
+  const known = resolveEventCityCoordsSync(hit.label);
+  if (!known) return hit;
+  return {
+    ...hit,
+    latitude: known.latitude,
+    longitude: known.longitude,
   };
 }
 
@@ -101,34 +114,21 @@ export async function searchPlaces(
   const q = query.trim();
   if (q.length < 2) return popularCities();
 
-  const presetCities = presetCitiesForQuery(q);
   const countries = countriesForQuery(q);
-  const seen = new Set<string>();
-  const out: PlaceSearchHit[] = [];
+  const merged: PlaceSearchHit[] = [...countries];
 
-  const push = (hit: PlaceSearchHit) => {
-    const key = `${hit.kind}|${hit.label.toLowerCase()}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    out.push(hit);
-  };
-
-  for (const c of countries) push(c);
-  for (const c of presetCities) push(c);
-
-  if (opts?.signal?.aborted) return out;
+  if (opts?.signal?.aborted) return dedupePlaceHits(merged, q).slice(0, 8);
 
   try {
     const remote = await searchCities(q);
-    if (opts?.signal?.aborted) return out;
+    if (opts?.signal?.aborted) return dedupePlaceHits(merged, q).slice(0, 8);
     for (const item of remote) {
       const city = cityFromSuggestion(item);
-      if (city) push(city);
-      if (out.length >= 8) break;
+      if (city) merged.push(city);
     }
   } catch {
-    // presets + countries suffisent
+    for (const c of presetCitiesForQuery(q)) merged.push(c);
   }
 
-  return out.slice(0, 8);
+  return dedupePlaceHits(merged, q).slice(0, 8);
 }

@@ -1,5 +1,5 @@
 # Soundy — Caddyfile CANONIQUE (source de vérité)
-# Repo : deploy/Caddyfile  →  VPS : /opt/soundly/deploy/Caddyfile  →  /etc/caddy/Caddyfile
+# Repo : deploy/Caddyfile  →  VPS : /opt/soundy/deploy/Caddyfile  →  /etc/caddy/Caddyfile
 #
 # ⚠ NE JAMAIS écrire un bloc minimal `:80 { ... }` à la main sur le VPS.
 #    Utiliser : ./deploy/sync-caddy.sh  ou  deploy-scaleway.ps1
@@ -15,7 +15,7 @@
 (soundy_handlers) {
 	@allowed_ips client_ip 195.36.171.84/32
 
-	@api path /api/* /health /health/db /socket.io/* /privacy /terms /legal/mentions
+	@api path /api/* /health /health/db /socket.io/* /privacy /terms /cookies /legal/mentions
 	@static path /assets/* /sw.js /workbox-* /manifest.webmanifest /icon.svg /favicon.svg /pwa-* /clear-pwa
 
 	handle @api {

@@ -394,7 +394,7 @@ dmRouter.delete('/thread/:userId', authenticateJWT, (req: Request, res: Response
 dmRouter.post('/thread/:userId', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
 
-  if (!checkChatRateLimit(me)) {
+  if (!(await checkChatRateLimit(me))) {
     res.status(429).json({ error: 'Trop de messages. Réessayez dans quelques secondes.' });
     return;
   }

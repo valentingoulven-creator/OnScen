@@ -53,8 +53,8 @@ Add-Check 'SSH VPS' ($LASTEXITCODE -eq 0 -and ($sshOut -match 'PING_OK')) 'sound
 if ($LASTEXITCODE -eq 0) {
     $pm2 = & ssh.exe -o BatchMode=yes -o ConnectTimeout=15 soundy-prod 'pm2 jlist' 2>&1 | Out-String
     Add-Check 'PM2 melosong-backend' ($pm2 -match 'melosong-backend' -and $pm2 -match 'online') ''
-    $envOk = & ssh.exe -o BatchMode=yes -o ConnectTimeout=12 soundy-prod "test -f /opt/soundly/.env && echo Y" 2>&1
-    Add-Check 'VPS /opt/soundly/.env' ("$envOk" -match 'Y') ''
+    $envOk = & ssh.exe -o BatchMode=yes -o ConnectTimeout=12 soundy-prod "test -f /opt/soundy/.env && echo Y" 2>&1
+    Add-Check 'VPS /opt/soundy/.env' ("$envOk" -match 'Y') ''
 }
 
 # SSH staging

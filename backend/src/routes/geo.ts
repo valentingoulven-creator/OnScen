@@ -9,6 +9,7 @@ import { publicSalon } from './salons';
 import { isSalonVisibleOnMap } from '../lib/salonAccess';
 import { ensureMapBotsForNearby, isLocalDevEnvironment } from '../seed-bots';
 import { getNearbyPeople } from '../lib/nearbyPeople';
+import { loadNearbyGeoCandidates } from '../lib/pgGeoNearby';
 import { getPublicMapCoords } from '../lib/locationPrivacy';
 import {
   DEFAULT_NEARBY_RADIUS_KM,
@@ -148,7 +149,7 @@ function isInBounds(
   return lng >= bounds.swLng || lng <= bounds.neLng;
 }
 
-geoRouter.get('/nearby', nearbyAnonLimiter, authenticateJWT, nearbyAuthLimiter, (req: Request, res: Response) => {
+geoRouter.get('/nearby', nearbyAnonLimiter, authenticateJWT, nearbyAuthLimiter, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const lat = parseFloat(((req.query.latitude ?? req.query.lat) as string) ?? '');
   const lon = parseFloat(((req.query.longitude ?? req.query.lng) as string) ?? '');
@@ -186,8 +187,20 @@ geoRouter.get('/nearby', nearbyAnonLimiter, authenticateJWT, nearbyAuthLimiter, 
     return;
   }
 
+  let geoCandidates = null;
+  if (maxRadiusKm != null && !bounds) {
+    try {
+      geoCandidates = await loadNearbyGeoCandidates(lat, lon, maxRadiusKm);
+    } catch (err) {
+      console.warn('[geo/nearby] PostGIS prefilter failed — fallback scan RAM:', err);
+    }
+  }
+
   const salons = [...db.salons.values()]
-    .filter((s) => isSalonVisibleOnMap(s, me))
+    .filter((s) => {
+      if (geoCandidates && !geoCandidates.salonIds.has(s.id)) return false;
+      return isSalonVisibleOnMap(s, me);
+    })
     .map((s) => {
       const host = db.users.get(s.hostId);
       const coords =
@@ -211,7 +224,10 @@ geoRouter.get('/nearby', nearbyAnonLimiter, authenticateJWT, nearbyAuthLimiter, 
     .map(({ salon: s }) => publicSalon(s, me));
 
   const lives = [...db.lives.values()]
-    .filter((l) => l.isActive)
+    .filter((l) => {
+      if (geoCandidates && !geoCandidates.liveIds.has(l.id)) return false;
+      return l.isActive;
+    })
     .map((l) => {
       const host = db.users.get(l.hostId);
       const coords =
@@ -251,7 +267,7 @@ geoRouter.get('/nearby', nearbyAnonLimiter, authenticateJWT, nearbyAuthLimiter, 
       };
     });
 
-  const people = getNearbyPeople(me, lat, lon, radiusKm, distanceFilter).slice(
+  const people = getNearbyPeople(me, lat, lon, radiusKm, distanceFilter, geoCandidates).slice(
     0,
     MAX_NEARBY_PEOPLE
   );

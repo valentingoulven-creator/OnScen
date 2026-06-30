@@ -481,6 +481,23 @@ export function setupSockets(io: Server): void {
     );
 
     socket.on(
+      'live_update_media_config',
+      ({ liveId, config }: { liveId: string; config: { videoDelaySeconds?: number } }) => {
+        const actorId = (socket.data as { userId?: string }).userId;
+        if (!actorId || !liveId) return;
+        const live = db.lives.get(liveId);
+        if (!live || !live.isActive) return;
+        const actor = db.users.get(actorId);
+        if (live.hostId !== actorId && !isDevUser(actor)) return;
+        if (config.videoDelaySeconds !== undefined) {
+          live.videoDelaySeconds = Math.max(0, Math.min(120, Math.round(config.videoDelaySeconds)));
+        }
+        db.lives.set(liveId, live);
+        io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live));
+      }
+    );
+
+    socket.on(
       'live_update_donation_options',
       ({
         liveId,
@@ -604,7 +621,7 @@ export function setupSockets(io: Server): void {
         void (async () => {
           const authUserId = (socket.data as { userId?: string }).userId;
           if (!authUserId || authUserId !== payload.senderId) return;
-          if (!checkChatRateLimit(authUserId)) return;
+          if (!(await checkChatRateLimit(authUserId))) return;
           if (!socket.rooms.has(`salon_${payload.salonId}`)) return;
           const content = typeof payload.content === 'string' ? payload.content.slice(0, 2000) : '';
           if (!content.trim() && !payload.attachmentUrl) return;
@@ -663,7 +680,7 @@ export function setupSockets(io: Server): void {
         void (async () => {
           const authUserId = (socket.data as { userId?: string }).userId;
           if (!authUserId || authUserId !== payload.senderId) return;
-          if (!checkChatRateLimit(authUserId)) return;
+          if (!(await checkChatRateLimit(authUserId))) return;
           if (!socket.rooms.has(`live_${payload.liveId}`)) return;
           if (isLiveChatBanned(payload.liveId, authUserId)) {
             const ban = getLiveBan(payload.liveId, authUserId);
@@ -761,27 +778,29 @@ export function setupSockets(io: Server): void {
     );
 
     socket.on('dm', (msg: { id: string; senderId: string; receiverId: string; content: string; timestamp?: number }) => {
-      const authUserId = (socket.data as { userId?: string }).userId;
-      if (!msg?.senderId || !msg.receiverId) return;
-      if (!authUserId || authUserId !== msg.senderId) return;
-      if (!checkChatRateLimit(authUserId)) return;
-      // Block if sender has blocked recipient or recipient has blocked sender.
-      if (hasBlocked(msg.senderId, msg.receiverId)) return;
-      if (hasBlocked(msg.receiverId, msg.senderId)) return;
-      const content = typeof msg.content === 'string' ? msg.content.slice(0, 2000) : '';
-      if (!content.trim()) return;
-      // Use server-generated ID to prevent ID spoofing by clients.
-      const full = {
-        id: `dm_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        senderId: msg.senderId,
-        receiverId: msg.receiverId,
-        content,
-        timestamp: Date.now(),
-        accepted: true,
-      };
-      if (shouldDeliverToReceiver(full.senderId, full.receiverId)) {
-        io.to(`user_${full.receiverId}`).emit('dm', full);
-      }
+      void (async () => {
+        const authUserId = (socket.data as { userId?: string }).userId;
+        if (!msg?.senderId || !msg.receiverId) return;
+        if (!authUserId || authUserId !== msg.senderId) return;
+        if (!(await checkChatRateLimit(authUserId))) return;
+        // Block if sender has blocked recipient or recipient has blocked sender.
+        if (hasBlocked(msg.senderId, msg.receiverId)) return;
+        if (hasBlocked(msg.receiverId, msg.senderId)) return;
+        const content = typeof msg.content === 'string' ? msg.content.slice(0, 2000) : '';
+        if (!content.trim()) return;
+        // Use server-generated ID to prevent ID spoofing by clients.
+        const full = {
+          id: `dm_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          senderId: msg.senderId,
+          receiverId: msg.receiverId,
+          content,
+          timestamp: Date.now(),
+          accepted: true,
+        };
+        if (shouldDeliverToReceiver(full.senderId, full.receiverId)) {
+          io.to(`user_${full.receiverId}`).emit('dm', full);
+        }
+      })();
     });
 
     socket.on('gift_sent', (gift: { liveId: string; senderName: string; giftType: string; amount: number }) => {

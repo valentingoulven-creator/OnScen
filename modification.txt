@@ -12564,3 +12564,2454 @@ BUILD
 ================================================================================
 Fin MODIF 806 — 2026-06-28
 ================================================================================
+
+================================================================================
+MODIF 807 — Filtre salon carte : barre horizontale types de son (multi-sélection)
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Section « Affinités musicales » du sheet filtre salon : chips en wrap vertical peu lisibles.
+ Demande : barre horizontale pour choisir le type de son, sélection multiple.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/MapSalonFilterSheet.tsx
+ ─────────────────
+ • HorizontalScrollCarousel + chips snap, touch 44px.
+ • Liste complète POPULAR_GENRES (profil en tête si défini).
+ • Compteur de sélection + libellé « Type de son ».
+
+ app/src/locales/fr.json · en.json — clés salonFilterSoundTypes*.
+
+FICHIERS MODIFIÉS
+-----
+ MapSalonFilterSheet.tsx · fr.json · en.json
+
+================================================================================
+Fin MODIF 807 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 808 — Filtre salon : recherche + suggestions selon sélection
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Carrousel horizontal trop chargé — demande d'une barre de recherche avec
+ suggestions adaptées aux genres déjà sélectionnés.
+
+CHANGEMENTS / FIX
+-----
+ MapSalonFilterSheet.tsx — input search, chips sélectionnés, suggestions
+ (profil en priorité, filtre texte, exclut déjà sélectionnés).
+
+ fr.json · en.json — salonFilterSoundTypesSearch/Suggestions/Empty.
+
+================================================================================
+Fin MODIF 808 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 809 — Filtre salon : suggestions = genres tendance des salons actifs
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Suggestions « Type de son » basées sur le profil — demande : catégories les plus
+ écoutées actuellement dans les salons.
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/salonTrendingGenres.ts — rank par listenersCount + tests.
+ MapSalonFilterSheet — prop activeSalons, label « Tendances salons ».
+ HomePage — passe salons[] au sheet filtre.
+
+================================================================================
+Fin MODIF 809 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 810 — Filtre salon : retrait tri (zoom = affichage)
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Section « Tri » inutile dans MapSalonFilterSheet — le zoom carte filtre déjà
+ l'affichage des salons.
+
+CHANGEMENTS / FIX
+-----
+ MapSalonFilterSheet — UI Tri supprimée, sortBy retiré des critères.
+ HomePage applySalonFilter — sortBy: 'none' à l'application.
+ fr/en.json — hint salonFilterHint mis à jour.
+
+================================================================================
+Fin MODIF 810 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 811 — Setup live Lya : catégorie musique / danse / artistique
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Lya doit demander au démarrage d'un live le type de contenu (musique, danse,
+ artistique) avant le titre et persister ce choix.
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/liveContentCategory.ts — type + helpers i18n.
+ app/src/lib/liveSetupChatFlow.ts — phase `category`, résumé config.
+ app/src/components/StartLiveSetupChatModal.tsx — chips Musique / Danse / Artistique.
+ app/src/lib/liveMediaPrefs.ts — champ contentCategory.
+ app/src/lib/api/lives.ts · useStartLiveFlow.ts — envoi au POST /lives/start.
+ app/src/types.ts — Live.contentCategory.
+ backend liveMediaSetup.ts · schema.ts · lives.ts · livePublic.ts — persistance + API.
+
+FICHIERS MODIFIÉS
+-----
+ app + backend (setup live catégorie), fr/en.json (clés setupChatAskCategory…).
+
+BUILD (si vérifié)
+-----
+ backend/ → npm run build → ✅
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 811 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 812 — Reel : bande son depuis discographie (morceau / album)
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ À la création d'un reel (CreateReelSheet), permettre d'utiliser un morceau
+ uploadé sur Soundy (discographie / album) comme piste audio, vidéo muette.
+
+CHANGEMENTS / FIX
+-----
+ ProfileReelRecorder — choix Micro / Ma discographie, picker morceaux.
+ app/src/lib/reelCompositionAudio.ts — helpers URL + groupement albums.
+ backend reels.ts · schema UserReel — compositionId, audioUrl, validation.
+ reelsFeed.ts · api/reels.ts — lecture piste séparée (comme Mixkit).
+
+BUILD (si vérifié)
+-----
+ backend/ → npm run build → ✅
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 812 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 813 — CreateReelSheet : popup responsive (dvh + scroll)
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La modale « Ajouter un reel » dépassait l'écran (pas de max-h safe-area,
+ zone scroll inactive, preview vidéo trop haute en mode embedded).
+
+CHANGEMENTS / FIX
+-----
+ CreateReelSheet — flex colonne, max-h calc(100dvh - safe-area), scroll body.
+ ProfileReelRecorder (embedded) — preview vidéo adaptative par phase (dvh).
+
+================================================================================
+Fin MODIF 813 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 814 — CreateReelSheet : UI style TikTok / Instagram Reels
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Popup création reel visuellement datée — demande d’un style concurrentiel
+ (TikTok / Instagram) plus immersif et moderne.
+
+CHANGEMENTS / FIX
+-----
+ CreateReelSheet — fond noir, barre gradient, header glass, bottom sheet.
+ ProfileReelRecorder (embedded) — aperçu hero, pills audio, grille Caméra/Import,
+ bouton enregistrement circulaire, formulaire glass, liste morceaux avec cover.
+ fr/en.json — libellés createSubtitle, createOpenCamera, etc.
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 814 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 815 — Stories : visibilité abonnés + public sur fil Actualité
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Audit stories : la visibilité « Abonnés » utilisait un OU bidirectionnel
+ (auteur suit le viewer OU viewer suit l'auteur) — trop permissif vs l'UI.
+ Le bandeau Stories (Actualité) masquait les stories publiques des comptes non suivis.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/stories.ts
+ ─────────────────────────
+ • isVisibleByFollowers : uniquement si le viewer a l'auteur en favoris (fan).
+
+ backend/src/models/schema.ts
+ ───────────────────────────
+ • Commentaire visibility : abonnés de l'auteur, plus « mutuels ».
+
+ backend/src/lib/stories.test.ts
+ ──────────────────────────────
+ • Tests followers (fan oui, auteur-suit-viewer non) et public.
+
+ app/src/components/StoriesInlineBar.tsx
+ ─────────────────────────────────────
+ • Utilise toutes les stories renvoyées par l'API (déjà filtrées côté serveur).
+ • Anneaux : abonnés + toute story active (publiques hors abonnement).
+
+ app/src/components/MapStorySheet.tsx
+ ───────────────────────────────────
+ • Renommage setVisibility (sélecteur Public / Abonnés).
+
+BUILD (si vérifié)
+-----
+ backend/ → npm test stories + npm run build → ✅
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 815 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 816 — MapStorySheet : refonte UX popup création story
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Popup « Nouvelle story » visuellement basique (modal centrée grise) — demande
+ refonte UX style Instagram / CreateReelSheet (immersif, mobile-first).
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/MapStorySheet.tsx
+ ───────────────────────────────────
+ • Bottom sheet mobile / dialog desktop, fond noir #050505, barre gradient violet.
+ • Poignée drag, header glass, bouton fermer circulaire.
+ • État vide : cadre 9:16 hero + badge 24 h + grille Appareil photo / Galerie.
+ • État preview : cadre phone avec actions flottantes, badges musique/tags/lien.
+ • Carte visibilité glass + CTA gradient « Publier la story ».
+ • i18n useTranslation (section stories.*).
+
+ app/src/locales/fr.json · en.json
+ ─────────────────────────────────
+ • Clés stories.create* (titre, sources, visibilité, publication).
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 816 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 817 — Stories : photo + vidéo (style Instagram)
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Popup création story : demande prise de photo OU vidéo (caméra / galerie),
+ comme Instagram — jusqu'ici photo seule.
+
+CHANGEMENTS / FIX
+-----
+ backend — stories.ts · schema · routes/stories.ts
+ ────────────────────────────────────────────────
+ • videoUrl + videoDurationSec sur Story ; modération Sightengine vidéo.
+
+ app/src/lib/storyVideo.ts · StoryVideoCapture.tsx
+ ─────────────────────────────────────────────────
+ • Validation/import vidéo (max 15 s) · enregistrement caméra plein écran.
+
+ app/src/components/MapStorySheet.tsx
+ ───────────────────────────────────
+ • Toggle Photo / Vidéo · import galerie · capture vidéo · aperçu.
+
+ app/src/components/StoryViewer.tsx
+ ─────────────────────────────────
+ • Lecture vidéo story · durée segment = durée clip.
+
+ i18n stories.createMode* · createVideo* (FR/EN)
+
+BUILD (si vérifié)
+-----
+ backend/ → npm test stories + npm run build → ✅
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 817 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 818 — Stories : caméra plein écran Instagram (maintenir = vidéo)
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ UX création story : afficher directement la caméra, bouton central en bas,
+ maintenir pour filmer, bouton importer une vidéo (style Instagram).
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/StoryCameraView.tsx (nouveau)
+ ───────────────────────────────────────────────
+ • Plein écran, preview live, shutter : tap = photo, hold ≥280 ms = vidéo (15 s max).
+ • Bouton Importer (galerie vidéo) en bas à gauche.
+
+ app/src/components/MapStorySheet.tsx
+ ───────────────────────────────────
+ • Phase caméra → StoryCameraView ; phase review → aperçu + visibilité + publier.
+ • Suppression toggle Photo/Vidéo et StoryVideoCapture.tsx.
+
+ i18n createCameraHintIg, createRetake, createReviewTitle…
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 818 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 819 — Stories : refonte UX caméra + review plein écran
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ UX création story encore perçue comme « modal grise » : aligner sur Instagram —
+ caméra immersive, retournement, feedback enregistrement, review edge-to-edge.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/StoryCameraView.tsx
+ ─────────────────────────────────────
+ • Bouton retourner caméra (haut droite) · miroir selfie.
+ • Anneau SVG progression pendant l'enregistrement · badge ● Ns.
+ • Shutter : scale press · carré rouge en vidéo · seuil hold 220 ms.
+
+ app/src/components/MapStorySheet.tsx
+ ───────────────────────────────────
+ • Phase review plein écran (plus de bottom sheet) : média edge-to-edge.
+ • Barre basse : pills Abonnés/Public + bouton blanc « Partager en story ».
+ • Photo → éditeur puis review ; vidéo → review directe (loop muted).
+
+ app/src/locales/fr.json · en.json
+ ─────────────────────────────────
+ • stories.createFlipCamera · stories.createShare.
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 819 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 820 — Stories : boomerang + filtres atypiques + lien album/son
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande filtres atypiques (boomerang) et redirection vers un album ou un son
+ dans l'app depuis une story.
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/storyBoomerang.ts
+ ─────────────────────────────
+ • Encodage client boomerang (avant / arrière, max 2,5 s capture).
+
+ app/src/components/StoryCameraView.tsx
+ ─────────────────────────────────────
+ • Modes Normal / Boomerang · hold enregistre puis effet.
+
+ app/src/lib/photoFilters.ts · PhotoImageEditor
+ ──────────────────────────────────────────────
+ • Filtres atypiques story : Néon, Rêve, Négatif, VHS.
+
+ app/src/lib/storyAppLink.ts · StoryCatalogLinkPicker.tsx
+ ────────────────────────────────────────────────────────
+ • Liens internes profil ?tab=compositions&album|track · picker albums/sons.
+ • StoryLinkSticker : sticker violet ♪ · navigation in-app (ferme visionneur).
+
+ app/src/components/MapStorySheet.tsx
+ ───────────────────────────────────
+ • Vidéo : bouton Album/Son + sticker déplaçable en review.
+
+ app/src/App.tsx · profileDeepLink · UserCompositionsSection
+ ───────────────────────────────────────────────────────────
+ • Deep link track=compositionId · sync URL profil compositions.
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+ app/ → vitest storyAppLink + photoFilters → ✅
+
+================================================================================
+Fin MODIF 820 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 821 — Éditeur story : outils en haut sur la photo plein écran
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ UX éditeur story : barre d'outils en bas + header séparé — demande style Instagram
+ (photo edge-to-edge, options en haut sur l'image).
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/PhotoImageEditor.tsx
+ ─────────────────────────────────────
+ • Mode story : photo plein écran (absolute inset-0), fond noir.
+ • Barre Texte / Rogner / Filtre / Musique / Taguer / Lien en overlay haut (gradient).
+ • Annuler + Suivant intégrés en haut ; suppression header et dock bas story.
+ • Panneaux outils en bottom sheet quand un onglet est ouvert.
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 821 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 822 — Stories : pack effets Creator (glitch, duotone, vinyle, pulse, waveform)
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Implémenter le pack effets libres de droit pour stories : glitch, duotone genre,
+ vinyle spin, beat pulse, waveform — utiles pour teasers et covers Soundy.
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/storyCreativeEffects.ts · storyCanvasEffects.ts
+ ───────────────────────────────────────────────────────────
+ • Glitch canvas · duotone par genre · waveform synthétique (seed titre/artiste).
+
+ app/src/lib/storyVinylSpin.ts · storyBeatPulse.ts
+ ─────────────────────────────────────────────────
+ • Export vidéo loop : disque vinyle 4 s · pulse 120 BPM 3 s.
+
+ app/src/components/PhotoImageEditor.tsx
+ ─────────────────────────────────────
+ • Onglet Effets Creator · aperçu CSS · export photo ou vidéo au « Suivant ».
+
+ app/src/lib/storyImageCompose.ts · MapStorySheet.tsx · index.css
+ ───────────────────────────────────────────────────────────────
+ • Composition canvas · review vidéo depuis éditeur · animations preview.
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+ app/ → vitest storyCreativeEffects → ✅
+
+================================================================================
+Fin MODIF 822 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 823 — Recherche globale : filtres Compte / Événement / Ville
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Barre de recherche header (ProfileSearchBar) : ajouter des filtres pour restreindre
+ les résultats à compte, événement ou ville.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/ProfileSearchBar.tsx
+ ───────────────────────────────────────
+ • Panneau dropdown avec onglets Tout · Compte · Événement · Ville.
+ • Placeholder adapté au filtre · filtrage client sur résultats API.
+
+ app/src/lib/globalSearchFilter.ts · globalSearchTypes.ts
+ ─────────────────────────────────────────────────────────
+ • Type GlobalSearchFilter + filterGlobalSearchResults.
+
+ app/src/locales/fr.json · en.json
+ ──────────────────────────────────
+ • Clés i18n filtres et placeholders.
+
+BUILD (si vérifié)
+-----
+ app/ → vitest globalSearchFilter → ✅
+
+================================================================================
+Fin MODIF 823 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 824 — Recherche globale : menu déroulant objet à gauche de la barre
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Filtres Compte / Événement / Ville dans le panneau résultats — demande d’un menu
+ déroulant à gauche du champ, dans la barre header.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/ProfileSearchBar.tsx
+ ───────────────────────────────────────
+ • Select « Tout · Compte · Événement · Ville » à gauche (chevron, labels courts mobile).
+ • Suppression des onglets filtres dans le dropdown résultats · layout flex icône loupe.
+
+ app/src/locales/fr.json · en.json
+ ──────────────────────────────────
+ • Clés filter*Short pour libellés compacts mobile.
+
+================================================================================
+Fin MODIF 824 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 825 — Recherche ville : déduplication (presets + API + libellés CP)
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Recherche globale filtre « Ville » : doublons (ex. Lyon, Lyon (69000), Lyon (69001))
+ — presets ajoutés deux fois + clé dedupe sur le libellé brut.
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/placeSearchDedupe.ts · placeSearch.ts · citySearch.ts
+ ─────────────────────────────────────────────────────────────────
+ • Clé canonique sans CP / suffixe pays · préfère entrée avec code postal.
+ • placeSearch : plus de presets avant l’API (searchCities les inclut déjà).
+
+BUILD (si vérifié)
+-----
+ app/ → vitest placeSearchDedupe → ✅
+
+================================================================================
+Fin MODIF 825 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 826 — Recherche ville : transition flyTo vers la carte
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic sur une ville dans la recherche globale : la carte doit animer un vol
+ (flyTo) jusqu'à l'emplacement — fiable après changement d'onglet.
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/mapFlyWhenReady.ts · mapSearchIntent.ts
+ ───────────────────────────────────────────────────
+ • Retry jusqu'à ref MapView prête · rayon ville/pays pour le cadrage.
+
+ app/src/pages/HomePage.tsx · App.tsx
+ ───────────────────────────────────
+ • flyToCityBounds animé (~1,2 s) · toast « Carte centrée sur … ».
+ • Plus d'activation auto du filtre événements au clic ville recherche.
+
+BUILD (si vérifié)
+-----
+ app/ → vitest mapSearchIntent → ✅
+
+================================================================================
+Fin MODIF 826 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 827 — Fix flyTo ville : intent consommé trop tôt (cleanup annulait le vol)
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sélection d'une ville dans la recherche : la carte ne bougeait pas (surtout 2e ville).
+ Cause : onMapSearchIntentConsumed() synchrone → intent null → cleanup React
+ annulait scheduleMapFlyWhenReady avant le flyTo.
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/HomePage.tsx · mapFlyWhenReady.ts · MapView.tsx
+ ─────────────────────────────────────────────────────────────
+ • Consommer l'intent après le fly · isMapReady() sur MapViewHandle.
+ • nonce par sélection · invalidateSize avant flyToBounds.
+
+BUILD (si vérifié)
+-----
+ app/ → vitest mapSearchIntent → ✅
+
+================================================================================
+Fin MODIF 827 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 828 — Recherche ville → flyTo : file d'attente + événement global
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic ville dans la recherche : carte ne se déplaçait toujours pas (intent React
+ perdu si HomePage pas montée ou cleanup).
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/mapSearchIntent.ts
+ ───────────────────────────────
+ • requestMapFlyToPlace + MAP_FLY_TO_PLACE_EVENT + file pending.
+
+ app/src/pages/HomePage.tsx · App.tsx · MapView.tsx
+ ─────────────────────────────────────────────────
+ • Écoute événement + reprise pending au montage · invalidateSize sur MapViewHandle.
+
+================================================================================
+Fin MODIF 828 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 829 — Fix flyTo Le Crès : garde anti-Paris + coords + moveend
+Date : 2026-06-28
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Depuis la carte (centrée Paris), sélection « Le Crès » ne déplaçait pas la vue :
+ recentrage Paris via prop center, moveend ignoré après fly programmé, coords.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/MapView.tsx
+ ───────────────────────────────
+ • programmaticMapMoveUntilRef bloque le flyTo(center) pendant flyToBounds.
+ • moveend sync viewport même après vol programmé.
+
+ app/src/pages/HomePage.tsx · App.tsx · placeSearch.ts · mapEventClusters.ts
+ ───────────────────────────────────────────────────────────────────────────
+ • Garde programmatic 2,5 s · pas de selectTab si déjà sur carte.
+ • enrichPlaceCityCoords (Le Crès…) · rayon/zoom le-cres.
+
+================================================================================
+Fin MODIF 829 — 2026-06-28
+================================================================================
+
+================================================================================
+MODIF 830 — Dossier e-Soleau INPI (description intégrale Soundy + PDF)
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Préparer un document détaillé pour dépôt e-Soleau INPI : but application,
+ stack, sponsors, monétisation, PI, infra — format PDF prêt à téléverser.
+
+CHANGEMENTS / FIX
+-----
+ docs/depot-e-soleau/
+ ────────────────────
+ • DOSSIER-E-SOLEAU-SOUNDY.md — description intégrale (~14 sections).
+ • DOSSIER-E-SOLEAU-SOUNDY.pdf — export PDF (~580 Ko).
+ • generate-pdf.mjs + pdf-style.css — régénération via Edge headless.
+ • README.md — procédure dépôt INPI.
+
+FICHIERS MODIFIÉS
+-----
+ docs/depot-e-soleau/* → nouveau dossier e-Soleau
+ modification.txt → entrée MODIF 830
+
+================================================================================
+Fin MODIF 830 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 831 — Bundle ID mobile com.soundy.app (alignement dossier e-Soleau)
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le dossier e-Soleau indique com.soundy.app ; le code mobile utilisait encore
+ com.melosong.app (Capacitor, iOS, deep links).
+
+CHANGEMENTS / FIX
+-----
+ apptel/capacitor.config*.json → appId com.soundy.app
+ apptel/ios/.../project.pbxproj → PRODUCT_BUNDLE_IDENTIFIER
+ app/public/.well-known/* · backend/public/.well-known/*
+ scripts/update-well-known-mobile.mjs · msdev/DEEP-LINKS.md · apptel/README.md
+
+================================================================================
+Fin MODIF 831 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 832 — Guide démo audit YouTube API (OAuth + quota)
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Préparer la vidéo et les textes pour la vérification Google OAuth / audit
+ YouTube API Services (module Salon YouTube uniquement).
+
+CHANGEMENTS / FIX
+-----
+ docs/YOUTUBE-AUDIT-DEMO.md
+ ──────────────────────────
+ • Checklist pré-enregistrement, script vidéo 3–5 min, compte test.
+ • Textes EN/FR pour formulaires Google, URLs légales, dépannage.
+
+FICHIERS MODIFIÉS
+-----
+ docs/YOUTUBE-AUDIT-DEMO.md (nouveau)
+
+================================================================================
+Fin MODIF 832 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 833 — Demo audit YouTube : compte test prod + scripts prep
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Exécuter la préparation de la démo vidéo audit YouTube API (compte test,
+ vérification prod, scripts, masque pub carte pendant salon YouTube).
+
+CHANGEMENTS / FIX
+-----
+ docs/youtube-audit-demo-credentials.local.txt (local, gitignore)
+ scripts/create-youtube-audit-demo-account.ps1
+ scripts/prepare-youtube-audit-demo.ps1
+ scripts/verify-demo-user-prod.js
+ app/src/pages/HomePage.tsx — MapAdBanner masqué si salon YouTube ouvert
+ docs/YOUTUBE-AUDIT-DEMO.md — checklist complétée
+
+FICHIERS MODIFIÉS
+-----
+ HomePage.tsx, YOUTUBE-AUDIT-DEMO.md, .gitignore, scripts/*.ps1, scripts/*.js
+
+================================================================================
+Fin MODIF 833 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 834 — Salon YouTube théâtre : centrage écran
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En salon plein écran (match-hero), le bloc chat + lecteur YouTube + contrôles
+ restait collé en haut/gauche ; sur écrans larges ou hauts, l’ensemble n’était
+ pas centré visuellement.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/RoomTheaterLayout.tsx
+ ─────────────────
+ • Classe `room-theater-match-hero-shell` sur le conteneur flex parent (YouTube
+   side-dock match-hero).
+
+ app/src/index.css
+ ─────────────────
+ • Grille match-hero : vidéo 16:9 centrée horizontalement (`justify-self`,
+   `max-width` basé sur 56dvh).
+ • Overlay plein écran sm+ : `align-content: center`, `max-width: 88rem`,
+   `margin-inline: auto`, padding safe-area ; contrôles alignés sous la vidéo.
+
+FICHIERS MODIFIÉS
+-----
+ RoomTheaterLayout.tsx, index.css → centrage salon théâtre YouTube
+
+================================================================================
+Fin MODIF 834 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 835 — Setup chat salon/live : persistance 1ère config prod
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les assistants Lya (création salon et live) ne rappelaient pas la première
+ configuration en prod : salon = genres localStorage seulement ; live = bug
+ chatConfig ignoré hors flag `configured`.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/salonCreateSetup.ts
+ backend/src/routes/users.ts — GET/PUT /users/me/salon-setup
+ backend/src/models/schema.ts — User.salonCreateSetup (JSONB)
+ app/src/lib/salonCreateSetupPrefs.ts
+ app/src/lib/api/users.ts — getSalonSetup / putSalonSetup
+ app/src/components/CreateSalonSetupChatModal.tsx
+ ─────────────────
+ • Charge config serveur à l’ouverture · écran « reprendre / modifier »
+ • Sauvegarde après 1ère création réussie (accès, lieu, genres, file…)
+ app/src/lib/salonSetupChatFlow.ts — phases return_ask / return_pick
+ app/src/components/StartLiveSetupChatModal.tsx
+ ─────────────────
+ • Restaure chatConfig depuis brouillon ou config sauvegardée
+ app/src/locales/fr.json · en.json — clés salon.create.setupChatReturn*
+
+FICHIERS MODIFIÉS
+-----
+ salonCreateSetup*, CreateSalonSetupChatModal, StartLiveSetupChatModal, users routes, locales
+
+BUILD (si vérifié)
+-----
+ backend/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 835 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 836 — Salon théâtre YouTube : UX moderne (match-hero)
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Layout salon plein écran (chat + vidéo + contrôles) visuellement plat et
+ collé aux bords — demande d’une UX plus moderne et soignée.
+
+CHANGEMENTS / FIX
+-----
+ app/src/components/SalonPlaybackPanel.tsx
+ ─────────────────
+ • Classes stage (hero frame, toolbar, progress) pour le mode side-dock
+ app/src/components/RoomTheaterLayout.tsx
+ ─────────────────
+ • Chat dock match-hero sans bordures dures · classe --match-hero
+ app/src/index.css
+ ─────────────────
+ • Carte vidéo + contrôles unifiée (coins arrondis, ombre, glass)
+ • Panneau chat glassmorphism · gap · lueur ambiante fullscreen
+ • Vidéo max 62dvh · toggle chat modernisé · barre de progression violette
+
+FICHIERS MODIFIÉS
+-----
+ SalonPlaybackPanel.tsx, RoomTheaterLayout.tsx, index.css
+
+================================================================================
+Fin MODIF 836 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 837 — Salon théâtre : chat pleine hauteur
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le chat latéral s’arrêtait à la hauteur de la vidéo — l’utilisateur veut
+ qu’il descende jusqu’en bas (vidéo + contrôles, zone théâtre plein écran).
+
+CHANGEMENTS / FIX
+-----
+ app/src/index.css
+ ─────────────────
+ • Chat match-hero : grid-row 1 / 3 (desktop) · 1 / -1 (plein écran)
+ • align-self stretch · suppression max-height liée au hero
+ • Shell match-hero flex column pour remplir l’espace
+ app/src/components/SalonPlaybackPanel.tsx
+ ─────────────────
+ • Suppression ResizeObserver --salon-theater-hero-h (obsolète)
+
+FICHIERS MODIFIÉS
+-----
+ index.css, SalonPlaybackPanel.tsx
+
+================================================================================
+Fin MODIF 837 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 838 — Salon théâtre : centrage + chat aligné contrôles
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Bloc vidéo/contrôles non centré ; chat trop long (descendait sous la barre
+ Pause / Arrêter). Aligner le bas du chat sur le bas des contrôles.
+
+CHANGEMENTS / FIX
+-----
+ SalonPlaybackPanel.tsx — wrapper `.salon-theater-stage-stack` (vidéo + contrôles)
+ · ResizeObserver → `--salon-theater-stage-h` pour hauteur chat exacte
+ app/src/index.css
+ ─────────────────
+ • Grille : stage-stack colonne vidéo · chat hauteur = var stage
+ • Plein écran : shell `justify-content: center` · side-row shrink-wrap
+
+FICHIERS MODIFIÉS
+-----
+ SalonPlaybackPanel.tsx, index.css
+
+================================================================================
+Fin MODIF 838 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 839 — Salon théâtre : barre de contrôles compacte
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Barre de contrôles (~115px) trop haute — réduire pour agrandir la vidéo.
+
+CHANGEMENTS / FIX
+-----
+ index.css — match-hero : padding/gaps/boutons compacts (32px) · progress slim
+ · vidéo max 68dvh (au lieu de 62)
+ SalonPlaybackPanel.tsx — retrait padding Tailwind redondant sur --stage
+
+FICHIERS MODIFIÉS
+-----
+ index.css, SalonPlaybackPanel.tsx
+
+================================================================================
+Fin MODIF 839 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 840 — Salon : volume personnel (Mon volume)
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Option explicite de volume local par utilisateur (sans impact sur les autres
+ auditeurs ni sur la synchro hôte).
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/salonYoutubeVolume.ts — persistance volume + muet (localStorage)
+ app/src/components/SalonPersonalVolumeControl.tsx — popover compact théâtre
+ app/src/components/SalonPlaybackPanel.tsx — intégration barre contrôles
+ app/src/locales/fr.json · en.json — salon.personalVolume.*
+
+FICHIERS MODIFIÉS
+-----
+ salonYoutubeVolume.ts, SalonPersonalVolumeControl.tsx, SalonPlaybackPanel.tsx, locales
+
+================================================================================
+Fin MODIF 840 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 841 — Compatibilité mobile Safari (audit + correctifs)
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Vérifier la compatibilité téléphone (Safari iOS ~390px) et corriger les
+ points bloquants (touch, cibles tactiles salon théâtre).
+
+CHANGEMENTS / FIX
+-----
+ Audit : viewport-fit, dvh/-webkit-fill-available, safe-area, globe WebGL
+ fallback, layout salon mobile déjà en place (MODIF 715+).
+ SalonPersonalVolumeControl.tsx — fermeture popover au touchstart (iOS)
+ · touch-manipulation sur le bouton volume
+ SalonPlaybackPanel.tsx — boutons théâtre min-h-11 (44px) sur mobile
+ app/src/index.css — règles max-width 639px barre contrôles théâtre
+
+FICHIERS MODIFIÉS
+-----
+ SalonPersonalVolumeControl.tsx, SalonPlaybackPanel.tsx, index.css
+
+BUILD (si vérifié)
+-----
+ app/ → npm run test → ✅ 354 tests
+ app/ → npm run build → ❌ erreurs TS préexistantes (globalSearchFilter, HomePage)
+
+================================================================================
+Fin MODIF 841 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 842 — Live théâtre : UX moderne (style salon match-hero)
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Overlay live plat (fond noir, pochette + titre) — refonte dans le même
+ esprit que le salon YouTube (glass, glow, barre statut, colonne centrée).
+
+CHANGEMENTS / FIX
+-----
+ LiveVideoStagePlaceholder.tsx · LiveVideoTheaterChrome.tsx — composants partagés
+ LiveKitVideoStage.tsx · LiveVideoStage.tsx — stack hero + barre statut glass
+ LiveStreamEndedOverlay · LiveVideoUnavailableOverlay — placeholder théâtre
+ RoomTheaterLayout.tsx — liveTheaterChrome + stackBelowVideo live
+ LivePage.tsx — active le mode théâtre live
+ app/src/index.css — styles live-theater-* · chat dock glass · lueur fullscreen
+
+FICHIERS MODIFIÉS
+-----
+ LiveVideoStagePlaceholder.tsx, LiveVideoTheaterChrome.tsx, LiveKitVideoStage.tsx,
+ LiveVideoStage.tsx, LiveStreamEndedOverlay.tsx, LiveVideoUnavailableOverlay.tsx,
+ RoomTheaterLayout.tsx, LivePage.tsx, index.css
+
+================================================================================
+Fin MODIF 842 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 843 — Correction limites (build + layout live théâtre)
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Build bloqué (TS) et layout live : min-height 52dvh sur la scène vidéo
+ créait une zone noire vide sous le bloc théâtre (hero 42dvh dans un conteneur
+ qui s'étirait sur toute la hauteur).
+
+CHANGEMENTS / FIX
+-----
+ globalSearchFilter.ts — export type GlobalSearchFilter manquant
+ HomePage.tsx · CreateSalonSetupChatModal.tsx — imports/état inutilisés
+ app/src/index.css — room-theater-video-stage--live-theater shrink-wrap
+ · stack live flex colonne (vidéo fixe + chat flex-1) · budgets mobile/fullscreen
+
+FICHIERS MODIFIÉS
+-----
+ globalSearchFilter.ts, HomePage.tsx, CreateSalonSetupChatModal.tsx, index.css
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+ app/ → npm run test → ✅
+
+================================================================================
+Fin MODIF 843 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 844 — Live théâtre : caméra invisible (fix dimensions scène)
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Hôte live LiveKit : boutons overlay visibles (Arrêter, ⚙, Plein écran) mais
+ pas de flux caméra — `.live-video-stage-area` ne remplissait pas le cadre
+ hero (grille sans hauteur → vidéo ~0 px).
+
+CHANGEMENTS / FIX
+-----
+ LiveKitVideoStage.tsx · LiveVideoStage.tsx
+ ─────────────────
+ • hero__frame + live-video-stage-area en `absolute inset-0`
+ • chaîne flex h-full sur hero-wrap / stage-stack
+ app/src/index.css
+ ─────────────────
+ • stage-area absolute dans hero__frame · z-index vidéo > placeholder
+ • container live 100% hauteur du hero-wrap
+
+FICHIERS MODIFIÉS
+-----
+ LiveKitVideoStage.tsx, LiveVideoStage.tsx, index.css
+
+================================================================================
+Fin MODIF 844 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 845 — Live : retrait bandeau CDN sous la vidéo
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Bandeau « Diffusion CDN / Diffuser sur CDN » sous la vidéo live — l’utilisateur
+ veut cette config dans les paramètres hôte uniquement.
+
+CHANGEMENTS / FIX
+-----
+ LiveKitVideoStage.tsx — suppression live-theater-toolbar + logique egress
+ LiveKitCdnEgressSettings.tsx — contrôle CDN dans panneau hôte
+ LiveHostPanel.tsx — onglet Config (LiveKit) · prop isLiveKitStream
+ LivePage.tsx · locales fr/en — clés live.cdnEgress*
+
+FICHIERS MODIFIÉS
+-----
+ LiveKitVideoStage.tsx, LiveKitCdnEgressSettings.tsx, LiveHostPanel.tsx,
+ LivePage.tsx, fr.json, en.json
+
+================================================================================
+Fin MODIF 845 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 846 — Live : réglages vidéo/audio dans Config (1080p)
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Caméra, micro et résolution (ex. 1920×1080) doivent se configurer dans les
+ paramètres hôte, pas dans la barre rapide sous la vidéo.
+
+CHANGEMENTS / FIX
+-----
+ liveVideoResolution.ts — presets 1080p/720p/480p · contraintes getUserMedia + LiveKit
+ LiveHostMediaSettings.tsx — panneau Config (caméra, micro, résolution)
+ LiveHostPanel.tsx · LivePage.tsx — intégration · retrait micSelectSlot quick bar
+ LiveKitVideoStage.tsx — capture LiveKit avec deviceId + VideoPresets.h1080
+ liveCameraSupport.ts · useLiveCamera.ts · liveMediaPrefs.ts — persistance résolution
+ locales fr/en — live.mediaSettings* · live.mediaResolution.*
+
+FICHIERS MODIFIÉS
+-----
+ liveVideoResolution.ts, LiveHostMediaSettings.tsx, LiveHostPanel.tsx, LivePage.tsx,
+ LiveKitVideoStage.tsx, liveCameraSupport.ts, useLiveCamera.ts, liveMediaPrefs.ts,
+ fr.json, en.json
+
+================================================================================
+Fin MODIF 846 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 847 — Live Config : retrait titre modération + délai chat
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Retirer le bandeau « MODÉRATION CHAT » dans le panneau hôte Config et permettre
+ de régler facilement le délai entre messages (slow mode).
+
+CHANGEMENTS / FIX
+-----
+ LiveHostPanel.tsx — suppression titre uppercase « Modération chat »
+ LiveChatConfigFields.tsx — presets délai (0/5/10/15/30/60 s) + saisie perso
+ locales fr/en — live.chatDelay* · live.chatNoLinks* · live.chatSubsOnly*
+
+FICHIERS MODIFIÉS
+-----
+ LiveHostPanel.tsx, LiveChatConfigFields.tsx, fr.json, en.json
+
+================================================================================
+Fin MODIF 847 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 848 — Live Host Panel : onglet unique « Don »
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Fusionner les onglets Goals, Rewards et Auto en un seul bouton « Don » dans le
+ panneau hôte.
+
+CHANGEMENTS / FIX
+-----
+ LiveHostPanel.tsx — DonTab (Goals + Rewards + Auto empilés) · 3 onglets Live/Don/Config
+ LivePage.tsx — openHostPanel('don') depuis file rewards et goals
+
+FICHIERS MODIFIÉS
+-----
+ LiveHostPanel.tsx, LivePage.tsx
+
+================================================================================
+Fin MODIF 848 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 849 — Dashboard hôte : période mois / année
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Renommer l’onglet « Live » en « Dashboard » et permettre de consulter les stats
+ créateur par mois et par année.
+
+CHANGEMENTS / FIX
+-----
+ creatorStats.ts — filtre year/month · topDonors · newSubscribers · liveCount
+ users.ts — GET /me/creator-stats?year=&month=
+ LiveHostPanel DashboardTab — sélecteurs mois/année · stats période + live en cours
+ creatorDashboardStats.ts — types partagés · CreatorDashboardCard migré
+
+FICHIERS MODIFIÉS
+-----
+ backend creatorStats.ts, creatorStats.test.ts, users.ts
+ app LiveHostPanel.tsx, creatorDashboardStats.ts, CreatorDashboardCard.tsx, api/users.ts
+ fr.json, en.json
+
+================================================================================
+Fin MODIF 849 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 850 — Profil : tableau de bord créateur enrichi
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bloc « Tableau de bord créateur » sur le profil (onglet Lives) affichait
+ seulement 2 métriques ; l’utilisateur souhaite plus de statistiques.
+
+CHANGEMENTS / FIX
+-----
+ CreatorDashboardCard.tsx — filtre Tout / Par mois · 6 métriques · top donateurs
+ locales fr/en — profile.creatorDashboard.* (période, don moyen, abos, lives…)
+
+FICHIERS MODIFIÉS
+-----
+ CreatorDashboardCard.tsx, fr.json, en.json
+
+================================================================================
+Fin MODIF 850 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 851 — Live : plein écran vidéo théâtre
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton « Plein écran » ne grandissait pas la vidéo : la scène théâtre restait
+ limitée à ~42dvh (contraintes CSS hero-wrap) même en mode fullscreen.
+
+CHANGEMENTS / FIX
+-----
+ index.css — hero-wrap / stage-stack / stage-area en 100dvh en :fullscreen et
+   --landscape-theater · barre statut en overlay · z-index fallback 100
+ LiveKitVideoStage.tsx · LiveVideoStage.tsx — repli theater si Fullscreen API échoue
+
+FICHIERS MODIFIÉS
+-----
+ index.css, LiveKitVideoStage.tsx, LiveVideoStage.tsx
+
+================================================================================
+Fin MODIF 851 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 852 — Live : format d'image Twitch (16:9 / 9:16 / 4:3)
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Comme Twitch, le live doit respecter un format d'image configurable pour éviter
+ la déformation ; réglage dans les paramètres hôte (Config).
+
+CHANGEMENTS / FIX
+-----
+ liveVideoAspectRatio.ts — presets 16:9 · 9:16 · 4:3 · dimensions capture
+ liveVideoResolution.ts · liveCameraSupport · useLiveCamera — contraintes ratio
+ LiveHostMediaSettings · LiveKitVideoStage · LiveVideoStage · LivePage
+ index.css — cadre aspect-ratio · object-fit contain (bandes noires)
+
+FICHIERS MODIFIÉS
+-----
+ liveVideoAspectRatio.ts, liveVideoResolution.ts, liveMediaPrefs.ts,
+ liveCameraSupport.ts, useLiveCamera.ts, LiveHostMediaSettings.tsx,
+ LiveKitVideoStage.tsx, LiveVideoStage.tsx, LivePage.tsx, index.css, fr.json, en.json
+
+================================================================================
+Fin MODIF 852 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 853 — Don : sous-onglets Goals / Rewards / Auto
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Dans l’onglet Don, Goals / Rewards / Auto doivent être des sous-catégories
+ navigables (boutons), pas trois sections empilées.
+
+CHANGEMENTS / FIX
+-----
+ LiveHostPanel DonTab — barre Goals · Rewards · Auto · contenu unique
+ LivePage — openHostPanel('don', 'goals'|'rewards') selon raccourci
+
+FICHIERS MODIFIÉS
+-----
+ LiveHostPanel.tsx, LivePage.tsx
+
+================================================================================
+Fin MODIF 853 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 854 — Chat live : boutons VIP / Participants (icônes)
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton VIP doit reprendre le style icône du filtre participants (⭐ seul).
+ Titre « PARTICIPANTS » aligné à droite dans le popover ; Participants à droite du VIP.
+
+CHANGEMENTS / FIX
+-----
+ LiveVipModeratorsPopover.tsx — bouton ⭐ 44px · panneau style participants
+ LiveParticipantsPopover — titre à droite · bouton 👥 44px
+ LivePage — ordre VIP puis Participants · retrait inline VIP panel
+
+FICHIERS MODIFIÉS
+-----
+ LiveVipModeratorsPopover.tsx, LiveParticipantsPopover.tsx, LivePage.tsx, fr.json, en.json
+
+================================================================================
+Fin MODIF 854 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 855 — Chat live : liste actions dons / goals (validé · supprimer)
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L’hôte doit voir depuis le header du chat dock la liste des actions à faire
+ (récompenses liées aux dons + goals actifs) avec boutons Validé et Supprimer.
+
+CHANGEMENTS / FIX
+-----
+ LiveHostActionsPopover.tsx — popover 📋 · badge compteur · sections rewards/goals
+ LivePage — bouton hôte dans chatHeaderExtra (avant VIP)
+ fr.json / en.json — clés live.hostActions*
+
+FICHIERS MODIFIÉS
+-----
+ LiveHostActionsPopover.tsx, LivePage.tsx, fr.json, en.json
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 855 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 856 — LiveHostPanel : refonte UX studio hôte
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le panneau hôte (Dashboard / Don / Config) manquait de hiérarchie visuelle,
+ d’empty states utiles et d’adaptation mobile (bottom-sheet).
+
+CHANGEMENTS / FIX
+-----
+ LiveHostPanel — bottom-sheet mobile · header Studio live + sous-titre dynamique
+ Onglets underline · Dashboard live en premier · sections accordéon Config
+ Goals / Rewards — empty states avec CTA · barres d’action intégrées (Validé/Supprimer)
+ Don — segmented control · badge pending sur Rewards · i18n hostPanel*
+
+FICHIERS MODIFIÉS
+-----
+ LiveHostPanel.tsx, fr.json, en.json
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 856 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 857 — Live : bouton chat visible (non masqué par contrôles hôte)
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton 💬 Chat sur la vidéo live était caché derrière la barre hôte
+ (mic / cam / stop / ⚙) en haut à droite (z-30 vs z-25).
+
+CHANGEMENTS / FIX
+-----
+ RoomTheaterLayout — toggle chat live à gauche · z-40 · masqué si dock bas ouvert
+ index.css — room-theater-video-chat-toggle--live-theater
+ LivePage — max-width contrôles hôte pour laisser de l’air sur mobile
+
+FICHIERS MODIFIÉS
+-----
+ RoomTheaterLayout.tsx, index.css, LivePage.tsx
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 857 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 858 — Rebrand Soundly → Soundy (UI + API + legacy)
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L’app affichait encore « Soundly Session » et d’autres libellés Soundly
+ (placeholder live, seeds, partage, reels…).
+
+CHANGEMENTS / FIX
+-----
+ brandName.ts (app + backend) — DEFAULT_PLAYBACK_SESSION_TITLE · normalizeBrandText
+ lives/salons/seed — Soundy Session · Jam communautaire Soundy
+ livePublic — titre playback normalisé à l’API
+ LiveVideoStage / LiveKitVideoStage — normalizeBrandText à l’affichage
+ ShareSalonLink · ReelsTabPage · UsernameColorPicker · apptel App.tsx
+
+FICHIERS MODIFIÉS
+-----
+ brandName.ts, lives.ts, salons.ts, seed-msdev.ts, seed-world-random.ts,
+ msdevLanConfig.ts, livePublic.ts, LiveVideoStage.tsx, LiveKitVideoStage.tsx,
+ ShareSalonLink.tsx, ReelsTabPage.tsx, UsernameColorPicker.tsx, apptel/App.tsx,
+ index.css, types, comments divers
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 858 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 859 — Live plein écran : vidéo centrée
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En plein écran (overlay app ou bouton ⛶), le live restait collé en haut ;
+ la vidéo n’était pas centrée dans le viewport.
+
+CHANGEMENTS / FIX
+-----
+ index.css — overlay live-theater : justify/align center · colonne flex 0 1 auto
+ index.css — :fullscreen / landscape-theater théâtre : hero-wrap centré · contain
+
+FICHIERS MODIFIÉS
+-----
+ index.css
+
+================================================================================
+Fin MODIF 859 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 860 — Rebrand technique Soundly → Soundy (storage, npm, infra, logs)
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Après MODIF 858 (UI/API), des identifiants techniques restaient en « soundly » :
+ clés localStorage, noms npm, chemins VPS /opt/soundly, préfixe logs [soundly].
+
+CHANGEMENTS / FIX
+-----
+ app/src/lib/storageKeys.ts (nouveau)
+ ─────────────────
+ • Clés soundy_* canoniques + migration automatique soundly_* → soundy_* au boot
+
+ app + apptel (RoomTheaterLayout, FloatingSalonChat, SalonPage, PlatformConnectPrompt, webglSupport, platformStatusEvents)
+ ─────────────────
+ • Adoption storageKeys + event soundy:platform-status-refresh
+
+ backend/src (bootstrap, pool, migrate, persist, seeds)
+ ─────────────────
+ • Logs [soundy] · service: 'soundy'
+
+ deploy/lib/soundy-root.sh (nouveau)
+ deploy/*.sh, environments.ps1, deploy_zero_downtime.ps1, scripts/, docs/
+ ─────────────────
+ • Chemin canonique /opt/soundy · repli legacy /opt/soundly sur VPS existants
+
+ app/package.json, apptel/package.json
+ ─────────────────
+ • soundy-appweb · soundy-apptel
+
+FICHIERS MODIFIÉS
+-----
+ app/src/lib/storageKeys.ts, main.tsx, webglSupport.ts, platformStatusEvents.ts, components/*, pages/SalonPage.tsx
+ apptel/src/lib/storageKeys.ts, components/*
+ backend/src/lib/logPrefix.ts, bootstrap.ts, db/*, lib/persist.ts, seeds, scripts/*
+ deploy/lib/soundy-root.sh, deploy/*, deploy_zero_downtime.ps1, scripts/*, docs/*, .cursor/rules/infra-access.mdc
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 860 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 861 — LiveKit CDN : serveur RTMP + clé OBS dans Config hôte
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Panneau « Diffusion CDN (Cloudflare Stream) » (mode LiveKit) : afficher serveur
+ et clé de stream OBS pour configurer OBS ou relayer vers le même flux CDN.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/routes/lives.ts
+ ─────────────────
+ • GET /lives/:id/livekit-cdn-ingest — credentials RTMP Cloudflare du live
+ • ensureLiveKitCdnCloudflareInput — factorisation start-egress
+
+ app/src/components/LiveKitCdnEgressSettings.tsx
+ ─────────────────
+ • Chargement credentials + affichage CredentialRow (serveur / clé)
+
+ app/src/lib/api/lives.ts · locales fr/en
+
+FICHIERS MODIFIÉS
+-----
+ backend/src/routes/lives.ts → endpoint + helper CDN ingest
+ app/src/components/LiveKitCdnEgressSettings.tsx → UI OBS
+ app/src/components/LiveCloudflareHostPanel.tsx → export CredentialRow
+ app/src/lib/api/lives.ts · app/src/locales/fr.json · en.json
+
+================================================================================
+Fin MODIF 861 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 861 — Live dock chat : popovers participants / actions visibles en entier
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les popovers 👥 / 📋 / ⭐ dans l’en-tête du dock chat live étaient coupés
+ (overflow:hidden du dock + position absolute).
+
+CHANGEMENTS / FIX
+-----
+ lib/anchoredPopoverPosition.ts + hooks/useAnchoredPopoverPosition.ts (nouveau)
+ ─────────────────
+ • Position fixed + flip auto au-dessus si manque de place en bas
+
+ LiveParticipantsPopover, LiveHostActionsPopover, LiveVipModeratorsPopover
+ ─────────────────
+ • Panneaux rendus via createPortal(document.body), z-index 70
+
+FICHIERS MODIFIÉS
+-----
+ app/src/lib/anchoredPopoverPosition.ts, hooks/useAnchoredPopoverPosition.ts
+ LiveParticipantsPopover.tsx, LiveHostActionsPopover.tsx, LiveVipModeratorsPopover.tsx
+ LivePage.tsx
+
+================================================================================
+Fin MODIF 861 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 862 — Onglet Musique : contenu communauté (profils + playlists)
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L’onglet Musique affichait lives géo, catalogue YouTube msdev et suggestions
+ hors profils. Uniquement morceaux/albums publiés sur profils et playlists
+ (albums) créées par les utilisateurs.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/musicHome.ts + routes/music.ts
+ ─────────────────
+ • buildMusicHome : discover / following / library / popular
+ • GET /music/search — albums & morceaux utilisateurs
+
+ app — MusicTabPage, MusicHomeContent, musicTypes, useMusicHome, api/music
+ ─────────────────
+ • Onglets Découvrir · Abonnements · Ma bibliothèque · Populaire
+ • Cartes playlists + liste morceaux · recherche communauté
+
+ i18n fr/en
+
+FICHIERS MODIFIÉS
+-----
+ backend/src/lib/musicHome.ts, routes/music.ts
+ app/src/pages/MusicTabPage.tsx, components/MusicHomeContent.tsx, lib/musicTypes.ts
+ app/src/hooks/useMusicHome.ts, lib/api/music.ts, App.tsx, locales/fr.json, en.json
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 862 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 863 — Config live hôte : connexion Stripe Connect
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Permettre de connecter / vérifier le compte Stripe depuis Réglages live → Config,
+ sans passer par le profil.
+
+CHANGEMENTS / FIX
+-----
+ LiveHostPanel.tsx
+ ─────────────────
+ • Section « Compte Stripe » (CreatorStripeConnectCard) · 18+ · onUserUpdated
+
+ LivePage.tsx
+ ─────────────────
+ • Passe user + refreshUser au panneau hôte
+
+ i18n fr/en — live.hostPanelConfigStripe
+
+FICHIERS MODIFIÉS
+-----
+ app/src/components/LiveHostPanel.tsx, pages/LivePage.tsx, locales/fr.json, en.json
+
+================================================================================
+Fin MODIF 863 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 864 — Feed Actualité : refonte UX barre stories
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Carrousel stories encombré (badges ★/👥/🤖, header repliable, pub inline),
+ bouton + imbriqué dans « Ma story » (HTML invalide), CTA création peu visible.
+
+CHANGEMENTS / FIX
+-----
+ StoriesInlineBar.tsx
+ ─────────────────
+ • Header fixe : titre + sous-titre (non vues) + bouton « Créer »
+ • Anneau dédié StoryCreateRing si pas de story active ; MyMapStoryRing si active
+ • Suppression collapse + bannière pub dans la section
+
+ MapStoryRings.tsx
+ ─────────────────
+ • Labels épurés (pseudo sans emoji bot, pas de ★/👥 sur le libellé)
+ • Badge Live texte · anneau favori en dégradé ambre
+ • Bouton « + » séparé du bouton vue (plus de bouton imbriqué)
+ • StoryCreateRing · StoryAvatarRing conservé pour le feed
+
+ StoriesRingsCarousel.tsx + index.css
+ ─────────────────
+ • Espacement gap-3 · i18n flèches scroll
+
+ i18n fr/en — stories.rail.*
+
+FICHIERS MODIFIÉS
+-----
+ app/src/components/StoriesInlineBar.tsx, MapStoryRings.tsx, StoriesRingsCarousel.tsx
+ app/src/locales/fr.json, en.json
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 864 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 865 — Audit sécurité & conformité : correctifs post-audit
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Appliquer les remédiations prioritaires identifiées dans l'audit complet
+ (JWT 2FA, logout, suppression compte, OAuth Redis, cookies, tests).
+
+CHANGEMENTS / FIX
+-----
+ backend/src/middleware/auth.ts
+ ─────────────────
+ • Rejet scope 2fa_pending · revokeSession on logout · tests authJwtScope
+
+ backend/src/routes/auth.ts, lib/accountDeletion*.ts
+ ─────────────────
+ • Suppression compte : Stripe cancel, PG (webauthn, push, subs, donations)
+
+ backend/src/routes/oauth.ts, lib/optionalRedis.ts
+ ─────────────────
+ • État OAuth CSRF persisté Redis (fallback mémoire)
+
+ app — cookies.ts, SettingsPage, CookieConsentBanner, cookieConsent.ts
+ ─────────────────
+ • Politique cookies standalone · rouvrir bannière depuis Paramètres
+
+ Divers
+ ─────────────────
+ • Migration 021 dupliquée → 022 · auth limiter 8/15min · alert latency 1s
+ • liveCameraSupport.test.ts · license UNLICENSED · route /cookies · Caddyfile
+
+FICHIERS MODIFIÉS
+-----
+ backend/src/middleware/auth.ts, routes/auth.ts, routes/oauth.ts, server.ts
+ backend/src/lib/accountDeletionPrep.ts, accountDeletionPg.ts, accountDeletionStripe.ts
+ backend/src/lib/optionalRedis.ts, productionStartup.ts, serverMonitor.ts, legalDocuments.ts
+ app/src/content/legal/cookies.ts, components/CookieConsentBanner.tsx, lib/cookieConsent.ts
+ app/src/pages/SettingsPage.tsx, lib/liveCameraSupport.test.ts, locales, package.json
+
+BUILD (si vérifié)
+-----
+ backend npm test → 301/301 ✅ · app npm test → 354/354 ✅
+
+================================================================================
+Fin MODIF 865 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 866 — Sentry monitoring + PostGIS nearby
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Activer le monitoring erreurs Sentry (backend + frontend) et accélérer
+ `/geo/nearby` people via index PostGIS GiST au lieu d'un scan RAM complet.
+
+CHANGEMENTS / FIX
+-----
+ backend — Sentry
+ ─────────────────
+ • `@sentry/node` · `lib/errorMonitoring.ts` (init, captureError, reportServerError)
+ • `bootstrap.ts` initErrorMonitoring · `server.ts` handler erreurs → captureError
+ • `.env.production.example` : SENTRY_DSN, SENTRY_TRACES_SAMPLE_RATE
+
+ app — Sentry
+ ─────────────────
+ • `@sentry/react` · `lib/sentry.ts` · init dans main.tsx
+ • `AppErrorBoundary.tsx` → captureClientError
+ • `.env.production.example` : VITE_SENTRY_DSN, VITE_SENTRY_TRACES_SAMPLE_RATE
+ • Désactivé en msdev / DEV local
+
+ backend — PostGIS
+ ─────────────────
+ • Migration `023_postgis_geo.sql` : extension, colonnes lat/lng/geom, index GiST
+ • `postgisConfig.ts`, `pgGeoNearby.ts` (ST_DWithin users/salons/lives)
+ • `nearbyPeople.ts` getNearbyPeopleAsync · route `/geo/nearby` async
+ • `pgUsers.ts` / `pgSalonsLives.ts` : sync geom à l'upsert
+ • `bootstrap.ts` initPostGis après restauration PG (prod/preprod)
+
+ Fix build collatéral : `musicHome.ts` library.albums via albumItem (type MusicAlbumItem)
+
+FICHIERS MODIFIÉS
+-----
+ backend/src/lib/errorMonitoring.ts, postgisConfig.ts, pgGeoNearby.ts, nearbyPeople.ts
+ backend/src/lib/pgUsers.ts, pgSalonsLives.ts, bootstrap.ts, server.ts, routes/geo.ts
+ backend/src/db/migrations/023_postgis_geo.sql, package.json, .env.production.example
+ app/src/lib/sentry.ts, main.tsx, components/AppErrorBoundary.tsx, package.json
+ app/.env.production.example
+
+BUILD (si vérifié)
+-----
+ backend npm run build → ✅ · backend npm test → 302/302 ✅
+ app npm run build → ✅ · app npm test → 354/354 ✅
+
+DÉPLOIEMENT
+-----
+ • Activer PostGIS sur l'instance Scaleway PG si absent
+ • Appliquer migration 023 (auto au boot ou manuel)
+ • Ajouter SENTRY_DSN + VITE_SENTRY_DSN dans secrets VPS
+
+================================================================================
+Fin MODIF 866 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 867 — Configuration Sentry complète (web + API + source maps)
+Date : 2026-06-29
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Finaliser l'intégration Sentry : releases, source maps Vite, handler Express,
+ Session Replay on-error, filtres bruit, variables d'env documentées.
+
+CHANGEMENTS / FIX
+-----
+ app/
+ ─────────────────
+ • @sentry/vite-plugin — upload source maps si SENTRY_AUTH_TOKEN + org + project
+ • vite.config.ts : sourcemap hidden, release soundy-web@version+sha
+ • sentry.ts : release, replay on-error, beforeSend filtres
+ • sentryFilters.ts + test · .env.sentry-build-plugin.example
+ • .env.production.example / preproduction — DSN + replay
+
+ backend/
+ ─────────────────
+ • errorMonitoring.ts : release soundy-api, beforeSend, setupExpressErrorHandler
+ • server.ts : handler Sentry avant middleware JSON erreurs
+ • sentryRelease.ts · .env.production.example
+
+FICHIERS MODIFIÉS
+-----
+ app/vite.config.ts, src/lib/sentry.ts, sentryFilters.ts, vite-env.d.ts, package.json
+ app/.env.production.example, .env.preproduction.example, .env.sentry-build-plugin.example
+ backend/src/lib/errorMonitoring.ts, sentryRelease.ts, server.ts, .env.production.example
+ .gitignore
+
+BUILD (si vérifié)
+-----
+ app npm run build → ✅ · app npm test → 356/356 ✅
+ backend npm run build → ✅
+
+================================================================================
+Fin MODIF 867 — 2026-06-29
+================================================================================
+
+================================================================================
+MODIF 868 — Deploy Sentry + PostGIS (staging + prod)
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Déployer Sentry (front + API) et migration PostGIS 023 sur staging et production.
+
+CHANGEMENTS / FIX
+-----
+ deploy_zero_downtime.ps1, deploy/lib/soundy-root.sh, migrate-remote.sh
+ ─────────────────
+ • Chemin VPS corrigé : /opt/soundly (au lieu de /opt/soundy vide)
+ • migrate-remote.sh utilise SOUNDY_ROOT dynamique
+
+ Déploiement manuel complété (script bloqué sur CRLF .env)
+ ─────────────────
+ • staging + prod : dist, public (Sentry DSN), npm install @sentry/node
+ • Migration 023 PostGIS appliquée staging · prod MIGRATE_OK
+ • PM2 reload — logs : [monitoring] Sentry actif · [postgis] PostGIS actif
+
+FICHIERS MODIFIÉS
+-----
+ deploy_zero_downtime.ps1, deploy/migrate-remote.sh, deploy/lib/soundy-root.sh
+ deploy/environments.ps1
+
+BUILD / DEPLOY
+-----
+ app build:preprod + build:prod → ✅ · staging + prod health OK
+
+================================================================================
+Fin MODIF 868 — 2026-06-30
+================================================================================
+
+================================================================================
+MODIF 868 — AdminPage : refonte UX en-tête et navigation
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En-tête admin encombré (titre + pills multiligne), retour peu accessible,
+ largeur max-w-lg inadaptée au desktop.
+
+CHANGEMENTS / FIX
+-----
+ AdminPage.tsx + AdminPrimaryNav.tsx (nouveau)
+ ─────────────────
+ • En-tête : badge, titre, hint section active, retour 44×44
+ • Onglets underline + icônes · scroll horizontal mobile
+ • Contenu max-w-5xl sur lg
+
+ AdminScrollTabBar.tsx + index.css
+ ─────────────────
+ • Variante underline (pills conservée pour sous-onglets)
+
+ i18n fr/en — admin.badge, tabHints, labels courts
+
+FICHIERS MODIFIÉS
+-----
+ app/src/pages/AdminPage.tsx, components/AdminPrimaryNav.tsx, AdminScrollTabBar.tsx
+ app/src/index.css, locales/fr.json, en.json
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 868 — 2026-06-30
+================================================================================
+
+================================================================================
+MODIF 869 — PostGIS nearby complet (salons + lives + backfill)
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Étendre PostGIS à toute la route GET /geo/nearby (salons, lives, people)
+ et backfill automatique des colonnes geom au boot.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/routes/geo.ts
+ ─────────────────
+ • loadNearbyGeoCandidates partagé pour people + salons + lives
+ • Une seule requête ST_DWithin par appel nearby (plus de double PG)
+
+ backend/src/lib/pgGeoBackfill.ts, postgisConfig.ts
+ ─────────────────
+ • backfillPostGisGeom() async au boot si geom NULL
+
+ backend/src/lib/pgGeoNearby.test.ts
+ ─────────────────
+ • Test candidats salon/live
+
+FICHIERS MODIFIÉS
+-----
+ backend/src/routes/geo.ts, lib/postgisConfig.ts, lib/pgGeoBackfill.ts
+ backend/src/lib/pgGeoNearby.test.ts
+
+BUILD (si vérifié)
+-----
+ backend npm run build → ✅ · npm test → 304/304 ✅
+
+================================================================================
+Fin MODIF 869 — 2026-06-30
+================================================================================
+
+================================================================================
+MODIF 870 — ProfilePage : refonte UX profil perso
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Header plat (emojis bruts, stats uppercase), onglets non sticky, bouton retour
+ affiché « ? », section compte en liste de boutons isolés.
+
+CHANGEMENTS / FIX
+-----
+ ProfilePage.tsx
+ ─────────────────
+ • Layout sticky : header + écoute en cours + onglets · contenu scroll séparé
+ • Stats en carte 3 colonnes · onglets style UserProfilePage (gradient)
+ • Section « Mon compte » groupée · i18n stats/actions
+ • Retour chevron SVG 44×44 · bouton Modifier en dégradé purple/pink
+
+ ProfileHeaderSection.tsx, ProfileIdentityLines.tsx, SettingsPage.tsx
+ ─────────────────
+ • Bannière gradient compact · meta en chips (icônes SVG)
+ • Badge identité · engrenage SVG
+
+ i18n fr/en — profile.stats*, editProfile, sectionAccount, memberSince, ageYears
+
+FICHIERS MODIFIÉS
+-----
+ app/src/pages/ProfilePage.tsx, SettingsPage.tsx
+ app/src/components/ProfileHeaderSection.tsx, ProfileIdentityLines.tsx
+ app/src/locales/fr.json, en.json
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 870 — 2026-06-30
+================================================================================
+
+================================================================================
+MODIF 871 — Admin : onglet Diagnostic (Sentry, PostGIS, DB, backups, logs)
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L'onglet « Logs app » du support admin ne couvrait que les erreurs client ;
+ besoin d'une vue diagnostic complète (Sentry, PostGIS, PostgreSQL, backups, PM2).
+
+CHANGEMENTS / FIX
+-----
+ backend/src/lib/adminDiagnostics.ts + GET /api/admin/diagnostics
+ ─────────────────
+ • Rapport : health, Sentry, PostGIS (couverture geom), DB drift, stats logs, scan backups VPS
+
+ backend/src/lib/postgisConfig.ts — getPostGisAdminReport()
+
+ app/src/pages/AdminDiagnosticsPanel.tsx (nouveau)
+ app/src/pages/AdminServerLogsPanel.tsx (nouveau)
+ app/src/pages/AdminSupportTab.tsx — subTab « Diagnostic »
+
+ i18n fr/en — admin.support.diag.*
+
+FICHIERS MODIFIÉS
+-----
+ backend/src/lib/adminDiagnostics.ts, postgisConfig.ts, routes/adminCloudflare.ts
+ app/src/pages/AdminDiagnosticsPanel.tsx, AdminServerLogsPanel.tsx, AdminSupportTab.tsx
+ app/src/lib/api/admin.ts, types.ts, locales/fr.json, en.json
+
+BUILD (si vérifié)
+-----
+ backend npm run build → ✅ · app npm run build → ✅
+
+================================================================================
+Fin MODIF 871 — 2026-06-30
+================================================================================
+
+================================================================================
+MODIF 872 — Admin : administration avancée des comptes (AdminAccountsTab)
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L'onglet Comptes admin ne permettait que d'approuver / suspendre sans durée ni détail
+ (followers, activité hôte, motif de suspension). Besoin d'une vraie modération de compte.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/models/schema.ts
+ ─────────────────
+ • Champs User : blockedUntil, blockedReason, blockedAt
+
+ backend/src/lib/accessControl.ts
+ ─────────────────
+ • getAccountStatus() avec auto-déblocage si blockedUntil expiré
+ • blockUserAccount({ days, reason }) — durée 1–365 j ou permanent
+ • Réactivation efface les champs de suspension
+
+ backend/src/lib/favorites.ts
+ ─────────────────
+ • getFollowingCount()
+
+ backend/src/routes/access.ts
+ ─────────────────
+ • mapAdminManagedUser enrichi (stats sociales, hôte, blocage, Stripe, onboarding)
+ • GET /admin/users/:userId/social — aperçu followers / following
+ • POST .../block { days?, reason? } · approve/unblock renvoient mapAdminManagedUser
+
+ app/src/types.ts, lib/api/access.ts
+ ─────────────────
+ • AccessManagedUser étendu · AdminUserSocialResponse · blockAccessUser()
+
+ app/src/pages/AdminAccountsTab.tsx
+ ─────────────────
+ • Chips résumé (abonnés, salons, reels, fin suspension)
+ • Panneau déplié : Activité, Profil, Social (listes), Forfait, Modération
+ • Suspension 1/7/30/90 j ou permanent + motif · promote/demote admin
+
+ app/src/locales/fr.json, en.json
+ ─────────────────
+ • Clés admin.accounts.* (sections, blocage, social)
+
+FICHIERS MODIFIÉS
+-----
+ backend → schema, accessControl, favorites, access routes
+ app → AdminAccountsTab, types, api/access, i18n
+
+BUILD (si vérifié)
+-----
+ backend npm run build → ✅ · app npm run build → (vérifié ci-dessous)
+
+================================================================================
+Fin MODIF 872 — 2026-06-30
+================================================================================
+
+================================================================================
+MODIF 873 — Auth Google : sélecteur de compte (multi-Gmail)
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic « Continuer avec Google » réutilisait le dernier compte Google sans afficher
+ le choix — problématique pour les utilisateurs avec plusieurs comptes Gmail.
+
+CHANGEMENTS / FIX
+-----
+ backend/src/routes/oauth.ts
+ ─────────────────
+ • Paramètre OAuth `prompt=select_account` sur GET /api/auth/google
+
+ app/src/pages/AuthPage.tsx, locales fr/en
+ ─────────────────
+ • Libellés i18n bouton Google + infobulle « choisissez le compte »
+
+CONFIG (vérifiée msdev)
+-----
+ GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL → OK (localhost:4080)
+
+BUILD (si vérifié)
+-----
+ backend npm run build → ✅
+
+================================================================================
+Fin MODIF 873 — 2026-06-30
+================================================================================
+
+================================================================================
+MODIF 874 — Auth Google : bouton explicite + YouTube multi-compte
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Vérification demandée : au clic Google, l'utilisateur doit voir/confirmer quel
+ compte Gmail est utilisé (multi-comptes). Bouton icône seule peu explicite ;
+ liaison YouTube réutilisait le compte Google actif sans sélecteur.
+
+CHANGEMENTS / FIX
+-----
+ app/src/pages/AuthPage.tsx
+ ─────────────────
+ • Bouton pleine largeur « Continuer avec Google » + texte d'aide sous le bouton
+
+ app/src/locales/fr.json, en.json
+ ─────────────────
+ • Hint : Google affiche la liste des comptes Gmail à choisir
+
+ backend/src/lib/youtubeOAuth.ts
+ ─────────────────
+ • `prompt=select_account consent` (sélecteur + consentement YouTube)
+
+CONFIG (vérifiée msdev)
+-----
+ GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL → OK (port 4080)
+ GET /api/auth/google → `prompt=select_account` (MODIF 873)
+
+================================================================================
+Fin MODIF 874 — 2026-06-30
+================================================================================
+
+================================================================================
+MODIF 875 — Vérif app : fix build access.ts + tri donations
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Vérification complète : build backend en échec (access.ts corrompu — en-tête
+ mapAdminManagedUser supprimé). Test donationsHistory flaky (même timestamp ms).
+
+CHANGEMENTS / FIX
+-----
+ backend/src/routes/access.ts
+ ─────────────────
+ • Restauration function mapAdminManagedUser (build TS1128)
+
+ backend/src/lib/donationsHistory.ts
+ ─────────────────
+ • Tri secondaire par index si timestamp identique (don récent en premier)
+
+BUILD (si vérifié)
+-----
+ backend npm run build → ✅
+ app npm run build → ✅
+ backend tests 304/304 → ✅
+ app tests 356/356 → ✅
+
+================================================================================
+Fin MODIF 875 — 2026-06-30
+================================================================================
+
+================================================================================
+MODIF 875 — Admin Comptes : actions rapides et résumé enrichi
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Onglet Comptes : actions (admin, suspension) peu visibles ; manque de contexte
+ (abonnés, jours restants, dernière activité) sans ouvrir le détail.
+
+CHANGEMENTS / FIX
+-----
+ AdminAccountsTab.tsx
+ ─────────────────
+ • Stats en tête · chips abonnés/favoris/salons/reels · jours restants suspension
+ • Barre d'actions : Approuver, Suspendre 7 j, Réactiver, Admin, Profil, Détails
+ • Avatar · badge BOT · activité relative
+
+ backend/routes/access.ts + types
+ ─────────────────
+ • avatarUrl dans mapAdminManagedUser
+
+BUILD (si vérifié)
+-----
+ app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 875 — 2026-06-30
+================================================================================
+
+================================================================================
+MODIF 876 — Safari / mobile : compat + sync apptel
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Corrections post-audit : doublon apptel/storageKeys.ts ; renforcer Safari iOS
+ (viewport clavier, -webkit-fill-available, HLS natif) et téléphones.
+
+CHANGEMENTS / FIX
+-----
+ scripts/sync-src.js --clean
+ ─────────────────
+ • Suppression doublon apptel/src/lib/storageKeys.ts → fallback app/src
+
+ app/index.html, apptel/index.html
+ ─────────────────
+ • viewport `interactive-widget=resizes-content` (clavier iOS)
+ • boot loader `-webkit-fill-available` (apptel)
+
+ app/src/index.css
+ ─────────────────
+ • html + ms-phone-shell + #root mobile : fallbacks -webkit-fill-available
+
+ app/src/lib/safariPlayback.ts (+ tests)
+ app/src/hooks/useCloudflareHlsPlayback.ts
+ ─────────────────
+ • Détection Safari/iOS HLS natif centralisée et testée
+
+ app/src/components/StoryViewer.tsx, PhotoImageEditor.tsx
+ ─────────────────
+ • max-h vh → dvh (Safari barre d’adresse)
+
+ app/src/lib/phoneViewport.test.ts
+ ─────────────────
+ • Tests viewport mobile / touch
+
+BUILD (si vérifié)
+-----
+ npm run src:check → ✅
+ app tests 366/366 → ✅
+ app + apptel build → ✅
+
+================================================================================
+Fin MODIF 876 — 2026-06-30
+================================================================================
+
+================================================================================
+MODIF 877 — Salon / Live : ouverture Safari iPhone
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Vérifier que salon et live s’ouvrent correctement sur Safari téléphone.
+
+CHANGEMENTS / FIX
+-----
+ app/src/App.tsx
+ ─────────────────
+ • Shell live plein écran : flex-1 h-full (même chaîne que salon — iOS Safari)
+
+ app/src/hooks/useCloudflareHlsPlayback.ts
+ app/src/lib/liveCameraSupport.ts
+ ─────────────────
+ • configureInlinePlaybackVideo (playsinline / webkit) sur lecteur HLS
+
+ app/src/index.css
+ ─────────────────
+ • min-height vidéo salon mobile : dvh uniquement
+
+ app/src/lib/mobileSalonLiveSafari.test.ts (+ liveCameraSupport.test.ts)
+ ─────────────────
+ • Tests structure CSS/TS salon+live mobile Safari
+
+BUILD (si vérifié)
+-----
+ mobileSalonLiveSafari + liveCameraSupport tests → ✅
+
+================================================================================
+Fin MODIF 877 — 2026-06-30
+================================================================================
+
+================================================================================
+MODIF 878 — Audit pré-prod : correctifs sécurité, cluster, CI
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Implémenter les corrections P0/P1 de l'audit pré-production (sécurité, DB,
+ cluster PM2, LiveKit, CI/CD, tests).
+
+CHANGEMENTS / FIX
+-----
+ backend/src/middleware/opsHealthAuth.ts
+ backend/src/server.ts
+ ─────────────────
+ • /health/db protégé par OPS_HEALTH_TOKEN (header X-Ops-Health-Token)
+ • CSP connect-src/img-src restreints (cspConfig.ts)
+
+ backend/src/lib/productionStartup.ts
+ backend/src/lib/jwtSecret.ts
+ backend/src/middleware/auth.ts
+ backend/src/routes/auth.ts
+ backend/src/lib/loginAttemptLimit.ts
+ backend/src/routes/twoFactor.ts
+ ─────────────────
+ • Fail-fast : TOTP_ENCRYPTION_KEY, OPS_HEALTH_TOKEN, REDIS_URL si PM2>1
+ • JWT algorithms HS256 explicites
+ • Rate limit login par email (10 échecs / 15 min)
+
+ backend/src/db/migrations/024_schema_drift_fix.sql
+ ─────────────────
+ • ALTER colonnes manquantes creator_subscriptions / donation_payments
+
+ backend/src/lib/optionalRedis.ts
+ backend/src/lib/chatRateLimit.ts
+ backend/src/lib/oauthExchange.ts
+ backend/src/lib/webauthnChallengeStore.ts
+ backend/src/lib/livekitEgressStore.ts
+ backend/src/lib/livekit.ts
+ backend/src/routes/lives.ts
+ ─────────────────
+ • Stores Redis cluster-safe (chat, OAuth exchange, WebAuthn, egress LiveKit)
+ • LiveKit token : live.isActive requis, TTL 2h
+
+ .github/workflows/ci.yml
+ app/playwright.config.ts + app/e2e/smoke.spec.ts
+ app/package.json
+ ─────────────────
+ • CI : lint + build Vite ; skeleton E2E Playwright
+
+ backend/.env.production.example
+ backend/.env.preproduction.example
+ ─────────────────
+ • Doc OPS_HEALTH_TOKEN, TOTP_ENCRYPTION_KEY, REDIS_URL
+
+FICHIERS MODIFIÉS
+-----
+ backend/ (sécurité, migrations, routes, tests) · app/ (CI, e2e) · ci.yml
+
+BUILD (si vérifié)
+-----
+ backend/ → npm run build + npm test → 311/311 ✅
+ app/ → npm run build + npm test → 374/374 ✅
+
+================================================================================
+Fin MODIF 878 — 2026-06-30
+================================================================================
+
+================================================================================
+MODIF 879 — Post-audit : Sentry, uptime, FK, checkouts PG, k6, Cloudflare doc
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Suite audit pre-prod : secrets VPS, DSN Sentry front/back, monitoring uptime,
+ persistance checkouts, FK PostgreSQL, CI E2E, docs long terme.
+
+CHANGEMENTS / FIX
+-----
+ VPS prod + staging
+ ─────────────────
+ • OPS_HEALTH_TOKEN + PM2_INSTANCES ajoutés sur /opt/soundly/.env
+ • backend/.env.production + .preproduction synchronisés (SCP)
+ • scripts/sync-app-sentry-env.ps1 → app/.env.production (VITE_SENTRY javascript-react)
+
+ backend/src/lib/externalUptimeMonitor.ts
+ backend/src/bootstrap.ts
+ ─────────────────
+ • Ping public /health + alerte email (debounce 15 min)
+
+ backend/src/lib/pgSubscriptionCheckouts.ts
+ backend/src/routes/subscriptions.ts
+ backend/src/db/migrations/025_foreign_keys_not_valid.sql
+ ─────────────────
+ • Persistance subscription_checkouts PostgreSQL
+ • FK NOT VALID (users) — validate après nettoyage orphelins
+
+ backend/src/lib/productionStartup.ts
+ ─────────────────
+ • SENTRY_DSN obligatoire en APP_ENV=production
+
+ .github/workflows/ci.yml
+ app/e2e/smoke.spec.ts
+ scripts/load/k6-smoke.js
+ docs/CLOUDFLARE-WAF.md
+ docs/INFRA-PG-STAGING.md
+ deploy_zero_downtime.ps1
+ scripts/setup-staging-env.ps1
+ ─────────────────
+ • Job E2E smoke (continue-on-error)
+ • Guide Cloudflare WAF + runbook PG staging isolé
+ • sync Sentry avant build Vite au deploy
+
+BUILD (si vérifié)
+-----
+ backend/ → npm run build + npm test → 313/313 ✅
+ app/ → sync Sentry env + Playwright install ✅
+
+================================================================================
+Fin MODIF 879 — 2026-06-30
+================================================================================

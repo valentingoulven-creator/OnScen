@@ -5,7 +5,7 @@
 #   sudo ./deploy/sync-caddy.sh /chemin/vers/Caddyfile
 set -euo pipefail
 
-SOURCE="${1:-/opt/soundly/deploy/Caddyfile}"
+SOURCE="${1:-/opt/soundy/deploy/Caddyfile}"
 DEST="/etc/caddy/Caddyfile"
 LOG="/var/log/caddy-sync.log"
 

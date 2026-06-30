@@ -1,3 +1,4 @@
+import { BRAND_NAME } from './lib/brandName';
 import { db, type FeedPost, type Live, type MusicPlatform, type Salon, type User } from './models/schema';
 import { blurCoordinate } from './lib/geo';
 import { refreshUserPublicCoords } from './lib/locationPrivacy';
@@ -75,7 +76,7 @@ const EVENT_CONTENT_TEMPLATES = [
   (city: string, venue: string) =>
     `Nuit électro au ${venue} (${city}) : house, techno et visuals.`,
   (city: string, venue: string) =>
-    `Jam communautaire Soundly — ${venue}, ${city}. Venez avec votre instrument !`,
+    `Jam communautaire ${BRAND_NAME} — ${venue}, ${city}. Venez avec votre instrument !`,
 ];
 
 const UNSPLASH_IMAGES = [

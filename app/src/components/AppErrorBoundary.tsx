@@ -2,6 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { DEFAULT_CENTER } from '../lib/livesGeo';
 import { isMsdevEnvironment } from '../lib/liveCameraSupport';
 import { logDiagnosticError } from '../lib/diagnosticLogs';
+import { captureClientError } from '../lib/sentry';
 import { disableGlobeView, isWebGLError } from '../lib/webglSupport';
 
 interface Props {
@@ -104,6 +105,7 @@ export class AppErrorBoundary extends Component<Props, State> {
         source: 'error-boundary',
         context: { componentStack: info.componentStack },
       });
+      captureClientError(error, { componentStack: info.componentStack });
     }
 
     if (isSocketAuthError(error)) {

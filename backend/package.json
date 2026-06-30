@@ -1,6 +1,7 @@
 {
   "name": "melosong-backend",
   "version": "1.0.0",
+  "license": "UNLICENSED",
   "description": "Soundy Real-time Geolocation & Music Sharing Backend",
   "main": "dist/index.js",
   "scripts": {
@@ -33,8 +34,9 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.888.0",
-    "@socket.io/redis-adapter": "^8.3.0",
+    "@sentry/node": "^9.47.1",
     "@simplewebauthn/server": "^13.3.1",
+    "@socket.io/redis-adapter": "^8.3.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/nodemailer": "^8.0.1",
     "bcryptjs": "^2.4.3",

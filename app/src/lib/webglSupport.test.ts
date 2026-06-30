@@ -216,7 +216,7 @@ describe('disableGlobeView', () => {
 
     expect(count).toBe(1);
 
-    expect(localStorage.getItem('soundly_map_style')).toBe('flat');
+    expect(localStorage.getItem('soundy_map_style')).toBe('flat');
 
   });
 

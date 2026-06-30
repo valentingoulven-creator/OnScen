@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AdminScrollTabBar } from '../components/AdminScrollTabBar';
+import { AdminPrimaryNav, type AdminPrimaryTab, type AdminPrimaryTabId } from '../components/AdminPrimaryNav';
 import { AdminAccountsTab } from './AdminAccountsTab';
 import { AdminAccessTab } from './AdminAccessTab';
 import { AdminContentTab } from './AdminContentTab';
@@ -9,7 +9,7 @@ import { AdminSponsorsTab } from './AdminSponsorsTab';
 import { AdminAgentsTab } from './AdminAgentsTab';
 import { AnalyticsPage, type AnalyticsSubTab } from './AnalyticsPage';
 
-type AdminTab = 'accounts' | 'access' | 'content' | 'analytics' | 'support' | 'sponsors' | 'agents';
+type AdminTab = AdminPrimaryTabId;
 /** Legacy aliases — reports → Support ; costs / donations → Analytics */
 type AdminInitialTab = AdminTab | 'reports' | 'costs' | 'donations';
 
@@ -37,7 +37,6 @@ interface AdminPageProps {
   onOpenSalon?: (salonId: string, salonTitle?: string) => void;
 }
 
-
 export function AdminPage({
   onBack,
   initialTab = 'accounts',
@@ -57,46 +56,95 @@ export function AdminPage({
     setAnalyticsSubTab(next.analyticsSubTab);
   }, [initialTab]);
 
-  const tabs: { id: AdminTab; label: string }[] = [
-    { id: 'accounts', label: t('admin.tabs.accounts') },
-    { id: 'access', label: t('admin.tabs.access') },
-    { id: 'content', label: t('admin.tabs.content') },
-    { id: 'analytics', label: t('admin.tabs.analytics') },
-    { id: 'support', label: t('admin.tabs.support') },
-    { id: 'sponsors', label: t('admin.tabs.sponsors') },
-    { id: 'agents', label: t('admin.tabs.agents') },
-  ];
+  const tabs = useMemo(
+    (): AdminPrimaryTab[] => [
+      {
+        id: 'accounts',
+        icon: '👤',
+        label: t('admin.tabs.accounts'),
+        hint: t('admin.tabHints.accounts'),
+      },
+      {
+        id: 'access',
+        icon: '🔐',
+        label: t('admin.tabs.access'),
+        hint: t('admin.tabHints.access'),
+      },
+      {
+        id: 'content',
+        icon: '📁',
+        label: t('admin.tabs.content'),
+        hint: t('admin.tabHints.content'),
+      },
+      {
+        id: 'analytics',
+        icon: '📊',
+        label: t('admin.tabs.analytics'),
+        shortLabel: t('admin.tabs.analyticsShort'),
+        hint: t('admin.tabHints.analytics'),
+      },
+      {
+        id: 'support',
+        icon: '💬',
+        label: t('admin.tabs.support'),
+        hint: t('admin.tabHints.support'),
+      },
+      {
+        id: 'sponsors',
+        icon: '⭐',
+        label: t('admin.tabs.sponsors'),
+        hint: t('admin.tabHints.sponsors'),
+      },
+      {
+        id: 'agents',
+        icon: '🤖',
+        label: t('admin.tabs.agents'),
+        shortLabel: t('admin.tabs.agentsShort'),
+        hint: t('admin.tabHints.agents'),
+      },
+    ],
+    [t],
+  );
+
+  const activeMeta = tabs.find((item) => item.id === tab) ?? tabs[0];
 
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full overflow-hidden bg-[#0b0b0f] text-white">
-      <header className="shrink-0 z-10 bg-[#0b0b0f]/95 border-b border-[#1e1e2f] px-4 py-3 ms-safe-area-top">
-        <div className="flex items-center gap-3 max-w-lg mx-auto min-w-0">
-          {onBack && (
-            <button type="button" onClick={onBack} className="text-purple-400 text-sm shrink-0">
-              ←
-            </button>
-          )}
-          <h1 className="text-lg font-bold flex-1 min-w-0 truncate">{t('admin.title')}</h1>
+      <header className="shrink-0 z-10 bg-[#0b0b0f]/95 backdrop-blur-sm border-b border-[#1e1e2f] ms-safe-area-top">
+        <div className="max-w-lg lg:max-w-5xl mx-auto w-full min-w-0 px-4 pt-3 pb-0">
+          <div className="flex items-start gap-2 min-w-0">
+            {onBack ? (
+              <button
+                type="button"
+                onClick={onBack}
+                className="shrink-0 w-11 h-11 flex items-center justify-center rounded-xl bg-[#14141c] border border-[#2a2a3a] text-purple-300 hover:text-white hover:border-purple-500/40 transition touch-manipulation"
+                aria-label={t('admin.back')}
+              >
+                <span aria-hidden>←</span>
+              </button>
+            ) : null}
+            <div className="min-w-0 flex-1 pt-0.5">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-purple-400/90">
+                {t('admin.badge')}
+              </p>
+              <h1 className="text-lg sm:text-xl font-bold leading-tight truncate">{t('admin.title')}</h1>
+              <p className="text-[11px] text-gray-500 mt-0.5 leading-snug truncate">
+                {activeMeta.hint ?? activeMeta.label}
+              </p>
+            </div>
+          </div>
         </div>
-        <AdminScrollTabBar className="mt-3 -mx-4 px-4" aria-label={t('admin.title')}>
-          {tabs.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setTab(item.id)}
-              className={`shrink-0 px-2.5 py-1.5 min-h-8 sm:px-4 sm:py-2 sm:min-h-0 rounded-full text-[11px] sm:text-xs font-semibold whitespace-nowrap transition ${
-                tab === item.id
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-[#1a1a26] text-gray-400 hover:text-white'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </AdminScrollTabBar>
+        <div className="max-w-lg lg:max-w-5xl mx-auto w-full min-w-0 mt-2">
+          <AdminPrimaryNav
+            tabs={tabs}
+            activeTab={tab}
+            onChange={setTab}
+            ariaLabel={t('admin.navLabel')}
+          />
+        </div>
       </header>
 
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 max-w-lg mx-auto w-full pb-6">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4 max-w-lg lg:max-w-5xl mx-auto w-full pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         {tab === 'accounts' && <AdminAccountsTab />}
         {tab === 'access' && <AdminAccessTab />}
         {tab === 'content' && <AdminContentTab onOpenSalon={onOpenSalon} />}

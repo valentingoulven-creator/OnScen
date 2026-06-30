@@ -41,7 +41,7 @@ Un seul deploy preprod a la fois (`concurrency` — annule le precedent si un no
 3. SSH vers staging via `scripts/deploy-preprod.ps1`
 4. Health check : `http://51.159.170.181/health` (ou DNS si configure)
 
-Le `.env` runtime sur le VPS (`/opt/soundly/.env`) **n'est pas** ecrase par CI — seul le code deploye change.
+Le `.env` runtime sur le VPS (`/opt/soundy/.env`) **n'est pas** ecrase par CI — seul le code deploye change.
 
 ## 4. Prod
 

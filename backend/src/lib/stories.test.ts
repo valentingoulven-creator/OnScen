@@ -22,6 +22,7 @@ describe('stories', () => {
   beforeEach(() => {
     db.users.clear();
     db.stories.length = 0;
+    db.userFavorites.clear();
     seedUser('me', 48.85, 2.35);
     seedUser('near', 48.86, 2.36);
     seedUser('far', 43.0, 8.0);
@@ -133,5 +134,52 @@ describe('stories', () => {
     expect(getUserActiveStories('me')).toHaveLength(0);
     expect(deleteStory(r.story.id, 'me')).toBe(false);
     expect(deleteStory(r.story.id, 'near')).toBe(false);
+  });
+
+  it('followers visibility: only fans of the author can see', () => {
+    seedUser('author', 48.85, 2.35);
+    seedUser('fan', 48.86, 2.36);
+    seedUser('stranger', 48.87, 2.37);
+    db.userFavorites.set(
+      'fan',
+      new Map([
+        [
+          'author',
+          { fanId: 'fan', hostId: 'author', notificationsEnabled: true, createdAt: Date.now() },
+        ],
+      ])
+    );
+    db.userFavorites.set(
+      'author',
+      new Map([
+        [
+          'stranger',
+          { fanId: 'author', hostId: 'stranger', notificationsEnabled: true, createdAt: Date.now() },
+        ],
+      ])
+    );
+    createStory('author', { content: 'followers only', visibility: 'followers' });
+    expect(listStoriesForViewer('fan').some((s) => s.userId === 'author')).toBe(true);
+    expect(listStoriesForViewer('stranger').some((s) => s.userId === 'author')).toBe(false);
+    expect(listStoriesForViewer('me').some((s) => s.userId === 'author')).toBe(false);
+  });
+
+  it('public visibility: any non-blocked viewer can see', () => {
+    createStory('near', { content: 'hello public', visibility: 'public' });
+    expect(listStoriesForViewer('me').some((s) => s.userId === 'near')).toBe(true);
+    expect(listStoriesForViewer('far').some((s) => s.userId === 'near')).toBe(true);
+  });
+
+  it('allows a story with video data url and optional poster', () => {
+    const videoUrl =
+      'data:video/webm;base64,GkXfo59ChoEBQveBAULygQRC84EIQoKEd2VibUKHgQRChYECGFOAZwEAAAAAAABZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+    const poster =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    const r = createStory('me', { videoUrl, imageUrl: poster, videoDurationSec: 8 });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.story.videoUrl).toBe(videoUrl);
+    expect(r.story.imageUrl).toBe(poster);
+    expect(r.story.videoDurationSec).toBe(8);
   });
 });

@@ -1,4 +1,6 @@
 import { getPhotoFilterCss, type PhotoFilterId } from './photoFilters';
+import { applyStoryCanvasEffects, waveformSeedFromText } from './storyCanvasEffects';
+import type { StoryCreativeEffectId } from './storyCreativeEffects';
 import {
   resolveStoryTextFont,
   type StoryTextFontId,
@@ -343,14 +345,25 @@ export async function composePhotoImageWithEdits(
     referenceViewportW?: number;
     quality?: number;
     taggedUsers?: StoryTaggedUser[];
+    storyEffect?: StoryCreativeEffectId;
+    duotoneGenre?: string | null;
+    waveformSeed?: string | null;
   }
 ): Promise<string> {
   const referenceViewportW = options?.referenceViewportW ?? STORY_VIEWPORT_W;
   const quality = options?.quality ?? STORY_JPEG_QUALITY;
   const taggedUsers = options?.taggedUsers ?? [];
+  const storyEffect = options?.storyEffect ?? 'none';
   const cssFilter = getPhotoFilterCss(filterId);
+  const useGlitch = storyEffect === 'glitch';
+  const useDuotone = storyEffect === 'duotone';
+  const useWaveform = storyEffect === 'waveform';
+  const hasCanvasFx = useGlitch || useDuotone || useWaveform;
   const hasEdits =
-    overlays.some((o) => o.text.trim()) || cssFilter !== 'none' || taggedUsers.length > 0;
+    overlays.some((o) => o.text.trim()) ||
+    cssFilter !== 'none' ||
+    taggedUsers.length > 0 ||
+    hasCanvasFx;
   const bitmap = await loadImageBitmapFromDataUrl(imageDataUrl);
   if (!hasEdits) {
     try {
@@ -372,9 +385,20 @@ export async function composePhotoImageWithEdits(
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error("Impossible de composer l'image");
 
-    if (cssFilter !== 'none') ctx.filter = cssFilter;
-    ctx.drawImage(bitmap, 0, 0);
-    ctx.filter = 'none';
+    if (hasCanvasFx) {
+      applyStoryCanvasEffects(ctx, bitmap, bitmap.width, bitmap.height, {
+        cssFilter: useGlitch ? 'none' : cssFilter,
+        glitch: useGlitch,
+        duotoneGenre: useDuotone ? options?.duotoneGenre ?? 'default' : null,
+        waveformSeed: useWaveform
+          ? options?.waveformSeed ?? waveformSeedFromText('soundy')
+          : null,
+      });
+    } else {
+      if (cssFilter !== 'none') ctx.filter = cssFilter;
+      ctx.drawImage(bitmap, 0, 0);
+      ctx.filter = 'none';
+    }
     drawTextOverlays(ctx, bitmap, overlays, referenceViewportW);
     drawUserTagOverlays(ctx, bitmap, taggedUsers, referenceViewportW);
     return canvas.toDataURL('image/jpeg', quality);
@@ -388,12 +412,20 @@ export async function composeStoryImageWithOverlays(
   imageDataUrl: string,
   overlays: StoryTextOverlay[],
   filterId: PhotoFilterId = 'none',
-  taggedUsers: StoryTaggedUser[] = []
+  taggedUsers: StoryTaggedUser[] = [],
+  effectOptions?: {
+    storyEffect?: StoryCreativeEffectId;
+    duotoneGenre?: string | null;
+    waveformSeed?: string | null;
+  }
 ): Promise<string> {
   return composePhotoImageWithEdits(imageDataUrl, overlays, filterId, {
     referenceViewportW: STORY_VIEWPORT_W,
     quality: STORY_JPEG_QUALITY,
     taggedUsers,
+    storyEffect: effectOptions?.storyEffect,
+    duotoneGenre: effectOptions?.duotoneGenre,
+    waveformSeed: effectOptions?.waveformSeed,
   });
 }
 

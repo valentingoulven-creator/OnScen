@@ -37,6 +37,7 @@ import { DonationSheet } from '../components/DonationSheet';
 import { ProfileReelRecorder } from '../components/ProfileReelRecorder';
 import { UserReelsSection } from '../components/UserReelsSection';
 import { UserCompositionsSection } from '../components/UserCompositionsSection';
+import { UserEventsSection } from '../components/UserEventsSection';
 import { UserLivesSection } from '../components/UserLivesSection';
 import { CreatorDashboardCard } from '../components/CreatorDashboardCard';
 import { PlatformConnectCard } from '../components/PlatformConnectCard';
@@ -55,12 +56,12 @@ import { CompactTagChips } from '../components/CompactTagChips';
 import { ProfileHeaderSection } from '../components/ProfileHeaderSection';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { PROFILE_TYPE_OPTIONS } from '../lib/profileTypes';
-import type { ProfileType, RelationshipStatus, User } from '../types';
+import type { FeedPost, ProfileType, RelationshipStatus, User } from '../types';
 
 const HIDE_AGE_CHECKBOX_ID = 'profile-hide-age';
 
-const PROFILE_TAB_CLASS =
-  'px-4 sm:px-8 py-3 text-sm font-semibold transition relative text-center shrink-0';
+const PROFILE_ACCOUNT_ROW_CLASS =
+  'relative w-full min-h-[44px] px-4 py-3 text-left text-gray-200 font-semibold text-sm hover:bg-[#1a1a26]/80 transition flex items-center justify-between gap-2';
 
 function profileToForm(user: User | null) {
   const profilePhotos = getUserProfilePhotos(user);
@@ -89,7 +90,21 @@ function profileToForm(user: User | null) {
   };
 }
 
-type ProfileTab = 'profil' | 'reels' | 'compositions' | 'lives';
+type ProfileTab = 'profil' | 'reels' | 'compositions' | 'programmation' | 'lives';
+
+function parseProfileTabFromSearch(tab: string | null): ProfileTab {
+  if (tab === 'events') return 'programmation';
+  if (
+    tab === 'compositions' ||
+    tab === 'reels' ||
+    tab === 'lives' ||
+    tab === 'profil' ||
+    tab === 'programmation'
+  ) {
+    return tab;
+  }
+  return 'profil';
+}
 
 interface ProfilePageProps {
   onBack?: () => void;
@@ -97,6 +112,8 @@ interface ProfilePageProps {
   onOpenLive?: (liveId: string) => void;
   onOpenProfile?: (userId: string) => void;
   onOpenSalon?: (salonId: string, salonTitle?: string, isHost?: boolean) => void;
+  /** Ouvre le détail d'une publication événement (onglet Programmation). */
+  onOpenFeedPost?: (post: FeedPost) => void;
   /** À l’ouverture : Mes reels + enregistreur (ex. depuis profil carte). */
   openRecorderOnMount?: boolean;
   onRecorderMountHandled?: () => void;
@@ -113,6 +130,7 @@ export function ProfilePage({
   onOpenLive,
   onOpenProfile,
   onOpenSalon,
+  onOpenFeedPost,
   openRecorderOnMount = false,
   onRecorderMountHandled,
   openContactOnMount = false,
@@ -121,13 +139,9 @@ export function ProfilePage({
 }: ProfilePageProps) {
   const { user, token, logout, setUserFromProfile, refreshUser } = useAuth();
   const { t } = useTranslation();
-  const [profileTab, setProfileTab] = useState<ProfileTab>(() => {
-    const tab = new URLSearchParams(window.location.search).get('tab');
-    if (tab === 'compositions' || tab === 'reels' || tab === 'lives' || tab === 'profil') {
-      return tab;
-    }
-    return 'profil';
-  });
+  const [profileTab, setProfileTab] = useState<ProfileTab>(() =>
+    parseProfileTabFromSearch(new URLSearchParams(window.location.search).get('tab'))
+  );
   const [showReelRecorder, setShowReelRecorder] = useState(false);
   const [reelsRefreshKey, setReelsRefreshKey] = useState(0);
   const [compositionsRefreshKey, setCompositionsRefreshKey] = useState(0);
@@ -354,143 +368,139 @@ export function ProfilePage({
   };
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto bg-[#0b0b0f]">
-      <div className="relative shrink-0 max-w-lg mx-auto w-full overflow-visible">
-        <div className="absolute top-3 left-3 z-10">
-          {onBack && (
-            <button
-              type="button"
-              onClick={onBack}
-              className="w-9 h-9 flex items-center justify-center rounded-full bg-black/40 backdrop-blur border border-white/20 text-white text-lg hover:bg-black/60"
-              aria-label="Fermer le profil"
-            >
-              ?
-            </button>
+    <div className="flex flex-col h-full min-h-0 bg-[#0b0b0f]">
+      <div className="shrink-0 sticky top-0 z-20 bg-[#0b0b0f]/95 backdrop-blur-md border-b border-[#1e1e2f]/70">
+        <div className="relative max-w-lg mx-auto w-full overflow-visible">
+          <div className="absolute top-3 left-3 z-30">
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="w-11 h-11 flex items-center justify-center rounded-full bg-black/45 backdrop-blur-md border border-white/15 text-white hover:bg-black/65 transition"
+                aria-label={t('common.back')}
+              >
+                <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
+          </div>
+          {savedMsg && (
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30">
+              <span className="text-[10px] bg-green-500/20 text-green-400 px-2.5 py-1 rounded-full font-bold border border-green-500/30">
+                {savedMsg}
+              </span>
+            </div>
+          )}
+          <ProfileHeaderSection
+            variant="compact"
+            userId={user.id}
+            username={editing ? form.username || user.username : user.username}
+            usernameColor={editing ? form.usernameColor : user.usernameColor}
+            usernameWaveFrom={editing ? form.usernameWaveFrom : user.usernameWaveFrom}
+            usernameWaveTo={editing ? form.usernameWaveTo : user.usernameWaveTo}
+            avatarUrl={headerAvatarUrl}
+            profileType={editing ? form.profileType : user.profileType}
+            city={editing ? form.city : user.city}
+            birthDate={editing ? form.birthDate.trim() : user.birthDate}
+            age={editing ? undefined : user.age}
+            hideBirthDateOnProfile={
+              editing
+                ? form.hideBirthDateOnProfile
+                : (user.hideBirthDateOnProfile ?? defaultHideBirthDateOnProfile(user))
+            }
+            showAgeHiddenHint={editing && form.hideBirthDateOnProfile && Boolean(form.birthDate.trim())}
+            relationshipStatus={
+              editing || user.relationshipStatus === 'autre' ? undefined : user.relationshipStatus
+            }
+            hasPhotoGallery={!editing && displayPhotos.length > 1}
+            onAvatarClick={
+              !editing && viewerPhotos.length > 0 ? () => openPhotoViewer(0) : undefined
+            }
+            topRightAction={
+              !editing ? <SettingsGearButton onClick={() => setShowSettings(true)} /> : undefined
+            }
+            statsRow={
+              !editing ? (
+                <ProfileStatsRow
+                  followers={user.favoritesCount}
+                  following={myFavoritesCount}
+                  thirdValue={user.stats?.salonsHosted ?? 0}
+                  onFollowingClick={() => setShowFavoritesSheet(true)}
+                />
+              ) : undefined
+            }
+            bio={
+              !editing && user.bio ? (
+                <p className="whitespace-pre-wrap break-words">{user.bio}</p>
+              ) : !editing ? (
+                <p className="text-gray-500 italic text-xs">{t('profile.addBioHint')}</p>
+              ) : undefined
+            }
+            action={
+              !editing ? (
+                <button
+                  type="button"
+                  onClick={startEditing}
+                  className="w-full min-h-[44px] py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 font-bold text-white text-sm transition shadow-lg shadow-purple-900/30"
+                >
+                  {t('profile.editProfile')}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setEditing(false)}
+                  className="w-full min-h-[44px] py-2.5 rounded-xl border border-[#2d2d3d] bg-[#1a1a26]/90 text-sm font-bold text-gray-300"
+                >
+                  {t('common.cancel')}
+                </button>
+              )
+            }
+            hostRatingSlot={
+              !editing && showHostRating ? (
+                <HostRatingBlock
+                  hostId={user.id}
+                  hostName={user.username}
+                  averageOnly
+                  initialRating={user.hostRating}
+                />
+              ) : undefined
+            }
+          />
+          {!editing && user.currentListening && (
+            <div className="px-4 pb-2 max-w-lg mx-auto w-full">
+              <ProfileCurrentListening
+                listening={user.currentListening}
+                {...(user.salonId && onOpenSalon
+                  ? {
+                      onClick: () => onOpenSalon(user.salonId!, user.salonTitle, true),
+                      clickAriaLabel: 'Ouvrir le salon',
+                    }
+                  : {})}
+              />
+            </div>
+          )}
+          {!editing && (
+            <ProfileTabBar
+              active={profileTab}
+              onChange={(id) => {
+                setProfileTab(id);
+                if (id === 'compositions') setCompositionsRefreshKey((k) => k + 1);
+                if (id !== 'reels') setShowReelRecorder(false);
+              }}
+              showReels={!!onOpenReel}
+              showLives
+            />
           )}
         </div>
-        {!editing && (
-          <div
-            className="absolute right-3 z-30"
-            style={{ top: 'max(0.75rem, calc(var(--app-header-total-h, 3.5rem) + 0.5rem))' }}
-          >
-            <SettingsGearButton onClick={() => setShowSettings(true)} />
-          </div>
-        )}
-        {savedMsg && (
-          <div
-            className="absolute left-1/2 -translate-x-1/2 z-20"
-            style={{ top: 'max(0.75rem, calc(var(--app-header-total-h, 3.5rem) + 0.5rem))' }}
-          >
-            <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-1 rounded-full font-bold border border-green-500/30">
-              {savedMsg}
-            </span>
-          </div>
-        )}
-        <ProfileHeaderSection
-          variant="compact"
-          userId={user.id}
-          username={editing ? form.username || user.username : user.username}
-          usernameColor={editing ? form.usernameColor : user.usernameColor}
-          usernameWaveFrom={editing ? form.usernameWaveFrom : user.usernameWaveFrom}
-          usernameWaveTo={editing ? form.usernameWaveTo : user.usernameWaveTo}
-          avatarUrl={headerAvatarUrl}
-          profileType={editing ? form.profileType : user.profileType}
-          city={editing ? form.city : user.city}
-          birthDate={editing ? form.birthDate.trim() : user.birthDate}
-          age={editing ? undefined : user.age}
-          hideBirthDateOnProfile={
-            editing
-              ? form.hideBirthDateOnProfile
-              : (user.hideBirthDateOnProfile ?? defaultHideBirthDateOnProfile(user))
-          }
-          showAgeHiddenHint={editing && form.hideBirthDateOnProfile && Boolean(form.birthDate.trim())}
-          relationshipStatus={
-            editing || user.relationshipStatus === 'autre' ? undefined : user.relationshipStatus
-          }
-          hasPhotoGallery={!editing && displayPhotos.length > 1}
-          onAvatarClick={
-            !editing && viewerPhotos.length > 0 ? () => openPhotoViewer(0) : undefined
-          }
-          statsRow={
-            !editing ? (
-              <ProfileStatsRow
-                followers={user.favoritesCount}
-                following={myFavoritesCount}
-                thirdLabel="Salons"
-                thirdValue={user.stats?.salonsHosted ?? 0}
-                onFollowingClick={() => setShowFavoritesSheet(true)}
-              />
-            ) : undefined
-          }
-          bio={
-            !editing && user.bio ? (
-              <p className="whitespace-pre-wrap break-words">{user.bio}</p>
-            ) : !editing ? (
-              <p className="text-gray-500 italic text-xs">Ajoutez une bio via Modifier</p>
-            ) : undefined
-          }
-          action={
-            !editing ? (
-              <button
-                type="button"
-                onClick={startEditing}
-                className="w-full py-2 rounded-lg border border-[#2d2d3d] bg-transparent hover:bg-[#1a1a26] font-semibold text-white text-sm transition"
-              >
-                Modifier le profil
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setEditing(false)}
-                className="w-full py-2 rounded-lg border border-[#2d2d3d] bg-[#1a1a26]/90 text-sm font-bold text-gray-300"
-              >
-                Annuler
-              </button>
-            )
-          }
-          hostRatingSlot={
-            !editing && showHostRating ? (
-              <HostRatingBlock
-                hostId={user.id}
-                hostName={user.username}
-                averageOnly
-                initialRating={user.hostRating}
-              />
-            ) : undefined
-          }
-        />
       </div>
 
       <div
-        className={`px-4 ${editing ? 'pb-[calc(var(--tab-nav-total-h)+5rem)]' : 'pb-[calc(var(--tab-nav-total-h)+2rem)]'}`}
+        className={`flex-1 min-h-0 overflow-y-auto px-4 ${editing ? 'pb-[calc(var(--tab-nav-total-h)+5rem)]' : 'pb-[calc(var(--tab-nav-total-h)+2rem)]'}`}
       >
         <div
-          className={`max-w-lg mx-auto w-full ${editing ? 'space-y-4' : 'space-y-5'}`}
+          className={`max-w-lg mx-auto w-full ${editing ? 'space-y-4 pt-4' : 'space-y-5 pt-4'}`}
         >
-        {!editing && user.currentListening && (
-          <ProfileCurrentListening
-            listening={user.currentListening}
-            {...(user.salonId && onOpenSalon
-              ? {
-                  onClick: () => onOpenSalon(user.salonId!, user.salonTitle, true),
-                  clickAriaLabel: 'Ouvrir le salon',
-                }
-              : {})}
-          />
-        )}
-        {!editing && (
-          <ProfileTabBar
-            active={profileTab}
-            onChange={(id) => {
-              setProfileTab(id);
-              if (id === 'compositions') setCompositionsRefreshKey((k) => k + 1);
-              if (id !== 'reels') setShowReelRecorder(false);
-            }}
-            showReels={!!onOpenReel}
-            showLives
-          />
-        )}
-
         {profileTab === 'lives' && !editing && user && (
           <div className="space-y-4">
             <CreatorDashboardCard />
@@ -545,6 +555,10 @@ export function ProfilePage({
           />
         )}
 
+        {profileTab === 'programmation' && !editing && user && (
+          <UserEventsSection userId={user.id} onOpenPost={onOpenFeedPost} />
+        )}
+
         {(profileTab === 'profil' || editing) && (
           <>
         {editing ? (
@@ -580,76 +594,86 @@ export function ProfilePage({
             />
 
             <section className="space-y-2 pb-2">
-              <button
-                type="button"
-                onClick={() => setStreamingExpanded((v) => !v)}
-                aria-expanded={streamingExpanded}
-                className="relative w-full py-2.5 rounded-lg border border-[#2d2d3d] text-gray-300 font-semibold text-sm text-center hover:bg-[#1a1a26] transition"
-              >
-                🔗 Comptes connectés
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" aria-hidden>
-                  {streamingExpanded ? '▾' : '›'}
-                </span>
-              </button>
-              {streamingExpanded && (
-                <div className="space-y-2 pb-1">
-                  <p className="text-[10px] text-gray-500">
-                    Obligatoire pour créer ou animer un salon sur la plateforme choisie.
-                  </p>
-                  {(['youtube'] as const).map((p) => (
-                    <PlatformConnectCard
-                      key={p}
+              <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 px-1">
+                {t('profile.sectionAccount')}
+              </p>
+              <div className="rounded-2xl border border-[#1e1e2f] overflow-hidden bg-[#12121a]/40 divide-y divide-[#1e1e2f]">
+                <button
+                  type="button"
+                  onClick={() => setStreamingExpanded((v) => !v)}
+                  aria-expanded={streamingExpanded}
+                  className={PROFILE_ACCOUNT_ROW_CLASS}
+                >
+                  <span>{t('profile.connectedAccounts')}</span>
+                  <span className="text-gray-500 shrink-0" aria-hidden>
+                    {streamingExpanded ? '▾' : '›'}
+                  </span>
+                </button>
+                {streamingExpanded && (
+                  <div className="px-4 pb-3 pt-1 space-y-2">
+                    <p className="text-[10px] text-gray-500">
+                      Obligatoire pour créer ou animer un salon sur la plateforme choisie.
+                    </p>
+                    {(['youtube'] as const).map((p) => (
+                      <PlatformConnectCard
+                        key={p}
+                        token={token}
+                        platform={p}
+                        connectedPlatforms={user.connectedPlatforms}
+                        platformLinks={user.platformLinks}
+                        onUserUpdated={(u) => {
+                          setUserFromProfile(u);
+                          setForm(profileToForm(u));
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setShowSubscription(true)}
+                  className={PROFILE_ACCOUNT_ROW_CLASS}
+                >
+                  <span>{t('profile.subscription')}</span>
+                  <span className="text-gray-500 shrink-0" aria-hidden>›</span>
+                </button>
+
+                {token && user && (
+                  <div className="px-4 py-2">
+                    <CreatorStripeConnectCard
                       token={token}
-                      platform={p}
-                      connectedPlatforms={user.connectedPlatforms}
-                      platformLinks={user.platformLinks}
-                      onUserUpdated={(u) => {
-                        setUserFromProfile(u);
-                        setForm(profileToForm(u));
-                      }}
+                      user={user}
+                      onUserUpdated={() => void refreshUser()}
                     />
-                  ))}
+                  </div>
+                )}
+
+                <div className="px-4 py-2">
+                  <SupportMeloSongTeaser onOpen={() => setShowDonationSheet(true)} />
                 </div>
-              )}
 
-              <button
-                type="button"
-                onClick={() => setShowSubscription(true)}
-                className="relative w-full py-2.5 rounded-lg border border-[#2d2d3d] text-gray-300 font-semibold text-sm text-center hover:bg-[#1a1a26] transition"
-              >
-                ✨ {t('profile.subscription')}
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" aria-hidden>
-                  ›
-                </span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setShowContactSoundy(true)}
+                  className={PROFILE_ACCOUNT_ROW_CLASS}
+                >
+                  <span>{t('profile.contactSoundy')}</span>
+                  <span className="text-gray-500 shrink-0" aria-hidden>›</span>
+                </button>
 
-              {token && user && (
-                <CreatorStripeConnectCard
-                  token={token}
-                  user={user}
-                  onUserUpdated={() => void refreshUser()}
-                />
-              )}
-
-              <SupportMeloSongTeaser onOpen={() => setShowDonationSheet(true)} />
-              <button
-                type="button"
-                onClick={() => setShowContactSoundy(true)}
-                className="w-full py-2.5 rounded-lg border border-[#2d2d3d] text-gray-300 font-semibold text-sm"
-              >
-                {t('profile.contactSoundy')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowLogoutConfirm(true)}
-                className="w-full py-2.5 rounded-lg border border-[#2d2d3d] text-red-400 font-semibold text-sm"
-              >
-                {t('profile.logout')}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setShowLogoutConfirm(true)}
+                  className={`${PROFILE_ACCOUNT_ROW_CLASS} text-red-400 hover:text-red-300`}
+                >
+                  <span>{t('profile.logout')}</span>
+                </button>
+              </div>
             </section>
 
             <p className="text-[10px] text-gray-600 text-center py-2">
-              Membre depuis {memberDate}
+              {t('profile.memberSince', { date: memberDate })}
             </p>
           </>
         ) : (
@@ -955,22 +979,26 @@ function ProfileTabBar({
   const tabs: [ProfileTab, string][] = [['profil', t('profile.tabProfil')]];
   if (showReels) tabs.push(['reels', t('profile.tabReels')]);
   tabs.push(['compositions', t('profile.tabCompositions')]);
+  tabs.push(['programmation', t('profile.tabProgrammation')]);
   if (showLives) tabs.push(['lives', t('profile.tabLives')]);
   return (
-    <div className="border-b border-[#1e1e2f] overflow-x-auto scrollbar-none">
-      <div className="flex justify-center min-w-max">
+    <div className="border-t border-[#1e1e2f]/80 overflow-x-auto scrollbar-none max-w-lg mx-auto w-full">
+      <div className="flex min-w-max sm:min-w-0">
         {tabs.map(([id, label]) => (
           <button
             key={id}
             type="button"
             onClick={() => onChange(id)}
-            className={`${PROFILE_TAB_CLASS} ${
+            className={`relative flex-1 min-w-[4.5rem] px-2 py-3 text-[11px] sm:text-xs font-bold uppercase tracking-wider transition ${
               active === id ? 'text-white' : 'text-gray-500 hover:text-gray-300'
             }`}
           >
             {label}
             {active === id ? (
-              <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-white rounded-full" />
+              <span
+                className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[2px] w-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-500"
+                style={{ boxShadow: '0 0 8px rgba(168,85,247,0.7)' }}
+              />
             ) : null}
           </button>
         ))}
@@ -982,61 +1010,62 @@ function ProfileTabBar({
 function ProfileStatsRow({
   followers,
   following,
-  thirdLabel,
   thirdValue,
   onFollowingClick,
 }: {
   followers?: number | null;
   following?: number | null;
-  thirdLabel: string;
   thirdValue: number;
   onFollowingClick?: () => void;
 }) {
+  const { t } = useTranslation();
   const items = [
     {
       value: followers != null ? formatCompactCount(followers) : '0',
-      label: 'Vous suivent',
+      label: t('profile.statsFollowers'),
       onClick: undefined as (() => void) | undefined,
     },
     {
       value: following != null ? formatCompactCount(following) : '—',
-      label: 'Mes favoris',
+      label: t('profile.statsFollowing'),
       onClick: onFollowingClick,
     },
     {
       value: formatCompactCount(thirdValue),
-      label: thirdLabel,
+      label: t('profile.statsSalons'),
       onClick: undefined as (() => void) | undefined,
     },
   ];
 
   return (
-    <div className="flex justify-center gap-5 sm:gap-8 mt-3 w-full">
-      {items.map((item) => {
-        const inner = (
-          <>
-            <p className="text-base font-bold text-white tabular-nums">{item.value}</p>
-            <p className="text-[10px] text-gray-500 uppercase tracking-wide">{item.label}</p>
-          </>
-        );
-        if (item.onClick) {
-          return (
-            <button
-              key={item.label}
-              type="button"
-              onClick={item.onClick}
-              className="text-center min-w-[4.5rem] hover:opacity-80 transition"
-            >
-              {inner}
-            </button>
+    <div className="mt-3 w-full max-w-sm rounded-2xl border border-[#1e1e2f] bg-[#12121a]/50 overflow-hidden">
+      <div className="grid grid-cols-3 divide-x divide-[#1e1e2f]">
+        {items.map((item) => {
+          const inner = (
+            <>
+              <p className="text-base sm:text-lg font-bold text-white tabular-nums">{item.value}</p>
+              <p className="text-[10px] text-gray-500 font-medium mt-0.5 leading-tight">{item.label}</p>
+            </>
           );
-        }
-        return (
-          <div key={item.label} className="text-center min-w-[4.5rem]">
-            {inner}
-          </div>
-        );
-      })}
+          if (item.onClick) {
+            return (
+              <button
+                key={item.label}
+                type="button"
+                onClick={item.onClick}
+                className="min-h-[56px] px-2 py-2.5 text-center hover:bg-[#1a1a26]/80 transition"
+              >
+                {inner}
+              </button>
+            );
+          }
+          return (
+            <div key={item.label} className="min-h-[56px] px-2 py-2.5 text-center">
+              {inner}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

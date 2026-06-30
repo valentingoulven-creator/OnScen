@@ -1,1 +1,0 @@
-function e(e,t){return typeof e==`number`&&e>=18?!0:t}function t(e,t){let n=Math.max(0,Math.round(e*100)/100),r=Math.round(n*t)/100;return{amountEur:n,platformFeePercent:t,platformFeeEur:r,creatorNetEstimateEur:Math.round((n-r)*100)/100}}var n=`https://stripe.com/fr/legal/consumer`,r=`creatorMonetization`;export{e as i,n,t as r,r as t};

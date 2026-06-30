@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { getStorageItem, setStorageItem, STORAGE_KEYS } from '../lib/storageKeys';
 
-const BG_KEY = 'soundly_floating_chat_bg';
-const POS_KEY = 'soundly_floating_chat_pos';
-const SIZE_KEY = 'soundly_floating_chat_size';
-const LEGACY_TRANSPARENT_KEY = 'soundly_chat_overlay_transparent';
+const BG_KEY = STORAGE_KEYS.floatingChatBg;
+const POS_KEY = STORAGE_KEYS.floatingChatPos;
+const SIZE_KEY = STORAGE_KEYS.floatingChatSize;
+const LEGACY_TRANSPARENT_KEY = STORAGE_KEYS.chatOverlayTransparent;
 
 export type FloatingChatBg = 'transparent' | 'gray';
 
@@ -17,9 +18,9 @@ const MARGIN = 12;
 
 function readBgMode(): FloatingChatBg {
   try {
-    const v = localStorage.getItem(BG_KEY);
+    const v = getStorageItem(BG_KEY);
     if (v === 'transparent' || v === 'gray') return v;
-    if (localStorage.getItem(LEGACY_TRANSPARENT_KEY) === '1') return 'transparent';
+    if (getStorageItem(LEGACY_TRANSPARENT_KEY) === '1') return 'transparent';
   } catch {
     /* ignore */
   }
@@ -28,7 +29,7 @@ function readBgMode(): FloatingChatBg {
 
 function readPosition(): { x: number; y: number } | null {
   try {
-    const raw = localStorage.getItem(POS_KEY);
+    const raw = getStorageItem(POS_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { x?: number; y?: number };
     if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
@@ -42,7 +43,7 @@ function readPosition(): { x: number; y: number } | null {
 
 function readSize(): { width: number; height: number } | null {
   try {
-    const raw = localStorage.getItem(SIZE_KEY);
+    const raw = getStorageItem(SIZE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { width?: number; height?: number };
     if (typeof parsed.width === 'number' && typeof parsed.height === 'number') {
@@ -102,8 +103,8 @@ export function FloatingSalonChat({
 
   const persistBg = useCallback((mode: FloatingChatBg) => {
     try {
-      localStorage.setItem(BG_KEY, mode);
-      localStorage.setItem(LEGACY_TRANSPARENT_KEY, mode === 'transparent' ? '1' : '0');
+      setStorageItem(BG_KEY, mode);
+      setStorageItem(LEGACY_TRANSPARENT_KEY, mode === 'transparent' ? '1' : '0');
     } catch {
       /* ignore */
     }
@@ -111,7 +112,7 @@ export function FloatingSalonChat({
 
   const persistPos = useCallback((p: { x: number; y: number }) => {
     try {
-      localStorage.setItem(POS_KEY, JSON.stringify(p));
+      setStorageItem(POS_KEY, JSON.stringify(p));
     } catch {
       /* ignore */
     }
@@ -119,7 +120,7 @@ export function FloatingSalonChat({
 
   const persistSize = useCallback((s: { width: number; height: number }) => {
     try {
-      localStorage.setItem(SIZE_KEY, JSON.stringify(s));
+      setStorageItem(SIZE_KEY, JSON.stringify(s));
     } catch {
       /* ignore */
     }

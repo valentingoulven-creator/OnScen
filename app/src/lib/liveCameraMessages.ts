@@ -95,6 +95,16 @@ export const LIVE_CAMERA_HOST_CLOUDFLARE_OBS_REQUIRED =
 export const LIVE_CAMERA_HOST_LIVEKIT_START =
   'Appuyez sur « Activer la caméra » pour diffuser en direct (navigateur).';
 
+/** Statuts hôte masqués sous la vidéo (contrôles déjà visibles). */
+const HOST_THEATER_STATUS_HIDDEN = new Set<string>([
+  LIVE_CAMERA_HOST_LIVEKIT_START,
+  'Activez la caméra ou choisissez une vidéo',
+]);
+
+export function isHiddenHostTheaterStatus(status: string): boolean {
+  return HOST_THEATER_STATUS_HIDDEN.has(status);
+}
+
 /** Spectateur (LiveKit) : connexion à la salle. */
 export const LIVE_CAMERA_VIEWER_LIVEKIT_CONNECTING = 'Connexion au live LiveKit…';
 

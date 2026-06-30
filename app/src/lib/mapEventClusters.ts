@@ -4,6 +4,7 @@ import type { MapEventCityCluster, MapEventMarker } from '../types';
 
 const KNOWN_CITIES: Array<{ key: string; label: string; match: RegExp }> = [
   { key: 'montpellier', label: 'Montpellier', match: /montpellier/i },
+  { key: 'le-cres', label: 'Le Crès', match: /le cr[eè]s/i },
   { key: 'paris', label: 'Paris', match: /paris/i },
   { key: 'lyon', label: 'Lyon', match: /lyon/i },
   { key: 'bordeaux', label: 'Bordeaux', match: /bordeaux/i },
@@ -14,6 +15,7 @@ const CITY_MAP_VIEW: Record<string, { zoom: number; radiusKm: number }> = {
   paris: { zoom: 11, radiusKm: 18 },
   lyon: { zoom: 11, radiusKm: 16 },
   montpellier: { zoom: 12, radiusKm: 12 },
+  'le-cres': { zoom: 13, radiusKm: 8 },
   bordeaux: { zoom: 11, radiusKm: 15 },
 };
 

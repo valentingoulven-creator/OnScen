@@ -5,6 +5,7 @@ import { politiqueConfidentialite } from './privacy';
 import { conformiteRgpd } from './rgpd';
 import { conditionsApiPlateformes } from './apiPlatforms';
 import { licences } from './licenses';
+import { politiqueCookies } from './cookies';
 import { conditionsCreatorMonetization } from './creatorMonetization';
 
 export type { LegalDocument, LegalKey, LegalSection } from './types';
@@ -14,6 +15,7 @@ export const LEGAL: Record<LegalKey, LegalDocument> = {
   mentions: mentionsLegales,
   terms: cgu,
   privacy: politiqueConfidentialite,
+  cookies: politiqueCookies,
   rgpd: conformiteRgpd,
   apiPlatforms: conditionsApiPlateformes,
   licenses: licences,

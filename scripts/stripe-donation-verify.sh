@@ -2,7 +2,7 @@
 # Verify donation create-intent on production VPS (after Connect + host setup).
 set -eu
 set -a
-source /opt/soundly/.env
+source /opt/soundy/.env
 set +a
 
 HOST_USER_ID="${1:-user_1781025111633_ipv5l}"
@@ -49,7 +49,7 @@ ON CONFLICT (id) DO UPDATE SET payload = EXCLUDED.payload;
 pm2 start melosong-backend --update-env >/dev/null 2>&1 || pm2 restart melosong-backend --update-env >/dev/null 2>&1 || true
 sleep 5
 
-TOKEN=$(cd /opt/soundly && node -e "
+TOKEN=$(cd /opt/soundy && node -e "
 const jwt = require('jsonwebtoken');
 const secret = process.env.JWT_SECRET;
 if (!secret) { console.error('JWT_SECRET missing'); process.exit(1); }

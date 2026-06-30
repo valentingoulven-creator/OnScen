@@ -1642,7 +1642,7 @@ const ReelAuthorStack = memo(function ReelAuthorStack({
 }) {
   const { t } = useTranslation();
   const authorId = reel.authorId?.trim();
-  const displayName = reel.authorUsername?.trim() || reel.artist.trim() || 'Soundly';
+  const displayName = reel.authorUsername?.trim() || reel.artist.trim() || 'Soundy';
   const avatarUserId = authorId || reel.id;
   const canOpenProfile = !!authorId && !!onOpenAuthor;
 
@@ -2160,7 +2160,7 @@ function ReelsAlgoSheet({ onClose, onSaved }: { onClose: () => void; onSaved: ()
           <section className="rounded-xl bg-gradient-to-br from-pink-600/20 to-[#1a1a28] border border-pink-500/40 px-4 py-3.5">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-base font-semibold text-white">Algo Soundly</p>
+                <p className="text-base font-semibold text-white">Algo Soundy</p>
                 <p className="text-xs text-gray-300 mt-0.5">Personnalise ton feed selon tes goûts</p>
               </div>
               <button

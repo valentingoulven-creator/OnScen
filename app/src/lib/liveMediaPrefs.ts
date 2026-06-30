@@ -13,6 +13,10 @@ export interface LiveHostSessionDraft {
 export interface LiveMediaPrefs {
   videoDeviceId?: string;
   audioDeviceId?: string;
+  /** Résolution vidéo live (1080p par défaut). */
+  videoResolution?: import('./liveVideoResolution').LiveVideoResolutionPreset;
+  /** Format d'image (16:9 Twitch par défaut). */
+  videoAspectRatio?: import('./liveVideoAspectRatio').LiveVideoAspectRatioPreset;
   /** msdev/dev — entrer en live hôte sans getUserMedia (UI salon / théâtre). */
   demoNoMedia?: boolean;
   /** Position du live au démarrage (carte). */
@@ -32,6 +36,10 @@ export interface LiveMediaPrefs {
   hostSessionDraft?: LiveHostSessionDraft;
   /** Diffusion OBS (RTMP Cloudflare) — pas de caméra navigateur au démarrage. */
   useObs?: boolean;
+  /** Type de contenu du live (musique, danse, artistique). */
+  contentCategory?: import('./liveContentCategory').LiveContentCategory;
+  /** Délai vidéo spectateurs (secondes) — 0 = temps réel. */
+  videoDelaySeconds?: number;
 }
 
 const STORAGE_KEY = 'melosong_live_media_prefs';

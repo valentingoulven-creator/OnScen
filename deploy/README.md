@@ -30,7 +30,7 @@ Le fichier **`deploy/Caddyfile`** est la **seule source de vérité** (getsoundy
 | Emplacement | Rôle |
 |-----------|------|
 | `deploy/Caddyfile` (repo) | Canonique — versionner ici |
-| `/opt/soundly/deploy/Caddyfile` (VPS) | Copie déployée |
+| `/opt/soundy/deploy/Caddyfile` (VPS) | Copie déployée |
 | `/etc/caddy/Caddyfile` (VPS) | Config active Caddy |
 | `/root/Caddyfile.production.backup` (VPS) | Backup immuable (`chattr +i`) |
 
@@ -42,8 +42,8 @@ cd MeloSongv2/backend
 powershell -ExecutionPolicy Bypass -File deploy-scaleway.ps1
 
 # Sur le VPS uniquement
-sudo bash /opt/soundly/deploy/install-caddy-guard.sh
-sudo bash /opt/soundly/deploy/sync-caddy.sh
+sudo bash /opt/soundy/deploy/install-caddy-guard.sh
+sudo bash /opt/soundy/deploy/sync-caddy.sh
 ```
 
 ### Surveillance automatique
@@ -125,7 +125,7 @@ Exemple réel (à adapter) :
 postgresql://soundy:Xk9#mP2vLq...@rdb-prod-fr-par-xxxxx.pg.sdb.scaleway.com:5432/soundy?sslmode=require
 ```
 
-### 5. Configurer `/opt/soundly/.env` sur le VPS
+### 5. Configurer `/opt/soundy/.env` sur le VPS
 
 ```env
 APP_ENV=production
@@ -153,17 +153,17 @@ Pour les appliquer manuellement avant de redémarrer :
 
 ```bash
 # Sur le VPS, depuis le répertoire du backend
-cd /opt/soundly/backend
+cd /opt/soundy/backend
 
 # S'assurer que DATABASE_URL est disponible dans l'environnement
-export $(grep -v '^#' /opt/soundly/.env | xargs)
+export $(grep -v '^#' /opt/soundy/.env | xargs)
 
 # Option A : via le script de déploiement
 ../deploy/postgres-setup.sh --migrate-only
 
 # Option B : directement (si le script n'est pas disponible)
 node -e "
-require('dotenv').config({ path: '/opt/soundly/.env' });
+require('dotenv').config({ path: '/opt/soundy/.env' });
 const { runMigrations } = require('./dist/db/migrate');
 runMigrations().then(() => { console.log('OK'); process.exit(0); })
   .catch(e => { console.error(e); process.exit(1); });
@@ -173,21 +173,19 @@ runMigrations().then(() => { console.log('OK'); process.exit(0); })
 ### 7. Redémarrer le service
 
 ```bash
-systemctl restart soundly
-# ou
-pm2 restart soundly
+pm2 restart melosong-backend
 ```
 
 ### 8. Vérifier
 
 ```bash
 # Logs de démarrage — doit afficher :
-# [soundly] Pool PostgreSQL initialisé — max=10 ...
-# [soundly] Migration v1 (001_init.sql) appliquée
-# [soundly] Migration v2 (002_complete_schema.sql) appliquée
-# [soundly] Migration v3 (003_indexes.sql) appliquée
-# [soundly] Données restaurées depuis PostgreSQL
-journalctl -u soundly -n 50 --no-pager
+# [soundy] Pool PostgreSQL initialisé — max=10 ...
+# [soundy] Migration v1 (001_init.sql) appliquée
+# [soundy] Migration v2 (002_complete_schema.sql) appliquée
+# [soundy] Migration v3 (003_indexes.sql) appliquée
+# [soundy] Données restaurées depuis PostgreSQL
+journalctl -u melosong-backend -n 50 --no-pager
 ```
 
 ---

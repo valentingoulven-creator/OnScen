@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # backup-db.sh — Sauvegarde PostgreSQL (Scaleway Managed DB ou local)
 # Usage (sur le VPS) :
-#   set -a && source /opt/soundly/.env && set +a
-#   bash /opt/soundly/deploy/backup-db.sh
+#   set -a && source /opt/soundy/.env && set +a
+#   bash /opt/soundy/deploy/backup-db.sh
 # Usage (local, avec URL explicite) :
 #   DATABASE_URL='postgresql://...' ./deploy/backup-db.sh
 set -euo pipefail
 
-BACKUP_DIR="${BACKUP_DIR:-/opt/soundly/backups}"
+BACKUP_DIR="${BACKUP_DIR:-/opt/soundy/backups}"
 RETENTION_DAYS="${RETENTION_DAYS:-14}"
 TIMESTAMP="$(date '+%Y%m%d-%H%M%S')"
 LOG="${BACKUP_DIR}/backup.log"
@@ -17,7 +17,7 @@ log() {
 }
 
 if [[ -z "${DATABASE_URL:-}" ]]; then
-  echo "Erreur : DATABASE_URL non défini (source /opt/soundly/.env ou export DATABASE_URL=...)" >&2
+  echo "Erreur : DATABASE_URL non défini (source /opt/soundy/.env ou export DATABASE_URL=...)" >&2
   exit 1
 fi
 

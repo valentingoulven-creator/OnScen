@@ -300,13 +300,13 @@ Voir [`deploy/RUNBOOK-PROD.md`](../deploy/RUNBOOK-PROD.md). Résumé :
 
 # Sur le VPS (root)
 
-bash /opt/soundly/deploy/setup-legal-publisher.sh   # puis éditer legal-publisher.json
+bash /opt/soundy/deploy/setup-legal-publisher.sh   # puis éditer legal-publisher.json
 
-sudo bash /opt/soundly/deploy/install-backup-cron.sh
+sudo bash /opt/soundy/deploy/install-backup-cron.sh
 
-sudo bash /opt/soundly/deploy/install-health-cron.sh   # optionnel
+sudo bash /opt/soundy/deploy/install-health-cron.sh   # optionnel
 
-cd /opt/soundly && pm2 start deploy/ecosystem.config.cjs && pm2 save
+cd /opt/soundy && pm2 start deploy/ecosystem.config.cjs && pm2 save
 
 ```
 

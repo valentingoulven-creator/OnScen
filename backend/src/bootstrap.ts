@@ -36,11 +36,13 @@ import { ensureProductionSponsorContent } from './seed-production-sponsors';
 import { ensureDefaultSponsorPlatformConfig } from './lib/sponsorPlatformConfig';
 import { repairInvalidGeoInDb } from './lib/mapCoords';
 import { loadSalonsLivesFromPostgres } from './lib/pgSalonsLives';
+import { initPostGis } from './lib/postgisConfig';
 import { loadSalonQueuesFromPg } from './lib/pgSalonQueues';
 import { loadReelsFromPg } from './lib/pgReels';
 import { loadCompositionsFromPg } from './lib/pgCompositions';
 import { loadDonationsFromPg } from './lib/pgDonations';
 import { loadCreatorSubscriptionsFromPg } from './lib/pgSubscriptions';
+import { loadSubscriptionCheckoutsFromPg } from './lib/pgSubscriptionCheckouts';
 import { migrateAllUsersRelationshipStatus } from './lib/profile';
 import { getMsdevEnvPath } from './paths';
 import { startSessionLimitScheduler, stopSessionLimitScheduler } from './lib/sessionLimits';
@@ -50,6 +52,7 @@ import { initRateLimitStore } from './lib/rateLimitStore';
 import { initErrorMonitoring } from './lib/errorMonitoring';
 import { resolveCorsOrigin } from './lib/corsConfig';
 import { startServerMonitor, stopServerMonitor } from './lib/serverMonitor';
+import { startExternalUptimeMonitor } from './lib/externalUptimeMonitor';
 import { sendMonitoringAlert } from './lib/alertNotifier';
 
 function getLocalIpv4Addresses(): string[] {
@@ -83,7 +86,7 @@ function logProductionStartup(port: number): void {
   console.log(
     JSON.stringify({
       event: 'startup',
-      service: 'soundly',
+      service: 'soundy',
       env: 'production',
       version,
       ...(commit ? { commit } : {}),
@@ -269,19 +272,22 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
     startPersistLoop();
   } else if (APP_ENV === 'production' || APP_ENV === 'preproduction') {
     if (usesPostgresPersistence()) {
-      console.log('[soundly] Persistance PostgreSQL (DATABASE_URL)');
+      console.log('[soundy] Persistance PostgreSQL (DATABASE_URL)');
     } else {
       console.warn(
-        '[soundly] DATABASE_URL absent — repli sur store.json local (non recommandé en production). ' +
+        '[soundy] DATABASE_URL absent — repli sur store.json local (non recommandé en production). ' +
           'Configurer PostgreSQL : deploy/RUNBOOK-PROD.md § Checklist .env'
       );
     }
     const restored = await loadPersistedStoreAsync();
+    if (usesPostgresPersistence()) {
+      await initPostGis();
+    }
     if (restored) {
       console.log(
         usesPostgresPersistence()
-          ? '[soundly] Données restaurées depuis PostgreSQL'
-          : '[soundly] Données restaurées depuis le stockage local'
+          ? '[soundy] Données restaurées depuis PostgreSQL'
+          : '[soundy] Données restaurées depuis le stockage local'
       );
     } else {
       await seedProductionAdmin();
@@ -290,74 +296,84 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
       try {
         const { salons, lives } = await loadSalonsLivesFromPostgres();
         if (salons > 0 || lives > 0) {
-          console.log(`[soundly] Salons/lives restaurés depuis PostgreSQL (${salons} salon(s), ${lives} live(s))`);
+          console.log(`[soundy] Salons/lives restaurés depuis PostgreSQL (${salons} salon(s), ${lives} live(s))`);
         }
         const queueRows = await loadSalonQueuesFromPg();
         if (queueRows > 0) {
-          console.log(`[soundly] Files d'attente salon restaurées depuis PostgreSQL (${queueRows} morceau(x))`);
+          console.log(`[soundy] Files d'attente salon restaurées depuis PostgreSQL (${queueRows} morceau(x))`);
         }
       } catch (e) {
-        console.warn('[soundly] Échec chargement salons/lives PostgreSQL:', e);
+        console.warn('[soundy] Échec chargement salons/lives PostgreSQL:', e);
       }
       try {
         const reelStats = await loadReelsFromPg();
         if (reelStats.reels > 0) {
           console.log(
-            `[soundly] Reels restaurés depuis PostgreSQL (${reelStats.reels} reel(s), ` +
+            `[soundy] Reels restaurés depuis PostgreSQL (${reelStats.reels} reel(s), ` +
               `${reelStats.likes} like(s), ${reelStats.comments} commentaire(s))`
           );
         }
       } catch (e) {
-        console.warn('[soundly] Échec chargement reels PostgreSQL:', e);
+        console.warn('[soundy] Échec chargement reels PostgreSQL:', e);
       }
       try {
         const compositionStats = await loadCompositionsFromPg();
         if (compositionStats.compositions > 0) {
           console.log(
-            `[soundly] Compositions restaurées depuis PostgreSQL (${compositionStats.compositions})`
+            `[soundy] Compositions restaurées depuis PostgreSQL (${compositionStats.compositions})`
           );
         }
       } catch (e) {
-        console.warn('[soundly] Échec chargement compositions PostgreSQL:', e);
+        console.warn('[soundy] Échec chargement compositions PostgreSQL:', e);
       }
       try {
         const { loadAlbumsFromPg } = await import('./lib/pgAlbums');
         const albumStats = await loadAlbumsFromPg();
         if (albumStats.albums > 0) {
-          console.log(`[soundly] Albums restaurés depuis PostgreSQL (${albumStats.albums})`);
+          console.log(`[soundy] Albums restaurés depuis PostgreSQL (${albumStats.albums})`);
         }
       } catch (e) {
-        console.warn('[soundly] Échec chargement albums PostgreSQL:', e);
+        console.warn('[soundy] Échec chargement albums PostgreSQL:', e);
       }
       try {
         const donationStats = await loadDonationsFromPg();
         if (donationStats.gifts > 0 || donationStats.payments > 0) {
           console.log(
-            `[soundly] Dons restaurés depuis PostgreSQL (${donationStats.gifts} pourboire(s), ` +
+            `[soundy] Dons restaurés depuis PostgreSQL (${donationStats.gifts} pourboire(s), ` +
               `${donationStats.payments} paiement(s))`
           );
         }
       } catch (e) {
-        console.warn('[soundly] Échec chargement dons PostgreSQL:', e);
+        console.warn('[soundy] Échec chargement dons PostgreSQL:', e);
       }
       // Fix #2: restaurer les abonnements créateurs depuis PostgreSQL
       try {
         const subscriptionCount = await loadCreatorSubscriptionsFromPg();
         if (subscriptionCount > 0) {
           console.log(
-            `[soundly] Abonnements créateurs restaurés depuis PostgreSQL (${subscriptionCount})`
+            `[soundy] Abonnements créateurs restaurés depuis PostgreSQL (${subscriptionCount})`
           );
         }
       } catch (e) {
-        console.warn('[soundly] Échec chargement abonnements PostgreSQL:', e);
+        console.warn('[soundy] Échec chargement abonnements PostgreSQL:', e);
+      }
+      try {
+        const checkoutCount = await loadSubscriptionCheckoutsFromPg();
+        if (checkoutCount > 0) {
+          console.log(
+            `[soundy] Checkouts abonnements restaurés depuis PostgreSQL (${checkoutCount})`
+          );
+        }
+      } catch (e) {
+        console.warn('[soundy] Échec chargement checkouts PostgreSQL:', e);
       }
     }
     const admins = ensureAccessAdmins();
     if (admins > 0) {
-      console.log(`[soundly] ${admins} compte(s) administrateur synchronisé(s)`);
+      console.log(`[soundy] ${admins} compte(s) administrateur synchronisé(s)`);
     }
     if (isAccessControlEnabled()) {
-      console.log('[soundly] Contrôle d’accès actif — validation admin pour les nouveaux comptes');
+      console.log('[soundy] Contrôle d’accès actif — validation admin pour les nouveaux comptes');
     }
     startPersistLoop();
   }
@@ -424,6 +440,7 @@ export async function startMeloSong(options: StartOptions = {}): Promise<void> {
       if (APP_ENV === 'production' || APP_ENV === 'preproduction') {
         logProductionStartup(PORT);
         startServerMonitor();
+        startExternalUptimeMonitor();
       }
       console.log('');
       console.log('  ╔══════════════════════════════════════╗');

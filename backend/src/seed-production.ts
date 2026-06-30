@@ -14,7 +14,7 @@ export async function seedProductionAdmin(): Promise<boolean> {
   const password = process.env.PROD_ADMIN_PASSWORD?.trim();
   if (!email || !password) {
     console.warn(
-      '[soundly] Base vide — inscrivez-vous via l’app ou définissez PROD_ADMIN_EMAIL et PROD_ADMIN_PASSWORD dans .env'
+      '[soundy] Base vide — inscrivez-vous via l’app ou définissez PROD_ADMIN_EMAIL et PROD_ADMIN_PASSWORD dans .env'
     );
     return false;
   }
@@ -39,6 +39,6 @@ export async function seedProductionAdmin(): Promise<boolean> {
   user = applyProfileDefaults(user);
   db.users.set(user.id, user);
   schedulePersist();
-  console.log(`[soundly] Compte administrateur initial créé : ${email}`);
+  console.log(`[soundy] Compte administrateur initial créé : ${email}`);
   return true;
 }

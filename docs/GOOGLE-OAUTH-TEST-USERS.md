@@ -73,7 +73,7 @@ Si l’OAuth Google n’est pas encore autorisé pour un testeur, vous pouvez ac
 MOCK_PLATFORM_CONNECT_USERNAMES=dye
 ```
 
-Sur le VPS : ajouter la ligne dans `/opt/soundly/.env`, puis `pm2 reload melosong-backend --update-env`.
+Sur le VPS : ajouter la ligne dans `/opt/soundy/.env`, puis `pm2 reload melosong-backend --update-env`.
 
 Le compte **Dye** verra alors le bouton « Connexion démo (sans Google) » sous « Connecter YouTube ».
 

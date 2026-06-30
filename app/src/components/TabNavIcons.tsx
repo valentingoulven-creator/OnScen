@@ -6,7 +6,7 @@ export const SOUNDY_TAB_WAVE_GRADIENT_ID = 'soundy-tab-wave';
 interface TabIconProps {
   tab: TabId;
   className?: string;
-  /** Dégradé Soundly purple → pink (onglet actif). */
+  /** Dégradé Soundy purple → pink (onglet actif). */
   wave?: boolean;
 }
 

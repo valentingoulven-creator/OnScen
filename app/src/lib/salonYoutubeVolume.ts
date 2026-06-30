@@ -1,4 +1,5 @@
 const STORAGE_KEY = 'soundy.salon.youtubeVolume';
+const MUTED_STORAGE_KEY = 'soundy.salon.youtubeMuted';
 
 export function getSalonYoutubeVolume(): number {
   try {
@@ -19,4 +20,20 @@ export function setSalonYoutubeVolume(value: number): number {
     /* ignore */
   }
   return v;
+}
+
+export function getSalonYoutubeMuted(): boolean {
+  try {
+    return localStorage.getItem(MUTED_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function setSalonYoutubeMuted(muted: boolean): void {
+  try {
+    localStorage.setItem(MUTED_STORAGE_KEY, muted ? '1' : '0');
+  } catch {
+    /* ignore */
+  }
 }

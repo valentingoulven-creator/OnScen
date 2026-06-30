@@ -70,14 +70,14 @@ export async function loadPersistedStoreAsync(): Promise<boolean> {
 export function savePersistedStore(): void {
   if (usesPostgresPersistence()) {
     void savePersistedStoreToPostgres().catch((e) => {
-      console.error('[soundly] Échec sauvegarde PostgreSQL:', e);
+      console.error('[soundy] Échec sauvegarde PostgreSQL:', e);
     });
     return;
   }
   try {
     savePersistedStoreToFile();
   } catch (e) {
-    console.error('[soundly] Échec sauvegarde store.json:', e);
+    console.error('[soundy] Échec sauvegarde store.json:', e);
     throw e;
   }
 }

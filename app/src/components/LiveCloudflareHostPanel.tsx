@@ -16,7 +16,7 @@ export type CloudflareIngestCredentials = {
 
 type IngestState = 'idle' | 'loading' | 'ready' | 'error';
 
-function CopyButton({ value, label }: { value: string; label: string }) {
+export function CopyButton({ value, label }: { value: string; label: string }) {
   const [copied, setCopied] = useState(false);
   const onCopy = useCallback(async () => {
     try {
@@ -40,7 +40,7 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   );
 }
 
-function CredentialRow({
+export function CredentialRow({
   label,
   value,
   copyLabel,

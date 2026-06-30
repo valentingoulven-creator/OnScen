@@ -39,7 +39,7 @@ export interface ModerationCoverageEntry {
 /** Surfaces UGC et leur couverture Sightengine (pour diagnostic). */
 export function getModerationCoverage(): ModerationCoverageEntry[] {
   return [
-    { surface: 'Stories', images: true, videos: false, route: 'POST /api/stories' },
+    { surface: 'Stories', images: true, videos: true, route: 'POST /api/stories' },
     { surface: 'Publications fil', images: true, videos: true, route: 'POST /api/feed' },
     { surface: 'Reels', images: true, videos: true, route: 'POST /api/reels' },
     { surface: 'Photos profil', images: true, videos: false, route: 'PATCH /api/auth/profile' },

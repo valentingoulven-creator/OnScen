@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties, type Reac
 import { useVisualViewportInset } from '../hooks/useVisualViewportInset';
 import {
   PHOTO_AI_FILTERS,
+  PHOTO_ATYPICAL_FILTERS,
   PHOTO_CLASSIC_FILTERS,
   getPhotoFilterCss,
   type PhotoFilterId,
@@ -16,6 +17,14 @@ import {
   type StoryTextOverlay,
   type StoryTextOverlayStyle,
 } from '../lib/storyImageCompose';
+import { createBeatPulseVideoFromImage } from '../lib/storyBeatPulse';
+import {
+  DUOTONE_GENRE_PRESETS,
+  STORY_CREATIVE_EFFECTS,
+  waveformSeedFromText,
+  type StoryCreativeEffectId,
+} from '../lib/storyCreativeEffects';
+import { createVinylSpinVideoFromImage } from '../lib/storyVinylSpin';
 import {
   DEFAULT_STORY_TEXT_FONT_ID,
   resolveStoryTextFont,
@@ -56,6 +65,7 @@ import { PhotoInlineCrop, type InlineCropControls } from './PhotoInlineCrop';
 import type { PhotoCropAspect } from './StoryImageCropModal';
 import { StoryLinkOverlay } from './StoryLinkSticker';
 import { StoryMentionAutocomplete } from './StoryMentionAutocomplete';
+import { StoryCatalogLinkPicker } from './StoryCatalogLinkPicker';
 import { StoryMusicPicker } from './StoryMusicPicker';
 import { StoryUserTagPicker } from './StoryUserTagPicker';
 
@@ -73,9 +83,12 @@ export type PhotoEditorMode = 'story' | 'profile' | 'feed';
 
 export interface PhotoEditorResult {
   imageUrl: string;
+  videoUrl?: string;
+  videoDurationSec?: number;
   musicTrack: StoryMusicTrack | null;
   taggedUsers: StoryTaggedUser[];
   link: StoryLink | null;
+  storyEffect?: StoryCreativeEffectId;
 }
 
 interface PhotoImageEditorProps {
@@ -90,7 +103,7 @@ interface PhotoImageEditorProps {
   onCancel: () => void;
 }
 
-type EditorTab = 'texte' | 'rogner' | 'filtre' | 'musique' | 'taguer' | 'lien';
+type EditorTab = 'texte' | 'rogner' | 'filtre' | 'effets' | 'musique' | 'taguer' | 'lien';
 
 function newOverlayId(): string {
   return `o-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -222,6 +235,39 @@ function renderTextWithMentions(
   return parts.length ? parts : text;
 }
 
+function StoryTopDockTool({
+  label,
+  active,
+  onClick,
+  children,
+}: {
+  label: string;
+  active?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex flex-col items-center gap-0.5 min-w-[3.25rem] shrink-0 transition-colors ${
+        active ? 'text-white' : 'text-white/65 hover:text-white'
+      }`}
+      aria-label={label}
+      aria-pressed={active}
+    >
+      <span
+        className={`flex items-center justify-center w-9 h-9 rounded-full transition-all ${
+          active ? 'bg-white/25 ring-1 ring-white/40' : 'bg-black/30 backdrop-blur-sm'
+        }`}
+      >
+        {children}
+      </span>
+      <span className="text-[9px] font-medium leading-none">{label}</span>
+    </button>
+  );
+}
+
 function DockTool({
   label,
   active,
@@ -334,6 +380,49 @@ function IconLink() {
   );
 }
 
+function IconEffects() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 3l1.4 4.3L18 9l-4.6 1.7L12 15l-1.4-4.3L6 9l4.6-1.7L12 3z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M19 14l.8 2.4L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.6L19 14z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function WaveformPreviewBars({ seed }: { seed: string }) {
+  const bars = Array.from({ length: 28 }, (_, i) => {
+    let h = 2166136261 ^ (seed.charCodeAt(i % seed.length) || 0);
+    h = Math.imul(h ^ i, 16777619);
+    return 18 + (h % 62);
+  });
+  return (
+    <div
+      className="absolute inset-x-0 bottom-0 z-[4] flex items-end justify-center gap-[3px] px-4 pb-6 pt-16 pointer-events-none"
+      aria-hidden
+    >
+      <div className="flex items-end justify-center gap-[3px] w-full max-w-md h-14 opacity-90">
+        {bars.map((pct, i) => (
+          <span
+            key={i}
+            className="flex-1 max-w-[6px] rounded-full bg-gradient-to-t from-fuchsia-500 to-purple-400"
+            style={{ height: `${pct}%` }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function FilterThumb({
   preset,
   imageUrl,
@@ -379,14 +468,20 @@ function ToolSheet({
   title,
   onClose,
   children,
+  variant = 'card',
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  variant?: 'card' | 'sheet';
 }) {
   return (
     <div
-      className="mx-2 mb-2 rounded-2xl border border-[#2d2d3d] bg-[#12121a]/98 backdrop-blur-xl shadow-2xl pointer-events-auto"
+      className={
+        variant === 'sheet'
+          ? 'mx-0 mb-0 rounded-t-2xl border border-[#2d2d3d] border-b-0 bg-[#12121a]/98 backdrop-blur-xl shadow-2xl pointer-events-auto'
+          : 'mx-2 mb-2 rounded-2xl border border-[#2d2d3d] bg-[#12121a]/98 backdrop-blur-xl shadow-2xl pointer-events-auto'
+      }
       onClick={(e) => e.stopPropagation()}
     >
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#2d2d3d]">
@@ -402,7 +497,7 @@ function ToolSheet({
           </svg>
         </button>
       </div>
-      <div className="p-3 max-h-[42vh] overflow-y-auto">{children}</div>
+      <div className="p-3 max-h-[42dvh] overflow-y-auto">{children}</div>
     </div>
   );
 }
@@ -422,7 +517,7 @@ export function PhotoImageEditor({
   const isFeed = mode === 'feed';
   const cropAspect: PhotoCropAspect = isStory ? 'story' : isFeed ? 'feed' : 'profile';
   const previewAspect = isStory
-    ? 'ms-story-editor-preview-frame touch-none select-none overflow-hidden rounded-xl bg-black shadow-[0_0_40px_rgba(0,0,0,0.5)]'
+    ? 'absolute inset-0 w-full h-full touch-none select-none overflow-hidden'
     : isFeed
       ? 'aspect-[4/5] h-full max-h-full w-auto max-w-[min(100%,28rem)]'
       : 'aspect-square h-full max-h-full w-auto max-w-[min(100%,28rem)]';
@@ -443,6 +538,9 @@ export function PhotoImageEditor({
   const [linkUrlInput, setLinkUrlInput] = useState(initialLink?.url ?? '');
   const [linkLabelInput, setLinkLabelInput] = useState(initialLink?.label ?? '');
   const [linkUrlError, setLinkUrlError] = useState<string | null>(null);
+  const [linkMode, setLinkMode] = useState<'web' | 'catalog'>('web');
+  const [storyEffectId, setStoryEffectId] = useState<StoryCreativeEffectId>('none');
+  const [duotoneGenreId, setDuotoneGenreId] = useState('default');
   const [tab, setTab] = useState<EditorTab | null>(null);
   const [composing, setComposing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1107,21 +1205,53 @@ export function PhotoImageEditor({
         ? mergeTaggedUsersForExport(taggedUsers, overlays)
         : [];
 
+      const effectOpts = isStory
+        ? {
+            storyEffect: storyEffectId,
+            duotoneGenre: storyEffectId === 'duotone' ? duotoneGenreId : null,
+            waveformSeed:
+              storyEffectId === 'waveform'
+                ? waveformSeedFromText(musicTrack?.title, musicTrack?.artist)
+                : null,
+          }
+        : undefined;
+
       const composed = isStory
         ? await composeStoryImageWithOverlays(
             composeUrl,
             overlays,
             filterId,
-            stickerTagsForCanvas
+            stickerTagsForCanvas,
+            effectOpts
           )
         : isFeed
           ? await composeFeedImageWithEdits(composeUrl, overlays, filterId)
           : await composeProfileImageWithEdits(composeUrl, overlays, filterId);
+
+      let videoUrl: string | undefined;
+      let videoDurationSec: number | undefined;
+      let finalImageUrl = composed;
+
+      if (isStory && storyEffectId === 'vinyl') {
+        const vinyl = await createVinylSpinVideoFromImage(composed);
+        videoUrl = vinyl.videoUrl;
+        videoDurationSec = vinyl.durationSec;
+        finalImageUrl = vinyl.posterUrl;
+      } else if (isStory && storyEffectId === 'pulse') {
+        const pulse = await createBeatPulseVideoFromImage(composed);
+        videoUrl = pulse.videoUrl;
+        videoDurationSec = pulse.durationSec;
+        finalImageUrl = pulse.posterUrl;
+      }
+
       onConfirm({
-        imageUrl: composed,
+        imageUrl: finalImageUrl,
+        videoUrl,
+        videoDurationSec,
         musicTrack: isStory ? musicTrack : null,
         taggedUsers: exportTaggedUsers,
         link: isStory ? resolvedLink : null,
+        storyEffect: isStory ? storyEffectId : undefined,
       });
     } catch (e) {
       if (e instanceof Error) {
@@ -1151,9 +1281,25 @@ export function PhotoImageEditor({
     isFeed,
     tab,
     cropSource,
+    storyEffectId,
+    duotoneGenreId,
+    musicTrack,
   ]);
 
   const hasStoryMeta = isStory && Boolean(musicTrack || link?.url.trim());
+
+  const storyPreviewEffectClass =
+    isStory && storyEffectId === 'pulse'
+      ? 'story-effect-pulse'
+      : isStory && storyEffectId === 'vinyl'
+        ? 'story-effect-vinyl'
+        : isStory && storyEffectId === 'glitch'
+          ? 'story-effect-glitch'
+          : isStory && storyEffectId === 'duotone'
+            ? `story-effect-duotone story-duotone-${duotoneGenreId}`
+            : '';
+
+  const waveformPreviewSeed = waveformSeedFromText(musicTrack?.title, musicTrack?.artist);
 
   const editorShellStyle = {
     '--keyboard-inset': `${keyboardInset}px`,
@@ -1162,41 +1308,51 @@ export function PhotoImageEditor({
   return (
     <>
       <div
-        className="ms-story-editor-shell fixed inset-0 z-[125] bg-[#0b0b0f] overflow-hidden flex flex-col h-dvh max-h-dvh"
+        className={`ms-story-editor-shell fixed inset-0 z-[125] overflow-hidden h-dvh max-h-dvh ${
+          isStory ? 'bg-black' : 'bg-[#0b0b0f] flex flex-col'
+        }`}
         style={editorShellStyle}
       >
-        {/* Header */}
-        <header className="relative z-20 flex items-center justify-between px-4 ms-safe-area-top pb-3 bg-gradient-to-b from-[#0b0b0f] via-[#0b0b0f]/90 to-transparent">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="text-sm text-gray-300 hover:text-white min-w-[4.5rem] text-left"
-          >
-            Annuler
-          </button>
-          <h2 className="text-sm font-semibold text-white tracking-wide">
-            {isStory ? 'Story' : isFeed ? 'Publication' : 'Photo de profil'}
-          </h2>
-          <button
-            type="button"
-            onClick={() => void confirm()}
-            disabled={composing}
-            className="text-sm font-semibold text-purple-400 hover:text-purple-300 disabled:opacity-40 min-w-[4.5rem] text-right"
-          >
-            {composing ? '…' : isStory ? 'Suivant' : 'Utiliser'}
-          </button>
-        </header>
+        {!isStory ? (
+          <header className="relative z-20 flex items-center justify-between px-4 ms-safe-area-top pb-3 bg-gradient-to-b from-[#0b0b0f] via-[#0b0b0f]/90 to-transparent">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="text-sm text-gray-300 hover:text-white min-w-[4.5rem] text-left"
+            >
+              Annuler
+            </button>
+            <h2 className="text-sm font-semibold text-white tracking-wide">
+              {isFeed ? 'Publication' : 'Photo de profil'}
+            </h2>
+            <button
+              type="button"
+              onClick={() => void confirm()}
+              disabled={composing}
+              className="text-sm font-semibold text-purple-400 hover:text-purple-300 disabled:opacity-40 min-w-[4.5rem] text-right"
+            >
+              {composing ? '…' : 'Utiliser'}
+            </button>
+          </header>
+        ) : null}
 
-        {/* Preview */}
         <div
-          className={`relative flex-1 flex items-center justify-center min-h-0 px-2${isStory ? ' ms-story-editor-preview' : ''}`}
+          className={
+            isStory
+              ? 'absolute inset-0'
+              : 'relative flex-1 flex items-center justify-center min-h-0 px-2'
+          }
           onClick={() => {
             if (tab !== 'rogner') setTab(null);
           }}
         >
           <div
             ref={previewRef}
-            className={`relative mx-auto ${previewAspect}${isStory ? '' : ' touch-none select-none overflow-hidden rounded-xl bg-black shadow-[0_0_40px_rgba(0,0,0,0.5)]'}`}
+            className={`relative ${previewAspect}${storyPreviewEffectClass}${
+              isStory
+                ? ''
+                : ' mx-auto touch-none select-none overflow-hidden rounded-xl bg-black shadow-[0_0_40px_rgba(0,0,0,0.5)]'
+            }`}
             onPointerMove={isCropping ? undefined : onPreviewPointerMove}
             onPointerUp={isCropping ? undefined : onPreviewPointerUp}
             onPointerCancel={isCropping ? undefined : onPreviewPointerUp}
@@ -1354,6 +1510,9 @@ export function PhotoImageEditor({
                   );
                 })
               : null}
+            {!isCropping && isStory && storyEffectId === 'waveform' ? (
+              <WaveformPreviewBars seed={waveformPreviewSeed} />
+            ) : null}
             {!isCropping && isStory && link ? (
               <StoryLinkOverlay
                 link={link}
@@ -1362,9 +1521,71 @@ export function PhotoImageEditor({
                 onPointerDown={onLinkPointerDown}
               />
             ) : null}
+
+            {isStory ? (
+              <div className="absolute inset-x-0 top-0 z-30 pointer-events-none">
+                <div className="bg-gradient-to-b from-black/80 via-black/40 to-transparent pt-[max(0.75rem,env(safe-area-inset-top))] px-3 pb-4 pointer-events-auto">
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <button
+                      type="button"
+                      onClick={onCancel}
+                      className="min-h-11 min-w-11 flex items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md text-sm"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void confirm()}
+                      disabled={composing}
+                      className="min-h-11 px-4 flex items-center justify-center rounded-full bg-white text-black text-sm font-bold disabled:opacity-40"
+                    >
+                      {composing ? '…' : 'Suivant'}
+                    </button>
+                  </div>
+                  <nav
+                    className="flex items-start justify-center gap-0.5 overflow-x-auto scroll-smooth snap-x snap-mandatory touch-pan-x px-1 -mx-1"
+                    aria-label="Outils de modification"
+                  >
+                    <StoryTopDockTool label="Texte" active={tab === 'texte'} onClick={handleTextTool}>
+                      <IconText />
+                    </StoryTopDockTool>
+                    <StoryTopDockTool label="Rogner" active={tab === 'rogner'} onClick={openCrop}>
+                      <IconCrop />
+                    </StoryTopDockTool>
+                    <StoryTopDockTool
+                      label="Filtre"
+                      active={tab === 'filtre'}
+                      onClick={() => toggleTab('filtre')}
+                    >
+                      <IconFilter />
+                    </StoryTopDockTool>
+                    <StoryTopDockTool
+                      label="Effets"
+                      active={tab === 'effets'}
+                      onClick={() => toggleTab('effets')}
+                    >
+                      <IconEffects />
+                    </StoryTopDockTool>
+                    <StoryTopDockTool
+                      label="Musique"
+                      active={tab === 'musique'}
+                      onClick={() => toggleTab('musique')}
+                    >
+                      <IconMusic />
+                    </StoryTopDockTool>
+                    <StoryTopDockTool label="Taguer" active={tab === 'taguer'} onClick={() => toggleTab('taguer')}>
+                      <IconTag />
+                    </StoryTopDockTool>
+                    <StoryTopDockTool label="Lien" active={tab === 'lien'} onClick={handleLinkTool}>
+                      <IconLink />
+                    </StoryTopDockTool>
+                  </nav>
+                </div>
+              </div>
+            ) : null}
           </div>
 
-          {hasStoryMeta ? (
+          {!isStory && hasStoryMeta ? (
             <div className="absolute bottom-2 inset-x-4 flex flex-wrap justify-center gap-2 pointer-events-none z-10">
               {musicTrack ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-black/55 backdrop-blur-sm border border-[#2d2d3d] px-3 py-1.5 text-[11px] text-white/90 max-w-[85vw] truncate">
@@ -1382,8 +1603,14 @@ export function PhotoImageEditor({
           ) : null}
         </div>
 
-        {/* Bottom dock + panels */}
-        <div className="ms-story-editor-dock relative z-20 shrink-0 ms-safe-area-bottom pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+        {/* Tool panels + dock (feed/profile) */}
+        <div
+          className={
+            isStory
+              ? 'absolute inset-x-0 bottom-0 z-40 pointer-events-none ms-story-editor-dock pb-[max(0.5rem,env(safe-area-inset-bottom))]'
+              : 'ms-story-editor-dock relative z-20 shrink-0 ms-safe-area-bottom pb-[max(0.5rem,env(safe-area-inset-bottom))]'
+          }
+        >
           {tab === 'texte' && activeMention && isStory ? (
             <StoryMentionAutocomplete
               token={token}
@@ -1397,7 +1624,7 @@ export function PhotoImageEditor({
           ) : null}
 
           {tab === 'texte' && activeOverlay ? (
-            <ToolSheet title="Texte" onClose={closePanel}>
+            <ToolSheet variant={isStory ? 'sheet' : 'card'} title="Texte" onClose={closePanel}>
               <div className="space-y-3">
                 <p className="text-[10px] text-gray-500">
                   Touchez la photo pour placer un texte. Glissez pour déplacer, pincez ou
@@ -1527,7 +1754,7 @@ export function PhotoImageEditor({
           ) : null}
 
           {tab === 'filtre' ? (
-            <ToolSheet title="Filtres" onClose={closePanel}>
+            <ToolSheet variant={isStory ? 'sheet' : 'card'} title="Filtres" onClose={closePanel}>
               <div className="space-y-3">
                 <section>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-2 px-0.5">
@@ -1564,18 +1791,117 @@ export function PhotoImageEditor({
                     ))}
                   </div>
                 </section>
+                {isStory ? (
+                  <section>
+                    <div className="flex items-baseline justify-between gap-2 mb-2 px-0.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-fuchsia-400/90">
+                        Atypiques
+                      </p>
+                      <span className="text-[9px] text-gray-500 shrink-0">Story</span>
+                    </div>
+                    <div className="flex gap-2.5 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-1 -mx-1 px-1 touch-pan-x">
+                      {PHOTO_ATYPICAL_FILTERS.filter((f) => f.id !== 'none').map((f) => (
+                        <FilterThumb
+                          key={f.id}
+                          preset={f}
+                          imageUrl={imageUrl}
+                          selected={filterId === f.id}
+                          onSelect={() => setFilterId(f.id)}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+              </div>
+            </ToolSheet>
+          ) : null}
+
+          {tab === 'effets' && isStory ? (
+            <ToolSheet variant="sheet" title="Effets Creator" onClose={closePanel}>
+              <div className="space-y-3">
+                <p className="text-[10px] text-gray-500">
+                  Effets libres de droit pour teasers, covers et annonces de sortie.
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {STORY_CREATIVE_EFFECTS.filter((e) => e.id !== 'none').map((effect) => (
+                    <button
+                      key={effect.id}
+                      type="button"
+                      onClick={() => setStoryEffectId(effect.id)}
+                      className={`min-h-16 rounded-xl border px-2 py-2 text-[10px] font-semibold transition ${
+                        storyEffectId === effect.id
+                          ? 'border-purple-500 bg-purple-600/20 text-white'
+                          : 'border-[#2d2d3d] bg-[#0b0b0f] text-gray-400 hover:border-purple-500/40'
+                      }`}
+                    >
+                      <span className="block text-lg mb-1" aria-hidden>
+                        {effect.id === 'glitch'
+                          ? '⚡'
+                          : effect.id === 'duotone'
+                            ? '🎨'
+                            : effect.id === 'vinyl'
+                              ? '💿'
+                              : effect.id === 'pulse'
+                                ? '💓'
+                                : '〰️'}
+                      </span>
+                      {effect.label}
+                      {effect.exportsVideo ? (
+                        <span className="block text-[8px] text-purple-300/80 mt-0.5">Vidéo</span>
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+                {storyEffectId === 'duotone' ? (
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-2">
+                      Genre duotone
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {DUOTONE_GENRE_PRESETS.map((g) => (
+                        <button
+                          key={g.id}
+                          type="button"
+                          onClick={() => setDuotoneGenreId(g.id)}
+                          className={`min-h-9 px-3 rounded-full text-[10px] font-medium border transition ${
+                            duotoneGenreId === g.id
+                              ? 'border-white text-white'
+                              : 'border-[#2d2d3d] text-gray-400'
+                          }`}
+                          style={{
+                            background:
+                              duotoneGenreId === g.id
+                                ? `linear-gradient(135deg, ${g.shadow}, ${g.highlight})`
+                                : undefined,
+                          }}
+                        >
+                          {g.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                {storyEffectId !== 'none' ? (
+                  <button
+                    type="button"
+                    onClick={() => setStoryEffectId('none')}
+                    className="w-full py-2 rounded-xl text-[11px] text-gray-400 border border-[#2d2d3d] hover:text-white"
+                  >
+                    Retirer l&apos;effet
+                  </button>
+                ) : null}
               </div>
             </ToolSheet>
           ) : null}
 
           {tab === 'musique' && isStory ? (
-            <ToolSheet title="Musique" onClose={closePanel}>
+            <ToolSheet variant={isStory ? 'sheet' : 'card'} title="Musique" onClose={closePanel}>
               <StoryMusicPicker token={token} value={musicTrack} onChange={setMusicTrack} />
             </ToolSheet>
           ) : null}
 
           {tab === 'taguer' && isStory ? (
-            <ToolSheet title="Taguer" onClose={closePanel}>
+            <ToolSheet variant={isStory ? 'sheet' : 'card'} title="Taguer" onClose={closePanel}>
               <p className="text-[10px] text-gray-500 mb-2">
                 Sticker @ séparé : glissez, pincez ou redimensionnez ({STORY_OVERLAY_SCALE_MIN}×–
                 {STORY_OVERLAY_SCALE_MAX}×). Pour taguer dans le texte, tapez @ dans un calque
@@ -1616,8 +1942,48 @@ export function PhotoImageEditor({
           ) : null}
 
           {tab === 'lien' && isStory ? (
-            <ToolSheet title="Lien" onClose={closePanel}>
+            <ToolSheet variant={isStory ? 'sheet' : 'card'} title="Lien" onClose={closePanel}>
               <div className="space-y-3">
+                <div className="flex rounded-full bg-[#0b0b0f] border border-[#2d2d3d] p-1">
+                  <button
+                    type="button"
+                    onClick={() => setLinkMode('web')}
+                    className={`flex-1 min-h-9 rounded-full text-[11px] font-semibold ${
+                      linkMode === 'web' ? 'bg-purple-600 text-white' : 'text-gray-400'
+                    }`}
+                  >
+                    Web
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLinkMode('catalog');
+                      ensureLinkDraft();
+                    }}
+                    className={`flex-1 min-h-9 rounded-full text-[11px] font-semibold ${
+                      linkMode === 'catalog' ? 'bg-purple-600 text-white' : 'text-gray-400'
+                    }`}
+                  >
+                    Album / Son
+                  </button>
+                </div>
+                {linkMode === 'catalog' ? (
+                  <StoryCatalogLinkPicker
+                    token={token}
+                    onSelect={(selection) => {
+                      setLinkUrlInput(selection.url);
+                      setLinkLabelInput(selection.label);
+                      setLinkUrlError(null);
+                      setLink({
+                        url: selection.url,
+                        label: selection.label,
+                        x: link?.x ?? DEFAULT_STORY_LINK_POSITION.x,
+                        y: link?.y ?? DEFAULT_STORY_LINK_POSITION.y,
+                      });
+                    }}
+                  />
+                ) : (
+                  <>
                 <p className="text-[10px] text-gray-500">
                   Ajoutez un lien cliquable sur la story. Glissez le sticker pour le repositionner.
                 </p>
@@ -1658,6 +2024,8 @@ export function PhotoImageEditor({
                     Par défaut : nom de domaine ou « Voir plus »
                   </p>
                 </label>
+                  </>
+                )}
                 {link ? (
                   <button
                     type="button"
@@ -1671,8 +2039,13 @@ export function PhotoImageEditor({
             </ToolSheet>
           ) : null}
 
-          {error ? <p className="mx-4 mb-2 text-xs text-red-400">{error}</p> : null}
+          {error ? (
+            <p className={`text-xs text-red-400 pointer-events-auto ${isStory ? 'mx-3 mb-2 text-center' : 'mx-4 mb-2'}`}>
+              {error}
+            </p>
+          ) : null}
 
+          {!isStory ? (
           <nav
             className="flex items-start justify-center gap-1 px-3 pt-2 border-t border-[#2d2d3d] bg-[#12121a]/95 backdrop-blur-md"
             aria-label="Outils de modification"
@@ -1686,24 +2059,8 @@ export function PhotoImageEditor({
             <DockTool label="Filtre" active={tab === 'filtre'} onClick={() => toggleTab('filtre')}>
               <IconFilter />
             </DockTool>
-            {isStory ? (
-              <>
-                <DockTool
-                  label="Musique"
-                  active={tab === 'musique'}
-                  onClick={() => toggleTab('musique')}
-                >
-                  <IconMusic />
-                </DockTool>
-                <DockTool label="Taguer" active={tab === 'taguer'} onClick={() => toggleTab('taguer')}>
-                  <IconTag />
-                </DockTool>
-                <DockTool label="Lien" active={tab === 'lien'} onClick={handleLinkTool}>
-                  <IconLink />
-                </DockTool>
-              </>
-            ) : null}
           </nav>
+          ) : null}
         </div>
       </div>
     </>

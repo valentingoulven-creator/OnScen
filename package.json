@@ -2,6 +2,7 @@
   "name": "melosong",
   "version": "2.0.0",
   "private": true,
+  "license": "UNLICENSED",
   "description": "Soundy — salons musicaux géolocalisés (YouTube, Lives)",
   "repository": {
     "type": "git",

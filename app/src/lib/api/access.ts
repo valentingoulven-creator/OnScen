@@ -68,17 +68,28 @@ export const accessApi = {
       token
     ),
 
-  blockAccessUser: (token: string, userId: string) =>
-    request<{ user: import('../../types').User }>(
+  blockAccessUser: (
+    token: string,
+    userId: string,
+    opts?: { days?: number | null; reason?: string }
+  ) =>
+    request<{ user: import('../../types').AccessManagedUser }>(
       `/access/admin/users/${userId}/block`,
-      { method: 'POST' },
+      { method: 'POST', body: JSON.stringify(opts ?? {}) },
       token
     ),
 
   unblockAccessUser: (token: string, userId: string) =>
-    request<{ user: import('../../types').User }>(
+    request<{ user: import('../../types').AccessManagedUser }>(
       `/access/admin/users/${userId}/unblock`,
       { method: 'POST' },
+      token
+    ),
+
+  getAccessAdminUserSocial: (token: string, userId: string, limit = 40) =>
+    request<import('../../types').AdminUserSocialResponse>(
+      `/access/admin/users/${userId}/social?limit=${limit}`,
+      {},
       token
     ),
 

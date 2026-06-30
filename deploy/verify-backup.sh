@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # verify-backup.sh — Vérifie qu'un dump pg_dump est lisible (sans restauration complète)
 # Usage :
-#   bash /opt/soundly/deploy/verify-backup.sh /opt/soundly/backups/soundy-YYYYMMDD-HHMMSS.sql.gz
-#   bash /opt/soundly/deploy/verify-backup.sh   # prend la sauvegarde la plus récente
+#   bash /opt/soundy/deploy/verify-backup.sh /opt/soundy/backups/soundy-YYYYMMDD-HHMMSS.sql.gz
+#   bash /opt/soundy/deploy/verify-backup.sh   # prend la sauvegarde la plus récente
 set -euo pipefail
 
-BACKUP_DIR="${BACKUP_DIR:-/opt/soundly/backups}"
+BACKUP_DIR="${BACKUP_DIR:-/opt/soundy/backups}"
 FILE="${1:-}"
 
 if [[ -z "$FILE" ]]; then

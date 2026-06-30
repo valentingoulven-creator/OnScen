@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # backup-uploads.sh — Archive tar.gz des fichiers utilisateur (avatars, pièces jointes…)
 # Usage (sur le VPS) :
-#   bash /opt/soundly/deploy/backup-uploads.sh
+#   bash /opt/soundy/deploy/backup-uploads.sh
 # Variables optionnelles :
-#   UPLOADS_SRC=/opt/soundly/public/uploads
-#   UPLOADS_BACKUP_DIR=/opt/soundly/backups/uploads
+#   UPLOADS_SRC=/opt/soundy/public/uploads
+#   UPLOADS_BACKUP_DIR=/opt/soundy/backups/uploads
 #   UPLOADS_RETENTION_DAYS=28
 set -euo pipefail
 
-UPLOADS_SRC="${UPLOADS_SRC:-/opt/soundly/public/uploads}"
-UPLOADS_BACKUP_DIR="${UPLOADS_BACKUP_DIR:-/opt/soundly/backups/uploads}"
+UPLOADS_SRC="${UPLOADS_SRC:-/opt/soundy/public/uploads}"
+UPLOADS_BACKUP_DIR="${UPLOADS_BACKUP_DIR:-/opt/soundy/backups/uploads}"
 RETENTION_DAYS="${UPLOADS_RETENTION_DAYS:-28}"
 TIMESTAMP="$(date '+%Y%m%d-%H%M%S')"
 LOG="${UPLOADS_BACKUP_DIR}/backup-uploads.log"

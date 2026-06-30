@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { DEFAULT_PLAYBACK_SESSION_TITLE } from '../lib/brandName';
 import { db, Salon, MusicPlatform, SalonTrackProposal } from '../models/schema';
 import { recordWeeklyVote } from '../lib/weeklyVotes';
 import { schedulePersist } from '../lib/persist';
@@ -959,7 +960,7 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
     playbackState: {
       platform: plat,
       trackId: resolvedTrackId,
-      title: trackTitle || 'Soundly Session',
+      title: trackTitle || DEFAULT_PLAYBACK_SESSION_TITLE,
       artist: artist || user.username,
       albumArtUrl:
         albumArtUrl ||

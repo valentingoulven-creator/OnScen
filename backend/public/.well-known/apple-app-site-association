@@ -3,7 +3,7 @@
     "apps": [],
     "details": [
       {
-        "appID": "TEAM_ID.com.melosong.app",
+        "appID": "TEAM_ID.com.soundy.app",
         "paths": [
           "/salon/*",
           "/live/*",
@@ -15,7 +15,7 @@
   },
   "webcredentials": {
     "apps": [
-      "TEAM_ID.com.melosong.app"
+      "TEAM_ID.com.soundy.app"
     ]
   }
 }

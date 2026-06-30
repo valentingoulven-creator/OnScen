@@ -59,6 +59,7 @@ export const livesApi = {
       longitude?: number;
       stripeConnectSkipped?: boolean;
       useObs?: boolean;
+      contentCategory?: 'music' | 'dance' | 'artistic';
     }
   ) =>
     request<{ live: import('../../types').Live }>(
@@ -71,6 +72,7 @@ export const livesApi = {
           longitude: opts?.longitude,
           stripeConnectSkipped: opts?.stripeConnectSkipped,
           useObs: opts?.useObs,
+          contentCategory: opts?.contentCategory,
         }),
       },
       token
@@ -137,12 +139,26 @@ export const livesApi = {
       streamMode: 'livekit';
     }>(`/lives/${liveId}/livekit-token`, {}, token),
 
+  getLiveKitCdnIngest: (token: string, liveId: string) =>
+    request<{
+      rtmpsUrl: string;
+      rtmpUrl: string;
+      streamKey: string;
+      playbackUrl: string;
+      liveInputId: string;
+      egressActive: boolean;
+    }>(`/lives/${liveId}/livekit-cdn-ingest`, {}, token),
+
   startEgress: (token: string, liveId: string) =>
-    request<{ egressId: string; hlsUrl: string }>(
-      `/lives/${liveId}/start-egress`,
-      { method: 'POST' },
-      token
-    ),
+    request<{
+      egressId: string;
+      hlsUrl: string;
+      rtmpsUrl: string;
+      rtmpUrl: string;
+      streamKey: string;
+      playbackUrl: string;
+      liveInputId: string;
+    }>(`/lives/${liveId}/start-egress`, { method: 'POST' }, token),
 
   stopEgress: (token: string, liveId: string) =>
     request<{ stopped: boolean }>(

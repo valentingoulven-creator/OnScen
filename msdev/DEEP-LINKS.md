@@ -16,7 +16,7 @@ Le fichier `app/public/.well-known/apple-app-site-association` est déployé aut
     "apps": [],
     "details": [
       {
-        "appID": "TEAM_ID.com.melosong.app",
+        "appID": "TEAM_ID.com.soundy.app",
         "paths": ["/salon/*", "/live/*", "/profile/*", "/"]
       }
     ]
@@ -37,7 +37,7 @@ Le fichier `app/public/.well-known/apple-app-site-association` est déployé aut
 
 3. **Activer Associated Domains** dans le portail Apple Developer :
    - [developer.apple.com](https://developer.apple.com) → Certificates, IDs & Profiles → Identifiers
-   - Sélectionner `com.melosong.app`
+   - Sélectionner `com.soundy.app`
    - Activer **Associated Domains**
    - Enregistrer et re-générer le provisioning profile
 
@@ -66,7 +66,7 @@ Le fichier `app/public/.well-known/assetlinks.json` est déployé automatiquemen
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "com.melosong.app",
+      "package_name": "com.soundy.app",
       "sha256_cert_fingerprints": ["REPLACE_WITH_SHA256_FINGERPRINT_FROM_KEYSTORE"]
     }
   }

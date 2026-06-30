@@ -20,7 +20,8 @@ import {
   startMapInlineListenSession,
 } from '../lib/mapListenSession';
 import { getSalonShowYoutubeVideo, setSalonShowYoutubeVideo } from '../lib/salonYoutubeDisplay';
-import { getSalonYoutubeVolume, setSalonYoutubeVolume } from '../lib/salonYoutubeVolume';
+import { getSalonYoutubeVolume, getSalonYoutubeMuted, setSalonYoutubeVolume, setSalonYoutubeMuted } from '../lib/salonYoutubeVolume';
+import { SalonPersonalVolumeControl } from './SalonPersonalVolumeControl';
 import { isYoutubeStrictCompliance } from '../lib/youtubeCompliance';
 import { useBackgroundPlayback } from '../hooks/useBackgroundPlayback';
 import {
@@ -146,13 +147,14 @@ export function SalonPlaybackPanel({
     return salon.playbackState.showVideo ?? (salon.platform === 'youtube' ? true : getSalonShowYoutubeVideo());
   });
   const [theaterYoutubeVolume, setTheaterYoutubeVolume] = useState(() => getSalonYoutubeVolume());
-  const [theaterYoutubeMuted, setTheaterYoutubeMuted] = useState(false);
+  const [theaterYoutubeMuted, setTheaterYoutubeMuted] = useState(() => getSalonYoutubeMuted());
   const [participantSyncTrigger, setParticipantSyncTrigger] = useState(0);
   /** PiP flottant in-app (vidéo seule détachée, salon inchangé). */
   const [floatPipActive, setFloatPipActiveState] = useState(false);
   const floatPipActiveRef = useRef(floatPipActive);
   floatPipActiveRef.current = floatPipActive;
   const theaterHeroWrapRef = useRef<HTMLDivElement>(null);
+  const theaterStageRef = useRef<HTMLDivElement>(null);
   const [youtubeIsLive, setYoutubeIsLive] = useState(false);
   const [ytLiveSeekTrigger, setYtLiveSeekTrigger] = useState(0);
   /** Sync global PiP flag outside React updaters — avoids App re-render during child setState (#185). */
@@ -331,27 +333,31 @@ export function SalonPlaybackPanel({
   const effectiveShowYoutubeVideo =
     salon.platform === 'youtube' && isYoutubeStrictCompliance() ? true : showYoutubeVideo;
 
-  /** Sync colonne chat gauche (match-hero) sur la hauteur réelle du hero vidéo 16:9. */
+  /** Hauteur chat = bloc vidéo + contrôles (alignement bas identique). */
   useLayoutEffect(() => {
     if (!theaterMode || !theaterSideDock || salon.platform !== 'youtube') return;
-    const el = theaterHeroWrapRef.current;
+    const el = theaterStageRef.current;
     if (!el) return;
 
-    const syncHeroHeight = () => {
+    const syncStageHeight = () => {
       const h = Math.round(el.getBoundingClientRect().height);
       if (h <= 0) return;
-      const grid = el.closest<HTMLElement>('.room-theater-side-row--match-hero');
-      grid?.style.setProperty('--salon-theater-hero-h', `${h}px`);
+      el.closest<HTMLElement>('.room-theater-side-row--match-hero')?.style.setProperty(
+        '--salon-theater-stage-h',
+        `${h}px`
+      );
     };
 
-    syncHeroHeight();
-    const ro = new ResizeObserver(syncHeroHeight);
+    syncStageHeight();
+    const ro = new ResizeObserver(syncStageHeight);
     ro.observe(el);
-    window.addEventListener('resize', syncHeroHeight);
+    window.addEventListener('resize', syncStageHeight);
     return () => {
       ro.disconnect();
-      window.removeEventListener('resize', syncHeroHeight);
-      el.closest<HTMLElement>('.room-theater-side-row--match-hero')?.style.removeProperty('--salon-theater-hero-h');
+      window.removeEventListener('resize', syncStageHeight);
+      el.closest<HTMLElement>('.room-theater-side-row--match-hero')?.style.removeProperty(
+        '--salon-theater-stage-h'
+      );
     };
   }, [
     theaterMode,
@@ -687,7 +693,7 @@ export function SalonPlaybackPanel({
     const showHostTheaterBar = Boolean(canControlPlayback);
 
     const theaterControlBtnClass =
-      'px-2.5 py-1 rounded-full border border-white/10 bg-[#131318] text-xs font-medium text-[#8b8baf] hover:bg-white/5 hover:text-white transition shrink-0';
+      'min-h-11 px-2.5 py-1 rounded-full border border-white/10 bg-[#131318] text-xs font-medium text-[#8b8baf] hover:bg-white/5 hover:text-white transition shrink-0 touch-manipulation';
 
     const theaterTimeLabel = (
       <p className="text-sm font-mono tabular-nums text-white shrink-0">
@@ -724,31 +730,20 @@ export function SalonPlaybackPanel({
 
     const theaterVolumeControl =
       canUseYoutubeEmbed && youtubeTrackId ? (
-        <div className="flex items-center gap-1.5 shrink-0 min-w-0">
-          <button
-            type="button"
-            onClick={() => setTheaterYoutubeMuted((m) => !m)}
-            className={theaterControlBtnClass}
-            aria-label={theaterYoutubeMuted ? 'Activer le son' : 'Couper le son'}
-            title={theaterYoutubeMuted ? 'Activer le son' : 'Couper le son (local)'}
-          >
-            {theaterYoutubeMuted ? 'Muet' : 'Son'}
-          </button>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={theaterYoutubeMuted ? 0 : theaterYoutubeVolume}
-            onChange={(e) => {
-              const v = setSalonYoutubeVolume(Number(e.target.value));
-              setTheaterYoutubeVolume(v);
-              if (v > 0) setTheaterYoutubeMuted(false);
-            }}
-            className="w-16 sm:w-24 min-w-0 accent-[#6b6b9f] h-1"
-            aria-label="Volume local"
-            title="Volume local (n'affecte que votre écoute)"
-          />
-        </div>
+        <SalonPersonalVolumeControl
+          compact
+          volume={theaterYoutubeVolume}
+          muted={theaterYoutubeMuted}
+          buttonClassName={theaterControlBtnClass}
+          onVolumeChange={(v) => {
+            const next = setSalonYoutubeVolume(v);
+            setTheaterYoutubeVolume(next);
+          }}
+          onMutedChange={(m) => {
+            setSalonYoutubeMuted(m);
+            setTheaterYoutubeMuted(m);
+          }}
+        />
       ) : null;
 
     /** Bouton détacher : PiP flottant in-app (vidéo seule, salon inchangé). */
@@ -825,19 +820,20 @@ export function SalonPlaybackPanel({
       <>
       <section
         className={`salon-theater-panel flex flex-col w-full min-h-0 overflow-hidden bg-black${
-          theaterSideDock ? '' : ' h-full'
-        }`}
+          theaterSideDock ? ' salon-theater-panel--match-hero' : ''
+        }${theaterSideDock ? '' : ' h-full'}`}
       >
-        <div ref={theaterHeroWrapRef} className="salon-theater-hero-wrap relative w-full shrink-0 bg-black">
+        <div ref={theaterStageRef} className="salon-theater-stage-stack flex flex-col min-w-0 w-full">
+        <div ref={theaterHeroWrapRef} className="salon-theater-hero-wrap salon-theater-hero-wrap--stage relative w-full shrink-0 bg-black">
           <div className="salon-theater-hero shrink-0 w-full relative bg-black">
-            <div className="w-full aspect-video relative overflow-hidden">
+            <div className="salon-theater-hero__frame w-full aspect-video relative overflow-hidden">
               {theaterHero}
             </div>
           </div>
         </div>
 
-        <div className="salon-theater-controls shrink-0 border-t border-[#1e1e2f] bg-[#0b0b0f] px-3 py-2.5 space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="salon-theater-controls salon-theater-controls--stage shrink-0 border-t border-[#1e1e2f] bg-[#0b0b0f]">
+          <div className="salon-theater-controls__toolbar flex flex-wrap items-center gap-1.5">
             {theaterTimeLabel}
             {theaterSyncPlayControls}
             {theaterLiveButton}
@@ -853,7 +849,12 @@ export function SalonPlaybackPanel({
               {playbackStatusBadge}
             </div>
           </div>
-          {playbackProgressInput}
+          {playbackProgressInput ? (
+            <div className="salon-theater-controls__progress mt-1.5 pt-1.5 border-t border-white/5">
+              {playbackProgressInput}
+            </div>
+          ) : null}
+        </div>
         </div>
 
         {/* YouTube TOS §4.B: no advertising revenue alongside YouTube API services */}

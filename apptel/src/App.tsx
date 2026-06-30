@@ -359,7 +359,7 @@ export default function App() {
                 title="Retour à la Carte"
                 aria-label="Aller à la carte"
               >
-                Soundly
+                Soundy
               </button>
             </div>
             <div className="justify-self-center w-[min(100%,17.5rem)] min-w-[8.5rem] px-0.5">

@@ -28,10 +28,10 @@ export function consumePendingProfileView(): string | null {
   }
 }
 
-/** Garde tab / album dans l’URL profil (ex. nouveautés → compositions). */
+/** Garde tab / album / track dans l’URL profil (ex. nouveautés → compositions). */
 export function syncProfileUrlInBar(
   userId: string,
-  options?: { tab?: string; album?: string }
+  options?: { tab?: string; album?: string; track?: string }
 ): void {
   const path = getProfilePath(userId);
   const params = new URLSearchParams(window.location.search);
@@ -40,6 +40,8 @@ export function syncProfileUrlInBar(
     else params.delete('tab');
     if (options.album) params.set('album', options.album);
     else params.delete('album');
+    if (options.track) params.set('track', options.track);
+    else params.delete('track');
   }
   const q = params.toString();
   const next = `${path}${q ? `?${q}` : ''}`;

@@ -6,7 +6,7 @@
 #
 # Options :
 #   -GenerateSshKey     Cree id_ed25519 si absent
-#   -PullProdEnv        Recupere /opt/soundly/.env -> backend/.env.production (requiert SSH OK)
+#   -PullProdEnv        Recupere /opt/soundy/.env -> backend/.env.production (requiert SSH OK)
 #   -SyncMsdevFromProd  Copie variables manquantes (Sightengine, LiveKit, etc.) vers msdev/.env
 #   -TestOnly           Diagnostics sans modification
 
@@ -24,7 +24,7 @@ $script:ExternalErrorAction = 'Continue'
 $VpsHost    = '51.159.164.100'
 $VpsUser    = 'root'
 $VpsTarget  = "${VpsUser}@${VpsHost}"
-$RemoteEnv  = '/opt/soundly/.env'
+$RemoteEnv  = '/opt/soundy/.env'
 $HealthUrl  = 'https://getsoundy.com/health'
 $SshDir     = Join-Path $env:USERPROFILE '.ssh'
 $PrimaryKey = Join-Path $SshDir 'id_ed25519'
@@ -188,7 +188,7 @@ function Test-DatabaseUrl([string]$databaseUrl) {
     }
     if (-not (Get-Command psql -ErrorAction SilentlyContinue)) {
         Write-Warn 'psql absent - installez PostgreSQL client ou testez via SSH sur le VPS'
-        Write-Info 'Alternative : ssh root@51.159.164.100 "cd /opt/soundly/backend && node -e ..."'
+        Write-Info 'Alternative : ssh root@51.159.164.100 "cd /opt/soundy/backend && node -e ..."'
         return
     }
     $out = & psql $databaseUrl -c 'SELECT 1 AS ok;' 2>&1
@@ -233,10 +233,10 @@ if ($ImportFile) {
 
 if ($PullProdEnv) {
     if (-not $sshOk) {
-        Write-Warn 'SSH indisponible - utilisez -ImportFile avec un export console (cat /opt/soundly/.env)'
+        Write-Warn 'SSH indisponible - utilisez -ImportFile avec un export console (cat /opt/soundy/.env)'
         if (-not $ImportFile) { throw 'SSH requis pour -PullProdEnv sans -ImportFile.' }
     } else {
-        Write-Step 'Synchronisation /opt/soundly/.env'
+        Write-Step 'Synchronisation /opt/soundy/.env'
         Pull-ProdEnvFile $keyPath
     }
 }

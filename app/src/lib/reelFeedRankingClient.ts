@@ -47,7 +47,7 @@ export function refreshReelsShuffleSeed(): void {
   }
 }
 
-/** Algorithme Soundly par défaut ou msdev → ordre aléatoire (Fisher-Yates, graine session). */
+/** Algorithme Soundy par défaut ou msdev → ordre aléatoire (Fisher-Yates, graine session). */
 export function shouldShuffleReelsFeed(
   prefs: ReelFeedAlgorithmPreferences,
   msdev: boolean

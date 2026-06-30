@@ -76,7 +76,7 @@ export interface HostRatingSummary {
 export interface User {
   id: string;
   username: string;
-  /** Hex (#rrggbb) ou `wave` (dégradé Soundly). */
+  /** Hex (#rrggbb) ou `wave` (dégradé Soundy). */
   usernameColor?: string;
   /** Couleur de départ du dégradé wave (hex). */
   usernameWaveFrom?: string;

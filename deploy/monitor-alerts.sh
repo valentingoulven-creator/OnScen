@@ -5,23 +5,25 @@
 # Prérequis : python3 (pré-installé Ubuntu), pm2 dans PATH.
 #
 # Config :
-#   RESEND_API_KEY (prioritaire, HTTP 443) ou credentials SMTP depuis /opt/soundly/.env.
+#   RESEND_API_KEY (prioritaire, HTTP 443) ou credentials SMTP depuis /opt/soundy/.env.
 #   Les seuils peuvent être surchargés via des variables d'environnement.
 #
 # Usage manuel :
-#   sudo bash /opt/soundly/deploy/monitor-alerts.sh
+#   sudo bash /opt/soundy/deploy/monitor-alerts.sh
 #
 # Redémarrages PM2 intentionnels (deploy Cursor, reload manuel) :
 #   Le flag /tmp/soundy-pm2-reload-intentional supprime l'alerte pour CE redémarrage
 #   (consommé à la prochaine détection d'incrément restart_time, pas de fenêtre 15 min).
 #   Deploy : deploy_zero_downtime.ps1 pose le flag automatiquement.
-#   Manuel : bash /opt/soundly/deploy/pm2-reload-intentional.sh [reload|restart]
+#   Manuel : bash /opt/soundy/deploy/pm2-reload-intentional.sh [reload|restart]
 set -euo pipefail
 
-ROOT="${SOUNDLY_ROOT:-/opt/soundly}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/soundy-root.sh
+source "${SCRIPT_DIR}/lib/soundy-root.sh"
 ENV_FILE="${ROOT}/.env"
 LOG_FILE="${ROOT}/logs/monitor-alerts.log"
-PREV_RESTART_FILE="/tmp/soundly_pm2_restarts"
+PREV_RESTART_FILE="/tmp/soundy_pm2_restarts"
 INTENTIONAL_RELOAD_FLAG="/tmp/soundy-pm2-reload-intentional"
 PM2_RELOAD_FLAG_STALE_SECS="${PM2_RELOAD_FLAG_STALE_SECS:-86400}"   # 24h — nettoyage flags orphelins
 PM2_APP="${PM2_APP:-melosong-backend}"
@@ -104,7 +106,7 @@ intentional_pm2_reload_reason() {
 # ── Cooldown (évite le spam d'alertes) ───────────────────────────────────────
 is_coolingdown() {
   local name="$1"
-  local lockfile="/tmp/soundly_alert_${name}"
+  local lockfile="/tmp/soundy_alert_${name}"
   if [[ -f "$lockfile" ]]; then
     local last_ts now elapsed
     last_ts=$(stat -c %Y "$lockfile" 2>/dev/null || echo 0)
@@ -141,7 +143,7 @@ send_alert_email() {
   fi
 
   if [[ "$RESEND_ENABLED" == "true" ]]; then
-    local json_payload http_code response_file="/tmp/soundly_resend_response.json"
+    local json_payload http_code response_file="/tmp/soundy_resend_response.json"
     json_payload=$(RESEND_FROM="$RESEND_FROM" MAIL_TO="$recipients" MAIL_SUBJECT="$subject" MAIL_BODY="$body" python3 - <<'PYEOF'
 import json, os
 print(json.dumps({
@@ -328,7 +330,7 @@ except Exception as e:
       else
         PM2_LOGS=$(pm2 logs "${PM2_APP}" --lines 30 --nostream 2>/dev/null || echo "(logs indisponibles)")
         # PM2 crash = forcer l'envoi (bypass cooldown)
-        rm -f "/tmp/soundly_alert_pm2_crash" 2>/dev/null || true
+        rm -f "/tmp/soundy_alert_pm2_crash" 2>/dev/null || true
         send_alert_email \
           "💥 [Soundy CRITIQUE] Redémarrage PM2 détecté (+${DIFF})" \
           "Crash PM2 détecté sur getsoundy.com

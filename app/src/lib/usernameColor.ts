@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 
-/** Dégradé Soundly (header App.tsx). */
+/** Dégradé Soundy (header App.tsx). */
 export const USERNAME_COLOR_WAVE = 'wave';
 
 /** Dégradé wave par défaut (Tailwind purple-400 → pink-400). */

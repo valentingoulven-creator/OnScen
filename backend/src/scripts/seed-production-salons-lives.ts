@@ -2,7 +2,7 @@
  * Seed 10 salons + 5 lives (bots) en production PostgreSQL.
  *
  * Usage sur le VPS :
- *   cd /opt/soundly && APP_ENV=production node dist/scripts/seed-production-salons-lives.js
+ *   cd /opt/soundy && APP_ENV=production node dist/scripts/seed-production-salons-lives.js
  */
 import dotenv from 'dotenv';
 import path from 'path';

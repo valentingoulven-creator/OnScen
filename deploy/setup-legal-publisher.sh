@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# setup-legal-publisher.sh — Crée /opt/soundly/legal-publisher.json si absent
-# Usage : bash /opt/soundly/deploy/setup-legal-publisher.sh
-#         bash /opt/soundly/deploy/setup-legal-publisher.sh --force  # recopie depuis l'exemple
+# setup-legal-publisher.sh — Crée /opt/soundy/legal-publisher.json si absent
+# Usage : bash /opt/soundy/deploy/setup-legal-publisher.sh
+#         bash /opt/soundy/deploy/setup-legal-publisher.sh --force  # recopie depuis l'exemple
 set -euo pipefail
 
-ROOT="${SOUNDLY_ROOT:-/opt/soundly}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/soundy-root.sh
+source "${SCRIPT_DIR}/lib/soundy-root.sh"
 EXAMPLE="${ROOT}/msdev/legal-publisher.example.json"
 TARGET="${ROOT}/legal-publisher.json"
 FORCE=0

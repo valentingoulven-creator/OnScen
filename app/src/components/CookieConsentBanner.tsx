@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getCookieConsent, setCookieConsent } from '../lib/cookieConsent';
+import { getCookieConsent, setCookieConsent, COOKIE_CONSENT_OPEN_EVENT } from '../lib/cookieConsent';
 import { isNativeApp } from '../lib/nativePlatform';
 import { LegalDocumentView } from './LegalDocumentView';
 
@@ -14,14 +14,17 @@ export function CookieConsentBanner() {
       setVisible(false);
       return;
     }
+    const openHandler = () => setVisible(true);
+    window.addEventListener(COOKIE_CONSENT_OPEN_EVENT, openHandler);
     if (getCookieConsent() != null) setVisible(false);
+    return () => window.removeEventListener(COOKIE_CONSENT_OPEN_EVENT, openHandler);
   }, []);
 
   if (isNativeApp()) return null;
 
   if (privacyOpen) {
     return (
-      <LegalDocumentView docKey="privacy" onBack={() => setPrivacyOpen(false)} />
+      <LegalDocumentView docKey="cookies" onBack={() => setPrivacyOpen(false)} />
     );
   }
 
@@ -48,7 +51,7 @@ export function CookieConsentBanner() {
             onClick={() => setPrivacyOpen(true)}
             className="text-purple-400 hover:text-purple-300 underline underline-offset-2"
           >
-            {t('cookies.privacyLink', 'Politique de confidentialité')}
+            {t('cookies.policyLink', 'Politique cookies')}
           </button>
         </p>
         <div className="flex flex-col sm:flex-row gap-2">

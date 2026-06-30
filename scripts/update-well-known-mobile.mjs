@@ -96,7 +96,7 @@ function main() {
       relation: ['delegate_permission/common.handle_all_urls'],
       target: {
         namespace: 'android_app',
-        package_name: 'com.melosong.app',
+        package_name: 'com.soundy.app',
         sha256_cert_fingerprints: [sha256],
       },
     },
@@ -111,13 +111,13 @@ function main() {
         apps: [],
         details: [
           {
-            appID: `${teamId}.com.melosong.app`,
+            appID: `${teamId}.com.soundy.app`,
             paths: ['/salon/*', '/live/*', '/profile/*', '/'],
           },
         ],
       },
       webcredentials: {
-        apps: [`${teamId}.com.melosong.app`],
+        apps: [`${teamId}.com.soundy.app`],
       },
     };
     writeJson('app/public/.well-known/apple-app-site-association', aasa);

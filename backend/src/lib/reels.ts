@@ -29,6 +29,7 @@ import {
 import { schedulePersist } from './persist';
 import { checkUploadedAudioCopyright } from './acrCloud';
 import { getAcrCloudMaxSampleBytes } from './acrCloudConfig';
+import { isValidCompositionFileUrl } from './compositionAssets';
 import { readPublicUploadSample } from './uploadSample';
 
 /** Durées approximatives Mixkit — alignées sur app/src/content/reels.ts */
@@ -95,6 +96,15 @@ function isCuratedAudioUrl(url: string): boolean {
   return MIXKIT_MUSIC_RE.test(url.trim());
 }
 
+function isCompositionReelAudioUrl(url: string): boolean {
+  return isValidCompositionFileUrl(url);
+}
+
+function isAllowedReelAudioUrl(url: string): boolean {
+  const trimmed = url.trim();
+  return isCuratedAudioUrl(trimmed) || isCompositionReelAudioUrl(trimmed);
+}
+
 export function reelHasPlayableAudio(reel: {
   hasAudio?: boolean;
   audioUrl?: string;
@@ -103,7 +113,7 @@ export function reelHasPlayableAudio(reel: {
 }): boolean {
   if (reel.hasAudio === false) return false;
   const audioUrl = reel.audioUrl?.trim() ?? '';
-  if (audioUrl && isCuratedAudioUrl(audioUrl)) return true;
+  if (audioUrl && isAllowedReelAudioUrl(audioUrl)) return true;
   if (reel.hasAudio === true && reel.mediaType === 'video' && !!reel.videoUrl) return true;
   if (isRecordedReelMedia(reel)) return true;
   return false;
@@ -133,7 +143,7 @@ export function isCuratedReelMedia(reel: {
   if (BLOCKED_MEDIA_RE.test(video) || BLOCKED_MEDIA_RE.test(poster) || BLOCKED_MEDIA_RE.test(audio)) {
     return false;
   }
-  if (audio && !isCuratedAudioUrl(audio)) return false;
+  if (audio && !isAllowedReelAudioUrl(audio)) return false;
   if (reel.mediaType === 'image' || (!video && poster)) {
     return UNSPLASH_IMAGE_RE.test(poster);
   }
@@ -234,6 +244,8 @@ export function publicUserReel(r: UserReel) {
   const visibility = reelVisibility(r);
   const isPrivate = visibility === 'private';
   const recorded = isRecordedReelMedia({ mediaType: r.mediaType, videoUrl, posterUrl });
+  const compositionAudio = r.audioUrl?.trim() ?? '';
+  const separateAudio = compositionAudio && isCompositionReelAudioUrl(compositionAudio);
   return enrichReelWithAuthor({
     id: r.id,
     title: r.title,
@@ -242,7 +254,9 @@ export function publicUserReel(r: UserReel) {
     mediaType: r.mediaType,
     videoUrl,
     posterUrl,
-    ...(recorded ? { hasAudio: true as const } : {}),
+    ...(separateAudio ? { audioUrl: compositionAudio, hasAudio: true as const } : {}),
+    ...(r.compositionId ? { compositionId: r.compositionId } : {}),
+    ...(recorded && !separateAudio ? { hasAudio: true as const } : {}),
     ...(r.durationSec != null && r.durationSec > 0 ? { durationSec: r.durationSec } : {}),
     authorId: r.authorId,
     createdAt: r.createdAt,
@@ -442,6 +456,8 @@ export interface CreateUserReelInput {
   /** Alias pratique : true = reel privé (profil uniquement) */
   isPrivate?: boolean;
   rightsConfirmed?: boolean;
+  /** Morceau Discographie — remplace la piste micro par fileUrl du morceau. */
+  compositionId?: string;
 }
 
 function resolveReelVisibility(input: CreateUserReelInput): ReelVisibility {
@@ -548,7 +564,7 @@ export async function createUserReel(
     return { error: 'Les enregistrements caméra doivent être publiés en vidéo' };
   }
 
-  if (mediaType === 'video' && isUploadedReelVideoUrl(mediaUrl)) {
+  if (mediaType === 'video' && isUploadedReelVideoUrl(mediaUrl) && !input.compositionId?.trim()) {
     const sample = readPublicUploadSample(mediaUrl, getAcrCloudMaxSampleBytes());
     if (sample) {
       const copyrightError = await checkUploadedAudioCopyright(sample);
@@ -557,6 +573,22 @@ export async function createUserReel(
         return { error: copyrightError };
       }
     }
+  }
+
+  let compositionId: string | undefined;
+  let audioUrl: string | undefined;
+  if (input.compositionId?.trim()) {
+    const comp = db.compositions.find(
+      (c) => c.id === input.compositionId!.trim() && c.userId === authorId
+    );
+    if (!comp) {
+      return { error: 'Morceau introuvable dans votre discographie' };
+    }
+    if (!isValidCompositionFileUrl(comp.fileUrl)) {
+      return { error: 'Fichier audio du morceau invalide' };
+    }
+    compositionId = comp.id;
+    audioUrl = comp.fileUrl.trim();
   }
 
   const visibility = resolveReelVisibility(input);
@@ -577,16 +609,17 @@ export async function createUserReel(
           : `Média non autorisé : vidéo Mixkit, image Unsplash, ou enregistrement caméra (max ~${REEL_UPLOAD_MAX_FILE_MB} Mo)`,
     };
   }
-  if (
-    visibility === 'public' &&
-    !isPublicFeedReel({
+  if (visibility === 'public') {
+    const publicDraft = {
       ...draft,
-      hasAudio: isRecordedReelMedia(draft) ? true : undefined,
-    })
-  ) {
-    return {
-      error: 'Seuls les reels vidéo avec piste audio peuvent être publiés dans le flux Reels',
+      audioUrl,
+      hasAudio: audioUrl ? true : isRecordedReelMedia(draft) ? true : undefined,
     };
+    if (!isPublicFeedReel(publicDraft)) {
+      return {
+        error: 'Seuls les reels vidéo avec piste audio peuvent être publiés dans le flux Reels',
+      };
+    }
   }
   const durationSec =
     mediaType === 'video' ? normalizeDurationSec(input.durationSec) : undefined;
@@ -603,6 +636,8 @@ export async function createUserReel(
     videoUrl: mediaType === 'video' ? mediaUrl : undefined,
     visibility,
     ...(durationSec != null ? { durationSec } : {}),
+    ...(audioUrl ? { audioUrl } : {}),
+    ...(compositionId ? { compositionId } : {}),
   };
 
   db.userReels.push(reel);
@@ -619,6 +654,7 @@ export function publishUserReel(reelId: string, userId: string): UserReel | { er
     mediaType: reel.mediaType,
     videoUrl: reel.videoUrl,
     posterUrl: reel.posterUrl,
+    audioUrl: reel.audioUrl,
   };
   if (!isAllowedUserReelMedia(draft)) {
     return {
@@ -626,7 +662,13 @@ export function publishUserReel(reelId: string, userId: string): UserReel | { er
         'Impossible de publier ce média dans le flux public (Mixkit, Unsplash ou enregistrement caméra requis)',
     };
   }
-  if (!isPublicFeedReel({ ...draft, hasAudio: isRecordedReelMedia(draft) ? true : undefined })) {
+  const hasCompositionAudio = !!reel.audioUrl?.trim() && isCompositionReelAudioUrl(reel.audioUrl);
+  if (
+    !isPublicFeedReel({
+      ...draft,
+      hasAudio: hasCompositionAudio || isRecordedReelMedia(draft) ? true : undefined,
+    })
+  ) {
     return {
       error: 'Seuls les reels avec piste audio peuvent être publiés dans le flux Reels',
     };

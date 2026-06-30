@@ -1,5 +1,5 @@
 # Soundy — Caddyfile PREPROD (staging.getsoundy.com)
-# Deploy : deploy/Caddyfile.staging -> /opt/soundly/deploy/Caddyfile.staging -> /etc/caddy/Caddyfile
+# Deploy : deploy/Caddyfile.staging -> /opt/soundy/deploy/Caddyfile.staging -> /etc/caddy/Caddyfile
 
 (staging_handlers) {
 	@api path /api/* /health /health/db /socket.io/* /privacy /terms /legal/mentions

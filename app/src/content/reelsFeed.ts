@@ -1,5 +1,6 @@
 import { MUSIC_REELS, type MusicReel } from './reels';
 import { MAX_RECORDED_REEL_VIDEO_DATA_CHARS } from '../lib/reelRecording';
+import { isCompositionAudioUrl } from '../lib/reelCompositionAudio';
 
 const MIXKIT_VIDEO_RE =
   /^https:\/\/assets\.mixkit\.co\/videos\/\d+\/\d+(-720)?\.mp4(?:\?.*)?$/i;
@@ -39,15 +40,16 @@ function isRecordedReelMedia(reel: MusicReel): boolean {
   return reel.mediaType !== 'image';
 }
 
-function isCuratedAudioUrl(url: string): boolean {
-  return MIXKIT_MUSIC_RE.test(url.trim());
+function isAllowedReelAudioUrl(url: string): boolean {
+  const trimmed = url.trim();
+  return MIXKIT_MUSIC_RE.test(trimmed) || isCompositionAudioUrl(trimmed);
 }
 
 /** Son jouable dans le flux public (piste dédiée, flag explicite, ou enregistrement caméra). */
 export function reelHasPlayableAudio(reel: MusicReel): boolean {
   if (reel.hasAudio === false) return false;
   const audioUrl = reel.audioUrl?.trim() ?? '';
-  if (audioUrl && isCuratedAudioUrl(audioUrl)) return true;
+  if (audioUrl && isAllowedReelAudioUrl(audioUrl)) return true;
   if (reel.hasAudio === true && reel.mediaType === 'video' && !!reel.videoUrl) return true;
   if (isRecordedReelMedia(reel)) return true;
   return false;
@@ -64,7 +66,7 @@ export function isCuratedReelMedia(reel: MusicReel): boolean {
 
   if (isRecordedReelMedia(reel)) return true;
 
-  if (audio && !isCuratedAudioUrl(audio)) return false;
+  if (audio && !isAllowedReelAudioUrl(audio)) return false;
 
   if (reel.mediaType === 'image' || (!video && poster)) {
     return UNSPLASH_IMAGE_RE.test(poster);

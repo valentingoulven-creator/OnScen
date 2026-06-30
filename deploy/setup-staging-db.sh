@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # setup-staging-db.sh — Cree la base soundy_staging sur PostgreSQL Scaleway (depuis VPS prod)
 # Usage (sur VPS prod avec acces DATABASE_URL) :
-#   bash /opt/soundly/deploy/setup-staging-db.sh
+#   bash /opt/soundy/deploy/setup-staging-db.sh
 #   STAGING_VPS_IP=51.159.170.181 bash setup-staging-db.sh
 set -euo pipefail
 
-ENV_FILE="${ENV_FILE:-/opt/soundly/.env}"
+ENV_FILE="${ENV_FILE:-/opt/soundy/.env}"
 STAGING_DB="${STAGING_DB:-soundy_staging}"
 
 if [[ -f "$ENV_FILE" ]]; then

@@ -1,6 +1,8 @@
 import type { LiveMediaPrefs } from '../lib/liveMediaPrefs';
 import type { LivesGeoPrefs } from '../lib/livesGeo';
 import type { LiveChatConfigValue } from '../components/LiveChatConfigFields';
+import type { LiveContentCategory } from './liveContentCategory';
+import { liveContentCategorySummaryLabel } from './liveContentCategory';
 import type { LiveHostSessionDraft } from '../lib/liveMediaPrefs';
 import type { LiveObsSetupValue } from '../components/LiveObsSetupFields';
 
@@ -8,6 +10,7 @@ export type SetupChatPhase =
   | 'loading'
   | 'return_ask'
   | 'return_pick'
+  | 'category'
   | 'stripe'
   | 'title'
   | 'broadcast'
@@ -19,6 +22,7 @@ export type SetupChatPhase =
   | 'confirm';
 
 export type SetupChangeTarget =
+  | 'category'
   | 'stripe'
   | 'title'
   | 'broadcast'
@@ -35,6 +39,7 @@ export type SetupChatMessage = {
 
 /** Clé i18n (live.*) posée par l'assistant à l'entrée de chaque phase interactive. */
 export const SETUP_PHASE_BOT_QUESTION: Partial<Record<SetupChatPhase, string>> = {
+  category: 'setupChatAskCategory',
   stripe: 'setupChatAskStripe',
   title: 'setupChatAskTitle',
   broadcast: 'setupChatAskBroadcast',
@@ -90,7 +95,7 @@ export function getVisibleSetupExchange(
   if (activeMessages.length === 0) {
     return messages.slice(-2);
   }
-  if ((phase === 'title' || phase === 'stripe') && historyMessages.length > 0) {
+  if ((phase === 'title' || phase === 'stripe' || phase === 'category') && historyMessages.length > 0) {
     const activeIds = new Set(activeMessages.map((m) => m.id));
     const hello = historyMessages.find((m) => m.role === 'bot');
     const intro = hello && !activeIds.has(hello.id) ? [hello] : [];
@@ -108,6 +113,7 @@ export function prefsFromParts(
     chatConfig: LiveChatConfigValue;
     hostSession: LiveHostSessionDraft;
     obsSetup: LiveObsSetupValue;
+    contentCategory?: LiveContentCategory;
   },
   extra?: Partial<LiveMediaPrefs>
 ): LiveMediaPrefs {
@@ -122,6 +128,7 @@ export function prefsFromParts(
     chatConfig: parts.chatConfig,
     hostSessionDraft: parts.hostSession,
     useObs: parts.obsSetup.useObs || undefined,
+    contentCategory: parts.contentCategory,
     ...extra,
   };
 }
@@ -139,7 +146,10 @@ export function summarizeSetup(prefs: LiveMediaPrefs, username: string): string 
         : prefs.chatConfig?.noLinksForParticipants
           ? 'sans liens'
           : 'standard';
-  return `« ${title} », ${mode}, ${place}, chat ${chat}.`;
+  const kind = prefs.contentCategory
+    ? `${liveContentCategorySummaryLabel(prefs.contentCategory)}, `
+    : '';
+  return `${kind}« ${title} », ${mode}, ${place}, chat ${chat}.`;
 }
 
 export const STANDARD_CHAT_CONFIG: LiveChatConfigValue = {
@@ -190,6 +200,7 @@ export function applySavedSetupToDraft(
   obsSetup: LiveObsSetupValue;
   videoDeviceId: string;
   audioDeviceId: string;
+  contentCategory: LiveContentCategory;
 } {
   const lat = saved?.startLatitude;
   const lon = saved?.startLongitude;
@@ -230,5 +241,11 @@ export function applySavedSetupToDraft(
     obsSetup: { useObs: saved?.useObs === true },
     videoDeviceId: saved?.videoDeviceId ?? '',
     audioDeviceId: saved?.audioDeviceId ?? '',
+    contentCategory:
+      saved?.contentCategory === 'music' ||
+      saved?.contentCategory === 'dance' ||
+      saved?.contentCategory === 'artistic'
+        ? saved.contentCategory
+        : 'music',
   };
 }

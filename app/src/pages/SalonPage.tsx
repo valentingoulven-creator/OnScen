@@ -30,15 +30,16 @@ import { ShareToUserSheet } from '../components/ShareToUserSheet';
 import { formatSalonAudienceLabel } from '../lib/salonAudience';
 import { getSalonShareUrl } from '../lib/shareLink';
 import type { DmContact, PlaybackState, Salon } from '../types';
+import { getStorageItem, setStorageItem, STORAGE_KEYS } from '../lib/storageKeys';
 
 const SALON_MAX_DURATION_MS = 2 * 60 * 60 * 1000;
-const SALON_CHAT_HIDDEN_KEY = 'soundly_salon_chat_hidden';
-const SALON_CHAT_MINIMIZED_KEY = 'soundly_salon_chat_minimized';
+const SALON_CHAT_HIDDEN_KEY = STORAGE_KEYS.salonChatHidden;
+const SALON_CHAT_MINIMIZED_KEY = STORAGE_KEYS.salonChatMinimized;
 
 function readSalonChatHidden(): boolean {
   if (window.innerWidth < 640) return false;
   try {
-    return localStorage.getItem(SALON_CHAT_HIDDEN_KEY) === '1';
+    return getStorageItem(SALON_CHAT_HIDDEN_KEY) === '1';
   } catch {
     return false;
   }
@@ -46,7 +47,7 @@ function readSalonChatHidden(): boolean {
 
 function readSalonChatMinimized(): boolean {
   try {
-    return localStorage.getItem(SALON_CHAT_MINIMIZED_KEY) === '1';
+    return getStorageItem(SALON_CHAT_MINIMIZED_KEY) === '1';
   } catch {
     return false;
   }
@@ -753,7 +754,7 @@ export function SalonPage({
               const next = !h;
               try {
                 if (window.innerWidth >= 640) {
-                  localStorage.setItem(SALON_CHAT_HIDDEN_KEY, next ? '1' : '0');
+                  setStorageItem(SALON_CHAT_HIDDEN_KEY, next ? '1' : '0');
                 }
               } catch {
                 /* ignore */
@@ -767,7 +768,7 @@ export function SalonPage({
             setChatMinimized((m) => {
               const next = !m;
               try {
-                localStorage.setItem(SALON_CHAT_MINIMIZED_KEY, next ? '1' : '0');
+                setStorageItem(SALON_CHAT_MINIMIZED_KEY, next ? '1' : '0');
               } catch {
                 /* ignore */
               }

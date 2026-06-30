@@ -54,7 +54,7 @@ body {
   background: var(--ms-bg);
 }
 
-/* Header Soundly fixe (toujours visible au scroll) */
+/* Header Soundy fixe (toujours visible au scroll) */
 header.ms-app-header {
   position: fixed;
   top: 0;
@@ -281,7 +281,7 @@ body {
   color: var(--ms-text);
 }
 
-/** Dégradé pseudo « wave » (identique au logo Soundly dans le header). */
+/** Dégradé pseudo « wave » (identique au logo Soundy dans le header). */
 .ms-username-wave {
   background-image: linear-gradient(to right, #c084fc, #f472b6);
   -webkit-background-clip: text;

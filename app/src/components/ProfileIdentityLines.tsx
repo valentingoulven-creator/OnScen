@@ -19,12 +19,13 @@ export function ProfileIdentityLines({
 
   return (
     <div className={className}>
-      <p
-        className="text-sm text-purple-200/95 font-medium leading-snug"
+      <span
+        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-500/10 text-purple-200/95 border border-purple-500/25"
         title={t('profile.identityAtSignupHint')}
       >
-        {identity.emoji} {identity.label}
-      </p>
+        <span aria-hidden>{identity.emoji}</span>
+        {identity.label}
+      </span>
     </div>
   );
 }

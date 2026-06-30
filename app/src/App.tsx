@@ -15,6 +15,10 @@ import {
   syncSalonUrlInBar,
   clearSalonUrlFromBar,
 } from './lib/salonDeepLink';
+import {
+  STORY_APP_LINK_EVENT,
+  type StoryAppLinkTarget,
+} from './lib/storyAppLink';
 import { pauseAllReelsMediaInDom } from './lib/reelsMedia';
 import { pauseMediaElements } from './hooks/usePauseMediaOnPageHidden';
 import { AuthPage } from './pages/AuthPage';
@@ -39,7 +43,7 @@ import { useDmUnread } from './context/DmUnreadContext';
 import { ProfileSearchBar } from './components/ProfileSearchBar';
 import type { GlobalSearchResultItem } from './lib/globalSearch';
 import { nearbyPreviewFromSearchItem } from './components/ProfileSearchBar';
-import type { MapSearchSearchIntent } from './lib/mapSearchIntent';
+import { requestMapFlyToPlace } from './lib/mapSearchIntent';
 import { SoundyLogoButton } from './components/SoundyLogo';
 import { MainTabNav } from './components/MainTabNav';
 import { PlatformConnectPrompt } from './components/PlatformConnectPrompt';
@@ -169,7 +173,6 @@ export default function App() {
   const [showGenrePrompt, setShowGenrePrompt] = useState(false);
   /** Publication du fil à mettre en avant (depuis la carte). */
   const [focusFeedPostId, setFocusFeedPostId] = useState<string | null>(null);
-  const [mapSearchIntent, setMapSearchIntent] = useState<MapSearchSearchIntent | null>(null);
   /** Salon ouvert (grand écran ou minimisé) — persiste hors vue salon pour la barre retour. */
   const [activeSalonSession, setActiveSalonSession] = useState<ActiveSalonSession | null>(
     () => readPersistedSalonSession()
@@ -447,6 +450,43 @@ export default function App() {
     setView({ type: 'profile', id: userId });
     syncProfileUrlInBar(userId);
   }, []);
+
+  const openStoryAppLink = useCallback(
+    (target: StoryAppLinkTarget) => {
+      if (target.kind === 'album' && target.albumId) {
+        setProfileReturnView(viewRef.current);
+        setProfilePreview(null);
+        setProfileOpen(false);
+        setView({ type: 'profile', id: target.userId });
+        syncProfileUrlInBar(target.userId, {
+          tab: 'compositions',
+          album: target.albumId,
+        });
+        return;
+      }
+      if (target.kind === 'composition' && target.compositionId) {
+        setProfileReturnView(viewRef.current);
+        setProfilePreview(null);
+        setProfileOpen(false);
+        setView({ type: 'profile', id: target.userId });
+        syncProfileUrlInBar(target.userId, {
+          tab: 'compositions',
+          track: target.compositionId,
+        });
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    const onStoryAppLink = (event: Event) => {
+      const target = (event as CustomEvent<StoryAppLinkTarget>).detail;
+      if (!target?.userId) return;
+      openStoryAppLink(target);
+    };
+    window.addEventListener(STORY_APP_LINK_EVENT, onStoryAppLink);
+    return () => window.removeEventListener(STORY_APP_LINK_EVENT, onStoryAppLink);
+  }, [openStoryAppLink]);
 
   const closeProfile = useCallback(() => {
     setView(profileReturnViewRef.current);
@@ -852,12 +892,16 @@ export default function App() {
           return;
         case 'city':
         case 'country':
-          setMapSearchIntent({
+          requestMapFlyToPlace({
             location: item.label,
             latitude: item.latitude,
             longitude: item.longitude,
+            kind: item.kind === 'country' ? 'country' : 'city',
+            nonce: Date.now(),
           });
-          selectTab('map');
+          if (tabRef.current !== 'map') {
+            selectTab('map');
+          }
           return;
         case 'event':
           openFeedPostFromMap(item.id);
@@ -1251,7 +1295,7 @@ export default function App() {
               <div
                 className={
                   liveFullScreen
-                    ? 'ms-salon-fullscreen-overlay flex flex-col min-h-0 bg-[#0b0b0f]'
+                    ? 'ms-salon-fullscreen-overlay flex flex-col flex-1 min-h-0 h-full bg-[#0b0b0f]'
                     : 'salon-page-pip-host'
                 }
               >
@@ -1314,8 +1358,6 @@ export default function App() {
                     onMapSalonActive={handleMapSalonActive}
                     onLeaveSalon={leaveActiveSalonSession}
                     onSalonRestoreFailed={() => handleSalonForcedEnd('ended')}
-                    mapSearchIntent={mapSearchIntent}
-                    onMapSearchIntentConsumed={() => setMapSearchIntent(null)}
                     mapActiveSalonSession={
                       showActiveSalonBanner && activeSalonSession
                         ? {
@@ -1371,9 +1413,6 @@ export default function App() {
               <Suspense fallback={<PageFallback />}>
                 <MusicTabPage
                   isActive={!profileOpen}
-                  onOpenMap={() => selectTab('map')}
-                  onOpenLive={openLive}
-                  onOpenSalon={openSalonPage}
                   onOpenProfile={openProfile}
                 />
               </Suspense>
@@ -1408,6 +1447,12 @@ export default function App() {
                 onOpenLive={openLive}
                 onOpenProfile={openProfile}
                 onOpenSalon={openSalonPage}
+                onOpenFeedPost={(post) => {
+                  setFocusFeedPostId(post.id);
+                  setProfileOpen(false);
+                  setTab('actualite');
+                  setView({ type: 'home' });
+                }}
                 openRecorderOnMount={profileOpenRecorder}
                 onRecorderMountHandled={() => setProfileOpenRecorder(false)}
                 openContactOnMount={profileOpenContact}

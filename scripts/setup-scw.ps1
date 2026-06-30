@@ -123,6 +123,6 @@ if (-not $sshOk) {
 }
 Write-Ok 'SSH OK'
 
-Write-Step '5/5 - Sync /opt/soundly/.env'
+Write-Step '5/5 - Sync /opt/soundy/.env'
 & powershell -ExecutionPolicy Bypass -File (Join-Path $RepoRoot 'scripts\setup-infra-access.ps1') -PullProdEnv -SyncMsdevFromProd
 Write-Ok 'Setup Scaleway + infra termine'

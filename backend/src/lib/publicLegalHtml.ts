@@ -4,6 +4,7 @@ import type { AppLocale } from './requestLocale';
 const PUBLIC_LEGAL_ROUTES: Record<string, string> = {
   privacy: 'privacy',
   terms: 'terms',
+  cookies: 'cookies',
   'legal/mentions': 'mentions',
 };
 

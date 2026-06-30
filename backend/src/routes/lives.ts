@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { db, Live, MusicPlatform } from '../models/schema';
+import { DEFAULT_PLAYBACK_SESSION_TITLE } from '../lib/brandName';
+import { db, Live, MusicPlatform, User } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
 import { blurCoordinate, getDistanceKm } from '../lib/geo';
 import { getPublicMapCoords, userSharesDistance } from '../lib/locationPrivacy';
@@ -11,6 +12,7 @@ import { isLiveViewBanned, liveBanMessage, getLiveBan } from '../lib/liveBans';
 import { parseDistanceFilterQuery, resolveNearbyRadiusKm } from '../lib/geoLimits';
 import { DEFAULT_MAP_LAT, DEFAULT_MAP_LON, isValidLatLng } from '../lib/mapCoords';
 import { MIN_LIVE_AGE, userMeetsLiveAgeFromProfile } from '../lib/ageGates';
+import { getUserLiveMediaSetup, isLiveContentCategory } from '../lib/liveMediaSetup';
 import { serializePublicLive } from '../lib/livePublic';
 import { assertLiveAccessible } from '../lib/adminContentModeration';
 import {
@@ -29,7 +31,9 @@ import {
   getCloudflareLiveInput,
   getCloudflareLiveInputLifecycle,
   isCloudflareStreamConfigured,
+  normalizeCloudflareIngestForObs,
   resolveLatestRecordingHlsUrl,
+  type CloudflareLiveInputCredentials,
 } from '../lib/cloudflareStream';
 import {
   fetchUserObsIngest,
@@ -147,7 +151,7 @@ function defaultStandalonePlayback(hostName: string, platform: MusicPlatform) {
   return {
     platform,
     trackId: 'demo',
-    title: 'Soundly Session',
+    title: DEFAULT_PLAYBACK_SESSION_TITLE,
     artist: hostName,
     albumArtUrl: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=400',
     isPlaying: true,
@@ -307,6 +311,7 @@ livesRouter.post('/start', authenticateJWT, async (req: Request, res: Response) 
 
   const stripeConnectSkipped = req.body.stripeConnectSkipped === true;
   live.tipsEnabled = await resolveLiveTipsEnabledAtStart(userId, stripeConnectSkipped);
+  live.contentCategory = resolveLiveStartContentCategory(req.body, user);
 
   db.lives.set(live.id, live);
   persistLiveToPgAsync(live);
@@ -441,6 +446,13 @@ livesRouter.get('/:id/livekit-token', authenticateJWT, async (req: Request, res:
   }
   if (live.hostId !== me.id && isLiveViewBanned(live.id, me.id)) {
     res.status(403).json({ error: 'Vous êtes banni de ce live.', code: 'live_banned' });
+    return;
+  }
+  if (!live.isActive) {
+    res.status(404).json({
+      error: 'Ce live est terminé.',
+      code: 'live_ended',
+    });
     return;
   }
   if (live.streamMode !== 'livekit') {
@@ -659,15 +671,27 @@ livesRouter.get('/:id/cloudflare-stream-status', authenticateJWT, async (req: Re
       throw e;
     }
   }
-  if (live.streamMode !== 'cloudflare' || !live.cloudflareLiveInputId) {
+  const isHost = live.hostId === userId;
+  const obsStatusForLivekitHost = isHost && live.streamMode === 'livekit' && live.isActive;
+
+  if (!obsStatusForLivekitHost && (live.streamMode !== 'cloudflare' || !live.cloudflareLiveInputId)) {
     res.status(404).json({ error: 'Flux Cloudflare indisponible.', code: 'no_cloudflare_input' });
     return;
   }
   try {
-    if (live.hostId === userId) {
+    let liveInputId = live.cloudflareLiveInputId;
+    let playbackUrl = live.cloudflarePlaybackUrl;
+    const customerSubdomain = live.cloudflareCustomerSubdomain;
+
+    if (isHost) {
       try {
         const ingest = await fetchUserObsIngest(live.hostId);
-        if (live.cloudflareLiveInputId !== ingest.liveInputId || !live.cloudflarePlaybackUrl) {
+        liveInputId = ingest.liveInputId;
+        playbackUrl = ingest.playbackUrl;
+        if (
+          live.streamMode === 'cloudflare' &&
+          (live.cloudflareLiveInputId !== ingest.liveInputId || !live.cloudflarePlaybackUrl)
+        ) {
           live.cloudflareLiveInputId = ingest.liveInputId;
           live.cloudflarePlaybackUrl = ingest.playbackUrl;
           db.lives.set(live.id, live);
@@ -678,16 +702,78 @@ livesRouter.get('/:id/cloudflare-stream-status', authenticateJWT, async (req: Re
         /* best effort — lifecycle sur l’input courant */
       }
     }
-    const lifecycle = await getCloudflareLiveInputLifecycle(
-      live.cloudflareLiveInputId,
-      live.cloudflareCustomerSubdomain
-    );
+
+    if (!liveInputId) {
+      res.status(404).json({ error: 'Flux Cloudflare indisponible.', code: 'no_cloudflare_input' });
+      return;
+    }
+
+    const lifecycle = await getCloudflareLiveInputLifecycle(liveInputId, customerSubdomain);
     res.json({
       live: lifecycle.live,
       videoUid: lifecycle.videoUid,
       status: lifecycle.status,
-      liveInputId: live.cloudflareLiveInputId,
-      playbackUrl: live.cloudflarePlaybackUrl,
+      liveInputId,
+      playbackUrl,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Erreur Cloudflare Stream';
+    res.status(502).json({ error: message, code: 'cloudflare_error' });
+  }
+});
+
+/** Cloudflare live input RTMP credentials for LiveKit CDN (host only). */
+async function ensureLiveKitCdnCloudflareInput(live: Live): Promise<CloudflareLiveInputCredentials> {
+  if (live.cloudflareLiveInputId) {
+    return getCloudflareLiveInput(live.cloudflareLiveInputId);
+  }
+  const cfCreds = await createCloudflareLiveInput({ name: `soundy-egress-${live.id}` });
+  live.cloudflareLiveInputId = cfCreds.uid;
+  live.cloudflarePlaybackUrl = cfCreds.playbackHlsUrl;
+  live.cloudflareCustomerSubdomain = cfCreds.customerSubdomain;
+  db.lives.set(live.id, live);
+  persistLiveToPgAsync(live);
+  return cfCreds;
+}
+
+/** RTMP/OBS credentials for LiveKit → Cloudflare CDN relay (host only, livekit mode). */
+livesRouter.get('/:id/livekit-cdn-ingest', authenticateJWT, async (req: Request, res: Response) => {
+  const userId = (req as Request & { user: { id: string } }).user.id;
+  const live = db.lives.get(req.params.id);
+  if (!live) {
+    res.status(404).json({ error: 'Live introuvable' });
+    return;
+  }
+  if (live.hostId !== userId) {
+    res.status(403).json({ error: 'Réservé à l’hôte du live.' });
+    return;
+  }
+  if (live.streamMode !== 'livekit') {
+    res.status(400).json({ error: 'Ce live n’est pas en mode LiveKit.', code: 'not_livekit' });
+    return;
+  }
+  if (!isCloudflareStreamConfigured()) {
+    res.status(503).json({ error: 'Cloudflare Stream non configuré.', code: 'cloudflare_not_configured' });
+    return;
+  }
+  try {
+    assertCanUseCloudflareObs(userId);
+  } catch (e) {
+    if (e instanceof PlatformPlanError) {
+      res.status(403).json({ error: e.message, code: e.code });
+      return;
+    }
+    throw e;
+  }
+
+  try {
+    const cfCreds = await ensureLiveKitCdnCloudflareInput(live);
+    const ingest = normalizeCloudflareIngestForObs(cfCreds);
+    res.json({
+      ...ingest,
+      playbackUrl: cfCreds.playbackHlsUrl,
+      liveInputId: cfCreds.uid,
+      egressActive: Boolean(await getLiveKitEgressId(live.id)),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur Cloudflare Stream';
@@ -719,25 +805,23 @@ livesRouter.post('/:id/start-egress', authenticateJWT, async (req: Request, res:
     res.status(503).json({ error: 'Cloudflare Stream non configuré.', code: 'cloudflare_not_configured' });
     return;
   }
-  if (getLiveKitEgressId(live.id)) {
+  if (await getLiveKitEgressId(live.id)) {
     res.status(409).json({ error: 'Un egress est déjà actif pour ce live.', code: 'egress_already_active' });
     return;
   }
 
   try {
-    let cfCreds;
-    if (live.cloudflareLiveInputId) {
-      cfCreds = await getCloudflareLiveInput(live.cloudflareLiveInputId);
-    } else {
-      cfCreds = await createCloudflareLiveInput({ name: `soundy-egress-${live.id}` });
-      live.cloudflareLiveInputId = cfCreds.uid;
-      live.cloudflarePlaybackUrl = cfCreds.playbackHlsUrl;
-      live.cloudflareCustomerSubdomain = cfCreds.customerSubdomain;
-      db.lives.set(live.id, live);
-    }
+    const cfCreds = await ensureLiveKitCdnCloudflareInput(live);
     const rtmpUrl = `${cfCreds.rtmpsUrl}${cfCreds.rtmpsStreamKey}`;
     const egressId = await startLiveKitEgress(live.id, rtmpUrl);
-    res.json({ egressId, hlsUrl: cfCreds.playbackHlsUrl });
+    const ingest = normalizeCloudflareIngestForObs(cfCreds);
+    res.json({
+      egressId,
+      hlsUrl: cfCreds.playbackHlsUrl,
+      ...ingest,
+      playbackUrl: cfCreds.playbackHlsUrl,
+      liveInputId: cfCreds.uid,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur démarrage egress';
     res.status(502).json({ error: message, code: 'egress_error' });
@@ -756,7 +840,7 @@ livesRouter.post('/:id/stop-egress', authenticateJWT, async (req: Request, res: 
     res.status(403).json({ error: 'Réservé à l\'hôte du live.' });
     return;
   }
-  if (!getLiveKitEgressId(live.id)) {
+  if (!(await getLiveKitEgressId(live.id))) {
     res.status(404).json({ error: 'Aucun egress actif pour ce live.', code: 'no_active_egress' });
     return;
   }
@@ -769,6 +853,14 @@ livesRouter.post('/:id/stop-egress', authenticateJWT, async (req: Request, res: 
     res.status(502).json({ error: message, code: 'egress_error' });
   }
 });
+
+function resolveLiveStartContentCategory(body: unknown, user: User): Live['contentCategory'] {
+  const raw = (body as { contentCategory?: unknown })?.contentCategory;
+  if (isLiveContentCategory(raw)) return raw;
+  const saved = getUserLiveMediaSetup(user);
+  if (saved?.contentCategory) return saved.contentCategory;
+  return 'music';
+}
 
 function publicLive(l: Live, distanceKm?: number, viewerId?: string) {
   return serializePublicLive(l, distanceKm, viewerId);

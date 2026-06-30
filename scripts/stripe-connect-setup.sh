@@ -3,7 +3,7 @@
 # Usage: ./stripe-connect-setup.sh [user_id] [connect_account_id]
 set -euo pipefail
 set -a
-source /opt/soundly/.env
+source /opt/soundy/.env
 set +a
 
 TARGET_USER_ID="${1:-user_1781025111633_ipv5l}"
@@ -13,7 +13,7 @@ APP_BASE="${WEB_APP_URL:-https://getsoundy.com}"
 APP_BASE="${APP_BASE%/}"
 
 if [ -z "${STRIPE_SECRET_KEY:-}" ]; then
-  echo "ERROR: STRIPE_SECRET_KEY missing in /opt/soundly/.env"
+  echo "ERROR: STRIPE_SECRET_KEY missing in /opt/soundy/.env"
   exit 1
 fi
 

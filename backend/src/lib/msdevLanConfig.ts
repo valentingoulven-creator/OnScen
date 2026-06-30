@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { BRAND_NAME } from './brandName';
 import { getMsdevEnvPath, getAppRoot } from '../paths';
 import { pickPreferredLanIp, getPublicLanIps, testYoutubeReachableFromServer } from './lanNetwork';
 import { buildMsdevDualIpConfig, isMsdevDualIpEnabled } from './msdevDualIp';
@@ -154,7 +155,7 @@ Utilisateur B (auditeur)    : ${buildWebUrl(ipB, port, scheme)}
 Ouvrez chaque URL dans un navigateur ou appareil different.
 `;
   }
-  const body = `Soundly — URL a ouvrir SUR LE TELEPHONE (navigateur)
+  const body = `${BRAND_NAME} — URL a ouvrir SUR LE TELEPHONE (navigateur)
 (IP du PC sur le reseau local — pas l'IP du telephone)
 
 ${web}

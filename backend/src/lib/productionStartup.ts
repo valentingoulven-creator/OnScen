@@ -1,13 +1,37 @@
-import { getJwtSecret, isDeployedEnv, isProductionEnv } from './jwtSecret';
+import { getJwtSecret, isDeployedEnv, isPreproductionEnv, isProductionEnv } from './jwtSecret';
 import { resolveCorsOrigin } from './corsConfig';
 import { isPublisherConfigComplete } from './legalPublisher';
 import { isAcrCloudConfigured } from './acrCloudConfig';
+import { assertOpsHealthTokenConfigured } from '../middleware/opsHealthAuth';
+
+function assertTotpEncryptionKey(): void {
+  const key = process.env.TOTP_ENCRYPTION_KEY?.trim() ?? '';
+  if (!/^[0-9a-f]{64}$/i.test(key)) {
+    throw new Error(
+      '[startup] TOTP_ENCRYPTION_KEY must be set (64 hex chars) in production — ' +
+        'refusing to store 2FA secrets without encryption. Generate: openssl rand -hex 32'
+    );
+  }
+}
+
+function assertEncryptionKeyDistinctFromJwt(): void {
+  const enc = process.env.ENCRYPTION_KEY?.trim();
+  const jwt = process.env.JWT_SECRET?.trim();
+  if (enc && jwt && enc === jwt) {
+    throw new Error(
+      '[startup] ENCRYPTION_KEY must differ from JWT_SECRET in production/preproduction.'
+    );
+  }
+}
 
 /** Fail fast when critical production env vars are missing. */
 export function assertProductionStartup(): void {
   if (!isDeployedEnv()) return;
 
   getJwtSecret();
+  assertEncryptionKeyDistinctFromJwt();
+  assertTotpEncryptionKey();
+  assertOpsHealthTokenConfigured();
 
   const corsOrigin = process.env.CORS_ORIGIN?.trim();
   if (!corsOrigin) {
@@ -43,10 +67,15 @@ export function assertProductionStartup(): void {
     );
   }
 
+  const pm2Instances = Number(process.env.PM2_INSTANCES?.trim() || '1');
+  if (!process.env.REDIS_URL?.trim() && pm2Instances > 1) {
+    throw new Error(
+      '[startup] REDIS_URL is required when PM2_INSTANCES > 1 — rate limits, OAuth and Socket.io must be cluster-safe.'
+    );
+  }
+
   if (process.env.REDIS_URL?.trim()) {
-    console.log('[startup] REDIS_URL configuré — adapter Socket.io cluster actif si deps présentes');
-  } else {
-    console.warn('[startup] REDIS_URL absent — Socket.io mono-processus (OK pour 1 worker PM2)');
+    console.log('[startup] REDIS_URL configuré — adapter Socket.io cluster + stores Redis actifs');
   }
 
   if (process.env.S3_BUCKET?.trim()) {
@@ -76,10 +105,14 @@ export function assertProductionStartup(): void {
     );
   }
 
-  const pm2Instances = Number(process.env.PM2_INSTANCES?.trim() || '1');
-  if (!process.env.REDIS_URL?.trim() && pm2Instances > 1) {
-    console.warn(
-      '[startup] PM2 multi-instances sans REDIS_URL — Socket.io et rate limits peuvent diverger entre workers.'
-    );
+  if (!process.env.SENTRY_DSN?.trim()) {
+    if (isProductionEnv()) {
+      throw new Error(
+        '[startup] SENTRY_DSN must be set in production — error monitoring is mandatory.'
+      );
+    }
+    if (isPreproductionEnv()) {
+      console.warn('[startup] SENTRY_DSN absent — erreurs staging non remontées.');
+    }
   }
 }

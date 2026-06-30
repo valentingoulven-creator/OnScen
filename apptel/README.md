@@ -55,7 +55,7 @@ npm run capacitor:android:apk
 # ou double-clic Smartphone/INSTALLER-ANDROID.bat
 ```
 
-- `capacitor.config.json` : `appId` `com.melosong.app`, `appName` `MeloSong`, `webDir` `dist`
+- `capacitor.config.json` : `appId` `com.soundy.app`, `appName` `Soundy`, `webDir` `dist`
 - Build PWA web classique : `npm run build` → `backend/public/tel/` (inchangé)
 - Build natif : `npm run build:capacitor` → `dist/` (base relative, pas de service worker)
 - iPhone : compilation uniquement sur Mac + Xcode (voir `Smartphone/LISEZMOI-iPhone-NATIF.txt`)

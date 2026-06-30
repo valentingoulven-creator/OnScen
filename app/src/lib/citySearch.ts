@@ -1,4 +1,5 @@
 import { PRESET_CITIES, presetCityToSuggestion, type PresetCity } from './livesGeo';
+import { isPostcodeSearchQuery, normalizeCityLabelForDedupe } from './placeSearchDedupe';
 
 export interface CitySuggestion {
   label: string;
@@ -155,17 +156,31 @@ async function fetchNominatimCities(query: string): Promise<CitySuggestion[]> {
   });
 }
 
-function dedupeSuggestions(items: CitySuggestion[]): CitySuggestion[] {
-  const out: CitySuggestion[] = [];
-  const seen = new Set<string>();
-  for (const item of items) {
-    const key = `${item.label.toLowerCase()}|${item.postalCode ?? ''}|${item.latitude ?? ''}|${item.longitude ?? ''}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(item);
-    if (out.length >= MAX_SUGGESTIONS) break;
+function suggestionDedupeKey(item: CitySuggestion, postcodeQuery: boolean): string {
+  const name = normalizeCityLabelForDedupe(item.value || item.label);
+  if (postcodeQuery && item.postalCode?.trim()) {
+    return `${name}|${item.postalCode.trim()}`;
   }
-  return out;
+  return name;
+}
+
+function preferCitySuggestion(a: CitySuggestion, b: CitySuggestion): CitySuggestion {
+  const aHasCp = Boolean(a.postalCode?.trim());
+  const bHasCp = Boolean(b.postalCode?.trim());
+  if (bHasCp && !aHasCp) return b;
+  if (aHasCp && !bHasCp) return a;
+  return b.label.length < a.label.length ? b : a;
+}
+
+function dedupeSuggestions(items: CitySuggestion[], query: string): CitySuggestion[] {
+  const postcodeQuery = isPostcodeSearchQuery(query);
+  const byKey = new Map<string, CitySuggestion>();
+  for (const item of items) {
+    const key = suggestionDedupeKey(item, postcodeQuery);
+    const existing = byKey.get(key);
+    byKey.set(key, existing ? preferCitySuggestion(existing, item) : item);
+  }
+  return [...byKey.values()].slice(0, MAX_SUGGESTIONS);
 }
 
 /**
@@ -182,7 +197,7 @@ export async function searchCities(query: string): Promise<CitySuggestion[]> {
   try {
     if (isPostcodeQuery) {
       const byCp = await fetchGouvByPostcode(q);
-      if (byCp.length > 0) return dedupeSuggestions([...byCp, ...presets]);
+      if (byCp.length > 0) return dedupeSuggestions([...byCp, ...presets], q);
     }
 
     const [gouvSettled, nominatimSettled] = await Promise.allSettled([
@@ -202,7 +217,7 @@ export async function searchCities(query: string): Promise<CitySuggestion[]> {
       (c) => !seen.has(`${c.value.toLowerCase()}|${c.postalCode ?? ''}`)
     );
 
-    return dedupeSuggestions([...fromGouv, ...dedupedNominatim, ...presets]);
+    return dedupeSuggestions([...fromGouv, ...dedupedNominatim, ...presets], q);
   } catch {
     return presets;
   }

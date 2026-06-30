@@ -42,6 +42,11 @@ import {
 } from '../lib/liveSetupChatFlow';
 import type { StartLiveMediaSetupModalProps } from './StartLiveMediaSetupModal.types';
 import { isLiveStripeSetupPreviewMode } from '../lib/liveStripeDevSetup';
+import {
+  LIVE_CONTENT_CATEGORIES,
+  liveContentCategoryI18nKey,
+  type LiveContentCategory,
+} from '../lib/liveContentCategory';
 
 type MediaStatus = 'loading' | 'ready' | 'error';
 
@@ -252,6 +257,7 @@ export function StartLiveSetupChatModal({
 
   const [liveTitle, setLiveTitle] = useState(defaultLiveTitle);
   const [titleDraft, setTitleDraft] = useState(defaultLiveTitle);
+  const [contentCategory, setContentCategory] = useState<LiveContentCategory>('music');
   const [chatConfig, setChatConfig] = useState<LiveChatConfigValue>(DEFAULT_CHAT);
   const [hostSession, setHostSession] = useState<LiveHostSessionDraft>(() =>
     hostSessionDraftFromPrefs(getLiveMediaDraft())
@@ -382,8 +388,9 @@ export function StartLiveSetupChatModal({
       setSavedConfigured(configured);
       setLiveTitle(applied.liveTitle);
       setTitleDraft(applied.liveTitle);
+      setContentCategory(applied.contentCategory);
       setLiveLocation(applied.liveLocation);
-      setChatConfig(configured ? applied.chatConfig : STANDARD_CHAT_CONFIG);
+      setChatConfig(applied.chatConfig);
       setHostSession(applied.hostSession);
       setObsSetup(applied.obsSetup);
       setVideoDeviceId(applied.videoDeviceId);
@@ -406,6 +413,7 @@ export function StartLiveSetupChatModal({
                       liveLocation: applied.liveLocation,
                       videoDeviceId: applied.videoDeviceId,
                       audioDeviceId: applied.audioDeviceId,
+                      contentCategory: applied.contentCategory,
                     }),
                     username
                   ),
@@ -415,7 +423,7 @@ export function StartLiveSetupChatModal({
           : [{ id: nextChatMessageId(), role: 'bot', text: t('live.setupChatHello') }]
       );
 
-      setPhase(configured ? 'return_ask' : 'title');
+      setPhase(configured ? 'return_ask' : 'category');
       setChatReady(true);
     })();
 
@@ -456,10 +464,11 @@ export function StartLiveSetupChatModal({
           chatConfig,
           hostSession,
           obsSetup,
+          contentCategory,
         },
         extra
       ),
-    [audioDeviceId, chatConfig, hostSession, liveLocation, liveTitle, obsSetup, videoDeviceId]
+    [audioDeviceId, chatConfig, contentCategory, hostSession, liveLocation, liveTitle, obsSetup, videoDeviceId]
   );
 
   const persistDraft = useCallback(() => {
@@ -508,6 +517,7 @@ export function StartLiveSetupChatModal({
 
   const handlePickChange = (target: SetupChangeTarget) => {
     const labels: Record<SetupChangeTarget, string> = {
+      category: t('live.setupChatChangeCategory'),
       stripe: t('live.setupChatChangeStripe'),
       title: t('live.setupChatChangeTitle'),
       broadcast: t('live.setupChatChangeBroadcast'),
@@ -528,6 +538,17 @@ export function StartLiveSetupChatModal({
     }
     setPhase(target === 'broadcast' ? 'broadcast' : target);
     if (target === 'title') setTitleDraft(liveTitle);
+  };
+
+  const pickContentCategory = (category: LiveContentCategory) => {
+    setContentCategory(category);
+    pushUser(t(`live.${liveContentCategoryI18nKey(category)}`));
+    persistDraft();
+    if (editReturn) {
+      finishAfterEdit();
+      return;
+    }
+    setPhase('title');
   };
 
   const canStart =
@@ -782,6 +803,7 @@ export function StartLiveSetupChatModal({
                   ...(tipsSetupStepEnabled
                     ? ([['stripe', t('live.setupChatChipStripe')]] as const)
                     : []),
+                  ['category', t('live.setupChatChipCategory')],
                   ['title', t('live.setupChatChipTitle')],
                   ['broadcast', t('live.setupChatChipBroadcast')],
                   ['devices', t('live.setupChatChipDevices')],
@@ -807,6 +829,20 @@ export function StartLiveSetupChatModal({
               >
                 {t('live.setupChatBtnBack')}
               </ActionChip>
+            </div>
+          )}
+
+          {phase === 'category' && (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {LIVE_CONTENT_CATEGORIES.map((category) => (
+                <ActionChip
+                  key={category}
+                  variant={contentCategory === category ? 'primary' : 'default'}
+                  onClick={() => pickContentCategory(category)}
+                >
+                  {t(`live.${liveContentCategoryI18nKey(category)}`)}
+                </ActionChip>
+              ))}
             </div>
           )}
 

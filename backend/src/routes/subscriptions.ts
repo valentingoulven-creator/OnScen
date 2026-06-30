@@ -3,7 +3,8 @@ import jwt from 'jsonwebtoken';
 import Stripe from 'stripe';
 import { db } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
-import { getJwtSecret } from '../lib/jwtSecret';
+import { getJwtSecret, JWT_VERIFY_OPTIONS } from '../lib/jwtSecret';
+import { persistSubscriptionCheckoutToPgAsync } from '../lib/pgSubscriptionCheckouts';
 import {
   PLATFORM_CREATOR_ID,
   assertCreatorCanReceiveSubscription,
@@ -54,7 +55,7 @@ subscriptionsRouter.get('/config', (req: Request, res: Response) => {
   let userId: string | undefined;
   if (authHeader?.startsWith('Bearer ')) {
     try {
-      const decoded = jwt.verify(authHeader.slice(7), getJwtSecret()) as { id: string };
+      const decoded = jwt.verify(authHeader.slice(7), getJwtSecret(), JWT_VERIFY_OPTIONS) as { id: string };
       userId = decoded.id;
     } catch {
       /* config publique */
@@ -353,6 +354,8 @@ subscriptionsRouter.post('/create-checkout', authenticateJWT, async (req: Reques
       status: 'pending',
       createdAt: Date.now(),
     });
+    const checkout = db.subscriptionCheckouts[db.subscriptionCheckouts.length - 1];
+    persistSubscriptionCheckoutToPgAsync(checkout);
 
     res.status(201).json({
       checkoutUrl: session.url,
@@ -490,7 +493,10 @@ export async function handleStripeSubscriptionWebhook(req: Request, res: Respons
     });
 
     const checkout = db.subscriptionCheckouts.find((c) => c.sessionId === session.id);
-    if (checkout) checkout.status = 'completed';
+    if (checkout) {
+      checkout.status = 'completed';
+      persistSubscriptionCheckoutToPgAsync(checkout);
+    }
   }
 
   if (event.type === 'invoice.paid') {

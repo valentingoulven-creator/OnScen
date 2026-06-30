@@ -8,11 +8,11 @@ import { useBackgroundPlayback } from '../hooks/useBackgroundPlayback';
 import { releaseAppMediaFocus, requestAppMediaFocus } from '../lib/appMediaFocus';
 import { api, ApiRequestError } from '../lib/api';
 import {
-  LIVE_CAMERA_CAM_SWITCHING,
-  LIVE_CAMERA_MIC_SWITCHING,
   liveStreamEndedHintKey,
   type LiveStreamEndedReason,
 } from '../lib/liveCameraMessages';
+import type { LiveVideoResolutionPreset } from '../lib/liveVideoResolution';
+import type { LiveVideoAspectRatioPreset } from '../lib/liveVideoAspectRatio';
 import { emitLiveCameraToggle, clearLiveCameraToggleQueue } from '../lib/liveCameraSocket';
 import { useLiveVideoRelay } from '../hooks/useLiveVideoRelay';
 import { useCloudflareHlsPlayback } from '../hooks/useCloudflareHlsPlayback';
@@ -26,12 +26,18 @@ import {
   clearPendingLiveCameraStart,
   getLiveMediaPrefs,
   hasPendingLiveCameraStart,
+  setLiveMediaPrefs,
 } from '../lib/liveMediaPrefs';
+import {
+  clampLiveVideoDelaySeconds,
+  getLiveVideoDelaySeconds,
+  type LiveVideoDelayPreset,
+} from '../lib/liveVideoDelay';
 import { releaseLiveCameraHandoff } from '../lib/liveCameraHandoff';
 import { ChatRoomProvider, ChatMessagesView, ChatInputBar, ChatModals } from '../components/ChatPanel';
 import { RoomTheaterLayout } from '../components/RoomTheaterLayout';
 import { LivePrivateSheet } from '../components/LivePrivateSheet';
-import { LiveHostPanel, type LiveHostPanelTab } from '../components/LiveHostPanel';
+import { LiveHostPanel, type LiveHostPanelDonSubTab, type LiveHostPanelTab } from '../components/LiveHostPanel';
 import { LiveHostTopBar } from '../components/LiveHostTopBar';
 import {
   LiveHostCamToggleButton,
@@ -49,6 +55,8 @@ import { LiveDonationSheet } from '../components/LiveDonationSheet';
 import { FollowUserButton } from '../components/FollowUserButton';
 import { LiveGiftOverlay } from '../components/LiveGiftOverlay';
 import { LiveParticipantsPopover } from '../components/LiveParticipantsPopover';
+import { LiveHostActionsPopover } from '../components/LiveHostActionsPopover';
+import { LiveVipModeratorsPopover } from '../components/LiveVipModeratorsPopover';
 import { ShareLinkMenu } from '../components/ShareLinkMenu';
 import { ShareToUserSheet } from '../components/ShareToUserSheet';
 import { LiveVideoStage } from '../components/LiveVideoStage';
@@ -91,7 +99,7 @@ export function LivePage({
   /** Ouvre directement en mode plein écran CSS (theater) dès le premier rendu. */
   initialTheater?: boolean;
 }) {
-  const { user, token } = useAuth();
+  const { user, token, refreshUser } = useAuth();
   const { t } = useTranslation();
   const [live, setLive] = useState<Live | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -106,9 +114,9 @@ export function LivePage({
   const [hostDonToast, setHostDonToast] = useState<string | null>(null);
   const [cameraToast, setCameraToast] = useState<string | null>(null);
   const [cameraToggling, setCameraToggling] = useState(false);
-  const [showVipPanel, setShowVipPanel] = useState(false);
   const [showHostPanel, setShowHostPanel] = useState(false);
   const [hostPanelTab, setHostPanelTab] = useState<LiveHostPanelTab>('dashboard');
+  const [hostPanelDonSubTab, setHostPanelDonSubTab] = useState<LiveHostPanelDonSubTab>('goals');
   const [liveStartedAt] = useState(() => Date.now());
   const [hostTotalDonations, setHostTotalDonations] = useState(0);
   const [hostDonationCount, setHostDonationCount] = useState(0);
@@ -197,7 +205,9 @@ export function LivePage({
     videoDevices,
     audioDeviceId,
     videoDeviceId,
-    micSwitching,
+  videoResolution,
+  videoAspectRatio,
+  micSwitching,
     camSwitching,
     switchMicrophone,
     switchCamera,
@@ -207,7 +217,6 @@ export function LivePage({
     enableHostPreview,
   } = useLiveCamera();
   const videoFileInputRef = useRef<HTMLInputElement>(null);
-  const vipPanelRef = useRef<HTMLDivElement>(null);
   const [videoFileLoading, setVideoFileLoading] = useState(false);
   const chatHiddenBeforeExpandRef = useRef<boolean | null>(null);
   const chatHiddenRef = useRef(chatHidden);
@@ -741,6 +750,7 @@ export function LivePage({
     // HLS CDN : hôte OBS + spectateurs (pas de caméra navigateur requise).
     active: isCloudflareStream,
     obsIngestLive,
+    viewerDelaySeconds: getLiveVideoDelaySeconds(live?.videoDelaySeconds),
   });
 
   /** Re-emit camera state after socket connect (emitOnSocket is no-op when disconnected). */
@@ -827,6 +837,27 @@ export function LivePage({
       return onSocketConnect(applyChatConfig);
     }
   }, [live?.id, live?.isActive, isHost]);
+
+  useEffect(() => {
+    if (!live || !isHost || !live.isActive) return;
+    const delay = getLiveMediaPrefs()?.videoDelaySeconds;
+    if (delay === undefined || delay <= 0) return;
+    if (getLiveVideoDelaySeconds(live.videoDelaySeconds) === delay) return;
+
+    const applyVideoDelay = () => {
+      emitOnSocket('live_update_media_config', {
+        liveId: live.id,
+        config: { videoDelaySeconds: delay },
+      });
+    };
+
+    const socket = getSocket();
+    if (socket?.connected) {
+      applyVideoDelay();
+    } else {
+      return onSocketConnect(applyVideoDelay);
+    }
+  }, [live?.id, live?.isActive, live?.videoDelaySeconds, isHost]);
 
   useEffect(() => {
     if (!live || !isHost || !live.isActive) return;
@@ -1093,23 +1124,54 @@ export function LivePage({
 
   const onHostMicChange = async (nextDeviceId: string) => {
     if (!isHost || micSwitching) return;
-    if (cameraMode !== 'camera' || !cameraLocalActive) {
-      updateMediaDevicePrefs({ audioDeviceId: nextDeviceId });
-      return;
-    }
+    updateMediaDevicePrefs({ audioDeviceId: nextDeviceId });
+    if (isLiveKitStream) return;
+    if (cameraMode !== 'camera' || !cameraLocalActive) return;
     const track = await switchMicrophone(nextDeviceId);
     if (track) await replaceHostTrack(track);
   };
 
   const onHostCameraChange = async (nextDeviceId: string) => {
     if (!isHost || camSwitching) return;
-    if (cameraMode !== 'camera' || !cameraLocalActive) {
-      updateMediaDevicePrefs({ videoDeviceId: nextDeviceId });
-      return;
-    }
+    updateMediaDevicePrefs({ videoDeviceId: nextDeviceId });
+    if (isLiveKitStream) return;
+    if (cameraMode !== 'camera' || !cameraLocalActive) return;
     const track = await switchCamera(nextDeviceId);
     if (track) await replaceHostTrack(track);
   };
+
+  const onHostResolutionChange = async (preset: LiveVideoResolutionPreset) => {
+    if (!isHost) return;
+    updateMediaDevicePrefs({ videoResolution: preset });
+    if (isLiveKitStream) return;
+    if (cameraMode !== 'camera' || !cameraLocalActive) return;
+    stopCamera();
+    await startCamera();
+  };
+
+  const onHostAspectRatioChange = async (preset: LiveVideoAspectRatioPreset) => {
+    if (!isHost) return;
+    updateMediaDevicePrefs({ videoAspectRatio: preset });
+    if (isLiveKitStream) return;
+    if (cameraMode !== 'camera' || !cameraLocalActive) return;
+    stopCamera();
+    await startCamera();
+  };
+
+  const onHostVideoDelayChange = useCallback(
+    (seconds: LiveVideoDelayPreset) => {
+      if (!isHost || !liveId) return;
+      const clamped = clampLiveVideoDelaySeconds(seconds);
+      const prefs = getLiveMediaPrefs();
+      setLiveMediaPrefs({ ...prefs, videoDelaySeconds: clamped });
+      setLive((prev) => (prev ? { ...prev, videoDelaySeconds: clamped } : prev));
+      emitOnSocket('live_update_media_config', {
+        liveId,
+        config: { videoDelaySeconds: clamped },
+      });
+    },
+    [isHost, liveId]
+  );
 
   const onBoardMenuOpen = useCallback(() => {
     void refreshMediaDevices().catch(() => {
@@ -1178,10 +1240,14 @@ export function LivePage({
     [token, liveId]
   );
 
-  const openHostPanel = useCallback((tab: LiveHostPanelTab = 'dashboard') => {
-    setHostPanelTab(tab);
-    setShowHostPanel(true);
-  }, []);
+  const openHostPanel = useCallback(
+    (tab: LiveHostPanelTab = 'dashboard', donSubTab: LiveHostPanelDonSubTab = 'goals') => {
+      setHostPanelTab(tab);
+      if (tab === 'don') setHostPanelDonSubTab(donSubTab);
+      setShowHostPanel(true);
+    },
+    []
+  );
 
   const hostVideoOverlay =
     isHost && !viewerStreamEnded ? (
@@ -1189,9 +1255,9 @@ export function LivePage({
         {activeGoal ? <LiveVideoGoalOverlay goal={activeGoal} /> : null}
         <LiveRewardRequestsStrip
           items={hostSession.rewardQueue}
-          onOpenPanel={() => openHostPanel('rewards')}
+          onOpenPanel={() => openHostPanel('don', 'rewards')}
         />
-        <div className="absolute top-2 right-2 z-30 flex items-center gap-1.5 pointer-events-auto">
+        <div className="absolute top-2 right-2 z-30 flex items-center gap-1.5 pointer-events-auto max-w-[calc(100%-5.5rem)] sm:max-w-none">
           <LiveHostMicToggleButton muted={micMuted} onToggle={toggleHostMic} />
           <LiveHostCamToggleButton
             active={
@@ -1217,16 +1283,6 @@ export function LivePage({
         </div>
       </>
     ) : null;
-
-  useEffect(() => {
-    if (!showVipPanel) return;
-    const onDocClick = (e: MouseEvent) => {
-      if (vipPanelRef.current?.contains(e.target as Node)) return;
-      setShowVipPanel(false);
-    };
-    document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
-  }, [showVipPanel]);
 
   if (liveViewBanned) {
     return (
@@ -1269,82 +1325,32 @@ export function LivePage({
     );
   }
 
-  const hostMediaSelectSlot =
-    isHost && (videoDevices.length > 0 || audioDevices.length > 0) ? (
-      <div className="space-y-2">
-        {cameraMode === 'file' && (
-          <p className="text-[10px] text-gray-500 px-0.5">
-            Mode fichier — activez la caméra pour changer de périphérique.
-          </p>
-        )}
-        {videoDevices.length > 0 && (
-          <div className="space-y-1">
-            <label
-              htmlFor="live-host-cam-select"
-              className="text-[10px] font-medium text-gray-500 px-0.5"
-            >
-              Caméra
-            </label>
-            <select
-              id="live-host-cam-select"
-              value={videoDeviceId || videoDevices[0]?.deviceId || ''}
-              disabled={
-                cameraMode === 'file' || camSwitching || cameraToggling || micSwitching
-              }
-              onChange={(e) => void onHostCameraChange(e.target.value)}
-              className="w-full px-2.5 py-2 min-h-[44px] rounded-lg bg-[#131318] border border-[#232330] text-gray-300 text-[11px] hover:border-white/15 disabled:opacity-50 truncate"
-              aria-label="Caméra du live"
-            >
-              {videoDevices.map((c) => (
-                <option key={c.deviceId} value={c.deviceId}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-        {audioDevices.length > 0 && (
-          <div className="space-y-1">
-            <label
-              htmlFor="live-host-mic-select2"
-              className="text-[10px] font-medium text-gray-500 px-0.5"
-            >
-              Microphone
-            </label>
-            <select
-              id="live-host-mic-select2"
-              value={audioDeviceId || audioDevices[0]?.deviceId || ''}
-              disabled={
-                cameraMode === 'file' || micSwitching || camSwitching || cameraToggling
-              }
-              onChange={(e) => void onHostMicChange(e.target.value)}
-              className="w-full px-2.5 py-2 min-h-[44px] rounded-lg bg-[#131318] border border-[#232330] text-gray-300 text-[11px] hover:border-white/15 disabled:opacity-50 truncate"
-              aria-label="Microphone du live"
-            >
-              {audioDevices.map((m) => (
-                <option key={m.deviceId} value={m.deviceId}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-        {(camSwitching || micSwitching) && (
-          <p className="text-[10px] text-gray-500 px-0.5">
-            {camSwitching ? LIVE_CAMERA_CAM_SWITCHING : LIVE_CAMERA_MIC_SWITCHING}
-          </p>
-        )}
-        {!cameraLocalActive && cameraMode !== 'file' && (
-          <p className="text-[10px] text-gray-500 px-0.5">
-            Le choix sera appliqué à l&apos;activation de la caméra.
-          </p>
-        )}
-      </div>
-    ) : isHost ? (
-      <p className="text-[11px] text-gray-500 px-0.5">
-        Ouvrez ce menu après avoir autorisé caméra et micro.
-      </p>
-    ) : undefined;
+  const hostMediaSettings = isHost
+    ? {
+        videoDevices,
+        audioDevices,
+        videoDeviceId,
+        audioDeviceId,
+        videoResolution,
+        videoAspectRatio,
+        videoDelaySeconds: getLiveVideoDelaySeconds(
+          live?.videoDelaySeconds ?? getLiveMediaPrefs()?.videoDelaySeconds
+        ),
+        cameraMode,
+        cameraActive: isLiveKitStream
+          ? !!(live.cameraActive && live.cameraMode === 'camera')
+          : cameraLocalActive && cameraMode === 'camera',
+        camSwitching,
+        micSwitching,
+        cameraToggling,
+        onCameraChange: (id: string) => void onHostCameraChange(id),
+        onMicChange: (id: string) => void onHostMicChange(id),
+        onResolutionChange: (preset: LiveVideoResolutionPreset) => void onHostResolutionChange(preset),
+        onAspectRatioChange: (preset: LiveVideoAspectRatioPreset) => void onHostAspectRatioChange(preset),
+        onVideoDelayChange: onHostVideoDelayChange,
+        onRefreshDevices: () => void onBoardMenuOpen(),
+      }
+    : undefined;
 
   const hostQuickBarProps = {
     cameraActive: isLiveKitStream
@@ -1361,14 +1367,13 @@ export function LivePage({
     onConfigureObs: () => void configureObs(),
     obsUltraOnly: !!(canSwitchToCloudflare && obsAllowed === false && cloudflareAvailable),
     queueCount: 0,
-    onOpenRewards: () => openHostPanel('rewards'),
+    onOpenRewards: () => openHostPanel('don'),
     goalPercent: activeGoal
       ? Math.min(100, Math.round((activeGoal.current / activeGoal.target) * 100))
       : null,
-    onOpenGoals: () => openHostPanel('goals'),
+    onOpenGoals: () => openHostPanel('don'),
     onStop: () => void stopLive(),
     onOpenDashboard: () => openHostPanel('dashboard'),
-    micSelectSlot: hostMediaSelectSlot,
     onBoardMenuOpen,
   };
 
@@ -1519,6 +1524,8 @@ export function LivePage({
       >
       <RoomTheaterLayout
         chatDock="bottom"
+        stackBelowVideo
+        liveTheaterChrome
         chatHidden={chatHidden}
         onToggleChat={toggleChatHidden}
         chatTitle={t('live.publicChat')}
@@ -1538,6 +1545,20 @@ export function LivePage({
         ) : undefined}
         chatHeaderExtra={
           <>
+            {isHost ? (
+              <LiveHostActionsPopover
+                liveId={liveId}
+                goalStats={goalStats}
+                onOpenDonPanel={(subTab) => openHostPanel('don', subTab)}
+              />
+            ) : null}
+            {(isHost || isDevModerator) ? (
+              <LiveVipModeratorsPopover
+                vipEntries={vipEntries}
+                chatParticipants={chatParticipants}
+                onSetVip={setVipModerator}
+              />
+            ) : null}
             {token ? (
               <LiveParticipantsPopover
                 liveId={liveId}
@@ -1547,81 +1568,7 @@ export function LivePage({
                 hostUsernameColor={live.hostUsernameColor}
                 vipModeratorIds={live.vipModeratorIds ?? []}
                 viewersCount={viewers}
-                panelAbove={false}
               />
-            ) : null}
-            {(isHost || isDevModerator) ? (
-              <div ref={vipPanelRef} className="relative shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setShowVipPanel((v) => !v)}
-                  className={`shrink-0 px-2 py-0.5 rounded-full text-[9px] font-medium border transition ${
-                    showVipPanel
-                      ? 'bg-[#2a2010] border-[#3a3010] text-[#c8a850]'
-                      : 'bg-[#131318] border-[#232330] text-gray-400 hover:border-white/15'
-                  }`}
-                  title="Modérateurs VIP"
-                  aria-expanded={showVipPanel}
-                >
-                  ⭐ VIP
-                </button>
-
-                {showVipPanel && (
-                  <div className="absolute right-0 top-full mt-1 z-[60] w-[min(15rem,calc(100vw-2rem))] rounded-xl border border-amber-500/30 bg-[#12100a] shadow-2xl overflow-hidden">
-                    <div className="px-2.5 py-2 border-b border-amber-500/20 bg-[#1a1200]/80">
-                      <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">
-                        {t('live.vipModerators')}
-                      </p>
-                    </div>
-                    <div className="p-2 space-y-1 max-h-48 overflow-y-auto">
-                      {vipEntries.length === 0 ? (
-                        <p className="text-[11px] text-gray-500 px-1 py-1">{t('live.noVipModerators')}</p>
-                      ) : (
-                        <ul className="space-y-1">
-                          {vipEntries.map((v) => (
-                            <li key={v.id} className="flex items-center justify-between gap-2 rounded-lg border border-[#2a2010] bg-[#1a1200] px-2 py-1.5">
-                              <span className="text-[11px] text-gray-200 truncate flex-1 min-w-0">
-                                <span className="text-amber-400 font-bold text-[10px]">VIP</span> {v.name}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (!window.confirm(`Retirer le statut VIP de ${v.name} ?`)) return;
-                                  setVipModerator(v.id, false);
-                                }}
-                                className="shrink-0 text-[10px] font-bold text-red-400 hover:text-red-300 transition"
-                              >
-                                ✕
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      {chatParticipants.length > 0 && (
-                        <div className="pt-1 border-t border-amber-500/15 mt-1">
-                          <p className="text-[9px] text-gray-500 px-1 mb-1 uppercase tracking-wide">Ajouter</p>
-                          <ul className="flex flex-wrap gap-1">
-                            {chatParticipants.map((p) => (
-                              <li key={p.id}>
-                                <button
-                                  type="button"
-                                  onClick={() => setVipModerator(p.id, true)}
-                                  className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#1a1200] border border-amber-500/30 text-amber-200 hover:bg-amber-950/40 transition"
-                                >
-                                  + {p.name}
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      {chatParticipants.length === 0 && vipEntries.length === 0 && (
-                        <p className="text-[11px] text-gray-500 px-1">{t('live.addModeratorFromChat')}</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
             ) : null}
           </>
         }
@@ -1644,6 +1591,10 @@ export function LivePage({
               streamEnded={viewerStreamEnded}
               streamEndedTitle={streamEndedTitle}
               streamEndedHint={streamEndedHint}
+              videoDeviceId={videoDeviceId || undefined}
+              audioDeviceId={audioDeviceId || undefined}
+              videoResolution={videoResolution}
+              videoAspectRatio={videoAspectRatio}
               overlay={
                 !isHost && !viewerStreamEnded ? (
                   <>
@@ -1701,6 +1652,7 @@ export function LivePage({
             streamEnded={viewerStreamEnded}
             streamEndedTitle={streamEndedTitle}
             streamEndedHint={streamEndedHint}
+            videoAspectRatio={videoAspectRatio}
             videoFloat={livePipActive ? livePip : undefined}
             onPipOpen={!isHost ? () => setLivePipActive(true) : undefined}
             overlay={
@@ -1737,10 +1689,15 @@ export function LivePage({
           donationCount={hostDonationCount}
           liveStartedAt={liveStartedAt}
           initialTab={hostPanelTab}
+          initialDonSubTab={hostPanelDonSubTab}
           chatConfig={live?.chatConfig}
           token={token}
           isCloudflareStream={isCloudflareStream}
+          isLiveKitStream={isLiveKitStream}
           obsIngestLive={obsIngestLive}
+          hostMediaSettings={hostMediaSettings}
+          user={user}
+          onUserUpdated={() => void refreshUser()}
           onClose={() => setShowHostPanel(false)}
         />
       )}

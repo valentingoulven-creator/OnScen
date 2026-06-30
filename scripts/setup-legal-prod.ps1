@@ -18,7 +18,7 @@ if ($Address -match 'à compléter|acompleter|à renseigner') {
 
 $sshHost = if ($Staging) { "soundy-staging" } else { "soundy-prod" }
 $pm2App = if ($Staging) { "melosong-backend-staging" } else { "melosong-backend" }
-$envFile = "/opt/soundly/.env"
+$envFile = "/opt/soundy/.env"
 
 Write-Host "Mise à jour LEGAL_PUBLISHER_ADDRESS sur $sshHost ..."
 

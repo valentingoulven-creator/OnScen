@@ -292,10 +292,10 @@ groupsRouter.post('/:groupId/read', authenticateJWT, (req: Request, res: Respons
   emitMessagesUnreadToUser(me);
 });
 
-groupsRouter.post('/:groupId/messages', authenticateJWT, (req: Request, res: Response) => {
+groupsRouter.post('/:groupId/messages', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
 
-  if (!checkChatRateLimit(me)) {
+  if (!(await checkChatRateLimit(me))) {
     res.status(429).json({ error: 'Trop de messages. Réessayez dans quelques secondes.' });
     return;
   }

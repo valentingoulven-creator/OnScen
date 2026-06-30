@@ -1,4 +1,4 @@
-export type PhotoFilterCategory = 'classic' | 'ai';
+export type PhotoFilterCategory = 'classic' | 'ai' | 'atypical';
 
 export type PhotoFilterId =
   | 'none'
@@ -15,7 +15,11 @@ export type PhotoFilterId =
   | 'ai_gingham'
   | 'ai_juno'
   | 'ai_aden'
-  | 'ai_hudson';
+  | 'ai_hudson'
+  | 'atyp_neon'
+  | 'atyp_dream'
+  | 'atyp_negative'
+  | 'atyp_vhs';
 
 export interface PhotoFilterPreset {
   id: PhotoFilterId;
@@ -105,10 +109,35 @@ export const PHOTO_FILTERS: PhotoFilterPreset[] = [
     cssFilter: 'brightness(1.04) contrast(1.12) saturate(0.7) sepia(0.2) hue-rotate(168deg)',
     category: 'ai',
   },
+  {
+    id: 'atyp_neon',
+    label: 'Néon',
+    cssFilter: 'saturate(2.4) contrast(1.35) brightness(1.08) hue-rotate(300deg)',
+    category: 'atypical',
+  },
+  {
+    id: 'atyp_dream',
+    label: 'Rêve',
+    cssFilter: 'saturate(1.45) brightness(1.18) contrast(0.88) hue-rotate(-8deg) blur(0.4px)',
+    category: 'atypical',
+  },
+  {
+    id: 'atyp_negative',
+    label: 'Négatif',
+    cssFilter: 'invert(1) hue-rotate(180deg) contrast(1.1)',
+    category: 'atypical',
+  },
+  {
+    id: 'atyp_vhs',
+    label: 'VHS',
+    cssFilter: 'contrast(1.25) saturate(0.65) sepia(0.35) hue-rotate(8deg) brightness(0.92)',
+    category: 'atypical',
+  },
 ];
 
 export const PHOTO_CLASSIC_FILTERS = PHOTO_FILTERS.filter((f) => f.category === 'classic');
 export const PHOTO_AI_FILTERS = PHOTO_FILTERS.filter((f) => f.category === 'ai');
+export const PHOTO_ATYPICAL_FILTERS = PHOTO_FILTERS.filter((f) => f.category === 'atypical');
 
 export function getPhotoFilterCss(id: PhotoFilterId): string {
   return PHOTO_FILTERS.find((f) => f.id === id)?.cssFilter ?? 'none';

@@ -32,15 +32,20 @@ import {
   createDefaultEventFilter,
   filterMapEventsByCriteria,
   getEventFilterCityMapRadiusKm,
-  getTodayDateInputValue,
   hasEventFilterCityLocation,
   resolveDefaultUserCityLabel,
-  DEFAULT_EVENT_FILTER_RADIUS_KM,
   type MapEventFilterCriteria,
 } from '../lib/mapEventFilter';
 import { applySavedEventFavoriteState, feedPostFromMapEventMarker, loadMapEventMarkers } from '../lib/mapFeedEvents';
 import { resolveEventCoords } from '../lib/mapEventCoords';
-import { clusterMapEventsByCity, getCityMapView } from '../lib/mapEventClusters';
+import { clusterMapEventsByCity, extractCityFromLocation, getCityMapView } from '../lib/mapEventClusters';
+import {
+  getMapSearchFlyRadiusKm,
+  MAP_FLY_TO_PLACE_EVENT,
+  takePendingMapFlyToPlace,
+  type MapSearchSearchIntent,
+} from '../lib/mapSearchIntent';
+import { scheduleMapFlyWhenReady } from '../lib/mapFlyWhenReady';
 import type { MapLiveLocationCluster } from '../lib/mapLiveClusters';
 import {
   buildMapSidebarContent,
@@ -209,9 +214,6 @@ interface HomePageProps {
   onLeaveSalon?: () => void;
   /** Salon introuvable côté API (supprimé / expiré) pendant restore carte. */
   onSalonRestoreFailed?: (salonId: string) => void;
-  /** Recherche globale → carte (ville / pays). */
-  mapSearchIntent?: import('../lib/mapSearchIntent').MapSearchSearchIntent | null;
-  onMapSearchIntentConsumed?: () => void;
   /** Session salon / live active — chip haut-droit carte (masque bandeau header). */
   mapActiveSalonSession?: { id: string; title?: string; isHost?: boolean } | null;
   mapActiveLiveSession?: { id: string; isHost?: boolean } | null;
@@ -239,8 +241,6 @@ export function HomePage({
   onMapSalonActive,
   onLeaveSalon,
   onSalonRestoreFailed,
-  mapSearchIntent = null,
-  onMapSearchIntentConsumed,
   mapActiveSalonSession = null,
   mapActiveLiveSession = null,
   onMapReturnToSalon,
@@ -301,6 +301,8 @@ export function HomePage({
   const [mapGeo, setMapGeo] = useState<LivesGeoPrefs>(() => getLivesGeo());
   const salonSheetRef = useRef<HTMLDivElement>(null);
   const mapViewRef = useRef<MapViewHandle>(null);
+  const lastHandledMapSearchFlyNonceRef = useRef(0);
+  const mapSearchFlyCancelRef = useRef<(() => void) | null>(null);
   const eventFilterFlyPendingRef = useRef<MapEventFilterCriteria | null>(null);
   const lastEventFilterCityFlyRef = useRef<string | null>(null);
   const lastSalonFilterCityFlyRef = useRef<string | null>(null);
@@ -1010,7 +1012,7 @@ export function HomePage({
       deactivateMapContentFiltersExcept('salon');
       setSalonFilterCriteria(criteria);
       setNearbyPanelPreferences({
-        sortBy: criteria.sortBy,
+        sortBy: 'none',
         musicalAffinitiesOnly: criteria.affinityGenres != null,
         salonAffinityGenres: criteria.affinityGenres,
         salonAffinityGenreOptions: criteria.affinityGenreOptions,
@@ -1058,6 +1060,82 @@ export function HomePage({
     }
     setShowEventFilterSheet(true);
   }, [showEventMarkers, deactivateMapContentFiltersExcept]);
+
+  const flyMapToSearchPlace = useCallback(
+    (handle: MapViewHandle, lat: number, lng: number, radiusKm: number) => {
+      if (!isValidLatLng(lat, lng)) return;
+      const flyDurationSec = 1.2;
+      if (mapStyle === 'globe') {
+        handle.prepareFlatAt(lat, lng, undefined, radiusKm);
+        setMapStyle('flat');
+        localStorage.setItem(MAP_STYLE_KEY, 'flat');
+        window.setTimeout(() => {
+          const active = mapViewRef.current;
+          if (active?.isMapReady()) {
+            active.invalidateSize();
+            active.flyToCityBounds(lat, lng, radiusKm, { durationSec: flyDurationSec });
+          }
+        }, 400);
+      } else {
+        handle.invalidateSize();
+        handle.flyToCityBounds(lat, lng, radiusKm, { durationSec: flyDurationSec });
+        window.setTimeout(() => mapViewRef.current?.invalidateSize(), 80);
+      }
+    },
+    [mapStyle]
+  );
+
+  const runMapSearchFly = useCallback(
+    (intent: MapSearchSearchIntent) => {
+      if (intent.nonce <= lastHandledMapSearchFlyNonceRef.current) return;
+      const { latitude, longitude, location, kind = 'city' } = intent;
+      if (!isValidLatLng(latitude, longitude)) return;
+
+      mapSearchFlyCancelRef.current?.();
+      mapExploredRef.current = true;
+      programmaticMapMoveUntilRef.current = Date.now() + 2500;
+      const radiusKm = getMapSearchFlyRadiusKm(location, kind);
+      const placeLabel =
+        extractCityFromLocation(location).label || location.split('(')[0]?.trim() || location;
+
+      mapSearchFlyCancelRef.current = scheduleMapFlyWhenReady(
+        () => mapViewRef.current,
+        (handle) => {
+          flyMapToSearchPlace(handle, latitude, longitude, radiusKm);
+          setToastMsg(t('map.searchFlyTo', { place: placeLabel }));
+          lastHandledMapSearchFlyNonceRef.current = intent.nonce;
+          mapSearchFlyCancelRef.current = null;
+        }
+      );
+    },
+    [flyMapToSearchPlace, t]
+  );
+
+  const tryRunPendingMapSearchFly = useCallback(() => {
+    if (!isActive) return;
+    const intent = takePendingMapFlyToPlace();
+    if (!intent) return;
+    runMapSearchFly(intent);
+  }, [isActive, runMapSearchFly]);
+
+  useEffect(() => {
+    const onFlyRequest = () => {
+      tryRunPendingMapSearchFly();
+    };
+    window.addEventListener(MAP_FLY_TO_PLACE_EVENT, onFlyRequest);
+    return () => window.removeEventListener(MAP_FLY_TO_PLACE_EVENT, onFlyRequest);
+  }, [tryRunPendingMapSearchFly]);
+
+  useEffect(() => {
+    tryRunPendingMapSearchFly();
+  }, [tryRunPendingMapSearchFly]);
+
+  useEffect(
+    () => () => {
+      mapSearchFlyCancelRef.current?.();
+    },
+    []
+  );
 
   const flyMapToEventFilterCity = useCallback(
     (lat: number, lng: number, locationLabel: string, opts?: { force?: boolean }) => {
@@ -1149,31 +1227,6 @@ export function HomePage({
     },
     [flyToEventFilterBounds, flyToEventMarkersBounds, user?.id, deactivateMapContentFiltersExcept]
   );
-
-  useEffect(() => {
-    if (!mapSearchIntent || !isActive) return;
-    deactivateMapContentFiltersExcept('events');
-    const criteria = {
-      ...createDefaultEventFilter(user?.city),
-      dateFrom: getTodayDateInputValue(),
-      location: mapSearchIntent.location,
-      latitude: mapSearchIntent.latitude,
-      longitude: mapSearchIntent.longitude,
-      radiusKm: DEFAULT_EVENT_FILTER_RADIUS_KM,
-      eventType: 'all' as const,
-    };
-    setEventFilterCriteria(criteria);
-    setShowEventMarkers(true);
-    requestAnimationFrame(() => flyToEventFilterBounds(criteria, true));
-    onMapSearchIntentConsumed?.();
-  }, [
-    mapSearchIntent,
-    isActive,
-    user?.city,
-    flyToEventFilterBounds,
-    onMapSearchIntentConsumed,
-    deactivateMapContentFiltersExcept,
-  ]);
 
   const toggleEventsFilter = useCallback(() => {
     if (showEventMarkers) {
@@ -2166,6 +2219,7 @@ export function HomePage({
           initialCriteria={salonFilterCriteria}
           profileCity={user?.city}
           profileGenres={user?.favoriteGenres}
+          activeSalons={salons}
           onClose={() => setShowSalonFilterSheet(false)}
           onApply={applySalonFilter}
           onPreviewCity={previewSalonFilterCity}
@@ -2246,7 +2300,7 @@ export function HomePage({
       ) : null}
 
       <div className="ms-map-main-column relative flex-1 min-w-0 flex flex-col min-h-0">
-        {!appa2 && !mapProfileOpen && (
+        {!appa2 && !mapProfileOpen && !(selected?.platform === 'youtube') && (
           <MapAdBanner
             viewport={mapSponsorViewport}
             isActive={isActive && !mapProfileOpen}

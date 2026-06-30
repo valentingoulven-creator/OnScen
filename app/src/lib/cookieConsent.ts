@@ -26,6 +26,17 @@ export function hasThirdPartyCookieConsent(): boolean {
   return getCookieConsent() === 'all';
 }
 
+export function resetCookieConsent(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+  window.dispatchEvent(new CustomEvent('soundy:cookie-consent-open'));
+}
+
+export const COOKIE_CONSENT_OPEN_EVENT = 'soundy:cookie-consent-open';
+
 export function subscribeCookieConsent(listener: (choice: CookieConsentChoice) => void): () => void {
   const handler = (event: Event) => {
     const detail = (event as CustomEvent<CookieConsentChoice>).detail;

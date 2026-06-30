@@ -90,6 +90,9 @@ export async function parseApiError(res: Response): Promise<ApiRequestError> {
   if (res.status === 403) return new ApiRequestError(i18n.t('errors.forbidden'), undefined, res.status);
   if (res.status === 404) return new ApiRequestError(i18n.t('errors.notFound'), undefined, res.status);
   if (res.status === 429) return new ApiRequestError(i18n.t('errors.tooManyAttempts'), undefined, res.status);
+  if (res.status === 502) {
+    return new ApiRequestError(i18n.t('errors.badGateway'), undefined, res.status);
+  }
   return new ApiRequestError(res.statusText || i18n.t('errors.network'), undefined, res.status);
 }
 

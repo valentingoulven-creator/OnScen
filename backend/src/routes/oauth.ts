@@ -24,6 +24,8 @@ import {
   isInstagramOAuthConfigured,
 } from '../lib/instagramOAuth';
 import { isMsdevRuntime } from '../lib/msdevGuard';
+import { redisGetDelJson, redisSetJsonEx } from '../lib/optionalRedis';
+import { createRateLimitStore } from '../lib/rateLimitStore';
 
 export const oauthRouter = Router();
 
@@ -35,11 +37,40 @@ const oauthInitLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Trop de tentatives OAuth. Réessayez dans quelques minutes.' },
   skip: () => isMsdevRuntime(),
+  store: createRateLimitStore('oauth-init'),
 });
 
-// ─── CSRF state store (TTL 10 min) ──────────────────────────────────────────
+// ─── CSRF state store (TTL 10 min) — Redis si disponible, sinon mémoire ─────
 const oauthStates = new Map<string, { provider: string; userId?: string; expiresAt: number }>();
 const STATE_TTL_MS = 10 * 60 * 1000;
+const STATE_TTL_SEC = Math.ceil(STATE_TTL_MS / 1000);
+
+function oauthRedisKey(state: string): string {
+  return `oauth:state:${state}`;
+}
+
+async function storeState(
+  state: string,
+  entry: { provider: string; userId?: string; expiresAt: number }
+): Promise<void> {
+  const ok = await redisSetJsonEx(oauthRedisKey(state), STATE_TTL_SEC, entry);
+  if (!ok) oauthStates.set(state, entry);
+}
+
+async function loadState(state: string): Promise<{ provider: string; userId?: string; expiresAt: number } | null> {
+  const fromRedis = await redisGetDelJson<{ provider: string; userId?: string; expiresAt: number }>(
+    oauthRedisKey(state)
+  );
+  if (fromRedis) {
+    if (Date.now() > fromRedis.expiresAt) return null;
+    return fromRedis;
+  }
+  const entry = oauthStates.get(state);
+  if (!entry) return null;
+  oauthStates.delete(state);
+  if (Date.now() > entry.expiresAt) return null;
+  return entry;
+}
 
 function pruneStates(): void {
   const now = Date.now();
@@ -48,24 +79,22 @@ function pruneStates(): void {
   }
 }
 
-function createState(provider: string): string {
+function createState(provider: string, userId?: string): string {
   pruneStates();
   const s = crypto.randomBytes(32).toString('hex');
-  oauthStates.set(s, { provider, expiresAt: Date.now() + STATE_TTL_MS });
+  const entry = { provider, userId, expiresAt: Date.now() + STATE_TTL_MS };
+  void storeState(s, entry);
   return s;
 }
 
-function validateAndConsumeState(state: string, provider: string): boolean {
-  const entry = oauthStates.get(state);
-  if (!entry || Date.now() > entry.expiresAt || entry.provider !== provider) return false;
-  oauthStates.delete(state);
-  return true;
+async function validateAndConsumeState(state: string, provider: string): Promise<boolean> {
+  const entry = await loadState(state);
+  return !!entry && entry.provider === provider;
 }
 
-function consumeStateForUser(state: string, provider: string): string | null {
-  const entry = oauthStates.get(state);
-  if (!entry || Date.now() > entry.expiresAt || entry.provider !== provider || !entry.userId) return null;
-  oauthStates.delete(state);
+async function consumeStateForUser(state: string, provider: string): Promise<string | null> {
+  const entry = await loadState(state);
+  if (!entry || entry.provider !== provider || !entry.userId) return null;
   return entry.userId;
 }
 
@@ -224,7 +253,7 @@ oauthRouter.get('/providers', (_req: Request, res: Response) => {
  * POST /api/auth/oauth/exchange
  * Échange un code OAuth éphémère (redirection sans JWT dans l’URL) contre un jeton de session.
  */
-oauthRouter.post('/oauth/exchange', oauthInitLimiter, (req: Request, res: Response) => {
+oauthRouter.post('/oauth/exchange', oauthInitLimiter, async (req: Request, res: Response) => {
   const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
   const acceptTerms = req.body?.acceptTerms === true;
   const confirmAge = req.body?.confirmAge === true;
@@ -235,7 +264,7 @@ oauthRouter.post('/oauth/exchange', oauthInitLimiter, (req: Request, res: Respon
     return;
   }
 
-  const entry = peekOAuthExchangeCode(code);
+  const entry = await peekOAuthExchangeCode(code);
   if (!entry) {
     res.status(400).json({ error: 'Code OAuth invalide ou expiré' });
     return;
@@ -243,7 +272,7 @@ oauthRouter.post('/oauth/exchange', oauthInitLimiter, (req: Request, res: Respon
 
   const user = db.users.get(entry.userId);
   if (!user) {
-    consumeOAuthExchangeCode(code);
+    await consumeOAuthExchangeCode(code);
     res.status(404).json({ error: 'Utilisateur introuvable' });
     return;
   }
@@ -278,7 +307,7 @@ oauthRouter.post('/oauth/exchange', oauthInitLimiter, (req: Request, res: Respon
   }
 
   if (user.accountStatus === 'pending') {
-    consumeOAuthExchangeCode(code);
+    await consumeOAuthExchangeCode(code);
     res.status(403).json({
       pending: true,
       message:
@@ -289,7 +318,7 @@ oauthRouter.post('/oauth/exchange', oauthInitLimiter, (req: Request, res: Respon
 
   const denied = loginAccessDeniedReason(user);
   if (denied) {
-    consumeOAuthExchangeCode(code);
+    await consumeOAuthExchangeCode(code);
     res.status(403).json({
       error: denied,
       code: user.accountStatus === 'blocked' ? 'account_blocked' : 'account_pending',
@@ -297,7 +326,7 @@ oauthRouter.post('/oauth/exchange', oauthInitLimiter, (req: Request, res: Respon
     return;
   }
 
-  consumeOAuthExchangeCode(code);
+  await consumeOAuthExchangeCode(code);
   applyProfileDefaults(user);
   db.users.set(user.id, user);
   const token = signTokenForUser(user);
@@ -331,6 +360,8 @@ oauthRouter.get('/google', oauthInitLimiter, (_req: Request, res: Response) => {
     scope: 'openid email profile',
     state,
     access_type: 'online',
+    // Force Google account chooser (user may have several Gmail accounts)
+    prompt: 'select_account',
   });
   res.redirect(`${GOOGLE_AUTH_URL}?${params}`);
 });
@@ -344,7 +375,7 @@ oauthRouter.get('/google/callback', oauthInitLimiter, async (req: Request, res: 
     res.redirect(`${origin}/?oauth_error=cancelled&provider=google`);
     return;
   }
-  if (!validateAndConsumeState(state, 'google')) {
+  if (!(await validateAndConsumeState(state, 'google'))) {
     res.redirect(`${origin}/?oauth_error=invalid_state&provider=google`);
     return;
   }
@@ -416,7 +447,7 @@ oauthRouter.get('/facebook/callback', oauthInitLimiter, async (req: Request, res
     res.redirect(`${origin}/?oauth_error=cancelled&provider=facebook`);
     return;
   }
-  if (!validateAndConsumeState(state, 'facebook')) {
+  if (!(await validateAndConsumeState(state, 'facebook'))) {
     res.redirect(`${origin}/?oauth_error=invalid_state&provider=facebook`);
     return;
   }

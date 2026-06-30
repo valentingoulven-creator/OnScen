@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 set -a
-source /opt/soundly/.env
+source /opt/soundy/.env
 set +a
 echo "DB_HOST_CHECK start"
 timeout 20 psql "$DATABASE_URL" -Atc "SELECT current_database()" || echo "PSQL_FAIL"

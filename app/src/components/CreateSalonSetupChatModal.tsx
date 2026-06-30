@@ -16,12 +16,15 @@ import {
   isAllCreateSalonGenresSelected,
   MAX_CREATE_SALON_GENRES,
   resolveCreateSalonGenreOptions,
-  resolveInitialCreateSalonGenres,
   selectAllCreateSalonGenres,
   toggleCreateSalonGenre,
   writeSavedCreateSalonGenres,
 } from '../lib/createSalonGenres';
 import { normalizeTag } from '../lib/musicAffinities';
+import {
+  applySavedSalonCreateSetup,
+  prefsFromSalonCreateForm,
+} from '../lib/salonCreateSetupPrefs';
 import type { SetupChatMessage } from '../lib/liveSetupChatFlow';
 import {
   getVisibleSalonSetupExchange,
@@ -29,6 +32,7 @@ import {
   nextSalonChatMessageId,
   SALON_SETUP_PHASE_BOT_QUESTION,
   summarizeSalonSetup,
+  type SalonSetupChangeTarget,
   type SalonSetupChatPhase,
 } from '../lib/salonSetupChatFlow';
 import { SessionLocationPicker } from './SessionLocationPicker';
@@ -155,8 +159,9 @@ export function CreateSalonSetupChatModal({
 }: CreateSalonSetupChatModalProps) {
   const { t } = useTranslation();
   const [messages, setMessages] = useState<SetupChatMessage[]>([]);
-  const [phase, setPhase] = useState<SalonSetupChatPhase>('youtube');
+  const [phase, setPhase] = useState<SalonSetupChatPhase>('loading');
   const [chatReady, setChatReady] = useState(false);
+  const [editReturn, setEditReturn] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const [genreQuery, setGenreQuery] = useState('');
   const [contacts, setContacts] = useState<DmContact[]>([]);
@@ -197,6 +202,10 @@ export function CreateSalonSetupChatModal({
     setMessages((prev) => [...prev, { id: nextSalonChatMessageId(), role: 'user', text }]);
   }, []);
 
+  const pushBot = useCallback((text: string) => {
+    setMessages((prev) => [...prev, { id: nextSalonChatMessageId(), role: 'bot', text }]);
+  }, []);
+
   const exchangeMessages = getVisibleSalonSetupExchange(messages, phase);
 
   const showToast = (message: string) => {
@@ -210,40 +219,117 @@ export function CreateSalonSetupChatModal({
       setChatReady(false);
       return;
     }
+    let cancelled = false;
     openedAtRef.current = Date.now();
     setChatReady(false);
+    setEditReturn(false);
     setToast(null);
     setGenreQuery('');
-    setSalonLocation(initialSalonCreateLocation(fallbackLatitude, fallbackLongitude));
     setDraftSalonId(generateSalonId());
+    setPhase('loading');
+    setMessages([]);
+
     const defaultTitle = preset?.title?.trim() || t('salon.create.defaultSalonTitle', { username });
-    const initialGenres = resolveInitialCreateSalonGenres(profileGenres);
-    const initialAccess = preset?.accessMode ?? 'public';
-    setForm({
-      title: defaultTitle,
-      platform: 'youtube',
-      accessMode: initialAccess,
-      allowedUserIds: preset?.allowedUserIds ?? [],
-      trackTitle: t('salon.create.defaultSessionTitle'),
-      artist: username,
-      youtubePlaylist: null,
-      allowQueue: true,
-      genres: initialGenres,
-    });
-    setTitleDraft(defaultTitle);
+    const initialGeo = initialSalonCreateLocation(fallbackLatitude, fallbackLongitude);
 
-    const linkedAtOpen = isMusicPlatformLinkedForSalon(
-      'youtube',
-      connectedPlatforms,
-      platformLinks
-    );
-    const initialPhase: SalonSetupChatPhase = linkedAtOpen ? 'title' : 'youtube';
-    setPhase(initialPhase);
-    setMessages([{ id: nextSalonChatMessageId(), role: 'bot', text: t('salon.create.setupChatHello') }]);
-    setChatReady(true);
+    void (async () => {
+      let configured = false;
+      let saved: import('../lib/salonCreateSetupPrefs').SalonCreateSetupPrefs | null = null;
+      try {
+        const res = await api.getSalonSetup(token);
+        saved = res.setup;
+        configured = res.configured;
+      } catch {
+        /* session / offline */
+      }
+      if (cancelled) return;
 
-    api.getDmContacts(token).then((r) => setContacts(r.contacts));
-  }, [open, token, username, preset, t, fallbackLatitude, fallbackLongitude, profileGenres]);
+      const useSaved = configured && Boolean(saved) && !skipAccessSection;
+      const applied = applySavedSalonCreateSetup(useSaved ? saved : null, {
+        defaultTitle,
+        initialGeo,
+        profileGenres,
+        presetAccess: preset?.accessMode,
+        presetAllowedUserIds: preset?.allowedUserIds,
+      });
+
+      setSalonLocation(applied.salonLocation);
+      setForm({
+        title: applied.title,
+        platform: 'youtube',
+        accessMode: applied.accessMode,
+        allowedUserIds: preset?.allowedUserIds ?? [],
+        trackTitle: t('salon.create.defaultSessionTitle'),
+        artist: username,
+        youtubePlaylist: null,
+        allowQueue: applied.allowQueue,
+        genres: applied.genres,
+      });
+      setTitleDraft(applied.title);
+
+      const linkedAtOpen = isMusicPlatformLinkedForSalon(
+        'youtube',
+        connectedPlatforms,
+        platformLinks
+      );
+
+      const summaryText = summarizeSalonSetup(
+        {
+          title: applied.title,
+          accessMode: applied.accessMode,
+          locationLabel: applied.salonLocation.label,
+          genres: applied.genres,
+          allowQueue: applied.allowQueue,
+          playlistTitle: null,
+        },
+        {
+          public: t('salon.public'),
+          invite: t('salon.inviteOnly'),
+          allGenres: t('salon.create.fieldGenresAll'),
+          queueOn: t('salon.create.setupChatQueueOnShort'),
+          queueOff: t('salon.create.setupChatQueueOffShort'),
+          noPlaylist: t('salon.create.setupChatPlaylistSkip'),
+        }
+      );
+
+      if (useSaved && linkedAtOpen) {
+        setPhase('return_ask');
+        setMessages([
+          {
+            id: nextSalonChatMessageId(),
+            role: 'bot',
+            text: t('salon.create.setupChatReturnHello', { summary: summaryText }),
+          },
+        ]);
+      } else {
+        setPhase(linkedAtOpen ? 'title' : 'youtube');
+        setMessages([
+          { id: nextSalonChatMessageId(), role: 'bot', text: t('salon.create.setupChatHello') },
+        ]);
+      }
+
+      setChatReady(true);
+      api.getDmContacts(token).then((r) => {
+        if (!cancelled) setContacts(r.contacts);
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    open,
+    token,
+    username,
+    preset,
+    t,
+    fallbackLatitude,
+    fallbackLongitude,
+    profileGenres,
+    skipAccessSection,
+    connectedPlatforms,
+    platformLinks,
+  ]);
 
   useEffect(
     () => () => {
@@ -253,7 +339,8 @@ export function CreateSalonSetupChatModal({
   );
 
   useEffect(() => {
-    if (!open || !chatReady || (phase === 'youtube' && !platformLinked)) return;
+    if (!open || !chatReady || phase === 'loading' || phase === 'return_ask') return;
+    if (phase === 'youtube' && !platformLinked) return;
     const questionKey = SALON_SETUP_PHASE_BOT_QUESTION[phase];
     if (!questionKey) return;
     const text = t(`salon.create.${questionKey}`);
@@ -345,6 +432,11 @@ export function CreateSalonSetupChatModal({
       });
 
       writeSavedCreateSalonGenres(form.genres);
+      try {
+        await api.putSalonSetup(token, prefsFromSalonCreateForm(form, salonLocation));
+      } catch {
+        /* best effort — config locale genres déjà écrite */
+      }
 
       const playlistLoadBody = useYoutubePlaylist
         ? buildPlaylistLoadBody(form.youtubePlaylist)
@@ -409,6 +501,54 @@ export function CreateSalonSetupChatModal({
     }
   );
 
+  const finishAfterEdit = (
+    overrides?: Partial<{
+      title: string;
+      accessMode: 'public' | 'invite';
+      locationLabel: string;
+      genres: string[];
+      allowQueue: boolean;
+      playlistTitle: string | null;
+    }>
+  ) => {
+    const nextSummary = summarizeSalonSetup(
+      {
+        title: overrides?.title ?? form.title,
+        accessMode: overrides?.accessMode ?? form.accessMode,
+        locationLabel: overrides?.locationLabel ?? salonLocation.label,
+        genres: overrides?.genres ?? form.genres,
+        allowQueue: overrides?.allowQueue ?? form.allowQueue,
+        playlistTitle: overrides?.playlistTitle ?? form.youtubePlaylist?.title ?? null,
+      },
+      {
+        public: t('salon.public'),
+        invite: t('salon.inviteOnly'),
+        allGenres: t('salon.create.fieldGenresAll'),
+        queueOn: t('salon.create.setupChatQueueOnShort'),
+        queueOff: t('salon.create.setupChatQueueOffShort'),
+        noPlaylist: t('salon.create.setupChatPlaylistSkip'),
+      }
+    );
+    pushBot(t('salon.create.setupChatUpdated', { summary: nextSummary }));
+    setPhase('return_ask');
+    setEditReturn(false);
+  };
+
+  const handlePickChange = (target: SalonSetupChangeTarget) => {
+    const labels: Record<SalonSetupChangeTarget, string> = {
+      title: t('salon.create.setupChatChangeTitle'),
+      access: t('salon.create.setupChatChangeAccess'),
+      location: t('salon.create.setupChatChangeLocation'),
+      genres: t('salon.create.setupChatChangeGenres'),
+      queue: t('salon.create.setupChatChangeQueue'),
+      playlist: t('salon.create.setupChatChangePlaylist'),
+    };
+    pushUser(labels[target]);
+    setEditReturn(true);
+    if (target === 'title') setTitleDraft(form.title);
+    setPhase(target);
+  };
+
   const showStepFooter =
     phase === 'youtube' ||
     phase === 'title' ||
@@ -444,6 +584,10 @@ export function CreateSalonSetupChatModal({
               const trimmed = titleDraft.trim();
               setForm((f) => ({ ...f, title: trimmed }));
               pushUser(trimmed);
+              if (editReturn) {
+                finishAfterEdit({ title: trimmed });
+                return;
+              }
               setPhase(nextPhaseAfterTitle(form.accessMode, skipAccessSection));
             }}
           >
@@ -457,6 +601,10 @@ export function CreateSalonSetupChatModal({
             className="w-full"
             onClick={() => {
               pushUser(t('salon.create.setupChatInviteOk'));
+              if (editReturn) {
+                finishAfterEdit();
+                return;
+              }
               setPhase('genres');
             }}
           >
@@ -470,6 +618,10 @@ export function CreateSalonSetupChatModal({
             className="w-full"
             onClick={() => {
               pushUser(salonLocation.label || t('salon.create.setupChatLocationOk'));
+              if (editReturn) {
+                finishAfterEdit({ locationLabel: salonLocation.label });
+                return;
+              }
               setPhase('genres');
             }}
           >
@@ -487,6 +639,10 @@ export function CreateSalonSetupChatModal({
                   ? form.genres.slice(0, 3).join(', ')
                   : t('salon.create.fieldGenresAll');
               pushUser(label);
+              if (editReturn) {
+                finishAfterEdit({ genres: form.genres });
+                return;
+              }
               setPhase('queue');
             }}
           >
@@ -503,6 +659,12 @@ export function CreateSalonSetupChatModal({
                 form.youtubePlaylist?.title?.trim() ||
                   t('salon.create.setupChatPlaylistSkip')
               );
+              if (editReturn) {
+                finishAfterEdit({
+                  playlistTitle: form.youtubePlaylist?.title?.trim() ?? null,
+                });
+                return;
+              }
               setPhase('confirm');
             }}
           >
@@ -574,6 +736,69 @@ export function CreateSalonSetupChatModal({
           )}
 
           <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-2 space-y-2">
+            {phase === 'loading' && (
+              <p className="text-[11px] text-gray-500 animate-pulse pt-1">
+                {t('salon.create.setupChatLoading')}
+              </p>
+            )}
+
+            {phase === 'return_ask' && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                <ActionChip
+                  variant="primary"
+                  disabled={!canSubmitSalon || saving}
+                  onClick={() => {
+                    pushUser(t('salon.create.setupChatUseSaved'));
+                    void submit();
+                  }}
+                >
+                  {t('salon.create.setupChatBtnUseSaved')}
+                </ActionChip>
+                <ActionChip
+                  onClick={() => {
+                    pushUser(t('salon.create.setupChatBtnModify'));
+                    setPhase('return_pick');
+                  }}
+                >
+                  {t('salon.create.setupChatBtnModify')}
+                </ActionChip>
+              </div>
+            )}
+
+            {phase === 'return_pick' && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {(
+                  [
+                    ['title', t('salon.create.setupChatChipTitle')],
+                    ...(!skipAccessSection
+                      ? ([['access', t('salon.create.setupChatChipAccess')]] as const)
+                      : []),
+                    ...(form.accessMode === 'public'
+                      ? ([['location', t('salon.create.setupChatChipLocation')]] as const)
+                      : []),
+                    ['genres', t('salon.create.setupChatChipGenres')],
+                    ['queue', t('salon.create.setupChatChipQueue')],
+                    ['playlist', t('salon.create.setupChatChipPlaylist')],
+                  ] as const
+                ).map(([target, label]) => (
+                  <ActionChip key={target} onClick={() => handlePickChange(target)}>
+                    {label}
+                  </ActionChip>
+                ))}
+                <ActionChip
+                  variant="ghost"
+                  onClick={() => {
+                    setPhase('return_ask');
+                    pushBot(
+                      t('salon.create.setupChatReturnHello', { summary })
+                    );
+                  }}
+                >
+                  {t('salon.create.setupChatBtnBack')}
+                </ActionChip>
+              </div>
+            )}
+
             {phase === 'youtube' && (
               <div className="space-y-2 pt-0.5">
                 <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-[#0b0b0f] border border-[#2d2d3d]">
@@ -619,6 +844,10 @@ export function CreateSalonSetupChatModal({
                   onClick={() => {
                     setForm((f) => ({ ...f, accessMode: 'public' }));
                     pushUser(t('salon.public'));
+                    if (editReturn) {
+                      finishAfterEdit({ accessMode: 'public' });
+                      return;
+                    }
                     setPhase('location');
                   }}
                 >
@@ -628,6 +857,10 @@ export function CreateSalonSetupChatModal({
                   onClick={() => {
                     setForm((f) => ({ ...f, accessMode: 'invite' }));
                     pushUser(t('salon.inviteOnly'));
+                    if (editReturn) {
+                      finishAfterEdit({ accessMode: 'invite' });
+                      return;
+                    }
                     setPhase('invite');
                   }}
                 >
@@ -780,6 +1013,10 @@ export function CreateSalonSetupChatModal({
                   onClick={() => {
                     setForm((f) => ({ ...f, allowQueue: true }));
                     pushUser(t('salon.create.setupChatQueueYes'));
+                    if (editReturn) {
+                      finishAfterEdit({ allowQueue: true });
+                      return;
+                    }
                     goToPlaylistOrConfirm();
                   }}
                 >
@@ -789,6 +1026,10 @@ export function CreateSalonSetupChatModal({
                   onClick={() => {
                     setForm((f) => ({ ...f, allowQueue: false }));
                     pushUser(t('salon.create.setupChatQueueNo'));
+                    if (editReturn) {
+                      finishAfterEdit({ allowQueue: false });
+                      return;
+                    }
                     goToPlaylistOrConfirm();
                   }}
                 >
@@ -805,6 +1046,10 @@ export function CreateSalonSetupChatModal({
                   onClick={() => {
                     setForm((f) => ({ ...f, youtubePlaylist: null }));
                     pushUser(t('salon.create.setupChatPlaylistSkip'));
+                    if (editReturn) {
+                      finishAfterEdit({ playlistTitle: null });
+                      return;
+                    }
                     setPhase('confirm');
                   }}
                 >

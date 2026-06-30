@@ -120,6 +120,7 @@ reelsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
     durationSec,
     visibility,
     rightsConfirmed: body.rightsConfirmed === true,
+    compositionId: body.compositionId != null ? String(body.compositionId) : undefined,
   });
   if ('error' in result) {
     res.status(400).json({ error: result.error });

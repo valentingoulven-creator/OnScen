@@ -24,7 +24,7 @@ $files = @(
 
 foreach ($rel in $files) {
   $local = Join-Path $Dist $rel
-  $remoteDir = "/opt/soundly/dist/" + ($rel -replace '\\[^\\]+$', '/')
+  $remoteDir = "/opt/soundy/dist/" + ($rel -replace '\\[^\\]+$', '/')
   if (-not (Test-Path $local)) { Write-Error "Fichier manquant : $local — lancez npm run build dans MeloSongv2/backend"; exit 1 }
   Write-Host "📤  SCP $rel" -ForegroundColor Yellow
   & scp -i $Key -o StrictHostKeyChecking=no $local "${Server}:${remoteDir}"
@@ -33,7 +33,7 @@ foreach ($rel in $files) {
 
 Write-Host ""
 Write-Host "⚡  Exécution du seeder…" -ForegroundColor Yellow
-& ssh -i $Key -o StrictHostKeyChecking=no $Server "cd /opt/soundly && APP_ENV=production node dist/scripts/seed-production-salons-lives.js"
+& ssh -i $Key -o StrictHostKeyChecking=no $Server "cd /opt/soundy && APP_ENV=production node dist/scripts/seed-production-salons-lives.js"
 if ($LASTEXITCODE -ne 0) { Write-Error "Seeder échoué."; exit 1 }
 
 Write-Host ""

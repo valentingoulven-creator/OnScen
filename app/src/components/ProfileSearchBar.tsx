@@ -1,6 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { searchGlobal, type GlobalSearchResultItem } from '../lib/globalSearch';
+import {
+  filterGlobalSearchResults,
+  searchGlobal,
+  type GlobalSearchFilter,
+  type GlobalSearchResultItem,
+} from '../lib/globalSearch';
 import { UserAvatarOnline } from './UserAvatarOnline';
 import { UsernameDisplay } from './UsernameDisplay';
 import { SearchInlineSpinner } from './SearchInlineSpinner';
@@ -42,6 +47,22 @@ export function nearbyPreviewFromSearchItem(item: GlobalSearchResultItem): Nearb
   return searchHitToPreview(item);
 }
 
+const SEARCH_FILTERS: GlobalSearchFilter[] = ['all', 'user', 'event', 'city'];
+
+const FILTER_LABEL_KEYS: Record<GlobalSearchFilter, string> = {
+  all: 'globalSearch.filterAll',
+  user: 'globalSearch.filterAccount',
+  event: 'globalSearch.filterEvent',
+  city: 'globalSearch.filterCity',
+};
+
+const FILTER_LABEL_SHORT_KEYS: Record<GlobalSearchFilter, string> = {
+  all: 'globalSearch.filterAllShort',
+  user: 'globalSearch.filterAccountShort',
+  event: 'globalSearch.filterEventShort',
+  city: 'globalSearch.filterCityShort',
+};
+
 function itemKey(item: GlobalSearchResultItem, index: number): string {
   switch (item.kind) {
     case 'user':
@@ -64,6 +85,8 @@ function itemKey(item: GlobalSearchResultItem, index: number): string {
 export function ProfileSearchBar({ token, onSelectResult, className }: ProfileSearchBarProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<GlobalSearchFilter>('all');
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [compactPlaceholder, setCompactPlaceholder] = useState(false);
@@ -118,16 +141,44 @@ export function ProfileSearchBar({ token, onSelectResult, className }: ProfileSe
     };
   }, [query, token]);
 
+  const filteredResults = useMemo(
+    () => filterGlobalSearchResults(results, filter),
+    [results, filter]
+  );
+
   useEffect(() => {
     setActiveIndex(-1);
-  }, [results]);
+  }, [filteredResults, filter]);
+
+  const placeholderKey = useMemo(() => {
+    if (compactPlaceholder) return 'globalSearch.placeholderShort';
+    switch (filter) {
+      case 'user':
+        return 'globalSearch.placeholderUser';
+      case 'event':
+        return 'globalSearch.placeholderEvent';
+      case 'city':
+        return 'globalSearch.placeholderCity';
+      default:
+        return 'globalSearch.placeholder';
+    }
+  }, [compactPlaceholder, filter]);
 
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+      if (!rootRef.current?.contains(e.target as Node)) {
+        setOpen(false);
+        setFilterMenuOpen(false);
+      }
     };
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
+  }, []);
+
+  const selectFilter = useCallback((value: GlobalSearchFilter) => {
+    setFilter(value);
+    setFilterMenuOpen(false);
+    inputRef.current?.focus();
   }, []);
 
   const pick = useCallback(
@@ -141,26 +192,31 @@ export function ProfileSearchBar({ token, onSelectResult, className }: ProfileSe
   );
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (!open || results.length === 0) {
-      if (e.key === 'Escape') setOpen(false);
+    if (e.key === 'Escape') {
+      if (filterMenuOpen) {
+        setFilterMenuOpen(false);
+        return;
+      }
+      setOpen(false);
       return;
     }
+    if (!open || filteredResults.length === 0) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setActiveIndex((i) => (i + 1) % results.length);
+      setActiveIndex((i) => (i + 1) % filteredResults.length);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setActiveIndex((i) => (i <= 0 ? results.length - 1 : i - 1));
+      setActiveIndex((i) => (i <= 0 ? filteredResults.length - 1 : i - 1));
     } else if (e.key === 'Enter' && activeIndex >= 0) {
       e.preventDefault();
-      pick(results[activeIndex]!);
-    } else if (e.key === 'Escape') {
-      setOpen(false);
+      pick(filteredResults[activeIndex]!);
     }
   };
 
-  const showDropdown = open && query.trim().length >= 2;
-  const showEmpty = !loading && results.length === 0;
+  const trimmedQuery = query.trim();
+  const showPanel = open;
+  const showResults = trimmedQuery.length >= 2;
+  const showEmpty = showResults && !loading && filteredResults.length === 0;
 
   const sectionLabel = (item: GlobalSearchResultItem): string | null => {
     switch (item.kind) {
@@ -185,29 +241,90 @@ export function ProfileSearchBar({ token, onSelectResult, className }: ProfileSe
   return (
     <div ref={rootRef} className={`relative w-full min-w-0${className ? ` ${className}` : ''}`}>
       <div className="relative flex items-center h-7 sm:h-8 lg:h-9 rounded-full bg-[#1a1a26]/90 border border-[#2d2d3d]/90 shadow-sm shadow-black/20 transition-[border-color,box-shadow] focus-within:border-purple-500/50 focus-within:ring-2 focus-within:ring-purple-500/25 focus-within:shadow-purple-500/10">
-        <span className="absolute left-2 sm:left-2.5 lg:left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" aria-hidden>
-          <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="7" />
-            <path d="m20 20-3.5-3.5" />
-          </svg>
-        </span>
-        <input
-          ref={inputRef}
-          type="search"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          onKeyDown={onKeyDown}
-          placeholder={t(compactPlaceholder ? 'globalSearch.placeholderShort' : 'globalSearch.placeholder')}
-          autoComplete="off"
-          aria-label={t('globalSearch.label')}
-          aria-expanded={showDropdown}
-          aria-controls="profile-search-results"
-          className="w-full h-full pl-7 sm:pl-8 lg:pl-9 pr-6 sm:pr-7 lg:pr-8 text-[11px] sm:text-xs rounded-full bg-transparent text-white placeholder:text-gray-500/90 outline-none [&::-webkit-search-cancel-button]:hidden"
-        />
+        <div className="relative shrink-0 h-full border-r border-[#2d2d3d]/90">
+          <button
+            type="button"
+            onClick={() => {
+              setFilterMenuOpen((v) => !v);
+              setOpen(true);
+            }}
+            aria-haspopup="listbox"
+            aria-expanded={filterMenuOpen}
+            aria-label={t('globalSearch.filtersLabel')}
+            className="flex h-full items-center gap-0.5 pl-2 pr-1 sm:pl-2.5 sm:pr-1.5 min-h-[28px] text-[10px] sm:text-[11px] font-semibold text-purple-300 hover:text-purple-200 transition-colors"
+          >
+            <span className="truncate max-w-[2.75rem] sm:max-w-[4.25rem]">
+              {t(compactPlaceholder ? FILTER_LABEL_SHORT_KEYS[filter] : FILTER_LABEL_KEYS[filter])}
+            </span>
+            <svg
+              className={`w-2.5 h-2.5 sm:w-3 sm:h-3 shrink-0 text-gray-500 transition-transform ${filterMenuOpen ? 'rotate-180' : ''}`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+          {filterMenuOpen ? (
+            <ul
+              role="listbox"
+              aria-label={t('globalSearch.filtersLabel')}
+              className="absolute left-0 top-[calc(100%+0.25rem)] z-[60] min-w-[8.5rem] rounded-xl border border-[#2d2d3d] bg-[#12121a]/98 backdrop-blur-sm shadow-xl shadow-black/40 py-1"
+            >
+              {SEARCH_FILTERS.map((value) => (
+                <li key={value}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={filter === value}
+                    onClick={() => selectFilter(value)}
+                    className={`w-full px-3 py-2 text-left text-[11px] sm:text-xs font-medium transition-colors ${
+                      filter === value
+                        ? 'bg-purple-900/40 text-purple-200'
+                        : 'text-gray-300 hover:bg-purple-900/25 hover:text-white'
+                    }`}
+                  >
+                    {t(FILTER_LABEL_KEYS[value])}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+
+        <div className="relative flex flex-1 min-w-0 items-center">
+          <span className="pl-1.5 sm:pl-2 text-gray-500 shrink-0 pointer-events-none" aria-hidden>
+            <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+          </span>
+          <input
+            ref={inputRef}
+            type="search"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setOpen(true);
+              setFilterMenuOpen(false);
+            }}
+            onFocus={() => {
+              setOpen(true);
+              setFilterMenuOpen(false);
+            }}
+            onKeyDown={onKeyDown}
+            placeholder={t(placeholderKey)}
+            autoComplete="off"
+            aria-label={t('globalSearch.label')}
+            aria-expanded={showPanel}
+            aria-controls="profile-search-results"
+            className="w-full min-w-0 h-full pl-1 sm:pl-1.5 pr-6 sm:pr-7 lg:pr-8 text-[11px] sm:text-xs rounded-r-full bg-transparent text-white placeholder:text-gray-500/90 outline-none [&::-webkit-search-cancel-button]:hidden"
+          />
+        </div>
         {query && (
           <button
             type="button"
@@ -224,22 +341,25 @@ export function ProfileSearchBar({ token, onSelectResult, className }: ProfileSe
         )}
       </div>
 
-      {showDropdown && (
-        <ul
+      {showPanel && (
+        <div
           id="profile-search-results"
-          role="listbox"
-          className="absolute left-0 right-0 top-[calc(100%+0.25rem)] z-50 max-h-72 overflow-y-auto rounded-xl border border-[#2d2d3d] bg-[#12121a]/98 backdrop-blur-sm shadow-xl shadow-black/40 py-0.5"
+          className="absolute left-0 right-0 top-[calc(100%+0.25rem)] z-50 max-h-80 overflow-hidden rounded-xl border border-[#2d2d3d] bg-[#12121a]/98 backdrop-blur-sm shadow-xl shadow-black/40"
         >
-          {loading && results.length === 0 ? (
-            <li>
-              <SearchInlineSpinner label={t('globalSearch.searching')} />
-            </li>
-          ) : null}
-          {showEmpty ? (
-            <li className="px-3 py-2 text-xs text-gray-500">{t('globalSearch.noResults')}</li>
-          ) : null}
-          {results.map((item, i) => {
-            const section = sectionLabel(item);
+          {!showResults ? (
+            <p className="px-3 py-2.5 text-xs text-gray-500">{t('globalSearch.typeHint')}</p>
+          ) : (
+            <ul role="listbox" className="max-h-72 overflow-y-auto py-0.5">
+              {loading && filteredResults.length === 0 ? (
+                <li>
+                  <SearchInlineSpinner label={t('globalSearch.searching')} />
+                </li>
+              ) : null}
+              {showEmpty ? (
+                <li className="px-3 py-2 text-xs text-gray-500">{t('globalSearch.noResults')}</li>
+              ) : null}
+              {filteredResults.map((item, i) => {
+            const section = filter === 'all' ? sectionLabel(item) : null;
             const showHeader = section && section !== lastSection;
             if (showHeader) lastSection = section;
             return (
@@ -315,7 +435,9 @@ export function ProfileSearchBar({ token, onSelectResult, className }: ProfileSe
               </li>
             );
           })}
-        </ul>
+            </ul>
+          )}
+        </div>
       )}
     </div>
   );

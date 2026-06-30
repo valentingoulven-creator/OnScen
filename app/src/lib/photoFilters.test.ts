@@ -46,6 +46,6 @@ describe('photoFilters', () => {
   it('identifies AI filter category', () => {
     expect(isAiPhotoFilter('ai_clarendon')).toBe(true);
     expect(isAiPhotoFilter('vivid')).toBe(false);
-    expect(PHOTO_FILTERS.every((f) => f.category === 'classic' || f.category === 'ai')).toBe(true);
+    expect(PHOTO_FILTERS.every((f) => f.category === 'classic' || f.category === 'ai' || f.category === 'atypical')).toBe(true);
   });
 });

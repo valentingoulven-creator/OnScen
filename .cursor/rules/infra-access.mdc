@@ -15,8 +15,8 @@ Etat cible : `scripts/verify-full-access.ps1` → 20+/22 checks OK.
 | Dev local | OK | `npm run dev` → :5173, API msdev :4080 |
 | SSH VPS prod | OK | `ssh soundy-prod` → 51.159.164.100, zone fr-par-2 |
 | SSH VPS staging | OK | `ssh soundy-staging` → 51.159.170.181, zone fr-par-2 |
-| Secrets prod | OK | `/opt/soundly/.env` + `backend/.env.production` |
-| Secrets staging | OK | VPS staging `/opt/soundly/.env` + `backend/.env.preproduction` |
+| Secrets prod | OK | `/opt/soundy/.env` + `backend/.env.production` |
+| Secrets staging | OK | VPS staging `/opt/soundy/.env` + `backend/.env.preproduction` |
 | msdev secrets | OK | `msdev/.env` sync prod (DB, LiveKit, Stripe, Sightengine, SCW…) |
 | PostgreSQL prod | OK | base `soundy-prod` — 51.15.132.229:14440 |
 | PostgreSQL staging | OK | base `soundy_staging` (meme instance PG) |

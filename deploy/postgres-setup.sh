@@ -21,7 +21,7 @@ Soundy — postgres-setup.sh
   --migrate-only     Applique les migrations (DATABASE_URL requis dans l'environnement)
   --local-docker     Lance PostgreSQL 16 via Docker sur le VPS (port 5432 local)
   --local-apt        Installe PostgreSQL via apt (Ubuntu/Debian)
-  --env-snippet      Affiche les variables à ajouter dans /opt/soundly/.env
+  --env-snippet      Affiche les variables à ajouter dans /opt/soundy/.env
 
 Variables utiles :
   DATABASE_URL       postgresql://user:pass@host:5432/dbname
@@ -68,7 +68,7 @@ local_docker() {
   echo ""
   echo "PostgreSQL local démarré (container soundy-postgres)"
   echo "DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@127.0.0.1:5432/${DB_NAME}"
-  echo "Ajoutez cette ligne dans /opt/soundly/.env puis : ./deploy/postgres-setup.sh --migrate-only"
+  echo "Ajoutez cette ligne dans /opt/soundy/.env puis : ./deploy/postgres-setup.sh --migrate-only"
 }
 
 local_apt() {

@@ -13,7 +13,7 @@
 |---------|------|---------------------|
 | VPS | `51.159.164.100` · `soundly` | `51.159.170.181` · `soundly-staging` |
 | Zone | Scaleway `fr-par-2` DEV1-S | Scaleway `fr-par-2` DEV1-S |
-| Chemin app | `/opt/soundly` | `/opt/soundly` |
+| Chemin app | `/opt/soundy` | `/opt/soundy` |
 | PostgreSQL | `soundy-prod` | `soundy_staging` (même instance `51.15.132.229:14440`) |
 | PM2 | `melosong-backend` | `melosong-backend-staging` |
 | Utilisateurs actuels | ~10 | QA interne |
@@ -35,7 +35,7 @@ flowchart TB
     PM2["PM2 — melosong-backend"]
     Node["Node.js — Express + Socket.io"]
     Coturn["Coturn TURN — :3478"]
-    Backups["/opt/soundly/backups/"]
+    Backups["/opt/soundy/backups/"]
   end
 
   subgraph DB["PostgreSQL Managed Scaleway"]
@@ -114,7 +114,7 @@ flowchart TB
 | PostgreSQL Managed | 10 Go SSD | Données durables (users, DMs, fil…) |
 | Backups VPS | ~176 Ko (6 fichiers) | Dumps `soundy-*.sql.gz` |
 | Backups Scaleway | Inclus plan | Snapshots automatiques console |
-| Uploads utilisateur | Variable VPS | `/opt/soundly/public/uploads/` — **backup hebdo** (`backup-uploads.sh`) |
+| Uploads utilisateur | Variable VPS | `/opt/soundy/public/uploads/` — **backup hebdo** (`backup-uploads.sh`) |
 
 ---
 
@@ -126,7 +126,7 @@ flowchart TB
 |-----------|--------|
 | Fréquence | Quotidien **03:15** (cron) |
 | Rétention | **14 jours** (`RETENTION_DAYS=14`) |
-| Sortie | `/opt/soundly/backups/soundy-YYYYMMDD-HHMMSS.sql.gz` |
+| Sortie | `/opt/soundy/backups/soundy-YYYYMMDD-HHMMSS.sql.gz` |
 | **RPO** | **≤ 24 h** (pire cas juste après backup) |
 | **RTO** | **30 min – 2 h** (restore sur base test) |
 
@@ -136,7 +136,7 @@ flowchart TB
 |-----------|--------|
 | Fréquence | Hebdomadaire **dim. 04:30** (cron) |
 | Rétention | **28 jours** |
-| Sortie | `/opt/soundly/backups/uploads/uploads-YYYYMMDD-HHMMSS.tar.gz` |
+| Sortie | `/opt/soundy/backups/uploads/uploads-YYYYMMDD-HHMMSS.tar.gz` |
 | **RPO uploads** | **≤ 7 j** |
 
 ### Couche 1c — Copie off-site VPS (`deploy/backup-offsite.sh`)
@@ -144,7 +144,7 @@ flowchart TB
 | Paramètre | Valeur |
 |-----------|--------|
 | Fréquence | Quotidien **04:00** (après pg_dump) |
-| Destination locale | `/opt/soundly/backups-offsite/` |
+| Destination locale | `/opt/soundy/backups-offsite/` |
 
 
 ### Object Storage — activation manuelle (SCW_BUCKET)
@@ -153,9 +153,9 @@ Le sync S3 de `backup-offsite.sh` nécessite un bucket et des clés IAM. Sur la 
 
 1. [Console Object Storage](https://console.scaleway.com/object-storage) → bucket **soundy-backups** en **fr-par** (privé).
 2. [IAM → API keys](https://console.scaleway.com/iam/api-keys) → droits Object Storage sur le bucket.
-3. VPS `/opt/soundly/.env` : `SCW_BUCKET`, `SCW_REGION=fr-par`, `SCW_ACCESS_KEY`, `SCW_SECRET_KEY` (voir `deploy/.env.production.example`).
-4. VPS : `bash /opt/soundly/deploy/setup-scaleway-object-storage.sh --vps-only` (installe `awscli`, teste `backup-offsite.sh`).
-5. `mkdir -p /opt/soundly/public/uploads` ; `backup-uploads.sh` archive dès qu’il y a des fichiers.
+3. VPS `/opt/soundy/.env` : `SCW_BUCKET`, `SCW_REGION=fr-par`, `SCW_ACCESS_KEY`, `SCW_SECRET_KEY` (voir `deploy/.env.production.example`).
+4. VPS : `bash /opt/soundy/deploy/setup-scaleway-object-storage.sh --vps-only` (installe `awscli`, teste `backup-offsite.sh`).
+5. `mkdir -p /opt/soundy/public/uploads` ; `backup-uploads.sh` archive dès qu’il y a des fichiers.
 
 Helper : `deploy/setup-scaleway-object-storage.sh` (création bucket via `scw` si CLI configuré).
 
@@ -175,10 +175,10 @@ Helper : `deploy/setup-scaleway-object-storage.sh` (création bucket via `scw` s
 
 ```bash
 # Vérifier un dump
-bash /opt/soundly/deploy/verify-backup.sh
+bash /opt/soundy/deploy/verify-backup.sh
 
 # Restore test (NE PAS sur prod sans maintenance)
-gunzip -c /opt/soundly/backups/soundy-XXXX.sql.gz | psql "$DATABASE_URL"
+gunzip -c /opt/soundy/backups/soundy-XXXX.sql.gz | psql "$DATABASE_URL"
 ```
 
 ---

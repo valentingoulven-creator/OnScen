@@ -102,7 +102,7 @@ export function UsernameColorPicker({
         <button
           type="button"
           onClick={selectWavePreset}
-          title="Wave Soundly"
+          title="Wave Soundy"
           className={chipClass(wavePresetActive && !showAdvancedPicker)}
         >
           <span
@@ -202,7 +202,7 @@ export function UsernameColorPicker({
               }}
               className="text-[10px] text-purple-400 hover:text-purple-300"
             >
-              Réinitialiser le dégradé Soundly
+              Réinitialiser le dégradé Soundy
             </button>
           </div>
 

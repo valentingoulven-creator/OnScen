@@ -1,4 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  getLiveVideoDelaySeconds,
+} from '../lib/liveVideoDelay';
+import { shouldUseNativeHls as preferNativeHls } from '../lib/safariPlayback';
+import { configureInlinePlaybackVideo } from '../lib/liveCameraSupport';
 
 export type HlsPlaybackPhase = 'idle' | 'waiting' | 'loading' | 'live' | 'error';
 
@@ -11,44 +16,51 @@ function loadHlsModule(): Promise<typeof import('hls.js')> {
   return hlsModulePromise;
 }
 
-function canPlayNativeHls(video: HTMLVideoElement): boolean {
-  return video.canPlayType('application/vnd.apple.mpegurl') !== '';
-}
-
-/** Safari / iOS WebKit — seul cas où le HLS natif est fiable pour Cloudflare live. */
-function shouldUseNativeHls(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  const ua = navigator.userAgent;
-  if (/iPad|iPhone|iPod/.test(ua)) return canPlayNativeHls(document.createElement('video'));
-  if (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) {
-    return canPlayNativeHls(document.createElement('video'));
-  }
-  return /Safari/i.test(ua) && !/Chrome|Chromium|Edg|OPR|CriOS|FxiOS/i.test(ua);
-}
-
 function hasRenderableVideo(video: HTMLVideoElement): boolean {
   return video.videoWidth > 0 && video.videoHeight > 0;
 }
 
 /** Manifeste LL-HLS Cloudflare (réduit le délai glass-to-glass côté lecteur). */
-function withCloudflareLlHlsManifest(url: string): string {
+function withCloudflareLlHlsManifest(url: string, viewerDelaySeconds: number): string {
   const trimmed = url.trim();
   if (!trimmed || trimmed.includes('protocol=llhls')) return trimmed;
+  if (viewerDelaySeconds > 0) return trimmed;
   return `${trimmed}${trimmed.includes('?') ? '&' : '?'}protocol=llhls`;
 }
 
-/** Réglages hls.js — latence live (~5–15 s) vs stabilité OBS RTMP (pas LL ingest côté Cloudflare). */
-function createCloudflareHlsInstance(Hls: typeof import('hls.js').default): import('hls.js').default {
+/** Réglages hls.js — latence live vs délai intentionnel hôte. */
+function createCloudflareHlsInstance(
+  Hls: typeof import('hls.js').default,
+  viewerDelaySeconds: number
+): import('hls.js').default {
+  const delay = getLiveVideoDelaySeconds(viewerDelaySeconds);
+  if (delay === 0) {
+    return new Hls({
+      enableWorker: true,
+      lowLatencyMode: true,
+      backBufferLength: 0,
+      liveBackBufferLength: 0,
+      maxBufferLength: 8,
+      maxMaxBufferLength: 12,
+      liveSyncDurationCount: 2,
+      liveMaxLatencyDurationCount: 6,
+      maxLiveSyncPlaybackRate: 1.5,
+      liveDurationInfinity: true,
+    });
+  }
+
+  const approxSegmentSec = 4;
+  const syncCount = Math.max(3, Math.ceil(delay / approxSegmentSec));
   return new Hls({
     enableWorker: true,
-    lowLatencyMode: true,
-    backBufferLength: 0,
-    liveBackBufferLength: 0,
-    maxBufferLength: 8,
-    maxMaxBufferLength: 12,
-    liveSyncDurationCount: 2,
-    liveMaxLatencyDurationCount: 6,
-    maxLiveSyncPlaybackRate: 1.5,
+    lowLatencyMode: false,
+    backBufferLength: delay + 15,
+    liveBackBufferLength: delay + 15,
+    maxBufferLength: delay + 12,
+    maxMaxBufferLength: delay + 24,
+    liveSyncDurationCount: syncCount,
+    liveMaxLatencyDurationCount: syncCount + 2,
+    maxLiveSyncPlaybackRate: 1,
     liveDurationInfinity: true,
   });
 }
@@ -58,8 +70,11 @@ export function useCloudflareHlsPlayback(opts: {
   active: boolean;
   /** Passe à true quand Cloudflare lifecycle confirme le flux RTMP OBS. */
   obsIngestLive?: boolean;
+  /** Délai intentionnel hôte (secondes) — spectateurs HLS uniquement. */
+  viewerDelaySeconds?: number;
 }) {
-  const { playbackUrl, active, obsIngestLive = false } = opts;
+  const { playbackUrl, active, obsIngestLive = false, viewerDelaySeconds = 0 } = opts;
+  const delaySeconds = getLiveVideoDelaySeconds(viewerDelaySeconds);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<import('hls.js').default | null>(null);
   const [phase, setPhase] = useState<HlsPlaybackPhase>('idle');
@@ -72,6 +87,7 @@ export function useCloudflareHlsPlayback(opts: {
 
   const setVideoEl = useCallback((el: HTMLVideoElement | null) => {
     videoRef.current = el;
+    if (el) configureInlinePlaybackVideo(el);
     setVideoReady(el != null);
   }, []);
 
@@ -140,7 +156,7 @@ export function useCloudflareHlsPlayback(opts: {
       return;
     }
 
-    const hlsPlaybackUrl = withCloudflareLlHlsManifest(playbackUrl);
+    const hlsPlaybackUrl = withCloudflareLlHlsManifest(playbackUrl, delaySeconds);
 
     setPhase('loading');
     setError(null);
@@ -188,7 +204,7 @@ export function useCloudflareHlsPlayback(opts: {
       video.removeAttribute('src');
       video.load();
 
-      const hls = createCloudflareHlsInstance(Hls);
+      const hls = createCloudflareHlsInstance(Hls, delaySeconds);
       hlsRef.current = hls;
       hls.loadSource(hlsPlaybackUrl);
       hls.attachMedia(video);
@@ -210,7 +226,7 @@ export function useCloudflareHlsPlayback(opts: {
     };
 
     void (async () => {
-      if (shouldUseNativeHls()) {
+      if (preferNativeHls()) {
         video.src = hlsPlaybackUrl;
         const onNativeError = () => {
           void attachHlsJs();
@@ -243,7 +259,21 @@ export function useCloudflareHlsPlayback(opts: {
       video.removeAttribute('src');
       video.load();
     };
-  }, [active, playbackUrl, videoReady, initGeneration, destroyHls, tryPlay]);
+  }, [active, playbackUrl, videoReady, initGeneration, destroyHls, tryPlay, delaySeconds]);
+
+  useEffect(() => {
+    if (!active || delaySeconds <= 0) return;
+    const id = window.setInterval(() => {
+      const video = videoRef.current;
+      if (!video || video.seekable.length === 0) return;
+      const end = video.seekable.end(video.seekable.length - 1);
+      const target = Math.max(0, end - delaySeconds);
+      if (video.currentTime > target + 0.35) {
+        video.currentTime = target;
+      }
+    }, 1500);
+    return () => window.clearInterval(id);
+  }, [active, delaySeconds, streamActive]);
 
   const prevObsLiveRef = useRef(false);
   useEffect(() => {

@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useHorizontalSwipe } from '../hooks/useHorizontalSwipe';
 import { useVerticalSwipe } from '../hooks/useVerticalSwipe';
 import { api } from '../lib/api';
+import { STORY_APP_LINK_EVENT } from '../lib/storyAppLink';
 import { STORY_VIEW_DURATION_MS, formatStoryTimeAgo } from '../lib/storyViewerNav';
+import { storyViewDurationMs } from '../lib/storyVideo';
 import { getDisplayDurationMs } from '../lib/sponsorDisplaySpec';
 import { handleSponsorCta } from '../lib/sponsorAds';
 import { SPONSOR_ACCENT_GRADIENTS, sponsorKindBadgeLabel } from '../lib/sponsorDisplaySpec';
@@ -50,7 +52,9 @@ export function StoryViewer({
   const activeStackIndex = stackIndex ?? 0;
   const segmentDurationMs = isSponsorSlide
     ? getDisplayDurationMs(sponsorAd?.displayDurationSec)
-    : STORY_VIEW_DURATION_MS;
+    : activeStory
+      ? storyViewDurationMs(activeStory)
+      : STORY_VIEW_DURATION_MS;
   const [paused, setPaused] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -59,6 +63,7 @@ export function StoryViewer({
   const progressRef = useRef(0);
   const rafRef = useRef(0);
   const segmentStartRef = useRef(Date.now());
+  const storyVideoRef = useRef<HTMLVideoElement>(null);
   const onNextRef = useRef(onNext);
   const onCloseRef = useRef(onClose);
   const canNextRef = useRef(canNext);
@@ -78,6 +83,12 @@ export function StoryViewer({
   }, []);
 
   useEffect(() => {
+    const onAppLink = () => onCloseRef.current();
+    window.addEventListener(STORY_APP_LINK_EVENT, onAppLink);
+    return () => window.removeEventListener(STORY_APP_LINK_EVENT, onAppLink);
+  }, []);
+
+  useEffect(() => {
     setProgress(0);
     progressRef.current = 0;
     segmentStartRef.current = Date.now();
@@ -85,6 +96,20 @@ export function StoryViewer({
     setShowDeleteConfirm(false);
     setDeleteError(null);
   }, [activeStory?.id, sponsorAd?.id]);
+
+  useEffect(() => {
+    const video = storyVideoRef.current;
+    if (!video || !activeStory?.videoUrl) return;
+    video.currentTime = 0;
+    void video.play().catch(() => undefined);
+  }, [activeStory?.id, activeStory?.videoUrl]);
+
+  useEffect(() => {
+    const video = storyVideoRef.current;
+    if (!video || !activeStory?.videoUrl) return;
+    if (paused) video.pause();
+    else void video.play().catch(() => undefined);
+  }, [paused, activeStory?.id, activeStory?.videoUrl]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -363,6 +388,17 @@ export function StoryViewer({
                   </div>
                 </div>
               </>
+            ) : activeStory?.videoUrl ? (
+              <video
+                ref={storyVideoRef}
+                key={activeStory.id}
+                src={activeStory.videoUrl}
+                poster={activeStory.imageUrl}
+                className="max-w-full max-h-full object-contain block"
+                playsInline
+                preload="auto"
+                draggable={false}
+              />
             ) : activeStory?.imageUrl ? (
               <img
                 src={activeStory.imageUrl}
@@ -419,7 +455,7 @@ export function StoryViewer({
           activeStory.musicTrack ||
           activeStory.link?.url ||
           (activeStory.taggedUsers && activeStory.taggedUsers.length > 0)) && (
-          <div className="shrink-0 px-4 py-3 ms-safe-area-bottom pb-[max(0.75rem,env(safe-area-inset-bottom))] space-y-2 overflow-y-auto max-h-[22dvh] sm:max-h-[22vh] border-t border-[#1e1e2f]">
+          <div className="shrink-0 px-4 py-3 ms-safe-area-bottom pb-[max(0.75rem,env(safe-area-inset-bottom))] space-y-2 overflow-y-auto max-h-[22dvh] border-t border-[#1e1e2f]">
             {activeStory.content ? (
               <p className="text-sm text-gray-200 whitespace-pre-wrap break-words">{activeStory.content}</p>
             ) : null}

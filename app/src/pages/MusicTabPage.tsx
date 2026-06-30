@@ -4,26 +4,19 @@ import {
   MusicHomeSections,
   MusicSearchResults,
 } from '../components/MusicHomeContent';
-import { useDebouncedApiSearch } from '../hooks/useDebouncedApiSearch';
 import { useMusicHome } from '../hooks/useMusicHome';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { USERNAME_WAVE_CLASS } from '../lib/usernameColor';
-import type { MusicSearchHit } from '../lib/musicTypes';
+import type { MusicSearchPayload } from '../lib/musicTypes';
 
 interface MusicTabPageProps {
   isActive?: boolean;
-  onOpenMap?: () => void;
-  onOpenLive?: (liveId: string) => void;
-  onOpenSalon?: (salonId: string) => void;
   onOpenProfile?: (userId: string) => void;
 }
 
 export function MusicTabPage({
   isActive = true,
-  onOpenMap,
-  onOpenLive,
-  onOpenSalon,
   onOpenProfile,
 }: MusicTabPageProps) {
   const { t } = useTranslation();
@@ -32,6 +25,8 @@ export function MusicTabPage({
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const deferredSearchQuery = useDeferredValue(debouncedSearchQuery);
   const searchActive = deferredSearchQuery.trim().length >= 2;
+  const [searchResults, setSearchResults] = useState<MusicSearchPayload | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   const { data, loading, error, reload } = useMusicHome(isActive);
 
@@ -40,36 +35,30 @@ export function MusicTabPage({
     return () => window.clearTimeout(timer);
   }, [searchQuery]);
 
-  const {
-    results: searchHits,
-    loading: searchLoading,
-  } = useDebouncedApiSearch<MusicSearchHit>({
-    query: deferredSearchQuery,
-    enabled: isActive && Boolean(token),
-    minLength: 2,
-    debounceMs: 0,
-    cacheNamespace: 'music-search',
-    fetcher: async (q, signal) => {
-      if (!token) return [];
-      const yt = await api.searchYoutube(token, q);
-      void signal;
-      const hits: MusicSearchHit[] = [];
-      for (const r of yt.results.slice(0, 12)) {
-        hits.push({
-          kind: 'youtube',
-          id: r.videoId,
-          title: r.title,
-          artist: r.artist,
-          albumArtUrl: r.thumbnailUrl,
-          externalUrl: r.externalUrl,
-        });
-      }
-      return hits;
-    },
-  });
+  useEffect(() => {
+    if (!isActive || !token || !searchActive) {
+      setSearchResults(null);
+      setSearchLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setSearchLoading(true);
+    void api
+      .searchMusic(token, deferredSearchQuery)
+      .then((payload) => {
+        if (!cancelled) setSearchResults(payload);
+      })
+      .catch(() => {
+        if (!cancelled) setSearchResults({ albums: [], tracks: [] });
+      })
+      .finally(() => {
+        if (!cancelled) setSearchLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isActive, token, searchActive, deferredSearchQuery]);
 
-  const handleOpenLive = (liveId: string) => onOpenLive?.(liveId);
-  const handleOpenSalon = (salonId: string) => onOpenSalon?.(salonId);
   const handleOpenProfile = (userId: string) => onOpenProfile?.(userId);
 
   return (
@@ -80,7 +69,7 @@ export function MusicTabPage({
         </h1>
         <p className="text-xs text-gray-500 mt-1 leading-snug">
           {t('music.tabSubtitle', {
-            defaultValue: 'Découverte, likes et lives autour de toi.',
+            defaultValue: 'Albums et morceaux publiés par la communauté Soundy.',
           })}
         </p>
         <label className="mt-3 block">
@@ -91,7 +80,7 @@ export function MusicTabPage({
             onChange={(e) => setSearchQuery(e.target.value)}
             disabled={!isActive}
             placeholder={t('music.searchPlaceholder', {
-              defaultValue: 'Artiste, album, chanson, live…',
+              defaultValue: 'Album, morceau, créateur…',
             })}
             className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#12121a] border border-[#2d2d3d] text-sm text-gray-200 placeholder:text-gray-500 focus:outline-none focus:border-amber-500/50"
           />
@@ -113,14 +102,16 @@ export function MusicTabPage({
         ) : null}
 
         {searchActive ? (
-          <MusicSearchResults hits={searchHits} loading={searchLoading} query={deferredSearchQuery} />
+          <MusicSearchResults
+            results={searchResults}
+            loading={searchLoading}
+            query={deferredSearchQuery}
+            onOpenProfile={handleOpenProfile}
+          />
         ) : (
           <MusicHomeSections
             data={data}
             loading={loading}
-            onOpenMap={onOpenMap}
-            onOpenLive={handleOpenLive}
-            onOpenSalon={handleOpenSalon}
             onOpenProfile={handleOpenProfile}
           />
         )}

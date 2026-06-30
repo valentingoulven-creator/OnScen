@@ -2,11 +2,13 @@ import { Router, Request, Response } from 'express';
 import { authenticateJWT } from '../middleware/auth';
 import { db, type User } from '../models/schema';
 import { countPersistableProfilePhotos, normalizeProfilePhotos, publicProfile } from '../lib/profile';
-import { getFavoriteCount } from '../lib/favorites';
+import { getFavoriteCount, getFanIds, getFavoriteHostIds, getFollowingCount } from '../lib/favorites';
+import { getUserStats } from '../lib/profile';
 import { isPrivateReel } from '../lib/reels';
 import { schedulePersist } from '../lib/persist';
 import { schedulePersistUserToPg } from '../lib/pgUsers';
 import {
+  blockUserAccount,
   createInviteCode,
   deleteInviteCode,
   getAccessPolicy,
@@ -82,6 +84,8 @@ function mapAdminManagedUser(u: User) {
   const photos = normalizeProfilePhotos(u);
   const reels = db.userReels.filter((r) => r.authorId === u.id);
   const platformPlan = getUserPlatformPlan(u.id);
+  const stats = getUserStats(u.id);
+  const totalLivesHosted = [...db.lives.values()].filter((l) => l.hostId === u.id).length;
   return {
     id: u.id,
     username: u.username,
@@ -98,6 +102,7 @@ function mapAdminManagedUser(u: User) {
     bio: u.bio,
     bioPreview: u.bio?.trim().slice(0, 120),
     followersCount: u.favoritesCountOverride ?? getFavoriteCount(u.id),
+    followingCount: getFollowingCount(u.id),
     photosCount: countPersistableProfilePhotos(photos),
     birthDate: u.birthDate,
     age: u.age,
@@ -113,6 +118,16 @@ function mapAdminManagedUser(u: User) {
     instagramHandle: u.instagramHandle,
     platformPlanId: platformPlan.id,
     platformPlanLabel: platformPlan.label,
+    salonsHosted: stats.salonsHosted,
+    activeLivesHosted: stats.livesHosted,
+    totalLivesHosted,
+    blockedUntil: u.blockedUntil,
+    blockedReason: u.blockedReason,
+    blockedAt: u.blockedAt,
+    emailVerified: u.emailVerified === true,
+    stripeConnectReady: Boolean(u.stripeConnectAccountId?.trim()),
+    connectedPlatformsCount: u.connectedPlatforms?.length ?? 0,
+    onboardingCompleted: u.onboardingCompleted !== false,
   };
 }
 
@@ -191,6 +206,35 @@ accessRouter.get('/admin/users/:userId', authenticateJWT, (req: Request, res: Re
   res.json({ user: mapAdminManagedUser(user) });
 });
 
+accessRouter.get('/admin/users/:userId/social', authenticateJWT, (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  const userId = req.params.userId;
+  const user = db.users.get(userId);
+  if (!user || user.email.endsWith('@bot.local')) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+  const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '40'), 10) || 40, 1), 100);
+  const mapBrief = (id: string) => {
+    const u = db.users.get(id);
+    if (!u || u.email.endsWith('@bot.local')) return null;
+    return {
+      id: u.id,
+      username: u.username,
+      email: u.email,
+      accountStatus: getAccountStatus(u),
+    };
+  };
+  const followerIds = getFanIds(userId);
+  const followingIds = getFavoriteHostIds(userId);
+  res.json({
+    followers: followerIds.slice(0, limit).map(mapBrief).filter(Boolean),
+    following: followingIds.slice(0, limit).map(mapBrief).filter(Boolean),
+    followersTotal: followerIds.length,
+    followingTotal: followingIds.length,
+  });
+});
+
 accessRouter.patch('/admin/policy', authenticateJWT, (req: Request, res: Response) => {
   if (!requireAdmin(req, res)) return;
   const mode = req.body?.registrationMode as AccessRegistrationMode | undefined;
@@ -213,7 +257,7 @@ accessRouter.post('/admin/users/:userId/approve', authenticateJWT, (req: Request
   }
   schedulePersistUserToPg(user);
   schedulePersist();
-  res.json({ user: publicProfile(user, true, user.id) });
+  res.json({ user: mapAdminManagedUser(user) });
 });
 
 accessRouter.post('/admin/users/:userId/block', authenticateJWT, (req: Request, res: Response) => {
@@ -227,10 +271,16 @@ accessRouter.post('/admin/users/:userId/block', authenticateJWT, (req: Request, 
     res.status(400).json({ error: 'Impossible de suspendre un administrateur' });
     return;
   }
-  const user = setUserAccountStatus(req.params.userId, 'blocked');
+  const rawDays = req.body?.days;
+  const days =
+    rawDays === null || rawDays === undefined || rawDays === ''
+      ? null
+      : Math.min(Math.max(Number(rawDays) || 0, 0), 365);
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason : undefined;
+  const user = blockUserAccount(req.params.userId, { days, reason });
   schedulePersistUserToPg(user!);
   schedulePersist();
-  res.json({ user: publicProfile(user!, true, user!.id) });
+  res.json({ user: mapAdminManagedUser(user!) });
 });
 
 accessRouter.post('/admin/users/:userId/unblock', authenticateJWT, (req: Request, res: Response) => {
@@ -242,7 +292,7 @@ accessRouter.post('/admin/users/:userId/unblock', authenticateJWT, (req: Request
   }
   schedulePersistUserToPg(user);
   schedulePersist();
-  res.json({ user: publicProfile(user, true, user.id) });
+  res.json({ user: mapAdminManagedUser(user) });
 });
 
 accessRouter.post('/admin/users/:userId/promote', authenticateJWT, (req: Request, res: Response) => {

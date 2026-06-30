@@ -29,7 +29,7 @@ $RepoUrl     = 'https://github.com/valentingoulven-creator/MeloSong.git'
 $VpsHost     = '51.159.164.100'
 $VpsUser     = 'root'
 $VpsTarget   = "${VpsUser}@${VpsHost}"
-$RemotePath  = '/opt/soundly'
+$RemotePath  = '/opt/soundy'
 $HealthUrl   = 'https://getsoundy.com/health'
 $SshDir      = Join-Path $env:USERPROFILE '.ssh'
 $PrimaryKey  = Join-Path $SshDir 'id_ed25519'
@@ -357,11 +357,11 @@ if ($createdEnvFiles.Count -gt 0) {
     if (Test-Path $checklist) {
         Write-Info "Checklist : scripts/secrets-checklist.template.txt"
     }
-    Write-Info 'Recuperer prod : ssh root@51.159.164.100 puis cat /opt/soundly/.env (sans committer)'
+    Write-Info 'Recuperer prod : ssh root@51.159.164.100 puis cat /opt/soundy/.env (sans committer)'
     Write-Info 'PostgreSQL prod = Scaleway Managed (51.15.132.229:14440) — DATABASE_URL dans .env VPS, pas sur le VPS lui-meme'
     Write-Info 'Admin prod : PROD_ADMIN_EMAIL=admin@getsoundy.com ; msdev : ACCESS_ADMIN_EMAILS (pas dev@soundy.local)'
     Write-Info '(Ne copiez que les variables necessaires - jamais dans Git)'
-    $manualActions.Add('Remplir msdev/.env (ACCESS_ADMIN_EMAILS) et backend/.env.production (PROD_ADMIN_EMAIL=admin@getsoundy.com) depuis machine 1 ou VPS /opt/soundly/.env')
+    $manualActions.Add('Remplir msdev/.env (ACCESS_ADMIN_EMAILS) et backend/.env.production (PROD_ADMIN_EMAIL=admin@getsoundy.com) depuis machine 1 ou VPS /opt/soundy/.env')
 }
 
 # --- 6. npm install --------------------------------------------------------

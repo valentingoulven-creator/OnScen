@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # install-uploads-backup-cron.sh — Cron hebdomadaire backup-uploads.sh (dimanche 04:30)
-# Usage : sudo bash /opt/soundly/deploy/install-uploads-backup-cron.sh
+# Usage : sudo bash /opt/soundy/deploy/install-uploads-backup-cron.sh
 set -euo pipefail
 
-sed -i 's/\r$//' /opt/soundly/deploy/*.sh 2>/dev/null || true
+sed -i 's/\r$//' /opt/soundy/deploy/*.sh 2>/dev/null || true
 
-ROOT="${SOUNDLY_ROOT:-/opt/soundly}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/soundy-root.sh
+source "${SCRIPT_DIR}/lib/soundy-root.sh"
 SCRIPT="${ROOT}/deploy/backup-uploads.sh"
 CRON_LOG="${ROOT}/backups/uploads/cron.log"
 CRON_MARKER="backup-uploads.sh"

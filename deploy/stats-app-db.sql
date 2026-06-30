@@ -6,10 +6,10 @@
 -- Schéma  : migrations 001–004 (backend/src/db/migrations/)
 --
 -- Usage local / VPS :
---   set -a && source /opt/soundly/.env && set +a
---   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f /opt/soundly/deploy/stats-app-db.sql
+--   set -a && source /opt/soundy/.env && set +a
+--   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f /opt/soundy/deploy/stats-app-db.sql
 --
--- Ou via le wrapper : bash /opt/soundly/deploy/stats-app-db.sh
+-- Ou via le wrapper : bash /opt/soundy/deploy/stats-app-db.sh
 --
 -- Notes :
 --   • Les horodatages applicatifs sont en millisecondes (epoch ms) sauf mention.
@@ -795,8 +795,8 @@ FROM access_invite_codes;
 
 \echo ''
 \echo '--- 9.6 Signalements de contenu (hors base PostgreSQL) ---'
-\echo 'Les signalements sont stockés dans : /opt/soundly/data/content-reports.jsonl'
-\echo 'Comptage rapide sur le VPS : wc -l /opt/soundly/data/content-reports.jsonl'
+\echo 'Les signalements sont stockés dans : /opt/soundy/data/content-reports.jsonl'
+\echo 'Comptage rapide sur le VPS : wc -l /opt/soundy/data/content-reports.jsonl'
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 10. MÉTA & SANTÉ BASE

@@ -59,12 +59,12 @@ export function getPool(): Pool {
     pool = new Pool(config);
 
     pool.on('error', (err) => {
-      console.error('[soundly] Erreur pool PostgreSQL :', err.message);
+      console.error('[soundy] Erreur pool PostgreSQL :', err.message);
     });
 
     // Log au démarrage pour confirmer la config
     console.log(
-      `[soundly] Pool PostgreSQL initialisé — max=${config.max} ` +
+      `[soundy] Pool PostgreSQL initialisé — max=${config.max} ` +
       `idle=${config.idleTimeoutMillis}ms conn=${config.connectionTimeoutMillis}ms ` +
       `ssl=${config.ssl ? 'oui' : 'non'} statement_timeout=${statementTimeout}ms`
     );
@@ -79,7 +79,7 @@ export async function closePool(): Promise<void> {
   try {
     await current.end();
   } catch (err) {
-    console.warn('[soundly] Erreur à la fermeture du pool PostgreSQL :', err);
+    console.warn('[soundy] Erreur à la fermeture du pool PostgreSQL :', err);
   }
 }
 

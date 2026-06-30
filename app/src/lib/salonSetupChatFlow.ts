@@ -1,6 +1,17 @@
 import type { SetupChatMessage } from './liveSetupChatFlow';
 
+export type SalonSetupChangeTarget =
+  | 'title'
+  | 'access'
+  | 'location'
+  | 'genres'
+  | 'queue'
+  | 'playlist';
+
 export type SalonSetupChatPhase =
+  | 'loading'
+  | 'return_ask'
+  | 'return_pick'
   | 'youtube'
   | 'title'
   | 'access'
@@ -22,6 +33,7 @@ export const SALON_SETUP_PHASE_BOT_QUESTION: Partial<Record<SalonSetupChatPhase,
   queue: 'setupChatAskQueue',
   playlist: 'setupChatAskPlaylist',
   confirm: 'setupChatConfirm',
+  return_pick: 'setupChatPickChange',
 };
 
 let msgSeq = 0;

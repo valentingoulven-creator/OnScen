@@ -2,10 +2,26 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { isPlatformConnected } from '../lib/platformConnect';
 import { PLATFORM_STATUS_REFRESH_EVENT } from '../lib/platformStatusEvents';
+import { STORAGE_KEYS } from '../lib/storageKeys';
 import { PlatformConnectCard } from './PlatformConnectCard';
 import type { User } from '../types';
 
-const DISMISS_KEY = 'soundly_platform_prompt_dismissed';
+const DISMISS_KEY = STORAGE_KEYS.platformPromptDismissed;
+const LEGACY_DISMISS_KEY = 'soundly_platform_prompt_dismissed';
+
+function isPlatformPromptDismissed(): boolean {
+  try {
+    if (sessionStorage.getItem(DISMISS_KEY) === '1') return true;
+    if (sessionStorage.getItem(LEGACY_DISMISS_KEY) === '1') {
+      sessionStorage.setItem(DISMISS_KEY, '1');
+      sessionStorage.removeItem(LEGACY_DISMISS_KEY);
+      return true;
+    }
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
 
 function hasStreamingPlatformConnected(user: User): boolean {
   return isPlatformConnected(user.connectedPlatforms, 'youtube');
@@ -38,7 +54,7 @@ export function PlatformConnectPrompt({
   userRef.current = user;
 
   const evaluate = useCallback((fresh = false) => {
-    if (sessionStorage.getItem(DISMISS_KEY) === '1') {
+    if (isPlatformPromptDismissed()) {
       setVisible(false);
       return;
     }

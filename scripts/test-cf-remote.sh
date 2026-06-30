@@ -1,6 +1,6 @@
 #!/bin/bash
-ACCOUNT=$(grep '^CLOUDFLARE_ACCOUNT_ID=' /opt/soundly/.env | cut -d= -f2-)
-TOKEN=$(grep '^CLOUDFLARE_STREAM_API_TOKEN=' /opt/soundly/.env | cut -d= -f2-)
+ACCOUNT=$(grep '^CLOUDFLARE_ACCOUNT_ID=' /opt/soundy/.env | cut -d= -f2-)
+TOKEN=$(grep '^CLOUDFLARE_STREAM_API_TOKEN=' /opt/soundy/.env | cut -d= -f2-)
 curl -s -H "Authorization: Bearer $TOKEN" "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/stream/live_inputs?per_page=1" | python3 -c "import sys,json; d=json.load(sys.stdin); print('success:', d.get('success')); print('errors:', d.get('errors')); print('count:', len(d.get('result',[])))"
 CREATE=$(curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"meta":{"name":"Soundy test"},"recording":{"mode":"automatic"}}' "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/stream/live_inputs")
 echo "$CREATE" | python3 -c "import sys,json; d=json.load(sys.stdin); print('create_success:', d.get('success')); uid=d.get('result',{}).get('uid'); print('uid:', uid); print('create_errors:', d.get('errors')); import os; open('/tmp/cf_uid','w').write(uid or '')"

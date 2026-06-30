@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # verify-prod.sh — Contrôles ops production (sans SSH, à lancer sur le VPS)
 # Usage :
-#   bash /opt/soundly/deploy/verify-prod.sh
+#   bash /opt/soundy/deploy/verify-prod.sh
 # Variables optionnelles :
-#   SOUNDLY_ROOT=/opt/soundly  HEALTH_URL=http://127.0.0.1:3000/health  PM2_APP=melosong-backend
+#   SOUNDY_ROOT=/opt/soundy  HEALTH_URL=http://127.0.0.1:3000/health  PM2_APP=melosong-backend
 set -euo pipefail
 
-ROOT="${SOUNDLY_ROOT:-/opt/soundly}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/soundy-root.sh
+source "${SCRIPT_DIR}/lib/soundy-root.sh"
 ENV_FILE="${ROOT}/.env"
 LEGAL_FILE="${ROOT}/legal-publisher.json"
 BACKUP_DIR="${BACKUP_DIR:-${ROOT}/backups}"

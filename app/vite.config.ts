@@ -1,9 +1,33 @@
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'node:child_process';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
+
+function resolveSentryRelease(slug = 'soundy-web'): string {
+  const pkgPath = path.resolve(__dirname, 'package.json');
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+  const version = String(pkg.version || '0.0.0');
+  let sha =
+    process.env.SENTRY_RELEASE_SHA?.trim() ||
+    process.env.GITHUB_SHA?.trim()?.slice(0, 7) ||
+    '';
+  if (!sha) {
+    try {
+      sha = execSync('git rev-parse --short HEAD', {
+        cwd: path.resolve(__dirname, '..'),
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim();
+    } catch {
+      sha = '';
+    }
+  }
+  return sha ? `${slug}@${version}+${sha}` : `${slug}@${version}`;
+}
 
 function msdevBackendUsesHttps(): boolean {
   if (process.env.MSDEV_HTTPS === '1' || process.env.MSDEV_HTTPS_PROXY === '1') return true;
@@ -25,15 +49,45 @@ const msdevProxy = { target: msdevProxyTarget, secure: false, changeOrigin: true
 
 const swPurgeKey = `melosong_sw_purge_${Date.now().toString(36)}`;
 
+function loadSentryBuildPluginEnv(): Record<string, string> {
+  const filePath = path.resolve(__dirname, '.env.sentry-build-plugin');
+  if (!fs.existsSync(filePath)) return {};
+  const out: Record<string, string> = {};
+  for (const line of fs.readFileSync(filePath, 'utf8').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq === -1) continue;
+    out[trimmed.slice(0, eq).trim()] = trimmed.slice(eq + 1).trim();
+  }
+  return out;
+}
+
 export default defineConfig(({ mode }) => {
   // loadEnv lit .env.production (ou .env.msdev, etc.) selon le mode de build,
   // contrairement à process.env qui ne voit que les variables du shell.
   const envFromFile = loadEnv(mode, process.cwd(), '');
+  const sentryBuildEnv = loadSentryBuildPluginEnv();
+  const sentryEnv = { ...sentryBuildEnv, ...envFromFile, ...process.env };
   const appEnv = envFromFile.VITE_APP_ENV ?? process.env.VITE_APP_ENV ?? 'msdev';
+  const sentryRelease =
+    envFromFile.VITE_SENTRY_RELEASE?.trim() ||
+    process.env.VITE_SENTRY_RELEASE?.trim() ||
+    resolveSentryRelease('soundy-web');
+  const sentryUploadEnabled = Boolean(
+    sentryEnv.SENTRY_AUTH_TOKEN?.trim() &&
+      sentryEnv.SENTRY_ORG?.trim() &&
+      sentryEnv.SENTRY_PROJECT?.trim()
+  );
+  const sentryClientEnabled = Boolean(
+    (envFromFile.VITE_SENTRY_DSN ?? process.env.VITE_SENTRY_DSN)?.trim() &&
+      appEnv !== 'msdev'
+  );
 
   return {
   define: {
     'import.meta.env.VITE_APP_ENV': JSON.stringify(appEnv),
+    'import.meta.env.VITE_SENTRY_RELEASE': JSON.stringify(sentryRelease),
   },
   resolve: {
     dedupe: ['react', 'react-dom'],
@@ -174,6 +228,21 @@ export default defineConfig(({ mode }) => {
         enabled: false,
       },
     }),
+    ...(sentryUploadEnabled
+      ? [
+          sentryVitePlugin({
+            org: sentryEnv.SENTRY_ORG,
+            project: sentryEnv.SENTRY_PROJECT,
+            authToken: sentryEnv.SENTRY_AUTH_TOKEN,
+            release: { name: sentryRelease },
+            sourcemaps: {
+              assets: '../backend/public/**',
+              filesToDeleteAfterUpload: ['../backend/public/**/*.map'],
+            },
+            telemetry: false,
+          }),
+        ]
+      : []),
   ],
   server: {
     port: 5173,
@@ -192,6 +261,7 @@ export default defineConfig(({ mode }) => {
     emptyOutDir: true,
     chunkSizeWarningLimit: 1000,
     modulePreload: false,
+    sourcemap: sentryUploadEnabled || sentryClientEnabled ? 'hidden' : false,
     rollupOptions: {
       output: {
         manualChunks(id) {

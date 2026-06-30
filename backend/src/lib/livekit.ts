@@ -1,8 +1,10 @@
 import { AccessToken, EgressClient } from 'livekit-server-sdk';
 import { StreamOutput, StreamProtocol } from '@livekit/protocol';
-
-/** In-memory map of liveId → active egressId. */
-const activeEgresses = new Map<string, string>();
+import {
+  clearLiveKitEgressId,
+  getLiveKitEgressId,
+  setLiveKitEgressId,
+} from './livekitEgressStore';
 
 export function isLiveKitConfigured(): boolean {
   return Boolean(
@@ -41,7 +43,7 @@ export async function createLiveKitToken(opts: {
   const at = new AccessToken(apiKey, apiSecret, {
     identity: opts.participantIdentity,
     name: opts.participantName,
-    ttl: '6h',
+    ttl: '2h',
   });
 
   at.addGrant({
@@ -66,9 +68,7 @@ function buildEgressClient(): EgressClient {
 }
 
 /** Returns the active egress ID for a live, or undefined if none. */
-export function getLiveKitEgressId(liveId: string): string | undefined {
-  return activeEgresses.get(liveId);
-}
+export { getLiveKitEgressId } from './livekitEgressStore';
 
 /**
  * Start a RoomCompositeEgress that pushes LiveKit room audio+video to an RTMP URL
@@ -85,15 +85,15 @@ export async function startLiveKitEgress(liveId: string, rtmpUrl: string): Promi
 
   const info = await client.startRoomCompositeEgress(roomName, output);
   const egressId = info.egressId;
-  activeEgresses.set(liveId, egressId);
+  await setLiveKitEgressId(liveId, egressId);
   return egressId;
 }
 
 /** Stop the active egress for a live (no-op if none). */
 export async function stopLiveKitEgress(liveId: string): Promise<void> {
-  const egressId = activeEgresses.get(liveId);
+  const egressId = await getLiveKitEgressId(liveId);
   if (!egressId) throw new Error('Aucun egress actif pour ce live.');
   const client = buildEgressClient();
   await client.stopEgress(egressId);
-  activeEgresses.delete(liveId);
+  await clearLiveKitEgressId(liveId);
 }

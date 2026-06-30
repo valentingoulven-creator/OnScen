@@ -9,18 +9,30 @@ export async function upsertUser(db: DbExec, user: User): Promise<void> {
   // (évite l'exposition dans les logs PG, les exports JSONB, et les snapshots pgStore)
   const { passwordHash, ...payloadWithoutHash } = user;
   await db.query(
-    `INSERT INTO users (id, email, username, password_hash, payload)
-     VALUES ($1, $2, $3, $4, $5::jsonb)
+    `INSERT INTO users (id, email, username, password_hash, latitude, longitude, geom, payload)
+     VALUES (
+       $1, $2, $3, $4, $5, $6,
+       CASE WHEN $5 IS NOT NULL AND $6 IS NOT NULL
+         THEN ST_SetSRID(ST_MakePoint($6, $5), 4326)::geography
+         ELSE NULL
+       END,
+       $7::jsonb
+     )
      ON CONFLICT (id) DO UPDATE SET
        email         = EXCLUDED.email,
        username      = EXCLUDED.username,
        password_hash = EXCLUDED.password_hash,
+       latitude      = EXCLUDED.latitude,
+       longitude     = EXCLUDED.longitude,
+       geom          = EXCLUDED.geom,
        payload       = EXCLUDED.payload`,
     [
       user.id,
       user.email?.toLowerCase() ?? null,
       user.username ?? null,
       passwordHash ?? null,
+      user.latitude ?? null,
+      user.longitude ?? null,
       JSON.stringify(payloadWithoutHash),
     ]
   );

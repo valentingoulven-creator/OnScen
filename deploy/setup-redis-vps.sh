@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # setup-redis-vps.sh — Redis local (127.0.0.1:6379) + REDIS_URL dans .env
-# Usage (root sur VPS) : bash /opt/soundly/deploy/setup-redis-vps.sh
+# Usage (root sur VPS) : bash /opt/soundy/deploy/setup-redis-vps.sh
 set -euo pipefail
 
-ENV_FILE="${ENV_FILE:-/opt/soundly/.env}"
+ENV_FILE="${ENV_FILE:-/opt/soundy/.env}"
 
 log() { echo "[redis-setup] $*"; }
 

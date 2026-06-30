@@ -1,5 +1,7 @@
+import { STORAGE_KEYS } from './storageKeys';
+
 /** localStorage key for map style preference (flat | globe). */
-export const MAP_STYLE_STORAGE_KEY = 'soundly_map_style';
+export const MAP_STYLE_STORAGE_KEY = STORAGE_KEYS.mapStyle;
 
 /** sessionStorage flag set when globe 3D fails at runtime. */
 export const MAP_GLOBE_DISABLED_KEY = 'soundy_disable_globe';

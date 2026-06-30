@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   buildLiveCameraConstraintAttempts,
   canBypassLiveMediaSetup,
+  configureInlinePlaybackVideo,
   getLiveCameraPreflightIssue,
   isLocalNetworkHost,
   liveCameraPreflightMessage,
@@ -93,10 +94,8 @@ describe('buildLiveCameraConstraintAttempts', () => {
       videoDeviceId: 'cam-123',
       audioDeviceId: 'mic-456',
     });
-    expect(attempts[0]?.video).toEqual({
+    expect(attempts[0]?.video).toMatchObject({
       deviceId: { exact: 'cam-123' },
-      width: { ideal: 1280 },
-      height: { ideal: 720 },
     });
     expect(attempts[0]?.audio).toEqual({ deviceId: { exact: 'mic-456' } });
   });
@@ -116,5 +115,23 @@ describe('validateLiveVideoFile', () => {
   it('rejette les non-vidéos', () => {
     const f = new File([], 'photo.jpg', { type: 'image/jpeg' });
     expect(validateLiveVideoFile(f)).toMatch(/vidéo/i);
+  });
+});
+
+describe('configureInlinePlaybackVideo', () => {
+  it('applique playsinline / webkit-playsinline (Safari iPhone)', () => {
+    const attrs: Record<string, string> = {};
+    const el = {
+      playsInline: false,
+      setAttribute(k: string, v: string) {
+        attrs[k] = v;
+      },
+      getAttribute(k: string) {
+        return attrs[k] ?? null;
+      },
+    } as unknown as HTMLVideoElement;
+    configureInlinePlaybackVideo(el);
+    expect(el.playsInline).toBe(true);
+    expect(attrs['webkit-playsinline']).toBe('true');
   });
 });

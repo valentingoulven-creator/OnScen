@@ -384,6 +384,8 @@ export function UserCompositionsSection({
 
   const albumDeepLinkHandledRef = useRef(false);
 
+  const trackDeepLinkHandledRef = useRef(false);
+
   const [createAlbumError, setCreateAlbumError] = useState<string | null>(null);
 
 
@@ -1170,6 +1172,60 @@ export function UserCompositionsSection({
     setViewMode('album');
 
   }, [loading, albums]);
+
+
+
+  useEffect(() => {
+
+    if (loading || trackDeepLinkHandledRef.current || !token || !ownerId) return;
+
+    const trackId = new URLSearchParams(window.location.search).get('track');
+
+    if (!trackId) return;
+
+    trackDeepLinkHandledRef.current = true;
+
+    void (async () => {
+
+      try {
+
+        const loose = await api.getAlbumTracks(token, ownerId, 'loose');
+
+        if (loose.tracks.some((track) => track.id === trackId)) {
+
+          setSelectedAlbum(null);
+
+          setViewMode('loose');
+
+          return;
+
+        }
+
+        for (const album of albums) {
+
+          const albumTracks = await api.getAlbumTracks(token, ownerId, album.id);
+
+          if (albumTracks.tracks.some((track) => track.id === trackId)) {
+
+            setSelectedAlbum(album);
+
+            setViewMode('album');
+
+            return;
+
+          }
+
+        }
+
+      } catch {
+
+        /* ignore deep link errors */
+
+      }
+
+    })();
+
+  }, [loading, albums, token, ownerId]);
 
 
 

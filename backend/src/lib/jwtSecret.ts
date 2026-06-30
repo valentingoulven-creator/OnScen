@@ -1,4 +1,10 @@
+import type { SignOptions, VerifyOptions } from 'jsonwebtoken';
+
 const DEV_FALLBACK = 'melosong_secret_dev_fallback';
+
+/** Explicit algorithm whitelist — prevents JWT algorithm confusion attacks. */
+export const JWT_VERIFY_OPTIONS: VerifyOptions = { algorithms: ['HS256'] };
+export const JWT_SIGN_OPTIONS: SignOptions = { algorithm: 'HS256' };
 
 export function isPreproductionEnv(): boolean {
   return process.env.APP_ENV === 'preproduction';

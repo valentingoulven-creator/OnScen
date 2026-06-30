@@ -7,7 +7,7 @@
 $Key    = "$env:USERPROFILE\.ssh\id_ed25519"
 $Server = "root@51.159.164.100"
 $Backend = Join-Path (Split-Path $PSScriptRoot -Parent) "MeloSongv2\backend"
-$Remote = "/opt/soundly"
+$Remote = "/opt/soundy"
 
 Write-Host ""
 Write-Host "Soundy — Seed production (PostgreSQL)" -ForegroundColor Cyan

@@ -82,6 +82,16 @@ if (-not $PushOnly) {
     if (-not $seen['APP_ENV']) { $out.Insert(0, 'APP_ENV=preproduction') | Out-Null }
     if (-not $seen['JWT_SECRET']) { $out.Add("JWT_SECRET=$(New-RandomSecret 48)") | Out-Null }
     if (-not $seen['ENCRYPTION_KEY']) { $out.Add("ENCRYPTION_KEY=$(New-RandomSecret 40)") | Out-Null }
+    if (-not $seen['TOTP_ENCRYPTION_KEY']) {
+        $hex = -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Random -Maximum 256) })
+        $out.Add("TOTP_ENCRYPTION_KEY=$hex") | Out-Null
+    }
+    if (-not $seen['OPS_HEALTH_TOKEN']) {
+        $ops = [Convert]::ToBase64String((1..36 | ForEach-Object { Get-Random -Maximum 256 }) -as [byte[]])
+        $out.Add("OPS_HEALTH_TOKEN=$ops") | Out-Null
+    }
+    if (-not $seen['REDIS_URL']) { $out.Add('REDIS_URL=redis://127.0.0.1:6379') | Out-Null }
+    if (-not $seen['PM2_INSTANCES']) { $out.Add('PM2_INSTANCES=1') | Out-Null }
 
     $text = ($out.ToArray() -join "`n") + "`n"
     [System.IO.File]::WriteAllText($stagingEnv, $text, (New-Object System.Text.UTF8Encoding $false))

@@ -56,6 +56,8 @@ import { renderPublicLegalHtml, resolvePublicLegalDocKey } from './lib/publicLeg
 import { parseRequestLocale } from './lib/requestLocale';
 import { checkPoolHealth, isPostgresEnabled } from './db/pool';
 import { getDbContentHealthReport } from './lib/dbContentHealth';
+import { buildCspConnectSrc, buildCspImgSrc } from './lib/cspConfig';
+import { requireOpsHealthToken } from './middleware/opsHealthAuth';
 import { latencyMonitorMiddleware } from './middleware/latencyMonitor';
 import { adminMonitorRouter } from './routes/adminMonitor';
 import { adminSyslogRouter } from './routes/adminSyslog';
@@ -64,6 +66,7 @@ import { adminReportsRouter } from './routes/adminReports';
 import { adminAiAgentsRouter } from './routes/adminAiAgents';
 import { startServerMonitor } from './lib/serverMonitor';
 import { startSystemMonitor } from './lib/systemMonitor';
+import { setupSentryExpressErrorHandler } from './lib/errorMonitoring';
 import { searchRouter } from './routes/search';
 import { webauthnRouter } from './routes/webauthn';
 import { twoFactorRouter } from './routes/twoFactor';
@@ -312,9 +315,9 @@ app.use(
           'https://js.stripe.com',
         ],
         'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-        'img-src': ["'self'", 'data:', 'blob:', 'https:', 'http:'],
+        'img-src': buildCspImgSrc(),
         'font-src': ["'self'", 'data:', 'https://fonts.gstatic.com'],
-        'connect-src': ["'self'", 'wss:', 'ws:', 'https:', 'http:'],
+        'connect-src': buildCspConnectSrc(),
         'media-src': ["'self'", 'blob:', 'https:'],
         'frame-src': [
           "'self'",
@@ -428,7 +431,7 @@ const AUTH_RATE_LIMIT_SENSITIVE_PATHS = new Set([
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,  // 10 req / 15 min — résistant au brute-force
+  max: 8,  // 8 req / 15 min — renforcé vs brute-force MDP
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de tentatives. Réessayez plus tard.' },
@@ -574,8 +577,8 @@ app.get('/health', (_req, res) => {
     .catch(() => respond('error'));
 });
 
-/** Santé contenu PostgreSQL (comptes tables + drift mémoire). Réservé ops / monitoring interne. */
-app.get('/health/db', (_req, res) => {
+/** Santé contenu PostgreSQL (comptes tables + drift mémoire). Token ops requis en prod. */
+app.get('/health/db', requireOpsHealthToken, (_req, res) => {
   void getDbContentHealthReport()
     .then((report) => {
       res.status(report.ok ? 200 : 503).json(report);
@@ -611,6 +614,7 @@ function sendPublicLegalPage(req: express.Request, res: express.Response): void 
 
 app.get('/privacy', sendPublicLegalPage);
 app.get('/terms', sendPublicLegalPage);
+app.get('/cookies', sendPublicLegalPage);
 app.get('/legal/mentions', sendPublicLegalPage);
 
 /** Page msdev : URL smartphone + QR (même réseau Wi‑Fi). */
@@ -807,6 +811,8 @@ app.get('*', (req, res, next) => {
   }
 });
 
+setupSentryExpressErrorHandler(app);
+
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   const e = err as { type?: string; status?: number; message?: string };
   if (e?.type === 'entity.too.large' || e?.status === 413) {
@@ -815,10 +821,11 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
     });
     return;
   }
-  // Generic catch-all: never expose internal stack traces or error messages to clients.
   const status = typeof e?.status === 'number' && e.status >= 400 && e.status < 600 ? e.status : 500;
   if (process.env.NODE_ENV !== 'production') {
     console.error('[server] unhandled error:', err);
   }
-  res.status(status).json({ error: 'Une erreur interne est survenue.' });
+  if (!res.headersSent) {
+    res.status(status).json({ error: 'Une erreur interne est survenue.' });
+  }
 });

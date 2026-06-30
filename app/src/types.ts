@@ -32,6 +32,7 @@ export interface AccessManagedUser {
   id: string;
   username: string;
   email: string;
+  avatarUrl?: string;
   accountStatus: AccountStatus;
   isAdmin: boolean;
   /** Droit admin persisté (`user.isAdmin`), distinct des comptes dev par pseudo/e-mail. */
@@ -61,6 +62,31 @@ export interface AccessManagedUser {
   instagramHandle?: string;
   platformPlanId?: 'free' | 'soundy_plus' | 'soundy_ultra';
   platformPlanLabel?: string;
+  followingCount?: number;
+  salonsHosted?: number;
+  activeLivesHosted?: number;
+  totalLivesHosted?: number;
+  blockedUntil?: number;
+  blockedReason?: string;
+  blockedAt?: number;
+  emailVerified?: boolean;
+  stripeConnectReady?: boolean;
+  connectedPlatformsCount?: number;
+  onboardingCompleted?: boolean;
+}
+
+export interface AdminUserSocialBrief {
+  id: string;
+  username: string;
+  email: string;
+  accountStatus: AccountStatus;
+}
+
+export interface AdminUserSocialResponse {
+  followers: AdminUserSocialBrief[];
+  following: AdminUserSocialBrief[];
+  followersTotal: number;
+  followingTotal: number;
 }
 
 export type AdminUserSort = 'lastSeen' | 'memberSince' | 'username' | 'status';
@@ -223,6 +249,16 @@ export interface AdminSalonRow {
   allowedCount?: number;
   currentTrack: { title: string; artist: string; isPlaying: boolean; platform: MusicPlatform };
   city?: string;
+  genres: string[];
+  chatMessageCount: number;
+  queueLength: number;
+  banCount: number;
+  vipModeratorCount: number;
+  linkedLiveViewers?: number;
+  linkedLivePeakViewers?: number;
+  linkedLiveDonationsCount: number;
+  linkedLiveDonationsTotalEur: number;
+  linkedLiveDurationMs?: number;
 }
 
 export interface AdminLiveRow {
@@ -231,9 +267,13 @@ export interface AdminLiveRow {
   platform: MusicPlatform;
   isActive: boolean;
   viewersCount: number;
+  peakViewersCount: number;
   startedAt: number;
+  endedAt?: number;
+  durationMs: number;
   salonId?: string;
   salonTitle?: string;
+  salonListenersCount?: number;
   adminBlocked: boolean;
   adminBlockedAt?: number;
   hostId: string;
@@ -246,6 +286,15 @@ export interface AdminLiveRow {
   longitude: number;
   city?: string;
   currentTrack: { title: string; artist: string; isPlaying: boolean; platform: MusicPlatform };
+  chatMessageCount: number;
+  banCount: number;
+  vipModeratorCount: number;
+  donationsCount: number;
+  donationsTotalEur: number;
+  streamMode?: 'webrtc' | 'cloudflare' | 'livekit';
+  tipsEnabled: boolean;
+  contentCategory?: 'music' | 'dance' | 'artistic';
+  donationOptionsCount: number;
 }
 
 export interface AdminEventRow {
@@ -482,6 +531,110 @@ export interface AppDiagnosticLogsResponse {
   fetchedAt: string;
 }
 
+export interface AdminBackupFileInfo {
+  name: string;
+  path: string;
+  sizeBytes: number;
+  modifiedAt: string;
+  ageHours: number;
+}
+
+export interface AdminBackupsReport {
+  scanAvailable: boolean;
+  backupDir: string;
+  maxBackupAgeHours: number;
+  dbBackups: AdminBackupFileInfo[];
+  uploadBackups: AdminBackupFileInfo[];
+  offsiteConfigured: boolean;
+  offsiteDir: string | null;
+  offsiteLatest: AdminBackupFileInfo | null;
+  warnings: string[];
+}
+
+export interface AdminDiagnosticLogStats {
+  persisted: boolean;
+  total: number;
+  byLevel: Record<string, number>;
+  recentErrors24h: number;
+  lastErrorAt: string | null;
+}
+
+export interface AdminSentryReport {
+  configured: boolean;
+  active: boolean;
+  release: string;
+  environment: string;
+  tracesSampleRate: number;
+  dashboardUrl: string;
+}
+
+export interface AdminPostGisEntityStats {
+  total: number;
+  withGeom: number;
+}
+
+export interface AdminPostGisReport {
+  enabled: boolean;
+  version?: string;
+  entities?: {
+    users: AdminPostGisEntityStats;
+    salons: AdminPostGisEntityStats;
+    lives: AdminPostGisEntityStats;
+  };
+}
+
+export interface AdminDbContentHealthReport {
+  postgresEnabled: boolean;
+  connected: boolean;
+  ok: boolean;
+  warnings: string[];
+  tables: {
+    users: number;
+    feed_posts: number;
+    feed_post_comments: number;
+    feed_post_likes: number;
+    stories: number;
+    user_reels: number;
+    user_albums: number;
+    user_compositions: number;
+    notifications: number;
+  };
+  memory: {
+    feedPosts: number;
+    stories: number;
+    userReels: number;
+    albums: number;
+    compositions: number;
+  };
+  drift: {
+    feedPosts: number;
+    stories: number;
+    userReels: number;
+    albums: number;
+    compositions: number;
+  };
+}
+
+export interface AdminDiagnosticsReport {
+  fetchedAt: string;
+  environment: string;
+  health: {
+    status: 'OK' | 'degraded';
+    db: 'ok' | 'error' | 'disabled';
+    poolOk: boolean;
+  };
+  sentry: AdminSentryReport;
+  postgis: AdminPostGisReport;
+  database: AdminDbContentHealthReport;
+  diagnosticLogs: AdminDiagnosticLogStats;
+  backups: AdminBackupsReport;
+  links: {
+    healthPath: string;
+    healthDbPath: string;
+    sentryOrg: string;
+  };
+}
+
 export type ListeningRole = 'auditeur' | 'host' | 'les_deux';
 
 export type RelationshipStatus = 'celibataire' | 'en_couple' | 'autre';
@@ -527,7 +680,7 @@ export interface HostRatingSummary {
 export interface User {
   id: string;
   username: string;
-  /** Hex (#rrggbb) ou `wave` (dégradé Soundly). */
+  /** Hex (#rrggbb) ou `wave` (dégradé Soundy). */
   usernameColor?: string;
   /** Couleur de départ du dégradé wave (hex). */
   usernameWaveFrom?: string;
@@ -926,6 +1079,10 @@ export interface Live {
   donationOptions?: LiveDonationOption[];
   /** Pourboires activés sur ce live (false si l'hôte a lancé sans RIB). */
   tipsEnabled?: boolean;
+  /** Catégorie de contenu : musique, danse ou artistique. */
+  contentCategory?: 'music' | 'dance' | 'artistic';
+  /** Délai vidéo spectateurs (secondes). */
+  videoDelaySeconds?: number;
 }
 
 export interface ChatMessage {
@@ -1241,6 +1398,8 @@ export interface MapStory {
   userId: string;
   content?: string;
   imageUrl?: string;
+  videoUrl?: string;
+  videoDurationSec?: number;
   musicTrack?: StoryMusicTrack;
   taggedUsers?: StoryTaggedUser[];
   link?: StoryLink;

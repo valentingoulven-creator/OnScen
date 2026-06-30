@@ -19,7 +19,7 @@ import { sendMonitoringAlert } from './alertNotifier';
 const DISK_THRESHOLD = parseInt(process.env.ALERT_DISK_PERCENT ?? '80', 10);
 const RAM_THRESHOLD = parseInt(process.env.ALERT_RAM_PERCENT ?? '80', 10);
 const CPU_THRESHOLD = parseInt(process.env.ALERT_CPU_PERCENT ?? '80', 10);
-const LATENCY_THRESHOLD = parseInt(process.env.ALERT_LATENCY_MS ?? '100', 10);
+const LATENCY_THRESHOLD = parseInt(process.env.ALERT_LATENCY_MS ?? '1000', 10);
 const CHECK_INTERVAL_MS = parseInt(process.env.MONITOR_INTERVAL_MS ?? '300000', 10);
 
 let monitorInterval: ReturnType<typeof setInterval> | null = null;

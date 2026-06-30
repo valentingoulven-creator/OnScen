@@ -176,7 +176,7 @@ html {
   --tab-nav-total-h: calc(
     var(--tab-nav-float-gap) + var(--tab-nav-btn-size) + env(safe-area-inset-bottom, 0px)
   );
-  /* Hauteur totale du header fixe Soundly (safe-area + ligne + padding bas + onglets optionnels) */
+  /* Hauteur totale du header fixe Soundy (safe-area + ligne + padding bas + onglets optionnels) */
   --app-header-row-h: 2.25rem;
   --app-header-pad-b: 0.5rem;
   --app-header-tabs-h: 0px;
@@ -271,6 +271,37 @@ html {
   flex-shrink: 0;
 }
 
+.ms-admin-tab-bar-wrap--underline {
+  border-bottom: 1px solid #1e1e2f;
+}
+
+.ms-admin-tab-bar--underline {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.ms-admin-tab-bar--underline::-webkit-scrollbar {
+  display: none;
+}
+
+.ms-admin-tab-bar--underline .ms-admin-tab-bar__inner {
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  gap: 0;
+  width: max-content;
+  min-width: 100%;
+  padding-bottom: 0;
+}
+
+@media (min-width: 1024px) {
+  .ms-admin-tab-bar--underline .ms-admin-tab-bar__inner {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
 html,
 body {
   margin: 0;
@@ -279,6 +310,11 @@ body {
   /* hidden = fallback Safari < 16 ; clip = pas de scroll chaining horizontal */
   overflow-x: hidden;
   overflow-x: clip;
+}
+
+html {
+  min-height: 100%;
+  min-height: -webkit-fill-available;
 }
 
 body {
@@ -304,7 +340,7 @@ body {
   }
 }
 
-/** Dégradé pseudo « wave » (identique au logo Soundly dans le header). */
+/** Dégradé pseudo « wave » (identique au logo Soundy dans le header). */
 .ms-username-wave {
   background-image: linear-gradient(to right, #c084fc, #f472b6);
   -webkit-background-clip: text;
@@ -455,7 +491,9 @@ body {
   width: 100%;
   max-width: var(--phone-max-w);
   min-height: 100dvh;
+  min-height: -webkit-fill-available;
   height: 100dvh;
+  height: -webkit-fill-available;
   margin-inline: auto;
   display: flex;
   flex-direction: column;
@@ -476,6 +514,9 @@ html[data-phone-viewport='1'] body {
 
 html[data-phone-viewport='1'] #root {
   min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  height: 100dvh;
+  height: -webkit-fill-available;
   display: flex;
   flex-direction: column;
 }
@@ -488,7 +529,7 @@ html[data-phone-viewport='1'] #root {
   max-width: var(--phone-max-w);
 }
 
-/* ── Header Soundly fixe (toujours visible au scroll) ─────────────── */
+/* ── Header Soundy fixe (toujours visible au scroll) ─────────────── */
 header.ms-app-header {
   position: fixed;
   top: 0;
@@ -531,7 +572,7 @@ main.ms-app-main {
   z-index: 30;
 }
 
-/* Admin plein écran — sous le header Soundly fixe (MODIF 457), au-dessus salon + onglets bas */
+/* Admin plein écran — sous le header Soundy fixe (MODIF 457), au-dessus salon + onglets bas */
 .ms-app-admin-overlay {
   inset: auto;
   top: var(--app-header-total-h);
@@ -736,6 +777,93 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   width: auto;
   max-width: 100%;
   aspect-ratio: 9 / 16;
+}
+
+/* Aperçu effets story (export haute fidélité au « Suivant ») */
+@keyframes story-pulse-preview {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.07);
+  }
+}
+
+@keyframes story-vinyl-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes story-glitch-preview {
+  0%,
+  100% {
+    transform: translate(0, 0);
+    filter: none;
+  }
+  20% {
+    transform: translate(-3px, 1px);
+    filter: hue-rotate(90deg) saturate(1.4);
+  }
+  40% {
+    transform: translate(4px, -2px);
+  }
+  60% {
+    transform: translate(-2px, 0);
+    filter: contrast(1.2);
+  }
+}
+
+.story-effect-pulse img {
+  animation: story-pulse-preview 0.5s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+.story-effect-vinyl {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0b0b0f;
+}
+
+.story-effect-vinyl img {
+  position: relative !important;
+  inset: auto !important;
+  width: 72% !important;
+  height: 72% !important;
+  max-height: 72% !important;
+  border-radius: 50%;
+  object-fit: cover;
+  animation: story-vinyl-spin 4s linear infinite;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+}
+
+.story-effect-glitch img {
+  animation: story-glitch-preview 0.35s steps(2) infinite;
+}
+
+.story-effect-duotone img {
+  filter: contrast(1.15) saturate(0.15);
+}
+
+.story-duotone-rap img {
+  filter: contrast(1.2) sepia(0.5) saturate(2) hue-rotate(10deg);
+}
+
+.story-duotone-electro img {
+  filter: contrast(1.2) saturate(0.2) hue-rotate(180deg) brightness(1.05);
+}
+
+.story-duotone-pop img {
+  filter: contrast(1.15) saturate(1.5) hue-rotate(300deg);
+}
+
+.story-duotone-rock img {
+  filter: contrast(1.25) sepia(0.3) saturate(2) hue-rotate(-15deg);
 }
 
 .leaflet-container {
@@ -2213,15 +2341,16 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 @media (min-width: 640px) {
   .room-theater-side-row--match-hero {
     display: grid;
-    grid-template-columns: minmax(240px, 0.3fr) minmax(0, 1fr);
-    grid-template-rows: auto auto auto auto;
+    grid-template-columns: minmax(260px, 22rem) minmax(0, 1fr);
+    grid-template-rows: auto auto;
     flex: 0 0 auto;
-    align-items: stretch;
+    align-items: start;
     align-content: start;
+    gap: 0.875rem;
   }
 
   .room-theater-side-row--match-hero.room-theater-side-row--right {
-    grid-template-columns: minmax(0, 1fr) minmax(240px, 0.3fr);
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 22rem);
   }
 
   .room-theater-side-row--match-hero .room-theater-video-stage--match-hero,
@@ -2229,40 +2358,159 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
     display: contents;
   }
 
+  .room-theater-side-row--match-hero .salon-theater-stage-stack {
+    grid-row: 1;
+    grid-column: 2;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    justify-self: center;
+    width: 100%;
+    max-width: min(100%, calc(min(68dvh, 68vh) * 16 / 9));
+  }
+
   .room-theater-side-row--match-hero .room-theater-chat-dock--theater {
-    grid-row: 1 / 2;
+    grid-row: 1;
     grid-column: 1;
     align-self: start;
-    height: var(--salon-theater-hero-h, auto);
-    max-height: var(--salon-theater-hero-h, min(56dvh, 56vh));
+    height: var(--salon-theater-stage-h, auto);
+    max-height: var(--salon-theater-stage-h, none);
     min-height: 0;
     overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1rem;
+    background: linear-gradient(
+      165deg,
+      rgba(24, 24, 36, 0.96) 0%,
+      rgba(12, 12, 18, 0.98) 100%
+    );
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow:
+      0 12px 40px rgba(0, 0, 0, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .room-theater-side-row--match-hero .room-theater-chat-dock--match-hero > div:first-child {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .room-theater-side-row--match-hero .room-theater-chat-dock--match-hero button[aria-label='Masquer le chat'] {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 9999px;
+  }
+
+  .room-theater-side-row--match-hero .live-chat-messages {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(168, 85, 247, 0.35) transparent;
   }
 
   .room-theater-side-row--match-hero .salon-theater-hero-wrap,
   .room-theater-side-row--match-hero .salon-theater-hero {
-    grid-row: 1;
-    grid-column: 2;
     min-width: 0;
-    align-self: start;
+    width: 100%;
+    max-width: none;
   }
 
-  .room-theater-side-row--match-hero .salon-theater-controls {
-    grid-row: 2;
-    grid-column: 2;
-    min-width: 0;
+  .room-theater-side-row--match-hero .salon-theater-hero-wrap--stage {
+    border-radius: 1rem 1rem 0 0;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.07),
+      0 16px 48px rgba(0, 0, 0, 0.55),
+      0 0 80px rgba(168, 85, 247, 0.08);
   }
 
-  .room-theater-side-row--match-hero .salon-theater-ad-banner {
-    grid-row: 3;
-    grid-column: 2;
+  .room-theater-side-row--match-hero .salon-theater-hero .aspect-video,
+  .room-theater-side-row--match-hero .salon-theater-hero__frame {
+    width: min(100%, calc(min(68dvh, 68vh) * 16 / 9));
+    max-height: min(68dvh, 68vh);
+    margin-inline: auto;
+    border-radius: 1rem 1rem 0 0;
+    overflow: hidden;
+  }
+
+  .room-theater-side-row--match-hero .salon-theater-controls,
+  .room-theater-side-row--match-hero .salon-theater-controls--stage {
     min-width: 0;
+    width: 100%;
+    padding: 0.375rem 0.625rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 0 0 1rem 1rem;
+    background: rgba(14, 14, 22, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow:
+      0 12px 32px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .room-theater-side-row--match-hero .salon-theater-controls__toolbar {
+    gap: 0.375rem;
+  }
+
+  .room-theater-side-row--match-hero .salon-theater-controls__toolbar button,
+  .room-theater-side-row--match-hero .salon-theater-controls__toolbar .min-h-11 {
+    min-height: 2rem;
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    font-size: 0.6875rem;
+    line-height: 1.2;
+    border-radius: 9999px;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      transform 0.1s ease;
+  }
+
+  .room-theater-side-row--match-hero .salon-theater-controls__toolbar p {
+    font-size: 0.75rem;
+    line-height: 1.2;
+  }
+
+  .room-theater-side-row--match-hero .salon-theater-controls__toolbar input[type='range'] {
+    width: 3.5rem;
+    height: 0.1875rem;
+  }
+
+  .room-theater-side-row--match-hero .salon-theater-controls__toolbar button:active {
+    transform: scale(0.97);
+  }
+
+  .room-theater-side-row--match-hero .salon-theater-controls__progress {
+    margin-top: 0.375rem;
+    padding-top: 0.375rem;
+  }
+
+  .room-theater-side-row--match-hero .salon-theater-controls__progress input[type='range'] {
+    accent-color: #a855f7;
+    height: 0.1875rem;
   }
 
   .room-theater-side-row--match-hero .salon-theater-panel-extra {
-    grid-row: 4;
+    grid-row: 2;
     grid-column: 2;
     min-width: 0;
+    justify-self: center;
+    width: 100%;
+    max-width: min(100%, calc(min(68dvh, 68vh) * 16 / 9));
+  }
+
+  .room-theater-side-row--match-hero.room-theater-side-row--right .salon-theater-stage-stack {
+    grid-column: 1;
+  }
+
+  .room-theater-side-row--match-hero.room-theater-side-row--right .room-theater-chat-dock--theater {
+    grid-column: 2;
+  }
+
+  .room-theater-side-row--match-hero.room-theater-side-row--right .salon-theater-panel-extra {
+    grid-column: 1;
   }
 
   .room-theater-side-row--match-hero .room-theater-toggle {
@@ -2270,17 +2518,20 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
     grid-column: 2;
     align-self: center;
     z-index: 60;
+    background: rgba(18, 18, 26, 0.92);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    color: rgba(196, 181, 253, 0.9);
   }
 
-  .room-theater-side-row--match-hero.room-theater-side-row--right .room-theater-chat-dock--theater {
-    grid-column: 2;
+  .room-theater-side-row--match-hero .room-theater-toggle:hover {
+    background: rgba(30, 30, 44, 0.95);
+    border-color: rgba(168, 85, 247, 0.35);
+    color: #fff;
   }
 
-  .room-theater-side-row--match-hero.room-theater-side-row--right .salon-theater-hero-wrap,
-  .room-theater-side-row--match-hero.room-theater-side-row--right .salon-theater-hero,
-  .room-theater-side-row--match-hero.room-theater-side-row--right .salon-theater-controls,
-  .room-theater-side-row--match-hero.room-theater-side-row--right .salon-theater-ad-banner,
-  .room-theater-side-row--match-hero.room-theater-side-row--right .salon-theater-panel-extra,
   .room-theater-side-row--match-hero.room-theater-side-row--right .room-theater-toggle {
     grid-column: 1;
   }
@@ -2575,6 +2826,25 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   flex-direction: column;
 }
 
+/* Live théâtre — la scène épouse le stack (pas de min-height 52dvh fantôme) */
+.room-theater-video-stage--live-theater {
+  flex: 0 0 auto;
+  min-height: 0;
+  background: transparent;
+}
+
+.ms-salon-fullscreen-overlay .room-theater-video-stage--live-theater {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
+/* Bouton 💬 vidéo live — bas droite, au-dessus des contrôles hôte (top-right z-30). */
+.room-theater-video-chat-toggle--live-theater {
+  z-index: 40;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
+
 .live-video-container {
   height: 100%;
   width: 100%;
@@ -2610,6 +2880,416 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   text-align: center;
   padding-left: 1.5rem;
   padding-right: 1.5rem;
+}
+
+/* ── Live théâtre — chrome vidéo (style salon match-hero) ───────────── */
+.live-video-container--theater {
+  background: transparent;
+}
+
+.live-theater-stage-stack {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.live-theater-hero-wrap {
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.room-theater-video-stage--live-theater .live-theater-hero-wrap {
+  border-radius: 1rem 1rem 0 0;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.07),
+    0 16px 48px rgba(0, 0, 0, 0.55),
+    0 0 80px rgba(168, 85, 247, 0.1);
+}
+
+.live-theater-hero {
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.live-theater-hero__frame {
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  position: relative;
+  background: #000;
+}
+
+.live-theater-hero__frame .live-video-stage-area {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.live-video-stage-area .lk-live-stage-video,
+.live-video-stage-area video.lk-live-stage-video {
+  z-index: 12;
+}
+
+.live-theater-status-bar {
+  flex-shrink: 0;
+  min-width: 0;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 0 0 1rem 1rem;
+  background: rgba(14, 14, 22, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  text-align: center;
+}
+
+.live-theater-status-bar__text {
+  margin: 0;
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  font-weight: 500;
+}
+
+.live-theater-status-bar--live .live-theater-status-bar__text {
+  color: rgba(110, 231, 183, 0.95);
+}
+
+.live-theater-status-bar--loading .live-theater-status-bar__text {
+  color: rgba(156, 163, 175, 0.95);
+}
+
+.live-theater-status-bar--idle .live-theater-status-bar__text {
+  color: rgba(107, 114, 128, 0.95);
+}
+
+.live-theater-status-bar--error .live-theater-status-bar__text {
+  color: rgba(252, 165, 165, 0.95);
+}
+
+.live-theater-status-bar--ended .live-theater-status-bar__text {
+  color: rgba(156, 163, 175, 0.95);
+}
+
+.live-theater-toolbar {
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Placeholder glass — attente caméra / titre session */
+.live-video-stage-overlay--theater {
+  position: absolute;
+  inset: 0;
+  padding: 1rem;
+  overflow: hidden;
+  isolation: isolate;
+  z-index: 8;
+}
+
+.live-video-stage-overlay__bg {
+  position: absolute;
+  inset: -25%;
+  background-size: cover;
+  background-position: center;
+  filter: blur(40px) saturate(1.15);
+  transform: scale(1.08);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.live-video-stage-overlay__scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 85% 55% at 50% 35%, rgba(88, 28, 135, 0.22) 0%, transparent 58%),
+    radial-gradient(ellipse 45% 35% at 88% 78%, rgba(220, 38, 38, 0.08) 0%, transparent 55%),
+    linear-gradient(180deg, rgba(11, 11, 15, 0.55) 0%, rgba(11, 11, 15, 0.92) 100%);
+  pointer-events: none;
+}
+
+.live-video-stage-overlay__card {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.875rem;
+  width: min(100%, 18rem);
+  padding: 1.25rem 1rem;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(18, 18, 28, 0.78);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.live-video-stage-overlay__badge {
+  margin-bottom: -0.25rem;
+}
+
+.live-video-stage-overlay__live-dot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 9999px;
+  background: #f87171;
+  box-shadow: 0 0 8px rgba(248, 113, 113, 0.85);
+  animation: live-theater-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes live-theater-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.85);
+  }
+}
+
+.live-video-stage-overlay__art-ring,
+.live-video-stage-overlay__icon-ring {
+  padding: 3px;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.65), rgba(244, 114, 182, 0.45));
+  box-shadow: 0 0 28px rgba(168, 85, 247, 0.35);
+}
+
+.live-video-stage-overlay__icon-ring {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 5.5rem;
+  height: 5.5rem;
+  background: linear-gradient(135deg, rgba(234, 88, 12, 0.35), rgba(168, 85, 247, 0.35));
+}
+
+.live-video-stage-overlay__art {
+  display: block;
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: calc(1rem - 3px);
+  object-fit: cover;
+}
+
+.live-video-stage-overlay__art--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26, 26, 38, 0.95);
+  font-size: 1.75rem;
+}
+
+.live-video-stage-overlay__meta {
+  text-align: center;
+}
+
+.live-video-stage-overlay__title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+
+.live-video-stage-overlay__artist {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: rgba(156, 163, 175, 0.95);
+}
+
+.live-video-stage-overlay__spinner {
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-top-color: #a78bfa;
+  border-radius: 9999px;
+  animation: live-theater-spin 0.8s linear infinite;
+}
+
+@keyframes live-theater-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.live-video-stage-overlay__footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Live page — colonne centrée + lueur ambiante (plein écran) */
+.room-theater-stack-column--live-theater {
+  width: min(100%, calc(min(56dvh, 56vh) * 16 / 9));
+  max-width: 100%;
+  margin-inline: auto;
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.room-theater-stack-column--live-theater .live-video-container--theater {
+  height: 100%;
+  max-height: none;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.room-theater-stack-column--live-theater .live-theater-stage-stack {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+}
+
+.room-theater-stack-column--live-theater .live-theater-hero-wrap {
+  flex: 0 0 auto;
+  width: 100%;
+  height: auto;
+  max-height: min(48dvh, 48vh);
+  min-height: min(240px, 38dvh);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Format Twitch — cadre respecte le ratio choisi (16:9, 9:16, 4:3) */
+.room-theater-stack-column--live-theater .live-video-container--theater .live-theater-hero-wrap {
+  aspect-ratio: var(--live-aspect-ratio, 16 / 9);
+  width: 100%;
+  height: auto;
+  max-height: min(62dvh, 62vh);
+  min-height: min(180px, 28dvh);
+  margin-inline: auto;
+}
+
+.live-video-container--theater.live-video-aspect-9-16 .live-theater-hero-wrap {
+  width: min(100%, calc(min(62dvh, 62vh) * 9 / 16));
+}
+
+.live-video-container--theater .live-video-stage-area .lk-participant-media-video,
+.live-video-container--theater .live-video-stage-area video.lk-live-stage-video,
+.live-video-container--theater .live-video-stage-area video:not(.live-cloudflare-stage-video) {
+  object-fit: contain;
+  object-position: center;
+  background: #000;
+}
+
+.ms-salon-fullscreen-overlay .room-theater-layout--live-theater {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+  padding-inline: max(0.75rem, env(safe-area-inset-left, 0px))
+    max(0.75rem, env(safe-area-inset-right, 0px));
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+  background:
+    radial-gradient(ellipse 90% 55% at 50% 28%, rgba(88, 28, 135, 0.14) 0%, transparent 58%),
+    radial-gradient(ellipse 50% 35% at 12% 72%, rgba(220, 38, 38, 0.07) 0%, transparent 55%),
+    radial-gradient(ellipse 45% 30% at 88% 78%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
+}
+
+.ms-salon-fullscreen-overlay .room-theater-stack-column--live-theater {
+  flex: 0 1 auto;
+  min-height: 0;
+  align-self: center;
+  margin-inline: auto;
+  max-height: 100%;
+  width: min(100%, calc(min(62dvh, 62vh) * 16 / 9));
+}
+
+.ms-salon-fullscreen-overlay .room-theater-stack-column--live-theater .live-video-container--theater .live-theater-hero-wrap {
+  height: auto;
+  max-height: min(56dvh, 56vh);
+  aspect-ratio: var(--live-aspect-ratio, 16 / 9);
+}
+
+.ms-salon-fullscreen-overlay .room-theater-stack-column--live-theater .live-video-container--theater.live-video-aspect-9-16 .live-theater-hero-wrap {
+  width: min(100%, calc(min(56dvh, 56vh) * 9 / 16));
+}
+
+.ms-salon-fullscreen-overlay .room-theater-stack-column--live-theater .room-theater-bottom-chat-dock--stacked {
+  flex: 1 1 0;
+  min-height: 8rem;
+  max-height: none;
+}
+
+.room-theater-layout--live-theater .room-theater-bottom-chat-dock {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+  margin-top: 0.625rem;
+  background: linear-gradient(
+    165deg,
+    rgba(24, 24, 36, 0.96) 0%,
+    rgba(12, 12, 18, 0.98) 100%
+  );
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.room-theater-layout--live-theater .room-theater-bottom-chat-dock > div:first-child {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+@media (max-width: 639px) {
+  .room-theater-stack-column--live-theater .live-theater-hero-wrap {
+    min-height: min(220px, 36dvh);
+    height: auto;
+    max-height: min(44dvh, calc(100vw * 9 / 16));
+  }
+
+  .ms-salon-fullscreen-overlay .room-theater-stack-column--live-theater .live-theater-hero-wrap {
+    min-height: min(200px, 32dvh);
+    max-height: min(40dvh, calc(100vw * 9 / 16));
+  }
+
+  .ms-salon-fullscreen-overlay .room-theater-stack-column--live-theater .room-theater-bottom-chat-dock--stacked {
+    max-height: min(38dvh, 280px);
+    flex: 1 1 0;
+  }
+}
+
+.live-video-container--landscape-theater.live-video-container--theater {
+  background: #000;
+}
+
+.live-video-container--landscape-theater .live-theater-hero-wrap {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.live-video-container--landscape-theater .live-theater-status-bar {
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
 }
 
 .live-video-container video {
@@ -2733,8 +3413,8 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   min-height: 0;
 }
 
-/* Live page — hauteur vidéo dans le layout empilé */
-.room-theater-stack-column .live-video-container {
+/* Live page — hauteur vidéo dans le layout empilé (legacy sans chrome théâtre) */
+.room-theater-stack-column:not(.room-theater-stack-column--live-theater) .live-video-container {
   height: min(42dvh, 42vh);
   max-height: min(42dvh, 42vh);
 }
@@ -3228,10 +3908,38 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 }
 
 @media (min-width: 640px) {
-  .ms-salon-fullscreen-overlay .room-theater-side-row--match-hero {
-    flex: 2 1 0;
+  .ms-salon-fullscreen-overlay .room-theater-match-hero-shell {
+    padding-inline: max(1rem, env(safe-area-inset-left, 0px))
+      max(1rem, env(safe-area-inset-right, 0px));
+    flex: 1 1 0;
     min-height: 0;
-    align-content: start;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background:
+      radial-gradient(ellipse 90% 55% at 50% 28%, rgba(88, 28, 135, 0.14) 0%, transparent 58%),
+      radial-gradient(ellipse 50% 35% at 12% 72%, rgba(220, 38, 38, 0.07) 0%, transparent 55%),
+      radial-gradient(ellipse 45% 30% at 88% 78%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
+  }
+
+  .ms-salon-fullscreen-overlay .room-theater-side-row--match-hero {
+    flex: 0 0 auto;
+    height: auto;
+    min-height: 0;
+    width: 100%;
+    max-width: min(100%, 72rem);
+    margin-inline: auto;
+    align-content: center;
+    align-items: start;
+    padding-block: 0.5rem;
+  }
+
+  .ms-salon-fullscreen-overlay .room-theater-side-row--match-hero .room-theater-chat-dock--theater {
+    grid-row: 1;
+    height: var(--salon-theater-stage-h, auto);
+    max-height: var(--salon-theater-stage-h, none);
+    align-self: start;
   }
 }
 
@@ -3248,11 +3956,75 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 /* Live — zone vidéo plein écran (YouTube + caméra PiP) */
 .live-video-container:fullscreen,
 .live-video-container:-webkit-full-screen {
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
   background: #000;
   display: flex;
   flex-direction: column;
+}
+
+/* Live théâtre — en plein écran la scène remplit tout le viewport */
+.live-video-container:fullscreen .live-theater-stage-stack,
+.live-video-container:-webkit-full-screen .live-theater-stage-stack,
+.live-video-container--landscape-theater .live-theater-stage-stack {
+  flex: 1 1 0;
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+  position: relative;
+}
+
+.live-video-container:fullscreen .live-theater-hero-wrap,
+.live-video-container:-webkit-full-screen .live-theater-hero-wrap,
+.live-video-container--landscape-theater .live-theater-hero-wrap {
+  flex: 1 1 0;
+  height: 100%;
+  max-height: none;
+  min-height: 0;
+  width: 100%;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.live-video-container:fullscreen .live-theater-hero,
+.live-video-container:-webkit-full-screen .live-theater-hero,
+.live-video-container--landscape-theater .live-theater-hero {
+  flex: 1 1 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.live-video-container:fullscreen .live-theater-hero__frame,
+.live-video-container:-webkit-full-screen .live-theater-hero__frame,
+.live-video-container--landscape-theater .live-theater-hero__frame {
+  flex: 1 1 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.live-video-container:fullscreen .live-video-stage-area,
+.live-video-container:-webkit-full-screen .live-video-stage-area,
+.live-video-container--landscape-theater .live-video-stage-area {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.live-video-container:fullscreen .live-theater-status-bar,
+.live-video-container:-webkit-full-screen .live-theater-status-bar,
+.live-video-container--landscape-theater .live-theater-status-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 25;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
 }
 
 .live-video-container:fullscreen .live-video-youtube,
@@ -3300,9 +4072,9 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 .live-video-container--landscape-theater {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 100;
   width: 100%;
-  height: 100%;
+  height: 100dvh;
   background: #000;
   display: flex;
   flex-direction: column;
@@ -3341,6 +4113,88 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   height: 100%;
   max-height: none;
   object-fit: cover;
+  object-position: center;
+}
+
+/* Live théâtre — plein écran natif / cinéma : vidéo centrée, ratio respecté */
+.live-video-container:fullscreen.live-video-container--theater,
+.live-video-container:-webkit-full-screen.live-video-container--theater,
+.live-video-container--landscape-theater.live-video-container--theater {
+  justify-content: center;
+  align-items: center;
+  padding:
+    env(safe-area-inset-top, 0px)
+    env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
+}
+
+.live-video-container:fullscreen.live-video-container--theater .live-theater-stage-stack,
+.live-video-container:-webkit-full-screen.live-video-container--theater .live-theater-stage-stack,
+.live-video-container--landscape-theater.live-video-container--theater .live-theater-stage-stack {
+  flex: 0 1 auto;
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  min-height: 0;
+  margin: auto;
+}
+
+.live-video-container:fullscreen.live-video-container--theater .live-theater-hero-wrap,
+.live-video-container:-webkit-full-screen.live-video-container--theater .live-theater-hero-wrap,
+.live-video-container--landscape-theater.live-video-container--theater .live-theater-hero-wrap {
+  flex: 0 0 auto;
+  aspect-ratio: var(--live-aspect-ratio, 16 / 9);
+  width: min(100vw, calc(100dvh * 16 / 9));
+  max-width: 100%;
+  height: auto;
+  max-height: 100dvh;
+  margin-inline: auto;
+}
+
+.live-video-container:fullscreen.live-video-container--theater.live-video-aspect-9-16 .live-theater-hero-wrap,
+.live-video-container:-webkit-full-screen.live-video-container--theater.live-video-aspect-9-16 .live-theater-hero-wrap,
+.live-video-container--landscape-theater.live-video-container--theater.live-video-aspect-9-16 .live-theater-hero-wrap {
+  width: min(100vw, calc(100dvh * 9 / 16));
+  max-height: min(100dvh, calc(100vw * 16 / 9));
+}
+
+.live-video-container:fullscreen.live-video-container--theater.live-video-aspect-4-3 .live-theater-hero-wrap,
+.live-video-container:-webkit-full-screen.live-video-container--theater.live-video-aspect-4-3 .live-theater-hero-wrap,
+.live-video-container--landscape-theater.live-video-container--theater.live-video-aspect-4-3 .live-theater-hero-wrap {
+  width: min(100vw, calc(100dvh * 4 / 3));
+}
+
+.live-video-container:fullscreen.live-video-container--theater .live-theater-hero,
+.live-video-container:-webkit-full-screen.live-video-container--theater .live-theater-hero,
+.live-video-container--landscape-theater.live-video-container--theater .live-theater-hero {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+}
+
+.live-video-container:fullscreen.live-video-container--theater .live-theater-hero__frame,
+.live-video-container:-webkit-full-screen.live-video-container--theater .live-theater-hero__frame,
+.live-video-container--landscape-theater.live-video-container--theater .live-theater-hero__frame {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+}
+
+.live-video-container:fullscreen.live-video-container--theater .lk-participant-media-video,
+.live-video-container:-webkit-full-screen.live-video-container--theater .lk-participant-media-video,
+.live-video-container:fullscreen.live-video-container--theater video.lk-live-stage-video,
+.live-video-container:-webkit-full-screen.live-video-container--theater video.lk-live-stage-video,
+.live-video-container--landscape-theater.live-video-container--theater .lk-participant-media-video,
+.live-video-container--landscape-theater.live-video-container--theater video.lk-live-stage-video {
+  object-fit: contain;
+  object-position: center;
+}
+
+.live-video-container:fullscreen.live-video-container--theater video.live-cloudflare-stage-video,
+.live-video-container:-webkit-full-screen.live-video-container--theater video.live-cloudflare-stage-video,
+.live-video-container--landscape-theater.live-video-container--theater video.live-cloudflare-stage-video {
+  object-fit: contain;
   object-position: center;
 }
 
@@ -3430,6 +4284,18 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
     vidéo min 40dvh (338px) + chat max 200px + chrome tiroir 48px = 586px < 672px ✓
 */
 @media (max-width: 639px) {
+  /* Barre théâtre salon — cibles tactiles 44px (Safari iPhone) */
+  .salon-theater-controls__toolbar button,
+  .salon-theater-controls__toolbar .min-h-11 {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+
+  .salon-theater-controls__toolbar input[type='range'] {
+    min-height: 2.75rem;
+    touch-action: pan-x;
+  }
+
   /* Side row redevient flex-1 (le grid sm: ne s'applique pas) */
   .room-theater-side-row--match-hero {
     flex: 1 1 0;
@@ -3438,7 +4304,7 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 
   /* Vidéo YouTube : hauteur min réduite sur mobile (hors overlay plein écran — voir .ms-salon-fullscreen-overlay) */
   .room-theater-side-row--match-hero .room-theater-video-stage {
-    min-height: min(40dvh, 40vh);
+    min-height: min(40dvh, 280px);
   }
 
   .ms-salon-fullscreen-overlay .room-theater-video-stage {
