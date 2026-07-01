@@ -1,6 +1,7 @@
 import { db, Live, Salon, User, UserFavorite } from '../models/schema';
 import { pushNotification } from './notifications';
 import { trackEvent } from './analytics';
+import { runInBatchesAsync } from './asyncFanOut';
 
 function fanMap(fanId: string): Map<string, UserFavorite> {
   let map = db.userFavorites.get(fanId);
@@ -71,10 +72,10 @@ export function getFavoriteCount(hostId: string): number {
 export function notifyFavoritesSalonStarted(host: User, salon: Salon): void {
   const fanIds = getFanIds(host.id);
   const message = `${host.username} a ouvert un salon !`;
-  for (const fanId of fanIds) {
-    if (fanId === host.id) continue;
+  runInBatchesAsync(fanIds, (fanId) => {
+    if (fanId === host.id) return;
     const entry = db.userFavorites.get(fanId)?.get(host.id);
-    if (!entry?.notificationsEnabled) continue;
+    if (!entry?.notificationsEnabled) return;
     pushNotification({
       recipientId: fanId,
       senderId: host.id,
@@ -84,17 +85,20 @@ export function notifyFavoritesSalonStarted(host: User, salon: Salon): void {
       message,
       salonId: salon.id,
     });
-  }
+  });
 }
 
-/** Notifie les fans qu'un hôte favori est en live. */
+/**
+ * Notifie les fans qu'un hôte favori est en live. Fan-out par lots asynchrones
+ * (cf. asyncFanOut) pour ne pas bloquer l'event loop sur les hôtes à forte audience.
+ */
 export function notifyFavoritesLiveStarted(host: User, live: Live): void {
   const fanIds = getFanIds(host.id);
   const message = `${host.username} est en live !`;
-  for (const fanId of fanIds) {
-    if (fanId === host.id) continue;
+  runInBatchesAsync(fanIds, (fanId) => {
+    if (fanId === host.id) return;
     const entry = db.userFavorites.get(fanId)?.get(host.id);
-    if (!entry?.notificationsEnabled) continue;
+    if (!entry?.notificationsEnabled) return;
     pushNotification({
       recipientId: fanId,
       senderId: host.id,
@@ -104,5 +108,5 @@ export function notifyFavoritesLiveStarted(host: User, live: Live): void {
       message,
       liveId: live.id,
     });
-  }
+  });
 }

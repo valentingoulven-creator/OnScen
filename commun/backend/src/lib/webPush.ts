@@ -15,6 +15,8 @@ const WEB_PUSH_TYPES = new Set<AppNotification['type']>([
   'favorite_online',
   'follow',
   'mention',
+  'event_tagged',
+  'story_tagged',
 ]);
 
 let configured = false;

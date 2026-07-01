@@ -26,9 +26,26 @@ export interface MusicTrackItem {
   createdAt: number;
 }
 
+export interface MusicWeeklyReelItem {
+  id: string;
+  title: string;
+  artist: string;
+  posterUrl: string;
+  authorId: string;
+  creatorName: string;
+  creatorAvatarUrl?: string;
+  weeklyUpvoteCount: number;
+  durationSec?: number;
+}
+
 export interface MusicHomeSection {
   albums: MusicAlbumItem[];
   tracks: MusicTrackItem[];
+}
+
+export interface MusicHomeWeeklySection extends MusicHomeSection {
+  weekStart: number;
+  reels: MusicWeeklyReelItem[];
 }
 
 export interface MusicHomePayload {
@@ -36,6 +53,7 @@ export interface MusicHomePayload {
   following: MusicHomeSection;
   library: MusicHomeSection;
   popular: MusicHomeSection;
+  weeklyTrend: MusicHomeWeeklySection;
 }
 
 export interface MusicSearchPayload {

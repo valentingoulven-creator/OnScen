@@ -27,7 +27,6 @@ import {
 } from './lib/forgotPasswordRoute';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { NotificationBell } from './components/NotificationBell';
-import { PrivacyVisibilityMenu } from './components/PrivacyVisibilityMenu';
 import { useDmUnread } from './context/DmUnreadContext';
 import { ProfileSearchBar, nearbyPreviewFromSearchItem } from './components/ProfileSearchBar';
 import type { GlobalSearchResultItem } from './components/ProfileSearchBar';
@@ -369,7 +368,6 @@ export default function App() {
               />
             </div>
             <div className="flex items-center gap-1 justify-self-end shrink-0">
-              <PrivacyVisibilityMenu />
               <NotificationBell
                 onOpenLive={openLive}
                 onOpenProfile={(id) => openProfile(id)}

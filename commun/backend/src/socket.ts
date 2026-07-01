@@ -47,7 +47,7 @@ import {
 } from './lib/salonModeration';
 import { isAllowedChatAttachmentUrl } from './lib/chatAttachmentUrl';
 import { checkChatRateLimit } from './lib/chatRateLimit';
-import { moderateChatAttachment } from './lib/contentModeration';
+import { moderateChatAttachment, moderationRejectionMessage } from './lib/contentModeration';
 import { computePlaybackPositionMs } from './lib/playbackClock';
 import { isAccessAdmin } from './lib/accessControl';
 
@@ -625,14 +625,30 @@ export function setupSockets(io: Server): void {
           if (!socket.rooms.has(`salon_${payload.salonId}`)) return;
           const content = typeof payload.content === 'string' ? payload.content.slice(0, 2000) : '';
           if (!content.trim() && !payload.attachmentUrl) return;
-          if (payload.attachmentUrl && !isAllowedChatAttachmentUrl(payload.attachmentUrl)) return;
+          if (payload.attachmentUrl && !isAllowedChatAttachmentUrl(payload.attachmentUrl)) {
+            socket.emit('chat_attachment_denied', {
+              roomType: 'salon',
+              roomId: payload.salonId,
+              reason: 'attachment_invalid',
+              message: "Pièce jointe invalide. Réessayez l'envoi du fichier.",
+            });
+            return;
+          }
           if (payload.attachmentUrl) {
             const moderation = await moderateChatAttachment(
               payload.attachmentUrl,
               payload.attachmentMimeType,
               'salon_chat'
             );
-            if (!moderation.allowed) return;
+            if (!moderation.allowed) {
+              socket.emit('chat_attachment_denied', {
+                roomType: 'salon',
+                roomId: payload.salonId,
+                reason: 'attachment_rejected',
+                message: moderationRejectionMessage(moderation),
+              });
+              return;
+            }
           }
           const sender = db.users.get(authUserId);
           const msg: ChatMessage = {
@@ -704,14 +720,30 @@ export function setupSockets(io: Server): void {
           }
           const liveContent = typeof payload.content === 'string' ? payload.content.slice(0, 2000) : '';
           if (!liveContent.trim() && !payload.attachmentUrl) return;
-          if (payload.attachmentUrl && !isAllowedChatAttachmentUrl(payload.attachmentUrl)) return;
+          if (payload.attachmentUrl && !isAllowedChatAttachmentUrl(payload.attachmentUrl)) {
+            socket.emit('chat_attachment_denied', {
+              roomType: 'live',
+              roomId: payload.liveId,
+              reason: 'attachment_invalid',
+              message: "Pièce jointe invalide. Réessayez l'envoi du fichier.",
+            });
+            return;
+          }
           if (payload.attachmentUrl) {
             const moderation = await moderateChatAttachment(
               payload.attachmentUrl,
               payload.attachmentMimeType,
               'live_chat'
             );
-            if (!moderation.allowed) return;
+            if (!moderation.allowed) {
+              socket.emit('chat_attachment_denied', {
+                roomType: 'live',
+                roomId: payload.liveId,
+                reason: 'attachment_rejected',
+                message: moderationRejectionMessage(moderation),
+              });
+              return;
+            }
           }
           const live = db.lives.get(payload.liveId)!;
           const isVipMod = (live.vipModeratorIds ?? []).includes(authUserId);

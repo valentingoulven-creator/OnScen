@@ -1,4 +1,238 @@
 ================================================================================
+MODIF 677 — Carte grise : icônes lives/salons + popup grandes villes
+Date : 2026-07-01
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Revoir l'UX des icônes salon/live sur la carte plate (vue overview) :
+ marqueurs géolocalisés distincts et hubs « grande ville » avec popup listant
+ les sessions sans GPS et celles géolocalisées dans la métropole.
+
+CHANGEMENTS / FIX
+-----
+ mapMajorCityLiveClusters.ts — classification city-anchored / géoloc · regroupement PRESET_CITIES
+ mapOverviewMarkerHtml.ts — HTML pins overview (sonar live) + hub ville
+ MapMajorCityLiveSheet.tsx — bottom sheet deux sections
+ MapView.tsx — overview : hubs ville + pins géoloc (plus circleMarker)
+ HomePage.tsx — sélection cluster ville
+ index.css — styles map-marker-overview-pin · map-marker-city-hub
+ fr.json · en.json — clés map.majorCity*
+
+BUILD (si vérifié)
+-----
+ web/app → vitest mapMajorCityLiveClusters → ✅ · npm run build → ✅
+
+================================================================================
+Fin — 2026-07-01
+================================================================================
+
+================================================================================
+MODIF 676 — Profil : événements tagués + opt-out tags externes
+Date : 2026-07-01
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ • Un utilisateur tagué sur un événement ou une publication doit apparaître sur son profil (onglet Programmation).
+ • Option profil : refuser d'être tagué sur les événements/publications créés par d'autres.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend
+ ─────────────────
+ • allowExternalEventTags sur User · PATCH /users/me/settings
+ • normalizeEventTaggedUserIds : ignore les comptes avec opt-out (sauf auteur)
+ • feed profileUserId : événements organisateur + tagué
+ • GET /users/:id/tagged-stories : stories actives où le profil est tagué
+
+ web/app
+ ─────────────────
+ • UserEventsSection : profileUserId + stories taguées · badge Invité
+ • SettingsPage : toggle « Ne pas être tagué sur les événements des autres »
+ • API feed profileUserId · getProfileTaggedStories · i18n fr/en
+
+FICHIERS MODIFIÉS
+-----
+ schema.ts, taggedUsers.ts, feedPosts.ts, feed.ts, stories.ts, users.ts,
+ locationPrivacy.ts, profile.ts, taggedUsers.test.ts,
+ UserEventsSection.tsx, SettingsPage.tsx, api/feed.ts, api/users.ts, types.ts,
+ fr.json, en.json
+
+BUILD (si vérifié)
+-----
+ commun/backend → vitest taggedUsers → ✅ · web/app → npm run build → ✅
+
+================================================================================
+Fin — 2026-07-01
+================================================================================
+
+================================================================================
+MODIF 675 — Tags notifiés + upvote événements
+Date : 2026-07-01
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ • Personne taguée sur une publication (story) ou un événement doit recevoir une notification.
+ • Bouton upvote (▲) sur les cartes événement.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend
+ ─────────────────
+ • notifyStoryTagged (type story_tagged) à la création de story avec taggedUserIds
+ • event_tagged déjà actif à la publication événement
+ • feedPostUpvotes + API POST/DELETE /feed/posts/:id/upvote (événements uniquement)
+ • Migration 027_feed_post_upvotes.sql · persistance PG / store
+
+ web/app
+ ─────────────────
+ • EventUpvoteButton sur EventCard (hero) et PostCard (fil, si isEvent)
+ • NotificationBell : story_tagged · push web event_tagged/story_tagged
+
+FICHIERS MODIFIÉS
+-----
+ notifications.ts, stories.ts, feedPosts.ts, feed.ts, schema.ts, pgFeedPosts.ts,
+ pgStoreFeedSync.ts, pgStore.ts, storeCore.ts, accountDeletion.ts,
+ EventUpvoteButton.tsx, EventCard.tsx, EventsCarousel.tsx, ActualiteTabPage.tsx,
+ PostCard, UserEventsSection.tsx, MapEventDetailModal.tsx, api/feed.ts, types.ts,
+ NotificationBell (web + apptel), fr.json, en.json
+
+BUILD (si vérifié)
+-----
+ commun/backend → tsc → ✅ · web/app → npm run build → ✅
+
+================================================================================
+Fin — 2026-07-01
+================================================================================
+
+================================================================================
+MODIF 674 — Popup événement : refonte UX
+Date : 2026-07-01
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le modal « Créer un événement » était une longue liste plate avec onglets
+ Formulaire/Aperçu peu intuitifs.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/CreateFeedEventModal.tsx
+ ─────────────────
+ • Hero photo + titre en overlay (poster événement)
+ • Type en segmented control (emoji + libellé)
+ • Sections cartes « Quand » / « Où » avec icônes
+ • Options repliables (lien + tags invités)
+ • Indicateurs de progression Date / Lieu dans le header
+ • Aperçu via bouton œil (header) au lieu d'onglets
+ • Poignée drag mobile, scroll vers champ manquant si erreur
+
+ web/app/src/locales/fr.json, en.json — nouvelles clés eventModalSection*
+
+FICHIERS MODIFIÉS
+-----
+ CreateFeedEventModal.tsx, fr.json, en.json
+
+BUILD (si vérifié)
+-----
+ web/app → npm run build → ✅
+
+================================================================================
+Fin — 2026-07-01
+================================================================================
+
+================================================================================
+MODIF 673 — Popup événement : photo, lien et aperçu
+Date : 2026-07-01
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le popup « Créer un événement » ne permettait pas d'ajouter une photo de couverture,
+ un lien hypertexte (billetterie, site) ni de prévisualiser la carte événement avant validation.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/CreateFeedEventModal.tsx
+ ─────────────────
+ • Titre, photo (upload), lien URL validé, onglets Formulaire / Aperçu (EventCard)
+ • FeedEventDraft étendu : title, imageUrl, eventLinkUrl
+
+ web/app/src/pages/ActualiteTabPage.tsx
+ ─────────────────
+ • Wiring publication (eventLinkUrl, titre événement, image depuis le modal)
+ • Résumé compact : miniature, titre, lien
+ • PostCard : affichage du lien événement
+
+ web/app/src/components/EventCard.tsx — lien eventLinkUrl
+
+ commun/backend — eventLinkUrl sur FeedPost (schema, feedPosts, route feed)
+
+ web/app/src/locales/fr.json, en.json — clés feed.eventModal*
+
+FICHIERS MODIFIÉS
+-----
+ CreateFeedEventModal.tsx, ActualiteTabPage.tsx, EventCard.tsx, feed.ts (api),
+ types.ts, schema.ts, feedPosts.ts, feed route, fr.json, en.json
+
+BUILD (si vérifié)
+-----
+ web/app → npm run build → ✅
+
+================================================================================
+Fin — 2026-07-01
+================================================================================
+
+================================================================================
+MODIF 672 — Header : retrait bouton confidentialité / visibilité
+Date : 2026-07-01
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Bouton « Confidentialité et visibilité » (PrivacyVisibilityMenu) inutile dans le header.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/App.tsx — retrait du composant dans le header
+ ios/apptel/src/App.tsx — idem (build mobile)
+ web/app/src/components/PrivacyVisibilityMenu.tsx — supprimé
+
+FICHIERS MODIFIÉS
+-----
+ App.tsx (web + apptel), PrivacyVisibilityMenu.tsx (supprimé)
+
+================================================================================
+Fin — 2026-07-01
+================================================================================
+
+================================================================================
+MODIF 671 — Fil d'actualité : popup création événement
+Date : 2026-07-01
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le formulaire événement s'affichait inline sous la zone de publication (checkbox).
+ Demande : ouvrir un popup dédié pour configurer l'événement.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/CreateFeedEventModal.tsx — bottom-sheet (mobile) / dialog (desktop)
+ web/app/src/pages/ActualiteTabPage.tsx — bouton + résumé compact après validation
+ web/app/src/locales/fr.json, en.json — clés feed.eventModal*
+
+FICHIERS MODIFIÉS
+-----
+ CreateFeedEventModal.tsx (nouveau), ActualiteTabPage.tsx, fr.json, en.json
+
+================================================================================
+Fin — 2026-07-01
+================================================================================
+
+================================================================================
 MODIF 670 — Carte grise + recentrage ville profil (bugs MapView)
 Date : 2026-07-01
 ================================================================================
@@ -16006,4 +16240,687 @@ BUILD (si vérifié)
 
 ================================================================================
 Fin MODIF 892 — 2026-07-01
+================================================================================
+
+================================================================================
+MODIF 893 — Correctifs création de live (revue de code) — Soundy Dev
+Date : 2026-07-01
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Suite à une revue de code complète de la fonctionnalité de création de live
+ (POST /lives/start et flux associé), correction des 3 problèmes critiques,
+ 6 problèmes importants et 5 améliorations identifiés.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/routes/lives.ts
+ ─────────────────
+ • [CRITIQUE] Race condition « lives fantômes » : garde anti-doublon
+   désormais atomique via l'index db.activeLiveByHost, réservée avant tout
+   `await` (Cloudflare, Stripe) — un double POST /start concurrent renvoie
+   deux fois le même live au lieu de créer deux lives distincts.
+ • [CRITIQUE] id de live généré via crypto.randomUUID() au lieu de
+   `live_${Date.now()}` — supprime le risque de collision d'id sur deux
+   requêtes dans la même milliseconde.
+ • [IMPORTANT] Live lié à un salon réutilisant salon.id comme id : un live
+   archivé précédent occupant déjà cette clé (salon relancé) est désormais
+   re-clé avant d'être écrasé, pour ne plus perdre son historique/rediffusion.
+ • [IMPORTANT] resolveStartCoordinates valide désormais les coordonnées
+   fournies par le client via isValidLatLng (rejette lat/lon hors plage).
+ • [IMPORTANT] Titre du live trimé et plafonné à 120 caractères
+   (sanitizeLiveTitle), avec repli sur le titre par défaut si vide.
+ • [AMÉLIORATION] provisionCloudflareStreamForLive renvoie désormais
+   explicitement le streamMode résultant au lieu de muter `live.streamMode`
+   en effet de bord caché ; tous les appelants mis à jour.
+ • [AMÉLIORATION] runOrRespondPlanError() factorise les ~7 blocs
+   try/catch(PlatformPlanError) dupliqués dans les routes.
+ • Réservation de live libérée automatiquement en cas d'erreur pendant le
+   provisioning (Cloudflare/Stripe), avec réponse 500 explicite au lieu de
+   laisser la requête en attente indéfiniment.
+
+ commun/backend/src/lib/liveArchive.ts
+ ─────────────────
+ • [AMÉLIORATION] endLiveSession() est désormais idempotent (`if
+   (live.endedAt) return`) — évite un double arrêt d'egress/room LiveKit et
+   une double persistance en cas d'appels concurrents (stop + scheduler +
+   webhook simultanés). Libère aussi la réservation activeLiveByHost.
+
+ commun/backend/src/lib/follows.ts, favorites.ts, asyncFanOut.ts (nouveau)
+ ─────────────────
+ • [CRITIQUE] Le fan-out des notifications « live démarré » vers les
+   abonnés/favoris (notifyFollowersLiveStarted / notifyFavoritesLiveStarted)
+   tournait en boucle synchrone dans la requête HTTP — pour un hôte à forte
+   audience, cela bloquait l'event loop et retardait la réponse. Traitement
+   désormais par lots asynchrones (runInBatchesAsync, setImmediate entre
+   chaque lot de 200).
+
+ commun/backend/src/lib/livekit.ts
+ ─────────────────
+ • [IMPORTANT] TTL du token LiveKit relevé de 2h à 9h, aligné sur
+   LIVE_MAX_DURATION_MS (8h) + marge — un token à 2h expirait avant la fin
+   d'un live encore actif, empêchant toute reconnexion après coupure réseau.
+
+ commun/backend/src/lib/sessionLimits.ts
+ ─────────────────
+ • [IMPORTANT] Un salon qui expire (limite de durée 2h) termine désormais le
+   live lié via endLiveSession() au lieu de le laisser tourner indéfiniment
+   en orphelin (invisible depuis la carte, mais toujours actif/décompté).
+
+ commun/backend/src/models/schema.ts, lib/pgSalonsLives.ts
+ ─────────────────
+ • Nouvel index db.activeLiveByHost (hostId → liveId actif), reconstruit au
+   démarrage depuis PostgreSQL pour rester correct après un redémarrage.
+
+ commun/backend/src/routes/lives.start.test.ts (nouveau)
+ ─────────────────
+ • [TEST] Régression : deux POST /lives/start concurrents pour le même hôte
+   ne créent qu'un seul live actif (test d'intégration Express + fetch).
+
+ web/app/src/hooks/useStartLiveFlow.ts
+ ─────────────────
+ • [CRITIQUE côté client] Garde anti double-soumission sur
+   launchLiveAfterSetup (`if (!token || starting) return`) — un double-tap
+   sur « Prêt » avant démontage de la modale ne déclenche plus deux
+   POST /lives/start.
+
+ web/app/src/pages/HomePage.tsx, locales/fr.json, locales/en.json
+ ─────────────────
+ • [AMÉLIORATION] FAB carte « + Lives » : affiche un spinner + « Démarrage… »
+   pendant la création du live au lieu d'un simple bouton grisé sans
+   feedback explicite.
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/routes/lives.ts → garde anti-doublon, UUID, titre/coords, respondPlanError
+ commun/backend/src/lib/liveArchive.ts → endLiveSession idempotent
+ commun/backend/src/lib/follows.ts, favorites.ts → fan-out notifications non-bloquant
+ commun/backend/src/lib/asyncFanOut.ts (nouveau) → helper de fan-out par lots
+ commun/backend/src/lib/livekit.ts → TTL token aligné sur durée max live
+ commun/backend/src/lib/sessionLimits.ts → fin de live lié à l'expiration du salon
+ commun/backend/src/models/schema.ts, lib/pgSalonsLives.ts → index activeLiveByHost
+ commun/backend/src/routes/lives.start.test.ts (nouveau) → régression concurrence
+ web/app/src/hooks/useStartLiveFlow.ts → garde anti double-soumission
+ web/app/src/pages/HomePage.tsx, locales/fr.json, locales/en.json → feedback FAB « Démarrage… »
+
+BUILD (si vérifié)
+-----
+ commun/backend/ → tsc --noEmit → ✅
+ commun/backend/ → npx vitest run → ✅ (331 tests, 1 échec préexistant sans rapport dans pgFeedPosts.test.ts)
+ web/app/ → tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 893 — 2026-07-01
+================================================================================
+
+================================================================================
+MODIF 894 — Correctifs revue technique salon YouTube (config + quota API) — Soundy Dev
+Date : 2026-07-01
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Suite à la revue technique complète de la configuration YouTube et de la
+ création de salon (config OAuth, flux de création, conformité API,
+ optimisation quota, gestion d'erreurs, cohérence des données), correction
+ du point critique et des 6 points importants + 4 améliorations identifiés.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/youtubeQuotaBudget.ts (nouveau)
+ ─────────────────
+ • [CRITIQUE] search.list a un bucket de quota Google dédié de 100 appels/jour
+   pour tout le projet (pas par utilisateur) — sans protection, quelques
+   utilisateurs pouvaient épuiser la recherche YouTube pour tout le monde.
+   Nouveau compteur en mémoire (reset quotidien approximatif UTC) avec marge
+   de réserve (5 appels) : au-delà, canAttemptYoutubeSearchListCall() renvoie
+   false et bloque tout nouvel appel réseau avant qu'il ne parte.
+
+ commun/backend/src/lib/youtubeDataApi.ts
+ ─────────────────
+ • [CRITIQUE] fetchSearchHits() vérifie le budget avant d'appeler Google et
+   incrémente le compteur pour chaque appel réel (API key ou OAuth — même
+   bucket de quota projet).
+
+ commun/backend/src/routes/salons.ts (GET /youtube-search)
+ ─────────────────
+ • [CRITIQUE] Ajout d'un rate limiter dédié (40 requêtes/5 min par
+   utilisateur, filet de sécurité anti-bot au-delà du debounce client 350 ms).
+ • [IMPORTANT] Le cache 1 h est désormais vérifié AVANT toute résolution de
+   token OAuth — un hit de cache ne coûte plus rien côté Google (auparavant
+   le token était résolu même si la requête allait être servie par le cache).
+ • [IMPORTANT] trackId brut (POST /salons, /playback/change-track,
+   /playback/add-to-queue) validé avec isValidYoutubeVideoId — une valeur
+   arbitraire ne peut plus être stockée/diffusée si elle n'a pas la forme
+   d'un ID vidéo YouTube.
+ • [AMÉLIORATION] ID de salon généré via crypto.randomUUID() au lieu de
+   `salon_${Date.now()}` (côté serveur ET côté client dans
+   web/app/src/lib/salonDeepLink.ts pour les liens d'invitation
+   pré-générés) — cohérent avec le correctif déjà appliqué aux lives.
+
+ commun/backend/src/lib/youtubeSearch.ts
+ ─────────────────
+ • [CRITIQUE] Quand le budget search.list est épuisé, bascule silencieuse
+   vers le catalogue local (musicCatalog) au lieu de renvoyer une erreur 503
+   à l'utilisateur.
+ • [IMPORTANT] Lien collé dont l'oEmbed échoue (vidéo privée/supprimée) :
+   retourne désormais un résultat minimal basé sur le videoId déjà extrait,
+   au lieu de retomber sur search.list avec le texte brut de l'URL en
+   requête (gaspillage de quota pour un résultat sans valeur).
+ • [IMPORTANT] Le module youtubeRemote.ts (proxies Piped/Invidious, non
+   conformes aux ToS YouTube) est désormais chargé via import() dynamique,
+   uniquement quand isYoutubeRemoteFallbackAllowed() est vrai (jamais en
+   production) — plutôt qu'un import statique toujours résolu.
+
+ commun/backend/src/lib/youtubePlaylists.ts
+ ─────────────────
+ • [IMPORTANT] Même traitement (import dynamique de youtubeRemote.ts)
+   appliqué à resolvePlaylistVideos().
+
+ commun/backend/src/lib/youtubeMetadata.ts, routes/salons.ts (GET /:id)
+ ─────────────────
+ • [IMPORTANT] Nouvelle fonction hasStaleYoutubeMetadata() (vérification
+   sans I/O) appelée avant de résoudre/rafraîchir le token OAuth de l'hôte
+   sur chaque affichage de salon — évite un aller-retour Google inutile
+   quand aucune métadonnée n'est expirée (cas le plus fréquent).
+
+ commun/backend/src/lib/follows.ts, favorites.ts
+ ─────────────────
+ • [IMPORTANT] notifyFollowersSalonCreated / notifyFavoritesSalonStarted
+   utilisent désormais runInBatchesAsync (déjà en place pour les lives)
+   au lieu d'une boucle synchrone — n'bloque plus l'event loop à la
+   création d'un salon pour un hôte à forte audience.
+
+ commun/backend/src/lib/youtubeOAuth.ts
+ ─────────────────
+ • [AMÉLIORATION] applyYoutubeOAuthToUser() renseigne désormais
+   PlatformAccount.oauthScopes avec le scope youtube.readonly effectivement
+   demandé — trace d'audit utile en cas de vérification Google.
+
+ commun/backend/src/routes/oauth.ts, routes/platforms.ts
+ ─────────────────
+ • [AMÉLIORATION] Vérification faite : YOUTUBE_CALLBACK_URL pointe vers
+   /api/auth/youtube/callback dans les 3 fichiers .env.example (production,
+   preproduction, msdev) — c'est donc la route canonique, pas
+   /api/platforms/youtube/oauth/callback. Documentation ajoutée en ce sens sur
+   /api/auth/youtube/callback (routes/oauth.ts) ; /api/platforms/youtube/oauth/callback
+   (routes/platforms.ts) marquée @deprecated à la place — route conservée pour
+   compatibilité mais à ne plus utiliser pour une nouvelle configuration.
+   (Correction d'une inversion faite dans une première version de ce correctif :
+   le mauvais sens avait initialement été documenté.)
+
+ commun/backend/src/routes/adminMonitor.ts
+ ─────────────────
+ • Nouvel endpoint GET /api/admin/monitor/youtube-quota (admin) exposant la
+   consommation actuelle du bucket search.list (used/limit/remaining).
+
+ Tests (nouveaux) : youtubeQuotaBudget.test.ts, youtubeDataApi.test.ts,
+ youtubeSearch.test.ts (cas oEmbed en échec), notifications.test.ts (adapté
+ à l'envoi asynchrone par lots).
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/youtubeQuotaBudget.ts (nouveau) → compteur quota search.list
+ commun/backend/src/lib/youtubeDataApi.ts → garde-fou quota avant appel réseau
+ commun/backend/src/routes/salons.ts → rate limit, cache avant token, validation trackId, UUID salon
+ commun/backend/src/lib/youtubeSearch.ts → bascule catalogue, fix oEmbed, import dynamique Piped/Invidious
+ commun/backend/src/lib/youtubePlaylists.ts → import dynamique Piped
+ commun/backend/src/lib/youtubeMetadata.ts → hasStaleYoutubeMetadata()
+ commun/backend/src/lib/follows.ts, favorites.ts → fan-out non-bloquant salons
+ commun/backend/src/lib/youtubeOAuth.ts → oauthScopes renseigné
+ commun/backend/src/routes/oauth.ts → dépréciation callback legacy
+ commun/backend/src/routes/adminMonitor.ts → endpoint quota YouTube
+ web/app/src/lib/salonDeepLink.ts → generateSalonId() via crypto.randomUUID()
+ commun/backend/src/lib/youtubeQuotaBudget.test.ts, youtubeDataApi.test.ts (nouveaux)
+ commun/backend/src/lib/youtubeSearch.test.ts, notifications.test.ts → tests étendus/adaptés
+
+BUILD (si vérifié)
+-----
+ commun/backend/ → npm run build (tsc) → ✅
+ commun/backend/ → npx vitest run → ✅ (337 tests, 1 échec préexistant sans rapport dans pgFeedPosts.test.ts)
+ web/app/ → tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 894 — 2026-07-01
+================================================================================
+
+================================================================================
+MODIF 895 — Musique : Découvrir/Populaire en liste, onglets Abonnements/Bibliothèque — Soundly Dev
+Date : 2026-07-01
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Onglet Musique : 4 boutons (Découvrir, Abonnements, Ma bibliothèque, Populaire) —
+ UX demandée : afficher Découvrir + Populaire en sections empilées par défaut,
+ ne garder que Abonnements et Ma bibliothèque comme boutons basculables.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MusicHomeContent.tsx
+ ─────────────────
+ • Vue par défaut : sections Découvrir puis Populaire (scroll vertical).
+ • Deux boutons pleine largeur : Abonnements | Ma bibliothèque (toggle, re-clic = retour liste).
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/MusicHomeContent.tsx → layout feed musique
+
+================================================================================
+Fin MODIF 895 — 2026-07-01
+================================================================================
+
+================================================================================
+MODIF 896 — Musique : Tendance de la semaine (upvotes hebdo) — Soundly Dev
+Date : 2026-07-01
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Onglet Musique : section « Tendance de la semaine » — albums et morceaux les
+ plus upvotés durant la semaine courante (lundi → dimanche), reset hebdomadaire.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/weeklyVotes.ts
+ ─────────────────
+ • getWeeklyCompositionUpvoteCounts() — compteur upvotes discographie sur la semaine.
+
+ commun/backend/src/lib/musicHome.ts
+ ─────────────────
+ • weeklyTrend dans buildMusicHome (top 12 morceaux + albums par upvotes semaine).
+
+ web/app/src/components/MusicHomeContent.tsx
+ web/app/src/lib/musicTypes.ts
+ web/app/src/locales/fr.json, en.json
+ ─────────────────
+ • Section Tendance de la semaine en tête de la liste par défaut + sous-titre reset lundi.
+
+ commun/backend/src/lib/musicHome.test.ts (nouveau)
+ ─────────────────
+ • Tests comptage hebdo + classement weeklyTrend.
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/weeklyVotes.ts, musicHome.ts, musicHome.test.ts
+ web/app/src/components/MusicHomeContent.tsx, lib/musicTypes.ts, locales
+
+BUILD (si vérifié)
+-----
+ commun/backend/ → npm run build + vitest musicHome.test.ts → ✅
+
+================================================================================
+Fin MODIF 896 — 2026-07-01
+================================================================================
+
+================================================================================
+MODIF 897 — Musique : Tendance semaine — top reels (10 max) — Soundly Dev
+Date : 2026-07-01
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Section « Tendance de la semaine » : inclure les reels les plus upvotés (♥)
+ durant la semaine courante, liste max 10, reset lundi.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/weeklyVotes.ts
+ ─────────────────
+ • recordReelWeeklyVote + getWeeklyReelUpvoteCounts (ledger sourceType reel).
+ • getWeeklyTopSongs ignore les votes reel (Actualités inchangé côté salon/compo).
+
+ commun/backend/src/lib/reels.ts
+ ─────────────────
+ • toggleReelHeart enregistre/retracte le vote hebdo.
+
+ commun/backend/src/lib/musicHome.ts
+ ─────────────────
+ • weeklyTrend.reels — top 10 reels publics par hearts semaine.
+
+ web/app/src/components/MusicHomeContent.tsx, lib/musicTypes.ts, locales
+ ─────────────────
+ • Liste Reels dans Tendance de la semaine (poster + ♥ semaine).
+
+ commun/backend/src/lib/musicHome.test.ts
+ ─────────────────
+ • Test classement reels hebdo.
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/weeklyVotes.ts, reels.ts, musicHome.ts, musicHome.test.ts
+ commun/backend/src/models/schema.ts
+ web/app/src/components/MusicHomeContent.tsx, lib/musicTypes.ts, locales fr/en
+
+BUILD (si vérifié)
+-----
+ commun/backend/ → npm run build + vitest musicHome.test.ts → ✅
+
+================================================================================
+Fin MODIF 897 — 2026-07-01
+================================================================================
+
+================================================================================
+MODIF 898 — Lives : refonte UX panneau filtres (LivesBrowseGrid) — Soundly Dev
+Date : 2026-07-01
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Panneau filtres lives (carte + pays + tri) trop compact : map toujours visible,
+ chips pays minuscules en wrap, bouton filtre mal placé, scroll 40vh illisible.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/LivesBrowseGrid.tsx
+ ─────────────────
+ • Barre récap + bouton filtre en tête (pastilles actives, point rouge si filtre actif).
+ • Panneau structuré : en-tête, Réinitialiser, sections Zone / Pays / Tri.
+ • Carte repliable (résumé zone par défaut, bouton « Carte » pour ajuster).
+ • Pays en scroll horizontal, chips 44px ; tri en grille 3 colonnes desktop.
+ • Hint rayon quand tri « Distance » actif.
+ • Popup modal (portal body, bottom-sheet mobile / dialog desktop, Échap + overlay).
+
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • MapZoomSlider masqué en vue browse lives (globe + carte grise inchangés).
+ • Bouton recentrer masqué en vue browse lives (idem).
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/LivesBrowseGrid.tsx → UX filtres lives browse
+
+================================================================================
+Fin MODIF 898 — 2026-07-01
+================================================================================
+
+================================================================================
+MODIF 899 — Audit upload images/vidéos : correction pièces jointes chat cassées + durcissement — Soundly Dev
+Date : 2026-07-01
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Audit complet de tous les flux d'upload image/vidéo de l'appli (profil, fil,
+ stories, reels, DM, chat salon/live, admin sponsors, albums). Un bug critique
+ confirmé dans le code : les pièces jointes de chat (DM, salon, live) étaient
+ totalement non fonctionnelles — le frontend envoyait toujours une data: URL
+ comme attachmentUrl, mais le backend exigeait un schéma https:// strict, sans
+ aucune étape d'upload intermédiaire. Résultat : personne ne pouvait envoyer de
+ pièce jointe. Autres points relevés : aucune vérification magic-bytes sur les
+ flux à fort volume (profil/fil/story/reel), photo de profil sans garantie
+ stricte de taille finale, pochette d'album sans pipeline HEIC.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/chatAttachmentAssets.ts (nouveau)
+ ─────────────────
+ • saveChatAttachmentFromDataUrl() : valide format/taille (10 Mo max), vérifie
+   les magic bytes pour les images, écrit le fichier dans
+   public/uploads/chat-attachments/ et renvoie une URL locale servie en HTTPS.
+ • deleteChatAttachmentIfLocal() pour le nettoyage en cas de modération rejetée.
+
+ commun/backend/src/lib/chatAttachmentUrl.ts
+ ─────────────────
+ • isAllowedChatAttachmentUrl() accepte désormais https:// OU un chemin local
+   déjà uploadé (/uploads/chat-attachments/...) — plus jamais une data: URL brute.
+
+ commun/backend/src/routes/chat.ts
+ ─────────────────
+ • Nouvelle route POST /api/chat/attachment (authentifiée, rate-limitée) :
+   upload préalable obligatoire avant tout envoi de message avec pièce jointe.
+   Modère l'image avant écriture disque, supprime le fichier si rejeté.
+
+ commun/backend/src/socket.ts
+ ─────────────────
+ • salon_message / live_message : émettent désormais chat_attachment_denied
+   (raison + message) au lieu d'ignorer silencieusement le message quand la
+   pièce jointe est invalide ou rejetée par la modération.
+
+ web/app/src/lib/api/dm.ts
+ ─────────────────
+ • Ajout de uploadChatAttachment() → POST /chat/attachment.
+
+ web/app/src/pages/DmPage.tsx, web/app/src/components/ChatPanel.tsx
+ ─────────────────
+ • sendMessage/send uploadent désormais la pièce jointe via l'API avant
+   d'envoyer le message (DM en REST, salon/live en websocket), et n'envoient
+   plus jamais la data: URL brute comme attachmentUrl.
+ • ChatPanel écoute chat_attachment_denied pour afficher l'erreur au lieu de
+   laisser le message disparaître sans explication.
+
+ commun/backend/src/lib/imageValidation.ts
+ ─────────────────
+ • Ajout de validateVideoMagicBytes() (signatures EBML webm / ftyp mp4-mov).
+
+ commun/backend/src/lib/feedPosts.ts
+ ─────────────────
+ • isFeedImageDataUrl() / isFeedVideoDataUrl() (partagées avec stories.ts)
+   vérifient désormais les magic bytes réels en plus du format déclaré.
+
+ commun/backend/src/lib/reelAssets.ts
+ ─────────────────
+ • Vérification magic bytes sur la vidéo importée/enregistrée et sur le poster.
+
+ commun/backend/src/routes/auth.ts
+ ─────────────────
+ • PATCH /api/auth/profile : les photos de profil (data: URL) sont désormais
+   validées par format whitelist (jpeg/png/webp/gif) + magic bytes, plus
+   seulement par la taille encodée.
+
+ web/app/src/lib/profilePhotos.ts
+ ─────────────────
+ • compressProfilePhotoDataUrl()/blobUrlToProfileDataUrl() utilisent désormais
+   une boucle de compression progressive (qualité puis résolution) visant le
+   plafond serveur de 2 Mo, au lieu d'un unique passage à qualité fixe.
+
+ web/app/src/components/UserCompositionsSection.tsx
+ ─────────────────
+ • Pochette d'album : prepareImageFile() convertit HEIC/HEIF → JPEG avant
+   validation (alignement avec le pipeline profil/fil/story). accept étendu.
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/chatAttachmentAssets.ts (nouveau), chatAttachmentUrl.ts,
+   chatAttachmentUrl.test.ts, imageValidation.ts, feedPosts.ts, reelAssets.ts
+ commun/backend/src/routes/chat.ts, auth.ts
+ commun/backend/src/socket.ts
+ web/app/src/lib/api/dm.ts, lib/profilePhotos.ts
+ web/app/src/pages/DmPage.tsx
+ web/app/src/components/ChatPanel.tsx, UserCompositionsSection.tsx
+
+BUILD (si vérifié)
+-----
+ commun/backend/ → tsc --noEmit + vitest (342 tests, 1 échec préexistant sans
+   rapport : pgFeedPosts.test.ts) → ✅
+ web/app/ → tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 899 — 2026-07-01
+================================================================================
+
+================================================================================
+MODIF 900 — Durée vidéo vérifiée côté serveur (headers réels) + comparatif TikTok/Instagram — Soundly Dev
+Date : 2026-07-01
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Dernier point de l'audit upload images/vidéos (MODIF 899) laissé ouvert : la
+ durée d'une vidéo (fil, story, reel) n'était jamais re-vérifiée côté serveur —
+ seule la durée déclarée par le client était clampée. Un client malveillant
+ pouvait donc envoyer une vidéo de 5 minutes en la déclarant "30 s" et
+ contourner toutes les limites d'affichage/UX. Pas de ffmpeg/ffprobe dans la
+ stack (binaire externe non garanti sur VPS Linux ni sur le .exe Windows
+ packagé msdev) → écriture d'un parseur pur JS, sans dépendance, lisant
+ uniquement les headers de conteneur (pas de décodage vidéo).
+ Comparatif demandé avec TikTok/Instagram pour valider les plafonds actuels.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/videoDuration.ts (nouveau)
+ ─────────────────
+ • probeMp4DurationSec() : parcourt les box ISO-BMFF (moov > mvhd, v0/v1) pour
+   lire timescale + duration → durée réelle en secondes. Couvre mp4/mov/m4v.
+ • probeWebmDurationSec() : parseur EBML minimal (VINT id/size) qui descend
+   Segment > Info > Duration/TimecodeScale.
+ • probeVideoDurationSec(buffer, mime) : dispatch selon le sous-type déclaré.
+ • Best-effort : renvoie null si le conteneur est en streaming / non
+   reconnaissable (ex. WebM MediaRecorder sans Duration finalisée) — on ne
+   bloque pas l'upload dans ce cas, la durée déclarée reste utilisée en repli.
+ • videoDuration.test.ts : 10 tests (buffers MP4/WebM synthétiques construits
+   en mémoire, v0/v1 mvhd, TimecodeScale non défaut, buffers tronqués).
+
+ commun/backend/src/lib/feedPosts.ts
+ ─────────────────
+ • isFeedVideoDataUrl(url, maxDurationSec?) : nouveau paramètre optionnel —
+   si la durée réelle sondée dépasse le plafond (+2 s de tolérance encodage),
+   l'upload est rejeté même si le client déclarait une durée conforme.
+ • Export de FEED_VIDEO_MAX_DURATION_SEC (30 s) et STORY_VIDEO_MAX_DURATION_SEC
+   (15 s) — plafonds désormais réellement appliqués côté serveur.
+
+ commun/backend/src/lib/stories.ts
+ ─────────────────
+ • normalizeVideoUrl() passe STORY_VIDEO_MAX_DURATION_SEC à isFeedVideoDataUrl.
+ • normalizeVideoDurationSec() clampe maintenant sur 15 s (au lieu de l'ancien
+   plafond permissif de 60 s qui ne correspondait à aucune limite réelle FE).
+
+ commun/backend/src/lib/reelUploadLimits.ts
+ ─────────────────
+ • Ajout de REEL_RECORD_MAX_SEC = 60 (backend) — jusqu'ici la durée d'un reel
+   n'était jamais vérifiée côté serveur (seul un clamp cosmétique à 24 h
+   existait sur le champ d'affichage durationSec).
+
+ commun/backend/src/lib/reelAssets.ts
+ ─────────────────
+ • saveVideoFromDataUrl() rejette désormais toute vidéo dont la durée réelle
+   sondée dépasse REEL_RECORD_MAX_SEC + 3 s de tolérance.
+
+ commun/backend/src/lib/reels.ts
+ ─────────────────
+ • normalizeDurationSec() clampe désormais sur REEL_RECORD_MAX_SEC (60 s) au
+   lieu de 24 h.
+
+ web/app/src/lib/reelRecording.ts
+ ─────────────────
+ • REEL_RECORD_MAX_SEC : 30 s → 60 s (voir comparatif ci-dessous).
+
+COMPARATIF TIKTOK / INSTAGRAM (2026)
+-----
+ Plateforme          | Format          | Durée max
+ -------------------- | --------------- | ------------------------------------
+ TikTok               | Enregistrement  | 10 min (in-app)
+ TikTok               | Import galerie  | 60 min
+ TikTok               | Stories         | 15 s
+ Instagram            | Reels           | 90 s recommandé (jusqu'à 3-20 min)
+ Instagram            | Stories         | 60 s / segment
+ Soundy (avant)       | Reels           | 30 s (jamais vérifié serveur)
+ Soundy (après)       | Reels           | 60 s (vérifié serveur, headers réels)
+ Soundy               | Fil d'accueil   | 30 s (inchangé, vérifié serveur)
+ Soundy               | Story           | 15 s (inchangé, aligné TikTok Stories,
+                      |                 | vérifié serveur — l'ancien plafond
+                      |                 | backend de 60 s était trop permissif)
+
+ Reels porté à 60 s : reste bien sous TikTok/Instagram, mais s'aligne sur la
+ capacité de modération vidéo synchrone Sightengine (SIGHTENGINE_VIDEO_SYNC_
+ MAX_SEC = 60 s par défaut) — au-delà, la vidéo échappe au scan synchrone
+ (shouldScanVideoSource). Garder Reels ≤ 60 s garantit que 100 % des reels
+ publiés passent par la modération synchrone.
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/videoDuration.ts (nouveau), videoDuration.test.ts (nouveau)
+ commun/backend/src/lib/feedPosts.ts, stories.ts, reelAssets.ts, reels.ts,
+   reelUploadLimits.ts
+ web/app/src/lib/reelRecording.ts
+
+BUILD (si vérifié)
+-----
+ commun/backend/ → tsc --noEmit + vitest (352 tests, 1 échec préexistant sans
+   rapport : pgFeedPosts.test.ts) → ✅
+ web/app/ → tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 900 — 2026-07-01
+================================================================================
+
+================================================================================
+MODIF 901 — Bitrate d'enregistrement reel/story aligné sur les standards TikTok/Instagram — Soundly Dev
+Date : 2026-07-01
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Suite du comparatif TikTok/Instagram (MODIF 900) : la durée n'était pas le
+ seul écart au marché. Le bitrate d'enregistrement caméra (MediaRecorder) était
+ très inférieur aux standards short-form :
+ • Reel (cible 720×1280) : 250 kbps vidéo / 32 kbps audio.
+ • Story (cible 1080×1920) : 450 kbps vidéo / 32 kbps audio — rendu très
+   pixelisé pour une résolution Full HD verticale.
+ Repère marché (Vibbit/TikTok, Instagram) : H.264 recommandé 8-16 Mbps
+ (TikTok), 3,5-10 Mbps (Instagram), audio AAC 128-256 kbps.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/reelRecording.ts
+ ─────────────────
+ • REEL_RECORD_VIDEO_BITS_PER_SEC : 250 kbps → 3 Mbps.
+ • REEL_RECORD_AUDIO_BITS_PER_SEC : 32 kbps → 128 kbps (appli musicale — la
+   qualité audio de l'enregistrement compte particulièrement).
+ • À 60 s (durée max reel, cf. MODIF 900) et ce bitrate : ~23,5 Mo par reel,
+   soit <10 % du plafond de taille (287 Mio) — marge très confortable.
+
+ web/app/src/components/StoryCameraView.tsx
+ ─────────────────
+ • videoBitsPerSecond : 450 kbps → 2,5 Mbps ; audioBitsPerSecond : 32 kbps →
+   128 kbps.
+ • À 15 s (durée max story) et ce bitrate : ~4,9 Mo bruts (~6,6 Mo encodés en
+   base64), sous le plafond serveur STORY_VIDEO_MAX_DATA_CHARS / MAX_FEED_
+   VIDEO_DATA_CHARS (≈9 Mo bruts) avec ~45 % de marge pour l'overhead VBR/
+   conteneur.
+ • Reste volontairement sous les standards TikTok/Instagram (3,5-16 Mbps) pour
+   garder une marge de sécurité confortable sous les plafonds de taille
+   existants sans devoir les relever.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/reelRecording.ts
+ web/app/src/components/StoryCameraView.tsx
+
+BUILD (si vérifié)
+-----
+ web/app/ → tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 901 — 2026-07-01
+================================================================================
+
+================================================================================
+MODIF 902 — Admin : flèches scroll barre d'onglets — Soundly Dev
+Date : 2026-07-01
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Barre d'onglets admin (variant underline) : onglets tronqués sur écran étroit,
+ seuls les dégradés latéraux — pas de moyen explicite de défiler.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/AdminScrollTabBar.tsx
+ ─────────────────
+ • Flèches gauche/droite (variant underline) + scroll smooth par onglet.
+ • scroll-padding-inline pour ne pas masquer l'onglet actif sous les flèches.
+
+ web/app/src/index.css
+ ─────────────────
+ • scroll-padding-inline sur .ms-admin-tab-bar--underline.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/AdminScrollTabBar.tsx, web/app/src/index.css
+
+================================================================================
+Fin MODIF 902 — 2026-07-01
 ================================================================================

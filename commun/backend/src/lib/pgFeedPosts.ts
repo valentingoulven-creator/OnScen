@@ -14,6 +14,7 @@ export async function upsertFeedPost(dbExec: DbExec, post: FeedPost): Promise<vo
 
 export async function deleteFeedPostFromPg(dbExec: DbExec, postId: string): Promise<void> {
   await dbExec.query('DELETE FROM feed_post_likes WHERE post_id = $1', [postId]);
+  await dbExec.query('DELETE FROM feed_post_upvotes WHERE post_id = $1', [postId]);
   await dbExec.query('DELETE FROM feed_post_comments WHERE post_id = $1', [postId]);
   await dbExec.query('DELETE FROM feed_post_favorites WHERE post_id = $1', [postId]);
   await dbExec.query('DELETE FROM feed_posts WHERE id = $1', [postId]);
@@ -103,6 +104,44 @@ export function schedulePersistFeedPostComment(comment: FeedPostComment): void {
   void upsertFeedPostComment(getPool(), comment).catch((e) => {
     console.error('[pgFeedPosts] Échec persistance commentaire publication PostgreSQL:', e);
   });
+}
+
+export function schedulePersistFeedPostUpvote(
+  postId: string,
+  userId: string,
+  upvoted: boolean
+): void {
+  if (!isPostgresEnabled()) return;
+  const pool = getPool();
+  const job = upvoted
+    ? upsertFeedPostUpvote(pool, postId, userId)
+    : deleteFeedPostUpvoteFromPg(pool, postId, userId);
+  void job.catch((e) => {
+    console.error('[pgFeedPosts] Échec persistance upvote événement PostgreSQL:', e);
+  });
+}
+
+export async function upsertFeedPostUpvote(
+  dbExec: DbExec,
+  postId: string,
+  userId: string
+): Promise<void> {
+  await dbExec.query(
+    `INSERT INTO feed_post_upvotes (post_id, user_id) VALUES ($1, $2)
+     ON CONFLICT (post_id, user_id) DO NOTHING`,
+    [postId, userId]
+  );
+}
+
+export async function deleteFeedPostUpvoteFromPg(
+  dbExec: DbExec,
+  postId: string,
+  userId: string
+): Promise<void> {
+  await dbExec.query('DELETE FROM feed_post_upvotes WHERE post_id = $1 AND user_id = $2', [
+    postId,
+    userId,
+  ]);
 }
 
 export function schedulePersistFeedPostFavorite(

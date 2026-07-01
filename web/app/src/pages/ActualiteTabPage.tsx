@@ -40,12 +40,14 @@ import { ShareToUserSheet } from '../components/ShareToUserSheet';
 import { buildFeedPostSharePayload, getFeedPostShareUrl } from '../lib/feedPostShare';
 import { markFeedPostLinkShared, readFeedPostLinkSharedIds } from '../lib/feedPostShareState';
 import { EventsCarousel } from '../components/EventsCarousel';
+import { EventUpvoteButton } from '../components/EventUpvoteButton';
 import { HorizontalScrollCarousel } from '../components/HorizontalScrollCarousel';
 import { NewsArticleCard } from '../components/NewsArticleCard';
 import { getUpcomingUserEvents, getEventDates, getEventDateEntries, formatEventDateWithEndTime, getPrimaryEventDate, hasUpcomingEventDate } from '../lib/feedEvents';
 import { EventTaggedUsersRow } from '../components/EventTaggedUsersRow';
 import { CreateFeedEventModal } from '../components/CreateFeedEventModal';
 import { readSavedEventLocation, writeSavedEventLocation } from '../lib/savedEventLocation';
+import { storyLinkDisplayLabel, validateStoryLinkUrl } from '../lib/storyLink';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { mapFeaturedSoundFromApi, type FeaturedUserSoundItem } from '../lib/featuredUserSounds';
 import { syncProfileUrlInBar } from '../lib/profileDeepLink';
@@ -422,6 +424,7 @@ function ActualitesContent({
   onOpenProfile,
   onOpenAuthor,
   onShareEvent,
+  onPatchEventPost,
   countryCode = null,
   countryName = null,
   countryEventPosts = [],
@@ -444,6 +447,7 @@ function ActualitesContent({
   onOpenProfile: (userId: string) => void;
   onOpenAuthor: (post: FeedPost) => void;
   onShareEvent?: (post: FeedPost) => void;
+  onPatchEventPost?: (postId: string, patch: Partial<FeedPost>) => void;
   countryCode?: string | null;
   countryName?: string | null;
   countryEventPosts?: FeedPost[];
@@ -682,7 +686,12 @@ function ActualitesContent({
             <p className="text-xs text-gray-500">{t('feed.eventsCommunityEmpty')}</p>
           </div>
         ) : (
-          <EventsCarousel posts={userCreatedEvents} onOpen={onOpenAuthor} onShare={onShareEvent} />
+          <EventsCarousel
+            posts={userCreatedEvents}
+            onOpen={onOpenAuthor}
+            onShare={onShareEvent}
+            onPostChange={onPatchEventPost}
+          />
         )}
       </div>
 
@@ -701,6 +710,7 @@ function ActualitesContent({
             posts={countryUpcoming}
             onOpen={onOpenAuthor}
             onShare={onShareEvent}
+            onPostChange={onPatchEventPost}
             getExtraBadges={() => (
               <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
                 {countryCodeToFlag(displayCountryCode)} · {displayCountryName}
@@ -739,6 +749,7 @@ interface PostCardProps {
   onReshare: () => void;
   onShare: () => void;
   onToggleFavorite: () => void;
+  onPostPatch?: (patch: Partial<FeedPost>) => void;
 }
 
 const PostCard = memo(function PostCard({
@@ -758,8 +769,10 @@ const PostCard = memo(function PostCard({
   onReshare,
   onShare,
   onToggleFavorite,
+  onPostPatch,
 }: PostCardProps) {
   const { t } = useTranslation();
+  const { token } = useAuth();
   const commentsOpen = commentOpenPostId === post.id;
   const displayedComments = fullComments ?? post.recentComments ?? [];
   const authorStory = latestStory(storiesByUser.get(post.author.id) ?? []);
@@ -843,6 +856,17 @@ const PostCard = memo(function PostCard({
               <span className="text-xs text-gray-200">{post.eventLocation}</span>
             </div>
           )}
+          {post.eventLinkUrl ? (
+            <a
+              href={post.eventLinkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center gap-1.5 text-xs font-semibold text-sky-300 hover:text-sky-200 underline decoration-sky-400/35 underline-offset-2 min-h-[44px]"
+            >
+              {storyLinkDisplayLabel({ url: post.eventLinkUrl })}
+            </a>
+          ) : null}
           {post.eventTaggedUsers && post.eventTaggedUsers.length > 0 ? (
             <EventTaggedUsersRow
               taggedUsers={post.eventTaggedUsers}
@@ -927,6 +951,16 @@ const PostCard = memo(function PostCard({
 
       {/* ── Interaction bar ── */}
       <div className="flex items-center gap-0.5 pt-1 border-t border-[#1a1a28]">
+        {post.isEvent ? (
+          <EventUpvoteButton
+            postId={post.id}
+            upvoteCount={post.upvoteCount ?? 0}
+            upvotedByMe={post.upvotedByMe ?? false}
+            token={token}
+            compact
+            onChange={onPostPatch}
+          />
+        ) : null}
         {/* Like */}
         <button
           type="button"
@@ -1093,6 +1127,8 @@ export function ActualiteTabPage({
   const [eventLocation, setEventLocation] = useState('');
   const [saveEventLocation, setSaveEventLocation] = useState(true);
   const [eventType, setEventType] = useState<'dance' | 'chant' | 'autre'>('autre');
+  const [eventTitle, setEventTitle] = useState('');
+  const [eventLinkUrl, setEventLinkUrl] = useState('');
   const [eventTaggedUsers, setEventTaggedUsers] = useState<StoryTaggedUser[]>([]);
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
@@ -1632,15 +1668,27 @@ export function ActualiteTabPage({
   const resetEventForm = () => {
     setConfirmedEventDates([]);
     setEventType('autre');
+    setEventTitle('');
+    setEventLinkUrl('');
     setEventTaggedUsers([]);
     const savedLocation = readSavedEventLocation();
     setEventLocation(savedLocation ?? '');
   };
 
-  const removeConfirmedEventDate = (isoStart: string) => {
-    setConfirmedEventDates((prev) => prev.filter((e) => e.start !== isoStart));
-  };
-  const canPublish = Boolean(draft.trim() || imageUrl.trim() || videoUrl.trim()) && eventFieldsValid;
+  const eventTypeLabel =
+    eventType === 'dance'
+      ? t('feed.eventTypeDance')
+      : eventType === 'chant'
+        ? t('feed.eventTypeChant')
+        : t('feed.eventTypeAutre');
+
+  const canPublish =
+    Boolean(
+      draft.trim() ||
+        imageUrl.trim() ||
+        videoUrl.trim() ||
+        (isEvent && eventTitle.trim())
+    ) && eventFieldsValid;
   const editorOpen = Boolean(editorSource && editorPreviewUrl);
   const mediaAttaching = imageAttaching || videoAttaching || imagePreparing;
 
@@ -1649,7 +1697,9 @@ export function ActualiteTabPage({
     setPublishing(true);
     setError(null);
     try {
-      const body: Parameters<typeof api.createFeedPost>[1] = { content: draft.trim() };
+      const textContent =
+        draft.trim() || (isEvent ? eventTitle.trim() || eventTypeLabel : '');
+      const body: Parameters<typeof api.createFeedPost>[1] = { content: textContent };
       const img = imageUrl.trim();
       const vid = videoUrl.trim();
       if (img) body.imageUrl = img;
@@ -1661,6 +1711,15 @@ export function ActualiteTabPage({
         body.eventDate = eventDatesIso[0];
         body.eventLocation = eventLocation.trim();
         body.eventType = eventType;
+        const linkRaw = eventLinkUrl.trim();
+        if (linkRaw) {
+          const validated = validateStoryLinkUrl(linkRaw);
+          if (!validated.ok) {
+            setError(validated.error);
+            return;
+          }
+          body.eventLinkUrl = validated.url;
+        }
         const endTimesIso = confirmedEventDates.map((e) =>
           e.end ? new Date(e.end).toISOString() : null
         );
@@ -1694,6 +1753,13 @@ export function ActualiteTabPage({
 
   const updatePostInList = useCallback((postId: string, patch: Partial<FeedPost>) => {
     setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, ...patch } : p)));
+  }, []);
+
+  const patchEventPost = useCallback((postId: string, patch: Partial<FeedPost>) => {
+    const apply = (prev: FeedPost[]) => prev.map((p) => (p.id === postId ? { ...p, ...patch } : p));
+    setPosts(apply);
+    setCommunityEventPosts(apply);
+    setCountryEventPosts(apply);
   }, []);
 
   const handleLike = useCallback(async (post: FeedPost) => {
@@ -1870,140 +1936,74 @@ export function ActualiteTabPage({
                       className="w-full rounded-xl bg-[var(--ms-bg)] border border-[var(--ms-border)] px-3 py-2 text-sm text-[var(--ms-text)] placeholder:text-[var(--ms-text-muted)] resize-none focus:outline-none focus:ring-2 focus:ring-[var(--ms-accent)]/50"
                     />
 
-                    {/* ── Créer un événement ── */}
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={isEvent}
-                        onChange={(e) => {
-                          setIsEvent(e.target.checked);
-                          if (e.target.checked) {
-                            const savedLocation = readSavedEventLocation();
-                            if (savedLocation) setEventLocation(savedLocation);
-                          } else {
-                            resetEventForm();
-                          }
-                        }}
-                        className="melosong-checkbox"
+                    {/* ── Créer un événement (popup) ── */}
+                    {!isEvent ? (
+                      <button
+                        type="button"
+                        onClick={() => setEventModalOpen(true)}
+                        className="flex items-center gap-2 min-h-[44px] px-2 -mx-2 rounded-lg text-xs font-semibold text-purple-300 hover:bg-purple-950/30 transition w-full text-left"
                         aria-label={t('feed.createEvent')}
-                      />
-                      <span className="text-xs font-semibold text-purple-300 flex items-center gap-1.5">
-                        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                      >
+                        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
                           <rect x="3" y="4" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round" />
                           <path strokeLinecap="round" d="M16 2v4M8 2v4M3 10h18" />
                         </svg>
                         {t('feed.createEvent')}
-                      </span>
-                    </label>
-
-                    {isEvent && (
-                      <div className="space-y-2 p-3 rounded-xl bg-purple-950/30 border border-purple-500/25">
-                        <p className="text-[10px] font-bold text-purple-300 uppercase tracking-wide">{t('feed.eventDetails')}</p>
-                        <div>
-                          <p className="block text-[10px] text-gray-300 mb-1.5">{t('feed.eventType')}</p>
-                          <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={t('feed.eventType')}>
-                            {(
-                              [
-                                ['dance', t('feed.eventTypeDance')],
-                                ['chant', t('feed.eventTypeChant')],
-                                ['autre', t('feed.eventTypeAutre')],
-                              ] as const
-                            ).map(([value, label]) => (
-                              <label
-                                key={value}
-                                className={`cursor-pointer select-none rounded-full px-3 py-1 text-[11px] font-semibold border transition ${
-                                  eventType === value
-                                    ? 'bg-purple-600/40 border-purple-400/60 text-purple-100'
-                                    : 'bg-[#0b0b0f] border-[#2a2a3d] text-gray-400 hover:border-purple-500/40'
-                                }`}
-                              >
-                                <input
-                                  type="radio"
-                                  name="eventType"
-                                  value={value}
-                                  checked={eventType === value}
-                                  onChange={() => setEventType(value)}
-                                  className="sr-only"
-                                />
-                                {label}
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-[10px] text-gray-300 mb-1">
-                            {confirmedEventDates.length > 0 ? t('feed.eventDates') : t('feed.eventDate')} *
-                          </label>
-                          {confirmedEventDates.length > 0 && (
-                            <ul className="mb-2 space-y-1.5">
-                              {confirmedEventDates.map(({ start, end }) => (
-                                <li
-                                  key={start}
-                                  className="flex items-center gap-2 rounded-lg bg-[#0b0b0f] border border-green-500/40 px-2.5 py-1.5"
-                                >
-                                  <span
-                                    className="pointer-events-none text-green-400 shrink-0"
-                                    aria-hidden
-                                  >
-                                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                  </span>
-                                  <span className="flex-1 min-w-0 text-xs text-purple-100 capitalize truncate">
-                                    {formatEventDateRangeChip(start, end, i18n.language)}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => removeConfirmedEventDate(start)}
-                                    className="shrink-0 text-[10px] font-semibold text-gray-500 hover:text-red-300 transition"
-                                    aria-label={t('feed.eventDateRemove')}
-                                  >
-                                    ✕
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                          <EventDatePickerInput
-                            confirmedDates={confirmedEventDates.map((e) => e.start)}
-                            onAddDate={(isoStart, isoEnd) => {
-                              setConfirmedEventDates((prev) =>
-                                [...prev, { start: isoStart, end: isoEnd }].sort(
-                                  (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()
-                                )
-                              );
-                            }}
+                      </button>
+                    ) : (
+                      <div className="flex items-start gap-2 p-3 rounded-xl bg-purple-950/30 border border-purple-500/25">
+                        {imageUrl.trim() ? (
+                          <img
+                            src={imageUrl}
+                            alt=""
+                            className="h-12 w-12 rounded-lg object-cover bg-[#1e1e2f] border border-[#2a2a3d] shrink-0"
                           />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] text-gray-300 mb-1">{t('feed.eventLocation')} *</label>
-                          <EventLocationInput
-                            value={eventLocation}
-                            onChange={setEventLocation}
-                            profileCity={user?.city}
-                          />
-                          <label className="mt-2 flex items-center gap-2 cursor-pointer select-none">
-                            <input
-                              type="checkbox"
-                              checked={saveEventLocation}
-                              onChange={(e) => setSaveEventLocation(e.target.checked)}
-                              className="melosong-checkbox"
-                              aria-label={t('feed.eventLocationSave')}
-                            />
-                            <span className="text-[10px] text-gray-400">{t('feed.eventLocationSave')}</span>
-                          </label>
-                        </div>
-                        {token ? (
-                          <div className="rounded-lg border border-[#2a2a3d] bg-[#0b0b0f]/80 p-3">
-                            <StoryUserTagPicker
-                              token={token}
-                              tagged={eventTaggedUsers}
-                              onChange={setEventTaggedUsers}
-                              maxTags={5}
-                            />
-                            <p className="mt-1.5 text-[10px] text-gray-500">{t('feed.eventTaggedHint')}</p>
-                          </div>
                         ) : null}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-purple-200 truncate">
+                            {eventTitle.trim() || t('feed.eventConfigured')}
+                            {' · '}
+                            {eventTypeLabel}
+                          </p>
+                          {confirmedEventDates[0] ? (
+                            <p className="text-[10px] text-gray-400 truncate capitalize">
+                              {formatEventDateRangeChip(
+                                confirmedEventDates[0].start,
+                                confirmedEventDates[0].end,
+                                i18n.language
+                              )}
+                              {confirmedEventDates.length > 1
+                                ? ` (+${confirmedEventDates.length - 1})`
+                                : ''}
+                            </p>
+                          ) : null}
+                          {eventLocation.trim() ? (
+                            <p className="text-[10px] text-gray-500 truncate">{eventLocation.trim()}</p>
+                          ) : null}
+                          {eventLinkUrl.trim() ? (
+                            <p className="text-[10px] text-sky-400/90 truncate">
+                              {storyLinkDisplayLabel({ url: eventLinkUrl.trim() })}
+                            </p>
+                          ) : null}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setEventModalOpen(true)}
+                          className="shrink-0 min-h-[44px] px-2 text-[10px] font-semibold text-purple-300 hover:text-purple-100"
+                        >
+                          {t('feed.eventEdit')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsEvent(false);
+                            resetEventForm();
+                          }}
+                          className="shrink-0 w-11 h-11 flex items-center justify-center text-gray-500 hover:text-red-300"
+                          aria-label={t('feed.eventRemove')}
+                        >
+                          ✕
+                        </button>
                       </div>
                     )}
 
@@ -2167,6 +2167,7 @@ export function ActualiteTabPage({
                         onReshare={() => void handleReshare(post)}
                         onShare={() => setSharePost(post)}
                         onToggleFavorite={() => void handleToggleFavorite(post)}
+                        onPostPatch={(patch) => patchEventPost(post.id, patch)}
                       />
                       {postIndex === 0 ? (
                         <FeedInlineAdBanner
@@ -2208,6 +2209,7 @@ export function ActualiteTabPage({
             onOpenProfile={onOpenProfile}
             onOpenAuthor={handlePostAuthorClick}
             onShareEvent={setSharePost}
+            onPatchEventPost={patchEventPost}
             communityEvents={communityEvents}
             communityEventsLoading={communityEventsLoading}
             trendingUsers={trendingUsers}
@@ -2292,6 +2294,42 @@ export function ActualiteTabPage({
           onDeleted={feedStorySheet.kind === 'view' ? handleFeedStoryDeleted : undefined}
         />
       ) : null}
+
+      <CreateFeedEventModal
+        open={eventModalOpen}
+        onClose={() => setEventModalOpen(false)}
+        onConfirm={(draft) => {
+          setEventType(draft.eventType);
+          setEventTitle(draft.title);
+          setEventLinkUrl(draft.eventLinkUrl);
+          setConfirmedEventDates(draft.confirmedEventDates);
+          setEventLocation(draft.eventLocation);
+          setSaveEventLocation(draft.saveEventLocation);
+          setEventTaggedUsers(draft.eventTaggedUsers);
+          if (draft.imageUrl.trim()) {
+            setImageUrl(draft.imageUrl.trim());
+            setVideoUrl('');
+          }
+          setIsEvent(true);
+          setEventModalOpen(false);
+        }}
+        initialDraft={
+          isEvent
+            ? {
+                title: eventTitle,
+                eventType,
+                confirmedEventDates,
+                eventLocation,
+                saveEventLocation,
+                eventTaggedUsers,
+                imageUrl,
+                eventLinkUrl,
+              }
+            : undefined
+        }
+        token={token}
+        profileCity={user?.city}
+      />
 
       <ConfirmModal
         open={confirmRemoveFavoritePost !== null}

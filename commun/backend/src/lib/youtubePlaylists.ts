@@ -7,7 +7,6 @@ import {
   type YoutubePlaylistSummary,
 } from './youtubeDataApi';
 import { ensureYoutubeAccessToken } from './youtubeOAuth';
-import { fetchPlaylistVideosViaPiped } from './youtubeRemote';
 import { isYoutubeRemoteFallbackAllowed } from './youtubeCompliance';
 import { buildPlatformTrackUrl } from './musicLinks';
 import type { YoutubeSearchResult } from './youtubeSearch';
@@ -54,6 +53,8 @@ export async function resolvePlaylistVideos(
   const normalizedId = resolveYoutubePlaylistId(playlistId) ?? playlistId.trim();
   let hits = await fetchPlaylistItems(normalizedId, accessToken);
   if (!hits.length && isYoutubeRemoteFallbackAllowed()) {
+    // Import dynamique : voir youtubeSearch.ts — module chargé uniquement en msdev.
+    const { fetchPlaylistVideosViaPiped } = await import('./youtubeRemote');
     hits = await fetchPlaylistVideosViaPiped(normalizedId);
   }
   return hits.map((h) => ({

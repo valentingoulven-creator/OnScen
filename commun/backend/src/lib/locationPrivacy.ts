@@ -305,7 +305,12 @@ export function getUserPublicCoords(user: User, viewerId?: string): { lat: numbe
 
 export function applyPrivacySettings(
   user: User,
-  body: { shareDistance?: boolean; locationPrecision?: string; allowPrivateMessages?: boolean }
+  body: {
+    shareDistance?: boolean;
+    locationPrecision?: string;
+    allowPrivateMessages?: boolean;
+    allowExternalEventTags?: boolean;
+  }
 ): void {
   if (body.shareDistance !== undefined) {
     user.shareDistance = Boolean(body.shareDistance);
@@ -315,6 +320,9 @@ export function applyPrivacySettings(
   }
   if (body.allowPrivateMessages !== undefined) {
     user.allowPrivateMessages = Boolean(body.allowPrivateMessages);
+  }
+  if (body.allowExternalEventTags !== undefined) {
+    user.allowExternalEventTags = Boolean(body.allowExternalEventTags);
   }
   refreshUserPublicCoords(user);
 }

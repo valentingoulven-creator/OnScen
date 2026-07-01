@@ -1,6 +1,12 @@
-import { db, type UserAlbum, type UserComposition } from '../models/schema';
+import { db, type UserAlbum, type UserComposition, type UserReel } from '../models/schema';
 import { getCompositionUpvoteCount, userHasCompositionUpvote } from './compositionUpvotes';
 import { getFollowingIds } from './follows';
+import { isAdminBlockedReel, isPrivateReel } from './reels';
+import {
+  getWeekStart,
+  getWeeklyCompositionUpvoteCounts,
+  getWeeklyReelUpvoteCounts,
+} from './weeklyVotes';
 
 export interface MusicAlbumItem {
   id: string;
@@ -30,9 +36,26 @@ export interface MusicTrackItem {
   createdAt: number;
 }
 
+export interface MusicWeeklyReelItem {
+  id: string;
+  title: string;
+  artist: string;
+  posterUrl: string;
+  authorId: string;
+  creatorName: string;
+  creatorAvatarUrl?: string;
+  weeklyUpvoteCount: number;
+  durationSec?: number;
+}
+
 export interface MusicHomeSection {
   albums: MusicAlbumItem[];
   tracks: MusicTrackItem[];
+}
+
+export interface MusicHomeWeeklySection extends MusicHomeSection {
+  weekStart: number;
+  reels: MusicWeeklyReelItem[];
 }
 
 export interface MusicHomePayload {
@@ -40,6 +63,7 @@ export interface MusicHomePayload {
   following: MusicHomeSection;
   library: MusicHomeSection;
   popular: MusicHomeSection;
+  weeklyTrend: MusicHomeWeeklySection;
 }
 
 export interface MusicSearchPayload {
@@ -115,6 +139,70 @@ function matchesQuery(text: string | undefined, q: string): boolean {
   return (text ?? '').toLowerCase().includes(q);
 }
 
+function weeklyReelItem(reel: UserReel, weeklyUpvotes: number): MusicWeeklyReelItem {
+  const user = db.users.get(reel.authorId);
+  const legacyMediaUrl = (reel as UserReel & { mediaUrl?: string }).mediaUrl;
+  const posterUrl =
+    reel.posterUrl ||
+    (reel.mediaType === 'image' ? legacyMediaUrl : undefined) ||
+    reel.videoUrl ||
+    '';
+  return {
+    id: reel.id,
+    title: reel.title,
+    artist: reel.artist,
+    posterUrl,
+    authorId: reel.authorId,
+    creatorName: user?.username ?? 'Utilisateur',
+    ...(user?.avatarUrl ? { creatorAvatarUrl: user.avatarUrl } : {}),
+    weeklyUpvoteCount: weeklyUpvotes,
+    ...(reel.durationSec != null && reel.durationSec > 0 ? { durationSec: reel.durationSec } : {}),
+  };
+}
+
+function buildWeeklyTrendSection(viewerId: string): MusicHomeWeeklySection {
+  const weekStart = getWeekStart();
+  const weeklyCounts = getWeeklyCompositionUpvoteCounts();
+  const reelCounts = getWeeklyReelUpvoteCounts();
+
+  const tracks: MusicTrackItem[] = [...weeklyCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 12)
+    .flatMap(([compositionId, weeklyUpvotes]) => {
+      const composition = db.compositions.find((c) => c.id === compositionId);
+      if (!composition) return [];
+      return [
+        {
+          ...compositionTrack(composition, viewerId),
+          upvoteCount: weeklyUpvotes,
+        },
+      ];
+    });
+
+  const albums: MusicAlbumItem[] = db.albums
+    .map((album) => {
+      const weeklyUpvotes = db.compositions
+        .filter((c) => c.userId === album.userId && c.albumId === album.id)
+        .reduce((sum, c) => sum + (weeklyCounts.get(c.id) ?? 0), 0);
+      return { album, weeklyUpvotes };
+    })
+    .filter(({ weeklyUpvotes }) => weeklyUpvotes > 0)
+    .sort((a, b) => b.weeklyUpvotes - a.weeklyUpvotes || b.album.updatedAt - a.album.updatedAt)
+    .slice(0, 12)
+    .map(({ album }) => albumItem(album));
+
+  const reels: MusicWeeklyReelItem[] = [...reelCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .flatMap(([reelId, weeklyUpvotes]) => {
+      const reel = db.userReels.find((r) => r.id === reelId);
+      if (!reel || isPrivateReel(reel) || isAdminBlockedReel(reel)) return [];
+      return [weeklyReelItem(reel, weeklyUpvotes)];
+    });
+
+  return { albums, tracks, reels, weekStart };
+}
+
 export function buildMusicHome(viewerId: string): MusicHomePayload {
   const following = new Set(getFollowingIds(viewerId));
   const everyone = allUserIds();
@@ -163,6 +251,7 @@ export function buildMusicHome(viewerId: string): MusicHomePayload {
       albums: popularAlbums,
       tracks: popularTracks,
     },
+    weeklyTrend: buildWeeklyTrendSection(viewerId),
   };
 }
 

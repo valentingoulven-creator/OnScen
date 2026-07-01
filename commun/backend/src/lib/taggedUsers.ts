@@ -25,6 +25,23 @@ export function normalizeTaggedUserIds(raw: unknown, authorId: string): string[]
   return ids.length ? ids : undefined;
 }
 
+/** Tag sur événement — respecte allowExternalEventTags du compte tagué. */
+export function normalizeEventTaggedUserIds(raw: unknown, authorId: string): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const ids: string[] = [];
+  for (const item of raw) {
+    if (typeof item !== 'string') continue;
+    const id = item.trim();
+    if (!id || id === authorId || ids.includes(id)) continue;
+    const tagged = db.users.get(id);
+    if (!tagged) continue;
+    if (tagged.allowExternalEventTags === false) continue;
+    ids.push(id);
+    if (ids.length >= MAX_TAGGED_USERS) break;
+  }
+  return ids.length ? ids : undefined;
+}
+
 export function resolveTaggedUsers(ids: string[] | undefined): PublicTaggedUser[] | undefined {
   if (!ids?.length) return undefined;
   const out: PublicTaggedUser[] = [];

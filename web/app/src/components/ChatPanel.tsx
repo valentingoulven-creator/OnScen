@@ -381,15 +381,27 @@ function useChatRoom({
 
     const onConnect = () => setSendError(null);
 
+    const onAttachmentDenied = (payload: {
+      roomType: 'salon' | 'live';
+      roomId: string;
+      reason: string;
+      message: string;
+    }) => {
+      if (payload.roomType !== roomType || payload.roomId !== roomId) return;
+      setSendError(payload.message);
+    };
+
     socket.on(event, handler);
     socket.on(deletedEvent, onDeleted);
     socket.on('connect', onConnect);
+    socket.on('chat_attachment_denied', onAttachmentDenied);
     if (liveReactionsEnabled) socket.on('gift_animation', onGiftAnimation);
 
     return () => {
       socket.off(event, handler);
       socket.off(deletedEvent, onDeleted);
       socket.off('connect', onConnect);
+      socket.off('chat_attachment_denied', onAttachmentDenied);
       if (liveReactionsEnabled) socket.off('gift_animation', onGiftAnimation);
     };
   }, [roomType, roomId, liveReactionsEnabled]);
@@ -462,7 +474,7 @@ function useChatRoom({
     }
   };
 
-  const send = (e: React.FormEvent) => {
+  const send = async (e: React.FormEvent) => {
     e.preventDefault();
     const hasText = text.trim().length > 0;
     const hasAttachment = allowAttachments && Boolean(pendingAttachment);
@@ -475,24 +487,40 @@ function useChatRoom({
     setSendError(null);
     setMessageSending(true);
     const content = text.trim();
-    const payload = {
-      salonId: roomId,
-      liveId: roomId,
-      senderId: userId,
-      senderName: userName,
-      content,
-      ...(hasAttachment && pendingAttachment ? {
-        attachmentUrl: pendingAttachment.dataUrl,
-        attachmentName: pendingAttachment.name,
-        attachmentSize: pendingAttachment.size,
-        attachmentMimeType: pendingAttachment.mimeType,
-      } : {}),
-    };
-    if (roomType === 'salon') socket.emit('salon_message', payload);
-    else socket.emit('live_message', payload);
-    setText('');
-    setPendingAttachment(null);
-    window.setTimeout(() => setMessageSending(false), 500);
+    const attachment = hasAttachment ? pendingAttachment : null;
+    try {
+      let attachmentFields: {
+        attachmentUrl: string;
+        attachmentName: string;
+        attachmentSize: number;
+        attachmentMimeType: string;
+      } | undefined;
+      if (attachment && token) {
+        const uploaded = await api.uploadChatAttachment(token, attachment.dataUrl, attachment.name);
+        attachmentFields = {
+          attachmentUrl: uploaded.attachmentUrl,
+          attachmentName: uploaded.attachmentName || attachment.name,
+          attachmentSize: uploaded.attachmentSize,
+          attachmentMimeType: uploaded.attachmentMimeType,
+        };
+      }
+      const payload = {
+        salonId: roomId,
+        liveId: roomId,
+        senderId: userId,
+        senderName: userName,
+        content,
+        ...(attachmentFields ?? {}),
+      };
+      if (roomType === 'salon') socket.emit('salon_message', payload);
+      else socket.emit('live_message', payload);
+      setText('');
+      setPendingAttachment(null);
+    } catch (err) {
+      setSendError(err instanceof Error ? err.message : "Impossible d'envoyer la pièce jointe");
+    } finally {
+      window.setTimeout(() => setMessageSending(false), 400);
+    }
   };
 
   const openUserMenu = useCallback((target: { id: string; name: string }, anchor: DOMRect) => {

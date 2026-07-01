@@ -763,6 +763,7 @@ export interface User {
   locationPrecision?: 'precise' | 'city';
   /** Accepter les messages privés (propriétaire uniquement). Défaut : true. */
   allowPrivateMessages?: boolean;
+  allowExternalEventTags?: boolean;
   /** Réseaux sociaux publics (optionnels) */
   instagramHandle?: string;
   youtubeChannel?: string;
@@ -858,6 +859,7 @@ export interface AppNotification {
     | 'follow'
     | 'event_created'
     | 'event_tagged'
+    | 'story_tagged'
     | 'mention'
     | 'support_contact'
     | 'support_reply'
@@ -875,6 +877,7 @@ export interface AppNotification {
   groupId?: string;
   postId?: string;
   reelId?: string;
+  storyId?: string;
   supportMessageId?: string;
 }
 
@@ -1314,6 +1317,8 @@ export interface FeedPost {
   author: FeedPostAuthor;
   likeCount: number;
   likedByMe: boolean;
+  upvoteCount?: number;
+  upvotedByMe?: boolean;
   resharedByMe?: boolean;
   commentCount: number;
   favoriteByMe: boolean;
@@ -1333,6 +1338,8 @@ export interface FeedPost {
   eventType?: FeedEventType;
   /** Comptes tagués (DJ, artiste, partenaire…). */
   eventTaggedUsers?: StoryTaggedUser[];
+  /** Lien externe (billetterie, site…). */
+  eventLinkUrl?: string;
 }
 
 /** Marqueur événement sur la carte (publication fil + coords résolues). */

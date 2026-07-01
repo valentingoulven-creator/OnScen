@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
 import {
   formatEventDateShort,
   getEventDates,
@@ -9,12 +10,14 @@ import {
   hasUpcomingEventDate,
   resolveEventHeroVisual,
 } from '../lib/feedEvents';
+import { storyLinkDisplayLabel } from '../lib/storyLink';
 import { resolveEventCoordsSync } from '../lib/mapEventCoords';
 import type { FeedPost } from '../types';
 import { UserAvatarOnline } from './UserAvatarOnline';
 import { UsernameDisplay } from './UsernameDisplay';
 import { OpenLocationMenu } from './OpenLocationMenu';
 import { EventTaggedUsersRow } from './EventTaggedUsersRow';
+import { EventUpvoteButton } from './EventUpvoteButton';
 
 function CalendarIcon({ className }: { className?: string }) {
   return (
@@ -67,6 +70,8 @@ export interface EventCardProps {
   locationNavigable?: boolean;
   /** Coords connues (ex. marqueur carte) ; sinon résolution synchrone du libellé. */
   locationCoords?: { latitude: number; longitude: number } | null;
+  /** Sync upvote (listes carrousel, profil…). */
+  onPostChange?: (patch: Partial<FeedPost>) => void;
 }
 
 export function EventCard({
@@ -83,8 +88,10 @@ export function EventCard({
   embedded = false,
   locationNavigable = false,
   locationCoords = null,
+  onPostChange,
 }: EventCardProps) {
   const { t } = useTranslation();
+  const { token } = useAuth();
   const [locationMenuOpen, setLocationMenuOpen] = useState(false);
   const hero = resolveEventHeroVisual(post);
   const placeholderGradient = useMemo(() => {
@@ -300,6 +307,25 @@ export function EventCard({
         </div>
       ) : null}
 
+      {post.isEvent ? (
+        <div
+          className={`absolute z-10 pointer-events-auto ${
+            isCompact ? 'bottom-1.5 right-1.5' : 'bottom-2 right-2'
+          }`}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <EventUpvoteButton
+            postId={post.id}
+            upvoteCount={post.upvoteCount ?? 0}
+            upvotedByMe={post.upvotedByMe ?? false}
+            token={token}
+            compact={isCompact}
+            onChange={(patch) => onPostChange?.(patch)}
+          />
+        </div>
+      ) : null}
+
       {onOpenAuthor ? (
         <div
           className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/hero:bg-black/20 transition-colors pointer-events-none"
@@ -318,6 +344,18 @@ export function EventCard({
       {extraBadges ? <div className="flex items-center gap-1.5 flex-wrap">{extraBadges}</div> : null}
 
       {locationRow}
+
+      {post.eventLinkUrl ? (
+        <a
+          href={post.eventLinkUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="flex items-center justify-center gap-1.5 w-full min-h-[44px] text-center rounded-lg -mx-1 px-1 py-0.5 text-[11px] font-semibold text-sky-300 hover:text-sky-200 underline decoration-sky-400/35 underline-offset-2"
+        >
+          {storyLinkDisplayLabel({ url: post.eventLinkUrl })}
+        </a>
+      ) : null}
 
       {post.eventTaggedUsers && post.eventTaggedUsers.length > 0 ? (
         <EventTaggedUsersRow taggedUsers={post.eventTaggedUsers} onOpenUser={onOpenTaggedUser} />

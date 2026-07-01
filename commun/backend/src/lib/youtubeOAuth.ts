@@ -9,7 +9,7 @@ import {
 import { decryptPlatformTokens, decryptToken, encryptPlatformTokens } from './tokenEncryption';
 import { schedulePersist, savePersistedStore } from './persist';
 
-const YOUTUBE_SCOPE = 'https://www.googleapis.com/auth/youtube.readonly';
+export const YOUTUBE_SCOPE = 'https://www.googleapis.com/auth/youtube.readonly';
 
 const pendingStates = new Map<string, { userId: string; createdAt: number }>();
 
@@ -167,6 +167,8 @@ export function applyYoutubeOAuthToUser(
       accessTokenExpiresAt: data.expiresIn != null ? Date.now() + (data.expiresIn - 60) * 1000 : undefined,
       displayName: data.channelTitle,
       avatarUrl: data.avatarUrl,
+      // Trace d'audit : scope exact accordé à cette connexion (utile pour une vérification Google).
+      oauthScopes: YOUTUBE_SCOPE,
     });
     user.platformAccounts = accounts;
   }

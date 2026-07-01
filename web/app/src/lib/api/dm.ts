@@ -153,5 +153,23 @@ export const dmApi = {
       `/chat/${roomType}/${roomId}/messages/${messageId}`,
       { method: 'DELETE' },
       token
-    )
+    ),
+
+  /**
+   * Envoie une pièce jointe (data: URL) au backend, qui la stocke localement et
+   * renvoie une URL https utilisable comme attachmentUrl dans un message
+   * DM / salon / live. Obligatoire avant tout envoi : le backend rejette les
+   * data: URL brutes dans attachmentUrl.
+   */
+  uploadChatAttachment: (token: string, dataUrl: string, name?: string) =>
+    request<{
+      attachmentUrl: string;
+      attachmentMimeType: string;
+      attachmentSize: number;
+      attachmentName?: string;
+    }>(
+      '/chat/attachment',
+      { method: 'POST', body: JSON.stringify({ dataUrl, name }) },
+      token
+    ),
 } as const;

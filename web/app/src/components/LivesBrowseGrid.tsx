@@ -1,4 +1,5 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useVisibleInterval } from '../hooks/usePageVisible';
 import { api } from '../lib/api';
@@ -150,11 +151,227 @@ const LiveGridCard = memo(function LiveGridCard({
 });
 
 const filterChipClass = (active: boolean) =>
-  `min-w-[4.25rem] flex-1 px-1.5 py-1 rounded-lg text-[9px] sm:text-[10px] font-semibold border transition whitespace-nowrap ${
+  `shrink-0 min-h-11 px-3.5 py-2 rounded-xl text-xs font-semibold border transition touch-manipulation whitespace-nowrap ${
     active
-      ? 'border-red-500/50 bg-red-500/15 text-red-300'
-      : 'border-[#2d2d3d] text-gray-500 hover:text-gray-300'
+      ? 'border-red-500/50 bg-red-500/15 text-red-200 shadow-[inset_0_0_0_1px_rgba(239,68,68,0.15)]'
+      : 'border-[#2d2d3d] bg-[#0b0b0f] text-gray-400 hover:text-gray-200 hover:border-[#3d3d4d]'
   }`;
+
+function LivesBrowseFilterPanel({
+  geo,
+  onPersistGeo,
+  showCountryFilter,
+  countryOptions,
+  countryFilter,
+  onCountryFilter,
+  sortBy,
+  onSortBy,
+  onClose,
+  onReset,
+}: {
+  geo: LivesGeoPrefs;
+  onPersistGeo: (next: LivesGeoPrefs) => void;
+  showCountryFilter: boolean;
+  countryOptions: { code: string; name: string }[];
+  countryFilter: string;
+  onCountryFilter: (code: string) => void;
+  sortBy: NearbyPanelPreferences['sortBy'];
+  onSortBy: (id: Exclude<NearbyPanelPreferences['sortBy'], 'none'> | 'none') => void;
+  onClose: () => void;
+  onReset: () => void;
+}) {
+  const [zoneMapOpen, setZoneMapOpen] = useState(false);
+  const hasCustomSort = sortBy !== 'none';
+  const hasCountry = showCountryFilter && countryFilter !== LIVES_COUNTRY_FILTER_ALL;
+
+  return (
+    <>
+      <div className="shrink-0 flex items-center justify-between gap-2 px-4 py-3 border-b border-[#1e1e2f] bg-[#0f0f16]">
+        <div className="min-w-0">
+          <h3 id="lives-filter-title" className="text-sm font-semibold text-white">
+            Filtres lives
+          </h3>
+          <p className="text-[10px] text-gray-500 mt-0.5 truncate">{geo.label}</p>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          {(hasCustomSort || hasCountry) && (
+            <button
+              type="button"
+              onClick={onReset}
+              className="min-h-11 px-2.5 rounded-lg text-[11px] font-semibold text-gray-400 hover:text-red-300 hover:bg-red-500/10 transition touch-manipulation"
+            >
+              Réinitialiser
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-11 h-11 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-[#1e1e2f] transition touch-manipulation"
+            aria-label="Fermer les filtres"
+          >
+            <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 space-y-4">
+        <section aria-labelledby="lives-filter-zone">
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="min-w-0">
+              <h4 id="lives-filter-zone" className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                Zone de recherche
+              </h4>
+              <p className="text-[10px] text-gray-500 mt-0.5 leading-snug">
+                Centre la carte pour affiner les lives à proximité
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setZoneMapOpen((v) => !v)}
+              aria-expanded={zoneMapOpen}
+              className={`shrink-0 min-h-11 px-3 rounded-xl text-xs font-semibold border transition touch-manipulation ${
+                zoneMapOpen
+                  ? 'border-red-500/40 bg-red-500/10 text-red-200'
+                  : 'border-[#2d2d3d] text-gray-300 hover:border-red-500/30'
+              }`}
+            >
+              {zoneMapOpen ? 'Masquer' : 'Carte'}
+            </button>
+          </div>
+          {!zoneMapOpen ? (
+            <div className="rounded-xl border border-[#1e1e2f] bg-[#0b0b0f] px-3 py-2.5 flex items-center gap-2.5">
+              <span className="flex items-center justify-center w-9 h-9 rounded-full bg-red-500/15 text-red-300 shrink-0">
+                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor" aria-hidden>
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z" />
+                </svg>
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-gray-200 truncate">{geo.label}</p>
+                <p className="text-[10px] font-mono text-gray-500 tabular-nums truncate">
+                  {geo.latitude.toFixed(4)}°, {geo.longitude.toFixed(4)}°
+                </p>
+              </div>
+            </div>
+          ) : (
+            <MapLocationPicker mapGeo={geo} onPersist={onPersistGeo} size="compact" accent="red" />
+          )}
+        </section>
+
+        {showCountryFilter && (
+          <section aria-labelledby="lives-filter-country">
+            <h4 id="lives-filter-country" className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">
+              Pays
+            </h4>
+            <div className="overflow-x-auto -mx-1 px-1 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex gap-2 w-max min-w-full sm:min-w-0 sm:flex-wrap sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => onCountryFilter(LIVES_COUNTRY_FILTER_ALL)}
+                  className={filterChipClass(countryFilter === LIVES_COUNTRY_FILTER_ALL)}
+                >
+                  Tous les pays
+                </button>
+                {countryOptions.map((opt) => (
+                  <button
+                    key={opt.code}
+                    type="button"
+                    onClick={() => onCountryFilter(opt.code)}
+                    className={filterChipClass(countryFilter === opt.code)}
+                  >
+                    {opt.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        <section aria-labelledby="lives-filter-sort">
+          <h4 id="lives-filter-sort" className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">
+            Trier par
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 p-1 rounded-xl bg-[#0b0b0f] border border-[#1e1e2f]">
+            {NEARBY_SORT_OPTIONS.map((opt) => {
+              const active = sortBy === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => onSortBy(active ? 'none' : opt.id)}
+                  className={`min-h-11 px-2 py-2 rounded-lg text-xs font-semibold transition touch-manipulation text-center leading-snug ${
+                    active
+                      ? 'bg-red-500/20 text-red-100 ring-1 ring-red-500/40'
+                      : 'text-gray-400 hover:text-gray-200 hover:bg-[#1a1a26]'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+          {sortBy === 'distance' && (
+            <p className="text-[10px] text-gray-500 mt-2 leading-snug">
+              Seuls les lives dans votre rayon de proximité sont affichés.
+            </p>
+          )}
+        </section>
+      </div>
+
+      <div className="shrink-0 px-3 py-3 border-t border-[#1e1e2f] bg-[#0f0f16] pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-3">
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full min-h-11 rounded-xl bg-red-500/90 hover:bg-red-500 active:bg-red-600 text-sm font-semibold text-white transition touch-manipulation"
+        >
+          Terminé
+        </button>
+      </div>
+    </>
+  );
+}
+
+function LivesBrowseFilterModal({
+  open,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, onClose]);
+
+  if (!open || typeof document === 'undefined') return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-0 sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="lives-filter-title"
+    >
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/65 backdrop-blur-sm"
+        aria-label="Fermer les filtres"
+        onClick={onClose}
+      />
+      <div className="relative w-full max-w-md max-h-[90dvh] rounded-t-2xl sm:rounded-2xl bg-[#12121a] border border-[#1e1e2f] shadow-2xl flex flex-col overflow-hidden">
+        {children}
+      </div>
+    </div>,
+    document.body,
+  );
+}
 
 export function LivesBrowseGrid({
   onOpenLive,
@@ -275,77 +492,86 @@ export function LivesBrowseGrid({
     setCountryFilter(setLivesCountryFilter(code));
   }, []);
 
+  const activeCountryLabel = useMemo(() => {
+    if (countryFilter === LIVES_COUNTRY_FILTER_ALL) return null;
+    return countryOptions.find((o) => o.code === countryFilter)?.name ?? countryFilter;
+  }, [countryFilter, countryOptions]);
+
+  const activeSortLabel = useMemo(
+    () => NEARBY_SORT_OPTIONS.find((o) => o.id === panelPrefs.sortBy)?.label ?? null,
+    [panelPrefs.sortBy],
+  );
+
+  const hasActiveFilters =
+    panelPrefs.sortBy !== 'none' ||
+    (showCountryFilter && countryFilter !== LIVES_COUNTRY_FILTER_ALL);
+
+  const resetFilters = useCallback(() => {
+    updateCountryFilter(LIVES_COUNTRY_FILTER_ALL);
+    updatePanelPrefs({ sortBy: 'none' });
+  }, [updateCountryFilter, updatePanelPrefs]);
+
   return (
     <div className={`flex flex-col min-h-0 ${className}`}>
-      {settingsOpen && (
-        <div className="shrink-0 px-3 pt-3 pb-2 border-b border-[#1e1e2f]">
-          <div className="rounded-xl bg-[#12121a] border border-[#1e1e2f] p-3 space-y-3 max-h-[min(40vh,16rem)] overflow-y-auto overscroll-contain">
-            <MapLocationPicker mapGeo={geo} onPersist={persistGeo} size="compact" accent="red" />
-            {showCountryFilter && (
-              <div>
-                <p className="text-[10px] text-gray-400 mb-1.5">Pays</p>
-                <div className="flex flex-wrap gap-1">
-                  <button
-                    type="button"
-                    onClick={() => updateCountryFilter(LIVES_COUNTRY_FILTER_ALL)}
-                    className={filterChipClass(countryFilter === LIVES_COUNTRY_FILTER_ALL)}
-                  >
-                    Tous
-                  </button>
-                  {countryOptions.map((opt) => (
-                    <button
-                      key={opt.code}
-                      type="button"
-                      onClick={() => updateCountryFilter(opt.code)}
-                      className={filterChipClass(countryFilter === opt.code)}
-                    >
-                      {opt.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div>
-              <p className="text-[10px] text-gray-400 mb-1.5">Trier par</p>
-              <div className="flex flex-wrap gap-1">
-                {NEARBY_SORT_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() =>
-                      updatePanelPrefs({
-                        sortBy: panelPrefs.sortBy === opt.id ? 'none' : opt.id,
-                      })
-                    }
-                    className={filterChipClass(panelPrefs.sortBy === opt.id)}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {loading && lives.length === 0 && <LiveGridSkeleton />}
-
       {showFilterButton && (
-        <div className="shrink-0 px-3 pt-2 flex justify-end">
+        <div className="shrink-0 px-3 pt-2 pb-2 border-b border-[#1e1e2f]/80 flex items-center gap-2">
+          <div className="min-w-0 flex-1 flex items-center gap-1.5 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {!settingsOpen && hasActiveFilters ? (
+              <>
+                {activeSortLabel ? (
+                  <span className="shrink-0 inline-flex items-center min-h-8 px-2.5 rounded-full bg-red-500/10 border border-red-500/25 text-[11px] font-semibold text-red-200">
+                    {activeSortLabel}
+                  </span>
+                ) : null}
+                {activeCountryLabel ? (
+                  <span className="shrink-0 inline-flex items-center min-h-8 px-2.5 rounded-full bg-[#1a1a26] border border-[#2d2d3d] text-[11px] font-semibold text-gray-300">
+                    {activeCountryLabel}
+                  </span>
+                ) : null}
+              </>
+            ) : (
+              <span className="text-xs text-gray-500 truncate">Tous les lives en direct</span>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => setSettingsOpen((v) => !v)}
             title="Filtres lives"
             aria-label="Filtres lives"
             aria-expanded={settingsOpen}
-            className={`p-1 rounded-lg transition ${
-              settingsOpen ? 'ring-2 ring-red-500/50 bg-red-900/20' : 'hover:bg-[#1a1a26]'
+            className={`relative shrink-0 w-11 h-11 flex items-center justify-center rounded-xl border transition touch-manipulation ${
+              settingsOpen || hasActiveFilters
+                ? 'border-red-500/40 bg-red-500/10 text-red-200'
+                : 'border-[#2d2d3d] text-gray-400 hover:text-gray-200 hover:border-[#3d3d4d] hover:bg-[#1a1a26]'
             }`}
           >
-            <FilterIcon />
+            <FilterIcon className="w-5 h-5" />
+            {hasActiveFilters && !settingsOpen ? (
+              <span
+                className="absolute top-1.5 right-1.5 size-2 rounded-full bg-red-500 ring-2 ring-[#0b0b0f]"
+                aria-hidden
+              />
+            ) : null}
           </button>
         </div>
       )}
+
+      <LivesBrowseFilterModal open={settingsOpen} onClose={() => setSettingsOpen(false)}>
+        <LivesBrowseFilterPanel
+          geo={geo}
+          onPersistGeo={persistGeo}
+          showCountryFilter={showCountryFilter}
+          countryOptions={countryOptions}
+          countryFilter={countryFilter}
+          onCountryFilter={updateCountryFilter}
+          sortBy={panelPrefs.sortBy}
+          onSortBy={(id) => updatePanelPrefs({ sortBy: id === 'none' ? 'none' : id })}
+          onClose={() => setSettingsOpen(false)}
+          onReset={resetFilters}
+        />
+      </LivesBrowseFilterModal>
+
+      {loading && lives.length === 0 && <LiveGridSkeleton />}
 
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
         {!loading && followingIds.size > 0 && (

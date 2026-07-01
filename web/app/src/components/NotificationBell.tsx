@@ -22,6 +22,7 @@ function isVisibleNotification(n: AppNotification): boolean {
     n.type === 'follow' ||
     n.type === 'event_created' ||
     n.type === 'event_tagged' ||
+    n.type === 'story_tagged' ||
     n.type === 'mention' ||
     n.type === 'support_contact' ||
     n.type === 'support_reply' ||
@@ -42,6 +43,7 @@ function shouldShowToast(n: AppNotification): boolean {
     n.type === 'follow' ||
     n.type === 'event_created' ||
     n.type === 'event_tagged' ||
+    n.type === 'story_tagged' ||
     n.type === 'mention' ||
     n.type === 'support_contact' ||
     n.type === 'support_reply' ||
@@ -60,6 +62,7 @@ function opensProfileFromNotification(n: AppNotification): boolean {
     n.type === 'follow' ||
     n.type === 'event_created' ||
     n.type === 'event_tagged' ||
+    n.type === 'story_tagged' ||
     n.type === 'mention'
   );
 }
@@ -109,6 +112,8 @@ function notificationEmoji(n: AppNotification): string {
     case 'event_created':
     case 'event_tagged':
       return '📅';
+    case 'story_tagged':
+      return '📸';
     case 'live_started':
       return '🔴';
     case 'live_don':
@@ -278,7 +283,7 @@ export function NotificationBell({
               ? 5000
               : n.type === 'follow'
                 ? 4500
-                : n.type === 'event_created' || n.type === 'event_tagged'
+                : n.type === 'event_created' || n.type === 'event_tagged' || n.type === 'story_tagged'
                   ? 5500
                   : n.type === 'live_started'
                     ? 6000
@@ -310,7 +315,10 @@ export function NotificationBell({
   const isHeartToast = toast?.type === 'heart';
   const isContentHeartToast = toast?.type === 'content_heart';
   const isFollowToast = toast?.type === 'follow';
-  const isEventCreatedToast = toast?.type === 'event_created' || toast?.type === 'event_tagged';
+  const isEventCreatedToast =
+    toast?.type === 'event_created' ||
+    toast?.type === 'event_tagged' ||
+    toast?.type === 'story_tagged';
   const isMentionToast = toast?.type === 'mention';
   const isSupportToast = toast ? isSupportNotification(toast) : false;
   const isSupportContactToast = toast?.type === 'support_contact';
@@ -656,7 +664,7 @@ export function NotificationBell({
                           ? 'bg-pink-950/30'
                           : n.type === 'follow'
                             ? 'bg-indigo-950/25'
-                            : n.type === 'event_created' || n.type === 'event_tagged'
+                            : n.type === 'event_created' || n.type === 'event_tagged' || n.type === 'story_tagged'
                               ? 'bg-emerald-950/20'
                               : n.type === 'live_started'
                                 ? 'bg-red-950/25'
@@ -687,7 +695,7 @@ export function NotificationBell({
                           ? 'hover:bg-pink-950/30 cursor-pointer'
                           : n.type === 'follow'
                             ? 'hover:bg-indigo-950/25 cursor-pointer'
-                            : n.type === 'event_created' || n.type === 'event_tagged'
+                            : n.type === 'event_created' || n.type === 'event_tagged' || n.type === 'story_tagged'
                               ? 'hover:bg-emerald-950/20 cursor-pointer'
                               : n.type === 'live_don'
                                 ? 'hover:bg-pink-950/20 cursor-pointer'

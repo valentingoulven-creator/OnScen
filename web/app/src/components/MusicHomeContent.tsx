@@ -8,8 +8,10 @@ import type {
   MusicAlbumItem,
   MusicHomePayload,
   MusicHomeSection,
+  MusicHomeWeeklySection,
   MusicSearchPayload,
   MusicTrackItem,
+  MusicWeeklyReelItem,
 } from '../lib/musicTypes';
 
 function MusicCover({
@@ -79,6 +81,55 @@ export function MusicTrackRow({
   );
 }
 
+function MusicReelRow({
+  reel,
+  onOpenProfile,
+}: {
+  reel: MusicWeeklyReelItem;
+  onOpenProfile?: (userId: string) => void;
+}) {
+  const subtitle = [
+    reel.creatorName,
+    reel.durationSec ? formatDurationSec(reel.durationSec) : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  return (
+    <button
+      type="button"
+      onClick={() => onOpenProfile?.(reel.authorId)}
+      className="w-full flex items-center gap-3 min-h-[52px] py-2 text-left rounded-lg hover:bg-white/[0.03] active:bg-white/[0.05]"
+    >
+      {reel.posterUrl ? (
+        <img
+          src={reel.posterUrl}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className="size-10 shrink-0 rounded-lg object-cover bg-[#1a1a26] aspect-[9/16]"
+        />
+      ) : (
+        <div
+          className="size-10 shrink-0 rounded-lg bg-gradient-to-br from-violet-900/40 to-[#1a1a26] flex items-center justify-center text-[10px] font-bold text-violet-200/80"
+          aria-hidden
+        >
+          {reel.title.slice(0, 1).toUpperCase()}
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-gray-100 truncate">{reel.title}</p>
+        <p className="text-xs text-gray-500 truncate">
+          {subtitle}
+          {reel.weeklyUpvoteCount > 0
+            ? ` · ${formatCompactCount(reel.weeklyUpvoteCount)} ♥`
+            : null}
+        </p>
+      </div>
+    </button>
+  );
+}
+
 function MusicAlbumCard({
   album,
   onOpenProfile,
@@ -133,26 +184,38 @@ function SectionEmpty({ message }: { message: string }) {
 function SectionHeader({
   id,
   title,
+  subtitle,
   action,
 }: {
   id: string;
   title: string;
+  subtitle?: string;
   action?: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-2 mb-2">
-      <h2 id={id} className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
-        {title}
-      </h2>
+    <div className="flex items-start justify-between gap-2 mb-2">
+      <div className="min-w-0">
+        <h2 id={id} className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+          {title}
+        </h2>
+        {subtitle ? (
+          <p className="text-[10px] text-gray-500 mt-0.5 leading-snug">{subtitle}</p>
+        ) : null}
+      </div>
       {action}
     </div>
   );
 }
 
-type FeedTab = 'discover' | 'following' | 'library' | 'popular';
+type LibraryTab = 'following' | 'library';
 
-function sectionHasContent(section: MusicHomeSection): boolean {
-  return section.albums.length + section.tracks.length > 0;
+const DEFAULT_SECTIONS = ['weeklyTrend', 'discover', 'popular'] as const;
+type DefaultSection = (typeof DEFAULT_SECTIONS)[number];
+type HomeSectionKey = DefaultSection | LibraryTab;
+
+function sectionHasContent(section: MusicHomeSection | MusicHomeWeeklySection): boolean {
+  const reelCount = 'reels' in section ? section.reels.length : 0;
+  return section.albums.length + section.tracks.length + reelCount > 0;
 }
 
 function MusicSectionContent({
@@ -160,11 +223,12 @@ function MusicSectionContent({
   emptyMessage,
   onOpenProfile,
 }: {
-  section: MusicHomeSection;
+  section: MusicHomeSection | MusicHomeWeeklySection;
   emptyMessage: string;
   onOpenProfile: (userId: string) => void;
 }) {
   const { t } = useTranslation();
+  const reels = 'reels' in section ? section.reels : [];
 
   if (!sectionHasContent(section)) {
     return <SectionEmpty message={emptyMessage} />;
@@ -172,6 +236,19 @@ function MusicSectionContent({
 
   return (
     <div className="space-y-4">
+      {reels.length > 0 ? (
+        <div>
+          <h3 className="text-[10px] font-semibold text-gray-500 mb-2 uppercase tracking-wide">
+            {t('music.reelsLabel', { defaultValue: 'Reels' })}
+          </h3>
+          <div className="rounded-xl border border-[#1e1e2f] bg-[#12121a]/80 px-2 divide-y divide-[#1e1e2f]">
+            {reels.map((reel) => (
+              <MusicReelRow key={reel.id} reel={reel} onOpenProfile={onOpenProfile} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {section.albums.length > 0 ? (
         <div>
           <h3 className="text-[10px] font-semibold text-gray-500 mb-2 uppercase tracking-wide">
@@ -215,20 +292,30 @@ export function MusicHomeSections({
   onOpenProfile: (userId: string) => void;
 }) {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<FeedTab>('discover');
+  const [libraryTab, setLibraryTab] = useState<LibraryTab | null>(null);
 
-  const tabs = useMemo(
+  const libraryTabs = useMemo(
     () =>
       [
-        ['discover', t('music.tabDiscover', { defaultValue: 'Découvrir' })],
         ['following', t('music.tabFollowing', { defaultValue: 'Abonnements' })],
         ['library', t('music.tabLibrary', { defaultValue: 'Ma bibliothèque' })],
-        ['popular', t('music.tabPopular', { defaultValue: 'Populaire' })],
       ] as const,
     [t],
   );
 
-  const emptyByTab: Record<FeedTab, string> = {
+  const sectionLabels: Record<HomeSectionKey, string> = {
+    weeklyTrend: t('music.tabWeeklyTrend', { defaultValue: 'Tendance de la semaine' }),
+    discover: t('music.tabDiscover', { defaultValue: 'Découvrir' }),
+    popular: t('music.tabPopular', { defaultValue: 'Populaire' }),
+    following: t('music.tabFollowing', { defaultValue: 'Abonnements' }),
+    library: t('music.tabLibrary', { defaultValue: 'Ma bibliothèque' }),
+  };
+
+  const emptyBySection: Record<HomeSectionKey, string> = {
+    weeklyTrend: t('music.emptyWeeklyTrend', {
+      defaultValue:
+        'Aucun upvote sur la discographie ni reel cette semaine. Le classement se réinitialise chaque lundi.',
+    }),
     discover: t('music.emptyDiscover', {
       defaultValue:
         'Aucun morceau ni playlist sur les profils pour le moment. Publie ta discographie depuis ton profil.',
@@ -244,6 +331,10 @@ export function MusicHomeSections({
     }),
   };
 
+  const toggleLibraryTab = (id: LibraryTab) => {
+    setLibraryTab((current) => (current === id ? null : id));
+  };
+
   if (loading && !data) {
     return (
       <div className="space-y-6 animate-pulse">
@@ -256,24 +347,22 @@ export function MusicHomeSections({
 
   if (!data) return null;
 
-  const activeSection = data[tab];
-
   return (
     <div className="space-y-4">
       <div
-        className="flex gap-1 p-1 rounded-xl bg-[#12121a] border border-[#1e1e2f] overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex gap-1 p-1 rounded-xl bg-[#12121a] border border-[#1e1e2f]"
         role="tablist"
         aria-label={t('music.feedTabs', { defaultValue: 'Sections musique' })}
       >
-        {tabs.map(([id, label]) => (
+        {libraryTabs.map(([id, label]) => (
           <button
             key={id}
             type="button"
             role="tab"
-            aria-selected={tab === id}
-            onClick={() => setTab(id)}
-            className={`shrink-0 min-h-11 px-3.5 py-2 rounded-lg text-xs font-semibold transition touch-manipulation ${
-              tab === id
+            aria-selected={libraryTab === id}
+            onClick={() => toggleLibraryTab(id)}
+            className={`flex-1 min-h-11 px-3.5 py-2 rounded-lg text-xs font-semibold transition touch-manipulation ${
+              libraryTab === id
                 ? 'bg-amber-500/15 text-amber-200 border border-amber-500/30'
                 : 'text-gray-500 hover:text-gray-300 border border-transparent'
             }`}
@@ -283,14 +372,43 @@ export function MusicHomeSections({
         ))}
       </div>
 
-      <section aria-labelledby={`music-tab-${tab}`}>
-        <SectionHeader id={`music-tab-${tab}`} title={tabs.find(([id]) => id === tab)?.[1] ?? ''} />
-        <MusicSectionContent
-          section={activeSection}
-          emptyMessage={emptyByTab[tab]}
-          onOpenProfile={onOpenProfile}
-        />
-      </section>
+      {libraryTab ? (
+        <section aria-labelledby={`music-tab-${libraryTab}`}>
+          <SectionHeader
+            id={`music-tab-${libraryTab}`}
+            title={sectionLabels[libraryTab]}
+          />
+          <MusicSectionContent
+            section={data[libraryTab]}
+            emptyMessage={emptyBySection[libraryTab]}
+            onOpenProfile={onOpenProfile}
+          />
+        </section>
+      ) : (
+        <div className="space-y-6">
+          {DEFAULT_SECTIONS.map((sectionId) => (
+            <section key={sectionId} aria-labelledby={`music-tab-${sectionId}`}>
+              <SectionHeader
+                id={`music-tab-${sectionId}`}
+                title={sectionLabels[sectionId]}
+                subtitle={
+                  sectionId === 'weeklyTrend'
+                    ? t('music.weeklyTrendSubtitle', {
+                        defaultValue:
+                          'Albums, morceaux et reels les plus upvotés cette semaine · reset lundi',
+                      })
+                    : undefined
+                }
+              />
+              <MusicSectionContent
+                section={sectionId === 'weeklyTrend' ? data.weeklyTrend : data[sectionId]}
+                emptyMessage={emptyBySection[sectionId]}
+                onOpenProfile={onOpenProfile}
+              />
+            </section>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

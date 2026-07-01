@@ -7,6 +7,7 @@ export const usersApi = {
       shareDistance?: boolean;
       locationPrecision?: 'precise' | 'city';
       allowPrivateMessages?: boolean;
+      allowExternalEventTags?: boolean;
     }
   ) =>
     request<{ user: import('../../types').User }>(
@@ -195,6 +196,13 @@ export const usersApi = {
     request<{ ok: boolean }>(
       '/push/subscribe',
       { method: 'POST', body: JSON.stringify({ subscription }) },
+      token
+    ),
+
+  getProfileTaggedStories: (token: string, userId: string) =>
+    request<{ stories: import('../../types').MapStory[] }>(
+      `/users/${encodeURIComponent(userId)}/tagged-stories`,
+      {},
       token
     ),
 

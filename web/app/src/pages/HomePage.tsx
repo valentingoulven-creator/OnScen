@@ -8,6 +8,7 @@ import { MapZoomSlider } from '../components/MapZoomSlider';
 import { NearbyPeoplePanel } from '../components/NearbyPeoplePanel';
 import { MapCityEventsPanel } from '../components/MapCityEventsPanel';
 import { MapLiveClusterSheet } from '../components/MapLiveClusterSheet';
+import { MapMajorCityLiveSheet } from '../components/MapMajorCityLiveSheet';
 import { MapEventDetailModal } from '../components/MapEventDetailModal';
 import { MapEventFilterSheet } from '../components/MapEventFilterSheet';
 import {
@@ -48,6 +49,7 @@ import {
 } from '../lib/mapSearchIntent';
 import { scheduleMapFlyWhenReady } from '../lib/mapFlyWhenReady';
 import type { MapLiveLocationCluster } from '../lib/mapLiveClusters';
+import type { MapMajorCityLiveCluster } from '../lib/mapMajorCityLiveClusters';
 import {
   buildMapSidebarContent,
   countLivesFilterBadge,
@@ -384,6 +386,8 @@ export function HomePage({
   const [loadingMapEvents, setLoadingMapEvents] = useState(false);
   const [selectedEventCluster, setSelectedEventCluster] = useState<MapEventCityCluster | null>(null);
   const [selectedLiveCluster, setSelectedLiveCluster] = useState<MapLiveLocationCluster | null>(null);
+  const [selectedMajorCityCluster, setSelectedMajorCityCluster] =
+    useState<MapMajorCityLiveCluster | null>(null);
   const [selectedMapEvent, setSelectedMapEvent] = useState<MapEventMarker | null>(null);
   const [mapEventPostVersion, setMapEventPostVersion] = useState(0);
   /** Centre de la dernière requête api.nearby (pour clip viewport stable). */
@@ -2066,6 +2070,14 @@ export function HomePage({
 
   const handleMapLiveClusterClick = useCallback((cluster: MapLiveLocationCluster) => {
     setSelectedLiveCluster(cluster);
+    setSelectedMajorCityCluster(null);
+    setSelectedEventCluster(null);
+    flyMapTo(cluster.latitude, cluster.longitude);
+  }, [flyMapTo]);
+
+  const handleMapMajorCityClusterClick = useCallback((cluster: MapMajorCityLiveCluster) => {
+    setSelectedMajorCityCluster(cluster);
+    setSelectedLiveCluster(null);
     setSelectedEventCluster(null);
     flyMapTo(cluster.latitude, cluster.longitude);
   }, [flyMapTo]);
@@ -2073,8 +2085,9 @@ export function HomePage({
   const handleMapBackgroundClick = useCallback(() => {
     if (selectedEventCluster) setSelectedEventCluster(null);
     if (selectedLiveCluster) setSelectedLiveCluster(null);
+    if (selectedMajorCityCluster) setSelectedMajorCityCluster(null);
     if (mapProfileOpen) onCloseMapProfile?.();
-  }, [mapProfileOpen, onCloseMapProfile, selectedEventCluster, selectedLiveCluster]);
+  }, [mapProfileOpen, onCloseMapProfile, selectedEventCluster, selectedLiveCluster, selectedMajorCityCluster]);
 
   const handleMapSalonClick = useCallback((salon: Salon) => {
     flyMapTo(salon.latitude, salon.longitude);
@@ -2365,6 +2378,20 @@ export function HomePage({
             }}
           />
         )}
+        {selectedMajorCityCluster && (
+          <MapMajorCityLiveSheet
+            cluster={selectedMajorCityCluster}
+            onClose={() => setSelectedMajorCityCluster(null)}
+            onLiveClick={(live) => {
+              setSelectedMajorCityCluster(null);
+              handleMapLiveClick(live);
+            }}
+            onSalonClick={(salon) => {
+              setSelectedMajorCityCluster(null);
+              handleMapSalonClick(salon);
+            }}
+          />
+        )}
         <div
           className={
             mapLivesBrowseOpen ? 'absolute inset-0 z-0 hidden pointer-events-none inert' : 'absolute inset-0 z-0'
@@ -2388,6 +2415,7 @@ export function HomePage({
           onSelectPerson={handleMapPersonClick}
           onSelectEventCluster={handleMapEventClusterClick}
           onSelectLiveCluster={handleMapLiveClusterClick}
+          onSelectMajorCityCluster={handleMapMajorCityClusterClick}
           onMapBackgroundClick={handleMapBackgroundClick}
           mapStyle={mapStyle}
           onGlobeZoomToFlat={handleGlobeZoomToFlat}
@@ -2436,9 +2464,28 @@ export function HomePage({
               onClick={liveStartFlow.startLive}
               disabled={liveStartFlow.starting || liveStartFlow.mediaSetupOpen}
               aria-label={t('map.createLiveFabAria', { defaultValue: 'Créer un live' })}
-              className={`${MAP_CREATE_FAB_BTN} disabled:opacity-50`}
+              className={`${MAP_CREATE_FAB_BTN} disabled:opacity-50 inline-flex items-center gap-1.5`}
             >
-              <span className={USERNAME_WAVE_CLASS}>+ Lives</span>
+              {liveStartFlow.starting ? (
+                <>
+                  <svg
+                    className="w-3.5 h-3.5 animate-spin shrink-0"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    aria-hidden
+                  >
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                  <span>{t('map.startingLive', { defaultValue: 'Démarrage…' })}</span>
+                </>
+              ) : (
+                <span className={USERNAME_WAVE_CLASS}>+ Lives</span>
+              )}
             </button>
             <button
               type="button"
@@ -2451,35 +2498,38 @@ export function HomePage({
           </div>
         )}
 
-        <MapZoomSlider
-          value={mapZoomControl.norm}
-          mode={mapZoomControl.mode}
-          onChange={handleMapZoomSliderChange}
-          onInteractionStart={handleMapZoomSliderDragStart}
-          onInteractionEnd={handleMapZoomSliderDragEnd}
-          disabled={mapLivesBrowseOpen}
-          className="absolute right-3 top-1/2 -translate-y-[calc(50%+1.75rem)] z-30"
-        />
+        {!mapLivesBrowseOpen && (
+          <MapZoomSlider
+            value={mapZoomControl.norm}
+            mode={mapZoomControl.mode}
+            onChange={handleMapZoomSliderChange}
+            onInteractionStart={handleMapZoomSliderDragStart}
+            onInteractionEnd={handleMapZoomSliderDragEnd}
+            className="absolute right-3 top-1/2 -translate-y-[calc(50%+1.75rem)] z-30"
+          />
+        )}
 
-        <div className="ms-map-recenter-fab absolute bottom-4 right-3 z-30 flex flex-row items-center gap-2 pointer-events-auto">
-          <button
-            type="button"
-            onClick={recenterMap}
-            disabled={locating}
-            title={recenterLabel}
-            aria-label={recenterLabel}
-            className="w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center rounded-full bg-[var(--ms-surface)] border border-[var(--ms-border)] hover:border-indigo-500/60 text-indigo-400 shadow-lg disabled:opacity-50 active:scale-95 transition shrink-0"
-          >
-            {locating ? (
-              <span className="w-5 h-5 border-2 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin" />
-            ) : (
-              <svg viewBox="0 0 24 24" className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M12 2v3M12 19v3M2 12h3M19 12h3" strokeLinecap="round" />
-              </svg>
-            )}
-          </button>
-        </div>
+        {!mapLivesBrowseOpen && (
+          <div className="ms-map-recenter-fab absolute bottom-4 right-3 z-30 flex flex-row items-center gap-2 pointer-events-auto">
+            <button
+              type="button"
+              onClick={recenterMap}
+              disabled={locating}
+              title={recenterLabel}
+              aria-label={recenterLabel}
+              className="w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center rounded-full bg-[var(--ms-surface)] border border-[var(--ms-border)] hover:border-indigo-500/60 text-indigo-400 shadow-lg disabled:opacity-50 active:scale-95 transition shrink-0"
+            >
+              {locating ? (
+                <span className="w-5 h-5 border-2 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin" />
+              ) : (
+                <svg viewBox="0 0 24 24" className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M12 2v3M12 19v3M2 12h3M19 12h3" strokeLinecap="round" />
+                </svg>
+              )}
+            </button>
+          </div>
+        )}
 
         <div className="ms-map-filter-stack absolute top-3 left-3 z-30 inline-flex flex-col gap-2 pointer-events-auto">
           <div className="relative w-full">

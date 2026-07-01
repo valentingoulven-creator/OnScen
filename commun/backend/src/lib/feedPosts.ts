@@ -9,9 +9,12 @@ import {
   schedulePersistFeedPostComment,
   schedulePersistFeedPostFavorite,
   schedulePersistFeedPostLike,
+  schedulePersistFeedPostUpvote,
   schedulePersistFeedPostToPg,
 } from './pgFeedPosts';
-import { normalizeTaggedUserIds, resolveTaggedUsers, type PublicTaggedUser } from './taggedUsers';
+import { normalizeTaggedUserIds, normalizeEventTaggedUserIds, resolveTaggedUsers, type PublicTaggedUser } from './taggedUsers';
+import { validateImageMagicBytes, validateVideoMagicBytes } from './imageValidation';
+import { probeVideoDurationSec } from './videoDuration';
 
 const MAX_CONTENT_LEN = 2000;
 const MIN_CONTENT_LEN = 1;
@@ -49,25 +52,59 @@ const BLOCKED_MEDIA_RE =
   /picsum\.photos|commondatastorage|sample-videos|w3schools|mdn\.sample|placeholder\.com|loremflickr/i;
 
 /** Image collée / importée (data URL) — marge sous express.json 15 Mo. */
-const FEED_IMAGE_DATA_RE = /^data:image\/(jpeg|png|webp|gif)(?:;[^;,]+)*;base64,[A-Za-z0-9+/=]+$/i;
+const FEED_IMAGE_DATA_RE =
+  /^data:image\/(jpeg|png|webp|gif)(?:;[^;,]+)*;base64,([A-Za-z0-9+/=]+)$/i;
 /** ~900 Ko JPEG 1080 px après compression client (aligné feedImagePaste). */
 export const MAX_FEED_IMAGE_DATA_CHARS = 1_200_000;
 
 /** Vidéo importée (data URL) — aligné sur express.json 15 Mo (msdev). */
 const FEED_VIDEO_DATA_RE =
-  /^data:video\/(webm|mp4|quicktime|x-m4v)(?:;[^;,]+)*;base64,[A-Za-z0-9+/=]+$/i;
+  /^data:video\/(webm|mp4|quicktime|x-m4v)(?:;[^;,]+)*;base64,([A-Za-z0-9+/=]+)$/i;
 export const MAX_FEED_VIDEO_DATA_CHARS = 12_000_000;
 
+/**
+ * Vérifie le format déclaré, la taille, ET les octets réels du fichier (magic bytes) —
+ * évite de faire confiance au seul préfixe `data:image/...` déclaré par le client.
+ */
 export function isFeedImageDataUrl(url: string): boolean {
   const trimmed = url.trim();
-  if (!FEED_IMAGE_DATA_RE.test(trimmed)) return false;
-  return trimmed.length <= MAX_FEED_IMAGE_DATA_CHARS;
+  const match = FEED_IMAGE_DATA_RE.exec(trimmed);
+  if (!match) return false;
+  if (trimmed.length > MAX_FEED_IMAGE_DATA_CHARS) return false;
+  const buffer = Buffer.from(match[2], 'base64');
+  return validateImageMagicBytes(buffer, match[1]);
 }
 
-export function isFeedVideoDataUrl(url: string): boolean {
+/** Durée max (s) publication fil d'accueil — alignée sur FEED_VIDEO_LIMITS (frontend). */
+export const FEED_VIDEO_MAX_DURATION_SEC = 30;
+/** Durée max (s) story vidéo — alignée sur INSTAGRAM_STORY_LIMITS.video (frontend). */
+export const STORY_VIDEO_MAX_DURATION_SEC = 15;
+/** Marge de tolérance (s) sur la durée réelle sondée — arrondis d'encodage/conteneur. */
+const VIDEO_DURATION_TOLERANCE_SEC = 2;
+
+/**
+ * Vérifie le format déclaré, la taille, les octets réels (magic bytes) ET, si
+ * `maxDurationSec` est fourni, la durée réelle sondée dans les headers du conteneur
+ * (MP4/WebM) — empêche un client de déclarer une durée mensongère plus courte que
+ * la vidéo réelle pour contourner la limite du frontend.
+ *
+ * Si la durée ne peut pas être sondée (conteneur en streaming, format non reconnu…),
+ * on ne bloque pas l'upload : on retombe sur la durée déclarée côté client.
+ */
+export function isFeedVideoDataUrl(url: string, maxDurationSec?: number): boolean {
   const trimmed = url.trim();
-  if (!FEED_VIDEO_DATA_RE.test(trimmed)) return false;
-  return trimmed.length <= MAX_FEED_VIDEO_DATA_CHARS;
+  const match = FEED_VIDEO_DATA_RE.exec(trimmed);
+  if (!match) return false;
+  if (trimmed.length > MAX_FEED_VIDEO_DATA_CHARS) return false;
+  const buffer = Buffer.from(match[2], 'base64');
+  if (!validateVideoMagicBytes(buffer, match[1])) return false;
+  if (maxDurationSec != null) {
+    const realDurationSec = probeVideoDurationSec(buffer, match[1]);
+    if (realDurationSec != null && realDurationSec > maxDurationSec + VIDEO_DURATION_TOLERANCE_SEC) {
+      return false;
+    }
+  }
+  return true;
 }
 
 export interface PublicFeedPostComment {
@@ -91,6 +128,9 @@ export interface PublicFeedPost {
   resharedFrom?: PublicFeedPost;
   likeCount: number;
   likedByMe: boolean;
+  /** Upvotes (événements uniquement). */
+  upvoteCount?: number;
+  upvotedByMe?: boolean;
   resharedByMe: boolean;
   commentCount: number;
   favoriteByMe: boolean;
@@ -105,6 +145,7 @@ export interface PublicFeedPost {
   eventEndTimes?: (string | null)[];
   eventLocation?: string;
   eventType?: 'dance' | 'chant' | 'autre';
+  eventLinkUrl?: string;
   eventTaggedUsers?: PublicTaggedUser[];
   author: {
     id: string;
@@ -157,7 +198,7 @@ function normalizeVideoUrl(raw: unknown): string | undefined {
   if (typeof raw !== 'string') return undefined;
   const url = raw.trim();
   if (!url) return undefined;
-  if (isFeedVideoDataUrl(url)) return url;
+  if (isFeedVideoDataUrl(url, FEED_VIDEO_MAX_DURATION_SEC)) return url;
   return undefined;
 }
 
@@ -241,6 +282,21 @@ function normalizeEventLocation(raw: unknown): string | null {
 
 const VALID_EVENT_TYPES = new Set(['dance', 'chant', 'autre'] as const);
 
+function normalizeEventLinkUrl(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  if (!/^https?:\/\//i.test(trimmed)) return undefined;
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return undefined;
+    if (parsed.href.length > 2048) return undefined;
+    return parsed.href;
+  } catch {
+    return undefined;
+  }
+}
+
 function normalizeEventType(raw: unknown): 'dance' | 'chant' | 'autre' {
   if (typeof raw === 'string' && VALID_EVENT_TYPES.has(raw as 'dance' | 'chant' | 'autre')) {
     return raw as 'dance' | 'chant' | 'autre';
@@ -260,6 +316,7 @@ export function createFeedPost(
     eventEndTimes?: unknown;
     eventLocation?: string;
     eventType?: string;
+    eventLinkUrl?: string;
     eventTaggedUserIds?: unknown;
   }
 ): { ok: true; post: PublicFeedPost } | { ok: false; error: string } {
@@ -304,6 +361,7 @@ export function createFeedPost(
   let eventEndTimes: (string | null)[] | undefined;
   let eventLocation: string | undefined;
   let eventType: 'dance' | 'chant' | 'autre' | undefined;
+  let eventLinkUrl: string | undefined;
   let eventTaggedUserIds: string[] | undefined;
   if (input.isEvent) {
     const normalizedDates = normalizeEventDates(input.eventDates, input.eventDate, input.eventEndTimes);
@@ -321,7 +379,14 @@ export function createFeedPost(
       : undefined;
     eventLocation = loc;
     eventType = normalizeEventType(input.eventType);
-    eventTaggedUserIds = normalizeTaggedUserIds(input.eventTaggedUserIds, userId);
+    if (input.eventLinkUrl != null && String(input.eventLinkUrl).trim()) {
+      const link = normalizeEventLinkUrl(input.eventLinkUrl);
+      if (!link) {
+        return { ok: false, error: 'Lien invalide (http:// ou https:// requis).' };
+      }
+      eventLinkUrl = link;
+    }
+    eventTaggedUserIds = normalizeEventTaggedUserIds(input.eventTaggedUserIds, userId);
   }
 
   const post: FeedPost = {
@@ -338,6 +403,7 @@ export function createFeedPost(
           eventEndTimes,
           eventLocation,
           eventType,
+          ...(eventLinkUrl ? { eventLinkUrl } : {}),
           ...(eventTaggedUserIds ? { eventTaggedUserIds } : {}),
         }
       : {}),
@@ -394,6 +460,24 @@ export function toggleFeedPostLike(
   else likes.delete(userId);
   schedulePersistFeedPostLike(postId, userId, liked);
   return { ok: true, liked, likeCount: likes.size };
+}
+
+export function toggleFeedPostUpvote(
+  userId: string,
+  postId: string
+): { ok: true; upvoted: boolean; upvoteCount: number } | { ok: false; error: string } {
+  if (!db.users.get(userId)) return { ok: false, error: 'Utilisateur introuvable' };
+  const post = db.feedPosts.find((p) => p.id === postId);
+  if (!post) return { ok: false, error: 'Publication introuvable' };
+  if (!post.isEvent) return { ok: false, error: 'Upvote réservé aux événements' };
+
+  if (!db.feedPostUpvotes.has(postId)) db.feedPostUpvotes.set(postId, new Set());
+  const upvotes = db.feedPostUpvotes.get(postId)!;
+  const upvoted = !upvotes.has(userId);
+  if (upvoted) upvotes.add(userId);
+  else upvotes.delete(userId);
+  schedulePersistFeedPostUpvote(postId, userId, upvoted);
+  return { ok: true, upvoted, upvoteCount: upvotes.size };
 }
 
 export function addFeedPostComment(
@@ -492,6 +576,7 @@ function toPublicPost(
   reshareCtx?: ReadonlySet<string>,
 ): PublicFeedPost {
   const likes = db.feedPostLikes.get(post.id);
+  const upvotes = post.isEvent ? db.feedPostUpvotes.get(post.id) : undefined;
   const comments = db.feedPostComments.get(post.id) ?? [];
   const favs = db.feedPostFavorites.get(viewerId);
 
@@ -531,6 +616,12 @@ function toPublicPost(
     resharedFrom,
     likeCount: likes ? likes.size : 0,
     likedByMe: likes ? likes.has(viewerId) : false,
+    ...(post.isEvent
+      ? {
+          upvoteCount: upvotes ? upvotes.size : 0,
+          upvotedByMe: upvotes ? upvotes.has(viewerId) : false,
+        }
+      : {}),
     resharedByMe: reshareCtx
       ? reshareCtx.has(post.id)
       : db.feedPosts.some((p) => p.userId === viewerId && p.resharedFromId === post.id),
@@ -549,6 +640,7 @@ function toPublicPost(
             : {}),
           eventLocation: post.eventLocation,
           eventType: post.eventType ?? 'autre',
+          ...(post.eventLinkUrl ? { eventLinkUrl: post.eventLinkUrl } : {}),
           ...(post.eventTaggedUserIds?.length
             ? { eventTaggedUsers: resolveTaggedUsers(post.eventTaggedUserIds) }
             : {}),
@@ -574,6 +666,8 @@ export interface EventFilterOpts {
   eventType?: 'dance' | 'chant' | 'autre';
   /** Filtre par auteur : seuls les posts de cet utilisateur sont retournés. */
   authorId?: string;
+  /** Profil : événements créés par l'utilisateur ou où il est tagué. */
+  profileUserId?: string;
 }
 
 const COUNTRY_NAMES: Record<string, string> = {
@@ -583,10 +677,18 @@ const COUNTRY_NAMES: Record<string, string> = {
 };
 
 function matchesEventFilters(post: FeedPost, f: EventFilterOpts): boolean {
-  if (f.authorId && post.userId !== f.authorId) return false;
-  if (!f.eventsOnly) return true;
+  if (f.profileUserId) {
+    if (!post.isEvent) return false;
+    if (f.userEventsOnly && post.id.startsWith(EVENT_POST_ID_PREFIX)) return false;
+    const isOrganizer = post.userId === f.profileUserId;
+    const isTagged = post.eventTaggedUserIds?.includes(f.profileUserId) ?? false;
+    if (!isOrganizer && !isTagged) return false;
+  } else if (f.authorId && post.userId !== f.authorId) {
+    return false;
+  }
+  if (!f.eventsOnly && !f.profileUserId) return true;
   if (!post.isEvent) return false;
-  if (f.userEventsOnly && post.id.startsWith(EVENT_POST_ID_PREFIX)) return false;
+  if (!f.profileUserId && f.userEventsOnly && post.id.startsWith(EVENT_POST_ID_PREFIX)) return false;
 
   if (f.eventDate) {
     if (!post.eventDate?.startsWith(f.eventDate)) return false;
@@ -681,6 +783,8 @@ export function listFeedPosts(
     followingOnly?: boolean;
     /** Filtre par auteur : seuls les posts de cet utilisateur sont retournés. */
     authorId?: string;
+    /** Événements affichés sur le profil (organisateur + invité tagué). */
+    profileUserId?: string;
   }
 ): PublicFeedPost[] {
   const eventsOnly = Boolean(opts?.eventsOnly);
@@ -705,6 +809,7 @@ export function listFeedPosts(
     eventCountry: opts?.eventCountry,
     eventType: opts?.eventType,
     authorId: opts?.authorId,
+    profileUserId: opts?.profileUserId,
   };
 
   const followingOnly = opts?.followingOnly === true;

@@ -1,4 +1,8 @@
 import { Router, Request, Response } from 'express';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import crypto from 'node:crypto';
+import { createRateLimitStore } from '../lib/rateLimitStore';
+import { isMsdevRuntime } from '../lib/msdevGuard';
 import { DEFAULT_PLAYBACK_SESSION_TITLE } from '../lib/brandName';
 import { db, Salon, MusicPlatform, SalonTrackProposal } from '../models/schema';
 import { recordWeeklyVote } from '../lib/weeklyVotes';
@@ -15,6 +19,7 @@ import {
   parseMusicLink,
   resolveYoutubePlaylistId,
   buildPlatformTrackUrl,
+  isValidYoutubeVideoId,
 } from '../lib/musicLinks';
 import { computePlaybackPositionMs } from '../lib/playbackClock';
 import { resolveTrackForPlatform } from '../lib/trackResolver';
@@ -57,7 +62,7 @@ import {
 } from '../lib/salonModeration';
 import { getActiveSalonForHost } from '../lib/profile';
 import { upsertSalonToPgAsync, markSalonInactivePgAsync } from '../lib/pgSalonsLives';
-import { refreshStaleYoutubeSalonMetadata } from '../lib/youtubeMetadata';
+import { refreshStaleYoutubeSalonMetadata, hasStaleYoutubeMetadata } from '../lib/youtubeMetadata';
 
 export const salonsRouter = Router();
 
@@ -95,6 +100,24 @@ function setYtSearchCached(q: string, results: unknown): void {
   }
   ytSearchCache.set(q, { results, expiresAt: Date.now() + YOUTUBE_SEARCH_TTL_MS });
 }
+
+/**
+ * Protège le bucket dédié search.list (100 appels/jour, tout le projet — voir
+ * youtubeQuotaBudget.ts) contre un abus par un seul utilisateur/IP qui épuiserait la
+ * recherche YouTube pour tout le monde. Le debounce client (350 ms) limite déjà le flux
+ * normal ; cette limite est un filet de sécurité contre les scripts/bots.
+ */
+const youtubeSearchLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 40,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de recherches YouTube. Réessayez dans quelques minutes.' },
+  skip: () => isMsdevRuntime(),
+  keyGenerator: (req: Request) =>
+    (req as Request & { user?: { id: string } }).user?.id ?? ipKeyGenerator(req.ip ?? ''),
+  store: createRateLimitStore('youtube-search'),
+});
 
 function requireHostPlatform(
   user: import('../models/schema').User | undefined,
@@ -176,71 +199,80 @@ salonsRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
   res.json({ salons });
 });
 
-salonsRouter.get('/youtube-search', authenticateJWT, async (req: Request, res: Response) => {
-  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
-  if (q.length < 2) {
-    res.json({ results: [] });
-    return;
-  }
-  const me = (req as Request & { user: { id: string } }).user.id;
-  const user = db.users.get(me);
-  if (user) ensurePlatformAccountsFromLegacy(user);
-  let accessToken: string | undefined;
-  if (user) {
-    const tokenResult = await getValidYoutubeHostToken(user);
-    accessToken = tokenResult.ok ? tokenResult.accessToken : undefined;
-  }
-  const canSearch = Boolean(youtubeDataApiKey() || accessToken);
+salonsRouter.get(
+  '/youtube-search',
+  authenticateJWT,
+  youtubeSearchLimiter,
+  async (req: Request, res: Response) => {
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    if (q.length < 2) {
+      res.json({ results: [] });
+      return;
+    }
 
-  const cacheKey = q.toLowerCase();
-  const cached = getYtSearchCached(cacheKey);
-  if (cached) {
-    res.setHeader('Cache-Control', 'private, max-age=3600');
-    res.json({ results: cached, fromCache: true });
-    return;
-  }
-  try {
-    const results = await searchYoutube(q, accessToken);
-    if (!canSearch && results.length === 0) {
-      res.status(503).json({
-        error:
-          'Recherche YouTube indisponible. Connectez votre compte YouTube ou contactez le support.',
-        code: 'youtube_search_not_configured',
-      });
-      return;
-    }
-    if (results.length > 0) {
-      setYtSearchCached(cacheKey, results);
+    // Le cache (TTL 1 h) est vérifié AVANT toute résolution/rafraîchissement du token OAuth :
+    // un hit de cache ne doit rien coûter côté Google (ni quota, ni aller-retour réseau).
+    const cacheKey = q.toLowerCase();
+    const cached = getYtSearchCached(cacheKey);
+    if (cached) {
       res.setHeader('Cache-Control', 'private, max-age=3600');
-    } else {
-      res.setHeader('Cache-Control', 'private, no-store');
-    }
-    res.json({ results });
-  } catch (e) {
-    if (e instanceof YoutubeDataApiError) {
-      if (e.isQuotaExceeded) {
-        res.status(503).json({
-          error: 'Quota YouTube API dépassé. Réessayez plus tard.',
-          code: 'youtube_quota_exceeded',
-        });
-        return;
-      }
-      if (e.code === 'auth_failed') {
-        res.status(401).json({
-          error: 'Session YouTube expirée. Reconnectez votre compte.',
-          code: 'youtube_token_expired',
-        });
-        return;
-      }
-      res.status(502).json({
-        error: 'Recherche YouTube indisponible',
-        code: 'youtube_api_error',
-      });
+      res.json({ results: cached, fromCache: true });
       return;
     }
-    res.status(502).json({ error: 'Recherche YouTube indisponible' });
+
+    const me = (req as Request & { user: { id: string } }).user.id;
+    const user = db.users.get(me);
+    if (user) ensurePlatformAccountsFromLegacy(user);
+    let accessToken: string | undefined;
+    if (user) {
+      const tokenResult = await getValidYoutubeHostToken(user);
+      accessToken = tokenResult.ok ? tokenResult.accessToken : undefined;
+    }
+    const canSearch = Boolean(youtubeDataApiKey() || accessToken);
+
+    try {
+      const results = await searchYoutube(q, accessToken);
+      if (!canSearch && results.length === 0) {
+        res.status(503).json({
+          error:
+            'Recherche YouTube indisponible. Connectez votre compte YouTube ou contactez le support.',
+          code: 'youtube_search_not_configured',
+        });
+        return;
+      }
+      if (results.length > 0) {
+        setYtSearchCached(cacheKey, results);
+        res.setHeader('Cache-Control', 'private, max-age=3600');
+      } else {
+        res.setHeader('Cache-Control', 'private, no-store');
+      }
+      res.json({ results });
+    } catch (e) {
+      if (e instanceof YoutubeDataApiError) {
+        if (e.isQuotaExceeded) {
+          res.status(503).json({
+            error: 'Quota YouTube API dépassé. Réessayez plus tard.',
+            code: 'youtube_quota_exceeded',
+          });
+          return;
+        }
+        if (e.code === 'auth_failed') {
+          res.status(401).json({
+            error: 'Session YouTube expirée. Reconnectez votre compte.',
+            code: 'youtube_token_expired',
+          });
+          return;
+        }
+        res.status(502).json({
+          error: 'Recherche YouTube indisponible',
+          code: 'youtube_api_error',
+        });
+        return;
+      }
+      res.status(502).json({ error: 'Recherche YouTube indisponible' });
+    }
   }
-});
+);
 
 salonsRouter.get('/:id', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
@@ -256,13 +288,18 @@ salonsRouter.get('/:id', authenticateJWT, async (req: Request, res: Response) =>
   if (!salonMemberOr403(salon, me, res)) return;
   if (salon.platform === 'youtube') {
     const queue = ensureSalonQueue(salon.id);
-    const host = db.users.get(salon.hostId);
-    let hostToken: string | undefined;
-    if (host) {
-      const tokenResult = await getValidYoutubeHostToken(host);
-      hostToken = tokenResult.ok ? tokenResult.accessToken : undefined;
+    // On ne résout/rafraîchit le token OAuth de l'hôte (aller-retour Google potentiel) que si
+    // au moins une métadonnée est réellement expirée — évite un coût réseau inutile sur
+    // chaque affichage de salon alors que la plupart du temps rien n'a besoin d'être rafraîchi.
+    if (hasStaleYoutubeMetadata(salon, queue)) {
+      const host = db.users.get(salon.hostId);
+      let hostToken: string | undefined;
+      if (host) {
+        const tokenResult = await getValidYoutubeHostToken(host);
+        hostToken = tokenResult.ok ? tokenResult.accessToken : undefined;
+      }
+      await refreshStaleYoutubeSalonMetadata(salon, queue, hostToken);
     }
-    await refreshStaleYoutubeSalonMetadata(salon, queue, hostToken);
   }
   res.json({ salon: publicSalon(salon, me) });
 });
@@ -567,12 +604,16 @@ salonsRouter.post('/:id/playback/change-track', authenticateJWT, async (req: Req
 
   const { trackId, title, artist, trackLink } = req.body;
   let resolvedId = typeof trackId === 'string' ? trackId.trim() : '';
+  if (resolvedId && !isValidYoutubeVideoId(resolvedId)) {
+    // Rejette un trackId brut mal formé plutôt que de le persister/diffuser tel quel.
+    resolvedId = '';
+  }
   if (!resolvedId && trackLink && typeof trackLink === 'string') {
     const parsed = parseMusicLink(salon.platform, trackLink);
     if (parsed) resolvedId = parsed.trackId;
   }
   if (!resolvedId || resolvedId === 'demo') {
-    res.status(400).json({ error: 'trackId ou lien YouTube requis' });
+    res.status(400).json({ error: 'trackId (format vidéo YouTube valide) ou lien YouTube requis' });
     return;
   }
 
@@ -597,12 +638,15 @@ salonsRouter.post('/:id/playback/add-to-queue', authenticateJWT, async (req: Req
 
   const { trackId, title, artist, trackLink, albumArtUrl } = req.body;
   let resolvedId = typeof trackId === 'string' ? trackId.trim() : '';
+  if (resolvedId && !isValidYoutubeVideoId(resolvedId)) {
+    resolvedId = '';
+  }
   if (!resolvedId && trackLink && typeof trackLink === 'string') {
     const parsed = parseMusicLink(salon.platform, trackLink);
     if (parsed) resolvedId = parsed.trackId;
   }
   if (!resolvedId || resolvedId === 'demo') {
-    res.status(400).json({ error: 'trackId ou lien YouTube requis' });
+    res.status(400).json({ error: 'trackId (format vidéo YouTube valide) ou lien YouTube requis' });
     return;
   }
 
@@ -914,7 +958,7 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
   const plat: MusicPlatform = 'youtube';
   if (!requireHostPlatform(user, plat, res)) return;
 
-  let resolvedTrackId = trackId || 'demo';
+  let resolvedTrackId = 'demo';
   let externalUrl: string | undefined;
   if (trackLink && typeof trackLink === 'string') {
     const parsed = parseMusicLink(plat, trackLink);
@@ -922,7 +966,10 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
       resolvedTrackId = parsed.trackId;
       externalUrl = buildPlatformTrackUrl(plat, parsed.trackId);
     }
-  } else if (resolvedTrackId !== 'demo') {
+  } else if (typeof trackId === 'string' && isValidYoutubeVideoId(trackId.trim())) {
+    // trackId brut (hors trackLink) : n'accepter que le format vidéo YouTube valide
+    // (6-15 car. alphanumériques/_-) pour éviter de stocker/diffuser une valeur arbitraire.
+    resolvedTrackId = trackId.trim();
     externalUrl = buildPlatformTrackUrl(plat, resolvedTrackId);
   }
 
@@ -943,12 +990,14 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
         .slice(0, 10)
     : [];
 
+  // Accepte l'ID pré-généré côté client (lien d'invitation copiable avant confirmation serveur) —
+  // ancien format numérique (salon_<timestamp>) ou nouveau format UUID (salon_<uuid>).
   const salonId =
     typeof requestedSalonId === 'string' &&
-    /^salon_\d+$/.test(requestedSalonId) &&
+    /^salon_[a-zA-Z0-9_-]{6,64}$/.test(requestedSalonId) &&
     !db.salons.has(requestedSalonId)
       ? requestedSalonId
-      : `salon_${Date.now()}`;
+      : `salon_${crypto.randomUUID()}`;
 
   const salon: Salon = {
     id: salonId,

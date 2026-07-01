@@ -38,15 +38,9 @@ export function purgeStaleYoutubeMetadataForStorage(
   }
 }
 
-/** Rafraîchit les métadonnées YouTube expirées/manquantes avant envoi client. */
-export async function refreshStaleYoutubeSalonMetadata(
-  salon: Salon,
-  queue: SalonQueueItem[],
-  accessToken?: string
-): Promise<void> {
-  if (salon.platform !== 'youtube') return;
-
+function collectStaleYoutubeTrackIds(salon: Salon, queue: SalonQueueItem[]): Set<string> {
   const staleIds = new Set<string>();
+  if (salon.platform !== 'youtube') return staleIds;
   const ps = salon.playbackState;
   if (ps?.trackId && ps.trackId !== 'demo' && isYoutubeMetadataStale(ps.metadataFetchedAt)) {
     staleIds.add(ps.trackId);
@@ -56,10 +50,31 @@ export async function refreshStaleYoutubeSalonMetadata(
       staleIds.add(item.trackId);
     }
   }
+  return staleIds;
+}
+
+/**
+ * Vérification rapide sans I/O — permet d'éviter de résoudre/rafraîchir le token OAuth de
+ * l'hôte (coûteux, potentiel aller-retour Google) quand aucune métadonnée n'est expirée.
+ */
+export function hasStaleYoutubeMetadata(salon: Salon, queue: SalonQueueItem[]): boolean {
+  return collectStaleYoutubeTrackIds(salon, queue).size > 0;
+}
+
+/** Rafraîchit les métadonnées YouTube expirées/manquantes avant envoi client. */
+export async function refreshStaleYoutubeSalonMetadata(
+  salon: Salon,
+  queue: SalonQueueItem[],
+  accessToken?: string
+): Promise<void> {
+  if (salon.platform !== 'youtube') return;
+
+  const staleIds = collectStaleYoutubeTrackIds(salon, queue);
   if (staleIds.size === 0) return;
 
   const snippets = await fetchVideoSnippetsViaDataApi([...staleIds], accessToken);
   const now = youtubeMetadataNow();
+  const ps = salon.playbackState;
 
   if (ps?.trackId && staleIds.has(ps.trackId)) {
     const meta = snippets.get(ps.trackId);

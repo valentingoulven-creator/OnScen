@@ -242,7 +242,7 @@ html {
   opacity: 1;
 }
 
-/* Admin — barre d'onglets : retour à la ligne (tous visibles, pas de scroll/fade) */
+/* Admin — barre d'onglets : pills = retour à la ligne (tout visible) ; underline = scroll horizontal + fade (ms-hscroll-fade-wrap) */
 .ms-admin-tab-bar-wrap {
   min-width: 0;
   width: 100%;
@@ -273,6 +273,10 @@ html {
 
 .ms-admin-tab-bar-wrap--underline {
   border-bottom: 1px solid #1e1e2f;
+}
+
+.ms-admin-tab-bar-wrap--underline .ms-admin-tab-bar--underline {
+  scroll-padding-inline: 2.25rem;
 }
 
 .ms-admin-tab-bar--underline {
@@ -1052,6 +1056,120 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 .map-marker-overview-dot.salon.live {
   background: #f87171;
   box-shadow: 0 0 8px rgba(248, 113, 113, 0.65);
+}
+
+.map-marker-overview-pin {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+.map-marker-overview-pin .map-marker-overview-dot {
+  position: relative;
+  z-index: 2;
+}
+.map-marker-overview-pin--live .map-marker-overview-dot {
+  width: 12px;
+  height: 12px;
+}
+.map-marker-overview-pin--salon .map-marker-overview-dot {
+  width: 10px;
+  height: 10px;
+  background: #c084fc;
+  box-shadow: 0 0 6px rgba(192, 132, 252, 0.55);
+}
+.map-marker-overview-pulse {
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  border: 2px solid rgba(248, 113, 113, 0.55);
+  animation: map-live-sonar 2s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes map-live-sonar {
+  0% {
+    transform: scale(0.65);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+.map-marker-city-hub {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  width: 52px;
+  min-height: 52px;
+  pointer-events: auto;
+}
+.map-marker-city-hub-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(88, 28, 135, 0.95), rgba(30, 27, 75, 0.95));
+  border: 1.5px solid rgba(192, 132, 252, 0.55);
+  color: #e9d5ff;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 4px 14px rgba(0, 0, 0, 0.45),
+    0 0 18px rgba(147, 51, 234, 0.25);
+}
+.map-marker-city-hub-label {
+  margin-top: 3px;
+  max-width: 52px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+  color: #f3e8ff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.map-marker-city-hub-badge {
+  position: absolute;
+  top: -2px;
+  right: 2px;
+  z-index: 2;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: rgba(15, 15, 22, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 14px;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+.map-marker-city-hub-live {
+  position: absolute;
+  top: -4px;
+  left: 0;
+  z-index: 2;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: rgba(127, 29, 29, 0.92);
+  border: 1px solid rgba(248, 113, 113, 0.55);
+  color: #fecaca;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  box-shadow: 0 2px 8px rgba(248, 113, 113, 0.25);
 }
 
 .map-event-tooltip {

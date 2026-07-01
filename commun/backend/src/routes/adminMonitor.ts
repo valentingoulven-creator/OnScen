@@ -3,6 +3,7 @@ import { authenticateJWT } from '../middleware/auth';
 import { isAccessAdmin } from '../lib/accessControl';
 import { db } from '../models/schema';
 import { getAlertHistory } from '../lib/alertNotifier';
+import { getYoutubeSearchQuotaStatus } from '../lib/youtubeQuotaBudget';
 
 export const adminMonitorRouter = Router();
 
@@ -35,4 +36,10 @@ adminMonitorRouter.get('/alerts', authenticateJWT, (req: Request, res: Response)
       intervalMs: parseInt(process.env.MONITOR_INTERVAL_MS ?? '300000', 10),
     },
   });
+});
+
+/** GET /api/admin/monitor/youtube-quota — consommation du bucket dédié search.list (admin uniquement) */
+adminMonitorRouter.get('/youtube-quota', authenticateJWT, (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  res.json({ searchList: getYoutubeSearchQuotaStatus() });
 });
