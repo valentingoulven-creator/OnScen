@@ -52,6 +52,11 @@ export async function loadSalonsLivesFromPostgres(): Promise<{ salons: number; l
     live.isActive = row.is_active;
     db.lives.set(live.id, live);
     if (!db.liveChats.has(live.id)) db.liveChats.set(live.id, []);
+    if (live.isActive && live.hostId) {
+      // Reconstruit l'index hostId → liveId (perdu au redémarrage du process) pour
+      // que la garde anti-doublon de POST /lives/start reste correcte après un restart.
+      db.activeLiveByHost.set(live.hostId, live.id);
+    }
     livesLoaded++;
   }
 

@@ -103,52 +103,79 @@ function loadBitmapFromUrl(url: string): Promise<ImageBitmap> {
   });
 }
 
+/** Aligné sur le plafond backend (MAX_PHOTO_CHARS dans routes/auth.ts) : 2 Mo décodés. */
+const PROFILE_PHOTO_MAX_BYTES = 2 * 1024 * 1024;
+const PROFILE_PHOTO_MAX_DATA_CHARS = Math.ceil((PROFILE_PHOTO_MAX_BYTES * 4) / 3);
+const MIN_JPEG_QUALITY = 0.4;
+const MIN_IMAGE_DIMENSION = 320;
+
+/**
+ * Compresse un bitmap en JPEG en visant un budget d'octets (aligné backend), avec
+ * réduction progressive de la qualité puis de la résolution si nécessaire —
+ * garantit (sauf image extrême) que le résultat reste sous la limite serveur.
+ */
+function bitmapToProfilePhotoDataUrl(bitmap: ImageBitmap): string {
+  const bitmapMaxSide = Math.max(bitmap.width, bitmap.height, 1);
+  let targetDim = MAX_IMAGE_DIMENSION;
+
+  while (targetDim >= MIN_IMAGE_DIMENSION) {
+    const scale = Math.min(1, targetDim / bitmapMaxSide);
+    const w = Math.max(1, Math.round(bitmap.width * scale));
+    const h = Math.max(1, Math.round(bitmap.height * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error("Impossible de traiter l'image");
+    ctx.drawImage(bitmap, 0, 0, w, h);
+
+    let quality = JPEG_QUALITY;
+    let dataUrl = canvas.toDataURL('image/jpeg', quality);
+    while (dataUrl.length > PROFILE_PHOTO_MAX_DATA_CHARS && quality > MIN_JPEG_QUALITY) {
+      quality -= 0.1;
+      dataUrl = canvas.toDataURL('image/jpeg', quality);
+    }
+    if (dataUrl.length <= PROFILE_PHOTO_MAX_DATA_CHARS) return dataUrl;
+
+    targetDim = Math.round(targetDim * 0.85);
+  }
+
+  throw new Error('Image trop volumineuse. Essayez une photo plus légère.');
+}
+
 export async function compressProfilePhotoDataUrl(dataUrl: string): Promise<string> {
   const trimmed = dataUrl.trim();
   if (!trimmed.startsWith('data:image/')) return trimmed;
 
+  let bitmap: ImageBitmap;
   try {
-    const bitmap = await loadBitmapFromUrl(trimmed);
-    const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(bitmap.width, bitmap.height));
-    const w = Math.round(bitmap.width * scale);
-    const h = Math.round(bitmap.height * scale);
-
-    const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      bitmap.close();
-      return trimmed;
-    }
-    ctx.drawImage(bitmap, 0, 0, w, h);
-    bitmap.close();
-    return canvas.toDataURL('image/jpeg', JPEG_QUALITY);
+    bitmap = await loadBitmapFromUrl(trimmed);
   } catch {
     return trimmed;
+  }
+  try {
+    return bitmapToProfilePhotoDataUrl(bitmap);
+  } catch {
+    return trimmed;
+  } finally {
+    bitmap.close();
   }
 }
 
 async function blobUrlToProfileDataUrl(blobUrl: string): Promise<string> {
+  let bitmap: ImageBitmap;
   try {
-    const bitmap = await loadBitmapFromUrl(blobUrl);
-    const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(bitmap.width, bitmap.height));
-    const w = Math.round(bitmap.width * scale);
-    const h = Math.round(bitmap.height * scale);
-
-    const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      bitmap.close();
-      return '';
-    }
-    ctx.drawImage(bitmap, 0, 0, w, h);
-    bitmap.close();
-    return canvas.toDataURL('image/jpeg', JPEG_QUALITY);
+    bitmap = await loadBitmapFromUrl(blobUrl);
   } catch {
     return '';
+  }
+  try {
+    return bitmapToProfilePhotoDataUrl(bitmap);
+  } catch {
+    return '';
+  } finally {
+    bitmap.close();
   }
 }
 

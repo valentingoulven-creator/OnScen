@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, type User } from '../models/schema';
 import { createFeedPost } from './feedPosts';
-import { normalizeTaggedUserIds, resolveTaggedUsers } from './taggedUsers';
+import { normalizeTaggedUserIds, normalizeEventTaggedUserIds, resolveTaggedUsers } from './taggedUsers';
 
 function seedUser(id: string, username: string): User {
   return {
@@ -52,5 +52,22 @@ describe('createFeedPost event tags', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.post.eventTaggedUsers?.map((u) => u.id)).toEqual(['dj']);
+  });
+
+  it('skips users who declined external event tags', () => {
+    db.users.set('dj', { ...seedUser('dj', 'dj_val'), allowExternalEventTags: false });
+    const future = new Date(Date.now() + 86400000).toISOString();
+    const result = createFeedPost('host', {
+      content: 'Soirée',
+      isEvent: true,
+      eventDate: future,
+      eventDates: [future],
+      eventLocation: 'Lyon',
+      eventTaggedUserIds: ['dj'],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.post.eventTaggedUsers).toBeUndefined();
+    expect(normalizeEventTaggedUserIds(['dj'], 'host')).toBeUndefined();
   });
 });

@@ -1134,19 +1134,19 @@ export function DmPage({
     const attachment = pendingAttachment ? { ...pendingAttachment } : null;
     setPendingAttachment(null);
     try {
-      const { message, status } = await api.sendDm(
-        token,
-        activeUser.id,
-        text || '',
-        attachment
-          ? {
-              attachmentUrl: attachment.dataUrl,
-              attachmentName: attachment.name,
-              attachmentSize: attachment.size,
-              attachmentMimeType: attachment.mimeType,
-            }
-          : undefined
-      );
+      let attachmentPayload:
+        | { attachmentUrl: string; attachmentName: string; attachmentSize: number; attachmentMimeType: string }
+        | undefined;
+      if (attachment) {
+        const uploaded = await api.uploadChatAttachment(token, attachment.dataUrl, attachment.name);
+        attachmentPayload = {
+          attachmentUrl: uploaded.attachmentUrl,
+          attachmentName: uploaded.attachmentName || attachment.name,
+          attachmentSize: uploaded.attachmentSize,
+          attachmentMimeType: uploaded.attachmentMimeType,
+        };
+      }
+      const { message, status } = await api.sendDm(token, activeUser.id, text || '', attachmentPayload);
       if (status === 'pending') {
         setPendingStatus('pending_sent');
         setMessages((m) => [...m, message]);

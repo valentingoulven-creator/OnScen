@@ -18,6 +18,8 @@ export const feedApi = {
       followingOnly?: boolean;
       /** Filtre par auteur : seuls les posts de cet utilisateur sont retournés. */
       authorId?: string;
+      /** Événements du profil (organisateur + tagué). */
+      profileUserId?: string;
     }
   ) => {
     const params = new URLSearchParams();
@@ -32,6 +34,7 @@ export const feedApi = {
     if (opts?.algo) params.set('algo', 'true');
     if (opts?.followingOnly) params.set('followingOnly', 'true');
     if (opts?.authorId) params.set('authorId', opts.authorId);
+    if (opts?.profileUserId) params.set('profileUserId', opts.profileUserId);
     const qs = params.toString();
     return request<{ posts: import('../../types').FeedPost[] }>(
       `/feed${qs ? `?${qs}` : ''}`,
@@ -52,6 +55,7 @@ export const feedApi = {
       eventEndTimes?: (string | null)[];
       eventLocation?: string;
       eventType?: 'dance' | 'chant' | 'autre';
+      eventLinkUrl?: string;
       eventTaggedUserIds?: string[];
     }
   ) =>
@@ -71,6 +75,20 @@ export const feedApi = {
   unlikeFeedPost: (token: string, postId: string) =>
     request<{ liked: boolean; likeCount: number }>(
       `/feed/posts/${postId}/like`,
+      { method: 'DELETE' },
+      token
+    ),
+
+  upvoteFeedEvent: (token: string, postId: string) =>
+    request<{ upvoted: boolean; upvoteCount: number }>(
+      `/feed/posts/${postId}/upvote`,
+      { method: 'POST' },
+      token
+    ),
+
+  unupvoteFeedEvent: (token: string, postId: string) =>
+    request<{ upvoted: boolean; upvoteCount: number }>(
+      `/feed/posts/${postId}/upvote`,
       { method: 'DELETE' },
       token
     ),

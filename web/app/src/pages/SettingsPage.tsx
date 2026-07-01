@@ -139,6 +139,10 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
   const [exportLoading, setExportLoading] = useState(false);
   const [dmDisabled, setDmDisabled] = useState(() => user?.allowPrivateMessages === false);
   const [dmSaving, setDmSaving] = useState(false);
+  const [externalEventTagsDisabled, setExternalEventTagsDisabled] = useState(
+    () => user?.allowExternalEventTags === false
+  );
+  const [externalEventTagsSaving, setExternalEventTagsSaving] = useState(false);
   const [legalIncomplete, setLegalIncomplete] = useState(false);
 
   useEffect(() => {
@@ -164,6 +168,10 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
   useEffect(() => {
     setDmDisabled(user?.allowPrivateMessages === false);
   }, [user?.allowPrivateMessages]);
+
+  useEffect(() => {
+    setExternalEventTagsDisabled(user?.allowExternalEventTags === false);
+  }, [user?.allowExternalEventTags]);
 
   const handleTogglePush = async () => {
     if (!token || pushLoading) return;
@@ -353,6 +361,24 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
       flash(err instanceof Error ? err.message : t('settings.exportError'));
     } finally {
       setDmSaving(false);
+    }
+  };
+
+  const handleToggleExternalEventTags = async () => {
+    if (!token || externalEventTagsSaving) return;
+    const nextDisabled = !externalEventTagsDisabled;
+    setExternalEventTagsSaving(true);
+    try {
+      const { user: updated } = await api.updatePrivacySettings(token, {
+        allowExternalEventTags: !nextDisabled,
+      });
+      setExternalEventTagsDisabled(nextDisabled);
+      setUserFromProfile(updated);
+      flash(t('settings.prefsSaved'));
+    } catch (err) {
+      flash(err instanceof Error ? err.message : t('settings.exportError'));
+    } finally {
+      setExternalEventTagsSaving(false);
     }
   };
 
@@ -735,6 +761,24 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
             >
               <span
                 className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${dmDisabled ? 'translate-x-6' : 'translate-x-1'}`}
+              />
+            </button>
+          </label>
+
+          <label className="flex items-center justify-between gap-3 p-4 cursor-pointer">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white">{t('settings.disableExternalEventTags')}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{t('settings.disableExternalEventTagsHint')}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleToggleExternalEventTags()}
+              disabled={externalEventTagsSaving || !token}
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${externalEventTagsDisabled ? 'bg-purple-600' : 'bg-gray-600'}`}
+              aria-label={t('settings.disableExternalEventTagsToggleAria')}
+            >
+              <span
+                className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${externalEventTagsDisabled ? 'translate-x-6' : 'translate-x-1'}`}
               />
             </button>
           </label>

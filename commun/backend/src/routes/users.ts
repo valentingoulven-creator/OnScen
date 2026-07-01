@@ -39,6 +39,7 @@ import {
   saveUserSalonCreateSetup,
 } from '../lib/salonCreateSetup';
 import { schedulePersistUserToPg } from '../lib/pgUsers';
+import { listStoriesTaggingProfileUser } from '../lib/stories';
 
 export const usersRouter = Router();
 
@@ -109,8 +110,13 @@ usersRouter.patch('/me/settings', authenticateJWT, (req: Request, res: Response)
     res.status(404).json({ error: 'Utilisateur introuvable' });
     return;
   }
-  const { shareDistance, locationPrecision, allowPrivateMessages } = req.body;
-  applyPrivacySettings(user, { shareDistance, locationPrecision, allowPrivateMessages });
+  const { shareDistance, locationPrecision, allowPrivateMessages, allowExternalEventTags } = req.body;
+  applyPrivacySettings(user, {
+    shareDistance,
+    locationPrecision,
+    allowPrivateMessages,
+    allowExternalEventTags,
+  });
   db.users.set(me, user);
   schedulePersist();
   res.json({ user: publicProfile(user, true, me) });
@@ -344,6 +350,16 @@ usersRouter.get('/me/following', authenticateJWT, (req: Request, res: Response) 
     .filter(Boolean)
     .map((u) => publicProfile(u!, false, me));
   res.json({ following: users, followingIds: ids });
+});
+
+usersRouter.get('/:id/tagged-stories', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const profileUserId = req.params.id;
+  if (!db.users.get(profileUserId)) {
+    res.status(404).json({ error: 'Utilisateur introuvable' });
+    return;
+  }
+  res.json({ stories: listStoriesTaggingProfileUser(profileUserId, me) });
 });
 
 usersRouter.get('/:id/following-status', authenticateJWT, (req: Request, res: Response) => {

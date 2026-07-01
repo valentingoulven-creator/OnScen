@@ -7,7 +7,7 @@ export async function syncFeedTablesToPg(
   client: PoolClient,
   data: Pick<
     PersistedStore,
-    'feedPosts' | 'feedPostLikes' | 'feedPostComments' | 'feedPostFavorites'
+    'feedPosts' | 'feedPostLikes' | 'feedPostUpvotes' | 'feedPostComments' | 'feedPostFavorites'
   >
 ): Promise<void> {
   const posts = data.feedPosts ?? [];
@@ -54,6 +54,35 @@ export async function syncFeedTablesToPg(
     );
   } else {
     await client.query('DELETE FROM feed_post_likes');
+  }
+
+  const upvotePairs: Array<[string, string]> = [];
+  for (const [postId, userIds] of Object.entries(data.feedPostUpvotes ?? {})) {
+    for (const userId of userIds) {
+      upvotePairs.push([postId, userId]);
+    }
+  }
+
+  for (const [postId, userId] of upvotePairs) {
+    await client.query(
+      `INSERT INTO feed_post_upvotes (post_id, user_id) VALUES ($1, $2)
+       ON CONFLICT (post_id, user_id) DO NOTHING`,
+      [postId, userId]
+    );
+  }
+
+  if (upvotePairs.length) {
+    const flat = upvotePairs.flat();
+    await client.query(
+      `DELETE FROM feed_post_upvotes
+       WHERE NOT EXISTS (
+         SELECT 1 FROM unnest($1::text[], $2::text[]) AS t(post_id, user_id)
+         WHERE feed_post_upvotes.post_id = t.post_id AND feed_post_upvotes.user_id = t.user_id
+       )`,
+      [flat.filter((_, i) => i % 2 === 0), flat.filter((_, i) => i % 2 === 1)]
+    );
+  } else {
+    await client.query('DELETE FROM feed_post_upvotes');
   }
 
   const commentsById = new Map<

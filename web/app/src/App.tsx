@@ -39,7 +39,6 @@ const LivePipPreviewFloat = lazy(() =>
 );
 import { NotificationBell } from './components/NotificationBell';
 import { AdminHeaderButton } from './components/AdminHeaderButton';
-import { PrivacyVisibilityMenu } from './components/PrivacyVisibilityMenu';
 import { useDmUnread } from './context/DmUnreadContext';
 import { ProfileSearchBar } from './components/ProfileSearchBar';
 import type { GlobalSearchResultItem } from './lib/globalSearch';
@@ -1147,7 +1146,6 @@ export default function App() {
                 onClick={() => openAdminPanel()}
                 active={adminOpen}
               />
-              <PrivacyVisibilityMenu />
               <NotificationBell
                 onOpenLive={openLive}
                 onOpenProfile={openProfile}

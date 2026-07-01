@@ -371,6 +371,7 @@ export function adminDeleteEvent(postId: string): boolean {
   db.feedPosts.splice(idx, 1);
   db.feedPosts = db.feedPosts.filter((p) => p.resharedFromId !== postId);
   db.feedPostLikes.delete(postId);
+  db.feedPostUpvotes.delete(postId);
   db.feedPostComments.delete(postId);
   for (const favs of db.feedPostFavorites.values()) {
     favs.delete(postId);

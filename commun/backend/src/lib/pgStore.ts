@@ -126,6 +126,7 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
     favoritesRes,
     postsRes,
     likesRes,
+    upvotesRes,
     commentsRes,
     postFavsRes,
     storiesRes,
@@ -192,6 +193,9 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
     ),
     pool.query<{ post_id: string; user_id: string }>(
       'SELECT post_id, user_id FROM feed_post_likes'
+    ),
+    pool.query<{ post_id: string; user_id: string }>(
+      'SELECT post_id, user_id FROM feed_post_upvotes'
     ),
     pool.query<{ payload: NonNullable<PersistedStore['feedPostComments']>[string][number] }>(
       'SELECT payload FROM feed_post_comments'
@@ -289,6 +293,12 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
     feedPostLikes[row.post_id].push(row.user_id);
   }
 
+  const feedPostUpvotes: NonNullable<PersistedStore['feedPostUpvotes']> = {};
+  for (const row of upvotesRes.rows) {
+    if (!feedPostUpvotes[row.post_id]) feedPostUpvotes[row.post_id] = [];
+    feedPostUpvotes[row.post_id].push(row.user_id);
+  }
+
   const feedPostComments: NonNullable<PersistedStore['feedPostComments']> = {};
   for (const row of commentsRes.rows) {
     const comment = row.payload;
@@ -330,6 +340,7 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
     })),
     feedPosts: postsRes.rows.map((r) => r.payload),
     feedPostLikes,
+    feedPostUpvotes,
     feedPostComments,
     feedPostFavorites,
     stories: storiesRes.rows.map((r) => r.payload),
@@ -375,6 +386,7 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
       groupId: n.groupId,
       postId: n.postId,
       reelId: n.reelId,
+      storyId: n.storyId,
       supportMessageId: n.supportMessageId,
     };
   });

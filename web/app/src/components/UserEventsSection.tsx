@@ -4,11 +4,14 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { hasUpcomingEventDate, getPrimaryEventDate } from '../lib/feedEvents';
 import { EventCard } from './EventCard';
-import type { FeedPost } from '../types';
+import { StoryAvatarRing } from './MapStoryRings';
+import { UsernameDisplay } from './UsernameDisplay';
+import type { FeedPost, MapStory } from '../types';
 
 interface UserEventsSectionProps {
   userId: string;
   onOpenPost?: (post: FeedPost) => void;
+  onOpenProfile?: (userId: string) => void;
 }
 
 function CalendarEmptyIcon({ className }: { className?: string }) {
@@ -21,11 +24,12 @@ function CalendarEmptyIcon({ className }: { className?: string }) {
   );
 }
 
-export function UserEventsSection({ userId, onOpenPost }: UserEventsSectionProps) {
+export function UserEventsSection({ userId, onOpenPost, onOpenProfile }: UserEventsSectionProps) {
   const { token } = useAuth();
   const { t } = useTranslation();
 
   const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [taggedStories, setTaggedStories] = useState<MapStory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,18 +45,21 @@ export function UserEventsSection({ userId, onOpenPost }: UserEventsSectionProps
     setLoading(true);
     setError(null);
     setPosts([]);
+    setTaggedStories([]);
 
-    api
-      .getFeedPosts(token, {
+    Promise.all([
+      api.getFeedPosts(token, {
         eventsOnly: true,
         userEventsOnly: true,
-        authorId: userId,
+        profileUserId: userId,
         limit: 100,
-      })
-      .then((data) => {
+      }),
+      api.getProfileTaggedStories(token, userId),
+    ])
+      .then(([feedData, storiesData]) => {
         if (ctrl.signal.aborted) return;
 
-        const upcoming = data.posts
+        const upcoming = feedData.posts
           .filter((p) => hasUpcomingEventDate(p))
           .sort((a, b) => {
             const da = getPrimaryEventDate(a);
@@ -63,6 +70,7 @@ export function UserEventsSection({ userId, onOpenPost }: UserEventsSectionProps
           });
 
         setPosts(upcoming);
+        setTaggedStories(storiesData.stories ?? []);
       })
       .catch((err: unknown) => {
         if (ctrl.signal.aborted) return;
@@ -106,7 +114,10 @@ export function UserEventsSection({ userId, onOpenPost }: UserEventsSectionProps
     );
   }
 
-  if (posts.length === 0) {
+  const hasEvents = posts.length > 0;
+  const hasStories = taggedStories.length > 0;
+
+  if (!hasEvents && !hasStories) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
         <CalendarEmptyIcon className="w-12 h-12 text-purple-500/30" />
@@ -120,17 +131,83 @@ export function UserEventsSection({ userId, onOpenPost }: UserEventsSectionProps
   };
 
   return (
-    <div className="flex flex-col gap-3 p-4 max-w-lg mx-auto w-full">
-      {posts.map((post) => (
-        <EventCard
-          key={post.id}
-          post={post}
-          layout="vertical"
-          compact
-          showUpcomingBadge
-          onOpen={handleOpen}
-        />
-      ))}
+    <div className="flex flex-col gap-4 p-4 max-w-lg mx-auto w-full">
+      {hasStories ? (
+        <section className="space-y-2">
+          <h3 className="text-[11px] font-bold text-purple-300 uppercase tracking-wide px-0.5">
+            {t('profile.taggedPublications')}
+          </h3>
+          <div className="overflow-x-auto -mx-1 px-1">
+            <div className="flex gap-2 w-max pb-1">
+              {taggedStories.map((story) => (
+                <button
+                  key={story.id}
+                  type="button"
+                  onClick={() => onOpenProfile?.(story.userId)}
+                  className="flex items-center gap-2 min-h-[44px] max-w-[min(100%,16rem)] rounded-xl border border-purple-500/25 bg-purple-950/30 px-2.5 py-2 hover:border-purple-400/40 transition text-left"
+                >
+                  <StoryAvatarRing
+                    hasActiveStory
+                    storyImageUrl={story.imageUrl}
+                    avatarUrl={story.author.avatarUrl}
+                    size="sm"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-gray-400">{t('profile.taggedInStory')}</p>
+                    <UsernameDisplay
+                      username={story.author.username}
+                      usernameColor={story.author.usernameColor}
+                      usernameWaveFrom={story.author.usernameWaveFrom}
+                      usernameWaveTo={story.author.usernameWaveTo}
+                      className="text-xs font-semibold truncate block"
+                    />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {hasEvents ? (
+        <section className="flex flex-col gap-3">
+          {hasStories ? (
+            <h3 className="text-[11px] font-bold text-purple-300 uppercase tracking-wide px-0.5">
+              {t('profile.taggedEventsSection')}
+            </h3>
+          ) : null}
+          {posts.map((post) => {
+            const isGuest = post.userId !== userId;
+            return (
+              <EventCard
+                key={post.id}
+                post={post}
+                layout="vertical"
+                compact
+                showUpcomingBadge
+                onOpen={handleOpen}
+                onOpenAuthor={isGuest && onOpenProfile ? () => onOpenProfile(post.userId) : undefined}
+                onOpenTaggedUser={onOpenProfile}
+                onPostChange={(patch) =>
+                  setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, ...patch } : p)))
+                }
+                extraBadges={
+                  isGuest ? (
+                    <>
+                      <span className="inline-flex items-center text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-sky-500/15 text-sky-200 border border-sky-500/30">
+                        {t('profile.eventGuestBadge')}
+                      </span>
+                      <span className="text-[9px] text-gray-400 truncate max-w-[10rem]">
+                        {t('profile.eventByOrganizer', { username: post.author.username })}
+                      </span>
+                    </>
+                  ) : null
+                }
+              />
+            );
+          })}
+        </section>
+      ) : null}
     </div>
   );
 }

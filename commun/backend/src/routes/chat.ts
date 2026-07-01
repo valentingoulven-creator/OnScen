@@ -6,8 +6,52 @@ import { canDeleteLiveChatMessage, deleteLiveChatMessage } from '../lib/liveMode
 import { canModerateSalon } from '../lib/salonModeration';
 import { enrichChatMessages } from '../lib/usernameColor';
 import { hasBlocked } from '../lib/blocks';
+import { checkChatRateLimit } from '../lib/chatRateLimit';
+import { saveChatAttachmentFromDataUrl, deleteChatAttachmentIfLocal } from '../lib/chatAttachmentAssets';
+import { moderateImageSource, moderationRejectionMessage } from '../lib/contentModeration';
 
 export const chatRouter = Router();
+
+/**
+ * Convertit une pièce jointe (data: URL) en fichier local servi en HTTPS.
+ * Étape obligatoire avant d'envoyer un message DM / salon / live avec pièce jointe :
+ * le backend n'accepte plus de data: URL brute dans attachmentUrl (voir chatAttachmentUrl.ts).
+ */
+chatRouter.post('/attachment', authenticateJWT, (req: Request, res: Response) => {
+  void (async () => {
+    const me = (req as Request & { user: { id: string } }).user.id;
+    if (!(await checkChatRateLimit(me))) {
+      res.status(429).json({ error: 'Trop de fichiers envoyés. Réessayez dans quelques secondes.' });
+      return;
+    }
+    const { dataUrl, name } = req.body as { dataUrl?: unknown; name?: unknown };
+    if (typeof dataUrl !== 'string' || !dataUrl.trim()) {
+      res.status(400).json({ error: 'Fichier requis' });
+      return;
+    }
+    let saved;
+    try {
+      saved = saveChatAttachmentFromDataUrl(dataUrl);
+    } catch (e) {
+      res.status(413).json({ error: e instanceof Error ? e.message : 'Fichier invalide' });
+      return;
+    }
+    if (saved.isImage) {
+      const moderation = await moderateImageSource(dataUrl, 'salon_chat');
+      if (!moderation.allowed) {
+        deleteChatAttachmentIfLocal(saved.url);
+        res.status(422).json({ error: moderationRejectionMessage(moderation) });
+        return;
+      }
+    }
+    res.json({
+      attachmentUrl: saved.url,
+      attachmentMimeType: saved.mimeType,
+      attachmentSize: saved.size,
+      attachmentName: typeof name === 'string' ? name.trim().slice(0, 200) : undefined,
+    });
+  })();
+});
 
 chatRouter.get('/salon/:salonId', authenticateJWT, (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;

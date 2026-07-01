@@ -43,7 +43,11 @@ export async function createLiveKitToken(opts: {
   const at = new AccessToken(apiKey, apiSecret, {
     identity: opts.participantIdentity,
     name: opts.participantName,
-    ttl: '2h',
+    // Alignée sur LIVE_MAX_DURATION_MS (8h, cf. sessionLimits.ts) + 1h de marge :
+    // un token à TTL 2h expirait avant la fin d'un live encore actif, empêchant
+    // toute reconnexion (perte réseau, refresh) passé ce délai. Valeur dupliquée ici
+    // (plutôt qu'importée) pour éviter un cycle d'import avec sessionLimits→liveArchive→livekit.
+    ttl: 9 * 60 * 60,
   });
 
   at.addGrant({

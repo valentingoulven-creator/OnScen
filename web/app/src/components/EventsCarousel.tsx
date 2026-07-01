@@ -9,10 +9,11 @@ export interface EventsCarouselProps {
   onOpen: (post: FeedPost) => void;
   onShare?: (post: FeedPost) => void;
   getExtraBadges?: (post: FeedPost) => ReactNode;
+  onPostChange?: (postId: string, patch: Partial<FeedPost>) => void;
 }
 
 /** Carrousel horizontal d'événements (même layout que « Prochains événements »). */
-export function EventsCarousel({ posts, onOpen, onShare, getExtraBadges }: EventsCarouselProps) {
+export function EventsCarousel({ posts, onOpen, onShare, getExtraBadges, onPostChange }: EventsCarouselProps) {
   const { t } = useTranslation();
 
   if (posts.length === 0) return null;
@@ -33,6 +34,7 @@ export function EventsCarousel({ posts, onOpen, onShare, getExtraBadges }: Event
           layout="carousel"
           compact={false}
           extraBadges={getExtraBadges?.(post)}
+          onPostChange={(patch) => onPostChange?.(post.id, patch)}
         />
       ))}
     </HorizontalScrollCarousel>

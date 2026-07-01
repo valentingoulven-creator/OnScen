@@ -1,5 +1,6 @@
 import { db, Live, Salon, User } from '../models/schema';
 import { pushNotification } from './notifications';
+import { runInBatchesAsync } from './asyncFanOut';
 
 function followingSet(followerId: string): Set<string> {
   let set = db.userFollows.get(followerId);
@@ -40,11 +41,16 @@ export function getFollowerIds(hostId: string): string[] {
   return ids;
 }
 
+/**
+ * Notifie les abonnés qu'un hôte démarre un live. Le fan-out est traité par lots
+ * asynchrones (cf. asyncFanOut) : pour un hôte à forte audience, un `for` synchrone
+ * bloquerait l'event loop et retarderait la réponse HTTP de POST /lives/start.
+ */
 export function notifyFollowersLiveStarted(live: Live, host: User): void {
   const followerIds = getFollowerIds(host.id);
   const message = `${host.username} est en live !`;
-  for (const recipientId of followerIds) {
-    if (recipientId === host.id) continue;
+  runInBatchesAsync(followerIds, (recipientId) => {
+    if (recipientId === host.id) return;
     pushNotification({
       recipientId,
       senderId: host.id,
@@ -54,14 +60,14 @@ export function notifyFollowersLiveStarted(live: Live, host: User): void {
       message,
       liveId: live.id,
     });
-  }
+  });
 }
 
 export function notifyFollowersSalonCreated(host: User, salon: Salon): void {
   const followerIds = getFollowerIds(host.id);
   const message = `${host.username} a ouvert un salon « ${salon.title} » 🎵`;
-  for (const recipientId of followerIds) {
-    if (recipientId === host.id) continue;
+  runInBatchesAsync(followerIds, (recipientId) => {
+    if (recipientId === host.id) return;
     pushNotification({
       recipientId,
       senderId: host.id,
@@ -72,5 +78,5 @@ export function notifyFollowersSalonCreated(host: User, salon: Salon): void {
       salonId: salon.id,
       peerUserId: host.id,
     });
-  }
+  });
 }

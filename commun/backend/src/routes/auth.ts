@@ -36,6 +36,7 @@ import {
   parseUsernameWaveHexInput,
 } from '../lib/usernameColor';
 import { applyPrivacySettings } from '../lib/locationPrivacy';
+import { validateImageMagicBytes } from '../lib/imageValidation';
 import {
   ensurePlatformAccountsFromLegacy,
   migratePlaintextPlatformTokens,
@@ -552,11 +553,25 @@ authRouter.patch('/profile', authenticateJWT, async (req: Request, res: Response
   if (Array.isArray(profilePhotos)) {
     /** Base64 d'une photo compressée max 2 Mo → 2,8 M de caractères (facteur 4/3). */
     const MAX_PHOTO_CHARS = Math.ceil(2 * 1024 * 1024 * (4 / 3)) + 64;
+    const PROFILE_PHOTO_DATA_RE =
+      /^data:image\/(jpeg|png|webp|gif)(?:;[^;,]+)*;base64,([A-Za-z0-9+/=]+)$/i;
     const incoming = profilePhotos.map(String);
-    const oversized = incoming.find((p) => p.startsWith('data:image/') && p.length > MAX_PHOTO_CHARS);
-    if (oversized) {
-      res.status(413).json({ error: 'Chaque photo ne peut pas dépasser 2 Mo.' });
-      return;
+    for (const p of incoming) {
+      if (!p.startsWith('data:image/')) continue;
+      if (p.length > MAX_PHOTO_CHARS) {
+        res.status(413).json({ error: 'Chaque photo ne peut pas dépasser 2 Mo.' });
+        return;
+      }
+      const match = PROFILE_PHOTO_DATA_RE.exec(p);
+      if (!match) {
+        res.status(400).json({ error: 'Format de photo non pris en charge (JPEG, PNG, WebP, GIF).' });
+        return;
+      }
+      const buffer = Buffer.from(match[2], 'base64');
+      if (!validateImageMagicBytes(buffer, match[1])) {
+        res.status(400).json({ error: 'Photo invalide ou corrompue.' });
+        return;
+      }
     }
     const moderation = await moderateImageSources(incoming, 'profile_photo');
     if (!moderation.allowed) {

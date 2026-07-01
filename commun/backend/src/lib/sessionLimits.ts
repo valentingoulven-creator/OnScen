@@ -40,6 +40,17 @@ export function checkSessionLimits(io: Server): void {
     const remaining = SALON_MAX_DURATION_MS - elapsed;
 
     if (remaining <= 0) {
+      // Un live lié à ce salon (id partagé) ne doit pas continuer à tourner sans
+      // salon derrière lui : sinon il reste actif indéfiniment (orphelin), invisible
+      // depuis la carte/le salon mais toujours joignable et décompté dans le quota hôte.
+      const linkedLive = db.lives.get(salonId);
+      if (linkedLive?.isActive) {
+        endLiveSession(linkedLive);
+        io.to(`live_${salonId}`).emit('live_ended', {
+          liveId: salonId,
+          reason: 'duration_limit',
+        });
+      }
       db.salons.delete(salonId);
       db.salonChats.delete(salonId);
       clearSalonPlaybackData(salonId);

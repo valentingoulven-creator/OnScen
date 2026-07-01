@@ -154,6 +154,7 @@ export function MapEventDetailModal({
                       onOpenInFeed?.(activePost.id);
                       onClose();
                     }}
+                    onPostChange={(patch) => handlePostChange(patch)}
                   />
                   {activePost.videoUrl ? (
                     <video

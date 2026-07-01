@@ -202,6 +202,7 @@ export interface AppNotification {
     | 'follow'
     | 'event_created'
     | 'event_tagged'
+    | 'story_tagged'
     | 'mention'
     | 'support_contact'
     | 'support_reply'
@@ -218,6 +219,7 @@ export interface AppNotification {
   peerUserId?: string;
   groupId?: string;
   postId?: string;
+  storyId?: string;
   reelId?: string;
   supportMessageId?: string;
 }
