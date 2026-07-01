@@ -6,6 +6,11 @@ import { getUserPublicCoords } from './locationPrivacy';
 import { isFeedImageDataUrl, isFeedVideoDataUrl } from './feedPosts';
 import { clampNearbyRadiusKm } from './geoLimits';
 import { scheduleDeleteStoryFromPg, schedulePersistStoryToPg } from './pgStories';
+import {
+  normalizeTaggedUserIds,
+  resolveTaggedUsers,
+  type PublicTaggedUser,
+} from './taggedUsers';
 
 const STORY_TTL_MS = 24 * 60 * 60 * 1000;
 /** Limite style Instagram : plusieurs stories actives par utilisateur (24 h chacune). */
@@ -13,14 +18,7 @@ export const MAX_ACTIVE_STORIES_PER_USER = 20;
 
 const HTTPS_IMAGE_RE = /^https:\/\//i;
 
-export interface PublicStoryTaggedUser {
-  id: string;
-  username: string;
-  avatarUrl?: string;
-  usernameColor?: string;
-  usernameWaveFrom?: string;
-  usernameWaveTo?: string;
-}
+export interface PublicStoryTaggedUser extends PublicTaggedUser {}
 
 export interface PublicStory {
   id: string;
@@ -112,22 +110,8 @@ function isVisibleToViewer(viewerId: string, authorId: string): boolean {
   return true;
 }
 
-function resolveTaggedUsers(ids: string[] | undefined): PublicStoryTaggedUser[] | undefined {
-  if (!ids?.length) return undefined;
-  const out: PublicStoryTaggedUser[] = [];
-  for (const id of ids) {
-    const u = db.users.get(id);
-    if (!u) continue;
-    out.push({
-      id: u.id,
-      username: u.username,
-      avatarUrl: u.avatarUrl,
-      usernameColor: u.usernameColor,
-      usernameWaveFrom: u.usernameWaveFrom,
-      usernameWaveTo: u.usernameWaveTo,
-    });
-  }
-  return out.length ? out : undefined;
+function resolveStoryTaggedUsers(ids: string[] | undefined): PublicStoryTaggedUser[] | undefined {
+  return resolveTaggedUsers(ids);
 }
 
 const YOUTUBE_VIDEO_ID_RE = /^[a-zA-Z0-9_-]{6,15}$/;
@@ -152,18 +136,8 @@ function normalizeMusicTrack(raw: unknown): StoryMusicTrack | undefined {
   };
 }
 
-function normalizeTaggedUserIds(raw: unknown, authorId: string): string[] | undefined {
-  if (!Array.isArray(raw)) return undefined;
-  const ids: string[] = [];
-  for (const item of raw) {
-    if (typeof item !== 'string') continue;
-    const id = item.trim();
-    if (!id || id === authorId || ids.includes(id)) continue;
-    if (!db.users.get(id)) continue;
-    ids.push(id);
-    if (ids.length >= 5) break;
-  }
-  return ids.length ? ids : undefined;
+function normalizeStoryTaggedUserIds(raw: unknown, authorId: string): string[] | undefined {
+  return normalizeTaggedUserIds(raw, authorId);
 }
 
 function normalizeStoryLink(raw: unknown): StoryLink | undefined {
@@ -202,7 +176,7 @@ function toPublicStory(story: Story): PublicStory | null {
     videoUrl: story.videoUrl || undefined,
     videoDurationSec: story.videoDurationSec,
     musicTrack: story.musicTrack,
-    taggedUsers: resolveTaggedUsers(story.taggedUserIds),
+    taggedUsers: resolveStoryTaggedUsers(story.taggedUserIds),
     link: story.link,
     createdAt: story.createdAt,
     expiresAt: story.expiresAt,
@@ -258,7 +232,7 @@ export function createStory(
   }
 
   const musicTrack = normalizeMusicTrack(input.musicTrack);
-  const taggedUserIds = normalizeTaggedUserIds(input.taggedUserIds, userId);
+  const taggedUserIds = normalizeStoryTaggedUserIds(input.taggedUserIds, userId);
   const link = normalizeStoryLink(input.link);
   const visibility: 'public' | 'followers' =
     input.visibility === 'public' ? 'public' : 'followers';

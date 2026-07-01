@@ -1,4 +1,74 @@
 ================================================================================
+MODIF 670 — Carte grise + recentrage ville profil (bugs MapView)
+Date : 2026-07-01
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Carte entièrement grise au chargement ; zoom/centre profil non appliqués car
+ moveend programmatique marquait la carte « explorée » (bloquant le recentrage).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapView.tsx
+ ─────────────────
+ • Premier chargement flat : flatReveal=1 (ne pas masquer les tuiles)
+ • moveend programmatique : ne plus appeler onMapExplored
+ • Init + recentrage : zoom ville (12) sur centre profil/GPS
+ • tileerror → repli CDN CARTO si proxy /tiles indisponible
+
+ web/app/src/hooks/useHomeGeoRefresh.ts
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • Bootstrap geo après authBootPending (user.city disponible)
+
+FICHIERS MODIFIÉS
+-----
+ MapView.tsx, useHomeGeoRefresh.ts, HomePage.tsx
+
+BUILD (si vérifié)
+-----
+ mapUserPosition.test.ts → ✅
+
+================================================================================
+Fin — 2026-07-01
+================================================================================
+
+================================================================================
+MODIF 669 — Carte : caméra sur géoloc ou ville profil par défaut
+Date : 2026-07-01
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ À l'ouverture de la carte, la caméra restait sur Paris si le GPS échouait ou si le
+ partage de position était désactivé, au lieu de la ville du profil utilisateur.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/mapUserPosition.ts
+ ─────────────────
+ • resolveMapCameraFallbackCenter : géoloc fixe (prefs) → ville profil → Paris
+
+ web/app/src/hooks/useHomeGeoRefresh.ts
+ web/app/src/pages/HomePage.tsx
+ ─────────────────
+ • Bootstrap carte, recentrage et changement geo : GPS si activé, sinon ville profil
+ • Géocodage async pour villes hors presets (ex. Le Crès)
+
+FICHIERS MODIFIÉS
+-----
+ mapUserPosition.ts, useHomeGeoRefresh.ts, HomePage.tsx, mapUserPosition.test.ts
+
+BUILD (si vérifié)
+-----
+ mapUserPosition.test.ts → ✅ (5 tests)
+
+================================================================================
+Fin — 2026-07-01
+================================================================================
+
+================================================================================
 MODIF 668 — Salon Val visible (fantôme / inactif / profil)
 Date : 2026-06-30
 ================================================================================
@@ -15760,4 +15830,180 @@ DEPLOIEMENT
 
 ================================================================================
 Fin MODIF 889 — 2026-06-30
+================================================================================
+
+================================================================================
+MODIF 890 — Icône « ma position » carte (GPS ou ville profil) — Soundy Dev
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le point bleu (map-user-dot) n'apparaissait qu'avec un fix GPS. Sans
+ géolocalisation active, l'icône disparaissait au lieu de se placer sur
+ la ville configurée dans le profil utilisateur.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/mapUserPosition.ts
+ ─────────────────
+ • resolveProfileCityCoordsSync + hook useMapUserDisplayPosition
+ • GPS si partage de position activé, sinon coords ville profil (sync +
+   géocodage async si besoin) ; masqué en mode fantôme.
+
+ web/app/src/pages/HomePage.tsx
+ ios/apptel/src/pages/HomePage.tsx
+ ─────────────────
+ • mapUserPosition via useMapUserDisplayPosition au lieu de userPosition
+   brut.
+
+ web/app/src/lib/mapUserPosition.test.ts
+ ─────────────────
+ • Tests Le Crès, Montpellier, ville vide.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/mapUserPosition.ts → nouveau helper + hook
+ web/app/src/lib/mapUserPosition.test.ts → tests
+ web/app/src/pages/HomePage.tsx → hook carte
+ ios/apptel/src/pages/HomePage.tsx → idem mobile
+
+BUILD (si vérifié)
+-----
+ web/app/ → vitest mapUserPosition.test.ts → ✅
+
+================================================================================
+Fin MODIF 890 — 2026-06-30
+================================================================================
+
+================================================================================
+MODIF 891 — Tag comptes sur création événement — Soundy Dev
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Lors de la création d'un événement (ex. bar → DJ tagué), possibilité de
+ rechercher et associer des comptes Soundy à l'événement.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/taggedUsers.ts
+ commun/backend/src/lib/feedPosts.ts
+ commun/backend/src/routes/feed.ts
+ commun/backend/src/lib/notifications.ts
+ ─────────────────
+ • eventTaggedUserIds sur FeedPost (max 5) ; eventTaggedUsers en API publique.
+ • Notification event_tagged aux comptes tagués.
+
+ web/app/src/pages/ActualiteTabPage.tsx
+ web/app/src/components/EventTaggedUsersRow.tsx
+ web/app/src/components/EventCard.tsx
+ ─────────────────
+ • StoryUserTagPicker dans le formulaire événement ; affichage « Avec @… »
+   sur le fil et les cartes événement.
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/taggedUsers.ts → helper tag utilisateurs
+ commun/backend/src/lib/taggedUsers.test.ts → tests
+ commun/backend/src/lib/stories.ts → réutilise taggedUsers
+ commun/backend/src/models/schema.ts → eventTaggedUserIds + notif type
+ commun/backend/src/lib/feedPosts.ts → persistance + DTO
+ commun/backend/src/routes/feed.ts → POST + notifyEventTagged
+ commun/backend/src/lib/notifications.ts → notifyEventTagged
+ web/app/src/types.ts → eventTaggedUsers, event_tagged
+ web/app/src/lib/api/feed.ts → eventTaggedUserIds body
+ web/app/src/components/EventTaggedUsersRow.tsx → affichage
+ web/app/src/pages/ActualiteTabPage.tsx → formulaire + fil
+ web/app/src/components/EventCard.tsx → carte événement
+ web/app/src/components/MapEventDetailModal.tsx → modal carte
+ web/app/src/components/NotificationBell.tsx → notif event_tagged
+ web/app/src/lib/mapFeedEvents.ts → propagation marqueur
+ web/app/src/locales/fr.json · en.json → eventTaggedHint
+ ios/apptel/src/types.ts · NotificationBell.tsx → event_tagged
+
+BUILD (si vérifié)
+-----
+ commun/backend/ → vitest taggedUsers + stories → ✅ · tsc → ✅
+ web/app/ → tsc -b → ✅
+
+================================================================================
+Fin MODIF 891 — 2026-06-30
+================================================================================
+
+================================================================================
+MODIF 892 — Profil Mon compte : scroll page entière — Soundy Dev
+Date : 2026-06-30
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur ProfilePage, l'en-tête (avatar, stats, onglets) restait sticky pendant que
+ seul le contenu en dessous défilait — l'utilisateur voulait que toute la page
+ monte au scroll.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/ProfilePage.tsx
+ ─────────────────
+ • Un seul conteneur overflow-y-auto englobe header + contenu des onglets.
+ • Suppression de sticky top-0 sur le bloc en-tête.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/ProfilePage.tsx → scroll unifié profil
+
+================================================================================
+Fin MODIF 892 — 2026-06-30
+================================================================================
+
+================================================================================
+MODIF 892 — Refonte UX en-tête profil (ProfilePage) — Soundy Dev
+Date : 2026-07-01
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L'en-tête de la page Profil (variant compact) manquait de profondeur
+ visuelle : bannière plate, chips méta peu lisibles, bloc stats/bio trop
+ sobres, rangées « Compte » sans repères visuels.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/ProfileHeaderSection.tsx
+ ─────────────────
+ • Bannière hero avec halos dégradés (blur) + fondu vers le fond au lieu
+   d'un simple aplat de couleur.
+ • Avatar : glow renforcé sur l'anneau dégradé (galerie photos), micro
+   interaction hover/active.
+ • Regroupement badge « identité » (profileType) + badge Supporter sur une
+   même ligne dédiée sous le pseudo.
+ • Chips méta (ville, âge, statut) : style verre dépoli plus discret.
+ • Bio affichée dans une carte dédiée (bordure + fond) au lieu d'un simple
+   bloc de texte flottant.
+
+ web/app/src/pages/ProfilePage.tsx
+ ─────────────────
+ • ProfileStatsRow : dégradé de fond, valeurs en tabular-nums extra-bold,
+   libellés en petites majuscules, feedback tactile sur les colonnes
+   cliquables.
+ • Bouton « Modifier le profil » : icône crayon + micro-interaction ;
+   bouton « Annuler » avec hover/active affiné.
+ • Rangées de la section Compte (Comptes connectés / Abonnement /
+   Contacter Soundy / Déconnexion) : icône dédiée dans un badge coloré
+   pour une meilleure lisibilité au scan visuel.
+ • Barre d'onglets profil : transition affinée sur l'indicateur actif.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/ProfileHeaderSection.tsx → refonte visuelle hero/avatar/bio
+ web/app/src/pages/ProfilePage.tsx → stats row, CTA, rangées Compte, icônes
+
+BUILD (si vérifié)
+-----
+ web/app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 892 — 2026-07-01
 ================================================================================

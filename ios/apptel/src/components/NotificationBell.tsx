@@ -18,6 +18,7 @@ function isVisibleNotification(n: AppNotification): boolean {
     n.type === 'content_heart' ||
     n.type === 'follow' ||
     n.type === 'event_created' ||
+    n.type === 'event_tagged' ||
     n.type === 'mention'
   );
 }
@@ -32,6 +33,7 @@ function shouldShowToast(n: AppNotification): boolean {
     n.type === 'content_heart' ||
     n.type === 'follow' ||
     n.type === 'event_created' ||
+    n.type === 'event_tagged' ||
     n.type === 'mention'
   );
 }
@@ -56,6 +58,7 @@ function opensProfileFromNotification(n: AppNotification): boolean {
     n.type === 'content_heart' ||
     n.type === 'follow' ||
     n.type === 'event_created' ||
+    n.type === 'event_tagged' ||
     n.type === 'mention'
   );
 }

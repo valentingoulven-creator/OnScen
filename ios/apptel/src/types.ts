@@ -201,6 +201,7 @@ export interface AppNotification {
     | 'content_heart'
     | 'follow'
     | 'event_created'
+    | 'event_tagged'
     | 'mention'
     | 'support_contact'
     | 'support_reply'

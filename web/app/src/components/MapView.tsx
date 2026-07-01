@@ -84,6 +84,13 @@ const TILE_WARMUP_MIN_MS = 60;
 /** Max wait for first Carto tiles before crossfade anyway (ms). */
 const TILE_WARMUP_MAX_MS = 380;
 
+/** Zoom par défaut : niveau ville (profil / recentrage). */
+export const MAP_DEFAULT_CITY_ZOOM = 12;
+
+const CARTO_TILES_PROXY = '/tiles/{z}/{x}/{y}{r}.png';
+const CARTO_TILES_DIRECT =
+  'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+
 /** Délai sélection marqueur après bascule globe → carte (ms). */
 export const MAP_GLOBE_FLAT_DO_SELECT_MS = 150;
 
@@ -101,8 +108,8 @@ function shouldCommitFlatMapZoom(prevZoom: number, nextZoom: number): boolean {
 const TILE_LAYERS: Record<MapStyle, { url: string; attribution: string; maxZoom: number }> = {
   flat: {
     // Local tile proxy — backend fetches from CARTO and caches tiles on disk.
-    // Falls back gracefully (502) when the upstream is unreachable.
-    url: '/tiles/{z}/{x}/{y}{r}.png',
+    // tileerror → repli CDN direct si le proxy est indisponible (dev sans msdev).
+    url: CARTO_TILES_PROXY,
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
     maxZoom: 19,
@@ -238,6 +245,9 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   const [flatCapitalsRevision, setFlatCapitalsRevision] = useState(0);
   const globeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const crossfadeRafRef = useRef<number | null>(null);
+  const prevMapStyleRef = useRef<MapStyle | null>(null);
+  const centerRef = useRef(center);
+  centerRef.current = center;
   const skipCenterFlyRef = useRef(false);
   const programmaticMapMoveUntilRef = useRef(0);
   const onMapDetailStateChangeRef = useRef(onMapDetailStateChange);
@@ -640,7 +650,23 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       return;
     }
 
-    // Switching to flat — keep globe mounted during crossfade
+    const prevStyle = prevMapStyleRef.current;
+    prevMapStyleRef.current = mapStyle;
+
+    // Déjà en mode flat (premier chargement) — ne pas masquer les tuiles.
+    if (prevStyle !== 'globe') {
+      setShowGlobe(false);
+      setFlatReveal(1);
+      if (mapInstance.current) {
+        try {
+          mapInstance.current.invalidateSize();
+          tileLayerRef.current?.redraw();
+        } catch { /* map may not be ready */ }
+      }
+      return;
+    }
+
+    // Globe → flat : crossfade avec préchauffe tuiles
     setShowGlobe(true);
     setFlatReveal(0);
 
@@ -722,7 +748,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     const win = window as Window & { L?: typeof L };
     if (!win.L) win.L = L;
 
-    const initial = safeCenter(center);
+    const initial = safeCenter(centerRef.current);
 
     const MAP_INIT_OPTIONS: L.MapOptions = {
       zoomControl: false,
@@ -741,11 +767,13 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
 
     let map: L.Map;
     try {
-      map = L.map(mapRef.current, MAP_INIT_OPTIONS).setView(initial, 14);
+      skipCenterFlyRef.current = true;
+      map = L.map(mapRef.current, MAP_INIT_OPTIONS).setView(initial, MAP_DEFAULT_CITY_ZOOM);
     } catch (err) {
       console.error('[MapView] Leaflet init error:', err);
       try {
-        map = L.map(mapRef.current, MAP_INIT_OPTIONS).setView([...DEFAULT_CENTER], 14);
+        skipCenterFlyRef.current = true;
+        map = L.map(mapRef.current, MAP_INIT_OPTIONS).setView([...DEFAULT_CENTER], MAP_DEFAULT_CITY_ZOOM);
       } catch {
         return;
       }
@@ -792,7 +820,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     // so they can warm up before the crossfade reveals the flat map.
     const flatCfg = TILE_LAYERS.flat;
     const touchCoarse = isTouchCoarseViewport();
-    tileLayerRef.current = L.tileLayer(flatCfg.url, {
+    const tileLayer = L.tileLayer(flatCfg.url, {
       attribution: flatCfg.attribution,
       maxZoom: flatCfg.maxZoom,
       noWrap: true,
@@ -802,6 +830,15 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       keepBuffer: touchCoarse ? 4 : 3,
       crossOrigin: touchCoarse,
     }).addTo(map);
+    tileLayerRef.current = tileLayer;
+    let tileProxyFailed = false;
+    tileLayer.on('tileerror', () => {
+      if (tileProxyFailed) return;
+      tileProxyFailed = true;
+      console.warn('[MapView] tile proxy unavailable — fallback CARTO CDN');
+      tileLayer.setUrl(CARTO_TILES_DIRECT);
+      tileLayer.redraw();
+    });
 
     const onMapClick = () => onMapBackgroundClickRef.current?.();
     map.on('click', onMapClick);
@@ -828,16 +865,16 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     };
     const onMapMoveEnd = () => {
       onViewChange();
-      const programmatic = skipCenterFlyRef.current;
-      if (programmatic) {
-        skipCenterFlyRef.current = false;
-      }
+      const programmatic =
+        skipCenterFlyRef.current || Date.now() < programmaticMapMoveUntilRef.current;
+      skipCenterFlyRef.current = false;
       try {
         const c = map.getCenter();
         if (!isValidLatLng(c.lat, c.lng)) return;
+        onFlatMapViewportCenterRef.current?.(c.lat, c.lng);
+        if (programmatic) return;
         userMapPanRef.current = true;
         onMapExploredRef.current?.();
-        onFlatMapViewportCenterRef.current?.(c.lat, c.lng);
       } catch {
         /* map may not be ready */
       }
@@ -905,8 +942,10 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     }
     userMapPanRef.current = false;
     try {
-      const zoom = map.getZoom();
-      map.flyTo(sanitizeLatLngTuple(center[0], center[1]), zoom, { duration: 0.6 });
+      skipCenterFlyRef.current = true;
+      map.flyTo(sanitizeLatLngTuple(center[0], center[1]), MAP_DEFAULT_CITY_ZOOM, {
+        duration: 0.6,
+      });
     } catch (err) {
       console.error('[MapView] flyTo error:', err);
     }

@@ -1,7 +1,10 @@
 import { useEffect, useRef, type MutableRefObject, type RefObject } from 'react';
-import { getLivesGeo, isFixedMapGeoSource } from '../lib/livesGeo';
+import { normalizeCityLabel } from '../lib/eventLocationPresets';
+import { resolveEventCoords } from '../lib/mapEventCoords';
+import { DEFAULT_CENTER, getLivesGeo, isFixedMapGeoSource } from '../lib/livesGeo';
+import { isValidLatLng, sanitizeLatLngTuple } from '../lib/mapCoords';
+import { resolveMapCameraFallbackCenter } from '../lib/mapUserPosition';
 import { getPrivacyPreferences } from '../lib/settings';
-import { sanitizeLatLngTuple } from '../lib/mapCoords';
 
 export const HOME_GEO_REFRESH_INTERVAL_MS = 30_000;
 export const HOME_GEO_REFRESH_BACKGROUND_MS = 60_000;
@@ -17,6 +20,9 @@ function geoRefreshIntervalMs(): number {
 export function useHomeGeoRefresh(options: {
   isActive: boolean;
   token: string | null;
+  /** Attendre la fin du boot auth pour avoir user.city avant le fallback Paris. */
+  geoBootstrapReady?: boolean;
+  profileCity?: string;
   center: Coords;
   defaultCenter: Coords;
   loadNearbyAt: (coords: Coords, opts?: { updateUserGeo?: boolean }) => void;
@@ -30,6 +36,8 @@ export function useHomeGeoRefresh(options: {
   const {
     isActive,
     token,
+    geoBootstrapReady = true,
+    profileCity,
     center,
     defaultCenter,
     loadNearbyAt,
@@ -51,22 +59,54 @@ export function useHomeGeoRefresh(options: {
   const defaultCenterRef = useRef(defaultCenter);
   defaultCenterRef.current = defaultCenter;
 
-  /** Bootstrap GPS / ville — une seule fois à l'activation, pas à chaque pan/zoom carte. */
-  useEffect(() => {
-    if (!isActive || !token) return;
+  const profileCityRef = useRef(profileCity);
+  profileCityRef.current = profileCity;
 
+  /** Bootstrap GPS / ville profil — une seule fois à l'activation, pas à chaque pan/zoom carte. */
+  useEffect(() => {
+    if (!isActive || !token || !geoBootstrapReady) return;
+
+    let cancelled = false;
     const geo = getLivesGeo();
     const { locationSharing } = getPrivacyPreferences();
+
+    const applyProfileCityFallback = () => {
+      const fallback = resolveMapCameraFallbackCenter(profileCityRef.current);
+      if (!mapExploredRef.current) {
+        setSafeCenter(fallback);
+      }
+      loadNearbyAt(fallback);
+
+      const label = normalizeCityLabel(profileCityRef.current ?? '').trim();
+      const isDefaultParis =
+        fallback[0] === DEFAULT_CENTER[0] && fallback[1] === DEFAULT_CENTER[1];
+      if (!label || !isDefaultParis) return;
+
+      void resolveEventCoords(label).then((coords) => {
+        if (cancelled || !coords || mapExploredRef.current) return;
+        if (!isValidLatLng(coords.latitude, coords.longitude)) return;
+        const resolved: Coords = sanitizeLatLngTuple(
+          coords.latitude,
+          coords.longitude,
+          defaultCenter
+        );
+        if (!mapExploredRef.current) {
+          setSafeCenter(resolved);
+        }
+        loadNearbyAtRef.current(resolved);
+      });
+    };
 
     if (isFixedMapGeoSource(geo.source)) {
       const coords: Coords = [geo.latitude, geo.longitude];
       setSafeCenter(coords);
       loadNearbyAt(coords);
     } else if (!navigator.geolocation || !locationSharing) {
-      loadNearbyFromStateRef.current(null, centerRef.current);
+      applyProfileCityFallback();
     } else {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
+          if (cancelled) return;
           const coords: Coords = [pos.coords.latitude, pos.coords.longitude];
           setUserPosition(sanitizeLatLngTuple(coords[0], coords[1], defaultCenter));
           if (!mapExploredRef.current) {
@@ -74,12 +114,21 @@ export function useHomeGeoRefresh(options: {
           }
           loadNearbyAt(coords);
         },
-        () => loadNearbyFromStateRef.current(null, centerRef.current)
+        () => {
+          if (cancelled) return;
+          applyProfileCityFallback();
+        }
       );
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     isActive,
     token,
+    geoBootstrapReady,
+    profileCity,
     defaultCenter,
     loadNearbyAt,
     setSafeCenter,

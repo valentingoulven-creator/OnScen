@@ -11,6 +11,7 @@ import {
   schedulePersistFeedPostLike,
   schedulePersistFeedPostToPg,
 } from './pgFeedPosts';
+import { normalizeTaggedUserIds, resolveTaggedUsers, type PublicTaggedUser } from './taggedUsers';
 
 const MAX_CONTENT_LEN = 2000;
 const MIN_CONTENT_LEN = 1;
@@ -104,6 +105,7 @@ export interface PublicFeedPost {
   eventEndTimes?: (string | null)[];
   eventLocation?: string;
   eventType?: 'dance' | 'chant' | 'autre';
+  eventTaggedUsers?: PublicTaggedUser[];
   author: {
     id: string;
     username: string;
@@ -258,6 +260,7 @@ export function createFeedPost(
     eventEndTimes?: unknown;
     eventLocation?: string;
     eventType?: string;
+    eventTaggedUserIds?: unknown;
   }
 ): { ok: true; post: PublicFeedPost } | { ok: false; error: string } {
   const user = db.users.get(userId);
@@ -301,6 +304,7 @@ export function createFeedPost(
   let eventEndTimes: (string | null)[] | undefined;
   let eventLocation: string | undefined;
   let eventType: 'dance' | 'chant' | 'autre' | undefined;
+  let eventTaggedUserIds: string[] | undefined;
   if (input.isEvent) {
     const normalizedDates = normalizeEventDates(input.eventDates, input.eventDate, input.eventEndTimes);
     if (!normalizedDates) {
@@ -317,6 +321,7 @@ export function createFeedPost(
       : undefined;
     eventLocation = loc;
     eventType = normalizeEventType(input.eventType);
+    eventTaggedUserIds = normalizeTaggedUserIds(input.eventTaggedUserIds, userId);
   }
 
   const post: FeedPost = {
@@ -326,7 +331,15 @@ export function createFeedPost(
     ...(imageUrl ? { imageUrl } : {}),
     ...(videoUrl ? { videoUrl } : {}),
     ...(input.isEvent
-      ? { isEvent: true, eventDate, eventDates, eventEndTimes, eventLocation, eventType }
+      ? {
+          isEvent: true,
+          eventDate,
+          eventDates,
+          eventEndTimes,
+          eventLocation,
+          eventType,
+          ...(eventTaggedUserIds ? { eventTaggedUserIds } : {}),
+        }
       : {}),
     createdAt: Date.now(),
   };
@@ -536,6 +549,9 @@ function toPublicPost(
             : {}),
           eventLocation: post.eventLocation,
           eventType: post.eventType ?? 'autre',
+          ...(post.eventTaggedUserIds?.length
+            ? { eventTaggedUsers: resolveTaggedUsers(post.eventTaggedUserIds) }
+            : {}),
         }
       : {}),
     author: authorDto(author),
