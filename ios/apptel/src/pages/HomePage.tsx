@@ -47,6 +47,7 @@ import { pauseAllReelsMediaInDom } from '../lib/reelsMedia';
 import { releaseAppMediaFocus, requestAppMediaFocus } from '../lib/appMediaFocus';
 import { clearSalonUrlFromBar } from '../lib/salonDeepLink';
 import { mergeRemotePlaybackState } from '../lib/salonPlayback';
+import { useMapUserDisplayPosition } from '../lib/mapUserPosition';
 import { USERNAME_WAVE_CLASS } from '../lib/usernameColor';
 import type { PlaybackState } from '../types';
 
@@ -195,6 +196,12 @@ export function HomePage({
   ]);
 
   const mapPeople = useMemo(() => peopleMarkersOnMap(filteredNearbyPeople), [filteredNearbyPeople]);
+
+  const mapUserPosition = useMapUserDisplayPosition(
+    userPosition,
+    user?.city,
+    user?.isGhostMode
+  );
 
   const mapSalons = useMemo(() => {
     const filtered = filterSalonsForMap(salons, filteredNearbyPeople, nearbyPanelPrefs).filter((s) =>
@@ -727,7 +734,7 @@ export function HomePage({
           lives={mapLives}
           people={mapPeople}
           center={center}
-          userPosition={userPosition ?? undefined}
+          userPosition={mapUserPosition ?? undefined}
           onSelectSalon={(s) => handleMapSalonClick(s)}
           onSelectLive={(l) => onOpenLive(l.id)}
           onSelectPerson={handleMapPersonClick}

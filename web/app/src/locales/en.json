@@ -987,7 +987,7 @@
     "memberSince": "Member since {{date}}",
     "ageYears": "{{count}} yrs",
     "noUpcomingEvents": "No upcoming events",
-    "tabCompositions": "Discography",
+    "tabCompositions": "Album",
     "compositions": {
       "createAlbum": "Create album",
       "createAlbumTitle": "New album",
@@ -2213,6 +2213,7 @@
     "eventDateValidate": "Confirm",
     "eventLocation": "Location",
     "eventLocationSave": "Save this location for my next events",
+    "eventTaggedHint": "E.g. tag the DJ, an artist or event partner.",
     "eventType": "Event type",
     "eventTypeDance": "Dance",
     "eventTypeChant": "Singing",

@@ -38,6 +38,7 @@ function postToMapEventMarker(
     authorUsernameColor: post.author.usernameColor,
     authorUsernameWaveFrom: post.author.usernameWaveFrom,
     authorUsernameWaveTo: post.author.usernameWaveTo,
+    ...(post.eventTaggedUsers?.length ? { eventTaggedUsers: post.eventTaggedUsers } : {}),
   };
 }
 
@@ -82,6 +83,7 @@ export function feedPostFromMapEventMarker(
       eventEndTimes: marker.eventEndTimes,
       eventLocation: marker.eventLocation,
       eventType: marker.eventType,
+      ...(marker.eventTaggedUsers?.length ? { eventTaggedUsers: marker.eventTaggedUsers } : {}),
     },
     savedEventPostIds
   );

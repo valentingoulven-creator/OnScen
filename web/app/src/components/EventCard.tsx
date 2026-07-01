@@ -14,6 +14,7 @@ import type { FeedPost } from '../types';
 import { UserAvatarOnline } from './UserAvatarOnline';
 import { UsernameDisplay } from './UsernameDisplay';
 import { OpenLocationMenu } from './OpenLocationMenu';
+import { EventTaggedUsersRow } from './EventTaggedUsersRow';
 
 function CalendarIcon({ className }: { className?: string }) {
   return (
@@ -58,6 +59,8 @@ export interface EventCardProps {
   profileActions?: ReactNode;
   /** Clic sur l'organisateur → profil (ligne profil hors du bouton carte). */
   onOpenAuthor?: (post: FeedPost) => void;
+  /** Clic sur un compte tagué → profil. */
+  onOpenTaggedUser?: (userId: string) => void;
   /** Intégré dans un modal — sans bordure ni halo autour de la carte. */
   embedded?: boolean;
   /** Clic sur le lieu → menu Google Maps / Waze / Plans. */
@@ -76,6 +79,7 @@ export function EventCard({
   extraBadges,
   profileActions,
   onOpenAuthor,
+  onOpenTaggedUser,
   embedded = false,
   locationNavigable = false,
   locationCoords = null,
@@ -314,6 +318,10 @@ export function EventCard({
       {extraBadges ? <div className="flex items-center gap-1.5 flex-wrap">{extraBadges}</div> : null}
 
       {locationRow}
+
+      {post.eventTaggedUsers && post.eventTaggedUsers.length > 0 ? (
+        <EventTaggedUsersRow taggedUsers={post.eventTaggedUsers} onOpenUser={onOpenTaggedUser} />
+      ) : null}
 
       {eventDates.length > 0 ? (
         <div className="space-y-1">

@@ -613,6 +613,7 @@ export interface AppNotification {
     | 'content_heart'
     | 'follow'
     | 'event_created'
+    | 'event_tagged'
     | 'mention'
     | 'support_contact'
     | 'support_reply'
@@ -736,6 +737,8 @@ export interface FeedPost {
   eventType?: 'dance' | 'chant' | 'autre';
   /** Heures de fin parallèles à eventDates (null = pas d'heure de fin pour cette date). */
   eventEndTimes?: (string | null)[];
+  /** Comptes tagués (DJ, artiste, partenaire…) — ids utilisateurs. */
+  eventTaggedUserIds?: string[];
   /** Masqué par modération admin (fil et carte). */
   adminBlocked?: boolean;
   adminBlockedAt?: number;

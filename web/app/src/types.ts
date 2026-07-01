@@ -857,6 +857,7 @@ export interface AppNotification {
     | 'content_heart'
     | 'follow'
     | 'event_created'
+    | 'event_tagged'
     | 'mention'
     | 'support_contact'
     | 'support_reply'
@@ -1330,6 +1331,8 @@ export interface FeedPost {
   eventLocation?: string;
   /** Type d'événement : danse, chant ou autre (défaut autre). */
   eventType?: FeedEventType;
+  /** Comptes tagués (DJ, artiste, partenaire…). */
+  eventTaggedUsers?: StoryTaggedUser[];
 }
 
 /** Marqueur événement sur la carte (publication fil + coords résolues). */
@@ -1343,6 +1346,7 @@ export interface MapEventMarker {
   eventEndTimes?: (string | null)[];
   eventLocation?: string;
   eventType?: FeedEventType;
+  eventTaggedUsers?: StoryTaggedUser[];
   authorId?: string;
   authorUsername?: string;
   authorAvatarUrl?: string;

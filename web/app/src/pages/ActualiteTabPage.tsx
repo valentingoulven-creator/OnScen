@@ -20,7 +20,7 @@ import {
 import { geocodeCountryFromQuery } from '../lib/geocodeAddress';
 import { resolveEventCoords } from '../lib/mapEventCoords';
 import { dispatchMapEventsRefresh, dispatchMapOpenCreateSalon } from '../lib/mapUiEvents';
-import type { CommentAlign, FeedPost, FeedPostComment, MapStory, MusicNewsItem, TrendingUser } from '../types';
+import type { CommentAlign, FeedPost, FeedPostComment, MapStory, MusicNewsItem, StoryTaggedUser, TrendingUser } from '../types';
 import { StoryAvatarRing } from '../components/MapStoryRings';
 import { StoriesInlineBar, type StorySheetState } from '../components/StoriesInlineBar';
 import { FeedInlineAdBanner } from '../components/FeedInlineAdBanner';
@@ -43,7 +43,8 @@ import { EventsCarousel } from '../components/EventsCarousel';
 import { HorizontalScrollCarousel } from '../components/HorizontalScrollCarousel';
 import { NewsArticleCard } from '../components/NewsArticleCard';
 import { getUpcomingUserEvents, getEventDates, getEventDateEntries, formatEventDateWithEndTime, getPrimaryEventDate, hasUpcomingEventDate } from '../lib/feedEvents';
-import { EventLocationInput } from '../components/EventLocationInput';
+import { EventTaggedUsersRow } from '../components/EventTaggedUsersRow';
+import { CreateFeedEventModal } from '../components/CreateFeedEventModal';
 import { readSavedEventLocation, writeSavedEventLocation } from '../lib/savedEventLocation';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { mapFeaturedSoundFromApi, type FeaturedUserSoundItem } from '../lib/featuredUserSounds';
@@ -68,7 +69,6 @@ interface WeeklyTopSong {
 import {
   formatEventDateRangeChip,
 } from '../lib/eventDateInput';
-import { EventDatePickerInput } from '../components/EventDatePickerInput';
 
 const PhotoImageEditor = lazy(() =>
   import('../components/PhotoImageEditor').then((m) => ({ default: m.PhotoImageEditor }))
@@ -725,6 +725,7 @@ function ActualitesContent({
 interface PostCardProps {
   post: FeedPost;
   onOpenAuthor: (post: FeedPost) => void;
+  onOpenUser?: (userId: string) => void;
   storiesByUser: Map<string, MapStory[]>;
   commentOpenPostId: string | null;
   commentDraft: string;
@@ -743,6 +744,7 @@ interface PostCardProps {
 const PostCard = memo(function PostCard({
   post,
   onOpenAuthor,
+  onOpenUser,
   storiesByUser,
   commentOpenPostId,
   commentDraft,
@@ -841,6 +843,13 @@ const PostCard = memo(function PostCard({
               <span className="text-xs text-gray-200">{post.eventLocation}</span>
             </div>
           )}
+          {post.eventTaggedUsers && post.eventTaggedUsers.length > 0 ? (
+            <EventTaggedUsersRow
+              taggedUsers={post.eventTaggedUsers}
+              onOpenUser={onOpenUser}
+              className="pt-0.5"
+            />
+          ) : null}
         </div>
       )}
 
@@ -1084,6 +1093,8 @@ export function ActualiteTabPage({
   const [eventLocation, setEventLocation] = useState('');
   const [saveEventLocation, setSaveEventLocation] = useState(true);
   const [eventType, setEventType] = useState<'dance' | 'chant' | 'autre'>('autre');
+  const [eventTaggedUsers, setEventTaggedUsers] = useState<StoryTaggedUser[]>([]);
+  const [eventModalOpen, setEventModalOpen] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set());
 
   const [newsItems, setNewsItems] = useState<MusicNewsItem[]>([]);
@@ -1621,6 +1632,7 @@ export function ActualiteTabPage({
   const resetEventForm = () => {
     setConfirmedEventDates([]);
     setEventType('autre');
+    setEventTaggedUsers([]);
     const savedLocation = readSavedEventLocation();
     setEventLocation(savedLocation ?? '');
   };
@@ -1653,6 +1665,9 @@ export function ActualiteTabPage({
           e.end ? new Date(e.end).toISOString() : null
         );
         if (endTimesIso.some(Boolean)) body.eventEndTimes = endTimesIso;
+        if (eventTaggedUsers.length > 0) {
+          body.eventTaggedUserIds = eventTaggedUsers.map((u) => u.id);
+        }
       }
       const r = await api.createFeedPost(token, body);
       if (isEvent && body.eventLocation) {
@@ -1978,6 +1993,17 @@ export function ActualiteTabPage({
                             <span className="text-[10px] text-gray-400">{t('feed.eventLocationSave')}</span>
                           </label>
                         </div>
+                        {token ? (
+                          <div className="rounded-lg border border-[#2a2a3d] bg-[#0b0b0f]/80 p-3">
+                            <StoryUserTagPicker
+                              token={token}
+                              tagged={eventTaggedUsers}
+                              onChange={setEventTaggedUsers}
+                              maxTags={5}
+                            />
+                            <p className="mt-1.5 text-[10px] text-gray-500">{t('feed.eventTaggedHint')}</p>
+                          </div>
+                        ) : null}
                       </div>
                     )}
 
@@ -2125,6 +2151,7 @@ export function ActualiteTabPage({
                           resharedByMe: !!post.resharedByMe || linkSharedPostIds.has(post.id),
                         }}
                         onOpenAuthor={handlePostAuthorClick}
+                        onOpenUser={onOpenProfile}
                         storiesByUser={feedStoriesByUser}
                         commentOpenPostId={commentOpenPostId}
                         commentDraft={commentDrafts[post.id] ?? ''}

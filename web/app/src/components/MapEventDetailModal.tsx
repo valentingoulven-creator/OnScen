@@ -146,6 +146,10 @@ export function MapEventDetailModal({
                         onClose();
                       }
                     }}
+                    onOpenTaggedUser={(userId) => {
+                      onOpenAuthor?.(userId);
+                      onClose();
+                    }}
                     onOpen={() => {
                       onOpenInFeed?.(activePost.id);
                       onClose();

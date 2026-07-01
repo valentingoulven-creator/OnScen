@@ -52,6 +52,7 @@ export const feedApi = {
       eventEndTimes?: (string | null)[];
       eventLocation?: string;
       eventType?: 'dance' | 'chant' | 'autre';
+      eventTaggedUserIds?: string[];
     }
   ) =>
     request<{ post: import('../../types').FeedPost }>(
