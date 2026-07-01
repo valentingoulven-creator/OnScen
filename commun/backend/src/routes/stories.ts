@@ -4,6 +4,7 @@ import { asyncHandler } from '../lib/asyncHandler';
 import { schedulePersist } from '../lib/persist';
 import { createStory, deleteStory, getUserActiveStories, listStoriesForViewer } from '../lib/stories';
 import { notifyMentions } from '../lib/mentions';
+import { notifyStoryTagged } from '../lib/notifications';
 import { db } from '../models/schema';
 import { moderateImageSource, moderateVideoSource, moderationRejectionMessage } from '../lib/contentModeration';
 
@@ -73,6 +74,13 @@ storiesRouter.post('/', authenticateJWT, asyncHandler(async (req: Request, res: 
   const storyAuthor = db.users.get(me);
   if (storyAuthor && result.story.content) {
     notifyMentions(result.story.content, me, storyAuthor.username, 'story', result.story.id, storyAuthor.avatarUrl);
+  }
+  if (storyAuthor && result.story.taggedUsers?.length) {
+    notifyStoryTagged({
+      creator: { id: me, username: storyAuthor.username, avatarUrl: storyAuthor.avatarUrl },
+      storyId: result.story.id,
+      taggedUserIds: result.story.taggedUsers.map((u) => u.id),
+    });
   }
   res.status(201).json({ story: result.story });
 }));

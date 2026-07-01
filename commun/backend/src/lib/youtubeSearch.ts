@@ -1,7 +1,6 @@
 import { parseMusicLink, buildPlatformTrackUrl } from './musicLinks';
 import { searchCatalogYoutube } from './musicCatalog';
 import { searchVideosViaDataApi, YoutubeDataApiError } from './youtubeDataApi';
-import { searchVideosViaInvidious, searchVideosViaPiped } from './youtubeRemote';
 import { isYoutubeRemoteFallbackAllowed } from './youtubeCompliance';
 
 export interface YoutubeSearchResult {
@@ -86,19 +85,39 @@ export async function searchYoutube(
         toResult(parsed.trackId, meta.title, meta.artist ?? 'YouTube'),
       ]);
     }
+    // oEmbed a échoué (vidéo privée/supprimée/restreinte par région). Le videoId a déjà été
+    // extrait du lien collé : on renvoie un résultat minimal basé sur cet ID plutôt que de
+    // retomber sur search.list avec le texte brut de l'URL (requête sans valeur ajoutée qui
+    // gaspillerait un appel du budget quotidien dédié de 100 appels/jour).
+    return [toResult(parsed.trackId, 'Vidéo YouTube', 'YouTube')];
   }
 
   const remoteHits: YoutubeSearchResult[] = [];
 
-  const apiHits = await searchVideosViaDataApi(q, accessToken).catch((e) => {
-    if (e instanceof YoutubeDataApiError) throw e;
-    return [] as Awaited<ReturnType<typeof searchVideosViaDataApi>>;
-  });
+  let apiHits: Awaited<ReturnType<typeof searchVideosViaDataApi>> = [];
+  try {
+    apiHits = await searchVideosViaDataApi(q, accessToken);
+  } catch (e) {
+    if (e instanceof YoutubeDataApiError) {
+      if (e.isQuotaExceeded) {
+        // Budget search.list épuisé pour aujourd'hui : bascule silencieuse sur le catalogue
+        // local (et Piped/Invidious en msdev) plutôt que de renvoyer une erreur à l'utilisateur.
+        console.warn('[youtube-search] quota search.list épuisé — bascule catalogue local.');
+      } else {
+        throw e; // autres erreurs (auth expirée, réseau, etc.) restent visibles côté route
+      }
+    }
+  }
   for (const h of apiHits) {
     remoteHits.push(toResult(h.videoId, h.title, h.artist, h.thumbnailUrl));
   }
 
   if (isYoutubeRemoteFallbackAllowed()) {
+    // Import dynamique : le module youtubeRemote.ts (proxies Piped/Invidious, non conformes
+    // aux ToS YouTube) n'est chargé/exécuté qu'en msdev, jamais en production, même si son
+    // code source reste présent dans le repo (garde-fou run-time déjà appliqué en amont).
+    const { searchVideosViaPiped, searchVideosViaInvidious } = await import('./youtubeRemote');
+
     if (remoteHits.length < 8) {
       const piped = await searchVideosViaPiped(q);
       for (const h of piped) {

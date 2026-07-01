@@ -26,6 +26,8 @@ import { ShareToUserSheet } from './ShareToUserSheet';
 
 import { getAlbumShareUrl } from '../lib/shareLink';
 
+import { prepareImageFile } from '../lib/imageUtils';
+
 
 
 const MAX_FEED_IMAGE_DATA_CHARS = 1_200_000;
@@ -170,7 +172,8 @@ type ViewMode = 'grid' | 'album' | 'loose';
 
 const COVER_MAX_BYTES = 3 * 1024 * 1024;
 
-const COVER_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif';
+const COVER_ACCEPT =
+  'image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.gif,.heic,.heif';
 
 
 
@@ -878,7 +881,21 @@ export function UserCompositionsSection({
 
     setCreateAlbumError(null);
 
-    const validationError = validateCoverFile(file);
+    let preparedFile: File;
+
+    try {
+
+      preparedFile = await prepareImageFile(file);
+
+    } catch (e) {
+
+      setCreateAlbumError(e instanceof Error ? e.message : t('profile.compositions.createAlbumFailed'));
+
+      return;
+
+    }
+
+    const validationError = validateCoverFile(preparedFile);
 
     if (validationError) {
 
@@ -890,11 +907,11 @@ export function UserCompositionsSection({
 
     try {
 
-      const dataUrl = await readFileAsDataUrl(file);
+      const dataUrl = await readFileAsDataUrl(preparedFile);
 
       setAlbumCoverDataUrl(dataUrl);
 
-      setAlbumCoverName(file.name);
+      setAlbumCoverName(preparedFile.name);
 
     } catch {
 

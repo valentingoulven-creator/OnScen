@@ -3,6 +3,7 @@ import {
   type Salon,
   type SalonTrackProposal,
   type UserComposition,
+  type UserReel,
   type WeeklySongVote,
 } from '../models/schema';
 
@@ -116,6 +117,50 @@ export function recordCompositionWeeklyVote(
   }
 }
 
+/**
+ * Record or retract a weekly upvote (heart) on a user reel.
+ */
+export function recordReelWeeklyVote(
+  reel: UserReel,
+  voterId: string,
+  isAdding: boolean
+): void {
+  const proposalId = `reel:${reel.id}`;
+  const id = `${proposalId}__${voterId}`;
+  const now = Date.now();
+  const weekStart = getWeekStart(now);
+  const twoWeeksAgo = weekStart - 14 * 24 * 60 * 60 * 1000;
+  const keep = db.weeklyVotes.filter((v) => v.votedAt >= twoWeeksAgo);
+  db.weeklyVotes.length = 0;
+  db.weeklyVotes.push(...keep);
+
+  const owner = db.users.get(reel.authorId);
+  const existingIdx = db.weeklyVotes.findIndex((v) => v.id === id);
+  if (isAdding) {
+    const entry: WeeklySongVote = {
+      id,
+      votedAt: now,
+      weekStart,
+      voterId,
+      salonId: '',
+      proposalId,
+      songTitle: reel.title,
+      songArtist: reel.artist,
+      proposerName: owner?.username ?? 'Artiste',
+      sourceType: 'reel',
+      reelId: reel.id,
+      reelOwnerId: reel.authorId,
+    };
+    if (existingIdx >= 0) {
+      db.weeklyVotes[existingIdx] = entry;
+    } else {
+      db.weeklyVotes.push(entry);
+    }
+  } else if (existingIdx >= 0) {
+    db.weeklyVotes.splice(existingIdx, 1);
+  }
+}
+
 // ─── Query ────────────────────────────────────────────────────────────────────
 
 export interface WeeklyTopSongResult {
@@ -160,6 +205,7 @@ export function getWeeklyTopSongs(limit = 10): WeeklyTopSongResult[] {
     { sample: WeeklySongVote; count: number }
   >();
   for (const vote of thisWeek) {
+    if (vote.sourceType === 'reel') continue;
     addWeeklyVoteToMap(byProposal, vote);
   }
 
@@ -211,4 +257,53 @@ export function getWeeklyTopSongs(limit = 10): WeeklyTopSongResult[] {
       compositionId: sample.compositionId,
       compositionOwnerId: sample.compositionOwnerId,
     }));
+}
+
+/**
+ * Upvotes discographie (compositionId → count) pour la semaine en cours (lundi 00:00).
+ * Fusionne le ledger weeklyVotes et le backfill compositionUpvotes.
+ */
+export function getWeeklyCompositionUpvoteCounts(): Map<string, number> {
+  const weekStart = getWeekStart();
+  const counts = new Map<string, number>();
+
+  const bump = (compositionId: string) => {
+    counts.set(compositionId, (counts.get(compositionId) ?? 0) + 1);
+  };
+
+  for (const vote of db.weeklyVotes) {
+    if (vote.votedAt < weekStart) continue;
+    if (vote.sourceType !== 'composition' || !vote.compositionId) continue;
+    bump(vote.compositionId);
+  }
+
+  const recordedVoteIds = new Set(
+    db.weeklyVotes
+      .filter((v) => v.votedAt >= weekStart && v.sourceType === 'composition' && v.compositionId)
+      .map((v) => v.id),
+  );
+
+  for (const upvote of db.compositionUpvotes) {
+    if (upvote.votedAt < weekStart) continue;
+    const voteId = `comp:${upvote.compositionId}__${upvote.userId}`;
+    if (recordedVoteIds.has(voteId)) continue;
+    recordedVoteIds.add(voteId);
+    bump(upvote.compositionId);
+  }
+
+  return counts;
+}
+
+/** Hearts reels (reelId → count) pour la semaine en cours (lundi 00:00). */
+export function getWeeklyReelUpvoteCounts(): Map<string, number> {
+  const weekStart = getWeekStart();
+  const counts = new Map<string, number>();
+
+  for (const vote of db.weeklyVotes) {
+    if (vote.votedAt < weekStart) continue;
+    if (vote.sourceType !== 'reel' || !vote.reelId) continue;
+    counts.set(vote.reelId, (counts.get(vote.reelId) ?? 0) + 1);
+  }
+
+  return counts;
 }

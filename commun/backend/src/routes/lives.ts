@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { Router, Request, Response } from 'express';
 import { DEFAULT_PLAYBACK_SESSION_TITLE } from '../lib/brandName';
 import { db, Live, MusicPlatform, User } from '../models/schema';
@@ -65,6 +66,33 @@ import { getIo } from '../lib/ioInstance';
 import { buildIceServers } from '../lib/iceServers';
 
 export const livesRouter = Router();
+
+/**
+ * Exécute `fn`; si elle lève une PlatformPlanError, répond en 403 avec le code plan
+ * et renvoie `false` (l'appelant doit alors faire `return`). Toute autre erreur est
+ * re-lancée. Évite de dupliquer le même bloc try/catch à chaque garde de plan.
+ */
+function runOrRespondPlanError(res: Response, fn: () => void): boolean {
+  try {
+    fn();
+    return true;
+  } catch (e) {
+    if (e instanceof PlatformPlanError) {
+      res.status(403).json({ error: e.message, code: e.code });
+      return false;
+    }
+    throw e;
+  }
+}
+
+const MAX_LIVE_TITLE_LENGTH = 120;
+
+/** Nettoie/plafonne un titre de live fourni par le client (évite un titre vide, avec espaces superflus, ou démesuré). */
+function sanitizeLiveTitle(raw: unknown, fallback: string): string {
+  const trimmed = typeof raw === 'string' ? raw.trim() : '';
+  if (!trimmed) return fallback;
+  return trimmed.slice(0, MAX_LIVE_TITLE_LENGTH);
+}
 
 /** ICE servers for WebRTC live relay — TURN only for host or active viewer of liveId. */
 livesRouter.get('/ice-servers', authenticateJWT, (req: Request, res: Response) => {
@@ -138,7 +166,7 @@ function resolveStartCoordinates(
 ): { latitude: number; longitude: number } {
   const bodyLat = typeof body.latitude === 'number' ? body.latitude : parseFloat(String(body.latitude ?? ''));
   const bodyLon = typeof body.longitude === 'number' ? body.longitude : parseFloat(String(body.longitude ?? ''));
-  if (Number.isFinite(bodyLat) && Number.isFinite(bodyLon)) {
+  if (Number.isFinite(bodyLat) && Number.isFinite(bodyLon) && isValidLatLng(bodyLat, bodyLon)) {
     return { latitude: bodyLat, longitude: bodyLon };
   }
   if (isValidLatLng(user.latitude, user.longitude)) {
@@ -160,18 +188,25 @@ function defaultStandalonePlayback(hostName: string, platform: MusicPlatform) {
   };
 }
 
-async function provisionCloudflareStreamForLive(live: Live): Promise<void> {
+/**
+ * Provisionne un live input Cloudflare pour ce live et renvoie explicitement le
+ * streamMode résultant ('cloudflare' si succès, 'webrtc' en repli sur échec) — à
+ * l'appelant de faire `live.streamMode = await provisionCloudflareStreamForLive(live)`.
+ * (Auparavant la fonction mutait `live.streamMode` en silence, un effet de bord
+ * caché qui rendait le comportement des appelants peu évident à la lecture.)
+ */
+async function provisionCloudflareStreamForLive(live: Live): Promise<Live['streamMode']> {
   assertCanUseCloudflareObs(live.hostId);
-  if (!isCloudflareStreamConfigured()) return;
-  live.streamMode = 'cloudflare';
+  if (!isCloudflareStreamConfigured()) return live.streamMode;
   try {
     const creds = await getOrCreateUserObsLiveInput(live.hostId);
     live.cloudflareLiveInputId = creds.uid;
     live.cloudflarePlaybackUrl = creds.playbackHlsUrl;
     live.cloudflareCustomerSubdomain = creds.customerSubdomain;
+    return 'cloudflare';
   } catch (err) {
     console.error('[cloudflare-stream] Échec création live input:', err);
-    live.streamMode = 'webrtc';
+    return 'webrtc';
   }
 }
 
@@ -223,21 +258,18 @@ livesRouter.post('/start', authenticateJWT, async (req: Request, res: Response) 
     return;
   }
 
-  const existing = [...db.lives.values()].find((l) => l.hostId === userId && l.isActive);
-  if (existing) {
+  // Fast-path O(1) via l'index hostId → liveId actif (au lieu d'un scan complet de
+  // db.lives à chaque appel). C'est aussi la première moitié de la garde anti-doublon :
+  // voir la réservation posée plus bas, avant tout point d'attente (await).
+  const existingId = db.activeLiveByHost.get(userId);
+  const existing = existingId ? db.lives.get(existingId) : undefined;
+  if (existing?.isActive) {
     res.json({ live: publicLive(existing, undefined, userId) });
     return;
   }
+  if (existingId) db.activeLiveByHost.delete(userId); // entrée obsolète (live terminé/introuvable)
 
-  try {
-    assertCanStartLive(userId);
-  } catch (e) {
-    if (e instanceof PlatformPlanError) {
-      res.status(403).json({ error: e.message, code: e.code });
-      return;
-    }
-    throw e;
-  }
+  if (!runOrRespondPlanError(res, () => assertCanStartLive(userId))) return;
 
   const salon = [...db.salons.values()].find((s) => s.hostId === userId);
   let live: Live;
@@ -251,26 +283,28 @@ livesRouter.post('/start', authenticateJWT, async (req: Request, res: Response) 
       });
       return;
     }
-    try {
-      assertCanUseCloudflareObs(userId);
-    } catch (e) {
-      if (e instanceof PlatformPlanError) {
-        res.status(403).json({ error: e.message, code: e.code });
-        return;
-      }
-      throw e;
-    }
+    if (!runOrRespondPlanError(res, () => assertCanUseCloudflareObs(userId))) return;
     streamMode = 'cloudflare';
   }
 
   if (salon) {
+    // Un live archivé (terminé) peut déjà occuper la clé `salon.id` si ce salon a déjà
+    // hébergé un live précédent (host qui redémarre). On le re-clé avant d'écraser cette
+    // entrée, pour ne pas perdre son historique (rediffusion, stats) — cf. finding I1.
+    const previousLive = db.lives.get(salon.id);
+    if (previousLive && !previousLive.isActive) {
+      const archivedKey = `live_${previousLive.endedAt ?? previousLive.startedAt}_${randomUUID()}`;
+      previousLive.id = archivedKey;
+      db.lives.delete(salon.id);
+      db.lives.set(archivedKey, previousLive);
+    }
     /** playbackState reprend le salon (métadonnées morceau) ; la vidéo YouTube reste côté SalonPage, pas LivePage. */
     live = {
       id: salon.id,
       salonId: salon.id,
       hostId: salon.hostId,
       hostName: salon.hostName,
-      title: req.body.title || `Live — ${salon.title}`,
+      title: sanitizeLiveTitle(req.body.title, `Live — ${salon.title}`),
       platform: salon.platform,
       playbackState: salon.playbackState,
       latitude: salon.latitude,
@@ -287,10 +321,12 @@ livesRouter.post('/start', authenticateJWT, async (req: Request, res: Response) 
     const { latitude, longitude } = resolveStartCoordinates(user, req.body);
     const platform: MusicPlatform = 'youtube';
     live = {
-      id: `live_${Date.now()}`,
+      // UUID plutôt que Date.now() : deux requêtes concurrentes dans la même milliseconde
+      // (double-tap, retry réseau) généraient sinon le même id → collision/état incohérent.
+      id: `live_${randomUUID()}`,
       hostId: userId,
       hostName: user.username,
-      title: req.body.title || `Live — ${user.username}`,
+      title: sanitizeLiveTitle(req.body.title, `Live — ${user.username}`),
       platform,
       playbackState: defaultStandalonePlayback(user.username, platform),
       latitude,
@@ -305,25 +341,41 @@ livesRouter.post('/start', authenticateJWT, async (req: Request, res: Response) 
     };
   }
 
-  if (streamMode === 'cloudflare') {
-    await provisionCloudflareStreamForLive(live);
-  }
+  // Réservation atomique — posée AVANT le premier `await` qui suit. Tout ce qui précède
+  // depuis la vérification `existingId` ci-dessus est strictement synchrone (Node.js ne
+  // peut donc pas interléaver une requête concurrente du même hôte entre les deux) : c'est
+  // ce qui rend cette garde anti-doublon fiable (cf. finding C1 — race condition).
+  db.activeLiveByHost.set(userId, live.id);
 
-  const stripeConnectSkipped = req.body.stripeConnectSkipped === true;
-  live.tipsEnabled = await resolveLiveTipsEnabledAtStart(userId, stripeConnectSkipped);
-  live.contentCategory = resolveLiveStartContentCategory(req.body, user);
+  try {
+    if (streamMode === 'cloudflare') {
+      live.streamMode = await provisionCloudflareStreamForLive(live);
+    }
 
-  db.lives.set(live.id, live);
-  persistLiveToPgAsync(live);
-  trackEvent('live_started', userId);
-  db.liveChats.set(live.id, []);
-  db.liveBans.set(live.id, new Map());
-  const host = db.users.get(live.hostId);
-  if (host) {
-    notifyFollowersLiveStarted(live, host);
-    notifyFavoritesLiveStarted(host, live);
+    const stripeConnectSkipped = req.body.stripeConnectSkipped === true;
+    live.tipsEnabled = await resolveLiveTipsEnabledAtStart(userId, stripeConnectSkipped);
+    live.contentCategory = resolveLiveStartContentCategory(req.body, user);
+
+    db.lives.set(live.id, live);
+    persistLiveToPgAsync(live);
+    trackEvent('live_started', userId);
+    db.liveChats.set(live.id, []);
+    db.liveBans.set(live.id, new Map());
+    const host = db.users.get(live.hostId);
+    if (host) {
+      notifyFollowersLiveStarted(live, host);
+      notifyFavoritesLiveStarted(host, live);
+    }
+    res.status(201).json({ live: publicLive(live, undefined, userId) });
+  } catch (err) {
+    // Libère la réservation : sinon cet hôte ne pourrait plus jamais démarrer de live
+    // après une erreur transitoire (provisioning Cloudflare, résolution des pourboires…).
+    if (db.activeLiveByHost.get(userId) === live.id) db.activeLiveByHost.delete(userId);
+    console.error('[lives] Échec démarrage du live:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Erreur lors du démarrage du live.', code: 'live_start_failed' });
+    }
   }
-  res.status(201).json({ live: publicLive(live, undefined, userId) });
 });
 
 livesRouter.post('/stop', authenticateJWT, async (req: Request, res: Response) => {
@@ -465,15 +517,7 @@ livesRouter.get('/:id/livekit-token', authenticateJWT, async (req: Request, res:
   }
   const isHost = live.hostId === me.id;
   if (!isHost) {
-    try {
-      assertViewerCanAccessLive(live, me.id);
-    } catch (e) {
-      if (e instanceof PlatformPlanError) {
-        res.status(403).json({ error: e.message, code: e.code });
-        return;
-      }
-      throw e;
-    }
+    if (!runOrRespondPlanError(res, () => assertViewerCanAccessLive(live, me.id))) return;
   }
   if (!isLiveKitConfigured()) {
     res.status(503).json({
@@ -523,15 +567,7 @@ livesRouter.get('/:id/playback', authenticateJWT, (req: Request, res: Response) 
     return;
   }
   if (live.isActive && live.hostId !== me) {
-    try {
-      assertViewerCanAccessLive(live, me);
-    } catch (e) {
-      if (e instanceof PlatformPlanError) {
-        res.status(403).json({ error: e.message, code: e.code });
-        return;
-      }
-      throw e;
-    }
+    if (!runOrRespondPlanError(res, () => assertViewerCanAccessLive(live, me))) return;
   }
   const playbackUrl =
     live.cloudflareVodPlaybackUrl ?? live.cloudflarePlaybackUrl;
@@ -579,7 +615,7 @@ livesRouter.post('/:id/cloudflare-stream', authenticateJWT, async (req: Request,
       live.cloudflareCustomerSubdomain = creds.customerSubdomain;
       live.streamMode = 'cloudflare';
     } else {
-      await provisionCloudflareStreamForLive(live);
+      live.streamMode = await provisionCloudflareStreamForLive(live);
     }
     db.lives.set(live.id, live);
     getIo()?.to(`live_${live.id}`).emit('live_updated', serializePublicLive(live));
@@ -610,21 +646,14 @@ livesRouter.get('/:id/cloudflare-ingest', authenticateJWT, async (req: Request, 
     res.status(503).json({ error: 'Cloudflare Stream non configuré.', code: 'cloudflare_not_configured' });
     return;
   }
-  try {
-    assertCanUseCloudflareObs(userId);
-  } catch (e) {
-    if (e instanceof PlatformPlanError) {
-      res.status(403).json({ error: e.message, code: e.code });
-      return;
-    }
-    throw e;
-  }
+  if (!runOrRespondPlanError(res, () => assertCanUseCloudflareObs(userId))) return;
   if (!live.cloudflareLiveInputId) {
     try {
-      await provisionCloudflareStreamForLive(live);
+      live.streamMode = await provisionCloudflareStreamForLive(live);
       db.lives.set(live.id, live);
     } catch {
-      /* provisionCloudflareStreamForLive gère les erreurs */
+      /* provisionCloudflareStreamForLive gère les erreurs internes (fallback webrtc) ;
+         seule assertCanUseCloudflareObs peut throw ici, ignoré volontairement (best effort) */
     }
   }
   if (!live.cloudflareLiveInputId) {
@@ -661,15 +690,7 @@ livesRouter.get('/:id/cloudflare-stream-status', authenticateJWT, async (req: Re
       res.status(403).json({ error: 'Live terminé.' });
       return;
     }
-    try {
-      assertViewerCanAccessLive(live, userId);
-    } catch (e) {
-      if (e instanceof PlatformPlanError) {
-        res.status(403).json({ error: e.message, code: e.code });
-        return;
-      }
-      throw e;
-    }
+    if (!runOrRespondPlanError(res, () => assertViewerCanAccessLive(live, userId))) return;
   }
   const isHost = live.hostId === userId;
   const obsStatusForLivekitHost = isHost && live.streamMode === 'livekit' && live.isActive;
@@ -756,15 +777,7 @@ livesRouter.get('/:id/livekit-cdn-ingest', authenticateJWT, async (req: Request,
     res.status(503).json({ error: 'Cloudflare Stream non configuré.', code: 'cloudflare_not_configured' });
     return;
   }
-  try {
-    assertCanUseCloudflareObs(userId);
-  } catch (e) {
-    if (e instanceof PlatformPlanError) {
-      res.status(403).json({ error: e.message, code: e.code });
-      return;
-    }
-    throw e;
-  }
+  if (!runOrRespondPlanError(res, () => assertCanUseCloudflareObs(userId))) return;
 
   try {
     const cfCreds = await ensureLiveKitCdnCloudflareInput(live);

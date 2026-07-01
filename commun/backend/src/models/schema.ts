@@ -88,6 +88,8 @@ export interface User {
   shareDistance?: boolean;
   /** Accepter les messages privés de tout utilisateur. Défaut : true. */
   allowPrivateMessages?: boolean;
+  /** false = refuser d'être tagué sur les événements d'autres organisateurs. Défaut : true. */
+  allowExternalEventTags?: boolean;
   /** précis = position floutée ~50 m ; city = centre-ville uniquement pour les autres. */
   locationPrecision?: 'precise' | 'city';
   /** Dernière position GPS envoyée via POST /geo/update (distinct du backfill ville). */
@@ -248,9 +250,11 @@ export interface WeeklySongVote {
   youtubeUrl?: string;
   proposerName: string;
   /** Discographie — absent for salon proposal votes. */
-  sourceType?: 'salon' | 'composition';
+  sourceType?: 'salon' | 'composition' | 'reel';
   compositionId?: string;
   compositionOwnerId?: string;
+  reelId?: string;
+  reelOwnerId?: string;
   fileUrl?: string;
 }
 
@@ -614,6 +618,7 @@ export interface AppNotification {
     | 'follow'
     | 'event_created'
     | 'event_tagged'
+    | 'story_tagged'
     | 'mention'
     | 'support_contact'
     | 'support_reply'
@@ -630,6 +635,8 @@ export interface AppNotification {
   groupId?: string;
   /** Publication du fil d'actualité (like ou événement). */
   postId?: string;
+  /** Story où l'utilisateur a été tagué. */
+  storyId?: string;
   /** Reel liké. */
   reelId?: string;
   /** Message support (admin ou utilisateur). */
@@ -739,6 +746,8 @@ export interface FeedPost {
   eventEndTimes?: (string | null)[];
   /** Comptes tagués (DJ, artiste, partenaire…) — ids utilisateurs. */
   eventTaggedUserIds?: string[];
+  /** Lien externe (billetterie, site…) — https uniquement. */
+  eventLinkUrl?: string;
   /** Masqué par modération admin (fil et carte). */
   adminBlocked?: boolean;
   adminBlockedAt?: number;
@@ -797,6 +806,8 @@ export const db = {
   users: new Map<string, User>(),
   salons: new Map<string, Salon>(),
   lives: new Map<string, Live>(),
+  /** hostId → id du live actif courant (index O(1) — évite un scan de `lives` à chaque démarrage). */
+  activeLiveByHost: new Map<string, string>(),
   salonChats: new Map<string, ChatMessage[]>(),
   salonQueues: new Map<string, SalonQueueItem[]>(),
   salonProposals: new Map<string, SalonTrackProposal[]>(),
@@ -836,6 +847,8 @@ export const db = {
   feedPosts: [] as FeedPost[],
   /** postId → Set<userId> ayant liké */
   feedPostLikes: new Map<string, Set<string>>(),
+  /** postId → Set<userId> upvote (événements uniquement) */
+  feedPostUpvotes: new Map<string, Set<string>>(),
   /** postId → commentaires */
   feedPostComments: new Map<string, FeedPostComment[]>(),
   /** userId → Set<postId> en favoris */

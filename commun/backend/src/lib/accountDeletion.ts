@@ -183,6 +183,13 @@ export function deleteUserAccountCascade(userId: string): void {
     }
   }
 
+  for (const [postId, upvoters] of db.feedPostUpvotes) {
+    if (upvoters.delete(userId)) {
+      if (upvoters.size) db.feedPostUpvotes.set(postId, upvoters);
+      else db.feedPostUpvotes.delete(postId);
+    }
+  }
+
   db.feedPostFavorites.delete(userId);
 
   db.stories = db.stories.filter((s) => s.userId !== userId);

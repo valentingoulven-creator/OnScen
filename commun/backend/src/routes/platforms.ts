@@ -97,6 +97,15 @@ platformsRouter.get('/instagram/oauth/url', authenticateJWT, (req: Request, res:
   res.json({ url: createInstagramOAuthUrl(userId) });
 });
 
+/**
+ * GET /api/platforms/youtube/oauth/callback — route de callback alternative.
+ *
+ * @deprecated Route non documentée dans les fichiers d'exemple d'environnement actuels
+ * (`YOUTUBE_CALLBACK_URL` y pointe systématiquement vers `GET /api/auth/youtube/callback`,
+ * voir routes/oauth.ts). Cette route ne reste active que via l'ancien fallback
+ * `GOOGLE_REDIRECT_URI` (voir commun/msdev/.env.example, commenté). Conservée pour compatibilité
+ * avec d'éventuelles configurations existantes ; ne pas l'utiliser pour de nouvelles configs.
+ */
 platformsRouter.get('/youtube/oauth/callback', async (req: Request, res: Response) => {
   const appUrl = (process.env.WEB_APP_URL || 'http://localhost:4080').replace(/\/$/, '');
   const err = req.query.error;

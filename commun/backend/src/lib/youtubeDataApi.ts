@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { resolveYoutubePlaylistId } from './musicLinks';
 import type { RemoteVideoHit } from './youtubeRemote';
 import { parseYoutubeApiResponse, YoutubeDataApiError } from './youtubeApiErrors';
+import { canAttemptYoutubeSearchListCall, recordYoutubeSearchListCall } from './youtubeQuotaBudget';
 
 /** TTL 1 h — conforme YouTube API Services (stockage max 24 h) et texte légal Soundy. */
 export const YOUTUBE_DATA_API_CACHE_TTL_MS = 60 * 60 * 1000;
@@ -51,6 +52,16 @@ async function fetchSearchHits(
   query: string,
   options: { apiKey?: string; accessToken?: string }
 ): Promise<RemoteVideoHit[]> {
+  // search.list a un bucket de quota dédié (100 appels/jour, tout le projet) distinct des
+  // 10 000 unités générales — protection proactive avant de consommer le budget restant.
+  if (!canAttemptYoutubeSearchListCall()) {
+    throw new YoutubeDataApiError(
+      'Budget quotidien search.list épuisé (protection proactive côté serveur)',
+      429,
+      'quota_exceeded'
+    );
+  }
+
   const params = new URLSearchParams({
     part: 'snippet',
     type: 'video',
@@ -59,6 +70,7 @@ async function fetchSearchHits(
   });
   if (options.apiKey) params.set('key', options.apiKey);
 
+  recordYoutubeSearchListCall();
   const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`, {
     headers: options.accessToken ? { Authorization: `Bearer ${options.accessToken}` } : undefined,
     signal: AbortSignal.timeout(8000),

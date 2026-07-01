@@ -1,5 +1,11 @@
-/** Durée max d'enregistrement / import (short-form, aligné TikTok). */
-export const REEL_RECORD_MAX_SEC = 30;
+/**
+ * Durée max d'enregistrement / import (short-form). 60 s — cohérent avec la capacité de
+ * modération vidéo synchrone Sightengine (60 s) tout en restant bien sous les standards
+ * marché (TikTok : 10 min enregistrement / 60 min import ; Instagram Reels : 90 s à 3 min
+ * recommandés). Doit rester synchronisé avec REEL_RECORD_MAX_SEC côté backend
+ * (reelUploadLimits.ts).
+ */
+export const REEL_RECORD_MAX_SEC = 60;
 
 /** TikTok mobile upload cap — 287 MiB (commonly cited for short-form video). */
 export const REEL_UPLOAD_MAX_FILE_BYTES = 287 * 1024 * 1024;
@@ -15,8 +21,16 @@ export const REEL_UPLOAD_PAYLOAD_MARGIN_BYTES = 512 * 1024;
 export const MAX_RECORDED_REEL_VIDEO_DATA_CHARS =
   Math.ceil((REEL_UPLOAD_MAX_FILE_BYTES * 4) / 3) + 64;
 
-export const REEL_RECORD_VIDEO_BITS_PER_SEC = 250_000;
-export const REEL_RECORD_AUDIO_BITS_PER_SEC = 32_000;
+/**
+ * Bitrate d'enregistrement (720×1280 cible). 250 kbps vidéo / 32 kbps audio produisait un
+ * rendu très dégradé (proche d'un appel vidéo basse qualité) comparé aux standards courts-
+ * métrages TikTok/Instagram (H.264 recommandé 8-16 Mbps, Instagram 3,5-10 Mbps). 3 Mbps /
+ * 128 kbps reste très en dessous de ces cibles mais donne un rendu net en 720p vertical, tout
+ * en laissant une marge confortable sous le plafond de taille (287 Mio pour 60 s max = <10 %
+ * du budget utilisé à ce bitrate).
+ */
+export const REEL_RECORD_VIDEO_BITS_PER_SEC = 3_000_000;
+export const REEL_RECORD_AUDIO_BITS_PER_SEC = 128_000;
 
 export function pickRecorderMimeType(): string {
   const candidates = ['video/webm;codecs=vp8,opus', 'video/webm;codecs=vp9,opus', 'video/webm'];

@@ -62,6 +62,7 @@ export interface PersistedStore {
   userFavorites?: { fanId: string; hostId: string; entry: UserFavorite }[];
   feedPosts?: FeedPost[];
   feedPostLikes?: MapOfSets;
+  feedPostUpvotes?: MapOfSets;
   feedPostComments?: Record<string, FeedPostComment[]>;
   feedPostFavorites?: MapOfSets;
   stories?: Story[];
@@ -144,6 +145,7 @@ export function snapshotStore(): PersistedStore {
     })(),
     feedPosts: [...db.feedPosts],
     feedPostLikes: setsToRecord(db.feedPostLikes),
+    feedPostUpvotes: setsToRecord(db.feedPostUpvotes),
     feedPostComments: (() => {
       const out: Record<string, FeedPostComment[]> = {};
       for (const [k, arr] of db.feedPostComments.entries()) out[k] = arr;
@@ -235,6 +237,11 @@ export function restoreStore(data: PersistedStore): void {
   db.feedPostLikes.clear();
   for (const [k, arr] of Object.entries(data.feedPostLikes ?? {})) {
     db.feedPostLikes.set(k, new Set(arr));
+  }
+
+  db.feedPostUpvotes.clear();
+  for (const [k, arr] of Object.entries(data.feedPostUpvotes ?? {})) {
+    db.feedPostUpvotes.set(k, new Set(arr));
   }
 
   db.feedPostComments.clear();

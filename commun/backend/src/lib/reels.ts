@@ -9,6 +9,7 @@ import { getFollowingIds, isMutualFollow } from './follows';
 import { isDevUser } from './accessControl';
 import {
   MAX_RECORDED_REEL_VIDEO_DATA_CHARS,
+  REEL_RECORD_MAX_SEC,
   REEL_UPLOAD_MAX_FILE_BYTES,
 } from './reelUploadLimits';
 import {
@@ -27,6 +28,7 @@ import {
   schedulePersistReelView,
 } from './pgReels';
 import { schedulePersist } from './persist';
+import { recordReelWeeklyVote } from './weeklyVotes';
 import { checkUploadedAudioCopyright } from './acrCloud';
 import { getAcrCloudMaxSampleBytes } from './acrCloudConfig';
 import { isValidCompositionFileUrl } from './compositionAssets';
@@ -513,7 +515,7 @@ function isAllowedPrivateMedia(draft: {
 
 function normalizeDurationSec(value: unknown): number | undefined {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return undefined;
-  return Math.min(Math.round(value), 24 * 60 * 60);
+  return Math.min(Math.round(value), REEL_RECORD_MAX_SEC);
 }
 
 export async function createUserReel(
@@ -710,12 +712,17 @@ export function getReelLikes(reelId: string): Set<string> {
 
 export function toggleReelHeart(reelId: string, userId: string): { liked: boolean; heartCount: number } {
   const likes = getReelLikes(reelId);
-  if (likes.has(userId)) {
+  const wasLiked = likes.has(userId);
+  if (wasLiked) {
     likes.delete(userId);
   } else {
     likes.add(userId);
   }
   const liked = likes.has(userId);
+  const reel = db.userReels.find((r) => r.id === reelId);
+  if (reel) {
+    recordReelWeeklyVote(reel, userId, liked);
+  }
   schedulePersistReelLike(reelId, userId, liked);
   return { liked, heartCount: likes.size };
 }

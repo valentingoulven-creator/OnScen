@@ -23,6 +23,15 @@ import {
   type MapBounds,
   type MapViewDetailState,
 } from '../lib/mapMarkerVisibility';
+import {
+  clusterSalonsLivesByMajorCity,
+  filterOverviewIndividualMarkers,
+  type MapMajorCityLiveCluster,
+} from '../lib/mapMajorCityLiveClusters';
+import {
+  buildMajorCityHubMarkerHtml,
+  buildOverviewGeoMarkerHtml,
+} from '../lib/mapOverviewMarkerHtml';
 import { canUseGlobeView } from '../lib/webglSupport';
 import {
   flatZoomToNorm,
@@ -141,6 +150,7 @@ interface MapViewProps {
   onSelectPerson?: (person: NearbyPerson) => void;
   onSelectEventCluster?: (cluster: MapEventCityCluster) => void;
   onSelectLiveCluster?: (cluster: import('../lib/mapLiveClusters').MapLiveLocationCluster) => void;
+  onSelectMajorCityCluster?: (cluster: MapMajorCityLiveCluster) => void;
   /** Clic sur le fond de carte (pas un marqueur) — Leaflet n'émet pas click après un drag. */
   onMapBackgroundClick?: () => void;
   /** Style du fond de carte : 'flat' = carte sombre (défaut), 'globe' = satellite. */
@@ -210,6 +220,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   onSelectPerson,
   onSelectEventCluster,
   onSelectLiveCluster,
+  onSelectMajorCityCluster,
   onMapBackgroundClick,
   mapStyle = 'flat',
   onGlobeZoomToFlat,
@@ -230,6 +241,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   const mapInstance = useRef<L.Map | null>(null);
   // Separate layer for salons + lives (always visible, small count).
   const salonLiveLayerRef = useRef<L.LayerGroup | null>(null);
+  const majorCityLayerRef = useRef<L.LayerGroup | null>(null);
   const eventsLayerRef = useRef<L.LayerGroup | null>(null);
   // Cluster group for person markers.
   const personClusterRef = useRef<L.MarkerClusterGroup | null>(null);
@@ -264,6 +276,8 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   onSelectPersonRef.current = onSelectPerson;
   const onSelectEventClusterRef = useRef(onSelectEventCluster);
   onSelectEventClusterRef.current = onSelectEventCluster;
+  const onSelectMajorCityClusterRef = useRef(onSelectMajorCityCluster);
+  onSelectMajorCityClusterRef.current = onSelectMajorCityCluster;
   const onAutoSwitchToGlobeRef = useRef(onAutoSwitchToGlobe);
   onAutoSwitchToGlobeRef.current = onAutoSwitchToGlobe;
   const onGlobeUnavailableRef = useRef(onGlobeUnavailable);
@@ -784,6 +798,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
 
     // Salon / live markers — regular group (counts stay low).
     salonLiveLayerRef.current = L.layerGroup().addTo(map);
+    majorCityLayerRef.current = L.layerGroup().addTo(map);
     eventsLayerRef.current = L.layerGroup().addTo(map);
 
     // Person markers — cluster group to avoid rendering 10 000 divIcons.
@@ -905,6 +920,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       map.remove();
       mapInstance.current = null;
       salonLiveLayerRef.current = null;
+      majorCityLayerRef.current = null;
       eventsLayerRef.current = null;
       personClusterRef.current = null;
       capitalsLayerRef.current = null;
@@ -1091,10 +1107,67 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     const markerVisibility = markerVisibilityRef.current;
     const overviewDots = markerVisibility.density === 'overview';
 
-    // ── Salons ──
+    // ── Salons & lives ──
     salonLayer.clearLayers();
+    majorCityLayerRef.current?.clearLayers();
 
-    visibleSalons.forEach((s) => {
+    const linkedSalonIds = new Set(visibleSalons.map((s) => s.id));
+
+    let salonsToDraw = visibleSalons;
+    let livesToDraw = visibleLives.filter((l) => !linkedSalonIds.has(l.id));
+
+    if (overviewDots) {
+      const { cityClusters } = clusterSalonsLivesByMajorCity(
+        visibleSalons,
+        visibleLives,
+        linkedSalonIds
+      );
+      const individual = filterOverviewIndividualMarkers(
+        visibleSalons,
+        visibleLives,
+        linkedSalonIds
+      );
+      salonsToDraw = individual.salons;
+      livesToDraw = individual.lives;
+
+      const cityLayer = majorCityLayerRef.current;
+      if (cityLayer) {
+        for (const cluster of cityClusters) {
+          try {
+            const lat = Number(cluster.latitude);
+            const lon = Number(cluster.longitude);
+            if (!isValidLatLng(lat, lon)) continue;
+            const icon = L.divIcon({
+              className: '',
+              html: buildMajorCityHubMarkerHtml(
+                cluster.cityLabel,
+                cluster.count,
+                cluster.liveCount
+              ),
+              iconSize: [52, 56],
+              iconAnchor: [26, 28],
+            });
+            const m = L.marker([lat, lon], { icon, zIndexOffset: 300 }).addTo(cityLayer);
+            m.bindTooltip(
+              `${escapeHtml(cluster.cityLabel)}<br/>${cluster.count} session${cluster.count !== 1 ? 's' : ''}`,
+              {
+                direction: 'top',
+                offset: [0, -10],
+                className: 'map-event-tooltip',
+              }
+            );
+            m.on('click', (ev) => {
+              L.DomEvent.stopPropagation(ev.originalEvent);
+              onSelectMajorCityClusterRef.current?.(cluster);
+            });
+          } catch (err) {
+            console.error('[MapView] major city marker error:', err);
+          }
+        }
+      }
+    }
+
+    salonsToDraw.forEach((s) => {
       if (!isValidLatLng(s.latitude, s.longitude)) return;
       const botClass = s.isBot ? 'bot' : '';
       const liveClass = s.isLive ? 'live' : '';
@@ -1103,12 +1176,17 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
         const lon = Number(s.longitude);
         if (!isValidLatLng(lat, lon)) return;
         const m = overviewDots
-          ? L.circleMarker([lat, lon], {
-              radius: s.isLive ? 7 : 6,
-              color: s.isLive ? '#f87171' : '#c084fc',
-              fillColor: s.isLive ? '#f87171' : '#c084fc',
-              fillOpacity: 0.9,
-              weight: 2,
+          ? L.marker([lat, lon], {
+              icon: L.divIcon({
+                className: '',
+                html: buildOverviewGeoMarkerHtml({
+                  kind: 'salon',
+                  isLive: s.isLive === true,
+                }),
+                iconSize: [28, 28],
+                iconAnchor: [14, 14],
+              }),
+              zIndexOffset: s.isLive ? 120 : 80,
             })
           : L.marker(
               [lat, lon],
@@ -1131,20 +1209,21 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       }
     });
 
-    visibleLives.forEach((l) => {
+    livesToDraw.forEach((l) => {
       if (!isValidLatLng(l.latitude, l.longitude)) return;
-      if (visibleSalons.some((s) => s.id === l.id)) return;
       try {
         const lat = Number(l.latitude);
         const lon = Number(l.longitude);
         if (!isValidLatLng(lat, lon)) return;
         const m = overviewDots
-          ? L.circleMarker([lat, lon], {
-              radius: 7,
-              color: '#f87171',
-              fillColor: '#f87171',
-              fillOpacity: 0.9,
-              weight: 2,
+          ? L.marker([lat, lon], {
+              icon: L.divIcon({
+                className: '',
+                html: buildOverviewGeoMarkerHtml({ kind: 'live', isLive: true }),
+                iconSize: [28, 28],
+                iconAnchor: [14, 14],
+              }),
+              zIndexOffset: 120,
             })
           : L.marker(
               [lat, lon],

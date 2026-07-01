@@ -5,8 +5,14 @@ import path from 'path';
 import { getPublicDir } from '../paths';
 import {
   MAX_RECORDED_REEL_VIDEO_DATA_CHARS,
+  REEL_RECORD_MAX_SEC,
   REEL_UPLOAD_MAX_FILE_BYTES,
 } from './reelUploadLimits';
+import { validateImageMagicBytes, validateVideoMagicBytes } from './imageValidation';
+import { probeVideoDurationSec } from './videoDuration';
+
+/** Marge de tolérance (s) sur la durée réelle sondée — arrondis d'encodage/conteneur. */
+const REEL_DURATION_TOLERANCE_SEC = 3;
 
 const RECORDED_VIDEO_DATA_RE =
   /^data:video\/(webm|mp4|quicktime|x-m4v)(?:;[^;,]+)*;base64,([A-Za-z0-9+/=]+)$/i;
@@ -52,6 +58,13 @@ function saveVideoFromDataUrl(dataUrl: string): string {
   if (buffer.length > REEL_UPLOAD_MAX_FILE_BYTES) {
     throw new Error('Vidéo trop volumineuse (max ~287 Mo)');
   }
+  if (!validateVideoMagicBytes(buffer, mime)) {
+    throw new Error('Format vidéo non reconnu ou fichier corrompu');
+  }
+  const realDurationSec = probeVideoDurationSec(buffer, mime);
+  if (realDurationSec != null && realDurationSec > REEL_RECORD_MAX_SEC + REEL_DURATION_TOLERANCE_SEC) {
+    throw new Error(`Vidéo trop longue (max ${REEL_RECORD_MAX_SEC} s)`);
+  }
   const dir = uploadsDir();
   fs.mkdirSync(dir, { recursive: true });
   const id = crypto.randomBytes(12).toString('hex');
@@ -71,6 +84,9 @@ function savePosterFromDataUrl(dataUrl: string): string {
   const buffer = Buffer.from(base64, 'base64');
   if (buffer.length > 512 * 1024) {
     throw new Error('Image poster trop volumineuse');
+  }
+  if (!validateImageMagicBytes(buffer, mime)) {
+    throw new Error("Format d'image poster non reconnu ou fichier corrompu");
   }
   const dir = uploadsDir();
   fs.mkdirSync(dir, { recursive: true });

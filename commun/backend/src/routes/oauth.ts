@@ -645,7 +645,15 @@ oauthRouter.get('/youtube', oauthInitLimiter, (_req: Request, res: Response) => 
   res.redirect(`${origin}/?youtube_oauth=error&reason=use_platform_api`);
 });
 
-/** GET /api/auth/youtube/callback — handles the redirect from Google for YouTube linking */
+/**
+ * GET /api/auth/youtube/callback — handles the redirect from Google for YouTube linking.
+ *
+ * Route canonique : c'est la valeur documentée pour `YOUTUBE_CALLBACK_URL` dans les trois
+ * fichiers d'exemple d'environnement (`.env.production.example`, `.env.preproduction.example`,
+ * `commun/msdev/.env.example`) et donc l'URI de redirection à enregistrer dans la console Google
+ * Cloud pour tous les environnements. Voir `platforms.ts` pour la route alternative existante
+ * (`GET /api/platforms/youtube/oauth/callback`, dépréciée — voir sa documentation).
+ */
 oauthRouter.get('/youtube/callback', async (req: Request, res: Response) => {
   const origin = appOrigin();
   const { code, state, error } = req.query as Record<string, string>;

@@ -7,6 +7,7 @@ import {
   listFeedPosts,
   resharePost,
   toggleFeedPostLike,
+  toggleFeedPostUpvote,
   addFeedPostComment,
   listFeedPostComments,
   toggleFeedPostFavorite,
@@ -45,6 +46,8 @@ feedRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
   const followingOnly = q.followingOnly === 'true' || q.followingOnly === '1' ? true : undefined;
   const authorId =
     typeof q.authorId === 'string' && q.authorId ? q.authorId : undefined;
+  const profileUserId =
+    typeof q.profileUserId === 'string' && q.profileUserId ? q.profileUserId : undefined;
   res.json({
     posts: listFeedPosts(me, {
       limit,
@@ -58,6 +61,7 @@ feedRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
       useAlgo,
       followingOnly,
       authorId,
+      profileUserId,
     }),
   });
 });
@@ -82,6 +86,7 @@ feedRouter.post('/', authenticateJWT, asyncHandler(async (req: Request, res: Res
     eventEndTimes: Array.isArray(body.eventEndTimes) ? body.eventEndTimes : undefined,
     eventLocation: body.eventLocation != null ? String(body.eventLocation) : undefined,
     eventType: body.eventType != null ? String(body.eventType) : undefined,
+    eventLinkUrl: body.eventLinkUrl != null ? String(body.eventLinkUrl) : undefined,
     eventTaggedUserIds: body.eventTaggedUserIds,
   });
   if (!result.ok) {
@@ -167,6 +172,23 @@ feedRouter.delete('/posts/:id/like', authenticateJWT, (req: Request, res: Respon
   if (!result.ok) { res.status(404).json({ error: result.error }); return; }
   schedulePersist();
   res.json({ liked: result.liked, likeCount: result.likeCount });
+});
+
+feedRouter.post('/posts/:id/upvote', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const result = toggleFeedPostUpvote(me, req.params.id);
+  if (!result.ok) { res.status(result.error.includes('événement') ? 400 : 404).json({ error: result.error }); return; }
+  if (!result.upvoted) { res.status(400).json({ error: 'Déjà upvoté' }); return; }
+  schedulePersist();
+  res.json({ upvoted: result.upvoted, upvoteCount: result.upvoteCount });
+});
+
+feedRouter.delete('/posts/:id/upvote', authenticateJWT, (req: Request, res: Response) => {
+  const me = (req as Request & { user: { id: string } }).user.id;
+  const result = toggleFeedPostUpvote(me, req.params.id);
+  if (!result.ok) { res.status(result.error.includes('événement') ? 400 : 404).json({ error: result.error }); return; }
+  schedulePersist();
+  res.json({ upvoted: result.upvoted, upvoteCount: result.upvoteCount });
 });
 
 feedRouter.get('/posts/:id/comments', authenticateJWT, (req: Request, res: Response) => {

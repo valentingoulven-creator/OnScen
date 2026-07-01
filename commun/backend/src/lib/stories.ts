@@ -3,7 +3,7 @@ import { db, Story, StoryLink, StoryMusicTrack, User } from '../models/schema';
 import { hasBlocked } from './blocks';
 import { getDistanceKm } from './geo';
 import { getUserPublicCoords } from './locationPrivacy';
-import { isFeedImageDataUrl, isFeedVideoDataUrl } from './feedPosts';
+import { isFeedImageDataUrl, isFeedVideoDataUrl, STORY_VIDEO_MAX_DURATION_SEC } from './feedPosts';
 import { clampNearbyRadiusKm } from './geoLimits';
 import { scheduleDeleteStoryFromPg, schedulePersistStoryToPg } from './pgStories';
 import {
@@ -81,14 +81,14 @@ function normalizeVideoUrl(raw: unknown): string | undefined {
   if (typeof raw !== 'string') return undefined;
   const url = raw.trim();
   if (!url) return undefined;
-  if (isFeedVideoDataUrl(url)) return url;
+  if (isFeedVideoDataUrl(url, STORY_VIDEO_MAX_DURATION_SEC)) return url;
   return undefined;
 }
 
 function normalizeVideoDurationSec(raw: unknown): number | undefined {
   const n = Number(raw);
   if (!Number.isFinite(n) || n <= 0) return undefined;
-  return Math.min(60, Math.max(1, Math.round(n)));
+  return Math.min(STORY_VIDEO_MAX_DURATION_SEC, Math.max(1, Math.round(n)));
 }
 
 function normalizeContent(raw: unknown, opts?: { allowEmpty?: boolean }): string | null {
@@ -325,6 +325,36 @@ export function listStoriesForViewer(
       if (!pos) continue;
       const d = getDistanceKm(lat, lon, pos.lat, pos.lon);
       if (d > radiusKm) continue;
+    }
+
+    const pub = toPublicStory(story);
+    if (pub) out.push(pub);
+  }
+
+  out.sort((a, b) => b.createdAt - a.createdAt);
+  return out;
+}
+
+/** Stories actives où `profileUserId` est tagué (affichage profil). */
+export function listStoriesTaggingProfileUser(
+  profileUserId: string,
+  viewerId: string
+): PublicStory[] {
+  purgeExpiredStories();
+  if (!db.users.get(profileUserId)) return [];
+
+  const out: PublicStory[] = [];
+
+  for (const story of db.stories) {
+    if (!isActive(story)) continue;
+    if (!story.taggedUserIds?.includes(profileUserId)) continue;
+    if (!isVisibleToViewer(viewerId, story.userId)) continue;
+    const author = db.users.get(story.userId);
+    if (!author) continue;
+
+    if (story.userId !== viewerId) {
+      const vis = story.visibility ?? 'followers';
+      if (vis === 'followers' && !isVisibleByFollowers(viewerId, story.userId)) continue;
     }
 
     const pub = toPublicStory(story);

@@ -56,6 +56,28 @@ export function validateImageMagicBytes(buffer: Buffer, mime: string): boolean {
   return false;
 }
 
+/**
+ * Verifies that `buffer` starts with the expected container signature for the
+ * given video `mime` type (webm/mp4/quicktime/x-m4v). Lighter than a full
+ * codec probe, but still rejects a file whose declared type doesn't match its
+ * actual binary container.
+ */
+export function validateVideoMagicBytes(buffer: Buffer, mime: string): boolean {
+  if (buffer.length < 12) return false;
+  const m = mime.toLowerCase().replace('video/', '');
+  if (m === 'webm') {
+    // EBML header
+    return buffer[0] === 0x1a && buffer[1] === 0x45 && buffer[2] === 0xdf && buffer[3] === 0xa3;
+  }
+  if (m === 'mp4' || m === 'quicktime' || m === 'x-m4v') {
+    // ISO base media file format: bytes 4-7 are "ftyp"
+    return (
+      buffer[4] === 0x66 && buffer[5] === 0x74 && buffer[6] === 0x79 && buffer[7] === 0x70
+    );
+  }
+  return false;
+}
+
 /** Maps a MIME type string to the canonical file extension. */
 export function extForImageMime(mime: string): string {
   const m = mime.toLowerCase().replace('image/', '');

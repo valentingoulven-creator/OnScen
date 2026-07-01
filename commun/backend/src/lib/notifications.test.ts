@@ -105,7 +105,7 @@ describe('notifications', () => {
     expect(db.notifications[0].message).toContain('Paris');
   });
 
-  it('notifyFollowersSalonCreated notifie les abonnés sans inclure le host', () => {
+  it('notifyFollowersSalonCreated notifie les abonnés sans inclure le host', async () => {
     followUser('alice', 'bob');
     followUser('carol', 'bob');
 
@@ -139,6 +139,10 @@ describe('notifications', () => {
         createdAt: Date.now(),
       }
     );
+
+    // notifyFollowersSalonCreated dispatche via runInBatchesAsync (setImmediate) pour ne pas
+    // bloquer l'event loop — laisser passer un tick avant de vérifier les notifications créées.
+    await new Promise((resolve) => setImmediate(resolve));
 
     const recipients = db.notifications.map((n) => n.recipientId).sort();
     expect(recipients).toEqual(['alice', 'carol']);

@@ -95,7 +95,9 @@ export function useStartLiveFlow({
   }, []);
 
   const launchLiveAfterSetup = useCallback(async () => {
-    if (!token) return;
+    // Garde anti double-soumission : un double-tap sur « Prêt » avant que la modale
+    // ne se démonte peut déclencher onReady() deux fois → deux POST /lives/start concurrents.
+    if (!token || starting) return;
     setStarting(true);
     try {
       const prefs = getLiveMediaPrefs() ?? getLiveMediaDraft();
@@ -119,7 +121,7 @@ export function useStartLiveFlow({
     } finally {
       setStarting(false);
     }
-  }, [liveTipsSkipped, onOpenLive, resolvedGeo.latitude, resolvedGeo.longitude, token, user?.username]);
+  }, [liveTipsSkipped, onOpenLive, resolvedGeo.latitude, resolvedGeo.longitude, starting, token, user?.username]);
 
   const proceedToMediaSetup = useCallback(() => {
     setLegalGateOpen(false);

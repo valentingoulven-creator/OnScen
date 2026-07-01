@@ -184,10 +184,14 @@ export function StoryCameraView({
     mimeTypeRef.current = mimeType;
     let recorder: MediaRecorder;
     try {
+      // 1080×1920 cible : 450 kbps vidéo produisait un rendu très pixelisé à cette résolution.
+      // 2,5 Mbps / 128 kbps reste sous les standards TikTok/Instagram (3,5-16 Mbps) tout en
+      // gardant une marge de sécurité sous le plafond de taille backend (STORY_VIDEO_MAX_DATA_
+      // CHARS / MAX_FEED_VIDEO_DATA_CHARS ≈ 9 Mo bruts pour 15 s max → ~4,9 Mo utilisés ici).
       recorder = new MediaRecorder(stream, {
         mimeType,
-        videoBitsPerSecond: 450_000,
-        audioBitsPerSecond: 32_000,
+        videoBitsPerSecond: 2_500_000,
+        audioBitsPerSecond: 128_000,
       });
     } catch {
       setError(t('stories.createVideoRecordError', { defaultValue: 'Enregistrement non supporté' }));
