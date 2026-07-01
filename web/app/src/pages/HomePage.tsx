@@ -21,6 +21,7 @@ import { CreateSalonModal } from '../components/CreateSalonModal';
 import { StartLiveFlowModals } from '../components/StartLiveFlowModals';
 import { useStartLiveFlow } from '../hooks/useStartLiveFlow';
 import { useHomeGeoRefresh } from '../hooks/useHomeGeoRefresh';
+import { useMapUserDisplayPosition, resolveMapCameraFallbackCenter } from '../lib/mapUserPosition';
 import { canJoinSalonAsParticipant, salonParticipantAccessMessageKey } from '../lib/platformConnect';
 import { MapAdBanner, type MapSponsorViewport } from '../components/MapAdBanner';
 import { MapActiveSessionOverlay } from '../components/MapActiveSessionOverlay';
@@ -251,7 +252,7 @@ export function HomePage({
   const compactMapLayout = useCompactMapViewport();
   const bottomMapList = appa2 || compactMapLayout;
   const nearbyLayout = bottomMapList ? ('bottom' as const) : ('side' as const);
-  const { user, token, setUserFromProfile } = useAuth();
+  const { user, token, authBootPending, setUserFromProfile } = useAuth();
   const [salons, setSalons] = useState<Salon[]>([]);
   const [lives, setLives] = useState<Live[]>([]);
   const [nearbyPeople, setNearbyPeople] = useState<NearbyPerson[]>([]);
@@ -600,11 +601,12 @@ export function HomePage({
     [filteredNearbyPeople, mapEventAuthorIds]
   );
 
-  /**
-   * Point « ma position » : GPS réel uniquement ; masqué en mode invisible (fantôme).
-   */
-  const mapUserPosition: [number, number] | null =
-    user?.isGhostMode === true || !userPosition ? null : userPosition;
+  /** GPS si géoloc activée, sinon ville profil ; masqué en mode fantôme. */
+  const mapUserPosition = useMapUserDisplayPosition(
+    userPosition,
+    user?.city,
+    user?.isGhostMode
+  );
 
   /** Masque capitales globe/carte plate quand seul le filtre Évènement est actif. */
   const mapEventsOnly = eventsFilterOn && !livesFilterOn && !salonFilterOn;
@@ -1442,6 +1444,8 @@ export function HomePage({
   useHomeGeoRefresh({
     isActive,
     token,
+    geoBootstrapReady: !authBootPending,
+    profileCity: user?.city,
     center,
     defaultCenter: DEFAULT_CENTER,
     loadNearbyAt,
@@ -1464,7 +1468,9 @@ export function HomePage({
         return;
       }
       if (!navigator.geolocation) {
-        loadNearby(geo.latitude, geo.longitude);
+        const fallback = resolveMapCameraFallbackCenter(user?.city);
+        setSafeCenter(fallback);
+        loadNearby(fallback[0], fallback[1]);
         return;
       }
       setLocating(true);
@@ -1478,15 +1484,16 @@ export function HomePage({
         },
         () => {
           setLocating(false);
-          setSafeCenter([geo.latitude, geo.longitude]);
-          loadNearby(geo.latitude, geo.longitude);
+          const fallback = resolveMapCameraFallbackCenter(user?.city);
+          setSafeCenter(fallback);
+          loadNearby(fallback[0], fallback[1]);
         },
         { enableHighAccuracy: true, maximumAge: 0, timeout: 12000 }
       );
     };
     window.addEventListener(MAP_GEO_CHANGED_EVENT, onMapGeo);
     return () => window.removeEventListener(MAP_GEO_CHANGED_EVENT, onMapGeo);
-  }, [isActive, token]);
+  }, [isActive, token, user?.city]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -1721,7 +1728,7 @@ export function HomePage({
     }
 
     if (!navigator.geolocation) {
-      doRecenter([geo.latitude, geo.longitude]);
+      doRecenter(resolveMapCameraFallbackCenter(user?.city));
       return;
     }
 
@@ -1733,11 +1740,11 @@ export function HomePage({
       },
       () => {
         setLocating(false);
-        doRecenter([geo.latitude, geo.longitude]);
+        doRecenter(resolveMapCameraFallbackCenter(user?.city));
       },
       { enableHighAccuracy: true, maximumAge: 0, timeout: 12000 }
     );
-  }, [userPosition, loadNearby, loadNearbyAt, setSafeCenter, mapStyle]);
+  }, [userPosition, user?.city, loadNearby, loadNearbyAt, setSafeCenter, mapStyle]);
 
   const dismissSalonSheetOnly = useCallback(() => {
     setSelected((prev) => {

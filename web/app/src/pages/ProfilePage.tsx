@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { REELS_UPDATED_EVENT } from '../lib/reelsRefresh';
 import { useTranslation } from 'react-i18next';
 import {
@@ -61,7 +61,18 @@ import type { FeedPost, ProfileType, RelationshipStatus, User } from '../types';
 const HIDE_AGE_CHECKBOX_ID = 'profile-hide-age';
 
 const PROFILE_ACCOUNT_ROW_CLASS =
-  'relative w-full min-h-[44px] px-4 py-3 text-left text-gray-200 font-semibold text-sm hover:bg-[#1a1a26]/80 transition flex items-center justify-between gap-2';
+  'relative w-full min-h-[44px] px-4 py-3 text-left text-gray-200 font-semibold text-sm hover:bg-[#1a1a26]/80 active:bg-[#1a1a26] transition-colors flex items-center justify-between gap-2';
+
+const ACCOUNT_ROW_ICON_CLASS =
+  'w-8 h-8 shrink-0 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-300';
+
+function AccountRowIcon({ children }: { children: ReactNode }) {
+  return (
+    <span className={ACCOUNT_ROW_ICON_CLASS} aria-hidden>
+      {children}
+    </span>
+  );
+}
 
 function profileToForm(user: User | null) {
   const profilePhotos = getUserProfilePhotos(user);
@@ -369,7 +380,10 @@ export function ProfilePage({
 
   return (
     <div className="flex flex-col h-full min-h-0 bg-[#0b0b0f]">
-      <div className="shrink-0 sticky top-0 z-20 bg-[#0b0b0f]/95 backdrop-blur-md border-b border-[#1e1e2f]/70">
+      <div
+        className={`flex-1 min-h-0 overflow-y-auto overscroll-y-contain ${editing ? 'pb-[calc(var(--tab-nav-total-h)+5rem)]' : 'pb-[calc(var(--tab-nav-total-h)+2rem)]'}`}
+      >
+      <div className="shrink-0 border-b border-[#1e1e2f]/70 bg-[#0b0b0f]">
         <div className="relative max-w-lg mx-auto w-full overflow-visible">
           <div className="absolute top-3 left-3 z-30">
             {onBack && (
@@ -442,15 +456,19 @@ export function ProfilePage({
                 <button
                   type="button"
                   onClick={startEditing}
-                  className="w-full min-h-[44px] py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 font-bold text-white text-sm transition shadow-lg shadow-purple-900/30"
+                  className="w-full min-h-[44px] py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 active:scale-[0.98] font-bold text-white text-sm transition shadow-lg shadow-purple-900/30 flex items-center justify-center gap-1.5"
                 >
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
                   {t('profile.editProfile')}
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={() => setEditing(false)}
-                  className="w-full min-h-[44px] py-2.5 rounded-xl border border-[#2d2d3d] bg-[#1a1a26]/90 text-sm font-bold text-gray-300"
+                  className="w-full min-h-[44px] py-2.5 rounded-xl border border-[#2d2d3d] bg-[#1a1a26]/90 hover:bg-[#1e1e2c] active:scale-[0.98] text-sm font-bold text-gray-300 transition"
                 >
                   {t('common.cancel')}
                 </button>
@@ -511,11 +529,8 @@ export function ProfilePage({
         </div>
       </div>
 
-      <div
-        className={`flex-1 min-h-0 overflow-y-auto px-4 ${editing ? 'pb-[calc(var(--tab-nav-total-h)+5rem)]' : 'pb-[calc(var(--tab-nav-total-h)+2rem)]'}`}
-      >
         <div
-          className={`max-w-lg mx-auto w-full ${editing ? 'space-y-4 pt-4' : 'space-y-5 pt-4'}`}
+          className={`max-w-lg mx-auto w-full px-4 ${editing ? 'space-y-4 pt-4' : 'space-y-5 pt-4'}`}
         >
         {profileTab === 'lives' && !editing && user && (
           <div className="space-y-4">
@@ -613,16 +628,27 @@ export function ProfilePage({
               <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 px-1">
                 {t('profile.sectionAccount')}
               </p>
-              <div className="rounded-2xl border border-[#1e1e2f] overflow-hidden bg-[#12121a]/40 divide-y divide-[#1e1e2f]">
+              <div className="rounded-2xl border border-[#1e1e2f] overflow-hidden bg-[#12121a]/40 divide-y divide-[#1e1e2f] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                 <button
                   type="button"
                   onClick={() => setStreamingExpanded((v) => !v)}
                   aria-expanded={streamingExpanded}
                   className={PROFILE_ACCOUNT_ROW_CLASS}
                 >
-                  <span>{t('profile.connectedAccounts')}</span>
-                  <span className="text-gray-500 shrink-0" aria-hidden>
-                    {streamingExpanded ? '▾' : '›'}
+                  <span className="flex items-center gap-3 min-w-0">
+                    <AccountRowIcon>
+                      <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M10 13a5 5 0 007.07 0l1.93-1.93a5 5 0 00-7.07-7.07L10.5 5.43" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14 11a5 5 0 00-7.07 0L5 12.93a5 5 0 007.07 7.07l1.43-1.43" />
+                      </svg>
+                    </AccountRowIcon>
+                    <span className="truncate">{t('profile.connectedAccounts')}</span>
+                  </span>
+                  <span
+                    className={`text-gray-500 shrink-0 transition-transform ${streamingExpanded ? 'rotate-90' : ''}`}
+                    aria-hidden
+                  >
+                    ›
                   </span>
                 </button>
                 {streamingExpanded && (
@@ -651,7 +677,14 @@ export function ProfilePage({
                   onClick={() => setShowSubscription(true)}
                   className={PROFILE_ACCOUNT_ROW_CLASS}
                 >
-                  <span>{t('profile.subscription')}</span>
+                  <span className="flex items-center gap-3 min-w-0">
+                    <AccountRowIcon>
+                      <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 2l2.6 6.2L21 9l-5 4.4L17.4 21 12 17.3 6.6 21 8 13.4 3 9l6.4-.8L12 2z" />
+                      </svg>
+                    </AccountRowIcon>
+                    <span className="truncate">{t('profile.subscription')}</span>
+                  </span>
                   <span className="text-gray-500 shrink-0" aria-hidden>›</span>
                 </button>
 
@@ -674,7 +707,14 @@ export function ProfilePage({
                   onClick={() => setShowContactSoundy(true)}
                   className={PROFILE_ACCOUNT_ROW_CLASS}
                 >
-                  <span>{t('profile.contactSoundy')}</span>
+                  <span className="flex items-center gap-3 min-w-0">
+                    <AccountRowIcon>
+                      <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+                      </svg>
+                    </AccountRowIcon>
+                    <span className="truncate">{t('profile.contactSoundy')}</span>
+                  </span>
                   <span className="text-gray-500 shrink-0" aria-hidden>›</span>
                 </button>
 
@@ -683,7 +723,15 @@ export function ProfilePage({
                   onClick={() => setShowLogoutConfirm(true)}
                   className={`${PROFILE_ACCOUNT_ROW_CLASS} text-red-400 hover:text-red-300`}
                 >
-                  <span>{t('profile.logout')}</span>
+                  <span className="flex items-center gap-3 min-w-0">
+                    <span className="w-8 h-8 shrink-0 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400" aria-hidden>
+                      <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16 17l5-5-5-5M21 12H9" />
+                      </svg>
+                    </span>
+                    <span className="truncate">{t('profile.logout')}</span>
+                  </span>
                 </button>
               </div>
             </section>
@@ -1005,14 +1053,14 @@ function ProfileTabBar({
             key={id}
             type="button"
             onClick={() => onChange(id)}
-            className={`relative flex-1 min-w-[4.5rem] px-2 py-3 text-[11px] sm:text-xs font-bold uppercase tracking-wider transition ${
-              active === id ? 'text-white' : 'text-gray-500 hover:text-gray-300'
+            className={`relative flex-1 min-w-[4.5rem] px-2 py-3 text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-colors ${
+              active === id ? 'text-white' : 'text-gray-500 hover:text-gray-300 active:text-gray-200'
             }`}
           >
             {label}
             {active === id ? (
               <span
-                className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[2px] w-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-500"
+                className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[2.5px] w-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-500"
                 style={{ boxShadow: '0 0 8px rgba(168,85,247,0.7)' }}
               />
             ) : null}
@@ -1054,13 +1102,17 @@ function ProfileStatsRow({
   ];
 
   return (
-    <div className="mt-3 w-full max-w-sm rounded-2xl border border-[#1e1e2f] bg-[#12121a]/50 overflow-hidden">
+    <div className="mt-3 w-full max-w-sm rounded-2xl border border-[#1e1e2f] bg-gradient-to-b from-[#14141e]/70 to-[#12121a]/50 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
       <div className="grid grid-cols-3 divide-x divide-[#1e1e2f]">
         {items.map((item) => {
           const inner = (
             <>
-              <p className="text-base sm:text-lg font-bold text-white tabular-nums">{item.value}</p>
-              <p className="text-[10px] text-gray-500 font-medium mt-0.5 leading-tight">{item.label}</p>
+              <p className="text-base sm:text-lg font-extrabold text-white tabular-nums tracking-tight">
+                {item.value}
+              </p>
+              <p className="text-[10px] text-gray-500 font-semibold mt-0.5 leading-tight uppercase tracking-wide">
+                {item.label}
+              </p>
             </>
           );
           if (item.onClick) {
@@ -1069,7 +1121,7 @@ function ProfileStatsRow({
                 key={item.label}
                 type="button"
                 onClick={item.onClick}
-                className="min-h-[56px] px-2 py-2.5 text-center hover:bg-[#1a1a26]/80 transition"
+                className="min-h-[56px] px-2 py-2.5 text-center hover:bg-white/[0.04] active:bg-white/[0.06] transition-colors"
               >
                 {inner}
               </button>

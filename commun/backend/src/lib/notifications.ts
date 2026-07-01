@@ -204,6 +204,28 @@ export function notifySalonInvite(params: {
   });
 }
 
+export function notifyEventTagged(params: {
+  creator: { id: string; username: string; avatarUrl?: string };
+  postId: string;
+  eventLocation?: string;
+  taggedUserIds: string[];
+}): void {
+  const locHint = params.eventLocation ? ` — ${params.eventLocation}` : '';
+  for (const taggedId of params.taggedUserIds) {
+    if (taggedId === params.creator.id) continue;
+    pushNotification({
+      recipientId: taggedId,
+      senderId: params.creator.id,
+      senderName: params.creator.username,
+      senderAvatarUrl: params.creator.avatarUrl,
+      type: 'event_tagged',
+      message: `${params.creator.username} vous a tagué dans un événement 📅${locHint}`,
+      postId: params.postId,
+      peerUserId: params.creator.id,
+    });
+  }
+}
+
 export function notifyEventCreated(params: {
   creator: { id: string; username: string; avatarUrl?: string };
   postId: string;

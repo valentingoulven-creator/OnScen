@@ -13,7 +13,7 @@ import {
   listFavoritedFeedPosts,
 } from '../lib/feedPosts';
 import { notifyMentions } from '../lib/mentions';
-import { notifyContentHeartReceived, notifyEventCreated } from '../lib/notifications';
+import { notifyContentHeartReceived, notifyEventCreated, notifyEventTagged } from '../lib/notifications';
 import { db } from '../models/schema';
 import { getIo } from '../lib/ioInstance';
 import { getWeeklyTopSongs } from '../lib/weeklyVotes';
@@ -82,6 +82,7 @@ feedRouter.post('/', authenticateJWT, asyncHandler(async (req: Request, res: Res
     eventEndTimes: Array.isArray(body.eventEndTimes) ? body.eventEndTimes : undefined,
     eventLocation: body.eventLocation != null ? String(body.eventLocation) : undefined,
     eventType: body.eventType != null ? String(body.eventType) : undefined,
+    eventTaggedUserIds: body.eventTaggedUserIds,
   });
   if (!result.ok) {
     res.status(400).json({ error: result.error });
@@ -94,6 +95,14 @@ feedRouter.post('/', authenticateJWT, asyncHandler(async (req: Request, res: Res
     notifyMentions(result.post.content, me, postAuthor.username, ctx, result.post.id, postAuthor.avatarUrl);
   }
   if (result.post.isEvent && postAuthor) {
+    if (result.post.eventTaggedUsers?.length) {
+      notifyEventTagged({
+        creator: { id: me, username: postAuthor.username, avatarUrl: postAuthor.avatarUrl },
+        postId: result.post.id,
+        eventLocation: result.post.eventLocation,
+        taggedUserIds: result.post.eventTaggedUsers.map((u) => u.id),
+      });
+    }
     notifyEventCreated({
       creator: { id: me, username: postAuthor.username, avatarUrl: postAuthor.avatarUrl },
       postId: result.post.id,
