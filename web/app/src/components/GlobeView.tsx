@@ -942,6 +942,20 @@ export const GlobeView = memo(forwardRef<GlobeViewHandle, GlobeViewProps>(functi
     () => visibleLives.slice(0, GLOBE_OVERVIEW_CAP),
     [visibleLives]
   );
+  /**
+   * Hôtes déjà représentés par un point salon/live — sans ceci, le même hôte
+   * (visible dans la liste "à proximité" dès qu'il est en live ou a un salon,
+   * cf. personHasMapActivity) recevait EN PLUS un point "person" séparé au
+   * même endroit : 2 points superposés sur la carte pour un seul live/salon.
+   */
+  const mapActivityHostIds = useMemo(
+    () =>
+      new Set([
+        ...cappedSalonsForGlobe.map((s) => s.hostId),
+        ...cappedLivesForGlobe.map((l) => l.hostId),
+      ]),
+    [cappedSalonsForGlobe, cappedLivesForGlobe]
+  );
   const liveLocationClusters = useMemo(
     () =>
       globeDetailTier === 'overview' && markerVisibility.lives
@@ -1057,6 +1071,7 @@ export const GlobeView = memo(forwardRef<GlobeViewHandle, GlobeViewProps>(functi
     }
 
     visiblePeople.forEach((p) => {
+      if (mapActivityHostIds.has(p.id)) return;
       const lat = Number(p.latitude);
       const lng = Number(p.longitude);
       const liveSuffix = p.isLive ? ' · LIVE' : '';
@@ -1126,6 +1141,7 @@ export const GlobeView = memo(forwardRef<GlobeViewHandle, GlobeViewProps>(functi
     visibleEventClusters,
     userPosition,
     salonIds,
+    mapActivityHostIds,
     globeDetailTier,
     markerVisibility.density,
     useLiveClusters,

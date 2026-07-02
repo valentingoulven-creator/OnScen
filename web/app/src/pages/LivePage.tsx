@@ -1074,6 +1074,11 @@ export function LivePage({
     try {
       await api.stopLive(token);
     } finally {
+      // Sans ce refresh, `user.isLive`/`user.liveId` (côté client) restent périmés :
+      // App.tsx retombe dessus comme fallback pour la carte (chip "en haut à droite" +
+      // pastille live) même après que activeLiveViewerSession soit nettoyé par
+      // onLeaveLive/onBack ci-dessous — le live continue donc d'apparaître comme actif.
+      void refreshUser();
       if (onLeaveLive) onLeaveLive();
       else onBack();
     }
