@@ -1,3 +1,4 @@
+import './lib/preferIPv4Dns';
 import { startMeloSong } from './bootstrap';
 
 const isMsdev =
