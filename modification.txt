@@ -17685,6 +17685,88 @@ Fin MODIF 913 — 2026-07-02
 ================================================================================
 
 ================================================================================
+MODIF 914 — 2 points sur la carte à la création d'un live + live fantôme après arrêt — Soundly Dev
+Date : 2026-07-02
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Signalement utilisateur :
+ • "si je créer un live, 2 point apparait sur la carte pourquoi ?"
+ • "Quand j'arrete le live, les utilisateurs voient toujours mon lives sur la
+   carte et j'ai toujours l'information du live en haut à droite de la carte."
+
+CHANGEMENTS / FIX
+-----
+ 1) 2 points au lieu d'1 à la création d'un live
+ ─────────────────────────────────────────────────
+ Cause : la liste "personnes à proximité" (nearby people) inclut tout hôte de
+ live/salon (personHasMapActivity → isLive/salonId), et la carte dessinait
+ déjà un point dédié "live"/"salon" pour cet hôte EN PLUS d'un point "person"
+ séparé pour la même personne au même endroit → 2 pastilles superposées.
+ Un dédoublonnage existait déjà entre salons et lives partageant le même id
+ (salonIds.has(l.id)) mais pas entre lives/salons et la liste "people".
+
+ web/app/src/components/GlobeView.tsx
+ ─────────────────────────────────────
+ • Ajout de `mapActivityHostIds` (hostId de tous les salons/lives affichés) et
+   exclusion de ces hostId dans la boucle qui dessine les points "person".
+
+ web/app/src/components/MapView.tsx
+ ─────────────────────────────────
+ • Même exclusion `mapActivityHostIds` appliquée aux deux boucles de rendu des
+   marqueurs "person" (mode overview en cercles + mode détaillé en icônes).
+
+ 2) Live fantôme après arrêt (pastille carte + chip "en haut à droite")
+ ────────────────────────────────────────────────────────────────────
+ Cause racine : `stopLive()` (LivePage.tsx) n'appelait jamais `refreshUser()`
+ après `POST /lives/stop`. Or `activeLiveSessionId` (App.tsx) retombe sur
+ `user.isLive && user.liveId` dès que `activeLiveViewerSession` est nul — ces
+ champs `user.isLive`/`liveId` sont calculés côté serveur à chaque fetch de
+ profil (jamais stockés), donc rester périmés côté client tant qu'aucun refresh
+ n'est déclenché. Résultat : le live continuait d'apparaître comme actif pour
+ l'hôte (chip carte + pastille) malgré l'arrêt réel côté serveur.
+ Cause secondaire : `MapActiveSessionOverlay` n'écoutait pas `live_ended` et ne
+ vérifiait jamais `live.isActive` sur les données reçues (`GET /lives/:id` /
+ `live_updated` renvoient le live même terminé, pour la rediffusion).
+
+ web/app/src/pages/LivePage.tsx
+ ───────────────────────────────
+ • `stopLive()` appelle désormais `refreshUser()` dans le `finally`, avant
+   `onLeaveLive()`/`onBack()` — synchronise `user.isLive`/`liveId` avec l'état
+   réel serveur immédiatement après l'arrêt.
+
+ web/app/src/components/MapActiveSessionOverlay.tsx
+ ─────────────────────────────────────────────────
+ • Ajout d'un état `liveMissing` (miroir de `salonMissing` existant pour les
+   salons) : passe à `true` si `GET /lives/:id` renvoie `isActive: false`, sur
+   404, ou en recevant `live_ended` / `live_updated` avec `isActive: false`.
+ • Le rendu masque désormais le chip live si `liveMissing` est vrai.
+
+ web/app/src/pages/HomePage.tsx
+ ───────────────────────────────
+ • Ajout d'un handler `live_ended` (miroir de `onSalonEnded` existant) qui
+   retire immédiatement le live terminé de l'état local `lives` (pastille
+   carte) et vide le cache "nearby" au lieu d'attendre son expiration (10s).
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/GlobeView.tsx → exclut les hôtes live/salon des points "person" (globe 3D)
+ web/app/src/components/MapView.tsx → même exclusion pour la carte 2D (Leaflet)
+ web/app/src/components/MapActiveSessionOverlay.tsx → masque le chip live dès qu'il n'est plus actif
+ web/app/src/pages/HomePage.tsx → retire le live de la carte dès réception de live_ended
+ web/app/src/pages/LivePage.tsx → refreshUser() après l'arrêt du live pour resynchroniser isLive/liveId
+
+BUILD (si vérifié)
+-----
+ web/app/ → npx tsc -b → ✅
+ web/app/ → npx eslint (fichiers modifiés) → ✅ 0 erreur (avertissements pré-existants sans rapport)
+
+================================================================================
+Fin MODIF 914 — 2026-07-02
+================================================================================
+
+================================================================================
 MODIF 914 — Dons live spectateurs + catalogue récompenses visible — Soundly Dev
 Date : 2026-06-26
 ================================================================================
