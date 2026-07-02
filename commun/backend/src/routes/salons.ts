@@ -63,7 +63,7 @@ import {
   setSalonVipModerator,
 } from '../lib/salonModeration';
 import { getActiveSalonForHost } from '../lib/profile';
-import { upsertSalonToPg, markSalonInactivePgAsync, reconcileHostSalonsWithPostgres, getSalonFromStore } from '../lib/pgSalonsLives';
+import { upsertSalonToPg, markSalonInactivePgAsync, reconcileHostSalonsWithPostgres, getSalonFromStore, hydrateSalonFromPostgres } from '../lib/pgSalonsLives';
 import { refreshStaleYoutubeSalonMetadata, hasStaleYoutubeMetadata } from '../lib/youtubeMetadata';
 
 export const salonsRouter = Router();
@@ -320,9 +320,9 @@ salonsRouter.get('/:id', authenticateJWT, async (req: Request, res: Response) =>
   res.json({ salon: publicSalon(salon, me) });
 });
 
-salonsRouter.get('/:id/resolve-track', authenticateJWT, (req: Request, res: Response) => {
+salonsRouter.get('/:id/resolve-track', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
-  const salon = db.salons.get(req.params.id);
+  const salon = await hydrateSalonFromPostgres(req.params.id);
   if (!salon) {
     res.status(404).json({ error: 'Salon introuvable' });
     return;
@@ -367,16 +367,16 @@ function salonMemberOr403(salon: Salon | undefined, me: string, res: Response): 
   return true;
 }
 
-salonsRouter.get('/:id/queue', authenticateJWT, (req: Request, res: Response) => {
+salonsRouter.get('/:id/queue', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
-  const salon = db.salons.get(req.params.id);
+  const salon = await hydrateSalonFromPostgres(req.params.id);
   if (!salonMemberOr403(salon, me, res)) return;
   res.json({ queue: ensureSalonQueue(salon.id) });
 });
 
-salonsRouter.patch('/:id/queue/reorder', authenticateJWT, (req: Request, res: Response) => {
+salonsRouter.patch('/:id/queue/reorder', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
-  const salon = db.salons.get(req.params.id);
+  const salon = await hydrateSalonFromPostgres(req.params.id);
   if (!requireSalonPlaybackController(salon, me, res)) return;
   if (!salon.allowQueue) {
     res.status(400).json({ error: 'File désactivée dans ce salon' });
@@ -395,9 +395,9 @@ salonsRouter.patch('/:id/queue/reorder', authenticateJWT, (req: Request, res: Re
   res.json({ queue: reordered });
 });
 
-salonsRouter.get('/:id/proposals', authenticateJWT, (req: Request, res: Response) => {
+salonsRouter.get('/:id/proposals', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
-  const salon = db.salons.get(req.params.id);
+  const salon = await hydrateSalonFromPostgres(req.params.id);
   if (!salonMemberOr403(salon, me, res)) return;
   if (salon.hostId !== me) {
     res.status(403).json({ error: 'Réservé au host' });
@@ -406,9 +406,9 @@ salonsRouter.get('/:id/proposals', authenticateJWT, (req: Request, res: Response
   res.json({ proposals: getPendingProposals(salon.id) });
 });
 
-salonsRouter.get('/:id/participants', authenticateJWT, (req: Request, res: Response) => {
+salonsRouter.get('/:id/participants', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
-  const salon = db.salons.get(req.params.id);
+  const salon = await hydrateSalonFromPostgres(req.params.id);
   if (!salon) {
     res.status(404).json({ error: 'Salon introuvable' });
     return;
@@ -424,14 +424,14 @@ salonsRouter.get('/:id/participants', authenticateJWT, (req: Request, res: Respo
   });
 });
 
-salonsRouter.patch('/:id/participants/:userId/vip', authenticateJWT, (req: Request, res: Response) => {
+salonsRouter.patch('/:id/participants/:userId/vip', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
   const { add } = req.body as { add?: unknown };
   if (typeof add !== 'boolean') {
     res.status(400).json({ error: 'Paramètre add (boolean) requis' });
     return;
   }
-  const result = setSalonVipModerator(req.params.id, me, req.params.userId, add);
+  const result = await setSalonVipModerator(req.params.id, me, req.params.userId, add);
   if (!result.ok) {
     res.status(result.status).json({ error: result.error });
     return;
@@ -439,9 +439,9 @@ salonsRouter.patch('/:id/participants/:userId/vip', authenticateJWT, (req: Reque
   res.json({ salon: publicSalon(result.salon, me) });
 });
 
-salonsRouter.post('/:id/proposals', authenticateJWT, (req: Request, res: Response) => {
+salonsRouter.post('/:id/proposals', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string; username: string } }).user;
-  const salon = db.salons.get(req.params.id);
+  const salon = await hydrateSalonFromPostgres(req.params.id);
   if (!salonMemberOr403(salon, me.id, res)) return;
   if (salon.hostId === me.id || canControlSalonPlayback(salon, me.id)) {
     res.status(400).json({ error: 'Ajoutez directement à la file ou changez le morceau' });
@@ -477,7 +477,7 @@ salonsRouter.post('/:id/proposals', authenticateJWT, (req: Request, res: Respons
 
 salonsRouter.post('/:id/proposals/:proposalId/accept', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string; username: string } }).user;
-  const salon = db.salons.get(req.params.id);
+  const salon = await hydrateSalonFromPostgres(req.params.id);
   if (!salon || salon.hostId !== me.id) {
     res.status(403).json({ error: 'Non autorisé' });
     return;
@@ -510,9 +510,9 @@ salonsRouter.post('/:id/proposals/:proposalId/accept', authenticateJWT, async (r
   });
 });
 
-salonsRouter.post('/:id/proposals/:proposalId/reject', authenticateJWT, (req: Request, res: Response) => {
+salonsRouter.post('/:id/proposals/:proposalId/reject', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
-  const salon = db.salons.get(req.params.id);
+  const salon = await hydrateSalonFromPostgres(req.params.id);
   if (!salon || salon.hostId !== me) {
     res.status(403).json({ error: 'Non autorisé' });
     return;
@@ -528,9 +528,9 @@ salonsRouter.post('/:id/proposals/:proposalId/reject', authenticateJWT, (req: Re
   res.json({ proposal });
 });
 
-salonsRouter.post('/:id/proposals/:proposalId/upvote', authenticateJWT, (req: Request, res: Response) => {
+salonsRouter.post('/:id/proposals/:proposalId/upvote', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
-  const salon = db.salons.get(req.params.id);
+  const salon = await hydrateSalonFromPostgres(req.params.id);
   if (!salonMemberOr403(salon, me, res)) return;
   if (!salon!.allowQueue) {
     res.status(400).json({ error: 'File désactivée dans ce salon' });
@@ -559,7 +559,7 @@ salonsRouter.post('/:id/proposals/:proposalId/upvote', authenticateJWT, (req: Re
 
 salonsRouter.post('/:id/playback/skip', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
-  const salon = db.salons.get(req.params.id);
+  const salon = await hydrateSalonFromPostgres(req.params.id);
   if (!requireSalonPlaybackController(salon, me, res)) return;
   const hostUser = getSalonHostUser(salon, res);
   if (!hostUser || !requireHostPlatform(hostUser, salon.platform, res)) return;
@@ -581,7 +581,7 @@ salonsRouter.post('/:id/playback/skip', authenticateJWT, async (req: Request, re
 
 salonsRouter.post('/:id/playback/play-queue', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
-  const salon = db.salons.get(req.params.id);
+  const salon = await hydrateSalonFromPostgres(req.params.id);
   if (!requireSalonPlaybackController(salon, me, res)) return;
   const hostUser = getSalonHostUser(salon, res);
   if (!hostUser || !requireHostPlatform(hostUser, salon.platform, res)) return;
@@ -609,7 +609,7 @@ salonsRouter.post('/:id/playback/play-queue', authenticateJWT, async (req: Reque
 
 salonsRouter.post('/:id/playback/change-track', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
-  const salon = db.salons.get(req.params.id);
+  const salon = await hydrateSalonFromPostgres(req.params.id);
   if (!requireSalonPlaybackController(salon, me, res)) return;
   if (salon.platform !== 'youtube') {
     res.status(400).json({ error: 'Changement de morceau non supporté pour cette plateforme' });
@@ -645,7 +645,7 @@ salonsRouter.post('/:id/playback/change-track', authenticateJWT, async (req: Req
 
 salonsRouter.post('/:id/playback/add-to-queue', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string; username: string } }).user;
-  const salon = db.salons.get(req.params.id);
+  const salon = await hydrateSalonFromPostgres(req.params.id);
   if (!requireSalonPlaybackController(salon, me.id, res)) return;
   if (salon.platform !== 'youtube') {
     res.status(400).json({ error: 'Ajout à la file non supporté pour cette plateforme' });
@@ -690,7 +690,7 @@ salonsRouter.post('/:id/playback/add-to-queue', authenticateJWT, async (req: Req
 
 salonsRouter.post('/:id/playback/load-playlist', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
-  const salon = db.salons.get(req.params.id);
+  const salon = await hydrateSalonFromPostgres(req.params.id);
   if (!salon || salon.hostId !== me) {
     res.status(403).json({ error: 'Non autorisé' });
     return;
@@ -760,9 +760,9 @@ salonsRouter.post('/:id/playback/load-playlist', authenticateJWT, async (req: Re
   res.json({ playbackState: state, queue: ensureSalonQueue(salon.id) });
 });
 
-salonsRouter.post('/:id/join', authenticateJWT, (req: Request, res: Response) => {
+salonsRouter.post('/:id/join', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
-  const salon = db.salons.get(req.params.id);
+  const salon = await hydrateSalonFromPostgres(req.params.id);
   if (!salon) {
     res.status(404).json({ error: 'Salon introuvable' });
     return;
@@ -777,9 +777,9 @@ salonsRouter.post('/:id/join', authenticateJWT, (req: Request, res: Response) =>
   res.json({ ok: true, salon: publicSalon(salon, me) });
 });
 
-salonsRouter.patch('/:id/settings', authenticateJWT, (req: Request, res: Response) => {
+salonsRouter.patch('/:id/settings', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
-  const salon = db.salons.get(req.params.id);
+  const salon = await hydrateSalonFromPostgres(req.params.id);
   if (!salon || salon.hostId !== me) {
     res.status(403).json({ error: 'Non autorisé' });
     return;
@@ -854,9 +854,9 @@ salonsRouter.patch('/:id/settings', authenticateJWT, (req: Request, res: Respons
   res.json({ salon: publicSalon(salon, me) });
 });
 
-salonsRouter.post('/:id/allowed', authenticateJWT, (req: Request, res: Response) => {
+salonsRouter.post('/:id/allowed', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
-  const salon = db.salons.get(req.params.id);
+  const salon = await hydrateSalonFromPostgres(req.params.id);
   const { userId } = req.body;
   if (!salon || salon.hostId !== me) {
     res.status(403).json({ error: 'Non autorisé' });
@@ -874,9 +874,9 @@ salonsRouter.post('/:id/allowed', authenticateJWT, (req: Request, res: Response)
   res.json({ salon: publicSalon(salon, me) });
 });
 
-salonsRouter.delete('/:id/allowed/:userId', authenticateJWT, (req: Request, res: Response) => {
+salonsRouter.delete('/:id/allowed/:userId', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
-  const salon = db.salons.get(req.params.id);
+  const salon = await hydrateSalonFromPostgres(req.params.id);
   const target = req.params.userId;
   if (!salon || salon.hostId !== me) {
     res.status(403).json({ error: 'Non autorisé' });
@@ -892,9 +892,9 @@ salonsRouter.delete('/:id/allowed/:userId', authenticateJWT, (req: Request, res:
   res.json({ salon: publicSalon(salon, me) });
 });
 
-salonsRouter.post('/:id/validate-guests', authenticateJWT, (req: Request, res: Response) => {
+salonsRouter.post('/:id/validate-guests', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
-  const salon = db.salons.get(req.params.id);
+  const salon = await hydrateSalonFromPostgres(req.params.id);
   if (!salon || salon.hostId !== me) {
     res.status(403).json({ error: 'Non autorisé' });
     return;
@@ -1083,9 +1083,9 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
   res.status(201).json({ salon: publicSalon(salon, userId) });
 });
 
-salonsRouter.delete('/:id', authenticateJWT, (req: Request, res: Response) => {
+salonsRouter.delete('/:id', authenticateJWT, async (req: Request, res: Response) => {
   const userId = (req as Request & { user: { id: string } }).user.id;
-  const salon = db.salons.get(req.params.id);
+  const salon = await hydrateSalonFromPostgres(req.params.id);
   if (!salon || salon.hostId !== userId) {
     res.status(403).json({ error: 'Non autorisé' });
     return;
