@@ -52,6 +52,7 @@ export function serializePublicLive(l: Live, distanceKm?: number, viewerId?: str
     tipsEnabled: l.tipsEnabled !== false,
     contentCategory: l.contentCategory,
     videoDelaySeconds: l.videoDelaySeconds ?? 0,
+    videoAspectRatio: l.videoAspectRatio ?? '16:9',
     countryCode: country?.code,
     countryName: country?.name,
     ...(donationOptions?.length ? { donationOptions } : {}),

@@ -1089,6 +1089,8 @@ export interface Live {
   contentCategory?: 'music' | 'dance' | 'artistic';
   /** Délai vidéo spectateurs (secondes). */
   videoDelaySeconds?: number;
+  /** Format d'image du flux hôte (cadre spectateurs). */
+  videoAspectRatio?: '16:9' | '9:16' | '4:3';
 }
 
 export interface ChatMessage {

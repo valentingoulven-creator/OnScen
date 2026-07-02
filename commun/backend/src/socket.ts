@@ -487,7 +487,13 @@ export function setupSockets(io: Server): void {
 
     socket.on(
       'live_update_media_config',
-      ({ liveId, config }: { liveId: string; config: { videoDelaySeconds?: number } }) => {
+      ({
+        liveId,
+        config,
+      }: {
+        liveId: string;
+        config: { videoDelaySeconds?: number; videoAspectRatio?: string };
+      }) => {
         const actorId = (socket.data as { userId?: string }).userId;
         if (!actorId || !liveId) return;
         const live = db.lives.get(liveId);
@@ -496,6 +502,9 @@ export function setupSockets(io: Server): void {
         if (live.hostId !== actorId && !isDevUser(actor)) return;
         if (config.videoDelaySeconds !== undefined) {
           live.videoDelaySeconds = Math.max(0, Math.min(120, Math.round(config.videoDelaySeconds)));
+        }
+        if (config.videoAspectRatio === '16:9' || config.videoAspectRatio === '9:16' || config.videoAspectRatio === '4:3') {
+          live.videoAspectRatio = config.videoAspectRatio;
         }
         db.lives.set(liveId, live);
         io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live));

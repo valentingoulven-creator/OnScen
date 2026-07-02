@@ -364,6 +364,8 @@ export interface Live {
   contentCategory?: 'music' | 'dance' | 'artistic';
   /** Délai vidéo pour les spectateurs (secondes). 0 = temps réel. */
   videoDelaySeconds?: number;
+  /** Format d'image du flux hôte (16:9, 9:16, 4:3) — cadre spectateurs. */
+  videoAspectRatio?: '16:9' | '9:16' | '4:3';
 }
 
 export type LiveBanScope = 'chat' | 'live';

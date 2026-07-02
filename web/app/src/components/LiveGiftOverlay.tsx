@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getSocket } from '../lib/socket';
 import { donTierEmoji, GIFT_EMOJI, LIVE_DON_TIERS } from '../lib/liveReactions';
+import type { LiveDonationOption } from '../types';
 
 interface GiftBurst {
   id: string;
@@ -14,6 +15,8 @@ interface LiveGiftOverlayProps {
   liveId: string;
   visible: boolean;
   tiers?: readonly number[];
+  /** Menu récompenses hôte (libellés + montants). */
+  donationOptions?: LiveDonationOption[];
   onOpenGiftSheet: (amount?: number) => void;
 }
 
@@ -21,6 +24,7 @@ export function LiveGiftOverlay({
   liveId,
   visible,
   tiers = LIVE_DON_TIERS,
+  donationOptions,
   onOpenGiftSheet,
 }: LiveGiftOverlayProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -68,6 +72,10 @@ export function LiveGiftOverlay({
     onOpenGiftSheet(amount);
   };
 
+  const pickerOptions =
+    donationOptions?.filter((o) => o.label?.trim() && o.amount >= 1 && o.amount <= 100) ?? [];
+  const useRewardMenu = pickerOptions.length > 0;
+
   return (
     <>
       <div className="absolute inset-0 z-[25] pointer-events-none overflow-hidden" aria-hidden>
@@ -88,19 +96,35 @@ export function LiveGiftOverlay({
 
       <div className="absolute bottom-14 right-3 z-30 flex flex-col items-end gap-2 pointer-events-auto">
         {pickerOpen && (
-          <div className="live-gift-picker flex items-center gap-1.5 rounded-2xl border border-pink-500/35 bg-[#12121a]/95 p-1.5 shadow-xl backdrop-blur-md">
-            {tiers.map((tier) => (
-              <button
-                key={tier}
-                type="button"
-                onClick={() => openTier(tier)}
-                className="flex flex-col items-center justify-center min-w-[3.25rem] py-2 px-1.5 rounded-xl bg-pink-950/50 border border-pink-500/30 hover:border-pink-400 hover:bg-pink-900/40 active:scale-95 transition"
-                aria-label={`Pourboire ${tier} euros`}
-              >
-                <span className="text-xl leading-none">{donTierEmoji(tier)}</span>
-                <span className="text-[10px] font-bold text-pink-200 mt-0.5">{tier} €</span>
-              </button>
-            ))}
+          <div className="live-gift-picker flex items-center gap-1.5 rounded-2xl border border-pink-500/35 bg-[#12121a]/95 p-1.5 shadow-xl backdrop-blur-md max-w-[min(100vw-1.5rem,22rem)] overflow-x-auto">
+            {useRewardMenu
+              ? pickerOptions.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => openTier(opt.amount)}
+                    className="flex flex-col items-center justify-center min-w-[3.75rem] max-w-[4.5rem] py-2 px-1.5 rounded-xl bg-pink-950/50 border border-pink-500/30 hover:border-pink-400 hover:bg-pink-900/40 active:scale-95 transition"
+                    aria-label={`${opt.label} — ${opt.amount} euros`}
+                  >
+                    <span className="text-lg leading-none">{donTierEmoji(opt.amount)}</span>
+                    <span className="text-[9px] font-semibold text-pink-100 mt-0.5 text-center line-clamp-2 leading-tight">
+                      {opt.label}
+                    </span>
+                    <span className="text-[10px] font-bold text-pink-200 mt-0.5">{opt.amount} €</span>
+                  </button>
+                ))
+              : tiers.map((tier) => (
+                  <button
+                    key={tier}
+                    type="button"
+                    onClick={() => openTier(tier)}
+                    className="flex flex-col items-center justify-center min-w-[3.25rem] py-2 px-1.5 rounded-xl bg-pink-950/50 border border-pink-500/30 hover:border-pink-400 hover:bg-pink-900/40 active:scale-95 transition"
+                    aria-label={`Pourboire ${tier} euros`}
+                  >
+                    <span className="text-xl leading-none">{donTierEmoji(tier)}</span>
+                    <span className="text-[10px] font-bold text-pink-200 mt-0.5">{tier} €</span>
+                  </button>
+                ))}
             <button
               type="button"
               onClick={() => {

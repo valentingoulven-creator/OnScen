@@ -30,14 +30,10 @@ export function rewardsMenuIsCustomized(rewards: LiveReward[]): boolean {
   });
 }
 
-/** Publie le menu dons au live (spectateurs) ou le retire si catalogue par défaut / vide. */
+/** Publie le menu dons / récompenses au live (spectateurs). */
 export function syncLiveDonationOptions(liveId: string, rewards: LiveReward[]): void {
   const socket = getSocket();
   if (!socket) return;
-  if (!rewardsMenuIsCustomized(rewards)) {
-    socket.emit('live_update_donation_options', { liveId, options: [] });
-    return;
-  }
   const options = rewardsToDonationOptions(rewards);
   socket.emit('live_update_donation_options', { liveId, options });
 }
