@@ -1,4 +1,5 @@
 import i18n from '../../i18n';
+import { showErrorPopup } from '../errorPopups';
 
 export const API_BASE = '/api';
 
@@ -110,10 +111,21 @@ export async function request<T>(
       headers: { ...headers(token), ...opts.headers },
     });
   } catch (e) {
-    normalizeFetchNetworkError(e);
+    try {
+      normalizeFetchNetworkError(e);
+    } catch (networkError) {
+      // Serveur injoignable / coupure réseau : silencieux sinon, jamais affiché par les
+      // écrans appelants -> popup global (dédupliqué) pour signaler le blocage.
+      showErrorPopup(networkError instanceof Error ? networkError.message : String(networkError));
+      throw networkError;
+    }
   }
   if (!res.ok) {
-    throw await parseApiError(res);
+    const err = await parseApiError(res);
+    if (res.status >= 500) {
+      showErrorPopup(err.message);
+    }
+    throw err;
   }
   return res.json();
 }

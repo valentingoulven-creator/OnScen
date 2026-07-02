@@ -9,6 +9,7 @@ import { initSentry } from './lib/sentry';
 import { migrateAllLegacyStorageKeys } from './lib/storageKeys';
 import App from './App.tsx';
 import { AppErrorBoundary } from './components/AppErrorBoundary.tsx';
+import { GlobalErrorPopup } from './components/GlobalErrorPopup.tsx';
 import { MsdevEnvIndicator } from './components/MsdevEnvBadge.tsx';
 import { AuthProvider } from './context/AuthContext.tsx';
 import { DmUnreadProvider } from './context/DmUnreadContext.tsx';
@@ -96,6 +97,7 @@ createRoot(rootEl).render(
   <StrictMode>
     <PhoneWebShell>
       <AppErrorBoundary>
+        <GlobalErrorPopup />
         <AuthProvider>
           <DmUnreadProvider>
             <MsdevEnvIndicator />

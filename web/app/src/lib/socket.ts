@@ -1,6 +1,12 @@
 import type { Socket } from 'socket.io-client';
+import { showErrorPopup } from './errorPopups';
+import i18n from '../i18n';
 
 const AUTH_TOKEN_HEADER = 'X-Auth-Token';
+/** Délai de grâce avant d'afficher un avertissement — évite de signaler les micro-coupures
+ * (veille d'onglet, changement de réseau) que socket.io reconnecte tout seul en < 1-2 s. */
+const DISCONNECT_WARNING_DELAY_MS = 6000;
+let disconnectWarningTimer: ReturnType<typeof setTimeout> | null = null;
 
 type IoFn = typeof import('socket.io-client').io;
 
@@ -39,6 +45,10 @@ function createSocket(token: string): Socket {
     extraHeaders: { [AUTH_TOKEN_HEADER]: token },
   });
   s.on('connect', () => {
+    if (disconnectWarningTimer) {
+      clearTimeout(disconnectWarningTimer);
+      disconnectWarningTimer = null;
+    }
     if (registeredUserId) {
       s.emit('register', registeredUserId);
     }
@@ -49,6 +59,14 @@ function createSocket(token: string): Socket {
         /* ignore listener errors */
       }
     });
+  });
+  s.on('disconnect', (reason: string) => {
+    // 'io client disconnect' = déconnexion volontaire (logout, changement de token) : pas d'alerte.
+    if (reason === 'io client disconnect') return;
+    if (disconnectWarningTimer) clearTimeout(disconnectWarningTimer);
+    disconnectWarningTimer = setTimeout(() => {
+      showErrorPopup(i18n.t('errors.connectionLost'), { kind: 'warning' });
+    }, DISCONNECT_WARNING_DELAY_MS);
   });
   s.on('connect_error', (err: Error) => {
     console.warn('[socket] connect_error:', err.message);
