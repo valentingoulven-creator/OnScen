@@ -1,4 +1,6 @@
 import { diagnosticLogsApi } from './api/diagnosticLogs';
+import { showErrorPopup } from './errorPopups';
+import i18n from '../i18n';
 
 export type DiagnosticLogLevel = 'error' | 'warn' | 'info';
 
@@ -193,6 +195,9 @@ export async function flushDiagnosticLogsToServer(token?: string | null): Promis
   }
 }
 
+/** Bruit connu sans impact utilisateur — jamais affiché en popup (mais toujours loggé). */
+const SILENT_ERROR_PATTERN = /resizeobserver loop|script error\.?$/i;
+
 function installGlobalHandlers(): void {
   window.addEventListener('error', (event) => {
     const message = event.message || 'Script error';
@@ -207,10 +212,20 @@ function installGlobalHandlers(): void {
         colno: event.colno,
       },
     });
+    // Message générique dédupliqué (pas la stack brute) : reste user-friendly même en
+    // cas de boucle d'erreurs, et évite de spammer l'utilisateur de détails techniques.
+    if (!SILENT_ERROR_PATTERN.test(message)) {
+      showErrorPopup(i18n.t('errors.unexpected'), { kind: 'error' });
+    }
   });
 
   window.addEventListener('unhandledrejection', (event) => {
     logDiagnosticError(event.reason, { source: 'unhandledrejection' });
+    const reasonMessage =
+      event.reason instanceof Error ? event.reason.message : String(event.reason ?? '');
+    if (!SILENT_ERROR_PATTERN.test(reasonMessage)) {
+      showErrorPopup(i18n.t('errors.unexpected'), { kind: 'error' });
+    }
   });
 
   const origError = console.error.bind(console);

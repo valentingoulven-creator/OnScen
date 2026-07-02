@@ -2358,7 +2358,9 @@
     "serverUnreachable": "Could not load your session (server unreachable or too slow). Try again in a moment or refresh the page (Ctrl+Shift+R).",
     "salonNotFound": "Room not found",
     "usernameTaken": "This username is already taken",
-    "registrationClosed": "Registration is closed"
+    "registrationClosed": "Registration is closed",
+    "unexpected": "An unexpected error occurred. Please try again in a moment.",
+    "connectionLost": "Connection lost. Reconnecting…"
   },
   "platform": {
     "connectYoutube": "Connect YouTube",

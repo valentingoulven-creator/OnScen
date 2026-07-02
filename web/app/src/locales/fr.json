@@ -2372,7 +2372,9 @@
     "serverUnreachable": "Impossible de charger votre session (serveur injoignable ou trop lent). Réessayez dans un instant ou actualisez la page (Ctrl+Shift+R).",
     "salonNotFound": "Salon introuvable",
     "usernameTaken": "Ce pseudo est déjà pris",
-    "registrationClosed": "Les inscriptions sont fermées"
+    "registrationClosed": "Les inscriptions sont fermées",
+    "unexpected": "Une erreur inattendue est survenue. Réessayez dans un instant.",
+    "connectionLost": "Connexion perdue. Reconnexion en cours…"
   },
   "platform": {
     "connectYoutube": "Connecter YouTube",
