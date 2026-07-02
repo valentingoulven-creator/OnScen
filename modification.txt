@@ -17173,3 +17173,69 @@ FICHIERS MODIFIÉS
 ================================================================================
 Fin MODIF 906 — 2026-06-26
 ================================================================================
+
+================================================================================
+MODIF 907 — Recherche YouTube cassée en anonyme (clé API restreinte IPv4 vs sortie IPv6 VPS)
+Date : 2026-07-02
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Signalement utilisateur : « lecture impossible YouTube sur un salon créé sur
+ téléphone Safari » + question sur une éventuelle validation Google de l'API.
+
+ Investigation (logs prod + appels directs à l'API Google) :
+ - La clé YOUTUBE_API_KEY est restreinte par IP dans Google Cloud Console sur
+   l'IPv4 sortante du VPS.
+ - Node résout googleapis.com en IPv6 par défaut sur ce VPS → tout appel
+   utilisant uniquement la clé API (sans token OAuth) échouait avec
+   403 API_KEY_IP_ADDRESS_BLOCKED. Vérifié en live : appel direct à
+   googleapis.com/youtube/v3/search → 403 en résolution par défaut,
+   → 200 OK en forçant dns.setDefaultResultOrder('ipv4first').
+ - Pour un hôte de salon avec YouTube lié (ex. Val), searchVideosViaDataApi
+   retombe sur le token OAuth de l'hôte et la recherche fonctionnait quand
+   même (vérifié en conditions réelles avec le compte de Val : 12 résultats).
+ - Impact réel : recherche YouTube cassée en silence (résultats vides, sans
+   erreur visible) pour tout appel sans token OAuth associé — participants
+   sans compte YouTube lié qui proposent un morceau, résolution de snippets/
+   playlists sans accessToken, etc. Corrélé aussi avec des erreurs
+   « [livekit] health ping failed fetch failed » vues dans les logs (même
+   cause probable : sortie IPv6 mal supportée par certains endpoints).
+ - Conclusion pour l'utilisateur : PAS lié à la validation Google de l'écran
+   de consentement OAuth (l'app est en mode Testing, mais Val a un token
+   OAuth valide et fonctionnel, testé en direct). C'est un problème réseau
+   serveur (résolution DNS IPv6 vs restriction IP de la clé API), indépendant
+   du navigateur (Safari/iPhone n'est pas la cause).
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/preferIPv4Dns.ts (nouveau)
+ ────────────────────────────────────────
+ • dns.setDefaultResultOrder('ipv4first') appliqué une fois au démarrage du
+   process, pour que tous les appels sortants (fetch/https) du backend
+   préfèrent l'IPv4.
+
+ commun/backend/src/index.ts
+ ────────────────────────────
+ • import './lib/preferIPv4Dns' en tout premier import, avant bootstrap.
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/preferIPv4Dns.ts → nouveau, force résolution IPv4-first
+ commun/backend/src/index.ts → import du fix en entrée de process
+
+BUILD
+-----
+ commun/backend/ → npm run build → ✅
+ Vérifié en prod après reload PM2 : /health → 200 OK, services tous "ok"
+ (dont livekit, qui affichait des échecs de ping avant reload).
+
+À FAIRE (hors code, côté Google Cloud Console)
+-----
+ • Envisager de retirer/élargir la restriction IP de YOUTUBE_API_KEY (ou
+   ajouter explicitement l'IPv6 sortante du VPS) pour éviter une régression
+   si un autre chemin réseau redevient IPv6 par la suite.
+
+================================================================================
+Fin MODIF 907 — 2026-07-02
+================================================================================
