@@ -16924,3 +16924,129 @@ FICHIERS MODIFIÉS
 ================================================================================
 Fin MODIF 902 — 2026-07-01
 ================================================================================
+
+================================================================================
+MODIF 903 — OAuth Google : ne pas forcer changement mot de passe app
+Date : 2026-07-02
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Modal « Changez votre mot de passe » affiché après connexion Google OAuth
+ (ex. admin@getsoundy.com) car mustChangePassword=true (reset admin script)
+ s'appliquait aussi aux sessions OAuth.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/routes/oauth.ts
+ ─────────────────
+ • clearPasswordChangeRequiredForOAuthLogin à la connexion OAuth (Google/Apple/exchange)
+
+ commun/backend/src/lib/oauthAccount.ts · profile.ts
+ ─────────────────
+ • Helper clear flag · passwordChangeRequired ignoré pour comptes oauth-only
+
+ Prod (hotfix)
+ ─────────────────
+ • mustChangePassword=false en DB pour admin@getsoundy.com + pm2 reload
+
+BUILD (si vérifié)
+-----
+ oauthAccount.test.ts → 4/4 ✅
+
+================================================================================
+Fin MODIF 903 — 2026-07-02
+================================================================================
+
+================================================================================
+MODIF 904 — Carte : fix tremblement viewport + marqueur utilisateur
+Date : 2026-07-02
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Carte Leaflet et icône utilisateur qui « tremblent » : boucle flyTo ↔ setCenter,
+ GPS micro-mouvements, pulse CSS transform sur marqueur, invalidateSize ResizeObserver.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapView.tsx
+ ─────────────────
+ • moveend : sync centre React uniquement si pan utilisateur (pas programmatic)
+ • flyTo recenter sur recenterToken seul (plus sur chaque changement center)
+ • programmaticMapMoveUntil sur flyTo impératif · debounce ResizeObserver 120ms
+ • seuil ~8 m avant setLatLng marqueur GPS
+
+ web/app/src/pages/HomePage.tsx · hooks/useHomeGeoRefresh.ts
+ ─────────────────
+ • setMapViewportCenter : ignore deltas < 10 m · GPS polling : seuil 8 m
+
+ web/app/src/index.css
+ ─────────────────
+ • Pulse user-pos sans transform:scale (opacity only) + translateZ(0)
+
+================================================================================
+Fin MODIF 904 — 2026-07-02
+================================================================================
+
+================================================================================
+MODIF 905 — Fix critique : création de salon jamais persistée en base
+Date : 2026-07-02
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Signalement compte Val : salon créé ne s'ouvre pas, aucune icône « salon
+ en cours », personne ne le voit sur la carte. Logs prod (pm2-error.log) :
+ 4 tentatives de création (14h37-14h56) toutes en échec silencieux avec
+ « [pgSalonsLives] upsert salon ...: error: could not determine data type
+ of parameter $4 ».
+
+ Cause : la requête INSERT INTO salons/lives utilisait les paramètres
+ $4/$5 (lat/lon salons) et $6/$7 (lat/lon lives) à la fois comme valeur de
+ colonne ET à l'intérieur de ST_MakePoint(), sans cast explicite
+ ::double precision — Postgres ne peut pas déterminer un type unique et
+ rejette toute la requête. L'upsert étant fire-and-forget (upsertSalonToPgAsync,
+ non attendu par la route), l'échec est invisible côté client (le salon
+ reste créé en mémoire du seul worker PM2 qui a traité la requête).
+
+ En mode cluster (2 workers PM2, Phase 0 scale), chaque worker a son
+ propre `db.salons` en mémoire, non partagé. Sans persistance PostgreSQL
+ réussie, le salon n'existe que sur un worker : invisible pour l'autre
+ worker (donc ~50% des requêtes carte/salon), et perdu au prochain
+ restart/reload PM2. D'où l'icône absente et le salon invisible sur la
+ carte pour les autres utilisateurs.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/pgSalonsLives.ts
+ ─────────────────
+ • upsertSalon() : cast explicite $4::double precision / $5::double
+   precision (colonnes + à l'intérieur de ST_MakePoint).
+ • upsertLive() : même cast sur $6/$7 (latitude/longitude).
+ • Pattern identique à celui déjà correct dans pgUsers.ts (upsertUser),
+   qui n'était pas reproduit ici.
+
+VÉRIFICATION
+-----
+ • Test direct de la requête corrigée sur la base de production (insert +
+   delete d'une ligne de test) → succès confirmé, plus d'erreur.
+ • Hotfix déployé en prod par SCP ciblé de dist/lib/pgSalonsLives.js +
+   `pm2 reload melosong-backend` (le script deploy-prod.ps1 restait bloqué
+   à l'étape SSH/SCP PowerShell — contournement manuel habituel).
+ • Les 4 salons de test de Val (14h37-14h56) n'ont jamais été persistés ;
+   rien à réactiver en base — à recréer normalement, ça fonctionne
+   désormais dès le premier essai.
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/pgSalonsLives.ts → cast PG lat/lon salons + lives
+
+BUILD
+-----
+ commun/backend/ → npm run build → ✅
+ commun/backend/ → npx vitest run (salonPlaybackOps, salonAccess) → ✅ 11/11
+
+================================================================================
+Fin MODIF 905 — 2026-07-02
+================================================================================
