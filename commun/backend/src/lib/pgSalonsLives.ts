@@ -67,9 +67,9 @@ async function upsertSalon(db: DbExec, salon: Salon): Promise<void> {
   await db.query(
     `INSERT INTO salons (id, host_id, created_at, latitude, longitude, geom, is_active, payload)
      VALUES (
-       $1, $2, $3, $4, $5,
-       CASE WHEN $4 IS NOT NULL AND $5 IS NOT NULL
-         THEN ST_SetSRID(ST_MakePoint($5, $4), 4326)::geography
+       $1, $2, $3, $4::double precision, $5::double precision,
+       CASE WHEN $4::double precision IS NOT NULL AND $5::double precision IS NOT NULL
+         THEN ST_SetSRID(ST_MakePoint($5::double precision, $4::double precision), 4326)::geography
          ELSE NULL
        END,
        TRUE, $6::jsonb
@@ -90,9 +90,9 @@ async function upsertLive(db: DbExec, live: Live): Promise<void> {
   await db.query(
     `INSERT INTO lives (id, host_id, salon_id, started_at, is_active, latitude, longitude, geom, payload)
      VALUES (
-       $1, $2, $3, $4, $5, $6, $7,
-       CASE WHEN $6 IS NOT NULL AND $7 IS NOT NULL
-         THEN ST_SetSRID(ST_MakePoint($7, $6), 4326)::geography
+       $1, $2, $3, $4, $5, $6::double precision, $7::double precision,
+       CASE WHEN $6::double precision IS NOT NULL AND $7::double precision IS NOT NULL
+         THEN ST_SetSRID(ST_MakePoint($7::double precision, $6::double precision), 4326)::geography
          ELSE NULL
        END,
        $8::jsonb
