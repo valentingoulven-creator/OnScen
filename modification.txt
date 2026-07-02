@@ -17050,3 +17050,126 @@ BUILD
 ================================================================================
 Fin MODIF 905 — 2026-07-02
 ================================================================================
+
+================================================================================
+MODIF 906 — Popups d'erreur globales (blocages réseau/JS/socket)
+Date : 2026-07-02
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande utilisateur : afficher un popup d'erreur visible dès qu'un
+ blocage/erreur survient dans l'app. Audit préalable : aucun système de
+ toast/notification global — erreurs JS non interceptées, coupures
+ réseau/serveur et déconnexions socket restaient 100% silencieuses côté
+ utilisateur (seulement loggées dans diagnosticLogs/Sentry). Illustré par
+ le bug salon Val (MODIF 905) : l'échec était invisible sans regarder
+ les logs serveur.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/errorPopups.ts (nouveau)
+ ─────────────────
+ • Bus pub/sub minimal (showErrorPopup / subscribeErrorPopups), utilisable
+   hors React (lib/api, lib/socket, diagnosticLogs) sans contexte.
+ • Anti-spam : déduplication par message pendant 4 s.
+
+ web/app/src/components/GlobalErrorPopup.tsx (nouveau)
+ ─────────────────
+ • S'abonne au bus, affiche un toast empilé (max 3, auto-dismiss 6,5 s,
+   fermeture manuelle) en haut d'écran pour les erreurs non-bloquantes.
+ • Modale bottom-sheet (mobile) / centrée (desktop) façon ConfirmModal
+   pour les erreurs bloquantes (nécessite un clic).
+ • Monté une seule fois à la racine (main.tsx), toujours actif (avant
+   AuthProvider) — z-[125] (toasts) / z-[140] (modale bloquante).
+
+ web/app/src/lib/diagnosticLogs.ts
+ ─────────────────
+ • window.onerror / unhandledrejection déclenchent désormais un popup
+   générique (i18n, dédupliqué) en plus du log existant — filtre le
+   bruit connu (ResizeObserver loop).
+
+ web/app/src/lib/api/core.ts
+ ─────────────────
+ • request() : erreur réseau (fetch injoignable) et erreurs serveur 5xx
+   déclenchent un popup avec le message déjà i18n de parseApiError.
+   Les 4xx (validation, 401/403/404/429) restent gérés localement par
+   les écrans (déjà traités au cas par cas) pour éviter les doublons.
+
+ web/app/src/lib/socket.ts
+ ─────────────────
+ • Déconnexion socket.io > 6 s (hors déconnexion volontaire au logout)
+   → popup d'avertissement « connexion perdue ». Délai de grâce pour
+   ignorer les micro-coupures que socket.io reconnecte seul.
+
+ web/app/src/locales/fr.json, en.json
+ ─────────────────
+ • Nouvelles clés errors.unexpected, errors.connectionLost.
+
+NOTE
+-----
+ ios/apptel (build Capacitor natif) non modifié — son lib/api/core.ts a
+ déjà divergé du code partagé (pas de gestion 502/salonId) ; à
+ harmoniser séparément si besoin.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/errorPopups.ts → nouveau bus de popups
+ web/app/src/components/GlobalErrorPopup.tsx → nouveau composant toast/modale
+ web/app/src/main.tsx → montage GlobalErrorPopup
+ web/app/src/lib/api/core.ts → popup sur erreurs réseau/5xx
+ web/app/src/lib/socket.ts → popup sur perte de connexion
+ web/app/src/lib/diagnosticLogs.ts → popup sur erreurs JS non interceptées
+ web/app/src/locales/{fr,en}.json → clés errors.unexpected / connectionLost
+
+BUILD
+-----
+ web/app/ → tsc --noEmit → ✅
+ web/app/ → eslint (fichiers modifiés) → ✅
+ web/app/ → npm run build:prod → ✅
+ ios/apptel/ → npm run build (tel/) → ✅ (rebuild simple, aucun changement fonctionnel)
+
+================================================================================
+Fin MODIF 906 — 2026-07-02
+================================================================================
+
+================================================================================
+MODIF 906 — Carte grise qui tremble (flyTo en boucle)
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Après MODIF 904, la carte plate restait grise et « tremblait » au chargement :
+ bootstrap geo appelait setSafeCenter plusieurs fois (profil → resolveEventCoords
+ → GPS) en incrémentant recenterToken à chaque appel, ce qui relançait flyTo
+ Leaflet en chaîne. Les tuiles se rechargeaient en boucle (fond gris + jitter).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/HomePage.tsx
+ ───────────────────────────────
+ • setSafeCenter : recenterToken uniquement si le centre bouge ≥ ~10 m.
+ • Suppression de l'effet [center] qui marquait chaque pan utilisateur
+   comme mouvement programmatique pendant 900 ms.
+
+ web/app/src/components/MapView.tsx
+ ────────────────────────────────
+ • fadeAnimation / zoomAnimation désactivés à l'init Leaflet.
+ • ResizeObserver : invalidateSize seulement si width/height changent.
+ • moveend programmatique : pas de sync center React ni refresh capitales.
+ • refreshFlatTileLayer : redraw simple (sans moveend → redraw en cascade).
+
+ web/app/src/index.css
+ ────────────────────
+ • Désactivation transition CSS leaflet-fade-anim / leaflet-zoom-anim.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/HomePage.tsx → setSafeCenter anti-boucle
+ web/app/src/components/MapView.tsx → stabilité tuiles / moveend
+ web/app/src/index.css → pas de fade tuiles
+
+================================================================================
+Fin MODIF 906 — 2026-06-26
+================================================================================
