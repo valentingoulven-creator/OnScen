@@ -22,7 +22,7 @@ import { CompactTagChips } from './CompactTagChips';
 import { ProfileIdentityLines } from './ProfileIdentityLines';
 import { UsernameDisplay } from './UsernameDisplay';
 import { UserAvatarOnline } from './UserAvatarOnline';
-import { canJoinSalonAsParticipant, salonParticipantAccessMessageKey } from '../lib/platformConnect';
+import { ensureYoutubeLinkedToJoinSalon } from '../lib/platformConnect';
 import { canSendHeart, heartDisabledReason, isSingleForHeart, userMeetsHeartAge } from '../lib/canSendHeart';
 import type {
   CurrentListening,
@@ -59,7 +59,6 @@ export function UserProfileView({
   const [justMatched, setJustMatched] = useState<MusicMatch | null>(null);
   const [heartToast, setHeartToast] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [salonGateToast, setSalonGateToast] = useState<string | null>(null);
   const [photoViewerIndex, setPhotoViewerIndex] = useState<number | null>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -169,14 +168,8 @@ export function UserProfileView({
     if (!activeSalonId || !onOpenSalon) return;
     const platform = currentListening?.platform ?? 'youtube';
     if (
-      !canJoinSalonAsParticipant(
-        platform,
-        me?.connectedPlatforms,
-        isSalonHost
-      )
+      !ensureYoutubeLinkedToJoinSalon(me?.connectedPlatforms, isSalonHost, platform)
     ) {
-      setSalonGateToast(t(salonParticipantAccessMessageKey(platform)));
-      window.setTimeout(() => setSalonGateToast(null), 3500);
       return;
     }
     onOpenSalon(activeSalonId, activeSalonTitle, isSalonHost);
@@ -187,7 +180,6 @@ export function UserProfileView({
     isSalonHost,
     me?.connectedPlatforms,
     onOpenSalon,
-    t,
   ]);
 
   const heartHint = () => {
@@ -550,12 +542,6 @@ export function UserProfileView({
         {heartToast && (
           <p className="text-sm font-semibold text-pink-200 bg-pink-950/40 border border-pink-500/40 rounded-xl px-3 py-2.5">
             Cœur envoyé ! 💜
-          </p>
-        )}
-
-        {salonGateToast && (
-          <p className="text-sm font-semibold text-amber-200 bg-amber-950/40 border border-amber-500/40 rounded-xl px-3 py-2.5">
-            {salonGateToast}
           </p>
         )}
 

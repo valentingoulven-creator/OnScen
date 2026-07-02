@@ -17,6 +17,7 @@ import {
   completeYoutubeOAuth,
   createYoutubeOAuthUrl,
   isYoutubeOAuthConfigured,
+  buildYoutubeOAuthRedirect,
   probeYoutubeHostSession,
   revokeAndDisconnectYoutube,
 } from '../lib/youtubeOAuth';
@@ -112,13 +113,15 @@ platformsRouter.get('/youtube/oauth/callback', async (req: Request, res: Respons
   const code = req.query.code;
   const state = req.query.state;
   if (err || !code || !state) {
-    res.redirect(`${appUrl}/?youtube_oauth=error`);
+    res.redirect(
+      buildYoutubeOAuthRedirect(appUrl, 'error', typeof err === 'string' ? err : undefined)
+    );
     return;
   }
   try {
     const result = await completeYoutubeOAuth(String(code), String(state));
     if (!result) {
-      res.redirect(`${appUrl}/?youtube_oauth=error`);
+      res.redirect(buildYoutubeOAuthRedirect(appUrl, 'error'));
       return;
     }
     const user = db.users.get(result.userId);
@@ -127,12 +130,12 @@ platformsRouter.get('/youtube/oauth/callback', async (req: Request, res: Respons
       db.users.set(user.id, user);
       schedulePersist();
     }
-    res.redirect(`${appUrl}/?youtube_oauth=ok`);
+    res.redirect(buildYoutubeOAuthRedirect(appUrl, 'ok'));
   } catch {
     // Toujours rediriger l'utilisateur plutôt que de laisser un rejet non
     // catché bloquer la réponse HTTP (callback déclenché par Google, hors
     // contrôle de l'app).
-    res.redirect(`${appUrl}/?youtube_oauth=error`);
+    res.redirect(buildYoutubeOAuthRedirect(appUrl, 'error'));
   }
 });
 

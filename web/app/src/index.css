@@ -875,6 +875,12 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   font-family: inherit;
 }
 
+/* Évite le scintillement gris des tuiles pendant micro-mouvements. */
+.leaflet-fade-anim .leaflet-tile,
+.leaflet-zoom-anim .leaflet-zoom-animated {
+  transition: none !important;
+}
+
 .event-location-map-picker .leaflet-container {
   width: 100% !important;
   height: 100% !important;
@@ -1890,8 +1896,8 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 
 /* ── User position marker (bonhomme bleu) ────────────────────────────── */
 @keyframes user-pos-pulse {
-  0%   { transform: scale(0.4); opacity: 0.9; }
-  100% { transform: scale(2.8); opacity: 0;   }
+  0%   { opacity: 0.8; }
+  100% { opacity: 0; }
 }
 
 .map-user-position {
@@ -1900,6 +1906,7 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   align-items: center;
   gap: 1px;
   filter: drop-shadow(0 2px 8px rgba(96, 165, 250, 0.75));
+  transform: translateZ(0);
 }
 
 .map-user-dot {
@@ -1916,11 +1923,12 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 .map-user-dot::after {
   content: '';
   position: absolute;
-  inset: -3px;
+  inset: -6px;
   border-radius: 50%;
   border: 2px solid #60a5fa;
   animation: user-pos-pulse 2s ease-out infinite;
   opacity: 0;
+  pointer-events: none;
 }
 
 .map-user-dot::after {

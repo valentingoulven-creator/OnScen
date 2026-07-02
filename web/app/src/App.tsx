@@ -48,6 +48,8 @@ import { SoundyLogoButton } from './components/SoundyLogo';
 import { MainTabNav } from './components/MainTabNav';
 import { PlatformConnectPrompt } from './components/PlatformConnectPrompt';
 import { ActiveSalonSessionBanner } from './components/ActiveSalonSessionBanner';
+import { SalonYoutubeJoinModal } from './components/SalonYoutubeJoinModal';
+import { ensureYoutubeLinkedToJoinSalon } from './lib/platformConnect';
 import { ActiveLiveBanner } from './components/ActiveLiveBanner';
 import { APP_LAYOUT_CHANGED_EVENT, getAppLayout, isAppa2Layout } from './lib/appLayout';
 import { UserAvatarOnline } from './components/UserAvatarOnline';
@@ -235,24 +237,44 @@ export default function App() {
   /** Restaure la session hôte depuis /auth/me après rechargement (sessionStorage + API). */
   useEffect(() => {
     const hostedSalonId = user?.salonId;
-    if (!hostedSalonId || !token) return;
+    if (!hostedSalonId || !token) {
+      setActiveSalonSession((prev) => {
+        if (!prev?.isHost) return prev;
+        return null;
+      });
+      return;
+    }
+    let cancelled = false;
     const hostedSalonTitle = user.salonTitle;
-    setActiveSalonSession((prev) => {
-      if (prev?.id === hostedSalonId) {
-        return {
-          ...prev,
-          isHost: true,
-          title: prev.title ?? hostedSalonTitle,
-        };
-      }
-      return {
-        id: hostedSalonId,
-        title: hostedSalonTitle,
-        viewMode: prev?.viewMode === 'full' ? 'full' : 'minimized',
-        isHost: true,
-      };
-    });
-  }, [user?.salonId, user?.salonTitle, token]);
+    void api
+      .getSalon(token, hostedSalonId)
+      .then(() => {
+        if (cancelled) return;
+        setActiveSalonSession((prev) => {
+          if (prev?.id === hostedSalonId) {
+            return {
+              ...prev,
+              isHost: true,
+              title: prev.title ?? hostedSalonTitle,
+            };
+          }
+          return {
+            id: hostedSalonId,
+            title: hostedSalonTitle,
+            viewMode: prev?.viewMode === 'full' ? 'full' : 'minimized',
+            isHost: true,
+          };
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        void refreshUser();
+        setActiveSalonSession((prev) => (prev?.id === hostedSalonId ? null : prev));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.salonId, user?.salonTitle, token, refreshUser]);
 
   const salonRestoredOnBootRef = useRef(false);
   useEffect(() => {
@@ -343,14 +365,21 @@ export default function App() {
     }
     if (oauth === 'error') {
       const reason = params.get('reason');
+      const googleError = params.get('google_error');
       if (reason === 'not_configured') {
         showAppToast('Connexion YouTube indisponible : OAuth Google non configuré sur le serveur.', 'error');
+      } else if (googleError === 'access_denied') {
+        showAppToast(
+          'Google refuse la connexion : l’app Soundy est encore en mode test OAuth. Demandez à l’équipe d’ajouter votre adresse Gmail comme testeur Google Cloud, ou utilisez « Connexion démo (sans Google) » dans le salon. Un compte Google Workspace n’est pas requis — un compte YouTube personnel suffit.',
+          'error'
+        );
       } else {
         showAppToast('Connexion YouTube annulée ou échouée.', 'error');
       }
     }
     params.delete('youtube_oauth');
     params.delete('reason');
+    params.delete('google_error');
     const q = params.toString();
     window.history.replaceState({}, '', `${window.location.pathname}${q ? `?${q}` : ''}`);
   }, [token, refreshUser]);
@@ -543,6 +572,10 @@ export default function App() {
       showAppToast("Tu es déjà en live. Arrête le live pour rejoindre un salon.", 'info');
       return;
     }
+    const host = isHost === true;
+    if (user && !ensureYoutubeLinkedToJoinSalon(user.connectedPlatforms, host)) {
+      return;
+    }
     setSalonOpenIntent('full');
     clearOpenSalonPipIntent();
     setSalonVideoFloatActive(false);
@@ -564,7 +597,7 @@ export default function App() {
       setView({ type: 'home' });
     }
     syncSalonUrlInBar(salonId);
-  }, [showAppToast, user?.isLive, user?.liveId]);
+  }, [showAppToast, user?.isLive, user?.liveId, user?.connectedPlatforms]);
 
   /** Clic sidebar carte : aperçu YouTube sans rejoindre le salon. */
   const openSalonPipPreview = useCallback((salon: Salon) => {
@@ -609,6 +642,10 @@ export default function App() {
       showAppToast("Tu es déjà en live. Arrête le live pour rejoindre un salon.", 'info');
       return;
     }
+    const host = isHost === true;
+    if (user && !ensureYoutubeLinkedToJoinSalon(user.connectedPlatforms, host)) {
+      return;
+    }
     consumeSalonOpenIntent();
     clearSalonUrlFromBar();
     setRestoreSalonOnMapId(null);
@@ -629,7 +666,7 @@ export default function App() {
     setTab('map');
     setOpenSalonPipIntent(salonId);
     dispatchOpenSalonPip();
-  }, [showAppToast, user?.isLive, user?.liveId]);
+  }, [showAppToast, user?.isLive, user?.liveId, user?.connectedPlatforms]);
 
   const handleSalonPageBack = useCallback(() => {
     const session = activeSalonSessionRef.current;
@@ -1511,6 +1548,8 @@ export default function App() {
       {showGenrePrompt && (
         <GenreOnboardingPrompt onDismiss={() => setShowGenrePrompt(false)} />
       )}
+
+      <SalonYoutubeJoinModal token={token} user={user} onUserUpdated={setUserFromProfile} />
 
       {salonPipPreview && (
         <SalonPipPreviewFloat

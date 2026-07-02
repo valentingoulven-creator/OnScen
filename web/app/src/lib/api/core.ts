@@ -1,5 +1,6 @@
 import i18n from '../../i18n';
 import { showErrorPopup } from '../errorPopups';
+import { showSalonYoutubeJoinGate } from '../salonYoutubeJoinGate';
 
 export const API_BASE = '/api';
 
@@ -122,6 +123,9 @@ export async function request<T>(
   }
   if (!res.ok) {
     const err = await parseApiError(res);
+    if (err.code === 'PARTICIPANT_PLATFORM_NOT_LINKED') {
+      showSalonYoutubeJoinGate();
+    }
     if (res.status >= 500) {
       showErrorPopup(err.message);
     }

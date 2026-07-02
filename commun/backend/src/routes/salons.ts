@@ -55,26 +55,42 @@ import { notifyFavoritesSalonStarted } from '../lib/favorites';
 import { notifyFollowersSalonCreated } from '../lib/follows';
 import { notifySalonInvite } from '../lib/notifications';
 import { getIo } from '../lib/ioInstance';
+import { endLiveSession } from '../lib/liveArchive';
+import { clearNearbyCache } from '../lib/nearbyResponseCache';
 import { getSalonConnectedParticipants } from '../lib/salonParticipants';
 import {
   canControlSalonPlayback,
   setSalonVipModerator,
 } from '../lib/salonModeration';
 import { getActiveSalonForHost } from '../lib/profile';
-import { upsertSalonToPgAsync, markSalonInactivePgAsync } from '../lib/pgSalonsLives';
+import { upsertSalonToPg, markSalonInactivePgAsync, reconcileHostSalonsWithPostgres, getSalonFromStore } from '../lib/pgSalonsLives';
 import { refreshStaleYoutubeSalonMetadata, hasStaleYoutubeMetadata } from '../lib/youtubeMetadata';
 
 export const salonsRouter = Router();
 
 /** Désactive les autres salons du même hôte (un seul salon actif à la fois). */
 function deactivateOtherHostSalons(hostId: string, keepId?: string): void {
+  const io = getIo();
+  let removed = false;
   for (const s of [...db.salons.values()]) {
     if (s.hostId !== hostId || s.id === keepId) continue;
-    db.salons.delete(s.id);
-    db.salonChats.delete(s.id);
-    clearSalonPlaybackData(s.id);
-    markSalonInactivePgAsync(s.id);
+    const salonId = s.id;
+    io?.to(`salon_${salonId}`).emit('salon_ended', { salonId, reason: 'replaced' });
+    const linkedLive = db.lives.get(salonId);
+    if (linkedLive?.isActive) {
+      endLiveSession(linkedLive);
+      io?.to(`live_${salonId}`).emit('live_ended', {
+        liveId: salonId,
+        reason: 'salon_replaced',
+      });
+    }
+    db.salons.delete(salonId);
+    db.salonChats.delete(salonId);
+    clearSalonPlaybackData(salonId);
+    markSalonInactivePgAsync(salonId);
+    removed = true;
   }
+  if (removed) clearNearbyCache();
 }
 
 /**
@@ -276,7 +292,7 @@ salonsRouter.get(
 
 salonsRouter.get('/:id', authenticateJWT, async (req: Request, res: Response) => {
   const me = (req as Request & { user: { id: string } }).user.id;
-  const salon = db.salons.get(req.params.id);
+  const salon = await getSalonFromStore(req.params.id);
   if (!salon) {
     res.status(404).json({ error: 'Salon introuvable' });
     return;
@@ -928,6 +944,7 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
     return;
   }
 
+  await reconcileHostSalonsWithPostgres(userId);
   const existingSalon = getActiveSalonForHost(userId, { forOwner: true });
   if (existingSalon) {
     deactivateOtherHostSalons(userId);
@@ -1045,8 +1062,20 @@ salonsRouter.post('/', authenticateJWT, async (req: Request, res: Response) => {
   ensureSalonQueue(salon.id);
   ensureSalonProposals(salon.id);
 
-  // Fix #3: persister le salon utilisateur en PostgreSQL pour restauration au redémarrage
-  upsertSalonToPgAsync(salon);
+  try {
+    await upsertSalonToPg(salon);
+  } catch (err) {
+    console.error('[salons] upsert salon PostgreSQL échoué:', err);
+    db.salons.delete(salon.id);
+    db.salonChats.delete(salon.id);
+    clearSalonPlaybackData(salon.id);
+    res.status(503).json({
+      error: 'Impossible d’enregistrer le salon. Réessayez dans quelques secondes.',
+      code: 'SALON_PERSIST_FAILED',
+    });
+    return;
+  }
+  clearNearbyCache();
 
   notifyFavoritesSalonStarted(user, salon);
   notifyFollowersSalonCreated(user, salon);
@@ -1062,15 +1091,25 @@ salonsRouter.delete('/:id', authenticateJWT, (req: Request, res: Response) => {
     return;
   }
   const salonId = salon.id;
-  getIo()?.to(`salon_${salonId}`).emit('salon_ended', {
+  const io = getIo();
+  io?.to(`salon_${salonId}`).emit('salon_ended', {
     salonId,
     reason: 'host_deleted',
   });
+  const linkedLive = db.lives.get(salonId);
+  if (linkedLive?.isActive) {
+    endLiveSession(linkedLive);
+    io?.to(`live_${salonId}`).emit('live_ended', {
+      liveId: salonId,
+      reason: 'host_deleted',
+    });
+  }
   db.salons.delete(salonId);
   db.salonChats.delete(salonId);
   clearSalonPlaybackData(salonId);
   // Fix #3: marquer le salon comme inactif en PG pour ne pas le restaurer au redémarrage
   markSalonInactivePgAsync(salonId);
+  clearNearbyCache();
   res.json({ ok: true });
 });
 

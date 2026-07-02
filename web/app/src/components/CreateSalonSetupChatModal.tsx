@@ -220,6 +220,17 @@ export function CreateSalonSetupChatModal({
       return;
     }
     let cancelled = false;
+    if (activeSalonId?.trim()) {
+      void api.getSalon(token, activeSalonId.trim()).catch(async () => {
+        if (cancelled) return;
+        try {
+          const { user } = await api.me(token);
+          onUserUpdated?.(user);
+        } catch {
+          /* ignore */
+        }
+      });
+    }
     openedAtRef.current = Date.now();
     setChatReady(false);
     setEditReturn(false);
@@ -402,11 +413,22 @@ export function CreateSalonSetupChatModal({
       return;
     }
     if (activeSalonId?.trim()) {
-      const msg = t('salon.create.errorAlreadyActive');
-      onOpenExistingSalon?.(activeSalonId.trim());
-      reportCreateError(msg);
-      onClose();
-      return;
+      try {
+        await api.getSalon(token, activeSalonId.trim());
+        const msg = t('salon.create.errorAlreadyActive');
+        onOpenExistingSalon?.(activeSalonId.trim());
+        reportCreateError(msg);
+        onClose();
+        return;
+      } catch {
+        /* salonId périmé (salon arrêté) — rafraîchir le profil puis créer */
+        try {
+          const { user } = await api.me(token);
+          onUserUpdated?.(user);
+        } catch {
+          /* ignore */
+        }
+      }
     }
     setSaving(true);
     try {
@@ -450,6 +472,13 @@ export function CreateSalonSetupChatModal({
 
       onCreated(salon, latitude, longitude);
       onClose();
+
+      try {
+        const { user: freshUser } = await api.me(token);
+        onUserUpdated?.(freshUser);
+      } catch {
+        /* best effort */
+      }
 
       if (playlistLoadBody) {
         deferSalonPlaylistLoad(token, salon.id, playlistLoadBody, (error) => {

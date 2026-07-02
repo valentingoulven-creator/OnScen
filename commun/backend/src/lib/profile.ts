@@ -22,6 +22,7 @@ import { isAccountValidated, userMeetsHeartAge } from './canSendHeart';
 import { isSalonPublic, isSalonVisibleOnProfile } from './salonAccess';
 import { userNeedsTermsReacceptance } from './termsAcceptance';
 import { CURRENT_TERMS_VERSION } from './legalConstants';
+import { isOAuthOnlyPasswordHash } from './oauthAccount';
 
 export { MIN_PROFILE_AGE, MAX_PROFILE_AGE, MIN_LIVE_AGE, CREATOR_MONETIZATION_MIN_AGE } from './ageGates';
 export { userMeetsLiveAge, creatorMeetsMonetizationAge } from './ageGates';
@@ -479,7 +480,10 @@ export function publicProfile(u: User, isOwner = false, viewerId?: string) {
     acceptedTermsVersion: isOwner ? snapshot.acceptedTermsVersion : undefined,
     termsReacceptanceRequired: isOwner ? userNeedsTermsReacceptance(snapshot) : undefined,
     currentTermsVersion: isOwner ? CURRENT_TERMS_VERSION : undefined,
-    passwordChangeRequired: isOwner ? snapshot.mustChangePassword === true : undefined,
+    passwordChangeRequired: isOwner
+      ? snapshot.mustChangePassword === true &&
+        !isOAuthOnlyPasswordHash(snapshot.passwordHash ?? '')
+      : undefined,
     onboardingCompleted: isOwner ? (snapshot.onboardingCompleted ?? true) : undefined,
   };
 }

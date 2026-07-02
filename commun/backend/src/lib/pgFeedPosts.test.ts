@@ -28,7 +28,7 @@ describe('pgFeedPosts', () => {
   it('deletes post and related rows', async () => {
     const query = vi.fn(async () => ({ rows: [] }));
     await deleteFeedPostFromPg({ query } as never, 'p1');
-    expect(query).toHaveBeenCalledTimes(4);
+    expect(query).toHaveBeenCalledTimes(5);
   });
 
   it('schedulePersistFeedPostLike does not throw', () => {

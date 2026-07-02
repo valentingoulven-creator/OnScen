@@ -17,12 +17,14 @@ import {
   applyYoutubeOAuthToUser,
   completeYoutubeOAuth,
   isYoutubeOAuthConfigured,
+  buildYoutubeOAuthRedirect,
 } from '../lib/youtubeOAuth';
 import {
   applyInstagramOAuthToUser,
   completeInstagramOAuth,
   isInstagramOAuthConfigured,
 } from '../lib/instagramOAuth';
+import { clearPasswordChangeRequiredForOAuthLogin } from '../lib/oauthAccount';
 import {
   exchangeAppleAuthCode,
   isAppleOAuthConfigured,
@@ -171,8 +173,10 @@ interface OAuthProfile {
 function findOrCreateOAuthUser(profile: OAuthProfile): { user: User; isNew: boolean } | { error: string } {
   const existing = [...db.users.values()].find((u) => u.email === profile.email);
   if (existing) {
+    clearPasswordChangeRequiredForOAuthLogin(existing);
     applyProfileDefaults(existing);
     db.users.set(existing.id, existing);
+    schedulePersist();
     return { user: existing, isNew: false };
   }
 
@@ -219,16 +223,20 @@ function findOrCreateAppleUser(
 ): { user: User; isNew: boolean } | { error: string } {
   const bySub = findUserByAppleSub(sub);
   if (bySub) {
+    clearPasswordChangeRequiredForOAuthLogin(bySub);
     applyProfileDefaults(bySub);
     db.users.set(bySub.id, bySub);
+    schedulePersist();
     return { user: bySub, isNew: false };
   }
 
   if (email) {
     const byEmail = [...db.users.values()].find((u) => u.email === email);
     if (byEmail) {
+      clearPasswordChangeRequiredForOAuthLogin(byEmail);
       applyProfileDefaults(byEmail);
       db.users.set(byEmail.id, byEmail);
+      schedulePersist();
       return { user: byEmail, isNew: false };
     }
   }
@@ -390,8 +398,10 @@ oauthRouter.post('/oauth/exchange', oauthInitLimiter, async (req: Request, res: 
   }
 
   await consumeOAuthExchangeCode(code);
+  clearPasswordChangeRequiredForOAuthLogin(user);
   applyProfileDefaults(user);
   db.users.set(user.id, user);
+  schedulePersist();
   const token = signTokenForUser(user);
   setAuthCookie(res, token, true);
   trackEvent('user_login_oauth', user.id);
@@ -659,14 +669,14 @@ oauthRouter.get('/youtube/callback', async (req: Request, res: Response) => {
   const { code, state, error } = req.query as Record<string, string>;
 
   if (error || !code || !state) {
-    res.redirect(`${origin}/?youtube_oauth=error`);
+    res.redirect(buildYoutubeOAuthRedirect(origin, 'error', error));
     return;
   }
 
   try {
     const result = await completeYoutubeOAuth(code, state);
     if (!result) {
-      res.redirect(`${origin}/?youtube_oauth=error`);
+      res.redirect(buildYoutubeOAuthRedirect(origin, 'error'));
       return;
     }
     const user = db.users.get(result.userId);
@@ -675,10 +685,10 @@ oauthRouter.get('/youtube/callback', async (req: Request, res: Response) => {
       db.users.set(user.id, user);
       schedulePersist();
     }
-    res.redirect(`${origin}/?youtube_oauth=ok`);
+    res.redirect(buildYoutubeOAuthRedirect(origin, 'ok'));
   } catch (err) {
     console.error('[oauth] YouTube callback error:', err);
-    res.redirect(`${origin}/?youtube_oauth=error`);
+    res.redirect(buildYoutubeOAuthRedirect(origin, 'error'));
   }
 });
 
