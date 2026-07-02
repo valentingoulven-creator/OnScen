@@ -17617,3 +17617,69 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 912 — 2026-07-02
 ================================================================================
+
+================================================================================
+MODIF 913 — Chat qui bug lors de la création d'un live — cluster PM2 — Soundly Dev
+Date : 2026-07-02
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Signalement utilisateur : "le chat lors de la création d'un live bug".
+
+ Cause (même famille que MODIF 910/911/912 — PM2 cluster 2 instances, store RAM
+ non partagé entre workers) :
+ • Contrairement aux salons, il n'existait aucune fonction d'hydratation
+   cluster-safe pour les lives (commun/backend/src/lib/pgSalonsLives.ts
+   n'exposait que loadSalonsLivesFromPostgres au démarrage — jamais rappelée
+   pour un live précis créé après coup).
+ • Le handler socket `live_message` (envoi d'un message de chat live) lisait le
+   live avec une assertion non-null : `db.lives.get(payload.liveId)!`. Si le
+   live venait d'être créé (POST /api/lives/start) sur un worker PM2 différent
+   de celui qui gère la connexion Socket.IO de l'utilisateur, `db.lives.get`
+   retourne `undefined` sur ce worker, et l'accès à `live.vipModeratorIds`
+   juste après plante (TypeError) — le message échoue silencieusement (promise
+   rejection non gérée, cf. bootstrap.ts, pas de retour d'erreur au client).
+ • Le handler `join_live` avait le même souci (lecture RAM directe) : le
+   spectateur/hôte rejoint bien la room Socket.IO mais sans les infos du live
+   (pas de `live_updated`, pas d'incrément du compteur de viewers) tant que ce
+   worker n'a pas vu le live autrement.
+ • Fenêtre de reproduction typique : hôte crée un live (requête HTTP round-
+   robinée vers le worker A) puis envoie/reçoit un message de chat via son
+   socket déjà connecté au worker B qui n'a jamais vu ce live → chat cassé
+   juste après la création, jusqu'à ce qu'un autre chemin (ex. redémarrage)
+   charge le live dans ce worker.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/pgSalonsLives.ts
+ ─────────────────────────────────────────
+ • Ajout de `hydrateLiveFromPostgres(liveId)` (miroir de
+   hydrateSalonFromPostgres) : renvoie le live en RAM s'il y est déjà, sinon le
+   recharge depuis PostgreSQL (table `lives`, is_active = TRUE) et le
+   réenregistre en mémoire du worker courant (`registerLiveInMemory` : RAM +
+   `liveChats` + index `activeLiveByHost`).
+
+ commun/backend/src/socket.ts
+ ─────────────────────────────
+ • `join_live` : passé en async (`void (async () => {...})()`), lit désormais
+   le live via `hydrateLiveFromPostgres` au lieu de `db.lives.get`.
+ • `live_message` : remplace l'assertion non-null `db.lives.get(...)!` par
+   `await hydrateLiveFromPostgres(...)` + `if (!live) return;` (plus de crash
+   silencieux, le message est simplement ignoré si le live n'existe vraiment
+   pas ou plus).
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/pgSalonsLives.ts → ajout hydrateLiveFromPostgres (cluster-safe, inexistant avant)
+ commun/backend/src/socket.ts → join_live et live_message lisent le live via le store cluster-safe
+
+BUILD (si vérifié)
+-----
+ commun/backend/ → npx tsc --noEmit → ✅
+ commun/backend/ → npx vitest run → ✅ (354/356 ; 2 échecs pré-existants sans rapport,
+   déjà documentés en MODIF 912, dans pgSalonsLives.hydrate.test.ts)
+
+================================================================================
+Fin MODIF 913 — 2026-07-02
+================================================================================

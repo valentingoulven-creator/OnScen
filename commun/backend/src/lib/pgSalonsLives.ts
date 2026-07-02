@@ -213,6 +213,38 @@ function dropSalonFromMemory(salonId: string): void {
   clearSalonPlaybackData(salonId);
 }
 
+function registerLiveInMemory(live: Live): void {
+  db.lives.set(live.id, live);
+  if (!db.liveChats.has(live.id)) db.liveChats.set(live.id, []);
+  if (live.isActive && live.hostId) {
+    db.activeLiveByHost.set(live.hostId, live.id);
+  }
+}
+
+/**
+ * Charge un live actif depuis PostgreSQL dans le store RAM (cluster PM2).
+ * Sans cela, un live tout juste créé (POST /lives/start) sur un worker PM2 n'est
+ * visible que de ce worker : un socket connecté à un autre worker (host ou viewer)
+ * ne trouve pas le live en RAM et le chat (join_live / live_message) échoue
+ * silencieusement.
+ */
+export async function hydrateLiveFromPostgres(liveId: string): Promise<Live | undefined> {
+  const cached = db.lives.get(liveId);
+  if (cached) return cached;
+  if (!isPostgresEnabled()) return undefined;
+
+  const pool = getPool();
+  const res = await pool.query<{ payload: Live }>(
+    'SELECT payload FROM lives WHERE id = $1 AND is_active = TRUE',
+    [liveId]
+  );
+  const live = res.rows[0]?.payload;
+  if (!live?.id) return undefined;
+  live.isActive = true;
+  registerLiveInMemory(live);
+  return live;
+}
+
 /** Charge un salon actif depuis PostgreSQL dans le store RAM (cluster PM2). */
 export async function hydrateSalonFromPostgres(salonId: string): Promise<Salon | undefined> {
   const cached = db.salons.get(salonId);
