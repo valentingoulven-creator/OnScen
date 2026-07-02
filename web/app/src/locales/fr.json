@@ -447,6 +447,7 @@
     },
     "accessYoutubeRequired": "Connectez YouTube pour rejoindre ce salon.",
     "accessYoutubeRequiredHint": "Un compte YouTube lié est requis pour écouter dans les salons YouTube.",
+    "joinYoutubeGateTitle": "YouTube requis pour rejoindre",
     "youtubeSearch": {
       "placeholder": "Titre, artiste ou lien YouTube…",
       "searching": "Recherche YouTube…",

@@ -1,4 +1,5 @@
 import type { MusicPlatform } from './salonPlayback';
+import { showSalonYoutubeJoinGate } from './salonYoutubeJoinGate';
 
 export type { MusicPlatform };
 
@@ -85,6 +86,17 @@ export function canJoinSalonAsParticipant(
   if (isHost) return true;
   if (salonPlatform !== 'youtube') return true;
   return isPlatformConnected(connectedPlatforms, salonPlatform);
+}
+
+/** Affiche le popup YouTube si l'auditeur ne peut pas rejoindre ; retourne true si OK. */
+export function ensureYoutubeLinkedToJoinSalon(
+  connectedPlatforms: MusicPlatform[] | undefined,
+  isHost?: boolean,
+  salonPlatform: MusicPlatform = 'youtube'
+): boolean {
+  if (canJoinSalonAsParticipant(salonPlatform, connectedPlatforms, isHost)) return true;
+  showSalonYoutubeJoinGate();
+  return false;
 }
 
 export function salonParticipantAccessMessageKey(

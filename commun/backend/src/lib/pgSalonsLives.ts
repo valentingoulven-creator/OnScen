@@ -3,7 +3,7 @@ import { getPool, isPostgresEnabled } from '../db/pool';
 
 type DbExec = Pick<Pool, 'query'> | Pick<PoolClient, 'query'>;
 import { db, type Live, type Salon } from '../models/schema';
-import { ensureSalonProposals, ensureSalonQueue } from './salonPlaybackOps';
+import { clearSalonPlaybackData, ensureSalonProposals, ensureSalonQueue } from './salonPlaybackOps';
 import { purgeStaleYoutubeMetadataForStorage } from './youtubeMetadata';
 /** Préfixe IDs salons Occitanie (persistés PostgreSQL). */
 export const OCCITANIE_SALON_ID_PREFIX = 'salon_soundy_occitanie_';
@@ -198,4 +198,106 @@ export function deleteLiveFromPgAsync(liveId: string): void {
   void deleteLiveFromPg(liveId).catch((err) =>
     logPgLiveError(`delete live ${liveId}`, err)
   );
+}
+
+function registerSalonInMemory(salon: Salon): void {
+  db.salons.set(salon.id, salon);
+  ensureSalonQueue(salon.id);
+  ensureSalonProposals(salon.id);
+  if (!db.salonChats.has(salon.id)) db.salonChats.set(salon.id, []);
+}
+
+function dropSalonFromMemory(salonId: string): void {
+  db.salons.delete(salonId);
+  db.salonChats.delete(salonId);
+  clearSalonPlaybackData(salonId);
+}
+
+/** Charge un salon actif depuis PostgreSQL dans le store RAM (cluster PM2). */
+export async function hydrateSalonFromPostgres(salonId: string): Promise<Salon | undefined> {
+  const cached = db.salons.get(salonId);
+  if (cached) return cached;
+  if (!isPostgresEnabled()) return undefined;
+
+  const pool = getPool();
+  const res = await pool.query<{ payload: Salon }>(
+    'SELECT payload FROM salons WHERE id = $1 AND is_active = TRUE',
+    [salonId]
+  );
+  const salon = res.rows[0]?.payload;
+  if (!salon?.id) return undefined;
+  registerSalonInMemory(salon);
+  return salon;
+}
+
+/** Charge plusieurs salons actifs manquants en RAM (carte / nearby). */
+export async function hydrateSalonsFromPostgres(salonIds: string[]): Promise<number> {
+  if (!isPostgresEnabled() || salonIds.length === 0) return 0;
+  const missing = [...new Set(salonIds.filter((id) => id && !db.salons.has(id)))];
+  if (missing.length === 0) return 0;
+
+  const pool = getPool();
+  const res = await pool.query<{ payload: Salon }>(
+    'SELECT payload FROM salons WHERE id = ANY($1::text[]) AND is_active = TRUE',
+    [missing]
+  );
+  let loaded = 0;
+  for (const row of res.rows) {
+    const salon = row.payload;
+    if (!salon?.id) continue;
+    registerSalonInMemory(salon);
+    loaded++;
+  }
+  return loaded;
+}
+
+/**
+ * Aligne la RAM du worker avec PostgreSQL pour un hôte (salons actifs uniquement).
+ * Supprime les salons fantômes restés en mémoire après arrêt sur un autre worker.
+ */
+export async function reconcileHostSalonsWithPostgres(hostId: string): Promise<void> {
+  if (!isPostgresEnabled()) return;
+
+  const pool = getPool();
+  const res = await pool.query<{ id: string; payload: Salon }>(
+    'SELECT id, payload FROM salons WHERE host_id = $1 AND is_active = TRUE',
+    [hostId]
+  );
+  const activeIds = new Set<string>();
+  for (const row of res.rows) {
+    activeIds.add(row.id);
+    const salon = row.payload;
+    if (!salon?.id) continue;
+    registerSalonInMemory(salon);
+  }
+
+  for (const s of [...db.salons.values()]) {
+    if (s.hostId !== hostId || activeIds.has(s.id)) continue;
+    dropSalonFromMemory(s.id);
+  }
+}
+
+/**
+ * Source de vérité salon : vérifie PostgreSQL (is_active) puis hydrate si besoin.
+ * Indispensable en mode PM2 cluster (2+ workers, store RAM non partagé).
+ */
+export async function getSalonFromStore(salonId: string): Promise<Salon | undefined> {
+  if (!salonId) return undefined;
+  if (!isPostgresEnabled()) return db.salons.get(salonId);
+
+  const pool = getPool();
+  const res = await pool.query<{ payload: Salon; is_active: boolean }>(
+    'SELECT payload, is_active FROM salons WHERE id = $1',
+    [salonId]
+  );
+  const row = res.rows[0];
+  if (!row?.is_active) {
+    if (db.salons.has(salonId)) dropSalonFromMemory(salonId);
+    return undefined;
+  }
+
+  const salon = row.payload;
+  if (!salon?.id) return undefined;
+  registerSalonInMemory(salon);
+  return salon;
 }

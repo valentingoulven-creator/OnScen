@@ -447,6 +447,7 @@
     },
     "accessYoutubeRequired": "Connect YouTube to join this salon.",
     "accessYoutubeRequiredHint": "A linked YouTube account is required to listen in YouTube salons.",
+    "joinYoutubeGateTitle": "YouTube required to join",
     "youtubeSearch": {
       "placeholder": "Title, artist, or YouTube link…",
       "searching": "Searching YouTube…",

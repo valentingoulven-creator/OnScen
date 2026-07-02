@@ -73,6 +73,11 @@ export function translateSalonCreateError(
     if (e.code === 'SALON_ALREADY_ACTIVE') {
       return t('salon.create.errorAlreadyActive');
     }
+    if (e.code === 'SALON_PERSIST_FAILED') {
+      return t('salon.create.errorPersistFailed', {
+        defaultValue: 'Le salon n’a pas pu être enregistré. Réessayez.',
+      });
+    }
     if (e.code === 'HOST_PLATFORM_NOT_LINKED') {
       return t('salon.create.errorPlatformNotLinkedYoutube');
     }

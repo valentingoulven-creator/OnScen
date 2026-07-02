@@ -26,25 +26,35 @@ export function ActiveSalonSessionBanner({
 }: ActiveSalonSessionBannerProps) {
   const { t } = useTranslation();
   const [salon, setSalon] = useState<Salon | null>(null);
+  const [salonMissing, setSalonMissing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     void api
       .getSalon(token, salonId)
       .then(({ salon: loaded }) => {
-        if (!cancelled) setSalon(loaded);
+        if (!cancelled) {
+          setSalon(loaded);
+          setSalonMissing(false);
+        }
       })
       .catch(() => {
-        if (!cancelled) setSalon(null);
+        if (!cancelled) {
+          setSalon(null);
+          setSalonMissing(true);
+          onSalonEnded?.();
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [token, salonId]);
+  }, [token, salonId, onSalonEnded]);
 
   const ctaLabel = isHost
     ? t('map.hostedSalonBannerOpen', { defaultValue: 'Ouvrir' })
     : t('salon.returnTo', { defaultValue: 'Revenir au salon' });
+
+  if (salonMissing) return null;
 
   return (
     <div className="shrink-0 z-30 w-full min-w-0 pointer-events-auto">

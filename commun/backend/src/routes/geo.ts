@@ -27,6 +27,7 @@ import {
   setNearbyCached,
 } from '../lib/nearbyResponseCache';
 import { findNearestMajorCities } from '../lib/majorCities';
+import { hydrateSalonsFromPostgres } from '../lib/pgSalonsLives';
 
 export const geoRouter = Router();
 
@@ -191,6 +192,9 @@ geoRouter.get('/nearby', nearbyAnonLimiter, authenticateJWT, nearbyAuthLimiter, 
   if (maxRadiusKm != null && !bounds) {
     try {
       geoCandidates = await loadNearbyGeoCandidates(lat, lon, maxRadiusKm);
+      if (geoCandidates?.salonIds.size) {
+        await hydrateSalonsFromPostgres([...geoCandidates.salonIds]);
+      }
     } catch (err) {
       console.warn('[geo/nearby] PostGIS prefilter failed — fallback scan RAM:', err);
     }

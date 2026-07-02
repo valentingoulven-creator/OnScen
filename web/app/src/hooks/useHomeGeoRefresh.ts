@@ -3,11 +3,14 @@ import { normalizeCityLabel } from '../lib/eventLocationPresets';
 import { resolveEventCoords } from '../lib/mapEventCoords';
 import { DEFAULT_CENTER, getLivesGeo, isFixedMapGeoSource } from '../lib/livesGeo';
 import { isValidLatLng, sanitizeLatLngTuple } from '../lib/mapCoords';
+import { getDistanceKm } from '../lib/mapMarkerVisibility';
 import { resolveMapCameraFallbackCenter } from '../lib/mapUserPosition';
 import { getPrivacyPreferences } from '../lib/settings';
 
 export const HOME_GEO_REFRESH_INTERVAL_MS = 30_000;
 export const HOME_GEO_REFRESH_BACKGROUND_MS = 60_000;
+/** Ignore GPS jitter smaller than ~8 m when moving the user marker. */
+const HOME_GEO_MIN_MOVE_KM = 0.008;
 
 type Coords = [number, number];
 
@@ -58,6 +61,7 @@ export function useHomeGeoRefresh(options: {
   setUserPositionRef.current = setUserPosition;
   const defaultCenterRef = useRef(defaultCenter);
   defaultCenterRef.current = defaultCenter;
+  const lastUserGeoRef = useRef<Coords | null>(null);
 
   const profileCityRef = useRef(profileCity);
   profileCityRef.current = profileCity;
@@ -152,7 +156,17 @@ export function useHomeGeoRefresh(options: {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const coords: Coords = [pos.coords.latitude, pos.coords.longitude];
-          setUserPositionRef.current(sanitizeLatLngTuple(coords[0], coords[1], defaultCenterRef.current));
+          const sanitized = sanitizeLatLngTuple(coords[0], coords[1], defaultCenterRef.current);
+          const prev = lastUserGeoRef.current;
+          if (
+            prev &&
+            getDistanceKm(prev[0], prev[1], sanitized[0], sanitized[1]) < HOME_GEO_MIN_MOVE_KM
+          ) {
+            loadNearbyAtRef.current(coords);
+            return;
+          }
+          lastUserGeoRef.current = sanitized;
+          setUserPositionRef.current(sanitized);
           loadNearbyAtRef.current(coords);
         },
         () => loadNearbyAtRef.current([current.latitude, current.longitude])

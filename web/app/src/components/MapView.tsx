@@ -15,6 +15,7 @@ import { getUsernameStyle, usernameMapLabelHtml } from '../lib/usernameColor';
 import {
   filterPeopleForZoom,
   filterSalonsForZoom,
+  getDistanceKm,
   getFlatMapDetailTier,
   getGlobeDetailTier,
   getMapMarkerVisibility,
@@ -90,11 +91,21 @@ export const MAP_CITY_FLY_DURATION_S = 1.15;
 /** Min wait before crossfade (ms) — laisse le globe amorcer le zoom. */
 const TILE_WARMUP_MIN_MS = 60;
 
-/** Max wait for first Carto tiles before crossfade anyway (ms). */
+/** Max wait for first Carto tiles before crossfade anyway (ms) — desktop/wifi rapide. */
 const TILE_WARMUP_MAX_MS = 380;
+
+/**
+ * Max wait mobile (ms) — réseau cellulaire plus lent, latence tuiles plus élevée.
+ * Sans ce délai plus généreux, le crossfade révèle la carte plate avant que les
+ * tuiles aient eu le temps de charger sur 3G/4G, laissant apparaître un aperçu
+ * sombre/vide (perçu comme « carte grise ») pendant quelques centaines de ms.
+ */
+const TILE_WARMUP_MAX_MS_MOBILE = 700;
 
 /** Zoom par défaut : niveau ville (profil / recentrage). */
 export const MAP_DEFAULT_CITY_ZOOM = 12;
+/** Déplacement GPS minimal avant de bouger le marqueur utilisateur (~8 m). */
+const MAP_USER_MARKER_MIN_MOVE_KM = 0.008;
 
 const CARTO_TILES_PROXY = '/tiles/{z}/{x}/{y}{r}.png';
 const CARTO_TILES_DIRECT =
@@ -306,9 +317,11 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   const flatCapitalsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showGlobeRef = useRef(showGlobe);
   showGlobeRef.current = showGlobe;
+  const touchCoarseRef = useRef(false);
   const flatRevealRef = useRef(flatReveal);
   flatRevealRef.current = flatReveal;
   const userMapPanRef = useRef(false);
+  const userMarkerPosRef = useRef<[number, number] | null>(null);
 
   const flatDetailTier = useMemo(() => getFlatMapDetailTier(flatMapZoom), [flatMapZoom]);
   const eventClustersActive = hasEventClusters ?? eventClusters.length > 0;
@@ -424,20 +437,12 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
 
   /** Force le chargement tuiles à la vue courante (carte cachée sous le globe). */
   const refreshFlatTileLayer = useCallback(() => {
-    const map = mapInstance.current;
     const layer = tileLayerRef.current;
-    if (!map || !layer) return;
+    if (!layer) return;
     try {
       layer.redraw();
-      map.once('moveend', () => {
-        try {
-          layer.redraw();
-        } catch {
-          /* layer may be removed */
-        }
-      });
     } catch {
-      /* map may not be ready */
+      /* layer may be removed */
     }
   }, []);
 
@@ -585,10 +590,12 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     },
     flyTo(lat: number, lng: number, zoom = 13) {
       if (!mapInstance.current || !isValidLatLng(lat, lng)) return;
+      const durationSec = MAP_CROSSFADE_MS / 1000;
+      programmaticMapMoveUntilRef.current = Date.now() + Math.ceil(durationSec * 1000) + 500;
       skipCenterFlyRef.current = true;
       try {
         mapInstance.current.flyTo(sanitizeLatLngTuple(lat, lng), zoom, {
-          duration: MAP_CROSSFADE_MS / 1000,
+          duration: durationSec,
         });
       } catch {
         // Map may not be ready
@@ -734,8 +741,9 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       layer.on('tileload', onTileLoad);
       layer.once('load', onLayerLoad);
 
+      const maxWaitMs = touchCoarseRef.current ? TILE_WARMUP_MAX_MS_MOBILE : TILE_WARMUP_MAX_MS;
       const minTimer = setTimeout(finish, TILE_WARMUP_MIN_MS);
-      const maxTimer = setTimeout(finish, TILE_WARMUP_MAX_MS);
+      const maxTimer = setTimeout(finish, maxWaitMs);
     };
 
     warmupTiles();
@@ -769,6 +777,9 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       attributionControl: true,
       // Prefer canvas renderer: faster for large marker counts.
       preferCanvas: true,
+      // Désactive les animations tuiles/zoom qui amplifient le jitter visuel.
+      fadeAnimation: false,
+      zoomAnimation: false,
       // Required by leaflet.markercluster (spiderfyOnMaxZoom) — prevents
       // "Map has no maxZoom specified" crash when clusters are initialised.
       maxZoom: 19,
@@ -835,6 +846,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     // so they can warm up before the crossfade reveals the flat map.
     const flatCfg = TILE_LAYERS.flat;
     const touchCoarse = isTouchCoarseViewport();
+    touchCoarseRef.current = touchCoarse;
     const tileLayer = L.tileLayer(flatCfg.url, {
       attribution: flatCfg.attribution,
       maxZoom: flatCfg.maxZoom,
@@ -879,16 +891,31 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       }
     };
     const onMapMoveEnd = () => {
-      onViewChange();
       const programmatic =
         skipCenterFlyRef.current || Date.now() < programmaticMapMoveUntilRef.current;
       skipCenterFlyRef.current = false;
+
+      const zoom = map.getZoom();
+      flatMapZoomRef.current = zoom;
+      if (zoom !== lastFlatZoomRef.current) {
+        lastFlatZoomRef.current = zoom;
+        setFlatMapZoom((prev) => (shouldCommitFlatMapZoom(prev, zoom) ? zoom : prev));
+      }
+      scheduleDetailEmit();
+
+      if (programmatic) return;
+
+      if (!zoomSliderDraggingRef.current && flatRevealRef.current >= 0.5) {
+        syncZoomControlFromViewRef.current();
+      }
+      if (flatRevealRef.current >= 0.5 && getFlatMapDetailTier(zoom) !== 'overview') {
+        scheduleFlatCapitalsRefresh();
+      }
       try {
         const c = map.getCenter();
         if (!isValidLatLng(c.lat, c.lng)) return;
-        onFlatMapViewportCenterRef.current?.(c.lat, c.lng);
-        if (programmatic) return;
         userMapPanRef.current = true;
+        onFlatMapViewportCenterRef.current?.(c.lat, c.lng);
         onMapExploredRef.current?.();
       } catch {
         /* map may not be ready */
@@ -900,7 +927,24 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     setFlatMapZoom(map.getZoom());
 
     const rafId = requestAnimationFrame(() => map.invalidateSize());
-    const ro = new ResizeObserver(() => map.invalidateSize());
+    let resizeDebounce: ReturnType<typeof setTimeout> | null = null;
+    let lastObservedW = 0;
+    let lastObservedH = 0;
+    const ro = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      if (!rect) return;
+      const w = Math.round(rect.width);
+      const h = Math.round(rect.height);
+      if (w <= 0 || h <= 0) return;
+      if (w === lastObservedW && h === lastObservedH) return;
+      lastObservedW = w;
+      lastObservedH = h;
+      if (resizeDebounce) clearTimeout(resizeDebounce);
+      resizeDebounce = setTimeout(() => {
+        resizeDebounce = null;
+        map.invalidateSize();
+      }, 120);
+    });
     ro.observe(mapRef.current);
 
     return () => {
@@ -913,6 +957,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
         cancelAnimationFrame(detailEmitRafRef.current);
         detailEmitRafRef.current = null;
       }
+      if (resizeDebounce) clearTimeout(resizeDebounce);
       ro.disconnect();
       map.off('click', onMapClick);
       map.off('zoomend', onViewChange);
@@ -944,14 +989,16 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     return () => document.removeEventListener('visibilitychange', onVisibility);
   }, []);
 
-  // ── Fly to center on explicit recenter only (not after user pan) ─────────
+  // ── Fly to center on explicit recenter (recenterToken) — not on every center prop change ──
   useEffect(() => {
     const map = mapInstance.current;
     if (!map) return;
-    if (!isValidLatLng(center[0], center[1])) return;
-    if (Date.now() < programmaticMapMoveUntilRef.current) return;
-    if (recenterToken === lastRecenterTokenRef.current && userMapPanRef.current) return;
+    if (recenterToken === 0) return;
+    if (recenterToken === lastRecenterTokenRef.current) return;
     lastRecenterTokenRef.current = recenterToken;
+    const [lat, lng] = centerRef.current;
+    if (!isValidLatLng(lat, lng)) return;
+    if (Date.now() < programmaticMapMoveUntilRef.current) return;
     if (skipCenterFlyRef.current) {
       skipCenterFlyRef.current = false;
       return;
@@ -959,18 +1006,20 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     userMapPanRef.current = false;
     try {
       skipCenterFlyRef.current = true;
-      map.flyTo(sanitizeLatLngTuple(center[0], center[1]), MAP_DEFAULT_CITY_ZOOM, {
+      programmaticMapMoveUntilRef.current = Date.now() + 1100;
+      map.flyTo(sanitizeLatLngTuple(lat, lng), MAP_DEFAULT_CITY_ZOOM, {
         duration: 0.6,
       });
     } catch (err) {
       console.error('[MapView] flyTo error:', err);
     }
-  }, [recenterToken, center]);
+  }, [recenterToken]);
 
   // ── User position marker (bonhomme bleu) ────────────────────────────────
   useEffect(() => {
     if (!mapInstance.current) return;
     if (!userPosition || !isValidLatLng(userPosition[0], userPosition[1])) {
+      userMarkerPosRef.current = null;
       if (userMarkerRef.current) {
         try {
           userMarkerRef.current.remove();
@@ -1002,8 +1051,17 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
         });
         userMarkerRef.current = L.marker(safe, { icon: userIcon, zIndexOffset: 1000 })
           .addTo(mapInstance.current);
+        userMarkerPosRef.current = safe;
       } else {
+        const last = userMarkerPosRef.current;
+        if (
+          last &&
+          getDistanceKm(last[0], last[1], safe[0], safe[1]) < MAP_USER_MARKER_MIN_MOVE_KM
+        ) {
+          return;
+        }
         userMarkerRef.current.setLatLng(safe);
+        userMarkerPosRef.current = safe;
       }
     } catch (err) {
       console.error('[MapView] userMarker error:', err);
