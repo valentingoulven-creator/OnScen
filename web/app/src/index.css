@@ -3267,7 +3267,7 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 
 /* Live page — colonne centrée + lueur ambiante (plein écran) */
 .room-theater-stack-column--live-theater {
-  width: min(100%, calc(min(56dvh, 56vh) * 16 / 9));
+  width: min(100%, calc(min(56dvh, 56vh) * var(--live-stack-width-ratio, 16 / 9)));
   max-width: 100%;
   margin-inline: auto;
   flex: 1 1 0;
@@ -3313,14 +3313,6 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   width: min(100%, calc(min(62dvh, 62vh) * 9 / 16));
 }
 
-.live-video-container--theater .live-video-stage-area .lk-participant-media-video,
-.live-video-container--theater .live-video-stage-area video.lk-live-stage-video,
-.live-video-container--theater .live-video-stage-area video:not(.live-cloudflare-stage-video) {
-  object-fit: contain;
-  object-position: center;
-  background: #000;
-}
-
 .ms-salon-fullscreen-overlay .room-theater-layout--live-theater {
   flex: 1 1 0;
   min-height: 0;
@@ -3344,7 +3336,7 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   align-self: center;
   margin-inline: auto;
   max-height: 100%;
-  width: min(100%, calc(min(62dvh, 62vh) * 16 / 9));
+  width: min(100%, calc(min(62dvh, 62vh) * var(--live-stack-width-ratio, 16 / 9)));
 }
 
 .ms-salon-fullscreen-overlay .room-theater-stack-column--live-theater .live-video-container--theater .live-theater-hero-wrap {
@@ -3389,12 +3381,12 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   .room-theater-stack-column--live-theater .live-theater-hero-wrap {
     min-height: min(220px, 36dvh);
     height: auto;
-    max-height: min(44dvh, calc(100vw * 9 / 16));
+    max-height: min(44dvh, calc(100vw / var(--live-aspect-ratio, 16 / 9)));
   }
 
   .ms-salon-fullscreen-overlay .room-theater-stack-column--live-theater .live-theater-hero-wrap {
     min-height: min(200px, 32dvh);
-    max-height: min(40dvh, calc(100vw * 9 / 16));
+    max-height: min(40dvh, calc(100vw / var(--live-aspect-ratio, 16 / 9)));
   }
 
   .ms-salon-fullscreen-overlay .room-theater-stack-column--live-theater .room-theater-bottom-chat-dock--stacked {
@@ -3424,21 +3416,31 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   width: 100%;
   height: 100%;
   max-height: none;
-  object-fit: cover;
-}
-
-/* LiveKit caméra — remplir la scène (OBS/Cloudflare restent en contain) */
-.live-video-container .live-video-stage-area .lk-participant-media-video,
-.live-video-container .live-video-stage-area video.lk-live-stage-video {
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
+  background: #000;
 }
 
-.live-video-container .live-video-stage-area video.lk-live-stage-video[data-lk-local-participant='true'] {
+/* Hôte — aperçu caméra plein cadre (miroir local LiveKit) */
+.live-video-container[data-live-host='true'] .live-video-stage-area video:not(.live-cloudflare-stage-video) {
+  object-fit: cover;
+}
+
+.live-video-container[data-live-host='true'] .live-video-stage-area video.lk-live-stage-video[data-lk-local-participant='true'] {
+  object-fit: cover;
   transform: scaleX(-1);
 }
 
-/* OBS / Cloudflare Stream — scène complète (pas de crop object-cover) */
+/* Spectateurs — flux entier visible (bandes noires si besoin, pas de crop) */
+.live-video-container[data-live-viewer='true'] .live-video-stage-area video,
+.live-video-container[data-live-viewer='true'] .live-video-stage-area .lk-participant-media-video,
+.live-video-container[data-live-viewer='true'] .live-video-stage-area video.lk-live-stage-video {
+  object-fit: contain !important;
+  object-position: center;
+  transform: none;
+}
+
+/* OBS / Cloudflare Stream — scène complète */
 .live-video-container .live-video-stage-area video.live-cloudflare-stage-video {
   object-fit: contain;
 }

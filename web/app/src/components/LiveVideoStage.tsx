@@ -19,6 +19,7 @@ import { LiveTheaterStatusBar, LiveVideoChromeButton } from './LiveVideoTheaterC
 import {
   getLiveVideoAspectRatioClass,
   getLiveVideoAspectRatioCss,
+  getLiveStackWidthRatioCss,
   getLiveVideoAspectRatioPreset,
   type LiveVideoAspectRatioPreset,
 } from '../lib/liveVideoAspectRatio';
@@ -600,12 +601,15 @@ export function LiveVideoStage({
       )}
     <div
       ref={containerRef}
+      data-live-viewer={!isHost ? 'true' : undefined}
+      data-live-host={isHost ? 'true' : undefined}
       className={`live-video-container live-video-container--theater ${getLiveVideoAspectRatioClass(videoAspectRatio)} relative w-full h-full min-h-0 flex flex-col overflow-hidden${
         isLandscapeTheater ? ' live-video-container--landscape-theater' : ''
       }`}
       style={{
         ...pipContainerStyle,
         ['--live-aspect-ratio' as string]: getLiveVideoAspectRatioCss(videoAspectRatio),
+        ['--live-stack-width-ratio' as string]: getLiveStackWidthRatioCss(videoAspectRatio),
       }}
     >
       {/* Draggable PiP header — shown only when floating */}
@@ -645,8 +649,8 @@ export function LiveVideoStage({
           autoPlay
           playsInline
           {...(isHost ? { muted: true } : {})}
-          className={`absolute inset-0 w-full h-full bg-black z-10${
-            isCloudflareCdn ? ' live-cloudflare-stage-video' : ' object-cover'
+          className={`absolute inset-0 w-full h-full bg-black z-10 live-stage-video${
+            isCloudflareCdn ? ' live-cloudflare-stage-video' : ''
           }${showVideo ? '' : ' opacity-0 pointer-events-none'}`}
           aria-hidden={!showVideo}
           aria-label={

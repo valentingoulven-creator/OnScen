@@ -502,6 +502,7 @@
     "exitFullscreen": "Exit fullscreen",
     "fullscreenError": "Unable to enable fullscreen on this device.",
     "headerDonate": "Send a tip",
+    "viewerRewardsTitle": "Available rewards",
     "headerDonateShort": "Tip",
     "headerSubscribe": "Subscribe",
     "headerSubscribeShort": "Subscribe",

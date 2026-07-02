@@ -43,6 +43,7 @@ import {
 } from '../lib/userObsStream';
 import { persistLiveToPgAsync } from '../lib/pgSalonsLives';
 import { resolveLiveTipsEnabledAtStart } from '../lib/donations';
+import { defaultDonationOptionsForLive } from '../lib/liveDonationDefaults';
 import {
   assertCanStartLive,
   assertCanUseCloudflareObs,
@@ -354,6 +355,9 @@ livesRouter.post('/start', authenticateJWT, async (req: Request, res: Response) 
 
     const stripeConnectSkipped = req.body.stripeConnectSkipped === true;
     live.tipsEnabled = await resolveLiveTipsEnabledAtStart(userId, stripeConnectSkipped);
+    if (live.tipsEnabled !== false) {
+      live.donationOptions = defaultDonationOptionsForLive();
+    }
     live.contentCategory = resolveLiveStartContentCategory(req.body, user);
 
     db.lives.set(live.id, live);
