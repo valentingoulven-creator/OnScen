@@ -2,6 +2,7 @@ import { Salon } from '../models/schema';
 import { db } from '../models/schema';
 import { getIo } from './ioInstance';
 import { isDevUserId } from './devUser';
+import { hydrateSalonFromPostgres } from './pgSalonsLives';
 
 export function isSalonVipModerator(salon: Salon, userId: string): boolean {
   return (salon.vipModeratorIds ?? []).includes(userId);
@@ -36,17 +37,17 @@ export type SalonVipChangeResult =
   | { ok: false; status: number; error: string };
 
 /** Grant or revoke VIP moderator rights on a salon (host only, not self). */
-export function setSalonVipModerator(
+export async function setSalonVipModerator(
   salonId: string,
   actorId: string,
   targetUserId: string,
   add: boolean
-): SalonVipChangeResult {
+): Promise<SalonVipChangeResult> {
   if (!salonId || !actorId || !targetUserId) {
     return { ok: false, status: 400, error: 'Paramètres invalides' };
   }
 
-  const salon = db.salons.get(salonId);
+  const salon = await hydrateSalonFromPostgres(salonId);
   if (!salon) {
     return { ok: false, status: 404, error: 'Salon introuvable' };
   }

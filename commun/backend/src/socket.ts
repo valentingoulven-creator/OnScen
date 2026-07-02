@@ -181,7 +181,7 @@ export function setupSockets(io: Server): void {
       ({ salonId, userId: targetUserId, add }: { salonId: string; userId: string; add: boolean }) => {
         const actorId = (socket.data as { userId?: string }).userId;
         if (!actorId) return;
-        setSalonVipModerator(salonId, actorId, targetUserId, add === true);
+        void setSalonVipModerator(salonId, actorId, targetUserId, add === true);
       }
     );
 
