@@ -64,6 +64,7 @@ export function MapActiveSessionOverlay({
   const [salon, setSalon] = useState<Salon | null>(null);
   const [salonMissing, setSalonMissing] = useState(false);
   const [live, setLive] = useState<Live | null>(null);
+  const [liveMissing, setLiveMissing] = useState(false);
 
   const liveId = liveSession?.id ?? null;
   const salonId = salonSession?.id ?? null;
@@ -98,16 +99,29 @@ export function MapActiveSessionOverlay({
   useEffect(() => {
     if (!showLive || !liveId) {
       setLive(null);
+      setLiveMissing(false);
       return;
     }
     let cancelled = false;
     void api
       .getLive(token, liveId)
       .then(({ live: loaded }) => {
-        if (!cancelled) setLive(loaded);
+        if (cancelled) return;
+        // `GET /lives/:id` renvoie le live même terminé (isActive: false, ex. rediffusion) —
+        // sans ce contrôle, un live tout juste arrêté restait affiché ici (chip carte).
+        if (loaded.isActive === false) {
+          setLive(null);
+          setLiveMissing(true);
+        } else {
+          setLive(loaded);
+          setLiveMissing(false);
+        }
       })
       .catch(() => {
-        if (!cancelled) setLive(null);
+        if (!cancelled) {
+          setLive(null);
+          setLiveMissing(true);
+        }
       });
     return () => {
       cancelled = true;
@@ -131,20 +145,37 @@ export function MapActiveSessionOverlay({
       }
     };
     const onLiveUpdated = (updated: Live) => {
-      if (showLive && updated.id === liveId) setLive(updated);
+      if (!showLive || updated.id !== liveId) return;
+      if (updated.isActive === false) {
+        setLive(null);
+        setLiveMissing(true);
+      } else {
+        setLive(updated);
+        setLiveMissing(false);
+      }
+    };
+    const onLiveEnded = (payload: { liveId?: string }) => {
+      if (showLive && payload?.liveId === liveId) {
+        setLive(null);
+        setLiveMissing(true);
+      }
     };
 
     socket.on('salon_updated', onSalonUpdated);
     socket.on('salon_ended', onSalonEnded);
     socket.on('live_updated', onLiveUpdated);
+    socket.on('live_ended', onLiveEnded);
     return () => {
       socket.off('salon_updated', onSalonUpdated);
       socket.off('salon_ended', onSalonEnded);
       socket.off('live_updated', onLiveUpdated);
+      socket.off('live_ended', onLiveEnded);
     };
   }, [showLive, showSalon, salonId, liveId]);
 
   if (showLive && liveId) {
+    if (liveMissing) return null;
+
     const listening =
       user.liveId === liveId && user.currentListening
         ? user.currentListening

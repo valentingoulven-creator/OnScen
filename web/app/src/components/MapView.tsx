@@ -1174,6 +1174,15 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     let salonsToDraw = visibleSalons;
     let livesToDraw = visibleLives.filter((l) => !linkedSalonIds.has(l.id));
 
+    // Hôtes déjà représentés par un point salon/live — sans ceci, le même hôte
+    // (visible dans la liste "à proximité" dès qu'il est en live ou a un salon)
+    // recevait EN PLUS un point "person" séparé au même endroit : 2 points
+    // superposés sur la carte pour un seul live/salon.
+    const mapActivityHostIds = new Set([
+      ...visibleSalons.map((s) => s.hostId),
+      ...visibleLives.map((l) => l.hostId),
+    ]);
+
     if (overviewDots) {
       const { cityClusters } = clusterSalonsLivesByMajorCity(
         visibleSalons,
@@ -1309,7 +1318,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
 
     if (overviewDots) {
       visiblePeople
-        .filter((p) => isValidLatLng(p.latitude, p.longitude))
+        .filter((p) => isValidLatLng(p.latitude, p.longitude) && !mapActivityHostIds.has(p.id))
         .forEach((p) => {
           try {
             const lat = Number(p.latitude);
@@ -1334,7 +1343,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     }
 
     const sortedPeople = visiblePeople
-      .filter((p) => isValidLatLng(p.latitude, p.longitude))
+      .filter((p) => isValidLatLng(p.latitude, p.longitude) && !mapActivityHostIds.has(p.id))
       .sort((a, b) => {
         const scoreA = (a.isLive ? 2 : 0) + (a.salonId ? 1 : 0);
         const scoreB = (b.isLive ? 2 : 0) + (b.salonId ? 1 : 0);

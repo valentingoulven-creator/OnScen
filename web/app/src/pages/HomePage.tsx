@@ -2204,6 +2204,27 @@ export function HomePage({
     };
   }, [isActive, token, loadNearbyAt]);
 
+  /** Retire un live terminé de la carte sans attendre l'expiration du cache nearby. */
+  useEffect(() => {
+    if (!isActive || !token) return;
+    const socket = getSocket();
+    if (!socket) return;
+
+    const onLiveEnded = (payload: { liveId?: string }) => {
+      const endedId = payload?.liveId;
+      if (!endedId) return;
+      clearNearbyCache();
+      setLives((prev) => prev.filter((l) => l.id !== endedId));
+      setSelected((prev) => (prev?.id === endedId ? null : prev));
+      loadNearbyAt(nearbyFetchCenterRef.current, { updateUserGeo: false, silent: true });
+    };
+
+    socket.on('live_ended', onLiveEnded);
+    return () => {
+      socket.off('live_ended', onLiveEnded);
+    };
+  }, [isActive, token, loadNearbyAt]);
+
   const handleMapInlineListenCapReached = useCallback(() => {
     setToastMsg('Aperçu carte : 10 min atteintes — ouvrez le salon pour continuer');
   }, []);
