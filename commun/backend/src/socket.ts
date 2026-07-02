@@ -50,6 +50,7 @@ import { checkChatRateLimit } from './lib/chatRateLimit';
 import { moderateChatAttachment, moderationRejectionMessage } from './lib/contentModeration';
 import { computePlaybackPositionMs } from './lib/playbackClock';
 import { isAccessAdmin } from './lib/accessControl';
+import { hydrateLiveFromPostgres } from './lib/pgSalonsLives';
 
 // Debounce presence broadcasts per user: prevents rapid-fire storms when a user
 // reconnects multiple times in quick succession (e.g., mobile network hiccup).
@@ -281,6 +282,7 @@ export function setupSockets(io: Server): void {
     );
 
     socket.on('join_live', ({ liveId }: { liveId: string }) => {
+      void (async () => {
       const userId = (socket.data as { userId?: string }).userId;
       if (userId) {
         const ban = getLiveBan(liveId, userId);
@@ -297,7 +299,9 @@ export function setupSockets(io: Server): void {
       }
       const roomName = `live_${liveId}`;
       const alreadyIn = socket.rooms.has(roomName);
-      const live = db.lives.get(liveId);
+      // Repeuple la RAM de ce worker depuis PostgreSQL si le live vient d'être créé
+      // sur un autre worker PM2 (sinon join_live/chat échouent silencieusement).
+      const live = await hydrateLiveFromPostgres(liveId);
       const wasAlreadyViewing =
         !!(live && userId && userId !== live.hostId && isUserViewingLive(liveId, live.hostId, userId));
       if (live && userId && userId !== live.hostId && !alreadyIn && !wasAlreadyViewing) {
@@ -336,6 +340,7 @@ export function setupSockets(io: Server): void {
           });
         }
       }
+      })();
     });
 
     socket.on('leave_live', ({ liveId }: { liveId: string }) => {
@@ -745,7 +750,8 @@ export function setupSockets(io: Server): void {
               return;
             }
           }
-          const live = db.lives.get(payload.liveId)!;
+          const live = await hydrateLiveFromPostgres(payload.liveId);
+          if (!live) return;
           const isVipMod = (live.vipModeratorIds ?? []).includes(authUserId);
           const isHost = live.hostId === authUserId;
           let filteredContent = liveContent;
