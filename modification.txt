@@ -17549,3 +17549,71 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 911 — 2026-07-02
 ================================================================================
+
+================================================================================
+MODIF 912 — Salon "introuvable" en lisant un son YouTube — cluster PM2 — Soundly Dev
+Date : 2026-07-02
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Signalement utilisateur : "lorsque je mets un son youtube, j'ai un message
+ d'erreur : Salon introuvable".
+
+ Cause (même famille que MODIF 910/911 — PM2 cluster 2 instances, store RAM
+ non partagé entre workers) :
+ • Seules les routes GET /api/salons/:id et POST /api/salons (création) avaient
+   été migrées vers le store cluster-safe (getSalonFromStore / upsertSalonToPg,
+   MODIF 910). Toutes les routes d'action du salon (changer de morceau, ajouter
+   à la file, charger une playlist, rejoindre, proposals, participants, VIP,
+   settings, allowed, validate-guests, delete) lisaient encore le salon via
+   `db.salons.get(req.params.id)`, une Map RAM locale à chaque worker.
+ • Si l'action (ex. POST /:id/playback/change-track déclenché en choisissant un
+   résultat de recherche YouTube) atterrit sur un worker PM2 qui n'a jamais
+   hydraté ce salon en RAM (round-robin, cas fréquent avec 2 instances), la
+   route répond 404 "Salon introuvable" alors que le salon existe bel et bien
+   en PostgreSQL.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/routes/salons.ts
+ ───────────────────────────────────
+ • Remplacement de `db.salons.get(req.params.id)` par
+   `await hydrateSalonFromPostgres(req.params.id)` (repeuple la RAM du worker
+   depuis PostgreSQL si absente, cf. commun/backend/src/lib/pgSalonsLives.ts)
+   dans toutes les routes d'action : resolve-track, queue (GET/reorder),
+   proposals (GET/POST/accept/reject/upvote), participants (GET),
+   playback/skip, playback/play-queue, playback/change-track,
+   playback/add-to-queue, playback/load-playlist, join, settings, allowed
+   (POST/DELETE), validate-guests, DELETE /:id.
+ • Handlers correspondants passés en `async` quand nécessaire pour permettre
+   l'`await`.
+
+ commun/backend/src/lib/salonModeration.ts
+ ──────────────────────────────────────────
+ • `setSalonVipModerator` passé en async, utilise désormais
+   `hydrateSalonFromPostgres` au lieu de `db.salons.get` (même bug pour
+   l'octroi/retrait du statut VIP).
+
+ commun/backend/src/socket.ts
+ ─────────────────────────────
+ • Appel à `setSalonVipModerator` (devenu async) préfixé par `void` (fire-and-
+   forget, pas de changement de comportement).
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/routes/salons.ts → toutes les routes d'action salon lisent le salon via le store cluster-safe
+ commun/backend/src/lib/salonModeration.ts → setSalonVipModerator async + cluster-safe
+ commun/backend/src/socket.ts → adapte l'appel à setSalonVipModerator (async)
+
+BUILD (si vérifié)
+-----
+ commun/backend/ → npx tsc --noEmit → ✅
+ commun/backend/ → npx vitest run → ✅ (356 tests, 2 échecs pré-existants sans rapport
+   dans pgSalonsLives.hydrate.test.ts, reproduits à l'identique sur master non modifié
+   lors d'une exécution complète de la suite — pollution de mocks entre fichiers,
+   non liée à ce correctif)
+
+================================================================================
+Fin MODIF 912 — 2026-07-02
+================================================================================
