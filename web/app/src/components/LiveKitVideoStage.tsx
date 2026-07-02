@@ -19,6 +19,7 @@ import {
 import {
   getLiveVideoAspectRatioClass,
   getLiveVideoAspectRatioCss,
+  getLiveStackWidthRatioCss,
   getLiveVideoAspectRatioPreset,
   type LiveVideoAspectRatioPreset,
 } from '../lib/liveVideoAspectRatio';
@@ -655,10 +656,15 @@ export function LiveKitVideoStage({
   return (
     <div
       ref={containerRef}
+      data-live-viewer={!isHost ? 'true' : undefined}
+      data-live-host={isHost ? 'true' : undefined}
       className={`live-video-container live-video-container--theater ${getLiveVideoAspectRatioClass(videoAspectRatio)} relative w-full h-full min-h-0 flex flex-col overflow-hidden${
         isLandscapeTheater ? ' live-video-container--landscape-theater' : ''
       }`}
-      style={{ ['--live-aspect-ratio' as string]: getLiveVideoAspectRatioCss(videoAspectRatio) }}
+      style={{
+        ['--live-aspect-ratio' as string]: getLiveVideoAspectRatioCss(videoAspectRatio),
+        ['--live-stack-width-ratio' as string]: getLiveStackWidthRatioCss(videoAspectRatio),
+      }}
     >
       <div className="live-theater-stage-stack flex flex-col flex-1 min-h-0 min-w-0 w-full h-full">
         <div className="live-theater-hero-wrap flex flex-col min-w-0 w-full h-full min-h-0 shrink-0">

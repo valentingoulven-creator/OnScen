@@ -31,6 +31,11 @@ export function getLiveVideoAspectRatioCss(preset: LiveVideoAspectRatioPreset): 
   return `${found.widthRatio} / ${found.heightRatio}`;
 }
 
+/** Ratio largeur/hauteur pour dimensionner la colonne vidéo live (spectateurs). */
+export function getLiveStackWidthRatioCss(preset: LiveVideoAspectRatioPreset): string {
+  return getLiveVideoAspectRatioCss(preset);
+}
+
 export function getLiveVideoAspectRatioClass(preset: LiveVideoAspectRatioPreset): string {
   return `live-video-aspect-${preset.replace(':', '-')}`;
 }

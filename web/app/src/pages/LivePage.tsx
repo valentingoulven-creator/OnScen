@@ -13,6 +13,7 @@ import {
 } from '../lib/liveCameraMessages';
 import type { LiveVideoResolutionPreset } from '../lib/liveVideoResolution';
 import type { LiveVideoAspectRatioPreset } from '../lib/liveVideoAspectRatio';
+import { getLiveVideoAspectRatioPreset } from '../lib/liveVideoAspectRatio';
 import { emitLiveCameraToggle, clearLiveCameraToggleQueue } from '../lib/liveCameraSocket';
 import { useLiveVideoRelay } from '../hooks/useLiveVideoRelay';
 import { useCloudflareHlsPlayback } from '../hooks/useCloudflareHlsPlayback';
@@ -49,11 +50,12 @@ import { LiveRewardRequestsStrip } from '../components/LiveRewardRequestsStrip';
 import { LiveVideoGoalOverlay } from '../components/LiveVideoGoalOverlay';
 import { useLiveHostSession } from '../hooks/useLiveHostSession';
 import { firstActiveGoal, withGoalProgress, type GoalProgressStats } from '../lib/liveGoalProgress';
-import { enqueueRewardFromGift, getLiveHostSession, patchLiveHostSession } from '../lib/liveHostSession';
-import { rewardsMenuIsCustomized, syncLiveDonationOptions } from '../lib/liveDonationOptions';
+import { enqueueRewardFromGift, patchLiveHostSession } from '../lib/liveHostSession';
+import { syncLiveDonationOptions } from '../lib/liveDonationOptions';
 import { LiveDonationSheet } from '../components/LiveDonationSheet';
 import { FollowUserButton } from '../components/FollowUserButton';
 import { LiveGiftOverlay } from '../components/LiveGiftOverlay';
+import { LiveViewerRewardsStrip } from '../components/LiveViewerRewardsStrip';
 import { LiveParticipantsPopover } from '../components/LiveParticipantsPopover';
 import { LiveHostActionsPopover } from '../components/LiveHostActionsPopover';
 import { LiveVipModeratorsPopover } from '../components/LiveVipModeratorsPopover';
@@ -471,6 +473,15 @@ export function LivePage({
   const isHost = live?.hostId === user?.id;
   isHostRef.current = isHost;
 
+  /** Spectateurs : cadre vidéo = format hôte (live_updated), pas les prefs caméra locales. */
+  const stageVideoAspectRatio = useMemo(
+    () =>
+      isHost
+        ? videoAspectRatio
+        : getLiveVideoAspectRatioPreset(live?.videoAspectRatio),
+    [isHost, videoAspectRatio, live?.videoAspectRatio]
+  );
+
   const viewerDonationOptions = useMemo(
     () => live?.donationOptions?.filter((o) => o.label?.trim() && o.amount >= 1 && o.amount <= 100) ?? [],
     [live?.donationOptions]
@@ -505,11 +516,8 @@ export function LivePage({
 
   useEffect(() => {
     if (!isHost || !liveId || !live?.isActive) return;
-    const session = getLiveHostSession(liveId);
-    if (rewardsMenuIsCustomized(session.rewards)) {
-      syncLiveDonationOptions(liveId, session.rewards);
-    }
-  }, [isHost, liveId, live?.isActive]);
+    syncLiveDonationOptions(liveId, hostSession.rewards);
+  }, [isHost, liveId, live?.isActive, hostSession.rewards]);
 
   const viewerStreamEnded = !isHost && streamEndedReason !== null && live?.isActive === false;
   const streamEndedTitle = t('live.streamEnded');
@@ -840,6 +848,29 @@ export function LivePage({
 
   useEffect(() => {
     if (!live || !isHost || !live.isActive) return;
+    const aspect = getLiveVideoAspectRatioPreset(
+      getLiveMediaPrefs()?.videoAspectRatio ?? videoAspectRatio
+    );
+    if (live.videoAspectRatio === aspect) return;
+
+    const applyAspect = () => {
+      emitOnSocket('live_update_media_config', {
+        liveId: live.id,
+        config: { videoAspectRatio: aspect },
+      });
+      setLive((prev) => (prev ? { ...prev, videoAspectRatio: aspect } : prev));
+    };
+
+    const socket = getSocket();
+    if (socket?.connected) {
+      applyAspect();
+    } else {
+      return onSocketConnect(applyAspect);
+    }
+  }, [live?.id, live?.isActive, live?.videoAspectRatio, isHost, videoAspectRatio]);
+
+  useEffect(() => {
+    if (!live || !isHost || !live.isActive) return;
     const delay = getLiveMediaPrefs()?.videoDelaySeconds;
     if (delay === undefined || delay <= 0) return;
     if (getLiveVideoDelaySeconds(live.videoDelaySeconds) === delay) return;
@@ -1150,8 +1181,13 @@ export function LivePage({
   };
 
   const onHostAspectRatioChange = async (preset: LiveVideoAspectRatioPreset) => {
-    if (!isHost) return;
+    if (!isHost || !liveId) return;
     updateMediaDevicePrefs({ videoAspectRatio: preset });
+    setLive((prev) => (prev ? { ...prev, videoAspectRatio: preset } : prev));
+    emitOnSocket('live_update_media_config', {
+      liveId,
+      config: { videoAspectRatio: preset },
+    });
     if (isLiveKitStream) return;
     if (cameraMode !== 'camera' || !cameraLocalActive) return;
     stopCamera();
@@ -1332,7 +1368,7 @@ export function LivePage({
         videoDeviceId,
         audioDeviceId,
         videoResolution,
-        videoAspectRatio,
+        videoAspectRatio: stageVideoAspectRatio,
         videoDelaySeconds: getLiveVideoDelaySeconds(
           live?.videoDelaySeconds ?? getLiveMediaPrefs()?.videoDelaySeconds
         ),
@@ -1501,6 +1537,14 @@ export function LivePage({
         </div>
       )}
 
+      {!isHost && hostCanReceiveDonations && viewerDonationOptions.length > 0 && (
+        <LiveViewerRewardsStrip
+          options={viewerDonationOptions}
+          onSelect={(amount) => openDonSheet(amount)}
+          disabled={!token}
+        />
+      )}
+
       <ChatRoomProvider
         roomId={liveId}
         roomType="live"
@@ -1594,7 +1638,7 @@ export function LivePage({
               videoDeviceId={videoDeviceId || undefined}
               audioDeviceId={audioDeviceId || undefined}
               videoResolution={videoResolution}
-              videoAspectRatio={videoAspectRatio}
+              videoAspectRatio={stageVideoAspectRatio}
               overlay={
                 !isHost && !viewerStreamEnded ? (
                   <>
@@ -1603,6 +1647,7 @@ export function LivePage({
                         liveId={liveId}
                         visible
                         tiers={giftOverlayTiers}
+                        donationOptions={viewerDonationOptions}
                         onOpenGiftSheet={openDonSheet}
                       />
                     )}
@@ -1652,7 +1697,7 @@ export function LivePage({
             streamEnded={viewerStreamEnded}
             streamEndedTitle={streamEndedTitle}
             streamEndedHint={streamEndedHint}
-            videoAspectRatio={videoAspectRatio}
+            videoAspectRatio={stageVideoAspectRatio}
             videoFloat={livePipActive ? livePip : undefined}
             onPipOpen={!isHost ? () => setLivePipActive(true) : undefined}
             overlay={
@@ -1663,6 +1708,7 @@ export function LivePage({
                     liveId={liveId}
                     visible
                     tiers={giftOverlayTiers}
+                    donationOptions={viewerDonationOptions}
                     onOpenGiftSheet={openDonSheet}
                   />
                 ) : null}

@@ -17683,3 +17683,129 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 913 — 2026-07-02
 ================================================================================
+
+================================================================================
+MODIF 914 — Dons live spectateurs + catalogue récompenses visible — Soundly Dev
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Signalement : aucun endroit pour que les participants d'un live fassent un don
+ et voient les don rewards automatiquement.
+
+ Causes :
+ • Le catalogue récompenses (Demande de musique, Dédicace, etc.) n'était publié
+   aux spectateurs que si l'hôte avait personnalisé le menu (`rewardsMenuIsCustomized`) ;
+   avec les récompenses par défaut, `live.donationOptions` restait vide → pas de
+   libellés, pas de bandeau rewards visible.
+ • Pas de bandeau dédié côté spectateur : seul un bouton « Faire un don » discret
+   et le picker 💝 (montants génériques sans libellés rewards).
+ • Au démarrage du live, le backend ne seedait pas les options par défaut.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/liveDonationDefaults.ts (nouveau)
+ ────────────────────────────────────────────────────────
+ • Catalogue DEFAULT_LIVE_DONATION_OPTIONS (miroir frontend).
+
+ commun/backend/src/routes/lives.ts
+ ──────────────────────────────────
+ • Si `tipsEnabled`, seed `donationOptions` au démarrage du live.
+
+ web/app/src/lib/liveDonationOptions.ts
+ ──────────────────────────────────────
+ • `syncLiveDonationOptions` publie toujours les récompenses activées (plus de
+   gate « personnalisé uniquement »).
+
+ web/app/src/components/LiveViewerRewardsStrip.tsx (nouveau)
+ ───────────────────────────────────────────────────────────
+ • Bandeau scroll horizontal « Récompenses disponibles » pour les spectateurs.
+
+ web/app/src/components/LiveGiftOverlay.tsx
+ ─────────────────────────────────────────
+ • Picker 💝 avec libellés rewards quand `donationOptions` est fourni.
+
+ web/app/src/pages/LivePage.tsx
+ ──────────────────────────────
+ • Sync rewards hôte → spectateurs à chaque changement de session.
+ • Affichage `LiveViewerRewardsStrip` + options passées au gift overlay.
+
+ web/app/src/locales/fr.json · en.json
+ ─────────────────────────────────────
+ • Clé `live.viewerRewardsTitle`.
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/liveDonationDefaults.ts → defaults serveur
+ commun/backend/src/routes/lives.ts → seed donationOptions au start
+ web/app/src/lib/liveDonationOptions.ts → sync systématique
+ web/app/src/components/LiveViewerRewardsStrip.tsx → bandeau spectateur
+ web/app/src/components/LiveGiftOverlay.tsx → picker avec libellés
+ web/app/src/pages/LivePage.tsx → intégration UI + sync
+ web/app/src/locales/fr.json · en.json → i18n
+
+BUILD (si vérifié)
+-----
+ commun/backend/ → npx tsc --noEmit → ✅
+ web/app/ → npx tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 914 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 915 — Live spectateurs : cadre vidéo + ratio hôte — Soundly Dev
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ La vidéo du live côté participants n'était pas correcte (cadre déformé, crop,
+ ou mauvais format).
+
+ Causes :
+ • Les spectateurs utilisaient le format d'image de leurs propres prefs caméra
+   (`useLiveCamera`) au lieu du ratio choisi par l'hôte.
+ • `videoAspectRatio` n'était pas synchronisé sur le live (contrairement au
+   délai vidéo) — pas de diffusion via `live_updated`.
+ • CSS : colonne live toujours dimensionnée en 16:9 ; mobile en 9/16 fixe ;
+   `object-cover` sur le flux WebRTC spectateur (crop).
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/models/schema.ts · livePublic.ts · socket.ts
+ ───────────────────────────────────────────────────────────────
+ • Champ `videoAspectRatio` sur Live + sync `live_update_media_config`.
+
+ web/app/src/pages/LivePage.tsx
+ ──────────────────────────────
+ • `stageVideoAspectRatio` : hôte = prefs locales, spectateur = `live.videoAspectRatio`.
+ • Publication du ratio au démarrage et à chaque changement Config hôte.
+
+ web/app/src/components/LiveVideoStage.tsx · LiveKitVideoStage.tsx
+ ────────────────────────────────────────────────────────────────
+ • `data-live-viewer` / `data-live-host` + variables CSS `--live-stack-width-ratio`.
+
+ web/app/src/index.css
+ ─────────────────────
+ • Colonne live et mobile : dimensions basées sur `--live-aspect-ratio`.
+ • Spectateurs : `object-fit: contain` (flux entier, bandes noires si besoin).
+ • Hôte : `object-fit: cover` pour l'aperçu caméra local.
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/models/schema.ts, livePublic.ts, socket.ts
+ web/app/src/types.ts, lib/liveVideoAspectRatio.ts
+ web/app/src/pages/LivePage.tsx
+ web/app/src/components/LiveVideoStage.tsx, LiveKitVideoStage.tsx
+ web/app/src/index.css
+
+BUILD (si vérifié)
+-----
+ commun/backend/ → npx tsc --noEmit → ✅
+ web/app/ → npx tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 915 — 2026-06-26
+================================================================================
