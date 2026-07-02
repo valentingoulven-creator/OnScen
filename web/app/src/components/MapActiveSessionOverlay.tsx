@@ -62,6 +62,7 @@ export function MapActiveSessionOverlay({
 }: MapActiveSessionOverlayProps) {
   const { t } = useTranslation();
   const [salon, setSalon] = useState<Salon | null>(null);
+  const [salonMissing, setSalonMissing] = useState(false);
   const [live, setLive] = useState<Live | null>(null);
 
   const liveId = liveSession?.id ?? null;
@@ -78,10 +79,16 @@ export function MapActiveSessionOverlay({
     void api
       .getSalon(token, salonId)
       .then(({ salon: loaded }) => {
-        if (!cancelled) setSalon(loaded);
+        if (!cancelled) {
+          setSalon(loaded);
+          setSalonMissing(false);
+        }
       })
       .catch(() => {
-        if (!cancelled) setSalon(null);
+        if (!cancelled) {
+          setSalon(null);
+          setSalonMissing(true);
+        }
       });
     return () => {
       cancelled = true;
@@ -112,16 +119,27 @@ export function MapActiveSessionOverlay({
     if (!socket) return;
 
     const onSalonUpdated = (updated: Salon) => {
-      if (showSalon && updated.id === salonId) setSalon(updated);
+      if (showSalon && updated.id === salonId) {
+        setSalon(updated);
+        setSalonMissing(false);
+      }
+    };
+    const onSalonEnded = (payload: { salonId?: string }) => {
+      if (showSalon && payload?.salonId === salonId) {
+        setSalon(null);
+        setSalonMissing(true);
+      }
     };
     const onLiveUpdated = (updated: Live) => {
       if (showLive && updated.id === liveId) setLive(updated);
     };
 
     socket.on('salon_updated', onSalonUpdated);
+    socket.on('salon_ended', onSalonEnded);
     socket.on('live_updated', onLiveUpdated);
     return () => {
       socket.off('salon_updated', onSalonUpdated);
+      socket.off('salon_ended', onSalonEnded);
       socket.off('live_updated', onLiveUpdated);
     };
   }, [showLive, showSalon, salonId, liveId]);
@@ -153,12 +171,14 @@ export function MapActiveSessionOverlay({
   }
 
   if (showSalon && salonId) {
+    if (salonMissing) return null;
+
     const listening =
-      userListeningMatchesSalon(user, salonId) && user.currentListening
-        ? user.currentListening
-        : salon
-          ? listeningFromSalon(salon)
-          : user.currentListening ?? null;
+      salon
+        ? listeningFromSalon(salon)
+        : userListeningMatchesSalon(user, salonId) && user.currentListening
+          ? user.currentListening
+          : null;
 
     if (!listening) return null;
 

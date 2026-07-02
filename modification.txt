@@ -17175,6 +17175,60 @@ Fin MODIF 906 — 2026-06-26
 ================================================================================
 
 ================================================================================
+MODIF 907 — Salon actif fantôme après arrêt
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Après « Arrêter le salon », l'utilisateur voyait encore un salon actif
+ (bandeau, chip carte, message « déjà un salon actif » à la création) :
+ cache nearby client/serveur, sessionStorage, user.salonId périmé, pas de
+ salon_ended sur la carte, live lié non terminé.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/routes/salons.ts
+ ────────────────────────────────────
+ • DELETE salon : termine le live lié (même id), clearNearbyCache().
+ • deactivateOtherHostSalons : emit salon_ended + end live + clearNearbyCache.
+
+ commun/backend/src/lib/sessionLimits.ts
+ ───────────────────────────────────────
+ • Expiration auto salon : markSalonInactivePgAsync.
+
+ web/app/src/pages/HomePage.tsx
+ ────────────────────────────
+ • Socket salon_ended : retire le salon de la carte + clearNearbyCache.
+
+ web/app/src/App.tsx
+ ──────────────────
+ • user.salonId absent → efface activeSalonSession hôte.
+
+ web/app/src/components/ActiveSalonSessionBanner.tsx
+ web/app/src/components/MapActiveSessionOverlay.tsx
+ ───────────────────────────────────────────────────
+ • getSalon 404 / salon_ended → masquer le bandeau/chip.
+
+ web/app/src/components/CreateSalonSetupChatModal.tsx
+ ────────────────────────────────────────────────────
+ • Vérifie getSalon avant de bloquer « salon déjà actif » (salonId stale).
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/routes/salons.ts
+ commun/backend/src/lib/sessionLimits.ts
+ web/app/src/pages/HomePage.tsx
+ web/app/src/App.tsx
+ web/app/src/components/ActiveSalonSessionBanner.tsx
+ web/app/src/components/MapActiveSessionOverlay.tsx
+ web/app/src/components/CreateSalonSetupChatModal.tsx
+
+================================================================================
+Fin MODIF 907 — 2026-06-26
+================================================================================
+
+================================================================================
 MODIF 907 — Recherche YouTube cassée en anonyme (clé API restreinte IPv4 vs sortie IPv6 VPS)
 Date : 2026-07-02
 ================================================================================
@@ -17238,4 +17292,260 @@ BUILD
 
 ================================================================================
 Fin MODIF 907 — 2026-07-02
+================================================================================
+
+================================================================================
+MODIF 908 — Audit complet « carte plate grise » (Home) — pas de bug bloquant trouvé, 1 correctif mineur
+Date : 2026-07-02
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande d'audit exhaustif de la carte plate grise (Home), au-delà du jitter déjà
+ corrigé en MODIF 904-906 : tuiles absentes, fond gris persistant, chargement
+ partiel, fallback proxy/CDN, crossfade globe→flat, régressions mobile/desktop,
+ dev vs prod.
+
+INVESTIGATION (checklist complète — voir rapport chat pour le détail)
+-----
+ • Tuiles : testées en dev (Vite :5173 → proxy → msdev :4080) et en prod —
+   200 OK partout, cache disque backend sain (87 Mo / 6644 fichiers, prod),
+   0 erreur "[tile-proxy]" dans les 5000 dernières lignes de logs prod.
+ • CARTO CDN direct (fallback) : répond en ~85 ms, CORS `Access-Control-
+   Allow-Origin: *` présent (le fallback crossOrigin mobile ne casse rien),
+   pas d'enregistrement AAAA (non concerné par le fix DNS IPv4 de MODIF 907).
+ • Rate limiter tuiles (600 req/min/IP) : aucune trace de 429 en prod.
+ • Repro live (navigateur automatisé, page Home réelle, compte de test) :
+   chargement carte plate → tuiles chargées à 100 %, pas de gris persistant ;
+   crossfade globe→plat → pas de flash gris observé ; pan/zoom → tuiles OK.
+ • Fausse piste écartée : lors du repro, un fort assombrissement est apparu à
+   zoom élevé, tracé jusqu'à `mix-blend-mode: plus-lighter` appliqué aux
+   `<img class="leaflet-tile">`. Vérifié via CDP `CSSStyleSheet` : la règle
+   provient d'une feuille de style injectée avec `href: null`, absente à 100 %
+   du code source (grep exhaustif `web/app/src`, build `public/assets`, package
+   `leaflet`). Cible spécifiquement `.leaflet-tile` (pas les autres <img> de la
+   page) → signature typique d'une fonctionnalité de dark-mode forcé du
+   navigateur/OS de test (type « Forcer le mode sombre pour le contenu web »),
+   pas un bug Soundy. Écarté du diagnostic.
+ • Code déjà en place et jugé sain : anti-jitter recenterToken (seuil 10 m),
+   ResizeObserver avec garde dimensions + debounce 120 ms, fadeAnimation/
+   zoomAnimation désactivées, visibilitychange → invalidateSize + redraw,
+   tileerror → fallback CDN direct (une seule fois), tuning touchCoarse
+   (updateWhenIdle/keepBuffer/crossOrigin) pour mobile.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapView.tsx
+ ───────────────────────────────────
+ • Nouveau délai TILE_WARMUP_MAX_MS_MOBILE (700 ms) utilisé à la place de
+   TILE_WARMUP_MAX_MS (380 ms) quand `isTouchCoarseViewport()` est vrai :
+   sur réseau cellulaire plus lent, laisser plus de temps aux tuiles pour se
+   charger avant de révéler la carte plate lors du crossfade globe→flat,
+   évitant un aperçu tuiles-non-chargées (sombre/vide, perçu comme « gris »)
+   pendant quelques centaines de ms sur mobile.
+ • Seul changement de comportement : desktop/wifi inchangé (380 ms).
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/MapView.tsx → délai warmup tuiles adaptatif mobile
+
+BUILD
+-----
+ web/app/ → npm run build → ✅ (tsc -b && vite build, exit 0)
+
+CONCLUSION
+-----
+ Aucun bug bloquant supplémentaire trouvé au-delà de MODIF 904-906 : le
+ pipeline tuiles (proxy, cache, fallback CDN, rate limit) est sain en dev et
+ en prod. Recommandation : test manuel réel sur iPhone Safari (réseau
+ cellulaire) pour confirmer, la reproduction automatisée ne pouvant pas
+ simuler fidèlement les conditions réseau mobile ni le comportement Safari
+ natif. Pas de déploiement prod effectué (non demandé explicitement).
+
+================================================================================
+Fin MODIF 908 — 2026-07-02
+================================================================================
+
+================================================================================
+MODIF 909 — YouTube salon : jeton OAuth révoqué non détecté — Soundly Dev
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Compte Val (prod) : OAuth YouTube « connecté » mais recherche et lecture salon
+ impossibles. Diagnostic prod : access token date d’expiration 2026 mais
+ channels.list → 401 ; refresh_token → invalid_grant (révoqué). Le backend
+ faisait confiance à accessTokenExpiresAt sans vérifier le jeton auprès de
+ Google → probeYoutubeHostSession retournait ok:true à tort.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/youtubeOAuth.ts
+ ─────────────────────────────────────
+ • verifyYoutubeAccessToken (channels?part=id&mine=true) avant de réutiliser
+   un access token « non expiré ».
+ • Cache 60 s par userId pour limiter les appels API.
+ • Si jeton invalide → refresh ; si invalid_grant → auto-disconnect (existant).
+ • Ops prod : déconnexion manuelle du compte Val (jeton mort) pour forcer
+   une reconnexion OAuth propre.
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/youtubeOAuth.ts → validation réelle du jeton YouTube
+ commun/scripts/seed/probe_val_youtube.js → script diagnostic prod
+ commun/scripts/seed/disconnect_val_youtube.js → nettoyage compte Val
+
+BUILD
+-----
+ commun/backend/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 909 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 910 — Création salon : cluster PM2 + salonId fantôme — Soundly Dev
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Signalement : salon créé invisible sur la carte, message « salon déjà créé »
+ à la recréation. Causes combinées :
+ • PM2 cluster (2 workers) — store RAM non partagé : salon créé sur worker A
+   invisible sur worker B (nearby, GET /salons/:id, profil).
+ • salonId hôte périmé en mémoire client (sessionStorage / auth/me) alors que
+   PostgreSQL marque is_active=FALSE → blocage création côté UI.
+ • upsert PostgreSQL encore fire-and-forget à la création (échec silencieux).
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/pgSalonsLives.ts
+ ─────────────────────────────────────
+ • getSalonFromStore, hydrateSalonFromPostgres, hydrateSalonsFromPostgres,
+   reconcileHostSalonsWithPostgres — sync RAM ↔ PostgreSQL (cluster).
+
+ commun/backend/src/routes/salons.ts
+ ───────────────────────────────────
+ • GET /:id → getSalonFromStore.
+ • POST / → reconcile hôte, await upsertSalonToPg, clearNearbyCache,
+   erreur SALON_PERSIST_FAILED si échec PG.
+
+ commun/backend/src/routes/auth.ts, geo.ts
+ ─────────────────────────────────────────
+ • /auth/me → reconcileHostSalonsWithPostgres.
+ • /geo/nearby → hydrate salons candidats PostGIS en RAM.
+
+ web/app CreateSalonSetupChatModal, App.tsx, salonCreateFlow.ts
+ ───────────────────────────────────────────────────────────────
+ • Nettoyage salonId périmé (getSalon 404 → refresh /auth/me).
+ • Refresh profil après création réussie.
+ • Restauration session hôte uniquement si le salon existe encore.
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/pgSalonsLives.ts
+ commun/backend/src/lib/pgSalonsLives.hydrate.test.ts
+ commun/backend/src/routes/salons.ts
+ commun/backend/src/routes/auth.ts
+ commun/backend/src/routes/geo.ts
+ web/app/src/components/CreateSalonSetupChatModal.tsx
+ web/app/src/App.tsx
+ web/app/src/lib/salonCreateFlow.ts
+
+BUILD
+-----
+ commun/backend/ → npm run build → ✅
+ commun/backend/ → vitest hydrate + salonAccess → ✅ 11/11
+ web/app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 910 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 911 — Popup YouTube obligatoire pour rejoindre un salon — Soundly Dev
+Date : 2026-06-26
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Un auditeur doit lier YouTube pour rejoindre un salon. Avant : simple toast
+ ou écran plein page peu visible. Demande : popup explicite avec bouton
+ de connexion YouTube.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/salonYoutubeJoinGate.ts → bus show/close popup global
+ web/app/src/components/SalonYoutubeJoinModal.tsx → bottom-sheet + PlatformConnectCard
+ web/app/src/lib/platformConnect.ts → ensureYoutubeLinkedToJoinSalon()
+ web/app/src/App.tsx → gate openSalonPage / openSalonPip + montage modal
+ web/app/src/pages/HomePage.tsx, UserProfileView.tsx → popup au lieu de toast
+ web/app/src/lib/api/core.ts → popup si API PARTICIPANT_PLATFORM_NOT_LINKED
+ web/app/src/locales/{fr,en}.json → joinYoutubeGateTitle
+
+FICHIERS MODIFIÉS
+-----
+ (voir ci-dessus)
+
+BUILD
+-----
+ web/app/ → tsc -b → ✅
+
+================================================================================
+Fin MODIF 911 — 2026-06-26
+================================================================================
+
+================================================================================
+MODIF 911 — OAuth YouTube : double authentification en cluster PM2 — Soundly Dev
+Date : 2026-07-02
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Signalement utilisateur : lors de la connexion YouTube (liaison compte, page
+ profil/paramètres), il faut s'identifier deux fois auprès de Google pour que
+ la liaison réussisse.
+
+ Cause (même famille que MODIF 910 — PM2 cluster 2 instances, store RAM non
+ partagé entre workers) :
+ • Le state anti-CSRF du flux « connecter YouTube » (createYoutubeOAuthUrl /
+   completeYoutubeOAuth) était stocké dans un Map en mémoire local au process
+   (pendingStates), jamais migré vers Redis contrairement au flux de connexion
+   Google/Facebook/Apple (routes/oauth.ts) qui utilise déjà Redis avec repli
+   mémoire.
+ • Si la requête initiale (GET /api/platforms/youtube/oauth/url) et le callback
+   Google (GET /api/auth/youtube/callback) atterrissent sur deux workers PM2
+   différents (répartition round-robin, cas fréquent avec 2 instances),
+   completeYoutubeOAuth ne retrouve pas le state → retour silencieux (aucun
+   log d'erreur) avec `youtube_oauth=error` → l'utilisateur doit relancer tout
+   le flux d'authentification Google depuis le début (d'où l'impression de
+   devoir s'identifier deux fois).
+ • Vérifié en prod : REDIS_URL bien configuré (redis://127.0.0.1:6379) et
+   melosong-backend tourne bien en cluster à 2 instances (pm2 status).
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/youtubeOAuth.ts
+ ──────────────────────────────────────
+ • Ajout storePendingState / consumePendingState : state OAuth stocké dans
+   Redis (clé `oauth:youtube:state:<state>`, TTL 10 min) partagé entre les
+   deux workers PM2, avec repli sur le Map mémoire uniquement si Redis est
+   indisponible (même pattern que routes/oauth.ts::storeState/loadState).
+ • createYoutubeOAuthUrl → écrit désormais via storePendingState (async,
+   fire-and-forget, le temps de la redirection Google suffit à l'écriture).
+ • completeYoutubeOAuth → lit/consomme via consumePendingState au lieu du
+   Map local direct.
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/youtubeOAuth.ts → state OAuth YouTube partagé via Redis (cluster-safe)
+
+BUILD (si vérifié)
+-----
+ commun/backend/ → npx tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 911 — 2026-07-02
 ================================================================================

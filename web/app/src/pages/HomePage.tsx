@@ -23,7 +23,7 @@ import { StartLiveFlowModals } from '../components/StartLiveFlowModals';
 import { useStartLiveFlow } from '../hooks/useStartLiveFlow';
 import { useHomeGeoRefresh } from '../hooks/useHomeGeoRefresh';
 import { useMapUserDisplayPosition, resolveMapCameraFallbackCenter } from '../lib/mapUserPosition';
-import { canJoinSalonAsParticipant, salonParticipantAccessMessageKey } from '../lib/platformConnect';
+import { canJoinSalonAsParticipant, ensureYoutubeLinkedToJoinSalon } from '../lib/platformConnect';
 import { MapAdBanner, type MapSponsorViewport } from '../components/MapAdBanner';
 import { MapActiveSessionOverlay } from '../components/MapActiveSessionOverlay';
 import { LivesBrowseGrid } from '../components/LivesBrowseGrid';
@@ -264,21 +264,35 @@ export function HomePage({
   const [mapRecenterToken, setMapRecenterToken] = useState(0);
   /** Après pan carte ou rotation globe — ne pas ramener le viewport sur le GPS tardif. */
   const mapExploredRef = useRef(false);
+  /** Seuil recentrage carte (~10 m) — évite flyTo en boucle sur jitter GPS / bootstrap geo. */
   const setSafeCenter = useCallback((coords: [number, number]) => {
-    if (!isValidLatLng(coords[0], coords[1])) {
+    const bumpRecenter = () => {
       mapRecenterTokenRef.current += 1;
       setMapRecenterToken(mapRecenterTokenRef.current);
-      setCenter([...DEFAULT_CENTER]);
+    };
+    if (!isValidLatLng(coords[0], coords[1])) {
+      setCenter((prev) => {
+        if (prev[0] === DEFAULT_CENTER[0] && prev[1] === DEFAULT_CENTER[1]) return prev;
+        bumpRecenter();
+        return [...DEFAULT_CENTER];
+      });
       return;
     }
-    mapRecenterTokenRef.current += 1;
-    setMapRecenterToken(mapRecenterTokenRef.current);
-    setCenter(sanitizeLatLngTuple(coords[0], coords[1], DEFAULT_CENTER));
+    const next = sanitizeLatLngTuple(coords[0], coords[1], DEFAULT_CENTER);
+    setCenter((prev) => {
+      if (getDistanceKm(prev[0], prev[1], next[0], next[1]) < 0.01) return prev;
+      bumpRecenter();
+      return next;
+    });
   }, []);
   const setMapViewportCenter = useCallback((coords: [number, number]) => {
     if (!isValidLatLng(coords[0], coords[1])) return;
     mapExploredRef.current = true;
-    setCenter(sanitizeLatLngTuple(coords[0], coords[1], DEFAULT_CENTER));
+    setCenter((prev) => {
+      const next = sanitizeLatLngTuple(coords[0], coords[1], DEFAULT_CENTER);
+      if (getDistanceKm(prev[0], prev[1], next[0], next[1]) < 0.01) return prev;
+      return next;
+    });
   }, []);
   const noteMapExplored = useCallback(() => {
     mapExploredRef.current = true;
@@ -1512,11 +1526,8 @@ export function HomePage({
     };
   }, [isActive, token, userPosition, center, loadNearbyFromStateDebounced]);
 
-  /** Ignore bounds-driven nearby reloads pendant flyTo programmé (center prop). */
+  /** Ignore bounds-driven nearby reloads pendant flyTo programmé (recherche / recenter). */
   const programmaticMapMoveUntilRef = useRef(0);
-  useEffect(() => {
-    programmaticMapMoveUntilRef.current = Date.now() + 900;
-  }, [center]);
 
   /** Rechargement nearby en attente (filtre Lives/Salon ON avant bounds / globe prêts). */
   const loadNearbyViewportDebounced = useCallback(
@@ -1815,7 +1826,7 @@ export function HomePage({
     );
     if (token && salon.canJoin !== true && salon.hostId !== user?.id) {
       if (!platformLinked) {
-        setToastMsg(t(salonParticipantAccessMessageKey(salon.platform)));
+        ensureYoutubeLinkedToJoinSalon(user?.connectedPlatforms, isHost, salon.platform);
       } else {
         try {
           await api.joinSalon(token, salon.id);
@@ -2171,6 +2182,28 @@ export function HomePage({
     };
   }, [selected?.id, selected?.canJoin, user?.id, token]);
 
+  /** Retire un salon terminé de la carte sans attendre l'expiration du cache nearby. */
+  useEffect(() => {
+    if (!isActive || !token) return;
+    const socket = getSocket();
+    if (!socket) return;
+
+    const onSalonEnded = (payload: { salonId?: string }) => {
+      const endedId = payload?.salonId;
+      if (!endedId) return;
+      clearNearbyCache();
+      setSalons((prev) => prev.filter((s) => s.id !== endedId));
+      setLives((prev) => prev.filter((l) => l.id !== endedId && l.salonId !== endedId));
+      setSelected((prev) => (prev?.id === endedId ? null : prev));
+      loadNearbyAt(nearbyFetchCenterRef.current, { updateUserGeo: false, silent: true });
+    };
+
+    socket.on('salon_ended', onSalonEnded);
+    return () => {
+      socket.off('salon_ended', onSalonEnded);
+    };
+  }, [isActive, token, loadNearbyAt]);
+
   const handleMapInlineListenCapReached = useCallback(() => {
     setToastMsg('Aperçu carte : 10 min atteintes — ouvrez le salon pour continuer');
   }, []);
@@ -2187,9 +2220,8 @@ export function HomePage({
       if (
         salonForGate &&
         user &&
-        !canJoinSalonAsParticipant(salonForGate.platform, user.connectedPlatforms, isHost)
+        !ensureYoutubeLinkedToJoinSalon(user.connectedPlatforms, isHost, salonForGate.platform)
       ) {
-        setToastMsg(t(salonParticipantAccessMessageKey(salonForGate.platform)));
         setSalonSheetExpanded(true);
         return;
       }

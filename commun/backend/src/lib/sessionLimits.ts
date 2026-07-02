@@ -2,6 +2,7 @@ import { Server } from 'socket.io';
 import { db } from '../models/schema';
 import { clearSalonPlaybackData } from './salonPlaybackOps';
 import { endLiveSession } from './liveArchive';
+import { markSalonInactivePgAsync } from './pgSalonsLives';
 
 /** Durée maximale d'une session d'écoute salon : 2 heures. */
 export const SALON_MAX_DURATION_MS = 2 * 60 * 60 * 1000;
@@ -54,6 +55,7 @@ export function checkSessionLimits(io: Server): void {
       db.salons.delete(salonId);
       db.salonChats.delete(salonId);
       clearSalonPlaybackData(salonId);
+      markSalonInactivePgAsync(salonId);
       warnedSalons.delete(salonId);
       io.to(`salon_${salonId}`).emit('salon_ended', {
         salonId,

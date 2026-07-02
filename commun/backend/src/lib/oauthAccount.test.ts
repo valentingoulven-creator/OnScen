@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isOAuthOnlyPasswordHash } from './oauthAccount';
+import { clearPasswordChangeRequiredForOAuthLogin, isOAuthOnlyPasswordHash } from './oauthAccount';
 
 describe('isOAuthOnlyPasswordHash', () => {
   it('detects oauth placeholder hashes', () => {
@@ -9,5 +9,19 @@ describe('isOAuthOnlyPasswordHash', () => {
 
   it('rejects bcrypt hashes', () => {
     expect(isOAuthOnlyPasswordHash('$2a$10$abcdefghijklmnopqrstuv')).toBe(false);
+  });
+});
+
+describe('clearPasswordChangeRequiredForOAuthLogin', () => {
+  it('clears mustChangePassword when set', () => {
+    const user = { mustChangePassword: true };
+    clearPasswordChangeRequiredForOAuthLogin(user);
+    expect(user.mustChangePassword).toBe(false);
+  });
+
+  it('no-op when flag absent', () => {
+    const user = {};
+    clearPasswordChangeRequiredForOAuthLogin(user);
+    expect(user.mustChangePassword).toBeUndefined();
   });
 });

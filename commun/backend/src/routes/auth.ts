@@ -17,6 +17,7 @@ import {
   isLoginBlocked,
   recordLoginFailure,
 } from '../lib/loginAttemptLimit';
+import { reconcileHostSalonsWithPostgres } from '../lib/pgSalonsLives';
 import { createRateLimitStore } from '../lib/rateLimitStore';
 import { isMsdevRuntime } from '../lib/msdevGuard';
 import {
@@ -339,11 +340,17 @@ authRouter.post('/logout', (req: Request, res: Response) => {
   res.json({ ok: true });
 });
 
-authRouter.get('/me', authenticateJWT, (req: Request, res: Response) => {
-  const user = db.users.get((req as Request & { user: { id: string } }).user.id);
+authRouter.get('/me', authenticateJWT, async (req: Request, res: Response) => {
+  const userId = (req as Request & { user: { id: string } }).user.id;
+  const user = db.users.get(userId);
   if (!user) {
     res.status(404).json({ error: 'Utilisateur introuvable' });
     return;
+  }
+  try {
+    await reconcileHostSalonsWithPostgres(userId);
+  } catch (err) {
+    console.warn('[auth/me] reconcile salons hôte:', err);
   }
   applyProfileDefaults(user);
   ensurePlatformAccountsFromLegacy(user);
