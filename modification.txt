@@ -17891,3 +17891,175 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 915 — 2026-06-26
 ================================================================================
+
+================================================================================
+MODIF 916 — Globe : lives au-dessus de la moyenne + cluster popup — Soundly Dev
+Date : 2026-07-04
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur le globe, afficher uniquement les lives (et salons live) dont l'audience
+ dépasse la moyenne **nationale** (par pays) de spectateurs. Plusieurs lives au
+ même endroit → un seul marqueur ; clic → popup listant tous les lives de la zone.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/globeLiveAudience.ts
+ ─────────────────────────────────────
+ • Moyenne d'audience par pays (ISO-2) + filtre strict `>` moyenne nationale.
+
+ web/app/src/lib/liveCountry.ts
+ ──────────────────────────────
+ • `countryFromCoordinates` + résolution pays live/salon pour le filtre globe.
+
+ web/app/src/pages/HomePage.tsx
+ ──────────────────────────────
+ • Filtre appliqué en vue globe (ambient overview + filtre Lives).
+
+ web/app/src/components/MapLiveClusterSheet.tsx
+ ───────────────────────────────────────────────
+ • Sous-titre avec nombre de spectateurs par entrée.
+
+ web/app/src/lib/globeLiveAudience.test.ts
+ ─────────────────────────────────────────
+ • Tests filtre moyenne + cas limites.
+
+FICHIERS MODIFIÉS
+-----
+ globeLiveAudience.ts → helper filtre audience globe
+ HomePage.tsx → branchement filtre sur mapLives/mapSalons globe
+ MapLiveClusterSheet.tsx → spectateurs dans la liste cluster
+
+BUILD (si vérifié)
+-----
+ web/app/ → npm run test (globeLiveAudience + mapLiveClusters) → ✅
+
+================================================================================
+Fin MODIF 916 — 2026-07-04
+================================================================================
+
+================================================================================
+MODIF 917 — Carte plate : lives toujours visibles, cluster grande ville à tout
+zoom, logo = photo de profil de l'host — Soundly Dev
+Date : 2026-07-04
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur la carte plate (Home) :
+ 1. Les lives géolocalisés (et salons live) restaient masqués au zoom ville/rue
+    quand aucun filtre carte (Lives/Salon) n'était activé — donnant l'impression
+    d'une carte vide/grise alors que des lives existaient.
+ 2. Un live/salon « ancré » sur une grande ville (pas de GPS précis — coords =
+    centre-ville) ne s'affichait en cluster (1 logo + popup) qu'à la vue
+    overview ; au zoom ville/rue il redevenait un marqueur individuel, empilé
+    avec d'autres au même point exact.
+ 3. Le logo des marqueurs salon/live affichait la pochette de l'album en cours
+    (playbackState.albumArtUrl) au lieu de la photo de profil de l'hôte.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/mapMarkerVisibility.ts
+ ───────────────────────────────────────
+ • getMapMarkerVisibility : `lives: true` en permanence au zoom ville/rue
+   (au lieu de `livesFilterOn`) — les lives géolocalisés sont désormais
+   toujours affichés, indépendamment des filtres carte.
+ • filterSalonsForZoom réécrit : les salons live (isLive) constituent un
+   plancher toujours visible à tous les zooms ; le mode « tous les salons »
+   reste piloté par le filtre Salon (ou zoom rue avec un filtre actif) —
+   comportement inchangé pour les salons non-live.
+
+ web/app/src/components/MapView.tsx
+ ────────────────────────────────────
+ • Le regroupement « grande ville » (clusterSalonsLivesByMajorCity /
+   filterOverviewIndividualMarkers) s'applique désormais à tous les niveaux
+   de zoom (overview/ville/rue), plus seulement en overview : un salon/live
+   ancré sur une grande ville reste un logo unique cliquable (popup
+   MapMajorCityLiveSheet) quel que soit le zoom. Les marqueurs avec GPS réel
+   restent affichés individuellement à leur position exacte.
+ • Icônes salon/live (marqueurs individuels, densité « full ») : utilisent
+   désormais `hostAvatarUrl` (photo de profil de l'hôte) avec fallback
+   dicebear + `onerror` si l'URL est cassée, au lieu de l'album art.
+
+ commun/backend/src/lib/livePublic.ts
+ ──────────────────────────────────────
+ • serializePublicLive : ajout de `hostAvatarUrl` (dérivé de db.users, comme
+   hostUsernameColor) — le modèle Live n'avait pas ce champ, contrairement à
+   Salon.
+
+ web/app/src/types.ts
+ ──────────────────────
+ • Ajout de `hostAvatarUrl?: string` à l'interface `Live` (frontend).
+
+ web/app/src/lib/mapMarkerVisibility.test.ts
+ ──────────────────────────────────────────────
+ • Test « hides salons, lives and people at city zoom… » remplacé par
+   « always shows lives… » + nouveau test plancher salons live à city/street.
+
+FICHIERS MODIFIÉS
+-----
+ mapMarkerVisibility.ts → lives toujours visibles + plancher salons live
+ MapView.tsx → cluster grande ville à tout zoom + avatar host sur marqueurs
+ livePublic.ts → hostAvatarUrl exposé pour les lives
+ types.ts (frontend) → Live.hostAvatarUrl
+ mapMarkerVisibility.test.ts → tests mis à jour
+
+BUILD (si vérifié)
+-----
+ web/app/ → npm run build → ✅
+ web/app/ → npx vitest run mapMarkerVisibility.test.ts mapMajorCityLiveClusters.test.ts → ✅ (37 tests)
+ commun/backend/ → npx tsc --noEmit → ✅
+
+================================================================================
+Fin MODIF 917 — 2026-07-04
+================================================================================
+
+================================================================================
+MODIF 918 — Live vidéo (LiveKit) : cadre ratio fixe façon Twitch, plus de
+déformation au resize — Soundly Dev
+Date : 2026-07-04
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur la scène vidéo live (hôte caméra LiveKit + spectateurs), le cadrage de la
+ vidéo changeait de proportions selon la taille de la fenêtre/écran au lieu de
+ garder un ratio fixe (16:9 / 9:16 / 4:3) comme sur Twitch — donnant
+ l'impression que l'image se « déforme » en redimensionnant la fenêtre.
+
+CAUSE RACINE
+----
+ `.live-theater-hero-wrap` (le cadre vidéo) définissait `width: 100%` ET
+ `max-height: min(Xdvh, Xvh)` de façon **indépendante** l'une de l'autre, en
+ plus de `aspect-ratio: var(--live-aspect-ratio)`. Dès que `max-height`
+ devenait la contrainte active (fenêtres courtes/larges), la hauteur réelle du
+ cadre ne correspondait plus à `largeur / ratio` : le ratio réel du cadre
+ dérivait du ratio voulu, et cet écart variait avec les dimensions de la
+ fenêtre → cadrage/crop différent à chaque resize (perçu comme déformation).
+ object-fit (cover/contain) ne déforme jamais les pixels, mais un cadre au
+ mauvais ratio change la composition visible de façon incohérente.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/index.css
+ ───────────────────────
+ • `.room-theater-stack-column--live-theater .live-video-container--theater
+   .live-theater-hero-wrap` et la variante `.ms-salon-fullscreen-overlay …` :
+   `width` n'est plus figé à 100% mais dérivé de la MÊME contrainte de hauteur
+   que le ratio : `width: min(100%, calc(min(Xdvh, Xvh) * var(--live-aspect-ratio, 16 / 9)))`.
+   Le cadre garde ainsi exactement --live-aspect-ratio, quelle que soit la
+   taille d'écran (même technique déjà utilisée pour `.room-theater-stack-column--live-theater`
+   lui-même via `--live-stack-width-ratio`).
+
+FICHIERS MODIFIÉS
+-----
+ index.css → largeur du cadre vidéo live dérivée du ratio (pas indépendante)
+
+BUILD (si vérifié)
+-----
+ web/app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 918 — 2026-07-04
+================================================================================

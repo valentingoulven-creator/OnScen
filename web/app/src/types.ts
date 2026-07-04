@@ -1052,6 +1052,7 @@ export interface Live {
   salonId?: string;
   hostId: string;
   hostName: string;
+  hostAvatarUrl?: string;
   hostUsernameColor?: string;
   hostUsernameWaveFrom?: string;
   hostUsernameWaveTo?: string;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   collectLiveCountryOptions,
+  countryFromCoordinates,
   filterLivesByCountry,
   FRANCE_COUNTRY_CODE,
   hasLivesOutsideFrance,
@@ -53,5 +54,10 @@ describe('liveCountry (client)', () => {
       live('BE', 'Belgique'),
     ]);
     expect(options.map((o) => o.code)).toEqual(['FR', 'BE', 'CH']);
+  });
+
+  it('résout le pays depuis les coordonnées', () => {
+    expect(countryFromCoordinates(48.8566, 2.3522)?.code).toBe('FR');
+    expect(countryFromCoordinates(50.8503, 4.3517)?.code).toBe('BE');
   });
 });
