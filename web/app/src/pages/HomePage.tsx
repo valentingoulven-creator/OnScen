@@ -49,6 +49,10 @@ import {
 } from '../lib/mapSearchIntent';
 import { scheduleMapFlyWhenReady } from '../lib/mapFlyWhenReady';
 import type { MapLiveLocationCluster } from '../lib/mapLiveClusters';
+import {
+  applyGlobeLiveAudienceFilterToSalons,
+  filterGlobeLiveMarkersAboveAverageAudience,
+} from '../lib/globeLiveAudience';
 import type { MapMajorCityLiveCluster } from '../lib/mapMajorCityLiveClusters';
 import {
   buildMapSidebarContent,
@@ -646,7 +650,7 @@ export function HomePage({
   const globeLiveAmbientOn =
     mapDetailMapStyle === 'globe' && mapDetailTier === 'overview';
 
-  const mapSalonsForView = useMemo(() => {
+  const rawMapSalonsForView = useMemo(() => {
     if (!anyMapFilterActive && !globeLiveAmbientOn) return [];
 
     const merged = new Map<string, Salon>();
@@ -699,7 +703,7 @@ export function HomePage({
     nearbySortOptions,
   ]);
 
-  const mapLivesForView = useMemo(() => {
+  const rawMapLivesForView = useMemo(() => {
     if (!anyMapFilterActive && !globeLiveAmbientOn) return [];
     if (!livesFilterOn && !globeLiveAmbientOn) return [];
     if (globeLiveAmbientOn && mapDetailTier === 'overview' && !livesFilterOn) {
@@ -720,6 +724,30 @@ export function HomePage({
     mapDetailTier,
     nearbyFetchCenter,
   ]);
+
+  const globeLiveAudienceFilterActive =
+    mapDetailMapStyle === 'globe' && (livesFilterOn || globeLiveAmbientOn);
+
+  const globeLiveAudienceFiltered = useMemo(() => {
+    if (!globeLiveAudienceFilterActive) return null;
+    return filterGlobeLiveMarkersAboveAverageAudience(rawMapLivesForView, rawMapSalonsForView);
+  }, [globeLiveAudienceFilterActive, rawMapLivesForView, rawMapSalonsForView]);
+
+  const mapLivesForView = useMemo(
+    () => (globeLiveAudienceFiltered ? globeLiveAudienceFiltered.lives : rawMapLivesForView),
+    [globeLiveAudienceFiltered, rawMapLivesForView]
+  );
+
+  const mapSalonsForView = useMemo(
+    () =>
+      globeLiveAudienceFiltered
+        ? applyGlobeLiveAudienceFilterToSalons(
+            rawMapSalonsForView,
+            globeLiveAudienceFiltered.liveSalons
+          )
+        : rawMapSalonsForView,
+    [globeLiveAudienceFiltered, rawMapSalonsForView]
+  );
 
   const mapPeopleForView = useMemo(() => {
     if (!anyMapFilterActive) return [];

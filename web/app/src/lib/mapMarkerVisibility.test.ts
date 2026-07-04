@@ -253,7 +253,7 @@ describe('getMapMarkerVisibility lives at globe tiers', () => {
     }
   });
 
-  it('hides salons, lives and people at city zoom when no map filter is on', () => {
+  it('always shows lives at city zoom even when no map filter is on', () => {
     for (const tier of ['city', 'street'] as const) {
       const visibility = getMapMarkerVisibility({
         tier,
@@ -261,8 +261,24 @@ describe('getMapMarkerVisibility lives at globe tiers', () => {
         hasEventClusters: false,
       });
       expect(visibility.salons).toBe(false);
-      expect(visibility.lives).toBe(false);
+      expect(visibility.lives).toBe(true);
       expect(visibility.people).toBe(false);
+    }
+  });
+
+  it('always keeps live salons visible at city/street zoom even without a map filter', () => {
+    const salons = [
+      { id: 'live', isLive: true },
+      { id: 'off', isLive: false },
+    ];
+    for (const tier of ['city', 'street'] as const) {
+      const visibility = getMapMarkerVisibility({
+        tier,
+        eventsOnly: false,
+        hasEventClusters: false,
+      });
+      const visible = filterSalonsForZoom(salons, visibility, false, tier);
+      expect(visible.map((s) => s.id)).toEqual(['live']);
     }
   });
 });
