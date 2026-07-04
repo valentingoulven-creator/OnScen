@@ -53,6 +53,7 @@ import {
   applyGlobeLiveAudienceFilterToSalons,
   filterGlobeLiveMarkersAboveAverageAudience,
 } from '../lib/globeLiveAudience';
+import { isActiveMapLive, purgeEndedLiveFromMapState } from '../lib/mapLiveEndSync';
 import type { MapMajorCityLiveCluster } from '../lib/mapMajorCityLiveClusters';
 import {
   buildMapSidebarContent,
@@ -589,8 +590,8 @@ export function HomePage({
   ]);
 
   const mapLives = useMemo(() => {
-    const filtered = filterLivesForMap(lives, filteredNearbyPeople, nearbyPanelPrefs).filter((l) =>
-      isValidLatLng(l.latitude, l.longitude)
+    const filtered = filterLivesForMap(lives, filteredNearbyPeople, nearbyPanelPrefs).filter(
+      (l) => isValidLatLng(l.latitude, l.longitude) && isActiveMapLive(l)
     );
     return sortLivesForNearby(filtered, nearbyPanelPrefs.sortBy, nearbySortOptions);
   }, [
@@ -1414,7 +1415,7 @@ export function HomePage({
     nearbyFetchCenterRef.current = safe;
     setNearbyFetchCenter(safe);
     setSalons(r.salons);
-    setLives(r.lives);
+    setLives(r.lives.filter(isActiveMapLive));
     setNearbyPeople(r.people ?? []);
   }, []);
 
@@ -2238,12 +2239,27 @@ export function HomePage({
     const socket = getSocket();
     if (!socket) return;
 
-    const onLiveEnded = (payload: { liveId?: string }) => {
+    const onLiveEnded = (payload: { liveId?: string; hostId?: string }) => {
       const endedId = payload?.liveId;
       if (!endedId) return;
+      const hostId = payload?.hostId;
       clearNearbyCache();
-      setLives((prev) => prev.filter((l) => l.id !== endedId));
-      setSelected((prev) => (prev?.id === endedId ? null : prev));
+      setLives((prev) => purgeEndedLiveFromMapState(endedId, hostId, [], prev, []).lives);
+      setSalons((prev) => purgeEndedLiveFromMapState(endedId, hostId, prev, [], []).salons);
+      setNearbyPeople((prev) => purgeEndedLiveFromMapState(endedId, hostId, [], [], prev).people);
+      setSelected((prev) =>
+        prev &&
+        (prev.id === endedId || (hostId != null && prev.hostId === hostId && prev.isLive))
+          ? null
+          : prev
+      );
+      setSelectedLiveCluster((cluster) => {
+        if (!cluster) return null;
+        const hit =
+          cluster.lives.some((l) => l.id === endedId) ||
+          cluster.salons.some((s) => s.id === endedId || (hostId != null && s.hostId === hostId));
+        return hit ? null : cluster;
+      });
       loadNearbyAt(nearbyFetchCenterRef.current, { updateUserGeo: false, silent: true });
     };
 
@@ -2252,6 +2268,28 @@ export function HomePage({
       socket.off('live_ended', onLiveEnded);
     };
   }, [isActive, token, loadNearbyAt]);
+
+  /** Secours si live_ended socket manqué (ex. hôte revenu carte après stop) — refreshUser a cleared isLive. */
+  const prevUserLiveRef = useRef<{ isLive?: boolean; liveId?: string }>({});
+  useEffect(() => {
+    const prev = prevUserLiveRef.current;
+    const next = { isLive: user?.isLive, liveId: user?.liveId };
+    prevUserLiveRef.current = next;
+    if (!isActive || !token) return;
+    if (!prev.isLive || !prev.liveId) return;
+    if (next.isLive && next.liveId) return;
+
+    const endedId = prev.liveId;
+    const hostId = user?.id;
+    clearNearbyCache();
+    setLives((p) => purgeEndedLiveFromMapState(endedId, hostId, [], p, []).lives);
+    setSalons((p) => purgeEndedLiveFromMapState(endedId, hostId, p, [], []).salons);
+    setNearbyPeople((p) => purgeEndedLiveFromMapState(endedId, hostId, [], [], p).people);
+    setSelected((sel) =>
+      sel && (sel.id === endedId || (hostId && sel.hostId === hostId && sel.isLive)) ? null : sel
+    );
+    loadNearbyAt(nearbyFetchCenterRef.current, { updateUserGeo: false, silent: true });
+  }, [isActive, token, user?.isLive, user?.liveId, user?.id, loadNearbyAt]);
 
   const handleMapInlineListenCapReached = useCallback(() => {
     setToastMsg('Aperçu carte : 10 min atteintes — ouvrez le salon pour continuer');

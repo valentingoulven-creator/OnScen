@@ -78,11 +78,7 @@ function deactivateOtherHostSalons(hostId: string, keepId?: string): void {
     io?.to(`salon_${salonId}`).emit('salon_ended', { salonId, reason: 'replaced' });
     const linkedLive = db.lives.get(salonId);
     if (linkedLive?.isActive) {
-      endLiveSession(linkedLive);
-      io?.to(`live_${salonId}`).emit('live_ended', {
-        liveId: salonId,
-        reason: 'salon_replaced',
-      });
+      endLiveSession(linkedLive, Date.now(), { reason: 'salon_replaced' });
     }
     db.salons.delete(salonId);
     db.salonChats.delete(salonId);
@@ -1098,11 +1094,7 @@ salonsRouter.delete('/:id', authenticateJWT, async (req: Request, res: Response)
   });
   const linkedLive = db.lives.get(salonId);
   if (linkedLive?.isActive) {
-    endLiveSession(linkedLive);
-    io?.to(`live_${salonId}`).emit('live_ended', {
-      liveId: salonId,
-      reason: 'host_deleted',
-    });
+    endLiveSession(linkedLive, Date.now(), { reason: 'host_deleted' });
   }
   db.salons.delete(salonId);
   db.salonChats.delete(salonId);

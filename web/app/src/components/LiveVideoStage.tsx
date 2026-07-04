@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { VIDEO_PIP_WIDTH, VIDEO_PIP_HEADER_HEIGHT, type VideoPipFloatApi } from './DraggableVideoPip';
+import { LiveChatVideoOverlay } from './LiveChatVideoOverlay';
+import { getStorageItem, setStorageItem, STORAGE_KEYS } from '../lib/storageKeys';
 import {
   LIVE_CAMERA_HOST_OBS_STOPPED,
   LIVE_CAMERA_VIEWER_AUDIO_BLOCKED,
@@ -60,6 +62,10 @@ const FULLSCREEN_SUPPORTED =
     (document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => void })
       .webkitRequestFullscreen != null);
 
+function readChatOverlayEnabled(): boolean {
+  return getStorageItem(STORAGE_KEYS.liveChatVideoOverlay) === '1';
+}
+
 function isLandscapeOrientation(): boolean {
   if (typeof window === 'undefined') return false;
   if (window.matchMedia('(orientation: landscape)').matches) return true;
@@ -100,6 +106,21 @@ function LiveVideoShrinkIcon() {
   return (
     <svg aria-hidden className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" />
+    </svg>
+  );
+}
+
+function LiveVideoChatIcon({ active }: { active?: boolean }) {
+  return (
+    <svg
+      aria-hidden
+      className={`w-4 h-4 shrink-0${active ? ' text-purple-300' : ''}`}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M21 12c0 4.418-4.03 8-9 8-1.28 0-2.5-.23-3.6-.65L3 20l1.05-3.15C3.39 15.6 3 13.85 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8Z" />
     </svg>
   );
 }
@@ -322,6 +343,8 @@ export function LiveVideoStage({
   const videoAspectRatio = getLiveVideoAspectRatioPreset(videoAspectRatioProp);
   const displayPlaybackTitle = normalizeBrandText(playbackTitle);
   const containerRef = useRef<HTMLDivElement>(null);
+  const stageAreaRef = useRef<HTMLDivElement>(null);
+  const [chatOverlayEnabled, setChatOverlayEnabled] = useState(readChatOverlayEnabled);
   const [isVideoFullscreen, setIsVideoFullscreen] = useState(false);
   const [isLandscapeTheater, setIsLandscapeTheater] = useState(initialTheater);
   const landscapeAutoActiveRef = useRef(false);
@@ -536,6 +559,14 @@ export function LiveVideoStage({
     void unlockPlayback();
   }, [unlockPlayback]);
 
+  const toggleChatOverlay = useCallback(() => {
+    setChatOverlayEnabled((current) => {
+      const next = !current;
+      setStorageItem(STORAGE_KEYS.liveChatVideoOverlay, next ? '1' : '0');
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     if (!showPlayOverlay) return;
     const root = containerRef.current;
@@ -643,7 +674,7 @@ export function LiveVideoStage({
           <div className="live-theater-hero flex flex-col min-w-0 w-full flex-1 min-h-0">
             <div className="live-theater-hero__frame relative min-w-0 w-full flex-1 min-h-0">
       {/* Video layer — single element, always mounted when role known */}
-      <div className="live-video-stage-area absolute inset-0 w-full h-full">
+      <div ref={stageAreaRef} className="live-video-stage-area absolute inset-0 w-full h-full">
         <video
           ref={videoRef}
           autoPlay
@@ -755,7 +786,15 @@ export function LiveVideoStage({
 
         {overlay}
 
-        {/* Fullscreen + PiP controls — hidden when container is already floating */}
+        {!videoFloat && (
+          <LiveChatVideoOverlay
+            containerRef={stageAreaRef}
+            active={chatOverlayEnabled}
+            onClose={toggleChatOverlay}
+          />
+        )}
+
+        {/* Fullscreen + PiP + chat overlay controls — hidden when container is already floating */}
         {!videoFloat && (
           <div className="absolute top-2 left-2 z-30 pointer-events-auto flex items-center gap-1.5">
             {isVideoExpanded ? (
@@ -773,6 +812,14 @@ export function LiveVideoStage({
                 <span className="hidden sm:inline">PiP</span>
               </LiveVideoChromeButton>
             )}
+            <LiveVideoChromeButton
+              onClick={toggleChatOverlay}
+              ariaLabel={chatOverlayEnabled ? 'Masquer le chat sur la vid\u00e9o' : 'Afficher le chat sur la vid\u00e9o'}
+              title="Chat sur la vid\u00e9o (d\u00e9pla\u00e7able)"
+              className={chatOverlayEnabled ? 'ring-2 ring-purple-400/60' : ''}
+            >
+              <LiveVideoChatIcon active={chatOverlayEnabled} />
+            </LiveVideoChromeButton>
           </div>
         )}
       </div>
