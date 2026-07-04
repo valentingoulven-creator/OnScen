@@ -3299,10 +3299,14 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   flex-direction: column;
 }
 
-/* Format Twitch — cadre respecte le ratio choisi (16:9, 9:16, 4:3) */
+/* Format Twitch — cadre respecte le ratio choisi (16:9, 9:16, 4:3) : la largeur
+ * est dérivée de la même contrainte de hauteur (max-height) que le ratio, pour
+ * que la boîte garde toujours exactement --live-aspect-ratio quel que soit
+ * l'écran (sinon width:100% + max-height indépendants peuvent produire un
+ * cadre plus large/étroit que prévu → vidéo "déformée" visuellement au resize). */
 .room-theater-stack-column--live-theater .live-video-container--theater .live-theater-hero-wrap {
   aspect-ratio: var(--live-aspect-ratio, 16 / 9);
-  width: 100%;
+  width: min(100%, calc(min(62dvh, 62vh) * var(--live-aspect-ratio, 16 / 9)));
   height: auto;
   max-height: min(62dvh, 62vh);
   min-height: min(180px, 28dvh);
@@ -3340,6 +3344,7 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 }
 
 .ms-salon-fullscreen-overlay .room-theater-stack-column--live-theater .live-video-container--theater .live-theater-hero-wrap {
+  width: min(100%, calc(min(56dvh, 56vh) * var(--live-aspect-ratio, 16 / 9)));
   height: auto;
   max-height: min(56dvh, 56vh);
   aspect-ratio: var(--live-aspect-ratio, 16 / 9);

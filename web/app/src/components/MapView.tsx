@@ -1183,7 +1183,10 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       ...visibleLives.map((l) => l.hostId),
     ]);
 
-    if (overviewDots) {
+    // Salons/lives ancrés sur une grande ville (sans GPS précis, coords = centre ville)
+    // sont toujours regroupés sous un seul logo cliquable — quel que soit le zoom —
+    // pour éviter plusieurs marqueurs empilés exactement au même point.
+    {
       const { cityClusters } = clusterSalonsLivesByMajorCity(
         visibleSalons,
         visibleLives,
@@ -1260,7 +1263,12 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
               {
                 icon: L.divIcon({
                   className: '',
-                  html: `<div class="map-marker ${botClass} ${liveClass}">${s.isBot ? '<span class="bot-badge">BOT</span>' : ''}${s.isLive ? '<span class="live-badge">LIVE</span>' : ''}<img src="${escapeHtml(s.playbackState.albumArtUrl || '')}" alt=""/>${usernameMapLabelHtml(s.hostName, s.hostUsernameColor, { wave: { from: s.hostUsernameWaveFrom, to: s.hostUsernameWaveTo } })}</div>`,
+                  html: (() => {
+                    const avatarFallback = dicebearAdventurerAvatar(s.hostId);
+                    const avatar = s.hostAvatarUrl?.trim() || avatarFallback;
+                    const avatarOnError = `this.onerror=null;this.src='${avatarFallback.replace(/'/g, '%27')}';`;
+                    return `<div class="map-marker ${botClass} ${liveClass}">${s.isBot ? '<span class="bot-badge">BOT</span>' : ''}${s.isLive ? '<span class="live-badge">LIVE</span>' : ''}<img src="${escapeHtml(avatar)}" alt="" onerror="${avatarOnError}"/>${usernameMapLabelHtml(s.hostName, s.hostUsernameColor, { wave: { from: s.hostUsernameWaveFrom, to: s.hostUsernameWaveTo } })}</div>`;
+                  })(),
                   iconSize: [56, 56],
                   iconAnchor: [28, 28],
                 }),
@@ -1297,7 +1305,12 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
               {
                 icon: L.divIcon({
                   className: '',
-                  html: `<div class="map-marker live"><span class="live-badge">LIVE</span><img src="${escapeHtml(l.playbackState.albumArtUrl || '')}" alt=""/>${usernameMapLabelHtml(l.hostName, l.hostUsernameColor, { wave: { from: l.hostUsernameWaveFrom, to: l.hostUsernameWaveTo } })}</div>`,
+                  html: (() => {
+                    const avatarFallback = dicebearAdventurerAvatar(l.hostId);
+                    const avatar = l.hostAvatarUrl?.trim() || avatarFallback;
+                    const avatarOnError = `this.onerror=null;this.src='${avatarFallback.replace(/'/g, '%27')}';`;
+                    return `<div class="map-marker live"><span class="live-badge">LIVE</span><img src="${escapeHtml(avatar)}" alt="" onerror="${avatarOnError}"/>${usernameMapLabelHtml(l.hostName, l.hostUsernameColor, { wave: { from: l.hostUsernameWaveFrom, to: l.hostUsernameWaveTo } })}</div>`;
+                  })(),
                   iconSize: [56, 56],
                   iconAnchor: [28, 28],
                 }),

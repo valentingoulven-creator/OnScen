@@ -25,6 +25,7 @@ export function serializePublicLive(l: Live, distanceKm?: number, viewerId?: str
     salonId: l.salonId,
     hostId: l.hostId,
     hostName: l.hostName,
+    hostAvatarUrl: host?.avatarUrl,
     hostUsernameColor: host?.usernameColor,
     hostUsernameWaveFrom: host?.usernameWaveFrom,
     hostUsernameWaveTo: host?.usernameWaveTo,

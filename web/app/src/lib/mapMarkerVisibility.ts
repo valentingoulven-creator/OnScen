@@ -365,29 +365,37 @@ export function getMapMarkerVisibility(opts: MapMarkerVisibilityOptions): MapMar
       return {
         capitals,
         eventClusters,
+        /** « Tous les salons » reste piloté par le filtre Salon ; les salons live restent
+         *  toujours visibles (plancher géré dans filterSalonsForZoom, indépendant du filtre). */
         salons: salonFilterOn || livesFilterOn,
-        lives: livesFilterOn,
+        /** Les lives géolocalisés sont toujours visibles, indépendamment des filtres carte. */
+        lives: true,
         people: livesFilterOn,
         density: 'full',
       };
   }
 }
 
-/** Filtre salons : au zoom ville, ne garder que les salons live sauf mode « tous ». */
+/**
+ * Filtre salons : les salons live restent toujours visibles (plancher, indépendant des
+ * filtres carte) ; les salons non-live ne s'affichent que si le filtre Salon (ou zoom rue
+ * avec un filtre carte actif) demande le mode « tous les salons ».
+ */
 export function filterSalonsForZoom<T extends { isLive?: boolean }>(
   salons: T[],
   visibility: MapMarkerVisibility,
   showAllSalonsAtCityZoom: boolean,
   tier: MapDetailTier
 ): T[] {
-  if (!visibility.salons) return [];
+  const liveSalons = salons.filter((s) => s.isLive);
   if (tier === 'overview') {
-    if (showAllSalonsAtCityZoom) return salons;
-    return salons.filter((s) => s.isLive);
+    return showAllSalonsAtCityZoom ? salons : liveSalons;
   }
-  if (tier === 'street' || showAllSalonsAtCityZoom) return salons;
-  if (tier === 'city') return salons.filter((s) => s.isLive);
-  return [];
+  if (tier === 'street') {
+    return visibility.salons || showAllSalonsAtCityZoom ? salons : liveSalons;
+  }
+  // city
+  return showAllSalonsAtCityZoom ? salons : liveSalons;
 }
 
 /** Filtre personnes : au zoom ville, live uniquement ; rue = actives (déjà filtrées en amont). */
