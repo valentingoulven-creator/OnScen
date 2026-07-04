@@ -25,6 +25,8 @@ import {
 } from '../lib/liveVideoAspectRatio';
 import { normalizeBrandText } from '../lib/brandName';
 import { api } from '../lib/api';
+import { getStorageItem, setStorageItem, STORAGE_KEYS } from '../lib/storageKeys';
+import { LiveChatVideoOverlay } from './LiveChatVideoOverlay';
 import { LiveStreamEndedOverlay } from './LiveStreamEndedOverlay';
 import { LiveVideoUnavailableOverlay } from './LiveVideoUnavailableOverlay';
 import { LiveTheaterLiveBadge, LiveVideoStagePlaceholder } from './LiveVideoStagePlaceholder';
@@ -115,6 +117,25 @@ function LiveVideoShrinkIcon() {
       <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" />
     </svg>
   );
+}
+
+function LiveVideoChatIcon({ active }: { active?: boolean }) {
+  return (
+    <svg
+      aria-hidden
+      className={`w-4 h-4 shrink-0${active ? ' text-purple-300' : ''}`}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M21 12c0 4.418-4.03 8-9 8-1.28 0-2.5-.23-3.6-.65L3 20l1.05-3.15C3.39 15.6 3 13.85 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8Z" />
+    </svg>
+  );
+}
+
+function readChatOverlayEnabled(): boolean {
+  return getStorageItem(STORAGE_KEYS.liveChatVideoOverlay) === '1';
 }
 
 const LIVEKIT_VIDEO_CLASS =
@@ -371,6 +392,8 @@ export function LiveKitVideoStage({
   const displayPlaybackTitle = normalizeBrandText(playbackTitle);
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
+  const stageAreaRef = useRef<HTMLDivElement>(null);
+  const [chatOverlayEnabled, setChatOverlayEnabled] = useState(readChatOverlayEnabled);
   const [isVideoFullscreen, setIsVideoFullscreen] = useState(false);
   const [isLandscapeTheater, setIsLandscapeTheater] = useState(initialTheater);
   const landscapeAutoActiveRef = useRef(false);
@@ -527,6 +550,14 @@ export function LiveKitVideoStage({
     void exitDocumentFullscreen();
   }, [isLandscapeTheater]);
 
+  const toggleChatOverlay = useCallback(() => {
+    setChatOverlayEnabled((current) => {
+      const next = !current;
+      setStorageItem(STORAGE_KEYS.liveChatVideoOverlay, next ? '1' : '0');
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     if (!enabled) return;
 
@@ -670,7 +701,7 @@ export function LiveKitVideoStage({
         <div className="live-theater-hero-wrap flex flex-col min-w-0 w-full h-full min-h-0 shrink-0">
           <div className="live-theater-hero flex flex-col min-w-0 w-full flex-1 min-h-0">
             <div className="live-theater-hero__frame relative min-w-0 w-full flex-1 min-h-0">
-              <div className="live-video-stage-area absolute inset-0 w-full h-full">
+              <div ref={stageAreaRef} className="live-video-stage-area absolute inset-0 w-full h-full">
         {session && roomEnabled ? (
           <LiveKitRoom
             serverUrl={session.serverUrl}
@@ -723,7 +754,13 @@ export function LiveKitVideoStage({
 
         {overlay}
 
-        <div className="absolute top-2 left-2 z-30 pointer-events-auto">
+        <LiveChatVideoOverlay
+          containerRef={stageAreaRef}
+          active={chatOverlayEnabled}
+          onClose={toggleChatOverlay}
+        />
+
+        <div className="absolute top-2 left-2 z-30 pointer-events-auto flex items-center gap-1.5">
           {isVideoExpanded ? (
             <LiveVideoChromeButton onClick={exitVideoFullscreen} ariaLabel={t('live.exitFullscreen')}>
               <LiveVideoShrinkIcon />
@@ -735,8 +772,16 @@ export function LiveKitVideoStage({
               <span className="hidden sm:inline">{t('live.enterFullscreen')}</span>
             </LiveVideoChromeButton>
           )}
+          <LiveVideoChromeButton
+            onClick={toggleChatOverlay}
+            ariaLabel={chatOverlayEnabled ? 'Masquer le chat sur la vid\u00e9o' : 'Afficher le chat sur la vid\u00e9o'}
+            title="Chat sur la vid\u00e9o (d\u00e9pla\u00e7able)"
+            className={chatOverlayEnabled ? 'ring-2 ring-purple-400/60' : ''}
+          >
+            <LiveVideoChatIcon active={chatOverlayEnabled} />
+          </LiveVideoChromeButton>
         </div>
-              </div>
+      </div>
             </div>
           </div>
         </div>

@@ -46,11 +46,7 @@ export function checkSessionLimits(io: Server): void {
       // depuis la carte/le salon mais toujours joignable et décompté dans le quota hôte.
       const linkedLive = db.lives.get(salonId);
       if (linkedLive?.isActive) {
-        endLiveSession(linkedLive);
-        io.to(`live_${salonId}`).emit('live_ended', {
-          liveId: salonId,
-          reason: 'duration_limit',
-        });
+        endLiveSession(linkedLive, Date.now(), { reason: 'duration_limit' });
       }
       db.salons.delete(salonId);
       db.salonChats.delete(salonId);
@@ -77,12 +73,8 @@ export function checkSessionLimits(io: Server): void {
     const remaining = LIVE_MAX_DURATION_MS - elapsed;
 
     if (remaining <= 0) {
-      endLiveSession(live);
+      endLiveSession(live, Date.now(), { reason: 'duration_limit' });
       warnedLives.delete(liveId);
-      io.to(`live_${liveId}`).emit('live_ended', {
-        liveId,
-        reason: 'duration_limit',
-      });
     } else if (remaining <= SESSION_WARNING_BEFORE_MS && !warnedLives.has(liveId)) {
       warnedLives.add(liveId);
       io.to(`live_${liveId}`).emit('session_warning', {

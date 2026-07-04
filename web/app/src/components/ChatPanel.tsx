@@ -63,7 +63,7 @@ export interface ChatPanelProps {
   allowAttachments?: boolean;
 }
 
-type FeedItem =
+export type FeedItem =
   | { kind: 'message'; data: ChatMessage }
   | { kind: 'reaction'; data: LiveChatReaction };
 
@@ -223,6 +223,13 @@ function useChatRoomContext() {
   const ctx = useContext(ChatRoomContext);
   if (!ctx) throw new Error('ChatRoom components must be used within ChatRoomProvider');
   return ctx;
+}
+
+/** Safe accessor for components that may render outside a ChatRoomProvider (e.g. optional overlays). */
+export function useOptionalChatRoomFeed(): { feed: FeedItem[]; roomType: 'salon' | 'live' } | null {
+  const ctx = useContext(ChatRoomContext);
+  if (!ctx) return null;
+  return { feed: ctx.feed, roomType: ctx.roomType };
 }
 
 function useChatRoom({

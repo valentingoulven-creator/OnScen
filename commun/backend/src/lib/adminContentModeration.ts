@@ -2,7 +2,7 @@ import { db, type FeedPost, type Live, type Salon, type User, type UserReel } fr
 import { getAccountStatus, isDevUser } from './accessControl';
 import { getIo } from './ioInstance';
 import { clearSalonPlaybackData } from './salonPlaybackOps';
-import { endLiveSession } from './liveArchive';
+import { endLiveSession, broadcastLiveEnded } from './liveArchive';
 import { schedulePersist } from './persist';
 import { schedulePersistReelToPg } from './pgReels';
 import { scheduleDeleteFeedPostFromPg, schedulePersistFeedPostToPg } from './pgFeedPosts';
@@ -237,8 +237,7 @@ export function adminBlockSalon(salonId: string): Salon | null {
   if (live?.isActive) {
     live.adminBlocked = true;
     live.adminBlockedAt = Date.now();
-    endLiveSession(live);
-    getIo()?.to(`live_${salonId}`).emit('live_ended', { liveId: salonId, reason: 'admin_blocked' });
+    endLiveSession(live, Date.now(), { reason: 'admin_blocked' });
   }
 
   getIo()?.to(`salon_${salonId}`).emit('salon_ended', { salonId, reason: 'admin_blocked' });
@@ -278,7 +277,7 @@ export function adminDeleteSalon(salonId: string): boolean {
 
   const live = db.lives.get(salonId);
   if (live) {
-    getIo()?.to(`live_${salonId}`).emit('live_ended', { liveId: salonId, reason: 'admin_deleted' });
+    broadcastLiveEnded(live, 'admin_deleted');
     db.lives.delete(salonId);
     db.liveChats.delete(salonId);
     db.liveBans.delete(salonId);
@@ -294,8 +293,7 @@ export function adminBlockLive(liveId: string): Live | null {
   live.adminBlocked = true;
   live.adminBlockedAt = Date.now();
   if (live.isActive) {
-    endLiveSession(live);
-    getIo()?.to(`live_${liveId}`).emit('live_ended', { liveId, reason: 'admin_blocked' });
+    endLiveSession(live, Date.now(), { reason: 'admin_blocked' });
   } else {
     db.lives.set(liveId, live);
     schedulePersist();
@@ -338,7 +336,7 @@ export function adminUnblockLive(liveId: string): Live | null {
 export function adminDeleteLive(liveId: string): boolean {
   const live = db.lives.get(liveId);
   if (!live) return false;
-  getIo()?.to(`live_${liveId}`).emit('live_ended', { liveId, reason: 'admin_deleted' });
+  broadcastLiveEnded(live, 'admin_deleted');
   db.lives.delete(liveId);
   db.liveChats.delete(liveId);
   db.liveBans.delete(liveId);
