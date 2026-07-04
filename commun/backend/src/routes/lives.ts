@@ -393,11 +393,7 @@ livesRouter.post('/stop', authenticateJWT, async (req: Request, res: Response) =
   if (live.streamMode === 'cloudflare') {
     await archiveCloudflareStreamForLive(live);
   }
-  endLiveSession(live);
-  getIo()?.to(`live_${live.id}`).emit('live_ended', {
-    liveId: live.id,
-    reason: 'host_stopped',
-  });
+  endLiveSession(live, Date.now(), { reason: 'host_stopped' });
   getIo()?.to(`live_${live.id}`).emit('live_updated', serializePublicLive(live));
   res.json({ ok: true });
 });

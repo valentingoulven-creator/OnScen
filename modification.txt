@@ -17940,6 +17940,51 @@ Fin MODIF 916 — 2026-07-04
 ================================================================================
 
 ================================================================================
+MODIF 917 — Live arrêté encore visible sur la carte — Soundly Dev
+Date : 2026-07-04
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Après arrêt d'un live, le marqueur restait sur la carte et dans la vue détaillée.
+
+ Causes :
+ • `live_ended` émis uniquement dans la room socket `live_*` — la carte (HomePage)
+   n'était pas abonnée à cette room.
+ • Cache `/geo/nearby` serveur non invalidé à l'arrêt → réponses stale 20 s.
+ • État local carte : lives inactifs, `nearbyPeople.isLive`, salons `isLive` non purgés.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/liveArchive.ts
+ ───────────────────────────────────────
+ • `broadcastLiveEnded` : emit global + `clearNearbyCache`.
+ • `endLiveSession` propage la raison et le broadcast.
+
+ commun/backend/src/routes/lives.ts · salons.ts · sessionLimits.ts · adminContentModeration.ts
+ ─────────────────────────────────────────────────────────────────────────────────────────────
+ • Suppression des emits room-only redondants.
+
+ web/app/src/lib/mapLiveEndSync.ts · HomePage.tsx
+ ────────────────────────────────────────────────
+ • Purge lives / salons live / personnes à la réception de `live_ended`.
+ • Filtre `isActive !== false` sur les lives carte.
+ • Secours si `user.isLive` repasse à false (refreshUser après stop hôte).
+
+FICHIERS MODIFIÉS
+-----
+ liveArchive.ts → broadcast global + invalidation cache nearby
+ HomePage.tsx + mapLiveEndSync.ts → sync état carte à la fin de live
+
+BUILD (si vérifié)
+-----
+ web/app/ → npm run test (mapLiveEndSync) → ✅
+
+================================================================================
+Fin MODIF 917 — 2026-07-04
+================================================================================
+
+================================================================================
 MODIF 917 — Carte plate : lives toujours visibles, cluster grande ville à tout
 zoom, logo = photo de profil de l'host — Soundly Dev
 Date : 2026-07-04
@@ -18062,4 +18107,74 @@ BUILD (si vérifié)
 
 ================================================================================
 Fin MODIF 918 — 2026-07-04
+================================================================================
+
+================================================================================
+MODIF 919 — Live : chat superposé sur la vidéo, option perso déplaçable
+(hôte + spectateurs) — Soundly Dev
+Date : 2026-07-04
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande : « créer un chat sur les lives intégré au live (option) et
+ déplaçable par l'utilisateur ». Décisions cadrées avec l'utilisateur :
+ disponible pour l'hôte ET les spectateurs, position 100% personnelle
+ (non synchronisée entre utilisateurs), activable via un bouton dans les
+ contrôles vidéo (à côté du plein écran), style « sans fond » — juste le
+ texte des messages avec ombre, façon overlay OBS — pour ne jamais masquer
+ la vidéo derrière une boîte opaque.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/LiveChatVideoOverlay.tsx (nouveau)
+ ─────────────────
+ • Nouveau composant autonome : lit le fil de messages via
+   `useOptionalChatRoomFeed()` (ChatPanel), affiche les ~30 derniers messages
+   en texte pur (pseudo coloré via `UsernameDisplay` + contenu en blanc),
+   `text-shadow` pour la lisibilité, aucun fond/bordure sur les lignes.
+ • Hook `useDraggableChatOverlay` : position stockée en pourcentage
+   (xPct/yPct) de la zone vidéo (pas du viewport), reclampée au resize et
+   après mesure réelle de l'overlay — reste dans les bornes de la vidéo
+   quel que soit le mode (normal / plein écran / paysage).
+ • Purement client, aucune persistance de position, aucun appel réseau —
+   personnel et local par design (cf. décision utilisateur).
+
+ web/app/src/components/ChatPanel.tsx
+ ─────────────────
+ • Export de `useOptionalChatRoomFeed()` (accès sécurisé au contexte
+   ChatRoom sans throw hors Provider) et du type `FeedItem`, pour
+   permettre à l'overlay vidéo de lire le même flux que le panneau de chat
+   classique sans dupliquer la logique socket/état.
+
+ web/app/src/components/LiveVideoStage.tsx / LiveKitVideoStage.tsx
+ ─────────────────
+ • Nouvel état `chatOverlayEnabled` persisté dans localStorage
+   (`STORAGE_KEYS.liveChatVideoOverlay`), lu au montage.
+ • Nouveau bouton 💬 dans la barre de contrôles vidéo (à côté de
+   plein écran / PiP), surligné (ring violet) quand actif.
+ • Rendu de `<LiveChatVideoOverlay>` ancré sur `.live-video-stage-area`
+   (zone vidéo réelle), désactivé automatiquement en mode PiP flottant
+   (LiveVideoStage) où il n'y a pas de zone vidéo dédiée.
+
+ web/app/src/lib/storageKeys.ts
+ ─────────────────
+ • Nouvelle clé `liveChatVideoOverlay: 'soundy_live_chat_video_overlay'`.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/LiveChatVideoOverlay.tsx → nouveau composant chat overlay déplaçable
+ web/app/src/components/ChatPanel.tsx → export useOptionalChatRoomFeed + type FeedItem
+ web/app/src/components/LiveVideoStage.tsx → bouton chat overlay + intégration
+ web/app/src/components/LiveKitVideoStage.tsx → bouton chat overlay + intégration
+ web/app/src/lib/storageKeys.ts → clé liveChatVideoOverlay
+
+BUILD (si vérifié)
+-----
+ web/app/ → tsc --noEmit → ✅
+ web/app/ → npm run build → ✅
+ web/app/ → npx vitest run → ✅ (391 tests, 66 fichiers)
+
+================================================================================
+Fin MODIF 919 — 2026-07-04
 ================================================================================

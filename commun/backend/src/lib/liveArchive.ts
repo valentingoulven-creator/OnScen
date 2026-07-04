@@ -2,6 +2,8 @@ import { db, type Live } from '../models/schema';
 import { schedulePersist } from './persist';
 import { persistLiveToPgAsync } from './pgSalonsLives';
 import { deleteLiveKitRoom, stopLiveKitEgressIfActive } from './livekit';
+import { clearNearbyCache } from './nearbyResponseCache';
+import { getIo } from './ioInstance';
 
 export function bumpLivePeakViewers(live: Live): void {
   const peak = live.peakViewersCount ?? 0;
@@ -11,13 +13,31 @@ export function bumpLivePeakViewers(live: Live): void {
   }
 }
 
+/** Broadcast global pour rafraîchir la carte (clients hors room live_*). */
+export function broadcastLiveEnded(
+  live: Pick<Live, 'id' | 'hostId' | 'salonId'>,
+  reason: string
+): void {
+  clearNearbyCache();
+  getIo()?.emit('live_ended', {
+    liveId: live.id,
+    hostId: live.hostId,
+    salonId: live.salonId,
+    reason,
+  });
+}
+
 /**
  * Marque un live comme terminé et planifie la persistance.
  * Idempotent : un live déjà terminé (`endedAt` déjà posé) ressort immédiatement,
  * pour éviter un double arrêt d'egress/room LiveKit et une double persistance en
  * cas d'appels concurrents (ex. /stop + webhook + scheduler de durée max en même temps).
  */
-export function endLiveSession(live: Live, endedAt = Date.now()): void {
+export function endLiveSession(
+  live: Live,
+  endedAt = Date.now(),
+  opts?: { reason?: string; skipBroadcast?: boolean }
+): void {
   if (live.endedAt) return;
   void stopLiveKitEgressIfActive(live.id);
   // Déconnecte immédiatement les participants restants et invalide la room :
@@ -34,6 +54,9 @@ export function endLiveSession(live: Live, endedAt = Date.now()): void {
   }
   schedulePersist();
   persistLiveToPgAsync(live);
+  if (!opts?.skipBroadcast) {
+    broadcastLiveEnded(live, opts?.reason ?? 'ended');
+  }
 }
 
 /** Lives terminés hébergés par un utilisateur (visibles sur le profil). */
