@@ -11,7 +11,8 @@ import {
   userCanDonateByAge,
   type DonationsConfig,
 } from '../lib/donations';
-import { donAmountValidationMessage, donTierEmoji, parseDonAmount } from '../lib/liveReactions';
+import { donAmountValidationMessage, donationOptionEmoji, parseDonAmount } from '../lib/liveReactions';
+import type { LiveGoal } from '../lib/liveHostTypes';
 import { hasThirdPartyCookieConsent } from '../lib/cookieConsent';
 import { LegalDocumentView } from './LegalDocumentView';
 import type { LegalKey } from '../content/legal';
@@ -27,11 +28,62 @@ interface LiveDonationSheetProps {
   initialAmount?: number;
   /** Menu personnalisé par l'hôte (catalogue récompenses). */
   hostDonationOptions?: LiveDonationOption[];
+  /** Goals actifs avec progression (spectateurs). */
+  activeGoals?: LiveGoal[];
   onSuccess: (message: string) => void;
 }
 
 function formatEur(value: number): string {
   return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function goalUnit(type: LiveGoal['type']): string {
+  switch (type) {
+    case 'amount':
+      return '€';
+    case 'dons':
+      return 'dons';
+    case 'likes':
+      return 'likes';
+    case 'viewers':
+      return 'spec.';
+    case 'duration':
+      return 'min';
+  }
+}
+
+function DonationGoalRow({ goal }: { goal: LiveGoal }) {
+  const pct = Math.min(100, Math.round((goal.current / goal.target) * 100));
+  const done = pct >= 100;
+
+  return (
+    <div
+      className={`rounded-lg border px-3 py-2 ${
+        done ? 'border-emerald-500/40 bg-emerald-950/30' : 'border-purple-500/30 bg-purple-950/20'
+      }`}
+    >
+      <div className="flex items-center gap-2 min-w-0">
+        <span
+          className={`text-[9px] font-black uppercase tracking-wider shrink-0 ${
+            done ? 'text-emerald-400' : 'text-purple-400'
+          }`}
+        >
+          {done ? 'OK' : 'Goal'}
+        </span>
+        <span className="text-xs font-semibold text-white truncate flex-1 min-w-0">{goal.label}</span>
+        <span className={`text-[10px] font-bold tabular-nums shrink-0 ${done ? 'text-emerald-400' : 'text-gray-300'}`}>
+          {goal.current}/{goal.target}
+          {goalUnit(goal.type)}
+        </span>
+      </div>
+      <div className="mt-1.5 h-1 rounded-full bg-white/10 overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-700 ${done ? 'bg-emerald-500' : 'bg-purple-500'}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
 }
 
 function StripeConfirmForm({
@@ -112,6 +164,7 @@ export function LiveDonationSheet({
   userAge,
   initialAmount,
   hostDonationOptions,
+  activeGoals = [],
   onSuccess,
 }: LiveDonationSheetProps) {
   const { t } = useTranslation();
@@ -168,9 +221,9 @@ export function LiveDonationSheet({
   // App Store / Play — Stripe tips must not be offered in native apps (use web).
   if (isNativeApp()) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={onClose}>
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60" onClick={onClose}>
         <div
-          className="w-full max-w-md bg-[#12121a] rounded-2xl border border-[#2d2d3d] shadow-2xl p-6 pb-8"
+          className="w-full max-w-md bg-[#12121a] rounded-t-2xl sm:rounded-2xl border border-[#2d2d3d] shadow-2xl p-6 pb-8"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between mb-4">
@@ -249,9 +302,9 @@ export function LiveDonationSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60" onClick={onClose}>
       <div
-        className="w-full max-w-md bg-[#12121a] rounded-2xl border border-[#2d2d3d] shadow-2xl p-4 pb-6 max-h-[90dvh] overflow-y-auto"
+        className="w-full max-w-md bg-[#12121a] rounded-t-2xl sm:rounded-2xl border border-[#2d2d3d] shadow-2xl p-4 pb-6 max-h-[90dvh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-3">
@@ -277,58 +330,69 @@ export function LiveDonationSheet({
           <>
             <p className="text-xs text-gray-400 mb-4">{t('live.donationSupportHint', { hostName })}</p>
 
-            <div
-              className={`grid gap-2 mb-4 ${
-                useHostMenu
-                  ? hostOptions.length >= 3
-                    ? 'grid-cols-2 sm:grid-cols-3'
-                    : 'grid-cols-2'
-                  : 'grid-cols-3'
-              }`}
-            >
-              {useHostMenu
-                ? hostOptions.map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      disabled={submitting}
-                      onClick={() => {
-                        setSelectedAmount(opt.amount);
-                        setCustomAmount('');
-                      }}
-                      className={`flex flex-col items-center justify-center min-h-[5.5rem] py-3 px-2 rounded-xl border active:scale-95 transition disabled:opacity-50 ${
-                        selectedAmount === opt.amount
-                          ? 'bg-pink-900/50 border-pink-400'
-                          : 'bg-pink-950/40 border-pink-500/40 hover:border-pink-400'
-                      }`}
-                    >
-                      <span className="text-xl leading-none">{donTierEmoji(opt.amount)}</span>
-                      <span className="text-[11px] font-semibold text-pink-100 mt-1.5 text-center line-clamp-2 leading-tight">
-                        {opt.label}
-                      </span>
-                      <span className="text-sm font-bold text-pink-200 mt-1">{opt.amount} €</span>
-                    </button>
-                  ))
-                : tiers.map((tier) => (
-                    <button
-                      key={tier}
-                      type="button"
-                      disabled={submitting}
-                      onClick={() => {
-                        setSelectedAmount(tier);
-                        setCustomAmount('');
-                      }}
-                      className={`flex flex-col items-center py-4 rounded-xl border active:scale-95 transition disabled:opacity-50 ${
-                        selectedAmount === tier
-                          ? 'bg-pink-900/50 border-pink-400'
-                          : 'bg-pink-950/40 border-pink-500/40 hover:border-pink-400'
-                      }`}
-                    >
-                      <span className="text-2xl">{donTierEmoji(tier)}</span>
-                      <span className="text-sm font-bold text-pink-200 mt-1">{tier} €</span>
-                    </button>
-                  ))}
-            </div>
+            {activeGoals.length > 0 && (
+              <div className="mb-4 space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-purple-300/90">
+                  {t('live.donationActiveGoals')}
+                </p>
+                {activeGoals.map((goal) => (
+                  <DonationGoalRow key={goal.id} goal={goal} />
+                ))}
+              </div>
+            )}
+
+            {useHostMenu ? (
+              <div
+                className={`grid gap-2 mb-4 ${
+                  hostOptions.length >= 3 ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2'
+                }`}
+              >
+                {hostOptions.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => {
+                      setSelectedAmount(opt.amount);
+                      setCustomAmount('');
+                    }}
+                    className={`flex flex-col items-center justify-center min-h-[5.5rem] py-3 px-2 rounded-xl border active:scale-95 transition disabled:opacity-50 ${
+                      selectedAmount === opt.amount
+                        ? 'bg-pink-900/50 border-pink-400'
+                        : 'bg-pink-950/40 border-pink-500/40 hover:border-pink-400'
+                    }`}
+                  >
+                    <span className="text-xl leading-none">{donationOptionEmoji(opt)}</span>
+                    <span className="text-[11px] font-semibold text-pink-100 mt-1.5 text-center line-clamp-2 leading-tight">
+                      {opt.label}
+                    </span>
+                    <span className="text-sm font-bold text-pink-200 mt-1">{opt.amount} €</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                {tiers.map((tier) => (
+                  <button
+                    key={tier}
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => {
+                      setSelectedAmount(tier);
+                      setCustomAmount('');
+                    }}
+                    className={`flex flex-col items-center py-4 rounded-xl border active:scale-95 transition disabled:opacity-50 ${
+                      selectedAmount === tier
+                        ? 'bg-pink-900/50 border-pink-400'
+                        : 'bg-pink-950/40 border-pink-500/40 hover:border-pink-400'
+                    }`}
+                  >
+                    <span className="text-2xl">{donationOptionEmoji({ amount: tier })}</span>
+                    <span className="text-sm font-bold text-pink-200 mt-1">{tier} €</span>
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div className="rounded-xl border border-pink-500/30 bg-pink-950/20 p-3 mb-4">
               <p className="text-xs font-bold text-pink-200 mb-2">{t('live.donationCustomAmount')}</p>

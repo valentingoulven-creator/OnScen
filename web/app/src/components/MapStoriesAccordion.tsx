@@ -48,6 +48,11 @@ import { StoryViewer } from './StoryViewer';
 import { useStoryViewerWithSponsors } from '../hooks/useStoryViewerWithSponsors';
 import { StoriesRingsCarousel } from './StoriesRingsCarousel';
 import { invalidateStoriesCache } from '../lib/storiesApiCache';
+import {
+  buildActiveLiveByHost,
+  isStoryRingLive,
+} from '../lib/mapLiveEndSync';
+import { getSocket } from '../lib/socket';
 import { USERNAME_WAVE_CLASS } from '../lib/usernameColor';
 
 interface MapStoriesAccordionProps {
@@ -87,6 +92,7 @@ export function MapStoriesAccordion({
     reels: MusicReel[];
     ephemeralStories: MapStory[];
     favoriteIds: Set<string>;
+    activeLiveByHost: ReturnType<typeof buildActiveLiveByHost>;
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const [sheet, setSheet] = useState<SheetState>({ kind: 'closed' });
@@ -140,7 +146,7 @@ export function MapStoriesAccordion({
     setLoading(true);
     try {
       const storyRadius = prefs.filterByDistance ? radiusKm : undefined;
-      const [favRes, feedRes, storiesRes, mineRes] = await Promise.all([
+      const [favRes, feedRes, storiesRes, mineRes, livesOrNull] = await Promise.all([
         api.getMyFavorites(token),
         api.getReelsFeed(token),
         api.getStories(token, {
@@ -149,6 +155,7 @@ export function MapStoriesAccordion({
           radius: storyRadius,
         }),
         api.getMyStory(token),
+        api.getLives(token, { distanceFilter: false }).catch(() => null),
       ]);
       const favoriteIds = new Set(favRes.favorites.map((f) => f.id));
       const reels = (feedRes.reels ?? [])
@@ -159,11 +166,13 @@ export function MapStoriesAccordion({
       const byUser = groupStoriesByUser(ephemeral);
       setStoriesByUser(byUser);
       setMyStories(mineRes.stories ?? (mineRes.story ? [mineRes.story] : []));
+      const activeLiveByHost = buildActiveLiveByHost((livesOrNull?.lives ?? []).filter(isStoryRingLive));
       setStoryFeed({
         favorites: favRes.favorites,
         reels,
         ephemeralStories: ephemeral,
         favoriteIds,
+        activeLiveByHost,
       });
     } catch {
       setStoryFeed(null);
@@ -178,6 +187,31 @@ export function MapStoriesAccordion({
     void fetchStoryFeed();
   }, [fetchStoryFeed]);
 
+  useEffect(() => {
+    if (!isActive || !token) return;
+    const socket = getSocket();
+    if (!socket) return;
+    const onLiveEnded = (payload: { liveId?: string; hostId?: string }) => {
+      const endedId = payload?.liveId;
+      const hostId = payload?.hostId;
+      if (!endedId && !hostId) return;
+      setStoryFeed((prev) => {
+        if (!prev) return prev;
+        const activeLiveByHost = new Map(prev.activeLiveByHost);
+        for (const [id, info] of activeLiveByHost) {
+          if ((endedId && info.liveId === endedId) || (hostId && id === hostId)) {
+            activeLiveByHost.delete(id);
+          }
+        }
+        return { ...prev, activeLiveByHost };
+      });
+    };
+    socket.on('live_ended', onLiveEnded);
+    return () => {
+      socket.off('live_ended', onLiveEnded);
+    };
+  }, [isActive, token]);
+
   const entries = useMemo(() => {
     if (!storyFeed) return [];
     const people = nearbyPeople.filter((p) => p.id !== user?.id);
@@ -185,6 +219,7 @@ export function MapStoriesAccordion({
       favoritesFirst: prefs.favoritesFirst,
       favoriteIds: storyFeed.favoriteIds,
       ephemeralStories: storyFeed.ephemeralStories,
+      activeLiveByHost: storyFeed.activeLiveByHost,
     }).filter((e) => e.userId !== user?.id);
   }, [nearbyPeople, storyFeed, prefs.favoritesFirst, user?.id]);
 

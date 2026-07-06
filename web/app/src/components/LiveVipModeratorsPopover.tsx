@@ -11,6 +11,8 @@ type LiveVipModeratorsPopoverProps = {
   chatParticipants: LiveVipChatParticipant[];
   onSetVip: (userId: string, isVip: boolean) => void;
   panelAbove?: boolean;
+  /** false — liste lecture seule (spectateurs). */
+  canManage?: boolean;
 };
 
 const POPOVER_TRIGGER_CLASS =
@@ -21,6 +23,7 @@ export function LiveVipModeratorsPopover({
   chatParticipants,
   onSetVip,
   panelAbove = false,
+  canManage = true,
 }: LiveVipModeratorsPopoverProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -81,6 +84,7 @@ export function LiveVipModeratorsPopover({
                     <span className="text-[11px] text-gray-200 truncate flex-1 min-w-0">
                       <span className="text-amber-400 font-bold text-[10px]">VIP</span> {v.name}
                     </span>
+                    {canManage ? (
                     <button
                       type="button"
                       onClick={() => {
@@ -92,12 +96,13 @@ export function LiveVipModeratorsPopover({
                     >
                       ✕
                     </button>
+                    ) : null}
                   </li>
                 ))}
               </ul>
             )}
 
-            {chatParticipants.length > 0 && (
+            {canManage && chatParticipants.length > 0 && (
               <div className="pt-1 border-t border-amber-500/15 mt-1">
                 <p className="text-[9px] text-gray-500 px-1 mb-1 uppercase tracking-wide">
                   {t('live.vipModeratorsAdd')}

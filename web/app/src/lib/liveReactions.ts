@@ -48,6 +48,23 @@ export function donTierEmoji(amount: number): string {
   return DON_TIER_EMOJI[amount] ?? GIFT_EMOJI.don;
 }
 
+/** Emoji par type de récompense hôte (catalogue dons). */
+export const REWARD_TYPE_EMOJI: Record<string, string> = {
+  music_request: '🎵',
+  dedication: '💌',
+  dance: '💃',
+  backstage: '🎫',
+  badge: '🏅',
+  custom: '💝',
+};
+
+export function donationOptionEmoji(opt: { amount: number; rewardType?: string }): string {
+  if (opt.rewardType && REWARD_TYPE_EMOJI[opt.rewardType]) {
+    return REWARD_TYPE_EMOJI[opt.rewardType];
+  }
+  return donTierEmoji(opt.amount);
+}
+
 export interface GiftPayload {
   id: string;
   senderId?: string;

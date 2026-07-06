@@ -313,6 +313,16 @@ export interface LiveDonationOption {
   id: string;
   label: string;
   amount: number;
+  /** Type de récompense (emoji côté client). */
+  rewardType?: string;
+}
+
+/** Goal public publié par l'hôte (progression calculée côté client). */
+export interface LivePublicGoal {
+  id: string;
+  type: 'amount' | 'dons' | 'likes' | 'viewers' | 'duration';
+  target: number;
+  label: string;
 }
 
 export interface Live {
@@ -358,6 +368,8 @@ export interface Live {
   peakViewersCount?: number;
   /** Menu pourboires personnalisé par l'hôte (catalogue récompenses). */
   donationOptions?: LiveDonationOption[];
+  /** Goals actifs publiés par l'hôte (progression via stats live). */
+  donationGoals?: LivePublicGoal[];
   /** Pourboires activés sur ce live (false si l'hôte a choisi « sans RIB » au lancement). */
   tipsEnabled?: boolean;
   /** Catégorie de contenu : musique, danse ou artistique. */

@@ -49,9 +49,9 @@ import {
 import { LiveRewardRequestsStrip } from '../components/LiveRewardRequestsStrip';
 import { LiveVideoGoalOverlay } from '../components/LiveVideoGoalOverlay';
 import { useLiveHostSession } from '../hooks/useLiveHostSession';
-import { firstActiveGoal, withGoalProgress, type GoalProgressStats } from '../lib/liveGoalProgress';
+import { firstActiveGoal, activePublicGoals, withGoalProgress, type GoalProgressStats } from '../lib/liveGoalProgress';
 import { enqueueRewardFromGift, patchLiveHostSession } from '../lib/liveHostSession';
-import { syncLiveDonationOptions } from '../lib/liveDonationOptions';
+import { syncLiveDonationGoals, syncLiveDonationOptions } from '../lib/liveDonationOptions';
 import { LiveDonationSheet } from '../components/LiveDonationSheet';
 import { FollowUserButton } from '../components/FollowUserButton';
 import { LiveGiftOverlay } from '../components/LiveGiftOverlay';
@@ -68,15 +68,27 @@ import { useDraggableVideoPip, defaultVideoPipPos } from '../components/Draggabl
 import {
   consumeLiveMinimizePipPending,
   getLiveVideoFloatActive,
+  getLiveViewerPlaybackPaused,
   setLiveVideoFloatActive,
   subscribeLiveVideoFloat,
+  subscribeLiveViewerPlaybackPaused,
+  toggleLiveViewerPlaybackPaused,
 } from '../lib/liveVideoFloat';
 import type { ChatMessage, DmContact, Live, AppNotification, PlaybackState } from '../types';
+import { getStorageItem, setStorageItem, STORAGE_KEYS } from '../lib/storageKeys';
 
 const SOUNDY_BASE_URL = 'https://getsoundy.com';
 const LIVE_MAX_DURATION_MS = 8 * 60 * 60 * 1000;
 
 const LIVE_CHAT_HIDDEN_KEY = 'melosong_live_chat_hidden';
+
+function readLiveChatPinned(): boolean {
+  return getStorageItem(STORAGE_KEYS.liveChatPinned) === '1';
+}
+
+function readFullscreenChatOverlay(): boolean {
+  return getStorageItem(STORAGE_KEYS.liveChatVideoOverlay) === '1';
+}
 
 export function LivePage({
   liveId,
@@ -87,6 +99,7 @@ export function LivePage({
   onOpenProfile,
   liveFullScreen = true,
   initialTheater = false,
+  onRestoreFullScreen,
 }: {
   liveId: string;
   onBack: () => void;
@@ -98,6 +111,8 @@ export function LivePage({
   onOpenProfile?: (userId: string) => void;
   /** Grand live plein écran vs session minimisée (PiP flottant). */
   liveFullScreen?: boolean;
+  /** Réouvre l'overlay live plein écran (ex. ancrage PiP). */
+  onRestoreFullScreen?: () => void;
   /** Ouvre directement en mode plein écran CSS (theater) dès le premier rendu. */
   initialTheater?: boolean;
 }) {
@@ -107,7 +122,11 @@ export function LivePage({
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [viewers, setViewers] = useState(0);
   const [chatHidden, setChatHidden] = useState(false);
-  const [chatMinimized, setChatMinimized] = useState(false);
+  /** Chat flottant réduit par défaut — la vidéo occupe tout l'écran dès le
+   * premier affichage ; un tap sur l'en-tête suffit pour le déplier. */
+  const [chatMinimized, setChatMinimized] = useState(true);
+  const [chatPinned, setChatPinned] = useState(readLiveChatPinned);
+  const [fullscreenChatOverlay, setFullscreenChatOverlay] = useState(readFullscreenChatOverlay);
   const [privateTarget, setPrivateTarget] = useState<DmContact | null>(null);
   const [showDonSheet, setShowDonSheet] = useState(false);
   const [reportLiveOpen, setReportLiveOpen] = useState(false);
@@ -153,7 +172,24 @@ export function LivePage({
     setLiveVideoFloatActive(next);
     setLivePipActiveState(next);
   }, []);
-  const livePip = useDraggableVideoPip(livePipActive, () => setLivePipActive(false), defaultVideoPipPos);
+  const anchorLivePip = useCallback(() => {
+    setLivePipActive(false);
+    if (!liveFullScreen) {
+      onRestoreFullScreen?.();
+    }
+  }, [liveFullScreen, onRestoreFullScreen, setLivePipActive]);
+  const livePip = useDraggableVideoPip(livePipActive, anchorLivePip, defaultVideoPipPos);
+  const [viewerPlaybackPaused, setViewerPlaybackPausedState] = useState(getLiveViewerPlaybackPaused);
+  const toggleViewerPlaybackPaused = useCallback(() => {
+    toggleLiveViewerPlaybackPaused();
+  }, []);
+  useEffect(
+    () =>
+      subscribeLiveViewerPlaybackPaused(() => {
+        setViewerPlaybackPausedState(getLiveViewerPlaybackPaused());
+      }),
+    []
+  );
   const leavingLiveRef = useRef(false);
   /** OBS a déjà diffusé au moins une fois durant ce live (auto-stop Soundy si RTMP coupé). */
   const obsWasLiveRef = useRef(false);
@@ -517,7 +553,8 @@ export function LivePage({
   useEffect(() => {
     if (!isHost || !liveId || !live?.isActive) return;
     syncLiveDonationOptions(liveId, hostSession.rewards);
-  }, [isHost, liveId, live?.isActive, hostSession.rewards]);
+    syncLiveDonationGoals(liveId, hostSession.goals);
+  }, [isHost, liveId, live?.isActive, hostSession.rewards, hostSession.goals]);
 
   const viewerStreamEnded = !isHost && streamEndedReason !== null && live?.isActive === false;
   const streamEndedTitle = t('live.streamEnded');
@@ -546,6 +583,14 @@ export function LivePage({
       now: goalTick,
     }),
     [hostTotalDonations, hostDonationCount, viewers, live?.startedAt, liveStartedAt, goalTick],
+  );
+
+  const viewerActiveGoals = useMemo(
+    () =>
+      !isHost && live?.donationGoals?.length
+        ? activePublicGoals(live.donationGoals, goalStats, liveId)
+        : [],
+    [isHost, live?.donationGoals, goalStats, liveId],
   );
 
   const activeGoal = useMemo(
@@ -1066,6 +1111,50 @@ export function LivePage({
     });
   };
 
+  const toggleFloatingChatFromChrome = useCallback(() => {
+    if (chatHidden) {
+      setChatHidden(false);
+      setChatMinimized(false);
+      try {
+        localStorage.setItem(LIVE_CHAT_HIDDEN_KEY, '0');
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+    setChatHidden(true);
+    try {
+      localStorage.setItem(LIVE_CHAT_HIDDEN_KEY, '1');
+    } catch {
+      /* ignore */
+    }
+  }, [chatHidden]);
+
+  const toggleChatPin = useCallback(() => {
+    setChatPinned((prev) => {
+      const next = !prev;
+      setStorageItem(STORAGE_KEYS.liveChatPinned, next ? '1' : '0');
+      if (next) {
+        setChatHidden(false);
+        setChatMinimized(false);
+        try {
+          localStorage.setItem(LIVE_CHAT_HIDDEN_KEY, '0');
+        } catch {
+          /* ignore */
+        }
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleFullscreenChatOverlay = useCallback(() => {
+    setFullscreenChatOverlay((prev) => {
+      const next = !prev;
+      setStorageItem(STORAGE_KEYS.liveChatVideoOverlay, next ? '1' : '0');
+      return next;
+    });
+  }, []);
+
   const stopLive = async () => {
     if (!token || live?.hostId !== user?.id) return;
     releaseHostLiveMedia();
@@ -1453,7 +1542,8 @@ export function LivePage({
           token={token}
           userAge={user?.age}
           initialAmount={donInitialAmount}
-          hostDonationOptions={viewerDonationOptions.length > 0 ? viewerDonationOptions : undefined}
+          hostDonationOptions={viewerDonationOptions}
+          activeGoals={viewerActiveGoals}
           onSuccess={(message) => {
             setDonToast(message);
             window.setTimeout(() => setDonToast(null), 2500);
@@ -1482,6 +1572,7 @@ export function LivePage({
       )}
 
       {/* ── Header redesigné ── */}
+      <div className="live-viewer-chrome shrink-0">
       <LiveHostTopBar
         title={live.title}
         viewers={viewers}
@@ -1496,7 +1587,7 @@ export function LivePage({
             <button
               type="button"
               onClick={() => setReportLiveOpen(true)}
-              className="w-9 h-9 flex items-center justify-center rounded-full text-gray-400 hover:text-red-400 hover:bg-[#1a1a26] transition"
+              className="w-11 h-11 flex items-center justify-center rounded-full text-gray-400 hover:text-red-400 hover:bg-[#1a1a26] transition"
               aria-label="Signaler ce live"
             >
               <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
@@ -1508,39 +1599,84 @@ export function LivePage({
       />
 
       {/* Bande 2 : Actions auditeur (non-hôte) */}
-      {!isHost && (hostCanReceiveDonations || true) && (
-        <div className="shrink-0 flex items-center gap-1.5 px-3 py-2 border-b border-[#1e1e2f] bg-[#0b0b0f]">
-          {hostCanReceiveDonations && token && (
+      {!isHost && live && (
+        <div className="live-viewer-action-bar shrink-0 relative z-30 flex items-center justify-between gap-2 w-full min-w-0 px-3 py-2 min-h-[3.25rem] border-b border-[#1e1e2f] bg-[#0b0b0f]">
+          <div className="flex items-center gap-1.5 min-w-0 shrink-0">
+            {token && (
+              <button
+                type="button"
+                onClick={() => hostCanReceiveDonations && openDonSheet()}
+                disabled={!hostCanReceiveDonations}
+                title={
+                  hostCanReceiveDonations
+                    ? t('live.headerDonate')
+                    : t('live.donationsHostNotConfigured', {
+                        defaultValue: "L'hôte n'a pas configuré les dons",
+                      })
+                }
+                aria-label={
+                  hostCanReceiveDonations
+                    ? t('live.headerDonate')
+                    : t('live.donationsHostNotConfigured', {
+                        defaultValue: "L'hôte n'a pas configuré les dons",
+                      })
+                }
+                aria-disabled={!hostCanReceiveDonations}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold border transition min-h-11 shrink-0 ${
+                  hostCanReceiveDonations
+                    ? 'border-amber-500/35 bg-amber-950/50 text-amber-200 hover:bg-amber-900/60'
+                    : 'border-[#2d2d3d]/80 bg-[#14141c]/80 text-gray-500 opacity-50 pointer-events-none cursor-not-allowed'
+                }`}
+              >
+                <span aria-hidden>🎁</span>
+                <span className="sm:hidden">{t('live.headerDonateShort')}</span>
+                <span className="hidden sm:inline">{t('live.headerDonate')}</span>
+              </button>
+            )}
+            {token && (
+              <FollowUserButton
+                userId={live.hostId}
+                username={live.hostName}
+                initialFollowing={hostFollowing}
+                compact
+                iconStyle="heart"
+                className="shrink-0"
+                onFollowingChange={setHostFollowing}
+              />
+            )}
+          </div>
+          <div className="flex items-center gap-1 shrink-0 ml-2">
+            {token ? (
+              <>
+                <LiveParticipantsPopover
+                  liveId={liveId}
+                  token={token}
+                  hostId={live.hostId}
+                  hostName={live.hostName}
+                  hostUsernameColor={live.hostUsernameColor}
+                  vipModeratorIds={live.vipModeratorIds ?? []}
+                  viewersCount={viewers}
+                />
+                <LiveVipModeratorsPopover
+                  vipEntries={vipEntries}
+                  chatParticipants={chatParticipants}
+                  onSetVip={setVipModerator}
+                  canManage={isDevModerator}
+                />
+              </>
+            ) : null}
             <button
               type="button"
-              onClick={() => openDonSheet()}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold border border-amber-500/35 bg-amber-950/50 text-amber-200 hover:bg-amber-900/60 transition min-h-[36px]"
+              onClick={leaveLive}
+              className="flex items-center px-3 py-1.5 bg-[#1a1a26] border border-[#232330] rounded-full text-xs text-gray-300 font-bold hover:text-white transition min-h-11 shrink-0"
             >
-              <span aria-hidden>🎁</span>
-              <span className="sm:hidden">{t('live.headerDonateShort')}</span>
-              <span className="hidden sm:inline">{t('live.headerDonate')}</span>
+              <span className="sm:hidden">{t('live.leaveLiveShort')}</span>
+              <span className="hidden sm:inline">{t('live.leaveLive')}</span>
             </button>
-          )}
-          {token && live && (
-            <FollowUserButton
-              userId={live.hostId}
-              username={live.hostName}
-              initialFollowing={hostFollowing}
-              compact
-              className="shrink-0"
-              onFollowingChange={setHostFollowing}
-            />
-          )}
-          <button
-            type="button"
-            onClick={leaveLive}
-            className="ml-auto flex items-center px-3 py-1.5 bg-[#1a1a26] border border-[#232330] rounded-full text-xs text-gray-300 font-bold hover:text-white transition min-h-[36px]"
-          >
-            <span className="sm:hidden">{t('live.leaveLiveShort')}</span>
-            <span className="hidden sm:inline">{t('live.leaveLive')}</span>
-          </button>
+          </div>
         </div>
       )}
+      </div>
 
       {!isHost && hostCanReceiveDonations && viewerDonationOptions.length > 0 && (
         <LiveViewerRewardsStrip
@@ -1571,10 +1707,13 @@ export function LivePage({
         onDeleteMessage={canModerateChat ? handleDeleteMessage : undefined}
         onOpenDonation={!isHost && hostCanReceiveDonations ? openDonSheet : undefined}
       >
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       <RoomTheaterLayout
-        chatDock="bottom"
-        stackBelowVideo
+        chatDock={chatPinned ? 'left' : 'floating'}
+        allowFloatingChat={false}
         liveTheaterChrome
+        chatPinned={chatPinned}
+        onToggleChatPin={toggleChatPin}
         chatHidden={chatHidden}
         onToggleChat={toggleChatHidden}
         chatTitle={t('live.publicChat')}
@@ -1593,33 +1732,13 @@ export function LivePage({
           </>
         ) : undefined}
         chatHeaderExtra={
-          <>
-            {isHost ? (
-              <LiveHostActionsPopover
-                liveId={liveId}
-                goalStats={goalStats}
-                onOpenDonPanel={(subTab) => openHostPanel('don', subTab)}
-              />
-            ) : null}
-            {(isHost || isDevModerator) ? (
-              <LiveVipModeratorsPopover
-                vipEntries={vipEntries}
-                chatParticipants={chatParticipants}
-                onSetVip={setVipModerator}
-              />
-            ) : null}
-            {token ? (
-              <LiveParticipantsPopover
-                liveId={liveId}
-                token={token}
-                hostId={live.hostId}
-                hostName={live.hostName}
-                hostUsernameColor={live.hostUsernameColor}
-                vipModeratorIds={live.vipModeratorIds ?? []}
-                viewersCount={viewers}
-              />
-            ) : null}
-          </>
+          isHost ? (
+            <LiveHostActionsPopover
+              liveId={liveId}
+              goalStats={goalStats}
+              onOpenDonPanel={(subTab) => openHostPanel('don', subTab)}
+            />
+          ) : null
         }
         stage={
           isLiveKitStream && token ? (
@@ -1644,10 +1763,18 @@ export function LivePage({
               audioDeviceId={audioDeviceId || undefined}
               videoResolution={videoResolution}
               videoAspectRatio={stageVideoAspectRatio}
+              chatVisible={!chatHidden}
+              onToggleFloatingChat={toggleFloatingChatFromChrome}
+              fullscreenChatOverlayVisible={fullscreenChatOverlay}
+              onToggleFullscreenChatOverlay={toggleFullscreenChatOverlay}
+              viewerPlaybackPaused={!isHost ? viewerPlaybackPaused : undefined}
+              onToggleViewerPlaybackPaused={!isHost ? toggleViewerPlaybackPaused : undefined}
+              videoFloat={livePipActive ? livePip : undefined}
+              onPipOpen={!isHost ? () => setLivePipActive(true) : undefined}
               overlay={
                 !isHost && !viewerStreamEnded ? (
                   <>
-                    {hostCanReceiveDonations && (
+                    {hostCanReceiveDonations && !livePipActive && (
                       <LiveGiftOverlay
                         liveId={liveId}
                         visible
@@ -1703,12 +1830,18 @@ export function LivePage({
             streamEndedTitle={streamEndedTitle}
             streamEndedHint={streamEndedHint}
             videoAspectRatio={stageVideoAspectRatio}
+            chatVisible={!chatHidden}
+            onToggleFloatingChat={toggleFloatingChatFromChrome}
+            fullscreenChatOverlayVisible={fullscreenChatOverlay}
+            onToggleFullscreenChatOverlay={toggleFullscreenChatOverlay}
+            viewerPlaybackPaused={!isHost ? viewerPlaybackPaused : undefined}
+            onToggleViewerPlaybackPaused={!isHost ? toggleViewerPlaybackPaused : undefined}
             videoFloat={livePipActive ? livePip : undefined}
             onPipOpen={!isHost ? () => setLivePipActive(true) : undefined}
             overlay={
               <>
                 {hostVideoOverlay}
-                {!isHost && hostCanReceiveDonations && !viewerStreamEnded ? (
+                {!isHost && hostCanReceiveDonations && !viewerStreamEnded && !livePipActive ? (
                   <LiveGiftOverlay
                     liveId={liveId}
                     visible
@@ -1730,6 +1863,7 @@ export function LivePage({
         chatInput={<ChatInputBar />}
       />
         <ChatModals />
+      </div>
       </ChatRoomProvider>
 
       {isHost && showHostPanel && (

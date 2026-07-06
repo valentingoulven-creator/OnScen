@@ -109,6 +109,13 @@ export function isHiddenHostTheaterStatus(status: string): boolean {
   return HOST_THEATER_STATUS_HIDDEN.has(status);
 }
 
+/** Bandeau sous la vidéo (théâtre live) : affiché uniquement en cas d'erreur.
+ * Les statuts informatifs (caméra inactive, connexion…) sont déjà visibles dans
+ * le placeholder central ; le bandeau bas était redondant et encombrant. */
+export function shouldShowTheaterStatusBar(stageState: string): boolean {
+  return stageState === 'error';
+}
+
 /** Spectateur (LiveKit) : connexion à la salle. */
 export const LIVE_CAMERA_VIEWER_LIVEKIT_CONNECTING = 'Connexion au live LiveKit…';
 

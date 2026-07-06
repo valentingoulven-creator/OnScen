@@ -38,3 +38,27 @@ export function dispatchLiveBeforeMinimize(): void {
   setLiveMinimizePipPending(true);
   window.dispatchEvent(new CustomEvent(LIVE_BEFORE_MINIMIZE_EVENT));
 }
+
+/** Pause locale du flux viewer (PiP / plein écran) — n'affecte pas le host. */
+let viewerPlaybackPaused = false;
+const pauseListeners = new Set<() => void>();
+
+export function getLiveViewerPlaybackPaused(): boolean {
+  return viewerPlaybackPaused;
+}
+
+export function setLiveViewerPlaybackPaused(paused: boolean): void {
+  if (viewerPlaybackPaused === paused) return;
+  viewerPlaybackPaused = paused;
+  pauseListeners.forEach((fn) => fn());
+}
+
+export function toggleLiveViewerPlaybackPaused(): boolean {
+  setLiveViewerPlaybackPaused(!viewerPlaybackPaused);
+  return viewerPlaybackPaused;
+}
+
+export function subscribeLiveViewerPlaybackPaused(listener: () => void): () => void {
+  pauseListeners.add(listener);
+  return () => pauseListeners.delete(listener);
+}

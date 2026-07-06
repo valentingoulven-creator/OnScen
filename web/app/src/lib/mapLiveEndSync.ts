@@ -1,7 +1,35 @@
 import type { Live, NearbyPerson, Salon } from '../types';
+import { isValidLatLng } from './mapCoords';
 
 export function isActiveMapLive(live: Live): boolean {
   return live.isActive !== false;
+}
+
+/** Live actif avec coordonnées carte valides (GET /lives ou nearby). */
+export function isGeolocatedMapLive(live: Live): boolean {
+  return isActiveMapLive(live) && isValidLatLng(live.latitude, live.longitude);
+}
+
+/** Live éligible au badge LIVE des anneaux stories — source autoritaire : GET /lives. */
+export function isStoryRingLive(live: Live): boolean {
+  if (!isGeolocatedMapLive(live)) return false;
+  if (live.cameraActive) return true;
+  if (live.streamMode === 'livekit' || live.streamMode === 'cloudflare') return true;
+  return false;
+}
+
+export type ActiveLiveHostInfo = { liveId: string; liveViewersCount?: number };
+
+export function buildActiveLiveByHost(lives: Live[]): Map<string, ActiveLiveHostInfo> {
+  const map = new Map<string, ActiveLiveHostInfo>();
+  for (const live of lives) {
+    if (!isStoryRingLive(live)) continue;
+    const prev = map.get(live.hostId);
+    if (!prev || (live.viewersCount ?? 0) >= (prev.liveViewersCount ?? 0)) {
+      map.set(live.hostId, { liveId: live.id, liveViewersCount: live.viewersCount });
+    }
+  }
+  return map;
 }
 
 export function purgeEndedLiveFromMapState(
