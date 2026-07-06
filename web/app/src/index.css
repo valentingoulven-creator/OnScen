@@ -3426,13 +3426,15 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   background: #000;
 }
 
-/* Hôte — aperçu caméra plein cadre (miroir local LiveKit) */
+/* Hôte — aperçu caméra flux entier visible (miroir local LiveKit), façon
+ * Twitch/OBS : jamais de crop ni de déformation, quelle que soit la forme
+ * réelle du cadre (bandes noires si besoin plutôt qu'un zoom agressif). */
 .live-video-container[data-live-host='true'] .live-video-stage-area video:not(.live-cloudflare-stage-video) {
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .live-video-container[data-live-host='true'] .live-video-stage-area video.lk-live-stage-video[data-lk-local-participant='true'] {
-  object-fit: cover;
+  object-fit: contain;
   transform: scaleX(-1);
 }
 

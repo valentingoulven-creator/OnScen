@@ -99,6 +99,10 @@ export const LIVE_CAMERA_HOST_LIVEKIT_START =
 const HOST_THEATER_STATUS_HIDDEN = new Set<string>([
   LIVE_CAMERA_HOST_LIVEKIT_START,
   'Activez la caméra ou choisissez une vidéo',
+  // Une fois la caméra confirmée active, la barre d'info est redondante
+  // (vidéo + boutons micro/caméra/arrêter le live suffisent).
+  'Caméra active — diffusion LiveKit',
+  'Caméra active',
 ]);
 
 export function isHiddenHostTheaterStatus(status: string): boolean {

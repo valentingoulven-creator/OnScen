@@ -18178,3 +18178,88 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 919 — 2026-07-04
 ================================================================================
+
+================================================================================
+MODIF 920 — Live host : aperçu caméra plus jamais "déformé" (façon Twitch)
+— Soundly Dev
+Date : 2026-07-06
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Signalé sur l'aperçu caméra de l'hôte (mode théâtre plein cadre, notamment
+ en paysage mobile) : la vidéo apparaît « déformée ». Investigation :
+ • Le cadre `.live-theater-hero-wrap` est dimensionné via une formule
+   `width: min(100%, calc(min(Xdvh, Xvh) * ratio))` + `aspect-ratio` +
+   `max-height` séparée — mathématiquement cohérente en test statique, mais
+   `dvh` peut se stabiliser en plusieurs passes de reflow sur mobile
+   (rotation d'écran, barre d'adresse qui se rétracte), avec un risque que
+   largeur et hauteur soient calculées sur des instantanés `dvh` différents
+   → cadre non conforme au ratio (ex. 868×397 mesuré au lieu de 706×397
+   attendu pour du 16:9).
+ • Résultat visible côté hôte : `object-fit: cover` recadrait/zoomait dans
+   un cadre à la mauvaise proportion, donnant une impression de déformation.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/index.css
+ ─────────────────
+ • Aperçu caméra de l'hôte (`[data-live-host='true'] ... video`, y compris
+   le flux local LiveKit miroir) : `object-fit: cover` → `object-fit: contain`.
+   Comme sur Twitch/OBS, le flux caméra n'est plus jamais recadré ni étiré —
+   bandes noires si besoin plutôt qu'un crop agressif dans un cadre mal
+   proportionné. Le spectateur utilisait déjà `contain` ; l'hôte est
+   maintenant cohérent avec ce traitement, quel que soit l'état du cadre
+   théâtre (normal, plein écran natif, cinéma paysage mobile).
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/index.css → object-fit cover→contain pour l'aperçu hôte
+
+BUILD (si vérifié)
+-----
+ web/app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 920 — 2026-07-06
+================================================================================
+
+================================================================================
+MODIF 921 — Live host : retrait de la barre d'info « Caméra active »
+— Soundly Dev
+Date : 2026-07-06
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande : retirer la barre d'info affichée sous la vidéo côté hôte une fois
+ le live démarré (« Caméra active — diffusion LiveKit » en LiveKit,
+ « Caméra active » en WebRTC/Cloudflare). Cette barre est redondante une fois
+ le live actif : la vidéo elle-même + les boutons micro/caméra/arrêter le live
+ suffisent, et le bandeau prend de la place utile à l'écran (surtout mobile).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/liveCameraMessages.ts
+ ─────────────────
+ • Ajout de « Caméra active — diffusion LiveKit » (LiveKit) et « Caméra
+   active » (WebRTC/Cloudflare) dans `HOST_THEATER_STATUS_HIDDEN`, le set déjà
+   utilisé par `isHiddenHostTheaterStatus()` pour masquer certains statuts
+   hôte redondants sous la vidéo (`LiveVideoStage.tsx` et
+   `LiveKitVideoStage.tsx` consomment déjà cette fonction pour conditionner
+   l'affichage de `<LiveTheaterStatusBar>`).
+ • Les autres statuts hôte (invite à activer la caméra, erreurs, chargement,
+   fin de live) restent affichés — seule la confirmation redondante
+   « caméra active » disparaît.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/liveCameraMessages.ts → 2 statuts hôte ajoutés au set masqué
+
+BUILD (si vérifié)
+-----
+ web/app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 921 — 2026-07-06
+================================================================================
