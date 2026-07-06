@@ -90,15 +90,40 @@ export const FollowUserButton = memo(function FollowUserButton({
     void follow();
   };
 
-  const base = iconOnly
-    ? 'p-1 rounded-full border transition disabled:opacity-50'
-    : variant === 'pill'
-      ? 'px-5 py-2 rounded-full text-sm font-bold transition disabled:opacity-50 active:scale-[0.97]'
-      : compact
-        ? 'px-2.5 py-1 rounded-full text-[10px] font-bold border transition disabled:opacity-50'
-        : 'w-full py-2.5 rounded-xl text-sm font-bold border transition disabled:opacity-50';
+  const useHeart = iconStyle === 'heart';
+  const heartOnly = iconOnly && useHeart;
+  const compactHeart = compact && useHeart;
 
-  const label = loading ? '…' : following ? 'Abonné(e)' : 'Suivre';
+  const base = heartOnly
+    ? 'w-11 h-11 flex items-center justify-center rounded-full border transition disabled:opacity-50'
+    : compactHeart
+      ? 'flex items-center justify-center gap-1.5 min-h-11 px-3 py-1.5 rounded-full text-[10px] font-bold border transition disabled:opacity-50 shrink-0'
+      : iconOnly
+        ? 'p-1 rounded-full border transition disabled:opacity-50'
+        : variant === 'pill'
+          ? 'px-5 py-2 rounded-full text-sm font-bold transition disabled:opacity-50 active:scale-[0.97]'
+          : compact
+            ? 'px-2.5 py-1 rounded-full text-[10px] font-bold border transition disabled:opacity-50'
+            : 'w-full py-2.5 rounded-xl text-sm font-bold border transition disabled:opacity-50';
+
+  const label = loading ? '…' : following ? 'Suivi' : 'Suivre';
+
+  const heartSvg = (
+    <svg
+      viewBox="0 0 24 24"
+      className={compactHeart ? 'w-4 h-4 shrink-0' : 'w-4 h-4'}
+      fill={following ? 'currentColor' : 'none'}
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+      />
+    </svg>
+  );
 
   const pillColors = variant === 'pill'
     ? following
@@ -108,14 +133,16 @@ export const FollowUserButton = memo(function FollowUserButton({
       ? 'bg-[#1a1a26]/90 border-[#2d2d3d] text-gray-300 hover:border-gray-500'
       : 'bg-purple-600/80 border-purple-500/50 text-white hover:bg-purple-600';
 
+  const heartColors = following
+    ? 'border-red-500/50 text-red-500 bg-red-950/30 hover:border-red-400'
+    : 'border-[#3d3d4d]/80 text-gray-400 hover:border-red-500/40 hover:text-red-300 bg-transparent';
+
   const iconColors =
-    iconOnly && iconStyle === 'heart'
-      ? following
-        ? 'border-pink-500/60 text-pink-400 bg-pink-950/40 hover:border-pink-400'
-        : 'border-[#3d3d4d]/80 text-gray-400 hover:border-pink-500/50 hover:text-pink-300 bg-transparent'
+    (iconOnly || compactHeart) && useHeart
+      ? heartColors
       : pillColors;
 
-  const buttonColors = iconOnly ? iconColors : pillColors;
+  const buttonColors = iconOnly || compactHeart ? iconColors : pillColors;
 
   return (
     <div className={className}>
@@ -127,24 +154,20 @@ export const FollowUserButton = memo(function FollowUserButton({
         aria-label={label}
         className={`${base} ${buttonColors}`}
       >
-        {iconOnly ? (
+        {heartOnly || compactHeart ? (
+          loading ? (
+            <span className="text-[10px] leading-none">…</span>
+          ) : (
+            <>
+              {heartSvg}
+              {compactHeart ? (
+                <span className="hidden sm:inline">{following ? 'Suivi' : 'Suivre'}</span>
+              ) : null}
+            </>
+          )
+        ) : iconOnly ? (
           loading ? (
             <span className="block w-3.5 h-3.5 text-[10px] leading-[14px] text-center">…</span>
-          ) : iconStyle === 'heart' ? (
-            <svg
-              viewBox="0 0 24 24"
-              className="w-3.5 h-3.5"
-              fill={following ? 'currentColor' : 'none'}
-              stroke="currentColor"
-              strokeWidth="2"
-              aria-hidden
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-              />
-            </svg>
           ) : following ? (
             <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />

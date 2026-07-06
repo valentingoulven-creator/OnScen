@@ -1045,6 +1045,16 @@ export interface LiveDonationOption {
   id: string;
   label: string;
   amount: number;
+  rewardType?: string;
+}
+
+export type LivePublicGoalType = 'amount' | 'dons' | 'likes' | 'viewers' | 'duration';
+
+export interface LivePublicGoal {
+  id: string;
+  type: LivePublicGoalType;
+  target: number;
+  label: string;
 }
 
 export interface Live {
@@ -1084,6 +1094,8 @@ export interface Live {
   cloudflareLiveInputId?: string;
   /** Menu pourboires personnalisé par l'hôte (si configuré). */
   donationOptions?: LiveDonationOption[];
+  /** Goals publiés par l'hôte (progression calculée côté client). */
+  donationGoals?: LivePublicGoal[];
   /** Pourboires activés sur ce live (false si l'hôte a lancé sans RIB). */
   tipsEnabled?: boolean;
   /** Catégorie de contenu : musique, danse ou artistique. */

@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { donTierEmoji } from '../lib/liveReactions';
+import { donationOptionEmoji } from '../lib/liveReactions';
 import type { LiveDonationOption } from '../types';
 
 interface LiveViewerRewardsStripProps {
@@ -35,7 +35,7 @@ export function LiveViewerRewardsStrip({
               aria-label={`${opt.label} — ${opt.amount} euros`}
             >
               <span className="text-lg leading-none" aria-hidden>
-                {donTierEmoji(opt.amount)}
+                {donationOptionEmoji(opt)}
               </span>
               <span className="text-[10px] font-semibold mt-1 text-center line-clamp-2 leading-tight">
                 {opt.label}

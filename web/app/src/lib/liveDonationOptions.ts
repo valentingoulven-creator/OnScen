@@ -1,6 +1,6 @@
-import type { LiveDonationOption } from '../types';
+import type { LiveDonationOption, LivePublicGoal } from '../types';
 import { DEFAULT_LIVE_REWARDS } from './liveHostTypes';
-import type { LiveReward } from './liveHostTypes';
+import type { LiveGoal, LiveReward } from './liveHostTypes';
 import { getSocket } from './socket';
 
 export function rewardsToDonationOptions(rewards: LiveReward[]): LiveDonationOption[] {
@@ -10,8 +10,20 @@ export function rewardsToDonationOptions(rewards: LiveReward[]): LiveDonationOpt
       id: r.id,
       label: r.label.trim(),
       amount: Math.round(r.price),
+      rewardType: r.type,
     }))
     .filter((o) => o.label.length > 0 && o.amount >= 1 && o.amount <= 100);
+}
+
+export function goalsToPublicGoals(goals: LiveGoal[]): LivePublicGoal[] {
+  return goals
+    .filter((g) => g.label.trim() && g.target > 0 && !g.completedAt)
+    .map(({ id, type, target, label }) => ({
+      id,
+      type,
+      target: Math.round(target),
+      label: label.trim(),
+    }));
 }
 
 /** True si le catalogue hôte diffère des récompenses par défaut (personnalisation). */
@@ -36,4 +48,12 @@ export function syncLiveDonationOptions(liveId: string, rewards: LiveReward[]): 
   if (!socket) return;
   const options = rewardsToDonationOptions(rewards);
   socket.emit('live_update_donation_options', { liveId, options });
+}
+
+/** Publie les goals actifs au live (spectateurs). */
+export function syncLiveDonationGoals(liveId: string, goals: LiveGoal[]): void {
+  const socket = getSocket();
+  if (!socket) return;
+  const publicGoals = goalsToPublicGoals(goals);
+  socket.emit('live_update_donation_goals', { liveId, goals: publicGoals });
 }

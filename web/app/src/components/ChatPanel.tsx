@@ -15,17 +15,10 @@ import { createPortal } from 'react-dom';
 import { api } from '../lib/api';
 import { ACCEPTED_IMAGE_FORMATS, validateImageFile, resizeImageInstagram } from '../lib/imageUtils';
 import {
-  DON_AMOUNT_MAX,
-  DON_AMOUNT_MIN,
   GIFT_EMOJI,
-  GIFT_LABELS_FR,
-  LIVE_DON_TIERS,
-  LIVE_REACTION_TYPES,
   appendLiveReaction,
-  donAmountValidationMessage,
   giftToReaction,
   giftsToReactions,
-  parseDonAmount,
   reactionSummary,
 } from '../lib/liveReactions';
 import { getSocket, isSocketConnected } from '../lib/socket';
@@ -991,16 +984,6 @@ export function ChatInputBar({ className }: { className?: string }) {
     setPendingAttachment,
     fileInputRef,
     handleFileSelect,
-    liveReactionsEnabled,
-    reactionMenuOpen,
-    setReactionMenuOpen,
-    reactionMenuRef,
-    reactionSending,
-    sendReaction,
-    donCustomAmount,
-    setDonCustomAmount,
-    setReactionError,
-    onOpenDonation,
     allowAttachments,
     sendError,
     reactionError,
@@ -1042,91 +1025,6 @@ export function ChatInputBar({ className }: { className?: string }) {
         onSubmit={send}
         className="border-t border-b border-[#1e1e2f] flex gap-2 items-center p-3 bg-[#0b0b0f]/95 backdrop-blur-sm"
       >
-        {liveReactionsEnabled && (
-          <div className="relative shrink-0" ref={reactionMenuRef}>
-            <button
-              type="button"
-              onClick={() => setReactionMenuOpen((o) => !o)}
-              disabled={reactionSending}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#131318] border border-[#1e1e2a] text-lg text-gray-400 hover:border-white/20 hover:text-white transition disabled:opacity-50"
-              aria-label="Réactions live"
-              aria-expanded={reactionMenuOpen}
-            >
-              +
-            </button>
-            {reactionMenuOpen && (
-              <div className="absolute bottom-full left-0 mb-2 z-30 w-[11.5rem] rounded-xl border border-[#2d2d3d] bg-[#12121a] shadow-xl overflow-hidden">
-                <p className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-500">
-                  Réactions live
-                </p>
-                <div className="grid grid-cols-2 gap-1 px-2 pb-1">
-                  {LIVE_REACTION_TYPES.map((type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      disabled={reactionSending}
-                      onClick={() => sendReaction(type)}
-                      className="flex items-center gap-1.5 px-2 py-2 rounded-lg text-left text-xs text-gray-200 hover:bg-white/6 disabled:opacity-50"
-                    >
-                      <span className="text-base leading-none">{GIFT_EMOJI[type]}</span>
-                      <span>{GIFT_LABELS_FR[type]}</span>
-                    </button>
-                  ))}
-                </div>
-                <div className="border-t border-[#2d2d3d] px-2 py-2">
-                  <p className="text-[10px] font-bold text-pink-300/90 mb-1.5 px-1">Pourboire</p>
-                  <div className="grid grid-cols-3 gap-1 mb-2">
-                    {LIVE_DON_TIERS.map((tier) => (
-                      <button
-                        key={tier}
-                        type="button"
-                        disabled={!onOpenDonation}
-                        onClick={() => {
-                          setReactionMenuOpen(false);
-                          onOpenDonation?.(tier);
-                        }}
-                        className="py-1.5 rounded-lg text-[10px] font-bold text-pink-200 bg-pink-950/40 border border-pink-500/30 hover:border-pink-400 disabled:opacity-50"
-                      >
-                        {tier} €
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-[10px] font-bold text-pink-300/80 mb-1 px-1">Montant libre</p>
-                  <div className="flex gap-1">
-                    <input
-                      type="number"
-                      min={DON_AMOUNT_MIN}
-                      max={DON_AMOUNT_MAX}
-                      step={1}
-                      inputMode="numeric"
-                      value={donCustomAmount}
-                      onChange={(e) => setDonCustomAmount(e.target.value)}
-                      placeholder="€"
-                      disabled={!onOpenDonation}
-                      className="flex-1 min-w-0 rounded-lg bg-[#1a1a26] border border-[#2d2d3d] px-2 py-1.5 text-[11px] text-white placeholder:text-gray-500 disabled:opacity-50"
-                    />
-                    <button
-                      type="button"
-                      disabled={!onOpenDonation}
-                      onClick={() => {
-                        const amount = parseDonAmount(donCustomAmount);
-                        if (amount == null) {
-                          setReactionError(donAmountValidationMessage());
-                          return;
-                        }
-                        setReactionMenuOpen(false);
-                        onOpenDonation?.(amount);
-                      }}
-                      className="shrink-0 px-2 py-1.5 rounded-lg text-[10px] font-bold text-white bg-pink-600 hover:bg-pink-500 disabled:opacity-50"
-                    >
-                      OK
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}

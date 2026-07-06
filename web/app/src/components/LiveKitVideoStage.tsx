@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
   LiveKitRoom,
@@ -10,6 +11,7 @@ import {
   useTracks,
 } from '@livekit/components-react';
 import { ConnectionState, RoomEvent, Track, type RoomOptions } from 'livekit-client';
+import { VIDEO_PIP_WIDTH, VIDEO_PIP_HEADER_HEIGHT, type VideoPipFloatApi } from './DraggableVideoPip';
 import {
   buildLiveKitAudioCaptureOptions,
   buildLiveKitVideoCaptureOptions,
@@ -25,9 +27,8 @@ import {
 } from '../lib/liveVideoAspectRatio';
 import { normalizeBrandText } from '../lib/brandName';
 import { api } from '../lib/api';
-import { getStorageItem, setStorageItem, STORAGE_KEYS } from '../lib/storageKeys';
-import { LiveChatVideoOverlay } from './LiveChatVideoOverlay';
 import { LiveStreamEndedOverlay } from './LiveStreamEndedOverlay';
+import { LiveChatVideoOverlay } from './LiveChatVideoOverlay';
 import { LiveVideoUnavailableOverlay } from './LiveVideoUnavailableOverlay';
 import { LiveTheaterLiveBadge, LiveVideoStagePlaceholder } from './LiveVideoStagePlaceholder';
 import { LiveTheaterStatusBar, LiveVideoChromeButton } from './LiveVideoTheaterChrome';
@@ -38,7 +39,7 @@ import {
   LIVE_CAMERA_VIEWER_LIVEKIT_ERROR,
   LIVE_CAMERA_VIEWER_LIVEKIT_NO_HOST_CAMERA,
   LIVE_CAMERA_VIEWER_LIVEKIT_WAITING,
-  isHiddenHostTheaterStatus,
+  shouldShowTheaterStatusBar,
 } from '../lib/liveCameraMessages';
 
 const LIVEKIT_VIDEO_WAIT_TIMEOUT_MS = 30_000;
@@ -134,8 +135,30 @@ function LiveVideoChatIcon({ active }: { active?: boolean }) {
   );
 }
 
-function readChatOverlayEnabled(): boolean {
-  return getStorageItem(STORAGE_KEYS.liveChatVideoOverlay) === '1';
+function LiveVideoPauseIcon() {
+  return (
+    <svg aria-hidden className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+      <rect x="6" y="5" width="4" height="14" rx="1" />
+      <rect x="14" y="5" width="4" height="14" rx="1" />
+    </svg>
+  );
+}
+
+function LiveVideoPlayIcon() {
+  return (
+    <svg aria-hidden className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l10.04-6.86a1 1 0 0 0 0-1.72L9.5 4.28A1 1 0 0 0 8 5.14Z" />
+    </svg>
+  );
+}
+
+function LiveVideoPipIcon() {
+  return (
+    <svg aria-hidden className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="2" y="3" width="20" height="14" rx="2" />
+      <rect x="12" y="10" width="8" height="5" rx="1" fill="currentColor" stroke="none" opacity="0.7" />
+    </svg>
+  );
 }
 
 const LIVEKIT_VIDEO_CLASS =
@@ -362,6 +385,16 @@ export type LiveKitVideoStageProps = {
   audioDeviceId?: string;
   videoResolution?: LiveVideoResolutionPreset;
   videoAspectRatio?: LiveVideoAspectRatioPreset;
+  chatVisible?: boolean;
+  onToggleFloatingChat?: () => void;
+  fullscreenChatOverlayVisible?: boolean;
+  onToggleFullscreenChatOverlay?: () => void;
+  viewerPlaybackPaused?: boolean;
+  onToggleViewerPlaybackPaused?: () => void;
+  /** PiP flottant in-app : vidéo seule déplaçable, toujours au premier plan. */
+  videoFloat?: VideoPipFloatApi;
+  /** Appelé quand l'utilisateur clique sur ⤢ pour activer le PiP. */
+  onPipOpen?: () => void;
 };
 
 export function LiveKitVideoStage({
@@ -386,6 +419,14 @@ export function LiveKitVideoStage({
   audioDeviceId,
   videoResolution: videoResolutionProp,
   videoAspectRatio: videoAspectRatioProp,
+  chatVisible = false,
+  onToggleFloatingChat,
+  fullscreenChatOverlayVisible = false,
+  onToggleFullscreenChatOverlay,
+  viewerPlaybackPaused = false,
+  onToggleViewerPlaybackPaused,
+  videoFloat,
+  onPipOpen,
 }: LiveKitVideoStageProps) {
   const videoResolution = getLiveVideoResolutionPreset(videoResolutionProp);
   const videoAspectRatio = getLiveVideoAspectRatioPreset(videoAspectRatioProp);
@@ -393,7 +434,6 @@ export function LiveKitVideoStage({
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const stageAreaRef = useRef<HTMLDivElement>(null);
-  const [chatOverlayEnabled, setChatOverlayEnabled] = useState(readChatOverlayEnabled);
   const [isVideoFullscreen, setIsVideoFullscreen] = useState(false);
   const [isLandscapeTheater, setIsLandscapeTheater] = useState(initialTheater);
   const landscapeAutoActiveRef = useRef(false);
@@ -550,14 +590,6 @@ export function LiveKitVideoStage({
     void exitDocumentFullscreen();
   }, [isLandscapeTheater]);
 
-  const toggleChatOverlay = useCallback(() => {
-    setChatOverlayEnabled((current) => {
-      const next = !current;
-      setStorageItem(STORAGE_KEYS.liveChatVideoOverlay, next ? '1' : '0');
-      return next;
-    });
-  }, []);
-
   useEffect(() => {
     if (!enabled) return;
 
@@ -634,6 +666,19 @@ export function LiveKitVideoStage({
     };
   }, [isLandscapeTheater]);
 
+  useEffect(() => {
+    if (isHost || !onToggleViewerPlaybackPaused) return;
+    const videos = containerRef.current?.querySelectorAll('video');
+    if (!videos?.length) return;
+    videos.forEach((video) => {
+      if (viewerPlaybackPaused) {
+        video.pause();
+      } else if (showVideo) {
+        void video.play().catch(() => {});
+      }
+    });
+  }, [isHost, viewerPlaybackPaused, showVideo, onToggleViewerPlaybackPaused]);
+
   const stageState: 'loading' | 'live' | 'no-camera' | 'error' | 'ended' = (() => {
     if (streamEnded) return 'ended';
     if (loadError || roomError || videoTimedOut) return 'error';
@@ -684,19 +729,76 @@ export function LiveKitVideoStage({
     </>
   );
 
-  return (
+  const VIDEO_PIP_VIDEO_HEIGHT = Math.round((VIDEO_PIP_WIDTH * 9) / 16);
+  const pipContainerStyle: CSSProperties | undefined = videoFloat
+    ? {
+        position: 'fixed',
+        zIndex: 99999,
+        left: videoFloat.position.x,
+        top: videoFloat.position.y,
+        width: VIDEO_PIP_WIDTH,
+        height: VIDEO_PIP_HEADER_HEIGHT + VIDEO_PIP_VIDEO_HEIGHT,
+        borderRadius: 8,
+        border: '1px solid rgba(255,255,255,0.15)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
+        overflow: 'hidden',
+      }
+    : undefined;
+
+  const shouldPortalPip = Boolean(videoFloat && typeof document !== 'undefined');
+
+  const videoContainer = (
     <div
       ref={containerRef}
       data-live-viewer={!isHost ? 'true' : undefined}
       data-live-host={isHost ? 'true' : undefined}
       className={`live-video-container live-video-container--theater ${getLiveVideoAspectRatioClass(videoAspectRatio)} relative w-full h-full min-h-0 flex flex-col overflow-hidden${
         isLandscapeTheater ? ' live-video-container--landscape-theater' : ''
-      }`}
+      }${videoFloat ? ' live-video-pip-float pointer-events-auto' : ''}`}
       style={{
+        ...pipContainerStyle,
         ['--live-aspect-ratio' as string]: getLiveVideoAspectRatioCss(videoAspectRatio),
         ['--live-stack-width-ratio' as string]: getLiveStackWidthRatioCss(videoAspectRatio),
       }}
     >
+      {/* Draggable PiP header — shown only when floating */}
+      {videoFloat && (
+        <div
+          className="live-video-pip__header shrink-0 flex items-center gap-1.5 px-2 border-b border-[#2a2a36] bg-[#14141c]/95 cursor-grab active:cursor-grabbing select-none touch-none"
+          style={{ height: VIDEO_PIP_HEADER_HEIGHT }}
+          onPointerDown={videoFloat.onHeaderPointerDown}
+        >
+          <span className="text-[10px] text-purple-400/80 leading-none shrink-0" aria-hidden>
+            ⠿
+          </span>
+          <p className="text-[9px] font-bold text-purple-400 uppercase tracking-widest flex-1 truncate min-w-0">
+            {displayPlaybackTitle}
+          </p>
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={videoFloat.onClose}
+            className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 transition text-sm"
+            title="Ancrer la vidéo"
+            aria-label="Ancrer la vidéo"
+          >
+            &#x2199;
+          </button>
+          {!isHost && onToggleViewerPlaybackPaused ? (
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={onToggleViewerPlaybackPaused}
+              className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 transition"
+              title={viewerPlaybackPaused ? t('live.viewerResumePlayback') : t('live.viewerPausePlayback')}
+              aria-label={viewerPlaybackPaused ? t('live.viewerResumePlayback') : t('live.viewerPausePlayback')}
+            >
+              {viewerPlaybackPaused ? <LiveVideoPlayIcon /> : <LiveVideoPauseIcon />}
+            </button>
+          ) : null}
+        </div>
+      )}
+
       <div className="live-theater-stage-stack flex flex-col flex-1 min-h-0 min-w-0 w-full h-full">
         <div className="live-theater-hero-wrap flex flex-col min-w-0 w-full h-full min-h-0 shrink-0">
           <div className="live-theater-hero flex flex-col min-w-0 w-full flex-1 min-h-0">
@@ -754,12 +856,11 @@ export function LiveKitVideoStage({
 
         {overlay}
 
-        <LiveChatVideoOverlay
-          containerRef={stageAreaRef}
-          active={chatOverlayEnabled}
-          onClose={toggleChatOverlay}
-        />
+        {isVideoExpanded && fullscreenChatOverlayVisible ? (
+          <LiveChatVideoOverlay active />
+        ) : null}
 
+        {!videoFloat && (
         <div className="absolute top-2 left-2 z-30 pointer-events-auto flex items-center gap-1.5">
           {isVideoExpanded ? (
             <LiveVideoChromeButton onClick={exitVideoFullscreen} ariaLabel={t('live.exitFullscreen')}>
@@ -772,21 +873,62 @@ export function LiveKitVideoStage({
               <span className="hidden sm:inline">{t('live.enterFullscreen')}</span>
             </LiveVideoChromeButton>
           )}
-          <LiveVideoChromeButton
-            onClick={toggleChatOverlay}
-            ariaLabel={chatOverlayEnabled ? 'Masquer le chat sur la vid\u00e9o' : 'Afficher le chat sur la vid\u00e9o'}
-            title="Chat sur la vid\u00e9o (d\u00e9pla\u00e7able)"
-            className={chatOverlayEnabled ? 'ring-2 ring-purple-400/60' : ''}
-          >
-            <LiveVideoChatIcon active={chatOverlayEnabled} />
-          </LiveVideoChromeButton>
+          {onPipOpen && !isVideoExpanded && (
+            <LiveVideoChromeButton onClick={onPipOpen} ariaLabel="Détacher en PiP" title="Détacher la vidéo (PiP)">
+              <LiveVideoPipIcon />
+              <span className="hidden sm:inline">PiP</span>
+            </LiveVideoChromeButton>
+          )}
+          {!isVideoExpanded && onToggleFloatingChat ? (
+            <LiveVideoChromeButton
+              onClick={onToggleFloatingChat}
+              ariaLabel={chatVisible ? t('live.hideChat', { defaultValue: 'Masquer le chat' }) : t('live.showChat', { defaultValue: 'Afficher le chat' })}
+              title={chatVisible ? t('live.hideChat', { defaultValue: 'Masquer le chat' }) : t('live.showChat', { defaultValue: 'Afficher le chat' })}
+              className={chatVisible ? 'ring-2 ring-purple-400/60' : ''}
+            >
+              <LiveVideoChatIcon active={chatVisible} />
+            </LiveVideoChromeButton>
+          ) : null}
+          {isVideoExpanded && onToggleFullscreenChatOverlay ? (
+            <LiveVideoChromeButton
+              onClick={onToggleFullscreenChatOverlay}
+              ariaLabel={
+                fullscreenChatOverlayVisible
+                  ? t('live.hideChat', { defaultValue: 'Masquer le chat' })
+                  : t('live.showChatOverlay', { defaultValue: 'Afficher le chat sur la vidéo' })
+              }
+              title={
+                fullscreenChatOverlayVisible
+                  ? t('live.hideChat', { defaultValue: 'Masquer le chat' })
+                  : t('live.showChatOverlay', { defaultValue: 'Afficher le chat sur la vidéo' })
+              }
+              className={fullscreenChatOverlayVisible ? 'ring-2 ring-purple-400/60' : ''}
+            >
+              <LiveVideoChatIcon active={fullscreenChatOverlayVisible} />
+            </LiveVideoChromeButton>
+          ) : null}
+          {!isHost && onToggleViewerPlaybackPaused ? (
+            <LiveVideoChromeButton
+              onClick={onToggleViewerPlaybackPaused}
+              ariaLabel={
+                viewerPlaybackPaused ? t('live.viewerResumePlayback') : t('live.viewerPausePlayback')
+              }
+              title={
+                viewerPlaybackPaused ? t('live.viewerResumePlayback') : t('live.viewerPausePlayback')
+              }
+              className={viewerPlaybackPaused ? 'ring-2 ring-amber-400/60' : ''}
+            >
+              {viewerPlaybackPaused ? <LiveVideoPlayIcon /> : <LiveVideoPauseIcon />}
+            </LiveVideoChromeButton>
+          ) : null}
         </div>
+        )}
       </div>
             </div>
           </div>
         </div>
 
-      {!(isHost && isHiddenHostTheaterStatus(status)) ? (
+      {!videoFloat && shouldShowTheaterStatusBar(stageState) ? (
       <LiveTheaterStatusBar
         tone={
           stageState === 'ended'
@@ -805,5 +947,34 @@ export function LiveKitVideoStage({
       ) : null}
       </div>
     </div>
+  );
+
+  return (
+    <>
+      {videoFloat && (
+        <div
+          className="flex-1 min-h-0 w-full flex flex-col items-center justify-center gap-3 bg-black"
+          aria-hidden
+        >
+          {albumArtUrl ? (
+            <img
+              src={albumArtUrl}
+              alt=""
+              className="w-16 h-16 rounded-xl object-cover shadow-lg opacity-60"
+            />
+          ) : (
+            <div className="w-16 h-16 rounded-xl bg-[#1a1a26] flex items-center justify-center text-2xl">
+              🎵
+            </div>
+          )}
+          <div className="text-center max-w-[12rem] px-2">
+            <p className="text-xs font-bold text-white truncate">{displayPlaybackTitle}</p>
+            <p className="text-[11px] text-gray-400 truncate">{playbackArtist}</p>
+          </div>
+          <p className="text-[10px] text-gray-600 mt-0.5">📺 Vidéo en mode PiP</p>
+        </div>
+      )}
+      {shouldPortalPip ? createPortal(videoContainer, document.body) : videoContainer}
+    </>
   );
 }

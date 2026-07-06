@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { buildMapStoryEntries, buildViewableStories } from './mapStoriesFeed';
 import type { MapStoryEntry } from './mapStoriesFeed';
-import type { MapStory, NearbyPerson, User } from '../types';
+import type { Live, MapStory, NearbyPerson, User } from '../types';
 import type { MusicReel } from '../content/reels';
+import { buildActiveLiveByHost } from './mapLiveEndSync';
 
 const person: NearbyPerson = { id: 'u1', username: 'Alice' };
 
@@ -66,6 +67,88 @@ describe('buildMapStoryEntries', () => {
     expect(entries[0].isLive).toBe(true);
     expect(entries[0].liveId).toBe('live-1');
     expect(entries[0].liveViewersCount).toBe(42);
+  });
+
+  it('ignores stale isLive on favorites when absent from activeLiveByHost', () => {
+    const fav: User = {
+      id: 'u4',
+      username: 'Nova Sound',
+      isGhostMode: false,
+      isLive: true,
+      liveId: 'stale-live',
+      liveViewersCount: 9,
+    };
+    const storyWithImage: MapStory = {
+      ...story,
+      userId: 'u4',
+      author: { id: 'u4', username: 'Nova Sound' },
+      imageUrl: 'https://images.unsplash.com/photo-story.jpg',
+    };
+    const activeLiveByHost = buildActiveLiveByHost([
+      {
+        id: 'other-live',
+        hostId: 'other-host',
+        hostName: 'Other',
+        title: 'Live',
+        platform: 'youtube',
+        playbackState: {
+          platform: 'youtube',
+          trackId: '',
+          title: 'T',
+          artist: 'A',
+          isPlaying: true,
+          progressMs: 0,
+          updatedAt: Date.now(),
+        },
+        latitude: 48.85,
+        longitude: 2.35,
+        viewersCount: 1,
+        isActive: true,
+        cameraActive: true,
+      } as Live,
+    ]);
+    const entries = buildMapStoryEntries([], [fav], [], {
+      ephemeralStories: [storyWithImage],
+      activeLiveByHost,
+    });
+    expect(entries).toHaveLength(1);
+    expect(entries[0].hasActiveStory).toBe(true);
+    expect(entries[0].isLive).toBeUndefined();
+    expect(entries[0].liveId).toBeUndefined();
+  });
+
+  it('keeps isLive when host is in activeLiveByHost', () => {
+    const activeLiveByHost = buildActiveLiveByHost([
+      {
+        id: 'live-1',
+        hostId: 'u3',
+        hostName: 'Nova',
+        title: 'Live',
+        platform: 'youtube',
+        playbackState: {
+          platform: 'youtube',
+          trackId: '',
+          title: 'T',
+          artist: 'A',
+          isPlaying: true,
+          progressMs: 0,
+          updatedAt: Date.now(),
+        },
+        latitude: 48.85,
+        longitude: 2.35,
+        viewersCount: 42,
+        isActive: true,
+        cameraActive: true,
+      } as Live,
+    ]);
+    const entries = buildMapStoryEntries(
+      [{ id: 'u3', username: 'Nova', isLive: true, liveId: 'stale-live' }],
+      [],
+      [],
+      { activeLiveByHost }
+    );
+    expect(entries[0]?.isLive).toBe(true);
+    expect(entries[0]?.liveId).toBe('live-1');
   });
 });
 
