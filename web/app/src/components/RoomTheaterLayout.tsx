@@ -339,6 +339,8 @@ function DockedChatHeader({
   onToggleChat,
   showDockToggle = true,
   integratedFullWidth = false,
+  pinned = false,
+  onTogglePin,
 }: {
   chatTitle: string;
   chatTitleIcon?: ReactNode;
@@ -351,6 +353,8 @@ function DockedChatHeader({
   chatMinimized?: boolean;
   showDockToggle?: boolean;
   integratedFullWidth?: boolean;
+  pinned?: boolean;
+  onTogglePin?: () => void;
 }) {
   if (integratedFullWidth) {
     return null;
@@ -363,6 +367,31 @@ function DockedChatHeader({
           {chatHeaderLeading}
           <div className="flex-1" />
           {chatHeaderExtra}
+          {onTogglePin ? (
+            <button
+              type="button"
+              onClick={onTogglePin}
+              title={pinned ? 'Détacher le chat' : 'Épingler à gauche'}
+              className={`shrink-0 w-6 h-6 flex items-center justify-center rounded transition ${
+                pinned
+                  ? 'text-amber-300 bg-amber-950/40'
+                  : 'text-gray-500 hover:text-amber-300 hover:bg-white/10'
+              }`}
+              aria-label={pinned ? 'Détacher le chat' : 'Épingler le chat à gauche'}
+              aria-pressed={pinned}
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+                <path
+                  d="M6 1v7M4 3l2-2 2 2"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path d="M3 8h6v3H3z" fill="currentColor" fillOpacity="0.35" stroke="currentColor" strokeWidth="1.2" />
+              </svg>
+            </button>
+          ) : null}
           {showDockToggle ? <ChatLayoutToggle dockMode={dockMode} onToggle={onToggleDock} /> : null}
           <button
             type="button"
@@ -389,6 +418,31 @@ function DockedChatHeader({
         {chatTitle}
       </p>
       {chatHeaderExtra}
+      {onTogglePin ? (
+        <button
+          type="button"
+          onClick={onTogglePin}
+          title={pinned ? 'Détacher le chat' : 'Épingler à gauche'}
+          className={`shrink-0 w-6 h-6 flex items-center justify-center rounded transition ${
+            pinned
+              ? 'text-amber-300 bg-amber-950/40'
+              : 'text-gray-500 hover:text-amber-300 hover:bg-white/10'
+          }`}
+          aria-label={pinned ? 'Détacher le chat' : 'Épingler le chat à gauche'}
+          aria-pressed={pinned}
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+            <path
+              d="M6 1v7M4 3l2-2 2 2"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path d="M3 8h6v3H3z" fill="currentColor" fillOpacity="0.35" stroke="currentColor" strokeWidth="1.2" />
+          </svg>
+        </button>
+      ) : null}
       {showDockToggle ? <ChatLayoutToggle dockMode={dockMode} onToggle={onToggleDock} /> : null}
       <button
         type="button"
@@ -461,6 +515,10 @@ export interface RoomTheaterLayoutProps {
   sideDockMatchHero?: boolean;
   /** true — scène live avec chrome théâtre (cadre glass, barre statut, placeholder moderne). */
   liveTheaterChrome?: boolean;
+  /** Live : chat épinglé en colonne gauche (vs flottant). */
+  chatPinned?: boolean;
+  /** Live : bascule épingler / détacher le chat. */
+  onToggleChatPin?: () => void;
 }
 
 export function RoomTheaterLayout({
@@ -487,6 +545,8 @@ export function RoomTheaterLayout({
   stackBelowVideo = false,
   sideDockMatchHero = false,
   liveTheaterChrome = false,
+  chatPinned = false,
+  onToggleChatPin,
 }: RoomTheaterLayoutProps) {
   const { width: chatDockWidth, setWidth: setChatDockWidth, commitWidth: commitChatDockWidth } =
     useTheaterChatDockWidth();
@@ -641,8 +701,9 @@ export function RoomTheaterLayout({
   const chevronCollapse = showLeftDock ? '6,1 2,7 6,13' : '2,1 6,7 2,13';
   const chevronExpand = showLeftDock ? '2,1 6,7 2,13' : '6,1 2,7 6,13';
 
-  /** Live théâtre + chat bas : le toggle vidéo est inutile si le dock est ouvert (× dans l'en-tête). */
-  const showVideoChatToggle = !(liveTheaterChrome && showBottomDock && !chatHidden);
+  /** Live théâtre : pas de toggle bas-droite — le chrome vidéo 💬 + FloatingSalonChat suffisent. */
+  const showVideoChatToggle = !liveTheaterChrome;
+  const liveLeftPinned = liveTheaterChrome && showLeftDock;
 
   const chatHiddenButton = showVideoChatToggle ? (
     <button
@@ -727,17 +788,23 @@ export function RoomTheaterLayout({
       {showFloating && (
         <FloatingSalonChat
           title={chatTitle}
+          compactHeader={liveTheaterChrome}
+          onTogglePin={liveTheaterChrome ? onToggleChatPin : undefined}
           headerExtra={
-            <>
-              {chatHeaderExtra}
-              {layoutToggleExtra}
-            </>
+            liveTheaterChrome ? (
+              chatHeaderExtra ?? undefined
+            ) : (
+              <>
+                {chatHeaderExtra}
+                {layoutToggleExtra}
+              </>
+            )
           }
           minimized={chatMinimized}
           onToggleMinimize={onToggleMinimize}
           onHide={onToggleChat}
         >
-          {chat}
+          <DockChatBody chat={chat} chatInput={chatInput} />
         </FloatingSalonChat>
       )}
 
@@ -800,10 +867,12 @@ export function RoomTheaterLayout({
       <div
         className={`flex-1 min-w-0 flex flex-col min-h-0${showBottomDock ? ' room-theater-layout--bottom-chat' : ''}${
           useMatchHero ? ' room-theater-match-hero-shell' : ''
-        }${liveTheaterChrome ? ' room-theater-layout--live-theater' : ''}`}
+        }${liveTheaterChrome ? ' room-theater-layout--live-theater room-theater-layout--live-theater-fill' : ''}`}
       >
         <div
-          className={`${sideRowFlex} min-h-0 flex flex-col overflow-hidden${sideRowClass || ' sm:flex-row'}`}
+          className={`${sideRowFlex} min-h-0 flex overflow-hidden${
+            liveLeftPinned ? ' flex-row' : ' flex-col'
+          }${sideRowClass || ' sm:flex-row'}`}
           style={sideRowStyle}
         >
           {showLeftDock && (
@@ -811,13 +880,19 @@ export function RoomTheaterLayout({
               dockEdge="left"
               {...chatDockAsideProps}
               onDraggingChange={setChatDockResizing}
-              className="room-theater-chat-dock room-theater-chat-dock--theater room-theater-chat-dock--left room-theater-chat-dock--match-hero hidden sm:flex flex-col min-h-0 min-w-0"
+              className={`room-theater-chat-dock room-theater-chat-dock--theater room-theater-chat-dock--left ${
+                liveTheaterChrome
+                  ? 'room-theater-chat-dock--live-left flex'
+                  : 'room-theater-chat-dock--match-hero hidden sm:flex'
+              } flex-col min-h-0 min-w-0`}
             >
               <DockedChatHeader
                 {...dockedChatHeaderProps}
                 dockMode="right"
                 onToggleDock={() => {}}
                 showDockToggle={false}
+                pinned={chatPinned}
+                onTogglePin={liveTheaterChrome ? onToggleChatPin : undefined}
               />
               {!chatMinimized && <DockChatBody chat={chat} chatInput={chatInput} />}
             </TheaterChatDockAside>
@@ -843,7 +918,7 @@ export function RoomTheaterLayout({
           )}
         </div>
 
-        {showSideDock && (
+        {showSideDock && !liveLeftPinned && (
           <div className="room-theater-mobile-chat-sheet sm:hidden shrink-0 flex flex-col border-t border-[#1e1e2f] bg-[#101018] pb-[env(safe-area-inset-bottom)]">
             <DockedChatHeader
               {...dockedChatHeaderProps}
@@ -854,8 +929,6 @@ export function RoomTheaterLayout({
             {!chatMinimized && <DockChatBody chat={chat} chatInput={chatInput} />}
           </div>
         )}
-
-        {showFloating && chatInput ? <div className="shrink-0 pointer-events-auto">{chatInput}</div> : null}
 
         {bottomChatDock}
 

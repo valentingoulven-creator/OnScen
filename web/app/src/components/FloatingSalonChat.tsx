@@ -66,6 +66,10 @@ export interface FloatingSalonChatProps {
   children: ReactNode;
   title?: string;
   headerExtra?: ReactNode;
+  /** Live théâtre : en-tête minimal (glisser + titre + réduire + fermer). */
+  compactHeader?: boolean;
+  /** Épingler le chat en colonne gauche (live théâtre). */
+  onTogglePin?: () => void;
   minimized?: boolean;
   onToggleMinimize?: () => void;
   onHide?: () => void;
@@ -75,6 +79,8 @@ export function FloatingSalonChat({
   children,
   title = 'Chat',
   headerExtra,
+  compactHeader = false,
+  onTogglePin,
   minimized = false,
   onToggleMinimize,
   onHide,
@@ -331,12 +337,14 @@ export function FloatingSalonChat({
             {title}
           </p>
 
-          {headerExtra ? (
-            <div className="shrink-0" onPointerDown={(e) => e.stopPropagation()}>
+          {!compactHeader && headerExtra ? (
+            <div className="shrink-0 flex items-center gap-0.5" onPointerDown={(e) => e.stopPropagation()}>
               {headerExtra}
             </div>
           ) : null}
 
+          {!compactHeader ? (
+            <>
           <button
             type="button"
             onPointerDown={(e) => e.stopPropagation()}
@@ -379,6 +387,30 @@ export function FloatingSalonChat({
               <rect x="1" y="1" width="10" height="10" rx="2" fill="currentColor" fillOpacity="0.35" stroke="currentColor" strokeWidth="1.2" />
             </svg>
           </button>
+            </>
+          ) : null}
+
+          {onTogglePin && (
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={onTogglePin}
+              title="Épingler à gauche"
+              className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-amber-300 hover:bg-white/10 transition"
+              aria-label="Épingler le chat à gauche"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+                <path
+                  d="M6 1v7M4 3l2-2 2 2"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path d="M3 8h6v3H3z" fill="currentColor" fillOpacity="0.35" stroke="currentColor" strokeWidth="1.2" />
+              </svg>
+            </button>
+          )}
 
           {onToggleMinimize && (
             <button

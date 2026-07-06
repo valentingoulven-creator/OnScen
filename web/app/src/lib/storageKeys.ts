@@ -10,6 +10,7 @@ export const STORAGE_KEYS = {
   salonChatMinimized: 'soundy_salon_chat_minimized',
   platformPromptDismissed: 'soundy_platform_prompt_dismissed',
   liveChatVideoOverlay: 'soundy_live_chat_video_overlay',
+  liveChatPinned: 'soundy_live_chat_pinned',
 } as const;
 
 const LEGACY_KEY_MAP: Record<string, string> = {

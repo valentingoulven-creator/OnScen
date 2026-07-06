@@ -18263,3 +18263,161 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 921 — 2026-07-06
 ================================================================================
+
+================================================================================
+MODIF 922 — Stories : badge LIVE anneaux uniquement si live géolocalisé actif
+Date : 2026-07-06
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Anneaux stories (Accueil / carte) affichaient le badge LIVE rouge pour des
+ profils avec story active mais sans live réel (ex. « Nova Sound » + image
+ Unsplash) : `user.isLive` des favoris ou `live.isActive` seul étaient pris
+ pour argent comptant, sans recoupement GET /lives ni purge socket live_ended.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/mapLiveEndSync.ts
+ ─────────────────
+ • `isGeolocatedMapLive`, `isStoryRingLive` (géoloc + cameraActive ou stream
+   livekit/cloudflare), `buildActiveLiveByHost`.
+
+ web/app/src/lib/mapStoriesFeed.ts
+ ─────────────────
+ • Option `activeLiveByHost` : seule source isLive pour les anneaux.
+ • `resolveStoryEntryLive`, `purgeEndedLiveFromStoryEntries`.
+
+ web/app/src/components/StoriesInlineBar.tsx
+ ─────────────────
+ • Filtre lives via `isStoryRingLive`, passe activeLiveByHost à buildMapStoryEntries.
+ • Écoute `live_ended` pour retirer le badge sans rechargement complet.
+
+ web/app/src/components/MapStoriesAccordion.tsx
+ ─────────────────
+ • GET /lives + activeLiveByHost ; purge live_ended sur la carte.
+
+ web/app/src/lib/mapStoriesFeed.test.ts, mapLiveEndSync.test.ts
+ ─────────────────
+ • Cas stale isLive favoris vs lives API ; critères isStoryRingLive.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/mapLiveEndSync.ts, mapStoriesFeed.ts
+ web/app/src/components/StoriesInlineBar.tsx, MapStoriesAccordion.tsx
+ web/app/src/lib/mapStoriesFeed.test.ts, mapLiveEndSync.test.ts
+
+BUILD (si vérifié)
+-----
+ web/app/ → npm test mapStoriesFeed mapLiveEndSync → ✅
+
+================================================================================
+Fin MODIF 922 — 2026-07-06
+================================================================================
+
+================================================================================
+MODIF 923 — Live viewer/host : refonte chat flottant, PiP persistant,
+follow/don/pause spectateur — Soundy Dev
+Date : 2026-07-06
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Batch de 14 demandes UI/UX sur l'expérience Live (host + spectateur),
+ couvrant chat flottant, PiP, follow, dons et lecture spectateur. Récapitulatif
+ consolidé après vérification ligne à ligne de chaque item (voir liste
+ ci-dessous) + correction du seul écart trouvé : le PiP ne fonctionnait pas en
+ mode LiveKit (seul WebRTC/Cloudflare l'avait).
+
+CHANGEMENTS / FIX
+-----
+ 1. Bouton 💬 chrome vidéo → ouvre/masque FloatingSalonChat (pas de
+    LiveChatVideoOverlay au clic normal) : `LivePage.tsx`
+    (`toggleFloatingChatFromChrome`), `onToggleFloatingChat` sur
+    `LiveVideoStage`/`LiveKitVideoStage`.
+ 2. Option « épingler à gauche » dans `FloatingSalonChat.tsx` (dock gauche vs
+    flottant libre), persistée via `storageKeys.ts`.
+ 3. `FollowUserButton.tsx` : cœur plein rouge si `isFollowing`, contour sinon ;
+    libellé « Suivi » (au lieu de « Abonné(e) ») quand actif.
+ 4. Overlay chat plein écran façon OBS : `LiveChatVideoOverlay.tsx` simplifié
+    (colonne gauche, pseudos colorés, text-shadow, transparent), activé via
+    `fullscreenChatOverlayVisible` + `onToggleFullscreenChatOverlay`
+    uniquement en mode plein écran/theater paysage (chrome dédié, distinct du
+    bouton 💬 normal).
+ 5. PiP in-app persistant à la navigation d'onglets (Accueil/Live/Chat/
+    Musique) : `liveVideoFloat.ts` (état global `liveVideoFloatActive`),
+    `DraggableVideoPip.tsx` (`useDraggableVideoPip`), portail
+    `createPortal(..., document.body)` dans `LiveVideoStage.tsx` — et
+    désormais aussi `LiveKitVideoStage.tsx` (écart corrigé, voir point 15).
+ 6. `live-viewer-action-bar` : don à gauche, participants/modérateur/quitter à
+    droite, plus de clipping — `RoomTheaterLayout.tsx` + `index.css`.
+ 7. Retrait du bouton flottant bas-droite « 💬 Chat »
+    (`room-theater-video-chat-toggle`) en theater live —
+    `RoomTheaterLayout.tsx`.
+ 8. Retrait du bouton « + » réactions dans `ChatPanel.tsx` (menu réactions +
+    montant perso de don) : bloc JSX + imports morts
+    (`DON_AMOUNT_MAX/MIN`, `GIFT_LABELS_FR`, `LIVE_DON_TIERS`,
+    `LIVE_REACTION_TYPES`, `sendReaction`, etc.) supprimés.
+ 9. Bouton d'ancrage PiP (↙) dans l'en-tête flottant referme le PiP ET
+    restaure la vue live plein écran (`videoFloat.onClose` →
+    `anchorLivePip` → `setLivePipActive(false)` + `onRestoreFullScreen`).
+ 10. Pause/lecture locale spectateur (n'affecte pas le flux host) :
+     `liveVideoFloat.ts` (`viewerPlaybackPaused` global + helpers), bouton
+     chrome + bouton dans l'en-tête PiP, effet qui `pause()`/`play()` le(s)
+     élément(s) `<video>` — `LiveVideoStage.tsx` et `LiveKitVideoStage.tsx`.
+ 11. Bouton don/cadeau (💝) flottant masqué en mode PiP : condition
+     `!livePipActive` ajoutée sur `LiveGiftOverlay` (WebRTC/Cloudflare ET
+     LiveKit) — `LivePage.tsx`.
+ 12. « Abonné(e) » → « Suivi » quand `isFollowing` (voir point 3).
+ 13. Bouton « Faire un don » actif uniquement si `hostCanReceiveDonations`
+     (Stripe Connect configuré côté hôte) — gating existant vérifié dans
+     `LivePage.tsx`.
+ 14. `LiveDonationSheet.tsx` : menu de dons piloté par la configuration hôte
+     au lieu des tiers 1/2/5€ statiques — `hostDonationOptions` (récompenses
+     + `rewardType` → emoji via `donationOptionEmoji` dans
+     `liveReactions.ts`), `activeGoals` (goals publics actifs, calculés par
+     `activePublicGoals`/`publicGoalsToLiveGoals` dans `liveGoalProgress.ts`)
+     affichés en tête de la feuille de don. Backend : `schema.ts`
+     (`LiveDonationOption.rewardType`, `Live.donationGoals`),
+     `livePublic.ts` (sérialisation), `socket.ts` (`live_update_donation_options`
+     sanitize `rewardType`, nouveau `live_update_donation_goals`),
+     `liveDonationOptions.ts` (`syncLiveDonationGoals`, `goalsToPublicGoals`).
+ 15. Fix (écart trouvé en vérification) : `LiveKitVideoStage.tsx` n'avait pas
+     le support PiP (`videoFloat`/`onPipOpen` + portail `createPortal`) que
+     `LiveVideoStage.tsx` avait déjà — comportement dupliqué à l'identique
+     (en-tête PiP déplaçable, bouton pause/lecture spectateur dans l'en-tête,
+     bouton chrome « Détacher en PiP », masquage de la barre de statut et des
+     boutons chrome quand flottant, placeholder « Vidéo en mode PiP » à
+     l'emplacement d'origine). `LivePage.tsx` : `videoFloat`/`onPipOpen`
+     passés à `LiveKitVideoStage` (identique au wiring `LiveVideoStage`).
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/ChatPanel.tsx → retrait bouton réactions "+"
+ web/app/src/components/FloatingSalonChat.tsx → option pin gauche
+ web/app/src/components/FollowUserButton.tsx → cœur rouge + "Suivi"
+ web/app/src/components/LiveChatVideoOverlay.tsx → overlay OBS simplifié
+ web/app/src/components/LiveDonationSheet.tsx → goals/rewards hôte
+ web/app/src/components/LiveGiftOverlay.tsx → masqué en PiP
+ web/app/src/components/LiveKitVideoStage.tsx → PiP + pause spectateur (fix)
+ web/app/src/components/LiveVideoStage.tsx → PiP + pause spectateur
+ web/app/src/components/LiveViewerRewardsStrip.tsx → emoji par rewardType
+ web/app/src/components/LiveVipModeratorsPopover.tsx → ajustements mineurs
+ web/app/src/components/RoomTheaterLayout.tsx → action bar + retrait toggle chat
+ web/app/src/lib/liveCameraMessages.ts, liveDonationOptions.ts,
+   liveGoalProgress.ts, liveReactions.ts, liveVideoFloat.ts, storageKeys.ts
+ web/app/src/locales/fr.json, en.json → traductions pause/goals
+ web/app/src/pages/LivePage.tsx → wiring PiP/pause/dons/goals
+ web/app/src/types.ts → LiveDonationOption.rewardType, LivePublicGoal
+ web/app/src/App.tsx → ajustement mineur
+ commun/backend/src/lib/livePublic.ts → sérialisation rewardType/goals
+ commun/backend/src/models/schema.ts → schéma rewardType/donationGoals
+ commun/backend/src/socket.ts → live_update_donation_goals + rewardType
+
+BUILD (si vérifié)
+-----
+ web/app/ → npm run build --prefix web/app → ✅
+
+================================================================================
+Fin MODIF 923 — 2026-07-06
+================================================================================

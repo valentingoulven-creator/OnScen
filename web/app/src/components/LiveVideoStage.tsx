@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { VIDEO_PIP_WIDTH, VIDEO_PIP_HEADER_HEIGHT, type VideoPipFloatApi } from './DraggableVideoPip';
-import { LiveChatVideoOverlay } from './LiveChatVideoOverlay';
-import { getStorageItem, setStorageItem, STORAGE_KEYS } from '../lib/storageKeys';
 import {
   LIVE_CAMERA_HOST_OBS_STOPPED,
   LIVE_CAMERA_VIEWER_AUDIO_BLOCKED,
@@ -10,12 +9,13 @@ import {
   LIVE_CAMERA_VIEWER_NO_HOST_CAMERA,
   LIVE_CAMERA_VIEWER_NOTE,
   LIVE_CAMERA_VIEWER_VIDEO_PENDING,
-  isHiddenHostTheaterStatus,
+  shouldShowTheaterStatusBar,
 } from '../lib/liveCameraMessages';
 import type { ViewerRelayPhase } from '../hooks/useLiveVideoRelay';
 import type { HlsPlaybackPhase } from '../hooks/useCloudflareHlsPlayback';
 import { normalizeBrandText } from '../lib/brandName';
 import { LiveStreamEndedOverlay } from './LiveStreamEndedOverlay';
+import { LiveChatVideoOverlay } from './LiveChatVideoOverlay';
 import { LiveTheaterLiveBadge, LiveVideoStagePlaceholder } from './LiveVideoStagePlaceholder';
 import { LiveTheaterStatusBar, LiveVideoChromeButton } from './LiveVideoTheaterChrome';
 import {
@@ -61,10 +61,6 @@ const FULLSCREEN_SUPPORTED =
   (document.documentElement.requestFullscreen != null ||
     (document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => void })
       .webkitRequestFullscreen != null);
-
-function readChatOverlayEnabled(): boolean {
-  return getStorageItem(STORAGE_KEYS.liveChatVideoOverlay) === '1';
-}
 
 function isLandscapeOrientation(): boolean {
   if (typeof window === 'undefined') return false;
@@ -121,6 +117,23 @@ function LiveVideoChatIcon({ active }: { active?: boolean }) {
       strokeWidth="2"
     >
       <path d="M21 12c0 4.418-4.03 8-9 8-1.28 0-2.5-.23-3.6-.65L3 20l1.05-3.15C3.39 15.6 3 13.85 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8Z" />
+    </svg>
+  );
+}
+
+function LiveVideoPauseIcon() {
+  return (
+    <svg aria-hidden className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+      <rect x="6" y="5" width="4" height="14" rx="1" />
+      <rect x="14" y="5" width="4" height="14" rx="1" />
+    </svg>
+  );
+}
+
+function LiveVideoPlayIcon() {
+  return (
+    <svg aria-hidden className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l10.04-6.86a1 1 0 0 0 0-1.72L9.5 4.28A1 1 0 0 0 8 5.14Z" />
     </svg>
   );
 }
@@ -298,6 +311,17 @@ export type LiveVideoStageProps = {
   /** Appel\u00e9 quand l\u2019utilisateur clique sur \u29c9 pour activer le PiP. */
   onPipOpen?: () => void;
   videoAspectRatio?: LiveVideoAspectRatioPreset;
+  /** Chat flottant principal (FloatingSalonChat) visible — hors plein écran. */
+  chatVisible?: boolean;
+  /** Ouvre ou masque le chat flottant (bouton chrome vidéo, mode normal). */
+  onToggleFloatingChat?: () => void;
+  /** Overlay chat OBS transparent (plein écran / landscape theater). */
+  fullscreenChatOverlayVisible?: boolean;
+  /** Bascule l'overlay chat plein écran. */
+  onToggleFullscreenChatOverlay?: () => void;
+  /** Pause locale du flux (spectateur uniquement). */
+  viewerPlaybackPaused?: boolean;
+  onToggleViewerPlaybackPaused?: () => void;
 };
 
 export function LiveVideoStage({
@@ -339,12 +363,17 @@ export function LiveVideoStage({
   videoFloat,
   onPipOpen,
   videoAspectRatio: videoAspectRatioProp,
+  chatVisible = false,
+  onToggleFloatingChat,
+  fullscreenChatOverlayVisible = false,
+  onToggleFullscreenChatOverlay,
+  viewerPlaybackPaused = false,
+  onToggleViewerPlaybackPaused,
 }: LiveVideoStageProps) {
   const videoAspectRatio = getLiveVideoAspectRatioPreset(videoAspectRatioProp);
   const displayPlaybackTitle = normalizeBrandText(playbackTitle);
   const containerRef = useRef<HTMLDivElement>(null);
   const stageAreaRef = useRef<HTMLDivElement>(null);
-  const [chatOverlayEnabled, setChatOverlayEnabled] = useState(readChatOverlayEnabled);
   const [isVideoFullscreen, setIsVideoFullscreen] = useState(false);
   const [isLandscapeTheater, setIsLandscapeTheater] = useState(initialTheater);
   const landscapeAutoActiveRef = useRef(false);
@@ -424,6 +453,17 @@ export function LiveVideoStage({
       video.srcObject = null;
     }
   }, [streamEnded]);
+
+  useEffect(() => {
+    if (isHost || !onToggleViewerPlaybackPaused) return;
+    const video = containerRef.current?.querySelector('video');
+    if (!video) return;
+    if (viewerPlaybackPaused) {
+      video.pause();
+    } else if (showVideo) {
+      void video.play().catch(() => {});
+    }
+  }, [isHost, viewerPlaybackPaused, showVideo, onToggleViewerPlaybackPaused]);
 
   useEffect(() => {
     const next = isVideoExpanded;
@@ -559,14 +599,6 @@ export function LiveVideoStage({
     void unlockPlayback();
   }, [unlockPlayback]);
 
-  const toggleChatOverlay = useCallback(() => {
-    setChatOverlayEnabled((current) => {
-      const next = !current;
-      setStorageItem(STORAGE_KEYS.liveChatVideoOverlay, next ? '1' : '0');
-      return next;
-    });
-  }, []);
-
   useEffect(() => {
     if (!showPlayOverlay) return;
     const root = containerRef.current;
@@ -604,39 +636,16 @@ export function LiveVideoStage({
       }
     : undefined;
 
-  return (
-    <>
-      {/* Ghost placeholder — maintains layout space while the container is position:fixed in PiP mode */}
-      {videoFloat && (
-        <div
-          className="flex-1 min-h-0 w-full flex flex-col items-center justify-center gap-3 bg-black"
-          aria-hidden
-        >
-          {albumArtUrl ? (
-            <img
-              src={albumArtUrl}
-              alt=""
-              className="w-16 h-16 rounded-xl object-cover shadow-lg opacity-60"
-            />
-          ) : (
-            <div className="w-16 h-16 rounded-xl bg-[#1a1a26] flex items-center justify-center text-2xl">
-              🎵
-            </div>
-          )}
-          <div className="text-center max-w-[12rem] px-2">
-            <p className="text-xs font-bold text-white truncate">{displayPlaybackTitle}</p>
-            <p className="text-[11px] text-gray-400 truncate">{playbackArtist}</p>
-          </div>
-          <p className="text-[10px] text-gray-600 mt-0.5">📺 Vid\u00e9o en mode PiP</p>
-        </div>
-      )}
+  const shouldPortalPip = Boolean(videoFloat && typeof document !== 'undefined');
+
+  const videoContainer = (
     <div
       ref={containerRef}
       data-live-viewer={!isHost ? 'true' : undefined}
       data-live-host={isHost ? 'true' : undefined}
       className={`live-video-container live-video-container--theater ${getLiveVideoAspectRatioClass(videoAspectRatio)} relative w-full h-full min-h-0 flex flex-col overflow-hidden${
         isLandscapeTheater ? ' live-video-container--landscape-theater' : ''
-      }`}
+      }${videoFloat ? ' live-video-pip-float pointer-events-auto' : ''}`}
       style={{
         ...pipContainerStyle,
         ['--live-aspect-ratio' as string]: getLiveVideoAspectRatioCss(videoAspectRatio),
@@ -666,6 +675,18 @@ export function LiveVideoStage({
           >
             &#x2199;
           </button>
+          {!isHost && onToggleViewerPlaybackPaused ? (
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={onToggleViewerPlaybackPaused}
+              className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 transition"
+              title={viewerPlaybackPaused ? 'Reprendre la lecture' : 'Mettre en pause'}
+              aria-label={viewerPlaybackPaused ? 'Reprendre la lecture' : 'Mettre en pause'}
+            >
+              {viewerPlaybackPaused ? <LiveVideoPlayIcon /> : <LiveVideoPauseIcon />}
+            </button>
+          ) : null}
         </div>
       )}
 
@@ -786,15 +807,11 @@ export function LiveVideoStage({
 
         {overlay}
 
-        {!videoFloat && (
-          <LiveChatVideoOverlay
-            containerRef={stageAreaRef}
-            active={chatOverlayEnabled}
-            onClose={toggleChatOverlay}
-          />
-        )}
+        {isVideoExpanded && fullscreenChatOverlayVisible ? (
+          <LiveChatVideoOverlay active />
+        ) : null}
 
-        {/* Fullscreen + PiP + chat overlay controls — hidden when container is already floating */}
+        {/* Fullscreen + PiP + chat — hidden when container is already floating */}
         {!videoFloat && (
           <div className="absolute top-2 left-2 z-30 pointer-events-auto flex items-center gap-1.5">
             {isVideoExpanded ? (
@@ -812,14 +829,40 @@ export function LiveVideoStage({
                 <span className="hidden sm:inline">PiP</span>
               </LiveVideoChromeButton>
             )}
-            <LiveVideoChromeButton
-              onClick={toggleChatOverlay}
-              ariaLabel={chatOverlayEnabled ? 'Masquer le chat sur la vid\u00e9o' : 'Afficher le chat sur la vid\u00e9o'}
-              title="Chat sur la vid\u00e9o (d\u00e9pla\u00e7able)"
-              className={chatOverlayEnabled ? 'ring-2 ring-purple-400/60' : ''}
-            >
-              <LiveVideoChatIcon active={chatOverlayEnabled} />
-            </LiveVideoChromeButton>
+            {!isVideoExpanded && onToggleFloatingChat ? (
+              <LiveVideoChromeButton
+                onClick={onToggleFloatingChat}
+                ariaLabel={chatVisible ? 'Masquer le chat' : 'Afficher le chat'}
+                title={chatVisible ? 'Masquer le chat' : 'Afficher le chat'}
+                className={chatVisible ? 'ring-2 ring-purple-400/60' : ''}
+              >
+                <LiveVideoChatIcon active={chatVisible} />
+              </LiveVideoChromeButton>
+            ) : null}
+            {isVideoExpanded && onToggleFullscreenChatOverlay ? (
+              <LiveVideoChromeButton
+                onClick={onToggleFullscreenChatOverlay}
+                ariaLabel={
+                  fullscreenChatOverlayVisible ? 'Masquer le chat' : 'Afficher le chat sur la vidéo'
+                }
+                title={
+                  fullscreenChatOverlayVisible ? 'Masquer le chat' : 'Afficher le chat sur la vidéo'
+                }
+                className={fullscreenChatOverlayVisible ? 'ring-2 ring-purple-400/60' : ''}
+              >
+                <LiveVideoChatIcon active={fullscreenChatOverlayVisible} />
+              </LiveVideoChromeButton>
+            ) : null}
+            {!isHost && onToggleViewerPlaybackPaused ? (
+              <LiveVideoChromeButton
+                onClick={onToggleViewerPlaybackPaused}
+                ariaLabel={viewerPlaybackPaused ? 'Reprendre la lecture' : 'Mettre en pause'}
+                title={viewerPlaybackPaused ? 'Reprendre la lecture' : 'Mettre en pause'}
+                className={viewerPlaybackPaused ? 'ring-2 ring-amber-400/60' : ''}
+              >
+                {viewerPlaybackPaused ? <LiveVideoPlayIcon /> : <LiveVideoPauseIcon />}
+              </LiveVideoChromeButton>
+            ) : null}
           </div>
         )}
       </div>
@@ -827,8 +870,8 @@ export function LiveVideoStage({
           </div>
         </div>
 
-      {/* Status bar — below video, never over it; hidden in PiP mode */}
-      {!videoFloat && !(isHost && isHiddenHostTheaterStatus(status)) && (
+      {/* Status bar — erreurs uniquement ; placeholder + contrôles pour le reste */}
+      {!videoFloat && shouldShowTheaterStatusBar(stageState) && (
         <LiveTheaterStatusBar
           tone={
             stageState === 'error'
@@ -848,6 +891,34 @@ export function LiveVideoStage({
       )}
       </div>
     </div>
+  );
+
+  return (
+    <>
+      {videoFloat && (
+        <div
+          className="flex-1 min-h-0 w-full flex flex-col items-center justify-center gap-3 bg-black"
+          aria-hidden
+        >
+          {albumArtUrl ? (
+            <img
+              src={albumArtUrl}
+              alt=""
+              className="w-16 h-16 rounded-xl object-cover shadow-lg opacity-60"
+            />
+          ) : (
+            <div className="w-16 h-16 rounded-xl bg-[#1a1a26] flex items-center justify-center text-2xl">
+              🎵
+            </div>
+          )}
+          <div className="text-center max-w-[12rem] px-2">
+            <p className="text-xs font-bold text-white truncate">{displayPlaybackTitle}</p>
+            <p className="text-[11px] text-gray-400 truncate">{playbackArtist}</p>
+          </div>
+          <p className="text-[10px] text-gray-600 mt-0.5">📺 Vidéo en mode PiP</p>
+        </div>
+      )}
+      {shouldPortalPip ? createPortal(videoContainer, document.body) : videoContainer}
     </>
   );
 }

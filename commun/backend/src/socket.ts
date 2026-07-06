@@ -518,7 +518,7 @@ export function setupSockets(io: Server): void {
         options,
       }: {
         liveId: string;
-        options: Array<{ id: string; label: string; amount: number }> | null;
+        options: Array<{ id: string; label: string; amount: number; rewardType?: string }> | null;
       }) => {
         const actorId = (socket.data as { userId?: string }).userId;
         if (!actorId || !liveId) return;
@@ -526,6 +526,15 @@ export function setupSockets(io: Server): void {
         if (!live || !live.isActive) return;
         const actor = db.users.get(actorId);
         if (live.hostId !== actorId && !isDevUser(actor)) return;
+
+        const allowedRewardTypes = new Set([
+          'music_request',
+          'dedication',
+          'dance',
+          'backstage',
+          'badge',
+          'custom',
+        ]);
 
         const sanitized = Array.isArray(options)
           ? options
@@ -541,11 +550,60 @@ export function setupSockets(io: Server): void {
                 id: o.id,
                 label: o.label.trim().slice(0, 120),
                 amount: Math.min(100, Math.max(1, Math.round(o.amount))),
+                ...(typeof o.rewardType === 'string' &&
+                allowedRewardTypes.has(o.rewardType)
+                  ? { rewardType: o.rewardType }
+                  : {}),
               }))
               .slice(0, 12)
           : [];
 
         live.donationOptions = sanitized.length > 0 ? sanitized : undefined;
+        db.lives.set(liveId, live);
+        io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live));
+      }
+    );
+
+    socket.on(
+      'live_update_donation_goals',
+      ({
+        liveId,
+        goals,
+      }: {
+        liveId: string;
+        goals: Array<{ id: string; type: string; target: number; label: string }> | null;
+      }) => {
+        const actorId = (socket.data as { userId?: string }).userId;
+        if (!actorId || !liveId) return;
+        const live = db.lives.get(liveId);
+        if (!live || !live.isActive) return;
+        const actor = db.users.get(actorId);
+        if (live.hostId !== actorId && !isDevUser(actor)) return;
+
+        const allowedGoalTypes = new Set(['amount', 'dons', 'likes', 'viewers', 'duration']);
+
+        const sanitized = Array.isArray(goals)
+          ? goals
+              .filter(
+                (g) =>
+                  g &&
+                  typeof g.id === 'string' &&
+                  typeof g.label === 'string' &&
+                  g.label.trim().length > 0 &&
+                  allowedGoalTypes.has(g.type) &&
+                  Number.isFinite(g.target) &&
+                  g.target > 0
+              )
+              .map((g) => ({
+                id: g.id,
+                type: g.type as 'amount' | 'dons' | 'likes' | 'viewers' | 'duration',
+                target: Math.min(1_000_000, Math.max(1, Math.round(g.target))),
+                label: g.label.trim().slice(0, 120),
+              }))
+              .slice(0, 8)
+          : [];
+
+        live.donationGoals = sanitized.length > 0 ? sanitized : undefined;
         db.lives.set(liveId, live);
         io.to(`live_${liveId}`).emit('live_updated', serializePublicLive(live));
       }

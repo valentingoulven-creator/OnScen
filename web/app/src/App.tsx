@@ -1353,6 +1353,7 @@ export default function App() {
                     onLeaveLive={leaveActiveLiveViewerSession}
                     onLiveTitleLoaded={handleLiveTitleLoaded}
                     onOpenProfile={(id) => openProfile(id)}
+                    onRestoreFullScreen={restoreLiveFullScreen}
                   />
                 </Suspense>
               </div>

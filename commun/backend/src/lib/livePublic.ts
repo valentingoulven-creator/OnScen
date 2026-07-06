@@ -19,7 +19,21 @@ export function serializePublicLive(l: Live, distanceKm?: number, viewerId?: str
     viewerId != null && viewerId !== l.hostId && isDevUser(viewer);
   const donationOptions = l.donationOptions
     ?.filter((o) => o.label?.trim() && o.amount >= 1 && o.amount <= 100)
-    .map(({ id, label, amount }) => ({ id, label: label.trim(), amount: Math.round(amount) }));
+    .map(({ id, label, amount, rewardType }) => ({
+      id,
+      label: label.trim(),
+      amount: Math.round(amount),
+      ...(rewardType ? { rewardType } : {}),
+    }));
+  const donationGoals = l.donationGoals
+    ?.filter((g) => g.label?.trim() && g.target > 0)
+    .map(({ id, type, target, label }) => ({
+      id,
+      type,
+      target: Math.round(target),
+      label: label.trim().slice(0, 120),
+    }))
+    .slice(0, 8);
   const base = {
     id: l.id,
     salonId: l.salonId,
@@ -57,6 +71,7 @@ export function serializePublicLive(l: Live, distanceKm?: number, viewerId?: str
     countryCode: country?.code,
     countryName: country?.name,
     ...(donationOptions?.length ? { donationOptions } : {}),
+    ...(donationGoals?.length ? { donationGoals } : {}),
   };
   if (distanceKm !== undefined) {
     return { ...base, distanceKm: Math.round(distanceKm * 10) / 10 };

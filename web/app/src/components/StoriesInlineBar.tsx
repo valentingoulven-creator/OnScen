@@ -19,6 +19,12 @@ import {
   type NearbyPanelPreferences,
 } from '../lib/nearbyPanelSettings';
 import { fetchStoriesBundle, invalidateStoriesCache } from '../lib/storiesApiCache';
+import {
+  buildActiveLiveByHost,
+  isStoryRingLive,
+} from '../lib/mapLiveEndSync';
+import { purgeEndedLiveFromStoryEntries } from '../lib/mapStoriesFeed';
+import { getSocket } from '../lib/socket';
 import { normalizeProfileReelFromApi } from '../content/reelsFeed';
 import type { MusicReel } from '../content/reels';
 import type { MapStory, NearbyPerson } from '../types';
@@ -139,9 +145,11 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
 
       const syntheticIds = new Set<string>();
       const syntheticPeople: NearbyPerson[] = [];
+      const ringLives = (livesOrNull?.lives ?? []).filter(isStoryRingLive);
+      const activeLiveByHost = buildActiveLiveByHost(ringLives);
 
-      for (const live of livesOrNull?.lives ?? []) {
-        if (!live.isActive || !isFollowed(live.hostId)) continue;
+      for (const live of ringLives) {
+        if (!isFollowed(live.hostId)) continue;
         syntheticIds.add(live.hostId);
         syntheticPeople.push({
           id: live.hostId,
@@ -184,6 +192,7 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
           favoritesFirst: prefs.favoritesFirst,
           favoriteIds,
           ephemeralStories,
+          activeLiveByHost,
         }).filter(
           (e) =>
             e.userId !== user?.id &&
@@ -203,6 +212,22 @@ export const StoriesInlineBar = memo(function StoriesInlineBar({
     if (!isActive) return;
     void loadStories();
   }, [isActive, loadStories]);
+
+  useEffect(() => {
+    if (!isActive || !token) return;
+    const socket = getSocket();
+    if (!socket) return;
+    const onLiveEnded = (payload: { liveId?: string; hostId?: string }) => {
+      const endedId = payload?.liveId;
+      const hostId = payload?.hostId;
+      if (!endedId && !hostId) return;
+      setEntries((prev) => purgeEndedLiveFromStoryEntries(prev, endedId ?? '', hostId));
+    };
+    socket.on('live_ended', onLiveEnded);
+    return () => {
+      socket.off('live_ended', onLiveEnded);
+    };
+  }, [isActive, token]);
 
   const openEntry = (entry: MapStoryEntry) => {
     if (entry.hasActiveStory && entry.storyId) {

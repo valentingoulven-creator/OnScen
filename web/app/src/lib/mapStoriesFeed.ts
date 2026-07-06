@@ -1,7 +1,44 @@
 import type { MusicReel } from '../content/reels';
 import type { MapStory, NearbyPerson, User } from '../types';
+import { type ActiveLiveHostInfo } from './mapLiveEndSync';
 import { applyFavoritesFirst } from './nearbyPanelSettings';
 import { groupStoriesByUser, latestStory, sortStoriesChronological } from './storyViewerNav';
+
+export type { ActiveLiveHostInfo };
+
+/** Écrase isLive des entrées stories avec la carte lives API ; retire les flags périmés. */
+export function resolveStoryEntryLive(
+  entry: MapStoryEntry,
+  activeLiveByHost: Map<string, ActiveLiveHostInfo>
+): MapStoryEntry {
+  const live = activeLiveByHost.get(entry.userId);
+  if (!live) {
+    if (!entry.isLive) return entry;
+    const { isLive: _live, liveId: _id, liveViewersCount: _count, ...rest } = entry;
+    return rest;
+  }
+  return {
+    ...entry,
+    isLive: true,
+    liveId: live.liveId,
+    liveViewersCount: live.liveViewersCount,
+  };
+}
+
+export function purgeEndedLiveFromStoryEntries(
+  entries: MapStoryEntry[],
+  endedLiveId: string,
+  hostId: string | undefined
+): MapStoryEntry[] {
+  return entries.map((entry) => {
+    const matches =
+      (endedLiveId && entry.liveId === endedLiveId) ||
+      (hostId != null && entry.userId === hostId && entry.isLive);
+    if (!matches) return entry;
+    const { isLive: _live, liveId: _id, liveViewersCount: _count, ...rest } = entry;
+    return rest;
+  });
+}
 
 export interface MapStoryEntry {
   userId: string;
@@ -139,6 +176,8 @@ export function buildMapStoryEntries(
     favoritesFirst?: boolean;
     favoriteIds?: Set<string>;
     ephemeralStories?: MapStory[];
+    /** Lives actifs (GET /lives) — seule source fiable pour isLive sur les anneaux. */
+    activeLiveByHost?: Map<string, ActiveLiveHostInfo>;
   }
 ): MapStoryEntry[] {
   const favoriteIds =
@@ -177,6 +216,10 @@ export function buildMapStoryEntries(
     favoriteIds,
     options?.favoritesFirst
   );
+
+  if (options?.activeLiveByHost) {
+    return sorted.map((entry) => resolveStoryEntryLive(entry, options.activeLiveByHost!));
+  }
 
   return sorted;
 }

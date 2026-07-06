@@ -1,4 +1,5 @@
 import type { LiveGoal } from './liveHostTypes';
+import type { LivePublicGoal } from '../types';
 
 export interface GoalProgressStats {
   totalDonations: number;
@@ -43,4 +44,25 @@ export function firstActiveGoal(
 ): LiveGoal | null {
   const withProgress = withGoalsProgress(goals, stats);
   return withProgress.find((g) => !g.completedAt && (!liveId || g.liveId === liveId)) ?? null;
+}
+
+/** Convertit les goals publics (API) en LiveGoal pour calcul de progression. */
+export function publicGoalsToLiveGoals(goals: LivePublicGoal[], liveId: string): LiveGoal[] {
+  return goals.map((g) => ({
+    id: g.id,
+    type: g.type,
+    target: g.target,
+    label: g.label,
+    liveId,
+    current: 0,
+    createdAt: 0,
+  }));
+}
+
+export function activePublicGoals(
+  goals: LivePublicGoal[],
+  stats: GoalProgressStats,
+  liveId: string,
+): LiveGoal[] {
+  return withGoalsProgress(publicGoalsToLiveGoals(goals, liveId), stats).filter((g) => !g.completedAt);
 }

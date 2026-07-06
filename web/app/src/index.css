@@ -2952,16 +2952,23 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   flex-direction: column;
 }
 
-/* Live théâtre — la scène épouse le stack (pas de min-height 52dvh fantôme) */
-.room-theater-video-stage--live-theater {
+/* Live théâtre — la scène épouse le stack (pas de min-height 52dvh fantôme).
+ * Scopé au mode chat empilé en bas (legacy) : en mode chat flottant (par
+ * défaut désormais), la scène retombe sur .room-theater-video-stage
+ * (flex: 1 1 auto) et remplit tout l'espace vertical disponible. */
+.room-theater-stack-column--live-theater .room-theater-video-stage--live-theater {
   flex: 0 0 auto;
   min-height: 0;
   background: transparent;
 }
 
-.ms-salon-fullscreen-overlay .room-theater-video-stage--live-theater {
+.ms-salon-fullscreen-overlay .room-theater-stack-column--live-theater .room-theater-video-stage--live-theater {
   flex: 0 0 auto;
   min-height: 0;
+}
+
+.room-theater-video-stage--live-theater {
+  background: transparent;
 }
 
 /* Bouton 💬 vidéo live — bas droite, au-dessus des contrôles hôte (top-right z-30). */
@@ -2969,6 +2976,32 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   z-index: 40;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
   bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+/* Chat OBS transparent — plein écran / landscape theater uniquement */
+.live-chat-video-overlay--fullscreen {
+  width: min(30%, 320px);
+  max-width: 30%;
+  background: transparent;
+  pointer-events: none;
+}
+
+.live-chat-video-overlay--fullscreen .live-chat-video-overlay__feed {
+  max-height: none;
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 6%, #000 94%, transparent 100%);
+}
+
+.live-video-container:fullscreen .live-chat-video-overlay--fullscreen,
+.live-video-container:-webkit-full-screen .live-chat-video-overlay--fullscreen,
+.live-video-container--landscape-theater .live-chat-video-overlay--fullscreen {
+  width: min(30%, 360px);
+  max-width: 30%;
+}
+
+.live-video-container:fullscreen .live-chat-video-overlay--fullscreen .live-chat-video-overlay__feed,
+.live-video-container:-webkit-full-screen .live-chat-video-overlay--fullscreen .live-chat-video-overlay__feed,
+.live-video-container--landscape-theater .live-chat-video-overlay--fullscreen .live-chat-video-overlay__feed {
+  padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
 }
 
 .live-video-container {
@@ -3313,7 +3346,7 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   margin-inline: auto;
 }
 
-.live-video-container--theater.live-video-aspect-9-16 .live-theater-hero-wrap {
+.room-theater-stack-column--live-theater .live-video-container--theater.live-video-aspect-9-16 .live-theater-hero-wrap {
   width: min(100%, calc(min(62dvh, 62vh) * 9 / 16));
 }
 
@@ -3332,6 +3365,48 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
     radial-gradient(ellipse 90% 55% at 50% 28%, rgba(88, 28, 135, 0.14) 0%, transparent 58%),
     radial-gradient(ellipse 50% 35% at 12% 72%, rgba(220, 38, 38, 0.07) 0%, transparent 55%),
     radial-gradient(ellipse 45% 30% at 88% 78%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
+}
+
+/* Chat flottant (par défaut) : pas de colonne à largeur bornée à centrer —
+ * la scène doit s'étirer sur toute la largeur/hauteur disponible. */
+.ms-salon-fullscreen-overlay .room-theater-layout--live-theater-fill {
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+/* Bandeau actions spectateur live — toujours visible sous le header */
+.live-viewer-action-bar {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 30;
+  isolation: isolate;
+}
+
+.ms-salon-fullscreen-overlay .live-viewer-chrome {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 35;
+  isolation: isolate;
+}
+
+/* Chat live épinglé à gauche */
+.ms-salon-fullscreen-overlay .room-theater-layout--live-theater-fill .room-theater-chat-dock--live-left {
+  flex: 0 0 auto;
+  width: min(72vw, 280px);
+  max-width: min(40vw, 320px);
+  min-width: 11rem;
+  border-right: 1px solid #1e1e2f;
+}
+
+@media (min-width: 640px) {
+  .ms-salon-fullscreen-overlay .room-theater-layout--live-theater-fill .room-theater-chat-dock--live-left {
+    width: min(320px, 28vw);
+    min-width: 240px;
+  }
+}
+
+.ms-salon-fullscreen-overlay .room-theater-layout--live-theater-fill .room-theater-side-row--left {
+  flex-direction: row;
 }
 
 .ms-salon-fullscreen-overlay .room-theater-stack-column--live-theater {
@@ -3751,6 +3826,33 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   inset: 0;
   width: 100%;
   height: 100%;
+}
+
+/* Live PiP flottant — porté sur body (hors .salon-page-pip-host opacity:0) */
+.live-video-pip-float.live-video-container {
+  position: fixed;
+  z-index: 99999;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  background: #0b0b0f;
+}
+
+.live-video-pip-float .live-theater-stage-stack {
+  flex: 1;
+  min-height: 0;
+}
+
+.live-video-pip-float .live-theater-hero-wrap,
+.live-video-pip-float .live-theater-hero,
+.live-video-pip-float .live-theater-hero__frame {
+  height: 100%;
+  min-height: 0;
+}
+
+.live-video-pip-float .live-video-stage-area {
+  position: absolute;
+  inset: 0;
 }
 
 /* SalonPage monté hors overlay plein écran — conserve le lecteur PiP flottant */
