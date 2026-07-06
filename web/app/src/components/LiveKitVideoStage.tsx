@@ -876,7 +876,6 @@ export function LiveKitVideoStage({
           {onPipOpen && !isVideoExpanded && (
             <LiveVideoChromeButton onClick={onPipOpen} ariaLabel="Détacher en PiP" title="Détacher la vidéo (PiP)">
               <LiveVideoPipIcon />
-              <span className="hidden sm:inline">PiP</span>
             </LiveVideoChromeButton>
           )}
           {!isVideoExpanded && onToggleFloatingChat ? (
