@@ -1646,7 +1646,7 @@ export function LivePage({
             )}
           </div>
           <div className="flex items-center gap-1 shrink-0 ml-2">
-            {token ? (
+            {token && !chatPinned ? (
               <>
                 <LiveParticipantsPopover
                   liveId={liveId}
@@ -1732,12 +1732,35 @@ export function LivePage({
           </>
         ) : undefined}
         chatHeaderExtra={
-          isHost ? (
-            <LiveHostActionsPopover
-              liveId={liveId}
-              goalStats={goalStats}
-              onOpenDonPanel={(subTab) => openHostPanel('don', subTab)}
-            />
+          token || isHost ? (
+            <div className="flex items-center gap-0.5 shrink-0">
+              {token && live ? (
+                <>
+                  <LiveParticipantsPopover
+                    liveId={liveId}
+                    token={token}
+                    hostId={live.hostId}
+                    hostName={live.hostName}
+                    hostUsernameColor={live.hostUsernameColor}
+                    vipModeratorIds={live.vipModeratorIds ?? []}
+                    viewersCount={viewers}
+                  />
+                  <LiveVipModeratorsPopover
+                    vipEntries={vipEntries}
+                    chatParticipants={chatParticipants}
+                    onSetVip={setVipModerator}
+                    canManage={isHost || isDevModerator}
+                  />
+                </>
+              ) : null}
+              {isHost ? (
+                <LiveHostActionsPopover
+                  liveId={liveId}
+                  goalStats={goalStats}
+                  onOpenDonPanel={(subTab) => openHostPanel('don', subTab)}
+                />
+              ) : null}
+            </div>
           ) : null
         }
         stage={

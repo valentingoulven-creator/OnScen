@@ -826,7 +826,6 @@ export function LiveVideoStage({
             {onPipOpen && !isVideoExpanded && (
               <LiveVideoChromeButton onClick={onPipOpen} ariaLabel="D\u00e9tacher en PiP" title="D\u00e9tacher la vid\u00e9o (PiP)">
                 <LiveVideoPipIcon />
-                <span className="hidden sm:inline">PiP</span>
               </LiveVideoChromeButton>
             )}
             {!isVideoExpanded && onToggleFloatingChat ? (
