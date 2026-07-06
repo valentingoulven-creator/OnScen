@@ -18421,3 +18421,41 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 923 — 2026-07-06
 ================================================================================
+
+================================================================================
+MODIF 924 — Live dock gauche : participants + VIP dans l'en-tête chat
+Date : 2026-07-06
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En mode chat épinglé à gauche (live theater), l'en-tête DockedChatHeader
+ n'affichait que le titre, le bouton épingler et fermer — sans les popovers
+ Participants / Modérateurs VIP déjà présents dans la barre spectateur.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/LivePage.tsx
+ ─────────────────
+ • chatHeaderExtra : LiveParticipantsPopover + LiveVipModeratorsPopover
+   (host + spectateur) + LiveHostActionsPopover (hôte) ; canManage VIP pour
+   hôte ou dev modérateur.
+ • live-viewer-action-bar : popovers masqués quand chatPinned (évite doublon).
+
+ web/app/src/components/RoomTheaterLayout.tsx
+ ─────────────────
+ • DockedChatHeader : chatHeaderExtra dans un flex gap avant pin/fermer ;
+   boutons pin et × en w-11 h-11 (touch 44px).
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/LivePage.tsx → chatHeaderExtra popovers live
+ web/app/src/components/RoomTheaterLayout.tsx → en-tête dock gauche
+
+BUILD (si vérifié)
+-----
+ web/app/ → npm run build --prefix web/app → ✅
+
+================================================================================
+Fin MODIF 924 — 2026-07-06
+================================================================================

@@ -324,24 +324,26 @@ export function FloatingSalonChat({
         aria-label={title}
       >
         <div
-          className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 border-b cursor-grab active:cursor-grabbing select-none touch-none ${headerClass}`}
+          className={`shrink-0 flex items-center gap-1 min-w-0 overflow-hidden px-2.5 py-1.5 border-b cursor-grab active:cursor-grabbing select-none touch-none ${headerClass}`}
           onPointerDown={onHeaderPointerDown}
         >
-          <span className="text-purple-400 text-[10px] leading-none shrink-0" aria-hidden>
-            ⠿
-          </span>
-          <span className="text-purple-400 text-[10px] leading-none shrink-0" aria-hidden>
-            💬
-          </span>
-          <p className="text-[9px] font-bold text-purple-400 uppercase tracking-widest flex-1 truncate min-w-0">
+          <div className="shrink-0 flex items-center gap-1">
+            <span className="text-purple-400 text-[10px] leading-none" aria-hidden>
+              ⠿
+            </span>
+            <span className="text-purple-400 text-[10px] leading-none" aria-hidden>
+              💬
+            </span>
+          </div>
+          <p className="min-w-0 flex-1 truncate text-[9px] font-bold text-purple-400 uppercase tracking-widest">
             {title}
           </p>
 
-          {!compactHeader && headerExtra ? (
-            <div className="shrink-0 flex items-center gap-0.5" onPointerDown={(e) => e.stopPropagation()}>
-              {headerExtra}
-            </div>
-          ) : null}
+          <div
+            className="shrink-0 flex items-center gap-0.5"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+          {!compactHeader && headerExtra ? headerExtra : null}
 
           {!compactHeader ? (
             <>
@@ -455,6 +457,7 @@ export function FloatingSalonChat({
               ×
             </button>
           )}
+          </div>
         </div>
 
         {!minimized && (

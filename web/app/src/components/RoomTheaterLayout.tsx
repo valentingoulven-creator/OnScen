@@ -329,6 +329,9 @@ function IntegratedTheaterTopBar({
   );
 }
 
+const DOCK_HEADER_ICON_BTN =
+  'shrink-0 w-11 h-11 flex items-center justify-center rounded transition touch-manipulation';
+
 function DockedChatHeader({
   chatTitle,
   chatTitleIcon = '💬',
@@ -366,13 +369,15 @@ function DockedChatHeader({
         <div className="flex items-center gap-1.5 px-3 pt-2 pb-1.5">
           {chatHeaderLeading}
           <div className="flex-1" />
-          {chatHeaderExtra}
+          {chatHeaderExtra ? (
+            <div className="shrink-0 flex items-center gap-0.5">{chatHeaderExtra}</div>
+          ) : null}
           {onTogglePin ? (
             <button
               type="button"
               onClick={onTogglePin}
               title={pinned ? 'Détacher le chat' : 'Épingler à gauche'}
-              className={`shrink-0 w-6 h-6 flex items-center justify-center rounded transition ${
+              className={`${DOCK_HEADER_ICON_BTN} ${
                 pinned
                   ? 'text-amber-300 bg-amber-950/40'
                   : 'text-gray-500 hover:text-amber-300 hover:bg-white/10'
@@ -396,7 +401,7 @@ function DockedChatHeader({
           <button
             type="button"
             onClick={onToggleChat}
-            className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-white hover:bg-white/10 transition text-lg leading-none"
+            className={`${DOCK_HEADER_ICON_BTN} text-gray-500 hover:text-white hover:bg-white/10 text-lg leading-none`}
             aria-label="Masquer le chat"
           >
             ×
@@ -410,20 +415,21 @@ function DockedChatHeader({
   }
 
   return (
-    <div className="shrink-0 flex items-center gap-1.5 px-3 py-2 border-b border-[#1e1e2f] bg-[#14141c]/80">
-      <span className="text-purple-400 text-[10px]" aria-hidden>
+    <div className="shrink-0 flex items-center gap-1.5 min-w-0 overflow-hidden px-3 py-2 border-b border-[#1e1e2f] bg-[#14141c]/80">
+      <span className="shrink-0 text-purple-400 text-[10px]" aria-hidden>
         {chatTitleIcon}
       </span>
-      <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest flex-1 truncate min-w-0">
+      <p className="min-w-0 flex-1 truncate text-[10px] font-bold text-purple-400 uppercase tracking-widest">
         {chatTitle}
       </p>
-      {chatHeaderExtra}
+      <div className="shrink-0 flex items-center gap-0.5">
+      {chatHeaderExtra ? chatHeaderExtra : null}
       {onTogglePin ? (
         <button
           type="button"
           onClick={onTogglePin}
           title={pinned ? 'Détacher le chat' : 'Épingler à gauche'}
-          className={`shrink-0 w-6 h-6 flex items-center justify-center rounded transition ${
+          className={`${DOCK_HEADER_ICON_BTN} ${
             pinned
               ? 'text-amber-300 bg-amber-950/40'
               : 'text-gray-500 hover:text-amber-300 hover:bg-white/10'
@@ -447,11 +453,12 @@ function DockedChatHeader({
       <button
         type="button"
         onClick={onToggleChat}
-        className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-white hover:bg-white/10 transition text-lg leading-none"
+        className={`${DOCK_HEADER_ICON_BTN} text-gray-500 hover:text-white hover:bg-white/10 text-lg leading-none`}
         aria-label="Masquer le chat"
       >
         ×
       </button>
+      </div>
     </div>
   );
 }
@@ -734,22 +741,24 @@ export function RoomTheaterLayout({
           showDockToggle={false}
         />
       ) : (
-        <div className="shrink-0 flex items-center gap-1.5 px-3 py-2 border-b border-[#1e1e2f] bg-[#14141c]/80">
-          <span className="text-purple-400 text-[10px]" aria-hidden>
+        <div className="shrink-0 flex items-center gap-1.5 min-w-0 overflow-hidden px-3 py-2 border-b border-[#1e1e2f] bg-[#14141c]/80">
+          <span className="shrink-0 text-purple-400 text-[10px]" aria-hidden>
             {chatTitleIcon ?? '💬'}
           </span>
-          <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest flex-1 truncate min-w-0">
+          <p className="min-w-0 flex-1 truncate text-[10px] font-bold text-purple-400 uppercase tracking-widest">
             {chatTitle}
           </p>
-          {chatHeaderExtra}
-          <button
-            type="button"
-            onClick={onToggleChat}
-            className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-white hover:bg-white/10 transition text-lg leading-none"
-            aria-label="Masquer le chat"
-          >
-            ×
-          </button>
+          <div className="shrink-0 flex items-center gap-0.5">
+            {chatHeaderExtra}
+            <button
+              type="button"
+              onClick={onToggleChat}
+              className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-white hover:bg-white/10 transition text-lg leading-none"
+              aria-label="Masquer le chat"
+            >
+              ×
+            </button>
+          </div>
         </div>
       )}
       {chatHostToolbar ? (
