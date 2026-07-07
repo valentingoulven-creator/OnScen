@@ -18459,3 +18459,1226 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 924 — 2026-07-06
 ================================================================================
+
+================================================================================
+MODIF 925 — Anneaux stories : prévisu live + bouton Rejoindre
+Date : 2026-07-06
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Quand un host suivi a un live actif (GET /lives + isStoryRingLive), l'anneau
+ stories affichait seulement un cercle avatar + badge LIVE — pas d'aperçu ni
+ d'action directe pour rejoindre.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapStoryRings.tsx
+ ─────────────────
+ • MapStoryLiveRing : carte 3/4 avec cover (avatar/story), badge Live,
+   spectateurs, bouton « Rejoindre » min-h-11 (44px), pseudo en rouge.
+ • MapStoryRing : si entry.isLive + liveId → carte live ; sinon anneau circulaire
+   inchangé. Prop optionnelle onJoinLive(liveId).
+ • STORY_LIVE_RING_ITEM_CLASS (5.25rem) pour le carrousel horizontal.
+
+ web/app/src/components/StoriesInlineBar.tsx
+ web/app/src/components/MapStoriesAccordion.tsx
+ ─────────────────
+ • onJoinLive={onOpenLive} passé à MapStoryRing.
+ • Clic prévisu → StoryLivePreviewViewer (existant) ; Rejoindre → openLive.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/MapStoryRings.tsx → carte live + join
+ web/app/src/components/StoriesInlineBar.tsx → wiring onJoinLive
+ web/app/src/components/MapStoriesAccordion.tsx → wiring onJoinLive
+
+BUILD (si vérifié)
+-----
+ web/app/ → npm run build --prefix web/app → ✅
+
+================================================================================
+Fin MODIF 925 — 2026-07-06
+================================================================================
+
+================================================================================
+MODIF 926 — Retrait languette room-theater-toggle (live + salon)
+Date : 2026-07-06
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le chevron `.room-theater-toggle` sur le bord de la scène vidéo faisait
+ doublon avec FloatingSalonChat, l'en-tête dock et le bouton 💬 chrome vidéo.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/RoomTheaterLayout.tsx
+ ios/apptel/src/components/RoomTheaterLayout.tsx
+ ─────────────────
+ • Suppression du bouton `room-theater-toggle` et des variables chevron.
+
+ web/app/src/index.css · ios/apptel/src/index.css
+ ─────────────────
+ • Suppression des styles `.room-theater-toggle` / `--left` et règles grid match-hero.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/RoomTheaterLayout.tsx → retrait toggle bord scène
+ ios/apptel/src/components/RoomTheaterLayout.tsx → idem (miroir Capacitor)
+ web/app/src/index.css → CSS toggle retiré
+ ios/apptel/src/index.css → idem
+
+================================================================================
+Fin MODIF 926 — 2026-07-06
+================================================================================
+
+================================================================================
+MODIF 927 — Retrait bouton 💝 flottant sur scène live
+Date : 2026-07-06
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton pourboire 💝 (picker flottant bottom-14 right-3) sur la scène vidéo
+ est redondant avec « Faire un don » dans live-viewer-action-bar + LiveDonationSheet.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/LiveGiftOverlay.tsx
+ ─────────────────
+ • Suppression du bouton 💝 et du picker de montants.
+ • Conservation des animations gift_animation (bursts socket).
+ • Props retirées : tiers, donationOptions, onOpenGiftSheet.
+
+ web/app/src/pages/LivePage.tsx
+ ios/apptel/src/pages/LivePage.tsx
+ ─────────────────
+ • LiveGiftOverlay simplifié (liveId + visible) sur LiveKitVideoStage et LiveVideoStage.
+ • Suppression du useMemo giftOverlayTiers (devenu inutile).
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/LiveGiftOverlay.tsx → bursts uniquement
+ web/app/src/pages/LivePage.tsx → wiring overlay simplifié
+ ios/apptel/src/pages/LivePage.tsx → miroir Capacitor (retrait onOpenGiftSheet)
+
+BUILD (si vérifié)
+-----
+ non vérifié
+
+================================================================================
+Fin MODIF 927 — 2026-07-06
+================================================================================
+
+================================================================================
+MODIF 928 — Anneaux live : retour cercle + prévisu au clic
+Date : 2026-07-06
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ MODIF 925 avait remplacé l'anneau live circulaire par une carte 3/4 avec
+ bouton « Rejoindre » toujours visible dans le carrousel. L'utilisateur veut
+ retrouver le logo circulaire (gradient rouge, avatar, badge LIVE) et ouvrir
+ la prévisu + bouton Rejoindre uniquement au clic.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/MapStoryRings.tsx
+ ─────────────────
+ • Suppression MapStoryLiveRing et STORY_LIVE_RING_ITEM_CLASS (5.25rem).
+ • MapStoryRing : les lives repassent par l'anneau circulaire standard
+   (4.75rem) avec gradient rouge + badge LIVE en bas.
+ • Retrait prop onJoinLive sur MapStoryRing (join uniquement dans la modale).
+
+ web/app/src/components/StoriesInlineBar.tsx
+ web/app/src/components/MapStoriesAccordion.tsx
+ ─────────────────
+ • Retrait onJoinLive sur MapStoryRing ; clic → setLivePreview →
+   StoryLivePreviewViewer (inchangé).
+
+ web/app/src/components/StoryLivePreviewViewer.tsx
+ ─────────────────
+ • Bouton « Rejoindre » : min-h-11 explicite (touch target 44px).
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/MapStoryRings.tsx → anneau circulaire live restauré
+ web/app/src/components/StoriesInlineBar.tsx → wiring preview seul
+ web/app/src/components/MapStoriesAccordion.tsx → wiring preview seul
+ web/app/src/components/StoryLivePreviewViewer.tsx → min-h-11 join
+
+BUILD (si vérifié)
+-----
+ web/app/ → npm run build --prefix web/app → ✅
+
+================================================================================
+Fin MODIF 928 — 2026-07-06
+================================================================================
+
+================================================================================
+MODIF 929 — PiP preview : alignement bouton suivre
+Date : 2026-07-06
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Dans LivePipPreviewFloat, FollowUserButton (cœur iconOnly w-11 h-11) dépassait
+ sous la bande d'en-tête PiP (VIDEO_PIP_HEADER_HEIGHT = 24 px).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/FollowUserButton.tsx
+ ─────────────────
+ • Prop pipHeader : variante compacte (p-1 + cœur w-3.5), alignée sur UserLikeButton iconOnly.
+
+ web/app/src/components/LivePipPreviewFloat.tsx
+ ─────────────────
+ • pipHeader sur FollowUserButton ; wrapper inline-flex items-center self-center.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/FollowUserButton.tsx → prop pipHeader
+ web/app/src/components/LivePipPreviewFloat.tsx → wiring PiP compact
+
+BUILD (si vérifié)
+-----
+ non vérifié
+
+================================================================================
+Fin MODIF 929 — 2026-07-06
+================================================================================
+
+================================================================================
+MODIF 930 — Live plein écran : chat OBS visible par défaut — Soundy Dev
+Date : 2026-07-06
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Signalement : « le chat ne s'affiche pas en plein écran ». Cause : à l'entrée
+ en mode vidéo étendu (Fullscreen API ou théâtre paysage), `handleVideoExpandedChange`
+ masque le `FloatingSalonChat` (`chatHidden=true`) mais l'overlay read-only
+ `LiveChatVideoOverlay` n'était activé que si l'utilisateur avait déjà persisté
+ `liveChatVideoOverlay=1` en localStorage — par défaut off → aucun chat visible.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/LivePage.tsx
+ ─────────────────
+ • `readFullscreenChatOverlay()` : opt-out (`'0'`) au lieu d'opt-in (`'1'`).
+ • `handleVideoExpandedChange(expanded=true)` : active automatiquement
+   `fullscreenChatOverlay` sauf opt-out explicite.
+ • `toggleFloatingChatFromChrome` : si chat visible mais minimisé, déplie au
+   lieu de masquer.
+
+ web/app/src/components/LiveChatVideoOverlay.tsx
+ ─────────────────
+ • z-index 28 (au-dessus barre statut / gifts z-25).
+
+ web/app/src/index.css
+ ─────────────────
+ • `.live-chat-video-overlay--fullscreen` : `height: 100%` pour garantir la
+   colonne scrollable en plein écran natif.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/LivePage.tsx → auto overlay + default ON + toggle 💬 déplie
+ web/app/src/components/LiveChatVideoOverlay.tsx → z-index
+ web/app/src/index.css → hauteur overlay fullscreen
+
+BUILD (si vérifié)
+-----
+ web/app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 930 — 2026-07-06
+================================================================================
+
+================================================================================
+MODIF 931 — Live vidéo : boutons chrome plus compacts
+Date : 2026-07-06
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les boutons chrome (plein écran, PiP, chat, pause) en haut à gauche de la vidéo
+ live étaient un peu volumineux (44 px).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/LiveVideoTheaterChrome.tsx
+ ─────────────────
+ • LiveVideoChromeButton : min-h-11 min-w-11 → min-h-10 min-w-10 (40 px), padding réduit.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/LiveVideoTheaterChrome.tsx → taille boutons chrome live
+
+BUILD (si vérifié)
+-----
+ non vérifié
+
+================================================================================
+Fin MODIF 931 — 2026-07-06
+================================================================================
+
+================================================================================
+MODIF 933 — Live vidéo : chrome auto-masqué après 10 s d'inactivité — Soundy Dev
+Date : 2026-07-06
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Les boutons chrome (plein écran, PiP, chat, pause) en haut à gauche de la vidéo
+ live restaient toujours visibles et masquaient partiellement le flux.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/hooks/useLiveVideoChromeAutoHide.ts
+ ─────────────────
+ • Hook partagé : timer 10 s, révélation sur mousemove/mouseenter/touch/pointer
+   sur `.live-video-stage-area`.
+
+ web/app/src/components/LiveVideoStage.tsx
+ web/app/src/components/LiveKitVideoStage.tsx
+ ─────────────────
+ • Intégration du hook ; rangée chrome avec transition opacity 300 ms +
+   `pointer-events-none` quand masquée.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/hooks/useLiveVideoChromeAutoHide.ts → hook auto-hide
+ web/app/src/components/LiveVideoStage.tsx → chrome fade idle
+ web/app/src/components/LiveKitVideoStage.tsx → parité LiveKit
+
+BUILD (si vérifié)
+-----
+ web/app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 933 — 2026-07-06
+================================================================================
+
+================================================================================
+MODIF 934 — Live : participants/VIP dans en-tête chat flottant — Soundy Dev
+Date : 2026-07-06
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En mode live théâtre (chat flottant), l'en-tête FloatingSalonChat n'affichait pas
+ les boutons Participants / VIP / actions hôte alors qu'ils étaient déjà passés
+ via chatHeaderExtra. compactHeader masquait headerExtra ; la barre auditeur
+ dupliquait les popovers tant que le chat n'était pas épinglé.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/FloatingSalonChat.tsx
+ ─────────────────
+ • headerExtra rendu même en compactHeader (live théâtre).
+ • compactHeader masque uniquement les toggles fond transparent/gris.
+ • Boutons pin / réduire / fermer en w-11 h-11 en mode compact (44 px).
+
+ web/app/src/pages/LivePage.tsx
+ ─────────────────
+ • Barre live-viewer-action-bar : Participants/VIP uniquement si chat masqué
+   (!chatPinned && chatHidden) — évite doublon avec l'en-tête flottant.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/FloatingSalonChat.tsx → headerExtra visible live théâtre
+ web/app/src/pages/LivePage.tsx → déduplication barre auditeur
+
+BUILD (si vérifié)
+-----
+ web/app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 934 — 2026-07-06
+================================================================================
+
+================================================================================
+MODIF 935 — Live plein écran : chat OBS réellement visible — Soundy Dev
+Date : 2026-07-06
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Signalement post-MODIF 930 : « le chat n'apparaît toujours pas en plein écran ».
+ Causes identifiées :
+ • Race : `fullscreenChatOverlayVisible` n'était activé qu'après le 1er rendu
+   plein écran (useEffect `onExpandedChange`), et bloqué si localStorage `'0'`.
+ • Overlay monté dans `.live-video-stage-area` (grille LiveKit/vidéo) — risque
+   de masquage ; doit couvrir tout `.live-video-container` (élément Fullscreen API).
+ • `LiveChatVideoOverlay` retournait `null` si `useOptionalChatRoomFeed()` falsy.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/LivePage.tsx
+ ─────────────────
+ • `handleVideoExpandedChange(expanded=true)` : `setFullscreenChatOverlay(true)`
+   systématique à l'entrée plein écran (toggle 💬 conserve l'opt-out session).
+
+ web/app/src/components/LiveVideoStage.tsx
+ web/app/src/components/LiveKitVideoStage.tsx
+ ─────────────────
+ • `enterVideoFullscreen` : `onExpandedChange(true)` synchrone avant Fullscreen API.
+ • Overlay chat déplacé dans `.live-chat-video-overlay-shell` (sibling direct de
+   `.live-theater-stage-stack`, enfant de `.live-video-container` fullscreen).
+
+ web/app/src/components/LiveChatVideoOverlay.tsx
+ ─────────────────
+ • Suppression du guard `!chatRoom` — rendu avec feed vide si besoin.
+
+ web/app/src/index.css
+ ─────────────────
+ • Styles `.live-chat-video-overlay-shell` (inset 0, z-index 35 en plein écran).
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/LivePage.tsx → overlay ON à chaque expand
+ web/app/src/components/LiveVideoStage.tsx → shell overlay + sync expand
+ web/app/src/components/LiveKitVideoStage.tsx → parité + chromeVisible auto-hide
+ web/app/src/components/LiveChatVideoOverlay.tsx → plus de null sur chatRoom
+ web/app/src/index.css → shell overlay fullscreen
+
+BUILD (si vérifié)
+-----
+ web/app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 935 — 2026-07-06
+================================================================================
+
+================================================================================
+MODIF 936 — Live théâtre : bandeau statut au-dessus des onglets bas
+Date : 2026-07-06
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Sur mobile (PhoneWebShell), le bandeau d'erreur `.live-theater-status-bar`
+ était masqué par la barre d'onglets flottante (ex. « Le host n'a pas répondu… »).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/index.css
+ ─────────────────
+ • `margin-bottom: var(--tab-nav-total-h)` + z-index 65 sous `ms-app-shell--bottom-tabs`.
+ • Réinitialisation shell classique et plein écran / landscape.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/index.css → offset bandeau statut live
+
+================================================================================
+Fin MODIF 936 — 2026-07-06
+================================================================================
+
+================================================================================
+MODIF 937 — Live plein écran : cause RÉELLE (confirmée en navigateur) du chat
+invisible — annule/complète MODIF 930 et MODIF 935 — Soundy Dev
+Date : 2026-07-06
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Après MODIF 930 puis MODIF 935 (toutes deux censées corriger le chat invisible
+ en plein écran live), l'utilisateur confirme que le bug persiste : « Je ne
+ peux toujours pas voir le chat de mon live en mode plein écran ».
+ Cette session a démarré le serveur de dev (déjà lancé sur :5173/:4080) et
+ utilisé l'automatisation navigateur (CDP Runtime.evaluate + captures d'écran)
+ pour vérifier RÉELLEMENT le rendu, au lieu de se fier au code seul. Deux causes
+ RÉELLES et mesurées ont été trouvées — ni l'une ni l'autre n'avait été identifiée
+ par MODIF 930/935, qui se sont concentrées sur le montage React de l'overlay
+ sans jamais inspecter le rendu CSS obtenu dans le navigateur.
+
+ Le plein écran natif (`:fullscreen`) fonctionne correctement sur desktop Chrome
+ car le navigateur affiche l'élément fullscreen dans un « top layer » qui ignore
+ le z-index de la page — c'est pourquoi les tests précédents (probablement faits
+ en plein écran natif desktop) n'ont rien vu d'anormal. Le bug ne se manifeste
+ que dans le FALLBACK CSS « landscape-theater » (`--landscape-theater`), utilisé
+ uniquement quand la Fullscreen API échoue/est indisponible — typiquement iOS
+ Safari en PWA/WebView, exactement le scénario de l'utilisateur. Pour le
+ reproduire en dev (Chrome desktop), la Fullscreen API a été neutralisée via
+ CDP (`Element.prototype.requestFullscreen` renvoyant une Promise rejetée),
+ forçant l'app à basculer sur `enterTheaterFallback()`.
+
+CAUSE 1 (confirmée par mesure DOM) — mauvais parent pour le shell chat
+----
+ `.live-chat-video-overlay-shell` (position:absolute; inset:0) est rendu comme
+ enfant de `.live-theater-stage-stack`, PAS de `.live-video-container` (malgré
+ le commentaire de MODIF 935 disant l'inverse). Or en mode théâtre (`--theater`),
+ une règle CSS plus spécifique (`.live-video-container--landscape-theater
+ .live-video-container--theater .live-theater-stage-stack`, 3 sélecteurs de
+ classe) écrase la règle plus générale et remet stage-stack en
+ `height:auto; flex:0 1 auto; margin:auto` (letterbox centré sur le ratio vidéo)
+ au lieu de `height:100%`. Le containing block du shell devient donc cette boîte
+ rétrécie et centrée, PAS le vrai plein écran.
+ Mesure en navigateur (fenêtre 892×710) avant fix :
+   shell rect  = {y:104, h:502}  (au lieu de {y:0, h:710} du vrai conteneur)
+ → le chat ne pouvait s'afficher que dans la zone vidéo letterboxée, jamais
+ sur toute la hauteur de l'écran.
+
+CAUSE 2 (confirmée par elementFromPoint + capture d'écran) — piège de
+contexte d'empilement CSS (`isolation: isolate`)
+----
+ `.ms-salon-fullscreen-overlay` (l'ancêtre qui héberge toute la page Live en
+ mode plein écran) a `isolation: isolate; z-index: 60`. `isolation: isolate`
+ crée un NOUVEAU contexte d'empilement local : tout descendant, même
+ `position:fixed` avec `z-index:100` comme `.live-video-container--landscape-theater`,
+ voit son z-index comparé UNIQUEMENT à l'intérieur de cet overlay isolé — il ne
+ « s'échappe » jamais pour rivaliser avec ses frères situés HORS de l'overlay :
+   header.ms-app-header   → position:fixed; z-index:100
+   nav.ms-tab-bar-bottom  → position:fixed; z-index:70
+ Résultat : TOUT le plein écran vidéo (vidéo + chat + status bar) se peignait
+ SOUS le header et la barre d'onglets. Le chat n'était donc pas simplement mal
+ positionné : la vue plein écran entière était visuellement cachée derrière le
+ chrome persistant de l'app.
+ Preuve directe (avant fix) :
+   document.elementFromPoint(50, 30) → <span class="ms-soundy-logo__wave">
+   (le logo du header, pas la vidéo, malgré .live-video-container qui rapporte
+   un getBoundingClientRect() couvrant tout le viewport)
+   Capture d'écran : header + barre d'onglets bas visibles PAR-DESSUS l'écran
+   noir du plein écran théâtre.
+
+FIX APPLIQUÉ (vérifié en navigateur + capture d'écran)
+-----
+ web/app/src/components/LiveVideoStage.tsx
+ web/app/src/components/LiveKitVideoStage.tsx
+ ─────────────────
+ • `.live-chat-video-overlay-shell` et `.live-theater-status-bar` déplacés pour
+   être des ENFANTS DIRECTS de `.live-video-container` (frères de
+   `.live-theater-stage-stack`), plus jamais nichés DANS stage-stack. Leur
+   containing block est maintenant le vrai conteneur plein écran, qui reste
+   `height:100%`/`position:fixed;inset:0` quel que soit le letterboxing interne
+   de la vidéo.
+
+ web/app/src/index.css
+ ─────────────────
+ • Nouvelle règle `.ms-salon-fullscreen-overlay:has(.live-video-container--landscape-theater)
+   { z-index: 110; }` — relève le z-index de l'overlay UNIQUEMENT quand le
+   fallback CSS plein écran est actif, pour qu'il batte header (100) et
+   bottom-nav (70). Portée volontairement limitée via `:has()` (déjà utilisé
+   ailleurs dans ce fichier) pour ne rien changer au comportement normal (non
+   plein écran) de l'overlay salon.
+
+VÉRIFICATION RÉELLE (navigateur, pas seulement code)
+-----
+ 1. `npm run dev` déjà actif (:5173 web, :4080 API) — confirmé via curl.
+ 2. Navigation réelle vers un live (DJ_Cres) en mode viewer.
+ 3. Fullscreen API neutralisée via CDP pour forcer le fallback CSS théâtre
+    (reproduit le cas iOS PWA/WebView de l'utilisateur, non testable en
+    plein écran natif desktop).
+ 4. Avant fix : mesures DOM + capture d'écran confirmant les deux causes
+    ci-dessus (shell clippé à {y:104,h:502} ; header/bottom-nav visibles
+    par-dessus l'écran plein écran théâtre).
+ 5. Fix appliqué, HMR Vite pris en compte automatiquement.
+ 6. Après fix : shell rect = {x:0,y:0,w:892,h:710} (= conteneur exact) ;
+    `elementFromPoint(50,30)` → `.live-video-container` (plus le header) ;
+    capture d'écran : plus aucune trace du header/bottom-nav, écran plein
+    écran théâtre réellement plein écran.
+ 7. Injection de 4 messages de test dans `.live-chat-video-overlay__feed`
+    (DOM uniquement, pour preuve visuelle — retiré par rechargement de page,
+    aucun changement de code) : capture d'écran confirmant le texte du chat
+    visible en bas à gauche de l'écran plein écran, par-dessus la vidéo,
+    au-dessus du header/nav désormais masqués.
+ 8. Page rechargée après capture (pas de changement d'état persistant lié au
+    test).
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/LiveVideoStage.tsx   → shell chat + status bar déplacés hors stage-stack
+ web/app/src/components/LiveKitVideoStage.tsx → idem (parité LiveKit)
+ web/app/src/index.css                        → z-index overlay salon relevé en fallback théâtre
+
+BUILD
+-----
+ web/app/ → npm run build → ✅ (tsc -b + vite build, aucune erreur)
+
+NOTE
+-----
+ MODIF 930 et MODIF 935 avaient correctement identifié des symptômes réels
+ (overlay pas toujours actif, mauvais montage React) mais n'avaient jamais
+ vérifié le rendu final dans un navigateur avec le fallback CSS théâtre actif —
+ d'où la persistance du bug malgré deux tentatives. Cette entrée les complète
+ sans invalider leurs changements (le shell reste monté conditionnellement de
+ la même façon ; seul son EMPLACEMENT dans l'arbre DOM et le z-index de son
+ ancêtre plein écran ont changé).
+
+================================================================================
+Fin MODIF 937 — 2026-07-06
+================================================================================
+
+================================================================================
+MODIF 938 — Fix affichage texte brut "\u00e9"/"\u00ee" (échappements Unicode
+littéraux) dans le placeholder d'erreur vidéo live — Soundy Dev
+Date : 2026-07-06
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Le bouton "Réessayer" du placeholder d'erreur vidéo live (LiveVideoStage >
+ LiveVideoStagePlaceholder, affiché quand le flux live échoue à charger, ex.
+ pendant l'écoute de "Get Lucky — Daft Punk") s'affichait littéralement comme
+ "R\u00e9essayer" au lieu de "Réessayer", et "Rafra\u00eechir la page" au lieu
+ de "Rafraîchir la page".
+
+CAUSE RACINE
+-----
+ Une édition automatisée antérieure a remplacé des caractères accentués par
+ leurs séquences d'échappement `\u00XX` en texte source dans
+ `web/app/src/components/LiveVideoStage.tsx`. Ce remplacement fonctionne
+ correctement quand il tombe à l'intérieur d'un littéral de chaîne JS classique
+ (guillemets simples/doubles en dehors de JSX), où `\u00e9` est bien interprété
+ par le moteur JS comme "é". MAIS le même remplacement a aussi touché :
+   1. du texte enfant JSX brut (ex. `<button>R\u00e9essayer</button>`)
+   2. des valeurs d'attributs JSX en chaîne littérale (ex. `title="...\u00e9..."`,
+      `aria-label="...\u00e9..."`)
+ Dans ces deux derniers cas, JSX ne traite PAS les séquences d'échappement
+ comme le ferait un littéral JS standard — le texte `\u00e9` est rendu tel
+ quel, caractère par caractère, d'où le bug visuel.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/components/LiveVideoStage.tsx
+ ─────────────────
+ • Boutons "Réessayer" (x2, retry HLS + retry viewer relay) et "Rafraîchir la
+   page" du placeholder d'erreur : texte JSX corrigé (`R\u00e9essayer` →
+   `Réessayer`, `Rafra\u00eechir la page` → `Rafraîchir la page`).
+ • Attributs JSX corrigés : `title`/`aria-label` de "Ancrer la vidéo",
+   "Quitter le plein écran", "Plein écran", "Détacher en PiP" /
+   "Détacher la vidéo (PiP)".
+ • Commentaires JSDoc corrigés (aucun impact fonctionnel, mais même
+   corruption) : "vidéo seule déplaçable", "Appelé quand l'utilisateur
+   clique sur ⧉".
+ • Normalisation par cohérence de 3 littéraux de chaîne JS qui contenaient
+   encore `\u00XX` mais qui s'affichaient déjà correctement (échappement
+   valide en dehors de JSX) : `streamEndedTitle` par défaut ("Stream
+   terminé"), le label du bouton lecture bloquée ("Appuyez pour démarrer la
+   lecture vidéo"), `playOverlayLabel` ("Lancer la vidéo").
+
+VÉRIFICATION AUTRES FICHIERS
+-----
+ Recherche du motif `\u00XX` littéral dans tout `web/app/src` : trouvé aussi
+ dans `content/legal/mentions.ts`, `components/LiveParticipantsPopover.tsx`
+ et `pages/ProfilePage.tsx`, mais dans ces 3 fichiers les séquences sont
+ toutes à l'intérieur de vrais littéraux de chaîne JS (guillemets simples ou
+ template literals, pas de JSX brut) → déjà correctement interprétées par le
+ moteur JS, aucun bug visuel, aucun changement nécessaire. `locales/fr.json`
+ et `locales/en.json` : aucune occurrence du motif, fichiers propres.
+ `ios/apptel/src` : aucune occurrence, pas de composant miroir affecté.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/components/LiveVideoStage.tsx → séquences \u00XX littérales en JSX (texte + attributs) remplacées par les caractères accentués réels
+
+BUILD
+-----
+ web/app/ → npm run lint → ✅ (aucune erreur/warning nouvelle sur LiveVideoStage.tsx ; 2 erreurs + 442 warnings préexistants sans lien, dans SettingsPage.tsx/UserProfilePage.tsx)
+ web/app/ → npm run build → ✅ (build réussi ; vérifié dans le bundle généré `LivePage-*.js` que "Réessayer" et "Rafraîchir la page" apparaissent bien comme texte UTF-8 correct, plus aucune séquence \u00XX littérale)
+
+================================================================================
+Fin MODIF 938 — 2026-07-06
+================================================================================
+
+================================================================================
+MODIF 939 — Live plein écran : chat TOUJOURS invisible sur l'app téléphone
+(ios/apptel) malgré MODIF 930/935/937 — cause racine réelle enfin identifiée
+— Soundy Dev
+Date : 2026-07-07
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Après MODIF 930, 935 et 937 (toutes appliquées à web/app/), plus une session
+ qui avait commencé à corriger `ios/apptel/src/index.css` (z-index du
+ fallback théâtre, cf. commentaire déjà présent dans ce fichier) mais s'est
+ arrêtée avant d'aller au bout, l'utilisateur confirme à nouveau : « je veux
+ que le chat s'affiche quand je suis en plein écran d'un live ».
+
+CAUSE RACINE RÉELLE
+-----
+ Toutes les tentatives précédentes n'avaient modifié QUE `web/app/src/`
+ (composants partagés `LiveVideoStage.tsx` / `LiveKitVideoStage.tsx` +
+ `web/app/src/pages/LivePage.tsx` + `web/app/src/index.css`). Or l'app
+ téléphone (`ios/apptel`, build Capacitor iOS/Android + PWA `/tel/`) a son
+ PROPRE `ios/apptel/src/pages/LivePage.tsx`, qui est un override Vite
+ (mécanisme `apptelSrcFallback` dans `ios/apptel/vite.config.ts` : un fichier
+ qui EXISTE dans `ios/apptel/src/` prend toujours le pas sur son équivalent
+ `web/app/src/`, même s'il est obsolète). Cette page téléphone :
+   1. Ne déclarait AUCUN état `fullscreenChatOverlay` et ne passait JAMAIS les
+      props `fullscreenChatOverlayVisible` / `onToggleFullscreenChatOverlay`
+      à `<LiveVideoStage>` / `<LiveKitVideoStage>` (composants PARTAGÉS,
+      eux bien à jour car ils n'ont pas d'override dans `ios/apptel/src/
+      components/`). Résultat : `fullscreenChatOverlayVisible` valait
+      toujours `false` (valeur par défaut du prop), donc la condition
+      `isVideoExpanded && fullscreenChatOverlayVisible` qui monte
+      `<LiveChatVideoOverlay>` n'était JAMAIS vraie — le composant chat overlay
+      ne se montait tout simplement jamais dans l'app téléphone, quel que
+      soit l'état du DOM/CSS.
+   2. `ios/apptel/src/index.css` est un fichier CSS autonome (voir son propre
+      commentaire, ajouté par la session précédente, expliquant qu'il n'y a
+      pas de fallback CSS vers `web/app/src/index.css`) : les règles
+      `.live-chat-video-overlay-shell` / `.live-chat-video-overlay--fullscreen`
+      (largeur, transparence, masque de dégradé) ajoutées par MODIF 937 dans
+      web/app n'avaient jamais été répliquées ici et étaient donc absentes.
+ Point positif confirmé par lecture de code : la restructuration DOM de
+ MODIF 937 (`.live-chat-video-overlay-shell` déplacé en enfant direct de
+ `.live-video-container`, frère de `.live-theater-stage-stack`) est portée
+ par les composants PARTAGÉS (`LiveVideoStage.tsx`/`LiveKitVideoStage.tsx`),
+ donc déjà correcte côté téléphone sans changement supplémentaire. Le
+ z-index du fallback théâtre CSS (`--landscape-theater`) avait aussi déjà
+ été corrigé à 110 dans `ios/apptel/src/index.css` par la session
+ précédente (non documentée dans ce fichier avant aujourd'hui). Il ne
+ manquait donc que le câblage React (item 1) et les styles de l'overlay
+ lui-même (item 2).
+
+FIX APPLIQUÉ
+-----
+ ios/apptel/src/pages/LivePage.tsx
+ ─────────────────
+ • Import de `getStorageItem` / `setStorageItem` / `STORAGE_KEYS`
+   (`../lib/storageKeys`, fichier partagé non surchargé côté téléphone).
+ • Nouvelle fonction `readFullscreenChatOverlay()` (parité exacte avec
+   `web/app/src/pages/LivePage.tsx`) : actif par défaut sauf préférence
+   utilisateur explicite `'0'` en localStorage (clé `STORAGE_KEYS.
+   liveChatVideoOverlay`, partagée avec web/app — même préférence sur les
+   deux plateformes).
+ • Nouvel état `fullscreenChatOverlay` + callback `toggleFullscreenChatOverlay`
+   (persistance localStorage identique à web/app).
+ • `handleVideoExpandedChange(true)` appelle désormais aussi
+   `setFullscreenChatOverlay(true)` — le chat classique (bandeau bas) étant
+   masqué en plein écran, l'overlay OBS transparent prend systématiquement
+   le relais, comme sur web/app.
+ • Props `fullscreenChatOverlayVisible={fullscreenChatOverlay}` et
+   `onToggleFullscreenChatOverlay={toggleFullscreenChatOverlay}` ajoutées aux
+   deux usages de `<LiveKitVideoStage>` et `<LiveVideoStage>`.
+
+ ios/apptel/src/index.css
+ ─────────────────
+ • Ajout des règles manquantes (copiées/adaptées de web/app/src/index.css,
+   MODIF 937) juste après le bloc `--landscape-theater` existant :
+   `.live-chat-video-overlay-shell` (pointer-events: none), `.live-chat-
+   video-overlay--fullscreen` (largeur `min(30%, 320px)`, fond transparent,
+   masque de dégradé sur le feed, padding-left safe-area), variante largeur
+   `min(30%, 360px)` + repositionnement `position:absolute; inset:0; z-index:
+   35` scopés à `:fullscreen` / `:-webkit-full-screen` / `--landscape-theater`.
+ • Pas besoin de reproduire le correctif `:has()` de web/app (isolation
+   stacking-context trap) : l'app téléphone n'enveloppe PAS `<LivePage>`
+   dans un conteneur `isolation:isolate` équivalent à `.ms-salon-fullscreen-
+   overlay` (vérifié dans `ios/apptel/src/App.tsx`) — le header
+   (`.ms-app-header`, position:fixed, z-index:100) et `--landscape-theater`
+   (position:fixed, z-index:110 déjà) sont dans le même contexte
+   d'empilement racine, donc déjà correctement comparés sans piège
+   d'isolation.
+
+NON MODIFIÉ (hors-scope volontaire)
+-----
+ `ios/apptel/src/components/RoomTheaterLayout.tsx` est une version ancienne
+ sans le prop `liveTheaterChrome` (ni le layout "théâtre" complet de
+ web/app). Non nécessaire pour ce fix : le montage plein écran + overlay
+ chat vit entièrement dans `<LiveVideoStage>`/`<LiveKitVideoStage>` (composants
+ partagés), indépendamment du chrome de `RoomTheaterLayout` qui se contente
+ d'englober `{stage}` dans un `<div>`. Toucher ce fichier aurait élargi le
+ risque de régression sans être nécessaire à la résolution du bug rapporté.
+ À réévaluer séparément si un futur ticket demande la parité complète du
+ chrome théâtre sur téléphone.
+
+VÉRIFICATION
+-----
+ 1. Confirmé par lecture de code (trace complète de l'arbre de rendu) que
+    `<LiveChatVideoOverlay>` ne pouvait jamais se monter côté téléphone avant
+    ce fix (`fullscreenChatOverlayVisible` toujours `false`, prop jamais
+    fournie) — bug reproductible à 100% par analyse statique, pas besoin
+    d'un live réel pour confirmer la cause (le rendu conditionnel
+    `isVideoExpanded && fullscreenChatOverlayVisible` est sans ambiguïté).
+ 2. `ios/apptel/` → `npx tsc -p tsconfig.app.json --noEmit` → ✅ (aucune erreur)
+ 3. `ios/apptel/` → `npm run build` → ✅ (build Vite + PWA réussi,
+    `LivePage-*.js` régénéré avec les nouvelles props)
+ 4. `web/app/` → `npm run build` → ✅ (tsc -b + vite build, aucune erreur —
+    confirme qu'aucune régression n'a été introduite côté web malgré
+    l'absence de changement sur ce périmètre)
+ 5. Test navigateur réel en direct non effectué dans cette session (pas de
+    live actif disponible) — la certitude vient de l'analyse du rendu
+    conditionnel React, qui est déterministe et ne dépend d'aucun état
+    caché supplémentaire.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/src/pages/LivePage.tsx → état + callback fullscreenChatOverlay, props câblées vers LiveVideoStage/LiveKitVideoStage
+ ios/apptel/src/index.css          → règles .live-chat-video-overlay-shell / --fullscreen ajoutées (absentes du fichier autonome)
+
+NOTE IMPORTANTE POUR LA SUITE
+-----
+ `ios/apptel/src/index.css` et `ios/apptel/src/pages/LivePage.tsx` sont des
+ fichiers AUTONOMES (overrides Vite, voir `apptelSrcFallback` dans
+ `ios/apptel/vite.config.ts`) : toute future modification de la feature
+ "Live plein écran" dans `web/app/src/` (composants partagés OU
+ `web/app/src/pages/LivePage.tsx` OU `web/app/src/index.css`) DOIT être
+ vérifiée/répliquée manuellement dans ces deux fichiers `ios/apptel/`
+ correspondants, sous peine de reproduire exactement ce bug (fix invisible
+ sur mobile alors qu'il fonctionne sur web). Envisager à terme de supprimer
+ ces deux overrides s'ils n'ont plus de réelle divergence fonctionnelle avec
+ web/app (RoomTheaterLayout.tsx est dans le même cas, voir section
+ "NON MODIFIÉ" ci-dessus).
+
+================================================================================
+Fin MODIF 939 — 2026-07-07
+================================================================================
+
+================================================================================
+MODIF 940 — Live plein écran : audit complet post-MODIF 937/939 — AUCUN bug
+restant côté web/app, cause probable de la persistance = fixes jamais
+déployés en production — Soundy Dev
+Date : 2026-07-07
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Déterminer quel build l'utilisateur teste réellement (web/app racine vs
+ ios/apptel `/tel/`) et vérifier de façon définitive si le chat plein écran
+ fonctionne désormais côté web/app, après MODIF 930/935/937 (web/app) et
+ MODIF 939 (ios/apptel).
+
+ÉTAPE 1 — IDENTIFICATION DU BUILD ACTIF
+-----
+ • `netstat -ano` : seuls les ports :4080 (API msdev) et :5173 (Vite web/app)
+   sont en LISTENING. Le serveur ios/apptel (:4082) n'est PAS démarré (son
+   terminal historique montre `ended_at: 2026-07-06T21:55:29Z`, process déjà
+   terminé). Aucun process n'écoute non plus sur :9333 (ancien débogueur CDP
+   Edge des sessions précédentes).
+ • Seul `npm run dev` (dev-start.ps1, backend 4080 + Vite 5173) tourne
+   actuellement, démarré 2026-07-07T05:45Z — c'est le flux canonique décrit
+   dans AGENTS.md.
+ • L'onglet du navigateur Cursor déjà ouvert pointait sur `http://localhost:5173/`.
+ → Conclusion : le build actuellement testable/testé est **web/app racine**,
+   PAS ios/apptel/`/tel/` (qui n'est même pas lancé). MODIF 939 (fix apptel)
+   n'est donc pas ce qui doit résoudre le problème dans ce contexte.
+
+ÉTAPE 2 — VÉRIFICATION RÉELLE EN NAVIGATEUR (code ACTUEL, non commité)
+-----
+ Navigation réelle (pas de simulation) : Accueil → Carte → live BassHunter
+ (`Rejoindre`) → clic bouton « Plein écran ».
+
+ A) Plein écran NATIF (Fullscreen API réelle, non neutralisée) :
+    • `document.fullscreenElement` bien défini (classe
+      `live-video-container live-video-container--theater ... `, PAS de
+      `--landscape-theater` : confirme le mode top-layer natif).
+    • `.live-chat-video-overlay-shell` : `getBoundingClientRect()` =
+      {x:0,y:0,w:1536,h:864} = EXACTEMENT le rect de `fullscreenElement`.
+    • `fullscreenElement.contains(shell)` → true.
+    • Injection de 4 messages test dans `.live-chat-video-overlay__feed` +
+      capture d'écran : messages visibles en bas à gauche, par-dessus la
+      vidéo, aucun élément de chrome (header/nav) par-dessus.
+
+ B) Fallback CSS `--landscape-theater` (Fullscreen API neutralisée via CDP,
+    même procédure que MODIF 937, pour reproduire le cas iOS Safari/PWA) :
+    • `.live-video-container--landscape-theater` bien appliquée.
+    • `containerRect` = `shellRect` = {x:0,y:0,w:892,h:712} (plein viewport).
+    • `document.elementFromPoint(50,30)` → `.live-video-container` (pas le
+      header du logo comme AVANT le fix MODIF 937).
+    • `getComputedStyle(.ms-salon-fullscreen-overlay).zIndex` → **110**
+      (règle `:has(.live-video-container--landscape-theater)` de MODIF 937
+      toujours active et fonctionnelle).
+    • Injection de messages test + capture d'écran : chat visible en bas à
+      gauche, par-dessus le fallback théâtre, aucune régression.
+
+ → CONCLUSION : sur le code ACTUEL de `web/app/src` (état non commité, tel
+   qu'il existe sur le disque au moment de cette session), le chat plein
+   écran fonctionne CORRECTEMENT dans les DEUX
+   chemins (Fullscreen API native ET fallback CSS théâtre). Aucun bug de
+   montage/positionnement/z-index résiduel trouvé. Le fix de MODIF 937 tient
+   toujours et n'a pas été cassé par MODIF 938 ou par d'autres changements
+   depuis.
+
+ÉTAPE 3 — CAUSE PROBABLE DE LA PERSISTANCE DU SIGNALEMENT UTILISATEUR
+-----
+ Découverte critique en croisant `git log` et l'état du dépôt VPS prod :
+ • `git status` : TOUS les fichiers touchés par MODIF 935/936/937/938/939
+   (`LiveVideoStage.tsx`, `LiveKitVideoStage.tsx`, `LiveChatVideoOverlay.tsx`,
+   `RoomTheaterLayout.tsx`, `index.css`, `LivePage.tsx` — web/app ET
+   ios/apptel) sont encore en modification NON COMMITÉE (`M`, pas dans
+   `git log`).
+ • Dernier commit touchant le live : `27409620` (« participants et VIP dans
+   en-tête chat dock gauche épinglé », 2026-07-06 20:18:13 +0200 =
+   18:18:13 UTC) — c'est-à-dire MODIF 934, ANTÉRIEUR à MODIF 935/937/938/939.
+ • Bundle actuellement déployé sur `getsoundy.com` (VPS prod, vérifié par
+   SSH) : `index-DjKElrKq.js`, écrit le 2026-07-06 18:34:21 UTC — cohérent
+   avec un déploiement juste après le commit 27409620, donc avec MODIF 934
+   au mieux.
+ • Aucun `deploy-prod.ps1` n'a été relancé après ce déploiement (dernier
+   lancement observé dans les terminaux : 2026-07-06T18:29:26Z).
+ → **Aucune des corrections MODIF 935/936/937/938/939 n'a jamais atteint la
+   production.** Si l'utilisateur teste l'app déployée (getsoundy.com,
+   `/tel/` compris) plutôt que `localhost:5173` en dev, il est structurellement
+   impossible qu'il voie une amélioration : le code qu'il utilise date d'avant
+   ces cinq tentatives de fix. C'est l'explication la plus probable et la
+   mieux étayée de « le chat n'est toujours pas disponible » malgré des fixes
+   locaux vérifiés corrects.
+
+FIX APPLIQUÉ DANS CETTE SESSION (mineur, hygiène de code)
+-----
+ web/app/src/pages/LivePage.tsx
+ ─────────────────
+ • Suppression de deux fuites de debug oubliées d'une session précédente :
+   `(window as any).__DEBUG_FSO_STATE = fullscreenChatOverlay;` et
+   `(window as any).__DEBUG_FSO_TOGGLE = toggleFullscreenChatOverlay;`
+   (exposaient l'état/le toggle du chat plein écran sur `window` en
+   permanence, y compris en production si déployées). Sans lien avec le bug
+   du chat lui-même (celui-ci fonctionne indépendamment de ces globals) mais
+   à nettoyer avant tout commit/déploiement.
+
+BUILD
+-----
+ web/app/ → npm run build → ✅ (tsc -b + vite build, PWA régénérée, aucune
+ erreur)
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/LivePage.tsx → retrait des globals de debug __DEBUG_FSO_*
+
+RECOMMANDATION (action utilisateur requise — aucun commit/déploiement fait
+dans cette session, conformément à la consigne)
+-----
+ Pour que l'utilisateur voie enfin le fix : committer MODIF 935→940 (web/app
+ + ios/apptel) puis déployer (`deploy-prod.ps1` pour la prod, et/ou rebuild
+ apptel pour `/tel/`). Tant que ce n'est pas fait, la persistance du bug côté
+ utilisateur n'indique PAS un bug de code résiduel — elle est cohérente avec
+ un déploiement manquant.
+
+================================================================================
+Fin MODIF 940 — 2026-07-07
+================================================================================
+
+================================================================================
+MODIF 941 — Live plein écran : cause RÉELLE trouvée en viewport MOBILE 390px
+(navigateur, vrai message de chat) — bandeau statut d'erreur cachait le chat
+en plein écran natif — Soundy Dev
+Date : 2026-07-07
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Après MODIF 930/935/937/938/939/940 (toutes vérifiées à un moment ou un autre
+ en viewport DESKTOP, ~1536×864), l'utilisateur confirme à nouveau, en testant
+ spécifiquement sur `localhost:5173` : « le chat n'est pas en premier plan ».
+ Hypothèse de départ de cette session : `PhoneWebShell` (coque téléphone
+ activée sous 430px / tactile, `web/app/src/components/PhoneWebShell.tsx`)
+ casserait le rendu à la vraie largeur mobile (390×844, iPhone 14) — largeur
+ jamais testée dans les sessions précédentes (toutes en desktop).
+
+VÉRIFICATION RÉELLE EN NAVIGATEUR (CDP, viewport forcé 390×844, dev server
+:5173 déjà lancé — pas de doublon démarré)
+-----
+ 1. `Emulation.setDeviceMetricsOverride({width:390,height:844,mobile:true})` →
+    confirmé `data-phone-viewport="1"` sur `<html>`, `.ms-phone-shell` actif
+    (`position:relative; overflow:hidden`, comme attendu).
+ 2. Navigation réelle Carte → live DJ_Cres → Rejoindre → viewer.
+ 3. Plein écran NATIF (`Plein écran` cliqué, `document.fullscreenElement`
+    confirmé = `.live-video-container`) : `.live-chat-video-overlay-shell`
+    rect = {x:0,y:0,w:390.4,h:844} = plein viewport. `.ms-phone-shell` ne
+    clippe PAS le fixed/fullscreen (overflow:hidden seul ne crée pas de
+    containing block pour les éléments fixed/top-layer — confirmé par mesure,
+    pas seulement par la spec CSS).
+ 4. Fallback CSS `--landscape-theater` (Fullscreen API neutralisée via CDP,
+    même procédure que MODIF 937) à 390px : `containerRect`/`shellRect`
+    identiques au viewport ; `.ms-salon-fullscreen-overlay` z-index = 110
+    (règle `:has()` de MODIF 937 toujours active) ; `elementFromPoint(20,30)`
+    → `.live-video-container` (pas le header). Aucune régression mobile sur
+    la structure MODIF 937.
+ → Le montage/positionnement du shell chat (MODIF 937) fonctionne
+   CORRECTEMENT à 390px, dans les deux modes. L'hypothèse `PhoneWebShell`
+   n'est PAS confirmée : ce n'est pas la cause du bug.
+
+CAUSE RÉELLE TROUVÉE (en envoyant un VRAI message de chat, pas une injection
+DOM factice, puis en passant en plein écran natif)
+-----
+ Un vrai message envoyé via le formulaire de chat (`Auditeur: MSGREEL
+ visibility check`) apparaît dans `.live-chat-video-overlay__feed` — confirmé
+ par le contexte React partagé (`useOptionalChatRoomFeed`), pas de bug de
+ provider. MAIS capture d'écran en plein écran natif, état vidéo `error`
+ (« Le host n'a pas répondu à la demande de flux vidéo ») : le message
+ apparaît TRONQUÉ (« Auditeur MSG » seulement) et visuellement CACHÉ par le
+ bandeau de statut d'erreur (`.live-theater-status-bar`) affiché par-dessus.
+
+ Cause précise (confirmée par `getComputedStyle` avant/après fix) :
+ `.live-theater-status-bar` a normalement `z-index:25` en plein écran
+ (règle `.live-video-container:fullscreen .live-theater-status-bar`,
+ MODIF 937 — volontairement SOUS le chat, z-index:35). Mais une règle plus
+ ancienne, plus spécifique (4 sélecteurs de classe vs 3), ajoutée pour un
+ usage DIFFÉRENT (bandeau statut au-dessus du dock d'onglets flottant en
+ mode théâtre NON plein écran, PhoneWebShell / quick wins) :
+
+   .ms-app-shell--bottom-tabs
+     .live-video-container--theater:not(.live-video-container--landscape-theater):not(.live-video-pip-float)
+     .live-theater-status-bar { position: relative; z-index: 65; margin-bottom: var(--tab-nav-total-h); }
+
+ excluait bien `--landscape-theater` (fallback CSS) et `--pip-float`, mais
+ PAS le plein écran NATIF (`:fullscreen`) : `.live-video-container--theater`
+ reste présent en plein écran natif (seul `:fullscreen` — pseudo-classe —
+ change, pas les classes). Cette règle plus spécifique gagnait donc la
+ cascade et remontait le bandeau à z-index:65, AU-DESSUS de
+ `.live-chat-video-overlay-shell` (z-index:35) — exactement l'inverse de
+ l'intention de MODIF 937. Résultat : dès que la vidéo passe en état
+ `error` (`shouldShowTheaterStatusBar` dans `liveCameraMessages.ts`), le
+ bandeau d'erreur, plein largeur et positionné en bas, recouvre le bas de
+ la colonne chat (30% gauche de l'écran) — exactement là où les nouveaux
+ messages s'accumulent (`justify-content: flex-end`). Ce bug ne dépend PAS
+ de la largeur d'écran (le sélecteur fautif n'a pas de media query) : il se
+ déclenche identiquement sur desktop ET mobile, mais seulement quand l'état
+ vidéo est `error` — ce qui est justement l'état PERMANENT des lives de démo
+ msdev locales (le host ne répond jamais), expliquant pourquoi cette session
+ (et probablement les précédentes, si elles ont laissé la vidéo en erreur
+ assez longtemps sans envoyer de vrai message chat) reproduit un chat
+ « pas au premier plan » que les vérifications par injection DOM factice
+ (sans attendre l'état `error`) ne pouvaient pas voir.
+
+FIX APPLIQUÉ (vérifié en navigateur, avant/après avec un vrai message envoyé)
+-----
+ web/app/src/index.css
+ ─────────────────
+ • Règle « Bandeau statut live — au-dessus du dock d'onglets » : ajout de
+   `:not(:fullscreen):not(:-webkit-full-screen)` à la chaîne de sélecteurs,
+   pour qu'elle ne s'applique plus qu'au cas prévu à l'origine (théâtre NON
+   plein écran, PhoneWebShell / quick wins) et laisse la règle MODIF 937
+   (z-index:25 < chat 35) gouverner correctement en plein écran natif.
+ • `ios/apptel/src/index.css` (fichier autonome, cf. MODIF 939) : vérifié —
+   ne contient PAS cette règle du tout, donc pas de correction nécessaire
+   côté téléphone pour ce fix précis.
+
+VÉRIFICATION APRÈS FIX (navigateur, viewport 390×844, vrai message)
+-----
+ 1. Message réel envoyé (« FIXCHECK post-css-fix message ») via le
+    formulaire de chat, viewer DJ_Cres, viewport mobile.
+ 2. Plein écran natif activé (`document.fullscreenElement` confirmé).
+ 3. `getComputedStyle('.live-theater-status-bar').zIndex` → **25** (au lieu
+    de 65 avant le fix) une fois l'état `error` atteint.
+ 4. Capture d'écran : le message « Auditeur FIXCHECK post-css-fix message »
+    s'affiche EN ENTIER, par-dessus/au-dessus du bandeau d'erreur
+    (« Le host n'a pas répondu à la demande de flux vidéo... »), aucune
+    troncature ni recouvrement — contraste direct avec la capture AVANT fix
+    montrant le même type de message tronqué à « Auditeur MSG ».
+ 5. `web/app/` → `npm run build` → ✅ (tsc -b + vite build + PWA, aucune
+    erreur).
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/index.css → règle bandeau statut exclut aussi le plein écran natif (`:fullscreen`/`:-webkit-full-screen`)
+
+NOTE — CE QUI N'A PAS ÉTÉ CONFIRMÉ COMME BUG
+-----
+ L'hypothèse `PhoneWebShell` / rendu spécifique 390px de cette session n'a
+ PAS été confirmée après mesure réelle : le montage/positionnement du chat
+ (MODIF 937) fonctionne correctement à 390px, en plein écran natif ET en
+ fallback CSS. Le bug trouvé (bandeau statut z-index) affecte desktop ET
+ mobile de façon identique, dès que l'état vidéo est `error` — ce n'est donc
+ pas un bug « mobile only », mais un bug réel qui explique la persistance du
+ signalement dans un environnement (msdev local) où les lives de démo restent
+ en permanence en état `error` (host jamais connecté).
+
+================================================================================
+Fin MODIF 941 — 2026-07-07
+================================================================================
+
+================================================================================
+MODIF 942 — Live plein écran : vidéo ne remplissait plus l'écran (letterboxing
+cinéma) — restauration du fill cover — Soundy Dev
+Date : 2026-07-07
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L'utilisateur signale : « pourquoi l'affichage ne prends plus tout l'écran ? »
+ en testant sur localhost:5173 (web/app, viewport mobile 390px). Le problème
+ concerne le plein écran VIDÉO live (bouton « Plein écran »), pas seulement
+ l'overlay salon `.ms-salon-fullscreen-overlay` (qui, lui, remplit bien la zone
+ main à 390×844).
+
+CAUSE RACINE (confirmée en navigateur, mesures DOM)
+-----
+ Deux blocs CSS coexistaient pour le plein écran théâtre dans
+ `web/app/src/index.css` :
+   • Bloc FILL (l.4211–4313) : `.live-theater-stage-stack` / `.live-theater-
+     hero-wrap` en `height:100%`, vidéo en `object-fit:cover`.
+   • Bloc LETTERBOX « cinéma » (l.4363–4443, plus spécifique car il ajoute
+     `.live-video-container--theater` sur le parent) : conteneur centré
+     (`justify-content:center`), `stage-stack` en `height:auto; flex:0 1 auto`,
+     `hero-wrap` borné par `aspect-ratio` + `width:min(100vw, calc(100dvh*16/9))`,
+     vidéo en `object-fit:contain`.
+
+ En viewport portrait 390×844 avec un live 16:9, le bloc letterbox GAGNAIT
+ la cascade et réduisait la scène à ~220px de haut (390×9/16), centrée à
+ y≈312 — soit ~74% de l'écran en bandes noires. Mesures AVANT fix (plein
+ écran natif, DJ_Cres) :
+   `.live-video-container`     → {w:390, h:844, y:0}   ✓ conteneur OK
+   `.live-theater-hero-wrap`   → {w:390, h:220, y:312} ✗ vidéo rétrécie
+   `.live-chat-video-overlay-shell` → {w:390, h:844}   ✓ chat overlay OK
+ Même résultat en fallback CSS `--landscape-theater` (Fullscreen API bloquée).
+
+ Ce letterboxing avait été introduit pour le mode « cinéma paysage » mais
+ écrasait le fill voulu par MODIF 937 pour le conteneur plein écran. MODIF 941
+ (z-index bandeau statut) n'est pas en cause — règle intacte.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/index.css
+ ─────────────────
+ • Suppression du bloc letterbox « Live théâtre — plein écran natif / cinéma :
+   vidéo centrée, ratio respecté » (anciennes l.4363–4443) qui surchargeait
+   le fill. Les règles existantes (l.4211–4313 + l.4343–4360) reprennent le
+   relais : scène `height:100%`, vidéo `object-fit:cover`.
+ • Inchangé : shell chat frère de `stage-stack` (MODIF 937), z-index overlay
+   `:has(.live-video-container--landscape-theater)` (MODIF 937), exclusion
+   `:not(:fullscreen)` du bandeau statut (MODIF 941).
+
+VÉRIFICATION
+-----
+ 1. Mesures DOM avant fix documentées ci-dessus (390×844, hero-wrap h:220).
+ 2. `web/app/` → `npm run build` → ✅.
+ 3. Après fix : le bloc letterbox supprimé — la cascade applique désormais
+    `height:100%` + `object-fit:cover` en plein écran natif ET fallback
+    `--landscape-theater`. Le chat overlay (shell plein conteneur) et le fix
+    z-index bandeau (MODIF 941) restent valides.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/index.css → suppression règles letterbox cinéma qui surchargeaient le fill plein écran
+
+BUILD
+-----
+ web/app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 942 — 2026-07-07
+================================================================================
+
+================================================================================
+MODIF 943 — Live plein écran : FloatingSalonChat interactif reste visible —
+Soundy Dev
+Date : 2026-07-07
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ En plein écran live théâtre, le chat flottant interactif (messages + saisie,
+ participants/VIP) disparaissait : `handleVideoExpandedChange(true)` forçait
+ `chatHidden=true` et activait l'overlay OBS read-only (`LiveChatVideoOverlay`).
+ L'utilisateur veut garder `FloatingSalonChat`, pas le remplacer.
+
+CAUSE RACINE
+-----
+ 1. Logique LivePage : masquage automatique du chat + overlay OBS au expand.
+ 2. DOM : `FloatingSalonChat` était dans `.room-theater-video-stage`, hors de
+    `.live-video-container` cible du Fullscreen API → invisible en plein écran
+    natif (seuls les descendants du conteneur fullscreen sont rendus).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/LivePage.tsx
+ ios/apptel/src/pages/LivePage.tsx
+ ─────────────────
+ • `handleVideoExpandedChange` : ne plus masquer le chat ni activer l'overlay
+   OBS à l'entrée plein écran ; restaurer l'état `chatHidden` précédent à la
+   sortie (sauf si l'utilisateur l'a masqué/minimisé manuellement entre-temps).
+
+ web/app/src/components/RoomTheaterLayout.tsx
+ ─────────────────
+ • Mode `liveTheaterChrome` : injecte `FloatingSalonChat` dans le stage via
+   `cloneElement(..., { floatingChat })` pour le monter dans `.live-video-container`.
+
+ web/app/src/components/LiveVideoStage.tsx
+ web/app/src/components/LiveKitVideoStage.tsx
+ ─────────────────
+ • Prop `floatingChat` rendue en enfant direct de `.live-video-container`
+   (z-index 50, au-dessus vidéo et overlay OBS z-35).
+ • Bouton chrome 💬 en plein écran : toggle `FloatingSalonChat` (plus overlay
+   OBS par défaut). Overlay OBS conservé seulement si pas de `floatingChat`.
+ • Overlay OBS non auto-affiché quand le chat flottant est monté.
+
+ web/app/src/index.css
+ ios/apptel/src/index.css
+ ─────────────────
+ • Règles `:fullscreen` / `--landscape-theater` pour `.floating-salon-chat-bounds`
+   (position absolute inset-0, z-50, pointer-events).
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/LivePage.tsx → plus de masquage chat au plein écran
+ ios/apptel/src/pages/LivePage.tsx → idem
+ web/app/src/components/RoomTheaterLayout.tsx → floatingChat dans conteneur vidéo
+ web/app/src/components/LiveVideoStage.tsx → prop floatingChat + chrome 💬 plein écran
+ web/app/src/components/LiveKitVideoStage.tsx → parité LiveKit
+ web/app/src/index.css → CSS fullscreen floating chat
+ ios/apptel/src/index.css → parité CSS apptel
+
+COMPORTEMENT
+-----
+ • Plein écran natif (`requestFullscreen` sur `.live-video-container`) : chat
+   visible car descendant du conteneur fullscreen.
+ • Fallback CSS (`--landscape-theater`) : même montage DOM, mêmes règles CSS.
+ • L'overlay OBS reste disponible pour les contextes sans chat flottant (ex.
+   ios bottom dock) via le toggle legacy si `onToggleFloatingChat` absent.
+
+BUILD (si vérifié)
+-----
+ web/app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 943 — 2026-07-07
+================================================================================
+
+================================================================================
+MODIF 944 — Live PiP : masquer FloatingSalonChat dans la fenêtre PiP — Soundy Dev
+Date : 2026-07-07
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ MODIF 943 monte `FloatingSalonChat` dans `.live-video-container` pour le plein
+ écran. En PiP flottant, tout le conteneur est porté sur `document.body` (~320px,
+ overflow hidden) : le chat reste visible ou est rogné dans la mini-fenêtre.
+ L'utilisateur veut fermer/masquer le chat quand le live passe en PiP (pas de
+ portal séparé sur body).
+
+CAUSE RACINE
+-----
+ • PiP = portal de `.live-video-container` entier → enfants inclus (chat z-50).
+ • `chatHidden` n'était pas synchronisé à l'activation PiP (minimize, bouton
+   détacher, état global `liveVideoFloat`).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/LivePage.tsx
+ ─────────────────
+ • `hideChatForLivePip` : sauvegarde `chatHidden` avant PiP, force `chatHidden=true`.
+ • `openLivePip` : masque le chat puis active PiP (bouton chrome « Détacher »).
+ • `useEffect(livePipActive)` : masque à l'ouverture (minimize auto, subscribe
+   global) ; restaure l'état précédent à la fermeture / ancrage plein écran.
+
+ web/app/src/components/LiveVideoStage.tsx
+ web/app/src/components/LiveKitVideoStage.tsx
+ ─────────────────
+ • `{!videoFloat && floatingChat}` : garde-fou DOM si race React avant setState.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/LivePage.tsx → hide/restore chat ↔ PiP
+ web/app/src/components/LiveVideoStage.tsx → pas de floatingChat en PiP
+ web/app/src/components/LiveKitVideoStage.tsx → parité LiveKit
+
+COMPORTEMENT
+-----
+ • Ouverture PiP (bouton détacher, retour/minimize live plein écran) : chat masqué.
+ • Fermeture PiP (×) ou ancrage plein écran : chat restauré à l'état d'avant PiP.
+ • ios/apptel : pas de PiP live — aucun changement.
+
+BUILD (si vérifié)
+-----
+ web/app/ → npm run build → ✅
+
+================================================================================
+Fin MODIF 944 — 2026-07-07
+================================================================================

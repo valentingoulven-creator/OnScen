@@ -10,11 +10,13 @@ export type FloatingChatBg = 'transparent' | 'gray';
 
 const CHAT_DEFAULT_WIDTH = 300;
 const CHAT_DEFAULT_HEIGHT = 360;
-const CHAT_MIN_WIDTH = 220;
+const CHAT_MIN_WIDTH = 180;
 const CHAT_MAX_WIDTH = 560;
 const CHAT_MIN_HEIGHT = 140;
 const CHAT_MAX_HEIGHT = 600;
 const MARGIN = 12;
+
+type ResizeAxis = 'corner' | 'left';
 
 function readBgMode(): FloatingChatBg {
   try {
@@ -95,10 +97,12 @@ export function FloatingSalonChat({
   const resizeRef = useRef<{
     active: boolean;
     pointerId: number;
+    axis: ResizeAxis;
     startX: number;
     startY: number;
     startWidth: number;
     startHeight: number;
+    startPosX: number;
   } | null>(null);
 
   const persistBg = useCallback((mode: FloatingChatBg) => {
@@ -200,17 +204,30 @@ export function FloatingSalonChat({
         const parentRect = parent.getBoundingClientRect();
         const maxW = Math.min(CHAT_MAX_WIDTH, parentRect.width - MARGIN * 2);
         const maxH = Math.min(CHAT_MAX_HEIGHT, parentRect.height - MARGIN * 2);
-        const nextWidth = clamp(resize.startWidth + (e.clientX - resize.startX), CHAT_MIN_WIDTH, maxW);
-        const nextHeight = clamp(resize.startHeight + (e.clientY - resize.startY), CHAT_MIN_HEIGHT, maxH);
-        setSize({ width: nextWidth, height: nextHeight });
-        setPos((current) => {
-          if (!current) return current;
-          const next = clampToBounds(current.x, current.y, nextWidth, nextHeight);
-          return next;
-        });
+
+        if (resize.axis === 'left') {
+          const deltaX = e.clientX - resize.startX;
+          const nextWidth = clamp(resize.startWidth - deltaX, CHAT_MIN_WIDTH, maxW);
+          const nextPosX = resize.startPosX + (resize.startWidth - nextWidth);
+          setSize((current) => ({ ...current, width: nextWidth }));
+          setPos((current) => {
+            if (!current) return current;
+            const next = clampToBounds(nextPosX, current.y, nextWidth, size.height);
+            return next;
+          });
+        } else {
+          const nextWidth = clamp(resize.startWidth + (e.clientX - resize.startX), CHAT_MIN_WIDTH, maxW);
+          const nextHeight = clamp(resize.startHeight + (e.clientY - resize.startY), CHAT_MIN_HEIGHT, maxH);
+          setSize({ width: nextWidth, height: nextHeight });
+          setPos((current) => {
+            if (!current) return current;
+            const next = clampToBounds(current.x, current.y, nextWidth, nextHeight);
+            return next;
+          });
+        }
       }
     },
-    [clampToBounds],
+    [clampToBounds, size.height],
   );
 
   const endPointer = useCallback(
@@ -276,20 +293,23 @@ export function FloatingSalonChat({
     };
   };
 
-  const onResizePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0 || minimized) return;
-    e.preventDefault();
-    e.stopPropagation();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    resizeRef.current = {
-      active: true,
-      pointerId: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
-      startWidth: size.width,
-      startHeight: size.height,
+  const onResizePointerDown =
+    (axis: ResizeAxis) => (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.button !== 0 || minimized) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      resizeRef.current = {
+        active: true,
+        pointerId: e.pointerId,
+        axis,
+        startX: e.clientX,
+        startY: e.clientY,
+        startWidth: size.width,
+        startHeight: size.height,
+        startPosX: pos?.x ?? 0,
+      };
     };
-  };
 
   const shellClass =
     bgMode === 'transparent'
@@ -429,14 +449,26 @@ export function FloatingSalonChat({
             {children}
             <div
               role="separator"
+              aria-label="Redimensionner la largeur"
+              onPointerDown={onResizePointerDown('left')}
+              className="absolute left-0 top-0 bottom-0 z-10 w-11 cursor-ew-resize touch-none flex items-center justify-center"
+              title="Redimensionner la largeur"
+            >
+              <span
+                className="w-0.5 h-10 rounded-full bg-white/25 pointer-events-none"
+                aria-hidden
+              />
+            </div>
+            <div
+              role="separator"
               aria-label="Redimensionner le chat"
-              onPointerDown={onResizePointerDown}
-              className="absolute bottom-0 right-0 z-10 w-4 h-4 cursor-nwse-resize touch-none"
+              onPointerDown={onResizePointerDown('corner')}
+              className="absolute bottom-0 right-0 z-10 w-11 h-11 cursor-nwse-resize touch-none flex items-end justify-end"
               title="Redimensionner"
             >
               <svg
                 viewBox="0 0 16 16"
-                className="absolute bottom-0.5 right-0.5 w-3 h-3 text-gray-500/80 pointer-events-none"
+                className="mb-1.5 mr-1.5 w-3 h-3 text-gray-500/80 pointer-events-none"
                 fill="none"
                 aria-hidden
               >
