@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { VIDEO_PIP_WIDTH, VIDEO_PIP_HEADER_HEIGHT, type VideoPipFloatApi } from './DraggableVideoPip';
+import { VIDEO_PIP_WIDTH, VIDEO_PIP_HEADER_HEIGHT, VIDEO_PIP_HEADER_BTN_CLASS, LiveVideoPipCloseButton, type VideoPipFloatApi } from './DraggableVideoPip';
 import {
   LIVE_CAMERA_HOST_OBS_STOPPED,
   LIVE_CAMERA_VIEWER_AUDIO_BLOCKED,
@@ -18,7 +18,7 @@ import { normalizeBrandText } from '../lib/brandName';
 import { LiveStreamEndedOverlay } from './LiveStreamEndedOverlay';
 import { LiveChatVideoOverlay } from './LiveChatVideoOverlay';
 import { LiveTheaterLiveBadge, LiveVideoStagePlaceholder } from './LiveVideoStagePlaceholder';
-import { LiveTheaterStatusBar, LiveVideoChromeButton } from './LiveVideoTheaterChrome';
+import { LiveTheaterStatusBar, LiveVideoChromeButton, LiveVideoGoalIcon } from './LiveVideoTheaterChrome';
 import {
   getLiveVideoAspectRatioClass,
   getLiveVideoAspectRatioCss,
@@ -311,6 +311,8 @@ export type LiveVideoStageProps = {
   videoFloat?: VideoPipFloatApi;
   /** Appelé quand l'utilisateur clique sur ⧉ pour activer le PiP. */
   onPipOpen?: () => void;
+  /** PiP header × — hôte : arrêt live (confirmé) ; spectateur : quitter le live. */
+  onPipDismiss?: () => void | Promise<void>;
   videoAspectRatio?: LiveVideoAspectRatioPreset;
   /** Chat flottant interactif (FloatingSalonChat) — rendu dans `.live-video-container` en live théâtre. */
   floatingChat?: ReactNode;
@@ -325,6 +327,9 @@ export type LiveVideoStageProps = {
   /** Pause locale du flux (spectateur uniquement). */
   viewerPlaybackPaused?: boolean;
   onToggleViewerPlaybackPaused?: () => void;
+  /** Overlay goal compact visible sur la vidéo (hôte). */
+  goalOverlayVisible?: boolean;
+  onToggleGoalOverlay?: () => void;
 };
 
 export function LiveVideoStage({
@@ -365,6 +370,7 @@ export function LiveVideoStage({
   streamEndedHint,
   videoFloat,
   onPipOpen,
+  onPipDismiss,
   videoAspectRatio: videoAspectRatioProp,
   floatingChat,
   chatVisible = false,
@@ -373,6 +379,8 @@ export function LiveVideoStage({
   onToggleFullscreenChatOverlay,
   viewerPlaybackPaused = false,
   onToggleViewerPlaybackPaused,
+  goalOverlayVisible = false,
+  onToggleGoalOverlay,
 }: LiveVideoStageProps) {
   const videoAspectRatio = getLiveVideoAspectRatioPreset(videoAspectRatioProp);
   const displayPlaybackTitle = normalizeBrandText(playbackTitle);
@@ -675,18 +683,21 @@ export function LiveVideoStage({
             type="button"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={videoFloat.onClose}
-            className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 transition text-sm"
+            className={`${VIDEO_PIP_HEADER_BTN_CLASS} text-sm`}
             title="Ancrer la vidéo"
             aria-label="Ancrer la vidéo"
           >
             &#x2199;
           </button>
+          {onPipDismiss ? (
+            <LiveVideoPipCloseButton isHost={isHost} onDismiss={onPipDismiss} />
+          ) : null}
           {!isHost && onToggleViewerPlaybackPaused ? (
             <button
               type="button"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={onToggleViewerPlaybackPaused}
-              className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 transition"
+              className={VIDEO_PIP_HEADER_BTN_CLASS}
               title={viewerPlaybackPaused ? 'Reprendre la lecture' : 'Mettre en pause'}
               aria-label={viewerPlaybackPaused ? 'Reprendre la lecture' : 'Mettre en pause'}
             >
@@ -781,7 +792,7 @@ export function LiveVideoStage({
         ) : null}
 
         {/* Autoplay blocked — big obvious button covering video */}
-        {showPlayOverlay && !streamEnded && (
+        {!videoFloat && showPlayOverlay && !streamEnded && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 pointer-events-none">
             <button
               type="button"
@@ -811,7 +822,7 @@ export function LiveVideoStage({
           </div>
         )}
 
-        {overlay}
+        {!videoFloat && overlay}
 
         {/* Fullscreen + PiP + chat — hidden when container is already floating */}
         {!videoFloat && (
@@ -855,6 +866,16 @@ export function LiveVideoStage({
                 className={fullscreenChatOverlayVisible ? 'ring-2 ring-purple-400/60' : ''}
               >
                 <LiveVideoChatIcon active={fullscreenChatOverlayVisible} />
+              </LiveVideoChromeButton>
+            ) : null}
+            {onToggleGoalOverlay ? (
+              <LiveVideoChromeButton
+                onClick={onToggleGoalOverlay}
+                ariaLabel={goalOverlayVisible ? 'Masquer les goals' : 'Afficher les goals'}
+                title={goalOverlayVisible ? 'Masquer les goals' : 'Afficher les goals'}
+                className={goalOverlayVisible ? 'ring-2 ring-purple-400/60' : ''}
+              >
+                <LiveVideoGoalIcon active={goalOverlayVisible} />
               </LiveVideoChromeButton>
             ) : null}
             {!isHost && onToggleViewerPlaybackPaused ? (

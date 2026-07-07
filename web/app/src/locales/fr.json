@@ -500,6 +500,8 @@
     "refreshPage": "Rafraîchir la page",
     "enterFullscreen": "Plein écran",
     "exitFullscreen": "Quitter le plein écran",
+    "showGoals": "Afficher les goals",
+    "hideGoals": "Masquer les goals",
     "fullscreenError": "Impossible d'activer le plein écran sur cet appareil.",
     "headerDonate": "Faire un don",
     "viewerRewardsTitle": "Récompenses disponibles",
