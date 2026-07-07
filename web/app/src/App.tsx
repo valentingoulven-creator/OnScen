@@ -812,6 +812,51 @@ export default function App() {
     setView({ type: 'live', id: session.id });
   }, []);
 
+  /** Reprendre le live sans plein écran — PiP flottant sur la carte (onglet map). */
+  const restoreLiveMinimized = useCallback(() => {
+    const session = activeLiveViewerSessionRef.current;
+    if (!session) return;
+    setLiveVideoFloatActive(true);
+    setProfileOpen(false);
+    setProfilePreview(null);
+    setLivePipPreview(null);
+    setActiveLiveViewerSession((prev) => (prev ? { ...prev, viewMode: 'minimized' } : prev));
+    setTab('map');
+    setView({ type: 'home' });
+  }, []);
+
+  /** Rejoindre un live (hôte ou viewer) en session minimisée — pas de plein écran par défaut. */
+  const openLiveMinimized = useCallback(
+    (id: string) => {
+      if (activeSalonSessionRef.current) {
+        showAppToast('Tu es déjà dans un salon. Quitte le salon pour démarrer un live.', 'info');
+        return;
+      }
+      setSalonVideoFloatActive(false);
+      const prevLive = activeLiveViewerSessionRef.current;
+      if (prevLive && prevLive.id !== id) {
+        emitOnSocket('leave_live', { liveId: prevLive.id });
+        setLiveVideoFloatActive(false);
+      }
+      if (tabRef.current === 'reels') pauseAllReelsMediaInDom({ resetPosition: true });
+      pauseMediaElements(document, { exceptLiveStage: true });
+      setProfileOpen(false);
+      setSalonPipPreview(null);
+      setLivePipPreview(null);
+      setLiveVideoFloatActive(true);
+      setActiveLiveViewerSession((prev) => ({
+        id,
+        title: prev?.id === id ? prev.title : undefined,
+        viewMode: 'minimized',
+        isHost:
+          user?.isLive && user.liveId === id ? true : prev?.id === id ? prev.isHost : undefined,
+      }));
+      setTab('map');
+      setView({ type: 'home' });
+    },
+    [showAppToast, user?.isLive, user?.liveId]
+  );
+
   const handleLivePageBack = useCallback(() => {
     if (!activeLiveViewerSessionRef.current) {
       setView({ type: 'home' });
@@ -1257,9 +1302,9 @@ export default function App() {
               isHost={activeLiveIsHost}
               onReturn={() => {
                 if (activeLiveViewerSession) {
-                  restoreLiveFullScreen();
+                  restoreLiveMinimized();
                 } else if (user.liveId) {
-                  openLive(user.liveId);
+                  openLiveMinimized(user.liveId);
                 }
               }}
             />
@@ -1428,9 +1473,9 @@ export default function App() {
                     }}
                     onMapReturnToLive={() => {
                       if (activeLiveViewerSession) {
-                        restoreLiveFullScreen();
+                        restoreLiveMinimized();
                       } else if (user?.liveId) {
-                        openLive(user.liveId);
+                        openLiveMinimized(user.liveId);
                       }
                     }}
                   />
