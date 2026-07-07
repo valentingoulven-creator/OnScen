@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useFloatingChatChromeAutoHide } from '../hooks/useFloatingChatChromeAutoHide';
 import { getStorageItem, setStorageItem, STORAGE_KEYS } from '../lib/storageKeys';
 
 const BG_KEY = STORAGE_KEYS.floatingChatBg;
@@ -71,6 +72,8 @@ const HEADER_ICON_BTN_COMPACT = 'shrink-0 w-6 h-6 flex items-center justify-cent
 export interface FloatingSalonChatProps {
   children: ReactNode;
   title?: string;
+  /** Actions juste avant « Masquer le chat » (ex. 📋 actions hôte live). */
+  headerTrailingExtra?: ReactNode;
   headerExtra?: ReactNode;
   /** Live théâtre : masque les toggles fond transparent/gris ; garde headerExtra (participants/VIP). */
   compactHeader?: boolean;
@@ -84,6 +87,7 @@ export interface FloatingSalonChatProps {
 export function FloatingSalonChat({
   children,
   title = 'Chat',
+  headerTrailingExtra,
   headerExtra,
   compactHeader = false,
   onTogglePin,
@@ -93,6 +97,9 @@ export function FloatingSalonChat({
 }: FloatingSalonChatProps) {
   const boundsRef = useRef<HTMLDivElement>(null);
   const windowRef = useRef<HTMLDivElement>(null);
+  const chromeAutoHideEnabled = !minimized;
+  const { chromeVisible, revealChrome } = useFloatingChatChromeAutoHide(windowRef, chromeAutoHideEnabled);
+  const [isNarrow, setIsNarrow] = useState(false);
   const [bgMode, setBgMode] = useState<FloatingChatBg>(readBgMode);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(readPosition);
   const [size, setSize] = useState<{ width: number; height: number }>(
@@ -197,6 +204,7 @@ export function FloatingSalonChat({
     (e: PointerEvent) => {
       const drag = dragRef.current;
       if (drag?.active && e.pointerId === drag.pointerId) {
+        revealChrome();
         const parent = boundsRef.current;
         if (!parent) return;
         const rect = parent.getBoundingClientRect();
@@ -209,6 +217,7 @@ export function FloatingSalonChat({
 
       const resize = resizeRef.current;
       if (resize?.active && e.pointerId === resize.pointerId) {
+        revealChrome();
         const parent = boundsRef.current;
         if (!parent) return;
         const parentRect = parent.getBoundingClientRect();
@@ -237,7 +246,7 @@ export function FloatingSalonChat({
         }
       }
     },
-    [clampToBounds, size.height],
+    [clampToBounds, size.height, revealChrome],
   );
 
   const endPointer = useCallback(
@@ -278,8 +287,20 @@ export function FloatingSalonChat({
     };
   }, [onPointerMove, endPointer]);
 
+  useEffect(() => {
+    const el = windowRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setIsNarrow(entry.contentRect.width < 228);
+    });
+    observer.observe(el);
+    setIsNarrow(el.clientWidth < 228);
+    return () => observer.disconnect();
+  }, [minimized, size.width]);
+
   const onHeaderPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
+    revealChrome();
     const parent = boundsRef.current;
     const el = windowRef.current;
     if (!parent || !el) return;
@@ -306,6 +327,7 @@ export function FloatingSalonChat({
   const onResizePointerDown =
     (axis: ResizeAxis) => (e: React.PointerEvent<HTMLDivElement>) => {
       if (e.button !== 0 || minimized) return;
+      revealChrome();
       e.preventDefault();
       e.stopPropagation();
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -321,10 +343,7 @@ export function FloatingSalonChat({
       };
     };
 
-  const shellClass =
-    bgMode === 'transparent'
-      ? 'bg-black/30 backdrop-blur-md border border-white/10'
-      : 'bg-[#1a1a24]/95 border border-[#2a2a36]';
+  const shellClass = 'bg-transparent border-transparent shadow-none';
 
   const headerClass =
     bgMode === 'transparent' ? 'bg-black/25 backdrop-blur-sm border-white/10' : 'bg-[#14141c]/80 border-[#2a2a36]';
@@ -336,7 +355,9 @@ export function FloatingSalonChat({
     <div ref={boundsRef} className="floating-salon-chat-bounds pointer-events-none absolute inset-0 z-[50]">
       <div
         ref={windowRef}
-        className={`floating-salon-chat pointer-events-auto absolute flex flex-col rounded-xl shadow-2xl overflow-hidden ${shellClass}`}
+        className={`floating-salon-chat pointer-events-auto absolute flex flex-col rounded-xl overflow-hidden ${shellClass}`}
+        data-chrome-hidden={chromeAutoHideEnabled && !chromeVisible ? 'true' : undefined}
+        data-narrow={isNarrow ? 'true' : undefined}
         style={{
           ...positionStyle,
           width: size.width,
@@ -348,23 +369,29 @@ export function FloatingSalonChat({
         aria-label={title}
       >
         <div
-          className={`shrink-0 flex items-center gap-1 min-w-0 overflow-hidden px-2.5 py-1.5 border-b cursor-grab active:cursor-grabbing select-none touch-none ${headerClass}`}
+          className={`floating-salon-chat__header shrink-0 relative z-[2] flex items-center gap-0.5 min-w-0 px-2.5 py-1.5 border-b cursor-grab active:cursor-grabbing select-none touch-none ${headerClass}`}
           onPointerDown={onHeaderPointerDown}
         >
-          <div className="shrink-0 flex items-center gap-1">
-            <span className="text-purple-400 text-[10px] leading-none" aria-hidden>
+          <div className="shrink-0 flex items-center gap-0.5 min-w-0 max-w-[42%]">
+            <span className="text-purple-400 text-[10px] leading-none shrink-0" aria-hidden>
               ⠿
             </span>
-            <span className="text-purple-400 text-[10px] leading-none" aria-hidden>
+            <span className="text-purple-400 text-[10px] leading-none shrink-0" aria-hidden>
               💬
             </span>
+            <p
+              className={`floating-salon-chat__title-text min-w-0 truncate text-[9px] font-bold text-purple-400 uppercase tracking-widest ${
+                compactHeader ? 'sr-only' : ''
+              }`}
+            >
+              {title}
+            </p>
           </div>
-          <p className="min-w-0 flex-1 truncate text-[9px] font-bold text-purple-400 uppercase tracking-widest">
-            {title}
-          </p>
+
+          <div className="flex-1 min-w-0" aria-hidden />
 
           <div
-            className="shrink-0 flex items-center gap-0.5"
+            className="floating-salon-chat__header-actions shrink-0 flex items-center gap-0.5 min-w-0 max-w-[58%] overflow-x-auto overscroll-x-contain"
             onPointerDown={(e) => e.stopPropagation()}
           >
           {headerExtra ? headerExtra : null}
@@ -470,6 +497,10 @@ export function FloatingSalonChat({
             </button>
           )}
 
+          {headerTrailingExtra ? (
+            <div className="shrink-0 flex items-center">{headerTrailingExtra}</div>
+          ) : null}
+
           {onHide && (
             <button
               type="button"
@@ -485,7 +516,7 @@ export function FloatingSalonChat({
         </div>
 
         {!minimized && (
-          <div className="relative flex-1 min-h-0 flex flex-col overflow-hidden">
+          <div className="floating-salon-chat__body relative flex-1 min-h-0 flex flex-col overflow-hidden">
             {children}
             <div
               role="separator"

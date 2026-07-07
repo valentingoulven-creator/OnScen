@@ -19682,3 +19682,23 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 944 — 2026-07-07
 ================================================================================
+
+================================================================================
+MODIF 945 — FloatingSalonChat : auto-hide, transparent shell, header layout
+Date : 2026-07-07
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Floating chat: 10s auto-hide header+input, transparent background, 📋 before ×,
+ fix header/message overlap, remove empty placeholder message, no orphan header when minimized.
+
+CHANGEMENTS / FIX
+-----
+ useFloatingChatChromeAutoHide.ts, FloatingSalonChat.tsx, RoomTheaterLayout.tsx,
+ LivePage.tsx (chatVisible, headerTrailingExtra), ChatPanel.tsx, index.css + ios/apptel mirrors
+
+================================================================================
+Fin MODIF 945 — 2026-07-07
+================================================================================
+
