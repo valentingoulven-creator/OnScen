@@ -19682,3 +19682,29 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 944 — 2026-07-07
 ================================================================================
+
+================================================================================
+MODIF 946 — Reprendre live : pas de plein écran par défaut
+Date : 2026-07-07
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Clic « Reprendre » sur ActiveLiveBanner rouvrait le live en plein écran.
+ L'utilisateur veut reprendre en vue minimisée (PiP / carte).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/App.tsx
+ ─────────────────
+ • restoreLiveMinimized() + openLiveMinimized(id)
+ • onReturn / onMapReturnToLive → minimized au lieu de restoreLiveFullScreen()
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/App.tsx → handlers Reprendre non-fullscreen
+
+================================================================================
+Fin MODIF 946 — 2026-07-07
+================================================================================
+
