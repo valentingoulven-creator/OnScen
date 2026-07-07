@@ -63,7 +63,7 @@ function LivePipPreviewFloatInner({
           {live.title}
         </p>
         <div
-          className="shrink-0"
+          className="shrink-0 inline-flex items-center self-center"
           onPointerDown={(e) => e.stopPropagation()}
         >
           <FollowUserButton
@@ -72,6 +72,7 @@ function LivePipPreviewFloatInner({
             initialFollowing={hostFollowing}
             iconOnly
             iconStyle="heart"
+            pipHeader
             onFollowingChange={setHostFollowing}
           />
         </div>

@@ -10,11 +10,13 @@ export type FloatingChatBg = 'transparent' | 'gray';
 
 const CHAT_DEFAULT_WIDTH = 300;
 const CHAT_DEFAULT_HEIGHT = 360;
-const CHAT_MIN_WIDTH = 220;
+const CHAT_MIN_WIDTH = 180;
 const CHAT_MAX_WIDTH = 560;
 const CHAT_MIN_HEIGHT = 140;
 const CHAT_MAX_HEIGHT = 600;
 const MARGIN = 12;
+
+type ResizeAxis = 'corner' | 'left';
 
 function readBgMode(): FloatingChatBg {
   try {
@@ -62,11 +64,15 @@ function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
 }
 
+const HEADER_ICON_BTN =
+  'shrink-0 w-11 h-11 flex items-center justify-center rounded transition touch-manipulation';
+const HEADER_ICON_BTN_COMPACT = 'shrink-0 w-6 h-6 flex items-center justify-center rounded transition';
+
 export interface FloatingSalonChatProps {
   children: ReactNode;
   title?: string;
   headerExtra?: ReactNode;
-  /** Live théâtre : en-tête minimal (glisser + titre + réduire + fermer). */
+  /** Live théâtre : masque les toggles fond transparent/gris ; garde headerExtra (participants/VIP). */
   compactHeader?: boolean;
   /** Épingler le chat en colonne gauche (live théâtre). */
   onTogglePin?: () => void;
@@ -101,10 +107,12 @@ export function FloatingSalonChat({
   const resizeRef = useRef<{
     active: boolean;
     pointerId: number;
+    axis: ResizeAxis;
     startX: number;
     startY: number;
     startWidth: number;
     startHeight: number;
+    startPosX: number;
   } | null>(null);
 
   const persistBg = useCallback((mode: FloatingChatBg) => {
@@ -206,17 +214,30 @@ export function FloatingSalonChat({
         const parentRect = parent.getBoundingClientRect();
         const maxW = Math.min(CHAT_MAX_WIDTH, parentRect.width - MARGIN * 2);
         const maxH = Math.min(CHAT_MAX_HEIGHT, parentRect.height - MARGIN * 2);
-        const nextWidth = clamp(resize.startWidth + (e.clientX - resize.startX), CHAT_MIN_WIDTH, maxW);
-        const nextHeight = clamp(resize.startHeight + (e.clientY - resize.startY), CHAT_MIN_HEIGHT, maxH);
-        setSize({ width: nextWidth, height: nextHeight });
-        setPos((current) => {
-          if (!current) return current;
-          const next = clampToBounds(current.x, current.y, nextWidth, nextHeight);
-          return next;
-        });
+
+        if (resize.axis === 'left') {
+          const deltaX = e.clientX - resize.startX;
+          const nextWidth = clamp(resize.startWidth - deltaX, CHAT_MIN_WIDTH, maxW);
+          const nextPosX = resize.startPosX + (resize.startWidth - nextWidth);
+          setSize((current) => ({ ...current, width: nextWidth }));
+          setPos((current) => {
+            if (!current) return current;
+            const next = clampToBounds(nextPosX, current.y, nextWidth, size.height);
+            return next;
+          });
+        } else {
+          const nextWidth = clamp(resize.startWidth + (e.clientX - resize.startX), CHAT_MIN_WIDTH, maxW);
+          const nextHeight = clamp(resize.startHeight + (e.clientY - resize.startY), CHAT_MIN_HEIGHT, maxH);
+          setSize({ width: nextWidth, height: nextHeight });
+          setPos((current) => {
+            if (!current) return current;
+            const next = clampToBounds(current.x, current.y, nextWidth, nextHeight);
+            return next;
+          });
+        }
       }
     },
-    [clampToBounds],
+    [clampToBounds, size.height],
   );
 
   const endPointer = useCallback(
@@ -282,20 +303,23 @@ export function FloatingSalonChat({
     };
   };
 
-  const onResizePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0 || minimized) return;
-    e.preventDefault();
-    e.stopPropagation();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    resizeRef.current = {
-      active: true,
-      pointerId: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
-      startWidth: size.width,
-      startHeight: size.height,
+  const onResizePointerDown =
+    (axis: ResizeAxis) => (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.button !== 0 || minimized) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      resizeRef.current = {
+        active: true,
+        pointerId: e.pointerId,
+        axis,
+        startX: e.clientX,
+        startY: e.clientY,
+        startWidth: size.width,
+        startHeight: size.height,
+        startPosX: pos?.x ?? 0,
+      };
     };
-  };
 
   const shellClass =
     bgMode === 'transparent'
@@ -343,7 +367,7 @@ export function FloatingSalonChat({
             className="shrink-0 flex items-center gap-0.5"
             onPointerDown={(e) => e.stopPropagation()}
           >
-          {!compactHeader && headerExtra ? headerExtra : null}
+          {headerExtra ? headerExtra : null}
 
           {!compactHeader ? (
             <>
@@ -398,7 +422,7 @@ export function FloatingSalonChat({
               onPointerDown={(e) => e.stopPropagation()}
               onClick={onTogglePin}
               title="Épingler à gauche"
-              className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-amber-300 hover:bg-white/10 transition"
+              className={`${compactHeader ? HEADER_ICON_BTN : HEADER_ICON_BTN_COMPACT} text-gray-500 hover:text-amber-300 hover:bg-white/10`}
               aria-label="Épingler le chat à gauche"
             >
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
@@ -420,7 +444,7 @@ export function FloatingSalonChat({
               onPointerDown={(e) => e.stopPropagation()}
               onClick={onToggleMinimize}
               title={minimized ? 'Agrandir' : 'Réduire'}
-              className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-white hover:bg-white/10 transition"
+              className={`${compactHeader ? HEADER_ICON_BTN : HEADER_ICON_BTN_COMPACT} text-gray-500 hover:text-white hover:bg-white/10`}
               aria-label={minimized ? 'Agrandir le chat' : 'Réduire le chat'}
               aria-expanded={!minimized}
             >
@@ -451,7 +475,7 @@ export function FloatingSalonChat({
               type="button"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={onHide}
-              className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-white hover:bg-white/10 transition text-lg leading-none"
+              className={`${compactHeader ? HEADER_ICON_BTN : HEADER_ICON_BTN_COMPACT} text-gray-500 hover:text-white hover:bg-white/10 text-lg leading-none`}
               aria-label="Masquer le chat"
             >
               ×
@@ -465,14 +489,26 @@ export function FloatingSalonChat({
             {children}
             <div
               role="separator"
+              aria-label="Redimensionner la largeur"
+              onPointerDown={onResizePointerDown('left')}
+              className="absolute left-0 top-0 bottom-0 z-10 w-11 cursor-ew-resize touch-none flex items-center justify-center"
+              title="Redimensionner la largeur"
+            >
+              <span
+                className="w-0.5 h-10 rounded-full bg-white/25 pointer-events-none"
+                aria-hidden
+              />
+            </div>
+            <div
+              role="separator"
               aria-label="Redimensionner le chat"
-              onPointerDown={onResizePointerDown}
-              className="absolute bottom-0 right-0 z-10 w-5 h-5 cursor-nwse-resize touch-none hidden sm:block"
+              onPointerDown={onResizePointerDown('corner')}
+              className="absolute bottom-0 right-0 z-10 w-11 h-11 cursor-nwse-resize touch-none flex items-end justify-end"
               title="Redimensionner"
             >
               <svg
                 viewBox="0 0 16 16"
-                className="absolute bottom-0.5 right-0.5 w-3 h-3 text-gray-500/80 pointer-events-none"
+                className="mb-1.5 mr-1.5 w-3 h-3 text-gray-500/80 pointer-events-none"
                 fill="none"
                 aria-hidden
               >

@@ -45,11 +45,11 @@ export function LiveChatVideoOverlay({ active }: { active: boolean }) {
     el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, [messages.length]);
 
-  if (!active || !chatRoom) return null;
+  if (!active) return null;
 
   return (
     <div
-      className="live-chat-video-overlay live-chat-video-overlay--fullscreen absolute inset-y-0 left-0 z-[25] pointer-events-none flex flex-col"
+      className="live-chat-video-overlay live-chat-video-overlay--fullscreen absolute inset-y-0 left-0 z-[1] pointer-events-none flex flex-col"
       aria-live="polite"
       aria-label="Chat du live"
     >
