@@ -1752,37 +1752,35 @@ export function LivePage({
             />
           </>
         ) : undefined}
+        chatHeaderTrailingExtra={
+          isHost ? (
+            <LiveHostActionsPopover
+              liveId={liveId}
+              goalStats={goalStats}
+              onOpenDonPanel={(subTab) => openHostPanel('don', subTab)}
+            />
+          ) : undefined
+        }
         chatHeaderExtra={
-          token || isHost ? (
-            <div className="flex items-center gap-0.5 shrink-0">
-              {token && live ? (
-                <>
-                  <LiveParticipantsPopover
-                    liveId={liveId}
-                    token={token}
-                    hostId={live.hostId}
-                    hostName={live.hostName}
-                    hostUsernameColor={live.hostUsernameColor}
-                    vipModeratorIds={live.vipModeratorIds ?? []}
-                    viewersCount={viewers}
-                  />
-                  <LiveVipModeratorsPopover
-                    vipEntries={vipEntries}
-                    chatParticipants={chatParticipants}
-                    onSetVip={setVipModerator}
-                    canManage={isHost || isDevModerator}
-                  />
-                </>
-              ) : null}
-              {isHost ? (
-                <LiveHostActionsPopover
-                  liveId={liveId}
-                  goalStats={goalStats}
-                  onOpenDonPanel={(subTab) => openHostPanel('don', subTab)}
-                />
-              ) : null}
-            </div>
-          ) : null
+          token && live ? (
+            <>
+              <LiveParticipantsPopover
+                liveId={liveId}
+                token={token}
+                hostId={live.hostId}
+                hostName={live.hostName}
+                hostUsernameColor={live.hostUsernameColor}
+                vipModeratorIds={live.vipModeratorIds ?? []}
+                viewersCount={viewers}
+              />
+              <LiveVipModeratorsPopover
+                vipEntries={vipEntries}
+                chatParticipants={chatParticipants}
+                onSetVip={setVipModerator}
+                canManage={isHost || isDevModerator}
+              />
+            </>
+          ) : undefined
         }
         stage={
           isLiveKitStream && token ? (
@@ -1807,7 +1805,7 @@ export function LivePage({
               audioDeviceId={audioDeviceId || undefined}
               videoResolution={videoResolution}
               videoAspectRatio={stageVideoAspectRatio}
-              chatVisible={!chatHidden}
+              chatVisible={!chatHidden && !chatMinimized}
               onToggleFloatingChat={toggleFloatingChatFromChrome}
               fullscreenChatOverlayVisible={fullscreenChatOverlay}
               onToggleFullscreenChatOverlay={toggleFullscreenChatOverlay}
@@ -1868,7 +1866,7 @@ export function LivePage({
             streamEndedTitle={streamEndedTitle}
             streamEndedHint={streamEndedHint}
             videoAspectRatio={stageVideoAspectRatio}
-            chatVisible={!chatHidden}
+            chatVisible={!chatHidden && !chatMinimized}
             onToggleFloatingChat={toggleFloatingChatFromChrome}
             fullscreenChatOverlayVisible={fullscreenChatOverlay}
             onToggleFullscreenChatOverlay={toggleFullscreenChatOverlay}

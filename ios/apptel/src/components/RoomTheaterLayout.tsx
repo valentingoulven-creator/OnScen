@@ -59,6 +59,7 @@ function DockChatBody({ chat, chatInput }: { chat: ReactNode; chatInput?: ReactN
 function DockedChatHeader({
   chatTitle,
   chatHeaderExtra,
+  chatHeaderTrailingExtra,
   dockMode,
   onToggleDock,
   onToggleChat,
@@ -68,6 +69,7 @@ function DockedChatHeader({
 }: {
   chatTitle: string;
   chatHeaderExtra?: ReactNode;
+  chatHeaderTrailingExtra?: ReactNode;
   dockMode: 'floating' | 'right';
   onToggleDock: () => void;
   onToggleChat: () => void;
@@ -115,6 +117,7 @@ function DockedChatHeader({
           </svg>
         </button>
       )}
+      {chatHeaderTrailingExtra}
       <button
         type="button"
         onClick={onToggleChat}
@@ -139,6 +142,8 @@ export interface RoomTheaterLayoutProps {
   chatTitle?: string;
   /** Actions hôte dans l'en-tête du chat ancré (ex. participants). */
   chatHeaderExtra?: ReactNode;
+  /** Actions juste avant « Masquer le chat » (ex. 📋 actions hôte live). */
+  chatHeaderTrailingExtra?: ReactNode;
   /** Chat réduit au bandeau d'en-tête uniquement (contenu masqué). */
   chatMinimized?: boolean;
   onToggleMinimize?: () => void;
@@ -176,6 +181,7 @@ export function RoomTheaterLayout({
   stageFooter,
   chatTitle = 'Chat',
   chatHeaderExtra,
+  chatHeaderTrailingExtra,
   chatMinimized = false,
   onToggleMinimize,
   variant = 'theater',
@@ -239,6 +245,7 @@ export function RoomTheaterLayout({
                   {chatTitle}
                 </p>
                 {chatHeaderExtra}
+                {chatHeaderTrailingExtra}
                 <button
                   type="button"
                   onClick={onToggleChat}
@@ -268,7 +275,8 @@ export function RoomTheaterLayout({
 
   const showLeftDock = !chatHidden && theaterDock === 'left';
   const showRightDock = !chatHidden && theaterDock === 'right';
-  const showFloating = !chatHidden && theaterDock === 'floating';
+  /** Réduit = masquer tout le panneau flottant (pas de bandeau header orphelin). */
+  const showFloating = !chatHidden && !chatMinimized && theaterDock === 'floating';
   const showSideDock = showLeftDock || showRightDock;
   const useMatchHero = sideDockMatchHero && showSideDock;
   const sideRowClass = showSideDock
@@ -287,6 +295,7 @@ export function RoomTheaterLayout({
               <DockedChatHeader
                 chatTitle={chatTitle}
                 chatHeaderExtra={chatHeaderExtra}
+                chatHeaderTrailingExtra={chatHeaderTrailingExtra}
                 dockMode="right"
                 onToggleDock={() => {}}
                 onToggleChat={onToggleChat}
@@ -308,6 +317,7 @@ export function RoomTheaterLayout({
             {showFloating && (
               <FloatingSalonChat
                 title={chatTitle}
+                headerTrailingExtra={chatHeaderTrailingExtra}
                 headerExtra={
                   <>
                     {chatHeaderExtra}
@@ -340,6 +350,7 @@ export function RoomTheaterLayout({
               <DockedChatHeader
                 chatTitle={chatTitle}
                 chatHeaderExtra={chatHeaderExtra}
+                chatHeaderTrailingExtra={chatHeaderTrailingExtra}
                 dockMode="right"
                 onToggleDock={allowFloatingChat ? toggleDockMode : () => {}}
                 onToggleChat={onToggleChat}
@@ -357,6 +368,7 @@ export function RoomTheaterLayout({
             <DockedChatHeader
               chatTitle={chatTitle}
               chatHeaderExtra={chatHeaderExtra}
+              chatHeaderTrailingExtra={chatHeaderTrailingExtra}
               dockMode="right"
               onToggleDock={allowFloatingChat ? toggleDockMode : () => {}}
               onToggleChat={onToggleChat}
