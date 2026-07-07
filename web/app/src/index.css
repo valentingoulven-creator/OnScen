@@ -3877,6 +3877,12 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   inset: 0;
 }
 
+/* PiP flottant live — vidéo seule : aucun contrôle host / unlock sur l'image */
+.live-video-pip-float .live-video-stage-area > .absolute.top-2.right-2,
+.live-video-pip-float [data-live-play-unlock] {
+  display: none !important;
+}
+
 /* SalonPage monté hors overlay plein écran — conserve le lecteur PiP flottant */
 .salon-page-pip-host {
   position: fixed;

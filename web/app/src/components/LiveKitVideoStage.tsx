@@ -11,7 +11,7 @@ import {
   useTracks,
 } from '@livekit/components-react';
 import { ConnectionState, RoomEvent, Track, type RoomOptions } from 'livekit-client';
-import { VIDEO_PIP_WIDTH, VIDEO_PIP_HEADER_HEIGHT, type VideoPipFloatApi } from './DraggableVideoPip';
+import { VIDEO_PIP_WIDTH, VIDEO_PIP_HEADER_HEIGHT, VIDEO_PIP_HEADER_BTN_CLASS, LiveVideoPipCloseButton, type VideoPipFloatApi } from './DraggableVideoPip';
 import {
   buildLiveKitAudioCaptureOptions,
   buildLiveKitVideoCaptureOptions,
@@ -31,7 +31,7 @@ import { LiveStreamEndedOverlay } from './LiveStreamEndedOverlay';
 import { LiveChatVideoOverlay } from './LiveChatVideoOverlay';
 import { LiveVideoUnavailableOverlay } from './LiveVideoUnavailableOverlay';
 import { LiveTheaterLiveBadge, LiveVideoStagePlaceholder } from './LiveVideoStagePlaceholder';
-import { LiveTheaterStatusBar, LiveVideoChromeButton } from './LiveVideoTheaterChrome';
+import { LiveTheaterStatusBar, LiveVideoChromeButton, LiveVideoGoalIcon } from './LiveVideoTheaterChrome';
 import { useLiveVideoChromeAutoHide } from '../hooks/useLiveVideoChromeAutoHide';
 import {
   LIVE_CAMERA_HOST_LIVEKIT_START,
@@ -394,10 +394,15 @@ export type LiveKitVideoStageProps = {
   onToggleFullscreenChatOverlay?: () => void;
   viewerPlaybackPaused?: boolean;
   onToggleViewerPlaybackPaused?: () => void;
+  /** Overlay goal compact visible sur la vidéo (hôte). */
+  goalOverlayVisible?: boolean;
+  onToggleGoalOverlay?: () => void;
   /** PiP flottant in-app : vidéo seule déplaçable, toujours au premier plan. */
   videoFloat?: VideoPipFloatApi;
   /** Appelé quand l'utilisateur clique sur ⤢ pour activer le PiP. */
   onPipOpen?: () => void;
+  /** PiP header × — hôte : arrêt live (confirmé) ; spectateur : quitter le live. */
+  onPipDismiss?: () => void | Promise<void>;
 };
 
 export function LiveKitVideoStage({
@@ -429,8 +434,11 @@ export function LiveKitVideoStage({
   onToggleFullscreenChatOverlay,
   viewerPlaybackPaused = false,
   onToggleViewerPlaybackPaused,
+  goalOverlayVisible = false,
+  onToggleGoalOverlay,
   videoFloat,
   onPipOpen,
+  onPipDismiss,
 }: LiveKitVideoStageProps) {
   const videoResolution = getLiveVideoResolutionPreset(videoResolutionProp);
   const videoAspectRatio = getLiveVideoAspectRatioPreset(videoAspectRatioProp);
@@ -784,18 +792,21 @@ export function LiveKitVideoStage({
             type="button"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={videoFloat.onClose}
-            className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 transition text-sm"
+            className={`${VIDEO_PIP_HEADER_BTN_CLASS} text-sm`}
             title="Ancrer la vidéo"
             aria-label="Ancrer la vidéo"
           >
             &#x2199;
           </button>
+          {onPipDismiss ? (
+            <LiveVideoPipCloseButton isHost={isHost} onDismiss={onPipDismiss} />
+          ) : null}
           {!isHost && onToggleViewerPlaybackPaused ? (
             <button
               type="button"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={onToggleViewerPlaybackPaused}
-              className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 transition"
+              className={VIDEO_PIP_HEADER_BTN_CLASS}
               title={viewerPlaybackPaused ? t('live.viewerResumePlayback') : t('live.viewerPausePlayback')}
               aria-label={viewerPlaybackPaused ? t('live.viewerResumePlayback') : t('live.viewerPausePlayback')}
             >
@@ -860,7 +871,7 @@ export function LiveKitVideoStage({
           />
         ) : null}
 
-        {overlay}
+        {!videoFloat && overlay}
 
         {!videoFloat && (
         <div
@@ -909,6 +920,24 @@ export function LiveKitVideoStage({
               className={fullscreenChatOverlayVisible ? 'ring-2 ring-purple-400/60' : ''}
             >
               <LiveVideoChatIcon active={fullscreenChatOverlayVisible} />
+            </LiveVideoChromeButton>
+          ) : null}
+          {onToggleGoalOverlay ? (
+            <LiveVideoChromeButton
+              onClick={onToggleGoalOverlay}
+              ariaLabel={
+                goalOverlayVisible
+                  ? t('live.hideGoals', { defaultValue: 'Masquer les goals' })
+                  : t('live.showGoals', { defaultValue: 'Afficher les goals' })
+              }
+              title={
+                goalOverlayVisible
+                  ? t('live.hideGoals', { defaultValue: 'Masquer les goals' })
+                  : t('live.showGoals', { defaultValue: 'Afficher les goals' })
+              }
+              className={goalOverlayVisible ? 'ring-2 ring-purple-400/60' : ''}
+            >
+              <LiveVideoGoalIcon active={goalOverlayVisible} />
             </LiveVideoChromeButton>
           ) : null}
           {!isHost && onToggleViewerPlaybackPaused ? (
