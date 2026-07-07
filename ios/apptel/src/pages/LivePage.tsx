@@ -22,6 +22,7 @@ import {
   clearPendingLiveCameraStart,
   hasPendingLiveCameraStart,
 } from '../lib/liveMediaPrefs';
+import { getStorageItem, setStorageItem, STORAGE_KEYS } from '../lib/storageKeys';
 import { ChatRoomProvider, ChatMessagesView, ChatInputBar, ChatModals } from '../components/ChatPanel';
 import { UsernameDisplay } from '../components/UsernameDisplay';
 import { RoomTheaterLayout } from '../components/RoomTheaterLayout';
@@ -56,6 +57,16 @@ function readLiveChatHidden(): boolean {
   }
 }
 
+/**
+ * MODIF 939 — Chat overlay OBS plein écran (parité avec web/app/src/pages/LivePage.tsx,
+ * MODIF 937). Par défaut actif, sauf préférence utilisateur explicite (stockée '0').
+ */
+function readFullscreenChatOverlay(): boolean {
+  const stored = getStorageItem(STORAGE_KEYS.liveChatVideoOverlay);
+  if (stored === '0') return false;
+  return true;
+}
+
 export function LivePage({
   liveId,
   onBack,
@@ -72,6 +83,7 @@ export function LivePage({
   const [viewers, setViewers] = useState(0);
   const [chatHidden, setChatHidden] = useState(readLiveChatHidden);
   const [chatMinimized, setChatMinimized] = useState(false);
+  const [fullscreenChatOverlay, setFullscreenChatOverlay] = useState(readFullscreenChatOverlay);
   const [privateTarget, setPrivateTarget] = useState<DmContact | null>(null);
   const [showDonSheet, setShowDonSheet] = useState(false);
   const [showSubscribeSheet, setShowSubscribeSheet] = useState(false);
@@ -633,7 +645,6 @@ export function LivePage({
     if (expanded) {
       if (chatHiddenBeforeExpandRef.current === null) {
         chatHiddenBeforeExpandRef.current = chatHiddenRef.current;
-        setChatHidden(true);
       }
       return;
     }
@@ -641,6 +652,14 @@ export function LivePage({
     const prev = chatHiddenBeforeExpandRef.current;
     chatHiddenBeforeExpandRef.current = null;
     setChatHidden(prev);
+  }, []);
+
+  const toggleFullscreenChatOverlay = useCallback(() => {
+    setFullscreenChatOverlay((prev) => {
+      const next = !prev;
+      setStorageItem(STORAGE_KEYS.liveChatVideoOverlay, next ? '1' : '0');
+      return next;
+    });
   }, []);
 
   const openDonSheet = (amount?: number) => {
@@ -1124,9 +1143,11 @@ export function LivePage({
               streamEnded={viewerStreamEnded}
               streamEndedTitle={streamEndedTitle}
               streamEndedHint={streamEndedHint}
+              fullscreenChatOverlayVisible={fullscreenChatOverlay}
+              onToggleFullscreenChatOverlay={toggleFullscreenChatOverlay}
               overlay={
                 !isHost && hostCanReceiveDonations && !viewerStreamEnded ? (
-                  <LiveGiftOverlay liveId={liveId} visible onOpenGiftSheet={openDonSheet} />
+                  <LiveGiftOverlay liveId={liveId} visible />
                 ) : null
               }
             />
@@ -1168,6 +1189,8 @@ export function LivePage({
             streamEnded={viewerStreamEnded}
             streamEndedTitle={streamEndedTitle}
             streamEndedHint={streamEndedHint}
+            fullscreenChatOverlayVisible={fullscreenChatOverlay}
+            onToggleFullscreenChatOverlay={toggleFullscreenChatOverlay}
             overlay={
               <>
                 {isHost && isCloudflareStream && token ? (
@@ -1179,7 +1202,7 @@ export function LivePage({
                   />
                 ) : null}
                 {!isHost && hostCanReceiveDonations && !viewerStreamEnded ? (
-                  <LiveGiftOverlay liveId={liveId} visible onOpenGiftSheet={openDonSheet} />
+                  <LiveGiftOverlay liveId={liveId} visible />
                 ) : null}
               </>
             }

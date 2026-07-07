@@ -174,7 +174,7 @@ export function StoryLivePreviewViewer({
             type="button"
             onClick={handleJoin}
             disabled={joinBlocked || loading || !onJoin}
-            className="w-full py-4 rounded-2xl font-bold text-white text-base bg-gradient-to-r from-red-600 via-rose-600 to-red-500 hover:from-red-500 hover:via-rose-500 hover:to-red-400 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-lg shadow-red-900/40"
+            className="w-full min-h-11 py-4 rounded-2xl font-bold text-white text-base bg-gradient-to-r from-red-600 via-rose-600 to-red-500 hover:from-red-500 hover:via-rose-500 hover:to-red-400 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-lg shadow-red-900/40"
           >
             Rejoindre
           </button>

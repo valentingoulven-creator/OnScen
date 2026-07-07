@@ -485,6 +485,27 @@ body {
   --salon-host-drawer-viewport-bottom: var(--tab-nav-total-h);
 }
 
+/*
+ * MODIF 937 — plein écran vidéo live (fallback CSS "landscape-theater", utilisé
+ * quand la Fullscreen API n'est pas disponible : iOS PWA/WebView notamment).
+ * `.ms-salon-fullscreen-overlay` a `isolation: isolate`, ce qui l'enferme dans
+ * son PROPRE contexte d'empilement local : même si `.live-video-container--landscape-theater`
+ * (descendant, position:fixed) porte un z-index élevé (100), ce z-index n'est comparé
+ * qu'À L'INTÉRIEUR de cet overlay isolé — il ne "s'échappe" jamais pour rivaliser
+ * avec `header.ms-app-header` (position:fixed, z-index:100) ni `nav.ms-tab-bar-bottom`
+ * (position:fixed, z-index:70), qui sont des FRÈRES de `.ms-app-main` en dehors de cet
+ * overlay. Résultat : tout le plein écran vidéo (vidéo + chat overlay) se peignait
+ * SOUS le header et la barre d'onglets — le chat "invisible" signalé par l'utilisateur
+ * n'était donc pas un problème d'affichage du chat en lui-même, mais tout l'overlay
+ * plein écran caché derrière le chrome de l'app. Confirmé par inspection DOM/CSSOM en
+ * direct (document.elementFromPoint renvoyait le logo du header, pas la vidéo).
+ * Fix : quand ce fallback est actif, on relève le z-index de l'overlay au-dessus du
+ * header/de la nav pour qu'il redevienne réellement "plein écran" au sens visuel.
+ */
+.ms-salon-fullscreen-overlay:has(.live-video-container--landscape-theater) {
+  z-index: 110;
+}
+
 /* Salon YouTube plein écran — search / playlist / file scrollables au-dessus des onglets */
 .ms-salon-fullscreen-overlay .room-theater-stage-footer {
   padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
@@ -2269,53 +2290,6 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   min-height: 0;
 }
 
-/* Languette bascule chat — visible desktop */
-.room-theater-toggle {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 60;
-  width: 18px;
-  height: 52px;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  background: rgba(18, 18, 28, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-right: none;
-  border-radius: 6px 0 0 6px;
-  color: #6b7280;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.room-theater-toggle:hover {
-  background: rgba(40, 40, 64, 0.96);
-  color: #e5e7eb;
-}
-
-@media (min-width: 640px) {
-  .room-theater-toggle {
-    display: flex;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .room-theater-toggle {
-    transition-duration: 0.01ms;
-  }
-}
-
-/* Languette bascule chat — bord gauche (chatDock=left) */
-.room-theater-toggle--left {
-  left: 0;
-  right: auto;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-  border-left: none;
-  border-radius: 0 6px 6px 0;
-}
-
 /* Salon header — boutons icône (Jam, réduire) */
 .salon-header-icon-btn {
   display: flex;
@@ -2639,26 +2613,7 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
     grid-column: 1;
   }
 
-  .room-theater-side-row--match-hero .room-theater-toggle {
-    grid-row: 1;
-    grid-column: 2;
-    align-self: center;
-    z-index: 60;
-    background: rgba(18, 18, 26, 0.92);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-    color: rgba(196, 181, 253, 0.9);
-  }
-
-  .room-theater-side-row--match-hero .room-theater-toggle:hover {
-    background: rgba(30, 30, 44, 0.95);
-    border-color: rgba(168, 85, 247, 0.35);
-    color: #fff;
-  }
-
-  .room-theater-side-row--match-hero.room-theater-side-row--right .room-theater-toggle {
+  .room-theater-side-row--match-hero.room-theater-side-row--right .salon-theater-panel-extra {
     grid-column: 1;
   }
 }
@@ -2979,9 +2934,14 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 }
 
 /* Chat OBS transparent — plein écran / landscape theater uniquement */
+.live-chat-video-overlay-shell {
+  pointer-events: none;
+}
+
 .live-chat-video-overlay--fullscreen {
   width: min(30%, 320px);
   max-width: 30%;
+  height: 100%;
   background: transparent;
   pointer-events: none;
 }
@@ -2991,11 +2951,37 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   mask-image: linear-gradient(to bottom, transparent 0%, #000 6%, #000 94%, transparent 100%);
 }
 
+/* FloatingSalonChat — enfant direct de `.live-video-container` (plein écran natif + fallback landscape). */
+.live-video-container:fullscreen .floating-salon-chat-bounds,
+.live-video-container:-webkit-full-screen .floating-salon-chat-bounds,
+.live-video-container--landscape-theater .floating-salon-chat-bounds {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.live-video-container:fullscreen .floating-salon-chat-bounds .floating-salon-chat,
+.live-video-container:-webkit-full-screen .floating-salon-chat-bounds .floating-salon-chat,
+.live-video-container--landscape-theater .floating-salon-chat-bounds .floating-salon-chat {
+  pointer-events: auto;
+}
+
 .live-video-container:fullscreen .live-chat-video-overlay--fullscreen,
 .live-video-container:-webkit-full-screen .live-chat-video-overlay--fullscreen,
 .live-video-container--landscape-theater .live-chat-video-overlay--fullscreen {
   width: min(30%, 360px);
   max-width: 30%;
+}
+
+.live-video-container:fullscreen .live-chat-video-overlay-shell,
+.live-video-container:-webkit-full-screen .live-chat-video-overlay-shell,
+.live-video-container--landscape-theater .live-chat-video-overlay-shell {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 35;
 }
 
 .live-video-container:fullscreen .live-chat-video-overlay--fullscreen .live-chat-video-overlay__feed,
@@ -3143,6 +3129,42 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 
 .live-theater-status-bar--ended .live-theater-status-bar__text {
   color: rgba(156, 163, 175, 0.95);
+}
+
+/*
+ * Bandeau statut live — au-dessus du dock d'onglets (PhoneWebShell / quick wins).
+ * MODIF 941 — cette règle doit rester scopée à la scène THÉÂTRE NON PLEIN ÉCRAN
+ * (le bandeau suit alors le flux normal, poussé par margin-bottom au-dessus du
+ * dock d'onglets flottant). `:not(.live-video-container--landscape-theater)` et
+ * `:not(.live-video-pip-float)` excluaient déjà le fallback CSS plein écran et le
+ * PiP, mais PAS le plein écran natif (`:fullscreen`) : `.live-video-container--theater`
+ * reste présent dans ce cas, donc cette règle (plus spécifique que la règle
+ * `.live-video-container:fullscreen .live-theater-status-bar` de MODIF 937, qui
+ * fixe volontairement z-index:25 < 35 pour laisser le chat par-dessus) gagnait la
+ * cascade et remontait le bandeau à z-index:65 — AU-DESSUS de `.live-chat-video-
+ * overlay-shell` (z-index:35). Résultat mesuré en navigateur (vrai message de chat
+ * envoyé, plein écran natif, état `error`) : le texte du chat était tronqué/caché
+ * derrière le bandeau d'erreur. Fix : exclure aussi le plein écran natif de cette
+ * règle, pour que le z-index:25 (MODIF 937) s'applique bien en plein écran natif.
+ */
+.ms-app-shell--bottom-tabs
+  .live-video-container--theater:not(.live-video-container--landscape-theater):not(.live-video-pip-float):not(:fullscreen):not(:-webkit-full-screen)
+  .live-theater-status-bar {
+  position: relative;
+  z-index: 65;
+  margin-bottom: var(--tab-nav-total-h);
+}
+
+/* Shell classique — main ou overlay salon réserve déjà la hauteur des onglets */
+:root:not([data-design-quick-wins="1"])
+  .ms-app-shell--bottom-tabs
+  .ms-salon-fullscreen-overlay
+  .live-theater-status-bar,
+:root:not([data-design-quick-wins="1"])
+  .ms-app-shell--bottom-tabs
+  main.ms-app-main
+  .live-theater-status-bar {
+  margin-bottom: 0;
 }
 
 .live-theater-toolbar {
@@ -4258,6 +4280,7 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   left: 0;
   right: 0;
   z-index: 25;
+  margin-bottom: 0;
   border-radius: 0;
   border-left: none;
   border-right: none;
@@ -4350,88 +4373,6 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   height: 100%;
   max-height: none;
   object-fit: cover;
-  object-position: center;
-}
-
-/* Live théâtre — plein écran natif / cinéma : vidéo centrée, ratio respecté */
-.live-video-container:fullscreen.live-video-container--theater,
-.live-video-container:-webkit-full-screen.live-video-container--theater,
-.live-video-container--landscape-theater.live-video-container--theater {
-  justify-content: center;
-  align-items: center;
-  padding:
-    env(safe-area-inset-top, 0px)
-    env(safe-area-inset-right, 0px)
-    env(safe-area-inset-bottom, 0px)
-    env(safe-area-inset-left, 0px);
-}
-
-.live-video-container:fullscreen.live-video-container--theater .live-theater-stage-stack,
-.live-video-container:-webkit-full-screen.live-video-container--theater .live-theater-stage-stack,
-.live-video-container--landscape-theater.live-video-container--theater .live-theater-stage-stack {
-  flex: 0 1 auto;
-  width: 100%;
-  height: auto;
-  max-height: 100%;
-  min-height: 0;
-  margin: auto;
-}
-
-.live-video-container:fullscreen.live-video-container--theater .live-theater-hero-wrap,
-.live-video-container:-webkit-full-screen.live-video-container--theater .live-theater-hero-wrap,
-.live-video-container--landscape-theater.live-video-container--theater .live-theater-hero-wrap {
-  flex: 0 0 auto;
-  aspect-ratio: var(--live-aspect-ratio, 16 / 9);
-  width: min(100vw, calc(100dvh * 16 / 9));
-  max-width: 100%;
-  height: auto;
-  max-height: 100dvh;
-  margin-inline: auto;
-}
-
-.live-video-container:fullscreen.live-video-container--theater.live-video-aspect-9-16 .live-theater-hero-wrap,
-.live-video-container:-webkit-full-screen.live-video-container--theater.live-video-aspect-9-16 .live-theater-hero-wrap,
-.live-video-container--landscape-theater.live-video-container--theater.live-video-aspect-9-16 .live-theater-hero-wrap {
-  width: min(100vw, calc(100dvh * 9 / 16));
-  max-height: min(100dvh, calc(100vw * 16 / 9));
-}
-
-.live-video-container:fullscreen.live-video-container--theater.live-video-aspect-4-3 .live-theater-hero-wrap,
-.live-video-container:-webkit-full-screen.live-video-container--theater.live-video-aspect-4-3 .live-theater-hero-wrap,
-.live-video-container--landscape-theater.live-video-container--theater.live-video-aspect-4-3 .live-theater-hero-wrap {
-  width: min(100vw, calc(100dvh * 4 / 3));
-}
-
-.live-video-container:fullscreen.live-video-container--theater .live-theater-hero,
-.live-video-container:-webkit-full-screen.live-video-container--theater .live-theater-hero,
-.live-video-container--landscape-theater.live-video-container--theater .live-theater-hero {
-  flex: 1 1 auto;
-  min-height: 0;
-  height: auto;
-}
-
-.live-video-container:fullscreen.live-video-container--theater .live-theater-hero__frame,
-.live-video-container:-webkit-full-screen.live-video-container--theater .live-theater-hero__frame,
-.live-video-container--landscape-theater.live-video-container--theater .live-theater-hero__frame {
-  flex: 1 1 auto;
-  min-height: 0;
-  height: auto;
-}
-
-.live-video-container:fullscreen.live-video-container--theater .lk-participant-media-video,
-.live-video-container:-webkit-full-screen.live-video-container--theater .lk-participant-media-video,
-.live-video-container:fullscreen.live-video-container--theater video.lk-live-stage-video,
-.live-video-container:-webkit-full-screen.live-video-container--theater video.lk-live-stage-video,
-.live-video-container--landscape-theater.live-video-container--theater .lk-participant-media-video,
-.live-video-container--landscape-theater.live-video-container--theater video.lk-live-stage-video {
-  object-fit: contain;
-  object-position: center;
-}
-
-.live-video-container:fullscreen.live-video-container--theater video.live-cloudflare-stage-video,
-.live-video-container:-webkit-full-screen.live-video-container--theater video.live-cloudflare-stage-video,
-.live-video-container--landscape-theater.live-video-container--theater video.live-cloudflare-stage-video {
-  object-fit: contain;
   object-position: center;
 }
 
@@ -4561,21 +4502,9 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   On agrandit à 2.75rem (44px) sur mobile uniquement pour le tap.
 */
 @media (max-width: 639px) {
-  .room-theater-side-row .room-theater-toggle {
-    display: flex;
-  }
-}
-
-@media (max-width: 639px) {
   .salon-header-icon-btn {
     width: 2.75rem;
     height: 2.75rem;
-  }
-
-  /* Languette bascule chat — taille agrandie si affichée sur mobile (sm: show) */
-  .room-theater-toggle {
-    width: 2rem;
-    height: 3rem;
   }
 }
 

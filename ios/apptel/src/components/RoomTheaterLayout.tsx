@@ -277,8 +277,6 @@ export function RoomTheaterLayout({
       }`
     : '';
   const sideRowFlex = useMatchHero ? 'shrink-0' : 'flex-1';
-  const chevronCollapse = showLeftDock ? '6,1 2,7 6,13' : '2,1 6,7 2,13';
-  const chevronExpand = showLeftDock ? '2,1 6,7 2,13' : '6,1 2,7 6,13';
 
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
@@ -322,36 +320,6 @@ export function RoomTheaterLayout({
               >
                 {chat}
               </FloatingSalonChat>
-            )}
-
-            {(showSideDock || showFloating) && (
-              <button
-                type="button"
-                onClick={onToggleChat}
-                className={`room-theater-toggle${showLeftDock ? ' room-theater-toggle--left' : ''}`}
-                aria-expanded={!chatHidden}
-                aria-label={chatHidden ? 'Afficher le chat' : 'Masquer le chat'}
-              >
-                <svg width="8" height="14" viewBox="0 0 8 14" fill="none" aria-hidden>
-                  {chatHidden ? (
-                    <polyline
-                      points={chevronExpand}
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  ) : (
-                    <polyline
-                      points={chevronCollapse}
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  )}
-                </svg>
-              </button>
             )}
 
             {chatHidden && (

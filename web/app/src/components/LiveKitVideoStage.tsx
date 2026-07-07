@@ -32,6 +32,7 @@ import { LiveChatVideoOverlay } from './LiveChatVideoOverlay';
 import { LiveVideoUnavailableOverlay } from './LiveVideoUnavailableOverlay';
 import { LiveTheaterLiveBadge, LiveVideoStagePlaceholder } from './LiveVideoStagePlaceholder';
 import { LiveTheaterStatusBar, LiveVideoChromeButton } from './LiveVideoTheaterChrome';
+import { useLiveVideoChromeAutoHide } from '../hooks/useLiveVideoChromeAutoHide';
 import {
   LIVE_CAMERA_HOST_LIVEKIT_START,
   LIVE_CAMERA_VIEWER_FILE_NOTE,
@@ -385,6 +386,8 @@ export type LiveKitVideoStageProps = {
   audioDeviceId?: string;
   videoResolution?: LiveVideoResolutionPreset;
   videoAspectRatio?: LiveVideoAspectRatioPreset;
+  /** Chat flottant interactif (FloatingSalonChat) — rendu dans `.live-video-container` en live théâtre. */
+  floatingChat?: ReactNode;
   chatVisible?: boolean;
   onToggleFloatingChat?: () => void;
   fullscreenChatOverlayVisible?: boolean;
@@ -419,6 +422,7 @@ export function LiveKitVideoStage({
   audioDeviceId,
   videoResolution: videoResolutionProp,
   videoAspectRatio: videoAspectRatioProp,
+  floatingChat,
   chatVisible = false,
   onToggleFloatingChat,
   fullscreenChatOverlayVisible = false,
@@ -440,6 +444,7 @@ export function LiveKitVideoStage({
   const landscapeAutoDismissedRef = useRef(false);
   const expandedRef = useRef(false);
   const isVideoExpanded = isVideoFullscreen || isLandscapeTheater;
+  const { chromeVisible } = useLiveVideoChromeAutoHide(stageAreaRef, enabled && !videoFloat);
   const [session, setSession] = useState<LiveKitSession | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [hostStreamActive, setHostStreamActive] = useState(false);
@@ -567,6 +572,7 @@ export function LiveKitVideoStage({
   const enterVideoFullscreen = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
+    onExpandedChange?.(true);
     if (!FULLSCREEN_SUPPORTED) {
       enterTheaterFallback();
       return;
@@ -574,7 +580,7 @@ export function LiveKitVideoStage({
     void requestElementFullscreen(el).catch(() => {
       enterTheaterFallback();
     });
-  }, [enterTheaterFallback]);
+  }, [enterTheaterFallback, onExpandedChange]);
 
   const exitVideoFullscreen = useCallback(() => {
     if (isLandscapeTheater) {
@@ -856,12 +862,12 @@ export function LiveKitVideoStage({
 
         {overlay}
 
-        {isVideoExpanded && fullscreenChatOverlayVisible ? (
-          <LiveChatVideoOverlay active />
-        ) : null}
-
         {!videoFloat && (
-        <div className="absolute top-2 left-2 z-30 pointer-events-auto flex items-center gap-1.5">
+        <div
+          className={`absolute top-2 left-2 z-30 flex items-center gap-1.5 transition-opacity duration-300 ease-out ${
+            chromeVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+          }`}
+        >
           {isVideoExpanded ? (
             <LiveVideoChromeButton onClick={exitVideoFullscreen} ariaLabel={t('live.exitFullscreen')}>
               <LiveVideoShrinkIcon />
@@ -878,7 +884,7 @@ export function LiveKitVideoStage({
               <LiveVideoPipIcon />
             </LiveVideoChromeButton>
           )}
-          {!isVideoExpanded && onToggleFloatingChat ? (
+          {onToggleFloatingChat ? (
             <LiveVideoChromeButton
               onClick={onToggleFloatingChat}
               ariaLabel={chatVisible ? t('live.hideChat', { defaultValue: 'Masquer le chat' }) : t('live.showChat', { defaultValue: 'Afficher le chat' })}
@@ -887,8 +893,7 @@ export function LiveKitVideoStage({
             >
               <LiveVideoChatIcon active={chatVisible} />
             </LiveVideoChromeButton>
-          ) : null}
-          {isVideoExpanded && onToggleFullscreenChatOverlay ? (
+          ) : isVideoExpanded && onToggleFullscreenChatOverlay ? (
             <LiveVideoChromeButton
               onClick={onToggleFullscreenChatOverlay}
               ariaLabel={
@@ -926,6 +931,27 @@ export function LiveKitVideoStage({
             </div>
           </div>
         </div>
+      </div>
+
+      {/*
+        MODIF 937 — le shell chat + la status bar DOIVENT être des enfants DIRECTS de
+        `.live-video-container` (pas de `.live-theater-stage-stack`). En mode théâtre
+        (`--theater`), `.live-theater-stage-stack` est volontairement rétréci en
+        `height: auto` pour épouser le ratio de la vidéo (letterbox), donc tout enfant
+        `position:absolute; inset:0` placé À L'INTÉRIEUR de stage-stack se retrouve
+        confiné à la zone vidéo lettrboxée au lieu de couvrir tout le viewport
+        plein écran — c'était la cause du chat invisible/mal positionné en plein écran
+        malgré MODIF 930 et MODIF 935.
+      */}
+      {!videoFloat && floatingChat}
+      {isVideoExpanded && fullscreenChatOverlayVisible && !floatingChat ? (
+        <div
+          className="live-chat-video-overlay-shell absolute inset-0 z-[35] pointer-events-none"
+          aria-hidden={false}
+        >
+          <LiveChatVideoOverlay active />
+        </div>
+      ) : null}
 
       {!videoFloat && shouldShowTheaterStatusBar(stageState) ? (
       <LiveTheaterStatusBar
@@ -944,7 +970,6 @@ export function LiveKitVideoStage({
         <p className="live-theater-status-bar__text">{status}</p>
       </LiveTheaterStatusBar>
       ) : null}
-      </div>
     </div>
   );
 

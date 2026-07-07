@@ -1,4 +1,15 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
+import {
+  cloneElement,
+  isValidElement,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import { FloatingSalonChat } from './FloatingSalonChat';
 import { getStorageItem, setStorageItem, STORAGE_KEYS } from '../lib/storageKeys';
 
@@ -705,9 +716,6 @@ export function RoomTheaterLayout({
         : { gridTemplateColumns: `${chatDockWidth}px minmax(0, 1fr)` }
       : undefined;
 
-  const chevronCollapse = showLeftDock ? '6,1 2,7 6,13' : '2,1 6,7 2,13';
-  const chevronExpand = showLeftDock ? '2,1 6,7 2,13' : '6,1 2,7 6,13';
-
   /** Live théâtre : pas de toggle bas-droite — le chrome vidéo 💬 + FloatingSalonChat suffisent. */
   const showVideoChatToggle = !liveTheaterChrome;
   const liveLeftPinned = liveTheaterChrome && showLeftDock;
@@ -784,6 +792,36 @@ export function RoomTheaterLayout({
     </div>
   ) : null;
 
+  const floatingChatWindow =
+    showFloating ? (
+      <FloatingSalonChat
+        title={chatTitle}
+        compactHeader={liveTheaterChrome}
+        onTogglePin={liveTheaterChrome ? onToggleChatPin : undefined}
+        headerExtra={
+          liveTheaterChrome ? (
+            chatHeaderExtra ?? undefined
+          ) : (
+            <>
+              {chatHeaderExtra}
+              {layoutToggleExtra}
+            </>
+          )
+        }
+        minimized={chatMinimized}
+        onToggleMinimize={onToggleMinimize}
+        onHide={onToggleChat}
+      >
+        <DockChatBody chat={chat} chatInput={chatInput} />
+      </FloatingSalonChat>
+    ) : null;
+
+  const mountFloatingInVideoContainer = liveTheaterChrome && !!floatingChatWindow;
+  const stageNode =
+    mountFloatingInVideoContainer && isValidElement(stage)
+      ? cloneElement(stage, { floatingChat: floatingChatWindow } as Record<string, unknown>)
+      : stage;
+
   const videoStage = (
     <div
       className={`room-theater-video-stage relative flex flex-col ${
@@ -792,60 +830,9 @@ export function RoomTheaterLayout({
         liveTheaterChrome ? ' room-theater-video-stage--live-theater' : ''
       }`}
     >
-      {stage}
+      {stageNode}
 
-      {showFloating && (
-        <FloatingSalonChat
-          title={chatTitle}
-          compactHeader={liveTheaterChrome}
-          onTogglePin={liveTheaterChrome ? onToggleChatPin : undefined}
-          headerExtra={
-            liveTheaterChrome ? (
-              chatHeaderExtra ?? undefined
-            ) : (
-              <>
-                {chatHeaderExtra}
-                {layoutToggleExtra}
-              </>
-            )
-          }
-          minimized={chatMinimized}
-          onToggleMinimize={onToggleMinimize}
-          onHide={onToggleChat}
-        >
-          <DockChatBody chat={chat} chatInput={chatInput} />
-        </FloatingSalonChat>
-      )}
-
-      {(showSideDock || showFloating) && (
-        <button
-          type="button"
-          onClick={onToggleChat}
-          className={`room-theater-toggle${showLeftDock ? ' room-theater-toggle--left' : ''}`}
-          aria-expanded={!chatHidden}
-          aria-label={chatHidden ? 'Afficher le chat' : 'Masquer le chat'}
-        >
-          <svg width="8" height="14" viewBox="0 0 8 14" fill="none" aria-hidden>
-            {chatHidden ? (
-              <polyline
-                points={chevronExpand}
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            ) : (
-              <polyline
-                points={chevronCollapse}
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            )}
-          </svg>
-        </button>
-      )}
+      {!mountFloatingInVideoContainer && floatingChatWindow}
 
       {chatHiddenButton}
     </div>

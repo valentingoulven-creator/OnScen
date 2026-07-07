@@ -87,7 +87,9 @@ function readLiveChatPinned(): boolean {
 }
 
 function readFullscreenChatOverlay(): boolean {
-  return getStorageItem(STORAGE_KEYS.liveChatVideoOverlay) === '1';
+  const stored = getStorageItem(STORAGE_KEYS.liveChatVideoOverlay);
+  if (stored === '0') return false;
+  return true;
 }
 
 export function LivePage({
@@ -257,8 +259,37 @@ export function LivePage({
   const videoFileInputRef = useRef<HTMLInputElement>(null);
   const [videoFileLoading, setVideoFileLoading] = useState(false);
   const chatHiddenBeforeExpandRef = useRef<boolean | null>(null);
+  const chatHiddenBeforePipRef = useRef<boolean | null>(null);
   const chatHiddenRef = useRef(chatHidden);
   chatHiddenRef.current = chatHidden;
+
+  /** PiP flottant : masquer FloatingSalonChat (enfant de `.live-video-container`) pour
+   * qu'il ne s'affiche pas dans la fenêtre PiP ; restaurer à l'ancrage. */
+  const hideChatForLivePip = useCallback(() => {
+    if (chatHiddenBeforePipRef.current === null) {
+      chatHiddenBeforePipRef.current = chatHiddenRef.current;
+    }
+    if (!chatHiddenRef.current) {
+      setChatHidden(true);
+    }
+  }, []);
+
+  const openLivePip = useCallback(() => {
+    hideChatForLivePip();
+    setLivePipActive(true);
+  }, [hideChatForLivePip, setLivePipActive]);
+
+  useEffect(() => {
+    if (livePipActive) {
+      hideChatForLivePip();
+      return;
+    }
+    if (chatHiddenBeforePipRef.current === null) return;
+    const prev = chatHiddenBeforePipRef.current;
+    chatHiddenBeforePipRef.current = null;
+    setChatHidden(prev);
+  }, [livePipActive, hideChatForLivePip]);
+
   const isHostRef = useRef(false);
 
   const emitCameraState = useCallback(
@@ -381,12 +412,6 @@ export function LivePage({
     obsDisconnectPollsRef.current = 0;
     obsAutoStopTriggeredRef.current = false;
   }, [liveId]);
-
-  useEffect(() => {
-    if (!shareToast) return;
-    const id = window.setTimeout(() => setShareToast(null), 2500);
-    return () => window.clearTimeout(id);
-  }, [shareToast]);
 
   useEffect(() => {
     setChatBanned(false);
@@ -521,14 +546,6 @@ export function LivePage({
   const viewerDonationOptions = useMemo(
     () => live?.donationOptions?.filter((o) => o.label?.trim() && o.amount >= 1 && o.amount <= 100) ?? [],
     [live?.donationOptions]
-  );
-
-  const giftOverlayTiers = useMemo(
-    () =>
-      viewerDonationOptions.length > 0
-        ? [...new Set(viewerDonationOptions.map((o) => o.amount))].sort((a, b) => a - b)
-        : undefined,
-    [viewerDonationOptions]
   );
 
   useEffect(() => {
@@ -1070,13 +1087,13 @@ export function LivePage({
     if (expanded) {
       if (chatHiddenBeforeExpandRef.current === null) {
         chatHiddenBeforeExpandRef.current = chatHiddenRef.current;
-        setChatHidden(true);
       }
       return;
     }
+    if (chatHiddenBeforeExpandRef.current === null) return;
+    const prev = chatHiddenBeforeExpandRef.current;
     chatHiddenBeforeExpandRef.current = null;
-    // Toujours montrer le chat à la sortie du plein écran
-    setChatHidden(false);
+    setChatHidden(prev);
   }, []);
 
   const openDonSheet = (amount?: number) => {
@@ -1122,13 +1139,17 @@ export function LivePage({
       }
       return;
     }
+    if (chatMinimized) {
+      setChatMinimized(false);
+      return;
+    }
     setChatHidden(true);
     try {
       localStorage.setItem(LIVE_CHAT_HIDDEN_KEY, '1');
     } catch {
       /* ignore */
     }
-  }, [chatHidden]);
+  }, [chatHidden, chatMinimized]);
 
   const toggleChatPin = useCallback(() => {
     setChatPinned((prev) => {
@@ -1646,7 +1667,7 @@ export function LivePage({
             )}
           </div>
           <div className="flex items-center gap-1 shrink-0 ml-2">
-            {token && !chatPinned ? (
+            {token && !chatPinned && chatHidden ? (
               <>
                 <LiveParticipantsPopover
                   liveId={liveId}
@@ -1793,18 +1814,12 @@ export function LivePage({
               viewerPlaybackPaused={!isHost ? viewerPlaybackPaused : undefined}
               onToggleViewerPlaybackPaused={!isHost ? toggleViewerPlaybackPaused : undefined}
               videoFloat={livePipActive ? livePip : undefined}
-              onPipOpen={!isHost ? () => setLivePipActive(true) : undefined}
+              onPipOpen={!isHost ? openLivePip : undefined}
               overlay={
                 !isHost && !viewerStreamEnded ? (
                   <>
                     {hostCanReceiveDonations && !livePipActive && (
-                      <LiveGiftOverlay
-                        liveId={liveId}
-                        visible
-                        tiers={giftOverlayTiers}
-                        donationOptions={viewerDonationOptions}
-                        onOpenGiftSheet={openDonSheet}
-                      />
+                      <LiveGiftOverlay liveId={liveId} visible />
                     )}
                   </>
                 ) : (
@@ -1860,18 +1875,12 @@ export function LivePage({
             viewerPlaybackPaused={!isHost ? viewerPlaybackPaused : undefined}
             onToggleViewerPlaybackPaused={!isHost ? toggleViewerPlaybackPaused : undefined}
             videoFloat={livePipActive ? livePip : undefined}
-            onPipOpen={!isHost ? () => setLivePipActive(true) : undefined}
+            onPipOpen={!isHost ? openLivePip : undefined}
             overlay={
               <>
                 {hostVideoOverlay}
                 {!isHost && hostCanReceiveDonations && !viewerStreamEnded && !livePipActive ? (
-                  <LiveGiftOverlay
-                    liveId={liveId}
-                    visible
-                    tiers={giftOverlayTiers}
-                    donationOptions={viewerDonationOptions}
-                    onOpenGiftSheet={openDonSheet}
-                  />
+                  <LiveGiftOverlay liveId={liveId} visible />
                 ) : null}
               </>
             }

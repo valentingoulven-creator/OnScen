@@ -10,6 +10,8 @@ interface FollowUserButtonProps {
   iconOnly?: boolean;
   /** Icône en mode iconOnly : plus (défaut) ou cœur (suivre). */
   iconStyle?: 'plus' | 'heart';
+  /** Compact sizing for PiP / dense headers (matches UserLikeButton iconOnly). */
+  pipHeader?: boolean;
   /** 'pill' renders a larger rounded-full gradient button for profile pages */
   variant?: 'default' | 'pill';
   className?: string;
@@ -23,6 +25,7 @@ export const FollowUserButton = memo(function FollowUserButton({
   compact = false,
   iconOnly = false,
   iconStyle = 'plus',
+  pipHeader = false,
   variant = 'default',
   className = '',
   onFollowingChange,
@@ -91,12 +94,15 @@ export const FollowUserButton = memo(function FollowUserButton({
   };
 
   const useHeart = iconStyle === 'heart';
-  const heartOnly = iconOnly && useHeart;
+  const heartPip = iconOnly && useHeart && pipHeader;
+  const heartOnly = iconOnly && useHeart && !pipHeader;
   const compactHeart = compact && useHeart;
 
-  const base = heartOnly
-    ? 'w-11 h-11 flex items-center justify-center rounded-full border transition disabled:opacity-50'
-    : compactHeart
+  const base = heartPip
+    ? 'inline-flex items-center justify-center p-1 rounded-full border transition disabled:opacity-50 shrink-0'
+    : heartOnly
+      ? 'w-11 h-11 flex items-center justify-center rounded-full border transition disabled:opacity-50'
+      : compactHeart
       ? 'flex items-center justify-center gap-1.5 min-h-11 px-3 py-1.5 rounded-full text-[10px] font-bold border transition disabled:opacity-50 shrink-0'
       : iconOnly
         ? 'p-1 rounded-full border transition disabled:opacity-50'
@@ -111,7 +117,7 @@ export const FollowUserButton = memo(function FollowUserButton({
   const heartSvg = (
     <svg
       viewBox="0 0 24 24"
-      className={compactHeart ? 'w-4 h-4 shrink-0' : 'w-4 h-4'}
+      className={heartPip ? 'w-3.5 h-3.5 shrink-0' : compactHeart ? 'w-4 h-4 shrink-0' : 'w-4 h-4'}
       fill={following ? 'currentColor' : 'none'}
       stroke="currentColor"
       strokeWidth="2"
@@ -145,7 +151,7 @@ export const FollowUserButton = memo(function FollowUserButton({
   const buttonColors = iconOnly || compactHeart ? iconColors : pillColors;
 
   return (
-    <div className={className}>
+    <div className={`${pipHeader ? 'inline-flex items-center' : ''} ${className}`.trim()}>
       <button
         type="button"
         onClick={handleClick}
@@ -154,7 +160,7 @@ export const FollowUserButton = memo(function FollowUserButton({
         aria-label={label}
         className={`${base} ${buttonColors}`}
       >
-        {heartOnly || compactHeart ? (
+        {heartOnly || heartPip || compactHeart ? (
           loading ? (
             <span className="text-[10px] leading-none">…</span>
           ) : (

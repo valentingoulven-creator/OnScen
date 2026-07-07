@@ -657,52 +657,6 @@ body {
   min-height: 0;
 }
 
-/* Languette bascule chat — visible desktop */
-.room-theater-toggle {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 60;
-  width: 18px;
-  height: 52px;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  background: rgba(18, 18, 28, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-right: none;
-  border-radius: 6px 0 0 6px;
-  color: #6b7280;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.room-theater-toggle:hover {
-  background: rgba(40, 40, 64, 0.96);
-  color: #e5e7eb;
-}
-
-@media (min-width: 640px) {
-  .room-theater-toggle {
-    display: flex;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .room-theater-toggle {
-    transition-duration: 0.01ms;
-  }
-}
-
-.room-theater-toggle--left {
-  left: 0;
-  right: auto;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-  border-left: none;
-  border-radius: 0 6px 6px 0;
-}
-
 /* Salon — colonne chat ancrée (YouTube theater) */
 .room-theater-chat-dock {
   width: 100%;
@@ -806,13 +760,6 @@ body {
     min-width: 0;
   }
 
-  .room-theater-side-row--match-hero .room-theater-toggle {
-    grid-row: 1;
-    grid-column: 2;
-    align-self: center;
-    z-index: 60;
-  }
-
   .room-theater-side-row--match-hero.room-theater-side-row--right .room-theater-chat-dock--theater {
     grid-column: 2;
   }
@@ -821,8 +768,7 @@ body {
   .room-theater-side-row--match-hero.room-theater-side-row--right .salon-theater-hero,
   .room-theater-side-row--match-hero.room-theater-side-row--right .salon-theater-controls,
   .room-theater-side-row--match-hero.room-theater-side-row--right .salon-theater-ad-banner,
-  .room-theater-side-row--match-hero.room-theater-side-row--right .salon-theater-panel-extra,
-  .room-theater-side-row--match-hero.room-theater-side-row--right .room-theater-toggle {
+  .room-theater-side-row--match-hero.room-theater-side-row--right .salon-theater-panel-extra {
     grid-column: 1;
   }
 }
@@ -1113,11 +1059,23 @@ body {
   object-fit: contain;
 }
 
-/* Live — mode cinéma paysage (fallback PWA / iOS sans Fullscreen API) */
+/*
+ * Live — mode cinéma paysage (fallback PWA / iOS sans Fullscreen API).
+ * z-index 110 (pas 50) : DOIT battre `header.ms-app-header` (z-index:100) et
+ * `nav.ms-tab-bar-instagram` (z-index:50). Avec z-index:50 (valeur d'origine,
+ * jamais synchronisée avec le fix web/app "MODIF 937"), le header fixe se
+ * peignait AU-DESSUS de ce fallback plein écran sur le build Capacitor/PWA
+ * téléphone (`ios/apptel`) — exactement le scénario iOS WebView où cette
+ * bascule CSS est utilisée en priorité (Fullscreen API native indisponible),
+ * masquant vidéo + overlay chat derrière le header. `ios/apptel/src/index.css`
+ * est un fichier autonome (pas de fallback vers `web/app/src/index.css`, voir
+ * apptelSrcFallback dans vite.config.ts) : ce correctif doit donc être
+ * maintenu ICI séparément, il n'est jamais hérité automatiquement.
+ */
 .live-video-container--landscape-theater {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 110;
   width: 100%;
   height: 100%;
   background: #000;
@@ -1158,6 +1116,67 @@ body {
   height: 100%;
   max-height: none;
   object-fit: contain;
+}
+
+/*
+ * MODIF 939 — Chat OBS transparent en plein écran (fallback théâtre ET
+ * plein écran natif). Ces règles n'existaient QUE dans web/app/src/index.css
+ * (ajoutées par MODIF 937) ; comme ce fichier `ios/apptel/src/index.css` est
+ * autonome (voir commentaire ci-dessus sur `--landscape-theater`), elles
+ * n'étaient jamais chargées côté Capacitor/PWA téléphone. Combiné à l'absence
+ * de câblage de `fullscreenChatOverlayVisible` dans `pages/LivePage.tsx`
+ * (également corrigé par MODIF 939), c'est la cause réelle du chat
+ * invisible en plein écran sur l'app téléphone malgré les correctifs 930/935/937
+ * déjà présents dans web/app.
+ */
+.live-chat-video-overlay-shell {
+  pointer-events: none;
+}
+
+.live-chat-video-overlay--fullscreen {
+  width: min(30%, 320px);
+  max-width: 30%;
+  height: 100%;
+  background: transparent;
+  pointer-events: none;
+}
+
+.live-chat-video-overlay--fullscreen .live-chat-video-overlay__feed {
+  max-height: none;
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 6%, #000 94%, transparent 100%);
+  padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+}
+
+.live-video-container:fullscreen .floating-salon-chat-bounds,
+.live-video-container:-webkit-full-screen .floating-salon-chat-bounds,
+.live-video-container--landscape-theater .floating-salon-chat-bounds {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.live-video-container:fullscreen .floating-salon-chat-bounds .floating-salon-chat,
+.live-video-container:-webkit-full-screen .floating-salon-chat-bounds .floating-salon-chat,
+.live-video-container--landscape-theater .floating-salon-chat-bounds .floating-salon-chat {
+  pointer-events: auto;
+}
+
+.live-video-container:fullscreen .live-chat-video-overlay--fullscreen,
+.live-video-container:-webkit-full-screen .live-chat-video-overlay--fullscreen,
+.live-video-container--landscape-theater .live-chat-video-overlay--fullscreen {
+  width: min(30%, 360px);
+  max-width: 30%;
+}
+
+.live-video-container:fullscreen .live-chat-video-overlay-shell,
+.live-video-container:-webkit-full-screen .live-chat-video-overlay-shell,
+.live-video-container--landscape-theater .live-chat-video-overlay-shell {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 35;
 }
 
 /* ── Apptel phone-specific layout fixes ─────────────────────────────── */
