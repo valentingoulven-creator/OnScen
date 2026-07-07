@@ -19682,3 +19682,23 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 944 — 2026-07-07
 ================================================================================
+
+================================================================================
+MODIF 947 — Live PiP clean video + goals chrome toggle
+Date : 2026-07-07
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ PiP floating window showed host controls on video; need × close with host confirm.
+ Host needs goals toggle in theater chrome next to hide-chat button.
+
+CHANGEMENTS / FIX
+-----
+ DraggableVideoPip.tsx, LiveKitVideoStage.tsx, LiveVideoStage.tsx,
+ LiveVideoTheaterChrome.tsx, LivePage.tsx, locales, index.css (PiP CSS fallback)
+
+================================================================================
+Fin MODIF 947 — 2026-07-07
+================================================================================
+

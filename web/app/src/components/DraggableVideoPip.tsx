@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { ConfirmModal } from './ConfirmModal';
 
 // 200 px wide → 200×113 video (16:9) — YouTube TOS minimum embed size.
 export const VIDEO_PIP_WIDTH = 200;
 export const VIDEO_PIP_HEADER_HEIGHT = 24;
+
+/** 44×44px touch target within the compact PiP header bar. */
+export const VIDEO_PIP_HEADER_BTN_CLASS =
+  'shrink-0 -my-2.5 min-w-11 min-h-11 flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-white/10 transition touch-manipulation';
+
 const MARGIN = 16;
 
 function clamp(n: number, min: number, max: number) {
@@ -118,4 +124,64 @@ export function useDraggableVideoPip(
     onHeaderPointerDown,
     onClose,
   };
+}
+
+/** PiP header × — host : confirmation avant arrêt ; spectateur : quitte sans confirmation. */
+export function LiveVideoPipCloseButton({
+  isHost,
+  onDismiss,
+}: {
+  isHost: boolean;
+  onDismiss: () => void | Promise<void>;
+}) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [dismissing, setDismissing] = useState(false);
+
+  const runDismiss = async () => {
+    setDismissing(true);
+    try {
+      await onDismiss();
+      setConfirmOpen(false);
+    } finally {
+      setDismissing(false);
+    }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={() => {
+          if (isHost) {
+            setConfirmOpen(true);
+            return;
+          }
+          void runDismiss();
+        }}
+        className={VIDEO_PIP_HEADER_BTN_CLASS}
+        title={isHost ? 'Arrêter le live' : 'Quitter le live'}
+        aria-label={isHost ? 'Arrêter le live' : 'Quitter le live'}
+      >
+        <span className="text-base leading-none" aria-hidden>
+          ×
+        </span>
+      </button>
+      {isHost ? (
+        <ConfirmModal
+          open={confirmOpen}
+          title="Arrêter le live ?"
+          description="Le live sera coupé pour tous les spectateurs. Cette action est définitive."
+          confirmLabel="Arrêter le live"
+          cancelLabel="Annuler"
+          loading={dismissing}
+          loadingLabel="Arrêt…"
+          onCancel={() => {
+            if (!dismissing) setConfirmOpen(false);
+          }}
+          onConfirm={() => void runDismiss()}
+        />
+      ) : null}
+    </>
+  );
 }

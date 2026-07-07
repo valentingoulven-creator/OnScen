@@ -145,6 +145,7 @@ export function LivePage({
   const [hostDonationCount, setHostDonationCount] = useState(0);
   const [micMuted, setMicMuted] = useState(false);
   const [goalTick, setGoalTick] = useState(() => Date.now());
+  const [goalOverlayVisible, setGoalOverlayVisible] = useState(true);
   const [hostFollowing, setHostFollowing] = useState(false);
   const { session: hostSession } = useLiveHostSession(liveId);
   const [cfProvisioning, setCfProvisioning] = useState(false);
@@ -1128,6 +1129,10 @@ export function LivePage({
     });
   };
 
+  const toggleGoalOverlay = useCallback(() => {
+    setGoalOverlayVisible((prev) => !prev);
+  }, []);
+
   const toggleFloatingChatFromChrome = useCallback(() => {
     if (chatHidden) {
       setChatHidden(false);
@@ -1198,6 +1203,14 @@ export function LivePage({
   const leaveLive = () => {
     handleLeaveLive();
   };
+
+  const dismissLivePip = useCallback(() => {
+    if (isHost) {
+      void stopLiveRef.current();
+      return;
+    }
+    handleLeaveLive();
+  }, [handleLeaveLive, isHost]);
 
   const toggleHostMic = useCallback(() => {
     setMicMuted((prev) => {
@@ -1401,9 +1414,9 @@ export function LivePage({
   );
 
   const hostVideoOverlay =
-    isHost && !viewerStreamEnded ? (
+    isHost && !viewerStreamEnded && !livePipActive ? (
       <>
-        {activeGoal ? <LiveVideoGoalOverlay goal={activeGoal} /> : null}
+        {activeGoal && goalOverlayVisible ? <LiveVideoGoalOverlay goal={activeGoal} /> : null}
         <LiveRewardRequestsStrip
           items={hostSession.rewardQueue}
           onOpenPanel={() => openHostPanel('don', 'rewards')}
@@ -1811,10 +1824,13 @@ export function LivePage({
               onToggleFloatingChat={toggleFloatingChatFromChrome}
               fullscreenChatOverlayVisible={fullscreenChatOverlay}
               onToggleFullscreenChatOverlay={toggleFullscreenChatOverlay}
+              goalOverlayVisible={goalOverlayVisible}
+              onToggleGoalOverlay={isHost && activeGoal ? toggleGoalOverlay : undefined}
               viewerPlaybackPaused={!isHost ? viewerPlaybackPaused : undefined}
               onToggleViewerPlaybackPaused={!isHost ? toggleViewerPlaybackPaused : undefined}
               videoFloat={livePipActive ? livePip : undefined}
               onPipOpen={!isHost ? openLivePip : undefined}
+              onPipDismiss={livePipActive ? dismissLivePip : undefined}
               overlay={
                 !isHost && !viewerStreamEnded ? (
                   <>
@@ -1872,10 +1888,13 @@ export function LivePage({
             onToggleFloatingChat={toggleFloatingChatFromChrome}
             fullscreenChatOverlayVisible={fullscreenChatOverlay}
             onToggleFullscreenChatOverlay={toggleFullscreenChatOverlay}
+            goalOverlayVisible={goalOverlayVisible}
+            onToggleGoalOverlay={isHost && activeGoal ? toggleGoalOverlay : undefined}
             viewerPlaybackPaused={!isHost ? viewerPlaybackPaused : undefined}
             onToggleViewerPlaybackPaused={!isHost ? toggleViewerPlaybackPaused : undefined}
             videoFloat={livePipActive ? livePip : undefined}
             onPipOpen={!isHost ? openLivePip : undefined}
+            onPipDismiss={livePipActive ? dismissLivePip : undefined}
             overlay={
               <>
                 {hostVideoOverlay}
