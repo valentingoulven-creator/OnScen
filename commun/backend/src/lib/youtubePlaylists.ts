@@ -53,9 +53,16 @@ export async function resolvePlaylistVideos(
   const normalizedId = resolveYoutubePlaylistId(playlistId) ?? playlistId.trim();
   let hits = await fetchPlaylistItems(normalizedId, accessToken);
   if (!hits.length && isYoutubeRemoteFallbackAllowed()) {
-    // Import dynamique : voir youtubeSearch.ts — module chargé uniquement en msdev.
-    const { fetchPlaylistVideosViaPiped } = await import('./youtubeRemote');
-    hits = await fetchPlaylistVideosViaPiped(normalizedId);
+    // Import dynamique : voir youtubeSearch.ts — module chargé uniquement en msdev, et
+    // physiquement retiré du build de production (npm run build:prod). Le try/catch
+    // garantit qu'une mauvaise config d'env n'entraîne qu'une absence de fallback,
+    // jamais un plantage ni un appel effectif à ces proxies tiers en prod/preprod.
+    try {
+      const { fetchPlaylistVideosViaPiped } = await import('./youtubeRemote');
+      hits = await fetchPlaylistVideosViaPiped(normalizedId);
+    } catch (e) {
+      console.warn('[youtube-playlists] fallback Piped indisponible (attendu en prod/preprod) :', e);
+    }
   }
   return hits.map((h) => ({
     videoId: h.videoId,

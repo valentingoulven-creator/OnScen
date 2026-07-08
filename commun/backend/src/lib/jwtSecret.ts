@@ -26,8 +26,10 @@ export function getJwtSecret(): string {
   if (isDeployedEnv()) {
     throw new Error('[jwt] JWT_SECRET must be set in production — refusing to start with default key.');
   }
-  console.warn(
-    '[jwt] JWT_SECRET not set — using insecure development default. Set JWT_SECRET in .env before deploying to production.'
+  if (process.env.NODE_ENV === 'test') {
+    return DEV_FALLBACK;
+  }
+  throw new Error(
+    '[jwt] JWT_SECRET must be set — refusing to start without an explicit secret. Set JWT_SECRET in your .env file (see .env.example).'
   );
-  return DEV_FALLBACK;
 }

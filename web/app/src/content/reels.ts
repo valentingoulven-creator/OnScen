@@ -28,6 +28,8 @@ export interface MusicReel {
   /** public = flux Reels ; private = profil uniquement */
   visibility?: 'public' | 'private';
   isPrivate?: boolean;
+  /** Lien externe optionnel affiché sur le reel (URL validée côté serveur) */
+  link?: string;
   /** Vues uniques (API profil / stats) */
   viewCount?: number;
 }

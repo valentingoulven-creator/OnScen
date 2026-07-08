@@ -14,6 +14,8 @@ function SponsorLogo({ logoUrl, className }: { logoUrl?: string; className: stri
         src={logoUrl.trim()}
         alt=""
         className={`${className} object-cover bg-[#1a1a26] shrink-0`}
+        loading="lazy"
+        decoding="async"
         onError={(e) => {
           (e.target as HTMLImageElement).style.display = 'none';
         }}

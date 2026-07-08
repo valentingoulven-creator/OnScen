@@ -12,7 +12,7 @@ import {
 } from './livesGeo';
 import { getPrivacyPreferences, SETTINGS_CHANGED_EVENT } from './settings';
 
-/** Centre caméra carte sans GPS : ville profil, sinon Paris. */
+/** Centre caméra carte sans GPS : geo fixe (settings), ville profil, sinon Paris. */
 export function resolveMapCameraFallbackCenter(profileCity?: string): [number, number] {
   const geo = getLivesGeo();
   if (isFixedMapGeoSource(geo.source)) {

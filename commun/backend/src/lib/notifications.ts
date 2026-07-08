@@ -336,6 +336,23 @@ export function notifySupportReply(params: {
   });
 }
 
+export function notifySubscriptionPaymentFailed(params: {
+  subscriberId: string;
+  /** userId du créateur, ou 'platform' pour Soundy+/SoundyUltra. */
+  creatorId: string;
+  tierLabel: string;
+}): void {
+  const creator = params.creatorId !== 'platform' ? db.users.get(params.creatorId) : undefined;
+  pushNotification({
+    recipientId: params.subscriberId,
+    senderId: creator?.id ?? params.subscriberId,
+    senderName: creator?.username ?? 'Soundy',
+    senderAvatarUrl: creator?.avatarUrl,
+    type: 'subscription_payment_failed',
+    message: `Le paiement de votre abonnement « ${params.tierLabel} » a échoué. Mettez à jour votre moyen de paiement pour éviter une interruption.`,
+  });
+}
+
 export function notifySupportResolved(params: {
   message: { id: string; fromUserId: string };
   admin: { id: string; username: string; avatarUrl?: string };

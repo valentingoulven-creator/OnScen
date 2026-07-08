@@ -394,6 +394,26 @@ async function readStore(pool: Pool): Promise<LoadedStore | null> {
   return { store, heartEvents, hostRatings, notifications };
 }
 
+/**
+ * ⚠️ CHANTIER CONNU (audit DB/infra §3 — Critical, hors scope de la mitigation
+ * actuelle) : ce flush périodique (toutes les 10 s, déclenché par `schedulePersist`)
+ * ré-upserte INTÉGRALEMENT chaque collection RAM « dirty » (boucles `for` +
+ * `await client.query` ligne par ligne, puis `DELETE FROM x WHERE NOT id = ANY(...)`
+ * sur la table entière via `syncSocialTablesFromStore`/`syncFeedTablesToPg`/etc.)
+ * au lieu d'un flush incrémental delta (uniquement les lignes modifiées depuis
+ * le dernier cycle). Complexité O(volume total de la collection) par flush,
+ * quel que soit le nombre de changements réels — ne scale pas au-delà d'un
+ * volume modéré de données.
+ *
+ * Refonte complète NON faite ici volontairement : c'est un chantier XL qui
+ * nécessite une revue dédiée (suivi des lignes modifiées/supprimées en RAM,
+ * garanties de cohérence si le process crash entre deux flushes partiels,
+ * etc.). Mitigation ciblée déjà appliquée en attendant : cap de
+ * `db.directMessages` par paire d'utilisateurs (voir `chatHistory.ts` /
+ * `trimDirectMessages`, appelé par `purgeUnboundedChatHistory` avant chaque
+ * snapshot) pour éviter au moins une croissance mémoire non bornée, à l'image
+ * du cap déjà existant sur les chats salon/live (`MAX_CHAT_MESSAGES_PER_ROOM`).
+ */
 async function writeStore(client: PoolClient, data: PersistedStore): Promise<void> {
   await client.query('BEGIN');
   try {

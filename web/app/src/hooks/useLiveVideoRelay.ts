@@ -14,6 +14,7 @@ import {
   ensureLiveIceServers,
   getDefaultIceServers,
   hasLiveRelayVideoTrack,
+  hasTurnServer,
   liveStreamReadyForRelay,
   LIVE_WEBRTC_MESH_VIEWER_LIMIT,
   mergeRemoteLiveStream,
@@ -105,12 +106,28 @@ export function useLiveVideoRelay({
   hostIdRef.current = hostId;
   const viewerReadyAttemptsRef = useRef(0);
   const iceServersRef = useRef<RTCIceServer[]>(getDefaultIceServers());
+  /**
+   * Audit High #1 — security: viewers must default to relay-only ICE so their
+   * public IP is never exposed via host/srflx candidates. That default is
+   * only safe once a real TURN server is confirmed (STUN-only would make
+   * `relay` yield zero candidates and break every viewer connection), hence
+   * this flag is derived from the ICE servers actually returned by the API.
+   */
+  const turnAvailableRef = useRef(hasTurnServer(getDefaultIceServers()));
 
   useEffect(() => {
     if (!authToken || !liveId) return;
     if (!isHost && !cameraRelayActive) return;
     void ensureLiveIceServers(() => api.getLiveIceServers(authToken, liveId)).then((servers) => {
       iceServersRef.current = servers;
+      turnAvailableRef.current = hasTurnServer(servers);
+      if (!turnAvailableRef.current && import.meta.env.DEV) {
+        console.warn(
+          '[liveVideoRelay] Aucun TURN configuré — le mode WebRTC mesh legacy ' +
+            'retombera sur iceTransportPolicy "all" et exposera les IP publiques ' +
+            'host/viewer. Configurez TURN_URL/TURN_USERNAME/TURN_CREDENTIAL en prod.'
+        );
+      }
     });
   }, [authToken, liveId, isHost, cameraRelayActive]);
 
@@ -323,6 +340,11 @@ export function useLiveVideoRelay({
   }, []);
 
   const createOfferForViewer = useCallback(
+    // Host connection keeps `iceTransportPolicy: 'all'` by default (audit High
+    // #1 accepts this residual, lower-priority exposure): the ICE-failure
+    // retry below still upgrades to relay-only, and forcing it unconditionally
+    // here would double TURN relay bandwidth per viewer without TURN being
+    // guaranteed to exist in every environment.
     async (viewerId: string, relayOnly = false) => {
       if (!isHost) return;
       pendingViewersRef.current.add(viewerId);
@@ -544,7 +566,10 @@ export function useLiveVideoRelay({
         setViewerRelayPhase('connecting');
         return;
       }
-      await applyViewerOffer(fromHostId, offer);
+      // Force relay-only by default when TURN is available (audit High #1);
+      // ICE failure retry (see onconnectionstatechange below) still covers
+      // the "all" → "relay" upgrade path for the no-TURN case.
+      await applyViewerOffer(fromHostId, offer, turnAvailableRef.current);
     },
     [applyViewerOffer, isHost]
   );
@@ -557,7 +582,7 @@ export function useLiveVideoRelay({
       return;
     }
     pendingViewerOfferRef.current = null;
-    void applyViewerOffer(pending.fromHostId, pending.offer);
+    void applyViewerOffer(pending.fromHostId, pending.offer, turnAvailableRef.current);
   }, [applyViewerOffer, hostId, isHost]);
 
   const handleViewerIce = useCallback(async (candidate: RTCIceCandidateInit) => {

@@ -325,6 +325,8 @@ export type LiveVideoStageProps = {
   /** Pause locale du flux (spectateur uniquement). */
   viewerPlaybackPaused?: boolean;
   onToggleViewerPlaybackPaused?: () => void;
+  /** Bouton « Actions à faire » hôte (chrome théâtre, après plein écran). */
+  hostActionsChrome?: ReactNode;
 };
 
 export function LiveVideoStage({
@@ -373,6 +375,7 @@ export function LiveVideoStage({
   onToggleFullscreenChatOverlay,
   viewerPlaybackPaused = false,
   onToggleViewerPlaybackPaused,
+  hostActionsChrome,
 }: LiveVideoStageProps) {
   const videoAspectRatio = getLiveVideoAspectRatioPreset(videoAspectRatioProp);
   const displayPlaybackTitle = normalizeBrandText(playbackTitle);
@@ -566,8 +569,6 @@ export function LiveVideoStage({
         void exitLandscapeAuto();
       }
     };
-
-    applyOrientation();
 
     const landscapeMq = window.matchMedia('(orientation: landscape)');
     landscapeMq.addEventListener('change', applyOrientation);
@@ -829,6 +830,7 @@ export function LiveVideoStage({
                 <LiveVideoExpandIcon />
               </LiveVideoChromeButton>
             )}
+            {isHost && hostActionsChrome ? hostActionsChrome : null}
             {onPipOpen && !isVideoExpanded && (
               <LiveVideoChromeButton onClick={onPipOpen} ariaLabel="Détacher en PiP" title="Détacher la vidéo (PiP)">
                 <LiveVideoPipIcon />

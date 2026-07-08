@@ -1,7 +1,9 @@
 import { Router, Request, Response } from 'express';
+import crypto from 'crypto';
 import Stripe from 'stripe';
 import { db } from '../models/schema';
 import { authenticateJWT, verifyAuthToken } from '../middleware/auth';
+import { getStripeClient } from '../lib/stripeClient';
 import {
   DONATION_CURRENCY,
   DON_AMOUNT_MAX,
@@ -26,14 +28,26 @@ import {
 } from '../lib/donations';
 import { CREATOR_MONETIZATION_MIN_AGE } from '../lib/ageGates';
 import { schedulePersist } from '../lib/persist';
-import { persistDonationPaymentToPgAsync } from '../lib/pgDonations';
+import {
+  donationPaymentIntentExistsInPg,
+  persistDonationPaymentToPgAsync,
+} from '../lib/pgDonations';
 
 export const donationsRouter = Router();
 
 function getStripe(): Stripe | null {
-  const key = process.env.STRIPE_SECRET_KEY?.trim();
-  if (!key) return null;
-  return new Stripe(key);
+  return getStripeClient();
+}
+
+const DONATION_IDEMPOTENCY_WINDOW_MS = 60_000;
+
+/** Clé d'idempotence déterministe : même intention utilisateur (userId+live+montant) sur une fenêtre courte -> même clé. */
+function buildDonationIdempotencyKey(userId: string, liveId: string, amountCents: number): string {
+  const windowBucket = Math.floor(Date.now() / DONATION_IDEMPOTENCY_WINDOW_MS);
+  return crypto
+    .createHash('sha256')
+    .update(`donation_intent:${userId}:${liveId}:${amountCents}:${windowBucket}`)
+    .digest('hex');
 }
 
 function getAppBaseUrl(): string {
@@ -346,25 +360,48 @@ donationsRouter.post('/create-intent', authenticateJWT, async (req: Request, res
   const connectAccountId = getCreatorStripeConnectAccountId(live.hostId);
   const feeBreakdown = computeDonationFeeBreakdown(amount);
 
+  // Verify Connect account is fully onboarded (charges_enabled) before creating the PaymentIntent.
+  // Simulation mode is already blocked at the top of this route.
   try {
-    const intent = await stripe.paymentIntents.create({
-      amount: amountCents,
-      currency: DONATION_CURRENCY,
-      automatic_payment_methods: { enabled: true },
-      application_fee_amount: platformFeeCents,
-      transfer_data: {
-        destination: connectAccountId!,
+    const account = await stripe.accounts.retrieve(connectAccountId!);
+    if (!account.charges_enabled) {
+      res.status(400).json({
+        error: 'Le créateur n\'a pas encore finalisé son compte de paiement.',
+        code: 'CREATOR_CHARGES_NOT_ENABLED',
+      });
+      return;
+    }
+  } catch (e) {
+    if (e instanceof Stripe.errors.StripeError) {
+      res.status(503).json({ error: 'Impossible de vérifier le compte de paiement du créateur.' });
+      return;
+    }
+    throw e;
+  }
+
+  try {
+    const idempotencyKey = buildDonationIdempotencyKey(userId, liveId, amountCents);
+    const intent = await stripe.paymentIntents.create(
+      {
+        amount: amountCents,
+        currency: DONATION_CURRENCY,
+        automatic_payment_methods: { enabled: true },
+        application_fee_amount: platformFeeCents,
+        transfer_data: {
+          destination: connectAccountId!,
+        },
+        metadata: {
+          liveId,
+          senderId: userId,
+          hostId: live.hostId,
+          type: 'live_tip',
+          platformFeePercent: String(getDonationPlatformFeePercent()),
+          platformFeeCents: String(platformFeeCents),
+        },
+        description: `Pourboire live — ${live.title}`.slice(0, 200),
       },
-      metadata: {
-        liveId,
-        senderId: userId,
-        hostId: live.hostId,
-        type: 'live_tip',
-        platformFeePercent: String(getDonationPlatformFeePercent()),
-        platformFeeCents: String(platformFeeCents),
-      },
-      description: `Pourboire live — ${live.title}`.slice(0, 200),
-    });
+      { idempotencyKey }
+    );
 
     db.donationPayments.push({
       id: `dp_${Date.now()}`,
@@ -449,18 +486,31 @@ export async function handleStripeDonationWebhook(req: Request, res: Response): 
 
     const existing = db.gifts.find((g) => g.paymentIntentId === intent.id);
     if (!existing) {
+      // Le state db.gifts est en mémoire par process PM2 ; un retry Stripe peut
+      // atterrir sur un autre worker qui ne connaît pas encore ce paiement.
+      // On vérifie donc aussi en base (contrainte UNIQUE sur payment_intent_id)
+      // avant de créditer, pour éviter un double crédit en environnement cluster.
+      let alreadyCreditedInPg = false;
       try {
-        recordLiveDonation({
-          liveId,
-          senderId,
-          senderName: sender.username,
-          senderAvatarUrl: sender.avatarUrl,
-          amount: Math.round(amountCents / 100),
-          paymentMode: 'stripe',
-          paymentIntentId: intent.id,
-        });
-      } catch {
-        console.error('[donations] webhook credit error');
+        alreadyCreditedInPg = await donationPaymentIntentExistsInPg(intent.id);
+      } catch (err) {
+        console.error('[donations] webhook pg dedup check error:', err);
+      }
+
+      if (!alreadyCreditedInPg) {
+        try {
+          recordLiveDonation({
+            liveId,
+            senderId,
+            senderName: sender.username,
+            senderAvatarUrl: sender.avatarUrl,
+            amount: Math.round(amountCents / 100),
+            paymentMode: 'stripe',
+            paymentIntentId: intent.id,
+          });
+        } catch {
+          console.error('[donations] webhook credit error');
+        }
       }
     }
 

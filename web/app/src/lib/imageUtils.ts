@@ -23,6 +23,7 @@ import {
   resizeToInstagramSpecs,
   resizeToStorySpecs,
   resizeToProfilePhotoSpecs,
+  resolveImageOutputFormat,
   type BrowserReadableImageKind,
 } from './imageConstraints';
 
@@ -271,6 +272,16 @@ export async function prepareImageFile(file: File): Promise<File> {
   }
 }
 
+/**
+ * MIME type effectif d'une data URL (`data:image/webp;base64,...` → `image/webp`).
+ * Nécessaire depuis MODIF 965 : `resizeImageInstagram` sort en WebP quand le
+ * navigateur le supporte, JPEG sinon — ne jamais supposer le format en dur.
+ */
+export function mimeTypeFromDataUrl(dataUrl: string, fallback = 'image/jpeg'): string {
+  const match = /^data:([^;,]+)[;,]/.exec(dataUrl);
+  return match?.[1] || fallback;
+}
+
 /** Drop-in config object (MODIF 284 / 293). */
 export const INSTAGRAM_CONFIG = {
   maxSizeMB: INSTAGRAM_IMAGE_LIMITS.maxInputFileSizeMB,
@@ -291,13 +302,16 @@ export function validateImageFile(file: File): string | null {
 /**
  * Resizes an image to Instagram specs via canvas.
  * Optionally crops to a target aspect ratio before resizing.
- * Returns a JPEG base64 data URL.
+ * Returns a base64 data URL — WebP when canvas encoding is supported,
+ * JPEG fallback otherwise (audit Medium #4). Callers must read the actual
+ * MIME type back from the data URL (`dataUrl.slice(5, dataUrl.indexOf(';'))`)
+ * rather than assuming JPEG.
  */
 export async function resizeImageInstagram(
   file: File,
   targetAspect?: '1:1' | '4:5' | '9:16' | '1.91:1'
 ): Promise<string> {
-  const { maxWidth, minWidth, outputQuality, outputFormat } = INSTAGRAM_IMAGE_LIMITS;
+  const { maxWidth, minWidth, outputQuality } = INSTAGRAM_IMAGE_LIMITS;
   const prepared = await prepareImageFile(file);
 
   return new Promise((resolve, reject) => {
@@ -346,7 +360,7 @@ export async function resizeImageInstagram(
       }
 
       ctx.drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh);
-      resolve(canvas.toDataURL(outputFormat, outputQuality));
+      resolve(canvas.toDataURL(resolveImageOutputFormat(), outputQuality));
     };
 
     img.onerror = () => {

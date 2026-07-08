@@ -18,7 +18,9 @@ export type AlertType =
   | 'db_error'
   | 'stripe_error'
   | 'uncaught_exception'
-  | 'unhandled_rejection';
+  | 'unhandled_rejection'
+  | 'acrcloud_error_rate'
+  | 'sightengine_error_rate';
 
 export interface MonitoringAlert {
   id: string;
@@ -67,6 +69,8 @@ const ALERT_ICONS: Record<AlertType, string> = {
   stripe_error: '💳',
   uncaught_exception: '🚨',
   unhandled_rejection: '⚠️',
+  acrcloud_error_rate: '🎵',
+  sightengine_error_rate: '🖼️',
 };
 
 const ALERT_LABELS: Record<AlertType, string> = {
@@ -79,6 +83,8 @@ const ALERT_LABELS: Record<AlertType, string> = {
   stripe_error: 'Erreur webhook Stripe',
   uncaught_exception: 'Exception non capturée',
   unhandled_rejection: 'Promise rejection non gérée',
+  acrcloud_error_rate: 'Taux d’erreur ACRCloud élevé (quota probable)',
+  sightengine_error_rate: 'Taux d’erreur Sightengine élevé (quota probable)',
 };
 
 const ALERT_UNITS: Partial<Record<AlertType, string>> = {
@@ -86,6 +92,8 @@ const ALERT_UNITS: Partial<Record<AlertType, string>> = {
   ram: '%',
   cpu: '%',
   latency: 'ms',
+  acrcloud_error_rate: '%',
+  sightengine_error_rate: '%',
 };
 
 function buildEmailContent(alert: MonitoringAlert): { subject: string; html: string; text: string } {

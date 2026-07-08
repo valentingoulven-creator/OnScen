@@ -657,6 +657,31 @@ body {
   min-height: 0;
 }
 
+/* Floating chat — auto-hide header + input after idle (feed stays visible) */
+.floating-salon-chat__header,
+.floating-salon-chat .room-theater-chat-dock__input {
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+
+.floating-salon-chat--chrome-hidden .floating-salon-chat__header {
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+}
+
+.floating-salon-chat--chrome-hidden .room-theater-chat-dock__input {
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+}
+
+.floating-salon-chat--chrome-hidden .chat-messages-scroll {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* Salon — colonne chat ancrée (YouTube theater) */
 .room-theater-chat-dock {
   width: 100%;

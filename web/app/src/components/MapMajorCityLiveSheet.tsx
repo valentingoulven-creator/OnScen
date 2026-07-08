@@ -141,7 +141,7 @@ export function MapMajorCityLiveSheet({
                   hostId={salon.hostId}
                   hostName={salon.hostName}
                   label={salon.title}
-                  subtitle="Salon"
+                  subtitle={`Salon · ${Math.max(0, salon.listenersCount ?? 0)} spectateurs`}
                   isLive={salon.isLive === true}
                   onSelect={() => onSalonClick(salon)}
                 />
@@ -152,7 +152,7 @@ export function MapMajorCityLiveSheet({
                   hostId={live.hostId}
                   hostName={live.hostName}
                   label={live.title.trim() || live.playbackState.title}
-                  subtitle="Live"
+                  subtitle={`Live · ${Math.max(0, live.viewersCount ?? 0)} spectateurs`}
                   isLive
                   onSelect={() => onLiveClick(live)}
                 />
@@ -171,7 +171,7 @@ export function MapMajorCityLiveSheet({
                   hostId={salon.hostId}
                   hostName={salon.hostName}
                   label={salon.title}
-                  subtitle="Salon"
+                  subtitle={`Salon · ${Math.max(0, salon.listenersCount ?? 0)} spectateurs`}
                   isLive={salon.isLive === true}
                   onSelect={() => onSalonClick(salon)}
                 />
@@ -182,7 +182,7 @@ export function MapMajorCityLiveSheet({
                   hostId={live.hostId}
                   hostName={live.hostName}
                   label={live.title.trim() || live.playbackState.title}
-                  subtitle="Live"
+                  subtitle={`Live · ${Math.max(0, live.viewersCount ?? 0)} spectateurs`}
                   isLive
                   onSelect={() => onLiveClick(live)}
                 />

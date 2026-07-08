@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useFloatingChatChromeAutoHide } from '../hooks/useFloatingChatChromeAutoHide';
 import { getStorageItem, setStorageItem, STORAGE_KEYS } from '../lib/storageKeys';
 
 const BG_KEY = STORAGE_KEYS.floatingChatBg;
@@ -71,6 +72,8 @@ const HEADER_ICON_BTN_COMPACT = 'shrink-0 w-6 h-6 flex items-center justify-cent
 export interface FloatingSalonChatProps {
   children: ReactNode;
   title?: string;
+  /** Actions juste avant « Masquer le chat » (ex. 📋 actions hôte live). */
+  headerTrailingExtra?: ReactNode;
   headerExtra?: ReactNode;
   /** Live théâtre : masque les toggles fond transparent/gris ; garde headerExtra (participants/VIP). */
   compactHeader?: boolean;
@@ -84,6 +87,7 @@ export interface FloatingSalonChatProps {
 export function FloatingSalonChat({
   children,
   title = 'Chat',
+  headerTrailingExtra,
   headerExtra,
   compactHeader = false,
   onTogglePin,
@@ -114,6 +118,8 @@ export function FloatingSalonChat({
     startHeight: number;
     startPosX: number;
   } | null>(null);
+
+  const { chromeVisible, revealChrome } = useFloatingChatChromeAutoHide(windowRef, !minimized);
 
   const persistBg = useCallback((mode: FloatingChatBg) => {
     try {
@@ -197,6 +203,7 @@ export function FloatingSalonChat({
     (e: PointerEvent) => {
       const drag = dragRef.current;
       if (drag?.active && e.pointerId === drag.pointerId) {
+        revealChrome();
         const parent = boundsRef.current;
         if (!parent) return;
         const rect = parent.getBoundingClientRect();
@@ -209,6 +216,7 @@ export function FloatingSalonChat({
 
       const resize = resizeRef.current;
       if (resize?.active && e.pointerId === resize.pointerId) {
+        revealChrome();
         const parent = boundsRef.current;
         if (!parent) return;
         const parentRect = parent.getBoundingClientRect();
@@ -237,7 +245,7 @@ export function FloatingSalonChat({
         }
       }
     },
-    [clampToBounds, size.height],
+    [clampToBounds, size.height, revealChrome],
   );
 
   const endPointer = useCallback(
@@ -280,6 +288,7 @@ export function FloatingSalonChat({
 
   const onHeaderPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
+    revealChrome();
     const parent = boundsRef.current;
     const el = windowRef.current;
     if (!parent || !el) return;
@@ -306,6 +315,7 @@ export function FloatingSalonChat({
   const onResizePointerDown =
     (axis: ResizeAxis) => (e: React.PointerEvent<HTMLDivElement>) => {
       if (e.button !== 0 || minimized) return;
+      revealChrome();
       e.preventDefault();
       e.stopPropagation();
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -336,7 +346,9 @@ export function FloatingSalonChat({
     <div ref={boundsRef} className="floating-salon-chat-bounds pointer-events-none absolute inset-0 z-[50]">
       <div
         ref={windowRef}
-        className={`floating-salon-chat pointer-events-auto absolute flex flex-col rounded-xl shadow-2xl overflow-hidden ${shellClass}`}
+        className={`floating-salon-chat pointer-events-auto absolute flex flex-col rounded-xl shadow-2xl overflow-hidden ${shellClass}${
+          !chromeVisible ? ' floating-salon-chat--chrome-hidden' : ''
+        }`}
         style={{
           ...positionStyle,
           width: size.width,
@@ -348,7 +360,7 @@ export function FloatingSalonChat({
         aria-label={title}
       >
         <div
-          className={`shrink-0 flex items-center gap-1 min-w-0 overflow-hidden px-2.5 py-1.5 border-b cursor-grab active:cursor-grabbing select-none touch-none ${headerClass}`}
+          className={`floating-salon-chat__header shrink-0 flex items-center gap-1 min-w-0 overflow-hidden px-2.5 py-1.5 border-b cursor-grab active:cursor-grabbing select-none touch-none ${headerClass}`}
           onPointerDown={onHeaderPointerDown}
         >
           <div className="shrink-0 flex items-center gap-1">
@@ -470,6 +482,10 @@ export function FloatingSalonChat({
             </button>
           )}
 
+          {headerTrailingExtra ? (
+            <div className="shrink-0 flex items-center">{headerTrailingExtra}</div>
+          ) : null}
+
           {onHide && (
             <button
               type="button"
@@ -485,7 +501,7 @@ export function FloatingSalonChat({
         </div>
 
         {!minimized && (
-          <div className="relative flex-1 min-h-0 flex flex-col overflow-hidden">
+          <div className="floating-salon-chat__body relative flex-1 min-h-0 flex flex-col overflow-hidden">
             {children}
             <div
               role="separator"

@@ -280,6 +280,8 @@ export function SalonYouTubeSearch({
                       src={item.thumbnailUrl}
                       alt=""
                       className="w-14 h-10 rounded-md object-cover bg-[#1e1e2f]"
+                      loading="lazy"
+                      decoding="async"
                     />
                     <span className="absolute bottom-0.5 right-0.5 bg-[#e62117] rounded px-1 text-[7px] font-bold text-white leading-none py-px tracking-tight">
                       YouTube

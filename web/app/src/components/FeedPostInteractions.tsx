@@ -307,6 +307,8 @@ export function FeedPostInteractions({
                   src={c.avatarUrl || '/icon.svg'}
                   alt=""
                   className="w-6 h-6 rounded-full object-cover bg-[#1e1e2f] shrink-0 mt-0.5"
+                  loading="lazy"
+                  decoding="async"
                 />
               )}
               <div

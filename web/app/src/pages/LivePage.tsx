@@ -124,9 +124,7 @@ export function LivePage({
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [viewers, setViewers] = useState(0);
   const [chatHidden, setChatHidden] = useState(false);
-  /** Chat flottant réduit par défaut — la vidéo occupe tout l'écran dès le
-   * premier affichage ; un tap sur l'en-tête suffit pour le déplier. */
-  const [chatMinimized, setChatMinimized] = useState(true);
+  const [chatMinimized, setChatMinimized] = useState(false);
   const [chatPinned, setChatPinned] = useState(readLiveChatPinned);
   const [fullscreenChatOverlay, setFullscreenChatOverlay] = useState(readFullscreenChatOverlay);
   const [privateTarget, setPrivateTarget] = useState<DmContact | null>(null);
@@ -1400,6 +1398,19 @@ export function LivePage({
     []
   );
 
+  const hostActionsChrome = useMemo(
+    () =>
+      isHost ? (
+        <LiveHostActionsPopover
+          liveId={liveId}
+          goalStats={goalStats}
+          variant="theater-chrome"
+          onOpenDonPanel={(subTab) => openHostPanel('don', subTab)}
+        />
+      ) : null,
+    [isHost, liveId, goalStats, openHostPanel],
+  );
+
   const hostVideoOverlay =
     isHost && !viewerStreamEnded ? (
       <>
@@ -1560,6 +1571,7 @@ export function LivePage({
           onClose={() => setShowDonSheet(false)}
           liveId={liveId}
           hostName={live.hostName}
+          hostAvatarUrl={live.hostAvatarUrl}
           token={token}
           userAge={user?.age}
           initialAmount={donInitialAmount}
@@ -1752,36 +1764,34 @@ export function LivePage({
             />
           </>
         ) : undefined}
+        chatHeaderTrailingExtra={
+          isHost ? (
+            <LiveHostActionsPopover
+              liveId={liveId}
+              goalStats={goalStats}
+              onOpenDonPanel={(subTab) => openHostPanel('don', subTab)}
+            />
+          ) : undefined
+        }
         chatHeaderExtra={
-          token || isHost ? (
-            <div className="flex items-center gap-0.5 shrink-0">
-              {token && live ? (
-                <>
-                  <LiveParticipantsPopover
-                    liveId={liveId}
-                    token={token}
-                    hostId={live.hostId}
-                    hostName={live.hostName}
-                    hostUsernameColor={live.hostUsernameColor}
-                    vipModeratorIds={live.vipModeratorIds ?? []}
-                    viewersCount={viewers}
-                  />
-                  <LiveVipModeratorsPopover
-                    vipEntries={vipEntries}
-                    chatParticipants={chatParticipants}
-                    onSetVip={setVipModerator}
-                    canManage={isHost || isDevModerator}
-                  />
-                </>
-              ) : null}
-              {isHost ? (
-                <LiveHostActionsPopover
-                  liveId={liveId}
-                  goalStats={goalStats}
-                  onOpenDonPanel={(subTab) => openHostPanel('don', subTab)}
-                />
-              ) : null}
-            </div>
+          token && live ? (
+            <>
+              <LiveParticipantsPopover
+                liveId={liveId}
+                token={token}
+                hostId={live.hostId}
+                hostName={live.hostName}
+                hostUsernameColor={live.hostUsernameColor}
+                vipModeratorIds={live.vipModeratorIds ?? []}
+                viewersCount={viewers}
+              />
+              <LiveVipModeratorsPopover
+                vipEntries={vipEntries}
+                chatParticipants={chatParticipants}
+                onSetVip={setVipModerator}
+                canManage={isHost || isDevModerator}
+              />
+            </>
           ) : null
         }
         stage={
@@ -1815,6 +1825,7 @@ export function LivePage({
               onToggleViewerPlaybackPaused={!isHost ? toggleViewerPlaybackPaused : undefined}
               videoFloat={livePipActive ? livePip : undefined}
               onPipOpen={!isHost ? openLivePip : undefined}
+              hostActionsChrome={hostActionsChrome}
               overlay={
                 !isHost && !viewerStreamEnded ? (
                   <>
@@ -1876,6 +1887,7 @@ export function LivePage({
             onToggleViewerPlaybackPaused={!isHost ? toggleViewerPlaybackPaused : undefined}
             videoFloat={livePipActive ? livePip : undefined}
             onPipOpen={!isHost ? openLivePip : undefined}
+            hostActionsChrome={hostActionsChrome}
             overlay={
               <>
                 {hostVideoOverlay}

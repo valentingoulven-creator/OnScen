@@ -14,6 +14,8 @@ function SponsorLogo({ logoUrl }: { logoUrl?: string }) {
         src={logoUrl.trim()}
         alt=""
         className="w-9 h-9 rounded-lg object-cover bg-[#1a1a26] shrink-0"
+        loading="lazy"
+        decoding="async"
         onError={(e) => {
           (e.target as HTMLImageElement).style.display = 'none';
         }}

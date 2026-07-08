@@ -453,6 +453,8 @@ export function NotificationBell({
               src={toast.senderAvatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${toast.senderId}`}
               alt=""
               className="w-10 h-10 rounded-full object-cover"
+              loading="lazy"
+              decoding="async"
             />
             <div className="min-w-0 flex-1">
               <p
@@ -591,6 +593,8 @@ export function NotificationBell({
                         }
                         alt=""
                         className="w-8 h-8 rounded-full object-cover"
+                        loading="lazy"
+                        decoding="async"
                       />
                       <UsernameDisplay
                         username={m.otherUser.username}
@@ -713,6 +717,8 @@ export function NotificationBell({
                     src={n.senderAvatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${n.senderId}`}
                     alt=""
                     className="w-9 h-9 rounded-full object-cover shrink-0"
+                    loading="lazy"
+                    decoding="async"
                   />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-gray-200 leading-snug">{n.message}</p>

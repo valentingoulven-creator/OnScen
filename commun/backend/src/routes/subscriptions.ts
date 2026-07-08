@@ -1,10 +1,14 @@
 ﻿import { Router, Request, Response } from 'express';
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import Stripe from 'stripe';
 import { db } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
 import { getJwtSecret, JWT_VERIFY_OPTIONS } from '../lib/jwtSecret';
+import { getStripeClient } from '../lib/stripeClient';
 import { persistSubscriptionCheckoutToPgAsync } from '../lib/pgSubscriptionCheckouts';
+import { creatorSubscriptionExistsInPg, persistCreatorSubscriptionToPgAsync } from '../lib/pgSubscriptions';
+import { notifySubscriptionPaymentFailed } from '../lib/notifications';
 import {
   PLATFORM_CREATOR_ID,
   assertCreatorCanReceiveSubscription,
@@ -35,9 +39,22 @@ import { CREATOR_MONETIZATION_MIN_AGE } from '../lib/ageGates';
 export const subscriptionsRouter = Router();
 
 function getStripe(): Stripe | null {
-  const key = process.env.STRIPE_SECRET_KEY?.trim();
-  if (!key) return null;
-  return new Stripe(key);
+  return getStripeClient();
+}
+
+const SUBSCRIPTION_CHECKOUT_IDEMPOTENCY_WINDOW_MS = 60_000;
+
+/** Clé d'idempotence déterministe : même intention utilisateur (userId+créateur+palier) sur une fenêtre courte -> même clé. */
+function buildSubscriptionCheckoutIdempotencyKey(
+  userId: string,
+  creatorId: string,
+  tierId: string
+): string {
+  const windowBucket = Math.floor(Date.now() / SUBSCRIPTION_CHECKOUT_IDEMPOTENCY_WINDOW_MS);
+  return crypto
+    .createHash('sha256')
+    .update(`subscription_checkout:${userId}:${creatorId}:${tierId}:${windowBucket}`)
+    .digest('hex');
 }
 
 function getAppBaseUrl(): string {
@@ -327,22 +344,26 @@ subscriptionsRouter.post('/create-checkout', authenticateJWT, async (req: Reques
   };
 
   try {
-    const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      customer_email: user.email,
-      line_items: [{ price: tier.stripePriceId, quantity: 1 }],
-      success_url: `${baseUrl}/?subscribe=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/?subscribe=cancel`,
-      metadata: {
-        subscriberId: userId,
-        creatorId: resolvedCreatorId,
-        tierId: tier.id,
-        tierLabel: tier.label,
-        targetType,
-        type: 'creator_subscription',
+    const idempotencyKey = buildSubscriptionCheckoutIdempotencyKey(userId, resolvedCreatorId, tier.id);
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: 'subscription',
+        customer_email: user.email,
+        line_items: [{ price: tier.stripePriceId, quantity: 1 }],
+        success_url: `${baseUrl}/?subscribe=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/?subscribe=cancel`,
+        metadata: {
+          subscriberId: userId,
+          creatorId: resolvedCreatorId,
+          tierId: tier.id,
+          tierLabel: tier.label,
+          targetType,
+          type: 'creator_subscription',
+        },
+        subscription_data: subscriptionData,
       },
-      subscription_data: subscriptionData,
-    });
+      { idempotencyKey }
+    );
 
     db.subscriptionCheckouts.push({
       id: `sc_${Date.now()}`,
@@ -479,18 +500,37 @@ export async function handleStripeSubscriptionWebhook(req: Request, res: Respons
       /* fallback period */
     }
 
-    recordCreatorSubscription({
-      subscriberId,
-      creatorId,
-      tierId,
-      tierLabel,
-      amountCents,
-      targetType,
-      paymentMode: 'stripe',
-      stripeSubscriptionId: stripeSubId,
-      stripeCustomerId,
-      currentPeriodEnd: periodEnd,
-    });
+    // db.creatorSubscriptions est en mémoire par process PM2 : un webhook
+    // relivré par Stripe peut atterrir sur un autre worker qui ne connaît pas
+    // encore cet abonnement. On vérifie donc aussi en base (contrainte UNIQUE
+    // partielle sur stripe_subscription_id) avant d'écrire, en plus du check
+    // RAM déjà effectué dans recordCreatorSubscription().
+    const alreadyInRam = db.creatorSubscriptions.some(
+      (s) => s.stripeSubscriptionId === stripeSubId
+    );
+    let alreadyInPg = false;
+    if (!alreadyInRam) {
+      try {
+        alreadyInPg = await creatorSubscriptionExistsInPg(stripeSubId);
+      } catch (err) {
+        console.error('[subscriptions] webhook pg dedup check error:', err);
+      }
+    }
+
+    if (!alreadyInPg) {
+      recordCreatorSubscription({
+        subscriberId,
+        creatorId,
+        tierId,
+        tierLabel,
+        amountCents,
+        targetType,
+        paymentMode: 'stripe',
+        stripeSubscriptionId: stripeSubId,
+        stripeCustomerId,
+        currentPeriodEnd: periodEnd,
+      });
+    }
 
     const checkout = db.subscriptionCheckouts.find((c) => c.sessionId === session.id);
     if (checkout) {
@@ -510,6 +550,30 @@ export async function handleStripeSubscriptionWebhook(req: Request, res: Respons
         if (periodEnd) renewSubscriptionFromInvoice(stripeSubId, periodEnd);
       } catch (e) {
         console.error('[subscriptions] invoice.paid webhook renewal failed:', stripeSubId, e);
+      }
+    }
+  }
+
+  if (event.type === 'invoice.payment_failed') {
+    const invoice = event.data.object as Stripe.Invoice;
+    const stripeSubId =
+      typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+    if (stripeSubId) {
+      console.error('[subscriptions] invoice.payment_failed pour l’abonnement', stripeSubId);
+      const sub = db.creatorSubscriptions.find((s) => s.stripeSubscriptionId === stripeSubId);
+      if (sub) {
+        sub.paymentFailedAt = Date.now();
+        sub.updatedAt = Date.now();
+        persistCreatorSubscriptionToPgAsync(sub);
+        try {
+          notifySubscriptionPaymentFailed({
+            subscriberId: sub.subscriberId,
+            creatorId: sub.creatorId,
+            tierLabel: sub.tierLabel,
+          });
+        } catch (err) {
+          console.error('[subscriptions] invoice.payment_failed notification error:', err);
+        }
       }
     }
   }

@@ -86,6 +86,8 @@ export function DmDirectMessageRow({
                   src={m.attachmentUrl}
                   alt={m.attachmentName ?? 'Image'}
                   className="max-w-full rounded-xl max-h-52 object-cover"
+                  loading="lazy"
+                  decoding="async"
                 />
               ) : (
                 <a

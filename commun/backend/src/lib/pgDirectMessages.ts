@@ -30,7 +30,16 @@ export function scheduleDeleteDirectMessageFromPg(messageId: string): void {
   });
 }
 
-/** Upsert DMs puis prune des ids absents du snapshot mémoire. */
+/**
+ * Upsert DMs puis prune des ids absents du snapshot mémoire.
+ *
+ * ⚠️ Ré-upsert intégral à chaque cycle de flush (boucle `for` sur la totalité
+ * de `db.directMessages`) — chantier de refonte connu, voir le commentaire
+ * détaillé sur `writeStore` dans `pgStore.ts` (audit DB/infra §3). `dms` est
+ * désormais borné par `trimDirectMessages` (`chatHistory.ts`) avant d'arriver
+ * ici, ce qui limite au moins la croissance non bornée en mémoire, mais ne
+ * change pas la complexité O(volume total) de ce flush.
+ */
 export async function syncDirectMessagesToPg(
   client: PoolClient,
   dms: DirectMessage[]

@@ -3,7 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useDmUnread } from '../context/DmUnreadContext';
 import { api } from '../lib/api';
-import { ACCEPTED_IMAGE_FORMATS, validateImageFile, resizeImageInstagram } from '../lib/imageUtils';
+import {
+  ACCEPTED_IMAGE_FORMATS,
+  validateImageFile,
+  resizeImageInstagram,
+  mimeTypeFromDataUrl,
+} from '../lib/imageUtils';
 import { getLivesGeo } from '../lib/livesGeo';
 import { getSalonShareUrl } from '../lib/shareLink';
 import { getSocket } from '../lib/socket';
@@ -448,7 +453,12 @@ export function DmPage({
       }
       resizeImageInstagram(file)
         .then((dataUrl) => {
-          setPendingAttachment({ dataUrl, name: file.name, mimeType: 'image/jpeg', size: file.size });
+          setPendingAttachment({
+            dataUrl,
+            name: file.name,
+            mimeType: mimeTypeFromDataUrl(dataUrl),
+            size: file.size,
+          });
         })
         .catch((err: unknown) => {
           alert(err instanceof Error ? err.message : "Impossible de traiter l'image");

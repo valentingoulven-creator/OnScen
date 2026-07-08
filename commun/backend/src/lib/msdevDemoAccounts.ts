@@ -3,6 +3,7 @@ import { db } from '../models/schema';
 import { schedulePersist } from './persist';
 import { CREATOR_MONETIZATION_MIN_AGE } from './ageGates';
 import { MSDEV_LISTENER_ID } from '../seed-favorite-feed';
+import { maskEmail } from './maskPii';
 
 /** Compteur « Vous suivent » affiché pour listener@msdev.local (243k). */
 export const MSDEV_LISTENER_FOLLOWERS_COUNT = 243_000;
@@ -35,7 +36,7 @@ export async function ensureMsdevDemoCredentials(): Promise<void> {
     user.passwordHash = hash;
     db.users.set(user.id, user);
     changed = true;
-    console.log(`[msdev] Mot de passe démo réinitialisé pour ${user.email}`);
+    console.log(`[msdev] Mot de passe démo réinitialisé pour ${maskEmail(user.email)}`);
   }
   if (changed) schedulePersist();
 }
@@ -58,7 +59,7 @@ export function ensureMsdevDemoMonetizationAges(): void {
     user.age = MSDEV_DEMO_AGE;
     db.users.set(user.id, user);
     changed = true;
-    console.log(`[msdev] Âge monétisation réinitialisé pour ${user.email} (${MSDEV_DEMO_AGE} ans)`);
+    console.log(`[msdev] Âge monétisation réinitialisé pour ${maskEmail(user.email)} (${MSDEV_DEMO_AGE} ans)`);
   }
   if (changed) schedulePersist();
 }
@@ -74,6 +75,6 @@ export function ensureMsdevListenerFollowersCount(): void {
   db.users.set(user.id, user);
   schedulePersist();
   console.log(
-    `[msdev] Compteur « Vous suivent » réinitialisé pour ${user.email} (${MSDEV_LISTENER_FOLLOWERS_COUNT})`
+    `[msdev] Compteur « Vous suivent » réinitialisé pour ${maskEmail(user.email)} (${MSDEV_LISTENER_FOLLOWERS_COUNT})`
   );
 }

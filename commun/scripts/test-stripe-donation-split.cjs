@@ -17,7 +17,7 @@ const amountCents = AMOUNT_EUR * 100;
 const platformFeeCents = Math.round((amountCents * FEE_PERCENT) / 100);
 const creatorNetCents = amountCents - platformFeeCents;
 
-const stripe = new Stripe(keyMatch[1].trim());
+const stripe = new Stripe(keyMatch[1].trim(), { apiVersion: '2025-02-24.acacia' });
 
 async function ensureConnectAccount() {
   const existing = await stripe.accounts.list({ limit: 1 });

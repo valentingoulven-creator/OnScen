@@ -4,6 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import crypto from 'node:crypto';
+import zlib from 'node:zlib';
 import fs from 'fs';
 import path from 'path';
 import rateLimit from 'express-rate-limit';
@@ -18,6 +19,7 @@ import { groupsRouter } from './routes/groups';
 import { giftsRouter } from './routes/gifts';
 import { donationsRouter, handleStripeDonationWebhook } from './routes/donations';
 import { subscriptionsRouter, handleStripeSubscriptionWebhook } from './routes/subscriptions';
+import { adminPaymentsRouter } from './routes/adminPayments';
 import { networkRouter } from './routes/network';
 import { ratingsRouter } from './routes/ratings';
 import { notificationsRouter } from './routes/notifications';
@@ -288,7 +290,25 @@ const PHONE_PREVIEW_HTML = `<!DOCTYPE html>
 
 
 app.set('trust proxy', 1);
-app.use(compression());
+/**
+ * `compression` >= 1.7.5 négocie nativement Brotli via `Accept-Encoding: br`
+ * quand `zlib.createBrotliCompress` existe (Node >= 11.7 — projet sur Node 24),
+ * avec repli automatique gzip/deflate pour les clients qui ne l'annoncent pas.
+ * Qualité relevée par rapport au défaut (4, optimisé latence) car les assets
+ * Vite sont hashés + cache `immutable` 1 an (public/tel/assets) : le coût CPU
+ * de compression n'est payé qu'une fois par asset et par client, largement
+ * rentabilisé par la réduction de payload (gain Brotli ~15-20% vs gzip).
+ * Audit Medium #6 — pas de Brotli.
+ */
+app.use(
+  compression({
+    brotli: {
+      params: {
+        [zlib.constants.BROTLI_PARAM_QUALITY]: 7,
+      },
+    },
+  })
+);
 app.use(cookieParser());
 app.use(latencyMonitorMiddleware);
 // Génère un nonce CSP aléatoire par requête (doit tourner avant helmet).
@@ -524,6 +544,7 @@ app.use('/api/admin/vps', adminSyslogRouter);
 app.use('/api', diagnosticLogsRouter);
 app.use('/api/admin/reports', adminReportsRouter);
 app.use('/api/admin/ai-agents', adminAiAgentsRouter);
+app.use('/api/admin', adminPaymentsRouter);
 app.use('/api/geo', geoRouter);
 app.use('/api/salons', salonsRouter);
 app.use('/api/lives', livesRouter);

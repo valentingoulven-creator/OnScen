@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useFloatingChatChromeAutoHide } from '../hooks/useFloatingChatChromeAutoHide';
 import { getStorageItem, setStorageItem, STORAGE_KEYS } from '../lib/storageKeys';
 
 const BG_KEY = STORAGE_KEYS.floatingChatBg;
@@ -64,10 +65,20 @@ function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
 }
 
+const HEADER_ICON_BTN =
+  'shrink-0 w-11 h-11 flex items-center justify-center rounded transition touch-manipulation';
+const HEADER_ICON_BTN_COMPACT = 'shrink-0 w-6 h-6 flex items-center justify-center rounded transition';
+
 export interface FloatingSalonChatProps {
   children: ReactNode;
   title?: string;
+  /** Actions juste avant « Masquer le chat » (ex. 📋 actions hôte live). */
+  headerTrailingExtra?: ReactNode;
   headerExtra?: ReactNode;
+  /** Live théâtre : masque les toggles fond transparent/gris ; garde headerExtra (participants/VIP). */
+  compactHeader?: boolean;
+  /** Épingler le chat en colonne gauche (live théâtre). */
+  onTogglePin?: () => void;
   minimized?: boolean;
   onToggleMinimize?: () => void;
   onHide?: () => void;
@@ -76,7 +87,10 @@ export interface FloatingSalonChatProps {
 export function FloatingSalonChat({
   children,
   title = 'Chat',
+  headerTrailingExtra,
   headerExtra,
+  compactHeader = false,
+  onTogglePin,
   minimized = false,
   onToggleMinimize,
   onHide,
@@ -104,6 +118,8 @@ export function FloatingSalonChat({
     startHeight: number;
     startPosX: number;
   } | null>(null);
+
+  const { chromeVisible, revealChrome } = useFloatingChatChromeAutoHide(windowRef, !minimized);
 
   const persistBg = useCallback((mode: FloatingChatBg) => {
     try {
@@ -187,6 +203,7 @@ export function FloatingSalonChat({
     (e: PointerEvent) => {
       const drag = dragRef.current;
       if (drag?.active && e.pointerId === drag.pointerId) {
+        revealChrome();
         const parent = boundsRef.current;
         if (!parent) return;
         const rect = parent.getBoundingClientRect();
@@ -199,6 +216,7 @@ export function FloatingSalonChat({
 
       const resize = resizeRef.current;
       if (resize?.active && e.pointerId === resize.pointerId) {
+        revealChrome();
         const parent = boundsRef.current;
         if (!parent) return;
         const parentRect = parent.getBoundingClientRect();
@@ -227,7 +245,7 @@ export function FloatingSalonChat({
         }
       }
     },
-    [clampToBounds, size.height],
+    [clampToBounds, size.height, revealChrome],
   );
 
   const endPointer = useCallback(
@@ -270,6 +288,7 @@ export function FloatingSalonChat({
 
   const onHeaderPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
+    revealChrome();
     const parent = boundsRef.current;
     const el = windowRef.current;
     if (!parent || !el) return;
@@ -296,6 +315,7 @@ export function FloatingSalonChat({
   const onResizePointerDown =
     (axis: ResizeAxis) => (e: React.PointerEvent<HTMLDivElement>) => {
       if (e.button !== 0 || minimized) return;
+      revealChrome();
       e.preventDefault();
       e.stopPropagation();
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -326,7 +346,9 @@ export function FloatingSalonChat({
     <div ref={boundsRef} className="floating-salon-chat-bounds pointer-events-none absolute inset-0 z-[50]">
       <div
         ref={windowRef}
-        className={`floating-salon-chat pointer-events-auto absolute flex flex-col rounded-xl shadow-2xl overflow-hidden ${shellClass}`}
+        className={`floating-salon-chat pointer-events-auto absolute flex flex-col rounded-xl shadow-2xl overflow-hidden ${shellClass}${
+          !chromeVisible ? ' floating-salon-chat--chrome-hidden' : ''
+        }`}
         style={{
           ...positionStyle,
           width: size.width,
@@ -334,28 +356,33 @@ export function FloatingSalonChat({
           height: minimized ? undefined : size.height,
         }}
         role="dialog"
+        aria-modal="true"
         aria-label={title}
       >
         <div
-          className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 border-b cursor-grab active:cursor-grabbing select-none touch-none ${headerClass}`}
+          className={`floating-salon-chat__header shrink-0 flex items-center gap-1 min-w-0 overflow-hidden px-2.5 py-1.5 border-b cursor-grab active:cursor-grabbing select-none touch-none ${headerClass}`}
           onPointerDown={onHeaderPointerDown}
         >
-          <span className="text-purple-400 text-[10px] leading-none shrink-0" aria-hidden>
-            ⠿
-          </span>
-          <span className="text-purple-400 text-[10px] leading-none shrink-0" aria-hidden>
-            💬
-          </span>
-          <p className="text-[9px] font-bold text-purple-400 uppercase tracking-widest flex-1 truncate min-w-0">
+          <div className="shrink-0 flex items-center gap-1">
+            <span className="text-purple-400 text-[10px] leading-none" aria-hidden>
+              ⠿
+            </span>
+            <span className="text-purple-400 text-[10px] leading-none" aria-hidden>
+              💬
+            </span>
+          </div>
+          <p className="min-w-0 flex-1 truncate text-[9px] font-bold text-purple-400 uppercase tracking-widest">
             {title}
           </p>
 
-          {headerExtra ? (
-            <div className="shrink-0" onPointerDown={(e) => e.stopPropagation()}>
-              {headerExtra}
-            </div>
-          ) : null}
+          <div
+            className="shrink-0 flex items-center gap-0.5"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+          {headerExtra ? headerExtra : null}
 
+          {!compactHeader ? (
+            <>
           <button
             type="button"
             onPointerDown={(e) => e.stopPropagation()}
@@ -398,6 +425,30 @@ export function FloatingSalonChat({
               <rect x="1" y="1" width="10" height="10" rx="2" fill="currentColor" fillOpacity="0.35" stroke="currentColor" strokeWidth="1.2" />
             </svg>
           </button>
+            </>
+          ) : null}
+
+          {onTogglePin && (
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={onTogglePin}
+              title="Épingler à gauche"
+              className={`${compactHeader ? HEADER_ICON_BTN : HEADER_ICON_BTN_COMPACT} text-gray-500 hover:text-amber-300 hover:bg-white/10`}
+              aria-label="Épingler le chat à gauche"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+                <path
+                  d="M6 1v7M4 3l2-2 2 2"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path d="M3 8h6v3H3z" fill="currentColor" fillOpacity="0.35" stroke="currentColor" strokeWidth="1.2" />
+              </svg>
+            </button>
+          )}
 
           {onToggleMinimize && (
             <button
@@ -405,7 +456,7 @@ export function FloatingSalonChat({
               onPointerDown={(e) => e.stopPropagation()}
               onClick={onToggleMinimize}
               title={minimized ? 'Agrandir' : 'Réduire'}
-              className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-white hover:bg-white/10 transition"
+              className={`${compactHeader ? HEADER_ICON_BTN : HEADER_ICON_BTN_COMPACT} text-gray-500 hover:text-white hover:bg-white/10`}
               aria-label={minimized ? 'Agrandir le chat' : 'Réduire le chat'}
               aria-expanded={!minimized}
             >
@@ -431,21 +482,26 @@ export function FloatingSalonChat({
             </button>
           )}
 
+          {headerTrailingExtra ? (
+            <div className="shrink-0 flex items-center">{headerTrailingExtra}</div>
+          ) : null}
+
           {onHide && (
             <button
               type="button"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={onHide}
-              className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-white hover:bg-white/10 transition text-lg leading-none"
+              className={`${compactHeader ? HEADER_ICON_BTN : HEADER_ICON_BTN_COMPACT} text-gray-500 hover:text-white hover:bg-white/10 text-lg leading-none`}
               aria-label="Masquer le chat"
             >
               ×
             </button>
           )}
+          </div>
         </div>
 
         {!minimized && (
-          <div className="relative flex-1 min-h-0 flex flex-col overflow-hidden">
+          <div className="floating-salon-chat__body relative flex-1 min-h-0 flex flex-col overflow-hidden">
             {children}
             <div
               role="separator"

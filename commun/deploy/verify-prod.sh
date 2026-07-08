@@ -48,10 +48,14 @@ else
 fi
 
 # legal-publisher.json
+# NB : détection insensible à la casse et sur plusieurs formes de placeholder,
+# car le champ brut du JSON contient typiquement "à renseigner" / "acompleter"
+# (valeur non résolue), pas seulement le gabarit "[À compléter : ...]" généré
+# à l'affichage par legalPublisher.ts quand un champ est vide.
 if [[ ! -f "$LEGAL_FILE" ]]; then
   fail "legal-publisher.json absent : $LEGAL_FILE (copier depuis commun/msdev/legal-publisher.example.json)"
-elif grep -q '\[À compléter' "$LEGAL_FILE" 2>/dev/null; then
-  fail "legal-publisher.json contient des placeholders [À compléter]"
+elif grep -qiE '\[à compléter|à compléter|à renseigner|acompleter|@gmail\.com|@yahoo\.|@hotmail\.|@outlook\.' "$LEGAL_FILE" 2>/dev/null; then
+  fail "legal-publisher.json contient des placeholders non résolus ou une adresse e-mail personnelle (voir commun/docs/audit/AUDIT-legal-youtube-copyright.md RGPD-1)"
 else
   ok "legal-publisher.json présent et rempli"
 fi

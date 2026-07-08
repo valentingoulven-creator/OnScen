@@ -8,6 +8,7 @@ import {
   isAcrCloudFailOpen,
   isMsdevRuntime,
 } from './acrCloudConfig';
+import { recordApiCall } from './apiQuotaMonitor';
 
 export interface AcrCloudMusicMatch {
   title: string;
@@ -89,10 +90,16 @@ export async function identifyCommercialMusicMatch(
     } catch {
       console.warn('[acrcloud] réponse JSON invalide:', text.slice(0, 200));
       if (!isAcrCloudFailOpen()) {
+        // Recorded once in the outer catch below (this re-throws into it).
         throw new Error('ACRCLOUD_API_ERROR');
       }
+      recordApiCall('acrcloud', false);
       return null;
     }
+
+    // status.code === 0 = success ; anything else (quota exceeded, invalid
+    // signature, etc.) is a real API error worth counting for quota alerts.
+    recordApiCall('acrcloud', data.status?.code === 0);
 
     const match = parseTopMatch(data);
     if (!match) return null;
@@ -103,6 +110,7 @@ export async function identifyCommercialMusicMatch(
     return match;
   } catch (err) {
     console.warn('[acrcloud] identify error:', err);
+    recordApiCall('acrcloud', false);
     if (!isAcrCloudFailOpen()) {
       throw err;
     }

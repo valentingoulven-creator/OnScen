@@ -218,9 +218,12 @@ if (-not $SkipBuild) {
         $ErrorActionPreference = $prevEap
         if ($npmCode -ne 0) { Fail "npm install backend echoue (code $npmCode)." }
 
-        Write-Host "  -> npm run build..."
+        # build:prod = tsc + retrait des modules dev-only non conformes ToS tiers
+        # (fallback Piped/Invidious YouTube, cf. audit YT-2) du bundle livre en
+        # prod/preprod, en plus du garde-fou runtime deja existant.
+        Write-Host "  -> npm run build:prod..."
         $ErrorActionPreference = 'Continue'
-        & npm run build 2>&1
+        & npm run build:prod 2>&1
         $buildCode = $LASTEXITCODE
         $ErrorActionPreference = $prevEap
         if ($buildCode -ne 0) { Fail "Build TypeScript echoue (code $buildCode)." }

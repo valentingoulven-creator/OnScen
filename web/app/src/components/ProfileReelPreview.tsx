@@ -60,7 +60,13 @@ export function ProfileReelPreview({ reel, onClose }: ProfileReelPreviewProps) {
             {...holdAccelerate.handlers}
           />
         ) : (
-          <img src={reel.posterUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          <img
+            src={reel.posterUrl}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
+          />
         )}
         <AccelerateBadge
           visible={holdAccelerate.accelerating}

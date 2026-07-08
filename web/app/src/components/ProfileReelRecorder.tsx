@@ -33,6 +33,16 @@ interface ProfileReelRecorderProps {
 
 type Phase = 'idle' | 'camera' | 'recording' | 'review' | 'imported';
 
+function isValidHttpUrl(value: string): boolean {
+  if (!value.trim()) return true;
+  try {
+    const u = new URL(value.trim());
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export function ProfileReelRecorder({
   token,
   defaultArtist = '',
@@ -59,6 +69,8 @@ export function ProfileReelRecorder({
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState(defaultArtist);
   const [genre, setGenre] = useState('');
+  const [link, setLink] = useState('');
+  const [linkError, setLinkError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
@@ -224,7 +236,7 @@ export function ProfileReelRecorder({
         });
       }, 1000);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Impossible de démarrer l’enregistrement');
+      setError(e instanceof Error ? e.message : 'Impossible de démarrer l\'enregistrement');
     }
   };
 
@@ -270,6 +282,8 @@ export function ProfileReelRecorder({
     setImportedMediaUrl(null);
     setTitle('');
     setGenre('');
+    setLink('');
+    setLinkError(null);
     setRecordSec(0);
     setDurationSec(0);
     setError(null);
@@ -280,6 +294,16 @@ export function ProfileReelRecorder({
     setPhase('idle');
   };
 
+  const validateLink = (): boolean => {
+    if (!link.trim()) return true;
+    if (!isValidHttpUrl(link)) {
+      setLinkError(t('reels.createLinkInvalid', { defaultValue: 'URL invalide (commencer par https://)' }));
+      return false;
+    }
+    setLinkError(null);
+    return true;
+  };
+
   const savePrivateReel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
@@ -287,6 +311,7 @@ export function ProfileReelRecorder({
       setError(t('profile.compositions.rightsConfirmRequired'));
       return;
     }
+    if (!validateLink()) return;
     if (!importedMediaUrl && !previewUrl) return;
     setError(null);
     setSubmitting(true);
@@ -319,6 +344,7 @@ export function ProfileReelRecorder({
         title: title.trim(),
         artist: artist.trim(),
         genre: genre.trim(),
+        ...(link.trim() ? { link: link.trim() } : {}),
         mediaType: 'video' as const,
         mediaUrl: videoDataUrl,
         posterUrl: poster,
@@ -400,6 +426,14 @@ export function ProfileReelRecorder({
             : 'bg-[#1a1a26] border-[#2d2d3d] text-gray-300'
         }`;
 
+  /* ── field helpers ───────────────────────────────────────────────── */
+  const fieldClass = embedded
+    ? 'w-full rounded-2xl bg-white/[0.06] border border-white/10 px-3.5 py-2.5 text-sm text-white placeholder:text-white/25 focus:border-pink-500/50 focus:outline-none transition-colors'
+    : 'mt-1 w-full rounded-xl bg-[#1a1a28] border border-[#2d2d3d] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-purple-500/50 focus:outline-none';
+
+  const labelClass = `flex items-center gap-1.5 text-xs mb-1 ${embedded ? 'text-white/45' : 'text-gray-400'}`;
+
+  /* ── video block ─────────────────────────────────────────────────── */
   const videoBlock = (
     <>
       <audio ref={audioPreviewRef} className="hidden" aria-hidden />
@@ -461,6 +495,7 @@ export function ProfileReelRecorder({
     </>
   );
 
+  /* ── audio source block ──────────────────────────────────────────── */
   const audioSourceBlock = phase === 'idle' && (
     <div className={embedded ? 'space-y-3' : 'space-y-2'}>
       {!embedded && (
@@ -572,6 +607,7 @@ export function ProfileReelRecorder({
     </div>
   );
 
+  /* ── idle actions ────────────────────────────────────────────────── */
   const idleActions = phase === 'idle' && (
     embedded ? (
       <div className="grid grid-cols-2 gap-3">
@@ -653,13 +689,187 @@ export function ProfileReelRecorder({
     )
   );
 
+  /* ── review form ─────────────────────────────────────────────────── */
+  const reviewForm = showReviewForm && (
+    <form
+      onSubmit={(e) => void savePrivateReel(e)}
+      className={embedded ? 'space-y-3 pt-1' : 'space-y-3'}
+    >
+      {/* Section header */}
+      {embedded ? (
+        <div className="flex items-center gap-2 pb-0.5">
+          <div className="w-5 h-5 rounded-md bg-gradient-to-br from-pink-500 to-fuchsia-600 flex items-center justify-center shrink-0">
+            <svg viewBox="0 0 24 24" className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 01-.99-3.467l2.31-.66A2.25 2.25 0 009 15.553z" />
+            </svg>
+          </div>
+          <p className="text-xs font-bold text-white/85">
+            {t('reels.createDetailsTitle', { defaultValue: 'Détails du reel' })}
+          </p>
+        </div>
+      ) : (
+        <p className="text-xs font-semibold text-purple-400 uppercase tracking-wider">
+          {t('reels.createDetailsTitle', { defaultValue: 'Détails' })}
+        </p>
+      )}
+
+      {/* Title */}
+      <label className="block">
+        <span className={labelClass}>
+          {embedded && (
+            <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.127 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+            </svg>
+          )}
+          Titre
+        </span>
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+          maxLength={120}
+          placeholder={embedded ? 'Nom du morceau…' : undefined}
+          className={fieldClass}
+        />
+      </label>
+
+      {/* Artist */}
+      <label className="block">
+        <span className={labelClass}>
+          {embedded && (
+            <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+            </svg>
+          )}
+          Artiste
+        </span>
+        <input
+          value={artist}
+          onChange={(e) => setArtist(e.target.value)}
+          required
+          maxLength={120}
+          className={fieldClass}
+        />
+      </label>
+
+      {/* Genre */}
+      <label className="block">
+        <span className={labelClass}>
+          {embedded && (
+            <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 01-.99-3.467l2.31-.66A2.25 2.25 0 009 15.553z" />
+            </svg>
+          )}
+          Genre
+        </span>
+        <input
+          value={genre}
+          onChange={(e) => setGenre(e.target.value)}
+          required
+          maxLength={80}
+          placeholder="Ex: Pop, Électro…"
+          className={fieldClass}
+        />
+      </label>
+
+      {/* Link (optional) */}
+      <label className="block">
+        <span className={labelClass}>
+          {embedded && (
+            <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+            </svg>
+          )}
+          {t('reels.createLinkLabel', { defaultValue: 'Lien (optionnel)' })}
+        </span>
+        <input
+          value={link}
+          onChange={(e) => {
+            setLink(e.target.value);
+            setLinkError(null);
+          }}
+          onBlur={validateLink}
+          maxLength={500}
+          type="url"
+          inputMode="url"
+          placeholder={t('reels.createLinkPlaceholder', { defaultValue: 'https://…' })}
+          className={
+            embedded
+              ? `w-full rounded-2xl bg-white/[0.06] border px-3.5 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none transition-colors ${
+                  linkError ? 'border-red-500/50 focus:border-red-500/70' : 'border-white/10 focus:border-pink-500/50'
+                }`
+              : `mt-1 w-full rounded-xl bg-[#1a1a28] border px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none ${
+                  linkError ? 'border-red-500/50' : 'border-[#2d2d3d] focus:border-purple-500/50'
+                }`
+          }
+        />
+        {linkError && (
+          <p className="mt-1 text-[10px] text-red-400 flex items-center gap-1">
+            <svg viewBox="0 0 24 24" className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+            {linkError}
+          </p>
+        )}
+      </label>
+
+      {/* Rights checkbox */}
+      <label
+        className={
+          embedded
+            ? 'flex items-start gap-2.5 p-3 rounded-2xl bg-white/[0.03] border border-white/[0.06] cursor-pointer'
+            : 'flex items-start gap-2.5 cursor-pointer'
+        }
+      >
+        <input
+          type="checkbox"
+          checked={rightsConfirmed}
+          onChange={(e) => setRightsConfirmed(e.target.checked)}
+          className="mt-0.5 w-4 h-4 rounded border-white/20 accent-pink-500 shrink-0"
+        />
+        <span className={`text-[11px] leading-snug ${embedded ? 'text-white/45' : 'text-gray-400'}`}>
+          {t('profile.compositions.rightsConfirmLabel')}
+        </span>
+      </label>
+
+      {/* Actions */}
+      <div className="flex gap-2 pt-1">
+        <button
+          type="button"
+          onClick={resetToIdle}
+          className={
+            embedded
+              ? 'flex-1 py-3 rounded-full bg-white/8 border border-white/10 text-sm font-semibold text-white/75 hover:bg-white/[0.12] transition-colors'
+              : 'flex-1 py-3 rounded-xl bg-[#1a1a26] border border-[#2d2d3d] text-sm font-semibold text-gray-300'
+          }
+        >
+          {t('reels.createRedo', { defaultValue: 'Refaire' })}
+        </button>
+        <button
+          type="submit"
+          disabled={submitting || !title.trim() || !artist.trim() || !genre.trim() || !rightsConfirmed}
+          className={
+            embedded
+              ? 'flex-[2] py-3 rounded-full bg-gradient-to-r from-pink-500 to-fuchsia-600 font-bold text-white disabled:opacity-40 shadow-lg shadow-pink-900/25 active:scale-[0.98] transition-all'
+              : 'flex-[2] py-3 rounded-xl bg-purple-600 hover:bg-purple-500 font-bold text-white disabled:opacity-40'
+          }
+        >
+          {submitting
+            ? t('reels.createSaving', { defaultValue: 'Sauvegarde…' })
+            : t('reels.createSave', { defaultValue: 'Sauvegarder' })}
+        </button>
+      </div>
+    </form>
+  );
+
+  /* ── main content ────────────────────────────────────────────────── */
   const content = (
     <>
       {!embedded && (
         <div>
           <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider">Enregistrer</h3>
           <p className="text-[11px] text-gray-500 mt-1">
-            Vos reels enregistrés restent privés sur votre profil. Ils n’apparaissent pas dans l’onglet Reels public.
+            Vos reels enregistrés restent privés sur votre profil. Ils n'apparaissent pas dans l'onglet Reels public.
           </p>
         </div>
       )}
@@ -761,96 +971,7 @@ export function ProfileReelRecorder({
         )
       )}
 
-      {showReviewForm && (
-        <form
-          onSubmit={(e) => void savePrivateReel(e)}
-          className={embedded ? 'space-y-3 pt-1' : 'space-y-3'}
-        >
-          <p className={embedded ? 'text-xs font-bold text-white/80' : undefined}>
-            {embedded ? t('reels.createDetailsTitle', { defaultValue: 'Détails du reel' }) : null}
-          </p>
-          <label className="block">
-            <span className={`text-xs ${embedded ? 'text-white/45' : 'text-gray-400'}`}>Titre</span>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              maxLength={120}
-              className={
-                embedded
-                  ? 'mt-1 w-full rounded-2xl bg-white/[0.06] border border-white/10 px-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-pink-500/50 focus:outline-none'
-                  : 'mt-1 w-full rounded-xl bg-[#1a1a28] border border-[#2d2d3d] px-3 py-2 text-sm text-white'
-              }
-            />
-          </label>
-          <label className="block">
-            <span className={`text-xs ${embedded ? 'text-white/45' : 'text-gray-400'}`}>Artiste</span>
-            <input
-              value={artist}
-              onChange={(e) => setArtist(e.target.value)}
-              required
-              maxLength={120}
-              className={
-                embedded
-                  ? 'mt-1 w-full rounded-2xl bg-white/[0.06] border border-white/10 px-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-pink-500/50 focus:outline-none'
-                  : 'mt-1 w-full rounded-xl bg-[#1a1a28] border border-[#2d2d3d] px-3 py-2 text-sm text-white'
-              }
-            />
-          </label>
-          <label className="block">
-            <span className={`text-xs ${embedded ? 'text-white/45' : 'text-gray-400'}`}>Genre</span>
-            <input
-              value={genre}
-              onChange={(e) => setGenre(e.target.value)}
-              required
-              maxLength={80}
-              placeholder="Ex: Pop, Électro…"
-              className={
-                embedded
-                  ? 'mt-1 w-full rounded-2xl bg-white/[0.06] border border-white/10 px-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-pink-500/50 focus:outline-none'
-                  : 'mt-1 w-full rounded-xl bg-[#1a1a28] border border-[#2d2d3d] px-3 py-2 text-sm text-white'
-              }
-            />
-          </label>
-          <label className="flex items-start gap-2.5">
-            <input
-              type="checkbox"
-              checked={rightsConfirmed}
-              onChange={(e) => setRightsConfirmed(e.target.checked)}
-              className="mt-0.5 w-4 h-4 rounded border-white/20 accent-pink-500"
-            />
-            <span className={`text-[11px] leading-snug ${embedded ? 'text-white/45' : 'text-gray-400'}`}>
-              {t('profile.compositions.rightsConfirmLabel')}
-            </span>
-          </label>
-          <div className="flex gap-2 pt-1">
-            <button
-              type="button"
-              onClick={resetToIdle}
-              className={
-                embedded
-                  ? 'flex-1 py-3 rounded-full bg-white/8 border border-white/10 text-sm font-semibold text-white/75'
-                  : 'flex-1 py-3 rounded-xl bg-[#1a1a26] border border-[#2d2d3d] text-sm font-semibold text-gray-300'
-              }
-            >
-              {t('reels.createRedo', { defaultValue: 'Refaire' })}
-            </button>
-            <button
-              type="submit"
-              disabled={submitting || !title.trim() || !artist.trim() || !genre.trim() || !rightsConfirmed}
-              className={
-                embedded
-                  ? 'flex-[2] py-3 rounded-full bg-gradient-to-r from-pink-500 to-fuchsia-600 font-bold text-white disabled:opacity-40 shadow-lg shadow-pink-900/25'
-                  : 'flex-[2] py-3 rounded-xl bg-purple-600 hover:bg-purple-500 font-bold text-white disabled:opacity-40'
-              }
-            >
-              {submitting
-                ? t('reels.createSaving', { defaultValue: 'Sauvegarde…' })
-                : t('reels.createSave', { defaultValue: 'Sauvegarder' })}
-            </button>
-          </div>
-        </form>
-      )}
+      {reviewForm}
     </>
   );
 

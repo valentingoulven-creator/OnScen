@@ -18,7 +18,7 @@ export const MAX_ACTIVE_STORIES_PER_USER = 20;
 
 const HTTPS_IMAGE_RE = /^https:\/\//i;
 
-export interface PublicStoryTaggedUser extends PublicTaggedUser {}
+export type PublicStoryTaggedUser = PublicTaggedUser;
 
 export interface PublicStory {
   id: string;

@@ -4,6 +4,7 @@ import { isAccessAdmin } from '../lib/accessControl';
 import { db } from '../models/schema';
 import { getAlertHistory } from '../lib/alertNotifier';
 import { getYoutubeSearchQuotaStatus } from '../lib/youtubeQuotaBudget';
+import { getApiQuotaStatsSnapshot } from '../lib/apiQuotaMonitor';
 
 export const adminMonitorRouter = Router();
 
@@ -42,4 +43,14 @@ adminMonitorRouter.get('/alerts', authenticateJWT, (req: Request, res: Response)
 adminMonitorRouter.get('/youtube-quota', authenticateJWT, (req: Request, res: Response) => {
   if (!requireAdmin(req, res)) return;
   res.json({ searchList: getYoutubeSearchQuotaStatus() });
+});
+
+/** GET /api/admin/monitor/api-quota — taux d'erreur ACRCloud/Sightengine sur fenêtre glissante (admin uniquement) */
+adminMonitorRouter.get('/api-quota', authenticateJWT, (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  res.json({
+    services: getApiQuotaStatsSnapshot(),
+    errorRateThreshold: parseFloat(process.env.API_QUOTA_ERROR_RATE_THRESHOLD ?? '0.2'),
+    windowSize: parseInt(process.env.API_QUOTA_WINDOW_SIZE ?? '50', 10),
+  });
 });

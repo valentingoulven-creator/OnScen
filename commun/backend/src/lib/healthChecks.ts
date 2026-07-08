@@ -1,7 +1,7 @@
-import Stripe from 'stripe';
 import { getOptionalRedis } from './optionalRedis';
 import { isEmailConfigured } from './emailSend';
 import { isLiveKitConfigured, pingLiveKit } from './livekit';
+import { getStripeClient } from './stripeClient';
 
 export type ServiceHealthStatus = 'ok' | 'error' | 'disabled';
 
@@ -33,10 +33,9 @@ async function checkRedisHealth(): Promise<ServiceHealthStatus> {
 }
 
 async function checkStripeHealth(): Promise<ServiceHealthStatus> {
-  const key = process.env.STRIPE_SECRET_KEY?.trim();
-  if (!key) return 'disabled';
+  const stripe = getStripeClient();
+  if (!stripe) return 'disabled';
   try {
-    const stripe = new Stripe(key);
     await withTimeout(stripe.balance.retrieve(), 3000);
     return 'ok';
   } catch {

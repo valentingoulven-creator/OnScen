@@ -12,7 +12,7 @@ import {
   schedulePersistFeedPostUpvote,
   schedulePersistFeedPostToPg,
 } from './pgFeedPosts';
-import { normalizeTaggedUserIds, normalizeEventTaggedUserIds, resolveTaggedUsers, type PublicTaggedUser } from './taggedUsers';
+import { normalizeEventTaggedUserIds, resolveTaggedUsers, type PublicTaggedUser } from './taggedUsers';
 import { validateImageMagicBytes, validateVideoMagicBytes } from './imageValidation';
 import { probeVideoDurationSec } from './videoDuration';
 

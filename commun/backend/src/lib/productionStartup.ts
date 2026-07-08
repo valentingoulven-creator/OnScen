@@ -98,6 +98,24 @@ export function assertProductionStartup(): void {
     console.log('[startup] ACRCloud actif — scan copyright sur uploads compositions/reels');
   }
 
+  if (process.env.DONATIONS_ENABLED === '1' && !process.env.STRIPE_WEBHOOK_SECRET?.trim()) {
+    throw new Error(
+      '[startup] STRIPE_WEBHOOK_SECRET must be set when DONATIONS_ENABLED=1 — ' +
+        'refusing to start with an unverifiable donations webhook (risk of unsigned/forged events).'
+    );
+  }
+
+  if (
+    process.env.SUBSCRIPTIONS_ENABLED === '1' &&
+    !process.env.STRIPE_SUBSCRIPTION_WEBHOOK_SECRET?.trim() &&
+    !process.env.STRIPE_WEBHOOK_SECRET?.trim()
+  ) {
+    throw new Error(
+      '[startup] STRIPE_SUBSCRIPTION_WEBHOOK_SECRET (ou STRIPE_WEBHOOK_SECRET en fallback) must be set ' +
+        'when SUBSCRIPTIONS_ENABLED=1 — refusing to start with an unverifiable subscriptions webhook.'
+    );
+  }
+
   if (isProductionEnv() && process.env.STRIPE_SECRET_KEY?.trim().startsWith('sk_test_')) {
     console.warn(
       '[startup] STRIPE_SECRET_KEY est en mode TEST (sk_test_) sur APP_ENV=production — ' +

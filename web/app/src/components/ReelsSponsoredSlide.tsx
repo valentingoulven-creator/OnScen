@@ -89,6 +89,8 @@ export const ReelsSponsoredSlide = memo(function ReelsSponsoredSlide({
           src={posterSrc}
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
+          loading="lazy"
+          decoding="async"
         />
       ) : (
         <div
@@ -131,6 +133,8 @@ export const ReelsSponsoredSlide = memo(function ReelsSponsoredSlide({
               src={ad.logoUrl.trim()}
               alt=""
               className="w-12 h-12 rounded-xl object-cover bg-white/10 mb-3 border border-white/20"
+              loading="lazy"
+              decoding="async"
             />
           )}
           <p className="text-lg font-bold text-white leading-tight drop-shadow">{ad.title}</p>

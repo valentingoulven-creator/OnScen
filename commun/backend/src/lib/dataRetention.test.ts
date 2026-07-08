@@ -33,7 +33,13 @@ describe('dataRetention', () => {
     db.notifications.length = 0;
   });
 
-  it('runDataRetentionPass completes without error', () => {
-    expect(() => runDataRetentionPass()).not.toThrow();
+  it('runDataRetentionPass completes without error', async () => {
+    await expect(runDataRetentionPass()).resolves.toMatchObject({
+      stories: expect.any(Number),
+      notifications: expect.any(Number),
+      resetTokens: expect.any(Number),
+      diagnosticLogs: expect.any(Number),
+      chatTrimmed: true,
+    });
   });
 });

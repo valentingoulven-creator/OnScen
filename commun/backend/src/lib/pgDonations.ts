@@ -96,6 +96,28 @@ function logPgDonationError(label: string, err: unknown): void {
   console.error(`[pgDonations] ${label}:`, err);
 }
 
+/**
+ * Vérifie en base (pas seulement en mémoire) si un paiement Stripe a déjà été
+ * crédité. Nécessaire car `db.gifts`/`db.donationPayments` sont des stores en
+ * mémoire par process PM2 : un webhook Stripe relivré peut atterrir sur un
+ * autre worker qui n'a pas encore vu ce paiement en RAM (risque de double
+ * crédit en cluster). `live_gifts.payment_intent_id` et
+ * `donation_payments.payment_intent_id` portent une contrainte UNIQUE
+ * (migration 010) qui protège en dernier recours au niveau SQL.
+ */
+export async function donationPaymentIntentExistsInPg(paymentIntentId: string): Promise<boolean> {
+  if (!isPostgresEnabled()) return false;
+  const pool = getPool();
+  const res = await pool.query(
+    `SELECT 1 FROM live_gifts WHERE payment_intent_id = $1
+     UNION ALL
+     SELECT 1 FROM donation_payments WHERE payment_intent_id = $1 AND status = 'succeeded'
+     LIMIT 1`,
+    [paymentIntentId]
+  );
+  return (res.rowCount ?? 0) > 0;
+}
+
 /** Écriture asynchrone — n'interrompt pas le flux paiement live. */
 export function persistGiftToPgAsync(gift: Gift, hostId?: string): void {
   if (!isPostgresEnabled()) return;

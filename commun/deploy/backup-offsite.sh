@@ -9,18 +9,19 @@
 #   bash /opt/soundly/deploy/backup-offsite.sh
 #
 # Variables (.env ou export) :
-#   BACKUP_DIR=/opt/soundy/backups
-#   UPLOADS_BACKUP_DIR=/opt/soundy/backups/uploads
-#   BACKUP_OFFSITE_DIR=/opt/soundy/backups-offsite
+#   BACKUP_DIR=/opt/soundly/backups
+#   UPLOADS_BACKUP_DIR=/opt/soundly/backups/uploads
+#   BACKUP_OFFSITE_DIR=/opt/soundly/backups-offsite
 #   OFFSITE_RETENTION_DAYS=30
 #   SCW_BUCKET=soundy-backups          # optionnel — bucket Object Storage
 #   SCW_REGION=fr-par                  # optionnel — défaut fr-par
 #   SCW_ACCESS_KEY / SCW_SECRET_KEY    # optionnel — ou AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
 set -euo pipefail
 
-BACKUP_DIR="${BACKUP_DIR:-/opt/soundy/backups}"
-UPLOADS_BACKUP_DIR="${UPLOADS_BACKUP_DIR:-/opt/soundy/backups/uploads}"
-OFFSITE_DIR="${BACKUP_OFFSITE_DIR:-/opt/soundy/backups-offsite}"
+# Racine app réelle = /opt/soundly (audit DB/infra §6 — cohérent avec backup-db.sh).
+BACKUP_DIR="${BACKUP_DIR:-/opt/soundly/backups}"
+UPLOADS_BACKUP_DIR="${UPLOADS_BACKUP_DIR:-/opt/soundly/backups/uploads}"
+OFFSITE_DIR="${BACKUP_OFFSITE_DIR:-/opt/soundly/backups-offsite}"
 RETENTION_DAYS="${OFFSITE_RETENTION_DAYS:-30}"
 TIMESTAMP="$(date '+%Y%m%d-%H%M%S')"
 LOG="${OFFSITE_DIR}/offsite.log"
