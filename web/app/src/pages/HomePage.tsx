@@ -264,7 +264,7 @@ export function HomePage({
   const [lives, setLives] = useState<Live[]>([]);
   const [nearbyPeople, setNearbyPeople] = useState<NearbyPerson[]>([]);
   const [selected, setSelected] = useState<Salon | null>(null);
-  const [center, setCenter] = useState<[number, number]>(() => [...DEFAULT_CENTER]);
+  const [center, setCenter] = useState<[number, number]>(() => resolveMapCameraFallbackCenter());
   const mapRecenterTokenRef = useRef(0);
   const [mapRecenterToken, setMapRecenterToken] = useState(0);
   /** Après pan carte ou rotation globe — ne pas ramener le viewport sur le GPS tardif. */

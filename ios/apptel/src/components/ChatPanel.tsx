@@ -388,17 +388,6 @@ export function ChatMessagesView() {
           roomType === 'live' ? 'live-chat-messages p-2' : 'p-3'
         }`}
       >
-        {feed.length === 0 && (
-          <p className="text-center text-gray-500 text-sm py-6">
-            Chat public — dites bonjour à la salle !
-            {onPrivateMessage && (
-              <span className="block mt-1 text-xs text-gray-600">
-                Touchez un pseudo pour les options (MP, profil…)
-              </span>
-            )}
-          </p>
-        )}
-
         {feed.map((item) => {
           if (item.kind === 'reaction') {
             const r = item.data;

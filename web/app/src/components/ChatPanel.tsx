@@ -13,7 +13,12 @@ import {
 import { createPortal } from 'react-dom';
 
 import { api } from '../lib/api';
-import { ACCEPTED_IMAGE_FORMATS, validateImageFile, resizeImageInstagram } from '../lib/imageUtils';
+import {
+  ACCEPTED_IMAGE_FORMATS,
+  validateImageFile,
+  resizeImageInstagram,
+  mimeTypeFromDataUrl,
+} from '../lib/imageUtils';
 import {
   GIFT_EMOJI,
   appendLiveReaction,
@@ -284,7 +289,12 @@ function useChatRoom({
       }
       resizeImageInstagram(file)
         .then((dataUrl) => {
-          setPendingAttachment({ dataUrl, name: file.name, mimeType: 'image/jpeg', size: file.size });
+          setPendingAttachment({
+            dataUrl,
+            name: file.name,
+            mimeType: mimeTypeFromDataUrl(dataUrl),
+            size: file.size,
+          });
         })
         .catch((err: unknown) => {
           alert(err instanceof Error ? err.message : "Impossible de traiter l'image");
@@ -706,17 +716,6 @@ export function ChatMessagesView() {
           roomType === 'live' ? 'live-chat-messages p-2' : 'p-3'
         }`}
       >
-        {feed.length === 0 && (
-          <p className="text-center text-gray-500 text-sm py-6">
-            Chat public — dites bonjour à la salle !
-            {onPrivateMessage && (
-              <span className="block mt-1 text-xs text-gray-600">
-                Touchez un pseudo pour les options (MP, profil…)
-              </span>
-            )}
-          </p>
-        )}
-
         {feed.map((item) => {
           if (item.kind === 'reaction') {
             const r = item.data;
@@ -817,6 +816,8 @@ export function ChatMessagesView() {
                         src={m.attachmentUrl}
                         alt={m.attachmentName ?? 'Image'}
                         className="max-w-full rounded-xl max-h-48 object-cover"
+                        loading="lazy"
+                        decoding="async"
                       />
                     ) : (
                       <a

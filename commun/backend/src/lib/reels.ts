@@ -260,6 +260,7 @@ export function publicUserReel(r: UserReel) {
     ...(r.compositionId ? { compositionId: r.compositionId } : {}),
     ...(recorded && !separateAudio ? { hasAudio: true as const } : {}),
     ...(r.durationSec != null && r.durationSec > 0 ? { durationSec: r.durationSec } : {}),
+    ...(r.link?.trim() ? { link: r.link.trim() } : {}),
     authorId: r.authorId,
     createdAt: r.createdAt,
     visibility,
@@ -460,6 +461,8 @@ export interface CreateUserReelInput {
   rightsConfirmed?: boolean;
   /** Morceau Discographie — remplace la piste micro par fileUrl du morceau. */
   compositionId?: string;
+  /** Lien externe optionnel (URL http/https, max 500 chars). */
+  link?: string;
 }
 
 function resolveReelVisibility(input: CreateUserReelInput): ReelVisibility {
@@ -626,6 +629,9 @@ export async function createUserReel(
   const durationSec =
     mediaType === 'video' ? normalizeDurationSec(input.durationSec) : undefined;
 
+  const rawLink = input.link?.trim() ?? '';
+  const reelLink: string | undefined = rawLink && isHttpUrl(rawLink) && rawLink.length <= 500 ? rawLink : undefined;
+
   const reel: UserReel = {
     id: `reel-user-${authorId}-${Date.now()}`,
     title: title.slice(0, 120),
@@ -640,6 +646,7 @@ export async function createUserReel(
     ...(durationSec != null ? { durationSec } : {}),
     ...(audioUrl ? { audioUrl } : {}),
     ...(compositionId ? { compositionId } : {}),
+    ...(reelLink ? { link: reelLink } : {}),
   };
 
   db.userReels.push(reel);

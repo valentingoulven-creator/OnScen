@@ -66,6 +66,8 @@ function MapAdBannerImageOnly({
       src={bannerSrc}
       alt={ad.title || ad.sponsor || ''}
       className={MAP_BANNER_IMAGE_CLASS}
+      loading="lazy"
+      decoding="async"
     />
   );
 
@@ -156,7 +158,13 @@ function MapAdBannerFull({
     >
       {bannerSrc ? (
         <>
-          <img src={bannerSrc} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          <img
+            src={bannerSrc}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
+          />
           {accentGradient ? (
             <div
               className={`absolute inset-0 bg-gradient-to-r ${accentGradient} opacity-70`}

@@ -1,4 +1,3 @@
-import Stripe from 'stripe';
 import type { Gift, Live } from '../models/schema';
 import { db } from '../models/schema';
 import { getIo } from './ioInstance';
@@ -6,6 +5,7 @@ import { notifyHostLiveDon } from './notifications';
 import { persistGiftToPgAsync } from './pgDonations';
 import { broadcastAdminDonationRecorded } from './donationsAdminBroadcast';
 import { CREATOR_MONETIZATION_MIN_AGE, creatorMeetsMonetizationAgeFromProfile } from './ageGates';
+import { getStripeClient } from './stripeClient';
 
 export {
   computeDonationFeeBreakdown,
@@ -86,12 +86,6 @@ export function assertCreatorCanReceiveStripeDonation(hostId: string): void {
       'Ce créateur n’a pas encore ajouté son compte bancaire pour recevoir des pourboires.'
     );
   }
-}
-
-function getStripeClient(): Stripe | null {
-  const key = process.env.STRIPE_SECRET_KEY?.trim();
-  if (!key) return null;
-  return new Stripe(key);
 }
 
 /** Pourboires acceptés sur ce live (spectateurs + API). */

@@ -47,6 +47,7 @@ export const reelsApi = {
       isPrivate?: boolean;
       rightsConfirmed?: boolean;
       compositionId?: string;
+      link?: string;
     }
   ) =>
     request<{ reel: import('../../content/reels').MusicReel }>(

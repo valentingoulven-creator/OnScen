@@ -29,10 +29,18 @@ describe('jwtSecret', () => {
     expect(() => getJwtSecret()).toThrow(/JWT_SECRET/);
   });
 
-  it('uses dev fallback outside production', () => {
+  it('uses dev fallback only under NODE_ENV=test', () => {
     delete process.env.JWT_SECRET;
     process.env.APP_ENV = 'msdev';
+    process.env.NODE_ENV = 'test';
     expect(getJwtSecret()).toBe('melosong_secret_dev_fallback');
+  });
+
+  it('throws outside production when JWT_SECRET is missing and NODE_ENV is not test', () => {
+    delete process.env.JWT_SECRET;
+    process.env.APP_ENV = 'msdev';
+    process.env.NODE_ENV = 'development';
+    expect(() => getJwtSecret()).toThrow(/JWT_SECRET/);
   });
 
   it('detects production via APP_ENV only (not NODE_ENV on staging)', () => {

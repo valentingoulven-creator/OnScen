@@ -122,6 +122,7 @@ reelsRouter.post('/', authenticateJWT, asyncHandler(async (req: Request, res: Re
     visibility,
     rightsConfirmed: body.rightsConfirmed === true,
     compositionId: body.compositionId != null ? String(body.compositionId) : undefined,
+    link: body.link != null ? String(body.link) : undefined,
   });
   if ('error' in result) {
     res.status(400).json({ error: result.error });

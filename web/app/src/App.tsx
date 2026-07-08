@@ -802,6 +802,7 @@ export default function App() {
     setView({ type: 'home' });
   }, []);
 
+  /** Reprendre (bandeau / chip carte) → overlay ms-salon-fullscreen-overlay + view live. */
   const restoreLiveFullScreen = useCallback(() => {
     const session = activeLiveViewerSessionRef.current;
     if (!session) return;
@@ -1256,6 +1257,7 @@ export default function App() {
               token={token}
               isHost={activeLiveIsHost}
               onReturn={() => {
+                // Reprendre = plein écran (pas PiP). Réduction volontaire via back/minimize LivePage.
                 if (activeLiveViewerSession) {
                   restoreLiveFullScreen();
                 } else if (user.liveId) {
@@ -1427,6 +1429,7 @@ export default function App() {
                       );
                     }}
                     onMapReturnToLive={() => {
+                      // Même sémantique que ActiveLiveBanner « Reprendre » — plein écran.
                       if (activeLiveViewerSession) {
                         restoreLiveFullScreen();
                       } else if (user?.liveId) {

@@ -3,6 +3,7 @@ import { db, type User } from './models/schema';
 import { applyProfileDefaults } from './lib/profile';
 import { CURRENT_TERMS_VERSION } from './lib/legalConstants';
 import { schedulePersist } from './lib/persist';
+import { maskEmail } from './lib/maskPii';
 
 /**
  * Premier démarrage production : crée un admin si PROD_ADMIN_EMAIL / PROD_ADMIN_PASSWORD sont définis.
@@ -42,6 +43,6 @@ export async function seedProductionAdmin(): Promise<boolean> {
   user = applyProfileDefaults(user);
   db.users.set(user.id, user);
   schedulePersist();
-  console.log(`[soundy] Compte administrateur initial créé : ${email}`);
+  console.log(`[soundy] Compte administrateur initial créé : ${maskEmail(email)}`);
   return true;
 }

@@ -1,12 +1,6 @@
-import Stripe from 'stripe';
 import { db } from '../models/schema';
 import { isStripeTestMode } from './stripeConfig';
-
-function getStripeClient(): Stripe | null {
-  const key = process.env.STRIPE_SECRET_KEY?.trim();
-  if (!key) return null;
-  return new Stripe(key);
-}
+import { getStripeClient } from './stripeClient';
 
 /** Annule les abonnements Stripe actifs liés à l'utilisateur (subscriber ou creator Connect). */
 export async function cancelStripeSubscriptionsForUser(userId: string): Promise<void> {

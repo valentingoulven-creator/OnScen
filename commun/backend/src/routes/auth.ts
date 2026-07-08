@@ -41,6 +41,7 @@ import { validateImageMagicBytes } from '../lib/imageValidation';
 import {
   ensurePlatformAccountsFromLegacy,
   migratePlaintextPlatformTokens,
+  isPlatformConnected,
 } from '../lib/platformConnect';
 import { schedulePersist } from '../lib/persist';
 import { invalidateGlobalSearchIndex } from '../lib/globalSearchIndex';
@@ -61,6 +62,7 @@ import {
   resolveInitialAccountStatus,
 } from '../lib/accessControl';
 import { isOAuthOnlyPasswordHash } from '../lib/oauthAccount';
+import { revokeAndDisconnectYoutube } from '../lib/youtubeOAuth';
 import {
   sendVerificationEmail,
   sendPasswordResetEmail,
@@ -97,7 +99,7 @@ function pruneProfileCache(): void {
 }
 
 export function invalidateProfileCache(userId: string) {
-  // Cache keys have the form "${targetId}:${viewerId}" ? remove all entries
+  // Cache keys have the form "${targetId}:${viewerId}" — remove all entries
   // where the target profile is the updated user.
   const prefix = `${userId}:`;
   for (const key of profileCache.keys()) {
@@ -183,7 +185,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     return;
   }
   // Bypass email verification for test accounts or when explicitly disabled in env.
-  // SKIP_EMAIL_VERIFICATION=true is for development/E2E only ? never set in production.
+  // SKIP_EMAIL_VERIFICATION=true is for development/E2E only — never set in production.
   const bypassEmails = (process.env.EMAIL_VERIFICATION_BYPASS_LIST ?? '')
     .split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
   const skipVerification =
@@ -222,7 +224,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
   schedulePersistUserToPg(user);
   schedulePersist();
 
-  // Send verification email (graceful ? no SMTP = skip, signup still proceeds)
+  // Send verification email (graceful — no SMTP = skip, signup still proceeds)
   if (!skipVerification && verificationToken) {
     const appUrl = process.env.WEB_APP_URL ?? 'https://getsoundy.com';
     const verificationUrl = `${appUrl}/verify-email?token=${verificationToken}`;
@@ -692,7 +694,7 @@ authRouter.post('/change-password', authenticateJWT, async (req: Request, res: R
     return;
   }
   if (newPassword.length < 8) {
-    res.status(400).json({ error: 'Le nouveau mot de passe doit contenir au moins 8 caract?res' });
+    res.status(400).json({ error: 'Le nouveau mot de passe doit contenir au moins 8 caractères' });
     return;
   }
   let valid: boolean;
@@ -711,7 +713,7 @@ authRouter.post('/change-password', authenticateJWT, async (req: Request, res: R
     user.mustChangePassword = false;
     bumpUserTokenVersion(user);
   } catch {
-    res.status(500).json({ error: 'Erreur interne lors de la mise ? jour du mot de passe' });
+    res.status(500).json({ error: 'Erreur interne lors de la mise à jour du mot de passe' });
     return;
   }
   db.users.set(userId, user);
@@ -753,6 +755,16 @@ authRouter.delete('/account', authenticateJWT, async (req: Request, res: Respons
       return;
     }
   }
+  // RGPD : révoquer le jeton OAuth YouTube auprès de Google avant la cascade de
+  // suppression, plutôt que de simplement le supprimer en base (voir audit RGPD-3).
+  if (isPlatformConnected(user, 'youtube')) {
+    try {
+      await revokeAndDisconnectYoutube(user);
+    } catch (e) {
+      console.warn('[account-deletion] révocation YouTube échouée (suppression du compte poursuivie):', e);
+    }
+  }
+
   await prepareUserAccountDeletion(userId);
   deleteUserAccountCascade(userId);
   schedulePersist();
@@ -773,7 +785,7 @@ authRouter.post('/complete-onboarding', authenticateJWT, (req: Request, res: Res
   res.json({ user: publicProfile(user, true, user.id) });
 });
 
-/** V?rification de l'adresse e-mail via token */
+/** Vérification de l'adresse e-mail via token */
 authRouter.get('/verify-email', (req: Request, res: Response) => {
   const token = String(req.query.token ?? '').trim();
   if (!token) {
@@ -782,11 +794,11 @@ authRouter.get('/verify-email', (req: Request, res: Response) => {
   }
   const user = [...db.users.values()].find((u) => u.verificationToken === token);
   if (!user) {
-    res.status(400).json({ error: 'Token de v?rification invalide ou d?j? utilis?' });
+    res.status(400).json({ error: 'Token de vérification invalide ou déjà utilisé' });
     return;
   }
   if (user.verificationTokenExpiry && Date.now() > user.verificationTokenExpiry) {
-    res.status(400).json({ error: 'Token de v?rification expir?. Contacte le support pour en recevoir un nouveau.' });
+    res.status(400).json({ error: 'Token de vérification expiré. Contacte le support pour en recevoir un nouveau.' });
     return;
   }
   user.emailVerified = true;
@@ -795,10 +807,10 @@ authRouter.get('/verify-email', (req: Request, res: Response) => {
   db.users.set(user.id, user);
   schedulePersistUserToPg(user);
   schedulePersist();
-  res.json({ ok: true, message: 'Adresse e-mail v?rifi?e avec succ?s !' });
+  res.json({ ok: true, message: 'Adresse e-mail vérifiée avec succès !' });
 });
 
-/** Demande de r?initialisation de mot de passe */
+/** Demande de réinitialisation de mot de passe */
 authRouter.post('/forgot-password', async (req: Request, res: Response) => {
   const { email } = req.body ?? {};
   if (!email || typeof email !== 'string') {
@@ -829,7 +841,7 @@ authRouter.post('/forgot-password', async (req: Request, res: Response) => {
   res.json({ ok: true });
 });
 
-/** R?initialisation du mot de passe avec token */
+/** Réinitialisation du mot de passe avec token */
 authRouter.post('/reset-password', async (req: Request, res: Response) => {
   const { token, newPassword } = req.body ?? {};
   if (!token || !newPassword) {
@@ -837,24 +849,24 @@ authRouter.post('/reset-password', async (req: Request, res: Response) => {
     return;
   }
   if (typeof newPassword !== 'string' || newPassword.length < 8) {
-    res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caract?res' });
+    res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères' });
     return;
   }
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
   const user = [...db.users.values()].find((u) => u.resetToken === tokenHash);
   if (!user) {
-    res.status(400).json({ error: 'Token invalide ou d?j? utilis?' });
+    res.status(400).json({ error: 'Token invalide ou déjà utilisé' });
     return;
   }
   if (user.resetTokenExpiry && Date.now() > user.resetTokenExpiry) {
-    res.status(400).json({ error: 'Token expir?. Refais une demande de r?initialisation.' });
+    res.status(400).json({ error: 'Token expiré. Refais une demande de réinitialisation.' });
     return;
   }
   let passwordHash: string;
   try {
     passwordHash = await bcrypt.hash(newPassword, 10);
   } catch {
-    res.status(500).json({ error: 'Erreur interne lors de la mise ? jour du mot de passe' });
+    res.status(500).json({ error: 'Erreur interne lors de la mise à jour du mot de passe' });
     return;
   }
   user.passwordHash = passwordHash;
@@ -864,5 +876,5 @@ authRouter.post('/reset-password', async (req: Request, res: Response) => {
   db.users.set(user.id, user);
   schedulePersistUserToPg(user);
   schedulePersist();
-  res.json({ ok: true, message: 'Mot de passe r?initialis? avec succ?s !' });
+  res.json({ ok: true, message: 'Mot de passe réinitialisé avec succès !' });
 });

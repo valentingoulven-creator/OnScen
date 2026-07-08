@@ -14,6 +14,7 @@ import { ensureSalonQueue, ensureSalonProposals, enqueueItem } from './lib/salon
 import { MSDEV_DEMO_AGE } from './lib/msdevDemoAccounts';
 import { FRANCE_COUNTRY_CODE, resolveLiveCountry } from './lib/liveCountry';
 import { schedulePersist } from './lib/persist';
+import { maskEmail } from './lib/maskPii';
 
 /** Assure que les lives démo msdev (DJ Melody, BassHunter) sont actifs au démarrage.
  *  Appelé après loadPersistedStore() pour éviter un feed vide. */
@@ -213,7 +214,7 @@ export async function ensureMsdevDemoAccounts(): Promise<number> {
     if (exists) continue;
     db.users.set(user.id, user);
     added++;
-    console.log(`[msdev] Compte démo créé : ${user.email}`);
+    console.log(`[msdev] Compte démo créé : ${maskEmail(user.email)}`);
   }
   if (added > 0) schedulePersist();
   return added;

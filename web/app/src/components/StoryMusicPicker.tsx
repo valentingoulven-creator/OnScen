@@ -137,7 +137,13 @@ export function StoryMusicPicker({ token, value, onChange }: StoryMusicPickerPro
                     className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-[#1a1a26]"
                   >
                     {r.thumbnailUrl ? (
-                      <img src={r.thumbnailUrl} alt="" className="w-8 h-8 rounded object-cover" />
+                      <img
+                        src={r.thumbnailUrl}
+                        alt=""
+                        className="w-8 h-8 rounded object-cover"
+                        loading="lazy"
+                        decoding="async"
+                      />
                     ) : null}
                     <div className="min-w-0">
                       <p className="text-[11px] text-white truncate">{r.title}</p>

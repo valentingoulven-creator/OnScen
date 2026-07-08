@@ -11,7 +11,7 @@ import {
   userCanDonateByAge,
   type DonationsConfig,
 } from '../lib/donations';
-import { donAmountValidationMessage, donationOptionEmoji, parseDonAmount } from '../lib/liveReactions';
+import { donAmountValidationMessage, donationOptionEmoji, parseDonAmount, donTierEmoji } from '../lib/liveReactions';
 import type { LiveGoal } from '../lib/liveHostTypes';
 import { hasThirdPartyCookieConsent } from '../lib/cookieConsent';
 import { LegalDocumentView } from './LegalDocumentView';
@@ -23,6 +23,8 @@ interface LiveDonationSheetProps {
   onClose: () => void;
   liveId: string;
   hostName: string;
+  /** Avatar URL de l'hôte (optionnel). */
+  hostAvatarUrl?: string;
   token: string;
   userAge?: number;
   initialAmount?: number;
@@ -39,44 +41,120 @@ function formatEur(value: number): string {
 
 function goalUnit(type: LiveGoal['type']): string {
   switch (type) {
-    case 'amount':
-      return '€';
-    case 'dons':
-      return 'dons';
-    case 'likes':
-      return 'likes';
-    case 'viewers':
-      return 'spec.';
-    case 'duration':
-      return 'min';
+    case 'amount': return '€';
+    case 'dons': return 'dons';
+    case 'likes': return 'likes';
+    case 'viewers': return 'spec.';
+    case 'duration': return 'min';
   }
 }
 
-function DonationGoalRow({ goal }: { goal: LiveGoal }) {
+/* ── Host identity block ── */
+function HostIdentityRow({ hostName, hostAvatarUrl }: { hostName: string; hostAvatarUrl?: string }) {
+  return (
+    <div className="flex items-center gap-3 mb-4">
+      {hostAvatarUrl ? (
+        <img
+          src={hostAvatarUrl}
+          alt={hostName}
+          className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-pink-500/40"
+        />
+      ) : (
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-600 to-purple-700 flex items-center justify-center shrink-0 text-white font-bold text-sm">
+          {hostName.charAt(0).toUpperCase()}
+        </div>
+      )}
+      <div className="min-w-0">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-pink-400/80">Soutenir</p>
+        <p className="text-sm font-bold text-white truncate">{hostName}</p>
+      </div>
+    </div>
+  );
+}
+
+/* ── Primary goal card (first active goal) ── */
+function PrimaryGoalCard({ goal }: { goal: LiveGoal }) {
+  const pct = Math.min(100, Math.round((goal.current / goal.target) * 100));
+  const done = pct >= 100;
+  const remaining = goal.type === 'amount'
+    ? `${goal.target - goal.current} € restants`
+    : null;
+
+  return (
+    <div
+      className={`rounded-xl border p-4 mb-1 ${
+        done
+          ? 'border-emerald-500/40 bg-gradient-to-br from-emerald-950/50 to-emerald-900/20'
+          : 'border-purple-500/30 bg-gradient-to-br from-purple-950/50 to-purple-900/10'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-base shrink-0" aria-hidden>{done ? '✅' : '🎯'}</span>
+          <p className="text-sm font-bold text-white truncate">{goal.label}</p>
+        </div>
+        <span
+          className={`shrink-0 text-sm font-black tabular-nums ${
+            done ? 'text-emerald-400' : 'text-purple-300'
+          }`}
+        >
+          {pct}%
+        </span>
+      </div>
+
+      <div className="h-2.5 rounded-full bg-white/10 overflow-hidden mb-2">
+        <div
+          className={`h-full rounded-full transition-all duration-700 ${
+            done
+              ? 'bg-emerald-500'
+              : 'bg-gradient-to-r from-purple-600 to-pink-500'
+          }`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] text-gray-400 tabular-nums">
+          {goal.current} / {goal.target} {goalUnit(goal.type)}
+        </p>
+        {remaining && !done && (
+          <p className="text-[10px] text-purple-300 font-medium">{remaining}</p>
+        )}
+        {done && (
+          <p className="text-[10px] text-emerald-400 font-bold">Objectif atteint !</p>
+        )}
+      </div>
+
+      {!done && (
+        <p className="text-[10px] text-purple-300/70 mt-2 italic">
+          Votre don contribue à cet objectif
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ── Secondary goal mini-row ── */
+function GoalMiniRow({ goal }: { goal: LiveGoal }) {
   const pct = Math.min(100, Math.round((goal.current / goal.target) * 100));
   const done = pct >= 100;
 
   return (
     <div
       className={`rounded-lg border px-3 py-2 ${
-        done ? 'border-emerald-500/40 bg-emerald-950/30' : 'border-purple-500/30 bg-purple-950/20'
+        done ? 'border-emerald-500/30 bg-emerald-950/20' : 'border-[#2a2a3a] bg-[#12121a]'
       }`}
     >
-      <div className="flex items-center gap-2 min-w-0">
-        <span
-          className={`text-[9px] font-black uppercase tracking-wider shrink-0 ${
-            done ? 'text-emerald-400' : 'text-purple-400'
-          }`}
-        >
-          {done ? 'OK' : 'Goal'}
+      <div className="flex items-center gap-2 min-w-0 mb-1">
+        <span className={`text-[9px] font-black uppercase tracking-wider shrink-0 ${done ? 'text-emerald-400' : 'text-gray-500'}`}>
+          {done ? '✓' : 'Goal'}
         </span>
         <span className="text-xs font-semibold text-white truncate flex-1 min-w-0">{goal.label}</span>
-        <span className={`text-[10px] font-bold tabular-nums shrink-0 ${done ? 'text-emerald-400' : 'text-gray-300'}`}>
-          {goal.current}/{goal.target}
-          {goalUnit(goal.type)}
+        <span className={`text-[10px] font-bold tabular-nums shrink-0 ${done ? 'text-emerald-400' : 'text-gray-400'}`}>
+          {goal.current}/{goal.target}{goalUnit(goal.type)}
         </span>
       </div>
-      <div className="mt-1.5 h-1 rounded-full bg-white/10 overflow-hidden">
+      <div className="h-1 rounded-full bg-white/10 overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-700 ${done ? 'bg-emerald-500' : 'bg-purple-500'}`}
           style={{ width: `${pct}%` }}
@@ -86,6 +164,80 @@ function DonationGoalRow({ goal }: { goal: LiveGoal }) {
   );
 }
 
+/* ── Reward tier card ── */
+function RewardCard({
+  option,
+  selected,
+  disabled,
+  onClick,
+}: {
+  option: LiveDonationOption;
+  selected: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const emoji = donationOptionEmoji(option);
+
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`
+        relative flex flex-col items-center justify-center min-h-[6.5rem] py-3 px-2 rounded-2xl border
+        active:scale-95 transition-all duration-150 disabled:opacity-50 text-left w-full
+        ${selected
+          ? 'bg-pink-900/60 border-pink-400 shadow-[0_0_16px_rgba(236,72,153,0.25)]'
+          : 'bg-[#16121e] border-[#2d2040] hover:border-pink-500/50 hover:bg-pink-950/30'
+        }
+      `}
+    >
+      {selected && (
+        <span className="absolute top-2 right-2 text-[9px] font-black text-pink-300 bg-pink-900/80 rounded-full px-1.5 py-0.5">
+          ✓
+        </span>
+      )}
+      <span className="text-2xl leading-none mb-1.5" aria-hidden>{emoji}</span>
+      <span className={`text-[11px] font-semibold text-center line-clamp-2 leading-tight px-1 ${selected ? 'text-white' : 'text-pink-100/80'}`}>
+        {option.label}
+      </span>
+      <span className={`text-sm font-black mt-1.5 tabular-nums ${selected ? 'text-pink-200' : 'text-pink-300'}`}>
+        {option.amount} €
+      </span>
+    </button>
+  );
+}
+
+/* ── Generic tier button ── */
+function GenericTierButton({
+  amount,
+  selected,
+  disabled,
+  onClick,
+}: {
+  amount: number;
+  selected: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`flex flex-col items-center py-4 rounded-xl border active:scale-95 transition disabled:opacity-50 ${
+        selected
+          ? 'bg-pink-900/50 border-pink-400'
+          : 'bg-pink-950/40 border-pink-500/40 hover:border-pink-400'
+      }`}
+    >
+      <span className="text-2xl">{donTierEmoji(amount)}</span>
+      <span className="text-sm font-bold text-pink-200 mt-1">{amount} €</span>
+    </button>
+  );
+}
+
+/* ── Stripe confirm step ── */
 function StripeConfirmForm({
   amount,
   onSuccess,
@@ -109,9 +261,7 @@ function StripeConfirmForm({
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         redirect: 'if_required',
-        confirmParams: {
-          return_url: window.location.href,
-        },
+        confirmParams: { return_url: window.location.href },
       });
       if (error) {
         onError(error.message ?? 'Paiement refusé');
@@ -155,11 +305,16 @@ function StripeConfirmForm({
   );
 }
 
+/* ══════════════════════════════════════════════════════════════════════════ */
+/*  Main component                                                            */
+/* ══════════════════════════════════════════════════════════════════════════ */
+
 export function LiveDonationSheet({
   open,
   onClose,
   liveId,
   hostName,
+  hostAvatarUrl,
   token,
   userAge,
   initialAmount,
@@ -173,6 +328,7 @@ export function LiveDonationSheet({
   const [error, setError] = useState<string | null>(null);
   const [customAmount, setCustomAmount] = useState('');
   const [selectedAmount, setSelectedAmount] = useState<number | null>(initialAmount ?? null);
+  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -192,6 +348,13 @@ export function LiveDonationSheet({
   const maxAmount = config?.maxAmount ?? 100;
   const platformFeePercent = config?.platformFeePercent ?? 30;
 
+  const selectedOption = useHostMenu
+    ? (hostOptions.find((o) => o.id === selectedOptionId) ?? null)
+    : null;
+
+  const primaryGoal = activeGoals.length > 0 ? activeGoals[0] : null;
+  const secondaryGoals = activeGoals.length > 1 ? activeGoals.slice(1) : [];
+
   const stripePromise = useMemo(
     () =>
       publishableKey && hasThirdPartyCookieConsent() ? loadStripe(publishableKey) : null,
@@ -208,6 +371,7 @@ export function LiveDonationSheet({
     setLegalPreview(null);
     setCustomAmount(initialAmount != null ? String(initialAmount) : '');
     setSelectedAmount(initialAmount ?? null);
+    setSelectedOptionId(null);
 
     void api
       .getDonationsConfig(token)
@@ -218,7 +382,6 @@ export function LiveDonationSheet({
 
   if (!open) return null;
 
-  // App Store / Play — Stripe tips must not be offered in native apps (use web).
   if (isNativeApp()) {
     return (
       <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60" onClick={onClose}>
@@ -293,6 +456,21 @@ export function LiveDonationSheet({
     }
   };
 
+  const buildConfirmLabel = (): string => {
+    if (config?.simulation) {
+      if (selectedOption) return `🎁 Simuler : ${selectedOption.label}`;
+      return t('live.donationContinueSimulate');
+    }
+    const amount = resolvedAmount();
+    if (selectedOption && amount != null) {
+      return `🎁 Obtenir : ${selectedOption.label} · ${amount} €`;
+    }
+    if (amount != null && primaryGoal && !selectedOption) {
+      return `🎯 Contribuer — ${amount} €`;
+    }
+    return t('live.donationContinuePay');
+  };
+
   if (legalPreview) {
     return (
       <div className="fixed inset-0 z-50 flex flex-col bg-[#0b0b0f]">
@@ -307,19 +485,22 @@ export function LiveDonationSheet({
         className="w-full max-w-md bg-[#12121a] rounded-t-2xl sm:rounded-2xl border border-[#2d2d3d] shadow-2xl p-4 pb-6 max-h-[90dvh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-3">
-          <p className="font-bold text-white">{t('live.donationSheetTitle')}</p>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-white text-xl px-2">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">{t('live.donationSheetTitle')}</p>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-white text-xl px-2 min-h-[44px] min-w-[44px] flex items-center justify-center">
             ✕
           </button>
         </div>
 
+        {/* Simulation banner */}
         {config?.simulation && (
-          <div className="mb-3 rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-2 text-xs text-amber-100 font-medium">
+          <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-2 text-xs text-amber-100 font-medium">
             {t('live.donationSimulationBanner')}
           </div>
         )}
 
+        {/* Disabled */}
         {!loading && config && !config.enabled && (
           <p className="text-sm text-gray-400 text-center py-6">{t('live.donationDisabled')}</p>
         )}
@@ -328,72 +509,76 @@ export function LiveDonationSheet({
 
         {!loading && config?.enabled && !clientSecret && (
           <>
-            <p className="text-xs text-gray-400 mb-4">{t('live.donationSupportHint', { hostName })}</p>
+            {/* Host identity */}
+            <HostIdentityRow hostName={hostName} hostAvatarUrl={hostAvatarUrl} />
 
+            {/* ── Goals section ── */}
             {activeGoals.length > 0 && (
-              <div className="mb-4 space-y-2">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-purple-300/90">
+              <div className="mb-5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-purple-300/80 mb-2">
                   {t('live.donationActiveGoals')}
                 </p>
-                {activeGoals.map((goal) => (
-                  <DonationGoalRow key={goal.id} goal={goal} />
-                ))}
+                {primaryGoal && <PrimaryGoalCard goal={primaryGoal} />}
+                {secondaryGoals.length > 0 && (
+                  <div className="mt-2 space-y-1.5">
+                    {secondaryGoals.map((g) => (
+                      <GoalMiniRow key={g.id} goal={g} />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
+            {/* ── Reward tiers OR generic tiers ── */}
             {useHostMenu ? (
-              <div
-                className={`grid gap-2 mb-4 ${
-                  hostOptions.length >= 3 ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2'
-                }`}
-              >
-                {hostOptions.map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    disabled={submitting}
-                    onClick={() => {
-                      setSelectedAmount(opt.amount);
-                      setCustomAmount('');
-                    }}
-                    className={`flex flex-col items-center justify-center min-h-[5.5rem] py-3 px-2 rounded-xl border active:scale-95 transition disabled:opacity-50 ${
-                      selectedAmount === opt.amount
-                        ? 'bg-pink-900/50 border-pink-400'
-                        : 'bg-pink-950/40 border-pink-500/40 hover:border-pink-400'
-                    }`}
-                  >
-                    <span className="text-xl leading-none">{donationOptionEmoji(opt)}</span>
-                    <span className="text-[11px] font-semibold text-pink-100 mt-1.5 text-center line-clamp-2 leading-tight">
-                      {opt.label}
-                    </span>
-                    <span className="text-sm font-bold text-pink-200 mt-1">{opt.amount} €</span>
-                  </button>
-                ))}
+              <div className="mb-5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-pink-300/80 mb-2">
+                  {t('live.donationRewardsTitle')}
+                </p>
+                <div
+                  className={`grid gap-2 ${
+                    hostOptions.length >= 3 ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2'
+                  }`}
+                >
+                  {hostOptions.map((opt) => (
+                    <RewardCard
+                      key={opt.id}
+                      option={opt}
+                      selected={selectedOptionId === opt.id}
+                      disabled={submitting}
+                      onClick={() => {
+                        setSelectedAmount(opt.amount);
+                        setSelectedOptionId(opt.id);
+                        setCustomAmount('');
+                      }}
+                    />
+                  ))}
+                </div>
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-2 mb-4">
-                {tiers.map((tier) => (
-                  <button
-                    key={tier}
-                    type="button"
-                    disabled={submitting}
-                    onClick={() => {
-                      setSelectedAmount(tier);
-                      setCustomAmount('');
-                    }}
-                    className={`flex flex-col items-center py-4 rounded-xl border active:scale-95 transition disabled:opacity-50 ${
-                      selectedAmount === tier
-                        ? 'bg-pink-900/50 border-pink-400'
-                        : 'bg-pink-950/40 border-pink-500/40 hover:border-pink-400'
-                    }`}
-                  >
-                    <span className="text-2xl">{donationOptionEmoji({ amount: tier })}</span>
-                    <span className="text-sm font-bold text-pink-200 mt-1">{tier} €</span>
-                  </button>
-                ))}
+              <div className="mb-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-pink-300/80 mb-2">
+                  Montant rapide
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {tiers.map((tier) => (
+                    <GenericTierButton
+                      key={tier}
+                      amount={tier}
+                      selected={selectedAmount === tier && selectedOptionId == null}
+                      disabled={submitting}
+                      onClick={() => {
+                        setSelectedAmount(tier);
+                        setSelectedOptionId(null);
+                        setCustomAmount('');
+                      }}
+                    />
+                  ))}
+                </div>
               </div>
             )}
 
+            {/* Free amount */}
             <div className="rounded-xl border border-pink-500/30 bg-pink-950/20 p-3 mb-4">
               <p className="text-xs font-bold text-pink-200 mb-2">{t('live.donationCustomAmount')}</p>
               <div className="flex gap-2">
@@ -407,6 +592,7 @@ export function LiveDonationSheet({
                   onChange={(e) => {
                     setCustomAmount(e.target.value);
                     setSelectedAmount(null);
+                    setSelectedOptionId(null);
                   }}
                   placeholder={`${minAmount}–${maxAmount}`}
                   disabled={submitting}
@@ -416,6 +602,7 @@ export function LiveDonationSheet({
               </div>
             </div>
 
+            {/* Fee breakdown */}
             {feeBreakdown && (
               <div className="rounded-xl border border-[#2d2d3d] bg-[#1a1a26] p-3 mb-4 text-xs text-gray-300 space-y-1.5">
                 <p className="font-bold text-white text-sm mb-2">{t('donation.legal.breakdownTitle')}</p>
@@ -435,6 +622,7 @@ export function LiveDonationSheet({
               </div>
             )}
 
+            {/* Legal text */}
             <div className="rounded-xl border border-[#2d2d3d] bg-[#0f0f16] p-3 mb-3 max-h-36 overflow-y-auto text-[11px] text-gray-400 space-y-2">
               <p>{t('donation.legal.nature')}</p>
               <p>{t('donation.legal.platformFee', { percent: platformFeePercent })}</p>
@@ -461,6 +649,7 @@ export function LiveDonationSheet({
               </p>
             </div>
 
+            {/* Age checkbox */}
             {needsAgeCheckbox && (
               <label className="flex items-start gap-2 mb-3 text-xs text-gray-300 cursor-pointer">
                 <input
@@ -473,6 +662,7 @@ export function LiveDonationSheet({
               </label>
             )}
 
+            {/* Consent checkbox */}
             <label className="flex items-start gap-2 mb-3 text-xs text-gray-400 cursor-pointer">
               <input
                 type="checkbox"
@@ -485,13 +675,14 @@ export function LiveDonationSheet({
 
             {error && <p className="text-xs text-red-400 text-center mb-3">{error}</p>}
 
+            {/* Dynamic confirm button */}
             <button
               type="button"
               disabled={submitting}
               onClick={() => void startPayment()}
-              className="w-full py-3 rounded-xl bg-pink-600 text-white font-bold text-sm hover:bg-pink-500 disabled:opacity-50"
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 text-white font-bold text-sm hover:from-pink-500 hover:to-purple-500 disabled:opacity-50 transition-all shadow-lg shadow-pink-900/30"
             >
-              {config.simulation ? t('live.donationContinueSimulate') : t('live.donationContinuePay')}
+              {submitting ? '…' : buildConfirmLabel()}
             </button>
           </>
         )}

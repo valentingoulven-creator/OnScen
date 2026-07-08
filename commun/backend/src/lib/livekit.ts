@@ -47,6 +47,19 @@ export async function createLiveKitToken(opts: {
     // un token à TTL 2h expirait avant la fin d'un live encore actif, empêchant
     // toute reconnexion (perte réseau, refresh) passé ce délai. Valeur dupliquée ici
     // (plutôt qu'importée) pour éviter un cycle d'import avec sessionLimits→liveArchive→livekit.
+    //
+    // Audit Low #12 — TTL volontairement conservé à 9h (pas de réduction à 2h) :
+    // le SDK livekit-client n'expose pas d'API de "renew token" sans déconnexion
+    // (il faudrait rejoindre une nouvelle Room avec un nouveau token — flux risqué
+    // pour un live en cours), et il n'existe aujourd'hui aucun mécanisme de refresh
+    // côté client (web/app) pour ce token. Réduire le TTL sans ce refresh casserait
+    // la reconnexion sur les lives longs (perte réseau après 2h). Risque résiduel
+    // jugé acceptable : (1) la room LiveKit est supprimée à la fin du live
+    // (deleteLiveKitRoom), donc un token qui fuite devient inutilisable dès la fin
+    // du live même s'il n'a pas expiré ; (2) `canPublish` est scopé par participant
+    // (un token viewer ne peut pas publier). Un vrai refresh (nouveau token signé
+    // récupéré périodiquement via l'API existante + `room.reconnect` côté client)
+    // reste une amélioration future si le TTL doit baisser.
     ttl: 9 * 60 * 60,
   });
 

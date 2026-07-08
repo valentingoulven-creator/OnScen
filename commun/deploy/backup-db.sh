@@ -7,7 +7,9 @@
 #   DATABASE_URL='postgresql://...' ./commun/deploy/backup-db.sh
 set -euo pipefail
 
-BACKUP_DIR="${BACKUP_DIR:-/opt/soundy/backups}"
+# Racine app réelle = /opt/soundly (audit DB/infra §6 : ne pas confondre avec
+# /opt/soundy/.env, qui reste le chemin conventionnel du fichier secrets).
+BACKUP_DIR="${BACKUP_DIR:-/opt/soundly/backups}"
 RETENTION_DAYS="${RETENTION_DAYS:-14}"
 TIMESTAMP="$(date '+%Y%m%d-%H%M%S')"
 LOG="${BACKUP_DIR}/backup.log"

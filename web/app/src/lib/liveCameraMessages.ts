@@ -109,12 +109,17 @@ export function isHiddenHostTheaterStatus(status: string): boolean {
   return HOST_THEATER_STATUS_HIDDEN.has(status);
 }
 
-/** Bandeau sous la vidéo (théâtre live) : affiché uniquement en cas d'erreur.
+/** Bandeau sous la vidéo (théâtre live) : affiché en cas d'erreur ou de reconnexion.
  * Les statuts informatifs (caméra inactive, connexion…) sont déjà visibles dans
- * le placeholder central ; le bandeau bas était redondant et encombrant. */
+ * le placeholder central ; le bandeau bas était redondant et encombrant pour eux.
+ * `reconnecting` (audit Low #12) doit rester visible même si une frame vidéo figée
+ * est encore affichée, donc ne peut pas compter uniquement sur le placeholder. */
 export function shouldShowTheaterStatusBar(stageState: string): boolean {
-  return stageState === 'error';
+  return stageState === 'error' || stageState === 'reconnecting';
 }
+
+/** Texte affiché pendant la reconnexion LiveKit (backoff auto géré par le SDK). */
+export const LIVE_CAMERA_RECONNECTING = 'Reconnexion…';
 
 /** Spectateur (LiveKit) : connexion à la salle. */
 export const LIVE_CAMERA_VIEWER_LIVEKIT_CONNECTING = 'Connexion au live LiveKit…';

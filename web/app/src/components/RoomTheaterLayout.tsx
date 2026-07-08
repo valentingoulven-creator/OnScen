@@ -297,6 +297,7 @@ function IntegratedTheaterTopBar({
   topBarEnd,
   chatHeaderLeading,
   chatHeaderExtra,
+  chatHeaderTrailingExtra,
   chatHidden,
   onToggleChat,
   showDockToggle,
@@ -307,6 +308,7 @@ function IntegratedTheaterTopBar({
   topBarEnd?: ReactNode;
   chatHeaderLeading?: ReactNode;
   chatHeaderExtra?: ReactNode;
+  chatHeaderTrailingExtra?: ReactNode;
   chatHidden: boolean;
   onToggleChat: () => void;
   showDockToggle?: boolean;
@@ -325,6 +327,7 @@ function IntegratedTheaterTopBar({
       <div className="flex-1 min-w-0" />
       {topBarEnd ? <div className="flex items-center gap-1.5 shrink-0">{topBarEnd}</div> : null}
       {chatHeaderExtra}
+      {chatHeaderTrailingExtra}
       {showDockToggle ? <ChatLayoutToggle dockMode={dockMode} onToggle={onToggleDock} /> : null}
       {!chatHidden ? (
         <button
@@ -348,6 +351,7 @@ function DockedChatHeader({
   chatTitleIcon = '💬',
   chatHeaderLeading,
   chatHeaderExtra,
+  chatHeaderTrailingExtra,
   dockMode,
   onToggleDock,
   onToggleChat,
@@ -360,6 +364,7 @@ function DockedChatHeader({
   chatTitleIcon?: ReactNode;
   chatHeaderLeading?: ReactNode;
   chatHeaderExtra?: ReactNode;
+  chatHeaderTrailingExtra?: ReactNode;
   dockMode: 'floating' | 'right';
   onToggleDock: () => void;
   onToggleChat: () => void;
@@ -409,6 +414,7 @@ function DockedChatHeader({
             </button>
           ) : null}
           {showDockToggle ? <ChatLayoutToggle dockMode={dockMode} onToggle={onToggleDock} /> : null}
+          {chatHeaderTrailingExtra}
           <button
             type="button"
             onClick={onToggleChat}
@@ -461,6 +467,7 @@ function DockedChatHeader({
         </button>
       ) : null}
       {showDockToggle ? <ChatLayoutToggle dockMode={dockMode} onToggle={onToggleDock} /> : null}
+      {chatHeaderTrailingExtra}
       <button
         type="button"
         onClick={onToggleChat}
@@ -488,6 +495,8 @@ export interface RoomTheaterLayoutProps {
   chatTitleIcon?: ReactNode;
   /** Actions hôte dans l'en-tête du chat ancré (ex. participants). */
   chatHeaderExtra?: ReactNode;
+  /** Actions juste avant « Masquer le chat » (ex. 📋 actions hôte live). */
+  chatHeaderTrailingExtra?: ReactNode;
   /** Barre hôte sous le titre du chat bas (arrêter live, réglages, dons). */
   chatHostToolbar?: ReactNode;
   /** Contenu avant le titre (ex. onglets salon Chat / File). */
@@ -549,6 +558,7 @@ export function RoomTheaterLayout({
   chatTitle = 'Chat',
   chatTitleIcon,
   chatHeaderExtra,
+  chatHeaderTrailingExtra,
   chatHostToolbar,
   chatHeaderLeading,
   topBarStart,
@@ -622,6 +632,7 @@ export function RoomTheaterLayout({
       topBarEnd={topBarEnd}
       chatHeaderLeading={chatHeaderLeading}
       chatHeaderExtra={chatHeaderExtra}
+      chatHeaderTrailingExtra={chatHeaderTrailingExtra}
       chatHidden={chatHidden}
       onToggleChat={onToggleChat}
       showDockToggle={allowFloatingChat && theaterDock !== 'bottom' && theaterDock !== 'left'}
@@ -635,6 +646,7 @@ export function RoomTheaterLayout({
     chatTitleIcon,
     chatHeaderLeading: useFullWidthHeader ? undefined : chatHeaderLeading,
     chatHeaderExtra: useFullWidthHeader ? undefined : chatHeaderExtra,
+    chatHeaderTrailingExtra: useFullWidthHeader ? undefined : chatHeaderTrailingExtra,
     integratedFullWidth: dockHeaderIntegrated,
     onToggleChat,
     onToggleMinimize,
@@ -758,6 +770,7 @@ export function RoomTheaterLayout({
           </p>
           <div className="shrink-0 flex items-center gap-0.5">
             {chatHeaderExtra}
+            {chatHeaderTrailingExtra}
             <button
               type="button"
               onClick={onToggleChat}
@@ -797,6 +810,7 @@ export function RoomTheaterLayout({
       <FloatingSalonChat
         title={chatTitle}
         compactHeader={liveTheaterChrome}
+        headerTrailingExtra={chatHeaderTrailingExtra}
         onTogglePin={liveTheaterChrome ? onToggleChatPin : undefined}
         headerExtra={
           liveTheaterChrome ? (

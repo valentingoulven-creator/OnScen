@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { isMsdevRuntime } from '../lib/msdevGuard';
+import { createRateLimitStore } from '../lib/rateLimitStore';
 import { db } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
 import { getDistanceKm } from '../lib/geo';
@@ -101,6 +102,9 @@ const nearbyAnonLimiter = rateLimit({
     res.status(429).json({ error: geoError('nearbyRateLimit', locale) });
   },
   skip: () => isMsdevRuntime(),
+  // Cluster-safe (Redis) : sans ça, chaque worker PM2 a son propre compteur
+  // mémoire, doublant de facto la limite réelle (audit DB/infra §4).
+  store: createRateLimitStore('nearby-anon'),
 });
 
 /**
@@ -121,6 +125,8 @@ const nearbyAuthLimiter = rateLimit({
     res.status(429).json({ error: geoError('nearbyRateLimit', locale) });
   },
   skip: () => isMsdevRuntime(),
+  // Cluster-safe (Redis) : voir commentaire nearbyAnonLimiter ci-dessus.
+  store: createRateLimitStore('nearby-auth'),
 });
 
 /** Parse an optional bounding-box from query params (swLat, swLng, neLat, neLng). */

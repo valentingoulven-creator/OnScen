@@ -1,4 +1,28 @@
-/** Recherche / playlists YouTube via API officielle ou instances publiques (secours). */
+/**
+ * Recherche / playlists YouTube via des proxys publics tiers non officiels
+ * (Piped/Invidious) — métadonnées uniquement (jamais de flux audio/vidéo).
+ *
+ * ⚠️ NON CONFORME aux ToS YouTube. Fallback msdev/dev UNIQUEMENT.
+ *
+ * Défense en profondeur (voir audit RGPD/YouTube/Copyright, YT-2) :
+ *   1. Garde-fou runtime : `isYoutubeRemoteFallbackAllowed()` (youtubeCompliance.ts)
+ *      force `false` dès que NODE_ENV/APP_ENV === 'production', quelle que soit
+ *      la valeur de ALLOW_YOUTUBE_REMOTE_FALLBACK.
+ *   2. Exclusion du build : `npm run build:prod` (utilisé par
+ *      commun/deploy/deploy_zero_downtime.ps1 pour prod ET preprod) supprime
+ *      physiquement ce fichier compilé de `dist/lib/` via
+ *      commun/backend/scripts/strip-dev-only-modules.js — même une mauvaise
+ *      config d'env ne peut plus l'atteindre, car `import('./youtubeRemote')`
+ *      échoue (ModuleNotFound) si le fichier est absent.
+ *   3. Les deux seuls appelants (youtubeSearch.ts, youtubePlaylists.ts)
+ *      importent ce module dynamiquement dans un try/catch : une absence du
+ *      fichier (prod/preprod) dégrade proprement (pas de fallback) plutôt
+ *      que de planter la requête.
+ *
+ * Ce fichier reste présent dans `dist/` uniquement pour le build msdev
+ * (`npm run build` + `build:exe`) et le dev local (ts-node-dev sur `src/`),
+ * où le fallback est un choix de confort explicite et documenté.
+ */
 
 const PIPED_INSTANCES = [
   'https://pipedapi.adminforge.de',

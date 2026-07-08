@@ -2,7 +2,7 @@ node_modules/
 dist/
 .env
 .env.local
-docs/youtube-audit-demo-credentials.local.txt
+**/docs/youtube-audit-demo-credentials.local.txt
 .env.production
 .env.development
 .env.*
@@ -13,14 +13,14 @@ docs/youtube-audit-demo-credentials.local.txt
 .DS_Store
 
 # msdev secrets (keep .env.example)
-msdev/.env
+**/msdev/.env
 # msdev local DB file (see msdev/data/README.md — do not iCloud-sync)
 msdev/data/*.json
 !msdev/data/README.md
 !msdev/data/.nosync
 !msdev/data/.gitignore
-msdev/legal-publisher.json
-msdev/ceo-founder-context.json
+**/msdev/legal-publisher.json
+**/msdev/ceo-founder-context.json
 
 # Mobile store secrets (keystore, Team ID)
 mobile-store.env
@@ -32,7 +32,7 @@ apptel/android/keystore.properties
 msdev/release/
 
 # Auto-signed dev TLS (regenerate with msdev/scripts/generate-dev-cert.ps1)
-msdev/certs/
+**/msdev/certs/
 
 # Tile proxy disk cache (auto-populated at runtime — never commit)
 backend/tile-cache/

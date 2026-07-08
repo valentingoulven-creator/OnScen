@@ -28,8 +28,14 @@ module.exports = {
       name: 'melosong-backend',
       script: 'dist/index.js',
       cwd: ROOT,
-      // Phase 0 scale : 2 workers (DEV1-S 2 vCPU / ~2 Go RAM) + Redis adapter Socket.io
-      instances: 2,
+      // MITIGATION TEMPORAIRE (MODIF 961) : repassé à 1 worker tant que le store
+      // applicatif reste en RAM (models/schema.ts, Map par-processus) sans source
+      // de vérité partagée. Avec 2 workers en cluster, chaque process a sa propre
+      // copie du store (users, sessions, ...) : risque d'incohérence de lecture
+      // (ex. 401 « Token invalide » aléatoire) entre workers. Ne pas remonter à
+      // instances > 1 avant la refonte vers une source de vérité partagée
+      // (Postgres/Redis) — voir commun/docs/audit/AUDIT-architecture-code.md §6 (#1).
+      instances: 1,
       exec_mode: 'cluster',
       autorestart: true,
       watch: false,

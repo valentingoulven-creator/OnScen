@@ -59,6 +59,7 @@ function DockChatBody({ chat, chatInput }: { chat: ReactNode; chatInput?: ReactN
 function DockedChatHeader({
   chatTitle,
   chatHeaderExtra,
+  chatHeaderTrailingExtra,
   dockMode,
   onToggleDock,
   onToggleChat,
@@ -68,6 +69,7 @@ function DockedChatHeader({
 }: {
   chatTitle: string;
   chatHeaderExtra?: ReactNode;
+  chatHeaderTrailingExtra?: ReactNode;
   dockMode: 'floating' | 'right';
   onToggleDock: () => void;
   onToggleChat: () => void;
@@ -85,6 +87,7 @@ function DockedChatHeader({
       </p>
       {chatHeaderExtra}
       {showDockToggle ? <ChatLayoutToggle dockMode={dockMode} onToggle={onToggleDock} /> : null}
+      {chatHeaderTrailingExtra}
       {onToggleMinimize && (
         <button
           type="button"
@@ -139,6 +142,8 @@ export interface RoomTheaterLayoutProps {
   chatTitle?: string;
   /** Actions hôte dans l'en-tête du chat ancré (ex. participants). */
   chatHeaderExtra?: ReactNode;
+  /** Actions juste avant « Masquer le chat » (ex. 📋 actions hôte live). */
+  chatHeaderTrailingExtra?: ReactNode;
   /** Chat réduit au bandeau d'en-tête uniquement (contenu masqué). */
   chatMinimized?: boolean;
   onToggleMinimize?: () => void;
@@ -176,6 +181,7 @@ export function RoomTheaterLayout({
   stageFooter,
   chatTitle = 'Chat',
   chatHeaderExtra,
+  chatHeaderTrailingExtra,
   chatMinimized = false,
   onToggleMinimize,
   variant = 'theater',
@@ -210,11 +216,6 @@ export function RoomTheaterLayout({
           : allowFloatingChat
             ? dockMode
             : 'right';
-
-  const layoutToggleExtra =
-    allowFloatingChat && theaterDock !== 'bottom' && theaterDock !== 'left' ? (
-      <ChatLayoutToggle dockMode={theaterDock === 'floating' ? 'floating' : 'right'} onToggle={toggleDockMode} />
-    ) : null;
 
   if (variant === 'queue-chat') {
     return (
@@ -270,6 +271,10 @@ export function RoomTheaterLayout({
   const showRightDock = !chatHidden && theaterDock === 'right';
   const showFloating = !chatHidden && theaterDock === 'floating';
   const showSideDock = showLeftDock || showRightDock;
+  const layoutToggleExtra =
+    allowFloatingChat && theaterDock !== 'bottom' && theaterDock !== 'left' ? (
+      <ChatLayoutToggle dockMode={theaterDock === 'floating' ? 'floating' : 'right'} onToggle={toggleDockMode} />
+    ) : null;
   const useMatchHero = sideDockMatchHero && showSideDock;
   const sideRowClass = showSideDock
     ? ` room-theater-side-row${showRightDock ? ' room-theater-side-row--right' : ' room-theater-side-row--left'}${
@@ -287,6 +292,7 @@ export function RoomTheaterLayout({
               <DockedChatHeader
                 chatTitle={chatTitle}
                 chatHeaderExtra={chatHeaderExtra}
+                chatHeaderTrailingExtra={chatHeaderTrailingExtra}
                 dockMode="right"
                 onToggleDock={() => {}}
                 onToggleChat={onToggleChat}
@@ -308,6 +314,7 @@ export function RoomTheaterLayout({
             {showFloating && (
               <FloatingSalonChat
                 title={chatTitle}
+                headerTrailingExtra={chatHeaderTrailingExtra}
                 headerExtra={
                   <>
                     {chatHeaderExtra}
@@ -340,6 +347,7 @@ export function RoomTheaterLayout({
               <DockedChatHeader
                 chatTitle={chatTitle}
                 chatHeaderExtra={chatHeaderExtra}
+                chatHeaderTrailingExtra={chatHeaderTrailingExtra}
                 dockMode="right"
                 onToggleDock={allowFloatingChat ? toggleDockMode : () => {}}
                 onToggleChat={onToggleChat}
@@ -357,6 +365,7 @@ export function RoomTheaterLayout({
             <DockedChatHeader
               chatTitle={chatTitle}
               chatHeaderExtra={chatHeaderExtra}
+              chatHeaderTrailingExtra={chatHeaderTrailingExtra}
               dockMode="right"
               onToggleDock={allowFloatingChat ? toggleDockMode : () => {}}
               onToggleChat={onToggleChat}
@@ -380,6 +389,7 @@ export function RoomTheaterLayout({
                 {chatTitle}
               </p>
               {chatHeaderExtra}
+              {chatHeaderTrailingExtra}
               <button
                 type="button"
                 onClick={onToggleChat}

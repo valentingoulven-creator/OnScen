@@ -35,6 +35,7 @@ import { LiveTheaterStatusBar, LiveVideoChromeButton } from './LiveVideoTheaterC
 import { useLiveVideoChromeAutoHide } from '../hooks/useLiveVideoChromeAutoHide';
 import {
   LIVE_CAMERA_HOST_LIVEKIT_START,
+  LIVE_CAMERA_RECONNECTING,
   LIVE_CAMERA_VIEWER_FILE_NOTE,
   LIVE_CAMERA_VIEWER_LIVEKIT_CONNECTING,
   LIVE_CAMERA_VIEWER_LIVEKIT_ERROR,
@@ -310,6 +311,7 @@ function LiveKitRoomInner({
   onHostStreamActive,
   onViewerStreamActive,
   onError,
+  onConnectionStateChange,
 }: {
   isHost: boolean;
   publishActive: boolean;
@@ -323,8 +325,14 @@ function LiveKitRoomInner({
   onHostStreamActive: (active: boolean) => void;
   onViewerStreamActive: (active: boolean) => void;
   onError: (message: string) => void;
+  /** Audit Low #12 — surface `Reconnecting` (backoff auto géré par le SDK) dans l'UI. */
+  onConnectionStateChange: (state: ConnectionState) => void;
 }) {
   const connectionState = useConnectionState();
+
+  useEffect(() => {
+    onConnectionStateChange(connectionState);
+  }, [connectionState, onConnectionStateChange]);
 
   useEffect(() => {
     if (connectionState === ConnectionState.Disconnected) {
@@ -398,6 +406,8 @@ export type LiveKitVideoStageProps = {
   videoFloat?: VideoPipFloatApi;
   /** Appelé quand l'utilisateur clique sur ⤢ pour activer le PiP. */
   onPipOpen?: () => void;
+  /** Bouton « Actions à faire » hôte (chrome théâtre, après plein écran). */
+  hostActionsChrome?: ReactNode;
 };
 
 export function LiveKitVideoStage({
@@ -431,6 +441,7 @@ export function LiveKitVideoStage({
   onToggleViewerPlaybackPaused,
   videoFloat,
   onPipOpen,
+  hostActionsChrome,
 }: LiveKitVideoStageProps) {
   const videoResolution = getLiveVideoResolutionPreset(videoResolutionProp);
   const videoAspectRatio = getLiveVideoAspectRatioPreset(videoAspectRatioProp);
@@ -451,7 +462,12 @@ export function LiveKitVideoStage({
   const [viewerStreamActive, setViewerStreamActive] = useState(false);
   const [roomError, setRoomError] = useState<string | null>(null);
   const [videoTimedOut, setVideoTimedOut] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
   const fetchGenRef = useRef(0);
+
+  const handleConnectionStateChange = useCallback((state: ConnectionState) => {
+    setIsReconnecting(state === ConnectionState.Reconnecting);
+  }, []);
 
   useEffect(() => {
     if (!enabled || !authToken) return;
@@ -459,6 +475,7 @@ export function LiveKitVideoStage({
     setLoadError(null);
     setSession(null);
     setVideoTimedOut(false);
+    setIsReconnecting(false);
 
     void (async () => {
       try {
@@ -497,6 +514,7 @@ export function LiveKitVideoStage({
     setLoadError(null);
     setRoomError(null);
     setVideoTimedOut(false);
+    setIsReconnecting(false);
     setSession(null);
     const gen = fetchGenRef.current;
     void (async () => {
@@ -638,8 +656,6 @@ export function LiveKitVideoStage({
       }
     };
 
-    applyOrientation();
-
     const landscapeMq = window.matchMedia('(orientation: landscape)');
     landscapeMq.addEventListener('change', applyOrientation);
     window.addEventListener('orientationchange', applyOrientation);
@@ -685,10 +701,14 @@ export function LiveKitVideoStage({
     });
   }, [isHost, viewerPlaybackPaused, showVideo, onToggleViewerPlaybackPaused]);
 
-  const stageState: 'loading' | 'live' | 'no-camera' | 'error' | 'ended' = (() => {
+  const stageState: 'loading' | 'live' | 'no-camera' | 'error' | 'ended' | 'reconnecting' = (() => {
     if (streamEnded) return 'ended';
     if (loadError || roomError || videoTimedOut) return 'error';
     if (!session) return 'loading';
+    // Reconnecting a un statut dédié même si une frame vidéo figée reste affichée —
+    // le SDK LiveKit gère le retry/backoff automatiquement, on ne fait ici que
+    // rendre cet état visible côté UI (audit Low #12).
+    if (isReconnecting) return 'reconnecting';
     if (isHost) {
       return publishActive && hostStreamActive ? 'live' : publishActive ? 'loading' : 'no-camera';
     }
@@ -704,6 +724,7 @@ export function LiveKitVideoStage({
   const status = (() => {
     if (streamEnded) return streamEndedTitle;
     if (stageState === 'error') return videoErrorTitle;
+    if (stageState === 'reconnecting') return LIVE_CAMERA_RECONNECTING;
     if (!session) return LIVE_CAMERA_VIEWER_LIVEKIT_CONNECTING;
     if (isHost) {
       if (hostStreamActive) return 'Caméra active — diffusion LiveKit';
@@ -834,6 +855,7 @@ export function LiveKitVideoStage({
               onHostStreamActive={setHostStreamActive}
               onViewerStreamActive={setViewerStreamActive}
               onError={handlePublishError}
+              onConnectionStateChange={handleConnectionStateChange}
             />
           </LiveKitRoom>
         ) : null}
@@ -879,6 +901,7 @@ export function LiveKitVideoStage({
               <span className="hidden sm:inline">{t('live.enterFullscreen')}</span>
             </LiveVideoChromeButton>
           )}
+          {isHost && hostActionsChrome ? hostActionsChrome : null}
           {onPipOpen && !isVideoExpanded && (
             <LiveVideoChromeButton onClick={onPipOpen} ariaLabel="Détacher en PiP" title="Détacher la vidéo (PiP)">
               <LiveVideoPipIcon />
@@ -962,7 +985,7 @@ export function LiveKitVideoStage({
               ? 'error'
               : stageState === 'live'
                 ? 'live'
-                : stageState === 'loading'
+                : stageState === 'loading' || stageState === 'reconnecting'
                   ? 'loading'
                   : 'idle'
         }

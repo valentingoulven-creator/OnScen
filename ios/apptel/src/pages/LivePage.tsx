@@ -23,6 +23,7 @@ import {
   hasPendingLiveCameraStart,
 } from '../lib/liveMediaPrefs';
 import { getStorageItem, setStorageItem, STORAGE_KEYS } from '../lib/storageKeys';
+import { publicGoalsToLiveGoals } from '../lib/liveGoalProgress';
 import { ChatRoomProvider, ChatMessagesView, ChatInputBar, ChatModals } from '../components/ChatPanel';
 import { UsernameDisplay } from '../components/UsernameDisplay';
 import { RoomTheaterLayout } from '../components/RoomTheaterLayout';
@@ -508,7 +509,19 @@ export function LivePage({
   const hostCanReceiveDonations =
     live?.hostMonetizationEligible !== false && live?.tipsEnabled !== false;
 
-  useEffect(() => {
+  const viewerDonationOptions = useMemo(
+    () => live?.donationOptions?.filter((o) => o.label?.trim() && o.amount >= 1 && o.amount <= 100) ?? [],
+    [live?.donationOptions]
+  );
+
+  const viewerActiveGoals = useMemo(
+    () => !isHost && live?.donationGoals?.length
+      ? publicGoalsToLiveGoals(live.donationGoals, liveId)
+      : [],
+    [isHost, live?.donationGoals, liveId]
+  );
+
+
     if (isHost) {
       setActiveHostLiveId(liveId);
       return () => setActiveHostLiveId(null);
@@ -897,9 +910,12 @@ export function LivePage({
           onClose={() => setShowDonSheet(false)}
           liveId={liveId}
           hostName={live.hostName}
+          hostAvatarUrl={live.hostAvatarUrl}
           token={token}
           userAge={user?.age}
           initialAmount={donInitialAmount}
+          hostDonationOptions={viewerDonationOptions}
+          activeGoals={viewerActiveGoals}
           onSuccess={(message) => {
             setDonToast(message);
             window.setTimeout(() => setDonToast(null), 2500);

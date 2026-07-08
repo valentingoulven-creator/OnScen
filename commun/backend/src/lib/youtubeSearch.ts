@@ -114,22 +114,30 @@ export async function searchYoutube(
 
   if (isYoutubeRemoteFallbackAllowed()) {
     // Import dynamique : le module youtubeRemote.ts (proxies Piped/Invidious, non conformes
-    // aux ToS YouTube) n'est chargé/exécuté qu'en msdev, jamais en production, même si son
-    // code source reste présent dans le repo (garde-fou run-time déjà appliqué en amont).
-    const { searchVideosViaPiped, searchVideosViaInvidious } = await import('./youtubeRemote');
+    // aux ToS YouTube) n'est chargé/exécuté qu'en msdev, jamais en production. En plus du
+    // garde-fou runtime ci-dessus, ce module est physiquement retiré du build de production
+    // par `npm run build:prod` (voir commun/backend/scripts/strip-dev-only-modules.js) — le
+    // try/catch ci-dessous garantit qu'une mauvaise config d'env qui atteindrait quand même
+    // ce chemin en prod/preprod échoue silencieusement (pas de fallback) plutôt que de faire
+    // planter la requête ou, pire, de réussir à joindre ces proxies tiers.
+    try {
+      const { searchVideosViaPiped, searchVideosViaInvidious } = await import('./youtubeRemote');
 
-    if (remoteHits.length < 8) {
-      const piped = await searchVideosViaPiped(q);
-      for (const h of piped) {
-        remoteHits.push(toResult(h.videoId, h.title, h.artist, h.thumbnailUrl));
+      if (remoteHits.length < 8) {
+        const piped = await searchVideosViaPiped(q);
+        for (const h of piped) {
+          remoteHits.push(toResult(h.videoId, h.title, h.artist, h.thumbnailUrl));
+        }
       }
-    }
 
-    if (remoteHits.length < 8) {
-      const inv = await searchVideosViaInvidious(q);
-      for (const h of inv) {
-        remoteHits.push(toResult(h.videoId, h.title, h.artist, h.thumbnailUrl));
+      if (remoteHits.length < 8) {
+        const inv = await searchVideosViaInvidious(q);
+        for (const h of inv) {
+          remoteHits.push(toResult(h.videoId, h.title, h.artist, h.thumbnailUrl));
+        }
       }
+    } catch (e) {
+      console.warn('[youtube-search] fallback Piped/Invidious indisponible (attendu en prod/preprod) :', e);
     }
   }
 

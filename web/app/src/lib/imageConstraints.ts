@@ -50,6 +50,49 @@ const EXTENSION_TO_MIME: Record<string, string> = {
 export const SUPPORTED_IMAGE_FORMATS_LABEL =
   'JPEG, JPG, PNG, WebP, GIF, AVIF, HEIC/HEIF, BMP';
 
+// ─── Sortie WebP avec repli JPEG (audit Medium #4) ────────────────────────────
+//
+// `canvas.toBlob`/`toDataURL` retombent silencieusement sur PNG (pas JPEG) si le
+// type demandé n'est pas supporté par le moteur de rendu — inadapté ici (PNG est
+// sans perte, donc bien plus volumineux qu'un JPEG pour une photo). On détecte
+// donc explicitement le support WebP en encodage (pas seulement décodage) avant
+// de choisir le format de sortie, avec repli JPEG garanti sinon (vieux Safari
+// < 14, WebKit embarqués). La détection est mémoïsée (calculée une fois par
+// session) et ne s'exécute jamais au chargement du module (uniquement à l'appel
+// des fonctions resizeTo*Specs / resizeImageInstagram), pour rester sans effet
+// en environnement Node (tests vitest, `environment: 'node'`, pas de `document`).
+let cachedWebpEncodeSupport: boolean | null = null;
+
+/** Détecte si le navigateur sait *encoder* du WebP via canvas (pas juste le décoder). */
+export function isCanvasWebpEncodeSupported(): boolean {
+  if (cachedWebpEncodeSupport !== null) return cachedWebpEncodeSupport;
+  try {
+    if (typeof document === 'undefined') {
+      cachedWebpEncodeSupport = false;
+      return false;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    // Un moteur sans support d'encodage WebP retombe sur `image/png` — on
+    // vérifie donc le préfixe MIME réellement renvoyé, pas juste l'absence d'erreur.
+    cachedWebpEncodeSupport = canvas.toDataURL('image/webp').startsWith('data:image/webp');
+  } catch {
+    cachedWebpEncodeSupport = false;
+  }
+  return cachedWebpEncodeSupport;
+}
+
+/** Format de sortie image recommandé : WebP si l'encodage canvas est supporté, sinon JPEG. */
+export function resolveImageOutputFormat(): 'image/webp' | 'image/jpeg' {
+  return isCanvasWebpEncodeSupported() ? 'image/webp' : 'image/jpeg';
+}
+
+/** Test-only: force la valeur mémoïsée du support WebP (réinitialiser avec `null`). */
+export function __setCanvasWebpEncodeSupportForTests(value: boolean | null): void {
+  cachedWebpEncodeSupport = value;
+}
+
 export const INSTAGRAM_IMAGE_LIMITS = {
   maxInputFileSizeMB: INSTAGRAM_MAX_INPUT_FILE_SIZE_MB,
   maxInputFileSizeBytes: INSTAGRAM_MAX_INPUT_FILE_SIZE_BYTES,
@@ -375,7 +418,7 @@ export function validateProfilePhoto(file: File): { valid: boolean; error?: stri
 
 /**
  * Redimensionne une image aux specs Instagram génériques :
- * largeur max 1080 px, sortie JPEG 0.85.
+ * largeur max 1080 px, sortie WebP 0.85 (repli JPEG si non supporté — audit Medium #4).
  */
 export function resizeToInstagramSpecs(file: File): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -401,12 +444,13 @@ export function resizeToInstagramSpecs(file: File): Promise<Blob> {
         return;
       }
       ctx.drawImage(img, 0, 0, width, height);
+      const format = resolveImageOutputFormat();
       canvas.toBlob(
         (blob) => {
           if (blob) resolve(blob);
           else reject(new Error('Conversion canvas échouée'));
         },
-        INSTAGRAM_IMAGE_LIMITS.outputFormat,
+        format,
         INSTAGRAM_IMAGE_LIMITS.outputQuality
       );
     };
@@ -423,8 +467,7 @@ export function resizeToInstagramSpecs(file: File): Promise<Blob> {
  * L'image est centrée ; des barres noires comblent si le ratio diffère de 9:16.
  */
 export async function resizeToStorySpecs(file: File): Promise<Blob> {
-  const { targetWidth: W, targetHeight: H, outputQuality, outputFormat } =
-    INSTAGRAM_STORY_LIMITS.photo;
+  const { targetWidth: W, targetHeight: H, outputQuality } = INSTAGRAM_STORY_LIMITS.photo;
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -449,7 +492,7 @@ export async function resizeToStorySpecs(file: File): Promise<Blob> {
           if (blob) resolve(blob);
           else reject(new Error('Impossible de générer la story'));
         },
-        outputFormat,
+        resolveImageOutputFormat(),
         outputQuality
       );
     };
@@ -466,7 +509,7 @@ export async function resizeToStorySpecs(file: File): Promise<Blob> {
  * Conforme aux specs Instagram pour les photos de profil.
  */
 export async function resizeToProfilePhotoSpecs(file: File): Promise<Blob> {
-  const { targetDimension, outputQuality, outputFormat } = INSTAGRAM_PROFILE_PHOTO_LIMITS;
+  const { targetDimension, outputQuality } = INSTAGRAM_PROFILE_PHOTO_LIMITS;
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -489,7 +532,7 @@ export async function resizeToProfilePhotoSpecs(file: File): Promise<Blob> {
           if (blob) resolve(blob);
           else reject(new Error('Impossible de générer la photo de profil'));
         },
-        outputFormat,
+        resolveImageOutputFormat(),
         outputQuality
       );
     };

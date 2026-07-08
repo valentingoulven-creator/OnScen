@@ -62,3 +62,20 @@ export function persistCreatorSubscriptionToPgAsync(sub: CreatorSubscription): v
     console.error('[pgSubscriptions] upsert error:', err);
   });
 }
+
+/**
+ * Vérifie en base (pas seulement en mémoire) si un abonnement Stripe a déjà
+ * été enregistré. `creator_subscriptions.stripe_subscription_id` porte une
+ * contrainte UNIQUE partielle (migration 012) — protection dernier recours
+ * en environnement PM2 cluster où `db.creatorSubscriptions` est en mémoire
+ * par process.
+ */
+export async function creatorSubscriptionExistsInPg(stripeSubscriptionId: string): Promise<boolean> {
+  if (!isPostgresEnabled()) return false;
+  const pool = getPool();
+  const res = await pool.query(
+    'SELECT 1 FROM creator_subscriptions WHERE stripe_subscription_id = $1 LIMIT 1',
+    [stripeSubscriptionId]
+  );
+  return (res.rowCount ?? 0) > 0;
+}

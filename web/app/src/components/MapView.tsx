@@ -691,9 +691,20 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     setShowGlobe(true);
     setFlatReveal(0);
 
-    // Ensure zoom ≥ 3 so zoomend doesn't immediately re-trigger globe.
+    // Sync hidden flat map to current center before crossfade (globe POV / bootstrap geo).
     if (mapInstance.current) {
+      const [lat, lng] = centerRef.current;
       try {
+        if (isValidLatLng(lat, lng)) {
+          const current = mapInstance.current.getCenter();
+          if (getDistanceKm(current.lat, current.lng, lat, lng) >= 0.01) {
+            skipCenterFlyRef.current = true;
+            programmaticMapMoveUntilRef.current = Date.now() + MAP_CROSSFADE_MS + 200;
+            mapInstance.current.flyTo(sanitizeLatLngTuple(lat, lng), MAP_DEFAULT_CITY_ZOOM, {
+              duration: MAP_CROSSFADE_MS / 1000,
+            });
+          }
+        }
         if (mapInstance.current.getZoom() < 3) {
           mapInstance.current.setZoom(3, { animate: false });
         }
@@ -999,10 +1010,18 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     const [lat, lng] = centerRef.current;
     if (!isValidLatLng(lat, lng)) return;
     if (Date.now() < programmaticMapMoveUntilRef.current) return;
-    if (skipCenterFlyRef.current) {
-      skipCenterFlyRef.current = false;
-      return;
+
+    const skipFromProgrammaticMove = skipCenterFlyRef.current;
+    skipCenterFlyRef.current = false;
+    if (skipFromProgrammaticMove) {
+      try {
+        const current = map.getCenter();
+        if (getDistanceKm(current.lat, current.lng, lat, lng) < 0.01) return;
+      } catch {
+        /* map may not be ready — fall through to flyTo */
+      }
     }
+
     userMapPanRef.current = false;
     try {
       skipCenterFlyRef.current = true;
@@ -1171,8 +1190,8 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
 
     const linkedSalonIds = new Set(visibleSalons.map((s) => s.id));
 
-    let salonsToDraw = visibleSalons;
-    let livesToDraw = visibleLives.filter((l) => !linkedSalonIds.has(l.id));
+    let salonsToDraw: typeof visibleSalons;
+    let livesToDraw: typeof visibleLives;
 
     // Hôtes déjà représentés par un point salon/live — sans ceci, le même hôte
     // (visible dans la liste "à proximité" dès qu'il est en live ou a un salon)
@@ -1267,7 +1286,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
                     const avatarFallback = dicebearAdventurerAvatar(s.hostId);
                     const avatar = s.hostAvatarUrl?.trim() || avatarFallback;
                     const avatarOnError = `this.onerror=null;this.src='${avatarFallback.replace(/'/g, '%27')}';`;
-                    return `<div class="map-marker ${botClass} ${liveClass}">${s.isBot ? '<span class="bot-badge">BOT</span>' : ''}${s.isLive ? '<span class="live-badge">LIVE</span>' : ''}<img src="${escapeHtml(avatar)}" alt="" onerror="${avatarOnError}"/>${usernameMapLabelHtml(s.hostName, s.hostUsernameColor, { wave: { from: s.hostUsernameWaveFrom, to: s.hostUsernameWaveTo } })}</div>`;
+                    return `<div class="map-marker ${botClass} ${liveClass}">${s.isBot ? '<span class="bot-badge">BOT</span>' : ''}${s.isLive ? '<span class="live-badge">LIVE</span>' : ''}<img src="${escapeHtml(avatar)}" alt="" loading="lazy" decoding="async" onerror="${avatarOnError}"/>${usernameMapLabelHtml(s.hostName, s.hostUsernameColor, { wave: { from: s.hostUsernameWaveFrom, to: s.hostUsernameWaveTo } })}</div>`;
                   })(),
                   iconSize: [56, 56],
                   iconAnchor: [28, 28],
@@ -1309,7 +1328,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
                     const avatarFallback = dicebearAdventurerAvatar(l.hostId);
                     const avatar = l.hostAvatarUrl?.trim() || avatarFallback;
                     const avatarOnError = `this.onerror=null;this.src='${avatarFallback.replace(/'/g, '%27')}';`;
-                    return `<div class="map-marker live"><span class="live-badge">LIVE</span><img src="${escapeHtml(avatar)}" alt="" onerror="${avatarOnError}"/>${usernameMapLabelHtml(l.hostName, l.hostUsernameColor, { wave: { from: l.hostUsernameWaveFrom, to: l.hostUsernameWaveTo } })}</div>`;
+                    return `<div class="map-marker live"><span class="live-badge">LIVE</span><img src="${escapeHtml(avatar)}" alt="" loading="lazy" decoding="async" onerror="${avatarOnError}"/>${usernameMapLabelHtml(l.hostName, l.hostUsernameColor, { wave: { from: l.hostUsernameWaveFrom, to: l.hostUsernameWaveTo } })}</div>`;
                   })(),
                   iconSize: [56, 56],
                   iconAnchor: [28, 28],
@@ -1378,7 +1397,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
           : '';
       const icon = L.divIcon({
         className: '',
-        html: `<div class="map-marker person ${botClass} ${liveClass}"><div class="map-marker-person-top">${viewersLabel}<div class="person-avatar-stack">${liveBadge}<img src="${escapeHtml(avatar)}" alt="" onerror="${avatarOnError}"/></div></div>${usernameMapLabelHtml(p.username, p.usernameColor, { wave: { from: p.usernameWaveFrom, to: p.usernameWaveTo } })}</div>`,
+        html: `<div class="map-marker person ${botClass} ${liveClass}"><div class="map-marker-person-top">${viewersLabel}<div class="person-avatar-stack">${liveBadge}<img src="${escapeHtml(avatar)}" alt="" loading="lazy" decoding="async" onerror="${avatarOnError}"/></div></div>${usernameMapLabelHtml(p.username, p.usernameColor, { wave: { from: p.usernameWaveFrom, to: p.usernameWaveTo } })}</div>`,
         iconSize: [56, 56],
         iconAnchor: [28, 28],
       });

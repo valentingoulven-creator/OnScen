@@ -8,16 +8,20 @@ import {
   withGoalsProgress,
 } from '../lib/liveGoalProgress';
 import type { LiveGoal, RewardQueueItem } from '../lib/liveHostTypes';
+import { LIVE_THEATER_CHROME_BTN_CLASS } from './LiveVideoTheaterChrome';
 
 type LiveHostActionsPopoverProps = {
   liveId: string;
   goalStats: GoalProgressStats;
   panelAbove?: boolean;
+  variant?: 'default' | 'theater-chrome';
   onOpenDonPanel?: (subTab: 'goals' | 'rewards') => void;
 };
 
 const POPOVER_TRIGGER_CLASS =
   'relative w-11 h-11 flex items-center justify-center rounded-lg transition text-sm leading-none touch-manipulation';
+
+const THEATER_CHROME_TRIGGER_CLASS = `relative ${LIVE_THEATER_CHROME_BTN_CLASS} text-sm leading-none`;
 
 function goalUnit(type: LiveGoal['type']): string {
   switch (type) {
@@ -89,6 +93,7 @@ export function LiveHostActionsPopover({
   liveId,
   goalStats,
   panelAbove = false,
+  variant = 'default',
   onOpenDonPanel,
 }: LiveHostActionsPopoverProps) {
   const { t } = useTranslation();
@@ -239,19 +244,27 @@ export function LiveHostActionsPopover({
       </div>
     ) : null;
 
+  const triggerBaseClass = variant === 'theater-chrome' ? THEATER_CHROME_TRIGGER_CLASS : POPOVER_TRIGGER_CLASS;
+  const triggerStateClass =
+    variant === 'theater-chrome'
+      ? open
+        ? 'ring-2 ring-purple-400/60'
+        : todoCount > 0
+          ? 'ring-2 ring-amber-400/50'
+          : ''
+      : open
+        ? 'text-purple-300 bg-purple-950/50'
+        : todoCount > 0
+          ? 'text-amber-300 hover:bg-white/10'
+          : 'text-gray-500 hover:text-purple-300 hover:bg-white/10';
+
   return (
     <div className="relative shrink-0">
       <button
         ref={buttonRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`${POPOVER_TRIGGER_CLASS} ${
-          open
-            ? 'text-purple-300 bg-purple-950/50'
-            : todoCount > 0
-              ? 'text-amber-300 hover:bg-white/10'
-              : 'text-gray-500 hover:text-purple-300 hover:bg-white/10'
-        }`}
+        className={`${triggerBaseClass} ${triggerStateClass}`}
         aria-label={t('live.hostActionsTodo')}
         aria-expanded={open}
         title={t('live.hostActionsTodo')}

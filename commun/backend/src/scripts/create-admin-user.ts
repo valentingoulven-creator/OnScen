@@ -21,6 +21,7 @@ import {
 import { savePersistedStoreToPostgres } from '../lib/pgStore';
 import { closePool } from '../db/pool';
 import { getMsdevEnvPath } from '../paths';
+import { maskEmail } from '../lib/maskPii';
 
 dotenv.config({ path: path.join(process.cwd(), '.env') });
 dotenv.config({ path: getMsdevEnvPath() });
@@ -70,7 +71,7 @@ async function main(): Promise<void> {
       existing.acceptedTermsVersion = CURRENT_TERMS_VERSION;
     }
     db.users.set(existing.id, existing);
-    console.log(`[create-admin] Compte admin mis à jour : ${email} (${existing.id})`);
+    console.log(`[create-admin] Compte admin mis à jour : ${maskEmail(email)} (${existing.id})`);
   } else {
     let user: User = {
       id: `user_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -92,7 +93,7 @@ async function main(): Promise<void> {
     };
     user = applyProfileDefaults(user);
     db.users.set(user.id, user);
-    console.log(`[create-admin] Compte admin créé : ${email} (${user.id})`);
+    console.log(`[create-admin] Compte admin créé : ${maskEmail(email)} (${user.id})`);
   }
 
   if (usesPostgresPersistence()) {

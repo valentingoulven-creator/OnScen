@@ -72,9 +72,12 @@ function PhotoActionBar({
 function ProfilePhotoImage({
   url,
   className,
+  /** Photo principale (avatar) affichée immédiatement au chargement : ne pas lazy-loader. */
+  priority = false,
 }: {
   url: string;
   className?: string;
+  priority?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   const displayable = isDisplayableProfilePhotoUrl(url) && !failed;
@@ -95,6 +98,8 @@ function ProfilePhotoImage({
       src={url}
       alt=""
       className={className}
+      loading={priority ? 'eager' : 'lazy'}
+      decoding="async"
       onError={() => setFailed(true)}
     />
   );
@@ -265,7 +270,7 @@ export function ProfilePhotoGallery({
             </span>
             {avatarUrl ? (
               <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden border-2 border-purple-500/50 shadow-lg shadow-purple-900/30 bg-[#1a1a26]">
-                <ProfilePhotoImage url={avatarUrl} className="w-full h-full object-cover" />
+                <ProfilePhotoImage url={avatarUrl} className="w-full h-full object-cover" priority />
                 <button
                   type="button"
                   onClick={() => requestRemovePhoto(0)}

@@ -90,8 +90,8 @@ Set-EnvVar -Path $envFile -Key 'STRIPE_WEBHOOK_SECRET' -Value $whsec
 Set-EnvVar -Path $envFile -Key 'STRIPE_SUBSCRIPTION_WEBHOOK_SECRET' -Value $whsec
 Set-EnvVar -Path $envFile -Key 'SUBSCRIPTION_TIER1_AMOUNT_EUR' -Value '4.99'
 Set-EnvVar -Path $envFile -Key 'SUBSCRIPTION_TIER2_AMOUNT_EUR' -Value '9.99'
-Set-EnvVar -Path $envFile -Key 'SUBSCRIPTION_SOUNDLY_PLUS_AMOUNT_EUR' -Value '9.99'
-Set-EnvVar -Path $envFile -Key 'SUBSCRIPTION_SOUNDLY_ULTRA_AMOUNT_EUR' -Value '19.99'
+Set-EnvVar -Path $envFile -Key 'SUBSCRIPTION_SOUNDY_PLUS_AMOUNT_EUR' -Value '9.99'
+Set-EnvVar -Path $envFile -Key 'SUBSCRIPTION_SOUNDY_ULTRA_AMOUNT_EUR' -Value '19.99'
 Set-EnvVar -Path $envFile -Key 'SUBSCRIPTIONS_ENABLED' -Value '1'
 
 Write-Host ''

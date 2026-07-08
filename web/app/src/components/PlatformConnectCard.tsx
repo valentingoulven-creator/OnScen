@@ -184,7 +184,7 @@ export function PlatformConnectCard({
         className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border ${platformCompactClasses(platform)}`}
       >
         {avatarUrl ? (
-          <img src={avatarUrl} alt="" className="w-4 h-4 rounded-full object-cover" />
+          <img src={avatarUrl} alt="" className="w-4 h-4 rounded-full object-cover" loading="lazy" decoding="async" />
         ) : (
           meta.emoji
         )}{' '}
@@ -202,6 +202,8 @@ export function PlatformConnectCard({
               src={avatarUrl}
               alt=""
               className="w-9 h-9 rounded-full object-cover border border-[#2d2d3d] shrink-0"
+              loading="lazy"
+              decoding="async"
             />
           ) : (
             <span className="text-lg shrink-0">{meta.emoji}</span>

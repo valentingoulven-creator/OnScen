@@ -468,8 +468,14 @@ export interface DonationPayment {
   hostId?: string;
   amountCents: number;
   platformFeeCents?: number;
-  status: 'pending' | 'succeeded' | 'failed';
+  status: 'pending' | 'succeeded' | 'failed' | 'refunded';
   createdAt: number;
+  /** Remboursement admin (Stripe Refund object id). */
+  refundId?: string;
+  refundedAmountCents?: number;
+  refundedAt?: number;
+  refundedBy?: string;
+  refundReason?: string;
 }
 
 /** Abonnement mensuel à un créateur ou à Soundy+ (plateforme). */
@@ -489,6 +495,14 @@ export interface CreatorSubscription {
   currentPeriodEnd: number;
   createdAt: number;
   updatedAt: number;
+  /** Horodatage du dernier `invoice.payment_failed` reçu (dunning applicatif). */
+  paymentFailedAt?: number;
+  /** Remboursement admin (Stripe Refund object id) sur la dernière facture payée. */
+  refundId?: string;
+  refundedAmountCents?: number;
+  refundedAt?: number;
+  refundedBy?: string;
+  refundReason?: string;
 }
 
 export interface SubscriptionCheckout {
@@ -636,7 +650,8 @@ export interface AppNotification {
     | 'mention'
     | 'support_contact'
     | 'support_reply'
-    | 'support_resolved';
+    | 'support_resolved'
+    | 'subscription_payment_failed';
   message: string;
   read: boolean;
   createdAt: number;
@@ -707,6 +722,8 @@ export interface UserReel {
   audioUrl?: string;
   /** Morceau source lorsque le son provient de la discographie utilisateur. */
   compositionId?: string;
+  /** Lien externe optionnel associé au reel (URL validée à la création). */
+  link?: string;
   /** Masqué par modération admin (flux et profils publics). */
   adminBlocked?: boolean;
   adminBlockedAt?: number;

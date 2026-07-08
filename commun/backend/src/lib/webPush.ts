@@ -17,6 +17,7 @@ const WEB_PUSH_TYPES = new Set<AppNotification['type']>([
   'mention',
   'event_tagged',
   'story_tagged',
+  'subscription_payment_failed',
 ]);
 
 let configured = false;

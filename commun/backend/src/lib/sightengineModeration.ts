@@ -11,6 +11,7 @@ import {
   shouldModerateRemoteImageUrls,
   sightengineFailOpenOnError,
 } from './sightengineConfig';
+import { recordApiCall } from './apiQuotaMonitor';
 import { extensionForImageMime, isImageDataUrl, parseImageDataUrl } from './imageDataUrl';
 import {
   extensionForVideoMime,
@@ -205,11 +206,27 @@ export async function checkImageWithSightengine(source: string): Promise<Sighten
   if (isImageDataUrl(trimmed)) {
     const parsed = parseImageDataUrl(trimmed);
     if (!parsed) return { ok: false, error: 'Data URL image invalide' };
-    return postSightengineMultipart(parsed.buffer, parsed.mime);
+    let result: SightengineApiResult;
+    try {
+      result = await postSightengineMultipart(parsed.buffer, parsed.mime);
+    } catch (err) {
+      recordApiCall('sightengine', false);
+      throw err;
+    }
+    recordApiCall('sightengine', result.ok);
+    return result;
   }
 
   if (/^https:\/\//i.test(trimmed)) {
-    return getSightengineByUrl(trimmed);
+    let result: SightengineApiResult;
+    try {
+      result = await getSightengineByUrl(trimmed);
+    } catch (err) {
+      recordApiCall('sightengine', false);
+      throw err;
+    }
+    recordApiCall('sightengine', result.ok);
+    return result;
   }
 
   return { ok: false, error: 'Source image non prise en charge pour la modération' };
@@ -309,11 +326,27 @@ export async function checkVideoWithSightengine(
   if (isVideoDataUrl(trimmed)) {
     const parsed = parseVideoDataUrl(trimmed);
     if (!parsed) return { ok: false, error: 'Data URL vidéo invalide' };
-    return postSightengineVideoMultipart(parsed.buffer, parsed.mime);
+    let result: SightengineApiResult;
+    try {
+      result = await postSightengineVideoMultipart(parsed.buffer, parsed.mime);
+    } catch (err) {
+      recordApiCall('sightengine', false);
+      throw err;
+    }
+    recordApiCall('sightengine', result.ok);
+    return result;
   }
 
   if (/^https:\/\//i.test(trimmed)) {
-    return getSightengineVideoByUrl(trimmed);
+    let result: SightengineApiResult;
+    try {
+      result = await getSightengineVideoByUrl(trimmed);
+    } catch (err) {
+      recordApiCall('sightengine', false);
+      throw err;
+    }
+    recordApiCall('sightengine', result.ok);
+    return result;
   }
 
   return { ok: false, error: 'Source vidéo non prise en charge pour la modération' };

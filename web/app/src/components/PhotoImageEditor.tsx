@@ -235,39 +235,6 @@ function renderTextWithMentions(
   return parts.length ? parts : text;
 }
 
-function StoryTopDockTool({
-  label,
-  active,
-  onClick,
-  children,
-}: {
-  label: string;
-  active?: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex flex-col items-center gap-0.5 min-w-[3.25rem] shrink-0 transition-colors ${
-        active ? 'text-white' : 'text-white/65 hover:text-white'
-      }`}
-      aria-label={label}
-      aria-pressed={active}
-    >
-      <span
-        className={`flex items-center justify-center w-9 h-9 rounded-full transition-all ${
-          active ? 'bg-white/25 ring-1 ring-white/40' : 'bg-black/30 backdrop-blur-sm'
-        }`}
-      >
-        {children}
-      </span>
-      <span className="text-[9px] font-medium leading-none">{label}</span>
-    </button>
-  );
-}
-
 function DockTool({
   label,
   active,
@@ -299,6 +266,42 @@ function DockTool({
         {children}
       </span>
       <span className="text-[10px] font-medium leading-none">{label}</span>
+    </button>
+  );
+}
+
+function StorySidebarTool({
+  label,
+  active,
+  onClick,
+  badge,
+  children,
+}: {
+  label: string;
+  active?: boolean;
+  onClick: () => void;
+  badge?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative flex items-center justify-center w-12 h-12 rounded-2xl shadow-lg transition-all duration-150 active:scale-90 ${
+        active
+          ? 'bg-white/25 ring-2 ring-white/55 text-white'
+          : 'bg-black/45 backdrop-blur-md text-white/80 hover:text-white hover:bg-black/60'
+      }`}
+      aria-label={label}
+      aria-pressed={active}
+    >
+      {children}
+      {badge && !active ? (
+        <span
+          className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-purple-500 rounded-full border-2 border-black/80"
+          aria-hidden
+        />
+      ) : null}
     </button>
   );
 }
@@ -542,6 +545,7 @@ export function PhotoImageEditor({
   const [storyEffectId, setStoryEffectId] = useState<StoryCreativeEffectId>('none');
   const [duotoneGenreId, setDuotoneGenreId] = useState('default');
   const [tab, setTab] = useState<EditorTab | null>(null);
+  const [overlayHistory, setOverlayHistory] = useState<StoryTextOverlay[][]>([]);
   const [composing, setComposing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dragRef = useRef<{
@@ -589,6 +593,23 @@ export function PhotoImageEditor({
     cropControlsRef.current = null;
   };
 
+  const snapshotOverlays = (current: StoryTextOverlay[]) => {
+    setOverlayHistory((prev) => [...prev.slice(-9), current]);
+  };
+
+  const undoOverlay = () => {
+    setOverlayHistory((prev) => {
+      if (!prev.length) return prev;
+      const snapshot = prev[prev.length - 1];
+      setOverlays(snapshot);
+      setActiveOverlayId(
+        snapshot.length > 0 ? snapshot[snapshot.length - 1].id : null
+      );
+      if (snapshot.length === 0) setTab((t) => (t === 'texte' ? null : t));
+      return prev.slice(0, -1);
+    });
+  };
+
   const leaveRognerIfNeeded = (nextTab: EditorTab | null): boolean => {
     if (tab !== 'rogner' || !cropSource) return false;
     const controls = cropControlsRef.current;
@@ -610,6 +631,7 @@ export function PhotoImageEditor({
   };
 
   const createTextOverlayAt = (x = 0.5, y = 0.42): string => {
+    snapshotOverlays(overlays);
     const id = newOverlayId();
     setOverlays((prev) => [
       ...prev,
@@ -690,6 +712,7 @@ export function PhotoImageEditor({
   };
 
   const removeOverlay = (id: string) => {
+    snapshotOverlays(overlays);
     setOverlays((prev) => prev.filter((o) => o.id !== id));
     if (activeOverlayId === id) {
       setActiveOverlayId(null);
@@ -1524,62 +1547,102 @@ export function PhotoImageEditor({
 
             {isStory ? (
               <div className="absolute inset-x-0 top-0 z-30 pointer-events-none">
-                <div className="bg-gradient-to-b from-black/80 via-black/40 to-transparent pt-[max(0.75rem,env(safe-area-inset-top))] px-3 pb-4 pointer-events-auto">
-                  <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="pointer-events-auto flex items-center justify-between px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3">
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={onCancel}
-                      className="min-h-11 min-w-11 flex items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md text-sm"
+                      className="min-h-11 min-w-11 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md text-white"
+                      aria-label="Annuler"
                     >
-                      Annuler
+                      <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                      </svg>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => void confirm()}
-                      disabled={composing}
-                      className="min-h-11 px-4 flex items-center justify-center rounded-full bg-white text-black text-sm font-bold disabled:opacity-40"
-                    >
-                      {composing ? '…' : 'Suivant'}
-                    </button>
+                    {overlayHistory.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={undoOverlay}
+                        className="min-h-9 min-w-9 flex items-center justify-center rounded-full bg-black/35 backdrop-blur-md text-white/80 hover:text-white transition-opacity"
+                        aria-label="Annuler la dernière action"
+                      >
+                        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9 14L4 9l5-5M4 9h10a7 7 0 0 1 0 14H9" />
+                        </svg>
+                      </button>
+                    ) : null}
                   </div>
-                  <nav
-                    className="flex items-start justify-center gap-0.5 overflow-x-auto scroll-smooth snap-x snap-mandatory touch-pan-x px-1 -mx-1"
-                    aria-label="Outils de modification"
+                  <button
+                    type="button"
+                    onClick={() => void confirm()}
+                    disabled={composing}
+                    className="min-h-11 px-5 flex items-center justify-center rounded-full bg-white text-black text-sm font-bold disabled:opacity-40 shadow-lg"
                   >
-                    <StoryTopDockTool label="Texte" active={tab === 'texte'} onClick={handleTextTool}>
-                      <IconText />
-                    </StoryTopDockTool>
-                    <StoryTopDockTool label="Rogner" active={tab === 'rogner'} onClick={openCrop}>
-                      <IconCrop />
-                    </StoryTopDockTool>
-                    <StoryTopDockTool
-                      label="Filtre"
-                      active={tab === 'filtre'}
-                      onClick={() => toggleTab('filtre')}
-                    >
-                      <IconFilter />
-                    </StoryTopDockTool>
-                    <StoryTopDockTool
-                      label="Effets"
-                      active={tab === 'effets'}
-                      onClick={() => toggleTab('effets')}
-                    >
-                      <IconEffects />
-                    </StoryTopDockTool>
-                    <StoryTopDockTool
-                      label="Musique"
-                      active={tab === 'musique'}
-                      onClick={() => toggleTab('musique')}
-                    >
-                      <IconMusic />
-                    </StoryTopDockTool>
-                    <StoryTopDockTool label="Taguer" active={tab === 'taguer'} onClick={() => toggleTab('taguer')}>
-                      <IconTag />
-                    </StoryTopDockTool>
-                    <StoryTopDockTool label="Lien" active={tab === 'lien'} onClick={handleLinkTool}>
-                      <IconLink />
-                    </StoryTopDockTool>
-                  </nav>
+                    {composing ? '…' : 'Suivant →'}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {isStory && !isCropping ? (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-3">
+                <StorySidebarTool label="Texte" active={tab === 'texte'} onClick={handleTextTool}>
+                  <IconText />
+                </StorySidebarTool>
+                <StorySidebarTool label="Rogner" active={tab === 'rogner'} onClick={openCrop}>
+                  <IconCrop />
+                </StorySidebarTool>
+                <StorySidebarTool
+                  label="Filtre"
+                  active={tab === 'filtre'}
+                  badge={filterId !== 'none'}
+                  onClick={() => toggleTab('filtre')}
+                >
+                  <IconFilter />
+                </StorySidebarTool>
+                <StorySidebarTool
+                  label="Effets"
+                  active={tab === 'effets'}
+                  badge={storyEffectId !== 'none'}
+                  onClick={() => toggleTab('effets')}
+                >
+                  <IconEffects />
+                </StorySidebarTool>
+                <StorySidebarTool
+                  label="Musique"
+                  active={tab === 'musique'}
+                  badge={Boolean(musicTrack)}
+                  onClick={() => toggleTab('musique')}
+                >
+                  <IconMusic />
+                </StorySidebarTool>
+                <StorySidebarTool
+                  label="Taguer"
+                  active={tab === 'taguer'}
+                  badge={taggedUsers.length > 0}
+                  onClick={() => toggleTab('taguer')}
+                >
+                  <IconTag />
+                </StorySidebarTool>
+                <StorySidebarTool
+                  label="Lien"
+                  active={tab === 'lien'}
+                  badge={Boolean(link?.url?.trim())}
+                  onClick={handleLinkTool}
+                >
+                  <IconLink />
+                </StorySidebarTool>
+              </div>
+            ) : null}
+
+            {isStory && musicTrack && tab !== 'musique' && !isCropping ? (
+              <div className="absolute bottom-8 inset-x-0 z-[5] flex justify-center pointer-events-none">
+                <div className="flex items-center gap-1.5 rounded-full bg-black/55 backdrop-blur-sm border border-white/10 px-3 py-1.5 max-w-[60vw]">
+                  <IconMusic />
+                  <span className="text-[11px] text-white/90 truncate">{musicTrack.title}</span>
+                  {musicTrack.artist ? (
+                    <span className="text-[10px] text-white/50 truncate ml-0.5">— {musicTrack.artist}</span>
+                  ) : null}
                 </div>
               </div>
             ) : null}
@@ -1754,53 +1817,49 @@ export function PhotoImageEditor({
           ) : null}
 
           {tab === 'filtre' ? (
-            <ToolSheet variant={isStory ? 'sheet' : 'card'} title="Filtres" onClose={closePanel}>
-              <div className="space-y-3">
-                <section>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-2 px-0.5">
-                    Classiques
-                  </p>
-                  <div className="flex gap-2.5 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-1 -mx-1 px-1 touch-pan-x">
-                    {PHOTO_CLASSIC_FILTERS.map((f) => (
-                      <FilterThumb
-                        key={f.id}
-                        preset={f}
-                        imageUrl={imageUrl}
-                        selected={filterId === f.id}
-                        onSelect={() => setFilterId(f.id)}
-                      />
-                    ))}
-                  </div>
-                </section>
-                <section>
-                  <div className="flex items-baseline justify-between gap-2 mb-2 px-0.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-purple-400/90">
-                      IA · libre de droit
-                    </p>
-                    <span className="text-[9px] text-gray-500 shrink-0">Aperçu sur votre photo</span>
-                  </div>
-                  <div className="flex gap-2.5 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-1 -mx-1 px-1 touch-pan-x">
-                    {PHOTO_AI_FILTERS.map((f) => (
-                      <FilterThumb
-                        key={f.id}
-                        preset={f}
-                        imageUrl={imageUrl}
-                        selected={filterId === f.id}
-                        onSelect={() => setFilterId(f.id)}
-                      />
-                    ))}
-                  </div>
-                </section>
-                {isStory ? (
+            isStory ? (
+              <div
+                className="mx-0 mb-0 pointer-events-auto bg-gradient-to-t from-black/95 via-black/80 to-transparent pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between px-4 pt-3 pb-2">
+                  <span className="text-[11px] font-semibold text-white/55 uppercase tracking-wider">Filtres</span>
+                  <button
+                    type="button"
+                    onClick={closePanel}
+                    className="p-1.5 rounded-lg text-gray-500 hover:text-white"
+                    aria-label="Fermer"
+                  >
+                    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="flex gap-3 overflow-x-auto px-4 pb-2 snap-x snap-mandatory touch-pan-x">
+                  {[
+                    ...PHOTO_CLASSIC_FILTERS,
+                    ...PHOTO_AI_FILTERS.filter((f) => f.id !== 'none'),
+                    ...PHOTO_ATYPICAL_FILTERS.filter((f) => f.id !== 'none'),
+                  ].map((f) => (
+                    <FilterThumb
+                      key={f.id}
+                      preset={f}
+                      imageUrl={imageUrl}
+                      selected={filterId === f.id}
+                      onSelect={() => setFilterId(f.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <ToolSheet variant="card" title="Filtres" onClose={closePanel}>
+                <div className="space-y-3">
                   <section>
-                    <div className="flex items-baseline justify-between gap-2 mb-2 px-0.5">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-fuchsia-400/90">
-                        Atypiques
-                      </p>
-                      <span className="text-[9px] text-gray-500 shrink-0">Story</span>
-                    </div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-2 px-0.5">
+                      Classiques
+                    </p>
                     <div className="flex gap-2.5 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-1 -mx-1 px-1 touch-pan-x">
-                      {PHOTO_ATYPICAL_FILTERS.filter((f) => f.id !== 'none').map((f) => (
+                      {PHOTO_CLASSIC_FILTERS.map((f) => (
                         <FilterThumb
                           key={f.id}
                           preset={f}
@@ -1811,9 +1870,28 @@ export function PhotoImageEditor({
                       ))}
                     </div>
                   </section>
-                ) : null}
-              </div>
-            </ToolSheet>
+                  <section>
+                    <div className="flex items-baseline justify-between gap-2 mb-2 px-0.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-purple-400/90">
+                        IA · libre de droit
+                      </p>
+                      <span className="text-[9px] text-gray-500 shrink-0">Aperçu sur votre photo</span>
+                    </div>
+                    <div className="flex gap-2.5 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-1 -mx-1 px-1 touch-pan-x">
+                      {PHOTO_AI_FILTERS.map((f) => (
+                        <FilterThumb
+                          key={f.id}
+                          preset={f}
+                          imageUrl={imageUrl}
+                          selected={filterId === f.id}
+                          onSelect={() => setFilterId(f.id)}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                </div>
+              </ToolSheet>
+            )
           ) : null}
 
           {tab === 'effets' && isStory ? (

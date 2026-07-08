@@ -136,7 +136,7 @@ Plafond simulation msdev (optionnel) :
 → MSDEV_DON_DAILY_CAP=50
 
 
-── 8b. STRIPE — ABONNEMENTS CRÉATEURS & SOUNDLY+ (production) ──
+── 8b. STRIPE — ABONNEMENTS CRÉATEURS & SOUNDY+ (production) ──
 
 Activer les abonnements :
 → SUBSCRIPTIONS_ENABLED=1
@@ -153,10 +153,10 @@ Palier Super fan (~9,99 €/mois) :
 → SUBSCRIPTION_TIER2_LABEL=Super fan (optionnel)
 → SUBSCRIPTION_TIER2_AMOUNT_EUR=9.99
 
-Soundly+ (abonnement plateforme, ~4,99 €/mois) :
-→ STRIPE_PRICE_ID_SOUNDLY_PLUS=price_...
-→ SUBSCRIPTION_SOUNDLY_PLUS_LABEL=Soundly+ (optionnel)
-→ SUBSCRIPTION_SOUNDLY_PLUS_AMOUNT_EUR=4.99
+Soundy+ (abonnement plateforme, ~4,99 €/mois) :
+→ STRIPE_PRICE_ID_SOUNDY_PLUS=price_...
+→ SUBSCRIPTION_SOUNDY_PLUS_LABEL=Soundy+ (optionnel)
+→ SUBSCRIPTION_SOUNDY_PLUS_AMOUNT_EUR=4.99
 
 Commission plateforme sur abos créateurs (%, documentée dans l’app) :
 → SUBSCRIPTION_PLATFORM_COMMISSION_PERCENT=10

@@ -34,6 +34,15 @@ export function clearLiveIceServersCache(): void {
   iceServersPromise = null;
 }
 
+/**
+ * A real TURN server always carries `credential` (STUN-only entries never do).
+ * Used to decide whether forcing `iceTransportPolicy: 'relay'` can actually
+ * succeed (relay candidates require a TURN server) before defaulting to it.
+ */
+export function hasTurnServer(servers: RTCIceServer[]): boolean {
+  return servers.some((s) => Boolean(s.credential));
+}
+
 /** Fetch authenticated ICE servers from backend (TURN creds stay server-side). */
 export async function ensureLiveIceServers(
   fetchIceServers: () => Promise<{ iceServers: RTCIceServer[] }>
@@ -54,6 +63,14 @@ export async function ensureLiveIceServers(
   return iceServersPromise;
 }
 
+/**
+ * Security note (audit High #1): callers must pass `relayOnly: true` for
+ * viewer connections whenever a TURN server is actually configured
+ * (`hasTurnServer`), so viewer/host public IPs are never exposed via
+ * host/srflx ICE candidates. `relayOnly: false` ('all') should only remain
+ * the default when no TURN is configured — forcing 'relay' with STUN-only
+ * servers yields zero usable candidates and breaks the connection.
+ */
 export function createLivePeerConnection(
   opts?: LivePeerConnectionOptions,
   iceServers?: RTCIceServer[]

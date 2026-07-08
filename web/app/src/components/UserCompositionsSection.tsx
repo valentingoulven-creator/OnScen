@@ -1576,7 +1576,13 @@ export function UserCompositionsSection({
 
           {album.coverUrl ? (
 
-            <img src={album.coverUrl} alt="" className="w-full h-full object-cover" />
+            <img
+              src={album.coverUrl}
+              alt=""
+              className="w-full h-full object-cover"
+              loading="lazy"
+              decoding="async"
+            />
 
           ) : (
 
@@ -1655,6 +1661,8 @@ export function UserCompositionsSection({
                     alt=""
 
                     className="w-full h-full object-cover"
+
+                    decoding="async"
 
                   />
 
@@ -2474,7 +2482,7 @@ export function UserCompositionsSection({
 
                 {postAlbum.coverUrl ? (
 
-                  <img src={postAlbum.coverUrl} alt="" className="w-full h-full object-cover" />
+                  <img src={postAlbum.coverUrl} alt="" className="w-full h-full object-cover" decoding="async" />
 
                 ) : (
 
