@@ -30,9 +30,14 @@ describe('Salon / Live — compat Safari mobile (CSS + structure)', () => {
     expect(salonPage).toMatch(/stackBelowVideo=\{mobileRoom\}/);
   });
 
-  it('Live mobile : chat en bas + stack vidéo', () => {
-    expect(livePage).toMatch(/chatDock="bottom"/);
-    expect(livePage).toMatch(/stackBelowVideo/);
+  it('Live mobile : chat flottant (épinglé à gauche ou flottant) — refonte chat flottant', () => {
+    // Depuis a20cf6c6 (chat flottant/PiP live), Live n'utilise plus un dock "bottom" fixe
+    // (`chatDock="bottom"` + `stackBelowVideo`, cf. SalonPage) : le chat est soit épinglé à
+    // gauche (`chatPinned`), soit flottant par-dessus la vidéo. RoomTheaterLayout gère son
+    // propre toggle flottant générique via `allowFloatingChat`, désactivé ici car Live a sa
+    // propre UX de chat flottant dédiée.
+    expect(livePage).toMatch(/chatDock=\{chatPinned \? 'left' : 'floating'\}/);
+    expect(livePage).toMatch(/allowFloatingChat=\{false\}/);
   });
 
   it('YouTube salon : playsinline pour iOS', () => {

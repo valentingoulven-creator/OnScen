@@ -1,4 +1,35 @@
 ﻿================================================================================
+MODIF 679 — CGU : orientation artistique reels/lives
+Date : 2026-07-09
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Préciser dans les CGU que reels, stories et lives doivent être orientés
+ musique / arts du spectacle ; exclure jeux vidéo, IRL, vlogs, etc.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/content/legal/terms.ts
+ web/app/src/content/legal/types.ts
+ commun/backend/src/lib/legalConstants.ts
+ commun/backend/src/lib/legalDocuments.ts
+ ─────────────────
+ • Sections 2, 4 et 5 CGU : contenus artistiques uniquement.
+ • Version CGU bump : 2026-07-09 (réacceptation utilisateurs).
+
+FICHIERS MODIFIÉS
+-----
+ CGU frontend + backend public + CURRENT_TERMS_VERSION
+
+BUILD (si vérifié)
+-----
+ (non vérifié)
+
+================================================================================
+Fin — 2026-07-09
+================================================================================
+================================================================================
 MODIF 678 — Admin : compte Stripe plateforme (commission 30 %)
 Date : 2026-07-09
 ================================================================================
@@ -21449,4 +21480,40 @@ BUILD (si vérifié)
 
 ================================================================================
 Fin MODIF 967 — 2026-07-09
+================================================================================
+================================================================================
+MODIF 968 — Fix test obsolète : dock chat Live (bottom/stackBelowVideo → flottant) — Soundly Dev
+Date : 2026-07-09
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ `mobileSalonLiveSafari.test.ts` > "Live mobile : chat en bas + stack vidéo"
+ cassait en CI (`web/app` build) : le test vérifiait des props obsolètes
+ (`chatDock="bottom"` + `stackBelowVideo` sur `<RoomTheaterLayout>` dans
+ `LivePage.tsx`). Ces props ont été intentionnellement remplacées par
+ `chatDock={chatPinned ? 'left' : 'floating'}` + `allowFloatingChat={false}`
+ dès le commit a20cf6c6 (refonte chat flottant/PiP live) — le test n'avait
+ simplement jamais été mis à jour pour suivre ce changement de comportement
+ volontaire. Bug de dette de test (assertion obsolète), pas de régression
+ applicative : le code de `LivePage.tsx` est resté correct et volontaire.
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/lib/mobileSalonLiveSafari.test.ts
+ ─────────────────
+ • Assertion mise à jour pour refléter le comportement actuel/voulu du chat
+   Live (épinglé à gauche ou flottant, plus de dock "bottom" fixe), sans
+   toucher au code applicatif.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/lib/mobileSalonLiveSafari.test.ts → assertion synchronisée avec LivePage.tsx
+
+BUILD (si vérifié)
+-----
+ web/app → npx vitest run → ✅ 403/403 (0 échec, contre 1 échec avant fix)
+
+================================================================================
+Fin MODIF 968 — 2026-07-09
 ================================================================================
