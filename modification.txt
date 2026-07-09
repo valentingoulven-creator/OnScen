@@ -21626,3 +21626,80 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 969 — 2026-07-09
 ================================================================================
+
+================================================================================
+MODIF 970 — Fix build apptel (mirror desync) + deploy prod — Soundly Dev
+Date : 2026-07-09
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Déploiement prod demandé pour livrer MODIF 969. Deux blocages découverts
+ pendant le déploiement (workflow deploy-prod : commit → push → build →
+ sync VPS → healthcheck), tous deux corrigés avant tout impact prod.
+
+CHANGEMENTS / FIX
+-----
+ pm2_jlist.json (racine repo, jamais commité)
+ ─────────────────
+ • Fichier trouvé non suivi par Git à la racine du repo, contenant un dump
+   `pm2 jlist` complet côté VPS prod : TOUTES les variables d'environnement
+   des process (JWT_SECRET, STRIPE_SECRET_KEY, DATABASE_URL avec mot de
+   passe, clés S3/Scaleway, ENCRYPTION_KEY, TOTP_ENCRYPTION_KEY, clé API
+   Anthropic, etc.) en clair.
+ • Vérifié : jamais commité, jamais poussé (git log --all vide sur ce
+   fichier) — aucune fuite Git, aucune rotation de secret nécessaire.
+ • Fichier supprimé du disque + ajouté à .gitignore (pm2_jlist.json,
+   pm2-jlist*.json, pm2_prettylist*.json) pour éviter toute récidive.
+
+ ios/apptel/src/pages/LivePage.tsx + ios/apptel/src/types.ts
+ ─────────────────
+ • Un refacto antérieur (floating-chat) avait laissé un bloc
+   `if (isHost) {...}` orphelin dans LivePage.tsx (apptel), sans le
+   `useEffect(() => {` englobant — erreur de syntaxe bloquant `tsc -b`.
+ • Une fois corrigé, `tsc` révélait que le type `Live` local à apptel
+   (override du fallback rootDirs vers web/app/src) n'avait pas été
+   synchronisé avec les champs `hostAvatarUrl`, `donationOptions`,
+   `donationGoals` ajoutés côté web/app (feature goals de dons live) —
+   ajoutés dans ios/apptel/src/types.ts (+ types LiveDonationOption /
+   LivePublicGoal).
+ • Rappel : ios/apptel/src/ n'a PAS besoin de dupliquer les composants/libs
+   (LiveDonationSheet, liveGoalProgress, liveHostTypes) — un plugin Vite +
+   tsconfig `rootDirs` fait un fallback transparent vers web/app/src/ pour
+   tout fichier absent localement. Seuls les fichiers qui EXISTENT en
+   local (comme types.ts) doivent être maintenus à la main en cas
+   d'ajout de champs partagés.
+ • Ces deux bugs préexistaient dans le repo avant cette session (non
+   introduits par MODIF 969) ; détectés uniquement parce que
+   `apptel:build` n'avait pas été exécuté récemment. Le script de deploy
+   échoue proprement AVANT toute synchronisation VPS en cas d'échec de
+   build — aucun impact sur la prod pendant les deux tentatives échouées.
+
+DÉPLOIEMENT PROD
+-----
+ • commun/scripts/deploy-prod.ps1 → succès (2e tentative, après fix apptel).
+ • Migrations appliquées : v28, v29, v30 (admin_audit_log).
+ • PM2 : reconfiguré de 2 workers cluster (dérive constatée en amont, cf.
+   audit) → 1 instance (conforme à ecosystem.config.cjs), zero-downtime.
+ • Health check : https://getsoundy.com/health → 200 OK (vérifié depuis
+   le VPS, la machine locale a eu un souci réseau transitoire — filet de
+   sécurité du script, pas un incident prod).
+ • verify-prod.sh : 1 échec préexistant non lié (legal-publisher.json —
+   cf. AUDIT-legal-youtube-copyright.md RGPD-1) + 2 avertissements
+   fraîcheur backup (non bloquants) — aucun rapport avec cette livraison.
+
+FICHIERS MODIFIÉS
+-----
+ .gitignore → garde anti-dump pm2 jlist
+ ios/apptel/src/pages/LivePage.tsx → restauration useEffect
+ ios/apptel/src/types.ts → sync type Live (donation goals)
+ pm2_jlist.json → supprimé (jamais commité)
+
+BUILD (si vérifié)
+-----
+ ios/apptel → npm run build → ✅ (échec puis ✅ après fix)
+ Déploiement zero-downtime prod → ✅ (health 200, migrations OK)
+
+================================================================================
+Fin MODIF 970 — 2026-07-09
+================================================================================
