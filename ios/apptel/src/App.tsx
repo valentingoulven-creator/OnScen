@@ -16,6 +16,8 @@ import {
 } from './lib/salonDeepLink';
 import { pauseAllReelsMediaInDom } from './lib/reelsMedia';
 import { pauseMediaElements } from './hooks/usePauseMediaOnPageHidden';
+import { useAndroidBackButton } from './hooks/useAndroidBackButton';
+import { useNativePushRegistration } from './hooks/useNativePushRegistration';
 import { AuthPage } from './pages/AuthPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
@@ -140,6 +142,8 @@ export default function App() {
     setDmTabActive(dmTabActive);
   }, [user, token, tab, profileOpen, view.type, setDmTabActive]);
 
+  useNativePushRegistration(token);
+
   const openReelInTab = (reelId: string) => {
     setProfileOpen(false);
     setReelsInitialId(reelId);
@@ -171,6 +175,32 @@ export default function App() {
       clearProfileUrlFromBar();
     }
   };
+
+  /**
+   * Bouton retour matériel Android : referme l'overlay ouvert (profil > vue
+   * salon/live/profil > onglet non-carte) avant de minimiser l'app. Sans ça,
+   * le retour matériel ferme l'app directement au lieu de fermer l'overlay
+   * courant — cf. audit mobile, gap navigation Android.
+   */
+  useAndroidBackButton(() => {
+    if (profileOpen) {
+      setProfileOpen(false);
+      return true;
+    }
+    if (view.type === 'profile') {
+      closeProfile();
+      return true;
+    }
+    if (view.type !== 'home') {
+      setView({ type: 'home' });
+      return true;
+    }
+    if (tab !== 'map') {
+      setTab('map');
+      return true;
+    }
+    return false;
+  });
 
   const openSalonPage = (salonId: string) => {
     setProfileOpen(false);

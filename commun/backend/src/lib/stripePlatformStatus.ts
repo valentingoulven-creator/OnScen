@@ -75,7 +75,9 @@ export async function getStripePlatformStatusReport(): Promise<StripePlatformSta
   }
 
   try {
-    const account = await stripe.accounts.retrieve();
+    // stripe-node v22 : l'ancien `retrieve()` sans argument (compte du propriétaire
+    // de la clé API) est remplacé par `retrieveCurrent()` — comportement identique.
+    const account = await stripe.accounts.retrieveCurrent();
     base.connected = true;
     base.accountId = account.id;
     base.businessName = account.business_profile?.name?.trim() || account.settings?.dashboard?.display_name?.trim() || null;

@@ -46,7 +46,7 @@ ModÃ¨le complet : `backend/.env.production.example` (rÃ©fÃ©rence) et `comm
 
 ### Optionnelles (selon features)
 
-OAuth Google / Facebook / Spotify / Instagram, Stripe, contrÃ´le d'accÃ¨s â€” voir commentaires dans `backend/.env.production.example`.
+OAuth Google / Facebook / Apple / Instagram, Stripe, contrÃ´le d'accÃ¨s â€” voir commentaires dans `backend/.env.production.example`.
 
 ### Pourboires live (Stripe)
 

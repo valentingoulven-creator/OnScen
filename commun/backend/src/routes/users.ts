@@ -233,8 +233,8 @@ usersRouter.get('/me/obs-ingest', authenticateJWT, async (req: Request, res: Res
       res.status(403).json({ error: e.message, code: e.code });
       return;
     }
-    const message = e instanceof Error ? e.message : 'Erreur Cloudflare Stream';
-    res.status(502).json({ error: message, code: 'cloudflare_error' });
+    console.error('[users] Cloudflare Stream error', e instanceof Error ? e.message : e);
+    res.status(502).json({ error: 'Erreur Cloudflare Stream', code: 'cloudflare_error' });
   }
 });
 
@@ -257,8 +257,8 @@ usersRouter.post('/me/obs-stream-key/rotate', authenticateJWT, async (req: Reque
       res.status(403).json({ error: e.message, code: e.code });
       return;
     }
-    const message = e instanceof Error ? e.message : 'Erreur Cloudflare Stream';
-    res.status(502).json({ error: message, code: 'cloudflare_error' });
+    console.error('[users] Cloudflare Stream error', e instanceof Error ? e.message : e);
+    res.status(502).json({ error: 'Erreur Cloudflare Stream', code: 'cloudflare_error' });
   }
 });
 
@@ -286,8 +286,8 @@ usersRouter.post('/me/obs-stream-repair', authenticateJWT, async (req: Request, 
       res.status(409).json({ error: err.message, code: err.code });
       return;
     }
-    const message = e instanceof Error ? e.message : 'Erreur Cloudflare Stream';
-    res.status(502).json({ error: message, code: 'cloudflare_error' });
+    console.error('[users] Cloudflare Stream error', e instanceof Error ? e.message : e);
+    res.status(502).json({ error: 'Erreur Cloudflare Stream', code: 'cloudflare_error' });
   }
 });
 

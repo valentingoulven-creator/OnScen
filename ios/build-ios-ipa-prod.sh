@@ -2,7 +2,7 @@
 # Build IPA iOS prod (Mac + Xcode requis)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT/apptel"
+cd "$ROOT/ios/apptel"
 
 echo "[ios-ipa] Build Capacitor prod assets..."
 npm run build:capacitor:prod
@@ -11,7 +11,9 @@ echo "[ios-ipa] Cap sync iOS..."
 npx cap sync ios
 
 echo "[ios-ipa] Archive Xcode (release)..."
-xcodebuild -workspace ios/App/App.xcworkspace \
+# Capacitor 8 utilise Swift Package Manager (pas de Podfile/CocoaPods) : il n'y a
+# donc pas de .xcworkspace généré, seulement App.xcodeproj.
+xcodebuild -project ios/App/App.xcodeproj \
   -scheme App \
   -configuration Release \
   -archivePath "$ROOT/android/MeloSong-Mobile/Soundy.xcarchive" \

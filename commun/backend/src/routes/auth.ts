@@ -1,5 +1,8 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
+
+/** Coût bcrypt pour les mots de passe utilisateurs (register / change / reset). */
+const BCRYPT_SALT_ROUNDS = 12;
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
@@ -180,7 +183,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
   const accountStatus = resolveInitialAccountStatus();
   let passwordHash: string;
   try {
-    passwordHash = await bcrypt.hash(password, 10);
+    passwordHash = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
   } catch {
     res.status(500).json({ error: 'Erreur interne lors de la création du compte' });
     return;
@@ -710,7 +713,7 @@ authRouter.post('/change-password', authenticateJWT, async (req: Request, res: R
     return;
   }
   try {
-    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    user.passwordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
     user.mustChangePassword = false;
     bumpUserTokenVersion(user);
   } catch {
@@ -865,7 +868,7 @@ authRouter.post('/reset-password', async (req: Request, res: Response) => {
   }
   let passwordHash: string;
   try {
-    passwordHash = await bcrypt.hash(newPassword, 10);
+    passwordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
   } catch {
     res.status(500).json({ error: 'Erreur interne lors de la mise à jour du mot de passe' });
     return;

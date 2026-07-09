@@ -1,4 +1,5 @@
 import { createPortal } from 'react-dom';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface ConfirmModalProps {
   open: boolean;  title: string;
@@ -29,6 +30,8 @@ export function ConfirmModal({
   onCancel,
   onConfirm,
 }: ConfirmModalProps) {
+  const focusTrapRef = useFocusTrap(open, loading ? undefined : onCancel);
+
   if (!open) return null;
 
   const titleId = 'confirm-modal-title';
@@ -44,7 +47,9 @@ export function ConfirmModal({
       }}
     >
       <div
-        className="w-full max-w-sm bg-[#12121a] border border-[#2d2d3d] rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[90dvh]"
+        ref={focusTrapRef}
+        tabIndex={-1}
+        className="w-full max-w-sm bg-[#12121a] border border-[#2d2d3d] rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[90dvh] outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-5">

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import Stripe from 'stripe';
+import type { InvoiceWithLegacyFields } from '../lib/stripeLegacyTypes';
 import { db } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
 import { isAccessAdmin } from '../lib/accessControl';
@@ -183,7 +184,7 @@ adminPaymentsRouter.post(
       const stripeSub = await stripe.subscriptions.retrieve(sub.stripeSubscriptionId, {
         expand: ['latest_invoice.payment_intent'],
       });
-      const invoice = stripeSub.latest_invoice as Stripe.Invoice | null | undefined;
+      const invoice = stripeSub.latest_invoice as InvoiceWithLegacyFields | null | undefined;
       const paymentIntentField = invoice?.payment_intent;
       const paymentIntentId =
         typeof paymentIntentField === 'string' ? paymentIntentField : paymentIntentField?.id;

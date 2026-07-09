@@ -99,7 +99,13 @@ export async function persistToken(token: string, rememberMe: boolean): Promise<
   }
 
   const key = rememberMe ? TOKEN_KEY : SESSION_TOKEN_KEY;
-  await SecureStorage.set(key, token);
+  try {
+    await SecureStorage.set(key, token);
+  } catch {
+    // Keychain/Keystore indisponible (device verrouillé, erreur biométrique...) —
+    // on garde le token en mémoire pour la session en cours plutôt que de bloquer le login.
+    cachedToken = token;
+  }
 }
 
 export async function clearStoredToken(): Promise<void> {

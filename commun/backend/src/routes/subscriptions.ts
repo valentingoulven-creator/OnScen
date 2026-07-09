@@ -1,7 +1,11 @@
-﻿import { Router, Request, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import Stripe from 'stripe';
+import type {
+  InvoiceWithLegacyFields,
+  SubscriptionWithLegacyPeriod,
+} from '../lib/stripeLegacyTypes';
 import { db } from '../models/schema';
 import { authenticateJWT } from '../middleware/auth';
 import { getJwtSecret, JWT_VERIFY_OPTIONS } from '../lib/jwtSecret';
@@ -494,7 +498,9 @@ export async function handleStripeSubscriptionWebhook(req: Request, res: Respons
 
     let periodEnd = Date.now() + 30 * 24 * 60 * 60 * 1000;
     try {
-      const stripeSub = await stripe.subscriptions.retrieve(stripeSubId);
+      const stripeSub = (await stripe.subscriptions.retrieve(
+        stripeSubId
+      )) as unknown as SubscriptionWithLegacyPeriod;
       periodEnd = (stripeSub.current_period_end ?? 0) * 1000 || periodEnd;
     } catch {
       /* fallback period */
@@ -540,12 +546,14 @@ export async function handleStripeSubscriptionWebhook(req: Request, res: Respons
   }
 
   if (event.type === 'invoice.paid') {
-    const invoice = event.data.object as Stripe.Invoice;
+    const invoice = event.data.object as InvoiceWithLegacyFields;
     const stripeSubId =
       typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
     if (stripeSubId) {
       try {
-        const stripeSub = await stripe.subscriptions.retrieve(stripeSubId);
+        const stripeSub = (await stripe.subscriptions.retrieve(
+          stripeSubId
+        )) as unknown as SubscriptionWithLegacyPeriod;
         const periodEnd = (stripeSub.current_period_end ?? 0) * 1000;
         if (periodEnd) renewSubscriptionFromInvoice(stripeSubId, periodEnd);
       } catch (e) {
@@ -555,7 +563,7 @@ export async function handleStripeSubscriptionWebhook(req: Request, res: Respons
   }
 
   if (event.type === 'invoice.payment_failed') {
-    const invoice = event.data.object as Stripe.Invoice;
+    const invoice = event.data.object as InvoiceWithLegacyFields;
     const stripeSubId =
       typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
     if (stripeSubId) {
@@ -582,7 +590,7 @@ export async function handleStripeSubscriptionWebhook(req: Request, res: Respons
     event.type === 'customer.subscription.deleted' ||
     event.type === 'customer.subscription.updated'
   ) {
-    const sub = event.data.object as Stripe.Subscription;
+    const sub = event.data.object as SubscriptionWithLegacyPeriod;
     const stripeSubId = sub.id;
     if (sub.status === 'active' || sub.status === 'trialing') {
       const periodEnd = (sub.current_period_end ?? 0) * 1000;

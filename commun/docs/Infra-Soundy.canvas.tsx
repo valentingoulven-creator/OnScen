@@ -50,7 +50,7 @@ import {
  *     CF["Cloudflare Stream OBS/WHIP"]
  *     Stripe["Stripe Connect · pourboires/abos"]
  *     Gouv["geo.api.gouv.fr"]
- *     YT["YouTube / Spotify OAuth"]
+ *     YT["YouTube OAuth"]
  *   end
  *   Web --> Caddy
  *   Tel --> Caddy
@@ -228,7 +228,7 @@ const EXTERNAL_ROWS: [string, string, string][] = [
     "Uploads restent sur disque VPS — pas de R2/S3",
   ],
   [
-    "YouTube / Spotify",
+    "YouTube Data API",
     "Quotas API gratuits OAuth",
     "Salons synchronisés · pas de relais média serveur",
   ],
@@ -266,7 +266,7 @@ const ARCH_NODES = [
   { id: "cf", label: "Cloudflare\nStream HLS" },
   { id: "stripe", label: "Stripe\nConnect" },
   { id: "gouv", label: "geo.api.gouv.fr\nCommunes FR" },
-  { id: "yt", label: "YouTube\nSpotify" },
+  { id: "yt", label: "YouTube\nOAuth" },
 ];
 
 const ARCH_EDGES = [

@@ -68,18 +68,7 @@ URL du médiateur :
 (ou laisser vide : le lien plateforme européenne ODR reste dans les mentions)
 
 
-── 5. API SPOTIFY (si connexion réelle en production) ──
-
-Client ID Spotify Developer :
-
-Client Secret Spotify :
-→ à mettre dans msdev/.env (ne pas commiter)
-
-Redirect URI enregistrée chez Spotify :
-Ex. https://getsoundy.com/api/auth/spotify/callback
-
-
-── 6. API YOUTUBE / GOOGLE (si connexion réelle en production) ──
+── 5. API YOUTUBE / GOOGLE (si connexion réelle en production) ──
 
 Projet Google Cloud (nom) :
 
@@ -99,7 +88,7 @@ IMPORTANT : ne pas activer ALLOW_YOUTUBE_REMOTE_FALLBACK en production
 (Piped/Invidious = secours msdev uniquement, désactivé par défaut).
 
 
-── 7. DOMAINE & MARQUE ──
+── 6. DOMAINE & MARQUE ──
 
 Nom de domaine de production :
 Ex. https://app.melosong.fr
@@ -107,7 +96,7 @@ Ex. https://app.melosong.fr
 MeloSong est-il une marque déposée ? oui / non
 
 
-── 8. STRIPE — POURBOIRES LIVE (production) ──
+── 7. STRIPE — POURBOIRES LIVE (production) ──
 
 Compte Stripe (à créer sur https://dashboard.stripe.com) :
 
@@ -136,7 +125,7 @@ Plafond simulation msdev (optionnel) :
 → MSDEV_DON_DAILY_CAP=50
 
 
-── 8b. STRIPE — ABONNEMENTS CRÉATEURS & SOUNDY+ (production) ──
+── 7b. STRIPE — ABONNEMENTS CRÉATEURS & SOUNDY+ (production) ──
 
 Activer les abonnements :
 → SUBSCRIPTIONS_ENABLED=1
@@ -179,7 +168,7 @@ Nature des paiements :
   Pas de reçu fiscal. Stripe Billing gère la facturation récurrente.
 
 
-── 9. DÉCLARATIONS ──
+── 8. DÉCLARATIONS ──
 
 ☐ Je confirme ne pas être un service de rencontre (positionnement social musical)
 ☐ J’ai lu la checklist RGPD dans Paramètres > Conformité RGPD

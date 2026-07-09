@@ -1,7 +1,11 @@
 version: 2
 updates:
+  # Chemins alignés sur la restructuration monorepo (web/ios/android/commun, commit
+  # 72370fc8) — les anciens chemins "/app" et "/backend" ne correspondent plus à
+  # aucun package.json depuis cette restructuration : Dependabot ne créait donc
+  # silencieusement AUCUNE PR de mise à jour de dépendances pour ces packages.
   - package-ecosystem: "npm"
-    directory: "/app"
+    directory: "/web/app"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -11,7 +15,7 @@ updates:
       - "frontend"
 
   - package-ecosystem: "npm"
-    directory: "/backend"
+    directory: "/commun/backend"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -19,6 +23,17 @@ updates:
     labels:
       - "dependencies"
       - "backend"
+
+  # Mobile Capacitor (iOS/Android) — non couvert auparavant.
+  - package-ecosystem: "npm"
+    directory: "/ios/apptel"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "mobile"
 
   - package-ecosystem: "npm"
     directory: "/"

@@ -8,10 +8,12 @@ import {
   setAppLanguage,
   type AppLanguage,
 } from '../lib/settings';
+import { getStoredAppTheme, setAppTheme, type AppTheme } from '../lib/appTheme';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { PasswordStrengthBar } from '../components/PasswordStrengthBar';
 import { getPasswordStrengthAsync } from '../lib/passwordStrength';
+import { BiometricSetup } from '../components/BiometricSetup';
 import { ContactSoundyPage } from './ContactSoundyPage';
 
 // ─── 2FA setup modal states ───────────────────────────────────────────────────
@@ -133,6 +135,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
   const { t } = useTranslation();
   const { token, logout, user, setUserFromProfile } = useAuth();
   const [language, setLanguage] = useState<AppLanguage>(getAppLanguage);
+  const [theme, setTheme] = useState<AppTheme>(getStoredAppTheme);
   const [legal, setLegal] = useState<LegalKey | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [showContact, setShowContact] = useState(false);
@@ -340,6 +343,11 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
     setTimeout(() => setSaved(null), 2000);
   };
 
+  const applyTheme = (next: AppTheme) => {
+    setTheme(next);
+    setAppTheme(next);
+  };
+
   const applyLanguage = (lang: AppLanguage) => {
     setLanguage(lang);
     setAppLanguage(lang);
@@ -535,6 +543,11 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
                 </span>
               )}
           </SettingsRow>
+
+          {/* ── Biométrie / passkeys (Face ID, Touch ID, empreinte) ── */}
+          <div className="px-4 pb-4 pt-2">
+            <BiometricSetup />
+          </div>
 
           <SettingsRow
             label={t('settings.deleteAccount')}
@@ -735,6 +748,18 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
             >
               <option value="fr">Français</option>
               <option value="en">English</option>
+            </select>
+          </SettingsRow>
+          <SettingsRow label={t('settings.theme')}>
+            <select
+              value={theme}
+              onChange={(e) => applyTheme(e.target.value as AppTheme)}
+              className="bg-[#1a1a26] border border-[#2d2d3d] rounded-lg px-2 py-1 text-sm text-white"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <option value="dark">{t('settings.themeDark')}</option>
+              <option value="light">{t('settings.themeLight')}</option>
+              <option value="system">{t('settings.themeSystem')}</option>
             </select>
           </SettingsRow>
         </section>

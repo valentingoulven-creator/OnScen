@@ -1,6 +1,16 @@
 /**
  * Build Capacitor prod → ios/apptel/dist (API getsoundy.com, pas de msdev LAN).
  * Applique capacitor.config.prod.json (HTTPS strict, pas de cleartext).
+ *
+ * `server.hostname: "getsoundy.com"` (capacitor.config.prod.json) fait en sorte que la
+ * WebView native présente https://getsoundy.com comme origine réelle (au lieu du défaut
+ * https://localhost) — Capacitor sert alors les fichiers locaux du bundle comme s'ils
+ * venaient de ce domaine. Sans ça, WebAuthn/biométrie (rp.id=getsoundy.com côté backend,
+ * cf. webauthn.ts) échoue systématiquement : le WebView refuse tout navigator.credentials
+ * dont le rp.id ne correspond pas au domaine effectif de la page appelante — ce n'est pas
+ * configurable côté serveur (WEBAUTHN_ORIGIN), c'est une invariante WebAuthn imposée par
+ * le WebView lui-même. Cohérent avec les entitlements iOS déjà présents
+ * (webcredentials:getsoundy.com, applinks:getsoundy.com) qui anticipaient ce besoin.
  * Usage : node commun/scripts/capacitor-build-prod.mjs
  */
 import { spawnSync } from 'child_process';

@@ -32,7 +32,7 @@
 | **bcryptjs** | Hashage mots de passe | ✅ Bon |
 | **WebAuthn/Passkeys** | `@simplewebauthn/server` | ✅ Excellent |
 | **TOTP 2FA** | `otplib`, secret chiffré avec `TOTP_ENCRYPTION_KEY` | ✅ Très bon |
-| **OAuth** | Google, Facebook, YouTube, Spotify, Instagram | ✅ Standard |
+| **OAuth** | Google, Facebook, YouTube, Instagram, Apple | ✅ Standard |
 | **JWT expiry** | 24h session / 7j remember-me | ✅ Raisonnable |
 | **JWT secret validation** | Fail-fast au démarrage prod si absent/faible | ✅ Excellent |
 | **Platform tokens** | Chiffrés avec `ENCRYPTION_KEY` avant stockage | ✅ Bon |
@@ -60,7 +60,7 @@
 #### SEC-AUTH-004 — CRITIQUE : Tokens OAuth platform stockés chiffrés mais clé de chiffrement unique
 
 **Description :** `ENCRYPTION_KEY` utilisée pour chiffrer tous les tokens OAuth platform. Si cette clé fuite, tous les tokens de toutes les plateformes sont compromis.  
-**Impact :** Compromission potentielle de tous les comptes Spotify/YouTube/Instagram connectés.  
+**Impact :** Compromission potentielle de tous les comptes YouTube/Instagram connectés.  
 **Recommandation :** Chiffrement par-utilisateur avec dérivation de clé (HKDF/PBKDF2) à partir d'un secret maître.
 
 ### 1.3 OAuth spécifique

@@ -203,9 +203,10 @@ donationsRouter.post('/connect-onboard', authenticateJWT, async (req: Request, r
 
     res.json({ url: link.url, stripeConnectAccountId: connectId });
   } catch (e) {
-    const message = e instanceof Error ? e.message : 'Erreur Stripe Connect';
-    console.error('[donations] connect-onboard error');
-    res.status(502).json({ error: message });
+    // Ne jamais renvoyer le message brut de l'API Stripe au client (peut exposer
+    // des détails de compte/config) — on le garde côté logs serveur uniquement.
+    console.error('[donations] connect-onboard error', e instanceof Error ? e.message : e);
+    res.status(502).json({ error: "Impossible d'initialiser Stripe Connect pour le moment." });
   }
 });
 

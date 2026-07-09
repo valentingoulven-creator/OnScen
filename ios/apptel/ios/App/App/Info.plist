@@ -30,7 +30,7 @@
 	<string>Main</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<string>arm64</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
@@ -47,6 +47,13 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+		<string>remote-notification</string>
+	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Soundy utilise le microphone pour les lives et salons audio.</string>
 	<key>NSCameraUsageDescription</key>
@@ -57,5 +64,7 @@
 	<string>Soundy accède à vos photos pour les photos de profil et reels.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Soundy peut enregistrer des images dans votre photothèque lorsque vous exportez ou partagez du contenu.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Soundy utilise Face ID pour protéger l'accès à votre session enregistrée.</string>
 </dict>
 </plist>
