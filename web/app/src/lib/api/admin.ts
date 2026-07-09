@@ -217,6 +217,9 @@ export const adminApi = {
       token,
     ),
 
+  getBackupsStatus: (token: string) =>
+    request<import('../../types').BackupsStatusReport>('/admin/monitor/backups', {}, token),
+
   getAiAgentsStatus: (token: string) =>
     request<import('../../types').AiAgentsStatus>('/admin/ai-agents', {}, token),
 

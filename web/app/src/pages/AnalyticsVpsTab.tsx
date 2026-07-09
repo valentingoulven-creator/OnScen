@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import type { VpsMetricsReport } from '../types';
 import { AnalyticsSyslogSection } from './AnalyticsSyslogSection';
+import { AnalyticsBackupsSection } from './AnalyticsBackupsSection';
 
 function formatBytes(bytes: number, locale: string): string {
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -282,6 +283,8 @@ export function AnalyticsVpsTab() {
           )}
         </>
       )}
+
+      <AnalyticsBackupsSection />
 
       <AnalyticsSyslogSection />
     </div>

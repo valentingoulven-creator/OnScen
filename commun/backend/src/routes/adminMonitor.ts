@@ -5,6 +5,7 @@ import { db } from '../models/schema';
 import { getAlertHistory } from '../lib/alertNotifier';
 import { getYoutubeSearchQuotaStatus } from '../lib/youtubeQuotaBudget';
 import { getApiQuotaStatsSnapshot } from '../lib/apiQuotaMonitor';
+import { getBackupsStatusReport } from '../lib/backupsStatus';
 
 export const adminMonitorRouter = Router();
 
@@ -53,4 +54,17 @@ adminMonitorRouter.get('/api-quota', authenticateJWT, (req: Request, res: Respon
     errorRateThreshold: parseFloat(process.env.API_QUOTA_ERROR_RATE_THRESHOLD ?? '0.2'),
     windowSize: parseInt(process.env.API_QUOTA_WINDOW_SIZE ?? '50', 10),
   });
+});
+
+/** GET /api/admin/monitor/backups — statut sauvegardes DB/uploads/off-site (admin uniquement) */
+adminMonitorRouter.get('/backups', authenticateJWT, async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const report = await getBackupsStatusReport();
+    res.json(report);
+  } catch (e) {
+    res.status(502).json({
+      error: e instanceof Error ? e.message : 'Erreur statut backups',
+    });
+  }
 });

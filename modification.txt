@@ -21770,3 +21770,86 @@ FICHIERS MODIFIÉS
 ================================================================================
 Fin MODIF 971 — 2026-07-09
 ================================================================================
+
+================================================================================
+MODIF 972 — Rétention backups 2 semaines + monitoring dans l'onglet admin — Soundly Dev
+Date : 2026-07-09
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande utilisateur : garder les backups 2 semaines pour l'instant, et
+ pouvoir monitorer leur statut depuis l'onglet admin (au lieu de devoir SSH +
+ verify-prod.sh pour vérifier que les crons tournent bien).
+
+CHANGEMENTS / FIX
+-----
+ commun/deploy/backup-uploads.sh, commun/deploy/backup-offsite.sh, commun/deploy/.env.production.example
+ ─────────────────
+ • Rétention uploads 28j → 14j, off-site 30j → 14j (DB déjà à 14j, inchangé).
+   Les 3 canaux de backup (DB, uploads, off-site) sont maintenant alignés
+   sur 2 semaines par défaut.
+
+ commun/backend/src/lib/backupsStatus.ts (nouveau)
+ ─────────────────
+ • getBackupsStatusReport() : lit directement le filesystem du process
+   backend (pas de SSH — le backend tourne déjà sur le VPS, cwd = racine
+   Soundy) pour calculer, en miroir de verify-prod.sh : nombre/âge/poids du
+   dernier dump DB et de la dernière archive uploads, compteurs off-site
+   (db/uploads), statut des 3 crons (backup-db/uploads/offsite via
+   `crontab -l`), rétentions configurées. Dégrade proprement (source:
+   'unavailable') sous Windows/dev où crontab n'existe pas.
+
+ commun/backend/src/routes/adminMonitor.ts
+ ─────────────────
+ • Nouvelle route GET /api/admin/monitor/backups (authenticateJWT + admin),
+   même pattern que /alerts, /youtube-quota, /api-quota déjà présents.
+
+ web/app/src/pages/AnalyticsBackupsSection.tsx (nouveau)
+ ─────────────────
+ • Section « Sauvegardes » (statut DB / uploads / off-site / cron + pastille
+   OK/En retard/Manquant) insérée dans l'onglet Analytics → VPS, juste avant
+   la section Syslog existante — même emplacement que le reste du monitoring
+   ops (RAM/disque/CPU/latence déjà là).
+
+ web/app/src/pages/AnalyticsVpsTab.tsx, web/app/src/lib/api/admin.ts, web/app/src/types.ts
+ ─────────────────
+ • Branchement du nouveau composant + fonction api.getBackupsStatus() +
+   types BackupBucketStatus / BackupsStatusReport.
+
+ web/app/src/locales/fr.json, web/app/src/locales/en.json
+ ─────────────────
+ • Clés admin.analytics.backups* (fr + en).
+
+ commun/deploy/RUNBOOK-PROD.md
+ ─────────────────
+ • Rétention DB reformulée « 14 jours (2 semaines) ».
+
+FICHIERS MODIFIÉS
+-----
+ commun/deploy/backup-uploads.sh → UPLOADS_RETENTION_DAYS 28→14
+ commun/deploy/backup-offsite.sh → OFFSITE_RETENTION_DAYS 30→14
+ commun/deploy/.env.production.example → doc override 30→14
+ commun/deploy/RUNBOOK-PROD.md → doc rétention
+ commun/backend/src/lib/backupsStatus.ts → nouveau
+ commun/backend/src/routes/adminMonitor.ts → route /backups
+ web/app/src/pages/AnalyticsBackupsSection.tsx → nouveau
+ web/app/src/pages/AnalyticsVpsTab.tsx → intégration section
+ web/app/src/lib/api/admin.ts → getBackupsStatus
+ web/app/src/types.ts → types BackupsStatusReport
+ web/app/src/locales/{fr,en}.json → traductions
+
+BUILD (vérifié)
+-----
+ commun/backend/ → tsc --noEmit + npm run build → ✅
+ web/app/ → tsc --noEmit + npm run build → ✅
+
+NOTE
+-----
+ Pas encore déployé en prod à ce stade (attente confirmation utilisateur) —
+ tant que ce n'est pas déployé, le VPS tourne toujours avec les anciennes
+ rétentions (28j/30j) et sans la route /api/admin/monitor/backups.
+
+================================================================================
+Fin MODIF 972 — 2026-07-09
+================================================================================

@@ -528,6 +528,40 @@ export interface SyslogResponse {
   fetchedAt: string;
 }
 
+export interface BackupBucketStatus {
+  dir: string;
+  exists: boolean;
+  count: number;
+  latestFile: string | null;
+  latestAt: string | null;
+  ageHours: number | null;
+  totalBytes: number;
+  stale: boolean;
+  staleThresholdHours: number;
+}
+
+export interface BackupsStatusReport {
+  fetchedAt: string;
+  source: 'filesystem' | 'unavailable';
+  root: string;
+  retentionDays: {
+    db: number;
+    uploads: number;
+    offsite: number;
+  };
+  db: BackupBucketStatus;
+  uploads: BackupBucketStatus;
+  offsiteDb: { dir: string; exists: boolean; count: number };
+  offsiteUploads: { dir: string; exists: boolean; count: number };
+  cron: {
+    source: 'crontab' | 'unavailable';
+    db: boolean;
+    uploads: boolean;
+    offsite: boolean;
+  };
+  warnings: string[];
+}
+
 export interface AppDiagnosticLog {
   id: string;
   createdAt: string;

@@ -12,7 +12,7 @@
 #   BACKUP_DIR=/opt/soundly/backups
 #   UPLOADS_BACKUP_DIR=/opt/soundly/backups/uploads
 #   BACKUP_OFFSITE_DIR=/opt/soundly/backups-offsite
-#   OFFSITE_RETENTION_DAYS=30
+#   OFFSITE_RETENTION_DAYS=14
 #   SCW_BUCKET=soundy-backups          # optionnel — bucket Object Storage
 #   SCW_REGION=fr-par                  # optionnel — défaut fr-par
 #   SCW_ACCESS_KEY / SCW_SECRET_KEY    # optionnel — ou AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
@@ -22,7 +22,7 @@ set -euo pipefail
 BACKUP_DIR="${BACKUP_DIR:-/opt/soundly/backups}"
 UPLOADS_BACKUP_DIR="${UPLOADS_BACKUP_DIR:-/opt/soundly/backups/uploads}"
 OFFSITE_DIR="${BACKUP_OFFSITE_DIR:-/opt/soundly/backups-offsite}"
-RETENTION_DAYS="${OFFSITE_RETENTION_DAYS:-30}"
+RETENTION_DAYS="${OFFSITE_RETENTION_DAYS:-14}"
 TIMESTAMP="$(date '+%Y%m%d-%H%M%S')"
 LOG="${OFFSITE_DIR}/offsite.log"
 
