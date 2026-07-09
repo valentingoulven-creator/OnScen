@@ -1,3 +1,41 @@
+﻿================================================================================
+MODIF 678 — Admin : compte Stripe plateforme (commission 30 %)
+Date : 2026-07-09
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Afficher dans l'administration le statut du compte Stripe Soundy qui
+ encaisse la commission plateforme (ex. 30 %) sur les pourboires live.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/stripePlatformStatus.ts
+ ─────────────────
+ • Rapport statut compte plateforme (clés, mode test/live, solde, payouts).
+
+ commun/backend/src/routes/adminCloudflare.ts
+ ─────────────────
+ • GET /api/admin/stripe-platform (admin uniquement).
+
+ web/app/src/components/AdminStripePlatformCard.tsx
+ web/app/src/pages/AdminDonationsTab.tsx
+ web/app/src/lib/api/admin.ts · types.ts · fr.json · en.json
+ ─────────────────
+ • Carte admin Analytics → Dons : statut, solde, liens Dashboard Stripe.
+
+FICHIERS MODIFIÉS
+-----
+ backend stripePlatformStatus + route admin → API statut plateforme
+ frontend AdminStripePlatformCard → onglet Dons admin
+
+BUILD (si vérifié)
+-----
+ (non vérifié en session)
+
+================================================================================
+Fin — 2026-07-09
+================================================================================
 ================================================================================
 MODIF 677 ? Carte grise : ic�nes lives/salons + popup grandes villes
 Date : 2026-07-01
@@ -21323,4 +21361,55 @@ RISQUES DE RÉGRESSION
 
 ================================================================================
 Fin MODIF 965 — 2026-07-08
+================================================================================
+================================================================================
+MODIF 966 — Fix perte de données DM : cap RAM par paire propagé en DELETE PostgreSQL — Soundly Dev
+Date : 2026-07-09
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Régression introduite par MODIF 963 (audit DB/infra §3, commit c4791057) :
+ `trimDirectMessages` cape `db.directMessages` aux 500 derniers messages par
+ paire d'utilisateurs en RAM (mitigation croissance mémoire, voulue). Mais ce
+ tableau tronqué est ensuite utilisé comme snapshot de vérité par le flush
+ périodique PostgreSQL (`snapshotStore()` → `purgeUnboundedChatHistory()` →
+ `writeStore()` → `syncSocialTablesFromStore()` → `syncDirectMessagesToPg()`),
+ qui fait `DELETE FROM direct_messages WHERE NOT (id = ANY($1))` sur la base
+ de tout ce qui n'est pas dans le snapshot RAM.
+ Résultat concret : toute conversation DM dépassant 500 messages au total
+ entre deux utilisateurs voit ses messages les plus anciens supprimés
+ DÉFINITIVEMENT de PostgreSQL au prochain flush (toutes les ~10 s dès que le
+ store est "dirty"), pas seulement masqués en RAM. Perte de données
+ irréversible sur une fonctionnalité coeur (messages privés).
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/pgDirectMessages.ts
+ ─────────────────
+ • `syncDirectMessagesToPg` : suppression du DELETE-par-diff sur la table
+   entière. Upsert uniquement (même principe que `writeUsersToPg` pour
+   `users` : "jamais DELETE FROM users — upsert individuel uniquement").
+ • La suppression légitime d'un DM (action utilisateur, routes/dm.ts) passe
+   déjà par `scheduleDeleteDirectMessageFromPg` (DELETE ciblé par id) — donc
+   aucune perte de fonctionnalité, seulement retrait du DELETE global dangereux.
+
+ commun/backend/src/lib/pgStoreSocialSync.test.ts
+ ─────────────────
+ • Test mis à jour : vérifie l'absence de tout DELETE global sur
+   `direct_messages` (regression guard), y compris avec un snapshot vide.
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/pgDirectMessages.ts → retrait DELETE-par-diff
+ commun/backend/src/lib/pgStoreSocialSync.test.ts → tests régression
+
+BUILD (si vérifié)
+-----
+ commun/backend → npx vitest run → ✅ (356 passed, 2 échecs pré-existants sans
+ rapport avec ce fix, sponsors.test.ts, dépendants de dates d'événements).
+ commun/backend → npx tsc --noEmit → ✅ aucune erreur sur les fichiers modifiés.
+
+================================================================================
+Fin MODIF 966 — 2026-07-09
 ================================================================================
