@@ -5,14 +5,14 @@
 # Variables optionnelles :
 #   UPLOADS_SRC=/opt/soundly/public/uploads
 #   UPLOADS_BACKUP_DIR=/opt/soundly/backups/uploads
-#   UPLOADS_RETENTION_DAYS=28
+#   UPLOADS_RETENTION_DAYS=14
 set -euo pipefail
 
 # Racine app réelle = /opt/soundly (audit DB/infra §6 — cohérent avec backup-db.sh
 # et backup-offsite.sh). Ne pas confondre avec un éventuel /opt/soundy legacy.
 UPLOADS_SRC="${UPLOADS_SRC:-/opt/soundly/public/uploads}"
 UPLOADS_BACKUP_DIR="${UPLOADS_BACKUP_DIR:-/opt/soundly/backups/uploads}"
-RETENTION_DAYS="${UPLOADS_RETENTION_DAYS:-28}"
+RETENTION_DAYS="${UPLOADS_RETENTION_DAYS:-14}"
 TIMESTAMP="$(date '+%Y%m%d-%H%M%S')"
 LOG="${UPLOADS_BACKUP_DIR}/backup-uploads.log"
 

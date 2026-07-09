@@ -182,7 +182,7 @@ bash /opt/soundly/deploy/backup-db.sh
 ```
 
 - Sortie : `/opt/soundy/backups/soundy-YYYYMMDD-HHMMSS.sql.gz`
-- RÃ©tention locale : **14 jours** (`RETENTION_DAYS=30` pour override)
+- Rétention locale : **14 jours (2 semaines)** — `RETENTION_DAYS` pour override
 - Log : `/opt/soundy/backups/backup.log`
 
 ### Cron quotidien (03:15)
