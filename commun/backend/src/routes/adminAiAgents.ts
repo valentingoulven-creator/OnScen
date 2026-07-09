@@ -11,6 +11,8 @@ import { estimateLlmCostEur, estimateLlmCostUsd } from '../lib/aiAgents/llmPrici
 import { getAiUsageTotals, recordAiUsage } from '../lib/aiAgents/usageTracker';
 import { getSystemPrompt } from '../lib/aiAgents/systemPrompts';
 import type { AiChatMessage, AiChatRequest } from '../lib/aiAgents/types';
+import { createRateLimitStore } from '../lib/rateLimitStore';
+import { isMsdevRuntime } from '../lib/msdevGuard';
 
 export const adminAiAgentsRouter = Router();
 
@@ -20,6 +22,10 @@ const chatLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de messages — réessayez dans une minute.' },
+  skip: () => isMsdevRuntime(),
+  // Cluster-safe (Redis) : sans ça, chaque worker PM2 a son propre compteur
+  // mémoire, doublant de facto la limite réelle en prod multi-worker.
+  store: createRateLimitStore('admin-ai-agents'),
 });
 
 function requireAdmin(req: Request, res: Response): boolean {

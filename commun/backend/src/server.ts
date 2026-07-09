@@ -766,6 +766,10 @@ app.get('/clear-pwa', (_req, res) => {
 
 /** Émulateur téléphone : affiche apptel dans un cadre iPhone CSS-only. */
 app.get('/phone-preview', (_req, res) => {
+  if (process.env.APP_ENV !== 'msdev' && process.env.MSENV !== 'msdev') {
+    res.status(404).type('text/plain').send('Disponible en mode msdev uniquement');
+    return;
+  }
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   // Outil de dev : contient des attributs onclick inline qui nécessitent unsafe-inline.

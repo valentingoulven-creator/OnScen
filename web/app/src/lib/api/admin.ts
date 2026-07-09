@@ -189,6 +189,9 @@ export const adminApi = {
   getDonationsSummary: (token: string) =>
     request<import('../../types').DonationsSummaryReport>('/admin/donations-summary', {}, token),
 
+  getStripePlatformStatus: (token: string) =>
+    request<import('../../types').StripePlatformStatusReport>('/admin/stripe-platform', {}, token),
+
   getDonationsHistory: (
     token: string,
     opts: { limit?: number; offset?: number } = {}

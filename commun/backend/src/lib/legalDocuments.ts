@@ -115,7 +115,7 @@ const politiqueConfidentialite: LegalDocument = {
 
 const cgu: LegalDocument = {
   title: "Conditions générales d'utilisation",
-  updated: '10 juin 2026',
+  updated: '9 juillet 2026',
   sections: [
     {
       heading: '1. Objet et acceptation',
@@ -123,7 +123,7 @@ const cgu: LegalDocument = {
     },
     {
       heading: '2. Description du Service',
-      body: `Soundy permet notamment de visualiser sur une carte des salons d’écoute musicale et des lives, de créer ou rejoindre des salons YouTube, d’échanger via chat et messages privés, et de publier ou consulter des contenus sociaux autour de la musique.\n\nLe Service est une plateforme sociale musicale. Il ne constitue pas un service de rencontre.`,
+      body: `Soundy permet notamment de visualiser sur une carte des salons d’écoute musicale et des lives, de créer ou rejoindre des salons YouTube, d’échanger via chat et messages privés, et de publier ou consulter des contenus sociaux autour de la musique et des arts du spectacle.\n\nLes reels, stories, lives et autres contenus doivent avoir un lien direct avec une activité artistique (chant, musique, danse, performance, DJ set, etc.). Les lives jeux vidéo, IRL sans dimension artistique, vlogs ou formats généralistes non musicaux ne sont pas acceptés.\n\nLe Service est une plateforme sociale musicale. Il ne constitue pas un service de rencontre.`,
     },
     {
       heading: '3. Éligibilité et compte',
@@ -131,11 +131,11 @@ const cgu: LegalDocument = {
     },
     {
       heading: '4. Comportement des utilisateurs',
-      body: `Vous vous engagez à respecter les lois applicables, à ne pas harceler ou publier de contenus illicites, et à ne pas perturber le Service.`,
+      body: `Vous vous engagez à respecter les lois applicables, à ne pas harceler ou publier de contenus illicites, et à ne pas perturber le Service. Seuls les contenus à vocation artistique ou musicale sont autorisés ; les lives jeux, IRL sans lien artistique et contenus généralistes non musicaux sont interdits.`,
     },
     {
       heading: '5. Contenus et musique',
-      body: `La lecture musicale s’effectue via YouTube : vous devez respecter les conditions d’utilisation de YouTube et de Google. Soundy ne fournit pas de licence musicale propre.\n\nLes salons YouTube utilisent le lecteur intégré IFrame API ; le consentement cookies tiers peut être requis.`,
+      body: `La lecture musicale s’effectue via YouTube : vous devez respecter les conditions d’utilisation de YouTube et de Google. Soundy ne fournit pas de licence musicale propre.\n\nReels, stories et lives doivent être orientés chant, musique, danse ou performance artistique. L’éditeur peut retirer tout contenu non conforme.\n\nLes salons YouTube utilisent le lecteur intégré IFrame API ; le consentement cookies tiers peut être requis.`,
     },
     {
       heading: '6. Géolocalisation et visibilité',

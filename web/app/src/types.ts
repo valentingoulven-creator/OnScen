@@ -384,6 +384,28 @@ export interface DonationsSummaryReport {
   thisMonth: DonationsSummaryPeriod;
 }
 
+export interface StripePlatformStatusReport {
+  fetchedAt: string;
+  stripeConfigured: boolean;
+  simulationMode: boolean;
+  keyMode: 'live' | 'test' | 'unknown';
+  platformFeePercent: number;
+  connected: boolean;
+  accountId: string | null;
+  businessName: string | null;
+  email: string | null;
+  country: string | null;
+  chargesEnabled: boolean | null;
+  payoutsEnabled: boolean | null;
+  detailsSubmitted: boolean | null;
+  availableBalanceEur: number | null;
+  pendingBalanceEur: number | null;
+  dashboardUrl: string;
+  applicationFeesUrl: string;
+  setupHint: string | null;
+  error: string | null;
+}
+
 export type ProdSaasEnvironment = 'production' | 'preproduction' | 'msdev' | 'development';
 export type ProdSaasServiceStatus = 'configured' | 'missing' | 'external' | 'disabled';
 
