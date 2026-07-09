@@ -211,5 +211,23 @@ export const usersApi = {
       '/push/unsubscribe',
       { method: 'POST', body: JSON.stringify({ endpoint }) },
       token
+    ),
+
+  /** Notifications push natives (Capacitor iOS/Android — FCM), distinctes du Web Push. */
+  registerNativePushToken: (
+    token: string,
+    device: { token: string; platform: 'ios' | 'android' }
+  ) =>
+    request<{ ok: boolean }>(
+      '/push/native/register',
+      { method: 'POST', body: JSON.stringify(device) },
+      token
+    ),
+
+  unregisterNativePushToken: (token: string, deviceToken: string) =>
+    request<{ ok: boolean }>(
+      '/push/native/unregister',
+      { method: 'POST', body: JSON.stringify({ token: deviceToken }) },
+      token
     )
 } as const;

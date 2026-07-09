@@ -1104,6 +1104,10 @@
   "settings": {
     "title": "Paramètres",
     "language": "Langue",
+    "theme": "Thème",
+    "themeDark": "Sombre",
+    "themeLight": "Clair",
+    "themeSystem": "Système",
     "languageSavedFr": "Langue : français",
     "languageSavedEn": "Language: English",
     "deleteAccount": "Supprimer mon compte",
@@ -2435,7 +2439,9 @@
     "usernameTaken": "Ce pseudo est déjà pris",
     "registrationClosed": "Les inscriptions sont fermées",
     "unexpected": "Une erreur inattendue est survenue. Réessayez dans un instant.",
-    "connectionLost": "Connexion perdue. Reconnexion en cours…"
+    "connectionLost": "Connexion perdue. Reconnexion en cours…",
+    "offline": "Pas de connexion internet.",
+    "backOnline": "Connexion internet rétablie."
   },
   "platform": {
     "connectYoutube": "Connecter YouTube",

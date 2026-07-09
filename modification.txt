@@ -1,4 +1,4 @@
-﻿================================================================================
+================================================================================
 MODIF 682 — Carte : événements du jour par défaut (filtre = autres dates)
 Date : 2026-07-09
 ================================================================================
@@ -21938,4 +21938,720 @@ NOTE
 
 ================================================================================
 Fin MODIF 972 — 2026-07-09
+================================================================================
+================================================================================
+MODIF 973 — Audit mobile complet (iOS/Android Capacitor) : fixes critiques — Soundly Dev
+Date : 2026-07-09
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Audit technique complet de l'app mobile Capacitor (ios/apptel) demandé par
+ l'utilisateur : architecture, sécurité, navigation, offline, dépendances,
+ build iOS/Android. Voir rapport complet livré en chat pour le détail des
+ constats non corrigés (nécessitent device réel / App Store Connect / Google
+ Play Console, hors de portée d'un agent de code).
+
+CHANGEMENTS / FIX
+-----
+ web/app/src/pages/ForgotPasswordPage.tsx
+ web/app/src/pages/ResetPasswordPage.tsx
+ web/app/src/pages/EmailVerificationPage.tsx
+ ─────────────────
+ • Bug confirmé : ces 3 pages (non surchargées côté ios/apptel/src/pages/)
+   utilisaient `fetch('/api/...')` en chemin relatif. Sur l'app native
+   Capacitor, ce chemin part vers l'origine de la WebView (https://localhost)
+   au lieu de https://getsoundy.com → mot de passe oublié, réinitialisation
+   et vérification email étaient CASSÉS dans l'app native/store.
+ • Fix : import `API_BASE` depuis `../lib/api/core` (résolu par le plugin
+   Vite `apptel-src-fallback` vers l'override natif `ios/apptel/src/lib/api/core.ts`
+   au build Capacitor, vers `/api` web sinon — vérifié dans vite.config.ts).
+
+ ios/apptel/src/hooks/useAndroidBackButton.ts (nouveau)
+ ios/apptel/src/App.tsx
+ ─────────────────
+ • Gap Android confirmé : aucun listener `CapApp.addListener('backButton', …)`
+   dans tout le repo → le bouton retour matériel Android ne refermait aucun
+   overlay interne (profil/salon/live/onglet), comportement WebView imprévisible.
+ • Fix : hook dédié (pattern "latest ref" mis à jour via effet, pas pendant le
+   render — conforme à la règle react-hooks/refs du linter React Compiler).
+   Ferme dans l'ordre : profil ouvert → vue salon/live/profil → onglet non-carte
+   → sinon minimise l'app (`CapApp.minimizeApp()`), jamais de kill brutal.
+
+ android/generate-android-keystore.ps1
+ ─────────────────
+ • Faille confirmée : mot de passe keystore release hardcodé en clair dans le
+   script versionné (`SoundyRelease2026!`) — quiconque avec accès au repo
+   pouvait ressigner un build release si le .jks fuitait.
+ • Fix : génération aléatoire (24 octets via RandomNumberGenerator), écrite
+   uniquement dans keystore.properties (gitignore, jamais committé), jamais
+   dans le script.
+
+ .github/dependabot.yml
+ ─────────────────
+ • Bug confirmé : chemins `/app` et `/backend` obsolètes depuis la
+   restructuration monorepo (commit 72370fc8, web/ios/android/commun) — aucune
+   PR de mise à jour de dépendances n'était générée pour ces packages, en
+   silence, depuis cette restructuration. `/ios/apptel` (deps mobiles) n'était
+   couvert nulle part.
+ • Fix : chemins corrigés `/web/app`, `/commun/backend` + ajout `/ios/apptel`.
+
+ ios/build-ios-ipa-prod.sh
+ ─────────────────
+ • Bugs confirmés : `cd "$ROOT/apptel"` (chemin inexistant, devrait être
+   `$ROOT/ios/apptel`) + `-workspace ios/App/App.xcworkspace` (n'existe pas :
+   Capacitor 8 utilise SPM, pas de Podfile/CocoaPods → pas de .xcworkspace,
+   seulement App.xcodeproj).
+ • Fix : chemin corrigé, `-workspace` → `-project ... .xcodeproj`.
+
+ ios/apptel/scripts/read-msdev-mobile-env.mjs
+ ─────────────────
+ • Bug confirmé : résolvait `ios/msdev/.env` (2 niveaux depuis scripts/) au
+   lieu de `commun/msdev/.env` (3 niveaux + dossier commun) — les builds dev
+   Capacitor ne recevaient jamais MOBILE_API_URL/MOBILE_SOCKET_URL, retombant
+   sur `/api` relatif (cassé en WebView native, cf. nativeServer.ts). Vérifié
+   par exécution directe du script avant/après fix.
+ • Fix : chemin corrigé vers commun/msdev/.env.
+
+ ios/apptel/src/lib/feedFilter.test.ts (supprimé)
+ ─────────────────
+ • Test mort confirmé : importait `./feedFilter` (inexistant dans
+   ios/apptel/src/lib/, seulement dans web/app/src/lib/) — cassait `npm test`
+   dans ios/apptel à 100% (seul fichier de test du projet). Logique déjà
+   testée à l'identique dans web/app/src/lib/feedFilter.test.ts (partagée via
+   le fallback Vite). Suppression du doublon mort.
+
+FICHIERS MODIFIÉS
+-----
+ web/app/src/pages/{ForgotPassword,ResetPassword,EmailVerification}Page.tsx → API_BASE natif
+ ios/apptel/src/hooks/useAndroidBackButton.ts → nouveau, bouton retour Android
+ ios/apptel/src/App.tsx → câblage du hook retour Android
+ android/generate-android-keystore.ps1 → mot de passe keystore aléatoire, jamais committé
+ .github/dependabot.yml → chemins corrigés + couverture ios/apptel
+ ios/build-ios-ipa-prod.sh → chemins + xcodebuild -project (SPM, pas de workspace)
+ ios/apptel/scripts/read-msdev-mobile-env.mjs → chemin commun/msdev/.env corrigé
+ ios/apptel/src/lib/feedFilter.test.ts → supprimé (doublon mort)
+
+BUILD (vérifié)
+-----
+ web/app/ → npx tsc -b → ✅ · npx vitest run → ✅ 405/405
+ ios/apptel/ → npx tsc -b → ✅ · npx eslint . → 64 problèmes (38 erreurs) contre
+ 65 (39 erreurs) avant fix — aucune nouvelle erreur introduite (vérifié par
+ diff ciblé sur App.tsx ; les 2 erreurs react-hooks/set-state-in-effect
+ restantes sur App.tsx:104/119 sont pré-existantes, code non touché).
+ read-msdev-mobile-env.mjs → exécution directe avant/après → ✅ résout
+ désormais commun/msdev/.env (URLs LAN injectées correctement).
+
+RISQUES DE RÉGRESSION
+-----
+ • useAndroidBackButton : logique testée par relecture + tsc + lint uniquement
+   (pas de device/émulateur Android disponible dans cet environnement) — à
+   valider manuellement sur device avant publication (voir rapport chat pour
+   la liste complète des tests complémentaires nécessaires).
+ • Aucun changement sur le build iOS réel (Xcode/SPM) — scripts corrigés mais
+   non exécutés sur Mac dans cette session (pas d'accès macOS/Xcode).
+
+================================================================================
+Fin MODIF 973 — 2026-07-09
+================================================================================
+================================================================================
+MODIF 974 — Audit complet publication mondiale (iOS/Android/backend) : fixes sécurité — Soundly Dev
+Date : 2026-07-09
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Nouvel audit exhaustif demandé par l'utilisateur (architecture, bugs, iOS,
+ Android, dépendances, perf, sécurité OWASP, UX/UI, qualité code) en vue d'une
+ publication App Store / Google Play mondiale. Rapport complet livré en chat
+ (notes /100, bugs critiques, priorités, risques de rejet store). Ce MODIF ne
+ couvre que les correctifs de code effectivement applicables sans device réel
+ ni accès App Store Connect / Google Play Console.
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/ios/App/App/Info.plist
+ ─────────────────
+ • Bug confirmé : `UIRequiredDeviceCapabilities` déclarait `armv7` (architecture
+   32 bits obsolète, aucun iPhone récent ne l'utilise) — clé sans effet réel
+   mais signal de projet non maintenu pour la review Apple.
+ • Gap confirmé : pas de `NSFaceIDUsageDescription` alors que le plugin
+   `@aparajita/capacitor-secure-storage` (Keychain) peut déclencher un prompt
+   biométrique — absence de cette clé = rejet App Store si Face ID est
+   effectivement sollicité au runtime.
+ • Fix : `armv7` → `arm64` ; ajout de `NSFaceIDUsageDescription`.
+
+ ios/apptel/src/lib/authStorage.ts
+ ─────────────────
+ • Bug confirmé : `SecureStorage.set()` (écriture Keychain/Keystore du JWT)
+   sans try/catch — une erreur native (device verrouillé, Keychain
+   indisponible) faisait échouer silencieusement `persistToken()` et donc le
+   login, sans fallback.
+ • Fix : try/catch autour de l'écriture ; en cas d'échec, le token reste en
+   cache mémoire pour la session en cours plutôt que de bloquer la connexion.
+
+ commun/backend/src/routes/auth.ts
+ ─────────────────
+ • Faiblesse confirmée : hachage bcrypt des mots de passe utilisateurs
+   (register, change-password, reset-password) à 10 rounds — sous la
+   recommandation actuelle (12) pour un coût de calcul attaquant raisonnable
+   en 2026.
+ • Fix : constante `BCRYPT_SALT_ROUNDS = 12` appliquée aux 3 emplacements
+   (les hachages existants restent valides — bcrypt encode le coût dans le
+   hash, aucune migration de données nécessaire).
+
+ commun/backend/src/routes/donations.ts
+ ─────────────────
+ • Fuite d'information confirmée : la route `connect-onboard` renvoyait
+   `e.message` brut (erreur API Stripe) au client en cas d'échec — risque de
+   divulguer des détails de compte/config Stripe.
+ • Fix : message générique renvoyé au client, détail de l'erreur uniquement
+   en log serveur.
+
+ commun/backend/src/routes/search.ts
+ ─────────────────
+ • Gap confirmé : le paramètre `q` de recherche globale n'avait aucune limite
+   de longueur — payload abusif possible (DoS léger / requêtes coûteuses).
+ • Fix : troncature à 100 caractères (`SEARCH_QUERY_MAX_LENGTH`).
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/ios/App/App/Info.plist → arm64 + NSFaceIDUsageDescription
+ ios/apptel/src/lib/authStorage.ts → try/catch SecureStorage.set
+ commun/backend/src/routes/auth.ts → bcrypt 10 → 12 rounds (3 emplacements)
+ commun/backend/src/routes/donations.ts → connect-onboard : pas de fuite Stripe
+ commun/backend/src/routes/search.ts → cap longueur query recherche
+
+BUILD (vérifié)
+-----
+ commun/backend/ → npm run build (tsc) → ✅
+ ios/apptel/ → npm run build (tsc -b && vite build) → ✅ (aucune régression TS)
+
+NOTE
+-----
+ Diff volontairement limité aux correctifs sûrs, testables par compilation
+ seule, sans risque de régression fonctionnelle. Les recommandations plus
+ lourdes (push natif Capacitor, refactor App.tsx, upgrade Stripe v17→v22,
+ génération/versioning du dossier android/, validation Zod centralisée,
+ focus trap modales, thème clair exposé en UI) sont détaillées dans le
+ rapport chat mais NON appliquées automatiquement — elles nécessitent tests
+ device réel et/ou une PR dédiée avec revue fonctionnelle.
+ Repo constaté avec des modifications non committées préexistantes
+ (MODIF 973 + fichiers ios/apptel/src/{App.tsx,hooks/,lib/socket.ts,
+ lib/api/core.ts,lib/nativeOfflineDetection.ts}, web/app pages) — non
+ touchées dans ce MODIF, à committer/vérifier séparément par l'utilisateur.
+
+================================================================================
+Fin MODIF 974 — 2026-07-09
+================================================================================
+================================================================================
+MODIF 975 — Audit publication mondiale : suite des corrections (iOS/Android/back/front/deps) — Soundly Dev
+Date : 2026-07-09
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Suite de MODIF 974 : l'utilisateur demande d'appliquer toutes les corrections,
+ améliorations prioritaires, optimisations, mises à jour de dépendances et
+ actions nécessaires avant publication internationale identifiées dans le
+ rapport d'audit livré en chat (incluant les compléments des 2 sous-agents
+ iOS/Android natifs qui ont pu inspecter ios/apptel/android/ réellement présent
+ sur disque mais gitignoré).
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/ios/App/App/Info.plist
+ ios/apptel/ios/App/App/AppDelegate.swift
+ ─────────────────
+ • Gap confirmé : pas de `UIBackgroundModes: audio` ni de configuration
+   `AVAudioSession` native — l'app utilise un hack Web (audio silencieux) pour
+   garder les lives/salons actifs en arrière-plan (`backgroundPlayback.ts`),
+   mais sans ces deux éléments côté natif, WKWebView coupe l'audio dès le
+   passage en arrière-plan sur iOS.
+ • Fix : `UIBackgroundModes = [audio]` dans Info.plist + configuration
+   `AVAudioSession.sharedInstance().setCategory(.playback, ...)` dans
+   `AppDelegate.didFinishLaunchingWithOptions`.
+ • Ajout `ITSAppUsesNonExemptEncryption = false` (TLS standard uniquement,
+   évite la question de conformité export à la soumission App Store Connect).
+
+ ios/apptel/android/app/src/main/AndroidManifest.xml
+ ─────────────────
+ • Gap confirmé : les 3 intent-filters App Links (`autoVerify`) ne couvraient
+   que `getsoundy.com`, pas `www.getsoundy.com` — un lien `www.` ouvrait
+   uniquement le navigateur, jamais l'app. (Note : `www.getsoundy.com` fait un
+   redirect 301 vers l'apex côté Caddy — la vérification Digital Asset Links
+   pour l'hôte `www` peut donc échouer si Google ne suit pas la redirection ;
+   dans ce cas le lien reste un deep link non-vérifié, ce qui est déjà mieux
+   que l'absence totale de gestion.)
+ • Fix : ajout d'un second `<data>` par intent-filter avec
+   `android:host="www.getsoundy.com"`.
+
+ commun/backend/src/lib/chatAttachmentAssets.ts
+ ─────────────────
+ • Gap confirmé : les pièces jointes chat non-image (PDF, ZIP, DOC/XLS,
+   DOCX/XLSX, MP3, MP4, TXT, CSV) n'étaient validées que sur le MIME déclaré
+   par le client dans le header `data:` — aucune vérification du contenu réel.
+ • Fix : `validateNonImageMagicBytes()` — signatures binaires (%PDF, PK\x03/05/07,
+   OLE D0CF11E0, ID3/frame sync MP3, ftyp MP4) + rejet heuristique HTML/script
+   pour text/plain et text/csv (défense en profondeur, en plus des headers
+   `Content-Disposition: attachment` + `X-Content-Type-Options: nosniff` déjà
+   appliqués au service des uploads).
+
+ commun/backend/src/routes/users.ts
+ ─────────────────
+ • Fuite d'information confirmée (3 routes OBS/Cloudflare Stream :
+   `/me/obs-ingest`, `/me/obs-stream-key/rotate`, `/me/obs-stream-repair`) :
+   message brut de l'API Cloudflare renvoyé au client en cas d'erreur.
+ • Fix : message générique client + détail en log serveur (même pattern que
+   le fix Stripe Connect de MODIF 974).
+
+ web/app/src/lib/appTheme.ts (inchangé, déjà présent)
+ web/app/src/pages/SettingsPage.tsx
+ web/app/src/locales/{fr,en}.json
+ ─────────────────
+ • Gap confirmé : l'infrastructure thème clair/sombre/système existait déjà
+   (`appTheme.ts`, CSS `[data-theme]`) mais aucune UI ne permettait à
+   l'utilisateur de la piloter — l'app était de facto dark-only.
+ • Fix : sélecteur de thème ajouté dans Réglages > Application, à côté du
+   sélecteur de langue existant (mêmes patterns UI). Clés i18n
+   `settings.theme` / `themeDark` / `themeLight` / `themeSystem` (FR/EN).
+
+ web/app/src/hooks/useFocusTrap.ts (nouveau)
+ web/app/src/components/ConfirmModal.tsx
+ ─────────────────
+ • Gap confirmé : aucune modale du projet n'avait de piège de focus clavier
+   (WCAG 2.4.3) — Tab pouvait sortir de la modale vers la page sous-jacente.
+ • Fix : hook générique `useFocusTrap(active, onEscape)` (pattern "latest ref"
+   pour `onEscape`, focus initial + restauration du focus précédent à la
+   fermeture) appliqué à `ConfirmModal` (modale la plus réutilisée : suppression
+   de compte, déconnexion, confirmations diverses). Les autres modales/sheets
+   du projet peuvent réutiliser ce même hook (non fait sur toutes par manque
+   de temps de session — voir rapport chat pour la liste).
+
+ commun/backend/, web/app/, ios/apptel/ — package-lock.json (3 fichiers)
+ ─────────────────
+ • `npm update` dans les 3 packages : mises à jour patch/minor **dans le
+   respect des ranges semver déjà déclarés** dans package.json (aucun
+   package.json modifié, uniquement les lockfiles). Ex. @sentry/*, vite,
+   @vitejs/plugin-react, livekit-*, i18next, react-i18next, typescript-eslint,
+   @capacitor/camera, resend, @aws-sdk/client-s3.
+ • Volontairement NON mis à jour (changement de version majeure, hors range
+   package.json actuel, nécessite tests dédiés) : stripe (17→22),
+   @stripe/stripe-js, @stripe/react-stripe-js, redis (4→6), express (4→5),
+   typescript (5/6→7), bcryptjs (2→3), dotenv (16→17), vitest (3→4),
+   @aparajita/capacitor-secure-storage (7→8). Voir rapport chat pour le détail
+   et le risque associé à chacun.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/ios/App/App/Info.plist → UIBackgroundModes audio, ITSAppUsesNonExemptEncryption
+ ios/apptel/ios/App/App/AppDelegate.swift → configuration AVAudioSession
+ ios/apptel/android/app/src/main/AndroidManifest.xml → intent-filters www.getsoundy.com
+ commun/backend/src/lib/chatAttachmentAssets.ts → magic bytes fichiers non-image
+ commun/backend/src/routes/users.ts → pas de fuite erreurs Cloudflare Stream (3 routes)
+ web/app/src/pages/SettingsPage.tsx → sélecteur thème clair/sombre/système
+ web/app/src/locales/{fr,en}.json → clés i18n thème
+ web/app/src/hooks/useFocusTrap.ts → nouveau, focus trap réutilisable
+ web/app/src/components/ConfirmModal.tsx → focus trap appliqué
+ commun/backend/package-lock.json, web/app/package-lock.json, ios/apptel/package-lock.json
+   → mises à jour patch/minor dans le respect des ranges déclarés
+
+BUILD (vérifié)
+-----
+ commun/backend/ → npm run build (tsc) → ✅
+ web/app/ → npx tsc -b → ✅ · npx vitest run → 356/358 (2 échecs
+   pré-existants, indépendants des changements de cette session — voir NOTE)
+ ios/apptel/ → npx tsc -b --force → ✅ · npx vitest run → aucun fichier de
+   test (attendu, cf. MODIF 973 : dernier test supprimé car doublon mort)
+
+NOTE
+-----
+ 2 tests en échec dans commun/backend (`pgSalonsLives.hydrate.test.ts`) —
+ confirmé PRÉ-EXISTANT et SANS LIEN avec les changements de cette session :
+ passent à 2/2 quand exécutés isolément (`vitest run
+ pgSalonsLives.hydrate.test.ts`), échouent seulement dans la suite complète —
+ fuite d'état entre fichiers de test (mock/pool partagé), fichier non modifié
+ par cette session (`git diff` vide). À investiguer séparément, hors scope de
+ cet audit mobile.
+
+ Éléments du rapport chat volontairement NON appliqués automatiquement
+ (nécessitent device réel, Xcode/Mac, Android Studio, ou décision produit) :
+ versioning de `ios/apptel/android/` (actuellement gitignoré — décision
+ d'architecture à valider), remplacement du `TEAM_ID` placeholder (AASA),
+ `cap sync` + vérification des plugins natifs sur Mac, push natif Capacitor
+ (FCM/APNs), migration Stripe majeure, renouvellement du pin SSL avant
+ 2026-09-07, focus trap sur les autres modales/sheets, handler 401 global,
+ découpage de App.tsx.
+
+================================================================================
+Fin MODIF 975 — 2026-07-09
+================================================================================
+================================================================================
+MODIF 976 — Migration Stripe SDK backend v17→v22 + stripe-js v5→v9 / react-stripe-js v3→v6 — Soundly Dev
+Date : 2026-07-09
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Suite des audits précédents (MODIF 974/975) : le SDK Stripe backend (`stripe`)
+ était en v17.7.0 (API "2024-09-30.acacia") contre v22.3.1 disponible, et les
+ packages front `@stripe/stripe-js` / `@stripe/react-stripe-js` en v5/v3
+ contre v9/v6. L'utilisateur demande explicitement de réaliser la migration.
+
+STRATÉGIE (pourquoi ce n'est pas juste un `npm update`)
+----
+ Le projet pinne explicitement la version d'API Stripe utilisée
+ (`STRIPE_API_VERSION = '2025-02-24.acacia'` dans `stripeClient.ts`), *séparément*
+ du SDK. C'est exactement la fonctionnalité que Stripe met à disposition pour
+ découpler mise à jour du SDK (bugfixes, Node moderne, nouveaux typings) et
+ changement de version d'API (qui, lui, modifie la forme des payloads/webhooks
+ et nécessiterait un audit complet de tous les handlers).
+ → Décision : mettre à jour le SDK vers v22 **sans** changer
+ `STRIPE_API_VERSION` — aucun comportement runtime Stripe ne change (mêmes
+ payloads, mêmes webhooks), seuls le SDK et ses types sont modernisés.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/package.json
+ ─────────────────
+ • `stripe` : ^17.7.0 → ^22.3.1.
+
+ web/app/package.json, ios/apptel/package.json
+ ─────────────────
+ • `@stripe/stripe-js` : ^5.10.0 → ^9.9.0, `@stripe/react-stripe-js` : ^3.10.0
+   → ^6.7.0. Note : `loadStripe()` charge TOUJOURS la dernière version de
+   Stripe.js depuis le CDN Stripe quelle que soit la version npm du package —
+   cette mise à jour n'affecte QUE les types TypeScript côté client, aucun
+   changement de comportement runtime (confirmé par la doc officielle
+   `@stripe/stripe-js`).
+
+ commun/backend/src/lib/stripeClient.ts
+ ─────────────────
+ • Bug de compilation confirmé : `Stripe.LatestApiVersion` est désormais un
+   literal type qui ne pointe QUE vers la toute dernière version bundlée par
+   le SDK ("2026-06-24.dahlia") — notre version pinnée `'2025-02-24.acacia'`
+   n'était plus assignable à ce type.
+ • Fix : `STRIPE_API_VERSION` typé en `string` (pas `Stripe.LatestApiVersion`)
+   + cast au point d'usage (`new Stripe(key, { apiVersion: STRIPE_API_VERSION
+   as Stripe.LatestApiVersion })`). Aucun changement de valeur — toujours
+   `'2025-02-24.acacia'`.
+
+ commun/backend/src/lib/stripePlatformStatus.ts
+ ─────────────────
+ • Bug de compilation confirmé : `stripe.accounts.retrieve()` sans argument
+   (récupère le compte du propriétaire de la clé API) n'a plus l'overload
+   0-argument en v22.
+ • Fix : `stripe.accounts.retrieveCurrent()` — nouvelle méthode dédiée du SDK,
+   comportement strictement identique (même appel `GET /v1/account`), vérifié
+   par appel réseau réel en mode test (voir BUILD ci-dessous).
+
+ commun/backend/src/lib/stripeLegacyTypes.ts (nouveau)
+ commun/backend/src/routes/adminPayments.ts
+ commun/backend/src/routes/subscriptions.ts
+ ─────────────────
+ • Bug de compilation confirmé : le SDK v22 ne type plus que la dernière
+   version d'API (`Invoice.subscription`, `Invoice.payment_intent`,
+   `Subscription.current_period_end` ont été retirés des types — ces champs
+   ont été restructurés dans les versions d'API récentes de Stripe). Notre
+   version pinnée continue de renvoyer ces champs EXACTEMENT comme avant
+   (garantie de stabilité Stripe pour les versions d'API pinnées) — seuls les
+   *types* ne les connaissent plus.
+ • Fix : types d'appoint `InvoiceWithLegacyFields` / `SubscriptionWithLegacyPeriod`
+   (extensions documentées de `Stripe.Invoice`/`Stripe.Subscription`) appliqués
+   aux ~8 emplacements concernés (webhooks `invoice.paid`, `invoice.payment_failed`,
+   `customer.subscription.updated/deleted`, refund admin). Aucune logique
+   métier modifiée — seulement les annotations de type.
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/package.json, package-lock.json → stripe 17→22
+ web/app/package.json, package-lock.json → @stripe/stripe-js 5→9, react-stripe-js 3→6
+ ios/apptel/package.json, package-lock.json → idem (dépendance non utilisée en natif, guardée isNativeApp())
+ commun/backend/src/lib/stripeClient.ts → type STRIPE_API_VERSION
+ commun/backend/src/lib/stripePlatformStatus.ts → retrieveCurrent()
+ commun/backend/src/lib/stripeLegacyTypes.ts → nouveau, types d'appoint
+ commun/backend/src/routes/adminPayments.ts → cast InvoiceWithLegacyFields
+ commun/backend/src/routes/subscriptions.ts → casts Invoice/Subscription legacy
+
+BUILD (vérifié)
+-----
+ commun/backend/ → npm run build (tsc) → ✅ · npx vitest run → 358/358 ✅
+ web/app/ → npx tsc -b → ✅ · npm run build (vite) → ✅ · npx vitest run → 405/405 ✅
+ ios/apptel/ → npx tsc -b --force → ✅ (Stripe non utilisé côté natif — guard
+   isNativeApp() dans LiveDonationSheet/CreatorSubscribeSheet/PlatformSubscriptionPage)
+
+ Smoke test réseau réel (mode test, clé sk_test_ de commun/msdev/.env, script
+ temporaire supprimé après usage — AUCUNE donnée mutée) :
+ 1. `stripe.accounts.retrieveCurrent()` → ✅ appel réseau réussi, API version
+    pinnée acceptée par les serveurs Stripe.
+ 2. `instanceof Stripe.errors.StripeError` → ✅ toujours vrai à l'exécution
+    (hiérarchie d'erreurs runtime intacte malgré le changement de typing).
+ 3. `stripe.webhooks.constructEvent()` avec signature HMAC générée localement
+    → ✅ décodage correct (fonction pure, aucun risque de régression réseau).
+
+NOTE — tests NON réalisables dans cet environnement
+-----
+ Aucune carte de test / Payment Element réelle n'a pu être testée de bout en
+ bout (nécessite un navigateur + saisie carte 4242...), ni un vrai flow
+ Connect onboarding complet, ni un webhook livré en conditions réelles par
+ Stripe (nécessite endpoint public + Stripe CLI ou dashboard). Recommandé
+ avant mise en prod définitive :
+ - `stripe listen --forward-to localhost:4080/api/donations/webhook` (et idem
+   `/api/subscriptions/webhook`) + déclencher `invoice.paid`,
+   `customer.subscription.updated/deleted` depuis le Dashboard Stripe test.
+ - Un don de test réel (carte 4242 4242 4242 4242) sur preprod.
+ - Un onboarding Connect test complet (host créateur).
+ Déploiement (preprod puis prod) non effectué dans cette session — à faire
+ sur demande explicite après validation de ces tests manuels.
+
+================================================================================
+Fin MODIF 976 — 2026-07-09
+================================================================================
+
+================================================================================
+MODIF 977 — Nettoyage vestiges Spotify (config + démo msdev)
+Date : 2026-07-09
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ L'intégration Spotify OAuth a été retirée du produit (MODIF 662+), mais des
+ références subsistaient dans les fichiers .env.example, runbook, docs ops et
+ données démo release — source de confusion sur les services externes actifs.
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/.env.production.example
+ commun/backend/.env.preproduction.example
+ commun/msdev/.env.example
+ commun/deploy/.env.production.example
+ commun/deploy/RUNBOOK-PROD.md
+ ─────────────────
+ • Suppression blocs Spotify OAuth ; commentaires ENCRYPTION_KEY / WEB_APP_URL
+   alignés sur YouTube/Instagram/Google/Facebook/Apple uniquement.
+
+ commun/msdev/release/data/store*.json (6 fichiers)
+ ─────────────────
+ • connectedPlatforms / platformAccounts : spotify → youtube ou retrait.
+ • Intérêt « Spotify Jam » remplacé par « YouTube ».
+
+ commun/msdev/release/public/manifest.webmanifest
+ commun/docs/SOUNDY-CEO-IA-PROMPT.md
+ commun/docs/reports/SECURITY_REPORT.md
+ commun/docs/reports/acompleter.txt
+ commun/docs/Infra-Soundy.canvas.tsx
+ ─────────────────
+ • Descriptions et checklists alignées sur l'état produit actuel (YouTube seul).
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/.env.production.example → retrait Spotify
+ commun/backend/.env.preproduction.example → OAuth staging sans Spotify
+ commun/msdev/.env.example → retrait section Spotify
+ commun/deploy/.env.production.example → retrait Spotify
+ commun/deploy/RUNBOOK-PROD.md → OAuth list sans Spotify
+ commun/msdev/release/data/store*.json → démo sans Spotify
+ commun/msdev/release/public/manifest.webmanifest → description PWA
+ commun/docs/* → docs ops/CEO/sécurité/infra sans Spotify actif
+ commun/docs/reports/acompleter.txt → section Spotify supprimée, renumérotation
+
+================================================================================
+Fin MODIF 977 — 2026-07-09
+================================================================================
+================================================================================
+MODIF 977 — Audit mobile : notifications push natives, icône iOS, SPM, biométrie, offline — Soundly Dev
+Date : 2026-07-09
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Suite de MODIF 973/975 : poursuite des corrections critiques identifiées dans
+ l'audit mobile (rapport chat), en particulier les 2 gaps les plus lourds
+ laissés ouverts : "aucune notification push native possible" et "biométrie
+ probablement cassée en natif (origine WebView)".
+
+CHANGEMENTS / FIX
+-----
+ ios/apptel/ios/App/App/Assets.xcassets/AppIconiconset.app/ → AppIcon.appiconset/
+ ─────────────────
+ • Bug confirmé : dossier icône app mal nommé (`AppIconiconset.app` au lieu de
+   `AppIcon.appiconset`) alors que `project.pbxproj` référence
+   `ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon` → Xcode ne trouvait pas
+   l'icône (risque échec build/validation App Store).
+ • Fix : renommage du dossier.
+
+ ios/apptel/capacitor.config.prod.json
+ ios/apptel/scripts/capacitor-build-prod.mjs
+ ─────────────────
+ • Cause racine confirmée du gap "biométrie/WebAuthn cassée en natif" :
+   WebAuthn exige que le domaine effectif de la page appelante corresponde au
+   rp.id (`getsoundy.com`, cf. webauthn.ts) — invariante imposée par le WebView
+   lui-même, pas configurable côté serveur (WEBAUTHN_ORIGIN). Sans
+   `server.hostname`, l'app native se présentait en `https://localhost`.
+ • Fix : `server.hostname: "getsoundy.com"` (build prod uniquement — pas en
+   dev, qui cible un backend LAN). Cohérent avec les entitlements iOS déjà
+   présents (`webcredentials:getsoundy.com`, `applinks:getsoundy.com`).
+
+ web/app/src/pages/SettingsPage.tsx
+ ─────────────────
+ • `BiometricSetup` (Face ID/passkeys) existait déjà en composant mais n'était
+   jamais monté nulle part (code mort confirmé) — aucun moyen d'activer la
+   biométrie depuis l'app. Câblé dans Réglages > Sécurité, sous la 2FA.
+
+ ios/apptel/ios/App/CapApp-SPM/Package.swift
+ ios/apptel/package.json (@aparajita/capacitor-secure-storage 7.1.6 → 8.0.0)
+ ─────────────────
+ • Bug CRITIQUE confirmé en syncant réellement le projet iOS natif présent en
+   local (`npx cap sync ios`, projet non commité mais présent sur disque) :
+   `@aparajita/capacitor-secure-storage@7.x` n'a AUCUN `Package.swift` (podspec
+   uniquement) → sous Capacitor 8 (SPM, pas de Podfile dans ce projet), le
+   plugin natif n'était PAS lié à l'app. Ce plugin sert au stockage sécurisé
+   du JWT en Keychain (authStorage.ts) — la fonctionnalité "JWT en Keychain"
+   documentée dans l'audit sécurité précédent risquait donc de ne PAS
+   fonctionner réellement sur iOS tel que le projet était configuré.
+ • Fix : upgrade vers 8.0.0 (inclut désormais un vrai Package.swift, confirmé
+   par `cap sync ios` : "All Capacitor plugins have a Package.swift file").
+ • Effet de bord découvert en syncant sur Windows : le CLI Capacitor écrit les
+   chemins `path:` de Package.swift avec des SÉPARATEURS WINDOWS (`\`), invalides
+   pour Swift Package Manager (Mac/Linux) → build Xcode cassé pour quiconque
+   sync depuis Windows. Chemins corrigés en `/`. À surveiller : refaire `cap
+   sync ios` sur Mac écrasera ce fichier — revérifier les séparateurs après.
+
+ commun/backend/src/db/migrations/031_native_push_tokens.sql (nouveau)
+ commun/backend/src/lib/pgNativePushTokens.ts (nouveau)
+ commun/backend/src/lib/nativePush.ts (nouveau)
+ commun/backend/src/routes/nativePush.ts (nouveau)
+ commun/backend/src/lib/notifications.ts
+ commun/backend/src/server.ts
+ commun/backend/.env.production.example
+ commun/backend/package.json (+ google-auth-library)
+ ios/apptel/package.json (+ @capacitor/push-notifications)
+ ios/apptel/src/hooks/useNativePushRegistration.ts (nouveau)
+ ios/apptel/src/App.tsx
+ ios/apptel/ios/App/App/AppDelegate.swift
+ ios/apptel/ios/App/App/Info.plist
+ ios/apptel/ios/App/App/App.entitlements
+ ─────────────────
+ • Gap CRITIQUE confirmé (audit précédent) : aucun canal de notification
+   fonctionnel en arrière-plan/app fermée sur mobile (Web Push nécessite un
+   service worker, désactivé en build Capacitor natif) — inacceptable pour une
+   app social/messagerie.
+ • Infrastructure complète ajoutée, gérée par `FIREBASE_SERVICE_ACCOUNT_JSON`
+   (absent par défaut → no-op silencieux, même pattern que VAPID_PUBLIC_KEY
+   pour le Web Push) :
+   - Backend : table `native_push_tokens`, endpoints register/unregister/status,
+     envoi via appel HTTP direct à l'API FCM v1 (auth OAuth2 via
+     `google-auth-library` uniquement — PAS le SDK complet `firebase-admin`,
+     voir note ci-dessous).
+   - Client apptel : plugin `@capacitor/push-notifications`, hook
+     `useNativePushRegistration` (permission + register + envoi du token au
+     backend), câblé dans App.tsx.
+   - Natif iOS : méthodes `AppDelegate` requises par le plugin
+     (`didRegisterForRemoteNotificationsWithDeviceToken`/`didFailToRegister...`),
+     `UIBackgroundModes: remote-notification`, entitlement `aps-environment`.
+   - Natif Android : déjà préparé par une session antérieure (permission
+     `POST_NOTIFICATIONS`, plugin Gradle `google-services` conditionnel,
+     classpath `com.google.gms:google-services` déjà présents) — juste
+     synchronisé avec le nouveau plugin JS (`npx cap sync android`).
+ • ATTENTION — ce que je NE PEUX PAS faire (nécessite un compte externe réel) :
+   créer le projet Firebase, lier un certificat/clé APNs (Apple Developer),
+   générer `google-services.json` (Android) et `FIREBASE_SERVICE_ACCOUNT_JSON`.
+   Tant que ces credentials ne sont pas fournis, le code est un no-op sûr
+   (aucune erreur, aucun envoi). Voir `.env.production.example` pour les
+   étapes exactes.
+ • Note technique : `firebase-admin` a été essayé en premier puis ABANDONNÉ —
+   sa chaîne de dépendances (@google-cloud/storage → gaxios/teeny-request →
+   uuid) cassait la résolution de types de `@sentry/node` ailleurs dans le
+   projet (`errorMonitoring.ts` ne compilait plus) ET introduisait 6
+   vulnérabilités modérées transitives. `google-auth-library` seul (14
+   paquets vs 157, 0 vulnérabilité) suffit pour signer les requêtes HTTP vers
+   FCM v1 — confirmé par `tsc --noEmit` avant/après sur tout le backend.
+
+ ios/apptel/src/lib/socket.ts
+ ios/apptel/src/lib/api/core.ts
+ ios/apptel/src/lib/nativeOfflineDetection.ts (nouveau)
+ ios/apptel/src/main.tsx
+ web/app/src/locales/{fr,en}.json (clés errors.offline / errors.backOnline)
+ ─────────────────
+ • Gaps confirmés (audit précédent) : `GlobalErrorPopup` jamais monté côté
+   natif, pas d'avertissement de déconnexion socket, pas de détection
+   offline globale — l'app natif se dégradait silencieusement (spinners
+   infinis, données vides) sans jamais informer l'utilisateur.
+ • Fix : réplication du comportement web (déjà éprouvé) côté natif —
+   avertissement déconnexion socket (délai de grâce 6s), popup réseau sur
+   échec fetch, bandeau offline/reconnexion (`navigator.onLine` +
+   `online`/`offline`), montage de `<GlobalErrorPopup />`.
+
+ ios/apptel/vitest.config.ts
+ ─────────────────
+ • `passWithNoTests: true` — la quasi-totalité de la logique apptel est du
+   glue-code Capacitor natif (non testable en environnement `node` sans mocks
+   lourds ; ni web/app ni apptel n'utilisent de rendu React/jsdom dans leurs
+   tests, convention constante du projet) ou déjà couverte côté web/app via le
+   fallback Vite. Évite un échec `npm test` (code 1) après la suppression du
+   test mort de MODIF 973, qui laissait ce dossier à 0 fichier de test.
+
+FICHIERS MODIFIÉS
+-----
+ ios/apptel/ios/App/App/Assets.xcassets/AppIcon.appiconset/ → renommé
+ ios/apptel/capacitor.config.prod.json → server.hostname getsoundy.com
+ ios/apptel/scripts/capacitor-build-prod.mjs → commentaire explicatif hostname
+ web/app/src/pages/SettingsPage.tsx → BiometricSetup monté
+ ios/apptel/ios/App/CapApp-SPM/Package.swift → secure-storage v8 + chemins POSIX
+ ios/apptel/package.json → @aparajita/capacitor-secure-storage@8, @capacitor/push-notifications
+ commun/backend/src/db/migrations/031_native_push_tokens.sql → nouveau
+ commun/backend/src/lib/pgNativePushTokens.ts → nouveau
+ commun/backend/src/lib/nativePush.ts → nouveau (FCM v1 via google-auth-library)
+ commun/backend/src/routes/nativePush.ts → nouveau
+ commun/backend/src/lib/notifications.ts → hook sendNativePushForNotification
+ commun/backend/src/server.ts → mount nativePushRouter
+ commun/backend/.env.production.example → doc FIREBASE_SERVICE_ACCOUNT_JSON
+ commun/backend/package.json/package-lock.json → +google-auth-library
+ ios/apptel/src/hooks/useNativePushRegistration.ts → nouveau
+ ios/apptel/src/App.tsx → useNativePushRegistration câblé
+ ios/apptel/ios/App/App/AppDelegate.swift → delegate methods push APNs
+ ios/apptel/ios/App/App/Info.plist → UIBackgroundModes remote-notification
+ ios/apptel/ios/App/App/App.entitlements → aps-environment
+ ios/apptel/src/lib/socket.ts → avertissement déconnexion
+ ios/apptel/src/lib/api/core.ts → popup erreur réseau
+ ios/apptel/src/lib/nativeOfflineDetection.ts → nouveau
+ ios/apptel/src/main.tsx → GlobalErrorPopup + init offline detection
+ web/app/src/locales/{fr,en}.json → clés errors.offline/backOnline
+ ios/apptel/vitest.config.ts → passWithNoTests
+
+BUILD (vérifié)
+-----
+ commun/backend → npx tsc --noEmit → ✅ · npx vitest run → ✅ 358/358 ·
+   npx eslint src --max-warnings=0 → ✅ 0 problème
+ web/app → npx tsc -b → ✅ · npx vitest run → ✅ 405/405 · npx eslint . →
+   0 erreur (447 warnings pré-existants, aucun nouveau — vérifié fichier par
+   fichier sur les fichiers touchés)
+ ios/apptel → npx tsc -b → ✅ · npx eslint . → 64 problèmes (38 erreurs) contre
+   65 (39 erreurs) avant MODIF 973 — toujours aucune régression (2 erreurs
+   restantes pré-existantes, non touchées, confirmées par diff ciblé) ·
+   npm run build:capacitor:prod → ✅ build complet réussi (nouveau plugin push +
+   hostname inclus) · npx cap sync ios / android → ✅ (projet natif présent en
+   local, non commité — cf. décision d'architecture MODIF 975)
+
+LIMITES — non vérifiable sans Mac/Xcode/device réel
+-----
+ • AppDelegate.swift : ajout copié tel quel depuis la doc officielle du plugin
+   (node_modules/@capacitor/push-notifications/README.md) — jamais compilé
+   (pas de toolchain Swift sur cette machine Windows).
+ • Package.swift : les chemins corrigés seront RÉGÉNÉRÉS (avec les mêmes
+   séparateurs selon l'OS) au prochain `cap sync ios` — revérifier les
+   séparateurs si ce sync est refait sur Windows plutôt que sur Mac.
+ • WebAuthn avec `server.hostname` : jamais testé sur device réel (nécessite
+   un build IPA signé + device physique) — comportement attendu documenté
+   dans le commentaire de capacitor-build-prod.mjs, à valider manuellement.
+ • Notifications push : aucun envoi réel testé (nécessite un projet Firebase +
+   APNs réels, absents de cet environnement) — code prêt, no-op tant que
+   FIREBASE_SERVICE_ACCOUNT_JSON n'est pas fourni.
+ • `android/` reste gitignoré (décision d'architecture antérieure, MODIF 975)
+   — les fichiers natifs Android modifiés ici (aucun cette fois, déjà prêts)
+   ne sont donc pas versionnés ; seul `ios/apptel/package.json` (plugin JS) et
+   le backend le sont réellement.
+
+================================================================================
+Fin MODIF 977 — 2026-07-09
 ================================================================================

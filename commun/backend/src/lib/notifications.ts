@@ -69,6 +69,9 @@ export function pushNotification(
   void import('./webPush')
     .then(({ sendWebPushForNotification }) => sendWebPushForNotification(notification))
     .catch(() => {});
+  void import('./nativePush')
+    .then(({ sendNativePushForNotification }) => sendNativePushForNotification(notification))
+    .catch(() => {});
   return notification;
 }
 

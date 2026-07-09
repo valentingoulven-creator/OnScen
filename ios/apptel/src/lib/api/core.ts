@@ -1,4 +1,5 @@
 import i18n from '../../../../../web/app/src/i18n';
+import { showErrorPopup } from '../errorPopups';
 import { API_BASE as NATIVE_API_BASE } from '../nativeServer';
 
 export const API_BASE = NATIVE_API_BASE;
@@ -97,7 +98,14 @@ export async function request<T>(
       headers: { ...headers(token), ...opts.headers },
     });
   } catch (e) {
-    normalizeFetchNetworkError(e);
+    try {
+      normalizeFetchNetworkError(e);
+    } catch (networkError) {
+      // Serveur injoignable / coupure réseau : silencieux sinon côté natif (contrairement au
+      // web, cf. api/core.ts web) -> popup global (dédupliqué) pour signaler le blocage.
+      showErrorPopup(networkError instanceof Error ? networkError.message : String(networkError));
+      throw networkError;
+    }
   }
   if (!res.ok) {
     throw await parseApiError(res);

@@ -45,6 +45,7 @@ import { musicRouter } from './routes/music';
 import { trendingRouter } from './routes/trending';
 import { supportRouter, supportAdminRouter } from './routes/support';
 import { pushRouter } from './routes/push';
+import { nativePushRouter } from './routes/nativePush';
 import { tilesRouter } from './routes/tiles';
 import { getPublicDir, getMsdevConfigPath } from './paths';
 import { REEL_UPLOAD_JSON_BODY_LIMIT } from './lib/reelUploadLimits';
@@ -575,6 +576,7 @@ app.use('/api/sponsors', sponsorsRouter);
 app.use('/api/trending', trendingRouter);
 app.use('/api/music', musicRouter);
 app.use('/api/push', pushRouter);
+app.use('/api/push', nativePushRouter);
 
 app.get('/api/config', (_req, res) => {
   const configPath = getMsdevConfigPath();

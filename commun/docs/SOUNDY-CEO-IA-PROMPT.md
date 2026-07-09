@@ -48,12 +48,12 @@ Soundy est **le réseau social de la musique live et de l'écoute partagée** �
 5. **Reels** — feed vertical, reels sponsorisés (1 tous les 5 par défaut)
 
 ## Features clés en production
-- **Salons** Spotify/YouTube synchronisés — public/privé, file d'attente, chat, ancrage carte, max 2h
+- **Salons** YouTube synchronisés — public/privé, file d'attente, chat, ancrage carte, max 2h
 - **Lives** — 3 modes : LiveKit (priorité), Cloudflare Stream RTMP→HLS, mesh WebRTC+Coturn (~30 spec max)
 - **Feed / Stories / Reels** — likes, commentaires, partages, vues persistés PostgreSQL
 - **Géolocalisation** — debounce, floutage, ghost mode, mode ville seule
 - **Compositions** — upload audio ≤ 30 Mo (filesystem VPS)
-- **Auth** — JWT, 2FA TOTP, WebAuthn, OAuth Google/Spotify/YouTube/Instagram
+- **Auth** — JWT, 2FA TOTP, WebAuthn, OAuth Google/YouTube/Instagram/Apple
 - **Monétisation** — Stripe Connect (tips live 30 %), abonnements Supporter/Super fan (4,99–9,99 €/mois), Soundy+ (2,99–4,99 €/mois roadmap)
 - **Sponsors natifs** — 4 emplacements live : `map_banner`, `feed_inline`, `stories_banner`, `reels_sponsored` — admin CRUD complet
 - **Admin panel** — onglets : Comptes, Accès, Contenu (modération), Analytics/Coûts/VPS, Support (signalements), Sponsors

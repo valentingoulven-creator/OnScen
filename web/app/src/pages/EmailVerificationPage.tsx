@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { appLoginHref } from '../lib/forgotPasswordRoute';
+import { API_BASE } from '../lib/api/core';
 
 type Status = 'loading' | 'success' | 'error' | 'no_token';
 
@@ -18,7 +19,7 @@ export function EmailVerificationPage() {
       setStatus('no_token');
       return;
     }
-    fetch(`/api/auth/verify-email?token=${encodeURIComponent(token)}`)
+    fetch(`${API_BASE}/auth/verify-email?token=${encodeURIComponent(token)}`)
       .then(async (res) => {
         const data = await res.json().catch(() => ({})) as { message?: string; error?: string };
         if (res.ok) {

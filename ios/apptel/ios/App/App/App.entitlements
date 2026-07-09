@@ -11,5 +11,10 @@
 	<array>
 		<string>Default</string>
 	</array>
+	<!-- Notifications push natives (@capacitor/push-notifications, relais FCM->APNs) —
+	     "development" ici ; passer à "production" dans le profil de provisioning App Store
+	     (Xcode gère cette valeur automatiquement selon le certificat de signature utilisé). -->
+	<key>aps-environment</key>
+	<string>development</string>
 </dict>
 </plist>

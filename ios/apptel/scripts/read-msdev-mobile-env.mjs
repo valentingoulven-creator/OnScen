@@ -6,8 +6,8 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const envPath = path.join(root, 'msdev', '.env');
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+const envPath = path.join(repoRoot, 'commun', 'msdev', '.env');
 
 function readEnvValue(key) {
   if (!fs.existsSync(envPath)) return undefined;

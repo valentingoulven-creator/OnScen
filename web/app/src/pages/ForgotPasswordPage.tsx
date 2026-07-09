@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { appLoginHref } from '../lib/forgotPasswordRoute';
+import { API_BASE } from '../lib/api/core';
 
 export function ForgotPasswordPage() {
   const { t } = useTranslation();
@@ -18,7 +19,7 @@ export function ForgotPasswordPage() {
     }
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/forgot-password', {
+      const res = await fetch(`${API_BASE}/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),

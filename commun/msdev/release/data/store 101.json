@@ -26,7 +26,7 @@
         "Disclosure"
       ],
       "connectedPlatforms": [
-        "spotify"
+        "youtube"
       ],
       "city": "Paris",
       "listeningRole": "host",
@@ -37,10 +37,10 @@
       "blurredLongitude": 2.3521769201996037,
       "platformAccounts": [
         {
-          "platform": "spotify",
-          "externalUserId": "legacy_spotify_user_dj",
+          "platform": "youtube",
+          "externalUserId": "legacy_youtube_user_dj",
           "connectedAt": 1770103639016,
-          "accessToken": "legacy_spotify"
+          "accessToken": "legacy_youtube"
         }
       ],
       "profilePhotos": [
@@ -111,7 +111,7 @@
       "interests": [
         "Sessions live",
         "Carte géoloc",
-        "Spotify Jam",
+        "YouTube",
         "Rencontres musicales"
       ],
       "favoriteGenres": [
@@ -126,7 +126,6 @@
         "Lomepal"
       ],
       "connectedPlatforms": [
-        "spotify",
         "youtube"
       ],
       "city": "Paris",
@@ -136,12 +135,6 @@
       "blurredLatitude": 48.8568510534783,
       "blurredLongitude": 2.351795508079922,
       "platformAccounts": [
-        {
-          "platform": "spotify",
-          "externalUserId": "legacy_spotify_user_listener",
-          "connectedAt": 1777879639016,
-          "accessToken": "legacy_spotify"
-        },
         {
           "platform": "youtube",
           "externalUserId": "legacy_youtube_user_listener",
