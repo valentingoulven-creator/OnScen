@@ -33,6 +33,7 @@ import { useCompactMapViewport } from '../hooks/usePhoneWebViewport';
 import {
   createDefaultEventFilter,
   filterMapEventsByCriteria,
+  filterMapEventsOccurringToday,
   getEventFilterCityMapRadiusKm,
   hasEventFilterCityLocation,
   resolveDefaultUserCityLabel,
@@ -40,7 +41,7 @@ import {
 } from '../lib/mapEventFilter';
 import { applySavedEventFavoriteState, feedPostFromMapEventMarker, loadMapEventMarkers } from '../lib/mapFeedEvents';
 import { resolveEventCoords } from '../lib/mapEventCoords';
-import { clusterMapEventsByCity, extractCityFromLocation, getCityMapView } from '../lib/mapEventClusters';
+import { clusterMapEventsByLocation, extractCityFromLocation, getCityMapView } from '../lib/mapEventClusters';
 import {
   getMapSearchFlyRadiusKm,
   MAP_FLY_TO_PLACE_EVENT,
@@ -611,13 +612,12 @@ export function HomePage({
   const mapFilterViewportOn = livesFilterOn || salonFilterOn;
 
   const mapEventAuthorIds = useMemo(() => {
-    if (!eventsFilterOn) return undefined;
     const ids = new Set<string>();
-    for (const event of mapEvents) {
+    for (const event of mapEventsForPins) {
       if (event.authorId) ids.add(event.authorId);
     }
-    return ids;
-  }, [mapEvents, eventsFilterOn]);
+    return ids.size > 0 ? ids : undefined;
+  }, [mapEventsForPins]);
 
   const mapPeople = useMemo(
     () => peopleMarkersOnMap(filteredNearbyPeople, mapEventAuthorIds),
@@ -764,9 +764,15 @@ export function HomePage({
     [mapEvents, eventFilterCriteria, user?.id]
   );
 
+  /** Pins carte : du jour par défaut ; filtre Évènement = autres dates / critères. */
+  const mapEventsForPins = useMemo(() => {
+    if (eventsFilterOn) return filteredMapEvents;
+    return filterMapEventsOccurringToday(mapEvents);
+  }, [eventsFilterOn, filteredMapEvents, mapEvents]);
+
   const mapEventClusters = useMemo(
-    () => (eventsFilterOn ? clusterMapEventsByCity(filteredMapEvents) : []),
-    [eventsFilterOn, filteredMapEvents]
+    () => clusterMapEventsByLocation(mapEventsForPins),
+    [mapEventsForPins]
   );
 
   /**
@@ -803,7 +809,7 @@ export function HomePage({
         salonFilterOn,
         eventsOnly: mapEventsOnly,
         showAllSalonsAtCityZoom,
-        mapEvents: filteredMapEvents,
+        mapEvents: mapEventsForPins,
         eventClusters: mapEventClusters,
         lives: mapLives,
         salons: salonFilterOn ? salons : mapSalonsForView,
@@ -822,7 +828,7 @@ export function HomePage({
       salonFilterOn,
       showAllSalonsAtCityZoom,
       mapEventsOnly,
-      filteredMapEvents,
+      mapEventsForPins,
       mapEventClusters,
       mapLives,
       mapSalonsForView,
@@ -957,7 +963,8 @@ export function HomePage({
     setSelectedEventCluster(null);
     setShowEventMarkers(false);
     setShowEventFilterSheet(false);
-  }, []);
+    setEventFilterCriteria(createDefaultEventFilter(user?.city));
+  }, [user?.city]);
 
   /** Un seul filtre carte actif à la fois : Lives, Salon ou Évènement. */
   const deactivateMapContentFiltersExcept = useCallback(
@@ -1314,14 +1321,14 @@ export function HomePage({
 
     let cancelled = false;
     const hadMarkers = mapEventsRef.current.length > 0;
-    if (showEventMarkers && !hadMarkers) setLoadingMapEvents(true);
+    if (!hadMarkers) setLoadingMapEvents(true);
 
     loadMapEventMarkers(token, {
       signal: { cancelled },
       onProgress: (partial) => {
         if (cancelled || partial.length === 0) return;
         setMapEvents(partial);
-        if (showEventMarkers) setLoadingMapEvents(false);
+        setLoadingMapEvents(false);
       },
     })
       .then(({ markers, postsById }) => {
@@ -1337,7 +1344,7 @@ export function HomePage({
         }
       })
       .catch(() => {
-        if (!cancelled && showEventMarkers) {
+        if (!cancelled) {
           setMapEvents([]);
           setToastMsg('Impossible de charger les événements sur la carte');
         }
@@ -1349,7 +1356,7 @@ export function HomePage({
     return () => {
       cancelled = true;
     };
-  }, [isActive, token, mapEventsRefreshKey, showEventMarkers, user?.id, flyToEventMarkersBounds]);
+  }, [isActive, token, mapEventsRefreshKey, user?.id, flyToEventMarkersBounds]);
 
   const handlePrepareFlatMap = useCallback(
     (lat: number, lng: number, zoom?: number, radiusKm?: number) => {
@@ -1806,9 +1813,8 @@ export function HomePage({
   }, []);
 
   const flyMapToCity = useCallback((cluster: MapEventCityCluster) => {
-    const { radiusKm } = getCityMapView(cluster.cityKey);
     if (isValidLatLng(cluster.latitude, cluster.longitude)) {
-      mapViewRef.current?.flyToCityBounds(cluster.latitude, cluster.longitude, radiusKm);
+      mapViewRef.current?.flyTo(cluster.latitude, cluster.longitude, 15);
     }
   }, []);
 
@@ -2389,7 +2395,7 @@ export function HomePage({
       {token && user && <StartLiveFlowModals flow={liveStartFlow} />}
 
       {!bottomMapList && showNearbyPeople ? (
-        showEventMarkers && selectedEventCluster && !livesFilterOn ? (
+        selectedEventCluster && !livesFilterOn ? (
           <MapCityEventsPanel
             layout="side"
             cluster={selectedEventClusterForPanel ?? selectedEventCluster}
@@ -2405,7 +2411,7 @@ export function HomePage({
             content={mapSidebarContent}
             detail={mapDetailState}
             loading={loadingNearby}
-            eventsLoading={showEventMarkers && loadingMapEvents}
+            eventsLoading={loadingMapEvents}
             selectedSalonId={selected?.id}
             onPersonClick={handleSidebarPersonClick}
             onSalonClick={handleSidebarSalonClick}
@@ -2533,6 +2539,7 @@ export function HomePage({
           onSelectLive={handleMapLiveClick}
           onSelectPerson={handleMapPersonClick}
           onSelectEventCluster={handleMapEventClusterClick}
+          onSelectMapEvent={handleCityEventClick}
           onSelectLiveCluster={handleMapLiveClusterClick}
           onSelectMajorCityCluster={handleMapMajorCityClusterClick}
           onMapBackgroundClick={handleMapBackgroundClick}
@@ -2754,7 +2761,7 @@ export function HomePage({
                     : 'bg-[#12121a] border-[#2d2d3d] hover:border-purple-500/60 text-white/70 hover:text-purple-200'
                 }`}
               >
-                {showEventMarkers && loadingMapEvents && mapEvents.length === 0 ? (
+                {loadingMapEvents && mapEvents.length === 0 ? (
                   <span className="h-2.5 w-2.5 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin shrink-0" />
                 ) : (
                   <span aria-hidden className="shrink-0 flex h-2.5 w-2.5 items-center justify-center text-[10px] leading-none">
@@ -2872,7 +2879,7 @@ export function HomePage({
 
         {bottomMapList &&
           (showNearbyPeople ? (
-            showEventMarkers && selectedEventCluster && !livesFilterOn ? (
+            selectedEventCluster && !livesFilterOn ? (
               <MapCityEventsPanel
                 layout={nearbyLayout}
                 cluster={selectedEventClusterForPanel ?? selectedEventCluster}
@@ -2888,7 +2895,7 @@ export function HomePage({
                 content={mapSidebarContent}
                 detail={mapDetailState}
                 loading={loadingNearby}
-                eventsLoading={showEventMarkers && loadingMapEvents}
+                eventsLoading={loadingMapEvents}
                 selectedSalonId={selected?.id}
                 onPersonClick={handleSidebarPersonClick}
                 onSalonClick={handleSidebarSalonClick}

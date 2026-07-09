@@ -1,3 +1,4 @@
+import { getMapEventOccurrenceDates, isMapEventOccurringToday } from './feedEvents';
 import { normalizeCityLabel } from './eventLocationPresets';
 import type { FeedEventType } from './eventType';
 import { getLivesGeo } from './livesGeo';
@@ -130,11 +131,13 @@ export function filterMapEventsByCriteria(
   }
 
   if (criteria.dateFrom.trim() || criteria.dateTo.trim()) {
-    result = result.filter((event) =>
-      event.eventDate
-        ? isEventDateInRange(event.eventDate, criteria.dateFrom, criteria.dateTo)
-        : false
-    );
+    result = result.filter((event) => {
+      const dates = getMapEventOccurrenceDates(event);
+      if (!dates.length) return false;
+      return dates.some((iso) =>
+        isEventDateInRange(iso, criteria.dateFrom, criteria.dateTo)
+      );
+    });
   }
 
   const location = criteria.location.trim();
@@ -155,4 +158,12 @@ export function filterMapEventsByCriteria(
   }
 
   return result;
+}
+
+/** Événements avec au moins une occurrence aujourd'hui (affichage pins carte). */
+export function filterMapEventsOccurringToday(
+  events: MapEventMarker[],
+  now = new Date()
+): MapEventMarker[] {
+  return events.filter((event) => isMapEventOccurringToday(event, now));
 }

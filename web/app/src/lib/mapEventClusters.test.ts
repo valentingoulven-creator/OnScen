@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildEventLocationKey,
   clusterMapEventsByCity,
+  clusterMapEventsByLocation,
   extractCityFromLocation,
   getCityMapView,
   getCityMapZoom,
@@ -36,6 +38,52 @@ describe('getCityMapView', () => {
 
   it('falls back for unknown cities', () => {
     expect(getCityMapView('toulouse')).toEqual({ zoom: 11, radiusKm: 20 });
+  });
+});
+
+describe('clusterMapEventsByLocation', () => {
+  it('groups events at the same coordinates into one cluster', () => {
+    const markers: MapEventMarker[] = [
+      {
+        id: 'a',
+        latitude: 43.6108,
+        longitude: 3.8767,
+        title: 'Soirée A',
+        eventLocation: 'Zénith Sud, Montpellier',
+      },
+      {
+        id: 'b',
+        latitude: 43.6108,
+        longitude: 3.8767,
+        title: 'Soirée B',
+        eventLocation: 'Zénith Sud, Montpellier',
+      },
+    ];
+    const clusters = clusterMapEventsByLocation(markers);
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0]!.count).toBe(2);
+    expect(clusters[0]!.cityKey).toBe(buildEventLocationKey(43.6108, 3.8767));
+  });
+
+  it('keeps distinct venues in separate clusters', () => {
+    const markers: MapEventMarker[] = [
+      {
+        id: 'a',
+        latitude: 48.88,
+        longitude: 2.3,
+        title: 'Concert A',
+        eventLocation: 'Olympia, Paris',
+      },
+      {
+        id: 'b',
+        latitude: 48.84,
+        longitude: 2.38,
+        title: 'Concert B',
+        eventLocation: 'Accor Arena, Paris',
+      },
+    ];
+    const clusters = clusterMapEventsByLocation(markers);
+    expect(clusters).toHaveLength(2);
   });
 });
 

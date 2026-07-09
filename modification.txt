@@ -1,4 +1,90 @@
 ﻿================================================================================
+MODIF 682 — Carte : événements du jour par défaut (filtre = autres dates)
+Date : 2026-07-09
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Afficher les événements du jour sur la carte sans activer le filtre ;
+ le bouton Évènement sert à filtrer d'autres dates / lieux.
+
+CHANGEMENTS / FIX
+-----
+ HomePage.tsx · fr.json · en.json
+ ─────────────────
+ • mapEventsForPins : aujourd'hui par défaut, critères filtre si actif.
+ • Chargement événements carte dès l'onglet Carte (plus lié au toggle).
+ • Panneau cluster + i18n filtre mis à jour.
+
+FICHIERS MODIFIÉS
+-----
+ carte événements jour ambient + filtre optionnel
+
+BUILD (si vérifié)
+-----
+ (non vérifié)
+
+================================================================================
+Fin — 2026-07-09
+================================================================================
+================================================================================
+MODIF 681 — Carte : événements du jour + popup liste par lieu
+Date : 2026-07-09
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Afficher sur la carte les événements du jour ; si plusieurs au même
+ endroit, pin cliquable avec popup liste.
+
+CHANGEMENTS / FIX
+-----
+ mapEventClusters.ts · mapEventFilter.ts · feedEvents.ts
+ mapEventPopupHtml.ts · MapView.tsx · HomePage.tsx · index.css
+ ─────────────────
+ • Filtre occurrences aujourd'hui ; regroupement par coords (pas par ville).
+ • Popup Leaflet liste cliquable ; badge count sur le pin.
+
+FICHIERS MODIFIÉS
+-----
+ carte événements jour + cluster lieu + popup
+
+BUILD (si vérifié)
+-----
+ web/app → vitest mapEventClusters + mapEventFilter → ✅
+
+================================================================================
+Fin — 2026-07-09
+================================================================================
+================================================================================
+MODIF 680 — Mémo R&D Soundy (CIR / JEI) pour expert-comptable
+Date : 2026-07-09
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Préparer un document transmissible au comptable listant les travaux R&D
+ éligibles CIR/JEI et estimant le ratio de charges R&D pour Soundy.
+
+CHANGEMENTS / FIX
+-----
+ commun/docs/MEMO-RD-SOUNDY-CIR-JEI.md
+ ─────────────────
+ • 7 lots R&D techniques (sync salon, géo, live, ACRCloud, ranking, etc.).
+ • Activités non éligibles, scénarios charges, plan 90 jours, checklist docs.
+
+FICHIERS MODIFIÉS
+-----
+ commun/docs/MEMO-RD-SOUNDY-CIR-JEI.md → mémo comptable CIR/JEI
+
+BUILD (si vérifié)
+-----
+ (non applicable — document interne)
+
+================================================================================
+Fin — 2026-07-09
+================================================================================
+================================================================================
 MODIF 679 — CGU : orientation artistique reels/lives
 Date : 2026-07-09
 ================================================================================

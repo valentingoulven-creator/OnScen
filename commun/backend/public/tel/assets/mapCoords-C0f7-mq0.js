@@ -1,0 +1,1 @@
+import{pt as e}from"./index-D4IloQ6H.js";var u=[...e];function t(r){return typeof r=="number"&&Number.isFinite(r)}function s(r,i){return t(r)&&t(i)&&r>=-90&&r<=90&&i>=-180&&i<=180}function f(r,i,n=u){return s(r,i)?[r,i]:n}export{f as n,s as t};

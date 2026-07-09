@@ -1,4 +1,4 @@
-import type { FeedPost } from '../types';
+import type { FeedPost, MapEventMarker } from '../types';
 
 /** Semaine calendaire lundi 00:00 → dimanche 23:59:59 (locale navigateur). */
 export function getCurrentWeekRange(now = new Date()): { start: Date; end: Date } {
@@ -59,6 +59,31 @@ export function getPrimaryEventDate(
   const dates = getEventDates(post);
   const upcoming = dates.filter((iso) => isUpcomingEvent(iso));
   return upcoming[0] ?? dates[0];
+}
+
+/** Toutes les dates d'occurrence d'un marqueur carte. */
+export function getMapEventOccurrenceDates(
+  marker: Pick<MapEventMarker, 'eventDate' | 'eventDates'>
+): string[] {
+  if (marker.eventDates?.length) {
+    return [...marker.eventDates].sort(
+      (a, b) => new Date(a).getTime() - new Date(b).getTime()
+    );
+  }
+  if (marker.eventDate) return [marker.eventDate];
+  return [];
+}
+
+/** Au moins une occurrence aujourd'hui (jour calendaire locale). */
+export function isMapEventOccurringToday(
+  marker: Pick<MapEventMarker, 'eventDate' | 'eventDates'>,
+  now = new Date()
+): boolean {
+  const today = now.toLocaleDateString('en-CA');
+  return getMapEventOccurrenceDates(marker).some((iso) => {
+    const day = new Date(iso).toLocaleDateString('en-CA');
+    return day === today;
+  });
 }
 
 /** Préfixe des publications événement seed (backend seed-feed-events). */

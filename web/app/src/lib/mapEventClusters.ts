@@ -79,6 +79,52 @@ export function sortMapEventsForPanel(
   return applyFavoritesFirst(byDate, (e) => e.authorId ?? '', favoriteIds, true);
 }
 
+/** Précision regroupement lieu (~11 m). */
+export const EVENT_LOCATION_CLUSTER_DECIMALS = 4;
+
+/** Clé stable pour regrouper les événements au même endroit. */
+export function buildEventLocationKey(latitude: number, longitude: number): string {
+  return `${latitude.toFixed(EVENT_LOCATION_CLUSTER_DECIMALS)},${longitude.toFixed(EVENT_LOCATION_CLUSTER_DECIMALS)}`;
+}
+
+function locationClusterLabel(events: MapEventMarker[]): string {
+  const fromLocation = events
+    .map((e) => e.eventLocation?.trim())
+    .find((loc) => loc && loc.length > 0);
+  if (fromLocation) return fromLocation;
+  const title = events[0]?.title?.trim();
+  return title || 'Événement';
+}
+
+/** Regroupe les marqueurs au même lieu (coords arrondies) — un pin par venue. */
+export function clusterMapEventsByLocation(markers: MapEventMarker[]): MapEventCityCluster[] {
+  const groups = new Map<string, MapEventMarker[]>();
+
+  for (const m of markers) {
+    if (!isValidLatLng(m.latitude, m.longitude)) continue;
+    const key = buildEventLocationKey(m.latitude, m.longitude);
+    const g = groups.get(key);
+    if (g) g.push(m);
+    else groups.set(key, [m]);
+  }
+
+  const clusters: MapEventCityCluster[] = [];
+  for (const [locationKey, events] of groups) {
+    const sorted = sortMapEventsForPanel(events, new Set());
+    const center = clusterCenter(sorted);
+    clusters.push({
+      cityKey: locationKey,
+      cityLabel: locationClusterLabel(sorted),
+      latitude: center.latitude,
+      longitude: center.longitude,
+      events: sorted,
+      count: sorted.length,
+    });
+  }
+
+  return clusters.sort((a, b) => a.cityLabel.localeCompare(b.cityLabel, 'fr'));
+}
+
 /** Regroupe les marqueurs événement par ville — un pin par ville sur la carte. */
 export function clusterMapEventsByCity(markers: MapEventMarker[]): MapEventCityCluster[] {
   const groups = new Map<string, { label: string; events: MapEventMarker[] }>();
