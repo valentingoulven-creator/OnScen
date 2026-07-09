@@ -21413,3 +21413,40 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 966 — 2026-07-09
 ================================================================================
+================================================================================
+MODIF 967 — Fix test flaky : sponsors carte datés (Solar/Déferlantes) — Soundly Dev
+Date : 2026-07-09
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ `sponsors.test.ts` : 2 tests s'appuient sur `ensureDefaultSponsors()` qui
+ seed les vraies bannières festival production (`solar-festival-cres`,
+ `les-deferlantes-2026`) avec un `endsAt` réel (fin de festival juillet 2026).
+ Les tests supposaient ces sponsors actifs indéfiniment ; une fois la date
+ réelle du festival dépassée (`Date.now()` > `endsAt`), `isSponsorActiveAt`
+ les exclut à juste titre — mais les tests, non mockés dans le temps,
+ échouaient alors en CI (cassait tout build/PR sur `master`).
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/lib/sponsors.test.ts
+ ─────────────────
+ • Les 2 tests concernés fixent l'horloge (`vi.useFakeTimers` +
+   `vi.setSystemTime`) sur une date dans la fenêtre d'activité des deux
+   sponsors avant `ensureDefaultSponsors()`, puis restaurent l'horloge réelle
+   (`finally` → `vi.useRealTimers()`). Le comportement testé (filtrage par
+   viewport/géociblage) reste inchangé — seule la dépendance à la date réelle
+   d'exécution du test est supprimée.
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/lib/sponsors.test.ts → horloge fixée, tests déterministes
+
+BUILD (si vérifié)
+-----
+ commun/backend → npx vitest run → ✅ 358/358 (0 échec, contre 2 échecs avant fix)
+
+================================================================================
+Fin MODIF 967 — 2026-07-09
+================================================================================
