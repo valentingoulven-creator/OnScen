@@ -21703,3 +21703,70 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 970 — 2026-07-09
 ================================================================================
+
+================================================================================
+MODIF 971 — Fix backups uploads (mauvais chemin + cadence quotidienne) — Soundly Dev
+Date : 2026-07-09
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Demande utilisateur : backups DB + uploads tous les jours côté prod.
+ Investigation (ssh soundy-prod) : le cron backup-db (03:15, quotidien) et
+ backup-offsite (04:00, quotidien) tournaient déjà tous les jours SANS
+ erreur apparente, mais écrivaient depuis le 1er juillet dans /opt/soundy
+ (sans "l") au lieu de /opt/soundly (répertoire app réel) — un ancien bug
+ de chemin dans les scripts déployés sur le VPS, déjà corrigé dans
+ backup-db.sh/backup-offsite.sh côté repo (commentaire "audit DB/infra §6")
+ mais jamais réellement poussé sur le VPS avant le déploiement de ce jour
+ (MODIF 970). backup-uploads.sh, lui, avait encore le bug non corrigé dans
+ le repo — et tournait en plus seulement 1×/semaine (dim. 04:30).
+
+CHANGEMENTS / FIX
+-----
+ commun/deploy/backup-uploads.sh
+ ─────────────────
+ • UPLOADS_SRC et UPLOADS_BACKUP_DIR : /opt/soundy/... → /opt/soundly/...
+   (cohérent avec backup-db.sh et backup-offsite.sh déjà fixés).
+
+ commun/deploy/install-uploads-backup-cron.sh
+ ─────────────────
+ • Cron uploads : hebdomadaire (dim. 04:30) → quotidien (04:30, après
+   pg_dump 03:15) — `30 4 * * 0` → `30 4 * * *`.
+
+ commun/deploy/verify-prod.sh
+ ─────────────────
+ • Seuil alerte fraîcheur archive uploads : > 8j (hebdo) → > 2j (quotidien).
+
+ commun/deploy/RUNBOOK-PROD.md
+ ─────────────────
+ • Références "dim. 04:30" / "hebdo" pour uploads → "quotidien 04:30".
+
+OPÉRATIONS VPS (immédiat, sans attendre le prochain cron)
+-----
+ • Scripts corrigés copiés sur /opt/soundly/deploy/ (scp direct, pas besoin
+   d'un deploy complet pour un changement d'infra cron).
+ • Cron uploads réinstallé (bash install-uploads-backup-cron.sh) → cadence
+   quotidienne confirmée dans crontab -l.
+ • backup-uploads.sh + backup-db.sh + backup-offsite.sh exécutés
+   manuellement une fois pour combler le retard (dump DB + archive uploads
+   + sync S3 Object Storage du jour créés immédiatement).
+ • Anciens dumps orphelins dans /opt/soundy (sans "l", 1–9 juillet, écrits
+   par les scripts buggés avant leur correction) fusionnés dans
+   /opt/soundly/backups-offsite/db (26 dumps au total après fusion) puis
+   répertoire erroné /opt/soundy supprimé.
+ • verify-prod.sh après fix : tous les indicateurs backups à ✓ (DB 0h,
+   uploads 0j, off-site 26 dumps, 3 crons installés). Seul ✗ restant :
+   legal-publisher.json (problème préexistant, sans rapport, cf.
+   AUDIT-legal-youtube-copyright.md RGPD-1).
+
+FICHIERS MODIFIÉS
+-----
+ commun/deploy/backup-uploads.sh → chemins /opt/soundly
+ commun/deploy/install-uploads-backup-cron.sh → cron quotidien
+ commun/deploy/verify-prod.sh → seuil fraîcheur 2j
+ commun/deploy/RUNBOOK-PROD.md → doc cadence quotidienne
+
+================================================================================
+Fin MODIF 971 — 2026-07-09
+================================================================================
