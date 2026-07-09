@@ -5,9 +5,9 @@ import type { GlobeViewProps, GlobeViewHandle } from './GlobeView';
 import { formatCompactCount } from '../lib/formatCount';
 import { dicebearAdventurerAvatar } from '../lib/avatarUrl';
 import { formatEventDateShort } from '../lib/feedEvents';
-import { getEventTypeIcon } from '../lib/eventType';
 import type { Salon, Live, NearbyPerson, MapEventCityCluster, MapEventMarker } from '../types';
 import { buildEventClusterKey, buildSalonLivePeopleKey } from '../lib/mapMarkersKey';
+import { buildEventClusterPopupHtml } from '../lib/mapEventPopupHtml';
 import { isValidLatLng, sanitizeLatLngTuple } from '../lib/mapCoords';
 import { DEFAULT_CENTER } from '../lib/livesGeo';
 import { WORLD_CAPITALS } from '../lib/worldCapitals';
@@ -160,6 +160,7 @@ interface MapViewProps {
   onSelectLive: (l: Live) => void;
   onSelectPerson?: (person: NearbyPerson) => void;
   onSelectEventCluster?: (cluster: MapEventCityCluster) => void;
+  onSelectMapEvent?: (event: MapEventMarker) => void;
   onSelectLiveCluster?: (cluster: import('../lib/mapLiveClusters').MapLiveLocationCluster) => void;
   onSelectMajorCityCluster?: (cluster: MapMajorCityLiveCluster) => void;
   /** Clic sur le fond de carte (pas un marqueur) — Leaflet n'émet pas click après un drag. */
@@ -230,6 +231,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   onSelectLive,
   onSelectPerson,
   onSelectEventCluster,
+  onSelectMapEvent,
   onSelectLiveCluster,
   onSelectMajorCityCluster,
   onMapBackgroundClick,
@@ -287,6 +289,8 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   onSelectPersonRef.current = onSelectPerson;
   const onSelectEventClusterRef = useRef(onSelectEventCluster);
   onSelectEventClusterRef.current = onSelectEventCluster;
+  const onSelectMapEventRef = useRef(onSelectMapEvent);
+  onSelectMapEventRef.current = onSelectMapEvent;
   const onSelectMajorCityClusterRef = useRef(onSelectMajorCityCluster);
   onSelectMajorCityClusterRef.current = onSelectMajorCityCluster;
   const onAutoSwitchToGlobeRef = useRef(onAutoSwitchToGlobe);
@@ -1453,7 +1457,22 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
 
     layer.clearLayers();
 
-    const showIndividualEvents = flatDetailTier !== 'overview';
+    const attachEventPopupHandlers = (marker: L.Marker, cluster: MapEventCityCluster) => {
+      const popupEl = marker.getPopup()?.getElement();
+      if (!popupEl) return;
+      popupEl.querySelectorAll<HTMLButtonElement>('[data-event-id]').forEach((btn) => {
+        const eventId = btn.getAttribute('data-event-id');
+        if (!eventId) return;
+        const ev = cluster.events.find((e) => e.id === eventId);
+        if (!ev) return;
+        L.DomEvent.on(btn, 'click', (domEv) => {
+          L.DomEvent.stopPropagation(domEv);
+          marker.closePopup();
+          onSelectMapEventRef.current?.(ev);
+          onSelectEventClusterRef.current?.(cluster);
+        });
+      });
+    };
 
     const addClusterMarker = (cluster: MapEventCityCluster) => {
       if (!isValidLatLng(cluster.latitude, cluster.longitude)) return;
@@ -1486,48 +1505,21 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
         offset: [0, -8],
         className: 'map-event-tooltip',
       });
+      m.bindPopup(buildEventClusterPopupHtml(cluster), {
+        className: 'map-event-popup-wrap',
+        maxWidth: 300,
+        minWidth: 220,
+      });
+      m.on('popupopen', () => attachEventPopupHandlers(m, cluster));
       m.on('click', (clickEv) => {
         L.DomEvent.stopPropagation(clickEv.originalEvent);
-        onSelectEventClusterRef.current?.(cluster);
-      });
-    };
-
-    const addIndividualEventMarker = (cluster: MapEventCityCluster, ev: MapEventMarker) => {
-      const lat = Number(ev.latitude);
-      const lon = Number(ev.longitude);
-      if (!isValidLatLng(lat, lon)) return;
-      const title = ev.title.trim() || 'Événement';
-      const shortTitle = title.length > 22 ? `${title.slice(0, 20)}…` : title;
-      const markerIcon = getEventTypeIcon(ev.eventType);
-      const icon = L.divIcon({
-        className: '',
-        html: `<div class="map-marker event"><span class="event-marker-icon" aria-hidden="true">${markerIcon}</span><span class="map-marker-label">${escapeHtml(shortTitle)}</span></div>`,
-        iconSize: [48, 52],
-        iconAnchor: [24, 26],
-      });
-      const m = L.marker([lat, lon], { icon, zIndexOffset: 200 }).addTo(layer);
-      const tooltipParts = [escapeHtml(title)];
-      if (ev.eventDate) tooltipParts.push(escapeHtml(formatEventDateShort(ev.eventDate)));
-      if (ev.eventLocation) tooltipParts.push(escapeHtml(ev.eventLocation));
-      m.bindTooltip(tooltipParts.join('<br/>'), {
-        direction: 'top',
-        offset: [0, -8],
-        className: 'map-event-tooltip',
-      });
-      m.on('click', (clickEv) => {
-        L.DomEvent.stopPropagation(clickEv.originalEvent);
+        m.openPopup();
         onSelectEventClusterRef.current?.(cluster);
       });
     };
 
     try {
-      if (showIndividualEvents) {
-        visibleEventClusters.forEach((cluster) => {
-          cluster.events.forEach((ev) => addIndividualEventMarker(cluster, ev));
-        });
-      } else {
-        visibleEventClusters.forEach((cluster) => addClusterMarker(cluster));
-      }
+      visibleEventClusters.forEach((cluster) => addClusterMarker(cluster));
     } catch (err) {
       console.error('[MapView] event marker error:', err);
     }
