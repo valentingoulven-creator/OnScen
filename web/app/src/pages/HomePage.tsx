@@ -41,7 +41,7 @@ import {
 } from '../lib/mapEventFilter';
 import { applySavedEventFavoriteState, feedPostFromMapEventMarker, loadMapEventMarkers } from '../lib/mapFeedEvents';
 import { resolveEventCoords } from '../lib/mapEventCoords';
-import { clusterMapEventsByLocation, extractCityFromLocation, getCityMapView } from '../lib/mapEventClusters';
+import { clusterMapEventsByLocation, extractCityFromLocation } from '../lib/mapEventClusters';
 import {
   getMapSearchFlyRadiusKm,
   MAP_FLY_TO_PLACE_EVENT,
@@ -611,19 +611,6 @@ export function HomePage({
   /** Rechargement nearby au centre viewport (carte / globe). */
   const mapFilterViewportOn = livesFilterOn || salonFilterOn;
 
-  const mapEventAuthorIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const event of mapEventsForPins) {
-      if (event.authorId) ids.add(event.authorId);
-    }
-    return ids.size > 0 ? ids : undefined;
-  }, [mapEventsForPins]);
-
-  const mapPeople = useMemo(
-    () => peopleMarkersOnMap(filteredNearbyPeople, mapEventAuthorIds),
-    [filteredNearbyPeople, mapEventAuthorIds]
-  );
-
   /** GPS si géoloc activée, sinon ville profil ; masqué en mode fantôme. */
   const mapUserPosition = useMapUserDisplayPosition(
     userPosition,
@@ -750,15 +737,6 @@ export function HomePage({
     [globeLiveAudienceFiltered, rawMapSalonsForView]
   );
 
-  const mapPeopleForView = useMemo(() => {
-    if (!anyMapFilterActive) return [];
-    if (!livesFilterOn) return [];
-    return clipPeopleForMapView(
-      mapPeople,
-      { bounds: mapDetailBounds, mapStyle: mapDetailMapStyle },
-      nearbyFetchCenter
-    );
-  }, [anyMapFilterActive, livesFilterOn, mapPeople, mapDetailBounds, mapDetailMapStyle, nearbyFetchCenter]);
   const filteredMapEvents = useMemo(
     () => filterMapEventsByCriteria(mapEvents, eventFilterCriteria, { viewerId: user?.id }),
     [mapEvents, eventFilterCriteria, user?.id]
@@ -769,6 +747,29 @@ export function HomePage({
     if (eventsFilterOn) return filteredMapEvents;
     return filterMapEventsOccurringToday(mapEvents);
   }, [eventsFilterOn, filteredMapEvents, mapEvents]);
+
+  const mapEventAuthorIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const event of mapEventsForPins) {
+      if (event.authorId) ids.add(event.authorId);
+    }
+    return ids.size > 0 ? ids : undefined;
+  }, [mapEventsForPins]);
+
+  const mapPeople = useMemo(
+    () => peopleMarkersOnMap(filteredNearbyPeople, mapEventAuthorIds),
+    [filteredNearbyPeople, mapEventAuthorIds]
+  );
+
+  const mapPeopleForView = useMemo(() => {
+    if (!anyMapFilterActive) return [];
+    if (!livesFilterOn) return [];
+    return clipPeopleForMapView(
+      mapPeople,
+      { bounds: mapDetailBounds, mapStyle: mapDetailMapStyle },
+      nearbyFetchCenter
+    );
+  }, [anyMapFilterActive, livesFilterOn, mapPeople, mapDetailBounds, mapDetailMapStyle, nearbyFetchCenter]);
 
   const mapEventClusters = useMemo(
     () => clusterMapEventsByLocation(mapEventsForPins),
