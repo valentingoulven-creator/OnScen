@@ -47,6 +47,7 @@ import { schedulePersist } from '../lib/persist';
 import { invalidateGlobalSearchIndex } from '../lib/globalSearchIndex';
 import { schedulePersistUserToPg } from '../lib/pgUsers';
 import { bumpUserTokenVersion } from '../lib/tokenVersion';
+import { sanitizePlainText } from '../lib/sanitizeUserText';
 import { buildUserDataExport } from '../lib/accountDataExport';
 import { deleteUserAccountCascade } from '../lib/accountDeletion';
 import { prepareUserAccountDeletion } from '../lib/accountDeletionPrep';
@@ -476,7 +477,7 @@ authRouter.patch('/profile', authenticateJWT, async (req: Request, res: Response
     user.username = name;
     invalidateGlobalSearchIndex();
   }
-  if (bio !== undefined) user.bio = String(bio).slice(0, 500);
+  if (bio !== undefined) user.bio = sanitizePlainText(String(bio).slice(0, 500));
   if (Array.isArray(interests)) user.interests = interests.map(String).slice(0, 12);
   if (Array.isArray(favoriteGenres)) user.favoriteGenres = favoriteGenres.map(String).slice(0, 10);
   if (Array.isArray(favoriteArtists)) user.favoriteArtists = favoriteArtists.map(String).slice(0, 10);

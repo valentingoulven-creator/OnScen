@@ -31,6 +31,7 @@ import {
   recordCreatorSubscription,
 } from '../lib/subscriptions';
 import { getPlatformPlanStatus, getUserPlatformPlan } from '../lib/platformPlans';
+import { logAdminAction } from '../lib/adminAuditLog';
 
 export const accessRouter = Router();
 
@@ -257,6 +258,13 @@ accessRouter.post('/admin/users/:userId/approve', authenticateJWT, (req: Request
   }
   schedulePersistUserToPg(user);
   schedulePersist();
+  logAdminAction({
+    adminId: (req as Request & { user: { id: string } }).user.id,
+    action: 'user_approve',
+    targetType: 'user',
+    targetId: user.id,
+    ip: req.ip,
+  });
   res.json({ user: mapAdminManagedUser(user) });
 });
 
@@ -280,6 +288,14 @@ accessRouter.post('/admin/users/:userId/block', authenticateJWT, (req: Request, 
   const user = blockUserAccount(req.params.userId, { days, reason });
   schedulePersistUserToPg(user!);
   schedulePersist();
+  logAdminAction({
+    adminId: (req as Request & { user: { id: string } }).user.id,
+    action: 'user_block',
+    targetType: 'user',
+    targetId: user!.id,
+    details: { days, reason },
+    ip: req.ip,
+  });
   res.json({ user: mapAdminManagedUser(user!) });
 });
 
@@ -292,6 +308,13 @@ accessRouter.post('/admin/users/:userId/unblock', authenticateJWT, (req: Request
   }
   schedulePersistUserToPg(user);
   schedulePersist();
+  logAdminAction({
+    adminId: (req as Request & { user: { id: string } }).user.id,
+    action: 'user_unblock',
+    targetType: 'user',
+    targetId: user.id,
+    ip: req.ip,
+  });
   res.json({ user: mapAdminManagedUser(user) });
 });
 
@@ -304,6 +327,13 @@ accessRouter.post('/admin/users/:userId/promote', authenticateJWT, (req: Request
   }
   schedulePersistUserToPg(result);
   schedulePersist();
+  logAdminAction({
+    adminId: (req as Request & { user: { id: string } }).user.id,
+    action: 'user_promote_admin',
+    targetType: 'user',
+    targetId: result.id,
+    ip: req.ip,
+  });
   res.json({ user: mapAdminManagedUser(result) });
 });
 
@@ -316,6 +346,13 @@ accessRouter.post('/admin/users/:userId/demote', authenticateJWT, (req: Request,
   }
   schedulePersistUserToPg(result);
   schedulePersist();
+  logAdminAction({
+    adminId: (req as Request & { user: { id: string } }).user.id,
+    action: 'user_demote_admin',
+    targetType: 'user',
+    targetId: result.id,
+    ip: req.ip,
+  });
   res.json({ user: mapAdminManagedUser(result) });
 });
 

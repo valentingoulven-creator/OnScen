@@ -21517,3 +21517,112 @@ BUILD (si vérifié)
 ================================================================================
 Fin MODIF 968 — 2026-07-09
 ================================================================================
+================================================================================
+MODIF 969 — Batch sécurité/perf post-audit multi-expert (admin audit log, sanitization, rate limit, reels) — Soundly Dev
+Date : 2026-07-09
+================================================================================
+
+OBJECTIF / PROBLÈME
+----
+ Suite à l'audit multi-expert (150+ pays, 90/100 visé sur tous les axes),
+ exécution de la liste des correctifs P0/P1 réellement actionnables par du
+ code dans cette session (le reste — signatures DPA, rotation credentials,
+ revue OAuth Google, enregistrements TVA, traductions juridiques certifiées —
+ nécessite une action humaine/business hors périmètre agent, détaillée dans
+ le rapport de session).
+
+CHANGEMENTS / FIX
+-----
+ commun/backend/src/server.ts
+ ─────────────────
+ • /phone-preview restreint à APP_ENV=msdev (même garde que /msdev-mobile) —
+   outil de dev avec CSP assouplie ('unsafe-inline'), ne doit jamais être
+   exposé en prod/preprod.
+
+ commun/backend/src/routes/adminAiAgents.ts
+ ─────────────────
+ • chatLimiter (rate limit chat IA admin) bascule sur createRateLimitStore
+   (Redis) au lieu du store mémoire express-rate-limit par défaut — sans ça,
+   chaque worker PM2 avait son propre compteur (limite réelle doublée en
+   cluster). Cohérent avec le pattern déjà utilisé sur auth/geo/2FA/webauthn.
+
+ commun/backend/src/lib/sanitizeUserText.ts (nouveau)
+ ─────────────────
+ • sanitizePlainText() via `sanitize-html` (nouvelle dépendance backend) :
+   neutralise tout HTML dans le texte libre utilisateur. Défense en
+   profondeur — le client web n'utilise jamais dangerouslySetInnerHTML
+   aujourd'hui, mais protège les futurs consommateurs de l'API (app mobile,
+   export, panneau admin) qui pourraient un jour rendre ce texte comme HTML.
+ • Appliqué à : bio profil (routes/auth.ts), chat salon/live + DM
+   (socket.ts), texte de post et commentaire feed (lib/feedPosts.ts).
+
+ commun/backend/src/lib/adminAuditLog.ts (nouveau) + migration 030
+ ─────────────────
+ • Nouvelle table PG `admin_audit_log` (qui/quoi/cible/quand/IP) — remplace
+   les `console.log` perdus au restart process pour les actions admin
+   sensibles. Fire-and-forget : un échec d'écriture du log ne bloque jamais
+   l'action admin. Fallback console en msdev (pas de Postgres).
+ • Câblé sur : promote/demote admin, block/unblock/approve compte
+   (routes/access.ts), remboursements don/abonnement (routes/adminPayments.ts,
+   qui écrit désormais dans les deux : console + PG).
+
+ web/app/src/pages/ReelsTabPage.tsx
+ ─────────────────
+ • Windowing léger du feed Reels : seuls les slides à ±2 de l'index actif
+   montent réellement <video>/<img> + overlays ; au-delà, un simple spacer
+   de même hauteur (.reel-slide = 100% du conteneur) préserve le scrollHeight
+   total et les maths de scroll (scrollTop / clientHeight) inchangées.
+   Réduit le nombre de nœuds DOM/vidéo montés sur un feed long, sans toucher
+   à la logique de lecture/gestes/refs (trop risqué de migrer vers
+   react-virtuoso sur cette page — architecture par ref Map indexée par clé,
+   incompatible avec un remount agressif).
+
+VÉRIFICATIONS
+-----
+ • Git : fuite de credentials déjà corrigée et pushée (commit c4791057,
+   08/07) — vérifié qu'aucun fichier sensible n'est plus tracké.
+ • /logout invalide déjà TOUTES les sessions (tokenVersion global par
+   utilisateur, pas par session) — pas de nouvel endpoint logout-all requis,
+   contrairement à ce que suggérait l'audit initial.
+ • Migrations 028/029 (FK ON DELETE SET NULL paiements, FK contenu) déjà
+   prêtes et s'appliquent automatiquement au boot (runMigrations() dans
+   initPostgresPersistence) ; ecosystem.config.cjs déjà à instances:1.
+   Seul un redémarrage/déploiement prod manque pour les activer.
+ • sponsors.test.ts : déjà fixé (MODIF 967, horloge figée) — 358/358 tests
+   backend passent.
+ • Revue IDOR spot-check sur salons.ts/lives.ts/groups.ts (suppression,
+   paramètres, actions host, membres, messages) : toutes les mutations
+   sensibles vérifient correctement la propriété — aucun problème trouvé sur
+   l'échantillon (pas une revue exhaustive des ~45 fichiers de routes).
+ • Cache nearby (lib/nearbyResponseCache.ts, Map en mémoire, TTL 20s) :
+   analysé, migration vers Redis volontairement reportée — PM2 tourne en
+   instances:1 (mitigation RAM store), donc le cache est déjà 100% cohérent
+   avec un seul worker ; c'est un cache de performance pur (jamais de
+   donnée incorrecte en cas de miss), contrairement au rate limiter qui
+   avait un vrai bug de sécurité (limite doublée). Le migrer maintenant
+   ajouterait une latence réseau Redis sans aucun bénéfice avant la refonte
+   du store RAM → source de vérité partagée (cf. STACK-CIBLE.md).
+
+FICHIERS MODIFIÉS
+-----
+ commun/backend/src/server.ts → garde msdev sur /phone-preview
+ commun/backend/src/routes/adminAiAgents.ts → rate limit cluster-safe (Redis)
+ commun/backend/src/lib/sanitizeUserText.ts → nouveau, sanitization HTML
+ commun/backend/src/routes/auth.ts → bio sanitizée
+ commun/backend/src/socket.ts → chat/DM sanitisés
+ commun/backend/src/lib/feedPosts.ts → post/commentaire feed sanitisés
+ commun/backend/src/lib/adminAuditLog.ts → nouveau, journal audit PG
+ commun/backend/src/db/migrations/030_admin_audit_log.sql → nouveau
+ commun/backend/src/routes/access.ts → audit log promote/demote/block/unblock/approve
+ commun/backend/src/routes/adminPayments.ts → audit log remboursements
+ commun/backend/package.json → +sanitize-html, +@types/sanitize-html
+ web/app/src/pages/ReelsTabPage.tsx → windowing léger du feed (±2)
+
+BUILD (si vérifié)
+-----
+ commun/backend → npx tsc --noEmit → ✅ · npx vitest run → ✅ 358/358 · npm run build → ✅
+ web/app → npx tsc --noEmit → ✅ · npx vitest run → ✅ 403/403 · npm run appweb:build → ✅
+
+================================================================================
+Fin MODIF 969 — 2026-07-09
+================================================================================

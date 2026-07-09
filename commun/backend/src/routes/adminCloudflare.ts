@@ -8,6 +8,7 @@ import { getAdminDonationsHistory } from '../lib/donationsHistory';
 import { getVpsMetricsReport } from '../lib/vpsMetrics';
 import { getProdSaasStatusReport } from '../lib/prodSaasStatus';
 import { getAdminDiagnosticsReport } from '../lib/adminDiagnostics';
+import { getStripePlatformStatusReport } from '../lib/stripePlatformStatus';
 
 export const adminCloudflareRouter = Router();
 
@@ -37,6 +38,22 @@ adminCloudflareRouter.get('/cloudflare-usage', authenticateJWT, async (req: Requ
   } catch (e) {
     res.status(502).json({
       error: e instanceof Error ? e.message : 'Erreur Cloudflare Stream',
+    });
+  }
+});
+
+/**
+ * GET /api/admin/stripe-platform
+ * Statut du compte Stripe plateforme (commission pourboires), admin uniquement.
+ */
+adminCloudflareRouter.get('/stripe-platform', authenticateJWT, async (req: Request, res: Response) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const report = await getStripePlatformStatusReport();
+    res.json(report);
+  } catch (e) {
+    res.status(502).json({
+      error: e instanceof Error ? e.message : 'Erreur Stripe plateforme',
     });
   }
 });

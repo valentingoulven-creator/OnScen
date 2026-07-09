@@ -7,6 +7,7 @@ import { isAccessAdmin } from '../lib/accessControl';
 import { getStripeClient } from '../lib/stripeClient';
 import { persistDonationPaymentToPgAsync } from '../lib/pgDonations';
 import { persistCreatorSubscriptionToPgAsync } from '../lib/pgSubscriptions';
+import { logAdminAction } from '../lib/adminAuditLog';
 
 export const adminPaymentsRouter = Router();
 
@@ -24,8 +25,21 @@ function requireAdmin(req: Request, res: Response): string | null {
   return userId;
 }
 
-function logAdminPaymentAction(action: string, details: Record<string, unknown>): void {
+/** Journalise une action admin paiement : audit trail PG (migration 030) + console. */
+function logAdminPaymentAction(
+  action: string,
+  details: Record<string, unknown> & { adminId: string; targetId?: string },
+  req: Request
+): void {
   console.log(`[admin][${action}]`, JSON.stringify({ at: new Date().toISOString(), ...details }));
+  logAdminAction({
+    adminId: details.adminId,
+    action,
+    targetType: 'payment',
+    targetId: details.targetId,
+    details,
+    ip: req.ip,
+  });
 }
 
 function refundIdempotencyKey(paymentIntentId: string, amountCents: number | undefined): string {
@@ -98,14 +112,19 @@ adminPaymentsRouter.post(
       payment.refundReason = reason?.trim().slice(0, 300) || undefined;
       persistDonationPaymentToPgAsync(payment);
 
-      logAdminPaymentAction('donation_refund', {
-        adminId,
-        donationPaymentId: payment.id,
-        paymentIntentId: payment.paymentIntentId,
-        amountCents: payment.refundedAmountCents,
-        reason: payment.refundReason,
-        refundId: refund.id,
-      });
+      logAdminPaymentAction(
+        'donation_refund',
+        {
+          adminId,
+          targetId: payment.id,
+          donationPaymentId: payment.id,
+          paymentIntentId: payment.paymentIntentId,
+          amountCents: payment.refundedAmountCents,
+          reason: payment.refundReason,
+          refundId: refund.id,
+        },
+        req
+      );
 
       res.json({
         refund: { id: refund.id, status: refund.status, amount: refund.amount },
@@ -207,16 +226,21 @@ adminPaymentsRouter.post(
       sub.updatedAt = Date.now();
       persistCreatorSubscriptionToPgAsync(sub);
 
-      logAdminPaymentAction('subscription_refund', {
-        adminId,
-        creatorSubscriptionId: sub.id,
-        stripeSubscriptionId: sub.stripeSubscriptionId,
-        paymentIntentId,
-        amountCents: sub.refundedAmountCents,
-        reason: sub.refundReason,
-        refundId: refund.id,
-        canceled: cancelSubscription,
-      });
+      logAdminPaymentAction(
+        'subscription_refund',
+        {
+          adminId,
+          targetId: sub.id,
+          creatorSubscriptionId: sub.id,
+          stripeSubscriptionId: sub.stripeSubscriptionId,
+          paymentIntentId,
+          amountCents: sub.refundedAmountCents,
+          reason: sub.refundReason,
+          refundId: refund.id,
+          canceled: cancelSubscription,
+        },
+        req
+      );
 
       res.json({
         refund: { id: refund.id, status: refund.status, amount: refund.amount },

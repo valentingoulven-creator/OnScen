@@ -226,6 +226,17 @@ async function playActiveReelMedia(
 
 const FALLBACK_REELS = buildReelsFeed([]);
 
+/**
+ * Fenêtre de rendu autour de l'index actif : au-delà de cette distance, on
+ * remplace le slide (vidéo/image + overlays) par un simple spacer de même
+ * hauteur, pour ne jamais garder des centaines de nœuds <video> montés dans
+ * le DOM sur un feed long (audit perf — reels non virtualisés). La hauteur
+ * de chaque item étant 100% du conteneur (.reel-slide en CSS), le spacer
+ * préserve exactement les mêmes maths de scroll (scrollTop / clientHeight)
+ * qu'un rendu complet — pas de changement de comportement de swipe/scroll.
+ */
+const REELS_RENDER_WINDOW = 2;
+
 function findReelIndex(feed: ReelsFeedDisplayItem[], reelId: string): number {
   return feed.findIndex((item) => item.kind === 'reel' && item.reel.id === reelId);
 }
@@ -1183,8 +1194,14 @@ export function ReelsTabPage({
             onTouchEnd={onTouchEnd}
             onTouchCancel={onTouchCancel}
           >
-            {displayItems.map((item, index) =>
-              item.kind === 'sponsor' ? (
+            {displayItems.map((item, index) => {
+              if (Math.abs(index - activeIndex) > REELS_RENDER_WINDOW) {
+                // Hors fenêtre : spacer de même hauteur (.reel-slide = 100% du
+                // conteneur), aucun <video>/<img> monté — préserve le scrollHeight
+                // total du feed sans le coût mémoire/DOM d'un rendu complet.
+                return <div key={item.key} className="reel-slide shrink-0 snap-start snap-always" aria-hidden />;
+              }
+              return item.kind === 'sponsor' ? (
                 <ReelsSponsoredSlide
                   key={item.key}
                   ad={item.ad}
@@ -1219,8 +1236,8 @@ export function ReelsTabPage({
                   resolveMuted={resolveMuted}
                   onOpenAuthor={onOpenProfile}
                 />
-              )
-            )}
+              );
+            })}
           </div>
 
           {activeReel && (

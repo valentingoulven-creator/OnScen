@@ -51,3 +51,10 @@ server.exe
 
 # node_modules backup
 app/node_modules.bak/
+
+# Dumps pm2 (pm2 jlist/prettylist) — contiennent TOUTES les env vars process,
+# donc tous les secrets prod en clair (JWT_SECRET, STRIPE_SECRET_KEY,
+# DATABASE_URL...). Ne jamais committer un export de ce type.
+pm2_jlist.json
+pm2-jlist*.json
+pm2_prettylist*.json

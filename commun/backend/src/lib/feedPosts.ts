@@ -13,6 +13,7 @@ import {
   schedulePersistFeedPostToPg,
 } from './pgFeedPosts';
 import { normalizeEventTaggedUserIds, resolveTaggedUsers, type PublicTaggedUser } from './taggedUsers';
+import { sanitizePlainText } from './sanitizeUserText';
 import { validateImageMagicBytes, validateVideoMagicBytes } from './imageValidation';
 import { probeVideoDurationSec } from './videoDuration';
 
@@ -204,7 +205,7 @@ function normalizeVideoUrl(raw: unknown): string | undefined {
 
 function normalizeContent(raw: unknown, opts?: { allowEmpty?: boolean }): string | null {
   if (typeof raw !== 'string') return null;
-  const content = raw.trim();
+  const content = sanitizePlainText(raw.trim());
   if (content.length > MAX_CONTENT_LEN) return null;
   if (content.length < MIN_CONTENT_LEN) {
     return opts?.allowEmpty ? '' : null;
@@ -489,7 +490,7 @@ export function addFeedPostComment(
   if (!user) return { ok: false, error: 'Utilisateur introuvable' };
   if (!db.feedPosts.find((p) => p.id === postId)) return { ok: false, error: 'Publication introuvable' };
 
-  const trimmed = content.trim();
+  const trimmed = sanitizePlainText(content.trim());
   if (!trimmed || trimmed.length > 500) return { ok: false, error: 'Commentaire invalide (1–500 caractères).' };
 
   const comment: FeedPostComment = {

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { useAdminDonationUpdates } from '../hooks/useAdminDonationsRealtime';
+import { AdminStripePlatformCard } from '../components/AdminStripePlatformCard';
 import type { AdminDonationEntry } from '../types';
 
 function formatDateTime(ts: number, locale: string): string {
@@ -70,6 +71,8 @@ export function AdminDonationsTab() {
 
   return (
     <div className="space-y-4">
+      <AdminStripePlatformCard />
+
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-base font-bold text-white">{t('admin.donations.title')}</h2>
