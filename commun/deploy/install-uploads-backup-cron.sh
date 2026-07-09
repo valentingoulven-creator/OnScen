@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install-uploads-backup-cron.sh — Cron hebdomadaire backup-uploads.sh (dimanche 04:30)
+# install-uploads-backup-cron.sh — Cron quotidien backup-uploads.sh (04:30, après pg_dump 03:15)
 # Usage : sudo bash /opt/soundly/deploy/install-uploads-backup-cron.sh
 set -euo pipefail
 
@@ -25,7 +25,7 @@ fi
 chmod +x "$SCRIPT"
 mkdir -p "${ROOT}/backups/uploads"
 
-CRON_LINE="30 4 * * 0 /bin/bash ${SCRIPT} >> ${CRON_LOG} 2>&1"
+CRON_LINE="30 4 * * * /bin/bash ${SCRIPT} >> ${CRON_LOG} 2>&1"
 
 TMP_CRON="$(mktemp)"
 crontab -l 2>/dev/null | grep -v "$CRON_MARKER" > "$TMP_CRON" || true
@@ -34,7 +34,7 @@ crontab "$TMP_CRON"
 rm -f "$TMP_CRON"
 
 echo "=== Cron backup uploads installé ==="
-echo "  Horaire  : dimanche 04:30"
+echo "  Horaire  : quotidien 04:30"
 echo "  Script   : $SCRIPT"
 echo "  Log      : $CRON_LOG"
 crontab -l | grep "$CRON_MARKER" || true

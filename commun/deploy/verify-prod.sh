@@ -117,8 +117,8 @@ if [[ -d "$UPLOADS_BACKUP_DIR" ]]; then
     LATEST_UP="$(find "$UPLOADS_BACKUP_DIR" -maxdepth 1 -name 'uploads-*.tar.gz' -type f -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2- || true)"
     if [[ -n "$LATEST_UP" ]]; then
       UP_AGE_D=$(( ($(date +%s) - $(stat -c %Y "$LATEST_UP" 2>/dev/null || echo 0)) / 86400 ))
-      if [[ "${UP_AGE_D:-999}" -gt 8 ]]; then
-        warn "Dernière archive uploads vieille de ${UP_AGE_D}j (> 8j) — cron hebdo attendu (dim. 04:30)"
+      if [[ "${UP_AGE_D:-999}" -gt 2 ]]; then
+        warn "Dernière archive uploads vieille de ${UP_AGE_D}j (> 2j) — cron quotidien attendu (04:30)"
       else
         ok "Dernière archive uploads : il y a ${UP_AGE_D}j"
       fi

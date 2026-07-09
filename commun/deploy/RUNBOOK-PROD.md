@@ -199,11 +199,11 @@ sudo bash /opt/soundly/deploy/install-backup-cron.sh
 
 ### Sauvegarde uploads utilisateur
 
-Fichiers : `/opt/soundy/public/uploads/` (avatars, sponsors, pièces jointes).
+Fichiers : `/opt/soundly/public/uploads/` (avatars, sponsors, pièces jointes).
 
 ```bash
 bash /opt/soundly/deploy/backup-uploads.sh
-sudo bash /opt/soundly/deploy/install-uploads-backup-cron.sh   # dim. 04:30
+sudo bash /opt/soundly/deploy/install-uploads-backup-cron.sh   # quotidien 04:30
 ```
 
 ### Copie off-site (second chemin + Object Storage optionnel)
@@ -306,14 +306,14 @@ Voir [`docs/DEV-WORKFLOW.md`](../docs/DEV-WORKFLOW.md) â€” clone hors iClou
 | Script | Usage |
 |--------|--------|
 | `commun/deploy/backup-db.sh` | Dump PostgreSQL â†’ `/opt/soundy/backups/` |
-| `commun/deploy/backup-uploads.sh` | Archive uploads hebdo |
+| `commun/deploy/backup-uploads.sh` | Archive uploads quotidienne |
 | `commun/deploy/backup-offsite.sh` | Copie secondaire + S3 optionnel |
 | `commun/deploy/verify-backup.sh` | IntÃ©gritÃ© d'un dump `.sql.gz` |
 | `commun/deploy/verify-prod.sh` | Checklist ops VPS (âge backups, crons) |
 | `commun/deploy/verify-scaleway-backup.sh` | Checklist manuelle console Scaleway |
 | `commun/deploy/snapshot-vps-reminder.sh` | Rappel snapshot VPS |
 | `commun/deploy/install-backup-cron.sh` | Cron quotidien 03:15 (backup-db) |
-| `commun/deploy/install-uploads-backup-cron.sh` | Cron hebdo uploads |
+| `commun/deploy/install-uploads-backup-cron.sh` | Cron quotidien uploads (04:30) |
 | `commun/deploy/install-offsite-backup-cron.sh` | Cron quotidien off-site |
 | `commun/deploy/install-health-cron.sh` | Cron hebdo verify-prod (optionnel) |
 | `commun/deploy/setup-legal-publisher.sh` | CrÃ©e / valide `legal-publisher.json` |
