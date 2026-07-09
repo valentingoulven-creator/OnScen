@@ -31,26 +31,25 @@ export function scheduleDeleteDirectMessageFromPg(messageId: string): void {
 }
 
 /**
- * Upsert DMs puis prune des ids absents du snapshot mémoire.
+ * Upsert intégral des DMs en RAM — AUCUN DELETE global sur la table, à
+ * l'image de `writeUsersToPg` pour `users` (voir commentaire sur `writeStore`
+ * dans `pgStore.ts`).
  *
- * ⚠️ Ré-upsert intégral à chaque cycle de flush (boucle `for` sur la totalité
- * de `db.directMessages`) — chantier de refonte connu, voir le commentaire
- * détaillé sur `writeStore` dans `pgStore.ts` (audit DB/infra §3). `dms` est
- * désormais borné par `trimDirectMessages` (`chatHistory.ts`) avant d'arriver
- * ici, ce qui limite au moins la croissance non bornée en mémoire, mais ne
- * change pas la complexité O(volume total) de ce flush.
+ * ⚠️ Ce sync ne doit JAMAIS supprimer un DM absent de `dms` : depuis l'ajout
+ * du cap RAM par paire (`trimDirectMessages` dans `chatHistory.ts`, appelé
+ * par `purgeUnboundedChatHistory` avant chaque snapshot), `dms` ne contient
+ * plus l'historique complet — seulement les N derniers messages par paire.
+ * Un DELETE-par-diff basé sur ce snapshot tronqué effacerait définitivement
+ * de PostgreSQL tout l'historique DM au-delà du cap à chaque flush (10 s).
+ * La suppression individuelle d'un DM (action utilisateur) passe déjà par
+ * `scheduleDeleteDirectMessageFromPg` (voir routes/dm.ts) — c'est le seul
+ * chemin de suppression légitime.
  */
 export async function syncDirectMessagesToPg(
   client: PoolClient,
   dms: DirectMessage[]
 ): Promise<void> {
-  const ids = dms.map((d) => d.id);
   for (const dm of dms) {
     await upsertDirectMessage(client, dm);
-  }
-  if (ids.length) {
-    await client.query('DELETE FROM direct_messages WHERE NOT (id = ANY($1::text[]))', [ids]);
-  } else {
-    await client.query('DELETE FROM direct_messages');
   }
 }

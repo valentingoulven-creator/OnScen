@@ -19,7 +19,7 @@ function mockClient() {
 }
 
 describe('pgDirectMessages', () => {
-  it('upserts DMs and prunes stale rows', async () => {
+  it('upserts DMs without ever bulk-deleting stale rows', async () => {
     const { client, queries } = mockClient();
     await syncDirectMessagesToPg(client as never, [
       {
@@ -33,7 +33,18 @@ describe('pgDirectMessages', () => {
     ]);
 
     expect(queries.some((q) => q.sql.includes('INSERT INTO direct_messages') && q.sql.includes('ON CONFLICT'))).toBe(true);
-    expect(queries.some((q) => q.sql.includes('DELETE FROM direct_messages WHERE NOT'))).toBe(true);
+    // Regression guard: `dms` may be a RAM-capped subset (trimDirectMessages),
+    // not the full history — a bulk DELETE-by-diff here would permanently
+    // erase older DMs from PostgreSQL on every flush. Deletion must only
+    // happen via the explicit per-message path (scheduleDeleteDirectMessageFromPg).
+    expect(queries.some((q) => q.sql.includes('DELETE FROM direct_messages'))).toBe(false);
+  });
+
+  it('does not delete anything when given an empty snapshot', async () => {
+    const { client, queries } = mockClient();
+    await syncDirectMessagesToPg(client as never, []);
+
+    expect(queries.some((q) => q.sql.includes('DELETE FROM direct_messages'))).toBe(false);
   });
 });
 
