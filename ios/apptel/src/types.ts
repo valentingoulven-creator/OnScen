@@ -338,11 +338,28 @@ export interface SalonBan {
   bannedAt: number;
 }
 
+export interface LiveDonationOption {
+  id: string;
+  label: string;
+  amount: number;
+  rewardType?: string;
+}
+
+export type LivePublicGoalType = 'amount' | 'dons' | 'likes' | 'viewers' | 'duration';
+
+export interface LivePublicGoal {
+  id: string;
+  type: LivePublicGoalType;
+  target: number;
+  label: string;
+}
+
 export interface Live {
   id: string;
   salonId?: string;
   hostId: string;
   hostName: string;
+  hostAvatarUrl?: string;
   hostUsernameColor?: string;
   hostUsernameWaveFrom?: string;
   hostUsernameWaveTo?: string;
@@ -368,6 +385,10 @@ export interface Live {
   /** URL manifest HLS Cloudflare (spectateurs). */
   cloudflarePlaybackUrl?: string;
   cloudflareLiveInputId?: string;
+  /** Menu pourboires personnalisé par l'hôte (si configuré). */
+  donationOptions?: LiveDonationOption[];
+  /** Goals publiés par l'hôte (progression calculée côté client). */
+  donationGoals?: LivePublicGoal[];
 }
 
 export interface ChatMessage {

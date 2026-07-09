@@ -522,6 +522,7 @@ export function LivePage({
   );
 
 
+  useEffect(() => {
     if (isHost) {
       setActiveHostLiveId(liveId);
       return () => setActiveHostLiveId(null);
