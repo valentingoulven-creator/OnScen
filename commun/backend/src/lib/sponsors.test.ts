@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   createSponsor,
   deleteSponsor,
@@ -234,11 +234,20 @@ describe('sponsors', () => {
   };
 
   it('affiche Solar au zoom ville quand Le Crès est dans le viewport', () => {
-    ensureDefaultSponsors();
-    const ids = listActiveMapAds(undefined, cresViewport).map((ad) => ad.id);
-    expect(ids).toContain('premium');
-    expect(ids).toContain('solar-festival-cres');
-    expect(ids).not.toContain('les-deferlantes-2026');
+    // Le sponsor par défaut est daté (endsAt = fin de festival réelle) — on fixe
+    // l'horloge pendant la fenêtre d'activité pour ne pas dépendre de la date réelle
+    // d'exécution du test (sinon le test casse une fois le festival passé).
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-04T10:00:00.000Z'));
+    try {
+      ensureDefaultSponsors();
+      const ids = listActiveMapAds(undefined, cresViewport).map((ad) => ad.id);
+      expect(ids).toContain('premium');
+      expect(ids).toContain('solar-festival-cres');
+      expect(ids).not.toContain('les-deferlantes-2026');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('n affiche que les sponsors France au zoom overview', () => {
@@ -367,10 +376,18 @@ describe('sponsors', () => {
   });
 
   it('affiche Les Déferlantes quand Argelès est dans le viewport', () => {
-    ensureDefaultSponsors();
-    const ids = listActiveMapAds(undefined, argelesViewport).map((ad) => ad.id);
-    expect(ids).toContain('les-deferlantes-2026');
-    expect(ids).not.toContain('solar-festival-cres');
+    // Cf. commentaire du test Solar ci-dessus : horloge fixée pendant la fenêtre
+    // d'activité réelle du sponsor par défaut (endsAt daté).
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-04T10:00:00.000Z'));
+    try {
+      ensureDefaultSponsors();
+      const ids = listActiveMapAds(undefined, argelesViewport).map((ad) => ad.id);
+      expect(ids).toContain('les-deferlantes-2026');
+      expect(ids).not.toContain('solar-festival-cres');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('exclut les sponsors désactivés de listActiveMapAds', () => {
