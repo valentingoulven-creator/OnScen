@@ -62,6 +62,7 @@ async function main(): Promise<void> {
   if (existing) {
     existing.passwordHash = passwordHash;
     existing.isAdmin = true;
+    existing.staffRole = 'dev';
     existing.mustChangePassword = true;
     existing.accountStatus = 'active';
     existing.emailVerified = true;
@@ -79,6 +80,7 @@ async function main(): Promise<void> {
       email,
       passwordHash,
       isAdmin: true,
+      staffRole: 'dev',
       mustChangePassword: true,
       accountStatus: 'active',
       emailVerified: true,

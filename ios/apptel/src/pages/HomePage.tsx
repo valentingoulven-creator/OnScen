@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { getSocket, onSocketConnect } from '../lib/socket';
@@ -50,6 +50,7 @@ import { mergeRemotePlaybackState } from '../lib/salonPlayback';
 import { useMapUserDisplayPosition } from '../lib/mapUserPosition';
 import { USERNAME_WAVE_CLASS } from '../lib/usernameColor';
 import type { PlaybackState } from '../types';
+import { getCurrentGeoPosition, isGeolocationAvailable } from '../lib/geoPosition';
 
 interface HomePageProps {
   appLayout?: AppLayoutId;
@@ -66,7 +67,17 @@ interface HomePageProps {
   mapPlaybackActive?: boolean;
 }
 
-export function HomePage({
+export interface HomePageHandle {
+  /**
+   * Appelé par le bouton retour matériel Android (App.tsx) quand l'onglet
+   * Carte est actif : referme la fiche salon / liste proximité ouvertes
+   * avant que App.tsx ne minimise l'app. Retourne `true` si un overlay a été
+   * consommé, `false` si la carte est déjà à son état racine.
+   */
+  handleBackPress: () => boolean;
+}
+
+export const HomePage = forwardRef<HomePageHandle, HomePageProps>(function HomePage({
   appLayout = 'default',
   onOpenSalon,
   onOpenLive,
@@ -76,7 +87,7 @@ export function HomePage({
   mapProfileOpen = false,
   onCloseMapProfile,
   mapPlaybackActive = true,
-}: HomePageProps) {
+}, ref) {
   const appa2 = isAppa2Layout(appLayout);
   const nearbyLayout = appa2 ? ('bottom' as const) : ('side' as const);
   const { user, token, setUserFromProfile } = useAuth();
@@ -292,14 +303,12 @@ export function HomePage({
       const coords: [number, number] = [geo.latitude, geo.longitude];
       setSafeCenter(coords);
       loadNearbyAt(coords);
-    } else if (!navigator.geolocation) {
+    } else if (!isGeolocationAvailable()) {
       loadNearbyFromState(null, center);
     } else {
-      navigator.geolocation.getCurrentPosition(
+      getCurrentGeoPosition().then(
         (pos) => {
-          const lat = pos.coords.latitude;
-          const lon = pos.coords.longitude;
-          const coords: [number, number] = [lat, lon];
+          const coords: [number, number] = [pos.latitude, pos.longitude];
           setSafeCenter(coords);
           setUserPosition(sanitizeLatLngTuple(coords[0], coords[1], DEFAULT_CENTER));
           loadNearbyAt(coords);
@@ -316,12 +325,12 @@ export function HomePage({
         loadNearbyAt([current.latitude, current.longitude]);
         return;
       }
-      if (!navigator.geolocation) {
+      if (!isGeolocationAvailable()) {
         loadNearbyAt([current.latitude, current.longitude]);
         return;
       }
-      navigator.geolocation.getCurrentPosition(
-        (pos) => loadNearbyAt([pos.coords.latitude, pos.coords.longitude]),
+      getCurrentGeoPosition().then(
+        (pos) => loadNearbyAt([pos.latitude, pos.longitude]),
         () => loadNearbyAt([current.latitude, current.longitude])
       );
     }, 20000);
@@ -337,14 +346,14 @@ export function HomePage({
         loadNearby(geo.latitude, geo.longitude);
         return;
       }
-      if (!navigator.geolocation) {
+      if (!isGeolocationAvailable()) {
         loadNearby(geo.latitude, geo.longitude);
         return;
       }
       setLocating(true);
-      navigator.geolocation.getCurrentPosition(
+      getCurrentGeoPosition({ enableHighAccuracy: true, maximumAge: 0, timeout: 12000 }).then(
         (pos) => {
-          const coords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+          const coords: [number, number] = [pos.latitude, pos.longitude];
           setSafeCenter(coords);
           setUserPosition(sanitizeLatLngTuple(coords[0], coords[1]));
           loadNearby(coords[0], coords[1]);
@@ -354,8 +363,7 @@ export function HomePage({
           setLocating(false);
           setSafeCenter([geo.latitude, geo.longitude]);
           loadNearby(geo.latitude, geo.longitude);
-        },
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 12000 }
+        }
       );
     };
     window.addEventListener(MAP_GEO_CHANGED_EVENT, onMapGeo);
@@ -400,22 +408,21 @@ export function HomePage({
       return;
     }
 
-    if (!navigator.geolocation) {
+    if (!isGeolocationAvailable()) {
       flyTo([geo.latitude, geo.longitude]);
       return;
     }
 
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
+    getCurrentGeoPosition({ enableHighAccuracy: true, maximumAge: 0, timeout: 12000 }).then(
       (pos) => {
-        flyTo([pos.coords.latitude, pos.coords.longitude]);
+        flyTo([pos.latitude, pos.longitude]);
         setLocating(false);
       },
       () => {
         setLocating(false);
         flyTo([geo.latitude, geo.longitude]);
-      },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 12000 }
+      }
     );
   };
 
@@ -523,6 +530,24 @@ export function HomePage({
     dismissSalonSheetOnly();
     onCloseMapProfile?.();
   };
+
+  useImperativeHandle(ref, () => ({
+    handleBackPress: () => {
+      if (salonSheetExpanded) {
+        setSalonSheetExpanded(false);
+        return true;
+      }
+      if (selected) {
+        closeSalonSheet();
+        return true;
+      }
+      if (showNearbyPeople) {
+        setNearbyPeopleVisible(false);
+        return true;
+      }
+      return false;
+    },
+  }));
 
   const onSalonCreated = (salon: Salon, lat: number, lon: number) => {
     setShowCreateSalon(false);
@@ -708,7 +733,7 @@ export function HomePage({
           onClick={() => setNearbyPeopleVisible(true)}
           title="Afficher les personnes à proximité"
           aria-label="Afficher les personnes à proximité"
-          className="shrink-0 z-20 flex flex-col items-center justify-center gap-1 w-10 sm:w-11 bg-[var(--ms-surface)]/95 border-r border-[var(--ms-border)] text-purple-400 hover:text-purple-300 hover:bg-[var(--ms-surface-elevated)] transition"
+          className="shrink-0 z-20 flex flex-col items-center justify-center gap-1 w-11 bg-[var(--ms-surface)]/95 border-r border-[var(--ms-border)] text-purple-400 hover:text-purple-300 hover:bg-[var(--ms-surface-elevated)] transition"
         >
           <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" strokeLinecap="round" />
@@ -791,9 +816,10 @@ export function HomePage({
             {locating ? (
               <span className="w-5 h-5 border-2 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin" />
             ) : (
-              <svg viewBox="0 0 24 24" className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M12 2v3M12 19v3M2 12h3M19 12h3" strokeLinecap="round" />
+              <svg viewBox="0 0 24 24" className="w-5 h-5 sm:w-6 sm:h-6" fill="none" aria-hidden="true">
+                <circle cx="12" cy="12" r="3.25" fill="currentColor" fillOpacity="0.92" />
+                <circle cx="12" cy="12" r="7" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.35" />
+                <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               </svg>
             )}
           </button>
@@ -894,4 +920,4 @@ export function HomePage({
       </div>
     </div>
   );
-}
+});

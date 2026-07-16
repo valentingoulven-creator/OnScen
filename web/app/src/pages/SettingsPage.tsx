@@ -14,7 +14,13 @@ import { api } from '../lib/api';
 import { PasswordStrengthBar } from '../components/PasswordStrengthBar';
 import { getPasswordStrengthAsync } from '../lib/passwordStrength';
 import { BiometricSetup } from '../components/BiometricSetup';
+import { ConfirmModal } from '../components/ConfirmModal';
+import { CreatorStripeConnectCard } from '../components/CreatorStripeConnectCard';
+import { DonationSheet } from '../components/DonationSheet';
+import { PlatformConnectCard } from '../components/PlatformConnectCard';
+import { SupportMeloSongTeaser } from '../components/SupportMeloSongSection';
 import { ContactSoundyPage } from './ContactSoundyPage';
+import { PlatformSubscriptionPage } from './PlatformSubscriptionPage';
 
 // ─── 2FA setup modal states ───────────────────────────────────────────────────
 type TwoFAModalState =
@@ -74,6 +80,10 @@ async function unsubscribePush(token: string): Promise<void> {
 }
 interface SettingsPageProps {
   onBack: () => void;
+  /** Ouvre Contacter Soundy à l’affichage (ex. notification support_reply). */
+  openContactOnMount?: boolean;
+  onContactMountHandled?: () => void;
+  highlightSupportMessageId?: string;
 }
 
 export function SettingsGearButton({ onClick }: { onClick: () => void }) {
@@ -131,14 +141,23 @@ function SettingsRow({
   );
 }
 
-export function SettingsPage({ onBack }: SettingsPageProps) {
+export function SettingsPage({
+  onBack,
+  openContactOnMount = false,
+  onContactMountHandled,
+  highlightSupportMessageId,
+}: SettingsPageProps) {
   const { t } = useTranslation();
-  const { token, logout, user, setUserFromProfile } = useAuth();
+  const { token, logout, user, setUserFromProfile, refreshUser } = useAuth();
   const [language, setLanguage] = useState<AppLanguage>(getAppLanguage);
   const [theme, setTheme] = useState<AppTheme>(getStoredAppTheme);
   const [legal, setLegal] = useState<LegalKey | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [showContact, setShowContact] = useState(false);
+  const [showSubscription, setShowSubscription] = useState(false);
+  const [showDonationSheet, setShowDonationSheet] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [streamingExpanded, setStreamingExpanded] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const [dmDisabled, setDmDisabled] = useState(() => user?.allowPrivateMessages === false);
   const [dmSaving, setDmSaving] = useState(false);
@@ -151,6 +170,12 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
   useEffect(() => {
     void api.getLegalPublisher().then((r) => setLegalIncomplete(!r.complete)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!openContactOnMount) return;
+    setShowContact(true);
+    onContactMountHandled?.();
+  }, [openContactOnMount, onContactMountHandled]);
 
   const pushSupported =
     typeof window !== 'undefined' &&
@@ -430,6 +455,10 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
       ? LEGAL[legal].title
       : t('settings.title');
 
+  if (showSubscription) {
+    return <PlatformSubscriptionPage onBack={() => setShowSubscription(false)} />;
+  }
+
   return (
     <div className="flex flex-col h-full min-h-0 bg-[#0b0b0f]">
       <header className="sticky top-0 z-10 shrink-0 bg-[#0b0b0f]/95 backdrop-blur border-b border-[#1e1e2f] px-4 py-3 flex items-center gap-3">
@@ -453,11 +482,82 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 
       <div className="flex-1 overflow-y-auto pb-8 min-h-0">
         {showContact ? (
-          <ContactSoundyPage embedded onBack={() => setShowContact(false)} />
+          <ContactSoundyPage
+            embedded
+            onBack={() => setShowContact(false)}
+            highlightMessageId={highlightSupportMessageId}
+          />
         ) : legal ? (
           <LegalDocumentView docKey={legal} embedded />
         ) : (
           <>
+        {/* ── Mon compte ── */}
+        <section className="border-b border-[#1e1e2f]">
+          <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+            {t('profile.sectionAccount')}
+          </p>
+
+          <SettingsRow
+            label={t('profile.connectedAccounts')}
+            onClick={() => setStreamingExpanded((v) => !v)}
+          >
+            <span
+              className={`text-gray-500 shrink-0 transition-transform ${streamingExpanded ? 'rotate-90' : ''}`}
+              aria-hidden
+            >
+              ›
+            </span>
+          </SettingsRow>
+          {streamingExpanded && token && user && (
+            <div className="px-4 pb-4 space-y-2">
+              <p className="text-[10px] text-gray-500">
+                Obligatoire pour créer ou animer un salon sur la plateforme choisie.
+              </p>
+              {(['youtube'] as const).map((p) => (
+                <PlatformConnectCard
+                  key={p}
+                  token={token}
+                  platform={p}
+                  connectedPlatforms={user.connectedPlatforms}
+                  platformLinks={user.platformLinks}
+                  onUserUpdated={setUserFromProfile}
+                />
+              ))}
+            </div>
+          )}
+
+          <SettingsRow
+            label={t('profile.subscription')}
+            onClick={() => setShowSubscription(true)}
+          />
+
+          {token && user && (
+            <div className="px-4 py-2">
+              <CreatorStripeConnectCard
+                token={token}
+                user={user}
+                onUserUpdated={() => void refreshUser()}
+              />
+            </div>
+          )}
+
+          <div className="px-4 py-2">
+            <SupportMeloSongTeaser onOpen={() => setShowDonationSheet(true)} />
+          </div>
+
+          <SettingsRow
+            label={t('profile.contactSoundy')}
+            onClick={() => setShowContact(true)}
+          />
+
+          <SettingsRow
+            label={t('profile.logout')}
+            onClick={() => setShowLogoutConfirm(true)}
+          >
+            <span className="text-red-400/70 shrink-0">›</span>
+          </SettingsRow>
+        </section>
+
         {/* ── Sécurité ── */}
         <section className="border-b border-[#1e1e2f]">
           <p className="px-4 pt-4 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('settings.security')}</p>
@@ -920,7 +1020,23 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
         )}
       </div>
 
+      {showDonationSheet && (
+        <DonationSheet onClose={() => setShowDonationSheet(false)} />
+      )}
 
+      {showLogoutConfirm && (
+        <ConfirmModal
+          open
+          title={t('profile.logoutConfirmTitle')}
+          cancelLabel={t('common.cancel')}
+          confirmLabel={t('profile.logout')}
+          onCancel={() => setShowLogoutConfirm(false)}
+          onConfirm={() => {
+            setShowLogoutConfirm(false);
+            logout();
+          }}
+        />
+      )}
     </div>
   );
 }

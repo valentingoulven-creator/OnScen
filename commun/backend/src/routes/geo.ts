@@ -17,7 +17,7 @@ import {
   parseDistanceFilterQuery,
   resolveNearbyRadiusKm,
 } from '../lib/geoLimits';
-import { isValidLatLng } from '../lib/mapCoords';
+import { isInBounds, isValidLatLng, type LatLngBounds } from '../lib/mapCoords';
 import { geoError, parseRequestLocale } from '../lib/requestLocale';
 import {
   buildNearbyCacheKey,
@@ -29,6 +29,8 @@ import {
 } from '../lib/nearbyResponseCache';
 import { findNearestMajorCities } from '../lib/majorCities';
 import { hydrateSalonsFromPostgres } from '../lib/pgSalonsLives';
+import { schedulePersistUserToPg } from '../lib/pgUsers';
+import { clearNearbyCache } from '../lib/nearbyResponseCache';
 
 export const geoRouter = Router();
 
@@ -47,7 +49,31 @@ function maybeCleanGeoDebounce(now: number): void {
   }
 }
 
-geoRouter.post('/update', authenticateJWT, (req: Request, res: Response) => {
+/**
+ * Rate limit sur /geo/update : le debounce en mémoire (4s/user) protège des
+ * appels légitimes rapprochés mais n'est PAS un vrai plafond — un client
+ * peut ignorer le debounce côté client et spammer ~15 req/min/user
+ * indéfiniment. Ce limiteur borne le pire cas à 30 req/min/user (marge
+ * raisonnable au-dessus du rythme légitime de 4s).
+ */
+const geoUpdateLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 30,
+  keyGenerator: (req) => {
+    const userId = (req as Request & { user?: { id: string } }).user?.id;
+    return userId ? `user:${userId}` : ipKeyGenerator(req.ip ?? '127.0.0.1');
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    const locale = parseRequestLocale(req.headers['accept-language']);
+    res.status(429).json({ error: geoError('nearbyRateLimit', locale) });
+  },
+  skip: () => isMsdevRuntime(),
+  store: createRateLimitStore('geo-update'),
+});
+
+geoRouter.post('/update', authenticateJWT, geoUpdateLimiter, (req: Request, res: Response) => {
   const userId = (req as Request & { user: { id: string } }).user.id;
 
   const now = Date.now();
@@ -82,6 +108,10 @@ geoRouter.post('/update', authenticateJWT, (req: Request, res: Response) => {
   refreshUserPublicCoords(user);
   user.lastSeenAt = now;
   db.users.set(userId, user);
+  // Persiste lat/lng/geom en PostgreSQL (préfiltre PostGIS sinon stale) et
+  // invalide le cache nearby pour que les voisins voient la position à jour.
+  schedulePersistUserToPg(user);
+  clearNearbyCache();
   res.json({
     blurredLatitude: user.blurredLatitude,
     blurredLongitude: user.blurredLongitude,
@@ -130,9 +160,7 @@ const nearbyAuthLimiter = rateLimit({
 });
 
 /** Parse an optional bounding-box from query params (swLat, swLng, neLat, neLng). */
-function parseBoundsQuery(query: Record<string, unknown>): {
-  swLat: number; swLng: number; neLat: number; neLng: number;
-} | null {
+function parseBoundsQuery(query: Record<string, unknown>): LatLngBounds | null {
   const swLat = parseFloat(query.swLat as string);
   const swLng = parseFloat(query.swLng as string);
   const neLat = parseFloat(query.neLat as string);
@@ -140,20 +168,6 @@ function parseBoundsQuery(query: Record<string, unknown>): {
   if (!isFinite(swLat) || !isFinite(swLng) || !isFinite(neLat) || !isFinite(neLng)) return null;
   if (swLat > neLat) return null;
   return { swLat, swLng, neLat, neLng };
-}
-
-/** Returns true when the point (lat, lng) is inside the bounding box. */
-function isInBounds(
-  lat: number,
-  lng: number,
-  bounds: { swLat: number; swLng: number; neLat: number; neLng: number }
-): boolean {
-  if (lat < bounds.swLat || lat > bounds.neLat) return false;
-  // Handle antimeridian crossing (east < west).
-  if (bounds.swLng <= bounds.neLng) {
-    return lng >= bounds.swLng && lng <= bounds.neLng;
-  }
-  return lng >= bounds.swLng || lng <= bounds.neLng;
 }
 
 geoRouter.get('/nearby', nearbyAnonLimiter, authenticateJWT, nearbyAuthLimiter, async (req: Request, res: Response) => {
@@ -277,7 +291,7 @@ geoRouter.get('/nearby', nearbyAnonLimiter, authenticateJWT, nearbyAuthLimiter, 
       };
     });
 
-  const people = getNearbyPeople(me, lat, lon, radiusKm, distanceFilter, geoCandidates).slice(
+  const people = getNearbyPeople(me, lat, lon, radiusKm, distanceFilter, geoCandidates, bounds).slice(
     0,
     MAX_NEARBY_PEOPLE
   );

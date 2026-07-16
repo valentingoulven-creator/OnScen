@@ -35,6 +35,15 @@ function isYouTubePlayerError(err: unknown): boolean {
   );
 }
 
+function isDynamicImportError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err ?? '');
+  return (
+    msg.includes('Failed to fetch dynamically imported module') ||
+    msg.includes('Importing a module script failed') ||
+    msg.includes('error loading dynamically imported module')
+  );
+}
+
 function isSocketAuthError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err ?? '');
   return (
@@ -86,6 +95,9 @@ export class AppErrorBoundary extends Component<Props, State> {
     if (isSocketAuthError(error)) {
       return { error: null, recovering: true };
     }
+    if (isDynamicImportError(error)) {
+      return { error: null, recovering: true };
+    }
     if (isWebGLError(error)) {
       return { error: null, recovering: true };
     }
@@ -129,6 +141,11 @@ export class AppErrorBoundary extends Component<Props, State> {
       this.autoResetTimer = setTimeout(() => {
         this.setState({ error: null, recovering: false });
       }, 100);
+    } else if (isDynamicImportError(error)) {
+      this.setState({ recovering: true });
+      this.autoResetTimer = setTimeout(() => {
+        window.location.reload();
+      }, 600);
     }
   }
 

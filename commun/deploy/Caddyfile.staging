@@ -1,22 +1,10 @@
 # Soundy — Caddyfile PREPROD (staging.getsoundy.com)
-# Deploy : deploy/Caddyfile.staging -> /opt/soundy/deploy/Caddyfile.staging -> /etc/caddy/Caddyfile
+# Deploy : deploy/Caddyfile.staging -> /opt/soundly/deploy/Caddyfile.staging -> /etc/caddy/Caddyfile
+#
+# Preprod ouverte (UI + API) — pas d'indexation (X-Robots-Tag). Health/assets/API inchangés.
 
 (staging_handlers) {
-	@api path /api/* /health /health/db /socket.io/* /privacy /terms /legal/mentions
-	@static path /assets/* /sw.js /workbox-* /manifest.webmanifest /icon.svg /favicon.svg /pwa-* /clear-pwa /tel/*
-
-	handle @api {
-		reverse_proxy localhost:3000
-	}
-
-	handle @static {
-		reverse_proxy localhost:3000
-	}
-
 	handle {
-		basic_auth {
-			staging $2a$14$hsGpZcDeKPGE4NJGjENyJecl8p/VrwK7jkYXZ6LUdaRSqxHNIGwqa
-		}
 		reverse_proxy localhost:3000
 	}
 

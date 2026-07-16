@@ -7,7 +7,7 @@ import { isBotHost } from '../seed-bots';
 import { isSalonVisibleOnMap } from './salonAccess';
 import { getActiveSalonForHost } from './profile';
 import { resolveNearbyRadiusKm } from './geoLimits';
-import { isValidLatLng } from './mapCoords';
+import { isInBounds, isValidLatLng, type LatLngBounds } from './mapCoords';
 import type { NearbyGeoCandidates } from './pgGeoNearby';
 import { loadNearbyGeoCandidates } from './pgGeoNearby';
 
@@ -114,7 +114,8 @@ export async function getNearbyPeopleAsync(
   lat: number,
   lon: number,
   radiusKm: number,
-  distanceFilter = true
+  distanceFilter = true,
+  bounds: LatLngBounds | null = null
 ): Promise<NearbyPersonDto[]> {
   const maxRadiusKm = resolveNearbyRadiusKm(radiusKm, distanceFilter);
   let candidates: NearbyGeoCandidates | null = null;
@@ -125,7 +126,7 @@ export async function getNearbyPeopleAsync(
       console.warn('[nearby] PostGIS prefilter failed — fallback scan RAM:', err);
     }
   }
-  return getNearbyPeople(viewerId, lat, lon, radiusKm, distanceFilter, candidates);
+  return getNearbyPeople(viewerId, lat, lon, radiusKm, distanceFilter, candidates, bounds);
 }
 
 export function getNearbyPeople(
@@ -134,12 +135,19 @@ export function getNearbyPeople(
   lon: number,
   radiusKm: number,
   distanceFilter = true,
-  candidates: NearbyGeoCandidates | null = null
+  candidates: NearbyGeoCandidates | null = null,
+  bounds: LatLngBounds | null = null
 ): NearbyPersonDto[] {
   const maxRadiusKm = resolveNearbyRadiusKm(radiusKm, distanceFilter);
   const byId = new Map<string, NearbyPersonDto>();
 
   const withinRadius = (d: number) => maxRadiusKm == null || d <= maxRadiusKm;
+  // En mode viewport (bounds fournis par MapView pendant un pan), les
+  // personnes doivent respecter le cadre affiché — pas juste le rayon
+  // depuis le centre de la requête (sinon des gens hors écran apparaissent
+  // sur la carte). Cf. audit backend geo F3/F9.
+  const withinGeo = (checkLat: number, checkLon: number, d: number) =>
+    bounds ? isInBounds(checkLat, checkLon, bounds) : withinRadius(d);
 
   const upsert = (
     u: User,
@@ -251,7 +259,7 @@ export function getNearbyPeople(
     const pos = getUserPublicCoords(u, viewerId);
     if (!pos) continue;
     const d = getDistanceKm(lat, lon, pos.lat, pos.lon);
-    if (withinRadius(d)) upsert(u, d);
+    if (withinGeo(pos.lat, pos.lon, d)) upsert(u, d);
   }
 
   for (const s of db.salons.values()) {
@@ -260,8 +268,9 @@ export function getNearbyPeople(
     if (!isValidLatLng(s.latitude, s.longitude)) continue;
     const host = db.users.get(s.hostId);
     if (!host) continue;
+    const hostPos = getUserPublicCoords(host, viewerId);
     const d = hostDistanceKm(lat, lon, host, viewerId);
-    if (d == null || !withinRadius(d)) continue;
+    if (d == null || !hostPos || !withinGeo(hostPos.lat, hostPos.lon, d)) continue;
     const live = db.lives.get(s.id);
     upsert(host, d, {
       salonId: s.id,
@@ -282,8 +291,9 @@ export function getNearbyPeople(
     if (!isValidLatLng(l.latitude, l.longitude)) continue;
     const host = db.users.get(l.hostId);
     if (!host) continue;
+    const hostPos = getUserPublicCoords(host, viewerId);
     const d = hostDistanceKm(lat, lon, host, viewerId);
-    if (d == null || !withinRadius(d)) continue;
+    if (d == null || !hostPos || !withinGeo(hostPos.lat, hostPos.lon, d)) continue;
     upsert(host, d, {
       isLive: true,
       liveId: l.id,

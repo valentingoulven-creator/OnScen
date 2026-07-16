@@ -1,10 +1,17 @@
 import type { Live, NearbyPerson, Salon } from '../types';
 
-/** Brief TTL cache for /geo/nearby — avoids duplicate calls during pan/zoom. */
-const CACHE_TTL_MS = 10_000;
+/**
+ * Brief TTL cache for /geo/nearby — avoids duplicate calls during pan/zoom.
+ * Alignée sur le cache serveur (nearbyResponseCache.ts, TTL 20s / 3 décimales
+ * ~111m) : un TTL/précision client plus larges que le serveur (10s / ~1.1km
+ * avant ce fix) créaient une fenêtre où le client affichait des données
+ * figées plus longtemps que nécessaire sans requête, avec une granularité de
+ * bucket incohérente entre les deux caches.
+ */
+const CACHE_TTL_MS = 15_000;
 
-/** Round coords (~1.1 km) so small pans hit the same cache bucket. */
-const COORD_DECIMALS = 2;
+/** Round coords (~111m) so small pans hit the same cache bucket. */
+const COORD_DECIMALS = 3;
 
 export interface NearbyCachePayload {
   salons: Salon[];

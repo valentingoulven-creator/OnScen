@@ -20,6 +20,22 @@ export function isValidLatLng(lat: unknown, lon: unknown): boolean {
   );
 }
 
+export interface LatLngBounds {
+  swLat: number;
+  swLng: number;
+  neLat: number;
+  neLng: number;
+}
+
+/** Returns true when the point (lat, lng) is inside the bounding box (handles antimeridian). */
+export function isInBounds(lat: number, lng: number, bounds: LatLngBounds): boolean {
+  if (lat < bounds.swLat || lat > bounds.neLat) return false;
+  if (bounds.swLng <= bounds.neLng) {
+    return lng >= bounds.swLng && lng <= bounds.neLng;
+  }
+  return lng >= bounds.swLng || lng <= bounds.neLng;
+}
+
 export function sanitizeLatLng(
   lat: unknown,
   lon: unknown,

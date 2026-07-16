@@ -1,0 +1,29 @@
+# Uptime externe — ping /health prod + staging (complète monitor-alerts.sh VPS)
+name: Uptime Health
+
+on:
+  schedule:
+    # Toutes les 5 minutes (runners GitHub = point de vue externe)
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Production — GET /health
+        run: |
+          code=$(curl -sS -o /tmp/health-prod.json -w "%{http_code}" --connect-timeout 15 --max-time 30 https://getsoundy.com/health)
+          echo "HTTP $code"
+          cat /tmp/health-prod.json
+          test "$code" = "200"
+          grep -q '"status"' /tmp/health-prod.json
+
+      - name: Staging — GET /health
+        run: |
+          code=$(curl -sS -o /tmp/health-staging.json -w "%{http_code}" --connect-timeout 15 --max-time 30 https://staging.getsoundy.com/health)
+          echo "HTTP $code"
+          cat /tmp/health-staging.json
+          test "$code" = "200"
+          grep -q '"status"' /tmp/health-staging.json

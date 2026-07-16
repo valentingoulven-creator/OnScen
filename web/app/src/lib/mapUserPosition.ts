@@ -10,7 +10,7 @@ import {
   PRESET_CITIES,
   haversineKm,
 } from './livesGeo';
-import { getPrivacyPreferences, SETTINGS_CHANGED_EVENT } from './settings';
+import { SETTINGS_CHANGED_EVENT } from './settings';
 
 /** Centre caméra carte sans GPS : geo fixe (settings), ville profil, sinon Paris. */
 export function resolveMapCameraFallbackCenter(profileCity?: string): [number, number] {
@@ -52,16 +52,23 @@ export function resolveProfileCityCoordsSync(profileCity?: string): [number, num
   return null;
 }
 
+export type MapUserPositionKind = 'gps' | 'city';
+
+export interface MapUserDisplayPosition {
+  coords: [number, number];
+  kind: MapUserPositionKind;
+}
+
 /**
  * Point « ma position » sur la carte :
- * GPS si partage de position activé, sinon centre de la ville profil.
+ * GPS si disponible, sinon centre ville profil / geo fixe / Paris.
  * Masqué en mode fantôme.
  */
 export function useMapUserDisplayPosition(
   userPosition: [number, number] | null,
   profileCity: string | undefined,
   isGhostMode: boolean | undefined
-): [number, number] | null {
+): MapUserDisplayPosition | null {
   const [privacyRev, setPrivacyRev] = useState(0);
   const [profileCoords, setProfileCoords] = useState<[number, number] | null>(() =>
     resolveProfileCityCoordsSync(profileCity)
@@ -96,18 +103,31 @@ export function useMapUserDisplayPosition(
   }, [profileCity]);
 
   return useMemo(() => {
+    void privacyRev;
     if (isGhostMode) return null;
-    const { locationSharing } = getPrivacyPreferences();
-    if (
-      locationSharing &&
-      userPosition &&
-      isValidLatLng(userPosition[0], userPosition[1])
-    ) {
-      return sanitizeLatLngTuple(userPosition[0], userPosition[1]);
+
+    if (userPosition && isValidLatLng(userPosition[0], userPosition[1])) {
+      return {
+        coords: sanitizeLatLngTuple(userPosition[0], userPosition[1]),
+        kind: 'gps',
+      };
     }
+
     if (profileCoords && isValidLatLng(profileCoords[0], profileCoords[1])) {
-      return profileCoords;
+      return { coords: profileCoords, kind: 'city' };
     }
-    return null;
-  }, [isGhostMode, userPosition, profileCoords, privacyRev]);
+
+    const geo = getLivesGeo();
+    if (isFixedMapGeoSource(geo.source)) {
+      return {
+        coords: sanitizeLatLngTuple(geo.latitude, geo.longitude, DEFAULT_CENTER),
+        kind: 'city',
+      };
+    }
+
+    return {
+      coords: resolveMapCameraFallbackCenter(profileCity),
+      kind: 'city',
+    };
+  }, [isGhostMode, userPosition, profileCoords, profileCity, privacyRev]);
 }

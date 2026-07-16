@@ -1,0 +1,270 @@
+/* ---------------------------------------------------------------------- */
+/* Reset & base                                                            */
+/* ---------------------------------------------------------------------- */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Thème (clair / sombre) — variables CSS                                 */
+/* ---------------------------------------------------------------------- */
+.globe-app {
+  --panel-bg: rgba(12, 18, 32, 0.72);
+  --panel-border: rgba(255, 255, 255, 0.12);
+  --text-primary: #f4f7ff;
+  --text-secondary: rgba(244, 247, 255, 0.65);
+  --accent: #5fb1ff;
+  --btn-bg: rgba(255, 255, 255, 0.08);
+  --btn-bg-hover: rgba(255, 255, 255, 0.16);
+  --canvas-bg: #05070d;
+
+  position: relative;
+  width: 100dvw;
+  height: 100dvh;
+  background: var(--canvas-bg);
+  color: var(--text-primary);
+}
+
+.globe-app.theme-light {
+  --panel-bg: rgba(255, 255, 255, 0.82);
+  --panel-border: rgba(20, 30, 50, 0.12);
+  --text-primary: #131a2b;
+  --text-secondary: rgba(19, 26, 43, 0.65);
+  --accent: #2f6fbb;
+  --btn-bg: rgba(20, 30, 50, 0.06);
+  --btn-bg-hover: rgba(20, 30, 50, 0.12);
+  --canvas-bg: #cfe3f7;
+}
+
+.globe-app canvas {
+  touch-action: none;
+  outline: none;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Bandeau supérieur (titre + recherche)                                  */
+/* ---------------------------------------------------------------------- */
+.ui-top {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  pointer-events: none;
+}
+
+.ui-top > * {
+  pointer-events: auto;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Recherche — mobile d'abord : pleine largeur, cibles tactiles ≥44px      */
+/* ---------------------------------------------------------------------- */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 0.25rem 0.3rem 0.25rem 1rem;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+  /* Largeur = 100% par défaut (mobile) ; élargie/plafonnée dès la tablette (voir media query). */
+  width: 100%;
+}
+
+.search-bar input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  /* 16px minimum : évite le zoom automatique de Safari iOS au focus d'un champ. */
+  font-size: 1rem;
+  outline: none;
+}
+
+.search-bar input::placeholder {
+  color: var(--text-secondary);
+}
+
+.search-bar button {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 999px;
+  padding: 0 1.1rem;
+  min-height: 40px;
+  min-width: 44px;
+  background: var(--accent);
+  color: #05070d;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.search-bar button:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.search-bar button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Tablette et plus : la recherche n'a plus besoin de toute la largeur de l'écran. */
+@media (min-width: 640px) {
+  .search-bar {
+    width: min(100%, 22rem);
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Panneau de contrôle (bas)                                              */
+/* ---------------------------------------------------------------------- */
+.controls-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  pointer-events: none;
+}
+
+.controls-panel > * {
+  pointer-events: auto;
+}
+
+.controls-panel__buttons {
+  display: flex;
+  gap: 0.5rem;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 0.3rem;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+}
+
+.toggle-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  min-height: 44px;
+  background: var(--btn-bg);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  white-space: nowrap;
+}
+
+.toggle-btn:hover {
+  background: var(--btn-bg-hover);
+}
+
+.toggle-btn[aria-pressed='true'] {
+  background: var(--accent);
+  color: #05070d;
+}
+
+.selected-chip {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Infobulle pays (suit le curseur)                                       */
+/* ---------------------------------------------------------------------- */
+.globe-tooltip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 20;
+  padding: 0.35rem 0.7rem;
+  border-radius: 0.5rem;
+  background: rgba(10, 14, 24, 0.92);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  will-change: transform;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Écran de chargement                                                    */
+/* ---------------------------------------------------------------------- */
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  background: var(--canvas-bg);
+  color: var(--text-primary);
+  transition: opacity 0.4s ease;
+}
+
+.loading-overlay--hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-spinner {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: var(--accent);
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Responsive — mobile                                                    */
+/* ---------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .ui-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

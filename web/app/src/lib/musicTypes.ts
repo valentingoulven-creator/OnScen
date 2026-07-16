@@ -23,6 +23,7 @@ export interface MusicTrackItem {
   durationSec?: number;
   upvoteCount?: number;
   userHasUpvoted?: boolean;
+  weeklyPlayCount?: number;
   createdAt: number;
 }
 

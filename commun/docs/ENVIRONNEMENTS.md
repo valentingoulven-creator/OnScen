@@ -27,7 +27,7 @@ localhost:5173       51.159.170.181                 51.159.164.100
 - **ID** : `05d0cabc-cd09-4d7a-8341-e4758d0d00c8`
 - **Zone** : `fr-par-2`
 - **Type** : DEV1-S
-- **Chemin app** : `/opt/soundy`
+- **Chemin app** : `/opt/soundly`
 - **SSH** : `ssh soundy-staging` (alias → `51.159.170.181`)
 
 ### DNS
@@ -75,7 +75,7 @@ npm run deploy:prod
 | `backend/.env.preproduction.example` | oui | Template staging |
 | `app/.env.production` | oui (sans secrets) | Build prod |
 | `app/.env.preproduction` | non | Build staging |
-| `/opt/soundy/.env` (VPS) | non | Runtime prod ou staging |
+| `/opt/soundly/.env` (VPS) | non | Runtime prod ou staging |
 
 ## Code backend — `APP_ENV=preproduction`
 
@@ -110,7 +110,7 @@ Réponse attendue : `"env":"preproduction"`, `"db":"ok"`.
 
 - `commun/deploy/environments.ps1` — config prod / preprod
 - `commun/deploy/deploy_zero_downtime.ps1 -Environment preprod|prod`
-- `commun/deploy/Caddyfile.staging` — HTTPS staging + Basic Auth équipe
+- `commun/deploy/Caddyfile.staging` — HTTPS staging, preprod ouverte (`noindex`, pas d'allowlist IP)
 - `commun/deploy/ecosystem.staging.config.cjs` — PM2 `melosong-backend-staging`
 
 Voir aussi : `docs/INFRA-SOUNDY.md`, `commun/deploy/RUNBOOK-PROD.md`.

@@ -40,7 +40,7 @@ import {
   parseUsernameWaveHexInput,
 } from '../lib/usernameColor';
 import { applyPrivacySettings } from '../lib/locationPrivacy';
-import { validateImageMagicBytes } from '../lib/imageValidation';
+import { generateUserId } from '../lib/userIds';
 import {
   ensurePlatformAccountsFromLegacy,
   migratePlaintextPlatformTokens,
@@ -58,6 +58,13 @@ import { CURRENT_TERMS_VERSION } from '../lib/legalConstants';
 import { acceptCurrentTerms, userNeedsTermsReacceptance } from '../lib/termsAcceptance';
 import { isValidProfileType } from '../lib/profileTypes';
 import { moderateImageSources, moderationRejectionMessage } from '../lib/contentModeration';
+import { validateImageMagicBytes } from '../lib/imageValidation';
+import { profilePhotoUploadLimiter } from '../lib/uploadRateLimits';
+import {
+  persistProfilePhotoUrls,
+  deleteProfilePhotoIfLocal,
+  PROFILE_PHOTO_DATA_RE,
+} from '../lib/profilePhotoAssets';
 import {
   assertRegistrationAllowed,
   consumeInviteCode,
@@ -202,7 +209,7 @@ authRouter.post('/register', async (req: Request, res: Response) => {
     : Date.now() + 24 * 60 * 60 * 1000; // 24h
 
   let user: User = {
-    id: `user_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    id: generateUserId(),
     username,
     email,
     passwordHash,
@@ -432,7 +439,7 @@ authRouter.get('/profile/:userId', authenticateJWT, (req: Request, res: Response
   res.json(result);
 });
 
-authRouter.patch('/profile', authenticateJWT, async (req: Request, res: Response) => {
+authRouter.patch('/profile', authenticateJWT, profilePhotoUploadLimiter, async (req: Request, res: Response) => {
   const userId = (req as Request & { user: { id: string } }).user.id;
   const user = db.users.get(userId);
   if (!user) {
@@ -566,8 +573,6 @@ authRouter.patch('/profile', authenticateJWT, async (req: Request, res: Response
   if (Array.isArray(profilePhotos)) {
     /** Base64 d'une photo compressée max 2 Mo → 2,8 M de caractères (facteur 4/3). */
     const MAX_PHOTO_CHARS = Math.ceil(2 * 1024 * 1024 * (4 / 3)) + 64;
-    const PROFILE_PHOTO_DATA_RE =
-      /^data:image\/(jpeg|png|webp|gif)(?:;[^;,]+)*;base64,([A-Za-z0-9+/=]+)$/i;
     const incoming = profilePhotos.map(String);
     for (const p of incoming) {
       if (!p.startsWith('data:image/')) continue;
@@ -591,8 +596,21 @@ authRouter.patch('/profile', authenticateJWT, async (req: Request, res: Response
       res.status(422).json({ error: moderationRejectionMessage(moderation) });
       return;
     }
-    const intendedCount = countPersistableProfilePhotos(incoming);
-    syncProfilePhotos(user, sanitizeIncomingProfilePhotos(incoming));
+    let persisted: string[];
+    try {
+      persisted = await persistProfilePhotoUrls(incoming);
+    } catch (err) {
+      res.status(400).json({
+        error: err instanceof Error ? err.message : 'Photo invalide.',
+      });
+      return;
+    }
+    const previousPhotos = [...(user.profilePhotos ?? [])];
+    const intendedCount = countPersistableProfilePhotos(persisted);
+    syncProfilePhotos(user, sanitizeIncomingProfilePhotos(persisted));
+    for (const old of previousPhotos) {
+      if (old && !persisted.includes(old)) deleteProfilePhotoIfLocal(old);
+    }
     const savedCount = countPersistableProfilePhotos(user.profilePhotos ?? []);
     if (intendedCount > 0 && savedCount === 0) {
       res.status(400).json({
@@ -609,7 +627,18 @@ authRouter.patch('/profile', authenticateJWT, async (req: Request, res: Response
       return;
     }
   } else if (avatarUrl && typeof avatarUrl === 'string') {
-    const url = avatarUrl.trim().slice(0, 2000);
+    let url = avatarUrl.trim().slice(0, 2000);
+    if (PROFILE_PHOTO_DATA_RE.test(url)) {
+      try {
+        const [savedUrl] = await persistProfilePhotoUrls([url]);
+        url = savedUrl;
+      } catch (err) {
+        res.status(400).json({
+          error: err instanceof Error ? err.message : 'Photo invalide.',
+        });
+        return;
+      }
+    }
     const moderation = await moderateImageSources([url], 'avatar');
     if (!moderation.allowed) {
       res.status(422).json({ error: moderationRejectionMessage(moderation) });

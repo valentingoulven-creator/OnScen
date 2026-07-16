@@ -3,7 +3,6 @@ import {
   DEFAULT_USERNAME_WAVE_FROM,
   DEFAULT_USERNAME_WAVE_TO,
   USERNAME_COLOR_WAVE,
-  USERNAME_SOLID_PRESETS,
   isDefaultUsernameWaveTint,
   isWaveUsernameColor,
   resolveUsernameWaveColors,
@@ -17,13 +16,14 @@ type UsernameColorPickerProps = {
   waveTo: string;
   onWaveFromChange: (value: string) => void;
   onWaveToChange: (value: string) => void;
+  compact?: boolean;
 };
 
 function isCustomUsernameColor(value: string, waveFrom: string, waveTo: string): boolean {
   if (isWaveUsernameColor(value)) {
     return !isDefaultUsernameWaveTint({ from: waveFrom, to: waveTo });
   }
-  return !USERNAME_SOLID_PRESETS.some((p) => p.hex === value);
+  return !!value;
 }
 
 export function UsernameColorPicker({
@@ -33,6 +33,7 @@ export function UsernameColorPicker({
   waveTo,
   onWaveFromChange,
   onWaveToChange,
+  compact = false,
 }: UsernameColorPickerProps) {
   const waveActive = isWaveUsernameColor(value);
   const resolved = resolveUsernameWaveColors({ from: waveFrom, to: waveTo });
@@ -40,22 +41,22 @@ export function UsernameColorPicker({
     from: DEFAULT_USERNAME_WAVE_FROM,
     to: DEFAULT_USERNAME_WAVE_TO,
   });
-  const wavePresetActive =
+  const isDefaultWaveState =
     waveActive && isDefaultUsernameWaveTint({ from: waveFrom, to: waveTo });
+  const isEmptyDefault = !value && !waveActive;
 
   const [showAdvancedPicker, setShowAdvancedPicker] = useState(() =>
     isCustomUsernameColor(value, waveFrom, waveTo)
   );
 
+  const waveChipActive = !showAdvancedPicker && (isDefaultWaveState || isEmptyDefault);
+  const personnaliseChipActive =
+    showAdvancedPicker || (!waveChipActive && (!!value || waveActive));
+
   const selectWavePreset = () => {
     onChange(USERNAME_COLOR_WAVE);
     onWaveFromChange(DEFAULT_USERNAME_WAVE_FROM);
     onWaveToChange(DEFAULT_USERNAME_WAVE_TO);
-    setShowAdvancedPicker(false);
-  };
-
-  const selectSolidPreset = (hex: string) => {
-    onChange(hex);
     setShowAdvancedPicker(false);
   };
 
@@ -67,43 +68,43 @@ export function UsernameColorPicker({
   };
 
   const chipClass = (active: boolean) =>
-    `flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition ${
-      active
-        ? 'border-purple-500/60 bg-purple-500/15 text-white'
-        : 'border-[#2d2d3d] bg-[#1a1a26] text-gray-400 hover:text-white'
-    }`;
+    compact
+      ? `flex items-center gap-1 px-1.5 py-1 rounded-md border text-[10px] font-semibold transition ${
+          active
+            ? 'border-purple-500/60 bg-purple-500/15 text-white'
+            : 'border-[#2d2d3d] bg-[#1a1a26] text-gray-400 hover:text-white'
+        }`
+      : `flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition ${
+          active
+            ? 'border-purple-500/60 bg-purple-500/15 text-white'
+            : 'border-[#2d2d3d] bg-[#1a1a26] text-gray-400 hover:text-white'
+        }`;
 
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-gray-400">Couleur du pseudo</p>
+    <div className={compact ? 'space-y-1.5' : 'space-y-3'}>
+      <div
+        className={
+          compact
+            ? 'flex items-center justify-between gap-2 min-w-0'
+            : 'flex flex-col gap-1.5'
+        }
+      >
+        <p
+          className={
+            compact
+              ? 'text-[10px] uppercase tracking-wider text-gray-500 font-semibold shrink-0'
+              : 'text-xs text-gray-400'
+          }
+        >
+          Couleur du pseudo
+        </p>
 
-      <div className="flex flex-wrap gap-2">
-        {USERNAME_SOLID_PRESETS.map((preset) => {
-          const active = !showAdvancedPicker && !waveActive && value === preset.hex;
-          return (
-            <button
-              key={preset.id}
-              type="button"
-              onClick={() => selectSolidPreset(preset.hex)}
-              title={preset.label}
-              className={chipClass(active)}
-            >
-              <span
-                className="w-3.5 h-3.5 rounded-full border border-white/20 shrink-0"
-                style={{
-                  background: preset.hex || 'linear-gradient(135deg, #fff 40%, #6b7280 100%)',
-                }}
-              />
-              {preset.label}
-            </button>
-          );
-        })}
-
+        <div className={`flex flex-wrap ${compact ? 'gap-1 justify-end' : 'gap-2'}`}>
         <button
           type="button"
           onClick={selectWavePreset}
           title="Wave Soundy"
-          className={chipClass(wavePresetActive && !showAdvancedPicker)}
+          className={chipClass(waveChipActive)}
         >
           <span
             className="w-3.5 h-3.5 rounded-full border border-white/20 shrink-0"
@@ -118,7 +119,7 @@ export function UsernameColorPicker({
           type="button"
           onClick={selectCustom}
           title="Personnalisé"
-          className={chipClass(showAdvancedPicker)}
+          className={chipClass(personnaliseChipActive)}
         >
           <span
             className="w-3.5 h-3.5 rounded-full border border-white/20 shrink-0"
@@ -129,10 +130,17 @@ export function UsernameColorPicker({
           />
           Personnalisé
         </button>
+        </div>
       </div>
 
       {showAdvancedPicker && (
-        <div className="rounded-xl border border-[#2d2d3d] bg-[#1a1a26] p-3 space-y-4">
+        <div
+          className={`rounded-lg border border-[#2a2a3a] bg-[#16161f] space-y-3 ${
+            compact
+              ? 'p-2 max-h-[min(34dvh,14rem)] overflow-y-auto overscroll-y-contain scrollbar-none'
+              : 'p-3 space-y-4'
+          }`}
+        >
           <div className="space-y-3">
             <p className="text-[10px] text-gray-500">Dégradé wave personnalisé</p>
             <div className="grid grid-cols-2 gap-3">

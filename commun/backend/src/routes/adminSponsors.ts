@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authenticateJWT } from '../middleware/auth';
-import { db } from '../models/schema';
-import { isAccessAdmin } from '../lib/accessControl';
+import { requireAdmin } from '../middleware/requireAdmin';
 import { schedulePersist } from '../lib/persist';
 import {
   createSponsor,
@@ -27,20 +26,6 @@ export const adminSponsorsRouter = Router();
 
 type SponsorFilter = 'all' | 'active' | 'inactive';
 
-function requireAdmin(req: Request, res: Response): boolean {
-  const userId = (req as Request & { user?: { id: string } }).user?.id;
-  if (!userId) {
-    res.status(401).json({ error: 'Authentification requise' });
-    return false;
-  }
-  const user = db.users.get(userId);
-  if (!user || !isAccessAdmin(user)) {
-    res.status(403).json({ error: 'Accès réservé aux administrateurs' });
-    return false;
-  }
-  return true;
-}
-
 function parseFilter(raw: unknown): SponsorFilter {
   const v = String(raw || 'all');
   if (v === 'active' || v === 'inactive') return v;
@@ -54,7 +39,8 @@ function parsePlacement(raw: unknown): SponsorPlacement | undefined {
     v === 'feed_inline' ||
     v === 'stories_banner' ||
     v === 'stories_sponsored' ||
-    v === 'reels_sponsored'
+    v === 'reels_sponsored' ||
+    v === 'salon_theater'
   ) {
     return v;
   }
@@ -139,12 +125,12 @@ function parseBodyInput(body: Record<string, unknown>): SponsorInput {
 }
 
 adminSponsorsRouter.get('/config', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   res.json({ config: getSponsorPlatformConfig() });
 });
 
 adminSponsorsRouter.patch('/config', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   try {
     const body = req.body ?? {};
     const config = updateSponsorPlatformConfig({
@@ -165,7 +151,7 @@ adminSponsorsRouter.patch('/config', authenticateJWT, (req: Request, res: Respon
 });
 
 adminSponsorsRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const filter = parseFilter(req.query.filter);
   const placement = parsePlacement(req.query.placement);
   const q = String(req.query.q || '').trim();
@@ -177,7 +163,7 @@ adminSponsorsRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
 });
 
 adminSponsorsRouter.post('/reorder', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(String) : [];
   if (!ids.length) {
     res.status(400).json({ error: 'Liste d’identifiants requise' });
@@ -189,7 +175,7 @@ adminSponsorsRouter.post('/reorder', authenticateJWT, (req: Request, res: Respon
 });
 
 adminSponsorsRouter.post('/upload-logo', authenticateJWT, async (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   try {
     const image = String(req.body?.image ?? '').trim();
     if (!image) {
@@ -204,7 +190,7 @@ adminSponsorsRouter.post('/upload-logo', authenticateJWT, async (req: Request, r
 });
 
 adminSponsorsRouter.post('/upload-banner', authenticateJWT, async (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   try {
     const image = String(req.body?.image ?? '').trim();
     if (!image) {
@@ -219,7 +205,7 @@ adminSponsorsRouter.post('/upload-banner', authenticateJWT, async (req: Request,
 });
 
 adminSponsorsRouter.get('/:id', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const sponsor = getSponsorById(req.params.id);
   if (!sponsor) {
     res.status(404).json({ error: 'Sponsor introuvable' });
@@ -229,7 +215,7 @@ adminSponsorsRouter.get('/:id', authenticateJWT, (req: Request, res: Response) =
 });
 
 adminSponsorsRouter.post('/', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   try {
     const sponsor = createSponsor(parseBodyInput(req.body ?? {}));
     schedulePersist();
@@ -240,7 +226,7 @@ adminSponsorsRouter.post('/', authenticateJWT, (req: Request, res: Response) => 
 });
 
 adminSponsorsRouter.patch('/:id', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   try {
     const sponsor = updateSponsor(req.params.id, parseBodyInput(req.body ?? {}));
     schedulePersist();
@@ -252,7 +238,7 @@ adminSponsorsRouter.patch('/:id', authenticateJWT, (req: Request, res: Response)
 });
 
 adminSponsorsRouter.post('/:id/toggle', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   try {
     const sponsor = toggleSponsorActive(req.params.id);
     schedulePersist();
@@ -264,7 +250,7 @@ adminSponsorsRouter.post('/:id/toggle', authenticateJWT, (req: Request, res: Res
 });
 
 adminSponsorsRouter.delete('/:id', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   try {
     deleteSponsor(req.params.id);
     schedulePersist();

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authenticateJWT } from '../middleware/auth';
+import { requireAdmin, requireDevStaff } from '../middleware/requireAdmin';
 import { db, type User } from '../models/schema';
 import { countPersistableProfilePhotos, normalizeProfilePhotos } from '../lib/profile';
 import { getFavoriteCount, getFanIds, getFavoriteHostIds, getFollowingCount } from '../lib/favorites';
@@ -14,15 +15,18 @@ import {
   getAccessPolicy,
   getAccountStatus,
   getPublicAccessConfig,
+  getStaffRole,
   isAccessAdmin,
   isAccessControlEnabled,
+  isDevStaff,
   listInviteCodes,
   setAccessPolicy,
   setInviteCodeDisabled,
   setUserAccountStatus,
-  setUserIsAdmin,
+  setUserStaffRole,
   type AccessRegistrationMode,
   type AccountStatus,
+  type StaffRole,
 } from '../lib/accessControl';
 import {
   getActiveSubscription,
@@ -40,22 +44,8 @@ accessRouter.get('/config', (_req: Request, res: Response) => {
   res.json(getPublicAccessConfig());
 });
 
-function requireAdmin(req: Request, res: Response): boolean {
-  const userId = (req as Request & { user?: { id: string } }).user?.id;
-  if (!userId) {
-    res.status(401).json({ error: 'Authentification requise' });
-    return false;
-  }
-  const user = db.users.get(userId);
-  if (!user || !isAccessAdmin(user)) {
-    res.status(403).json({ error: 'Accès réservé aux administrateurs' });
-    return false;
-  }
-  return true;
-}
-
 accessRouter.get('/admin/overview', authenticateJWT, async (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireDevStaff(req, res) == null) return;
   const users = [...db.users.values()].filter((u) => !u.email.endsWith('@bot.local'));
   const pending = users.filter((u) => getAccountStatus(u) === 'pending');
   const blocked = users.filter((u) => getAccountStatus(u) === 'blocked');
@@ -94,6 +84,7 @@ function mapAdminManagedUser(u: User) {
     accountStatus: getAccountStatus(u),
     isAdmin: isAccessAdmin(u),
     adminFlag: u.isAdmin === true,
+    staffRole: getStaffRole(u) ?? undefined,
     memberSince: u.memberSince,
     lastSeenAt: u.lastSeenAt,
     profileType: u.profileType,
@@ -154,7 +145,7 @@ function sortAdminUsers<T extends { username: string; memberSince?: number; last
 }
 
 accessRouter.get('/admin/users', authenticateJWT, async (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const status = String(req.query.status || 'all') as AccountStatus | 'all';
   const q = String(req.query.q || '')
     .trim()
@@ -198,7 +189,7 @@ accessRouter.get('/admin/users', authenticateJWT, async (req: Request, res: Resp
 });
 
 accessRouter.get('/admin/users/:userId', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const user = db.users.get(req.params.userId);
   if (!user || user.email.endsWith('@bot.local')) {
     res.status(404).json({ error: 'Utilisateur introuvable' });
@@ -208,7 +199,7 @@ accessRouter.get('/admin/users/:userId', authenticateJWT, (req: Request, res: Re
 });
 
 accessRouter.get('/admin/users/:userId/social', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const userId = req.params.userId;
   const user = db.users.get(userId);
   if (!user || user.email.endsWith('@bot.local')) {
@@ -237,7 +228,7 @@ accessRouter.get('/admin/users/:userId/social', authenticateJWT, (req: Request, 
 });
 
 accessRouter.patch('/admin/policy', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireDevStaff(req, res) == null) return;
   const mode = req.body?.registrationMode as AccessRegistrationMode | undefined;
   const allowed: AccessRegistrationMode[] = ['open', 'invite_only', 'admin_approval', 'closed'];
   if (!mode || !allowed.includes(mode)) {
@@ -250,7 +241,7 @@ accessRouter.patch('/admin/policy', authenticateJWT, (req: Request, res: Respons
 });
 
 accessRouter.post('/admin/users/:userId/approve', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const user = setUserAccountStatus(req.params.userId, 'active');
   if (!user) {
     res.status(404).json({ error: 'Utilisateur introuvable' });
@@ -269,7 +260,7 @@ accessRouter.post('/admin/users/:userId/approve', authenticateJWT, (req: Request
 });
 
 accessRouter.post('/admin/users/:userId/block', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const target = db.users.get(req.params.userId);
   if (!target) {
     res.status(404).json({ error: 'Utilisateur introuvable' });
@@ -300,7 +291,7 @@ accessRouter.post('/admin/users/:userId/block', authenticateJWT, (req: Request, 
 });
 
 accessRouter.post('/admin/users/:userId/unblock', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const user = setUserAccountStatus(req.params.userId, 'active');
   if (!user) {
     res.status(404).json({ error: 'Utilisateur introuvable' });
@@ -319,8 +310,16 @@ accessRouter.post('/admin/users/:userId/unblock', authenticateJWT, (req: Request
 });
 
 accessRouter.post('/admin/users/:userId/promote', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
-  const result = setUserIsAdmin(req.params.userId, true);
+  if (requireAdmin(req, res) == null) return;
+  const adminId = (req as Request & { user: { id: string } }).user.id;
+  const caller = db.users.get(adminId);
+  const requested = String(req.body?.role ?? 'admin').trim() as StaffRole;
+  const role: StaffRole = requested === 'dev' ? 'dev' : 'admin';
+  if (role === 'dev' && (!caller || !isDevStaff(caller))) {
+    res.status(403).json({ error: 'Seul un compte Dev peut accorder l’accès Dev' });
+    return;
+  }
+  const result = setUserStaffRole(req.params.userId, role);
   if ('error' in result) {
     res.status(result.status).json({ error: result.error });
     return;
@@ -328,18 +327,20 @@ accessRouter.post('/admin/users/:userId/promote', authenticateJWT, (req: Request
   schedulePersistUserToPg(result);
   schedulePersist();
   logAdminAction({
-    adminId: (req as Request & { user: { id: string } }).user.id,
-    action: 'user_promote_admin',
+    adminId,
+    action: role === 'dev' ? 'user_promote_dev' : 'user_promote_admin',
     targetType: 'user',
     targetId: result.id,
+    details: { staffRole: role },
     ip: req.ip,
   });
   res.json({ user: mapAdminManagedUser(result) });
 });
 
 accessRouter.post('/admin/users/:userId/demote', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
-  const result = setUserIsAdmin(req.params.userId, false);
+  if (requireAdmin(req, res) == null) return;
+  const adminId = (req as Request & { user: { id: string } }).user.id;
+  const result = setUserStaffRole(req.params.userId, null, { callerId: adminId });
   if ('error' in result) {
     res.status(result.status).json({ error: result.error });
     return;
@@ -358,7 +359,7 @@ accessRouter.post('/admin/users/:userId/demote', authenticateJWT, (req: Request,
 
 /** Attribution manuelle du forfait plateforme (Gratuit / Soundy+ / SoundyUltra). */
 accessRouter.post('/admin/users/:userId/platform-plan', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const userId = req.params.userId;
   const user = db.users.get(userId);
   if (!user || user.email.endsWith('@bot.local')) {
@@ -400,7 +401,7 @@ accessRouter.post('/admin/users/:userId/platform-plan', authenticateJWT, (req: R
 });
 
 accessRouter.post('/admin/invites', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireDevStaff(req, res) == null) return;
   const adminId = (req as Request & { user: { id: string } }).user.id;
   const invite = createInviteCode({
     code: req.body?.code,
@@ -414,7 +415,7 @@ accessRouter.post('/admin/invites', authenticateJWT, (req: Request, res: Respons
 });
 
 accessRouter.patch('/admin/invites/:id', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireDevStaff(req, res) == null) return;
   const invite = setInviteCodeDisabled(req.params.id, Boolean(req.body?.disabled));
   if (!invite) {
     res.status(404).json({ error: 'Code introuvable' });
@@ -425,7 +426,7 @@ accessRouter.patch('/admin/invites/:id', authenticateJWT, (req: Request, res: Re
 });
 
 accessRouter.delete('/admin/invites/:id', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireDevStaff(req, res) == null) return;
   if (!deleteInviteCode(req.params.id)) {
     res.status(404).json({ error: 'Code introuvable' });
     return;
@@ -441,6 +442,8 @@ accessRouter.get('/admin/status', authenticateJWT, (req: Request, res: Response)
   res.json({
     accessControlEnabled: isAccessControlEnabled(),
     isAdmin: Boolean(user && isAccessAdmin(user)),
+    staffRole: user ? getStaffRole(user) : null,
+    isDevStaff: Boolean(user && isDevStaff(user)),
     accountStatus: user ? getAccountStatus(user) : null,
   });
 });

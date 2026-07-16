@@ -5,26 +5,11 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { authenticateJWT } from '../middleware/auth';
-import { db } from '../models/schema';
-import { isAccessAdmin } from '../lib/accessControl';
+import { requireDevStaff } from '../middleware/requireAdmin';
 
 const execAsync = promisify(exec);
 
 export const adminSyslogRouter = Router();
-
-function requireAdmin(req: Request, res: Response): boolean {
-  const userId = (req as Request & { user?: { id: string } }).user?.id;
-  if (!userId) {
-    res.status(401).json({ error: 'Authentification requise' });
-    return false;
-  }
-  const user = db.users.get(userId);
-  if (!user || !isAccessAdmin(user)) {
-    res.status(403).json({ error: 'Accès réservé aux administrateurs' });
-    return false;
-  }
-  return true;
-}
 
 export interface SyslogLine {
   ts: string;
@@ -225,7 +210,7 @@ async function getSystemLogs(lines: number): Promise<SyslogLine[]> {
  *   type:  "pm2" | "system" (défaut "pm2")
  */
 adminSyslogRouter.get('/syslog', authenticateJWT, async (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireDevStaff(req, res) == null) return;
 
   const lines = Math.min(500, Math.max(10, parseInt(String(req.query.lines ?? '100'), 10) || 100));
   const rawType = String(req.query.type ?? 'pm2');

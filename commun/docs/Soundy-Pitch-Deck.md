@@ -27,7 +27,7 @@
 
 ---
 ## Slide 4 — Produit (features en production)
-- **Salons** Spotify/YouTube synchronisés — public ou privé, file d'attente, chat, ancrage carte
+- **Salons** YouTube synchronisés — public ou privé, file d'attente, chat, ancrage carte
 - **Direct (Live)** — vidéo LiveKit/Cloudflare HLS, chat, pourboires Stripe Connect (30 %), abonnements créateur
 - **Actualités + Stories + Reels** — feed social, algo Soundy, reels sponsorisés (1/5 par défaut)
 - **Carte** — événements, salons, personnes proches, bannières sponsor `map_banner`

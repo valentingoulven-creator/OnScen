@@ -2,26 +2,11 @@ import { Router, Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { authenticateJWT } from '../middleware/auth';
-import { db } from '../models/schema';
-import { isAccessAdmin } from '../lib/accessControl';
+import { requireAdmin } from '../middleware/requireAdmin';
 import { getMsdevEnvPath } from '../paths';
 import type { ContentReport } from '../lib/contentReports';
 
 export const adminReportsRouter = Router();
-
-function requireAdmin(req: Request, res: Response): boolean {
-  const userId = (req as Request & { user?: { id: string } }).user?.id;
-  if (!userId) {
-    res.status(401).json({ error: 'Non authentifié' });
-    return false;
-  }
-  const user = db.users.get(userId);
-  if (!user || !isAccessAdmin(user)) {
-    res.status(403).json({ error: 'Accès administrateur requis' });
-    return false;
-  }
-  return true;
-}
 
 function reportsFilePath(): string {
   const envDir = path.dirname(getMsdevEnvPath());
@@ -56,14 +41,14 @@ function writeAllReports(reports: ContentReport[]): void {
 
 /** GET /api/admin/reports — liste tous les signalements */
 adminReportsRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const reports = readAllReports();
   res.json({ reports });
 });
 
 /** PATCH /api/admin/reports/:id — marquer comme examiné */
 adminReportsRouter.patch('/:id', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const { id } = req.params;
   const { status } = req.body ?? {};
   if (!status || !['reviewed', 'dismissed'].includes(status)) {
@@ -84,7 +69,7 @@ adminReportsRouter.patch('/:id', authenticateJWT, (req: Request, res: Response) 
 
 /** DELETE /api/admin/reports/:id — supprimer un signalement */
 adminReportsRouter.delete('/:id', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const { id } = req.params;
   const reports = readAllReports();
   const filtered = reports.filter((r) => r.id !== id);

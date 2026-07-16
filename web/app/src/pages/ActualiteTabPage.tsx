@@ -18,6 +18,11 @@ import {
   validateFeedVideoFile,
 } from '../lib/feedVideo';
 import { geocodeCountryFromQuery } from '../lib/geocodeAddress';
+import {
+  countryCodeToFlag,
+  EVENTS_COUNTRY_FALLBACK,
+} from '../lib/countryDisplay';
+import { FeedTrendingUsersSection } from '../components/FeedTrendingUsersSection';
 import { resolveEventCoords } from '../lib/mapEventCoords';
 import { dispatchMapEventsRefresh, dispatchMapOpenCreateSalon } from '../lib/mapUiEvents';
 import type { CommentAlign, FeedPost, FeedPostComment, MapStory, MusicNewsItem, StoryTaggedUser, TrendingUser } from '../types';
@@ -90,7 +95,7 @@ interface ActualiteTabPageProps {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /** Pays affiché / filtré quand la géoloc est refusée ou indisponible (MODIF 167). */
-const EVENTS_COUNTRY_FALLBACK = { code: 'FR', name: 'France' } as const;
+// EVENTS_COUNTRY_FALLBACK → lib/countryDisplay.ts
 
 const NEARBY_EVENTS_RADIUS_KM = 30;
 
@@ -103,12 +108,6 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function countryCodeToFlag(code: string): string {
-  const cc = code.toUpperCase();
-  if (cc.length !== 2) return '🌍';
-  return String.fromCodePoint(...[...cc].map((c) => 0x1f1e6 - 65 + c.charCodeAt(0)));
 }
 
 import i18n from '../i18n';
@@ -126,30 +125,16 @@ function formatWhen(ts: number): string {
   return new Date(ts).toLocaleDateString(locale, { day: 'numeric', month: 'short' });
 }
 
-function rankMedal(rank: number): string {
-  if (rank === 1) return '🥇';
-  if (rank === 2) return '🥈';
-  if (rank === 3) return '🥉';
-  return `#${rank}`;
-}
-
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
-function PhotoIcon({ className }: { className?: string }) {
+function MediaAttachIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="8.5" cy="8.5" r="1.5" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="m21 15-5-5L5 21" />
-    </svg>
-  );
-}
-
-function VideoIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="2" y="5" width="15" height="14" rx="2" ry="2" strokeLinecap="round" strokeLinejoin="round" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="m22 8-5 3.5v5L22 20V8z" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"
+      />
     </svg>
   );
 }
@@ -243,43 +228,6 @@ function commentBubbleClass(align?: CommentAlign): string {
 }
 
 
-const TrendingUserCard = memo(function TrendingUserCard({ user, onOpenProfile }: { user: TrendingUser; onOpenProfile: (userId: string) => void }) {
-  const [imgOk, setImgOk] = useState(true);
-  return (
-    <button
-      type="button"
-      onClick={() => onOpenProfile(user.userId)}
-      className="flex flex-col items-center gap-1.5 w-20 shrink-0"
-      aria-label={`Voir le profil de ${user.username}`}
-    >
-      <div className="relative w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br from-violet-900 to-purple-900 border-2 border-[#2a2a3d]">
-        {user.avatarUrl && imgOk ? (
-          <img
-            src={user.avatarUrl}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            onError={() => setImgOk(false)}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-xl font-bold text-purple-300 uppercase">
-            {user.username.charAt(0)}
-          </div>
-        )}
-        <div className="absolute top-0 left-0 bg-black/50 rounded-br-lg px-1 py-0.5 text-[10px] font-bold text-white leading-none">
-          {user.rank <= 3 ? rankMedal(user.rank) : `#${user.rank}`}
-        </div>
-        {(user.liveCount > 0) && (
-          <div className="absolute bottom-0 right-0 w-4 h-4 bg-red-500 rounded-full border border-[#0b0b0f] flex items-center justify-center">
-            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-          </div>
-        )}
-      </div>
-      <p className="text-[10px] font-semibold text-white text-center leading-tight line-clamp-1 w-full">{user.username}</p>
-    </button>
-  );
-});
 
 function SectionHeader({
   label,
@@ -473,7 +421,6 @@ function ActualitesContent({
     country: displayCountryName.toUpperCase(),
   });
   const countrySectionEmoji = countryCodeToFlag(displayCountryCode);
-  const trendsCountrySubtitle = `${countryCodeToFlag(displayCountryCode)} · ${displayCountryName}`;
 
   if (newsLoading && newsItems.length === 0) {
     return (
@@ -507,33 +454,13 @@ function ActualitesContent({
       <div className="space-y-3 min-w-0">
         {/* MODIF 214/215 – Tendances par pays en tête (remplace Stories dans Actualités) */}
         <div className="mt-4 space-y-2.5">
-          <SectionHeader
-            label={t('feed.trendsWeek')}
-            emoji="🔥"
-            subtitle={trendsCountrySubtitle}
+          <FeedTrendingUsersSection
+            users={trendingUsers}
+            loading={trendingLoading}
+            countryCode={displayCountryCode}
+            countryName={displayCountryName}
+            onOpenProfile={onOpenProfile}
           />
-          {trendingLoading && trendingUsers.length === 0 ? (
-            <div className="overflow-x-auto -mx-3 px-3">
-              <div className="flex gap-4 w-max pb-1">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="flex flex-col items-center gap-1.5 w-20 shrink-0">
-                    <div className="w-16 h-16 rounded-full bg-[#1e1e2f] animate-pulse" />
-                    <div className="w-14 h-2 rounded bg-[#1e1e2f] animate-pulse" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : trendingUsers.length === 0 ? (
-            <p className="text-xs text-gray-500 text-center py-4">{t('feed.trendsEmpty')}</p>
-          ) : (
-            <div className="overflow-x-auto -mx-3 px-3">
-              <div className="flex gap-4 w-max pb-1">
-                {trendingUsers.map((user) => (
-                  <TrendingUserCard key={user.userId} user={user} onOpenProfile={onOpenProfile} />
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {onBack ? (
@@ -1119,8 +1046,7 @@ export function ActualiteTabPage({
   const [videoAttaching, setVideoAttaching] = useState(false);
   const [editorSource, setEditorSource] = useState<File | string | null>(null);
   const [editorPreviewUrl, setEditorPreviewUrl] = useState<string | null>(null);
-  const imageFileInputRef = useRef<HTMLInputElement>(null);
-  const videoFileInputRef = useRef<HTMLInputElement>(null);
+  const mediaFileInputRef = useRef<HTMLInputElement>(null);
   // ── Événement ──
   const [isEvent, setIsEvent] = useState(false);
   const [confirmedEventDates, setConfirmedEventDates] = useState<{ start: string; end: string | null }[]>([]);
@@ -1636,6 +1562,20 @@ export function ActualiteTabPage({
     }
   };
 
+  const isVideoMediaFile = (file: File) => {
+    if (file.type.startsWith('video/')) return true;
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+    return ['mp4', 'mov', 'webm', 'm4v', 'mkv'].includes(ext);
+  };
+
+  const attachMediaFromFile = async (file: File) => {
+    if (isVideoMediaFile(file)) {
+      await attachVideoFromFile(file);
+    } else {
+      await attachImageFromFile(file);
+    }
+  };
+
   const onFeedEditorConfirm = async (composedUrl: string) => {
     setEditorSource(null);
     setImageAttaching(true);
@@ -1904,25 +1844,14 @@ export function ActualiteTabPage({
               <div className="rounded-xl border border-[var(--ms-border)] bg-[var(--ms-surface)] p-3 space-y-2">
                     <p className="text-xs text-[var(--ms-text-muted)] font-medium uppercase tracking-wide">{t('feed.publish')}</p>
                     <input
-                      ref={imageFileInputRef}
+                      ref={mediaFileInputRef}
                       type="file"
-                      accept={ACCEPTED_IMAGE_FORMATS}
+                      accept={`${ACCEPTED_IMAGE_FORMATS},${ACCEPTED_FEED_VIDEO_FORMATS}`}
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         e.target.value = '';
-                        if (file) void attachImageFromFile(file);
-                      }}
-                    />
-                    <input
-                      ref={videoFileInputRef}
-                      type="file"
-                      accept={ACCEPTED_FEED_VIDEO_FORMATS}
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        e.target.value = '';
-                        if (file) void attachVideoFromFile(file);
+                        if (file) void attachMediaFromFile(file);
                       }}
                     />
                     <textarea
@@ -1936,21 +1865,53 @@ export function ActualiteTabPage({
                       className="w-full rounded-xl bg-[var(--ms-bg)] border border-[var(--ms-border)] px-3 py-2 text-sm text-[var(--ms-text)] placeholder:text-[var(--ms-text-muted)] resize-none focus:outline-none focus:ring-2 focus:ring-[var(--ms-accent)]/50"
                     />
 
-                    {/* ── Créer un événement (popup) ── */}
-                    {!isEvent ? (
-                      <button
-                        type="button"
-                        onClick={() => setEventModalOpen(true)}
-                        className="flex items-center gap-2 min-h-[44px] px-2 -mx-2 rounded-lg text-xs font-semibold text-purple-300 hover:bg-purple-950/30 transition w-full text-left"
-                        aria-label={t('feed.createEvent')}
-                      >
-                        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
-                          <rect x="3" y="4" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round" />
-                          <path strokeLinecap="round" d="M16 2v4M8 2v4M3 10h18" />
-                        </svg>
-                        {t('feed.createEvent')}
-                      </button>
-                    ) : (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {!isEvent ? (
+                        <button
+                          type="button"
+                          onClick={() => setEventModalOpen(true)}
+                          className="flex items-center gap-2 min-h-11 min-w-11 px-2 rounded-lg text-xs font-semibold text-purple-300 hover:bg-purple-950/30 transition flex-1 min-w-0 text-left"
+                          aria-label={t('feed.createEvent')}
+                        >
+                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="3" y="4" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+                            <path strokeLinecap="round" d="M16 2v4M8 2v4M3 10h18" />
+                          </svg>
+                          <span className="truncate">{t('feed.createEvent')}</span>
+                        </button>
+                      ) : null}
+                      <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                        <button
+                          type="button"
+                          disabled={
+                            mediaAttaching ||
+                            editorOpen ||
+                            Boolean(imageUrl.trim()) ||
+                            Boolean(videoUrl.trim())
+                          }
+                          onClick={() => mediaFileInputRef.current?.click()}
+                          title={t('feed.attachMedia')}
+                          aria-label={t('feed.attachMedia')}
+                          className={`min-w-11 min-h-11 flex items-center justify-center p-1.5 rounded-lg transition disabled:opacity-40 ${
+                            imageUrl.trim() || videoUrl.trim()
+                              ? 'text-purple-300 bg-purple-900/40'
+                              : 'text-[var(--ms-text-muted)] hover:text-gray-300 hover:bg-[var(--ms-surface-2)]'
+                          }`}
+                        >
+                          <MediaAttachIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!canPublish || publishing || mediaAttaching || editorOpen}
+                          onClick={() => void publish()}
+                          className="min-h-11 rounded-lg bg-[var(--ms-accent)] hover:bg-purple-500 px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
+                        >
+                          {publishing ? t('feed.publishing') : t('feed.publish')}
+                        </button>
+                      </div>
+                    </div>
+
+                    {isEvent && (
                       <div className="flex items-start gap-2 p-3 rounded-xl bg-purple-950/30 border border-purple-500/25">
                         {imageUrl.trim() ? (
                           <img
@@ -2063,47 +2024,6 @@ export function ActualiteTabPage({
                         </div>
                       </div>
                     )}
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] text-gray-600">{draft.length}/2000</span>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          disabled={mediaAttaching || editorOpen || Boolean(videoUrl.trim())}
-                          onClick={() => imageFileInputRef.current?.click()}
-                          title={t('feed.attachImage')}
-                          aria-label={t('feed.attachImage')}
-                          className={`min-w-11 min-h-11 flex items-center justify-center p-1.5 rounded-lg transition disabled:opacity-40 ${
-                            imageUrl.trim()
-                              ? 'text-purple-300 bg-purple-900/40'
-                              : 'text-[var(--ms-text-muted)] hover:text-gray-300 hover:bg-[var(--ms-surface-2)]'
-                          }`}
-                        >
-                          <PhotoIcon className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={mediaAttaching || editorOpen || Boolean(imageUrl.trim())}
-                          onClick={() => videoFileInputRef.current?.click()}
-                          title={t('feed.attachVideo')}
-                          aria-label={t('feed.attachVideo')}
-                          className={`min-w-11 min-h-11 flex items-center justify-center p-1.5 rounded-lg transition disabled:opacity-40 ${
-                            videoUrl.trim()
-                              ? 'text-purple-300 bg-purple-900/40'
-                              : 'text-[var(--ms-text-muted)] hover:text-gray-300 hover:bg-[var(--ms-surface-2)]'
-                          }`}
-                        >
-                          <VideoIcon className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!canPublish || publishing || mediaAttaching || editorOpen}
-                          onClick={() => void publish()}
-                          className="min-h-11 rounded-lg bg-[var(--ms-accent)] hover:bg-purple-500 px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
-                        >
-                          {publishing ? t('feed.publishing') : t('feed.publish')}
-                        </button>
-                      </div>
-                    </div>
                     {error && <p className="text-xs text-red-400">{error}</p>}
                   </div>
 
@@ -2144,7 +2064,7 @@ export function ActualiteTabPage({
                   items={visiblePosts}
                   useWindowScroll
                   renderItem={(post, postIndex) => (
-                    <div key={post.id} className="space-y-3">
+                    <div key={post.id} className="flex flex-col gap-3 pb-3">
                       <PostCard
                         post={{
                           ...post,

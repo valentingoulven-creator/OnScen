@@ -126,6 +126,7 @@ export function MusicTabPage({
             data={data}
             loading={loading}
             onOpenProfile={handleOpenProfile}
+            isActive={isActive}
           />
         )}
       </div>

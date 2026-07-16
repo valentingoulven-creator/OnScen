@@ -113,16 +113,22 @@ export function getUsernameStyle(
       style: waveMarkerInlineStyle(from, to),
     };
   }
-  if (usernameColor) {
+  // Couleur unie : validée en hex strict (comme le chemin wave ci-dessus) au
+  // lieu d'un simple `.replace(/"/g, '')` — sinon une valeur usernameColor
+  // non hex (donnée historique/legacy non validée en DB) s'injecte telle
+  // quelle dans l'attribut `style`, permettant une injection CSS arbitraire
+  // (ex. `position:fixed;...` pour du défacement) même si le breakout HTML
+  // par guillemet reste bloqué.
+  if (usernameColor && HEX_RE.test(usernameColor)) {
     return {
       className: parts.join(' '),
-      style: `color:${usernameColor.replace(/"/g, '')}`,
+      style: `color:${usernameColor}`,
     };
   }
   return { className: parts.join(' '), style: '' };
 }
 
-function escapeHtmlAttr(value: string): string {
+export function escapeHtmlAttr(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

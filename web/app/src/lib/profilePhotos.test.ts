@@ -5,6 +5,7 @@ import {
   normalizeProfilePhotoSlots,
   profilePhotosChanged,
   shouldIncludeProfilePhotosInSave,
+  toSingleProfilePhotoSlots,
 } from './profilePhotos';
 
 const JPEG = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA//2Q==';
@@ -36,5 +37,12 @@ describe('profilePhotos save flow', () => {
     const dicebear = 'https://api.dicebear.com/7.x/adventurer/svg?seed=Val';
     expect(normalizeProfilePhotoSlots([dicebear])).toEqual([]);
     expect(countPersistableProfilePhotos([dicebear])).toBe(0);
+  });
+
+  it('collapses multi-slot legacy data to one primary photo', () => {
+    const second = `${JPEG}2`;
+    expect(toSingleProfilePhotoSlots([JPEG, second])).toEqual([JPEG]);
+    expect(toSingleProfilePhotoSlots(['', JPEG])).toEqual([JPEG]);
+    expect(toSingleProfilePhotoSlots([])).toEqual([]);
   });
 });

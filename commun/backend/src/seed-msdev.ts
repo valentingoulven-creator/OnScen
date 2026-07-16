@@ -113,6 +113,7 @@ function buildMsdevDemoUsers(hash: string): { dj: User; bass: User; listener: Us
     email: 'dj@msdev.local',
     passwordHash: hash,
     isAdmin: true,
+    staffRole: 'dev' as const,
     accountStatus: 'active',
     avatarUrl: 'https://api.dicebear.com/7.x/adventurer/svg?seed=DJMelody',
     meloCoins: 500,
@@ -139,6 +140,7 @@ function buildMsdevDemoUsers(hash: string): { dj: User; bass: User; listener: Us
     email: 'listener@msdev.local',
     passwordHash: hash,
     isAdmin: true,
+    staffRole: 'dev' as const,
     accountStatus: 'active',
     avatarUrl: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Listener',
     profilePhotos: [

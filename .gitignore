@@ -38,6 +38,10 @@ msdev/release/
 backend/tile-cache/
 commun/backend/tile-cache/
 
+# Snapshots de compte (restauration admin) — données privées runtime, jamais commit
+backend/data/
+commun/backend/data/
+
 # Mobile build artifacts (regenerate via capacitor:android:apk)
 *.apk
 *.aab

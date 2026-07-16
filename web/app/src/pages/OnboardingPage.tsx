@@ -1,12 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { PROFILE_TYPE_OPTIONS } from '../lib/profileTypes';
 import { ArtistAutocomplete } from '../components/ArtistAutocomplete';
 import { CityAutocomplete } from '../components/CityAutocomplete';
-import { PlatformConnectCard } from '../components/PlatformConnectCard';
-import { PLATFORM_STATUS_REFRESH_EVENT } from '../lib/platformStatusEvents';
 import { getPrivacyPreferences, setPrivacyPreferences } from '../lib/settings';
 import { compressProfilePhotoDataUrl, prepareProfilePhotosForSave } from '../lib/profilePhotos';
 import { validateBirthDate } from '../lib/profileAge';
@@ -23,13 +20,13 @@ const MUSIC_GENRES = [
   'Punk', 'Gospel', 'Lofi', 'Trap', 'Drill',
 ];
 
-type Step = 'genres' | 'artists' | 'profileType' | 'platforms' | 'socials' | 'profile' | 'photos' | 'location' | 'done';
+type Step = 'taste' | 'profile' | 'location';
 
-const STEPS: Step[] = ['genres', 'artists', 'profileType', 'platforms', 'socials', 'profile', 'photos', 'location', 'done'];
+const STEPS: Step[] = ['taste', 'profile', 'location'];
 
 function StepIndicator({ current }: { current: Step }) {
   const activeIndex = STEPS.indexOf(current);
-  const labels = ['Genres', 'Artistes', 'Identité', 'Plateformes', 'Réseaux', 'Infos', 'Photos', 'Position', 'Fin'];
+  const labels = ['Goûts', 'Profil', 'Position'];
   return (
     <div className="flex items-center gap-0 w-full max-w-xs mx-auto mb-6">
       {STEPS.map((step, i) => (
@@ -88,8 +85,7 @@ interface Props {
 
 export function OnboardingPage({ onDone }: Props) {
   const { user, token, setUserFromProfile } = useAuth();
-  const { t } = useTranslation();
-  const [step, setStep] = useState<Step>('genres');
+  const [step, setStep] = useState<Step>('taste');
   const [genres, setGenres] = useState<string[]>([]);
   const [favoriteArtists, setFavoriteArtists] = useState<string[]>([]);
   const [newArtist, setNewArtist] = useState('');
@@ -98,50 +94,12 @@ export function OnboardingPage({ onDone }: Props) {
   const [birthDate, setBirthDate] = useState('');
   const [hideBirthDateOnProfile, setHideBirthDateOnProfile] = useState(true);
   const [city, setCity] = useState('');
-  const [instagramHandle, setInstagramHandle] = useState('');
-  const [youtubeChannel, setYoutubeChannel] = useState('');
-  const [relationshipStatus, setRelationshipStatus] = useState<'celibataire' | 'en_couple' | ''>('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [locating, setLocating] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
   const [deletePhotoIndex, setDeletePhotoIndex] = useState<number | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
-  const [oauthConfigured, setOauthConfigured] = useState(false);
-  const [hasRealPlatformConnection, setHasRealPlatformConnection] = useState(false);
-  const [platformStatusLoading, setPlatformStatusLoading] = useState(true);
-  const [instagramOAuthAvailable, setInstagramOAuthAvailable] = useState(false);
-
-  const refreshPlatformRequirement = useCallback(() => {
-    if (!token) {
-      setPlatformStatusLoading(false);
-      return;
-    }
-    setPlatformStatusLoading(true);
-    api
-      .getPlatformStatus(token)
-      .then((s) => {
-        setOauthConfigured(s.oauthConfigured ?? s.youtubeOAuthAvailable);
-        setHasRealPlatformConnection(s.hasRealPlatformConnection ?? false);
-        setInstagramOAuthAvailable(s.instagramOAuthAvailable ?? false);
-      })
-      .catch(() => {
-        setOauthConfigured(false);
-        setHasRealPlatformConnection(false);
-        setInstagramOAuthAvailable(false);
-      })
-      .finally(() => setPlatformStatusLoading(false));
-  }, [token]);
-
-  useEffect(() => {
-    refreshPlatformRequirement();
-  }, [refreshPlatformRequirement, user?.connectedPlatforms]);
-
-  useEffect(() => {
-    const onRefresh = () => refreshPlatformRequirement();
-    window.addEventListener(PLATFORM_STATUS_REFRESH_EVENT, onRefresh);
-    return () => window.removeEventListener(PLATFORM_STATUS_REFRESH_EVENT, onRefresh);
-  }, [refreshPlatformRequirement]);
 
   const toggleGenre = (g: string) => {
     setGenres((prev) =>
@@ -150,7 +108,7 @@ export function OnboardingPage({ onDone }: Props) {
   };
 
   const openPhotoPicker = () => {
-    if (photos.length >= 5 || saving) return;
+    if (photos.length >= 1 || saving) return;
     if (photoInputRef.current) {
       photoInputRef.current.value = '';
       photoInputRef.current.click();
@@ -176,7 +134,7 @@ export function OnboardingPage({ onDone }: Props) {
         reader.readAsDataURL(prepared);
       });
       const compressed = await compressProfilePhotoDataUrl(dataUrl);
-      setPhotos((prev) => (prev.length < 5 ? [...prev, compressed] : prev));
+      setPhotos([compressed]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement de la photo');
     } finally {
@@ -233,10 +191,6 @@ export function OnboardingPage({ onDone }: Props) {
         body.hideBirthDateOnProfile = hideBirthDateOnProfile;
       }
       if (city.trim()) body.city = city.trim();
-      const cleanIG = instagramHandle.trim().replace(/^@/, '');
-      if (cleanIG) body.instagramHandle = cleanIG;
-      if (youtubeChannel.trim()) body.youtubeChannel = youtubeChannel.trim();
-      if (relationshipStatus) body.relationshipStatus = relationshipStatus;
 
       if (photos.length > 0) {
         body.profilePhotos = await prepareProfilePhotosForSave(photos);
@@ -308,13 +262,13 @@ export function OnboardingPage({ onDone }: Props) {
         <CompletionBadge pct={completionPct} />
         <StepIndicator current={step} />
 
-        {step === 'genres' && (
-          <div className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-5 space-y-4">
+        {step === 'taste' && (
+          <div className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-5 space-y-4 max-h-[70dvh] overflow-y-auto">
             <div>
-              <h2 className="text-base font-bold text-white">Vos genres musicaux</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Choisissez jusqu'à 10 genres qui vous ressemblent</p>
+              <h2 className="text-base font-bold text-white">Vos goûts musicaux</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Genres et artistes pour personnaliser votre fil</p>
             </div>
-            <div className="flex flex-wrap gap-2 max-h-52 overflow-y-auto">
+            <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
               {MUSIC_GENRES.map((g) => (
                 <button
                   key={g}
@@ -330,52 +284,14 @@ export function OnboardingPage({ onDone }: Props) {
                 </button>
               ))}
             </div>
-            {genres.length > 0 && (
-              <p className="text-[11px] text-purple-400">{genres.length} genre{genres.length > 1 ? 's' : ''} sélectionné{genres.length > 1 ? 's' : ''}</p>
-            )}
-            {error && <p className="text-xs text-red-400">{error}</p>}
-            <div className="flex gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => saveAndNext('artists')}
-                className="text-xs text-gray-500 hover:text-gray-300 px-3 py-2"
-              >
-                Passer
-              </button>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => saveAndNext('artists')}
-                className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white bg-purple-600 hover:bg-purple-500 disabled:opacity-50 transition"
-              >
-                {saving ? '…' : 'Continuer →'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 'artists' && (
-          <div className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-5 space-y-4">
-            <div>
-              <h2 className="text-base font-bold text-white">Artistes favoris</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Ajoutez vos artistes préférés pour personnaliser votre expérience</p>
-            </div>
-            <div className="space-y-2">
+            <div className="space-y-2 pt-2 border-t border-[#2d2d3d]">
+              <p className="text-xs text-gray-400">Artistes favoris (optionnel)</p>
               {favoriteArtists.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {favoriteArtists.map((a) => (
-                    <span
-                      key={a}
-                      className="px-2 py-1 rounded-full bg-purple-500/20 text-purple-200 text-xs flex items-center gap-1"
-                    >
+                    <span key={a} className="px-2 py-1 rounded-full bg-purple-500/20 text-purple-200 text-xs flex items-center gap-1">
                       {a}
-                      <button
-                        type="button"
-                        onClick={() => setFavoriteArtists((prev) => prev.filter((t) => t !== a))}
-                        className="text-purple-400 hover:text-white"
-                      >
-                        ×
-                      </button>
+                      <button type="button" onClick={() => setFavoriteArtists((prev) => prev.filter((t) => t !== a))} className="text-purple-400 hover:text-white">×</button>
                     </span>
                   ))}
                 </div>
@@ -407,7 +323,7 @@ export function OnboardingPage({ onDone }: Props) {
                     if (v && !favoriteArtists.includes(v)) setFavoriteArtists((prev) => [...prev, v]);
                     setNewArtist('');
                   }}
-                  className="px-3 py-2 bg-purple-600 rounded-lg text-white text-sm shrink-0"
+                  className="px-3 py-2 bg-purple-600 rounded-lg text-white text-sm shrink-0 min-h-[44px]"
                 >
                   +
                 </button>
@@ -415,199 +331,8 @@ export function OnboardingPage({ onDone }: Props) {
             </div>
             {error && <p className="text-xs text-red-400">{error}</p>}
             <div className="flex gap-2 pt-1">
-              <button type="button" onClick={() => setStep('genres')} className="text-xs text-gray-500 hover:text-gray-300 px-3 py-2">← Retour</button>
-              <button
-                type="button"
-                onClick={() => saveAndNext('profileType')}
-                className="text-xs text-gray-500 hover:text-gray-300 px-2 py-2"
-              >
-                Passer
-              </button>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => saveAndNext('profileType')}
-                className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white bg-purple-600 hover:bg-purple-500 disabled:opacity-50 transition"
-              >
-                {saving ? '…' : 'Continuer →'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 'profileType' && (
-          <div className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-5 space-y-4">
-            <div>
-              <h2 className="text-base font-bold text-white">Qui êtes-vous ?</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Bar, artiste, lieu, professionnel de la musique…</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-0.5">
-              {PROFILE_TYPE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setProfileType(opt.value)}
-                  className={`flex items-start gap-2 p-2.5 rounded-xl border text-left transition ${
-                    profileType === opt.value
-                      ? 'border-purple-500 bg-purple-500/10'
-                      : 'border-[#2d2d3d] bg-[#1a1a26] hover:border-purple-500/40'
-                  }`}
-                >
-                  <span className="text-lg shrink-0 leading-none">{opt.emoji}</span>
-                  <span className="text-[11px] font-semibold text-white leading-tight">{opt.label}</span>
-                </button>
-              ))}
-            </div>
-            {error && <p className="text-xs text-red-400">{error}</p>}
-            <div className="flex gap-2 pt-1">
-              <button type="button" onClick={() => setStep('artists')} className="text-xs text-gray-500 hover:text-gray-300 px-3 py-2">← Retour</button>
-              <button
-                type="button"
-                onClick={() => saveAndNext('platforms')}
-                className="text-xs text-gray-500 hover:text-gray-300 px-2 py-2"
-              >
-                Passer
-              </button>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => saveAndNext('platforms')}
-                className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white bg-purple-600 hover:bg-purple-500 disabled:opacity-50 transition"
-              >
-                {saving ? '…' : 'Continuer →'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 'platforms' && token && (
-          <div className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-5 space-y-4">
-            <div>
-              <h2 className="text-base font-bold text-white">Connecte tes plateformes</h2>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Lie YouTube pour héberger des salons avec ta musique.
-              </p>
-            </div>
-            {!platformStatusLoading && oauthConfigured && !hasRealPlatformConnection && (
-              <p className="text-xs text-gray-400 bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-3 py-2 leading-snug">
-                Tu pourras connecter une plateforme plus tard depuis ton profil.
-              </p>
-            )}
-            {!platformStatusLoading && !oauthConfigured && (
-              <p className="text-xs text-gray-500 bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-3 py-2 leading-snug">
-                OAuth non configuré sur le serveur (admin :{' '}
-                <span className="text-gray-400">GOOGLE_CLIENT_*</span>). Tu peux passer cette étape
-                et utiliser la connexion démo YouTube si disponible.
-              </p>
-            )}
-            <div className="space-y-2">
-              {(['youtube'] as const).map((p) => (
-                <PlatformConnectCard
-                  key={p}
-                  token={token}
-                  platform={p}
-                  connectedPlatforms={user?.connectedPlatforms}
-                  onUserUpdated={(u) => {
-                    setUserFromProfile(u);
-                    refreshPlatformRequirement();
-                  }}
-                />
-              ))}
-            </div>
-            {error && <p className="text-xs text-red-400">{error}</p>}
-            <div className="flex gap-2 pt-1">
-              <button type="button" onClick={() => setStep('profileType')} className="text-xs text-gray-500 hover:text-gray-300 px-3 py-2">← Retour</button>
-              <button
-                type="button"
-                onClick={() => setStep('socials')}
-                className="text-xs text-gray-500 hover:text-gray-300 px-2 py-2"
-              >
-                Passer
-              </button>
-              <button
-                type="button"
-                disabled={saving || platformStatusLoading}
-                onClick={() => setStep('socials')}
-                className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white bg-purple-600 hover:bg-purple-500 disabled:opacity-50 transition"
-              >
-                {platformStatusLoading ? '…' : 'Continuer →'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 'socials' && (
-          <div className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-5 space-y-4">
-            <div>
-              <h2 className="text-base font-bold text-white">Tes réseaux sociaux</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Optionnel — connecte tes profils pour plus de visibilité</p>
-            </div>
-
-            {instagramOAuthAvailable && token && (
-              <div className="space-y-2 pb-3 border-b border-[#2d2d3d]">
-                <p className="text-[10px] text-pink-400 font-semibold uppercase tracking-wide">📸 Instagram Pro</p>
-                <PlatformConnectCard
-                  token={token}
-                  platform="instagram"
-                  connectedPlatforms={user?.connectedPlatforms}
-                  onUserUpdated={(u) => setUserFromProfile(u)}
-                />
-              </div>
-            )}
-
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <label className="flex items-center gap-1.5 text-xs text-gray-400">
-                  <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-                  </svg>
-                  Instagram
-                </label>
-                <div className="flex items-center bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl overflow-hidden">
-                  <span className="px-3 text-gray-500 text-sm select-none">@</span>
-                  <input
-                    type="text"
-                    placeholder="tonpseudo"
-                    value={instagramHandle}
-                    onChange={(e) => setInstagramHandle(e.target.value.replace(/^@+/, ''))}
-                    maxLength={64}
-                    className="flex-1 bg-transparent py-2.5 pr-4 text-sm text-white outline-none"
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="flex items-center gap-1.5 text-xs text-gray-400">
-                  <svg className="w-3.5 h-3.5 shrink-0 text-red-500" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-                  </svg>
-                  YouTube
-                </label>
-                <input
-                  type="text"
-                  placeholder="Nom de ta chaîne ou URL"
-                  value={youtubeChannel}
-                  onChange={(e) => setYoutubeChannel(e.target.value)}
-                  maxLength={200}
-                  className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white"
-                />
-              </div>
-            </div>
-            {error && <p className="text-xs text-red-400">{error}</p>}
-            <div className="flex gap-2 pt-1">
-              <button type="button" onClick={() => setStep('platforms')} className="text-xs text-gray-500 hover:text-gray-300 px-3 py-2">← Retour</button>
-              <button
-                type="button"
-                onClick={() => saveAndNext('profile')}
-                className="text-xs text-gray-500 hover:text-gray-300 px-2 py-2"
-              >
-                Passer
-              </button>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => saveAndNext('profile')}
-                className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white bg-purple-600 hover:bg-purple-500 disabled:opacity-50 transition"
-              >
+              <button type="button" onClick={() => saveAndNext('profile')} className="text-xs text-gray-500 hover:text-gray-300 px-3 py-2 min-h-[44px]">Passer</button>
+              <button type="button" disabled={saving} onClick={() => saveAndNext('profile')} className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white bg-purple-600 hover:bg-purple-500 disabled:opacity-50 transition min-h-[44px]">
                 {saving ? '…' : 'Continuer →'}
               </button>
             </div>
@@ -615,207 +340,57 @@ export function OnboardingPage({ onDone }: Props) {
         )}
 
         {step === 'profile' && (
-          <div className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-5 space-y-4">
+          <div className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-5 space-y-4 max-h-[70dvh] overflow-y-auto">
             <div>
               <h2 className="text-base font-bold text-white">Votre profil</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Ces informations sont optionnelles</p>
+              <p className="text-xs text-gray-400 mt-0.5">Identité, photo et infos — tout est optionnel</p>
             </div>
+            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-0.5">
+              {PROFILE_TYPE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setProfileType(opt.value)}
+                  className={`flex items-start gap-2 p-2.5 rounded-xl border text-left transition ${
+                    profileType === opt.value ? 'border-purple-500 bg-purple-500/10' : 'border-[#2d2d3d] bg-[#1a1a26] hover:border-purple-500/40'
+                  }`}
+                >
+                  <span className="text-lg shrink-0 leading-none">{opt.emoji}</span>
+                  <span className="text-[11px] font-semibold text-white leading-tight">{opt.label}</span>
+                </button>
+              ))}
+            </div>
+            <div className="flex justify-center">
+              {photos[0] ? (
+                <div className="relative w-28 h-28 rounded-2xl overflow-hidden border-2 border-purple-500/40">
+                  <img src={photos[0]} alt="" className="w-full h-full object-cover" />
+                  <button type="button" onClick={() => requestRemoveOnboardingPhoto(0)} className="absolute top-0 left-0 z-10 w-11 h-11 rounded-full bg-black/75 border border-white/20 text-white text-sm flex items-center justify-center hover:bg-red-600/90 transition" aria-label="Supprimer la photo">×</button>
+                </div>
+              ) : (
+                <button type="button" onClick={openPhotoPicker} disabled={saving} className="w-28 h-28 rounded-2xl border-2 border-dashed border-[#2d2d3d] flex flex-col items-center justify-center gap-1 text-gray-500 hover:border-purple-500/50 hover:text-purple-400 transition disabled:opacity-50">
+                  <span className="text-3xl leading-none">+</span>
+                  <span className="text-[10px]">Photo</span>
+                </button>
+              )}
+            </div>
+            <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handleOnboardingPhotoFile} />
             <div className="space-y-1">
               <label className="text-xs text-gray-400">Ville</label>
-              <CityAutocomplete
-                value={city}
-                onChange={setCity}
-                placeholder="Ex : Paris, Lyon, Montréal…"
-                inputClassName="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white"
-              />
+              <CityAutocomplete value={city} onChange={setCity} placeholder="Ex : Paris, Lyon…" inputClassName="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white" />
             </div>
             <div className="space-y-1">
               <span className="text-xs text-gray-400">Date de naissance (optionnel)</span>
-              <BirthDateInput
-                value={birthDate}
-                onChange={(next) => {
-                  setBirthDate(next);
-                  if (!next.trim()) setHideBirthDateOnProfile(true);
-                }}
-                inputClassName="mt-0.5 w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-3 py-2.5 text-sm text-white text-center tabular-nums"
-              />
-              <p className="text-[10px] text-gray-600">Minimum 13 ans (CGU)</p>
-            </div>
-            <div className="flex items-start gap-3 rounded-xl border border-[#2d2d3d] bg-[#0b0b0f] px-4 py-3">
-              <input
-                id="onboarding-hide-age"
-                type="checkbox"
-                checked={hideBirthDateOnProfile}
-                disabled={!birthDate.trim()}
-                onChange={(e) => {
-                  if (!birthDate.trim()) return;
-                  setHideBirthDateOnProfile(e.target.checked);
-                }}
-                className="mt-0.5 shrink-0 accent-purple-500 disabled:opacity-40 disabled:cursor-not-allowed"
-              />
-              <label
-                htmlFor="onboarding-hide-age"
-                className={`text-sm text-gray-300 min-w-0 ${
-                  birthDate.trim() ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
-                }`}
-              >
-                {t('profile.hideAge')}
-                <span className="block text-[10px] text-gray-500 mt-0.5">
-                  {birthDate.trim()
-                    ? t('profile.hideAgeHint')
-                    : t('profile.hideAgeNeedsDate')}
-                </span>
-              </label>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-gray-400">{t('profile.relationshipOptional')}</label>
-              <select
-                value={relationshipStatus}
-                onChange={(e) => setRelationshipStatus(e.target.value as 'celibataire' | 'en_couple' | '')}
-                className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white"
-              >
-                <option value="">{t('profile.relationshipHidden')}</option>
-                <option value="celibataire">{t('profile.relationshipSingle')}</option>
-                <option value="en_couple">{t('profile.relationshipCouple')}</option>
-              </select>
-              <p className="text-[10px] font-medium mt-1" style={{ color: '#c084fc' }}>
-                {t('profile.relationshipHeartHintOnboarding')}
-              </p>
+              <BirthDateInput value={birthDate} onChange={(next) => { setBirthDate(next); if (!next.trim()) setHideBirthDateOnProfile(true); }} inputClassName="mt-0.5 w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-3 py-2.5 text-sm text-white text-center tabular-nums" />
             </div>
             <div className="space-y-1">
               <label className="text-xs text-gray-400">Bio</label>
-              <textarea
-                placeholder="Décrivez vos goûts musicaux, ce qui vous anime…"
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                maxLength={500}
-                rows={3}
-                className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white resize-none"
-              />
-              <p className="text-[10px] text-gray-600 text-right">{bio.length}/500</p>
+              <textarea placeholder="Décrivez vos goûts musicaux…" value={bio} onChange={(e) => setBio(e.target.value)} maxLength={500} rows={2} className="w-full bg-[#0b0b0f] border border-[#2d2d3d] rounded-xl px-4 py-2.5 text-sm text-white resize-none" />
             </div>
             {error && <p className="text-xs text-red-400">{error}</p>}
             <div className="flex gap-2 pt-1">
-              <button type="button" onClick={() => setStep('socials')} className="text-xs text-gray-500 hover:text-gray-300 px-3 py-2">← Retour</button>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => saveAndNext('photos')}
-                className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white bg-purple-600 hover:bg-purple-500 disabled:opacity-50 transition"
-              >
-                {saving ? '…' : 'Continuer →'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 'photos' && (
-          <div className="bg-[#12121a] border border-[#1e1e2f] rounded-2xl p-5 space-y-4">
-            <div>
-              <h2 className="text-base font-bold text-white">Tes photos (jusqu'à 5)</h2>
-              <p className="text-xs text-gray-400 mt-0.5">La première photo sera ton avatar principal</p>
-            </div>
-
-            <div>
-              <p className="text-[10px] text-purple-400 font-semibold uppercase tracking-wide mb-2">Photo principale</p>
-              <div className="flex justify-center">
-                {photos[0] ? (
-                  <div className="relative w-36 h-36 rounded-2xl overflow-hidden border-2 border-purple-500/40">
-                    <img src={photos[0]} alt="" className="w-full h-full object-cover" />
-                    <span className="absolute top-1 left-1 text-[8px] bg-purple-600 text-white px-1.5 py-0.5 rounded font-bold">
-                      Principal
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => requestRemoveOnboardingPhoto(0)}
-                      className="absolute top-0 left-0 z-10 w-8 h-8 rounded-full bg-black/75 border border-white/20 text-white text-sm flex items-center justify-center hover:bg-red-600/90 transition"
-                      aria-label="Supprimer l'avatar"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={openPhotoPicker}
-                    disabled={saving}
-                    className="w-36 h-36 rounded-2xl border-2 border-dashed border-[#2d2d3d] flex flex-col items-center justify-center gap-1 text-gray-500 hover:border-purple-500/50 hover:text-purple-400 transition disabled:opacity-50"
-                  >
-                    <span className="text-3xl leading-none">+</span>
-                    <span className="text-[10px]">Avatar</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide mb-2">Photos supplémentaires</p>
-              <div className="grid grid-cols-2 gap-2">
-                {[1, 2, 3, 4].map((idx) => {
-                  if (photos[idx]) {
-                    return (
-                      <div key={idx} className="relative rounded-xl overflow-hidden aspect-square">
-                        <img src={photos[idx]} alt="" className="w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => requestRemoveOnboardingPhoto(idx)}
-                          className="absolute top-0 left-0 z-10 w-8 h-8 rounded-full bg-black/75 border border-white/20 text-white text-sm flex items-center justify-center hover:bg-red-600/90 transition"
-                          aria-label="Supprimer la photo"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    );
-                  }
-                  if (idx <= photos.length) {
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={openPhotoPicker}
-                        disabled={saving}
-                        className="border-2 border-dashed border-[#2d2d3d] rounded-xl aspect-square flex items-center justify-center text-gray-500 hover:border-purple-500/50 hover:text-purple-400 transition disabled:opacity-50"
-                      >
-                        <span className="text-2xl leading-none">+</span>
-                      </button>
-                    );
-                  }
-                  return (
-                    <div
-                      key={idx}
-                      className="border-2 border-dashed border-[#1e1e2f] rounded-xl aspect-square flex items-center justify-center"
-                    >
-                      <span className="text-2xl leading-none text-[#2d2d3d]">+</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <input
-              ref={photoInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleOnboardingPhotoFile}
-            />
-
-            {error && <p className="text-xs text-red-400">{error}</p>}
-            <div className="flex gap-2 pt-1">
-              <button type="button" onClick={() => setStep('profile')} className="text-xs text-gray-500 hover:text-gray-300 px-3 py-2">← Retour</button>
-              <button
-                type="button"
-                onClick={() => saveAndNext('location')}
-                className="text-xs text-gray-500 hover:text-gray-300 px-2 py-2"
-              >
-                Passer
-              </button>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => saveAndNext('location')}
-                className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white bg-purple-600 hover:bg-purple-500 disabled:opacity-50 transition"
-              >
+              <button type="button" onClick={() => setStep('taste')} className="text-xs text-gray-500 hover:text-gray-300 px-3 py-2 min-h-[44px]">← Retour</button>
+              <button type="button" onClick={() => saveAndNext('location')} className="text-xs text-gray-500 hover:text-gray-300 px-2 py-2 min-h-[44px]">Passer</button>
+              <button type="button" disabled={saving} onClick={() => saveAndNext('location')} className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white bg-purple-600 hover:bg-purple-500 disabled:opacity-50 transition min-h-[44px]">
                 {saving ? '…' : 'Continuer →'}
               </button>
             </div>

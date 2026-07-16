@@ -26,6 +26,11 @@ export function hasThirdPartyCookieConsent(): boolean {
   return getCookieConsent() === 'all';
 }
 
+/** Sentry (analytics / monitoring erreurs) — chargé uniquement avec consentement « tout accepter ». */
+export function hasAnalyticsCookieConsent(): boolean {
+  return getCookieConsent() === 'all';
+}
+
 export function resetCookieConsent(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);

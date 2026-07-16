@@ -199,6 +199,8 @@
 
 ## 3. Conditions d'utilisation Spotify
 
+> **Statut (2026-07)** : intégration Spotify **retirée** du produit (MODIF 662+). Cette section est conservée comme archive juridique ; aucun code ni variable d'environnement Spotify actifs.
+
 ### 3.1 Références
 
 - **Spotify Developer Policy** : https://developer.spotify.com/policy

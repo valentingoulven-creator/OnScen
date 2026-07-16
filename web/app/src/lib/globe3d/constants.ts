@@ -1,0 +1,40 @@
+/** Rayon Terre aligné sur react-globe.gl / three-globe (altitude POV compatible). */
+export const EARTH_RADIUS = 100;
+
+export const BORDER_RADIUS = EARTH_RADIUS * 1.002;
+export const HIGHLIGHT_RADIUS = EARTH_RADIUS * 1.003;
+export const CLOUDS_RADIUS = EARTH_RADIUS * 1.015;
+export const ATMOSPHERE_RADIUS = EARTH_RADIUS * 1.15;
+export const MARKER_SURFACE_RADIUS = EARTH_RADIUS * 1.008;
+
+/** Caméra : distance = EARTH_RADIUS * (1 + altitude). */
+export const CAMERA_MAX_DISTANCE = 400;
+/** Vue par défaut = dézoom max (même que OrbitControls maxDistance). */
+export const CAMERA_DEFAULT_DISTANCE = CAMERA_MAX_DISTANCE;
+export const CAMERA_MIN_DISTANCE = EARTH_RADIUS * 1.03;
+/** Altitude POV par défaut (= dézoom max). distance/r - 1 → 3.0 */
+export const CAMERA_DEFAULT_ALTITUDE = CAMERA_DEFAULT_DISTANCE / EARTH_RADIUS - 1;
+
+/** Distance de référence pour normaliser la vitesse de rotation au zoom (altitude 1.0). */
+export const GLOBE_ROTATION_REF_DISTANCE = CAMERA_DEFAULT_DISTANCE;
+
+/**
+ * OrbitControls autoRotateSpeed à la distance de référence (~100 s / tour complet).
+ * Mis à l'échelle par REF_DISTANCE / distance caméra pour une vitesse visuelle constante.
+ */
+export const GLOBE_AUTO_ROTATE_BASE_SPEED = 0.5;
+
+/** OrbitControls rotateSpeed (drag) à la distance de référence — même normalisation zoom. */
+export const GLOBE_DRAG_ROTATE_BASE_SPEED = 0.55;
+
+/** Parallaxe nuages (rad/s à la distance de référence), un peu plus lent que la Terre. */
+export const GLOBE_CLOUDS_PARALLAX_SPEED = 0.004;
+
+export const TEXTURE_PATHS = {
+  day: '/globe/earth-blue-marble.jpg',
+  bump: '/globe/earth-topology.png',
+  specular: '/globe/earth-water.png',
+  clouds: '/globe/earth-clouds.png',
+  starfield: '/globe/stars-enhanced.jpg',
+  starfieldLow: '/globe/night-sky.png',
+} as const;

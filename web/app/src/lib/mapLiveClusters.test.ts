@@ -26,8 +26,8 @@ const baseLive = (id: string, lat: number, lng: number): Live =>
   }) as Live;
 
 describe('clusterLiveMapMarkers', () => {
-  it('groups markers within grid distance into one cluster', () => {
-    const salons = [baseSalon('s1', 48.856, 2.352), baseSalon('s2', 48.857, 2.353)];
+  it('groups markers at the same location into one cluster', () => {
+    const salons = [baseSalon('s1', 48.8566, 2.3522), baseSalon('s2', 48.8566, 2.3522)];
     const clusters = clusterLiveMapMarkers(salons, [], new Set());
     expect(clusters).toHaveLength(1);
     expect(clusters[0]!.count).toBe(2);
@@ -46,9 +46,9 @@ describe('clusterLiveMapMarkers', () => {
     expect(clusters).toHaveLength(0);
   });
 
-  it('mixes salons and standalone lives in same bucket', () => {
-    const salons = [baseSalon('s1', 48.856, 2.352)];
-    const lives = [baseLive('l1', 48.8565, 2.3525)];
+  it('mixes salons and standalone lives at the same coordinates', () => {
+    const salons = [baseSalon('s1', 48.8566, 2.3522)];
+    const lives = [baseLive('l1', 48.8566, 2.3522)];
     const clusters = clusterLiveMapMarkers(salons, lives, new Set());
     expect(clusters).toHaveLength(1);
     expect(clusters[0]!.count).toBe(2);

@@ -8,6 +8,8 @@ export const accessApi = {
     request<{
       accessControlEnabled: boolean;
       isAdmin: boolean;
+      staffRole?: import('../../types').StaffRole | null;
+      isDevStaff?: boolean;
       accountStatus: string | null;
     }>('/access/admin/status', {}, token),
 
@@ -93,10 +95,10 @@ export const accessApi = {
       token
     ),
 
-  promoteAccessUser: (token: string, userId: string) =>
+  promoteAccessUser: (token: string, userId: string, role: 'admin' | 'dev' = 'admin') =>
     request<{ user: import('../../types').AccessManagedUser }>(
       `/access/admin/users/${userId}/promote`,
-      { method: 'POST' },
+      { method: 'POST', body: JSON.stringify({ role }) },
       token
     ),
 
@@ -115,6 +117,28 @@ export const accessApi = {
     request<{ ok: boolean; status: import('../subscriptions').PlatformPlanStatusResponse }>(
       `/access/admin/users/${userId}/platform-plan`,
       { method: 'POST', body: JSON.stringify({ planId }) },
+      token
+    ),
+
+  /** Restauration de compte — spec commun/docs/RESTORE-COMPTE-ADMIN.md. */
+  createUserSnapshot: (token: string, userId: string, reason?: string) =>
+    request<{ snapshot: import('../../types').UserSnapshotMeta }>(
+      `/access/admin/users/${userId}/snapshots`,
+      { method: 'POST', body: JSON.stringify({ reason }) },
+      token
+    ),
+
+  listUserSnapshots: (token: string, userId: string) =>
+    request<{ snapshots: import('../../types').UserSnapshotMeta[] }>(
+      `/access/admin/users/${userId}/snapshots`,
+      {},
+      token
+    ),
+
+  restoreUserSnapshot: (token: string, userId: string, snapshotId: string) =>
+    request<{ ok: boolean }>(
+      `/access/admin/users/${userId}/snapshots/${snapshotId}/restore`,
+      { method: 'POST' },
       token
     ),
 

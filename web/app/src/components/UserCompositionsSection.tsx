@@ -993,7 +993,12 @@ export function UserCompositionsSection({
 
     audio.onerror = () => setPlayingId(null);
 
-    void audio.play().then(() => setPlayingId(item.id)).catch(() => setPlayingId(null));
+    void audio.play().then(() => {
+      setPlayingId(item.id);
+      if (token) {
+        void api.recordCompositionPlay(token, item.id).catch(() => undefined);
+      }
+    }).catch(() => setPlayingId(null));
 
   };
 

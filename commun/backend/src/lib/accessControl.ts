@@ -1,6 +1,8 @@
 import { db, type User } from '../models/schema';
 import { MSDEV_DEMO_EMAILS } from './msdevDemoAccounts';
 
+export type StaffRole = 'admin' | 'dev';
+
 export type AccountStatus = 'active' | 'pending' | 'blocked';
 
 export type AccessRegistrationMode = 'open' | 'invite_only' | 'admin_approval' | 'closed';
@@ -136,19 +138,37 @@ function parseAdminUsernames(): Set<string> {
 const adminEmails = () => parseAdminEmails();
 const adminUsernames = () => parseAdminUsernames();
 
-export function isAccessAdmin(user: User | undefined): boolean {
-  if (!user) return false;
-  if (user.isAdmin === true) return true;
-  // En production, seul le flag isAdmin (DB) est pris en compte.
-  // ACCESS_ADMIN_EMAILS / ACCESS_ADMIN_USERNAMES n'ont aucun effet en prod.
+function isEnvElevatedStaff(user: User): boolean {
   if (isProductionAccessEnv()) return false;
   if (adminUsernames().has(user.username.trim().toLowerCase())) return true;
   return adminEmails().has(user.email.trim().toLowerCase());
 }
 
-/** Compte développeur / super-admin (alias public de isAccessAdmin). */
+/** Rôle staff effectif (persisté, legacy isAdmin ou élévation msdev). */
+export function getStaffRole(user: User | undefined): StaffRole | null {
+  if (!user) return null;
+  if (user.staffRole === 'admin' || user.staffRole === 'dev') return user.staffRole;
+  if (user.isAdmin === true) return 'dev';
+  if (isEnvElevatedStaff(user)) return 'dev';
+  return null;
+}
+
+export function isDevStaff(user: User | undefined): boolean {
+  return getStaffRole(user) === 'dev';
+}
+
+/** Admin opérationnel (comptes, contenu, support, sponsors). */
+export function isOperationalAdmin(user: User | undefined): boolean {
+  return getStaffRole(user) != null;
+}
+
+export function isAccessAdmin(user: User | undefined): boolean {
+  return isOperationalAdmin(user);
+}
+
+/** Compte développeur / super-admin (modération, panel complet). */
 export function isDevUser(user: User | undefined): boolean {
-  return isAccessAdmin(user);
+  return isDevStaff(user);
 }
 
 /** Comptes autorisés à utiliser l'API (hors routes publiques d'auth). */
@@ -314,41 +334,50 @@ export function blockUserAccount(
   return user;
 }
 
-function wouldRetainAdminWithoutFlag(user: User): boolean {
-  if (isProductionAccessEnv()) return false;
-  if (adminUsernames().has(user.username.trim().toLowerCase())) return true;
-  return adminEmails().has(user.email.trim().toLowerCase());
+function wouldRetainStaffWithoutFlag(user: User): boolean {
+  return isEnvElevatedStaff(user);
 }
 
-function countEffectiveAdmins(excludeUserId?: string, excludeFlag = false): number {
+function countEffectiveStaff(excludeUserId?: string, excludeFlag = false): number {
   return [...db.users.values()].filter((u) => {
     if (u.email.endsWith('@bot.local')) return false;
     if (excludeUserId && u.id === excludeUserId && excludeFlag) {
-      return wouldRetainAdminWithoutFlag(u);
+      return wouldRetainStaffWithoutFlag(u);
     }
-    return isAccessAdmin(u);
+    return getStaffRole(u) != null;
   }).length;
 }
 
-/** Promouvoir ou rétrograder un compte (flag `isAdmin` persisté). */
-export function setUserIsAdmin(
+/** Promouvoir ou rétrograder un compte staff (`isAdmin` + `staffRole`). */
+export function setUserStaffRole(
   userId: string,
-  isAdmin: boolean
+  role: StaffRole | null,
+  opts?: { callerId?: string }
 ): User | { error: string; status: number } {
   const user = db.users.get(userId);
   if (!user || user.email.endsWith('@bot.local')) {
     return { error: 'Utilisateur introuvable', status: 404 };
   }
-  if (!isAdmin) {
-    if (!user.isAdmin) {
+
+  if (role === null) {
+    const currentRole = getStaffRole(user);
+    if (!currentRole) {
       return { error: 'Ce compte n’est pas administrateur', status: 400 };
     }
-    if (countEffectiveAdmins(userId, true) < 1) {
+    if (currentRole === 'dev' && opts?.callerId) {
+      const caller = db.users.get(opts.callerId);
+      if (!caller || !isDevStaff(caller)) {
+        return { error: 'Seul un compte Dev peut retirer l’accès Dev', status: 403 };
+      }
+    }
+    if (countEffectiveStaff(userId, true) < 1) {
       return { error: 'Impossible de retirer le dernier administrateur', status: 400 };
     }
     user.isAdmin = false;
+    user.staffRole = undefined;
   } else {
     user.isAdmin = true;
+    user.staffRole = role;
     if (getAccountStatus(user) !== 'active') {
       user.accountStatus = 'active';
     }
@@ -357,13 +386,27 @@ export function setUserIsAdmin(
   return user;
 }
 
+/** @deprecated Utiliser setUserStaffRole — promote admin opérationnel. */
+export function setUserIsAdmin(
+  userId: string,
+  isAdmin: boolean
+): User | { error: string; status: number } {
+  return setUserStaffRole(userId, isAdmin ? 'admin' : null);
+}
+
 export function ensureAccessAdmins(): number {
   let changed = 0;
   for (const user of db.users.values()) {
-    if (!isAccessAdmin(user)) continue;
+    const elevated = isEnvElevatedStaff(user);
+    const persisted = user.isAdmin === true || user.staffRole != null;
+    if (!elevated && !persisted) continue;
     let touch = false;
     if (!user.isAdmin) {
       user.isAdmin = true;
+      touch = true;
+    }
+    if (!user.staffRole) {
+      user.staffRole = 'dev';
       touch = true;
     }
     if (getAccountStatus(user) !== 'active') {

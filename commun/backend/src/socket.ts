@@ -24,7 +24,7 @@ import {
 import type { LiveBanScope } from './models/schema';
 import { isPlatformConnected, ensurePlatformAccountsFromLegacy } from './lib/platformConnect';
 import { schedulePersist } from './lib/persist';
-import { sanitizePlainText } from './lib/sanitizeUserText';
+import { sanitizeChatText } from './lib/sanitizeUserText';
 import {
   PlatformPlanError,
 } from './lib/platformPlans';
@@ -696,7 +696,7 @@ export function setupSockets(io: Server): void {
           if (!authUserId || authUserId !== payload.senderId) return;
           if (!(await checkChatRateLimit(authUserId))) return;
           if (!socket.rooms.has(`salon_${payload.salonId}`)) return;
-          const content = typeof payload.content === 'string' ? sanitizePlainText(payload.content.slice(0, 2000)) : '';
+          const content = typeof payload.content === 'string' ? sanitizeChatText(payload.content.slice(0, 2000)) : '';
           if (!content.trim() && !payload.attachmentUrl) return;
           if (payload.attachmentUrl && !isAllowedChatAttachmentUrl(payload.attachmentUrl)) {
             socket.emit('chat_attachment_denied', {
@@ -791,7 +791,7 @@ export function setupSockets(io: Server): void {
             });
             return;
           }
-          const liveContent = typeof payload.content === 'string' ? sanitizePlainText(payload.content.slice(0, 2000)) : '';
+          const liveContent = typeof payload.content === 'string' ? sanitizeChatText(payload.content.slice(0, 2000)) : '';
           if (!liveContent.trim() && !payload.attachmentUrl) return;
           if (payload.attachmentUrl && !isAllowedChatAttachmentUrl(payload.attachmentUrl)) {
             socket.emit('chat_attachment_denied', {
@@ -892,7 +892,7 @@ export function setupSockets(io: Server): void {
         // Block if sender has blocked recipient or recipient has blocked sender.
         if (hasBlocked(msg.senderId, msg.receiverId)) return;
         if (hasBlocked(msg.receiverId, msg.senderId)) return;
-        const content = typeof msg.content === 'string' ? sanitizePlainText(msg.content.slice(0, 2000)) : '';
+        const content = typeof msg.content === 'string' ? sanitizeChatText(msg.content.slice(0, 2000)) : '';
         if (!content.trim()) return;
         // Use server-generated ID to prevent ID spoofing by clients.
         const full = {

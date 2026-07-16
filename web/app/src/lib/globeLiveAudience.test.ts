@@ -38,7 +38,7 @@ describe('globeLiveAudience', () => {
     expect(avgs.get('BE')).toBe(100);
   });
 
-  it('keeps only markers strictly above their national average', () => {
+  it('keeps markers at or above their national average', () => {
     const result = filterGlobeLiveMarkersAboveAverageAudience(
       [live('fr-low', 10), live('fr-high', 50), live('be-low', 5, BRUSSELS, 'BE'), live('be-high', 40, BRUSSELS, 'BE')],
       [salon('fr-mid', 20)]
@@ -47,6 +47,23 @@ describe('globeLiveAudience', () => {
     expect(result.nationalAverages.get('BE')).toBe(22.5);
     expect(result.lives.map((l) => l.id)).toEqual(['fr-high', 'be-high']);
     expect(result.liveSalons).toHaveLength(0);
+  });
+
+  it('keeps markers exactly at the national average', () => {
+    const result = filterGlobeLiveMarkersAboveAverageAudience(
+      [live('fr-a', 20), live('fr-b', 20)],
+      []
+    );
+    expect(result.lives.map((l) => l.id)).toEqual(['fr-a', 'fr-b']);
+  });
+
+  it('falls back to all lives when country cannot be resolved', () => {
+    const ocean = { latitude: 0, longitude: 0 };
+    const result = filterGlobeLiveMarkersAboveAverageAudience(
+      [live('ocean-a', 500, ocean), live('ocean-b', 800, ocean)],
+      []
+    );
+    expect(result.lives.map((l) => l.id)).toEqual(['ocean-a', 'ocean-b']);
   });
 
   it('resolves salon country from coordinates when countryCode absent', () => {
@@ -58,10 +75,13 @@ describe('globeLiveAudience', () => {
     expect(result.liveSalons.map((s) => s.id)).toEqual(['s-high']);
   });
 
-  it('excludes markers without a resolved country', () => {
+  it('excludes markers without a resolved country unless all would be removed', () => {
     const ocean = { latitude: 0, longitude: 0 };
-    const result = filterGlobeLiveMarkersAboveAverageAudience([live('ocean', 999, ocean)], []);
-    expect(result.lives).toHaveLength(0);
+    const result = filterGlobeLiveMarkersAboveAverageAudience(
+      [live('ocean', 999, ocean), live('fr', 50)],
+      []
+    );
+    expect(result.lives.map((l) => l.id)).toEqual(['fr']);
   });
 
   it('ignores non-live salons', () => {
@@ -69,7 +89,7 @@ describe('globeLiveAudience', () => {
     expect(getLiveSalonAudienceCount(offAir)).toBe(0);
     const result = filterGlobeLiveMarkersAboveAverageAudience([live('a', 20)], [offAir]);
     expect(result.liveSalons).toHaveLength(0);
-    expect(result.lives).toHaveLength(0);
+    expect(result.lives.map((l) => l.id)).toEqual(['a']);
   });
 
   it('handles missing counts as zero', () => {

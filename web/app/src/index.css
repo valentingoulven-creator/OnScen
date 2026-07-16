@@ -734,6 +734,72 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   display: none;
 }
 
+/* Barre mise à jour PWA — au-dessus du dock d'onglets (z-70) pour recevoir les clics */
+#pwa-update-bar {
+  position: fixed;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: calc(var(--tab-nav-total-h, 4.5rem) + 0.5rem);
+  z-index: 85;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(167, 139, 250, 0.35);
+  background: #1a1a28;
+  color: #e5e7eb;
+  font: 500 0.8125rem/1.35 system-ui, sans-serif;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+  touch-action: manipulation;
+  max-width: calc(100vw - 1.5rem);
+  margin: 0 auto;
+  isolation: isolate;
+}
+
+[data-design-quick-wins='1'] #pwa-update-bar {
+  bottom: calc(
+    env(safe-area-inset-bottom, 0px) + var(--tab-nav-float-gap, 0.625rem) + var(--tab-nav-hub-size, 62px) +
+      0.75rem
+  );
+}
+
+#pwa-update-bar .pwa-update-bar__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  pointer-events: auto;
+}
+
+#pwa-update-bar .pwa-update-bar__btn {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid #4b5563;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  touch-action: manipulation;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#pwa-update-bar .pwa-update-bar__btn--primary {
+  border: none;
+  background: #7c3aed;
+  color: #fff;
+  font-weight: 600;
+}
+
+#pwa-update-bar .pwa-update-bar__btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 @media (orientation: landscape) and (max-height: 500px) {
   :root {
     --tab-nav-btn-size: 45px;
@@ -1077,12 +1143,12 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   pointer-events: auto;
 }
 .map-marker-overview-dot.live {
-  background: #f87171;
-  box-shadow: 0 0 8px rgba(248, 113, 113, 0.65);
+  background: #ef4444;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.75);
 }
 .map-marker-overview-dot.salon.live {
-  background: #f87171;
-  box-shadow: 0 0 8px rgba(248, 113, 113, 0.65);
+  background: #ef4444;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.75);
 }
 
 .map-marker-overview-pin {
@@ -1099,8 +1165,45 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   z-index: 2;
 }
 .map-marker-overview-pin--live .map-marker-overview-dot {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
+}
+
+.map-marker-overview-live-badge {
+  position: absolute;
+  top: -2px;
+  right: -4px;
+  z-index: 3;
+  background: #ef4444;
+  color: #fff;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.65);
+  pointer-events: none;
+}
+.map-marker-live-cluster-badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  z-index: 3;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
+  pointer-events: none;
 }
 .map-marker-overview-pin--salon .map-marker-overview-dot {
   width: 10px;
@@ -1133,29 +1236,29 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  width: 52px;
-  min-height: 52px;
+  width: 40px;
+  min-height: 42px;
   pointer-events: auto;
 }
 .map-marker-city-hub-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 12px;
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
   background: linear-gradient(145deg, rgba(88, 28, 135, 0.95), rgba(30, 27, 75, 0.95));
-  border: 1.5px solid rgba(192, 132, 252, 0.55);
+  border: 1.25px solid rgba(192, 132, 252, 0.55);
   color: #e9d5ff;
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.06),
-    0 4px 14px rgba(0, 0, 0, 0.45),
-    0 0 18px rgba(147, 51, 234, 0.25);
+    0 3px 10px rgba(0, 0, 0, 0.45),
+    0 0 12px rgba(147, 51, 234, 0.22);
 }
 .map-marker-city-hub-label {
-  margin-top: 3px;
-  max-width: 52px;
-  font-size: 9px;
+  margin-top: 2px;
+  max-width: 40px;
+  font-size: 8px;
   font-weight: 700;
   line-height: 1.1;
   text-align: center;
@@ -1167,33 +1270,33 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 }
 .map-marker-city-hub-badge {
   position: absolute;
-  top: -2px;
-  right: 2px;
+  top: -1px;
+  right: 1px;
   z-index: 2;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
+  min-width: 13px;
+  height: 13px;
+  padding: 0 3px;
   border-radius: 999px;
   background: rgba(15, 15, 22, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.35);
   color: #fff;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 800;
-  line-height: 14px;
+  line-height: 11px;
   text-align: center;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 .map-marker-city-hub-live {
   position: absolute;
-  top: -4px;
+  top: -3px;
   left: 0;
   z-index: 2;
-  padding: 1px 5px;
+  padding: 1px 4px;
   border-radius: 999px;
   background: rgba(127, 29, 29, 0.92);
   border: 1px solid rgba(248, 113, 113, 0.55);
   color: #fecaca;
-  font-size: 8px;
+  font-size: 7px;
   font-weight: 800;
   letter-spacing: 0.02em;
   box-shadow: 0 2px 8px rgba(248, 113, 113, 0.25);
@@ -1973,13 +2076,145 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
 /* Globe 3D — capitales discrètes (couche CSS2D, jamais derrière la sphère) */
 .globe-capital-label {
   color: rgba(210, 210, 255, 0.88);
-  font-size: 8px;
+  font-size: calc(8px * var(--globe-icon-scale, 1));
   font-weight: 500;
   line-height: 1.1;
   pointer-events: none;
   text-shadow: 0 0 2px rgba(0, 0, 0, 0.35);
   user-select: none;
   white-space: nowrap;
+}
+
+/* Globe 3D — pin événement (classes dédiées, pas .map-marker.event de la carte).
+   Pas de distanceFactor sur <Html> (voir SoundyGlobeEventMarkers.tsx) : taille CSS
+   fixe à l'écran à tout niveau de zoom. `center` sur <Html> ancre le point exact
+   lat/lng projeté au centre du bouton — précision constante. */
+.globe-event-marker-hit {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: calc(7px * var(--globe-icon-scale, 1));
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  line-height: 0;
+  touch-action: manipulation;
+  transform: translate3d(0, 0, 0);
+  transition: transform 0.12s ease;
+  pointer-events: auto;
+}
+
+.globe-event-marker-hit:hover,
+.globe-event-marker-hit:focus-visible {
+  transform: scale(1.08);
+  outline: none;
+}
+
+.globe-event-pin {
+  display: block;
+  font-size: calc(13px * var(--globe-icon-scale, 1));
+  line-height: 1;
+  user-select: none;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.85))
+    drop-shadow(0 0 2px rgba(0, 0, 0, 0.35));
+}
+
+.globe-event-cluster-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: calc(10px * var(--globe-icon-scale, 1));
+  height: calc(10px * var(--globe-icon-scale, 1));
+  padding: 0 2px;
+  border-radius: 999px;
+  background: #9333ea;
+  color: #fff;
+  font-size: calc(6px * var(--globe-icon-scale, 1));
+  font-weight: 800;
+  line-height: calc(10px * var(--globe-icon-scale, 1));
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+/* Globe 3D — icône live (pastille rouge + halo pulsé, même famille que
+   `.map-marker-overview-dot.live` de la carte plate) — cohérente avec le pin événement. */
+.globe-live-marker-hit {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(16px * var(--globe-icon-scale, 1));
+  height: calc(16px * var(--globe-icon-scale, 1));
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+  transform: translate3d(0, 0, 0);
+  transition: transform 0.12s ease;
+}
+
+.globe-live-marker-hit:hover,
+.globe-live-marker-hit:focus-visible {
+  transform: scale(1.1);
+  outline: none;
+}
+
+.globe-live-dot {
+  position: relative;
+  z-index: 2;
+  width: calc(6px * var(--globe-icon-scale, 1));
+  height: calc(6px * var(--globe-icon-scale, 1));
+  border-radius: 50%;
+  background: #ef4444;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 0 5px rgba(239, 68, 68, 0.85);
+}
+
+.globe-live-pulse {
+  position: absolute;
+  width: calc(12px * var(--globe-icon-scale, 1));
+  height: calc(12px * var(--globe-icon-scale, 1));
+  border-radius: 50%;
+  border: 1.25px solid rgba(248, 113, 113, 0.6);
+  animation: globe-live-sonar 2s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes globe-live-sonar {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+.globe-live-cluster-badge {
+  position: absolute;
+  top: -3px;
+  right: -4px;
+  z-index: 3;
+  min-width: calc(8px * var(--globe-icon-scale, 1));
+  height: calc(8px * var(--globe-icon-scale, 1));
+  padding: 0 2px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: calc(5px * var(--globe-icon-scale, 1));
+  font-weight: 800;
+  line-height: calc(8px * var(--globe-icon-scale, 1));
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
 }
 
 /* ── Live indicator (blinking dot) ─────────────────────────────────── */
@@ -2000,45 +2235,135 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   animation: live-goal-pulse-anim 1.5s ease-in-out infinite;
 }
 
-/* ── User position marker (bonhomme bleu) ────────────────────────────── */
-@keyframes user-pos-pulse {
-  0%   { opacity: 0.8; }
-  100% { opacity: 0; }
-}
-
-.map-user-position {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
-  filter: drop-shadow(0 2px 8px rgba(96, 165, 250, 0.75));
-  transform: translateZ(0);
-}
-
-.map-user-dot {
-  width: 8px;
-  height: 8px;
-  background: #60a5fa;
-  border-radius: 50%;
-  border: 2px solid #ffffff;
+/* Globe 3D — marqueur « Ma position » (pastille indigo + halo pulsé,
+   famille visuelle avec globe-live-dot mais teinte bleue/indigo). */
+.globe-user-marker {
   position: relative;
-  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(20px * var(--globe-icon-scale, 1));
+  height: calc(20px * var(--globe-icon-scale, 1));
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5))
+    drop-shadow(0 0 4px rgba(99, 102, 241, 0.45));
 }
 
-.map-user-dot::before,
-.map-user-dot::after {
-  content: '';
-  position: absolute;
-  inset: -6px;
+.globe-user-dot {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(8px * var(--globe-icon-scale, 1));
+  height: calc(8px * var(--globe-icon-scale, 1));
   border-radius: 50%;
-  border: 2px solid #60a5fa;
-  animation: user-pos-pulse 2s ease-out infinite;
-  opacity: 0;
+  background: radial-gradient(circle at 35% 30%, #a5b4fc, #6366f1 55%, #4338ca);
+  border: 1.5px solid rgba(255, 255, 255, 0.92);
+  box-shadow: 0 0 6px rgba(99, 102, 241, 0.7);
+}
+
+.globe-user-dot-core {
+  width: calc(3px * var(--globe-icon-scale, 1));
+  height: calc(3px * var(--globe-icon-scale, 1));
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 2px rgba(255, 255, 255, 0.5);
+}
+
+.globe-user-pulse {
+  position: absolute;
+  width: calc(14px * var(--globe-icon-scale, 1));
+  height: calc(14px * var(--globe-icon-scale, 1));
+  border-radius: 50%;
+  border: 1.25px solid rgba(129, 140, 248, 0.55);
+  animation: globe-user-sonar 2.4s ease-out infinite;
   pointer-events: none;
 }
 
-.map-user-dot::after {
-  animation-delay: 1s;
+.globe-user-pulse--delay {
+  animation-delay: 1.2s;
+}
+
+@keyframes globe-user-sonar {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.75;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+/* ── User position marker (carte plate) ──────────────────────────────── */
+@keyframes user-pos-pulse {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.map-user-position--city .map-user-dot-core {
+  background: linear-gradient(145deg, #fbbf24 0%, #f59e0b 100%);
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.35);
+}
+
+.map-user-position--city {
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45))
+    drop-shadow(0 0 5px rgba(245, 158, 11, 0.35));
+}
+
+.map-user-position {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45))
+    drop-shadow(0 0 5px rgba(99, 102, 241, 0.4));
+  transform: translateZ(0);
+}
+
+.map-user-pulse {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(129, 140, 248, 0.55);
+  animation: user-pos-pulse 2.4s ease-out infinite;
+  pointer-events: none;
+}
+
+.map-user-pulse--delay {
+  animation-delay: 1.2s;
+}
+
+.map-user-dot {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #a5b4fc, #6366f1 55%, #4338ca);
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  box-shadow: 0 0 6px rgba(99, 102, 241, 0.65);
+  flex-shrink: 0;
+}
+
+.map-user-dot-core {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.88);
 }
 
 /* ── Marker cluster icon (dark-purple theme) ─────────────────────────── */
@@ -2132,6 +2457,132 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   height: 100% !important;
   min-height: inherit;
   touch-action: none;
+}
+
+/* Recherche pays/ville — bouton compact → panneau déplié, haut droite globe */
+.ms-map-globe-search {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 30;
+  pointer-events: auto;
+  display: flex;
+  justify-content: flex-end;
+  max-width: calc(100% - 1.5rem);
+}
+
+.ms-map-globe-search__inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  width: 2.75rem;
+  transition: width 0.22s ease;
+}
+
+.ms-map-globe-search--open .ms-map-globe-search__inner {
+  width: min(18rem, calc(100vw - 5rem));
+}
+
+.ms-map-globe-search__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  min-height: 44px;
+  min-width: 44px;
+  border-radius: 9999px;
+  border: 1px solid var(--ms-border, #2d2d3d);
+  background: rgba(18, 18, 26, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #c4b5fd;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.ms-map-globe-search__toggle:hover {
+  border-color: rgba(167, 139, 250, 0.45);
+  color: #e9d5ff;
+}
+
+.ms-map-globe-search__toggle:active {
+  transform: scale(0.95);
+}
+
+.ms-map-globe-search__field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  border-radius: 9999px;
+  border: 1px solid rgba(167, 139, 250, 0.35);
+  background: rgba(18, 18, 26, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+}
+
+.ms-map-globe-search__input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.5rem 2.5rem 0.5rem 2.25rem;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  outline: none;
+}
+
+.ms-map-globe-search__input::placeholder {
+  color: #6b7280;
+}
+
+.ms-map-globe-search__status,
+.ms-map-globe-search__clear {
+  position: absolute;
+  right: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  min-width: 32px;
+  min-height: 32px;
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ms-map-globe-search__clear:hover {
+  color: #e5e7eb;
+}
+
+.ms-map-globe-search__panel {
+  position: absolute;
+  top: calc(100% + 0.375rem);
+  right: 0;
+  left: 0;
+  z-index: 50;
+  border-radius: 0.875rem;
+  border: 1px solid #2d2d3d;
+  background: rgba(18, 18, 26, 0.98);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-map-globe-search__inner {
+    transition: none;
+  }
 }
 
 /* Reels — viewport plein écran sous header + safe-area bas */
@@ -3521,20 +3972,43 @@ nav.ms-tab-bar-bottom .ms-tab-rail-label {
   isolation: isolate;
 }
 
-/* Chat live épinglé à gauche */
-.ms-salon-fullscreen-overlay .room-theater-layout--live-theater-fill .room-theater-chat-dock--live-left {
+/* Chat live épinglé à gauche — colonne étroite, flex (pas grille salon 30 %) */
+.room-theater-side-row--live-left {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.room-theater-layout--live-theater-fill .room-theater-chat-dock--live-left {
   flex: 0 0 auto;
-  width: min(72vw, 280px);
-  max-width: min(40vw, 320px);
-  min-width: 11rem;
+  width: min(38vw, 200px);
+  min-width: 9rem;
+  max-width: min(38vw, 200px);
   border-right: 1px solid #1e1e2f;
 }
 
+.room-theater-chat-dock--live-left.room-theater-chat-dock--theater {
+  min-width: 9rem;
+  max-width: min(38vw, 200px);
+  width: min(38vw, 200px);
+}
+
 @media (min-width: 640px) {
-  .ms-salon-fullscreen-overlay .room-theater-layout--live-theater-fill .room-theater-chat-dock--live-left {
-    width: min(320px, 28vw);
-    min-width: 240px;
+  .room-theater-layout--live-theater-fill .room-theater-chat-dock--live-left {
+    width: min(260px, 28vw);
+    min-width: 11rem;
+    max-width: min(280px, 30vw);
   }
+
+  .room-theater-chat-dock--live-left.room-theater-chat-dock--theater {
+    min-width: 11rem;
+    max-width: min(280px, 30vw);
+    width: min(260px, 28vw);
+  }
+}
+
+.ms-salon-fullscreen-overlay .room-theater-layout--live-theater-fill .room-theater-chat-dock--live-left {
+  flex: 0 0 auto;
 }
 
 .ms-salon-fullscreen-overlay .room-theater-layout--live-theater-fill .room-theater-side-row--left {

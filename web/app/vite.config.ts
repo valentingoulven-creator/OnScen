@@ -95,11 +95,26 @@ export default defineConfig(({ mode }) => {
     alias: {
       'react/jsx-runtime': path.resolve(__dirname, 'node_modules/react/jsx-runtime.js'),
       'react/jsx-dev-runtime': path.resolve(__dirname, 'node_modules/react/jsx-dev-runtime.js'),
+      // @react-three/drei réexporte inconditionnellement son composant <Stats>
+      // (non utilisé par Soundy), qui importe 'stats.js' — un bundle UMD sans
+      // export ESM 'default' propre. Ni l'inclusion ni l'exclusion dans
+      // optimizeDeps ne suffit (plante soit l'optimiseur esbuild, soit la
+      // résolution ESM native côté navigateur) : on coupe la dépendance à la
+      // source avec un stub minimal.
+      'stats.js': path.resolve(__dirname, 'src/lib/globe3d/statsJsShim.ts'),
     },
   },
   optimizeDeps: {
     exclude: ['heic2any'],
-    include: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
+    include: [
+      'react',
+      'react-dom',
+      'react/jsx-runtime',
+      'react/jsx-dev-runtime',
+      'three',
+      '@react-three/fiber',
+      '@react-three/drei',
+    ],
   },
   plugins: [
     react(),
@@ -253,6 +268,15 @@ export default defineConfig(({ mode }) => {
       '/uploads': msdevProxy,
       '/tiles': msdevProxy,
       '/socket.io': { ...msdevProxy, ws: true },
+    },
+    // Précompile GlobeView/R3F au démarrage du dev server pour éviter l'échec
+    // du dynamic import (MODIF 982) au premier toggle "voir en globe".
+    warmup: {
+      clientFiles: [
+        './src/components/GlobeView.tsx',
+        './src/components/globe3d/SoundyGlobeCanvas.tsx',
+        './src/components/globe3d/SoundyGlobeScene.tsx',
+      ],
     },
   },
   build: {

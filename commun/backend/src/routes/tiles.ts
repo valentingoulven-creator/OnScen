@@ -9,6 +9,8 @@ export const tilesRouter = express.Router();
 const CACHE_DIR = path.join(getAppRoot(), 'tile-cache');
 const CARTO_SUBDOMAINS = ['a', 'b', 'c'] as const;
 let _subdIdx = 0;
+// Note : le cache disque est plafonné/purgé par lib/tileCacheEviction.ts
+// (startTileCacheEviction, appelé dans server.ts) — pas de logique dupliquée ici.
 
 function nextSubdomain(): string {
   const s = CARTO_SUBDOMAINS[_subdIdx % CARTO_SUBDOMAINS.length];
@@ -106,7 +108,11 @@ tilesRouter.get('/:z/:x/:filename', (req, res) => {
       res.send(buf);
     } catch (err) {
       console.warn('[tile-proxy] upstream error:', err instanceof Error ? err.message : String(err));
-      res.status(502).type('text/plain').send('Tile temporarily unavailable');
+      // Fallback : redirige directement vers le CDN Carto plutôt que de renvoyer
+      // une tuile manquante (grise) — le client charge la tuile sans passer par
+      // notre proxy pour cette requête (pas de cache disque, mais carte utilisable).
+      const sub = nextSubdomain();
+      res.redirect(302, `https://${sub}.basemaps.cartocdn.com/dark_all/${z}/${x}/${y}${r}.png`);
     }
   })();
 });

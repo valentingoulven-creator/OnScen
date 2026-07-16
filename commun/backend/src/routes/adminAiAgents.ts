@@ -1,8 +1,7 @@
 import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { authenticateJWT } from '../middleware/auth';
-import { db } from '../models/schema';
-import { isAccessAdmin } from '../lib/accessControl';
+import { requireDevStaff } from '../middleware/requireAdmin';
 import { AI_AGENTS, getAgentDefinition, isValidAgentId } from '../lib/aiAgents/agents';
 import { buildCeoContextMeta, buildCeoDataContext } from '../lib/aiAgents/ceoDataContext';
 import { buildDevDataContext } from '../lib/aiAgents/devDataContext';
@@ -28,20 +27,6 @@ const chatLimiter = rateLimit({
   store: createRateLimitStore('admin-ai-agents'),
 });
 
-function requireAdmin(req: Request, res: Response): boolean {
-  const userId = (req as Request & { user?: { id: string } }).user?.id;
-  if (!userId) {
-    res.status(401).json({ error: 'Authentification requise' });
-    return false;
-  }
-  const user = db.users.get(userId);
-  if (!user || !isAccessAdmin(user)) {
-    res.status(403).json({ error: 'Accès réservé aux administrateurs' });
-    return false;
-  }
-  return true;
-}
-
 function parseMessages(body: unknown): AiChatMessage[] | null {
   if (!body || typeof body !== 'object') return null;
   const messages = (body as AiChatRequest).messages;
@@ -62,7 +47,7 @@ function parseMessages(body: unknown): AiChatMessage[] | null {
 
 /** GET /api/admin/ai-agents — statut + liste agents */
 adminAiAgentsRouter.get('/', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireDevStaff(req, res) == null) return;
   const config = getLlmConfig();
   res.json({
     enabled: config.enabled,
@@ -81,7 +66,7 @@ adminAiAgentsRouter.post(
   authenticateJWT,
   chatLimiter,
   async (req: Request, res: Response) => {
-    if (!requireAdmin(req, res)) return;
+    if (requireDevStaff(req, res) == null) return;
 
     const agentId = req.params.agentId;
     if (!isValidAgentId(agentId) || !getAgentDefinition(agentId)) {

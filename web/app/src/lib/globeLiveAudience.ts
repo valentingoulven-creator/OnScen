@@ -46,7 +46,7 @@ export interface GlobeLiveAudienceFilterResult {
   totalBeforeFilter: number;
 }
 
-/** Ne conserve que les marqueurs strictement au-dessus de la moyenne nationale de leur pays. */
+/** Ne conserve que les marqueurs au-dessus ou égaux à la moyenne nationale de leur pays. */
 export function filterGlobeLiveMarkersAboveAverageAudience(
   lives: Live[],
   salons: Salon[]
@@ -59,16 +59,27 @@ export function filterGlobeLiveMarkersAboveAverageAudience(
     if (!code) return false;
     const average = nationalAverages.get(code);
     if (average == null) return false;
-    return count > average;
+    return count >= average;
   };
 
+  const filteredLives = lives.filter((l) =>
+    isAboveNationalAverage(resolveLiveMarkerCountryCode(l), getLiveAudienceCount(l))
+  );
+  const filteredLiveSalons = liveSalons.filter((s) =>
+    isAboveNationalAverage(salonMarkerCountryCode(s), getLiveSalonAudienceCount(s))
+  );
+
+  /** Garde-fou : si le filtre élimine tout, conserver la couche live (audience homogène / pays inconnu). */
+  const allFilteredOut =
+    filteredLives.length === 0 &&
+    filteredLiveSalons.length === 0 &&
+    (lives.length > 0 || liveSalons.length > 0);
+  const livesOut = allFilteredOut ? lives : filteredLives;
+  const liveSalonsOut = allFilteredOut ? liveSalons : filteredLiveSalons;
+
   return {
-    lives: lives.filter((l) =>
-      isAboveNationalAverage(resolveLiveMarkerCountryCode(l), getLiveAudienceCount(l))
-    ),
-    liveSalons: liveSalons.filter((s) =>
-      isAboveNationalAverage(salonMarkerCountryCode(s), getLiveSalonAudienceCount(s))
-    ),
+    lives: livesOut,
+    liveSalons: liveSalonsOut,
     nationalAverages,
     totalBeforeFilter,
   };

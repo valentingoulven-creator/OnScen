@@ -103,6 +103,8 @@ export interface User {
   onboardingCompleted?: boolean;
   /** Gestion des accès ngrok / tunnel public */
   isAdmin?: boolean;
+  /** Rôle staff : admin (opérationnel) ou dev (panel complet). */
+  staffRole?: 'admin' | 'dev';
   /** Fin de suspension temporaire (UNIX ms) — absent = suspension permanente. */
   blockedUntil?: number;
   /** Motif interne admin (non affiché à l'utilisateur). */
@@ -263,6 +265,15 @@ export interface CompositionUpvote {
   compositionId: string;
   userId: string;
   votedAt: number;
+}
+
+/** Listen event on a user composition (weekly popularity charts). */
+export interface CompositionPlay {
+  id: string;
+  compositionId: string;
+  listenerId: string;
+  playedAt: number;
+  weekStart: number;
 }
 
 export interface Salon {
@@ -875,6 +886,7 @@ export const db = {
   albums: [] as UserAlbum[],
   compositions: [] as UserComposition[],
   compositionUpvotes: [] as CompositionUpvote[],
+  compositionPlays: [] as CompositionPlay[],
   feedPosts: [] as FeedPost[],
   /** postId → Set<userId> ayant liké */
   feedPostLikes: new Map<string, Set<string>>(),

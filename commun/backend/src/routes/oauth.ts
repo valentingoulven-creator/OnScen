@@ -4,6 +4,7 @@ import rateLimit from 'express-rate-limit';
 import { db, type User } from '../models/schema';
 import { signTokenForUser, setAuthCookie } from '../middleware/auth';
 import { applyProfileDefaults, publicProfile } from '../lib/profile';
+import { generateUserId } from '../lib/userIds';
 import { schedulePersist } from '../lib/persist';
 import { trackEvent, trackUserActive } from '../lib/analytics';
 import { CURRENT_TERMS_VERSION } from '../lib/legalConstants';
@@ -188,7 +189,7 @@ function findOrCreateOAuthUser(profile: OAuthProfile): { user: User; isNew: bool
   const username = generateUsername(profile.name, profile.email);
   const accountStatus = resolveInitialAccountStatus();
   let user: User = {
-    id: `user_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`,
+    id: generateUserId(),
     username,
     email: profile.email,
     passwordHash: `oauth_${profile.provider}_${crypto.randomBytes(16).toString('hex')}`,
@@ -253,7 +254,7 @@ function findOrCreateAppleUser(
   const username = generateUsername(name, email);
   const accountStatus = resolveInitialAccountStatus();
   let user: User = {
-    id: `user_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`,
+    id: generateUserId(),
     username,
     email,
     passwordHash: applePasswordHash(sub),

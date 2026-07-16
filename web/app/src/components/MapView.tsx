@@ -11,7 +11,7 @@ import { buildEventClusterPopupHtml } from '../lib/mapEventPopupHtml';
 import { isValidLatLng, sanitizeLatLngTuple } from '../lib/mapCoords';
 import { DEFAULT_CENTER } from '../lib/livesGeo';
 import { WORLD_CAPITALS } from '../lib/worldCapitals';
-import { getUsernameStyle, usernameMapLabelHtml } from '../lib/usernameColor';
+import { escapeHtmlAttr, getUsernameStyle, usernameMapLabelHtml } from '../lib/usernameColor';
 import {
   filterPeopleForZoom,
   filterSalonsForZoom,
@@ -29,11 +29,17 @@ import {
   filterOverviewIndividualMarkers,
   type MapMajorCityLiveCluster,
 } from '../lib/mapMajorCityLiveClusters';
+import { clusterLiveMapMarkers, type MapLiveLocationCluster } from '../lib/mapLiveClusters';
+import { buildEventLocationKey } from '../lib/mapEventClusters';
+import { buildLiveClusterPopupHtml } from '../lib/mapLivePopupHtml';
 import {
   buildMajorCityHubMarkerHtml,
   buildOverviewGeoMarkerHtml,
+  buildLiveClusterOverviewMarkerHtml,
 } from '../lib/mapOverviewMarkerHtml';
+import type { MapUserPositionKind } from '../lib/mapUserPosition';
 import { canUseGlobeView } from '../lib/webglSupport';
+import { CAMERA_DEFAULT_ALTITUDE } from '../lib/globe3d/constants';
 import {
   flatZoomToNorm,
   globeAltToNorm,
@@ -46,9 +52,16 @@ import {
 import { isTouchCoarseViewport } from '../lib/phoneViewport';
 import { GlobeErrorBoundary } from './GlobeErrorBoundary';
 
-// Lazy-load the 3D globe (large Three.js bundle) only when needed.
+// Lazy-load the 3D globe (R3F / Three.js) only when needed.
+function importGlobeView() {
+  return import('./GlobeView').then((m) => ({ default: m.GlobeView }));
+}
+
 const LazyGlobeView = lazy(() =>
-  import('./GlobeView').then((m) => ({ default: m.GlobeView }))
+  importGlobeView().catch((err) => {
+    console.warn('[MapView] GlobeView import failed, retrying once…', err);
+    return importGlobeView();
+  })
 ) as React.LazyExoticComponent<
   React.ForwardRefExoticComponent<GlobeViewProps & RefAttributes<GlobeViewHandle>>
 >;
@@ -80,6 +93,8 @@ export interface MapViewHandle {
   setZoomControlNorm: (norm: number) => void;
   /** Pendant le drag du slider — évite les allers-retours avec molette/pinch. */
   setZoomSliderDragging: (dragging: boolean) => void;
+  /** Anime la caméra globe vers un pays ou une ville. */
+  flyToGlobe: (lat: number, lng: number, altitude?: number, durationMs?: number) => void;
 }
 
 /** Globe ↔ flat crossfade duration (ms) — keep in sync with CSS transition. */
@@ -156,6 +171,8 @@ interface MapViewProps {
   /** Incrémenté uniquement sur recentrage explicite — évite flyTo après pan utilisateur. */
   recenterToken?: number;
   userPosition?: [number, number];
+  /** Source du point utilisateur : GPS ou ville profil (fallback). */
+  userPositionKind?: MapUserPositionKind;
   onSelectSalon: (s: Salon) => void;
   onSelectLive: (l: Live) => void;
   onSelectPerson?: (person: NearbyPerson) => void;
@@ -227,6 +244,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   center,
   recenterToken = 0,
   userPosition,
+  userPositionKind = 'gps',
   onSelectSalon,
   onSelectLive,
   onSelectPerson,
@@ -266,7 +284,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   const [showGlobe, setShowGlobe] = useState(mapStyle === 'globe');
   const [flatReveal, setFlatReveal] = useState(mapStyle !== 'globe' ? 1 : 0);
   const [flatMapZoom, setFlatMapZoom] = useState(14);
-  const [globeAltitude, setGlobeAltitude] = useState(1.0);
+  const [globeAltitude, setGlobeAltitude] = useState(CAMERA_DEFAULT_ALTITUDE);
   const [flatCapitalsRevision, setFlatCapitalsRevision] = useState(0);
   const globeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const crossfadeRafRef = useRef<number | null>(null);
@@ -293,6 +311,8 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
   onSelectMapEventRef.current = onSelectMapEvent;
   const onSelectMajorCityClusterRef = useRef(onSelectMajorCityCluster);
   onSelectMajorCityClusterRef.current = onSelectMajorCityCluster;
+  const onSelectLiveClusterRef = useRef(onSelectLiveCluster);
+  onSelectLiveClusterRef.current = onSelectLiveCluster;
   const onAutoSwitchToGlobeRef = useRef(onAutoSwitchToGlobe);
   onAutoSwitchToGlobeRef.current = onAutoSwitchToGlobe;
   const onGlobeUnavailableRef = useRef(onGlobeUnavailable);
@@ -640,7 +660,11 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       zoomSliderDraggingRef.current = dragging;
       if (!dragging) syncZoomControlFromView();
     },
-  }), [refreshFlatTileLayer, applyZoomControlNorm, syncZoomControlFromView]);
+    flyToGlobe(lat: number, lng: number, altitude = 0.5, durationMs = 900) {
+      if (!isValidLatLng(lat, lng) || resolveZoomMode() !== 'globe') return;
+      globeViewRef.current?.flyTo(lat, lng, altitude, durationMs);
+    },
+  }), [refreshFlatTileLayer, applyZoomControlNorm, syncZoomControlFromView, resolveZoomMode]);
 
   // Skip globe when WebGL is unavailable (GPU off, context limit, low power mode, etc.)
   useEffect(() => {
@@ -717,6 +741,17 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     }
 
     let cancelled = false;
+    // Hissés hors de warmupTiles() : si l'effet est annulé (unmount / mapStyle
+    // change à nouveau) avant que `finish()` ait tourné, l'ancien code ne
+    // détachait jamais ces listeners (le early-return `if (cancelled) return`
+    // dans `finish` empêchait le `layer.off(...)`) — fuite cumulative à
+    // chaque bascule flat↔globe rapide. On les détache désormais explicitement
+    // dans le cleanup, quel que soit l'état de `done`/`cancelled`.
+    let warmupLayer: L.TileLayer | null = null;
+    let onTileLoad: (() => void) | null = null;
+    let onLayerLoad: (() => void) | null = null;
+    let minTimer: ReturnType<typeof setTimeout> | null = null;
+    let maxTimer: ReturnType<typeof setTimeout> | null = null;
 
     const startCrossfade = () => {
       if (cancelled) return;
@@ -743,28 +778,33 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       const finish = () => {
         if (done || cancelled) return;
         done = true;
-        layer.off('tileload', onTileLoad);
-        layer.off('load', onLayerLoad);
-        clearTimeout(minTimer);
-        clearTimeout(maxTimer);
+        layer.off('tileload', onTileLoad!);
+        layer.off('load', onLayerLoad!);
+        if (minTimer !== null) clearTimeout(minTimer);
+        if (maxTimer !== null) clearTimeout(maxTimer);
         startCrossfade();
       };
 
-      const onTileLoad = () => finish();
-      const onLayerLoad = () => finish();
+      warmupLayer = layer;
+      onTileLoad = () => finish();
+      onLayerLoad = () => finish();
 
       layer.on('tileload', onTileLoad);
       layer.once('load', onLayerLoad);
 
       const maxWaitMs = touchCoarseRef.current ? TILE_WARMUP_MAX_MS_MOBILE : TILE_WARMUP_MAX_MS;
-      const minTimer = setTimeout(finish, TILE_WARMUP_MIN_MS);
-      const maxTimer = setTimeout(finish, maxWaitMs);
+      minTimer = setTimeout(finish, TILE_WARMUP_MIN_MS);
+      maxTimer = setTimeout(finish, maxWaitMs);
     };
 
     warmupTiles();
 
     return () => {
       cancelled = true;
+      if (warmupLayer && onTileLoad) warmupLayer.off('tileload', onTileLoad);
+      if (warmupLayer && onLayerLoad) warmupLayer.off('load', onLayerLoad);
+      if (minTimer !== null) clearTimeout(minTimer);
+      if (maxTimer !== null) clearTimeout(maxTimer);
       if (globeTimerRef.current !== null) {
         clearTimeout(globeTimerRef.current);
         globeTimerRef.current = null;
@@ -1038,7 +1078,8 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     }
   }, [recenterToken]);
 
-  // ── User position marker (bonhomme bleu) ────────────────────────────────
+  // ── User position marker (pastille indigo + halo) ─────────────────────
+  const userPositionKindRef = useRef(userPositionKind);
   useEffect(() => {
     if (!mapInstance.current) return;
     if (!userPosition || !isValidLatLng(userPosition[0], userPosition[1])) {
@@ -1054,23 +1095,33 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       return;
     }
     const safe = sanitizeLatLngTuple(userPosition[0], userPosition[1]);
+    const kind = userPositionKind;
+    const kindChanged = userPositionKindRef.current !== kind;
+    userPositionKindRef.current = kind;
+    const label = kind === 'gps' ? 'Ma position' : 'Ma ville';
+    const cityClass = kind === 'city' ? ' map-user-position--city' : '';
+    const pulseHtml =
+      kind === 'gps'
+        ? `<span class="map-user-pulse map-user-pulse--delay" aria-hidden="true"></span>
+            <span class="map-user-pulse" aria-hidden="true"></span>`
+        : '';
+    const markerHtml = `<div class="map-user-position${cityClass}" role="img" aria-label="${label}">
+            ${pulseHtml}
+            <span class="map-user-dot" aria-hidden="true">
+              <span class="map-user-dot-core"></span>
+            </span>
+          </div>`;
     try {
-      if (!userMarkerRef.current) {
+      if (!userMarkerRef.current || kindChanged) {
+        if (userMarkerRef.current) {
+          userMarkerRef.current.remove();
+          userMarkerRef.current = null;
+        }
         const userIcon = L.divIcon({
           className: '',
-          html: `<div class="map-user-position">
-            <svg width="26" height="32" viewBox="0 0 26 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="13" cy="7" r="5.5" fill="#60a5fa"/>
-              <path d="M8 14 Q13 11.5 18 14 L17 23 H9 Z" fill="#60a5fa"/>
-              <line x1="9" y1="15.5" x2="3.5" y2="21.5" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/>
-              <line x1="17" y1="15.5" x2="22.5" y2="21.5" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/>
-              <line x1="11" y1="23" x2="8.5" y2="31" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/>
-              <line x1="15" y1="23" x2="17.5" y2="31" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round"/>
-            </svg>
-            <div class="map-user-dot"></div>
-          </div>`,
-          iconSize: [26, 44],
-          iconAnchor: [13, 42],
+          html: markerHtml,
+          iconSize: [20, 20],
+          iconAnchor: [10, 10],
         });
         userMarkerRef.current = L.marker(safe, { icon: userIcon, zIndexOffset: 1000 })
           .addTo(mapInstance.current);
@@ -1089,7 +1140,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
     } catch (err) {
       console.error('[MapView] userMarker error:', err);
     }
-  }, [userPosition]);
+  }, [userPosition, userPositionKind]);
 
   const showCapitalLabels = flatMapZoom >= FLAT_ZOOM_CITY_MIN;
 
@@ -1196,15 +1247,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
 
     let salonsToDraw: typeof visibleSalons;
     let livesToDraw: typeof visibleLives;
-
-    // Hôtes déjà représentés par un point salon/live — sans ceci, le même hôte
-    // (visible dans la liste "à proximité" dès qu'il est en live ou a un salon)
-    // recevait EN PLUS un point "person" séparé au même endroit : 2 points
-    // superposés sur la carte pour un seul live/salon.
-    const mapActivityHostIds = new Set([
-      ...visibleSalons.map((s) => s.hostId),
-      ...visibleLives.map((l) => l.hostId),
-    ]);
+    let isInLiveMultiCluster: (lat: number, lng: number) => boolean = () => false;
 
     // Salons/lives ancrés sur une grande ville (sans GPS précis, coords = centre ville)
     // sont toujours regroupés sous un seul logo cliquable — quel que soit le zoom —
@@ -1223,6 +1266,85 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       salonsToDraw = individual.salons;
       livesToDraw = individual.lives;
 
+      const liveLocationClusters = clusterLiveMapMarkers(
+        salonsToDraw.filter((s) => s.isLive),
+        livesToDraw,
+        linkedSalonIds
+      );
+      const liveMultiClusterKeys = new Set(
+        liveLocationClusters.filter((c) => c.count > 1).map((c) => c.id)
+      );
+      isInLiveMultiCluster = (lat: number, lng: number) =>
+        liveMultiClusterKeys.has(buildEventLocationKey(lat, lng));
+
+      const attachLivePopupHandlers = (marker: L.Marker, cluster: MapLiveLocationCluster) => {
+        const popupEl = marker.getPopup()?.getElement();
+        if (!popupEl) return;
+        popupEl.querySelectorAll<HTMLButtonElement>('[data-live-id]').forEach((btn) => {
+          const liveId = btn.getAttribute('data-live-id');
+          if (!liveId) return;
+          const live = cluster.lives.find((l) => l.id === liveId);
+          if (!live) return;
+          // `off` avant `on` : chaque réouverture de popup ré-attache un
+          // handler — sans ce nettoyage, des clics répétés déclenchent le
+          // callback plusieurs fois si Leaflet réutilise le même bouton DOM.
+          L.DomEvent.off(btn);
+          L.DomEvent.on(btn, 'click', (domEv) => {
+            L.DomEvent.stopPropagation(domEv);
+            marker.closePopup();
+            onSelectLiveRef.current(live);
+          });
+        });
+        popupEl.querySelectorAll<HTMLButtonElement>('[data-salon-id]').forEach((btn) => {
+          const salonId = btn.getAttribute('data-salon-id');
+          if (!salonId) return;
+          const salon = cluster.salons.find((s) => s.id === salonId);
+          if (!salon) return;
+          L.DomEvent.off(btn);
+          L.DomEvent.on(btn, 'click', (domEv) => {
+            L.DomEvent.stopPropagation(domEv);
+            marker.closePopup();
+            onSelectSalonRef.current(salon);
+          });
+        });
+      };
+
+      const addLiveClusterMarker = (cluster: MapLiveLocationCluster) => {
+        const lat = Number(cluster.latitude);
+        const lon = Number(cluster.longitude);
+        if (!isValidLatLng(lat, lon)) return;
+        const icon = L.divIcon({
+          className: '',
+          html: buildLiveClusterOverviewMarkerHtml(cluster.count),
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+        });
+        const m = L.marker([lat, lon], { icon, zIndexOffset: 140 }).addTo(salonLayer);
+        m.bindTooltip(
+          `${cluster.count} live${cluster.count !== 1 ? 's' : ''} au même endroit`,
+          {
+            direction: 'top',
+            offset: [0, -8],
+            className: 'map-event-tooltip',
+          }
+        );
+        m.bindPopup(buildLiveClusterPopupHtml(cluster), {
+          className: 'map-event-popup-wrap',
+          maxWidth: 300,
+          minWidth: 220,
+        });
+        m.on('popupopen', () => attachLivePopupHandlers(m, cluster));
+        m.on('click', (clickEv) => {
+          L.DomEvent.stopPropagation(clickEv.originalEvent);
+          m.openPopup();
+          onSelectLiveClusterRef.current?.(cluster);
+        });
+      };
+
+      for (const cluster of liveLocationClusters) {
+        if (cluster.count > 1) addLiveClusterMarker(cluster);
+      }
+
       const cityLayer = majorCityLayerRef.current;
       if (cityLayer) {
         for (const cluster of cityClusters) {
@@ -1237,8 +1359,8 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
                 cluster.count,
                 cluster.liveCount
               ),
-              iconSize: [52, 56],
-              iconAnchor: [26, 28],
+              iconSize: [40, 44],
+              iconAnchor: [20, 22],
             });
             const m = L.marker([lat, lon], { icon, zIndexOffset: 300 }).addTo(cityLayer);
             m.bindTooltip(
@@ -1260,8 +1382,18 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
       }
     }
 
+    // Hôtes déjà représentés par un point salon/live — sans ceci, le même hôte
+    // (visible dans la liste "à proximité" dès qu'il est en live ou a un salon)
+    // recevait EN PLUS un point "person" séparé au même endroit : 2 points
+    // superposés sur la carte pour un seul live/salon.
+    const mapActivityHostIds = new Set([
+      ...visibleSalons.map((s) => s.hostId),
+      ...visibleLives.map((l) => l.hostId),
+    ]);
+
     salonsToDraw.forEach((s) => {
       if (!isValidLatLng(s.latitude, s.longitude)) return;
+      if (s.isLive && isInLiveMultiCluster(Number(s.latitude), Number(s.longitude))) return;
       const botClass = s.isBot ? 'bot' : '';
       const liveClass = s.isLive ? 'live' : '';
       try {
@@ -1309,6 +1441,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
 
     livesToDraw.forEach((l) => {
       if (!isValidLatLng(l.latitude, l.longitude)) return;
+      if (isInLiveMultiCluster(Number(l.latitude), Number(l.longitude))) return;
       try {
         const lat = Number(l.latitude);
         const lon = Number(l.longitude);
@@ -1417,7 +1550,10 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
                 from: p.usernameWaveFrom,
                 to: p.usernameWaveTo,
               });
-              const styleAttr = style ? ` style="${style}"` : '';
+              // `style` est déjà construit à partir de valeurs hex validées
+              // (getUsernameStyle), mais on échappe quand même l'attribut par
+              // défense en profondeur — cohérent avec usernameMapLabelHtml().
+              const styleAttr = style ? ` style="${escapeHtmlAttr(style)}"` : '';
               return `<div class="map-person-popup"><strong class="${className}"${styleAttr}>${escapeHtml(p.username)}</strong><br/><span class="live-badge">LIVE</span></div>`;
             })()
           );
@@ -1465,6 +1601,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
         if (!eventId) return;
         const ev = cluster.events.find((e) => e.id === eventId);
         if (!ev) return;
+        L.DomEvent.off(btn);
         L.DomEvent.on(btn, 'click', (domEv) => {
           L.DomEvent.stopPropagation(domEv);
           marker.closePopup();
@@ -1565,6 +1702,7 @@ export const MapView = memo(forwardRef<MapViewHandle, MapViewProps>(function Map
               onSelectSalon={onSelectSalon}
               onSelectLive={onSelectLive}
               onSelectPerson={onSelectPerson}
+              onSelectMapEvent={onSelectMapEvent}
               onSelectEventCluster={onSelectEventCluster}
               onSelectLiveCluster={onSelectLiveCluster}
               onZoomToFlat={onGlobeZoomToFlat}

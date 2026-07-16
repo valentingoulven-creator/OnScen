@@ -7,6 +7,7 @@ import { canModerateSalon } from '../lib/salonModeration';
 import { enrichChatMessages } from '../lib/usernameColor';
 import { hasBlocked } from '../lib/blocks';
 import { checkChatRateLimit } from '../lib/chatRateLimit';
+import { chatAttachmentUploadLimiter } from '../lib/uploadRateLimits';
 import { saveChatAttachmentFromDataUrl, deleteChatAttachmentIfLocal } from '../lib/chatAttachmentAssets';
 import { moderateImageSource, moderationRejectionMessage } from '../lib/contentModeration';
 
@@ -17,7 +18,7 @@ export const chatRouter = Router();
  * Étape obligatoire avant d'envoyer un message DM / salon / live avec pièce jointe :
  * le backend n'accepte plus de data: URL brute dans attachmentUrl (voir chatAttachmentUrl.ts).
  */
-chatRouter.post('/attachment', authenticateJWT, (req: Request, res: Response) => {
+chatRouter.post('/attachment', authenticateJWT, chatAttachmentUploadLimiter, (req: Request, res: Response) => {
   void (async () => {
     const me = (req as Request & { user: { id: string } }).user.id;
     if (!(await checkChatRateLimit(me))) {

@@ -10,7 +10,7 @@ import {
   getLiveViewersCountForHost,
   isUserHostingLive,
 } from './liveStatus';
-import { getAccountStatus, isAccessAdmin } from './accessControl';
+import { getAccountStatus, getStaffRole, isDevStaff, isOperationalAdmin } from './accessControl';
 import { getCreatorSubscriberCount, getActiveSubscription } from './subscriptions';
 import {
   creatorMeetsMonetizationAge,
@@ -450,8 +450,9 @@ export function publicProfile(u: User, isOwner = false, viewerId?: string) {
     email: isOwner ? snapshot.email : undefined,
     isOAuthAccount: isOwner ? snapshot.passwordHash.startsWith('oauth_') : undefined,
     accountStatus: isOwner ? getAccountStatus(snapshot) : undefined,
-    isAdmin: isOwner ? isAccessAdmin(snapshot) : undefined,
-    isDev: isOwner && isAccessAdmin(snapshot) ? true : undefined,
+    isAdmin: isOwner ? isOperationalAdmin(snapshot) : undefined,
+    staffRole: isOwner ? (getStaffRole(snapshot) ?? undefined) : undefined,
+    isDev: isOwner && isDevStaff(snapshot) ? true : undefined,
     stats,
     favoritesCount: snapshot.favoritesCountOverride ?? getFavoriteCount(snapshot.id),
     isFavorite:

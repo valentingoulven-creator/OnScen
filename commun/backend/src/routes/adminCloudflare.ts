@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authenticateJWT } from '../middleware/auth';
-import { db } from '../models/schema';
-import { isAccessAdmin } from '../lib/accessControl';
+import { requireDevStaff } from '../middleware/requireAdmin';
 import { getCloudflareUsageReport } from '../lib/cloudflareUsage';
 import { getDonationsSummaryReport } from '../lib/donationsSummary';
 import { getAdminDonationsHistory } from '../lib/donationsHistory';
@@ -12,26 +11,12 @@ import { getStripePlatformStatusReport } from '../lib/stripePlatformStatus';
 
 export const adminCloudflareRouter = Router();
 
-function requireAdmin(req: Request, res: Response): boolean {
-  const userId = (req as Request & { user?: { id: string } }).user?.id;
-  if (!userId) {
-    res.status(401).json({ error: 'Authentification requise' });
-    return false;
-  }
-  const user = db.users.get(userId);
-  if (!user || !isAccessAdmin(user)) {
-    res.status(403).json({ error: 'Accès réservé aux administrateurs' });
-    return false;
-  }
-  return true;
-}
-
 /**
  * GET /api/admin/cloudflare-usage
  * Usage Cloudflare Stream du mois en cours (admin uniquement).
  */
 adminCloudflareRouter.get('/cloudflare-usage', authenticateJWT, async (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireDevStaff(req, res) == null) return;
   try {
     const report = await getCloudflareUsageReport();
     res.json(report);
@@ -47,7 +32,7 @@ adminCloudflareRouter.get('/cloudflare-usage', authenticateJWT, async (req: Requ
  * Statut du compte Stripe plateforme (commission pourboires), admin uniquement.
  */
 adminCloudflareRouter.get('/stripe-platform', authenticateJWT, async (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireDevStaff(req, res) == null) return;
   try {
     const report = await getStripePlatformStatusReport();
     res.json(report);
@@ -63,7 +48,7 @@ adminCloudflareRouter.get('/stripe-platform', authenticateJWT, async (req: Reque
  * Totaux pourboires live (simulation msdev + Stripe confirmé), admin uniquement.
  */
 adminCloudflareRouter.get('/donations-summary', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireDevStaff(req, res) == null) return;
   res.json(getDonationsSummaryReport());
 });
 
@@ -72,7 +57,7 @@ adminCloudflareRouter.get('/donations-summary', authenticateJWT, (req: Request, 
  * Historique des pourboires live (payeur → créateur), admin uniquement.
  */
 adminCloudflareRouter.get('/donations-history', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireDevStaff(req, res) == null) return;
   const limit = req.query.limit != null ? Number(req.query.limit) : undefined;
   const offset = req.query.offset != null ? Number(req.query.offset) : undefined;
   res.json(getAdminDonationsHistory({ limit, offset }));
@@ -83,7 +68,7 @@ adminCloudflareRouter.get('/donations-history', authenticateJWT, (req: Request, 
  * Métriques VPS / hôte (RAM, disque, CPU, latence) — admin uniquement.
  */
 adminCloudflareRouter.get('/vps-metrics', authenticateJWT, async (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireDevStaff(req, res) == null) return;
   try {
     const report = await getVpsMetricsReport();
     res.json(report);
@@ -99,7 +84,7 @@ adminCloudflareRouter.get('/vps-metrics', authenticateJWT, async (req: Request, 
  * Statut configuration SaaS prod + liens dashboards externes.
  */
 adminCloudflareRouter.get('/prod-saas-status', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireDevStaff(req, res) == null) return;
   res.json(getProdSaasStatusReport());
 });
 
@@ -108,7 +93,7 @@ adminCloudflareRouter.get('/prod-saas-status', authenticateJWT, (req: Request, r
  * Vue d'ensemble infra : Sentry, PostGIS, PostgreSQL, backups, stats logs app.
  */
 adminCloudflareRouter.get('/diagnostics', authenticateJWT, async (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireDevStaff(req, res) == null) return;
   try {
     const report = await getAdminDiagnosticsReport();
     res.json(report);

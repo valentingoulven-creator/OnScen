@@ -90,9 +90,9 @@ export function assertProductionStartup(): void {
   }
 
   if (isProductionEnv() && !isAcrCloudConfigured()) {
-    console.warn(
-      '[startup] ACRCloud non configuré — uploads audio/vidéo sans scan empreinte catalogue commercial. ' +
-        'Définissez ACRCLOUD_ACCESS_KEY et ACRCLOUD_ACCESS_SECRET (voir backend/.env.production.example).'
+    throw new Error(
+      '[startup] ACRCLOUD_ACCESS_KEY and ACRCLOUD_ACCESS_SECRET must be set in production — ' +
+        'copyright fingerprint scan is mandatory for audio/video uploads.'
     );
   } else if (isAcrCloudConfigured()) {
     console.log('[startup] ACRCloud actif — scan copyright sur uploads compositions/reels');

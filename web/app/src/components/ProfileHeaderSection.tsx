@@ -67,11 +67,7 @@ interface ProfileHeaderSectionProps {
 
   variant?: 'classic' | 'compact';
 
-  /** Anneau dégradé si plusieurs photos de profil */
-
-  hasPhotoGallery?: boolean;
-
-  /** En lecture : ouvre la visionneuse photos au clic sur l'avatar */
+  /** En lecture : ouvre la photo principale en grand au clic sur l'avatar */
 
   onAvatarClick?: () => void;
 
@@ -140,8 +136,6 @@ export const ProfileHeaderSection = memo(function ProfileHeaderSection({
   supporterTier,
 
   variant = 'compact',
-
-  hasPhotoGallery = false,
 
   onAvatarClick,
 
@@ -292,23 +286,13 @@ export const ProfileHeaderSection = memo(function ProfileHeaderSection({
             <button
               type="button"
               onClick={onAvatarClick}
-              className={`shrink-0 rounded-full transition ${
-                hasPhotoGallery
-                  ? 'p-[3px] bg-gradient-to-tr from-purple-500 via-pink-500 to-purple-400 shadow-[0_0_24px_rgba(168,85,247,0.35)]'
-                  : 'ring-2 ring-[#1e1e2f]'
-              } cursor-pointer hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500`}
-              aria-label="Voir les photos du profil"
+              className="shrink-0 rounded-full ring-2 ring-[#1e1e2f] cursor-pointer transition hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+              aria-label="Voir la photo de profil"
             >
               <div className="rounded-full ring-[3px] ring-[#0b0b0f]">{avatarNode}</div>
             </button>
           ) : (
-            <div
-              className={`shrink-0 rounded-full ${
-                hasPhotoGallery
-                  ? 'p-[3px] bg-gradient-to-tr from-purple-500 via-pink-500 to-purple-400 shadow-[0_0_24px_rgba(168,85,247,0.35)]'
-                  : 'ring-2 ring-[#1e1e2f]'
-              }`}
-            >
+            <div className="shrink-0 rounded-full ring-2 ring-[#1e1e2f]">
               <div className="rounded-full ring-[3px] ring-[#0b0b0f]">{avatarNode}</div>
             </div>
           )}

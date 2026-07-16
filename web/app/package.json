@@ -19,6 +19,8 @@
   "dependencies": {
     "@fontsource/plus-jakarta-sans": "^5.2.8",
     "@livekit/components-react": "^2.9.21",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
     "@sentry/react": "^10.62.0",
     "@simplewebauthn/browser": "^13.3.0",
     "@stripe/react-stripe-js": "^6.7.0",
@@ -33,10 +35,10 @@
     "livekit-client": "^2.20.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-globe.gl": "^2.38.0",
     "react-i18next": "^17.0.8",
     "react-virtuoso": "^4.18.10",
     "socket.io-client": "^4.8.3",
+    "three": "^0.185.1",
     "zxcvbn": "^4.4.2"
   },
   "devDependencies": {
@@ -48,6 +50,7 @@
     "@types/node": "^24.12.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.185.1",
     "@vitejs/plugin-react": "^6.0.1",
     "eslint": "^10.6.0",
     "eslint-plugin-react-hooks": "^7.1.1",

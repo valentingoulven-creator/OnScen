@@ -1,6 +1,8 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
 import { AdminPrimaryNav, type AdminPrimaryTab, type AdminPrimaryTabId } from '../components/AdminPrimaryNav';
+import { filterAdminTabs, isAdminTabAllowed, resolveStaffRole } from '../lib/adminStaffRoles';
 import { AdminAccountsTab } from './AdminAccountsTab';
 import { AdminAccessTab } from './AdminAccessTab';
 import { AdminContentTab } from './AdminContentTab';
@@ -44,6 +46,8 @@ export function AdminPage({
   onOpenSalon,
 }: AdminPageProps) {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const staffRole = resolveStaffRole(user);
   const resolved = resolveInitialTab(initialTab);
   const [tab, setTab] = useState<AdminTab>(resolved.tab);
   const [supportSubTab, setSupportSubTab] = useState<SupportSubTab>(resolved.supportSubTab);
@@ -106,7 +110,15 @@ export function AdminPage({
     [t],
   );
 
-  const activeMeta = tabs.find((item) => item.id === tab) ?? tabs[0];
+  const visibleTabs = useMemo(() => filterAdminTabs(tabs, staffRole), [tabs, staffRole]);
+
+  useEffect(() => {
+    if (!isAdminTabAllowed(tab, staffRole) && visibleTabs[0]) {
+      setTab(visibleTabs[0].id);
+    }
+  }, [tab, staffRole, visibleTabs]);
+
+  const activeMeta = visibleTabs.find((item) => item.id === tab) ?? visibleTabs[0] ?? tabs[0];
 
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full overflow-hidden bg-[#0b0b0f] text-white">
@@ -125,7 +137,7 @@ export function AdminPage({
             ) : null}
             <div className="min-w-0 flex-1 pt-0.5">
               <p className="text-[10px] font-bold uppercase tracking-widest text-purple-400/90">
-                {t('admin.badge')}
+                {staffRole === 'dev' ? t('admin.badgeDev', { defaultValue: 'Accès Dev' }) : t('admin.badge')}
               </p>
               <h1 className="text-lg sm:text-xl font-bold leading-tight truncate">{t('admin.title')}</h1>
               <p className="text-[11px] text-gray-500 mt-0.5 leading-snug truncate">
@@ -136,7 +148,7 @@ export function AdminPage({
         </div>
         <div className="max-w-lg lg:max-w-5xl mx-auto w-full min-w-0 mt-2">
           <AdminPrimaryNav
-            tabs={tabs}
+            tabs={visibleTabs}
             activeTab={tab}
             onChange={setTab}
             ariaLabel={t('admin.navLabel')}

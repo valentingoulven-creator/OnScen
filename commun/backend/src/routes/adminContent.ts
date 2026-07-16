@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authenticateJWT } from '../middleware/auth';
+import { requireAdmin } from '../middleware/requireAdmin';
 import { db } from '../models/schema';
-import { isAccessAdmin } from '../lib/accessControl';
 import { schedulePersist } from '../lib/persist';
 import {
   adminBlockEvent,
@@ -26,20 +26,6 @@ export const adminContentRouter = Router();
 
 type ContentFilter = 'all' | 'blocked' | 'active';
 
-function requireAdmin(req: Request, res: Response): boolean {
-  const userId = (req as Request & { user?: { id: string } }).user?.id;
-  if (!userId) {
-    res.status(401).json({ error: 'Authentification requise' });
-    return false;
-  }
-  const user = db.users.get(userId);
-  if (!user || !isAccessAdmin(user)) {
-    res.status(403).json({ error: 'Accès réservé aux administrateurs' });
-    return false;
-  }
-  return true;
-}
-
 function parseContentFilter(raw: unknown): ContentFilter {
   const v = String(raw || 'all');
   if (v === 'blocked' || v === 'active') return v;
@@ -63,7 +49,7 @@ function paginate<T>(items: T[], limit: number, offset: number) {
 }
 
 adminContentRouter.get('/salons', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const filter = parseContentFilter(req.query.filter);
   const q = String(req.query.q || '').trim();
   const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '50'), 10) || 50, 1), 200);
@@ -92,7 +78,7 @@ adminContentRouter.get('/salons', authenticateJWT, (req: Request, res: Response)
 });
 
 adminContentRouter.get('/lives', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const filter = parseContentFilter(req.query.filter);
   const q = String(req.query.q || '').trim();
   const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '50'), 10) || 50, 1), 200);
@@ -123,7 +109,7 @@ adminContentRouter.get('/lives', authenticateJWT, (req: Request, res: Response) 
 });
 
 adminContentRouter.get('/events', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const filter = parseContentFilter(req.query.filter);
   const q = String(req.query.q || '').trim();
   const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '50'), 10) || 50, 1), 200);
@@ -164,7 +150,7 @@ adminContentRouter.get('/events', authenticateJWT, (req: Request, res: Response)
 });
 
 adminContentRouter.post('/salons/:id/block', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const salon = adminBlockSalon(req.params.id);
   if (!salon) {
     res.status(404).json({ error: 'Salon introuvable' });
@@ -175,7 +161,7 @@ adminContentRouter.post('/salons/:id/block', authenticateJWT, (req: Request, res
 });
 
 adminContentRouter.post('/salons/:id/unblock', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const salon = adminUnblockSalon(req.params.id);
   if (!salon) {
     res.status(404).json({ error: 'Salon introuvable' });
@@ -186,7 +172,7 @@ adminContentRouter.post('/salons/:id/unblock', authenticateJWT, (req: Request, r
 });
 
 adminContentRouter.delete('/salons/:id', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   if (!adminDeleteSalon(req.params.id)) {
     res.status(404).json({ error: 'Salon introuvable' });
     return;
@@ -196,7 +182,7 @@ adminContentRouter.delete('/salons/:id', authenticateJWT, (req: Request, res: Re
 });
 
 adminContentRouter.post('/lives/:id/block', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const live = adminBlockLive(req.params.id);
   if (!live) {
     res.status(404).json({ error: 'Live introuvable' });
@@ -207,7 +193,7 @@ adminContentRouter.post('/lives/:id/block', authenticateJWT, (req: Request, res:
 });
 
 adminContentRouter.post('/lives/:id/unblock', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const live = adminUnblockLive(req.params.id);
   if (!live) {
     res.status(404).json({ error: 'Live introuvable' });
@@ -218,7 +204,7 @@ adminContentRouter.post('/lives/:id/unblock', authenticateJWT, (req: Request, re
 });
 
 adminContentRouter.delete('/lives/:id', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   if (!adminDeleteLive(req.params.id)) {
     res.status(404).json({ error: 'Live introuvable' });
     return;
@@ -228,7 +214,7 @@ adminContentRouter.delete('/lives/:id', authenticateJWT, (req: Request, res: Res
 });
 
 adminContentRouter.post('/events/:id/block', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const post = adminBlockEvent(req.params.id);
   if (!post) {
     res.status(404).json({ error: 'Événement introuvable' });
@@ -239,7 +225,7 @@ adminContentRouter.post('/events/:id/block', authenticateJWT, (req: Request, res
 });
 
 adminContentRouter.post('/events/:id/unblock', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const post = adminUnblockEvent(req.params.id);
   if (!post) {
     res.status(404).json({ error: 'Événement introuvable' });
@@ -250,7 +236,7 @@ adminContentRouter.post('/events/:id/unblock', authenticateJWT, (req: Request, r
 });
 
 adminContentRouter.delete('/events/:id', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   if (!adminDeleteEvent(req.params.id)) {
     res.status(404).json({ error: 'Événement introuvable' });
     return;
@@ -260,7 +246,7 @@ adminContentRouter.delete('/events/:id', authenticateJWT, (req: Request, res: Re
 });
 
 adminContentRouter.get('/reels', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const filter = parseContentFilter(req.query.filter);
   const q = String(req.query.q || '').trim();
   const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '50'), 10) || 50, 1), 200);
@@ -299,7 +285,7 @@ adminContentRouter.get('/reels', authenticateJWT, (req: Request, res: Response) 
 });
 
 adminContentRouter.post('/reels/:id/block', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const reel = adminBlockReel(req.params.id);
   if (!reel) {
     res.status(404).json({ error: 'Reel introuvable' });
@@ -310,7 +296,7 @@ adminContentRouter.post('/reels/:id/block', authenticateJWT, (req: Request, res:
 });
 
 adminContentRouter.post('/reels/:id/unblock', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   const reel = adminUnblockReel(req.params.id);
   if (!reel) {
     res.status(404).json({ error: 'Reel introuvable' });
@@ -321,7 +307,7 @@ adminContentRouter.post('/reels/:id/unblock', authenticateJWT, (req: Request, re
 });
 
 adminContentRouter.delete('/reels/:id', authenticateJWT, (req: Request, res: Response) => {
-  if (!requireAdmin(req, res)) return;
+  if (requireAdmin(req, res) == null) return;
   if (!adminDeleteReel(req.params.id)) {
     res.status(404).json({ error: 'Reel introuvable' });
     return;

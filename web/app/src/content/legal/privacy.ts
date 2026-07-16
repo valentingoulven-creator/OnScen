@@ -4,7 +4,7 @@ import { LEGAL_PRIVACY_EMAIL } from './types';
 /** Politique de confidentialité (RGPD) */
 export const politiqueConfidentialite: LegalDocument = {
   title: 'Politique de confidentialité',
-  updated: '21 juin 2026',
+  updated: '15 juillet 2026',
   sections: [
     {
       heading: '1. Responsable du traitement',
@@ -12,7 +12,7 @@ export const politiqueConfidentialite: LegalDocument = {
     },
     {
       heading: '2. Données traitées',
-      body: 'Selon votre utilisation, nous pouvons traiter :\n\n• Données de compte : pseudo, e-mail, mot de passe (stocké de manière hachée), photo(s) de profil, bio, centres d\'intérêt, genres et artistes favoris, rôle (auditeur/host).\n• Données de localisation : coordonnées GPS fournies par votre appareil, position floutée affichée sur la carte, préférences de précision (ville / ~50 m), mode fantôme.\n• Données d\'usage : salons créés ou rejoints, lives, file d\'attente musicale, état de lecture synchronisé.\n• Communications : messages de chat (salon, live), messages privés, commentaires sur reels.\n• Données sociales : abonnements, cœurs/matchs, notifications, blocages, notes aux hosts.\n• Données techniques : jeton de session, identifiants socket, logs techniques, adresse IP lors des connexions au serveur.\n• Connexions plateformes : indicateur de liaison YouTube (jetons OAuth le cas échéant).',
+      body: 'Selon votre utilisation, nous pouvons traiter :\n\n• Données de compte : pseudo, e-mail, mot de passe (stocké de manière hachée), photo(s) de profil, bio, centres d\'intérêt, genres et artistes favoris, rôle (auditeur/host).\n• Données de localisation : coordonnées GPS fournies par votre appareil, position floutée affichée sur la carte, préférences de précision (ville / ~50 m), mode fantôme.\n• Données d\'usage : salons créés ou rejoints, lives, file d\'attente musicale, état de lecture synchronisé.\n• Communications : messages de chat (salon, live), messages privés, commentaires sur reels.\n• Données sociales : abonnements, cœurs/matchs, notifications, blocages, notes aux hosts.\n• Données techniques : jeton de session, identifiants socket, logs techniques, adresse IP lors des connexions au serveur.\n• Connexions plateformes : indicateur de liaison YouTube (jetons OAuth le cas échéant).\n• Médias uploadés : compositions audio, reels, stories, pièces jointes chat — analysés pour modération (Sightengine) et, le cas échéant, détection de correspondances catalogue (ACRCloud).',
     },
     {
       heading: '3. Finalités et bases légales',
@@ -20,7 +20,7 @@ export const politiqueConfidentialite: LegalDocument = {
     },
     {
       heading: '4. Destinataires et sous-traitants',
-      body: 'Les données peuvent être accessibles :\n• aux autres utilisateurs, selon vos paramètres (profil public, carte, messages) ;\n• à l\'éditeur et aux personnes habilitées pour l\'exploitation et la maintenance ;\n• à des prestataires techniques (hébergement) ;\n• à Google/YouTube lorsque vous connectez votre compte ou ouvrez un lien de lecture (politiques propres à ces services).\n\nCartographie : tuiles CARTO / OpenStreetMap (pas de transmission de votre compte Soundy à OSM par défaut, mais requêtes cartographiques depuis votre appareil).\n\nAvatars : service DiceBear (URLs d\'images).',
+      body: 'Les données peuvent être accessibles :\n• aux autres utilisateurs, selon vos paramètres (profil public, carte, messages) ;\n• à l\'éditeur et aux personnes habilitées pour l\'exploitation et la maintenance ;\n• à des prestataires techniques listés ci-dessous ;\n• à Google/YouTube lorsque vous connectez votre compte ou ouvrez un lien de lecture (politiques propres à ces services).\n\nSous-traitants et services intégrés :\n• Scaleway (hébergement, base de données, stockage fichiers) — France/UE\n• Cloudflare (CDN, WAF, DNS, protection DDoS) — transit IP et métadonnées HTTP\n• LiveKit (salons audio temps réel WebRTC) — signalisation et métadonnées de session\n• Cloudflare Stream (retransmission vidéo live HLS) — flux et métadonnées de diffusion\n• Sightengine (modération automatique images/vidéos UGC) — contenus analysés, pas de profilage\n• ACRCloud (empreinte audio catalogue commercial) — fichiers audio/vidéo uploadés, si activé\n• Sentry (monitoring erreurs application) — uniquement avec votre consentement cookies « tout accepter » ; stack traces anonymisées, pas de PII par défaut\n• Stripe (paiements) — données de transaction tokenisées\n• Resend (e-mails transactionnels) — adresse e-mail et contenu des messages système\n\nCartographie : tuiles CARTO / OpenStreetMap (pas de transmission de votre compte Soundy à OSM par défaut, mais requêtes cartographiques depuis votre appareil).\n\nAvatars par défaut : service DiceBear (URLs d\'images).',
     },
     {
       heading: '5. Durées de conservation',
@@ -44,7 +44,7 @@ export const politiqueConfidentialite: LegalDocument = {
     },
     {
       heading: '10. Cookies et stockage local',
-      body: 'Soundy utilise :\n\n• Un cookie httpOnly sécurisé (soundy_auth) pour la session web — inaccessible au JavaScript, protégé contre le vol par XSS.\n• Sur l’application mobile native (Capacitor), le jeton de session est conservé dans le stockage sécurisé de l’appareil (Keychain iOS / Keystore Android), et non dans le stockage WebView.\n• localStorage pour les préférences non sensibles : langue, rayon carte, réglages d’interface.\n• Des services tiers (YouTube lecteur intégré, Stripe paiements sur web) — sur mobile natif, les lecteurs et paiements suivent les règles de la plateforme.\n\nVous pouvez effacer le stockage local via les paramètres du navigateur (web) ou en vous déconnectant / supprimant l’application (mobile).',
+      body: 'Soundy utilise :\n\n• Un cookie httpOnly sécurisé (soundy_auth) pour la session web — inaccessible au JavaScript, protégé contre le vol par XSS.\n• Sur l’application mobile native (Capacitor), le jeton de session est conservé dans le stockage sécurisé de l’appareil (Keychain iOS / Keystore Android), et non dans le stockage WebView.\n• localStorage pour les préférences non sensibles : langue, rayon carte, réglages d’interface, choix de consentement cookies (soundy_cookie_consent_v1).\n• Des services tiers (YouTube lecteur intégré, Stripe paiements sur web) — sur mobile natif, les lecteurs et paiements suivent les règles de la plateforme.\n• Sentry (monitoring erreurs) — chargé uniquement si vous acceptez les cookies non essentiels (« tout accepter »).\n\nVous pouvez effacer le stockage local via les paramètres du navigateur (web) ou en vous déconnectant / supprimant l’application (mobile).',
     },
     {
       heading: '11. Autorisations OAuth YouTube',

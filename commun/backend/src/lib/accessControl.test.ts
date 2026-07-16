@@ -4,6 +4,8 @@ import {
   getPublicAccessConfig,
   isAccessAdmin,
   isAccessControlEnabled,
+  getStaffRole,
+  isDevStaff,
   loadAccessControlFromPersist,
   setAccessPolicy,
   validateInviteCode,
@@ -81,5 +83,27 @@ describe('accessControl', () => {
       isAdmin: false,
     } as User;
     expect(isAccessAdmin(msdevUser)).toBe(true);
+    expect(getStaffRole(msdevUser)).toBe('dev');
+  });
+
+  it('distingue admin opérationnel et dev', () => {
+    const adminUser = {
+      id: 'a1',
+      email: 'ops@test.local',
+      username: 'ops',
+      isAdmin: true,
+      staffRole: 'admin' as const,
+    } as User;
+    const devUser = {
+      id: 'd1',
+      email: 'dev@test.local',
+      username: 'dev',
+      isAdmin: true,
+      staffRole: 'dev' as const,
+    } as User;
+    expect(isAccessAdmin(adminUser)).toBe(true);
+    expect(isAccessAdmin(devUser)).toBe(true);
+    expect(isDevStaff(adminUser)).toBe(false);
+    expect(isDevStaff(devUser)).toBe(true);
   });
 });

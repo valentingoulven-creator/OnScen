@@ -9,12 +9,28 @@ export interface ShareProfileLinkProps {
   userId: string;
   username: string;
   className?: string;
+  /** Contrôle externe du menu partage (sans bouton visible si hideTrigger). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 }
 
-export function ShareProfileLink({ userId, username, className }: ShareProfileLinkProps) {
+export function ShareProfileLink({
+  userId,
+  username,
+  className,
+  open: openProp,
+  onOpenChange,
+  hideTrigger = false,
+}: ShareProfileLinkProps) {
   const { t } = useTranslation();
   const { token } = useAuth();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuOpenInternal, setMenuOpenInternal] = useState(false);
+  const menuOpen = openProp ?? menuOpenInternal;
+  const setMenuOpen = (next: boolean) => {
+    if (openProp === undefined) setMenuOpenInternal(next);
+    onOpenChange?.(next);
+  };
   const [toUserOpen, setToUserOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [toast, setToast] = useState<string | null>(null);
@@ -40,19 +56,21 @@ export function ShareProfileLink({ userId, username, className }: ShareProfileLi
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setMenuOpen(true)}
-        disabled={!shareUrl}
-        className={
-          className ??
-          'px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-purple-300 border border-purple-500/30 hover:bg-purple-900/20 disabled:opacity-45 disabled:cursor-not-allowed'
-        }
-        title={t('share.copyLink')}
-        aria-label={label}
-      >
-        {label}
-      </button>
+      {!hideTrigger && (
+        <button
+          type="button"
+          onClick={() => setMenuOpen(true)}
+          disabled={!shareUrl}
+          className={
+            className ??
+            'px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-purple-300 border border-purple-500/30 hover:bg-purple-900/20 disabled:opacity-45 disabled:cursor-not-allowed'
+          }
+          title={t('share.copyLink')}
+          aria-label={label}
+        >
+          {label}
+        </button>
+      )}
 
       {menuOpen && shareUrl && !toUserOpen && (
         <ShareLinkMenu

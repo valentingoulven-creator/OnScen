@@ -20,6 +20,7 @@ import {
   type UserAlbum,
   type UserComposition,
   type CompositionUpvote,
+  type CompositionPlay,
   type UserReel,
 } from '../models/schema';
 import { ensureDefaultSponsorPlatformConfig } from './sponsorPlatformConfig';
@@ -80,6 +81,7 @@ export interface PersistedStore {
   /** Morceaux Discographie (dev / store.json ; prod utilise aussi user_compositions PostgreSQL). */
   compositions?: UserComposition[];
   compositionUpvotes?: CompositionUpvote[];
+  compositionPlays?: CompositionPlay[];
   /** Reels utilisateur (dev / store.json ; prod utilise aussi user_reels PostgreSQL). */
   userReels?: UserReel[];
 }
@@ -163,6 +165,7 @@ export function snapshotStore(): PersistedStore {
     albums: [...db.albums],
     compositions: [...db.compositions],
     compositionUpvotes: [...db.compositionUpvotes],
+    compositionPlays: [...db.compositionPlays],
     userReels: [...db.userReels],
   };
 }
@@ -290,6 +293,9 @@ export function restoreStore(data: PersistedStore): void {
 
   db.compositionUpvotes.length = 0;
   db.compositionUpvotes.push(...(data.compositionUpvotes ?? []));
+
+  db.compositionPlays.length = 0;
+  db.compositionPlays.push(...(data.compositionPlays ?? []));
 
   db.userReels.length = 0;
   db.userReels.push(...(data.userReels ?? []));

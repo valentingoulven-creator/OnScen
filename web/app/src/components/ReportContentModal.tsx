@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 
@@ -148,20 +149,34 @@ export function ReportContentModal({ context, onClose, onUserBlocked }: ReportCo
 export function ReportContentButton({
   context,
   className = '',
+  open: openProp,
+  onOpenChange,
+  hideTrigger = false,
 }: {
   context: ReportContentContext;
   className?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const { t } = useTranslation();
+  const [openInternal, setOpenInternal] = useState(false);
+  const open = openProp ?? openInternal;
+  const setOpen = (next: boolean) => {
+    if (openProp === undefined) setOpenInternal(next);
+    onOpenChange?.(next);
+  };
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={`text-xs text-red-400/90 hover:text-red-300 font-semibold ${className}`}
-      >
-        Signaler
-      </button>
+      {!hideTrigger && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className={`text-xs text-red-400/90 hover:text-red-300 font-semibold ${className}`}
+        >
+          {t('profile.report')}
+        </button>
+      )}
       {open && <ReportContentModal context={context} onClose={() => setOpen(false)} />}
     </>
   );

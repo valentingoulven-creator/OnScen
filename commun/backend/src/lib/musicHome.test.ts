@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { db, type User, type UserAlbum, type UserComposition, type UserReel } from '../models/schema';
 import { buildMusicHome } from './musicHome';
+import { recordCompositionPlay } from './compositionPlays';
 import { getWeekStart, getWeeklyCompositionUpvoteCounts, recordReelWeeklyVote } from './weeklyVotes';
 
 function seedUser(id: string, username: string): User {
@@ -26,6 +27,7 @@ describe('musicHome weeklyTrend', () => {
     db.albums.length = 0;
     db.compositions.length = 0;
     db.compositionUpvotes.length = 0;
+    db.compositionPlays.length = 0;
     db.weeklyVotes.length = 0;
     db.users.set('artist', seedUser('artist', 'artist_one'));
     db.users.set('fan', seedUser('fan', 'fan_one'));
@@ -113,5 +115,32 @@ describe('musicHome weeklyTrend', () => {
     expect(home.weeklyTrend.reels).toHaveLength(1);
     expect(home.weeklyTrend.reels[0]?.id).toBe('reel_hot');
     expect(home.weeklyTrend.reels[0]?.weeklyUpvoteCount).toBe(2);
+  });
+
+  it('ranks popular tracks by weekly play count', () => {
+    db.compositions.push(
+      {
+        id: 'comp_listen_a',
+        userId: 'artist',
+        title: 'Track A',
+        fileUrl: '/a.mp3',
+        createdAt: now,
+      },
+      {
+        id: 'comp_listen_b',
+        userId: 'artist',
+        title: 'Track B',
+        fileUrl: '/b.mp3',
+        createdAt: now,
+      },
+    );
+    recordCompositionPlay('comp_listen_a', 'fan');
+    recordCompositionPlay('comp_listen_a', 'artist');
+    recordCompositionPlay('comp_listen_b', 'fan');
+
+    const home = buildMusicHome('fan');
+    expect(home.popular.tracks.map((t) => t.id)).toEqual(['comp_listen_a', 'comp_listen_b']);
+    expect(home.popular.tracks[0]?.weeklyPlayCount).toBe(2);
+    expect(home.popular.tracks[1]?.weeklyPlayCount).toBe(1);
   });
 });

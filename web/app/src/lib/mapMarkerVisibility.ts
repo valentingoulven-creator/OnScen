@@ -353,8 +353,10 @@ export function getMapMarkerVisibility(opts: MapMarkerVisibilityOptions): MapMar
       return {
         capitals,
         eventClusters,
-        /** Live salons visibles dès la vue globe (filtrés isLive dans filterSalonsForZoom). */
-        salons: salonFilterOn || true,
+        /** Salons toujours visibles en overview (le filtre Salon ne s'applique
+         *  qu'à partir de city/street) — `salonFilterOn` n'a pas d'effet ici,
+         *  le plancher live est géré séparément dans filterSalonsForZoom. */
+        salons: true,
         /** Sonars live toujours visibles sur la première page globe. */
         lives: true,
         people: livesFilterOn === true,

@@ -50,7 +50,7 @@ Soundy dispose aujourd’hui d’un **réseau publicitaire natif intégré** à 
 
 | Emplacement | Description | Phase |
 |-------------|-------------|-------|
-| **Salon sponsorisé** | Mise en avant d’un salon Spotify/YouTube (ancrage carte) | M4–M6 |
+| **Salon sponsorisé** | Mise en avant d’un salon YouTube (ancrage carte) | M4–M6 |
 | **Live overlay sponsor** | Bandeau discret pendant un direct (logo + CTA) | M6–M9 |
 | **Événement carte premium** | Pin / fiche événement sponsorisée (30 km) | M4–M6 |
 | **Takeover ville** | Dominance temporaire sur tous les emplacements d’une zone | M9+ |

@@ -18,6 +18,13 @@
 
 Usage : bugs, features, refactors, tests. **Rapport obligatoire** en fin de session (fichier + résumé chat).
 
+## Agent CTO (architecture & audits)
+
+- Règle : `@soundy-cto` (`.cursor/rules/soundy-cto.mdc`)
+- Prompt complet : [`commun/docs/SOUNDY-CTO-PROMPT.md`](./commun/docs/SOUNDY-CTO-PROMPT.md)
+
+Usage : audits, choix d'architecture, revue sécurité/légal/UX/infra, arbitrage technique **avant** implémentation. Analyse et recommande — n'implémente pas (→ `@soundy-dev-agent`).
+
 ## Projet Soundy CEO IA
 
 Workspace dédié : [`Soundy-CEO-IA.code-workspace`](./Soundy-CEO-IA.code-workspace)  
